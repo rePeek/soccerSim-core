@@ -70,6 +70,10 @@ class PlayerBase {
       DO_VALIDATION;
       return kinematicState;
     }
+    const PlayerKinematicState &GetKinematicShadow() const {
+      DO_VALIDATION;
+      return kinematicShadow;
+    }
 
     void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }
 
@@ -121,6 +125,8 @@ class PlayerBase {
 
   protected:
     void SynchronizeKinematicState();
+    void UpdateKinematicShadow();
+    void ResetKinematicShadow();
     Match *match;
 
     const PlayerData* const playerData;
@@ -128,6 +134,7 @@ class PlayerBase {
 
     std::unique_ptr<HumanoidBase> humanoid;
     PlayerKinematicState kinematicState;
+    PlayerKinematicState kinematicShadow;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

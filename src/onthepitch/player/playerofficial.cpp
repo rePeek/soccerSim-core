@@ -56,6 +56,7 @@ void PlayerOfficial::Activate(boost::intrusive_ptr<Node> humanoidSourceNode,
 
   CastHumanoid()->ResetPosition(Vector3(0), Vector3(0));
   SynchronizeKinematicState();
+  ResetKinematicShadow();
 
   controller.reset(new RefereeController(match));
   controller->SetPlayer(this);
@@ -71,6 +72,7 @@ void PlayerOfficial::Process() {
   CastController()->Process();
   CastHumanoid()->Process();
   SynchronizeKinematicState();
+  UpdateKinematicShadow();
 }
 
 void PlayerOfficial::FetchPutBuffers() {

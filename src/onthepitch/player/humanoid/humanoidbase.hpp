@@ -275,6 +275,10 @@ class HumanoidBase {
     virtual float GetDecayingDifficultyFactor() const { return decayingDifficultyFactor; }
 
     const Anim *GetCurrentAnim() { DO_VALIDATION; return &currentAnim; }
+    const PlayerCommand &GetOriginatingCommand() const {
+      DO_VALIDATION;
+      return currentAnim.originatingCommand;
+    }
 
     const NodeMap &GetNodeMap() { DO_VALIDATION; return nodeMap; }
 
