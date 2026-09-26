@@ -25,14 +25,12 @@
 #include "../game_env.hpp"
 #include "../main.hpp"
 #include "../scene/objectfactory.hpp"
-#include "../utils/splitgeometry.hpp"
 #include "AIsupport/AIfunctions.hpp"
 #include "file.h"
 #include "player/playerofficial.hpp"
 #include "player/player_action_volume.hpp"
 #include "player/player_body_collider.hpp"
 #include "ball_presentation.hpp"
-#include "proceduralpitch.hpp"
 
 constexpr unsigned int replaySize_ms = 10000;
 
@@ -147,53 +145,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
 
 
-  // stadium
-  Node* tmpStadiumNode;
-  if (GetGameConfig().render) {
-    GetTracker()->setDisabled(true);
-    if (!GetContext().stadiumRender) {
-      GetContext().stadiumRender = loader.LoadObject("media/objects/stadiums/test/test.object");
-    }
-    tmpStadiumNode = GetContext().stadiumRender.get();
-    RandomizeAdboards(tmpStadiumNode);
-    GetTracker()->setDisabled(false);
-  } else {
-    if (!GetContext().stadiumNoRender) {
-      GetContext().stadiumNoRender = loader.LoadObject("media/objects/stadiums/test/pitchonly.object");
-    }
-    tmpStadiumNode = GetContext().stadiumNoRender.get();
-  }
-  std::list < boost::intrusive_ptr<Geometry> > stadiumGeoms;
-
-  // split stadium geometry into multiple geometry objects, for more efficient culling
-  tmpStadiumNode->GetObjects<Geometry>(e_ObjectType_Geometry, stadiumGeoms);
-  assert(stadiumGeoms.size() != 0);
-
-  stadiumNode = boost::intrusive_ptr<Node>(new Node("stadium"));
-
-  std::list < boost::intrusive_ptr<Geometry> >::iterator iter = stadiumGeoms.begin();
-  while (iter != stadiumGeoms.end()) {
-    DO_VALIDATION;
-    boost::intrusive_ptr<Node> tmpNode = SplitGeometry(GetScene3D(), *iter, 24);
-    tmpNode->SetLocalMode(e_LocalMode_Absolute);
-    stadiumNode->AddNode(tmpNode);
-
-    iter++;
-  }
-
-  stadiumNode->SetLocalMode(e_LocalMode_Absolute);
-  GetScene3D()->AddNode(stadiumNode);
-
-
-
-  // pitch
-  if (GetGameConfig().render) {
-    GeneratePitch(2048, 1024, 1024, 512, 2048, 1024);
-  }
-
-
-  // human gamers
-  UpdateControllerSetup();
 
 
   // 12th man sound
@@ -257,63 +208,8 @@ void Match::Exit() {
 
 
   scene3D->DeleteNode(GetDynamicNode());
-  scene3D->DeleteNode(stadiumNode);
 }
 
-void Match::RandomizeAdboards(boost::intrusive_ptr<Node> stadiumNode) {
-  DO_VALIDATION;
-  // collect texture files
-
-  std::vector<std::string> files;
-  GetFiles("media/textures/adboards", "bmp", files);
-  sort(files.begin(), files.end());
-
-  std::vector < boost::intrusive_ptr < Resource<Surface> > > adboardSurfaces;
-  for (unsigned int i = 0; i < files.size(); i++) {
-    DO_VALIDATION;
-    adboardSurfaces.push_back(GetContext().surface_manager.Fetch(files[i]));
-  }
-  if (adboardSurfaces.empty()) return;
-
-
-  // collect adboard geoms
-
-  std::list < boost::intrusive_ptr<Geometry> > stadiumGeoms;
-  stadiumNode->GetObjects<Geometry>(e_ObjectType_Geometry, stadiumGeoms, true);
-  // replace
-
-  std::list < boost::intrusive_ptr<Geometry> >::const_iterator stadiumGeomsIter = stadiumGeoms.begin();
-  while (stadiumGeomsIter != stadiumGeoms.end()) {
-    DO_VALIDATION;
-
-    boost::intrusive_ptr<Geometry> geomObject = *stadiumGeomsIter;
-    assert(geomObject != boost::intrusive_ptr<Object>());
-    boost::intrusive_ptr< Resource<GeometryData> > adboardGeom = geomObject->GetGeometryData();
-
-    std::vector < MaterializedTriangleMesh > &tmesh = adboardGeom->GetResource()->GetTriangleMeshesRef();
-
-    for (unsigned int i = 0; i < tmesh.size(); i++) {
-      DO_VALIDATION;
-      if (tmesh[i].material.diffuseTexture !=
-          boost::intrusive_ptr<Resource<Surface> >()) {
-        DO_VALIDATION;
-        std::string identString = tmesh[i].material.diffuseTexture->GetIdentString();
-        //printf("%s\n", identString.c_str());
-        if (identString.find("ad_placeholder") == 0) {
-          DO_VALIDATION;
-          tmesh[i].material.diffuseTexture = adboardSurfaces.at(
-              int(std::floor(random_non_determ(0, adboardSurfaces.size() - 1.001f))));
-          tmesh[i].material.specular_amount = 0.2f;
-          tmesh[i].material.shininess = 0.1f;
-        }
-      }
-    }
-
-    geomObject->OnUpdateGeometryData();
-
-    stadiumGeomsIter++;
-  }
-}
 
 void Match::UpdateControllerSetup() {
   DO_VALIDATION;

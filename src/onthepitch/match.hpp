@@ -56,7 +56,6 @@ class Match {
     void Exit();
     void Mirror(bool team_0, bool team_1, bool ball);
 
-    void RandomizeAdboards(boost::intrusive_ptr<Node> stadiumNode);
     void UpdateControllerSetup();
     void SpamMessage(const std::string &msg, int time_ms = 3000);
     int GetScore(int teamID) { DO_VALIDATION; return matchData->GetGoalCount(teamID); }
@@ -171,7 +170,6 @@ class Match {
     boost::intrusive_ptr<Node> dynamicNode;
 
 
-    boost::intrusive_ptr<Node> stadiumNode;
 
     const std::vector<AIControlledKeyboard*> &controllers;
     std::vector<ControllerSetup> controllerSetup;

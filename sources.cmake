@@ -179,7 +179,6 @@ set(UTILS_HEADERS
    src/utils/animation.hpp
    src/utils/objectloader.hpp
    src/utils/xmlloader.hpp
-   src/utils/splitgeometry.hpp
    src/utils/orbitcamera.hpp
 )
 
@@ -191,7 +190,6 @@ set(UTILS_EXT_HEADERS
 set(UTILS_SOURCES
    src/utils/orbitcamera.cpp
    src/utils/animation.cpp
-   src/utils/splitgeometry.cpp
    src/utils/objectloader.cpp
    src/utils/xmlloader.cpp
    src/utils/animationextensions/footballanimationextension.cpp
@@ -266,7 +264,6 @@ set(GAME_HEADERS
    src/onthepitch/AIsupport/AIfunctions.hpp
    src/onthepitch/AIsupport/mentalimage.hpp
    src/onthepitch/teamAIcontroller.hpp
-   src/onthepitch/proceduralpitch.hpp
 )
 
 set(GAME_SOURCES
@@ -295,7 +292,6 @@ set(GAME_SOURCES
    src/onthepitch/referee.cpp
    src/onthepitch/AIsupport/mentalimage.cpp
    src/onthepitch/AIsupport/AIfunctions.cpp
-   src/onthepitch/proceduralpitch.cpp
    src/onthepitch/team.cpp
    src/onthepitch/teamAIcontroller.cpp
 )
