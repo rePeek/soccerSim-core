@@ -983,7 +983,7 @@ bool Match::Process() {
                     referee_pos + Vector3(0, 0, 0.8f), 1.5f);
        cameraNearCap = 1;
        cameraFarCap = 220;
-       if (officials->GetReferee()->GetCurrentFunctionType() == e_FunctionType_Special) referee->AlterSetPiecePrepareTime(GetActualTime_ms() + 1000);
+       if (officials->GetReferee()->GetActionState().type == e_FunctionType_Special) referee->AlterSetPiecePrepareTime(GetActualTime_ms() + 1000);
      } else {  // back to normal
        SetAutoUpdateIngameCamera(true);
      }
@@ -1225,12 +1225,14 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
       // velocity, faster is worse
       float p1velocity = p1->GetFloatVelocity();
       float p2velocity = p2->GetFloatVelocity();
+      const PlayerActionState &p1Action = p1->GetActionState();
+      const PlayerActionState &p2Action = p2->GetActionState();
       bounceBias -= clamp(((p1velocity - p2velocity) / sprintVelocity) * 0.2f, -0.2f, 0.2f);
 
-      if (p1->TouchPending() && p1->GetCurrentFunctionType() == e_FunctionType_Interfere) bounceBias += 0.1f + 0.4f * p1->GetStat(technical_standingtackle);
-      if (p1->TouchPending() && p1->GetCurrentFunctionType() == e_FunctionType_Sliding)   bounceBias += 0.1f + 0.4f * p1->GetStat(technical_slidingtackle);
-      if (p2->TouchPending() && p2->GetCurrentFunctionType() == e_FunctionType_Interfere) bounceBias -= 0.1f + 0.4f * p2->GetStat(technical_standingtackle);
-      if (p2->TouchPending() && p2->GetCurrentFunctionType() == e_FunctionType_Sliding)   bounceBias -= 0.1f + 0.4f * p2->GetStat(technical_slidingtackle);
+      if (p1->TouchPending() && p1Action.type == e_FunctionType_Interfere) bounceBias += 0.1f + 0.4f * p1->GetStat(technical_standingtackle);
+      if (p1->TouchPending() && p1Action.type == e_FunctionType_Sliding)   bounceBias += 0.1f + 0.4f * p1->GetStat(technical_slidingtackle);
+      if (p2->TouchPending() && p2Action.type == e_FunctionType_Interfere) bounceBias -= 0.1f + 0.4f * p2->GetStat(technical_standingtackle);
+      if (p2->TouchPending() && p2Action.type == e_FunctionType_Sliding)   bounceBias -= 0.1f + 0.4f * p2->GetStat(technical_slidingtackle);
 
       // problem is, once possession is lost (usually directly after ball is touched), bias may turn around the other way. (well, maybe that's not a problem. dunno.)
       // if (p1->HasPossession() == true) bounceBias -= 0.3f;
@@ -1443,9 +1445,11 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 
   // check for tackling collisions
 
+  const PlayerActionState &p1Action = p1->GetActionState();
+  const PlayerActionState &p2Action = p2->GetActionState();
   int tackle = 0;
-  if ((p1->GetCurrentFunctionType() == e_FunctionType_Sliding || p1->GetCurrentFunctionType() == e_FunctionType_Interfere) && p1->GetFrameNum() > 5 && p1->GetFrameNum() < 28) tackle += 1;
-  if ((p2->GetCurrentFunctionType() == e_FunctionType_Sliding || p2->GetCurrentFunctionType() == e_FunctionType_Interfere) && p2->GetFrameNum() > 5 && p2->GetFrameNum() < 28) tackle += 2;
+  if ((p1Action.type == e_FunctionType_Sliding || p1Action.type == e_FunctionType_Interfere) && p1Action.frame > 5 && p1Action.frame < 28) tackle += 1;
+  if ((p2Action.type == e_FunctionType_Sliding || p2Action.type == e_FunctionType_Interfere) && p2Action.frame > 5 && p2Action.frame < 28) tackle += 2;
   if (distance < 2.0f && tackle > 0 && tackle < 3) {
     DO_VALIDATION;  // if tackle is 3, ignore both
     const std::vector<BodyCollider> &tacklerColliders =
@@ -1478,13 +1482,12 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
             DO_VALIDATION;
             if (tackle == 1) {
               DO_VALIDATION;
-              if (p1->GetFrameNum() > 10 &&
-                  p1->GetFrameNum() < p1->GetFrameCount() - 6) {
+              if (p1Action.frame > 10 &&
+                  p1Action.frame < p1Action.frameCount - 6) {
                 DO_VALIDATION;
                 Vector3 tripVec = p2->GetDirectionVec();
                 int tripType = 3;  // sliding
-                if (p1->GetCurrentFunctionType() ==
-                    e_FunctionType_Interfere)
+                if (p1Action.type == e_FunctionType_Interfere)
                   tripType = 1;  // was 2
                 p2->TripMe(tripVec, tripType);
                 referee->TripNotice(p2, p1, tripType);
@@ -1492,13 +1495,12 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
             }
             if (tackle == 2) {
               DO_VALIDATION;
-              if (p2->GetFrameNum() > 10 &&
-                  p2->GetFrameNum() < p2->GetFrameCount() - 6) {
+              if (p2Action.frame > 10 &&
+                  p2Action.frame < p2Action.frameCount - 6) {
                 DO_VALIDATION;
                 Vector3 tripVec = p1->GetDirectionVec();
                 int tripType = 3;  // sliding
-                if (p2->GetCurrentFunctionType() ==
-                    e_FunctionType_Interfere)
+                if (p2Action.type == e_FunctionType_Interfere)
                   tripType = 1;  // was 2
                 p1->TripMe(tripVec, tripType);
                 referee->TripNotice(p1, p2, tripType);
@@ -1531,6 +1533,7 @@ void Match::CheckBallCollisions() {
   //printf("lasttouchbias: %f, isnul?: %s\n", GetLastTouchBias(200), GetLastTouchBias(200) == 0.0f ? "true" : "false");
   for (int i = 0; i < (signed int)players.size(); i++) {
     DO_VALIDATION;
+    const PlayerActionState &action = players[i]->GetActionState();
 
     bool biggestRatio = false;
     int teamID = players[i]->GetTeam()->GetID();
@@ -1549,14 +1552,14 @@ void Match::CheckBallCollisions() {
                       // collisions' in humanoid class)
 
       bool collisionAnim = false;
-      if (players[i]->GetCurrentFunctionType() == e_FunctionType_Movement || players[i]->GetCurrentFunctionType() == e_FunctionType_Trip || players[i]->GetCurrentFunctionType() == e_FunctionType_Sliding || players[i]->GetCurrentFunctionType() == e_FunctionType_Interfere || players[i]->GetCurrentFunctionType() == e_FunctionType_Deflect) collisionAnim = true;
+      if (action.type == e_FunctionType_Movement || action.type == e_FunctionType_Trip || action.type == e_FunctionType_Sliding || action.type == e_FunctionType_Interfere || action.type == e_FunctionType_Deflect) collisionAnim = true;
       bool onlyWhenDirectionChangedUnexpectedly = false;
-      if (players[i]->GetCurrentFunctionType() == e_FunctionType_Interfere || players[i]->GetCurrentFunctionType() == e_FunctionType_Deflect) onlyWhenDirectionChangedUnexpectedly = true;
+      if (action.type == e_FunctionType_Interfere || action.type == e_FunctionType_Deflect) onlyWhenDirectionChangedUnexpectedly = true;
 
       bool directionChangedUnexpectedly = false;
       if (onlyWhenDirectionChangedUnexpectedly) {
         DO_VALIDATION;
-        float unexpectedDistance = (GetMentalImage(players[i]->GetController()->GetReactionTime_ms() + players[i]->GetFrameNum() * 10)->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // mental image from when the anim began
+        float unexpectedDistance = (GetMentalImage(players[i]->GetController()->GetReactionTime_ms() + action.elapsedTime_ms)->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // mental image from when the action began
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
 
@@ -1570,12 +1573,12 @@ void Match::CheckBallCollisions() {
         if (!players[i]->HasPossession()) boundingBoxSizeOffset += 0.03f; else
                                           boundingBoxSizeOffset -= 0.03f;
 
-        if (players[i]->GetCurrentFunctionType() == e_FunctionType_Sliding ||
-            players[i]->GetCurrentFunctionType() == e_FunctionType_Interfere) {
+        if (action.type == e_FunctionType_Sliding ||
+            action.type == e_FunctionType_Interfere) {
           DO_VALIDATION;
           boundingBoxSizeOffset += 0.1f;
         }
-        if (players[i]->GetCurrentFunctionType() == e_FunctionType_Deflect) {
+        if (action.type == e_FunctionType_Deflect) {
           DO_VALIDATION;
           boundingBoxSizeOffset += 0.2f;
         }

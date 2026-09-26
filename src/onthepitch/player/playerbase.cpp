@@ -56,6 +56,14 @@ void PlayerBase::SynchronizeKinematicState() {
   kinematicState.speed = kinematicState.velocity.GetLength();
 }
 
+void PlayerBase::SynchronizeActionState() {
+  DO_VALIDATION;
+  actionState.type = humanoid->GetCurrentFunctionType();
+  actionState.frame = humanoid->GetFrameNum();
+  actionState.frameCount = humanoid->GetFrameCount();
+  actionState.elapsedTime_ms = actionState.frame * 10;
+}
+
 void PlayerBase::ResetKinematicShadow() {
   DO_VALIDATION;
   kinematicShadow = kinematicState;
@@ -94,6 +102,7 @@ void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   DO_VALIDATION;
   humanoid->ResetPosition(newPos, focusPos);
   SynchronizeKinematicState();
+  SynchronizeActionState();
   ResetKinematicShadow();
 }
 
@@ -101,6 +110,7 @@ void PlayerBase::OffsetPosition(const Vector3 &offset) {
   DO_VALIDATION;
   humanoid->OffsetPosition(offset);
   SynchronizeKinematicState();
+  SynchronizeActionState();
   ResetKinematicShadow();
 }
 
@@ -160,6 +170,7 @@ void PlayerBase::Process() {
     if (ExternalControllerActive()) externalController->GetHumanController()->Process(); else controller->Process();
     humanoid->Process();
     SynchronizeKinematicState();
+    SynchronizeActionState();
     UpdateKinematicShadow();
   } else {
     if (humanoid) humanoid->Hide();
@@ -211,6 +222,7 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   if (IsActive()) {
     humanoid->ResetSituation(focusPos);
     SynchronizeKinematicState();
+    SynchronizeActionState();
     ResetKinematicShadow();
   }
   if (GetController()) GetController()->Reset();
@@ -222,6 +234,7 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   humanoid->ProcessState(state);
   kinematicState.ProcessState(state);
   kinematicShadow.ProcessState(state);
+  actionState.ProcessState(state);
   if (IsActive()) {
     controller->ProcessState(state);
   }

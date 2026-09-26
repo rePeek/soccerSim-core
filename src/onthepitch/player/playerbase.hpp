@@ -20,6 +20,7 @@
 
 #include "humanoid/humanoidbase.hpp"
 #include "player_kinematics.hpp"
+#include "player_action.hpp"
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
@@ -74,6 +75,10 @@ class PlayerBase {
       DO_VALIDATION;
       return kinematicShadow;
     }
+    const PlayerActionState &GetActionState() const {
+      DO_VALIDATION;
+      return actionState;
+    }
 
     void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }
 
@@ -127,6 +132,7 @@ class PlayerBase {
     void SynchronizeKinematicState();
     void UpdateKinematicShadow();
     void ResetKinematicShadow();
+    void SynchronizeActionState();
     Match *match;
 
     const PlayerData* const playerData;
@@ -135,6 +141,7 @@ class PlayerBase {
     std::unique_ptr<HumanoidBase> humanoid;
     PlayerKinematicState kinematicState;
     PlayerKinematicState kinematicShadow;
+    PlayerActionState actionState;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 
