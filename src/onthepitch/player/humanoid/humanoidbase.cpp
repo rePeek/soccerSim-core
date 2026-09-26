@@ -21,6 +21,8 @@
 #include "humanoid_utils.hpp"
 
 #include "../playerbase.hpp"
+#include "../legacy_locomotion_command.hpp"
+#include "../player_locomotion.hpp"
 #include "../../match.hpp"
 
 #include "../../../main.hpp"
@@ -127,11 +129,12 @@ void HumanoidBase::Process() {
 
   assert(match);
 
+  // See Humanoid::Process: the tick-start movement state is authoritative.
+  const PlayerKinematicState tickStartState = player->GetKinematicState();
+
   CalculateSpatialState();
   spatialState.positionOffsetMovement = Vector3(0);
-  // H3e1c-prep: see Humanoid::Process. Feeding the current legacy result back
-  // through the reverse projection must be behaviour-neutral.
-  ApplySimulationMovementState(player->GetKinematicState());
+  ProjectMovementState(tickStartState);
 
   currentAnim.frameNum++;
   player->StepSimulationAction(10);
@@ -899,6 +902,36 @@ void HumanoidBase::ApplySimulationMovementState(
   // as they did when the legacy root motion owned the position.
   previousPosition2D = spatialState.position;
   if (player) player->SynchronizeKinematicState();
+}
+
+void HumanoidBase::ProjectMovementState(
+    const PlayerKinematicState &tickStartState) {
+  DO_VALIDATION;
+  if (!player) return;
+  const PlayerCommand &command = currentAnim.originatingCommand;
+  if (!player->IsEligibleForProceduralLocomotion() ||
+      !command.useDesiredMovement) {
+    // Non-locomotion ticks keep the legacy animation root motion. Projecting
+    // it keeps the Humanoid movement fields a single projection of the
+    // simulation kinematic state.
+    ApplySimulationMovementState(player->GetKinematicState());
+    return;
+  }
+
+  // Pure locomotion: the simulation produces the movement and the legacy
+  // Humanoid movement fields follow it. The command and the starting state are
+  // the tick-start ones, so an action selection later in this tick cannot
+  // change what this tick's locomotion was. Writing spatialState.position here
+  // means any later action already starts from the authoritative position
+  // instead of an animation one.
+  const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
+      command, tickStartState, player->GetMaxVelocity(),
+      spatialState.bodyDirectionVec);
+  PlayerLocomotionParameters parameters;
+  parameters.maxSpeed = player->GetMaxVelocity();
+  PlayerKinematicState next = tickStartState;
+  PlayerLocomotion::Step(next, input, parameters, 0.01f);
+  ApplySimulationMovementState(next);
 }
 
 void HumanoidBase::AddTripCommandToQueue(PlayerCommandQueue &commandQueue,

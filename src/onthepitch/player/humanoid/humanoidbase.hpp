@@ -222,6 +222,13 @@ class HumanoidBase {
     // animMovement, the smuggle movements, the body angles and the foot) is
     // deliberately left alone until H3e3/H3e4 take it over.
     void ApplySimulationMovementState(const PlayerKinematicState &state);
+    // Produce this tick's movement. Pure locomotion is solved by the
+    // simulation and the legacy Humanoid fields follow it; every other tick
+    // keeps the legacy animation root motion and is merely projected. The
+    // tick-start state is passed in so the procedural model integrates from
+    // the world state in force, and so an action selection later in the same
+    // tick cannot change what this tick's locomotion was.
+    void ProjectMovementState(const PlayerKinematicState &tickStartState);
 
     void AddTripCommandToQueue(PlayerCommandQueue &commandQueue, const Vector3 &tripVector, int tripType);
     PlayerCommand GetTripCommand(const Vector3 &tripVector, int tripType);

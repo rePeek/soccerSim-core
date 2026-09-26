@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "player.hpp"
+#include "player_locomotion.hpp"
 
 #include <cmath>
 
@@ -27,6 +28,18 @@
 
 
 #include "../../base/geometry/triangle.hpp"
+
+namespace {
+
+// H3e1c-3c planner cadence for pure locomotion. Execution runs the locomotion
+// model every 10 ms; the intercept solver runs every 100 ms per actor,
+// staggered by stable id so the cost is spread across ticks. This is a
+// sampling policy, not a second physics model: between refreshes the estimate
+// is merely stale. Lowering it later trades CPU for freshness without touching
+// locomotion semantics.
+constexpr int kProceduralPlannerRefreshTicks = 10;
+
+}  // namespace
 
 Player::Player(Team *team, PlayerData *playerData)
     : PlayerBase(team->GetMatch(), playerData), team(team) {
@@ -155,7 +168,8 @@ void Player::UpdatePossessionStats() {
   DO_VALIDATION;
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
 
-  // default
+  // Default estimate, still needed when this tick does not refresh the
+  // procedural intercept.
   timeNeededToGetToBall_ms = std::max(
       ballPredictionSize_ms,
       (unsigned int)(std::round(
@@ -164,70 +178,105 @@ void Player::UpdatePossessionStats() {
               .GetLength() /
           (GetMaxVelocity() * 0.75f) * 1000)));
   timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
-
-  unsigned int startTime_ms = 0;
   const e_FunctionType action_type = GetCurrentFunctionType();
-  if ((action_type == e_FunctionType_ShortPass ||
-       action_type == e_FunctionType_LongPass ||
-       action_type == e_FunctionType_HighPass ||
-       action_type == e_FunctionType_Shot) &&
-      !TouchPending()) {
-    DO_VALIDATION;
-    startTime_ms = 500;
-  }
 
-  bool refine = false;
-  unsigned int timeStep_ms = 10;
-  unsigned int previous_ms = 0;
-  bool precise = (team->GetDesignatedTeamPossessionPlayer() == this) ? true : false;
-  float previousDist = 0; // debug
-  for (unsigned int ms = startTime_ms; ms < ballPredictionSize_ms;
-       ms += timeStep_ms) {
-    DO_VALIDATION;
-    if (match->GetBall()->Predict(ms).coords[2] < 1.5f) {
+  if (IsEligibleForProceduralLocomotion()) {
+    // H3e1c-3c: pure locomotion planning uses the same physics as execution.
+    // The solver is deterministic but not free, so it runs on a staggered
+    // 100 ms cadence. The refresh phase is a pure function of the simulation
+    // clock and the stable id, so no scheduler state has to be serialized and
+    // a load resumes on exactly the same schedule. Between refreshes the
+    // cached estimate is stale, not differently modelled.
+    const int planner_tick = static_cast<int>(match->GetActualTime_ms() / 10);
+    if ((planner_tick + GetStableID()) % kProceduralPlannerRefreshTicks ==
+        0) {
+      PlayerLocomotionParameters locomotion_parameters;
+      locomotion_parameters.maxSpeed = GetMaxVelocity();
+      const PlayerLocomotionReach reach =
+          PlayerLocomotion::EstimateEarliestIntercept(
+              GetKinematicState(),
+              [this](int ms) { return match->GetBall()->Predict(ms); },
+              locomotion_parameters, GetMaxVelocity(),
+              static_cast<int>(ballPredictionSize_ms),
+              kLocomotionUsualReachRadius,
+              kLocomotionOptimisticReachRadius);
+      timeNeededToGetToBall_ms =
+          reach.usual_ms >= 0 ? static_cast<unsigned int>(reach.usual_ms)
+                              : ballPredictionSize_ms;
+      timeNeededToGetToBall_optimistic_ms =
+          reach.optimistic_ms >= 0
+              ? static_cast<unsigned int>(reach.optimistic_ms)
+              : ballPredictionSize_ms;
+    }
+  } else {
+    // Non-locomotion actions keep the legacy heuristic: their movement is still
+    // animation root motion, so their planner and executor still agree.
+    unsigned int startTime_ms = 0;
+    if ((action_type == e_FunctionType_ShortPass ||
+         action_type == e_FunctionType_LongPass ||
+         action_type == e_FunctionType_HighPass ||
+         action_type == e_FunctionType_Shot) &&
+        !TouchPending()) {
       DO_VALIDATION;
-      TimeNeeded result = AI_GetTimeNeededForDistance_ms(GetPosition(), GetMovement(), match->GetBall()->Predict(ms).Get2D(), GetMaxVelocity(), precise, ms);
-      unsigned int timeNeeded = result.usual_ms;
-      unsigned int timeNeeded_optimistic = result.optimistic_ms;
-
-      if (timeNeeded_optimistic <= ms) {
-        DO_VALIDATION;
-        if (ms < timeNeededToGetToBall_optimistic_ms) timeNeededToGetToBall_optimistic_ms = ms;
-      }
-
-      if (timeNeeded <= ms) {
-        DO_VALIDATION;
-
-        // refinement round!
-        if (!refine) {
-          DO_VALIDATION;
-
-          ms = previous_ms;
-          timeStep_ms = 10;
-          refine = true;
-          // found!
-        } else {
-          timeNeededToGetToBall_ms = ms;
-          break;
-        }
-      }
+      startTime_ms = 500;
     }
 
-    // refine timestep (optimisation)
-    if (!refine) {
+    bool refine = false;
+    unsigned int timeStep_ms = 10;
+    unsigned int previous_ms = 0;
+    bool precise = (team->GetDesignatedTeamPossessionPlayer() == this) ? true : false;
+    for (unsigned int ms = startTime_ms; ms < ballPredictionSize_ms;
+         ms += timeStep_ms) {
       DO_VALIDATION;
-      float balldist = (GetPosition() - match->GetBall()->Predict(ms).Get2D()).GetLength() + 0.2f; // add a little buffer
-      float maxBallVelo = 50;
-      // how long does it take for the ball at max velo to travel balldist?
-      unsigned int timeToGo_ms =
-          int(std::round((balldist / maxBallVelo) * 1000.0f));
-      timeStep_ms = clamp(timeToGo_ms, 10, 500);
-      // round to 10s
-      timeStep_ms = (timeStep_ms / 10) * 10;
-    } else
-      timeStep_ms = 10;
+      if (match->GetBall()->Predict(ms).coords[2] < 1.5f) {
+        DO_VALIDATION;
+        TimeNeeded result = AI_GetTimeNeededForDistance_ms(
+            GetPosition(), GetMovement(), match->GetBall()->Predict(ms).Get2D(),
+            GetMaxVelocity(), precise, ms);
+        unsigned int timeNeeded = result.usual_ms;
+        unsigned int timeNeeded_optimistic = result.optimistic_ms;
 
-    previous_ms = ms;
+        if (timeNeeded_optimistic <= ms) {
+          DO_VALIDATION;
+          if (ms < timeNeededToGetToBall_optimistic_ms) {
+            timeNeededToGetToBall_optimistic_ms = ms;
+          }
+        }
+
+        if (timeNeeded <= ms) {
+          DO_VALIDATION;
+
+          // refinement round!
+          if (!refine) {
+            DO_VALIDATION;
+
+            ms = previous_ms;
+            timeStep_ms = 10;
+            refine = true;
+            // found!
+          } else {
+            timeNeededToGetToBall_ms = ms;
+            break;
+          }
+        }
+      }
+
+      // refine timestep (optimisation)
+      if (!refine) {
+        DO_VALIDATION;
+        float balldist = (GetPosition() - match->GetBall()->Predict(ms).Get2D()).GetLength() + 0.2f; // add a little buffer
+        float maxBallVelo = 50;
+        // how long does it take for the ball at max velo to travel balldist?
+        unsigned int timeToGo_ms =
+            int(std::round((balldist / maxBallVelo) * 1000.0f));
+        timeStep_ms = clamp(timeToGo_ms, 10, 500);
+        // round to 10s
+        timeStep_ms = (timeStep_ms / 10) * 10;
+      } else
+        timeStep_ms = 10;
+
+      previous_ms = ms;
+    }
   }
 
   if (TouchAnim() && TouchPending()) {

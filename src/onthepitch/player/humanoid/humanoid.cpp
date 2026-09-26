@@ -89,13 +89,17 @@ void Humanoid::Process() {
   if (match->GetLastTouchTeamID() == team->GetID()) instaDoorheb = true;
   mentalImageTime = instaDoorheb ? 0 : CastPlayer()->GetController()->GetReactionTime_ms();
 
+  // The authoritative movement state at tick start. Captured before
+  // CalculateSpatialState so the procedural model integrates from the world
+  // state in force, not from the animation prediction for this tick.
+  const PlayerKinematicState tickStartState = player->GetKinematicState();
+
   CalculateSpatialState();
   spatialState.positionOffsetMovement = Vector3(0);
-  // H3e1c-prep: the reverse projection exists and is exercised every tick,
-  // but it currently receives exactly the legacy result, so the actor's
-  // behaviour must be unchanged. The locomotion authority flip reuses this
-  // same call with a procedurally produced state.
-  ApplySimulationMovementState(player->GetKinematicState());
+  // H3e1c-3c: pure locomotion ticks are produced by the simulation; every
+  // other tick keeps the legacy root motion. Either way the legacy movement
+  // fields end up as a projection of the authoritative kinematic state.
+  ProjectMovementState(tickStartState);
 
   currentAnim.frameNum++;
   CastPlayer()->StepSimulationAction(10);

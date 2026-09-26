@@ -1138,18 +1138,21 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
        UINT64_C(2178283517849602577)},
-      {100, 79, Position(-0.409872681f, 0.273896456f, 0.108315744f, true),
-       Position(-0.973170221f, 0.0185603499f, 0.0f, true),
-       Position(0.83682096f, -0.000399013137f, 0.0f, true), 0, 0, true,
-       UINT64_C(7453620862937221086)},
-      {500, 458, Position(0.753526747f, 0.198903978f, 0.17945759f, true),
-       Position(-0.831645966f, -6.32343508e-05f, 0.0f, true),
-       Position(0.990424097f, 0.0361555517f, 0.0f, true), 0, 0, true,
-       UINT64_C(12703816539953799179)},
-      {1000, 910, Position(-0.038121134f, -0.13526684f, 0.157381654f, true),
-       Position(-0.980546594f, -0.00378147163f, 0.0f, true),
-       Position(0.828302026f, -0.000150032414f, 0.0f, true), 1, 0, true,
-       UINT64_C(7247007324106109385)},
+      // H3e1c-3c: first canonical trajectory with pure locomotion as the
+      // simulation authority. The old animation-root-motion values are
+      // expected to diverge and are deliberately replaced.
+      {100, 79, Position(0.492437065f, -0.0355319642f, 0.110511862f, true),
+       Position(-0.823596179f, -0.000329120812f, 0.0f, true),
+       Position(0.987460732f, -0.0036701418f, 0.0f, true), 0, 0, true,
+       UINT64_C(17934197055667682428)},
+      {500, 458, Position(-0.111641236f, -0.0954587236f, 0.110530853f, true),
+       Position(-0.957140684f, -0.000901767111f, 0.0f, true),
+       Position(0.827424824f, -0.00483623194f, 0.0f, true), 0, 0, true,
+       UINT64_C(716812449437471887)},
+      {1000, 958, Position(0.522369802f, 0.105232812f, 0.109311372f, true),
+       Position(-0.816472113f, 0.000247686723f, 0.0f, true),
+       Position(0.990394592f, 0.00526164472f, 0.0f, true), 0, 0, true,
+       UINT64_C(13627423240039368901)},
   };
 
 
@@ -1939,10 +1942,11 @@ void MeasureLocomotionPrediction(GameEnv& env, ScenarioConfig& config) {
   }
 }
 
-// H3e1c-3: the planner flip is only safe if the procedural intercept estimate
-// agrees with what the AI currently consumes. timeNeededToGetToBall_ms comes
-// from the legacy heuristic, so comparing the two quantifies the closed-loop
-// risk on the exact quantity the AI reads. Measurement only.
+// H3e1c-3c: timeNeededToGetToBall_ms is now published by the procedural
+// planner for pure locomotion, on the staggered 100 ms cadence. This compares
+// that published value against a freshly solved intercept, so it quantifies
+// planner STALENESS (the cost of the cache) rather than a
+// legacy-versus-procedural gap. Measurement only.
 void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "intercept prediction: kickoff");
@@ -2021,7 +2025,7 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
   Require(samples > 0,
           "intercept prediction: no sample was collected, the measurement "
           "would be vacuous");
-  std::cout << "intercept prediction: samples=" << samples
+  std::cout << "planner staleness: samples=" << samples
             << " procedural_reachable_usual="
             << (samples - procedural_usual_unreachable) << " ("
             << (100.0 * (samples - procedural_usual_unreachable) / samples)
@@ -2043,6 +2047,64 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
             << " mean_abs_eta_error_ms="
             << (both_reachable > 0 ? error_sum / both_reachable : 0.0)
             << "\n";
+}
+
+// H3e1c-3c: the planner samples the locomotion model on a staggered 100 ms
+// cadence. This records the real cost and proves the schedule stays bounded, so
+// a later change from 100 to 50 ms can be judged on numbers instead of feel.
+void CheckPlannerCadence(GameEnv& env, ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "planner cadence: kickoff");
+  Match* match = env.context->gameTask->GetMatch();
+
+  const int refresh_ticks = 10;
+  int eligible_actor_ticks = 0;
+  int max_cache_age_ms = 0;
+  const int samples = 60;
+  const int solver_calls_before = PlayerLocomotionInterceptSolverCalls();
+  for (int sample = 0; sample < samples; ++sample) {
+    std::vector<Player*> players;
+    match->GetActiveTeamPlayers(match->FirstTeam(), players);
+    match->GetActiveTeamPlayers(match->SecondTeam(), players);
+    // The planner runs on every 10 ms physics tick, so the window counts actor
+    // ticks, not environment steps (one environment step is ten of them).
+    const int first_tick = static_cast<int>(match->GetActualTime_ms() / 10);
+    for (int offset = 0; offset < refresh_ticks; ++offset) {
+      const int tick = first_tick + offset;
+      for (Player* player : players) {
+        if (!player->IsEligibleForProceduralLocomotion()) continue;
+        ++eligible_actor_ticks;
+        max_cache_age_ms = std::max(
+            max_cache_age_ms,
+            ((tick + player->GetStableID()) % refresh_ticks) * 10);
+      }
+    }
+    env.step();
+  }
+  const int solver_calls =
+      PlayerLocomotionInterceptSolverCalls() - solver_calls_before;
+
+  Require(eligible_actor_ticks > 0,
+          "planner cadence: no eligible actor tick was collected, the "
+          "measurement would be vacuous");
+  Require(solver_calls > 0,
+          "planner cadence: the procedural planner never ran, so pure "
+          "locomotion planning is not actually in use");
+  Require(max_cache_age_ms < refresh_ticks * 10,
+          "planner cadence: the staggered cache age must stay under one "
+          "refresh interval");
+  // One solve per actor per refresh interval, so the expected ratio is 1/10.
+  // This is the number that makes a later 100 -> 50 ms change judgeable.
+  const double calls_per_actor_tick =
+      static_cast<double>(solver_calls) / eligible_actor_ticks;
+  Require(calls_per_actor_tick < 0.25,
+          "planner cadence: the intercept solver is running more often than "
+          "the staggered 100 ms schedule allows");
+  std::cout << "planner cadence: eligible_actor_ticks="
+            << eligible_actor_ticks << " solver_calls=" << solver_calls
+            << " cache_hits=" << (eligible_actor_ticks - solver_calls)
+            << " max_cache_age_ms=" << max_cache_age_ms
+            << " calls_per_actor_tick=" << calls_per_actor_tick << "\n";
 }
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
@@ -2463,6 +2525,7 @@ int main(int argc, char** argv) {
     MeasureLocomotionPrediction(env, config);
     MeasureInterceptPrediction(env, config);
     CheckMatchTransitions(env, config);
+    CheckPlannerCadence(env, config);
     CheckReverseTeamProcessing(env, config);
     std::cout << "football_regression: PASS\n";
     return 0;

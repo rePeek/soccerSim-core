@@ -49,10 +49,23 @@ struct PlayerLocomotionInput {
 // the legacy AI's usual (can actually touch the ball) and optimistic distances,
 // so replacing TimeNeeded keeps its dual-estimate semantics. A negative value
 // means "not reached inside the horizon".
+// Reach distances matching the legacy AI's dual estimate: the usual radius is
+// "close enough to actually touch the ball", the optimistic one is looser.
+constexpr float kLocomotionUsualReachRadius = 0.28f;
+constexpr float kLocomotionOptimisticReachRadius = 0.9f;
+
 struct PlayerLocomotionReach {
   int usual_ms = -1;
   int optimistic_ms = -1;
 };
+
+// Diagnostics only, never simulation state and never serialized: counts how
+// many earliest-intercept solves have run, so the regression can report the
+// planner's real cost and cadence instead of estimating them.
+inline int &PlayerLocomotionInterceptSolverCalls() {
+  static int calls = 0;
+  return calls;
+}
 
 struct PlayerLocomotionParameters {
   float maxSpeed = 7.5f;
@@ -219,6 +232,7 @@ class PlayerLocomotion {
       const PlayerLocomotionParameters &parameters, float desired_speed,
       int horizon_ms, float usual_radius, float optimistic_radius) {
     DO_VALIDATION;
+    ++PlayerLocomotionInterceptSolverCalls();
     PlayerLocomotionReach intercept;
     if (desired_speed <= 0.0f) return intercept;
     for (int intercept_ms = 0; intercept_ms <= horizon_ms;
