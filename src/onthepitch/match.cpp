@@ -30,6 +30,7 @@
 #include "AIsupport/AIfunctions.hpp"
 #include "file.h"
 #include "player/playerofficial.hpp"
+#include "player/player_action_volume.hpp"
 #include "ball_presentation.hpp"
 #include "proceduralpitch.hpp"
 
@@ -1462,70 +1463,38 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 
   // check for tackling collisions
 
+  // The tackle contact test is a simulation-owned action volume (a forward
+  // capsule) against the victim's ground collider. It replaces the legacy
+  // per-body-part geometry AABB test, so no scene object is involved.
   const PlayerActionState &p1Action = p1->GetActionExecutorShadow();
   const PlayerActionState &p2Action = p2->GetActionExecutorShadow();
+  const PlayerActionVolume p1Tackle =
+      BuildTackleVolume(p1Action, p1->GetKinematicState());
+  const PlayerActionVolume p2Tackle =
+      BuildTackleVolume(p2Action, p2->GetKinematicState());
   int tackle = 0;
-  if ((p1Action.type == e_FunctionType_Sliding || p1Action.type == e_FunctionType_Interfere) && p1Action.frame > 5 && p1Action.frame < 28) tackle += 1;
-  if ((p2Action.type == e_FunctionType_Sliding || p2Action.type == e_FunctionType_Interfere) && p2Action.frame > 5 && p2Action.frame < 28) tackle += 2;
+  if (p1Tackle.active) tackle += 1;
+  if (p2Tackle.active) tackle += 2;
   if (distance < 2.0f && tackle > 0 && tackle < 3) {
     DO_VALIDATION;  // if tackle is 3, ignore both
-    const std::vector<BodyCollider> &tacklerColliders =
-        tackle == 1 ? p1->GetBodyCollisionState().GetColliders()
-                    : p2->GetBodyCollisionState().GetColliders();
-    const std::vector<BodyCollider> &victimColliders =
-        tackle == 1 ? p2->GetBodyCollisionState().GetColliders()
-                    : p1->GetBodyCollisionState().GetColliders();
+    const PlayerActionVolume &tacklerVolume =
+        tackle == 1 ? p1Tackle : p2Tackle;
+    const PlayerActionState &tacklerAction =
+        tackle == 1 ? p1Action : p2Action;
+    Player *tackler = tackle == 1 ? p1 : p2;
+    Player *victim = tackle == 1 ? p2 : p1;
 
-    // Iterate through the collision snapshot rather than the Scene3D body.
-    for (const auto &tacklerCollider : tacklerColliders) {
+    if (tacklerVolume.Intersects(victim->GetGroundCollider())) {
       DO_VALIDATION;
-      AABB objAABB = tacklerCollider.bounds;
-
-      // Make a tad smaller: AABBs are usually too large.
-      objAABB.minxyz += 0.1f;
-      objAABB.maxxyz -= 0.1f;
-
-      for (const auto &victimCollider : victimColliders) {
+      if (tacklerAction.frame > 10 &&
+          tacklerAction.frame < tacklerAction.frameCount - 6) {
         DO_VALIDATION;
-        const std::string &bodyPartName = victimCollider.name;
-        if (bodyPartName.compare("left_foot") == 0 ||
-            bodyPartName.compare("right_foot") == 0 ||
-            bodyPartName.compare("left_lowerleg") == 0 ||
-            bodyPartName.compare("right_lowerleg") == 0
-            /* bodyPartName == "left_upperleg" ||
-               bodyPartName == "right_upperleg" */) {
-          DO_VALIDATION;
-          if (objAABB.Intersects(victimCollider.bounds)) {
-            DO_VALIDATION;
-            if (tackle == 1) {
-              DO_VALIDATION;
-              if (p1Action.frame > 10 &&
-                  p1Action.frame < p1Action.frameCount - 6) {
-                DO_VALIDATION;
-                Vector3 tripVec = p2->GetKinematicState().facing;
-                int tripType = 3;  // sliding
-                if (p1Action.type == e_FunctionType_Interfere)
-                  tripType = 1;  // was 2
-                p2->TripMe(tripVec, tripType);
-                referee->TripNotice(p2, p1, tripType);
-              }
-            }
-            if (tackle == 2) {
-              DO_VALIDATION;
-              if (p2Action.frame > 10 &&
-                  p2Action.frame < p2Action.frameCount - 6) {
-                DO_VALIDATION;
-                Vector3 tripVec = p1->GetKinematicState().facing;
-                int tripType = 3;  // sliding
-                if (p2Action.type == e_FunctionType_Interfere)
-                  tripType = 1;  // was 2
-                p1->TripMe(tripVec, tripType);
-                referee->TripNotice(p1, p2, tripType);
-              }
-            }
-            break;
-          }
-        }
+        Vector3 tripVec = victim->GetKinematicState().facing;
+        int tripType = 3;  // sliding
+        if (tacklerAction.type == e_FunctionType_Interfere)
+          tripType = 1;  // was 2
+        victim->TripMe(tripVec, tripType);
+        referee->TripNotice(victim, tackler, tripType);
       }
     }
   }

@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -401,18 +402,18 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
        UINT64_C(2178283517849602577)},
-      {100, 79, Position(-0.288476169f, 0.287453890f, 0.157757938f, true),
-       Position(-0.964185476f, 0.0183162764f, 0.0f, true),
-       Position(0.836820960f, -0.000398828211f, 0.0f, true), 0, 0, true,
-       UINT64_C(2179468671565013158)},
-      {500, 479, Position(0.782679260f, 0.0384375788f, 0.150063261f, true),
-       Position(-0.838432312f, 0.00137963647f, 0.0f, true),
-       Position(0.986911833f, 0.00512396451f, 0.0f, true), 0, 0, true,
-       UINT64_C(2800917500982330357)},
-      {1000, 937, Position(0.421206505f, 0.0113820704f, 0.455359012f, true),
-       Position(-0.826214671f, -3.12413285e-05f, 0.0f, true),
-       Position(0.909096777f, 0.0142614795f, 0.0f, true), 0, 0, true,
-       UINT64_C(7544408624481697379)},
+      {100, 79, Position(-0.27977103f, 0.274913579f, 0.147486791f, true),
+       Position(-0.964509726f, 0.0183470845f, 0.0f, true),
+       Position(0.83682096f, -0.000398828211f, 0.0f, true), 0, 0, true,
+       UINT64_C(16124537680525707376)},
+      {500, 437, Position(0.68253845f, 0.164435953f, 0.110504627f, true),
+       Position(-0.825206995f, 6.48159471e-07f, 0.0f, true),
+       Position(0.988704503f, 0.0156909321f, 0.0f, true), 0, 0, true,
+       UINT64_C(9697619898718319986)},
+      {1000, 895, Position(0.313198894f, 0.309941083f, 0.113446184f, true),
+       Position(-0.823592007f, 0.00153351401f, 0.0f, true),
+       Position(0.984157264f, 0.00853573345f, 0.0f, true), 0, 0, true,
+       UINT64_C(16636930353775527234)},
   };
 
   env.reset(config, false);
@@ -535,6 +536,21 @@ void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
 
 }  // namespace
 
+// Formats a float as a valid C++ float literal, so that generated baseline
+// entries can be pasted into the source without hand editing.
+const char* FloatLiteral(float value) {
+  if (value == 0.0f) return "0.0";  // avoid a noisy -0.0 in diffs
+  static char buffers[9][64];
+  static int next = 0;
+  char* buffer = buffers[next];
+  next = (next + 1) % 9;
+  std::snprintf(buffer, 64, "%.9g", value);
+  if (std::string(buffer).find_first_of(".eEnN") == std::string::npos) {
+    std::strncat(buffer, ".0", 63 - std::strlen(buffer));
+  }
+  return buffer;
+}
+
 void PrintBaseline(GameEnv& env, ScenarioConfig& config) {
   const int calls[] = {1, 100, 500, 1000};
   env.reset(config, false);
@@ -547,18 +563,21 @@ void PrintBaseline(GameEnv& env, ScenarioConfig& config) {
     const Position& ball = info.ball_position;
     const Position& left = info.left_team.front().player_position;
     const Position& right = info.right_team.front().player_position;
-    char line[512];
-    std::snprintf(line, sizeof(line),
-                  "      {%d, %d, Position(%.9gf, %.9gf, %.9gf, true),\n"
-                  "       Position(%.9gf, %.9gf, %.9gf, true),\n"
-                  "       Position(%.9gf, %.9gf, %.9gf, true), %d, %d, %s,\n"
-                  "       UINT64_C(%llu)},\n",
-                  target, info.step, ball.env_coord(0), ball.env_coord(1),
-                  ball.env_coord(2), left.env_coord(0), left.env_coord(1),
-                  left.env_coord(2), right.env_coord(0), right.env_coord(1),
-                  right.env_coord(2), info.left_goals, info.right_goals,
-                  info.is_in_play ? "true" : "false",
-                  static_cast<unsigned long long>(HashInfo(info)));
+    char line[1024];
+    std::snprintf(
+        line, sizeof(line),
+        "      {%d, %d, Position(%sf, %sf, %sf, true),\n"
+        "       Position(%sf, %sf, %sf, true),\n"
+        "       Position(%sf, %sf, %sf, true), %d, %d, %s,\n"
+        "       UINT64_C(%llu)},\n",
+        target, info.step, FloatLiteral(ball.env_coord(0)),
+        FloatLiteral(ball.env_coord(1)), FloatLiteral(ball.env_coord(2)),
+        FloatLiteral(left.env_coord(0)), FloatLiteral(left.env_coord(1)),
+        FloatLiteral(left.env_coord(2)), FloatLiteral(right.env_coord(0)),
+        FloatLiteral(right.env_coord(1)), FloatLiteral(right.env_coord(2)),
+        info.left_goals, info.right_goals,
+        info.is_in_play ? "true" : "false",
+        static_cast<unsigned long long>(HashInfo(info)));
     std::cout << line;
   }
   std::cout << "  };\n";
