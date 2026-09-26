@@ -1229,10 +1229,10 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
       const PlayerActionState &p2Action = p2->GetActionState();
       bounceBias -= clamp(((p1velocity - p2velocity) / sprintVelocity) * 0.2f, -0.2f, 0.2f);
 
-      if (p1->TouchPending() && p1Action.type == e_FunctionType_Interfere) bounceBias += 0.1f + 0.4f * p1->GetStat(technical_standingtackle);
-      if (p1->TouchPending() && p1Action.type == e_FunctionType_Sliding)   bounceBias += 0.1f + 0.4f * p1->GetStat(technical_slidingtackle);
-      if (p2->TouchPending() && p2Action.type == e_FunctionType_Interfere) bounceBias -= 0.1f + 0.4f * p2->GetStat(technical_standingtackle);
-      if (p2->TouchPending() && p2Action.type == e_FunctionType_Sliding)   bounceBias -= 0.1f + 0.4f * p2->GetStat(technical_slidingtackle);
+      if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Interfere) bounceBias += 0.1f + 0.4f * p1->GetStat(technical_standingtackle);
+      if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Sliding)   bounceBias += 0.1f + 0.4f * p1->GetStat(technical_slidingtackle);
+      if (p2Action.IsContactPending() && p2Action.type == e_FunctionType_Interfere) bounceBias -= 0.1f + 0.4f * p2->GetStat(technical_standingtackle);
+      if (p2Action.IsContactPending() && p2Action.type == e_FunctionType_Sliding)   bounceBias -= 0.1f + 0.4f * p2->GetStat(technical_slidingtackle);
 
       // problem is, once possession is lost (usually directly after ball is touched), bias may turn around the other way. (well, maybe that's not a problem. dunno.)
       // if (p1->HasPossession() == true) bounceBias -= 0.3f;
