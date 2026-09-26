@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -482,7 +484,7 @@ void CheckProceduralInterceptPrediction() {
 
   const Vector3 stationary(4.0f, 0.0f, 0.0f);
   const PlayerLocomotionReach stationary_reach =
-      PlayerLocomotion::EstimateEarliestIntercept(
+      PlayerLocomotion::EstimateEarliestInterceptExact(
           state, [&stationary](int) { return stationary; }, parameters,
           7.5f, horizon_ms, usual_radius, optimistic_radius);
   Require(stationary_reach.optimistic_ms > 0 &&
@@ -491,7 +493,7 @@ void CheckProceduralInterceptPrediction() {
 
   // A ball drifting away is caught later than a stationary one.
   const PlayerLocomotionReach drifting_reach =
-      PlayerLocomotion::EstimateEarliestIntercept(
+      PlayerLocomotion::EstimateEarliestInterceptExact(
           state,
           [&stationary](int elapsed_ms) {
             return stationary +
@@ -505,7 +507,7 @@ void CheckProceduralInterceptPrediction() {
   // A ball that outruns the actor is unreachable rather than optimistically
   // estimated.
   const PlayerLocomotionReach outrun_reach =
-      PlayerLocomotion::EstimateEarliestIntercept(
+      PlayerLocomotion::EstimateEarliestInterceptExact(
           state,
           [&stationary](int elapsed_ms) {
             return stationary +
@@ -517,7 +519,7 @@ void CheckProceduralInterceptPrediction() {
           "unreachable");
 
   // No speed means no intercept.
-  Require(PlayerLocomotion::EstimateEarliestIntercept(
+  Require(PlayerLocomotion::EstimateEarliestInterceptExact(
               state, [&stationary](int) { return stationary; }, parameters,
               0.0f, horizon_ms, usual_radius, optimistic_radius)
               .usual_ms == -1,
@@ -530,7 +532,7 @@ void CheckProceduralInterceptPrediction() {
     return Vector3(3.0f, 2.0f + 2.0f * (elapsed_ms * 0.001f), 0.0f);
   };
   const PlayerLocomotionReach lead_reach =
-      PlayerLocomotion::EstimateEarliestIntercept(
+      PlayerLocomotion::EstimateEarliestInterceptExact(
           state, crossing_ball, parameters, 7.5f, horizon_ms, usual_radius,
           optimistic_radius);
   Require(lead_reach.optimistic_ms > 0 &&
@@ -1982,7 +1984,7 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
         PlayerLocomotionParameters parameters;
         parameters.maxSpeed = player->GetMaxVelocity();
         const PlayerLocomotionReach procedural =
-            PlayerLocomotion::EstimateEarliestIntercept(
+            PlayerLocomotion::EstimateEarliestInterceptExact(
                 player->GetKinematicState(),
                 [ball](int ms) { return ball->Predict(ms); }, parameters,
                 player->GetMaxVelocity(), horizon_ms, usual_radius,
@@ -2106,6 +2108,150 @@ void CheckPlannerCadence(GameEnv& env, ScenarioConfig& config) {
             << " max_cache_age_ms=" << max_cache_age_ms
             << " calls_per_actor_tick=" << calls_per_actor_tick << "\n";
 }
+// P1a: measure the hybrid long-horizon planner approximation against the exact
+// solver before anything consumes it. Nothing here is read by the simulation, so
+// golden stays exact. The point is to choose the exact/analytic boundary from
+// numbers: error percentiles, reachability-decision flips and cost for several
+// candidate horizons, so the chosen one is a Pareto point rather than a guess.
+void MeasureHybridInterceptApproximation(GameEnv& env,
+                                         ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "hybrid intercept: kickoff");
+  Match* match = env.context->gameTask->GetMatch();
+  Ball* ball = match->GetBall();
+
+  const int candidate_horizons[] = {300, 500, 700, 1000};
+  const int horizon_count = 4;
+  struct HorizonStats {
+    int samples = 0;
+    int exact_reachable = 0;
+    int hybrid_reachable = 0;
+    int reachable_to_unreachable = 0;
+    int unreachable_to_reachable = 0;
+    int exact_short_hybrid_long = 0;
+    int hybrid_short_exact_long = 0;
+    double signed_sum = 0.0;
+    double abs_sum = 0.0;
+    double hybrid_seconds = 0.0;
+    std::vector<double> abs_errors;
+  };
+  HorizonStats stats[4];
+  double exact_seconds = 0.0;
+  int exact_calls = 0;
+
+  const int steps = 200;
+  for (int step = 0; step < steps; ++step) {
+    if (step % 5 == 0) {
+      std::vector<Player*> players;
+      match->GetActiveTeamPlayers(match->FirstTeam(), players);
+      match->GetActiveTeamPlayers(match->SecondTeam(), players);
+      for (Player* player : players) {
+        if (!player->IsEligibleForProceduralLocomotion()) continue;
+        if (!player->GetCurrentAnim()->originatingCommand.useDesiredMovement) {
+          continue;
+        }
+        PlayerLocomotionParameters parameters;
+        parameters.maxSpeed = player->GetMaxVelocity();
+        const auto target_at = [ball](int ms) { return ball->Predict(ms); };
+        const PlayerKinematicState start = player->GetKinematicState();
+        const float desired_speed = player->GetMaxVelocity();
+        const int full_horizon = static_cast<int>(ballPredictionSize_ms);
+
+        const auto exact_begin = std::chrono::steady_clock::now();
+        const PlayerLocomotionReach exact =
+            PlayerLocomotion::EstimateEarliestInterceptExact(
+                start, target_at, parameters, desired_speed, full_horizon,
+                kLocomotionUsualReachRadius,
+                kLocomotionOptimisticReachRadius);
+        const auto exact_end = std::chrono::steady_clock::now();
+        exact_seconds +=
+            std::chrono::duration<double>(exact_end - exact_begin).count();
+        ++exact_calls;
+
+        for (int index = 0; index < horizon_count; ++index) {
+          HorizonStats& entry = stats[index];
+          const auto hybrid_begin = std::chrono::steady_clock::now();
+          const PlayerLocomotionReach hybrid =
+              PlayerLocomotion::EstimateEarliestInterceptHybrid(
+                  start, target_at, parameters, desired_speed, full_horizon,
+                  candidate_horizons[index], kLocomotionUsualReachRadius,
+                  kLocomotionOptimisticReachRadius);
+          const auto hybrid_end = std::chrono::steady_clock::now();
+          entry.hybrid_seconds +=
+              std::chrono::duration<double>(hybrid_end - hybrid_begin).count();
+
+          ++entry.samples;
+          const bool exact_reachable = exact.usual_ms >= 0;
+          const bool hybrid_reachable = hybrid.usual_ms >= 0;
+          if (exact_reachable) ++entry.exact_reachable;
+          if (hybrid_reachable) ++entry.hybrid_reachable;
+          if (exact_reachable && !hybrid_reachable) {
+            ++entry.reachable_to_unreachable;
+          } else if (!exact_reachable && hybrid_reachable) {
+            ++entry.unreachable_to_reachable;
+          }
+          if (exact_reachable && hybrid_reachable) {
+            const double difference =
+                static_cast<double>(hybrid.usual_ms - exact.usual_ms);
+            entry.signed_sum += difference;
+            entry.abs_sum += std::fabs(difference);
+            entry.abs_errors.push_back(std::fabs(difference));
+          }
+          // The flips that change a decision class: whether the answer is under
+          // a second, which is what the AI is most sensitive to.
+          const bool exact_short = exact_reachable && exact.usual_ms < 1000;
+          const bool hybrid_short = hybrid_reachable && hybrid.usual_ms < 1000;
+          if (exact_short && !hybrid_short) ++entry.exact_short_hybrid_long;
+          if (hybrid_short && !exact_short) ++entry.hybrid_short_exact_long;
+        }
+      }
+    }
+    env.step();
+  }
+
+  Require(stats[0].samples > 0,
+          "hybrid intercept: no sample was collected, the measurement would be "
+          "vacuous");
+  Require(exact_calls > 0, "hybrid intercept: the exact reference never ran");
+
+  std::cout << "hybrid intercept vs exact: samples=" << stats[0].samples
+            << " exact_ms_per_call="
+            << (exact_calls > 0 ? 1000.0 * exact_seconds / exact_calls : 0.0)
+            << "\n";
+  for (int index = 0; index < horizon_count; ++index) {
+    HorizonStats& entry = stats[index];
+    std::sort(entry.abs_errors.begin(), entry.abs_errors.end());
+    const auto percentile = [&entry](double fraction) {
+      if (entry.abs_errors.empty()) return 0.0;
+      const size_t position =
+          static_cast<size_t>(fraction * (entry.abs_errors.size() - 1));
+      return entry.abs_errors[position];
+    };
+    const int comparable = static_cast<int>(entry.abs_errors.size());
+    std::cout << "  exact_horizon_ms=" << candidate_horizons[index]
+              << " hybrid_ms_per_call="
+              << (entry.samples > 0
+                      ? 1000.0 * entry.hybrid_seconds / entry.samples
+                      : 0.0)
+              << " exact_reachable=" << entry.exact_reachable
+              << " hybrid_reachable=" << entry.hybrid_reachable
+              << " reachable_to_unreachable=" << entry.reachable_to_unreachable
+              << " unreachable_to_reachable=" << entry.unreachable_to_reachable
+              << " exact_short_hybrid_long=" << entry.exact_short_hybrid_long
+              << " hybrid_short_exact_long=" << entry.hybrid_short_exact_long
+              << " comparable=" << comparable
+              << " mean_signed_error_ms="
+              << (comparable > 0 ? entry.signed_sum / comparable : 0.0)
+              << " mean_abs_error_ms="
+              << (comparable > 0 ? entry.abs_sum / comparable : 0.0)
+              << " p50=" << percentile(0.50) << " p90=" << percentile(0.90)
+              << " p99=" << percentile(0.99)
+              << " max=" << (entry.abs_errors.empty() ? 0.0
+                                                      : entry.abs_errors.back())
+              << "\n";
+  }
+}
+
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   CheckKinematicMirrorConsistency(env, "kinematic mirror after reset");
@@ -2524,6 +2670,7 @@ int main(int argc, char** argv) {
     MeasureLocomotionRegimeTransitions(env, config);
     MeasureLocomotionPrediction(env, config);
     MeasureInterceptPrediction(env, config);
+    MeasureHybridInterceptApproximation(env, config);
     CheckMatchTransitions(env, config);
     CheckPlannerCadence(env, config);
     CheckReverseTeamProcessing(env, config);

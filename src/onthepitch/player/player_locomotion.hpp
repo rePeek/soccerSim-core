@@ -227,7 +227,7 @@ class PlayerLocomotion {
   // moving ball as far less reachable than it is, which is what made an
   // earlier version of this estimator report 99% of balls as unreachable.
   template <typename TargetAtTime>
-  static PlayerLocomotionReach EstimateEarliestIntercept(
+  static PlayerLocomotionReach EstimateEarliestInterceptExact(
       const PlayerKinematicState &start, TargetAtTime target_at,
       const PlayerLocomotionParameters &parameters, float desired_speed,
       int horizon_ms, float usual_radius, float optimistic_radius) {
@@ -277,6 +277,81 @@ class PlayerLocomotion {
       bound_distance += bound_speed * dt;
     }
     return intercept;
+  }
+
+  // Long-horizon analytic intercept, the classic constant-speed lead-point
+  // solve: |(ball + ball_velocity * T) - start| = speed * T + radius. It is an
+  // approximation OF THE SAME CAPABILITY: it assumes the actor holds its ceiling
+  // speed in a straight line from the start, so it ignores the acceleration ramp
+  // and the turn cost and is therefore optimistic. P1a measures that bias
+  // against the exact solver before anything adopts it.
+  static int EstimateInterceptAnalytic(const PlayerKinematicState &start,
+                                       const Vector3 &ball_position,
+                                       const Vector3 &ball_velocity,
+                                       float speed, int horizon_ms,
+                                       float radius) {
+    DO_VALIDATION;
+    if (speed <= 0.0f) return -1;
+    const Vector3 offset = ball_position.Get2D() - start.position;
+    const Vector3 ball_motion = ball_velocity.Get2D();
+    const float a = ball_motion.GetDotProduct(ball_motion) - speed * speed;
+    const float b =
+        2.0f * (offset.GetDotProduct(ball_motion) - speed * radius);
+    const float c = offset.GetDotProduct(offset) - radius * radius;
+    float intercept_sec = -1.0f;
+    if (std::fabs(a) < 1e-6f) {
+      if (std::fabs(b) > 1e-9f) intercept_sec = -c / b;
+    } else {
+      const float discriminant = b * b - 4.0f * a * c;
+      if (discriminant >= 0.0f) {
+        const float root = std::sqrt(discriminant);
+        const float first = (-b - root) / (2.0f * a);
+        const float second = (-b + root) / (2.0f * a);
+        const float low = std::min(first, second);
+        const float high = std::max(first, second);
+        if (low > 0.0f) {
+          intercept_sec = low;
+        } else if (high > 0.0f) {
+          intercept_sec = high;
+        }
+      }
+    }
+    if (intercept_sec < 0.0f) return -1;
+    const int intercept_ms =
+        static_cast<int>(std::ceil(intercept_sec * 1000.0f));
+    return intercept_ms <= horizon_ms ? intercept_ms : -1;
+  }
+
+  // Hybrid: exact candidate-time reachability inside exact_horizon_ms, analytic
+  // beyond it. Near-horizon planning therefore keeps the execution physics
+  // exactly, and only the far horizon is approximated. Measurement-only until
+  // its bias against the exact solver has been measured.
+  template <typename TargetAtTime>
+  static PlayerLocomotionReach EstimateEarliestInterceptHybrid(
+      const PlayerKinematicState &start, TargetAtTime target_at,
+      const PlayerLocomotionParameters &parameters, float desired_speed,
+      int horizon_ms, int exact_horizon_ms, float usual_radius,
+      float optimistic_radius) {
+    DO_VALIDATION;
+    PlayerLocomotionReach reach = EstimateEarliestInterceptExact(
+        start, target_at, parameters, desired_speed, exact_horizon_ms,
+        usual_radius, optimistic_radius);
+    if (reach.usual_ms >= 0) return reach;
+
+    const float speed = std::min(desired_speed, parameters.maxSpeed);
+    const Vector3 ball_position = target_at(0).Get2D();
+    const Vector3 ball_velocity =
+        (target_at(10).Get2D() - ball_position) * 100.0f;
+    if (reach.optimistic_ms < 0) {
+      reach.optimistic_ms = EstimateInterceptAnalytic(
+          start, ball_position, ball_velocity, speed, horizon_ms,
+          optimistic_radius);
+    }
+    if (reach.usual_ms < 0) {
+      reach.usual_ms = EstimateInterceptAnalytic(
+          start, ball_position, ball_velocity, speed, horizon_ms, usual_radius);
+    }
+    return reach;
   }
 };
 

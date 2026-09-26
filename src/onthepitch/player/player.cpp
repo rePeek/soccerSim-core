@@ -193,7 +193,7 @@ void Player::UpdatePossessionStats() {
       PlayerLocomotionParameters locomotion_parameters;
       locomotion_parameters.maxSpeed = GetMaxVelocity();
       const PlayerLocomotionReach reach =
-          PlayerLocomotion::EstimateEarliestIntercept(
+          PlayerLocomotion::EstimateEarliestInterceptExact(
               GetKinematicState(),
               [this](int ms) { return match->GetBall()->Predict(ms); },
               locomotion_parameters, GetMaxVelocity(),
