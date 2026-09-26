@@ -391,9 +391,23 @@ class PlayerLocomotion {
   // beyond it. Near-horizon planning therefore keeps the execution physics
   // exactly, and only the far horizon is approximated. Measurement-only until
   // its bias against the exact solver has been measured.
-  // `steady_state` selects which long-horizon model answers the far side: the
-  // crude constant-speed solve, or the capability model derived from this
-  // model's own parameters. P1a compares them.
+  //
+  // The far side keeps the SAME QUESTION as the exact solver: it is still a
+  // candidate-time scan, testing for each candidate interception time whether
+  // the actor could be inside the radius of ball(t) by then, and returning the
+  // candidate time (not the arrival time). Only the per-candidate arrival
+  // estimate is swapped: one analytic evaluation instead of an O(t) rollout.
+  //
+  // That difference matters and is not cosmetic. Answering with the arrival
+  // time to the far-horizon ball position would silently change the contract
+  // from "when can I first intercept" to "when could I reach that one place",
+  // which reports an intercept time the ball is nowhere near yet.
+  //
+  // `steady_state` selects which analytic model estimates each candidate
+  // arrival: the capability model derived from this model's own parameters, or
+  // the crude constant-speed solve kept as the baseline it was measured
+  // against. This is O(N) with no monotonicity assumption, because every
+  // candidate is still examined in order.
   template <typename TargetAtTime>
   static PlayerLocomotionReach EstimateEarliestInterceptHybrid(
       const PlayerKinematicState &start, TargetAtTime target_at,
@@ -407,29 +421,31 @@ class PlayerLocomotion {
     if (reach.usual_ms >= 0) return reach;
 
     const float speed = std::min(desired_speed, parameters.maxSpeed);
-    const Vector3 ball_position = target_at(0).Get2D();
-    const Vector3 ball_velocity =
-        (target_at(10).Get2D() - ball_position) * 100.0f;
-    const Vector3 far_target = target_at(horizon_ms).Get2D();
-    if (steady_state) {
+    for (int intercept_ms = exact_horizon_ms + 10;
+         intercept_ms <= horizon_ms; intercept_ms += 10) {
+      const Vector3 candidate_point = target_at(intercept_ms).Get2D();
       if (reach.optimistic_ms < 0) {
-        reach.optimistic_ms = EstimateSteadyReachTime(
-            start, far_target, parameters, speed, horizon_ms, optimistic_radius);
+        const int arrival =
+            steady_state
+                ? EstimateSteadyReachTime(start, candidate_point, parameters,
+                                          speed, intercept_ms,
+                                          optimistic_radius)
+                : EstimateInterceptAnalytic(start, candidate_point,
+                                            Vector3(0), speed, intercept_ms,
+                                            optimistic_radius);
+        if (arrival >= 0) reach.optimistic_ms = intercept_ms;
       }
       if (reach.usual_ms < 0) {
-        reach.usual_ms = EstimateSteadyReachTime(
-            start, far_target, parameters, speed, horizon_ms, usual_radius);
+        const int arrival =
+            steady_state
+                ? EstimateSteadyReachTime(start, candidate_point, parameters,
+                                          speed, intercept_ms, usual_radius)
+                : EstimateInterceptAnalytic(start, candidate_point, Vector3(0),
+                                            speed, intercept_ms, usual_radius);
+        if (arrival >= 0) reach.usual_ms = intercept_ms;
       }
-      return reach;
-    }
-    if (reach.optimistic_ms < 0) {
-      reach.optimistic_ms = EstimateInterceptAnalytic(
-          start, ball_position, ball_velocity, speed, horizon_ms,
-          optimistic_radius);
-    }
-    if (reach.usual_ms < 0) {
-      reach.usual_ms = EstimateInterceptAnalytic(
-          start, ball_position, ball_velocity, speed, horizon_ms, usual_radius);
+      // The usual radius is the stricter one, so it ends the scan.
+      if (reach.usual_ms >= 0) break;
     }
     return reach;
   }
