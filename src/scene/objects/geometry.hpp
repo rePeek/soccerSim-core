@@ -22,7 +22,6 @@
 #include "../../base/math/vector3.hpp"
 #include "../../scene/object.hpp"
 #include "../../scene/resources/geometrydata.hpp"
-#include "../../types/interpreter.hpp"
 #include "../../types/resource.hpp"
 
 namespace blunted {
@@ -31,17 +30,10 @@ namespace blunted {
 
     public:
       Geometry(std::string name, e_ObjectType objectType = e_ObjectType_Geometry);
-      Geometry(const Geometry &src, const std::string &postfix);
       virtual ~Geometry();
-
-      virtual void Exit();
 
       void SetGeometryData(boost::intrusive_ptr < Resource<GeometryData> > geometryData);
       boost::intrusive_ptr < Resource<GeometryData> > GetGeometryData();
-
-      void OnUpdateGeometryData(bool updateMaterials = true);
-
-      virtual void Poke(e_SystemType targetSystemType);
 
       void RecursiveUpdateSpatialData(e_SpatialDataType spatialDataType, e_SystemType excludeSystem = e_SystemType_None);
 
@@ -50,18 +42,6 @@ namespace blunted {
     protected:
       boost::intrusive_ptr < Resource<GeometryData> > geometryData;
 
-  };
-
-  class IGeometryInterpreter : public Interpreter {
-
-    public:
-      virtual void OnLoad(boost::intrusive_ptr<Geometry> geom) = 0;
-      virtual void OnUpdateGeometry(boost::intrusive_ptr<Geometry> geometry, bool updateMaterials) = 0;
-      virtual void OnUnload() = 0;
-      virtual void OnMove(const Vector3 &position) = 0;
-      virtual void OnRotate(const Quaternion &rotation) = 0;
-
-      virtual void OnPoke() = 0;
   };
 
 }

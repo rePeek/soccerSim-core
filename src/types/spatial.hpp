@@ -63,7 +63,6 @@ namespace blunted {
 
       Spatial(const Spatial &src);
 
-      virtual void Exit() = 0;
 
       void SetLocalMode(e_LocalMode localMode);
       e_LocalMode GetLocalMode();

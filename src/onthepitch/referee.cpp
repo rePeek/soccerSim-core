@@ -18,7 +18,6 @@
 #include "referee.hpp"
 #include <cmath>
 
-#include "../scene/objectfactory.hpp"
 #include "match.hpp"
 #include "AIsupport/AIfunctions.hpp"
 

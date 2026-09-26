@@ -18,8 +18,6 @@
 #include "node.hpp"
 
 #include "../../main.hpp"
-#include "../../scene/objectfactory.hpp"
-#include "scene3d.hpp"
 
 namespace blunted {
 
@@ -29,45 +27,9 @@ Node::Node(const std::string &name) : Spatial(name) {
   aabb.dirty = false;
 }
 
-Node::Node(const Node &source, const std::string &postfix,
-           boost::shared_ptr<Scene3D> scene3D)
-    : Spatial(source) {
-  DO_VALIDATION;
-  SetName(source.GetName() + postfix);
-  std::vector<boost::intrusive_ptr<Node> > gatherNodes;
-  source.GetNodes(gatherNodes);
-  for (int i = 0; i < (signed int)gatherNodes.size(); i++) {
-    DO_VALIDATION;
-    boost::intrusive_ptr<Node> copy(
-        new Node(*gatherNodes[i].get(), postfix, scene3D));
-    AddNode(copy);
-  }
-
-  std::list<boost::intrusive_ptr<Object> > gatherObjects;
-  source.GetObjects(gatherObjects, false);
-  std::list<boost::intrusive_ptr<Object> >::iterator objectIter =
-      gatherObjects.begin();
-  while (objectIter != gatherObjects.end()) {
-    DO_VALIDATION;
-    boost::intrusive_ptr<Object> objCopy =
-        GetContext().object_factory.CopyObject((*objectIter), postfix);
-    scene3D->CreateSystemObjects(objCopy);
-    objCopy->Synchronize();
-    AddObject(objCopy);
-
-    objectIter++;
-  }
-}
-
 Node::~Node() { DO_VALIDATION; }
-
 void Node::Exit() {
   DO_VALIDATION;
-  int objCount = objects.size();
-  for (int i = 0; i < objCount; i++) {
-    DO_VALIDATION;
-    objects[i]->Exit();
-  }
   objects.clear();
   int nodeCount = nodes.size();
   for (int i = 0; i < nodeCount; i++) {
@@ -131,22 +93,6 @@ void Node::DeleteNode(boost::intrusive_ptr<Node> node) {
     return boost::intrusive_ptr<Object>();
   }
 
-  void Node::DeleteObject(boost::intrusive_ptr<Object> object,
-                          bool exitObject) {
-    DO_VALIDATION;
-    std::vector < boost::intrusive_ptr<Object> >::iterator objIter = find(objects.begin(), objects.end(), object);
-    if (objIter != objects.end()) {
-      DO_VALIDATION;
-      if (exitObject) (*objIter)->Exit();
-      (*objIter)->SetParent(0);
-      objects.erase(objIter);
-    } else
-      Log(e_Error, "Node", "DeleteObject",
-          "Object " + object->GetName() + " not found among node " + GetName() +
-              "'s children!");
-    aabb.dirty = true;
-  }
-
   void Node::GetObjects(std::list < boost::intrusive_ptr<Object> > &gatherObjects, bool recurse, int depth) const {
     int objectsSize = objects.size();
     for (int i = 0; i < objectsSize; i++) {
@@ -192,21 +138,6 @@ void Node::DeleteNode(boost::intrusive_ptr<Node> node) {
       node->ProcessState(state);
     }
 
-  }
-
-  void Node::PokeObjects(e_ObjectType targetObjectType,
-                         e_SystemType targetSystemType) {
-    DO_VALIDATION;
-    int objectsSize = objects.size();
-    for (int i = 0; i < objectsSize; i++) {
-      DO_VALIDATION;
-      if (objects[i]->IsEnabled()) if (objects[i]->GetObjectType() == targetObjectType) objects[i]->Poke(targetSystemType);
-    }
-    int nodesSize = nodes.size();
-    for (int i = 0; i < nodesSize; i++) {
-      DO_VALIDATION;
-      nodes[i]->PokeObjects(targetObjectType, targetSystemType);
-    }
   }
 
   void Node::RecursiveUpdateSpatialData(e_SpatialDataType spatialDataType,

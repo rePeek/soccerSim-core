@@ -29,7 +29,6 @@
 
 #include "../../../utils/animationextensions/footballanimationextension.hpp"
 
-#include "../../../scene/objectfactory.hpp"
 
 constexpr float bodyRotationSmoothingFactor = 1.0f;
 constexpr float bodyRotationSmoothingMaxAngle = 0.25f * pi;

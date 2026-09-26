@@ -26,13 +26,10 @@
 
 namespace blunted {
 
-  class Scene3D;
-
   class Node : public Spatial {
 
     public:
       Node(const std::string &name);
-      Node(const Node &source, const std::string &postfix, boost::shared_ptr<Scene3D> scene3D);
       virtual ~Node();
 
       virtual void Exit();
@@ -44,9 +41,6 @@ namespace blunted {
 
       void AddObject(boost::intrusive_ptr<Object> object);
       boost::intrusive_ptr<Object> GetObject(const std::string &name);
-      void DeleteObject(boost::intrusive_ptr<Object> object,
-                        bool exitObject = true);
-
       void GetObjects(std::list<boost::intrusive_ptr<Object> > &gatherObjects,
                       bool recurse = true, int depth = 0) const;
 
@@ -87,8 +81,6 @@ namespace blunted {
           }
         }
       }
-
-      void PokeObjects(e_ObjectType targetObjectType, e_SystemType targetSystem);
 
       virtual AABB GetAABB() const;
 

@@ -19,7 +19,6 @@
 
 #include "team.hpp"
 
-#include "../scene/objectfactory.hpp"
 
 #include "../main.hpp"
 

@@ -21,7 +21,6 @@
 #include "../../defines.hpp"
 #include "../../base/math/vector3.hpp"
 #include "../../scene/object.hpp"
-#include "../../types/interpreter.hpp"
 #include "../../types/resource.hpp"
 #include "../../types/material.hpp"
 #include "surface.hpp"

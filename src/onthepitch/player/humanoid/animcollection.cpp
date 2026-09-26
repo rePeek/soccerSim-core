@@ -20,7 +20,6 @@
 #include <cmath>
 
 #include "../../../main.hpp"
-#include "../../../scene/objectfactory.hpp"
 #include "../../../utils/animationextensions/footballanimationextension.hpp"
 #include "../../../utils/objectloader.hpp"
 #include "file.h"

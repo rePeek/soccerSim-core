@@ -19,7 +19,6 @@
 
 #include "../base/utils.hpp"
 #include "../main.hpp"
-#include "../scene/objectfactory.hpp"
 #include "../scene/objects/geometry.hpp"
 #include "../scene/objects/light.hpp"
 #include "../scene/resources/geometrydata.hpp"

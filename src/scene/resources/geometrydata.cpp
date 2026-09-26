@@ -17,7 +17,6 @@
 
 #include "geometrydata.hpp"
 
-#include "../../systems/isystemobject.hpp"
 
 #include "../../base/geometry/trianglemeshutils.hpp"
 

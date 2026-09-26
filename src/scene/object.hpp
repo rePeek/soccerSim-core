@@ -20,13 +20,10 @@
 
 #include "../defines.hpp"
 
-#include "../types/subject.hpp"
 #include "../types/spatial.hpp"
 #include "../base/properties.hpp"
 
 namespace blunted {
-
-  class ISystemObject;
 
   enum e_ObjectType {
     e_ObjectType_Camera = 1,
@@ -37,22 +34,17 @@ namespace blunted {
     e_ObjectType_UserStart = 7
   };
 
-  struct MustUpdateSpatialData {
-    bool haveTo = false;
-    e_SystemType excludeSystem;
-  };
-
   // ATOMICITY: this class is responsible for doing about everything concurrently without crashing.
   // this implicitly accounts for atomicity in observers.
-  class Object : public Subject<Interpreter>, public Spatial {
+  // CPU data structure for the animation import hierarchy.
+  // The renderer-facing observer/interpreter machinery that used to live here
+  // (Subject<Interpreter>, poke, system objects) was removed in D4c1; what is
+  // left is name/type/properties plus the Spatial transform.
+  class Object : public Spatial {
 
     public:
       Object(std::string name, e_ObjectType objectType);
       virtual ~Object();
-
-      Object(const Object &src);
-
-      virtual void Exit(); // ATOMIC
 
       virtual e_ObjectType GetObjectType();
 
@@ -72,18 +64,6 @@ namespace blunted {
       virtual void AddRequestProperty(const char *property);
       virtual void SetRequestProperty(const char *property, const char *value);
 
-      virtual void Synchronize();
-      virtual void Poke(e_SystemType targetSystemType);
-
-      virtual void RecursiveUpdateSpatialData(e_SpatialDataType spatialDataType, e_SystemType excludeSystem = e_SystemType_None);
-
-      MustUpdateSpatialData updateSpatialDataAfterPoke;
-
-      virtual boost::intrusive_ptr<Interpreter> GetInterpreter(e_SystemType targetSystemType);
-
-      virtual void SetPokePriority(int prio) { DO_VALIDATION; pokePriority = prio; }
-      virtual int GetPokePriority() const { return pokePriority; }
-
       // set these before creating system objects
 
       Properties properties;
@@ -92,8 +72,6 @@ namespace blunted {
 
     protected:
       e_ObjectType objectType;
-
-      mutable int pokePriority;
 
       // request these to be set by observing objects
       mutable Properties requestProperties;

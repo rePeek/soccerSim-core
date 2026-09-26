@@ -17,53 +17,16 @@
 
 #include "object.hpp"
 
-#include "../systems/isystemobject.hpp"
 
 namespace blunted {
 
 Object::Object(std::string name, e_ObjectType objectType)
     : Spatial(name), objectType(objectType) {
   DO_VALIDATION;
-  MustUpdateSpatialData clear;
-  clear.haveTo = false;
-  clear.excludeSystem = e_SystemType_None;
-  updateSpatialDataAfterPoke = clear;
-  pokePriority = 0;
   enabled = true;
 }
 
-Object::~Object() {
-  DO_VALIDATION;
-  if (observers.size() != 0) {
-    DO_VALIDATION;
-    Log(e_FatalError, "Object", "~Object",
-        "Observer(s) still present at destruction time (spatial named: " +
-            GetName() + ")");
-  }
-}
-
-Object::Object(const Object &src) : Subject<Interpreter>(), Spatial(src) {
-  DO_VALIDATION;
-  objectType = src.objectType;
-  properties = src.properties;
-  requestProperties.AddProperties(src.requestProperties);
-
-  MustUpdateSpatialData clear;
-  clear.haveTo = false;
-  clear.excludeSystem = e_SystemType_None;
-  updateSpatialDataAfterPoke = clear;
-  pokePriority = src.GetPokePriority();
-  enabled = src.enabled;
-
-  assert(observers.size() == 0);
-}
-
-void Object::Exit() {
-  DO_VALIDATION;
-  // printf("detaching all observers from object named %s\n",
-  // GetName().c_str());
-  DetachAll();
-}
+Object::~Object() { DO_VALIDATION; }
 
 inline e_ObjectType Object::GetObjectType() {
   DO_VALIDATION;
@@ -111,36 +74,5 @@ inline e_ObjectType Object::GetObjectType() {
   void Object::SetRequestProperty(const char *property, const char *value) {
     DO_VALIDATION;
     requestProperties.Set(property, value);
-  }
-
-  void Object::Synchronize() {
-    DO_VALIDATION;
-    boost::shared_ptr<Interpreter> result;
-    int observersSize = observers.size();
-    for (int i = 0; i < observersSize; i++) {
-      DO_VALIDATION;
-      boost::intrusive_ptr<Interpreter> interpreter = boost::static_pointer_cast<Interpreter>(observers[i]);
-      interpreter->OnSynchronize();
-    }
-  }
-
-  void Object::Poke(e_SystemType targetSystemType) { DO_VALIDATION; }
-
-  inline void Object::RecursiveUpdateSpatialData(
-      e_SpatialDataType spatialDataType, e_SystemType excludeSystem) {
-    DO_VALIDATION;
-  }
-
-  boost::intrusive_ptr<Interpreter> Object::GetInterpreter(
-      e_SystemType targetSystemType) {
-    DO_VALIDATION;
-    boost::intrusive_ptr<Interpreter> result;
-    int observersSize = observers.size();
-    for (int i = 0; i < observersSize; i++) {
-      DO_VALIDATION;
-      boost::intrusive_ptr<Interpreter> interpreter = boost::static_pointer_cast<Interpreter>(observers[i]);
-      if (interpreter->GetSystemType() == targetSystemType) result = interpreter;
-    }
-    return result;
   }
 }

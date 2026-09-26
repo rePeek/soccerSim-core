@@ -24,7 +24,6 @@
 #include "base/utils.hpp"
 #include "file.h"
 #include "main.hpp"
-#include "scene/objectfactory.hpp"
 #include "game_env.hpp"
 
 using std::string;

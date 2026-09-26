@@ -55,7 +55,6 @@ set(BASE_SOURCES
 
 set(SYSTEMS_COMMON_HEADERS
    src/systems/isystem.hpp
-   src/systems/isystemobject.hpp
 )
 
 set(SYSTEMS_GRAPHICS_HEADERS
@@ -84,12 +83,9 @@ set(LOADERS_SOURCES
 )
 
 set(TYPES_HEADERS
-   src/types/subject.hpp
    src/types/spatial.hpp
    src/types/resource.hpp
    src/types/material.hpp
-   src/types/observer.hpp
-   src/types/interpreter.hpp
    src/types/refcounted.hpp
    src/types/command.hpp
    src/types/loader.hpp
@@ -99,30 +95,22 @@ set(TYPES_HEADERS
 set(TYPES_SOURCES
    src/types/spatial.cpp
    src/types/refcounted.cpp
-   src/types/observer.cpp
    src/types/command.cpp
 )
 
 set(SCENE_HEADERS
-   src/scene/scene.hpp
-   src/scene/iscene.hpp
    src/scene/object.hpp
-   src/scene/objectfactory.hpp
 )
 
 set(SCENE2D_HEADERS
 )
 
 set(SCENE_OBJECTS_HEADERS
-   src/scene/objects/skybox.hpp
    src/scene/objects/geometry.hpp
    src/scene/objects/light.hpp
-   src/scene/objects/image2d.hpp
-   src/scene/objects/camera.hpp
 )
 
 set(SCENE3D_HEADERS
-   src/scene/scene3d/scene3d.hpp
    src/scene/scene3d/node.hpp
 )
 
@@ -132,14 +120,8 @@ set(SCENE_RESOURCES_HEADERS
 )
 
 set(SCENE_SOURCES
-   src/scene/objectfactory.cpp
-   src/scene/scene.cpp
-   src/scene/objects/image2d.cpp
    src/scene/objects/light.cpp
    src/scene/objects/geometry.cpp
-   src/scene/objects/skybox.cpp
-   src/scene/objects/camera.cpp
-   src/scene/scene3d/scene3d.cpp
    src/scene/scene3d/node.cpp
    src/scene/object.cpp
    src/scene/resources/surface.cpp
@@ -154,7 +136,6 @@ set(UTILS_HEADERS
    src/utils/animation.hpp
    src/utils/objectloader.hpp
    src/utils/xmlloader.hpp
-   src/utils/orbitcamera.hpp
 )
 
 set(UTILS_EXT_HEADERS
@@ -163,7 +144,6 @@ set(UTILS_EXT_HEADERS
 )
 
 set(UTILS_SOURCES
-   src/utils/orbitcamera.cpp
    src/utils/animation.cpp
    src/utils/objectloader.cpp
    src/utils/xmlloader.cpp

@@ -40,7 +40,6 @@ void DoValidation(int line, const char* file);
 #include "match_setup.hpp"
 #include "hid/ihidevice.hpp"
 
-#include "scene/objectfactory.hpp"
 #include "scene/resources/geometrydata.hpp"
 #include "scene/resources/surface.hpp"
 #include "loaders/aseloader.hpp"
@@ -236,7 +235,6 @@ class GameContext {
   Properties *config = nullptr;
 
   std::vector<AIControlledKeyboard*> controllers;
-  ObjectFactory object_factory;
   ResourceManager<GeometryData> geometry_manager;
   ResourceManager<Surface> surface_manager;
   ASELoader aseLoader;
