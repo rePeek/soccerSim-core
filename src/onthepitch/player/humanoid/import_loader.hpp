@@ -40,8 +40,6 @@ class ImportLoader {
                                        const XMLTree& objectTree,
                                        const Vector3& offset) const;
 
-  void InterpretProperties(const map_XMLTree& tree,
-                           Properties& properties) const;
   e_LocalMode InterpretLocalMode(const std::string& value) const;
 };
 

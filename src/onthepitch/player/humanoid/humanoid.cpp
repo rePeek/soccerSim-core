@@ -19,6 +19,7 @@
 
 #include <cmath>
 
+#include "../../../base/geometry/line.hpp"
 #include "humanoid_utils.hpp"
 
 #include "../player_retain_anchor.hpp"

@@ -17,6 +17,7 @@
 
 #include "AIfunctions.hpp"
 
+#include "../../base/geometry/line.hpp"
 #include <cmath>
 
 #include "mentalimage.hpp"

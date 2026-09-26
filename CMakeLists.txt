@@ -39,7 +39,6 @@ include(sources.cmake)
 
 add_library(baselib OBJECT ${BASE_SOURCES} ${BASE_HEADERS}
    ${BASE_GEOMETRY_HEADERS} ${BASE_MATH_HEADERS})
-add_library(loaderslib OBJECT ${LOADERS_SOURCES} ${LOADERS_HEADERS} ${MANAGERS_HEADERS})
 add_library(typeslib OBJECT ${TYPES_SOURCES} ${TYPES_HEADERS})
 add_library(scenelib OBJECT ${SCENE_SOURCES} ${SCENE_HEADERS}
    ${SCENE2D_HEADERS} ${SCENE3D_HEADERS} ${SCENE_OBJECTS_HEADERS}
@@ -49,7 +48,6 @@ add_library(utilslib OBJECT ${UTILS_SOURCES} ${UTILS_HEADERS}
 
 # Join all created static libraries into a single static or shared one.
 set(OWN_LIBRARIES $<TARGET_OBJECTS:baselib> # $<TARGET_OBJECTS:systemscommonlib>
-   $<TARGET_OBJECTS:loaderslib>
    $<TARGET_OBJECTS:typeslib> $<TARGET_OBJECTS:scenelib>
    $<TARGET_OBJECTS:utilslib>)
 

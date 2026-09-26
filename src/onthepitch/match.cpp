@@ -17,6 +17,7 @@
 
 #include "match.hpp"
 
+#include "../base/geometry/line.hpp"
 #include <algorithm>
 #include <cmath>
 

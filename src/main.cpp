@@ -81,7 +81,6 @@ void randomize(unsigned int seed) {
 void run_game(Properties* input_config) {
   DO_VALIDATION;
   game->context->config = input_config;
-  Initialize();
   randomize(0);
   for (int x = 0; x < 2 * MAX_PLAYERS; x++) {
     DO_VALIDATION;

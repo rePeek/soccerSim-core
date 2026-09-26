@@ -17,6 +17,7 @@
 
 #include "../../../main.hpp"
 
+#include "../../../base/geometry/line.hpp"
 #include "elizacontroller.hpp"
 
 #include <cmath>

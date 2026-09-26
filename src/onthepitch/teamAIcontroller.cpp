@@ -17,6 +17,7 @@
 
 #include "teamAIcontroller.hpp"
 
+#include "../base/geometry/line.hpp"
 #include <cmath>
 
 #include "AIsupport/AIfunctions.hpp"

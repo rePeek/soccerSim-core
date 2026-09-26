@@ -73,13 +73,9 @@ set(SYSTEMS_GRAPHICS_SOURCES
 )
 
 set(LOADERS_HEADERS
-   src/loaders/aseloader.hpp
-   src/loaders/imageloader.hpp
 )
 
 set(LOADERS_SOURCES
-   src/loaders/imageloader.cpp
-   src/loaders/aseloader.cpp
 )
 
 set(TYPES_HEADERS
@@ -141,11 +137,9 @@ set(UTILS_SOURCES
 
 set(BLUNTED_CORE_HEADERS
    src/defines.hpp
-   src/blunted.hpp
 )
 
 set(BLUNTED_CORE_SOURCES
-   src/blunted.cpp
 )
 
 

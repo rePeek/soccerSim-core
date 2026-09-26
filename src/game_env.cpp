@@ -328,8 +328,6 @@ void GameEnv::reset(ScenarioConfig& game_config, bool animations) {
     DO_VALIDATION;
     controller->SetDisabled(true);
   }
-  context->geometry_manager.RemoveUnused();
-  context->surface_manager.RemoveUnused();
   GetGameTask()->StopMatch();
   GetGameTask()->StartMatch(std::move(context->matchSetup), animations);
 }

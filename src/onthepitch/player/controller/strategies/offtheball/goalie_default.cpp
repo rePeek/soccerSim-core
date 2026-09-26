@@ -17,6 +17,7 @@
 
 #include "goalie_default.hpp"
 
+#include "../../../../../base/geometry/line.hpp"
 #include "../../../../../base/geometry/triangle.hpp"
 
 #include "../../../../../main.hpp"

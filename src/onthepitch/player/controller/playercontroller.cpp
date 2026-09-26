@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "playercontroller.hpp"
+#include "../../../base/geometry/line.hpp"
 #include <cmath>
 
 #include "../../match.hpp"

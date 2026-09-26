@@ -34,16 +34,11 @@ void DoValidation(int line, const char* file);
 #endif
 
 #include "ai/ai_keyboard.hpp"
-#include "blunted.hpp"
 
 #include "gametask.hpp"
 #include "match_setup.hpp"
 #include "hid/ihidevice.hpp"
 
-#include "scene/resources/geometrydata.hpp"
-#include "scene/resources/surface.hpp"
-#include "loaders/aseloader.hpp"
-#include "loaders/imageloader.hpp"
 #include "base/properties.hpp"
 #include <boost/random.hpp>
 #include <boost/shared_ptr.hpp>
@@ -235,10 +230,6 @@ class GameContext {
   Properties *config = nullptr;
 
   std::vector<AIControlledKeyboard*> controllers;
-  ResourceManager<GeometryData> geometry_manager;
-  ResourceManager<Surface> surface_manager;
-  ASELoader aseLoader;
-  ImageLoader imageLoader;
 
   typedef boost::mt19937 BaseGenerator;
   typedef boost::uniform_real<float> Distribution;

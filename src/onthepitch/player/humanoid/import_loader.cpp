@@ -14,9 +14,6 @@
 #include "import_loader.hpp"
 
 #include "../../../base/utils.hpp"
-#include "../../../main.hpp"
-#include "../../../scene/resources/geometrydata.hpp"
-#include "../../../types/resource.hpp"
 
 namespace blunted {
 
@@ -50,7 +47,6 @@ std::unique_ptr<ImportNode> ImportLoader::LoadNode(
   while (objectIter != objectTree.children.end()) {
     DO_VALIDATION;
     std::string objectName;
-    Properties properties;
     e_LocalMode localMode = e_LocalMode_Relative;
 
     // NODE (recurse)
@@ -82,7 +78,6 @@ std::unique_ptr<ImportNode> ImportLoader::LoadNode(
 
     else if (objectIter->first == "geometry") {
       DO_VALIDATION;
-      std::string aseFilename;
       Vector3 position;
       Quaternion rotation;
 
@@ -90,10 +85,6 @@ std::unique_ptr<ImportNode> ImportLoader::LoadNode(
       while (iter != objectIter->second.children.end()) {
         DO_VALIDATION;
 
-        if (iter->first == "filename") {
-          DO_VALIDATION;
-          aseFilename = iter->second.value;
-        }
         if (iter->first == "name") {
           DO_VALIDATION;
           objectName = iter->second.value;
@@ -106,10 +97,6 @@ std::unique_ptr<ImportNode> ImportLoader::LoadNode(
           DO_VALIDATION;
           rotation = GetQuaternionFromString(iter->second.value);
         }
-        if (iter->first == "properties") {
-          DO_VALIDATION;
-          InterpretProperties(iter->second.children, properties);
-        }
         if (iter->first == "localmode") {
           DO_VALIDATION;
           localMode = InterpretLocalMode(iter->second.value);
@@ -118,13 +105,8 @@ std::unique_ptr<ImportNode> ImportLoader::LoadNode(
         iter++;
       }
 
-      // The mesh itself is still loaded, because dropping the import is a
-      // separate change (D4c3) from replacing the hierarchy representation
-      // (this one). Nothing reads it: the touch computation only needs the
-      // anchors' names and derived transforms.
-      boost::intrusive_ptr<Resource<GeometryData> > geometry =
-          GetContext().geometry_manager.Fetch(dirpart + aseFilename, true);
-      if (properties.GetBool("dynamic")) geometry->GetResource()->SetDynamic(true);
+      // The mesh file name and material properties are no longer read: the touch
+      // computation needs the anchors' names and derived transforms only.
 
       std::unique_ptr<ImportNode> anchor(
           new ImportNode(objectName, ImportNodeKind::Anchor));
@@ -144,16 +126,6 @@ std::unique_ptr<ImportNode> ImportLoader::LoadNode(
   }
 
   return node;
-}
-
-void ImportLoader::InterpretProperties(const map_XMLTree& tree,
-                                      Properties& properties) const {
-  map_XMLTree::const_iterator propIter = tree.begin();
-  while (propIter != tree.end()) {
-    DO_VALIDATION;
-    properties.Set(propIter->first.c_str(), propIter->second.value);
-    propIter++;
-  }
 }
 
 e_LocalMode ImportLoader::InterpretLocalMode(const std::string& value) const {
