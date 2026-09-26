@@ -246,6 +246,7 @@ set(GAME_HEADERS
    src/onthepitch/player/player_ground_collider.hpp
    src/onthepitch/player/player_action.hpp
    src/onthepitch/player/player_action_executor.hpp
+   src/onthepitch/player/player_action_volume.hpp
    src/onthepitch/player/player.hpp
    src/onthepitch/player/controller/icontroller.hpp
    src/onthepitch/player/controller/elizacontroller.hpp

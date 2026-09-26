@@ -10,6 +10,7 @@
 #include "onthepitch/player/player_kinematics.hpp"
 #include "onthepitch/player/player_ground_collider.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
+#include "onthepitch/player/player_action_volume.hpp"
 
 namespace {
 
@@ -274,6 +275,69 @@ void CheckPlayerActionExecutor() {
           "action executor should emit one completion event");
 }
 
+void CheckPlayerActionVolume() {
+  PlayerActionState action;
+  PlayerKinematicState kinematics;
+  kinematics.position = Vector3(0.0f, 0.0f, 0.0f);
+  kinematics.facing = Vector3(0.0f, -1.0f, 0.0f);
+
+  PlayerActionVolumeParameters parameters;
+  parameters.contactWindowStartFrame = 5;
+  parameters.contactWindowEndFrame = 28;
+
+  // Non-reaching actions never produce a volume.
+  action.type = e_FunctionType_Movement;
+  action.frame = 10;
+  Require(!BuildTackleVolume(action, kinematics, parameters).active,
+          "movement should not have a tackle volume");
+
+  // Outside the contact window the volume is inactive too.
+  action.type = e_FunctionType_Sliding;
+  action.frame = 5;
+  Require(!BuildTackleVolume(action, kinematics, parameters).active,
+          "slide before the contact window should be inactive");
+  action.frame = 28;
+  Require(!BuildTackleVolume(action, kinematics, parameters).active,
+          "slide after the contact window should be inactive");
+
+  // Inside the window a slide reaches forward along facing.
+  action.frame = 12;
+  const PlayerActionVolume slide =
+      BuildTackleVolume(action, kinematics, parameters);
+  Require(slide.active, "slide inside the contact window should be active");
+  RequireNear(slide.axis.coords[1], -1.0f, "slide axis should follow facing y");
+
+  PlayerGroundCollider victim;
+  const float reach = parameters.slideReach + parameters.slideRadius +
+                      victim.radius;
+  victim.SetCenter(Vector3(0.0f, -1.0f, 0.0f));
+  Require(slide.Intersects(victim), "slide should reach a victim in front");
+
+  // The capsule starts at the actor, so a victim behind is not reached.
+  victim.SetCenter(Vector3(0.0f, 1.0f, 0.0f));
+  Require(!slide.Intersects(victim), "slide should not reach behind");
+
+  // Reach plus radii, inclusive boundary.
+  victim.SetCenter(Vector3(0.0f, -(reach - 0.01f), 0.0f));
+  Require(slide.Intersects(victim), "slide should reach just inside its boundary");
+  victim.SetCenter(Vector3(0.0f, -(reach + 0.01f), 0.0f));
+  Require(!slide.Intersects(victim), "slide should not reach past its boundary");
+
+  // Standing tackle is shorter and broader.
+  action.type = e_FunctionType_Interfere;
+  const PlayerActionVolume interfere =
+      BuildTackleVolume(action, kinematics, parameters);
+  Require(interfere.active, "interfere should be active inside the window");
+  Require(interfere.length < slide.length,
+          "interfere should reach less far than a slide");
+  Require(interfere.radius > slide.radius,
+          "interfere should be broader than a slide");
+
+  // Height is ignored: everything is evaluated on the pitch plane.
+  victim.SetCenter(Vector3(0.0f, -1.0f, 2.0f));
+  Require(slide.Intersects(victim), "tackle volume should be planar");
+}
+
 ScenarioConfig MakeBuiltinAiConfig() {
   auto config = ScenarioConfig::make();
   config->left_agents = 0;
@@ -481,6 +545,7 @@ int main(int /*argc*/, char** /*argv*/) {
     CheckPlayerKinematicMirror();
     CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
+    CheckPlayerActionVolume();
     GameEnv env;
     env.game_config.render = false;
     env.start_game();
