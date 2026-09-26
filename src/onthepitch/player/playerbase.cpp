@@ -71,10 +71,24 @@ void PlayerBase::SynchronizeActionState() {
   actionState.contactPosition = anim->touchPos;
 }
 
+void PlayerBase::BeginActionExecutorShadow() {
+  DO_VALIDATION;
+  PlayerActionDefinition definition;
+  definition.type = actionState.type;
+  definition.durationTime_ms = actionState.durationTime_ms;
+  definition.contactTime_ms = actionState.contactTime_ms;
+  definition.contactPosition = actionState.contactPosition;
+  PlayerActionExecutor::Begin(actionExecutorShadow, definition);
+  if (actionState.elapsedTime_ms > 0) {
+    PlayerActionExecutor::Step(actionExecutorShadow,
+                               actionState.elapsedTime_ms);
+  }
+  actionExecutorShadowAnimationId = humanoid->GetCurrentAnim()->id;
+}
+
 void PlayerBase::ResetActionExecutorShadow() {
   DO_VALIDATION;
-  actionExecutorShadow = actionState;
-  actionExecutorShadowAnimationId = humanoid->GetCurrentAnim()->id;
+  BeginActionExecutorShadow();
 }
 
 void PlayerBase::UpdateActionExecutorShadow() {
@@ -86,17 +100,7 @@ void PlayerBase::UpdateActionExecutorShadow() {
       actionState.durationTime_ms != actionExecutorShadow.durationTime_ms ||
       actionState.contactTime_ms != actionExecutorShadow.contactTime_ms;
   if (actionRestarted) {
-    PlayerActionDefinition definition;
-    definition.type = actionState.type;
-    definition.durationTime_ms = actionState.durationTime_ms;
-    definition.contactTime_ms = actionState.contactTime_ms;
-    definition.contactPosition = actionState.contactPosition;
-    PlayerActionExecutor::Begin(actionExecutorShadow, definition);
-    if (actionState.elapsedTime_ms > 0) {
-      PlayerActionExecutor::Step(actionExecutorShadow,
-                                 actionState.elapsedTime_ms);
-    }
-    actionExecutorShadowAnimationId = anim->id;
+    BeginActionExecutorShadow();
   } else if (actionState.elapsedTime_ms >
              actionExecutorShadow.elapsedTime_ms) {
     PlayerActionExecutor::Step(

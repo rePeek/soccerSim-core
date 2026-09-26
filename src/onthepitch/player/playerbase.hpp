@@ -137,6 +137,7 @@ class PlayerBase {
     void UpdateKinematicShadow();
     void ResetKinematicShadow();
     void SynchronizeActionState();
+    void BeginActionExecutorShadow();
     void ResetActionExecutorShadow();
     void UpdateActionExecutorShadow();
     Match *match;
