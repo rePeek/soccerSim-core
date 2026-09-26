@@ -18,6 +18,8 @@
 #include "player.hpp"
 #include "player_action_executor.hpp"
 
+#include <cstring>
+
 #include "../match.hpp"
 
 #include "controller/elizacontroller.hpp"
@@ -73,42 +75,67 @@ void PlayerBase::SynchronizeActionState() {
   actionState.contactPosition = anim->touchPos;
 }
 
-void PlayerBase::BeginActionExecutorShadow() {
+void PlayerBase::CheckSimulationActionOracle() const {
   DO_VALIDATION;
-  PlayerActionDefinition definition;
-  definition.type = actionState.type;
-  definition.durationTime_ms = actionState.durationTime_ms;
-  definition.contactTime_ms = actionState.contactTime_ms;
-  definition.contactPosition = actionState.contactPosition;
-  PlayerActionExecutor::Begin(actionExecutorShadow, definition);
-  if (actionState.elapsedTime_ms > 0) {
-    PlayerActionExecutor::Step(actionExecutorShadow,
-                               actionState.elapsedTime_ms);
+  const bool contactPositionMatches =
+      std::memcmp(actionState.contactPosition.coords,
+                  actionExecutorShadow.contactPosition.coords,
+                  sizeof(actionState.contactPosition.coords)) == 0;
+  std::string mismatch;
+  if (actionState.type != actionExecutorShadow.type) {
+    mismatch = "type";
+  } else if (actionState.frame != actionExecutorShadow.frame) {
+    mismatch = "frame";
+  } else if (actionState.frameCount != actionExecutorShadow.frameCount) {
+    mismatch = "frame count";
+  } else if (actionState.elapsedTime_ms != actionExecutorShadow.elapsedTime_ms) {
+    mismatch = "elapsed time";
+  } else if (actionState.durationTime_ms != actionExecutorShadow.durationTime_ms) {
+    mismatch = "duration";
+  } else if (actionState.contactTime_ms != actionExecutorShadow.contactTime_ms) {
+    mismatch = "contact time";
+  } else if (actionState.contactFrame != actionExecutorShadow.contactFrame) {
+    mismatch = "contact frame";
+  } else if (!contactPositionMatches) {
+    mismatch = "contact position bits";
   }
-  actionExecutorShadowAnimationId = humanoid->GetCurrentAnim()->id;
+  if (!mismatch.empty()) {
+    Log(e_FatalError, "PlayerBase", "CheckSimulationActionOracle",
+        "independent action executor diverged from legacy oracle: " + mismatch +
+            " (legacy frame=" + std::to_string(actionState.frame) +
+            ", executor frame=" + std::to_string(actionExecutorShadow.frame) +
+            ", legacy elapsed=" + std::to_string(actionState.elapsedTime_ms) +
+            ", executor elapsed=" +
+            std::to_string(actionExecutorShadow.elapsedTime_ms) + ")");
+  }
 }
 
-void PlayerBase::ResetActionExecutorShadow() {
-  DO_VALIDATION;
-  BeginActionExecutorShadow();
-}
-
-void PlayerBase::UpdateActionExecutorShadow() {
+void PlayerBase::BeginSimulationAction() {
   DO_VALIDATION;
   const Anim *anim = humanoid->GetCurrentAnim();
-  const bool actionRestarted =
-      actionExecutorShadowAnimationId != anim->id ||
-      actionState.elapsedTime_ms < actionExecutorShadow.elapsedTime_ms ||
-      actionState.durationTime_ms != actionExecutorShadow.durationTime_ms ||
-      actionState.contactTime_ms != actionExecutorShadow.contactTime_ms;
-  if (actionRestarted) {
-    BeginActionExecutorShadow();
-  } else if (actionState.elapsedTime_ms >
-             actionExecutorShadow.elapsedTime_ms) {
-    PlayerActionExecutor::Step(
-        actionExecutorShadow,
-        actionState.elapsedTime_ms - actionExecutorShadow.elapsedTime_ms);
+  PlayerActionDefinition definition;
+  definition.type = humanoid->GetCurrentFunctionType();
+  definition.durationTime_ms = humanoid->GetFrameCount() * 10;
+  definition.contactTime_ms = anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
+  definition.contactPosition = anim->touchPos;
+  PlayerActionExecutor::Begin(actionExecutorShadow, definition);
+
+  // ResetPosition can deliberately start an idle animation at a non-zero
+  // legacy frame. Establish that initial cursor once; normal ticks never
+  // derive executor time from Humanoid.
+  const int initialElapsedTime_ms = humanoid->GetFrameNum() * 10;
+  if (initialElapsedTime_ms > 0) {
+    PlayerActionExecutor::Step(actionExecutorShadow, initialElapsedTime_ms);
   }
+  SynchronizeActionState();
+  CheckSimulationActionOracle();
+}
+
+void PlayerBase::StepSimulationAction(int elapsedTime_ms) {
+  DO_VALIDATION;
+  PlayerActionExecutor::Step(actionExecutorShadow, elapsedTime_ms);
+  SynchronizeActionState();
+  CheckSimulationActionOracle();
 }
 
 void PlayerBase::ResetKinematicShadow() {
@@ -149,8 +176,7 @@ void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   DO_VALIDATION;
   humanoid->ResetPosition(newPos, focusPos);
   SynchronizeKinematicState();
-  SynchronizeActionState();
-  ResetActionExecutorShadow();
+  BeginSimulationAction();
   ResetKinematicShadow();
 }
 
@@ -159,7 +185,7 @@ void PlayerBase::OffsetPosition(const Vector3 &offset) {
   humanoid->OffsetPosition(offset);
   SynchronizeKinematicState();
   SynchronizeActionState();
-  ResetActionExecutorShadow();
+  CheckSimulationActionOracle();
   ResetKinematicShadow();
 }
 
@@ -218,7 +244,7 @@ void PlayerBase::Process() {
     humanoid->Process();
     SynchronizeKinematicState();
     SynchronizeActionState();
-    UpdateActionExecutorShadow();
+    CheckSimulationActionOracle();
     UpdateKinematicShadow();
   }
 }
@@ -254,8 +280,7 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   if (IsActive()) {
     humanoid->ResetSituation(focusPos);
     SynchronizeKinematicState();
-    SynchronizeActionState();
-    ResetActionExecutorShadow();
+    BeginSimulationAction();
     ResetKinematicShadow();
   }
   if (GetController()) GetController()->Reset();
@@ -270,7 +295,6 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   groundCollider.ProcessState(state);
   actionState.ProcessState(state);
   actionExecutorShadow.ProcessState(state);
-  state->process(actionExecutorShadowAnimationId);
   if (IsActive()) {
     controller->ProcessState(state);
   }

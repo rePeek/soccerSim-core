@@ -93,7 +93,7 @@ void Humanoid::Process() {
   spatialState.positionOffsetMovement = Vector3(0);
 
   currentAnim.frameNum++;
-  CastPlayer()->RefreshSimulationActionState();
+  CastPlayer()->StepSimulationAction(10);
   previousAnim_frameNum++;
 
   assert(team);
@@ -797,6 +797,7 @@ void Humanoid::SelectRetainAnim() {
   currentAnim.rotationSmuggle.end = 0;
   currentAnim.rotationSmuggleOffset = 0;
   currentAnim.functionType = e_FunctionType_Movement;
+  CastPlayer()->BeginSimulationAction();
 
   match->SetBallRetainer(CastPlayer());
 }
@@ -1328,7 +1329,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     currentAnim.originatingCommand = command;
     currentAnim.movementSmuggle = CalculateMovementSmuggle(command.desiredDirection, command.desiredVelocityFloat);
     currentAnim.movementSmuggleOffset = Vector3(0);
-    CastPlayer()->RefreshSimulationActionState();
+    CastPlayer()->BeginSimulationAction();
     return true;
   }
 

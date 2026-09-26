@@ -100,19 +100,16 @@ class PlayerBase {
       DO_VALIDATION;
       return actionExecutorShadow;
     }
-    // Gameplay reads this simulation-owned schedule. It is still mirrored from
-    // Humanoid during H3d1; H3d2 makes its clock authoritative.
+    // Gameplay reads this independently advanced simulation schedule. H3d2a
+    // checks it exactly against the Humanoid-derived legacy oracle.
     const PlayerActionState &GetSimulationActionState() const {
       DO_VALIDATION;
       return actionExecutorShadow;
     }
-    // H3d1 bridge: refresh immediately when Humanoid changes its legacy action
-    // while a same-tick gameplay reader can still observe that change.
-    void RefreshSimulationActionState() {
-      DO_VALIDATION;
-      SynchronizeActionState();
-      UpdateActionExecutorShadow();
-    }
+    // H3d2a: Humanoid invokes these for completed action selection and ticks.
+    // The executor advances independently; legacy state is an oracle only.
+    void BeginSimulationAction();
+    void StepSimulationAction(int elapsedTime_ms);
 
     void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }
 
@@ -167,9 +164,7 @@ class PlayerBase {
     void UpdateKinematicShadow();
     void ResetKinematicShadow();
     void SynchronizeActionState();
-    void BeginActionExecutorShadow();
-    void ResetActionExecutorShadow();
-    void UpdateActionExecutorShadow();
+    void CheckSimulationActionOracle() const;
     Match *match;
 
     const PlayerData* const playerData;
@@ -181,7 +176,6 @@ class PlayerBase {
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
     PlayerActionState actionExecutorShadow;
-    int actionExecutorShadowAnimationId = -1;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

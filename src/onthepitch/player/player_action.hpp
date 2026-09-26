@@ -11,9 +11,9 @@
 #include "../../defines.hpp"
 
 // Explicit action timing consumed by gameplay, match rules and collision logic.
-// It is synchronized from Humanoid after each actor tick during H3d1, but
-// contains no animation, scene or presentation objects. H3d2 will make its
-// clock authoritative.
+// During H3d2a PlayerActionExecutor advances this schedule independently at
+// action selection and every 10 ms tick; a Humanoid-derived legacy state is
+// retained solely as an exact oracle. H3d2b promotes this clock to authority.
 struct PlayerActionState {
   e_FunctionType type = e_FunctionType_None;
   int frame = 0;

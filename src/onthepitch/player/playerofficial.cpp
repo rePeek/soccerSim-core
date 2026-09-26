@@ -50,8 +50,7 @@ void PlayerOfficial::Activate(boost::shared_ptr<AnimCollection> animCollection,
 
   CastHumanoid()->ResetPosition(Vector3(0), Vector3(0));
   SynchronizeKinematicState();
-  SynchronizeActionState();
-  ResetActionExecutorShadow();
+  BeginSimulationAction();
   ResetKinematicShadow();
 
   controller.reset(new RefereeController(match));
@@ -69,6 +68,6 @@ void PlayerOfficial::Process() {
   CastHumanoid()->Process();
   SynchronizeKinematicState();
   SynchronizeActionState();
-  UpdateActionExecutorShadow();
+  CheckSimulationActionOracle();
   UpdateKinematicShadow();
 }

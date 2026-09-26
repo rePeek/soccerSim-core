@@ -93,8 +93,7 @@ void Player::Activate(boost::shared_ptr<AnimCollection> animCollection,
           Vector3(-team->GetDynamicSide(), -team->GetDynamicSide(), 0),
       Vector3(0));
   SynchronizeKinematicState();
-  SynchronizeActionState();
-  ResetActionExecutorShadow();
+  BeginSimulationAction();
   ResetKinematicShadow();
   SetDynamicFormationEntry(GetFormationEntry());
 }
@@ -311,7 +310,7 @@ void Player::Process() {
     CastHumanoid()->Process();
     SynchronizeKinematicState();
     SynchronizeActionState();
-    UpdateActionExecutorShadow();
+    CheckSimulationActionOracle();
     UpdateKinematicShadow();
 
     if (match->IsInPlay()) {
