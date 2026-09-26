@@ -98,6 +98,7 @@ void Player::Activate(boost::intrusive_ptr<Node> humanoidSourceNode,
       GetFormationEntry().position * 25 *
           Vector3(-team->GetDynamicSide(), -team->GetDynamicSide(), 0),
       Vector3(0));
+  SynchronizeKinematicState();
   SetDynamicFormationEntry(GetFormationEntry());
 }
 
@@ -310,6 +311,7 @@ void Player::Process() {
     Vector3 posBefore = CastHumanoid()->GetPosition();
 
     CastHumanoid()->Process();
+    SynchronizeKinematicState();
 
     if (match->IsInPlay()) {
       Vector3 posAfter = CastHumanoid()->GetPosition();

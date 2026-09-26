@@ -19,6 +19,7 @@
 #define _HPP_PLAYERBASE
 
 #include "humanoid/humanoidbase.hpp"
+#include "player_kinematics.hpp"
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
@@ -45,8 +46,8 @@ class PlayerBase {
     // go back to bench/take a shower
     virtual void Deactivate();
 
-    void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) { DO_VALIDATION; humanoid->ResetPosition(newPos, focusPos); }
-    void OffsetPosition(const Vector3 &offset) { DO_VALIDATION; humanoid->OffsetPosition(offset); }
+    void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos);
+    void OffsetPosition(const Vector3 &offset);
 
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
@@ -60,9 +61,15 @@ class PlayerBase {
       return humanoid->GetRelBodyAngle();
     }
     inline e_Velocity GetEnumVelocity() const { return humanoid->GetEnumVelocity(); }
-    inline float GetFloatVelocity() const { return EnumToFloatVelocity(humanoid->GetEnumVelocity()); }
+    inline float GetFloatVelocity() const {
+      return EnumToFloatVelocity(humanoid->GetEnumVelocity());
+    }
     inline e_FunctionType GetCurrentFunctionType() const { return humanoid->GetCurrentFunctionType(); }
     inline e_FunctionType GetPreviousFunctionType() const { return humanoid->GetPreviousFunctionType(); }
+    const PlayerKinematicState &GetKinematicState() const {
+      DO_VALIDATION;
+      return kinematicState;
+    }
 
     void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }
 
@@ -113,12 +120,14 @@ class PlayerBase {
     void ProcessStateBase(EnvState* state);
 
   protected:
+    void SynchronizeKinematicState();
     Match *match;
 
     const PlayerData* const playerData;
     const int stable_id = 0;
 
     std::unique_ptr<HumanoidBase> humanoid;
+    PlayerKinematicState kinematicState;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

@@ -55,6 +55,7 @@ void PlayerOfficial::Activate(boost::intrusive_ptr<Node> humanoidSourceNode,
       animCollection, match->GetDynamicNode(), kit));
 
   CastHumanoid()->ResetPosition(Vector3(0), Vector3(0));
+  SynchronizeKinematicState();
 
   controller.reset(new RefereeController(match));
   controller->SetPlayer(this);
@@ -69,6 +70,7 @@ void PlayerOfficial::Process() {
   DO_VALIDATION;
   CastController()->Process();
   CastHumanoid()->Process();
+  SynchronizeKinematicState();
 }
 
 void PlayerOfficial::FetchPutBuffers() {

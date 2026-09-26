@@ -44,6 +44,27 @@ PlayerBase::~PlayerBase() {
 
 void PlayerBase::Mirror() {
   humanoid->Mirror();
+  kinematicState.Mirror();
+}
+
+void PlayerBase::SynchronizeKinematicState() {
+  DO_VALIDATION;
+  kinematicState.position = humanoid->GetPosition();
+  kinematicState.velocity = humanoid->GetMovement();
+  kinematicState.facing = humanoid->GetDirectionVec();
+  kinematicState.speed = kinematicState.velocity.GetLength();
+}
+
+void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
+  DO_VALIDATION;
+  humanoid->ResetPosition(newPos, focusPos);
+  SynchronizeKinematicState();
+}
+
+void PlayerBase::OffsetPosition(const Vector3 &offset) {
+  DO_VALIDATION;
+  humanoid->OffsetPosition(offset);
+  SynchronizeKinematicState();
 }
 
 void PlayerBase::Deactivate() {
@@ -101,6 +122,7 @@ void PlayerBase::Process() {
     DO_VALIDATION;
     if (ExternalControllerActive()) externalController->GetHumanController()->Process(); else controller->Process();
     humanoid->Process();
+    SynchronizeKinematicState();
   } else {
     if (humanoid) humanoid->Hide();
   }
@@ -148,7 +170,10 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   positionHistoryPerSecond.clear();
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;
-  if (IsActive()) humanoid->ResetSituation(focusPos);
+  if (IsActive()) {
+    humanoid->ResetSituation(focusPos);
+    SynchronizeKinematicState();
+  }
   if (GetController()) GetController()->Reset();
 }
 
@@ -156,6 +181,7 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   DO_VALIDATION;
   state->process(isActive);
   humanoid->ProcessState(state);
+  kinematicState.ProcessState(state);
   if (IsActive()) {
     controller->ProcessState(state);
   }
