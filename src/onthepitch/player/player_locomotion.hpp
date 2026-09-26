@@ -367,37 +367,63 @@ class PlayerLocomotion {
     const float turn_seconds =
         (cruise_authority > 1e-3f) ? heading_error / cruise_authority : 0.0f;
 
-    const bool speeding_up = cruise > initial_speed;
-    const float rate = speeding_up ? parameters.acceleration : parameters.braking;
-    const float transition_seconds =
-        (rate > 0.0f) ? std::fabs(cruise - initial_speed) / rate : 0.0f;
+    // Turn-induced braking. The model does not brake because the actor is fast;
+    // it brakes because turning lowers the target speed, so an actor carrying
+    // more speed than desired * turnPenalty has to slow down even though it is
+    // already at its ceiling. High entry speed only makes that condition easier
+    // to satisfy. During the turn the target is the cruise speed scaled by the
+    // mean turn penalty, and the feedback loop that matters is: lower target
+    // -> braking -> lower speed -> more turn authority.
+    const float average_heading_error = heading_error * 0.5f;
+    const float average_turn_penalty =
+        1.0f - parameters.turnSpeedLoss * (average_heading_error / pi);
+    const float turn_target_speed = cruise * average_turn_penalty;
 
-    const float setup_seconds = std::max(turn_seconds, transition_seconds);
-    // Piecewise setup distance. The speed transition only lasts
-    // transition_seconds; extrapolating the acceleration across the whole setup
-    // duration (which is usually the turn time) invents displacement that does
-    // not happen, which shortens the remaining distance and makes the estimate
-    // optimistic. Since setup_seconds >= transition_seconds by construction, the
-    // speed transition is always complete when setup ends, so the rest of the
-    // setup is covered at the cruise speed.
-    const float transition =
-        std::min(setup_seconds, transition_seconds);
+    // Phase A: turn, while the speed moves towards the turn-reduced target.
     float setup_distance = 0.0f;
-    if (speeding_up) {
-      setup_distance = initial_speed * transition +
-                       0.5f * parameters.acceleration * transition * transition;
-    } else {
-      setup_distance = initial_speed * transition -
-                       0.5f * parameters.braking * transition * transition;
+    float setup_end_speed = initial_speed;
+    if (turn_seconds > 0.0f) {
+      if (initial_speed > turn_target_speed && parameters.braking > 0.0f) {
+        const float brake_seconds =
+            (initial_speed - turn_target_speed) / parameters.braking;
+        const float braking_seconds = std::min(turn_seconds, brake_seconds);
+        setup_distance += initial_speed * braking_seconds -
+                          0.5f * parameters.braking * braking_seconds *
+                              braking_seconds;
+        setup_end_speed = initial_speed - parameters.braking * braking_seconds;
+        setup_distance += setup_end_speed * (turn_seconds - braking_seconds);
+      } else if (initial_speed < turn_target_speed &&
+                 parameters.acceleration > 0.0f) {
+        const float accelerate_seconds =
+            (turn_target_speed - initial_speed) / parameters.acceleration;
+        const float accelerating_seconds =
+            std::min(turn_seconds, accelerate_seconds);
+        setup_distance += initial_speed * accelerating_seconds +
+                          0.5f * parameters.acceleration *
+                              accelerating_seconds * accelerating_seconds;
+        setup_end_speed =
+            initial_speed + parameters.acceleration * accelerating_seconds;
+        setup_distance +=
+            setup_end_speed * (turn_seconds - accelerating_seconds);
+      } else {
+        setup_distance += initial_speed * turn_seconds;
+      }
     }
     if (setup_distance < 0.0f) setup_distance = 0.0f;
-    if (setup_seconds > transition_seconds) {
-      setup_distance += cruise * (setup_seconds - transition_seconds);
+
+    // Phase B: recover from the turn-reduced speed back to cruise.
+    float recover_seconds = 0.0f;
+    if (setup_end_speed < cruise && parameters.acceleration > 0.0f) {
+      recover_seconds = (cruise - setup_end_speed) / parameters.acceleration;
+      setup_distance += setup_end_speed * recover_seconds +
+                        0.5f * parameters.acceleration * recover_seconds *
+                            recover_seconds;
     }
 
     const float remaining =
         std::max(0.0f, distance - radius - setup_distance);
-    const float total_seconds = setup_seconds + remaining / cruise;
+    const float total_seconds =
+        turn_seconds + recover_seconds + remaining / cruise;
     const int total_ms =
         static_cast<int>(std::ceil(total_seconds * 1000.0f));
     return total_ms <= horizon_ms ? total_ms : -1;

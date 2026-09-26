@@ -2139,6 +2139,7 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
     int unreachable_to_reachable_by_heading[5] = {0, 0, 0, 0, 0};
     int samples_by_speed_ratio[4] = {0, 0, 0, 0};
     int unreachable_to_reachable_by_speed_ratio[4] = {0, 0, 0, 0};
+    int u2r_by_heading_and_speed[5][4] = {{0}};
   };
   HorizonStats stats[5];
   double exact_seconds = 0.0;
@@ -2222,6 +2223,7 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
             ++entry.unreachable_to_reachable;
             ++entry.unreachable_to_reachable_by_heading[heading_bucket];
             ++entry.unreachable_to_reachable_by_speed_ratio[ratio_bucket];
+            ++entry.u2r_by_heading_and_speed[heading_bucket][ratio_bucket];
           }
           if (exact_reachable && hybrid_reachable) {
             const double difference =
@@ -2293,6 +2295,15 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
       std::cout << "\n    u2r_by_speed_ratio:";
       for (int slot = 0; slot < 4; ++slot) {
         std::cout << " " << kRatioLabels[slot] << "=" << entry.unreachable_to_reachable_by_speed_ratio[slot] << "/" << entry.samples_by_speed_ratio[slot];
+      }
+      std::cout << "\n";
+      std::cout << "    u2r heading x speed matrix (rows heading, cols speed):\n";
+      for (int h = 0; h < 5; ++h) {
+        std::cout << "     " << kHeadingLabels[h];
+        for (int r = 0; r < 4; ++r) {
+          std::cout << "  " << entry.u2r_by_heading_and_speed[h][r];
+        }
+        std::cout << "\n";
       }
       std::cout << "\n";
     }
