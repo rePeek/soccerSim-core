@@ -293,7 +293,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
       Vector3 nextPosXZ = nextPos * Vector3(1, 0, 1);
       if ((nextPosXZ.GetAbsolute() - Vector3(pitchHalfW, 0, goalHeight))
                   .GetLength() < ballRadius + postRadius &&
-          fabs(nextPos.coords[1]) < goalHalfWidth + ballRadius + postRadius) {
+          std::fabs(nextPos.coords[1]) < goalHalfWidth + ballRadius + postRadius) {
         DO_VALIDATION;
         Vector3 normal;
 
@@ -328,13 +328,13 @@ BallSpatialInfo Ball::CalculatePrediction() {
       bool ballIsInGoal = match->IsBallInGoal();
       signed int inGoal = ballIsInGoal ? 1 : -1;
 
-      bool behindBackline = fabs(nextPos.coords[0]) > pitchHalfW + 0.11f;
-      bool behindGoalBack = fabs(nextPos.coords[0]) > pitchHalfW + goalDepth + 0.11f;
-      bool beforeGoalBack = fabs(nextPos.coords[0]) < pitchHalfW + goalDepth - 0.11f;
+      bool behindBackline = std::fabs(nextPos.coords[0]) > pitchHalfW + 0.11f;
+      bool behindGoalBack = std::fabs(nextPos.coords[0]) > pitchHalfW + goalDepth + 0.11f;
+      bool beforeGoalBack = std::fabs(nextPos.coords[0]) < pitchHalfW + goalDepth - 0.11f;
       bool belowGoalHeight = nextPos.coords[2] < goalHeight + 0.11f;
       bool aboveGoalHeight = nextPos.coords[2] > goalHeight - 0.11f;
-      bool betweenGoalWidth = fabs(nextPos.coords[1]) < goalHalfWidth - 0.11f;
-      bool asideGoalWidth = fabs(nextPos.coords[1]) > goalHalfWidth + 0.11f;
+      bool betweenGoalWidth = std::fabs(nextPos.coords[1]) < goalHalfWidth - 0.11f;
+      bool asideGoalWidth = std::fabs(nextPos.coords[1]) > goalHalfWidth + 0.11f;
 
 
       // side netting
@@ -343,13 +343,13 @@ BallSpatialInfo Ball::CalculatePrediction() {
         DO_VALIDATION;
 
         float netDist = 0.0f;
-        netDist = fabs(fabs(nextPos.coords[1]) - goalHalfWidth);
+        netDist = std::fabs(fabs(nextPos.coords[1]) - goalHalfWidth);
         netDist = clamp(netDist, 0, 1);
         float power = std::pow(netDist, powFactor) *
                       -signSide(nextPos.coords[1]) * inGoal;
 
         // net is stuck to woodwork so lay off there
-        float woodworkTensionBiasInv = clamp((fabs(momentumPredict.coords[0]) - pitchHalfW) * 2.0f, 0.0f, 1.0f);
+        float woodworkTensionBiasInv = clamp((std::fabs(momentumPredict.coords[0]) - pitchHalfW) * 2.0f, 0.0f, 1.0f);
         float adaptedPowerFac = powerFac + (1.0f - woodworkTensionBiasInv) * 3.0f;
 
         momentumPredict.coords[1] = momentumPredict.coords[1] * netAbsorbInv + power * adaptedPowerFac * (100 * timeStep);// + -momentumPredict.coords[1] * netDist;
@@ -358,9 +358,9 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
       // rear netting
 
-      //      if ((fabs(nextPos.coords[0]) > (pitchHalfW + 2.5) - 0.11 &&
+      //      if ((std::fabs(nextPos.coords[0]) > (pitchHalfW + 2.5) - 0.11 &&
       //      ballIsInGoal)/* ||
-      //          (fabs(nextPos.coords[0]) < (pitchHalfW + 2.5) + 0.11 &&
+      //          (std::fabs(nextPos.coords[0]) < (pitchHalfW + 2.5) + 0.11 &&
       //          !ballIsInGoal) todo disabled: too hard to code :p */) {
       //          DO_VALIDATION;
 
@@ -369,7 +369,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
         DO_VALIDATION;
 
         float netDist = 0.0f;
-        netDist = fabs(fabs(nextPos.coords[0]) - (pitchHalfW + goalDepth));
+        netDist = std::fabs(fabs(nextPos.coords[0]) - (pitchHalfW + goalDepth));
         netDist = clamp(netDist, 0, 1);
         float power = std::pow(netDist, powFactor) *
                       -signSide(nextPos.coords[0]) * inGoal;
@@ -382,18 +382,18 @@ BallSpatialInfo Ball::CalculatePrediction() {
       //      if (((nextPos.coords[2] > 2.5 - 0.11 && ballIsInGoal)/*( ||
       //           (nextPos.coords[2] < 2.5 + 0.11 && !ballIsInGoal) todo
       //           disabled: too hard to code :p */) &&
-      //          fabs(nextPos.coords[0]) > pitchHalfW) { DO_VALIDATION;
+      //          std::fabs(nextPos.coords[0]) > pitchHalfW) { DO_VALIDATION;
 
       if ((ballIsInGoal && !belowGoalHeight && behindBackline)) {
         DO_VALIDATION;
 
         float netDist = 0.0f;
-        netDist = fabs(fabs(nextPos.coords[2]) - goalHeight);
+        netDist = std::fabs(fabs(nextPos.coords[2]) - goalHeight);
         netDist = clamp(netDist, 0, 1);
         float power = std::pow(netDist, powFactor) * -inGoal;
 
         // net is stuck to woodwork so lay off there
-        float woodworkTensionBiasInv = clamp((fabs(momentumPredict.coords[0]) - pitchHalfW) * 2.0f, 0.0f, 1.0f);
+        float woodworkTensionBiasInv = clamp((std::fabs(momentumPredict.coords[0]) - pitchHalfW) * 2.0f, 0.0f, 1.0f);
         float adaptedPowerFac = powerFac + (1.0f - woodworkTensionBiasInv) * 3.0f;
 
         momentumPredict.coords[2] = momentumPredict.coords[2] * netAbsorbInv + power * adaptedPowerFac * (100 * timeStep);
@@ -427,7 +427,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
       Quaternion groundRot = rotX * rotY;
 
       Quaternion oldToNewRotation = rotationPredict_ms.GetRotationTo(groundRot).GetNormalized();
-      radian rotationChangePerSecond = fabs(oldToNewRotation.GetRotationAngle(QUATERNION_IDENTITY)) * 1000.0f;
+      radian rotationChangePerSecond = std::fabs(oldToNewRotation.GetRotationAngle(QUATERNION_IDENTITY)) * 1000.0f;
 
       radian maxRotationChangePerSecond = 1.0f * pi * grassInfluenceBias;
       // ball slams into ground; see origin of frictionFactor variable for more clarity. this happens only once per bounce
@@ -491,7 +491,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
       float swerveAmount = NormalizedClamp(momentumPredict.GetLength(), 0.0f, 70.0f);
       // http://www.wolframalpha.com/input/?i=sin%28x+*+pi+*+0.7%29+^+2.2+from+x+%3D+0+to+1
       // <bazkie_drunk> ^ tnx, past myself, that's very convenient!
-      swerveAmount = pow(std::sin(swerveAmount * pi * 0.94f), 2.6f);
+      swerveAmount = std::pow(std::sin(swerveAmount * pi * 0.94f), 2.6f);
       Vector3 adaptedMomentumPredict = momentumPredict.GetNormalized(0) * swerveAmount * 30.0f;
 
       Vector3 swerve = adaptedMomentumPredict.GetCrossProduct(-rotVec) * 1.0;

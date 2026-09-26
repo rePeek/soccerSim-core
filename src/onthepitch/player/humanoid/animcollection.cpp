@@ -191,33 +191,33 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
             std::round(outgoingVeloID * dot - incomingVeloID);
         if (veloIDDiff_dotted < -3) legalAnim = false;
 
-        if (incomingVeloID == 3 && outgoingVeloID == 1 && (fabs(outgoingBodyAngleT2) > 0.25f * pi + margin || fabs(angle) > 0.25f * pi + margin)) legalAnim = false; // no sprint to dribble with backwards body angle
-        //if (incomingVeloID == 3 && outgoingVeloID == 0 && fabs(angle) > 0.25f * pi) legalAnim = false; // no sprint to idle with big angle
+        if (incomingVeloID == 3 && outgoingVeloID == 1 && (std::fabs(outgoingBodyAngleT2) > 0.25f * pi + margin || std::fabs(angle) > 0.25f * pi + margin)) legalAnim = false; // no sprint to dribble with backwards body angle
+        //if (incomingVeloID == 3 && outgoingVeloID == 0 && std::fabs(angle) > 0.25f * pi) legalAnim = false; // no sprint to idle with big angle
 
         // experimental block
-        if (incomingVeloID > 0 && outgoingVeloID > 0 && fabs(angle) > 0.50f * pi + margin) legalAnim = false;
-        //if (incomingVeloID > 0 && outgoingVeloID == 0 && fabs(outgoingBodyAngleT2) > 0.50f * pi + margin) legalAnim = false;
-        // if (incomingVeloID == 3 && outgoingVeloID == 2 && (fabs(outgoingBodyAngleT2) > 0.3f * pi || fabs(angle) > 0.25f * pi)) legalAnim = false;
+        if (incomingVeloID > 0 && outgoingVeloID > 0 && std::fabs(angle) > 0.50f * pi + margin) legalAnim = false;
+        //if (incomingVeloID > 0 && outgoingVeloID == 0 && std::fabs(outgoingBodyAngleT2) > 0.50f * pi + margin) legalAnim = false;
+        // if (incomingVeloID == 3 && outgoingVeloID == 2 && (std::fabs(outgoingBodyAngleT2) > 0.3f * pi || std::fabs(angle) > 0.25f * pi)) legalAnim = false;
         //zzif (incomingVeloID == 3 && outgoingVeloID == 0) legalAnim = false;
-        //if (incomingVeloID == 3 && outgoingVeloID == 2 && fabs(angle) > 0.25f * pi) legalAnim = false;
-        //if (fabs(outgoingBodyAngleT2 - incomingBodyAngleT1 + angle) > 0.5f * pi) legalAnim = false;
+        //if (incomingVeloID == 3 && outgoingVeloID == 2 && std::fabs(angle) > 0.25f * pi) legalAnim = false;
+        //if (std::fabs(outgoingBodyAngleT2 - incomingBodyAngleT1 + angle) > 0.5f * pi) legalAnim = false;
 
-        //if (incomingVeloID + outgoingVeloID > 5 && fabs(angle) > 0.25f * pi) legalAnim = false; // sprint -> sprint
-        //if (incomingVeloID + outgoingVeloID > 4 && fabs(angle) > 0.5f * pi) legalAnim = false; // walk -> sprint && sprint -> walk
-        if (incomingVeloID + outgoingVeloID > 5 && fabs(angle) > 0.25f * pi + margin) legalAnim = false; // sprint -> sprint
-        if (incomingVeloID + outgoingVeloID > 4 && fabs(angle) > 0.25f * pi + margin) legalAnim = false; // walk -> sprint && sprint -> walk
-        //if (incomingVeloID + outgoingVeloID > 3 && fabs(angle) > 0.50f * pi + margin) legalAnim = false; // walk -> walk && sprint -> dribble && dribble -> sprint
-        //if (incomingVeloID + outgoingVeloID > 2 && fabs(angle) > 0.75f * pi + margin) legalAnim = false; // dribble -> walk && walk -> dribble
-        //if (incomingVeloID > 0 && outgoingVeloID > 0 && fabs(angle) > 0.5f * pi + margin) legalAnim = false; // dribble -> walk && walk -> dribble
+        //if (incomingVeloID + outgoingVeloID > 5 && std::fabs(angle) > 0.25f * pi) legalAnim = false; // sprint -> sprint
+        //if (incomingVeloID + outgoingVeloID > 4 && std::fabs(angle) > 0.5f * pi) legalAnim = false; // walk -> sprint && sprint -> walk
+        if (incomingVeloID + outgoingVeloID > 5 && std::fabs(angle) > 0.25f * pi + margin) legalAnim = false; // sprint -> sprint
+        if (incomingVeloID + outgoingVeloID > 4 && std::fabs(angle) > 0.25f * pi + margin) legalAnim = false; // walk -> sprint && sprint -> walk
+        //if (incomingVeloID + outgoingVeloID > 3 && std::fabs(angle) > 0.50f * pi + margin) legalAnim = false; // walk -> walk && sprint -> dribble && dribble -> sprint
+        //if (incomingVeloID + outgoingVeloID > 2 && std::fabs(angle) > 0.75f * pi + margin) legalAnim = false; // dribble -> walk && walk -> dribble
+        //if (incomingVeloID > 0 && outgoingVeloID > 0 && std::fabs(angle) > 0.5f * pi + margin) legalAnim = false; // dribble -> walk && walk -> dribble
 
         radian bodyAngleDelta = ModulateIntoRange(-pi, pi, outgoingBodyAngleT2 - incomingBodyAngleT1);
-        if (fabs(angle + bodyAngleDelta) > 1.0f * pi + margin) legalAnim = false; // don't rotate over 180 degrees (we've got an anim for that the shorter away around anyway)
-        //if (fabs(angle + bodyAngleDelta) > 0.5f * pi + margin) legalAnim = false; // just don't turn too fast
+        if (std::fabs(angle + bodyAngleDelta) > 1.0f * pi + margin) legalAnim = false; // don't rotate over 180 degrees (we've got an anim for that the shorter away around anyway)
+        //if (std::fabs(angle + bodyAngleDelta) > 0.5f * pi + margin) legalAnim = false; // just don't turn too fast
 
-        //if (fabs(bodyAngleDelta) > 0.9f * pi) legalAnim = false; // body rotation limit: if we allow 180 degrees, the slerp doesn't know whether it should go CW or CCW (seems to be fixed by the ModulateIntoRange above - why?)
-        //if (fabs(veloIDDiff) > 2 && fabs(angle + bodyAngleDelta) > 0.25f * pi) legalAnim = false; // don't brake AND turn all too much
+        //if (std::fabs(bodyAngleDelta) > 0.9f * pi) legalAnim = false; // body rotation limit: if we allow 180 degrees, the slerp doesn't know whether it should go CW or CCW (seems to be fixed by the ModulateIntoRange above - why?)
+        //if (std::fabs(veloIDDiff) > 2 && std::fabs(angle + bodyAngleDelta) > 0.25f * pi) legalAnim = false; // don't brake AND turn all too much
         //|__[R]__ autogen [v2 b-135] => [v2 b45 a-179]_mirror
-        //if (incomingVeloID + outgoingVeloID > 3 && fabs(angle) > 0.50f * pi) legalAnim = false;
+        //if (incomingVeloID + outgoingVeloID > 3 && std::fabs(angle) > 0.50f * pi) legalAnim = false;
 
 /* too uncontrollable
         Vector3 movementChangeVec = (Vector3(0, -1, 0) * incomingVelocityT1) - (Vector3(0, -1, 0).GetRotated2D(angle) * outgoingVelocityT2);
@@ -295,11 +295,11 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
 
               //float bias = frame / ((float)frameCount - 1);
               float origBias = clamp(frame - 1.0f, 0.0f, frameCount - 3.0f) / ((float)frameCount - 3.0f); // version that ignores first and last 2 frames, so incoming/outgoing velo/angle will be correct
-              // bias = pow(bias, 0.7f + pow(averageVeloFactor, 2.0) * 0.2f); // move a bit earlier
-              // bias = curve(bias, 1.0f - pow(averageVeloFactor, 2.0) * 0.8f); // concentrate change in the middle of the anim
+              // bias = std::pow(bias, 0.7f + std::pow(averageVeloFactor, 2.0) * 0.2f); // move a bit earlier
+              // bias = curve(bias, 1.0f - std::pow(averageVeloFactor, 2.0) * 0.8f); // concentrate change in the middle of the anim
               float bias = origBias;
-              //bias = pow(bias, 0.7f); // move a bit earlier
-              //bias = pow(bias, 0.2f + 0.6f * averageVeloFactor);
+              //bias = std::pow(bias, 0.7f); // move a bit earlier
+              //bias = std::pow(bias, 0.2f + 0.6f * averageVeloFactor);
               //if (frame == frameCount - 2) printf("before: %f, ", bias);
               bias = std::pow(
                   bias,
@@ -358,7 +358,7 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
           assert(gen->GetOutgoingVelocity() == anim2->GetOutgoingVelocity());
 
           // enable this to save all the autogenerated anims to files, so that we can use them as a base for manual anims. don't forget to disable again after usage ;)
-          //gen->Save("media/animations/debug_luxury/autogen v" + int_to_str(GetVelocityID(FloatToEnumVelocity(incomingVelocityT1))) + " b" + int_to_str(round(incomingBodyAngleT1 / pi * 180)) + " _to_ v" + int_to_str(GetVelocityID(FloatToEnumVelocity(outgoingVelocityT2))) + " b" + int_to_str(round(outgoingBodyAngleT2 / pi * 180)) + " a" + int_to_str(angle / pi * 180) + ".anim");
+          //gen->Save("media/animations/debug_luxury/autogen v" + int_to_str(GetVelocityID(FloatToEnumVelocity(incomingVelocityT1))) + " b" + int_to_str(std::round(incomingBodyAngleT1 / pi * 180)) + " _to_ v" + int_to_str(GetVelocityID(FloatToEnumVelocity(outgoingVelocityT2))) + " b" + int_to_str(std::round(outgoingBodyAngleT2 / pi * 180)) + " a" + int_to_str(angle / pi * 180) + ".anim");
 
           autoAnims.push_back(gen);
 
@@ -469,8 +469,8 @@ void AnimCollection::Load() {
         // more correct (to get proper leg movement for walking velocities)
         would be to create separate anims for these, but i'm feeling lazy if
         (animation->GetAnimType().compare(e_DefString_Movement) == 0) {
-        DO_VALIDATION; if (fabs(animation->GetIncomingBodyAngle()) > 0.5 * pi ||
-        fabs(animation->GetOutgoingBodyAngle()) > 0.5 * pi) { DO_VALIDATION; if
+        DO_VALIDATION; if (std::fabs(animation->GetIncomingBodyAngle()) > 0.5 * pi ||
+        std::fabs(animation->GetOutgoingBodyAngle()) > 0.5 * pi) { DO_VALIDATION; if
         (FloatToEnumVelocity(animation->GetIncomingVelocity()) ==
         e_Velocity_Dribble ||
         FloatToEnumVelocity(animation->GetOutgoingVelocity()) ==
@@ -599,7 +599,7 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
       // anim should not pass through opposite (180 deg) of desired look angle
       Vector3 fencedDirection = query.lookAtVecRel.GetRotated2D(pi);
 
-      if (fabs(animTurnAngle) > 0.06f * pi) {
+      if (std::fabs(animTurnAngle) > 0.06f * pi) {
         DO_VALIDATION;  // threshold
         e_Side animSide = (animTurnAngle > 0) ? e_Side_Left : e_Side_Right;
 
@@ -612,8 +612,8 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
         e_Side fenceToAnimOutgoingSide = (fenceToOutgoingAngle > 0) ? e_Side_Left : e_Side_Right;
 
         // passes through fence! n000!
-        if (animIncomingToFenceSide  == animSide && fenceToAnimOutgoingSide == animSide && fabs(animIncomingToFenceAngle + fenceToOutgoingAngle) < pi) continue;
-        if (queryIncomingToFenceSide == animSide && fenceToAnimOutgoingSide == animSide && fabs(queryIncomingToFenceSide + fenceToOutgoingAngle) < pi) continue;
+        if (animIncomingToFenceSide  == animSide && fenceToAnimOutgoingSide == animSide && std::fabs(animIncomingToFenceAngle + fenceToOutgoingAngle) < pi) continue;
+        if (queryIncomingToFenceSide == animSide && fenceToAnimOutgoingSide == animSide && std::fabs(queryIncomingToFenceSide + fenceToOutgoingAngle) < pi) continue;
       }
     }
 
@@ -661,50 +661,50 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
                     if (query.incomingBodyDirection_Strict == true) {
            DO_VALIDATION; // == non-movement, atm
                       // strict
-                      //if (fabs(incomingBodyDir.GetAngle2D(Vector3(0, -1, 0)))
-           > fabs(query.incomingBodyDirection.GetAngle2D(Vector3(0, -1, 0))) +
+                      //if (std::fabs(incomingBodyDir.GetAngle2D(Vector3(0, -1, 0)))
+           > std::fabs(query.incomingBodyDirection.GetAngle2D(Vector3(0, -1, 0))) +
            marginRadians) continue;
                       // allow 45
-                      //if (fabs(incomingBodyDir.GetAngle2D(Vector3(0, -1, 0)))
-           > fabs(query.incomingBodyDirection.GetAngle2D(Vector3(0, -1, 0))) +
+                      //if (std::fabs(incomingBodyDir.GetAngle2D(Vector3(0, -1, 0)))
+           > std::fabs(query.incomingBodyDirection.GetAngle2D(Vector3(0, -1, 0))) +
            0.25f * pi + marginRadians) continue;
 
                       //} else {
                       // if
-           (fabs(query.incomingBodyDirection.GetAngle2D(animations[i]->GetIncomingBodyDirection()))
+           (std::fabs(query.incomingBodyDirection.GetAngle2D(animations[i]->GetIncomingBodyDirection()))
            > marginRadians) continue;
                       //}
                     }
                   //}
         */
         // disallow larger than x radians diff
-        //if (fabs(query.incomingBodyDirection.GetAngle2D(animations[i]->GetIncomingBodyDirection())) > marginRadians) continue;
+        //if (std::fabs(query.incomingBodyDirection.GetAngle2D(animations[i]->GetIncomingBodyDirection())) > marginRadians) continue;
         // disallow larger incoming than current
-        if (fabs(FixAngle(animations[i]->GetIncomingBodyDirection().GetAngle2D())) > fabs(FixAngle(query.incomingBodyDirection.GetAngle2D())) + marginRadians) continue;
+        if (std::fabs(FixAngle(animations[i]->GetIncomingBodyDirection().GetAngle2D())) > std::fabs(FixAngle(query.incomingBodyDirection.GetAngle2D())) + marginRadians) continue;
 
 
         // absolute outgoing body dir is body dir + outgoing dir
         Vector3 outgoingBodyDir = Vector3(0, -1, 0).GetRotated2D(animations[i]->GetOutgoingBodyAngle() + animations[i]->GetOutgoingAngle());
 
         // disallow > ~135 degrees (not really needed, i guess)
-        //if (fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(query.incomingBodyDirection)) > 0.75f * pi + marginRadians) continue;
-        //if (fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(query.incomingBodyDirection)) > 0.5f * pi + marginRadians) continue;
+        //if (std::fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(query.incomingBodyDirection)) > 0.75f * pi + marginRadians) continue;
+        //if (std::fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(query.incomingBodyDirection)) > 0.5f * pi + marginRadians) continue;
 
         // disallow > ~90 degrees larger incoming than current
-        //if (fabs(FixAngle(animations[i]->GetIncomingBodyDirection().GetAngle2D())) > fabs(FixAngle(query.incomingBodyDirection.GetAngle2D())) + 0.5f * pi + marginRadians) continue;
+        //if (std::fabs(FixAngle(animations[i]->GetIncomingBodyDirection().GetAngle2D())) > std::fabs(FixAngle(query.incomingBodyDirection.GetAngle2D())) + 0.5f * pi + marginRadians) continue;
         // disallow > ~90 degrees different incoming than current
-        //if (fabs(fabs(FixAngle(animations[i]->GetIncomingBodyDirection().GetAngle2D())) - fabs(FixAngle(query.incomingBodyDirection.GetAngle2D()))) > 0.5f * pi + marginRadians) continue;
-        //if (fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(Vector3(0, -1, 0)) - query.incomingBodyDirection.GetAngle2D(Vector3(0, -1, 0))) > 0.5f * pi + marginRadians) continue;
+        //if (std::fabs(fabs(FixAngle(animations[i]->GetIncomingBodyDirection().GetAngle2D())) - std::fabs(FixAngle(query.incomingBodyDirection.GetAngle2D()))) > 0.5f * pi + marginRadians) continue;
+        //if (std::fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(Vector3(0, -1, 0)) - query.incomingBodyDirection.GetAngle2D(Vector3(0, -1, 0))) > 0.5f * pi + marginRadians) continue;
         // this version is not just moar beautiful, but also allows for -135 to 135 deg and vice versa
         if (query.incomingBodyDirection_Strict == true) {
           DO_VALIDATION;
-          if (fabs(incomingBodyDir.GetAngle2D(query.incomingBodyDirection)) > marginRadians) continue;
+          if (std::fabs(incomingBodyDir.GetAngle2D(query.incomingBodyDirection)) > marginRadians) continue;
         } else {
-          if (fabs(incomingBodyDir.GetAngle2D(query.incomingBodyDirection)) > 0.5f * pi + marginRadians) continue;
+          if (std::fabs(incomingBodyDir.GetAngle2D(query.incomingBodyDirection)) > 0.5f * pi + marginRadians) continue;
         }
 
         // disallow > ~135 degrees between query incoming and abs outgoing body dir (kills 180 deg anims!)
-        //if (fabs(outgoingBodyDir.GetAngle2D(query.incomingBodyDirection)) > 0.75f * pi + marginRadians) continue;
+        //if (std::fabs(outgoingBodyDir.GetAngle2D(query.incomingBodyDirection)) > 0.75f * pi + marginRadians) continue;
 
         if (query.incomingBodyDirection_ForceLinearity) {
           DO_VALIDATION;
@@ -722,7 +722,7 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
             DO_VALIDATION;
             continue;
           }
-          if (fabs(shortestAngle1) + fabs(shortestAngle2) > pi + marginRadians) continue;
+          if (std::fabs(shortestAngle1) + std::fabs(shortestAngle2) > pi + marginRadians) continue;
         }
 
       } else if (FloatToEnumVelocity(animations[i]->GetIncomingVelocity()) ==
@@ -730,15 +730,15 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
         DO_VALIDATION;
 
         // allow only same angle (which is moving anims with 0 outgoing body angle. since @ idle, that will become their only angle)
-        //if (fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(query.incomingBodyDirection)) > marginRadians) continue;
+        //if (std::fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(query.incomingBodyDirection)) > marginRadians) continue;
         if (query.incomingBodyDirection_Strict == true) {
           DO_VALIDATION;
-          if (fabs(Vector3(0, -1, 0).GetAngle2D(query.incomingBodyDirection)) > marginRadians) continue;
+          if (std::fabs(Vector3(0, -1, 0).GetAngle2D(query.incomingBodyDirection)) > marginRadians) continue;
         } else {
-          if (fabs(Vector3(0, -1, 0).GetAngle2D(query.incomingBodyDirection)) > 0.25f * pi + marginRadians) continue;
+          if (std::fabs(Vector3(0, -1, 0).GetAngle2D(query.incomingBodyDirection)) > 0.25f * pi + marginRadians) continue;
         }
       }
-      // no backwards body angles (test) if (fabs(animations[i]->GetIncomingBodyAngle()) > 0.5 * pi || fabs(animations[i]->GetOutgoingBodyAngle()) > 0.5 * pi) continue;
+      // no backwards body angles (test) if (std::fabs(animations[i]->GetIncomingBodyAngle()) > 0.5 * pi || std::fabs(animations[i]->GetOutgoingBodyAngle()) > 0.5 * pi) continue;
     }
 
     // select by INCOMING BALL DIRECTION
@@ -762,12 +762,12 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
         adaptedIncomingBallDirection.Normalize();
 
         //float ballDirectionSimilarity = adaptedIncomingBallDirection.GetDotProduct(animBallDirection);// * 0.5 + 0.5;
-        radian ballDirectionAngle = fabs(adaptedIncomingBallDirection.GetAngle2D(animBallDirection));
+        radian ballDirectionAngle = std::fabs(adaptedIncomingBallDirection.GetAngle2D(animBallDirection));
         //printf("%s\n", animations[i]->GetName().c_str());
         //query.incomingBallDirection.Print();
         //animBallDirection.Print();
         //printf("%f\n", ballDirectionDiff);
-        radian maxDeviation = fabs(atof(animations[i]->GetVariable("incomingballdirection_maxdeviation").c_str()) * pi);
+        radian maxDeviation = std::fabs(atof(animations[i]->GetVariable("incomingballdirection_maxdeviation").c_str()) * pi);
         if (maxDeviation == 0.0f) {
           DO_VALIDATION;
           maxDeviation = maxIncomingBallDirectionDeviation;//0.45f;
@@ -785,11 +785,11 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
       animBallDirection.Normalize(Vector3(0));
       //printf("%s\n", animations[i]->GetName().c_str());
       //float ballDirectionSimilarity = query.outgoingBallDirection.Get2D().GetNormalized(animBallDirection).GetDotProduct(animBallDirection);
-      radian ballDirectionAngle = fabs(query.outgoingBallDirection.Get2D().GetNormalized(animBallDirection).GetAngle2D(animBallDirection));
+      radian ballDirectionAngle = std::fabs(query.outgoingBallDirection.Get2D().GetNormalized(animBallDirection).GetAngle2D(animBallDirection));
       //query.outgoingBallDirection.Print();
       //animBallDirection.Print();
       //printf("%f\n", ballDirectionDiff);
-      radian maxDeviation = fabs(atof(animations[i]->GetVariable("outgoingballdirection_maxdeviation").c_str()) * pi);
+      radian maxDeviation = std::fabs(atof(animations[i]->GetVariable("outgoingballdirection_maxdeviation").c_str()) * pi);
       if (maxDeviation == 0.0) {
         DO_VALIDATION;
         maxDeviation = maxOutgoingBallDirectionDeviation;
@@ -811,7 +811,7 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
 
     if (query.byTripType == true) {
       DO_VALIDATION;
-      if (int(round(atof(animations[i]->GetVariable("triptype").c_str()))) != query.tripType) continue;
+      if (int(std::round(atof(animations[i]->GetVariable("triptype").c_str()))) != query.tripType) continue;
     }
 
     // select by FORCED FOOT
@@ -973,7 +973,7 @@ int AddExtraTouches(Animation *animation,
         /*
         // experiment: ball more on the sides (y) to get more incoming anti-outgoingdir-movement before touch (aesthetics effect?)
         Vector3 outVec = Vector3(0, -1, 0).GetRotated2D(animation->GetOutgoingAngle() + animation->GetOutgoingBodyAngle());
-        float dot = 1.0f - fabs(Vector3(0, -1, 0).GetDotProduct(outVec));
+        float dot = 1.0f - std::fabs(Vector3(0, -1, 0).GetDotProduct(outVec));
         resultPosition += outVec * dot * 0.30f;
         */
 
@@ -993,11 +993,11 @@ float CalculateAnimDifficulty(Animation *animation, float &absoluteDifficulty) {
   int animTouchFrame = 0;
   bool isTouch = boost::static_pointer_cast<FootballAnimationExtension>(animation->GetExtension("football"))->GetFirstTouch(animBallPos, animTouchFrame);
 
-  float bodyDirDifficulty = clamp(fabs(animation->GetIncomingBodyDirection().GetAngle2D(animation->GetOutgoingBodyDirection()) / pi), 0.0, 1.0);
+  float bodyDirDifficulty = clamp(std::fabs(animation->GetIncomingBodyDirection().GetAngle2D(animation->GetOutgoingBodyDirection()) / pi), 0.0, 1.0);
 
-  float directionDifficulty = clamp(fabs(Vector3(0, -1, 0).GetAngle2D(animation->GetOutgoingDirection()) / pi), 0.0, 1.0);
+  float directionDifficulty = clamp(std::fabs(Vector3(0, -1, 0).GetAngle2D(animation->GetOutgoingDirection()) / pi), 0.0, 1.0);
 
-  float veloChangeDifficulty = clamp(fabs(animation->GetIncomingVelocity() - animation->GetOutgoingVelocity()) / sprintVelocity, 0.0, 1.0);
+  float veloChangeDifficulty = clamp(std::fabs(animation->GetIncomingVelocity() - animation->GetOutgoingVelocity()) / sprintVelocity, 0.0, 1.0);
   float accelDifficulty = clamp((animation->GetOutgoingVelocity() - animation->GetIncomingVelocity()) / sprintVelocity, 0.0, 1.0);
   float veloDifficulty = veloChangeDifficulty * 0.5 + accelDifficulty * 0.5; // decelerating is easier than accelerating
 

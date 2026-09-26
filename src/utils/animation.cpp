@@ -492,7 +492,7 @@ void Animation::DirtyCache() {
                                       (0.5f + smoothFactor * 0.5f * beginBias),
                                   currentOrientation)
                       .GetNormalized();
-              //orientation = orientation.GetSlerped(pow(1.0f - clamp(timeDiff_ms / 30.0f, 0.0f, 1.0f), 0.5f), currentOrientation).GetNormalized();
+              //orientation = orientation.GetSlerped(std::pow(1.0f - clamp(timeDiff_ms / 30.0f, 0.0f, 1.0f), 0.5f), currentOrientation).GetNormalized();
               //orientation = orientation.GetSlerped(0.9f + 0.1f * beginBias, currentOrientation).GetNormalized();
 
               //float currentToDesiredDot = orientation.GetDotProduct(currentOrientation);
@@ -533,7 +533,7 @@ void Animation::DirtyCache() {
                  currentRotation_per_ms.GetRotationTo(desiredRotation_per_ms).GetNormalized();
                       dot =
                  dampingRotation_per_ms.GetDotProduct(currentRotation_per_ms);
-                      radian angle_sec = 2.0f * acos(clamp(dot, -1.0f, 1.0f)) *
+                      radian angle_sec = 2.0f * std::acos(clamp(dot, -1.0f, 1.0f)) *
                  1000.0f; // basically: angle between desired and current
                  rotation (per second) if (angle_sec > 0.0f) { DO_VALIDATION;
                         radian dampAngle_sec = 0.15f * pi;
@@ -568,7 +568,7 @@ void Animation::DirtyCache() {
                  nodeAnimation->nodeName.compare("middle") == 0)) maxTimeDiff_ms
                  = 60.0f; float movementInfluence = 1.0f - clamp(timeDiff_ms /
                  maxTimeDiff_ms, 0.0f, 1.0f); movementInfluence =
-                 pow(movementInfluence, 0.5f); // influence of old movement
+                 std::pow(movementInfluence, 0.5f); // influence of old movement
                  wears off in exponential fashion (source: laws of nature)
                       //movementInfluence *= 0.5f + beginBias * 0.5f;
                       //movementInfluence *= beginBias;
@@ -609,9 +609,9 @@ void Animation::DirtyCache() {
               //orientation = resultingOrientation;
 
               // add some extra overall smoothness
-              //orientation = orientation.GetSlerped(pow(1.0f - clamp(timeDiff_ms / 30.0f, 0.0f, 1.0f), 0.5f) * (0.6f + 0.2f * beginBias), currentOrientation).GetNormalized();
+              //orientation = orientation.GetSlerped(std::pow(1.0f - clamp(timeDiff_ms / 30.0f, 0.0f, 1.0f), 0.5f) * (0.6f + 0.2f * beginBias), currentOrientation).GetNormalized();
               //orientation = (identity.GetRotationTo(orientation).GetNormalized().GetRotationMultipliedBy(0.1f) * orientation).GetNormalized();
-              //orientation = orientation.GetSlerped(pow(1.0f - clamp(timeDiff_ms / 30.0f, 0.0f, 1.0f), 0.5f) * (0.2f + 0.1f * beginBias), currentOrientation).GetNormalized();
+              //orientation = orientation.GetSlerped(std::pow(1.0f - clamp(timeDiff_ms / 30.0f, 0.0f, 1.0f), 0.5f) * (0.2f + 0.1f * beginBias), currentOrientation).GetNormalized();
               //orientation = orientation.GetSlerped(0.3f + beginBias * 0.2f, currentOrientation).GetNormalized(); // incorrect! incorporate timeDiff_ms into this somehow, whilst still allowing for less influence than the above version
 
             }
@@ -666,7 +666,7 @@ void Animation::DirtyCache() {
             volatile float allowedDistance = maxMetersPerSec * ((float)timeDiff_ms * 0.001f);
 
             float newZ = position.coords[2] + basePos.coords[2];
-            volatile float desiredDistance = fabs(newZ - currentPosition.coords[2]);
+            volatile float desiredDistance = std::fabs(newZ - currentPosition.coords[2]);
 
             volatile float bias = 1.0f;
             if (desiredDistance > allowedDistance) {
@@ -861,7 +861,7 @@ void Animation::DirtyCache() {
 
           // lying on the ground? (buggy)
           // float threshold = pi * 0.35;
-          // if (fabs(x) > threshold || fabs(y) > threshold) { DO_VALIDATION;
+          // if (std::fabs(x) > threshold || std::fabs(y) > threshold) { DO_VALIDATION;
           //   Vector3 quatDirection; quatDirection =
           //   (--(nodeAnimations.at(1)->animation.end()))->second.orientation;
           //   //quatDirection = -quatDirection;
@@ -894,7 +894,7 @@ void Animation::DirtyCache() {
 
         // lying on the ground? (buggy)
         // float threshold = pi * 0.35;
-        // if (fabs(x) > threshold || fabs(y) > threshold) { DO_VALIDATION;
+        // if (std::fabs(x) > threshold || std::fabs(y) > threshold) { DO_VALIDATION;
         //   Vector3 quatDirection; quatDirection =
         //   (nodeAnimations.at(1)->animation.begin())->second.orientation;
         //   //quatDirection = -quatDirection;
@@ -931,7 +931,7 @@ void Animation::DirtyCache() {
           /* impossible while moving, right?
                     // lying on the ground? (buggy)
                     float threshold = pi * 0.35;
-                    if (fabs(x) > threshold || fabs(y) > threshold) {
+                    if (std::fabs(x) > threshold || std::fabs(y) > threshold) {
              DO_VALIDATION; Vector3 quatDirection; quatDirection =
              (--(nodeAnimations.at(1)->animation.end()))->second.orientation;
                       //quatDirection = -quatDirection;
@@ -1010,7 +1010,7 @@ void Animation::DirtyCache() {
       unsigned int key = 1;
       while (key < file.at(line).size()) {
         DO_VALIDATION;
-        int frame = int(round(atoi(file.at(line).at(key).c_str()) * 1.0));
+        int frame = int(std::round(atoi(file.at(line).at(key).c_str()) * 1.0));
         Quaternion orientation(QUATERNION_IDENTITY);
 
         if (line != 0) {

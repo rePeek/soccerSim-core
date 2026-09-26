@@ -130,7 +130,7 @@ void TeamAIController::Process() {
     deepestDanger = match->GetBall()->Predict(700).coords[0];
 
   // opp as max
-  Player *opp = match->GetTeam(abs(team->GetID() - 1))->GetDesignatedTeamPossessionPlayer();
+  Player *opp = match->GetTeam(std::abs(team->GetID() - 1))->GetDesignatedTeamPossessionPlayer();
   float cautionDistance = 4.0f * team->GetDynamicSide();
   if ((opp->GetPosition().coords[0] + opp->GetMovement().coords[0] * 0.15f +
        cautionDistance) *
@@ -141,7 +141,7 @@ void TeamAIController::Process() {
 
   // slacking teammate as max
   float lineX = AI_GetOffsideLine(match, match->GetMentalImage(0),
-                                  abs(team->GetID()));
+                                  std::abs(team->GetID()));
   float allowSlackDistance = 4.0f; // despite teammates slacking behind line this much, just hold the line
   if (lineX * team->GetDynamicSide() - allowSlackDistance >
       deepestDanger * team->GetDynamicSide()) {
@@ -157,7 +157,7 @@ void TeamAIController::Process() {
   // calculate who's dangerous
 
   std::vector<Player*> players;
-  match->GetActiveTeamPlayers(abs(team->GetID() - 1), players);
+  match->GetActiveTeamPlayers(std::abs(team->GetID() - 1), players);
 
   Vector3 mostDangerousPos =
       Vector3((pitchHalfW - 2.0) * team->GetDynamicSide(), 0, 0);
@@ -174,7 +174,7 @@ void TeamAIController::Process() {
 
     // player on ball is most dangerous
     info.dangerFactor *= 0.95f;
-    if (players[i] == match->GetTeam(abs(team->GetID() - 1))->GetDesignatedTeamPossessionPlayer()) info.dangerFactor += 0.05f;
+    if (players[i] == match->GetTeam(std::abs(team->GetID() - 1))->GetDesignatedTeamPossessionPlayer()) info.dangerFactor += 0.05f;
 
     tacticalOpponentInfo.push_back(info);
   }
@@ -190,7 +190,7 @@ void TeamAIController::Process() {
       if (match->GetBestPossessionTeamID() != team->GetID()) { DO_VALIDATION;
 
         bool opponentFreeRun = false;
-        Player *opp = match->GetTeam(abs(team->GetID() -
+        Player *opp = match->GetTeam(std::abs(team->GetID() -
     1))->GetDesignatedTeamPossessionPlayer(); Vector3 dangerPos =
     Vector3(pitchHalfW * team->GetSide(), opp->GetPosition().coords[1] * 0.5,
     0); float oppDangerDistance = (opp->GetPosition() - dangerPos).GetLength();
@@ -236,7 +236,7 @@ void TeamAIController::Process() {
           std::vector<Player*> opponents;
           Vector3 spot = runner->GetPosition() * Vector3(1.0f, 0.8f, 0.0f) +
                          Vector3(team->GetDynamicSide() * 10.0f, 0, 0);
-          AI_GetClosestPlayers(team->GetMatch()->GetTeam(abs(team->GetID() - 1)), spot, false, opponents, 4);
+          AI_GetClosestPlayers(team->GetMatch()->GetTeam(std::abs(team->GetID() - 1)), spot, false, opponents, 4);
           float oppDensityRating = 1.0f;
           for (unsigned int i = 0; i < opponents.size(); i++) {
             DO_VALIDATION;
@@ -363,7 +363,7 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(
                       0.7f);  // 0 == own half, 1 == opponent half
   // if possessionBias is unclear (near 0.5), take ballBias more seriously as
   // indicator of possession.
-  float ballBiasBias = 1.0f - fabs(possessionAmountBias * 2.0f - 1.0f); // biasception
+  float ballBiasBias = 1.0f - std::fabs(possessionAmountBias * 2.0f - 1.0f); // biasception
   ballBiasBias *= 0.6f; // don't take ballBias too serious - we need defenders to somewhat keep watch when possession team is unclear, even when the ball is forward
   float possessionBias = possessionAmountBias * (1.0f - ballBiasBias) +
                          ballBias * ballBiasBias;
@@ -614,10 +614,10 @@ float TeamAIController::CalculateMarkingQuality(Player *player, Player *opp) {
   float oppFromLineDistance = line.GetDistanceToPoint(oppPosition, u);
 
   float adaptedOppFromLineDistance = oppFromLineDistance;
-  if (oppIsOnRightSideOfLine) adaptedOppFromLineDistance = fabs(oppFromLineDistance - 2.0f); // we put the 'best spot' a bit further away from the line
+  if (oppIsOnRightSideOfLine) adaptedOppFromLineDistance = std::fabs(oppFromLineDistance - 2.0f); // we put the 'best spot' a bit further away from the line
 
-  volatile float oppFromLineDistanceFactor = pow(NormalizedClamp(adaptedOppFromLineDistance, 0.0f, 60.0f), 0.5f);
-  float oppOnLineDistanceFactor = pow(clamp( fabs(u * 2.0f - 1.0f) , 0.0f, 1.0f), 0.5f);
+  volatile float oppFromLineDistanceFactor = std::pow(NormalizedClamp(adaptedOppFromLineDistance, 0.0f, 60.0f), 0.5f);
+  float oppOnLineDistanceFactor = std::pow(clamp( std::fabs(u * 2.0f - 1.0f) , 0.0f, 1.0f), 0.5f);
 
   float result = 1.0f;
 
@@ -721,7 +721,7 @@ void TeamAIController::ApplyOffsideTrap(Vector3 &position) const {
     float posFromAreaFront = absPosX - areaFront;
     float posFactor = posFromAreaFront / (areaHalfLength * 2.0f);
     posFactor = clamp(posFactor, 0.0f, 1.0f); // 0.0f == most forward, 1.0f == deepest players
-    //posFactor = pow(posFactor, 0.5f); // don't impact players on the non-offside side of the offsideline as much as the other way around
+    //posFactor = std::pow(posFactor, 0.5f); // don't impact players on the non-offside side of the offsideline as much as the other way around
 
     float absResultPosX = areaFront + areaHalfLength * posFactor; // this compresses the 2 * areaHalfLength into 1 * areaHalfLength
 
@@ -762,7 +762,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
   Match *match = team->GetMatch();
 
   bool isTakerTeam = takerTeamID == team->GetID() ? true : false;
-  Team *takerTeam = isTakerTeam ? team : match->GetTeam(abs(team->GetID() - 1));
+  Team *takerTeam = isTakerTeam ? team : match->GetTeam(std::abs(team->GetID() - 1));
 
   if (isTakerTeam) team->SetFadingTeamPossessionAmount(1.5);
               else team->SetFadingTeamPossessionAmount(0.5);
@@ -1179,7 +1179,7 @@ void TeamAIController::ApplyTeamPressure() {
   DO_VALIDATION;
   endApplyTeamPressure_ms = match->GetActualTime_ms() + 500;
 
-  Player *opp = match->GetTeam(abs(team->GetID() - 1))->GetBestPossessionPlayer();
+  Player *opp = match->GetTeam(std::abs(team->GetID() - 1))->GetBestPossessionPlayer();
   Vector3 opponentPos = opp->GetPosition() + opp->GetMovement() * 0.24f;
 
   teamPressurePlayer = AI_GetClosestPlayer(
@@ -1244,7 +1244,7 @@ void TeamAIController::UpdateTactics() {
   //if (team->GetID() == 0) printf("T1 offensivenessBias: %f\n", offensivenessBias);
   //if (team->GetID() == 1) printf("T2 offensivenessBias: %f\n", offensivenessBias);
 
-  //autoBias = clamp(fabs(offenseBias - 0.5f) * 2.0f, 0.0f, 1.0f); // don't use too much autobias when things are calm (= offenseBias being around 0.5)
+  //autoBias = clamp(std::fabs(offenseBias - 0.5f) * 2.0f, 0.0f, 1.0f); // don't use too much autobias when things are calm (= offenseBias being around 0.5)
 
   const map_Properties *userMods = userTacticsModifiers.GetProperties();
   map_Properties::const_iterator iter = userMods->begin();

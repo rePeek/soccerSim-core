@@ -58,7 +58,7 @@ Vector3 AI_GetAdaptedFormationPosition(
     float midfieldPositionFactor = midfieldFocus * 2.0f - 1.0f; // -1 .. 1
 
     // only for midfielders
-    float stretchBias = clamp(1.0f - fabs(position.coords[0] * 1.2f), 0.0f, 1.0f); // overstretch a bit so defenders/attackers are left alone (they usually aren't fully x = 0 or 1)
+    float stretchBias = clamp(1.0f - std::fabs(position.coords[0] * 1.2f), 0.0f, 1.0f); // overstretch a bit so defenders/attackers are left alone (they usually aren't fully x = 0 or 1)
     stretchBias = curve(stretchBias, 1.0f);
 
     stretchBias *= midfieldFocusStrength;
@@ -76,7 +76,7 @@ Vector3 AI_GetAdaptedFormationPosition(
 
   if (xFocusStrength > 0.0f) {
     DO_VALIDATION;
-    float bias = 1.0f - clamp( fabs(xFocus - position.coords[0]) / fabs(backXBound - frontXBound) , 0.0f, 1.0f);
+    float bias = 1.0f - clamp( std::fabs(xFocus - position.coords[0]) / std::fabs(backXBound - frontXBound) , 0.0f, 1.0f);
     bias = -std::cos(bias * pi) * 0.5f + 0.5f;
     bias = std::pow(bias, 0.8);
     bias *= xFocusStrength;
@@ -85,10 +85,10 @@ Vector3 AI_GetAdaptedFormationPosition(
 
   if (yFocusStrength > 0.0f) {
     DO_VALIDATION;
-    float distance = clamp( fabs(yFocus - position.coords[1]) / fabs(highYBound - lowYBound) , 0.0f, 1.0f);
+    float distance = clamp( std::fabs(yFocus - position.coords[1]) / std::fabs(highYBound - lowYBound) , 0.0f, 1.0f);
 
     float bias = 1.0f - distance;
-    bias *= 0.2f + 0.8f * fabs(yFocus) / pitchHalfH;
+    bias *= 0.2f + 0.8f * std::fabs(yFocus) / pitchHalfH;
     bias *= yFocusStrength;
 
     position.coords[1] = position.coords[1] * (1.0f - bias) + yFocus * bias;
@@ -112,9 +112,9 @@ Vector3 AI_GetAdaptedFormationPosition(
     if (dist < 1.0f) {
       DO_VALIDATION;
       /*
-      // wolfram alpha: (sin((x + 0.5) * pi) * 0.5 + 0.5) * 0.7 + (sin((x - 0.25) * 2.0 * pi) * 0.5 + 0.5) * 0.3 | from x = 0 to 1
-      float microFocusBias1 = sin((dist + 0.5f) * pi) * 0.5f + 0.5f; // -\_
-      float microFocusBias2 = sin((dist - 0.25f) * 2.0f * pi) * 0.5f + 0.5f; // _/-\_
+      // wolfram alpha: (std::sin((x + 0.5) * pi) * 0.5 + 0.5) * 0.7 + (std::sin((x - 0.25) * 2.0 * pi) * 0.5 + 0.5) * 0.3 | from x = 0 to 1
+      float microFocusBias1 = std::sin((dist + 0.5f) * pi) * 0.5f + 0.5f; // -\_
+      float microFocusBias2 = std::sin((dist - 0.25f) * 2.0f * pi) * 0.5f + 0.5f; // _/-\_
       // mates in team in possession want to keep some distance for easier pass-to-ability, while defenders just want to jump into the action more
 
       float sineBias = 0.15f;// + clamp(player->GetTeam()->GetFadingTeamPossessionAmount() - 0.5f, 0.0f, 1.0f) * 0.2f;
@@ -132,17 +132,17 @@ Vector3 AI_GetAdaptedFormationPosition(
       microFocusBias = curve(microFocusBias, 0.3f);
 
       // more bulgy curve
-      //microFocusBias = pow(microFocusBias, 0.9f);
+      //microFocusBias = std::pow(microFocusBias, 0.9f);
 
       // extra short distance peak
       float peakLocation = 0.15f;
       float peakWidth = 0.25f;
       float peakHeight = 0.1f;
-      microFocusBias += (1.0f - NormalizedClamp(fabs(dist - peakLocation), 0.0f, peakWidth)) * peakHeight;
+      microFocusBias += (1.0f - NormalizedClamp(std::fabs(dist - peakLocation), 0.0f, peakWidth)) * peakHeight;
       microFocusBias = clamp(microFocusBias, 0.0f, 1.0f);
 
       // 'compressor' (wolfram alpha: x, (x^0.7) * 0.7 | from x = 0 to 1)
-      // microFocusBias = pow(microFocusBias, 0.7f);
+      // microFocusBias = std::pow(microFocusBias, 0.7f);
       // microFocusBias = microFocusBias * 0.7f;
 
       //printf("%f\n", microFocusStrength);
@@ -168,7 +168,7 @@ float AI_CalculateFreeSpace(Match *match, const MentalImage *mentalImage,
 
   float currentSituation = 0.0f;
 
-  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(abs(teamID - 1));
+  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(std::abs(teamID - 1));
 
   // player position predictions
   for (int i = 0; i < (signed int)opponentPlayerImages.size(); i++) {
@@ -260,13 +260,13 @@ void AI_GetBestDribbleMovement(Match *match, PlayerBase *p,
   std::vector<PlayerImage> opponentPlayerImages;
 
   std::vector<Player*> opponents;
-  AI_GetClosestPlayers(match->GetTeam(abs(team->GetID() - 1)), myPos, false, opponents, 5);
+  AI_GetClosestPlayers(match->GetTeam(std::abs(team->GetID() - 1)), myPos, false, opponents, 5);
   for (unsigned int i = 0; i < opponents.size(); i++) {
     DO_VALIDATION;
     opponentPlayerImages.push_back(mentalImage->GetPlayerImage(opponents[i]));
   }
 
-  float nearBackline = NormalizedClamp(fabs(player->GetPosition().coords[0]) / pitchHalfW, 0.0f, 1.0f);
+  float nearBackline = NormalizedClamp(std::fabs(player->GetPosition().coords[0]) / pitchHalfW, 0.0f, 1.0f);
   float centerModifierInv =
       1.0f -
       std::pow(nearBackline,
@@ -432,14 +432,14 @@ TimeNeeded AI_GetTimeNeededForDistance_ms(const Vector3 &playerPos,
   while (true) {
     DO_VALIDATION;  // =]
 
-    // too unstable! timeStep_ms = clamp(int(round(previousDistance * 30)) - 20, 10, 40); // variable timestep may not be 100% correct, so don't overdo it
+    // too unstable! timeStep_ms = clamp(int(std::round(previousDistance * 30)) - 20, 10, 40); // variable timestep may not be 100% correct, so don't overdo it
     // round to 10s
-    //timeStep_ms = int(floor(timeStep_ms / 10.0f)) * 10;
+    //timeStep_ms = int(std::floor(timeStep_ms / 10.0f)) * 10;
 
     float bias = clamp((float)currentTime_ms / (float)changeTime_ms, 0.0f, 1.0f);
-    //bias = pow(bias, 1.7f); // higher exp == slower
-    //bias = 0.1f + pow(bias, 0.8f) * 0.9f; // higher exp == slower
-    //bias = 0.01f + pow(bias, 1.0f) * 0.99f; // higher exp == slower
+    //bias = std::pow(bias, 1.7f); // higher exp == slower
+    //bias = 0.1f + std::pow(bias, 0.8f) * 0.9f; // higher exp == slower
+    //bias = 0.01f + std::pow(bias, 1.0f) * 0.99f; // higher exp == slower
     //bias = 0.1f + bias * 0.9f;
 
     if (bias >= 1.0f) {
@@ -485,7 +485,7 @@ TimeNeeded AI_GetTimeNeededForDistance_ms(const Vector3 &playerPos,
       if (targetDistance < radius_usual * radius_usual ||
           (maxTime_ms != -1 && currentTime_ms > (unsigned int)maxTime_ms)) {
         DO_VALIDATION;
-        //currentTime_ms += int(round(((targetPos - currentPos).GetLength() / radius) * 40.0));
+        //currentTime_ms += int(std::round(((targetPos - currentPos).GetLength() / radius) * 40.0));
         resultingRadius_usual = radius_usual;
         result.usual_ms = currentTime_ms;
         break;
@@ -515,7 +515,7 @@ TimeNeeded AI_GetTimeNeededForDistance_ms(const Vector3 &playerPos,
   return result;
 
   /* too simple version
-  return int(round((targetPos - (playerPos + playerMovement * 0.02)).GetLength() / (sprintVelocity * 0.9) * 1000));
+  return int(std::round((targetPos - (playerPos + playerMovement * 0.02)).GetLength() / (sprintVelocity * 0.9) * 1000));
   */
 }
 
@@ -574,7 +574,7 @@ unsigned int AI_GetToBallMovement(Match *match, const MentalImage *mentalImage,
   // only use player desired movement if it's a lot different from perpendicular
   float desiredVsPerpendicularDot = adaptedDesiredDirection.GetDotProduct((playerBallShortestTargetPos - playerPos).GetNormalized(0));
   //if (desiredVsPerpendicularDot < 0.3f) movementWeight = 1.0f; else perpendicularWeight = 1.0f;
-  float desiredVsPerpendicularBias = pow(NormalizedClamp(desiredVsPerpendicularDot, 0.0f, 1.0f), 0.5f);
+  float desiredVsPerpendicularBias = std::pow(NormalizedClamp(desiredVsPerpendicularDot, 0.0f, 1.0f), 0.5f);
   desiredVsPerpendicularBias = desiredVsPerpendicularBias * 0.5f + 0.5f;
   movementWeight = (1.0f - desiredVsPerpendicularBias);
   perpendicularWeight = desiredVsPerpendicularBias;
@@ -610,8 +610,8 @@ unsigned int AI_GetToBallMovement(Match *match, const MentalImage *mentalImage,
   unsigned int startTime_ms = clamp(player->GetTimeNeededToGetToBall_ms(), 40, ballPredictionSize_ms - 10);
   // we can't start optimized at a later moment, because that would mean we'd aim outside the pitch to start with
   Vector3 ballPrediction = mentalImage->GetBallPrediction(startTime_ms);
-  if (fabs(ballPrediction.coords[0]) > pitchHalfW - 0.2f ||
-      fabs(ballPrediction.coords[1]) > pitchHalfH - 0.2f) {
+  if (std::fabs(ballPrediction.coords[0]) > pitchHalfW - 0.2f ||
+      std::fabs(ballPrediction.coords[1]) > pitchHalfH - 0.2f) {
     DO_VALIDATION;
     startTime_ms = 80;
   }
@@ -634,8 +634,8 @@ unsigned int AI_GetToBallMovement(Match *match, const MentalImage *mentalImage,
     bool forced = false;
 
     Vector3 targetPos = mentalImage->GetBallPrediction(time_ms);
-    if (fabs(targetPos.coords[0]) > pitchHalfW - 0.2f ||
-        fabs(targetPos.coords[1]) > pitchHalfH - 0.2f) {
+    if (std::fabs(targetPos.coords[0]) > pitchHalfW - 0.2f ||
+        std::fabs(targetPos.coords[1]) > pitchHalfH - 0.2f) {
       DO_VALIDATION;
       forced = true;
     }
@@ -682,7 +682,7 @@ unsigned int AI_GetToBallMovement(Match *match, const MentalImage *mentalImage,
         DO_VALIDATION;
         forced = true;  // too shallow angle, just go to ball already
       }
-      //if (fabs(angle) <= 0.21f * pi) forced = true;
+      //if (std::fabs(angle) <= 0.21f * pi) forced = true;
 
 
       // --- heed desired direction
@@ -691,7 +691,7 @@ unsigned int AI_GetToBallMovement(Match *match, const MentalImage *mentalImage,
       float targetVelocity = clamp(targetDistance * distanceToVelocityMultiplier, idleVelocity, sprintVelocity);
       Vector3 targetMovement = (targetPos - playerPos).GetNormalized(0) * targetVelocity;
       float movementRating = 1.0f - NormalizedClamp((desiredMovement - targetMovement).GetLength(), 0.0f, sprintVelocity); // > sprintvelocity will often get us farther from where we want to go to
-      float directionRating = 1.0f - NormalizedClamp(fabs(adaptedDesiredDirection.GetAngle2D(targetMovement.GetNormalized(adaptedDesiredDirection))), 0.0f, 0.5f * pi); // > 0.5f * pi will often only get us farther from where we want to go to
+      float directionRating = 1.0f - NormalizedClamp(std::fabs(adaptedDesiredDirection.GetAngle2D(targetMovement.GetNormalized(adaptedDesiredDirection))), 0.0f, 0.5f * pi); // > 0.5f * pi will often only get us farther from where we want to go to
       movementRating = movementRating * 0.4f + directionRating * 0.6f; // directionrating omits velocity and therefore has another quality
 
 
@@ -710,7 +710,7 @@ unsigned int AI_GetToBallMovement(Match *match, const MentalImage *mentalImage,
       float previousTargetRating = 0.0f;
       if (previousDesiredTargetTime_ms >= timeNeededToGetToBall_ms) {
         DO_VALIDATION;
-        previousTargetRating = 1.0f - abs(previousDesiredTargetTime_ms - timeNeededToGetToBall_ms) / 500.0f;
+        previousTargetRating = 1.0f - std::abs(previousDesiredTargetTime_ms - timeNeededToGetToBall_ms) / 500.0f;
       }
 
       float rating = movementRating * movementWeight +
@@ -849,7 +849,7 @@ bool AI_HasPossession(Ball *ball, Player *player) {
   if ((player->GetPosition() - ball->Predict(0)).GetLength() > 5.0) return false;
 
   Vector3 ballMovement = ball->GetMovement();
-  if (fabs(ball->Predict(0).coords[2]) > 0.5) return false;
+  if (std::fabs(ball->Predict(0).coords[2]) > 0.5) return false;
 
 
   bool distanceOK = true;
@@ -1100,9 +1100,9 @@ void AI_GetPass(Player *player, e_FunctionType passType,
             std::pow(NormalizedClamp((targetPos - manualTarget).GetLength(),
                                      0.0f, 70.0f),
                      0.8f) *
-            0.8f;  // pow() this so small differences matter more - from some
+            0.8f;  // std::pow() this so small differences matter more - from some
                    // point on, it just doesn't really matter that much anymore
-        float angleRating = fabs((targetPos - playerPos).GetNormalized(0).GetAngle2D(inputDirection) / (1.0f * pi)) * 1.0f;
+        float angleRating = std::fabs((targetPos - playerPos).GetNormalized(0).GetAngle2D(inputDirection) / (1.0f * pi)) * 1.0f;
         if (distanceRating + angleRating < bestRating) {
           DO_VALIDATION;
           bestRating = distanceRating + angleRating;
@@ -1184,7 +1184,7 @@ Vector3 AI_GetShotDirection(Player *player, const Vector3 &inputDirection,
   radian relAngle = toGoal.GetAngle2D(inputDirection);
   float sideFactor = clamp((relAngle / pi) / 0.5f, -1.0f, 1.0f);
   // more attenuation towards the sides
-  sideFactor = std::pow(fabs(sideFactor), 0.7f) * signSide(sideFactor);
+  sideFactor = std::pow(std::fabs(sideFactor), 0.7f) * signSide(sideFactor);
 
   goalPos.coords[1] =
       sideFactor * goalHalfWidth * 0.9f * player->GetTeam()->GetDynamicSide();

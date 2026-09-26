@@ -44,12 +44,12 @@ float CalculateBiasForFastCornering(const Vector3 &currentMovement,
   DO_VALIDATION;
 
   radian angle = desiredMovement.GetNormalized(currentMovement).GetAngle2D(currentMovement);
-  // wolfram alpha: sin(x - 0.5 * pi) * 0.5 + 0.5 | from x = 0.0 to pi
-  float currentMovementBias = sin(fabs(angle) - 0.5f * pi) * 0.5f + 0.5f; // this one is better for anim selection, else 135 anim is never used (since 135 @ idle is worse than 90 @ dribble then - with this one, 90 @ idle will be preferred (which will allow 135 @ idle as well))
-  //float currentMovementBias = sin(2.0f * fabs(angle) - 0.5f * pi) * 0.5f + 0.5f; // this one seems more correct puristically though.. hmm. maybe make a 135 anim that ends in dribble? or would that effectively disable the 180 @ idle?
+  // wolfram alpha: std::sin(x - 0.5 * pi) * 0.5 + 0.5 | from x = 0.0 to pi
+  float currentMovementBias = std::sin(fabs(angle) - 0.5f * pi) * 0.5f + 0.5f; // this one is better for anim selection, else 135 anim is never used (since 135 @ idle is worse than 90 @ dribble then - with this one, 90 @ idle will be preferred (which will allow 135 @ idle as well))
+  //float currentMovementBias = std::sin(2.0f * std::fabs(angle) - 0.5f * pi) * 0.5f + 0.5f; // this one seems more correct puristically though.. hmm. maybe make a 135 anim that ends in dribble? or would that effectively disable the 180 @ idle?
 
   // effect is less pronounced at low velocities
-  float velocityBias = pow(clamp(currentMovement.GetLength() / (sprintVelocity - 0.5f), 0.0f, 1.0f), veloPow);
+  float velocityBias = std::pow(clamp(currentMovement.GetLength() / (sprintVelocity - 0.5f), 0.0f, 1.0f), veloPow);
 
   float totalBrakeBias = velocityBias * currentMovementBias * bias;
 
@@ -122,7 +122,7 @@ bool NeedDefendingMovement(int mySide, const Vector3 &position,
   DO_VALIDATION;
   // only move if absolutely necessary
   float howDeepIsTarget = std::max((target.coords[0] - position.coords[0]) * -mySide, 0.0f);
-  float howWideIsTarget = fabs(target.coords[1] - position.coords[1]);
+  float howWideIsTarget = std::fabs(target.coords[1] - position.coords[1]);
   howDeepIsTarget -= 0.5f; // some buffer to account for reaction time
   if (howWideIsTarget > howDeepIsTarget * 0.8f) {
     DO_VALIDATION;
@@ -192,7 +192,7 @@ void GetDifficultyFactors(Match *match, Player *player,
   // make intercepting passes harder
   if (match->GetLastTouchTeamID() != player->GetTeam()->GetID()) {
     DO_VALIDATION;
-    Player *lastTouchPlayer = match->GetTeam(abs(player->GetTeam()->GetID() - 1))->GetLastTouchPlayer();
+    Player *lastTouchPlayer = match->GetTeam(std::abs(player->GetTeam()->GetID() - 1))->GetLastTouchPlayer();
     if (lastTouchPlayer) {
       DO_VALIDATION;
       float lastTouchBiasPenalty =
@@ -313,7 +313,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   float divisor = timeToGo * (0.38f + 0.02f * player->GetStat(technical_dribble)); // higher == closer
   divisor *= 1.1f;
 
-  // to get the ball to the planned position in timeToGo seconds, we need to do some pow() magic, since the ball also slows down faster at higher ball velos
+  // to get the ball to the planned position in timeToGo seconds, we need to do some std::pow() magic, since the ball also slows down faster at higher ball velos
   float power = std::pow((toPlannedBall.GetLength() / divisor), 0.7f);
   Vector3 direction = toPlannedBall.GetNormalized(Vector3(0, -1, 0).GetRotated2D(nextBodyAngle));
 
@@ -398,8 +398,8 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
   // previous: float directionFactor = touchDirection.GetDotProduct(currentAnim.originatingCommand.touchInfo.desiredDirection) * 0.5f + 0.5f;
   // ideal angle is ~36 degrees == 0.2 * pi
   radian idealAngle = 0.2f * pi;
-  radian angle1 = fabs(touchDirection.GetAngle2D(currentAnim.originatingCommand.touchInfo.desiredDirection.GetRotated2D(-idealAngle)));
-  radian angle2 = fabs(touchDirection.GetAngle2D(currentAnim.originatingCommand.touchInfo.desiredDirection.GetRotated2D( idealAngle)));
+  radian angle1 = std::fabs(touchDirection.GetAngle2D(currentAnim.originatingCommand.touchInfo.desiredDirection.GetRotated2D(-idealAngle)));
+  radian angle2 = std::fabs(touchDirection.GetAngle2D(currentAnim.originatingCommand.touchInfo.desiredDirection.GetRotated2D( idealAngle)));
   radian angle = std::min(angle1, angle2);
   float directionFactor = clamp(angle / pi, 0.0f, 1.0f);
   directionFactor = curve(1.0f - directionFactor, 0.8f);
@@ -448,7 +448,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
   float playerDirDesiredDirEasinessFactor = std::pow(
       directionFactor, 0.8f);  // shooting sideways is still pretty easy to aim
 
-  float playerVelocityEasinessFactor = 1.0f - NormalizedClamp(fabs(touchVelocity - dribbleVelocity), 0.0f, 4.0f); // dribble velo is optimum
+  float playerVelocityEasinessFactor = 1.0f - NormalizedClamp(std::fabs(touchVelocity - dribbleVelocity), 0.0f, 4.0f); // dribble velo is optimum
 
   float positionOffsetEasinessFactor = 1.0f - NormalizedClamp(positionOffset.GetLength(), 0.0f, 0.1f);
 
@@ -518,7 +518,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
 
   // lateral curve
   radian bodyTouchAngle = spatialState.bodyDirectionVec.GetAngle2D(shot) / pi;
-  if (fabs(bodyTouchAngle) > 0.5f) bodyTouchAngle = (1.0f - fabs(bodyTouchAngle)) * signSide(bodyTouchAngle);
+  if (std::fabs(bodyTouchAngle) > 0.5f) bodyTouchAngle = (1.0f - std::fabs(bodyTouchAngle)) * signSide(bodyTouchAngle);
   bodyTouchAngle *= 2.0f;
   //printf("bodyTouchAngle: %f\n", bodyTouchAngle);
   radian amount = bodyTouchAngle * 0.25f;

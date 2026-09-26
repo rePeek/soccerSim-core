@@ -286,7 +286,7 @@ void Humanoid::Process() {
   float ballDistanceNow = (match->GetBall()->Predict(0).Get2D() - spatialState.position).GetLength();
   float ballDistanceFuture = (match->GetBall()->Predict(200).Get2D() - (spatialState.position + spatialState.movement * 0.2f)).GetLength();
   float lastTouchBias = CastPlayer()->GetLastTouchBias(1500);
-  float oppLastTouchBias = match->GetTeam(abs(team->GetID() - 1))->GetLastTouchBias(240);
+  float oppLastTouchBias = match->GetTeam(std::abs(team->GetID() - 1))->GetLastTouchBias(240);
 
   if (CastPlayer() == match->GetDesignatedPossessionPlayer() &&
       ((lastTouchBias <= 0.01f && oppLastTouchBias <= 0.01f &&
@@ -358,7 +358,7 @@ void Humanoid::Process() {
     Vector3 currentBallVec = match->GetBall()->GetMovement();
 
     if (fullBallDistance < touchableDistance &&
-        fabs(desiredBallHeight - match->GetBall()->Predict(0).coords[2]) <
+        std::fabs(desiredBallHeight - match->GetBall()->Predict(0).coords[2]) <
             1.0f) {
       DO_VALIDATION;
 
@@ -426,12 +426,12 @@ void Humanoid::Process() {
         AI_GetPass(CastPlayer(), currentAnim.originatingCommand.desiredFunctionType, inputDirection, currentAnim.originatingCommand.touchInfo.inputPower, currentAnim.originatingCommand.touchInfo.autoDirectionBias, currentAnim.originatingCommand.touchInfo.autoPowerBias, tmpBallDirection, tmpBallPower, tmpTargetPlayer, currentAnim.originatingCommand.touchInfo.forcedTargetPlayer);
         float maxDeviationAngle = 0.15f * pi;
         radian angleDiff = tmpBallDirection.Get2D().GetAngle2D(ballDirection.Get2D());
-        if (fabs(angleDiff) <= maxDeviationAngle) {
+        if (std::fabs(angleDiff) <= maxDeviationAngle) {
           DO_VALIDATION;
           ballDirection = tmpBallDirection;
           ballPower = tmpBallPower;
           targetPlayer = tmpTargetPlayer;
-        } else if (fabs(angleDiff) < 2.0f * maxDeviationAngle) {
+        } else if (std::fabs(angleDiff) < 2.0f * maxDeviationAngle) {
           DO_VALIDATION;
           // get as close as possible
           float clampedAngleDiff = clamp(angleDiff, -maxDeviationAngle, maxDeviationAngle);
@@ -440,7 +440,7 @@ void Humanoid::Process() {
           if (tmpTargetPlayer != targetPlayer) {
             DO_VALIDATION;
             // if we can't make it to our refined target at all, just stick with original ballpower (think about refined target at ~180 deg, would be weird to pass forward with the power of that (unreachable) target)
-            float refinedBias = NormalizedClamp(fabs(clampedAngleDiff), 0.0f, fabs(angleDiff));
+            float refinedBias = NormalizedClamp(std::fabs(clampedAngleDiff), 0.0f, std::fabs(angleDiff));
             ballPower = ballPower * (1.0f - refinedBias) + tmpBallPower * refinedBias;
             targetPlayer = tmpTargetPlayer; // new, and removed line below
           } else {
@@ -464,7 +464,7 @@ void Humanoid::Process() {
 
           // add a little curve for aesthetics & realism
           radian bodyTouchAngle = spatialState.bodyDirectionVec.GetAngle2D(touchVec) / pi;
-          if (fabs(bodyTouchAngle) > 0.5f) bodyTouchAngle = (1.0f - fabs(bodyTouchAngle)) * signSide(bodyTouchAngle);
+          if (std::fabs(bodyTouchAngle) > 0.5f) bodyTouchAngle = (1.0f - std::fabs(bodyTouchAngle)) * signSide(bodyTouchAngle);
           bodyTouchAngle *= 2.0f;
           //printf("bodyTouchAngle: %f\n", bodyTouchAngle);
           radian amount = bodyTouchAngle * 0.25f;
@@ -498,7 +498,7 @@ void Humanoid::Process() {
 
         float maxDeviationAngle = 0.1f * pi;
         radian angleDiff = ballDirectionAltered.Get2D().GetAngle2D(ballDirection.Get2D());
-        if (fabs(angleDiff) > maxDeviationAngle) {
+        if (std::fabs(angleDiff) > maxDeviationAngle) {
           DO_VALIDATION;
           // get as close as possible
           float clampedAngleDiff = clamp(angleDiff, -maxDeviationAngle, maxDeviationAngle);
@@ -546,7 +546,7 @@ void Humanoid::Process() {
 
         float veloDifficulty = NormalizedClamp((match->GetBall()->GetMovement() - spatialState.movement).GetLength(), 0.0f, 40.0f);
         float reactionDifficulty = 0.0f;
-        Player *lastTouchPlayer = match->GetTeam(abs(team->GetID() - 1))->GetLastTouchPlayer();
+        Player *lastTouchPlayer = match->GetTeam(std::abs(team->GetID() - 1))->GetLastTouchPlayer();
         if (lastTouchPlayer) {
           DO_VALIDATION;
           reactionDifficulty =
@@ -1062,7 +1062,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     // // special case: 90 degrees cornering is tough with weak foot [hax version]
     // radian angle = command.desiredDirection.GetAngle2D(spatialState.directionVec);
     // if (command.desiredFunctionType == e_FunctionType_BallControl && adaptedDesiredVelocityFloat > dribbleVelocity && spatialState.floatVelocity > dribbleVelocity &&
-    //     fabs(angle) > 0.3 * pi && fabs(angle) < 0.8 * pi && angle > 0) adaptedDesiredVelocityFloat = idleVelocity;
+    //     std::fabs(angle) > 0.3 * pi && std::fabs(angle) < 0.8 * pi && angle > 0) adaptedDesiredVelocityFloat = idleVelocity;
 
     SetMovementSimilarityPredicate(relDesiredDirection, FloatToEnumVelocity(desiredAnimationVelocityFloat));
     SetBodyDirectionSimilarityPredicate(command.desiredLookAt);
@@ -1122,7 +1122,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
 
         bool allowAnim = true;
 
-        radian angleDiff = fabs(bestWeGot->GetOutgoingDirection().GetRotated2D(spatialState.angle).GetAngle2D(command.desiredDirection));
+        radian angleDiff = std::fabs(bestWeGot->GetOutgoingDirection().GetRotated2D(spatialState.angle).GetAngle2D(command.desiredDirection));
         if (angleDiff > 0.375f * pi) {
           DO_VALIDATION;  // so we accept at least either 000 or 135 deg anims,
                           // which are two common anim types that are often
@@ -1285,7 +1285,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
            FloatToEnumVelocity(
                anims->GetAnim(selectedAnimID)->GetOutgoingVelocity()) ==
                e_Velocity_Idle) &&
-          fabs((ForceIntoPreferredDirectionAngle(
+          std::fabs((ForceIntoPreferredDirectionAngle(
                     currentAnim.anim->GetOutgoingAngle()) -
                 ForceIntoPreferredDirectionAngle(
                     anims->GetAnim(selectedAnimID)->GetOutgoingAngle()))) <
@@ -1342,7 +1342,7 @@ bool Humanoid::NeedTouch(int animID, const PlayerCommand &command) {
 
   if (FloatToEnumVelocity(anim->GetOutgoingVelocity() != e_Velocity_Idle)) return true;
   if (command.desiredVelocityFloat > idleDribbleSwitch) return true;
-  if (fabs(match->GetBall()->GetMovement().GetLength()) > 2.0f) return true;
+  if (std::fabs(match->GetBall()->GetMovement().GetLength()) > 2.0f) return true;
 
   Vector3 animMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle) * 0.3f + spatialState.movement * 0.7f;
 
@@ -1352,7 +1352,7 @@ bool Humanoid::NeedTouch(int animID, const PlayerCommand &command) {
   auto currentMentalImage = match->GetMentalImage(mentalImageTime);
   Vector3 ballMovement = (currentMentalImage->GetBallPrediction(250).Get2D() - currentMentalImage->GetBallPrediction(240).Get2D()) * 100;
 
-  if (fabs(anim->GetOutgoingAngle()) > 0.125f * pi) return true;
+  if (std::fabs(anim->GetOutgoingAngle()) > 0.125f * pi) return true;
 
   float distanceDeviation = (animMovement - ballMovement).GetLength();
   if (distanceDeviation >= 2.0) return true;
@@ -1462,9 +1462,9 @@ float Humanoid::GetBodyBallDistanceAdvantage(const Animation *anim, e_FunctionTy
       //float brickWallDistanceFactor = 1.0f -
     NormalizedClamp(averageInOutVelocity, 0.0f, sprintVelocity);
       //float brickWallDistance = radiusFactor * brickWallDistanceFactor * 2.0f;
-      //animToActualBall.coords[1] *= 1.0f + pow(averageInOutVelocity, 1.5f)
+      //animToActualBall.coords[1] *= 1.0f + std::pow(averageInOutVelocity, 1.5f)
     * radiusFactor * 5.0f; animToActualBall.coords[1] *= 1.0f +
-    pow(averageInOutVelocity, 1.5f) * radiusFactor * 0.4f;
+    std::pow(averageInOutVelocity, 1.5f) * radiusFactor * 0.4f;
     }
     */
     // rotate back and act like nothing happened
@@ -1576,8 +1576,8 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
       if (match->GetBallRetainer() != player) {
         DO_VALIDATION;
         Vector3 absBallPos = match->GetBall()->Predict(animTouchFrame * 10);
-        if (fabs(absBallPos.coords[0]) > pitchHalfW + lineHalfW + 0.11f ||
-            fabs(absBallPos.coords[1]) > pitchHalfH + lineHalfW + 0.11f) {
+        if (std::fabs(absBallPos.coords[0]) > pitchHalfW + lineHalfW + 0.11f ||
+            std::fabs(absBallPos.coords[1]) > pitchHalfH + lineHalfW + 0.11f) {
           DO_VALIDATION;
           touchNum++;
           continue;
@@ -1624,7 +1624,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
 
       // ball height
 
-      float ballDistanceZ = fabs(actionSmuggleVec3D.coords[2]);
+      float ballDistanceZ = std::fabs(actionSmuggleVec3D.coords[2]);
 
       ballDistanceZ *= 1.0f - clamp((animBallPos.coords[2] - 0.11) * 0.3f, 0.0f, 0.2f); // higher balls == cheat more Z (else we would have to make 100000000 anims for high balls on different heights)
       ballDistanceZ *= 1.0f - clamp((ballPos.coords[2] - 0.11) * 0.4f, 0.0f, 0.3f);
@@ -1640,7 +1640,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
         DO_VALIDATION;
 
         // default touch can be 'cheated' towards best, has biggest 'radius'
-        float touchFrameAwkwardness = NormalizedClamp(abs(defaultTouchFrame - animTouchFrame), 0.0f, 4.0f);
+        float touchFrameAwkwardness = NormalizedClamp(std::abs(defaultTouchFrame - animTouchFrame), 0.0f, 4.0f);
         touchFrameAwkwardness = std::pow(touchFrameAwkwardness, 2.0f) * 0.5f;
 
         /* todo: check if this is a possibility in some form
