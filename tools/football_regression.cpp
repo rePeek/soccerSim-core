@@ -1146,18 +1146,18 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
       // P1b/P1c: the planner consumes the measured capability model, retained
       // between scheduled refreshes, so these are the first snapshots under that
       // belief.
-      {100, 79, Position(-0.291084558f, -0.224799067f, 0.508288145f, true),
-       Position(-0.987212241f, -0.00605145376f, 0.0f, true),
-       Position(0.83063972f, -0.00199061981f, 0.0f, true), 0, 0, true,
-       UINT64_C(4608684452448440365)},
-      {500, 458, Position(0.0369759388f, 0.0166800525f, 1.25343657f, true),
-       Position(-0.908694148f, 0.0340823233f, 0.0f, true),
-       Position(0.832863212f, 0.0250002444f, 0.0f, true), 0, 0, true,
-       UINT64_C(1436948011759783195)},
-      {1000, 931, Position(-0.74784255f, 0.133986965f, 1.29871368f, true),
-       Position(-0.993112743f, 0.0232102703f, 0.0f, true),
-       Position(0.823560596f, 0.00339921261f, 0.0f, true), 1, 0, true,
-       UINT64_C(8939609704178741090)},
+      {100, 79, Position(0.0485724434f, -0.0258907638f, 0.117286861f, true),
+       Position(-0.883190155f, -0.00110067578f, 0.0f, true),
+       Position(0.91894418f, -0.00349110598f, 0.0f, true), 0, 0, true,
+       UINT64_C(11621838000019919090)},
+      {500, 437, Position(-0.104272842f, 0.144767329f, 8.25086117f, true),
+       Position(-0.829448998f, 0.000549928751f, 0.0f, true),
+       Position(0.87791127f, 0.0218056757f, 0.0f, true), 0, 0, true,
+       UINT64_C(2708139348877979354)},
+      {1000, 910, Position(0.074193567f, 0.306333125f, 2.05107927f, true),
+       Position(-0.820480049f, -0.00343482685f, 0.0f, true),
+       Position(0.893034637f, 0.010894279f, 0.0f, true), 0, 1, true,
+       UINT64_C(5998108214961706243)},
   };
 
 

@@ -40,11 +40,13 @@ namespace {
 constexpr int kReachabilityRefreshTicks = 10;
 
 // Near-horizon region of the reachability model that keeps exact locomotion
-// rollouts. Measured in P1a3/P1a4: the classification outcome is identical with
-// or without it, but it bounds the worst-case error at 700 ms instead of letting
-// the analytic tail be wrong by more than two seconds, and it costs nothing
-// measurable.
-constexpr int kReachabilityExactHorizon_ms = 700;
+// rollouts. Chosen from the H sweep (0..1500 ms) of the final estimator: the
+// reachability classification is identical for every setting, so this is purely
+// a fidelity-versus-cost knob for the reported time. Its cost minimum is at
+// 500 ms (0.0196 ms per call against 0.0202 at 700), and 500 ms already carries
+// p99 510 ms with at most one sub-second decision flip, so the lower end of the
+// measured knee is used.
+constexpr int kReachabilityExactHorizon_ms = 500;
 
 }  // namespace
 
