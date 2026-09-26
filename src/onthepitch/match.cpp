@@ -30,7 +30,6 @@
 #include "player/playerofficial.hpp"
 #include "player/player_action_volume.hpp"
 #include "player/player_body_collider.hpp"
-#include "ball_presentation.hpp"
 
 
 boost::shared_ptr<AnimCollection> Match::GetAnimCollection() {
@@ -69,7 +68,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   GetScene3D()->AddNode(dynamicNode);
 
   ball = new Ball(this);
-  ballPresentation.reset(new BallPresentation(dynamicNode));
 
   if (!anims) {
     DO_VALIDATION;
@@ -200,7 +198,6 @@ void Match::Exit() {
   delete teams[first_team];
   delete teams[second_team];
   delete officials;
-  ballPresentation.reset();
   delete ball;
   delete referee;
   mentalImages.clear();
@@ -657,7 +654,6 @@ void Match::Put() {
   bool reverse = GetScenarioConfig().reverse_team_processing;
 
   DO_VALIDATION;
-  ballPresentation->Put(ball->Predict(0), ball->GetOrientation());
   teams[first_team]->Put(reverse);
   teams[second_team]->Put(!reverse);
   officials->Put(reverse);
