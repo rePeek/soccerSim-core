@@ -79,7 +79,10 @@ namespace blunted {
   signed int signSide(real n);  // returns -1 or 1
   bool is_odd(int n);
   void randomseed(unsigned int seed);
+  // Deterministic simulation RNG. Presentation code must not use this:
+  // consuming it shifts every subsequent simulation draw.
   real boostrandom(real min, real max);
+  // Presentation-only RNG. Must not affect simulation state.
   real random_non_determ(real min, real max);
 
   inline float curve(float source, float bias = 1.0f) { DO_VALIDATION; // make linear / into sined _/-

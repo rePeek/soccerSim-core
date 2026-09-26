@@ -503,7 +503,9 @@ void Match::UpdateIngameCamera() {
   if (fabs(ballPos.coords[1]) > maxH) ballPos.coords[1] = maxH * signSide(ballPos.coords[1]);
 
   Vector3 shudder =
-      Vector3(boostrandom(-0.1f, 0.1f), boostrandom(-0.1f, 0.1f), 0) *
+      // Presentation-only randomness: the camera shake is a visual effect and
+      // must not consume the deterministic simulation RNG.
+      Vector3(random_non_determ(-0.1f, 0.1f), random_non_determ(-0.1f, 0.1f), 0) *
       (ball->GetMovement().GetLength() * 0.8f + 6.0f);
   shudder *= 0.2f;
   camPos.push_back(ballPos + shudder * ((float)camPos.size() / (float)camPosSize));

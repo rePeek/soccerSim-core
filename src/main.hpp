@@ -256,6 +256,10 @@ class GameContext {
   typedef boost::variate_generator<BaseGenerator, Distribution> Generator;
   Generator rng;
 
+  // Diagnostic counter: how many times the deterministic simulation RNG has
+  // been drawn. Presentation code drawing from it shows up here.
+  long rng_draw_count = 0;
+
   // Two random number generators are needed. One (deterministic when running
   // in deterministic mode) to be used in places which generate deterministic
   // game state. Second one is used in places which are optional and don't

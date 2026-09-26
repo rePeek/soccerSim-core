@@ -71,6 +71,7 @@ namespace blunted {
 
   inline real boostrandom() {
     DO_VALIDATION;
+    GetContext().rng_draw_count++;
     return GetContext().rng();
   }
 

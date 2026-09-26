@@ -1,8 +1,8 @@
 #include <cmath>
-#include <cstdio>
-#include <cstring>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <iostream>
 #include <sstream>
@@ -393,6 +393,122 @@ void CheckPlayerBodyCollider() {
           "body collider should not stay at the origin");
 }
 
+void AppendDigestFloat(std::string& out, float value) {
+  uint32_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(bits));
+  char buf[16];
+  std::snprintf(buf, sizeof(buf), "%08x", bits);
+  out += buf;
+}
+
+template <typename T>
+void AppendDigestInt(std::string& out, const T& value) {
+  char buf[32];
+  std::snprintf(buf, sizeof(buf), "%lld|",
+                static_cast<long long>(value));
+  out += buf;
+}
+
+// A presentation-independent fingerprint of everything the next simulation
+// tick may read. Deliberately includes the deterministic RNG *state*, not just
+// a draw count: equal draw counts do not imply an equal stream.
+std::string CaptureSimulationDigest(GameEnv& env) {
+  std::string out;
+  Match* match = env.context->gameTask->GetMatch();
+
+  std::vector<Player*> players;
+  match->GetActiveTeamPlayers(match->FirstTeam(), players);
+  match->GetActiveTeamPlayers(match->SecondTeam(), players);
+  std::vector<PlayerBase*> actors(players.begin(), players.end());
+  std::vector<PlayerBase*> officials;
+  match->GetOfficialPlayers(officials);
+  actors.insert(actors.end(), officials.begin(), officials.end());
+
+  AppendDigestInt(out, actors.size());
+  for (const PlayerBase* actor : actors) {
+    const PlayerKinematicState& kinematics = actor->GetKinematicState();
+    AppendDigestFloat(out, kinematics.position.coords[0]);
+    AppendDigestFloat(out, kinematics.position.coords[1]);
+    AppendDigestFloat(out, kinematics.velocity.coords[0]);
+    AppendDigestFloat(out, kinematics.velocity.coords[1]);
+    AppendDigestFloat(out, kinematics.facing.coords[0]);
+    AppendDigestFloat(out, kinematics.facing.coords[1]);
+    const PlayerGroundCollider& ground = actor->GetGroundCollider();
+    AppendDigestFloat(out, ground.center.coords[0]);
+    AppendDigestFloat(out, ground.center.coords[1]);
+    AppendDigestFloat(out, ground.radius);
+    const PlayerActionState& action = actor->GetActionExecutorShadow();
+    AppendDigestInt(out, static_cast<int>(action.type));
+    AppendDigestInt(out, action.frame);
+    AppendDigestInt(out, action.elapsedTime_ms);
+    AppendDigestInt(out, action.contactTime_ms);
+    AppendDigestFloat(out, action.contactPosition.coords[0]);
+    AppendDigestFloat(out, action.contactPosition.coords[1]);
+  }
+
+  Ball* ball = match->GetBall();
+  const Vector3 ballPos = ball->Predict(0);
+  const Vector3 ballMomentum = ball->GetMovement();
+  const Vector3 ballRotation = ball->GetRotation();
+  AppendDigestFloat(out, ballPos.coords[0]);
+  AppendDigestFloat(out, ballPos.coords[1]);
+  AppendDigestFloat(out, ballPos.coords[2]);
+  AppendDigestFloat(out, ballMomentum.coords[0]);
+  AppendDigestFloat(out, ballMomentum.coords[1]);
+  AppendDigestFloat(out, ballMomentum.coords[2]);
+  AppendDigestFloat(out, ballRotation.coords[0]);
+  AppendDigestFloat(out, ballRotation.coords[1]);
+  AppendDigestFloat(out, ballRotation.coords[2]);
+
+  AppendDigestInt(out, match->GetScore(0));
+  AppendDigestInt(out, match->GetScore(1));
+  AppendDigestInt(out, static_cast<int>(match->GetMatchPhase()));
+  AppendDigestInt(out, match->IsInPlay() ? 1 : 0);
+  AppendDigestInt(out, match->IsInSetPiece() ? 1 : 0);
+  AppendDigestInt(out, match->GetLastTouchTeamID());
+  AppendDigestInt(out, match->GetLastTouchPlayer() == nullptr ? -1 : 1);
+  AppendDigestInt(out, match->GetDesignatedPossessionPlayer() == nullptr ? -1 : 1);
+  AppendDigestInt(out, match->GetBallRetainer() == nullptr ? -1 : 1);
+
+  const RefereeBuffer& buffer = match->GetReferee()->GetBuffer();
+  AppendDigestInt(out, buffer.active ? 1 : 0);
+  AppendDigestInt(out, buffer.stopTime);
+  AppendDigestInt(out, buffer.prepareTime);
+  AppendDigestInt(out, buffer.startTime);
+  AppendDigestInt(out, static_cast<int>(buffer.desiredSetPiece));
+  AppendDigestInt(out, match->GetReferee()->GetCurrentFoulType());
+  AppendDigestFloat(out, buffer.restartPos.coords[0]);
+  AppendDigestFloat(out, buffer.restartPos.coords[1]);
+
+  // Simulation RNG state. This is part of simulation state, so it is also what
+  // get_state/set_state saves; the draw count is diagnostics only and is
+  // therefore reported separately rather than folded into the digest.
+  std::ostringstream rngState;
+  rngState << env.context->rng.engine();
+  out += rngState.str();
+
+  return out;
+}
+
+// Invariant #7: a presentation operation must not modify any state the next
+// simulation tick reads.
+void RequirePresentationDoesNotMutateSimulation(GameEnv& env,
+                                                const std::string& label) {
+  Match* match = env.context->gameTask->GetMatch();
+  const long drawsBefore = env.context->rng_draw_count;
+  const std::string before = CaptureSimulationDigest(env);
+  match->UpdateCamera();
+  const std::string after = CaptureSimulationDigest(env);
+  if (before != after) {
+    std::ostringstream message;
+    message << label << ": Match::UpdateCamera() mutated simulation state"
+            << " (digest sizes " << before.size() << " vs " << after.size()
+            << ", rng draws " << (env.context->rng_draw_count - drawsBefore)
+            << ")";
+    throw RegressionFailure(message.str());
+  }
+}
+
 ScenarioConfig MakeBuiltinAiConfig() {
   auto config = ScenarioConfig::make();
   config->left_agents = 0;
@@ -455,19 +571,20 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
        UINT64_C(2178283517849602577)},
-      {100, 79, Position(-0.0442355908f, 0.289670438f, 0.153187156f, true),
-       Position(-0.858632624f, 0.0111426646f, 0.0f, true),
-       Position(0.866983712f, 0.000920823601f, 0.0f, true), 0, 0, true,
-       UINT64_C(17132446644363675042)},
-      {500, 458, Position(-0.748262942f, 0.21117343f, 0.173379108f, true),
-       Position(-0.935033083f, 0.0647159591f, 0.0f, true),
-       Position(0.827273488f, -0.000456920592f, 0.0f, true), 0, 0, true,
-       UINT64_C(12746127716360745032)},
-      {1000, 937, Position(0.276904285f, -0.00809036382f, 0.21655798f, true),
-       Position(-0.825224817f, -0.000250376266f, 0.0f, true),
-       Position(0.939582884f, -0.00371662737f, 0.0f, true), 0, 0, true,
-       UINT64_C(6386634138744383991)},
+      {100, 79, Position(-0.409872681f, 0.273896456f, 0.108315744f, true),
+       Position(-0.973170221f, 0.0185603499f, 0.0f, true),
+       Position(0.83682096f, -0.000399013137f, 0.0f, true), 0, 0, true,
+       UINT64_C(7453620862937221086)},
+      {500, 458, Position(0.753526747f, 0.198903978f, 0.17945759f, true),
+       Position(-0.831645966f, -6.32343508e-05f, 0.0f, true),
+       Position(0.990424097f, 0.0361555517f, 0.0f, true), 0, 0, true,
+       UINT64_C(12703816539953799179)},
+      {1000, 910, Position(-0.038121134f, -0.13526684f, 0.157381654f, true),
+       Position(-0.980546594f, -0.00378147163f, 0.0f, true),
+       Position(0.828302026f, -0.000150032414f, 0.0f, true), 1, 0, true,
+       UINT64_C(7247007324106109385)},
   };
+
 
 
   env.reset(config, false);
@@ -490,6 +607,7 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
     RequirePositionNear(info.right_team.front().player_position,
                         expected.right_player_0, label + ": right player 0");
     CheckKinematicMirrorConsistency(env, label);
+    RequirePresentationDoesNotMutateSimulation(env, label);
     const uint64_t hash = HashInfo(info);
     if (hash != expected.hash) {
       std::ostringstream message;
@@ -546,10 +664,14 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   const std::string serialized = env.get_state("");
   Advance(env, 125);
   const SharedInfo expected_after_restore = env.get_info();
+  const std::string digest_after_restore = CaptureSimulationDigest(env);
 
   env.set_state(serialized);
   Advance(env, 125);
   RequireInfoEqual(env.get_info(), expected_after_restore, "state round-trip");
+  Require(CaptureSimulationDigest(env) == digest_after_restore,
+          "state round-trip: simulation digest differs (presentation RNG must "
+          "not be part of simulation state)");
   CheckActionExecutorShadows(env.context->gameTask->GetMatch(),
                              "action executor shadow after state restore");
   CheckKinematicMirrorConsistency(env, "kinematic mirror after state restore");
