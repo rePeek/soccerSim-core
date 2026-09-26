@@ -309,7 +309,6 @@ void Player::Process() {
 
     CastHumanoid()->Process();
     SynchronizeKinematicState();
-    SynchronizeActionState();
     CheckSimulationActionOracle();
     UpdateKinematicShadow();
 

@@ -92,20 +92,19 @@ class PlayerBase {
       DO_VALIDATION;
       return groundCollider;
     }
-    const PlayerActionState &GetActionState() const {
-      DO_VALIDATION;
-      return actionState;
-    }
-    // Gameplay reads this independently advanced simulation schedule. H3d2a
-    // checks it exactly against the Humanoid-derived legacy oracle.
+    // Gameplay reads the sole persistent, simulation-authoritative action
+    // schedule. Humanoid provides only a temporary legacy oracle.
     const PlayerActionState &GetSimulationActionState() const {
       DO_VALIDATION;
-      return actionExecutorShadow;
+      return actionState;
     }
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
     void BeginSimulationAction();
     void StepSimulationAction(int elapsedTime_ms);
+    // Validates the authoritative schedule against Humanoid's temporary
+    // legacy projection. It is intentionally a fatal invariant in all builds.
+    void CheckSimulationActionOracle() const;
 
     void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }
 
@@ -159,8 +158,7 @@ class PlayerBase {
     void SynchronizeKinematicState();
     void UpdateKinematicShadow();
     void ResetKinematicShadow();
-    void SynchronizeActionState();
-    void CheckSimulationActionOracle() const;
+    PlayerActionState CaptureLegacyActionState() const;
     Match *match;
 
     const PlayerData* const playerData;
@@ -171,7 +169,6 @@ class PlayerBase {
     PlayerKinematicState kinematicShadow;
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
-    PlayerActionState actionExecutorShadow;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

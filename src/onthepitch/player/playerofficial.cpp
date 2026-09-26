@@ -67,7 +67,6 @@ void PlayerOfficial::Process() {
   CastController()->Process();
   CastHumanoid()->Process();
   SynchronizeKinematicState();
-  SynchronizeActionState();
   CheckSimulationActionOracle();
   UpdateKinematicShadow();
 }

@@ -718,21 +718,9 @@ void CheckActionStateOracle(Match *match, const std::string &label) {
     match->GetTeam(teamID)->GetActivePlayers(players);
     Require(!players.empty(), label + ": missing active players");
     for (const Player *player : players) {
-      const PlayerActionState &legacy = player->GetActionState();
+      player->CheckSimulationActionOracle();
       const PlayerActionState &simulation =
           player->GetSimulationActionState();
-      Require(legacy.type == simulation.type, label + ": action type differs");
-      Require(legacy.frame == simulation.frame, label + ": action frame differs");
-      Require(legacy.frameCount == simulation.frameCount,
-              label + ": action frame count differs");
-      Require(legacy.elapsedTime_ms == simulation.elapsedTime_ms,
-              label + ": action elapsed time differs");
-      Require(legacy.durationTime_ms == simulation.durationTime_ms,
-              label + ": action duration differs");
-      Require(legacy.contactTime_ms == simulation.contactTime_ms,
-              label + ": contact time differs");
-      Require(legacy.contactFrame == simulation.contactFrame,
-              label + ": contact frame differs");
       Require(player->GetCurrentFunctionType() == simulation.type,
               label + ": gameplay action type differs");
       Require(player->GetCurrentFrame() == simulation.frame,
@@ -744,9 +732,6 @@ void CheckActionStateOracle(Match *match, const std::string &label) {
       Require(player->TouchPending() == simulation.IsContactPending(),
               label + ": gameplay pending-contact differs");
       for (int axis = 0; axis < 3; ++axis) {
-        RequireNear(simulation.contactPosition.coords[axis],
-                    legacy.contactPosition.coords[axis],
-                    label + ": contact position");
         RequireNear(player->GetTouchPos().coords[axis],
                     simulation.contactPosition.coords[axis],
                     label + ": gameplay contact position");
@@ -804,6 +789,8 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   const std::string digest_after_restore = CaptureSimulationDigest(env);
 
   env.set_state(serialized);
+  CheckActionStateOracle(env.context->gameTask->GetMatch(),
+                         "action state oracle immediately after state restore");
   Advance(env, 125);
   RequireInfoEqual(env.get_info(), expected_after_restore, "state round-trip");
   Require(CaptureSimulationDigest(env) == digest_after_restore,

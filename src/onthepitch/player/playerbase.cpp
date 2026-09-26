@@ -61,52 +61,55 @@ void PlayerBase::SynchronizeKinematicState() {
   groundCollider.SetCenter(kinematicState.position);
 }
 
-void PlayerBase::SynchronizeActionState() {
+PlayerActionState PlayerBase::CaptureLegacyActionState() const {
   DO_VALIDATION;
-  actionState.type = humanoid->GetCurrentFunctionType();
-  actionState.frame = humanoid->GetFrameNum();
-  actionState.frameCount = humanoid->GetFrameCount();
-  actionState.elapsedTime_ms = actionState.frame * 10;
-  actionState.durationTime_ms = actionState.frameCount * 10;
+  PlayerActionState legacy;
+  legacy.type = humanoid->GetCurrentFunctionType();
+  legacy.frame = humanoid->GetFrameNum();
+  legacy.frameCount = humanoid->GetFrameCount();
+  legacy.elapsedTime_ms = legacy.frame * 10;
+  legacy.durationTime_ms = legacy.frameCount * 10;
   const Anim *anim = humanoid->GetCurrentAnim();
-  actionState.contactFrame = anim->touchFrame;
-  actionState.contactTime_ms =
+  legacy.contactFrame = anim->touchFrame;
+  legacy.contactTime_ms =
       anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
-  actionState.contactPosition = anim->touchPos;
+  legacy.contactPosition = anim->touchPos;
+  return legacy;
 }
 
 void PlayerBase::CheckSimulationActionOracle() const {
   DO_VALIDATION;
+  const PlayerActionState legacy = CaptureLegacyActionState();
   const bool contactPositionMatches =
       std::memcmp(actionState.contactPosition.coords,
-                  actionExecutorShadow.contactPosition.coords,
+                  legacy.contactPosition.coords,
                   sizeof(actionState.contactPosition.coords)) == 0;
   std::string mismatch;
-  if (actionState.type != actionExecutorShadow.type) {
+  if (actionState.type != legacy.type) {
     mismatch = "type";
-  } else if (actionState.frame != actionExecutorShadow.frame) {
+  } else if (actionState.frame != legacy.frame) {
     mismatch = "frame";
-  } else if (actionState.frameCount != actionExecutorShadow.frameCount) {
+  } else if (actionState.frameCount != legacy.frameCount) {
     mismatch = "frame count";
-  } else if (actionState.elapsedTime_ms != actionExecutorShadow.elapsedTime_ms) {
+  } else if (actionState.elapsedTime_ms != legacy.elapsedTime_ms) {
     mismatch = "elapsed time";
-  } else if (actionState.durationTime_ms != actionExecutorShadow.durationTime_ms) {
+  } else if (actionState.durationTime_ms != legacy.durationTime_ms) {
     mismatch = "duration";
-  } else if (actionState.contactTime_ms != actionExecutorShadow.contactTime_ms) {
+  } else if (actionState.contactTime_ms != legacy.contactTime_ms) {
     mismatch = "contact time";
-  } else if (actionState.contactFrame != actionExecutorShadow.contactFrame) {
+  } else if (actionState.contactFrame != legacy.contactFrame) {
     mismatch = "contact frame";
   } else if (!contactPositionMatches) {
     mismatch = "contact position bits";
   }
   if (!mismatch.empty()) {
     Log(e_FatalError, "PlayerBase", "CheckSimulationActionOracle",
-        "independent action executor diverged from legacy oracle: " + mismatch +
-            " (legacy frame=" + std::to_string(actionState.frame) +
-            ", executor frame=" + std::to_string(actionExecutorShadow.frame) +
-            ", legacy elapsed=" + std::to_string(actionState.elapsedTime_ms) +
-            ", executor elapsed=" +
-            std::to_string(actionExecutorShadow.elapsedTime_ms) + ")");
+        "authoritative action state diverged from legacy oracle: " + mismatch +
+            " (simulation frame=" + std::to_string(actionState.frame) +
+            ", legacy frame=" + std::to_string(legacy.frame) +
+            ", simulation elapsed=" +
+            std::to_string(actionState.elapsedTime_ms) +
+            ", legacy elapsed=" + std::to_string(legacy.elapsedTime_ms) + ")");
   }
 }
 
@@ -118,23 +121,21 @@ void PlayerBase::BeginSimulationAction() {
   definition.durationTime_ms = humanoid->GetFrameCount() * 10;
   definition.contactTime_ms = anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
   definition.contactPosition = anim->touchPos;
-  PlayerActionExecutor::Begin(actionExecutorShadow, definition);
+  PlayerActionExecutor::Begin(actionState, definition);
 
   // ResetPosition can deliberately start an idle animation at a non-zero
   // legacy frame. Establish that initial cursor once; normal ticks never
   // derive executor time from Humanoid.
   const int initialElapsedTime_ms = humanoid->GetFrameNum() * 10;
   if (initialElapsedTime_ms > 0) {
-    PlayerActionExecutor::Step(actionExecutorShadow, initialElapsedTime_ms);
+    PlayerActionExecutor::Step(actionState, initialElapsedTime_ms);
   }
-  SynchronizeActionState();
   CheckSimulationActionOracle();
 }
 
 void PlayerBase::StepSimulationAction(int elapsedTime_ms) {
   DO_VALIDATION;
-  PlayerActionExecutor::Step(actionExecutorShadow, elapsedTime_ms);
-  SynchronizeActionState();
+  PlayerActionExecutor::Step(actionState, elapsedTime_ms);
   CheckSimulationActionOracle();
 }
 
@@ -184,7 +185,6 @@ void PlayerBase::OffsetPosition(const Vector3 &offset) {
   DO_VALIDATION;
   humanoid->OffsetPosition(offset);
   SynchronizeKinematicState();
-  SynchronizeActionState();
   CheckSimulationActionOracle();
   ResetKinematicShadow();
 }
@@ -243,7 +243,6 @@ void PlayerBase::Process() {
     if (ExternalControllerActive()) externalController->GetHumanController()->Process(); else controller->Process();
     humanoid->Process();
     SynchronizeKinematicState();
-    SynchronizeActionState();
     CheckSimulationActionOracle();
     UpdateKinematicShadow();
   }
@@ -294,7 +293,9 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   kinematicShadow.ProcessState(state);
   groundCollider.ProcessState(state);
   actionState.ProcessState(state);
-  actionExecutorShadow.ProcessState(state);
+  // After saving or loading the action state, require it to agree with the
+  // Humanoid motion cursor before a subsequent tick can observe either.
+  CheckSimulationActionOracle();
   if (IsActive()) {
     controller->ProcessState(state);
   }
