@@ -91,6 +91,12 @@ class PlayerBase {
 
     void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }
 
+    // Simulation-phase pose snapshot used by Match collision rules.
+    void UpdateBodyCollisionState() {
+      DO_VALIDATION;
+      humanoid->UpdateBodyCollisionState();
+    }
+
     void RequestCommand(PlayerCommandQueue &commandQueue);
     IController *GetController();
     void SetExternalController(HumanGamer *externalController);

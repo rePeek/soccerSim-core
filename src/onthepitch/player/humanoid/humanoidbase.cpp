@@ -774,7 +774,6 @@ void HumanoidBase::FetchPutBuffers() {
   DO_VALIDATION;
   animApplyBuffer.anim->Apply(nodeMap, animApplyBuffer.frameNum, -1, animApplyBuffer.smooth, animApplyBuffer.smoothFactor, animApplyBuffer.position, animApplyBuffer.orientation, animApplyBuffer.offsets, &movementHistory, 10, animApplyBuffer.noPos, false);
   humanoidNode->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
-  UpdateBodyCollisionState();
 }
 
 void HumanoidBase::Put(bool mirror) {

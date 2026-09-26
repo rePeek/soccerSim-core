@@ -821,6 +821,22 @@ bool Match::Process() {
   bool reverse = GetScenarioConfig().reverse_team_processing;
   DO_VALIDATION;
 
+  // Refresh the collision pose snapshots from the body geometry the previous
+  // tick left behind. This used to happen in HumanoidBase::FetchPutBuffers(),
+  // i.e. in the animation/buffer phase; deriving it here keeps the legacy
+  // one-tick lag identical while ensuring no simulation-authoritative state is
+  // produced outside a simulation tick. This must stay the first thing in the
+  // tick: it is the only point between two ticks with no Mirror() toggle.
+  {
+    std::vector<Player *> collisionPlayers;
+    GetTeam(first_team)->GetActivePlayers(collisionPlayers);
+    GetTeam(second_team)->GetActivePlayers(collisionPlayers);
+    for (auto *player : collisionPlayers) {
+      DO_VALIDATION;
+      player->UpdateBodyCollisionState();
+    }
+  }
+
   Mirror(reverse, !reverse, reverse);
   if (IsInPlay()) {
     DO_VALIDATION;

@@ -240,6 +240,11 @@ class HumanoidBase {
     void FetchPutBuffers();
     void Put(bool mirror);
 
+    // Simulation-phase pose snapshot consumed by Match collision rules. It must
+    // be refreshed from the simulation tick, never from the animation/buffer
+    // phase.
+    void UpdateBodyCollisionState();
+
     virtual void CalculateGeomOffsets();
     void SetOffset(BodyPart body_part, float bias, const Quaternion &orientation, bool isRelative = false);
 
@@ -298,7 +303,6 @@ class HumanoidBase {
     Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
 
     void CalculateSpatialState(); // realtime properties, based on 'physics'
-    void UpdateBodyCollisionState();
     void CalculateFactualSpatialState(); // realtime properties, based on anim. usable at last frame of anim. more riggid than above function
 
     void AddTripCommandToQueue(PlayerCommandQueue &commandQueue, const Vector3 &tripVector, int tripType);
