@@ -1189,9 +1189,10 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
   constexpr float similarExp = 0.2f;//0.8f;
   constexpr float similarForceFactor = 0.25f; // 0.5f would be the full effect
 
-  Vector3 p1pos = p1->GetPosition();
-  Vector3 p2pos = p2->GetPosition();
-
+  const PlayerGroundCollider &p1Collider = p1->GetGroundCollider();
+  const PlayerGroundCollider &p2Collider = p2->GetGroundCollider();
+  Vector3 p1pos = p1Collider.center;
+  Vector3 p2pos = p2Collider.center;
   float distance = (p1pos - p2pos).GetLength();
 
   Vector3 p1movement = p1->GetMovement();
