@@ -250,7 +250,8 @@ void Referee::Process() {
     DO_VALIDATION;
     // check if set piece has been taken
     if (buffer.desiredSetPiece == e_GameMode_KickOff ||
-        (buffer.taker->TouchAnim() && !buffer.taker->TouchPending())) {
+        (buffer.taker->GetActionState().HasScheduledContact() &&
+         !buffer.taker->GetActionState().IsContactPending())) {
       DO_VALIDATION;
       buffer.active = false;
       match->StopSetPiece();
@@ -379,11 +380,13 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
 
   if (buffer.active) return;
 
+  const PlayerActionState &tripperAction = tripper->GetActionState();
+
   if (tackleType == 2) {
     DO_VALIDATION;  // standing tackle
     if (tripee->GetTeam()->GetFadingTeamPossessionAmount() > 1.1 &&
-        (tripper->GetCurrentFunctionType() == e_FunctionType_Interfere ||
-         tripper->GetCurrentFunctionType() == e_FunctionType_Sliding) &&
+        (tripperAction.type == e_FunctionType_Interfere ||
+         tripperAction.type == e_FunctionType_Sliding) &&
         (tripee->GetPosition() - match->GetBall()->Predict(0).Get2D())
                 .GetLength() < 2.0 &&
         tripper->GetTeam()->GetID() != tripee->GetTeam()->GetID()) {
@@ -403,21 +406,25 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
     DO_VALIDATION;  // sliding tackle
 
     if (match->GetActualTime_ms() - tripper->GetLastTouchTime_ms() > 600 &&
-        tripper->GetCurrentFunctionType() == e_FunctionType_Sliding &&
+        tripperAction.type == e_FunctionType_Sliding &&
         tripper->GetTeam()->GetID() != tripee->GetTeam()->GetID() &&
         (match->GetBall()->Predict(0) - tripee->GetPosition()).GetLength() <
             8.0) {
       DO_VALIDATION;
       float severity = 1.0;
-      if (tripper->TouchAnim()) {
+      if (tripperAction.HasScheduledContact()) {
         DO_VALIDATION;
-        severity = std::pow(clamp(fabs(tripper->GetTouchFrame() -
-                                       tripper->GetCurrentFrame()) /
-                                      tripper->GetTouchFrame(),
+        severity = std::pow(clamp(fabs(tripperAction.contactFrame -
+                                       tripperAction.frame) /
+                                      tripperAction.contactFrame,
                                   0.0, 1.0),
                             0.7) *
                    0.5;
-        severity += NormalizedClamp((match->GetBall()->Predict(0) - tripper->GetTouchPos()).GetLength(), 0.0, 2.0) * 0.5;
+        severity += NormalizedClamp(
+            (match->GetBall()->Predict(0) - tripperAction.contactPosition)
+                .GetLength(),
+            0.0, 2.0) *
+            0.5;
       }
       // from behind?
       severity += (tripee->GetPosition() - tripper->GetPosition()).GetNormalized(0).GetDotProduct(tripee->GetDirectionVec()) * 0.5 + 0.5;
