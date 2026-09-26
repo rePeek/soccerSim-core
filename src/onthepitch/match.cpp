@@ -1195,8 +1195,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
   Vector3 p2pos = p2Collider.center;
   float distance = (p1pos - p2pos).GetLength();
 
-  Vector3 p1movement = p1->GetMovement();
-  Vector3 p2movement = p2->GetMovement();
+  Vector3 p1movement = p1->GetKinematicState().velocity;
+  Vector3 p2movement = p2->GetKinematicState().velocity;
   assert(p1movement.coords[2] == 0.0f);
   assert(p2movement.coords[2] == 0.0f);
 
