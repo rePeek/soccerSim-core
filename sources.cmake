@@ -232,24 +232,6 @@ set(BLUNTED_CORE_SOURCES
 )
 
 
-###### SEPARATION
-
-set(AI_HEADERS
-  ai.cpp
-  src/ai/ai_keyboard.hpp
-  src/game_env.cpp
-)
-
-set(AI_SOURCES
-  ai.hpp
-  src/ai/ai_keyboard.cpp
-  src/game_env.hpp
-)
-
-set(CLIENT_SOURCES
-   src/client.cpp
-   src/game_env.hpp
-)
 
 set(CORE_HEADERS
    src/cmake/backtrace.h

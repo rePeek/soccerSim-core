@@ -11,14 +11,6 @@
       devShells = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
-          # Boost.Python and the interpreter found by CMake must use the same
-          # Python ABI.
-          python = pkgs.python311.withPackages (ps: [
-            ps.pip
-            ps.psutil
-            ps.setuptools
-            ps.wheel
-          ]);
         in {
           default = pkgs.mkShell {
             packages = [
@@ -27,7 +19,7 @@
               pkgs.gnumake
               pkgs.pkg-config
               pkgs.ninja
-              python
+              pkgs.boost
 
               # Engine C++ dependencies.
               pkgs.libGL.dev
@@ -35,13 +27,11 @@
               pkgs.SDL2_image
               pkgs.SDL2_ttf
               pkgs.SDL2_gfx
-              pkgs.python311Packages.boost
             ];
 
             shellHook = ''
-              export PYTHONNOUSERSITE=1
               echo "Football engine build environment loaded."
-              echo "Build with: ./gfootball/build_game_engine.sh"
+              echo "Build with: cmake -S . -B build -G Ninja && cmake --build build"
             '';
           };
         });
