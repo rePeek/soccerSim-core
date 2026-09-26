@@ -38,10 +38,10 @@ void DoValidation(int line, const char* file);
 
 #include "gametask.hpp"
 #include "match_setup.hpp"
-#include "menu/menutask.hpp"
 #include "hid/ihidevice.hpp"
 
 #include "systems/graphics/graphics_system.hpp"
+#include "scene/scene2d/scene2d.hpp"
 #include "scene/objectfactory.hpp"
 #include "loaders/aseloader.hpp"
 #include "loaders/imageloader.hpp"
@@ -234,7 +234,6 @@ class GameContext {
   GraphicsSystem graphicsSystem;
   boost::shared_ptr<GameTask> gameTask;
   std::unique_ptr<MatchSetup> matchSetup;
-  boost::shared_ptr<MenuTask> menuTask;
   boost::shared_ptr<Scene2D> scene2D;
   boost::shared_ptr<Scene3D> scene3D;
   boost::intrusive_ptr<Node> fullbodyNode;
@@ -283,7 +282,6 @@ boost::shared_ptr<Scene2D> GetScene2D();
 boost::shared_ptr<Scene3D> GetScene3D();
 GraphicsSystem *GetGraphicsSystem();
 boost::shared_ptr<GameTask> GetGameTask();
-boost::shared_ptr<MenuTask> GetMenuTask();
 
 Properties *GetConfiguration();
 ScenarioConfig& GetScenarioConfig();

@@ -33,7 +33,6 @@
 #include "scene/resources/geometrydata.hpp"
 #include "scene/resources/surface.hpp"
 #include "systems/isystem.hpp"
-#include "wrap_SDL_ttf.h"
 
 namespace blunted {
 
@@ -44,7 +43,6 @@ void Initialize() {
   GetContext().surface_manager.RegisterLoader("jpg", &GetContext().imageLoader);
   GetContext().surface_manager.RegisterLoader("png", &GetContext().imageLoader);
   GetContext().surface_manager.RegisterLoader("bmp", &GetContext().imageLoader);
-  TTF_Init();
 }
 
 void Exit() {
@@ -52,7 +50,6 @@ void Exit() {
   GetContext().scene2D->Exit();
   GetContext().scene3D->Exit();
   GetContext().graphicsSystem.Exit();
-  TTF_Quit();
   SDL_Quit();
 }
 }

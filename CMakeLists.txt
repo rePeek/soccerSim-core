@@ -27,11 +27,9 @@ FIND_PACKAGE(EGL REQUIRED)
 include_directories(${EGL_INCLUDE_DIR})
 
 FIND_PACKAGE(SDL2_image REQUIRED)
-FIND_PACKAGE(SDL2_ttf REQUIRED)
 FIND_PACKAGE(SDL2_gfx REQUIRED)
 
 include_directories(${SDL2_IMAGE_DIRS})
-include_directories(${SDL2_TTF_DIRS})
 include_directories(${SDL2_GFX_DIRS})
 
 FIND_PACKAGE(Boost REQUIRED COMPONENTS thread system filesystem)
@@ -55,25 +53,22 @@ add_library(scenelib OBJECT ${SCENE_SOURCES} ${SCENE_HEADERS}
    ${SCENE_RESOURCES_HEADERS})
 add_library(utilslib OBJECT ${UTILS_SOURCES} ${UTILS_HEADERS}
    ${UTILS_EXT_HEADERS})
-add_library(gui2lib OBJECT ${UTILS_GUI2_SOURCES} ${UTILS_GUI2_HEADERS}
-   ${UTILS_GUI2_WIDGETS_HEADERS})
 
 # Join all created static libraries into a single static or shared one.
 set(OWN_LIBRARIES $<TARGET_OBJECTS:baselib> # $<TARGET_OBJECTS:systemscommonlib>
    $<TARGET_OBJECTS:systemsgraphicslib> $<TARGET_OBJECTS:loaderslib>
    $<TARGET_OBJECTS:typeslib> $<TARGET_OBJECTS:scenelib>
-   $<TARGET_OBJECTS:utilslib> $<TARGET_OBJECTS:gui2lib>)
+   $<TARGET_OBJECTS:utilslib>)
 
 # Compile it as multiple static libraries
 add_library(blunted2 ${BLUNTED_CORE_SOURCES} ${BLUNTED_CORE_HEADERS} ${OWN_LIBRARIES})
 add_library(gamelib ${GAME_SOURCES} ${GAME_HEADERS})
-add_library(menulib ${MENU_SOURCES} ${MENU_HEADERS})
 add_library(datalib ${DATA_SOURCES} ${DATA_HEADERS})
 
-set(SDL2_LIBS_ALL ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES}
-   ${SDL2_GFX_LIBRARIES} ${SDL2_LIBRARIES})
+set(SDL2_LIBS_ALL ${SDL2_IMAGE_LIBRARIES} ${SDL2_GFX_LIBRARIES}
+   ${SDL2_LIBRARIES})
 
-set(ENGINE_LIBRARIES gamelib menulib datalib blunted2
+set(ENGINE_LIBRARIES gamelib datalib blunted2
    Boost::filesystem Boost::system Boost::thread
    ${SDL2_LIBS_ALL} ${EGL_LIBRARIES} ${OPENGL_LIBRARIES})
 

@@ -25,7 +25,6 @@
               pkgs.libGL.dev
               pkgs.SDL2
               pkgs.SDL2_image
-              pkgs.SDL2_ttf
               pkgs.SDL2_gfx
             ];
 

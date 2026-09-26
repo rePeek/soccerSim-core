@@ -27,6 +27,7 @@
 #include <EGL/eglext.h>
 
 #include <cmath>
+#include "../../../base/image.hpp"
 #include "wrap_SDL.h"
 
 #include "../../../base/geometry/aabb.hpp"
@@ -37,7 +38,6 @@
 #include "../../../base/utils.hpp"
 #include "../../../main.hpp"
 #include "../../../types/command.hpp"
-#include "../../../utils/gui2/widgets/image.hpp"
 #include "../resources/texture.hpp"
 
 namespace blunted {
@@ -548,7 +548,7 @@ bool OpenGLRenderer3D::CreateContext(int width, int height, int bpp,
 
   currentShader = shaders.begin();
 
-  SDL_Surface *noise = IMG_LoadBmp("media/shaders/noise.png");
+  SDL_Surface *noise = LoadImage("media/shaders/noise.png");
   noiseTexID =
       CreateTexture(e_InternalPixelFormat_RGB8, e_PixelFormat_RGB, noise->w,
                     noise->h, false, true, false, false, false);

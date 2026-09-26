@@ -25,7 +25,6 @@
 #include "../../base/math/vector3.hpp"
 #include "../../base/geometry/line.hpp"
 
-#include "wrap_SDL_ttf.h"
 
 namespace blunted {
 

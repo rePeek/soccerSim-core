@@ -28,11 +28,6 @@
 #include "player/humanoid/animcollection.hpp"
 #include "AIsupport/mentalimage.hpp"
 
-#include "../menu/menutask.hpp"
-
-#include "../utils/gui2/widgets/caption.hpp"
-#include "../menu/ingame/scoreboard.hpp"
-#include "../menu/ingame/radar.hpp"
 
 #include "../scene/objects/camera.hpp"
 #include "../scene/objects/light.hpp"
@@ -198,10 +193,6 @@ class Match {
 
     std::vector<MentalImage> mentalImages; // [index] == index * 10 ms ago ([0] == now)
 
-    Gui2ScoreBoard *scoreboard;
-    Gui2Radar *radar;
-    Gui2Caption *messageCaption;
-    unsigned long messageCaptionRemoveTime_ms = 0;
     unsigned long matchTime_ms = 0;
     unsigned long actualTime_ms = 0;
     unsigned long goalScoredTimer = 0;
@@ -237,7 +228,6 @@ class Match {
 
     Referee *referee;
 
-    boost::shared_ptr<MenuTask> menuTask;
 
     boost::shared_ptr<Scene3D> scene3D;
 

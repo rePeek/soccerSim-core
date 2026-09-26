@@ -24,8 +24,6 @@
 #include "../base/log.hpp"
 #include "../game_env.hpp"
 #include "../main.hpp"
-#include "../menu/pagefactory.hpp"
-#include "../menu/startmatch/loadingmatch.hpp"
 #include "../scene/objectfactory.hpp"
 #include "../scene/objects/light.hpp"
 #include "../utils/splitgeometry.hpp"
@@ -64,8 +62,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   auto& anims = GetContext().anims;
   GetContext().stablePlayerCount = 0;
 
-  // shared ptr to menutask, because menutask shouldn't die before match does
-  menuTask = GetMenuTask();
 
   actualTime_ms = 0;
   goalScoredTimer = 0;
@@ -245,28 +241,12 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   referee = new Referee(this, animations);
 
 
-  // GUI
-  Gui2Root *root = menuTask->GetWindowManager()->GetRoot();
-
-  radar = new Gui2Radar(menuTask->GetWindowManager(), "game_radar", 38, 78, 24, 18, this, matchData->GetTeamData(0).GetColor1(), matchData->GetTeamData(0).GetColor2(), matchData->GetTeamData(1).GetColor1(), matchData->GetTeamData(1).GetColor2());
-  root->AddView(radar);
-  radar->Show();
-
-  scoreboard = new Gui2ScoreBoard(menuTask->GetWindowManager(), this);
-  root->AddView(scoreboard);
-  scoreboard->Show();
-
-  messageCaption = new Gui2Caption(menuTask->GetWindowManager(), "game_messages", 0, 0, 80, 8, "");
-  messageCaption->SetTransparency(0.3f);
-  root->AddView(messageCaption);
-  messageCaptionRemoveTime_ms = actualTime_ms + 5000;
 
   // for usage in destructor
   scene3D = GetScene3D();
 
   lastBodyBallCollisionTime_ms = 0;
 
-  menuTask->GetWindowManager()->GetPageFactory()->CreatePage((int)e_PageID_Game, 0);
 }
 
 Match::~Match() { DO_VALIDATION; }
@@ -300,18 +280,9 @@ void Match::Exit() {
   delete referee;
   mentalImages.clear();
 
-  messageCaption->Exit();
-  delete messageCaption;
 
   scene3D->DeleteNode(GetDynamicNode());
   scene3D->DeleteNode(stadiumNode);
-  radar->Exit();
-  delete radar;
-
-  scoreboard->Exit();
-  delete scoreboard;
-
-  menuTask.reset();
 }
 
 void Match::SetRandomSunParams() {
@@ -430,13 +401,8 @@ void Match::UpdateControllerSetup() {
   teams[1]->AddHumanGamers(right_players);
 }
 
-void Match::SpamMessage(const std::string &msg, int time_ms) {
+void Match::SpamMessage(const std::string& /*msg*/, int /*time_ms*/) {
   DO_VALIDATION;
-  messageCaption->SetCaption(msg);
-  float w = messageCaption->GetTextWidthPercent();
-  messageCaption->SetPosition(50 - w * 0.5f, 5);
-  messageCaption->Show();
-  messageCaptionRemoveTime_ms = actualTime_ms + time_ms;
 }
 
 void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
@@ -948,7 +914,6 @@ bool Match::Process() {
       DO_VALIDATION;
       matchData->SetGoalCount(teams[team]->GetID(),
                               matchData->GetGoalCount(team) + 1);
-      scoreboard->SetGoalCount(team, matchData->GetGoalCount(team));
       goalScored = true;
       lastGoalTeam = teams[team];
       teams[team]->GetController()->UpdateTactics();
@@ -1093,26 +1058,6 @@ void Match::Put() {
 
   GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
   DO_VALIDATION;
-  teams[first_team]->Put2D(reverse);
-  teams[second_team]->Put2D(!reverse);
-
-  // if (buf_actualTime_ms % 100 == 0) { DO_VALIDATION; // a better way would
-  // be to count iterations (this modulo is irregular since not all process
-  // runs are put)
-  // clock
-
-  int seconds = (int)(matchTime_ms / 1000.0) % 60;
-  int minutes = (int)(matchTime_ms / 60000.0);
-
-  std::string timeStr = "";
-  if (minutes < 10) timeStr += "0";
-  timeStr += int_to_str(minutes);
-  timeStr += ":";
-  if (seconds < 10) timeStr += "0";
-  timeStr += int_to_str(seconds);
-  scoreboard->SetTimeStr(timeStr);
-  if (messageCaptionRemoveTime_ms <= actualTime_ms) messageCaption->Hide();
-  radar->Put();
   UpdateGoalNetting(GetBall()->BallTouchesNet());
 }
 

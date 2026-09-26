@@ -16,6 +16,7 @@ set(BASE_HEADERS
    src/base/utils.hpp
    src/base/properties.hpp
    src/base/sdl_surface.hpp
+   src/base/image.hpp
 )
 
 set(BASE_GEOMETRY_HEADERS
@@ -36,6 +37,7 @@ set(BASE_MATH_HEADERS
 
 set(BASE_SOURCES
    src/base/sdl_surface.cpp
+   src/base/image.cpp
    src/base/utils.cpp
    src/base/properties.cpp
    src/base/log.cpp
@@ -195,32 +197,6 @@ set(UTILS_SOURCES
    src/utils/animationextensions/footballanimationextension.cpp
 )
 
-set(UTILS_GUI2_HEADERS
-   src/utils/gui2/windowmanager.hpp
-   src/utils/gui2/page.hpp
-   src/utils/gui2/style.hpp
-   src/utils/gui2/guitask.hpp
-   src/utils/gui2/view.hpp
-)
-
-set(UTILS_GUI2_WIDGETS_HEADERS
-   src/utils/gui2/widgets/image.hpp
-   src/utils/gui2/widgets/caption.hpp
-   src/utils/gui2/widgets/frame.hpp
-   src/utils/gui2/widgets/root.hpp
-)
-
-set(UTILS_GUI2_SOURCES
-   src/utils/gui2/style.cpp
-   src/utils/gui2/widgets/caption.cpp
-   src/utils/gui2/widgets/image.cpp
-   src/utils/gui2/widgets/root.cpp
-   src/utils/gui2/widgets/frame.cpp
-   src/utils/gui2/view.cpp
-   src/utils/gui2/windowmanager.cpp
-   src/utils/gui2/guitask.cpp
-   src/utils/gui2/page.cpp
-)
 
 set(BLUNTED_CORE_HEADERS
    src/defines.hpp
@@ -316,23 +292,6 @@ set(GAME_SOURCES
    src/onthepitch/teamAIcontroller.cpp
 )
 
-set(MENU_HEADERS
-   src/menu/pagefactory.hpp
-   src/menu/startmatch/loadingmatch.hpp
-   src/menu/menutask.hpp
-   src/menu/ingame/gamepage.hpp
-   src/menu/ingame/scoreboard.hpp
-   src/menu/ingame/radar.hpp
-)
-
-set(MENU_SOURCES
-   src/menu/startmatch/loadingmatch.cpp
-   src/menu/pagefactory.cpp
-   src/menu/menutask.cpp
-   src/menu/ingame/radar.cpp
-   src/menu/ingame/gamepage.cpp
-   src/menu/ingame/scoreboard.cpp
-)
 
 set(DATA_HEADERS
    src/data/matchdata.hpp

@@ -29,7 +29,6 @@
 #include "scene/scene3d/scene3d.hpp"
 #include "utils/objectloader.hpp"
 #include "utils/orbitcamera.hpp"
-#include "wrap_SDL_ttf.h"
 #include "game_env.hpp"
 
 using std::string;
@@ -72,9 +71,6 @@ boost::shared_ptr<GameTask> GetGameTask() {
   return game->context->gameTask;
 }
 
-boost::shared_ptr<MenuTask> GetMenuTask() {
-  return game->context->menuTask;
-}
 
 Properties* GetConfiguration() {
   return game->context->config;
@@ -128,17 +124,12 @@ void run_game(Properties* input_config, bool render) {
   // sequences
 
   game->context->gameTask = boost::shared_ptr<GameTask>(new GameTask());
-  // Headless simulation does not load font assets. GUI code remains compiled
-  // for now, but its caption methods are no-ops when rendering is disabled.
-  game->context->menuTask = boost::shared_ptr<MenuTask>(
-      new MenuTask(5.0f / 4.0f, 0, nullptr, nullptr, game->context->config));
 }
   // fire!
 
 void quit_game() {
   DO_VALIDATION;
   game->context->gameTask.reset();
-  game->context->menuTask.reset();
 
   game->context->scene2D.reset();
   game->context->scene3D.reset();

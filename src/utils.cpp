@@ -46,53 +46,6 @@ void QuantizeDirection(Vector3 &inputDirection, float bias) {
   inputDirection = (inputDirectionNorm * (1.0 - bias) + (Vector3(1, 0, 0).GetRotated2D(angle) * bias)).GetNormalized(inputDirectionNorm) * inputDirection.GetLength();
 }
 
-Vector3 GetProjectedCoord(const Vector3 &pos3D,
-                          boost::intrusive_ptr<Camera> camera) {
-  DO_VALIDATION;
-  Matrix4 rotMat;
-  rotMat.ConstructInverse(camera->GetDerivedPosition(), Vector3(1, 1, 1), camera->GetDerivedRotation());
-  float fov = camera->GetFOV();
-
-  // cotangent
-  float f = 1.0 / tan((fov / 360.0 * pi * 2) / 2.0);
-
-  Vector3 contextSize3D = GetGraphicsSystem()->GetContextSize();
-  float aspect = contextSize3D.coords[0] / contextSize3D.coords[1];
-  float aspect2D = GetMenuTask()->GetWindowManager()->GetAspectRatio();
-  if (aspect2D < aspect) aspect = aspect2D;
-
-  //printf("aspect: %f\n", aspect);
-  float zNear = 40.0;
-  float zFar = 270.0;
-
-  Matrix4 perspMat;
-  perspMat.elements[0] = f / aspect;
-  perspMat.elements[5] = f;
-  perspMat.elements[10] = (zFar + zNear) / (zNear - zFar);
-  perspMat.elements[11] = (2 * zFar * zNear) / (zNear - zFar);
-  perspMat.elements[14] = -1;
-
-  Matrix4 resMat = perspMat * rotMat;
-
-  float x, y, z, w;
-  resMat.MultiplyVec4(pos3D.coords[0], pos3D.coords[1], pos3D.coords[2], 1, x, y, z, w);
-
-  Vector3 result;
-  result.coords[0] = x / w;
-  result.coords[1] = y / w;
-
-  //printf("%f %f %f\n", x / w, y / w, z / w);
-
-  result.coords[1] = -result.coords[1];
-
-  result.coords[1] *= aspect2D / aspect;
-
-  result += 1.0;
-  result *= 0.5;
-  result *= 100;
-
-  return result;
-}
 
 int GetVelocityID(e_Velocity velo, bool treatDribbleAsWalk) {
   DO_VALIDATION;

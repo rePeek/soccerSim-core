@@ -15,26 +15,21 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "imageloader.hpp"
+#ifndef _hpp_base_image
+#define _hpp_base_image
 
-#include "../base/log.hpp"
-#include "../base/image.hpp"
+#include <string>
 
-#include <fstream>
+#include "sdl_surface.hpp"
 
 namespace blunted {
 
-ImageLoader::ImageLoader() : Loader<Surface>() { DO_VALIDATION; }
+// Loads an image from the game data directory. The resource is expected to be
+// stored as an uncompressed .bmp file; the requested extension is replaced
+// accordingly. This lives outside of the GUI code because the simulation and
+// renderer asset loading still depend on it.
+SDL_Surface *LoadImage(const std::string &file);
 
-ImageLoader::~ImageLoader() { DO_VALIDATION; }
+}  // namespace blunted
 
-// load file into resource
-void ImageLoader::Load(std::string filename,
-                       boost::intrusive_ptr<Resource<Surface> > resource) {
-  DO_VALIDATION;
-  SDL_Surface *surface = LoadImage(filename);
-  if (!surface)
-    Log(e_FatalError, "ImageLoader", "Load", "Could not load " + filename);
-  resource->GetResource()->SetData(surface);
-}
-}
+#endif

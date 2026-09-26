@@ -18,6 +18,7 @@
 #include "proceduralpitch.hpp"
 
 #include <cmath>
+#include "../base/image.hpp"
 
 #include "../misc/perlin.h"
 
@@ -322,7 +323,7 @@ void GeneratePitch(int resX, int resY, int resSpecularX, int resSpecularY,
   }
   GetContext().already_loaded = true;
 
-  SDL_Surface *seamless = IMG_LoadBmp("media/textures/pitch/seamlessgrass08.png");
+  SDL_Surface *seamless = LoadImage("media/textures/pitch/seamlessgrass08.png");
   SDL_PixelFormat seamlessFormat = *seamless->format;
   assert(seamlessTexW == seamless->w);
   assert(seamlessTexH == seamless->h);
@@ -339,7 +340,7 @@ void GeneratePitch(int resX, int resY, int resSpecularX, int resSpecularY,
   }
   SDL_FreeSurface(seamless);
 
-  SDL_Surface *overlay = IMG_LoadBmp("media/textures/pitch/overlay.png");
+  SDL_Surface *overlay = LoadImage("media/textures/pitch/overlay.png");
   SDL_PixelFormat overlayFormat = *overlay->format;
   assert(overlayTexW == overlay->w);
   assert(overlayTexH == overlay->h);
