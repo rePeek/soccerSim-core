@@ -494,6 +494,113 @@ std::string CaptureSimulationDigest(GameEnv& env) {
   return out;
 }
 
+// The semantic digest is the reset contract. These named float fields are
+// only diagnostics: they map a raw mismatch back to an authoritative actor
+// field without weakening the byte-for-byte comparison. Do not compare the
+// EnvState blob itself here: it serializes POD padding (including radian),
+// which is transport representation rather than simulation state.
+struct NamedDigestFloat {
+  std::string name;
+  uint32_t bits;
+};
+
+uint32_t FloatBits(float value) {
+  uint32_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(bits));
+  return bits;
+}
+
+void AppendNamedDigestFloat(std::vector<NamedDigestFloat>& fields,
+                            const std::string& name, float value) {
+  fields.push_back({name, FloatBits(value)});
+}
+
+std::vector<NamedDigestFloat> CaptureResetDigestFloats(GameEnv& env) {
+  std::vector<NamedDigestFloat> fields;
+  Match* match = env.context->gameTask->GetMatch();
+
+  const auto append_actor = [&](const PlayerBase* actor,
+                                const std::string& actor_name) {
+    const PlayerKinematicState& kinematics = actor->GetKinematicState();
+    AppendNamedDigestFloat(fields, actor_name + ".kinematic.position.x",
+                           kinematics.position.coords[0]);
+    AppendNamedDigestFloat(fields, actor_name + ".kinematic.position.y",
+                           kinematics.position.coords[1]);
+    AppendNamedDigestFloat(fields, actor_name + ".kinematic.velocity.x",
+                           kinematics.velocity.coords[0]);
+    AppendNamedDigestFloat(fields, actor_name + ".kinematic.velocity.y",
+                           kinematics.velocity.coords[1]);
+    AppendNamedDigestFloat(fields, actor_name + ".kinematic.facing.x",
+                           kinematics.facing.coords[0]);
+    AppendNamedDigestFloat(fields, actor_name + ".kinematic.facing.y",
+                           kinematics.facing.coords[1]);
+    const PlayerGroundCollider& ground = actor->GetGroundCollider();
+    AppendNamedDigestFloat(fields, actor_name + ".ground.center.x",
+                           ground.center.coords[0]);
+    AppendNamedDigestFloat(fields, actor_name + ".ground.center.y",
+                           ground.center.coords[1]);
+    AppendNamedDigestFloat(fields, actor_name + ".ground.radius",
+                           ground.radius);
+    const PlayerActionState& action = actor->GetActionExecutorShadow();
+    AppendNamedDigestFloat(fields, actor_name + ".action.contactPosition.x",
+                           action.contactPosition.coords[0]);
+    AppendNamedDigestFloat(fields, actor_name + ".action.contactPosition.y",
+                           action.contactPosition.coords[1]);
+  };
+
+  for (int team_id : {match->FirstTeam(), match->SecondTeam()}) {
+    std::vector<Player*> players;
+    match->GetActiveTeamPlayers(team_id, players);
+    for (size_t index = 0; index < players.size(); ++index) {
+      append_actor(players[index], "team[" + std::to_string(team_id) +
+                                     "].player[" + std::to_string(index) + "]");
+    }
+  }
+  std::vector<PlayerBase*> officials;
+  match->GetOfficialPlayers(officials);
+  for (size_t index = 0; index < officials.size(); ++index) {
+    append_actor(officials[index], "official[" + std::to_string(index) + "]");
+  }
+
+  Ball* ball = match->GetBall();
+  const Vector3 ball_position = ball->Predict(0);
+  const Vector3 ball_momentum = ball->GetMovement();
+  const Vector3 ball_rotation = ball->GetRotation();
+  for (int axis = 0; axis < 3; ++axis) {
+    const char axis_name[] = {'x', 'y', 'z'};
+    AppendNamedDigestFloat(fields, std::string("ball.position.") + axis_name[axis],
+                           ball_position.coords[axis]);
+    AppendNamedDigestFloat(fields, std::string("ball.momentum.") + axis_name[axis],
+                           ball_momentum.coords[axis]);
+    AppendNamedDigestFloat(fields, std::string("ball.rotation.") + axis_name[axis],
+                           ball_rotation.coords[axis]);
+  }
+  const RefereeBuffer& buffer = match->GetReferee()->GetBuffer();
+  AppendNamedDigestFloat(fields, "referee.restartPosition.x",
+                         buffer.restartPos.coords[0]);
+  AppendNamedDigestFloat(fields, "referee.restartPosition.y",
+                         buffer.restartPos.coords[1]);
+  return fields;
+}
+
+std::string DescribeFirstResetDigestDifference(
+    const std::vector<NamedDigestFloat>& first,
+    const std::vector<NamedDigestFloat>& second) {
+  if (first.size() != second.size()) {
+    return "reset diagnostic field count differs";
+  }
+  for (size_t index = 0; index < first.size(); ++index) {
+    if (first[index].bits == second[index].bits) continue;
+    std::ostringstream message;
+    message << first[index].name << ": reset #1 bits=0x" << std::hex
+            << first[index].bits << ", reset #2 bits=0x" << second[index].bits;
+    return message.str();
+  }
+  return "named float fields match; inspect non-float/raw digest state";
+}
+
+
+
 // Invariant #7: a presentation operation must not modify any state the next
 // simulation tick reads.
 
@@ -633,6 +740,35 @@ void CheckActionExecutorShadows(Match *match, const std::string &label) {
     }
   }
 }
+
+void CheckResetBitDeterminism(GameEnv& env, const ScenarioConfig& config) {
+  const Vector3 caller_ball_position = config.ball_position;
+  const auto require_caller_config_unchanged = [&]() {
+    for (int axis = 0; axis < 3; ++axis) {
+      Require(FloatBits(config.ball_position.coords[axis]) ==
+                  FloatBits(caller_ball_position.coords[axis]),
+              "reset at tick 0: reset mutated caller ball_position[" +
+                  std::to_string(axis) + "]");
+    }
+  };
+
+  env.reset(config, false);
+  require_caller_config_unchanged();
+  const std::string first_digest = CaptureSimulationDigest(env);
+  const std::vector<NamedDigestFloat> first_fields =
+      CaptureResetDigestFloats(env);
+
+  env.reset(config, false);
+  require_caller_config_unchanged();
+  const std::string second_digest = CaptureSimulationDigest(env);
+  const std::vector<NamedDigestFloat> second_fields =
+      CaptureResetDigestFloats(env);
+
+  Require(first_digest == second_digest,
+          "reset at tick 0: simulation digest differs: " +
+              DescribeFirstResetDigestDifference(first_fields, second_fields));
+}
+
 
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
@@ -1032,6 +1168,7 @@ int main(int argc, char** argv) {
     // the synchronized reset is caught (the first Process would silently heal
     // it later).
     CheckKinematicMirrorConsistency(env, "kinematic mirror after start_game");
+    CheckResetBitDeterminism(env, config);
 
     CheckGoldenSnapshots(env, config);
     CheckImportHierarchy();

@@ -48,7 +48,7 @@ struct GameEnv {
   // Executes the action inside the game.
   bool sticky_action_state(int action, bool left_team, int player);
   void action(int action, bool left_team, int player);
-  void reset(ScenarioConfig& game_config, bool init_animation);
+  void reset(const ScenarioConfig& game_config, bool init_animation);
   std::string get_state(const std::string& pickle);
   std::string set_state(const std::string& state);
   void tracker_setup(long start, long end) { GetTracker()->setup(start, end); }
@@ -57,7 +57,7 @@ struct GameEnv {
   ScenarioConfig& config();
 
  private:
-  void setConfig(ScenarioConfig& scenario_config);
+  void setConfig(const ScenarioConfig& scenario_config);
   void do_step(int count);
   void getObservations();
   AIControlledKeyboard* keyboard_ = nullptr;

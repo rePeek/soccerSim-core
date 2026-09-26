@@ -60,17 +60,27 @@ std::string Position::debug() {
          std::to_string(value[2]);
 }
 
-void GameEnv::setConfig(ScenarioConfig& scenario_config) {
+void GameEnv::setConfig(const ScenarioConfig& scenario_config) {
   DO_VALIDATION;
-  scenario_config.ball_position.coords[0] =
-      scenario_config.ball_position.coords[0] * X_FIELD_SCALE;
-  scenario_config.ball_position.coords[1] =
-      scenario_config.ball_position.coords[1] * Y_FIELD_SCALE;
 
-  CHECK(scenario_config.left_agents >= 0);
-  CHECK(scenario_config.left_agents <= MAX_PLAYERS);
-  CHECK(scenario_config.right_agents >= 0);
-  CHECK(scenario_config.right_agents <= MAX_PLAYERS);
+  // ScenarioConfig belongs to the caller and stays in public pitch units. The
+  // match owns this scaled copy; mutating the caller here used to flip the sign
+  // bit of a zero y coordinate on every reset (+0 * negative scale -> -0).
+  ScenarioConfig scaled_config = scenario_config;
+  scaled_config.ball_position.coords[0] =
+      scaled_config.ball_position.coords[0] * X_FIELD_SCALE;
+  scaled_config.ball_position.coords[1] =
+      scaled_config.ball_position.coords[1] * Y_FIELD_SCALE;
+
+  CHECK(scaled_config.left_agents >= 0);
+  CHECK(scaled_config.left_agents <= MAX_PLAYERS);
+  CHECK(scaled_config.right_agents >= 0);
+  CHECK(scaled_config.right_agents <= MAX_PLAYERS);
+
+  // MatchData reads GetScenarioConfig() in its constructor, so publish the
+  // scaled snapshot before constructing it rather than accidentally using the
+  // previous reset's configuration.
+  this->scenario_config = scaled_config;
 
   std::unique_ptr<MatchSetup> setup(new MatchSetup());
   setup->match_data.reset(new MatchData());
@@ -78,16 +88,14 @@ void GameEnv::setConfig(ScenarioConfig& scenario_config) {
   for (int controller = 0; controller < 2 * MAX_PLAYERS; ++controller) {
     ControllerSetup selection;
     selection.controller_id = controller;
-    if (controller < scenario_config.left_agents) {
+    if (controller < scaled_config.left_agents) {
       selection.side = -1;
     } else if (controller >= MAX_PLAYERS &&
-               controller < MAX_PLAYERS + scenario_config.right_agents) {
+               controller < MAX_PLAYERS + scaled_config.right_agents) {
       selection.side = 1;
     }
     setup->controllers.push_back(selection);
   }
-
-  this->scenario_config = scenario_config;
   context->matchSetup = std::move(setup);
 }
 
@@ -316,7 +324,7 @@ void GameEnv::ProcessState(EnvState* state) {
   context->gameTask->GetMatch()->ProcessState(state);
 }
 
-void GameEnv::reset(ScenarioConfig& game_config, bool animations) {
+void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
   DO_VALIDATION;
   ContextHolder c(this);
   // Reset call disables tracker.
