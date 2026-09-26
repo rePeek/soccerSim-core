@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.4)
 
 set(OUTPUT_LIB_NAME game)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
 
 project(gameplayfootball)
 include(CTest)
@@ -14,11 +13,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS} -fPIC -g -O3")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -O3 -g")
-# Find required libraries
-#
-# Nothing outside the football simulation and Boost is needed any more: the
-# animation import reads its own XML hierarchy and no longer touches any mesh,
-# material, image or surface, so SDL2 and SDL2_gfx are gone (D4c3).
+# The core links only Boost and system runtime libraries.
 
 FIND_PACKAGE(Boost REQUIRED COMPONENTS thread system filesystem)
 include_directories(${Boost_INCLUDE_DIRS})
@@ -75,3 +70,9 @@ add_test(NAME football_headless_load
   COMMAND football_headless_load $<TARGET_FILE:${OUTPUT_LIB_NAME}>)
 set_tests_properties(football_headless_load PROPERTIES
   ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
+
+## Keep the completed D4 boundary from growing back through a convenient
+## include or an accidental link dependency.
+add_test(NAME football_headless_core_guard
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/football_headless_core_guard.sh
+    $<TARGET_FILE:${OUTPUT_LIB_NAME}> ${CMAKE_SOURCE_DIR}/src)

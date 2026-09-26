@@ -49,30 +49,6 @@ set(BASE_SOURCES
    src/base/math/matrix4.cpp
 )
 
-set(SYSTEMS_COMMON_HEADERS
-   src/systems/isystem.hpp
-)
-
-set(SYSTEMS_GRAPHICS_HEADERS
-)
-
-set(SYSTEMS_GRAPHICS_OBJECTS_HEADERS
-)
-
-set(SYSTEMS_GRAPHICS_RESOURCES_HEADERS
-)
-
-set(SYSTEMS_GRAPHICS_RENDERING_HEADERS
-)
-
-set(SYSTEMS_GRAPHICS_SOURCES
-)
-
-set(LOADERS_HEADERS
-)
-
-set(LOADERS_SOURCES
-)
 
 set(TYPES_HEADERS
    src/types/refcounted.hpp
@@ -85,26 +61,6 @@ set(TYPES_SOURCES
    src/types/command.cpp
 )
 
-set(SCENE_HEADERS
-)
-
-set(SCENE2D_HEADERS
-)
-
-set(SCENE_OBJECTS_HEADERS
-)
-
-set(SCENE3D_HEADERS
-)
-
-set(SCENE_RESOURCES_HEADERS
-)
-
-set(SCENE_SOURCES
-)
-
-set(MANAGERS_HEADERS
-)
 
 set(UTILS_HEADERS
    src/utils/animation.hpp
