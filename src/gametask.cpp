@@ -73,7 +73,6 @@ void GameTask::PrepareRender() {
     match->PreparePutBuffers();
     match->FetchPutBuffers();
   }
-  match->UpdateCamera();
 
   match->Put();
   std::vector<Player*> players;

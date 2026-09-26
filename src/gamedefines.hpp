@@ -41,10 +41,6 @@ const bool quantizeDirection = true;
 
 const float analogStickDeadzone = 0.75f;
 
-const float _default_CameraZoom = 0.5f;
-const float _default_CameraHeight = 0.3f;
-const float _default_CameraFOV = 0.4f;
-const float _default_CameraAngleFactor = 0.0f;
 
 const float _default_QuantizedDirectionBias = 0.0f;
 

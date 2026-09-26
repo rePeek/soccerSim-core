@@ -30,7 +30,6 @@
 
 class BallPresentation;
 
-#include "../scene/objects/camera.hpp"
 #include "../scene/objects/light.hpp"
 
 #include "../types/messagequeue.hpp"
@@ -124,24 +123,19 @@ class Match {
     unsigned long GetMatchTime_ms() const { return matchTime_ms; }
     unsigned long GetActualTime_ms() const { return actualTime_ms; }
     void BumpActualTime_ms(unsigned long time);
-    void UpdateIngameCamera();
 
 
-    boost::intrusive_ptr<Camera> GetCamera() { DO_VALIDATION; return camera; }
     void GetTeamState(SharedInfo *state, std::map<AIControlledKeyboard*, int>& controller_mapping, int team_id);
     void GetState(SharedInfo* state);
     void ProcessState(EnvState* state);
     bool Process();
-    void UpdateCamera();
     void PreparePutBuffers();
     void FetchPutBuffers();
     void Put();
 
     boost::intrusive_ptr<Node> GetDynamicNode();
 
-    void FollowCamera(Quaternion &orientation, Quaternion &nodeOrientation, Vector3 &position, float &FOV, const Vector3 &targetPosition, float zoom);
 
-    void SetAutoUpdateIngameCamera(bool autoUpdate = true) { DO_VALIDATION; if (autoUpdate != autoUpdateIngameCamera) { DO_VALIDATION; camPos.clear(); autoUpdateIngameCamera = autoUpdate; } }
 
     int GetReplaySize_ms();
 
@@ -179,8 +173,6 @@ class Match {
 
     boost::intrusive_ptr<Node> dynamicNode;
 
-    boost::intrusive_ptr<Node> cameraNode;
-    boost::intrusive_ptr<Camera> camera;
 
     boost::intrusive_ptr<Node> stadiumNode;
 
@@ -212,19 +204,9 @@ class Match {
 
     ValueHistory<float> possessionSideHistory;
 
-    bool autoUpdateIngameCamera = false;
-
-    // camera
-    Quaternion cameraOrientation;
-    Quaternion cameraNodeOrientation;
-    Vector3 cameraNodePosition;
-    float cameraFOV = 0.0f;
-    float cameraNearCap = 0.0f;
-    float cameraFarCap = 0.0f;
 
     unsigned int lastBodyBallCollisionTime_ms = 0;
 
-    std::deque<Vector3> camPos;
 
     Referee *referee;
 

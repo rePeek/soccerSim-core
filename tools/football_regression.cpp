@@ -502,7 +502,6 @@ void RequirePresentationInert(GameEnv& env, const std::string& label) {
   const long drawsBefore = env.context->rng_draw_count;
   const std::string before = CaptureSimulationDigest(env);
 
-  match->UpdateCamera();
   match->PreparePutBuffers();
   match->FetchPutBuffers();
 

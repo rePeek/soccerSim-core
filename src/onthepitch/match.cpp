@@ -35,7 +35,6 @@
 #include "proceduralpitch.hpp"
 
 constexpr unsigned int replaySize_ms = 10000;
-constexpr unsigned int camPosSize = 150;
 
 boost::shared_ptr<AnimCollection> Match::GetAnimCollection() {
   DO_VALIDATION;
@@ -148,19 +147,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   dynamicNode->AddObject(officials->GetRedCardGeom());
 
 
-  // camera
-
-  camera = new Camera("camera");
-  GetScene3D()->CreateSystemObjects(camera);
-  camera->Init();
-
-  camera->SetFOV(25);
-  cameraNode = boost::intrusive_ptr<Node>(new Node("cameraNode"));
-  cameraNode->AddObject(camera);
-  cameraNode->SetPosition(Vector3(40, 0, 100));
-  GetDynamicNode()->AddNode(cameraNode);
-
-  autoUpdateIngameCamera = true;
 
 
   // stadium
@@ -393,7 +379,6 @@ void Match::UpdateLatestMentalImageBallPredictions() {
 
 void Match::ResetSituation(const Vector3 &focusPos) {
   DO_VALIDATION;
-  camPos.clear();
   SetBallRetainer(0);
   SetGoalScored(false);
   mentalImages.clear();
@@ -426,152 +411,6 @@ void Match::SetMatchPhase(e_MatchPhase newMatchPhase) {
 Team *Match::GetBestPossessionTeam() {
   DO_VALIDATION;
   return bestPossessionTeam;
-}
-
-void Match::UpdateIngameCamera() {
-  DO_VALIDATION;
-  // camera
-
-  float fov = 0.0f;
-  float zoom = 0.0f;
-  float height = 0.0f;
-
-  fov = 0.5f + _default_CameraFOV * 0.5f;
-  zoom = _default_CameraZoom;
-  height = _default_CameraHeight * 1.5f;
-
-  float playerBias = 0.6f;//0.7f;
-  Vector3 ballPos = ball->Predict(0) * (1.0f - playerBias) + GetDesignatedPossessionPlayer()->GetPosition() * playerBias;
-  // look in possession player's direction
-  ballPos += GetDesignatedPossessionPlayer()->GetDirectionVec() * 1.0f;
-  // look in possession team's attacking direction
-  ballPos +=
-      Vector3(((teams[first_team]->GetFadingTeamPossessionAmount() - 1.0f) *
-                   -teams[first_team]->GetDynamicSide() +
-               (teams[second_team]->GetFadingTeamPossessionAmount() - 1.0f) *
-                   -teams[second_team]->GetDynamicSide()) *
-                  4.0f,
-              0, 0);
-
-  ballPos.coords[2] *= 0.1f;
-
-  float maxW = pitchHalfW * 0.84f * (1.0 / (zoom + 0.01f));// * (height * 0.75f + 0.25f);
-  float maxH = pitchHalfH * 0.60f * (1.0 / (zoom + 0.01f)) * (height * 0.75f + 0.25f); // 0.52f
-  if (fabs(ballPos.coords[0]) > maxW) ballPos.coords[0] = maxW * signSide(ballPos.coords[0]);
-  if (fabs(ballPos.coords[1]) > maxH) ballPos.coords[1] = maxH * signSide(ballPos.coords[1]);
-
-  Vector3 shudder =
-      // Presentation-only randomness: the camera shake is a visual effect and
-      // must not consume the deterministic simulation RNG.
-      Vector3(random_non_determ(-0.1f, 0.1f), random_non_determ(-0.1f, 0.1f), 0) *
-      (ball->GetMovement().GetLength() * 0.8f + 6.0f);
-  shudder *= 0.2f;
-  camPos.push_back(ballPos + shudder * ((float)camPos.size() / (float)camPosSize));
-  if (camPos.size() > camPosSize) camPos.pop_front();
-
-  Vector3 average;
-  std::deque<Vector3>::iterator camIter = camPos.begin();
-  float count = 0;
-  float indexSize = camPos.size();
-  int index = 0;
-  while (camIter != camPos.end()) {
-    DO_VALIDATION;
-    float weight = std::sin((index / indexSize - 0.3f) * 1.4f * pi) * 0.5f +
-                   0.5f;  // healthy mix of latest & middle | wa: sin((x / 100 -
-                          // 0.3) * 1.4 * pi) * 0.5 + 0.5 | from x = 0 to 100
-    weight *= std::pow(
-        1.0f - index / indexSize,
-        0.3f);  // sharp cutoff @ latest (because cameraperson can't 'foresee'
-                // the current moment that fast) | wa: (1.0 - x / 100) ^ 0.3 *
-                // (<prev formula>) | from x = 0 to 100
-    average += (*camIter) * weight;
-    count += weight;
-    camIter++;
-    index++;
-  }
-
-  average /= count;
-
-  radian angleFac = 1.0f - _default_CameraAngleFactor * 0.4f; // 0.0 == 90 degrees max, 1.0 == sideline view
-
-  // normal cam
-
-  int camMethod = 1; // 1 == wide, 2 == birds-eye, 3 == tele
-
-  if (!IsGoalScored() || (IsGoalScored() && goalScoredTimer < 1000)) {
-    DO_VALIDATION;
-
-    if (camMethod == 1) {
-      DO_VALIDATION;
-
-      // wide cam
-
-      zoom = (0.6f + zoom * 1.0f) * (1.0f / fov);
-      height = 4.0f + height * 10;
-
-      float distRot = average.coords[1] / 800.0f;
-
-      cameraOrientation.SetAngleAxis(distRot + (0.42f - height * 0.01f) * pi, Vector3(1, 0, 0));
-      cameraNodeOrientation.SetAngleAxis((-average.coords[0] / pitchHalfW) * (1.0f - angleFac) * 0.25f * pi * 1.24f, Vector3(0, 0, 1));
-      cameraNodePosition =
-          average * Vector3(1.0f * (1.0f - _default_CameraAngleFactor * 0.2f) *
-                                (1.0f - _default_CameraZoom * 0.3f),
-                            0.9f - _default_CameraZoom * 0.3f, 0.2f) +
-          Vector3(
-              0,
-              -41.4f - (_default_CameraFOV * 3.7f) + std::pow(height, 1.2f) * 0.46f,
-              10.0f + height) *
-              zoom;
-      cameraFOV = (fov * 28.0f) - (cameraNodePosition.coords[1] / 30.0f);
-      cameraNearCap = cameraNodePosition.coords[2];
-      cameraFarCap = 200;
-
-    } else if (camMethod == 2) {
-      DO_VALIDATION;
-
-      // birds-eye cam
-
-      cameraOrientation = QUATERNION_IDENTITY;
-      cameraNodeOrientation = QUATERNION_IDENTITY;
-      cameraNodePosition = average * Vector3(1, 1, 0) + Vector3(0, 0, 50 + zoom * 20.0);
-      cameraFOV = 28;
-      cameraNearCap = 40 + height - 5;
-      cameraFarCap = 250;//65 + height * 1.2; doesn't work wtf?
-
-    } else if (camMethod == 3) {
-      DO_VALIDATION;
-
-      // tele cam
-
-      zoom = (0.6f + zoom * 1.0f) * (1.0f / fov);
-
-      cameraOrientation.SetAngleAxis(0.3f * pi * height + 0.4f * pi * (1.0 - height), Vector3(1, 0, 0));
-      cameraNodeOrientation = QUATERNION_IDENTITY;
-      Vector3 offset = Vector3(0, -175.0f, 125.0f) * height + Vector3(0, -230.0f, 65.0f) * (1.0 - height);
-      cameraNodePosition = average * Vector3(0.9f, 0.7f, 0.2f) + offset * zoom * 0.4f;
-      cameraFOV = 15.0f;
-      cameraNearCap = 50 + zoom * 10.0f;
-      cameraFarCap = 300;
-    }
-
-  } else {
-    // scorer cam
-
-    Vector3 targetPos = ball->Predict(0).Get2D();
-    if (lastGoalScorer) {
-      DO_VALIDATION;
-      targetPos = lastGoalScorer->GetPosition();
-    }
-
-    radian rot = (float)goalScoredTimer * 0.0005f;
-    cameraOrientation.SetAngleAxis(0.45f * pi, Vector3(1, 0, 0));
-    cameraNodeOrientation.SetAngleAxis(rot, Vector3(0, 0, 1));
-    cameraNodePosition = targetPos + Vector3(0, -1, 0).GetRotated2D(rot) * 15.0f + Vector3(0, 0, 3);
-    cameraFOV = 35.0f;
-
-    cameraNearCap = 1;
-    cameraFarCap = 220;
-  }
 }
 
 void Match::ProcessState(EnvState* state) {
@@ -667,21 +506,6 @@ void Match::ProcessState(EnvState* state) {
   state->process(designatedPossessionPlayer);
   state->process(ballRetainer);
   possessionSideHistory.ProcessState(state);
-  state->process(autoUpdateIngameCamera);
-  state->setValidate(false);
-  state->process(cameraOrientation);
-  state->process(cameraNodeOrientation);
-  state->process(cameraNodePosition);
-  state->process(cameraFOV);
-  state->process(cameraNearCap);
-  state->process(cameraFarCap);
-  size = camPos.size();
-  state->process(size);
-  camPos.resize(size);
-  for (auto& v : camPos) {
-    state->process(v);
-  }
-  state->setValidate(true);
   state->process(lastBodyBallCollisionTime_ms);
   referee->ProcessState(state);
 
@@ -936,57 +760,12 @@ bool Match::Process() {
 
      if (GetReferee()->GetBuffer().prepareTime > GetActualTime_ms()) {
        DO_VALIDATION;  // FOUL, film referee
-       SetAutoUpdateIngameCamera(false);
-       Vector3 referee_pos = officials->GetReferee()->GetPosition();
-       if (reverse) {
-         referee_pos.Mirror();
-       }
-       FollowCamera(cameraOrientation, cameraNodeOrientation,
-                    cameraNodePosition, cameraFOV,
-                    referee_pos + Vector3(0, 0, 0.8f), 1.5f);
-       cameraNearCap = 1;
-       cameraFarCap = 220;
        if (officials->GetReferee()->GetActionExecutorShadow().type == e_FunctionType_Special) referee->AlterSetPiecePrepareTime(GetActualTime_ms() + 1000);
-     } else {  // back to normal
-       SetAutoUpdateIngameCamera(true);
      }
   }
   return true;
 }
 
-void Match::UpdateCamera() {
-  if (autoUpdateIngameCamera) {
-    DO_VALIDATION;
-    Mirror(false, true, false);
-    UpdateIngameCamera();
-    Mirror(false, true, false);
-  }
-
-  DO_VALIDATION;
-  unsigned int zoomTime = 2000;
-  unsigned int startTime = 0;
-  if (actualTime_ms < zoomTime + startTime) {
-    DO_VALIDATION;  // nice effect at the start
-
-    Quaternion initialOrientation = QUATERNION_IDENTITY;
-    initialOrientation.SetAngleAxis(0.0f * pi, Vector3(1, 0, 0));
-    Quaternion zOrientation = QUATERNION_IDENTITY;
-    initialOrientation = zOrientation * initialOrientation;
-
-    Vector3 initialPosition = Vector3(0.0f, 0.0f, 60.0);
-
-    int subTime = clamp(actualTime_ms - startTime, 0, zoomTime);
-    float bias = subTime / (float)(zoomTime);
-    bias *= pi;
-    bias = std::sin(bias - 0.5f * pi) * -0.5f + 0.5f;
-
-    cameraOrientation = cameraOrientation.GetSlerped(bias, QUATERNION_IDENTITY);
-    cameraNodeOrientation = cameraNodeOrientation.GetSlerped(bias, initialOrientation);
-    cameraNodePosition = cameraNodePosition * (1.0f - bias) + initialPosition * bias;
-    cameraFOV = cameraFOV * (1.0f - bias) + 40 * bias;
-    cameraNearCap = cameraNearCap * (1.0f - bias) + 2.0f * bias;
-  }
-}
 
 void Match::PreparePutBuffers() {
   DO_VALIDATION;
@@ -1015,12 +794,6 @@ void Match::Put() {
   teams[second_team]->Put(!reverse);
   officials->Put(reverse);
 
-  camera->SetPosition(Vector3(0, 0, 0), false);
-  camera->SetRotation(cameraOrientation, false);
-  cameraNode->SetPosition(cameraNodePosition, false);
-  cameraNode->SetRotation(cameraNodeOrientation, false);
-  camera->SetFOV(cameraFOV);
-  camera->SetCapping(cameraNearCap, cameraFarCap);
 
   GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
   DO_VALIDATION;
@@ -1582,15 +1355,6 @@ void Match::CheckBallCollisions() {
   }
 }
 
-void Match::FollowCamera(Quaternion &orientation, Quaternion &nodeOrientation,
-                         Vector3 &position, float &FOV,
-                         const Vector3 &targetPosition, float zoom) {
-  DO_VALIDATION;
-  orientation.SetAngleAxis(0.4f * pi, Vector3(1, 0, 0));
-  nodeOrientation.SetAngleAxis(targetPosition.GetAngle2D() + 1.5 * pi, Vector3(0, 0, 1));
-  position = targetPosition - targetPosition.Get2D().GetNormalized(Vector3(0, -1, 0)) * 10 * (1.0f / zoom) + Vector3(0, 0, 3);
-  FOV = 60.0f;
-}
 
 int Match::GetReplaySize_ms() {
   DO_VALIDATION;
