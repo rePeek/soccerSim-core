@@ -96,10 +96,6 @@ class PlayerBase {
       DO_VALIDATION;
       return actionState;
     }
-    const PlayerActionState &GetActionExecutorShadow() const {
-      DO_VALIDATION;
-      return actionExecutorShadow;
-    }
     // Gameplay reads this independently advanced simulation schedule. H3d2a
     // checks it exactly against the Humanoid-derived legacy oracle.
     const PlayerActionState &GetSimulationActionState() const {

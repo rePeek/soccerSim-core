@@ -603,7 +603,7 @@ bool Match::Process() {
 
      if (GetReferee()->GetBuffer().prepareTime > GetActualTime_ms()) {
        DO_VALIDATION;  // FOUL, film referee
-       if (officials->GetReferee()->GetActionExecutorShadow().type == e_FunctionType_Special) referee->AlterSetPiecePrepareTime(GetActualTime_ms() + 1000);
+       if (officials->GetReferee()->GetSimulationActionState().type == e_FunctionType_Special) referee->AlterSetPiecePrepareTime(GetActualTime_ms() + 1000);
      }
   }
   return true;
@@ -766,8 +766,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
       // velocity, faster is worse
       float p1velocity = p1->GetFloatVelocity();
       float p2velocity = p2->GetFloatVelocity();
-      const PlayerActionState &p1Action = p1->GetActionExecutorShadow();
-      const PlayerActionState &p2Action = p2->GetActionExecutorShadow();
+      const PlayerActionState &p1Action = p1->GetSimulationActionState();
+      const PlayerActionState &p2Action = p2->GetSimulationActionState();
       bounceBias -= clamp(((p1velocity - p2velocity) / sprintVelocity) * 0.2f, -0.2f, 0.2f);
 
       if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Interfere) bounceBias += 0.1f + 0.4f * p1->GetStat(technical_standingtackle);
@@ -989,8 +989,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
   // The tackle contact test is a simulation-owned action volume (a forward
   // capsule) against the victim's ground collider. It replaces the legacy
   // per-body-part geometry AABB test, so no scene object is involved.
-  const PlayerActionState &p1Action = p1->GetActionExecutorShadow();
-  const PlayerActionState &p2Action = p2->GetActionExecutorShadow();
+  const PlayerActionState &p1Action = p1->GetSimulationActionState();
+  const PlayerActionState &p2Action = p2->GetSimulationActionState();
   const PlayerActionVolume p1Tackle =
       BuildTackleVolume(p1Action, p1->GetKinematicState());
   const PlayerActionVolume p2Tackle =
@@ -1042,7 +1042,7 @@ void Match::CheckBallCollisions() {
   //printf("lasttouchbias: %f, isnul?: %s\n", GetLastTouchBias(200), GetLastTouchBias(200) == 0.0f ? "true" : "false");
   for (int i = 0; i < (signed int)players.size(); i++) {
     DO_VALIDATION;
-    const PlayerActionState &action = players[i]->GetActionExecutorShadow();
+    const PlayerActionState &action = players[i]->GetSimulationActionState();
 
     bool biggestRatio = false;
     int teamID = players[i]->GetTeam()->GetID();

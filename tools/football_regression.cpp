@@ -441,7 +441,7 @@ std::string CaptureSimulationDigest(GameEnv& env) {
     AppendDigestFloat(out, ground.center.coords[0]);
     AppendDigestFloat(out, ground.center.coords[1]);
     AppendDigestFloat(out, ground.radius);
-    const PlayerActionState& action = actor->GetActionExecutorShadow();
+    const PlayerActionState& action = actor->GetSimulationActionState();
     AppendDigestInt(out, static_cast<int>(action.type));
     AppendDigestInt(out, action.frame);
     AppendDigestInt(out, action.elapsedTime_ms);
@@ -541,7 +541,7 @@ std::vector<NamedDigestFloat> CaptureResetDigestFloats(GameEnv& env) {
                            ground.center.coords[1]);
     AppendNamedDigestFloat(fields, actor_name + ".ground.radius",
                            ground.radius);
-    const PlayerActionState& action = actor->GetActionExecutorShadow();
+    const PlayerActionState& action = actor->GetSimulationActionState();
     AppendNamedDigestFloat(fields, actor_name + ".action.contactPosition.x",
                            action.contactPosition.coords[0]);
     AppendNamedDigestFloat(fields, actor_name + ".action.contactPosition.y",
@@ -712,42 +712,43 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
   }
 }
 
-void CheckActionExecutorShadows(Match *match, const std::string &label) {
+void CheckActionStateOracle(Match *match, const std::string &label) {
   for (int teamID = 0; teamID < 2; ++teamID) {
     std::vector<Player *> players;
     match->GetTeam(teamID)->GetActivePlayers(players);
     Require(!players.empty(), label + ": missing active players");
     for (const Player *player : players) {
       const PlayerActionState &legacy = player->GetActionState();
-      const PlayerActionState &shadow = player->GetActionExecutorShadow();
-      Require(legacy.type == shadow.type, label + ": action type differs");
-      Require(legacy.frame == shadow.frame, label + ": action frame differs");
-      Require(legacy.frameCount == shadow.frameCount,
+      const PlayerActionState &simulation =
+          player->GetSimulationActionState();
+      Require(legacy.type == simulation.type, label + ": action type differs");
+      Require(legacy.frame == simulation.frame, label + ": action frame differs");
+      Require(legacy.frameCount == simulation.frameCount,
               label + ": action frame count differs");
-      Require(legacy.elapsedTime_ms == shadow.elapsedTime_ms,
+      Require(legacy.elapsedTime_ms == simulation.elapsedTime_ms,
               label + ": action elapsed time differs");
-      Require(legacy.durationTime_ms == shadow.durationTime_ms,
+      Require(legacy.durationTime_ms == simulation.durationTime_ms,
               label + ": action duration differs");
-      Require(legacy.contactTime_ms == shadow.contactTime_ms,
+      Require(legacy.contactTime_ms == simulation.contactTime_ms,
               label + ": contact time differs");
-      Require(legacy.contactFrame == shadow.contactFrame,
+      Require(legacy.contactFrame == simulation.contactFrame,
               label + ": contact frame differs");
-      Require(player->GetCurrentFunctionType() == shadow.type,
+      Require(player->GetCurrentFunctionType() == simulation.type,
               label + ": gameplay action type differs");
-      Require(player->GetCurrentFrame() == shadow.frame,
+      Require(player->GetCurrentFrame() == simulation.frame,
               label + ": gameplay action frame differs");
-      Require(player->GetTouchFrame() == shadow.contactFrame,
+      Require(player->GetTouchFrame() == simulation.contactFrame,
               label + ": gameplay contact frame differs");
-      Require(player->TouchAnim() == shadow.HasScheduledContact(),
+      Require(player->TouchAnim() == simulation.HasScheduledContact(),
               label + ": gameplay contact schedule differs");
-      Require(player->TouchPending() == shadow.IsContactPending(),
+      Require(player->TouchPending() == simulation.IsContactPending(),
               label + ": gameplay pending-contact differs");
       for (int axis = 0; axis < 3; ++axis) {
-        RequireNear(shadow.contactPosition.coords[axis],
+        RequireNear(simulation.contactPosition.coords[axis],
                     legacy.contactPosition.coords[axis],
                     label + ": contact position");
         RequireNear(player->GetTouchPos().coords[axis],
-                    shadow.contactPosition.coords[axis],
+                    simulation.contactPosition.coords[axis],
                     label + ": gameplay contact position");
       }
     }
@@ -792,8 +793,8 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   Advance(env, 300);
   RequireInfoEqual(env.get_info(), first_reset, "repeat reset");
-  CheckActionExecutorShadows(env.context->gameTask->GetMatch(),
-                             "action executor shadow after reset");
+  CheckActionStateOracle(env.context->gameTask->GetMatch(),
+                         "action state oracle after reset");
   CheckKinematicMirrorConsistency(env, "kinematic mirror after repeat reset");
 
   Advance(env, 75);
@@ -808,8 +809,8 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   Require(CaptureSimulationDigest(env) == digest_after_restore,
           "state round-trip: simulation digest differs (presentation RNG must "
           "not be part of simulation state)");
-  CheckActionExecutorShadows(env.context->gameTask->GetMatch(),
-                             "action executor shadow after state restore");
+  CheckActionStateOracle(env.context->gameTask->GetMatch(),
+                         "action state oracle after state restore");
   CheckKinematicMirrorConsistency(env, "kinematic mirror after state restore");
 }
 
