@@ -1124,6 +1124,168 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
   }
 }
 
+const char* VelocityClassName(e_Velocity velocity) {
+  switch (velocity) {
+    case e_Velocity_Idle:
+      return "idle";
+    case e_Velocity_Dribble:
+      return "dribble";
+    case e_Velocity_Walk:
+      return "walk";
+    case e_Velocity_Sprint:
+      return "sprint";
+  }
+  return "unknown";
+}
+
+// H3e1b-prep2: two narrow questions, deliberately nothing else.
+//
+// 1. Velocity class is an animation-selection regime, not a physical value:
+//    actual movement stays continuous. Does the current-class to
+//    desired-class transition tell us something a single speed-gap bucket
+//    cannot?
+// 2. Is a large direction error handled by rotating the velocity, or by
+//    braking it and building a new direction? Those are different models, so
+//    they must be separated before any procedural model is designed.
+void MeasureLocomotionRegimeTransitions(GameEnv& env,
+                                        ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "locomotion regimes: kickoff");
+  Match* match = env.context->gameTask->GetMatch();
+
+  struct TransitionCell {
+    int samples = 0;
+    double sum_current_speed = 0.0;
+    double sum_next_speed = 0.0;
+  };
+  TransitionCell transitions[4][4];
+
+  const int direction_bucket_count = 4;
+  const double direction_bucket_limits[4] = {0.25, 0.75, 1.5, 3.2};
+  int direction_count[4] = {0};
+  double direction_sum_current_speed[4] = {0.0};
+  double direction_sum_next_speed[4] = {0.0};
+  double direction_sum_velocity_turn[4] = {0.0};
+  double direction_sum_desired_speed[4] = {0.0};
+  const double plausible_step_limit = 0.15;
+
+  struct PendingSample {
+    Player* player;
+    PlayerKinematicState state;
+    PlayerCommand command;
+    int anim_id;
+  };
+
+  const int ticks = 400;
+  for (int tick = 0; tick < ticks; ++tick) {
+    std::vector<Player*> players;
+    match->GetActiveTeamPlayers(match->FirstTeam(), players);
+    match->GetActiveTeamPlayers(match->SecondTeam(), players);
+
+    std::vector<PendingSample> pending;
+    for (Player* player : players) {
+      const Anim* anim = player->GetCurrentAnim();
+      const PlayerCommand& command = anim->originatingCommand;
+      if (!player->IsEligibleForProceduralLocomotion() ||
+          !command.useDesiredMovement) {
+        continue;
+      }
+      pending.push_back(PendingSample{player, player->GetKinematicState(),
+                                      command, anim->id});
+    }
+
+    env.step();
+
+    for (const PendingSample& sample : pending) {
+      if (!sample.player->IsEligibleForProceduralLocomotion()) continue;
+      const PlayerKinematicState& actual =
+          sample.player->GetKinematicState();
+      const double legacy_step =
+          (actual.position - sample.state.position).GetLength();
+      if (sample.player->GetCurrentAnim()->id != sample.anim_id ||
+          legacy_step > plausible_step_limit) {
+        continue;
+      }
+
+      const double current_speed = sample.state.velocity.GetLength();
+      const double next_speed = actual.velocity.GetLength();
+      const e_Velocity current_class =
+          FloatToEnumVelocity(static_cast<float>(current_speed));
+      const e_Velocity desired_class = FloatToEnumVelocity(clamp(
+          sample.command.desiredVelocityFloat, 0.0f, sprintVelocity));
+      TransitionCell& cell =
+          transitions[static_cast<int>(current_class)]
+                     [static_cast<int>(desired_class)];
+      ++cell.samples;
+      cell.sum_current_speed += current_speed;
+      cell.sum_next_speed += next_speed;
+
+      if (current_speed > 0.5) {
+        const Vector3 current_direction =
+            sample.state.velocity.Get2D().GetNormalized(sample.state.facing);
+        const Vector3 desired_direction =
+            sample.command.desiredDirection.Get2D().GetNormalized(
+                current_direction);
+        const double direction_error = std::fabs(
+            current_direction.GetAngle2D(desired_direction));
+        const double velocity_turn = std::fabs(current_direction.GetAngle2D(
+            actual.velocity.Get2D().GetNormalized(current_direction)));
+        int bucket = direction_bucket_count - 1;
+        for (int i = 0; i < direction_bucket_count; ++i) {
+          if (direction_error < direction_bucket_limits[i]) {
+            bucket = i;
+            break;
+          }
+        }
+        ++direction_count[bucket];
+        direction_sum_current_speed[bucket] += current_speed;
+        direction_sum_next_speed[bucket] += next_speed;
+        direction_sum_velocity_turn[bucket] += velocity_turn;
+        direction_sum_desired_speed[bucket] += clamp(
+            sample.command.desiredVelocityFloat, 0.0f, sprintVelocity);
+      }
+    }
+  }
+
+  std::cout << "locomotion regime transitions (current -> desired):\n";
+  for (int from = 0; from < 4; ++from) {
+    for (int to = 0; to < 4; ++to) {
+      const TransitionCell& cell = transitions[from][to];
+      if (cell.samples == 0) continue;
+      std::cout << "  " << VelocityClassName(static_cast<e_Velocity>(from))
+                << " -> " << VelocityClassName(static_cast<e_Velocity>(to))
+                << " samples=" << cell.samples << " mean_current_speed="
+                << (cell.sum_current_speed / cell.samples)
+                << " mean_next_speed="
+                << (cell.sum_next_speed / cell.samples) << "\n";
+    }
+  }
+
+  std::cout << "locomotion direction error response:\n";
+  for (int bucket = 0; bucket < direction_bucket_count; ++bucket) {
+    if (direction_count[bucket] == 0) continue;
+    std::cout << "  direction_error_lt_" << direction_bucket_limits[bucket]
+              << " count=" << direction_count[bucket]
+              << " mean_desired_speed="
+              << (direction_sum_desired_speed[bucket] / direction_count[bucket])
+              << " mean_current_speed="
+              << (direction_sum_current_speed[bucket] / direction_count[bucket])
+              << " mean_next_speed="
+              << (direction_sum_next_speed[bucket] / direction_count[bucket])
+              << " mean_velocity_turn="
+              << (direction_sum_velocity_turn[bucket] /
+                  direction_count[bucket])
+              << "\n";
+  }
+
+  int total = 0;
+  for (int from = 0; from < 4; ++from) {
+    for (int to = 0; to < 4; ++to) total += transitions[from][to].samples;
+  }
+  Require(total > 0,
+          "locomotion regimes: no clean sample was collected, the "
+          "measurement would be vacuous");
+}
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   CheckKinematicMirrorConsistency(env, "kinematic mirror after reset");
@@ -1535,6 +1697,7 @@ int main(int argc, char** argv) {
     CheckResetAndStateRoundTrip(env, config);
     CheckMovementAuthorityTiming(env, config);
     MeasureProceduralLocomotionDivergence(env, config);
+    MeasureLocomotionRegimeTransitions(env, config);
     CheckMatchTransitions(env, config);
     CheckReverseTeamProcessing(env, config);
     std::cout << "football_regression: PASS\n";
