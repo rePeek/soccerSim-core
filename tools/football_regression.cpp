@@ -9,6 +9,7 @@
 #include <string>
 
 #include "game_env.hpp"
+#include "onthepitch/player/legacy_locomotion_command.hpp"
 #include "onthepitch/player/player_kinematics.hpp"
 #include "onthepitch/player/player_locomotion.hpp"
 #include "onthepitch/player/player_ground_collider.hpp"
@@ -474,6 +475,75 @@ void CheckPureLocomotionBoundary() {
     Require(!action.IsPureLocomotion(false),
             "pure locomotion: a non-locomotion action must stay "
             "animation-driven");
+  }
+}
+
+// H3e1c-1: the legacy command adapter. Legacy commands are continuous, but the
+// old controller resolved anything below the idle switch to an idle animation
+// whose root motion was effectively zero. That deadband is command semantics,
+// so it lives in the adapter and not in PlayerLocomotion. Above it the speed
+// stays continuous and must not be snapped to the dribble/walk/sprint vertex
+// values, because the class is an animation-selection regime and not a
+// physical quantity.
+void CheckLegacyLocomotionCommandAdapter() {
+  PlayerKinematicState state;
+  state.position = Vector3(1.0f, 2.0f, 0.0f);
+  state.facing = Vector3(1.0f, 0.0f, 0.0f);
+  const Vector3 body_facing(0.0f, -1.0f, 0.0f);
+  const float max_speed = 8.0f;
+
+  PlayerCommand command;
+  command.useDesiredMovement = true;
+  command.desiredDirection = Vector3(1.0f, 0.0f, 0.0f);
+
+  // Below the idle switch the actor must stand still.
+  command.desiredVelocityFloat = 0.5f;
+  Require(FloatToEnumVelocity(0.5f) == e_Velocity_Idle,
+          "legacy adapter test sanity: 0.5 m/s is the idle class");
+  {
+    const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
+        command, state, max_speed, body_facing);
+    RequireNear(input.desiredVelocity.GetLength(), 0.0f,
+                "legacy adapter: idle deadband");
+    RequireNear(input.idleFacing.coords[1], -1.0f,
+                "legacy adapter: body facing fallback");
+  }
+
+  // Above the deadband the speed is continuous: the class is a selection
+  // regime, so 4.5 m/s must not become the walk vertex of 5.0.
+  const float continuous_speeds[] = {1.8f, 2.6f, 3.4f, 4.5f, 5.7f, 6.9f, 8.0f};
+  for (float speed : continuous_speeds) {
+    Require(FloatToEnumVelocity(speed) != e_Velocity_Idle,
+            "legacy adapter test sanity: speed above the deadband");
+    command.desiredVelocityFloat = speed;
+    const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
+        command, state, max_speed, body_facing);
+    RequireNear(input.desiredVelocity.GetLength(), speed,
+                "legacy adapter: continuous speed is not snapped");
+  }
+
+  // The actor's own maximum speed still caps the command.
+  command.desiredVelocityFloat = 100.0f;
+  {
+    const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
+        command, state, max_speed, body_facing);
+    RequireNear(input.desiredVelocity.GetLength(), max_speed,
+                "legacy adapter: speed is clamped to the actor maximum");
+  }
+
+  // desiredLookAt only supplies the facing to hold while standing.
+  command.desiredVelocityFloat = 0.1f;
+  command.useDesiredLookAt = true;
+  command.desiredLookAt = Vector3(1.0f, 4.0f, 0.0f);
+  {
+    const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
+        command, state, max_speed, body_facing);
+    RequireNear(input.desiredVelocity.GetLength(), 0.0f,
+                "legacy adapter: lookAt does not create locomotion");
+    RequireNear(input.idleFacing.coords[0], 0.0f,
+                "legacy adapter: lookAt facing x");
+    RequireNear(input.idleFacing.coords[1], 1.0f,
+                "legacy adapter: lookAt facing y");
   }
 }
 
@@ -1145,9 +1215,10 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
       // The new procedural locomotion model, evaluated on exactly the same
       // sample so the two models are directly comparable.
       PlayerKinematicState predicted_locomotion = sample.state;
-      PlayerLocomotionInput locomotion_input;
-      locomotion_input.desiredVelocity = input.desiredVelocity;
-      locomotion_input.idleFacing = input.desiredFacing;
+      const PlayerLocomotionInput locomotion_input =
+          BuildLegacyLocomotionInput(sample.command, sample.state,
+                                     sample.player->GetMaxVelocity(),
+                                     sample.player->GetBodyDirectionVec());
       PlayerLocomotionParameters locomotion_parameters;
       locomotion_parameters.maxSpeed = sample.player->GetMaxVelocity();
       PlayerLocomotion::Step(predicted_locomotion, locomotion_input,
@@ -1863,6 +1934,7 @@ int main(int argc, char** argv) {
     CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
     CheckPureLocomotionBoundary();
+    CheckLegacyLocomotionCommandAdapter();
     CheckPlayerActionVolume();
     CheckPlayerBodyCollider();
     GameEnv env;
