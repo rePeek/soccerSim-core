@@ -62,8 +62,11 @@ void PlayerBase::SynchronizeActionState() {
   actionState.frame = humanoid->GetFrameNum();
   actionState.frameCount = humanoid->GetFrameCount();
   actionState.elapsedTime_ms = actionState.frame * 10;
+  actionState.durationTime_ms = actionState.frameCount * 10;
   const Anim *anim = humanoid->GetCurrentAnim();
   actionState.contactFrame = anim->touchFrame;
+  actionState.contactTime_ms =
+      anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
   actionState.contactPosition = anim->touchPos;
 }
 

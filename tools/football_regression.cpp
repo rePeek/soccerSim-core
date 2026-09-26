@@ -8,6 +8,7 @@
 
 #include "game_env.hpp"
 #include "onthepitch/player/player_kinematics.hpp"
+#include "onthepitch/player/player_action_executor.hpp"
 
 namespace {
 
@@ -190,6 +191,44 @@ void CheckPlayerKinematics() {
               "kinematics planar position");
 }
 
+void CheckPlayerActionExecutor() {
+  PlayerActionDefinition definition;
+  definition.type = e_FunctionType_Shot;
+  definition.durationTime_ms = 300;
+  definition.contactTime_ms = 120;
+  definition.contactPosition = Vector3(1.0f, -2.0f, 0.5f);
+
+  PlayerActionState state;
+  PlayerActionExecutor::Begin(state, definition);
+  Require(state.type == e_FunctionType_Shot, "action executor type");
+  Require(state.frame == 0 && state.frameCount == 30,
+          "action executor initial frames");
+  Require(state.elapsedTime_ms == 0 && state.durationTime_ms == 300,
+          "action executor initial timing");
+  Require(state.contactFrame == 12 && state.contactTime_ms == 120,
+          "action executor contact timing");
+  RequireNear(state.contactPosition.coords[0], 1.0f,
+              "action executor contact position x");
+  Require(state.IsContactPending() && !state.IsContactDue() &&
+              !state.IsComplete(),
+          "action executor initial phase");
+
+  PlayerActionExecutor::Step(state, 100);
+  Require(state.elapsedTime_ms == 100 && state.frame == 10 &&
+              state.IsContactPending(),
+          "action executor pre-contact phase");
+
+  PlayerActionExecutor::Step(state, 20);
+  Require(state.elapsedTime_ms == 120 && state.frame == 12 &&
+              !state.IsContactPending() && state.IsContactDue(),
+          "action executor contact phase");
+
+  PlayerActionExecutor::Step(state, 500);
+  Require(state.elapsedTime_ms == 300 && state.frame == 30 &&
+              state.IsComplete(),
+          "action executor completion phase");
+}
+
 ScenarioConfig MakeBuiltinAiConfig() {
   auto config = ScenarioConfig::make();
   config->left_agents = 0;
@@ -338,6 +377,7 @@ int main(int /*argc*/, char** /*argv*/) {
 
   try {
     CheckPlayerKinematics();
+    CheckPlayerActionExecutor();
     GameEnv env;
     env.game_config.render = false;
     env.start_game();

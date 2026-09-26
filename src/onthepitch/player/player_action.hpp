@@ -19,12 +19,20 @@ struct PlayerActionState {
   int frame = 0;
   int frameCount = 0;
   int elapsedTime_ms = 0;
+  int durationTime_ms = 0;
+  int contactTime_ms = -1;
   int contactFrame = -1;
   Vector3 contactPosition = Vector3(0);
 
-  bool HasScheduledContact() const { return contactFrame != -1; }
+  bool HasScheduledContact() const { return contactTime_ms != -1; }
   bool IsContactPending() const {
-    return HasScheduledContact() && frame < contactFrame;
+    return HasScheduledContact() && elapsedTime_ms < contactTime_ms;
+  }
+  bool IsContactDue() const {
+    return HasScheduledContact() && elapsedTime_ms >= contactTime_ms;
+  }
+  bool IsComplete() const {
+    return durationTime_ms > 0 && elapsedTime_ms >= durationTime_ms;
   }
 
   void ProcessState(EnvState *state) {
@@ -33,6 +41,8 @@ struct PlayerActionState {
     state->process(frame);
     state->process(frameCount);
     state->process(elapsedTime_ms);
+    state->process(durationTime_ms);
+    state->process(contactTime_ms);
     state->process(contactFrame);
     state->process(contactPosition);
   }
