@@ -80,3 +80,12 @@ if(BUILD_TESTING)
   set_tests_properties(football_regression PROPERTIES
     ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
 endif()
+
+# Loads libgame.so with dlopen and asserts no graphics library comes with it.
+# Deliberately not linked against the engine, so the dlopen is the only load.
+add_executable(football_headless_load tools/football_headless_load.cpp)
+target_link_libraries(football_headless_load PRIVATE ${CMAKE_DL_LIBS})
+add_test(NAME football_headless_load
+  COMMAND football_headless_load $<TARGET_FILE:${OUTPUT_LIB_NAME}>)
+set_tests_properties(football_headless_load PROPERTIES
+  ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
