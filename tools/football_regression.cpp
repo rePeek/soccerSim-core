@@ -7,6 +7,7 @@
 #include <string>
 
 #include "game_env.hpp"
+#include "onthepitch/player/player_kinematics.hpp"
 
 namespace {
 
@@ -156,6 +157,39 @@ uint64_t HashInfo(const SharedInfo& info) {
   return hash;
 }
 
+void CheckPlayerKinematics() {
+  PlayerKinematicState state;
+  PlayerKinematicParameters parameters;
+  parameters.maxSpeed = 10.0f;
+  parameters.acceleration = 10.0f;
+  parameters.braking = 5.0f;
+  parameters.maxTurnRate = 1.0f;
+
+  PlayerKinematicInput input;
+  input.desiredVelocity = Vector3(10.0f, 0.0f, 0.0f);
+  input.desiredFacing = Vector3(1.0f, 0.0f, 0.0f);
+  PlayerKinematics::Step(state, input, parameters, 0.1f);
+
+  RequireNear(state.velocity.coords[0], 1.0f,
+              "kinematics acceleration velocity");
+  RequireNear(state.position.coords[0], 0.1f,
+              "kinematics acceleration position");
+  RequireNear(state.speed, 1.0f, "kinematics acceleration speed");
+  Require(state.facing.GetDotProduct(input.desiredFacing) > 0.0f,
+          "kinematics should turn toward the desired facing");
+
+  input.desiredVelocity = Vector3(0);
+  PlayerKinematics::Step(state, input, parameters, 0.1f);
+  RequireNear(state.velocity.coords[0], 0.5f,
+              "kinematics braking velocity");
+  RequireNear(state.position.coords[0], 0.15f,
+              "kinematics braking position");
+  RequireNear(state.velocity.coords[2], 0.0f,
+              "kinematics planar velocity");
+  RequireNear(state.position.coords[2], 0.0f,
+              "kinematics planar position");
+}
+
 ScenarioConfig MakeBuiltinAiConfig() {
   auto config = ScenarioConfig::make();
   config->left_agents = 0;
@@ -303,6 +337,7 @@ int main(int /*argc*/, char** /*argv*/) {
   }
 
   try {
+    CheckPlayerKinematics();
     GameEnv env;
     env.game_config.render = false;
     env.start_game();
