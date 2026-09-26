@@ -1143,18 +1143,20 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
       // H3e1c-3c: first canonical trajectory with pure locomotion as the
       // simulation authority. The old animation-root-motion values are
       // expected to diverge and are deliberately replaced.
-      {100, 79, Position(0.492437065f, -0.0355319642f, 0.110511862f, true),
-       Position(-0.823596179f, -0.000329120812f, 0.0f, true),
-       Position(0.987460732f, -0.0036701418f, 0.0f, true), 0, 0, true,
-       UINT64_C(17934197055667682428)},
-      {500, 458, Position(-0.111641236f, -0.0954587236f, 0.110530853f, true),
-       Position(-0.957140684f, -0.000901767111f, 0.0f, true),
-       Position(0.827424824f, -0.00483623194f, 0.0f, true), 0, 0, true,
-       UINT64_C(716812449437471887)},
-      {1000, 958, Position(0.522369802f, 0.105232812f, 0.109311372f, true),
-       Position(-0.816472113f, 0.000247686723f, 0.0f, true),
-       Position(0.990394592f, 0.00526164472f, 0.0f, true), 0, 0, true,
-       UINT64_C(13627423240039368901)},
+      // P1b: the planner now consumes the measured capability model rather than
+      // the exact rollout, so these are the first snapshots under that belief.
+      {100, 79, Position(0.141880304f, -0.0572821759f, 0.110530853f, true),
+       Position(-0.823595464f, -0.000329043076f, 0.0f, true),
+       Position(0.984764159f, -0.00206571212f, 0.0f, true), 0, 0, true,
+       UINT64_C(1502347789206752825)},
+      {500, 437, Position(-0.833793163f, -0.00795823708f, 0.109324805f, true),
+       Position(-0.978707314f, -0.00264973356f, 0.0f, true),
+       Position(0.828359127f, -0.00476615317f, 0.0f, true), 0, 0, true,
+       UINT64_C(14337057635435770821)},
+      {1000, 937, Position(-0.254682958f, 0.285150051f, 0.181646511f, true),
+       Position(-0.98555094f, 0.00598954875f, 0.0f, true),
+       Position(0.829186916f, -0.0016747039f, 0.0f, true), 0, 0, true,
+       UINT64_C(17165522951970449357)},
   };
 
 

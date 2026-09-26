@@ -39,6 +39,13 @@ namespace {
 // locomotion semantics.
 constexpr int kProceduralPlannerRefreshTicks = 10;
 
+// Near-horizon region of the reachability model that keeps exact locomotion
+// rollouts. Measured in P1a3/P1a4: the classification outcome is identical with
+// or without it, but it bounds the worst-case error at 700 ms instead of letting
+// the analytic tail be wrong by more than two seconds, and it costs nothing
+// measurable.
+constexpr int kProceduralPlannerExactHorizon_ms = 700;
+
 }  // namespace
 
 Player::Player(Team *team, PlayerData *playerData)
@@ -192,14 +199,27 @@ void Player::UpdatePossessionStats() {
         0) {
       PlayerLocomotionParameters locomotion_parameters;
       locomotion_parameters.maxSpeed = GetMaxVelocity();
+      // Capability estimate, not a second simulator. Near horizon it is the
+      // exact locomotion rollout, so a close decision keeps a bounded error;
+      // beyond the horizon it is the analytic model derived from the same
+      // locomotion parameters. Measured against the exact oracle: MAE 64 ms,
+      // p50 10 ms, p99 490 ms, worst case 700 ms, and no "exact says reachable
+      // but the model says no" flips at all.
+      //
+      // It is deliberately allowed to differ from the exact rollout: the AI
+      // consumes a capability belief, and a later perception layer can turn
+      // exactly this difference into individual anticipation. The exact
+      // estimator stays as the oracle this one is measured against.
       const PlayerLocomotionReach reach =
-          PlayerLocomotion::EstimateEarliestInterceptExact(
+          PlayerLocomotion::EstimateEarliestInterceptHybrid(
               GetKinematicState(),
               [this](int ms) { return match->GetBall()->Predict(ms); },
               locomotion_parameters, GetMaxVelocity(),
               static_cast<int>(ballPredictionSize_ms),
+              kProceduralPlannerExactHorizon_ms,
               kLocomotionUsualReachRadius,
-              kLocomotionOptimisticReachRadius);
+              kLocomotionOptimisticReachRadius,
+              /*steady_state=*/true);
       timeNeededToGetToBall_ms =
           reach.usual_ms >= 0 ? static_cast<unsigned int>(reach.usual_ms)
                               : ballPredictionSize_ms;
