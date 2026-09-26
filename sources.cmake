@@ -240,6 +240,7 @@ set(GAME_HEADERS
    src/onthepitch/player/humanoid/animcollection.hpp
    src/onthepitch/player/humanoid/humanoid_utils.hpp
    src/onthepitch/player/playerofficial.hpp
+   src/onthepitch/player/body_collision.hpp
    src/onthepitch/player/playerbase.hpp
    src/onthepitch/player/player.hpp
    src/onthepitch/player/controller/icontroller.hpp

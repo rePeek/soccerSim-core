@@ -1445,75 +1445,44 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
   if ((p2->GetCurrentFunctionType() == e_FunctionType_Sliding || p2->GetCurrentFunctionType() == e_FunctionType_Interfere) && p2->GetFrameNum() > 5 && p2->GetFrameNum() < 28) tackle += 2;
   if (distance < 2.0f && tackle > 0 && tackle < 3) {
     DO_VALIDATION;  // if tackle is 3, ignore both
-    std::list < boost::intrusive_ptr<Geometry> > tacklerObjectList;
-    std::list < boost::intrusive_ptr<Geometry> > victimObjectList;
-    /*
-    if (tackle == 0) { DO_VALIDATION;
-    advantage if (p1->GetCurrentFunctionType() == e_FunctionType_Trap ||
-          p1->GetCurrentFunctionType() == e_FunctionType_ShortPass ||
-          p1->GetCurrentFunctionType() == e_FunctionType_LongPass ||
-          p1->GetCurrentFunctionType() == e_FunctionType_HighPass ||
-          p1->GetCurrentFunctionType() == e_FunctionType_Shot ||
-          p1->GetCurrentFunctionType() == e_FunctionType_Interfere) {
-    DO_VALIDATION; p1->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry,
-    tacklerObjectList); p2->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry,
-    victimObjectList); p1action = true;
-      }
-      else if (p2->GetCurrentFunctionType() == e_FunctionType_Trap ||
-               p2->GetCurrentFunctionType() == e_FunctionType_ShortPass ||
-               p2->GetCurrentFunctionType() == e_FunctionType_LongPass ||
-               p2->GetCurrentFunctionType() == e_FunctionType_HighPass ||
-               p2->GetCurrentFunctionType() == e_FunctionType_Shot ||
-               p2->GetCurrentFunctionType() == e_FunctionType_Interfere) {
-    DO_VALIDATION; p2->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry,
-    tacklerObjectList); p1->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry,
-    victimObjectList); p2action = true;
-      }
-    }
-    */
-    if (tackle == 1) {
-      DO_VALIDATION;
-      p1->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry, tacklerObjectList);
-      p2->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry, victimObjectList);
-    }
-    if (tackle == 2) {
-      DO_VALIDATION;
-      p2->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry, tacklerObjectList);
-      p1->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry, victimObjectList);
-    }
+    const std::vector<BodyCollider> &tacklerColliders =
+        tackle == 1 ? p1->GetBodyCollisionState().GetColliders()
+                    : p2->GetBodyCollisionState().GetColliders();
+    const std::vector<BodyCollider> &victimColliders =
+        tackle == 1 ? p2->GetBodyCollisionState().GetColliders()
+                    : p1->GetBodyCollisionState().GetColliders();
 
-    // iterate through all body parts of tackler
-    std::list < boost::intrusive_ptr<Geometry> >::iterator objIter = tacklerObjectList.begin();
-    while (objIter != tacklerObjectList.end()) {
+    // Iterate through the collision snapshot rather than the Scene3D body.
+    for (const auto &tacklerCollider : tacklerColliders) {
       DO_VALIDATION;
+      AABB objAABB = tacklerCollider.bounds;
 
-      AABB objAABB = (*objIter)->GetAABB();
-
-      // make a tad smaller: AABBs are usually too large.
+      // Make a tad smaller: AABBs are usually too large.
       objAABB.minxyz += 0.1f;
       objAABB.maxxyz -= 0.1f;
 
-      std::list < boost::intrusive_ptr<Geometry> >::iterator victimIter = victimObjectList.begin();
-      while (victimIter != victimObjectList.end()) {
+      for (const auto &victimCollider : victimColliders) {
         DO_VALIDATION;
-
-        std::string bodyPartName = (*victimIter)->GetName();
-        if (bodyPartName.compare("left_foot") == 0 || bodyPartName.compare("right_foot") == 0 ||
-            bodyPartName.compare("left_lowerleg") == 0 || bodyPartName.compare("right_lowerleg") == 0
-            /*bodyPartName == "left_upperleg" || bodyPartName == "right_upperleg"*/) {
+        const std::string &bodyPartName = victimCollider.name;
+        if (bodyPartName.compare("left_foot") == 0 ||
+            bodyPartName.compare("right_foot") == 0 ||
+            bodyPartName.compare("left_lowerleg") == 0 ||
+            bodyPartName.compare("right_lowerleg") == 0
+            /* bodyPartName == "left_upperleg" ||
+               bodyPartName == "right_upperleg" */) {
           DO_VALIDATION;
-          if (objAABB.Intersects((*victimIter)->GetAABB())) {
+          if (objAABB.Intersects(victimCollider.bounds)) {
             DO_VALIDATION;
-            //printf("HIT: %s hits %s\n", (*objIter)->GetName().c_str(), (*victimIter)->GetName().c_str());
-
             if (tackle == 1) {
               DO_VALIDATION;
               if (p1->GetFrameNum() > 10 &&
                   p1->GetFrameNum() < p1->GetFrameCount() - 6) {
                 DO_VALIDATION;
                 Vector3 tripVec = p2->GetDirectionVec();
-                int tripType = 3; // sliding
-                if (p1->GetCurrentFunctionType() == e_FunctionType_Interfere) tripType = 1; // was 2
+                int tripType = 3;  // sliding
+                if (p1->GetCurrentFunctionType() ==
+                    e_FunctionType_Interfere)
+                  tripType = 1;  // was 2
                 p2->TripMe(tripVec, tripType);
                 referee->TripNotice(p2, p1, tripType);
               }
@@ -1524,8 +1493,10 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
                   p2->GetFrameNum() < p2->GetFrameCount() - 6) {
                 DO_VALIDATION;
                 Vector3 tripVec = p1->GetDirectionVec();
-                int tripType = 3; // sliding
-                if (p2->GetCurrentFunctionType() == e_FunctionType_Interfere) tripType = 1; // was 2
+                int tripType = 3;  // sliding
+                if (p2->GetCurrentFunctionType() ==
+                    e_FunctionType_Interfere)
+                  tripType = 1;  // was 2
                 p1->TripMe(tripVec, tripType);
                 referee->TripNotice(p1, p2, tripType);
               }
@@ -1533,11 +1504,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
             break;
           }
         }
-
-        victimIter++;
       }
-
-      objIter++;
     }
   }
 }
@@ -1614,13 +1581,11 @@ void Match::CheckBallCollisions() {
              ball->Predict(0))
                 .GetLength() < 2.5f) {
           DO_VALIDATION;  // premature optimization is the root of all evil :D
-          std::list < boost::intrusive_ptr<Geometry> > objectList;
-          players[i]->GetHumanoidNode()->GetObjects(e_ObjectType_Geometry, objectList);
-          std::list < boost::intrusive_ptr<Geometry> >::iterator objIter = objectList.begin();
-          while (objIter != objectList.end()) {
+          const auto &colliders =
+              players[i]->GetBodyCollisionState().GetColliders();
+          for (const auto &collider : colliders) {
             DO_VALIDATION;
-
-            AABB objAABB = (*objIter)->GetAABB();
+            const AABB &objAABB = collider.bounds;
             float ballRadius = 0.11f + boundingBoxSizeOffset;
             if (objAABB.Intersects(ball->Predict(0), ballRadius)) {
               DO_VALIDATION;
@@ -1629,22 +1594,28 @@ void Match::CheckBallCollisions() {
                                     ->GetDesignatedTeamPossessionPlayer() &&
                   GetLastTouchBias(200) < 0.01f) {
                 DO_VALIDATION;
-
                 players[i]->TriggerControlledBallCollision();
-
               } else {
-
                 float movementBias = oppLastTouchBias * 0.8f + 0.2f;
-                bounceVec += (ball->Predict(0) - (*objIter)->GetDerivedPosition()).GetNormalized(Vector3(0)) * movementBias + players[i]->GetMovement() * (1.0f - movementBias);
+                bounceVec +=
+                    (ball->Predict(0) - collider.anchor)
+                        .GetNormalized(Vector3(0)) *
+                        movementBias +
+                    players[i]->GetMovement() * (1.0f - movementBias);
                 bounceCount++;
-                players[i]->GetTeam()->SetLastTouchPlayer(players[i], e_TouchType_Accidental);
+                players[i]->GetTeam()->SetLastTouchPlayer(
+                    players[i], e_TouchType_Accidental);
                 Vector3 aabbCenter;
                 objAABB.GetCenter(aabbCenter);
-                bias += (1.0f - clamp(((ball->Predict(0) - aabbCenter).GetLength() - ballRadius) / objAABB.GetRadius(), 0.0f, 1.0f)) * 0.9f + 0.1f;
+                bias += (1.0f -
+                         clamp(((ball->Predict(0) - aabbCenter).GetLength() -
+                                ballRadius) /
+                                   objAABB.GetRadius(),
+                               0.0f, 1.0f)) *
+                            0.9f +
+                        0.1f;
               }
             }
-
-            objIter++;
           }
         }
       }

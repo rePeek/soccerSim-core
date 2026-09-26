@@ -25,6 +25,7 @@
 #include "../../../utils.hpp"
 
 #include "animcollection.hpp"
+#include "../body_collision.hpp"
 
 #include "../../AIsupport/mentalimage.hpp"
 
@@ -264,6 +265,10 @@ class HumanoidBase {
     void TripMe(const Vector3 &tripVector, int tripType);
 
     boost::intrusive_ptr<Node> GetHumanoidNode() { DO_VALIDATION; return humanoidNode; }
+    const BodyCollisionState &GetBodyCollisionState() const {
+      DO_VALIDATION;
+      return bodyCollisionState;
+    }
     boost::intrusive_ptr<Node> GetFullbodyNode() { DO_VALIDATION; return fullbodyNode; }
 
     virtual float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
@@ -289,6 +294,7 @@ class HumanoidBase {
     Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
 
     void CalculateSpatialState(); // realtime properties, based on 'physics'
+    void UpdateBodyCollisionState();
     void CalculateFactualSpatialState(); // realtime properties, based on anim. usable at last frame of anim. more riggid than above function
 
     void AddTripCommandToQueue(PlayerCommandQueue &commandQueue, const Vector3 &tripVector, int tripType);
@@ -349,6 +355,9 @@ class HumanoidBase {
     boost::intrusive_ptr<Node> fullbodyTargetNode;
     // Used for ball collision detection. Seems to be the one to snapshot.
     boost::intrusive_ptr<Node> humanoidNode;
+    // Collision snapshot consumed by match logic. During the migration this
+    // is populated from the legacy humanoid Geometry after animation updates.
+    BodyCollisionState bodyCollisionState;
     // Updated in UpdateFullbodyNodes, no need to snapshot.
     boost::intrusive_ptr<Geometry> hairStyle;
     // Initiated in the constructor, no need to snapshot.

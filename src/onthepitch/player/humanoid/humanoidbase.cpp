@@ -218,6 +218,7 @@ void HumanoidBase::Mirror() {
   tripDirection.Mirror();
   decayingPositionOffset.Mirror();
   predicate_RelDesiredDirection.Mirror();
+  bodyCollisionState.Mirror();
   predicate_DesiredDirection.Mirror();
   predicate_RelIncomingBodyDirection.Mirror();
   predicate_LookAt.Mirror();
@@ -606,6 +607,18 @@ void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {
   GetTracker()->setDisabled(false);
 }
 
+void HumanoidBase::UpdateBodyCollisionState() {
+  DO_VALIDATION;
+  bodyCollisionState.Clear();
+  std::list<boost::intrusive_ptr<Geometry> > geometries;
+  humanoidNode->GetObjects(e_ObjectType_Geometry, geometries);
+  for (const auto &geometry : geometries) {
+    DO_VALIDATION;
+    bodyCollisionState.Add(geometry->GetName(), geometry->GetAABB(),
+                           geometry->GetDerivedPosition());
+  }
+}
+
 void HumanoidBase::Process() {
   DO_VALIDATION;
 
@@ -761,6 +774,7 @@ void HumanoidBase::FetchPutBuffers() {
   DO_VALIDATION;
   animApplyBuffer.anim->Apply(nodeMap, animApplyBuffer.frameNum, -1, animApplyBuffer.smooth, animApplyBuffer.smoothFactor, animApplyBuffer.position, animApplyBuffer.orientation, animApplyBuffer.offsets, &movementHistory, 10, animApplyBuffer.noPos, false);
   humanoidNode->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
+  UpdateBodyCollisionState();
 }
 
 void HumanoidBase::Put(bool mirror) {
@@ -891,6 +905,8 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   for (int x = 0; x < body_part_max - 1; x++) {
     nodeMap[x]->SetRotation(Quaternion(), true);
   }
+  humanoidNode->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
+  UpdateBodyCollisionState();
 }
 
 void HumanoidBase::OffsetPosition(const Vector3 &offset) {

@@ -73,6 +73,10 @@ class PlayerBase {
     bool ExternalControllerActive();
 
     boost::intrusive_ptr<Node> GetHumanoidNode() { DO_VALIDATION; return humanoid->GetHumanoidNode(); }
+    const BodyCollisionState &GetBodyCollisionState() const {
+      DO_VALIDATION;
+      return humanoid->GetBodyCollisionState();
+    }
     boost::intrusive_ptr<Node> GetFullbodyNode() { DO_VALIDATION; return humanoid->GetFullbodyNode(); }
 
     float GetDecayingPositionOffsetLength() { DO_VALIDATION; return humanoid->GetDecayingPositionOffsetLength(); }
