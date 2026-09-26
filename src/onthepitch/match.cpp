@@ -67,8 +67,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   actualTime_ms = 0;
   goalScoredTimer = 0;
 
-  resetNetting = false;
-  nettingHasChanged = false;
 
   dynamicNode = boost::intrusive_ptr<Node>(new Node("dynamicNode"));
   GetScene3D()->AddNode(dynamicNode);
@@ -186,14 +184,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   stadiumNode->SetLocalMode(e_LocalMode_Absolute);
   GetScene3D()->AddNode(stadiumNode);
 
-
-  // goal netting
-  if (!GetContext().goalsNode) {
-    GetContext().goalsNode = loader.LoadObject("media/objects/stadiums/goals.object");
-    GetContext().goalsNode->SetLocalMode(e_LocalMode_Absolute);
-  }
-  GetScene3D()->AddNode(GetContext().goalsNode);
-  PrepareGoalNetting();
 
 
   // pitch
@@ -509,8 +499,6 @@ void Match::ProcessState(EnvState* state) {
   state->process(lastBodyBallCollisionTime_ms);
   referee->ProcessState(state);
 
-  resetNetting = true;
-  nettingHasChanged = true;
   Mirror(team_0_mirror, team_1_mirror, ball_mirror);
 }
 
@@ -797,7 +785,6 @@ void Match::Put() {
 
   GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
   DO_VALIDATION;
-  UpdateGoalNetting(GetBall()->BallTouchesNet());
 }
 
 boost::intrusive_ptr<Node> Match::GetDynamicNode() {
@@ -1359,112 +1346,6 @@ void Match::CheckBallCollisions() {
 int Match::GetReplaySize_ms() {
   DO_VALIDATION;
   return replaySize_ms;
-}
-
-void Match::PrepareGoalNetting() {
-  DO_VALIDATION;
-
-  // collect vertices into nettingMeshes[0..1]
-  std::vector < MaterializedTriangleMesh > &triangleMesh = boost::static_pointer_cast<Geometry>(GetContext().goalsNode->GetObject("goals"))->GetGeometryData()->GetResource()->GetTriangleMeshesRef();
-
-  for (unsigned int m = 0; m < triangleMesh.size(); m++) {
-    DO_VALIDATION;
-    for (int i = 0; i < triangleMesh.at(m).verticesDataSize /
-                            GetTriangleMeshElementCount();
-         i += 3) {
-      DO_VALIDATION;
-      int goalID = -1;
-      if (triangleMesh.at(m).vertices[i + 0] < -pitchHalfW - 0.06f) goalID = 0; // don't catch woodwork, only netting.. DIRTY HAXX
-      if (triangleMesh.at(m).vertices[i + 0] >  pitchHalfW + 0.06f) goalID = 1;
-      if (goalID >= 0) {
-        DO_VALIDATION;
-        nettingMeshesSrc[goalID].push_back(Vector3(triangleMesh.at(m).vertices[i + 0], triangleMesh.at(m).vertices[i + 1], triangleMesh.at(m).vertices[i + 2]));
-        nettingMeshes[goalID].push_back(&(triangleMesh.at(m).vertices[i]));
-      }
-    }
-  }
-}
-
-void Match::UpdateGoalNetting(bool ballTouchesNet) {
-  DO_VALIDATION;
-
-  nettingHasChanged = false;
-  const Vector3 ballPosition = ball->Predict(0);
-  int sideID = ballPosition.coords[0] < 0 ? 0 : 1;
-  if (ballTouchesNet) {
-    DO_VALIDATION;
-    // find vertex closest to ball
-    float shortestDistance = 100000.0f;
-    //int shortestDistanceID = 0;
-    for (unsigned int i = 0; i < nettingMeshes[sideID].size(); i++) {
-      DO_VALIDATION;
-      Vector3 vertex = nettingMeshesSrc[sideID][i];
-      float distance = vertex.GetDistance(ballPosition);
-      if (distance < shortestDistance) {
-        DO_VALIDATION;
-        shortestDistance = distance;
-        //shortestDistanceID = i;
-      }
-    }
-
-    // pull vertices towards ball - the closer, the more intense
-    for (unsigned int i = 0; i < nettingMeshes[sideID].size(); i++) {
-      DO_VALIDATION;
-      const Vector3 &vertex = nettingMeshesSrc[sideID][i];
-      float falloffDistance = 4.0f;
-      // float influenceBias = clamp(1.0f -
-      //     (vertex.GetDistance(ballPosition) - shortestDistance) /
-      //     falloffDistance, 0.0f, 1.0f);
-      float influenceBias = std::pow(
-          clamp((shortestDistance + 0.0001f) /
-                    (vertex.GetDistance(ballPosition) +
-                     0.0001f),
-                0.0f, 1.0f),
-          1.5f);
-      // net is stuck to woodwork so lay off there
-      float woodworkTensionBiasInv =
-          clamp((fabs(ballPosition.coords[0]) - pitchHalfW) * 2.0f, 0.0f,
-                1.0f);
-      influenceBias *= woodworkTensionBiasInv;
-      // http://www.wolframalpha.com/input/?i=sin%28x+*+pi+-+0.5+*+pi%29+*+0.5+%2B+0.5+from+x+%3D+0+to+1
-      influenceBias = std::sin(influenceBias * pi - 0.5f * pi) * 0.5f + 0.5f;
-      if (influenceBias > 0.0f) {
-        DO_VALIDATION;
-        Vector3 result =
-            vertex * (1.0f - influenceBias) + ballPosition * influenceBias;
-        static_cast<float*>(nettingMeshes[sideID][i])[0] = result.coords[0];
-        static_cast<float*>(nettingMeshes[sideID][i])[1] = result.coords[1];
-        static_cast<float*>(nettingMeshes[sideID][i])[2] = result.coords[2];
-      }
-    }
-    resetNetting = true; // make sure to reset next time
-    nettingHasChanged = true;
-    DO_VALIDATION;
-
-  } else if (resetNetting) {
-    DO_VALIDATION;  // ball doesn't touch net (anymore), reset
-    for (int sideID = 0; sideID < 2; sideID++) {
-      DO_VALIDATION;
-      for (unsigned int i = 0; i < nettingMeshes[sideID].size(); i++) {
-        DO_VALIDATION;
-        static_cast<float*>(nettingMeshes[sideID][i])[0] = nettingMeshesSrc[sideID][i].coords[0];
-        static_cast<float*>(nettingMeshes[sideID][i])[1] = nettingMeshesSrc[sideID][i].coords[1];
-        static_cast<float*>(nettingMeshes[sideID][i])[2] = nettingMeshesSrc[sideID][i].coords[2];
-      }
-    }
-    resetNetting = false;
-    nettingHasChanged = true;
-    DO_VALIDATION;
-  }
-  DO_VALIDATION;
-}
-
-void Match::UploadGoalNetting() {
-  DO_VALIDATION;
-  if (nettingHasChanged) {
-    DO_VALIDATION;
-    boost::static_pointer_cast<Geometry>(GetContext().goalsNode->GetObject("goals"))->OnUpdateGeometryData(false);
-  }
 }
 
 void Match::BumpActualTime_ms(unsigned long time) {

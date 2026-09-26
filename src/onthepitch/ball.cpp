@@ -31,7 +31,6 @@ constexpr float grassHeight = 0.025f;
 
 Ball::Ball(Match *match) : match(match) {
   DO_VALIDATION;
-  ballTouchesNet = false;
   CalculatePrediction();
 }
 
@@ -143,7 +142,6 @@ BallSpatialInfo Ball::CalculatePrediction() {
   bool firstTime = true;
   bool use_cache = false;
 
-  ballTouchesNet = false;
 
   for (unsigned int predictTime_ms = int(timeStep * 1000.0f);
        predictTime_ms < ballPredictionSize_ms + cachedPredictions * 10;
@@ -356,7 +354,6 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
         momentumPredict.coords[1] = momentumPredict.coords[1] * netAbsorbInv + power * adaptedPowerFac * (100 * timeStep);// + -momentumPredict.coords[1] * netDist;
 
-        if (predictTime_ms == 10) ballTouchesNet = true;
       }
 
       // rear netting
@@ -378,7 +375,6 @@ BallSpatialInfo Ball::CalculatePrediction() {
                       -signSide(nextPos.coords[0]) * inGoal;
         momentumPredict.coords[0] = momentumPredict.coords[0] * netAbsorbInv + power * powerFac * (100 * timeStep);
 
-        if (predictTime_ms == 10) ballTouchesNet = true;
       }
 
       // top netting
@@ -402,7 +398,6 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
         momentumPredict.coords[2] = momentumPredict.coords[2] * netAbsorbInv + power * adaptedPowerFac * (100 * timeStep);
 
-        if (predictTime_ms == 10) ballTouchesNet = true;
       }
 
     }  // </goal collisions>
@@ -579,7 +574,6 @@ void Ball::ResetSituation(const Vector3 &focusPos) {
   positionBuffer = Vector3(focusPos + Vector3(0, 0, 0.11));
   valid_predictions = 0;
   orientationBuffer = QUATERNION_IDENTITY;
-  ballTouchesNet = false;
 }
 
 void Ball::ProcessState(EnvState *state) {
@@ -600,5 +594,4 @@ void Ball::ProcessState(EnvState *state) {
   }
   state->process(positionBuffer);
   state->process(orientationBuffer);
-  state->process(ballTouchesNet);
 }

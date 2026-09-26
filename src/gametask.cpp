@@ -67,8 +67,8 @@ void GameTask::PrepareRender() {
   DO_VALIDATION;
 
   // Legacy presentation pipeline. Everything below only produces state for
-  // rendering (animation buffers, scene transforms, camera, goal netting) and
-  // is verified by the regression to leave simulation state untouched.
+  // rendering (animation buffers, scene transforms, fullbody models) and is
+  // verified by the regression to leave simulation state untouched.
   if (processed) {
     match->PreparePutBuffers();
     match->FetchPutBuffers();
@@ -91,6 +91,5 @@ void GameTask::PrepareRender() {
     official->UpdateFullbodyModel();
     boost::static_pointer_cast<Geometry>(official->GetFullbodyNode()->GetObject("fullbody"))->OnUpdateGeometryData();
   }
-  match->UploadGoalNetting(); // won't this block the whole process thing too? (opengl busy == wait, while mutex locked == no process)
   DO_VALIDATION;
 }

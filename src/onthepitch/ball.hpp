@@ -62,7 +62,6 @@ class Ball {
     void SetRotation(real x, real y, real z, float bias = 1.0);     // radians per second for each axis
     BallSpatialInfo CalculatePrediction();  // returns momentum in 10ms
 
-    bool BallTouchesNet() { DO_VALIDATION; return ballTouchesNet; }
     Vector3 GetAveragePosition(unsigned int duration_ms) const;
 
     void Process();
@@ -85,7 +84,6 @@ class Ball {
 
     Match *match;
 
-    bool ballTouchesNet = false;
 
 };
 

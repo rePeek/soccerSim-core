@@ -237,7 +237,6 @@ class GameContext {
   boost::shared_ptr<Scene2D> scene2D;
   boost::shared_ptr<Scene3D> scene3D;
   boost::intrusive_ptr<Node> fullbodyNode;
-  boost::intrusive_ptr<Node> goalsNode;
   boost::intrusive_ptr<Node> stadiumRender;
   boost::intrusive_ptr<Node> stadiumNoRender;
   Properties *config = nullptr;

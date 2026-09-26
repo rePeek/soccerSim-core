@@ -146,7 +146,6 @@ class Match {
 
     const std::vector<Vector3> &GetAnimPositionCache(Animation *anim) const;
 
-    void UploadGoalNetting();
 
     int FirstTeam() { DO_VALIDATION; return first_team; }
     int SecondTeam() { DO_VALIDATION; return second_team; }
@@ -160,8 +159,6 @@ class Match {
     void CheckHumanoidCollision(Player *p1, Player *p2, std::vector<PlayerBounce> &p1Bounce, std::vector<PlayerBounce> &p2Bounce);
     void CheckBallCollisions();
 
-    void PrepareGoalNetting();
-    void UpdateGoalNetting(bool ballTouchesNet = false);
 
     std::unique_ptr<MatchData> matchData;
     Team *teams[2];
@@ -213,13 +210,9 @@ class Match {
 
     boost::shared_ptr<Scene3D> scene3D;
 
-    bool resetNetting = false;
-    bool nettingHasChanged = false;
 
     const float matchDurationFactor = 0.0f;
 
-    std::vector<Vector3> nettingMeshesSrc[2];
-    std::vector<float*> nettingMeshes[2];
     // Whether to use magnet logic (that automatically pushes active player
     // towards the ball).
     const bool _useMagnet;
