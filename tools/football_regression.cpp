@@ -315,6 +315,35 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
   }
 }
 
+void CheckActionExecutorShadows(Match *match, const std::string &label) {
+  for (int teamID = 0; teamID < 2; ++teamID) {
+    std::vector<Player *> players;
+    match->GetTeam(teamID)->GetActivePlayers(players);
+    Require(!players.empty(), label + ": missing active players");
+    for (const Player *player : players) {
+      const PlayerActionState &legacy = player->GetActionState();
+      const PlayerActionState &shadow = player->GetActionExecutorShadow();
+      Require(legacy.type == shadow.type, label + ": action type differs");
+      Require(legacy.frame == shadow.frame, label + ": action frame differs");
+      Require(legacy.frameCount == shadow.frameCount,
+              label + ": action frame count differs");
+      Require(legacy.elapsedTime_ms == shadow.elapsedTime_ms,
+              label + ": action elapsed time differs");
+      Require(legacy.durationTime_ms == shadow.durationTime_ms,
+              label + ": action duration differs");
+      Require(legacy.contactTime_ms == shadow.contactTime_ms,
+              label + ": contact time differs");
+      Require(legacy.contactFrame == shadow.contactFrame,
+              label + ": contact frame differs");
+      for (int axis = 0; axis < 3; ++axis) {
+        RequireNear(shadow.contactPosition.coords[axis],
+                    legacy.contactPosition.coords[axis],
+                    label + ": contact position");
+      }
+    }
+  }
+}
+
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   Advance(env, 300);
@@ -323,6 +352,8 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   Advance(env, 300);
   RequireInfoEqual(env.get_info(), first_reset, "repeat reset");
+  CheckActionExecutorShadows(env.context->gameTask->GetMatch(),
+                             "action executor shadow after reset");
 
   Advance(env, 75);
   const std::string serialized = env.get_state("");
@@ -332,6 +363,8 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.set_state(serialized);
   Advance(env, 125);
   RequireInfoEqual(env.get_info(), expected_after_restore, "state round-trip");
+  CheckActionExecutorShadows(env.context->gameTask->GetMatch(),
+                             "action executor shadow after state restore");
 }
 
 void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {

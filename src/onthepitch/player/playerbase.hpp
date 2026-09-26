@@ -79,6 +79,10 @@ class PlayerBase {
       DO_VALIDATION;
       return actionState;
     }
+    const PlayerActionState &GetActionExecutorShadow() const {
+      DO_VALIDATION;
+      return actionExecutorShadow;
+    }
 
     void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }
 
@@ -133,6 +137,8 @@ class PlayerBase {
     void UpdateKinematicShadow();
     void ResetKinematicShadow();
     void SynchronizeActionState();
+    void ResetActionExecutorShadow();
+    void UpdateActionExecutorShadow();
     Match *match;
 
     const PlayerData* const playerData;
@@ -142,6 +148,8 @@ class PlayerBase {
     PlayerKinematicState kinematicState;
     PlayerKinematicState kinematicShadow;
     PlayerActionState actionState;
+    PlayerActionState actionExecutorShadow;
+    int actionExecutorShadowAnimationId = -1;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

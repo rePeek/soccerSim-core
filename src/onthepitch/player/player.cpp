@@ -100,6 +100,7 @@ void Player::Activate(boost::intrusive_ptr<Node> humanoidSourceNode,
       Vector3(0));
   SynchronizeKinematicState();
   SynchronizeActionState();
+  ResetActionExecutorShadow();
   ResetKinematicShadow();
   SetDynamicFormationEntry(GetFormationEntry());
 }
@@ -315,6 +316,7 @@ void Player::Process() {
     CastHumanoid()->Process();
     SynchronizeKinematicState();
     SynchronizeActionState();
+    UpdateActionExecutorShadow();
     UpdateKinematicShadow();
 
     if (match->IsInPlay()) {

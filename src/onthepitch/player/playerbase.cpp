@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "player.hpp"
+#include "player_action_executor.hpp"
 
 #include "../match.hpp"
 
@@ -70,6 +71,40 @@ void PlayerBase::SynchronizeActionState() {
   actionState.contactPosition = anim->touchPos;
 }
 
+void PlayerBase::ResetActionExecutorShadow() {
+  DO_VALIDATION;
+  actionExecutorShadow = actionState;
+  actionExecutorShadowAnimationId = humanoid->GetCurrentAnim()->id;
+}
+
+void PlayerBase::UpdateActionExecutorShadow() {
+  DO_VALIDATION;
+  const Anim *anim = humanoid->GetCurrentAnim();
+  const bool actionRestarted =
+      actionExecutorShadowAnimationId != anim->id ||
+      actionState.elapsedTime_ms < actionExecutorShadow.elapsedTime_ms ||
+      actionState.durationTime_ms != actionExecutorShadow.durationTime_ms ||
+      actionState.contactTime_ms != actionExecutorShadow.contactTime_ms;
+  if (actionRestarted) {
+    PlayerActionDefinition definition;
+    definition.type = actionState.type;
+    definition.durationTime_ms = actionState.durationTime_ms;
+    definition.contactTime_ms = actionState.contactTime_ms;
+    definition.contactPosition = actionState.contactPosition;
+    PlayerActionExecutor::Begin(actionExecutorShadow, definition);
+    if (actionState.elapsedTime_ms > 0) {
+      PlayerActionExecutor::Step(actionExecutorShadow,
+                                 actionState.elapsedTime_ms);
+    }
+    actionExecutorShadowAnimationId = anim->id;
+  } else if (actionState.elapsedTime_ms >
+             actionExecutorShadow.elapsedTime_ms) {
+    PlayerActionExecutor::Step(
+        actionExecutorShadow,
+        actionState.elapsedTime_ms - actionExecutorShadow.elapsedTime_ms);
+  }
+}
+
 void PlayerBase::ResetKinematicShadow() {
   DO_VALIDATION;
   kinematicShadow = kinematicState;
@@ -109,6 +144,7 @@ void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   humanoid->ResetPosition(newPos, focusPos);
   SynchronizeKinematicState();
   SynchronizeActionState();
+  ResetActionExecutorShadow();
   ResetKinematicShadow();
 }
 
@@ -117,6 +153,7 @@ void PlayerBase::OffsetPosition(const Vector3 &offset) {
   humanoid->OffsetPosition(offset);
   SynchronizeKinematicState();
   SynchronizeActionState();
+  ResetActionExecutorShadow();
   ResetKinematicShadow();
 }
 
@@ -177,6 +214,7 @@ void PlayerBase::Process() {
     humanoid->Process();
     SynchronizeKinematicState();
     SynchronizeActionState();
+    UpdateActionExecutorShadow();
     UpdateKinematicShadow();
   } else {
     if (humanoid) humanoid->Hide();
@@ -229,6 +267,7 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
     humanoid->ResetSituation(focusPos);
     SynchronizeKinematicState();
     SynchronizeActionState();
+    ResetActionExecutorShadow();
     ResetKinematicShadow();
   }
   if (GetController()) GetController()->Reset();
@@ -241,6 +280,8 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   kinematicState.ProcessState(state);
   kinematicShadow.ProcessState(state);
   actionState.ProcessState(state);
+  actionExecutorShadow.ProcessState(state);
+  state->process(actionExecutorShadowAnimationId);
   if (IsActive()) {
     controller->ProcessState(state);
   }
