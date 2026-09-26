@@ -35,11 +35,8 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  // The current engine still initializes its GUI/font stack in start_game().
-  // These variables make that legacy requirement explicit until GUI is split out.
-  if (!std::getenv("GFOOTBALL_DATA_DIR") || !std::getenv("GFOOTBALL_FONT")) {
-    std::cerr << "Set GFOOTBALL_DATA_DIR and GFOOTBALL_FONT before running "
-              << argv[0] << ".\n";
+  if (!std::getenv("GFOOTBALL_DATA_DIR")) {
+    std::cerr << "Set GFOOTBALL_DATA_DIR before running " << argv[0] << ".\n";
     return 2;
   }
 

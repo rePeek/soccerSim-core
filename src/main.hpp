@@ -240,9 +240,6 @@ class GameContext {
   boost::intrusive_ptr<Node> stadiumRender;
   boost::intrusive_ptr<Node> stadiumNoRender;
   Properties *config = nullptr;
-  std::string font;
-  TTF_Font *defaultFont = nullptr;
-  TTF_Font *defaultOutlineFont = nullptr;
 
   std::vector<AIControlledKeyboard*> controllers;
   ObjectFactory object_factory;

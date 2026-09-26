@@ -106,11 +106,6 @@ void GameEnv::start_game() {
   }
   Properties* config = new Properties();
   config->Set("match_duration", 0.027);
-  char* font_file = getenv("GFOOTBALL_FONT");
-  if (font_file) {
-    DO_VALIDATION;
-    config->Set("font_filename", font_file);
-  }
   config->Set("game", 0);
   run_game(config, game_config.render);
   auto scenario_config = ScenarioConfig::make();

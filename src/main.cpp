@@ -128,24 +128,10 @@ void run_game(Properties* input_config, bool render) {
   // sequences
 
   game->context->gameTask = boost::shared_ptr<GameTask>(new GameTask());
-  std::string fontfilename = game->context->config->Get(
-      "font_filename", "media/fonts/alegreya/AlegreyaSansSC-ExtraBold.ttf");
-  game->context->font = GetFile(fontfilename);
-  game->context->defaultFont =
-      TTF_OpenFontIndexRW(SDL_RWFromConstMem(game->context->font.data(),
-                                             game->context->font.size()),
-                          0, 32, 0);
-  game->context->defaultOutlineFont =
-      TTF_OpenFontIndexRW(SDL_RWFromConstMem(game->context->font.data(),
-                                             game->context->font.size()),
-                          0, 32, 0);
-  if (!game->context->defaultFont)
-    Log(e_FatalError, "football", "main",
-        "Could not load font " + fontfilename);
-  TTF_SetFontOutline(game->context->defaultOutlineFont, 2);
+  // Headless simulation does not load font assets. GUI code remains compiled
+  // for now, but its caption methods are no-ops when rendering is disabled.
   game->context->menuTask = boost::shared_ptr<MenuTask>(
-      new MenuTask(5.0f / 4.0f, 0, game->context->defaultFont,
-                   game->context->defaultOutlineFont, game->context->config));
+      new MenuTask(5.0f / 4.0f, 0, nullptr, nullptr, game->context->config));
 }
   // fire!
 
@@ -163,9 +149,6 @@ void quit_game() {
   }
   game->context->controllers.clear();
 
-  TTF_CloseFont(game->context->defaultFont);
-  TTF_CloseFont(
-      game->context->defaultOutlineFont);
 
   delete game->context->config;
 
