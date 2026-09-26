@@ -213,20 +213,29 @@ void CheckPlayerActionExecutor() {
               !state.IsComplete(),
           "action executor initial phase");
 
-  PlayerActionExecutor::Step(state, 100);
+  const PlayerActionStepResult beforeContact =
+      PlayerActionExecutor::Step(state, 100);
   Require(state.elapsedTime_ms == 100 && state.frame == 10 &&
               state.IsContactPending(),
           "action executor pre-contact phase");
+  Require(!beforeContact.contactTriggered && !beforeContact.completed,
+          "action executor should not emit an early event");
 
-  PlayerActionExecutor::Step(state, 20);
+  const PlayerActionStepResult atContact =
+      PlayerActionExecutor::Step(state, 20);
   Require(state.elapsedTime_ms == 120 && state.frame == 12 &&
               !state.IsContactPending() && state.IsContactDue(),
           "action executor contact phase");
+  Require(atContact.contactTriggered && !atContact.completed,
+          "action executor should emit one contact event");
 
-  PlayerActionExecutor::Step(state, 500);
+  const PlayerActionStepResult atCompletion =
+      PlayerActionExecutor::Step(state, 500);
   Require(state.elapsedTime_ms == 300 && state.frame == 30 &&
               state.IsComplete(),
           "action executor completion phase");
+  Require(!atCompletion.contactTriggered && atCompletion.completed,
+          "action executor should emit one completion event");
 }
 
 ScenarioConfig MakeBuiltinAiConfig() {

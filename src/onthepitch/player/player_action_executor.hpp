@@ -21,6 +21,11 @@ struct PlayerActionDefinition {
   Vector3 contactPosition = Vector3(0);
 };
 
+struct PlayerActionStepResult {
+  bool contactTriggered = false;
+  bool completed = false;
+};
+
 class PlayerActionExecutor {
  public:
   static void Begin(PlayerActionState &state,
@@ -45,15 +50,24 @@ class PlayerActionExecutor {
     state.contactPosition = definition.contactPosition;
   }
 
-  static void Step(PlayerActionState &state, int dt_ms) {
+  static PlayerActionStepResult Step(PlayerActionState &state, int dt_ms) {
     DO_VALIDATION;
     assert(dt_ms > 0);
     assert(dt_ms % 10 == 0);
     assert(state.durationTime_ms > 0);
 
+    const int previousElapsedTime_ms = state.elapsedTime_ms;
     state.elapsedTime_ms =
         std::min(state.elapsedTime_ms + dt_ms, state.durationTime_ms);
     state.frame = state.elapsedTime_ms / 10;
+
+    PlayerActionStepResult result;
+    result.contactTriggered = state.HasScheduledContact() &&
+                              previousElapsedTime_ms < state.contactTime_ms &&
+                              state.elapsedTime_ms >= state.contactTime_ms;
+    result.completed = previousElapsedTime_ms < state.durationTime_ms &&
+                       state.elapsedTime_ms >= state.durationTime_ms;
+    return result;
   }
 };
 
