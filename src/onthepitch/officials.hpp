@@ -38,8 +38,6 @@ class Officials {
     void FetchPutBuffers();
     void Put(bool mirror);
 
-    boost::intrusive_ptr<Geometry> GetYellowCardGeom() { DO_VALIDATION; return yellowCard; }
-    boost::intrusive_ptr<Geometry> GetRedCardGeom() { DO_VALIDATION; return redCard; }
     void ProcessState(EnvState* state);
 
   protected:
@@ -48,9 +46,6 @@ class Officials {
     PlayerOfficial *referee;
     PlayerOfficial *linesmen[2];
     PlayerData *playerData;
-
-    boost::intrusive_ptr<Geometry> yellowCard;
-    boost::intrusive_ptr<Geometry> redCard;
 
 };
 

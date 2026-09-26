@@ -136,8 +136,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
       GetContext().surface_manager.Fetch(kitFilename);
   officials = new Officials(this, GetContext().fullbodyNode, GetContext().colorCoords, kit, anims);
 
-  dynamicNode->AddObject(officials->GetYellowCardGeom());
-  dynamicNode->AddObject(officials->GetRedCardGeom());
 
 
 

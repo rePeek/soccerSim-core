@@ -17,10 +17,7 @@
 
 #include "officials.hpp"
 
-#include "../scene/scene3d/scene3d.hpp"
-
 #include "../utils/objectloader.hpp"
-#include "../scene/objectfactory.hpp"
 
 #include "player/playerofficial.hpp"
 #include "player/humanoid/humanoidbase.hpp"
@@ -59,23 +56,6 @@ Officials::Officials(Match *match,
   referee->ResetPosition(Vector3(10, -10, 0), Vector3(0));
   linesmen[0]->ResetPosition(Vector3(25, -36.5, 0), Vector3(0));
   linesmen[1]->ResetPosition(Vector3(-25, 36.5, 0), Vector3(0));
-
-  boost::intrusive_ptr<Resource<GeometryData> > geometry =
-      GetContext().geometry_manager.Fetch(
-          "media/objects/officials/yellowcard.ase", true);
-  yellowCard = new Geometry("yellowcard");
-  GetScene3D()->CreateSystemObjects(yellowCard);
-  yellowCard->SetGeometryData(geometry);
-  yellowCard->SetLocalMode(e_LocalMode_Absolute);
-  yellowCard->SetPosition(Vector3(0, 0, -10));
-
-  geometry = GetContext().geometry_manager.Fetch(
-      "media/objects/officials/redcard.ase", true);
-  redCard = new Geometry("redCard");
-  GetScene3D()->CreateSystemObjects(redCard);
-  redCard->SetGeometryData(geometry);
-  redCard->SetLocalMode(e_LocalMode_Absolute);
-  redCard->SetPosition(Vector3(0, 0, -10));
 }
 
 Officials::~Officials() {
@@ -84,9 +64,6 @@ Officials::~Officials() {
   delete linesmen[0];
   delete linesmen[1];
   delete playerData;
-
-  redCard.reset();
-  yellowCard.reset();
 }
 
 void Officials::Mirror() {
@@ -124,39 +101,6 @@ void Officials::Put(bool mirror) {
   referee->Put(mirror);
   linesmen[0]->Put(mirror);
   linesmen[1]->Put(mirror);
-
-  if (referee->GetCurrentFunctionType() == e_FunctionType_Special &&
-      (match->GetReferee()->GetCurrentFoulType() == 2 ||
-       match->GetReferee()->GetCurrentFoulType() == 3)) {
-    DO_VALIDATION;
-    if (mirror) {
-      referee->Mirror();
-    }
-    BodyPart bodyPartName = right_elbow;
-    if (referee->GetCurrentAnim()->anim->GetName().find("mirror") != std::string::npos) bodyPartName = left_elbow;
-
-    const NodeMap &nodeMap = referee->GetNodeMap();
-    auto bodyPart = nodeMap[bodyPartName];
-    if (bodyPart) {
-      DO_VALIDATION;
-      Vector3 position = bodyPart->GetDerivedPosition() + bodyPart->GetDerivedRotation() * Vector3(0.04, 0, -0.25); // -0.4
-      if (match->GetReferee()->GetCurrentFoulType() == 2) {
-        DO_VALIDATION;
-        yellowCard->SetPosition(position);
-        yellowCard->SetRotation(bodyPart->GetDerivedRotation());
-      } else {
-        redCard->SetPosition(position);
-        redCard->SetRotation(bodyPart->GetDerivedRotation());
-      }
-    }
-    if (mirror) {
-      referee->Mirror();
-    }
-  } else if (referee->GetPreviousFunctionType() == e_FunctionType_Special) {
-    DO_VALIDATION;
-    yellowCard->SetPosition(Vector3(0, 0, -10));
-    redCard->SetPosition(Vector3(0, 0, -10));
-  }
 }
 
 void Officials::ProcessState(EnvState *state) {
