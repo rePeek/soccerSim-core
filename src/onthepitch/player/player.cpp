@@ -25,8 +25,6 @@
 #include "controller/elizacontroller.hpp"
 #include "controller/strategies/strategy.hpp"
 
-#include "../../main.hpp"
-#include "../../utils.hpp"
 
 #include "../../base/geometry/triangle.hpp"
 
@@ -44,17 +42,10 @@ Player::Player(Team *team, PlayerData *playerData)
   cards = 0;
 
   cardEffectiveTime_ms = 0;
-  nameCaption = new Gui2Caption(GetMenuTask()->GetWindowManager(),
-                                "game_player_name_" + int_to_str(stable_id), 0,
-                                0, 1, 2.0, playerData->GetLastName());
-  nameCaption->SetTransparency(0.3f);
-  GetMenuTask()->GetWindowManager()->GetRoot()->AddView(nameCaption);
 }
 
 Player::~Player() {
   DO_VALIDATION;
-  nameCaption->Exit();
-  delete nameCaption;
 }
 
 Humanoid *Player::CastHumanoid() {
@@ -103,8 +94,6 @@ void Player::Activate(boost::intrusive_ptr<Node> humanoidSourceNode,
 
   controller.reset(new ElizaController(match, lazyPlayer));
   CastController()->SetPlayer(this);
-  buf_nameCaptionShowCondition = false;
-  nameCaption->Show();
   CastHumanoid()->ResetPosition(
       GetFormationEntry().position * 25 *
           Vector3(-team->GetDynamicSide(), -team->GetDynamicSide(), 0),
@@ -115,7 +104,6 @@ void Player::Activate(boost::intrusive_ptr<Node> humanoidSourceNode,
 void Player::Deactivate() {
   DO_VALIDATION;
   ResetSituation(GetPosition());
-  nameCaption->Hide();
   if (ExternalController()) {
     DO_VALIDATION;
     team->DeselectPlayer(this); // don't want any humangamer to have control of this player anymore
@@ -341,41 +329,6 @@ void Player::Process() {
 void Player::PreparePutBuffers() {
   DO_VALIDATION;
   PlayerBase::PreparePutBuffers();
-  buf_nameCaptionShowCondition = ExternalControllerActive();
-  if (team->GetHumanGamerCount() == 0) buf_nameCaptionShowCondition = team->GetDesignatedTeamPossessionPlayer() == this;
-  e_PlayerColor playerColor = team->GetPlayerColor(this);
-    switch (playerColor) {
-      case e_PlayerColor_Green:
-        buf_playerColor = Vector3(100, 255, 140);
-        break;
-      case e_PlayerColor_Red:
-        buf_playerColor = Vector3(255, 110, 110);
-        break;
-      case e_PlayerColor_Blue:
-        buf_playerColor = Vector3(100, 140, 255);
-        break;
-      case e_PlayerColor_Yellow:
-        buf_playerColor = Vector3(255, 255, 60);
-        break;
-      case e_PlayerColor_Purple:
-        buf_playerColor = Vector3(200, 80, 200);
-        break;
-      case e_PlayerColor_Default:
-        buf_playerColor = Vector3(200, 200, 200);
-        break;
-    };
-
-  if (ExternalControllerActive()) {
-    DO_VALIDATION;
-    if (ExternalController()->GetActionMode() == 1) {
-      DO_VALIDATION;
-    } else if (ExternalController()->GetActionMode() == 2) {
-      DO_VALIDATION;
-      buf_playerColor =
-          buf_playerColor *
-          (std::sin(match->GetActualTime_ms() * 0.02f) * 0.3f + 0.7f);
-    }
-  }
 }
 
 void Player::FetchPutBuffers() {
@@ -384,36 +337,12 @@ void Player::FetchPutBuffers() {
   PlayerBase::FetchPutBuffers();
 }
 
-void Player::Put2D(bool mirror) {
+void Player::Put2D(bool /*mirror*/) {
   DO_VALIDATION;
-  if (buf_nameCaptionShowCondition) {
-    DO_VALIDATION;
-    Vector3 captionPos3D = GetGeomPosition();
-    if (mirror) {
-      DO_VALIDATION;
-      captionPos3D *= Vector3(-1, -1, 0);
-    }
-    captionPos3D = GetProjectedCoord(captionPos3D + Vector3(0, 0.5f, 2.4f), match->GetCamera()); // geom pos because in Put2D, we cannot access normal class vars (because multithreading)
-    float w, h;
-    nameCaption->GetSize(w, h);
-    nameCaption->SetColor(buf_playerColor);
-    nameCaption->SetOutlineColor(buf_playerColor * 0.4f);
-    nameCaption->SetPosition(captionPos3D.coords[0] - w * 0.5f, captionPos3D.coords[1] - h);
-
-    nameCaption->SetCaption(playerData->GetLastName());
-    nameCaption->Show();
-  } else {
-    nameCaption->Hide();
-  }
 }
 
 void Player::Hide2D() {
   DO_VALIDATION;
-  if (buf_nameCaptionShowCondition) {
-    DO_VALIDATION;
-    assert(nameCaption);
-    nameCaption->Hide();
-  }
 }
 
 void Player::SendOff() {
@@ -470,10 +399,6 @@ void Player::ProcessState(EnvState *state) {
   state->process(timeNeededToGetToBall_previous_ms);
   state->process(triggerControlledBallCollision);
   tacticalSituation.ProcessState(state);
-  state->process(buf_nameCaptionShowCondition);
-  state->setValidate(false);
-  state->process(buf_playerColor);
-  state->setValidate(true);
   state->process(desiredTimeToBall_ms);
   state->process(cards);
   state->process(cardEffectiveTime_ms);

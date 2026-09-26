@@ -21,9 +21,6 @@
 #include "humanoid/humanoid.hpp"
 #include "playerbase.hpp"
 
-#include "../../utils/gui2/widgets/caption.hpp"
-
-#include "../../menu/menutask.hpp"
 
 class Match;
 class Team;
@@ -143,10 +140,6 @@ class Player : public PlayerBase {
 
     TacticalPlayerSituation tacticalSituation;
 
-    bool buf_nameCaptionShowCondition = false;
-    Vector3 buf_playerColor;
-
-    Gui2Caption *nameCaption = nullptr;
 
     int desiredTimeToBall_ms = 0;
     int cards = 0; // 1 == 1 yellow; 2 == 2 yellow; 3 == 1 red; 4 == 1 yellow, 1 red
