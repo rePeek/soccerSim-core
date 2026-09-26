@@ -76,7 +76,9 @@ class PlayerBase {
     inline float GetFloatVelocity() const {
       return EnumToFloatVelocity(humanoid->GetEnumVelocity());
     }
-    inline e_FunctionType GetCurrentFunctionType() const { return humanoid->GetCurrentFunctionType(); }
+    inline e_FunctionType GetCurrentFunctionType() const {
+      return GetSimulationActionState().type;
+    }
     inline e_FunctionType GetPreviousFunctionType() const { return humanoid->GetPreviousFunctionType(); }
     const PlayerKinematicState &GetKinematicState() const {
       DO_VALIDATION;
@@ -97,6 +99,19 @@ class PlayerBase {
     const PlayerActionState &GetActionExecutorShadow() const {
       DO_VALIDATION;
       return actionExecutorShadow;
+    }
+    // Gameplay reads this simulation-owned schedule. It is still mirrored from
+    // Humanoid during H3d1; H3d2 makes its clock authoritative.
+    const PlayerActionState &GetSimulationActionState() const {
+      DO_VALIDATION;
+      return actionExecutorShadow;
+    }
+    // H3d1 bridge: refresh immediately when Humanoid changes its legacy action
+    // while a same-tick gameplay reader can still observe that change.
+    void RefreshSimulationActionState() {
+      DO_VALIDATION;
+      SynchronizeActionState();
+      UpdateActionExecutorShadow();
     }
 
     void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }

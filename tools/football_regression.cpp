@@ -732,10 +732,23 @@ void CheckActionExecutorShadows(Match *match, const std::string &label) {
               label + ": contact time differs");
       Require(legacy.contactFrame == shadow.contactFrame,
               label + ": contact frame differs");
+      Require(player->GetCurrentFunctionType() == shadow.type,
+              label + ": gameplay action type differs");
+      Require(player->GetCurrentFrame() == shadow.frame,
+              label + ": gameplay action frame differs");
+      Require(player->GetTouchFrame() == shadow.contactFrame,
+              label + ": gameplay contact frame differs");
+      Require(player->TouchAnim() == shadow.HasScheduledContact(),
+              label + ": gameplay contact schedule differs");
+      Require(player->TouchPending() == shadow.IsContactPending(),
+              label + ": gameplay pending-contact differs");
       for (int axis = 0; axis < 3; ++axis) {
         RequireNear(shadow.contactPosition.coords[axis],
                     legacy.contactPosition.coords[axis],
                     label + ": contact position");
+        RequireNear(player->GetTouchPos().coords[axis],
+                    shadow.contactPosition.coords[axis],
+                    label + ": gameplay contact position");
       }
     }
   }

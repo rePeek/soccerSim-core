@@ -93,6 +93,7 @@ void Humanoid::Process() {
   spatialState.positionOffsetMovement = Vector3(0);
 
   currentAnim.frameNum++;
+  CastPlayer()->RefreshSimulationActionState();
   previousAnim_frameNum++;
 
   assert(team);
@@ -1327,6 +1328,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     currentAnim.originatingCommand = command;
     currentAnim.movementSmuggle = CalculateMovementSmuggle(command.desiredDirection, command.desiredVelocityFloat);
     currentAnim.movementSmuggleOffset = Vector3(0);
+    CastPlayer()->RefreshSimulationActionState();
     return true;
   }
 

@@ -127,6 +127,7 @@ void HumanoidBase::Process() {
   spatialState.positionOffsetMovement = Vector3(0);
 
   currentAnim.frameNum++;
+  player->RefreshSimulationActionState();
   previousAnim_frameNum++;
 
   if (currentAnim.frameNum == currentAnim.anim->GetFrameCount() - 1 &&
@@ -711,6 +712,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     currentAnim.positions.assign(positions_tmp.begin(), positions_tmp.end());
     currentAnim.positionOffset = 0.0;
     currentAnim.originatingCommand = command;
+    player->RefreshSimulationActionState();
 
     return true;
   }

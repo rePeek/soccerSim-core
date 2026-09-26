@@ -167,10 +167,11 @@ void Player::UpdatePossessionStats() {
   timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
 
   unsigned int startTime_ms = 0;
-  if ((CastHumanoid()->GetCurrentFunctionType() == e_FunctionType_ShortPass ||
-       CastHumanoid()->GetCurrentFunctionType() == e_FunctionType_LongPass ||
-       CastHumanoid()->GetCurrentFunctionType() == e_FunctionType_HighPass ||
-       CastHumanoid()->GetCurrentFunctionType() == e_FunctionType_Shot) &&
+  const e_FunctionType action_type = GetCurrentFunctionType();
+  if ((action_type == e_FunctionType_ShortPass ||
+       action_type == e_FunctionType_LongPass ||
+       action_type == e_FunctionType_HighPass ||
+       action_type == e_FunctionType_Shot) &&
       !TouchPending()) {
     DO_VALIDATION;
     startTime_ms = 500;
@@ -232,7 +233,7 @@ void Player::UpdatePossessionStats() {
 
   if (TouchAnim() && TouchPending()) {
     DO_VALIDATION;
-    unsigned int animTimeToBall_ms = (CastHumanoid()->GetTouchFrame() - GetCurrentFrame()) * 10;
+    unsigned int animTimeToBall_ms = (GetTouchFrame() - GetCurrentFrame()) * 10;
     timeNeededToGetToBall_ms = std::min(timeNeededToGetToBall_ms, animTimeToBall_ms);
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   }
@@ -244,10 +245,10 @@ void Player::UpdatePossessionStats() {
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   }
 
-  if ((CastHumanoid()->GetCurrentFunctionType() == e_FunctionType_ShortPass ||
-       CastHumanoid()->GetCurrentFunctionType() == e_FunctionType_LongPass ||
-       CastHumanoid()->GetCurrentFunctionType() == e_FunctionType_HighPass ||
-       CastHumanoid()->GetCurrentFunctionType() == e_FunctionType_Shot) &&
+  if ((action_type == e_FunctionType_ShortPass ||
+       action_type == e_FunctionType_LongPass ||
+       action_type == e_FunctionType_HighPass ||
+       action_type == e_FunctionType_Shot) &&
       !TouchPending()) {
     DO_VALIDATION;
     hasPossession = false;

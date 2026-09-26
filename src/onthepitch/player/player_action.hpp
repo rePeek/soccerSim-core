@@ -10,10 +10,10 @@
 
 #include "../../defines.hpp"
 
-// Explicit action timing consumed by match rules and collision logic. It is
-// synchronized from Humanoid after each actor tick, but deliberately contains
-// no animation, scene, or presentation objects. Legacy controller queries keep
-// their direct Humanoid reads until their intra-tick timing is migrated.
+// Explicit action timing consumed by gameplay, match rules and collision logic.
+// It is synchronized from Humanoid after each actor tick during H3d1, but
+// contains no animation, scene or presentation objects. H3d2 will make its
+// clock authoritative.
 struct PlayerActionState {
   e_FunctionType type = e_FunctionType_None;
   int frame = 0;

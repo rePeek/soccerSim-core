@@ -57,15 +57,33 @@ class Player : public PlayerBase {
     // go back to bench/take a shower
     virtual void Deactivate();
 
-    bool TouchPending() { DO_VALIDATION; return CastHumanoid()->TouchPending(); }
-    bool TouchAnim() { DO_VALIDATION; return CastHumanoid()->TouchAnim(); }
-    Vector3 GetTouchPos() { DO_VALIDATION; return CastHumanoid()->GetTouchPos(); }
-    int GetTouchFrame() { DO_VALIDATION; return CastHumanoid()->GetTouchFrame(); }
-    int GetCurrentFrame() { DO_VALIDATION; return CastHumanoid()->GetCurrentFrame(); }
+    bool TouchPending() const {
+      DO_VALIDATION;
+      return GetSimulationActionState().IsContactPending();
+    }
+    bool TouchAnim() const {
+      DO_VALIDATION;
+      return GetSimulationActionState().HasScheduledContact();
+    }
+    Vector3 GetTouchPos() const {
+      DO_VALIDATION;
+      return GetSimulationActionState().contactPosition;
+    }
+    int GetTouchFrame() const {
+      DO_VALIDATION;
+      return GetSimulationActionState().contactFrame;
+    }
+    int GetCurrentFrame() const {
+      DO_VALIDATION;
+      return GetSimulationActionState().frame;
+    }
 
     void SelectRetainAnim() { DO_VALIDATION; CastHumanoid()->SelectRetainAnim(); }
 
-    inline e_FunctionType GetCurrentFunctionType() { DO_VALIDATION; return CastHumanoid()->GetCurrentFunctionType(); }
+    inline e_FunctionType GetCurrentFunctionType() const {
+      DO_VALIDATION;
+      return GetSimulationActionState().type;
+    }
     FormationEntry GetFormationEntry();
     inline void SetDynamicFormationEntry(FormationEntry entry) { DO_VALIDATION; dynamicFormationEntry = entry; }
     inline FormationEntry GetDynamicFormationEntry() { DO_VALIDATION; return dynamicFormationEntry; }
