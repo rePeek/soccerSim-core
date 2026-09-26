@@ -55,15 +55,26 @@ bool GameTask::StopMatch() {
 
 void GameTask::ProcessPhase() {
   DO_VALIDATION;
-  bool process = match->Process();
-  match->UpdateCamera();
-  if (process) {
-    match->PreparePutBuffers();
-    match->FetchPutBuffers();
-  }
+
+  // The simulation tick. When this returns, every piece of
+  // simulation-authoritative state for this tick is complete. Nothing that
+  // only affects presentation is allowed here; the legacy animation buffer and
+  // camera pipeline lives in PrepareRender() instead.
+  processed = match->Process();
 }
 
 void GameTask::PrepareRender() {
+  DO_VALIDATION;
+
+  // Legacy presentation pipeline. Everything below only produces state for
+  // rendering (animation buffers, scene transforms, camera, goal netting) and
+  // is verified by the regression to leave simulation state untouched.
+  if (processed) {
+    match->PreparePutBuffers();
+    match->FetchPutBuffers();
+  }
+  match->UpdateCamera();
+
   match->Put();
   std::vector<Player*> players;
   match->GetActiveTeamPlayers(match->FirstTeam(), players);

@@ -40,6 +40,10 @@ class GameTask {
 
   protected:
     std::unique_ptr<Match> match;
+
+    // Result of the last simulation tick; consumed by PrepareRender() so that
+    // the legacy buffer pipeline keeps its original skip behaviour.
+    bool processed = false;
     boost::shared_ptr<Scene3D> scene3D;
 };
 
