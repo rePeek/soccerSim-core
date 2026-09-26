@@ -22,7 +22,8 @@
 
 #include "base/math/vector3.hpp"
 
-#include "wrap_SDL.h" // for key ids
+#include <math.h>
+
 
 using namespace blunted;
 

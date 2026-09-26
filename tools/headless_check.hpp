@@ -21,10 +21,9 @@
 //   - mapped libEGL/libGLX/libOpenGL/libGL/libSDL2_image => the process has
 //     the OpenGL/EGL/GLX stack in its address space. That is the thing D4a
 //     removed, and it is checkable without a display.
-//   - libX11 and libSDL2_gfx are deliberately NOT forbidden: SDL2 is still
-//     linked for the .bmp image loader, SDL2 itself links X11, and
-//     Surface::Resize uses SDL2_gfx zoomSurface on the asset import path.
-//     Merely mapping X11 is not opening a display.
+//   - libX11 is deliberately NOT forbidden: nothing links it directly any more,
+//     but it can still arrive transitively and merely mapping it is not opening
+//     a display.
 
 #ifndef FOOTBALL_HEADLESS_CHECK_HPP_
 #define FOOTBALL_HEADLESS_CHECK_HPP_
@@ -39,7 +38,7 @@ namespace football_headless {
 inline const std::vector<std::string>& ForbiddenGraphicsLibraries() {
   static const std::vector<std::string> forbidden = {
       "libEGL.so", "libGLX.so", "libOpenGL.so", "libGL.so",
-      "libGLdispatch.so", "libSDL2_image"};
+      "libGLdispatch.so", "libSDL2_image", "libSDL2.so", "libSDL2_gfx.so"};
   return forbidden;
 }
 

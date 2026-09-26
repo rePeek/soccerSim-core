@@ -15,18 +15,10 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS} -fPIC -g -O3")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -O3 -g")
 # Find required libraries
-FIND_PACKAGE(SDL2 REQUIRED)
-include_directories(${SDL2_INCLUDE_DIRS})
-
-# SDL2_gfx supplies zoomSurface, used by the Surface resource on the asset
-# import path (see Surface::Resize).
 #
-# FindSDL2_gfx.cmake calls FIND_PACKAGE_HANDLE_STANDARD_ARGS from the vendored
-# copy in CMakeModules; that used to be loaded incidentally by the OpenGL
-# find-module, so load it explicitly now that the graphics dependencies are gone.
-include(FindPackageHandleStandardArgs)
-FIND_PACKAGE(SDL2_gfx REQUIRED)
-include_directories(${SDL2_GFX_DIRS})
+# Nothing outside the football simulation and Boost is needed any more: the
+# animation import reads its own XML hierarchy and no longer touches any mesh,
+# material, image or surface, so SDL2 and SDL2_gfx are gone (D4c3).
 
 FIND_PACKAGE(Boost REQUIRED COMPONENTS thread system filesystem)
 include_directories(${Boost_INCLUDE_DIRS})
@@ -40,15 +32,12 @@ include(sources.cmake)
 add_library(baselib OBJECT ${BASE_SOURCES} ${BASE_HEADERS}
    ${BASE_GEOMETRY_HEADERS} ${BASE_MATH_HEADERS})
 add_library(typeslib OBJECT ${TYPES_SOURCES} ${TYPES_HEADERS})
-add_library(scenelib OBJECT ${SCENE_SOURCES} ${SCENE_HEADERS}
-   ${SCENE2D_HEADERS} ${SCENE3D_HEADERS} ${SCENE_OBJECTS_HEADERS}
-   ${SCENE_RESOURCES_HEADERS})
 add_library(utilslib OBJECT ${UTILS_SOURCES} ${UTILS_HEADERS}
    ${UTILS_EXT_HEADERS})
 
 # Join all created static libraries into a single static or shared one.
-set(OWN_LIBRARIES $<TARGET_OBJECTS:baselib> # $<TARGET_OBJECTS:systemscommonlib>
-   $<TARGET_OBJECTS:typeslib> $<TARGET_OBJECTS:scenelib>
+set(OWN_LIBRARIES $<TARGET_OBJECTS:baselib>
+   $<TARGET_OBJECTS:typeslib>
    $<TARGET_OBJECTS:utilslib>)
 
 # Compile it as multiple static libraries
@@ -57,8 +46,7 @@ add_library(gamelib ${GAME_SOURCES} ${GAME_HEADERS})
 add_library(datalib ${DATA_SOURCES} ${DATA_HEADERS})
 
 set(ENGINE_LIBRARIES gamelib datalib blunted2
-   Boost::filesystem Boost::system Boost::thread
-   ${SDL2_LIBRARIES} ${SDL2_GFX_LIBRARIES})
+   Boost::filesystem Boost::system Boost::thread)
 
 add_library(enginecore OBJECT ${CORE_SOURCES} ${CORE_HEADERS}
    src/game_env.cpp src/game_env.hpp

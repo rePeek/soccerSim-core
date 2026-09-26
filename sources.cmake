@@ -15,8 +15,6 @@ set(BASE_HEADERS
    src/base/log.hpp
    src/base/utils.hpp
    src/base/properties.hpp
-   src/base/sdl_surface.hpp
-   src/base/image.hpp
 )
 
 set(BASE_GEOMETRY_HEADERS
@@ -36,8 +34,6 @@ set(BASE_MATH_HEADERS
 )
 
 set(BASE_SOURCES
-   src/base/sdl_surface.cpp
-   src/base/image.cpp
    src/base/utils.cpp
    src/base/properties.cpp
    src/base/log.cpp
@@ -79,11 +75,8 @@ set(LOADERS_SOURCES
 )
 
 set(TYPES_HEADERS
-   src/types/resource.hpp
-   src/types/material.hpp
    src/types/refcounted.hpp
    src/types/command.hpp
-   src/types/loader.hpp
    src/types/messagequeue.hpp
 )
 
@@ -105,17 +98,12 @@ set(SCENE3D_HEADERS
 )
 
 set(SCENE_RESOURCES_HEADERS
-   src/scene/resources/geometrydata.hpp
-   src/scene/resources/surface.hpp
 )
 
 set(SCENE_SOURCES
-   src/scene/resources/surface.cpp
-   src/scene/resources/geometrydata.cpp
 )
 
 set(MANAGERS_HEADERS
-   src/managers/resourcemanager.hpp
 )
 
 set(UTILS_HEADERS
