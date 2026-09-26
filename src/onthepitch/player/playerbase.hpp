@@ -103,12 +103,6 @@ class PlayerBase {
 
     void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }
 
-    // Simulation-phase pose snapshot used by Match collision rules.
-    void UpdateBodyCollisionState() {
-      DO_VALIDATION;
-      humanoid->UpdateBodyCollisionState();
-    }
-
     void RequestCommand(PlayerCommandQueue &commandQueue);
     IController *GetController();
     void SetExternalController(HumanGamer *externalController);
@@ -116,10 +110,6 @@ class PlayerBase {
     bool ExternalControllerActive();
 
     boost::intrusive_ptr<Node> GetHumanoidNode() { DO_VALIDATION; return humanoid->GetHumanoidNode(); }
-    const BodyCollisionState &GetBodyCollisionState() const {
-      DO_VALIDATION;
-      return humanoid->GetBodyCollisionState();
-    }
 
     // Validation helper for the deterministic regression. The kinematic mirror
     // must never disagree with the legacy Humanoid spatial state, else a

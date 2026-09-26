@@ -13,6 +13,7 @@
 #include "onthepitch/player/player_ground_collider.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
+#include "onthepitch/player/player_body_collider.hpp"
 
 namespace {
 
@@ -340,6 +341,58 @@ void CheckPlayerActionVolume() {
   Require(slide.Intersects(victim), "tackle volume should be planar");
 }
 
+void CheckPlayerBodyCollider() {
+  PlayerKinematicState kinematics;
+  kinematics.position = Vector3(0.0f, 0.0f, 0.0f);
+  const PlayerBodyCollider body = BuildBodyCollider(kinematics);
+
+  Require(body.upperBody.center.coords[2] > body.lowerBody.center.coords[2],
+          "torso should sit above the lower body");
+  Require(body.head.center.coords[2] > body.upperBody.center.coords[2],
+          "head should sit above the torso");
+
+  // Body radii must stay body-sized: the ground contest radius is a contact
+  // radius and is larger.
+  const PlayerGroundCollider ground;
+  Require(body.upperBody.radius < ground.radius,
+          "body collider must not reuse the ground contest radius");
+
+  const float ballRadius = 0.11f;
+
+  // A ball beside the legs while the ball is at leg height is a hit.
+  Require(body.lowerBody.IntersectsSphere(
+              Vector3(body.lowerBody.radius + ballRadius - 0.01f, 0.0f,
+                      body.lowerBody.center.coords[2]), ballRadius),
+          "lower body should touch a ball beside the legs");
+
+  // The torso sits high up, so it must not claim a ground ball.
+  Require(!body.upperBody.IntersectsSphere(Vector3(1.0f, 0.0f, 0.11f), ballRadius),
+          "torso should not touch a distant ground ball");
+  Require(!body.head.IntersectsSphere(Vector3(0.0f, 0.0f, 0.11f), ballRadius),
+          "head should not touch a ground ball");
+
+  // Head-height ball is a head hit, not a leg hit.
+  Require(body.head.IntersectsSphere(
+              Vector3(0.0f, 0.0f, body.head.center.coords[2]), ballRadius),
+          "head should touch a head height ball");
+  Require(!body.lowerBody.IntersectsSphere(
+              Vector3(0.0f, 0.0f, body.head.center.coords[2]), ballRadius),
+          "lower body should not touch a head height ball");
+
+  // The collider follows the player position and stays upright.
+  PlayerKinematicState moved = kinematics;
+  moved.position = Vector3(3.0f, -4.0f, 0.0f);
+  moved.facing = Vector3(1.0f, 0.0f, 0.0f);
+  const PlayerBodyCollider movedBody = BuildBodyCollider(moved);
+  RequireNear(movedBody.lowerBody.center.coords[0], 3.0f,
+              "body collider should follow position x");
+  RequireNear(movedBody.lowerBody.center.coords[1], -4.0f,
+              "body collider should follow position y");
+  Require(!movedBody.upperBody.IntersectsSphere(Vector3(0.0f, 0.0f, 1.11f),
+                                               ballRadius),
+          "body collider should not stay at the origin");
+}
+
 ScenarioConfig MakeBuiltinAiConfig() {
   auto config = ScenarioConfig::make();
   config->left_agents = 0;
@@ -402,19 +455,20 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
        UINT64_C(2178283517849602577)},
-      {100, 79, Position(-0.27977103f, 0.274913579f, 0.147486791f, true),
-       Position(-0.964509726f, 0.0183470845f, 0.0f, true),
-       Position(0.83682096f, -0.000398828211f, 0.0f, true), 0, 0, true,
-       UINT64_C(16124537680525707376)},
-      {500, 437, Position(0.68253845f, 0.164435953f, 0.110504627f, true),
-       Position(-0.825206995f, 6.48159471e-07f, 0.0f, true),
-       Position(0.988704503f, 0.0156909321f, 0.0f, true), 0, 0, true,
-       UINT64_C(9697619898718319986)},
-      {1000, 895, Position(0.313198894f, 0.309941083f, 0.113446184f, true),
-       Position(-0.823592007f, 0.00153351401f, 0.0f, true),
-       Position(0.984157264f, 0.00853573345f, 0.0f, true), 0, 0, true,
-       UINT64_C(16636930353775527234)},
+      {100, 79, Position(-0.0442355908f, 0.289670438f, 0.153187156f, true),
+       Position(-0.858632624f, 0.0111426646f, 0.0f, true),
+       Position(0.866983712f, 0.000920823601f, 0.0f, true), 0, 0, true,
+       UINT64_C(17132446644363675042)},
+      {500, 458, Position(-0.748262942f, 0.21117343f, 0.173379108f, true),
+       Position(-0.935033083f, 0.0647159591f, 0.0f, true),
+       Position(0.827273488f, -0.000456920592f, 0.0f, true), 0, 0, true,
+       UINT64_C(12746127716360745032)},
+      {1000, 937, Position(0.276904285f, -0.00809036382f, 0.21655798f, true),
+       Position(-0.825224817f, -0.000250376266f, 0.0f, true),
+       Position(0.939582884f, -0.00371662737f, 0.0f, true), 0, 0, true,
+       UINT64_C(6386634138744383991)},
   };
+
 
   env.reset(config, false);
   int completed = 0;
@@ -595,6 +649,7 @@ int main(int argc, char** argv) {
     CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
     CheckPlayerActionVolume();
+    CheckPlayerBodyCollider();
     GameEnv env;
     env.game_config.render = false;
     env.start_game();

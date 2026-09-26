@@ -218,7 +218,6 @@ void HumanoidBase::Mirror() {
   tripDirection.Mirror();
   decayingPositionOffset.Mirror();
   predicate_RelDesiredDirection.Mirror();
-  bodyCollisionState.Mirror();
   predicate_DesiredDirection.Mirror();
   predicate_RelIncomingBodyDirection.Mirror();
   predicate_LookAt.Mirror();
@@ -607,18 +606,6 @@ void HumanoidBase::UpdateFullbodyModel(bool updateSrc) {
   GetTracker()->setDisabled(false);
 }
 
-void HumanoidBase::UpdateBodyCollisionState() {
-  DO_VALIDATION;
-  bodyCollisionState.Clear();
-  std::list<boost::intrusive_ptr<Geometry> > geometries;
-  humanoidNode->GetObjects(e_ObjectType_Geometry, geometries);
-  for (const auto &geometry : geometries) {
-    DO_VALIDATION;
-    bodyCollisionState.Add(geometry->GetName(), geometry->GetAABB(),
-                           geometry->GetDerivedPosition());
-  }
-}
-
 void HumanoidBase::Process() {
   DO_VALIDATION;
 
@@ -905,7 +892,6 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
     nodeMap[x]->SetRotation(Quaternion(), true);
   }
   humanoidNode->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
-  UpdateBodyCollisionState();
 }
 
 void HumanoidBase::OffsetPosition(const Vector3 &offset) {

@@ -25,7 +25,6 @@
 #include "../../../utils.hpp"
 
 #include "animcollection.hpp"
-#include "../body_collision.hpp"
 
 #include "../../AIsupport/mentalimage.hpp"
 
@@ -240,11 +239,6 @@ class HumanoidBase {
     void FetchPutBuffers();
     void Put(bool mirror);
 
-    // Simulation-phase pose snapshot consumed by Match collision rules. It must
-    // be refreshed from the simulation tick, never from the animation/buffer
-    // phase.
-    void UpdateBodyCollisionState();
-
     virtual void CalculateGeomOffsets();
     void SetOffset(BodyPart body_part, float bias, const Quaternion &orientation, bool isRelative = false);
 
@@ -270,10 +264,6 @@ class HumanoidBase {
     void TripMe(const Vector3 &tripVector, int tripType);
 
     boost::intrusive_ptr<Node> GetHumanoidNode() { DO_VALIDATION; return humanoidNode; }
-    const BodyCollisionState &GetBodyCollisionState() const {
-      DO_VALIDATION;
-      return bodyCollisionState;
-    }
     boost::intrusive_ptr<Node> GetFullbodyNode() { DO_VALIDATION; return fullbodyNode; }
 
     virtual float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
@@ -363,10 +353,7 @@ class HumanoidBase {
     boost::intrusive_ptr<Node> fullbodyTargetNode;
     // Used for ball collision detection. Seems to be the one to snapshot.
     boost::intrusive_ptr<Node> humanoidNode;
-    // Collision snapshot consumed by match logic. During the migration this
-    // is populated from the legacy humanoid Geometry after animation updates.
-    BodyCollisionState bodyCollisionState;
-    // Updated in UpdateFullbodyNodes, no need to snapshot.
+
     boost::intrusive_ptr<Geometry> hairStyle;
     // Initiated in the constructor, no need to snapshot.
     std::string kitDiffuseTextureIdentString = "kit_template.png";

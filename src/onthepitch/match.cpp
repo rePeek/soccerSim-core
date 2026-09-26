@@ -31,6 +31,7 @@
 #include "file.h"
 #include "player/playerofficial.hpp"
 #include "player/player_action_volume.hpp"
+#include "player/player_body_collider.hpp"
 #include "ball_presentation.hpp"
 #include "proceduralpitch.hpp"
 
@@ -822,21 +823,6 @@ bool Match::Process() {
   bool reverse = GetScenarioConfig().reverse_team_processing;
   DO_VALIDATION;
 
-  // Refresh the collision pose snapshots from the body geometry the previous
-  // tick left behind. This used to happen in HumanoidBase::FetchPutBuffers(),
-  // i.e. in the animation/buffer phase; deriving it here keeps the legacy
-  // one-tick lag identical while ensuring no simulation-authoritative state is
-  // produced outside a simulation tick. This must stay the first thing in the
-  // tick: it is the only point between two ticks with no Mirror() toggle.
-  {
-    std::vector<Player *> collisionPlayers;
-    GetTeam(first_team)->GetActivePlayers(collisionPlayers);
-    GetTeam(second_team)->GetActivePlayers(collisionPlayers);
-    for (auto *player : collisionPlayers) {
-      DO_VALIDATION;
-      player->UpdateBodyCollisionState();
-    }
-  }
 
   Mirror(reverse, !reverse, reverse);
   if (IsInPlay()) {
@@ -1573,13 +1559,12 @@ void Match::CheckBallCollisions() {
              ball->Predict(0))
                 .GetLength() < 2.5f) {
           DO_VALIDATION;  // premature optimization is the root of all evil :D
-          const auto &colliders =
-              players[i]->GetBodyCollisionState().GetColliders();
-          for (const auto &collider : colliders) {
+          const PlayerBodyCollider body =
+              BuildBodyCollider(players[i]->GetKinematicState());
+          for (const BodyVolume *volume : body.GetVolumes()) {
             DO_VALIDATION;
-            const AABB &objAABB = collider.bounds;
             float ballRadius = 0.11f + boundingBoxSizeOffset;
-            if (objAABB.Intersects(ball->Predict(0), ballRadius)) {
+            if (volume->IntersectsSphere(ball->Predict(0), ballRadius)) {
               DO_VALIDATION;
               if (players[i] == players[i]
                                     ->GetTeam()
@@ -1590,19 +1575,21 @@ void Match::CheckBallCollisions() {
               } else {
                 float movementBias = oppLastTouchBias * 0.8f + 0.2f;
                 bounceVec +=
-                    (ball->Predict(0) - collider.anchor)
+                    (ball->Predict(0) - volume->center)
                         .GetNormalized(Vector3(0)) *
                         movementBias +
                     players[i]->GetMovement() * (1.0f - movementBias);
                 bounceCount++;
                 players[i]->GetTeam()->SetLastTouchPlayer(
                     players[i], e_TouchType_Accidental);
-                Vector3 aabbCenter;
-                objAABB.GetCenter(aabbCenter);
+                // Centrality of the hit, relative to the volume radius. The
+                // legacy code normalised by the AABB half diagonal, which
+                // inflates the scale for elongated parts; the primitive radius
+                // is the more meaningful body extent.
                 bias += (1.0f -
-                         clamp(((ball->Predict(0) - aabbCenter).GetLength() -
+                         clamp(((ball->Predict(0) - volume->center).GetLength() -
                                 ballRadius) /
-                                   objAABB.GetRadius(),
+                                   volume->radius,
                                0.0f, 1.0f)) *
                             0.9f +
                         0.1f;
