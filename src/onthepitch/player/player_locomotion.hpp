@@ -235,15 +235,31 @@ class PlayerLocomotion {
     ++PlayerLocomotionInterceptSolverCalls();
     PlayerLocomotionReach intercept;
     if (desired_speed <= 0.0f) return intercept;
+    // Exact reachability bound. Step() never adds more than
+    // acceleration * dt to the speed and never exceeds
+    // max(initial speed, min(desired speed, maxSpeed)), so in n steps the
+    // actor can cover at most dMax(n) metres. A candidate farther away than
+    // dMax(n) + radius therefore cannot be reached inside its horizon, for
+    // either radius, so skipping it cannot change the answer. This is much
+    // tighter than a linear desired_speed * t bound because it accounts for the
+    // acceleration ramp, which is what makes the solver O(N^2) otherwise.
+    const float dt = 0.01f;
+    const float speed_ceiling =
+        std::max(start.velocity.GetLength(),
+                 std::min(desired_speed, parameters.maxSpeed));
+    float bound_speed = start.velocity.GetLength();
+    float bound_distance = 0.0f;
     for (int intercept_ms = 0; intercept_ms <= horizon_ms;
          intercept_ms += 10) {
       const Vector3 intercept_point = target_at(intercept_ms).Get2D();
-      // Necessary condition, so the answer is unchanged: no actor can cover
-      // more ground than desired_speed allows. This prunes candidates that
-      // cannot be feasible before paying for a rollout.
+      // A hair of slack keeps the bound conservative under rounding, which only
+      // ever weakens the pruning and never prunes a reachable candidate.
       if (intercept_ms > 0 &&
           (intercept_point - start.position).GetLength() >
-              desired_speed * (intercept_ms * 0.001f) + optimistic_radius) {
+              bound_distance + optimistic_radius + 1e-3f) {
+        bound_speed = std::min(speed_ceiling,
+                               bound_speed + parameters.acceleration * dt);
+        bound_distance += bound_speed * dt;
         continue;
       }
       const PlayerLocomotionReach arrival =
@@ -256,6 +272,9 @@ class PlayerLocomotion {
         intercept.usual_ms = intercept_ms;
       }
       if (intercept.usual_ms >= 0) break;
+      bound_speed = std::min(speed_ceiling,
+                             bound_speed + parameters.acceleration * dt);
+      bound_distance += bound_speed * dt;
     }
     return intercept;
   }
