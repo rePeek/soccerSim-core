@@ -282,6 +282,41 @@ void CheckPlayerActionExecutor() {
           "action executor should emit one completion event");
 }
 
+// H3e1a: the exact authority boundary for procedural locomotion. Only plain
+// Movement ticks with no scheduled contact and no ball retention may leave
+// the animation root-motion path; everything else must keep it because the
+// animation root also feeds the touch vector and impulse algorithms.
+void CheckPureLocomotionBoundary() {
+  PlayerActionState movement;
+  movement.type = e_FunctionType_Movement;
+  Require(movement.IsPureLocomotion(false),
+          "pure locomotion: plain movement should be eligible");
+  Require(!movement.IsPureLocomotion(true),
+          "pure locomotion: retaining the ball must stay animation-driven");
+
+  PlayerActionState contact = movement;
+  contact.contactTime_ms = 120;
+  contact.contactFrame = 12;
+  Require(!contact.IsPureLocomotion(false),
+          "pure locomotion: a scheduled contact must stay animation-driven");
+
+  const e_FunctionType animated[] = {
+      e_FunctionType_None,       e_FunctionType_BallControl,
+      e_FunctionType_Trap,       e_FunctionType_ShortPass,
+      e_FunctionType_LongPass,   e_FunctionType_HighPass,
+      e_FunctionType_Header,     e_FunctionType_Shot,
+      e_FunctionType_Deflect,    e_FunctionType_Catch,
+      e_FunctionType_Interfere,  e_FunctionType_Trip,
+      e_FunctionType_Sliding,    e_FunctionType_Special};
+  for (e_FunctionType type : animated) {
+    PlayerActionState action;
+    action.type = type;
+    Require(!action.IsPureLocomotion(false),
+            "pure locomotion: a non-locomotion action must stay "
+            "animation-driven");
+  }
+}
+
 void CheckPlayerActionVolume() {
   PlayerActionState action;
   PlayerKinematicState kinematics;
@@ -840,6 +875,141 @@ void CheckMovementAuthorityTiming(GameEnv& env, ScenarioConfig& config) {
       env, "kinematic mirror after an overlapped collision tick");
 }
 
+// H3e1a: measure how far the existing procedural locomotion model
+// (PlayerKinematics) is from the legacy animation root motion over one tick of
+// pure locomotion. This is deliberately a measurement, not a contract: it
+// quantifies the semantic change H3e1b would accept, so the numbers are
+// reported instead of asserted. Nothing in the simulation reads this.
+void MeasureProceduralLocomotionDivergence(GameEnv& env,
+                                           ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "procedural locomotion divergence: kickoff");
+  Match* match = env.context->gameTask->GetMatch();
+
+  struct PendingSample {
+    Player* player;
+    PlayerKinematicState state;
+    PlayerCommand command;
+    int anim_id;
+  };
+
+  // Raw counts everything the boundary covers, including ticks that were not
+  // a continuation of the sampled action (a requeue selects a new command
+  // inside the tick) and ticks whose position was teleported or collision
+  // corrected. Those are not model error, so the clean subset below is what
+  // actually characterises the procedural model's per-tick gap.
+  int samples = 0;
+  int clean_samples = 0;
+  int eligible_observations = 0;
+  double clean_position_error_sum = 0.0;
+  double clean_velocity_error_sum = 0.0;
+  double clean_facing_error_sum = 0.0;
+  double clean_max_position_error = 0.0;
+  double clean_legacy_step_sum = 0.0;
+  const double plausible_step_limit = 0.15;
+
+  const int ticks = 400;
+  for (int tick = 0; tick < ticks; ++tick) {
+    std::vector<Player*> players;
+    match->GetActiveTeamPlayers(match->FirstTeam(), players);
+    match->GetActiveTeamPlayers(match->SecondTeam(), players);
+
+    std::vector<PendingSample> pending;
+    for (Player* player : players) {
+      if (player->IsEligibleForProceduralLocomotion()) {
+        ++eligible_observations;
+      }
+      const Anim* anim = player->GetCurrentAnim();
+      const PlayerCommand& command = anim->originatingCommand;
+      if (!player->IsEligibleForProceduralLocomotion() ||
+          !command.useDesiredMovement) {
+        continue;
+      }
+      pending.push_back(PendingSample{player, player->GetKinematicState(),
+                                      command, anim->id});
+    }
+
+    env.step();
+
+    for (const PendingSample& sample : pending) {
+      if (!sample.player->IsEligibleForProceduralLocomotion()) continue;
+      PlayerKinematicState predicted = sample.state;
+      PlayerKinematicInput input;
+      const float desiredSpeed =
+          clamp(sample.command.desiredVelocityFloat, 0.0f,
+                sample.player->GetMaxVelocity());
+      input.desiredVelocity =
+          sample.command.desiredDirection.Get2D().GetNormalized(
+              predicted.facing) *
+          desiredSpeed;
+      input.desiredFacing =
+          input.desiredVelocity.GetNormalized(predicted.facing);
+      if (sample.command.useDesiredLookAt) {
+        input.desiredFacing =
+            (sample.command.desiredLookAt - predicted.position)
+                .Get2D()
+                .GetNormalized(input.desiredFacing);
+      }
+      PlayerKinematicParameters parameters;
+      parameters.maxSpeed = sample.player->GetMaxVelocity();
+      PlayerKinematics::Step(predicted, input, parameters, 0.01f);
+
+      const PlayerKinematicState& actual =
+          sample.player->GetKinematicState();
+      const double position_error =
+          (predicted.position - actual.position).GetLength();
+      const double velocity_error =
+          (predicted.velocity - actual.velocity).GetLength();
+      const double facing_error =
+          std::fabs(predicted.facing.GetAngle2D(actual.facing));
+      ++samples;
+
+      const double legacy_step =
+          (actual.position - sample.state.position).GetLength();
+      const bool action_continued =
+          sample.player->GetCurrentAnim()->id == sample.anim_id;
+      if (action_continued && legacy_step <= plausible_step_limit) {
+        clean_position_error_sum += position_error;
+        clean_velocity_error_sum += velocity_error;
+        clean_facing_error_sum += facing_error;
+        clean_legacy_step_sum += legacy_step;
+        if (position_error > clean_max_position_error) {
+          clean_max_position_error = position_error;
+        }
+        ++clean_samples;
+      }
+
+      Require(predicted.position.coords[2] == 0.0f,
+              "procedural locomotion: a planar prediction left the pitch "
+              "plane");
+      Require(predicted.velocity.coords[2] == 0.0f,
+              "procedural locomotion: a planar prediction produced vertical "
+              "velocity");
+    }
+  }
+
+  Require(eligible_observations > 0,
+          "procedural locomotion: the eligibility boundary never held, so "
+          "the divergence measurement would be vacuous");
+  Require(samples > 0,
+          "procedural locomotion: no comparable locomotion tick was "
+          "collected");
+  Require(clean_samples > 0,
+          "procedural locomotion: no continued-action locomotion tick was "
+          "collected");
+  std::cout << "locomotion divergence: eligible_observations="
+            << eligible_observations << " samples=" << samples
+            << " clean_samples=" << clean_samples
+            << " clean_mean_position_error="
+            << (clean_position_error_sum / clean_samples)
+            << " clean_max_position_error=" << clean_max_position_error
+            << " clean_mean_velocity_error="
+            << (clean_velocity_error_sum / clean_samples)
+            << " clean_mean_facing_error="
+            << (clean_facing_error_sum / clean_samples)
+            << " clean_mean_legacy_step="
+            << (clean_legacy_step_sum / clean_samples) << "\n";
+}
 
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
@@ -1223,6 +1393,7 @@ int main(int argc, char** argv) {
     CheckPlayerKinematicMirror();
     CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
+    CheckPureLocomotionBoundary();
     CheckPlayerActionVolume();
     CheckPlayerBodyCollider();
     GameEnv env;
@@ -1250,6 +1421,7 @@ int main(int argc, char** argv) {
     CheckRetainAnchor(env, config);
     CheckResetAndStateRoundTrip(env, config);
     CheckMovementAuthorityTiming(env, config);
+    MeasureProceduralLocomotionDivergence(env, config);
     CheckMatchTransitions(env, config);
     CheckReverseTeamProcessing(env, config);
     std::cout << "football_regression: PASS\n";

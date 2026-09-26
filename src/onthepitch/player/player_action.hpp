@@ -11,9 +11,9 @@
 #include "../../defines.hpp"
 
 // Explicit action timing consumed by gameplay, match rules and collision logic.
-// During H3d2a PlayerActionExecutor advances this schedule independently at
-// action selection and every 10 ms tick; a Humanoid-derived legacy state is
-// retained solely as an exact oracle. H3d2b promotes this clock to authority.
+// PlayerActionExecutor is the authoritative producer: Humanoid only supplies
+// the definition of a newly selected action. Gameplay, referee, collision,
+// possession and the Humanoid lifecycle gates all read this state.
 struct PlayerActionState {
   e_FunctionType type = e_FunctionType_None;
   int frame = 0;
@@ -36,6 +36,18 @@ struct PlayerActionState {
   }
   bool IsAtLastFrame() const {
     return frameCount > 0 && frame >= frameCount - 1;
+  }
+
+  // The H3e locomotion authority boundary. Procedural locomotion may only
+  // replace animation root motion for ordinary running with no ball
+  // interaction. Every other case (contact scheduled on this action, the
+  // actor retaining the ball, or any non-Movement action such as Shot, Pass,
+  // Trap, BallControl, Sliding, Deflect, Trip and Special) must keep the
+  // legacy animation motion, because the animation root path also drives the
+  // touch vector and impulse algorithms.
+  bool IsPureLocomotion(bool retains_ball) const {
+    return type == e_FunctionType_Movement && !HasScheduledContact() &&
+           !retains_ball;
   }
 
   void ProcessState(EnvState *state) {

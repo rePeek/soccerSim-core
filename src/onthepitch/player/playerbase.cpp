@@ -196,6 +196,11 @@ void PlayerBase::StepSimulationAction(int elapsedTime_ms) {
   CheckSimulationActionOracle();
 }
 
+bool PlayerBase::IsEligibleForProceduralLocomotion() const {
+  DO_VALIDATION;
+  return actionState.IsPureLocomotion(match->GetBallRetainer() == this);
+}
+
 void PlayerBase::ResetKinematicShadow() {
   DO_VALIDATION;
   kinematicShadow = kinematicState;
@@ -204,7 +209,7 @@ void PlayerBase::ResetKinematicShadow() {
 void PlayerBase::UpdateKinematicShadow() {
   DO_VALIDATION;
   const PlayerCommand &command = humanoid->GetOriginatingCommand();
-  if (humanoid->GetCurrentFunctionType() != e_FunctionType_Movement ||
+  if (GetCurrentFunctionType() != e_FunctionType_Movement ||
       !command.useDesiredMovement) {
     ResetKinematicShadow();
     return;
