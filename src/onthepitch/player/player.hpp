@@ -96,8 +96,6 @@ class Player : public PlayerBase {
     const TacticalPlayerSituation &GetTacticalSituation() { DO_VALIDATION; return tacticalSituation; }
 
     virtual void Process();
-    virtual void PreparePutBuffers();
-    virtual void FetchPutBuffers();
     void Put2D(bool mirror);
     void Hide2D();
 

@@ -286,28 +286,6 @@ void HumanoidBase::Process() {
   animApplyBuffer.offsets = offsets;
 }
 
-void HumanoidBase::PreparePutBuffers() {
-  DO_VALIDATION;
-  CalculateGeomOffsets();
-}
-
-void HumanoidBase::FetchPutBuffers() {
-  DO_VALIDATION;
-  animApplyBuffer.anim->Apply(nodeMap, animApplyBuffer.frameNum, -1, animApplyBuffer.smooth, animApplyBuffer.smoothFactor, animApplyBuffer.position, animApplyBuffer.orientation, animApplyBuffer.offsets, &movementHistory, 10, animApplyBuffer.noPos, false);
-  humanoidNode->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
-}
-
-
-void HumanoidBase::CalculateGeomOffsets() { DO_VALIDATION; }
-
-void HumanoidBase::SetOffset(BodyPart body_part, float bias,
-                             const Quaternion &orientation, bool isRelative) {
-  DO_VALIDATION;
-  BiasedOffset& biasedOffset = offsets[body_part];
-  biasedOffset.bias = bias;
-  biasedOffset.orientation = orientation;
-}
-
 int HumanoidBase::GetIdleMovementAnimID() {
   DO_VALIDATION;
   CrudeSelectionQuery query;

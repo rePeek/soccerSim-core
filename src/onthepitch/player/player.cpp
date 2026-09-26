@@ -329,16 +329,6 @@ void Player::Process() {
   }
 }
 
-void Player::PreparePutBuffers() {
-  DO_VALIDATION;
-  PlayerBase::PreparePutBuffers();
-}
-
-void Player::FetchPutBuffers() {
-  DO_VALIDATION;
-
-  PlayerBase::FetchPutBuffers();
-}
 
 void Player::Put2D(bool /*mirror*/) {
   DO_VALIDATION;

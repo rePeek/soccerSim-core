@@ -493,30 +493,6 @@ std::string CaptureSimulationDigest(GameEnv& env) {
 
 // Invariant #7: a presentation operation must not modify any state the next
 // simulation tick reads.
-// Invariant: the whole presentation pipeline must be inert with respect to
-// simulation state. Checked against a fingerprint that includes the
-// deterministic RNG *state*, so a presentation function sneakily consuming a
-// random draw is caught immediately rather than via a golden mismatch much
-// later.
-void RequirePresentationInert(GameEnv& env, const std::string& label) {
-  Match* match = env.context->gameTask->GetMatch();
-  const long drawsBefore = env.context->rng_draw_count;
-  const std::string before = CaptureSimulationDigest(env);
-
-  match->PreparePutBuffers();
-  match->FetchPutBuffers();
-  match->Put();
-
-  const std::string after = CaptureSimulationDigest(env);
-  if (before != after) {
-    std::ostringstream message;
-    message << label << ": presentation pipeline mutated simulation state"
-            << " (digest sizes " << before.size() << " vs " << after.size()
-            << ", rng draws " << (env.context->rng_draw_count - drawsBefore)
-            << ")";
-    throw RegressionFailure(message.str());
-  }
-}
 
 ScenarioConfig MakeBuiltinAiConfig() {
   auto config = ScenarioConfig::make();
@@ -616,7 +592,6 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
     RequirePositionNear(info.right_team.front().player_position,
                         expected.right_player_0, label + ": right player 0");
     CheckKinematicMirrorConsistency(env, label);
-    RequirePresentationInert(env, label);
     const uint64_t hash = HashInfo(info);
     if (hash != expected.hash) {
       std::ostringstream message;

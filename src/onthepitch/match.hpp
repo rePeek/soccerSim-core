@@ -118,9 +118,6 @@ class Match {
     void GetState(SharedInfo* state);
     void ProcessState(EnvState* state);
     bool Process();
-    void PreparePutBuffers();
-    void FetchPutBuffers();
-    void Put();
 
     boost::intrusive_ptr<Node> GetDynamicNode();
 

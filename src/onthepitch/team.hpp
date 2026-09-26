@@ -119,8 +119,6 @@ class Team {
     void RelaxFatigue(float howMuch);
 
     void Process();
-    void PreparePutBuffers();
-    void FetchPutBuffers();
     void Put2D(bool mirror);
     void Hide2D();
 

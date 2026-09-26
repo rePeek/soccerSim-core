@@ -497,28 +497,6 @@ void Team::Process() {
   }
 }
 
-void Team::PreparePutBuffers() {
-  DO_VALIDATION;
-  for (unsigned int i = 0; i < players.size(); i++) {
-    DO_VALIDATION;
-    if (players[i]->IsActive()) {
-      DO_VALIDATION;
-      players[i]->PreparePutBuffers();
-    }
-  }
-}
-
-void Team::FetchPutBuffers() {
-  DO_VALIDATION;
-  for (unsigned int i = 0; i < players.size(); i++) {
-    DO_VALIDATION;
-    if (players[i]->IsActive()) {
-      DO_VALIDATION;
-      players[i]->FetchPutBuffers();
-    }
-  }
-}
-
 void Team::Put2D(bool mirror) {
   DO_VALIDATION;
   for (unsigned int i = 0; i < players.size(); i++) {

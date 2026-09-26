@@ -44,7 +44,6 @@ class PlayerOfficial : public PlayerBase {
     virtual void Deactivate();
 
     virtual void Process();
-    virtual void FetchPutBuffers();
 
   protected:
     e_OfficialType officialType;

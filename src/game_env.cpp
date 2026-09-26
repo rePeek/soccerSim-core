@@ -354,7 +354,6 @@ void GameEnv::ProcessState(EnvState* state) {
 
 void GameEnv::render(bool swap_buffer) {
   GetTracker()->setDisabled(true);
-  context->gameTask->PrepareRender();
   context->graphicsSystem.GetTask()->Render(swap_buffer);
   GetTracker()->setDisabled(false);
 }

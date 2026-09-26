@@ -223,15 +223,6 @@ void PlayerBase::Process() {
   }
 }
 
-void PlayerBase::PreparePutBuffers() {
-  DO_VALIDATION;
-  humanoid->PreparePutBuffers();
-}
-
-void PlayerBase::FetchPutBuffers() {
-  DO_VALIDATION;
-  humanoid->FetchPutBuffers();
-}
 
 float PlayerBase::GetStat(PlayerStat name) const {
   return playerData->GetStat(name);

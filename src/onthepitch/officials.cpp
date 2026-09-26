@@ -86,13 +86,6 @@ void Officials::Process() {
   GetContext().tracker_disabled--;
 }
 
-void Officials::FetchPutBuffers() {
-  DO_VALIDATION;
-  referee->FetchPutBuffers();
-  linesmen[0]->FetchPutBuffers();
-  linesmen[1]->FetchPutBuffers();
-}
-
 
 void Officials::ProcessState(EnvState *state) {
   DO_VALIDATION;

@@ -126,8 +126,6 @@ class PlayerBase {
     float GetDecayingPositionOffsetLength() { DO_VALIDATION; return humanoid->GetDecayingPositionOffsetLength(); }
 
     virtual void Process();
-    virtual void PreparePutBuffers();
-    virtual void FetchPutBuffers();
 
 
     virtual float GetStat(PlayerStat name) const;

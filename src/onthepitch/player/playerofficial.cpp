@@ -74,8 +74,3 @@ void PlayerOfficial::Process() {
   UpdateActionExecutorShadow();
   UpdateKinematicShadow();
 }
-
-void PlayerOfficial::FetchPutBuffers() {
-  DO_VALIDATION;
-  PlayerBase::FetchPutBuffers();
-}

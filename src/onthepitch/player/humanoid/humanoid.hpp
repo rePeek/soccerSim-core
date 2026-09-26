@@ -37,7 +37,6 @@ class Humanoid : public HumanoidBase {
 
     virtual void Process();
 
-    virtual void CalculateGeomOffsets();
 
     bool TouchPending() { DO_VALIDATION; return (currentAnim.frameNum < currentAnim.touchFrame) ? true : false; }
     bool TouchAnim() { DO_VALIDATION; return (currentAnim.touchFrame != -1) ? true : false; }

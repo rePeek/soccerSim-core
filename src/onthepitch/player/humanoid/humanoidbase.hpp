@@ -211,11 +211,7 @@ class HumanoidBase {
 
 
     virtual void Process();
-    void PreparePutBuffers();
-    void FetchPutBuffers();
 
-    virtual void CalculateGeomOffsets();
-    void SetOffset(BodyPart body_part, float bias, const Quaternion &orientation, bool isRelative = false);
 
     inline int GetFrameNum() { DO_VALIDATION; return currentAnim.frameNum; }
     inline int GetFrameCount() { DO_VALIDATION; return currentAnim.anim->GetFrameCount(); }

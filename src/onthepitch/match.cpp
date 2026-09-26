@@ -616,33 +616,6 @@ bool Match::Process() {
   return true;
 }
 
-
-void Match::PreparePutBuffers() {
-  DO_VALIDATION;
-  Mirror(false, false, first_team == 1);
-  teams[first_team]->PreparePutBuffers();
-  Mirror(false, false, true);
-  teams[second_team]->PreparePutBuffers();
-  Mirror(false, false, first_team == 0);
-}
-
-void Match::FetchPutBuffers() {
-  DO_VALIDATION;
-  DO_VALIDATION;
-  teams[first_team]->FetchPutBuffers();
-  teams[second_team]->FetchPutBuffers();
-  officials->FetchPutBuffers();
-}
-
-void Match::Put() {
-  DO_VALIDATION;
-
-  // Only the legacy humanoid node tree is refreshed here now that the actor
-  // meshes are gone; that tree is still read by the ball retainer, so it
-  // belongs to the H3 animation-driven simulation work, not to D3.
-  GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
-}
-
 boost::intrusive_ptr<Node> Match::GetDynamicNode() {
   DO_VALIDATION;
   return dynamicNode;
