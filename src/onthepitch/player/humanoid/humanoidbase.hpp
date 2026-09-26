@@ -33,7 +33,6 @@ using namespace blunted;
 class PlayerBase;
 class Match;
 
-
 enum e_InterruptAnim {
   e_InterruptAnim_None,
   e_InterruptAnim_Switch,
@@ -107,44 +106,6 @@ struct Anim {
   }
 };
 
-struct AnimApplyBuffer {
-  AnimApplyBuffer() { DO_VALIDATION;
-    frameNum = 0;
-    smooth = true;
-    smoothFactor = 0.5f;
-    noPos = false;
-    orientation = 0;
-  }
-  AnimApplyBuffer(const AnimApplyBuffer &src) { DO_VALIDATION;
-    anim = src.anim;
-    frameNum = src.frameNum;
-    smooth = src.smooth;
-    smoothFactor = src.smoothFactor;
-    noPos = src.noPos;
-    position = src.position;
-    orientation = src.orientation;
-    offsets = src.offsets;
-  }
-  void ProcessState(EnvState* state) { DO_VALIDATION;
-    state->process(anim);
-    state->process(frameNum);
-    state->process(smooth);
-    state->process(smoothFactor);
-    state->process(noPos);
-    state->process(position);
-    state->process(orientation);
-    offsets.ProcessState(state);
-  }
-  Animation *anim = 0;
-  int frameNum = 0;
-  bool smooth = false;
-  float smoothFactor = 0.0f;
-  bool noPos = false;
-  Vector3 position;
-  radian orientation;
-  BiasedOffsets offsets;
-};
-
 struct SpatialState {
   Vector3 position;
   radian angle;
@@ -209,9 +170,7 @@ class HumanoidBase {
     virtual ~HumanoidBase();
     void Mirror();
 
-
     virtual void Process();
-
 
     inline int GetFrameNum() { DO_VALIDATION; return currentAnim.frameNum; }
     inline int GetFrameCount() { DO_VALIDATION; return currentAnim.anim->GetFrameCount(); }
@@ -244,9 +203,6 @@ class HumanoidBase {
       DO_VALIDATION;
       return currentAnim.originatingCommand;
     }
-
-
-
 
     virtual void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState* state);
@@ -309,9 +265,6 @@ class HumanoidBase {
     // Shared between all players, no need to snapshot.
     boost::shared_ptr<AnimCollection> anims;
     // Seems to contain current animation context.
-    AnimApplyBuffer animApplyBuffer;
-
-    BiasedOffsets offsets;
 
     Anim currentAnim;
     int previousAnim_frameNum;
@@ -354,7 +307,6 @@ class HumanoidBase {
     // Should be dynamically retrieved from match, don't cache.
     int mentalImageTime = 0;
 
-    MovementHistory movementHistory;
     bool mirrored = false;
 };
 

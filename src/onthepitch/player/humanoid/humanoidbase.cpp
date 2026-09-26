@@ -98,7 +98,6 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
   humanoidNode = bla;
   humanoidNode->SetLocalMode(e_LocalMode_Absolute);
 
-
   ResetPosition(Vector3(0), Vector3(0));
   mentalImageTime = 0;
 }
@@ -133,11 +132,7 @@ void HumanoidBase::Mirror() {
   predicate_LookAt.Mirror();
   predicate_RelDesiredTripDirection.Mirror();
   predicate_RelDesiredBallDirection.Mirror();
-  // movementHistory // only animation?
 }
-
-
-
 
 void HumanoidBase::Process() {
   DO_VALIDATION;
@@ -145,7 +140,6 @@ void HumanoidBase::Process() {
   decayingPositionOffset *= 0.95f;
   if (decayingPositionOffset.GetLength() < 0.005) decayingPositionOffset.Set(0);
   decayingDifficultyFactor = clamp(decayingDifficultyFactor - 0.002f, 0.0f, 1.0f);
-
 
   assert(match);
 
@@ -162,7 +156,6 @@ void HumanoidBase::Process() {
   }
 
   bool mayReQueue = false;
-
 
   // already some anim interrupt waiting?
 
@@ -224,10 +217,6 @@ void HumanoidBase::Process() {
 
       CalculatePredictedSituation(nextStartPos, nextStartAngle);
 
-      animApplyBuffer.anim = currentAnim.anim;
-      animApplyBuffer.smooth = true;
-      animApplyBuffer.smoothFactor = (interruptAnim == e_InterruptAnim_Switch) ? 0.6f : 1.0f;
-
       // decaying difficulty
       float animDiff = atof(currentAnim.anim->GetVariable("animdifficultyfactor").c_str());
       if (animDiff > decayingDifficultyFactor) decayingDifficultyFactor = animDiff;
@@ -241,7 +230,6 @@ void HumanoidBase::Process() {
     }
   }
   reQueueDelayFrames = clamp(reQueueDelayFrames - 1, 0, 10000);
-
 
   interruptAnim = e_InterruptAnim_None;
 
@@ -266,23 +254,13 @@ void HumanoidBase::Process() {
   currentAnim.rotationSmuggleOffset = currentAnim.rotationSmuggle.begin * (1.0f - frameBias) +
                                        currentAnim.rotationSmuggle.end * frameBias;
 
-
   // next frame
-
-  animApplyBuffer.frameNum = currentAnim.frameNum;
 
   if (currentAnim.positions.size() > (unsigned int)currentAnim.frameNum) {
     DO_VALIDATION;
-    animApplyBuffer.position = startPos + currentAnim.actionSmuggleOffset + currentAnim.actionSmuggleSustainOffset + currentAnim.movementSmuggleOffset + currentAnim.positions.at(currentAnim.frameNum);
-    animApplyBuffer.orientation = startAngle + currentAnim.rotationSmuggleOffset;
-    animApplyBuffer.noPos = true;
   } else {
-    animApplyBuffer.position = startPos + currentAnim.actionSmuggleOffset + currentAnim.actionSmuggleSustainOffset + currentAnim.movementSmuggleOffset;
-    animApplyBuffer.orientation = startAngle;
-    animApplyBuffer.noPos = false;
   }
 
-  animApplyBuffer.offsets = offsets;
 }
 
 int HumanoidBase::GetIdleMovementAnimID() {
@@ -379,20 +357,12 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
 
   humanoidNode->SetPosition(startPos, false);
 
-  animApplyBuffer.anim = currentAnim.anim;
-  animApplyBuffer.smooth = false;
-  animApplyBuffer.smoothFactor = 0.0f;
-  animApplyBuffer.position = startPos;
-  animApplyBuffer.orientation = startAngle;
-  animApplyBuffer.offsets.clear();
-
   interruptAnim = e_InterruptAnim_None;
   tripType = 0;
 
   decayingPositionOffset = Vector3(0);
   decayingDifficultyFactor = 0.0f;
 
-  movementHistory.clear();
   reQueueDelayFrames = 0;
   tripDirection = Vector3(0);
   humanoidNode->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
@@ -400,7 +370,6 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
 
 void HumanoidBase::OffsetPosition(const Vector3 &offset) {
   DO_VALIDATION;
-
 
   assert(offset.coords[2] == 0.0f);
 
@@ -562,7 +531,6 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
   radian bestOutgoingAngle = ForceIntoPreferredDirectionAngle(bestAnim->GetOutgoingAngle());
   radian bestLookAngle = bestOutgoingBodyAngle + bestOutgoingAngle;
 
-
   DataSet::iterator iter = dataSet.begin();
   iter++;
   while (iter != dataSet.end()) {
@@ -595,7 +563,6 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   assert(command.desiredDirection.coords[2] == 0.0f);
 
   if (localInterruptAnim != e_InterruptAnim_ReQueue || currentAnim.frameNum > 12) CalculateFactualSpatialState();
-
 
   // CREATE A CRUDE SET OF POTENTIAL ANIMATIONS
 
@@ -831,7 +798,6 @@ void HumanoidBase::CalculateSpatialState() {
   }
   spatialState.movement = spatialState.physicsMovement; // PICK DEFAULT
 
-
   Vector3 bodyPosition;
   Quaternion bodyOrientation;
   currentAnim.anim->GetKeyFrame(body, currentAnim.frameNum, bodyOrientation, bodyPosition);
@@ -1031,7 +997,6 @@ float HumanoidBase::GetMovementSimilarity(int animIndex, const Vector3 &relDesir
   float outgoingVelocity = RangeVelocity(anims->GetAnim(animIndex)->GetOutgoingVelocity());
   Vector3 outgoingMovement = outgoingDirection * outgoingVelocity;
 
-
   // anims that end at lower velocities have an advantage: they don't get dragged into the currentmovement that much
   // thus: have a bias that is higher at higher outgoing velocities, which means anim outgoingmovement gets more % of current movement and less % of their own
   // disabled for now - the new physics system disregards most of the anims movement anyway :)
@@ -1143,7 +1108,6 @@ void HumanoidBase::SetIdlePredicate(float desiredValue) const {
   predicate_idle = desiredValue;
 }
 
-
 bool HumanoidBase::CompareIdleVariable(int animIndex1, int animIndex2) const {
   return fabs(anims->GetAnim(animIndex1)->GetVariableCache().idlelevel() - predicate_idle) <
          fabs(anims->GetAnim(animIndex2)->GetVariableCache().idlelevel() - predicate_idle);
@@ -1237,7 +1201,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMov
 
   assert(adaptedCurrentMovement.coords[2] == 0.0f);
   assert(adaptedDesiredMovement.coords[2] == 0.0f);
-
 
   // orig anim positions
 
@@ -1400,7 +1363,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMov
     Vector3 adaptedAnimMovement = animMovement;
     float adaptedAnimVelo = animVelo;
 
-
     // adapt sprint velocity to player's max velocity stat
 
     if (animVelo > walkSprintSwitch &&
@@ -1458,22 +1420,17 @@ Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMov
     // angle
     resultingPhysicsMovement = resultingPhysicsMovement.GetRotated2D(toDesiredAngle_capped * frameBias);// * pow(frameBias, 0.6f));
 
-
     // --- stay true to anim? -----------------------------------------------------------------------------------------------------------------------
 
     resultingPhysicsMovement = resultingPhysicsMovement * physicsBias + animMovement * (1.0f - physicsBias);
-
 
     // that's it, we now know where we want to go in life
 
     Vector3 toDesired = (resultingPhysicsMovement - temporalMovement);
 
-
     // --- end --------------------------------------------------------------------------------------------------------------------------------------
 
-
     assert(toDesired.coords[2] == 0.0f);
-
 
     float penaltyBreakFactor = 0.0f;
     if (mod_BrakeOnTouch) {
@@ -1719,7 +1676,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMov
   return resultingMovement;
 }
 
-
 Vector3 HumanoidBase::ForceIntoAllowedBodyDirectionVec(const Vector3 &src) const {
 
   // check what allowed dir this vector is closest to
@@ -1789,8 +1745,6 @@ radian HumanoidBase::ForceIntoPreferredDirectionAngle(radian angle) const {
 void HumanoidBase::ProcessState(EnvState *state) {
   DO_VALIDATION;
   humanoidNode->ProcessState(state);
-  animApplyBuffer.ProcessState(state);
-  offsets.ProcessState(state);
   currentAnim.ProcessState(state);
   state->process(previousAnim_frameNum);
   state->process(previousAnim_functionType);
@@ -1806,12 +1760,5 @@ void HumanoidBase::ProcessState(EnvState *state) {
   state->process(tripDirection);
   state->process(decayingPositionOffset);
   state->process(decayingDifficultyFactor);
-  int s = movementHistory.size();
-  state->process(s);
-  movementHistory.resize(s);
-  for (auto &i : movementHistory) {
-    DO_VALIDATION;
-    i.ProcessState(state);
-  }
   state->process(mentalImageTime);
 }
