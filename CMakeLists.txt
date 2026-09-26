@@ -1,20 +1,19 @@
 cmake_minimum_required(VERSION 3.4)
 
 set(OUTPUT_LIB_NAME game)
-if(UNIX)
-  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
-endif()
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
 
 project(gameplayfootball)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  message(FATAL_ERROR "This project supports Linux only")
+endif()
 set(PACKAGE gameplayfootball)
 
 set(CMAKE_CXX_STANDARD 14)
 
-if(UNIX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS} -fPIC -g -O3")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -O3 -g")
-  set(OpenGL_GL_PREFERENCE GLVND)
-endif(UNIX)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS} -fPIC -g -O3")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -O3 -g")
+set(OpenGL_GL_PREFERENCE GLVND)
 
 # Find required libraries
 FIND_PACKAGE(OpenGL REQUIRED)
@@ -23,20 +22,12 @@ include_directories(${OPENGL_INCLUDE_DIR})
 FIND_PACKAGE(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 
-if(UNIX AND NOT APPLE)
-  FIND_PACKAGE(EGL REQUIRED)
-  include_directories(${EGL_INCLUDE_DIR})
-endif()
+FIND_PACKAGE(EGL REQUIRED)
+include_directories(${EGL_INCLUDE_DIR})
 
-if(WIN32)
-  FIND_PACKAGE(SDL2-image REQUIRED)
-  FIND_PACKAGE(SDL2-ttf REQUIRED)
-  FIND_PACKAGE(SDL2-gfx REQUIRED)
-else()  # Unix
-  FIND_PACKAGE(SDL2_image REQUIRED)
-  FIND_PACKAGE(SDL2_ttf REQUIRED)
-  FIND_PACKAGE(SDL2_gfx REQUIRED)
-endif()
+FIND_PACKAGE(SDL2_image REQUIRED)
+FIND_PACKAGE(SDL2_ttf REQUIRED)
+FIND_PACKAGE(SDL2_gfx REQUIRED)
 
 include_directories(${SDL2_IMAGE_DIRS})
 include_directories(${SDL2_TTF_DIRS})
@@ -78,11 +69,8 @@ add_library(gamelib ${GAME_SOURCES} ${GAME_HEADERS})
 add_library(menulib ${MENU_SOURCES} ${MENU_HEADERS})
 add_library(datalib ${DATA_SOURCES} ${DATA_HEADERS})
 
-if(UNIX)
-  set(SDL2_LIBS_ALL ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES} ${SDL2_GFX_LIBRARIES} ${SDL2_LIBRARIES})
-elseif(WIN32)
-  set(SDL2_LIBS_ALL SDL2::SDL2 SDL2::SDL2_image SDL2::SDL2_ttf SDL2::SDL2_gfx SDL2::SDL2main)
-endif()
+set(SDL2_LIBS_ALL ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES}
+   ${SDL2_GFX_LIBRARIES} ${SDL2_LIBRARIES})
 
 set(ENGINE_LIBRARIES gamelib menulib datalib blunted2
    Boost::filesystem Boost::system Boost::thread

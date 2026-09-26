@@ -21,9 +21,6 @@
 #include "../defines.hpp"
 
 #include <boost/detail/atomic_count.hpp>
-#ifdef WIN32
-#include <boost/detail/interlocked.hpp>
-#endif
 
 namespace blunted {
 

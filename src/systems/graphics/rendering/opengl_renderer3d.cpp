@@ -20,22 +20,11 @@
 #ifndef GL_GLEXT_PROTOTYPES
 #define GL_GLEXT_PROTOTYPES
 #endif
-#ifdef __APPLE__
-#define GL_SILENCE_DEPRECATION
-#include <OpenGL/gl3.h>
-#include <OpenGL/gl3ext.h>
-#else
 #include <GL/gl.h>
-#endif
-
-#ifdef __linux__
 #include <GL/glext.h>
 #define EGL_EGLEXT_PROTOTYPES
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#elif defined(WIN32)
-#include <SDL2/SDL_opengl_glext.h>
-#endif
 
 #include <cmath>
 #include "wrap_SDL.h"
@@ -389,11 +378,6 @@ void OpenGLRenderer3D::CreateContextSdl() {
 
   SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);  // DISABLED?
 
-#ifdef __APPLE__
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-#endif
 
   window = SDL_CreateWindow("Google Research Football", SDL_WINDOWPOS_UNDEFINED,
                             SDL_WINDOWPOS_UNDEFINED, context_width,
@@ -1944,20 +1928,12 @@ bool OpenGLRenderer3D::CheckFrameBufferStatus() {
 void OpenGLRenderer3D::SetRenderTargets(
     std::vector<e_TargetAttachment> targetAttachments) {
   DO_VALIDATION;
-#ifdef WIN32
-  std::vector<GLenum> targets(targetAttachments.size());
-#else
   GLenum targets[targetAttachments.size()];
-#endif
   for (int i = 0; i < (signed int)targetAttachments.size(); i++) {
     DO_VALIDATION;
     targets[i] = GetGLTargetAttachment(targetAttachments[i]);
   }
-#ifdef WIN32
-  mapping.glDrawBuffers(targetAttachments.size(), &targets[0]);
-#else
   mapping.glDrawBuffers(targetAttachments.size(), targets);
-#endif
 }
 
   // utility
@@ -2040,13 +2016,8 @@ void GeneratePoissonKernel(float *kernel, unsigned int kernelSize) {
     DO_VALIDATION;
     unsigned int candidateSize = 32;
 
-#ifdef WIN32
-    std::vector<Vector3> samples(kernelSize);
-    std::vector<Vector3> candidates(candidateSize);
-#else
     Vector3 samples[kernelSize];
     Vector3 candidates[candidateSize];
-#endif
 
     for (unsigned int i = 0; i < kernelSize; i++) {
       DO_VALIDATION;
@@ -2114,11 +2085,7 @@ void GeneratePoissonKernel(float *kernel, unsigned int kernelSize) {
     }
 
   } else {  // PRECALCULATED SET
-#ifdef WIN32
-    std::vector<Vector3> samples(kernelSize);
-#else
     Vector3 samples[kernelSize];
-#endif
 
     // these samples seem relatively close to z = 0 (much 'ground effect' on
     // flat surface)
@@ -2272,11 +2239,7 @@ void OpenGLRenderer3D::LoadShader(const std::string &name,
 
     unsigned int kernelSize = 32;
     // SetUniformInt("ambient", "SSAO_kernelSize", kernelSize);
-#ifdef WIN32
-    std::vector<float> SSAO_kernel(kernelSize * 3);
-#else
     float SSAO_kernel[kernelSize * 3];
-#endif
     GeneratePoissonKernel(&SSAO_kernel[0], kernelSize);
     SetUniformFloat3Array("ambient", "SSAO_kernel", kernelSize,
                           &SSAO_kernel[0]);

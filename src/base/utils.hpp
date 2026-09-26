@@ -124,28 +124,6 @@ namespace blunted {
   };
 
 
-#ifdef WIN32
-  // (c) Andreas Masur
-  class CPrecisionTimer {
-    LARGE_INTEGER lFreq, lStart;
-
-    public:
-      CPrecisionTimer() { DO_VALIDATION;
-        QueryPerformanceFrequency(&lFreq);
-      }
-
-      inline void Start() { DO_VALIDATION;
-        QueryPerformanceCounter(&lStart);
-      }
-
-      inline double Stop() { DO_VALIDATION;
-        // Return duration in seconds...
-        LARGE_INTEGER lEnd;
-        QueryPerformanceCounter(&lEnd);
-        return (double(lEnd.QuadPart - lStart.QuadPart) / lFreq.QuadPart);
-      }
-  };
-#endif
 
 }
 

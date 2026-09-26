@@ -15,11 +15,6 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifdef WIN32
-#define NOMINMAX
-#include <windows.h>
-#undef NOMINMAX
-#endif
 
 #include <string>
 
@@ -39,9 +34,6 @@
 
 using std::string;
 
-#if defined(WIN32) && defined(__MINGW32__)
-#undef main
-#endif
 
 using namespace blunted;
 
@@ -103,7 +95,7 @@ const std::vector<AIControlledKeyboard*>& GetControllers() {
 void randomize(unsigned int seed) {
   DO_VALIDATION;
   srand(seed);
-  rand(); // mingw32? buggy compiler? first value seems bogus
+  rand();  // Discard the first value before using the C RNG.
   randomseed(seed); // for the boost random
 }
 
@@ -138,10 +130,6 @@ void run_game(Properties* input_config, bool render) {
   game->context->gameTask = boost::shared_ptr<GameTask>(new GameTask());
   std::string fontfilename = game->context->config->Get(
       "font_filename", "media/fonts/alegreya/AlegreyaSansSC-ExtraBold.ttf");
-#ifdef WIN32
-  game->context->defaultFont = TTF_OpenFont(fontfilename.c_str(), 32);
-  game->context->defaultOutlineFont = TTF_OpenFont(fontfilename.c_str(), 32);
-#else
   game->context->font = GetFile(fontfilename);
   game->context->defaultFont =
       TTF_OpenFontIndexRW(SDL_RWFromConstMem(game->context->font.data(),
@@ -151,7 +139,6 @@ void run_game(Properties* input_config, bool render) {
       TTF_OpenFontIndexRW(SDL_RWFromConstMem(game->context->font.data(),
                                              game->context->font.size()),
                           0, 32, 0);
-#endif
   if (!game->context->defaultFont)
     Log(e_FatalError, "football", "main",
         "Could not load font " + fontfilename);
