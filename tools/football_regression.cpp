@@ -192,6 +192,25 @@ void CheckPlayerKinematics() {
               "kinematics planar position");
 }
 
+void CheckPlayerKinematicMirror() {
+  PlayerKinematicState state;
+  state.position = Vector3(1.0f, 2.0f, 0.0f);
+  state.velocity = Vector3(3.0f, 4.0f, 0.0f);
+  state.facing = Vector3(0.6f, 0.8f, 0.0f);
+  state.speed = 5.0f;
+
+  state.Mirror();
+  RequireNear(state.position.coords[0], -1.0f, "mirror position x");
+  RequireNear(state.position.coords[1], -2.0f, "mirror position y");
+  RequireNear(state.velocity.coords[0], -3.0f, "mirror velocity x");
+  RequireNear(state.velocity.coords[1], -4.0f, "mirror velocity y");
+  // Legacy spatial-state mirroring negates position and movement only, so a
+  // mirrored kinematic state must keep facing untouched.
+  RequireNear(state.facing.coords[0], 0.6f, "mirror facing x");
+  RequireNear(state.facing.coords[1], 0.8f, "mirror facing y");
+  RequireNear(state.speed, 5.0f, "mirror speed");
+}
+
 void CheckPlayerGroundCollider() {
   PlayerGroundCollider first;
   first.SetCenter(Vector3(0.0f, 0.0f, 2.0f));
@@ -436,6 +455,7 @@ int main(int /*argc*/, char** /*argv*/) {
 
   try {
     CheckPlayerKinematics();
+    CheckPlayerKinematicMirror();
     CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
     GameEnv env;

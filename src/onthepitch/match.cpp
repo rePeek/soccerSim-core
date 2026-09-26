@@ -1212,8 +1212,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     bounceVec = (p1pos - p2pos).GetNormalized(Vector3(0, -1, 0));
 
     // back facing
-    Vector3 p1facing = p1->GetDirectionVec().GetRotated2D(p1->GetRelBodyAngle() * 0.7f);
-    Vector3 p2facing = p2->GetDirectionVec().GetRotated2D(p2->GetRelBodyAngle() * 0.7f);
+    Vector3 p1facing = p1->GetKinematicState().facing.GetRotated2D(p1->GetRelBodyAngle() * 0.7f);
+    Vector3 p2facing = p2->GetKinematicState().facing.GetRotated2D(p2->GetRelBodyAngle() * 0.7f);
     p1backFacing = clamp(p1facing.GetDotProduct( bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f); // 0 .. 1 == worst .. best
     p2backFacing = clamp(p2facing.GetDotProduct(-bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f);
 
@@ -1277,8 +1277,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 
       if (GetDesignatedPossessionPlayer() == p2 && p2->HasPossession()) {
         DO_VALIDATION;
-        Vector3 p2_leftside = p2pos + p2->GetDirectionVec().GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
-        Vector3 p2_rightside = p2pos + p2->GetDirectionVec().GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
+        Vector3 p2_leftside = p2pos + p2->GetKinematicState().facing.GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
+        Vector3 p2_rightside = p2pos + p2->GetKinematicState().facing.GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
         float p1_to_p2_left = (p1pos - p2_leftside).GetLength();
         float p1_to_p2_right = (p1pos - p2_rightside).GetLength();
         Vector3 p2side = p1_to_p2_left < p1_to_p2_right ? p2_leftside : p2_rightside;
@@ -1288,8 +1288,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 
       else if (GetDesignatedPossessionPlayer() == p1 && p1->HasPossession()) {
         DO_VALIDATION;
-        Vector3 p1_leftside = p1pos + p1->GetDirectionVec().GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
-        Vector3 p1_rightside = p1pos + p1->GetDirectionVec().GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
+        Vector3 p1_leftside = p1pos + p1->GetKinematicState().facing.GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
+        Vector3 p1_rightside = p1pos + p1->GetKinematicState().facing.GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
         float p2_to_p1_left = (p2pos - p1_leftside).GetLength();
         float p2_to_p1_right = (p2pos - p1_rightside).GetLength();
         Vector3 p1side = p2_to_p1_left < p2_to_p1_right ? p1_leftside : p1_rightside;
@@ -1391,7 +1391,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 
       // penetration
       float penetrationWeight = 6.0f;
-      float penetration = ( (p1->GetPosition() + p1->GetMovement() * 0.03f) - (p2->GetPosition() + p2->GetMovement() * 0.03f) ).GetLength();
+      float penetration = ( (p1->GetPosition() + p1->GetKinematicState().velocity * 0.03f) - (p2->GetPosition() + p2->GetKinematicState().velocity * 0.03f) ).GetLength();
       //if (p1->GetDebug() || p2->GetDebug()) printf("penetration: %f\n", pow(1.0f - NormalizedClamp(penetration, 0.0f, bouncePlayerRadius * 2.0f), 0.4f));
       p1sensitivity +=
           std::pow(1.0f - NormalizedClamp(penetration, 0.0f,
@@ -1425,7 +1425,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
         if (p1sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           DO_VALIDATION;
-          p1->TripMe((p1->GetMovement() * 0.1f + p2->GetMovement() * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec), tripType);
+          p1->TripMe((p1->GetKinematicState().velocity * 0.1f + p2->GetKinematicState().velocity * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec), tripType);
           referee->TripNotice(p1, p2, tripType);
         }
       }
@@ -1436,7 +1436,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
         if (p2sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           DO_VALIDATION;
-          p2->TripMe((p2->GetMovement() * 0.1f + p1->GetMovement() * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec), tripType);
+          p2->TripMe((p2->GetKinematicState().velocity * 0.1f + p1->GetKinematicState().velocity * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec), tripType);
           referee->TripNotice(p2, p1, tripType);
         }
       }
@@ -1486,7 +1486,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
               if (p1Action.frame > 10 &&
                   p1Action.frame < p1Action.frameCount - 6) {
                 DO_VALIDATION;
-                Vector3 tripVec = p2->GetDirectionVec();
+                Vector3 tripVec = p2->GetKinematicState().facing;
                 int tripType = 3;  // sliding
                 if (p1Action.type == e_FunctionType_Interfere)
                   tripType = 1;  // was 2
@@ -1499,7 +1499,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
               if (p2Action.frame > 10 &&
                   p2Action.frame < p2Action.frameCount - 6) {
                 DO_VALIDATION;
-                Vector3 tripVec = p1->GetDirectionVec();
+                Vector3 tripVec = p1->GetKinematicState().facing;
                 int tripType = 3;  // sliding
                 if (p2Action.type == e_FunctionType_Interfere)
                   tripType = 1;  // was 2
