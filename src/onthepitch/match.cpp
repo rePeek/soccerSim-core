@@ -24,7 +24,6 @@
 #include "../base/log.hpp"
 #include "../game_env.hpp"
 #include "../main.hpp"
-#include "../scene/objectfactory.hpp"
 #include "AIsupport/AIfunctions.hpp"
 #include "file.h"
 #include "player/playerofficial.hpp"
@@ -61,9 +60,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   actualTime_ms = 0;
   goalScoredTimer = 0;
 
-
-  dynamicNode = boost::intrusive_ptr<Node>(new Node("dynamicNode"));
-  GetScene3D()->AddNode(dynamicNode);
 
   ball = new Ball(this);
 
@@ -149,9 +145,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
 
 
-  // for usage in destructor
-  scene3D = GetScene3D();
-
   lastBodyBallCollisionTime_ms = 0;
 
 }
@@ -188,7 +181,6 @@ void Match::Exit() {
   mentalImages.clear();
 
 
-  scene3D->DeleteNode(GetDynamicNode());
 }
 
 
@@ -614,11 +606,6 @@ bool Match::Process() {
      }
   }
   return true;
-}
-
-boost::intrusive_ptr<Node> Match::GetDynamicNode() {
-  DO_VALIDATION;
-  return dynamicNode;
 }
 
 bool Match::CheckForGoal(signed int side, const Vector3 &previousBallPos) {

@@ -119,8 +119,6 @@ class Match {
     void ProcessState(EnvState* state);
     bool Process();
 
-    boost::intrusive_ptr<Node> GetDynamicNode();
-
 
 
 
@@ -152,8 +150,6 @@ class Match {
     bool ball_mirrored = false;
 
     Officials *officials;
-
-    boost::intrusive_ptr<Node> dynamicNode;
 
 
 
@@ -189,8 +185,6 @@ class Match {
 
     Referee *referee;
 
-
-    boost::shared_ptr<Scene3D> scene3D;
 
 
     const float matchDurationFactor = 0.0f;

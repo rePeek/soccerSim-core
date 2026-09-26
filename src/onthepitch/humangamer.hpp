@@ -20,7 +20,6 @@
 
 #include "../defines.hpp"
 
-#include "../scene/scene3d/scene3d.hpp"
 
 #include "player/controller/humancontroller.hpp"
 #include "../hid/ihidevice.hpp"

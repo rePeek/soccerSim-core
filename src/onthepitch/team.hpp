@@ -46,7 +46,6 @@ class Team {
 
     Match *GetMatch() { DO_VALIDATION; return match; }
     TeamAIController *GetController() { DO_VALIDATION; return teamController; }
-    boost::intrusive_ptr<Node> GetSceneNode() { DO_VALIDATION; return teamNode; }
 
     int GetID() const { return id; }
     inline signed int GetDynamicSide() { DO_VALIDATION;
@@ -145,8 +144,6 @@ class Team {
     TeamAIController *teamController;
 
     std::vector<Player*> players;
-
-    boost::intrusive_ptr<Node> teamNode;
 
     std::vector<std::unique_ptr<HumanGamer>> humanGamers;
 

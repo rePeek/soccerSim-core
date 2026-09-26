@@ -31,11 +31,6 @@ Team::Team(int id, Match *match, TeamData *teamData, float aiDifficulty)
   // assert(teamData->GetPlayerNum() >= playerNum); // does team have enough
   // players?
 
-  teamNode =
-      boost::intrusive_ptr<Node>(new Node("team node #" + int_to_str(id)));
-  teamNode->SetLocalMode(e_LocalMode_Absolute);
-  match->GetDynamicNode()->AddNode(teamNode);
-
   teamController = new TeamAIController(this);
 
   timeNeededToGetToBall_ms = 100;
@@ -67,7 +62,6 @@ void Team::Exit() {
 
   delete teamController;
 
-  match->GetDynamicNode()->DeleteNode(teamNode);
 }
 
 void Team::InitPlayers(

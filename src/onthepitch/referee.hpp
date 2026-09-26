@@ -23,7 +23,6 @@
 #include "../defines.hpp"
 #include "../gamedefines.hpp"
 
-#include "../scene/scene3d/scene3d.hpp"
 
 using namespace blunted;
 

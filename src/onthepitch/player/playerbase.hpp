@@ -26,7 +26,6 @@
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
 
-#include "../../scene/scene3d/node.hpp"
 
 class Match;
 class HumanController;
