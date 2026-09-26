@@ -4,6 +4,7 @@ set(OUTPUT_LIB_NAME game)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
 
 project(gameplayfootball)
+include(CTest)
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
   message(FATAL_ERROR "This project supports Linux only")
 endif()
@@ -86,3 +87,11 @@ target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE ${ENGINE_LIBRARIES})
 # Minimal C++ smoke test: exercises the C++ engine directly.
 add_executable(football_smoke tools/football_smoke.cpp)
 target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
+
+if(BUILD_TESTING)
+  add_executable(football_regression tools/football_regression.cpp)
+  target_link_libraries(football_regression PRIVATE ${OUTPUT_LIB_NAME})
+  add_test(NAME football_regression COMMAND football_regression)
+  set_tests_properties(football_regression PROPERTIES
+    ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
+endif()
