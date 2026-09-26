@@ -128,10 +128,10 @@ void HumanoidBase::Process() {
 
   currentAnim.frameNum++;
   player->StepSimulationAction(10);
+  const PlayerActionState &action = player->GetSimulationActionState();
   previousAnim_frameNum++;
 
-  if (currentAnim.frameNum == currentAnim.anim->GetFrameCount() - 1 &&
-      interruptAnim == e_InterruptAnim_None) {
+  if (action.IsAtLastFrame() && interruptAnim == e_InterruptAnim_None) {
     DO_VALIDATION;
     interruptAnim = e_InterruptAnim_Switch;
   }
@@ -204,7 +204,7 @@ void HumanoidBase::Process() {
       // if we just requeued, for example, from movement to ballcontrol, there's no reason we can not immediately requeue to another ballcontrol again (next time). only apply the initial requeue delay on subsequent anims of the same type
       // (so we can have a fast ballcontrol -> ballcontrol requeue, but after that, use the initial delay)
       if (interruptAnim == e_InterruptAnim_ReQueue &&
-          previousAnim_functionType == currentAnim.functionType) {
+          previousAnim_functionType == action.type) {
         DO_VALIDATION;
         reQueueDelayFrames = initialReQueueDelayFrames; // don't try requeueing (some types of anims, see selectanim()) too often
       }
@@ -366,16 +366,17 @@ void HumanoidBase::OffsetPosition(const Vector3 &offset) {
 void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {
   DO_VALIDATION;
   if (match->GetBallRetainer() == player) return;
+  const PlayerActionState &action = player->GetSimulationActionState();
   if (currentAnim.anim->GetVariableCache().incoming_special_state().compare(
           "") == 0 &&
       currentAnim.anim->GetVariableCache().outgoing_special_state().compare(
           "") == 0) {
     DO_VALIDATION;
     if (this->interruptAnim == e_InterruptAnim_None &&
-        (currentAnim.functionType != e_FunctionType_Trip ||
+        (action.type != e_FunctionType_Trip ||
          (currentAnim.anim->GetVariable("triptype").compare("1") == 0 &&
           tripType > 1)) &&
-        currentAnim.functionType != e_FunctionType_Sliding) {
+        action.type != e_FunctionType_Sliding) {
       DO_VALIDATION;
       this->interruptAnim = e_InterruptAnim_Trip;
       this->tripDirection = tripVector;
@@ -540,8 +541,10 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
                               bool preferPassAndShot) {
   DO_VALIDATION;  // returns false on no applicable anim found
   assert(command.desiredDirection.coords[2] == 0.0f);
+  const PlayerActionState &action = player->GetSimulationActionState();
 
-  if (localInterruptAnim != e_InterruptAnim_ReQueue || currentAnim.frameNum > 12) CalculateFactualSpatialState();
+  if (localInterruptAnim != e_InterruptAnim_ReQueue || action.frame > 12)
+    CalculateFactualSpatialState();
 
   // CREATE A CRUDE SET OF POTENTIAL ANIMATIONS
 
@@ -663,7 +666,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     DO_VALIDATION;
 
     // don't requeue to same quadrant
-    if (currentAnim.functionType == command.desiredFunctionType &&
+    if (action.type == command.desiredFunctionType &&
 
         ((FloatToEnumVelocity(currentAnim.anim->GetOutgoingVelocity()) !=
               e_Velocity_Idle &&

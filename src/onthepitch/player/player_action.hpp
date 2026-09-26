@@ -34,6 +34,9 @@ struct PlayerActionState {
   bool IsComplete() const {
     return durationTime_ms > 0 && elapsedTime_ms >= durationTime_ms;
   }
+  bool IsAtLastFrame() const {
+    return frameCount > 0 && frame >= frameCount - 1;
+  }
 
   void ProcessState(EnvState *state) {
     DO_VALIDATION;

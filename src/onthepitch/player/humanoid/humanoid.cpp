@@ -94,6 +94,8 @@ void Humanoid::Process() {
 
   currentAnim.frameNum++;
   CastPlayer()->StepSimulationAction(10);
+  const PlayerActionState &action =
+      CastPlayer()->GetSimulationActionState();
   previousAnim_frameNum++;
 
   assert(team);
@@ -106,8 +108,7 @@ void Humanoid::Process() {
     }
   */
 
-  if (currentAnim.frameNum == currentAnim.anim->GetFrameCount() - 1 &&
-      interruptAnim == e_InterruptAnim_None) {
+  if (action.IsAtLastFrame() && interruptAnim == e_InterruptAnim_None) {
     DO_VALIDATION;
     interruptAnim = e_InterruptAnim_Switch;
   }
@@ -175,19 +176,19 @@ void Humanoid::Process() {
     DO_VALIDATION;
 
     float ballDistance = (currentMentalImage->GetBallPrediction(500).Get2D() - spatialState.position).GetLength();
-    if (((currentAnim.functionType == e_FunctionType_Movement &&
-          !CastPlayer()->HasPossession() && ballDistance < 16.0f) ||
-         (currentAnim.functionType == e_FunctionType_Movement &&
-          CastPlayer()->HasPossession()) ||  // passes / shot
-         (currentAnim.functionType == e_FunctionType_Trap && TouchPending()) ||
-         (currentAnim.functionType == e_FunctionType_BallControl &&
-          TouchPending())) &&
+    if (((action.type == e_FunctionType_Movement &&
+            !CastPlayer()->HasPossession() && ballDistance < 16.0f) ||
+           (action.type == e_FunctionType_Movement &&
+            CastPlayer()->HasPossession()) ||  // passes / shot
+           (action.type == e_FunctionType_Trap && TouchPending()) ||
+           (action.type == e_FunctionType_BallControl &&
+            TouchPending())) &&
         /* now done later on, else we can't requeue to pass/shot during
-        trap/ballcontrol (currentAnim.functionType == e_FunctionType_Trap &&
-        TouchPending() && allowTrapReQueue && currentAnim.frameNum <=
-        maxTrapReQueueFrame) || (currentAnim.functionType ==
+        trap/ballcontrol (action.type == e_FunctionType_Trap &&
+        TouchPending() && allowTrapReQueue && action.frame <=
+        maxTrapReQueueFrame) || (action.type ==
         e_FunctionType_BallControl && TouchPending() && allowBallControlReQueue
-        && currentAnim.frameNum <= maxBallControlReQueueFrame) ) &&
+        && action.frame <= maxBallControlReQueueFrame) ) &&
         */
         currentAnim.anim->GetVariableCache().incoming_special_state().empty() &&
         currentAnim.anim->GetVariableCache().outgoing_special_state().empty()) {
@@ -269,7 +270,7 @@ void Humanoid::Process() {
       // if we just requeued, for example, from movement to ballcontrol, there's no reason we can not immediately requeue to another ballcontrol again (next time). only apply the initial requeue delay on subsequent anims of the same type
       // (so we can have a fast ballcontrol -> ballcontrol requeue, but after that, use the initial delay)
       if (interruptAnim == e_InterruptAnim_ReQueue &&
-          previousAnim_functionType == currentAnim.functionType) {
+          previousAnim_functionType == action.type) {
         DO_VALIDATION;
         reQueueDelayFrames = initialReQueueDelayFrames; // don't try requeueing (some types of anims, see selectanim()) too often
       }
@@ -291,14 +292,14 @@ void Humanoid::Process() {
 
   if (CastPlayer() == match->GetDesignatedPossessionPlayer() &&
       ((lastTouchBias <= 0.01f && oppLastTouchBias <= 0.01f &&
-        currentAnim.functionType == e_FunctionType_Movement &&
+        action.type == e_FunctionType_Movement &&
         ballDistanceNow < 0.6f && ballDistanceFuture > 0.65f &&
         ballDistanceFuture > ballDistanceNow)  // 0.5 / 0.6
 
        ||
 
        (lastTouchBias <= 0.7f && CastPlayer()->HasPossession() &&
-        currentAnim.functionType == e_FunctionType_Trip &&
+        action.type == e_FunctionType_Trip &&
         ballDistanceNow < 0.4f)
 
        ) &&
@@ -312,7 +313,7 @@ void Humanoid::Process() {
   // ------------------------ EXPERIMENTAL ------------------------------------------------
   bool controlledBallCollision = CastPlayer()->IsControlledBallCollisionTriggered();
   if (controlledBallCollision) CastPlayer()->ResetControlledBallCollisionTrigger();
-  if (controlledBallCollision && currentAnim.touchFrame == -1) {
+  if (controlledBallCollision && !action.HasScheduledContact()) {
     DO_VALIDATION;
     Vector3 currentBallVec = match->GetBall()->GetMovement();
     radian nextBodyAngle = startAngle + currentAnim.anim->GetOutgoingAngle() + currentAnim.anim->GetOutgoingBodyAngle() + currentAnim.rotationSmuggle.end;
@@ -335,11 +336,12 @@ void Humanoid::Process() {
   }
   // ---------------------- / EXPERIMENTAL ------------------------------------------------
 
-  if (currentAnim.touchFrame == currentAnim.frameNum) {
+  if (action.HasScheduledContact() &&
+      action.frame == action.contactFrame) {
     DO_VALIDATION;
 
     Vector3 desiredBallPosition;
-    boost::static_pointer_cast<FootballAnimationExtension>(currentAnim.anim->GetExtension("football"))->GetTouchPos(currentAnim.touchFrame, desiredBallPosition);
+    boost::static_pointer_cast<FootballAnimationExtension>(currentAnim.anim->GetExtension("football"))->GetTouchPos(action.contactFrame, desiredBallPosition);
     float desiredBallHeight = desiredBallPosition.coords[2];
 
     float touchableDistance = 0.4f;
@@ -597,9 +599,11 @@ void Humanoid::Process() {
 
   if (match->GetBallRetainer() == player) {
     DO_VALIDATION;
-    if ((currentAnim.touchFrame <= currentAnim.frameNum &&
+    if (((!action.HasScheduledContact() ||
+          action.frame >= action.contactFrame) &&
          currentAnim.anim->GetVariable("outgoing_retain_state") != "") ||
-        (currentAnim.touchFrame > currentAnim.frameNum &&
+        (action.HasScheduledContact() &&
+         action.frame < action.contactFrame &&
          currentAnim.anim->GetVariableCache().incoming_retain_state() != "") ||
         (currentAnim.anim->GetVariable("incoming_retain_state") != "" &&
          currentAnim.anim->GetVariable("outgoing_retain_state") != "")) {
@@ -813,6 +817,8 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
                           bool preferPassAndShot) {
   DO_VALIDATION;  // returns false on no applicable anim found
   assert(command.desiredDirection.coords[2] == 0.0f);
+  const PlayerActionState &action =
+      CastPlayer()->GetSimulationActionState();
 
   // optimizations
   auto currentMentalImage = match->GetMentalImage(mentalImageTime);
@@ -862,14 +868,35 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
 
     float focusDistance = (match->GetDesignatedPossessionPlayer()->GetPosition() - spatialState.position).GetLength();
 
-    if (currentAnim.functionType != e_FunctionType_Movement && command.desiredFunctionType == e_FunctionType_Movement) return false;
-    if (currentAnim.functionType == e_FunctionType_Movement && command.desiredFunctionType == e_FunctionType_Movement && (CastPlayer()->HasPossession()/* || team->GetTeamPossessionAmount() >= 1.0f*/ || focusDistance > 12.0f)) return false;
-    if (currentAnim.functionType == e_FunctionType_Movement && command.desiredFunctionType == e_FunctionType_Movement && currentAnim.frameNum + minRemainingMovementReQueueFrames > currentAnim.anim->GetEffectiveFrameCount()) return false;
-    if (currentAnim.functionType == e_FunctionType_Movement && command.desiredFunctionType == e_FunctionType_Movement && (!allowMovementReQueue || reQueueDelayFrames > 0)) return false;
-    if (currentAnim.functionType == e_FunctionType_BallControl && command.desiredFunctionType == e_FunctionType_BallControl && (!allowBallControlReQueue || currentAnim.frameNum > maxBallControlReQueueFrame || reQueueDelayFrames > 0)) return false;
-    if (currentAnim.functionType == e_FunctionType_BallControl && command.desiredFunctionType == e_FunctionType_Trap) return false;
-    if (currentAnim.functionType == e_FunctionType_Trap && command.desiredFunctionType == e_FunctionType_Trap && (!allowTrapReQueue || currentAnim.frameNum + minRemainingTrapReQueueFrames > currentAnim.touchFrame || reQueueDelayFrames > 0)) return false;
-    if (currentAnim.functionType == e_FunctionType_Trap && command.desiredFunctionType == e_FunctionType_BallControl && (!allowTrapReQueue || currentAnim.frameNum + minRemainingTrapReQueueFrames > currentAnim.touchFrame || reQueueDelayFrames > 0)) return false;
+    if (action.type != e_FunctionType_Movement &&
+        command.desiredFunctionType == e_FunctionType_Movement) return false;
+    if (action.type == e_FunctionType_Movement &&
+        command.desiredFunctionType == e_FunctionType_Movement &&
+        (CastPlayer()->HasPossession() || focusDistance > 12.0f)) return false;
+    if (action.type == e_FunctionType_Movement &&
+        command.desiredFunctionType == e_FunctionType_Movement &&
+        action.frame + minRemainingMovementReQueueFrames >
+            action.frameCount - 1) return false;
+    if (action.type == e_FunctionType_Movement &&
+        command.desiredFunctionType == e_FunctionType_Movement &&
+        (!allowMovementReQueue || reQueueDelayFrames > 0)) return false;
+    if (action.type == e_FunctionType_BallControl &&
+        command.desiredFunctionType == e_FunctionType_BallControl &&
+        (!allowBallControlReQueue ||
+         action.frame > maxBallControlReQueueFrame ||
+         reQueueDelayFrames > 0)) return false;
+    if (action.type == e_FunctionType_BallControl &&
+        command.desiredFunctionType == e_FunctionType_Trap) return false;
+    if (action.type == e_FunctionType_Trap &&
+        command.desiredFunctionType == e_FunctionType_Trap &&
+        (!allowTrapReQueue ||
+         action.frame + minRemainingTrapReQueueFrames > action.contactFrame ||
+         reQueueDelayFrames > 0)) return false;
+    if (action.type == e_FunctionType_Trap &&
+        command.desiredFunctionType == e_FunctionType_BallControl &&
+        (!allowTrapReQueue ||
+         action.frame + minRemainingTrapReQueueFrames > action.contactFrame ||
+         reQueueDelayFrames > 0)) return false;
 
     // too similar to what we are already trying to accomplish
     if (currentAnim.originatingCommand.desiredFunctionType ==
@@ -883,13 +910,13 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     }
 
     // requeue not needed?
-    if ((currentAnim.functionType == e_FunctionType_Movement &&
+    if ((action.type == e_FunctionType_Movement &&
          command.desiredFunctionType == e_FunctionType_Movement) ||
-        (currentAnim.functionType == e_FunctionType_BallControl &&
+        (action.type == e_FunctionType_BallControl &&
          command.desiredFunctionType == e_FunctionType_BallControl) ||
-        (currentAnim.functionType == e_FunctionType_Trap &&
+        (action.type == e_FunctionType_Trap &&
          command.desiredFunctionType == e_FunctionType_BallControl) ||
-        (currentAnim.functionType == e_FunctionType_Trap &&
+        (action.type == e_FunctionType_Trap &&
          command.desiredFunctionType == e_FunctionType_Trap)) {
       DO_VALIDATION;
 
@@ -907,7 +934,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     }
 
     // don't requeue movement to ballcontrol halfway movement anims, unless there's a serious change of movement desired
-    if ((currentAnim.functionType == e_FunctionType_Movement) &&
+    if (action.type == e_FunctionType_Movement &&
         command.desiredFunctionType == e_FunctionType_BallControl &&
         (match->GetActualTime_ms() - CastPlayer()->GetLastTouchTime_ms() <
              600 &&
@@ -919,7 +946,8 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     }
   }
 
-  if (localInterruptAnim != e_InterruptAnim_ReQueue || currentAnim.frameNum > 12) CalculateFactualSpatialState();
+  if (localInterruptAnim != e_InterruptAnim_ReQueue || action.frame > 12)
+    CalculateFactualSpatialState();
 
   assert(command.desiredLookAt.coords[2] == 0.0f);
 
@@ -1274,7 +1302,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     DO_VALIDATION;
 
     // don't requeue to same quadrant
-    if (currentAnim.functionType == command.desiredFunctionType &&
+    if (action.type == command.desiredFunctionType &&
 
         ((FloatToEnumVelocity(currentAnim.anim->GetOutgoingVelocity()) !=
               e_Velocity_Idle &&
