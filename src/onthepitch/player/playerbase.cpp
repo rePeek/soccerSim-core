@@ -166,8 +166,6 @@ void PlayerBase::OffsetPosition(const Vector3 &offset) {
 void PlayerBase::Deactivate() {
   DO_VALIDATION;
   ResetSituation(GetPosition());
-
-  if (humanoid) humanoid->Hide();
   isActive = false;
   externalController = nullptr;
 }
@@ -222,8 +220,6 @@ void PlayerBase::Process() {
     SynchronizeActionState();
     UpdateActionExecutorShadow();
     UpdateKinematicShadow();
-  } else {
-    if (humanoid) humanoid->Hide();
   }
 }
 
@@ -235,11 +231,6 @@ void PlayerBase::PreparePutBuffers() {
 void PlayerBase::FetchPutBuffers() {
   DO_VALIDATION;
   humanoid->FetchPutBuffers();
-}
-
-void PlayerBase::Put(bool mirror) {
-  DO_VALIDATION;
-  humanoid->Put(mirror);
 }
 
 float PlayerBase::GetStat(PlayerStat name) const {

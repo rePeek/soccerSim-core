@@ -33,27 +33,6 @@ using namespace blunted;
 class PlayerBase;
 class Match;
 
-struct HJoint {
-  boost::intrusive_ptr<Node> node;
-  Vector3 position;
-  Quaternion orientation;
-  Vector3 origPos;
-};
-
-struct WeightedBone {
-  int jointID = 0;
-  float weight = 0.0f;
-};
-
-struct WeightedVertex {
-  int vertexID = 0;
-  std::vector<WeightedBone> bones;
-};
-
-struct FloatArray {
-  float *data;
-  int size = 0;
-};
 
 enum e_InterruptAnim {
   e_InterruptAnim_None,
@@ -226,18 +205,14 @@ struct SpatialState {
 class HumanoidBase {
 
   public:
-    HumanoidBase(PlayerBase *player, Match *match, boost::intrusive_ptr<Node> humanoidSourceNode, boost::intrusive_ptr<Node> fullbodySourceNode, std::map<Vector3, Vector3> &colorCoords, boost::shared_ptr<AnimCollection> animCollection, boost::intrusive_ptr<Node> fullbodyTargetNode);
+    HumanoidBase(PlayerBase *player, Match *match, boost::intrusive_ptr<Node> humanoidSourceNode, boost::shared_ptr<AnimCollection> animCollection);
     virtual ~HumanoidBase();
     void Mirror();
 
-    void PrepareFullbodyModel(std::map<Vector3, Vector3> &colorCoords);
-    void UpdateFullbodyNodes(bool mirror);
-    void UpdateFullbodyModel(bool updateSrc = false);
 
     virtual void Process();
     void PreparePutBuffers();
     void FetchPutBuffers();
-    void Put(bool mirror);
 
     virtual void CalculateGeomOffsets();
     void SetOffset(BodyPart body_part, float bias, const Quaternion &orientation, bool isRelative = false);
@@ -264,7 +239,6 @@ class HumanoidBase {
     void TripMe(const Vector3 &tripVector, int tripType);
 
     boost::intrusive_ptr<Node> GetHumanoidNode() { DO_VALIDATION; return humanoidNode; }
-    boost::intrusive_ptr<Node> GetFullbodyNode() { DO_VALIDATION; return fullbodyNode; }
 
     virtual float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
     virtual float GetDecayingDifficultyFactor() const { return decayingDifficultyFactor; }
@@ -277,7 +251,6 @@ class HumanoidBase {
 
     const NodeMap &GetNodeMap() { DO_VALIDATION; return nodeMap; }
 
-    void Hide() { DO_VALIDATION; fullbodyNode->SetPosition(Vector3(1000, 1000, -1000)); hairStyle->SetPosition(Vector3(1000, 1000, -1000)); } // hax ;)
 
 
     virtual void ResetSituation(const Vector3 &focusPos);
@@ -332,28 +305,9 @@ class HumanoidBase {
     Vector3 ForceIntoPreferredDirectionVec(const Vector3 &src) const;
     radian ForceIntoPreferredDirectionAngle(radian angle) const;
 
-    // Seems to be used for rendering only, updated in
-    // UpdateFullbodyModel / UpdateFullBodyNodes, Hide() method changes
-    // position, so maybe Hide needs to change, otherwise collision detection
-    // analysis hidden players?
-    boost::intrusive_ptr<Node> fullbodyNode;
-    // Modified in PrepareFullBodyModel, not changed later.
-    std::vector<FloatArray> uniqueFullbodyMesh;
-    // Modified in PrepareFullBodyModel, not changed later.
-    std::vector < std::vector<WeightedVertex> > weightedVerticesVec;
-    // Modified in PrepareFullBodyModel, not changed later.
-    unsigned int fullbodySubgeomCount = 0;
-    // Used only for memory releasing.
-    std::vector<int*> uniqueIndicesVec;
-    // Updated in UpdateFullbodyModel / UpdateFullBodyNodes,
-    // snapshot not needed. References nodes point to humanoidNode.
-    std::vector<HJoint> joints;
-    // Used only for memory management.
-    boost::intrusive_ptr<Node> fullbodyTargetNode;
-    // Used for ball collision detection. Seems to be the one to snapshot.
+    // Legacy animation-driven simulation compatibility: the ball retainer
+    // reads body-part transforms from this tree, so it stays until H3a.
     boost::intrusive_ptr<Node> humanoidNode;
-
-    boost::intrusive_ptr<Geometry> hairStyle;
 
     Match *match;
     PlayerBase *player;
@@ -407,7 +361,6 @@ class HumanoidBase {
     // Should be dynamically retrieved from match, don't cache.
     int mentalImageTime = 0;
 
-    const float zMultiplier;
     MovementHistory movementHistory;
     bool mirrored = false;
 };

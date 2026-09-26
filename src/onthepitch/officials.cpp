@@ -27,8 +27,6 @@
 #include "../main.hpp"
 
 Officials::Officials(Match *match,
-                     boost::intrusive_ptr<Node> fullbodySourceNode,
-                     std::map<Vector3, Vector3> &colorCoords,
                      boost::shared_ptr<AnimCollection> animCollection)
     : match(match) {
   DO_VALIDATION;
@@ -42,9 +40,9 @@ Officials::Officials(Match *match,
   linesmen[0] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
   linesmen[1] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
 
-  referee->Activate(playerNode, fullbodySourceNode, colorCoords, match->GetAnimCollection(), false);
-  linesmen[0]->Activate(playerNode, fullbodySourceNode, colorCoords, match->GetAnimCollection(), false);
-  linesmen[1]->Activate(playerNode, fullbodySourceNode, colorCoords, match->GetAnimCollection(), false);
+  referee->Activate(playerNode, match->GetAnimCollection(), false);
+  linesmen[0]->Activate(playerNode, match->GetAnimCollection(), false);
+  linesmen[1]->Activate(playerNode, match->GetAnimCollection(), false);
   playerNode->Exit();
   playerNode.reset();
 
@@ -95,12 +93,6 @@ void Officials::FetchPutBuffers() {
   linesmen[1]->FetchPutBuffers();
 }
 
-void Officials::Put(bool mirror) {
-  DO_VALIDATION;
-  referee->Put(mirror);
-  linesmen[0]->Put(mirror);
-  linesmen[1]->Put(mirror);
-}
 
 void Officials::ProcessState(EnvState *state) {
   DO_VALIDATION;

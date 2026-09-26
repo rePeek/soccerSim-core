@@ -67,29 +67,12 @@ void GameTask::PrepareRender() {
   DO_VALIDATION;
 
   // Legacy presentation pipeline. Everything below only produces state for
-  // rendering (animation buffers, scene transforms, fullbody models) and is
-  // verified by the regression to leave simulation state untouched.
+  // rendering (animation buffers, scene transforms) and is verified by the
+  // regression to leave simulation state untouched.
   if (processed) {
     match->PreparePutBuffers();
     match->FetchPutBuffers();
   }
 
   match->Put();
-  std::vector<Player*> players;
-  match->GetActiveTeamPlayers(match->FirstTeam(), players);
-  match->GetActiveTeamPlayers(match->SecondTeam(), players);
-  std::vector<PlayerBase*> officials;
-  match->GetOfficialPlayers(officials);
-
-  for (auto player : players) {
-    DO_VALIDATION;
-    player->UpdateFullbodyModel();
-    boost::static_pointer_cast<Geometry>(player->GetFullbodyNode()->GetObject("fullbody"))->OnUpdateGeometryData();
-  }
-  for (auto official : officials) {
-    DO_VALIDATION;
-    official->UpdateFullbodyModel();
-    boost::static_pointer_cast<Geometry>(official->GetFullbodyNode()->GetObject("fullbody"))->OnUpdateGeometryData();
-  }
-  DO_VALIDATION;
 }

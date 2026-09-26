@@ -73,8 +73,8 @@ void Team::Exit() {
   match->GetDynamicNode()->DeleteNode(teamNode);
 }
 
-void Team::InitPlayers(boost::intrusive_ptr<Node> fullbodyNode,
-                       std::map<Vector3, Vector3> &colorCoords) {
+void Team::InitPlayers(
+                       boost::shared_ptr<AnimCollection> animCollection) {
   DO_VALIDATION;
   // first, load 1 instance of a player
 
@@ -94,7 +94,7 @@ void Team::InitPlayers(boost::intrusive_ptr<Node> fullbodyNode,
       DO_VALIDATION;
       // activate playerCount players (the starting eleven, usually)
       auto formation = GetFormationEntry(player);
-      player->Activate(playerNode, fullbodyNode, colorCoords,
+      player->Activate(playerNode,
                        match->GetAnimCollection(), formation.lazy);
     }
   }
@@ -515,17 +515,6 @@ void Team::FetchPutBuffers() {
     if (players[i]->IsActive()) {
       DO_VALIDATION;
       players[i]->FetchPutBuffers();
-    }
-  }
-}
-
-void Team::Put(bool mirror) {
-  DO_VALIDATION;
-  for (unsigned int i = 0; i < players.size(); i++) {
-    DO_VALIDATION;
-    if (players[i]->IsActive()) {
-      DO_VALIDATION;
-      players[i]->Put(mirror);
     }
   }
 }

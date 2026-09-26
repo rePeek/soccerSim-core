@@ -236,7 +236,6 @@ class GameContext {
   std::unique_ptr<MatchSetup> matchSetup;
   boost::shared_ptr<Scene2D> scene2D;
   boost::shared_ptr<Scene3D> scene3D;
-  boost::intrusive_ptr<Node> fullbodyNode;
   Properties *config = nullptr;
 
   std::vector<AIControlledKeyboard*> controllers;
@@ -268,7 +267,6 @@ class GameContext {
   BiasedOffsets emptyOffsets;
   boost::shared_ptr<AnimCollection> anims;
   std::map<Animation*, std::vector<Vector3>> animPositionCache;
-  std::map<Vector3, Vector3> colorCoords;
   int step = 0;
   int tracker_disabled = 1;
   long tracker_pos = 0;

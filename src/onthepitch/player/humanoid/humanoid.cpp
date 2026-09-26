@@ -61,13 +61,9 @@ constexpr bool allowPreTouchRotationSmuggle = false;
 
 Humanoid::Humanoid(Player *player,
                    boost::intrusive_ptr<Node> humanoidSourceNode,
-                   boost::intrusive_ptr<Node> fullbodySourceNode,
-                   std::map<Vector3, Vector3> &colorCoords,
-                   boost::shared_ptr<AnimCollection> animCollection,
-                   boost::intrusive_ptr<Node> fullbodyTargetNode)
+                   boost::shared_ptr<AnimCollection> animCollection)
     : HumanoidBase(player, player->GetTeam()->GetMatch(), humanoidSourceNode,
-                   fullbodySourceNode, colorCoords, animCollection,
-                   fullbodyTargetNode) {
+                   animCollection) {
   DO_VALIDATION;
   team = CastPlayer()->GetTeam();
 }

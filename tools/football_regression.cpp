@@ -505,13 +505,6 @@ void RequirePresentationInert(GameEnv& env, const std::string& label) {
   match->PreparePutBuffers();
   match->FetchPutBuffers();
   match->Put();
-  std::vector<Player*> players;
-  match->GetActiveTeamPlayers(match->FirstTeam(), players);
-  match->GetActiveTeamPlayers(match->SecondTeam(), players);
-  std::vector<PlayerBase*> officials;
-  match->GetOfficialPlayers(officials);
-  for (Player* player : players) player->UpdateFullbodyModel();
-  for (PlayerBase* official : officials) official->UpdateFullbodyModel();
 
   const std::string after = CaptureSimulationDigest(env);
   if (before != after) {

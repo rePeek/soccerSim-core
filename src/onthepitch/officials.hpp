@@ -27,7 +27,7 @@ class PlayerData;
 class Officials {
 
   public:
-    Officials(Match *match, boost::intrusive_ptr<Node> fullbodySourceNode, std::map<Vector3, Vector3> &colorCoords, boost::shared_ptr<AnimCollection> animCollection);
+    Officials(Match *match, boost::shared_ptr<AnimCollection> animCollection);
     ~Officials();
     void Mirror();
 
@@ -36,7 +36,6 @@ class Officials {
 
     void Process();
     void FetchPutBuffers();
-    void Put(bool mirror);
 
     void ProcessState(EnvState* state);
 

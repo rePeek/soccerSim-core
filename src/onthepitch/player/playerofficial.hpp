@@ -40,7 +40,7 @@ class PlayerOfficial : public PlayerBase {
 
     e_OfficialType GetOfficialType() { DO_VALIDATION; return officialType; }
 
-    virtual void Activate(boost::intrusive_ptr<Node> humanoidSourceNode, boost::intrusive_ptr<Node> fullbodySourceNode, std::map<Vector3, Vector3> &colorCoords, boost::shared_ptr<AnimCollection> animCollection, bool lazyPlayer);
+    virtual void Activate(boost::intrusive_ptr<Node> humanoidSourceNode, boost::shared_ptr<AnimCollection> animCollection, bool lazyPlayer);
     virtual void Deactivate();
 
     virtual void Process();

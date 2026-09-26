@@ -77,8 +77,6 @@ Team *Player::GetTeam() {
 }
 
 void Player::Activate(boost::intrusive_ptr<Node> humanoidSourceNode,
-                      boost::intrusive_ptr<Node> fullbodySourceNode,
-                      std::map<Vector3, Vector3> &colorCoords,
                       boost::shared_ptr<AnimCollection> animCollection,
                       bool lazyPlayer) {
   DO_VALIDATION;
@@ -87,9 +85,7 @@ void Player::Activate(boost::intrusive_ptr<Node> humanoidSourceNode,
 
   isActive = true;
 
-  humanoid.reset(new Humanoid(
-      this, humanoidSourceNode, fullbodySourceNode, colorCoords, animCollection,
-      GetTeam()->GetSceneNode()));
+  humanoid.reset(new Humanoid(this, humanoidSourceNode, animCollection));
 
   controller.reset(new ElizaController(match, lazyPlayer));
   CastController()->SetPlayer(this);

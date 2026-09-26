@@ -88,19 +88,11 @@ Match::Match(std::unique_ptr<MatchData> match_data,
       }
       GetContext().animPositionCache.insert(std::pair < Animation*, std::vector<Vector3> >(someAnim, positions));
     }
-    GetVertexColors(GetContext().colorCoords);
   } else {
     for (auto& a : anims->GetAnimations()) {
       a->DirtyCache();
     }
   }
-  // full body model template
-
-  ObjectLoader loader;
-  if (!GetContext().fullbodyNode) {
-    GetContext().fullbodyNode = loader.LoadObject("media/objects/players/fullbody.object");
-  }
-
   designatedPossessionPlayer = 0;
 
 
@@ -118,8 +110,8 @@ Match::Match(std::unique_ptr<MatchData> match_data,
                            : GetScenarioConfig().left_team_difficulty);
   teams[first_team]->SetOpponent(teams[second_team]);
   teams[second_team]->SetOpponent(teams[first_team]);
-  teams[first_team]->InitPlayers(GetContext().fullbodyNode, GetContext().colorCoords);
-  teams[second_team]->InitPlayers(GetContext().fullbodyNode, GetContext().colorCoords);
+  teams[first_team]->InitPlayers(anims);
+  teams[second_team]->InitPlayers(anims);
 
   std::vector<Player*> activePlayers;
   teams[first_team]->GetActivePlayers(activePlayers);
@@ -129,7 +121,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
   // officials
 
-  officials = new Officials(this, GetContext().fullbodyNode, GetContext().colorCoords, anims);
+  officials = new Officials(this, anims);
 
 
 
@@ -644,16 +636,11 @@ void Match::FetchPutBuffers() {
 
 void Match::Put() {
   DO_VALIDATION;
-  bool reverse = GetScenarioConfig().reverse_team_processing;
 
-  DO_VALIDATION;
-  teams[first_team]->Put(reverse);
-  teams[second_team]->Put(!reverse);
-  officials->Put(reverse);
-
-
+  // Only the legacy humanoid node tree is refreshed here now that the actor
+  // meshes are gone; that tree is still read by the ball retainer, so it
+  // belongs to the H3 animation-driven simulation work, not to D3.
   GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
-  DO_VALIDATION;
 }
 
 boost::intrusive_ptr<Node> Match::GetDynamicNode() {

@@ -43,15 +43,12 @@ RefereeController *PlayerOfficial::CastController() {
 }
 
 void PlayerOfficial::Activate(boost::intrusive_ptr<Node> humanoidSourceNode,
-                              boost::intrusive_ptr<Node> fullbodySourceNode,
-                              std::map<Vector3, Vector3> &colorCoords,
                               boost::shared_ptr<AnimCollection> animCollection,
                               bool lazyPlayer) {
   DO_VALIDATION;
   isActive = true;
-  humanoid.reset(new HumanoidBase(
-      this, match, humanoidSourceNode, fullbodySourceNode, colorCoords,
-      animCollection, match->GetDynamicNode()));
+  humanoid.reset(new HumanoidBase(this, match, humanoidSourceNode,
+                                  animCollection));
 
   CastHumanoid()->ResetPosition(Vector3(0), Vector3(0));
   SynchronizeKinematicState();
