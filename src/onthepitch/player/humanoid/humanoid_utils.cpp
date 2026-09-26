@@ -152,6 +152,7 @@ float StretchSprintTo(const float &inputVelocity, float inputSpaceMaxVelocity,
 }
 
 void GetDifficultyFactors(Match *match, Player *player,
+                          const SpatialState &spatialState,
                           const Vector3 &positionOffset, float &distanceFactor,
                           float &heightFactor, float &ballMovementFactor) {
   DO_VALIDATION;
@@ -166,14 +167,14 @@ void GetDifficultyFactors(Match *match, Player *player,
   // fast balls are harder
   float ballBodyVeloPenalty =
       std::pow(NormalizedClamp(
-                   (player->GetMovement() - ball->GetMovement()).GetLength(),
+                   (spatialState.movement - ball->GetMovement()).GetLength(),
                    10.0f, 50.0f),
                1.5f) *
       5.0f;
   // balls farther away from body are harder
   float fartherAwayPenalty =
       std::pow(NormalizedClamp(
-                   ((player->GetPosition() + player->GetDirectionVec() * 0.2f) -
+                   ((spatialState.position + spatialState.directionVec * 0.2f) -
                     ball->Predict(0).Get2D())
                        .GetLength(),
                    0.7f, 1.3f),
@@ -273,7 +274,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   Vector3 FFO = Vector3(0, -1, 0).GetRotated2D(nextBodyAngle) * (FFOsrc.GetLength() + ffoOffset + opponentAnnoyanceFactor * 3.0f); // positionOffset is already in ffoOffset (though only for trap atm)
   float heightFFOOffset = NormalizedClamp(ball->Predict(0).coords[2], 0.5f, 1.0f) * 0.5f; // bounce high balls off body - else they keep colliding inside body and stuff like that
   FFO += FFOsrc * heightFFOOffset * 0.5f +
-         player->GetBodyDirectionVec() * heightFFOOffset * 0.5f;
+         spatialState.bodyDirectionVec * heightFFOOffset * 0.5f;
 
   Vector3 desiredPlannedBallPos = nextStartPos;
   Vector3 physicsPlannedBallPos = nextStartPos;
@@ -362,7 +363,7 @@ Vector3 GetTrapVector(Match *match, Player *player, const Vector3 &nextStartPos,
   float distanceFactor = 0.0f; // how far ball bounces off feet
   float heightFactor = 0.0f; // how high ball bounces off feet
   float ballMovementFactor = 0.0f; // how much of the current ball movement is maintained
-  GetDifficultyFactors(match, player, positionOffset, distanceFactor, heightFactor, ballMovementFactor);
+  GetDifficultyFactors(match, player, spatialState, positionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // base vector to start with
   Vector3 ballControl = GetBallControlVector(ball, player, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, positionOffset, xRot, yRot, distanceFactor);

@@ -566,7 +566,7 @@ void Humanoid::Process() {
         if (currentAnim.anim->GetVariable("outgoing_retain_state").compare("") == 0) canRetain = false; // not the right anim, hopeless!
         if (match->GetBallRetainer() != 0) canRetain = false; // somebody is already holding the ball :( (dafuq, this should not happen, right?)
 
-        float veloDifficulty = NormalizedClamp((match->GetBall()->GetMovement() - player->GetMovement()).GetLength(), 0.0f, 40.0f);
+        float veloDifficulty = NormalizedClamp((match->GetBall()->GetMovement() - spatialState.movement).GetLength(), 0.0f, 40.0f);
         float reactionDifficulty = 0.0f;
         Player *lastTouchPlayer = match->GetTeam(abs(team->GetID() - 1))->GetLastTouchPlayer();
         if (lastTouchPlayer) {
@@ -1128,11 +1128,11 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
         //    match->GetBall()->GetMovement().GetNormalized(0).GetDotProduct(player->GetMovement().GetNormalizedMax(1.0f))
         //    < 0) { DO_VALIDATION; // ball and player going the other way
         (currentMentalImage->GetBallPrediction(defaultTouchOffset_ms).Get2D() -
-         (player->GetPosition() +
-          player->GetMovement() * defaultTouchOffset_ms * 0.001))
+         (spatialState.position +
+          spatialState.movement * defaultTouchOffset_ms * 0.001))
                 .GetLength() >
             (currentMentalImage->GetBallPrediction(0).Get2D() -
-             (player->GetPosition()))
+             (spatialState.position))
                 .GetLength()) {
       DO_VALIDATION;  // ball moving away from player
       return false;
@@ -2261,7 +2261,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
   float distanceFactor = 0.0f;
   float heightFactor = 0.0f;
   float ballMovementFactor = 0.0f;
-  GetDifficultyFactors(match, CastPlayer(), decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
+  GetDifficultyFactors(match, CastPlayer(), spatialState, decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // difficult balls may go into a more random orientation, or, if the anim has a default outgoing direction, it may converge towards that (since it is the easiest direction for that anim)
   radian randomRotation = 0.0f;
