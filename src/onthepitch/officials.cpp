@@ -52,9 +52,13 @@ Officials::Officials(Match *match,
   playerNode->Exit();
   playerNode.reset();
 
-  referee->CastHumanoid()->ResetPosition(Vector3(10, -10, 0), Vector3(0));
-  linesmen[0]->CastHumanoid()->ResetPosition(Vector3(25, -36.5, 0), Vector3(0));
-  linesmen[1]->CastHumanoid()->ResetPosition(Vector3(-25, 36.5, 0), Vector3(0));
+  // Route official placement through PlayerBase::ResetPosition so the
+  // simulation-owned movement state is synchronized. Calling
+  // CastHumanoid()->ResetPosition() directly would leave PlayerKinematicState
+  // stale (a 'half-tick' actor: humanoid moved, authoritative state not).
+  referee->ResetPosition(Vector3(10, -10, 0), Vector3(0));
+  linesmen[0]->ResetPosition(Vector3(25, -36.5, 0), Vector3(0));
+  linesmen[1]->ResetPosition(Vector3(-25, 36.5, 0), Vector3(0));
 
   boost::intrusive_ptr<Resource<GeometryData> > geometry =
       GetContext().geometry_manager.Fetch(

@@ -30,8 +30,11 @@
 
 class Match;
 class HumanController;
+class HumanoidBase;
 
 class PlayerBase {
+
+  friend class HumanoidBase;
 
   public:
     PlayerBase(Match *match, PlayerData *playerData);
@@ -54,11 +57,20 @@ class PlayerBase {
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
-    inline Vector3 GetPosition() const { return humanoid->GetPosition(); }
+    // Authoritative movement state. `kinematicState` mirrors the Humanoid
+    // spatial state and is refreshed by HumanoidBase whenever that state
+    // changes (see CalculateSpatialState / CalculateFactualSpatialState /
+    // OffsetPosition), so it is never a tick behind mid-tick readers such as
+    // the controller. It is mirrored with the same semantics as the legacy
+    // spatial state (position/velocity mirrored, facing not). Humanoid no
+    // longer reads these getters for its own simulation, so this is not
+    // circular. Actors must be positioned through PlayerBase::ResetPosition /
+    // OffsetPosition so that this state cannot be left stale.
+    inline Vector3 GetPosition() const { return kinematicState.position; }
     inline Vector3 GetGeomPosition() const { return humanoid->GetGeomPosition(); }
-    inline Vector3 GetDirectionVec() const { return humanoid->GetDirectionVec(); }
+    inline Vector3 GetDirectionVec() const { return kinematicState.facing; }
     inline Vector3 GetBodyDirectionVec() const { return humanoid->GetBodyDirectionVec(); }
-    inline Vector3 GetMovement() const { return humanoid->GetMovement(); }
+    inline Vector3 GetMovement() const { return kinematicState.velocity; }
     inline radian GetRelBodyAngle() const {
       return humanoid->GetRelBodyAngle();
     }

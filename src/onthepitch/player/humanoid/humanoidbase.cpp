@@ -921,6 +921,8 @@ void HumanoidBase::OffsetPosition(const Vector3 &offset) {
   decayingPositionOffset += offset;
   if (decayingPositionOffset.GetLength() > 0.1f) decayingPositionOffset = decayingPositionOffset.GetNormalized() * 0.1f;
   currentAnim.positionOffset += offset;
+
+  if (player) player->SynchronizeKinematicState();
 }
 
 void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {
@@ -1441,6 +1443,12 @@ void HumanoidBase::CalculateSpatialState() {
   spatialState.bodyAngle = spatialState.bodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
 
   previousPosition2D = position;
+
+  // The kinematic mirror must track the spatial state at the instant it
+  // changes. Controllers are queried later in the same tick and read the
+  // player's own position/movement through Player, so a mirror that only
+  // refreshed at the end of Player::Process would be a tick behind.
+  if (player) player->SynchronizeKinematicState();
 }
 
 void HumanoidBase::CalculateFactualSpatialState() {
@@ -1454,6 +1462,8 @@ void HumanoidBase::CalculateFactualSpatialState() {
     spatialState.enumVelocity = e_Velocity_Idle;
     spatialState.movement = Vector3(0);
   }
+
+  if (player) player->SynchronizeKinematicState();
 }
 
 void HumanoidBase::AddTripCommandToQueue(PlayerCommandQueue &commandQueue,
