@@ -15,7 +15,7 @@
 // PlayerActionState and will be layered on top of this base collider.
 struct PlayerGroundCollider {
   Vector3 center = Vector3(0);
-  float radius = 0.35f;
+  float radius = 0.36f;
 
   void SetCenter(const Vector3 &position) { center = position.Get2D(); }
 

@@ -1216,7 +1216,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     p1backFacing = clamp(p1facing.GetDotProduct( bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f); // 0 .. 1 == worst .. best
     p2backFacing = clamp(p2facing.GetDotProduct(-bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f);
 
-    if (distance < bouncePlayerRadius * 2.0f) {
+    if (p1->GetGroundCollider().Intersects(p2->GetGroundCollider())) {
       DO_VALIDATION;
 
       bounceBias += p1backFacing * 0.8f;

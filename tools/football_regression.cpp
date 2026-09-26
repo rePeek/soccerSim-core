@@ -199,11 +199,11 @@ void CheckPlayerGroundCollider() {
               "ground collider should stay on the pitch plane");
 
   PlayerGroundCollider second;
-  second.SetCenter(Vector3(0.69f, 0.0f, 0.0f));
+  second.SetCenter(Vector3(0.71f, 0.0f, 0.0f));
   Require(first.Intersects(second),
           "ground colliders should intersect within their radii");
 
-  second.SetCenter(Vector3(0.70f, 0.0f, 0.0f));
+  second.SetCenter(Vector3(0.72f, 0.0f, 0.0f));
   Require(!first.Intersects(second),
           "ground colliders should not intersect at the radius boundary");
 }
