@@ -321,6 +321,53 @@ void CheckProceduralLocomotion() {
     require_planar(state, "procedural locomotion turn rate");
   }
 
+  // The actor turns TOWARDS its target. Measured the other way round the model
+  // rotates away from it, settles into a circling equilibrium with a permanent
+  // ~pi heading error and never arrives, so this case is load bearing.
+  {
+    PlayerKinematicState state;
+    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotionInput input;
+    input.desiredVelocity = Vector3(0.0f, 7.5f, 0.0f);
+    input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotion::Step(state, input, parameters, 0.01f);
+    Require(state.velocity.coords[1] > 0.0f,
+            "procedural locomotion: the actor must turn towards its target");
+    // Facing only follows once the actor is actually moving, so it is checked
+    // after enough steps to leave the idle threshold.
+    for (int step = 0; step < 50; ++step) {
+      PlayerLocomotion::Step(state, input, parameters, 0.01f);
+    }
+    Require(state.facing.coords[1] > 0.0f,
+            "procedural locomotion: facing must follow a turned velocity");
+
+    // And it converges: aiming at a fixed off-axis target, the actor passes
+    // within reach of it at full speed instead of orbiting at half speed. The
+    // model has no "arrive and stop" behaviour, so the rollout is judged on its
+    // closest approach, which is also what the planner's arrival check asks.
+    const Vector3 target(0.0f, 8.0f, 0.0f);
+    PlayerKinematicState running;
+    running.facing = Vector3(1.0f, 0.0f, 0.0f);
+    float closest = 1e9f;
+    float fastest = 0.0f;
+    for (int step = 0; step < 300; ++step) {
+      PlayerLocomotionInput chase;
+      chase.desiredVelocity =
+          (target.Get2D() - running.position).GetNormalized(running.facing) *
+          7.5f;
+      chase.idleFacing = running.facing;
+      PlayerLocomotion::Step(running, chase, parameters, 0.01f);
+      closest = std::min(closest,
+                         (target.Get2D() - running.position).GetLength());
+      fastest = std::max(fastest, running.speed);
+    }
+    Require(closest <= 0.9f,
+            "procedural locomotion: an off-axis target must be reached");
+    RequireNear(fastest, 7.5f,
+                "procedural locomotion: convergence reaches full speed");
+    require_planar(running, "procedural locomotion turn convergence");
+  }
+
   // Locomotion facing is the velocity direction while moving, which is the
   // legacy structural invariant, even if the state started with a stale
   // facing.
@@ -392,8 +439,9 @@ void CheckProceduralLocomotionPrediction() {
 
   // Reachability follows the same model.
   const Vector3 reachable(5.0f, 0.0f, 0.0f);
-  const int eta = PlayerLocomotion::EstimateTimeToTarget(
-      state, reachable, parameters, 7.5f, 2000, 0.9f);
+  const int eta =
+      PlayerLocomotion::EstimateArrival(state, reachable, parameters, 7.5f,
+                                        2000, 0.9f, 0.9f).usual_ms;
   Require(eta > 0, "procedural prediction: a reachable target needs an ETA");
   const PlayerKinematicState at_eta = PlayerLocomotion::Predict(
       state, input, parameters, eta);
@@ -401,19 +449,21 @@ void CheckProceduralLocomotionPrediction() {
           "procedural prediction: the ETA must actually arrive");
 
   // A standstill cannot reach anything, and asking to try must not loop.
-  Require(PlayerLocomotion::EstimateTimeToTarget(state, reachable,
-                                                  parameters, 0.0f, 2000,
-                                                  0.9f) == -1,
+  Require(PlayerLocomotion::EstimateArrival(state, reachable, parameters,
+                                            0.0f, 2000, 0.9f, 0.9f)
+              .usual_ms == -1,
           "procedural prediction: no speed means no reachability");
   // A target beyond the horizon is reported unreachable, not guessed.
-  Require(PlayerLocomotion::EstimateTimeToTarget(
+  Require(PlayerLocomotion::EstimateArrival(
               state, Vector3(5000.0f, 0.0f, 0.0f), parameters, 7.5f, 500,
-              0.9f) == -1,
+              0.9f, 0.9f)
+              .usual_ms == -1,
           "procedural prediction: beyond the horizon means unreachable");
   // A target already within reach is immediate.
-  Require(PlayerLocomotion::EstimateTimeToTarget(
+  Require(PlayerLocomotion::EstimateArrival(
               state, Vector3(0.2f, 0.0f, 0.0f), parameters, 7.5f, 2000,
-              0.9f) == 0,
+              0.9f, 0.9f)
+              .usual_ms == 0,
           "procedural prediction: an in-reach target is immediate");
 }
 
@@ -423,44 +473,100 @@ void CheckProceduralLocomotionPrediction() {
 void CheckProceduralInterceptPrediction() {
   PlayerLocomotionParameters parameters;
   parameters.maxSpeed = 7.5f;
+  const float usual_radius = 0.28f;
+  const float optimistic_radius = 0.9f;
+  const int horizon_ms = 2000;
 
   PlayerKinematicState state;
   state.facing = Vector3(1.0f, 0.0f, 0.0f);
 
   const Vector3 stationary(4.0f, 0.0f, 0.0f);
-  const int stationary_eta = PlayerLocomotion::EstimateInterceptTime(
-      state, [&stationary](int) { return stationary; }, parameters, 7.5f,
-      2000, 0.9f);
-  Require(stationary_eta > 0,
-          "procedural intercept: a reachable ball needs an ETA");
+  const PlayerLocomotionReach stationary_reach =
+      PlayerLocomotion::EstimateEarliestIntercept(
+          state, [&stationary](int) { return stationary; }, parameters,
+          7.5f, horizon_ms, usual_radius, optimistic_radius);
+  Require(stationary_reach.optimistic_ms > 0 &&
+              stationary_reach.usual_ms >= stationary_reach.optimistic_ms,
+          "procedural intercept: a reachable ball needs a dual estimate");
 
   // A ball drifting away is caught later than a stationary one.
-  const int drifting_eta = PlayerLocomotion::EstimateInterceptTime(
-      state,
-      [&stationary](int elapsed_ms) {
-        return stationary + Vector3(2.0f, 0.0f, 0.0f) * (elapsed_ms * 0.001f);
-      },
-      parameters, 7.5f, 2000, 0.9f);
-  Require(drifting_eta > stationary_eta,
-          "procedural intercept: a moving ball must take longer");
+  const PlayerLocomotionReach drifting_reach =
+      PlayerLocomotion::EstimateEarliestIntercept(
+          state,
+          [&stationary](int elapsed_ms) {
+            return stationary +
+                   Vector3(2.0f, 0.0f, 0.0f) * (elapsed_ms * 0.001f);
+          },
+          parameters, 7.5f, horizon_ms, usual_radius, optimistic_radius);
+  Require(drifting_reach.optimistic_ms > stationary_reach.optimistic_ms ||
+              drifting_reach.optimistic_ms < 0,
+          "procedural intercept: a moving ball must not be easier");
 
   // A ball that outruns the actor is unreachable rather than optimistically
   // estimated.
-  const int outrun_eta = PlayerLocomotion::EstimateInterceptTime(
-      state,
-      [&stationary](int elapsed_ms) {
-        return stationary + Vector3(30.0f, 0.0f, 0.0f) * (elapsed_ms * 0.001f);
-      },
-      parameters, 7.5f, 2000, 0.9f);
-  Require(outrun_eta == -1,
-          "procedural intercept: a ball the actor cannot catch is "
+  const PlayerLocomotionReach outrun_reach =
+      PlayerLocomotion::EstimateEarliestIntercept(
+          state,
+          [&stationary](int elapsed_ms) {
+            return stationary +
+                   Vector3(30.0f, 0.0f, 0.0f) * (elapsed_ms * 0.001f);
+          },
+          parameters, 7.5f, horizon_ms, usual_radius, optimistic_radius);
+  Require(outrun_reach.usual_ms == -1 && outrun_reach.optimistic_ms == -1,
+          "procedural intercept: a ball the actor cannot outrun is "
           "unreachable");
 
   // No speed means no intercept.
-  Require(PlayerLocomotion::EstimateInterceptTime(
+  Require(PlayerLocomotion::EstimateEarliestIntercept(
               state, [&stationary](int) { return stationary; }, parameters,
-              0.0f, 2000, 0.9f) == -1,
+              0.0f, horizon_ms, usual_radius, optimistic_radius)
+              .usual_ms == -1,
           "procedural intercept: no speed means no intercept");
+
+  // The defining case: the ball crosses in front of the actor, so chasing its
+  // current position is not the same as intercepting it. The estimator must
+  // find the lead point, and must not be worse than pure pursuit.
+  const auto crossing_ball = [](int elapsed_ms) {
+    return Vector3(3.0f, 2.0f + 2.0f * (elapsed_ms * 0.001f), 0.0f);
+  };
+  const PlayerLocomotionReach lead_reach =
+      PlayerLocomotion::EstimateEarliestIntercept(
+          state, crossing_ball, parameters, 7.5f, horizon_ms, usual_radius,
+          optimistic_radius);
+  Require(lead_reach.optimistic_ms > 0 &&
+              lead_reach.optimistic_ms < horizon_ms,
+          "procedural intercept: the lead point must be reachable");
+
+  // The lead point the estimator chose is genuinely reachable: aiming at that
+  // fixed point from the same start arrives inside the intercept time.
+  const Vector3 lead_point = crossing_ball(lead_reach.optimistic_ms);
+  const PlayerLocomotionReach lead_arrival = PlayerLocomotion::EstimateArrival(
+      state, lead_point, parameters, 7.5f, lead_reach.optimistic_ms,
+      usual_radius, optimistic_radius);
+  Require(lead_arrival.optimistic_ms >= 0,
+          "procedural intercept: the chosen lead point must be reachable");
+
+  // Pure pursuit, kept here only as the comparison that documents why the
+  // pursuit formulation was replaced.
+  int pursuit_ms = -1;
+  {
+    PlayerKinematicState pursuit = state;
+    for (int elapsed = 0; elapsed <= horizon_ms; elapsed += 10) {
+      const Vector3 ball = crossing_ball(elapsed).Get2D();
+      if ((ball - pursuit.position).GetLength() <= optimistic_radius) {
+        pursuit_ms = elapsed;
+        break;
+      }
+      PlayerLocomotionInput input;
+      input.desiredVelocity =
+          (ball - pursuit.position).GetNormalized(pursuit.facing) * 7.5f;
+      input.idleFacing = pursuit.facing;
+      PlayerLocomotion::Step(pursuit, input, parameters, 0.01f);
+    }
+  }
+  Require(pursuit_ms < 0 || lead_reach.optimistic_ms <= pursuit_ms,
+          "procedural intercept: the lead point must not be worse than pure "
+          "pursuit");
 }
 void CheckPlayerKinematicMirror() {
   PlayerKinematicState state;
@@ -1719,13 +1825,13 @@ void MeasureLocomotionPrediction(GameEnv& env, ScenarioConfig& config) {
         // commanded speed is reported too, because that is what the actor is
         // actually doing.
         const int procedural_eta_sprint =
-            PlayerLocomotion::EstimateTimeToTarget(
+            PlayerLocomotion::EstimateArrival(
                 start, target, parameters, player->GetMaxVelocity(),
-                horizon_ms, reach_radius);
+                horizon_ms, reach_radius, reach_radius).usual_ms;
         const int procedural_eta_commanded =
-            PlayerLocomotion::EstimateTimeToTarget(
+            PlayerLocomotion::EstimateArrival(
                 start, target, parameters, desired_speed, horizon_ms,
-                reach_radius);
+                reach_radius, reach_radius).usual_ms;
         const TimeNeeded legacy = AI_GetTimeNeededForDistance_ms(
             start.position, start.velocity, target,
             player->GetMaxVelocity(), true, horizon_ms);
@@ -1843,16 +1949,20 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
   Match* match = env.context->gameTask->GetMatch();
   Ball* ball = match->GetBall();
 
-  const float reach_radius = 0.9f;
-  const int horizon_ms = static_cast<int>(ballPredictionSize_ms);
+  // The legacy dual estimate uses a usual (touchable) and an optimistic radius,
+  // so both are mirrored here instead of comparing one radius against two.
+  const float usual_radius = 0.28f;
+  const float optimistic_radius = 0.9f;
+  const int horizon_ms = 2000;
   int samples = 0;
   int legacy_unreachable = 0;
-  int procedural_unreachable = 0;
+  int procedural_usual_unreachable = 0;
+  int procedural_optimistic_unreachable = 0;
   int reachability_disagreements = 0;
   int legacy_committed_unreachable = 0;
+  int procedural_committed_unreachable = 0;
   int both_reachable = 0;
-  double legacy_sum = 0.0;
-  double procedural_sum = 0.0;
+  double error_sum = 0.0;
 
   const int steps = 400;
   for (int step = 0; step < steps; ++step) {
@@ -1867,17 +1977,26 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
         }
         PlayerLocomotionParameters parameters;
         parameters.maxSpeed = player->GetMaxVelocity();
-        const int procedural = PlayerLocomotion::EstimateInterceptTime(
-            player->GetKinematicState(),
-            [ball](int ms) { return ball->Predict(ms); }, parameters,
-            player->GetMaxVelocity(), horizon_ms, reach_radius);
+        const PlayerLocomotionReach procedural =
+            PlayerLocomotion::EstimateEarliestIntercept(
+                player->GetKinematicState(),
+                [ball](int ms) { return ball->Predict(ms); }, parameters,
+                player->GetMaxVelocity(), horizon_ms, usual_radius,
+                optimistic_radius);
+        // Compare like with like: timeNeededToGetToBall_ms is the legacy usual
+        // estimate, so it is matched against the procedural usual estimate.
         const int legacy = player->GetTimeNeededToGetToBall_ms();
         const bool legacy_reachable = legacy < horizon_ms;
-        const bool procedural_reachable = procedural >= 0;
+        const bool procedural_reachable = procedural.usual_ms >= 0;
+        const bool procedural_optimistic_reachable =
+            procedural.optimistic_ms >= 0;
 
         ++samples;
         if (!legacy_reachable) ++legacy_unreachable;
-        if (!procedural_reachable) ++procedural_unreachable;
+        if (!procedural_reachable) ++procedural_usual_unreachable;
+        if (!procedural_optimistic_reachable) {
+          ++procedural_optimistic_unreachable;
+        }
         if (legacy_reachable != procedural_reachable) {
           ++reachability_disagreements;
         }
@@ -1886,10 +2005,13 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
         if (legacy < 1000 && !procedural_reachable) {
           ++legacy_committed_unreachable;
         }
+        if (procedural_reachable && procedural.usual_ms < 1000 &&
+            !legacy_reachable) {
+          ++procedural_committed_unreachable;
+        }
         if (legacy_reachable && procedural_reachable) {
           ++both_reachable;
-          legacy_sum += legacy;
-          procedural_sum += procedural;
+          error_sum += std::fabs(legacy - procedural.usual_ms);
         }
       }
     }
@@ -1900,17 +2022,26 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
           "intercept prediction: no sample was collected, the measurement "
           "would be vacuous");
   std::cout << "intercept prediction: samples=" << samples
-            << " legacy_unreachable=" << legacy_unreachable
-            << " procedural_unreachable=" << procedural_unreachable
+            << " procedural_reachable_usual="
+            << (samples - procedural_usual_unreachable) << " ("
+            << (100.0 * (samples - procedural_usual_unreachable) / samples)
+            << "%)"
+            << " procedural_reachable_optimistic="
+            << (samples - procedural_optimistic_unreachable) << " ("
+            << (100.0 * (samples - procedural_optimistic_unreachable) /
+                samples)
+            << "%)"
+            << " legacy_reachable=" << (samples - legacy_unreachable) << " ("
+            << (100.0 * (samples - legacy_unreachable) / samples) << "%)"
             << " reachability_disagreements=" << reachability_disagreements
             << " (" << (100.0 * reachability_disagreements / samples) << "%)"
             << " legacy_under_1000_but_unreachable="
             << legacy_committed_unreachable
+            << " procedural_under_1000_but_legacy_unreachable="
+            << procedural_committed_unreachable
             << " both_reachable=" << both_reachable
-            << " mean_legacy_ms="
-            << (both_reachable > 0 ? legacy_sum / both_reachable : 0.0)
-            << " mean_procedural_ms="
-            << (both_reachable > 0 ? procedural_sum / both_reachable : 0.0)
+            << " mean_abs_eta_error_ms="
+            << (both_reachable > 0 ? error_sum / both_reachable : 0.0)
             << "\n";
 }
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {

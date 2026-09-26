@@ -45,6 +45,15 @@ struct PlayerLocomotionInput {
   Vector3 idleFacing = Vector3(0, -1, 0);
 };
 
+// Dual estimate of when an actor gets inside a reach radius. The two radii are
+// the legacy AI's usual (can actually touch the ball) and optimistic distances,
+// so replacing TimeNeeded keeps its dual-estimate semantics. A negative value
+// means "not reached inside the horizon".
+struct PlayerLocomotionReach {
+  int usual_ms = -1;
+  int optimistic_ms = -1;
+};
+
 struct PlayerLocomotionParameters {
   float maxSpeed = 7.5f;
   float acceleration = 6.0f;  // m/s^2 while speeding up
@@ -101,8 +110,13 @@ class PlayerLocomotion {
     const float turnAuthority =
         parameters.maxTurnRate *
         (1.0f - parameters.turnRateSpeedFactor * speedRatio);
-    const float requestedTurn =
-        currentDirection.GetAngle2D(desiredDirection);
+    // Vector3::GetAngle2D() and Vector3::GetRotated2D() use opposite sign
+    // conventions, so the angle must be measured from the desired direction
+    // back to the current one. Measuring it the other way rotates the actor
+    // away from its target and it settles into a circling equilibrium with a
+    // permanent ~pi heading error, which halves its speed through the turn
+    // penalty and makes it look unreachable to any planner.
+    const float requestedTurn = desiredDirection.GetAngle2D(currentDirection);
     const float appliedTurn =
         clamp(requestedTurn, -turnAuthority * dt, turnAuthority * dt);
     const Vector3 newDirection =
@@ -150,61 +164,86 @@ class PlayerLocomotion {
     return state;
   }
 
-  // How long until this actor can be within reach_radius of the target if it
-  // runs at desired_speed and re-aims every tick. Returns -1 when the target
-  // is not reached inside horizon_ms. This is the reachability counterpart of
-  // Predict() and deliberately calls the same Step().
-  static int EstimateTimeToTarget(const PlayerKinematicState &start,
-                                  const Vector3 &target,
-                                  const PlayerLocomotionParameters &parameters,
-                                  float desired_speed, int horizon_ms,
-                                  float reach_radius) {
+  // How long until this actor is inside each reach radius if it commits to
+  // desired_speed and re-aims at the fixed target every tick. The two radii
+  // mirror the legacy AI's usual (0.28, can actually touch the ball) and
+  // optimistic (0.90) distances so the dual estimate stays available. A
+  // negative value means the radius was not reached inside horizon_ms.
+  //
+  // This is a capability estimate, not a prediction of the command the
+  // controller will actually emit: it answers "if this actor chases as hard as
+  // the locomotion physics allow, when can it get there".
+  static PlayerLocomotionReach EstimateArrival(
+      const PlayerKinematicState &start, const Vector3 &target,
+      const PlayerLocomotionParameters &parameters, float desired_speed,
+      int horizon_ms, float usual_radius, float optimistic_radius) {
     DO_VALIDATION;
-    if (desired_speed <= 0.0f) return -1;
+    PlayerLocomotionReach reach;
+    if (desired_speed <= 0.0f) return reach;
     PlayerKinematicState state = start;
-    for (int elapsed = 0; elapsed < horizon_ms; elapsed += 10) {
-      const Vector3 to_target = (target - state.position).Get2D();
-      if (to_target.GetLength() <= reach_radius) return elapsed;
-      PlayerLocomotionInput input;
-      input.desiredVelocity =
-          to_target.GetNormalized(state.facing) * desired_speed;
-      input.idleFacing = state.facing;
-      Step(state, input, parameters, 0.01f);
-    }
-    const Vector3 remaining = (target - state.position).Get2D();
-    return remaining.GetLength() <= reach_radius ? horizon_ms : -1;
-  }
-
-  // The AI's own question is not "how long to reach this fixed point" but
-  // "when can I first intercept a moving ball". The legacy version answers it
-  // by testing, for every ball prediction time, whether the actor could be at
-  // that predicted position by then. This is the procedural counterpart: one
-  // greedy-pursuit rollout that re-aims at the ball prediction for the elapsed
-  // time, using the same Step() as execution.
-  template <typename TargetAtTime>
-  static int EstimateInterceptTime(const PlayerKinematicState &start,
-                                   TargetAtTime target_at,
-                                   const PlayerLocomotionParameters &parameters,
-                                   float desired_speed, int horizon_ms,
-                                   float reach_radius) {
-    DO_VALIDATION;
-    if (desired_speed <= 0.0f) return -1;
-    PlayerKinematicState state = start;
-    for (int elapsed = 0; elapsed < horizon_ms; elapsed += 10) {
-      const Vector3 target = target_at(elapsed).Get2D();
-      if ((target - state.position).GetLength() <= reach_radius) {
-        return elapsed;
+    for (int elapsed = 0; elapsed <= horizon_ms; elapsed += 10) {
+      const float distance =
+          (target.Get2D() - state.position).GetLength();
+      if (reach.optimistic_ms < 0 && distance <= optimistic_radius) {
+        reach.optimistic_ms = elapsed;
       }
+      if (reach.usual_ms < 0 && distance <= usual_radius) {
+        reach.usual_ms = elapsed;
+      }
+      // The optimistic radius is the looser one, so it is always satisfied
+      // first and the usual radius ends the rollout.
+      if (reach.usual_ms >= 0 || elapsed == horizon_ms) break;
       PlayerLocomotionInput input;
       input.desiredVelocity =
-          (target - state.position).GetNormalized(state.facing) *
+          (target.Get2D() - state.position).GetNormalized(state.facing) *
           desired_speed;
       input.idleFacing = state.facing;
       Step(state, input, parameters, 0.01f);
     }
-    const Vector3 target = target_at(horizon_ms).Get2D();
-    return (target - state.position).GetLength() <= reach_radius ? horizon_ms
-                                                                 : -1;
+    return reach;
+  }
+
+  // The AI's question is "when can I first intercept a moving ball", and the
+  // legacy code answers it as candidate-time reachability: for every candidate
+  // interception time, take the ball position predicted for that moment and
+  // ask whether the actor could be there by then. The earliest candidate that
+  // works is the interception time.
+  //
+  // Pure pursuit (re-aiming at the ball's current predicted position each
+  // tick) is NOT the same question: it chases the ball's tail and reports a
+  // moving ball as far less reachable than it is, which is what made an
+  // earlier version of this estimator report 99% of balls as unreachable.
+  template <typename TargetAtTime>
+  static PlayerLocomotionReach EstimateEarliestIntercept(
+      const PlayerKinematicState &start, TargetAtTime target_at,
+      const PlayerLocomotionParameters &parameters, float desired_speed,
+      int horizon_ms, float usual_radius, float optimistic_radius) {
+    DO_VALIDATION;
+    PlayerLocomotionReach intercept;
+    if (desired_speed <= 0.0f) return intercept;
+    for (int intercept_ms = 0; intercept_ms <= horizon_ms;
+         intercept_ms += 10) {
+      const Vector3 intercept_point = target_at(intercept_ms).Get2D();
+      // Necessary condition, so the answer is unchanged: no actor can cover
+      // more ground than desired_speed allows. This prunes candidates that
+      // cannot be feasible before paying for a rollout.
+      if (intercept_ms > 0 &&
+          (intercept_point - start.position).GetLength() >
+              desired_speed * (intercept_ms * 0.001f) + optimistic_radius) {
+        continue;
+      }
+      const PlayerLocomotionReach arrival =
+          EstimateArrival(start, intercept_point, parameters, desired_speed,
+                          intercept_ms, usual_radius, optimistic_radius);
+      if (intercept.optimistic_ms < 0 && arrival.optimistic_ms >= 0) {
+        intercept.optimistic_ms = intercept_ms;
+      }
+      if (intercept.usual_ms < 0 && arrival.usual_ms >= 0) {
+        intercept.usual_ms = intercept_ms;
+      }
+      if (intercept.usual_ms >= 0) break;
+    }
+    return intercept;
   }
 };
 
