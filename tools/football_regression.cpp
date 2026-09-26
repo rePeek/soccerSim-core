@@ -10,6 +10,7 @@
 
 #include "game_env.hpp"
 #include "onthepitch/player/player_kinematics.hpp"
+#include "onthepitch/player/player_locomotion.hpp"
 #include "onthepitch/player/player_ground_collider.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
@@ -198,6 +199,165 @@ void CheckPlayerKinematics() {
               "kinematics planar velocity");
   RequireNear(state.position.coords[2], 0.0f,
               "kinematics planar position");
+}
+
+// H3e1b: the procedural locomotion model. These tests pin the structures the
+// legacy measurements justified: strongly asymmetric speed approach, turning
+// paid for with speed, rate-limited heading change, velocity-derived facing,
+// idle facing fallback and planarity. They also pin that the model stays
+// continuous, because the legacy per-tick texture was an animation artifact
+// that the new simulation must not reproduce.
+void CheckProceduralLocomotion() {
+  PlayerLocomotionParameters parameters;
+  parameters.maxSpeed = 7.5f;
+  parameters.acceleration = 6.0f;
+  parameters.braking = 12.0f;
+  parameters.maxTurnRate = 6.0f;
+  parameters.turnRateSpeedFactor = 0.75f;
+  parameters.turnSpeedLoss = 0.5f;
+  parameters.idleSpeedThreshold = 0.5f;
+
+  const auto require_planar = [](const PlayerKinematicState& state,
+                                 const char* label) {
+    RequireNear(state.position.coords[2], 0.0f,
+                std::string(label) + " planar position");
+    RequireNear(state.velocity.coords[2], 0.0f,
+                std::string(label) + " planar velocity");
+    RequireNear(state.facing.coords[2], 0.0f,
+                std::string(label) + " planar facing");
+  };
+
+  // Continuous acceleration: one tick reaches acceleration * dt, nowhere near
+  // the desired speed. An animation switch would have snapped instead.
+  {
+    PlayerKinematicState state;
+    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotionInput input;
+    input.desiredVelocity = Vector3(7.5f, 0.0f, 0.0f);
+    input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotion::Step(state, input, parameters, 0.01f);
+    RequireNear(state.speed, 0.06f,
+                "procedural locomotion: first tick speed");
+    RequireNear(state.position.GetLength(), 0.0006f,
+                "procedural locomotion: first tick distance");
+    require_planar(state, "procedural locomotion acceleration");
+  }
+
+  // Braking uses the braking rate, not the acceleration rate: the asymmetry
+  // measured in legacy is a deliberate part of the model.
+  {
+    PlayerKinematicState state;
+    state.velocity = Vector3(5.0f, 0.0f, 0.0f);
+    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    state.speed = 5.0f;
+    PlayerLocomotionInput input;
+    input.desiredVelocity = Vector3(0.0f);
+    input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotion::Step(state, input, parameters, 0.1f);
+    RequireNear(state.speed, 3.8f,
+                "procedural locomotion: braking uses the braking rate");
+    require_planar(state, "procedural locomotion braking");
+  }
+
+  // The target is reached exactly, never overshot.
+  {
+    PlayerKinematicState state;
+    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotionInput input;
+    input.desiredVelocity = Vector3(1.0f, 0.0f, 0.0f);
+    input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotion::Step(state, input, parameters, 1.0f);
+    RequireNear(state.speed, 1.0f,
+                "procedural locomotion: target is not overshot");
+    require_planar(state, "procedural locomotion target");
+  }
+
+  // Turning costs speed: a reversal has half the target speed, while a
+  // straight command from the same state keeps full speed.
+  {
+    PlayerKinematicState turning;
+    turning.velocity = Vector3(7.5f, 0.0f, 0.0f);
+    turning.facing = Vector3(1.0f, 0.0f, 0.0f);
+    turning.speed = 7.5f;
+    PlayerLocomotionInput reversal;
+    reversal.desiredVelocity = Vector3(-7.5f, 0.0f, 0.0f);
+    reversal.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotion::Step(turning, reversal, parameters, 0.01f);
+    RequireNear(turning.speed, 7.38f,
+                "procedural locomotion: turning costs speed");
+
+    PlayerKinematicState straight;
+    straight.velocity = Vector3(7.5f, 0.0f, 0.0f);
+    straight.facing = Vector3(1.0f, 0.0f, 0.0f);
+    straight.speed = 7.5f;
+    PlayerLocomotionInput ahead;
+    ahead.desiredVelocity = Vector3(7.5f, 0.0f, 0.0f);
+    ahead.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotion::Step(straight, ahead, parameters, 0.01f);
+    RequireNear(straight.speed, 7.5f,
+                "procedural locomotion: straight running keeps speed");
+    require_planar(turning, "procedural locomotion turn penalty");
+  }
+
+  // The heading is rate limited. At full speed the model turns far more
+  // slowly than the requested 90 degrees, which is the structure that
+  // replaces legacy's animation-driven instant turns.
+  {
+    PlayerKinematicState state;
+    state.velocity = Vector3(7.5f, 0.0f, 0.0f);
+    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    state.speed = 7.5f;
+    PlayerLocomotionInput input;
+    input.desiredVelocity = Vector3(0.0f, 7.5f, 0.0f);
+    input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
+    PlayerLocomotion::Step(state, input, parameters, 0.01f);
+    const radian turned =
+        std::fabs(Vector3(1.0f, 0.0f, 0.0f).GetAngle2D(
+            state.velocity.GetNormalized(Vector3(1.0f, 0.0f, 0.0f))));
+    RequireNear(turned, 0.015f,
+                "procedural locomotion: heading is rate limited");
+    require_planar(state, "procedural locomotion turn rate");
+  }
+
+  // Locomotion facing is the velocity direction while moving, which is the
+  // legacy structural invariant, even if the state started with a stale
+  // facing.
+  {
+    PlayerKinematicState state;
+    state.velocity = Vector3(3.0f, 0.0f, 0.0f);
+    state.facing = Vector3(0.0f, -1.0f, 0.0f);
+    state.speed = 3.0f;
+    PlayerLocomotionInput input;
+    input.desiredVelocity = Vector3(3.0f, 0.0f, 0.0f);
+    input.idleFacing = Vector3(0.0f, -1.0f, 0.0f);
+    PlayerLocomotion::Step(state, input, parameters, 0.01f);
+    Require(state.facing.GetDistance(
+                state.velocity.GetNormalized(Vector3(1.0f, 0.0f, 0.0f))) <
+                1e-6f,
+            "procedural locomotion: facing is the velocity direction");
+    require_planar(state, "procedural locomotion facing");
+  }
+
+  // Standing still holds the idle facing and does not drift.
+  {
+    PlayerKinematicState state;
+    state.position = Vector3(2.0f, 3.0f, 0.0f);
+    state.velocity = Vector3(0.0f);
+    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    state.speed = 0.0f;
+    PlayerLocomotionInput input;
+    input.desiredVelocity = Vector3(0.0f);
+    input.idleFacing = Vector3(0.0f, -1.0f, 0.0f);
+    PlayerLocomotion::Step(state, input, parameters, 0.01f);
+    RequireNear(state.speed, 0.0f, "procedural locomotion: idle speed");
+    RequireNear(state.position.coords[0], 2.0f,
+                "procedural locomotion: idle does not drift x");
+    RequireNear(state.position.coords[1], 3.0f,
+                "procedural locomotion: idle does not drift y");
+    RequireNear(state.facing.coords[1], -1.0f,
+                "procedural locomotion: idle facing fallback");
+    require_planar(state, "procedural locomotion idle");
+  }
 }
 
 void CheckPlayerKinematicMirror() {
@@ -926,6 +1086,10 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
   double gap_sum_speed_change[9] = {0.0};
   double commanded_ratio_sum = 0.0;
   int commanded_ratio_samples = 0;
+  double locomotion_position_error_sum = 0.0;
+  double locomotion_velocity_error_sum = 0.0;
+  double locomotion_facing_error_sum = 0.0;
+  double locomotion_max_position_error = 0.0;
   int legacy_facing_velocity_samples = 0;
   double legacy_facing_velocity_error_sum = 0.0;
   int movement_facing_samples = 0;
@@ -976,9 +1140,24 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
       PlayerKinematicParameters parameters;
       parameters.maxSpeed = sample.player->GetMaxVelocity();
       PlayerKinematics::Step(predicted, input, parameters, 0.01f);
-
       const PlayerKinematicState& actual =
           sample.player->GetKinematicState();
+      // The new procedural locomotion model, evaluated on exactly the same
+      // sample so the two models are directly comparable.
+      PlayerKinematicState predicted_locomotion = sample.state;
+      PlayerLocomotionInput locomotion_input;
+      locomotion_input.desiredVelocity = input.desiredVelocity;
+      locomotion_input.idleFacing = input.desiredFacing;
+      PlayerLocomotionParameters locomotion_parameters;
+      locomotion_parameters.maxSpeed = sample.player->GetMaxVelocity();
+      PlayerLocomotion::Step(predicted_locomotion, locomotion_input,
+                             locomotion_parameters, 0.01f);
+      const double locomotion_position_error =
+          (predicted_locomotion.position - actual.position).GetLength();
+      const double locomotion_velocity_error =
+          (predicted_locomotion.velocity - actual.velocity).GetLength();
+      const double locomotion_facing_error = std::fabs(
+          predicted_locomotion.facing.GetAngle2D(actual.facing));
       const double position_error =
           (predicted.position - actual.position).GetLength();
       const double velocity_error =
@@ -998,6 +1177,12 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
         clean_legacy_step_sum += legacy_step;
         if (position_error > clean_max_position_error) {
           clean_max_position_error = position_error;
+        }
+        locomotion_position_error_sum += locomotion_position_error;
+        locomotion_velocity_error_sum += locomotion_velocity_error;
+        locomotion_facing_error_sum += locomotion_facing_error;
+        if (locomotion_position_error > locomotion_max_position_error) {
+          locomotion_max_position_error = locomotion_position_error;
         }
         ++clean_samples;
 
@@ -1083,6 +1268,14 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
             << (clean_facing_error_sum / clean_samples)
             << " clean_mean_legacy_step="
             << (clean_legacy_step_sum / clean_samples) << "\n";
+  std::cout << "locomotion divergence (new model): clean_samples="
+            << clean_samples << " mean_position_error="
+            << (locomotion_position_error_sum / clean_samples)
+            << " max_position_error=" << locomotion_max_position_error
+            << " mean_velocity_error="
+            << (locomotion_velocity_error_sum / clean_samples)
+            << " mean_facing_error="
+            << (locomotion_facing_error_sum / clean_samples) << "\n";
   std::cout << "locomotion facing semantics: legacy_facing_vs_velocity_error="
             << (legacy_facing_velocity_samples > 0
                     ? legacy_facing_velocity_error_sum /
@@ -1666,6 +1859,7 @@ int main(int argc, char** argv) {
 
     CheckPlayerKinematics();
     CheckPlayerKinematicMirror();
+    CheckProceduralLocomotion();
     CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
     CheckPureLocomotionBoundary();

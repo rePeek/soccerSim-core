@@ -17,6 +17,7 @@
 
 #include "player.hpp"
 #include "player_action_executor.hpp"
+#include "player_locomotion.hpp"
 
 #include <cstring>
 
@@ -215,24 +216,25 @@ void PlayerBase::UpdateKinematicShadow() {
     return;
   }
 
-  PlayerKinematicInput input;
+  PlayerLocomotionInput input;
   const float desiredSpeed =
       clamp(command.desiredVelocityFloat, 0.0f, GetMaxVelocity());
   input.desiredVelocity =
       command.desiredDirection.Get2D().GetNormalized(kinematicShadow.facing) *
       desiredSpeed;
-  input.desiredFacing = input.desiredVelocity.GetNormalized(
-      kinematicShadow.facing);
-  if (command.useDesiredLookAt) {
-    input.desiredFacing =
-        (command.desiredLookAt - kinematicShadow.position)
-            .Get2D()
-            .GetNormalized(input.desiredFacing);
-  }
+  // `desiredLookAt` is torso/look orientation, not locomotion facing. The
+  // locomotion model derives facing from velocity, so this only supplies the
+  // facing to hold while standing still.
+  input.idleFacing =
+      command.useDesiredLookAt
+          ? (command.desiredLookAt - kinematicShadow.position)
+                .Get2D()
+                .GetNormalized(kinematicShadow.facing)
+          : humanoid->GetBodyDirectionVec();
 
-  PlayerKinematicParameters parameters;
+  PlayerLocomotionParameters parameters;
   parameters.maxSpeed = GetMaxVelocity();
-  PlayerKinematics::Step(kinematicShadow, input, parameters, 0.01f);
+  PlayerLocomotion::Step(kinematicShadow, input, parameters, 0.01f);
 }
 
 void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
