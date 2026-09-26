@@ -2120,9 +2120,9 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
   Match* match = env.context->gameTask->GetMatch();
   Ball* ball = match->GetBall();
 
-  const int candidate_horizons[] = {300, 500, 700, 1000, 700};
-  const bool steady_state_model[] = {false, false, false, false, true};
-  const int horizon_count = 5;
+  const int candidate_horizons[] = {700, 0, 700};
+  const bool steady_state_model[] = {true, true, false};
+  const int horizon_count = 3;
   struct HorizonStats {
     int samples = 0;
     int exact_reachable = 0;
@@ -2285,7 +2285,7 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
               << " max=" << (entry.abs_errors.empty() ? 0.0
                                                       : entry.abs_errors.back())
               << "\n";
-    if (index == horizon_count - 1) {
+    if (steady_state_model[index]) {
       static const char* kHeadingLabels[5] = {"0-15", "15-45", "45-90", "90-135", "135-180"};
       static const char* kRatioLabels[4] = {"0-.25", ".25-.5", ".5-.75", ".75-1"};
       std::cout << "    u2r_by_heading:";
