@@ -25,7 +25,6 @@
 #include "file.h"
 #include "main.hpp"
 #include "scene/objectfactory.hpp"
-#include "scene/scene3d/scene3d.hpp"
 #include "game_env.hpp"
 
 using std::string;
@@ -51,10 +50,6 @@ GameContext& GetContext() {
 }
 
 void SetGame(GameEnv* c) { game = c; }
-
-boost::shared_ptr<Scene3D> GetScene3D() {
-  return game->context->scene3D;
-}
 
 boost::shared_ptr<GameTask> GetGameTask() {
   return game->context->gameTask;
@@ -89,14 +84,6 @@ void run_game(Properties* input_config) {
   game->context->config = input_config;
   Initialize();
   randomize(0);
-
-  // The animation import path (ObjectLoader) still builds its Node/Geometry
-  // hierarchy into a Scene3D. It is deliberately renderer-free: no
-  // GraphicsSystem is created, so this scene has no interpreter observers and
-  // Scene::CreateSystemObjects is a no-op. D4b removes this last import-time
-  // use of the scene graph.
-  game->context->scene3D.reset(new Scene3D());
-
   for (int x = 0; x < 2 * MAX_PLAYERS; x++) {
     DO_VALIDATION;
     e_PlayerColor color = e_PlayerColor(x % (e_PlayerColor_Default + 1));
@@ -111,7 +98,6 @@ void run_game(Properties* input_config) {
 void quit_game() {
   DO_VALIDATION;
   game->context->gameTask.reset();
-  game->context->scene3D.reset();
 
   for (unsigned int i = 0; i < game->context->controllers.size(); i++) {
     DO_VALIDATION;

@@ -233,8 +233,6 @@ class GameContext {
   GameContext() : rng(BaseGenerator(), Distribution()), rng_non_deterministic(BaseGenerator(), Distribution()) { }
   boost::shared_ptr<GameTask> gameTask;
   std::unique_ptr<MatchSetup> matchSetup;
-  // Renderer-free import-time transform hierarchy; see GetScene3D().
-  boost::shared_ptr<Scene3D> scene3D;
   Properties *config = nullptr;
 
   std::vector<AIControlledKeyboard*> controllers;
@@ -274,12 +272,6 @@ class Match;
 
 void SetGame(GameEnv* c);
 GameContext& GetContext();
-// The animation import path (ObjectLoader) still attaches the geometry it
-// loads to a Scene3D. That scene is renderer-free -- see run_game() -- so it
-// only acts as a transform hierarchy here. This accessor and the scene it
-// returns go away with D4b, when the import path stops needing the scene
-// graph at all.
-boost::shared_ptr<Scene3D> GetScene3D();
 boost::shared_ptr<GameTask> GetGameTask();
 
 Properties *GetConfiguration();

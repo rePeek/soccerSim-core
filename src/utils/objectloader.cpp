@@ -134,7 +134,6 @@ boost::intrusive_ptr<Node> ObjectLoader::LoadObject(
         if (properties.GetBool("dynamic")) geometry->GetResource()->SetDynamic(true);
 
         object->SetProperties(properties);
-        GetScene3D()->CreateSystemObjects(object);
         object->SetLocalMode(localMode);
         object->SetPosition(position);
         object->SetRotation(rotation);
@@ -176,7 +175,6 @@ boost::intrusive_ptr<Node> ObjectLoader::LoadObject(
         boost::intrusive_ptr<Light> object(new Light(objectName));
 
         //object->SetProperties(properties);
-        GetScene3D()->CreateSystemObjects(object);
         object->SetLocalMode(localMode);
         object->SetColor(GetVectorFromString(properties.Get("color")));
         object->SetRadius(properties.GetReal("radius"));

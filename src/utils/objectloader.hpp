@@ -18,7 +18,6 @@
 #ifndef _HPP_UTILS_OBJECTLOADER
 #define _HPP_UTILS_OBJECTLOADER
 
-#include "../scene/scene3d/scene3d.hpp"
 #include "../scene/scene3d/node.hpp"
 #include "../utils/xmlloader.hpp"
 
