@@ -18,7 +18,6 @@
 #include <fenv.h>
 
 #include <cerrno>
-#include <chrono>
 #include <ctime>
 #include <iostream>
 #include <ratio>
@@ -109,7 +108,7 @@ void GameEnv::start_game() {
   Properties* config = new Properties();
   config->Set("match_duration", 0.027);
   config->Set("game", 0);
-  run_game(config, game_config.render);
+  run_game(config);
   auto scenario_config = ScenarioConfig::make();
   reset(*scenario_config, false);
   DO_VALIDATION;
@@ -122,11 +121,6 @@ SharedInfo GameEnv::get_info() {
   info.step = context->step;
   GetTracker()->setDisabled(false);
   return info;
-}
-
-screenshoot GameEnv::get_frame() {
-  SetGame(this);
-  return GetGraphicsSystem()->GetScreen();
 }
 
 bool GameEnv::sticky_action_state(int action, bool left_team, int player) {
@@ -302,37 +296,7 @@ void GameEnv::step() {
   DO_VALIDATION;
   // We do 10 environment steps per second, while game does 100 frames of
   // physics animation.
-  int steps_to_do = GetGameConfig().physics_steps_per_frame;
-  if (GetScenarioConfig().real_time) {
-    DO_VALIDATION;
-    auto start = std::chrono::system_clock::now();
-    for (int x = 1; x <= steps_to_do; x++) {
-      DO_VALIDATION;
-      do_step(1);
-      bool render_current_step =
-          x * last_step_rendered_frames_ / steps_to_do !=
-          (x - 1) * last_step_rendered_frames_ / steps_to_do;
-      if (render_current_step) {
-        render();
-      }
-    }
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now() - start);
-    if (elapsed.count() > 9 * (steps_to_do + 1) &&
-        last_step_rendered_frames_ > 1) {
-      DO_VALIDATION;
-      last_step_rendered_frames_--;
-    } else if (elapsed.count() < 9 * (steps_to_do - 1) &&
-               last_step_rendered_frames_ < steps_to_do) {
-      DO_VALIDATION;
-      last_step_rendered_frames_++;
-    }
-  } else {
-    do_step(steps_to_do);
-    if (GetGameConfig().render) {
-      render();
-    }
-  }
+  do_step(GetGameConfig().physics_steps_per_frame);
   if (context->gameTask->GetMatch()->IsInPlay()) {
     DO_VALIDATION;
     GetTracker()->setDisabled(true);
@@ -352,12 +316,6 @@ void GameEnv::ProcessState(EnvState* state) {
   context->gameTask->GetMatch()->ProcessState(state);
 }
 
-void GameEnv::render(bool swap_buffer) {
-  GetTracker()->setDisabled(true);
-  context->graphicsSystem.GetTask()->Render(swap_buffer);
-  GetTracker()->setDisabled(false);
-}
-
 void GameEnv::reset(ScenarioConfig& game_config, bool animations) {
   DO_VALIDATION;
   ContextHolder c(this);
@@ -372,13 +330,6 @@ void GameEnv::reset(ScenarioConfig& game_config, bool animations) {
   }
   context->geometry_manager.RemoveUnused();
   context->surface_manager.RemoveUnused();
-  context->texture_manager.RemoveUnused();
-  context->vertices_manager.RemoveUnused();
   GetGameTask()->StopMatch();
-  if (GetGameConfig().render) {
-    GetTracker()->setDisabled(true);
-    context->graphicsSystem.GetTask()->Render(true);
-    GetTracker()->setDisabled(false);
-  }
   GetGameTask()->StartMatch(std::move(context->matchSetup), animations);
 }

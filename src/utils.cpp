@@ -19,7 +19,6 @@
 
 #include "utils.hpp"
 
-#include "systems/graphics/resources/texture.hpp"
 #include <boost/algorithm/string.hpp>
 #include <cmath>
 

@@ -40,9 +40,9 @@ void DoValidation(int line, const char* file);
 #include "match_setup.hpp"
 #include "hid/ihidevice.hpp"
 
-#include "systems/graphics/graphics_system.hpp"
-#include "scene/scene2d/scene2d.hpp"
 #include "scene/objectfactory.hpp"
+#include "scene/resources/geometrydata.hpp"
+#include "scene/resources/surface.hpp"
 #include "loaders/aseloader.hpp"
 #include "loaders/imageloader.hpp"
 #include "base/properties.hpp"
@@ -231,10 +231,9 @@ enum GameState {
 class GameContext {
  public:
   GameContext() : rng(BaseGenerator(), Distribution()), rng_non_deterministic(BaseGenerator(), Distribution()) { }
-  GraphicsSystem graphicsSystem;
   boost::shared_ptr<GameTask> gameTask;
   std::unique_ptr<MatchSetup> matchSetup;
-  boost::shared_ptr<Scene2D> scene2D;
+  // Renderer-free import-time transform hierarchy; see GetScene3D().
   boost::shared_ptr<Scene3D> scene3D;
   Properties *config = nullptr;
 
@@ -242,8 +241,6 @@ class GameContext {
   ObjectFactory object_factory;
   ResourceManager<GeometryData> geometry_manager;
   ResourceManager<Surface> surface_manager;
-  ResourceManager<Texture> texture_manager;
-  ResourceManager<VertexBuffer> vertices_manager;
   ASELoader aseLoader;
   ImageLoader imageLoader;
 
@@ -277,9 +274,12 @@ class Match;
 
 void SetGame(GameEnv* c);
 GameContext& GetContext();
-boost::shared_ptr<Scene2D> GetScene2D();
+// The animation import path (ObjectLoader) still attaches the geometry it
+// loads to a Scene3D. That scene is renderer-free -- see run_game() -- so it
+// only acts as a transform hierarchy here. This accessor and the scene it
+// returns go away with D4b, when the import path stops needing the scene
+// graph at all.
 boost::shared_ptr<Scene3D> GetScene3D();
-GraphicsSystem *GetGraphicsSystem();
 boost::shared_ptr<GameTask> GetGameTask();
 
 Properties *GetConfiguration();
@@ -288,7 +288,7 @@ GameConfig& GetGameConfig();
 
 const std::vector<AIControlledKeyboard*> &GetControllers();
 
-void run_game(Properties* input_config, bool render);
+void run_game(Properties* input_config);
 void randomize(unsigned int seed);
 void quit_game();
 int main(int argc, char** argv);

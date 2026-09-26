@@ -26,15 +26,11 @@ typedef std::vector<std::string> StringVector;
 
 class ContextHolder {
  public:
-  ContextHolder(GameEnv* game) : game(game) {
-     SetGame(game);
-     GetGraphicsSystem()->SetContext();
-  }
+  ContextHolder(GameEnv* game) : game(game) { SetGame(game); }
   ~ContextHolder() {
     if (GetGame() != game) {
       Log(e_FatalError, "football", "main", "game state was corrupted");
     }
-    GetGraphicsSystem()->DisableContext();
   }
  private:
   const GameEnv* game;
@@ -49,14 +45,10 @@ struct GameEnv {
   // Get the current state of the game (observation).
   SharedInfo get_info();
 
-  // Get the current rendered frame.
-  screenshoot get_frame();
-
   // Executes the action inside the game.
   bool sticky_action_state(int action, bool left_team, int player);
   void action(int action, bool left_team, int player);
   void reset(ScenarioConfig& game_config, bool init_animation);
-  void render(bool swap_buffer = true);
   std::string get_state(const std::string& pickle);
   std::string set_state(const std::string& state);
   void tracker_setup(long start, long end) { GetTracker()->setup(start, end); }
@@ -69,8 +61,6 @@ struct GameEnv {
   void do_step(int count);
   void getObservations();
   AIControlledKeyboard* keyboard_ = nullptr;
-  bool disable_graphics_ = false;
-  int last_step_rendered_frames_ = 1;
  public:
   ScenarioConfig scenario_config;
   GameConfig game_config;

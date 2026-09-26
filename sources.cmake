@@ -59,41 +59,18 @@ set(SYSTEMS_COMMON_HEADERS
 )
 
 set(SYSTEMS_GRAPHICS_HEADERS
-   src/systems/graphics/graphics_task.hpp
-   src/systems/graphics/graphics_scene.hpp
-   src/systems/graphics/graphics_object.hpp
-   src/systems/graphics/graphics_system.hpp
 )
 
 set(SYSTEMS_GRAPHICS_OBJECTS_HEADERS
-   src/systems/graphics/objects/graphics_overlay2d.hpp
-   src/systems/graphics/objects/graphics_camera.hpp
-   src/systems/graphics/objects/graphics_light.hpp
-   src/systems/graphics/objects/graphics_geometry.hpp
 )
 
 set(SYSTEMS_GRAPHICS_RESOURCES_HEADERS
-   src/systems/graphics/resources/vertexbuffer.hpp
-   src/systems/graphics/resources/texture.hpp
 )
 
 set(SYSTEMS_GRAPHICS_RENDERING_HEADERS
-   src/systems/graphics/rendering/interface_renderer3d.hpp
-   src/systems/graphics/rendering/opengl_renderer3d.hpp
 )
 
 set(SYSTEMS_GRAPHICS_SOURCES
-   src/systems/graphics/graphics_object.cpp
-   src/systems/graphics/graphics_task.cpp
-   src/systems/graphics/objects/graphics_geometry.cpp
-   src/systems/graphics/objects/graphics_camera.cpp
-   src/systems/graphics/objects/graphics_light.cpp
-   src/systems/graphics/objects/graphics_overlay2d.cpp
-   src/systems/graphics/graphics_scene.cpp
-   src/systems/graphics/resources/vertexbuffer.cpp
-   src/systems/graphics/resources/texture.cpp
-   src/systems/graphics/rendering/opengl_renderer3d.cpp
-   src/systems/graphics/graphics_system.cpp
 )
 
 set(LOADERS_HEADERS
@@ -134,7 +111,6 @@ set(SCENE_HEADERS
 )
 
 set(SCENE2D_HEADERS
-   src/scene/scene2d/scene2d.hpp
 )
 
 set(SCENE_OBJECTS_HEADERS
@@ -157,7 +133,6 @@ set(SCENE_RESOURCES_HEADERS
 
 set(SCENE_SOURCES
    src/scene/objectfactory.cpp
-   src/scene/scene2d/scene2d.cpp
    src/scene/scene.cpp
    src/scene/objects/image2d.cpp
    src/scene/objects/light.cpp

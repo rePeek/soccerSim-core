@@ -25,10 +25,7 @@
 #include "file.h"
 #include "main.hpp"
 #include "scene/objectfactory.hpp"
-#include "scene/scene2d/scene2d.hpp"
 #include "scene/scene3d/scene3d.hpp"
-#include "utils/objectloader.hpp"
-#include "utils/orbitcamera.hpp"
 #include "game_env.hpp"
 
 using std::string;
@@ -55,16 +52,8 @@ GameContext& GetContext() {
 
 void SetGame(GameEnv* c) { game = c; }
 
-boost::shared_ptr<Scene2D> GetScene2D() {
-  return game->context->scene2D;
-}
-
 boost::shared_ptr<Scene3D> GetScene3D() {
   return game->context->scene3D;
-}
-
-GraphicsSystem* GetGraphicsSystem() {
-  return &game->context->graphicsSystem;
 }
 
 boost::shared_ptr<GameTask> GetGameTask() {
@@ -95,26 +84,18 @@ void randomize(unsigned int seed) {
   randomseed(seed); // for the boost random
 }
 
-void run_game(Properties* input_config, bool render) {
+void run_game(Properties* input_config) {
   DO_VALIDATION;
   game->context->config = input_config;
   Initialize();
   randomize(0);
 
-  // initialize systems
-  game->context->graphicsSystem.Initialize(render,
-      game->game_config.render_resolution_x,
-      game->game_config.render_resolution_y);
-
-  // init scenes
-
-  game->context->scene2D.reset(new Scene2D(game->game_config.render_resolution_x,
-                                           game->game_config.render_resolution_y));
-  game->context->graphicsSystem.Create2DScene(game->context->scene2D);
-  game->context->scene2D->Init();
+  // The animation import path (ObjectLoader) still builds its Node/Geometry
+  // hierarchy into a Scene3D. It is deliberately renderer-free: no
+  // GraphicsSystem is created, so this scene has no interpreter observers and
+  // Scene::CreateSystemObjects is a no-op. D4b removes this last import-time
+  // use of the scene graph.
   game->context->scene3D.reset(new Scene3D());
-  game->context->graphicsSystem.Create3DScene(game->context->scene3D);
-  game->context->scene3D->Init();
 
   for (int x = 0; x < 2 * MAX_PLAYERS; x++) {
     DO_VALIDATION;
@@ -130,8 +111,6 @@ void run_game(Properties* input_config, bool render) {
 void quit_game() {
   DO_VALIDATION;
   game->context->gameTask.reset();
-
-  game->context->scene2D.reset();
   game->context->scene3D.reset();
 
   for (unsigned int i = 0; i < game->context->controllers.size(); i++) {
@@ -142,8 +121,6 @@ void quit_game() {
 
 
   delete game->context->config;
-
-  Exit();
 }
 
 void Tracker::verify_snapshot(long pos, int line, const char* file,

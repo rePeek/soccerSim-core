@@ -39,8 +39,6 @@ class GameTask {
 
   protected:
     std::unique_ptr<Match> match;
-
-    boost::shared_ptr<Scene3D> scene3D;
 };
 
 #endif

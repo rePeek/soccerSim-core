@@ -27,8 +27,6 @@ namespace blunted {
   /// load managers, systems, scheduler and scene
   void Initialize();
 
-  /// unload all
-  void Exit();
 }
 
 #endif

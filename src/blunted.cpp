@@ -24,15 +24,8 @@
 #include "loaders/imageloader.hpp"
 #include "main.hpp"
 #include "managers/resourcemanager.hpp"
-#include "scene/objectfactory.hpp"
-#include "scene/objects/camera.hpp"
-#include "scene/objects/geometry.hpp"
-#include "scene/objects/image2d.hpp"
-#include "scene/objects/light.hpp"
-#include "scene/objects/skybox.hpp"
 #include "scene/resources/geometrydata.hpp"
 #include "scene/resources/surface.hpp"
-#include "systems/isystem.hpp"
 
 namespace blunted {
 
@@ -43,13 +36,5 @@ void Initialize() {
   GetContext().surface_manager.RegisterLoader("jpg", &GetContext().imageLoader);
   GetContext().surface_manager.RegisterLoader("png", &GetContext().imageLoader);
   GetContext().surface_manager.RegisterLoader("bmp", &GetContext().imageLoader);
-}
-
-void Exit() {
-  DO_VALIDATION;
-  GetContext().scene2D->Exit();
-  GetContext().scene3D->Exit();
-  GetContext().graphicsSystem.Exit();
-  SDL_Quit();
 }
 }

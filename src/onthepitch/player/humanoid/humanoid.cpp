@@ -33,9 +33,6 @@
 
 #include "../../../utils/animationextensions/footballanimationextension.hpp"
 
-#include "../../../systems/graphics/objects/graphics_geometry.hpp"
-#include "../../../systems/graphics/graphics_scene.hpp"
-#include "../../../systems/graphics/graphics_system.hpp"
 
 constexpr bool animSmoothing = true;
 constexpr float cheatFactor = 0.5f;

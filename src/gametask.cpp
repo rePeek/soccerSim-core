@@ -21,11 +21,7 @@
 
 #include "blunted.hpp"
 
-GameTask::GameTask() {
-  DO_VALIDATION;
-  // prohibits deletion of the scene before this object is dead
-  scene3D = GetScene3D();
-}
+GameTask::GameTask() { DO_VALIDATION; }
 
 GameTask::~GameTask() {
   DO_VALIDATION;
