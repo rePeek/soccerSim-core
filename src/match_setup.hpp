@@ -15,7 +15,6 @@ struct ControllerSetup {
 
 struct MatchSetup {
   std::vector<ControllerSetup> controllers;
-  int team_kit_numbers[2] = {2, 2};
   std::unique_ptr<MatchData> match_data;
 };
 

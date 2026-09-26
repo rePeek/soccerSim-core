@@ -84,8 +84,7 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
                            boost::intrusive_ptr<Node> fullbodySourceNode,
                            std::map<Vector3, Vector3> &colorCoords,
                            boost::shared_ptr<AnimCollection> animCollection,
-                           boost::intrusive_ptr<Node> fullbodyTargetNode,
-                           boost::intrusive_ptr<Resource<Surface> > kit)
+                           boost::intrusive_ptr<Node> fullbodyTargetNode)
     : fullbodyTargetNode(fullbodyTargetNode),
       match(match),
       player(player),
@@ -131,9 +130,6 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
   }
 
   boost::static_pointer_cast<Geometry>(fullbodyNode->GetObject("fullbody"))->OnUpdateGeometryData();
-
-  SetKit(kit);
-
 
   FillNodeMap(humanoidNode, nodeMap);
 
@@ -930,34 +926,6 @@ void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {
       this->tripType = tripType;
     }
   }
-}
-
-void HumanoidBase::SetKit(boost::intrusive_ptr<Resource<Surface> > newKit) {
-  DO_VALIDATION;
-  boost::intrusive_ptr< Resource<GeometryData> > bodyGeom = boost::static_pointer_cast<Geometry>(fullbodyNode->GetObject("fullbody"))->GetGeometryData();
-
-  std::vector < MaterializedTriangleMesh > &tmesh = bodyGeom->GetResource()->GetTriangleMeshesRef();
-
-  if (newKit != boost::intrusive_ptr<Resource<Surface> >()) {
-    DO_VALIDATION;
-    for (unsigned int i = 0; i < tmesh.size(); i++) {
-      DO_VALIDATION;
-      if (tmesh[i].material.diffuseTexture !=
-          boost::intrusive_ptr<Resource<Surface> >()) {
-        DO_VALIDATION;
-        if (tmesh[i].material.diffuseTexture->GetIdentString() ==
-            kitDiffuseTextureIdentString) {
-          DO_VALIDATION;
-          tmesh[i].material.diffuseTexture = newKit;
-          tmesh[i].material.specular_amount = 0.01f;//0.02f;//0.033f;//0.01f;
-          tmesh[i].material.shininess = 0.01f;//0.005f;
-        }
-      }
-    }
-    kitDiffuseTextureIdentString = newKit->GetIdentString();
-  }
-
-  boost::static_pointer_cast<Geometry>(fullbodyNode->GetObject("fullbody"))->OnUpdateGeometryData();
 }
 
 void HumanoidBase::ResetSituation(const Vector3 &focusPos) {

@@ -226,7 +226,7 @@ struct SpatialState {
 class HumanoidBase {
 
   public:
-    HumanoidBase(PlayerBase *player, Match *match, boost::intrusive_ptr<Node> humanoidSourceNode, boost::intrusive_ptr<Node> fullbodySourceNode, std::map<Vector3, Vector3> &colorCoords, boost::shared_ptr<AnimCollection> animCollection, boost::intrusive_ptr<Node> fullbodyTargetNode, boost::intrusive_ptr < Resource<Surface> > kit);
+    HumanoidBase(PlayerBase *player, Match *match, boost::intrusive_ptr<Node> humanoidSourceNode, boost::intrusive_ptr<Node> fullbodySourceNode, std::map<Vector3, Vector3> &colorCoords, boost::shared_ptr<AnimCollection> animCollection, boost::intrusive_ptr<Node> fullbodyTargetNode);
     virtual ~HumanoidBase();
     void Mirror();
 
@@ -279,7 +279,6 @@ class HumanoidBase {
 
     void Hide() { DO_VALIDATION; fullbodyNode->SetPosition(Vector3(1000, 1000, -1000)); hairStyle->SetPosition(Vector3(1000, 1000, -1000)); } // hax ;)
 
-    void SetKit(boost::intrusive_ptr < Resource<Surface> > newKit);
 
     virtual void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState* state);
@@ -355,8 +354,6 @@ class HumanoidBase {
     boost::intrusive_ptr<Node> humanoidNode;
 
     boost::intrusive_ptr<Geometry> hairStyle;
-    // Initiated in the constructor, no need to snapshot.
-    std::string kitDiffuseTextureIdentString = "kit_template.png";
 
     Match *match;
     PlayerBase *player;

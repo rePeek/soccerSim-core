@@ -29,7 +29,6 @@
 Officials::Officials(Match *match,
                      boost::intrusive_ptr<Node> fullbodySourceNode,
                      std::map<Vector3, Vector3> &colorCoords,
-                     boost::intrusive_ptr<Resource<Surface> > kit,
                      boost::shared_ptr<AnimCollection> animCollection)
     : match(match) {
   DO_VALIDATION;
@@ -43,9 +42,9 @@ Officials::Officials(Match *match,
   linesmen[0] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
   linesmen[1] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
 
-  referee->Activate(playerNode, fullbodySourceNode, colorCoords, kit, match->GetAnimCollection(), false);
-  linesmen[0]->Activate(playerNode, fullbodySourceNode, colorCoords, kit, match->GetAnimCollection(), false);
-  linesmen[1]->Activate(playerNode, fullbodySourceNode, colorCoords, kit, match->GetAnimCollection(), false);
+  referee->Activate(playerNode, fullbodySourceNode, colorCoords, match->GetAnimCollection(), false);
+  linesmen[0]->Activate(playerNode, fullbodySourceNode, colorCoords, match->GetAnimCollection(), false);
+  linesmen[1]->Activate(playerNode, fullbodySourceNode, colorCoords, match->GetAnimCollection(), false);
   playerNode->Exit();
   playerNode.reset();
 

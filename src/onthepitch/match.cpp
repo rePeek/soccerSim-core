@@ -54,8 +54,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
           GetConfiguration()->GetReal("match_duration", 1.0) * 0.2f + 0.05f),
       _useMagnet(GetScenarioConfig().use_magnet) {
   DO_VALIDATION;
-  teamKitNumbers[0] = setup.team_kit_numbers[0];
-  teamKitNumbers[1] = setup.team_kit_numbers[1];
   auto& anims = GetContext().anims;
   GetContext().stablePlayerCount = 0;
 
@@ -131,10 +129,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
   // officials
 
-  std::string kitFilename = "media/objects/players/textures/referee_kit.png";
-  boost::intrusive_ptr<Resource<Surface> > kit =
-      GetContext().surface_manager.Fetch(kitFilename);
-  officials = new Officials(this, GetContext().fullbodyNode, GetContext().colorCoords, kit, anims);
+  officials = new Officials(this, GetContext().fullbodyNode, GetContext().colorCoords, anims);
 
 
 

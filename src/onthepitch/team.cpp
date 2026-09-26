@@ -93,20 +93,9 @@ void Team::InitPlayers(boost::intrusive_ptr<Node> fullbodyNode,
     if (i < playerNum) {
       DO_VALIDATION;
       // activate playerCount players (the starting eleven, usually)
-      std::string kitFilename;
-      // printf("%i player id\n", player->GetID());
       auto formation = GetFormationEntry(player);
-      if (formation.role != e_PlayerRole_GK) {
-        DO_VALIDATION;
-        kitFilename = GetTeamData()->GetKitUrl() + "_kit_0" +
-                      int_to_str(match->GetTeamKitNum(GetID())) + ".png";
-      } else {
-        kitFilename = "media/objects/players/textures/goalie_kit.png";
-      }
-      kit = GetContext().surface_manager.Fetch(kitFilename);
-      player->Activate(
-          playerNode, fullbodyNode,
-          colorCoords, kit, match->GetAnimCollection(), formation.lazy);
+      player->Activate(playerNode, fullbodyNode, colorCoords,
+                       match->GetAnimCollection(), formation.lazy);
     }
   }
 

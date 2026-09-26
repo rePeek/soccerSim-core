@@ -160,7 +160,6 @@ class Team {
     Player *lastTouchPlayer = nullptr;
     Player *mainSelectedPlayer = nullptr;
 
-    boost::intrusive_ptr < Resource<Surface> > kit;
     int side = -1;
     bool mirrored = false;
 };

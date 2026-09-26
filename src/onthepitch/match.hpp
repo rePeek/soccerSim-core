@@ -54,11 +54,6 @@ class Match {
 
     void UpdateControllerSetup();
     int GetScore(int teamID) { DO_VALIDATION; return matchData->GetGoalCount(teamID); }
-    int GetTeamKitNum(int teamID) const {
-      DO_VALIDATION;
-      assert(teamID == 0 || teamID == 1);
-      return teamKitNumbers[teamID];
-    }
     Ball *GetBall() { DO_VALIDATION; return ball; }
     Team *GetTeam(int teamID) { DO_VALIDATION; return teams[teamID]; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
@@ -167,7 +162,6 @@ class Match {
 
     const std::vector<AIControlledKeyboard*> &controllers;
     std::vector<ControllerSetup> controllerSetup;
-    int teamKitNumbers[2] = {2, 2};
 
     Ball *ball = nullptr;
 
