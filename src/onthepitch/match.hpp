@@ -28,6 +28,7 @@
 #include "player/humanoid/animcollection.hpp"
 #include "AIsupport/mentalimage.hpp"
 
+class BallPresentation;
 
 #include "../scene/objects/camera.hpp"
 #include "../scene/objects/light.hpp"
@@ -190,6 +191,7 @@ class Match {
     int teamKitNumbers[2] = {2, 2};
 
     Ball *ball = nullptr;
+    std::unique_ptr<BallPresentation> ballPresentation;
 
     std::vector<MentalImage> mentalImages; // [index] == index * 10 ms ago ([0] == now)
 

@@ -19,12 +19,7 @@
 
 #include <cmath>
 
-#include "../utils/objectloader.hpp"
-#include "../scene/objectfactory.hpp"
-
 #include "match.hpp"
-
-#include "../main.hpp"
 
 constexpr float bounce = 0.62f;  // 1 = full bounce, 0 = no bounce
 constexpr float linearBounce = 0.06f;  // bigger = more brake force
@@ -37,22 +32,10 @@ constexpr float grassHeight = 0.025f;
 Ball::Ball(Match *match) : match(match) {
   DO_VALIDATION;
   ballTouchesNet = false;
-
-  ObjectLoader loader;
-  ballNode = loader.LoadObject("media/objects/balls/generic.object");
-  match->GetDynamicNode()->AddNode(ballNode);
-
-  std::list < boost::intrusive_ptr<Geometry> > children;
-  ballNode->GetObjects<Geometry>(e_ObjectType_Geometry, children);
-  ball = (*children.begin());
-
   CalculatePrediction();
 }
 
-Ball::~Ball() {
-  DO_VALIDATION;
-  match->GetDynamicNode()->DeleteNode(ballNode);
-}
+Ball::~Ball() { DO_VALIDATION; }
 
 void Ball::Mirror() {
   momentum.Mirror();
@@ -582,11 +565,6 @@ void Ball::Process() {
   if (ballPosHistory.size() > ballHistorySize) ballPosHistory.pop_front();
 }
 
-void Ball::Put() {
-  DO_VALIDATION;
-  ball->SetPosition(positionBuffer, false);
-  ball->SetRotation(orientationBuffer, false);
-}
 
 void Ball::ResetSituation(const Vector3 &focusPos) {
   DO_VALIDATION;

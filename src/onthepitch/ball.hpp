@@ -18,10 +18,9 @@
 #ifndef _HPP_FOOTBALL_ONTHEPITCH_BALL
 #define _HPP_FOOTBALL_ONTHEPITCH_BALL
 
+#include "../base/math/quaternion.hpp"
+#include "../base/math/vector3.hpp"
 #include "../defines.hpp"
-#include "../scene/scene3d/scene3d.hpp"
-#include "../scene/objects/geometry.hpp"
-
 #include "../gamedefines.hpp"
 #include "../utils.hpp"
 
@@ -45,7 +44,6 @@ class Ball {
     virtual ~Ball();
 
     void Mirror();
-    boost::intrusive_ptr<Geometry> GetBallGeom() { DO_VALIDATION; return ball; }
 
     inline Vector3 Predict(int predictTime_ms) const {
       int index = predictTime_ms;
@@ -68,13 +66,11 @@ class Ball {
     Vector3 GetAveragePosition(unsigned int duration_ms) const;
 
     void Process();
-    void Put();
+    Quaternion GetOrientation() const { return orientationBuffer; }
 
     void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState *state);
   private:
-    boost::intrusive_ptr<Node> ballNode;
-    boost::intrusive_ptr<Geometry> ball;
     Vector3 momentum;
     Quaternion rotation_ms;
 

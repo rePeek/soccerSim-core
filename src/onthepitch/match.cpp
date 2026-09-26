@@ -30,6 +30,7 @@
 #include "AIsupport/AIfunctions.hpp"
 #include "file.h"
 #include "player/playerofficial.hpp"
+#include "ball_presentation.hpp"
 #include "proceduralpitch.hpp"
 
 constexpr unsigned int replaySize_ms = 10000;
@@ -73,6 +74,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   GetScene3D()->AddNode(dynamicNode);
 
   ball = new Ball(this);
+  ballPresentation.reset(new BallPresentation(dynamicNode));
 
   if (!anims) {
     DO_VALIDATION;
@@ -276,6 +278,7 @@ void Match::Exit() {
   delete teams[first_team];
   delete teams[second_team];
   delete officials;
+  ballPresentation.reset();
   delete ball;
   delete referee;
   mentalImages.clear();
@@ -1044,7 +1047,7 @@ void Match::Put() {
   bool reverse = GetScenarioConfig().reverse_team_processing;
 
   DO_VALIDATION;
-  ball->Put();
+  ballPresentation->Put(ball->Predict(0), ball->GetOrientation());
   teams[first_team]->Put(reverse);
   teams[second_team]->Put(!reverse);
   officials->Put(reverse);
@@ -1686,7 +1689,8 @@ void Match::UpdateGoalNetting(bool ballTouchesNet) {
   DO_VALIDATION;
 
   nettingHasChanged = false;
-  int sideID = (ball->GetBallGeom()->GetPosition().coords[0] < 0) ? 0 : 1;
+  const Vector3 ballPosition = ball->Predict(0);
+  int sideID = ballPosition.coords[0] < 0 ? 0 : 1;
   if (ballTouchesNet) {
     DO_VALIDATION;
     // find vertex closest to ball
@@ -1695,7 +1699,7 @@ void Match::UpdateGoalNetting(bool ballTouchesNet) {
     for (unsigned int i = 0; i < nettingMeshes[sideID].size(); i++) {
       DO_VALIDATION;
       Vector3 vertex = nettingMeshesSrc[sideID][i];
-      float distance = vertex.GetDistance(ball->GetBallGeom()->GetPosition());
+      float distance = vertex.GetDistance(ballPosition);
       if (distance < shortestDistance) {
         DO_VALIDATION;
         shortestDistance = distance;
@@ -1708,21 +1712,26 @@ void Match::UpdateGoalNetting(bool ballTouchesNet) {
       DO_VALIDATION;
       const Vector3 &vertex = nettingMeshesSrc[sideID][i];
       float falloffDistance = 4.0f;
-      //float influenceBias = clamp(1.0f - (vertex.GetDistance(ball->GetBallGeom()->GetPosition()) - shortestDistance) / falloffDistance, 0.0f, 1.0f);
+      // float influenceBias = clamp(1.0f -
+      //     (vertex.GetDistance(ballPosition) - shortestDistance) /
+      //     falloffDistance, 0.0f, 1.0f);
       float influenceBias = std::pow(
           clamp((shortestDistance + 0.0001f) /
-                    (vertex.GetDistance(ball->GetBallGeom()->GetPosition()) +
+                    (vertex.GetDistance(ballPosition) +
                      0.0001f),
                 0.0f, 1.0f),
           1.5f);
       // net is stuck to woodwork so lay off there
-      float woodworkTensionBiasInv = clamp((fabs(ball->GetBallGeom()->GetPosition().coords[0]) - pitchHalfW) * 2.0f, 0.0f, 1.0f);
+      float woodworkTensionBiasInv =
+          clamp((fabs(ballPosition.coords[0]) - pitchHalfW) * 2.0f, 0.0f,
+                1.0f);
       influenceBias *= woodworkTensionBiasInv;
       // http://www.wolframalpha.com/input/?i=sin%28x+*+pi+-+0.5+*+pi%29+*+0.5+%2B+0.5+from+x+%3D+0+to+1
       influenceBias = std::sin(influenceBias * pi - 0.5f * pi) * 0.5f + 0.5f;
       if (influenceBias > 0.0f) {
         DO_VALIDATION;
-        Vector3 result = vertex * (1.0f - influenceBias) + ball->GetBallGeom()->GetPosition() * influenceBias;
+        Vector3 result =
+            vertex * (1.0f - influenceBias) + ballPosition * influenceBias;
         static_cast<float*>(nettingMeshes[sideID][i])[0] = result.coords[0];
         static_cast<float*>(nettingMeshes[sideID][i])[1] = result.coords[1];
         static_cast<float*>(nettingMeshes[sideID][i])[2] = result.coords[2];
