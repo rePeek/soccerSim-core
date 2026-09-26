@@ -24,6 +24,7 @@
 #include "officials.hpp"
 
 #include "../data/matchdata.hpp"
+#include "../match_setup.hpp"
 #include "player/humanoid/animcollection.hpp"
 #include "AIsupport/mentalimage.hpp"
 
@@ -52,7 +53,9 @@ struct PlayerBounce {
 class Match {
 
   public:
-    Match(MatchData *matchData, const std::vector<AIControlledKeyboard*> &controllers, bool init_animation);
+    Match(std::unique_ptr<MatchData> matchData,
+          const std::vector<AIControlledKeyboard*> &controllers,
+          const MatchSetup& setup, bool init_animation);
     virtual ~Match();
 
     void Exit();
@@ -63,6 +66,11 @@ class Match {
     void UpdateControllerSetup();
     void SpamMessage(const std::string &msg, int time_ms = 3000);
     int GetScore(int teamID) { DO_VALIDATION; return matchData->GetGoalCount(teamID); }
+    int GetTeamKitNum(int teamID) const {
+      DO_VALIDATION;
+      assert(teamID == 0 || teamID == 1);
+      return teamKitNumbers[teamID];
+    }
     Ball *GetBall() { DO_VALIDATION; return ball; }
     Team *GetTeam(int teamID) { DO_VALIDATION; return teams[teamID]; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
@@ -142,7 +150,7 @@ class Match {
 
     int GetReplaySize_ms();
 
-    MatchData* GetMatchData() { DO_VALIDATION; return matchData; }
+    MatchData* GetMatchData() { DO_VALIDATION; return matchData.get(); }
 
     float GetMatchDurationFactor() const { return matchDurationFactor; }
     bool GetUseMagnet() const { return _useMagnet; }
@@ -166,7 +174,7 @@ class Match {
     void PrepareGoalNetting();
     void UpdateGoalNetting(bool ballTouchesNet = false);
 
-    MatchData *matchData;
+    std::unique_ptr<MatchData> matchData;
     Team *teams[2];
     int first_team = 0;
     int second_team = 1;
@@ -183,6 +191,8 @@ class Match {
     boost::intrusive_ptr<Node> stadiumNode;
 
     const std::vector<AIControlledKeyboard*> &controllers;
+    std::vector<ControllerSetup> controllerSetup;
+    int teamKitNumbers[2] = {2, 2};
 
     Ball *ball = nullptr;
 

@@ -46,15 +46,20 @@ const std::vector<Vector3> &Match::GetAnimPositionCache(Animation *anim) const {
   return GetContext().animPositionCache.find(anim)->second;
 }
 
-Match::Match(MatchData *matchData, const std::vector<AIControlledKeyboard *> &controllers, bool animations)
-    : matchData(matchData),
+Match::Match(std::unique_ptr<MatchData> match_data,
+             const std::vector<AIControlledKeyboard *> &controllers,
+             const MatchSetup& setup, bool animations)
+    : matchData(std::move(match_data)),
       first_team(GetScenarioConfig().reverse_team_processing ? 1 : 0),
       second_team(GetScenarioConfig().reverse_team_processing ? 0 : 1),
       controllers(controllers),
+      controllerSetup(setup.controllers),
       possessionSideHistory(6000),
       matchDurationFactor(
           GetConfiguration()->GetReal("match_duration", 1.0) * 0.2f + 0.05f),
       _useMagnet(GetScenarioConfig().use_magnet) {
+  teamKitNumbers[0] = setup.team_kit_numbers[0];
+  teamKitNumbers[1] = setup.team_kit_numbers[1];
   DO_VALIDATION;
   auto& anims = GetContext().anims;
   GetContext().stablePlayerCount = 0;
@@ -293,8 +298,6 @@ void Match::Exit() {
   delete officials;
   delete ball;
   delete referee;
-  delete matchData;
-  menuTask->SetMatchData(0);
   mentalImages.clear();
 
   messageCaption->Exit();
@@ -404,24 +407,24 @@ void Match::RandomizeAdboards(boost::intrusive_ptr<Node> stadiumNode) {
 
 void Match::UpdateControllerSetup() {
   DO_VALIDATION;
-  const std::vector<SideSelection> controller = menuTask->GetControllerSetup();
+  const std::vector<ControllerSetup>& controller = controllerSetup;
   std::vector<AIControlledKeyboard*> left_players;
   std::vector<AIControlledKeyboard*> right_players;
   for (unsigned int i = 0; i < controller.size(); i++) {
     DO_VALIDATION;
     float mirror = 1.0;
     if (controller[i].side == -1) {
-      left_players.push_back(controllers.at(controller[i].controllerID));
+      left_players.push_back(controllers.at(controller[i].controller_id));
       DO_VALIDATION;
     } else if (controller[i].side == 1) {
-      right_players.push_back(controllers.at(controller[i].controllerID));
+      right_players.push_back(controllers.at(controller[i].controller_id));
       DO_VALIDATION;
       if (teams[1]->GetDynamicSide() == -1) {
         DO_VALIDATION;
         mirror = -1.0;
       }
     }
-    controllers.at(controller[i].controllerID)->Mirror(mirror);
+    controllers.at(controller[i].controller_id)->Mirror(mirror);
   }
   teams[0]->AddHumanGamers(left_players);
   teams[1]->AddHumanGamers(right_players);

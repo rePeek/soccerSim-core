@@ -67,27 +67,29 @@ void GameEnv::setConfig(ScenarioConfig& scenario_config) {
       scenario_config.ball_position.coords[0] * X_FIELD_SCALE;
   scenario_config.ball_position.coords[1] =
       scenario_config.ball_position.coords[1] * Y_FIELD_SCALE;
-  std::vector<SideSelection> setup = GetMenuTask()->GetControllerSetup();
-  CHECK(setup.size() == 2 * MAX_PLAYERS);
-  int controller = 0;
-  for (int x = 0; x < scenario_config.left_agents; x++) {
-    DO_VALIDATION;
-    setup[controller++].side = -1;
+
+  CHECK(scenario_config.left_agents >= 0);
+  CHECK(scenario_config.left_agents <= MAX_PLAYERS);
+  CHECK(scenario_config.right_agents >= 0);
+  CHECK(scenario_config.right_agents <= MAX_PLAYERS);
+
+  std::unique_ptr<MatchSetup> setup(new MatchSetup());
+  setup->match_data.reset(new MatchData());
+  setup->controllers.reserve(2 * MAX_PLAYERS);
+  for (int controller = 0; controller < 2 * MAX_PLAYERS; ++controller) {
+    ControllerSetup selection;
+    selection.controller_id = controller;
+    if (controller < scenario_config.left_agents) {
+      selection.side = -1;
+    } else if (controller >= MAX_PLAYERS &&
+               controller < MAX_PLAYERS + scenario_config.right_agents) {
+      selection.side = 1;
+    }
+    setup->controllers.push_back(selection);
   }
-  while (controller < MAX_PLAYERS) {
-    DO_VALIDATION;
-    setup[controller++].side = 0;
-  }
-  for (int x = 0; x < scenario_config.right_agents; x++) {
-    DO_VALIDATION;
-    setup[controller++].side = 1;
-  }
-  while (controller < 2 * MAX_PLAYERS) {
-    DO_VALIDATION;
-    setup[controller++].side = 0;
-  }
+
   this->scenario_config = scenario_config;
-  GetMenuTask()->SetControllerSetup(setup);
+  context->matchSetup = std::move(setup);
 }
 
 void GameEnv::start_game() {
@@ -373,19 +375,11 @@ void GameEnv::reset(ScenarioConfig& game_config, bool animations) {
   context->surface_manager.RemoveUnused();
   context->texture_manager.RemoveUnused();
   context->vertices_manager.RemoveUnused();
-  GetMenuTask()->GetWindowManager()->GetRoot()->SetRecursiveZPriority(0);
-  DO_VALIDATION;
-  GetMenuTask()->GetWindowManager()->GetPagePath()->Clear();
-  bool already_loaded = GetGameTask()->StopMatch();
-  GetMenuTask()->SetMatchData(new MatchData());
-  if (!already_loaded) {
-    // We show loading page only the first time when env. is started.
-    GetMenuTask()->GetWindowManager()->GetPageFactory()->CreatePage(1, 0);
-  }
+  GetGameTask()->StopMatch();
   if (GetGameConfig().render) {
     GetTracker()->setDisabled(true);
     context->graphicsSystem.GetTask()->Render(true);
     GetTracker()->setDisabled(false);
   }
-  GetGameTask()->StartMatch(animations);
+  GetGameTask()->StartMatch(std::move(context->matchSetup), animations);
 }

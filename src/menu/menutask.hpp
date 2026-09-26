@@ -28,34 +28,6 @@
 
 #include "../gamedefines.hpp"
 
-class Match;
-class MatchData;
-
-using namespace blunted;
-
-enum e_MenuAction {
-  e_MenuAction_Menu, // start main menu
-  e_MenuAction_Game, // start game
-  e_MenuAction_None
-};
-
-struct SideSelection {
-  int controllerID = 0;
-  Gui2Image *controllerImage;
-  int side = 0; // -1, 0, 1
-};
-
-
-struct QueuedFixture {
-  QueuedFixture() { DO_VALIDATION;
-    team1KitNum = 1;
-    team2KitNum = 2;
-    matchData = 0;
-  }
-  std::vector<SideSelection> sides; // queued match fixture
-  int team1KitNum, team2KitNum;
-  MatchData *matchData;
-};
 
 class MenuTask : public Gui2Task {
 
@@ -63,16 +35,6 @@ class MenuTask : public Gui2Task {
     MenuTask(float aspectRatio, float margin, TTF_Font *defaultFont, TTF_Font *defaultOutlineFont, const Properties* config);
     virtual ~MenuTask();
 
-    void SetControllerSetup(const std::vector<SideSelection> &sides) { DO_VALIDATION; queuedFixture.sides = sides;  }
-    const std::vector<SideSelection> GetControllerSetup() { DO_VALIDATION;
-      return queuedFixture.sides;
-    }
-    int GetTeamKitNum(int teamID) { DO_VALIDATION; if (teamID == 0) return queuedFixture.team1KitNum; else return queuedFixture.team2KitNum; }
-    void SetMatchData(MatchData *matchData) { DO_VALIDATION;  queuedFixture.matchData = matchData;  }
-    MatchData *GetMatchData() { DO_VALIDATION; return queuedFixture.matchData; } // hint: this lock is useless, since we are returning the pointer and not a copy
-
-  protected:
-   QueuedFixture queuedFixture;
 
 };
 

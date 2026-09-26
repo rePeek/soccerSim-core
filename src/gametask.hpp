@@ -20,7 +20,7 @@
 
 #include "onthepitch/match.hpp"
 
-#include "menu/menutask.hpp"
+#include "match_setup.hpp"
 
 using namespace blunted;
 
@@ -30,7 +30,7 @@ class GameTask {
     GameTask();
     ~GameTask();
 
-    void StartMatch(bool init_animation);
+    void StartMatch(std::unique_ptr<MatchSetup> setup, bool init_animation);
     bool StopMatch();
 
     void ProcessPhase();

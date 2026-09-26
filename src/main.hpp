@@ -37,6 +37,7 @@ void DoValidation(int line, const char* file);
 #include "blunted.hpp"
 
 #include "gametask.hpp"
+#include "match_setup.hpp"
 #include "menu/menutask.hpp"
 #include "hid/ihidevice.hpp"
 
@@ -232,6 +233,7 @@ class GameContext {
   GameContext() : rng(BaseGenerator(), Distribution()), rng_non_deterministic(BaseGenerator(), Distribution()) { }
   GraphicsSystem graphicsSystem;
   boost::shared_ptr<GameTask> gameTask;
+  std::unique_ptr<MatchSetup> matchSetup;
   boost::shared_ptr<MenuTask> menuTask;
   boost::shared_ptr<Scene2D> scene2D;
   boost::shared_ptr<Scene3D> scene3D;

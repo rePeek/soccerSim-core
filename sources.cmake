@@ -240,6 +240,7 @@ set(CORE_HEADERS
    src/utils.hpp
    src/main.hpp
    src/gametask.hpp
+   src/match_setup.hpp
    src/misc/hungarian.h
 )
 

@@ -56,32 +56,6 @@ MenuTask::MenuTask(float aspectRatio, float margin, TTF_Font *defaultFont,
   PageFactory *pageFactory = new PageFactory();
   windowManager->SetPageFactory(pageFactory);
 
-  int size = GetControllers().size();
-
-  for (int i = 0; i < size; i++) {
-    DO_VALIDATION;
-    SideSelection side;
-    side.controllerID = i;
-    // Everybody plays in the same team.
-    side.side = -1;
-    //      if ((size > 1 && i == 1) || (size == 1 && i == 0)) { DO_VALIDATION;
-    //        side.side = -1;
-    //      } else {
-    //        side.side = 0;
-    //      }
-    queuedFixture.sides.push_back(side);
-  }
-
-  // 1 == ajax
-  // 2 == arsenal
-  // 3 == barcelona
-  // 4 == bayern
-  // 5 == borussia
-  // 6 == man utd
-  // 7 == psv
-  // 8 == real madrid
-  queuedFixture.team1KitNum = 2;
-  queuedFixture.team2KitNum = 2;
 }
 
 MenuTask::~MenuTask() {

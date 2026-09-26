@@ -99,8 +99,7 @@ void Team::InitPlayers(boost::intrusive_ptr<Node> fullbodyNode,
       if (formation.role != e_PlayerRole_GK) {
         DO_VALIDATION;
         kitFilename = GetTeamData()->GetKitUrl() + "_kit_0" +
-                      int_to_str(GetMenuTask()->GetTeamKitNum(GetID())) +
-                      ".png";
+                      int_to_str(match->GetTeamKitNum(GetID())) + ".png";
       } else {
         kitFilename = "media/objects/players/textures/goalie_kit.png";
       }
