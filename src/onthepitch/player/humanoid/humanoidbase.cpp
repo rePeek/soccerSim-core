@@ -97,7 +97,11 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
 
 HumanoidBase::~HumanoidBase() {}
 void HumanoidBase::Mirror() {
-  // Mirrors the humanoid node tree (legacy animation-driven simulation state).
+  // Mirrors the field-level legacy contract, not a whole-state coordinate
+  // transform: SpatialState::Mirror negates the movement fields but leaves the
+  // facing/body fields untouched. PlayerBase::Mirror() mirrors its kinematic
+  // mirror with exactly the same asymmetry, and the movement oracle verifies
+  // the result bit-exactly.
   startPos.Mirror();
   startAngle.Mirror();
   nextStartPos.Mirror();

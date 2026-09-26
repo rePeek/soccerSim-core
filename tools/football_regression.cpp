@@ -768,6 +768,78 @@ void CheckResetBitDeterminism(GameEnv& env, const ScenarioConfig& config) {
               DescribeFirstResetDigestDifference(first_fields, second_fields));
 }
 
+// H3e0c: the movement authority must be same-tick observable. A position
+// correction (the primitive Match::CheckHumanoidCollisions uses) has to be
+// visible immediately through every view of the actor, not committed at the
+// end of the tick. This is the movement equivalent of the Ball::Touch
+// same-tick visibility that H3d1 uncovered.
+void CheckMovementAuthorityTiming(GameEnv& env, ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "movement authority timing: kickoff");
+  Match* match = env.context->gameTask->GetMatch();
+
+  std::vector<Player*> players;
+  match->GetActiveTeamPlayers(match->FirstTeam(), players);
+  match->GetActiveTeamPlayers(match->SecondTeam(), players);
+  Require(players.size() >= 2,
+          "movement authority timing: missing active players");
+
+  // A collision correction is immediately observable through the Player
+  // kinematic state, the ground collider and the Humanoid spatial state.
+  Player* corrected = players[0];
+  const Vector3 before = corrected->GetPosition();
+  const Vector3 offset(1.25f, -0.5f, 0.0f);
+  corrected->OffsetPosition(offset);
+  const Vector3 expected = before + offset;
+  for (int axis = 0; axis < 3; ++axis) {
+    Require(FloatBits(corrected->GetPosition().coords[axis]) ==
+                FloatBits(expected.coords[axis]),
+            "movement authority: OffsetPosition is not immediately visible "
+            "through the Player kinematic state");
+  }
+  for (int axis = 0; axis < 2; ++axis) {
+    Require(FloatBits(corrected->GetGroundCollider().center.coords[axis]) ==
+                FloatBits(expected.coords[axis]),
+            "movement authority: OffsetPosition left the collider behind");
+  }
+  Require(corrected->IsKinematicMirrorConsistent(),
+          "movement authority: OffsetPosition left the kinematic mirror "
+          "stale");
+
+  // Corrections compose in call order: a later correction must observe the
+  // position produced by the earlier one within the same tick.
+  Player* chained = players[2];
+  const Vector3 chain_start = chained->GetPosition();
+  const Vector3 first_offset(0.5f, 0.25f, 0.0f);
+  const Vector3 second_offset(-0.2f, 0.75f, 0.0f);
+  chained->OffsetPosition(first_offset);
+  chained->OffsetPosition(second_offset);
+  const Vector3 chain_expected = chain_start + first_offset + second_offset;
+  for (int axis = 0; axis < 3; ++axis) {
+    Require(FloatBits(chained->GetPosition().coords[axis]) ==
+                FloatBits(chain_expected.coords[axis]),
+            "movement authority: chained corrections did not observe each "
+            "other in call order");
+  }
+  Require(chained->IsKinematicMirrorConsistent(),
+          "movement authority: chained corrections left the kinematic "
+          "mirror stale");
+
+  // Force an overlap, then run a real tick. Match::CheckHumanoidCollisions()
+  // corrects positions after the actor ticks; the fatal movement oracle runs
+  // inside that path, so a stale mirror there aborts the run.
+  Player* p1 = players[0];
+  Player* p2 = players[1];
+  const Vector3 p1_position = p1->GetPosition();
+  p2->OffsetPosition(p1_position + Vector3(0.15f, 0.0f, 0.0f) -
+                     p2->GetPosition());
+  Require(p1->GetGroundCollider().Intersects(p2->GetGroundCollider()),
+          "movement authority: could not force the colliders to overlap");
+  env.step();
+  CheckKinematicMirrorConsistency(
+      env, "kinematic mirror after an overlapped collision tick");
+}
+
 
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
@@ -791,6 +863,8 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.set_state(serialized);
   CheckActionStateOracle(env.context->gameTask->GetMatch(),
                          "action state oracle immediately after state restore");
+  CheckKinematicMirrorConsistency(
+      env, "kinematic mirror immediately after state restore");
   Advance(env, 125);
   RequireInfoEqual(env.get_info(), expected_after_restore, "state round-trip");
   Require(CaptureSimulationDigest(env) == digest_after_restore,
@@ -1175,6 +1249,7 @@ int main(int argc, char** argv) {
     CheckImportHierarchy();
     CheckRetainAnchor(env, config);
     CheckResetAndStateRoundTrip(env, config);
+    CheckMovementAuthorityTiming(env, config);
     CheckMatchTransitions(env, config);
     CheckReverseTeamProcessing(env, config);
     std::cout << "football_regression: PASS\n";

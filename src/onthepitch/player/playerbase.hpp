@@ -56,14 +56,16 @@ class PlayerBase {
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
-    // Authoritative movement state. `kinematicState` mirrors the Humanoid
-    // spatial state and is refreshed by HumanoidBase whenever that state
-    // changes (see CalculateSpatialState / CalculateFactualSpatialState /
-    // OffsetPosition), so it is never a tick behind mid-tick readers such as
-    // the controller. It is mirrored with the same semantics as the legacy
-    // spatial state (position/velocity mirrored, facing not). Humanoid no
-    // longer reads these getters for its own simulation, so this is not
-    // circular. Actors must be positioned through PlayerBase::ResetPosition /
+    // Gameplay-facing movement state. It is NOT yet the producer: Humanoid's
+    // spatial state is still authoritative for movement, and `kinematicState`
+    // is an exact mirror of it. H3e flips this producer relationship. Every
+    // mutation of the Humanoid spatial state refreshes the mirror at the
+    // mutation point (CalculateSpatialState, CalculateFactualSpatialState,
+    // OffsetPosition, Mirror, state restore), so mid-tick readers such as the
+    // controller never see a stale actor. Mirroring follows the legacy
+    // field-level asymmetry (position/velocity mirrored, facing not).
+    // CheckSimulationKinematicOracle() enforces the mirror bit-exactly.
+    // Actors must be positioned through PlayerBase::ResetPosition /
     // OffsetPosition so that this state cannot be left stale.
     inline Vector3 GetPosition() const { return kinematicState.position; }
     inline Vector3 GetDirectionVec() const { return kinematicState.facing; }
@@ -114,17 +116,14 @@ class PlayerBase {
     HumanController *ExternalController();
     bool ExternalControllerActive();
 
-    // Validation helper for the deterministic regression. The kinematic mirror
-    // must never disagree with the legacy Humanoid spatial state, else a
-    // mid-tick reader (the controller is queried after the humanoid has already
-    // advanced its spatial state) observes a stale actor. Delete together with
-    // the Humanoid.
-    bool IsKinematicMirrorConsistent() const {
-      DO_VALIDATION;
-      return kinematicState.position.GetDistance(humanoid->GetPosition()) < 1e-4f &&
-             kinematicState.velocity.GetDistance(humanoid->GetMovement()) < 1e-4f &&
-             kinematicState.facing.GetDistance(humanoid->GetDirectionVec()) < 1e-4f;
-    }
+    // Bit-exact mirror check: position, velocity, facing, derived speed and the
+    // collider center must all match the Humanoid spatial state exactly. An
+    // epsilon cannot mask a synchronization bug, so there is none.
+    bool IsKinematicMirrorConsistent() const;
+    // Fatal (all build types) form of the same invariant, with the diverging
+    // field reported. Callers are the mirror writers and state restore, so the
+    // contract is checked at every movement mutation point.
+    void CheckSimulationKinematicOracle() const;
 
     float GetDecayingPositionOffsetLength() { DO_VALIDATION; return humanoid->GetDecayingPositionOffsetLength(); }
 

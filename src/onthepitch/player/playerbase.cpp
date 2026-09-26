@@ -30,6 +30,23 @@
 
 #include "../../base/geometry/triangle.hpp"
 
+namespace {
+
+// Bit comparison, not an epsilon: a movement mirror that is only approximately
+// right is a synchronization bug, and masking it would let a later procedural
+// producer inherit an inconsistent baseline.
+bool Vector3BitsEqual(const Vector3 &a, const Vector3 &b) {
+  DO_VALIDATION;
+  return std::memcmp(a.coords, b.coords, sizeof(a.coords)) == 0;
+}
+
+bool FloatBitsEqual(float a, float b) {
+  DO_VALIDATION;
+  return std::memcmp(&a, &b, sizeof(float)) == 0;
+}
+
+}  // namespace
+
 PlayerBase::PlayerBase(Match *match, PlayerData *playerData)
     : match(match),
       playerData(playerData),
@@ -45,11 +62,50 @@ PlayerBase::~PlayerBase() {
   if (isActive) Deactivate();
 }
 
+bool PlayerBase::IsKinematicMirrorConsistent() const {
+  DO_VALIDATION;
+  return Vector3BitsEqual(kinematicState.position, humanoid->GetPosition()) &&
+         Vector3BitsEqual(kinematicState.velocity, humanoid->GetMovement()) &&
+         Vector3BitsEqual(kinematicState.facing, humanoid->GetDirectionVec()) &&
+         FloatBitsEqual(kinematicState.speed,
+                        kinematicState.velocity.GetLength()) &&
+         Vector3BitsEqual(groundCollider.center,
+                          kinematicState.position.Get2D());
+}
+
+void PlayerBase::CheckSimulationKinematicOracle() const {
+  DO_VALIDATION;
+  const Vector3 &position = humanoid->GetPosition();
+  const Vector3 &movement = humanoid->GetMovement();
+  const Vector3 &direction = humanoid->GetDirectionVec();
+
+  std::string mismatch;
+  if (!Vector3BitsEqual(kinematicState.position, position)) {
+    mismatch = "position";
+  } else if (!Vector3BitsEqual(kinematicState.velocity, movement)) {
+    mismatch = "velocity";
+  } else if (!Vector3BitsEqual(kinematicState.facing, direction)) {
+    mismatch = "facing";
+  } else if (!FloatBitsEqual(kinematicState.speed,
+                             kinematicState.velocity.GetLength())) {
+    mismatch = "speed";
+  } else if (!Vector3BitsEqual(groundCollider.center, position.Get2D())) {
+    mismatch = "collider center";
+  }
+  if (!mismatch.empty()) {
+    Log(e_FatalError, "PlayerBase", "CheckSimulationKinematicOracle",
+        "the gameplay kinematic mirror diverged from the Humanoid spatial "
+        "state: " + mismatch);
+  }
+}
+
 void PlayerBase::Mirror() {
+  DO_VALIDATION;
   humanoid->Mirror();
   kinematicState.Mirror();
   kinematicShadow.Mirror();
   groundCollider.Mirror();
+  CheckSimulationKinematicOracle();
 }
 
 void PlayerBase::SynchronizeKinematicState() {
@@ -59,6 +115,7 @@ void PlayerBase::SynchronizeKinematicState() {
   kinematicState.facing = humanoid->GetDirectionVec();
   kinematicState.speed = kinematicState.velocity.GetLength();
   groundCollider.SetCenter(kinematicState.position);
+  CheckSimulationKinematicOracle();
 }
 
 PlayerActionState PlayerBase::CaptureLegacyActionState() const {
@@ -292,6 +349,9 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   kinematicState.ProcessState(state);
   kinematicShadow.ProcessState(state);
   groundCollider.ProcessState(state);
+  // A restored Humanoid spatial state, kinematic mirror and collider must
+  // agree before any subsequent tick or reader can observe either.
+  CheckSimulationKinematicOracle();
   actionState.ProcessState(state);
   // After saving or loading the action state, require it to agree with the
   // Humanoid motion cursor before a subsequent tick can observe either.
