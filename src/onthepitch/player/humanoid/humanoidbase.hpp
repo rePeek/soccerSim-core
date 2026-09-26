@@ -19,7 +19,6 @@
 #define _HPP_HUMANOIDBASE
 
 #include "../../../base/math/vector3.hpp"
-#include "../../../scene/scene3d/node.hpp"
 
 #include "../../../gamedefines.hpp"
 #include "../../../utils.hpp"
@@ -166,7 +165,7 @@ struct SpatialState {
 class HumanoidBase {
 
   public:
-    HumanoidBase(PlayerBase *player, Match *match, boost::intrusive_ptr<Node> humanoidSourceNode, boost::shared_ptr<AnimCollection> animCollection);
+    HumanoidBase(PlayerBase *player, Match *match, boost::shared_ptr<AnimCollection> animCollection);
     virtual ~HumanoidBase();
     void Mirror();
 
@@ -186,14 +185,10 @@ class HumanoidBase {
     inline e_FunctionType GetPreviousFunctionType() const { return previousAnim_functionType; }
     inline Vector3 GetMovement() const { return spatialState.movement; }
 
-    Vector3 GetGeomPosition() { DO_VALIDATION; return humanoidNode->GetPosition(); }
-
     int GetIdleMovementAnimID();
     void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos);
     void OffsetPosition(const Vector3 &offset);
     void TripMe(const Vector3 &tripVector, int tripType);
-
-    boost::intrusive_ptr<Node> GetHumanoidNode() { DO_VALIDATION; return humanoidNode; }
 
     virtual float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
     virtual float GetDecayingDifficultyFactor() const { return decayingDifficultyFactor; }
@@ -256,10 +251,6 @@ class HumanoidBase {
     Vector3 ForceIntoPreferredDirectionVec(const Vector3 &src) const;
     radian ForceIntoPreferredDirectionAngle(radian angle) const;
 
-    // Nothing in the simulation tick reads this tree any more; it is still
-    // written and serialized, and H3c proves whether it can go entirely.
-    boost::intrusive_ptr<Node> humanoidNode;
-
     Match *match;
     PlayerBase *player;
     // Shared between all players, no need to snapshot.
@@ -307,7 +298,6 @@ class HumanoidBase {
     // Should be dynamically retrieved from match, don't cache.
     int mentalImageTime = 0;
 
-    bool mirrored = false;
 };
 
 #endif

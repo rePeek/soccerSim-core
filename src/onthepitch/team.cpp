@@ -67,22 +67,12 @@ void Team::Exit() {
 
   delete teamController;
 
-  playerNode->Exit();
-  playerNode.reset();
-
   match->GetDynamicNode()->DeleteNode(teamNode);
 }
 
 void Team::InitPlayers(
                        boost::shared_ptr<AnimCollection> animCollection) {
   DO_VALIDATION;
-  // first, load 1 instance of a player
-
-  ObjectLoader loader;
-  playerNode = loader.LoadObject("media/objects/players/player.object");
-  playerNode->SetName("player");
-  playerNode->SetLocalMode(e_LocalMode_Absolute);
-
   // load all players in the team, even the players who sit on the bench. aww.
   for (int i = 0; i < (signed int)teamData->GetPlayerNum(); i++) {
     DO_VALIDATION;
@@ -94,8 +84,7 @@ void Team::InitPlayers(
       DO_VALIDATION;
       // activate playerCount players (the starting eleven, usually)
       auto formation = GetFormationEntry(player);
-      player->Activate(playerNode,
-                       match->GetAnimCollection(), formation.lazy);
+      player->Activate(match->GetAnimCollection(), formation.lazy);
     }
   }
 

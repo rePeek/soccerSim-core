@@ -147,7 +147,6 @@ class Team {
     std::vector<Player*> players;
 
     boost::intrusive_ptr<Node> teamNode;
-    boost::intrusive_ptr<Node> playerNode;
 
     std::vector<std::unique_ptr<HumanGamer>> humanGamers;
 

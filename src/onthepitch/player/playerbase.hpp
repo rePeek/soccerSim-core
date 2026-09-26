@@ -47,7 +47,7 @@ class PlayerBase {
     inline bool IsActive() { DO_VALIDATION; return isActive; }
 
     // get ready for some action
-    virtual void Activate(boost::intrusive_ptr<Node> humanoidSourceNode, boost::shared_ptr<AnimCollection> animCollection, bool lazyPlayer) = 0;
+    virtual void Activate(boost::shared_ptr<AnimCollection> animCollection, bool lazyPlayer) = 0;
     // go back to bench/take a shower
     virtual void Deactivate();
 
@@ -67,7 +67,6 @@ class PlayerBase {
     // circular. Actors must be positioned through PlayerBase::ResetPosition /
     // OffsetPosition so that this state cannot be left stale.
     inline Vector3 GetPosition() const { return kinematicState.position; }
-    inline Vector3 GetGeomPosition() const { return humanoid->GetGeomPosition(); }
     inline Vector3 GetDirectionVec() const { return kinematicState.facing; }
     inline Vector3 GetBodyDirectionVec() const { return humanoid->GetBodyDirectionVec(); }
     inline Vector3 GetMovement() const { return kinematicState.velocity; }
@@ -108,8 +107,6 @@ class PlayerBase {
     void SetExternalController(HumanGamer *externalController);
     HumanController *ExternalController();
     bool ExternalControllerActive();
-
-    boost::intrusive_ptr<Node> GetHumanoidNode() { DO_VALIDATION; return humanoid->GetHumanoidNode(); }
 
     // Validation helper for the deterministic regression. The kinematic mirror
     // must never disagree with the legacy Humanoid spatial state, else a

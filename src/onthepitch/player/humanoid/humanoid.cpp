@@ -62,10 +62,8 @@ constexpr bool allowTrapReQueue = true;
 constexpr bool allowPreTouchRotationSmuggle = false;
 
 Humanoid::Humanoid(Player *player,
-                   boost::intrusive_ptr<Node> humanoidSourceNode,
                    boost::shared_ptr<AnimCollection> animCollection)
-    : HumanoidBase(player, player->GetTeam()->GetMatch(), humanoidSourceNode,
-                   animCollection) {
+    : HumanoidBase(player, player->GetTeam()->GetMatch(), animCollection) {
   DO_VALIDATION;
   team = CastPlayer()->GetTeam();
 }

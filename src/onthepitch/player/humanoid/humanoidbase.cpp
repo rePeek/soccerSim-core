@@ -80,7 +80,6 @@ const radian preferredDirectionAngles[] = {
 };
 
 HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
-                           boost::intrusive_ptr<Node> humanoidSourceNode,
                            boost::shared_ptr<AnimCollection> animCollection)
     : match(match),
       player(player),
@@ -93,31 +92,13 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
 
   assert(match);
 
-  boost::intrusive_ptr<Node> bla(
-      new Node(*humanoidSourceNode.get(), "", GetScene3D()));
-  humanoidNode = bla;
-  humanoidNode->SetLocalMode(e_LocalMode_Absolute);
-
   ResetPosition(Vector3(0), Vector3(0));
   mentalImageTime = 0;
 }
 
-HumanoidBase::~HumanoidBase() {
-  DO_VALIDATION;
-  humanoidNode->Exit();
-  humanoidNode.reset();
-}
+HumanoidBase::~HumanoidBase() {}
 void HumanoidBase::Mirror() {
   // Mirrors the humanoid node tree (legacy animation-driven simulation state).
-  humanoidNode->SetPosition(humanoidNode->GetPosition() * Vector3(-1, -1, 1),
-                            false);
-  Quaternion rotation = humanoidNode->GetRotation();
-  if (!mirrored) {
-    humanoidNode->SetRotation(Quaternion(rotation.elements[1], rotation.elements[0], rotation.elements[3], -rotation.elements[2]));
-  } else {
-    humanoidNode->SetRotation(Quaternion(rotation.elements[1], rotation.elements[0], -rotation.elements[3], rotation.elements[2]));
-  }
-  mirrored = !mirrored;
   startPos.Mirror();
   startAngle.Mirror();
   nextStartPos.Mirror();
@@ -355,7 +336,6 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   previousAnim_frameNum = 0;
   previousAnim_functionType = e_FunctionType_Movement;
 
-  humanoidNode->SetPosition(startPos, false);
 
   interruptAnim = e_InterruptAnim_None;
   tripType = 0;
@@ -365,7 +345,6 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
 
   reQueueDelayFrames = 0;
   tripDirection = Vector3(0);
-  humanoidNode->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
 }
 
 void HumanoidBase::OffsetPosition(const Vector3 &offset) {
@@ -1744,7 +1723,6 @@ radian HumanoidBase::ForceIntoPreferredDirectionAngle(radian angle) const {
 
 void HumanoidBase::ProcessState(EnvState *state) {
   DO_VALIDATION;
-  humanoidNode->ProcessState(state);
   currentAnim.ProcessState(state);
   state->process(previousAnim_frameNum);
   state->process(previousAnim_functionType);

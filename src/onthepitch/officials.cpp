@@ -17,7 +17,6 @@
 
 #include "officials.hpp"
 
-#include "../utils/objectloader.hpp"
 
 #include "player/playerofficial.hpp"
 #include "player/humanoid/humanoidbase.hpp"
@@ -30,21 +29,14 @@ Officials::Officials(Match *match,
                      boost::shared_ptr<AnimCollection> animCollection)
     : match(match) {
   DO_VALIDATION;
-  ObjectLoader loader;
-  boost::intrusive_ptr<Node> playerNode = loader.LoadObject("media/objects/players/player.object");
-  playerNode->SetName("player");
-  playerNode->SetLocalMode(e_LocalMode_Absolute);
-
   playerData = new PlayerData();
   referee = new PlayerOfficial(e_OfficialType_Referee, match, playerData);
   linesmen[0] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
   linesmen[1] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
 
-  referee->Activate(playerNode, match->GetAnimCollection(), false);
-  linesmen[0]->Activate(playerNode, match->GetAnimCollection(), false);
-  linesmen[1]->Activate(playerNode, match->GetAnimCollection(), false);
-  playerNode->Exit();
-  playerNode.reset();
+  referee->Activate(match->GetAnimCollection(), false);
+  linesmen[0]->Activate(match->GetAnimCollection(), false);
+  linesmen[1]->Activate(match->GetAnimCollection(), false);
 
   // Route official placement through PlayerBase::ResetPosition so the
   // simulation-owned movement state is synchronized. Calling
