@@ -62,6 +62,9 @@ void PlayerBase::SynchronizeActionState() {
   actionState.frame = humanoid->GetFrameNum();
   actionState.frameCount = humanoid->GetFrameCount();
   actionState.elapsedTime_ms = actionState.frame * 10;
+  const Anim *anim = humanoid->GetCurrentAnim();
+  actionState.contactFrame = anim->touchFrame;
+  actionState.contactPosition = anim->touchPos;
 }
 
 void PlayerBase::ResetKinematicShadow() {
