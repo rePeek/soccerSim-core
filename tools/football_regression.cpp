@@ -696,6 +696,78 @@ void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
 
 }  // namespace
 
+// reverse_team_processing swaps which team Match::Process() handles first
+// (first_team = 1, second_team = 0) and shifts every frame toggle with it.
+// Nothing else ran that configuration: every other check in this file uses the
+// default order, so both the swapped processing order and its frame
+// bookkeeping were entirely unexercised.
+//
+// This locks two properties, both observable inside a single run:
+//
+//   1. the canonical world frame is restored by every tick. Whichever team
+//      was processed first, Match::Process() must return with the ball and
+//      both teams unmirrored. The mirrored frame is a private mid-tick device
+//      for the AI and collision code; it must never leak into state that a
+//      caller can observe.
+//   2. the configuration is self-reproducible: same seed, same scenario, same
+//      tick count -> same observable state and the same simulation digest.
+//
+// It deliberately does NOT require reverse=true and reverse=false to follow
+// the same trajectory. The processing order legitimately affects the legacy
+// simulation, so that equality is not a real invariant and asserting it would
+// encode an accident as a contract.
+void CheckReverseTeamProcessing(GameEnv& env, ScenarioConfig& config) {
+  const bool saved_reverse = config.reverse_team_processing;
+  config.reverse_team_processing = true;
+
+  // Phase 1: per-tick frame invariant.
+  env.reset(config, false);
+  Match* match = env.context->gameTask->GetMatch();
+  Require(match->FirstTeam() == 1 && match->SecondTeam() == 0,
+          "reverse_team_processing must process team 1 first");
+
+  // Match::Process() is the simulation tick, and one env.step() is
+  // physics_steps_per_frame of them. The per-tick invariant is therefore
+  // checked by driving Process() directly: a leak that cancels inside a
+  // single env.step() would be invisible at the step boundary.
+  for (int i = 0; i < 600; ++i) {
+    match->Process();
+    const bool canonical = !match->isBallMirrored() &&
+                           !match->GetTeam(0)->isMirrored() &&
+                           !match->GetTeam(1)->isMirrored();
+    if (!canonical) {
+      std::ostringstream message;
+      message << "reverse_team_processing: tick " << i
+              << " did not restore the canonical frame (ball "
+              << match->isBallMirrored() << ", team0 "
+              << match->GetTeam(0)->isMirrored() << ", team1 "
+              << match->GetTeam(1)->isMirrored() << ")";
+      throw RegressionFailure(message.str());
+    }
+    Require(match->FirstTeam() == 1 && match->SecondTeam() == 0,
+            "reverse_team_processing: processing order changed mid-run");
+  }
+  // Phase 2: reproducibility at env-step granularity.
+  env.reset(config, false);
+  Advance(env, 600);
+  const SharedInfo reversed = env.get_info();
+  const std::string reversed_digest = CaptureSimulationDigest(env);
+  Require(reversed.is_in_play,
+          "reverse_team_processing: the game never resumed");
+
+  // Repeat from scratch. Unlike the plain reset check, the deep digest is
+  // compared here too: this scenario reproduces exactly across resets, and a
+  // digest is what catches damage the SharedInfo projection would hide.
+  env.reset(config, false);
+  Advance(env, 600);
+  RequireInfoEqual(env.get_info(), reversed, "reverse_team_processing repeat");
+  Require(CaptureSimulationDigest(env) == reversed_digest,
+          "reverse_team_processing repeat: simulation digest differs");
+
+  config.reverse_team_processing = saved_reverse;
+}
+
+
 // Formats a float as a valid C++ float literal, so that generated baseline
 // entries can be pasted into the source without hand editing.
 const char* FloatLiteral(float value) {
@@ -845,6 +917,7 @@ int main(int argc, char** argv) {
     CheckRetainAnchor(env, config);
     CheckResetAndStateRoundTrip(env, config);
     CheckMatchTransitions(env, config);
+    CheckReverseTeamProcessing(env, config);
     std::cout << "football_regression: PASS\n";
     return 0;
   } catch (const RegressionFailure& failure) {
