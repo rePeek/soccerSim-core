@@ -25,7 +25,6 @@
 #include "../game_env.hpp"
 #include "../main.hpp"
 #include "../scene/objectfactory.hpp"
-#include "../scene/objects/light.hpp"
 #include "../utils/splitgeometry.hpp"
 #include "AIsupport/AIfunctions.hpp"
 #include "file.h"
@@ -216,11 +215,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
     GeneratePitch(2048, 1024, 1024, 512, 2048, 1024);
   }
 
-  // sun
-  sunNode = loader.LoadObject("media/objects/lighting/generic.object");
-  GetDynamicNode()->AddNode(sunNode);
-  SetRandomSunParams();
-
 
   // human gamers
   UpdateControllerSetup();
@@ -288,42 +282,6 @@ void Match::Exit() {
 
   scene3D->DeleteNode(GetDynamicNode());
   scene3D->DeleteNode(stadiumNode);
-}
-
-void Match::SetRandomSunParams() {
-  DO_VALIDATION;
-
-  float brightness = 1.0f;
-
-  Vector3 sunPos = Vector3(-1.2f, 0.4f, 1.0f); // sane default
-  float averageHeightMultiplier = 1.3f;
-  sunPos = Vector3(clamp(boostrandom(-1.7f, 1.7f), -1.0, 1.0),
-                   clamp(boostrandom(-1.7f, 1.7f), -1.0, 1.0),
-                   averageHeightMultiplier);
-  sunPos.Normalize();
-  if (boostrandom(0, 1) > 0.5f && sunPos.coords[1] > 0.25f)
-    sunPos.coords[1] =
-        -sunPos.coords[1];  // sun more often on (default) camera side (coming
-                            // from front == clearer lighting on players)
-  sunNode->GetObject("sun")->SetPosition(sunPos * 10000.0f);
-
-  float defaultRadius = 1000000.0f;
-  float sunRadius = defaultRadius;
-  boost::static_pointer_cast<Light>(sunNode->GetObject("sun"))->SetRadius(sunRadius);
-
-  Vector3 sunColorNoon(0.9, 0.8, 1.0); sunColorNoon *= 1.4f;
-  Vector3 sunColorDusk(1.4, 0.9, 0.7); sunColorDusk *= 1.2f;
-
-  float noonBias =
-      std::pow(NormalizedClamp(sunPos.coords[2], 0.5f, 1.0f), 1.2f);
-  Vector3 sunColor = sunColorNoon * noonBias + sunColorDusk * (1.0f - noonBias);
-
-  Vector3 randomAddition(boostrandom(-0.1, 0.1), boostrandom(-0.1, 0.1),
-                         boostrandom(-0.1, 0.1));
-  randomAddition *= 1.2f;
-  sunColor += randomAddition;
-
-  boost::static_pointer_cast<Light>(sunNode->GetObject("sun"))->SetColor(sunColor * brightness);
 }
 
 void Match::RandomizeAdboards(boost::intrusive_ptr<Node> stadiumNode) {

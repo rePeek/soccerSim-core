@@ -57,7 +57,6 @@ class Match {
     void Exit();
     void Mirror(bool team_0, bool team_1, bool ball);
 
-    void SetRandomSunParams();
     void RandomizeAdboards(boost::intrusive_ptr<Node> stadiumNode);
     void UpdateControllerSetup();
     void SpamMessage(const std::string &msg, int time_ms = 3000);
@@ -182,7 +181,6 @@ class Match {
 
     boost::intrusive_ptr<Node> cameraNode;
     boost::intrusive_ptr<Camera> camera;
-    boost::intrusive_ptr<Node> sunNode;
 
     boost::intrusive_ptr<Node> stadiumNode;
 
