@@ -14,22 +14,18 @@ set(CMAKE_CXX_STANDARD 14)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS} -fPIC -g -O3")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -O3 -g")
-set(OpenGL_GL_PREFERENCE GLVND)
-
 # Find required libraries
-FIND_PACKAGE(OpenGL REQUIRED)
-include_directories(${OPENGL_INCLUDE_DIR})
-
 FIND_PACKAGE(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 
-FIND_PACKAGE(EGL REQUIRED)
-include_directories(${EGL_INCLUDE_DIR})
-
-FIND_PACKAGE(SDL2_image REQUIRED)
+# SDL2_gfx supplies zoomSurface, used by the Surface resource on the asset
+# import path (see Surface::Resize).
+#
+# FindSDL2_gfx.cmake calls FIND_PACKAGE_HANDLE_STANDARD_ARGS from the vendored
+# copy in CMakeModules; that used to be loaded incidentally by the OpenGL
+# find-module, so load it explicitly now that the graphics dependencies are gone.
+include(FindPackageHandleStandardArgs)
 FIND_PACKAGE(SDL2_gfx REQUIRED)
-
-include_directories(${SDL2_IMAGE_DIRS})
 include_directories(${SDL2_GFX_DIRS})
 
 FIND_PACKAGE(Boost REQUIRED COMPONENTS thread system filesystem)
@@ -62,12 +58,9 @@ add_library(blunted2 ${BLUNTED_CORE_SOURCES} ${BLUNTED_CORE_HEADERS} ${OWN_LIBRA
 add_library(gamelib ${GAME_SOURCES} ${GAME_HEADERS})
 add_library(datalib ${DATA_SOURCES} ${DATA_HEADERS})
 
-set(SDL2_LIBS_ALL ${SDL2_IMAGE_LIBRARIES} ${SDL2_GFX_LIBRARIES}
-   ${SDL2_LIBRARIES})
-
 set(ENGINE_LIBRARIES gamelib datalib blunted2
    Boost::filesystem Boost::system Boost::thread
-   ${SDL2_LIBS_ALL} ${EGL_LIBRARIES} ${OPENGL_LIBRARIES})
+   ${SDL2_LIBRARIES} ${SDL2_GFX_LIBRARIES})
 
 add_library(enginecore OBJECT ${CORE_SOURCES} ${CORE_HEADERS}
    src/game_env.cpp src/game_env.hpp

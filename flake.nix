@@ -21,10 +21,10 @@
               pkgs.ninja
               pkgs.boost
 
-              # Engine C++ dependencies.
-              pkgs.libGL.dev
+              # Engine C++ dependencies. SDL2 and SDL2_gfx are still needed by
+              # the asset import path: the .bmp image loader creates SDL_Surface
+              # objects and Surface::Resize uses zoomSurface.
               pkgs.SDL2
-              pkgs.SDL2_image
               pkgs.SDL2_gfx
             ];
 
