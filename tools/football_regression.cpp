@@ -908,6 +908,29 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
   double clean_legacy_step_sum = 0.0;
   const double plausible_step_limit = 0.15;
 
+  // H3e1b calibration. A procedural model cannot reproduce animation root
+  // motion tick by tick, so it has to be designed against aggregate legacy
+  // behaviour instead: the mapping from commanded speed to actual speed, the
+  // achievable turn per tick as a function of facing error, and the speed
+  // change achievable per tick as a function of the speed gap.
+  const int desired_bucket_count = 9;  // 1 m/s bins
+  int desired_count[9] = {0};
+  double desired_sum_commanded[9] = {0.0};
+  double desired_sum_legacy_speed[9] = {0.0};
+  const int turn_bucket_count = 8;  // 0.25 rad bins
+  int turn_count[8] = {0};
+  double turn_sum_legacy[8] = {0.0};
+  double turn_sum_procedural[8] = {0.0};
+  const int gap_bucket_count = 9;  // 1 m/s bins over -4 .. +5
+  int gap_count[9] = {0};
+  double gap_sum_speed_change[9] = {0.0};
+  double commanded_ratio_sum = 0.0;
+  int commanded_ratio_samples = 0;
+  int legacy_facing_velocity_samples = 0;
+  double legacy_facing_velocity_error_sum = 0.0;
+  int movement_facing_samples = 0;
+  double movement_facing_error_sum = 0.0;
+
   const int ticks = 400;
   for (int tick = 0; tick < ticks; ++tick) {
     std::vector<Player*> players;
@@ -977,6 +1000,57 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
           clean_max_position_error = position_error;
         }
         ++clean_samples;
+
+        const double current_speed = sample.state.velocity.GetLength();
+        const double legacy_speed = actual.velocity.GetLength();
+        const int desired_bucket = clamp(
+            static_cast<int>(std::floor(desiredSpeed)), 0,
+            desired_bucket_count - 1);
+        ++desired_count[desired_bucket];
+        desired_sum_commanded[desired_bucket] += desiredSpeed;
+        desired_sum_legacy_speed[desired_bucket] += legacy_speed;
+        if (desiredSpeed > 0.5f) {
+          commanded_ratio_sum += legacy_speed / desiredSpeed;
+          ++commanded_ratio_samples;
+        }
+
+        const double turn_error = std::fabs(
+            sample.state.facing.GetAngle2D(input.desiredFacing));
+        const int turn_bucket = clamp(
+            static_cast<int>(turn_error / 0.25), 0, turn_bucket_count - 1);
+        ++turn_count[turn_bucket];
+        turn_sum_legacy[turn_bucket] += std::fabs(
+            sample.state.facing.GetAngle2D(actual.facing));
+        turn_sum_procedural[turn_bucket] += std::fabs(
+            sample.state.facing.GetAngle2D(predicted.facing));
+
+        const double speed_gap = desiredSpeed - current_speed;
+        const int gap_bucket = clamp(
+            static_cast<int>(std::floor(speed_gap + 4.0)), 0,
+            gap_bucket_count - 1);
+        ++gap_count[gap_bucket];
+        gap_sum_speed_change[gap_bucket] += legacy_speed - current_speed;
+
+        // Structural check: legacy facing is the movement direction while
+        // moving, not a separately turned look direction. If that holds, a
+        // procedural model should derive facing from velocity instead of
+        // integrating a turn rate.
+        // Mirror the exact legacy condition: directionVec equals the movement
+        // direction only when the quantized velocity is not idle.
+        const bool moving =
+            sample.player->GetEnumVelocity() != e_Velocity_Idle;
+        if (moving) {
+          legacy_facing_velocity_error_sum += std::fabs(
+              actual.facing.GetAngle2D(
+                  actual.velocity.Get2D().GetNormalized(actual.facing)));
+          ++legacy_facing_velocity_samples;
+        }
+        if (moving) {
+          movement_facing_error_sum += std::fabs(
+              actual.facing.GetAngle2D(
+                  predicted.velocity.Get2D().GetNormalized(actual.facing)));
+          ++movement_facing_samples;
+        }
       }
 
       Require(predicted.position.coords[2] == 0.0f,
@@ -1009,6 +1083,45 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
             << (clean_facing_error_sum / clean_samples)
             << " clean_mean_legacy_step="
             << (clean_legacy_step_sum / clean_samples) << "\n";
+  std::cout << "locomotion facing semantics: legacy_facing_vs_velocity_error="
+            << (legacy_facing_velocity_samples > 0
+                    ? legacy_facing_velocity_error_sum /
+                          legacy_facing_velocity_samples
+                    : 0.0)
+            << " samples=" << legacy_facing_velocity_samples
+            << " movement_facing_vs_legacy_error="
+            << (movement_facing_samples > 0
+                    ? movement_facing_error_sum / movement_facing_samples
+                    : 0.0)
+            << " samples=" << movement_facing_samples << "\n";
+  std::cout << "locomotion calibration: commanded_ratio="
+            << (commanded_ratio_samples > 0
+                    ? commanded_ratio_sum / commanded_ratio_samples
+                    : 0.0)
+            << " commanded_ratio_samples=" << commanded_ratio_samples << "\n";
+  for (int bucket = 0; bucket < desired_bucket_count; ++bucket) {
+    if (desired_count[bucket] == 0) continue;
+    std::cout << "  desired_speed_bucket[" << bucket << "] count="
+              << desired_count[bucket] << " mean_commanded="
+              << (desired_sum_commanded[bucket] / desired_count[bucket])
+              << " mean_legacy_speed="
+              << (desired_sum_legacy_speed[bucket] / desired_count[bucket])
+              << "\n";
+  }
+  for (int bucket = 0; bucket < turn_bucket_count; ++bucket) {
+    if (turn_count[bucket] == 0) continue;
+    std::cout << "  facing_error_bucket[" << bucket << "] count="
+              << turn_count[bucket] << " mean_legacy_turn="
+              << (turn_sum_legacy[bucket] / turn_count[bucket])
+              << " mean_procedural_turn="
+              << (turn_sum_procedural[bucket] / turn_count[bucket]) << "\n";
+  }
+  for (int bucket = 0; bucket < gap_bucket_count; ++bucket) {
+    if (gap_count[bucket] == 0) continue;
+    std::cout << "  speed_gap_bucket[" << (bucket - 4) << "] count="
+              << gap_count[bucket] << " mean_legacy_speed_change="
+              << (gap_sum_speed_change[bucket] / gap_count[bucket]) << "\n";
+  }
 }
 
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
