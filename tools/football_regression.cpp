@@ -2135,6 +2135,10 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
     double abs_sum = 0.0;
     double hybrid_seconds = 0.0;
     std::vector<double> abs_errors;
+    int samples_by_heading[5] = {0, 0, 0, 0, 0};
+    int unreachable_to_reachable_by_heading[5] = {0, 0, 0, 0, 0};
+    int samples_by_speed_ratio[4] = {0, 0, 0, 0};
+    int unreachable_to_reachable_by_speed_ratio[4] = {0, 0, 0, 0};
   };
   HorizonStats stats[5];
   double exact_seconds = 0.0;
@@ -2186,10 +2190,38 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
           const bool hybrid_reachable = hybrid.usual_ms >= 0;
           if (exact_reachable) ++entry.exact_reachable;
           if (hybrid_reachable) ++entry.hybrid_reachable;
+          // Bucket the sample by the start state, so a surviving reachability
+          // flip can be attributed to the heading change or to the speed it
+          // already carried rather than guessed at.
+          const Vector3 heading_reference = start.velocity.Get2D().GetNormalized(
+              start.facing.Get2D().GetNormalized(Vector3(0, -1, 0)));
+          const float heading_degrees =
+              std::fabs(heading_reference.GetAngle2D(target_at(0).Get2D())) *
+              180.0f / pi;
+          int heading_bucket = 4;
+          if (heading_degrees < 15.0f) {
+            heading_bucket = 0;
+          } else if (heading_degrees < 45.0f) {
+            heading_bucket = 1;
+          } else if (heading_degrees < 90.0f) {
+            heading_bucket = 2;
+          } else if (heading_degrees < 135.0f) {
+            heading_bucket = 3;
+          }
+          const float speed_ratio_now =
+              parameters.maxSpeed > 0.0f
+                  ? start.velocity.GetLength() / parameters.maxSpeed
+                  : 0.0f;
+          const int ratio_bucket =
+              clamp(static_cast<int>(speed_ratio_now * 4.0f), 0, 3);
+          ++entry.samples_by_heading[heading_bucket];
+          ++entry.samples_by_speed_ratio[ratio_bucket];
           if (exact_reachable && !hybrid_reachable) {
             ++entry.reachable_to_unreachable;
           } else if (!exact_reachable && hybrid_reachable) {
             ++entry.unreachable_to_reachable;
+            ++entry.unreachable_to_reachable_by_heading[heading_bucket];
+            ++entry.unreachable_to_reachable_by_speed_ratio[ratio_bucket];
           }
           if (exact_reachable && hybrid_reachable) {
             const double difference =
@@ -2251,6 +2283,19 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
               << " max=" << (entry.abs_errors.empty() ? 0.0
                                                       : entry.abs_errors.back())
               << "\n";
+    if (index == horizon_count - 1) {
+      static const char* kHeadingLabels[5] = {"0-15", "15-45", "45-90", "90-135", "135-180"};
+      static const char* kRatioLabels[4] = {"0-.25", ".25-.5", ".5-.75", ".75-1"};
+      std::cout << "    u2r_by_heading:";
+      for (int slot = 0; slot < 5; ++slot) {
+        std::cout << " " << kHeadingLabels[slot] << "deg=" << entry.unreachable_to_reachable_by_heading[slot] << "/" << entry.samples_by_heading[slot];
+      }
+      std::cout << "\n    u2r_by_speed_ratio:";
+      for (int slot = 0; slot < 4; ++slot) {
+        std::cout << " " << kRatioLabels[slot] << "=" << entry.unreachable_to_reachable_by_speed_ratio[slot] << "/" << entry.samples_by_speed_ratio[slot];
+      }
+      std::cout << "\n";
+    }
   }
 }
 

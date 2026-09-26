@@ -373,11 +373,27 @@ class PlayerLocomotion {
         (rate > 0.0f) ? std::fabs(cruise - initial_speed) / rate : 0.0f;
 
     const float setup_seconds = std::max(turn_seconds, transition_seconds);
-    float setup_distance =
-        initial_speed * setup_seconds +
-        0.5f * (speeding_up ? parameters.acceleration : -parameters.braking) *
-            setup_seconds * setup_seconds;
+    // Piecewise setup distance. The speed transition only lasts
+    // transition_seconds; extrapolating the acceleration across the whole setup
+    // duration (which is usually the turn time) invents displacement that does
+    // not happen, which shortens the remaining distance and makes the estimate
+    // optimistic. Since setup_seconds >= transition_seconds by construction, the
+    // speed transition is always complete when setup ends, so the rest of the
+    // setup is covered at the cruise speed.
+    const float transition =
+        std::min(setup_seconds, transition_seconds);
+    float setup_distance = 0.0f;
+    if (speeding_up) {
+      setup_distance = initial_speed * transition +
+                       0.5f * parameters.acceleration * transition * transition;
+    } else {
+      setup_distance = initial_speed * transition -
+                       0.5f * parameters.braking * transition * transition;
+    }
     if (setup_distance < 0.0f) setup_distance = 0.0f;
+    if (setup_seconds > transition_seconds) {
+      setup_distance += cruise * (setup_seconds - transition_seconds);
+    }
 
     const float remaining =
         std::max(0.0f, distance - radius - setup_distance);
