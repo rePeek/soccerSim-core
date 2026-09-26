@@ -249,7 +249,6 @@ class HumanoidBase {
       return currentAnim.originatingCommand;
     }
 
-    const NodeMap &GetNodeMap() { DO_VALIDATION; return nodeMap; }
 
 
 

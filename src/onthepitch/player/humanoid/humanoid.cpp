@@ -807,8 +807,6 @@ void Humanoid::CalculateGeomOffsets() {
   constexpr float adaptLegsToTrueVelocity_influence = 0.7f;
   constexpr bool adaptBodyToBallPosition = true;
   constexpr float adaptBodyToBallPosition_influence = 0.5f;
-  constexpr bool adaptLegToTouchPos = false;
-  constexpr float adaptLegToTouchPos_influence = 0.5f;
   constexpr bool adaptArmsToOpp = true;
   constexpr float adaptArmsToOpp_influence = 0.9f;
 
@@ -966,95 +964,6 @@ void Humanoid::CalculateGeomOffsets() {
 
     }
 
-    else if (currentAnim.touchFrame != -1) {
-      DO_VALIDATION;
-
-      if (adaptLegToTouchPos) {
-        DO_VALIDATION;
-
-        // dynamic legs so we can reach the ball
-
-        int smoothFrames = 0;
-
-        std::string bodypart = currentAnim.anim->GetVariable("touch_bodypart");
-        int leftOrRightLeg = 0; // -1 == left, 1 == right
-        if (bodypart.find("left_foot") != std::string::npos || bodypart.find("left_leg") != std::string::npos) leftOrRightLeg = -1;
-        if (bodypart.find("right_foot") != std::string::npos || bodypart.find("right_leg") != std::string::npos) leftOrRightLeg = 1;
-
-        if (leftOrRightLeg != 0) {
-          DO_VALIDATION;  // wrong bodypart? don't do anything
-
-          int influenceFrames = 8;
-          float frameFactor = curve(NormalizedClamp(influenceFrames - fabs(currentAnim.frameNum - (currentAnim.touchFrame - smoothFrames)), 0.0f, (float)influenceFrames), 0.5f);
-          float ignoreDistance = 0.0f; // only start using this effect after this amount of desired- vs. actual ball pos offset
-          float neededFactor = 1.0f;
-
-          Vector3 hipJointPos;
-          if (leftOrRightLeg == -1) hipJointPos = nodeMap[left_thigh]->GetDerivedPosition();
-          else                     hipJointPos = nodeMap[right_thigh]->GetDerivedPosition();
-
-          Quaternion bodyOrientationRel = nodeMap[body]->GetRotation();
-
-          Vector3 autoTouchOffsetRel = currentAnim.touchPos - hipJointPos;
-          autoTouchOffsetRel.Rotate2D(-spatialState.angle - spatialState.relBodyAngleNonquantized);
-
-          // make this position shift dynamically, making it relative to the body instead of it being a static world position
-          Vector3 bodyPosTouch = currentAnim.positions.at(currentAnim.touchFrame - smoothFrames);
-          Vector3 bodyPosNow = currentAnim.positions.at(currentAnim.frameNum);
-          autoTouchOffsetRel -= (bodyPosTouch - bodyPosNow).GetRotated2D(-spatialState.angle - spatialState.relBodyAngleNonquantized);
-
-          // if ball is further away, stretch more. if close, bend knee and such
-          radian bendAngle = (1.0f - NormalizedClamp(autoTouchOffsetRel.GetLength(), 0.5f, 1.0f)) * 0.34f * pi;
-
-          float insideFactor = 0.4f;
-          Quaternion hipTwist; hipTwist.SetAngleAxis(0.5f * pi, Vector3(0, 0, -leftOrRightLeg * insideFactor));
-          Quaternion defaultHipOrientation; defaultHipOrientation.SetAngleAxis(-0.03f * pi - bendAngle, Vector3(1, 0, 0)); defaultHipOrientation = hipTwist * defaultHipOrientation;
-          Quaternion defaultKneeOrientation; defaultKneeOrientation.SetAngleAxis(0.1f * pi + bendAngle * 2.2f, Vector3(1, 0, 0));
-          Quaternion defaultAnkleOrientation; defaultAnkleOrientation.SetAngleAxis(0.4f * pi - bendAngle * 1.2f, Vector3(1, 0, 0));
-
-          // calculate the desired forward/backward swing angle of the leg
-          // first, convert z, y into y, x coords, so we can use Vector3's 2D functions
-          Vector3 zy = Vector3(autoTouchOffsetRel.coords[2], autoTouchOffsetRel.coords[1], 0.0f);
-          radian angle_X = zy.GetAngle2D(Vector3(-1, 0, 0));
-
-          // now decide on the sideways sway angle
-          Vector3 zx = Vector3(autoTouchOffsetRel.coords[2], autoTouchOffsetRel.coords[0], 0.0f);
-          radian angle_Y = zx.GetAngle2D(Vector3(-1, 0, 0));
-
-          // create rotation quaternions
-          Quaternion sway_X; sway_X.SetAngleAxis(angle_X, Vector3(-1,  0, 0));
-          Quaternion sway_Y; sway_Y.SetAngleAxis(angle_Y, Vector3( 0,  1, 0));
-
-          // use em!
-          defaultHipOrientation = sway_X * defaultHipOrientation;
-          defaultHipOrientation.Normalize();
-          defaultHipOrientation = sway_Y * defaultHipOrientation;
-          defaultHipOrientation.Normalize();
-
-          // overcorrect Z so we can rotate with the inverse of the body quaternion afterwards
-          Quaternion quatZ; quatZ.SetAngleAxis(-spatialState.angle - spatialState.relBodyAngleNonquantized, Vector3(0, 0, -1));
-          defaultHipOrientation = quatZ * defaultHipOrientation;
-          defaultHipOrientation.Normalize();
-
-          // finally, correct for body movements
-          defaultHipOrientation = bodyOrientationRel.GetInverse() * defaultHipOrientation;
-          defaultHipOrientation.Normalize();
-
-
-
-          if (leftOrRightLeg == -1) {
-            DO_VALIDATION;
-            SetOffset(left_thigh,  frameFactor * neededFactor * adaptLegToTouchPos_influence, defaultHipOrientation);
-            SetOffset(left_knee,   frameFactor * neededFactor * adaptLegToTouchPos_influence, defaultKneeOrientation);
-            SetOffset(left_ankle,  frameFactor * neededFactor * adaptLegToTouchPos_influence, defaultAnkleOrientation);
-          } else {
-            SetOffset(right_thigh, frameFactor * neededFactor * adaptLegToTouchPos_influence, defaultHipOrientation);
-            SetOffset(right_knee,  frameFactor * neededFactor * adaptLegToTouchPos_influence, defaultKneeOrientation);
-            SetOffset(right_ankle, frameFactor * neededFactor * adaptLegToTouchPos_influence, defaultAnkleOrientation);
-          }
-        }
-      }
-    }
   }
 }
 

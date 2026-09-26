@@ -142,7 +142,6 @@ class PlayerBase {
     e_TouchType GetLastTouchType() { DO_VALIDATION; return lastTouchType; }
     float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0);
 
-    const NodeMap &GetNodeMap() { DO_VALIDATION; return humanoid->GetNodeMap(); }
 
     float GetFatigueFactorInv() const { return fatigueFactorInv; }
     void RelaxFatigue(float howMuch) { DO_VALIDATION;
