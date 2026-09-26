@@ -129,6 +129,9 @@ void HumanoidBase::Process() {
 
   CalculateSpatialState();
   spatialState.positionOffsetMovement = Vector3(0);
+  // H3e1c-prep: see Humanoid::Process. Feeding the current legacy result back
+  // through the reverse projection must be behaviour-neutral.
+  ApplySimulationMovementState(player->GetKinematicState());
 
   currentAnim.frameNum++;
   player->StepSimulationAction(10);
@@ -878,6 +881,23 @@ void HumanoidBase::CalculateFactualSpatialState() {
     spatialState.movement = Vector3(0);
   }
 
+  if (player) player->SynchronizeKinematicState();
+}
+
+void HumanoidBase::ApplySimulationMovementState(
+    const PlayerKinematicState &state) {
+  DO_VALIDATION;
+  spatialState.position = state.position;
+  spatialState.movement = state.velocity;
+  spatialState.directionVec = state.facing;
+  spatialState.floatVelocity = spatialState.movement.GetLength();
+  spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
+  spatialState.angle =
+      ModulateIntoRange(-pi, pi, FixAngle(spatialState.directionVec.GetAngle2D()));
+  // The next tick derives its raw movement from this, so it must describe the
+  // position actually in force. Collision corrections land here too, exactly
+  // as they did when the legacy root motion owned the position.
+  previousPosition2D = spatialState.position;
   if (player) player->SynchronizeKinematicState();
 }
 

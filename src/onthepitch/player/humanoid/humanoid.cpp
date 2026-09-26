@@ -91,6 +91,11 @@ void Humanoid::Process() {
 
   CalculateSpatialState();
   spatialState.positionOffsetMovement = Vector3(0);
+  // H3e1c-prep: the reverse projection exists and is exercised every tick,
+  // but it currently receives exactly the legacy result, so the actor's
+  // behaviour must be unchanged. The locomotion authority flip reuses this
+  // same call with a procedurally produced state.
+  ApplySimulationMovementState(player->GetKinematicState());
 
   currentAnim.frameNum++;
   CastPlayer()->StepSimulationAction(10);

@@ -82,10 +82,9 @@ class PlayerBase {
       return GetSimulationActionState().type;
     }
     inline e_FunctionType GetPreviousFunctionType() const { return humanoid->GetPreviousFunctionType(); }
-    // H3e authority boundary: true only when this actor may use the
-    // simulation-owned procedural movement model instead of animation root
-    // motion. Pure locomotion keeps the legacy animation path; see
-    // PlayerActionState::IsPureLocomotion().
+    // H3e authority boundary: true only when this actor may leave the legacy
+    // animation root-motion path and use the simulation-owned procedural
+    // movement model instead. See PlayerActionState::IsPureLocomotion().
     bool IsEligibleForProceduralLocomotion() const;
     const PlayerKinematicState &GetKinematicState() const {
       DO_VALIDATION;

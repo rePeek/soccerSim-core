@@ -25,6 +25,8 @@
 
 #include "animcollection.hpp"
 
+#include "../player_kinematics.hpp"
+
 #include "../../AIsupport/mentalimage.hpp"
 
 using namespace blunted;
@@ -212,6 +214,14 @@ class HumanoidBase {
 
     void CalculateSpatialState(); // realtime properties, based on 'physics'
     void CalculateFactualSpatialState(); // realtime properties, based on anim. usable at last frame of anim. more riggid than above function
+    // Reverse projection used by the locomotion authority flip: the simulation
+    // movement state is the source and the legacy Humanoid movement fields
+    // follow it. Action selection, the ball algorithms and the body pose all
+    // read spatialState, so it must never keep a private animation position.
+    // Animation-owned bookkeeping (actualMovement, physicsMovement,
+    // animMovement, the smuggle movements, the body angles and the foot) is
+    // deliberately left alone until H3e3/H3e4 take it over.
+    void ApplySimulationMovementState(const PlayerKinematicState &state);
 
     void AddTripCommandToQueue(PlayerCommandQueue &commandQueue, const Vector3 &tripVector, int tripType);
     PlayerCommand GetTripCommand(const Vector3 &tripVector, int tripType);
