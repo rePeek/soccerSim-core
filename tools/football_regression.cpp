@@ -9,6 +9,7 @@
 #include <string>
 
 #include "game_env.hpp"
+#include "onthepitch/AIsupport/AIfunctions.hpp"
 #include "onthepitch/player/legacy_locomotion_command.hpp"
 #include "onthepitch/player/player_kinematics.hpp"
 #include "onthepitch/player/player_locomotion.hpp"
@@ -361,6 +362,60 @@ void CheckProceduralLocomotion() {
   }
 }
 
+// H3e1c-2: planning and execution must share one physics primitive. Predict()
+// is repeated Step(), and reachability is derived from the same Step(), so a
+// planner cannot invent its own acceleration or turning rule.
+void CheckProceduralLocomotionPrediction() {
+  PlayerLocomotionParameters parameters;
+  parameters.maxSpeed = 7.5f;
+  parameters.acceleration = 6.0f;
+  parameters.braking = 12.0f;
+
+  PlayerKinematicState state;
+  state.facing = Vector3(1.0f, 0.0f, 0.0f);
+  PlayerLocomotionInput input;
+  input.desiredVelocity = Vector3(7.5f, 0.0f, 0.0f);
+  input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
+
+  // Predict() must be bit-identical to calling Step() in a loop.
+  const PlayerKinematicState predicted =
+      PlayerLocomotion::Predict(state, input, parameters, 100);
+  PlayerKinematicState manual = state;
+  for (int step = 0; step < 10; ++step) {
+    PlayerLocomotion::Step(manual, input, parameters, 0.01f);
+  }
+  Require(predicted.position.coords[0] == manual.position.coords[0] &&
+          predicted.velocity.coords[0] == manual.velocity.coords[0],
+          "procedural prediction: Predict must be repeated Step");
+  RequireNear(predicted.speed, 0.6f,
+              "procedural prediction: ramped speed after 100 ms");
+
+  // Reachability follows the same model.
+  const Vector3 reachable(5.0f, 0.0f, 0.0f);
+  const int eta = PlayerLocomotion::EstimateTimeToTarget(
+      state, reachable, parameters, 7.5f, 2000, 0.9f);
+  Require(eta > 0, "procedural prediction: a reachable target needs an ETA");
+  const PlayerKinematicState at_eta = PlayerLocomotion::Predict(
+      state, input, parameters, eta);
+  Require(at_eta.position.GetDistance(reachable) <= 0.9f + 0.2f,
+          "procedural prediction: the ETA must actually arrive");
+
+  // A standstill cannot reach anything, and asking to try must not loop.
+  Require(PlayerLocomotion::EstimateTimeToTarget(state, reachable,
+                                                  parameters, 0.0f, 2000,
+                                                  0.9f) == -1,
+          "procedural prediction: no speed means no reachability");
+  // A target beyond the horizon is reported unreachable, not guessed.
+  Require(PlayerLocomotion::EstimateTimeToTarget(
+              state, Vector3(5000.0f, 0.0f, 0.0f), parameters, 7.5f, 500,
+              0.9f) == -1,
+          "procedural prediction: beyond the horizon means unreachable");
+  // A target already within reach is immediate.
+  Require(PlayerLocomotion::EstimateTimeToTarget(
+              state, Vector3(0.2f, 0.0f, 0.0f), parameters, 7.5f, 2000,
+              0.9f) == 0,
+          "procedural prediction: an in-reach target is immediate");
+}
 void CheckPlayerKinematicMirror() {
   PlayerKinematicState state;
   state.position = Vector3(1.0f, 2.0f, 0.0f);
@@ -1550,6 +1605,187 @@ void MeasureLocomotionRegimeTransitions(GameEnv& env,
           "locomotion regimes: no clean sample was collected, the "
           "measurement would be vacuous");
 }
+
+// H3e1c-2: reachability must be derived from the same model as execution.
+// Parallel measurement only: the AI still consumes its own heuristic and the
+// simulation is untouched. For a fixed target it compares the legacy
+// heuristic ETA, the procedural PlayerLocomotion ETA and the time the actor
+// actually needed, to size the closed-loop error before either the planner or
+// the executor is switched over.
+void MeasureLocomotionPrediction(GameEnv& env, ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "locomotion prediction: kickoff");
+  Match* match = env.context->gameTask->GetMatch();
+
+  struct PendingPrediction {
+    Player* player;
+    Vector3 target;
+    int start_step;
+    int procedural_eta_ms;
+    int legacy_eta_ms;
+  };
+
+  std::vector<PendingPrediction> pending;
+  const float reach_radius = 0.9f;
+  const int horizon_ms = 2000;
+  // env.step() advances ten 10 ms physics ticks.
+  const int step_ms = 100;
+
+  int jobs = 0;
+  int reached = 0;
+  int unreached = 0;
+  int comparable = 0;
+  int procedural_reachable = 0;
+  int legacy_reachable = 0;
+  int procedural_closer = 0;
+  int legacy_closer = 0;
+  int reachability_disagreements = 0;
+  int reachability_disagreements_commanded = 0;
+  int procedural_reachable_commanded = 0;
+  const int distance_bucket_count = 16;  // 2 m bins
+  int distance_jobs[16] = {0};
+  int distance_disagreements[16] = {0};
+  double procedural_error_sum = 0.0;
+  double legacy_error_sum = 0.0;
+
+  const int steps = 400;
+  for (int step = 0; step < steps; ++step) {
+    if (step % 5 == 0 && pending.size() < 32) {
+      std::vector<Player*> players;
+      match->GetActiveTeamPlayers(match->FirstTeam(), players);
+      match->GetActiveTeamPlayers(match->SecondTeam(), players);
+      for (Player* player : players) {
+        if (!player->IsEligibleForProceduralLocomotion()) continue;
+        const PlayerCommand& command =
+            player->GetCurrentAnim()->originatingCommand;
+        if (!command.useDesiredMovement) continue;
+        const float desired_speed = clamp(command.desiredVelocityFloat, 0.0f,
+                                         player->GetMaxVelocity());
+        if (desired_speed <= 0.0f) continue;
+
+        const Vector3 target = match->GetBall()->Predict(300);
+        const PlayerKinematicState start = player->GetKinematicState();
+        PlayerLocomotionParameters parameters;
+        parameters.maxSpeed = player->GetMaxVelocity();
+        // The AI decides reachability assuming the actor commits to its maximum
+        // speed, which is also what it passes to the legacy heuristic, so that
+        // is the apples-to-apples comparison. The estimate at the currently
+        // commanded speed is reported too, because that is what the actor is
+        // actually doing.
+        const int procedural_eta_sprint =
+            PlayerLocomotion::EstimateTimeToTarget(
+                start, target, parameters, player->GetMaxVelocity(),
+                horizon_ms, reach_radius);
+        const int procedural_eta_commanded =
+            PlayerLocomotion::EstimateTimeToTarget(
+                start, target, parameters, desired_speed, horizon_ms,
+                reach_radius);
+        const TimeNeeded legacy = AI_GetTimeNeededForDistance_ms(
+            start.position, start.velocity, target,
+            player->GetMaxVelocity(), true, horizon_ms);
+        // Reachability is the question the closed loop actually asks, so count
+        // disagreement over every sampled job instead of only over the few
+        // that later happen to arrive.
+        const bool legacy_reachable_now =
+            legacy.usual_ms <= static_cast<unsigned int>(horizon_ms);
+        const bool procedural_reachable_now = procedural_eta_sprint >= 0;
+        if (procedural_reachable_now) ++procedural_reachable;
+        if (procedural_eta_commanded >= 0) ++procedural_reachable_commanded;
+        if (legacy_reachable_now) ++legacy_reachable;
+        if (procedural_reachable_now != legacy_reachable_now) {
+          ++reachability_disagreements;
+        }
+        if ((procedural_eta_commanded >= 0) != legacy_reachable_now) {
+          ++reachability_disagreements_commanded;
+        }
+        // Bucket by initial distance to tell a thin boundary band apart from a
+        // systematic mismatch.
+        const int distance_bucket = clamp(
+            static_cast<int>(start.position.GetDistance(target) / 2.0f), 0,
+            distance_bucket_count - 1);
+        ++distance_jobs[distance_bucket];
+        if (procedural_reachable_now != legacy_reachable_now) {
+          ++distance_disagreements[distance_bucket];
+        }
+        pending.push_back(PendingPrediction{player, target, step,
+                                           procedural_eta_sprint,
+                                           static_cast<int>(legacy.usual_ms)});
+        ++jobs;
+      }
+    }
+
+    env.step();
+
+    for (size_t index = 0; index < pending.size();) {
+      PendingPrediction& job = pending[index];
+      if (!job.player->IsActive()) {
+        pending.erase(pending.begin() + index);
+        continue;
+      }
+      const int elapsed_ms = (step + 1 - job.start_step) * step_ms;
+      const bool horizon_expired = elapsed_ms >= horizon_ms;
+      const double distance =
+          (job.target - job.player->GetPosition()).Get2D().GetLength();
+      const bool arrived = distance <= reach_radius;
+
+      if (arrived || horizon_expired) {
+        if (arrived) {
+          ++reached;
+          const bool procedural_reached = job.procedural_eta_ms >= 0;
+          const bool legacy_reached = job.legacy_eta_ms <= horizon_ms;
+          if (procedural_reached && legacy_reached) {
+            const double procedural_error =
+                std::fabs(job.procedural_eta_ms - elapsed_ms);
+            const double legacy_error =
+                std::fabs(job.legacy_eta_ms - elapsed_ms);
+            procedural_error_sum += procedural_error;
+            legacy_error_sum += legacy_error;
+            if (procedural_error < legacy_error) {
+              ++procedural_closer;
+            } else {
+              ++legacy_closer;
+            }
+            ++comparable;
+          }
+        } else {
+          ++unreached;
+        }
+        pending.erase(pending.begin() + index);
+        continue;
+      }
+      ++index;
+    }
+  }
+
+  Require(jobs > 0,
+          "locomotion prediction: no reachability job was collected, the "
+          "measurement would be vacuous");
+  Require(comparable > 0,
+          "locomotion prediction: no job had two comparable estimates");
+  std::cout << "locomotion prediction: jobs=" << jobs << " reached="
+            << reached << " unreached=" << unreached
+            << " comparable=" << comparable
+            << " mean_procedural_eta_error_ms="
+            << (procedural_error_sum / comparable)
+            << " mean_legacy_eta_error_ms=" << (legacy_error_sum / comparable)
+            << " procedural_closer=" << procedural_closer
+            << " legacy_closer=" << legacy_closer
+            << " procedural_reachable_sprint=" << procedural_reachable
+            << " procedural_reachable_commanded="
+            << procedural_reachable_commanded
+            << " legacy_reachable=" << legacy_reachable
+            << " disagreements_sprint=" << reachability_disagreements
+            << " (" << (100.0 * reachability_disagreements / jobs) << "%)"
+            << " disagreements_commanded="
+            << reachability_disagreements_commanded << " ("
+            << (100.0 * reachability_disagreements_commanded / jobs) << "%)\n";
+  for (int bucket = 0; bucket < distance_bucket_count; ++bucket) {
+    if (distance_jobs[bucket] == 0) continue;
+    std::cout << "  distance_bucket[" << (bucket * 2) << "m] jobs="
+              << distance_jobs[bucket] << " disagreements="
+              << distance_disagreements[bucket] << "\n";
+  }
+}
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   CheckKinematicMirrorConsistency(env, "kinematic mirror after reset");
@@ -1931,6 +2167,7 @@ int main(int argc, char** argv) {
     CheckPlayerKinematics();
     CheckPlayerKinematicMirror();
     CheckProceduralLocomotion();
+    CheckProceduralLocomotionPrediction();
     CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
     CheckPureLocomotionBoundary();
@@ -1964,6 +2201,7 @@ int main(int argc, char** argv) {
     CheckMovementAuthorityTiming(env, config);
     MeasureProceduralLocomotionDivergence(env, config);
     MeasureLocomotionRegimeTransitions(env, config);
+    MeasureLocomotionPrediction(env, config);
     CheckMatchTransitions(env, config);
     CheckReverseTeamProcessing(env, config);
     std::cout << "football_regression: PASS\n";

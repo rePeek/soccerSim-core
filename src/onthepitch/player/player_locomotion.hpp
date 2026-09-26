@@ -134,6 +134,46 @@ class PlayerLocomotion {
     if (std::fabs(delta) <= maxStep) return target;
     return current + (delta > 0.0f ? maxStep : -maxStep);
   }
+
+  // Roll the same Step() forward. Planning must use the physics primitive
+  // directly: as soon as a planner has its own acceleration or turn rule, the
+  // execution and the plan describe different motions and the closed loop
+  // diverges. The input is held constant, which is the straight-run case.
+  static PlayerKinematicState Predict(PlayerKinematicState state,
+                                      const PlayerLocomotionInput &input,
+                                      const PlayerLocomotionParameters &parameters,
+                                      int time_ms) {
+    DO_VALIDATION;
+    for (int elapsed = 0; elapsed < time_ms; elapsed += 10) {
+      Step(state, input, parameters, 0.01f);
+    }
+    return state;
+  }
+
+  // How long until this actor can be within reach_radius of the target if it
+  // runs at desired_speed and re-aims every tick. Returns -1 when the target
+  // is not reached inside horizon_ms. This is the reachability counterpart of
+  // Predict() and deliberately calls the same Step().
+  static int EstimateTimeToTarget(const PlayerKinematicState &start,
+                                  const Vector3 &target,
+                                  const PlayerLocomotionParameters &parameters,
+                                  float desired_speed, int horizon_ms,
+                                  float reach_radius) {
+    DO_VALIDATION;
+    if (desired_speed <= 0.0f) return -1;
+    PlayerKinematicState state = start;
+    for (int elapsed = 0; elapsed < horizon_ms; elapsed += 10) {
+      const Vector3 to_target = (target - state.position).Get2D();
+      if (to_target.GetLength() <= reach_radius) return elapsed;
+      PlayerLocomotionInput input;
+      input.desiredVelocity =
+          to_target.GetNormalized(state.facing) * desired_speed;
+      input.idleFacing = state.facing;
+      Step(state, input, parameters, 0.01f);
+    }
+    const Vector3 remaining = (target - state.position).Get2D();
+    return remaining.GetLength() <= reach_radius ? horizon_ms : -1;
+  }
 };
 
 #endif
