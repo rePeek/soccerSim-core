@@ -342,7 +342,6 @@ void Referee::BallTouched() {
           buffer.restartPos = ballOwner->GetPitchPosition();
           buffer.teamID = 1 - lastTouchTeamID;
           buffer.active = true;
-          match->SpamMessage("offside!");
         }
       }
     }
@@ -545,18 +544,14 @@ bool Referee::CheckFoul() {
     }
     buffer.teamID = foul.foulVictim->GetTeam()->GetID();
     buffer.active = true;
-    std::string spamMessage = "foul!";
     if (foul.foulType == 2) {
       DO_VALIDATION;
-      spamMessage.append(" yellow card");
       foul.foulPlayer->GiveYellowCard(match->GetActualTime_ms() + 6000); // need to find out proper moment
     }
     if (foul.foulType == 3) {
       DO_VALIDATION;
-      spamMessage.append(" red card!!!");
       foul.foulPlayer->GiveRedCard(match->GetActualTime_ms() + 6000); // need to find out proper moment
     }
-    match->SpamMessage(spamMessage);
 
     foul.hasBeenProcessed = true;
 

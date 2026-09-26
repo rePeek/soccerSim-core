@@ -355,18 +355,10 @@ void Player::Hide2D() {
 
 void Player::SendOff() {
   DO_VALIDATION;
-  float x = boostrandom(0, 3);
-  std::string message;
-  if (x < 1.0) {
-    DO_VALIDATION;
-    message = "an early shower for " + playerData->GetLastName() + "!";
-  } else if (x < 2.0) {
-    DO_VALIDATION;
-    message = playerData->GetLastName() + " is sent off!";
-  } else {
-    message = "it's all over for " + playerData->GetLastName() + "!";
-  }
-  match->SpamMessage(message);
+  // The deterministic RNG draw is deliberately kept: the baseline depends on
+  // this consumption. The message it used to select is gone, so removing the
+  // draw would be a gameplay change rather than a cleanup.
+  (void)boostrandom(0, 3);
 
   Deactivate();
 

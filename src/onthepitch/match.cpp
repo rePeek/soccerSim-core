@@ -32,7 +32,6 @@
 #include "player/player_body_collider.hpp"
 #include "ball_presentation.hpp"
 
-constexpr unsigned int replaySize_ms = 10000;
 
 boost::shared_ptr<AnimCollection> Match::GetAnimCollection() {
   DO_VALIDATION;
@@ -55,9 +54,9 @@ Match::Match(std::unique_ptr<MatchData> match_data,
       matchDurationFactor(
           GetConfiguration()->GetReal("match_duration", 1.0) * 0.2f + 0.05f),
       _useMagnet(GetScenarioConfig().use_magnet) {
+  DO_VALIDATION;
   teamKitNumbers[0] = setup.team_kit_numbers[0];
   teamKitNumbers[1] = setup.team_kit_numbers[1];
-  DO_VALIDATION;
   auto& anims = GetContext().anims;
   GetContext().stablePlayerCount = 0;
 
@@ -236,9 +235,6 @@ void Match::UpdateControllerSetup() {
   teams[1]->AddHumanGamers(right_players);
 }
 
-void Match::SpamMessage(const std::string& /*msg*/, int /*time_ms*/) {
-  DO_VALIDATION;
-}
 
 void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
   DO_VALIDATION;
@@ -602,22 +598,10 @@ bool Match::Process() {
       if (!ownGoal) {
         DO_VALIDATION;
         lastGoalScorer = GetLastGoalTeam()->GetLastTouchPlayer();
-        if (lastGoalScorer) {
-          DO_VALIDATION;
-          SpamMessage("GOAL for " + GetLastGoalTeam()->GetTeamData()->GetName() + "! " + lastGoalScorer->GetPlayerData()->GetLastName() + " scores!", 4000);
-        } else {
-          SpamMessage("GOAL!!!", 4000);
-        }
       }
 
       else {  // own goal
         lastGoalScorer = teams[abs(GetLastGoalTeam()->GetID() - 1)]->GetLastTouchPlayer();
-        if (lastGoalScorer) {
-          DO_VALIDATION;
-          SpamMessage("OWN GOAL! " + lastGoalScorer->GetPlayerData()->GetLastName() + " is so unlucky!", 4000);
-        } else {
-          SpamMessage("It's an OWN GOAL! oh noes!", 4000);
-        }
       }
     }
   }
@@ -1239,10 +1223,6 @@ void Match::CheckBallCollisions() {
 }
 
 
-int Match::GetReplaySize_ms() {
-  DO_VALIDATION;
-  return replaySize_ms;
-}
 
 void Match::BumpActualTime_ms(unsigned long time) {
   if (IsInPlay()) {

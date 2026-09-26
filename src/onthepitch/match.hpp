@@ -57,7 +57,6 @@ class Match {
     void Mirror(bool team_0, bool team_1, bool ball);
 
     void UpdateControllerSetup();
-    void SpamMessage(const std::string &msg, int time_ms = 3000);
     int GetScore(int teamID) { DO_VALIDATION; return matchData->GetGoalCount(teamID); }
     int GetTeamKitNum(int teamID) const {
       DO_VALIDATION;
@@ -136,7 +135,6 @@ class Match {
 
 
 
-    int GetReplaySize_ms();
 
     MatchData* GetMatchData() { DO_VALIDATION; return matchData.get(); }
 
