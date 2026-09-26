@@ -83,7 +83,6 @@ set(LOADERS_SOURCES
 )
 
 set(TYPES_HEADERS
-   src/types/spatial.hpp
    src/types/resource.hpp
    src/types/material.hpp
    src/types/refcounted.hpp
@@ -93,25 +92,20 @@ set(TYPES_HEADERS
 )
 
 set(TYPES_SOURCES
-   src/types/spatial.cpp
    src/types/refcounted.cpp
    src/types/command.cpp
 )
 
 set(SCENE_HEADERS
-   src/scene/object.hpp
 )
 
 set(SCENE2D_HEADERS
 )
 
 set(SCENE_OBJECTS_HEADERS
-   src/scene/objects/geometry.hpp
-   src/scene/objects/light.hpp
 )
 
 set(SCENE3D_HEADERS
-   src/scene/scene3d/node.hpp
 )
 
 set(SCENE_RESOURCES_HEADERS
@@ -120,10 +114,6 @@ set(SCENE_RESOURCES_HEADERS
 )
 
 set(SCENE_SOURCES
-   src/scene/objects/light.cpp
-   src/scene/objects/geometry.cpp
-   src/scene/scene3d/node.cpp
-   src/scene/object.cpp
    src/scene/resources/surface.cpp
    src/scene/resources/geometrydata.cpp
 )
@@ -134,7 +124,6 @@ set(MANAGERS_HEADERS
 
 set(UTILS_HEADERS
    src/utils/animation.hpp
-   src/utils/objectloader.hpp
    src/utils/xmlloader.hpp
 )
 
@@ -145,7 +134,6 @@ set(UTILS_EXT_HEADERS
 
 set(UTILS_SOURCES
    src/utils/animation.cpp
-   src/utils/objectloader.cpp
    src/utils/xmlloader.cpp
    src/utils/animationextensions/footballanimationextension.cpp
 )
@@ -190,6 +178,8 @@ set(GAME_HEADERS
    src/onthepitch/officials.hpp
    src/onthepitch/player/humanoid/humanoidbase.hpp
    src/onthepitch/player/humanoid/humanoid.hpp
+   src/onthepitch/player/humanoid/import_hierarchy.hpp
+   src/onthepitch/player/humanoid/import_loader.hpp
    src/onthepitch/player/humanoid/animcollection.hpp
    src/onthepitch/player/humanoid/humanoid_utils.hpp
    src/onthepitch/player/playerofficial.hpp
@@ -224,6 +214,8 @@ set(GAME_HEADERS
 set(GAME_SOURCES
    src/onthepitch/officials.cpp
    src/onthepitch/player/humanoid/humanoid_utils.cpp
+   src/onthepitch/player/humanoid/import_hierarchy.cpp
+   src/onthepitch/player/humanoid/import_loader.cpp
    src/onthepitch/player/humanoid/animcollection.cpp
    src/onthepitch/player/humanoid/humanoidbase.cpp
    src/onthepitch/player/humanoid/humanoid.cpp

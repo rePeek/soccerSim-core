@@ -22,7 +22,6 @@
 #include "../base/utils.hpp"
 #include "../managers/resourcemanager.hpp"
 #include "../scene/resources/geometrydata.hpp"
-#include "../scene/objects/geometry.hpp"
 
 namespace blunted {
 

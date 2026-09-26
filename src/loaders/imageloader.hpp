@@ -21,7 +21,6 @@
 #include "../defines.hpp"
 #include "../managers/resourcemanager.hpp"
 #include "../scene/resources/surface.hpp"
-#include "../scene/objects/image2d.hpp"
 
 namespace blunted {
 

@@ -15,6 +15,9 @@
 #include "onthepitch/player/player_action_volume.hpp"
 #include "onthepitch/player/player_body_collider.hpp"
 #include "onthepitch/player/player_retain_anchor.hpp"
+#include "onthepitch/player/humanoid/animcollection.hpp"
+#include "onthepitch/player/humanoid/import_hierarchy.hpp"
+#include "onthepitch/player/humanoid/import_loader.hpp"
 
 namespace {
 
@@ -696,6 +699,123 @@ void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
 
 }  // namespace
 
+// The animation import used to be described by the scene graph. D4c2 replaced
+// that with ImportNode/ImportHierarchy. The golden snapshots pin the
+// end-to-end result of the import, but they do not pin the shape of the
+// imported hierarchy or the behaviour of its lazy derived transforms, so
+// those are checked here directly.
+//
+// The three properties below are the ones the simulation actually depends on:
+//
+//   1. the body-part anchors, and the order they are visited in. The touch
+//      computation walks them and keeps the first one that is closest to the
+//      ball, so this order decides ties.
+//   2. the anchor names are disjoint from the body-part joint names: only
+//      <node> entries become joints, only <geometry> entries become anchors.
+//      The touch type of a ball touch is derived from the anchor name.
+//   3. the derived-transform cache is a pure cache: recomputing it after
+//      invalidation reproduces the same bits. If invalidation were missed the
+//      cache would go stale and the import would silently change.
+void CheckImportHierarchy() {
+  ImportLoader loader;
+  ImportHierarchy hierarchy =
+      loader.LoadObject("media/objects/players/player.object");
+  ImportNode* root = hierarchy.root.get();
+  Require(root != nullptr, "import: the loader returned no root node");
+
+  // Anchor order as written in the asset, which is the order the old
+  // Node::GetObjects() produced too: anchors of a node first, then the child
+  // nodes depth-first.
+  const std::vector<std::string> expected_anchors = {
+      "pelvis",        "trunk",          "head",           "left_upperarm",
+      "left_lowerarm",  "right_upperarm", "right_lowerarm",  "left_upperleg",
+      "left_lowerleg",  "left_foot",      "right_upperleg",  "right_lowerleg",
+      "right_foot"};
+  Require(hierarchy.anchors.size() == expected_anchors.size(),
+          "import: unexpected number of body-part anchors");
+  for (size_t i = 0; i < expected_anchors.size(); ++i) {
+    Require(hierarchy.anchors[i]->kind == ImportNodeKind::Anchor,
+            "import: a body-part anchor is not marked as one");
+    if (hierarchy.anchors[i]->GetName() != expected_anchors[i]) {
+      std::ostringstream message;
+      message << "import: anchor " << i << " is '"
+              << hierarchy.anchors[i]->GetName() << "', expected '"
+              << expected_anchors[i] << "'";
+      throw RegressionFailure(message.str());
+    }
+  }
+
+  // The joints the animation poses. AnimCollection renames the root to
+  // "player" before building this map, so do the same here.
+  root->SetName("player");
+  ImportNodeMap node_map;
+  BuildImportNodeMap(root, node_map);
+  const char* expected_joints[] = {
+      "middle",       "neck",           "left_thigh",   "right_thigh",
+      "left_knee",    "right_knee",     "left_ankle",   "right_ankle",
+      "left_shoulder", "right_shoulder", "left_elbow",   "right_elbow",
+      "body",         "player"};
+  for (const char* joint : expected_joints) {
+    Require(LookupImportNode(node_map, BodyPartFromString(joint)) != nullptr,
+            std::string("import: joint not in the node map: ") + joint);
+  }
+  // An anchor must never also be a joint: the maps are built from disjoint
+  // XML elements, and BodyPartFromString would be fatal on an anchor name.
+  for (ImportNode* anchor : hierarchy.anchors) {
+    for (const char* joint : expected_joints) {
+      Require(anchor->GetName() != joint,
+              std::string("import: anchor name collides with a joint: ") +
+                  joint);
+    }
+  }
+
+  // Derived transforms: a recomputation must reproduce the cached value
+  // exactly, for every anchor. This is the property that makes the lazy cache
+  // safe to use from the animation code.
+  std::vector<Vector3> cached;
+  for (const ImportNode* anchor : hierarchy.anchors) {
+    cached.push_back(anchor->GetDerivedPosition());
+  }
+  root->UpdateDerivedTransforms();
+  for (size_t i = 0; i < hierarchy.anchors.size(); ++i) {
+    const Vector3 recomputed = hierarchy.anchors[i]->GetDerivedPosition();
+    for (int axis = 0; axis < 3; ++axis) {
+      Require(recomputed.coords[axis] == cached[i].coords[axis],
+              "import: the derived transform cache is not a pure cache");
+    }
+  }
+
+  // The hierarchy is really applied: moving the absolute root translates every
+  // anchor by exactly that offset, and rotating a joint moves the anchors
+  // below it.
+  const Vector3 offset(3.0f, -2.0f, 0.5f);
+  const Vector3 before = hierarchy.anchors.front()->GetDerivedPosition();
+  root->SetPosition(offset);
+  const Vector3 after = hierarchy.anchors.front()->GetDerivedPosition();
+  for (int axis = 0; axis < 3; ++axis) {
+    RequireNear(after.coords[axis], before.coords[axis] + offset.coords[axis],
+                "import: translating the root did not translate an anchor");
+  }
+
+  //
+  // Rotating a joint must move the anchors below it. Note that an anchor with a
+  // zero local offset (which is how the asset writes most of them: a named
+  // marker at the joint origin) sits exactly on its parent, so the rotation has
+  // to come from further up the chain -- the head anchor moves with the middle
+  // joint because the neck in between has a non-zero offset.
+  ImportNode* middle_joint =
+      LookupImportNode(node_map, BodyPartFromString("middle"));
+  Require(middle_joint != nullptr, "import: no middle joint to rotate");
+  const Vector3 head_before = hierarchy.anchors[2]->GetDerivedPosition();
+  Quaternion rotated;
+  rotated.SetAngleAxis(1.0f, Vector3(0, 0, 1));
+  middle_joint->SetRotation(rotated);
+  const Vector3 head_after = hierarchy.anchors[2]->GetDerivedPosition();
+  Require(head_before != head_after,
+          "import: rotating a joint did not move the anchors below it");
+}
+
+
 // reverse_team_processing swaps which team Match::Process() handles first
 // (first_team = 1, second_team = 0) and shifts every frame toggle with it.
 // Nothing else ran that configuration: every other check in this file uses the
@@ -914,6 +1034,7 @@ int main(int argc, char** argv) {
     CheckKinematicMirrorConsistency(env, "kinematic mirror after start_game");
 
     CheckGoldenSnapshots(env, config);
+    CheckImportHierarchy();
     CheckRetainAnchor(env, config);
     CheckResetAndStateRoundTrip(env, config);
     CheckMatchTransitions(env, config);

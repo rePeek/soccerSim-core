@@ -20,7 +20,7 @@
 
 #include "../../defines.hpp"
 #include "../../base/math/vector3.hpp"
-#include "../../scene/object.hpp"
+#include "../../base/geometry/aabb.hpp"
 #include "../../types/resource.hpp"
 #include "../../types/material.hpp"
 #include "surface.hpp"

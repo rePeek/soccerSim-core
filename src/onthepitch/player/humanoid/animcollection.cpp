@@ -21,20 +21,22 @@
 
 #include "../../../main.hpp"
 #include "../../../utils/animationextensions/footballanimationextension.hpp"
-#include "../../../utils/objectloader.hpp"
+
 #include "file.h"
 #include "humanoid.hpp"
 #include "humanoid_utils.hpp"
 
-void FillNodeMap(boost::intrusive_ptr<Node> targetNode, NodeMap &nodeMap) {
+void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap) {
   DO_VALIDATION;
   nodeMap[BodyPartFromString(targetNode->GetName())] = targetNode;
 
-  std::vector < boost::intrusive_ptr<Node> > gatherNodes;
-  targetNode->GetNodes(gatherNodes);
-  for (unsigned int i = 0; i < gatherNodes.size(); i++) {
+  for (const auto &child : targetNode->children) {
     DO_VALIDATION;
-    FillNodeMap(gatherNodes[i], nodeMap);
+    // Only <node> entries carry body-part names; <geometry> entries are the
+    // anchors measured against, not joints the animation poses.
+    if (child->kind == ImportNodeKind::Node) {
+      BuildImportNodeMap(child.get(), nodeMap);
+    }
   }
 }
 
@@ -370,17 +372,16 @@ void AnimCollection::Load() {
   DO_VALIDATION;
   // load utility player to get things like foot position in the frames around the balltouch etc.
 
-  ObjectLoader loader;
-  boost::intrusive_ptr<Node> playerNode;
-  playerNode = loader.LoadObject("media/objects/players/player.object");
-  playerNode->SetName("player");
-  playerNode->SetLocalMode(e_LocalMode_Absolute);
+  ImportLoader loader;
+  ImportHierarchy hierarchy =
+      loader.LoadObject("media/objects/players/player.object");
+  hierarchy.root->SetName("player");
+  hierarchy.root->SetLocalMode(e_LocalMode_Absolute);
 
-  std::list < boost::intrusive_ptr<Object> > bodyParts;
-  playerNode->GetObjects(e_ObjectType_Geometry, bodyParts, true);
+  const std::vector<ImportNode *> &bodyParts = hierarchy.anchors;
 
-  NodeMap nodeMap;
-  FillNodeMap(playerNode, nodeMap);
+  ImportNodeMap nodeMap;
+  BuildImportNodeMap(hierarchy.root.get(), nodeMap);
 
 
   // base anim with default angles - all anims' joints will be inversely rotated by the joints in this anim. this way, the fullbody mesh doesn't need to have 0 degree angles
@@ -421,12 +422,12 @@ void AnimCollection::Load() {
     boost::shared_ptr<FootballAnimationExtension> extension(new FootballAnimationExtension(animation));
     animation->AddExtension("football", extension);
     animation->Mirror();
-    _PrepareAnim(animation, playerNode, bodyParts, nodeMap, false);
+    _PrepareAnim(animation, bodyParts, nodeMap, false);
 
     animation = autoAnims[i];
     extension.reset(new FootballAnimationExtension(animation));
     animation->AddExtension("football", extension);
-    _PrepareAnim(animation, playerNode, bodyParts, nodeMap, false);
+    _PrepareAnim(animation, bodyParts, nodeMap, false);
   }
 
   // load all other animations
@@ -456,7 +457,7 @@ void AnimCollection::Load() {
         animation->Load(files[i]);
         if (mirror == 1) animation->Mirror();
 
-        _PrepareAnim(animation, playerNode, bodyParts, nodeMap, false);
+        _PrepareAnim(animation, bodyParts, nodeMap, false);
 
         /* disabled: too many side effects, should just make the most important
         of these manually
@@ -481,7 +482,7 @@ void AnimCollection::Load() {
               animation2->AddExtension("football", extension);
               animation2->Load(files[i], mirror == 0 ? false : true);
 
-              _PrepareAnim(animation2, playerNode, bodyParts, nodeMap, true);
+              _PrepareAnim(animation2, bodyParts, nodeMap, true);
 
             }
           }
@@ -492,7 +493,6 @@ void AnimCollection::Load() {
 
   //delete baseAnim;
 
-  playerNode->Exit();
 }
 
 const std::vector < Animation* > &AnimCollection::GetAnimations() const {
@@ -883,9 +883,9 @@ void AnimCollection::ProcessState(EnvState *state) {
 }
 
 // adds touches around main touch
-int AddExtraTouches(Animation *animation, boost::intrusive_ptr<Node> playerNode,
-                    const std::list<boost::intrusive_ptr<Object> > &bodyParts,
-                    const NodeMap &nodeMap) {
+int AddExtraTouches(Animation *animation,
+                    const std::vector<ImportNode *> &bodyParts,
+                    const ImportNodeMap &nodeMap) {
   DO_VALIDATION;
   Vector3 animBallPos;
   int animTouchFrame = -1;
@@ -898,10 +898,10 @@ int AddExtraTouches(Animation *animation, boost::intrusive_ptr<Node> playerNode,
     // find out what body part the balltouchpos is closest to
     animation->Apply(nodeMap, animTouchFrame, 0, false);
 
-    boost::intrusive_ptr<Object> closestBodyPart = (*bodyParts.begin());
+    ImportNode *closestBodyPart = *bodyParts.begin();
     float closestDistance = 100;
     Vector3 toBallVector = Vector3(0);
-    std::list < boost::intrusive_ptr<Object> > ::const_iterator iter = bodyParts.begin();
+    std::vector<ImportNode *>::const_iterator iter = bodyParts.begin();
 
     while (iter != bodyParts.end()) {
       DO_VALIDATION;
@@ -954,12 +954,12 @@ int AddExtraTouches(Animation *animation, boost::intrusive_ptr<Node> playerNode,
         position.coords[2] = position.coords[2] * 0.4f + animBallPos.coords[2] * 0.6f; // take anim's height more seriously
 
         // correction for animation smoothing
-        Vector3 origBodyPartPos = closestBodyPart->GetDerivedPosition() * bodypartBias + nodeMap[player]->GetDerivedPosition() * (1.0 - bodypartBias);
+        Vector3 origBodyPartPos = closestBodyPart->GetDerivedPosition() * bodypartBias + LookupImportNode(nodeMap, player)->GetDerivedPosition() * (1.0 - bodypartBias);
 
         Vector3 futureBodyPartPos = origBodyPartPos;
         // set anim to expected frame
         animation->Apply(nodeMap, i + frameOffset, 0, false);
-        futureBodyPartPos = closestBodyPart->GetDerivedPosition() * bodypartBias + nodeMap[player]->GetDerivedPosition() * (1.0 - bodypartBias);
+        futureBodyPartPos = closestBodyPart->GetDerivedPosition() * bodypartBias + LookupImportNode(nodeMap, player)->GetDerivedPosition() * (1.0 - bodypartBias);
 
         //origBodyPos.Print();
         Vector3 diff2D = (futureBodyPartPos - origBodyPartPos).Get2D();
@@ -967,8 +967,8 @@ int AddExtraTouches(Animation *animation, boost::intrusive_ptr<Node> playerNode,
         Vector3 resultPosition = position + diff2D;
 
         // scale ballposition: this is to correct for the change in animation 'player dud' scale and actual scale (on average - since players may have different heights, of course)
-        resultPosition.coords[0] = nodeMap[player]->GetDerivedPosition().coords[0] * 0.12f + resultPosition.coords[0] * 0.88f; // for some reason, anim ball pos is way too far from body (todo: investigate)
-        resultPosition.coords[1] = nodeMap[player]->GetDerivedPosition().coords[1] * 0.12f + resultPosition.coords[1] * 0.88f;
+        resultPosition.coords[0] = LookupImportNode(nodeMap, player)->GetDerivedPosition().coords[0] * 0.12f + resultPosition.coords[0] * 0.88f; // for some reason, anim ball pos is way too far from body (todo: investigate)
+        resultPosition.coords[1] = LookupImportNode(nodeMap, player)->GetDerivedPosition().coords[1] * 0.12f + resultPosition.coords[1] * 0.88f;
 
         /*
         // experiment: ball more on the sides (y) to get more incoming anti-outgoingdir-movement before touch (aesthetics effect?)
@@ -1040,9 +1040,8 @@ float CalculateAnimDifficulty(Animation *animation, float &absoluteDifficulty) {
 }
 
 void AnimCollection::_PrepareAnim(
-    Animation *animation, boost::intrusive_ptr<Node> playerNode,
-    const std::list<boost::intrusive_ptr<Object> > &bodyParts,
-    const NodeMap &nodeMap, bool convertAngledDribbleToWalk) {
+    Animation *animation, const std::vector<ImportNode *> &bodyParts,
+    const ImportNodeMap &nodeMap, bool convertAngledDribbleToWalk) {
   DO_VALIDATION;
 
   //animation->Hax();
@@ -1061,7 +1060,7 @@ void AnimCollection::_PrepareAnim(
   //Slowdown(animation, 1.0f, expectedFrameCount, true);
   //SmoothPositions(animation, convertAngledDribbleToWalk);
 
-  int touchFrame = AddExtraTouches(animation, playerNode, bodyParts, nodeMap);
+  int touchFrame = AddExtraTouches(animation, bodyParts, nodeMap);
   animation->SetVariable("touchframe", int_to_str(touchFrame));
 
 

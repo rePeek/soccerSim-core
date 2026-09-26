@@ -21,8 +21,8 @@
 #include "../../../utils/animation.hpp"
 #include "../../ball.hpp"
 
-#include "../../../scene/objects/geometry.hpp"
-#include "../../../utils/objectloader.hpp"
+#include "import_hierarchy.hpp"
+#include "import_loader.hpp"
 
 #include "../../../gamedefines.hpp"
 
@@ -154,7 +154,8 @@ struct Quadrant {
   }
 };
 
-void FillNodeMap(boost::intrusive_ptr<Node> targetNode, NodeMap &nodeMap);
+// Body-part names -> imported transform. See import_hierarchy.hpp.
+void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap);
 
 class AnimCollection {
 
@@ -184,7 +185,10 @@ class AnimCollection {
 
   protected:
 
-    void _PrepareAnim(Animation *animation, boost::intrusive_ptr<Node> playerNode, const std::list < boost::intrusive_ptr<Object> > &bodyParts, const NodeMap &nodeMap, bool convertAngledDribbleToWalk = false);
+    void _PrepareAnim(Animation *animation,
+                      const std::vector<ImportNode *> &bodyParts,
+                      const ImportNodeMap &nodeMap,
+                      bool convertAngledDribbleToWalk = false);
 
     bool _CheckFunctionType(e_DefString functionType, e_FunctionType queryFunctionType) const;
 

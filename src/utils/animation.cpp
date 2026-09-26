@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "animation.hpp"
+#include "../onthepitch/player/humanoid/import_hierarchy.hpp"
 
 #include "../base/utils.hpp"
 
@@ -364,7 +365,7 @@ void Animation::DirtyCache() {
     DirtyCache();
   }
 
-  void Animation::Apply(const NodeMap &nodeMap, int frame, int timeOffset_ms,
+  void Animation::Apply(const ImportNodeMap &nodeMap, int frame, int timeOffset_ms,
                         bool smooth, float smoothFactor, const Vector3 &basePos,
                         radian baseRot, BiasedOffsets &offsets,
                         MovementHistory *movementHistory, int timeDiff_ms,
@@ -380,7 +381,7 @@ void Animation::DirtyCache() {
     for (const auto nodeAnimation : nodeAnimations) {
       DO_VALIDATION;
 
-      auto mapNode = nodeMap[nodeAnimation->nodeName];
+      ImportNode* mapNode = LookupImportNode(nodeMap, nodeAnimation->nodeName);
       Quaternion orientation;
       Vector3 position;
 
@@ -695,7 +696,9 @@ void Animation::DirtyCache() {
       }
     }
 
-    if (updateSpatial) (*nodeMap[nodeAnimations.at(0)->nodeName]).RecursiveUpdateSpatialData(e_SpatialDataType_Both);
+    if (updateSpatial)
+      LookupImportNode(nodeMap, nodeAnimations.at(0)->nodeName)
+          ->UpdateDerivedTransforms();
   }
 
   Vector3 Animation::GetTranslation() const {

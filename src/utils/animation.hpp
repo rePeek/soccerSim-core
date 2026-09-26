@@ -21,7 +21,7 @@
 #include "../defines.hpp"
 #include <iostream>
 
-#include "../scene/scene3d/node.hpp"
+#include <unordered_map>
 
 #include "animationextensions/animationextension.hpp"
 
@@ -29,6 +29,8 @@
 #include "../gamedefines.hpp"
 
 namespace blunted {
+
+struct ImportNode;
 
 enum e_DefString {
   e_DefString_Empty = 0,
@@ -109,7 +111,18 @@ e_FunctionType StringToFunctionType(e_DefString fun);
     body_part_max
   };
 
-  typedef boost::intrusive_ptr<Node> NodeMap[body_part_max];
+  // Body-part name -> the imported transform it drives. Replaces the old
+  // NodeMap of scene-graph Nodes; sparse because the map only holds the body
+  // parts the asset actually defines.
+  using ImportNodeMap = std::unordered_map<BodyPart, ImportNode*>;
+
+  // Mirrors the legacy NodeMap lookup: a body part the asset does not define
+  // yields nullptr rather than inserting an entry.
+  inline ImportNode* LookupImportNode(const ImportNodeMap& nodeMap,
+                                      BodyPart part) {
+    const auto it = nodeMap.find(part);
+    return it == nodeMap.end() ? nullptr : it->second;
+  }
 
   static std::string BodyPartString(BodyPart part) { DO_VALIDATION;
     switch(part) { DO_VALIDATION;
@@ -348,7 +361,7 @@ e_FunctionType StringToFunctionType(e_DefString fun);
                                  int frame, Quaternion &orientation,
                                  Vector3 &position) const;
       void ConvertToStartFacingForwardIfIdle();
-      void Apply(const NodeMap& nodeMap,
+      void Apply(const ImportNodeMap& nodeMap,
                  int frame, int timeOffset_ms = 0, bool smooth = true,
                  float smoothFactor = 1.0f,
                  /*const boost::shared_ptr<Animation> previousAnimation, int
