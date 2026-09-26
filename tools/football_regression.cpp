@@ -416,6 +416,52 @@ void CheckProceduralLocomotionPrediction() {
               0.9f) == 0,
           "procedural prediction: an in-reach target is immediate");
 }
+
+// H3e1c-3: the intercept variant. The AI consumes "when can I first reach the
+// ball", not "how long to reach this fixed point", so the intercept estimator
+// is the quantity that actually has to agree with execution.
+void CheckProceduralInterceptPrediction() {
+  PlayerLocomotionParameters parameters;
+  parameters.maxSpeed = 7.5f;
+
+  PlayerKinematicState state;
+  state.facing = Vector3(1.0f, 0.0f, 0.0f);
+
+  const Vector3 stationary(4.0f, 0.0f, 0.0f);
+  const int stationary_eta = PlayerLocomotion::EstimateInterceptTime(
+      state, [&stationary](int) { return stationary; }, parameters, 7.5f,
+      2000, 0.9f);
+  Require(stationary_eta > 0,
+          "procedural intercept: a reachable ball needs an ETA");
+
+  // A ball drifting away is caught later than a stationary one.
+  const int drifting_eta = PlayerLocomotion::EstimateInterceptTime(
+      state,
+      [&stationary](int elapsed_ms) {
+        return stationary + Vector3(2.0f, 0.0f, 0.0f) * (elapsed_ms * 0.001f);
+      },
+      parameters, 7.5f, 2000, 0.9f);
+  Require(drifting_eta > stationary_eta,
+          "procedural intercept: a moving ball must take longer");
+
+  // A ball that outruns the actor is unreachable rather than optimistically
+  // estimated.
+  const int outrun_eta = PlayerLocomotion::EstimateInterceptTime(
+      state,
+      [&stationary](int elapsed_ms) {
+        return stationary + Vector3(30.0f, 0.0f, 0.0f) * (elapsed_ms * 0.001f);
+      },
+      parameters, 7.5f, 2000, 0.9f);
+  Require(outrun_eta == -1,
+          "procedural intercept: a ball the actor cannot catch is "
+          "unreachable");
+
+  // No speed means no intercept.
+  Require(PlayerLocomotion::EstimateInterceptTime(
+              state, [&stationary](int) { return stationary; }, parameters,
+              0.0f, 2000, 0.9f) == -1,
+          "procedural intercept: no speed means no intercept");
+}
 void CheckPlayerKinematicMirror() {
   PlayerKinematicState state;
   state.position = Vector3(1.0f, 2.0f, 0.0f);
@@ -1786,6 +1832,87 @@ void MeasureLocomotionPrediction(GameEnv& env, ScenarioConfig& config) {
               << distance_disagreements[bucket] << "\n";
   }
 }
+
+// H3e1c-3: the planner flip is only safe if the procedural intercept estimate
+// agrees with what the AI currently consumes. timeNeededToGetToBall_ms comes
+// from the legacy heuristic, so comparing the two quantifies the closed-loop
+// risk on the exact quantity the AI reads. Measurement only.
+void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "intercept prediction: kickoff");
+  Match* match = env.context->gameTask->GetMatch();
+  Ball* ball = match->GetBall();
+
+  const float reach_radius = 0.9f;
+  const int horizon_ms = static_cast<int>(ballPredictionSize_ms);
+  int samples = 0;
+  int legacy_unreachable = 0;
+  int procedural_unreachable = 0;
+  int reachability_disagreements = 0;
+  int legacy_committed_unreachable = 0;
+  int both_reachable = 0;
+  double legacy_sum = 0.0;
+  double procedural_sum = 0.0;
+
+  const int steps = 400;
+  for (int step = 0; step < steps; ++step) {
+    if (step % 5 == 0) {
+      std::vector<Player*> players;
+      match->GetActiveTeamPlayers(match->FirstTeam(), players);
+      match->GetActiveTeamPlayers(match->SecondTeam(), players);
+      for (Player* player : players) {
+        if (!player->IsEligibleForProceduralLocomotion()) continue;
+        if (!player->GetCurrentAnim()->originatingCommand.useDesiredMovement) {
+          continue;
+        }
+        PlayerLocomotionParameters parameters;
+        parameters.maxSpeed = player->GetMaxVelocity();
+        const int procedural = PlayerLocomotion::EstimateInterceptTime(
+            player->GetKinematicState(),
+            [ball](int ms) { return ball->Predict(ms); }, parameters,
+            player->GetMaxVelocity(), horizon_ms, reach_radius);
+        const int legacy = player->GetTimeNeededToGetToBall_ms();
+        const bool legacy_reachable = legacy < horizon_ms;
+        const bool procedural_reachable = procedural >= 0;
+
+        ++samples;
+        if (!legacy_reachable) ++legacy_unreachable;
+        if (!procedural_reachable) ++procedural_unreachable;
+        if (legacy_reachable != procedural_reachable) {
+          ++reachability_disagreements;
+        }
+        // The dangerous class: the AI is confident it arrives quickly while the
+        // model that will execute the movement says it cannot arrive at all.
+        if (legacy < 1000 && !procedural_reachable) {
+          ++legacy_committed_unreachable;
+        }
+        if (legacy_reachable && procedural_reachable) {
+          ++both_reachable;
+          legacy_sum += legacy;
+          procedural_sum += procedural;
+        }
+      }
+    }
+    env.step();
+  }
+
+  Require(samples > 0,
+          "intercept prediction: no sample was collected, the measurement "
+          "would be vacuous");
+  std::cout << "intercept prediction: samples=" << samples
+            << " legacy_unreachable=" << legacy_unreachable
+            << " procedural_unreachable=" << procedural_unreachable
+            << " reachability_disagreements=" << reachability_disagreements
+            << " (" << (100.0 * reachability_disagreements / samples) << "%)"
+            << " legacy_under_1000_but_unreachable="
+            << legacy_committed_unreachable
+            << " both_reachable=" << both_reachable
+            << " mean_legacy_ms="
+            << (both_reachable > 0 ? legacy_sum / both_reachable : 0.0)
+            << " mean_procedural_ms="
+            << (both_reachable > 0 ? procedural_sum / both_reachable : 0.0)
+            << "\n";
+}
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   CheckKinematicMirrorConsistency(env, "kinematic mirror after reset");
@@ -2168,6 +2295,7 @@ int main(int argc, char** argv) {
     CheckPlayerKinematicMirror();
     CheckProceduralLocomotion();
     CheckProceduralLocomotionPrediction();
+    CheckProceduralInterceptPrediction();
     CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
     CheckPureLocomotionBoundary();
@@ -2202,6 +2330,7 @@ int main(int argc, char** argv) {
     MeasureProceduralLocomotionDivergence(env, config);
     MeasureLocomotionRegimeTransitions(env, config);
     MeasureLocomotionPrediction(env, config);
+    MeasureInterceptPrediction(env, config);
     CheckMatchTransitions(env, config);
     CheckReverseTeamProcessing(env, config);
     std::cout << "football_regression: PASS\n";

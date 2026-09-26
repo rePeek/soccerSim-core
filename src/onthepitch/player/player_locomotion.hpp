@@ -174,6 +174,38 @@ class PlayerLocomotion {
     const Vector3 remaining = (target - state.position).Get2D();
     return remaining.GetLength() <= reach_radius ? horizon_ms : -1;
   }
+
+  // The AI's own question is not "how long to reach this fixed point" but
+  // "when can I first intercept a moving ball". The legacy version answers it
+  // by testing, for every ball prediction time, whether the actor could be at
+  // that predicted position by then. This is the procedural counterpart: one
+  // greedy-pursuit rollout that re-aims at the ball prediction for the elapsed
+  // time, using the same Step() as execution.
+  template <typename TargetAtTime>
+  static int EstimateInterceptTime(const PlayerKinematicState &start,
+                                   TargetAtTime target_at,
+                                   const PlayerLocomotionParameters &parameters,
+                                   float desired_speed, int horizon_ms,
+                                   float reach_radius) {
+    DO_VALIDATION;
+    if (desired_speed <= 0.0f) return -1;
+    PlayerKinematicState state = start;
+    for (int elapsed = 0; elapsed < horizon_ms; elapsed += 10) {
+      const Vector3 target = target_at(elapsed).Get2D();
+      if ((target - state.position).GetLength() <= reach_radius) {
+        return elapsed;
+      }
+      PlayerLocomotionInput input;
+      input.desiredVelocity =
+          (target - state.position).GetNormalized(state.facing) *
+          desired_speed;
+      input.idleFacing = state.facing;
+      Step(state, input, parameters, 0.01f);
+    }
+    const Vector3 target = target_at(horizon_ms).Get2D();
+    return (target - state.position).GetLength() <= reach_radius ? horizon_ms
+                                                                 : -1;
+  }
 };
 
 #endif
