@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -534,7 +535,36 @@ void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
 
 }  // namespace
 
-int main(int /*argc*/, char** /*argv*/) {
+void PrintBaseline(GameEnv& env, ScenarioConfig& config) {
+  const int calls[] = {1, 100, 500, 1000};
+  env.reset(config, false);
+  int completed = 0;
+  std::cout << "  const GoldenSnapshot golden[] = {\n";
+  for (const int target : calls) {
+    Advance(env, target - completed);
+    completed = target;
+    const SharedInfo info = env.get_info();
+    const Position& ball = info.ball_position;
+    const Position& left = info.left_team.front().player_position;
+    const Position& right = info.right_team.front().player_position;
+    char line[512];
+    std::snprintf(line, sizeof(line),
+                  "      {%d, %d, Position(%.9gf, %.9gf, %.9gf, true),\n"
+                  "       Position(%.9gf, %.9gf, %.9gf, true),\n"
+                  "       Position(%.9gf, %.9gf, %.9gf, true), %d, %d, %s,\n"
+                  "       UINT64_C(%llu)},\n",
+                  target, info.step, ball.env_coord(0), ball.env_coord(1),
+                  ball.env_coord(2), left.env_coord(0), left.env_coord(1),
+                  left.env_coord(2), right.env_coord(0), right.env_coord(1),
+                  right.env_coord(2), info.left_goals, info.right_goals,
+                  info.is_in_play ? "true" : "false",
+                  static_cast<unsigned long long>(HashInfo(info)));
+    std::cout << line;
+  }
+  std::cout << "  };\n";
+}
+
+int main(int argc, char** argv) {
   if (!std::getenv("GFOOTBALL_DATA_DIR")) {
     std::cerr << "Set GFOOTBALL_DATA_DIR before running football_regression.\n";
     return 2;
@@ -550,6 +580,14 @@ int main(int /*argc*/, char** /*argv*/) {
     env.game_config.render = false;
     env.start_game();
     ScenarioConfig config = MakeBuiltinAiConfig();
+
+    // Regenerate the golden baseline deliberately and reproducibly instead of
+    // hand-editing the snapshot table. Run with --print-baseline and paste the
+    // output over the `golden` array in CheckGoldenSnapshots.
+    if (argc > 1 && std::string(argv[1]) == "--print-baseline") {
+      PrintBaseline(env, config);
+      return 0;
+    }
 
     // Officials are placed in the Officials constructor, before any simulation
     // tick runs. Check the mirror here so that a placement path that bypasses
