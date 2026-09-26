@@ -300,16 +300,14 @@ class HumanoidBase {
     Vector3 ForceIntoPreferredDirectionVec(const Vector3 &src) const;
     radian ForceIntoPreferredDirectionAngle(radian angle) const;
 
-    // Legacy animation-driven simulation compatibility: the ball retainer
-    // reads body-part transforms from this tree, so it stays until H3a.
+    // Nothing in the simulation tick reads this tree any more; it is still
+    // written and serialized, and H3c proves whether it can go entirely.
     boost::intrusive_ptr<Node> humanoidNode;
 
     Match *match;
     PlayerBase *player;
     // Shared between all players, no need to snapshot.
     boost::shared_ptr<AnimCollection> anims;
-    // Pointers from elements in humanoidNode to Nodes.
-    NodeMap nodeMap;
     // Seems to contain current animation context.
     AnimApplyBuffer animApplyBuffer;
 

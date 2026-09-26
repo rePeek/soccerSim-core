@@ -98,7 +98,6 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
   humanoidNode = bla;
   humanoidNode->SetLocalMode(e_LocalMode_Absolute);
 
-  FillNodeMap(humanoidNode, nodeMap);
 
   ResetPosition(Vector3(0), Vector3(0));
   mentalImageTime = 0;
@@ -396,9 +395,6 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   movementHistory.clear();
   reQueueDelayFrames = 0;
   tripDirection = Vector3(0);
-  for (int x = 0; x < body_part_max - 1; x++) {
-    nodeMap[x]->SetRotation(Quaternion(), true);
-  }
   humanoidNode->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
 }
 
