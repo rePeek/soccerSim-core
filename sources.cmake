@@ -240,6 +240,7 @@ set(GAME_HEADERS
    src/onthepitch/player/playerofficial.hpp
    src/onthepitch/player/playerbase.hpp
    src/onthepitch/player/player_kinematics.hpp
+   src/onthepitch/player/player_retain_anchor.hpp
    src/onthepitch/player/player_ground_collider.hpp
    src/onthepitch/player/player_body_collider.hpp
    src/onthepitch/player/player_action.hpp

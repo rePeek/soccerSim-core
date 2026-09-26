@@ -14,6 +14,7 @@
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
 #include "onthepitch/player/player_body_collider.hpp"
+#include "onthepitch/player/player_retain_anchor.hpp"
 
 namespace {
 
@@ -767,6 +768,71 @@ void PrintBaseline(GameEnv& env, ScenarioConfig& config) {
   std::cout << "  };\n";
 }
 
+// The retained ball used to be positioned from a body-part transform read out
+// of the skeletal animation tree, so its simulation position depended on when
+// the presentation pipeline last refreshed that pose. H3a replaced that with a
+// body-local anchor computed from simulation state.
+//
+// This checks the anchor semantics directly, then drives a real retain and
+// requires the live ball to sit exactly on the computed anchor -- so the test
+// cannot pass vacuously by never entering the retain path.
+void CheckRetainAnchor(GameEnv& env, ScenarioConfig& config) {
+  RetainAnchorKind kind = RetainAnchorKind::LeftElbow;
+  Require(ParseRetainAnchorKind("right_elbow", kind) &&
+              kind == RetainAnchorKind::RightElbow,
+          "right_elbow must parse");
+  Require(ParseRetainAnchorKind("left_elbow", kind) &&
+              kind == RetainAnchorKind::LeftElbow,
+          "left_elbow must parse");
+  // Unknown anchors must not fall back silently: the legacy code asserted.
+  Require(!ParseRetainAnchorKind("", kind), "empty retain state must not parse");
+  Require(!ParseRetainAnchorKind("left_hand", kind),
+          "unknown retain state must not parse");
+
+  const Vector3 position(3.0f, -4.0f, 0.0f);
+  const Vector3 forward(0.0f, -1.0f, 0.0f);
+  const Vector3 rightAnchor =
+      ComputeRetainAnchor(position, forward, RetainAnchorKind::RightElbow);
+  const Vector3 leftAnchor =
+      ComputeRetainAnchor(position, forward, RetainAnchorKind::LeftElbow);
+  RequireNear(rightAnchor.coords[1], position.coords[1],
+              "retain anchor should not push the ball forward");
+  RequireNear(rightAnchor.coords[2], 1.26f, "retain anchor height");
+  RequireNear(leftAnchor.coords[2], 1.26f, "retain anchor height (left)");
+  Require(rightAnchor.coords[0] < position.coords[0] &&
+              leftAnchor.coords[0] > position.coords[0],
+          "left and right elbows must sit on opposite sides of the body");
+
+  env.reset(config, false);
+  for (int i = 0; i < 40; ++i) env.step();
+
+  Match* match = env.context->gameTask->GetMatch();
+  std::vector<Player*> players;
+  match->GetActiveTeamPlayers(match->FirstTeam(), players);
+  Require(!players.empty(), "retain scenario: no active player");
+  Player* retainer = players.front();
+
+  // The retain chain can be left by the controller's own animation selection,
+  // so the retaining animation is re-asserted each tick to keep the path live.
+  bool anchorObserved = false;
+  for (int i = 0; i < 60; ++i) {
+    retainer->SelectRetainAnim();
+    match->SetBallRetainer(retainer);
+    env.step();
+    const Vector3 expectedAnchor =
+        ComputeRetainAnchor(retainer->GetPosition(),
+                            retainer->GetBodyDirectionVec(),
+                            RetainAnchorKind::RightElbow);
+    if (match->GetBall()->Predict(0).GetDistance(expectedAnchor) < 1e-3f) {
+      anchorObserved = true;
+    }
+  }
+  Require(anchorObserved,
+          "retain scenario: the retain anchor path never ran, the test would "
+          "be vacuous");
+}
+
+
 int main(int argc, char** argv) {
   if (!std::getenv("GFOOTBALL_DATA_DIR")) {
     std::cerr << "Set GFOOTBALL_DATA_DIR before running football_regression.\n";
@@ -774,6 +840,7 @@ int main(int argc, char** argv) {
   }
 
   try {
+
     CheckPlayerKinematics();
     CheckPlayerKinematicMirror();
     CheckPlayerGroundCollider();
@@ -800,6 +867,7 @@ int main(int argc, char** argv) {
     CheckKinematicMirrorConsistency(env, "kinematic mirror after start_game");
 
     CheckGoldenSnapshots(env, config);
+    CheckRetainAnchor(env, config);
     CheckResetAndStateRoundTrip(env, config);
     CheckMatchTransitions(env, config);
     std::cout << "football_regression: PASS\n";

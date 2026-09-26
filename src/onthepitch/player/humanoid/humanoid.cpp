@@ -21,6 +21,8 @@
 
 #include "humanoid_utils.hpp"
 
+#include "../player_retain_anchor.hpp"
+
 #include "../player.hpp"
 #include "../../team.hpp"
 #include "../../match.hpp"
@@ -620,18 +622,29 @@ void Humanoid::Process() {
         (currentAnim.anim->GetVariable("incoming_retain_state") != "" &&
          currentAnim.anim->GetVariable("outgoing_retain_state") != "")) {
       DO_VALIDATION;
-      // find body part the ball is stuck to (superglue powers)
-      auto outgoing = currentAnim.anim->GetVariable("outgoing_retain_state");
-      auto bodyPart = outgoing.empty() ? nullptr : nodeMap[BodyPartFromString(outgoing)];
-      if (!bodyPart) {
+      // Anchor the ball to a body-semantic local offset. The retain state
+      // string decides which anchor; the position itself is a pure function of
+      // simulation state, so it no longer depends on when the animation pose
+      // was last refreshed.
+      std::string retainState =
+          currentAnim.anim->GetVariable("outgoing_retain_state");
+      if (retainState.empty()) {
         DO_VALIDATION;
-        auto incoming = currentAnim.anim->GetVariable("incoming_retain_state");
-        bodyPart = incoming.empty() ? nullptr : nodeMap[BodyPartFromString(incoming)];
+        retainState = currentAnim.anim->GetVariable("incoming_retain_state");
       }
-      assert(bodyPart);
+      RetainAnchorKind anchor;
+      if (!ParseRetainAnchorKind(retainState, anchor)) {
+        DO_VALIDATION;
+        // Fail fast: a silent fallback would place the retained ball
+        // somewhere plausible but wrong.
+        Log(e_FatalError, "Humanoid", "Process",
+            "unknown retain state: " + retainState);
+        exit(1);
+      }
       match->GetBall()->Touch(Vector3(0));
       match->GetBall()->SetRotation(0, 0, 0, 1.0);
-      match->GetBall()->SetPosition(bodyPart->GetDerivedPosition() + bodyPart->GetDerivedRotation() * Vector3(0, 0, -0.36f));
+      match->GetBall()->SetPosition(ComputeRetainAnchor(
+          spatialState.position, spatialState.bodyDirectionVec, anchor));
       team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Intentional_Nonkicked);
     } else {
       // no longer retaining
