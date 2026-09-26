@@ -13,6 +13,10 @@
 #include "../../defines.hpp"
 #include "player_kinematics.hpp"
 
+// This header is used from its own translation unit as well, so it cannot rely
+// on another header having opened the blunted namespace.
+using namespace blunted;
+
 // Simulation-owned procedural locomotion for pure Movement ticks.
 //
 // This is deliberately NOT a re-implementation of the animation root motion.
@@ -45,12 +49,22 @@ struct PlayerLocomotionInput {
   Vector3 idleFacing = Vector3(0, -1, 0);
 };
 
-// Dual estimate of when an actor gets inside a reach radius. The two radii are
-// the legacy AI's usual (can actually touch the ball) and optimistic distances,
-// so replacing TimeNeeded keeps its dual-estimate semantics. A negative value
-// means "not reached inside the horizon".
-// Reach distances matching the legacy AI's dual estimate: the usual radius is
-// "close enough to actually touch the ball", the optimistic one is looser.
+// Dual estimate of when an actor gets inside a reach radius, matching the legacy
+// AI's usual ("close enough to actually touch the ball") and optimistic
+// distances, so replacing TimeNeeded keeps its dual-estimate semantics.
+//
+// The layering this file participates in:
+//
+//   ground truth  PlayerLocomotion::Step
+//   exact reach   EstimateEarliestInterceptExact
+//   capability    EstimateEarliestInterceptHybrid: production uses exact reach
+//                 inside the near horizon and the analytic model beyond it
+//   belief        a future perception layer, allowed to differ from all of the
+//                 above on purpose
+//
+// The exact estimator is therefore not only an oracle: production calls it for
+// the near horizon. What is reserved for tests and calibration is the
+// full-horizon exact oracle.
 constexpr float kLocomotionUsualReachRadius = 0.28f;
 constexpr float kLocomotionOptimisticReachRadius = 0.9f;
 
@@ -59,14 +73,18 @@ struct PlayerLocomotionReach {
   int optimistic_ms = -1;
 };
 
-// Diagnostics only, never simulation state and never serialized: counts how
-// many earliest-intercept solves have run, so the regression can report the
-// planner's real cost and cadence instead of estimating them.
-inline int &PlayerLocomotionInterceptSolverCalls() {
-  static int calls = 0;
-  return calls;
-}
-
+// Diagnostics only, never simulation state and never serialized. They are
+// defined in the library, not inline: an inline function with a function-local
+// static gets one instance per translation unit, so the engine and the
+// regression tool would count different things and the cache contract could not
+// be checked at all. The regression tells a real cache apart from a scheduler
+// that merely runs on schedule by requiring that every eligible actor tick
+// either refreshed the capability estimate or reused the previous one, with no
+// third path.
+int &PlayerLocomotionInterceptSolverCalls();
+int &PlayerReachabilityRefreshes();
+int &PlayerReachabilityEligibleTicks();
+int &PlayerReachabilityReuses();
 struct PlayerLocomotionParameters {
   float maxSpeed = 7.5f;
   float acceleration = 6.0f;  // m/s^2 while speeding up
@@ -76,7 +94,6 @@ struct PlayerLocomotionParameters {
   float turnSpeedLoss = 0.5f;  // fraction of target speed lost at pi rad error
   float idleSpeedThreshold = 0.5f;  // at or below this the actor is standing
 };
-
 class PlayerLocomotion {
  public:
   // Moves one step of dt seconds. Planar only: the z coordinate of position,
@@ -90,7 +107,6 @@ class PlayerLocomotion {
     assert(parameters.acceleration > 0.0f);
     assert(parameters.braking > 0.0f);
     assert(parameters.maxTurnRate >= 0.0f);
-
     const Vector3 previousFacing =
         state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
     const Vector3 desiredVelocity = input.desiredVelocity.Get2D();
@@ -100,7 +116,6 @@ class PlayerLocomotion {
         state.velocity.Get2D().GetNormalized(previousFacing);
     const Vector3 desiredDirection =
         desiredVelocity.GetNormalized(currentDirection);
-
     // Turning costs speed. The error is only meaningful while actually moving;
     // at a standstill the actor may simply start in any direction.
     const bool moving = currentSpeed > parameters.idleSpeedThreshold;
@@ -110,11 +125,9 @@ class PlayerLocomotion {
         1.0f - parameters.turnSpeedLoss * (directionError / pi);
     const float targetSpeed =
         clamp(desiredSpeed, 0.0f, parameters.maxSpeed) * turnPenalty;
-
     const float newSpeed = ApproachAsymmetric(currentSpeed, targetSpeed,
                                               parameters.acceleration,
                                               parameters.braking, dt);
-
     // Harder to turn at speed. At a standstill the full rate applies so a
     // stationary actor can start in the desired direction instead of driving
     // off along its old facing.
@@ -134,22 +147,18 @@ class PlayerLocomotion {
         clamp(requestedTurn, -turnAuthority * dt, turnAuthority * dt);
     const Vector3 newDirection =
         currentDirection.GetRotated2D(appliedTurn).GetNormalized(currentDirection);
-
     state.velocity = newDirection * newSpeed;
     state.velocity.coords[2] = 0.0f;
     state.speed = newSpeed;
-
     if (newSpeed > parameters.idleSpeedThreshold) {
       state.facing = newDirection;
     } else {
       state.facing = input.idleFacing.Get2D().GetNormalized(previousFacing);
     }
     state.facing.coords[2] = 0.0f;
-
     state.position += state.velocity * dt;
     state.position.coords[2] = 0.0f;
   }
-
   // Speed approach with separate acceleration and braking rates. Returns the
   // target exactly rather than overshooting it.
   static float ApproachAsymmetric(float current, float target,
@@ -161,7 +170,6 @@ class PlayerLocomotion {
     if (std::fabs(delta) <= maxStep) return target;
     return current + (delta > 0.0f ? maxStep : -maxStep);
   }
-
   // Roll the same Step() forward. Planning must use the physics primitive
   // directly: as soon as a planner has its own acceleration or turn rule, the
   // execution and the plan describe different motions and the closed loop
@@ -176,7 +184,6 @@ class PlayerLocomotion {
     }
     return state;
   }
-
   // How long until this actor is inside each reach radius if it commits to
   // desired_speed and re-aims at the fixed target every tick. The two radii
   // mirror the legacy AI's usual (0.28, can actually touch the ball) and
@@ -215,7 +222,6 @@ class PlayerLocomotion {
     }
     return reach;
   }
-
   // The AI's question is "when can I first intercept a moving ball", and the
   // legacy code answers it as candidate-time reachability: for every candidate
   // interception time, take the ball position predicted for that moment and
@@ -278,7 +284,6 @@ class PlayerLocomotion {
     }
     return intercept;
   }
-
   // Long-horizon analytic intercept, the classic constant-speed lead-point
   // solve: |(ball + ball_velocity * T) - start| = speed * T + radius. It is an
   // approximation OF THE SAME CAPABILITY, but a crude one: it assumes the actor
@@ -322,7 +327,6 @@ class PlayerLocomotion {
         static_cast<int>(std::ceil(intercept_sec * 1000.0f));
     return intercept_ms <= horizon_ms ? intercept_ms : -1;
   }
-
   // Long-horizon capability estimate derived from THIS model's own steady state
   // rather than from a generic constant-speed solve. It decomposes the motion
   // into a setup phase and a cruise phase:
@@ -346,18 +350,15 @@ class PlayerLocomotion {
     if (desired_speed <= 0.0f) return -1;
     const float cruise = std::min(desired_speed, parameters.maxSpeed);
     if (cruise <= 0.0f || parameters.maxSpeed <= 0.0f) return -1;
-
     const Vector3 to_target = target.Get2D() - start.position;
     const float distance = to_target.GetLength();
     if (distance <= radius) return 0;
-
     const Vector3 current_direction = start.velocity.Get2D().GetNormalized(
         start.facing.Get2D().GetNormalized(Vector3(0, -1, 0)));
     const Vector3 target_direction = to_target.GetNormalized(current_direction);
     const float heading_error =
         std::fabs(current_direction.GetAngle2D(target_direction));
     const float initial_speed = start.velocity.GetLength();
-
     // Turning is slowest at the cruise speed, so charging the whole heading
     // change at the cruise authority is conservative rather than optimistic.
     const float cruise_ratio = clamp(cruise / parameters.maxSpeed, 0.0f, 1.0f);
@@ -366,7 +367,6 @@ class PlayerLocomotion {
         (1.0f - parameters.turnRateSpeedFactor * cruise_ratio);
     const float turn_seconds =
         (cruise_authority > 1e-3f) ? heading_error / cruise_authority : 0.0f;
-
     // Turn-induced braking. The model does not brake because the actor is fast;
     // it brakes because turning lowers the target speed, so an actor carrying
     // more speed than desired * turnPenalty has to slow down even though it is
@@ -378,7 +378,6 @@ class PlayerLocomotion {
     const float average_turn_penalty =
         1.0f - parameters.turnSpeedLoss * (average_heading_error / pi);
     const float turn_target_speed = cruise * average_turn_penalty;
-
     // Phase A: turn, while the speed moves towards the turn-reduced target.
     float setup_distance = 0.0f;
     float setup_end_speed = initial_speed;
@@ -410,7 +409,6 @@ class PlayerLocomotion {
       }
     }
     if (setup_distance < 0.0f) setup_distance = 0.0f;
-
     // Phase B: recover from the turn-reduced speed back to cruise.
     float recover_seconds = 0.0f;
     if (setup_end_speed < cruise && parameters.acceleration > 0.0f) {
@@ -419,7 +417,6 @@ class PlayerLocomotion {
                         0.5f * parameters.acceleration * recover_seconds *
                             recover_seconds;
     }
-
     const float remaining =
         std::max(0.0f, distance - radius - setup_distance);
     const float total_seconds =
@@ -428,7 +425,6 @@ class PlayerLocomotion {
         static_cast<int>(std::ceil(total_seconds * 1000.0f));
     return total_ms <= horizon_ms ? total_ms : -1;
   }
-
   // Hybrid: exact candidate-time reachability inside exact_horizon_ms, analytic
   // beyond it. Near-horizon planning therefore keeps the execution physics
   // exactly, and only the far horizon is approximated. Measurement-only until
@@ -461,7 +457,6 @@ class PlayerLocomotion {
         start, target_at, parameters, desired_speed, exact_horizon_ms,
         usual_radius, optimistic_radius);
     if (reach.usual_ms >= 0) return reach;
-
     const float speed = std::min(desired_speed, parameters.maxSpeed);
     for (int intercept_ms = exact_horizon_ms + 10;
          intercept_ms <= horizon_ms; intercept_ms += 10) {
@@ -492,5 +487,4 @@ class PlayerLocomotion {
     return reach;
   }
 };
-
 #endif

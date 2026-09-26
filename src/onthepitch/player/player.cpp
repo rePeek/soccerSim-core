@@ -37,14 +37,14 @@ namespace {
 // sampling policy, not a second physics model: between refreshes the estimate
 // is merely stale. Lowering it later trades CPU for freshness without touching
 // locomotion semantics.
-constexpr int kProceduralPlannerRefreshTicks = 10;
+constexpr int kReachabilityRefreshTicks = 10;
 
 // Near-horizon region of the reachability model that keeps exact locomotion
 // rollouts. Measured in P1a3/P1a4: the classification outcome is identical with
 // or without it, but it bounds the worst-case error at 700 ms instead of letting
 // the analytic tail be wrong by more than two seconds, and it costs nothing
 // measurable.
-constexpr int kProceduralPlannerExactHorizon_ms = 700;
+constexpr int kReachabilityExactHorizon_ms = 700;
 
 }  // namespace
 
@@ -175,28 +175,34 @@ void Player::UpdatePossessionStats() {
   DO_VALIDATION;
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
 
-  // Default estimate, still needed when this tick does not refresh the
-  // procedural intercept.
-  timeNeededToGetToBall_ms = std::max(
-      ballPredictionSize_ms,
-      (unsigned int)(std::round(
-          (match->GetBall()->Predict(ballPredictionSize_ms - 10).Get2D() -
-           (GetPosition() + GetMovement() * 0.2f))
-              .GetLength() /
-          (GetMaxVelocity() * 0.75f) * 1000)));
-  timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   const e_FunctionType action_type = GetCurrentFunctionType();
 
   if (IsEligibleForProceduralLocomotion()) {
-    // H3e1c-3c: pure locomotion planning uses the same physics as execution.
-    // The solver is deterministic but not free, so it runs on a staggered
-    // 100 ms cadence. The refresh phase is a pure function of the simulation
-    // clock and the stable id, so no scheduler state has to be serialized and
-    // a load resumes on exactly the same schedule. Between refreshes the
-    // cached estimate is stale, not differently modelled.
-    const int planner_tick = static_cast<int>(match->GetActualTime_ms() / 10);
-    if ((planner_tick + GetStableID()) % kProceduralPlannerRefreshTicks ==
-        0) {
+    // H3e1c-3c: pure locomotion reachability comes from the capability model
+    // rather than the legacy distance heuristic. The solver is deterministic
+    // but not free, so it runs on a staggered 100 ms cadence; the refresh phase
+    // is a pure function of the simulation clock and the stable id, so no
+    // scheduler state has to be serialized and a load resumes on the same
+    // schedule.
+    //
+    // P1c: between refreshes the previous estimate is RETAINED. Earlier this
+    // branch fell through to the default heuristic on every non-refresh tick,
+    // which meant nine ticks out of ten fed the AI a different model entirely:
+    // same capability model plus a stale estimate is the contract, and a
+    // different model is not.
+    ++PlayerReachabilityEligibleTicks();
+    const int reachability_tick =
+        static_cast<int>(match->GetActualTime_ms() / 10);
+    const bool scheduled_refresh =
+        (reachability_tick + GetStableID()) % kReachabilityRefreshTicks == 0;
+    // Force a refresh right after entering pure locomotion, so the first ticks
+    // do not retain a value produced for a previous non-locomotion action.
+    // elapsedTime_ms == 0 is derived from the action state, so this keeps the
+    // schedule a pure function of deterministic simulation state.
+    const bool entering_pure_locomotion =
+        GetSimulationActionState().elapsedTime_ms == 0;
+    if (scheduled_refresh || entering_pure_locomotion) {
+      ++PlayerReachabilityRefreshes();
       PlayerLocomotionParameters locomotion_parameters;
       locomotion_parameters.maxSpeed = GetMaxVelocity();
       // Capability estimate, not a second simulator. Near horizon it is the
@@ -216,7 +222,7 @@ void Player::UpdatePossessionStats() {
               [this](int ms) { return match->GetBall()->Predict(ms); },
               locomotion_parameters, GetMaxVelocity(),
               static_cast<int>(ballPredictionSize_ms),
-              kProceduralPlannerExactHorizon_ms,
+              kReachabilityExactHorizon_ms,
               kLocomotionUsualReachRadius,
               kLocomotionOptimisticReachRadius,
               /*steady_state=*/true);
@@ -227,10 +233,23 @@ void Player::UpdatePossessionStats() {
           reach.optimistic_ms >= 0
               ? static_cast<unsigned int>(reach.optimistic_ms)
               : ballPredictionSize_ms;
+    } else {
+      // Deliberately retain the previous capability estimate: same model,
+      // merely stale.
+      ++PlayerReachabilityReuses();
     }
   } else {
     // Non-locomotion actions keep the legacy heuristic: their movement is still
-    // animation root motion, so their planner and executor still agree.
+    // animation root motion, so their reachability and their execution still
+    // agree.
+    timeNeededToGetToBall_ms = std::max(
+        ballPredictionSize_ms,
+        (unsigned int)(std::round(
+            (match->GetBall()->Predict(ballPredictionSize_ms - 10).Get2D() -
+             (GetPosition() + GetMovement() * 0.2f))
+                .GetLength() /
+            (GetMaxVelocity() * 0.75f) * 1000)));
+    timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
     unsigned int startTime_ms = 0;
     if ((action_type == e_FunctionType_ShortPass ||
          action_type == e_FunctionType_LongPass ||

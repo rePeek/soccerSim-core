@@ -160,6 +160,7 @@ set(GAME_SOURCES
    src/onthepitch/player/playerofficial.cpp
    src/onthepitch/player/player.cpp
    src/onthepitch/player/playerbase.cpp
+   src/onthepitch/player/player_locomotion.cpp
    src/onthepitch/player/controller/playercontroller.cpp
    src/onthepitch/player/controller/humancontroller.cpp
    src/onthepitch/player/controller/icontroller.cpp
