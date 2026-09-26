@@ -281,10 +281,11 @@ class PlayerLocomotion {
 
   // Long-horizon analytic intercept, the classic constant-speed lead-point
   // solve: |(ball + ball_velocity * T) - start| = speed * T + radius. It is an
-  // approximation OF THE SAME CAPABILITY: it assumes the actor holds its ceiling
-  // speed in a straight line from the start, so it ignores the acceleration ramp
-  // and the turn cost and is therefore optimistic. P1a measures that bias
-  // against the exact solver before anything adopts it.
+  // approximation OF THE SAME CAPABILITY, but a crude one: it assumes the actor
+  // holds its ceiling speed in a straight line from the start, so it ignores the
+  // acceleration ramp and the turn cost entirely. P1a measured that bias and
+  // found it systematically optimistic by about 300 ms, which is why the model
+  // below exists; this one is kept as the baseline it is measured against.
   static int EstimateInterceptAnalytic(const PlayerKinematicState &start,
                                        const Vector3 &ball_position,
                                        const Vector3 &ball_velocity,
@@ -322,16 +323,83 @@ class PlayerLocomotion {
     return intercept_ms <= horizon_ms ? intercept_ms : -1;
   }
 
+  // Long-horizon capability estimate derived from THIS model's own steady state
+  // rather than from a generic constant-speed solve. It decomposes the motion
+  // into a setup phase and a cruise phase:
+  //
+  //   setup: rotate the heading to the bearing of the target, paying the model's
+  //          speed-dependent turn authority, while the speed transitions towards
+  //          the cruise speed at the model's asymmetric acceleration/braking;
+  //   cruise: cover what is left of the distance at the cruise speed.
+  //
+  // The setup phase is what the constant-speed solve ignored, and P1a measured
+  // that omission as a systematic optimism of about 300 ms. The parameters used
+  // are exactly the ones Step() uses (maxTurnRate, turnRateSpeedFactor,
+  // acceleration, braking, maxSpeed), so this is an approximation OF THE SAME
+  // MODEL, not a second set of constants.
+  static int EstimateSteadyReachTime(const PlayerKinematicState &start,
+                                     const Vector3 &target,
+                                     const PlayerLocomotionParameters &parameters,
+                                     float desired_speed, int horizon_ms,
+                                     float radius) {
+    DO_VALIDATION;
+    if (desired_speed <= 0.0f) return -1;
+    const float cruise = std::min(desired_speed, parameters.maxSpeed);
+    if (cruise <= 0.0f || parameters.maxSpeed <= 0.0f) return -1;
+
+    const Vector3 to_target = target.Get2D() - start.position;
+    const float distance = to_target.GetLength();
+    if (distance <= radius) return 0;
+
+    const Vector3 current_direction = start.velocity.Get2D().GetNormalized(
+        start.facing.Get2D().GetNormalized(Vector3(0, -1, 0)));
+    const Vector3 target_direction = to_target.GetNormalized(current_direction);
+    const float heading_error =
+        std::fabs(current_direction.GetAngle2D(target_direction));
+    const float initial_speed = start.velocity.GetLength();
+
+    // Turning is slowest at the cruise speed, so charging the whole heading
+    // change at the cruise authority is conservative rather than optimistic.
+    const float cruise_ratio = clamp(cruise / parameters.maxSpeed, 0.0f, 1.0f);
+    const float cruise_authority =
+        parameters.maxTurnRate *
+        (1.0f - parameters.turnRateSpeedFactor * cruise_ratio);
+    const float turn_seconds =
+        (cruise_authority > 1e-3f) ? heading_error / cruise_authority : 0.0f;
+
+    const bool speeding_up = cruise > initial_speed;
+    const float rate = speeding_up ? parameters.acceleration : parameters.braking;
+    const float transition_seconds =
+        (rate > 0.0f) ? std::fabs(cruise - initial_speed) / rate : 0.0f;
+
+    const float setup_seconds = std::max(turn_seconds, transition_seconds);
+    float setup_distance =
+        initial_speed * setup_seconds +
+        0.5f * (speeding_up ? parameters.acceleration : -parameters.braking) *
+            setup_seconds * setup_seconds;
+    if (setup_distance < 0.0f) setup_distance = 0.0f;
+
+    const float remaining =
+        std::max(0.0f, distance - radius - setup_distance);
+    const float total_seconds = setup_seconds + remaining / cruise;
+    const int total_ms =
+        static_cast<int>(std::ceil(total_seconds * 1000.0f));
+    return total_ms <= horizon_ms ? total_ms : -1;
+  }
+
   // Hybrid: exact candidate-time reachability inside exact_horizon_ms, analytic
   // beyond it. Near-horizon planning therefore keeps the execution physics
   // exactly, and only the far horizon is approximated. Measurement-only until
   // its bias against the exact solver has been measured.
+  // `steady_state` selects which long-horizon model answers the far side: the
+  // crude constant-speed solve, or the capability model derived from this
+  // model's own parameters. P1a compares them.
   template <typename TargetAtTime>
   static PlayerLocomotionReach EstimateEarliestInterceptHybrid(
       const PlayerKinematicState &start, TargetAtTime target_at,
       const PlayerLocomotionParameters &parameters, float desired_speed,
       int horizon_ms, int exact_horizon_ms, float usual_radius,
-      float optimistic_radius) {
+      float optimistic_radius, bool steady_state = false) {
     DO_VALIDATION;
     PlayerLocomotionReach reach = EstimateEarliestInterceptExact(
         start, target_at, parameters, desired_speed, exact_horizon_ms,
@@ -342,6 +410,18 @@ class PlayerLocomotion {
     const Vector3 ball_position = target_at(0).Get2D();
     const Vector3 ball_velocity =
         (target_at(10).Get2D() - ball_position) * 100.0f;
+    const Vector3 far_target = target_at(horizon_ms).Get2D();
+    if (steady_state) {
+      if (reach.optimistic_ms < 0) {
+        reach.optimistic_ms = EstimateSteadyReachTime(
+            start, far_target, parameters, speed, horizon_ms, optimistic_radius);
+      }
+      if (reach.usual_ms < 0) {
+        reach.usual_ms = EstimateSteadyReachTime(
+            start, far_target, parameters, speed, horizon_ms, usual_radius);
+      }
+      return reach;
+    }
     if (reach.optimistic_ms < 0) {
       reach.optimistic_ms = EstimateInterceptAnalytic(
           start, ball_position, ball_velocity, speed, horizon_ms,

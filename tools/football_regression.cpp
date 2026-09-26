@@ -2120,8 +2120,9 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
   Match* match = env.context->gameTask->GetMatch();
   Ball* ball = match->GetBall();
 
-  const int candidate_horizons[] = {300, 500, 700, 1000};
-  const int horizon_count = 4;
+  const int candidate_horizons[] = {300, 500, 700, 1000, 700};
+  const bool steady_state_model[] = {false, false, false, false, true};
+  const int horizon_count = 5;
   struct HorizonStats {
     int samples = 0;
     int exact_reachable = 0;
@@ -2135,7 +2136,7 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
     double hybrid_seconds = 0.0;
     std::vector<double> abs_errors;
   };
-  HorizonStats stats[4];
+  HorizonStats stats[5];
   double exact_seconds = 0.0;
   int exact_calls = 0;
 
@@ -2175,7 +2176,7 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
               PlayerLocomotion::EstimateEarliestInterceptHybrid(
                   start, target_at, parameters, desired_speed, full_horizon,
                   candidate_horizons[index], kLocomotionUsualReachRadius,
-                  kLocomotionOptimisticReachRadius);
+                  kLocomotionOptimisticReachRadius, steady_state_model[index]);
           const auto hybrid_end = std::chrono::steady_clock::now();
           entry.hybrid_seconds +=
               std::chrono::duration<double>(hybrid_end - hybrid_begin).count();
@@ -2229,6 +2230,7 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
     };
     const int comparable = static_cast<int>(entry.abs_errors.size());
     std::cout << "  exact_horizon_ms=" << candidate_horizons[index]
+              << " steady_state=" << (steady_state_model[index] ? 1 : 0)
               << " hybrid_ms_per_call="
               << (entry.samples > 0
                       ? 1000.0 * entry.hybrid_seconds / entry.samples
