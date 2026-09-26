@@ -297,6 +297,25 @@ void WaitUntilInPlay(GameEnv& env, int max_steps, const std::string& label) {
           label + ": game did not resume");
 }
 
+void CheckKinematicMirrorConsistency(GameEnv& env, const std::string& label) {
+  Match* match = env.context->gameTask->GetMatch();
+  std::vector<Player*> players;
+  match->GetActiveTeamPlayers(match->FirstTeam(), players);
+  match->GetActiveTeamPlayers(match->SecondTeam(), players);
+  std::vector<PlayerBase*> officials;
+  match->GetOfficialPlayers(officials);
+  Require(!players.empty(), label + ": missing active players");
+  Require(!officials.empty(), label + ": missing officials");
+  for (const Player* player : players) {
+    Require(player->IsKinematicMirrorConsistent(),
+            label + ": player kinematic mirror is stale");
+  }
+  for (const PlayerBase* official : officials) {
+    Require(official->IsKinematicMirrorConsistent(),
+            label + ": official kinematic mirror is stale");
+  }
+}
+
 void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
   // Values below are a fixed-seed baseline. The hash covers every field in
   // SharedInfo; the explicit values make failures immediately diagnosable.
@@ -350,6 +369,7 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
                         expected.left_player_0, label + ": left player 0");
     RequirePositionNear(info.right_team.front().player_position,
                         expected.right_player_0, label + ": right player 0");
+    CheckKinematicMirrorConsistency(env, label);
     const uint64_t hash = HashInfo(info);
     if (hash != expected.hash) {
       std::ostringstream message;
@@ -391,6 +411,7 @@ void CheckActionExecutorShadows(Match *match, const std::string &label) {
 
 void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
+  CheckKinematicMirrorConsistency(env, "kinematic mirror after reset");
   Advance(env, 300);
   const SharedInfo first_reset = env.get_info();
 
@@ -399,6 +420,7 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   RequireInfoEqual(env.get_info(), first_reset, "repeat reset");
   CheckActionExecutorShadows(env.context->gameTask->GetMatch(),
                              "action executor shadow after reset");
+  CheckKinematicMirrorConsistency(env, "kinematic mirror after repeat reset");
 
   Advance(env, 75);
   const std::string serialized = env.get_state("");
@@ -410,6 +432,7 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   RequireInfoEqual(env.get_info(), expected_after_restore, "state round-trip");
   CheckActionExecutorShadows(env.context->gameTask->GetMatch(),
                              "action executor shadow after state restore");
+  CheckKinematicMirrorConsistency(env, "kinematic mirror after state restore");
 }
 
 void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
@@ -462,6 +485,12 @@ int main(int /*argc*/, char** /*argv*/) {
     env.game_config.render = false;
     env.start_game();
     ScenarioConfig config = MakeBuiltinAiConfig();
+
+    // Officials are placed in the Officials constructor, before any simulation
+    // tick runs. Check the mirror here so that a placement path that bypasses
+    // the synchronized reset is caught (the first Process would silently heal
+    // it later).
+    CheckKinematicMirrorConsistency(env, "kinematic mirror after start_game");
 
     CheckGoldenSnapshots(env, config);
     CheckResetAndStateRoundTrip(env, config);

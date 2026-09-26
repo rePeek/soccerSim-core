@@ -120,6 +120,18 @@ class PlayerBase {
       DO_VALIDATION;
       return humanoid->GetBodyCollisionState();
     }
+
+    // Validation helper for the deterministic regression. The kinematic mirror
+    // must never disagree with the legacy Humanoid spatial state, else a
+    // mid-tick reader (the controller is queried after the humanoid has already
+    // advanced its spatial state) observes a stale actor. Delete together with
+    // the Humanoid.
+    bool IsKinematicMirrorConsistent() const {
+      DO_VALIDATION;
+      return kinematicState.position.GetDistance(humanoid->GetPosition()) < 1e-4f &&
+             kinematicState.velocity.GetDistance(humanoid->GetMovement()) < 1e-4f &&
+             kinematicState.facing.GetDistance(humanoid->GetDirectionVec()) < 1e-4f;
+    }
     boost::intrusive_ptr<Node> GetFullbodyNode() { DO_VALIDATION; return humanoid->GetFullbodyNode(); }
 
     float GetDecayingPositionOffsetLength() { DO_VALIDATION; return humanoid->GetDecayingPositionOffsetLength(); }
