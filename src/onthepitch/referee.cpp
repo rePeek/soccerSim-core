@@ -250,8 +250,8 @@ void Referee::Process() {
     DO_VALIDATION;
     // check if set piece has been taken
     if (buffer.desiredSetPiece == e_GameMode_KickOff ||
-        (buffer.taker->GetActionState().HasScheduledContact() &&
-         !buffer.taker->GetActionState().IsContactPending())) {
+        (buffer.taker->GetActionExecutorShadow().HasScheduledContact() &&
+         !buffer.taker->GetActionExecutorShadow().IsContactPending())) {
       DO_VALIDATION;
       buffer.active = false;
       match->StopSetPiece();
@@ -380,7 +380,8 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
 
   if (buffer.active) return;
 
-  const PlayerActionState &tripperAction = tripper->GetActionState();
+  const PlayerActionState &tripperAction =
+      tripper->GetActionExecutorShadow();
 
   if (tackleType == 2) {
     DO_VALIDATION;  // standing tackle

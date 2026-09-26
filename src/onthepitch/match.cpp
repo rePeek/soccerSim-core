@@ -983,7 +983,7 @@ bool Match::Process() {
                     referee_pos + Vector3(0, 0, 0.8f), 1.5f);
        cameraNearCap = 1;
        cameraFarCap = 220;
-       if (officials->GetReferee()->GetActionState().type == e_FunctionType_Special) referee->AlterSetPiecePrepareTime(GetActualTime_ms() + 1000);
+       if (officials->GetReferee()->GetActionExecutorShadow().type == e_FunctionType_Special) referee->AlterSetPiecePrepareTime(GetActualTime_ms() + 1000);
      } else {  // back to normal
        SetAutoUpdateIngameCamera(true);
      }
@@ -1225,8 +1225,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
       // velocity, faster is worse
       float p1velocity = p1->GetFloatVelocity();
       float p2velocity = p2->GetFloatVelocity();
-      const PlayerActionState &p1Action = p1->GetActionState();
-      const PlayerActionState &p2Action = p2->GetActionState();
+      const PlayerActionState &p1Action = p1->GetActionExecutorShadow();
+      const PlayerActionState &p2Action = p2->GetActionExecutorShadow();
       bounceBias -= clamp(((p1velocity - p2velocity) / sprintVelocity) * 0.2f, -0.2f, 0.2f);
 
       if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Interfere) bounceBias += 0.1f + 0.4f * p1->GetStat(technical_standingtackle);
@@ -1445,8 +1445,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 
   // check for tackling collisions
 
-  const PlayerActionState &p1Action = p1->GetActionState();
-  const PlayerActionState &p2Action = p2->GetActionState();
+  const PlayerActionState &p1Action = p1->GetActionExecutorShadow();
+  const PlayerActionState &p2Action = p2->GetActionExecutorShadow();
   int tackle = 0;
   if ((p1Action.type == e_FunctionType_Sliding || p1Action.type == e_FunctionType_Interfere) && p1Action.frame > 5 && p1Action.frame < 28) tackle += 1;
   if ((p2Action.type == e_FunctionType_Sliding || p2Action.type == e_FunctionType_Interfere) && p2Action.frame > 5 && p2Action.frame < 28) tackle += 2;
@@ -1533,7 +1533,7 @@ void Match::CheckBallCollisions() {
   //printf("lasttouchbias: %f, isnul?: %s\n", GetLastTouchBias(200), GetLastTouchBias(200) == 0.0f ? "true" : "false");
   for (int i = 0; i < (signed int)players.size(); i++) {
     DO_VALIDATION;
-    const PlayerActionState &action = players[i]->GetActionState();
+    const PlayerActionState &action = players[i]->GetActionExecutorShadow();
 
     bool biggestRatio = false;
     int teamID = players[i]->GetTeam()->GetID();
