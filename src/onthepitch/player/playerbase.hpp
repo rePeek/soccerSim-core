@@ -20,6 +20,7 @@
 
 #include "humanoid/humanoidbase.hpp"
 #include "player_kinematics.hpp"
+#include "player_ground_collider.hpp"
 #include "player_action.hpp"
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
@@ -74,6 +75,10 @@ class PlayerBase {
     const PlayerKinematicState &GetKinematicShadow() const {
       DO_VALIDATION;
       return kinematicShadow;
+    }
+    const PlayerGroundCollider &GetGroundCollider() const {
+      DO_VALIDATION;
+      return groundCollider;
     }
     const PlayerActionState &GetActionState() const {
       DO_VALIDATION;
@@ -148,6 +153,7 @@ class PlayerBase {
     std::unique_ptr<HumanoidBase> humanoid;
     PlayerKinematicState kinematicState;
     PlayerKinematicState kinematicShadow;
+    PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
     PlayerActionState actionExecutorShadow;
     int actionExecutorShadowAnimationId = -1;

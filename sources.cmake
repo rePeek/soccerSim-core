@@ -243,6 +243,7 @@ set(GAME_HEADERS
    src/onthepitch/player/body_collision.hpp
    src/onthepitch/player/playerbase.hpp
    src/onthepitch/player/player_kinematics.hpp
+   src/onthepitch/player/player_ground_collider.hpp
    src/onthepitch/player/player_action.hpp
    src/onthepitch/player/player_action_executor.hpp
    src/onthepitch/player/player.hpp

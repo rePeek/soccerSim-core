@@ -8,6 +8,7 @@
 
 #include "game_env.hpp"
 #include "onthepitch/player/player_kinematics.hpp"
+#include "onthepitch/player/player_ground_collider.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 
 namespace {
@@ -189,6 +190,22 @@ void CheckPlayerKinematics() {
               "kinematics planar velocity");
   RequireNear(state.position.coords[2], 0.0f,
               "kinematics planar position");
+}
+
+void CheckPlayerGroundCollider() {
+  PlayerGroundCollider first;
+  first.SetCenter(Vector3(0.0f, 0.0f, 2.0f));
+  RequireNear(first.center.coords[2], 0.0f,
+              "ground collider should stay on the pitch plane");
+
+  PlayerGroundCollider second;
+  second.SetCenter(Vector3(0.69f, 0.0f, 0.0f));
+  Require(first.Intersects(second),
+          "ground colliders should intersect within their radii");
+
+  second.SetCenter(Vector3(0.70f, 0.0f, 0.0f));
+  Require(!first.Intersects(second),
+          "ground colliders should not intersect at the radius boundary");
 }
 
 void CheckPlayerActionExecutor() {
@@ -419,6 +436,7 @@ int main(int /*argc*/, char** /*argv*/) {
 
   try {
     CheckPlayerKinematics();
+    CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
     GameEnv env;
     env.game_config.render = false;

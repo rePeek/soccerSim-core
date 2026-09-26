@@ -47,6 +47,7 @@ void PlayerBase::Mirror() {
   humanoid->Mirror();
   kinematicState.Mirror();
   kinematicShadow.Mirror();
+  groundCollider.Mirror();
 }
 
 void PlayerBase::SynchronizeKinematicState() {
@@ -55,6 +56,7 @@ void PlayerBase::SynchronizeKinematicState() {
   kinematicState.velocity = humanoid->GetMovement();
   kinematicState.facing = humanoid->GetDirectionVec();
   kinematicState.speed = kinematicState.velocity.GetLength();
+  groundCollider.SetCenter(kinematicState.position);
 }
 
 void PlayerBase::SynchronizeActionState() {
@@ -283,6 +285,7 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   humanoid->ProcessState(state);
   kinematicState.ProcessState(state);
   kinematicShadow.ProcessState(state);
+  groundCollider.ProcessState(state);
   actionState.ProcessState(state);
   actionExecutorShadow.ProcessState(state);
   state->process(actionExecutorShadowAnimationId);
