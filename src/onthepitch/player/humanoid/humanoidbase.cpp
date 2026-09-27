@@ -924,9 +924,11 @@ void HumanoidBase::ProjectMovementState(
   // change what this tick's locomotion was. Writing spatialState.position here
   // means any later action already starts from the authoritative position
   // instead of an animation one.
+  // The adapter consumes only the tick-start simulation state. bodyFacing is
+  // still the bit-exact animation shadow in H3e3a2; H3e3b changes its producer.
   const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
       command, tickStartState, player->GetMaxVelocity(),
-      spatialState.bodyDirectionVec);
+      tickStartState.bodyFacing);
   PlayerLocomotionParameters parameters;
   parameters.maxSpeed = player->GetMaxVelocity();
   PlayerKinematicState next = tickStartState;

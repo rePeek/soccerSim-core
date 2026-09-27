@@ -226,9 +226,10 @@ void PlayerBase::UpdateKinematicShadow() {
   // The single place where a legacy command becomes a locomotion input. The
   // authoritative execution path reuses this when the authority flips, so
   // prediction, execution and this shadow can never drift apart semantically.
+  // Keep the adapter's entire input in simulation state. bodyFacing is still
+  // an exact Humanoid shadow in H3e3a2; H3e3b changes its producer separately.
   const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
-      command, kinematicShadow, GetMaxVelocity(),
-      humanoid->GetBodyDirectionVec());
+      command, kinematicShadow, GetMaxVelocity(), kinematicShadow.bodyFacing);
 
   PlayerLocomotionParameters parameters;
   parameters.maxSpeed = GetMaxVelocity();
