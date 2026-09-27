@@ -67,6 +67,10 @@ const Vector3 preferredDirectionVecs[] = {
     Vector3(0, -1, 0).GetRotated2D(-0.999 * pi)
 };
 
+int &HumanoidProceduralMovementTicks() { static int value = 0; return value; }
+int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement() { static int value = 0; return value; }
+int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement() { static int value = 0; return value; }
+
 const radian preferredDirectionAngles[] = {
     0 * pi,
     0.111 * pi, // 20
@@ -756,6 +760,12 @@ Vector3 HumanoidBase::CalculateOutgoingMovement(const std::vector<Vector3> &posi
   return (positions.at(positions.size() - 1) - positions.at(positions.size() - 2)) * 100.0f;
 }
 
+bool HumanoidBase::UsesProceduralLocomotion() const {
+  return player && player->IsEligibleForProceduralLocomotion() &&
+         currentAnim.originatingCommand.useDesiredMovement;
+}
+
+
 void HumanoidBase::CalculateSpatialState() {
   DO_VALIDATION;
   Vector3 position;
@@ -792,6 +802,11 @@ void HumanoidBase::CalculateSpatialState() {
   }
   spatialState.movement = spatialState.physicsMovement; // PICK DEFAULT
 
+  spatialState.floatVelocity = spatialState.movement.GetLength();
+  spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
+  spatialState.position = position;
+  if (!UsesProceduralLocomotion()) {
+    ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
   Vector3 bodyPosition;
   Quaternion bodyOrientation;
   currentAnim.anim->GetKeyFrame(body, currentAnim.frameNum, bodyOrientation, bodyPosition);
@@ -863,6 +878,9 @@ void HumanoidBase::CalculateSpatialState() {
   spatialState.relBodyAngleNonquantized = spatialState.relBodyDirectionVecNonquantized.GetAngle2D(Vector3(0, -1, 0));
   spatialState.bodyDirectionVec = spatialState.relBodyDirectionVec.GetRotated2D(spatialState.angle); // rotate back, we now have it forced into allowed angle
   spatialState.bodyAngle = spatialState.bodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
+  } else {
+    ++HumanoidProceduralMovementTicks();
+  }
 
   previousPosition2D = position;
 
@@ -934,8 +952,7 @@ void HumanoidBase::ProjectMovementState(
   DO_VALIDATION;
   if (!player) return;
   const PlayerCommand &command = currentAnim.originatingCommand;
-  if (!player->IsEligibleForProceduralLocomotion() ||
-      !command.useDesiredMovement) {
+  if (!UsesProceduralLocomotion()) {
     // Non-locomotion ticks keep the legacy animation root motion. Projecting
     // it keeps the Humanoid movement fields a single projection of the
     // simulation kinematic state.

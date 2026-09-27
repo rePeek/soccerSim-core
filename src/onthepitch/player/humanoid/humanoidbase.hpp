@@ -31,6 +31,11 @@
 
 using namespace blunted;
 
+// Library-side H3e4b diagnostics; shared with regression, never simulation state.
+int &HumanoidProceduralMovementTicks();
+int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();
+int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
+
 class PlayerBase;
 class Match;
 
@@ -237,6 +242,7 @@ class HumanoidBase {
     // the world state in force, and so an action selection later in the same
     // tick cannot change what this tick's locomotion was.
     void ProjectMovementState(const PlayerKinematicState &tickStartState);
+    bool UsesProceduralLocomotion() const;
 
     void AddTripCommandToQueue(PlayerCommandQueue &commandQueue, const Vector3 &tripVector, int tripType);
     PlayerCommand GetTripCommand(const Vector3 &tripVector, int tripType);

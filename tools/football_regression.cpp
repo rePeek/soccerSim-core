@@ -2494,6 +2494,11 @@ void CheckReachabilityCadence(GameEnv& env, ScenarioConfig& config) {
   const int refreshes_before = PlayerReachabilityRefreshes();
   const int reuses_before = PlayerReachabilityReuses();
   const int eligible_ticks_before = PlayerReachabilityEligibleTicks();
+  const int procedural_movement_before = HumanoidProceduralMovementTicks();
+  const int legacy_body_pose_on_procedural_before =
+      HumanoidLegacyBodyPoseSamplesOnProceduralMovement();
+  const int legacy_body_pose_nonprocedural_before =
+      HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
   int max_cache_age_ms = 0;
   const int samples = 60;
   const int solver_calls_before = PlayerLocomotionInterceptSolverCalls();
@@ -2520,6 +2525,20 @@ void CheckReachabilityCadence(GameEnv& env, ScenarioConfig& config) {
       PlayerLocomotionInterceptSolverCalls() - solver_calls_before;
   const int refreshes = PlayerReachabilityRefreshes() - refreshes_before;
   const int reuses = PlayerReachabilityReuses() - reuses_before;
+  const int procedural_movement_ticks =
+      HumanoidProceduralMovementTicks() - procedural_movement_before;
+  const int legacy_body_pose_on_procedural =
+      HumanoidLegacyBodyPoseSamplesOnProceduralMovement() -
+      legacy_body_pose_on_procedural_before;
+  const int legacy_body_pose_nonprocedural =
+      HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement() -
+      legacy_body_pose_nonprocedural_before;
+  Require(procedural_movement_ticks > 0,
+          "H3e4b: no procedural movement tick was observed");
+  Require(legacy_body_pose_on_procedural == 0,
+          "H3e4b: legacy body pose sampled during procedural movement");
+  Require(legacy_body_pose_nonprocedural > 0,
+          "H3e4b: non-procedural legacy body pose was not exercised");
 
   Require(eligible_actor_ticks > 0,
           "planner cadence: no eligible actor tick was collected, the "
