@@ -3239,6 +3239,85 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   CheckKinematicMirrorConsistency(env, "kinematic mirror after state restore");
 }
 
+// H3e4f-g0b-continuity-restore: the continuity epoch decides whether a tick
+// issues an extra controller query, so a restore must reproduce that decision.
+// Both branches run the same reset from the same saved state and must agree on
+// the epochs, the repair/query deltas and the resulting digest. Only serialized
+// state is compared; the audit generation is deliberately not part of this.
+void CheckDecisionContinuityRestoreDeterminism(GameEnv& env,
+                                               ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "continuity restore: kickoff");
+  Advance(env, 50);
+  const std::string serialized = env.get_state("");
+
+  struct BranchResult {
+    std::string digest;
+    unsigned long long continuity_epoch = 0;
+    unsigned long long published_epoch = 0;
+    int query_delta = 0;
+    int repair_attempts = 0;
+    int repair_publications = 0;
+    int repair_missing = 0;
+  };
+  const auto run_branch = [&]() {
+    Match *match = env.context->gameTask->GetMatch();
+    std::vector<Player *> players;
+    match->GetTeam(0)->GetActivePlayers(players);
+    Require(!players.empty(), "continuity restore: no active players");
+    Player *reference = players[0];
+    const int queries_before = PlayerPathControllerQueries();
+    const int attempts_before = ContinuityRepairAttempts();
+    const int publications_before = ContinuityRepairPublications();
+    const int missing_before = ContinuityRepairCandidatesMissing();
+    match->ResetSituation(match->GetBall()->Predict(0));
+    Advance(env, 60);
+    BranchResult result;
+    result.digest = CaptureSimulationDigest(env);
+    result.continuity_epoch = reference->GetDecisionLocomotionContinuityEpoch();
+    result.published_epoch = reference->GetDecisionLocomotionPublishedEpoch();
+    result.query_delta = PlayerPathControllerQueries() - queries_before;
+    result.repair_attempts = ContinuityRepairAttempts() - attempts_before;
+    result.repair_publications =
+        ContinuityRepairPublications() - publications_before;
+    result.repair_missing =
+        ContinuityRepairCandidatesMissing() - missing_before;
+    return result;
+  };
+
+  const BranchResult first = run_branch();
+  // The branch must actually exercise the repair path, or this test would pass
+  // vacuously by comparing two runs that never touched the epoch.
+  Require(first.repair_attempts > 0,
+          "continuity restore: the reset branch never triggered a repair");
+  Require(first.repair_publications == first.repair_attempts,
+          "continuity restore: a repair attempt did not publish");
+  Require(first.repair_missing == 0,
+          "continuity restore: a repair attempt had no candidate");
+
+  env.set_state(serialized);
+  const BranchResult second = run_branch();
+
+  Require(second.digest == first.digest,
+          "continuity restore: digest differs after restore");
+  Require(second.continuity_epoch == first.continuity_epoch,
+          "continuity restore: continuity epoch differs after restore");
+  Require(second.published_epoch == first.published_epoch,
+          "continuity restore: published epoch differs after restore");
+  Require(second.query_delta == first.query_delta,
+          "continuity restore: controller query count differs after restore");
+  Require(second.repair_attempts == first.repair_attempts,
+          "continuity restore: repair attempts differ after restore");
+  Require(second.repair_publications == first.repair_publications,
+          "continuity restore: repair publications differ after restore");
+  Require(second.repair_missing == first.repair_missing,
+          "continuity restore: repair misses differ after restore");
+  std::cout << "  decision_continuity_restore repairs=" << first.repair_attempts
+            << " queries=" << first.query_delta
+            << " continuity_epoch=" << first.continuity_epoch
+            << " published_epoch=" << first.published_epoch << "\n";
+}
+
 void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   Require(!env.get_info().is_in_play, "kickoff should begin paused");
@@ -3619,6 +3698,7 @@ int main(int argc, char** argv) {
     CheckImportHierarchy();
     CheckRetainAnchor(env, config);
     CheckResetAndStateRoundTrip(env, config);
+    CheckDecisionContinuityRestoreDeterminism(env, config);
     CheckMovementAuthorityTiming(env, config);
     MeasureProceduralLocomotionDivergence(env, config);
     MeasureLocomotionRegimeTransitions(env, config);
