@@ -768,6 +768,15 @@ bool HumanoidBase::UsesProceduralLocomotion() const {
 
 void HumanoidBase::CalculateSpatialState() {
   DO_VALIDATION;
+  if (UsesProceduralLocomotion()) {
+    // H3e4d2: root-motion and body-pose producers are dead on this path. Foot
+    // remains animation-owned gait/selection state until its separate audit.
+    if (currentAnim.frameNum > 12) {
+      spatialState.foot = currentAnim.anim->GetOutgoingFoot();
+    }
+    ++HumanoidProceduralMovementTicks();
+    return;
+  }
   Vector3 position;
   if (currentAnim.positions.size() > (unsigned int)currentAnim.frameNum) {
     DO_VALIDATION;
@@ -878,8 +887,6 @@ void HumanoidBase::CalculateSpatialState() {
   spatialState.relBodyAngleNonquantized = spatialState.relBodyDirectionVecNonquantized.GetAngle2D(Vector3(0, -1, 0));
   spatialState.bodyDirectionVec = spatialState.relBodyDirectionVec.GetRotated2D(spatialState.angle); // rotate back, we now have it forced into allowed angle
   spatialState.bodyAngle = spatialState.bodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
-  } else {
-    ++HumanoidProceduralMovementTicks();
   }
 
   previousPosition2D = position;
