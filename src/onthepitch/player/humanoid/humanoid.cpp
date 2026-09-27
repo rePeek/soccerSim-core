@@ -38,6 +38,14 @@
 constexpr bool animSmoothing = true;
 constexpr float cheatFactor = 0.5f;
 constexpr bool useContinuousBallCheck = true;
+
+// 4b''-player-noquery-audit: provenance stays local to the selection queue.
+// It is deliberately not part of PlayerCommand or serialized simulation state.
+enum class PlayerPathSelectionCommandProvenance {
+  Controller,
+  LocalTrip,
+  LocalTripMovementFallback
+};
 constexpr bool enableMovementSmuggle = true;
 constexpr float cheatDiscardDistance = 0.02f; // don't 'display' this distance of cheat (looks better for small distances, but will look funny when too large, players 'missing' the ball and all. also has big influence on gameplay, since this influences player collisions etc)
 constexpr float cheatDistanceBonus = 0.02f; // add extra allowed cheat distance (in meters). don't 'display' this distance of cheat (looks better for small distances, but will look funny when too large, players 'missing' the ball and all. also has big influence on gameplay, since this influences player collisions etc)
@@ -221,6 +229,7 @@ void Humanoid::Process() {
   if (legacy_opportunity || simulation_due) {
     DO_VALIDATION;
     PlayerCommandQueue commandQueue;      // selection queue
+    std::vector<PlayerPathSelectionCommandProvenance> commandProvenance;
     PlayerCommandQueue controllerQueue;   // controller output only
     bool controller_queried = false;
     const auto EnsureControllerQuery = [&]() {
@@ -231,6 +240,8 @@ void Humanoid::Process() {
       bool has_movement = false;
       for (const PlayerCommand &controller_command : controllerQueue) {
         commandQueue.push_back(controller_command);
+        commandProvenance.push_back(
+            PlayerPathSelectionCommandProvenance::Controller);
         if (controller_command.desiredFunctionType == e_FunctionType_Movement &&
             controller_command.useDesiredMovement) {
           has_movement = true;
@@ -242,9 +253,15 @@ void Humanoid::Process() {
 
     if (interruptAnim == e_InterruptAnim_Trip && tripType != 0) {
       DO_VALIDATION;
+      ++PlayerPathLocalTripAttempts();
       AddTripCommandToQueue(commandQueue, tripDirection, tripType);
+      while (commandProvenance.size() < commandQueue.size()) {
+        commandProvenance.push_back(PlayerPathSelectionCommandProvenance::LocalTrip);
+      }
       tripType = 0;
       commandQueue.push_back(GetBasicMovementCommand(tripDirection, spatialState.floatVelocity)); // backup, if there's no applicable trip anim
+      commandProvenance.push_back(
+          PlayerPathSelectionCommandProvenance::LocalTripMovementFallback);
     } else {
       EnsureControllerQuery();
     }
@@ -257,6 +274,12 @@ void Humanoid::Process() {
       DO_VALIDATION;
 
       const PlayerCommand &command = commandQueue[i];
+      const PlayerPathSelectionCommandProvenance provenance =
+          commandProvenance[i];
+      const int materialReanchorsBefore =
+          provenance == PlayerPathSelectionCommandProvenance::LocalTripMovementFallback
+              ? MovementCommandReanchorsMateriallyDifferent()
+              : 0;
 
       if (command.desiredFunctionType == e_FunctionType_ShortPass ||
           command.desiredFunctionType == e_FunctionType_LongPass ||
@@ -266,7 +289,19 @@ void Humanoid::Process() {
         preferPassAndShot = true;
       }
       found = SelectAnim(command, interruptAnim, preferPassAndShot);
-      if (found) break;
+      if (found) {
+        if (provenance == PlayerPathSelectionCommandProvenance::LocalTrip) {
+          ++PlayerPathLocalTripSelected();
+        } else if (provenance ==
+                   PlayerPathSelectionCommandProvenance::LocalTripMovementFallback) {
+          ++PlayerPathLocalTripMovementFallbackSelected();
+          if (MovementCommandReanchorsMateriallyDifferent() >
+              materialReanchorsBefore) {
+            ++PlayerPathLocalTripMovementFallbackMaterialReanchor();
+          }
+        }
+        break;
+      }
     }
 
     if (interruptAnim == e_InterruptAnim_Switch && !found) {

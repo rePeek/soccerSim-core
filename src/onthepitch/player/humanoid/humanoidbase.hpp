@@ -56,6 +56,12 @@ int &PlayerPathDirectPublications();
 int &PlayerPathRefreshCommits();
 int &PlayerPathCandidatesMissing();
 int &HumanoidBasePathRefreshCommits();
+// 4b''-player-noquery-audit: the no-controller-query Trip fallback is kept
+// separate from DirectMovementIntent. These are measurement-only counters.
+int &PlayerPathLocalTripAttempts();
+int &PlayerPathLocalTripSelected();
+int &PlayerPathLocalTripMovementFallbackSelected();
+int &PlayerPathLocalTripMovementFallbackMaterialReanchor();
 // 4b': separate intent-refresh eligibility from execution eligibility.
 int &HeldDueMovementRetainsTicks();
 int &HeldDueMovementRetainsCandidate();

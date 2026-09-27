@@ -2117,6 +2117,13 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " publications=" << PlayerPathDirectPublications()
             << " commits=" << PlayerPathRefreshCommits()
             << " candidates_missing=" << PlayerPathCandidatesMissing() << "\n";
+  std::cout << "  player_path_noquery_trip attempts="
+            << PlayerPathLocalTripAttempts()
+            << " selected=" << PlayerPathLocalTripSelected()
+            << " movement_fallback_selected="
+            << PlayerPathLocalTripMovementFallbackSelected()
+            << " movement_fallback_material_reanchor="
+            << PlayerPathLocalTripMovementFallbackMaterialReanchor() << "\n";
   Require(PlayerPathQueriesWithMovement() == PlayerPathDirectPublications(),
           "player path: a controller query with a Movement candidate was not published");
   Require(PlayerPathDirectPublications() == PlayerPathRefreshCommits(),
