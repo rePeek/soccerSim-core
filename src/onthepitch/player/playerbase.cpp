@@ -69,6 +69,8 @@ bool PlayerBase::IsKinematicMirrorConsistent() const {
   return Vector3BitsEqual(kinematicState.position, humanoid->GetPosition()) &&
          Vector3BitsEqual(kinematicState.velocity, humanoid->GetMovement()) &&
          Vector3BitsEqual(kinematicState.facing, humanoid->GetDirectionVec()) &&
+         Vector3BitsEqual(kinematicState.bodyFacing,
+                          humanoid->GetBodyDirectionVec()) &&
          FloatBitsEqual(kinematicState.speed,
                         kinematicState.velocity.GetLength()) &&
          Vector3BitsEqual(groundCollider.center,
@@ -80,6 +82,7 @@ void PlayerBase::CheckSimulationKinematicOracle() const {
   const Vector3 &position = humanoid->GetPosition();
   const Vector3 &movement = humanoid->GetMovement();
   const Vector3 &direction = humanoid->GetDirectionVec();
+  const Vector3 &bodyDirection = humanoid->GetBodyDirectionVec();
 
   std::string mismatch;
   if (!Vector3BitsEqual(kinematicState.position, position)) {
@@ -88,6 +91,8 @@ void PlayerBase::CheckSimulationKinematicOracle() const {
     mismatch = "velocity";
   } else if (!Vector3BitsEqual(kinematicState.facing, direction)) {
     mismatch = "facing";
+  } else if (!Vector3BitsEqual(kinematicState.bodyFacing, bodyDirection)) {
+    mismatch = "body facing";
   } else if (!FloatBitsEqual(kinematicState.speed,
                              kinematicState.velocity.GetLength())) {
     mismatch = "speed";
@@ -115,6 +120,7 @@ void PlayerBase::SynchronizeKinematicState() {
   kinematicState.position = humanoid->GetPosition();
   kinematicState.velocity = humanoid->GetMovement();
   kinematicState.facing = humanoid->GetDirectionVec();
+  kinematicState.bodyFacing = humanoid->GetBodyDirectionVec();
   kinematicState.speed = kinematicState.velocity.GetLength();
   groundCollider.SetCenter(kinematicState.position);
   CheckSimulationKinematicOracle();

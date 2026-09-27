@@ -23,12 +23,15 @@ struct PlayerKinematicState {
   blunted::Vector3 position = blunted::Vector3(0);
   blunted::Vector3 velocity = blunted::Vector3(0);
   blunted::Vector3 facing = blunted::Vector3(0, -1, 0);
+  // Temporary exact shadow of Humanoid's animation-derived body pose. It is
+  // deliberately separate from facing: the latter is locomotion direction.
+  blunted::Vector3 bodyFacing = blunted::Vector3(0, -1, 0);
   float speed = 0.0f;
 
-  // Mirrors position and velocity like the legacy spatial state. Facing is
-  // deliberately left untouched: HumanoidBase's spatial state mirror only
-  // negates position and movements, so mirroring facing here would diverge
-  // from the mirrored legacy actor until the next Process() resync.
+  // Mirrors position and velocity like the legacy spatial state. Facing and
+  // bodyFacing are deliberately left untouched: HumanoidBase's spatial state
+  // mirror only negates position and movements, so changing either here would
+  // diverge from the mirrored legacy actor until the next Process() resync.
   void Mirror() {
     position.Mirror();
     velocity.Mirror();
@@ -39,6 +42,7 @@ struct PlayerKinematicState {
     state->process(position);
     state->process(velocity);
     state->process(facing);
+    state->process(bodyFacing);
     state->process(speed);
   }
 };

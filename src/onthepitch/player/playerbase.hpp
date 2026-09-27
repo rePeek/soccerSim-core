@@ -63,7 +63,9 @@ class PlayerBase {
     // mutation point (CalculateSpatialState, CalculateFactualSpatialState,
     // OffsetPosition, Mirror, state restore), so mid-tick readers such as the
     // controller never see a stale actor. Mirroring follows the legacy
-    // field-level asymmetry (position/velocity mirrored, facing not).
+    // field-level asymmetry (position/velocity mirrored; facing/bodyFacing not).
+    // bodyFacing is presently an animation-owned shadow; its gameplay reader
+    // deliberately remains Humanoid-backed until H3e3a2.
     // CheckSimulationKinematicOracle() enforces the mirror bit-exactly.
     // Actors must be positioned through PlayerBase::ResetPosition /
     // OffsetPosition so that this state cannot be left stale.
@@ -120,9 +122,9 @@ class PlayerBase {
     HumanController *ExternalController();
     bool ExternalControllerActive();
 
-    // Bit-exact mirror check: position, velocity, facing, derived speed and the
-    // collider center must all match the Humanoid spatial state exactly. An
-    // epsilon cannot mask a synchronization bug, so there is none.
+    // Bit-exact mirror check: position, velocity, locomotion facing, body
+    // facing, derived speed and the collider center must all match the Humanoid
+    // spatial state exactly. An epsilon cannot mask a synchronization bug.
     bool IsKinematicMirrorConsistent() const;
     // Fatal (all build types) form of the same invariant, with the diverging
     // field reported. Callers are the mirror writers and state restore, so the
