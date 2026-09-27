@@ -170,6 +170,16 @@ class PlayerBase {
     // Simulation-owned execution gate for Movement locomotion. This deliberately
     // does not consult Humanoid::currentAnim.originatingCommand.
     bool HasSimulationLocomotionIntent() const;
+    LocomotionCommandSource GetSimulationMovementCommandSource() const {
+      return movementCommandState.source;
+    }
+    bool IsSimulationMovementCommandInitialized() const {
+      return movementCommandState.initialized;
+    }
+    int GetLastDirectMovementIntentPublication_ms() const {
+      return lastDirectMovementIntentPublication_ms;
+    }
+    int GetLastResetSituation_ms() const { return lastResetSituation_ms; }
     const PlayerKinematicState &GetKinematicState() const {
       DO_VALIDATION;
       return kinematicState;
@@ -298,6 +308,8 @@ class PlayerBase {
     int lifecycleOverrideAuditStart_ms = 0;
     int lifecycleOverrideAuditTicks = 0;
     int lifecycleOverrideAuditFirstConsumeDelay_ms = -1;
+    int lastDirectMovementIntentPublication_ms = -1;
+    int lastResetSituation_ms = -1;
     int tr_query_gen = 0;
     int tr_last_query_ms = -1;
     int tr_last_query_due = 0;

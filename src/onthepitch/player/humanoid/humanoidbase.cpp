@@ -74,6 +74,43 @@ int &HumanoidLocomotionGateBothTrue() { static int value = 0; return value; }
 int &HumanoidLocomotionGateLegacyOnly() { static int value = 0; return value; }
 int &HumanoidLocomotionGateSimulationOnly() { static int value = 0; return value; }
 int &HumanoidLocomotionGateBothFalse() { static int value = 0; return value; }
+
+PlayerTickGateMismatchContext &PlayerTickGateMismatchFor(
+    bool simulation_only) {
+  static PlayerTickGateMismatchContext contexts[2];
+  return contexts[simulation_only ? 1 : 0];
+}
+
+void RecordPlayerTickGateMismatch(
+    bool legacy_gate, bool simulation_gate, bool initialized, int source,
+    e_FunctionType command_type, bool command_uses_desired_movement,
+    int direct_age_ms, int reset_age_ms) {
+  if (legacy_gate == simulation_gate) return;
+  PlayerTickGateMismatchContext &context =
+      PlayerTickGateMismatchFor(simulation_gate);
+  ++context.ticks;
+  if (simulation_gate) {
+    if (source >= 0 && source < 5) ++context.simulation_source[source];
+  } else if (!initialized) {
+    ++context.legacy_uninitialized;
+  } else if (command_type != e_FunctionType_Movement) {
+    ++context.legacy_non_movement;
+  } else if (!command_uses_desired_movement) {
+    ++context.legacy_movement_without_desired;
+  } else {
+    ++context.legacy_other;
+  }
+  if (direct_age_ms >= 0) {
+    context.direct_age_sum_ms += direct_age_ms;
+    ++context.direct_age_count;
+    context.direct_age_max_ms = std::max(context.direct_age_max_ms, direct_age_ms);
+  }
+  if (reset_age_ms >= 0) {
+    context.reset_age_sum_ms += reset_age_ms;
+    ++context.reset_age_count;
+    context.reset_age_max_ms = std::max(context.reset_age_max_ms, reset_age_ms);
+  }
+}
 int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return value; }
 
 // 4b: one place that turns a controller queue into a published locomotion intent.

@@ -41,6 +41,28 @@ int &HumanoidLocomotionGateBothTrue();
 int &HumanoidLocomotionGateLegacyOnly();
 int &HumanoidLocomotionGateSimulationOnly();
 int &HumanoidLocomotionGateBothFalse();
+// Once-per-real-Player-tick mismatch provenance (unlike the evaluation counters
+// above, this is sampled only at Humanoid::Process tick start).
+struct PlayerTickGateMismatchContext {
+  int ticks = 0;
+  int simulation_source[5] = {};
+  int legacy_uninitialized = 0;
+  int legacy_non_movement = 0;
+  int legacy_movement_without_desired = 0;
+  int legacy_other = 0;
+  long direct_age_sum_ms = 0;
+  int direct_age_count = 0;
+  int direct_age_max_ms = -1;
+  long reset_age_sum_ms = 0;
+  int reset_age_count = 0;
+  int reset_age_max_ms = -1;
+};
+PlayerTickGateMismatchContext &PlayerTickGateMismatchFor(bool simulation_only);
+void RecordPlayerTickGateMismatch(bool legacy_gate, bool simulation_gate,
+                                  bool initialized, int source,
+                                  e_FunctionType command_type,
+                                  bool command_uses_desired_movement,
+                                  int direct_age_ms, int reset_age_ms);
 // Diagnostics for the movement-command shadow (library-side single instance).
 int &PlayerMovementCommandNonMovementTicks();
 int &PlayerMovementCommandDirectAdoptions();

@@ -2083,6 +2083,40 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " legacy_only=" << HumanoidLocomotionGateLegacyOnly()
             << " simulation_only=" << HumanoidLocomotionGateSimulationOnly()
             << " both_false=" << HumanoidLocomotionGateBothFalse() << "\n";
+  const PlayerTickGateMismatchContext &simulation_only =
+      PlayerTickGateMismatchFor(true);
+  const PlayerTickGateMismatchContext &legacy_only =
+      PlayerTickGateMismatchFor(false);
+  const auto dump_gate_age = [](const PlayerTickGateMismatchContext &context,
+                                  bool direct) {
+    const int count = direct ? context.direct_age_count : context.reset_age_count;
+    const long sum = direct ? context.direct_age_sum_ms : context.reset_age_sum_ms;
+    const int maximum = direct ? context.direct_age_max_ms : context.reset_age_max_ms;
+    std::cout << (count ? sum / count : -1) << "/" << maximum;
+  };
+  std::cout << "  player_tick_gate simulation_only=" << simulation_only.ticks
+            << " source[action,direct,legacy,seed,fallback]="
+            << simulation_only.simulation_source[0] << ","
+            << simulation_only.simulation_source[1] << ","
+            << simulation_only.simulation_source[2] << ","
+            << simulation_only.simulation_source[3] << ","
+            << simulation_only.simulation_source[4]
+            << " direct_age_mean/max=";
+  dump_gate_age(simulation_only, true);
+  std::cout << " reset_age_mean/max=";
+  dump_gate_age(simulation_only, false);
+  std::cout << "\n";
+  std::cout << "  player_tick_gate legacy_only=" << legacy_only.ticks
+            << " shape[uninitialized,nonmovement,movement_no_desired,other]="
+            << legacy_only.legacy_uninitialized << ","
+            << legacy_only.legacy_non_movement << ","
+            << legacy_only.legacy_movement_without_desired << ","
+            << legacy_only.legacy_other
+            << " direct_age_mean/max=";
+  dump_gate_age(legacy_only, true);
+  std::cout << " reset_age_mean/max=";
+  dump_gate_age(legacy_only, false);
+  std::cout << "\n";
   // Observation only: nonzero mismatches mean the execution-gate migration is
   // independently semantic and must be audited before it can be flipped.
   std::cout << "  command_source direct_movement_intent="

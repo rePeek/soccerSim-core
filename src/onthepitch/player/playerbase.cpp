@@ -234,6 +234,8 @@ void PlayerBase::SetSimulationMovementCommand(
   switch (source) {
     case LocomotionCommandSource::DirectMovementIntent:
       ++PlayerMovementCommandDirectAdoptions();
+      lastDirectMovementIntentPublication_ms =
+          static_cast<int>(match->GetActualTime_ms());
       break;
     case LocomotionCommandSource::SimulationFallbackIntent:
       ++PlayerMovementCommandFallbackAdoptions();
@@ -813,6 +815,7 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   lastTouchType = e_TouchType_None;
   if (IsActive()) {
     nextActionBeginReason = kBeginResetSituation;
+    lastResetSituation_ms = static_cast<int>(match->GetActualTime_ms());
     humanoid->ResetSituation(focusPos);
     SynchronizeKinematicState();
     BeginSimulationAction();

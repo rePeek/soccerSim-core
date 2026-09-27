@@ -101,6 +101,25 @@ void Humanoid::Process() {
   // CalculateSpatialState so the procedural model integrates from the world
   // state in force, not from the animation prediction for this tick.
   const PlayerKinematicState tickStartState = player->GetKinematicState();
+  // gate-mismatch-context: exactly one attribution per real Player tick, before
+  // any of this tick's CalculateSpatialState/ProjectMovementState evaluations.
+  if (CastPlayer()->IsEligibleForProceduralLocomotion()) {
+    const PlayerCommand &simulation_command =
+        CastPlayer()->GetSimulationMovementCommand();
+    const bool legacy_gate = currentAnim.originatingCommand.useDesiredMovement;
+    const bool simulation_gate = CastPlayer()->HasSimulationLocomotionIntent();
+    const int now_ms = static_cast<int>(match->GetActualTime_ms());
+    RecordPlayerTickGateMismatch(
+        legacy_gate, simulation_gate,
+        CastPlayer()->IsSimulationMovementCommandInitialized(),
+        static_cast<int>(CastPlayer()->GetSimulationMovementCommandSource()),
+        simulation_command.desiredFunctionType,
+        simulation_command.useDesiredMovement,
+        CastPlayer()->GetLastDirectMovementIntentPublication_ms() < 0
+            ? -1 : now_ms - CastPlayer()->GetLastDirectMovementIntentPublication_ms(),
+        CastPlayer()->GetLastResetSituation_ms() < 0
+            ? -1 : now_ms - CastPlayer()->GetLastResetSituation_ms());
+  }
 
   CalculateSpatialState();
   spatialState.positionOffsetMovement = Vector3(0);
