@@ -2149,6 +2149,9 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << "\n";
   Require(refresh_commits == successful_publications,
           "locomotion intent: a scheduler refresh was committed without a publication");
+  Require(MaterialMovementReanchorsForBeginReason(kBeginMovementToMovement) == 0 &&
+              MaterialMovementReanchorsForBeginReason(kBeginOtherToMovement) == 0,
+          "selection transition: raw Movement re-anchor survived its final writer");
   for (int reason = 0; reason < kBeginReasonCount; ++reason) {
     const int material_occurrences =
         MaterialMovementReanchorsForBeginReason(reason);

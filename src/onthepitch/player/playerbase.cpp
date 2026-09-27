@@ -503,17 +503,19 @@ void PlayerBase::BeginSimulationAction() {
   PlayerActionExecutor::Begin(actionState, definition);
   PlayerActionExecutor::Begin(actionState, definition);
 
-  // Re-anchor the movement command shadow whenever the action schedule starts
-  // or restarts: activation, reset, retain selection and state restore all
-  // rebuild the action without a selection, while the legacy anim keeps its own
-  // originatingCommand.
+  // Selection transitions now have a simulation-owned final Movement writer
+  // after SelectAnim returns: DirectMovementIntent for controller output and
+  // SimulationFallbackIntent for the local Trip fallback. Their raw legacy
+  // re-anchor is therefore a dead intermediate write and is skipped below.
   //
-  // H3e4g0a: this raw write bypasses SetSimulationMovementCommand()'s authority
-  // gate, so it is measured before it is touched. A Movement re-anchor that is
-  // materially different from the intent already in force is a live animation
-  // producer, not a dead write, and removing it would be a semantic migration
-  // rather than a cleanup.
-  if (anim->originatingCommand.useDesiredMovement) {
+  // Lifecycle rebuilds (ResetSituation / RetainSelection) have no selection
+  // producer. They remain an explicit, separately measured legacy override; the
+  // audit proved they overwrite an established direct intent, so treating them
+  // as a seed or deleting them is a later semantic-policy migration.
+  const bool lifecycle_rebuild = resolved_begin_reason >= kBeginResetPosition;
+  if (anim->originatingCommand.useDesiredMovement &&
+      (anim->originatingCommand.desiredFunctionType != e_FunctionType_Movement ||
+       lifecycle_rebuild)) {
     if (anim->originatingCommand.desiredFunctionType ==
         e_FunctionType_Movement) {
       ++MovementCommandReanchors();
