@@ -315,9 +315,26 @@ void PlayerBase::BeginSimulationAction() {
   // Re-anchor the movement command shadow whenever the action schedule starts
   // or restarts: activation, reset, retain selection and state restore all
   // rebuild the action without a selection, while the legacy anim keeps its own
-  // originatingCommand. Legacy is still the producer here, so adopting its
-  // current locomotion command keeps the oracle exact instead of stale.
+  // originatingCommand.
+  //
+  // H3e4g0a: this raw write bypasses SetSimulationMovementCommand()'s authority
+  // gate, so it is measured before it is touched. A Movement re-anchor that is
+  // materially different from the intent already in force is a live animation
+  // producer, not a dead write, and removing it would be a semantic migration
+  // rather than a cleanup.
   if (anim->originatingCommand.useDesiredMovement) {
+    if (anim->originatingCommand.desiredFunctionType ==
+        e_FunctionType_Movement) {
+      ++MovementCommandReanchors();
+      if (MovementCommandDiffersMaterially(movementCommandState.command,
+                                          anim->originatingCommand)) {
+        ++MovementCommandReanchorsMateriallyDifferent();
+      } else {
+        ++MovementCommandReanchorsEqual();
+      }
+    } else {
+      ++NonMovementCommandReanchors();
+    }
     movementCommandState.command = anim->originatingCommand;
     movementCommandState.initialized = true;
   }

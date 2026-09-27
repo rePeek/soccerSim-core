@@ -2098,6 +2098,7 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << DirectVsLegacyCommandEqual()
             << " direct_vs_legacy_materially_different="
             << DirectVsLegacyCommandMateriallyDifferent() << "\n";
+  std::cout << "  reanchor movement=" << MovementCommandReanchors() << " equal=" << MovementCommandReanchorsEqual() << " materially_different=" << MovementCommandReanchorsMateriallyDifferent() << " nonmovement=" << NonMovementCommandReanchors() << "\n";
 
   // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken
   // before the foot stable_sort, so a changed winner is caused by foot alone.

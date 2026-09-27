@@ -52,6 +52,11 @@ int &PlayerLocomotionIntentConsumedTicks();
 int &LegacyMovementOverwriteAttempts();
 int &DirectVsLegacyCommandEqual();
 int &DirectVsLegacyCommandMateriallyDifferent();
+// H3e4g0a: is BeginSimulationAction()'s raw re-anchor still a live producer?
+int &MovementCommandReanchors();
+int &MovementCommandReanchorsEqual();
+int &MovementCommandReanchorsMateriallyDifferent();
+int &NonMovementCommandReanchors();
 
 // H3e4e1 diagnostics: who owns the movement command lifetime right now. Every
 // accepted Movement command still arrives through an animation selection, so
