@@ -231,6 +231,12 @@ class PlayerBase {
     }
     void NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
                                    bool scheduler_due, int now_ms);
+    // step 2 trigger: this epoch's locomotion state has no decision publication,
+    // so an older intent must not drive execution before a fresh decision.
+    bool DecisionLocomotionEpochIsStale() const {
+      return decisionLocomotionState.publishedEpoch !=
+             decisionLocomotionState.continuityEpoch;
+    }
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 

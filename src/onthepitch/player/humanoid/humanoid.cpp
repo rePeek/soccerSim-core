@@ -164,6 +164,50 @@ void Humanoid::Process() {
     }
   }
 
+  // step 2: one controller query per tick, owned at tick scope, so a continuity
+  // repair can run before this tick's locomotion execution and the later
+  // selection phase reuses that same query instead of asking again.
+  PlayerCommandQueue controllerQueue;
+  bool controller_queried = false;
+  bool controller_movement_published = false;
+  const auto EnsureControllerQuery = [&]() {
+    if (controller_queried) return;
+    CastPlayer()->RequestCommand(controllerQueue);
+    controller_queried = true;
+    ++PlayerPathControllerQueries();
+    bool has_movement = false;
+    for (const PlayerCommand &controller_command : controllerQueue) {
+      if (controller_command.desiredFunctionType == e_FunctionType_Movement &&
+          controller_command.useDesiredMovement) {
+        has_movement = true;
+      }
+    }
+    if (has_movement) ++PlayerPathQueriesWithMovement();
+    CastPlayer()->NoteControllerQuery(has_movement);
+  };
+  const auto AppendControllerCommandsToSelectionQueue =
+      [&](PlayerCommandQueue &selectionQueue,
+          std::vector<PlayerPathSelectionCommandProvenance> &provenance) {
+        for (const PlayerCommand &controller_command : controllerQueue) {
+          selectionQueue.push_back(controller_command);
+          provenance.push_back(PlayerPathSelectionCommandProvenance::Controller);
+        }
+      };
+  // Single publication point for the whole tick. The continuity repair and the
+  // later selection phase both go through it, so a query is published at most
+  // once and the publication counters stay consistent with the commits.
+  const auto PublishControllerMovementOnce = [&]() {
+    if (controller_movement_published) return false;
+    if (CastPlayer()->PublishMovementIntentFromQueue(controllerQueue)) {
+      controller_movement_published = true;
+      ++PlayerPathDirectPublications();
+      CastPlayer()->CommitLocomotionIntentRefresh();
+      ++PlayerPathRefreshCommits();
+      return true;
+    }
+    return false;
+  };
+
   CalculateSpatialState();
   spatialState.positionOffsetMovement = Vector3(0);
   // H3e1c-3c: pure locomotion ticks are produced by the simulation; every
@@ -292,26 +336,6 @@ void Humanoid::Process() {
     DO_VALIDATION;
     PlayerCommandQueue commandQueue;      // selection queue
     std::vector<PlayerPathSelectionCommandProvenance> commandProvenance;
-    PlayerCommandQueue controllerQueue;   // controller output only
-    bool controller_queried = false;
-    const auto EnsureControllerQuery = [&]() {
-      if (controller_queried) return;
-      CastPlayer()->RequestCommand(controllerQueue);
-      controller_queried = true;
-      ++PlayerPathControllerQueries();
-      bool has_movement = false;
-      for (const PlayerCommand &controller_command : controllerQueue) {
-        commandQueue.push_back(controller_command);
-        commandProvenance.push_back(
-            PlayerPathSelectionCommandProvenance::Controller);
-        if (controller_command.desiredFunctionType == e_FunctionType_Movement &&
-            controller_command.useDesiredMovement) {
-          has_movement = true;
-        }
-      }
-      if (has_movement) ++PlayerPathQueriesWithMovement();
-      CastPlayer()->NoteControllerQuery(has_movement);
-    };
 
     if (interruptAnim == e_InterruptAnim_Trip && tripType != 0) {
       DO_VALIDATION;
@@ -326,6 +350,7 @@ void Humanoid::Process() {
           PlayerPathSelectionCommandProvenance::LocalTripMovementFallback);
     } else {
       EnsureControllerQuery();
+      AppendControllerCommandsToSelectionQueue(commandQueue, commandProvenance);
     }
 
     // iterate through the command queue and pick the first that is applicable
@@ -393,12 +418,12 @@ void Humanoid::Process() {
     // returned, so the legacy re-anchor inside it cannot remain the final writer.
     // Publication reads only the controller queue, so the trip fallback above can
     // never be published as a DirectMovementIntent.
-    if (controller_queried) {
-      if (CastPlayer()->PublishMovementIntentFromQueue(controllerQueue)) {
-        ++PlayerPathDirectPublications();
-        CastPlayer()->CommitLocomotionIntentRefresh();
-        ++PlayerPathRefreshCommits();
-      } else {
+    // One publication per controller query: a pre-execution continuity repair may
+    // already have published from this same query, and it must not be repeated.
+    if (controller_queried && !controller_movement_published) {
+      // The publication counters live in the lambda, so the repair and this site
+      // cannot double count.
+      if (!PublishControllerMovementOnce()) {
         ++PlayerPathCandidatesMissing();
       }
     }
