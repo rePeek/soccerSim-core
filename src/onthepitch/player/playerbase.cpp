@@ -52,6 +52,20 @@ LifecycleOverrideConsumptionForBeginReason(int reason) {
   return records[reason];
 }
 
+int &MaterialResetSituationReanchorsForContext(int context) {
+  static int records[kResetSituationCallContextCount] = {};
+  return records[context];
+}
+
+const char *ResetSituationCallContextName(int context) {
+  switch (context) {
+    case kResetSituationNormal: return "normal";
+    case kResetSituationPlayerDeactivateFirst: return "player_deactivate_first";
+    case kResetSituationBaseDeactivateSecond: return "base_deactivate_second";
+    default: return "unknown";
+  }
+}
+
 const char *ActionBeginReasonName(int reason) {
   switch (reason) {
     case kBeginMovementToMovement: return "Movement->Movement";
@@ -576,6 +590,10 @@ void PlayerBase::BeginSimulationAction() {
                                           anim->originatingCommand)) {
         ++MovementCommandReanchorsMateriallyDifferent();
         ++MaterialMovementReanchorsForBeginReason(resolved_begin_reason);
+        if (resolved_begin_reason == kBeginResetSituation) {
+          ++MaterialResetSituationReanchorsForContext(
+              resetSituationAuditContext);
+        }
         MaterialReanchorPreviousSource &previous_source =
             MaterialMovementReanchorPreviousSourceForBeginReason(
                 resolved_begin_reason);
@@ -694,8 +712,13 @@ void PlayerBase::OffsetPosition(const Vector3 &offset) {
   ResetKinematicShadow();
 }
 
+void PlayerBase::SetNextResetSituationAuditContext(int context) {
+  resetSituationAuditContext = context;
+}
+
 void PlayerBase::Deactivate() {
   DO_VALIDATION;
+  SetNextResetSituationAuditContext(kResetSituationBaseDeactivateSecond);
   ResetSituation(GetPosition());
   isActive = false;
   externalController = nullptr;
@@ -789,6 +812,7 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
     ResetKinematicShadow();
   }
   if (GetController()) GetController()->Reset();
+  resetSituationAuditContext = kResetSituationNormal;
 }
 
 void PlayerBase::ProcessStateBase(EnvState *state) {

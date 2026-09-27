@@ -2204,6 +2204,12 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
               << "\n";
   };
   dump_lifecycle_consumption(kBeginResetSituation);
+  for (int context = 0; context < kResetSituationCallContextCount; ++context) {
+    std::cout << "  reset_situation_context "
+              << ResetSituationCallContextName(context)
+              << " material_reanchors="
+              << MaterialResetSituationReanchorsForContext(context) << "\n";
+  }
   dump_lifecycle_consumption(kBeginRetainSelection);
   { std::vector<int> lives = ReanchorLifetime_ms();
     std::cout << "  reanchor_lifetime_ms n=" << lives.size() << " p50=" << percentile(lives, 0.50) << " p90=" << percentile(lives, 0.90) << " p99=" << percentile(lives, 0.99) << " max=" << percentile(lives, 1.0) << " locomotion_ticks_p50=" << (percentile(lives, 0.50) / 10) << " locomotion_ticks_max=" << (percentile(lives, 1.0) / 10) << "\n"; }

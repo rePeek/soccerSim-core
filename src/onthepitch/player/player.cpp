@@ -122,6 +122,7 @@ void Player::Activate(boost::shared_ptr<AnimCollection> animCollection,
 
 void Player::Deactivate() {
   DO_VALIDATION;
+  SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateFirst);
   ResetSituation(GetPosition());
   if (ExternalController()) {
     DO_VALIDATION;

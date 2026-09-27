@@ -36,6 +36,17 @@ enum ActionBeginReason {
   kBeginRetainSelection,
   kBeginReasonCount,
 };
+
+// Caller scope for the remaining ResetSituation raw Movement policy. This is
+// observation only; Deactivate's double reset is deliberately not changed here.
+enum ResetSituationCallContext {
+  kResetSituationNormal = 0,
+  kResetSituationPlayerDeactivateFirst,
+  kResetSituationBaseDeactivateSecond,
+  kResetSituationCallContextCount
+};
+int &MaterialResetSituationReanchorsForContext(int context);
+const char *ResetSituationCallContextName(int context);
 struct ReanchorResidency {
   int n = 0;
   std::vector<int> lifetime_ms;
@@ -261,6 +272,7 @@ class PlayerBase {
     void UpdateKinematicShadow();
     void ResetKinematicShadow();
     PlayerActionState CaptureLegacyActionState() const;
+    void SetNextResetSituationAuditContext(int context);
     void BeginLifecycleOverrideConsumptionAudit(int reason);
     void NoteLifecycleOverrideConsumptionAudit();
     void CompleteLifecycleOverrideConsumptionAudit();
@@ -291,6 +303,7 @@ class PlayerBase {
     int tr_last_query_retains = 0;
     int tr_last_query_had_candidate = 0;
     int reanchorPendingSince_ms = -1;
+    int resetSituationAuditContext = kResetSituationNormal;
     int nextActionBeginReason = kBeginMovementToMovement;
     bool episode_active = false;
     int episode_active_reason = 0;
