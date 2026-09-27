@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include <cmath>
+#include <cstring>
 #include "humanoid.hpp"
 
 #include "humanoid_utils.hpp"
@@ -142,6 +143,68 @@ int &LegacyOnlyDecisionMovementSelectionMaterialChanges() { static int value = 0
 int &LegacyOnlyDecisionMovementSelections() { static int value = 0; return value; }
 int &LegacyOnlyDecisionNonMovementSelections() { static int value = 0; return value; }
 int &LegacyOnlyDecisionNoSelection() { static int value = 0; return value; }
+int &LegacyOnlyDecisionCausedQueries() { static int value = 0; return value; }
+int &SimulationDecisionCachePresent() { static int value = 0; return value; }
+int &SimulationDecisionCacheMissing() { static int value = 0; return value; }
+std::vector<int> &SimulationDecisionCacheAge_ms() { static std::vector<int> values; return values; }
+int &SimulationDecisionLiveHasMovement() { static int value = 0; return value; }
+int &SimulationDecisionCacheHasMovement() { static int value = 0; return value; }
+int &SimulationDecisionMovementEqual() { static int value = 0; return value; }
+int &SimulationDecisionMovementDifferent() { static int value = 0; return value; }
+int &SimulationDecisionQueueIdentical() { static int value = 0; return value; }
+std::vector<int> &SimulationDecisionFirstDiffIndex() { static std::vector<int> values; return values; }
+int &SimulationDecisionProofMovementProven() { static int value = 0; return value; }
+int &SimulationDecisionProofMovementUnproven() { static int value = 0; return value; }
+int &SimulationDecisionProofActionProven() { static int value = 0; return value; }
+int &SimulationDecisionProofActionUnproven() { static int value = 0; return value; }
+int &SimulationDecisionProofNoneProven() { static int value = 0; return value; }
+int &SimulationDecisionProofNoneUnproven() { static int value = 0; return value; }
+
+namespace {
+
+bool DecisionCommandFloatBitsEqual(float a, float b) {
+  return std::memcmp(&a, &b, sizeof(float)) == 0;
+}
+
+bool DecisionCommandVectorBitsEqual(const Vector3 &a, const Vector3 &b) {
+  return std::memcmp(a.coords, b.coords, sizeof(a.coords)) == 0;
+}
+
+}  // namespace
+
+// Field-for-field comparison of everything PlayerCommand::ProcessState()
+// writes, which is the exact set a replayed SelectAnim would read. Floats and
+// vectors compare bit-exact; the source of truth is ProcessState() itself, so a
+// new serialized field has to be added here too.
+bool PlayerCommandsDecisionEqual(const PlayerCommand &a, const PlayerCommand &b) {
+  if (a.desiredFunctionType != b.desiredFunctionType) return false;
+  if (a.useDesiredMovement != b.useDesiredMovement) return false;
+  if (!DecisionCommandVectorBitsEqual(a.desiredDirection, b.desiredDirection)) return false;
+  if (a.strictMovement != b.strictMovement) return false;
+  if (!DecisionCommandFloatBitsEqual(a.desiredVelocityFloat, b.desiredVelocityFloat)) return false;
+  if (a.useDesiredLookAt != b.useDesiredLookAt) return false;
+  if (!DecisionCommandVectorBitsEqual(a.desiredLookAt, b.desiredLookAt)) return false;
+  if (a.useTouchInfo != b.useTouchInfo) return false;
+  if (!DecisionCommandVectorBitsEqual(a.touchInfo.inputDirection, b.touchInfo.inputDirection)) return false;
+  if (!DecisionCommandFloatBitsEqual(a.touchInfo.inputPower, b.touchInfo.inputPower)) return false;
+  if (!DecisionCommandFloatBitsEqual(a.touchInfo.autoDirectionBias, b.touchInfo.autoDirectionBias)) return false;
+  if (!DecisionCommandFloatBitsEqual(a.touchInfo.autoPowerBias, b.touchInfo.autoPowerBias)) return false;
+  if (!DecisionCommandVectorBitsEqual(a.touchInfo.desiredDirection, b.touchInfo.desiredDirection)) return false;
+  if (!DecisionCommandFloatBitsEqual(a.touchInfo.desiredPower, b.touchInfo.desiredPower)) return false;
+  if (a.touchInfo.targetPlayer != b.touchInfo.targetPlayer) return false;
+  if (a.touchInfo.forcedTargetPlayer != b.touchInfo.forcedTargetPlayer) return false;
+  if (a.onlyDeflectAnimsThatPickupBall != b.onlyDeflectAnimsThatPickupBall) return false;
+  if (a.useTripType != b.useTripType) return false;
+  if (a.tripType != b.tripType) return false;
+  if (a.useDesiredTripDirection != b.useDesiredTripDirection) return false;
+  if (!DecisionCommandVectorBitsEqual(a.desiredTripDirection, b.desiredTripDirection)) return false;
+  if (a.useSpecialVar1 != b.useSpecialVar1) return false;
+  if (a.specialVar1 != b.specialVar1) return false;
+  if (a.useSpecialVar2 != b.useSpecialVar2) return false;
+  if (a.specialVar2 != b.specialVar2) return false;
+  if (a.modifier != b.modifier) return false;
+  return true;
+}
 int &PlayerPathCandidatesMissing() { static int value = 0; return value; }
 int &HumanoidBasePathRefreshCommits() { static int value = 0; return value; }
 int &HeldDueMovementRetainsTicks() { static int value = 0; return value; }

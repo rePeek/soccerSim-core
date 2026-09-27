@@ -2023,6 +2023,22 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
       LegacyOnlyDecisionMovementSelectionPublications();
   const int legacy_only_movement_selection_material_changes_before =
       LegacyOnlyDecisionMovementSelectionMaterialChanges();
+  const int legacy_only_caused_queries_before = LegacyOnlyDecisionCausedQueries();
+  const int simulation_cache_present_before = SimulationDecisionCachePresent();
+  const int simulation_cache_missing_before = SimulationDecisionCacheMissing();
+  const size_t simulation_cache_age_before = SimulationDecisionCacheAge_ms().size();
+  const int simulation_live_has_movement_before = SimulationDecisionLiveHasMovement();
+  const int simulation_cache_has_movement_before = SimulationDecisionCacheHasMovement();
+  const int simulation_movement_equal_before = SimulationDecisionMovementEqual();
+  const int simulation_movement_different_before = SimulationDecisionMovementDifferent();
+  const int simulation_queue_identical_before = SimulationDecisionQueueIdentical();
+  const size_t simulation_first_diff_before = SimulationDecisionFirstDiffIndex().size();
+  const int simulation_proof_movement_proven_before = SimulationDecisionProofMovementProven();
+  const int simulation_proof_movement_unproven_before = SimulationDecisionProofMovementUnproven();
+  const int simulation_proof_action_proven_before = SimulationDecisionProofActionProven();
+  const int simulation_proof_action_unproven_before = SimulationDecisionProofActionUnproven();
+  const int simulation_proof_none_proven_before = SimulationDecisionProofNoneProven();
+  const int simulation_proof_none_unproven_before = SimulationDecisionProofNoneUnproven();
 
   const int ticks = 400;
   for (int tick = 0; tick < ticks; ++tick) env.step();
@@ -2173,6 +2189,53 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << (LegacyOnlyDecisionMovementSelectionMaterialChanges() -
                 legacy_only_movement_selection_material_changes_before)
             << "\n";
+  // 4f-a2: could the animation requeue consume the last simulation-owned decision
+  // instead of querying? Only a matching prefix is a proof, so unproven is not a
+  // claim that the selection would change.
+  {
+    std::vector<int> ages = SimulationDecisionCacheAge_ms();
+    ages.erase(ages.begin(), ages.begin() + simulation_cache_age_before);
+    std::vector<int> first_diffs = SimulationDecisionFirstDiffIndex();
+    first_diffs.erase(first_diffs.begin(),
+                      first_diffs.begin() + simulation_first_diff_before);
+    std::cout << "  decision_queue_shadow caused_queries="
+              << (LegacyOnlyDecisionCausedQueries() - legacy_only_caused_queries_before)
+              << " cache_present="
+              << (SimulationDecisionCachePresent() - simulation_cache_present_before)
+              << " cache_missing="
+              << (SimulationDecisionCacheMissing() - simulation_cache_missing_before)
+              << " age_p50=" << percentile(ages, 0.50)
+              << " p90=" << percentile(ages, 0.90)
+              << " p99=" << percentile(ages, 0.99)
+              << " max=" << percentile(ages, 1.0) << "\n";
+    std::cout << "  decision_queue_shadow live_has_movement="
+              << (SimulationDecisionLiveHasMovement() - simulation_live_has_movement_before)
+              << " cached_has_movement="
+              << (SimulationDecisionCacheHasMovement() - simulation_cache_has_movement_before)
+              << " movement_equal="
+              << (SimulationDecisionMovementEqual() - simulation_movement_equal_before)
+              << " movement_different="
+              << (SimulationDecisionMovementDifferent() - simulation_movement_different_before)
+              << " identical="
+              << (SimulationDecisionQueueIdentical() - simulation_queue_identical_before)
+              << " first_diff_n=" << first_diffs.size() << "\n";
+    std::cout << "  decision_queue_proof movement proven="
+              << (SimulationDecisionProofMovementProven() - simulation_proof_movement_proven_before)
+              << " unproven="
+              << (SimulationDecisionProofMovementUnproven() - simulation_proof_movement_unproven_before)
+              << " action proven="
+              << (SimulationDecisionProofActionProven() - simulation_proof_action_proven_before)
+              << " unproven="
+              << (SimulationDecisionProofActionUnproven() - simulation_proof_action_unproven_before)
+              << " none proven="
+              << (SimulationDecisionProofNoneProven() - simulation_proof_none_proven_before)
+              << " unproven="
+              << (SimulationDecisionProofNoneUnproven() - simulation_proof_none_unproven_before)
+              << "\n";
+    std::cout << "  decision_queue_first_diff p50=" << percentile(first_diffs, 0.50)
+              << " p90=" << percentile(first_diffs, 0.90)
+              << " max=" << percentile(first_diffs, 1.0) << "\n";
+  }
   std::cout << "  authority direct_vs_legacy_equal="
             << DirectVsLegacyCommandEqual()
             << " direct_vs_legacy_materially_different="

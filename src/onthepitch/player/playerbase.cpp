@@ -428,6 +428,15 @@ void PlayerBase::NoteDecisionMovementSelection(bool movement_selected) {
   decisionMovementSelection = movement_selected;
 }
 
+void PlayerBase::ObserveSimulationDecisionQueue(
+    const PlayerCommandQueue &commands, int now_ms) {
+  DO_VALIDATION;
+  simulationDecisionQueue.commands = commands;
+  simulationDecisionQueue.initialized = true;
+  ++simulationDecisionQueue.generation;
+  simulationDecisionQueue.updated_ms = now_ms;
+}
+
 // c2a: the Player Decision Clock's single publication entry point. It owns the
 // decision locomotion state and the publication telemetry, and never touches the
 // compatibility movement command slot.

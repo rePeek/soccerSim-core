@@ -103,6 +103,28 @@ int &LegacyOnlyDecisionMovementSelectionMaterialChanges();
 int &LegacyOnlyDecisionMovementSelections();
 int &LegacyOnlyDecisionNonMovementSelections();
 int &LegacyOnlyDecisionNoSelection();
+// 4f-a2: whether two commands would drive SelectAnim identically. The field
+// list is PlayerCommand::ProcessState(); floats and vectors compare bit-exact.
+bool PlayerCommandsDecisionEqual(const PlayerCommand &a, const PlayerCommand &b);
+// 4f-a2: can the animation requeue consume the last simulation-owned decision
+// queue instead of querying? Counted only on legacy-caused queries, and split
+// into proven/unproven because only a matching prefix is a proof.
+int &LegacyOnlyDecisionCausedQueries();
+int &SimulationDecisionCachePresent();
+int &SimulationDecisionCacheMissing();
+std::vector<int> &SimulationDecisionCacheAge_ms();
+int &SimulationDecisionLiveHasMovement();
+int &SimulationDecisionCacheHasMovement();
+int &SimulationDecisionMovementEqual();
+int &SimulationDecisionMovementDifferent();
+int &SimulationDecisionQueueIdentical();
+std::vector<int> &SimulationDecisionFirstDiffIndex();
+int &SimulationDecisionProofMovementProven();
+int &SimulationDecisionProofMovementUnproven();
+int &SimulationDecisionProofActionProven();
+int &SimulationDecisionProofActionUnproven();
+int &SimulationDecisionProofNoneProven();
+int &SimulationDecisionProofNoneUnproven();
 // 4b': separate intent-refresh eligibility from execution eligibility.
 int &HeldDueMovementRetainsTicks();
 int &HeldDueMovementRetainsCandidate();

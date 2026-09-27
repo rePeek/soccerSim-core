@@ -127,7 +127,7 @@ void Humanoid::Process() {
   PlayerCommandQueue controllerQueue;
   bool controller_queried = false;
   bool controller_movement_published = false;
-  const auto EnsureControllerQuery = [&]() {
+  const auto EnsureControllerQuery = [&](bool simulation_owned) {
     if (controller_queried) return;
     CastPlayer()->RequestCommand(controllerQueue);
     controller_queried = true;
@@ -141,6 +141,10 @@ void Humanoid::Process() {
     }
     if (has_movement) ++PlayerPathQueriesWithMovement();
     CastPlayer()->NoteControllerQuery(has_movement);
+    if (simulation_owned) {
+      CastPlayer()->ObserveSimulationDecisionQueue(
+          controllerQueue, static_cast<int>(match->GetActualTime_ms()));
+    }
   };
   const auto AppendControllerCommandsToSelectionQueue =
       [&](PlayerCommandQueue &selectionQueue,
@@ -172,7 +176,7 @@ void Humanoid::Process() {
   if (CastPlayer()->IsEligibleForProceduralLocomotion() &&
       CastPlayer()->DecisionLocomotionEpochIsStale()) {
     ++ContinuityRepairAttempts();
-    EnsureControllerQuery();
+    EnsureControllerQuery(true);
     CastPlayer()->NoteDecisionPublicationCause(2);
     if (PublishControllerMovementOnce()) {
       ++ContinuityRepairPublications();
@@ -181,6 +185,7 @@ void Humanoid::Process() {
     }
     CastPlayer()->NoteDecisionPublicationCause(0);
   }
+  const bool queried_before_selection = controller_queried;
 
   CalculateSpatialState();
   spatialState.positionOffsetMovement = Vector3(0);
@@ -315,7 +320,9 @@ void Humanoid::Process() {
     PlayerCommandQueue commandQueue;      // selection queue
     std::vector<PlayerPathSelectionCommandProvenance> commandProvenance;
 
-    if (interruptAnim == e_InterruptAnim_Trip && tripType != 0) {
+    const bool trip_local_queue =
+        interruptAnim == e_InterruptAnim_Trip && tripType != 0;
+    if (trip_local_queue) {
       DO_VALIDATION;
       ++PlayerPathLocalTripAttempts();
       AddTripCommandToQueue(commandQueue, tripDirection, tripType);
@@ -327,13 +334,19 @@ void Humanoid::Process() {
       commandProvenance.push_back(
           PlayerPathSelectionCommandProvenance::LocalTripMovementFallback);
     } else {
-      EnsureControllerQuery();
+      EnsureControllerQuery(simulation_due);
       AppendControllerCommandsToSelectionQueue(commandQueue, commandProvenance);
     }
+
+    // 4f-a2: only a query this animation block actually caused is one a3 can
+    // remove. A query the continuity repair already made is not animation-owned.
+    const bool legacy_caused_query =
+        legacy_only && !queried_before_selection && !trip_local_queue;
 
     // iterate through the command queue and pick the first that is applicable
 
     bool found = false;
+    int live_winner_index = -1;
     bool preferPassAndShot = false; // pass/shot and such; in that case we want trap/ballcontrol anims to be less prefered
     for (unsigned int i = 0; i < commandQueue.size(); i++) {
       DO_VALIDATION;
@@ -351,6 +364,7 @@ void Humanoid::Process() {
       }
       found = SelectAnim(command, interruptAnim, preferPassAndShot);
       if (found) {
+        live_winner_index = static_cast<int>(i);
         if (provenance == PlayerPathSelectionCommandProvenance::LocalTrip) {
           ++PlayerPathLocalTripSelected();
         } else if (provenance ==
@@ -436,6 +450,93 @@ void Humanoid::Process() {
         ++LegacyOnlyDecisionMovementSelections();
       } else {
         ++LegacyOnlyDecisionNonMovementSelections();
+      }
+    }
+    // 4f-a2: could the animation requeue have consumed the last simulation-owned
+    // decision instead of asking the controller? Prefix equality with the live
+    // queue proves the selection is identical; inequality only means it cannot be
+    // proven, so the two outcomes are reported separately.
+    if (legacy_caused_query) {
+      ++LegacyOnlyDecisionCausedQueries();
+      const bool cache_present = CastPlayer()->HasSimulationDecisionQueue();
+      const PlayerCommandQueue &cached =
+          CastPlayer()->GetSimulationDecisionQueue();
+      if (!cache_present) {
+        ++SimulationDecisionCacheMissing();
+      } else {
+        ++SimulationDecisionCachePresent();
+        SimulationDecisionCacheAge_ms().push_back(
+            CastPlayer()->GetSimulationDecisionQueueAge_ms(
+                static_cast<int>(match->GetActualTime_ms())));
+      }
+
+      const auto first_movement_command =
+          [](const PlayerCommandQueue &queue) -> const PlayerCommand * {
+        for (const PlayerCommand &candidate : queue) {
+          if (candidate.desiredFunctionType == e_FunctionType_Movement &&
+              candidate.useDesiredMovement) {
+            return &candidate;
+          }
+        }
+        return nullptr;
+      };
+      const PlayerCommand *live_movement = first_movement_command(commandQueue);
+      const PlayerCommand *cached_movement = first_movement_command(cached);
+      if (live_movement) ++SimulationDecisionLiveHasMovement();
+      if (cached_movement) ++SimulationDecisionCacheHasMovement();
+      if (!live_movement || !cached_movement ||
+          MovementCommandDiffersMaterially(*live_movement, *cached_movement)) {
+        ++SimulationDecisionMovementDifferent();
+      } else {
+        ++SimulationDecisionMovementEqual();
+      }
+
+      bool equivalence_proven = false;
+      if (cache_present) {
+        if (found) {
+          equivalence_proven = live_winner_index >= 0 &&
+                               static_cast<int>(cached.size()) > live_winner_index;
+          for (int k = 0; equivalence_proven && k <= live_winner_index; ++k) {
+            equivalence_proven =
+                PlayerCommandsDecisionEqual(cached[k], commandQueue[k]);
+          }
+        } else {
+          equivalence_proven = cached.size() <= commandQueue.size();
+          for (size_t k = 0; equivalence_proven && k < cached.size(); ++k) {
+            equivalence_proven =
+                PlayerCommandsDecisionEqual(cached[k], commandQueue[k]);
+          }
+        }
+      }
+
+      if (!found) {
+        if (equivalence_proven) ++SimulationDecisionProofNoneProven();
+        else ++SimulationDecisionProofNoneUnproven();
+      } else if (action.type == e_FunctionType_Movement) {
+        if (equivalence_proven) ++SimulationDecisionProofMovementProven();
+        else ++SimulationDecisionProofMovementUnproven();
+      } else {
+        if (equivalence_proven) ++SimulationDecisionProofActionProven();
+        else ++SimulationDecisionProofActionUnproven();
+      }
+
+      int first_difference_index = -1;
+      const size_t common = commandQueue.size() < cached.size()
+          ? commandQueue.size()
+          : cached.size();
+      for (size_t k = 0; k < common; ++k) {
+        if (!PlayerCommandsDecisionEqual(cached[k], commandQueue[k])) {
+          first_difference_index = static_cast<int>(k);
+          break;
+        }
+      }
+      if (first_difference_index < 0 && commandQueue.size() != cached.size()) {
+        first_difference_index = static_cast<int>(common);
+      }
+      if (first_difference_index < 0) {
+        ++SimulationDecisionQueueIdentical();
+      } else {
+        SimulationDecisionFirstDiffIndex().push_back(first_difference_index);
       }
     }
   }

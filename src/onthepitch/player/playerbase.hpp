@@ -44,6 +44,17 @@ int &RestartCarriedCommandForward();
 int &RestartConstructedCommand();
 int &RetainCarriedCommandForward();
 int &RetainConstructedCommand();
+
+// 4f-a2: shadow of the last simulation-owned (cadence or continuity repair)
+// Player Decision queue. Transient and measurement-only for now: it does not
+// drive selection, so it is not serialized. a3 promotes it to gameplay state if
+// the equivalence proof holds.
+struct SimulationDecisionQueueShadow {
+  PlayerCommandQueue commands;
+  bool initialized = false;
+  unsigned long long generation = 0;
+  int updated_ms = -1;
+};
 // H3e4f-g0b-decision-intent: the serialized Player Decision Clock locomotion
 // state. Since the execution authority flip this is the sole command source for
 // pure-locomotion execution: the gate requires a current-epoch publication, and
@@ -299,6 +310,23 @@ class PlayerBase {
     // 4f-a1: whether the animation selection on this tick picked a Movement clip,
     // so a legacy-only publication can be cross-tabulated with the selection.
     void NoteDecisionMovementSelection(bool movement_selected);
+    // 4f-a2: update the shadow from a simulation-owned controller query. A
+    // legacy-only query must never call this: the shadow answers what the last
+    // decision would be if animation-owned queries had never existed.
+    void ObserveSimulationDecisionQueue(const PlayerCommandQueue &commands,
+                                        int now_ms);
+    bool HasSimulationDecisionQueue() const {
+      return simulationDecisionQueue.initialized;
+    }
+    const PlayerCommandQueue &GetSimulationDecisionQueue() const {
+      DO_VALIDATION;
+      return simulationDecisionQueue.commands;
+    }
+    int GetSimulationDecisionQueueAge_ms(int now_ms) const {
+      return simulationDecisionQueue.updated_ms < 0
+          ? -1
+          : now_ms - simulationDecisionQueue.updated_ms;
+    }
     bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue);
     bool LocomotionIntentRefreshHeldIneligible() const;
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
@@ -378,6 +406,8 @@ class PlayerBase {
     int pendingPublicationCause = 0;
     // 4f-a1: transient, per-tick animation selection outcome. Never serialized.
     bool decisionMovementSelection = false;
+    // 4f-a2: transient simulation-owned decision queue shadow. Not serialized.
+    SimulationDecisionQueueShadow simulationDecisionQueue;
     // Audit generation: bumped on every Direct publication for re-entry freshness
     // measurement. Deliberately transient so telemetry cannot change the save-state
     // contract; the gameplay epochs above are serialized instead.
