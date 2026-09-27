@@ -295,6 +295,18 @@ void DumpReanchorProvenance() {
   fflush(stdout);
 }
 
+static int t4opp_queries = 0, t4opp_with_candidate = 0;
+static int t4opp_cand_not_due = 0, t4opp_cand_due_ineligible = 0, t4opp_cand_due_eligible = 0;
+static int t4opp_nocand_not_due = 0, t4opp_nocand_other = 0;
+
+void DumpQueryOpportunities() {
+  printf("4opp-SUMMARY queries=%d with_candidate=%d\n", t4opp_queries, t4opp_with_candidate);
+  printf("4opp-SUMMARY candidate: not_due=%d due+ineligible=%d due+eligible=%d\n",
+         t4opp_cand_not_due, t4opp_cand_due_ineligible, t4opp_cand_due_eligible);
+  printf("4opp-SUMMARY no_candidate: not_due=%d other=%d\n", t4opp_nocand_not_due,
+         t4opp_nocand_other);
+  fflush(stdout);
+}
 void PlayerBase::NoteControllerQuery(bool had_movement_candidate) {
   DO_VALIDATION;
   const int now_ms = static_cast<int>(match->GetActualTime_ms());
@@ -305,6 +317,16 @@ void PlayerBase::NoteControllerQuery(bool had_movement_candidate) {
   tr_last_query_action = static_cast<int>(actionState.type);
   tr_last_query_retains = match->GetBallRetainer() == this ? 1 : 0;
   tr_last_query_had_candidate = had_movement_candidate ? 1 : 0;
+  ++t4opp_queries;
+  if (had_movement_candidate) {
+    ++t4opp_with_candidate;
+    if (!tr_last_query_due) ++t4opp_cand_not_due;
+    else if (!tr_last_query_eligible) ++t4opp_cand_due_ineligible;
+    else ++t4opp_cand_due_eligible;
+  } else {
+    if (!tr_last_query_due) ++t4opp_nocand_not_due;
+    else ++t4opp_nocand_other;
+  }
 }
 
 void PlayerBase::NoteMaterialMovementReanchor() {

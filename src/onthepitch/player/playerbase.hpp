@@ -43,6 +43,7 @@ struct ReanchorResidency {
 };
 ReanchorResidency &ReanchorResidencyFor(int reason);
 void DumpReanchorProvenance();
+void DumpQueryOpportunities();
 const char *ActionBeginReasonName(int reason);
 
 // H3e4f-g0b-prime: is a Movement re-anchor actually consumed by locomotion before the
