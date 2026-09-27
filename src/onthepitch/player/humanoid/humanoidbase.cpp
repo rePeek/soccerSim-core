@@ -130,6 +130,7 @@ int &HumanoidEligibilityGainRefreshes() { static int value = 0; return value; }
 int &HumanoidEligibilityGainCandidatesMissing() { static int value = 0; return value; }
 int &PlayerPathControllerQueries() { static int value = 0; return value; }
 int &PlayerPathQueriesWithMovement() { static int value = 0; return value; }
+int &PlayerPathQueriesWithMovementSuppressedByRepair() { static int value = 0; return value; }
 int &PlayerPathDirectPublications() { static int value = 0; return value; }
 int &PlayerPathRefreshCommits() { static int value = 0; return value; }
 int &PlayerPathLocalTripAttempts() { static int value = 0; return value; }
@@ -162,6 +163,10 @@ int &SimulationDecisionProofActionProven() { static int value = 0; return value;
 int &SimulationDecisionProofActionUnproven() { static int value = 0; return value; }
 int &SimulationDecisionProofNoneProven() { static int value = 0; return value; }
 int &SimulationDecisionProofNoneUnproven() { static int value = 0; return value; }
+int &PlayerDecisionClockQueries() { static int value = 0; return value; }
+int &PlayerDecisionClockPeriodicQueries() { static int value = 0; return value; }
+int &PlayerDecisionClockForcedQueries() { static int value = 0; return value; }
+int &PlayerDecisionClockQueueConsumersMissing() { static int value = 0; return value; }
 
 namespace {
 
@@ -255,7 +260,7 @@ struct PlayerDecisionQueryHistory {
   PlayerCommandQueue commands;
 };
 struct PlayerDecisionCadenceMetrics {
-  std::vector<int> intervals[4];  // all, legacy, cadence, repair
+  std::vector<int> intervals[5];  // all, legacy, locomotion, repair, decision clock
   std::vector<int> action_intervals[4];  // movement, ballcontrol, trap, other
   std::vector<int> nonmovement_appearance_gaps;
   int movement_changed = 0;
@@ -281,8 +286,9 @@ int DecisionActionBucket(e_FunctionType type) {
 int DecisionCauseBucket(PlayerDecisionQueryCause cause) {
   switch (cause) {
     case PlayerDecisionQueryCause::LegacyCaused: return 1;
-    case PlayerDecisionQueryCause::SimulationCadence: return 2;
+    case PlayerDecisionQueryCause::LocomotionCadence: return 2;
     case PlayerDecisionQueryCause::ContinuityRepair: return 3;
+    case PlayerDecisionQueryCause::PlayerDecisionClockPeriodic: return 4;
   }
   return 0;
 }
@@ -364,9 +370,10 @@ void DumpPlayerDecisionCadenceTelemetry() {
     std::sort(values.begin(), values.end());
     return values[static_cast<size_t>(fraction * (values.size() - 1))];
   };
-  const char *cause_names[] = {"all", "legacy", "simulation_cadence", "continuity_repair"};
+  const char *cause_names[] = {"all", "legacy", "locomotion_cadence",
+                               "continuity_repair", "player_decision_clock"};
   const char *action_names[] = {"movement", "ballcontrol", "trap", "other"};
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 5; ++i) {
     const std::vector<int> &values = i == 0 ? metrics.intervals[0] : metrics.intervals[i];
     std::cout << "  decision_cadence cause=" << cause_names[i]
               << " n=" << values.size() << " p50=" << percentile(values, 0.50)

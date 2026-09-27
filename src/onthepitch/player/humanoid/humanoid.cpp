@@ -121,9 +121,9 @@ void Humanoid::Process() {
   // against the decision clock measures two compatibility slots and says nothing
   // about what executes.
 
-  // step 2: one controller query per tick, owned at tick scope, so a continuity
-  // repair can run before this tick's locomotion execution and the later
-  // selection phase reuses that same query instead of asking again.
+  // Legacy locomotion/animation consumers still share a per-tick query queue
+  // during 4f-a3a. The independent Player Decision Clock query is scheduled
+  // separately above continuity repair; a3b will close these legacy callers.
   PlayerCommandQueue controllerQueue;
   bool controller_queried = false;
   bool controller_movement_published = false;
@@ -139,16 +139,16 @@ void Humanoid::Process() {
         has_movement = true;
       }
     }
-    if (has_movement) ++PlayerPathQueriesWithMovement();
+    if (has_movement) {
+      ++PlayerPathQueriesWithMovement();
+      if (controller_movement_published)
+        ++PlayerPathQueriesWithMovementSuppressedByRepair();
+    }
     CastPlayer()->NoteControllerQuery(has_movement);
     RecordPlayerDecisionQuery(
         CastPlayer(), controllerQueue,
         static_cast<int>(match->GetActualTime_ms()), cause,
         CastPlayer()->GetSimulationActionState().type);
-    if (cause != PlayerDecisionQueryCause::LegacyCaused) {
-      CastPlayer()->ObserveSimulationDecisionQueue(
-          controllerQueue, static_cast<int>(match->GetActualTime_ms()));
-    }
   };
   const auto AppendControllerCommandsToSelectionQueue =
       [&](PlayerCommandQueue &selectionQueue,
@@ -158,9 +158,8 @@ void Humanoid::Process() {
           provenance.push_back(PlayerPathSelectionCommandProvenance::Controller);
         }
       };
-  // Single publication point for the whole tick. The continuity repair and the
-  // later selection phase both go through it, so a query is published at most
-  // once and the publication counters stay consistent with the commits.
+  // Single publication point for the still-live legacy query queue. The
+  // continuity repair publishes the serialized Player Decision queue directly.
   const auto PublishControllerMovementOnce = [&]() {
     if (controller_movement_published) return false;
     if (CastPlayer()->PublishMovementIntentFromQueue(controllerQueue)) {
@@ -173,16 +172,56 @@ void Humanoid::Process() {
     return false;
   };
 
-  // step 2: continuity repair runs before this tick's locomotion execution. The
-  // predicate is simulation eligibility plus a stale epoch, deliberately not the
-  // animation gate: the decision state is repaired here while the legacy gate
-  // still decides whether movement actually executes this tick.
-  if (CastPlayer()->IsEligibleForProceduralLocomotion() &&
-      CastPlayer()->DecisionLocomotionEpochIsStale()) {
+  // 4f-a3a: the complete decision queue has its own simulation clock. Its
+  // cadence depends on world context, never on animation requeue opportunities.
+  const int decision_now_ms = static_cast<int>(match->GetActualTime_ms());
+  const float decision_distance_to_ball =
+      (match->GetBall()->Predict(0).Get2D() - tickStartState.position).GetLength();
+  const bool designated_possession_player =
+      match->GetDesignatedPossessionPlayer() == player;
+  const bool designated_team_possession_player =
+      team->GetDesignatedTeamPossessionPlayer() == player;
+  const int player_decision_cadence_ms = PlayerDecisionCadenceForContext_ms(
+      designated_possession_player, designated_team_possession_player,
+      decision_distance_to_ball);
+  const bool continuity_repair_due =
+      CastPlayer()->IsEligibleForProceduralLocomotion() &&
+      CastPlayer()->DecisionLocomotionEpochIsStale();
+  const bool player_decision_due =
+      CastPlayer()->IsPlayerDecisionRefreshDue(decision_now_ms);
+  if (continuity_repair_due || player_decision_due) {
+    PlayerCommandQueue player_decision_commands;
+    CastPlayer()->RequestCommand(player_decision_commands);
+    CastPlayer()->PublishPlayerDecisionQueue(
+        player_decision_commands, decision_now_ms, player_decision_cadence_ms);
+    CastPlayer()->ObserveSimulationDecisionQueue(
+        player_decision_commands, decision_now_ms);
+    bool has_movement = false;
+    for (const PlayerCommand &command : player_decision_commands)
+      has_movement |= command.desiredFunctionType == e_FunctionType_Movement &&
+                      command.useDesiredMovement;
+    CastPlayer()->NoteControllerQuery(has_movement);
+    RecordPlayerDecisionQuery(
+        CastPlayer(), player_decision_commands, decision_now_ms,
+        continuity_repair_due ? PlayerDecisionQueryCause::ContinuityRepair
+                              : PlayerDecisionQueryCause::PlayerDecisionClockPeriodic,
+        CastPlayer()->GetSimulationActionState().type);
+    ++PlayerDecisionClockQueries();
+    if (continuity_repair_due) ++PlayerDecisionClockForcedQueries();
+    else ++PlayerDecisionClockPeriodicQueries();
+  }
+
+  // Continuity repair forces the independent Player Decision Clock, then
+  // publishes its fresh Movement axis before locomotion execution. It does not
+  // ask the controller through the legacy locomotion/animation queue.
+  if (continuity_repair_due) {
     ++ContinuityRepairAttempts();
-    EnsureControllerQuery(PlayerDecisionQueryCause::ContinuityRepair);
     CastPlayer()->NoteDecisionPublicationCause(2);
-    if (PublishControllerMovementOnce()) {
+    if (CastPlayer()->HasPlayerDecisionQueue() &&
+        CastPlayer()->PublishMovementIntentFromQueue(
+            CastPlayer()->GetPlayerDecisionQueue())) {
+      controller_movement_published = true;
+      CastPlayer()->CommitLocomotionIntentRefresh();
       ++ContinuityRepairPublications();
     } else {
       ++ContinuityRepairCandidatesMissing();
@@ -321,6 +360,8 @@ void Humanoid::Process() {
   CastPlayer()->NoteDecisionPublicationCause(legacy_only ? 1 : 0);
   if (legacy_opportunity || simulation_due) {
     DO_VALIDATION;
+    if (!CastPlayer()->HasPlayerDecisionQueue())
+      ++PlayerDecisionClockQueueConsumersMissing();
     PlayerCommandQueue commandQueue;      // selection queue
     std::vector<PlayerPathSelectionCommandProvenance> commandProvenance;
 
@@ -339,7 +380,7 @@ void Humanoid::Process() {
           PlayerPathSelectionCommandProvenance::LocalTripMovementFallback);
     } else {
       EnsureControllerQuery(
-          simulation_due ? PlayerDecisionQueryCause::SimulationCadence
+          simulation_due ? PlayerDecisionQueryCause::LocomotionCadence
                          : PlayerDecisionQueryCause::LegacyCaused);
       AppendControllerCommandsToSelectionQueue(commandQueue, commandProvenance);
     }

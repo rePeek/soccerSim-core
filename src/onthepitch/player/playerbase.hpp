@@ -23,6 +23,7 @@
 #include "player_ground_collider.hpp"
 #include "player_action.hpp"
 #include "locomotion_intent_scheduler.hpp"
+#include "player_decision_scheduler.hpp"
 
 // Caller scope for the remaining ResetSituation instrumentation. This is
 // observation only; Deactivate's double reset is deliberately not changed here.
@@ -45,15 +46,30 @@ int &RestartConstructedCommand();
 int &RetainCarriedCommandForward();
 int &RetainConstructedCommand();
 
-// 4f-a2: shadow of the last simulation-owned (cadence or continuity repair)
-// Player Decision queue. Transient and measurement-only for now: it does not
-// drive selection, so it is not serialized. a3 promotes it to gameplay state if
-// the equivalence proof holds.
+// 4f-a2 diagnostic shadow, retained for queue-equivalence telemetry. 4f-a3a
+// introduces the separate serialized PlayerDecisionQueueState below; this shadow
+// is never consumed by gameplay and remains transient.
 struct SimulationDecisionQueueShadow {
   PlayerCommandQueue commands;
   bool initialized = false;
   unsigned long long generation = 0;
   int updated_ms = -1;
+};
+
+// 4f-a3a: serialized gameplay authority for the complete controller decision.
+struct PlayerDecisionQueueState {
+  PlayerCommandQueue commands;
+  bool initialized = false;
+  unsigned long long generation = 0;
+  void ProcessState(EnvState *state) {
+    DO_VALIDATION;
+    int size = static_cast<int>(commands.size());
+    state->process(size);
+    if (state->Load()) commands.resize(size);
+    for (PlayerCommand &command : commands) command.ProcessState(state);
+    state->process(initialized);
+    state->process(generation);
+  }
 };
 // H3e4f-g0b-decision-intent: the serialized Player Decision Clock locomotion
 // state. Since the execution authority flip this is the sole command source for
@@ -315,6 +331,11 @@ class PlayerBase {
     // decision would be if animation-owned queries had never existed.
     void ObserveSimulationDecisionQueue(const PlayerCommandQueue &commands,
                                         int now_ms);
+    bool IsPlayerDecisionRefreshDue(int now_ms) const {
+      return playerDecisionScheduler.Due(now_ms);
+    }
+    void PublishPlayerDecisionQueue(const PlayerCommandQueue &commands,
+                                    int now_ms, int cadence_ms);
     bool HasSimulationDecisionQueue() const {
       return simulationDecisionQueue.initialized;
     }
@@ -326,6 +347,15 @@ class PlayerBase {
       return simulationDecisionQueue.updated_ms < 0
           ? -1
           : now_ms - simulationDecisionQueue.updated_ms;
+    }
+    // 4f-a3a: independent Player Decision Clock and its serialized latest queue.
+    bool HasPlayerDecisionQueue() const { return playerDecisionQueue.initialized; }
+    const PlayerCommandQueue &GetPlayerDecisionQueue() const {
+      DO_VALIDATION;
+      return playerDecisionQueue.commands;
+    }
+    unsigned long long GetPlayerDecisionGeneration() const {
+      return playerDecisionQueue.generation;
     }
     bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue);
     bool LocomotionIntentRefreshHeldIneligible() const;
@@ -408,6 +438,8 @@ class PlayerBase {
     bool decisionMovementSelection = false;
     // 4f-a2: transient simulation-owned decision queue shadow. Not serialized.
     SimulationDecisionQueueShadow simulationDecisionQueue;
+    PlayerDecisionScheduler playerDecisionScheduler;
+    PlayerDecisionQueueState playerDecisionQueue;
     // Audit generation: bumped on every Direct publication for re-entry freshness
     // measurement. Deliberately transient so telemetry cannot change the save-state
     // contract; the gameplay epochs above are serialized instead.

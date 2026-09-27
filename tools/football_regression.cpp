@@ -1203,24 +1203,21 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
        UINT64_C(385886754253041681)},
-      // H3e1c-3c: first canonical trajectory with pure locomotion as the
-      // simulation authority. The old animation-root-motion values are
-      // expected to diverge and are deliberately replaced.
-      // P1b/P1c: the planner consumes the measured capability model, retained
-      // between scheduled refreshes, so these are the first snapshots under that
-      // belief.
-      {100, 58, Position(0.488103181f, 0.0186198093f, 0.103896916f, true),
+      // 4f-a3a: the independent Player Decision Clock now issues contextual
+      // simulation-owned RequestCommand queries. Their serialized controller
+      // side effects intentionally establish a new trajectory baseline.
+      {100, 58, Position(0.47898829f, 0.00693275966f, 0.112613186f, true),
        Position(-0.80509001f, -0.00180166762f, 0.0f, true),
        Position(0.990808845f, 0.0f, 0.0f, true), 0, 0, true,
-       UINT64_C(13488695166050872985)},
-      {500, 416, Position(-0.725176573f, 0.285050839f, 0.798114598f, true),
-       Position(-0.992788613f, 0.0288618263f, 0.0f, true),
-       Position(0.825586379f, -0.00580085116f, 0.0f, true), 0, 0, true,
-       UINT64_C(14021545120330653388)},
-      {1000, 895, Position(-0.340146571f, 0.316803753f, 0.110689186f, true),
-       Position(-0.958880603f, 0.0262487102f, 0.0f, true),
-       Position(0.825244069f, 0.00807537604f, 0.0f, true), 0, 0, true,
-       UINT64_C(8129512808688048620)},
+       UINT64_C(8041893230213697389)},
+      {500, 458, Position(0.197007716f, 0.209723428f, 0.139702827f, true),
+       Position(-0.822899401f, 0.00163657148f, 0.0f, true),
+       Position(0.985985577f, 0.0119194295f, 0.0f, true), 0, 0, true,
+       UINT64_C(10731040822371693759)},
+      {1000, 925, Position(0.326352298f, 0.27268371f, 0.110492595f, true),
+       Position(-0.827447593f, 0.00379829737f, 0.0f, true),
+       Position(0.99005276f, 0.0128665892f, 0.0f, true), 1, 1, true,
+       UINT64_C(12368058550167948028)},
   };
 
 
@@ -2040,6 +2037,10 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int simulation_proof_action_unproven_before = SimulationDecisionProofActionUnproven();
   const int simulation_proof_none_proven_before = SimulationDecisionProofNoneProven();
   const int simulation_proof_none_unproven_before = SimulationDecisionProofNoneUnproven();
+  const int decision_clock_queries_before = PlayerDecisionClockQueries();
+  const int decision_clock_periodic_before = PlayerDecisionClockPeriodicQueries();
+  const int decision_clock_forced_before = PlayerDecisionClockForcedQueries();
+  const int decision_queue_missing_before = PlayerDecisionClockQueueConsumersMissing();
 
   const int ticks = 400;
   for (int tick = 0; tick < ticks; ++tick) env.step();
@@ -2240,6 +2241,15 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   // 4f-a3-prep: intervals come only from consecutive actual RequestCommand calls
   // for the same player. No extra controller query is issued by this measurement.
   DumpPlayerDecisionCadenceTelemetry();
+  std::cout << "  player_decision_clock queries="
+            << (PlayerDecisionClockQueries() - decision_clock_queries_before)
+            << " periodic="
+            << (PlayerDecisionClockPeriodicQueries() - decision_clock_periodic_before)
+            << " forced="
+            << (PlayerDecisionClockForcedQueries() - decision_clock_forced_before)
+            << " queue_missing="
+            << (PlayerDecisionClockQueueConsumersMissing() - decision_queue_missing_before)
+            << "\n";
   std::cout << "  authority direct_vs_legacy_equal="
             << DirectVsLegacyCommandEqual()
             << " direct_vs_legacy_materially_different="
@@ -2257,6 +2267,8 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << "\n";
   std::cout << "  player_path queries=" << PlayerPathControllerQueries()
             << " with_movement=" << PlayerPathQueriesWithMovement()
+            << " suppressed_by_repair="
+            << PlayerPathQueriesWithMovementSuppressedByRepair()
             << " publications=" << PlayerPathDirectPublications()
             << " commits=" << PlayerPathRefreshCommits()
             << " candidates_missing=" << PlayerPathCandidatesMissing() << "\n";
@@ -2267,8 +2279,10 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << PlayerPathLocalTripMovementFallbackSelected()
             << " movement_fallback_scheduler_commits="
             << PlayerPathLocalTripMovementFallbackRefreshCommits() << "\n";
-  Require(PlayerPathQueriesWithMovement() == PlayerPathDirectPublications(),
-          "player path: a controller query with a Movement candidate was not published");
+  Require(PlayerPathQueriesWithMovement() ==
+              PlayerPathDirectPublications() +
+                  PlayerPathQueriesWithMovementSuppressedByRepair(),
+          "player path: a Movement query was neither published nor superseded by continuity repair");
   Require(PlayerPathDirectPublications() == PlayerPathRefreshCommits(),
           "player path: a publication did not commit exactly once");
   Require(PlayerPathLocalTripMovementFallbackRefreshCommits() == 0,

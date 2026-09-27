@@ -79,6 +79,7 @@ int &HumanoidEligibilityGainCandidatesMissing();
 // round's counters mixed the real-player Process with the officials/base one.
 int &PlayerPathControllerQueries();
 int &PlayerPathQueriesWithMovement();
+int &PlayerPathQueriesWithMovementSuppressedByRepair();
 int &PlayerPathDirectPublications();
 int &PlayerPathRefreshCommits();
 int &PlayerPathCandidatesMissing();
@@ -126,13 +127,12 @@ int &SimulationDecisionProofActionUnproven();
 int &SimulationDecisionProofNoneProven();
 int &SimulationDecisionProofNoneUnproven();
 
-// 4f-a3-prep: measure the existing effective Player Decision Clock without
-// issuing additional controller queries. Cause: legacy-only, locomotion cadence,
-// or continuity repair. Action bucket: Movement, BallControl, Trap, Other.
+// 4f-a3-prep/a3a: interval provenance for real RequestCommand calls.
 enum class PlayerDecisionQueryCause {
   LegacyCaused,
-  SimulationCadence,
-  ContinuityRepair
+  LocomotionCadence,
+  ContinuityRepair,
+  PlayerDecisionClockPeriodic
 };
 void ResetPlayerDecisionCadenceTelemetry();
 void RecordPlayerDecisionQuery(const void *player_key,
@@ -140,6 +140,11 @@ void RecordPlayerDecisionQuery(const void *player_key,
                                PlayerDecisionQueryCause cause,
                                e_FunctionType action_type);
 void DumpPlayerDecisionCadenceTelemetry();
+// 4f-a3a: serialized simulation-owned full decision-clock telemetry.
+int &PlayerDecisionClockQueries();
+int &PlayerDecisionClockPeriodicQueries();
+int &PlayerDecisionClockForcedQueries();
+int &PlayerDecisionClockQueueConsumersMissing();
 // 4b': separate intent-refresh eligibility from execution eligibility.
 int &HeldDueMovementRetainsTicks();
 int &HeldDueMovementRetainsCandidate();

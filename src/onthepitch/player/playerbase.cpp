@@ -367,6 +367,15 @@ bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
   return locomotionIntentDueThisTick;
 }
 
+void PlayerBase::PublishPlayerDecisionQueue(
+    const PlayerCommandQueue &commands, int now_ms, int cadence_ms) {
+  DO_VALIDATION;
+  playerDecisionQueue.commands = commands;
+  playerDecisionQueue.initialized = true;
+  ++playerDecisionQueue.generation;
+  playerDecisionScheduler.Schedule(now_ms, cadence_ms);
+}
+
 void PlayerBase::CommitLocomotionIntentRefresh() {
   ++HumanoidIntentRefreshCommits();
   DO_VALIDATION;
@@ -778,6 +787,8 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   // c2b: the refresh clock decides when the controller is queried, so it is
   // gameplay state and must survive save/load exactly.
   locomotionIntentScheduler.ProcessState(state);
+  playerDecisionQueue.ProcessState(state);
+  playerDecisionScheduler.ProcessState(state);
   // After saving or loading the action state, require it to agree with the
   // Humanoid motion cursor before a subsequent tick can observe either.
   CheckSimulationActionOracle();
