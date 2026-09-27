@@ -864,13 +864,6 @@ bool PlayerBase::IsEligibleForProceduralLocomotion() const {
   return actionState.IsPureLocomotion(match->GetBallRetainer() == this);
 }
 
-bool PlayerBase::HasSimulationLocomotionIntent() const {
-  // PlayerCommand carries orthogonal action and locomotion components. A
-  // BallControl/Trap action may still carry the valid movement payload consumed
-  // by PlayerLocomotion, so desiredFunctionType is intentionally not a gate.
-  return movementCommandState.initialized &&
-         movementCommandState.command.useDesiredMovement;
-}
 
 void PlayerBase::ResetKinematicShadow() {
   DO_VALIDATION;

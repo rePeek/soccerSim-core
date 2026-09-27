@@ -116,57 +116,10 @@ void Humanoid::Process() {
       CastPlayer()->IsLocomotionIntentRefreshDue(
           static_cast<int>(match->GetActualTime_ms())),
       static_cast<int>(match->GetActualTime_ms()));
-  if (CastPlayer()->IsEligibleForProceduralLocomotion()) {
-    const PlayerCommand &simulation_command =
-        CastPlayer()->GetSimulationMovementCommand();
-    const bool legacy_gate = currentAnim.originatingCommand.useDesiredMovement;
-    const bool simulation_gate = CastPlayer()->HasSimulationLocomotionIntent();
-    // On the ticks the legacy gate already executes, does a decision-owned Direct
-    // intent exist? And on the ticks only the simulation gate would execute, is
-    // there a decision intent or just leftover compatibility payload?
-    if (legacy_gate) {
-      if (CastPlayer()->HasDecisionLocomotionIntent()) {
-        ++DecisionLocomotionIntentPresentTicks();
-      } else {
-        ++DecisionLocomotionIntentMissingTicks();
-        ++DecisionLocomotionIntentMissingForSource(
-            static_cast<int>(CastPlayer()->GetSimulationMovementCommandSource()));
-      }
-    } else if (simulation_gate) {
-      if (CastPlayer()->HasDecisionLocomotionIntent()) {
-        ++DecisionLocomotionIntentPresentTicksLegacyGateFalse();
-      } else {
-        ++DecisionLocomotionIntentMissingTicksLegacyGateFalse();
-        ++DecisionLocomotionIntentMissingForSourceLegacyGateFalse(
-            static_cast<int>(CastPlayer()->GetSimulationMovementCommandSource()));
-      }
-    }
-    if (CastPlayer()->GetLastDirectMovementIntentPublication_ms() >= 0) {
-      const int decision_age_ms =
-          static_cast<int>(match->GetActualTime_ms()) -
-          CastPlayer()->GetLastDirectMovementIntentPublication_ms();
-      DecisionLocomotionIntentAgeSum_ms() += decision_age_ms;
-      ++DecisionLocomotionIntentAgeCount();
-      if (decision_age_ms > DecisionLocomotionIntentAgeMax_ms()) {
-        DecisionLocomotionIntentAgeMax_ms() = decision_age_ms;
-      }
-    }
-    const int now_ms = static_cast<int>(match->GetActualTime_ms());
-    RecordPlayerTickGateMismatch(
-        legacy_gate, simulation_gate,
-        CastPlayer()->IsSimulationMovementCommandInitialized(),
-        static_cast<int>(CastPlayer()->GetSimulationMovementCommandSource()),
-        simulation_command.desiredFunctionType,
-        simulation_command.useDesiredMovement,
-        CastPlayer()->GetLastDirectMovementIntentPublication_ms() < 0
-            ? -1 : now_ms - CastPlayer()->GetLastDirectMovementIntentPublication_ms(),
-        CastPlayer()->GetLastResetSituation_ms() < 0
-            ? -1 : now_ms - CastPlayer()->GetLastResetSituation_ms());
-    if (!legacy_gate && simulation_gate) {
-      ++SimulationOnlyGateMismatchForResetContext(
-          CastPlayer()->GetLastResetSituationAuditContext());
-    }
-  }
+  // The legacy gate-versus-compatibility-source measurement lived here. Execution
+  // authority is now the decision intent, so comparing the animation command
+  // against the decision clock measures two compatibility slots and says nothing
+  // about what executes.
 
   // step 2: one controller query per tick, owned at tick scope, so a continuity
   // repair can run before this tick's locomotion execution and the later

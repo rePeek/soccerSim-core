@@ -336,12 +336,6 @@ class PlayerBase {
     // animation root-motion path and use the simulation-owned procedural
     // movement model instead. See PlayerActionState::IsPureLocomotion().
     bool IsEligibleForProceduralLocomotion() const;
-    // Simulation-owned execution gate for Movement locomotion. This deliberately
-    // does not consult Humanoid::currentAnim.originatingCommand.
-    bool HasSimulationLocomotionIntent() const;
-    LocomotionCommandSource GetSimulationMovementCommandSource() const {
-      return movementCommandState.source;
-    }
     bool IsSimulationMovementCommandInitialized() const {
       return movementCommandState.initialized;
     }
@@ -370,12 +364,6 @@ class PlayerBase {
     const PlayerActionState &GetSimulationActionState() const {
       DO_VALIDATION;
       return actionState;
-    }
-    // H3e4f-a: the Movement command procedural locomotion consumes. The legacy
-    // animation scheduler still produces it; storage already belongs here.
-    const PlayerCommand &GetSimulationMovementCommand() const {
-      DO_VALIDATION;
-      return movementCommandState.command;
     }
     void SetSimulationMovementCommand(const PlayerCommand &command);
     void SetSimulationMovementCommand(const PlayerCommand &command,
