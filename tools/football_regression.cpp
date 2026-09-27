@@ -2253,6 +2253,22 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
               << " simulation_only_ticks="
               << SimulationOnlyGateMismatchForResetContext(context) << "\n";
   }
+  std::cout << "  reset_seed_episode started=" << ResetSeedEpisodesStarted()
+            << " seed_active_at_end=" << (ResetSeedAudit().active ? 1 : 0)
+            << " consumed_before_direct="
+            << ResetSeedEpisodesConsumedBeforeDirect()
+            << " direct_first_violations=" << ResetSeedEpisodesDirectFirst()
+            << " foreign_consume_violations="
+            << ResetSeedForeignConsumeViolations()
+            << " consume_to_direct_delay_mean/max=";
+  { const std::vector<int> &delays = ResetSeedConsumeToDirectDelay_ms();
+    int sum = 0, maximum = -1;
+    for (int value : delays) { sum += value; if (value > maximum) maximum = value; }
+    std::cout << (delays.empty() ? -1 : sum / static_cast<int>(delays.size()))
+              << "/" << maximum; }
+  std::cout << " last_episode_context="
+            << ResetSituationCallContextName(ResetSeedAudit().context)
+            << " last_consumes=" << ResetSeedAudit().locomotion_consumes << "\n";
   dump_lifecycle_consumption(kBeginRetainSelection);
   { std::vector<int> lives = ReanchorLifetime_ms();
     std::cout << "  reanchor_lifetime_ms n=" << lives.size() << " p50=" << percentile(lives, 0.50) << " p90=" << percentile(lives, 0.90) << " p99=" << percentile(lives, 0.99) << " max=" << percentile(lives, 1.0) << " locomotion_ticks_p50=" << (percentile(lives, 0.50) / 10) << " locomotion_ticks_max=" << (percentile(lives, 1.0) / 10) << "\n"; }

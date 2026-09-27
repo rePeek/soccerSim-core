@@ -100,6 +100,25 @@ int &RestartCarriedCommandForward();
 int &RestartConstructedCommand();
 int &RetainCarriedCommandForward();
 int &RetainConstructedCommand();
+// H3e4f-g0b-reset-seed-episode: transient, never serialized. It proves that a
+// runtime reset's neutral seed is consumed by locomotion before the next
+// controller publication, instead of relying on a golden call index.
+struct ResetSeedAuditEpisode {
+  bool active = false;
+  int context = -1;
+  int started_ms = -1;
+  int first_consume_ms = -1;
+  int direct_publish_ms = -1;
+  int locomotion_consumes = 0;
+  int foreign_consumes = 0;
+  int consumes_before_direct = 0;
+};
+ResetSeedAuditEpisode &ResetSeedAudit();
+int &ResetSeedEpisodesStarted();
+int &ResetSeedEpisodesConsumedBeforeDirect();
+int &ResetSeedEpisodesDirectFirst();
+int &ResetSeedForeignConsumeViolations();
+std::vector<int> &ResetSeedConsumeToDirectDelay_ms();
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"

@@ -71,6 +71,18 @@ const char *ResetSituationCallContextName(int context) {
     default: return "unknown";
   }
 }
+ResetSeedAuditEpisode &ResetSeedAudit() {
+  static ResetSeedAuditEpisode episode;
+  return episode;
+}
+int &ResetSeedEpisodesStarted() { static int value = 0; return value; }
+int &ResetSeedEpisodesConsumedBeforeDirect() { static int value = 0; return value; }
+int &ResetSeedEpisodesDirectFirst() { static int value = 0; return value; }
+int &ResetSeedForeignConsumeViolations() { static int value = 0; return value; }
+std::vector<int> &ResetSeedConsumeToDirectDelay_ms() {
+  static std::vector<int> values;
+  return values;
+}
 
 const char *ActionBeginReasonName(int reason) {
   switch (reason) {
@@ -253,6 +265,24 @@ void PlayerBase::SetSimulationMovementCommand(
   if (source == LocomotionCommandSource::DirectMovementIntent) {
     CompleteLifecycleOverrideConsumptionAudit();
   }
+  if (source == LocomotionCommandSource::SimulationSeed) {
+    if (ResetSeedAudit().active) ++ResetSeedEpisodesDirectFirst();
+    ResetSeedAudit() = ResetSeedAuditEpisode();
+    ResetSeedAudit().active = true;
+    ResetSeedAudit().context = lastResetSituationAuditContext;
+    ResetSeedAudit().started_ms = static_cast<int>(match->GetActualTime_ms());
+    ++ResetSeedEpisodesStarted();
+  } else if (source == LocomotionCommandSource::DirectMovementIntent &&
+             ResetSeedAudit().active) {
+    ResetSeedAuditEpisode &episode = ResetSeedAudit();
+    episode.direct_publish_ms = static_cast<int>(match->GetActualTime_ms());
+    if (episode.locomotion_consumes > 0) {
+      ++ResetSeedEpisodesConsumedBeforeDirect();
+      ResetSeedConsumeToDirectDelay_ms().push_back(
+          episode.direct_publish_ms - episode.first_consume_ms);
+    }
+    episode.active = false;
+  }
 }
 
 bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
@@ -318,6 +348,18 @@ void PlayerBase::NoteLocomotionCommandConsumed() {
   if (episode_active) ++episode_ticks;
   DO_VALIDATION;
   NoteLifecycleOverrideConsumptionAudit();
+  if (ResetSeedAudit().active) {
+    if (movementCommandState.source != LocomotionCommandSource::SimulationSeed) {
+      ++ResetSeedAudit().foreign_consumes;
+      ++ResetSeedForeignConsumeViolations();
+    } else {
+      if (ResetSeedAudit().locomotion_consumes == 0) {
+        ResetSeedAudit().first_consume_ms =
+            static_cast<int>(match->GetActualTime_ms());
+      }
+      ++ResetSeedAudit().locomotion_consumes;
+    }
+  }
   if (!reanchorPendingConsumption) return;
   ++ReanchorConsumedBeforeRefresh();
   reanchorPendingConsumption = false;
