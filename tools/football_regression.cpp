@@ -1202,25 +1202,25 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
       {1, -1, Position(0.0f, 0.0f, 0.110616393f, true),
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
-       UINT64_C(13202142623440833809)},
+       UINT64_C(2178283517849602577)},
       // H3e1c-3c: first canonical trajectory with pure locomotion as the
       // simulation authority. The old animation-root-motion values are
       // expected to diverge and are deliberately replaced.
       // P1b/P1c: the planner consumes the measured capability model, retained
       // between scheduled refreshes, so these are the first snapshots under that
       // belief.
-      {100, 58, Position(0.462113768f, 0.0217394419f, 0.113525636f, true),
+      {100, 58, Position(0.488125414f, 0.0186115876f, 0.103860237f, true),
        Position(-0.80509001f, -0.00180166762f, 0.0f, true),
        Position(0.990808845f, 0.0f, 0.0f, true), 0, 0, true,
-       UINT64_C(17893560351842221785)},
-      {500, 416, Position(0.742008269f, -0.00573985046f, 0.117089055f, true),
-       Position(-0.829069614f, 0.00295402529f, 0.0f, true),
-       Position(0.984464407f, 0.00100467331f, 0.0f, true), 0, 0, true,
-       UINT64_C(5615206326846964008)},
-      {1000, 916, Position(0.553627729f, -0.18668662f, 0.11670284f, true),
-       Position(-0.829069614f, 0.00295402529f, 0.0f, true),
-       Position(0.972983778f, -0.015290943f, 0.0f, true), 0, 0, true,
-       UINT64_C(16066409769918560513)},
+       UINT64_C(6301496883535622849)},
+      {500, 416, Position(-0.061128471f, 0.141759977f, 0.127197847f, true),
+       Position(-0.904993355f, 0.0202295836f, 0.0f, true),
+       Position(0.842858136f, 0.0103787268f, 0.0f, true), 0, 0, true,
+       UINT64_C(434351511208633343)},
+      {1000, 874, Position(0.811309338f, 0.194073677f, 0.110616393f, true),
+       Position(-0.990808845f, 0.0f, 0.0f, true),
+       Position(0.990808845f, 0.0f, 0.0f, true), 0, 0, false,
+       UINT64_C(70747660585618726)},
   };
 
 
@@ -2336,6 +2336,12 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
           "reentry audit: a decision age was negative inside a clean epoch");
   std::cout << "  locomotion_negative_decision_age_samples="
             << LocomotionNegativeDecisionAgeSamples() << "\n";
+  std::cout << "  continuity_repair attempts=" << ContinuityRepairAttempts()
+            << " publications=" << ContinuityRepairPublications()
+            << " candidates_missing=" << ContinuityRepairCandidatesMissing()
+            << " cause[cadence,legacy,repair]=" << DecisionPublicationCauseCount(0)
+            << "," << DecisionPublicationCauseCount(1)
+            << "," << DecisionPublicationCauseCount(2) << "\n";
   std::cout << "  decision_publication via_simulation_cadence="
             << DecisionPublicationViaSimulationCadence()
             << " via_legacy_opportunity_only="

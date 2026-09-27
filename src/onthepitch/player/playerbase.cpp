@@ -106,6 +106,11 @@ int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
   return records[source];
 }
 int &LocomotionActionExitCount() { static int value = 0; return value; }
+int &ContinuityRepairAttempts() { static int value = 0; return value; }
+int &ContinuityRepairPublications() { static int value = 0; return value; }
+int &ContinuityRepairCandidatesMissing() { static int value = 0; return value; }
+int &DecisionPublicationCauseCount(int cause) { static int records[3] = {}; return records[cause]; }
+void PlayerBase::NoteDecisionPublicationCause(int cause) { pendingPublicationCause = cause; }
 int &DecisionPublicationViaSimulationCadence() { static int value = 0; return value; }
 int &DecisionPublicationViaLegacyOpportunityOnly() { static int value = 0; return value; }
 int &DecisionPublicationWhileIneligible() { static int value = 0; return value; }
@@ -418,7 +423,10 @@ void PlayerBase::SetSimulationMovementCommand(
       // Cause split without changing the player path: a publication on a tick
       // where the simulation cadence was not due can only have come from the
       // animation lifecycle's query opportunity.
-      lastPublicationViaSimulationCadence = locomotionIntentDueThisTick;
+      lastPublicationViaSimulationCadence = pendingPublicationCause == 0;
+      ++DecisionPublicationCauseCount(pendingPublicationCause);
+      pendingPublicationCause = 0;
+      lastPublicationWhileIneligible =
       lastPublicationWhileIneligible =
           !IsEligibleForProceduralLocomotion();
       if (lastPublicationViaSimulationCadence) {

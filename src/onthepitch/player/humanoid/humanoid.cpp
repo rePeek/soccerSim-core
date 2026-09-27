@@ -208,6 +208,23 @@ void Humanoid::Process() {
     return false;
   };
 
+  // step 2: continuity repair runs before this tick's locomotion execution. The
+  // predicate is simulation eligibility plus a stale epoch, deliberately not the
+  // animation gate: the decision state is repaired here while the legacy gate
+  // still decides whether movement actually executes this tick.
+  if (CastPlayer()->IsEligibleForProceduralLocomotion() &&
+      CastPlayer()->DecisionLocomotionEpochIsStale()) {
+    ++ContinuityRepairAttempts();
+    EnsureControllerQuery();
+    CastPlayer()->NoteDecisionPublicationCause(2);
+    if (PublishControllerMovementOnce()) {
+      ++ContinuityRepairPublications();
+    } else {
+      ++ContinuityRepairCandidatesMissing();
+    }
+    CastPlayer()->NoteDecisionPublicationCause(0);
+  }
+
   CalculateSpatialState();
   spatialState.positionOffsetMovement = Vector3(0);
   // H3e1c-3c: pure locomotion ticks are produced by the simulation; every
@@ -332,6 +349,10 @@ void Humanoid::Process() {
   const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
   const bool simulation_due =
       CastPlayer()->NoteLocomotionIntentCadence(legacy_opportunity);
+  // Tag the cause of any publication on this path, so a legacy-driven query is
+  // not credited to the simulation cadence in the audit.
+  CastPlayer()->NoteDecisionPublicationCause(
+      legacy_opportunity && !simulation_due ? 1 : 0);
   if (legacy_opportunity || simulation_due) {
     DO_VALIDATION;
     PlayerCommandQueue commandQueue;      // selection queue

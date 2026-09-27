@@ -187,6 +187,14 @@ int &ReentryFreshViaSimulationCadence();
 int &ReentryFreshViaLegacyOpportunityOnly();
 int &ReentryFreshWhileIneligible();
 int &LocomotionNegativeDecisionAgeSamples();
+// step 2: continuity repair trigger telemetry. attempts records the predicate
+// firing, so a repair on a non-stale epoch would show as a widened trigger.
+int &ContinuityRepairAttempts();
+int &ContinuityRepairPublications();
+int &ContinuityRepairCandidatesMissing();
+// Explicit publication cause, so a repair publication is not mislabelled as an
+// animation-driven one. 0 cadence, 1 legacy opportunity only, 2 continuity repair.
+int &DecisionPublicationCauseCount(int cause);
 int &LocomotionReentryMeasurementEpoch();
 void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
@@ -237,6 +245,8 @@ class PlayerBase {
       return decisionLocomotionState.publishedEpoch !=
              decisionLocomotionState.continuityEpoch;
     }
+    // Cause of the next Direct publication (0 cadence, 1 legacy only, 2 repair).
+    void NoteDecisionPublicationCause(int cause);
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
@@ -421,6 +431,10 @@ class PlayerBase {
     int lifecycleOverrideAuditStart_ms = 0;
     int lifecycleOverrideAuditTicks = 0;
     int lifecycleOverrideAuditFirstConsumeDelay_ms = -1;
+    // Explicit cause of the next Direct publication. A continuity repair runs
+    // before NoteLocomotionIntentCadence, so deriving the cause from that flag
+    // would mislabel a repair publication as an animation-driven one.
+    int pendingPublicationCause = 0;
     int lastDirectMovementIntentPublication_ms = -1;
     int lastResetSituation_ms = -1;
     bool hasProcessedPlayerTick = false;
