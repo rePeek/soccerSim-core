@@ -2101,9 +2101,18 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   std::cout << "  reanchor movement=" << MovementCommandReanchors() << " equal=" << MovementCommandReanchorsEqual() << " materially_different=" << MovementCommandReanchorsMateriallyDifferent() << " nonmovement=" << NonMovementCommandReanchors() << "\n";
   std::cout << "  reanchor_fate pending=" << ReanchorPendingSet() << " consumed_before_refresh=" << ReanchorConsumedBeforeRefresh() << " superseded_by_refresh=" << ReanchorSupersededByRefresh() << "\n";
   std::cout << "  provenance reset_carried=" << RestartCarriedCommandForward() << " reset_constructed=" << RestartConstructedCommand() << " retain_carried=" << RetainCarriedCommandForward() << " retain_constructed=" << RetainConstructedCommand() << "\n";
-  std::cout << "  eligibility_gain_refreshes=" << HumanoidEligibilityGainRefreshes()
-            << " candidates_missing=" << HumanoidEligibilityGainCandidatesMissing()
+  const int refresh_commits = HumanoidIntentRefreshCommits();
+  const int successful_publications =
+      HumanoidIntentRefreshes() + HumanoidEligibilityGainRefreshes();
+  std::cout << "  intent_refreshes=" << HumanoidIntentRefreshes()
+            << " candidates_missing=" << HumanoidIntentCandidatesMissing()
+            << " gain_refreshes=" << HumanoidEligibilityGainRefreshes()
+            << " gain_missing=" << HumanoidEligibilityGainCandidatesMissing()
+            << " commits=" << refresh_commits
+            << " commits_minus_publications=" << (refresh_commits - successful_publications)
             << "\n";
+  Require(refresh_commits == successful_publications,
+          "locomotion intent: a scheduler refresh was committed without a publication");
   for (int reason = 0; reason < kBeginReasonCount; ++reason) {
     const ReanchorResidency &record = ReanchorResidencyFor(reason);
     if (record.n == 0) continue;

@@ -96,6 +96,9 @@ int &PlayerLocomotionIntentDueIneligibleTicks() { static int value = 0; return v
 int &PlayerLocomotionIntentConsumedTicks() { static int value = 0; return value; }
 int &HumanoidEligibilityGainRefreshes() { static int value = 0; return value; }
 int &HumanoidEligibilityGainCandidatesMissing() { static int value = 0; return value; }
+int &HumanoidIntentRefreshes() { static int value = 0; return value; }
+int &HumanoidIntentCandidatesMissing() { static int value = 0; return value; }
+int &HumanoidIntentRefreshCommits() { static int value = 0; return value; }
 int &LegacyMovementOverwriteAttempts() { static int value = 0; return value; }
 int &DirectVsLegacyCommandEqual() { static int value = 0; return value; }
 int &DirectVsLegacyCommandMateriallyDifferent() { static int value = 0; return value; }
@@ -349,12 +352,11 @@ void HumanoidBase::Process() {
     if (simulation_due && !trip_local_queue) {
       EnsureControllerQuery();
       if (PublishMovementIntentFromQueue(player, commandQueue)) {
-        ++HumanoidEligibilityGainRefreshes();
-      } else {
-        ++HumanoidEligibilityGainCandidatesMissing();
+        ++HumanoidIntentRefreshes();
         player->CommitLocomotionIntentRefresh();
+      } else {
+        ++HumanoidIntentCandidatesMissing();
       }
-      player->CommitLocomotionIntentRefresh();
     }
 
     if (legacy_opportunity) {
@@ -386,9 +388,9 @@ void HumanoidBase::Process() {
         controller_queried) {
       if (PublishMovementIntentFromQueue(player, commandQueue)) {
         ++HumanoidEligibilityGainRefreshes();
+        player->CommitLocomotionIntentRefresh();
       } else {
         ++HumanoidEligibilityGainCandidatesMissing();
-        player->CommitLocomotionIntentRefresh();
       }
     }
     if (interruptAnim != e_InterruptAnim_ReQueue && !found) {

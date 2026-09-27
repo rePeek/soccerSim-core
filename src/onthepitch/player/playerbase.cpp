@@ -234,6 +234,7 @@ bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
 }
 
 void PlayerBase::CommitLocomotionIntentRefresh() {
+  ++HumanoidIntentRefreshCommits();
   DO_VALIDATION;
   // How long a legacy re-anchor value stayed in force until the simulation
   // refreshed: the interval that decides whether replacing it needs a seed or
