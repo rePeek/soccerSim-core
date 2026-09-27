@@ -2249,7 +2249,9 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
     std::cout << "  reset_situation_context "
               << ResetSituationCallContextName(context)
               << " material_reanchors="
-              << MaterialResetSituationReanchorsForContext(context) << "\n";
+              << MaterialResetSituationReanchorsForContext(context)
+              << " simulation_only_ticks="
+              << SimulationOnlyGateMismatchForResetContext(context) << "\n";
   }
   dump_lifecycle_consumption(kBeginRetainSelection);
   { std::vector<int> lives = ReanchorLifetime_ms();

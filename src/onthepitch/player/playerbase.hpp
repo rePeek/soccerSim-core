@@ -40,13 +40,16 @@ enum ActionBeginReason {
 // Caller scope for the remaining ResetSituation raw Movement policy. This is
 // observation only; Deactivate's double reset is deliberately not changed here.
 enum ResetSituationCallContext {
-  kResetSituationNormal = 0,
+  kResetSituationUnspecified = 0,
+  kResetSituationInitialBeforeFirstPlayerTick,
+  kResetSituationRuntime,
   kResetSituationPlayerDeactivateFirst,
   kResetSituationBaseDeactivateSecond,
   kResetSituationCallContextCount
 };
 int &MaterialResetSituationReanchorsForContext(int context);
 const char *ResetSituationCallContextName(int context);
+int &SimulationOnlyGateMismatchForResetContext(int context);
 struct ReanchorResidency {
   int n = 0;
   std::vector<int> lifetime_ms;
@@ -180,6 +183,10 @@ class PlayerBase {
       return lastDirectMovementIntentPublication_ms;
     }
     int GetLastResetSituation_ms() const { return lastResetSituation_ms; }
+    int GetLastResetSituationAuditContext() const {
+      return lastResetSituationAuditContext;
+    }
+    void NoteProcessedPlayerTick() { hasProcessedPlayerTick = true; }
     const PlayerKinematicState &GetKinematicState() const {
       DO_VALIDATION;
       return kinematicState;
@@ -310,6 +317,9 @@ class PlayerBase {
     int lifecycleOverrideAuditFirstConsumeDelay_ms = -1;
     int lastDirectMovementIntentPublication_ms = -1;
     int lastResetSituation_ms = -1;
+    bool hasProcessedPlayerTick = false;
+    int lastResetSituationAuditContext =
+        kResetSituationInitialBeforeFirstPlayerTick;
     int tr_query_gen = 0;
     int tr_last_query_ms = -1;
     int tr_last_query_due = 0;
@@ -318,7 +328,7 @@ class PlayerBase {
     int tr_last_query_retains = 0;
     int tr_last_query_had_candidate = 0;
     int reanchorPendingSince_ms = -1;
-    int resetSituationAuditContext = kResetSituationNormal;
+    int resetSituationAuditContext = kResetSituationUnspecified;
     int nextActionBeginReason = kBeginMovementToMovement;
     bool episode_active = false;
     int episode_active_reason = 0;

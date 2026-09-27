@@ -85,6 +85,7 @@ bool _PassFiddlingEnabled() {
 
 void Humanoid::Process() {
   DO_VALIDATION;
+  CastPlayer()->NoteProcessedPlayerTick();
   auto currentMentalImage = match->GetMentalImage(mentalImageTime);
   // this might be the solution to long-term imbalance
   decayingPositionOffset *= 0.95f;
@@ -119,6 +120,10 @@ void Humanoid::Process() {
             ? -1 : now_ms - CastPlayer()->GetLastDirectMovementIntentPublication_ms(),
         CastPlayer()->GetLastResetSituation_ms() < 0
             ? -1 : now_ms - CastPlayer()->GetLastResetSituation_ms());
+    if (!legacy_gate && simulation_gate) {
+      ++SimulationOnlyGateMismatchForResetContext(
+          CastPlayer()->GetLastResetSituationAuditContext());
+    }
   }
 
   CalculateSpatialState();

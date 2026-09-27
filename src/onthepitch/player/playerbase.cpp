@@ -57,9 +57,15 @@ int &MaterialResetSituationReanchorsForContext(int context) {
   return records[context];
 }
 
+int &SimulationOnlyGateMismatchForResetContext(int context) {
+  static int records[kResetSituationCallContextCount] = {};
+  return records[context];
+}
+
 const char *ResetSituationCallContextName(int context) {
   switch (context) {
-    case kResetSituationNormal: return "normal";
+    case kResetSituationInitialBeforeFirstPlayerTick: return "initial";
+    case kResetSituationRuntime: return "runtime";
     case kResetSituationPlayerDeactivateFirst: return "player_deactivate_first";
     case kResetSituationBaseDeactivateSecond: return "base_deactivate_second";
     default: return "unknown";
@@ -817,13 +823,19 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   if (IsActive()) {
     nextActionBeginReason = kBeginResetSituation;
     lastResetSituation_ms = static_cast<int>(match->GetActualTime_ms());
+    if (resetSituationAuditContext == kResetSituationUnspecified) {
+      resetSituationAuditContext = hasProcessedPlayerTick
+          ? kResetSituationRuntime
+          : kResetSituationInitialBeforeFirstPlayerTick;
+    }
+    lastResetSituationAuditContext = resetSituationAuditContext;
     humanoid->ResetSituation(focusPos);
     SynchronizeKinematicState();
     BeginSimulationAction();
     ResetKinematicShadow();
   }
   if (GetController()) GetController()->Reset();
-  resetSituationAuditContext = kResetSituationNormal;
+  resetSituationAuditContext = kResetSituationUnspecified;
 }
 
 void PlayerBase::ProcessStateBase(EnvState *state) {
