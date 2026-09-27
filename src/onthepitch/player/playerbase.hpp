@@ -131,12 +131,26 @@ std::vector<int> &ResetSeedConsumeToDirectDelay_ms();
 struct PlayerDecisionLocomotionState {
   PlayerCommand command;
   bool initialized = false;
-  unsigned long long generation = 0;
   // H3e4f-g0b-continuity-epoch: validity is a continuity property, not a time
   // one. The epoch advances when the world leaves locomotion continuity, so an
-  // intent published in an earlier epoch must not drive the new one.
+  // intent published in an earlier epoch must not drive the new one. These two
+  // epochs decide whether a continuity repair queries the controller, so they
+  // are gameplay state and are serialized.
   unsigned long long continuityEpoch = 0;
   unsigned long long publishedEpoch = 0;
+  // Continuity tracking. Gameplay, not audit: leaving eligibility advances the
+  // epoch.
+  bool wasEligibleLastTick = false;
+  bool continuityStarted = false;
+  void ProcessState(EnvState *state) {
+    DO_VALIDATION;
+    command.ProcessState(state);
+    state->process(initialized);
+    state->process(continuityEpoch);
+    state->process(publishedEpoch);
+    state->process(wasEligibleLastTick);
+    state->process(continuityStarted);
+  }
 };
 int &DecisionLocomotionIntentPresentTicks();
 int &DecisionLocomotionIntentMissingTicks();
@@ -239,6 +253,9 @@ class PlayerBase {
     }
     void NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
                                    bool scheduler_due, int now_ms);
+    // Gameplay continuity transition: advances the epoch when the actor stops
+    // being eligible for procedural locomotion. Called once per player tick.
+    void AdvanceLocomotionContinuity(bool eligible);
     // step 2 trigger: this epoch's locomotion state has no decision publication,
     // so an older intent must not drive execution before a fresh decision.
     bool DecisionLocomotionEpochIsStale() const {
@@ -435,6 +452,10 @@ class PlayerBase {
     // before NoteLocomotionIntentCadence, so deriving the cause from that flag
     // would mislabel a repair publication as an animation-driven one.
     int pendingPublicationCause = 0;
+    // Audit generation: bumped on every Direct publication for re-entry freshness
+    // measurement. Deliberately transient so telemetry cannot change the save-state
+    // contract; the gameplay epochs above are serialized instead.
+    unsigned long long decisionLocomotionAuditGeneration = 0;
     int lastDirectMovementIntentPublication_ms = -1;
     int lastResetSituation_ms = -1;
     bool hasProcessedPlayerTick = false;
@@ -462,7 +483,7 @@ class PlayerBase {
     bool lastPublicationWhileIneligible = false;
     unsigned long long decisionGenerationAtLocomotionExit = 0;
     int GetDecisionLocomotionIntentGeneration() const {
-      return static_cast<int>(decisionLocomotionState.generation);
+      return static_cast<int>(decisionLocomotionAuditGeneration);
     }
     int tr_last_query_ms = -1;
     int tr_last_query_due = 0;

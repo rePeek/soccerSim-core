@@ -137,6 +137,20 @@ void ResetLocomotionReentryAudits() {
   ++LocomotionReentryMeasurementEpoch();
 }
 
+void PlayerBase::AdvanceLocomotionContinuity(bool eligible) {
+  // Gameplay transition. The audit below observes eligibility and must never
+  // decide the epoch, or telemetry bookkeeping would drive a controller query.
+  if (!decisionLocomotionState.continuityStarted) {
+    decisionLocomotionState.continuityStarted = true;
+    decisionLocomotionState.wasEligibleLastTick = eligible;
+    return;
+  }
+  if (decisionLocomotionState.wasEligibleLastTick && !eligible) {
+    ++decisionLocomotionState.continuityEpoch;
+  }
+  decisionLocomotionState.wasEligibleLastTick = eligible;
+}
+
 void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
                                           bool scheduler_due, int now_ms) {
   // Measurement epoch: telemetry is transient and not serialized, so state
@@ -147,7 +161,7 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
     reentryAuditStarted = false;
     locomotionExitRecorded = false;
   }
-  const unsigned long long generation = decisionLocomotionState.generation;
+  const unsigned long long generation = decisionLocomotionAuditGeneration;
   if (!reentryAuditStarted) {
     reentryAuditStarted = true;
     wasPureLocomotionLastTick = eligible;
@@ -160,8 +174,8 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
     if (wasPureLocomotionLastTick) {
       decisionGenerationAtLocomotionExit = generation;
       locomotionExitRecorded = true;
-      // Leaving locomotion is a continuity break.
-      ++decisionLocomotionState.continuityEpoch;
+      // The epoch itself is advanced by AdvanceLocomotionContinuity(); this is
+      // observation only.
       ++LocomotionActionExitCount();
     }
     wasPureLocomotionLastTick = false;
@@ -427,7 +441,6 @@ void PlayerBase::SetSimulationMovementCommand(
       ++DecisionPublicationCauseCount(pendingPublicationCause);
       pendingPublicationCause = 0;
       lastPublicationWhileIneligible =
-      lastPublicationWhileIneligible =
           !IsEligibleForProceduralLocomotion();
       if (lastPublicationViaSimulationCadence) {
         ++DecisionPublicationViaSimulationCadence();
@@ -440,7 +453,7 @@ void PlayerBase::SetSimulationMovementCommand(
       // The decision-owned shadow is written here and nowhere else.
       decisionLocomotionState.command = command;
       decisionLocomotionState.initialized = true;
-      ++decisionLocomotionState.generation;
+      ++decisionLocomotionAuditGeneration;
       decisionLocomotionState.publishedEpoch =
           decisionLocomotionState.continuityEpoch;
       break;
@@ -1092,7 +1105,7 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
     nextActionBeginReason = kBeginResetSituation;
     // The reset itself is the discontinuity, so it anchors the generation that
     // a later reset re-entry compares against.
-    resetDecisionGeneration = decisionLocomotionState.generation;
+    resetDecisionGeneration = decisionLocomotionAuditGeneration;
     resetGenerationAnchorValid = true;
     lastResetSituation_ms = static_cast<int>(match->GetActualTime_ms());
     resetSinceLastPlayerTick = true;
@@ -1125,6 +1138,11 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   CheckSimulationKinematicOracle();
   actionState.ProcessState(state);
   movementCommandState.ProcessState(state);
+  // The continuity epoch decides whether a repair queries the controller, so it
+  // is gameplay state and must survive save/load exactly. Its tracking booleans
+  // belong to the same transition; the audit generation is deliberately excluded,
+  // because telemetry must not change this contract.
+  decisionLocomotionState.ProcessState(state);
   // c2b: the refresh clock decides when the controller is queried, so it is
   // gameplay state and must survive save/load exactly.
   locomotionIntentScheduler.ProcessState(state);

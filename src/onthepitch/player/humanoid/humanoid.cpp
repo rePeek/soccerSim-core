@@ -104,6 +104,10 @@ void Humanoid::Process() {
   const PlayerKinematicState tickStartState = player->GetKinematicState();
   // gate-mismatch-context: exactly one attribution per real Player tick, before
   // any of this tick's CalculateSpatialState/ProjectMovementState evaluations.
+  // Gameplay continuity advances before the audit observes this tick, so the
+  // epoch is decided by eligibility rather than by telemetry bookkeeping.
+  CastPlayer()->AdvanceLocomotionContinuity(
+      CastPlayer()->IsEligibleForProceduralLocomotion());
   // re-entry audit must see every real player tick, eligible or not, because
   // leaving locomotion is what arms the next re-entry classification.
   CastPlayer()->NoteLocomotionReentryTick(
