@@ -167,6 +167,9 @@ class PlayerBase {
     // animation root-motion path and use the simulation-owned procedural
     // movement model instead. See PlayerActionState::IsPureLocomotion().
     bool IsEligibleForProceduralLocomotion() const;
+    // Simulation-owned execution gate for Movement locomotion. This deliberately
+    // does not consult Humanoid::currentAnim.originatingCommand.
+    bool HasSimulationLocomotionIntent() const;
     const PlayerKinematicState &GetKinematicState() const {
       DO_VALIDATION;
       return kinematicState;

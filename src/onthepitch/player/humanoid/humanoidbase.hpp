@@ -35,6 +35,12 @@ using namespace blunted;
 int &HumanoidProceduralMovementTicks();
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
+// reset-seed-prep: compare animation and simulation locomotion gates while the
+// legacy gate remains active. Count only action-eligible actor evaluations.
+int &HumanoidLocomotionGateBothTrue();
+int &HumanoidLocomotionGateLegacyOnly();
+int &HumanoidLocomotionGateSimulationOnly();
+int &HumanoidLocomotionGateBothFalse();
 // Diagnostics for the movement-command shadow (library-side single instance).
 int &PlayerMovementCommandNonMovementTicks();
 int &PlayerMovementCommandDirectAdoptions();

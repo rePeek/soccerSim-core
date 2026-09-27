@@ -659,6 +659,13 @@ bool PlayerBase::IsEligibleForProceduralLocomotion() const {
   return actionState.IsPureLocomotion(match->GetBallRetainer() == this);
 }
 
+bool PlayerBase::HasSimulationLocomotionIntent() const {
+  return movementCommandState.initialized &&
+         movementCommandState.command.desiredFunctionType ==
+             e_FunctionType_Movement &&
+         movementCommandState.command.useDesiredMovement;
+}
+
 void PlayerBase::ResetKinematicShadow() {
   DO_VALIDATION;
   kinematicShadow = kinematicState;

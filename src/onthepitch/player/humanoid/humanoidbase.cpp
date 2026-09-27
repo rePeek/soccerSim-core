@@ -70,6 +70,10 @@ const Vector3 preferredDirectionVecs[] = {
 int &HumanoidProceduralMovementTicks() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement() { static int value = 0; return value; }
+int &HumanoidLocomotionGateBothTrue() { static int value = 0; return value; }
+int &HumanoidLocomotionGateLegacyOnly() { static int value = 0; return value; }
+int &HumanoidLocomotionGateSimulationOnly() { static int value = 0; return value; }
+int &HumanoidLocomotionGateBothFalse() { static int value = 0; return value; }
 int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return value; }
 
 // 4b: one place that turns a controller queue into a published locomotion intent.
@@ -1006,8 +1010,16 @@ Vector3 HumanoidBase::CalculateOutgoingMovement(const std::vector<Vector3> &posi
 }
 
 bool HumanoidBase::UsesProceduralLocomotion() const {
-  return player && player->IsEligibleForProceduralLocomotion() &&
-         currentAnim.originatingCommand.useDesiredMovement;
+  if (!player || !player->IsEligibleForProceduralLocomotion()) return false;
+  const bool legacy_gate = currentAnim.originatingCommand.useDesiredMovement;
+  const bool simulation_gate = player->HasSimulationLocomotionIntent();
+  if (legacy_gate && simulation_gate) ++HumanoidLocomotionGateBothTrue();
+  else if (legacy_gate) ++HumanoidLocomotionGateLegacyOnly();
+  else if (simulation_gate) ++HumanoidLocomotionGateSimulationOnly();
+  else ++HumanoidLocomotionGateBothFalse();
+  // reset-seed-prep: retain legacy behavior until the equivalence assertion has
+  // proved that the simulation gate does not independently widen execution.
+  return legacy_gate;
 }
 
 

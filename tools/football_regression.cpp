@@ -2078,6 +2078,13 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   // reported because it is a real property of the legacy scheduler.
   std::cout << "  non_movement_locomotion_ticks="
             << PlayerMovementCommandNonMovementTicks() << "\n";
+  std::cout << "  locomotion_gate both_true="
+            << HumanoidLocomotionGateBothTrue()
+            << " legacy_only=" << HumanoidLocomotionGateLegacyOnly()
+            << " simulation_only=" << HumanoidLocomotionGateSimulationOnly()
+            << " both_false=" << HumanoidLocomotionGateBothFalse() << "\n";
+  // Observation only: nonzero mismatches mean the execution-gate migration is
+  // independently semantic and must be audited before it can be flipped.
   std::cout << "  command_source direct_movement_intent="
             << (PlayerMovementCommandDirectAdoptions() - direct_before)
             << " simulation_fallback_intent="
