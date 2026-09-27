@@ -14,9 +14,14 @@ struct PlayerBodyFacingInput {
   Vector3 desiredFacing = Vector3(0, -1, 0);
 };
 
+// H3e3b-prep5 selection from the event-based shadow grid. 6 rad/s gives a
+// 90-degree torso response in about 262 ms; 90 degrees permits side-looking
+// without making a long-lived backwards torso pose a valid target.
+constexpr float kBodyFacingMaxTurnRate = 6.0f;
+constexpr float kBodyFacingMaxRelativeAngle = pi * 0.5f;
 struct PlayerBodyFacingParameters {
-  float maxTurnRate = 6.0f;       // radians per second
-  float maxRelativeAngle = pi;    // radians from locomotion facing
+  float maxTurnRate = kBodyFacingMaxTurnRate;       // radians per second
+  float maxRelativeAngle = kBodyFacingMaxRelativeAngle;  // radians from facing
 };
 
 class PlayerBodyFacing {
