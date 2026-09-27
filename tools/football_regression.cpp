@@ -2101,6 +2101,9 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   std::cout << "  reanchor movement=" << MovementCommandReanchors() << " equal=" << MovementCommandReanchorsEqual() << " materially_different=" << MovementCommandReanchorsMateriallyDifferent() << " nonmovement=" << NonMovementCommandReanchors() << "\n";
   std::cout << "  reanchor_fate pending=" << ReanchorPendingSet() << " consumed_before_refresh=" << ReanchorConsumedBeforeRefresh() << " superseded_by_refresh=" << ReanchorSupersededByRefresh() << "\n";
   std::cout << "  provenance reset_carried=" << RestartCarriedCommandForward() << " reset_constructed=" << RestartConstructedCommand() << " retain_carried=" << RetainCarriedCommandForward() << " retain_constructed=" << RetainConstructedCommand() << "\n";
+  std::cout << "  eligibility_gain_refreshes=" << HumanoidEligibilityGainRefreshes()
+            << " candidates_missing=" << HumanoidEligibilityGainCandidatesMissing()
+            << "\n";
   for (int reason = 0; reason < kBeginReasonCount; ++reason) {
     const ReanchorResidency &record = ReanchorResidencyFor(reason);
     if (record.n == 0) continue;

@@ -46,6 +46,8 @@ int &PlayerLocomotionIntentOverlapTicks();
 // because a non-locomotion action owns the tick and its intent would be stale.
 int &PlayerLocomotionIntentDueIneligibleTicks();
 int &PlayerLocomotionIntentConsumedTicks();
+int &HumanoidEligibilityGainRefreshes();
+int &HumanoidEligibilityGainCandidatesMissing();
 // c2b authority telemetry: legacy acceptance must never overwrite an established
 // simulation Movement intent. A nonzero count means the animation lifecycle is
 // still trying to be the producer.

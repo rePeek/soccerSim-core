@@ -71,6 +71,22 @@ int &HumanoidProceduralMovementTicks() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement() { static int value = 0; return value; }
 int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return value; }
+
+// 4b: one place that turns a controller queue into a published locomotion intent.
+// Returns true only when a Movement candidate with useDesiredMovement was published,
+// so callers can commit the scheduler refresh only on an actual publication.
+static bool PublishMovementIntentFromQueue(PlayerBase *player,
+                                           const PlayerCommandQueue &queue) {
+  for (const PlayerCommand &candidate : queue) {
+    if (candidate.desiredFunctionType == e_FunctionType_Movement &&
+        candidate.useDesiredMovement) {
+      player->SetSimulationMovementCommand(
+          candidate, LocomotionCommandSource::DirectMovementIntent);
+      return true;
+    }
+  }
+  return false;
+}
 int &PlayerMovementCommandDirectAdoptions() { static int value = 0; return value; }
 int &PlayerMovementCommandLegacyAdoptions() { static int value = 0; return value; }
 int &PlayerLocomotionIntentDueTicks() { static int value = 0; return value; }
@@ -78,6 +94,8 @@ int &PlayerLocomotionIntentLegacyOpportunityTicks() { static int value = 0; retu
 int &PlayerLocomotionIntentOverlapTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentDueIneligibleTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentConsumedTicks() { static int value = 0; return value; }
+int &HumanoidEligibilityGainRefreshes() { static int value = 0; return value; }
+int &HumanoidEligibilityGainCandidatesMissing() { static int value = 0; return value; }
 int &LegacyMovementOverwriteAttempts() { static int value = 0; return value; }
 int &DirectVsLegacyCommandEqual() { static int value = 0; return value; }
 int &DirectVsLegacyCommandMateriallyDifferent() { static int value = 0; return value; }
@@ -301,6 +319,8 @@ void HumanoidBase::Process() {
   // schedules share one command queue, so queries equal the union of a due tick
   // and a legacy animation opportunity rather than the sum.
   const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
+  const bool locomotion_eligible_before =
+      player->IsEligibleForProceduralLocomotion();
   const bool simulation_due =
       player->NoteLocomotionIntentCadence(legacy_opportunity);
   if (legacy_opportunity || simulation_due) {
@@ -328,13 +348,11 @@ void HumanoidBase::Process() {
     // controller intent, so the tick is left overdue instead of consumed.
     if (simulation_due && !trip_local_queue) {
       EnsureControllerQuery();
-      for (const PlayerCommand &candidate : commandQueue) {
-        if (candidate.desiredFunctionType == e_FunctionType_Movement &&
-            candidate.useDesiredMovement) {
-          player->SetSimulationMovementCommand(
-              candidate, LocomotionCommandSource::DirectMovementIntent);
-          break;
-        }
+      if (PublishMovementIntentFromQueue(player, commandQueue)) {
+        ++HumanoidEligibilityGainRefreshes();
+      } else {
+        ++HumanoidEligibilityGainCandidatesMissing();
+        player->CommitLocomotionIntentRefresh();
       }
       player->CommitLocomotionIntentRefresh();
     }
@@ -357,6 +375,22 @@ void HumanoidBase::Process() {
       }
     }
 
+    // 4b: the cadence check earlier in this tick saw the actor as non-pure, so a
+    // due refresh was held back. SelectAnim has since turned the action into pure
+    // Movement, i.e. eligibility went false -> true inside this decision phase.
+    // Consume the held refresh here, reusing the queue this tick already queried;
+    // never issue a second controller query.
+    const bool locomotion_eligible_after =
+        player->IsEligibleForProceduralLocomotion();
+    if (!locomotion_eligible_before && locomotion_eligible_after &&
+        controller_queried) {
+      if (PublishMovementIntentFromQueue(player, commandQueue)) {
+        ++HumanoidEligibilityGainRefreshes();
+      } else {
+        ++HumanoidEligibilityGainCandidatesMissing();
+        player->CommitLocomotionIntentRefresh();
+      }
+    }
     if (interruptAnim != e_InterruptAnim_ReQueue && !found) {
       DO_VALIDATION;
       printf("RED ALERT! NO APPLICABLE ANIM FOUND FOR HUMANOIDBASE! NOOOO!\n");
