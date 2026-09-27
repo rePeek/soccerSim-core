@@ -117,8 +117,6 @@ int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return valu
 // Returns true only when a Movement candidate with useDesiredMovement was published,
 // so callers can commit the scheduler refresh only on an actual publication.
 int &PlayerMovementCommandDirectAdoptions() { static int value = 0; return value; }
-int &PlayerMovementCommandLegacyAdoptions() { static int value = 0; return value; }
-int &PlayerMovementCommandFallbackAdoptions() { static int value = 0; return value; }
 int &PlayerLocomotionIntentDueTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentLegacyOpportunityTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentOverlapTicks() { static int value = 0; return value; }
@@ -133,7 +131,6 @@ int &PlayerPathRefreshCommits() { static int value = 0; return value; }
 int &PlayerPathLocalTripAttempts() { static int value = 0; return value; }
 int &PlayerPathLocalTripSelected() { static int value = 0; return value; }
 int &PlayerPathLocalTripMovementFallbackSelected() { static int value = 0; return value; }
-int &PlayerPathLocalTripMovementFallbackMaterialReanchor() { static int value = 0; return value; }
 int &PlayerPathLocalTripMovementFallbackRefreshCommits() { static int value = 0; return value; }
 int &PlayerPathCandidatesMissing() { static int value = 0; return value; }
 int &HumanoidBasePathRefreshCommits() { static int value = 0; return value; }
@@ -148,13 +145,8 @@ int &HeldDueOtherCandidate() { static int value = 0; return value; }
 int &HumanoidIntentRefreshes() { static int value = 0; return value; }
 int &HumanoidIntentCandidatesMissing() { static int value = 0; return value; }
 int &HumanoidIntentRefreshCommits() { static int value = 0; return value; }
-int &LegacyMovementOverwriteAttempts() { static int value = 0; return value; }
 int &DirectVsLegacyCommandEqual() { static int value = 0; return value; }
 int &DirectVsLegacyCommandMateriallyDifferent() { static int value = 0; return value; }
-int &MovementCommandReanchors() { static int value = 0; return value; }
-int &MovementCommandReanchorsEqual() { static int value = 0; return value; }
-int &MovementCommandReanchorsMateriallyDifferent() { static int value = 0; return value; }
-int &NonMovementCommandReanchors() { static int value = 0; return value; }
 
 int &HumanoidSchedulerQueries() { static int value = 0; return value; }
 int &HumanoidMaterialCommandCandidates() { static int value = 0; return value; }
@@ -1015,7 +1007,6 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     RecordMovementCommandAcceptance(material_candidate, action.type,
                                     action.elapsedTime_ms, localInterruptAnim,
                                     command, currentAnim.anim);
-    player->SetSimulationMovementCommand(command);
     player->BeginSimulationAction();
 
     return true;

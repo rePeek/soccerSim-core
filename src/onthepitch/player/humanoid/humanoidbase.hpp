@@ -66,8 +66,6 @@ void RecordPlayerTickGateMismatch(bool legacy_gate, bool simulation_gate,
 // Diagnostics for the movement-command shadow (library-side single instance).
 int &PlayerMovementCommandNonMovementTicks();
 int &PlayerMovementCommandDirectAdoptions();
-int &PlayerMovementCommandLegacyAdoptions();
-int &PlayerMovementCommandFallbackAdoptions();
 int &PlayerLocomotionIntentDueTicks();
 int &PlayerLocomotionIntentLegacyOpportunityTicks();
 int &PlayerLocomotionIntentOverlapTicks();
@@ -90,7 +88,6 @@ int &HumanoidBasePathRefreshCommits();
 int &PlayerPathLocalTripAttempts();
 int &PlayerPathLocalTripSelected();
 int &PlayerPathLocalTripMovementFallbackSelected();
-int &PlayerPathLocalTripMovementFallbackMaterialReanchor();
 int &PlayerPathLocalTripMovementFallbackRefreshCommits();
 // 4b': separate intent-refresh eligibility from execution eligibility.
 int &HeldDueMovementRetainsTicks();
@@ -104,17 +101,8 @@ int &HeldDueOtherCandidate();
 int &HumanoidIntentRefreshes();
 int &HumanoidIntentCandidatesMissing();
 int &HumanoidIntentRefreshCommits();
-// c2b authority telemetry: legacy acceptance must never overwrite an established
-// simulation Movement intent. A nonzero count means the animation lifecycle is
-// still trying to be the producer.
-int &LegacyMovementOverwriteAttempts();
 int &DirectVsLegacyCommandEqual();
 int &DirectVsLegacyCommandMateriallyDifferent();
-// H3e4g0a: is BeginSimulationAction()'s raw re-anchor still a live producer?
-int &MovementCommandReanchors();
-int &MovementCommandReanchorsEqual();
-int &MovementCommandReanchorsMateriallyDifferent();
-int &NonMovementCommandReanchors();
 
 // H3e4e1 diagnostics: who owns the movement command lifetime right now. Every
 // accepted Movement command still arrives through an animation selection, so

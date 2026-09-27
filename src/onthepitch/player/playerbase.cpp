@@ -234,29 +234,6 @@ const char *LocomotionReentryCategoryName(int category) {
   }
 }
 
-const char *ActionBeginReasonName(int reason) {
-  switch (reason) {
-    case kBeginMovementToMovement: return "Movement->Movement";
-    case kBeginOtherToMovement: return "Other->Movement";
-    case kBeginMovementToOther: return "Movement->Other";
-    case kBeginOtherToOther: return "Other->Other";
-    case kBeginResetPosition: return "ResetPosition";
-    case kBeginResetSituation: return "ResetSituation";
-    case kBeginRetainSelection: return "RetainSelection";
-    default: break;
-  }
-  return "unknown";
-}
-
-static int ResolveBeginReason(e_FunctionType previous_type, e_FunctionType new_type) {
-  if (new_type == e_FunctionType_Movement) {
-    return previous_type == e_FunctionType_Movement ? kBeginMovementToMovement
-                                                    : kBeginOtherToMovement;
-  }
-  return previous_type == e_FunctionType_Movement ? kBeginMovementToOther
-                                                  : kBeginOtherToOther;
-}
-
 int &RestartConstructedCommand() { static int value = 0; return value; }
 int &RetainCarriedCommandForward() { static int value = 0; return value; }
 int &RetainConstructedCommand() { static int value = 0; return value; }
@@ -361,43 +338,6 @@ void PlayerBase::SynchronizeKinematicState() {
   kinematicState.speed = kinematicState.velocity.GetLength();
   groundCollider.SetCenter(kinematicState.position);
   CheckSimulationKinematicOracle();
-}
-// Compatibility slot: the legacy movement command shadow. Procedural locomotion
-// no longer consumes it (the decision intent is the execution authority), so this
-// path only records the migration-era producers until they are removed.
-void PlayerBase::SetSimulationMovementCommand(const PlayerCommand &command) {
-  DO_VALIDATION;
-  SetSimulationMovementCommand(
-      command, LocomotionCommandSource::ActionCoupledIntent);
-}
-
-void PlayerBase::SetSimulationMovementCommand(
-    const PlayerCommand &command, LocomotionCommandSource source) {
-  DO_VALIDATION;
-  if (!command.useDesiredMovement) return;
-  // Legacy gate for the compatibility slot. Direct publications no longer enter
-  // here (see PublishDecisionLocomotionIntent); the only simulation-owned source
-  // left is the local Trip fallback. Legacy acceptance may seed the slot while
-  // nothing has been established yet, but may never overwrite an established
-  // Movement intent, and every such attempt is counted.
-  const bool simulation_owned_movement_source =
-      source == LocomotionCommandSource::SimulationFallbackIntent;
-  if (command.desiredFunctionType == e_FunctionType_Movement &&
-      !simulation_owned_movement_source && movementCommandState.initialized) {
-    ++LegacyMovementOverwriteAttempts();
-    return;
-  }
-  movementCommandState.command = command;
-  movementCommandState.source = source;
-  movementCommandState.initialized = true;
-  switch (source) {
-    case LocomotionCommandSource::SimulationFallbackIntent:
-      ++PlayerMovementCommandFallbackAdoptions();
-      break;
-    default:
-      ++PlayerMovementCommandLegacyAdoptions();
-      break;
-  }
 }
 
 bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
@@ -597,36 +537,8 @@ void PlayerBase::BeginSimulationAction() {
   definition.durationTime_ms = humanoid->GetFrameCount() * 10;
   definition.contactTime_ms = anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
   definition.contactPosition = anim->touchPos;
-  const e_FunctionType previous_action_type = actionState.type;
-  const int resolved_begin_reason =
-      nextActionBeginReason >= kBeginResetPosition
-          ? nextActionBeginReason
-          : ResolveBeginReason(previous_action_type, definition.type);
-  nextActionBeginReason = kBeginMovementToMovement;
   PlayerActionExecutor::Begin(actionState, definition);
   PlayerActionExecutor::Begin(actionState, definition);
-
-  // Selection transitions have a simulation-owned final Movement writer after
-  // SelectAnim returns: DirectMovementIntent for controller output and
-  // SimulationFallbackIntent for the local Trip fallback. Their raw legacy
-  // re-anchor is a dead intermediate write and is skipped below.
-  //
-  // The ResetSituation override that remains is also migration scaffolding, not
-  // execution: since the authority flip, a reset advances the continuity epoch
-  // instead, which makes the old decision intent stale and forces a fresh
-  // decision before locomotion runs. Nothing this branch writes is consumed by
-  // locomotion any more; it only keeps the compatibility slot populated until
-  // the legacy producers are removed.
-  const bool lifecycle_rebuild =
-      resolved_begin_reason != kBeginRetainSelection &&
-      resolved_begin_reason >= kBeginResetPosition;
-  if (anim->originatingCommand.useDesiredMovement &&
-      (anim->originatingCommand.desiredFunctionType != e_FunctionType_Movement ||
-       lifecycle_rebuild)) {
-    movementCommandState.command = anim->originatingCommand;
-    movementCommandState.source = LocomotionCommandSource::LegacyCarriedForwardIntent;
-    movementCommandState.initialized = true;
-  }
 
   // ResetPosition can deliberately start an idle animation at a non-zero
   // legacy frame. Establish that initial cursor once; normal ticks never
@@ -680,7 +592,6 @@ void PlayerBase::UpdateKinematicShadow() {
 
 void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   DO_VALIDATION;
-  nextActionBeginReason = kBeginResetPosition;
   // H3e4f-g0b-3a provenance: the reset rebuilds spatial state; does it build a command?
   const PlayerCommand reset_command_before = humanoid->GetCurrentAnim()->originatingCommand;
   humanoid->ResetPosition(newPos, focusPos);
@@ -796,7 +707,6 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;
   if (IsActive()) {
-    nextActionBeginReason = kBeginResetSituation;
     // The reset itself is the discontinuity, so it anchors the generation that
     // a later reset re-entry compares against.
     resetDecisionGeneration = decisionLocomotionAuditGeneration;

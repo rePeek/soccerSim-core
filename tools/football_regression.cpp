@@ -2010,8 +2010,6 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int foot_special_before = HumanoidFootSpecialStateDiff();
   const int foot_lifecycle_before = HumanoidFootLifecycleChanged();
   const int direct_before = PlayerMovementCommandDirectAdoptions();
-  const int fallback_before = PlayerMovementCommandFallbackAdoptions();
-  const int legacy_before = PlayerMovementCommandLegacyAdoptions();
 
   const int ticks = 400;
   for (int tick = 0; tick < ticks; ++tick) env.step();
@@ -2123,11 +2121,7 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   // Observation only: nonzero mismatches mean the execution-gate migration is
   // independently semantic and must be audited before it can be flipped.
   std::cout << "  command_source direct_movement_intent="
-            << (PlayerMovementCommandDirectAdoptions() - direct_before)
-            << " simulation_fallback_intent="
-            << (PlayerMovementCommandFallbackAdoptions() - fallback_before)
-            << " legacy_accepted_action="
-            << (PlayerMovementCommandLegacyAdoptions() - legacy_before) << "\n";
+            << (PlayerMovementCommandDirectAdoptions() - direct_before) << "\n";
   std::cout << "  intent_cadence simulation_due="
             << PlayerLocomotionIntentDueTicks()
             << " legacy_opportunities="
@@ -2139,9 +2133,7 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << (PlayerLocomotionIntentDueTicks() -
                 PlayerLocomotionIntentDueIneligibleTicks())
             << "\n";
-  std::cout << "  authority legacy_movement_overwrite_attempts="
-            << LegacyMovementOverwriteAttempts()
-            << " direct_vs_legacy_equal="
+  std::cout << "  authority direct_vs_legacy_equal="
             << DirectVsLegacyCommandEqual()
             << " direct_vs_legacy_materially_different="
             << DirectVsLegacyCommandMateriallyDifferent() << "\n";
@@ -2166,17 +2158,12 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " selected=" << PlayerPathLocalTripSelected()
             << " movement_fallback_selected="
             << PlayerPathLocalTripMovementFallbackSelected()
-            << " movement_fallback_publications="
-            << PlayerMovementCommandFallbackAdoptions()
             << " movement_fallback_scheduler_commits="
             << PlayerPathLocalTripMovementFallbackRefreshCommits() << "\n";
   Require(PlayerPathQueriesWithMovement() == PlayerPathDirectPublications(),
           "player path: a controller query with a Movement candidate was not published");
   Require(PlayerPathDirectPublications() == PlayerPathRefreshCommits(),
           "player path: a publication did not commit exactly once");
-  Require(PlayerPathLocalTripMovementFallbackSelected() ==
-              PlayerMovementCommandFallbackAdoptions(),
-          "player path: an accepted local Trip Movement fallback was not published");
   Require(PlayerPathLocalTripMovementFallbackRefreshCommits() == 0,
           "player path: a local Trip Movement fallback consumed the refresh scheduler");
   std::cout << "  intent_refreshes=" << HumanoidIntentRefreshes()

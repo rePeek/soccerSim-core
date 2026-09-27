@@ -341,10 +341,6 @@ void Humanoid::Process() {
       const PlayerCommand &command = commandQueue[i];
       const PlayerPathSelectionCommandProvenance provenance =
           commandProvenance[i];
-      const int materialReanchorsBefore =
-          provenance == PlayerPathSelectionCommandProvenance::LocalTripMovementFallback
-              ? MovementCommandReanchorsMateriallyDifferent()
-              : 0;
 
       if (command.desiredFunctionType == e_FunctionType_ShortPass ||
           command.desiredFunctionType == e_FunctionType_LongPass ||
@@ -360,15 +356,8 @@ void Humanoid::Process() {
         } else if (provenance ==
                    PlayerPathSelectionCommandProvenance::LocalTripMovementFallback) {
           ++PlayerPathLocalTripMovementFallbackSelected();
-          if (MovementCommandReanchorsMateriallyDifferent() >
-              materialReanchorsBefore) {
-            ++PlayerPathLocalTripMovementFallbackMaterialReanchor();
-          }
-          // SelectAnim() has returned, including its temporary raw re-anchor.
-          // This local fallback is simulation-owned but not controller-owned, so
-          // it becomes the final writer without consuming the refresh scheduler.
-          CastPlayer()->SetSimulationMovementCommand(
-              command, LocomotionCommandSource::SimulationFallbackIntent);
+          // Selection only: the local fallback used to write the compatibility
+          // movement slot, but it never decided movement, so it no longer does.
         }
         break;
       }
@@ -1541,7 +1530,6 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     RecordMovementCommandAcceptance(material_candidate, action.type,
                                     action.elapsedTime_ms, localInterruptAnim,
                                     command, currentAnim.anim);
-    CastPlayer()->SetSimulationMovementCommand(command);
     currentAnim.movementSmuggle = CalculateMovementSmuggle(command.desiredDirection, command.desiredVelocityFloat);
     currentAnim.movementSmuggleOffset = Vector3(0);
     CastPlayer()->BeginSimulationAction();

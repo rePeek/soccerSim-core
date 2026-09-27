@@ -25,19 +25,7 @@
 #include "player_movement_command.hpp"
 #include "locomotion_intent_scheduler.hpp"
 
-// H3e4f-g0b-3a: which boundary began the action, so residency can be attributed.
-enum ActionBeginReason {
-  kBeginMovementToMovement = 0,
-  kBeginOtherToMovement,
-  kBeginMovementToOther,
-  kBeginOtherToOther,
-  kBeginResetPosition,
-  kBeginResetSituation,
-  kBeginRetainSelection,
-  kBeginReasonCount,
-};
-
-// Caller scope for the remaining ResetSituation raw Movement policy. This is
+// Caller scope for the remaining ResetSituation instrumentation. This is
 // observation only; Deactivate's double reset is deliberately not changed here.
 enum ResetSituationCallContext {
   kResetSituationUnspecified = 0,
@@ -50,7 +38,6 @@ enum ResetSituationCallContext {
 const char *ResetSituationCallContextName(int context);
 int &SimulationOnlyGateMismatchForResetContext(int context);
 void DumpQueryOpportunities();
-const char *ActionBeginReasonName(int reason);
 
 // H3e4f-g0b-3a provenance: does a restart boundary construct a new locomotion
 // command, or carry an older one forward?
@@ -63,8 +50,8 @@ int &RetainConstructedCommand();
 // pure-locomotion execution: the gate requires a current-epoch publication, and
 // both PlayerLocomotion and PlayerBodyFacing consume this command.
 //
-// The legacy movementCommandState is no longer read here. It survives only as
-// migration scaffolding until the compatibility producers are removed.
+// The legacy movementCommandState is no longer read or written here. It survives
+// only as serialized state until D removes the struct and its schema field.
 struct PlayerDecisionLocomotionState {
   PlayerCommand command;
   bool initialized = false;
@@ -272,9 +259,6 @@ class PlayerBase {
     // animation root-motion path and use the simulation-owned procedural
     // movement model instead. See PlayerActionState::IsPureLocomotion().
     bool IsEligibleForProceduralLocomotion() const;
-    bool IsSimulationMovementCommandInitialized() const {
-      return movementCommandState.initialized;
-    }
     int GetLastDirectMovementIntentPublication_ms() const {
       return lastDirectMovementIntentPublication_ms;
     }
@@ -301,9 +285,6 @@ class PlayerBase {
       DO_VALIDATION;
       return actionState;
     }
-    void SetSimulationMovementCommand(const PlayerCommand &command);
-    void SetSimulationMovementCommand(const PlayerCommand &command,
-                                      LocomotionCommandSource source);
     // H3e4f-c2a: observation only. The simulation keeps its own locomotion
     // intent cadence in parallel with the animation requeue lifecycle, so the
     // two schedules can be compared before either one takes over.
@@ -433,7 +414,6 @@ class PlayerBase {
     int tr_last_query_retains = 0;
     int tr_last_query_had_candidate = 0;
     int resetSituationAuditContext = kResetSituationUnspecified;
-    int nextActionBeginReason = kBeginMovementToMovement;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 
