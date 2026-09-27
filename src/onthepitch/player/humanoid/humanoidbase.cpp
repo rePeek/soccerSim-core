@@ -23,6 +23,7 @@
 #include "../playerbase.hpp"
 #include "../legacy_locomotion_command.hpp"
 #include "../player_locomotion.hpp"
+#include "../player_body_facing.hpp"
 #include "../../match.hpp"
 
 #include "../../../main.hpp"
@@ -893,6 +894,10 @@ void HumanoidBase::ApplySimulationMovementState(
   spatialState.position = state.position;
   spatialState.movement = state.velocity;
   spatialState.directionVec = state.facing;
+  // H3e3b: primary body direction follows simulation state as well. The
+  // remaining derived legacy pose fields (bodyAngle, relBody*, feet) are
+  // deliberately left for H3e3c.
+  spatialState.bodyDirectionVec = state.bodyFacing;
   spatialState.floatVelocity = spatialState.movement.GetLength();
   spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
   spatialState.angle =
@@ -924,8 +929,9 @@ void HumanoidBase::ProjectMovementState(
   // change what this tick's locomotion was. Writing spatialState.position here
   // means any later action already starts from the authoritative position
   // instead of an animation one.
-  // The adapter consumes only the tick-start simulation state. bodyFacing is
-  // still the bit-exact animation shadow in H3e3a2; H3e3b changes its producer.
+  // The adapter consumes only the tick-start simulation state. Locomotion
+  // produces lower-body motion first; the independent torso model then uses the
+  // resulting facing and the command's look target.
   const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
       command, tickStartState, player->GetMaxVelocity(),
       tickStartState.bodyFacing);
@@ -933,6 +939,14 @@ void HumanoidBase::ProjectMovementState(
   parameters.maxSpeed = player->GetMaxVelocity();
   PlayerKinematicState next = tickStartState;
   PlayerLocomotion::Step(next, input, parameters, 0.01f);
+  PlayerBodyFacingInput bodyInput;
+  bodyInput.desiredFacing = next.facing;
+  if (command.useDesiredLookAt) {
+    bodyInput.desiredFacing =
+        (command.desiredLookAt - next.position).Get2D().GetNormalized(next.facing);
+  }
+  PlayerBodyFacingParameters bodyParameters;
+  PlayerBodyFacing::Step(next, bodyInput, bodyParameters, 0.01f);
   ApplySimulationMovementState(next);
 }
 
