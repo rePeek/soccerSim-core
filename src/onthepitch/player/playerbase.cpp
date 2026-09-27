@@ -40,6 +40,12 @@ int &MaterialMovementReanchorsForBeginReason(int reason) {
   return records[reason];
 }
 
+MaterialReanchorPreviousSource &
+MaterialMovementReanchorPreviousSourceForBeginReason(int reason) {
+  static MaterialReanchorPreviousSource records[kBeginReasonCount];
+  return records[reason];
+}
+
 const char *ActionBeginReasonName(int reason) {
   switch (reason) {
     case kBeginMovementToMovement: return "Movement->Movement";
@@ -515,6 +521,26 @@ void PlayerBase::BeginSimulationAction() {
                                           anim->originatingCommand)) {
         ++MovementCommandReanchorsMateriallyDifferent();
         ++MaterialMovementReanchorsForBeginReason(resolved_begin_reason);
+        MaterialReanchorPreviousSource &previous_source =
+            MaterialMovementReanchorPreviousSourceForBeginReason(
+                resolved_begin_reason);
+        switch (movementCommandState.source) {
+          case LocomotionCommandSource::ActionCoupledIntent:
+            ++previous_source.action_coupled;
+            break;
+          case LocomotionCommandSource::DirectMovementIntent:
+            ++previous_source.direct;
+            break;
+          case LocomotionCommandSource::LegacyCarriedForwardIntent:
+            ++previous_source.legacy_carried;
+            break;
+          case LocomotionCommandSource::SimulationSeed:
+            ++previous_source.simulation_seed;
+            break;
+          case LocomotionCommandSource::SimulationFallbackIntent:
+            ++previous_source.simulation_fallback;
+            break;
+        }
         NoteMaterialMovementReanchor();
         reanchorPendingConsumption = true;
         CloseReanchorEpisode();

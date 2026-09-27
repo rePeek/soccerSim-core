@@ -41,10 +41,22 @@ struct ReanchorResidency {
   std::vector<int> lifetime_ms;
   std::vector<int> ticks;
 };
+// Source in force immediately before a material raw Movement re-anchor.
+// This is the evidence needed to distinguish a lifecycle seed from an
+// overwrite of an established simulation-owned intent.
+struct MaterialReanchorPreviousSource {
+  int action_coupled = 0;
+  int direct = 0;
+  int legacy_carried = 0;
+  int simulation_seed = 0;
+  int simulation_fallback = 0;
+};
 ReanchorResidency &ReanchorResidencyFor(int reason);
 // Raw Movement re-anchor occurrences, not residency episodes: an occurrence is
 // counted immediately, even if its episode has not closed by corpus end.
 int &MaterialMovementReanchorsForBeginReason(int reason);
+MaterialReanchorPreviousSource &
+MaterialMovementReanchorPreviousSourceForBeginReason(int reason);
 void DumpReanchorProvenance();
 void DumpQueryOpportunities();
 const char *ActionBeginReasonName(int reason);

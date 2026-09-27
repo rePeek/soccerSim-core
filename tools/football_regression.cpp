@@ -2155,6 +2155,15 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
     if (material_occurrences != 0) {
       std::cout << "  material_reanchor " << ActionBeginReasonName(reason)
                 << " n=" << material_occurrences << "\n";
+      const MaterialReanchorPreviousSource &previous_source =
+          MaterialMovementReanchorPreviousSourceForBeginReason(reason);
+      std::cout << "    previous_source action_coupled="
+                << previous_source.action_coupled
+                << " direct=" << previous_source.direct
+                << " legacy_carried=" << previous_source.legacy_carried
+                << " simulation_seed=" << previous_source.simulation_seed
+                << " simulation_fallback=" << previous_source.simulation_fallback
+                << "\n";
     }
     const ReanchorResidency &record = ReanchorResidencyFor(reason);
     if (record.n == 0) continue;
