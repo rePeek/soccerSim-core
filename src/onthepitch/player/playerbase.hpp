@@ -30,6 +30,7 @@
 int &ReanchorPendingSet();
 int &ReanchorConsumedBeforeRefresh();
 int &ReanchorSupersededByRefresh();
+std::vector<int> &ReanchorLifetime_ms();
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
@@ -214,6 +215,7 @@ class PlayerBase {
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
     bool reanchorPendingConsumption = false;
+    int reanchorPendingSince_ms = -1;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

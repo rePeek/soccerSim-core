@@ -2100,6 +2100,8 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << DirectVsLegacyCommandMateriallyDifferent() << "\n";
   std::cout << "  reanchor movement=" << MovementCommandReanchors() << " equal=" << MovementCommandReanchorsEqual() << " materially_different=" << MovementCommandReanchorsMateriallyDifferent() << " nonmovement=" << NonMovementCommandReanchors() << "\n";
   std::cout << "  reanchor_fate pending=" << ReanchorPendingSet() << " consumed_before_refresh=" << ReanchorConsumedBeforeRefresh() << " superseded_by_refresh=" << ReanchorSupersededByRefresh() << "\n";
+  { std::vector<int> lives = ReanchorLifetime_ms();
+    std::cout << "  reanchor_lifetime_ms n=" << lives.size() << " p50=" << percentile(lives, 0.50) << " p90=" << percentile(lives, 0.90) << " p99=" << percentile(lives, 0.99) << " max=" << percentile(lives, 1.0) << " locomotion_ticks_p50=" << (percentile(lives, 0.50) / 10) << " locomotion_ticks_max=" << (percentile(lives, 1.0) / 10) << "\n"; }
 
   // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken
   // before the foot stable_sort, so a changed winner is caused by foot alone.

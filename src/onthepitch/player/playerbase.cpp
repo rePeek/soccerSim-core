@@ -28,6 +28,7 @@
 int &ReanchorPendingSet() { static int value = 0; return value; }
 int &ReanchorConsumedBeforeRefresh() { static int value = 0; return value; }
 int &ReanchorSupersededByRefresh() { static int value = 0; return value; }
+std::vector<int> &ReanchorLifetime_ms() { static std::vector<int> values; return values; }
 
 #include "controller/elizacontroller.hpp"
 #include "controller/strategies/strategy.hpp"
@@ -193,9 +194,20 @@ bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
 
 void PlayerBase::CommitLocomotionIntentRefresh() {
   DO_VALIDATION;
+  // How long a legacy re-anchor value stayed in force until the simulation
+  // refreshed: the interval that decides whether replacing it needs a seed or
+  // only a forced due tick.
+  if (reanchorPendingSince_ms >= 0) {
+    ReanchorLifetime_ms().push_back(static_cast<int>(match->GetActualTime_ms()) - reanchorPendingSince_ms);
+    reanchorPendingSince_ms = -1;
+  }
   // A direct refresh replaces any pending re-anchor before locomotion saw it.
   if (reanchorPendingConsumption) {
     ++ReanchorSupersededByRefresh();
+    if (reanchorPendingSince_ms >= 0) {
+      ReanchorLifetime_ms().push_back(static_cast<int>(match->GetActualTime_ms()) - reanchorPendingSince_ms);
+      reanchorPendingSince_ms = -1;
+    }
     reanchorPendingConsumption = false;
   }
   const float distance_to_ball =
@@ -347,6 +359,7 @@ void PlayerBase::BeginSimulationAction() {
         ++MovementCommandReanchorsMateriallyDifferent();
         reanchorPendingConsumption = true;
         ++ReanchorPendingSet();
+        reanchorPendingSince_ms = static_cast<int>(match->GetActualTime_ms());
       } else {
         ++MovementCommandReanchorsEqual();
       }
