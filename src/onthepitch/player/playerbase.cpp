@@ -136,11 +136,21 @@ void PlayerBase::SetSimulationMovementCommand(const PlayerCommand &command) {
 void PlayerBase::SetSimulationMovementCommand(
     const PlayerCommand &command, LocomotionCommandSource source) {
   DO_VALIDATION;
-  // Stores whatever locomotion would consume, not only Movement actions: a
-  // BallControl or Trap command with useDesiredMovement also drives the
-  // procedural path, so restricting this to Movement would leave the shadow
-  // stale exactly on those ticks.
   if (!command.useDesiredMovement) return;
+  // c2b authority rule. Movement intent has exactly one producer: the
+  // simulation's own cadence. Legacy acceptance may still seed the state while
+  // nothing has been established yet (activation, reset, state restore), but it
+  // may never overwrite an established Movement intent, and every such attempt
+  // is counted so the migration can prove the animation lifecycle stopped being
+  // a producer.
+  if (command.desiredFunctionType == e_FunctionType_Movement) {
+    if (source != LocomotionCommandSource::DirectMovementIntent) {
+      if (movementCommandState.initialized) {
+        ++LegacyMovementOverwriteAttempts();
+        return;
+      }
+    }
+  }
   movementCommandState.command = command;
   movementCommandState.source = source;
   movementCommandState.initialized = true;
@@ -182,17 +192,28 @@ void PlayerBase::CheckSimulationMovementCommandOracle() const {
   // actions legitimately keep their own non-Movement originatingCommand.
   if (!IsEligibleForProceduralLocomotion()) return;
   if (!movementCommandState.initialized) return;
-  // The shadow mirrors whatever locomotion is consuming. A pure-locomotion tick
-  // whose legacy command is not a Movement action (BallControl or Trap with
-  // useDesiredMovement) is counted for visibility but still compared: that is
-  // exactly the case the reader cut must keep bit-exact.
-  if (humanoid->GetCurrentAnim()->originatingCommand.desiredFunctionType !=
-      e_FunctionType_Movement) {
-    ++PlayerMovementCommandNonMovementTicks();
-  }
-  if (!movementCommandState.initialized) return;
+  // c2b authority invariant, source-dependent. A direct simulation Movement
+  // intent is the producer now: legacy is no longer its oracle, so disagreement
+  // is measured instead of fatal. A legacy-accepted locomotion command
+  // (BallControl / Trap) is still an exact mirror of the legacy anim and stays a
+  // fatal invariant until H3e4f-d removes that compatibility edge.
   const PlayerCommand &live = humanoid->GetCurrentAnim()->originatingCommand;
   const PlayerCommand &shadow = movementCommandState.command;
+  if (movementCommandState.source ==
+      LocomotionCommandSource::DirectMovementIntent) {
+    if (shadow.desiredFunctionType != e_FunctionType_Movement ||
+        !shadow.useDesiredMovement) {
+      Log(e_FatalError, "PlayerBase", "CheckSimulationMovementCommandOracle",
+          "a direct locomotion intent must be a Movement command with "
+          "useDesiredMovement");
+    }
+    if (MovementCommandDiffersMaterially(live, shadow)) {
+      ++DirectVsLegacyCommandMateriallyDifferent();
+    } else {
+      ++DirectVsLegacyCommandEqual();
+    }
+    return;
+  }
   std::string mismatch;
   if (!Vector3BitsEqual(shadow.desiredDirection, live.desiredDirection)) {
     mismatch = "desiredDirection";
@@ -462,6 +483,9 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   CheckSimulationKinematicOracle();
   actionState.ProcessState(state);
   movementCommandState.ProcessState(state);
+  // c2b: the refresh clock decides when the controller is queried, so it is
+  // gameplay state and must survive save/load exactly.
+  locomotionIntentScheduler.ProcessState(state);
   // After saving or loading the action state, require it to agree with the
   // Humanoid motion cursor before a subsequent tick can observe either.
   CheckSimulationActionOracle();

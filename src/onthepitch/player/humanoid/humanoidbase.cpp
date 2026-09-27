@@ -77,6 +77,9 @@ int &PlayerLocomotionIntentDueTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentLegacyOpportunityTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentOverlapTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentDueIneligibleTicks() { static int value = 0; return value; }
+int &LegacyMovementOverwriteAttempts() { static int value = 0; return value; }
+int &DirectVsLegacyCommandEqual() { static int value = 0; return value; }
+int &DirectVsLegacyCommandMateriallyDifferent() { static int value = 0; return value; }
 
 int &HumanoidSchedulerQueries() { static int value = 0; return value; }
 int &HumanoidMaterialCommandCandidates() { static int value = 0; return value; }

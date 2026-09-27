@@ -31,6 +31,14 @@ struct LocomotionIntentScheduler {
     nextRefreshTime_ms = now_ms + cadence_ms;
     ++refreshes;
   }
+
+  // c2b: once this clock decides when the controller is queried it is gameplay
+  // state, so it must survive save/load. refreshes stays telemetry and is
+  // deliberately not serialized.
+  void ProcessState(EnvState *state) {
+    DO_VALIDATION;
+    state->process(nextRefreshTime_ms);
+  }
 };
 
 #endif

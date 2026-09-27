@@ -45,6 +45,12 @@ int &PlayerLocomotionIntentOverlapTicks();
 // c2a2: the parts of the due count that the flipped scheduler must NOT consume,
 // because a non-locomotion action owns the tick and its intent would be stale.
 int &PlayerLocomotionIntentDueIneligibleTicks();
+// c2b authority telemetry: legacy acceptance must never overwrite an established
+// simulation Movement intent. A nonzero count means the animation lifecycle is
+// still trying to be the producer.
+int &LegacyMovementOverwriteAttempts();
+int &DirectVsLegacyCommandEqual();
+int &DirectVsLegacyCommandMateriallyDifferent();
 
 // H3e4e1 diagnostics: who owns the movement command lifetime right now. Every
 // accepted Movement command still arrives through an animation selection, so

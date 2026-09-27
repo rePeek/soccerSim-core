@@ -2092,6 +2092,12 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << (PlayerLocomotionIntentDueTicks() -
                 PlayerLocomotionIntentDueIneligibleTicks())
             << "\n";
+  std::cout << "  authority legacy_movement_overwrite_attempts="
+            << LegacyMovementOverwriteAttempts()
+            << " direct_vs_legacy_equal="
+            << DirectVsLegacyCommandEqual()
+            << " direct_vs_legacy_materially_different="
+            << DirectVsLegacyCommandMateriallyDifferent() << "\n";
 
   // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken
   // before the foot stable_sort, so a changed winner is caused by foot alone.
