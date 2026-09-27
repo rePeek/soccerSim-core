@@ -593,9 +593,9 @@ void CheckPlayerKinematicMirror() {
   RequireNear(state.speed, 5.0f, "mirror speed");
 }
 
-// H3e3b-prep2: unit-test the new model's own semantic invariants, not any
-// animation pose. A bounded target and a state already inside the cone must
-// remain inside it, while every tick turns no more than maxTurnRate * dt.
+// H3e3b-prep4: test the body model's designed semantics, not animation pose:
+// finite turn rate is always hard; a fixed bounded target converges; and a
+// discontinuous locomotion-facing input never snaps the torso but recovers.
 void CheckPlayerBodyFacing() {
   PlayerKinematicState state;
   state.facing = Vector3(0.0f, -1.0f, 0.0f);
@@ -618,10 +618,38 @@ void CheckPlayerBodyFacing() {
             "body facing: turn-rate invariant violated");
     Require(std::fabs(state.bodyFacing.GetAngle2D(state.facing)) <=
             parameters.maxRelativeAngle + kFloatTolerance,
-            "body facing: relative-angle invariant violated");
+            "body facing: fixed target must stay in its cone");
   }
   RequireNear(std::fabs(state.bodyFacing.GetAngle2D(state.facing)), 0.5f,
-              "body facing: it must settle at the constrained target");
+              "body facing: fixed target must converge to the allowed target");
+
+  // A 180 degree locomotion-facing jump makes the old body temporarily outside
+  // the new cone. Recovery must still be continuous and eventually re-enter it.
+  PlayerKinematicState jumped;
+  jumped.facing = Vector3(0.0f, -1.0f, 0.0f);
+  jumped.bodyFacing = jumped.facing;
+  jumped.facing = Vector3(0.0f, 1.0f, 0.0f);
+  PlayerBodyFacingInput jumpInput;
+  jumpInput.desiredFacing = jumped.facing;
+  bool observedOutside = false;
+  for (int tick = 0; tick < 40; ++tick) {
+    const Vector3 previous = jumped.bodyFacing;
+    PlayerBodyFacing::Step(jumped, jumpInput, parameters, dt);
+    Require(std::fabs(jumped.bodyFacing.GetAngle2D(previous)) <=
+            parameters.maxTurnRate * dt + kFloatTolerance,
+            "body facing: facing jump must not snap the torso");
+    const bool outside = std::fabs(
+        jumped.bodyFacing.GetAngle2D(jumped.facing)) >
+        parameters.maxRelativeAngle + kFloatTolerance;
+    observedOutside = observedOutside || outside;
+  }
+  Require(observedOutside,
+          "body facing: facing jump should exercise transient cone violation");
+  Require(std::fabs(jumped.bodyFacing.GetAngle2D(jumped.facing)) <=
+          parameters.maxRelativeAngle + kFloatTolerance,
+          "body facing: fixed post-jump target must re-enter the cone");
+  RequireNear(std::fabs(jumped.bodyFacing.GetAngle2D(jumped.facing)), 0.0f,
+              "body facing: fixed post-jump target must converge");
 }
 
 void CheckPlayerGroundCollider() {
@@ -1960,14 +1988,17 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
   struct Shadow {
     Player* player; PlayerKinematicState state; Vector3 previousTarget;
     bool hasPreviousTarget = false; int alignmentMs = -1;
+    bool outside = false; int outsideDurationMs = 0; int outsideClass = -1;
+    double outsidePeakExcess = 0.0;
+    int facingJumpRecoveryMs = -1; int facingJumpClass = -1;
   };
   struct Cell {
     int samples = 0, lookSamples = 0, relativeClamps = 0, turnClamps = 0;
-    int relativeOvershoots = 0, rapidFacingChanges = 0;
+    int outsideEvents = 0, rapidFacingChanges = 0;
     double relativeSum = 0.0, lookErrorSum = 0.0, turnSum = 0.0;
-    double relativeOvershootSum = 0.0, maxRelativeOvershoot = 0.0;
     double maxTurn = 0.0, maxRapidFacingTurn = 0.0;
-    std::vector<double> alignMs;
+    std::vector<double> turns, outsideDurations, outsidePeakExcesses;
+    std::vector<double> alignMs, facingJumpRecoveryMs;
   };
   struct Grid { PlayerBodyFacingParameters parameters; std::vector<Shadow> shadows; Cell cells[4]; };
   const float rates[] = {3.0f, 6.0f, 9.0f, 12.0f};
@@ -1982,8 +2013,11 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
   const auto findShadow = [](Grid& grid, Player* player,
                              const PlayerKinematicState& initial) -> Shadow& {
     for (Shadow& shadow : grid.shadows) if (shadow.player == player) return shadow;
-    grid.shadows.push_back(Shadow{player, initial, Vector3(0), false, -1});
-    grid.shadows.back().state.bodyFacing = initial.facing;  // valid model seed
+    Shadow shadow;
+    shadow.player = player;
+    shadow.state = initial;
+    shadow.state.bodyFacing = initial.facing;  // valid model seed
+    grid.shadows.push_back(shadow);
     return grid.shadows.back();
   };
   const int ticks = 400;
@@ -2034,7 +2068,8 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
             shadow.state, input, grid.parameters);
         const float requestedRelative = std::fabs(
             input.desiredFacing.GetAngle2D(actual.facing));
-        if (requestedRelative > grid.parameters.maxRelativeAngle + kFloatTolerance) {
+        if (hasLook && requestedRelative >
+            grid.parameters.maxRelativeAngle + kFloatTolerance) {
           ++cell.relativeClamps;
         }
         if (shadow.hasPreviousTarget && std::fabs(
@@ -2057,22 +2092,48 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
         const double relative = std::fabs(
             shadow.state.bodyFacing.GetAngle2D(actual.facing));
         cell.turnSum += turn; cell.relativeSum += relative;
+        cell.turns.push_back(turn);
         cell.maxTurn = std::max(cell.maxTurn, turn);
         const double overshoot = std::max(
             0.0, relative - grid.parameters.maxRelativeAngle);
-        if (overshoot > kFloatTolerance) {
-          ++cell.relativeOvershoots;
-          cell.relativeOvershootSum += overshoot;
-          cell.maxRelativeOvershoot = std::max(cell.maxRelativeOvershoot, overshoot);
+        const bool outside = overshoot > kFloatTolerance;
+        if (outside) {
+          if (!shadow.outside) {
+            shadow.outside = true; shadow.outsideDurationMs = 0;
+            shadow.outsideClass = velocityClass; shadow.outsidePeakExcess = 0.0;
+            ++cell.outsideEvents;
+          }
+          shadow.outsideDurationMs += 10;
+          shadow.outsidePeakExcess = std::max(shadow.outsidePeakExcess, overshoot);
+        } else if (shadow.outside) {
+          Cell& eventCell = grid.cells[shadow.outsideClass];
+          eventCell.outsideDurations.push_back(shadow.outsideDurationMs);
+          eventCell.outsidePeakExcesses.push_back(shadow.outsidePeakExcess);
+          shadow.outside = false; shadow.outsideClass = -1;
         }
         if (hasLook) {
           ++cell.lookSamples;
           cell.lookErrorSum += std::fabs(
               shadow.state.bodyFacing.GetAngle2D(input.desiredFacing));
         }
-        if (std::fabs(actual.facing.GetAngle2D(sample.state.facing)) > pi * 0.5f) {
+        const bool rapidFacingJump =
+            std::fabs(actual.facing.GetAngle2D(sample.state.facing)) > pi * 0.5f;
+        if (rapidFacingJump) {
           ++cell.rapidFacingChanges;
           cell.maxRapidFacingTurn = std::max(cell.maxRapidFacingTurn, turn);
+          shadow.facingJumpRecoveryMs = 0;
+          shadow.facingJumpClass = velocityClass;
+        }
+        if (shadow.facingJumpRecoveryMs >= 0) {
+          if (outside) {
+            shadow.facingJumpRecoveryMs += 10;
+          } else if (shadow.facingJumpRecoveryMs > 0) {
+            grid.cells[shadow.facingJumpClass].facingJumpRecoveryMs.push_back(
+                shadow.facingJumpRecoveryMs);
+            shadow.facingJumpRecoveryMs = -1; shadow.facingJumpClass = -1;
+          } else {
+            shadow.facingJumpRecoveryMs = -1; shadow.facingJumpClass = -1;
+          }
         }
         if (shadow.alignmentMs >= 0) {
           if (std::fabs(shadow.state.bodyFacing.GetAngle2D(target)) <= 0.1f) {
@@ -2083,6 +2144,12 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
     }
   }
 
+  const auto percentile = [](std::vector<double> values, double fraction) {
+    if (values.empty()) return 0.0;
+    std::sort(values.begin(), values.end());
+    return values[static_cast<size_t>(std::floor(
+        fraction * static_cast<double>(values.size() - 1)))];
+  };
   int total = 0;
   std::cout << "body-facing shadow grid (radians; target cone, continuous body):\n";
   for (const Grid& grid : grids) {
@@ -2091,24 +2158,34 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
     for (int index = 0; index < 4; ++index) {
       const Cell& cell = grid.cells[index]; total += cell.samples;
       if (cell.samples == 0) continue;
-      double alignSum = 0.0; for (double value : cell.alignMs) alignSum += value;
       std::cout << "    " << VelocityClassName(static_cast<e_Velocity>(index))
                 << " n=" << cell.samples
-                << " rel_mean=" << (cell.relativeSum / cell.samples)
                 << " look_error=" << (cell.lookSamples ? cell.lookErrorSum / cell.lookSamples : 0.0)
-                << " turn_mean=" << (cell.turnSum / cell.samples)
+                << " turn_p50=" << percentile(cell.turns, 0.50)
+                << " turn_p90=" << percentile(cell.turns, 0.90)
                 << " turn_max=" << cell.maxTurn
-                << " relative_clamp=" << cell.relativeClamps
-                << " turn_clamp=" << cell.turnClamps
-                << " relative_overshoot=" << cell.relativeOvershoots
-                << " overshoot_mean="
-                << (cell.relativeOvershoots ?
-                    cell.relativeOvershootSum / cell.relativeOvershoots : 0.0)
-                << " overshoot_max=" << cell.maxRelativeOvershoot
-                << " rapid_facing=" << cell.rapidFacingChanges
-                << " rapid_turn_max=" << cell.maxRapidFacingTurn
-                << " align_events=" << cell.alignMs.size()
-                << " align_mean_ms=" << (cell.alignMs.empty() ? 0.0 : alignSum / cell.alignMs.size())
+                << " target_clamp_rate="
+                << (cell.lookSamples ?
+                    static_cast<double>(cell.relativeClamps) / cell.lookSamples : 0.0)
+                << " outside_events=" << cell.outsideEvents
+                << " outside_rate=" << (static_cast<double>(cell.outsideEvents) / cell.samples)
+                << " outside_duration_p50=" << percentile(cell.outsideDurations, 0.50)
+                << " outside_duration_p90=" << percentile(cell.outsideDurations, 0.90)
+                << " outside_duration_max=" << percentile(cell.outsideDurations, 1.0)
+                << " outside_excess_p90=" << percentile(cell.outsidePeakExcesses, 0.90)
+                << " outside_excess_max=" << percentile(cell.outsidePeakExcesses, 1.0)
+                << " facing_jump_events=" << cell.rapidFacingChanges
+                << " facing_jump_outside_events="
+                << cell.facingJumpRecoveryMs.size()
+                << " facing_jump_recovery_p50="
+                << percentile(cell.facingJumpRecoveryMs, 0.50)
+                << " facing_jump_recovery_p90="
+                << percentile(cell.facingJumpRecoveryMs, 0.90)
+                << " facing_jump_recovery_max="
+                << percentile(cell.facingJumpRecoveryMs, 1.0)
+                << " target_align_p50=" << percentile(cell.alignMs, 0.50)
+                << " target_align_p90=" << percentile(cell.alignMs, 0.90)
+                << " target_align_max=" << percentile(cell.alignMs, 1.0)
                 << "\n";
     }
   }
