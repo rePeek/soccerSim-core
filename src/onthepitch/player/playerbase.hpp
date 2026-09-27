@@ -279,6 +279,19 @@ class PlayerBase {
     bool WasDecisionLocomotionEligibleLastTick() const {
       return decisionLocomotionState.wasEligibleLastTick;
     }
+    // H3e4f-g0b-authority-flip: the executable locomotion intent is the one the
+    // Player Decision Clock published in the current continuity epoch. This is
+    // what execution authority will read, instead of the animation command.
+    bool HasExecutableDecisionLocomotionIntent() const {
+      return decisionLocomotionState.initialized &&
+             decisionLocomotionState.command.useDesiredMovement &&
+             decisionLocomotionState.publishedEpoch ==
+                 decisionLocomotionState.continuityEpoch;
+    }
+    const PlayerCommand &GetDecisionLocomotionIntent() const {
+      DO_VALIDATION;
+      return decisionLocomotionState.command;
+    }
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
