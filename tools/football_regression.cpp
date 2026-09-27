@@ -2070,9 +2070,10 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " p99=" << percentile(lifetimes, 0.99)
             << " max=" << percentile(lifetimes, 1.0) << "\n";
 
-  // H3e4f-a: pure-locomotion ticks whose legacy command was not a Movement
-  // command, i.e. the ticks the shadow oracle deliberately does not cover.
-  std::cout << "  shadow_oracle_uncovered_ticks="
+  // Pure-locomotion ticks driven by a non-Movement legacy command (BallControl or
+  // Trap with useDesiredMovement). The oracle compares these too; the count is
+  // reported because it is a real property of the legacy scheduler.
+  std::cout << "  non_movement_locomotion_ticks="
             << PlayerMovementCommandNonMovementTicks() << "\n";
 
   // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken

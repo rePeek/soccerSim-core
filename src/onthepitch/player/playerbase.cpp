@@ -130,7 +130,11 @@ void PlayerBase::SynchronizeKinematicState() {
 // Movement command locomotion is currently executing".
 void PlayerBase::SetSimulationMovementCommand(const PlayerCommand &command) {
   DO_VALIDATION;
-  if (command.desiredFunctionType != e_FunctionType_Movement) return;
+  // Stores whatever locomotion would consume, not only Movement actions: a
+  // BallControl or Trap command with useDesiredMovement also drives the
+  // procedural path, so restricting this to Movement would leave the shadow
+  // stale exactly on those ticks.
+  if (!command.useDesiredMovement) return;
   movementCommandState.command = command;
   movementCommandState.initialized = true;
 }
@@ -141,15 +145,13 @@ void PlayerBase::CheckSimulationMovementCommandOracle() const {
   // actions legitimately keep their own non-Movement originatingCommand.
   if (!IsEligibleForProceduralLocomotion()) return;
   if (!movementCommandState.initialized) return;
-  // The shadow mirrors the last accepted Movement command. A pure-locomotion
-  // tick can still be driven by a legacy command of another type (a retain or
-  // reset leaves the old command in place while the action reads Movement);
-  // those ticks are counted instead of compared, because there is nothing for
-  // the shadow to mirror there.
+  // The shadow mirrors whatever locomotion is consuming. A pure-locomotion tick
+  // whose legacy command is not a Movement action (BallControl or Trap with
+  // useDesiredMovement) is counted for visibility but still compared: that is
+  // exactly the case the reader cut must keep bit-exact.
   if (humanoid->GetCurrentAnim()->originatingCommand.desiredFunctionType !=
       e_FunctionType_Movement) {
     ++PlayerMovementCommandNonMovementTicks();
-    return;
   }
   if (!movementCommandState.initialized) return;
   const PlayerCommand &live = humanoid->GetCurrentAnim()->originatingCommand;
@@ -244,9 +246,8 @@ void PlayerBase::BeginSimulationAction() {
   // or restarts: activation, reset, retain selection and state restore all
   // rebuild the action without a selection, while the legacy anim keeps its own
   // originatingCommand. Legacy is still the producer here, so adopting its
-  // current Movement command keeps the oracle exact instead of stale.
-  if (anim->originatingCommand.desiredFunctionType ==
-      e_FunctionType_Movement) {
+  // current locomotion command keeps the oracle exact instead of stale.
+  if (anim->originatingCommand.useDesiredMovement) {
     movementCommandState.command = anim->originatingCommand;
     movementCommandState.initialized = true;
   }
