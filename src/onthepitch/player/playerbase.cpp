@@ -367,9 +367,6 @@ bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
 }
 
 void PlayerBase::CommitLocomotionIntentRefresh() {
-  // The decision clock no longer reads the compatibility movement slot. The Trip
-  // fallback commit counter that used to be derived from movementCommandState is
-  // gone with it: this function schedules the refresh clock, nothing else.
   ++HumanoidIntentRefreshCommits();
   DO_VALIDATION;
   const float distance_to_ball =
@@ -741,7 +738,6 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   // agree before any subsequent tick or reader can observe either.
   CheckSimulationKinematicOracle();
   actionState.ProcessState(state);
-  movementCommandState.ProcessState(state);
   // The continuity epoch decides whether a repair queries the controller, so it
   // is gameplay state and must survive save/load exactly. Its tracking booleans
   // belong to the same transition; the audit generation is deliberately excluded,

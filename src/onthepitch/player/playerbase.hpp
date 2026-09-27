@@ -22,7 +22,6 @@
 #include "player_kinematics.hpp"
 #include "player_ground_collider.hpp"
 #include "player_action.hpp"
-#include "player_movement_command.hpp"
 #include "locomotion_intent_scheduler.hpp"
 
 // Caller scope for the remaining ResetSituation instrumentation. This is
@@ -49,9 +48,6 @@ int &RetainConstructedCommand();
 // state. Since the execution authority flip this is the sole command source for
 // pure-locomotion execution: the gate requires a current-epoch publication, and
 // both PlayerLocomotion and PlayerBodyFacing consume this command.
-//
-// The legacy movementCommandState is no longer read or written here. It survives
-// only as serialized state until D removes the struct and its schema field.
 struct PlayerDecisionLocomotionState {
   PlayerCommand command;
   bool initialized = false;
@@ -371,7 +367,6 @@ class PlayerBase {
     PlayerKinematicState kinematicShadow;
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
-    PlayerMovementCommandState movementCommandState;
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
     // Explicit cause of the next Direct publication. A continuity repair runs
