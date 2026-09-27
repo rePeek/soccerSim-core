@@ -315,6 +315,10 @@ class PlayerBase {
     // Called only once the controller was actually queried for this refresh.
     void CommitLocomotionIntentRefresh();
     void NoteControllerQuery(bool had_movement_candidate);
+    // c2a: the Player Decision Clock's only publication entry point. It owns the
+    // decision locomotion state and the publication telemetry, and never touches the
+    // compatibility movement command slot.
+    void PublishDecisionLocomotionIntent(const PlayerCommand &command);
     bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue);
     bool LocomotionIntentRefreshHeldIneligible() const;
     // H3d2a: Humanoid invokes these for completed action selection and ticks.

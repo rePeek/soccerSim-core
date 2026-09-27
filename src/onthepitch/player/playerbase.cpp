@@ -375,14 +375,12 @@ void PlayerBase::SetSimulationMovementCommand(
     const PlayerCommand &command, LocomotionCommandSource source) {
   DO_VALIDATION;
   if (!command.useDesiredMovement) return;
-  // c2b authority rule. Movement intent has exactly one producer: the
-  // simulation's own cadence. Legacy acceptance may still seed the state while
-  // nothing has been established yet (activation, reset, state restore), but it
-  // may never overwrite an established Movement intent, and every such attempt
-  // is counted so the migration can prove the animation lifecycle stopped being
-  // a producer.
+  // Legacy gate for the compatibility slot. Direct publications no longer enter
+  // here (see PublishDecisionLocomotionIntent); the only simulation-owned source
+  // left is the local Trip fallback. Legacy acceptance may seed the slot while
+  // nothing has been established yet, but may never overwrite an established
+  // Movement intent, and every such attempt is counted.
   const bool simulation_owned_movement_source =
-      source == LocomotionCommandSource::DirectMovementIntent ||
       source == LocomotionCommandSource::SimulationFallbackIntent;
   if (command.desiredFunctionType == e_FunctionType_Movement &&
       !simulation_owned_movement_source && movementCommandState.initialized) {
@@ -393,33 +391,6 @@ void PlayerBase::SetSimulationMovementCommand(
   movementCommandState.source = source;
   movementCommandState.initialized = true;
   switch (source) {
-    case LocomotionCommandSource::DirectMovementIntent:
-      ++PlayerMovementCommandDirectAdoptions();
-      lastDirectMovementIntentPublication_ms =
-          static_cast<int>(match->GetActualTime_ms());
-      // Cause split without changing the player path: a publication on a tick
-      // where the simulation cadence was not due can only have come from the
-      // animation lifecycle's query opportunity.
-      lastPublicationViaSimulationCadence = pendingPublicationCause == 0;
-      ++DecisionPublicationCauseCount(pendingPublicationCause);
-      pendingPublicationCause = 0;
-      lastPublicationWhileIneligible =
-          !IsEligibleForProceduralLocomotion();
-      if (lastPublicationViaSimulationCadence) {
-        ++DecisionPublicationViaSimulationCadence();
-      } else {
-        ++DecisionPublicationViaLegacyOpportunityOnly();
-      }
-      if (lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
-      // A publication belongs to the continuity epoch it was produced in, which
-      // is what makes it usable for this epoch's locomotion execution.
-      // The decision-owned shadow is written here and nowhere else.
-      decisionLocomotionState.command = command;
-      decisionLocomotionState.initialized = true;
-      ++decisionLocomotionAuditGeneration;
-      decisionLocomotionState.publishedEpoch =
-          decisionLocomotionState.continuityEpoch;
-      break;
     case LocomotionCommandSource::SimulationFallbackIntent:
       ++PlayerMovementCommandFallbackAdoptions();
       break;
@@ -514,6 +485,41 @@ void PlayerBase::NoteControllerQuery(bool had_movement_candidate) {
   }
 }
 
+// c2a: the Player Decision Clock's single publication entry point. It owns the
+// decision locomotion state and the publication telemetry, and never touches the
+// compatibility movement command slot.
+void PlayerBase::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
+  DO_VALIDATION;
+  if (command.desiredFunctionType != e_FunctionType_Movement ||
+      !command.useDesiredMovement) {
+    Log(e_FatalError, "PlayerBase", "PublishDecisionLocomotionIntent",
+        "the Player Decision Clock published a non-Movement intent");
+  }
+  ++PlayerMovementCommandDirectAdoptions();
+  lastDirectMovementIntentPublication_ms =
+      static_cast<int>(match->GetActualTime_ms());
+  // Cause split without changing the player path: a publication on a tick where
+  // the simulation cadence was not due can only have come from the animation
+  // lifecycle's query opportunity.
+  lastPublicationViaSimulationCadence = pendingPublicationCause == 0;
+  ++DecisionPublicationCauseCount(pendingPublicationCause);
+  pendingPublicationCause = 0;
+  lastPublicationWhileIneligible = !IsEligibleForProceduralLocomotion();
+  if (lastPublicationViaSimulationCadence) {
+    ++DecisionPublicationViaSimulationCadence();
+  } else {
+    ++DecisionPublicationViaLegacyOpportunityOnly();
+  }
+  if (lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
+  // A publication belongs to the continuity epoch it was produced in, which is
+  // what makes it usable for this epoch's locomotion execution.
+  decisionLocomotionState.command = command;
+  decisionLocomotionState.initialized = true;
+  ++decisionLocomotionAuditGeneration;
+  decisionLocomotionState.publishedEpoch =
+      decisionLocomotionState.continuityEpoch;
+}
+
 // Single place that turns a controller queue into a published locomotion intent.
 // Returns true only when a Movement candidate with useDesiredMovement was
 // published, so callers commit the scheduler refresh only on a real publication.
@@ -523,8 +529,7 @@ bool PlayerBase::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue)
   for (const PlayerCommand &candidate : queue) {
     if (candidate.desiredFunctionType == e_FunctionType_Movement &&
         candidate.useDesiredMovement) {
-      SetSimulationMovementCommand(candidate,
-                                   LocomotionCommandSource::DirectMovementIntent);
+      PublishDecisionLocomotionIntent(candidate);
       return true;
     }
   }
