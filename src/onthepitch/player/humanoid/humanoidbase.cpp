@@ -894,20 +894,40 @@ void HumanoidBase::ApplySimulationMovementState(
   spatialState.position = state.position;
   spatialState.movement = state.velocity;
   spatialState.directionVec = state.facing;
-  // H3e3b: primary body direction follows simulation state as well. The
-  // remaining derived legacy pose fields (bodyAngle, relBody*, feet) are
-  // deliberately left for H3e3c.
-  spatialState.bodyDirectionVec = state.bodyFacing;
   spatialState.floatVelocity = spatialState.movement.GetLength();
   spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
   spatialState.angle =
       ModulateIntoRange(-pi, pi, FixAngle(spatialState.directionVec.GetAngle2D()));
+  ApplySimulationBodyState(state);
   // The next tick derives its raw movement from this, so it must describe the
   // position actually in force. Collision corrections land here too, exactly
   // as they did when the legacy root motion owned the position.
   previousPosition2D = spatialState.position;
   if (player) player->SynchronizeKinematicState();
 }
+
+void HumanoidBase::ApplySimulationBodyState(
+    const PlayerKinematicState &state) {
+  DO_VALIDATION;
+  // Continuous simulation truth. Nothing in this function writes back into
+  // state.bodyFacing, so legacy quantization cannot corrupt torso authority.
+  spatialState.bodyDirectionVec = state.bodyFacing;
+  spatialState.bodyAngle =
+      spatialState.bodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
+  const Vector3 relative = state.bodyFacing.GetRotated2D(-spatialState.angle)
+                               .GetNormalized(Vector3(0, -1, 0));
+  spatialState.relBodyDirectionVecNonquantized = relative;
+  spatialState.relBodyAngleNonquantized =
+      relative.GetAngle2D(Vector3(0, -1, 0));
+
+  // Compatibility for animation selection only. This quantization is a leaf:
+  // bodyDirectionVec remains the continuous simulation projection above.
+  spatialState.relBodyDirectionVec =
+      ForceIntoAllowedBodyDirectionVec(relative);
+  spatialState.relBodyAngle =
+      spatialState.relBodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
+}
+
 
 void HumanoidBase::ProjectMovementState(
     const PlayerKinematicState &tickStartState) {

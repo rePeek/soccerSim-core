@@ -219,9 +219,13 @@ class HumanoidBase {
     // follow it. Action selection, the ball algorithms and the body pose all
     // read spatialState, so it must never keep a private animation position.
     // Animation-owned bookkeeping (actualMovement, physicsMovement,
-    // animMovement, the smuggle movements, the body angles and the foot) is
-    // deliberately left alone until H3e3/H3e4 take it over.
+    // animMovement, the smuggle movements and the foot) is deliberately left
+    // alone until H3e4 takes it over.
     void ApplySimulationMovementState(const PlayerKinematicState &state);
+    // One-way body-orientation compatibility projection. Continuous fields are
+    // derived exactly from state.bodyFacing; quantized relBody* exists only for
+    // legacy animation selection and never feeds bodyFacing back.
+    void ApplySimulationBodyState(const PlayerKinematicState &state);
     // Produce this tick's movement. Pure locomotion is solved by the
     // simulation and the legacy Humanoid fields follow it; every other tick
     // keeps the legacy animation root motion and is merely projected. The
