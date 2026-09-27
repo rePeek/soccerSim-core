@@ -570,26 +570,6 @@ void PlayerBase::CommitLocomotionIntentRefresh() {
           distance_to_ball, match->GetBallRetainer() == this));
 }
 
-void PlayerBase::NoteLocomotionCommandConsumed() {
-  if (episode_active) ++episode_ticks;
-  DO_VALIDATION;
-  NoteLifecycleOverrideConsumptionAudit();
-  if (resetSeedAudit.active) {
-    if (movementCommandState.source != LocomotionCommandSource::SimulationSeed) {
-      ++resetSeedAudit.foreign_consumes;
-      ++ResetSeedForeignConsumeViolations();
-    } else {
-      if (resetSeedAudit.locomotion_consumes == 0) {
-        resetSeedAudit.first_consume_ms =
-            static_cast<int>(match->GetActualTime_ms());
-      }
-      ++resetSeedAudit.locomotion_consumes;
-    }
-  }
-  if (!reanchorPendingConsumption) return;
-  ++ReanchorConsumedBeforeRefresh();
-  reanchorPendingConsumption = false;
-}
 
 void PlayerBase::BeginLifecycleOverrideConsumptionAudit(int reason) {
   if (lifecycleOverrideAuditActive) {
@@ -723,88 +703,6 @@ bool PlayerBase::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue)
   return false;
 }
 
-void PlayerBase::CheckSimulationMovementCommandOracle() const {
-  DO_VALIDATION;
-  // Only the ticks that actually consume the command are compared. Other
-  // actions legitimately keep their own non-Movement originatingCommand.
-  if (!IsEligibleForProceduralLocomotion()) return;
-  if (!movementCommandState.initialized) return;
-  const PlayerCommand &live = humanoid->GetCurrentAnim()->originatingCommand;
-  const PlayerCommand &shadow = movementCommandState.command;
-  ++MovementOracleConsumesForSource(
-      static_cast<int>(movementCommandState.source));
-  // Source-dispatch policy. The oracle checks the locomotion state that the
-  // world tick is about to consume, so its contract follows that state's
-  // provenance instead of one animation-equality rule for every source.
-  switch (movementCommandState.source) {
-    case LocomotionCommandSource::DirectMovementIntent:
-      // Simulation authoritative: structural validity is fatal, disagreement
-      // with the animation is compatibility telemetry only.
-      if (shadow.desiredFunctionType != e_FunctionType_Movement ||
-          !shadow.useDesiredMovement) {
-        Log(e_FatalError, "PlayerBase", "CheckSimulationMovementCommandOracle",
-            "a direct locomotion intent must be a Movement command with "
-            "useDesiredMovement");
-      }
-      if (MovementCommandDiffersMaterially(live, shadow)) {
-        ++DirectVsLegacyCommandMateriallyDifferent();
-      } else {
-        ++DirectVsLegacyCommandEqual();
-      }
-      return;
-
-    case LocomotionCommandSource::SimulationSeed:
-      // Simulation authoritative and deliberately unlike the animation command.
-      if (shadow.desiredFunctionType != e_FunctionType_Movement ||
-          !shadow.useDesiredMovement ||
-          !FloatBitsEqual(shadow.desiredVelocityFloat, 0.0f) ||
-          shadow.useDesiredLookAt) {
-        Log(e_FatalError, "PlayerBase", "CheckSimulationMovementCommandOracle",
-            "a simulation reset seed must be a neutral zero-velocity Movement "
-            "intent without a look target");
-      }
-      return;
-
-    case LocomotionCommandSource::SimulationFallbackIntent:
-    case LocomotionCommandSource::LegacyCarriedForwardIntent:
-      // Both are defined as an exact projection of the animation command that
-      // produced them, so the bit-exact mirror remains fatal for them.
-      break;
-
-    case LocomotionCommandSource::ActionCoupledIntent:
-      // The locomotion payload arrived with an action command (BallControl /
-      // Trap). The action axis may legitimately move on, so a stale animation
-      // command is not proof that this locomotion state is invalid. Never
-      // fatal: measure the disagreement instead.
-      if (MovementCommandDiffersMaterially(live, shadow)) {
-        ++ActionCoupledLegacyMismatch();
-      }
-      return;
-  }
-  // Exact legacy mirror for SimulationFallbackIntent and
-  // LegacyCarriedForwardIntent.
-  std::string mismatch;
-  if (!Vector3BitsEqual(shadow.desiredDirection, live.desiredDirection)) {
-    mismatch = "desiredDirection";
-  } else if (!FloatBitsEqual(shadow.desiredVelocityFloat,
-                             live.desiredVelocityFloat)) {
-    mismatch = "desiredVelocityFloat";
-  } else if (shadow.useDesiredMovement != live.useDesiredMovement) {
-    mismatch = "useDesiredMovement";
-  } else if (shadow.useDesiredLookAt != live.useDesiredLookAt) {
-    mismatch = "useDesiredLookAt";
-  } else if (shadow.desiredFunctionType != live.desiredFunctionType) {
-    mismatch = "desiredFunctionType";
-  } else if (shadow.useDesiredLookAt &&
-             !Vector3BitsEqual(shadow.desiredLookAt, live.desiredLookAt)) {
-    mismatch = "desiredLookAt";
-  }
-  if (!mismatch.empty()) {
-    Log(e_FatalError, "PlayerBase", "CheckSimulationMovementCommandOracle",
-        "the simulation movement command diverged from the legacy animation "
-        "scheduler: " + mismatch);
-  }
-}
 
 PlayerActionState PlayerBase::CaptureLegacyActionState() const {
   DO_VALIDATION;

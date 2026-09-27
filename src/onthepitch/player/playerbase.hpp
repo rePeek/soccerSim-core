@@ -380,9 +380,6 @@ class PlayerBase {
     void SetSimulationMovementCommand(const PlayerCommand &command);
     void SetSimulationMovementCommand(const PlayerCommand &command,
                                       LocomotionCommandSource source);
-    // Fatal invariant: on every pure-locomotion tick the shadow and legacy
-    // currentAnim.originatingCommand must agree on every field locomotion reads.
-    void CheckSimulationMovementCommandOracle() const;
     // H3e4f-c2a: observation only. The simulation keeps its own locomotion
     // intent cadence in parallel with the animation requeue lifecycle, so the
     // two schedules can be compared before either one takes over.
@@ -398,8 +395,6 @@ class PlayerBase {
     bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue);
     void NoteMaterialMovementReanchor();
     bool LocomotionIntentRefreshHeldIneligible() const;
-    // Called where locomotion actually reads the command.
-    void NoteLocomotionCommandConsumed();
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
     void BeginSimulationAction();
