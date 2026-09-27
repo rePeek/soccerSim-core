@@ -2006,6 +2006,8 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int foot_angle_bucket_before = HumanoidFootOutgoingAngleBucketDiff();
   const int foot_special_before = HumanoidFootSpecialStateDiff();
   const int foot_lifecycle_before = HumanoidFootLifecycleChanged();
+  const int direct_before = PlayerMovementCommandDirectAdoptions();
+  const int legacy_before = PlayerMovementCommandLegacyAdoptions();
 
   const int ticks = 400;
   for (int tick = 0; tick < ticks; ++tick) env.step();
@@ -2075,6 +2077,10 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   // reported because it is a real property of the legacy scheduler.
   std::cout << "  non_movement_locomotion_ticks="
             << PlayerMovementCommandNonMovementTicks() << "\n";
+  std::cout << "  command_source direct_movement_intent="
+            << (PlayerMovementCommandDirectAdoptions() - direct_before)
+            << " legacy_accepted_action="
+            << (PlayerMovementCommandLegacyAdoptions() - legacy_before) << "\n";
 
   // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken
   // before the foot stable_sort, so a changed winner is caused by foot alone.

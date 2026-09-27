@@ -71,6 +71,8 @@ int &HumanoidProceduralMovementTicks() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement() { static int value = 0; return value; }
 int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return value; }
+int &PlayerMovementCommandDirectAdoptions() { static int value = 0; return value; }
+int &PlayerMovementCommandLegacyAdoptions() { static int value = 0; return value; }
 
 int &HumanoidSchedulerQueries() { static int value = 0; return value; }
 int &HumanoidMaterialCommandCandidates() { static int value = 0; return value; }
@@ -294,6 +296,20 @@ void HumanoidBase::Process() {
       commandQueue.push_back(GetBasicMovementCommand(tripDirection, spatialState.floatVelocity)); // backup, if there's no applicable trip anim
     } else {
       player->RequestCommand(commandQueue);
+
+      // H3e4f-c1: Movement intent is adopted directly, so a Movement command no
+      // longer needs SelectAnim's acceptance to reach locomotion. The query
+      // cadence is untouched. BallControl and Trap deliberately keep the legacy
+      // coupling: their locomotion intent is only meaningful if the action
+      // actually runs, so they still arrive through acceptance below.
+      for (const PlayerCommand &candidate : commandQueue) {
+        if (candidate.desiredFunctionType == e_FunctionType_Movement &&
+            candidate.useDesiredMovement) {
+          player->SetSimulationMovementCommand(
+              candidate, LocomotionCommandSource::DirectMovementIntent);
+          break;
+        }
+      }
     }
 
     // iterate through the command queue and pick the first that is applicable

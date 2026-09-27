@@ -125,10 +125,15 @@ void PlayerBase::SynchronizeKinematicState() {
   groundCollider.SetCenter(kinematicState.position);
   CheckSimulationKinematicOracle();
 }
-
-// H3e4f-a. Only Movement commands are stored, so the shadow always means "the
-// Movement command locomotion is currently executing".
+// The last command actually consumed by procedural locomotion.
 void PlayerBase::SetSimulationMovementCommand(const PlayerCommand &command) {
+  DO_VALIDATION;
+  SetSimulationMovementCommand(
+      command, LocomotionCommandSource::LegacyAcceptedAction);
+}
+
+void PlayerBase::SetSimulationMovementCommand(
+    const PlayerCommand &command, LocomotionCommandSource source) {
   DO_VALIDATION;
   // Stores whatever locomotion would consume, not only Movement actions: a
   // BallControl or Trap command with useDesiredMovement also drives the
@@ -136,7 +141,13 @@ void PlayerBase::SetSimulationMovementCommand(const PlayerCommand &command) {
   // stale exactly on those ticks.
   if (!command.useDesiredMovement) return;
   movementCommandState.command = command;
+  movementCommandState.source = source;
   movementCommandState.initialized = true;
+  if (source == LocomotionCommandSource::DirectMovementIntent) {
+    ++PlayerMovementCommandDirectAdoptions();
+  } else {
+    ++PlayerMovementCommandLegacyAdoptions();
+  }
 }
 
 void PlayerBase::CheckSimulationMovementCommandOracle() const {

@@ -16,17 +16,28 @@
 // every field locomotion reads. That makes storage ownership a bit-exact
 // refactor, so the producer (H3e4f-c) can be replaced later without also
 // changing who owns the data.
+// Where the locomotion command came from. This exists so the producer cut can be
+// measured rather than guessed: a direct Movement intent is not the same evidence
+// as an accepted legacy action, and the BallControl/Trap coupling stays visible.
+enum class LocomotionCommandSource {
+  LegacyAcceptedAction,
+  DirectMovementIntent,
+};
+
 struct PlayerMovementCommandState {
   PlayerCommand command;
-  // False until the first Movement command is accepted. The kickoff animation
-  // is selected without going through the two acceptance points, so the shadow
-  // has no counterpart before that; the oracle is skipped there rather than
-  // weakened. Instrumenting that initial selection is a follow-up.
+  LocomotionCommandSource source = LocomotionCommandSource::LegacyAcceptedAction;
+  // False until the first locomotion command is stored. The kickoff animation
+  // is selected without going through an acceptance point, so the shadow has no
+  // counterpart before that; the oracle is skipped there rather than weakened.
   bool initialized = false;
 
   void ProcessState(EnvState *state) {
     DO_VALIDATION;
     command.ProcessState(state);
+    int source_value = static_cast<int>(source);
+    state->process(source_value);
+    source = static_cast<LocomotionCommandSource>(source_value);
     state->process(initialized);
   }
 };

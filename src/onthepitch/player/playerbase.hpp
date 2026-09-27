@@ -118,6 +118,8 @@ class PlayerBase {
       return movementCommandState.command;
     }
     void SetSimulationMovementCommand(const PlayerCommand &command);
+    void SetSimulationMovementCommand(const PlayerCommand &command,
+                                      LocomotionCommandSource source);
     // Fatal invariant: on every pure-locomotion tick the shadow and legacy
     // currentAnim.originatingCommand must agree on every field locomotion reads.
     void CheckSimulationMovementCommandOracle() const;

@@ -37,6 +37,8 @@ int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
 // Diagnostics for the movement-command shadow (library-side single instance).
 int &PlayerMovementCommandNonMovementTicks();
+int &PlayerMovementCommandDirectAdoptions();
+int &PlayerMovementCommandLegacyAdoptions();
 
 // H3e4e1 diagnostics: who owns the movement command lifetime right now. Every
 // accepted Movement command still arrives through an animation selection, so
