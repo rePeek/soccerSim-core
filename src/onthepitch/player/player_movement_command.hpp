@@ -20,13 +20,19 @@
 // measured rather than guessed: a direct Movement intent is not the same evidence
 // as an accepted legacy action, and the BallControl/Trap coupling stays visible.
 enum class LocomotionCommandSource {
-  LegacyAcceptedAction,
+  ActionCoupledIntent,
   DirectMovementIntent,
+  // TEMPORARY (H3e4f-g0b-3b): a restart boundary republishes a command carried
+  // forward from the animation state. Kept distinct from the target
+  // SimulationSeed, which must be derived from simulation semantics instead.
+  LegacyCarriedForwardIntent,
+  // Target ownership. Defined now, not produced yet.
+  SimulationSeed,
 };
 
 struct PlayerMovementCommandState {
   PlayerCommand command;
-  LocomotionCommandSource source = LocomotionCommandSource::LegacyAcceptedAction;
+  LocomotionCommandSource source = LocomotionCommandSource::ActionCoupledIntent;
   // False until the first locomotion command is stored. The kickoff animation
   // is selected without going through an acceptance point, so the shadow has no
   // counterpart before that; the oracle is skipped there rather than weakened.

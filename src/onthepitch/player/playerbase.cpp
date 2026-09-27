@@ -176,7 +176,7 @@ void PlayerBase::SynchronizeKinematicState() {
 void PlayerBase::SetSimulationMovementCommand(const PlayerCommand &command) {
   DO_VALIDATION;
   SetSimulationMovementCommand(
-      command, LocomotionCommandSource::LegacyAcceptedAction);
+      command, LocomotionCommandSource::ActionCoupledIntent);
 }
 
 void PlayerBase::SetSimulationMovementCommand(
@@ -421,7 +421,7 @@ void PlayerBase::BeginSimulationAction() {
       ++NonMovementCommandReanchors();
     }
     movementCommandState.command = anim->originatingCommand;
-    movementCommandState.source = LocomotionCommandSource::LegacyAcceptedAction;
+    movementCommandState.source = LocomotionCommandSource::LegacyCarriedForwardIntent;
     movementCommandState.initialized = true;
   }
 
