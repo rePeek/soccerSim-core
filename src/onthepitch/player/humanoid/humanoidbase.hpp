@@ -53,6 +53,20 @@ std::vector<int> &HumanoidSelectedMovementFrames();
 // similar to what we are already trying to accomplish" (1.5 m/s momentum gap).
 bool MovementCommandDiffersMaterially(const PlayerCommand &in_force,
                                       const PlayerCommand &candidate);
+// H3e4e2: how much does the foot tie-break actually move the final order? The
+// counterfactual clones the candidate set before the foot stable_sort and then
+// receives exactly the same remaining sorts, so the only difference is foot.
+int &HumanoidFootCounterfactualSelections();
+int &HumanoidFootWinnerChanged();
+int &HumanoidFootFrameCountDiff();
+int &HumanoidFootQuadrantDiff();
+int &HumanoidFootOutgoingVelocityDiff();
+int &HumanoidFootOutgoingAngleBitsDiff();
+int &HumanoidFootOutgoingAngleBucketDiff();
+int &HumanoidFootSpecialStateDiff();
+int &HumanoidFootLifecycleChanged();
+void RecordFootCounterfactual(int with_foot_head, int without_foot_head,
+                              AnimCollection *anims);
 // RecordMovementCommandAcceptance() is declared at the end of this header: it
 // needs the action/pose enums defined below.
 // Counts one scheduler query and returns whether the candidate differs

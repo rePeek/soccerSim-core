@@ -1211,6 +1211,13 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
   SetIdlePredicate(desiredIdleLevel);
   std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
 
+  // H3e4e2 measurement: strict counterfactual for the foot tie-break. The clone
+  // is taken before the foot stable_sort and then receives exactly the same
+  // remaining sorts, so the only difference between the two orders is foot.
+  const bool foot_counterfactual =
+      command.desiredFunctionType == e_FunctionType_Movement;
+  DataSet withoutFootSort;
+  if (foot_counterfactual) withoutFootSort = dataSet;
   SetFootSimilarityPredicate(spatialState.foot);
   std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareFootSimilarity, this, spatialState.foot, _1, _2));
 
@@ -1241,6 +1248,31 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
   if (command.desiredFunctionType == e_FunctionType_Deflect) {
     DO_VALIDATION;
     std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
+  }
+
+  if (foot_counterfactual) {
+    // Same remaining chain, minus the foot sort. Conditions mirror production
+    // so this stays a counterfactual and not a second scheduler.
+    if (command.desiredFunctionType != e_FunctionType_BallControl) {
+      SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
+    }
+    SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
+    std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
+    if (command.useDesiredTripDirection) {
+      SetTripDirectionSimilarityPredicate(command.desiredTripDirection.GetRotated2D(-spatialState.angle));
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareTripDirectionSimilarity, this, _1, _2));
+    }
+    if (command.desiredFunctionType != e_FunctionType_Movement) {
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
+    }
+    if (command.desiredFunctionType == e_FunctionType_Deflect) {
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
+    }
+    if (!dataSet.empty() && !withoutFootSort.empty()) {
+      RecordFootCounterfactual(*dataSet.begin(), *withoutFootSort.begin(),
+                               anims.get());
+    }
   }
   GetContext().tracker_disabled--;
 

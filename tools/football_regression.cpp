@@ -1997,6 +1997,15 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const size_t lifetimes_before = HumanoidMovementCommandLifetimes_ms().size();
   const size_t frames_before = HumanoidSelectedMovementFrames().size();
   const int pure_before = HumanoidProceduralMovementTicks();
+  const int foot_selections_before = HumanoidFootCounterfactualSelections();
+  const int foot_changed_before = HumanoidFootWinnerChanged();
+  const int foot_frames_before = HumanoidFootFrameCountDiff();
+  const int foot_quadrant_before = HumanoidFootQuadrantDiff();
+  const int foot_velocity_before = HumanoidFootOutgoingVelocityDiff();
+  const int foot_angle_bits_before = HumanoidFootOutgoingAngleBitsDiff();
+  const int foot_angle_bucket_before = HumanoidFootOutgoingAngleBucketDiff();
+  const int foot_special_before = HumanoidFootSpecialStateDiff();
+  const int foot_lifecycle_before = HumanoidFootLifecycleChanged();
 
   const int ticks = 400;
   for (int tick = 0; tick < ticks; ++tick) env.step();
@@ -2060,6 +2069,40 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " p90=" << percentile(lifetimes, 0.90)
             << " p99=" << percentile(lifetimes, 0.99)
             << " max=" << percentile(lifetimes, 1.0) << "\n";
+
+  // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken
+  // before the foot stable_sort, so a changed winner is caused by foot alone.
+  const int foot_selections =
+      HumanoidFootCounterfactualSelections() - foot_selections_before;
+  const int foot_changed = HumanoidFootWinnerChanged() - foot_changed_before;
+  const int foot_frames = HumanoidFootFrameCountDiff() - foot_frames_before;
+  const int foot_quadrant = HumanoidFootQuadrantDiff() - foot_quadrant_before;
+  const int foot_velocity =
+      HumanoidFootOutgoingVelocityDiff() - foot_velocity_before;
+  const int foot_angle_bits =
+      HumanoidFootOutgoingAngleBitsDiff() - foot_angle_bits_before;
+  const int foot_angle_bucket =
+      HumanoidFootOutgoingAngleBucketDiff() - foot_angle_bucket_before;
+  const int foot_special = HumanoidFootSpecialStateDiff() - foot_special_before;
+  const int foot_lifecycle =
+      HumanoidFootLifecycleChanged() - foot_lifecycle_before;
+  Require(foot_selections > 0,
+          "foot counterfactual: no movement selection was compared");
+  Require(foot_changed >= foot_lifecycle,
+          "foot counterfactual: a lifecycle change must be a winner change");
+  std::cout << "foot tie-break counterfactual:\n";
+  std::cout << "  movement_selections=" << foot_selections
+            << " winner_changed_without_foot=" << foot_changed
+            << " winner_change_rate=";
+  std::cout << (static_cast<double>(foot_changed) / foot_selections) << "\n";
+  std::cout << "  of_changed frameCount=" << foot_frames
+            << " quadrant=" << foot_quadrant
+            << " outgoing_velocity=" << foot_velocity
+            << " outgoing_angle_bits=" << foot_angle_bits
+            << " outgoing_angle_bucket=" << foot_angle_bucket
+            << " special_state=" << foot_special << "\n";
+  std::cout << "  lifecycle_change_rate=";
+  std::cout << (static_cast<double>(foot_lifecycle) / foot_selections) << "\n";
 }
 
 

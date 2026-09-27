@@ -127,6 +127,61 @@ void RecordMovementCommandAcceptance(bool material_candidate,
   }
 }
 
+
+int &HumanoidFootCounterfactualSelections() { static int value = 0; return value; }
+int &HumanoidFootWinnerChanged() { static int value = 0; return value; }
+int &HumanoidFootFrameCountDiff() { static int value = 0; return value; }
+int &HumanoidFootQuadrantDiff() { static int value = 0; return value; }
+int &HumanoidFootOutgoingVelocityDiff() { static int value = 0; return value; }
+int &HumanoidFootOutgoingAngleBitsDiff() { static int value = 0; return value; }
+int &HumanoidFootOutgoingAngleBucketDiff() { static int value = 0; return value; }
+int &HumanoidFootSpecialStateDiff() { static int value = 0; return value; }
+int &HumanoidFootLifecycleChanged() { static int value = 0; return value; }
+
+void RecordFootCounterfactual(int with_foot_head, int without_foot_head,
+                              AnimCollection *anims) {
+  ++HumanoidFootCounterfactualSelections();
+  if (with_foot_head == without_foot_head) return;
+  ++HumanoidFootWinnerChanged();
+  Animation *with_foot = anims->GetAnim(with_foot_head);
+  Animation *without_foot = anims->GetAnim(without_foot_head);
+  bool lifecycle_changed = false;
+  if (with_foot->GetFrameCount() != without_foot->GetFrameCount()) {
+    ++HumanoidFootFrameCountDiff();
+    lifecycle_changed = true;
+  }
+  if (with_foot->GetVariableCache().quadrant_id() !=
+      without_foot->GetVariableCache().quadrant_id()) {
+    ++HumanoidFootQuadrantDiff();
+    lifecycle_changed = true;
+  }
+  if (FloatToEnumVelocity(with_foot->GetOutgoingVelocity()) !=
+      FloatToEnumVelocity(without_foot->GetOutgoingVelocity())) {
+    ++HumanoidFootOutgoingVelocityDiff();
+    lifecycle_changed = true;
+  }
+  const float with_angle = with_foot->GetOutgoingAngle();
+  const float without_angle = without_foot->GetOutgoingAngle();
+  if (with_angle != without_angle) ++HumanoidFootOutgoingAngleBitsDiff();
+  // The requeue path buckets outgoing angles, so a different number only
+  // matters when it lands in a different bucket. ~20 degrees, as an
+  // approximation of the preferred-direction grid.
+  const float bucket = pi / 9.0f;
+  if (static_cast<int>(std::floor(with_angle / bucket + 0.5f)) !=
+      static_cast<int>(std::floor(without_angle / bucket + 0.5f))) {
+    ++HumanoidFootOutgoingAngleBucketDiff();
+    lifecycle_changed = true;
+  }
+  if (with_foot->GetVariableCache().outgoing_special_state() !=
+          without_foot->GetVariableCache().outgoing_special_state() ||
+      with_foot->GetVariableCache().incoming_special_state() !=
+          without_foot->GetVariableCache().incoming_special_state()) {
+    ++HumanoidFootSpecialStateDiff();
+    lifecycle_changed = true;
+  }
+  if (lifecycle_changed) ++HumanoidFootLifecycleChanged();
+}
+
 const radian preferredDirectionAngles[] = {
     0 * pi,
     0.111 * pi, // 20
