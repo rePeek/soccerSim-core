@@ -78,7 +78,19 @@ class Player : public PlayerBase {
       return GetSimulationActionState().frame;
     }
 
-    void SelectRetainAnim() { DO_VALIDATION; CastHumanoid()->SelectRetainAnim(); }
+    void SelectRetainAnim() { DO_VALIDATION;
+      // H3e4f-g0b-3a provenance: retain rebuilds animation state; does it build a command?
+      const PlayerCommand retain_command_before = CastHumanoid()->GetCurrentAnim()->originatingCommand;
+      CastHumanoid()->SelectRetainAnim();
+      const PlayerCommand &retain_command_after = CastHumanoid()->GetCurrentAnim()->originatingCommand;
+      if (retain_command_after.desiredDirection.coords[0] == retain_command_before.desiredDirection.coords[0] &&
+          retain_command_after.desiredDirection.coords[1] == retain_command_before.desiredDirection.coords[1] &&
+          retain_command_after.desiredVelocityFloat == retain_command_before.desiredVelocityFloat) {
+        ++RetainCarriedCommandForward();
+      } else {
+        ++RetainConstructedCommand();
+      }
+    }
 
     inline e_FunctionType GetCurrentFunctionType() const {
       DO_VALIDATION;

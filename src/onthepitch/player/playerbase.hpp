@@ -31,6 +31,12 @@ int &ReanchorPendingSet();
 int &ReanchorConsumedBeforeRefresh();
 int &ReanchorSupersededByRefresh();
 std::vector<int> &ReanchorLifetime_ms();
+// H3e4f-g0b-3a provenance: does a restart boundary construct a new locomotion
+// command, or carry an older one forward?
+int &RestartCarriedCommandForward();
+int &RestartConstructedCommand();
+int &RetainCarriedCommandForward();
+int &RetainConstructedCommand();
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
