@@ -106,9 +106,29 @@ int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
   return records[source];
 }
 int &LocomotionActionExitCount() { static int value = 0; return value; }
+int &LocomotionNegativeDecisionAgeSamples() { static int value = 0; return value; }
+int &LocomotionReentryMeasurementEpoch() { static int value = 0; return value; }
+void ResetLocomotionReentryAudits() {
+  for (int category = 0; category < 4; ++category) {
+    LocomotionReentryAuditFor(category) = LocomotionReentryAudit();
+  }
+  LocomotionActionExitCount() = 0;
+  LocomotionNegativeDecisionAgeSamples() = 0;
+  // Per-player provenance is scoped by epoch, so a player resets its own audit
+  // state on its next tick without iterating the roster.
+  ++LocomotionReentryMeasurementEpoch();
+}
 
 void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
                                           bool scheduler_due, int now_ms) {
+  // Measurement epoch: telemetry is transient and not serialized, so state
+  // restore can rewind the match clock behind it. Scope the audit to the epoch
+  // instead of letting earlier scenarios pollute it.
+  if (reentryAuditEpoch != LocomotionReentryMeasurementEpoch()) {
+    reentryAuditEpoch = LocomotionReentryMeasurementEpoch();
+    reentryAuditStarted = false;
+    locomotionExitRecorded = false;
+  }
   const unsigned long long generation = decisionLocomotionState.generation;
   if (!reentryAuditStarted) {
     reentryAuditStarted = true;
@@ -141,20 +161,30 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
   if (legacy_gate) ++audit.legacy_gate_true; else ++audit.legacy_gate_false;
   if (scheduler_due) ++audit.scheduler_due; else ++audit.scheduler_not_due;
   if (category >= 2) {
-    // Meaningful only once locomotion was actually left.
-    if (locomotionExitRecorded &&
-        generation != decisionGenerationAtLocomotionExit) {
+    // Reset is itself the discontinuity, so it anchors the comparison; other
+    // re-entries require an observed locomotion exit.
+    const bool anchor_valid = category == 3 ? resetGenerationAnchorValid
+                                            : locomotionExitRecorded;
+    const unsigned long long anchor = category == 3
+        ? resetDecisionGeneration
+        : decisionGenerationAtLocomotionExit;
+    if (anchor_valid && generation != anchor) {
       ++audit.generation_advanced;
-    } else if (locomotionExitRecorded) {
+    } else if (anchor_valid) {
       ++audit.generation_unchanged;
       if (!legacy_gate) ++audit.unchanged_and_legacy_gate_false;
     }
   }
   if (lastDirectMovementIntentPublication_ms >= 0) {
     const int age_ms = now_ms - lastDirectMovementIntentPublication_ms;
-    audit.decision_age_sum_ms += age_ms;
-    ++audit.decision_age_count;
-    if (age_ms > audit.decision_age_max_ms) audit.decision_age_max_ms = age_ms;
+    if (age_ms < 0) {
+      // A restorable clock cannot precede a publication in normal forward play.
+      ++LocomotionNegativeDecisionAgeSamples();
+    } else {
+      audit.decision_age_sum_ms += age_ms;
+      ++audit.decision_age_count;
+      if (age_ms > audit.decision_age_max_ms) audit.decision_age_max_ms = age_ms;
+    }
   }
   wasPureLocomotionLastTick = true;
   resetSinceLastPlayerTick = false;
@@ -1004,6 +1034,10 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   lastTouchType = e_TouchType_None;
   if (IsActive()) {
     nextActionBeginReason = kBeginResetSituation;
+    // The reset itself is the discontinuity, so it anchors the generation that
+    // a later reset re-entry compares against.
+    resetDecisionGeneration = decisionLocomotionState.generation;
+    resetGenerationAnchorValid = true;
     lastResetSituation_ms = static_cast<int>(match->GetActualTime_ms());
     resetSinceLastPlayerTick = true;
     if (resetSituationAuditContext == kResetSituationUnspecified) {

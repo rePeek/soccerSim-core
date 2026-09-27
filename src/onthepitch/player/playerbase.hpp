@@ -165,6 +165,9 @@ struct LocomotionReentryAudit {
 };
 LocomotionReentryAudit &LocomotionReentryAuditFor(int category);
 int &LocomotionActionExitCount();
+int &LocomotionNegativeDecisionAgeSamples();
+int &LocomotionReentryMeasurementEpoch();
+void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
@@ -405,7 +408,10 @@ class PlayerBase {
     // written only by a DirectMovementIntent publication.
     PlayerDecisionLocomotionState decisionLocomotionState;
     // Re-entry provenance. Transient, never serialized, measurement only.
+    int reentryAuditEpoch = -1;
     bool locomotionExitRecorded = false;
+    bool resetGenerationAnchorValid = false;
+    unsigned long long resetDecisionGeneration = 0;
     bool reentryAuditStarted = false;
     bool wasPureLocomotionLastTick = false;
     bool resetSinceLastPlayerTick = false;

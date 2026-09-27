@@ -1986,6 +1986,9 @@ void MeasureLegacyBodyFacing(GameEnv& env, ScenarioConfig& config) {
 void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "movement lifecycle: kickoff");
+  // Scope the transient re-entry audit to this measurement corpus: telemetry is
+  // not serialized, so earlier scenarios and state restore can pollute it.
+  ResetLocomotionReentryAudits();
 
   const int queries_before = HumanoidSchedulerQueries();
   const int material_before = HumanoidMaterialCommandCandidates();
@@ -2317,6 +2320,10 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   }
   Require(LocomotionReentryAuditFor(2).ticks <= LocomotionActionExitCount(),
           "reentry audit: action re-entries exceed observed locomotion exits");
+  Require(LocomotionNegativeDecisionAgeSamples() == 0,
+          "reentry audit: a decision age was negative inside a clean epoch");
+  std::cout << "  locomotion_negative_decision_age_samples="
+            << LocomotionNegativeDecisionAgeSamples() << "\n";
   std::cout << "  movement_oracle source[action,direct,legacy,seed,fallback]="
             << MovementOracleConsumesForSource(0) << ","
             << MovementOracleConsumesForSource(1) << ","
