@@ -181,7 +181,11 @@ class HumanoidBase {
     inline Vector3 GetBodyDirectionVec() const {
       return spatialState.bodyDirectionVec;
     }
+    // Quantized relBodyAngle is animation-selection compatibility only.
     inline radian GetRelBodyAngle() const { return spatialState.relBodyAngle; }
+    inline radian GetRelBodyAngleNonquantized() const {
+      return spatialState.relBodyAngleNonquantized;
+    }
     inline e_Velocity GetEnumVelocity() const { return spatialState.enumVelocity; }
     inline e_FunctionType GetCurrentFunctionType() const { return currentAnim.functionType; }
     inline e_FunctionType GetPreviousFunctionType() const { return previousAnim_functionType; }
