@@ -1220,20 +1220,20 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
        UINT64_C(385886754253041681)},
-      // 4f-a3b1: legacy/locomotion RequestCommand callers are closed. Existing
-      // selection and publication opportunities now consume the serialized queue.
-      {100, 79, Position(-0.950768411f, 0.177909806f, 1.25999999f, true),
-       Position(-0.948065281f, 0.177555591f, 0.0f, true),
-       Position(0.834081471f, -0.00267888722f, 0.0f, true), 0, 0, true,
-       UINT64_C(17909299254613364194)},
-      {500, 431, Position(0.233073995f, -0.00381338829f, 0.116082765f, true),
-       Position(-0.881298721f, 9.66301457e-08f, 0.0f, true),
-       Position(0.909260631f, -0.00716408761f, 0.0f, true), 0, 1, true,
-       UINT64_C(12541957393548191132)},
-      {1000, 904, Position(-0.777736843f, -0.102248125f, 0.115254357f, true),
-       Position(-0.9967677f, 0.00645749969f, 0.0f, true),
-       Position(0.836257815f, 0.000473367749f, 0.0f, true), 0, 2, true,
-       UINT64_C(10679753531326381487)},
+      // 4f-a3b2: animation opportunities no longer publish Movement; locomotion
+      // cadence and continuity repair are the only publication owners.
+      {100, 79, Position(-0.689303577f, 0.0408623032f, 0.113170028f, true),
+       Position(-0.989319384f, 0.00405876338f, 0.0f, true),
+       Position(0.832003117f, 0.000653819705f, 0.0f, true), 0, 0, true,
+       UINT64_C(4969434695754821216)},
+      {500, 437, Position(0.517092466f, -0.134222239f, 0.108121894f, true),
+       Position(-0.829032123f, 0.00554634072f, 0.0f, true),
+       Position(0.985996425f, -0.00836261921f, 0.0f, true), 0, 0, true,
+       UINT64_C(2505170653720278208)},
+      {1000, 868, Position(-0.262085766f, 0.340801805f, 0.504042089f, true),
+       Position(-0.995155215f, 0.0113674011f, 0.0f, true),
+       Position(0.831140041f, 0.00322162174f, 0.0f, true), 1, 0, true,
+       UINT64_C(3537746564645942138)},
   };
 
 
@@ -2028,6 +2028,10 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int legacy_only_queries_before = LegacyOnlyDecisionQueries();
   const int legacy_only_movement_queries_before = LegacyOnlyDecisionMovementQueries();
   const int legacy_only_publications_before = LegacyOnlyDecisionPublications();
+  const int cadence_publications_before = DecisionPublicationCauseCount(0);
+  const int continuity_repairs_before = ContinuityRepairAttempts();
+  const int continuity_repair_publications_before =
+      ContinuityRepairPublications();
   const int legacy_only_material_changes_before = LegacyOnlyDecisionMaterialChanges();
   const int legacy_only_movement_selections_before = LegacyOnlyDecisionMovementSelections();
   const int legacy_only_non_movement_selections_before =
@@ -2071,12 +2075,21 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int from_other =
       HumanoidMovementFromOtherAction() - from_other_before;
   const int pure_ticks = HumanoidProceduralMovementTicks() - pure_before;
+  const int continuity_repairs =
+      ContinuityRepairAttempts() - continuity_repairs_before;
+  const int continuity_repair_publications =
+      ContinuityRepairPublications() - continuity_repair_publications_before;
   std::vector<int> lifetimes(
       HumanoidMovementCommandLifetimes_ms().begin() + lifetimes_before,
       HumanoidMovementCommandLifetimes_ms().end());
   std::vector<int> frames(HumanoidSelectedMovementFrames().begin() + frames_before,
                          HumanoidSelectedMovementFrames().end());
 
+  Require(PlayerDecisionClockForcedQueries() - decision_clock_forced_before ==
+              continuity_repairs,
+          "a3b2: stale continuity repair did not force exactly one Player Decision query");
+  Require(continuity_repair_publications == continuity_repairs,
+          "a3b2: continuity repair did not publish exactly once per forced query");
   Require(pure_ticks > 0,
           "movement lifecycle: no pure locomotion tick was observed");
   Require(selections > 0,
@@ -2214,13 +2227,15 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int legacy_publication_delta =
       LegacyOnlyDecisionPublications() - legacy_only_publications_before;
   Require(legacy_opportunity_delta > 0,
-          "a3b1: animation opportunities must remain live");
+          "a3b2: animation selection opportunities must remain live");
   Require(legacy_query_delta == 0 &&
               LegacyOnlyDecisionMovementQueries() -
                       legacy_only_movement_queries_before == 0,
-          "a3b1: legacy-only opportunities still called RequestCommand");
-  Require(legacy_publication_delta > 0,
-          "a3b1: cached Movement publication must remain opportunity-triggered until a3b2");
+          "a3b2: legacy-only opportunities still called RequestCommand");
+  Require(legacy_publication_delta == 0,
+          "a3b2: animation-only opportunities still published Movement");
+  Require(DecisionPublicationCauseCount(0) - cadence_publications_before > 0,
+          "a3b2: locomotion cadence did not publish cached Movement");
   Require(PlayerDecisionClockQueries() - decision_clock_queries_before ==
               PlayerDecisionClockPeriodicQueries() - decision_clock_periodic_before +
                   PlayerDecisionClockForcedQueries() - decision_clock_forced_before,
@@ -2382,6 +2397,7 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
               << audit.unchanged_and_legacy_gate_false
               << " would_require_fresh=" << audit.would_require_fresh
               << " stale_after_reset=" << audit.stale_after_reset
+              << " stale_after_action_exit=" << audit.stale_after_action_exit
               << " stale_unexplained=" << audit.stale_not_explained_by_reset
               << " decision_age_mean/max=";
     std::cout << (audit.decision_age_count
@@ -2389,15 +2405,16 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
                       : -1)
               << "/" << audit.decision_age_max_ms << "\n";
   }
-  // Observation, not an invariant: continuous locomotion may legitimately require
-  // a fresh decision when a reset advanced the epoch while the actor stayed
-  // Every stale-epoch tick must be attributable to a reset that advanced the
-  // epoch with no decision catching up. Zero unexplained means the epoch rule
-  // never fires spuriously on a cadence-due tick.
+  // A3b2 allows an action re-entry to observe a stale epoch at tick start; the
+  // continuity-forced Player Decision query and publication repair it before
+  // locomotion executes. Other unexplained stale epochs remain forbidden.
   for (int category = 1; category < 4; ++category) {
     Require(LocomotionReentryAuditFor(category).stale_not_explained_by_reset == 0,
-            "continuity epoch: a stale epoch was not caused by a reset");
+            "continuity epoch: stale state was neither reset- nor action-exit-attributed");
   }
+  Require(LocomotionReentryAuditFor(2).stale_after_action_exit <=
+              continuity_repairs,
+          "a3b2: stale action re-entry exceeded continuity repairs");
   Require(LocomotionReentryAuditFor(2).ticks <= LocomotionActionExitCount(),
           "reentry audit: action re-entries exceed observed locomotion exits");
   Require(LocomotionNegativeDecisionAgeSamples() == 0,

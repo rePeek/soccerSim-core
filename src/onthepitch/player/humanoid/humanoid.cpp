@@ -311,6 +311,7 @@ void Humanoid::Process() {
   // not credited to the simulation cadence in the audit.
   const bool legacy_only = legacy_opportunity && !simulation_due;
   CastPlayer()->NoteDecisionPublicationCause(legacy_only ? 1 : 0);
+  bool decision_queue_selection_movement = false;
   if (legacy_opportunity || simulation_due) {
     DO_VALIDATION;
     PlayerCommandQueue commandQueue;      // selection queue
@@ -392,20 +393,9 @@ void Humanoid::Process() {
     }
 
 
-    // a3b1 keeps the old opportunity-triggered Movement publication, now from
-    // the serialized decision queue. Trip-local fallback commands remain selection
-    // only and cannot publish cached Movement.
-    if (uses_player_decision_queue && !movement_published_this_tick) {
-      CastPlayer()->NoteDecisionMovementSelection(
-          found && action.type == e_FunctionType_Movement);
-      if (CastPlayer()->PublishMovementIntentFromQueue(commandQueue)) {
-        movement_published_this_tick = true;
-        ++PlayerPathDirectPublications();
-        CastPlayer()->CommitLocomotionIntentRefresh();
-        ++PlayerPathRefreshCommits();
-      } else {
-        ++PlayerPathCandidatesMissing();
-      }
+    if (uses_player_decision_queue) {
+      decision_queue_selection_movement =
+          found && action.type == e_FunctionType_Movement;
     }
     if (found) {
       DO_VALIDATION;
@@ -438,6 +428,28 @@ void Humanoid::Process() {
       } else {
         ++LegacyOnlyDecisionNonMovementSelections();
       }
+    }
+  }
+
+  // Movement publication belongs to the locomotion cadence, not animation
+  // opportunities. A simultaneous Trip-local selection does not change the
+  // cadence publisher's source: it always samples the serialized decision queue.
+  if (simulation_due && !movement_published_this_tick) {
+    if (!CastPlayer()->HasPlayerDecisionQueue()) {
+      ++PlayerDecisionClockQueueConsumersMissing();
+      Log(e_FatalError, "Humanoid", "Process",
+          "Player Decision queue is missing before locomotion publication");
+    }
+    CastPlayer()->NoteDecisionMovementSelection(
+        decision_queue_selection_movement);
+    if (CastPlayer()->PublishMovementIntentFromQueue(
+            CastPlayer()->GetPlayerDecisionQueue())) {
+      movement_published_this_tick = true;
+      ++PlayerPathDirectPublications();
+      CastPlayer()->CommitLocomotionIntentRefresh();
+      ++PlayerPathRefreshCommits();
+    } else {
+      ++PlayerPathCandidatesMissing();
     }
   }
   reQueueDelayFrames = std::max(reQueueDelayFrames - 1, 0);

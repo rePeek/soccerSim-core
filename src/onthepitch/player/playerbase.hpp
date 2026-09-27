@@ -134,6 +134,8 @@ struct LocomotionReentryAudit {
   // Attribution of a stale epoch: if the last reset is newer than the last
   // publication, the reset advanced the epoch and no decision has caught up.
   int stale_after_reset = 0;
+  // A stale epoch observed on action re-entry is expected to force continuity repair.
+  int stale_after_action_exit = 0;
   int stale_not_explained_by_reset = 0;
 };
 LocomotionReentryAudit &LocomotionReentryAuditFor(int category);

@@ -173,6 +173,11 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
     ++audit.would_require_fresh;
     if (lastResetSituation_ms > lastDirectMovementIntentPublication_ms) {
       ++audit.stale_after_reset;
+    } else if (category == 2 && locomotionExitRecorded) {
+      // a3b2 no longer lets animation opportunities publish the missing axis.
+      // A stale action re-entry is repaired by the forced Player Decision tick
+      // later in this same Process() call, before locomotion execution.
+      ++audit.stale_after_action_exit;
     } else {
       ++audit.stale_not_explained_by_reset;
     }
