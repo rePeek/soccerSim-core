@@ -41,10 +41,12 @@ class PlayerBodyFacing {
         locomotionFacing);
   }
 
-  // Advance one planar torso-orientation step. The input state must already be
-  // inside the relative-angle cone. Given that precondition, both the current
-  // direction and AllowedTarget lie in the cone, so rate-limiting between them
-  // preserves the cone bound while also bounding the per-step turn.
+  // Advance one planar torso-orientation step. Turn rate is a hard state
+  // invariant. maxRelativeAngle instead bounds the requested target, not
+  // necessarily the current body state: a locomotion-facing change can move
+  // the cone past a finite-rate torso in one tick, and snapping would violate
+  // the continuity contract. The resulting transient overshoot is observable
+  // by callers but is resolved continuously toward the bounded target.
   static void Step(PlayerKinematicState &state,
                    const PlayerBodyFacingInput &input,
                    const PlayerBodyFacingParameters &parameters, float dt) {
@@ -58,20 +60,12 @@ class PlayerBodyFacing {
         state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
     const Vector3 current =
         state.bodyFacing.Get2D().GetNormalized(locomotionFacing);
-    const float currentRelative = std::fabs(
-        current.GetAngle2D(locomotionFacing));
-    assert(currentRelative <= parameters.maxRelativeAngle + 0.0001f);
-
     const Vector3 target = AllowedTarget(state, input, parameters);
     const float requestedTurn = target.GetAngle2D(current);
     const float appliedTurn = clamp(requestedTurn, -parameters.maxTurnRate * dt,
                                     parameters.maxTurnRate * dt);
     state.bodyFacing = current.GetRotated2D(appliedTurn).GetNormalized(current);
     state.bodyFacing.coords[2] = 0.0f;
-
-    const float resultingRelative = std::fabs(
-        state.bodyFacing.GetAngle2D(locomotionFacing));
-    assert(resultingRelative <= parameters.maxRelativeAngle + 0.0001f);
   }
 };
 

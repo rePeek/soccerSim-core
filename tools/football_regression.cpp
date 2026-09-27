@@ -1963,8 +1963,9 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
   };
   struct Cell {
     int samples = 0, lookSamples = 0, relativeClamps = 0, turnClamps = 0;
-    int forcedResets = 0, rapidFacingChanges = 0;
+    int relativeOvershoots = 0, rapidFacingChanges = 0;
     double relativeSum = 0.0, lookErrorSum = 0.0, turnSum = 0.0;
+    double relativeOvershootSum = 0.0, maxRelativeOvershoot = 0.0;
     double maxTurn = 0.0, maxRapidFacingTurn = 0.0;
     std::vector<double> alignMs;
   };
@@ -2042,14 +2043,9 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
         }
         shadow.previousTarget = target; shadow.hasPreviousTarget = true;
 
-        // A reset is diagnostic only. It makes the following shadow step legal
-        // while documenting that this parameter pair could not satisfy both
-        // continuity and the cone invariant under the observed facing change.
-        if (std::fabs(shadow.state.bodyFacing.GetAngle2D(actual.facing)) >
-            grid.parameters.maxRelativeAngle + kFloatTolerance) {
-          ++cell.forcedResets;
-          shadow.state.bodyFacing = actual.facing;
-        }
+        // The cone constrains the target, not current state. If locomotion
+        // moves underneath a finite-rate torso, record the transient overshoot
+        // rather than hiding it with a discontinuous corrective snap.
         const Vector3 previous = shadow.state.bodyFacing;
         const float requestedTurn = std::fabs(target.GetAngle2D(previous));
         if (requestedTurn > grid.parameters.maxTurnRate * 0.01f + kFloatTolerance) {
@@ -2062,6 +2058,13 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
             shadow.state.bodyFacing.GetAngle2D(actual.facing));
         cell.turnSum += turn; cell.relativeSum += relative;
         cell.maxTurn = std::max(cell.maxTurn, turn);
+        const double overshoot = std::max(
+            0.0, relative - grid.parameters.maxRelativeAngle);
+        if (overshoot > kFloatTolerance) {
+          ++cell.relativeOvershoots;
+          cell.relativeOvershootSum += overshoot;
+          cell.maxRelativeOvershoot = std::max(cell.maxRelativeOvershoot, overshoot);
+        }
         if (hasLook) {
           ++cell.lookSamples;
           cell.lookErrorSum += std::fabs(
@@ -2081,7 +2084,7 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
   }
 
   int total = 0;
-  std::cout << "body-facing shadow grid (radians; resets invalidate strict invariants):\n";
+  std::cout << "body-facing shadow grid (radians; target cone, continuous body):\n";
   for (const Grid& grid : grids) {
     std::cout << "  rate=" << grid.parameters.maxTurnRate
               << " relative=" << grid.parameters.maxRelativeAngle << "\n";
@@ -2097,7 +2100,11 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
                 << " turn_max=" << cell.maxTurn
                 << " relative_clamp=" << cell.relativeClamps
                 << " turn_clamp=" << cell.turnClamps
-                << " forced_reset=" << cell.forcedResets
+                << " relative_overshoot=" << cell.relativeOvershoots
+                << " overshoot_mean="
+                << (cell.relativeOvershoots ?
+                    cell.relativeOvershootSum / cell.relativeOvershoots : 0.0)
+                << " overshoot_max=" << cell.maxRelativeOvershoot
                 << " rapid_facing=" << cell.rapidFacingChanges
                 << " rapid_turn_max=" << cell.maxRapidFacingTurn
                 << " align_events=" << cell.alignMs.size()
