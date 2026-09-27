@@ -24,6 +24,12 @@
 #include "player_action.hpp"
 #include "player_movement_command.hpp"
 #include "locomotion_intent_scheduler.hpp"
+
+// H3e4f-g0b-prime: is a Movement re-anchor actually consumed by locomotion before the
+// next direct refresh? Only that makes it load-bearing.
+int &ReanchorPendingSet();
+int &ReanchorConsumedBeforeRefresh();
+int &ReanchorSupersededByRefresh();
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
@@ -134,6 +140,8 @@ class PlayerBase {
     bool NoteLocomotionIntentCadence(bool legacy_opportunity);
     // Called only once the controller was actually queried for this refresh.
     void CommitLocomotionIntentRefresh();
+    // Called where locomotion actually reads the command.
+    void NoteLocomotionCommandConsumed();
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
     void BeginSimulationAction();
@@ -205,6 +213,7 @@ class PlayerBase {
     PlayerMovementCommandState movementCommandState;
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
+    bool reanchorPendingConsumption = false;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

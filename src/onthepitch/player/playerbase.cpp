@@ -25,6 +25,10 @@
 
 #include "../match.hpp"
 
+int &ReanchorPendingSet() { static int value = 0; return value; }
+int &ReanchorConsumedBeforeRefresh() { static int value = 0; return value; }
+int &ReanchorSupersededByRefresh() { static int value = 0; return value; }
+
 #include "controller/elizacontroller.hpp"
 #include "controller/strategies/strategy.hpp"
 
@@ -189,6 +193,11 @@ bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
 
 void PlayerBase::CommitLocomotionIntentRefresh() {
   DO_VALIDATION;
+  // A direct refresh replaces any pending re-anchor before locomotion saw it.
+  if (reanchorPendingConsumption) {
+    ++ReanchorSupersededByRefresh();
+    reanchorPendingConsumption = false;
+  }
   const float distance_to_ball =
       (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
   ++PlayerLocomotionIntentConsumedTicks();
@@ -196,6 +205,13 @@ void PlayerBase::CommitLocomotionIntentRefresh() {
       static_cast<int>(match->GetActualTime_ms()),
       LocomotionIntentScheduler::CadenceForDistance_ms(
           distance_to_ball, match->GetBallRetainer() == this));
+}
+
+void PlayerBase::NoteLocomotionCommandConsumed() {
+  DO_VALIDATION;
+  if (!reanchorPendingConsumption) return;
+  ++ReanchorConsumedBeforeRefresh();
+  reanchorPendingConsumption = false;
 }
 
 void PlayerBase::CheckSimulationMovementCommandOracle() const {
@@ -329,6 +345,8 @@ void PlayerBase::BeginSimulationAction() {
       if (MovementCommandDiffersMaterially(movementCommandState.command,
                                           anim->originatingCommand)) {
         ++MovementCommandReanchorsMateriallyDifferent();
+        reanchorPendingConsumption = true;
+        ++ReanchorPendingSet();
       } else {
         ++MovementCommandReanchorsEqual();
       }

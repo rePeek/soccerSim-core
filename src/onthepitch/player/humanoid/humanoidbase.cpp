@@ -1152,6 +1152,7 @@ void HumanoidBase::ProjectMovementState(
   // resulting facing and the command's look target.
   // The tick that consumes the command must see an exact copy of it.
   player->CheckSimulationMovementCommandOracle();
+  player->NoteLocomotionCommandConsumed();
   // H3e4f-b: locomotion reads the simulation-owned copy, not the legacy anim.
   const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
       player->GetSimulationMovementCommand(), tickStartState,
