@@ -911,6 +911,13 @@ void HumanoidBase::ApplySimulationMovementState(
   DO_VALIDATION;
   spatialState.position = state.position;
   spatialState.movement = state.velocity;
+  if (UsesProceduralLocomotion()) {
+    // H3e4d1: these serialized legacy aliases have no pure-locomotion producer.
+    // Project the authoritative velocity rather than retaining animation history.
+    spatialState.actualMovement = state.velocity;
+    spatialState.physicsMovement = state.velocity;
+    spatialState.animMovement = state.velocity;
+  }
   spatialState.directionVec = state.facing;
   spatialState.floatVelocity = spatialState.movement.GetLength();
   spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
