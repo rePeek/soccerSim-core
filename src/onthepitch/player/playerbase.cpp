@@ -151,14 +151,16 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
     wasPureLocomotionLastTick = false;
     return;
   }
-  // Eligible from here on: either continuous locomotion or a real re-entry.
-  // Reset takes precedence, because a reset between two eligible ticks is a
-  // lifecycle discontinuity rather than a continuation.
-  int category = 2;
+  // Eligible from here on. An actor that began the audit in an action and later
+  // becomes locomotion-eligible has an initial transition, not an observed action
+  // re-entry; reserve category 2 for a recorded locomotion exit.
+  int category = 0;
   if (resetSinceLastPlayerTick) {
     category = 3;
   } else if (wasPureLocomotionLastTick) {
     category = 1;
+  } else if (locomotionExitRecorded) {
+    category = 2;
   }
   LocomotionReentryAudit &audit = LocomotionReentryAuditFor(category);
   ++audit.ticks;

@@ -121,56 +121,9 @@ void Humanoid::Process() {
   // against the decision clock measures two compatibility slots and says nothing
   // about what executes.
 
-  // Legacy locomotion/animation consumers still share a per-tick query queue
-  // during 4f-a3a. The independent Player Decision Clock query is scheduled
-  // separately above continuity repair; a3b will close these legacy callers.
-  PlayerCommandQueue controllerQueue;
-  bool controller_queried = false;
-  bool controller_movement_published = false;
-  const auto EnsureControllerQuery = [&](PlayerDecisionQueryCause cause) {
-    if (controller_queried) return;
-    CastPlayer()->RequestCommand(controllerQueue);
-    controller_queried = true;
-    ++PlayerPathControllerQueries();
-    bool has_movement = false;
-    for (const PlayerCommand &controller_command : controllerQueue) {
-      if (controller_command.desiredFunctionType == e_FunctionType_Movement &&
-          controller_command.useDesiredMovement) {
-        has_movement = true;
-      }
-    }
-    if (has_movement) {
-      ++PlayerPathQueriesWithMovement();
-      if (controller_movement_published)
-        ++PlayerPathQueriesWithMovementSuppressedByRepair();
-    }
-    CastPlayer()->NoteControllerQuery(has_movement);
-    RecordPlayerDecisionQuery(
-        CastPlayer(), controllerQueue,
-        static_cast<int>(match->GetActualTime_ms()), cause,
-        CastPlayer()->GetSimulationActionState().type);
-  };
-  const auto AppendControllerCommandsToSelectionQueue =
-      [&](PlayerCommandQueue &selectionQueue,
-          std::vector<PlayerPathSelectionCommandProvenance> &provenance) {
-        for (const PlayerCommand &controller_command : controllerQueue) {
-          selectionQueue.push_back(controller_command);
-          provenance.push_back(PlayerPathSelectionCommandProvenance::Controller);
-        }
-      };
-  // Single publication point for the still-live legacy query queue. The
-  // continuity repair publishes the serialized Player Decision queue directly.
-  const auto PublishControllerMovementOnce = [&]() {
-    if (controller_movement_published) return false;
-    if (CastPlayer()->PublishMovementIntentFromQueue(controllerQueue)) {
-      controller_movement_published = true;
-      ++PlayerPathDirectPublications();
-      CastPlayer()->CommitLocomotionIntentRefresh();
-      ++PlayerPathRefreshCommits();
-      return true;
-    }
-    return false;
-  };
+  // At most one Movement publication per real-player tick, including a prior
+  // continuity repair publication before execution.
+  bool movement_published_this_tick = false;
 
   // 4f-a3a: the complete decision queue has its own simulation clock. Its
   // cadence depends on world context, never on animation requeue opportunities.
@@ -221,7 +174,7 @@ void Humanoid::Process() {
     if (CastPlayer()->HasPlayerDecisionQueue() &&
         CastPlayer()->PublishMovementIntentFromQueue(
             CastPlayer()->GetPlayerDecisionQueue())) {
-      controller_movement_published = true;
+      movement_published_this_tick = true;
       CastPlayer()->CommitLocomotionIntentRefresh();
       ++ContinuityRepairPublications();
     } else {
@@ -229,7 +182,6 @@ void Humanoid::Process() {
     }
     CastPlayer()->NoteDecisionPublicationCause(0);
   }
-  const bool queried_before_selection = controller_queried;
 
   CalculateSpatialState();
   spatialState.positionOffsetMovement = Vector3(0);
@@ -361,10 +313,9 @@ void Humanoid::Process() {
   CastPlayer()->NoteDecisionPublicationCause(legacy_only ? 1 : 0);
   if (legacy_opportunity || simulation_due) {
     DO_VALIDATION;
-    if (!CastPlayer()->HasPlayerDecisionQueue())
-      ++PlayerDecisionClockQueueConsumersMissing();
     PlayerCommandQueue commandQueue;      // selection queue
     std::vector<PlayerPathSelectionCommandProvenance> commandProvenance;
+    bool uses_player_decision_queue = false;
 
     const bool trip_local_queue =
         interruptAnim == e_InterruptAnim_Trip && tripType != 0;
@@ -380,21 +331,20 @@ void Humanoid::Process() {
       commandProvenance.push_back(
           PlayerPathSelectionCommandProvenance::LocalTripMovementFallback);
     } else {
-      EnsureControllerQuery(
-          simulation_due ? PlayerDecisionQueryCause::LocomotionCadence
-                         : PlayerDecisionQueryCause::LegacyCaused);
-      AppendControllerCommandsToSelectionQueue(commandQueue, commandProvenance);
+      if (!CastPlayer()->HasPlayerDecisionQueue()) {
+        ++PlayerDecisionClockQueueConsumersMissing();
+        Log(e_FatalError, "Humanoid", "Process",
+            "Player Decision queue is missing before animation selection");
+      }
+      commandQueue = CastPlayer()->GetPlayerDecisionQueue();
+      uses_player_decision_queue = true;
+      for (size_t i = 0; i < commandQueue.size(); ++i)
+        commandProvenance.push_back(PlayerPathSelectionCommandProvenance::Controller);
     }
-
-    // 4f-a2: only a query this animation block actually caused is one a3 can
-    // remove. A query the continuity repair already made is not animation-owned.
-    const bool legacy_caused_query =
-        legacy_only && !queried_before_selection && !trip_local_queue;
 
     // iterate through the command queue and pick the first that is applicable
 
     bool found = false;
-    int live_winner_index = -1;
     bool preferPassAndShot = false; // pass/shot and such; in that case we want trap/ballcontrol anims to be less prefered
     for (unsigned int i = 0; i < commandQueue.size(); i++) {
       DO_VALIDATION;
@@ -412,7 +362,6 @@ void Humanoid::Process() {
       }
       found = SelectAnim(command, interruptAnim, preferPassAndShot);
       if (found) {
-        live_winner_index = static_cast<int>(i);
         if (provenance == PlayerPathSelectionCommandProvenance::LocalTrip) {
           ++PlayerPathLocalTripSelected();
         } else if (provenance ==
@@ -443,18 +392,18 @@ void Humanoid::Process() {
     }
 
 
-    // 4b''-player-path: the single publication point, after SelectAnim has fully
-    // returned, so the legacy re-anchor inside it cannot remain the final writer.
-    // Publication reads only the controller queue, so the trip fallback above can
-    // never be published as a DirectMovementIntent.
-    // One publication per controller query: a pre-execution continuity repair may
-    // already have published from this same query, and it must not be repeated.
-    if (controller_queried && !controller_movement_published) {
+    // a3b1 keeps the old opportunity-triggered Movement publication, now from
+    // the serialized decision queue. Trip-local fallback commands remain selection
+    // only and cannot publish cached Movement.
+    if (uses_player_decision_queue && !movement_published_this_tick) {
       CastPlayer()->NoteDecisionMovementSelection(
           found && action.type == e_FunctionType_Movement);
-      // The publication counters live in the lambda, so the repair and this site
-      // cannot double count.
-      if (!PublishControllerMovementOnce()) {
+      if (CastPlayer()->PublishMovementIntentFromQueue(commandQueue)) {
+        movement_published_this_tick = true;
+        ++PlayerPathDirectPublications();
+        CastPlayer()->CommitLocomotionIntentRefresh();
+        ++PlayerPathRefreshCommits();
+      } else {
         ++PlayerPathCandidatesMissing();
       }
     }
@@ -482,109 +431,12 @@ void Humanoid::Process() {
     // target is that this number, and the queries it causes, fall to zero.
     if (legacy_only) {
       ++LegacyOnlyDecisionOpportunities();
-      if (controller_queried) {
-        ++LegacyOnlyDecisionQueries();
-        for (const PlayerCommand &controller_command : controllerQueue) {
-          if (controller_command.desiredFunctionType == e_FunctionType_Movement &&
-              controller_command.useDesiredMovement) {
-            ++LegacyOnlyDecisionMovementQueries();
-            break;
-          }
-        }
-      }
       if (!found) {
         ++LegacyOnlyDecisionNoSelection();
       } else if (action.type == e_FunctionType_Movement) {
         ++LegacyOnlyDecisionMovementSelections();
       } else {
         ++LegacyOnlyDecisionNonMovementSelections();
-      }
-    }
-    // 4f-a2: could the animation requeue have consumed the last simulation-owned
-    // decision instead of asking the controller? Prefix equality with the live
-    // queue proves the selection is identical; inequality only means it cannot be
-    // proven, so the two outcomes are reported separately.
-    if (legacy_caused_query) {
-      ++LegacyOnlyDecisionCausedQueries();
-      const bool cache_present = CastPlayer()->HasSimulationDecisionQueue();
-      const PlayerCommandQueue &cached =
-          CastPlayer()->GetSimulationDecisionQueue();
-      if (!cache_present) {
-        ++SimulationDecisionCacheMissing();
-      } else {
-        ++SimulationDecisionCachePresent();
-        SimulationDecisionCacheAge_ms().push_back(
-            CastPlayer()->GetSimulationDecisionQueueAge_ms(
-                static_cast<int>(match->GetActualTime_ms())));
-      }
-
-      const auto first_movement_command =
-          [](const PlayerCommandQueue &queue) -> const PlayerCommand * {
-        for (const PlayerCommand &candidate : queue) {
-          if (candidate.desiredFunctionType == e_FunctionType_Movement &&
-              candidate.useDesiredMovement) {
-            return &candidate;
-          }
-        }
-        return nullptr;
-      };
-      const PlayerCommand *live_movement = first_movement_command(commandQueue);
-      const PlayerCommand *cached_movement = first_movement_command(cached);
-      if (live_movement) ++SimulationDecisionLiveHasMovement();
-      if (cached_movement) ++SimulationDecisionCacheHasMovement();
-      if (!live_movement || !cached_movement ||
-          MovementCommandDiffersMaterially(*live_movement, *cached_movement)) {
-        ++SimulationDecisionMovementDifferent();
-      } else {
-        ++SimulationDecisionMovementEqual();
-      }
-
-      bool equivalence_proven = false;
-      if (cache_present) {
-        if (found) {
-          equivalence_proven = live_winner_index >= 0 &&
-                               static_cast<int>(cached.size()) > live_winner_index;
-          for (int k = 0; equivalence_proven && k <= live_winner_index; ++k) {
-            equivalence_proven =
-                PlayerCommandsDecisionEqual(cached[k], commandQueue[k]);
-          }
-        } else {
-          equivalence_proven = cached.size() <= commandQueue.size();
-          for (size_t k = 0; equivalence_proven && k < cached.size(); ++k) {
-            equivalence_proven =
-                PlayerCommandsDecisionEqual(cached[k], commandQueue[k]);
-          }
-        }
-      }
-
-      if (!found) {
-        if (equivalence_proven) ++SimulationDecisionProofNoneProven();
-        else ++SimulationDecisionProofNoneUnproven();
-      } else if (action.type == e_FunctionType_Movement) {
-        if (equivalence_proven) ++SimulationDecisionProofMovementProven();
-        else ++SimulationDecisionProofMovementUnproven();
-      } else {
-        if (equivalence_proven) ++SimulationDecisionProofActionProven();
-        else ++SimulationDecisionProofActionUnproven();
-      }
-
-      int first_difference_index = -1;
-      const size_t common = commandQueue.size() < cached.size()
-          ? commandQueue.size()
-          : cached.size();
-      for (size_t k = 0; k < common; ++k) {
-        if (!PlayerCommandsDecisionEqual(cached[k], commandQueue[k])) {
-          first_difference_index = static_cast<int>(k);
-          break;
-        }
-      }
-      if (first_difference_index < 0 && commandQueue.size() != cached.size()) {
-        first_difference_index = static_cast<int>(common);
-      }
-      if (first_difference_index < 0) {
-        ++SimulationDecisionQueueIdentical();
-      } else {
-        SimulationDecisionFirstDiffIndex().push_back(first_difference_index);
       }
     }
   }

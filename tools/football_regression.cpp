@@ -1220,21 +1220,20 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
        UINT64_C(385886754253041681)},
-      // 4f-a3a1: cadence is evaluated from the current world context against
-      // elapsed time since the last decision; accelerated contexts no longer
-      // wait for a deadline scheduled under an earlier, slower context.
-      {100, 58, Position(0.502092302f, 0.0437637493f, 1.46957231f, true),
-       Position(-0.80509001f, -0.00180166762f, 0.0f, true),
-       Position(0.990808845f, 0.0f, 0.0f, true), 0, 0, true,
-       UINT64_C(1765394039141254102)},
-      {500, 416, Position(-0.126243606f, -0.222070247f, 0.109730996f, true),
-       Position(-0.818069935f, -0.0546912588f, 0.0f, true),
-       Position(0.828587651f, 0.00269152783f, 0.0f, true), 0, 0, true,
-       UINT64_C(6764411801910317543)},
-      {1000, 874, Position(-0.163342789f, -0.141403288f, 0.107145652f, true),
-       Position(-0.885547519f, -0.0239884425f, 0.0f, true),
-       Position(0.829587281f, -0.000102454775f, 0.0f, true), 0, 0, true,
-       UINT64_C(1670852008189085040)},
+      // 4f-a3b1: legacy/locomotion RequestCommand callers are closed. Existing
+      // selection and publication opportunities now consume the serialized queue.
+      {100, 79, Position(-0.950768411f, 0.177909806f, 1.25999999f, true),
+       Position(-0.948065281f, 0.177555591f, 0.0f, true),
+       Position(0.834081471f, -0.00267888722f, 0.0f, true), 0, 0, true,
+       UINT64_C(17909299254613364194)},
+      {500, 431, Position(0.233073995f, -0.00381338829f, 0.116082765f, true),
+       Position(-0.881298721f, 9.66301457e-08f, 0.0f, true),
+       Position(0.909260631f, -0.00716408761f, 0.0f, true), 0, 1, true,
+       UINT64_C(12541957393548191132)},
+      {1000, 904, Position(-0.777736843f, -0.102248125f, 0.115254357f, true),
+       Position(-0.9967677f, 0.00645749969f, 0.0f, true),
+       Position(0.836257815f, 0.000473367749f, 0.0f, true), 0, 2, true,
+       UINT64_C(10679753531326381487)},
   };
 
 
@@ -2208,6 +2207,27 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << (LegacyOnlyDecisionMovementSelectionMaterialChanges() -
                 legacy_only_movement_selection_material_changes_before)
             << "\n";
+  const int legacy_opportunity_delta =
+      LegacyOnlyDecisionOpportunities() - legacy_only_opportunities_before;
+  const int legacy_query_delta =
+      LegacyOnlyDecisionQueries() - legacy_only_queries_before;
+  const int legacy_publication_delta =
+      LegacyOnlyDecisionPublications() - legacy_only_publications_before;
+  Require(legacy_opportunity_delta > 0,
+          "a3b1: animation opportunities must remain live");
+  Require(legacy_query_delta == 0 &&
+              LegacyOnlyDecisionMovementQueries() -
+                      legacy_only_movement_queries_before == 0,
+          "a3b1: legacy-only opportunities still called RequestCommand");
+  Require(legacy_publication_delta > 0,
+          "a3b1: cached Movement publication must remain opportunity-triggered until a3b2");
+  Require(PlayerDecisionClockQueries() - decision_clock_queries_before ==
+              PlayerDecisionClockPeriodicQueries() - decision_clock_periodic_before +
+                  PlayerDecisionClockForcedQueries() - decision_clock_forced_before,
+          "a3b1: Player Decision queries do not equal periodic plus forced");
+  Require(PlayerDecisionClockQueueConsumersMissing() -
+                  decision_queue_missing_before == 0,
+          "a3b1: Player Decision queue missing before a consumer");
   // 4f-a2: could the animation requeue consume the last simulation-owned decision
   // instead of querying? Only a matching prefix is a proof, so unproven is not a
   // claim that the selection would change.
@@ -2296,14 +2316,17 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << PlayerPathLocalTripMovementFallbackSelected()
             << " movement_fallback_scheduler_commits="
             << PlayerPathLocalTripMovementFallbackRefreshCommits() << "\n";
-  Require(PlayerPathQueriesWithMovement() ==
-              PlayerPathDirectPublications() +
-                  PlayerPathQueriesWithMovementSuppressedByRepair(),
-          "player path: a Movement query was neither published nor superseded by continuity repair");
+  Require(PlayerPathControllerQueries() == 0 &&
+              PlayerPathQueriesWithMovement() == 0,
+          "a3b1: legacy/locomotion RequestCommand caller remains in Humanoid::Process");
   Require(PlayerPathDirectPublications() == PlayerPathRefreshCommits(),
           "player path: a publication did not commit exactly once");
   Require(PlayerPathLocalTripMovementFallbackRefreshCommits() == 0,
           "player path: a local Trip Movement fallback consumed the refresh scheduler");
+  Require(ContinuityRepairAttempts() == ContinuityRepairPublications(),
+          "a3b1: continuity repair did not publish exactly once per forced decision");
+  Require(ContinuityRepairCandidatesMissing() == 0,
+          "a3b1: continuity repair forced query did not contain Movement");
   std::cout << "  intent_refreshes=" << HumanoidIntentRefreshes()
             << " candidates_missing=" << HumanoidIntentCandidatesMissing()
             << " gain_refreshes=" << HumanoidEligibilityGainRefreshes()
@@ -3308,7 +3331,7 @@ void CheckDecisionContinuityRestoreDeterminism(GameEnv& env,
     match->GetTeam(0)->GetActivePlayers(players);
     Require(!players.empty(), "continuity restore: no active players");
     Player *reference = players[0];
-    const int queries_before = PlayerPathControllerQueries();
+    const int queries_before = PlayerDecisionClockQueries();
     const int attempts_before = ContinuityRepairAttempts();
     const int publications_before = ContinuityRepairPublications();
     const int missing_before = ContinuityRepairCandidatesMissing();
@@ -3318,7 +3341,7 @@ void CheckDecisionContinuityRestoreDeterminism(GameEnv& env,
     result.digest = CaptureSimulationDigest(env);
     result.continuity_epoch = reference->GetDecisionLocomotionContinuityEpoch();
     result.published_epoch = reference->GetDecisionLocomotionPublishedEpoch();
-    result.query_delta = PlayerPathControllerQueries() - queries_before;
+    result.query_delta = PlayerDecisionClockQueries() - queries_before;
     result.repair_attempts = ContinuityRepairAttempts() - attempts_before;
     result.repair_publications =
         ContinuityRepairPublications() - publications_before;
