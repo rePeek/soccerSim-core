@@ -120,11 +120,8 @@ struct LocomotionReentryAudit {
   int ticks = 0;
   int generation_advanced = 0;
   int generation_unchanged = 0;
-  int legacy_gate_true = 0;
-  int legacy_gate_false = 0;
   int scheduler_due = 0;
   int scheduler_not_due = 0;
-  int unchanged_and_legacy_gate_false = 0;
   long decision_age_sum_ms = 0;
   int decision_age_count = 0;
   int decision_age_max_ms = -1;
@@ -200,8 +197,8 @@ class PlayerBase {
     bool IsLocomotionIntentRefreshDue(int now_ms) const {
       return locomotionIntentScheduler.Due(now_ms);
     }
-    void NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
-                                   bool scheduler_due, int now_ms);
+    void NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
+                                   int now_ms);
     // Gameplay continuity transition: advances the epoch when the actor stops
     // being eligible for procedural locomotion. Called once per player tick.
     void AdvanceLocomotionContinuity(bool eligible);

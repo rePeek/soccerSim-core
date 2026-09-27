@@ -2397,12 +2397,8 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
               << " ticks=" << audit.ticks
               << " gen_advanced=" << audit.generation_advanced
               << " gen_unchanged=" << audit.generation_unchanged
-              << " legacy_gate_true=" << audit.legacy_gate_true
-              << " legacy_gate_false=" << audit.legacy_gate_false
               << " scheduler_due=" << audit.scheduler_due
               << " scheduler_not_due=" << audit.scheduler_not_due
-              << " unchanged_and_legacy_false="
-              << audit.unchanged_and_legacy_gate_false
               << " would_require_fresh=" << audit.would_require_fresh
               << " stale_after_reset=" << audit.stale_after_reset
               << " stale_after_action_exit=" << audit.stale_after_action_exit
@@ -2920,9 +2916,8 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
       match->GetActiveTeamPlayers(match->SecondTeam(), players);
       for (Player* player : players) {
         if (!player->IsEligibleForProceduralLocomotion()) continue;
-        if (!player->GetCurrentAnim()->originatingCommand.useDesiredMovement) {
-          continue;
-        }
+        // 4f-b2: sample by simulation eligibility, not by the animation's
+        // originating Movement command. This deliberately expands the audit corpus.
         PlayerLocomotionParameters parameters;
         parameters.maxSpeed = player->GetMaxVelocity();
         const PlayerLocomotionReach procedural =
@@ -3138,9 +3133,8 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
       match->GetActiveTeamPlayers(match->SecondTeam(), players);
       for (Player* player : players) {
         if (!player->IsEligibleForProceduralLocomotion()) continue;
-        if (!player->GetCurrentAnim()->originatingCommand.useDesiredMovement) {
-          continue;
-        }
+        // 4f-b2: do not filter a simulation-owned intercept audit with an
+        // animation-originating Movement flag.
         PlayerLocomotionParameters parameters;
         parameters.maxSpeed = player->GetMaxVelocity();
         const auto target_at = [ball](int ms) { return ball->Predict(ms); };

@@ -121,8 +121,8 @@ void PlayerBase::AdvanceLocomotionContinuity(bool eligible) {
   decisionLocomotionState.wasEligibleLastTick = eligible;
 }
 
-void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
-                                          bool scheduler_due, int now_ms) {
+void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
+                                          int now_ms) {
   // Measurement epoch: telemetry is transient and not serialized, so state
   // restore can rewind the match clock behind it. Scope the audit to the epoch
   // instead of letting earlier scenarios pollute it.
@@ -164,7 +164,6 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
   }
   LocomotionReentryAudit &audit = LocomotionReentryAuditFor(category);
   ++audit.ticks;
-  if (legacy_gate) ++audit.legacy_gate_true; else ++audit.legacy_gate_false;
   if (scheduler_due) ++audit.scheduler_due; else ++audit.scheduler_not_due;
   // Shadow of the epoch rule. Continuous locomotion must never require a fresh
   // decision just because the cadence is due.
@@ -200,7 +199,6 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
       if (lastPublicationWhileIneligible) ++ReentryFreshWhileIneligible();
     } else if (anchor_valid) {
       ++audit.generation_unchanged;
-      if (!legacy_gate) ++audit.unchanged_and_legacy_gate_false;
     }
   }
   if (lastDirectMovementIntentPublication_ms >= 0) {

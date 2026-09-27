@@ -112,7 +112,6 @@ void Humanoid::Process() {
   // leaving locomotion is what arms the next re-entry classification.
   CastPlayer()->NoteLocomotionReentryTick(
       CastPlayer()->IsEligibleForProceduralLocomotion(),
-      currentAnim.originatingCommand.useDesiredMovement,
       CastPlayer()->IsLocomotionIntentRefreshDue(
           static_cast<int>(match->GetActualTime_ms())),
       static_cast<int>(match->GetActualTime_ms()));
