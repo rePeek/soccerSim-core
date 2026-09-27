@@ -75,18 +75,6 @@ int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return valu
 // 4b: one place that turns a controller queue into a published locomotion intent.
 // Returns true only when a Movement candidate with useDesiredMovement was published,
 // so callers can commit the scheduler refresh only on an actual publication.
-static bool PublishMovementIntentFromQueue(PlayerBase *player,
-                                           const PlayerCommandQueue &queue) {
-  for (const PlayerCommand &candidate : queue) {
-    if (candidate.desiredFunctionType == e_FunctionType_Movement &&
-        candidate.useDesiredMovement) {
-      player->SetSimulationMovementCommand(
-          candidate, LocomotionCommandSource::DirectMovementIntent);
-      return true;
-    }
-  }
-  return false;
-}
 int &PlayerMovementCommandDirectAdoptions() { static int value = 0; return value; }
 int &PlayerMovementCommandLegacyAdoptions() { static int value = 0; return value; }
 int &PlayerLocomotionIntentDueTicks() { static int value = 0; return value; }
@@ -96,6 +84,12 @@ int &PlayerLocomotionIntentDueIneligibleTicks() { static int value = 0; return v
 int &PlayerLocomotionIntentConsumedTicks() { static int value = 0; return value; }
 int &HumanoidEligibilityGainRefreshes() { static int value = 0; return value; }
 int &HumanoidEligibilityGainCandidatesMissing() { static int value = 0; return value; }
+int &PlayerPathControllerQueries() { static int value = 0; return value; }
+int &PlayerPathQueriesWithMovement() { static int value = 0; return value; }
+int &PlayerPathDirectPublications() { static int value = 0; return value; }
+int &PlayerPathRefreshCommits() { static int value = 0; return value; }
+int &PlayerPathCandidatesMissing() { static int value = 0; return value; }
+int &HumanoidBasePathRefreshCommits() { static int value = 0; return value; }
 int &HeldDueMovementRetainsTicks() { static int value = 0; return value; }
 int &HeldDueMovementRetainsCandidate() { static int value = 0; return value; }
 int &HeldDueBallControlTicks() { static int value = 0; return value; }
@@ -427,9 +421,10 @@ void HumanoidBase::Process() {
     // already run, so no legacy action-selection write can follow it and become
     // the final writer; the controller's Movement candidate is the last write.
     if (controller_queried) {
-      if (PublishMovementIntentFromQueue(player, controllerQueue)) {
+      if (player->PublishMovementIntentFromQueue(controllerQueue)) {
         ++HumanoidIntentRefreshes();
         player->CommitLocomotionIntentRefresh();
+        ++HumanoidBasePathRefreshCommits();
       } else {
         ++HumanoidIntentCandidatesMissing();
       }

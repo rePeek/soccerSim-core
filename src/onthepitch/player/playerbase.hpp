@@ -170,6 +170,7 @@ class PlayerBase {
     void CommitLocomotionIntentRefresh();
     void CloseReanchorEpisode();
     void NoteControllerQuery(bool had_movement_candidate);
+    bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue);
     void NoteMaterialMovementReanchor();
     bool LocomotionIntentRefreshHeldIneligible() const;
     // Called where locomotion actually reads the command.

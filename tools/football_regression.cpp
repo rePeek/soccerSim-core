@@ -1202,25 +1202,25 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
       {1, -1, Position(0.0f, 0.0f, 0.110616393f, true),
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
-       UINT64_C(2178283517849602577)},
+       UINT64_C(13202142623440833809)},
       // H3e1c-3c: first canonical trajectory with pure locomotion as the
       // simulation authority. The old animation-root-motion values are
       // expected to diverge and are deliberately replaced.
       // P1b/P1c: the planner consumes the measured capability model, retained
       // between scheduled refreshes, so these are the first snapshots under that
       // belief.
-      {100, 79, Position(-0.213406608f, -0.282088786f, 0.675043344f, true),
-       Position(-0.986308098f, -0.0138307484f, 0.0f, true),
-       Position(0.833835959f, -0.000820748624f, 0.0f, true), 0, 0, true,
-       UINT64_C(10380005556119109114)},
-      {500, 416, Position(-0.030863313f, -0.039875906f, 0.827398419f, true),
-       Position(-0.982172906f, -1.41396379e-06f, 0.0f, true),
-       Position(0.824333847f, 0.00333514507f, 0.0f, true), 0, 0, true,
-       UINT64_C(12707236837980418682)},
-      {1000, 874, Position(0.644586205f, -0.196935907f, 0.110149436f, true),
-       Position(-0.817693472f, -2.80910193e-08f, 0.0f, true),
-       Position(0.986644506f, -0.0112569518f, 0.0f, true), 0, 0, true,
-       UINT64_C(3238171788358455923)},
+      {100, 58, Position(0.462113768f, 0.0217394419f, 0.113525636f, true),
+       Position(-0.80509001f, -0.00180166762f, 0.0f, true),
+       Position(0.990808845f, 0.0f, 0.0f, true), 0, 0, true,
+       UINT64_C(17893560351842221785)},
+      {500, 416, Position(0.742008269f, -0.00573985046f, 0.117089055f, true),
+       Position(-0.829069614f, 0.00295402529f, 0.0f, true),
+       Position(0.984464407f, 0.00100467331f, 0.0f, true), 0, 0, true,
+       UINT64_C(5615206326846964008)},
+      {1000, 916, Position(0.553627729f, -0.18668662f, 0.11670284f, true),
+       Position(-0.829069614f, 0.00295402529f, 0.0f, true),
+       Position(0.972983778f, -0.015290943f, 0.0f, true), 0, 0, true,
+       UINT64_C(16066409769918560513)},
   };
 
 
@@ -2101,7 +2101,7 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   std::cout << "  reanchor movement=" << MovementCommandReanchors() << " equal=" << MovementCommandReanchorsEqual() << " materially_different=" << MovementCommandReanchorsMateriallyDifferent() << " nonmovement=" << NonMovementCommandReanchors() << "\n";
   std::cout << "  reanchor_fate pending=" << ReanchorPendingSet() << " consumed_before_refresh=" << ReanchorConsumedBeforeRefresh() << " superseded_by_refresh=" << ReanchorSupersededByRefresh() << "\n";
   std::cout << "  provenance reset_carried=" << RestartCarriedCommandForward() << " reset_constructed=" << RestartConstructedCommand() << " retain_carried=" << RetainCarriedCommandForward() << " retain_constructed=" << RetainConstructedCommand() << "\n";
-  const int refresh_commits = HumanoidIntentRefreshCommits();
+  const int refresh_commits = HumanoidBasePathRefreshCommits();
   const int successful_publications =
       HumanoidIntentRefreshes() + HumanoidEligibilityGainRefreshes();
   DumpReanchorProvenance();
@@ -2112,6 +2112,15 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " trap " << HeldDueTrapCandidate() << "/" << HeldDueTrapTicks()
             << " other " << HeldDueOtherCandidate() << "/" << HeldDueOtherTicks()
             << "\n";
+  std::cout << "  player_path queries=" << PlayerPathControllerQueries()
+            << " with_movement=" << PlayerPathQueriesWithMovement()
+            << " publications=" << PlayerPathDirectPublications()
+            << " commits=" << PlayerPathRefreshCommits()
+            << " candidates_missing=" << PlayerPathCandidatesMissing() << "\n";
+  Require(PlayerPathQueriesWithMovement() == PlayerPathDirectPublications(),
+          "player path: a controller query with a Movement candidate was not published");
+  Require(PlayerPathDirectPublications() == PlayerPathRefreshCommits(),
+          "player path: a publication did not commit exactly once");
   std::cout << "  intent_refreshes=" << HumanoidIntentRefreshes()
             << " candidates_missing=" << HumanoidIntentCandidatesMissing()
             << " gain_refreshes=" << HumanoidEligibilityGainRefreshes()

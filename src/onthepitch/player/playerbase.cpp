@@ -344,6 +344,23 @@ void PlayerBase::NoteMaterialMovementReanchor() {
   ++t4pv_age_count;
   if (age > t4pv_age_max) t4pv_age_max = age;
 }
+// Single place that turns a controller queue into a published locomotion intent.
+// Returns true only when a Movement candidate with useDesiredMovement was
+// published, so callers commit the scheduler refresh only on a real publication.
+// Both Process() paths (real players and officials) share it.
+bool PlayerBase::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue) {
+  DO_VALIDATION;
+  for (const PlayerCommand &candidate : queue) {
+    if (candidate.desiredFunctionType == e_FunctionType_Movement &&
+        candidate.useDesiredMovement) {
+      SetSimulationMovementCommand(candidate,
+                                   LocomotionCommandSource::DirectMovementIntent);
+      return true;
+    }
+  }
+  return false;
+}
+
 void PlayerBase::CheckSimulationMovementCommandOracle() const {
   DO_VALIDATION;
   // Only the ticks that actually consume the command are compared. Other

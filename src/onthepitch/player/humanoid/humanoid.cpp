@@ -215,9 +215,30 @@ void Humanoid::Process() {
     interruptAnim = e_InterruptAnim_ReQueue;
   }
 
-  if (interruptAnim != e_InterruptAnim_None) {
+  const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
+  const bool simulation_due =
+      CastPlayer()->NoteLocomotionIntentCadence(legacy_opportunity);
+  if (legacy_opportunity || simulation_due) {
     DO_VALIDATION;
-    PlayerCommandQueue commandQueue;
+    PlayerCommandQueue commandQueue;      // selection queue
+    PlayerCommandQueue controllerQueue;   // controller output only
+    bool controller_queried = false;
+    const auto EnsureControllerQuery = [&]() {
+      if (controller_queried) return;
+      CastPlayer()->RequestCommand(controllerQueue);
+      controller_queried = true;
+      ++PlayerPathControllerQueries();
+      bool has_movement = false;
+      for (const PlayerCommand &controller_command : controllerQueue) {
+        commandQueue.push_back(controller_command);
+        if (controller_command.desiredFunctionType == e_FunctionType_Movement &&
+            controller_command.useDesiredMovement) {
+          has_movement = true;
+        }
+      }
+      if (has_movement) ++PlayerPathQueriesWithMovement();
+      CastPlayer()->NoteControllerQuery(has_movement);
+    };
 
     if (interruptAnim == e_InterruptAnim_Trip && tripType != 0) {
       DO_VALIDATION;
@@ -225,7 +246,7 @@ void Humanoid::Process() {
       tripType = 0;
       commandQueue.push_back(GetBasicMovementCommand(tripDirection, spatialState.floatVelocity)); // backup, if there's no applicable trip anim
     } else {
-      CastPlayer()->RequestCommand(commandQueue);
+      EnsureControllerQuery();
     }
 
     // iterate through the command queue and pick the first that is applicable
@@ -265,6 +286,20 @@ void Humanoid::Process() {
       exit(1);
     }
 
+
+    // 4b''-player-path: the single publication point, after SelectAnim has fully
+    // returned, so the legacy re-anchor inside it cannot remain the final writer.
+    // Publication reads only the controller queue, so the trip fallback above can
+    // never be published as a DirectMovementIntent.
+    if (controller_queried) {
+      if (CastPlayer()->PublishMovementIntentFromQueue(controllerQueue)) {
+        ++PlayerPathDirectPublications();
+        CastPlayer()->CommitLocomotionIntentRefresh();
+        ++PlayerPathRefreshCommits();
+      } else {
+        ++PlayerPathCandidatesMissing();
+      }
+    }
     if (found) {
       DO_VALIDATION;
       startPos = spatialState.position;

@@ -48,6 +48,14 @@ int &PlayerLocomotionIntentDueIneligibleTicks();
 int &PlayerLocomotionIntentConsumedTicks();
 int &HumanoidEligibilityGainRefreshes();
 int &HumanoidEligibilityGainCandidatesMissing();
+// 4b''-player-path: telemetry is scoped by actor path on purpose. The previous
+// round's counters mixed the real-player Process with the officials/base one.
+int &PlayerPathControllerQueries();
+int &PlayerPathQueriesWithMovement();
+int &PlayerPathDirectPublications();
+int &PlayerPathRefreshCommits();
+int &PlayerPathCandidatesMissing();
+int &HumanoidBasePathRefreshCommits();
 // 4b': separate intent-refresh eligibility from execution eligibility.
 int &HeldDueMovementRetainsTicks();
 int &HeldDueMovementRetainsCandidate();
