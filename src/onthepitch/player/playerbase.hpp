@@ -42,6 +42,7 @@ struct ReanchorResidency {
   std::vector<int> ticks;
 };
 ReanchorResidency &ReanchorResidencyFor(int reason);
+void DumpReanchorProvenance();
 const char *ActionBeginReasonName(int reason);
 
 // H3e4f-g0b-prime: is a Movement re-anchor actually consumed by locomotion before the
@@ -167,6 +168,8 @@ class PlayerBase {
     // Called only once the controller was actually queried for this refresh.
     void CommitLocomotionIntentRefresh();
     void CloseReanchorEpisode();
+    void NoteControllerQuery(bool had_movement_candidate);
+    void NoteMaterialMovementReanchor();
     bool LocomotionIntentRefreshHeldIneligible() const;
     // Called where locomotion actually reads the command.
     void NoteLocomotionCommandConsumed();
@@ -242,6 +245,13 @@ class PlayerBase {
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
     bool reanchorPendingConsumption = false;
+    int tr_query_gen = 0;
+    int tr_last_query_ms = -1;
+    int tr_last_query_due = 0;
+    int tr_last_query_eligible = 0;
+    int tr_last_query_action = 0;
+    int tr_last_query_retains = 0;
+    int tr_last_query_had_candidate = 0;
     int reanchorPendingSince_ms = -1;
     int nextActionBeginReason = kBeginMovementToMovement;
     bool episode_active = false;

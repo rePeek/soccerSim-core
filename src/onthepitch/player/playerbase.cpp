@@ -278,6 +278,50 @@ bool PlayerBase::LocomotionIntentRefreshHeldIneligible() const {
              static_cast<int>(match->GetActualTime_ms())) &&
          !IsEligibleForProceduralLocomotion();
 }
+// 4b'-provenance: where did the command that a legacy Movement re-anchor
+// republishes actually come from?
+static int t4pv_due_ineligible = 0, t4pv_not_due = 0, t4pv_due_eligible = 0;
+static int t4pv_candidate_present = 0, t4pv_candidate_absent = 0;
+static long t4pv_age_sum = 0;
+static int t4pv_age_max = -1, t4pv_age_count = 0, t4pv_no_query = 0;
+
+void DumpReanchorProvenance() {
+  printf("4pv-SUMMARY material_movement_reanchors: query_due+ineligible=%d not_due=%d due+eligible=%d\n",
+         t4pv_due_ineligible, t4pv_not_due, t4pv_due_eligible);
+  printf("4pv-SUMMARY query_candidate present=%d absent=%d | selected_age mean=%ld max=%d n=%d no_query=%d\n",
+         t4pv_candidate_present, t4pv_candidate_absent,
+         t4pv_age_count ? t4pv_age_sum / t4pv_age_count : 0, t4pv_age_max, t4pv_age_count,
+         t4pv_no_query);
+  fflush(stdout);
+}
+
+void PlayerBase::NoteControllerQuery(bool had_movement_candidate) {
+  DO_VALIDATION;
+  const int now_ms = static_cast<int>(match->GetActualTime_ms());
+  ++tr_query_gen;
+  tr_last_query_ms = now_ms;
+  tr_last_query_due = locomotionIntentScheduler.Due(now_ms) ? 1 : 0;
+  tr_last_query_eligible = IsEligibleForProceduralLocomotion() ? 1 : 0;
+  tr_last_query_action = static_cast<int>(actionState.type);
+  tr_last_query_retains = match->GetBallRetainer() == this ? 1 : 0;
+  tr_last_query_had_candidate = had_movement_candidate ? 1 : 0;
+}
+
+void PlayerBase::NoteMaterialMovementReanchor() {
+  DO_VALIDATION;
+  if (tr_last_query_ms < 0) {
+    ++t4pv_no_query;
+    return;
+  }
+  if (tr_last_query_due && !tr_last_query_eligible) ++t4pv_due_ineligible;
+  else if (!tr_last_query_due) ++t4pv_not_due;
+  else ++t4pv_due_eligible;
+  if (tr_last_query_had_candidate) ++t4pv_candidate_present; else ++t4pv_candidate_absent;
+  const int age = static_cast<int>(match->GetActualTime_ms()) - tr_last_query_ms;
+  t4pv_age_sum += age;
+  ++t4pv_age_count;
+  if (age > t4pv_age_max) t4pv_age_max = age;
+}
 void PlayerBase::CheckSimulationMovementCommandOracle() const {
   DO_VALIDATION;
   // Only the ticks that actually consume the command are compared. Other
@@ -415,6 +459,7 @@ void PlayerBase::BeginSimulationAction() {
       if (MovementCommandDiffersMaterially(movementCommandState.command,
                                           anim->originatingCommand)) {
         ++MovementCommandReanchorsMateriallyDifferent();
+        NoteMaterialMovementReanchor();
         reanchorPendingConsumption = true;
         CloseReanchorEpisode();
         episode_active = true;

@@ -342,6 +342,14 @@ void HumanoidBase::Process() {
     const auto EnsureControllerQuery = [&]() {
       if (controller_queried) return;
       player->RequestCommand(commandQueue);
+      {
+        bool trq_has = false;
+        for (const PlayerCommand &trq_c : commandQueue) {
+          if (trq_c.desiredFunctionType == e_FunctionType_Movement &&
+              trq_c.useDesiredMovement) { trq_has = true; break; }
+        }
+        player->NoteControllerQuery(trq_has);
+      }
       controller_queried = true;
     };
     const bool trip_local_queue =
@@ -400,31 +408,6 @@ void HumanoidBase::Process() {
 
     bool found = false;
     if (legacy_opportunity) {
-    if (legacy_opportunity && player->LocomotionIntentRefreshHeldIneligible()) {
-      bool held_has_candidate = false;
-      for (const PlayerCommand &candidate : commandQueue) {
-        if (candidate.desiredFunctionType == e_FunctionType_Movement &&
-            candidate.useDesiredMovement) {
-          held_has_candidate = true;
-          break;
-        }
-      }
-      const e_FunctionType held_type = player->GetCurrentFunctionType();
-      const bool held_retains = match->GetBallRetainer() == player;
-      if (held_type == e_FunctionType_Movement && held_retains) {
-        ++HeldDueMovementRetainsTicks();
-        if (held_has_candidate) ++HeldDueMovementRetainsCandidate();
-      } else if (held_type == e_FunctionType_BallControl) {
-        ++HeldDueBallControlTicks();
-        if (held_has_candidate) ++HeldDueBallControlCandidate();
-      } else if (held_type == e_FunctionType_Trap) {
-        ++HeldDueTrapTicks();
-        if (held_has_candidate) ++HeldDueTrapCandidate();
-      } else {
-        ++HeldDueOtherTicks();
-        if (held_has_candidate) ++HeldDueOtherCandidate();
-      }
-    }
       for (unsigned int i = 0; i < commandQueue.size(); i++) {
         DO_VALIDATION;
 
