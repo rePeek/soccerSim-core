@@ -2269,6 +2269,14 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   std::cout << " last_episode_context="
             << ResetSituationCallContextName(ResetSeedAudit().context)
             << " last_consumes=" << ResetSeedAudit().locomotion_consumes << "\n";
+  std::cout << "  movement_oracle source[action,direct,legacy,seed,fallback]="
+            << MovementOracleConsumesForSource(0) << ","
+            << MovementOracleConsumesForSource(1) << ","
+            << MovementOracleConsumesForSource(2) << ","
+            << MovementOracleConsumesForSource(3) << ","
+            << MovementOracleConsumesForSource(4)
+            << " action_coupled_legacy_mismatch=" << ActionCoupledLegacyMismatch()
+            << "\n";
   dump_lifecycle_consumption(kBeginRetainSelection);
   { std::vector<int> lives = ReanchorLifetime_ms();
     std::cout << "  reanchor_lifetime_ms n=" << lives.size() << " p50=" << percentile(lives, 0.50) << " p90=" << percentile(lives, 0.90) << " p99=" << percentile(lives, 0.99) << " max=" << percentile(lives, 1.0) << " locomotion_ticks_p50=" << (percentile(lives, 0.50) / 10) << " locomotion_ticks_max=" << (percentile(lives, 1.0) / 10) << "\n"; }

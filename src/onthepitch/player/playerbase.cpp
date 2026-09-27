@@ -83,6 +83,11 @@ std::vector<int> &ResetSeedConsumeToDirectDelay_ms() {
   static std::vector<int> values;
   return values;
 }
+int &MovementOracleConsumesForSource(int source) {
+  static int records[5] = {};
+  return records[source];
+}
+int &ActionCoupledLegacyMismatch() { static int value = 0; return value; }
 
 const char *ActionBeginReasonName(int reason) {
   switch (reason) {
@@ -503,29 +508,60 @@ void PlayerBase::CheckSimulationMovementCommandOracle() const {
   // actions legitimately keep their own non-Movement originatingCommand.
   if (!IsEligibleForProceduralLocomotion()) return;
   if (!movementCommandState.initialized) return;
-  // c2b authority invariant, source-dependent. A direct simulation Movement
-  // intent is the producer now: legacy is no longer its oracle, so disagreement
-  // is measured instead of fatal. A SimulationFallbackIntent is different: it is
-  // the very command SelectAnim accepted locally, so it deliberately remains a
-  // bit-exact fatal mirror below. Legacy BallControl/Trap stays exact until
-  // H3e4f-d removes that compatibility edge.
   const PlayerCommand &live = humanoid->GetCurrentAnim()->originatingCommand;
   const PlayerCommand &shadow = movementCommandState.command;
-  if (movementCommandState.source ==
-      LocomotionCommandSource::DirectMovementIntent) {
-    if (shadow.desiredFunctionType != e_FunctionType_Movement ||
-        !shadow.useDesiredMovement) {
-      Log(e_FatalError, "PlayerBase", "CheckSimulationMovementCommandOracle",
-          "a direct locomotion intent must be a Movement command with "
-          "useDesiredMovement");
-    }
-    if (MovementCommandDiffersMaterially(live, shadow)) {
-      ++DirectVsLegacyCommandMateriallyDifferent();
-    } else {
-      ++DirectVsLegacyCommandEqual();
-    }
-    return;
+  ++MovementOracleConsumesForSource(
+      static_cast<int>(movementCommandState.source));
+  // Source-dispatch policy. The oracle checks the locomotion state that the
+  // world tick is about to consume, so its contract follows that state's
+  // provenance instead of one animation-equality rule for every source.
+  switch (movementCommandState.source) {
+    case LocomotionCommandSource::DirectMovementIntent:
+      // Simulation authoritative: structural validity is fatal, disagreement
+      // with the animation is compatibility telemetry only.
+      if (shadow.desiredFunctionType != e_FunctionType_Movement ||
+          !shadow.useDesiredMovement) {
+        Log(e_FatalError, "PlayerBase", "CheckSimulationMovementCommandOracle",
+            "a direct locomotion intent must be a Movement command with "
+            "useDesiredMovement");
+      }
+      if (MovementCommandDiffersMaterially(live, shadow)) {
+        ++DirectVsLegacyCommandMateriallyDifferent();
+      } else {
+        ++DirectVsLegacyCommandEqual();
+      }
+      return;
+
+    case LocomotionCommandSource::SimulationSeed:
+      // Simulation authoritative and deliberately unlike the animation command.
+      if (shadow.desiredFunctionType != e_FunctionType_Movement ||
+          !shadow.useDesiredMovement ||
+          !FloatBitsEqual(shadow.desiredVelocityFloat, 0.0f) ||
+          shadow.useDesiredLookAt) {
+        Log(e_FatalError, "PlayerBase", "CheckSimulationMovementCommandOracle",
+            "a simulation reset seed must be a neutral zero-velocity Movement "
+            "intent without a look target");
+      }
+      return;
+
+    case LocomotionCommandSource::SimulationFallbackIntent:
+    case LocomotionCommandSource::LegacyCarriedForwardIntent:
+      // Both are defined as an exact projection of the animation command that
+      // produced them, so the bit-exact mirror remains fatal for them.
+      break;
+
+    case LocomotionCommandSource::ActionCoupledIntent:
+      // The locomotion payload arrived with an action command (BallControl /
+      // Trap). The action axis may legitimately move on, so a stale animation
+      // command is not proof that this locomotion state is invalid. Never
+      // fatal: measure the disagreement instead.
+      if (MovementCommandDiffersMaterially(live, shadow)) {
+        ++ActionCoupledLegacyMismatch();
+      }
+      return;
   }
+  // Exact legacy mirror for SimulationFallbackIntent and
+  // LegacyCarriedForwardIntent.
   std::string mismatch;
   if (!Vector3BitsEqual(shadow.desiredDirection, live.desiredDirection)) {
     mismatch = "desiredDirection";

@@ -119,6 +119,11 @@ int &ResetSeedEpisodesConsumedBeforeDirect();
 int &ResetSeedEpisodesDirectFirst();
 int &ResetSeedForeignConsumeViolations();
 std::vector<int> &ResetSeedConsumeToDirectDelay_ms();
+// H3e4f-g0b-oracle-source-policy: which source contract each locomotion
+// consumption is checked against, so removing a fatal comparison can be told
+// apart from deleting the check.
+int &MovementOracleConsumesForSource(int source);
+int &ActionCoupledLegacyMismatch();
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
