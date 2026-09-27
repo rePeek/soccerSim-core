@@ -338,19 +338,27 @@ void HumanoidBase::Process() {
     DO_VALIDATION;
 
     PlayerCommandQueue commandQueue;
+    // 4b''-prep: the controller's own queue is kept separate from what SelectAnim
+    // consumes, because trip handling pre-fills commandQueue with locally generated
+    // commands. Publishing a locally generated fallback as a DirectMovementIntent
+    // would break provenance.
+    PlayerCommandQueue controllerQueue;
     bool controller_queried = false;
     const auto EnsureControllerQuery = [&]() {
       if (controller_queried) return;
-      player->RequestCommand(commandQueue);
+      player->RequestCommand(controllerQueue);
+      controller_queried = true;
+      for (const PlayerCommand &controller_command : controllerQueue) {
+        commandQueue.push_back(controller_command);
+      }
       {
         bool trq_has = false;
-        for (const PlayerCommand &trq_c : commandQueue) {
+        for (const PlayerCommand &trq_c : controllerQueue) {
           if (trq_c.desiredFunctionType == e_FunctionType_Movement &&
               trq_c.useDesiredMovement) { trq_has = true; break; }
         }
         player->NoteControllerQuery(trq_has);
       }
-      controller_queried = true;
     };
     const bool trip_local_queue =
         interruptAnim == e_InterruptAnim_Trip && tripType != 0;
@@ -367,7 +375,7 @@ void HumanoidBase::Process() {
     // controller intent, so the tick is left overdue instead of consumed.
     if (simulation_due && !trip_local_queue) {
       EnsureControllerQuery();
-      if (PublishMovementIntentFromQueue(player, commandQueue)) {
+      if (PublishMovementIntentFromQueue(player, controllerQueue)) {
         ++HumanoidIntentRefreshes();
         player->CommitLocomotionIntentRefresh();
       } else {
@@ -427,7 +435,7 @@ void HumanoidBase::Process() {
         player->IsEligibleForProceduralLocomotion();
     if (!locomotion_eligible_before && locomotion_eligible_after &&
         controller_queried) {
-      if (PublishMovementIntentFromQueue(player, commandQueue)) {
+      if (PublishMovementIntentFromQueue(player, controllerQueue)) {
         ++HumanoidEligibilityGainRefreshes();
         player->CommitLocomotionIntentRefresh();
       } else {
