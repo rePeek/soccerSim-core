@@ -2145,13 +2145,10 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << DirectVsLegacyCommandEqual()
             << " direct_vs_legacy_materially_different="
             << DirectVsLegacyCommandMateriallyDifferent() << "\n";
-  std::cout << "  reanchor movement=" << MovementCommandReanchors() << " equal=" << MovementCommandReanchorsEqual() << " materially_different=" << MovementCommandReanchorsMateriallyDifferent() << " nonmovement=" << NonMovementCommandReanchors() << "\n";
-  std::cout << "  reanchor_fate pending=" << ReanchorPendingSet() << " consumed_before_refresh=" << ReanchorConsumedBeforeRefresh() << " superseded_by_refresh=" << ReanchorSupersededByRefresh() << "\n";
   std::cout << "  provenance reset_carried=" << RestartCarriedCommandForward() << " reset_constructed=" << RestartConstructedCommand() << " retain_carried=" << RetainCarriedCommandForward() << " retain_constructed=" << RetainConstructedCommand() << "\n";
   const int refresh_commits = HumanoidBasePathRefreshCommits();
   const int successful_publications =
       HumanoidIntentRefreshes() + HumanoidEligibilityGainRefreshes();
-  DumpReanchorProvenance();
   DumpQueryOpportunities();
   std::cout << "  held_due movement+retains " << HeldDueMovementRetainsCandidate() << "/"
             << HeldDueMovementRetainsTicks() << " ballcontrol "
@@ -2171,8 +2168,6 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << PlayerPathLocalTripMovementFallbackSelected()
             << " movement_fallback_publications="
             << PlayerMovementCommandFallbackAdoptions()
-            << " movement_fallback_material_reanchor="
-            << PlayerPathLocalTripMovementFallbackMaterialReanchor()
             << " movement_fallback_scheduler_commits="
             << PlayerPathLocalTripMovementFallbackRefreshCommits() << "\n";
   Require(PlayerPathQueriesWithMovement() == PlayerPathDirectPublications(),
@@ -2193,87 +2188,12 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << "\n";
   Require(refresh_commits == successful_publications,
           "locomotion intent: a scheduler refresh was committed without a publication");
-  Require(MaterialMovementReanchorsForBeginReason(kBeginMovementToMovement) == 0 &&
-              MaterialMovementReanchorsForBeginReason(kBeginOtherToMovement) == 0 &&
-              MaterialMovementReanchorsForBeginReason(kBeginRetainSelection) == 0,
-          "dead Movement raw re-anchor survived its final writer or unconsumed carry");
-  for (int reason = 0; reason < kBeginReasonCount; ++reason) {
-    const int material_occurrences =
-        MaterialMovementReanchorsForBeginReason(reason);
-    if (material_occurrences != 0) {
-      std::cout << "  material_reanchor " << ActionBeginReasonName(reason)
-                << " n=" << material_occurrences << "\n";
-      const MaterialReanchorPreviousSource &previous_source =
-          MaterialMovementReanchorPreviousSourceForBeginReason(reason);
-      std::cout << "    previous_source action_coupled="
-                << previous_source.action_coupled
-                << " direct=" << previous_source.direct
-                << " legacy_carried=" << previous_source.legacy_carried
-                << " simulation_seed=" << previous_source.simulation_seed
-                << " simulation_fallback=" << previous_source.simulation_fallback
-                << "\n";
-    }
-    const ReanchorResidency &record = ReanchorResidencyFor(reason);
-    if (record.n == 0) continue;
-    std::cout << "  residency " << ActionBeginReasonName(reason) << " n=" << record.n
-              << " lifetime_p50=" << percentile(record.lifetime_ms, 0.50)
-              << " p90=" << percentile(record.lifetime_ms, 0.90)
-              << " p99=" << percentile(record.lifetime_ms, 0.99)
-              << " max=" << percentile(record.lifetime_ms, 1.0)
-              << " ticks_p50=" << percentile(record.ticks, 0.50)
-              << " ticks_max=" << percentile(record.ticks, 1.0) << "\n";
-  }
-  const auto dump_lifecycle_consumption = [&](int reason) {
-    const LifecycleOverrideConsumption &record =
-        LifecycleOverrideConsumptionForBeginReason(reason);
-    const int pending = record.started - record.completed_by_direct -
-                        record.interrupted_by_lifecycle;
-    std::cout << "  lifecycle_consumption " << ActionBeginReasonName(reason)
-              << " started=" << record.started
-              << " completed_by_direct=" << record.completed_by_direct
-              << " interrupted=" << record.interrupted_by_lifecycle
-              << " pending=" << pending
-              << " consumed_before_direct=" << record.consumed_before_direct
-              << " first_consume_delay_p50="
-              << percentile(record.first_consume_delay_ms, 0.50)
-              << " p90=" << percentile(record.first_consume_delay_ms, 0.90)
-              << " ticks_p50="
-              << percentile(record.locomotion_ticks_before_direct, 0.50)
-              << " ticks_p90="
-              << percentile(record.locomotion_ticks_before_direct, 0.90)
-              << " next_direct_delay_p50="
-              << percentile(record.next_direct_delay_ms, 0.50)
-              << " p90=" << percentile(record.next_direct_delay_ms, 0.90)
-              << " max=" << percentile(record.next_direct_delay_ms, 1.0)
-              << "\n";
-  };
-  dump_lifecycle_consumption(kBeginResetSituation);
   for (int context = 0; context < kResetSituationCallContextCount; ++context) {
     std::cout << "  reset_situation_context "
               << ResetSituationCallContextName(context)
-              << " material_reanchors="
-              << MaterialResetSituationReanchorsForContext(context)
               << " simulation_only_ticks="
               << SimulationOnlyGateMismatchForResetContext(context) << "\n";
   }
-  std::cout << "  reset_seed_episode started=" << ResetSeedEpisodesStarted()
-            << " consumed_before_direct="
-            << ResetSeedEpisodesConsumedBeforeDirect()
-            << " direct_first_violations=" << ResetSeedEpisodesDirectFirst()
-            << " restarted_before_completion="
-            << ResetSeedEpisodesRestartedBeforeCompletion()
-            << " foreign_consume_violations="
-            << ResetSeedForeignConsumeViolations()
-            << " consume_to_direct_delay_mean/max=";
-  { const std::vector<int> &delays = ResetSeedConsumeToDirectDelay_ms();
-    int sum = 0, maximum = -1;
-    for (int value : delays) { sum += value; if (value > maximum) maximum = value; }
-    std::cout << (delays.empty() ? -1 : sum / static_cast<int>(delays.size()))
-              << "/" << maximum; }
-  std::cout << " last_closed_context="
-            << ResetSituationCallContextName(ResetSeedLastClosedEpisode().context)
-            << " last_closed_consumes="
-            << ResetSeedLastClosedEpisode().locomotion_consumes << "\n";
   std::cout << "  decision_intent present=" << DecisionLocomotionIntentPresentTicks()
             << " missing=" << DecisionLocomotionIntentMissingTicks()
             << " missing_by_source[action,direct,legacy,seed,fallback]="
@@ -2361,9 +2281,6 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << MovementOracleConsumesForSource(4)
             << " action_coupled_legacy_mismatch=" << ActionCoupledLegacyMismatch()
             << "\n";
-  dump_lifecycle_consumption(kBeginRetainSelection);
-  { std::vector<int> lives = ReanchorLifetime_ms();
-    std::cout << "  reanchor_lifetime_ms n=" << lives.size() << " p50=" << percentile(lives, 0.50) << " p90=" << percentile(lives, 0.90) << " p99=" << percentile(lives, 0.99) << " max=" << percentile(lives, 1.0) << " locomotion_ticks_p50=" << (percentile(lives, 0.50) / 10) << " locomotion_ticks_max=" << (percentile(lives, 1.0) / 10) << "\n"; }
 
   // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken
   // before the foot stable_sort, so a changed winner is caused by foot alone.

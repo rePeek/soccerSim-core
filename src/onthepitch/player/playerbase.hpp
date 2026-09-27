@@ -47,81 +47,17 @@ enum ResetSituationCallContext {
   kResetSituationBaseDeactivateSecond,
   kResetSituationCallContextCount
 };
-int &MaterialResetSituationReanchorsForContext(int context);
 const char *ResetSituationCallContextName(int context);
 int &SimulationOnlyGateMismatchForResetContext(int context);
-struct ReanchorResidency {
-  int n = 0;
-  std::vector<int> lifetime_ms;
-  std::vector<int> ticks;
-};
-// Source in force immediately before a material raw Movement re-anchor.
-// This is the evidence needed to distinguish a lifecycle seed from an
-// overwrite of an established simulation-owned intent.
-struct MaterialReanchorPreviousSource {
-  int action_coupled = 0;
-  int direct = 0;
-  int legacy_carried = 0;
-  int simulation_seed = 0;
-  int simulation_fallback = 0;
-};
-// Consumption of a material lifecycle override before the next successful
-// controller-owned DirectMovementIntent publication.
-struct LifecycleOverrideConsumption {
-  int started = 0;
-  int completed_by_direct = 0;
-  int interrupted_by_lifecycle = 0;
-  int consumed_before_direct = 0;
-  std::vector<int> first_consume_delay_ms;
-  std::vector<int> locomotion_ticks_before_direct;
-  std::vector<int> next_direct_delay_ms;
-};
-ReanchorResidency &ReanchorResidencyFor(int reason);
-// Raw Movement re-anchor occurrences, not residency episodes: an occurrence is
-// counted immediately, even if its episode has not closed by corpus end.
-int &MaterialMovementReanchorsForBeginReason(int reason);
-MaterialReanchorPreviousSource &
-MaterialMovementReanchorPreviousSourceForBeginReason(int reason);
-LifecycleOverrideConsumption &
-LifecycleOverrideConsumptionForBeginReason(int reason);
-void DumpReanchorProvenance();
 void DumpQueryOpportunities();
 const char *ActionBeginReasonName(int reason);
 
-// H3e4f-g0b-prime: is a Movement re-anchor actually consumed by locomotion before the
-// next direct refresh? Only that makes it load-bearing.
-int &ReanchorPendingSet();
-int &ReanchorConsumedBeforeRefresh();
-int &ReanchorSupersededByRefresh();
-std::vector<int> &ReanchorLifetime_ms();
 // H3e4f-g0b-3a provenance: does a restart boundary construct a new locomotion
 // command, or carry an older one forward?
 int &RestartCarriedCommandForward();
 int &RestartConstructedCommand();
 int &RetainCarriedCommandForward();
 int &RetainConstructedCommand();
-// H3e4f-g0b-reset-seed-episode: transient, never serialized. It proves that a
-// runtime reset's neutral seed is consumed by locomotion before the next
-// controller publication, instead of relying on a golden call index.
-struct ResetSeedAuditEpisode {
-  bool active = false;
-  int context = -1;
-  int started_ms = -1;
-  int first_consume_ms = -1;
-  int direct_publish_ms = -1;
-  int locomotion_consumes = 0;
-  int foreign_consumes = 0;
-  int consumes_before_direct = 0;
-};
-// Aggregate event counters; the live episode itself is per-player, because one
-// reset boundary re-seeds many players before any of them processes a tick.
-ResetSeedAuditEpisode &ResetSeedLastClosedEpisode();
-int &ResetSeedEpisodesStarted();
-int &ResetSeedEpisodesConsumedBeforeDirect();
-int &ResetSeedEpisodesDirectFirst();
-int &ResetSeedEpisodesRestartedBeforeCompletion();
-int &ResetSeedForeignConsumeViolations();
-std::vector<int> &ResetSeedConsumeToDirectDelay_ms();
 // H3e4f-g0b-decision-intent: the serialized Player Decision Clock locomotion
 // state. Since the execution authority flip this is the sole command source for
 // pure-locomotion execution: the gate requires a current-epoch publication, and
@@ -378,10 +314,8 @@ class PlayerBase {
     bool NoteLocomotionIntentCadence(bool legacy_opportunity);
     // Called only once the controller was actually queried for this refresh.
     void CommitLocomotionIntentRefresh();
-    void CloseReanchorEpisode();
     void NoteControllerQuery(bool had_movement_candidate);
     bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue);
-    void NoteMaterialMovementReanchor();
     bool LocomotionIntentRefreshHeldIneligible() const;
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
@@ -442,9 +376,6 @@ class PlayerBase {
     void ResetKinematicShadow();
     PlayerActionState CaptureLegacyActionState() const;
     void SetNextResetSituationAuditContext(int context);
-    void BeginLifecycleOverrideConsumptionAudit(int reason);
-    void NoteLifecycleOverrideConsumptionAudit();
-    void CompleteLifecycleOverrideConsumptionAudit();
     Match *match;
 
     const PlayerData* const playerData;
@@ -458,12 +389,6 @@ class PlayerBase {
     PlayerMovementCommandState movementCommandState;
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
-    bool reanchorPendingConsumption = false;
-    bool lifecycleOverrideAuditActive = false;
-    int lifecycleOverrideAuditReason = kBeginMovementToMovement;
-    int lifecycleOverrideAuditStart_ms = 0;
-    int lifecycleOverrideAuditTicks = 0;
-    int lifecycleOverrideAuditFirstConsumeDelay_ms = -1;
     // Explicit cause of the next Direct publication. A continuity repair runs
     // before NoteLocomotionIntentCadence, so deriving the cause from that flag
     // would mislabel a repair publication as an animation-driven one.
@@ -475,10 +400,6 @@ class PlayerBase {
     int lastDirectMovementIntentPublication_ms = -1;
     int lastResetSituation_ms = -1;
     bool hasProcessedPlayerTick = false;
-    // Transient per-player reset-seed episode. Never serialized and never part
-    // of gameplay: it only proves this player's seed was consumed before the
-    // controller replaced it.
-    ResetSeedAuditEpisode resetSeedAudit;
     int lastResetSituationAuditContext =
         kResetSituationInitialBeforeFirstPlayerTick;
     int tr_query_gen = 0;
@@ -507,13 +428,8 @@ class PlayerBase {
     int tr_last_query_action = 0;
     int tr_last_query_retains = 0;
     int tr_last_query_had_candidate = 0;
-    int reanchorPendingSince_ms = -1;
     int resetSituationAuditContext = kResetSituationUnspecified;
     int nextActionBeginReason = kBeginMovementToMovement;
-    bool episode_active = false;
-    int episode_active_reason = 0;
-    int episode_start_ms = 0;
-    int episode_ticks = 0;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

@@ -25,37 +25,7 @@
 
 #include "../match.hpp"
 
-int &ReanchorPendingSet() { static int value = 0; return value; }
-int &ReanchorConsumedBeforeRefresh() { static int value = 0; return value; }
-int &ReanchorSupersededByRefresh() { static int value = 0; return value; }
-std::vector<int> &ReanchorLifetime_ms() { static std::vector<int> values; return values; }
 int &RestartCarriedCommandForward() { static int value = 0; return value; }
-ReanchorResidency &ReanchorResidencyFor(int reason) {
-  static ReanchorResidency records[kBeginReasonCount];
-  return records[reason];
-}
-
-int &MaterialMovementReanchorsForBeginReason(int reason) {
-  static int records[kBeginReasonCount] = {};
-  return records[reason];
-}
-
-MaterialReanchorPreviousSource &
-MaterialMovementReanchorPreviousSourceForBeginReason(int reason) {
-  static MaterialReanchorPreviousSource records[kBeginReasonCount];
-  return records[reason];
-}
-
-LifecycleOverrideConsumption &
-LifecycleOverrideConsumptionForBeginReason(int reason) {
-  static LifecycleOverrideConsumption records[kBeginReasonCount];
-  return records[reason];
-}
-
-int &MaterialResetSituationReanchorsForContext(int context) {
-  static int records[kResetSituationCallContextCount] = {};
-  return records[context];
-}
 
 int &SimulationOnlyGateMismatchForResetContext(int context) {
   static int records[kResetSituationCallContextCount] = {};
@@ -70,22 +40,6 @@ const char *ResetSituationCallContextName(int context) {
     case kResetSituationBaseDeactivateSecond: return "base_deactivate_second";
     default: return "unknown";
   }
-}
-ResetSeedAuditEpisode &ResetSeedLastClosedEpisode() {
-  static ResetSeedAuditEpisode episode;
-  return episode;
-}
-int &ResetSeedEpisodesRestartedBeforeCompletion() {
-  static int value = 0;
-  return value;
-}
-int &ResetSeedEpisodesStarted() { static int value = 0; return value; }
-int &ResetSeedEpisodesConsumedBeforeDirect() { static int value = 0; return value; }
-int &ResetSeedEpisodesDirectFirst() { static int value = 0; return value; }
-int &ResetSeedForeignConsumeViolations() { static int value = 0; return value; }
-std::vector<int> &ResetSeedConsumeToDirectDelay_ms() {
-  static std::vector<int> values;
-  return values;
 }
 int &MovementOracleConsumesForSource(int source) {
   static int records[5] = {};
@@ -303,15 +257,6 @@ static int ResolveBeginReason(e_FunctionType previous_type, e_FunctionType new_t
                                                   : kBeginOtherToOther;
 }
 
-void PlayerBase::CloseReanchorEpisode() {
-  DO_VALIDATION;
-  if (!episode_active) return;
-  ReanchorResidency &record = ReanchorResidencyFor(episode_active_reason);
-  ++record.n;
-  record.lifetime_ms.push_back(static_cast<int>(match->GetActualTime_ms()) - episode_start_ms);
-  record.ticks.push_back(episode_ticks);
-  episode_active = false;
-}
 int &RestartConstructedCommand() { static int value = 0; return value; }
 int &RetainCarriedCommandForward() { static int value = 0; return value; }
 int &RetainConstructedCommand() { static int value = 0; return value; }
@@ -482,33 +427,6 @@ void PlayerBase::SetSimulationMovementCommand(
       ++PlayerMovementCommandLegacyAdoptions();
       break;
   }
-  if (source == LocomotionCommandSource::DirectMovementIntent) {
-    CompleteLifecycleOverrideConsumptionAudit();
-  }
-  if (source == LocomotionCommandSource::SimulationSeed) {
-    // A reset boundary re-seeds this player only. Another player's pending
-    // episode must never be mistaken for this one.
-    if (resetSeedAudit.active) ++ResetSeedEpisodesRestartedBeforeCompletion();
-    resetSeedAudit = ResetSeedAuditEpisode();
-    resetSeedAudit.active = true;
-    resetSeedAudit.context = lastResetSituationAuditContext;
-    resetSeedAudit.started_ms = static_cast<int>(match->GetActualTime_ms());
-    ++ResetSeedEpisodesStarted();
-  } else if (source == LocomotionCommandSource::DirectMovementIntent &&
-             resetSeedAudit.active) {
-    resetSeedAudit.direct_publish_ms =
-        static_cast<int>(match->GetActualTime_ms());
-    if (resetSeedAudit.locomotion_consumes == 0) {
-      // The controller replaced the seed before locomotion ever saw it.
-      ++ResetSeedEpisodesDirectFirst();
-    } else {
-      ++ResetSeedEpisodesConsumedBeforeDirect();
-      ResetSeedConsumeToDirectDelay_ms().push_back(
-          resetSeedAudit.direct_publish_ms - resetSeedAudit.first_consume_ms);
-    }
-    ResetSeedLastClosedEpisode() = resetSeedAudit;
-    resetSeedAudit.active = false;
-  }
 }
 
 bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
@@ -543,23 +461,6 @@ void PlayerBase::CommitLocomotionIntentRefresh() {
   // gone with it: this function schedules the refresh clock, nothing else.
   ++HumanoidIntentRefreshCommits();
   DO_VALIDATION;
-  // How long a legacy re-anchor value stayed in force until the simulation
-  // refreshed: the interval that decides whether replacing it needs a seed or
-  // only a forced due tick.
-  CloseReanchorEpisode();
-  if (reanchorPendingSince_ms >= 0) {
-    ReanchorLifetime_ms().push_back(static_cast<int>(match->GetActualTime_ms()) - reanchorPendingSince_ms);
-    reanchorPendingSince_ms = -1;
-  }
-  // A direct refresh replaces any pending re-anchor before locomotion saw it.
-  if (reanchorPendingConsumption) {
-    ++ReanchorSupersededByRefresh();
-    if (reanchorPendingSince_ms >= 0) {
-      ReanchorLifetime_ms().push_back(static_cast<int>(match->GetActualTime_ms()) - reanchorPendingSince_ms);
-      reanchorPendingSince_ms = -1;
-    }
-    reanchorPendingConsumption = false;
-  }
   const float distance_to_ball =
       (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
   ++PlayerLocomotionIntentConsumedTicks();
@@ -570,47 +471,6 @@ void PlayerBase::CommitLocomotionIntentRefresh() {
 }
 
 
-void PlayerBase::BeginLifecycleOverrideConsumptionAudit(int reason) {
-  if (lifecycleOverrideAuditActive) {
-    ++LifecycleOverrideConsumptionForBeginReason(
-          lifecycleOverrideAuditReason).interrupted_by_lifecycle;
-  }
-  LifecycleOverrideConsumption &record =
-      LifecycleOverrideConsumptionForBeginReason(reason);
-  ++record.started;
-  lifecycleOverrideAuditActive = true;
-  lifecycleOverrideAuditReason = reason;
-  lifecycleOverrideAuditStart_ms = static_cast<int>(match->GetActualTime_ms());
-  lifecycleOverrideAuditTicks = 0;
-  lifecycleOverrideAuditFirstConsumeDelay_ms = -1;
-}
-
-void PlayerBase::NoteLifecycleOverrideConsumptionAudit() {
-  if (!lifecycleOverrideAuditActive) return;
-  ++lifecycleOverrideAuditTicks;
-  if (lifecycleOverrideAuditFirstConsumeDelay_ms < 0) {
-    lifecycleOverrideAuditFirstConsumeDelay_ms =
-        static_cast<int>(match->GetActualTime_ms()) -
-        lifecycleOverrideAuditStart_ms;
-  }
-}
-
-void PlayerBase::CompleteLifecycleOverrideConsumptionAudit() {
-  if (!lifecycleOverrideAuditActive) return;
-  LifecycleOverrideConsumption &record =
-      LifecycleOverrideConsumptionForBeginReason(lifecycleOverrideAuditReason);
-  ++record.completed_by_direct;
-  record.next_direct_delay_ms.push_back(
-      static_cast<int>(match->GetActualTime_ms()) - lifecycleOverrideAuditStart_ms);
-  record.locomotion_ticks_before_direct.push_back(lifecycleOverrideAuditTicks);
-  if (lifecycleOverrideAuditFirstConsumeDelay_ms >= 0) {
-    ++record.consumed_before_direct;
-    record.first_consume_delay_ms.push_back(
-        lifecycleOverrideAuditFirstConsumeDelay_ms);
-  }
-  lifecycleOverrideAuditActive = false;
-}
-
 // 4b': intent refresh is held back purely because execution is not pure. This is
 // the conflation under measurement: the scheduler is due, but the execution gate
 // blocks the refresh.
@@ -618,22 +478,6 @@ bool PlayerBase::LocomotionIntentRefreshHeldIneligible() const {
   return locomotionIntentScheduler.Due(
              static_cast<int>(match->GetActualTime_ms())) &&
          !IsEligibleForProceduralLocomotion();
-}
-// 4b'-provenance: where did the command that a legacy Movement re-anchor
-// republishes actually come from?
-static int t4pv_due_ineligible = 0, t4pv_not_due = 0, t4pv_due_eligible = 0;
-static int t4pv_candidate_present = 0, t4pv_candidate_absent = 0;
-static long t4pv_age_sum = 0;
-static int t4pv_age_max = -1, t4pv_age_count = 0, t4pv_no_query = 0;
-
-void DumpReanchorProvenance() {
-  printf("4pv-SUMMARY material_movement_reanchors: query_due+ineligible=%d not_due=%d due+eligible=%d\n",
-         t4pv_due_ineligible, t4pv_not_due, t4pv_due_eligible);
-  printf("4pv-SUMMARY query_candidate present=%d absent=%d | selected_age mean=%ld max=%d n=%d no_query=%d\n",
-         t4pv_candidate_present, t4pv_candidate_absent,
-         t4pv_age_count ? t4pv_age_sum / t4pv_age_count : 0, t4pv_age_max, t4pv_age_count,
-         t4pv_no_query);
-  fflush(stdout);
 }
 
 static int t4opp_queries = 0, t4opp_with_candidate = 0;
@@ -670,21 +514,6 @@ void PlayerBase::NoteControllerQuery(bool had_movement_candidate) {
   }
 }
 
-void PlayerBase::NoteMaterialMovementReanchor() {
-  DO_VALIDATION;
-  if (tr_last_query_ms < 0) {
-    ++t4pv_no_query;
-    return;
-  }
-  if (tr_last_query_due && !tr_last_query_eligible) ++t4pv_due_ineligible;
-  else if (!tr_last_query_due) ++t4pv_not_due;
-  else ++t4pv_due_eligible;
-  if (tr_last_query_had_candidate) ++t4pv_candidate_present; else ++t4pv_candidate_absent;
-  const int age = static_cast<int>(match->GetActualTime_ms()) - tr_last_query_ms;
-  t4pv_age_sum += age;
-  ++t4pv_age_count;
-  if (age > t4pv_age_max) t4pv_age_max = age;
-}
 // Single place that turns a controller queue into a published locomotion intent.
 // Returns true only when a Movement candidate with useDesiredMovement was
 // published, so callers commit the scheduler refresh only on a real publication.
@@ -789,56 +618,6 @@ void PlayerBase::BeginSimulationAction() {
   if (anim->originatingCommand.useDesiredMovement &&
       (anim->originatingCommand.desiredFunctionType != e_FunctionType_Movement ||
        lifecycle_rebuild)) {
-    if (anim->originatingCommand.desiredFunctionType ==
-        e_FunctionType_Movement) {
-      ++MovementCommandReanchors();
-      if (MovementCommandDiffersMaterially(movementCommandState.command,
-                                          anim->originatingCommand)) {
-        ++MovementCommandReanchorsMateriallyDifferent();
-        ++MaterialMovementReanchorsForBeginReason(resolved_begin_reason);
-        if (resolved_begin_reason == kBeginResetSituation) {
-          ++MaterialResetSituationReanchorsForContext(
-              resetSituationAuditContext);
-        }
-        MaterialReanchorPreviousSource &previous_source =
-            MaterialMovementReanchorPreviousSourceForBeginReason(
-                resolved_begin_reason);
-        switch (movementCommandState.source) {
-          case LocomotionCommandSource::ActionCoupledIntent:
-            ++previous_source.action_coupled;
-            break;
-          case LocomotionCommandSource::DirectMovementIntent:
-            ++previous_source.direct;
-            break;
-          case LocomotionCommandSource::LegacyCarriedForwardIntent:
-            ++previous_source.legacy_carried;
-            break;
-          case LocomotionCommandSource::SimulationSeed:
-            ++previous_source.simulation_seed;
-            break;
-          case LocomotionCommandSource::SimulationFallbackIntent:
-            ++previous_source.simulation_fallback;
-            break;
-        }
-        if (resolved_begin_reason == kBeginResetSituation ||
-            resolved_begin_reason == kBeginRetainSelection) {
-          BeginLifecycleOverrideConsumptionAudit(resolved_begin_reason);
-        }
-        NoteMaterialMovementReanchor();
-        reanchorPendingConsumption = true;
-        CloseReanchorEpisode();
-        episode_active = true;
-        episode_active_reason = resolved_begin_reason;
-        episode_start_ms = static_cast<int>(match->GetActualTime_ms());
-        episode_ticks = 0;
-        ++ReanchorPendingSet();
-        reanchorPendingSince_ms = static_cast<int>(match->GetActualTime_ms());
-      } else {
-        ++MovementCommandReanchorsEqual();
-      }
-    } else {
-      ++NonMovementCommandReanchors();
-    }
     movementCommandState.command = anim->originatingCommand;
     movementCommandState.source = LocomotionCommandSource::LegacyCarriedForwardIntent;
     movementCommandState.initialized = true;
