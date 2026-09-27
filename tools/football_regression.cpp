@@ -1202,25 +1202,25 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
       {1, -1, Position(0.0f, 0.0f, 0.110616393f, true),
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
-       UINT64_C(2178283517849602577)},
+       UINT64_C(385886754253041681)},
       // H3e1c-3c: first canonical trajectory with pure locomotion as the
       // simulation authority. The old animation-root-motion values are
       // expected to diverge and are deliberately replaced.
       // P1b/P1c: the planner consumes the measured capability model, retained
       // between scheduled refreshes, so these are the first snapshots under that
       // belief.
-      {100, 58, Position(0.488125414f, 0.0186115876f, 0.103860237f, true),
+      {100, 58, Position(0.488103181f, 0.0186198093f, 0.103896916f, true),
        Position(-0.80509001f, -0.00180166762f, 0.0f, true),
        Position(0.990808845f, 0.0f, 0.0f, true), 0, 0, true,
-       UINT64_C(6301496883535622849)},
-      {500, 416, Position(-0.061128471f, 0.141759977f, 0.127197847f, true),
-       Position(-0.904993355f, 0.0202295836f, 0.0f, true),
-       Position(0.842858136f, 0.0103787268f, 0.0f, true), 0, 0, true,
-       UINT64_C(434351511208633343)},
-      {1000, 874, Position(0.811309338f, 0.194073677f, 0.110616393f, true),
-       Position(-0.990808845f, 0.0f, 0.0f, true),
-       Position(0.990808845f, 0.0f, 0.0f, true), 0, 0, false,
-       UINT64_C(70747660585618726)},
+       UINT64_C(13488695166050872985)},
+      {500, 416, Position(-0.725176573f, 0.285050839f, 0.798114598f, true),
+       Position(-0.992788613f, 0.0288618263f, 0.0f, true),
+       Position(0.825586379f, -0.00580085116f, 0.0f, true), 0, 0, true,
+       UINT64_C(14021545120330653388)},
+      {1000, 895, Position(-0.340146571f, 0.316803753f, 0.110689186f, true),
+       Position(-0.958880603f, 0.0262487102f, 0.0f, true),
+       Position(0.825244069f, 0.00807537604f, 0.0f, true), 0, 0, true,
+       UINT64_C(8129512808688048620)},
   };
 
 

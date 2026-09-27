@@ -137,6 +137,22 @@ void ResetLocomotionReentryAudits() {
   ++LocomotionReentryMeasurementEpoch();
 }
 
+void PlayerBase::CheckDecisionLocomotionIntentOracle() const {
+  DO_VALIDATION;
+  // Producer contract for the executed intent. The executability half lives in
+  // HasExecutableDecisionLocomotionIntent(); this half stays fatal so a Direct
+  // publication that is not a Movement intent can never silently execute.
+  const PlayerCommand &command = decisionLocomotionState.command;
+  if (!decisionLocomotionState.initialized || !command.useDesiredMovement ||
+      command.desiredFunctionType != e_FunctionType_Movement ||
+      decisionLocomotionState.publishedEpoch !=
+          decisionLocomotionState.continuityEpoch) {
+    Log(e_FatalError, "PlayerBase", "CheckDecisionLocomotionIntentOracle",
+        "the executed locomotion intent is not a current-epoch Direct Movement "
+        "intent");
+  }
+}
+
 void PlayerBase::AdvanceLocomotionContinuity(bool eligible) {
   // Gameplay transition. The audit below observes eligibility and must never
   // decide the epoch, or telemetry bookkeeping would drive a controller query.

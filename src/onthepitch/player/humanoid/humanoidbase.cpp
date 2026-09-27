@@ -1047,16 +1047,11 @@ Vector3 HumanoidBase::CalculateOutgoingMovement(const std::vector<Vector3> &posi
 }
 
 bool HumanoidBase::UsesProceduralLocomotion() const {
-  if (!player || !player->IsEligibleForProceduralLocomotion()) return false;
-  const bool legacy_gate = currentAnim.originatingCommand.useDesiredMovement;
-  const bool simulation_gate = player->HasSimulationLocomotionIntent();
-  if (legacy_gate && simulation_gate) ++HumanoidLocomotionGateBothTrue();
-  else if (legacy_gate) ++HumanoidLocomotionGateLegacyOnly();
-  else if (simulation_gate) ++HumanoidLocomotionGateSimulationOnly();
-  else ++HumanoidLocomotionGateBothFalse();
-  // reset-seed-prep: retain legacy behavior until the equivalence assertion has
-  // proved that the simulation gate does not independently widen execution.
-  return legacy_gate;
+  // Execution authority is the Player Decision Clock's current-epoch intent, not
+  // the animation command. Executability is the gate; the producer contract is a
+  // separate fatal oracle.
+  return player && player->IsEligibleForProceduralLocomotion() &&
+         player->HasExecutableDecisionLocomotionIntent();
 }
 
 
@@ -1259,7 +1254,6 @@ void HumanoidBase::ProjectMovementState(
     const PlayerKinematicState &tickStartState) {
   DO_VALIDATION;
   if (!player) return;
-  const PlayerCommand &command = currentAnim.originatingCommand;
   if (!UsesProceduralLocomotion()) {
     // Non-locomotion ticks keep the legacy animation root motion. Projecting
     // it keeps the Humanoid movement fields a single projection of the
@@ -1278,11 +1272,14 @@ void HumanoidBase::ProjectMovementState(
   // produces lower-body motion first; the independent torso model then uses the
   // resulting facing and the command's look target.
   // The tick that consumes the command must see an exact copy of it.
-  player->CheckSimulationMovementCommandOracle();
-  player->NoteLocomotionCommandConsumed();
+  // Pure locomotion: one command source, the Player Decision Clock. Both the
+  // movement model and the torso model consume the same decision-owned intent,
+  // so the animation command no longer decides what executes.
+  player->CheckDecisionLocomotionIntentOracle();
+  const PlayerCommand &command = player->GetDecisionLocomotionIntent();
   // H3e4f-b: locomotion reads the simulation-owned copy, not the legacy anim.
   const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
-      player->GetSimulationMovementCommand(), tickStartState,
+      command, tickStartState,
       player->GetMaxVelocity(), tickStartState.bodyFacing);
   PlayerLocomotionParameters parameters;
   parameters.maxSpeed = player->GetMaxVelocity();

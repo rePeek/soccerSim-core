@@ -292,6 +292,10 @@ class PlayerBase {
       DO_VALIDATION;
       return decisionLocomotionState.command;
     }
+    // Decision-side execution oracle. The gate answers executability; this answers
+    // the producer contract, which stays fatal rather than being folded into the
+    // gate predicate.
+    void CheckDecisionLocomotionIntentOracle() const;
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
