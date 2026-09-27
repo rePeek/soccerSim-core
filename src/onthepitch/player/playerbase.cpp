@@ -559,11 +559,13 @@ void PlayerBase::BeginSimulationAction() {
   // SimulationFallbackIntent for the local Trip fallback. Their raw legacy
   // re-anchor is therefore a dead intermediate write and is skipped below.
   //
-  // Lifecycle rebuilds (ResetSituation / RetainSelection) have no selection
-  // producer. They remain an explicit, separately measured legacy override; the
-  // audit proved they overwrite an established direct intent, so treating them
-  // as a seed or deleting them is a later semantic-policy migration.
-  const bool lifecycle_rebuild = resolved_begin_reason >= kBeginResetPosition;
+  // ResetSituation remains the only explicit legacy lifecycle override: its
+  // carried command is actually consumed before the next Direct refresh.
+  // RetainSelection was never consumed and Direct overwrote it immediately, so
+  // its raw write is also a dead intermediate and is skipped permanently.
+  const bool lifecycle_rebuild =
+      resolved_begin_reason != kBeginRetainSelection &&
+      resolved_begin_reason >= kBeginResetPosition;
   if (anim->originatingCommand.useDesiredMovement &&
       (anim->originatingCommand.desiredFunctionType != e_FunctionType_Movement ||
        lifecycle_rebuild)) {
