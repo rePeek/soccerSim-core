@@ -64,14 +64,16 @@ class PlayerBase {
     // OffsetPosition, Mirror, state restore), so mid-tick readers such as the
     // controller never see a stale actor. Mirroring follows the legacy
     // field-level asymmetry (position/velocity mirrored; facing/bodyFacing not).
-    // bodyFacing is presently an animation-owned shadow; its gameplay reader
-    // deliberately remains Humanoid-backed until H3e3a2.
+    // bodyFacing is simulation-authoritative for pure locomotion (H3e3b) and
+    // remains an exact legacy shadow for every other action. Its public reader
+    // therefore uses the kinematic state; Humanoid is only its compatibility
+    // projection/oracle at this boundary.
     // CheckSimulationKinematicOracle() enforces the mirror bit-exactly.
     // Actors must be positioned through PlayerBase::ResetPosition /
     // OffsetPosition so that this state cannot be left stale.
     inline Vector3 GetPosition() const { return kinematicState.position; }
     inline Vector3 GetDirectionVec() const { return kinematicState.facing; }
-    inline Vector3 GetBodyDirectionVec() const { return humanoid->GetBodyDirectionVec(); }
+    inline Vector3 GetBodyDirectionVec() const { return kinematicState.bodyFacing; }
     inline Vector3 GetMovement() const { return kinematicState.velocity; }
     inline radian GetRelBodyAngle() const {
       return humanoid->GetRelBodyAngle();
