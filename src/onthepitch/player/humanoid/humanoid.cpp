@@ -188,12 +188,13 @@ void Humanoid::Process() {
       CastPlayer()->IsEligibleForProceduralLocomotion() &&
       CastPlayer()->DecisionLocomotionEpochIsStale();
   const bool player_decision_due =
-      CastPlayer()->IsPlayerDecisionRefreshDue(decision_now_ms);
+      CastPlayer()->IsPlayerDecisionRefreshDue(
+          decision_now_ms, player_decision_cadence_ms);
   if (continuity_repair_due || player_decision_due) {
     PlayerCommandQueue player_decision_commands;
     CastPlayer()->RequestCommand(player_decision_commands);
     CastPlayer()->PublishPlayerDecisionQueue(
-        player_decision_commands, decision_now_ms, player_decision_cadence_ms);
+        player_decision_commands, decision_now_ms);
     CastPlayer()->ObserveSimulationDecisionQueue(
         player_decision_commands, decision_now_ms);
     bool has_movement = false;

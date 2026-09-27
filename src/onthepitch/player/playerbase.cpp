@@ -368,12 +368,12 @@ bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
 }
 
 void PlayerBase::PublishPlayerDecisionQueue(
-    const PlayerCommandQueue &commands, int now_ms, int cadence_ms) {
+    const PlayerCommandQueue &commands, int now_ms) {
   DO_VALIDATION;
   playerDecisionQueue.commands = commands;
   playerDecisionQueue.initialized = true;
   ++playerDecisionQueue.generation;
-  playerDecisionScheduler.Schedule(now_ms, cadence_ms);
+  playerDecisionScheduler.Commit(now_ms);
 }
 
 void PlayerBase::CommitLocomotionIntentRefresh() {

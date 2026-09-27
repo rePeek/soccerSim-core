@@ -331,11 +331,11 @@ class PlayerBase {
     // decision would be if animation-owned queries had never existed.
     void ObserveSimulationDecisionQueue(const PlayerCommandQueue &commands,
                                         int now_ms);
-    bool IsPlayerDecisionRefreshDue(int now_ms) const {
-      return playerDecisionScheduler.Due(now_ms);
+    bool IsPlayerDecisionRefreshDue(int now_ms, int cadence_ms) const {
+      return playerDecisionScheduler.Due(now_ms, cadence_ms);
     }
     void PublishPlayerDecisionQueue(const PlayerCommandQueue &commands,
-                                    int now_ms, int cadence_ms);
+                                    int now_ms);
     bool HasSimulationDecisionQueue() const {
       return simulationDecisionQueue.initialized;
     }

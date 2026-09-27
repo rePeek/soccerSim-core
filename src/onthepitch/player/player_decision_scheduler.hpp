@@ -8,18 +8,23 @@
 // Simulation-owned clock for asking a player controller for its complete
 // PlayerCommandQueue. Locomotion has a separate execution/publication clock.
 struct PlayerDecisionScheduler {
-  int nextRefreshTime_ms = 0;
+  int lastRefreshTime_ms = 0;
+  bool initialized = false;
 
-  bool Due(int now_ms) const { return now_ms >= nextRefreshTime_ms; }
-
-  void Schedule(int now_ms, int cadence_ms) {
-    nextRefreshTime_ms = now_ms + cadence_ms;
+  bool Due(int now_ms, int current_cadence_ms) const {
+    return !initialized || now_ms - lastRefreshTime_ms >= current_cadence_ms;
   }
 
-  // The deadline is gameplay state and must survive save/load.
+  void Commit(int now_ms) {
+    lastRefreshTime_ms = now_ms;
+    initialized = true;
+  }
+
+  // Both the last refresh and initialization state are gameplay state.
   void ProcessState(EnvState *state) {
     DO_VALIDATION;
-    state->process(nextRefreshTime_ms);
+    state->process(lastRefreshTime_ms);
+    state->process(initialized);
   }
 };
 

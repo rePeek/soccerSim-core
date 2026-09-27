@@ -24,6 +24,7 @@
 #include "onthepitch/player/humanoid/animcollection.hpp"
 #include "onthepitch/player/humanoid/import_hierarchy.hpp"
 #include "onthepitch/player/humanoid/import_loader.hpp"
+#include "onthepitch/player/player_decision_scheduler.hpp"
 
 namespace {
 
@@ -37,6 +38,22 @@ struct RegressionFailure : std::exception {
 
 void Require(bool condition, const std::string& message) {
   if (!condition) throw RegressionFailure(message);
+}
+
+void CheckPlayerDecisionScheduler() {
+  PlayerDecisionScheduler scheduler;
+  Require(scheduler.Due(0, 240),
+          "player decision scheduler: first decision must be immediately due");
+  scheduler.Commit(0);
+  Require(!scheduler.Due(20, 240),
+          "player decision scheduler: slow current context fired too early");
+  Require(scheduler.Due(20, 20),
+          "player decision scheduler: faster current context remained blocked by old cadence");
+  scheduler.Commit(20);
+  Require(!scheduler.Due(30, 20),
+          "player decision scheduler: elapsed time below current cadence fired early");
+  Require(scheduler.Due(40, 20),
+          "player decision scheduler: current cadence was not due at elapsed threshold");
 }
 
 void RequireNear(float actual, float expected, const std::string& label) {
@@ -1203,21 +1220,21 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
        UINT64_C(385886754253041681)},
-      // 4f-a3a: the independent Player Decision Clock now issues contextual
-      // simulation-owned RequestCommand queries. Their serialized controller
-      // side effects intentionally establish a new trajectory baseline.
-      {100, 58, Position(0.47898829f, 0.00693275966f, 0.112613186f, true),
+      // 4f-a3a1: cadence is evaluated from the current world context against
+      // elapsed time since the last decision; accelerated contexts no longer
+      // wait for a deadline scheduled under an earlier, slower context.
+      {100, 58, Position(0.502092302f, 0.0437637493f, 1.46957231f, true),
        Position(-0.80509001f, -0.00180166762f, 0.0f, true),
        Position(0.990808845f, 0.0f, 0.0f, true), 0, 0, true,
-       UINT64_C(8041893230213697389)},
-      {500, 458, Position(0.197007716f, 0.209723428f, 0.139702827f, true),
-       Position(-0.822899401f, 0.00163657148f, 0.0f, true),
-       Position(0.985985577f, 0.0119194295f, 0.0f, true), 0, 0, true,
-       UINT64_C(10731040822371693759)},
-      {1000, 925, Position(0.326352298f, 0.27268371f, 0.110492595f, true),
-       Position(-0.827447593f, 0.00379829737f, 0.0f, true),
-       Position(0.99005276f, 0.0128665892f, 0.0f, true), 1, 1, true,
-       UINT64_C(12368058550167948028)},
+       UINT64_C(1765394039141254102)},
+      {500, 416, Position(-0.126243606f, -0.222070247f, 0.109730996f, true),
+       Position(-0.818069935f, -0.0546912588f, 0.0f, true),
+       Position(0.828587651f, 0.00269152783f, 0.0f, true), 0, 0, true,
+       UINT64_C(6764411801910317543)},
+      {1000, 874, Position(-0.163342789f, -0.141403288f, 0.107145652f, true),
+       Position(-0.885547519f, -0.0239884425f, 0.0f, true),
+       Position(0.829587281f, -0.000102454775f, 0.0f, true), 0, 0, true,
+       UINT64_C(1670852008189085040)},
   };
 
 
@@ -3695,6 +3712,7 @@ int main(int argc, char** argv) {
     CheckProceduralInterceptPrediction();
     CheckPlayerGroundCollider();
     CheckPlayerActionExecutor();
+    CheckPlayerDecisionScheduler();
     CheckPureLocomotionBoundary();
     CheckLegacyLocomotionCommandAdapter();
     CheckPlayerActionVolume();
