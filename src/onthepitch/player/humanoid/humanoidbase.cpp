@@ -342,7 +342,6 @@ void HumanoidBase::Process() {
     // would break provenance.
     PlayerCommandQueue controllerQueue;
     bool controller_queried = false;
-    bool published_this_tick = false;
     const auto EnsureControllerQuery = [&]() {
       if (controller_queried) return;
       player->RequestCommand(controllerQueue);
@@ -374,13 +373,6 @@ void HumanoidBase::Process() {
     // controller intent, so the tick is left overdue instead of consumed.
     if (simulation_due && !trip_local_queue) {
       EnsureControllerQuery();
-      if (PublishMovementIntentFromQueue(player, controllerQueue)) {
-        ++HumanoidIntentRefreshes();
-        published_this_tick = true;
-        player->CommitLocomotionIntentRefresh();
-      } else {
-        ++HumanoidIntentCandidatesMissing();
-      }
     }
 
     if (legacy_opportunity) {
@@ -431,14 +423,13 @@ void HumanoidBase::Process() {
     // Movement, i.e. eligibility went false -> true inside this decision phase.
     // Consume the held refresh here, reusing the queue this tick already queried;
     // never issue a second controller query.
-    // 4b''-flip: any real controller query offers a Movement candidate, and the
-    // simulation now owns publishing it. Runs after SelectAnim so the legacy
-    // republish inside it can no longer be the tick's last writer.
-    if (controller_queried && !published_this_tick) {
+    // 4b''-ordering: the single publication point for the tick. SelectAnim has
+    // already run, so no legacy action-selection write can follow it and become
+    // the final writer; the controller's Movement candidate is the last write.
+    if (controller_queried) {
       if (PublishMovementIntentFromQueue(player, controllerQueue)) {
         ++HumanoidIntentRefreshes();
         player->CommitLocomotionIntentRefresh();
-        published_this_tick = true;
       } else {
         ++HumanoidIntentCandidatesMissing();
       }
