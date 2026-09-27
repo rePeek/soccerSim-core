@@ -122,6 +122,7 @@ int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return valu
 // so callers can commit the scheduler refresh only on an actual publication.
 int &PlayerMovementCommandDirectAdoptions() { static int value = 0; return value; }
 int &PlayerLocomotionIntentDueTicks() { static int value = 0; return value; }
+int &PlayerLocomotionCadenceSelectionSuppressed() { static int value = 0; return value; }
 int &PlayerLocomotionIntentLegacyOpportunityTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentOverlapTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentDueIneligibleTicks() { static int value = 0; return value; }

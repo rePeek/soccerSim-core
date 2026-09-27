@@ -312,7 +312,9 @@ void Humanoid::Process() {
   const bool legacy_only = legacy_opportunity && !simulation_due;
   CastPlayer()->NoteDecisionPublicationCause(legacy_only ? 1 : 0);
   bool decision_queue_selection_movement = false;
-  if (legacy_opportunity || simulation_due) {
+  if (simulation_due && !legacy_opportunity)
+    ++PlayerLocomotionCadenceSelectionSuppressed();
+  if (legacy_opportunity) {
     DO_VALIDATION;
     PlayerCommandQueue commandQueue;      // selection queue
     std::vector<PlayerPathSelectionCommandProvenance> commandProvenance;

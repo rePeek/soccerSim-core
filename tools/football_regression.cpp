@@ -1220,20 +1220,20 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
        UINT64_C(385886754253041681)},
-      // 4f-a3b2: animation opportunities no longer publish Movement; locomotion
-      // cadence and continuity repair are the only publication owners.
-      {100, 79, Position(-0.689303577f, 0.0408623032f, 0.113170028f, true),
-       Position(-0.989319384f, 0.00405876338f, 0.0f, true),
-       Position(0.832003117f, 0.000653819705f, 0.0f, true), 0, 0, true,
-       UINT64_C(4969434695754821216)},
-      {500, 437, Position(0.517092466f, -0.134222239f, 0.108121894f, true),
-       Position(-0.829032123f, 0.00554634072f, 0.0f, true),
-       Position(0.985996425f, -0.00836261921f, 0.0f, true), 0, 0, true,
-       UINT64_C(2505170653720278208)},
-      {1000, 868, Position(-0.262085766f, 0.340801805f, 0.504042089f, true),
-       Position(-0.995155215f, 0.0113674011f, 0.0f, true),
-       Position(0.831140041f, 0.00322162174f, 0.0f, true), 1, 0, true,
-       UINT64_C(3537746564645942138)},
+      // 4f-a3b3: locomotion cadence samples cached Movement without triggering
+      // SelectAnim; animation opportunities alone own presentation selection.
+      {100, 79, Position(0.582221329f, 0.16972594f, 0.117803708f, true),
+       Position(-0.825538993f, 0.00424938463f, 0.0f, true),
+       Position(0.98832047f, 0.00904292241f, 0.0f, true), 0, 0, true,
+       UINT64_C(10610695401738187593)},
+      {500, 437, Position(-0.0636564866f, -0.0195256099f, 0.698153377f, true),
+       Position(-0.986044109f, -1.55089154e-07f, 0.0f, true),
+       Position(0.851519883f, -3.59507176e-05f, 0.0f, true), 0, 0, true,
+       UINT64_C(2707498601741816980)},
+      {1000, 916, Position(0.925300062f, -0.14447403f, 0.120126799f, true),
+       Position(-0.816613317f, 0.00411171326f, 0.0f, true),
+       Position(0.957633913f, -0.0314540565f, 0.0f, true), 0, 0, true,
+       UINT64_C(4581787733472518770)},
   };
 
 
@@ -2025,6 +2025,8 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int foot_lifecycle_before = HumanoidFootLifecycleChanged();
   const int direct_before = PlayerMovementCommandDirectAdoptions();
   const int legacy_only_opportunities_before = LegacyOnlyDecisionOpportunities();
+  const int cadence_selection_suppressed_before =
+      PlayerLocomotionCadenceSelectionSuppressed();
   const int legacy_only_queries_before = LegacyOnlyDecisionQueries();
   const int legacy_only_movement_queries_before = LegacyOnlyDecisionMovementQueries();
   const int legacy_only_publications_before = LegacyOnlyDecisionPublications();
@@ -2193,6 +2195,9 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << (PlayerLocomotionIntentDueTicks() -
                 PlayerLocomotionIntentDueIneligibleTicks())
             << "\n";
+  std::cout << "  locomotion_cadence selection_suppressed="
+            << (PlayerLocomotionCadenceSelectionSuppressed() -
+                cadence_selection_suppressed_before) << "\n";
   // 4f-a1: animation-owned query pressure. legacy_only counts the requeue
   // opportunities where no simulation cadence was due; the goal is that the
   // clock becomes unreachable from that event, so these fall to zero.
@@ -2227,15 +2232,18 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int legacy_publication_delta =
       LegacyOnlyDecisionPublications() - legacy_only_publications_before;
   Require(legacy_opportunity_delta > 0,
-          "a3b2: animation selection opportunities must remain live");
+          "a3b3: animation opportunities must remain live");
   Require(legacy_query_delta == 0 &&
               LegacyOnlyDecisionMovementQueries() -
                       legacy_only_movement_queries_before == 0,
-          "a3b2: legacy-only opportunities still called RequestCommand");
+          "a3b3: legacy-only opportunities still called RequestCommand");
   Require(legacy_publication_delta == 0,
-          "a3b2: animation-only opportunities still published Movement");
+          "a3b3: animation-only opportunities still published Movement");
+  Require(PlayerLocomotionCadenceSelectionSuppressed() -
+              cadence_selection_suppressed_before > 0,
+          "a3b3: locomotion cadence did not suppress a selection-only opportunity");
   Require(DecisionPublicationCauseCount(0) - cadence_publications_before > 0,
-          "a3b2: locomotion cadence did not publish cached Movement");
+          "a3b3: locomotion cadence did not publish cached Movement");
   Require(PlayerDecisionClockQueries() - decision_clock_queries_before ==
               PlayerDecisionClockPeriodicQueries() - decision_clock_periodic_before +
                   PlayerDecisionClockForcedQueries() - decision_clock_forced_before,

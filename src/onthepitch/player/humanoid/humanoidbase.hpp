@@ -67,6 +67,7 @@ void RecordPlayerTickGateMismatch(bool legacy_gate, bool simulation_gate,
 int &PlayerMovementCommandNonMovementTicks();
 int &PlayerMovementCommandDirectAdoptions();
 int &PlayerLocomotionIntentDueTicks();
+int &PlayerLocomotionCadenceSelectionSuppressed();
 int &PlayerLocomotionIntentLegacyOpportunityTicks();
 int &PlayerLocomotionIntentOverlapTicks();
 // c2a2: the parts of the due count that the flipped scheduler must NOT consume,
