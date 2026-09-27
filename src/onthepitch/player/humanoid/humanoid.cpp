@@ -308,8 +308,8 @@ void Humanoid::Process() {
       CastPlayer()->NoteLocomotionIntentCadence(legacy_opportunity);
   // Tag the cause of any publication on this path, so a legacy-driven query is
   // not credited to the simulation cadence in the audit.
-  CastPlayer()->NoteDecisionPublicationCause(
-      legacy_opportunity && !simulation_due ? 1 : 0);
+  const bool legacy_only = legacy_opportunity && !simulation_due;
+  CastPlayer()->NoteDecisionPublicationCause(legacy_only ? 1 : 0);
   if (legacy_opportunity || simulation_due) {
     DO_VALIDATION;
     PlayerCommandQueue commandQueue;      // selection queue
@@ -388,6 +388,8 @@ void Humanoid::Process() {
     // One publication per controller query: a pre-execution continuity repair may
     // already have published from this same query, and it must not be repeated.
     if (controller_queried && !controller_movement_published) {
+      CastPlayer()->NoteDecisionMovementSelection(
+          found && action.type == e_FunctionType_Movement);
       // The publication counters live in the lambda, so the repair and this site
       // cannot double count.
       if (!PublishControllerMovementOnce()) {
@@ -411,6 +413,29 @@ void Humanoid::Process() {
           previousAnim_functionType == action.type) {
         DO_VALIDATION;
         reQueueDelayFrames = initialReQueueDelayFrames; // don't try requeueing (some types of anims, see selectanim()) too often
+      }
+    }
+    // 4f-a1: animation-owned query pressure. Every count below is a tick the
+    // animation requeue reached the decision phase on with no cadence due; the
+    // target is that this number, and the queries it causes, fall to zero.
+    if (legacy_only) {
+      ++LegacyOnlyDecisionOpportunities();
+      if (controller_queried) {
+        ++LegacyOnlyDecisionQueries();
+        for (const PlayerCommand &controller_command : controllerQueue) {
+          if (controller_command.desiredFunctionType == e_FunctionType_Movement &&
+              controller_command.useDesiredMovement) {
+            ++LegacyOnlyDecisionMovementQueries();
+            break;
+          }
+        }
+      }
+      if (!found) {
+        ++LegacyOnlyDecisionNoSelection();
+      } else if (action.type == e_FunctionType_Movement) {
+        ++LegacyOnlyDecisionMovementSelections();
+      } else {
+        ++LegacyOnlyDecisionNonMovementSelections();
       }
     }
   }

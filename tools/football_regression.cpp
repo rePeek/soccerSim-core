@@ -2010,6 +2010,19 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int foot_special_before = HumanoidFootSpecialStateDiff();
   const int foot_lifecycle_before = HumanoidFootLifecycleChanged();
   const int direct_before = PlayerMovementCommandDirectAdoptions();
+  const int legacy_only_opportunities_before = LegacyOnlyDecisionOpportunities();
+  const int legacy_only_queries_before = LegacyOnlyDecisionQueries();
+  const int legacy_only_movement_queries_before = LegacyOnlyDecisionMovementQueries();
+  const int legacy_only_publications_before = LegacyOnlyDecisionPublications();
+  const int legacy_only_material_changes_before = LegacyOnlyDecisionMaterialChanges();
+  const int legacy_only_movement_selections_before = LegacyOnlyDecisionMovementSelections();
+  const int legacy_only_non_movement_selections_before =
+      LegacyOnlyDecisionNonMovementSelections();
+  const int legacy_only_no_selection_before = LegacyOnlyDecisionNoSelection();
+  const int legacy_only_movement_selection_publications_before =
+      LegacyOnlyDecisionMovementSelectionPublications();
+  const int legacy_only_movement_selection_material_changes_before =
+      LegacyOnlyDecisionMovementSelectionMaterialChanges();
 
   const int ticks = 400;
   for (int tick = 0; tick < ticks; ++tick) env.step();
@@ -2132,6 +2145,33 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " due_eligible="
             << (PlayerLocomotionIntentDueTicks() -
                 PlayerLocomotionIntentDueIneligibleTicks())
+            << "\n";
+  // 4f-a1: animation-owned query pressure. legacy_only counts the requeue
+  // opportunities where no simulation cadence was due; the goal is that the
+  // clock becomes unreachable from that event, so these fall to zero.
+  std::cout << "  decision_query_pressure legacy_only opportunities="
+            << (LegacyOnlyDecisionOpportunities() - legacy_only_opportunities_before)
+            << " queries=" << (LegacyOnlyDecisionQueries() - legacy_only_queries_before)
+            << " movement_queries="
+            << (LegacyOnlyDecisionMovementQueries() - legacy_only_movement_queries_before)
+            << " publications="
+            << (LegacyOnlyDecisionPublications() - legacy_only_publications_before)
+            << " material_changes="
+            << (LegacyOnlyDecisionMaterialChanges() - legacy_only_material_changes_before)
+            << "\n";
+  std::cout << "  decision_query_pressure selection movement="
+            << (LegacyOnlyDecisionMovementSelections() - legacy_only_movement_selections_before)
+            << " non_movement="
+            << (LegacyOnlyDecisionNonMovementSelections() -
+                legacy_only_non_movement_selections_before)
+            << " none=" << (LegacyOnlyDecisionNoSelection() - legacy_only_no_selection_before)
+            << "\n";
+  std::cout << "  decision_query_pressure selected_movement publications="
+            << (LegacyOnlyDecisionMovementSelectionPublications() -
+                legacy_only_movement_selection_publications_before)
+            << " material_changes="
+            << (LegacyOnlyDecisionMovementSelectionMaterialChanges() -
+                legacy_only_movement_selection_material_changes_before)
             << "\n";
   std::cout << "  authority direct_vs_legacy_equal="
             << DirectVsLegacyCommandEqual()

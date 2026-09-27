@@ -89,6 +89,20 @@ int &PlayerPathLocalTripAttempts();
 int &PlayerPathLocalTripSelected();
 int &PlayerPathLocalTripMovementFallbackSelected();
 int &PlayerPathLocalTripMovementFallbackRefreshCommits();
+// 4f-a1: how much animation-owned query pressure still reaches the Player
+// Decision Clock. A legacy-only opportunity is a requeue on a tick where the
+// simulation cadence was not due, so any query or publication there is caused
+// by the animation lifecycle rather than by the simulation clock.
+int &LegacyOnlyDecisionOpportunities();
+int &LegacyOnlyDecisionQueries();
+int &LegacyOnlyDecisionMovementQueries();
+int &LegacyOnlyDecisionPublications();
+int &LegacyOnlyDecisionMaterialChanges();
+int &LegacyOnlyDecisionMovementSelectionPublications();
+int &LegacyOnlyDecisionMovementSelectionMaterialChanges();
+int &LegacyOnlyDecisionMovementSelections();
+int &LegacyOnlyDecisionNonMovementSelections();
+int &LegacyOnlyDecisionNoSelection();
 // 4b': separate intent-refresh eligibility from execution eligibility.
 int &HeldDueMovementRetainsTicks();
 int &HeldDueMovementRetainsCandidate();

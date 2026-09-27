@@ -342,6 +342,7 @@ void PlayerBase::SynchronizeKinematicState() {
 
 bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
   DO_VALIDATION;
+  decisionMovementSelection = false;
   const float distance_to_ball =
       (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
   const int now_ms = static_cast<int>(match->GetActualTime_ms());
@@ -422,6 +423,11 @@ void PlayerBase::NoteControllerQuery(bool had_movement_candidate) {
   }
 }
 
+void PlayerBase::NoteDecisionMovementSelection(bool movement_selected) {
+  DO_VALIDATION;
+  decisionMovementSelection = movement_selected;
+}
+
 // c2a: the Player Decision Clock's single publication entry point. It owns the
 // decision locomotion state and the publication telemetry, and never touches the
 // compatibility movement command slot.
@@ -432,6 +438,13 @@ void PlayerBase::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
     Log(e_FatalError, "PlayerBase", "PublishDecisionLocomotionIntent",
         "the Player Decision Clock published a non-Movement intent");
   }
+  // 4f-a1: whether this publication materially rewrites the decision already in
+  // force. Only animation-owned (legacy-only) publications are counted, so the
+  // number answers how often a requeue actually moved the decision clock.
+  const int publication_cause = pendingPublicationCause;
+  const bool decision_materially_changed =
+      decisionLocomotionState.initialized &&
+      MovementCommandDiffersMaterially(decisionLocomotionState.command, command);
   ++PlayerMovementCommandDirectAdoptions();
   lastDirectMovementIntentPublication_ms =
       static_cast<int>(match->GetActualTime_ms());
@@ -446,6 +459,16 @@ void PlayerBase::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
     ++DecisionPublicationViaSimulationCadence();
   } else {
     ++DecisionPublicationViaLegacyOpportunityOnly();
+  }
+  if (publication_cause == 1) {
+    ++LegacyOnlyDecisionPublications();
+    if (decision_materially_changed) ++LegacyOnlyDecisionMaterialChanges();
+    if (decisionMovementSelection) {
+      ++LegacyOnlyDecisionMovementSelectionPublications();
+      if (decision_materially_changed) {
+        ++LegacyOnlyDecisionMovementSelectionMaterialChanges();
+      }
+    }
   }
   if (lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
   // A publication belongs to the continuity epoch it was produced in, which is

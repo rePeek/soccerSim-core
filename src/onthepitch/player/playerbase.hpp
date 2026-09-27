@@ -296,6 +296,9 @@ class PlayerBase {
     // decision locomotion state and the publication telemetry, and never touches the
     // compatibility movement command slot.
     void PublishDecisionLocomotionIntent(const PlayerCommand &command);
+    // 4f-a1: whether the animation selection on this tick picked a Movement clip,
+    // so a legacy-only publication can be cross-tabulated with the selection.
+    void NoteDecisionMovementSelection(bool movement_selected);
     bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue);
     bool LocomotionIntentRefreshHeldIneligible() const;
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
@@ -373,6 +376,8 @@ class PlayerBase {
     // before NoteLocomotionIntentCadence, so deriving the cause from that flag
     // would mislabel a repair publication as an animation-driven one.
     int pendingPublicationCause = 0;
+    // 4f-a1: transient, per-tick animation selection outcome. Never serialized.
+    bool decisionMovementSelection = false;
     // Audit generation: bumped on every Direct publication for re-entry freshness
     // measurement. Deliberately transient so telemetry cannot change the save-state
     // contract; the gameplay epochs above are serialized instead.
