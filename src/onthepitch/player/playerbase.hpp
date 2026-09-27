@@ -42,6 +42,9 @@ struct ReanchorResidency {
   std::vector<int> ticks;
 };
 ReanchorResidency &ReanchorResidencyFor(int reason);
+// Raw Movement re-anchor occurrences, not residency episodes: an occurrence is
+// counted immediately, even if its episode has not closed by corpus end.
+int &MaterialMovementReanchorsForBeginReason(int reason);
 void DumpReanchorProvenance();
 void DumpQueryOpportunities();
 const char *ActionBeginReasonName(int reason);

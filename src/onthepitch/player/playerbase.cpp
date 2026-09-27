@@ -35,6 +35,11 @@ ReanchorResidency &ReanchorResidencyFor(int reason) {
   return records[reason];
 }
 
+int &MaterialMovementReanchorsForBeginReason(int reason) {
+  static int records[kBeginReasonCount] = {};
+  return records[reason];
+}
+
 const char *ActionBeginReasonName(int reason) {
   switch (reason) {
     case kBeginMovementToMovement: return "Movement->Movement";
@@ -509,6 +514,7 @@ void PlayerBase::BeginSimulationAction() {
       if (MovementCommandDiffersMaterially(movementCommandState.command,
                                           anim->originatingCommand)) {
         ++MovementCommandReanchorsMateriallyDifferent();
+        ++MaterialMovementReanchorsForBeginReason(resolved_begin_reason);
         NoteMaterialMovementReanchor();
         reanchorPendingConsumption = true;
         CloseReanchorEpisode();

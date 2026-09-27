@@ -2150,6 +2150,12 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   Require(refresh_commits == successful_publications,
           "locomotion intent: a scheduler refresh was committed without a publication");
   for (int reason = 0; reason < kBeginReasonCount; ++reason) {
+    const int material_occurrences =
+        MaterialMovementReanchorsForBeginReason(reason);
+    if (material_occurrences != 0) {
+      std::cout << "  material_reanchor " << ActionBeginReasonName(reason)
+                << " n=" << material_occurrences << "\n";
+    }
     const ReanchorResidency &record = ReanchorResidencyFor(reason);
     if (record.n == 0) continue;
     std::cout << "  residency " << ActionBeginReasonName(reason) << " n=" << record.n
