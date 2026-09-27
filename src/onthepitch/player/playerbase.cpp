@@ -46,6 +46,12 @@ MaterialMovementReanchorPreviousSourceForBeginReason(int reason) {
   return records[reason];
 }
 
+LifecycleOverrideConsumption &
+LifecycleOverrideConsumptionForBeginReason(int reason) {
+  static LifecycleOverrideConsumption records[kBeginReasonCount];
+  return records[reason];
+}
+
 const char *ActionBeginReasonName(int reason) {
   switch (reason) {
     case kBeginMovementToMovement: return "Movement->Movement";
@@ -222,6 +228,9 @@ void PlayerBase::SetSimulationMovementCommand(
       ++PlayerMovementCommandLegacyAdoptions();
       break;
   }
+  if (source == LocomotionCommandSource::DirectMovementIntent) {
+    CompleteLifecycleOverrideConsumptionAudit();
+  }
 }
 
 bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
@@ -286,9 +295,51 @@ void PlayerBase::CommitLocomotionIntentRefresh() {
 void PlayerBase::NoteLocomotionCommandConsumed() {
   if (episode_active) ++episode_ticks;
   DO_VALIDATION;
+  NoteLifecycleOverrideConsumptionAudit();
   if (!reanchorPendingConsumption) return;
   ++ReanchorConsumedBeforeRefresh();
   reanchorPendingConsumption = false;
+}
+
+void PlayerBase::BeginLifecycleOverrideConsumptionAudit(int reason) {
+  if (lifecycleOverrideAuditActive) {
+    ++LifecycleOverrideConsumptionForBeginReason(
+          lifecycleOverrideAuditReason).interrupted_by_lifecycle;
+  }
+  LifecycleOverrideConsumption &record =
+      LifecycleOverrideConsumptionForBeginReason(reason);
+  ++record.started;
+  lifecycleOverrideAuditActive = true;
+  lifecycleOverrideAuditReason = reason;
+  lifecycleOverrideAuditStart_ms = static_cast<int>(match->GetActualTime_ms());
+  lifecycleOverrideAuditTicks = 0;
+  lifecycleOverrideAuditFirstConsumeDelay_ms = -1;
+}
+
+void PlayerBase::NoteLifecycleOverrideConsumptionAudit() {
+  if (!lifecycleOverrideAuditActive) return;
+  ++lifecycleOverrideAuditTicks;
+  if (lifecycleOverrideAuditFirstConsumeDelay_ms < 0) {
+    lifecycleOverrideAuditFirstConsumeDelay_ms =
+        static_cast<int>(match->GetActualTime_ms()) -
+        lifecycleOverrideAuditStart_ms;
+  }
+}
+
+void PlayerBase::CompleteLifecycleOverrideConsumptionAudit() {
+  if (!lifecycleOverrideAuditActive) return;
+  LifecycleOverrideConsumption &record =
+      LifecycleOverrideConsumptionForBeginReason(lifecycleOverrideAuditReason);
+  ++record.completed_by_direct;
+  record.next_direct_delay_ms.push_back(
+      static_cast<int>(match->GetActualTime_ms()) - lifecycleOverrideAuditStart_ms);
+  record.locomotion_ticks_before_direct.push_back(lifecycleOverrideAuditTicks);
+  if (lifecycleOverrideAuditFirstConsumeDelay_ms >= 0) {
+    ++record.consumed_before_direct;
+    record.first_consume_delay_ms.push_back(
+        lifecycleOverrideAuditFirstConsumeDelay_ms);
+  }
+  lifecycleOverrideAuditActive = false;
 }
 
 // 4b': intent refresh is held back purely because execution is not pure. This is
@@ -542,6 +593,10 @@ void PlayerBase::BeginSimulationAction() {
           case LocomotionCommandSource::SimulationFallbackIntent:
             ++previous_source.simulation_fallback;
             break;
+        }
+        if (resolved_begin_reason == kBeginResetSituation ||
+            resolved_begin_reason == kBeginRetainSelection) {
+          BeginLifecycleOverrideConsumptionAudit(resolved_begin_reason);
         }
         NoteMaterialMovementReanchor();
         reanchorPendingConsumption = true;

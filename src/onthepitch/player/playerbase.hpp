@@ -51,12 +51,25 @@ struct MaterialReanchorPreviousSource {
   int simulation_seed = 0;
   int simulation_fallback = 0;
 };
+// Consumption of a material lifecycle override before the next successful
+// controller-owned DirectMovementIntent publication.
+struct LifecycleOverrideConsumption {
+  int started = 0;
+  int completed_by_direct = 0;
+  int interrupted_by_lifecycle = 0;
+  int consumed_before_direct = 0;
+  std::vector<int> first_consume_delay_ms;
+  std::vector<int> locomotion_ticks_before_direct;
+  std::vector<int> next_direct_delay_ms;
+};
 ReanchorResidency &ReanchorResidencyFor(int reason);
 // Raw Movement re-anchor occurrences, not residency episodes: an occurrence is
 // counted immediately, even if its episode has not closed by corpus end.
 int &MaterialMovementReanchorsForBeginReason(int reason);
 MaterialReanchorPreviousSource &
 MaterialMovementReanchorPreviousSourceForBeginReason(int reason);
+LifecycleOverrideConsumption &
+LifecycleOverrideConsumptionForBeginReason(int reason);
 void DumpReanchorProvenance();
 void DumpQueryOpportunities();
 const char *ActionBeginReasonName(int reason);
@@ -248,6 +261,9 @@ class PlayerBase {
     void UpdateKinematicShadow();
     void ResetKinematicShadow();
     PlayerActionState CaptureLegacyActionState() const;
+    void BeginLifecycleOverrideConsumptionAudit(int reason);
+    void NoteLifecycleOverrideConsumptionAudit();
+    void CompleteLifecycleOverrideConsumptionAudit();
     Match *match;
 
     const PlayerData* const playerData;
@@ -262,6 +278,11 @@ class PlayerBase {
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
     bool reanchorPendingConsumption = false;
+    bool lifecycleOverrideAuditActive = false;
+    int lifecycleOverrideAuditReason = kBeginMovementToMovement;
+    int lifecycleOverrideAuditStart_ms = 0;
+    int lifecycleOverrideAuditTicks = 0;
+    int lifecycleOverrideAuditFirstConsumeDelay_ms = -1;
     int tr_query_gen = 0;
     int tr_last_query_ms = -1;
     int tr_last_query_due = 0;

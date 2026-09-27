@@ -2178,6 +2178,32 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
               << " ticks_p50=" << percentile(record.ticks, 0.50)
               << " ticks_max=" << percentile(record.ticks, 1.0) << "\n";
   }
+  const auto dump_lifecycle_consumption = [&](int reason) {
+    const LifecycleOverrideConsumption &record =
+        LifecycleOverrideConsumptionForBeginReason(reason);
+    const int pending = record.started - record.completed_by_direct -
+                        record.interrupted_by_lifecycle;
+    std::cout << "  lifecycle_consumption " << ActionBeginReasonName(reason)
+              << " started=" << record.started
+              << " completed_by_direct=" << record.completed_by_direct
+              << " interrupted=" << record.interrupted_by_lifecycle
+              << " pending=" << pending
+              << " consumed_before_direct=" << record.consumed_before_direct
+              << " first_consume_delay_p50="
+              << percentile(record.first_consume_delay_ms, 0.50)
+              << " p90=" << percentile(record.first_consume_delay_ms, 0.90)
+              << " ticks_p50="
+              << percentile(record.locomotion_ticks_before_direct, 0.50)
+              << " ticks_p90="
+              << percentile(record.locomotion_ticks_before_direct, 0.90)
+              << " next_direct_delay_p50="
+              << percentile(record.next_direct_delay_ms, 0.50)
+              << " p90=" << percentile(record.next_direct_delay_ms, 0.90)
+              << " max=" << percentile(record.next_direct_delay_ms, 1.0)
+              << "\n";
+  };
+  dump_lifecycle_consumption(kBeginResetSituation);
+  dump_lifecycle_consumption(kBeginRetainSelection);
   { std::vector<int> lives = ReanchorLifetime_ms();
     std::cout << "  reanchor_lifetime_ms n=" << lives.size() << " p50=" << percentile(lives, 0.50) << " p90=" << percentile(lives, 0.90) << " p99=" << percentile(lives, 0.99) << " max=" << percentile(lives, 1.0) << " locomotion_ticks_p50=" << (percentile(lives, 0.50) / 10) << " locomotion_ticks_max=" << (percentile(lives, 1.0) / 10) << "\n"; }
 
