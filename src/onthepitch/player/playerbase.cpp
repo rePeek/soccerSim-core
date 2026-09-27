@@ -270,6 +270,14 @@ void PlayerBase::NoteLocomotionCommandConsumed() {
   reanchorPendingConsumption = false;
 }
 
+// 4b': intent refresh is held back purely because execution is not pure. This is
+// the conflation under measurement: the scheduler is due, but the execution gate
+// blocks the refresh.
+bool PlayerBase::LocomotionIntentRefreshHeldIneligible() const {
+  return locomotionIntentScheduler.Due(
+             static_cast<int>(match->GetActualTime_ms())) &&
+         !IsEligibleForProceduralLocomotion();
+}
 void PlayerBase::CheckSimulationMovementCommandOracle() const {
   DO_VALIDATION;
   // Only the ticks that actually consume the command are compared. Other

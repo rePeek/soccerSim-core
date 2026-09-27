@@ -96,6 +96,14 @@ int &PlayerLocomotionIntentDueIneligibleTicks() { static int value = 0; return v
 int &PlayerLocomotionIntentConsumedTicks() { static int value = 0; return value; }
 int &HumanoidEligibilityGainRefreshes() { static int value = 0; return value; }
 int &HumanoidEligibilityGainCandidatesMissing() { static int value = 0; return value; }
+int &HeldDueMovementRetainsTicks() { static int value = 0; return value; }
+int &HeldDueMovementRetainsCandidate() { static int value = 0; return value; }
+int &HeldDueBallControlTicks() { static int value = 0; return value; }
+int &HeldDueBallControlCandidate() { static int value = 0; return value; }
+int &HeldDueTrapTicks() { static int value = 0; return value; }
+int &HeldDueTrapCandidate() { static int value = 0; return value; }
+int &HeldDueOtherTicks() { static int value = 0; return value; }
+int &HeldDueOtherCandidate() { static int value = 0; return value; }
 int &HumanoidIntentRefreshes() { static int value = 0; return value; }
 int &HumanoidIntentCandidatesMissing() { static int value = 0; return value; }
 int &HumanoidIntentRefreshCommits() { static int value = 0; return value; }
@@ -360,6 +368,31 @@ void HumanoidBase::Process() {
     }
 
     if (legacy_opportunity) {
+    if (legacy_opportunity && player->LocomotionIntentRefreshHeldIneligible()) {
+      bool held_has_candidate = false;
+      for (const PlayerCommand &candidate : commandQueue) {
+        if (candidate.desiredFunctionType == e_FunctionType_Movement &&
+            candidate.useDesiredMovement) {
+          held_has_candidate = true;
+          break;
+        }
+      }
+      const e_FunctionType held_type = player->GetCurrentFunctionType();
+      const bool held_retains = match->GetBallRetainer() == player;
+      if (held_type == e_FunctionType_Movement && held_retains) {
+        ++HeldDueMovementRetainsTicks();
+        if (held_has_candidate) ++HeldDueMovementRetainsCandidate();
+      } else if (held_type == e_FunctionType_BallControl) {
+        ++HeldDueBallControlTicks();
+        if (held_has_candidate) ++HeldDueBallControlCandidate();
+      } else if (held_type == e_FunctionType_Trap) {
+        ++HeldDueTrapTicks();
+        if (held_has_candidate) ++HeldDueTrapCandidate();
+      } else {
+        ++HeldDueOtherTicks();
+        if (held_has_candidate) ++HeldDueOtherCandidate();
+      }
+    }
       EnsureControllerQuery();
     }
 
@@ -367,6 +400,31 @@ void HumanoidBase::Process() {
 
     bool found = false;
     if (legacy_opportunity) {
+    if (legacy_opportunity && player->LocomotionIntentRefreshHeldIneligible()) {
+      bool held_has_candidate = false;
+      for (const PlayerCommand &candidate : commandQueue) {
+        if (candidate.desiredFunctionType == e_FunctionType_Movement &&
+            candidate.useDesiredMovement) {
+          held_has_candidate = true;
+          break;
+        }
+      }
+      const e_FunctionType held_type = player->GetCurrentFunctionType();
+      const bool held_retains = match->GetBallRetainer() == player;
+      if (held_type == e_FunctionType_Movement && held_retains) {
+        ++HeldDueMovementRetainsTicks();
+        if (held_has_candidate) ++HeldDueMovementRetainsCandidate();
+      } else if (held_type == e_FunctionType_BallControl) {
+        ++HeldDueBallControlTicks();
+        if (held_has_candidate) ++HeldDueBallControlCandidate();
+      } else if (held_type == e_FunctionType_Trap) {
+        ++HeldDueTrapTicks();
+        if (held_has_candidate) ++HeldDueTrapCandidate();
+      } else {
+        ++HeldDueOtherTicks();
+        if (held_has_candidate) ++HeldDueOtherCandidate();
+      }
+    }
       for (unsigned int i = 0; i < commandQueue.size(); i++) {
         DO_VALIDATION;
 

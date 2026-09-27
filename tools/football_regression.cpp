@@ -2104,6 +2104,12 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int refresh_commits = HumanoidIntentRefreshCommits();
   const int successful_publications =
       HumanoidIntentRefreshes() + HumanoidEligibilityGainRefreshes();
+  std::cout << "  held_due movement+retains " << HeldDueMovementRetainsCandidate() << "/"
+            << HeldDueMovementRetainsTicks() << " ballcontrol "
+            << HeldDueBallControlCandidate() << "/" << HeldDueBallControlTicks()
+            << " trap " << HeldDueTrapCandidate() << "/" << HeldDueTrapTicks()
+            << " other " << HeldDueOtherCandidate() << "/" << HeldDueOtherTicks()
+            << "\n";
   std::cout << "  intent_refreshes=" << HumanoidIntentRefreshes()
             << " candidates_missing=" << HumanoidIntentCandidatesMissing()
             << " gain_refreshes=" << HumanoidEligibilityGainRefreshes()

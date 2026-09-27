@@ -48,6 +48,15 @@ int &PlayerLocomotionIntentDueIneligibleTicks();
 int &PlayerLocomotionIntentConsumedTicks();
 int &HumanoidEligibilityGainRefreshes();
 int &HumanoidEligibilityGainCandidatesMissing();
+// 4b': separate intent-refresh eligibility from execution eligibility.
+int &HeldDueMovementRetainsTicks();
+int &HeldDueMovementRetainsCandidate();
+int &HeldDueBallControlTicks();
+int &HeldDueBallControlCandidate();
+int &HeldDueTrapTicks();
+int &HeldDueTrapCandidate();
+int &HeldDueOtherTicks();
+int &HeldDueOtherCandidate();
 int &HumanoidIntentRefreshes();
 int &HumanoidIntentCandidatesMissing();
 int &HumanoidIntentRefreshCommits();

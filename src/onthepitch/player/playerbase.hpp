@@ -167,6 +167,7 @@ class PlayerBase {
     // Called only once the controller was actually queried for this refresh.
     void CommitLocomotionIntentRefresh();
     void CloseReanchorEpisode();
+    bool LocomotionIntentRefreshHeldIneligible() const;
     // Called where locomotion actually reads the command.
     void NoteLocomotionCommandConsumed();
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
