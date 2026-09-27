@@ -73,6 +73,9 @@ int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement() { static int value =
 int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return value; }
 int &PlayerMovementCommandDirectAdoptions() { static int value = 0; return value; }
 int &PlayerMovementCommandLegacyAdoptions() { static int value = 0; return value; }
+int &PlayerLocomotionIntentDueTicks() { static int value = 0; return value; }
+int &PlayerLocomotionIntentLegacyOpportunityTicks() { static int value = 0; return value; }
+int &PlayerLocomotionIntentOverlapTicks() { static int value = 0; return value; }
 
 int &HumanoidSchedulerQueries() { static int value = 0; return value; }
 int &HumanoidMaterialCommandCandidates() { static int value = 0; return value; }
@@ -284,6 +287,7 @@ void HumanoidBase::Process() {
     interruptAnim = e_InterruptAnim_ReQueue;
   }
 
+  player->ObserveLocomotionIntentCadence(interruptAnim != e_InterruptAnim_None);
   if (interruptAnim != e_InterruptAnim_None) {
     DO_VALIDATION;
 

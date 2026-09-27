@@ -18,6 +18,7 @@
 #include "player.hpp"
 #include "player_action_executor.hpp"
 #include "player_locomotion.hpp"
+#include "locomotion_intent_scheduler.hpp"
 #include "legacy_locomotion_command.hpp"
 
 #include <cstring>
@@ -148,6 +149,24 @@ void PlayerBase::SetSimulationMovementCommand(
   } else {
     ++PlayerMovementCommandLegacyAdoptions();
   }
+}
+
+void PlayerBase::ObserveLocomotionIntentCadence(bool legacy_opportunity) {
+  DO_VALIDATION;
+  // Pure observation: the scheduler keeps its own clock so its cadence can be
+  // compared with the animation requeue opportunities before either takes over.
+  const float distance_to_ball =
+      (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
+  const int now_ms = static_cast<int>(match->GetActualTime_ms());
+  const bool due = locomotionIntentScheduler.Due(now_ms);
+  if (due) {
+    ++PlayerLocomotionIntentDueTicks();
+    locomotionIntentScheduler.Schedule(
+        now_ms, LocomotionIntentScheduler::CadenceForDistance_ms(
+                    distance_to_ball, match->GetBallRetainer() == this));
+  }
+  if (legacy_opportunity) ++PlayerLocomotionIntentLegacyOpportunityTicks();
+  if (due && legacy_opportunity) ++PlayerLocomotionIntentOverlapTicks();
 }
 
 void PlayerBase::CheckSimulationMovementCommandOracle() const {

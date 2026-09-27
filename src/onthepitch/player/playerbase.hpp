@@ -23,6 +23,7 @@
 #include "player_ground_collider.hpp"
 #include "player_action.hpp"
 #include "player_movement_command.hpp"
+#include "locomotion_intent_scheduler.hpp"
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
@@ -123,6 +124,10 @@ class PlayerBase {
     // Fatal invariant: on every pure-locomotion tick the shadow and legacy
     // currentAnim.originatingCommand must agree on every field locomotion reads.
     void CheckSimulationMovementCommandOracle() const;
+    // H3e4f-c2a: observation only. The simulation keeps its own locomotion
+    // intent cadence in parallel with the animation requeue lifecycle, so the
+    // two schedules can be compared before either one takes over.
+    void ObserveLocomotionIntentCadence(bool legacy_opportunity);
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
     void BeginSimulationAction();
@@ -192,6 +197,7 @@ class PlayerBase {
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
     PlayerMovementCommandState movementCommandState;
+    LocomotionIntentScheduler locomotionIntentScheduler;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

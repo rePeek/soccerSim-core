@@ -2081,6 +2081,11 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << (PlayerMovementCommandDirectAdoptions() - direct_before)
             << " legacy_accepted_action="
             << (PlayerMovementCommandLegacyAdoptions() - legacy_before) << "\n";
+  std::cout << "  intent_cadence simulation_due="
+            << PlayerLocomotionIntentDueTicks()
+            << " legacy_opportunities="
+            << PlayerLocomotionIntentLegacyOpportunityTicks()
+            << " overlap=" << PlayerLocomotionIntentOverlapTicks() << "\n";
 
   // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken
   // before the foot stable_sort, so a changed winner is caused by foot alone.

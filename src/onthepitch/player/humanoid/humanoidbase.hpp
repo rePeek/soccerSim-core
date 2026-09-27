@@ -39,6 +39,9 @@ int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
 int &PlayerMovementCommandNonMovementTicks();
 int &PlayerMovementCommandDirectAdoptions();
 int &PlayerMovementCommandLegacyAdoptions();
+int &PlayerLocomotionIntentDueTicks();
+int &PlayerLocomotionIntentLegacyOpportunityTicks();
+int &PlayerLocomotionIntentOverlapTicks();
 
 // H3e4e1 diagnostics: who owns the movement command lifetime right now. Every
 // accepted Movement command still arrives through an animation selection, so
