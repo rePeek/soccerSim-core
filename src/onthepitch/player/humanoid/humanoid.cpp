@@ -127,7 +127,7 @@ void Humanoid::Process() {
   PlayerCommandQueue controllerQueue;
   bool controller_queried = false;
   bool controller_movement_published = false;
-  const auto EnsureControllerQuery = [&](bool simulation_owned) {
+  const auto EnsureControllerQuery = [&](PlayerDecisionQueryCause cause) {
     if (controller_queried) return;
     CastPlayer()->RequestCommand(controllerQueue);
     controller_queried = true;
@@ -141,7 +141,11 @@ void Humanoid::Process() {
     }
     if (has_movement) ++PlayerPathQueriesWithMovement();
     CastPlayer()->NoteControllerQuery(has_movement);
-    if (simulation_owned) {
+    RecordPlayerDecisionQuery(
+        CastPlayer(), controllerQueue,
+        static_cast<int>(match->GetActualTime_ms()), cause,
+        CastPlayer()->GetSimulationActionState().type);
+    if (cause != PlayerDecisionQueryCause::LegacyCaused) {
       CastPlayer()->ObserveSimulationDecisionQueue(
           controllerQueue, static_cast<int>(match->GetActualTime_ms()));
     }
@@ -176,7 +180,7 @@ void Humanoid::Process() {
   if (CastPlayer()->IsEligibleForProceduralLocomotion() &&
       CastPlayer()->DecisionLocomotionEpochIsStale()) {
     ++ContinuityRepairAttempts();
-    EnsureControllerQuery(true);
+    EnsureControllerQuery(PlayerDecisionQueryCause::ContinuityRepair);
     CastPlayer()->NoteDecisionPublicationCause(2);
     if (PublishControllerMovementOnce()) {
       ++ContinuityRepairPublications();
@@ -334,7 +338,9 @@ void Humanoid::Process() {
       commandProvenance.push_back(
           PlayerPathSelectionCommandProvenance::LocalTripMovementFallback);
     } else {
-      EnsureControllerQuery(simulation_due);
+      EnsureControllerQuery(
+          simulation_due ? PlayerDecisionQueryCause::SimulationCadence
+                         : PlayerDecisionQueryCause::LegacyCaused);
       AppendControllerCommandsToSelectionQueue(commandQueue, commandProvenance);
     }
 

@@ -15,6 +15,9 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
+#include <algorithm>
+#include <iostream>
+#include <unordered_map>
 #include <cmath>
 #include <cstring>
 #include "humanoid.hpp"
@@ -243,6 +246,152 @@ bool MovementCommandDiffersMaterially(const PlayerCommand &in_force,
          ((in_force.desiredDirection * in_force.desiredVelocityFloat) -
           (candidate.desiredDirection * candidate.desiredVelocityFloat))
                  .GetLength() >= 1.5f;
+}
+
+namespace {
+struct PlayerDecisionQueryHistory {
+  bool initialized = false;
+  int time_ms = -1;
+  PlayerCommandQueue commands;
+};
+struct PlayerDecisionCadenceMetrics {
+  std::vector<int> intervals[4];  // all, legacy, cadence, repair
+  std::vector<int> action_intervals[4];  // movement, ballcontrol, trap, other
+  std::vector<int> nonmovement_appearance_gaps;
+  int movement_changed = 0;
+  int nonmovement_appeared = 0;
+  int nonmovement_disappeared = 0;
+  int nonmovement_changed = 0;
+  int queue_identical = 0;
+};
+std::unordered_map<const void *, PlayerDecisionQueryHistory> &DecisionQueryHistory() {
+  static std::unordered_map<const void *, PlayerDecisionQueryHistory> histories;
+  return histories;
+}
+PlayerDecisionCadenceMetrics &DecisionCadenceMetrics() {
+  static PlayerDecisionCadenceMetrics metrics;
+  return metrics;
+}
+int DecisionActionBucket(e_FunctionType type) {
+  if (type == e_FunctionType_Movement) return 0;
+  if (type == e_FunctionType_BallControl) return 1;
+  if (type == e_FunctionType_Trap) return 2;
+  return 3;
+}
+int DecisionCauseBucket(PlayerDecisionQueryCause cause) {
+  switch (cause) {
+    case PlayerDecisionQueryCause::LegacyCaused: return 1;
+    case PlayerDecisionQueryCause::SimulationCadence: return 2;
+    case PlayerDecisionQueryCause::ContinuityRepair: return 3;
+  }
+  return 0;
+}
+bool SameNonMovementCandidates(const PlayerCommandQueue &a,
+                               const PlayerCommandQueue &b) {
+  std::vector<const PlayerCommand *> left;
+  std::vector<const PlayerCommand *> right;
+  for (const PlayerCommand &command : a)
+    if (command.desiredFunctionType != e_FunctionType_Movement) left.push_back(&command);
+  for (const PlayerCommand &command : b)
+    if (command.desiredFunctionType != e_FunctionType_Movement) right.push_back(&command);
+  if (left.size() != right.size()) return false;
+  for (size_t i = 0; i < left.size(); ++i)
+    if (!PlayerCommandsDecisionEqual(*left[i], *right[i])) return false;
+  return true;
+}
+const PlayerCommand *FirstMovementCandidate(const PlayerCommandQueue &queue) {
+  for (const PlayerCommand &command : queue)
+    if (command.desiredFunctionType == e_FunctionType_Movement && command.useDesiredMovement)
+      return &command;
+  return nullptr;
+}
+}  // namespace
+
+void ResetPlayerDecisionCadenceTelemetry() {
+  DecisionQueryHistory().clear();
+  DecisionCadenceMetrics() = PlayerDecisionCadenceMetrics();
+}
+
+void RecordPlayerDecisionQuery(const void *player_key,
+                               const PlayerCommandQueue &commands, int now_ms,
+                               PlayerDecisionQueryCause cause,
+                               e_FunctionType action_type) {
+  PlayerDecisionQueryHistory &history = DecisionQueryHistory()[player_key];
+  PlayerDecisionCadenceMetrics &metrics = DecisionCadenceMetrics();
+  const int action_bucket = DecisionActionBucket(action_type);
+  const int cause_bucket = DecisionCauseBucket(cause);
+  if (history.initialized) {
+    const int interval_ms = now_ms - history.time_ms;
+    metrics.intervals[0].push_back(interval_ms);
+    metrics.intervals[cause_bucket].push_back(interval_ms);
+    metrics.action_intervals[action_bucket].push_back(interval_ms);
+    const PlayerCommand *old_movement = FirstMovementCandidate(history.commands);
+    const PlayerCommand *new_movement = FirstMovementCandidate(commands);
+    if (!old_movement || !new_movement ||
+        MovementCommandDiffersMaterially(*old_movement, *new_movement))
+      ++metrics.movement_changed;
+    bool old_nonmovement = false;
+    bool new_nonmovement = false;
+    for (const PlayerCommand &command : history.commands)
+      old_nonmovement |= command.desiredFunctionType != e_FunctionType_Movement;
+    for (const PlayerCommand &command : commands)
+      new_nonmovement |= command.desiredFunctionType != e_FunctionType_Movement;
+    if (!old_nonmovement && new_nonmovement) {
+      ++metrics.nonmovement_appeared;
+      metrics.nonmovement_appearance_gaps.push_back(interval_ms);
+    } else if (old_nonmovement && !new_nonmovement) {
+      ++metrics.nonmovement_disappeared;
+    } else if (old_nonmovement && new_nonmovement &&
+               !SameNonMovementCandidates(history.commands, commands)) {
+      ++metrics.nonmovement_changed;
+    }
+    if (history.commands.size() == commands.size()) {
+      bool identical = true;
+      for (size_t i = 0; identical && i < commands.size(); ++i)
+        identical = PlayerCommandsDecisionEqual(history.commands[i], commands[i]);
+      if (identical) ++metrics.queue_identical;
+    }
+  }
+  history.initialized = true;
+  history.time_ms = now_ms;
+  history.commands = commands;
+}
+
+void DumpPlayerDecisionCadenceTelemetry() {
+  const PlayerDecisionCadenceMetrics &metrics = DecisionCadenceMetrics();
+  const auto percentile = [](std::vector<int> values, double fraction) {
+    if (values.empty()) return -1;
+    std::sort(values.begin(), values.end());
+    return values[static_cast<size_t>(fraction * (values.size() - 1))];
+  };
+  const char *cause_names[] = {"all", "legacy", "simulation_cadence", "continuity_repair"};
+  const char *action_names[] = {"movement", "ballcontrol", "trap", "other"};
+  for (int i = 0; i < 4; ++i) {
+    const std::vector<int> &values = i == 0 ? metrics.intervals[0] : metrics.intervals[i];
+    std::cout << "  decision_cadence cause=" << cause_names[i]
+              << " n=" << values.size() << " p50=" << percentile(values, 0.50)
+              << " p90=" << percentile(values, 0.90)
+              << " p99=" << percentile(values, 0.99)
+              << " max=" << percentile(values, 1.0) << " ms\n";
+  }
+  for (int i = 0; i < 4; ++i) {
+    const std::vector<int> &values = metrics.action_intervals[i];
+    std::cout << "  decision_cadence action=" << action_names[i]
+              << " n=" << values.size() << " p50=" << percentile(values, 0.50)
+              << " p90=" << percentile(values, 0.90)
+              << " p99=" << percentile(values, 0.99)
+              << " max=" << percentile(values, 1.0) << " ms\n";
+  }
+  std::cout << "  decision_queue_churn movement_changed=" << metrics.movement_changed
+            << " nonmovement_appeared=" << metrics.nonmovement_appeared
+            << " nonmovement_disappeared=" << metrics.nonmovement_disappeared
+            << " nonmovement_changed=" << metrics.nonmovement_changed
+            << " queue_identical=" << metrics.queue_identical << "\n";
+  const std::vector<int> &gaps = metrics.nonmovement_appearance_gaps;
+  std::cout << "  decision_queue_churn nonmovement_appearance_gap_ms n=" << gaps.size()
+            << " p50=" << percentile(gaps, 0.50) << " p90=" << percentile(gaps, 0.90)
+            << " p99=" << percentile(gaps, 0.99) << " max=" << percentile(gaps, 1.0)
+            << "\n";
 }
 
 bool RecordSchedulerQuery(const PlayerCommand &in_force,

@@ -125,6 +125,21 @@ int &SimulationDecisionProofActionProven();
 int &SimulationDecisionProofActionUnproven();
 int &SimulationDecisionProofNoneProven();
 int &SimulationDecisionProofNoneUnproven();
+
+// 4f-a3-prep: measure the existing effective Player Decision Clock without
+// issuing additional controller queries. Cause: legacy-only, locomotion cadence,
+// or continuity repair. Action bucket: Movement, BallControl, Trap, Other.
+enum class PlayerDecisionQueryCause {
+  LegacyCaused,
+  SimulationCadence,
+  ContinuityRepair
+};
+void ResetPlayerDecisionCadenceTelemetry();
+void RecordPlayerDecisionQuery(const void *player_key,
+                               const PlayerCommandQueue &commands, int now_ms,
+                               PlayerDecisionQueryCause cause,
+                               e_FunctionType action_type);
+void DumpPlayerDecisionCadenceTelemetry();
 // 4b': separate intent-refresh eligibility from execution eligibility.
 int &HeldDueMovementRetainsTicks();
 int &HeldDueMovementRetainsCandidate();

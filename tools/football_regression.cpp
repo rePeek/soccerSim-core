@@ -1989,6 +1989,7 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   // Scope the transient re-entry audit to this measurement corpus: telemetry is
   // not serialized, so earlier scenarios and state restore can pollute it.
   ResetLocomotionReentryAudits();
+  ResetPlayerDecisionCadenceTelemetry();
 
   const int queries_before = HumanoidSchedulerQueries();
   const int material_before = HumanoidMaterialCommandCandidates();
@@ -2236,6 +2237,9 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
               << " p90=" << percentile(first_diffs, 0.90)
               << " max=" << percentile(first_diffs, 1.0) << "\n";
   }
+  // 4f-a3-prep: intervals come only from consecutive actual RequestCommand calls
+  // for the same player. No extra controller query is issued by this measurement.
+  DumpPlayerDecisionCadenceTelemetry();
   std::cout << "  authority direct_vs_legacy_equal="
             << DirectVsLegacyCommandEqual()
             << " direct_vs_legacy_materially_different="
