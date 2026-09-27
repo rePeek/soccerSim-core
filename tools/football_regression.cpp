@@ -2294,6 +2294,25 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << DecisionLocomotionIntentMissingForSourceLegacyGateFalse(3) << ","
             << DecisionLocomotionIntentMissingForSourceLegacyGateFalse(4)
             << "\n";
+  for (int category = 1; category < 4; ++category) {
+    const LocomotionReentryAudit &audit = LocomotionReentryAuditFor(category);
+    if (audit.ticks == 0) continue;
+    std::cout << "  reentry " << LocomotionReentryCategoryName(category)
+              << " ticks=" << audit.ticks
+              << " gen_advanced=" << audit.generation_advanced
+              << " gen_unchanged=" << audit.generation_unchanged
+              << " legacy_gate_true=" << audit.legacy_gate_true
+              << " legacy_gate_false=" << audit.legacy_gate_false
+              << " scheduler_due=" << audit.scheduler_due
+              << " scheduler_not_due=" << audit.scheduler_not_due
+              << " unchanged_and_legacy_false="
+              << audit.unchanged_and_legacy_gate_false
+              << " decision_age_mean/max=";
+    std::cout << (audit.decision_age_count
+                      ? audit.decision_age_sum_ms / audit.decision_age_count
+                      : -1)
+              << "/" << audit.decision_age_max_ms << "\n";
+  }
   std::cout << "  movement_oracle source[action,direct,legacy,seed,fallback]="
             << MovementOracleConsumesForSource(0) << ","
             << MovementOracleConsumesForSource(1) << ","

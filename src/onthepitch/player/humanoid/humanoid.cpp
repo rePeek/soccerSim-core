@@ -104,6 +104,14 @@ void Humanoid::Process() {
   const PlayerKinematicState tickStartState = player->GetKinematicState();
   // gate-mismatch-context: exactly one attribution per real Player tick, before
   // any of this tick's CalculateSpatialState/ProjectMovementState evaluations.
+  // re-entry audit must see every real player tick, eligible or not, because
+  // leaving locomotion is what arms the next re-entry classification.
+  CastPlayer()->NoteLocomotionReentryTick(
+      CastPlayer()->IsEligibleForProceduralLocomotion(),
+      currentAnim.originatingCommand.useDesiredMovement,
+      CastPlayer()->IsLocomotionIntentRefreshDue(
+          static_cast<int>(match->GetActualTime_ms())),
+      static_cast<int>(match->GetActualTime_ms()));
   if (CastPlayer()->IsEligibleForProceduralLocomotion()) {
     const PlayerCommand &simulation_command =
         CastPlayer()->GetSimulationMovementCommand();

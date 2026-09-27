@@ -147,6 +147,24 @@ int &ActionCoupledLegacyMismatch();
 int &DecisionLocomotionIntentPresentTicksLegacyGateFalse();
 int &DecisionLocomotionIntentMissingTicksLegacyGateFalse();
 int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source);
+// H3e4f-g0b-reentry-audit: continuous locomotion may hold an intent, but a
+// re-entry after leaving locomotion must not silently reuse it. Categories:
+// 0 initial, 1 continuous, 2 action re-entry, 3 reset re-entry.
+struct LocomotionReentryAudit {
+  int ticks = 0;
+  int generation_advanced = 0;
+  int generation_unchanged = 0;
+  int legacy_gate_true = 0;
+  int legacy_gate_false = 0;
+  int scheduler_due = 0;
+  int scheduler_not_due = 0;
+  int unchanged_and_legacy_gate_false = 0;
+  long decision_age_sum_ms = 0;
+  int decision_age_count = 0;
+  int decision_age_max_ms = -1;
+};
+LocomotionReentryAudit &LocomotionReentryAuditFor(int category);
+const char *LocomotionReentryCategoryName(int category);
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
@@ -181,6 +199,13 @@ class PlayerBase {
     bool HasDecisionLocomotionIntent() const {
       return decisionLocomotionState.initialized;
     }
+    // H3e4f-g0b-reentry-audit: which locomotion entry this tick is, and whether
+    // the decision intent behind it was refreshed since locomotion was left.
+    bool IsLocomotionIntentRefreshDue(int now_ms) const {
+      return locomotionIntentScheduler.Due(now_ms);
+    }
+    void NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
+                                   bool scheduler_due, int now_ms);
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
@@ -378,6 +403,11 @@ class PlayerBase {
     // Decision-owned locomotion intent shadow. Measurement only for now: it is
     // written only by a DirectMovementIntent publication.
     PlayerDecisionLocomotionState decisionLocomotionState;
+    // Re-entry provenance. Transient, never serialized, measurement only.
+    bool reentryAuditStarted = false;
+    bool wasPureLocomotionLastTick = false;
+    bool resetSinceLastPlayerTick = false;
+    unsigned long long decisionGenerationAtLocomotionExit = 0;
     int GetDecisionLocomotionIntentGeneration() const {
       return static_cast<int>(decisionLocomotionState.generation);
     }

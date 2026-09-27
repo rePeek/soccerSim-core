@@ -101,6 +101,52 @@ long &DecisionLocomotionIntentAgeSum_ms() { static long value = 0; return value;
 int &DecisionLocomotionIntentAgeCount() { static int value = 0; return value; }
 int &DecisionLocomotionIntentAgeMax_ms() { static int value = -1; return value; }
 int &ActionCoupledLegacyMismatch() { static int value = 0; return value; }
+int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
+  static int records[5] = {};
+  return records[source];
+}
+void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
+                                          bool scheduler_due, int now_ms) {
+  const unsigned long long generation = decisionLocomotionState.generation;
+  int category = 2;
+  if (!reentryAuditStarted) {
+    category = 0;
+  } else if (eligible && wasPureLocomotionLastTick) {
+    category = 1;
+  } else if (eligible && resetSinceLastPlayerTick) {
+    category = 3;
+  }
+  LocomotionReentryAudit &audit = LocomotionReentryAuditFor(category);
+  if (category != 0) {
+    ++audit.ticks;
+    if (legacy_gate) ++audit.legacy_gate_true; else ++audit.legacy_gate_false;
+    if (scheduler_due) ++audit.scheduler_due; else ++audit.scheduler_not_due;
+    if (category >= 2) {
+      if (generation != decisionGenerationAtLocomotionExit) {
+        ++audit.generation_advanced;
+      } else {
+        ++audit.generation_unchanged;
+        if (!legacy_gate) ++audit.unchanged_and_legacy_gate_false;
+      }
+    }
+    if (lastDirectMovementIntentPublication_ms >= 0) {
+      const int age_ms = now_ms - lastDirectMovementIntentPublication_ms;
+      audit.decision_age_sum_ms += age_ms;
+      ++audit.decision_age_count;
+      if (age_ms > audit.decision_age_max_ms) audit.decision_age_max_ms = age_ms;
+    }
+  }
+  // Leaving procedural locomotion records the decision generation that was in
+  // force, so a later re-entry can tell whether a fresh decision happened.
+  if (!eligible && wasPureLocomotionLastTick) {
+    decisionGenerationAtLocomotionExit = generation;
+  }
+  wasPureLocomotionLastTick = eligible;
+  resetSinceLastPlayerTick = false;
+  reentryAuditStarted = true;
+}
+
+
 int &DecisionLocomotionIntentPresentTicksLegacyGateFalse() {
   static int value = 0;
   return value;
@@ -109,9 +155,18 @@ int &DecisionLocomotionIntentMissingTicksLegacyGateFalse() {
   static int value = 0;
   return value;
 }
-int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
-  static int records[5] = {};
-  return records[source];
+LocomotionReentryAudit &LocomotionReentryAuditFor(int category) {
+  static LocomotionReentryAudit records[4];
+  return records[category];
+}
+const char *LocomotionReentryCategoryName(int category) {
+  switch (category) {
+    case 0: return "initial";
+    case 1: return "continuous";
+    case 2: return "action_reentry";
+    case 3: return "reset_reentry";
+    default: return "unknown";
+  }
 }
 
 const char *ActionBeginReasonName(int reason) {
@@ -936,6 +991,7 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   if (IsActive()) {
     nextActionBeginReason = kBeginResetSituation;
     lastResetSituation_ms = static_cast<int>(match->GetActualTime_ms());
+    resetSinceLastPlayerTick = true;
     if (resetSituationAuditContext == kResetSituationUnspecified) {
       resetSituationAuditContext = hasProcessedPlayerTick
           ? kResetSituationRuntime
