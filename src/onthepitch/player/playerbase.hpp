@@ -264,6 +264,21 @@ class PlayerBase {
     }
     // Cause of the next Direct publication (0 cadence, 1 legacy only, 2 repair).
     void NoteDecisionPublicationCause(int cause);
+    // Read-only view of the serialized decision continuity state. A restore must
+    // reproduce the repair decision, so these are gameplay invariants and must
+    // not be compared against the transient audit generation.
+    unsigned long long GetDecisionLocomotionContinuityEpoch() const {
+      return decisionLocomotionState.continuityEpoch;
+    }
+    unsigned long long GetDecisionLocomotionPublishedEpoch() const {
+      return decisionLocomotionState.publishedEpoch;
+    }
+    bool DecisionLocomotionContinuityStarted() const {
+      return decisionLocomotionState.continuityStarted;
+    }
+    bool WasDecisionLocomotionEligibleLastTick() const {
+      return decisionLocomotionState.wasEligibleLastTick;
+    }
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
