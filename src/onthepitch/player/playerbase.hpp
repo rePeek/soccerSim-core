@@ -128,6 +128,12 @@ class PlayerBase {
     // intent cadence in parallel with the animation requeue lifecycle, so the
     // two schedules can be compared before either one takes over.
     void ObserveLocomotionIntentCadence(bool legacy_opportunity);
+    // c2b-2: returns whether the simulation must refresh the intent now. A due
+    // tick during a non-locomotion action is held overdue rather than consumed,
+    // so the refresh happens as soon as the actor is eligible again.
+    bool NoteLocomotionIntentCadence(bool legacy_opportunity);
+    // Called only once the controller was actually queried for this refresh.
+    void CommitLocomotionIntentRefresh();
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
     void BeginSimulationAction();
@@ -198,6 +204,7 @@ class PlayerBase {
     PlayerActionState actionState;
     PlayerMovementCommandState movementCommandState;
     LocomotionIntentScheduler locomotionIntentScheduler;
+    bool locomotionIntentDueThisTick = false;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

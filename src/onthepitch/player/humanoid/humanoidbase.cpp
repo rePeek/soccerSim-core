@@ -77,6 +77,7 @@ int &PlayerLocomotionIntentDueTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentLegacyOpportunityTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentOverlapTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentDueIneligibleTicks() { static int value = 0; return value; }
+int &PlayerLocomotionIntentConsumedTicks() { static int value = 0; return value; }
 int &LegacyMovementOverwriteAttempts() { static int value = 0; return value; }
 int &DirectVsLegacyCommandEqual() { static int value = 0; return value; }
 int &DirectVsLegacyCommandMateriallyDifferent() { static int value = 0; return value; }
@@ -291,25 +292,38 @@ void HumanoidBase::Process() {
     interruptAnim = e_InterruptAnim_ReQueue;
   }
 
-  player->ObserveLocomotionIntentCadence(interruptAnim != e_InterruptAnim_None);
-  if (interruptAnim != e_InterruptAnim_None) {
+  // H3e4f-c2b-2: the simulation owns when the controller is asked for a new
+  // locomotion intent, and there is at most one query per tick. The two
+  // schedules share one command queue, so queries equal the union of a due tick
+  // and a legacy animation opportunity rather than the sum.
+  const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
+  const bool simulation_due =
+      player->NoteLocomotionIntentCadence(legacy_opportunity);
+  if (legacy_opportunity || simulation_due) {
     DO_VALIDATION;
 
     PlayerCommandQueue commandQueue;
+    bool controller_queried = false;
+    const auto EnsureControllerQuery = [&]() {
+      if (controller_queried) return;
+      player->RequestCommand(commandQueue);
+      controller_queried = true;
+    };
+    const bool trip_local_queue =
+        interruptAnim == e_InterruptAnim_Trip && tripType != 0;
 
-    if (interruptAnim == e_InterruptAnim_Trip && tripType != 0) {
+    if (trip_local_queue) {
       DO_VALIDATION;
       AddTripCommandToQueue(commandQueue, tripDirection, tripType);
       tripType = 0;
       commandQueue.push_back(GetBasicMovementCommand(tripDirection, spatialState.floatVelocity)); // backup, if there's no applicable trip anim
-    } else {
-      player->RequestCommand(commandQueue);
+    }
 
-      // H3e4f-c1: Movement intent is adopted directly, so a Movement command no
-      // longer needs SelectAnim's acceptance to reach locomotion. The query
-      // cadence is untouched. BallControl and Trap deliberately keep the legacy
-      // coupling: their locomotion intent is only meaningful if the action
-      // actually runs, so they still arrive through acceptance below.
+    // Simulation cadence: adopt fresh Movement intent without waiting for
+    // SelectAnim to accept it. A locally generated trip queue is not a
+    // controller intent, so the tick is left overdue instead of consumed.
+    if (simulation_due && !trip_local_queue) {
+      EnsureControllerQuery();
       for (const PlayerCommand &candidate : commandQueue) {
         if (candidate.desiredFunctionType == e_FunctionType_Movement &&
             candidate.useDesiredMovement) {
@@ -318,18 +332,25 @@ void HumanoidBase::Process() {
           break;
         }
       }
+      player->CommitLocomotionIntentRefresh();
+    }
+
+    if (legacy_opportunity) {
+      EnsureControllerQuery();
     }
 
     // iterate through the command queue and pick the first that is applicable
 
     bool found = false;
-    for (unsigned int i = 0; i < commandQueue.size(); i++) {
-      DO_VALIDATION;
+    if (legacy_opportunity) {
+      for (unsigned int i = 0; i < commandQueue.size(); i++) {
+        DO_VALIDATION;
 
-      const PlayerCommand &command = commandQueue[i];
+        const PlayerCommand &command = commandQueue[i];
 
-      found = SelectAnim(command, interruptAnim);
-      if (found) break;
+        found = SelectAnim(command, interruptAnim);
+        if (found) break;
+      }
     }
 
     if (interruptAnim != e_InterruptAnim_ReQueue && !found) {

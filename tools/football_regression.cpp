@@ -1213,14 +1213,14 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        Position(-0.986308098f, -0.0138307484f, 0.0f, true),
        Position(0.833835959f, -0.000820748624f, 0.0f, true), 0, 0, true,
        UINT64_C(10380005556119109114)},
-      {500, 437, Position(-0.232210815f, -0.203922644f, 8.69410801f, true),
-       Position(-0.855726719f, -0.0280530266f, 0.0f, true),
-       Position(0.907233953f, -0.0131122759f, 0.0f, true), 0, 0, true,
-       UINT64_C(3272720678765930238)},
-      {1000, 895, Position(0.552579522f, 0.17000562f, 0.121982932f, true),
-       Position(-0.826178432f, -0.000700450095f, 0.0f, true),
-       Position(0.987710655f, 0.00805512071f, 0.0f, true), 0, 0, true,
-       UINT64_C(10056322038326290004)},
+      {500, 437, Position(0.895198107f, -0.113652401f, 5.534513f, true),
+       Position(-0.827785313f, -0.00249668164f, 0.0f, true),
+       Position(0.993153632f, -0.0326986611f, 0.0f, true), 0, 0, true,
+       UINT64_C(9571307031543102652)},
+      {1000, 895, Position(0.0437538177f, -0.266439289f, 0.363599718f, true),
+       Position(-0.883544922f, -0.0188250709f, 0.0f, true),
+       Position(0.828957558f, -0.00109830941f, 0.0f, true), 0, 0, true,
+       UINT64_C(14482527048810054053)},
   };
 
 
@@ -2086,7 +2086,7 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " legacy_opportunities="
             << PlayerLocomotionIntentLegacyOpportunityTicks()
             << " overlap=" << PlayerLocomotionIntentOverlapTicks()
-            << " due_ineligible="
+            << " intent_consumed=" << PlayerLocomotionIntentConsumedTicks() << " due_ineligible="
             << PlayerLocomotionIntentDueIneligibleTicks()
             << " due_eligible="
             << (PlayerLocomotionIntentDueTicks() -

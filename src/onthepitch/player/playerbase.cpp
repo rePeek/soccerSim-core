@@ -161,29 +161,41 @@ void PlayerBase::SetSimulationMovementCommand(
   }
 }
 
-void PlayerBase::ObserveLocomotionIntentCadence(bool legacy_opportunity) {
+bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
   DO_VALIDATION;
-  // Pure observation: the scheduler keeps its own clock so its cadence can be
-  // compared with the animation requeue opportunities before either takes over.
   const float distance_to_ball =
       (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
   const int now_ms = static_cast<int>(match->GetActualTime_ms());
   const bool due = locomotionIntentScheduler.Due(now_ms);
+  locomotionIntentDueThisTick = false;
   if (due) {
     ++PlayerLocomotionIntentDueTicks();
-    // c2a2: a due tick that the simulation must not consume. Consuming it here
-    // would query the controller during a pass, shot or trip and then hand
-    // locomotion an intent that is already hundreds of ms old when the action
-    // ends; the flipped scheduler keeps the clock overdue instead.
+    // A due tick during a non-locomotion action is not consumed: querying the
+    // controller there would hand locomotion an intent that is already hundreds
+    // of milliseconds old by the time the action ends. The clock simply stays
+    // overdue so the refresh happens on the first eligible tick.
     if (!IsEligibleForProceduralLocomotion()) {
       ++PlayerLocomotionIntentDueIneligibleTicks();
+    } else {
+      locomotionIntentDueThisTick = true;
     }
-    locomotionIntentScheduler.Schedule(
-        now_ms, LocomotionIntentScheduler::CadenceForDistance_ms(
-                    distance_to_ball, match->GetBallRetainer() == this));
   }
-  if (legacy_opportunity) ++PlayerLocomotionIntentLegacyOpportunityTicks();
-  if (due && legacy_opportunity) ++PlayerLocomotionIntentOverlapTicks();
+  if (legacy_opportunity) {
+    ++PlayerLocomotionIntentLegacyOpportunityTicks();
+    if (locomotionIntentDueThisTick) ++PlayerLocomotionIntentOverlapTicks();
+  }
+  return locomotionIntentDueThisTick;
+}
+
+void PlayerBase::CommitLocomotionIntentRefresh() {
+  DO_VALIDATION;
+  const float distance_to_ball =
+      (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
+  ++PlayerLocomotionIntentConsumedTicks();
+  locomotionIntentScheduler.Schedule(
+      static_cast<int>(match->GetActualTime_ms()),
+      LocomotionIntentScheduler::CadenceForDistance_ms(
+          distance_to_ball, match->GetBallRetainer() == this));
 }
 
 void PlayerBase::CheckSimulationMovementCommandOracle() const {
