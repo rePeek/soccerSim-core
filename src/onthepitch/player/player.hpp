@@ -81,6 +81,7 @@ class Player : public PlayerBase {
     void SelectRetainAnim() { DO_VALIDATION;
       // H3e4f-g0b-3a provenance: retain rebuilds animation state; does it build a command?
       const PlayerCommand retain_command_before = CastHumanoid()->GetCurrentAnim()->originatingCommand;
+      nextActionBeginReason = kBeginRetainSelection;
       CastHumanoid()->SelectRetainAnim();
       const PlayerCommand &retain_command_after = CastHumanoid()->GetCurrentAnim()->originatingCommand;
       if (retain_command_after.desiredDirection.coords[0] == retain_command_before.desiredDirection.coords[0] &&

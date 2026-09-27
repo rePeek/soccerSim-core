@@ -30,6 +30,43 @@ int &ReanchorConsumedBeforeRefresh() { static int value = 0; return value; }
 int &ReanchorSupersededByRefresh() { static int value = 0; return value; }
 std::vector<int> &ReanchorLifetime_ms() { static std::vector<int> values; return values; }
 int &RestartCarriedCommandForward() { static int value = 0; return value; }
+ReanchorResidency &ReanchorResidencyFor(int reason) {
+  static ReanchorResidency records[kBeginReasonCount];
+  return records[reason];
+}
+
+const char *ActionBeginReasonName(int reason) {
+  switch (reason) {
+    case kBeginMovementToMovement: return "Movement->Movement";
+    case kBeginOtherToMovement: return "Other->Movement";
+    case kBeginMovementToOther: return "Movement->Other";
+    case kBeginOtherToOther: return "Other->Other";
+    case kBeginResetPosition: return "ResetPosition";
+    case kBeginResetSituation: return "ResetSituation";
+    case kBeginRetainSelection: return "RetainSelection";
+    default: break;
+  }
+  return "unknown";
+}
+
+static int ResolveBeginReason(e_FunctionType previous_type, e_FunctionType new_type) {
+  if (new_type == e_FunctionType_Movement) {
+    return previous_type == e_FunctionType_Movement ? kBeginMovementToMovement
+                                                    : kBeginOtherToMovement;
+  }
+  return previous_type == e_FunctionType_Movement ? kBeginMovementToOther
+                                                  : kBeginOtherToOther;
+}
+
+void PlayerBase::CloseReanchorEpisode() {
+  DO_VALIDATION;
+  if (!episode_active) return;
+  ReanchorResidency &record = ReanchorResidencyFor(episode_active_reason);
+  ++record.n;
+  record.lifetime_ms.push_back(static_cast<int>(match->GetActualTime_ms()) - episode_start_ms);
+  record.ticks.push_back(episode_ticks);
+  episode_active = false;
+}
 int &RestartConstructedCommand() { static int value = 0; return value; }
 int &RetainCarriedCommandForward() { static int value = 0; return value; }
 int &RetainConstructedCommand() { static int value = 0; return value; }
@@ -201,6 +238,7 @@ void PlayerBase::CommitLocomotionIntentRefresh() {
   // How long a legacy re-anchor value stayed in force until the simulation
   // refreshed: the interval that decides whether replacing it needs a seed or
   // only a forced due tick.
+  CloseReanchorEpisode();
   if (reanchorPendingSince_ms >= 0) {
     ReanchorLifetime_ms().push_back(static_cast<int>(match->GetActualTime_ms()) - reanchorPendingSince_ms);
     reanchorPendingSince_ms = -1;
@@ -224,6 +262,7 @@ void PlayerBase::CommitLocomotionIntentRefresh() {
 }
 
 void PlayerBase::NoteLocomotionCommandConsumed() {
+  if (episode_active) ++episode_ticks;
   DO_VALIDATION;
   if (!reanchorPendingConsumption) return;
   ++ReanchorConsumedBeforeRefresh();
@@ -341,6 +380,12 @@ void PlayerBase::BeginSimulationAction() {
   definition.durationTime_ms = humanoid->GetFrameCount() * 10;
   definition.contactTime_ms = anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
   definition.contactPosition = anim->touchPos;
+  const e_FunctionType previous_action_type = actionState.type;
+  const int resolved_begin_reason =
+      nextActionBeginReason >= kBeginResetPosition
+          ? nextActionBeginReason
+          : ResolveBeginReason(previous_action_type, definition.type);
+  nextActionBeginReason = kBeginMovementToMovement;
   PlayerActionExecutor::Begin(actionState, definition);
   PlayerActionExecutor::Begin(actionState, definition);
 
@@ -362,6 +407,11 @@ void PlayerBase::BeginSimulationAction() {
                                           anim->originatingCommand)) {
         ++MovementCommandReanchorsMateriallyDifferent();
         reanchorPendingConsumption = true;
+        CloseReanchorEpisode();
+        episode_active = true;
+        episode_active_reason = resolved_begin_reason;
+        episode_start_ms = static_cast<int>(match->GetActualTime_ms());
+        episode_ticks = 0;
         ++ReanchorPendingSet();
         reanchorPendingSince_ms = static_cast<int>(match->GetActualTime_ms());
       } else {
@@ -426,6 +476,7 @@ void PlayerBase::UpdateKinematicShadow() {
 
 void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   DO_VALIDATION;
+  nextActionBeginReason = kBeginResetPosition;
   // H3e4f-g0b-3a provenance: the reset rebuilds spatial state; does it build a command?
   const PlayerCommand reset_command_before = humanoid->GetCurrentAnim()->originatingCommand;
   humanoid->ResetPosition(newPos, focusPos);
@@ -536,6 +587,7 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;
   if (IsActive()) {
+    nextActionBeginReason = kBeginResetSituation;
     humanoid->ResetSituation(focusPos);
     SynchronizeKinematicState();
     BeginSimulationAction();

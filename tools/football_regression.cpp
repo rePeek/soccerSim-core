@@ -2101,6 +2101,17 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   std::cout << "  reanchor movement=" << MovementCommandReanchors() << " equal=" << MovementCommandReanchorsEqual() << " materially_different=" << MovementCommandReanchorsMateriallyDifferent() << " nonmovement=" << NonMovementCommandReanchors() << "\n";
   std::cout << "  reanchor_fate pending=" << ReanchorPendingSet() << " consumed_before_refresh=" << ReanchorConsumedBeforeRefresh() << " superseded_by_refresh=" << ReanchorSupersededByRefresh() << "\n";
   std::cout << "  provenance reset_carried=" << RestartCarriedCommandForward() << " reset_constructed=" << RestartConstructedCommand() << " retain_carried=" << RetainCarriedCommandForward() << " retain_constructed=" << RetainConstructedCommand() << "\n";
+  for (int reason = 0; reason < kBeginReasonCount; ++reason) {
+    const ReanchorResidency &record = ReanchorResidencyFor(reason);
+    if (record.n == 0) continue;
+    std::cout << "  residency " << ActionBeginReasonName(reason) << " n=" << record.n
+              << " lifetime_p50=" << percentile(record.lifetime_ms, 0.50)
+              << " p90=" << percentile(record.lifetime_ms, 0.90)
+              << " p99=" << percentile(record.lifetime_ms, 0.99)
+              << " max=" << percentile(record.lifetime_ms, 1.0)
+              << " ticks_p50=" << percentile(record.ticks, 0.50)
+              << " ticks_max=" << percentile(record.ticks, 1.0) << "\n";
+  }
   { std::vector<int> lives = ReanchorLifetime_ms();
     std::cout << "  reanchor_lifetime_ms n=" << lives.size() << " p50=" << percentile(lives, 0.50) << " p90=" << percentile(lives, 0.90) << " p99=" << percentile(lives, 0.99) << " max=" << percentile(lives, 1.0) << " locomotion_ticks_p50=" << (percentile(lives, 0.50) / 10) << " locomotion_ticks_max=" << (percentile(lives, 1.0) / 10) << "\n"; }
 

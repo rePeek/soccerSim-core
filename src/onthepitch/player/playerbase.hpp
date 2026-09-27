@@ -25,6 +25,25 @@
 #include "player_movement_command.hpp"
 #include "locomotion_intent_scheduler.hpp"
 
+// H3e4f-g0b-3a: which boundary began the action, so residency can be attributed.
+enum ActionBeginReason {
+  kBeginMovementToMovement = 0,
+  kBeginOtherToMovement,
+  kBeginMovementToOther,
+  kBeginOtherToOther,
+  kBeginResetPosition,
+  kBeginResetSituation,
+  kBeginRetainSelection,
+  kBeginReasonCount,
+};
+struct ReanchorResidency {
+  int n = 0;
+  std::vector<int> lifetime_ms;
+  std::vector<int> ticks;
+};
+ReanchorResidency &ReanchorResidencyFor(int reason);
+const char *ActionBeginReasonName(int reason);
+
 // H3e4f-g0b-prime: is a Movement re-anchor actually consumed by locomotion before the
 // next direct refresh? Only that makes it load-bearing.
 int &ReanchorPendingSet();
@@ -147,6 +166,7 @@ class PlayerBase {
     bool NoteLocomotionIntentCadence(bool legacy_opportunity);
     // Called only once the controller was actually queried for this refresh.
     void CommitLocomotionIntentRefresh();
+    void CloseReanchorEpisode();
     // Called where locomotion actually reads the command.
     void NoteLocomotionCommandConsumed();
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
@@ -222,6 +242,11 @@ class PlayerBase {
     bool locomotionIntentDueThisTick = false;
     bool reanchorPendingConsumption = false;
     int reanchorPendingSince_ms = -1;
+    int nextActionBeginReason = kBeginMovementToMovement;
+    bool episode_active = false;
+    int episode_active_reason = 0;
+    int episode_start_ms = 0;
+    int episode_ticks = 0;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 
