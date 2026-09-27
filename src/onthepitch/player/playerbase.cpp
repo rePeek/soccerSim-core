@@ -354,6 +354,7 @@ void PlayerBase::BeginSimulationAction() {
       ++NonMovementCommandReanchors();
     }
     movementCommandState.command = anim->originatingCommand;
+    movementCommandState.source = LocomotionCommandSource::LegacyAcceptedAction;
     movementCommandState.initialized = true;
   }
 
