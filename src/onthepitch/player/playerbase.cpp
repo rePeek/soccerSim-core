@@ -105,45 +105,59 @@ int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
   static int records[5] = {};
   return records[source];
 }
+int &LocomotionActionExitCount() { static int value = 0; return value; }
+
 void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
                                           bool scheduler_due, int now_ms) {
   const unsigned long long generation = decisionLocomotionState.generation;
-  int category = 2;
   if (!reentryAuditStarted) {
-    category = 0;
-  } else if (eligible && wasPureLocomotionLastTick) {
-    category = 1;
-  } else if (eligible && resetSinceLastPlayerTick) {
+    reentryAuditStarted = true;
+    wasPureLocomotionLastTick = eligible;
+    resetSinceLastPlayerTick = false;
+    return;
+  }
+  if (!eligible) {
+    // An ordinary non-locomotion tick is not a re-entry. Only leaving
+    // locomotion is an event, and it arms the generation comparison.
+    if (wasPureLocomotionLastTick) {
+      decisionGenerationAtLocomotionExit = generation;
+      locomotionExitRecorded = true;
+      ++LocomotionActionExitCount();
+    }
+    wasPureLocomotionLastTick = false;
+    return;
+  }
+  // Eligible from here on: either continuous locomotion or a real re-entry.
+  // Reset takes precedence, because a reset between two eligible ticks is a
+  // lifecycle discontinuity rather than a continuation.
+  int category = 2;
+  if (resetSinceLastPlayerTick) {
     category = 3;
+  } else if (wasPureLocomotionLastTick) {
+    category = 1;
   }
   LocomotionReentryAudit &audit = LocomotionReentryAuditFor(category);
-  if (category != 0) {
-    ++audit.ticks;
-    if (legacy_gate) ++audit.legacy_gate_true; else ++audit.legacy_gate_false;
-    if (scheduler_due) ++audit.scheduler_due; else ++audit.scheduler_not_due;
-    if (category >= 2) {
-      if (generation != decisionGenerationAtLocomotionExit) {
-        ++audit.generation_advanced;
-      } else {
-        ++audit.generation_unchanged;
-        if (!legacy_gate) ++audit.unchanged_and_legacy_gate_false;
-      }
-    }
-    if (lastDirectMovementIntentPublication_ms >= 0) {
-      const int age_ms = now_ms - lastDirectMovementIntentPublication_ms;
-      audit.decision_age_sum_ms += age_ms;
-      ++audit.decision_age_count;
-      if (age_ms > audit.decision_age_max_ms) audit.decision_age_max_ms = age_ms;
+  ++audit.ticks;
+  if (legacy_gate) ++audit.legacy_gate_true; else ++audit.legacy_gate_false;
+  if (scheduler_due) ++audit.scheduler_due; else ++audit.scheduler_not_due;
+  if (category >= 2) {
+    // Meaningful only once locomotion was actually left.
+    if (locomotionExitRecorded &&
+        generation != decisionGenerationAtLocomotionExit) {
+      ++audit.generation_advanced;
+    } else if (locomotionExitRecorded) {
+      ++audit.generation_unchanged;
+      if (!legacy_gate) ++audit.unchanged_and_legacy_gate_false;
     }
   }
-  // Leaving procedural locomotion records the decision generation that was in
-  // force, so a later re-entry can tell whether a fresh decision happened.
-  if (!eligible && wasPureLocomotionLastTick) {
-    decisionGenerationAtLocomotionExit = generation;
+  if (lastDirectMovementIntentPublication_ms >= 0) {
+    const int age_ms = now_ms - lastDirectMovementIntentPublication_ms;
+    audit.decision_age_sum_ms += age_ms;
+    ++audit.decision_age_count;
+    if (age_ms > audit.decision_age_max_ms) audit.decision_age_max_ms = age_ms;
   }
-  wasPureLocomotionLastTick = eligible;
+  wasPureLocomotionLastTick = true;
   resetSinceLastPlayerTick = false;
-  reentryAuditStarted = true;
 }
 
 

@@ -2294,6 +2294,8 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << DecisionLocomotionIntentMissingForSourceLegacyGateFalse(3) << ","
             << DecisionLocomotionIntentMissingForSourceLegacyGateFalse(4)
             << "\n";
+  std::cout << "  reentry_action_exit count=" << LocomotionActionExitCount()
+            << "\n";
   for (int category = 1; category < 4; ++category) {
     const LocomotionReentryAudit &audit = LocomotionReentryAuditFor(category);
     if (audit.ticks == 0) continue;
@@ -2313,6 +2315,8 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
                       : -1)
               << "/" << audit.decision_age_max_ms << "\n";
   }
+  Require(LocomotionReentryAuditFor(2).ticks <= LocomotionActionExitCount(),
+          "reentry audit: action re-entries exceed observed locomotion exits");
   std::cout << "  movement_oracle source[action,direct,legacy,seed,fallback]="
             << MovementOracleConsumesForSource(0) << ","
             << MovementOracleConsumesForSource(1) << ","
