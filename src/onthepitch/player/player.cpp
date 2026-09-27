@@ -116,7 +116,6 @@ void Player::Activate(boost::shared_ptr<AnimCollection> animCollection,
       Vector3(0));
   SynchronizeKinematicState();
   BeginSimulationAction();
-  ResetKinematicShadow();
   SetDynamicFormationEntry(GetFormationEntry());
 }
 
@@ -401,7 +400,6 @@ void Player::Process() {
     CastHumanoid()->Process();
     SynchronizeKinematicState();
     CheckSimulationActionOracle();
-    UpdateKinematicShadow();
 
     if (match->IsInPlay()) {
       Vector3 posAfter = CastHumanoid()->GetPosition();

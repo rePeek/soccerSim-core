@@ -331,7 +331,6 @@ void PlayerBase::Mirror() {
   DO_VALIDATION;
   humanoid->Mirror();
   kinematicState.Mirror();
-  kinematicShadow.Mirror();
   groundCollider.Mirror();
   CheckSimulationKinematicOracle();
 }
@@ -607,34 +606,6 @@ bool PlayerBase::IsEligibleForProceduralLocomotion() const {
 }
 
 
-void PlayerBase::ResetKinematicShadow() {
-  DO_VALIDATION;
-  kinematicShadow = kinematicState;
-}
-
-void PlayerBase::UpdateKinematicShadow() {
-  DO_VALIDATION;
-  const PlayerCommand &command = humanoid->GetOriginatingCommand();
-  if (GetCurrentFunctionType() != e_FunctionType_Movement ||
-      !command.useDesiredMovement) {
-    ResetKinematicShadow();
-    return;
-  }
-
-  // The single place where a legacy command becomes a locomotion input. The
-  // authoritative execution path reuses this when the authority flips, so
-  // prediction, execution and this shadow can never drift apart semantically.
-  // Keep the adapter's entire input in simulation state. bodyFacing is
-  // simulation-authoritative for pure locomotion and an exact legacy shadow
-  // otherwise; it never needs a direct Humanoid read here.
-  const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
-      command, kinematicShadow, GetMaxVelocity(), kinematicShadow.bodyFacing);
-
-  PlayerLocomotionParameters parameters;
-  parameters.maxSpeed = GetMaxVelocity();
-  PlayerLocomotion::Step(kinematicShadow, input, parameters, 0.01f);
-}
-
 void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   DO_VALIDATION;
   // H3e4f-g0b-3a provenance: the reset rebuilds spatial state; does it build a command?
@@ -648,7 +619,6 @@ void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   }
   SynchronizeKinematicState();
   BeginSimulationAction();
-  ResetKinematicShadow();
 }
 
 void PlayerBase::OffsetPosition(const Vector3 &offset) {
@@ -656,7 +626,6 @@ void PlayerBase::OffsetPosition(const Vector3 &offset) {
   humanoid->OffsetPosition(offset);
   SynchronizeKinematicState();
   CheckSimulationActionOracle();
-  ResetKinematicShadow();
 }
 
 void PlayerBase::SetNextResetSituationAuditContext(int context) {
@@ -719,7 +688,6 @@ void PlayerBase::Process() {
     humanoid->Process();
     SynchronizeKinematicState();
     CheckSimulationActionOracle();
-    UpdateKinematicShadow();
   }
 }
 
@@ -769,7 +737,6 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
     humanoid->ResetSituation(focusPos);
     SynchronizeKinematicState();
     BeginSimulationAction();
-    ResetKinematicShadow();
   }
   if (GetController()) GetController()->Reset();
   resetSituationAuditContext = kResetSituationUnspecified;
@@ -780,7 +747,8 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   state->process(isActive);
   humanoid->ProcessState(state);
   kinematicState.ProcessState(state);
-  kinematicShadow.ProcessState(state);
+  // 4f-b1: the unconsumed kinematic locomotion shadow was removed. This
+  // intentionally changes the save-state layout, not gameplay behavior.
   groundCollider.ProcessState(state);
   // A restored Humanoid spatial state, kinematic mirror and collider must
   // agree before any subsequent tick or reader can observe either.

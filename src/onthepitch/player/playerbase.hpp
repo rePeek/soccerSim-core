@@ -296,10 +296,6 @@ class PlayerBase {
       DO_VALIDATION;
       return kinematicState;
     }
-    const PlayerKinematicState &GetKinematicShadow() const {
-      DO_VALIDATION;
-      return kinematicShadow;
-    }
     const PlayerGroundCollider &GetGroundCollider() const {
       DO_VALIDATION;
       return groundCollider;
@@ -416,8 +412,6 @@ class PlayerBase {
 
   protected:
     void SynchronizeKinematicState();
-    void UpdateKinematicShadow();
-    void ResetKinematicShadow();
     PlayerActionState CaptureLegacyActionState() const;
     void SetNextResetSituationAuditContext(int context);
     Match *match;
@@ -427,7 +421,6 @@ class PlayerBase {
 
     std::unique_ptr<HumanoidBase> humanoid;
     PlayerKinematicState kinematicState;
-    PlayerKinematicState kinematicShadow;
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
     LocomotionIntentScheduler locomotionIntentScheduler;

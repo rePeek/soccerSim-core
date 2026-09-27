@@ -3340,6 +3340,22 @@ void CheckDecisionContinuityRestoreDeterminism(GameEnv& env,
   WaitUntilInPlay(env, 60, "continuity restore: kickoff");
   Advance(env, 50);
   const std::string serialized = env.get_state("");
+  Match *snapshot_match = env.context->gameTask->GetMatch();
+  std::vector<Player *> snapshot_players;
+  snapshot_match->GetTeam(0)->GetActivePlayers(snapshot_players);
+  Require(!snapshot_players.empty(), "decision restore: no active players");
+  Player *snapshot_player = snapshot_players[0];
+  Require(snapshot_player->HasPlayerDecisionQueue(),
+          "decision restore: queue not initialized at save");
+  const int snapshot_id = snapshot_player->GetStableID();
+  const PlayerCommandQueue snapshot_queue = snapshot_player->GetPlayerDecisionQueue();
+  const unsigned long long snapshot_generation =
+      snapshot_player->GetPlayerDecisionGeneration();
+  const int snapshot_time_ms = static_cast<int>(snapshot_match->GetActualTime_ms());
+  const bool snapshot_due_fast =
+      snapshot_player->IsPlayerDecisionRefreshDue(snapshot_time_ms, 20);
+  const bool snapshot_due_slow =
+      snapshot_player->IsPlayerDecisionRefreshDue(snapshot_time_ms, 240);
 
   struct BranchResult {
     std::string digest;
@@ -3386,6 +3402,28 @@ void CheckDecisionContinuityRestoreDeterminism(GameEnv& env,
           "continuity restore: a repair attempt had no candidate");
 
   env.set_state(serialized);
+  std::vector<Player *> restored_players;
+  env.context->gameTask->GetMatch()->GetTeam(0)->GetActivePlayers(restored_players);
+  Player *restored_player = nullptr;
+  for (Player *candidate : restored_players) {
+    if (candidate->GetStableID() == snapshot_id) restored_player = candidate;
+  }
+  Require(restored_player && restored_player->HasPlayerDecisionQueue(),
+          "decision restore: serialized queue not initialized after load");
+  Require(restored_player->GetPlayerDecisionGeneration() == snapshot_generation,
+          "decision restore: queue generation differs after load");
+  const PlayerCommandQueue &restored_queue = restored_player->GetPlayerDecisionQueue();
+  Require(restored_queue.size() == snapshot_queue.size(),
+          "decision restore: queue length differs after load");
+  for (size_t i = 0; i < snapshot_queue.size(); ++i) {
+    Require(PlayerCommandsDecisionEqual(restored_queue[i], snapshot_queue[i]),
+            "decision restore: serialized command differs after load");
+  }
+  Require(restored_player->IsPlayerDecisionRefreshDue(snapshot_time_ms, 20) ==
+              snapshot_due_fast &&
+          restored_player->IsPlayerDecisionRefreshDue(snapshot_time_ms, 240) ==
+              snapshot_due_slow,
+          "decision restore: scheduler cadence differs after load");
   const BranchResult second = run_branch();
 
   Require(second.digest == first.digest,
