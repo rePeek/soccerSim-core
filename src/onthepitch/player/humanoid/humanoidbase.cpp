@@ -71,6 +71,62 @@ int &HumanoidProceduralMovementTicks() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement() { static int value = 0; return value; }
 
+int &HumanoidSchedulerQueries() { static int value = 0; return value; }
+int &HumanoidMaterialCommandCandidates() { static int value = 0; return value; }
+int &HumanoidMaterialCommandsAccepted() { static int value = 0; return value; }
+int &HumanoidMovementSelections() { static int value = 0; return value; }
+int &HumanoidMovementSwitches() { static int value = 0; return value; }
+int &HumanoidMovementRequeues() { static int value = 0; return value; }
+int &HumanoidMovementFromOtherAction() { static int value = 0; return value; }
+std::vector<int> &HumanoidMovementCommandLifetimes_ms() {
+  static std::vector<int> values;
+  return values;
+}
+std::vector<int> &HumanoidSelectedMovementFrames() {
+  static std::vector<int> values;
+  return values;
+}
+
+bool MovementCommandDiffersMaterially(const PlayerCommand &in_force,
+                                      const PlayerCommand &candidate) {
+  return in_force.desiredFunctionType != candidate.desiredFunctionType ||
+         ((in_force.desiredDirection * in_force.desiredVelocityFloat) -
+          (candidate.desiredDirection * candidate.desiredVelocityFloat))
+                 .GetLength() >= 1.5f;
+}
+
+bool RecordSchedulerQuery(const PlayerCommand &in_force,
+                          const PlayerCommand &candidate) {
+  ++HumanoidSchedulerQueries();
+  const bool material = MovementCommandDiffersMaterially(in_force, candidate);
+  if (material) ++HumanoidMaterialCommandCandidates();
+  return material;
+}
+
+void RecordMovementCommandAcceptance(bool material_candidate,
+                                     e_FunctionType previous_type,
+                                     int previous_elapsed_ms,
+                                     e_InterruptAnim interrupt,
+                                     const PlayerCommand &command,
+                                     const Animation *anim) {
+  if (command.desiredFunctionType != e_FunctionType_Movement) return;
+  if (material_candidate) ++HumanoidMaterialCommandsAccepted();
+  ++HumanoidMovementSelections();
+  HumanoidSelectedMovementFrames().push_back(anim->GetFrameCount());
+  if (previous_type == e_FunctionType_Movement) {
+    // How long the movement command being replaced had been in force. This is
+    // exactly the duration the animation lifecycle currently decides.
+    HumanoidMovementCommandLifetimes_ms().push_back(previous_elapsed_ms);
+  }
+  if (previous_type != e_FunctionType_Movement) {
+    ++HumanoidMovementFromOtherAction();
+  } else if (interrupt == e_InterruptAnim_ReQueue) {
+    ++HumanoidMovementRequeues();
+  } else {
+    ++HumanoidMovementSwitches();
+  }
+}
+
 const radian preferredDirectionAngles[] = {
     0 * pi,
     0.111 * pi, // 20
@@ -557,6 +613,8 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   DO_VALIDATION;  // returns false on no applicable anim found
   assert(command.desiredDirection.coords[2] == 0.0f);
   const PlayerActionState &action = player->GetSimulationActionState();
+  const bool material_candidate =
+      RecordSchedulerQuery(currentAnim.originatingCommand, command);
 
   if (localInterruptAnim != e_InterruptAnim_ReQueue || action.frame > 12)
     CalculateFactualSpatialState();
@@ -730,6 +788,9 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     currentAnim.positions.assign(positions_tmp.begin(), positions_tmp.end());
     currentAnim.positionOffset = 0.0;
     currentAnim.originatingCommand = command;
+    RecordMovementCommandAcceptance(material_candidate, action.type,
+                                    action.elapsedTime_ms, localInterruptAnim,
+                                    command, currentAnim.anim);
     player->BeginSimulationAction();
 
     return true;

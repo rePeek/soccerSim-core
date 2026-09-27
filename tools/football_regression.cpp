@@ -1979,6 +1979,90 @@ void MeasureLegacyBodyFacing(GameEnv& env, ScenarioConfig& config) {
 // reset is deliberately counted, never hidden: if locomotion facing moves the
 // cone over a rate-limited body in one tick, finite turn rate and a strict cone
 // bound cannot both hold. Such a grid point is not a valid authority candidate.
+// H3e4e1: measure who currently owns the movement command lifetime. Root motion
+// and body pose are gone, but an accepted Movement command still only arrives
+// when an animation selection replaces the command in force. Measurement only;
+// it never issues an extra controller query, because that is not proven pure.
+void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "movement lifecycle: kickoff");
+
+  const int queries_before = HumanoidSchedulerQueries();
+  const int material_before = HumanoidMaterialCommandCandidates();
+  const int accepted_before = HumanoidMaterialCommandsAccepted();
+  const int selections_before = HumanoidMovementSelections();
+  const int switches_before = HumanoidMovementSwitches();
+  const int requeues_before = HumanoidMovementRequeues();
+  const int from_other_before = HumanoidMovementFromOtherAction();
+  const size_t lifetimes_before = HumanoidMovementCommandLifetimes_ms().size();
+  const size_t frames_before = HumanoidSelectedMovementFrames().size();
+  const int pure_before = HumanoidProceduralMovementTicks();
+
+  const int ticks = 400;
+  for (int tick = 0; tick < ticks; ++tick) env.step();
+
+  const int queries = HumanoidSchedulerQueries() - queries_before;
+  const int material = HumanoidMaterialCommandCandidates() - material_before;
+  const int material_accepted =
+      HumanoidMaterialCommandsAccepted() - accepted_before;
+  const int selections = HumanoidMovementSelections() - selections_before;
+  const int switches = HumanoidMovementSwitches() - switches_before;
+  const int requeues = HumanoidMovementRequeues() - requeues_before;
+  const int from_other =
+      HumanoidMovementFromOtherAction() - from_other_before;
+  const int pure_ticks = HumanoidProceduralMovementTicks() - pure_before;
+  std::vector<int> lifetimes(
+      HumanoidMovementCommandLifetimes_ms().begin() + lifetimes_before,
+      HumanoidMovementCommandLifetimes_ms().end());
+  std::vector<int> frames(HumanoidSelectedMovementFrames().begin() + frames_before,
+                         HumanoidSelectedMovementFrames().end());
+
+  Require(pure_ticks > 0,
+          "movement lifecycle: no pure locomotion tick was observed");
+  Require(selections > 0,
+          "movement lifecycle: no movement command was accepted");
+  Require(switches + requeues + from_other == selections,
+          "movement lifecycle: every acceptance must have exactly one reason");
+  Require(queries >= selections,
+          "movement lifecycle: an acceptance happened without a scheduler query");
+  Require(static_cast<int>(lifetimes.size()) == switches + requeues,
+          "movement lifecycle: lifetimes must match movement->movement");
+  Require(static_cast<int>(frames.size()) == selections,
+          "movement lifecycle: every acceptance must record one clip");
+
+  const auto percentile = [](std::vector<int> values, double fraction) {
+    if (values.empty()) return 0;
+    std::sort(values.begin(), values.end());
+    return values[static_cast<size_t>(std::floor(
+        fraction * static_cast<double>(values.size() - 1)))];
+  };
+  const auto mean = [](const std::vector<int>& values) {
+    double sum = 0.0;
+    for (int value : values) sum += value;
+    return values.empty() ? 0.0 : sum / values.size();
+  };
+
+  std::cout << "movement command lifecycle:\n";
+  std::cout << "  pure_ticks=" << pure_ticks << " selections=" << selections
+            << " switches=" << switches << " requeues=" << requeues
+            << " from_other_action=" << from_other << "\n";
+  std::cout << "  scheduler_queries=" << queries
+            << " material_candidates=" << material
+            << " material_accepted=" << material_accepted
+            << " material_rejected=" << (material - material_accepted) << "\n";
+  std::cout << "  selected_frame_count mean=" << mean(frames)
+            << " p50=" << percentile(frames, 0.50)
+            << " p90=" << percentile(frames, 0.90)
+            << " p99=" << percentile(frames, 0.99)
+            << " max=" << percentile(frames, 1.0) << "\n";
+  std::cout << "  command_lifetime_ms mean=" << mean(lifetimes)
+            << " p50=" << percentile(lifetimes, 0.50)
+            << " p90=" << percentile(lifetimes, 0.90)
+            << " p99=" << percentile(lifetimes, 0.99)
+            << " max=" << percentile(lifetimes, 1.0) << "\n";
+}
+
+
 void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "body-facing shadow grid: kickoff");
@@ -3202,6 +3286,7 @@ int main(int argc, char** argv) {
     MeasureLocomotionRegimeTransitions(env, config);
     MeasureLegacyBodyFacing(env, config);
     MeasureBodyFacingShadowGrid(env, config);
+    MeasureMovementCommandLifecycle(env, config);
     MeasureLocomotionPrediction(env, config);
     MeasureInterceptPrediction(env, config);
     MeasureHybridInterceptApproximation(env, config);

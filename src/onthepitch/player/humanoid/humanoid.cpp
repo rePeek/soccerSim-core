@@ -828,6 +828,8 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
   assert(command.desiredDirection.coords[2] == 0.0f);
   const PlayerActionState &action =
       CastPlayer()->GetSimulationActionState();
+  const bool material_candidate =
+      RecordSchedulerQuery(currentAnim.originatingCommand, command);
 
   // optimizations
   auto currentMentalImage = match->GetMentalImage(mentalImageTime);
@@ -1364,6 +1366,9 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     currentAnim.positions.assign(positions_tmp.begin(), positions_tmp.end());
     currentAnim.positionOffset = Vector3(0);
     currentAnim.originatingCommand = command;
+    RecordMovementCommandAcceptance(material_candidate, action.type,
+                                    action.elapsedTime_ms, localInterruptAnim,
+                                    command, currentAnim.anim);
     currentAnim.movementSmuggle = CalculateMovementSmuggle(command.desiredDirection, command.desiredVelocityFloat);
     currentAnim.movementSmuggleOffset = Vector3(0);
     CastPlayer()->BeginSimulationAction();

@@ -36,6 +36,30 @@ int &HumanoidProceduralMovementTicks();
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
 
+// H3e4e1 diagnostics: who owns the movement command lifetime right now. Every
+// accepted Movement command still arrives through an animation selection, so
+// these counters measure the scheduler we will have to replace, not the
+// locomotion model. Library-side single instances for the usual reason.
+int &HumanoidSchedulerQueries();
+int &HumanoidMaterialCommandCandidates();
+int &HumanoidMaterialCommandsAccepted();
+int &HumanoidMovementSelections();
+int &HumanoidMovementSwitches();
+int &HumanoidMovementRequeues();
+int &HumanoidMovementFromOtherAction();
+std::vector<int> &HumanoidMovementCommandLifetimes_ms();
+std::vector<int> &HumanoidSelectedMovementFrames();
+// Same criterion the movement scheduler itself uses to call a candidate "too
+// similar to what we are already trying to accomplish" (1.5 m/s momentum gap).
+bool MovementCommandDiffersMaterially(const PlayerCommand &in_force,
+                                      const PlayerCommand &candidate);
+// RecordMovementCommandAcceptance() is declared at the end of this header: it
+// needs the action/pose enums defined below.
+// Counts one scheduler query and returns whether the candidate differs
+// materially from the command already in force.
+bool RecordSchedulerQuery(const PlayerCommand &in_force,
+                          const PlayerCommand &candidate);
+
 class PlayerBase;
 class Match;
 
@@ -330,5 +354,14 @@ class HumanoidBase {
     int mentalImageTime = 0;
 
 };
+
+// Called at the single point where a selection replaces the command in force,
+// so the recorded reason is the real scheduler decision and not a replay.
+void RecordMovementCommandAcceptance(bool material_candidate,
+                                     e_FunctionType previous_type,
+                                     int previous_elapsed_ms,
+                                     e_InterruptAnim interrupt,
+                                     const PlayerCommand &command,
+                                     const Animation *anim);
 
 #endif
