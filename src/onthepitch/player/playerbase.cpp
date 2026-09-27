@@ -161,6 +161,13 @@ void PlayerBase::ObserveLocomotionIntentCadence(bool legacy_opportunity) {
   const bool due = locomotionIntentScheduler.Due(now_ms);
   if (due) {
     ++PlayerLocomotionIntentDueTicks();
+    // c2a2: a due tick that the simulation must not consume. Consuming it here
+    // would query the controller during a pass, shot or trip and then hand
+    // locomotion an intent that is already hundreds of ms old when the action
+    // ends; the flipped scheduler keeps the clock overdue instead.
+    if (!IsEligibleForProceduralLocomotion()) {
+      ++PlayerLocomotionIntentDueIneligibleTicks();
+    }
     locomotionIntentScheduler.Schedule(
         now_ms, LocomotionIntentScheduler::CadenceForDistance_ms(
                     distance_to_ball, match->GetBallRetainer() == this));

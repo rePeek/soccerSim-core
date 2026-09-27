@@ -2085,7 +2085,13 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << PlayerLocomotionIntentDueTicks()
             << " legacy_opportunities="
             << PlayerLocomotionIntentLegacyOpportunityTicks()
-            << " overlap=" << PlayerLocomotionIntentOverlapTicks() << "\n";
+            << " overlap=" << PlayerLocomotionIntentOverlapTicks()
+            << " due_ineligible="
+            << PlayerLocomotionIntentDueIneligibleTicks()
+            << " due_eligible="
+            << (PlayerLocomotionIntentDueTicks() -
+                PlayerLocomotionIntentDueIneligibleTicks())
+            << "\n";
 
   // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken
   // before the foot stable_sort, so a changed winner is caused by foot alone.
