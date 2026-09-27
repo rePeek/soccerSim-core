@@ -773,15 +773,17 @@ void PlayerBase::BeginSimulationAction() {
   PlayerActionExecutor::Begin(actionState, definition);
   PlayerActionExecutor::Begin(actionState, definition);
 
-  // Selection transitions now have a simulation-owned final Movement writer
-  // after SelectAnim returns: DirectMovementIntent for controller output and
+  // Selection transitions have a simulation-owned final Movement writer after
+  // SelectAnim returns: DirectMovementIntent for controller output and
   // SimulationFallbackIntent for the local Trip fallback. Their raw legacy
-  // re-anchor is therefore a dead intermediate write and is skipped below.
+  // re-anchor is a dead intermediate write and is skipped below.
   //
-  // ResetSituation remains the only explicit legacy lifecycle override: its
-  // carried command is actually consumed before the next Direct refresh.
-  // RetainSelection was never consumed and Direct overwrote it immediately, so
-  // its raw write is also a dead intermediate and is skipped permanently.
+  // The ResetSituation override that remains is also migration scaffolding, not
+  // execution: since the authority flip, a reset advances the continuity epoch
+  // instead, which makes the old decision intent stale and forces a fresh
+  // decision before locomotion runs. Nothing this branch writes is consumed by
+  // locomotion any more; it only keeps the compatibility slot populated until
+  // the legacy producers are removed.
   const bool lifecycle_rebuild =
       resolved_begin_reason != kBeginRetainSelection &&
       resolved_begin_reason >= kBeginResetPosition;
