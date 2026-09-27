@@ -155,6 +155,8 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
     if (wasPureLocomotionLastTick) {
       decisionGenerationAtLocomotionExit = generation;
       locomotionExitRecorded = true;
+      // Leaving locomotion is a continuity break.
+      ++decisionLocomotionState.continuityEpoch;
       ++LocomotionActionExitCount();
     }
     wasPureLocomotionLastTick = false;
@@ -173,6 +175,12 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
   ++audit.ticks;
   if (legacy_gate) ++audit.legacy_gate_true; else ++audit.legacy_gate_false;
   if (scheduler_due) ++audit.scheduler_due; else ++audit.scheduler_not_due;
+  // Shadow of the epoch rule. Continuous locomotion must never require a fresh
+  // decision just because the cadence is due.
+  if (decisionLocomotionState.publishedEpoch !=
+      decisionLocomotionState.continuityEpoch) {
+    ++audit.would_require_fresh;
+  }
   if (category >= 2) {
     // Reset is itself the discontinuity, so it anchors the comparison; other
     // re-entries require an observed locomotion exit.
@@ -414,11 +422,14 @@ void PlayerBase::SetSimulationMovementCommand(
         ++DecisionPublicationViaLegacyOpportunityOnly();
       }
       if (lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
-          static_cast<int>(match->GetActualTime_ms());
+      // A publication belongs to the continuity epoch it was produced in, which
+      // is what makes it usable for this epoch's locomotion execution.
       // The decision-owned shadow is written here and nowhere else.
       decisionLocomotionState.command = command;
       decisionLocomotionState.initialized = true;
       ++decisionLocomotionState.generation;
+      decisionLocomotionState.publishedEpoch =
+          decisionLocomotionState.continuityEpoch;
       break;
     case LocomotionCommandSource::SimulationFallbackIntent:
       ++PlayerMovementCommandFallbackAdoptions();
@@ -1072,6 +1083,8 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
     resetGenerationAnchorValid = true;
     lastResetSituation_ms = static_cast<int>(match->GetActualTime_ms());
     resetSinceLastPlayerTick = true;
+    // A reset is also a continuity break, so any earlier intent is invalid.
+    ++decisionLocomotionState.continuityEpoch;
     if (resetSituationAuditContext == kResetSituationUnspecified) {
       resetSituationAuditContext = hasProcessedPlayerTick
           ? kResetSituationRuntime

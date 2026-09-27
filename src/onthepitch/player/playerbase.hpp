@@ -132,6 +132,11 @@ struct PlayerDecisionLocomotionState {
   PlayerCommand command;
   bool initialized = false;
   unsigned long long generation = 0;
+  // H3e4f-g0b-continuity-epoch: validity is a continuity property, not a time
+  // one. The epoch advances when the world leaves locomotion continuity, so an
+  // intent published in an earlier epoch must not drive the new one.
+  unsigned long long continuityEpoch = 0;
+  unsigned long long publishedEpoch = 0;
 };
 int &DecisionLocomotionIntentPresentTicks();
 int &DecisionLocomotionIntentMissingTicks();
@@ -162,6 +167,9 @@ struct LocomotionReentryAudit {
   long decision_age_sum_ms = 0;
   int decision_age_count = 0;
   int decision_age_max_ms = -1;
+  // Shadow of the epoch rule: this epoch has no publication yet, so a decision
+  // would be required before this locomotion state could be executed.
+  int would_require_fresh = 0;
 };
 LocomotionReentryAudit &LocomotionReentryAuditFor(int category);
 int &LocomotionActionExitCount();

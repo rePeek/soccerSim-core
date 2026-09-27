@@ -2312,12 +2312,17 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
               << " scheduler_not_due=" << audit.scheduler_not_due
               << " unchanged_and_legacy_false="
               << audit.unchanged_and_legacy_gate_false
+              << " would_require_fresh=" << audit.would_require_fresh
               << " decision_age_mean/max=";
     std::cout << (audit.decision_age_count
                       ? audit.decision_age_sum_ms / audit.decision_age_count
                       : -1)
               << "/" << audit.decision_age_max_ms << "\n";
   }
+  // Observation, not an invariant: continuous locomotion may legitimately require
+  // a fresh decision when a reset advanced the epoch while the actor stayed
+  // eligible. Those post-reset stale-epoch ticks are reported, not forbidden;
+  // attributing them needs one further measurement.
   Require(LocomotionReentryAuditFor(2).ticks <= LocomotionActionExitCount(),
           "reentry audit: action re-entries exceed observed locomotion exits");
   Require(LocomotionNegativeDecisionAgeSamples() == 0,
