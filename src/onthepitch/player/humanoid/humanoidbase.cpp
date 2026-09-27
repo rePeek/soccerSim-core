@@ -330,8 +330,6 @@ void HumanoidBase::Process() {
   // schedules share one command queue, so queries equal the union of a due tick
   // and a legacy animation opportunity rather than the sum.
   const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
-  const bool locomotion_eligible_before =
-      player->IsEligibleForProceduralLocomotion();
   const bool simulation_due =
       player->NoteLocomotionIntentCadence(legacy_opportunity);
   if (legacy_opportunity || simulation_due) {
@@ -344,6 +342,7 @@ void HumanoidBase::Process() {
     // would break provenance.
     PlayerCommandQueue controllerQueue;
     bool controller_queried = false;
+    bool published_this_tick = false;
     const auto EnsureControllerQuery = [&]() {
       if (controller_queried) return;
       player->RequestCommand(controllerQueue);
@@ -377,6 +376,7 @@ void HumanoidBase::Process() {
       EnsureControllerQuery();
       if (PublishMovementIntentFromQueue(player, controllerQueue)) {
         ++HumanoidIntentRefreshes();
+        published_this_tick = true;
         player->CommitLocomotionIntentRefresh();
       } else {
         ++HumanoidIntentCandidatesMissing();
@@ -431,15 +431,16 @@ void HumanoidBase::Process() {
     // Movement, i.e. eligibility went false -> true inside this decision phase.
     // Consume the held refresh here, reusing the queue this tick already queried;
     // never issue a second controller query.
-    const bool locomotion_eligible_after =
-        player->IsEligibleForProceduralLocomotion();
-    if (!locomotion_eligible_before && locomotion_eligible_after &&
-        controller_queried) {
+    // 4b''-flip: any real controller query offers a Movement candidate, and the
+    // simulation now owns publishing it. Runs after SelectAnim so the legacy
+    // republish inside it can no longer be the tick's last writer.
+    if (controller_queried && !published_this_tick) {
       if (PublishMovementIntentFromQueue(player, controllerQueue)) {
-        ++HumanoidEligibilityGainRefreshes();
+        ++HumanoidIntentRefreshes();
         player->CommitLocomotionIntentRefresh();
+        published_this_tick = true;
       } else {
-        ++HumanoidEligibilityGainCandidatesMissing();
+        ++HumanoidIntentCandidatesMissing();
       }
     }
     if (interruptAnim != e_InterruptAnim_ReQueue && !found) {
