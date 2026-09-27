@@ -77,6 +77,7 @@ int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return valu
 // so callers can commit the scheduler refresh only on an actual publication.
 int &PlayerMovementCommandDirectAdoptions() { static int value = 0; return value; }
 int &PlayerMovementCommandLegacyAdoptions() { static int value = 0; return value; }
+int &PlayerMovementCommandFallbackAdoptions() { static int value = 0; return value; }
 int &PlayerLocomotionIntentDueTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentLegacyOpportunityTicks() { static int value = 0; return value; }
 int &PlayerLocomotionIntentOverlapTicks() { static int value = 0; return value; }
@@ -92,6 +93,7 @@ int &PlayerPathLocalTripAttempts() { static int value = 0; return value; }
 int &PlayerPathLocalTripSelected() { static int value = 0; return value; }
 int &PlayerPathLocalTripMovementFallbackSelected() { static int value = 0; return value; }
 int &PlayerPathLocalTripMovementFallbackMaterialReanchor() { static int value = 0; return value; }
+int &PlayerPathLocalTripMovementFallbackRefreshCommits() { static int value = 0; return value; }
 int &PlayerPathCandidatesMissing() { static int value = 0; return value; }
 int &HumanoidBasePathRefreshCommits() { static int value = 0; return value; }
 int &HeldDueMovementRetainsTicks() { static int value = 0; return value; }

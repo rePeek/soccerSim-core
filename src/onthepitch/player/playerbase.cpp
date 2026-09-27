@@ -189,21 +189,27 @@ void PlayerBase::SetSimulationMovementCommand(
   // may never overwrite an established Movement intent, and every such attempt
   // is counted so the migration can prove the animation lifecycle stopped being
   // a producer.
-  if (command.desiredFunctionType == e_FunctionType_Movement) {
-    if (source != LocomotionCommandSource::DirectMovementIntent) {
-      if (movementCommandState.initialized) {
-        ++LegacyMovementOverwriteAttempts();
-        return;
-      }
-    }
+  const bool simulation_owned_movement_source =
+      source == LocomotionCommandSource::DirectMovementIntent ||
+      source == LocomotionCommandSource::SimulationFallbackIntent;
+  if (command.desiredFunctionType == e_FunctionType_Movement &&
+      !simulation_owned_movement_source && movementCommandState.initialized) {
+    ++LegacyMovementOverwriteAttempts();
+    return;
   }
   movementCommandState.command = command;
   movementCommandState.source = source;
   movementCommandState.initialized = true;
-  if (source == LocomotionCommandSource::DirectMovementIntent) {
-    ++PlayerMovementCommandDirectAdoptions();
-  } else {
-    ++PlayerMovementCommandLegacyAdoptions();
+  switch (source) {
+    case LocomotionCommandSource::DirectMovementIntent:
+      ++PlayerMovementCommandDirectAdoptions();
+      break;
+    case LocomotionCommandSource::SimulationFallbackIntent:
+      ++PlayerMovementCommandFallbackAdoptions();
+      break;
+    default:
+      ++PlayerMovementCommandLegacyAdoptions();
+      break;
   }
 }
 
@@ -234,6 +240,10 @@ bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
 }
 
 void PlayerBase::CommitLocomotionIntentRefresh() {
+  if (movementCommandState.source ==
+      LocomotionCommandSource::SimulationFallbackIntent) {
+    ++PlayerPathLocalTripMovementFallbackRefreshCommits();
+  }
   ++HumanoidIntentRefreshCommits();
   DO_VALIDATION;
   // How long a legacy re-anchor value stayed in force until the simulation
@@ -369,9 +379,10 @@ void PlayerBase::CheckSimulationMovementCommandOracle() const {
   if (!movementCommandState.initialized) return;
   // c2b authority invariant, source-dependent. A direct simulation Movement
   // intent is the producer now: legacy is no longer its oracle, so disagreement
-  // is measured instead of fatal. A legacy-accepted locomotion command
-  // (BallControl / Trap) is still an exact mirror of the legacy anim and stays a
-  // fatal invariant until H3e4f-d removes that compatibility edge.
+  // is measured instead of fatal. A SimulationFallbackIntent is different: it is
+  // the very command SelectAnim accepted locally, so it deliberately remains a
+  // bit-exact fatal mirror below. Legacy BallControl/Trap stays exact until
+  // H3e4f-d removes that compatibility edge.
   const PlayerCommand &live = humanoid->GetCurrentAnim()->originatingCommand;
   const PlayerCommand &shadow = movementCommandState.command;
   if (movementCommandState.source ==

@@ -2007,6 +2007,7 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   const int foot_special_before = HumanoidFootSpecialStateDiff();
   const int foot_lifecycle_before = HumanoidFootLifecycleChanged();
   const int direct_before = PlayerMovementCommandDirectAdoptions();
+  const int fallback_before = PlayerMovementCommandFallbackAdoptions();
   const int legacy_before = PlayerMovementCommandLegacyAdoptions();
 
   const int ticks = 400;
@@ -2079,6 +2080,8 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << PlayerMovementCommandNonMovementTicks() << "\n";
   std::cout << "  command_source direct_movement_intent="
             << (PlayerMovementCommandDirectAdoptions() - direct_before)
+            << " simulation_fallback_intent="
+            << (PlayerMovementCommandFallbackAdoptions() - fallback_before)
             << " legacy_accepted_action="
             << (PlayerMovementCommandLegacyAdoptions() - legacy_before) << "\n";
   std::cout << "  intent_cadence simulation_due="
@@ -2122,12 +2125,21 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " selected=" << PlayerPathLocalTripSelected()
             << " movement_fallback_selected="
             << PlayerPathLocalTripMovementFallbackSelected()
+            << " movement_fallback_publications="
+            << PlayerMovementCommandFallbackAdoptions()
             << " movement_fallback_material_reanchor="
-            << PlayerPathLocalTripMovementFallbackMaterialReanchor() << "\n";
+            << PlayerPathLocalTripMovementFallbackMaterialReanchor()
+            << " movement_fallback_scheduler_commits="
+            << PlayerPathLocalTripMovementFallbackRefreshCommits() << "\n";
   Require(PlayerPathQueriesWithMovement() == PlayerPathDirectPublications(),
           "player path: a controller query with a Movement candidate was not published");
   Require(PlayerPathDirectPublications() == PlayerPathRefreshCommits(),
           "player path: a publication did not commit exactly once");
+  Require(PlayerPathLocalTripMovementFallbackSelected() ==
+              PlayerMovementCommandFallbackAdoptions(),
+          "player path: an accepted local Trip Movement fallback was not published");
+  Require(PlayerPathLocalTripMovementFallbackRefreshCommits() == 0,
+          "player path: a local Trip Movement fallback consumed the refresh scheduler");
   std::cout << "  intent_refreshes=" << HumanoidIntentRefreshes()
             << " candidates_missing=" << HumanoidIntentCandidatesMissing()
             << " gain_refreshes=" << HumanoidEligibilityGainRefreshes()

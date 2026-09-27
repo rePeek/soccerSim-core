@@ -28,6 +28,10 @@ enum class LocomotionCommandSource {
   LegacyCarriedForwardIntent,
   // Target ownership. Defined now, not produced yet.
   SimulationSeed,
+  // H3e4f-g0b-4b''-trip-fallback: a simulation-local, non-controller
+  // Movement fallback accepted after a Trip selection. APPEND ONLY: source is
+  // serialized as an int, so existing source values must remain stable.
+  SimulationFallbackIntent
 };
 
 struct PlayerMovementCommandState {

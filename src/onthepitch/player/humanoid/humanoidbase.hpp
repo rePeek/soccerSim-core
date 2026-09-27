@@ -39,6 +39,7 @@ int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
 int &PlayerMovementCommandNonMovementTicks();
 int &PlayerMovementCommandDirectAdoptions();
 int &PlayerMovementCommandLegacyAdoptions();
+int &PlayerMovementCommandFallbackAdoptions();
 int &PlayerLocomotionIntentDueTicks();
 int &PlayerLocomotionIntentLegacyOpportunityTicks();
 int &PlayerLocomotionIntentOverlapTicks();
@@ -62,6 +63,7 @@ int &PlayerPathLocalTripAttempts();
 int &PlayerPathLocalTripSelected();
 int &PlayerPathLocalTripMovementFallbackSelected();
 int &PlayerPathLocalTripMovementFallbackMaterialReanchor();
+int &PlayerPathLocalTripMovementFallbackRefreshCommits();
 // 4b': separate intent-refresh eligibility from execution eligibility.
 int &HeldDueMovementRetainsTicks();
 int &HeldDueMovementRetainsCandidate();

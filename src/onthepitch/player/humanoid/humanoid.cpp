@@ -299,6 +299,11 @@ void Humanoid::Process() {
               materialReanchorsBefore) {
             ++PlayerPathLocalTripMovementFallbackMaterialReanchor();
           }
+          // SelectAnim() has returned, including its temporary raw re-anchor.
+          // This local fallback is simulation-owned but not controller-owned, so
+          // it becomes the final writer without consuming the refresh scheduler.
+          CastPlayer()->SetSimulationMovementCommand(
+              command, LocomotionCommandSource::SimulationFallbackIntent);
         }
         break;
       }
