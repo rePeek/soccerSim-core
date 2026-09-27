@@ -1769,6 +1769,153 @@ void MeasureLocomotionRegimeTransitions(GameEnv& env,
           "measurement would be vacuous");
 }
 
+// H3e3b-prep1: establish the animation body-pose contract from the actual
+// pure-locomotion trajectory before choosing any procedural body-facing
+// parameters. This is measurement only: no production state reads these values.
+void MeasureLegacyBodyFacing(GameEnv& env, ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "body-facing measurement: kickoff");
+  Match* match = env.context->gameTask->GetMatch();
+
+  struct PendingSample {
+    Player* player;
+    PlayerKinematicState state;
+    PlayerCommand command;
+    int anim_id;
+  };
+  struct Bucket {
+    int samples = 0;
+    int look_samples = 0;
+    int turn_samples = 0;
+    int continued_turn_samples = 0;
+    double speed_sum = 0.0;
+    std::vector<double> absolute_relative_angles;
+    std::vector<double> absolute_desired_relative_angles;
+    std::vector<double> absolute_look_errors;
+    std::vector<double> absolute_turns;
+    std::vector<double> absolute_continued_turns;
+  };
+  Bucket buckets[4];
+
+  const int ticks = 400;
+  for (int tick = 0; tick < ticks; ++tick) {
+    std::vector<Player*> players;
+    match->GetActiveTeamPlayers(match->FirstTeam(), players);
+    match->GetActiveTeamPlayers(match->SecondTeam(), players);
+
+    std::vector<PendingSample> pending;
+    for (Player* player : players) {
+      if (!player->IsEligibleForProceduralLocomotion()) continue;
+      const Anim* anim = player->GetCurrentAnim();
+      pending.push_back(PendingSample{player, player->GetKinematicState(),
+                                      anim->originatingCommand, anim->id});
+    }
+
+    env.step();
+
+    for (const PendingSample& sample : pending) {
+      const e_Velocity velocity_class =
+          FloatToEnumVelocity(sample.state.velocity.GetLength());
+      Bucket& bucket = buckets[static_cast<int>(velocity_class)];
+      ++bucket.samples;
+      bucket.speed_sum += sample.state.velocity.GetLength();
+      bucket.absolute_relative_angles.push_back(std::fabs(
+          sample.state.bodyFacing.GetAngle2D(sample.state.facing)));
+
+      if (sample.command.useDesiredLookAt) {
+        const Vector3 look_delta =
+            (sample.command.desiredLookAt - sample.state.position).Get2D();
+        if (look_delta.GetLength() > 0.0001f) {
+          const Vector3 desired_look =
+              look_delta.GetNormalized(sample.state.bodyFacing);
+          bucket.absolute_desired_relative_angles.push_back(std::fabs(
+              desired_look.GetAngle2D(sample.state.facing)));
+          bucket.absolute_look_errors.push_back(std::fabs(
+              sample.state.bodyFacing.GetAngle2D(desired_look)));
+          ++bucket.look_samples;
+        }
+      }
+
+      const PlayerKinematicState& actual = sample.player->GetKinematicState();
+      const double turn = std::fabs(
+          actual.bodyFacing.GetAngle2D(sample.state.bodyFacing));
+      bucket.absolute_turns.push_back(turn);
+      ++bucket.turn_samples;
+      if (sample.player->IsEligibleForProceduralLocomotion() &&
+          sample.player->GetCurrentAnim()->id == sample.anim_id) {
+        bucket.absolute_continued_turns.push_back(turn);
+        ++bucket.continued_turn_samples;
+      }
+    }
+  }
+
+  const auto mean = [](const std::vector<double>& values) {
+    double sum = 0.0;
+    for (double value : values) sum += value;
+    return values.empty() ? 0.0 : sum / values.size();
+  };
+  const auto percentile = [](std::vector<double> values, double fraction) {
+    if (values.empty()) return 0.0;
+    std::sort(values.begin(), values.end());
+    const size_t index = static_cast<size_t>(
+        std::floor(fraction * static_cast<double>(values.size() - 1)));
+    return values[index];
+  };
+
+  int total_samples = 0;
+  std::cout << "legacy body-facing by speed class (radians):\n";
+  for (int index = 0; index < 4; ++index) {
+    const Bucket& bucket = buckets[index];
+    total_samples += bucket.samples;
+    if (bucket.samples == 0) {
+      std::cout << "  "
+                << VelocityClassName(static_cast<e_Velocity>(index))
+                << " samples=0\n";
+      continue;
+    }
+    std::cout << "  " << VelocityClassName(static_cast<e_Velocity>(index))
+              << " samples=" << bucket.samples
+              << " mean_speed=" << (bucket.speed_sum / bucket.samples)
+              << " abs_body_relative_mean="
+              << mean(bucket.absolute_relative_angles)
+              << " p90=" << percentile(bucket.absolute_relative_angles, 0.90)
+              << " p99=" << percentile(bucket.absolute_relative_angles, 0.99)
+              << " max=" << percentile(bucket.absolute_relative_angles, 1.0)
+              << " look_samples=" << bucket.look_samples
+              << " abs_desired_relative_mean="
+              << mean(bucket.absolute_desired_relative_angles)
+              << " desired_relative_p90="
+              << percentile(bucket.absolute_desired_relative_angles, 0.90)
+              << " desired_relative_p99="
+              << percentile(bucket.absolute_desired_relative_angles, 0.99)
+              << " desired_relative_max="
+              << percentile(bucket.absolute_desired_relative_angles, 1.0)
+              << " abs_body_to_look_mean="
+              << mean(bucket.absolute_look_errors)
+              << " body_to_look_p90="
+              << percentile(bucket.absolute_look_errors, 0.90)
+              << " body_to_look_p99="
+              << percentile(bucket.absolute_look_errors, 0.99)
+              << " body_to_look_max="
+              << percentile(bucket.absolute_look_errors, 1.0)
+              << " turn_samples=" << bucket.turn_samples
+              << " turn_mean=" << mean(bucket.absolute_turns)
+              << " turn_p90=" << percentile(bucket.absolute_turns, 0.90)
+              << " turn_p99=" << percentile(bucket.absolute_turns, 0.99)
+              << " turn_max=" << percentile(bucket.absolute_turns, 1.0)
+              << " continued_turn_samples=" << bucket.continued_turn_samples
+              << " continued_turn_p90="
+              << percentile(bucket.absolute_continued_turns, 0.90)
+              << " continued_turn_p99="
+              << percentile(bucket.absolute_continued_turns, 0.99)
+              << " continued_turn_max="
+              << percentile(bucket.absolute_continued_turns, 1.0) << "\n";
+  }
+  Require(total_samples > 0,
+          "body-facing measurement: no pure-locomotion samples were collected");
+}
+
+
 // H3e1c-2: reachability must be derived from the same model as execution.
 // Parallel measurement only: the AI still consumes its own heuristic and the
 // simulation is untouched. For a fixed target it compares the legacy
@@ -2756,6 +2903,7 @@ int main(int argc, char** argv) {
     CheckMovementAuthorityTiming(env, config);
     MeasureProceduralLocomotionDivergence(env, config);
     MeasureLocomotionRegimeTransitions(env, config);
+    MeasureLegacyBodyFacing(env, config);
     MeasureLocomotionPrediction(env, config);
     MeasureInterceptPrediction(env, config);
     MeasureHybridInterceptApproximation(env, config);
