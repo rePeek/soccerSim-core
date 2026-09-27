@@ -25,7 +25,6 @@
 
 #include "../match.hpp"
 
-int &RestartCarriedCommandForward() { static int value = 0; return value; }
 
 int &SimulationOnlyGateMismatchForResetContext(int context) {
   static int records[kResetSituationCallContextCount] = {};
@@ -239,9 +238,6 @@ const char *LocomotionReentryCategoryName(int category) {
   }
 }
 
-int &RestartConstructedCommand() { static int value = 0; return value; }
-int &RetainCarriedCommandForward() { static int value = 0; return value; }
-int &RetainConstructedCommand() { static int value = 0; return value; }
 
 #include "controller/elizacontroller.hpp"
 #include "controller/strategies/strategy.hpp"
@@ -606,15 +602,7 @@ bool PlayerBase::IsEligibleForProceduralLocomotion() const {
 
 void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   DO_VALIDATION;
-  // H3e4f-g0b-3a provenance: the reset rebuilds spatial state; does it build a command?
-  const PlayerCommand reset_command_before = humanoid->GetCurrentAnim()->originatingCommand;
   humanoid->ResetPosition(newPos, focusPos);
-  if (Vector3BitsEqual(humanoid->GetCurrentAnim()->originatingCommand.desiredDirection, reset_command_before.desiredDirection) &&
-      FloatBitsEqual(humanoid->GetCurrentAnim()->originatingCommand.desiredVelocityFloat, reset_command_before.desiredVelocityFloat)) {
-    ++RestartCarriedCommandForward();
-  } else {
-    ++RestartConstructedCommand();
-  }
   SynchronizeKinematicState();
   BeginSimulationAction();
 }

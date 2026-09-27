@@ -39,13 +39,6 @@ const char *ResetSituationCallContextName(int context);
 int &SimulationOnlyGateMismatchForResetContext(int context);
 void DumpQueryOpportunities();
 
-// H3e4f-g0b-3a provenance: does a restart boundary construct a new locomotion
-// command, or carry an older one forward?
-int &RestartCarriedCommandForward();
-int &RestartConstructedCommand();
-int &RetainCarriedCommandForward();
-int &RetainConstructedCommand();
-
 // 4f-a2 diagnostic shadow, retained for queue-equivalence telemetry. 4f-a3a
 // introduces the separate serialized PlayerDecisionQueueState below; this shadow
 // is never consumed by gameplay and remains transient.

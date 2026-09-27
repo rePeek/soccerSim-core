@@ -368,10 +368,6 @@ class HumanoidBase {
     virtual float GetDecayingDifficultyFactor() const { return decayingDifficultyFactor; }
 
     const Anim *GetCurrentAnim() { DO_VALIDATION; return &currentAnim; }
-    const PlayerCommand &GetOriginatingCommand() const {
-      DO_VALIDATION;
-      return currentAnim.originatingCommand;
-    }
 
     virtual void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState* state);

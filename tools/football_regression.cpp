@@ -2314,7 +2314,6 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << DirectVsLegacyCommandEqual()
             << " direct_vs_legacy_materially_different="
             << DirectVsLegacyCommandMateriallyDifferent() << "\n";
-  std::cout << "  provenance reset_carried=" << RestartCarriedCommandForward() << " reset_constructed=" << RestartConstructedCommand() << " retain_carried=" << RetainCarriedCommandForward() << " retain_constructed=" << RetainConstructedCommand() << "\n";
   const int refresh_commits = HumanoidBasePathRefreshCommits();
   const int successful_publications =
       HumanoidIntentRefreshes() + HumanoidEligibilityGainRefreshes();
