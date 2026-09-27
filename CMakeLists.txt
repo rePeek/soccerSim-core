@@ -60,6 +60,13 @@ if(BUILD_TESTING)
   add_test(NAME football_regression COMMAND football_regression)
   set_tests_properties(football_regression PROPERTIES
     ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
+  add_test(NAME football_animation_ab COMMAND football_regression --animation-ab)
+  set_tests_properties(football_animation_ab PROPERTIES
+    ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
+  add_test(NAME football_animation_ab_lifecycle
+    COMMAND football_regression --animation-ab-lifecycle)
+  set_tests_properties(football_animation_ab_lifecycle PROPERTIES
+    ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
 endif()
 
 # Loads libgame.so with dlopen and asserts no graphics library comes with it.

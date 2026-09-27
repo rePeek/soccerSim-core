@@ -3439,6 +3439,239 @@ void CheckDecisionContinuityRestoreDeterminism(GameEnv& env,
             << " published_epoch=" << first.published_epoch << "\n";
 }
 
+// 4f-c: two independent branches from one serialized state, not two mutating
+// SelectAnim calls on one state. This is a bounded perturbation observation:
+// only identical decision/action inputs can support a locomotion comparison.
+void CheckMovementAnimationPerturbation(GameEnv& env, ScenarioConfig& config,
+                                       bool require_frame_count_difference) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "animation A/B: kickoff");
+  Advance(env, 5);
+  const std::string checkpoint = env.get_state("");
+  MovementAnimationPerturbation &hook = MovementAnimationPerturbationAudit();
+  hook = MovementAnimationPerturbation();
+  struct Actor {
+    int id;
+    int anim_id;
+    PlayerKinematicState kinematics;
+    e_FunctionType action_type;
+    int action_frame;
+    int action_frame_count;
+    bool eligible;
+    unsigned long long queue_generation;
+    unsigned long long continuity_epoch;
+    unsigned long long published_epoch;
+    PlayerCommand intent;
+  };
+  struct Tick {
+    std::string digest;
+    int time_ms;
+    int decision_queries;
+    std::vector<Actor> actors;
+  };
+  const auto run_branch = [&](bool perturb) {
+    env.set_state(checkpoint);
+    hook = MovementAnimationPerturbation();
+    hook.require_frame_count_difference = require_frame_count_difference;
+    hook.enabled = false;
+    std::vector<Tick> ticks;
+    for (int t = 0; t < 400; ++t) {
+      // Ten unperturbed ticks establish a non-vacuous restore/equality prefix.
+      hook.enabled = perturb && t >= 10;
+      const int queries_before = PlayerDecisionClockQueries();
+      env.step();
+      Tick tick;
+      tick.digest = CaptureSimulationDigest(env);
+      tick.decision_queries = PlayerDecisionClockQueries() - queries_before;
+      Match *match = env.context->gameTask->GetMatch();
+      tick.time_ms = static_cast<int>(match->GetActualTime_ms());
+      std::vector<Player *> players;
+      match->GetActiveTeamPlayers(match->FirstTeam(), players);
+      match->GetActiveTeamPlayers(match->SecondTeam(), players);
+      for (Player *player : players) {
+        tick.actors.push_back(Actor{
+            player->GetStableID(), player->GetCurrentAnim()->id,
+            player->GetKinematicState(), player->GetSimulationActionState().type,
+            player->GetSimulationActionState().frame,
+            player->GetSimulationActionState().frameCount,
+            player->IsEligibleForProceduralLocomotion(),
+            player->GetPlayerDecisionGeneration(),
+            player->GetDecisionLocomotionContinuityEpoch(),
+            player->GetDecisionLocomotionPublishedEpoch(),
+            player->GetDecisionLocomotionIntent()});
+      }
+      ticks.push_back(std::move(tick));
+    }
+    hook.enabled = false;
+    return ticks;
+  };
+  const std::vector<Tick> baseline = run_branch(false);
+  const std::vector<Tick> alternative = run_branch(true);
+  const MovementAnimationPerturbation event = hook;
+  Require(event.applied && event.original_anim_id != event.alternative_anim_id,
+          "animation A/B: no Movement foot-order winner changed");
+  const std::vector<Tick> replay = run_branch(false);
+  Require(baseline.size() == alternative.size() && baseline.size() == replay.size(),
+          "animation A/B: branch lengths differ");
+  for (size_t t = 0; t < baseline.size(); ++t) {
+    const Tick &a = baseline[t], &b = replay[t];
+    Require(a.digest == b.digest && a.decision_queries == b.decision_queries &&
+                a.time_ms == b.time_ms && a.actors.size() == b.actors.size(),
+            "animation A/B: baseline not deterministic after restore");
+    for (size_t i = 0; i < a.actors.size(); ++i) {
+      Require(a.actors[i].id == b.actors[i].id &&
+                  a.actors[i].anim_id == b.actors[i].anim_id &&
+                  a.actors[i].action_type == b.actors[i].action_type &&
+                  a.actors[i].action_frame == b.actors[i].action_frame &&
+                  a.actors[i].action_frame_count == b.actors[i].action_frame_count &&
+                  a.actors[i].queue_generation == b.actors[i].queue_generation &&
+                  a.actors[i].published_epoch == b.actors[i].published_epoch,
+              "animation A/B: presentation or decision clock differs on replay");
+    }
+  }
+  const auto actor_by_id = [&](const Tick &tick) -> const Actor * {
+    for (const Actor &actor : tick.actors)
+      if (actor.id == event.player_id) return &actor;
+    return nullptr;
+  };
+  const auto same_vector = [](const Vector3 &a, const Vector3 &b) {
+    for (int axis = 0; axis < 3; ++axis)
+      if (FloatBits(a.coords[axis]) != FloatBits(b.coords[axis])) return false;
+    return true;
+  };
+  const auto same_kinematics = [&](const Actor &a, const Actor &b) {
+    return same_vector(a.kinematics.position, b.kinematics.position) &&
+           same_vector(a.kinematics.velocity, b.kinematics.velocity) &&
+           same_vector(a.kinematics.facing, b.kinematics.facing) &&
+           same_vector(a.kinematics.bodyFacing, b.kinematics.bodyFacing) &&
+           FloatBits(a.kinematics.speed) == FloatBits(b.kinematics.speed);
+  };
+  int event_tick = -1, first_digest = -1, first_kinematics = -1;
+  int first_any_kinematics = -1, first_any_action = -1, first_any_queue = -1;
+  int first_action = -1, first_queue = -1, first_clock = -1;
+  int first_roster_or_time = -1;
+  int same_input_samples = 0, same_input_kinematic_diffs = 0;
+  for (size_t t = 0; t < baseline.size(); ++t) {
+    const Tick &a = baseline[t], &b = alternative[t];
+    if (a.time_ms != b.time_ms || a.actors.size() != b.actors.size()) {
+      first_roster_or_time = t;
+      break;  // No longer a common per-player comparison domain.
+    }
+    for (size_t i = 0; i < a.actors.size(); ++i) {
+      const Actor &left = a.actors[i], &right = b.actors[i];
+      if (left.id != right.id) {
+        first_roster_or_time = t;
+        break;
+      }
+      if (first_any_kinematics < 0 && !same_kinematics(left, right))
+        first_any_kinematics = t;
+      if (first_any_action < 0 &&
+          (left.action_type != right.action_type ||
+           left.action_frame != right.action_frame ||
+           left.action_frame_count != right.action_frame_count))
+        first_any_action = t;
+      if (first_any_queue < 0 &&
+          (left.queue_generation != right.queue_generation ||
+           left.continuity_epoch != right.continuity_epoch ||
+           left.published_epoch != right.published_epoch ||
+           !PlayerCommandsDecisionEqual(left.intent, right.intent)))
+        first_any_queue = t;
+    }
+    if (first_roster_or_time >= 0) break;
+    const Actor *original = actor_by_id(a), *changed = actor_by_id(b);
+    Require(original && changed, "animation A/B: selected actor missing");
+    if (original->anim_id == event.original_anim_id &&
+        changed->anim_id == event.alternative_anim_id && event_tick < 0)
+      event_tick = static_cast<int>(t);
+    if (first_digest < 0 && a.digest != b.digest) first_digest = t;
+    if (first_kinematics < 0 && !same_kinematics(*original, *changed))
+      first_kinematics = t;
+    if (first_action < 0 &&
+        (original->action_type != changed->action_type ||
+         original->action_frame != changed->action_frame ||
+         original->action_frame_count != changed->action_frame_count))
+      first_action = t;
+    if (first_queue < 0 &&
+        (original->queue_generation != changed->queue_generation ||
+         original->continuity_epoch != changed->continuity_epoch ||
+         original->published_epoch != changed->published_epoch ||
+         !PlayerCommandsDecisionEqual(original->intent, changed->intent)))
+      first_queue = t;
+    if (first_clock < 0 && a.decision_queries != b.decision_queries)
+      first_clock = t;
+    if (event_tick >= 0 && original->eligible && changed->eligible &&
+        original->action_type == e_FunctionType_Movement &&
+        changed->action_type == e_FunctionType_Movement &&
+        original->action_frame == changed->action_frame &&
+        original->action_frame_count == changed->action_frame_count &&
+        original->queue_generation == changed->queue_generation &&
+        original->continuity_epoch == changed->continuity_epoch &&
+        original->published_epoch == changed->published_epoch &&
+        PlayerCommandsDecisionEqual(original->intent, changed->intent)) {
+      ++same_input_samples;
+      if (!same_kinematics(*original, *changed))
+        ++same_input_kinematic_diffs;
+    }
+  }
+  // env.step() advances up to 100 ms of 10 ms engine ticks: the injection
+  // timestamp is inside the first differing observation window.
+  Require(event_tick >= 10 && alternative[event_tick].time_ms >= event.time_ms &&
+              alternative[event_tick].time_ms - event.time_ms <= 100,
+          "animation A/B: changed candidate missing: tick=" +
+              std::to_string(event_tick) + " event_ms=" +
+              std::to_string(event.time_ms) + " tick_ms=" +
+              (event_tick < 0 ? "none" :
+               std::to_string(alternative[event_tick].time_ms)));
+  const auto not_before_event = [&](int tick) {
+    return tick < 0 || tick >= event_tick;
+  };
+  Require(not_before_event(first_digest) && not_before_event(first_kinematics) &&
+              not_before_event(first_any_kinematics) &&
+              not_before_event(first_any_action) && not_before_event(first_any_queue) &&
+              not_before_event(first_action) && not_before_event(first_queue) &&
+              not_before_event(first_clock),
+          "animation A/B: branches diverged before the perturbation event");
+  Require(not_before_event(first_roster_or_time),
+          "animation A/B: roster or clock diverged before perturbation");
+  std::cout << "  animation_ab mode="
+            << (require_frame_count_difference ? "frame_count" : "foot_order")
+            << " event_tick=" << event_tick
+            << " time_ms=" << event.time_ms << " player=" << event.player_id
+            << " anim=" << event.original_anim_id << "->"
+            << event.alternative_anim_id << " first_digest=" << first_digest
+            << " first_kinematics=" << first_kinematics
+            << " first_any_kinematics=" << first_any_kinematics
+            << " first_any_action=" << first_any_action
+            << " first_any_queue=" << first_any_queue
+            << " first_action=" << first_action
+            << " first_queue=" << first_queue
+            << " first_clock=" << first_clock
+            << " first_roster_or_time=" << first_roster_or_time
+            << " same_input_samples=" << same_input_samples
+            << " same_input_kinematic_diffs=" << same_input_kinematic_diffs
+            << " status="
+            << (first_digest >= 0 || first_any_kinematics >= 0 ||
+                first_any_action >= 0 || first_any_queue >= 0 ||
+                first_clock >= 0 || first_roster_or_time >= 0
+                    ? "gameplay_diverged" : "equivalence_unproven")
+            << "\n";
+  if (require_frame_count_difference) {
+    Require(first_any_action == event_tick && first_action == event_tick,
+            "animation A/B: frame-count perturbation lost its lifecycle first cause");
+    Require(first_digest >= event_tick &&
+                first_any_kinematics > first_any_action,
+            "animation A/B: frame-count divergence attribution changed");
+  } else {
+    Require(first_digest < 0 && first_any_kinematics < 0 &&
+                first_any_action < 0 && first_any_queue < 0 &&
+                first_clock < 0 && first_roster_or_time < 0 &&
+                same_input_samples > 0 && same_input_kinematic_diffs == 0,
+            "animation A/B: foot-order bounded equality corpus changed");
+  }
+  // This run can demonstrate a difference, but a finite matching prefix cannot
+  // prove independence for all possible animation/action lifecycles.
+}
+
 void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   Require(!env.get_info().is_in_play, "kickoff should begin paused");
@@ -3806,6 +4039,13 @@ int main(int argc, char** argv) {
     // output over the `golden` array in CheckGoldenSnapshots.
     if (argc > 1 && std::string(argv[1]) == "--print-baseline") {
       PrintBaseline(env, config);
+      return 0;
+    }
+    if (argc > 1 && (std::string(argv[1]) == "--animation-ab" ||
+                     std::string(argv[1]) == "--animation-ab-lifecycle")) {
+      CheckMovementAnimationPerturbation(
+          env, config, std::string(argv[1]) == "--animation-ab-lifecycle");
+      std::cout << "football_regression: PASS (animation A/B observation)\n";
       return 0;
     }
 

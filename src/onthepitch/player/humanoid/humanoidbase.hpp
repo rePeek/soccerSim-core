@@ -192,6 +192,18 @@ int &HumanoidFootSpecialStateDiff();
 int &HumanoidFootLifecycleChanged();
 void RecordFootCounterfactual(int with_foot_head, int without_foot_head,
                               AnimCollection *anims);
+// 4f-c diagnostic A/B hook. Transient and disabled in normal gameplay; a
+// restored branch can choose the alternative Movement foot order exactly once.
+struct MovementAnimationPerturbation {
+  bool enabled = false;
+  bool require_frame_count_difference = false;
+  bool applied = false;
+  int player_id = -1;
+  int time_ms = -1;
+  int original_anim_id = -1;
+  int alternative_anim_id = -1;
+};
+MovementAnimationPerturbation &MovementAnimationPerturbationAudit();
 // RecordMovementCommandAcceptance() is declared at the end of this header: it
 // needs the action/pose enums defined below.
 // Counts one scheduler query and returns whether the candidate differs

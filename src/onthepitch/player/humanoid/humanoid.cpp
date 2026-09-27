@@ -1442,6 +1442,26 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
                                anims.get());
     }
   }
+  MovementAnimationPerturbation &perturbation =
+      MovementAnimationPerturbationAudit();
+  if (perturbation.enabled && !perturbation.applied && foot_counterfactual &&
+      localInterruptAnim == e_InterruptAnim_Switch &&
+      action.type == e_FunctionType_Movement &&
+      CastPlayer()->IsEligibleForProceduralLocomotion() &&
+      !dataSet.empty() && !withoutFootSort.empty() &&
+      dataSet.front() != withoutFootSort.front() &&
+      (!perturbation.require_frame_count_difference ||
+       anims->GetAnim(dataSet.front())->GetFrameCount() !=
+           anims->GetAnim(withoutFootSort.front())->GetFrameCount())) {
+    perturbation.applied = true;
+    perturbation.player_id = CastPlayer()->GetStableID();
+    perturbation.time_ms = static_cast<int>(match->GetActualTime_ms());
+    perturbation.original_anim_id = dataSet.front();
+    perturbation.alternative_anim_id = withoutFootSort.front();
+    // Only reorder the single branch's local candidate set. SelectAnim runs
+    // once; the saved baseline branch independently runs the normal order.
+    dataSet.swap(withoutFootSort);
+  }
   GetContext().tracker_disabled--;
 
   int selectedAnimID = -1;

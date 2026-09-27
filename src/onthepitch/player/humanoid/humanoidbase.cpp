@@ -435,6 +435,11 @@ void RecordMovementCommandAcceptance(bool material_candidate,
 }
 
 
+MovementAnimationPerturbation &MovementAnimationPerturbationAudit() {
+  static MovementAnimationPerturbation value;
+  return value;
+}
+
 int &HumanoidFootCounterfactualSelections() { static int value = 0; return value; }
 int &HumanoidFootWinnerChanged() { static int value = 0; return value; }
 int &HumanoidFootFrameCountDiff() { static int value = 0; return value; }
