@@ -2324,6 +2324,17 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
           "reentry audit: a decision age was negative inside a clean epoch");
   std::cout << "  locomotion_negative_decision_age_samples="
             << LocomotionNegativeDecisionAgeSamples() << "\n";
+  std::cout << "  decision_publication via_simulation_cadence="
+            << DecisionPublicationViaSimulationCadence()
+            << " via_legacy_opportunity_only="
+            << DecisionPublicationViaLegacyOpportunityOnly()
+            << " while_ineligible=" << DecisionPublicationWhileIneligible()
+            << "\n";
+  std::cout << "  reentry_fresh via_simulation_cadence="
+            << ReentryFreshViaSimulationCadence()
+            << " via_legacy_opportunity_only="
+            << ReentryFreshViaLegacyOpportunityOnly()
+            << " while_ineligible=" << ReentryFreshWhileIneligible() << "\n";
   std::cout << "  movement_oracle source[action,direct,legacy,seed,fallback]="
             << MovementOracleConsumesForSource(0) << ","
             << MovementOracleConsumesForSource(1) << ","

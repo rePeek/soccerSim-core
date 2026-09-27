@@ -106,6 +106,13 @@ int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
   return records[source];
 }
 int &LocomotionActionExitCount() { static int value = 0; return value; }
+int &DecisionPublicationViaSimulationCadence() { static int value = 0; return value; }
+int &DecisionPublicationViaLegacyOpportunityOnly() { static int value = 0; return value; }
+int &DecisionPublicationWhileIneligible() { static int value = 0; return value; }
+int &ReentryFreshViaSimulationCadence() { static int value = 0; return value; }
+int &ReentryFreshViaLegacyOpportunityOnly() { static int value = 0; return value; }
+int &ReentryFreshWhileIneligible() { static int value = 0; return value; }
+
 int &LocomotionNegativeDecisionAgeSamples() { static int value = 0; return value; }
 int &LocomotionReentryMeasurementEpoch() { static int value = 0; return value; }
 void ResetLocomotionReentryAudits() {
@@ -114,6 +121,12 @@ void ResetLocomotionReentryAudits() {
   }
   LocomotionActionExitCount() = 0;
   LocomotionNegativeDecisionAgeSamples() = 0;
+  DecisionPublicationViaSimulationCadence() = 0;
+  DecisionPublicationViaLegacyOpportunityOnly() = 0;
+  DecisionPublicationWhileIneligible() = 0;
+  ReentryFreshViaSimulationCadence() = 0;
+  ReentryFreshViaLegacyOpportunityOnly() = 0;
+  ReentryFreshWhileIneligible() = 0;
   // Per-player provenance is scoped by epoch, so a player resets its own audit
   // state on its next tick without iterating the roster.
   ++LocomotionReentryMeasurementEpoch();
@@ -170,6 +183,12 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
         : decisionGenerationAtLocomotionExit;
     if (anchor_valid && generation != anchor) {
       ++audit.generation_advanced;
+      if (lastPublicationViaSimulationCadence) {
+        ++ReentryFreshViaSimulationCadence();
+      } else {
+        ++ReentryFreshViaLegacyOpportunityOnly();
+      }
+      if (lastPublicationWhileIneligible) ++ReentryFreshWhileIneligible();
     } else if (anchor_valid) {
       ++audit.generation_unchanged;
       if (!legacy_gate) ++audit.unchanged_and_legacy_gate_false;
@@ -382,6 +401,19 @@ void PlayerBase::SetSimulationMovementCommand(
     case LocomotionCommandSource::DirectMovementIntent:
       ++PlayerMovementCommandDirectAdoptions();
       lastDirectMovementIntentPublication_ms =
+          static_cast<int>(match->GetActualTime_ms());
+      // Cause split without changing the player path: a publication on a tick
+      // where the simulation cadence was not due can only have come from the
+      // animation lifecycle's query opportunity.
+      lastPublicationViaSimulationCadence = locomotionIntentDueThisTick;
+      lastPublicationWhileIneligible =
+          !IsEligibleForProceduralLocomotion();
+      if (lastPublicationViaSimulationCadence) {
+        ++DecisionPublicationViaSimulationCadence();
+      } else {
+        ++DecisionPublicationViaLegacyOpportunityOnly();
+      }
+      if (lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
           static_cast<int>(match->GetActualTime_ms());
       // The decision-owned shadow is written here and nowhere else.
       decisionLocomotionState.command = command;

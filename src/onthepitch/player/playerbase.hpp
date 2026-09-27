@@ -165,6 +165,15 @@ struct LocomotionReentryAudit {
 };
 LocomotionReentryAudit &LocomotionReentryAuditFor(int category);
 int &LocomotionActionExitCount();
+// Publication cause split, derived without touching the player path: a
+// publication on a tick where the simulation cadence was not due can only have
+// come from the animation lifecycle's query opportunity.
+int &DecisionPublicationViaSimulationCadence();
+int &DecisionPublicationViaLegacyOpportunityOnly();
+int &DecisionPublicationWhileIneligible();
+int &ReentryFreshViaSimulationCadence();
+int &ReentryFreshViaLegacyOpportunityOnly();
+int &ReentryFreshWhileIneligible();
 int &LocomotionNegativeDecisionAgeSamples();
 int &LocomotionReentryMeasurementEpoch();
 void ResetLocomotionReentryAudits();
@@ -415,6 +424,10 @@ class PlayerBase {
     bool reentryAuditStarted = false;
     bool wasPureLocomotionLastTick = false;
     bool resetSinceLastPlayerTick = false;
+    // Cause and eligibility of the latest Direct publication, and that of the
+    // publication that made a re-entry generation fresh.
+    bool lastPublicationViaSimulationCadence = false;
+    bool lastPublicationWhileIneligible = false;
     unsigned long long decisionGenerationAtLocomotionExit = 0;
     int GetDecisionLocomotionIntentGeneration() const {
       return static_cast<int>(decisionLocomotionState.generation);
