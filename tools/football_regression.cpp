@@ -3672,6 +3672,119 @@ void CheckMovementAnimationPerturbation(GameEnv& env, ScenarioConfig& config,
   // prove independence for all possible animation/action lifecycles.
 }
 
+// 5a1: observation only. Each delta is measured across one fresh match corpus,
+// not across telemetry from earlier scenarios or restored branches.
+void MeasureContactAuthority(GameEnv& env, ScenarioConfig& config) {
+  const e_FunctionType types[] = {
+      e_FunctionType_Shot, e_FunctionType_ShortPass,
+      e_FunctionType_LongPass, e_FunctionType_HighPass,
+      e_FunctionType_Trap, e_FunctionType_BallControl};
+  const char *names[] = {
+      "Shot", "ShortPass", "LongPass", "HighPass", "Trap", "BallControl"};
+  std::vector<ContactAuthorityAudit> before;
+  for (e_FunctionType type : types) before.push_back(ContactAuthorityFor(type));
+  ContactAuthorityAuditEnabled() = true;
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "contact authority: kickoff");
+  Advance(env, 1000);
+  ContactAuthorityAuditEnabled() = false;
+  const auto percentile = [](auto samples, double fraction) -> double {
+    if (samples.empty()) return -1.0;
+    std::sort(samples.begin(), samples.end());
+    const size_t index = static_cast<size_t>((samples.size() - 1) * fraction);
+    return samples[index];
+  };
+  int scheduled_total = 0, impulse_total = 0;
+  for (size_t i = 0; i < before.size(); ++i) {
+    const ContactAuthorityAudit &old = before[i];
+    const ContactAuthorityAudit &now = ContactAuthorityFor(types[i]);
+    const int scheduled = now.scheduled - old.scheduled;
+    const int reached = now.at_contact_frame - old.at_contact_frame;
+    const int distance = now.distance_rejected - old.distance_rejected;
+    const int height = now.height_rejected - old.height_rejected;
+    const int reachable = now.physically_reachable - old.physically_reachable;
+    const int impulse = now.impulse_calls - old.impulse_calls;
+    const int suppressed = now.suppressed - old.suppressed;
+    scheduled_total += scheduled;
+    impulse_total += impulse;
+    Require(reached == distance + height + reachable &&
+                reached == impulse + suppressed && impulse <= reachable &&
+                now.nonzero_impulse_requests - old.nonzero_impulse_requests <= impulse,
+            std::string("contact authority: unbalanced contact stages for ") + names[i]);
+    const auto frames = std::vector<int>(
+        now.contact_frames.begin() + old.contact_frames.size(),
+        now.contact_frames.end());
+    const auto delays = std::vector<int>(
+        now.delays_ms.begin() + old.delays_ms.size(), now.delays_ms.end());
+    const auto elapsed = std::vector<int>(
+        now.observed_elapsed_ms.begin() + old.observed_elapsed_ms.size(),
+        now.observed_elapsed_ms.end());
+    const auto heights = std::vector<float>(
+        now.desired_ball_heights.begin() + old.desired_ball_heights.size(),
+        now.desired_ball_heights.end());
+    const auto distances = std::vector<float>(
+        now.full_ball_distances.begin() + old.full_ball_distances.size(),
+        now.full_ball_distances.end());
+    const auto biases = std::vector<float>(
+        now.bumpy_ride_biases.begin() + old.bumpy_ride_biases.size(),
+        now.bumpy_ride_biases.end());
+    const auto impulse_speeds = std::vector<float>(
+        now.impulse_request_speeds.begin() + old.impulse_request_speeds.size(),
+        now.impulse_request_speeds.end());
+    Require(static_cast<int>(frames.size()) == scheduled &&
+                static_cast<int>(delays.size()) == scheduled &&
+                static_cast<int>(elapsed.size()) == reached &&
+                static_cast<int>(heights.size()) == reached &&
+                static_cast<int>(distances.size()) == reached &&
+                static_cast<int>(biases.size()) == reached &&
+                static_cast<int>(impulse_speeds.size()) == impulse,
+            std::string("contact authority: sample count mismatch for ") + names[i]);
+    std::cout << "  contact_dependency " << names[i]
+              << " scheduled=" << scheduled << " at_frame=" << reached
+              << " reachable=" << reachable << " rejected_distance=" << distance
+              << " rejected_height=" << height << " impulse_calls=" << impulse
+              << " nonzero_requests="
+              << now.nonzero_impulse_requests - old.nonzero_impulse_requests
+              << " suppressed=" << suppressed
+              << " reachable_without_impulse="
+              << now.reachable_without_impulse - old.reachable_without_impulse
+              << " pass_fiddling=" << now.pass_fiddling - old.pass_fiddling
+              << " knock_on=" << now.knock_on - old.knock_on
+              << " command_target=" << now.command_target - old.command_target
+              << " forced_target=" << now.forced_target - old.forced_target
+              << " retain_override="
+              << now.incoming_retain_override - old.incoming_retain_override
+              << " geometry[offset,anim_positions]="
+              << now.contact_position_offset_nonzero -
+                     old.contact_position_offset_nonzero << ","
+              << now.animation_positions_present - old.animation_positions_present
+              << " profile[maxpower,difficulty,native_dir]="
+              << now.max_power_profile_present - old.max_power_profile_present << ","
+              << now.difficulty_profile_present - old.difficulty_profile_present << ","
+              << now.native_ball_direction_present - old.native_ball_direction_present
+              << " profile[bodypart,in_retain,out_retain]="
+              << now.contact_bodypart_present - old.contact_bodypart_present << ","
+              << now.incoming_retain_present - old.incoming_retain_present << ","
+              << now.outgoing_retain_present - old.outgoing_retain_present
+              << " frame_p50/p90=" << percentile(frames, 0.5) << "/"
+              << percentile(frames, 0.9)
+              << " delay_ms_p50/p90=" << percentile(delays, 0.5) << "/"
+              << percentile(delays, 0.9)
+              << " elapsed_ms_p50/p90=" << percentile(elapsed, 0.5) << "/"
+              << percentile(elapsed, 0.9)
+              << " desired_height_p50/p90=" << percentile(heights, 0.5) << "/"
+              << percentile(heights, 0.9)
+              << " distance_p50/p90=" << percentile(distances, 0.5) << "/"
+              << percentile(distances, 0.9)
+              << " bumpy_bias_p50/p90=" << percentile(biases, 0.5) << "/"
+              << percentile(biases, 0.9)
+              << " impulse_speed_p50/p90=" << percentile(impulse_speeds, 0.5) << "/"
+              << percentile(impulse_speeds, 0.9) << "\n";
+  }
+  Require(scheduled_total > 0 && impulse_total > 0,
+          "contact authority: corpus never scheduled and delivered a contact");
+}
+
 void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   Require(!env.get_info().is_in_play, "kickoff should begin paused");
@@ -4073,6 +4186,7 @@ int main(int argc, char** argv) {
     CheckMatchTransitions(env, config);
     CheckReachabilityCadence(env, config);
     CheckReverseTeamProcessing(env, config);
+    MeasureContactAuthority(env, config);
     std::cout << "football_regression: PASS\n";
     return 0;
   } catch (const RegressionFailure& failure) {

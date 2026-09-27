@@ -516,10 +516,24 @@ void Humanoid::Process() {
   if (action.HasScheduledContact() &&
       action.frame == action.contactFrame) {
     DO_VALIDATION;
+    ContactAuthorityAudit *contact_audit =
+        ContactAuthorityAuditEnabled() && IsTrackedScheduledContact(action.type)
+        ? &ContactAuthorityFor(action.type) : nullptr;
+    bool contact_impulse_generated = false;
+    if (contact_audit) ++contact_audit->at_contact_frame;
+    if (contact_audit) {
+      contact_audit->observed_elapsed_ms.push_back(action.elapsedTime_ms);
+      if (currentAnim.positionOffset.GetLength() > 0.0f)
+        ++contact_audit->contact_position_offset_nonzero;
+      if (!currentAnim.positions.empty())
+        ++contact_audit->animation_positions_present;
+    }
 
     Vector3 desiredBallPosition;
     boost::static_pointer_cast<FootballAnimationExtension>(currentAnim.anim->GetExtension("football"))->GetTouchPos(action.contactFrame, desiredBallPosition);
     float desiredBallHeight = desiredBallPosition.coords[2];
+    if (contact_audit)
+      contact_audit->desired_ball_heights.push_back(desiredBallHeight);
 
     float touchableDistance = 0.4f;
 
@@ -536,6 +550,31 @@ void Humanoid::Process() {
     bumpyRideBias = curve(bumpyRideBias, 1.0f);
     bumpyRideBias = curve(bumpyRideBias, 0.5f);
     Vector3 currentBallVec = match->GetBall()->GetMovement();
+    bool contact_reachable = false;
+    if (contact_audit) {
+      contact_audit->full_ball_distances.push_back(fullBallDistance);
+      contact_audit->bumpy_ride_biases.push_back(bumpyRideBias);
+      const float height_gap = std::fabs(
+          desiredBallHeight - match->GetBall()->Predict(0).coords[2]);
+      if (!currentAnim.anim->GetVariableCache().incoming_retain_state().empty())
+        ++contact_audit->incoming_retain_override;
+      if (!(fullBallDistance < touchableDistance)) {
+        ++contact_audit->distance_rejected;
+      } else if (!(height_gap < 1.0f)) {
+        ++contact_audit->height_rejected;
+      } else {
+        ++contact_audit->physically_reachable;
+        contact_reachable = true;
+      }
+    }
+    const auto record_contact_impulse = [&](const Vector3 &impulse) {
+      if (!contact_audit) return;
+      contact_impulse_generated = true;
+      ++contact_audit->impulse_calls;
+      const float speed = impulse.GetLength();
+      contact_audit->impulse_request_speeds.push_back(speed);
+      if (speed > 0.0f) ++contact_audit->nonzero_impulse_requests;
+    };
 
     if (fullBallDistance < touchableDistance &&
         std::fabs(desiredBallHeight - match->GetBall()->Predict(0).coords[2]) <
@@ -561,6 +600,7 @@ void Humanoid::Process() {
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
         match->GetBall()->Touch(touchVec);
+        record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias));
 
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));
@@ -580,6 +620,7 @@ void Humanoid::Process() {
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
         match->GetBall()->Touch(touchVec);
+        record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias)); // 1.0
 
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));
@@ -637,6 +678,7 @@ void Humanoid::Process() {
         Vector3 touchVec = ballDirection * 36 * (ballPower + 0.3f);
 
         if (_PassFiddlingEnabled()) {
+          if (contact_audit) ++contact_audit->pass_fiddling;
           DO_VALIDATION;
           //SetGreenDebugPilon(match->GetBall()->Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
 
@@ -658,6 +700,7 @@ void Humanoid::Process() {
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
         match->GetBall()->Touch(touchVec);
+        record_contact_impulse(touchVec);
         float forwardness = 3.5f;
         if (currentAnim.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
         radian xRot = touchVec.GetNormalized(0).coords[1] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
@@ -695,6 +738,7 @@ void Humanoid::Process() {
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
         match->GetBall()->Touch(touchVec);
+        record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias));
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));
       }
@@ -771,6 +815,10 @@ void Humanoid::Process() {
 
         team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental);
       }
+    }
+    if (contact_audit && !contact_impulse_generated) {
+      ++contact_audit->suppressed;
+      if (contact_reachable) ++contact_audit->reachable_without_impulse;
     }
   }
 
@@ -1592,6 +1640,30 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     currentAnim.movementSmuggle = CalculateMovementSmuggle(command.desiredDirection, command.desiredVelocityFloat);
     currentAnim.movementSmuggleOffset = Vector3(0);
     CastPlayer()->BeginSimulationAction();
+    const PlayerActionState &scheduled = CastPlayer()->GetSimulationActionState();
+    if (ContactAuthorityAuditEnabled() &&
+        IsTrackedScheduledContact(scheduled.type) &&
+        scheduled.HasScheduledContact()) {
+      ContactAuthorityAudit &audit = ContactAuthorityFor(scheduled.type);
+      ++audit.scheduled;
+      audit.contact_frames.push_back(scheduled.contactFrame);
+      audit.delays_ms.push_back(scheduled.contactTime_ms);
+      if (command.modifier & e_PlayerCommandModifier_KnockOn) ++audit.knock_on;
+      if (command.touchInfo.targetPlayer) ++audit.command_target;
+      if (command.touchInfo.forcedTargetPlayer) ++audit.forced_target;
+      if (!currentAnim.anim->GetVariable("touch_maxpowerfactor").empty())
+        ++audit.max_power_profile_present;
+      if (!currentAnim.anim->GetVariable("touch_difficultyfactor").empty())
+        ++audit.difficulty_profile_present;
+      if (!currentAnim.anim->GetVariable("balldirection").empty())
+        ++audit.native_ball_direction_present;
+      if (!currentAnim.anim->GetVariable("touch_bodypart").empty())
+        ++audit.contact_bodypart_present;
+      if (!currentAnim.anim->GetVariable("incoming_retain_state").empty())
+        ++audit.incoming_retain_present;
+      if (!currentAnim.anim->GetVariable("outgoing_retain_state").empty())
+        ++audit.outgoing_retain_present;
+    }
     return true;
   }
 

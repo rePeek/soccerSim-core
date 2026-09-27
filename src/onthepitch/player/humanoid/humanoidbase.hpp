@@ -204,6 +204,42 @@ struct MovementAnimationPerturbation {
   int alternative_anim_id = -1;
 };
 MovementAnimationPerturbation &MovementAnimationPerturbationAudit();
+// 5a1: transient observation, never used to decide contact or serialized.
+// A Ball::Touch request is not proof that Ball physics adopted that impulse.
+struct ContactAuthorityAudit {
+  int scheduled = 0;
+  int at_contact_frame = 0;
+  int distance_rejected = 0;
+  int height_rejected = 0;
+  int physically_reachable = 0;
+  int impulse_calls = 0;
+  int nonzero_impulse_requests = 0;
+  int suppressed = 0;
+  int reachable_without_impulse = 0;
+  int pass_fiddling = 0;
+  int knock_on = 0;
+  int command_target = 0;
+  int forced_target = 0;
+  int incoming_retain_override = 0;
+  int max_power_profile_present = 0;
+  int difficulty_profile_present = 0;
+  int native_ball_direction_present = 0;
+  int contact_bodypart_present = 0;
+  int incoming_retain_present = 0;
+  int outgoing_retain_present = 0;
+  int contact_position_offset_nonzero = 0;
+  int animation_positions_present = 0;
+  std::vector<int> observed_elapsed_ms;
+  std::vector<float> desired_ball_heights;
+  std::vector<int> contact_frames;
+  std::vector<int> delays_ms;
+  std::vector<float> full_ball_distances;
+  std::vector<float> bumpy_ride_biases;
+  std::vector<float> impulse_request_speeds;
+};
+bool &ContactAuthorityAuditEnabled();
+bool IsTrackedScheduledContact(e_FunctionType type);
+ContactAuthorityAudit &ContactAuthorityFor(e_FunctionType type);
 // RecordMovementCommandAcceptance() is declared at the end of this header: it
 // needs the action/pose enums defined below.
 // Counts one scheduler query and returns whether the candidate differs
