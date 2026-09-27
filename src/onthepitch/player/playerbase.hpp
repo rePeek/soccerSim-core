@@ -113,10 +113,13 @@ struct ResetSeedAuditEpisode {
   int foreign_consumes = 0;
   int consumes_before_direct = 0;
 };
-ResetSeedAuditEpisode &ResetSeedAudit();
+// Aggregate event counters; the live episode itself is per-player, because one
+// reset boundary re-seeds many players before any of them processes a tick.
+ResetSeedAuditEpisode &ResetSeedLastClosedEpisode();
 int &ResetSeedEpisodesStarted();
 int &ResetSeedEpisodesConsumedBeforeDirect();
 int &ResetSeedEpisodesDirectFirst();
+int &ResetSeedEpisodesRestartedBeforeCompletion();
 int &ResetSeedForeignConsumeViolations();
 std::vector<int> &ResetSeedConsumeToDirectDelay_ms();
 // H3e4f-g0b-oracle-source-policy: which source contract each locomotion
@@ -342,6 +345,10 @@ class PlayerBase {
     int lastDirectMovementIntentPublication_ms = -1;
     int lastResetSituation_ms = -1;
     bool hasProcessedPlayerTick = false;
+    // Transient per-player reset-seed episode. Never serialized and never part
+    // of gameplay: it only proves this player's seed was consumed before the
+    // controller replaced it.
+    ResetSeedAuditEpisode resetSeedAudit;
     int lastResetSituationAuditContext =
         kResetSituationInitialBeforeFirstPlayerTick;
     int tr_query_gen = 0;

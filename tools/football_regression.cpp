@@ -2254,10 +2254,11 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
               << SimulationOnlyGateMismatchForResetContext(context) << "\n";
   }
   std::cout << "  reset_seed_episode started=" << ResetSeedEpisodesStarted()
-            << " seed_active_at_end=" << (ResetSeedAudit().active ? 1 : 0)
             << " consumed_before_direct="
             << ResetSeedEpisodesConsumedBeforeDirect()
             << " direct_first_violations=" << ResetSeedEpisodesDirectFirst()
+            << " restarted_before_completion="
+            << ResetSeedEpisodesRestartedBeforeCompletion()
             << " foreign_consume_violations="
             << ResetSeedForeignConsumeViolations()
             << " consume_to_direct_delay_mean/max=";
@@ -2266,9 +2267,10 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
     for (int value : delays) { sum += value; if (value > maximum) maximum = value; }
     std::cout << (delays.empty() ? -1 : sum / static_cast<int>(delays.size()))
               << "/" << maximum; }
-  std::cout << " last_episode_context="
-            << ResetSituationCallContextName(ResetSeedAudit().context)
-            << " last_consumes=" << ResetSeedAudit().locomotion_consumes << "\n";
+  std::cout << " last_closed_context="
+            << ResetSituationCallContextName(ResetSeedLastClosedEpisode().context)
+            << " last_closed_consumes="
+            << ResetSeedLastClosedEpisode().locomotion_consumes << "\n";
   std::cout << "  movement_oracle source[action,direct,legacy,seed,fallback]="
             << MovementOracleConsumesForSource(0) << ","
             << MovementOracleConsumesForSource(1) << ","

@@ -71,9 +71,13 @@ const char *ResetSituationCallContextName(int context) {
     default: return "unknown";
   }
 }
-ResetSeedAuditEpisode &ResetSeedAudit() {
+ResetSeedAuditEpisode &ResetSeedLastClosedEpisode() {
   static ResetSeedAuditEpisode episode;
   return episode;
+}
+int &ResetSeedEpisodesRestartedBeforeCompletion() {
+  static int value = 0;
+  return value;
 }
 int &ResetSeedEpisodesStarted() { static int value = 0; return value; }
 int &ResetSeedEpisodesConsumedBeforeDirect() { static int value = 0; return value; }
@@ -271,22 +275,28 @@ void PlayerBase::SetSimulationMovementCommand(
     CompleteLifecycleOverrideConsumptionAudit();
   }
   if (source == LocomotionCommandSource::SimulationSeed) {
-    if (ResetSeedAudit().active) ++ResetSeedEpisodesDirectFirst();
-    ResetSeedAudit() = ResetSeedAuditEpisode();
-    ResetSeedAudit().active = true;
-    ResetSeedAudit().context = lastResetSituationAuditContext;
-    ResetSeedAudit().started_ms = static_cast<int>(match->GetActualTime_ms());
+    // A reset boundary re-seeds this player only. Another player's pending
+    // episode must never be mistaken for this one.
+    if (resetSeedAudit.active) ++ResetSeedEpisodesRestartedBeforeCompletion();
+    resetSeedAudit = ResetSeedAuditEpisode();
+    resetSeedAudit.active = true;
+    resetSeedAudit.context = lastResetSituationAuditContext;
+    resetSeedAudit.started_ms = static_cast<int>(match->GetActualTime_ms());
     ++ResetSeedEpisodesStarted();
   } else if (source == LocomotionCommandSource::DirectMovementIntent &&
-             ResetSeedAudit().active) {
-    ResetSeedAuditEpisode &episode = ResetSeedAudit();
-    episode.direct_publish_ms = static_cast<int>(match->GetActualTime_ms());
-    if (episode.locomotion_consumes > 0) {
+             resetSeedAudit.active) {
+    resetSeedAudit.direct_publish_ms =
+        static_cast<int>(match->GetActualTime_ms());
+    if (resetSeedAudit.locomotion_consumes == 0) {
+      // The controller replaced the seed before locomotion ever saw it.
+      ++ResetSeedEpisodesDirectFirst();
+    } else {
       ++ResetSeedEpisodesConsumedBeforeDirect();
       ResetSeedConsumeToDirectDelay_ms().push_back(
-          episode.direct_publish_ms - episode.first_consume_ms);
+          resetSeedAudit.direct_publish_ms - resetSeedAudit.first_consume_ms);
     }
-    episode.active = false;
+    ResetSeedLastClosedEpisode() = resetSeedAudit;
+    resetSeedAudit.active = false;
   }
 }
 
@@ -353,16 +363,16 @@ void PlayerBase::NoteLocomotionCommandConsumed() {
   if (episode_active) ++episode_ticks;
   DO_VALIDATION;
   NoteLifecycleOverrideConsumptionAudit();
-  if (ResetSeedAudit().active) {
+  if (resetSeedAudit.active) {
     if (movementCommandState.source != LocomotionCommandSource::SimulationSeed) {
-      ++ResetSeedAudit().foreign_consumes;
+      ++resetSeedAudit.foreign_consumes;
       ++ResetSeedForeignConsumeViolations();
     } else {
-      if (ResetSeedAudit().locomotion_consumes == 0) {
-        ResetSeedAudit().first_consume_ms =
+      if (resetSeedAudit.locomotion_consumes == 0) {
+        resetSeedAudit.first_consume_ms =
             static_cast<int>(match->GetActualTime_ms());
       }
-      ++ResetSeedAudit().locomotion_consumes;
+      ++resetSeedAudit.locomotion_consumes;
     }
   }
   if (!reanchorPendingConsumption) return;
