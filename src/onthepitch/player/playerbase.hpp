@@ -122,12 +122,13 @@ int &ResetSeedEpisodesDirectFirst();
 int &ResetSeedEpisodesRestartedBeforeCompletion();
 int &ResetSeedForeignConsumeViolations();
 std::vector<int> &ResetSeedConsumeToDirectDelay_ms();
-// H3e4f-g0b-decision-intent: the locomotion intent owned by the Player Decision
-// Clock. Today it is a pure shadow written only by DirectMovementIntent, so the
-// existing compatibility slot keeps driving gameplay. It exists to answer one
-// question first: does a decision-owned intent exist on the ticks that actually
-// execute procedural locomotion, or is the slot only holding action-coupled
-// compatibility payload?
+// H3e4f-g0b-decision-intent: the serialized Player Decision Clock locomotion
+// state. Since the execution authority flip this is the sole command source for
+// pure-locomotion execution: the gate requires a current-epoch publication, and
+// both PlayerLocomotion and PlayerBodyFacing consume this command.
+//
+// The legacy movementCommandState is no longer read here. It survives only as
+// migration scaffolding until the compatibility producers are removed.
 struct PlayerDecisionLocomotionState {
   PlayerCommand command;
   bool initialized = false;

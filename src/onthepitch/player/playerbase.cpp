@@ -417,7 +417,9 @@ void PlayerBase::SynchronizeKinematicState() {
   groundCollider.SetCenter(kinematicState.position);
   CheckSimulationKinematicOracle();
 }
-// The last command actually consumed by procedural locomotion.
+// Compatibility slot: the legacy movement command shadow. Procedural locomotion
+// no longer consumes it (the decision intent is the execution authority), so this
+// path only records the migration-era producers until they are removed.
 void PlayerBase::SetSimulationMovementCommand(const PlayerCommand &command) {
   DO_VALIDATION;
   SetSimulationMovementCommand(
