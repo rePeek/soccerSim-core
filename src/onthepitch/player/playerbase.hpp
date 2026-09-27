@@ -170,6 +170,10 @@ struct LocomotionReentryAudit {
   // Shadow of the epoch rule: this epoch has no publication yet, so a decision
   // would be required before this locomotion state could be executed.
   int would_require_fresh = 0;
+  // Attribution of a stale epoch: if the last reset is newer than the last
+  // publication, the reset advanced the epoch and no decision has caught up.
+  int stale_after_reset = 0;
+  int stale_not_explained_by_reset = 0;
 };
 LocomotionReentryAudit &LocomotionReentryAuditFor(int category);
 int &LocomotionActionExitCount();

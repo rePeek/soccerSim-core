@@ -180,6 +180,11 @@ void PlayerBase::NoteLocomotionReentryTick(bool eligible, bool legacy_gate,
   if (decisionLocomotionState.publishedEpoch !=
       decisionLocomotionState.continuityEpoch) {
     ++audit.would_require_fresh;
+    if (lastResetSituation_ms > lastDirectMovementIntentPublication_ms) {
+      ++audit.stale_after_reset;
+    } else {
+      ++audit.stale_not_explained_by_reset;
+    }
   }
   if (category >= 2) {
     // Reset is itself the discontinuity, so it anchors the comparison; other

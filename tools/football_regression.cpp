@@ -2313,6 +2313,8 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
               << " unchanged_and_legacy_false="
               << audit.unchanged_and_legacy_gate_false
               << " would_require_fresh=" << audit.would_require_fresh
+              << " stale_after_reset=" << audit.stale_after_reset
+              << " stale_unexplained=" << audit.stale_not_explained_by_reset
               << " decision_age_mean/max=";
     std::cout << (audit.decision_age_count
                       ? audit.decision_age_sum_ms / audit.decision_age_count
@@ -2321,8 +2323,13 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
   }
   // Observation, not an invariant: continuous locomotion may legitimately require
   // a fresh decision when a reset advanced the epoch while the actor stayed
-  // eligible. Those post-reset stale-epoch ticks are reported, not forbidden;
-  // attributing them needs one further measurement.
+  // Every stale-epoch tick must be attributable to a reset that advanced the
+  // epoch with no decision catching up. Zero unexplained means the epoch rule
+  // never fires spuriously on a cadence-due tick.
+  for (int category = 1; category < 4; ++category) {
+    Require(LocomotionReentryAuditFor(category).stale_not_explained_by_reset == 0,
+            "continuity epoch: a stale epoch was not caused by a reset");
+  }
   Require(LocomotionReentryAuditFor(2).ticks <= LocomotionActionExitCount(),
           "reentry audit: action re-entries exceed observed locomotion exits");
   Require(LocomotionNegativeDecisionAgeSamples() == 0,
