@@ -14,6 +14,7 @@
 #include "onthepitch/AIsupport/AIfunctions.hpp"
 #include "onthepitch/player/legacy_locomotion_command.hpp"
 #include "onthepitch/player/player_kinematics.hpp"
+#include "onthepitch/player/player_body_facing.hpp"
 #include "onthepitch/player/player_locomotion.hpp"
 #include "onthepitch/player/player_ground_collider.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
@@ -590,6 +591,37 @@ void CheckPlayerKinematicMirror() {
   RequireNear(state.bodyFacing.coords[0], -0.8f, "mirror body facing x");
   RequireNear(state.bodyFacing.coords[1], 0.6f, "mirror body facing y");
   RequireNear(state.speed, 5.0f, "mirror speed");
+}
+
+// H3e3b-prep2: unit-test the new model's own semantic invariants, not any
+// animation pose. A bounded target and a state already inside the cone must
+// remain inside it, while every tick turns no more than maxTurnRate * dt.
+void CheckPlayerBodyFacing() {
+  PlayerKinematicState state;
+  state.facing = Vector3(0.0f, -1.0f, 0.0f);
+  state.bodyFacing = state.facing;
+  PlayerBodyFacingInput input;
+  input.desiredFacing = Vector3(1.0f, 0.0f, 0.0f);
+  PlayerBodyFacingParameters parameters;
+  parameters.maxTurnRate = 1.0f;
+  parameters.maxRelativeAngle = 0.5f;
+  const float dt = 0.1f;
+
+  const Vector3 allowed = PlayerBodyFacing::AllowedTarget(state, input, parameters);
+  RequireNear(std::fabs(allowed.GetAngle2D(state.facing)), 0.5f,
+              "body facing: desired target must be relative-angle clamped");
+  for (int tick = 0; tick < 10; ++tick) {
+    const Vector3 previous = state.bodyFacing;
+    PlayerBodyFacing::Step(state, input, parameters, dt);
+    Require(std::fabs(state.bodyFacing.GetAngle2D(previous)) <=
+            parameters.maxTurnRate * dt + kFloatTolerance,
+            "body facing: turn-rate invariant violated");
+    Require(std::fabs(state.bodyFacing.GetAngle2D(state.facing)) <=
+            parameters.maxRelativeAngle + kFloatTolerance,
+            "body facing: relative-angle invariant violated");
+  }
+  RequireNear(std::fabs(state.bodyFacing.GetAngle2D(state.facing)), 0.5f,
+              "body facing: it must settle at the constrained target");
 }
 
 void CheckPlayerGroundCollider() {
@@ -1915,6 +1947,167 @@ void MeasureLegacyBodyFacing(GameEnv& env, ScenarioConfig& config) {
           "body-facing measurement: no pure-locomotion samples were collected");
 }
 
+// H3e3b-prep2: evaluate explicit body-facing semantics in shadow. A forced
+// reset is deliberately counted, never hidden: if locomotion facing moves the
+// cone over a rate-limited body in one tick, finite turn rate and a strict cone
+// bound cannot both hold. Such a grid point is not a valid authority candidate.
+void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "body-facing shadow grid: kickoff");
+  Match* match = env.context->gameTask->GetMatch();
+
+  struct Pending { Player* player; PlayerKinematicState state; PlayerCommand command; };
+  struct Shadow {
+    Player* player; PlayerKinematicState state; Vector3 previousTarget;
+    bool hasPreviousTarget = false; int alignmentMs = -1;
+  };
+  struct Cell {
+    int samples = 0, lookSamples = 0, relativeClamps = 0, turnClamps = 0;
+    int forcedResets = 0, rapidFacingChanges = 0;
+    double relativeSum = 0.0, lookErrorSum = 0.0, turnSum = 0.0;
+    double maxTurn = 0.0, maxRapidFacingTurn = 0.0;
+    std::vector<double> alignMs;
+  };
+  struct Grid { PlayerBodyFacingParameters parameters; std::vector<Shadow> shadows; Cell cells[4]; };
+  const float rates[] = {3.0f, 6.0f, 9.0f, 12.0f};
+  const float angles[] = {pi * 0.25f, pi * 0.5f, pi * 0.75f};
+  Grid grids[12];
+  for (int rate = 0; rate < 4; ++rate) for (int angle = 0; angle < 3; ++angle) {
+    Grid& grid = grids[rate * 3 + angle];
+    grid.parameters.maxTurnRate = rates[rate];
+    grid.parameters.maxRelativeAngle = angles[angle];
+  }
+
+  const auto findShadow = [](Grid& grid, Player* player,
+                             const PlayerKinematicState& initial) -> Shadow& {
+    for (Shadow& shadow : grid.shadows) if (shadow.player == player) return shadow;
+    grid.shadows.push_back(Shadow{player, initial, Vector3(0), false, -1});
+    grid.shadows.back().state.bodyFacing = initial.facing;  // valid model seed
+    return grid.shadows.back();
+  };
+  const int ticks = 400;
+  for (int tick = 0; tick < ticks; ++tick) {
+    std::vector<Player*> players;
+    match->GetActiveTeamPlayers(match->FirstTeam(), players);
+    match->GetActiveTeamPlayers(match->SecondTeam(), players);
+    for (Grid& grid : grids) {
+      grid.shadows.erase(std::remove_if(grid.shadows.begin(), grid.shadows.end(),
+          [](const Shadow& shadow) { return !shadow.player->IsEligibleForProceduralLocomotion(); }),
+          grid.shadows.end());
+    }
+
+    std::vector<Pending> pending;
+    for (Player* player : players) {
+      if (!player->IsEligibleForProceduralLocomotion()) continue;
+      const Anim* anim = player->GetCurrentAnim();
+      const PlayerKinematicState state = player->GetKinematicState();
+      pending.push_back(Pending{player, state, anim->originatingCommand});
+      for (Grid& grid : grids) findShadow(grid, player, state);
+    }
+    env.step();
+
+    for (const Pending& sample : pending) {
+      const PlayerKinematicState& actual = sample.player->GetKinematicState();
+      const int velocityClass = static_cast<int>(FloatToEnumVelocity(
+          actual.velocity.GetLength()));
+      for (Grid& grid : grids) {
+        Shadow& shadow = findShadow(grid, sample.player, sample.state);
+        shadow.state.position = actual.position;
+        shadow.state.velocity = actual.velocity;
+        shadow.state.facing = actual.facing;
+        shadow.state.speed = actual.speed;
+        Cell& cell = grid.cells[velocityClass];
+        ++cell.samples;
+
+        PlayerBodyFacingInput input;
+        input.desiredFacing = actual.facing;
+        bool hasLook = false;
+        if (sample.command.useDesiredLookAt) {
+          const Vector3 delta = (sample.command.desiredLookAt - actual.position).Get2D();
+          if (delta.GetLength() > 0.0001f) {
+            input.desiredFacing = delta.GetNormalized(actual.facing);
+            hasLook = true;
+          }
+        }
+        const Vector3 target = PlayerBodyFacing::AllowedTarget(
+            shadow.state, input, grid.parameters);
+        const float requestedRelative = std::fabs(
+            input.desiredFacing.GetAngle2D(actual.facing));
+        if (requestedRelative > grid.parameters.maxRelativeAngle + kFloatTolerance) {
+          ++cell.relativeClamps;
+        }
+        if (shadow.hasPreviousTarget && std::fabs(
+                target.GetAngle2D(shadow.previousTarget)) > pi * 0.5f) {
+          shadow.alignmentMs = 0;
+        }
+        shadow.previousTarget = target; shadow.hasPreviousTarget = true;
+
+        // A reset is diagnostic only. It makes the following shadow step legal
+        // while documenting that this parameter pair could not satisfy both
+        // continuity and the cone invariant under the observed facing change.
+        if (std::fabs(shadow.state.bodyFacing.GetAngle2D(actual.facing)) >
+            grid.parameters.maxRelativeAngle + kFloatTolerance) {
+          ++cell.forcedResets;
+          shadow.state.bodyFacing = actual.facing;
+        }
+        const Vector3 previous = shadow.state.bodyFacing;
+        const float requestedTurn = std::fabs(target.GetAngle2D(previous));
+        if (requestedTurn > grid.parameters.maxTurnRate * 0.01f + kFloatTolerance) {
+          ++cell.turnClamps;
+        }
+        PlayerBodyFacing::Step(shadow.state, input, grid.parameters, 0.01f);
+        const double turn = std::fabs(
+            shadow.state.bodyFacing.GetAngle2D(previous));
+        const double relative = std::fabs(
+            shadow.state.bodyFacing.GetAngle2D(actual.facing));
+        cell.turnSum += turn; cell.relativeSum += relative;
+        cell.maxTurn = std::max(cell.maxTurn, turn);
+        if (hasLook) {
+          ++cell.lookSamples;
+          cell.lookErrorSum += std::fabs(
+              shadow.state.bodyFacing.GetAngle2D(input.desiredFacing));
+        }
+        if (std::fabs(actual.facing.GetAngle2D(sample.state.facing)) > pi * 0.5f) {
+          ++cell.rapidFacingChanges;
+          cell.maxRapidFacingTurn = std::max(cell.maxRapidFacingTurn, turn);
+        }
+        if (shadow.alignmentMs >= 0) {
+          if (std::fabs(shadow.state.bodyFacing.GetAngle2D(target)) <= 0.1f) {
+            cell.alignMs.push_back(shadow.alignmentMs); shadow.alignmentMs = -1;
+          } else { shadow.alignmentMs += 10; }
+        }
+      }
+    }
+  }
+
+  int total = 0;
+  std::cout << "body-facing shadow grid (radians; resets invalidate strict invariants):\n";
+  for (const Grid& grid : grids) {
+    std::cout << "  rate=" << grid.parameters.maxTurnRate
+              << " relative=" << grid.parameters.maxRelativeAngle << "\n";
+    for (int index = 0; index < 4; ++index) {
+      const Cell& cell = grid.cells[index]; total += cell.samples;
+      if (cell.samples == 0) continue;
+      double alignSum = 0.0; for (double value : cell.alignMs) alignSum += value;
+      std::cout << "    " << VelocityClassName(static_cast<e_Velocity>(index))
+                << " n=" << cell.samples
+                << " rel_mean=" << (cell.relativeSum / cell.samples)
+                << " look_error=" << (cell.lookSamples ? cell.lookErrorSum / cell.lookSamples : 0.0)
+                << " turn_mean=" << (cell.turnSum / cell.samples)
+                << " turn_max=" << cell.maxTurn
+                << " relative_clamp=" << cell.relativeClamps
+                << " turn_clamp=" << cell.turnClamps
+                << " forced_reset=" << cell.forcedResets
+                << " rapid_facing=" << cell.rapidFacingChanges
+                << " rapid_turn_max=" << cell.maxRapidFacingTurn
+                << " align_events=" << cell.alignMs.size()
+                << " align_mean_ms=" << (cell.alignMs.empty() ? 0.0 : alignSum / cell.alignMs.size())
+                << "\n";
+    }
+  }
+  Require(total > 0, "body-facing shadow grid: no pure-locomotion samples");
+}
+
 
 // H3e1c-2: reachability must be derived from the same model as execution.
 // Parallel measurement only: the AI still consumes its own heuristic and the
@@ -2867,6 +3060,7 @@ int main(int argc, char** argv) {
 
     CheckPlayerKinematics();
     CheckPlayerKinematicMirror();
+    CheckPlayerBodyFacing();
     CheckProceduralLocomotion();
     CheckProceduralLocomotionPrediction();
     CheckProceduralInterceptPrediction();
@@ -2904,6 +3098,7 @@ int main(int argc, char** argv) {
     MeasureProceduralLocomotionDivergence(env, config);
     MeasureLocomotionRegimeTransitions(env, config);
     MeasureLegacyBodyFacing(env, config);
+    MeasureBodyFacingShadowGrid(env, config);
     MeasureLocomotionPrediction(env, config);
     MeasureInterceptPrediction(env, config);
     MeasureHybridInterceptApproximation(env, config);
