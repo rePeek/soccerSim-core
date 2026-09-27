@@ -2070,6 +2070,11 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << " p99=" << percentile(lifetimes, 0.99)
             << " max=" << percentile(lifetimes, 1.0) << "\n";
 
+  // H3e4f-a: pure-locomotion ticks whose legacy command was not a Movement
+  // command, i.e. the ticks the shadow oracle deliberately does not cover.
+  std::cout << "  shadow_oracle_uncovered_ticks="
+            << PlayerMovementCommandNonMovementTicks() << "\n";
+
   // H3e4e2: strict counterfactual for the foot tie-break. The clone is taken
   // before the foot stable_sort, so a changed winner is caused by foot alone.
   const int foot_selections =

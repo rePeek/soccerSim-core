@@ -126,6 +126,57 @@ void PlayerBase::SynchronizeKinematicState() {
   CheckSimulationKinematicOracle();
 }
 
+// H3e4f-a. Only Movement commands are stored, so the shadow always means "the
+// Movement command locomotion is currently executing".
+void PlayerBase::SetSimulationMovementCommand(const PlayerCommand &command) {
+  DO_VALIDATION;
+  if (command.desiredFunctionType != e_FunctionType_Movement) return;
+  movementCommandState.command = command;
+  movementCommandState.initialized = true;
+}
+
+void PlayerBase::CheckSimulationMovementCommandOracle() const {
+  DO_VALIDATION;
+  // Only the ticks that actually consume the command are compared. Other
+  // actions legitimately keep their own non-Movement originatingCommand.
+  if (!IsEligibleForProceduralLocomotion()) return;
+  if (!movementCommandState.initialized) return;
+  // The shadow mirrors the last accepted Movement command. A pure-locomotion
+  // tick can still be driven by a legacy command of another type (a retain or
+  // reset leaves the old command in place while the action reads Movement);
+  // those ticks are counted instead of compared, because there is nothing for
+  // the shadow to mirror there.
+  if (humanoid->GetCurrentAnim()->originatingCommand.desiredFunctionType !=
+      e_FunctionType_Movement) {
+    ++PlayerMovementCommandNonMovementTicks();
+    return;
+  }
+  if (!movementCommandState.initialized) return;
+  const PlayerCommand &live = humanoid->GetCurrentAnim()->originatingCommand;
+  const PlayerCommand &shadow = movementCommandState.command;
+  std::string mismatch;
+  if (!Vector3BitsEqual(shadow.desiredDirection, live.desiredDirection)) {
+    mismatch = "desiredDirection";
+  } else if (!FloatBitsEqual(shadow.desiredVelocityFloat,
+                             live.desiredVelocityFloat)) {
+    mismatch = "desiredVelocityFloat";
+  } else if (shadow.useDesiredMovement != live.useDesiredMovement) {
+    mismatch = "useDesiredMovement";
+  } else if (shadow.useDesiredLookAt != live.useDesiredLookAt) {
+    mismatch = "useDesiredLookAt";
+  } else if (shadow.desiredFunctionType != live.desiredFunctionType) {
+    mismatch = "desiredFunctionType";
+  } else if (shadow.useDesiredLookAt &&
+             !Vector3BitsEqual(shadow.desiredLookAt, live.desiredLookAt)) {
+    mismatch = "desiredLookAt";
+  }
+  if (!mismatch.empty()) {
+    Log(e_FatalError, "PlayerBase", "CheckSimulationMovementCommandOracle",
+        "the simulation movement command diverged from the legacy animation "
+        "scheduler: " + mismatch);
+  }
+}
+
 PlayerActionState PlayerBase::CaptureLegacyActionState() const {
   DO_VALIDATION;
   PlayerActionState legacy;
@@ -187,6 +238,18 @@ void PlayerBase::BeginSimulationAction() {
   definition.contactTime_ms = anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
   definition.contactPosition = anim->touchPos;
   PlayerActionExecutor::Begin(actionState, definition);
+  PlayerActionExecutor::Begin(actionState, definition);
+
+  // Re-anchor the movement command shadow whenever the action schedule starts
+  // or restarts: activation, reset, retain selection and state restore all
+  // rebuild the action without a selection, while the legacy anim keeps its own
+  // originatingCommand. Legacy is still the producer here, so adopting its
+  // current Movement command keeps the oracle exact instead of stale.
+  if (anim->originatingCommand.desiredFunctionType ==
+      e_FunctionType_Movement) {
+    movementCommandState.command = anim->originatingCommand;
+    movementCommandState.initialized = true;
+  }
 
   // ResetPosition can deliberately start an idle animation at a non-zero
   // legacy frame. Establish that initial cursor once; normal ticks never
@@ -360,6 +423,7 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   // agree before any subsequent tick or reader can observe either.
   CheckSimulationKinematicOracle();
   actionState.ProcessState(state);
+  movementCommandState.ProcessState(state);
   // After saving or loading the action state, require it to agree with the
   // Humanoid motion cursor before a subsequent tick can observe either.
   CheckSimulationActionOracle();

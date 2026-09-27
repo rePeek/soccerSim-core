@@ -1401,6 +1401,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     RecordMovementCommandAcceptance(material_candidate, action.type,
                                     action.elapsedTime_ms, localInterruptAnim,
                                     command, currentAnim.anim);
+    CastPlayer()->SetSimulationMovementCommand(command);
     currentAnim.movementSmuggle = CalculateMovementSmuggle(command.desiredDirection, command.desiredVelocityFloat);
     currentAnim.movementSmuggleOffset = Vector3(0);
     CastPlayer()->BeginSimulationAction();

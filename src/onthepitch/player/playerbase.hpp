@@ -22,6 +22,7 @@
 #include "player_kinematics.hpp"
 #include "player_ground_collider.hpp"
 #include "player_action.hpp"
+#include "player_movement_command.hpp"
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
@@ -110,6 +111,16 @@ class PlayerBase {
       DO_VALIDATION;
       return actionState;
     }
+    // H3e4f-a: the Movement command procedural locomotion consumes. The legacy
+    // animation scheduler still produces it; storage already belongs here.
+    const PlayerCommand &GetSimulationMovementCommand() const {
+      DO_VALIDATION;
+      return movementCommandState.command;
+    }
+    void SetSimulationMovementCommand(const PlayerCommand &command);
+    // Fatal invariant: on every pure-locomotion tick the shadow and legacy
+    // currentAnim.originatingCommand must agree on every field locomotion reads.
+    void CheckSimulationMovementCommandOracle() const;
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
     void BeginSimulationAction();
@@ -178,6 +189,7 @@ class PlayerBase {
     PlayerKinematicState kinematicShadow;
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
+    PlayerMovementCommandState movementCommandState;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
 

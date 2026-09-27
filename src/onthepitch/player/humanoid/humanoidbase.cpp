@@ -70,6 +70,7 @@ const Vector3 preferredDirectionVecs[] = {
 int &HumanoidProceduralMovementTicks() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement() { static int value = 0; return value; }
+int &PlayerMovementCommandNonMovementTicks() { static int value = 0; return value; }
 
 int &HumanoidSchedulerQueries() { static int value = 0; return value; }
 int &HumanoidMaterialCommandCandidates() { static int value = 0; return value; }
@@ -846,6 +847,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     RecordMovementCommandAcceptance(material_candidate, action.type,
                                     action.elapsedTime_ms, localInterruptAnim,
                                     command, currentAnim.anim);
+    player->SetSimulationMovementCommand(command);
     player->BeginSimulationAction();
 
     return true;
@@ -1099,6 +1101,8 @@ void HumanoidBase::ProjectMovementState(
   // The adapter consumes only the tick-start simulation state. Locomotion
   // produces lower-body motion first; the independent torso model then uses the
   // resulting facing and the command's look target.
+  // The tick that consumes the command must see an exact copy of it.
+  player->CheckSimulationMovementCommandOracle();
   const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
       command, tickStartState, player->GetMaxVelocity(),
       tickStartState.bodyFacing);
