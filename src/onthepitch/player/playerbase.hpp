@@ -122,11 +122,31 @@ int &ResetSeedEpisodesDirectFirst();
 int &ResetSeedEpisodesRestartedBeforeCompletion();
 int &ResetSeedForeignConsumeViolations();
 std::vector<int> &ResetSeedConsumeToDirectDelay_ms();
+// H3e4f-g0b-decision-intent: the locomotion intent owned by the Player Decision
+// Clock. Today it is a pure shadow written only by DirectMovementIntent, so the
+// existing compatibility slot keeps driving gameplay. It exists to answer one
+// question first: does a decision-owned intent exist on the ticks that actually
+// execute procedural locomotion, or is the slot only holding action-coupled
+// compatibility payload?
+struct PlayerDecisionLocomotionState {
+  PlayerCommand command;
+  bool initialized = false;
+  unsigned long long generation = 0;
+};
+int &DecisionLocomotionIntentPresentTicks();
+int &DecisionLocomotionIntentMissingTicks();
+int &DecisionLocomotionIntentMissingForSource(int source);
+long &DecisionLocomotionIntentAgeSum_ms();
+int &DecisionLocomotionIntentAgeCount();
+int &DecisionLocomotionIntentAgeMax_ms();
 // H3e4f-g0b-oracle-source-policy: which source contract each locomotion
 // consumption is checked against, so removing a fatal comparison can be told
 // apart from deleting the check.
 int &MovementOracleConsumesForSource(int source);
 int &ActionCoupledLegacyMismatch();
+int &DecisionLocomotionIntentPresentTicksLegacyGateFalse();
+int &DecisionLocomotionIntentMissingTicksLegacyGateFalse();
+int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source);
 #include "../../data/playerdata.hpp"
 #include "controller/icontroller.hpp"
 #include "../../onthepitch/humangamer.hpp"
@@ -158,6 +178,9 @@ class PlayerBase {
     void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos);
     void OffsetPosition(const Vector3 &offset);
 
+    bool HasDecisionLocomotionIntent() const {
+      return decisionLocomotionState.initialized;
+    }
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
@@ -352,6 +375,12 @@ class PlayerBase {
     int lastResetSituationAuditContext =
         kResetSituationInitialBeforeFirstPlayerTick;
     int tr_query_gen = 0;
+    // Decision-owned locomotion intent shadow. Measurement only for now: it is
+    // written only by a DirectMovementIntent publication.
+    PlayerDecisionLocomotionState decisionLocomotionState;
+    int GetDecisionLocomotionIntentGeneration() const {
+      return static_cast<int>(decisionLocomotionState.generation);
+    }
     int tr_last_query_ms = -1;
     int tr_last_query_due = 0;
     int tr_last_query_eligible = 0;

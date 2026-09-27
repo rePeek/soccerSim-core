@@ -91,7 +91,28 @@ int &MovementOracleConsumesForSource(int source) {
   static int records[5] = {};
   return records[source];
 }
+int &DecisionLocomotionIntentPresentTicks() { static int value = 0; return value; }
+int &DecisionLocomotionIntentMissingTicks() { static int value = 0; return value; }
+int &DecisionLocomotionIntentMissingForSource(int source) {
+  static int records[5] = {};
+  return records[source];
+}
+long &DecisionLocomotionIntentAgeSum_ms() { static long value = 0; return value; }
+int &DecisionLocomotionIntentAgeCount() { static int value = 0; return value; }
+int &DecisionLocomotionIntentAgeMax_ms() { static int value = -1; return value; }
 int &ActionCoupledLegacyMismatch() { static int value = 0; return value; }
+int &DecisionLocomotionIntentPresentTicksLegacyGateFalse() {
+  static int value = 0;
+  return value;
+}
+int &DecisionLocomotionIntentMissingTicksLegacyGateFalse() {
+  static int value = 0;
+  return value;
+}
+int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
+  static int records[5] = {};
+  return records[source];
+}
 
 const char *ActionBeginReasonName(int reason) {
   switch (reason) {
@@ -263,6 +284,10 @@ void PlayerBase::SetSimulationMovementCommand(
       ++PlayerMovementCommandDirectAdoptions();
       lastDirectMovementIntentPublication_ms =
           static_cast<int>(match->GetActualTime_ms());
+      // The decision-owned shadow is written here and nowhere else.
+      decisionLocomotionState.command = command;
+      decisionLocomotionState.initialized = true;
+      ++decisionLocomotionState.generation;
       break;
     case LocomotionCommandSource::SimulationFallbackIntent:
       ++PlayerMovementCommandFallbackAdoptions();

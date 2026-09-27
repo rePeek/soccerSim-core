@@ -2271,6 +2271,29 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
             << ResetSituationCallContextName(ResetSeedLastClosedEpisode().context)
             << " last_closed_consumes="
             << ResetSeedLastClosedEpisode().locomotion_consumes << "\n";
+  std::cout << "  decision_intent present=" << DecisionLocomotionIntentPresentTicks()
+            << " missing=" << DecisionLocomotionIntentMissingTicks()
+            << " missing_by_source[action,direct,legacy,seed,fallback]="
+            << DecisionLocomotionIntentMissingForSource(0) << ","
+            << DecisionLocomotionIntentMissingForSource(1) << ","
+            << DecisionLocomotionIntentMissingForSource(2) << ","
+            << DecisionLocomotionIntentMissingForSource(3) << ","
+            << DecisionLocomotionIntentMissingForSource(4)
+            << " direct_age_mean/max=";
+  { const int count = DecisionLocomotionIntentAgeCount();
+    std::cout << (count ? DecisionLocomotionIntentAgeSum_ms() / count : -1)
+              << "/" << DecisionLocomotionIntentAgeMax_ms(); }
+  std::cout << " present_if_sim_gate_instead="
+            << DecisionLocomotionIntentPresentTicksLegacyGateFalse()
+            << " missing_if_sim_gate_instead="
+            << DecisionLocomotionIntentMissingTicksLegacyGateFalse()
+            << " missing_there_by_source[action,direct,legacy,seed,fallback]="
+            << DecisionLocomotionIntentMissingForSourceLegacyGateFalse(0) << ","
+            << DecisionLocomotionIntentMissingForSourceLegacyGateFalse(1) << ","
+            << DecisionLocomotionIntentMissingForSourceLegacyGateFalse(2) << ","
+            << DecisionLocomotionIntentMissingForSourceLegacyGateFalse(3) << ","
+            << DecisionLocomotionIntentMissingForSourceLegacyGateFalse(4)
+            << "\n";
   std::cout << "  movement_oracle source[action,direct,legacy,seed,fallback]="
             << MovementOracleConsumesForSource(0) << ","
             << MovementOracleConsumesForSource(1) << ","
