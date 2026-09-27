@@ -538,10 +538,9 @@ bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
 }
 
 void PlayerBase::CommitLocomotionIntentRefresh() {
-  if (movementCommandState.source ==
-      LocomotionCommandSource::SimulationFallbackIntent) {
-    ++PlayerPathLocalTripMovementFallbackRefreshCommits();
-  }
+  // The decision clock no longer reads the compatibility movement slot. The Trip
+  // fallback commit counter that used to be derived from movementCommandState is
+  // gone with it: this function schedules the refresh clock, nothing else.
   ++HumanoidIntentRefreshCommits();
   DO_VALIDATION;
   // How long a legacy re-anchor value stayed in force until the simulation
