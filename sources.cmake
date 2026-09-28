@@ -26,11 +26,11 @@ set(BASE_GEOMETRY_HEADERS
 )
 
 set(BASE_MATH_HEADERS
-   src/base/math/quaternion.hpp
-   src/base/math/matrix3.hpp
-   src/base/math/matrix4.hpp
-   src/base/math/vector3.hpp
-   src/base/math/bluntmath.hpp
+   src/foundation/math/quaternion.hpp
+   src/foundation/math/matrix3.hpp
+   src/foundation/math/matrix4.hpp
+   src/foundation/math/vector3.hpp
+   src/foundation/math/bluntmath.hpp
 )
 
 set(BASE_SOURCES
@@ -42,11 +42,11 @@ set(BASE_SOURCES
    src/base/geometry/trianglemeshutils.cpp
    src/base/geometry/aabb.cpp
    src/base/geometry/plane.cpp
-   src/base/math/vector3.cpp
-   src/base/math/matrix3.cpp
-   src/base/math/bluntmath.cpp
-   src/base/math/quaternion.cpp
-   src/base/math/matrix4.cpp
+   src/foundation/math/vector3.cpp
+   src/foundation/math/matrix3.cpp
+   src/foundation/math/bluntmath.cpp
+   src/foundation/math/quaternion.cpp
+   src/foundation/math/matrix4.cpp
 )
 
 
