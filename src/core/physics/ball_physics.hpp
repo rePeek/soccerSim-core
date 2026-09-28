@@ -33,23 +33,14 @@ struct BallPhysicsParams {
 };
 
 // Goal / pitch geometry (Phase 7D). Values match the legacy constants in
-// gamedefines.hpp so the geometry-only net check stays numerically aligned.
+// gamedefines.hpp so woodwork contact stays numerically aligned.
 struct GoalGeometry {
   float halfWidth = 55.0f;      // pitchHalfW
   float goalHalfWidth = 3.7f;   // y extent of the goal mouth
   float goalHeight = 2.5f;      // z extent of the goal mouth
-  float goalDepth = 2.55f;
   float postRadius = 0.07f;
 };
 
-// Geometry-only "ball is inside the goal" test. Replaces the legacy
-// match->IsBallInGoal() history lookup so the physics has no Match pointer.
-inline bool IsBallInsideGoal(const blunted::Vector3& pos,
-                             const GoalGeometry& g) {
-  return std::fabs(pos.coords[0]) > g.halfWidth &&
-         std::fabs(pos.coords[1]) < g.goalHalfWidth &&
-         pos.coords[2] < g.goalHeight;
-}
 
 // Single-step ball integration: free motion (gravity, drag, swerve) plus
 // ground interaction (bounce, ground friction, ground-induced rotation).
