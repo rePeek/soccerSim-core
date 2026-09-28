@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "ball.hpp"
+#include "core/physics/ball_physics.hpp"
 
 #include <cmath>
 
@@ -157,6 +158,8 @@ BallSpatialInfo Ball::CalculatePrediction() {
     }
 
     float frictionFactor = 0.0f;
+
+    if (predictTime_ms == 10) {
 
 
     // gravity
@@ -510,6 +513,19 @@ BallSpatialInfo Ball::CalculatePrediction() {
     rotationPredictTimeStepped.SetAngles(rotationVector.coords[0], rotationVector.coords[1], rotationVector.coords[2]);
 
     nextOrientation = rotationPredictTimeStepped * nextOrientation;
+    } else {
+      // Later steps reuse the extracted physics kernel (Phase 7E).
+      BallState stepState;
+      stepState.position = nextPos;
+      stepState.momentum = momentumPredict;
+      stepState.rotation_ms = rotationPredict_ms;
+      stepState.orientation = nextOrientation;
+      stepState = BallPhysics::Step(stepState, timeStep, BallPhysicsParams());
+      nextPos = stepState.position;
+      momentumPredict = stepState.momentum;
+      rotationPredict_ms = stepState.rotation_ms;
+      nextOrientation = stepState.orientation;
+    }
 
     if (predictTime_ms == 10) {
       DO_VALIDATION;
