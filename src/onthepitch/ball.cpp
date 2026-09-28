@@ -37,14 +37,14 @@ Ball::Ball(Match *match) : match(match) {
 Ball::~Ball() { DO_VALIDATION; }
 
 void Ball::Mirror() {
-  momentum.Mirror();
+  state_.momentum.Mirror();
   for (auto &a : predictions) {
     a.Mirror();
   }
   for (auto &a : ballPosHistory) {
     a.Mirror();
   }
-  positionBuffer.Mirror();
+  state_.position.Mirror();
 }
 
 void Ball::GetPredictionArray(std::vector<Vector3> &target) {
@@ -59,20 +59,20 @@ void Ball::GetPredictionArray(std::vector<Vector3> &target) {
 Vector3 Ball::GetMovement() {
   DO_VALIDATION;
   // meters / sec
-  return momentum;
+  return state_.momentum;
 }
 
 Vector3 Ball::GetRotation() {
   DO_VALIDATION;
   real x, y, z;
-  rotation_ms.GetAngles(x, y, z);
+  state_.rotation_ms.GetAngles(x, y, z);
   return Vector3(x, y, z);
 }
 
 void Ball::Touch(const Vector3 &target) {
   DO_VALIDATION;
   valid_predictions = 0;
-  if (positionBuffer.coords[2] < 0.11f) positionBuffer.coords[2] = 0.11f;
+  if (state_.position.coords[2] < 0.11f) state_.position.coords[2] = 0.11f;
 
   SetMomentum(target);
 
@@ -87,15 +87,15 @@ void Ball::Touch(const Vector3 &target) {
 void Ball::SetPosition(const Vector3 &target) {
   DO_VALIDATION;
   valid_predictions = 0;
-  positionBuffer.Set(target);
-  momentum.Set(0);
+  state_.position.Set(target);
+  state_.momentum.Set(0);
   SetRotation(0, 0, 0, 1.0);
   ballPosHistory.clear();
 }
 
 void Ball::SetMomentum(const Vector3 &target) {
   DO_VALIDATION;
-  momentum.Set(target);
+  state_.momentum.Set(target);
   CalculatePrediction();
 }
 
@@ -109,7 +109,7 @@ void Ball::SetRotation(real x, real y, real z, float bias) {
   rotZ.SetAngleAxis(clamp(z * 0.001f, -pi * 0.49f, pi * 0.49f), Vector3(0, 0, 1));
 
   Quaternion tmpRotation_ms = rotX * rotY * rotZ;
-  rotation_ms = rotation_ms.GetSlerped(bias, tmpRotation_ms);
+  state_.rotation_ms = state_.rotation_ms.GetSlerped(bias, tmpRotation_ms);
 
   CalculatePrediction();
 }
@@ -123,10 +123,10 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
   // fill predictions
 
-  Vector3 nextPos = positionBuffer;
-  Quaternion nextOrientation = orientationBuffer;
-  Vector3 momentumPredict = momentum;
-  Quaternion rotationPredict_ms = rotation_ms;
+  Vector3 nextPos = state_.position;
+  Quaternion nextOrientation = state_.orientation;
+  Vector3 momentumPredict = state_.momentum;
+  Quaternion rotationPredict_ms = state_.rotation_ms;
 
   predictions[0] = nextPos;
 
@@ -550,36 +550,36 @@ Vector3 Ball::GetAveragePosition(unsigned int duration_ms) const {
 void Ball::Process() {
   DO_VALIDATION;
   BallSpatialInfo spatialInfo = CalculatePrediction();
-  momentum = spatialInfo.momentum;
-  rotation_ms = spatialInfo.rotation_ms;
+  state_.momentum = spatialInfo.momentum;
+  state_.rotation_ms = spatialInfo.rotation_ms;
 
-  positionBuffer = Predict(10);
-  orientationBuffer = orientPrediction;
+  state_.position = Predict(10);
+  state_.orientation = orientPrediction;
 
-  ballPosHistory.push_back(positionBuffer);
+  ballPosHistory.push_back(state_.position);
   if (ballPosHistory.size() > ballHistorySize) ballPosHistory.pop_front();
 }
 
 
 void Ball::ResetSituation(const Vector3 &focusPos) {
   DO_VALIDATION;
-  momentum = Vector3(0);
-  rotation_ms = QUATERNION_IDENTITY;
+  state_.momentum = Vector3(0);
+  state_.rotation_ms = QUATERNION_IDENTITY;
   for (unsigned int i = 0; i < ballPredictionSize_ms / 10; i++) {
     DO_VALIDATION;
     predictions[i] = Vector3(focusPos + Vector3(0, 0, 0.11));
   }
   orientPrediction = QUATERNION_IDENTITY;
   ballPosHistory.clear();
-  positionBuffer = Vector3(focusPos + Vector3(0, 0, 0.11));
+  state_.position = Vector3(focusPos + Vector3(0, 0, 0.11));
   valid_predictions = 0;
-  orientationBuffer = QUATERNION_IDENTITY;
+  state_.orientation = QUATERNION_IDENTITY;
 }
 
 void Ball::ProcessState(EnvState *state) {
   DO_VALIDATION;
-  state->process(momentum);
-  state->process(rotation_ms);
+  state->process(state_.momentum);
+  state->process(state_.rotation_ms);
   for (int x = 0; x < sizeof(predictions) / sizeof(predictions[0]); x++) {
     state->process(predictions[x]);
   }
@@ -592,6 +592,6 @@ void Ball::ProcessState(EnvState *state) {
     DO_VALIDATION;
     state->process(i);
   }
-  state->process(positionBuffer);
-  state->process(orientationBuffer);
+  state->process(state_.position);
+  state->process(state_.orientation);
 }

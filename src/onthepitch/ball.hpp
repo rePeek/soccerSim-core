@@ -23,6 +23,7 @@
 #include "../defines.hpp"
 #include "../gamedefines.hpp"
 #include "../utils.hpp"
+#include "core/state/ball_state.hpp"
 
 using namespace blunted;
 
@@ -65,22 +66,18 @@ class Ball {
     Vector3 GetAveragePosition(unsigned int duration_ms) const;
 
     void Process();
-    Quaternion GetOrientation() const { return orientationBuffer; }
+    Quaternion GetOrientation() const { return state_.orientation; }
 
     void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState *state);
   private:
-    Vector3 momentum;
-    Quaternion rotation_ms;
+    BallState state_;  // authoritative ball state (Phase 4)
 
     Vector3 predictions[ballPredictionSize_ms / 10 + cachedPredictions + 1];
     int valid_predictions = 0;
     Quaternion orientPrediction;
 
     std::list<Vector3> ballPosHistory;
-
-    Vector3 positionBuffer;
-    Quaternion orientationBuffer;
 
     Match *match;
 

@@ -97,6 +97,7 @@ set(CORE_HEADERS
    src/match_setup.hpp
    src/misc/hungarian.h
    src/core/world/world.hpp
+   src/core/state/ball_state.hpp
 )
 
 set(CORE_SOURCES
