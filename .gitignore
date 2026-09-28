@@ -1,2 +1,5 @@
 # Build output
 build/
+
+# In-progress refactoring worklog (process doc, not part of the codebase)
+REFACTOR_PLAN.md
