@@ -41,7 +41,7 @@ struct BallSpatialInfo {
 };
 
 // Legacy facade: prediction cache, mental-image / possession updates and the
-// Match pointer stay here. The composed core::domain::Ball owns the state.
+// Match pointer stay here. The composed football::domain::Ball references the state.
 class BallLegacy {
 
   public:
@@ -59,8 +59,8 @@ class BallLegacy {
     }
 
     // Composed domain entity (Phase 7E.5).
-    Ball& Entity() { return *ball_; }
-    const Ball& Entity() const { return *ball_; }
+    football::domain::Ball& Entity() { return *ball_; }
+    const football::domain::Ball& Entity() const { return *ball_; }
 
     void GetPredictionArray(std::vector<Vector3> &target);
     Vector3 GetMovement() { return ball_->State().momentum; }
@@ -78,7 +78,7 @@ class BallLegacy {
 
     void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState *state);
-    std::unique_ptr<Ball> ball_;  // composed domain entity (Phase 7E.5)
+    std::unique_ptr<football::domain::Ball> ball_;  // composed domain entity
 
     Vector3 predictions[ballPredictionSize_ms / 10 + cachedPredictions + 1];
     int valid_predictions = 0;

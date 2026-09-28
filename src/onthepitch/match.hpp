@@ -34,6 +34,9 @@
 #include <fstream>
 #include <iostream>
 
+struct WorldState;
+struct PlayerState;
+
 struct PlayerBounce {
   Player *opp;
   float force = 0.0f;
@@ -45,7 +48,7 @@ class Match {
     Match(std::unique_ptr<MatchData> matchData,
           const std::vector<AIControlledKeyboard*> &controllers,
           const MatchSetup& setup, bool init_animation,
-          BallState& ball_state);
+          WorldState& world_state);
     virtual ~Match();
 
     void Exit();
@@ -53,6 +56,8 @@ class Match {
 
     void UpdateControllerSetup();
     int GetScore(int teamID) { DO_VALIDATION; return matchData->GetGoalCount(teamID); }
+    // Team slots are stable across activation; officials retain local state.
+    PlayerState& GetTeamPlayerState(int team_id, int team_index);
     BallLegacy *GetBall() { DO_VALIDATION; return ball; }
     Team *GetTeam(int teamID) { DO_VALIDATION; return teams[teamID]; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
@@ -142,6 +147,7 @@ class Match {
     void CheckBallCollisions();
 
 
+    WorldState& world_state;  // borrowed; World outlives Match
     std::unique_ptr<MatchData> matchData;
     Team *teams[2];
     int first_team = 0;

@@ -1,5 +1,7 @@
 #include "ball.hpp"
 
+namespace football::domain {
+
 Ball::Ball(BallState& state) : state_(state) {}
 
 void Ball::SetRotation(blunted::real x, blunted::real y, blunted::real z,
@@ -29,3 +31,5 @@ void Ball::Reset(const blunted::Vector3& focusPos) {
   state_.position = blunted::Vector3(focusPos + blunted::Vector3(0, 0, 0.11));
   state_.orientation = blunted::Quaternion(blunted::QUATERNION_IDENTITY);
 }
+
+}  // namespace football::domain

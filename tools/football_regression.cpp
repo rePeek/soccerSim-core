@@ -1183,6 +1183,14 @@ void CheckKinematicMirrorConsistency(GameEnv& env, const std::string& label) {
   match->GetOfficialPlayers(officials);
   Require(!players.empty(), label + ": missing active players");
   Require(!officials.empty(), label + ": missing officials");
+  for (int team_id = 0; team_id < 2; ++team_id) {
+    const auto& roster = match->GetTeam(team_id)->GetAllPlayers();
+    for (size_t i = 0; i < roster.size() && i < MAX_PLAYERS; ++i) {
+      Require(&roster[i]->GetKinematicState() ==
+                  &match->GetTeamPlayerState(team_id, static_cast<int>(i)),
+              label + ": player does not reference its WorldState slot");
+    }
+  }
   for (const Player* player : players) {
     Require(player->IsKinematicMirrorConsistent(),
             label + ": player kinematic mirror is stale");

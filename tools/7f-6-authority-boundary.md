@@ -28,3 +28,15 @@ Save/restore still serializes Humanoid spatial state, PlayerState and collider
 and checks their bit-exact consistency. Do not change that format in 7F.
 Acceptance: release build and all CTest regression/animation A/B/headless tests
 pass without baseline regeneration.
+
+7F self-movement authority is complete. 7G-0 separately moves ownership of
+the first 11 players on each team to `WorldState.players`, without changing
+collision resolution or the legacy serialization stream. Officials and any
+extra bench players still have local movement state. Substitution/rebinding
+of an extra bench player into a World slot is not part of 7G-0; it needs an
+explicit policy before contact prediction assumes all active players are
+World-owned. The current player and ball domain entities live in
+`football::domain`; legacy `::Player` and `BallLegacy` remain facades.
+`PlayerKinematics` is experimental/reference only; runtime movement is
+`PlayerLocomotion` + `PlayerBodyFacing`. Existing facing/bodyFacing field names
+remain for save/API stability; their semantics are movement/torso orientation.

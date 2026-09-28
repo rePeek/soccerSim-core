@@ -24,7 +24,7 @@
 
 
 BallLegacy::BallLegacy(BallState& state, Match *match)
-    : ball_(new Ball(state)), match(match) {
+    : ball_(new football::domain::Ball(state)), match(match) {
   DO_VALIDATION;
   CalculatePrediction();
 }

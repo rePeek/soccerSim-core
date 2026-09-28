@@ -3,6 +3,8 @@
 
 #include "core/state/ball_state.hpp"
 
+namespace football::domain {
+
 // Ball is the football domain entity (Phase 7E.5).
 //
 // It references the authoritative BallState (owned by WorldState) and exposes
@@ -33,5 +35,7 @@ public:
 private:
   BallState& state_;
 };
+
+}  // namespace football::domain
 
 #endif  // _HPP_CORE_DOMAIN_BALL

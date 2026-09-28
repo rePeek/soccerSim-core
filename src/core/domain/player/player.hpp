@@ -3,6 +3,8 @@
 
 #include "core/state/player_state.hpp"
 
+namespace football::domain {
+
 // Player is the football domain entity (Phase 7F-0).
 //
 // It references the authoritative PlayerState and exposes read access to the
@@ -23,5 +25,7 @@ public:
 private:
   PlayerState& state_;
 };
+
+}  // namespace football::domain
 
 #endif  // _HPP_CORE_DOMAIN_PLAYER

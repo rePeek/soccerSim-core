@@ -7,7 +7,7 @@
 // Authoritative, behavior-free movement state of a player (Phase 5).
 // Pure simulation data: no Humanoid/Player/controller pointers.
 //
-// Authority flow (Phase 7F):
+// Authority flow (Phases 7F / 7G-0):
 //  - Per-tick self-movement and reset/lifecycle evaluations produce a
 //    PlayerKinematicResult, applied through PlayerBase::ApplyKinematicResult.
 //  - HumanoidBase projects PlayerState into legacy SpatialState; animation root
@@ -22,8 +22,8 @@ struct PlayerState {
   blunted::Vector3 position = blunted::Vector3(0);
   blunted::Vector3 velocity = blunted::Vector3(0);
   blunted::Vector3 facing = blunted::Vector3(0, -1, 0);
-  // Separate from facing: facing is the locomotion direction, bodyFacing is
-  // the animation-derived body pose.
+  // facing is locomotion direction; bodyFacing is torso orientation, produced
+  // by PlayerBodyFacing on procedural ticks and by animation otherwise.
   blunted::Vector3 bodyFacing = blunted::Vector3(0, -1, 0);
 
   // Mirrors position and velocity like the legacy spatial state. Facing and
@@ -44,8 +44,8 @@ struct PlayerState {
 };
 
 // Complete evaluated kinematics for one player tick. This is deliberately
-// separate from PlayerState: evaluators produce a result, while PlayerBase is
-// the sole owner that applies it to authoritative gameplay state.
+// separate from PlayerState: evaluators produce a result, while PlayerBase
+// applies it to the authoritative state owned by World for team slots.
 struct PlayerKinematicResult {
   blunted::Vector3 position = blunted::Vector3(0);
   blunted::Vector3 velocity = blunted::Vector3(0);

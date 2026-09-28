@@ -20,6 +20,7 @@
 
 #include "humanoid/humanoidbase.hpp"
 #include "core/physics/player_movement.hpp"
+#include "core/domain/player/player.hpp"
 #include "player_ground_collider.hpp"
 #include "player_action.hpp"
 #include "locomotion_intent_scheduler.hpp"
@@ -165,7 +166,8 @@ class PlayerBase {
   friend class HumanoidBase;
 
   public:
-    PlayerBase(Match *match, PlayerData *playerData);
+    PlayerBase(Match *match, PlayerData *playerData,
+               PlayerState *world_player_state = nullptr);
     virtual ~PlayerBase();
     void Mirror();
 
@@ -407,7 +409,9 @@ class PlayerBase {
     const int stable_id = 0;
 
     std::unique_ptr<HumanoidBase> humanoid;
-    PlayerKinematicState kinematicState;
+    PlayerKinematicState localKinematicState;  // officials (not team slots)
+    football::domain::Player domainPlayer;
+    PlayerKinematicState &kinematicState;  // aliases domainPlayer.State()
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
     LocomotionIntentScheduler locomotionIntentScheduler;

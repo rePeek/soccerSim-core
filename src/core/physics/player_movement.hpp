@@ -22,6 +22,8 @@ struct PlayerKinematicParameters {
   float maxTurnRate = 4.0f;  // radians per second
 };
 
+// Experimental/reference kinematic model for regression and measurement.
+// Runtime locomotion uses PlayerLocomotion and PlayerBodyFacing below.
 class PlayerKinematics {
  public:
   static void Step(PlayerKinematicState &state,

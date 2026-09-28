@@ -42,7 +42,7 @@ struct TacticalPlayerSituation {
 class Player : public PlayerBase {
 
   public:
-    Player(Team *team, PlayerData *playerData);
+    Player(Team *team, PlayerData *playerData, PlayerState* state);
     virtual ~Player();
 
     Humanoid *CastHumanoid();

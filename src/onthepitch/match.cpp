@@ -41,11 +41,17 @@ const std::vector<Vector3> &Match::GetAnimPositionCache(Animation *anim) const {
   return GetContext().animPositionCache.find(anim)->second;
 }
 
+PlayerState& Match::GetTeamPlayerState(int team_id, int team_index) {
+  assert(team_id >= 0 && team_id < 2);
+  assert(team_index >= 0 && team_index < MAX_PLAYERS);
+  return world_state.players[team_id * MAX_PLAYERS + team_index];
+}
+
 Match::Match(std::unique_ptr<MatchData> match_data,
              const std::vector<AIControlledKeyboard *> &controllers,
              const MatchSetup& setup, bool animations,
-             BallState& ball_state)
-    : matchData(std::move(match_data)),
+             WorldState& world_state)
+    : world_state(world_state), matchData(std::move(match_data)),
       first_team(GetScenarioConfig().reverse_team_processing ? 1 : 0),
       second_team(GetScenarioConfig().reverse_team_processing ? 0 : 1),
       controllers(controllers),
@@ -63,7 +69,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   goalScoredTimer = 0;
 
 
-  ball = new BallLegacy(ball_state, this);
+  ball = new BallLegacy(world_state.ball, this);
 
   if (!anims) {
     DO_VALIDATION;

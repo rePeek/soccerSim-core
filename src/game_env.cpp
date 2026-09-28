@@ -336,6 +336,8 @@ void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
     controller->SetDisabled(true);
   }
   GetGameTask()->StopMatch();
+  // Slots belong to World across matches. Clear unused slots as well.
+  world->GetState().players = {};
   GetGameTask()->StartMatch(std::move(context->matchSetup), animations,
-                            world->GetState().ball);
+                            world->GetState());
 }

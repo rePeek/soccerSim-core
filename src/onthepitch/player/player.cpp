@@ -50,8 +50,8 @@ constexpr int kReachabilityExactHorizon_ms = 500;
 
 }  // namespace
 
-Player::Player(Team *team, PlayerData *playerData)
-    : PlayerBase(team->GetMatch(), playerData), team(team) {
+Player::Player(Team *team, PlayerData *playerData, PlayerState* state)
+    : PlayerBase(team->GetMatch(), playerData, state), team(team) {
   DO_VALIDATION;
   SetDesiredTimeToBall_ms(0);
 

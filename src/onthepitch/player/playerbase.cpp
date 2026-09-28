@@ -264,10 +264,13 @@ bool FloatBitsEqual(float a, float b) {
 
 }  // namespace
 
-PlayerBase::PlayerBase(Match *match, PlayerData *playerData)
+PlayerBase::PlayerBase(Match *match, PlayerData *playerData,
+                       PlayerState *world_player_state)
     : match(match),
       playerData(playerData),
-      stable_id(GetContext().stablePlayerCount++) {
+      stable_id(GetContext().stablePlayerCount++),
+      domainPlayer(world_player_state ? *world_player_state : localKinematicState),
+      kinematicState(domainPlayer.State()) {
   DO_VALIDATION;
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;

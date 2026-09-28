@@ -14,8 +14,9 @@
 // Team* pointers. This is the container that later phases (Physics / Action /
 // Rules / Replay) read from and write to.
 //
-// BallState is authoritative from Phase 7 onward (it lives here).
-// PlayerState and MatchState are still migrating from the legacy model.
+// BallState and the first 11 PlayerStates per team are runtime-owned here.
+// Additional bench players and officials retain local state; MatchState is
+// still migrating. The legacy save stream serializes via the existing facades.
 struct WorldState {
   unsigned long time_ms = 0;
   BallState ball;

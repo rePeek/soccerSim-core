@@ -71,7 +71,10 @@ void Team::InitPlayers(
   for (int i = 0; i < (signed int)teamData->GetPlayerNum(); i++) {
     DO_VALIDATION;
     PlayerData *playerData = teamData->GetPlayerData(i);
-    Player *player = new Player(this, playerData);
+    // WorldState has 11 slots per team; extra bench entries retain local state.
+    PlayerState *slot =
+        i < MAX_PLAYERS ? &match->GetTeamPlayerState(id, i) : nullptr;
+    Player *player = new Player(this, playerData, slot);
     players.push_back(player);
 
     if (i < playerNum) {
