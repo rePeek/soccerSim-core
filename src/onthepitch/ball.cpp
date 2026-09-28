@@ -328,7 +328,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
     if (predictTime_ms <= 10 && netting_enabled) {
       DO_VALIDATION;
 
-      bool ballIsInGoal = match->IsBallInGoal();
+      const bool ballIsInGoal = IsBallInsideGoal(nextPos, GoalGeometry());
       signed int inGoal = ballIsInGoal ? 1 : -1;
 
       bool behindBackline = std::fabs(nextPos.coords[0]) > pitchHalfW + 0.11f;
