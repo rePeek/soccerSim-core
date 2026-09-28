@@ -10,7 +10,7 @@
 
 #include "player_action.hpp"
 #include "player_ground_collider.hpp"
-#include "player_kinematics.hpp"
+#include "core/physics/player_movement.hpp"
 
 // Contact volume for actions that reach out beyond the base body collider
 // (slide tackles, standing tackles). It is derived purely from simulation

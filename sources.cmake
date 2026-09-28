@@ -103,6 +103,7 @@ set(CORE_HEADERS
    src/core/state/world_state.hpp
    src/core/physics/physics_system.hpp
    src/core/physics/ball_physics.hpp
+   src/core/physics/player_movement.hpp
    src/core/domain/ball/ball.hpp
    src/core/domain/player/player.hpp
 )
@@ -117,6 +118,7 @@ set(CORE_SOURCES
    src/core/physics/physics_system.cpp
    src/core/domain/ball/ball.cpp
    src/core/domain/player/player.cpp
+   src/core/physics/player_movement.cpp
    src/utils.cpp
    src/main.cpp
    src/gamedefines.cpp
@@ -134,7 +136,6 @@ set(GAME_HEADERS
    src/onthepitch/player/humanoid/humanoid_utils.hpp
    src/onthepitch/player/playerofficial.hpp
    src/onthepitch/player/playerbase.hpp
-   src/onthepitch/player/player_kinematics.hpp
    src/onthepitch/player/player_retain_anchor.hpp
    src/onthepitch/player/player_ground_collider.hpp
    src/onthepitch/player/player_body_collider.hpp
@@ -172,7 +173,6 @@ set(GAME_SOURCES
    src/onthepitch/player/playerofficial.cpp
    src/onthepitch/player/player.cpp
    src/onthepitch/player/playerbase.cpp
-   src/onthepitch/player/player_locomotion.cpp
    src/onthepitch/player/controller/playercontroller.cpp
    src/onthepitch/player/controller/humancontroller.cpp
    src/onthepitch/player/controller/icontroller.cpp

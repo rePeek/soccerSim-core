@@ -1,20 +1,79 @@
-//
-//  player_locomotion.hpp
-//  football
-//
-//  Copyright 2026
-//
-
-#ifndef _HPP_PLAYER_LOCOMOTION
-#define _HPP_PLAYER_LOCOMOTION
+#ifndef _HPP_CORE_PHYSICS_PLAYER_MOVEMENT
+#define _HPP_CORE_PHYSICS_PLAYER_MOVEMENT
 
 #include <cmath>
-
 #include "../../defines.hpp"
-#include "player_kinematics.hpp"
+#include "core/state/player_state.hpp"
 
-// This header is used from its own translation unit as well, so it cannot rely
-// on another header having opened the blunted namespace.
+// ===== PlayerKinematics: state alias + simple kinematic model =====
+using PlayerKinematicState = PlayerState;
+
+// Inputs are intentionally independent from PlayerCommand so that action
+// execution can later impose movement constraints without exposing Humanoid.
+struct PlayerKinematicInput {
+  blunted::Vector3 desiredVelocity = blunted::Vector3(0);
+  blunted::Vector3 desiredFacing = blunted::Vector3(0, -1, 0);
+};
+
+struct PlayerKinematicParameters {
+  float maxSpeed = 8.0f;
+  float acceleration = 12.0f;
+  float braking = 16.0f;
+  float maxTurnRate = 4.0f;  // radians per second
+};
+
+class PlayerKinematics {
+ public:
+  static void Step(PlayerKinematicState &state,
+                   const PlayerKinematicInput &input,
+                   const PlayerKinematicParameters &parameters, float dt) {
+    DO_VALIDATION;
+    assert(dt > 0.0f);
+    assert(parameters.maxSpeed >= 0.0f);
+    assert(parameters.acceleration >= 0.0f);
+    assert(parameters.braking >= 0.0f);
+    assert(parameters.maxTurnRate >= 0.0f);
+
+    blunted::Vector3 desiredVelocity = input.desiredVelocity.Get2D();
+    const float desiredSpeed = desiredVelocity.GetLength();
+    if (desiredSpeed > parameters.maxSpeed) {
+      desiredVelocity =
+          desiredVelocity.GetNormalized(blunted::Vector3(0)) *
+          parameters.maxSpeed;
+    }
+
+    const blunted::Vector3 velocityDelta = desiredVelocity - state.velocity;
+    const float changeLimit =
+        (desiredVelocity.GetLength() < state.velocity.GetLength() ? parameters.braking
+                                                  : parameters.acceleration) *
+        dt;
+    if (velocityDelta.GetLength() > changeLimit && changeLimit > 0.0f) {
+      state.velocity += velocityDelta.GetNormalized(blunted::Vector3(0)) *
+                        changeLimit;
+    } else {
+      state.velocity = desiredVelocity;
+    }
+    state.velocity.coords[2] = 0.0f;
+
+    const blunted::Vector3 currentFacing =
+        state.facing.Get2D().GetNormalized(blunted::Vector3(0, -1, 0));
+    const blunted::Vector3 desiredFacing =
+        input.desiredFacing.Get2D().GetNormalized(currentFacing);
+    const float requestedTurn = desiredFacing.GetAngle2D(currentFacing);
+    const float turnLimit = parameters.maxTurnRate * dt;
+    const float appliedTurn =
+        blunted::clamp(requestedTurn, -turnLimit, turnLimit);
+    state.facing = currentFacing.GetRotated2D(appliedTurn).GetNormalized(
+        currentFacing);
+    state.facing.coords[2] = 0.0f;
+
+    state.position += state.velocity * dt;
+    state.position.coords[2] = 0.0f;
+  }
+};
+
+
+// ===== PlayerLocomotion: procedural locomotion kernel =====
 using namespace blunted;
 
 // Simulation-owned procedural locomotion for pure Movement ticks.
@@ -486,4 +545,71 @@ class PlayerLocomotion {
     return reach;
   }
 };
-#endif
+
+// ===== PlayerBodyFacing: torso/orientation model =====
+struct PlayerBodyFacingInput {
+  Vector3 desiredFacing = Vector3(0, -1, 0);
+};
+
+// H3e3b-prep5 selection from the event-based shadow grid. 6 rad/s gives a
+// 90-degree torso response in about 262 ms; 90 degrees permits side-looking
+// without making a long-lived backwards torso pose a valid target.
+constexpr float kBodyFacingMaxTurnRate = 6.0f;
+constexpr float kBodyFacingMaxRelativeAngle = pi * 0.5f;
+struct PlayerBodyFacingParameters {
+  float maxTurnRate = kBodyFacingMaxTurnRate;       // radians per second
+  float maxRelativeAngle = kBodyFacingMaxRelativeAngle;  // radians from facing
+};
+
+class PlayerBodyFacing {
+ public:
+  // Clamp the requested torso direction into the cone around locomotion facing.
+  // GetAngle2D and GetRotated2D have opposite sign conventions; like
+  // PlayerLocomotion, measure the angle from desired back to current before
+  // applying it to the current vector.
+  static Vector3 AllowedTarget(const PlayerKinematicState &state,
+                               const PlayerBodyFacingInput &input,
+                               const PlayerBodyFacingParameters &parameters) {
+    DO_VALIDATION;
+    const Vector3 locomotionFacing =
+        state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+    const Vector3 desired =
+        input.desiredFacing.Get2D().GetNormalized(locomotionFacing);
+    const float requestedRelative = desired.GetAngle2D(locomotionFacing);
+    const float allowedRelative = clamp(requestedRelative,
+                                        -parameters.maxRelativeAngle,
+                                        parameters.maxRelativeAngle);
+    return locomotionFacing.GetRotated2D(allowedRelative).GetNormalized(
+        locomotionFacing);
+  }
+
+  // Advance one planar torso-orientation step. Turn rate is a hard state
+  // invariant. maxRelativeAngle instead bounds the requested target, not
+  // necessarily the current body state: a locomotion-facing change can move
+  // the cone past a finite-rate torso in one tick, and snapping would violate
+  // the continuity contract. The resulting transient overshoot is observable
+  // by callers but is resolved continuously toward the bounded target.
+  static void Step(PlayerKinematicState &state,
+                   const PlayerBodyFacingInput &input,
+                   const PlayerBodyFacingParameters &parameters, float dt) {
+    DO_VALIDATION;
+    assert(dt > 0.0f);
+    assert(parameters.maxTurnRate >= 0.0f);
+    assert(parameters.maxRelativeAngle >= 0.0f);
+    assert(parameters.maxRelativeAngle <= pi);
+
+    const Vector3 locomotionFacing =
+        state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+    const Vector3 current =
+        state.bodyFacing.Get2D().GetNormalized(locomotionFacing);
+    const Vector3 target = AllowedTarget(state, input, parameters);
+    const float requestedTurn = target.GetAngle2D(current);
+    const float appliedTurn = clamp(requestedTurn, -parameters.maxTurnRate * dt,
+                                    parameters.maxTurnRate * dt);
+    state.bodyFacing = current.GetRotated2D(appliedTurn).GetNormalized(current);
+    state.bodyFacing.coords[2] = 0.0f;
+  }
+};
+
+
+#endif  // _HPP_CORE_PHYSICS_PLAYER_MOVEMENT

@@ -19,7 +19,7 @@
 #define _HPP_PLAYERBASE
 
 #include "humanoid/humanoidbase.hpp"
-#include "player_kinematics.hpp"
+#include "core/physics/player_movement.hpp"
 #include "player_ground_collider.hpp"
 #include "player_action.hpp"
 #include "locomotion_intent_scheduler.hpp"

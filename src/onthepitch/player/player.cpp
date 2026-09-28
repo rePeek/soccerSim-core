@@ -16,7 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "player.hpp"
-#include "player_locomotion.hpp"
+#include "core/physics/player_movement.hpp"
 
 #include <cmath>
 

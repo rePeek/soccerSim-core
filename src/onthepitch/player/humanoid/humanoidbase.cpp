@@ -26,8 +26,8 @@
 
 #include "../playerbase.hpp"
 #include "../legacy_locomotion_command.hpp"
-#include "../player_locomotion.hpp"
-#include "../player_body_facing.hpp"
+#include "core/physics/player_movement.hpp"
+#include "core/physics/player_movement.hpp"
 #include "../../match.hpp"
 
 #include "../../../main.hpp"

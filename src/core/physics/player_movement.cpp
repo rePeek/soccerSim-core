@@ -5,7 +5,7 @@
 //  Copyright 2026
 //
 
-#include "player_locomotion.hpp"
+#include "core/physics/player_movement.hpp"
 
 // Single definitions for the reachability diagnostics. They live in the library
 // so that the engine and the regression tool share one counter; see the comment

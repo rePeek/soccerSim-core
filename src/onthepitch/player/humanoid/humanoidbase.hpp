@@ -25,7 +25,7 @@
 
 #include "animcollection.hpp"
 
-#include "../player_kinematics.hpp"
+#include "core/physics/player_movement.hpp"
 
 #include "../../AIsupport/mentalimage.hpp"
 
