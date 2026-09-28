@@ -115,8 +115,7 @@ void GameEnv::start_game() {
   config->Set("match_duration", 0.027);
   config->Set("game", 0);
   run_game(config);
-  world = std::make_unique<World>();
-  world->SetLegacyGameTask(context->gameTask.get());
+  world = std::make_unique<World>(*context->gameTask);
   auto scenario_config = ScenarioConfig::make();
   reset(*scenario_config, false);
   DO_VALIDATION;

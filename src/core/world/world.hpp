@@ -16,23 +16,23 @@
 
 class GameTask;  // legacy
 
-// World is the top-level simulation orchestrator.
+// World is the future top-level simulation orchestrator.
 //
-// Phase 3 (current): a thin shell that forwards stepping to the legacy
-// GameTask. Ownership of the authoritative WorldState and the systems that
-// advance it (Physics / Action / Rules) migrate here in later phases.
+// Phase 3 (current): only a simulation entry seam — it borrows the legacy
+// GameTask and forwards Step() to it. Ownership of the authoritative
+// WorldState and the systems that advance it (Physics / Action / Rules)
+// migrate here in later phases.
 class World {
 public:
-  World() = default;
-
-  // Legacy injection point: the existing GameTask still owns the Match.
-  void SetLegacyGameTask(GameTask* game_task) { legacy_game_task_ = game_task; }
+  // World borrows the legacy GameTask; it does not own it. The invariant
+  // is: a World that exists always has a valid GameTask to step.
+  explicit World(GameTask& game_task) : legacy_game_task_(game_task) {}
 
   // Advance the simulation by one phase (tick).
   void Step();
 
 private:
-  GameTask* legacy_game_task_ = nullptr;
+  GameTask& legacy_game_task_;
 };
 
 #endif  // _HPP_CORE_WORLD
