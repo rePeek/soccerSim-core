@@ -286,6 +286,9 @@ class PlayerBase {
       DO_VALIDATION;
       return kinematicState;
     }
+    // Sole mutation point for evaluated movement kinematics. Callers must
+    // project this state to HumanoidBase::SpatialState before exposing the tick.
+    void ApplyKinematicResult(const PlayerKinematicResult &result);
     const PlayerGroundCollider &GetGroundCollider() const {
       DO_VALIDATION;
       return groundCollider;

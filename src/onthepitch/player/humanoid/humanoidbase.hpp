@@ -380,7 +380,26 @@ struct SpatialState {
   }
 };
 
+// Compatibility data still required by animation selection and legacy ball
+// algorithms. It is intentionally distinct from PlayerKinematicResult: none of
+// these fields may become a gameplay-authority path again.
+struct LegacySpatialCompatibility {
+  Vector3 actualMovement;
+  Vector3 physicsMovement;
+  Vector3 animMovement;
+  bool updateFoot = false;
+  e_Foot foot;
+};
+
+struct LegacyAnimationKinematicEvaluation {
+  PlayerKinematicResult kinematics;
+  LegacySpatialCompatibility compatibility;
+};
+
+class LegacyAnimationKinematics;
+
 class HumanoidBase {
+  friend class LegacyAnimationKinematics;
 
   public:
     HumanoidBase(PlayerBase *player, Match *match, std::shared_ptr<AnimCollection> animCollection);
@@ -428,26 +447,22 @@ class HumanoidBase {
     void CalculatePredictedSituation(Vector3 &predictedPos, radian &predictedAngle);
     Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
 
-    void CalculateSpatialState(); // realtime properties, based on 'physics'
-    void CalculateFactualSpatialState(); // realtime properties, based on anim. usable at last frame of anim. more riggid than above function
-    // Reverse projection used by the locomotion authority flip: the simulation
-    // movement state is the source and the legacy Humanoid movement fields
-    // follow it. Action selection, the ball algorithms and the body pose all
-    // read spatialState, so it must never keep a private animation position.
-    // Animation-owned bookkeeping (actualMovement, physicsMovement,
-    // animMovement, the smuggle movements and the foot) is deliberately left
-    // alone until H3e4 takes it over.
-    void ApplySimulationMovementState(const PlayerKinematicState &state);
+    // Evaluates legacy animation root motion into PlayerKinematicResult, applies
+    // it through PlayerBase, then projects PlayerState back into SpatialState.
+    void CalculateSpatialState();
+    void CalculateFactualSpatialState();
+    void ApplyLegacySpatialCompatibility(
+        const LegacySpatialCompatibility &compatibility);
+    // One-way projection. SpatialState is compatibility/animation data; its
+    // four gameplay fields always originate in PlayerState.
+    void ProjectPlayerStateToSpatialState(const PlayerKinematicState &state);
     // One-way body-orientation compatibility projection. Continuous fields are
     // derived exactly from state.bodyFacing; quantized relBody* exists only for
     // legacy animation selection and never feeds bodyFacing back.
     void ApplySimulationBodyState(const PlayerKinematicState &state);
-    // Produce this tick's movement. Pure locomotion is solved by the
-    // simulation and the legacy Humanoid fields follow it; every other tick
-    // keeps the legacy animation root motion and is merely projected. The
-    // tick-start state is passed in so the procedural model integrates from
-    // the world state in force, and so an action selection later in the same
-    // tick cannot change what this tick's locomotion was.
+    // Produces this tick's movement. Pure locomotion is evaluated procedurally;
+    // non-locomotion was already evaluated by LegacyAnimationKinematics in
+    // CalculateSpatialState().
     void ProjectMovementState(const PlayerKinematicState &tickStartState);
     bool UsesProceduralLocomotion() const;
 
@@ -536,6 +551,15 @@ class HumanoidBase {
     // Should be dynamically retrieved from match, don't cache.
     int mentalImageTime = 0;
 
+};
+
+// Executes the unchanged legacy root-motion/body-pose algorithm without
+// mutating SpatialState. The caller applies the authoritative result first and
+// only then writes its compatibility projection.
+class LegacyAnimationKinematics {
+ public:
+  static LegacyAnimationKinematicEvaluation Evaluate(
+      const HumanoidBase &humanoid);
 };
 
 // Called at the single point where a selection replaces the command in force,

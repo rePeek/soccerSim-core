@@ -1311,161 +1311,178 @@ bool HumanoidBase::UsesProceduralLocomotion() const {
 }
 
 
+LegacyAnimationKinematicEvaluation LegacyAnimationKinematics::Evaluate(
+    const HumanoidBase &humanoid) {
+  DO_VALIDATION;
+  LegacyAnimationKinematicEvaluation evaluation;
+  const Anim &currentAnim = humanoid.currentAnim;
+  const SpatialState &spatialState = humanoid.spatialState;
+
+  Vector3 position;
+  if (currentAnim.positions.size() >
+      static_cast<unsigned int>(currentAnim.frameNum)) {
+    position = humanoid.startPos + currentAnim.positions.at(currentAnim.frameNum) +
+               currentAnim.actionSmuggleOffset +
+               currentAnim.actionSmuggleSustainOffset +
+               currentAnim.movementSmuggleOffset;
+  } else {
+    Quaternion orientation;
+    currentAnim.anim->GetKeyFrame(BodyPart::player, currentAnim.frameNum,
+                                  orientation, position);
+    position.coords[2] = 0.0f;
+    position = humanoid.startPos + position.GetRotated2D(humanoid.startAngle) +
+               currentAnim.actionSmuggleOffset +
+               currentAnim.actionSmuggleSustainOffset +
+               currentAnim.movementSmuggleOffset;
+  }
+
+  evaluation.compatibility.updateFoot = currentAnim.frameNum > 12;
+  if (evaluation.compatibility.updateFoot) {
+    evaluation.compatibility.foot = currentAnim.anim->GetOutgoingFoot();
+  }
+
+  assert(humanoid.startPos.coords[2] == 0.0f);
+  assert(currentAnim.actionSmuggleOffset.coords[2] == 0.0f);
+  assert(currentAnim.movementSmuggleOffset.coords[2] == 0.0f);
+  assert(position.coords[2] == 0.0f);
+
+  evaluation.compatibility.actualMovement =
+      (position - humanoid.previousPosition2D) * 100.0f;
+  const float positionOffsetMovementIgnoreFactor = 0.5f;
+  evaluation.compatibility.physicsMovement =
+      evaluation.compatibility.actualMovement -
+      spatialState.actionSmuggleMovement - spatialState.movementSmuggleMovement -
+      spatialState.positionOffsetMovement * positionOffsetMovementIgnoreFactor;
+  evaluation.compatibility.animMovement =
+      evaluation.compatibility.physicsMovement;
+  if (!currentAnim.positions.empty()) {
+    // Preserve the legacy requeue measurement, including its deliberate
+    // omission of smuggle and collision corrections.
+    const std::vector<Vector3> &origPositionCache =
+        humanoid.match->GetAnimPositionCache(currentAnim.anim);
+    evaluation.compatibility.animMovement =
+        CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum, 1)
+            .GetRotated2D(humanoid.startAngle);
+  }
+
+  const Vector3 movement = evaluation.compatibility.physicsMovement;
+  const float floatVelocity = movement.GetLength();
+  const e_Velocity enumVelocity = FloatToEnumVelocity(floatVelocity);
+
+  ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
+  Vector3 bodyPosition;
+  Quaternion bodyOrientation;
+  currentAnim.anim->GetKeyFrame(body, currentAnim.frameNum, bodyOrientation,
+                                bodyPosition);
+  real x, y, z;
+  bodyOrientation.GetAngles(x, y, z);
+  const Vector3 bodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(
+      z + humanoid.startAngle + currentAnim.rotationSmuggleOffset);
+  const Vector3 facing =
+      enumVelocity != e_Velocity_Idle ? movement.GetNormalized()
+                                     : bodyDirectionVec;
+  const radian angle =
+      ModulateIntoRange(-pi, pi, FixAngle(facing.GetAngle2D()));
+
+  Vector3 relBodyDirectionVec;
+  if (enumVelocity != e_Velocity_Idle) {
+    Vector3 adaptedBodyDirectionVec = bodyDirectionVec.GetRotated2D(-angle);
+    const bool preferCorrectVeloOverCorrectAngle = true;
+    const radian bodyAngleRel =
+        adaptedBodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
+    if (enumVelocity == e_Velocity_Sprint &&
+        std::fabs(bodyAngleRel) >= 0.125f * pi) {
+      if (preferCorrectVeloOverCorrectAngle) {
+        adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(
+            0.12f * pi * signSide(bodyAngleRel));
+      }
+    } else if (enumVelocity == e_Velocity_Walk &&
+               std::fabs(bodyAngleRel) >= 0.5f * pi) {
+      if (preferCorrectVeloOverCorrectAngle) {
+        adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(
+            0.495f * pi * signSide(bodyAngleRel));
+      }
+    }
+    relBodyDirectionVec =
+        humanoid.ForceIntoAllowedBodyDirectionVec(adaptedBodyDirectionVec);
+  } else {
+    relBodyDirectionVec = Vector3(0, -1, 0);
+  }
+
+  evaluation.kinematics.position = position;
+  evaluation.kinematics.velocity = movement;
+  evaluation.kinematics.facing = facing;
+  evaluation.kinematics.bodyFacing = relBodyDirectionVec.GetRotated2D(angle);
+  return evaluation;
+}
+
+void HumanoidBase::ApplyLegacySpatialCompatibility(
+    const LegacySpatialCompatibility &compatibility) {
+  DO_VALIDATION;
+  spatialState.actualMovement = compatibility.actualMovement;
+  spatialState.physicsMovement = compatibility.physicsMovement;
+  spatialState.animMovement = compatibility.animMovement;
+  if (compatibility.updateFoot) spatialState.foot = compatibility.foot;
+}
+
 void HumanoidBase::CalculateSpatialState() {
   DO_VALIDATION;
   if (UsesProceduralLocomotion()) {
-    // H3e4d2: root-motion and body-pose producers are dead on this path. Foot
-    // remains animation-owned gait/selection state until its separate audit.
+    // Root motion and body pose are not evaluated on the procedural path. Foot
+    // remains animation-owned gait/selection compatibility data.
     if (currentAnim.frameNum > 12) {
       spatialState.foot = currentAnim.anim->GetOutgoingFoot();
     }
     ++HumanoidProceduralMovementTicks();
     return;
   }
-  Vector3 position;
-  if (currentAnim.positions.size() > (unsigned int)currentAnim.frameNum) {
-    DO_VALIDATION;
-    position = startPos + currentAnim.positions.at(currentAnim.frameNum) + currentAnim.actionSmuggleOffset + currentAnim.actionSmuggleSustainOffset + currentAnim.movementSmuggleOffset;
-  } else {
-    Quaternion orientation;
-    currentAnim.anim->GetKeyFrame(BodyPart::player, currentAnim.frameNum, orientation, position);
-    position.coords[2] = 0.0f;
-    position = startPos + position.GetRotated2D(startAngle) + currentAnim.actionSmuggleOffset + currentAnim.actionSmuggleSustainOffset + currentAnim.movementSmuggleOffset;
-  }
 
-  if (currentAnim.frameNum > 12) {
-    DO_VALIDATION;
-    spatialState.foot = currentAnim.anim->GetOutgoingFoot();
-  }
-
-  assert(startPos.coords[2] == 0.0f);
-  assert(currentAnim.actionSmuggleOffset.coords[2] == 0.0f);
-  assert(currentAnim.movementSmuggleOffset.coords[2] == 0.0f);
-  assert(position.coords[2] == 0.0f);
-
-  spatialState.actualMovement = (position - previousPosition2D) * 100.0f;
-  const float positionOffsetMovementIgnoreFactor = 0.5f;
-  spatialState.physicsMovement = spatialState.actualMovement - (spatialState.actionSmuggleMovement) - (spatialState.movementSmuggleMovement) - (spatialState.positionOffsetMovement * positionOffsetMovementIgnoreFactor);
-  spatialState.animMovement = spatialState.physicsMovement;
-  if (currentAnim.positions.size() > 0) {
-    DO_VALIDATION;
-    // this way, action cheating is being omitted from the current movement, making for better requeues. however, keep in mind that
-    // movementoffsets, from bumping into other players, for example, will also be ignored this way.
-    const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(currentAnim.anim);
-    spatialState.animMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum, 1).GetRotated2D(startAngle);
-  }
-  spatialState.movement = spatialState.physicsMovement; // PICK DEFAULT
-
-  spatialState.floatVelocity = spatialState.movement.GetLength();
-  spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
-  spatialState.position = position;
-  if (!UsesProceduralLocomotion()) {
-    ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
-  Vector3 bodyPosition;
-  Quaternion bodyOrientation;
-  currentAnim.anim->GetKeyFrame(body, currentAnim.frameNum, bodyOrientation, bodyPosition);
-  real x, y, z;
-  bodyOrientation.GetAngles(x, y, z);
-
-  Vector3 quatDirection; quatDirection = bodyOrientation;
-
-  Vector3 bodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(z + startAngle + currentAnim.rotationSmuggleOffset);
-
-  spatialState.floatVelocity = spatialState.movement.GetLength();
-  spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
-
-  if (spatialState.enumVelocity != e_Velocity_Idle) {
-    DO_VALIDATION;
-    spatialState.directionVec = spatialState.movement.GetNormalized();
-  } else {
-    // too slow for comfort, use body direction as global direction
-    spatialState.directionVec = bodyDirectionVec;
-  }
-
-  spatialState.position = position;
-  spatialState.angle = ModulateIntoRange(-pi, pi, FixAngle(spatialState.directionVec.GetAngle2D()));
-
-  if (spatialState.enumVelocity != e_Velocity_Idle) {
-    DO_VALIDATION;
-    Vector3 adaptedBodyDirectionVec = bodyDirectionVec.GetRotated2D(-spatialState.angle);
-    // prefer straight forward, so lie about the actual direction a bit
-    // this may fix bugs of body dir being non-0 somewhere during 0 anims
-    // but it may also cause other bugs (going 0 to 45 all over again each time)
-    //adaptedBodyDirectionVec = (adaptedBodyDirectionVec * 0.95f + Vector3(0, -1, 0) * 0.05f).GetNormalized(0);
-    //ForceIntoAllowedBodyDirectionVec(Vector3(0, -1, 0)).Print();
-
-    bool preferCorrectVeloOverCorrectAngle = true;
-    radian bodyAngleRel = adaptedBodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
-    if (spatialState.enumVelocity == e_Velocity_Sprint &&
-        std::fabs(bodyAngleRel) >= 0.125f * pi) {
-      DO_VALIDATION;
-      if (preferCorrectVeloOverCorrectAngle) {
-        DO_VALIDATION;
-        // on impossible combinations of velocity and body angle, decrease body angle
-        adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(0.12f * pi * signSide(bodyAngleRel));
-      } else {
-        // on impossible combinations of velocity and body angle, decrease velocity
-        spatialState.floatVelocity = walkSprintSwitch - 0.1f;
-        spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
-      }
-    } else if (spatialState.enumVelocity == e_Velocity_Walk &&
-               std::fabs(bodyAngleRel) >= 0.5f * pi) {
-      DO_VALIDATION;
-      if (preferCorrectVeloOverCorrectAngle) {
-        DO_VALIDATION;
-        // on impossible combinations of velocity and body angle, decrease body angle
-        adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(0.495f * pi * signSide(bodyAngleRel));
-      } else {
-        // on impossible combinations of velocity and body angle, decrease velocity
-        spatialState.floatVelocity = dribbleWalkSwitch - 0.1f;
-        spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
-      }
-    }
-
-    spatialState.relBodyDirectionVecNonquantized = adaptedBodyDirectionVec;
-    spatialState.relBodyDirectionVec = ForceIntoAllowedBodyDirectionVec(adaptedBodyDirectionVec);
-  } else {
-    spatialState.relBodyDirectionVecNonquantized = Vector3(0, -1, 0);
-    spatialState.relBodyDirectionVec = Vector3(0, -1, 0);
-  }
-  spatialState.relBodyAngle = spatialState.relBodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
-  spatialState.relBodyAngleNonquantized = spatialState.relBodyDirectionVecNonquantized.GetAngle2D(Vector3(0, -1, 0));
-  spatialState.bodyDirectionVec = spatialState.relBodyDirectionVec.GetRotated2D(spatialState.angle); // rotate back, we now have it forced into allowed angle
-  spatialState.bodyAngle = spatialState.bodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
-  }
-
-  previousPosition2D = position;
-
-  // The kinematic mirror must track the spatial state at the instant it
-  // changes. Controllers are queried later in the same tick and read the
-  // player's own position/movement through Player, so a mirror that only
-  // refreshed at the end of Player::Process would be a tick behind.
-  if (player) player->SynchronizeKinematicState();
+  const LegacyAnimationKinematicEvaluation evaluation =
+      LegacyAnimationKinematics::Evaluate(*this);
+  ApplyLegacySpatialCompatibility(evaluation.compatibility);
+  if (player) player->ApplyKinematicResult(evaluation.kinematics);
+  ProjectPlayerStateToSpatialState(
+      player ? player->GetKinematicState() : PlayerKinematicState{
+          evaluation.kinematics.position, evaluation.kinematics.velocity,
+          evaluation.kinematics.facing, evaluation.kinematics.bodyFacing});
+  if (player) player->CheckSimulationKinematicOracle();
 }
 
 void HumanoidBase::CalculateFactualSpatialState() {
   DO_VALIDATION;
 
   spatialState.foot = currentAnim.anim->GetOutgoingFoot();
-
-  if (!currentAnim.anim->GetVariableCache().outgoing_special_state().empty()) {
-    DO_VALIDATION;
-    spatialState.floatVelocity = 0;
-    spatialState.enumVelocity = e_Velocity_Idle;
-    spatialState.movement = Vector3(0);
+  if (currentAnim.anim->GetVariableCache().outgoing_special_state().empty()) {
+    return;
   }
 
-  if (player) player->SynchronizeKinematicState();
+  PlayerKinematicResult result;
+  if (player) {
+    const PlayerKinematicState &state = player->GetKinematicState();
+    result.position = state.position;
+    result.velocity = Vector3(0);
+    result.facing = state.facing;
+    result.bodyFacing = state.bodyFacing;
+    player->ApplyKinematicResult(result);
+    ProjectPlayerStateToSpatialState(player->GetKinematicState());
+    player->CheckSimulationKinematicOracle();
+  } else {
+    result.position = spatialState.position;
+    result.velocity = Vector3(0);
+    result.facing = spatialState.directionVec;
+    result.bodyFacing = spatialState.bodyDirectionVec;
+    ProjectPlayerStateToSpatialState(PlayerKinematicState{
+        result.position, result.velocity, result.facing, result.bodyFacing});
+  }
 }
 
-void HumanoidBase::ApplySimulationMovementState(
+void HumanoidBase::ProjectPlayerStateToSpatialState(
     const PlayerKinematicState &state) {
   DO_VALIDATION;
   spatialState.position = state.position;
   spatialState.movement = state.velocity;
   if (UsesProceduralLocomotion()) {
-    // H3e4d1: these serialized legacy aliases have no pure-locomotion producer.
-    // Project the authoritative velocity rather than retaining animation history.
+    // These serialized legacy aliases have no pure-locomotion producer.
     spatialState.actualMovement = state.velocity;
     spatialState.physicsMovement = state.velocity;
     spatialState.animMovement = state.velocity;
@@ -1476,11 +1493,9 @@ void HumanoidBase::ApplySimulationMovementState(
   spatialState.angle =
       ModulateIntoRange(-pi, pi, FixAngle(spatialState.directionVec.GetAngle2D()));
   ApplySimulationBodyState(state);
-  // The next tick derives its raw movement from this, so it must describe the
-  // position actually in force. Collision corrections land here too, exactly
-  // as they did when the legacy root motion owned the position.
+  // The next legacy evaluation derives raw movement from the position actually
+  // in force. Collision corrections still update this compatibility input.
   previousPosition2D = spatialState.position;
-  if (player) player->SynchronizeKinematicState();
 }
 
 void HumanoidBase::ApplySimulationBodyState(
@@ -1511,10 +1526,8 @@ void HumanoidBase::ProjectMovementState(
   DO_VALIDATION;
   if (!player) return;
   if (!UsesProceduralLocomotion()) {
-    // Non-locomotion ticks keep the legacy animation root motion. Projecting
-    // it keeps the Humanoid movement fields a single projection of the
-    // simulation kinematic state.
-    ApplySimulationMovementState(player->GetKinematicState());
+    // CalculateSpatialState already evaluated legacy animation kinematics,
+    // applied them to PlayerState, and projected the compatibility state.
     return;
   }
 
@@ -1549,7 +1562,14 @@ void HumanoidBase::ProjectMovementState(
   }
   PlayerBodyFacingParameters bodyParameters;
   PlayerBodyFacing::Step(next, bodyInput, bodyParameters, 0.01f);
-  ApplySimulationMovementState(next);
+  PlayerKinematicResult result;
+  result.position = next.position;
+  result.velocity = next.velocity;
+  result.facing = next.facing;
+  result.bodyFacing = next.bodyFacing;
+  player->ApplyKinematicResult(result);
+  ProjectPlayerStateToSpatialState(player->GetKinematicState());
+  player->CheckSimulationKinematicOracle();
 }
 
 void HumanoidBase::AddTripCommandToQueue(PlayerCommandQueue &commandQueue,

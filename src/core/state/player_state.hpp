@@ -7,15 +7,15 @@
 // Authoritative, behavior-free movement state of a player (Phase 5).
 // Pure simulation data: no Humanoid/Player/controller pointers.
 //
-// Authority flow (Phase 7F-1 audit):
-//  - Non-locomotion ticks: HumanoidBase::CalculateSpatialState writes the
-//    legacy SpatialState (animation root motion), and PlayerBase::
-//    SynchronizeKinematicState projects its four gameplay fields here.
-//  - Pure-locomotion ticks: PlayerLocomotion::Step + PlayerBodyFacing::Step
-//    produce this PlayerState, and HumanoidBase::ApplySimulationMovementState
-//    projects it back into SpatialState.
-//  - H3e flips the producer to make this the single authority; until then the
-//    mirror is kept bit-exact by CheckSimulationKinematicOracle().
+// Authority flow (Phase 7F-6B):
+//  - Per-tick movement producers evaluate a PlayerKinematicResult and apply it
+//    through PlayerBase::ApplyKinematicResult.
+//  - HumanoidBase projects PlayerState into legacy SpatialState; animation root
+//    motion is a legacy kinematic evaluator, not per-tick gameplay authority.
+//  - Remaining lifecycle/collision reverse paths are transitional and are
+//    removed in 7F-6E.
+//  - The projection remains bit-exactly checked by
+//    CheckSimulationKinematicOracle().
 //
 // `speed` is deliberately NOT stored — it is velocity.GetLength() everywhere.
 // Use Speed() when the scalar is needed.
@@ -42,6 +42,16 @@ struct PlayerState {
     state->process(facing);
     state->process(bodyFacing);
   }
+};
+
+// Complete evaluated kinematics for one player tick. This is deliberately
+// separate from PlayerState: evaluators produce a result, while PlayerBase is
+// the sole owner that applies it to authoritative gameplay state.
+struct PlayerKinematicResult {
+  blunted::Vector3 position = blunted::Vector3(0);
+  blunted::Vector3 velocity = blunted::Vector3(0);
+  blunted::Vector3 facing = blunted::Vector3(0, -1, 0);
+  blunted::Vector3 bodyFacing = blunted::Vector3(0, -1, 0);
 };
 
 // Derived accessor: speed is always the length of the velocity vector.

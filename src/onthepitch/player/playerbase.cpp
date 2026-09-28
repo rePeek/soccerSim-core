@@ -324,6 +324,15 @@ void PlayerBase::Mirror() {
   CheckSimulationKinematicOracle();
 }
 
+void PlayerBase::ApplyKinematicResult(
+    const PlayerKinematicResult &result) {
+  DO_VALIDATION;
+  kinematicState.position = result.position;
+  kinematicState.velocity = result.velocity;
+  kinematicState.facing = result.facing;
+  kinematicState.bodyFacing = result.bodyFacing;
+  groundCollider.SetCenter(kinematicState.position);
+}
 void PlayerBase::SynchronizeKinematicState() {
   DO_VALIDATION;
   kinematicState.position = humanoid->GetPosition();
