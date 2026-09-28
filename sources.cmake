@@ -102,6 +102,7 @@ set(CORE_HEADERS
    src/core/state/match_state.hpp
    src/core/state/world_state.hpp
    src/core/physics/physics_system.hpp
+   src/core/physics/ball_physics.hpp
 )
 
 set(CORE_SOURCES
