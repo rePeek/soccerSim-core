@@ -18,6 +18,7 @@
 #include "gamedefines.hpp"
 #include "gfootball_actions.h"
 #include "main.hpp"
+#include "core/world/world.hpp"
 
 class AIControlledKeyboard;
 class GameTask;
@@ -61,6 +62,7 @@ struct GameEnv {
   void do_step(int count);
   void getObservations();
   AIControlledKeyboard* keyboard_ = nullptr;
+  std::unique_ptr<World> world;
  public:
   ScenarioConfig scenario_config;
   GameConfig game_config;

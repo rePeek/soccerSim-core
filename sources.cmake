@@ -96,6 +96,7 @@ set(CORE_HEADERS
    src/gametask.hpp
    src/match_setup.hpp
    src/misc/hungarian.h
+   src/core/world/world.hpp
 )
 
 set(CORE_SOURCES
@@ -104,6 +105,7 @@ set(CORE_SOURCES
    src/misc/perlin.cpp
    src/misc/hungarian.cpp
    src/gametask.cpp
+   src/core/world/world.cpp
    src/utils.cpp
    src/main.cpp
    src/gamedefines.cpp

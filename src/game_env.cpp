@@ -30,7 +30,7 @@ void GameEnv::do_step(int count) {
   DO_VALIDATION;
   while (count--) {
     DO_VALIDATION;
-    context->gameTask->ProcessPhase();
+    world->Step();
   }
   if (context->gameTask->GetMatch()->IsInPlay()) {
     DoValidation(__LINE__, __FILE__);
@@ -115,6 +115,8 @@ void GameEnv::start_game() {
   config->Set("match_duration", 0.027);
   config->Set("game", 0);
   run_game(config);
+  world = std::make_unique<World>();
+  world->SetLegacyGameTask(context->gameTask.get());
   auto scenario_config = ScenarioConfig::make();
   reset(*scenario_config, false);
   DO_VALIDATION;
