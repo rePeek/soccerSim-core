@@ -20,7 +20,8 @@ public:
 
   const blunted::Vector3& Position() const { return state_.position; }
   const blunted::Vector3& Velocity() const { return state_.velocity; }
-  const blunted::Vector3& Facing() const { return state_.facing; }
+  const blunted::Vector3& MovementFacing() const { return state_.movementFacing; }
+  const blunted::Vector3& TorsoFacing() const { return state_.torsoFacing; }
 
 private:
   PlayerState& state_;

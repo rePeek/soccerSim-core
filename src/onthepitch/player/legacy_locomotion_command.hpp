@@ -41,7 +41,7 @@ inline PlayerLocomotionInput BuildLegacyLocomotionInput(
   }
 
   input.desiredVelocity =
-      command.desiredDirection.Get2D().GetNormalized(state.facing) *
+      command.desiredDirection.Get2D().GetNormalized(state.movementFacing) *
       desiredSpeed;
   // desiredLookAt is a torso/look target, not a locomotion heading, so it only
   // supplies the facing to hold while standing still.
@@ -49,7 +49,7 @@ inline PlayerLocomotionInput BuildLegacyLocomotionInput(
       command.useDesiredLookAt
           ? (command.desiredLookAt - state.position)
                 .Get2D()
-                .GetNormalized(state.facing)
+                .GetNormalized(state.movementFacing)
           : idle_facing_fallback;
   return input;
 }

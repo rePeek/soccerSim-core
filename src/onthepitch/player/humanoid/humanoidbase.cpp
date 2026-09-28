@@ -839,9 +839,9 @@ PlayerResetKinematicEvaluation LegacyResetKinematics::Evaluate(
       (focus - position).GetNormalized(Vector3(0, -1, 0)).GetAngle2D());
   evaluation.kinematics.position = position;
   evaluation.kinematics.velocity = Vector3(0);
-  evaluation.kinematics.facing =
+  evaluation.kinematics.movementFacing =
       Vector3(0, -1, 0).GetRotated2D(evaluation.startAngle);
-  evaluation.kinematics.bodyFacing = Vector3(0, -1, 0);
+  evaluation.kinematics.torsoFacing = Vector3(0, -1, 0);
   return evaluation;
 }
 
@@ -859,7 +859,7 @@ void HumanoidBase::ResetPosition(
   // reset result. Leave all other legacy reset/animation fields in place.
   spatialState.position = result.position;
   spatialState.angle = startAngle;
-  spatialState.directionVec = result.facing;
+  spatialState.directionVec = result.movementFacing;
   spatialState.floatVelocity = 0;
 
   spatialState.actualMovement = Vector(0);
@@ -876,7 +876,7 @@ void HumanoidBase::ResetPosition(
   spatialState.movement = result.velocity;
   spatialState.relBodyDirectionVec = Vector3(0, -1, 0);
   spatialState.relBodyAngle = 0;
-  spatialState.bodyDirectionVec = result.bodyFacing;
+  spatialState.bodyDirectionVec = result.torsoFacing;
   spatialState.bodyAngle = 0;
   spatialState.foot = e_Foot_Right;
 
@@ -1430,8 +1430,8 @@ LegacyAnimationKinematicEvaluation LegacyAnimationKinematics::Evaluate(
 
   evaluation.kinematics.position = position;
   evaluation.kinematics.velocity = movement;
-  evaluation.kinematics.facing = facing;
-  evaluation.kinematics.bodyFacing = relBodyDirectionVec.GetRotated2D(angle);
+  evaluation.kinematics.movementFacing = facing;
+  evaluation.kinematics.torsoFacing = relBodyDirectionVec.GetRotated2D(angle);
   return evaluation;
 }
 
@@ -1463,7 +1463,7 @@ void HumanoidBase::CalculateSpatialState() {
   ProjectPlayerStateToSpatialState(
       player ? player->GetKinematicState() : PlayerKinematicState{
           evaluation.kinematics.position, evaluation.kinematics.velocity,
-          evaluation.kinematics.facing, evaluation.kinematics.bodyFacing});
+          evaluation.kinematics.movementFacing, evaluation.kinematics.torsoFacing});
   if (player) player->CheckSimulationKinematicOracle();
 }
 
@@ -1480,18 +1480,18 @@ void HumanoidBase::CalculateFactualSpatialState() {
     const PlayerKinematicState &state = player->GetKinematicState();
     result.position = state.position;
     result.velocity = Vector3(0);
-    result.facing = state.facing;
-    result.bodyFacing = state.bodyFacing;
+    result.movementFacing = state.movementFacing;
+    result.torsoFacing = state.torsoFacing;
     player->ApplyKinematicResult(result);
     ProjectPlayerStateToSpatialState(player->GetKinematicState());
     player->CheckSimulationKinematicOracle();
   } else {
     result.position = spatialState.position;
     result.velocity = Vector3(0);
-    result.facing = spatialState.directionVec;
-    result.bodyFacing = spatialState.bodyDirectionVec;
+    result.movementFacing = spatialState.directionVec;
+    result.torsoFacing = spatialState.bodyDirectionVec;
     ProjectPlayerStateToSpatialState(PlayerKinematicState{
-        result.position, result.velocity, result.facing, result.bodyFacing});
+        result.position, result.velocity, result.movementFacing, result.torsoFacing});
   }
 }
 
@@ -1506,7 +1506,7 @@ void HumanoidBase::ProjectPlayerStateToSpatialState(
     spatialState.physicsMovement = state.velocity;
     spatialState.animMovement = state.velocity;
   }
-  spatialState.directionVec = state.facing;
+  spatialState.directionVec = state.movementFacing;
   spatialState.floatVelocity = spatialState.movement.GetLength();
   spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
   spatialState.angle =
@@ -1521,11 +1521,11 @@ void HumanoidBase::ApplySimulationBodyState(
     const PlayerKinematicState &state) {
   DO_VALIDATION;
   // Continuous simulation truth. Nothing in this function writes back into
-  // state.bodyFacing, so legacy quantization cannot corrupt torso authority.
-  spatialState.bodyDirectionVec = state.bodyFacing;
+  // state.torsoFacing, so legacy quantization cannot corrupt torso authority.
+  spatialState.bodyDirectionVec = state.torsoFacing;
   spatialState.bodyAngle =
       spatialState.bodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
-  const Vector3 relative = state.bodyFacing.GetRotated2D(-spatialState.angle)
+  const Vector3 relative = state.torsoFacing.GetRotated2D(-spatialState.angle)
                                .GetNormalized(Vector3(0, -1, 0));
   spatialState.relBodyDirectionVecNonquantized = relative;
   spatialState.relBodyAngleNonquantized =
@@ -1568,24 +1568,24 @@ void HumanoidBase::ProjectMovementState(
   // H3e4f-b: locomotion reads the simulation-owned copy, not the legacy anim.
   const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
       command, tickStartState,
-      player->GetMaxVelocity(), tickStartState.bodyFacing);
+      player->GetMaxVelocity(), tickStartState.torsoFacing);
   PlayerLocomotionParameters parameters;
   parameters.maxSpeed = player->GetMaxVelocity();
   PlayerKinematicState next = tickStartState;
   PlayerLocomotion::Step(next, input, parameters, 0.01f);
   PlayerBodyFacingInput bodyInput;
-  bodyInput.desiredFacing = next.facing;
+  bodyInput.desiredFacing = next.movementFacing;
   if (command.useDesiredLookAt) {
     bodyInput.desiredFacing =
-        (command.desiredLookAt - next.position).Get2D().GetNormalized(next.facing);
+        (command.desiredLookAt - next.position).Get2D().GetNormalized(next.movementFacing);
   }
   PlayerBodyFacingParameters bodyParameters;
   PlayerBodyFacing::Step(next, bodyInput, bodyParameters, 0.01f);
   PlayerKinematicResult result;
   result.position = next.position;
   result.velocity = next.velocity;
-  result.facing = next.facing;
-  result.bodyFacing = next.bodyFacing;
+  result.movementFacing = next.movementFacing;
+  result.torsoFacing = next.torsoFacing;
   player->ApplyKinematicResult(result);
   ProjectPlayerStateToSpatialState(player->GetKinematicState());
   player->CheckSimulationKinematicOracle();

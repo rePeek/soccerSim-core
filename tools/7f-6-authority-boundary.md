@@ -38,5 +38,6 @@ explicit policy before contact prediction assumes all active players are
 World-owned. The current player and ball domain entities live in
 `football::domain`; legacy `::Player` and `BallLegacy` remain facades.
 `PlayerKinematics` is experimental/reference only; runtime movement is
-`PlayerLocomotion` + `PlayerBodyFacing`. Existing facing/bodyFacing field names
-remain for save/API stability; their semantics are movement/torso orientation.
+`PlayerLocomotion` + `PlayerBodyFacing`. PlayerState and PlayerKinematicResult
+use `movementFacing` for locomotion direction and `torsoFacing` for torso
+orientation; serialized field order and legacy SpatialState naming are unchanged.

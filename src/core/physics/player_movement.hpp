@@ -58,16 +58,16 @@ class PlayerKinematics {
     state.velocity.coords[2] = 0.0f;
 
     const blunted::Vector3 currentFacing =
-        state.facing.Get2D().GetNormalized(blunted::Vector3(0, -1, 0));
+        state.movementFacing.Get2D().GetNormalized(blunted::Vector3(0, -1, 0));
     const blunted::Vector3 desiredFacing =
         input.desiredFacing.Get2D().GetNormalized(currentFacing);
     const float requestedTurn = desiredFacing.GetAngle2D(currentFacing);
     const float turnLimit = parameters.maxTurnRate * dt;
     const float appliedTurn =
         blunted::clamp(requestedTurn, -turnLimit, turnLimit);
-    state.facing = currentFacing.GetRotated2D(appliedTurn).GetNormalized(
+    state.movementFacing = currentFacing.GetRotated2D(appliedTurn).GetNormalized(
         currentFacing);
-    state.facing.coords[2] = 0.0f;
+    state.movementFacing.coords[2] = 0.0f;
 
     state.position += state.velocity * dt;
     state.position.coords[2] = 0.0f;
@@ -169,7 +169,7 @@ class PlayerLocomotion {
     assert(parameters.braking > 0.0f);
     assert(parameters.maxTurnRate >= 0.0f);
     const Vector3 previousFacing =
-        state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+        state.movementFacing.Get2D().GetNormalized(Vector3(0, -1, 0));
     const Vector3 desiredVelocity = input.desiredVelocity.Get2D();
     const float desiredSpeed = desiredVelocity.GetLength();
     const float currentSpeed = state.velocity.GetLength();
@@ -211,11 +211,11 @@ class PlayerLocomotion {
     state.velocity = newDirection * newSpeed;
     state.velocity.coords[2] = 0.0f;
     if (newSpeed > parameters.idleSpeedThreshold) {
-      state.facing = newDirection;
+      state.movementFacing = newDirection;
     } else {
-      state.facing = input.idleFacing.Get2D().GetNormalized(previousFacing);
+      state.movementFacing = input.idleFacing.Get2D().GetNormalized(previousFacing);
     }
-    state.facing.coords[2] = 0.0f;
+    state.movementFacing.coords[2] = 0.0f;
     state.position += state.velocity * dt;
     state.position.coords[2] = 0.0f;
   }
@@ -275,9 +275,9 @@ class PlayerLocomotion {
       if (reach.usual_ms >= 0 || elapsed == horizon_ms) break;
       PlayerLocomotionInput input;
       input.desiredVelocity =
-          (target.Get2D() - state.position).GetNormalized(state.facing) *
+          (target.Get2D() - state.position).GetNormalized(state.movementFacing) *
           desired_speed;
-      input.idleFacing = state.facing;
+      input.idleFacing = state.movementFacing;
       Step(state, input, parameters, 0.01f);
     }
     return reach;
@@ -414,7 +414,7 @@ class PlayerLocomotion {
     const float distance = to_target.GetLength();
     if (distance <= radius) return 0;
     const Vector3 current_direction = start.velocity.Get2D().GetNormalized(
-        start.facing.Get2D().GetNormalized(Vector3(0, -1, 0)));
+        start.movementFacing.Get2D().GetNormalized(Vector3(0, -1, 0)));
     const Vector3 target_direction = to_target.GetNormalized(current_direction);
     const float heading_error =
         std::fabs(current_direction.GetAngle2D(target_direction));
@@ -574,7 +574,7 @@ class PlayerBodyFacing {
                                const PlayerBodyFacingParameters &parameters) {
     DO_VALIDATION;
     const Vector3 locomotionFacing =
-        state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+        state.movementFacing.Get2D().GetNormalized(Vector3(0, -1, 0));
     const Vector3 desired =
         input.desiredFacing.Get2D().GetNormalized(locomotionFacing);
     const float requestedRelative = desired.GetAngle2D(locomotionFacing);
@@ -601,15 +601,15 @@ class PlayerBodyFacing {
     assert(parameters.maxRelativeAngle <= pi);
 
     const Vector3 locomotionFacing =
-        state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+        state.movementFacing.Get2D().GetNormalized(Vector3(0, -1, 0));
     const Vector3 current =
-        state.bodyFacing.Get2D().GetNormalized(locomotionFacing);
+        state.torsoFacing.Get2D().GetNormalized(locomotionFacing);
     const Vector3 target = AllowedTarget(state, input, parameters);
     const float requestedTurn = target.GetAngle2D(current);
     const float appliedTurn = clamp(requestedTurn, -parameters.maxTurnRate * dt,
                                     parameters.maxTurnRate * dt);
-    state.bodyFacing = current.GetRotated2D(appliedTurn).GetNormalized(current);
-    state.bodyFacing.coords[2] = 0.0f;
+    state.torsoFacing = current.GetRotated2D(appliedTurn).GetNormalized(current);
+    state.torsoFacing.coords[2] = 0.0f;
   }
 };
 

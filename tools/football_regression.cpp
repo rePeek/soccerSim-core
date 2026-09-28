@@ -208,7 +208,7 @@ void CheckPlayerKinematics() {
   RequireNear(state.position.coords[0], 0.1f,
               "kinematics acceleration position");
   RequireNear(state.velocity.GetLength(), 1.0f, "kinematics acceleration speed");
-  Require(state.facing.GetDotProduct(input.desiredFacing) > 0.0f,
+  Require(state.movementFacing.GetDotProduct(input.desiredFacing) > 0.0f,
           "kinematics should turn toward the desired facing");
 
   input.desiredVelocity = Vector3(0);
@@ -245,7 +245,7 @@ void CheckProceduralLocomotion() {
                 std::string(label) + " planar position");
     RequireNear(state.velocity.coords[2], 0.0f,
                 std::string(label) + " planar velocity");
-    RequireNear(state.facing.coords[2], 0.0f,
+    RequireNear(state.movementFacing.coords[2], 0.0f,
                 std::string(label) + " planar facing");
   };
 
@@ -253,7 +253,7 @@ void CheckProceduralLocomotion() {
   // the desired speed. An animation switch would have snapped instead.
   {
     PlayerKinematicState state;
-    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    state.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(7.5f, 0.0f, 0.0f);
     input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
@@ -270,7 +270,7 @@ void CheckProceduralLocomotion() {
   {
     PlayerKinematicState state;
     state.velocity = Vector3(5.0f, 0.0f, 0.0f);
-    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    state.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(0.0f);
     input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
@@ -283,7 +283,7 @@ void CheckProceduralLocomotion() {
   // The target is reached exactly, never overshot.
   {
     PlayerKinematicState state;
-    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    state.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(1.0f, 0.0f, 0.0f);
     input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
@@ -298,7 +298,7 @@ void CheckProceduralLocomotion() {
   {
     PlayerKinematicState turning;
     turning.velocity = Vector3(7.5f, 0.0f, 0.0f);
-    turning.facing = Vector3(1.0f, 0.0f, 0.0f);
+    turning.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotionInput reversal;
     reversal.desiredVelocity = Vector3(-7.5f, 0.0f, 0.0f);
     reversal.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
@@ -308,7 +308,7 @@ void CheckProceduralLocomotion() {
 
     PlayerKinematicState straight;
     straight.velocity = Vector3(7.5f, 0.0f, 0.0f);
-    straight.facing = Vector3(1.0f, 0.0f, 0.0f);
+    straight.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotionInput ahead;
     ahead.desiredVelocity = Vector3(7.5f, 0.0f, 0.0f);
     ahead.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
@@ -324,7 +324,7 @@ void CheckProceduralLocomotion() {
   {
     PlayerKinematicState state;
     state.velocity = Vector3(7.5f, 0.0f, 0.0f);
-    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    state.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(0.0f, 7.5f, 0.0f);
     input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
@@ -342,7 +342,7 @@ void CheckProceduralLocomotion() {
   // ~pi heading error and never arrives, so this case is load bearing.
   {
     PlayerKinematicState state;
-    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    state.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(0.0f, 7.5f, 0.0f);
     input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
@@ -354,7 +354,7 @@ void CheckProceduralLocomotion() {
     for (int step = 0; step < 50; ++step) {
       PlayerLocomotion::Step(state, input, parameters, 0.01f);
     }
-    Require(state.facing.coords[1] > 0.0f,
+    Require(state.movementFacing.coords[1] > 0.0f,
             "procedural locomotion: facing must follow a turned velocity");
 
     // And it converges: aiming at a fixed off-axis target, the actor passes
@@ -363,15 +363,15 @@ void CheckProceduralLocomotion() {
     // closest approach, which is also what the planner's arrival check asks.
     const Vector3 target(0.0f, 8.0f, 0.0f);
     PlayerKinematicState running;
-    running.facing = Vector3(1.0f, 0.0f, 0.0f);
+    running.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
     float closest = 1e9f;
     float fastest = 0.0f;
     for (int step = 0; step < 300; ++step) {
       PlayerLocomotionInput chase;
       chase.desiredVelocity =
-          (target.Get2D() - running.position).GetNormalized(running.facing) *
+          (target.Get2D() - running.position).GetNormalized(running.movementFacing) *
           7.5f;
-      chase.idleFacing = running.facing;
+      chase.idleFacing = running.movementFacing;
       PlayerLocomotion::Step(running, chase, parameters, 0.01f);
       closest = std::min(closest,
                          (target.Get2D() - running.position).GetLength());
@@ -390,12 +390,12 @@ void CheckProceduralLocomotion() {
   {
     PlayerKinematicState state;
     state.velocity = Vector3(3.0f, 0.0f, 0.0f);
-    state.facing = Vector3(0.0f, -1.0f, 0.0f);
+    state.movementFacing = Vector3(0.0f, -1.0f, 0.0f);
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(3.0f, 0.0f, 0.0f);
     input.idleFacing = Vector3(0.0f, -1.0f, 0.0f);
     PlayerLocomotion::Step(state, input, parameters, 0.01f);
-    Require(state.facing.GetDistance(
+    Require(state.movementFacing.GetDistance(
                 state.velocity.GetNormalized(Vector3(1.0f, 0.0f, 0.0f))) <
                 1e-6f,
             "procedural locomotion: facing is the velocity direction");
@@ -407,7 +407,7 @@ void CheckProceduralLocomotion() {
     PlayerKinematicState state;
     state.position = Vector3(2.0f, 3.0f, 0.0f);
     state.velocity = Vector3(0.0f);
-    state.facing = Vector3(1.0f, 0.0f, 0.0f);
+    state.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(0.0f);
     input.idleFacing = Vector3(0.0f, -1.0f, 0.0f);
@@ -417,7 +417,7 @@ void CheckProceduralLocomotion() {
                 "procedural locomotion: idle does not drift x");
     RequireNear(state.position.coords[1], 3.0f,
                 "procedural locomotion: idle does not drift y");
-    RequireNear(state.facing.coords[1], -1.0f,
+    RequireNear(state.movementFacing.coords[1], -1.0f,
                 "procedural locomotion: idle facing fallback");
     require_planar(state, "procedural locomotion idle");
   }
@@ -433,7 +433,7 @@ void CheckProceduralLocomotionPrediction() {
   parameters.braking = 12.0f;
 
   PlayerKinematicState state;
-  state.facing = Vector3(1.0f, 0.0f, 0.0f);
+  state.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
   PlayerLocomotionInput input;
   input.desiredVelocity = Vector3(7.5f, 0.0f, 0.0f);
   input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
@@ -492,7 +492,7 @@ void CheckProceduralInterceptPrediction() {
   const int horizon_ms = 2000;
 
   PlayerKinematicState state;
-  state.facing = Vector3(1.0f, 0.0f, 0.0f);
+  state.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
 
   const Vector3 stationary(4.0f, 0.0f, 0.0f);
   const PlayerLocomotionReach stationary_reach =
@@ -573,8 +573,8 @@ void CheckProceduralInterceptPrediction() {
       }
       PlayerLocomotionInput input;
       input.desiredVelocity =
-          (ball - pursuit.position).GetNormalized(pursuit.facing) * 7.5f;
-      input.idleFacing = pursuit.facing;
+          (ball - pursuit.position).GetNormalized(pursuit.movementFacing) * 7.5f;
+      input.idleFacing = pursuit.movementFacing;
       PlayerLocomotion::Step(pursuit, input, parameters, 0.01f);
     }
   }
@@ -586,8 +586,8 @@ void CheckPlayerKinematicMirror() {
   PlayerKinematicState state;
   state.position = Vector3(1.0f, 2.0f, 0.0f);
   state.velocity = Vector3(3.0f, 4.0f, 0.0f);
-  state.facing = Vector3(0.6f, 0.8f, 0.0f);
-  state.bodyFacing = Vector3(-0.8f, 0.6f, 0.0f);
+  state.movementFacing = Vector3(0.6f, 0.8f, 0.0f);
+  state.torsoFacing = Vector3(-0.8f, 0.6f, 0.0f);
 
   state.Mirror();
   RequireNear(state.position.coords[0], -1.0f, "mirror position x");
@@ -596,10 +596,10 @@ void CheckPlayerKinematicMirror() {
   RequireNear(state.velocity.coords[1], -4.0f, "mirror velocity y");
   // Legacy spatial-state mirroring negates position and movement only, so a
   // mirrored kinematic state must keep facing and body facing untouched.
-  RequireNear(state.facing.coords[0], 0.6f, "mirror facing x");
-  RequireNear(state.facing.coords[1], 0.8f, "mirror facing y");
-  RequireNear(state.bodyFacing.coords[0], -0.8f, "mirror body facing x");
-  RequireNear(state.bodyFacing.coords[1], 0.6f, "mirror body facing y");
+  RequireNear(state.movementFacing.coords[0], 0.6f, "mirror facing x");
+  RequireNear(state.movementFacing.coords[1], 0.8f, "mirror facing y");
+  RequireNear(state.torsoFacing.coords[0], -0.8f, "mirror body facing x");
+  RequireNear(state.torsoFacing.coords[1], 0.6f, "mirror body facing y");
   RequireNear(state.velocity.GetLength(), 5.0f, "mirror speed");
 }
 
@@ -608,8 +608,8 @@ void CheckPlayerKinematicMirror() {
 // discontinuous locomotion-facing input never snaps the torso but recovers.
 void CheckPlayerBodyFacing() {
   PlayerKinematicState state;
-  state.facing = Vector3(0.0f, -1.0f, 0.0f);
-  state.bodyFacing = state.facing;
+  state.movementFacing = Vector3(0.0f, -1.0f, 0.0f);
+  state.torsoFacing = state.movementFacing;
   PlayerBodyFacingInput input;
   input.desiredFacing = Vector3(1.0f, 0.0f, 0.0f);
   PlayerBodyFacingParameters parameters;
@@ -618,47 +618,47 @@ void CheckPlayerBodyFacing() {
   const float dt = 0.1f;
 
   const Vector3 allowed = PlayerBodyFacing::AllowedTarget(state, input, parameters);
-  RequireNear(std::fabs(allowed.GetAngle2D(state.facing)), 0.5f,
+  RequireNear(std::fabs(allowed.GetAngle2D(state.movementFacing)), 0.5f,
               "body facing: desired target must be relative-angle clamped");
   for (int tick = 0; tick < 10; ++tick) {
-    const Vector3 previous = state.bodyFacing;
+    const Vector3 previous = state.torsoFacing;
     PlayerBodyFacing::Step(state, input, parameters, dt);
-    Require(std::fabs(state.bodyFacing.GetAngle2D(previous)) <=
+    Require(std::fabs(state.torsoFacing.GetAngle2D(previous)) <=
             parameters.maxTurnRate * dt + kFloatTolerance,
             "body facing: turn-rate invariant violated");
-    Require(std::fabs(state.bodyFacing.GetAngle2D(state.facing)) <=
+    Require(std::fabs(state.torsoFacing.GetAngle2D(state.movementFacing)) <=
             parameters.maxRelativeAngle + kFloatTolerance,
             "body facing: fixed target must stay in its cone");
   }
-  RequireNear(std::fabs(state.bodyFacing.GetAngle2D(state.facing)), 0.5f,
+  RequireNear(std::fabs(state.torsoFacing.GetAngle2D(state.movementFacing)), 0.5f,
               "body facing: fixed target must converge to the allowed target");
 
   // A 180 degree locomotion-facing jump makes the old body temporarily outside
   // the new cone. Recovery must still be continuous and eventually re-enter it.
   PlayerKinematicState jumped;
-  jumped.facing = Vector3(0.0f, -1.0f, 0.0f);
-  jumped.bodyFacing = jumped.facing;
-  jumped.facing = Vector3(0.0f, 1.0f, 0.0f);
+  jumped.movementFacing = Vector3(0.0f, -1.0f, 0.0f);
+  jumped.torsoFacing = jumped.movementFacing;
+  jumped.movementFacing = Vector3(0.0f, 1.0f, 0.0f);
   PlayerBodyFacingInput jumpInput;
-  jumpInput.desiredFacing = jumped.facing;
+  jumpInput.desiredFacing = jumped.movementFacing;
   bool observedOutside = false;
   for (int tick = 0; tick < 40; ++tick) {
-    const Vector3 previous = jumped.bodyFacing;
+    const Vector3 previous = jumped.torsoFacing;
     PlayerBodyFacing::Step(jumped, jumpInput, parameters, dt);
-    Require(std::fabs(jumped.bodyFacing.GetAngle2D(previous)) <=
+    Require(std::fabs(jumped.torsoFacing.GetAngle2D(previous)) <=
             parameters.maxTurnRate * dt + kFloatTolerance,
             "body facing: facing jump must not snap the torso");
     const bool outside = std::fabs(
-        jumped.bodyFacing.GetAngle2D(jumped.facing)) >
+        jumped.torsoFacing.GetAngle2D(jumped.movementFacing)) >
         parameters.maxRelativeAngle + kFloatTolerance;
     observedOutside = observedOutside || outside;
   }
   Require(observedOutside,
           "body facing: facing jump should exercise transient cone violation");
-  Require(std::fabs(jumped.bodyFacing.GetAngle2D(jumped.facing)) <=
+  Require(std::fabs(jumped.torsoFacing.GetAngle2D(jumped.movementFacing)) <=
           parameters.maxRelativeAngle + kFloatTolerance,
           "body facing: fixed post-jump target must re-enter the cone");
-  RequireNear(std::fabs(jumped.bodyFacing.GetAngle2D(jumped.facing)), 0.0f,
+  RequireNear(std::fabs(jumped.torsoFacing.GetAngle2D(jumped.movementFacing)), 0.0f,
               "body facing: fixed post-jump target must converge");
 }
 
@@ -770,7 +770,7 @@ void CheckPureLocomotionBoundary() {
 void CheckLegacyLocomotionCommandAdapter() {
   PlayerKinematicState state;
   state.position = Vector3(1.0f, 2.0f, 0.0f);
-  state.facing = Vector3(1.0f, 0.0f, 0.0f);
+  state.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
   const Vector3 body_facing(0.0f, -1.0f, 0.0f);
   const float max_speed = 8.0f;
 
@@ -833,7 +833,7 @@ void CheckPlayerActionVolume() {
   PlayerActionState action;
   PlayerKinematicState kinematics;
   kinematics.position = Vector3(0.0f, 0.0f, 0.0f);
-  kinematics.facing = Vector3(0.0f, -1.0f, 0.0f);
+  kinematics.movementFacing = Vector3(0.0f, -1.0f, 0.0f);
 
   PlayerActionVolumeParameters parameters;
   parameters.contactWindowStartFrame = 5;
@@ -933,7 +933,7 @@ void CheckPlayerBodyCollider() {
   // The collider follows the player position and stays upright.
   PlayerKinematicState moved = kinematics;
   moved.position = Vector3(3.0f, -4.0f, 0.0f);
-  moved.facing = Vector3(1.0f, 0.0f, 0.0f);
+  moved.movementFacing = Vector3(1.0f, 0.0f, 0.0f);
   const PlayerBodyCollider movedBody = BuildBodyCollider(moved);
   RequireNear(movedBody.lowerBody.center.coords[0], 3.0f,
               "body collider should follow position x");
@@ -982,8 +982,8 @@ std::string CaptureSimulationDigest(GameEnv& env) {
     AppendDigestFloat(out, kinematics.position.coords[1]);
     AppendDigestFloat(out, kinematics.velocity.coords[0]);
     AppendDigestFloat(out, kinematics.velocity.coords[1]);
-    AppendDigestFloat(out, kinematics.facing.coords[0]);
-    AppendDigestFloat(out, kinematics.facing.coords[1]);
+    AppendDigestFloat(out, kinematics.movementFacing.coords[0]);
+    AppendDigestFloat(out, kinematics.movementFacing.coords[1]);
     const PlayerGroundCollider& ground = actor->GetGroundCollider();
     AppendDigestFloat(out, ground.center.coords[0]);
     AppendDigestFloat(out, ground.center.coords[1]);
@@ -1078,9 +1078,9 @@ std::vector<NamedDigestFloat> CaptureResetDigestFloats(GameEnv& env) {
     AppendNamedDigestFloat(fields, actor_name + ".kinematic.velocity.y",
                            kinematics.velocity.coords[1]);
     AppendNamedDigestFloat(fields, actor_name + ".kinematic.facing.x",
-                           kinematics.facing.coords[0]);
+                           kinematics.movementFacing.coords[0]);
     AppendNamedDigestFloat(fields, actor_name + ".kinematic.facing.y",
-                           kinematics.facing.coords[1]);
+                           kinematics.movementFacing.coords[1]);
     const PlayerGroundCollider& ground = actor->GetGroundCollider();
     AppendNamedDigestFloat(fields, actor_name + ".ground.center.x",
                            ground.center.coords[0]);
@@ -1489,10 +1489,10 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
                 sample.player->GetMaxVelocity());
       input.desiredVelocity =
           sample.command.desiredDirection.Get2D().GetNormalized(
-              predicted.facing) *
+              predicted.movementFacing) *
           desiredSpeed;
       input.desiredFacing =
-          input.desiredVelocity.GetNormalized(predicted.facing);
+          input.desiredVelocity.GetNormalized(predicted.movementFacing);
       if (sample.command.useDesiredLookAt) {
         input.desiredFacing =
             (sample.command.desiredLookAt - predicted.position)
@@ -1520,13 +1520,13 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
       const double locomotion_velocity_error =
           (predicted_locomotion.velocity - actual.velocity).GetLength();
       const double locomotion_facing_error = std::fabs(
-          predicted_locomotion.facing.GetAngle2D(actual.facing));
+          predicted_locomotion.movementFacing.GetAngle2D(actual.movementFacing));
       const double position_error =
           (predicted.position - actual.position).GetLength();
       const double velocity_error =
           (predicted.velocity - actual.velocity).GetLength();
       const double facing_error =
-          std::fabs(predicted.facing.GetAngle2D(actual.facing));
+          std::fabs(predicted.movementFacing.GetAngle2D(actual.movementFacing));
       ++samples;
 
       const double legacy_step =
@@ -1563,14 +1563,14 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
         }
 
         const double turn_error = std::fabs(
-            sample.state.facing.GetAngle2D(input.desiredFacing));
+            sample.state.movementFacing.GetAngle2D(input.desiredFacing));
         const int turn_bucket = clamp(
             static_cast<int>(turn_error / 0.25), 0, turn_bucket_count - 1);
         ++turn_count[turn_bucket];
         turn_sum_legacy[turn_bucket] += std::fabs(
-            sample.state.facing.GetAngle2D(actual.facing));
+            sample.state.movementFacing.GetAngle2D(actual.movementFacing));
         turn_sum_procedural[turn_bucket] += std::fabs(
-            sample.state.facing.GetAngle2D(predicted.facing));
+            sample.state.movementFacing.GetAngle2D(predicted.movementFacing));
 
         const double speed_gap = desiredSpeed - current_speed;
         const int gap_bucket = clamp(
@@ -1589,14 +1589,14 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
             sample.player->GetEnumVelocity() != e_Velocity_Idle;
         if (moving) {
           legacy_facing_velocity_error_sum += std::fabs(
-              actual.facing.GetAngle2D(
-                  actual.velocity.Get2D().GetNormalized(actual.facing)));
+              actual.movementFacing.GetAngle2D(
+                  actual.velocity.Get2D().GetNormalized(actual.movementFacing)));
           ++legacy_facing_velocity_samples;
         }
         if (moving) {
           movement_facing_error_sum += std::fabs(
-              actual.facing.GetAngle2D(
-                  predicted.velocity.Get2D().GetNormalized(actual.facing)));
+              actual.movementFacing.GetAngle2D(
+                  predicted.velocity.Get2D().GetNormalized(actual.movementFacing)));
           ++movement_facing_samples;
         }
       }
@@ -1778,7 +1778,7 @@ void MeasureLocomotionRegimeTransitions(GameEnv& env,
 
       if (current_speed > 0.5) {
         const Vector3 current_direction =
-            sample.state.velocity.Get2D().GetNormalized(sample.state.facing);
+            sample.state.velocity.Get2D().GetNormalized(sample.state.movementFacing);
         const Vector3 desired_direction =
             sample.command.desiredDirection.Get2D().GetNormalized(
                 current_direction);
@@ -1894,25 +1894,25 @@ void MeasureLegacyBodyFacing(GameEnv& env, ScenarioConfig& config) {
       ++bucket.samples;
       bucket.speed_sum += sample.state.velocity.GetLength();
       bucket.absolute_relative_angles.push_back(std::fabs(
-          sample.state.bodyFacing.GetAngle2D(sample.state.facing)));
+          sample.state.torsoFacing.GetAngle2D(sample.state.movementFacing)));
 
       if (sample.command.useDesiredLookAt) {
         const Vector3 look_delta =
             (sample.command.desiredLookAt - sample.state.position).Get2D();
         if (look_delta.GetLength() > 0.0001f) {
           const Vector3 desired_look =
-              look_delta.GetNormalized(sample.state.bodyFacing);
+              look_delta.GetNormalized(sample.state.torsoFacing);
           bucket.absolute_desired_relative_angles.push_back(std::fabs(
-              desired_look.GetAngle2D(sample.state.facing)));
+              desired_look.GetAngle2D(sample.state.movementFacing)));
           bucket.absolute_look_errors.push_back(std::fabs(
-              sample.state.bodyFacing.GetAngle2D(desired_look)));
+              sample.state.torsoFacing.GetAngle2D(desired_look)));
           ++bucket.look_samples;
         }
       }
 
       const PlayerKinematicState& actual = sample.player->GetKinematicState();
       const double turn = std::fabs(
-          actual.bodyFacing.GetAngle2D(sample.state.bodyFacing));
+          actual.torsoFacing.GetAngle2D(sample.state.torsoFacing));
       bucket.absolute_turns.push_back(turn);
       ++bucket.turn_samples;
       if (sample.player->IsEligibleForProceduralLocomotion() &&
@@ -2524,7 +2524,7 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
     Shadow shadow;
     shadow.player = player;
     shadow.state = initial;
-    shadow.state.bodyFacing = initial.facing;  // valid model seed
+    shadow.state.torsoFacing = initial.movementFacing;  // valid model seed
     grid.shadows.push_back(shadow);
     return grid.shadows.back();
   };
@@ -2557,24 +2557,24 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
         Shadow& shadow = findShadow(grid, sample.player, sample.state);
         shadow.state.position = actual.position;
         shadow.state.velocity = actual.velocity;
-        shadow.state.facing = actual.facing;
+        shadow.state.movementFacing = actual.movementFacing;
         Cell& cell = grid.cells[velocityClass];
         ++cell.samples;
 
         PlayerBodyFacingInput input;
-        input.desiredFacing = actual.facing;
+        input.desiredFacing = actual.movementFacing;
         bool hasLook = false;
         if (sample.command.useDesiredLookAt) {
           const Vector3 delta = (sample.command.desiredLookAt - actual.position).Get2D();
           if (delta.GetLength() > 0.0001f) {
-            input.desiredFacing = delta.GetNormalized(actual.facing);
+            input.desiredFacing = delta.GetNormalized(actual.movementFacing);
             hasLook = true;
           }
         }
         const Vector3 target = PlayerBodyFacing::AllowedTarget(
             shadow.state, input, grid.parameters);
         const float requestedRelative = std::fabs(
-            input.desiredFacing.GetAngle2D(actual.facing));
+            input.desiredFacing.GetAngle2D(actual.movementFacing));
         if (hasLook && requestedRelative >
             grid.parameters.maxRelativeAngle + kFloatTolerance) {
           ++cell.relativeClamps;
@@ -2588,16 +2588,16 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
         // The cone constrains the target, not current state. If locomotion
         // moves underneath a finite-rate torso, record the transient overshoot
         // rather than hiding it with a discontinuous corrective snap.
-        const Vector3 previous = shadow.state.bodyFacing;
+        const Vector3 previous = shadow.state.torsoFacing;
         const float requestedTurn = std::fabs(target.GetAngle2D(previous));
         if (requestedTurn > grid.parameters.maxTurnRate * 0.01f + kFloatTolerance) {
           ++cell.turnClamps;
         }
         PlayerBodyFacing::Step(shadow.state, input, grid.parameters, 0.01f);
         const double turn = std::fabs(
-            shadow.state.bodyFacing.GetAngle2D(previous));
+            shadow.state.torsoFacing.GetAngle2D(previous));
         const double relative = std::fabs(
-            shadow.state.bodyFacing.GetAngle2D(actual.facing));
+            shadow.state.torsoFacing.GetAngle2D(actual.movementFacing));
         cell.turnSum += turn; cell.relativeSum += relative;
         cell.turns.push_back(turn);
         cell.maxTurn = std::max(cell.maxTurn, turn);
@@ -2621,10 +2621,10 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
         if (hasLook) {
           ++cell.lookSamples;
           cell.lookErrorSum += std::fabs(
-              shadow.state.bodyFacing.GetAngle2D(input.desiredFacing));
+              shadow.state.torsoFacing.GetAngle2D(input.desiredFacing));
         }
         const bool rapidFacingJump =
-            std::fabs(actual.facing.GetAngle2D(sample.state.facing)) > pi * 0.5f;
+            std::fabs(actual.movementFacing.GetAngle2D(sample.state.movementFacing)) > pi * 0.5f;
         if (rapidFacingJump) {
           ++cell.rapidFacingChanges;
           cell.maxRapidFacingTurn = std::max(cell.maxRapidFacingTurn, turn);
@@ -2643,7 +2643,7 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
           }
         }
         if (shadow.alignmentMs >= 0) {
-          if (std::fabs(shadow.state.bodyFacing.GetAngle2D(target)) <= 0.1f) {
+          if (std::fabs(shadow.state.torsoFacing.GetAngle2D(target)) <= 0.1f) {
             cell.alignMs.push_back(shadow.alignmentMs); shadow.alignmentMs = -1;
           } else { shadow.alignmentMs += 10; }
         }
@@ -3173,7 +3173,7 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
           // flip can be attributed to the heading change or to the speed it
           // already carried rather than guessed at.
           const Vector3 heading_reference = start.velocity.Get2D().GetNormalized(
-              start.facing.Get2D().GetNormalized(Vector3(0, -1, 0)));
+              start.movementFacing.Get2D().GetNormalized(Vector3(0, -1, 0)));
           const float heading_degrees =
               std::fabs(heading_reference.GetAngle2D(target_at(0).Get2D())) *
               180.0f / pi;
@@ -3542,8 +3542,8 @@ void CheckMovementAnimationPerturbation(GameEnv& env, ScenarioConfig& config,
   const auto same_kinematics = [&](const Actor &a, const Actor &b) {
     return same_vector(a.kinematics.position, b.kinematics.position) &&
            same_vector(a.kinematics.velocity, b.kinematics.velocity) &&
-           same_vector(a.kinematics.facing, b.kinematics.facing) &&
-           same_vector(a.kinematics.bodyFacing, b.kinematics.bodyFacing) &&
+           same_vector(a.kinematics.movementFacing, b.kinematics.movementFacing) &&
+           same_vector(a.kinematics.torsoFacing, b.kinematics.torsoFacing) &&
            FloatBits(a.kinematics.velocity.GetLength()) ==
                FloatBits(b.kinematics.velocity.GetLength());
   };

@@ -471,8 +471,8 @@ class HumanoidBase {
     // four gameplay fields always originate in PlayerState.
     void ProjectPlayerStateToSpatialState(const PlayerKinematicState &state);
     // One-way body-orientation compatibility projection. Continuous fields are
-    // derived exactly from state.bodyFacing; quantized relBody* exists only for
-    // legacy animation selection and never feeds bodyFacing back.
+    // derived exactly from state.torsoFacing; quantized relBody* exists only for
+    // legacy animation selection and never feeds torsoFacing back.
     void ApplySimulationBodyState(const PlayerKinematicState &state);
     // Produces this tick's movement. Pure locomotion is evaluated procedurally;
     // non-locomotion was already evaluated by LegacyAnimationKinematics in

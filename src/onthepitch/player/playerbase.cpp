@@ -286,8 +286,8 @@ bool PlayerBase::IsKinematicMirrorConsistent() const {
   DO_VALIDATION;
   return Vector3BitsEqual(kinematicState.position, humanoid->GetPosition()) &&
          Vector3BitsEqual(kinematicState.velocity, humanoid->GetMovement()) &&
-         Vector3BitsEqual(kinematicState.facing, humanoid->GetDirectionVec()) &&
-         Vector3BitsEqual(kinematicState.bodyFacing,
+         Vector3BitsEqual(kinematicState.movementFacing, humanoid->GetDirectionVec()) &&
+         Vector3BitsEqual(kinematicState.torsoFacing,
                           humanoid->GetBodyDirectionVec()) &&
          Vector3BitsEqual(groundCollider.center,
                           kinematicState.position.Get2D());
@@ -305,10 +305,10 @@ void PlayerBase::CheckSimulationKinematicOracle() const {
     mismatch = "position";
   } else if (!Vector3BitsEqual(kinematicState.velocity, movement)) {
     mismatch = "velocity";
-  } else if (!Vector3BitsEqual(kinematicState.facing, direction)) {
-    mismatch = "facing";
-  } else if (!Vector3BitsEqual(kinematicState.bodyFacing, bodyDirection)) {
-    mismatch = "body facing";
+  } else if (!Vector3BitsEqual(kinematicState.movementFacing, direction)) {
+    mismatch = "movement facing";
+  } else if (!Vector3BitsEqual(kinematicState.torsoFacing, bodyDirection)) {
+    mismatch = "torso facing";
   } else if (!Vector3BitsEqual(groundCollider.center, position.Get2D())) {
     mismatch = "collider center";
   }
@@ -332,16 +332,16 @@ void PlayerBase::ApplyKinematicResult(
   DO_VALIDATION;
   kinematicState.position = result.position;
   kinematicState.velocity = result.velocity;
-  kinematicState.facing = result.facing;
-  kinematicState.bodyFacing = result.bodyFacing;
+  kinematicState.movementFacing = result.movementFacing;
+  kinematicState.torsoFacing = result.torsoFacing;
   groundCollider.SetCenter(kinematicState.position);
 }
 void PlayerBase::SynchronizeKinematicState() {
   DO_VALIDATION;
   kinematicState.position = humanoid->GetPosition();
   kinematicState.velocity = humanoid->GetMovement();
-  kinematicState.facing = humanoid->GetDirectionVec();
-  kinematicState.bodyFacing = humanoid->GetBodyDirectionVec();
+  kinematicState.movementFacing = humanoid->GetDirectionVec();
+  kinematicState.torsoFacing = humanoid->GetBodyDirectionVec();
   groundCollider.SetCenter(kinematicState.position);
   CheckSimulationKinematicOracle();
 }

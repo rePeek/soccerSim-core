@@ -74,7 +74,7 @@ inline PlayerActionVolume BuildTackleVolume(
   volume.origin = kinematics.position.Get2D();
   // The facing vector is not mirrored by the legacy spatial-state mirror, so it
   // is used as-is here; see PlayerKinematicState::Mirror().
-  volume.axis = kinematics.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+  volume.axis = kinematics.movementFacing.Get2D().GetNormalized(Vector3(0, -1, 0));
   if (action.type == e_FunctionType_Sliding) {
     volume.length = parameters.slideReach;
     volume.radius = parameters.slideRadius;

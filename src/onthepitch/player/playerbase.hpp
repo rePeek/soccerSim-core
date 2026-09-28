@@ -247,11 +247,11 @@ class PlayerBase {
     // reverse sync is intentionally deferred to 7G contact resolution.
     //
     // Mirroring preserves the legacy field asymmetry (position/velocity mirror;
-    // facing/bodyFacing do not). The serialized compatibility copy and oracle
+    // movementFacing/torsoFacing do not). The compatibility copy and oracle
     // remain until a separate save-format migration.
     inline Vector3 GetPosition() const { return kinematicState.position; }
-    inline Vector3 GetDirectionVec() const { return kinematicState.facing; }
-    inline Vector3 GetBodyDirectionVec() const { return kinematicState.bodyFacing; }
+    inline Vector3 GetDirectionVec() const { return kinematicState.movementFacing; }
+    inline Vector3 GetBodyDirectionVec() const { return kinematicState.torsoFacing; }
     inline Vector3 GetMovement() const { return kinematicState.velocity; }
     // Gameplay reads continuous relative orientation. The quantized Humanoid
     // relBodyAngle remains animation-selection compatibility only.

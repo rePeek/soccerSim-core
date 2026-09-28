@@ -21,13 +21,12 @@
 struct PlayerState {
   blunted::Vector3 position = blunted::Vector3(0);
   blunted::Vector3 velocity = blunted::Vector3(0);
-  blunted::Vector3 facing = blunted::Vector3(0, -1, 0);
-  // facing is locomotion direction; bodyFacing is torso orientation, produced
-  // by PlayerBodyFacing on procedural ticks and by animation otherwise.
-  blunted::Vector3 bodyFacing = blunted::Vector3(0, -1, 0);
+  blunted::Vector3 movementFacing = blunted::Vector3(0, -1, 0);
+  // Torso orientation: procedural PlayerBodyFacing or legacy animation.
+  blunted::Vector3 torsoFacing = blunted::Vector3(0, -1, 0);
 
-  // Mirrors position and velocity like the legacy spatial state. Facing and
-  // bodyFacing are deliberately left untouched: HumanoidBase's spatial state
+  // Mirrors position and velocity like the legacy spatial state.
+  // movementFacing and torsoFacing remain unchanged: HumanoidBase's spatial state
   // mirror only negates position and movements.
   void Mirror() {
     position.Mirror();
@@ -38,8 +37,8 @@ struct PlayerState {
     DO_VALIDATION;
     state->process(position);
     state->process(velocity);
-    state->process(facing);
-    state->process(bodyFacing);
+    state->process(movementFacing);
+    state->process(torsoFacing);
   }
 };
 
@@ -49,8 +48,8 @@ struct PlayerState {
 struct PlayerKinematicResult {
   blunted::Vector3 position = blunted::Vector3(0);
   blunted::Vector3 velocity = blunted::Vector3(0);
-  blunted::Vector3 facing = blunted::Vector3(0, -1, 0);
-  blunted::Vector3 bodyFacing = blunted::Vector3(0, -1, 0);
+  blunted::Vector3 movementFacing = blunted::Vector3(0, -1, 0);
+  blunted::Vector3 torsoFacing = blunted::Vector3(0, -1, 0);
 };
 
 // Derived accessor: speed is always the length of the velocity vector.
