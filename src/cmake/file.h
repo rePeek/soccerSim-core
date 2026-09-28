@@ -16,12 +16,10 @@
 
 #include "../defines.hpp"
 
-#define BOOST_FILESYSTEM_NO_DEPRECATED
-#define BOOST_FILESYSTEM_VERSION 3
 #include "../base/log.hpp"
-#include "boost/filesystem.hpp"
+#include <filesystem>
 
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 std::string GetFile(const std::string& fileName);
 

@@ -16,7 +16,7 @@
 #include "../base/log.hpp"
 #include "../main.hpp"
 
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 std::string GetFile(const std::string &fileName) {
   DO_VALIDATION;
@@ -28,7 +28,7 @@ std::string GetFile(const std::string &fileName) {
   return str;
 }
 
-void GetFilesRec(boost::filesystem::path path, const std::string &extension,
+void GetFilesRec(fs::path path, const std::string &extension,
                  std::vector<std::string> &files) {
   DO_VALIDATION;
   if (!fs::exists(path) || !fs::is_directory(path)) {
@@ -42,11 +42,11 @@ void GetFilesRec(boost::filesystem::path path, const std::string &extension,
     DO_VALIDATION;
     if (is_directory(dirIter->status())) {
       DO_VALIDATION;
-      boost::filesystem::path thePath(path);
+      fs::path thePath(path);
       thePath /= dirIter->path().filename();
       GetFilesRec(thePath, extension, files);
     } else {
-      boost::filesystem::path thePath(path);
+      fs::path thePath(path);
       thePath /= dirIter->path().filename();
 
       if (thePath.extension() == "." + extension) {
