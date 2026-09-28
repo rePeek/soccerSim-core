@@ -18,11 +18,11 @@ set(BASE_HEADERS
 )
 
 set(BASE_GEOMETRY_HEADERS
-   src/base/geometry/aabb.hpp
-   src/base/geometry/trianglemeshutils.hpp
-   src/base/geometry/plane.hpp
-   src/base/geometry/triangle.hpp
-   src/base/geometry/line.hpp
+   src/foundation/geometry/aabb.hpp
+   src/foundation/geometry/trianglemeshutils.hpp
+   src/foundation/geometry/plane.hpp
+   src/foundation/geometry/triangle.hpp
+   src/foundation/geometry/line.hpp
 )
 
 set(BASE_MATH_HEADERS
@@ -37,11 +37,11 @@ set(BASE_SOURCES
    src/base/utils.cpp
    src/base/properties.cpp
    src/base/log.cpp
-   src/base/geometry/triangle.cpp
-   src/base/geometry/line.cpp
-   src/base/geometry/trianglemeshutils.cpp
-   src/base/geometry/aabb.cpp
-   src/base/geometry/plane.cpp
+   src/foundation/geometry/triangle.cpp
+   src/foundation/geometry/line.cpp
+   src/foundation/geometry/trianglemeshutils.cpp
+   src/foundation/geometry/aabb.cpp
+   src/foundation/geometry/plane.cpp
    src/foundation/math/vector3.cpp
    src/foundation/math/matrix3.cpp
    src/foundation/math/bluntmath.cpp
