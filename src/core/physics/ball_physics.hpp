@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "core/state/ball_state.hpp"
+#include "core/domain/ball/ball_profile.hpp"
 
 // Physical constants extracted from the legacy Ball::CalculatePrediction()
 // (Phase 7B). No Match dependency.
@@ -16,7 +17,6 @@ struct BallPhysicsParams {
   float linearFriction = 1.6f;  // bigger = more, arbitrary scale
   float gravity = -9.81f;
   float grassHeight = 0.025f;
-  float radius = 0.11f;
 };
 
 // Goal / pitch geometry (Phase 7D). Values match the legacy constants in
@@ -32,8 +32,9 @@ struct GoalGeometry {
 // Post and crossbar contact (Phase 7E). Geometry-only, extracted verbatim
 // from the legacy CalculatePrediction; modifies position and momentum.
 inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& momentum,
-                          const BallPhysicsParams& p, const GoalGeometry& g) {
-  const float ballRadius = p.radius;
+                          const football::domain::BallProfile& ball,
+                          const GoalGeometry& g) {
+  const float ballRadius = ball.radius;
   const float postRadius = g.postRadius;
 
   // Posts.
@@ -124,6 +125,7 @@ inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& momentum,
 // Net physics was removed (visual only); no Match dependency.
 struct BallPhysics {
   static BallState Step(const BallState& current, float dt,
+                        const football::domain::BallProfile& ball,
                         const BallPhysicsParams& p, bool apply_woodwork,
                         const GoalGeometry& goal) {
     BallState next = current;
@@ -144,13 +146,13 @@ struct BallPhysics {
     momentum = momentum.GetNormalized(0) * momentumVeloDragged;
 
     // Grass influence (0 == no friction, 1 == all friction).
-    float ballBottom = pos.coords[2] - p.radius;
+    float ballBottom = pos.coords[2] - ball.radius;
     float grassInfluenceBias =
         blunted::clamp(1.0f - (ballBottom / p.grassHeight), 0.0f, 1.0f);
     grassInfluenceBias = std::pow(grassInfluenceBias, 0.7f);
 
     // Bounce.
-    if (pos.coords[2] < p.radius) {
+    if (pos.coords[2] < ball.radius) {
       if (momentum.coords[2] < 0.0f) {
         frictionFactor = blunted::NormalizedClamp(
             -momentum.coords[2] - 0.5f, 0.0f, 12.0f);
@@ -158,11 +160,11 @@ struct BallPhysics {
         momentum.coords[2] =
             std::max(momentum.coords[2] - p.linearBounce, 0.0f);
       }
-      pos.coords[2] = p.radius;
+      pos.coords[2] = ball.radius;
     }
 
     // Ground friction.
-    if (pos.coords[2] < p.radius + p.grassHeight) {
+    if (pos.coords[2] < ball.radius + p.grassHeight) {
       float adaptedFriction = (p.friction * grassInfluenceBias);
       blunted::Vector3 xy = momentum.Get2D();
       float velo = xy.GetLength();
@@ -182,14 +184,14 @@ struct BallPhysics {
     // flag preserves regression-exact behavior; a future physics-correctness
     // pass may check contact on every step.
     if (apply_woodwork) {
-      ApplyWoodwork(pos, momentum, p, goal);
+      ApplyWoodwork(pos, momentum, ball, goal);
     }
 
     // Ground-induced rotation + rotation-induced ground friction.
-    if (pos.coords[2] < p.radius + p.grassHeight) {
+    if (pos.coords[2] < ball.radius + p.grassHeight) {
       blunted::radian xR, yR;
-      xR = momentum.coords[1] / p.radius;
-      yR = momentum.coords[0] / p.radius;
+      xR = momentum.coords[1] / ball.radius;
+      yR = momentum.coords[0] / ball.radius;
 
       blunted::Quaternion rotX;
       rotX.SetAngleAxis(
@@ -232,8 +234,8 @@ struct BallPhysics {
       x = -x;
 
       blunted::Vector3 ballRotationMomentum;
-      ballRotationMomentum.coords[0] = y * p.radius * 1000.0f;
-      ballRotationMomentum.coords[1] = x * p.radius * 1000.0f;
+      ballRotationMomentum.coords[0] = y * ball.radius * 1000.0f;
+      ballRotationMomentum.coords[1] = x * ball.radius * 1000.0f;
 
       float rotBias = 0.01f;
       rotBias *= grassInfluenceBias;

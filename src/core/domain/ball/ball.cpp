@@ -2,7 +2,8 @@
 
 namespace football::domain {
 
-Ball::Ball(BallState& state) : state_(state) {}
+Ball::Ball(const BallProfile& profile, BallState& state)
+    : profile_(profile), state_(state) {}
 
 void Ball::SetRotation(blunted::real x, blunted::real y, blunted::real z,
                        float bias) {
@@ -28,7 +29,7 @@ void Ball::SetRotation(blunted::real x, blunted::real y, blunted::real z,
 void Ball::Reset(const blunted::Vector3& focusPos) {
   state_.momentum = blunted::Vector3(0);
   state_.rotation_ms = blunted::Quaternion(blunted::QUATERNION_IDENTITY);
-  state_.position = blunted::Vector3(focusPos + blunted::Vector3(0, 0, 0.11));
+  state_.position = blunted::Vector3(focusPos + blunted::Vector3(0, 0, profile_.radius));
   state_.orientation = blunted::Quaternion(blunted::QUATERNION_IDENTITY);
 }
 

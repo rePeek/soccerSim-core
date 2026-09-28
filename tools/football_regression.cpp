@@ -13,6 +13,7 @@
 #include "game_env.hpp"
 #include "onthepitch/AIsupport/AIfunctions.hpp"
 #include "onthepitch/player/legacy_locomotion_command.hpp"
+#include "core/physics/ball_physics.hpp"
 #include "core/physics/player_movement.hpp"
 #include "core/physics/player_movement.hpp"
 #include "core/physics/player_movement.hpp"
@@ -38,6 +39,27 @@ struct RegressionFailure : std::exception {
 
 void Require(bool condition, const std::string& message) {
   if (!condition) throw RegressionFailure(message);
+}
+
+void RequireNear(float actual, float expected, const std::string& label);
+
+void CheckBallProfileBoundary() {
+  football::domain::BallProfile profile;
+  profile.radius = 0.2f;
+  BallState state;
+  football::domain::Ball ball(profile, state);
+  Require(&ball.Profile() == &profile && &ball.State() == &state,
+          "ball domain entity must borrow profile and state");
+  ball.Reset(Vector3(0));
+  RequireNear(ball.State().position.coords[2], profile.radius,
+              "ball reset height must come from profile");
+  state.position.coords[2] = 0.0f;
+  const BallState next = BallPhysics::Step(
+      state, 0.01f, profile, BallPhysicsParams(), false, GoalGeometry());
+  RequireNear(next.position.coords[2], profile.radius,
+              "ball ground contact must use profile radius");
+  RequireNear(state.position.coords[2], 0.0f,
+              "ball step must not mutate input snapshot");
 }
 
 void CheckPlayerDecisionScheduler() {
@@ -4130,6 +4152,7 @@ int main(int argc, char** argv) {
 
   try {
 
+    CheckBallProfileBoundary();
     CheckPlayerKinematics();
     CheckPlayerKinematicMirror();
     CheckPlayerBodyFacing();

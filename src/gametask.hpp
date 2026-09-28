@@ -24,6 +24,8 @@
 
 using namespace blunted;
 
+struct WorldProfiles;
+
 class GameTask {
 
   public:
@@ -31,7 +33,7 @@ class GameTask {
     ~GameTask();
 
     void StartMatch(std::unique_ptr<MatchSetup> setup, bool init_animation,
-                    WorldState& world_state);
+                    WorldState& world_state, const WorldProfiles& profiles);
     bool StopMatch();
 
     void ProcessPhase();

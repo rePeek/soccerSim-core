@@ -24,6 +24,7 @@
 #include "../base/geometry/triangle.hpp"
 #include "../base/log.hpp"
 #include "../game_env.hpp"
+#include "core/world/world_profiles.hpp"
 #include "../main.hpp"
 #include "AIsupport/AIfunctions.hpp"
 #include "file.h"
@@ -50,8 +51,9 @@ PlayerState& Match::GetTeamPlayerState(int team_id, int team_index) {
 Match::Match(std::unique_ptr<MatchData> match_data,
              const std::vector<AIControlledKeyboard *> &controllers,
              const MatchSetup& setup, bool animations,
-             WorldState& world_state)
-    : world_state(world_state), matchData(std::move(match_data)),
+             WorldState& world_state, const WorldProfiles& profiles)
+    : world_state(world_state), profiles(profiles),
+      matchData(std::move(match_data)),
       first_team(GetScenarioConfig().reverse_team_processing ? 1 : 0),
       second_team(GetScenarioConfig().reverse_team_processing ? 0 : 1),
       controllers(controllers),
@@ -69,7 +71,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   goalScoredTimer = 0;
 
 
-  ball = new BallLegacy(world_state.ball, this);
+  ball = new BallLegacy(profiles.ball, world_state.ball, this);
 
   if (!anims) {
     DO_VALIDATION;
@@ -1107,7 +1109,7 @@ void Match::CheckBallCollisions() {
               BuildBodyCollider(players[i]->GetKinematicState());
           for (const BodyVolume *volume : body.GetVolumes()) {
             DO_VALIDATION;
-            float ballRadius = 0.11f + boundingBoxSizeOffset;
+            float ballRadius = ball->Entity().Profile().radius + boundingBoxSizeOffset;
             if (volume->IntersectsSphere(ball->Predict(0), ballRadius)) {
               DO_VALIDATION;
               if (players[i] == players[i]

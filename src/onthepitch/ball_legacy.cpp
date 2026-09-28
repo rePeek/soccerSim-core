@@ -23,8 +23,9 @@
 #include "match.hpp"
 
 
-BallLegacy::BallLegacy(BallState& state, Match *match)
-    : ball_(new football::domain::Ball(state)), match(match) {
+BallLegacy::BallLegacy(const football::domain::BallProfile& profile,
+                       BallState& state, Match *match)
+    : ball_(new football::domain::Ball(profile, state)), match(match) {
   DO_VALIDATION;
   CalculatePrediction();
 }
@@ -145,8 +146,8 @@ BallSpatialInfo BallLegacy::CalculatePrediction() {
     stepState.momentum = momentumPredict;
     stepState.rotation_ms = rotationPredict_ms;
     stepState.orientation = nextOrientation;
-    stepState = BallPhysics::Step(stepState, timeStep, BallPhysicsParams(),
-                                  firstTime, GoalGeometry());
+    stepState = BallPhysics::Step(stepState, timeStep, ball_->Profile(),
+                                  BallPhysicsParams(), firstTime, GoalGeometry());
     nextPos = stepState.position;
     momentumPredict = stepState.momentum;
     rotationPredict_ms = stepState.rotation_ms;

@@ -28,14 +28,15 @@ GameTask::~GameTask() {
 }
 
 void GameTask::StartMatch(std::unique_ptr<MatchSetup> setup, bool animations,
-                          WorldState& world_state) {
+                          WorldState& world_state,
+                          const WorldProfiles& profiles) {
   DO_VALIDATION;
   randomize(GetScenarioConfig().game_engine_random_seed);
   assert(setup);
   assert(setup->match_data);
   assert(!match);
   match.reset(new Match(std::move(setup->match_data), GetControllers(), *setup,
-                        animations, world_state));
+                        animations, world_state, profiles));
 }
 
 bool GameTask::StopMatch() {

@@ -2,6 +2,7 @@
 #define _HPP_CORE_DOMAIN_BALL
 
 #include "core/state/ball_state.hpp"
+#include "ball_profile.hpp"
 
 namespace football::domain {
 
@@ -13,7 +14,8 @@ namespace football::domain {
 // facade, which composes this entity.
 class Ball {
 public:
-  explicit Ball(BallState& state);
+  Ball(const BallProfile& profile, BallState& state);
+  const BallProfile& Profile() const { return profile_; }
 
   BallState& State() { return state_; }
   const BallState& State() const { return state_; }
@@ -33,6 +35,7 @@ public:
   void Reset(const blunted::Vector3& focusPos);
 
 private:
+  const BallProfile& profile_;
   BallState& state_;
 };
 

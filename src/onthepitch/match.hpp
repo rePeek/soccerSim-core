@@ -36,6 +36,7 @@
 
 struct WorldState;
 struct PlayerState;
+struct WorldProfiles;
 
 struct PlayerBounce {
   Player *opp;
@@ -48,7 +49,7 @@ class Match {
     Match(std::unique_ptr<MatchData> matchData,
           const std::vector<AIControlledKeyboard*> &controllers,
           const MatchSetup& setup, bool init_animation,
-          WorldState& world_state);
+          WorldState& world_state, const WorldProfiles& profiles);
     virtual ~Match();
 
     void Exit();
@@ -148,6 +149,7 @@ class Match {
 
 
     WorldState& world_state;  // borrowed; World outlives Match
+    const WorldProfiles& profiles;  // borrowed; World outlives Match
     std::unique_ptr<MatchData> matchData;
     Team *teams[2];
     int first_team = 0;

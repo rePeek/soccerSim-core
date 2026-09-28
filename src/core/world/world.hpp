@@ -3,6 +3,7 @@
 
 class GameTask;  // legacy
 #include "core/state/world_state.hpp"
+#include "core/world/world_profiles.hpp"
 
 // World is the future top-level simulation orchestrator.
 //
@@ -19,6 +20,8 @@ public:
   // Advance the simulation by one phase (tick).
   void Step();
 
+  const WorldProfiles& GetProfiles() const { return profiles_; }
+
   // Stable runtime storage for the ball and the first 11 players per team.
   // Match and legacy facades borrow these slots; they never copy them.
   WorldState& GetState() { return state_; }
@@ -26,6 +29,7 @@ public:
 
 private:
   GameTask& legacy_game_task_;
+  WorldProfiles profiles_;  // stable across ticks and WorldState copies
   WorldState state_;
 };
 

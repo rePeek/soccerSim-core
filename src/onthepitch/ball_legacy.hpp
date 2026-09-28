@@ -45,7 +45,8 @@ struct BallSpatialInfo {
 class BallLegacy {
 
   public:
-    BallLegacy(BallState& state, Match *match);
+    BallLegacy(const football::domain::BallProfile& profile, BallState& state,
+               Match *match);
     virtual ~BallLegacy();
 
     void Mirror();
