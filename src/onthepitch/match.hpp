@@ -19,7 +19,7 @@
 #define _HPP_MATCH
 
 #include "team.hpp"
-#include "ball.hpp"
+#include "ball_legacy.hpp"
 #include "referee.hpp"
 #include "officials.hpp"
 
@@ -53,7 +53,7 @@ class Match {
 
     void UpdateControllerSetup();
     int GetScore(int teamID) { DO_VALIDATION; return matchData->GetGoalCount(teamID); }
-    Ball *GetBall() { DO_VALIDATION; return ball; }
+    BallLegacy *GetBall() { DO_VALIDATION; return ball; }
     Team *GetTeam(int teamID) { DO_VALIDATION; return teams[teamID]; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
     void GetOfficialPlayers(std::vector<PlayerBase*> &players);
@@ -155,7 +155,7 @@ class Match {
     const std::vector<AIControlledKeyboard*> &controllers;
     std::vector<ControllerSetup> controllerSetup;
 
-    Ball *ball = nullptr;
+    BallLegacy *ball = nullptr;
 
     std::vector<MentalImage> mentalImages; // [index] == index * 10 ms ago ([0] == now)
 

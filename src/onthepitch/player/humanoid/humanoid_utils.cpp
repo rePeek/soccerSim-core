@@ -157,7 +157,7 @@ void GetDifficultyFactors(Match *match, Player *player,
                           float &heightFactor, float &ballMovementFactor) {
   DO_VALIDATION;
 
-  Ball *ball = match->GetBall();
+  BallLegacy *ball = match->GetBall();
 
   distanceFactor = 0.0f; // how far ball bounces off feet
   heightFactor = 0.0f; // how high ball bounces off feet
@@ -218,7 +218,7 @@ void GetDifficultyFactors(Match *match, Player *player,
   ballMovementFactor = clamp(ballMovementFactor, 0.0f, 1.0f);
 }
 
-Vector3 GetBallControlVector(Ball *ball, Player *player,
+Vector3 GetBallControlVector(BallLegacy *ball, Player *player,
                              const Vector3 &nextStartPos, radian nextStartAngle,
                              radian nextBodyAngle,
                              const Vector3 &outgoingMovement,
@@ -358,7 +358,7 @@ Vector3 GetTrapVector(Match *match, Player *player, const Vector3 &nextStartPos,
                       radian &yRot) {
   DO_VALIDATION;
 
-  Ball *ball = match->GetBall();
+  BallLegacy *ball = match->GetBall();
 
   float distanceFactor = 0.0f; // how far ball bounces off feet
   float heightFactor = 0.0f; // how high ball bounces off feet
@@ -383,7 +383,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
                       radian &zRot, float autoDirectionBias) {
   DO_VALIDATION;
 
-  Ball *ball = match->GetBall();
+  BallLegacy *ball = match->GetBall();
 
   const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(currentAnim.anim);
   Vector3 touchMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum).GetRotated2D(spatialState.angle); // spatialState.movement isn't reliable because of smuggles and such

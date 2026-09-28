@@ -25,7 +25,7 @@
 #include "../match.hpp"
 #include "../team.hpp"
 #include "../player/player.hpp"
-#include "../ball.hpp"
+#include "../ball_legacy.hpp"
 
 #include "../player/humanoid/humanoid_utils.hpp"
 
@@ -841,7 +841,7 @@ unsigned int AI_GetBallControlMovement(
   return player->GetTimeNeededToGetToBall_ms();
 }
 
-bool AI_HasPossession(Ball *ball, Player *player) {
+bool AI_HasPossession(BallLegacy *ball, Player *player) {
   DO_VALIDATION;
   Vector3 playerMovement = player->GetMovement();
 

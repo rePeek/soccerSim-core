@@ -63,7 +63,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   goalScoredTimer = 0;
 
 
-  ball = new Ball(this, ball_state);
+  ball = new BallLegacy(ball_state, this);
 
   if (!anims) {
     DO_VALIDATION;

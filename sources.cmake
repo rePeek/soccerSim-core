@@ -103,6 +103,7 @@ set(CORE_HEADERS
    src/core/state/world_state.hpp
    src/core/physics/physics_system.hpp
    src/core/physics/ball_physics.hpp
+   src/core/domain/ball/ball.hpp
 )
 
 set(CORE_SOURCES
@@ -113,6 +114,7 @@ set(CORE_SOURCES
    src/gametask.cpp
    src/core/world/world.cpp
    src/core/physics/physics_system.cpp
+   src/core/domain/ball/ball.cpp
    src/utils.cpp
    src/main.cpp
    src/gamedefines.cpp
@@ -149,7 +151,7 @@ set(GAME_HEADERS
    src/onthepitch/player/controller/strategies/offtheball/goalie_default.hpp
    src/onthepitch/player/controller/refereecontroller.hpp
    src/onthepitch/referee.hpp
-   src/onthepitch/ball.hpp
+   src/onthepitch/ball_legacy.hpp
    src/onthepitch/team.hpp
    src/onthepitch/match.hpp
    src/onthepitch/AIsupport/AIfunctions.hpp
@@ -180,7 +182,7 @@ set(GAME_SOURCES
    src/onthepitch/player/controller/strategies/offtheball/default_def.cpp
    src/onthepitch/player/controller/strategies/offtheball/goalie_default.cpp
    src/onthepitch/humangamer.cpp
-   src/onthepitch/ball.cpp
+   src/onthepitch/ball_legacy.cpp
    src/onthepitch/match.cpp
    src/onthepitch/referee.cpp
    src/onthepitch/AIsupport/mentalimage.cpp

@@ -21,7 +21,7 @@
 #include "../../gamedefines.hpp"
 
 class MentalImage;
-class Ball;
+class BallLegacy;
 class Match;
 class Team;
 class Player;
@@ -56,7 +56,7 @@ Vector3 AI_GetForceFieldMovement(const std::vector<ForceSpot> &forceField, const
 TimeNeeded AI_GetTimeNeededForDistance_ms(const Vector3 &playerPos, const Vector3 &playerMovement, const Vector3 &targetPos, float maxVelocity = sprintVelocity, bool precise = false, unsigned int maxTime_ms = -1);
 unsigned int AI_GetToBallMovement(Match *match, const MentalImage *mentalImage, Player *player, const Vector3 &desiredDirection, float desiredVelocityFloat, Vector3 &bestDirection, float &bestVelocityFloat, Vector3 &bestLookAt, float haste = 0.0f);
 unsigned int AI_GetBallControlMovement(const MentalImage *mentalImage, Player *player, const Vector3 &desiredDirection, float desiredVelocityFloat, Vector3 &bestDirection, float &bestVelocityFloat, Vector3 &bestLookAt);
-bool AI_HasPossession(Ball *ball, Player *player);
+bool AI_HasPossession(BallLegacy *ball, Player *player);
 Player *AI_GetClosestPlayer(Team *team, const Vector3 &position,
                             bool onlyAIControlled, Player *except = 0, bool onlySelectable = false);
 void AI_GetClosestPlayers(Team *team, const Vector3 &position, bool onlyAIControlled, std::vector<Player*> &result, unsigned int playerCount = 3, bool onlySelectable = false);

@@ -15,8 +15,8 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _HPP_FOOTBALL_ONTHEPITCH_BALL
-#define _HPP_FOOTBALL_ONTHEPITCH_BALL
+#ifndef _HPP_FOOTBALL_ONTHEPITCH_BALL_LEGACY
+#define _HPP_FOOTBALL_ONTHEPITCH_BALL_LEGACY
 
 #include "../base/math/quaternion.hpp"
 #include "../base/math/vector3.hpp"
@@ -24,6 +24,8 @@
 #include "../gamedefines.hpp"
 #include "../utils.hpp"
 #include "core/state/ball_state.hpp"
+#include "core/domain/ball/ball.hpp"
+#include <memory>
 
 using namespace blunted;
 
@@ -38,11 +40,13 @@ struct BallSpatialInfo {
   Quaternion rotation_ms;
 };
 
-class Ball {
+// Legacy facade: prediction cache, mental-image / possession updates and the
+// Match pointer stay here. The composed core::domain::Ball owns the state.
+class BallLegacy {
 
   public:
-    Ball(Match *match, BallState& state);
-    virtual ~Ball();
+    BallLegacy(BallState& state, Match *match);
+    virtual ~BallLegacy();
 
     void Mirror();
 
@@ -54,8 +58,12 @@ class Ball {
       return predictions[index];
     }
 
+    // Composed domain entity (Phase 7E.5).
+    Ball& Entity() { return *ball_; }
+    const Ball& Entity() const { return *ball_; }
+
     void GetPredictionArray(std::vector<Vector3> &target);
-    Vector3 GetMovement();
+    Vector3 GetMovement() { return ball_->State().momentum; }
     Vector3 GetRotation();
     void Touch(const Vector3 &target);
     void SetPosition(const Vector3 &target);
@@ -66,12 +74,11 @@ class Ball {
     Vector3 GetAveragePosition(unsigned int duration_ms) const;
 
     void Process();
-    Quaternion GetOrientation() const { return state_.orientation; }
+    Quaternion GetOrientation() const { return ball_->State().orientation; }
 
     void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState *state);
-  private:
-    BallState& state_;  // references WorldState.ball (Phase 7C)
+    std::unique_ptr<Ball> ball_;  // composed domain entity (Phase 7E.5)
 
     Vector3 predictions[ballPredictionSize_ms / 10 + cachedPredictions + 1];
     int valid_predictions = 0;

@@ -19,7 +19,7 @@
 #define _HPP_FOOTBALL_ONTHEPITCH_ANIMCOLLECTION
 
 #include "../../../utils/animation.hpp"
-#include "../../ball.hpp"
+#include "../../ball_legacy.hpp"
 
 #include "import_hierarchy.hpp"
 #include "import_loader.hpp"

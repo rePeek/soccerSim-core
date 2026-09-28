@@ -997,7 +997,7 @@ std::string CaptureSimulationDigest(GameEnv& env) {
     AppendDigestFloat(out, action.contactPosition.coords[1]);
   }
 
-  Ball* ball = match->GetBall();
+  BallLegacy* ball = match->GetBall();
   const Vector3 ballPos = ball->Predict(0);
   const Vector3 ballMomentum = ball->GetMovement();
   const Vector3 ballRotation = ball->GetRotation();
@@ -1109,7 +1109,7 @@ std::vector<NamedDigestFloat> CaptureResetDigestFloats(GameEnv& env) {
     append_actor(officials[index], "official[" + std::to_string(index) + "]");
   }
 
-  Ball* ball = match->GetBall();
+  BallLegacy* ball = match->GetBall();
   const Vector3 ball_position = ball->Predict(0);
   const Vector3 ball_momentum = ball->GetMovement();
   const Vector3 ball_rotation = ball->GetRotation();
@@ -2882,7 +2882,7 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "intercept prediction: kickoff");
   Match* match = env.context->gameTask->GetMatch();
-  Ball* ball = match->GetBall();
+  BallLegacy* ball = match->GetBall();
 
   // The legacy dual estimate uses a usual (touchable) and an optimistic radius,
   // so both are mirrored here instead of comparing one radius against two.
@@ -3087,7 +3087,7 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "hybrid intercept: kickoff");
   Match* match = env.context->gameTask->GetMatch();
-  Ball* ball = match->GetBall();
+  BallLegacy* ball = match->GetBall();
 
   const int candidate_horizons[] = {0,    100,  200,  300,  400,  500, 600,
                                      700,  800,  900,  1000, 1200, 1500};
