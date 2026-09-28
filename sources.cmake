@@ -104,6 +104,7 @@ set(CORE_HEADERS
    src/core/physics/physics_system.hpp
    src/core/physics/ball_physics.hpp
    src/core/domain/ball/ball.hpp
+   src/core/domain/player/player.hpp
 )
 
 set(CORE_SOURCES
@@ -115,6 +116,7 @@ set(CORE_SOURCES
    src/core/world/world.cpp
    src/core/physics/physics_system.cpp
    src/core/domain/ball/ball.cpp
+   src/core/domain/player/player.cpp
    src/utils.cpp
    src/main.cpp
    src/gamedefines.cpp
