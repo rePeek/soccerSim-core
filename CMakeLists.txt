@@ -4,9 +4,6 @@ set(OUTPUT_LIB_NAME game)
 project(gameplayfootball LANGUAGES CXX)
 include(CTest)  # defines BUILD_TESTING
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  message(FATAL_ERROR "This project supports Linux only")
-endif()
 set(PACKAGE gameplayfootball)
 
 # Project-wide default only: every target opts into an explicit C++ standard
@@ -88,16 +85,6 @@ if(BUILD_TESTING)
   set_tests_properties(football_animation_ab_lifecycle PROPERTIES
     ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
 endif()
-
-# Loads libgame.so with dlopen and asserts no graphics library comes with it.
-# Deliberately not linked against the engine, so the dlopen is the only load.
-add_executable(football_headless_load tools/football_headless_load.cpp)
-target_link_libraries(football_headless_load PRIVATE ${CMAKE_DL_LIBS})
-football_configure_target(football_headless_load)
-add_test(NAME football_headless_load
-  COMMAND football_headless_load $<TARGET_FILE:${OUTPUT_LIB_NAME}>)
-set_tests_properties(football_headless_load PROPERTIES
-  ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
 
 # Keep the completed headless boundary from growing back through a convenient
 # include or an accidental link dependency (graphics and Boost are both

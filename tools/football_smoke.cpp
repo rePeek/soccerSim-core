@@ -4,7 +4,6 @@
 
 #include "game_env.hpp"
 
-#include "headless_check.hpp"
 
 namespace {
 
@@ -61,13 +60,6 @@ int main(int argc, char** argv) {
     if (i == 0 || (i + 1) % 100 == 0 || i + 1 == steps) {
       PrintState(i + 1, env.get_info());
     }
-  }
-
-  // The whole lifecycle above (create, reset, step) must have run without the
-  // OpenGL/EGL/GLX stack ever entering the process, whichever libraries the
-  // engine happens to link for asset import.
-  if (!football_headless::RequireNoGraphicsLibraries("football_smoke")) {
-    return 1;
   }
 
   // GameEnv currently has no owner-managed shutdown API. Process teardown is

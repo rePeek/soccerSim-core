@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "utils.hpp"
+#include <filesystem>
 
 #include "../main.hpp"
 #include "file.h"
@@ -197,10 +198,7 @@ void file_to_vector(std::string filename,
 
 std::string get_file_name(const std::string &filename) {
   DO_VALIDATION;
-  std::string chompedFilename =
-      filename.substr(filename.find_last_of('\\') + 1);
-  chompedFilename = chompedFilename.substr(filename.find_last_of('/') + 1);
-  return chompedFilename;
+  return std::filesystem::path(filename).filename().string();
 }
 
 std::string get_file_extension(const std::string &filename) {

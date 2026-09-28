@@ -15,8 +15,6 @@
 
 #include "game_env.hpp"
 
-#include <fenv.h>
-
 #include <cerrno>
 #include <ctime>
 #include <iostream>

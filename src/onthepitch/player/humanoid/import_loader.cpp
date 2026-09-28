@@ -14,6 +14,7 @@
 #include "import_loader.hpp"
 
 #include "../../../base/utils.hpp"
+#include <filesystem>
 
 namespace blunted {
 
@@ -38,7 +39,9 @@ std::unique_ptr<ImportNode> ImportLoader::LoadNode(
     const Vector3& offset) const {
   std::unique_ptr<ImportNode> node(new ImportNode("objectnode: " + nodename));
 
-  const std::string dirpart = nodename.substr(0, nodename.find_last_of('/') + 1);
+  const std::filesystem::path dir =
+      std::filesystem::path(nodename).parent_path();
+  const std::string dirpart = dir.empty() ? "" : dir.generic_string() + "/";
 
   Vector3 position;
   Quaternion rotation;
