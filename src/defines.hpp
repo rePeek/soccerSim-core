@@ -35,7 +35,7 @@
 #include <deque>
 
 #include <memory>
-#include <boost/bind/bind.hpp>
+#include <functional>
 #include "backtrace.h"
 #include "base/log.hpp"
 
@@ -51,7 +51,7 @@ constexpr float EPSILON = 0.000001;
 
 typedef std::string screenshoot;
 
-using namespace boost::placeholders;
+using namespace std::placeholders;
 
 namespace blunted {
   class Animation;

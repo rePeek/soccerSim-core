@@ -810,19 +810,19 @@ int HumanoidBase::GetIdleMovementAnimID() {
   anims->CrudeSelection(dataSet, query);
 
   SetIdlePredicate(1);
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
 
   SetIncomingBodyDirectionSimilarityPredicate(Vector3(0, -1, 0));
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
 
   SetIncomingVelocitySimilarityPredicate(e_Velocity_Idle);
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
 
   SetMovementSimilarityPredicate(Vector3(0, -1, 0), e_Velocity_Idle);
   SetBodyDirectionSimilarityPredicate(spatialState.position + Vector3(0, -10, 0).GetRotated2D(spatialState.angle)); // lookat
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareBodyDirectionSimilarity, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareBodyDirectionSimilarity, this, _1, _2));
 
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareMovementSimilarity, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareMovementSimilarity, this, _1, _2));
 
   //printf("%s\n", anims->GetAnim(*dataSet.begin())->GetName().c_str());
 
@@ -977,14 +977,14 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
       DO_VALIDATION;
       anims->GetAnim(anim)->order_float = GetMovementSimilarity(anim, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
     }
-    std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareByOrderFloat, this, _1, _2));
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareByOrderFloat, this, _1, _2));
 
     // we want the best anim to be a baseanim, and compare other anims to it
     if (strict) {
       DO_VALIDATION;
       if (command.desiredFunctionType != e_FunctionType_Movement) {
         DO_VALIDATION;
-        std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
+        std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
       }
     }
 
@@ -1046,14 +1046,14 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
     DO_VALIDATION;
     anims->GetAnim(anim)->order_float = DirectionSimilarityRating(anim);
   }
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareByOrderFloat, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareByOrderFloat, this, _1, _2));
 
   // we want the best anim to be a baseanim, and compare other anims to it
   if (strict) {
     DO_VALIDATION;
     if (command.desiredFunctionType != e_FunctionType_Movement) {
       DO_VALIDATION;
-      std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
     }
   }
 
@@ -1158,33 +1158,33 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     }
 
     else {  // undefined animtype
-      std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareMovementSimilarity, this, _1, _2));
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareMovementSimilarity, this, _1, _2));
     }
   }
 
   int desiredIdleLevel = 1;
   SetIdlePredicate(desiredIdleLevel);
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
 
   SetFootSimilarityPredicate(spatialState.foot);
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareFootSimilarity, this, spatialState.foot, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareFootSimilarity, this, spatialState.foot, _1, _2));
 
   SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
 
   SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareIncomingVelocitySimilarity, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareIncomingVelocitySimilarity, this, _1, _2));
 
   if (command.useDesiredTripDirection) {
     DO_VALIDATION;
     Vector3 relDesiredTripDirection = command.desiredTripDirection.GetRotated2D(-spatialState.angle);
     SetTripDirectionSimilarityPredicate(relDesiredTripDirection);
-    std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareTripDirectionSimilarity, this, _1, _2));
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareTripDirectionSimilarity, this, _1, _2));
   }
 
   if (command.desiredFunctionType != e_FunctionType_Movement) {
     DO_VALIDATION;
-    std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&HumanoidBase::CompareBaseanimSimilarity, this, _1, _2));
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareBaseanimSimilarity, this, _1, _2));
   }
 
   // process result

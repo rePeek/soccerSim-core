@@ -1006,7 +1006,7 @@ void Humanoid::SelectRetainAnim() {
   assert(dataSet.size() != 0);
 
   GetContext().tracker_disabled++;
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareMovementSimilarity, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareMovementSimilarity, this, _1, _2));
   GetContext().tracker_disabled--;
 
   startAngle = FixAngle((Vector3(0) - startPos).GetAngle2D());//0.5 * pi; (facing right)
@@ -1418,14 +1418,14 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
   }
 
   GetContext().tracker_disabled++;
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::ComparePriorityVariable, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::ComparePriorityVariable, this, _1, _2));
 
   int desiredIdleLevel = 0;
   if (!match->IsInPlay()) desiredIdleLevel = 2;
   if (match->IsInSetPiece()) desiredIdleLevel = 1;
   else if ((match->GetBall()->Predict(200) - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
   SetIdlePredicate(desiredIdleLevel);
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
 
   // H3e4e2 measurement: strict counterfactual for the foot tie-break. The clone
   // is taken before the foot stable_sort and then receives exactly the same
@@ -1435,35 +1435,35 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
   DataSet withoutFootSort;
   if (foot_counterfactual) withoutFootSort = dataSet;
   SetFootSimilarityPredicate(spatialState.foot);
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareFootSimilarity, this, spatialState.foot, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareFootSimilarity, this, spatialState.foot, _1, _2));
 
   if (command.desiredFunctionType != e_FunctionType_BallControl) {
     DO_VALIDATION;
     SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
-    std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
   }
 
   // moved down
   SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
-  std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
 
   // OLD METHOD
   if (command.useDesiredTripDirection) {
     DO_VALIDATION;
     Vector3 relDesiredTripDirection = command.desiredTripDirection.GetRotated2D(-spatialState.angle);
     SetTripDirectionSimilarityPredicate(relDesiredTripDirection);
-    std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareTripDirectionSimilarity, this, _1, _2));
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareTripDirectionSimilarity, this, _1, _2));
   }
 
   // OLD METHOD
   if (command.desiredFunctionType != e_FunctionType_Movement) {
     DO_VALIDATION;
-    std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
   }
 
   if (command.desiredFunctionType == e_FunctionType_Deflect) {
     DO_VALIDATION;
-    std::stable_sort(dataSet.begin(), dataSet.end(), boost::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
   }
 
   if (foot_counterfactual) {
@@ -1471,19 +1471,19 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     // so this stays a counterfactual and not a second scheduler.
     if (command.desiredFunctionType != e_FunctionType_BallControl) {
       SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
     }
     SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
-    std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
+    std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
     if (command.useDesiredTripDirection) {
       SetTripDirectionSimilarityPredicate(command.desiredTripDirection.GetRotated2D(-spatialState.angle));
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareTripDirectionSimilarity, this, _1, _2));
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareTripDirectionSimilarity, this, _1, _2));
     }
     if (command.desiredFunctionType != e_FunctionType_Movement) {
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
     }
     if (command.desiredFunctionType == e_FunctionType_Deflect) {
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), boost::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
     }
     if (!dataSet.empty() && !withoutFootSort.empty()) {
       RecordFootCounterfactual(*dataSet.begin(), *withoutFootSort.begin(),
