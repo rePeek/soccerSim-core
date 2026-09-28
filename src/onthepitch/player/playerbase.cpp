@@ -620,7 +620,6 @@ void PlayerBase::BeginSimulationAction() {
   definition.contactTime_ms = anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
   definition.contactPosition = anim->touchPos;
   PlayerActionExecutor::Begin(actionState, definition);
-  PlayerActionExecutor::Begin(actionState, definition);
 
   // ResetPosition can deliberately start an idle animation at a non-zero
   // legacy frame. Establish that initial cursor once; normal ticks never

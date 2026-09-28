@@ -7,8 +7,10 @@ Frozen principle:
     Derived = recomputed from Profile + State + Context, never stored as authority
 
 - **Profile** — immutable for a match. Inherent properties of the entity.
-- **State** — copyable simulation snapshot: everything needed to restore one
-  frame. Cheap to copy, predict and replay.
+- **State** — copyable simulation snapshot: the dynamic data needed to restore
+  one frame **given the same `WorldProfiles`**. Cheap to copy, predict and
+  replay. A snapshot alone is not a complete world; restoring one frame needs
+  `WorldProfiles + WorldState`, because profiles are not serialized here.
 - **Derived** — recomputed on demand. If it can be computed from Profile +
   State + Context, it must not be an authoritative stored field.
 
@@ -25,6 +27,12 @@ the C API.
         ├── BallState
         ├── PlayerState[22]
         └── MatchState
+Ownership note: `WorldProfiles` is still filled by `Match` during setup and
+`World::GetProfiles()` still exposes a mutable reference for that migration.
+The target is `CompileWorldProfiles(MatchData) -> WorldProfiles` followed by
+a freeze, with `Match`/entities only reading it. Also note that a per-match
+reset currently clears `players` but not `ball`; once a match can select a
+different ball, the compile step must reset both.
 
 `football::domain::Ball` and `football::domain::Player` are thin views binding a
 profile reference to a state reference. They own no algorithms and copy no

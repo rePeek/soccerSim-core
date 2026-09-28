@@ -1452,7 +1452,8 @@ void CheckMovementAuthorityTiming(GameEnv& env, ScenarioConfig& config) {
   const Vector3 p1_position = p1->GetPosition();
   p2->OffsetPosition(p1_position + Vector3(0.15f, 0.0f, 0.0f) -
                      p2->GetPosition());
-  Require(p1->GetGroundCollider().Intersects(p2->GetGroundCollider()),
+  Require(p1->GetDerivedGroundCollider().Intersects(
+              p2->GetDerivedGroundCollider()),
           "movement authority: could not force the colliders to overlap");
   env.step();
   CheckKinematicMirrorConsistency(

@@ -761,8 +761,9 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
   constexpr float similarExp = 0.2f;//0.8f;
   constexpr float similarForceFactor = 0.25f; // 0.5f would be the full effect
 
-  const PlayerGroundCollider &p1Collider = p1->GetGroundCollider();
-  const PlayerGroundCollider &p2Collider = p2->GetGroundCollider();
+  // Derived colliders (Profile + State). The serialized shadow is not read here.
+  const PlayerGroundCollider p1Collider = p1->GetDerivedGroundCollider();
+  const PlayerGroundCollider p2Collider = p2->GetDerivedGroundCollider();
   Vector3 p1pos = p1Collider.center;
   Vector3 p2pos = p2Collider.center;
   float distance = (p1pos - p2pos).GetLength();
@@ -789,7 +790,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     p1backFacing = clamp(p1facing.GetDotProduct( bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f); // 0 .. 1 == worst .. best
     p2backFacing = clamp(p2facing.GetDotProduct(-bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f);
 
-    if (p1->GetGroundCollider().Intersects(p2->GetGroundCollider())) {
+    if (p1Collider.Intersects(p2Collider)) {
       DO_VALIDATION;
 
       bounceBias += p1backFacing * 0.8f;
@@ -1039,7 +1040,10 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     Player *tackler = tackle == 1 ? p1 : p2;
     Player *victim = tackle == 1 ? p2 : p1;
 
-    if (tacklerVolume.Intersects(victim->GetGroundCollider())) {
+    // Derived, like the movement state: Profile + State, never the shadow.
+    const PlayerGroundCollider victimCollider =
+        victim->GetDerivedGroundCollider();
+    if (tacklerVolume.Intersects(victimCollider)) {
       DO_VALIDATION;
       if (tacklerAction.frame > 10 &&
           tacklerAction.frame < tacklerAction.frameCount - 6) {
