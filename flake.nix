@@ -17,9 +17,7 @@
               pkgs.cmake
               pkgs.gcc
               pkgs.gnumake
-              pkgs.pkg-config
               pkgs.ninja
-
             ];
 
             shellHook = ''
