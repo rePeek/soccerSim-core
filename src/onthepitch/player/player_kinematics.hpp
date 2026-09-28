@@ -15,37 +15,11 @@
 #define _HPP_PLAYER_KINEMATICS
 
 #include "../../defines.hpp"
+#include "core/state/player_state.hpp"
 
-// Explicit movement state for a player. During the initial shadow phase it is
-// synchronized from Humanoid; PlayerKinematics will later produce it directly
-// without animation root motion.
-struct PlayerKinematicState {
-  blunted::Vector3 position = blunted::Vector3(0);
-  blunted::Vector3 velocity = blunted::Vector3(0);
-  blunted::Vector3 facing = blunted::Vector3(0, -1, 0);
-  // Temporary exact shadow of Humanoid's animation-derived body pose. It is
-  // deliberately separate from facing: the latter is locomotion direction.
-  blunted::Vector3 bodyFacing = blunted::Vector3(0, -1, 0);
-  float speed = 0.0f;
-
-  // Mirrors position and velocity like the legacy spatial state. Facing and
-  // bodyFacing are deliberately left untouched: HumanoidBase's spatial state
-  // mirror only negates position and movements, so changing either here would
-  // diverge from the mirrored legacy actor until the next Process() resync.
-  void Mirror() {
-    position.Mirror();
-    velocity.Mirror();
-  }
-
-  void ProcessState(EnvState *state) {
-    DO_VALIDATION;
-    state->process(position);
-    state->process(velocity);
-    state->process(facing);
-    state->process(bodyFacing);
-    state->process(speed);
-  }
-};
+// PlayerState in core/state/player_state.hpp is the authoritative movement
+// state. This alias keeps the legacy type name working during migration.
+using PlayerKinematicState = PlayerState;
 
 // Inputs are intentionally independent from PlayerCommand so that action
 // execution can later impose movement constraints without exposing Humanoid.
@@ -83,7 +57,7 @@ class PlayerKinematics {
 
     const blunted::Vector3 velocityDelta = desiredVelocity - state.velocity;
     const float changeLimit =
-        (desiredVelocity.GetLength() < state.speed ? parameters.braking
+        (desiredVelocity.GetLength() < state.velocity.GetLength() ? parameters.braking
                                                   : parameters.acceleration) *
         dt;
     if (velocityDelta.GetLength() > changeLimit && changeLimit > 0.0f) {
@@ -93,7 +67,6 @@ class PlayerKinematics {
       state.velocity = desiredVelocity;
     }
     state.velocity.coords[2] = 0.0f;
-    state.speed = state.velocity.GetLength();
 
     const blunted::Vector3 currentFacing =
         state.facing.Get2D().GetNormalized(blunted::Vector3(0, -1, 0));

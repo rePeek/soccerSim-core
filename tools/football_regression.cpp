@@ -207,7 +207,7 @@ void CheckPlayerKinematics() {
               "kinematics acceleration velocity");
   RequireNear(state.position.coords[0], 0.1f,
               "kinematics acceleration position");
-  RequireNear(state.speed, 1.0f, "kinematics acceleration speed");
+  RequireNear(state.velocity.GetLength(), 1.0f, "kinematics acceleration speed");
   Require(state.facing.GetDotProduct(input.desiredFacing) > 0.0f,
           "kinematics should turn toward the desired facing");
 
@@ -258,7 +258,7 @@ void CheckProceduralLocomotion() {
     input.desiredVelocity = Vector3(7.5f, 0.0f, 0.0f);
     input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotion::Step(state, input, parameters, 0.01f);
-    RequireNear(state.speed, 0.06f,
+    RequireNear(state.velocity.GetLength(), 0.06f,
                 "procedural locomotion: first tick speed");
     RequireNear(state.position.GetLength(), 0.0006f,
                 "procedural locomotion: first tick distance");
@@ -271,12 +271,11 @@ void CheckProceduralLocomotion() {
     PlayerKinematicState state;
     state.velocity = Vector3(5.0f, 0.0f, 0.0f);
     state.facing = Vector3(1.0f, 0.0f, 0.0f);
-    state.speed = 5.0f;
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(0.0f);
     input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotion::Step(state, input, parameters, 0.1f);
-    RequireNear(state.speed, 3.8f,
+    RequireNear(state.velocity.GetLength(), 3.8f,
                 "procedural locomotion: braking uses the braking rate");
     require_planar(state, "procedural locomotion braking");
   }
@@ -289,7 +288,7 @@ void CheckProceduralLocomotion() {
     input.desiredVelocity = Vector3(1.0f, 0.0f, 0.0f);
     input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotion::Step(state, input, parameters, 1.0f);
-    RequireNear(state.speed, 1.0f,
+    RequireNear(state.velocity.GetLength(), 1.0f,
                 "procedural locomotion: target is not overshot");
     require_planar(state, "procedural locomotion target");
   }
@@ -300,23 +299,21 @@ void CheckProceduralLocomotion() {
     PlayerKinematicState turning;
     turning.velocity = Vector3(7.5f, 0.0f, 0.0f);
     turning.facing = Vector3(1.0f, 0.0f, 0.0f);
-    turning.speed = 7.5f;
     PlayerLocomotionInput reversal;
     reversal.desiredVelocity = Vector3(-7.5f, 0.0f, 0.0f);
     reversal.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotion::Step(turning, reversal, parameters, 0.01f);
-    RequireNear(turning.speed, 7.38f,
+    RequireNear(turning.velocity.GetLength(), 7.38f,
                 "procedural locomotion: turning costs speed");
 
     PlayerKinematicState straight;
     straight.velocity = Vector3(7.5f, 0.0f, 0.0f);
     straight.facing = Vector3(1.0f, 0.0f, 0.0f);
-    straight.speed = 7.5f;
     PlayerLocomotionInput ahead;
     ahead.desiredVelocity = Vector3(7.5f, 0.0f, 0.0f);
     ahead.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
     PlayerLocomotion::Step(straight, ahead, parameters, 0.01f);
-    RequireNear(straight.speed, 7.5f,
+    RequireNear(straight.velocity.GetLength(), 7.5f,
                 "procedural locomotion: straight running keeps speed");
     require_planar(turning, "procedural locomotion turn penalty");
   }
@@ -328,7 +325,6 @@ void CheckProceduralLocomotion() {
     PlayerKinematicState state;
     state.velocity = Vector3(7.5f, 0.0f, 0.0f);
     state.facing = Vector3(1.0f, 0.0f, 0.0f);
-    state.speed = 7.5f;
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(0.0f, 7.5f, 0.0f);
     input.idleFacing = Vector3(1.0f, 0.0f, 0.0f);
@@ -379,7 +375,7 @@ void CheckProceduralLocomotion() {
       PlayerLocomotion::Step(running, chase, parameters, 0.01f);
       closest = std::min(closest,
                          (target.Get2D() - running.position).GetLength());
-      fastest = std::max(fastest, running.speed);
+      fastest = std::max(fastest, running.velocity.GetLength());
     }
     Require(closest <= 0.9f,
             "procedural locomotion: an off-axis target must be reached");
@@ -395,7 +391,6 @@ void CheckProceduralLocomotion() {
     PlayerKinematicState state;
     state.velocity = Vector3(3.0f, 0.0f, 0.0f);
     state.facing = Vector3(0.0f, -1.0f, 0.0f);
-    state.speed = 3.0f;
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(3.0f, 0.0f, 0.0f);
     input.idleFacing = Vector3(0.0f, -1.0f, 0.0f);
@@ -413,12 +408,11 @@ void CheckProceduralLocomotion() {
     state.position = Vector3(2.0f, 3.0f, 0.0f);
     state.velocity = Vector3(0.0f);
     state.facing = Vector3(1.0f, 0.0f, 0.0f);
-    state.speed = 0.0f;
     PlayerLocomotionInput input;
     input.desiredVelocity = Vector3(0.0f);
     input.idleFacing = Vector3(0.0f, -1.0f, 0.0f);
     PlayerLocomotion::Step(state, input, parameters, 0.01f);
-    RequireNear(state.speed, 0.0f, "procedural locomotion: idle speed");
+    RequireNear(state.velocity.GetLength(), 0.0f, "procedural locomotion: idle speed");
     RequireNear(state.position.coords[0], 2.0f,
                 "procedural locomotion: idle does not drift x");
     RequireNear(state.position.coords[1], 3.0f,
@@ -454,7 +448,7 @@ void CheckProceduralLocomotionPrediction() {
   Require(predicted.position.coords[0] == manual.position.coords[0] &&
           predicted.velocity.coords[0] == manual.velocity.coords[0],
           "procedural prediction: Predict must be repeated Step");
-  RequireNear(predicted.speed, 0.6f,
+  RequireNear(predicted.velocity.GetLength(), 0.6f,
               "procedural prediction: ramped speed after 100 ms");
 
   // Reachability follows the same model.
@@ -594,7 +588,6 @@ void CheckPlayerKinematicMirror() {
   state.velocity = Vector3(3.0f, 4.0f, 0.0f);
   state.facing = Vector3(0.6f, 0.8f, 0.0f);
   state.bodyFacing = Vector3(-0.8f, 0.6f, 0.0f);
-  state.speed = 5.0f;
 
   state.Mirror();
   RequireNear(state.position.coords[0], -1.0f, "mirror position x");
@@ -607,7 +600,7 @@ void CheckPlayerKinematicMirror() {
   RequireNear(state.facing.coords[1], 0.8f, "mirror facing y");
   RequireNear(state.bodyFacing.coords[0], -0.8f, "mirror body facing x");
   RequireNear(state.bodyFacing.coords[1], 0.6f, "mirror body facing y");
-  RequireNear(state.speed, 5.0f, "mirror speed");
+  RequireNear(state.velocity.GetLength(), 5.0f, "mirror speed");
 }
 
 // H3e3b-prep4: test the body model's designed semantics, not animation pose:
@@ -2557,7 +2550,6 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
         shadow.state.position = actual.position;
         shadow.state.velocity = actual.velocity;
         shadow.state.facing = actual.facing;
-        shadow.state.speed = actual.speed;
         Cell& cell = grid.cells[velocityClass];
         ++cell.samples;
 
@@ -3544,7 +3536,8 @@ void CheckMovementAnimationPerturbation(GameEnv& env, ScenarioConfig& config,
            same_vector(a.kinematics.velocity, b.kinematics.velocity) &&
            same_vector(a.kinematics.facing, b.kinematics.facing) &&
            same_vector(a.kinematics.bodyFacing, b.kinematics.bodyFacing) &&
-           FloatBits(a.kinematics.speed) == FloatBits(b.kinematics.speed);
+           FloatBits(a.kinematics.velocity.GetLength()) ==
+               FloatBits(b.kinematics.velocity.GetLength());
   };
   int event_tick = -1, first_digest = -1, first_kinematics = -1;
   int first_any_kinematics = -1, first_any_action = -1, first_any_queue = -1;

@@ -286,8 +286,6 @@ bool PlayerBase::IsKinematicMirrorConsistent() const {
          Vector3BitsEqual(kinematicState.facing, humanoid->GetDirectionVec()) &&
          Vector3BitsEqual(kinematicState.bodyFacing,
                           humanoid->GetBodyDirectionVec()) &&
-         FloatBitsEqual(kinematicState.speed,
-                        kinematicState.velocity.GetLength()) &&
          Vector3BitsEqual(groundCollider.center,
                           kinematicState.position.Get2D());
 }
@@ -308,9 +306,6 @@ void PlayerBase::CheckSimulationKinematicOracle() const {
     mismatch = "facing";
   } else if (!Vector3BitsEqual(kinematicState.bodyFacing, bodyDirection)) {
     mismatch = "body facing";
-  } else if (!FloatBitsEqual(kinematicState.speed,
-                             kinematicState.velocity.GetLength())) {
-    mismatch = "speed";
   } else if (!Vector3BitsEqual(groundCollider.center, position.Get2D())) {
     mismatch = "collider center";
   }
@@ -335,7 +330,6 @@ void PlayerBase::SynchronizeKinematicState() {
   kinematicState.velocity = humanoid->GetMovement();
   kinematicState.facing = humanoid->GetDirectionVec();
   kinematicState.bodyFacing = humanoid->GetBodyDirectionVec();
-  kinematicState.speed = kinematicState.velocity.GetLength();
   groundCollider.SetCenter(kinematicState.position);
   CheckSimulationKinematicOracle();
 }

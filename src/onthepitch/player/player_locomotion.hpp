@@ -149,7 +149,6 @@ class PlayerLocomotion {
         currentDirection.GetRotated2D(appliedTurn).GetNormalized(currentDirection);
     state.velocity = newDirection * newSpeed;
     state.velocity.coords[2] = 0.0f;
-    state.speed = newSpeed;
     if (newSpeed > parameters.idleSpeedThreshold) {
       state.facing = newDirection;
     } else {
