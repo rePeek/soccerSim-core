@@ -42,7 +42,7 @@ RefereeController *PlayerOfficial::CastController() {
   return static_cast<RefereeController *>(controller.get());
 }
 
-void PlayerOfficial::Activate(boost::shared_ptr<AnimCollection> animCollection,
+void PlayerOfficial::Activate(std::shared_ptr<AnimCollection> animCollection,
                               bool lazyPlayer) {
   DO_VALIDATION;
   isActive = true;

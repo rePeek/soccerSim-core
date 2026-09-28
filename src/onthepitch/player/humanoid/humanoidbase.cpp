@@ -539,7 +539,7 @@ const radian preferredDirectionAngles[] = {
 };
 
 HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
-                           boost::shared_ptr<AnimCollection> animCollection)
+                           std::shared_ptr<AnimCollection> animCollection)
     : match(match),
       player(player),
       anims(animCollection) {

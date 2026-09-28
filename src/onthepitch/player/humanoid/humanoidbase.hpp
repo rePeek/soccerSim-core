@@ -383,7 +383,7 @@ struct SpatialState {
 class HumanoidBase {
 
   public:
-    HumanoidBase(PlayerBase *player, Match *match, boost::shared_ptr<AnimCollection> animCollection);
+    HumanoidBase(PlayerBase *player, Match *match, std::shared_ptr<AnimCollection> animCollection);
     virtual ~HumanoidBase();
     void Mirror();
 
@@ -492,7 +492,7 @@ class HumanoidBase {
     Match *match;
     PlayerBase *player;
     // Shared between all players, no need to snapshot.
-    boost::shared_ptr<AnimCollection> anims;
+    std::shared_ptr<AnimCollection> anims;
     // Seems to contain current animation context.
 
     Anim currentAnim;

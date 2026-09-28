@@ -32,7 +32,7 @@
 #include "player/player_body_collider.hpp"
 
 
-boost::shared_ptr<AnimCollection> Match::GetAnimCollection() {
+std::shared_ptr<AnimCollection> Match::GetAnimCollection() {
   DO_VALIDATION;
   return GetContext().anims;
 }
@@ -66,7 +66,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
   if (!anims) {
     DO_VALIDATION;
-    anims = boost::shared_ptr<AnimCollection>(new AnimCollection());
+    anims = std::shared_ptr<AnimCollection>(new AnimCollection());
     anims->Load();
     // cache animation positions
 

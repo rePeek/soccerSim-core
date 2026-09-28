@@ -65,7 +65,7 @@ void Team::Exit() {
 }
 
 void Team::InitPlayers(
-                       boost::shared_ptr<AnimCollection> animCollection) {
+                       std::shared_ptr<AnimCollection> animCollection) {
   DO_VALIDATION;
   // load all players in the team, even the players who sit on the bench. aww.
   for (int i = 0; i < (signed int)teamData->GetPlayerNum(); i++) {

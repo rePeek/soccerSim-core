@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
+#include <cstring>
 
 #include <fstream>
 #include <cmath>
@@ -33,7 +34,7 @@
 #include <map>
 #include <deque>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/bind/bind.hpp>
 #include "backtrace.h"
 #include "base/log.hpp"

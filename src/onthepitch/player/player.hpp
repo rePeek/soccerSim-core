@@ -53,7 +53,7 @@ class Player : public PlayerBase {
     Vector3 GetPitchPosition();
 
     // get ready for some action
-    virtual void Activate(boost::shared_ptr<AnimCollection> animCollection, bool lazyPlayer);
+    virtual void Activate(std::shared_ptr<AnimCollection> animCollection, bool lazyPlayer);
     // go back to bench/take a shower
     virtual void Deactivate();
 

@@ -41,13 +41,12 @@ void DoValidation(int line, const char* file);
 
 #include "base/properties.hpp"
 #include <boost/random.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/weak_ptr.hpp>
+#include <memory>
 #include <condition_variable>
 #include <mutex>
 
-#define SHARED_PTR boost::shared_ptr
-#define WEAK_PTR boost::weak_ptr
+#define SHARED_PTR std::shared_ptr
+#define WEAK_PTR std::weak_ptr
 
 enum e_RenderingMode {
   e_Disabled,
@@ -225,7 +224,7 @@ enum GameState {
 class GameContext {
  public:
   GameContext() : rng(BaseGenerator(), Distribution()), rng_non_deterministic(BaseGenerator(), Distribution()) { }
-  boost::shared_ptr<GameTask> gameTask;
+  std::shared_ptr<GameTask> gameTask;
   std::unique_ptr<MatchSetup> matchSetup;
   Properties *config = nullptr;
 
@@ -249,7 +248,7 @@ class GameContext {
   int playerCount = 0;
   int stablePlayerCount = 0;
   BiasedOffsets emptyOffsets;
-  boost::shared_ptr<AnimCollection> anims;
+  std::shared_ptr<AnimCollection> anims;
   std::map<Animation*, std::vector<Vector3>> animPositionCache;
   int step = 0;
   int tracker_disabled = 1;
@@ -261,7 +260,7 @@ class Match;
 
 void SetGame(GameEnv* c);
 GameContext& GetContext();
-boost::shared_ptr<GameTask> GetGameTask();
+std::shared_ptr<GameTask> GetGameTask();
 
 Properties *GetConfiguration();
 ScenarioConfig& GetScenarioConfig();

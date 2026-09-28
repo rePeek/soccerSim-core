@@ -98,7 +98,7 @@ Team *Player::GetTeam() {
   return team;
 }
 
-void Player::Activate(boost::shared_ptr<AnimCollection> animCollection,
+void Player::Activate(std::shared_ptr<AnimCollection> animCollection,
                       bool lazyPlayer) {
   DO_VALIDATION;
 

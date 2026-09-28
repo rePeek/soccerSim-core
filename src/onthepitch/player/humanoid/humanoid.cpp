@@ -68,7 +68,7 @@ constexpr bool allowTrapReQueue = true;
 constexpr bool allowPreTouchRotationSmuggle = false;
 
 Humanoid::Humanoid(Player *player,
-                   boost::shared_ptr<AnimCollection> animCollection)
+                   std::shared_ptr<AnimCollection> animCollection)
     : HumanoidBase(player, player->GetTeam()->GetMatch(), animCollection) {
   DO_VALIDATION;
   team = CastPlayer()->GetTeam();
@@ -530,7 +530,7 @@ void Humanoid::Process() {
     }
 
     Vector3 desiredBallPosition;
-    boost::static_pointer_cast<FootballAnimationExtension>(currentAnim.anim->GetExtension("football"))->GetTouchPos(action.contactFrame, desiredBallPosition);
+    std::static_pointer_cast<FootballAnimationExtension>(currentAnim.anim->GetExtension("football"))->GetTouchPos(action.contactFrame, desiredBallPosition);
     float desiredBallHeight = desiredBallPosition.coords[2];
     if (contact_audit)
       contact_audit->desired_ball_heights.push_back(desiredBallHeight);
@@ -1881,7 +1881,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
 
     int frameCount = anim->GetEffectiveFrameCount();
 
-    boost::shared_ptr<FootballAnimationExtension> footballExtension = boost::static_pointer_cast<FootballAnimationExtension>(anim->GetExtension("football"));
+    std::shared_ptr<FootballAnimationExtension> footballExtension = std::static_pointer_cast<FootballAnimationExtension>(anim->GetExtension("football"));
 
     int totalTouches = footballExtension->GetTouchCount();
     int touchIDs[totalTouches];

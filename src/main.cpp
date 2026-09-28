@@ -50,7 +50,7 @@ GameContext& GetContext() {
 
 void SetGame(GameEnv* c) { game = c; }
 
-boost::shared_ptr<GameTask> GetGameTask() {
+std::shared_ptr<GameTask> GetGameTask() {
   return game->context->gameTask;
 }
 
@@ -89,7 +89,7 @@ void run_game(Properties* input_config) {
   }
   // sequences
 
-  game->context->gameTask = boost::shared_ptr<GameTask>(new GameTask());
+  game->context->gameTask = std::shared_ptr<GameTask>(new GameTask());
 }
   // fire!
 

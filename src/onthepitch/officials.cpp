@@ -26,7 +26,7 @@
 #include "../main.hpp"
 
 Officials::Officials(Match *match,
-                     boost::shared_ptr<AnimCollection> animCollection)
+                     std::shared_ptr<AnimCollection> animCollection)
     : match(match) {
   DO_VALIDATION;
   playerData = new PlayerData();
