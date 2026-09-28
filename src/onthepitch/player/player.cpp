@@ -398,7 +398,7 @@ void Player::Process() {
     Vector3 posBefore = CastHumanoid()->GetPosition();
 
     CastHumanoid()->Process();
-    SynchronizeKinematicState();
+    CheckSimulationKinematicOracle();
     CheckSimulationActionOracle();
 
     if (match->IsInPlay()) {

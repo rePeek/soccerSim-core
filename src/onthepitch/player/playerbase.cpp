@@ -675,7 +675,7 @@ void PlayerBase::Process() {
     DO_VALIDATION;
     if (ExternalControllerActive()) externalController->GetHumanController()->Process(); else controller->Process();
     humanoid->Process();
-    SynchronizeKinematicState();
+    CheckSimulationKinematicOracle();
     CheckSimulationActionOracle();
   }
 }

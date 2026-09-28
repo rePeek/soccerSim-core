@@ -238,21 +238,15 @@ class PlayerBase {
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
-    // Gameplay-facing movement state. It is NOT yet the producer: Humanoid's
-    // spatial state is still authoritative for movement, and `kinematicState`
-    // is an exact mirror of it. H3e flips this producer relationship. Every
-    // mutation of the Humanoid spatial state refreshes the mirror at the
-    // mutation point (CalculateSpatialState, CalculateFactualSpatialState,
-    // OffsetPosition, Mirror, state restore), so mid-tick readers such as the
-    // controller never see a stale actor. Mirroring follows the legacy
-    // field-level asymmetry (position/velocity mirrored; facing/bodyFacing not).
-    // bodyFacing is simulation-authoritative for pure locomotion (H3e3b) and
-    // remains an exact legacy shadow for every other action. Its public reader
-    // therefore uses the kinematic state; Humanoid is only its compatibility
-    // projection/oracle at this boundary.
-    // CheckSimulationKinematicOracle() enforces the mirror bit-exactly.
-    // Actors must be positioned through PlayerBase::ResetPosition /
-    // OffsetPosition so that this state cannot be left stale.
+    // Gameplay-facing authoritative movement state. Normal ticks produce it
+    // through PlayerKinematicResult, and SpatialState is then checked as a
+    // bit-exact compatibility projection. Reset and collision lifecycle paths
+    // still use the transitional reverse synchronizer until 7F-6E flips them.
+    //
+    // Mirroring preserves the legacy field asymmetry (position/velocity mirror;
+    // facing/bodyFacing do not). Actors must use PlayerBase::ResetPosition and
+    // OffsetPosition so the authoritative state and compatibility projection
+    // cannot diverge.
     inline Vector3 GetPosition() const { return kinematicState.position; }
     inline Vector3 GetDirectionVec() const { return kinematicState.facing; }
     inline Vector3 GetBodyDirectionVec() const { return kinematicState.bodyFacing; }

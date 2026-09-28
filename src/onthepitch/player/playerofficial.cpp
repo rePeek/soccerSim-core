@@ -65,6 +65,6 @@ void PlayerOfficial::Process() {
   DO_VALIDATION;
   CastController()->Process();
   CastHumanoid()->Process();
-  SynchronizeKinematicState();
+  CheckSimulationKinematicOracle();
   CheckSimulationActionOracle();
 }
