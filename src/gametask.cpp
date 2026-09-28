@@ -27,14 +27,15 @@ GameTask::~GameTask() {
   StopMatch();
 }
 
-void GameTask::StartMatch(std::unique_ptr<MatchSetup> setup, bool animations) {
+void GameTask::StartMatch(std::unique_ptr<MatchSetup> setup, bool animations,
+                         BallState& ball_state) {
   DO_VALIDATION;
   randomize(GetScenarioConfig().game_engine_random_seed);
   assert(setup);
   assert(setup->match_data);
   assert(!match);
   match.reset(new Match(std::move(setup->match_data), GetControllers(), *setup,
-                        animations));
+                        animations, ball_state));
 }
 
 bool GameTask::StopMatch() {

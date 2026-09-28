@@ -29,7 +29,7 @@ constexpr float linearFriction = 1.6f;  // bigger = more, arbitrary scale;
 constexpr float gravity = -9.81f;
 constexpr float grassHeight = 0.025f;
 
-Ball::Ball(Match *match) : match(match) {
+Ball::Ball(Match *match, BallState& state) : match(match), state_(state) {
   DO_VALIDATION;
   CalculatePrediction();
 }

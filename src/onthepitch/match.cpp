@@ -43,7 +43,8 @@ const std::vector<Vector3> &Match::GetAnimPositionCache(Animation *anim) const {
 
 Match::Match(std::unique_ptr<MatchData> match_data,
              const std::vector<AIControlledKeyboard *> &controllers,
-             const MatchSetup& setup, bool animations)
+             const MatchSetup& setup, bool animations,
+             BallState& ball_state)
     : matchData(std::move(match_data)),
       first_team(GetScenarioConfig().reverse_team_processing ? 1 : 0),
       second_team(GetScenarioConfig().reverse_team_processing ? 0 : 1),
@@ -62,7 +63,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   goalScoredTimer = 0;
 
 
-  ball = new Ball(this);
+  ball = new Ball(this, ball_state);
 
   if (!anims) {
     DO_VALIDATION;

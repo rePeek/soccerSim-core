@@ -30,7 +30,8 @@ class GameTask {
     GameTask();
     ~GameTask();
 
-    void StartMatch(std::unique_ptr<MatchSetup> setup, bool init_animation);
+    void StartMatch(std::unique_ptr<MatchSetup> setup, bool init_animation,
+                   BallState& ball_state);
     bool StopMatch();
 
     void ProcessPhase();

@@ -336,5 +336,6 @@ void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
     controller->SetDisabled(true);
   }
   GetGameTask()->StopMatch();
-  GetGameTask()->StartMatch(std::move(context->matchSetup), animations);
+  GetGameTask()->StartMatch(std::move(context->matchSetup), animations,
+                            world->GetState().ball);
 }

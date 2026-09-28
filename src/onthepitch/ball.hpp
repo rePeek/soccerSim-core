@@ -41,7 +41,7 @@ struct BallSpatialInfo {
 class Ball {
 
   public:
-    Ball(Match *match);
+    Ball(Match *match, BallState& state);
     virtual ~Ball();
 
     void Mirror();
@@ -71,7 +71,7 @@ class Ball {
     void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState *state);
   private:
-    BallState state_;  // authoritative ball state (Phase 4)
+    BallState& state_;  // references WorldState.ball (Phase 7C)
 
     Vector3 predictions[ballPredictionSize_ms / 10 + cachedPredictions + 1];
     int valid_predictions = 0;

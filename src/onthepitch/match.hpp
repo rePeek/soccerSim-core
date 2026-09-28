@@ -44,7 +44,8 @@ class Match {
   public:
     Match(std::unique_ptr<MatchData> matchData,
           const std::vector<AIControlledKeyboard*> &controllers,
-          const MatchSetup& setup, bool init_animation);
+          const MatchSetup& setup, bool init_animation,
+          BallState& ball_state);
     virtual ~Match();
 
     void Exit();
