@@ -18,7 +18,7 @@
 
 #include "teamdata.hpp"
 
-#include <boost/algorithm/string.hpp>
+#include <cctype>
 
 #include "../base/utils.hpp"
 #include "../main.hpp"
@@ -156,7 +156,9 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
     shortName = name;
     shortName.erase(remove_if(shortName.begin(), shortName.end(), isspace),
                     shortName.end());
-    shortName = boost::to_upper_copy(shortName.substr(0, 3));
+    shortName = shortName.substr(0, 3);
+    std::transform(shortName.begin(), shortName.end(), shortName.begin(),
+                   [](unsigned char c) { return std::toupper(c); });
   }
 
   logo_url = "databases/default/" + logo_url;
