@@ -21,7 +21,6 @@
 #include "gamedefines.hpp"
 
 
-#include <boost/circular_buffer.hpp>
 
 using namespace blunted;
 

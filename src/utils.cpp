@@ -19,7 +19,6 @@
 
 #include "utils.hpp"
 
-#include <boost/algorithm/string.hpp>
 #include <cmath>
 
 float GetQuantizedDirectionBias() {

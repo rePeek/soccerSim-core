@@ -20,7 +20,6 @@
 
 #include "../defines.hpp"
 
-#include <boost/thread/condition.hpp>
 
 #include "../types/refcounted.hpp"
 

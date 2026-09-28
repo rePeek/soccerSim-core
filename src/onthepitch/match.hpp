@@ -28,10 +28,8 @@
 #include "player/humanoid/animcollection.hpp"
 #include "AIsupport/mentalimage.hpp"
 
-#include "../types/messagequeue.hpp"
 #include "../types/command.hpp"
 
-#include <boost/circular_buffer.hpp>
 
 #include <fstream>
 #include <iostream>

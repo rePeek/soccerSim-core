@@ -34,10 +34,6 @@
 #include <deque>
 
 #include <boost/shared_ptr.hpp>
-#include <boost/intrusive_ptr.hpp>
-#include <boost/thread/condition.hpp>
-#include <boost/signals2.hpp>
-#include <boost/signals2/slot.hpp>
 #include <boost/bind/bind.hpp>
 #include "backtrace.h"
 #include "base/log.hpp"

@@ -53,7 +53,6 @@ set(BASE_SOURCES
 set(TYPES_HEADERS
    src/types/refcounted.hpp
    src/types/command.hpp
-   src/types/messagequeue.hpp
 )
 
 set(TYPES_SOURCES
