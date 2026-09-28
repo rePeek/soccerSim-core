@@ -97,10 +97,11 @@ namespace at the same level as the domain entities. `Contact`,
 `ContactDetector`, `ContactResolver`, `ContactMaterial` and further shapes
 belong there.
 
-The contact geometry primitive `football::contact::CircleCollider` lives in
-core (`core/physics/contact/circle_collider.hpp`), and
-`football::contact::BuildPlayerGroundCollider(profile, state)` in
-`core/physics/contact/player_collider.hpp` is the canonical mapping: `radius`
+The directory is `core/contact/`, aligned with the namespace (parallel to
+`core/domain/` and `core/state/`). The geometry primitive
+`football::contact::CircleCollider` lives in `core/contact/circle_collider.hpp`,
+and `football::contact::BuildPlayerGroundCollider(profile, state)` in
+`core/contact/player_collider.hpp` is the canonical mapping: `radius`
 from `PlayerProfile::physical.bodyRadius`, `center` from
 `PlayerState::position`. Core never includes `onthepitch`; legacy code
 includes core, not the other way round.

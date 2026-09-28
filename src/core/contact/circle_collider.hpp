@@ -1,5 +1,5 @@
-#ifndef _HPP_CORE_PHYSICS_CONTACT_CIRCLE_COLLIDER
-#define _HPP_CORE_PHYSICS_CONTACT_CIRCLE_COLLIDER
+#ifndef _HPP_CORE_CONTACT_CIRCLE_COLLIDER
+#define _HPP_CORE_CONTACT_CIRCLE_COLLIDER
 
 #include "foundation/math/vector3.hpp"
 
@@ -28,4 +28,4 @@ struct CircleCollider {
 
 }  // namespace football::contact
 
-#endif  // _HPP_CORE_PHYSICS_CONTACT_CIRCLE_COLLIDER
+#endif  // _HPP_CORE_CONTACT_CIRCLE_COLLIDER

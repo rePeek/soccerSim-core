@@ -21,7 +21,7 @@
 #include "humanoid/humanoidbase.hpp"
 #include "core/physics/player_movement.hpp"
 #include "core/domain/player/player.hpp"
-#include "core/physics/contact/player_collider.hpp"
+#include "core/contact/player_collider.hpp"
 #include "player_action.hpp"
 #include "locomotion_intent_scheduler.hpp"
 #include "player_decision_scheduler.hpp"

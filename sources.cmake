@@ -105,8 +105,8 @@ set(CORE_HEADERS
    src/core/physics/physics_system.hpp
    src/core/physics/ball_physics.hpp
    src/core/physics/player_movement.hpp
-   src/core/physics/contact/circle_collider.hpp
-   src/core/physics/contact/player_collider.hpp
+   src/core/contact/circle_collider.hpp
+   src/core/contact/player_collider.hpp
    src/core/domain/ball/ball.hpp
    src/core/domain/ball/ball_profile.hpp
    src/core/domain/player/player.hpp

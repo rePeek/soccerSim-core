@@ -9,7 +9,7 @@
 #define _HPP_PLAYER_ACTION_VOLUME
 
 #include "player_action.hpp"
-#include "core/physics/contact/player_collider.hpp"
+#include "core/contact/player_collider.hpp"
 #include "core/physics/player_movement.hpp"
 
 // Contact volume for actions that reach out beyond the base body collider

@@ -17,7 +17,7 @@
 #include "core/physics/player_movement.hpp"
 #include "core/physics/player_movement.hpp"
 #include "core/physics/player_movement.hpp"
-#include "core/physics/contact/player_collider.hpp"
+#include "core/contact/player_collider.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
 #include "onthepitch/player/player_body_collider.hpp"

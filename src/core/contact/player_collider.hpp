@@ -1,8 +1,8 @@
-#ifndef _HPP_CORE_PHYSICS_CONTACT_PLAYER_COLLIDER
-#define _HPP_CORE_PHYSICS_CONTACT_PLAYER_COLLIDER
+#ifndef _HPP_CORE_CONTACT_PLAYER_COLLIDER
+#define _HPP_CORE_CONTACT_PLAYER_COLLIDER
 
 #include "core/domain/player/player_profile.hpp"
-#include "core/physics/contact/circle_collider.hpp"
+#include "core/contact/circle_collider.hpp"
 #include "core/state/player_state.hpp"
 
 namespace football::contact {
@@ -24,4 +24,4 @@ inline CircleCollider BuildPlayerGroundCollider(
 
 }  // namespace football::contact
 
-#endif  // _HPP_CORE_PHYSICS_CONTACT_PLAYER_COLLIDER
+#endif  // _HPP_CORE_CONTACT_PLAYER_COLLIDER
