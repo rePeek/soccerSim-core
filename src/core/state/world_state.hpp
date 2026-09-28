@@ -21,16 +21,15 @@
 #include "match_state.hpp"
 #include "player_state.hpp"
 
-// Authoritative, behavior-free snapshot of the football world at one
-// simulation time (Phase 6).
+// Schema and ownership slot for the football world state (Phase 6).
 //
 // Pure simulation data: no Physics*/Controller*/RulesEngine*/Match*/Humanoid*/
 // Team* pointers. This is the container that later phases (Physics / Action /
 // Rules / Replay) read from and write to.
 //
-// NOTE: during Phase 6 the fields are default-constructed placeholders. The
-// authoritative data still lives in legacy Match/Ball/Player and migrates
-// here once ownership flips (no mirroring in the meantime).
+// NOT yet authoritative: the fields are default-constructed placeholders and
+// the real data still lives in legacy Match/Ball/Player. The first ownership
+// flip (BallState, Phase 7) starts making this the single source of truth.
 struct WorldState {
   unsigned long time_ms = 0;
   BallState ball;

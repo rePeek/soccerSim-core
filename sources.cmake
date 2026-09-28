@@ -101,6 +101,7 @@ set(CORE_HEADERS
    src/core/state/player_state.hpp
    src/core/state/match_state.hpp
    src/core/state/world_state.hpp
+   src/core/physics/physics_system.hpp
 )
 
 set(CORE_SOURCES
@@ -110,6 +111,7 @@ set(CORE_SOURCES
    src/misc/hungarian.cpp
    src/gametask.cpp
    src/core/world/world.cpp
+   src/core/physics/physics_system.cpp
    src/utils.cpp
    src/main.cpp
    src/gamedefines.cpp
