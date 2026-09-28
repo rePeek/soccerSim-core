@@ -1211,6 +1211,21 @@ void CheckKinematicMirrorConsistency(GameEnv& env, const std::string& label) {
       Require(&roster[i]->GetKinematicState() ==
                   &match->GetTeamPlayerState(team_id, static_cast<int>(i)),
               label + ": player does not reference its WorldState slot");
+      const auto& profile = roster[i]->Entity().Profile();
+      Require(&profile == &match->GetTeamPlayerProfile(team_id, static_cast<int>(i)),
+              label + ": player does not reference its World profile");
+      Require(roster[i]->GetPlayerData() ==
+                  match->GetMatchData()->GetTeamData(team_id).GetPlayerData(static_cast<int>(i)),
+              label + ": roster data ordering differs from profile mapping team " +
+                  std::to_string(team_id) + " index " + std::to_string(i));
+      RequireNear(profile.physical.height, roster[i]->GetPlayerData()->GetHeight(),
+                  label + ": player profile height mapping");
+      // Profile stores inherent ability. Player::GetStat() also applies AI
+      // difficulty and the current fatigue factor, so it is not the profile.
+      RequireNear(profile.physical.balance,
+                  roster[i]->GetPlayerData()->GetStat(physical_balance),
+                  label + ": player profile balance mapping team " +
+                      std::to_string(team_id) + " index " + std::to_string(i));
     }
   }
   for (const Player* player : players) {

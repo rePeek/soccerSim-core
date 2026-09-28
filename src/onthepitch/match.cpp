@@ -31,6 +31,7 @@
 #include "player/playerofficial.hpp"
 #include "player/player_action_volume.hpp"
 #include "player/player_body_collider.hpp"
+#include "player/player_profile_adapter.hpp"
 
 
 std::shared_ptr<AnimCollection> Match::GetAnimCollection() {
@@ -48,10 +49,17 @@ PlayerState& Match::GetTeamPlayerState(int team_id, int team_index) {
   return world_state.players[team_id * MAX_PLAYERS + team_index];
 }
 
+const football::domain::PlayerProfile& Match::GetTeamPlayerProfile(
+    int team_id, int team_index) const {
+  assert(team_id >= 0 && team_id < 2);
+  assert(team_index >= 0 && team_index < MAX_PLAYERS);
+  return profiles.players[team_id * MAX_PLAYERS + team_index];
+}
+
 Match::Match(std::unique_ptr<MatchData> match_data,
              const std::vector<AIControlledKeyboard *> &controllers,
              const MatchSetup& setup, bool animations,
-             WorldState& world_state, const WorldProfiles& profiles)
+             WorldState& world_state, WorldProfiles& profiles)
     : world_state(world_state), profiles(profiles),
       matchData(std::move(match_data)),
       first_team(GetScenarioConfig().reverse_team_processing ? 1 : 0),
@@ -105,6 +113,21 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   // teams
 
   assert(matchData != 0);
+  // Compile legacy database attributes once, before any Player facade binds a
+  // read-only profile view. Never copy profiles into WorldState predictions.
+  // Profile holds inherent ability. Player::GetStat() is a different value: it
+  // also applies AI difficulty and the current fatigue factor, which are match
+  // context and condition rather than attributes of the player.
+  profiles.players = {};
+  for (int team_id = 0; team_id < 2; ++team_id) {
+    const TeamData& data = matchData->GetTeamData(team_id);
+    const int count = std::min(data.GetPlayerNum(), MAX_PLAYERS);
+    for (int i = 0; i < count; ++i) {
+      profiles.players[team_id * MAX_PLAYERS + i] =
+          MakeSimulationPlayerProfile(*data.GetPlayerData(i));
+    }
+  }
+
 
   teams[first_team] =
       new Team(first_team, this, &matchData->GetTeamData(first_team),

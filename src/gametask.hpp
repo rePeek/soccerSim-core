@@ -33,7 +33,7 @@ class GameTask {
     ~GameTask();
 
     void StartMatch(std::unique_ptr<MatchSetup> setup, bool init_animation,
-                    WorldState& world_state, const WorldProfiles& profiles);
+                    WorldState& world_state, WorldProfiles& profiles);
     bool StopMatch();
 
     void ProcessPhase();

@@ -2,18 +2,19 @@
 #define _HPP_CORE_DOMAIN_PLAYER
 
 #include "core/state/player_state.hpp"
+#include "player_profile.hpp"
 
 namespace football::domain {
 
 // Player is the football domain entity (Phase 7F-0).
 //
-// It references the authoritative PlayerState and exposes read access to the
-// player's movement. Deliberately thin: no animation, AI, possession, tackle
-// or stats — those stay in the legacy Player/PlayerBase facade and later
-// migrate to Intent/Action.
+// It binds a match-lifetime profile to the World-owned state without owning
+// movement algorithms. Animation, AI and action compatibility stay in the
+// legacy Player/PlayerBase facade.
 class Player {
 public:
-  explicit Player(PlayerState& state);
+  Player(const PlayerProfile& profile, PlayerState& state);
+  const PlayerProfile& Profile() const { return profile_; }
 
   PlayerState& State() { return state_; }
   const PlayerState& State() const { return state_; }
@@ -24,6 +25,7 @@ public:
   const blunted::Vector3& TorsoFacing() const { return state_.torsoFacing; }
 
 private:
+  const PlayerProfile& profile_;
   PlayerState& state_;
 };
 

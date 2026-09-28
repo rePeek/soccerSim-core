@@ -20,6 +20,8 @@ public:
   // Advance the simulation by one phase (tick).
   void Step();
 
+  // Mutable only while configuring a new Match, before entities bind views.
+  WorldProfiles& GetProfiles() { return profiles_; }
   const WorldProfiles& GetProfiles() const { return profiles_; }
 
   // Stable runtime storage for the ball and the first 11 players per team.

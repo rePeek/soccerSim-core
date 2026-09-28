@@ -167,7 +167,8 @@ class PlayerBase {
 
   public:
     PlayerBase(Match *match, PlayerData *playerData,
-               PlayerState *world_player_state = nullptr);
+               PlayerState *world_player_state = nullptr,
+               const football::domain::PlayerProfile *world_profile = nullptr);
     virtual ~PlayerBase();
     void Mirror();
 
@@ -282,6 +283,7 @@ class PlayerBase {
       DO_VALIDATION;
       return kinematicState;
     }
+    const football::domain::Player& Entity() const { return domainPlayer; }
     // Sole mutation point for evaluated movement kinematics. Callers must
     // project this state to HumanoidBase::SpatialState before exposing the tick.
     void ApplyKinematicResult(const PlayerKinematicResult &result);
@@ -410,6 +412,7 @@ class PlayerBase {
 
     std::unique_ptr<HumanoidBase> humanoid;
     PlayerKinematicState localKinematicState;  // officials (not team slots)
+    football::domain::PlayerProfile localProfile;  // bench / officials
     football::domain::Player domainPlayer;
     PlayerKinematicState &kinematicState;  // aliases domainPlayer.State()
     PlayerGroundCollider groundCollider;

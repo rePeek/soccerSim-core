@@ -29,7 +29,7 @@ GameTask::~GameTask() {
 
 void GameTask::StartMatch(std::unique_ptr<MatchSetup> setup, bool animations,
                           WorldState& world_state,
-                          const WorldProfiles& profiles) {
+                          WorldProfiles& profiles) {
   DO_VALIDATION;
   randomize(GetScenarioConfig().game_engine_random_seed);
   assert(setup);

@@ -20,6 +20,7 @@
 #include "core/physics/player_movement.hpp"
 #include "locomotion_intent_scheduler.hpp"
 #include "legacy_locomotion_command.hpp"
+#include "player_profile_adapter.hpp"
 
 #include <cstring>
 
@@ -264,14 +265,18 @@ bool FloatBitsEqual(float a, float b) {
 
 }  // namespace
 
-PlayerBase::PlayerBase(Match *match, PlayerData *playerData,
-                       PlayerState *world_player_state)
+PlayerBase::PlayerBase(
+    Match *match, PlayerData *playerData, PlayerState *world_player_state,
+    const football::domain::PlayerProfile *world_profile)
     : match(match),
       playerData(playerData),
       stable_id(GetContext().stablePlayerCount++),
-      domainPlayer(world_player_state ? *world_player_state : localKinematicState),
+      localProfile(MakeSimulationPlayerProfile(*playerData)),
+      domainPlayer(world_profile ? *world_profile : localProfile,
+                   world_player_state ? *world_player_state : localKinematicState),
       kinematicState(domainPlayer.State()) {
   DO_VALIDATION;
+  assert((world_player_state == nullptr) == (world_profile == nullptr));
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;
   fatigueFactorInv = 1.0;

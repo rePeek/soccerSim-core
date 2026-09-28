@@ -42,7 +42,8 @@ struct TacticalPlayerSituation {
 class Player : public PlayerBase {
 
   public:
-    Player(Team *team, PlayerData *playerData, PlayerState* state);
+    Player(Team *team, PlayerData *playerData, PlayerState* state,
+           const football::domain::PlayerProfile* profile);
     virtual ~Player();
 
     Humanoid *CastHumanoid();

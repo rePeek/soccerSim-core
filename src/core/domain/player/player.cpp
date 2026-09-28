@@ -2,6 +2,7 @@
 
 namespace football::domain {
 
-Player::Player(PlayerState& state) : state_(state) {}
+Player::Player(const PlayerProfile& profile, PlayerState& state)
+    : profile_(profile), state_(state) {}
 
 }  // namespace football::domain
