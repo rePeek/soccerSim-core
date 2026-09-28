@@ -99,6 +99,8 @@ set(CORE_HEADERS
    src/core/world/world.hpp
    src/core/state/ball_state.hpp
    src/core/state/player_state.hpp
+   src/core/state/match_state.hpp
+   src/core/state/world_state.hpp
 )
 
 set(CORE_SOURCES

@@ -15,13 +15,14 @@
 #define _HPP_CORE_WORLD
 
 class GameTask;  // legacy
+#include "core/state/world_state.hpp"
 
 // World is the future top-level simulation orchestrator.
 //
-// Phase 3 (current): only a simulation entry seam — it borrows the legacy
-// GameTask and forwards Step() to it. Ownership of the authoritative
-// WorldState and the systems that advance it (Physics / Action / Rules)
-// migrate here in later phases.
+// Phase 3: a simulation entry seam — it borrows the legacy GameTask and
+// forwards Step() to it.
+// Phase 6: it owns the authoritative WorldState. The data itself still
+// lives in the legacy Match/Ball/Player and migrates here in later phases.
 class World {
 public:
   // World borrows the legacy GameTask; it does not own it. The invariant
@@ -31,8 +32,13 @@ public:
   // Advance the simulation by one phase (tick).
   void Step();
 
+  // Authoritative simulation state, owned here from Phase 6 onward.
+  WorldState& GetState() { return state_; }
+  const WorldState& GetState() const { return state_; }
+
 private:
   GameTask& legacy_game_task_;
+  WorldState state_;
 };
 
 #endif  // _HPP_CORE_WORLD
