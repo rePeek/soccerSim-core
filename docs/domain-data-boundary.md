@@ -90,15 +90,33 @@ stable the player is right now.
 
 Speed (`|velocity|`), distance to ball, pressure, ETA, and collider geometry.
 
-`PlayerGroundCollider` is now built by `BuildPlayerGroundCollider(profile,
-state)`: `radius` comes from `PlayerProfile::physical.bodyRadius`, `center`
-from `PlayerState::position`. `PlayerBase` keeps one `groundCollider` copy
-only as a serialized compatibility shadow, projected from the authoritative
-inputs and checked bit-exact by `CheckGroundColliderOracle()` at every
-mutation point and on restore. New simulation/contact code must use
-`GetDerivedGroundCollider()`, never the shadow. `PlayerBodyCollider` and
-`PlayerActionVolume` are still parameter structs rather than profile/state
+The contact geometry primitive `CircleCollider` lives in core
+(`core/physics/contact/circle_collider.hpp`), and `BuildPlayerGroundCollider
+(profile, state)` in `core/physics/contact/player_collider.hpp` is the
+canonical mapping: `radius` from `PlayerProfile::physical.bodyRadius`,
+`center` from `PlayerState::position`. Core never includes `onthepitch`;
+legacy code includes core, not the other way round.
+
+`PlayerBase` keeps one `groundCollider` copy only as a serialized
+compatibility shadow, projected from the authoritative inputs and checked
+bit-exact by `CheckGroundColliderOracle()` at every mutation point and on
+restore. Gameplay no longer reads it (`GetGroundCollider()` is now only for
+save/load and the regression oracle); new simulation/contact code must use
+`GetDerivedGroundCollider()` or the builder directly. `PlayerBodyCollider`
+and `PlayerActionVolume` are still parameter structs rather than profile/state
 derived.
+
+## 7G contact guidance
+
+The new resolver must not inherit the legacy authority shortcuts. In
+`Match::CheckHumanoidCollision()` the penetration and offsets are still driven
+by the hardcoded `bouncePlayerRadius = 0.5f * 0.72f` and by
+`Player::GetStat(physical_balance)`. That is kept only for regression
+exactness. New contact code uses `aProfile.physical.bodyRadius` /
+`bProfile.physical.bodyRadius`, computes `penetration = rA + rB - distance`,
+and takes stability from `Profile.balance` plus a future
+`State.condition.currentBalance` — never from `GetStat()`, which folds in AI
+difficulty and current fatigue.
 
 ## Not profile, not state
 

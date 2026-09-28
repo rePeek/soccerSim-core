@@ -327,7 +327,7 @@ void PlayerBase::CheckSimulationKinematicOracle() const {
   }
 }
 
-PlayerGroundCollider PlayerBase::GetDerivedGroundCollider() const {
+CircleCollider PlayerBase::GetDerivedGroundCollider() const {
   DO_VALIDATION;
   return BuildPlayerGroundCollider(domainPlayer.Profile(),
                                    domainPlayer.State());
@@ -335,7 +335,7 @@ PlayerGroundCollider PlayerBase::GetDerivedGroundCollider() const {
 
 void PlayerBase::CheckGroundColliderOracle() const {
   DO_VALIDATION;
-  const PlayerGroundCollider derived = GetDerivedGroundCollider();
+  const CircleCollider derived = GetDerivedGroundCollider();
   std::string mismatch;
   if (!Vector3BitsEqual(groundCollider.center, derived.center)) {
     mismatch = "center";
@@ -782,9 +782,11 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   state->process(isActive);
   humanoid->ProcessState(state);
   kinematicState.ProcessState(state);
-  // 4f-b1: the unconsumed kinematic locomotion shadow was removed. This
-  // intentionally changes the save-state layout, not gameplay behavior.
-  groundCollider.ProcessState(state);
+  // Serialized compatibility shadow. The values are Derived from Profile +
+  // State; the field order (center, radius) is part of the legacy save format
+  // and must not change until that format is migrated.
+  state->process(groundCollider.center);
+  state->process(groundCollider.radius);
   // A restored Humanoid spatial state, kinematic mirror and collider must
   // agree before any subsequent tick or reader can observe either.
   CheckSimulationKinematicOracle();

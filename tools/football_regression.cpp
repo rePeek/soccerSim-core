@@ -17,7 +17,7 @@
 #include "core/physics/player_movement.hpp"
 #include "core/physics/player_movement.hpp"
 #include "core/physics/player_movement.hpp"
-#include "onthepitch/player/player_ground_collider.hpp"
+#include "core/physics/contact/player_collider.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
 #include "onthepitch/player/player_body_collider.hpp"
@@ -685,12 +685,19 @@ void CheckPlayerBodyFacing() {
 }
 
 void CheckPlayerGroundCollider() {
-  PlayerGroundCollider first;
-  first.SetCenter(Vector3(0.0f, 0.0f, 2.0f));
+  // The primitive has no implicit radius. Geometry comes from Profile + State
+  // through the canonical builder; the profile default is pinned to the legacy
+  // 0.36 m contact radius.
+  football::domain::PlayerProfile profile;
+  PlayerState state;
+  state.position = Vector3(0.0f, 0.0f, 2.0f);
+  const CircleCollider first = BuildPlayerGroundCollider(profile, state);
   RequireNear(first.center.coords[2], 0.0f,
               "ground collider should stay on the pitch plane");
+  RequireNear(first.radius, 0.36f, "ground collider radius default");
 
-  PlayerGroundCollider second;
+  CircleCollider second;
+  second.radius = profile.physical.bodyRadius;
   second.SetCenter(Vector3(0.71f, 0.0f, 0.0f));
   Require(first.Intersects(second),
           "ground colliders should intersect within their radii");
@@ -883,7 +890,7 @@ void CheckPlayerActionVolume() {
   Require(slide.active, "slide inside the contact window should be active");
   RequireNear(slide.axis.coords[1], -1.0f, "slide axis should follow facing y");
 
-  PlayerGroundCollider victim;
+  CircleCollider victim;
   const float reach = parameters.slideReach + parameters.slideRadius +
                       victim.radius;
   victim.SetCenter(Vector3(0.0f, -1.0f, 0.0f));
@@ -926,8 +933,8 @@ void CheckPlayerBodyCollider() {
 
   // Body radii must stay body-sized: the ground contest radius is a contact
   // radius and is larger.
-  const PlayerGroundCollider ground;
-  Require(body.upperBody.radius < ground.radius,
+  const football::domain::PlayerProfile profile;
+  Require(body.upperBody.radius < profile.physical.bodyRadius,
           "body collider must not reuse the ground contest radius");
 
   const float ballRadius = 0.11f;
@@ -1006,7 +1013,7 @@ std::string CaptureSimulationDigest(GameEnv& env) {
     AppendDigestFloat(out, kinematics.velocity.coords[1]);
     AppendDigestFloat(out, kinematics.movementFacing.coords[0]);
     AppendDigestFloat(out, kinematics.movementFacing.coords[1]);
-    const PlayerGroundCollider& ground = actor->GetGroundCollider();
+    const CircleCollider& ground = actor->GetGroundCollider();
     AppendDigestFloat(out, ground.center.coords[0]);
     AppendDigestFloat(out, ground.center.coords[1]);
     AppendDigestFloat(out, ground.radius);
@@ -1103,7 +1110,7 @@ std::vector<NamedDigestFloat> CaptureResetDigestFloats(GameEnv& env) {
                            kinematics.movementFacing.coords[0]);
     AppendNamedDigestFloat(fields, actor_name + ".kinematic.facing.y",
                            kinematics.movementFacing.coords[1]);
-    const PlayerGroundCollider& ground = actor->GetGroundCollider();
+    const CircleCollider& ground = actor->GetGroundCollider();
     AppendNamedDigestFloat(fields, actor_name + ".ground.center.x",
                            ground.center.coords[0]);
     AppendNamedDigestFloat(fields, actor_name + ".ground.center.y",
@@ -1231,8 +1238,8 @@ void CheckKinematicMirrorConsistency(GameEnv& env, const std::string& label) {
       // authoritative. Radius is pinned to the legacy 0.36 m value.
       RequireNear(profile.physical.bodyRadius, 0.36f,
                   label + ": body radius authority changed value");
-      const PlayerGroundCollider derived = roster[i]->GetDerivedGroundCollider();
-      const PlayerGroundCollider& shadow = roster[i]->GetGroundCollider();
+      const CircleCollider derived = roster[i]->GetDerivedGroundCollider();
+      const CircleCollider& shadow = roster[i]->GetGroundCollider();
       Require(FloatBits(derived.radius) == FloatBits(shadow.radius) &&
                   FloatBits(derived.center.coords[0]) ==
                       FloatBits(shadow.center.coords[0]) &&

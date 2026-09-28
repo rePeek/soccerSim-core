@@ -16,12 +16,12 @@
 //
 // Keep the three collider concepts apart:
 //
-//   PlayerGroundCollider  player-player ordinary contest (contact radius)
+//   CircleCollider        player-player ordinary contest (contact radius)
 //   PlayerBodyCollider    ball hitting a body (body geometry)
 //   PlayerActionVolume    tackle / save / reach actions (active contact)
 //
 // This is deliberately neither the render geometry (per-part AABBs of the
-// posed skeleton) nor PlayerGroundCollider. PlayerGroundCollider.radius is a
+// posed skeleton) nor CircleCollider. CircleCollider.radius is a
 // *contact* radius (two players touch at 0.36 + 0.36 = 0.72 m), while the body
 // is only about 0.23 m half wide. Reusing the contact radius here would double
 // the ball's contact distance.

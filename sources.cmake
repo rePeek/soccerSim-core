@@ -97,6 +97,7 @@ set(CORE_HEADERS
    src/match_setup.hpp
    src/misc/hungarian.h
    src/core/world/world.hpp
+   src/core/world/world_profiles.hpp
    src/core/state/ball_state.hpp
    src/core/state/player_state.hpp
    src/core/state/match_state.hpp
@@ -104,8 +105,12 @@ set(CORE_HEADERS
    src/core/physics/physics_system.hpp
    src/core/physics/ball_physics.hpp
    src/core/physics/player_movement.hpp
+   src/core/physics/contact/circle_collider.hpp
+   src/core/physics/contact/player_collider.hpp
    src/core/domain/ball/ball.hpp
+   src/core/domain/ball/ball_profile.hpp
    src/core/domain/player/player.hpp
+   src/core/domain/player/player_profile.hpp
 )
 
 set(CORE_SOURCES
@@ -137,7 +142,6 @@ set(GAME_HEADERS
    src/onthepitch/player/playerofficial.hpp
    src/onthepitch/player/playerbase.hpp
    src/onthepitch/player/player_retain_anchor.hpp
-   src/onthepitch/player/player_ground_collider.hpp
    src/onthepitch/player/player_body_collider.hpp
    src/onthepitch/player/player_action.hpp
    src/onthepitch/player/player_action_executor.hpp

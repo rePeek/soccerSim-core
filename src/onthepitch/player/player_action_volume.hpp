@@ -9,7 +9,7 @@
 #define _HPP_PLAYER_ACTION_VOLUME
 
 #include "player_action.hpp"
-#include "player_ground_collider.hpp"
+#include "core/physics/contact/player_collider.hpp"
 #include "core/physics/player_movement.hpp"
 
 // Contact volume for actions that reach out beyond the base body collider
@@ -30,7 +30,7 @@ struct PlayerActionVolume {
 
   // Capsule [origin, origin + axis * length] against a horizontal circle.
   // Everything is evaluated on the pitch plane, so body height is ignored.
-  bool Intersects(const PlayerGroundCollider &other) const {
+  bool Intersects(const CircleCollider &other) const {
     if (!active) return false;
     const Vector3 toCenter = (other.center - origin).Get2D();
     const float along = clamp(toCenter.GetDotProduct(axis), 0.0f, length);

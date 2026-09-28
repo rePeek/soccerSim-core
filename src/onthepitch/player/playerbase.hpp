@@ -21,7 +21,7 @@
 #include "humanoid/humanoidbase.hpp"
 #include "core/physics/player_movement.hpp"
 #include "core/domain/player/player.hpp"
-#include "player_ground_collider.hpp"
+#include "core/physics/contact/player_collider.hpp"
 #include "player_action.hpp"
 #include "locomotion_intent_scheduler.hpp"
 #include "player_decision_scheduler.hpp"
@@ -287,14 +287,14 @@ class PlayerBase {
     // Sole mutation point for evaluated movement kinematics. Callers must
     // project this state to HumanoidBase::SpatialState before exposing the tick.
     void ApplyKinematicResult(const PlayerKinematicResult &result);
-    const PlayerGroundCollider &GetGroundCollider() const {
+    const CircleCollider &GetGroundCollider() const {
       DO_VALIDATION;
       return groundCollider;
     }
     // Canonical collider for new simulation/contact consumers: computed from
     // the authoritative profile and state. GetGroundCollider() above is only a
     // serialized compatibility shadow kept bit-equal by CheckGroundColliderOracle().
-    PlayerGroundCollider GetDerivedGroundCollider() const;
+    CircleCollider GetDerivedGroundCollider() const;
     // Gameplay reads the sole persistent, simulation-authoritative action
     // schedule. Humanoid provides only a temporary legacy oracle.
     const PlayerActionState &GetSimulationActionState() const {
@@ -425,7 +425,7 @@ class PlayerBase {
     football::domain::PlayerProfile localProfile;  // bench / officials
     football::domain::Player domainPlayer;
     PlayerKinematicState &kinematicState;  // aliases domainPlayer.State()
-    PlayerGroundCollider groundCollider;  // compatibility/serialized shadow
+    CircleCollider groundCollider;  // compatibility/serialized shadow
     PlayerActionState actionState;
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
