@@ -396,6 +396,20 @@ struct LegacyAnimationKinematicEvaluation {
   LegacySpatialCompatibility compatibility;
 };
 
+// Reset is a state discontinuity, not a locomotion tick. Preserve the legacy
+// angle separately: recovering it from facing changes floating-point rounding
+// and can change animation selection.
+struct PlayerResetKinematicEvaluation {
+  PlayerKinematicResult kinematics;
+  radian startAngle;
+};
+
+class LegacyResetKinematics {
+ public:
+  static PlayerResetKinematicEvaluation Evaluate(const Vector3 &position,
+                                                  const Vector3 &focus);
+};
+
 class LegacyAnimationKinematics;
 
 class HumanoidBase {
@@ -427,7 +441,7 @@ class HumanoidBase {
     inline Vector3 GetMovement() const { return spatialState.movement; }
 
     int GetIdleMovementAnimID();
-    void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos);
+    void ResetPosition(const PlayerResetKinematicEvaluation &evaluation);
     void OffsetPosition(const Vector3 &offset);
     void TripMe(const Vector3 &tripVector, int tripType);
 
@@ -436,7 +450,7 @@ class HumanoidBase {
 
     const Anim *GetCurrentAnim() { DO_VALIDATION; return &currentAnim; }
 
-    virtual void ResetSituation(const Vector3 &focusPos);
+    virtual void ResetSituation(const PlayerResetKinematicEvaluation &evaluation);
     void ProcessState(EnvState* state);
 
   protected:

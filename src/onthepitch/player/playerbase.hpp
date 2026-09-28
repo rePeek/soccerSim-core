@@ -238,15 +238,15 @@ class PlayerBase {
     inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
     inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
 
-    // Gameplay-facing authoritative movement state. Normal ticks produce it
-    // through PlayerKinematicResult, and SpatialState is then checked as a
-    // bit-exact compatibility projection. Reset and collision lifecycle paths
-    // still use the transitional reverse synchronizer until 7F-6E flips them.
+    // Gameplay-facing authoritative self-movement state. Normal ticks and
+    // reset/lifecycle discontinuities produce PlayerKinematicResult, with
+    // SpatialState checked as a bit-exact compatibility projection.
+    // Collision-driven OffsetPosition is an interaction correction: its legacy
+    // reverse sync is intentionally deferred to 7G contact resolution.
     //
     // Mirroring preserves the legacy field asymmetry (position/velocity mirror;
-    // facing/bodyFacing do not). Actors must use PlayerBase::ResetPosition and
-    // OffsetPosition so the authoritative state and compatibility projection
-    // cannot diverge.
+    // facing/bodyFacing do not). The serialized compatibility copy and oracle
+    // remain until a separate save-format migration.
     inline Vector3 GetPosition() const { return kinematicState.position; }
     inline Vector3 GetDirectionVec() const { return kinematicState.facing; }
     inline Vector3 GetBodyDirectionVec() const { return kinematicState.bodyFacing; }

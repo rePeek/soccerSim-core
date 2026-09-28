@@ -605,8 +605,11 @@ bool PlayerBase::IsEligibleForProceduralLocomotion() const {
 
 void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   DO_VALIDATION;
-  humanoid->ResetPosition(newPos, focusPos);
-  SynchronizeKinematicState();
+  const PlayerResetKinematicEvaluation evaluation =
+      LegacyResetKinematics::Evaluate(newPos, focusPos);
+  ApplyKinematicResult(evaluation.kinematics);
+  humanoid->ResetPosition(evaluation);
+  CheckSimulationKinematicOracle();
   BeginSimulationAction();
 }
 
@@ -723,8 +726,11 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
           : kResetSituationInitialBeforeFirstPlayerTick;
     }
     lastResetSituationAuditContext = resetSituationAuditContext;
-    humanoid->ResetSituation(focusPos);
-    SynchronizeKinematicState();
+    const PlayerResetKinematicEvaluation evaluation =
+        LegacyResetKinematics::Evaluate(kinematicState.position, focusPos);
+    ApplyKinematicResult(evaluation.kinematics);
+    humanoid->ResetSituation(evaluation);
+    CheckSimulationKinematicOracle();
     BeginSimulationAction();
   }
   if (GetController()) GetController()->Reset();

@@ -48,9 +48,7 @@ void PlayerOfficial::Activate(std::shared_ptr<AnimCollection> animCollection,
   isActive = true;
   humanoid.reset(new HumanoidBase(this, match, animCollection));
 
-  CastHumanoid()->ResetPosition(Vector3(0), Vector3(0));
-  SynchronizeKinematicState();
-  BeginSimulationAction();
+  ResetPosition(Vector3(0), Vector3(0));
 
   controller.reset(new RefereeController(match));
   controller->SetPlayer(this);

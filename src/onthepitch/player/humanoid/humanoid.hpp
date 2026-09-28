@@ -46,7 +46,7 @@ class Humanoid : public HumanoidBase {
 
     void SelectRetainAnim();
 
-    virtual void ResetSituation(const Vector3 &focusPos);
+    virtual void ResetSituation(const PlayerResetKinematicEvaluation &evaluation);
 
   protected:
     virtual bool SelectAnim(const PlayerCommand &command, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false); // returns false on no applicable anim found

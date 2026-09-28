@@ -7,15 +7,14 @@
 // Authoritative, behavior-free movement state of a player (Phase 5).
 // Pure simulation data: no Humanoid/Player/controller pointers.
 //
-// Authority flow (Phase 7F-6B):
-//  - Per-tick movement producers evaluate a PlayerKinematicResult and apply it
-//    through PlayerBase::ApplyKinematicResult.
+// Authority flow (Phase 7F):
+//  - Per-tick self-movement and reset/lifecycle evaluations produce a
+//    PlayerKinematicResult, applied through PlayerBase::ApplyKinematicResult.
 //  - HumanoidBase projects PlayerState into legacy SpatialState; animation root
-//    motion is a legacy kinematic evaluator, not per-tick gameplay authority.
-//  - Remaining lifecycle/collision reverse paths are transitional and are
-//    removed in 7F-6E.
-//  - The projection remains bit-exactly checked by
-//    CheckSimulationKinematicOracle().
+//    motion is a legacy kinematic evaluator, not self-movement authority.
+//  - Collision-driven correction remains a transitional reverse sync for 7G.
+//  - The serialized compatibility copy and the bit-exact
+//    CheckSimulationKinematicOracle() remain in place.
 //
 // `speed` is deliberately NOT stored — it is velocity.GetLength() everywhere.
 // Use Speed() when the scalar is needed.

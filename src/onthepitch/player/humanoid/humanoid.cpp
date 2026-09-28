@@ -1031,9 +1031,9 @@ void Humanoid::SelectRetainAnim() {
   match->SetBallRetainer(CastPlayer());
 }
 
-void Humanoid::ResetSituation(const Vector3 &focusPos) {
+void Humanoid::ResetSituation(const PlayerResetKinematicEvaluation &evaluation) {
   DO_VALIDATION;
-  HumanoidBase::ResetSituation(focusPos);
+  HumanoidBase::ResetSituation(evaluation);
   //printf("humanoid reset\n");
 }
 

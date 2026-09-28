@@ -551,7 +551,9 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
 
   assert(match);
 
-  ResetPosition(Vector3(0), Vector3(0));
+  // Constructor runs before PlayerBase::humanoid has been installed. Preserve
+  // legacy initialization; PlayerBase applies the reset result on activation.
+  ResetPosition(LegacyResetKinematics::Evaluate(Vector3(0), Vector3(0)));
   mentalImageTime = 0;
 }
 
@@ -829,25 +831,41 @@ int HumanoidBase::GetIdleMovementAnimID() {
   return *dataSet.begin();
 }
 
-void HumanoidBase::ResetPosition(const Vector3 &newPos,
-                                 const Vector3 &focusPos) {
+PlayerResetKinematicEvaluation LegacyResetKinematics::Evaluate(
+    const Vector3 &position, const Vector3 &focus) {
   DO_VALIDATION;
+  PlayerResetKinematicEvaluation evaluation;
+  evaluation.startAngle = FixAngle(
+      (focus - position).GetNormalized(Vector3(0, -1, 0)).GetAngle2D());
+  evaluation.kinematics.position = position;
+  evaluation.kinematics.velocity = Vector3(0);
+  evaluation.kinematics.facing =
+      Vector3(0, -1, 0).GetRotated2D(evaluation.startAngle);
+  evaluation.kinematics.bodyFacing = Vector3(0, -1, 0);
+  return evaluation;
+}
 
-  startPos = newPos;
-  startAngle = FixAngle((focusPos - newPos).GetNormalized(Vector3(0, -1, 0)).GetAngle2D());
+void HumanoidBase::ResetPosition(
+    const PlayerResetKinematicEvaluation &evaluation) {
+  DO_VALIDATION;
+  const PlayerKinematicResult &result = evaluation.kinematics;
+  startPos = result.position;
+  startAngle = evaluation.startAngle;
   nextStartPos = startPos;
   nextStartAngle = startAngle;
   previousPosition2D = startPos;
 
-  spatialState.position = startPos;
+  // The four gameplay fields are a compatibility projection of the evaluated
+  // reset result. Leave all other legacy reset/animation fields in place.
+  spatialState.position = result.position;
   spatialState.angle = startAngle;
-  spatialState.directionVec = Vector3(0, -1, 0).GetRotated2D(startAngle);
+  spatialState.directionVec = result.facing;
   spatialState.floatVelocity = 0;
 
   spatialState.actualMovement = Vector(0);
   spatialState.physicsMovement = Vector(0);
   spatialState.animMovement = Vector(0);
-  spatialState.movement = Vector(0);
+  spatialState.movement = result.velocity;
   spatialState.actionSmuggleMovement = Vector(0);
   spatialState.movementSmuggleMovement = Vector(0);
   spatialState.positionOffsetMovement = Vector(0);
@@ -855,10 +873,10 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
 
   spatialState.enumVelocity = e_Velocity_Idle;
   spatialState.floatVelocity = 0;
-  spatialState.movement = Vector3(0);
+  spatialState.movement = result.velocity;
   spatialState.relBodyDirectionVec = Vector3(0, -1, 0);
   spatialState.relBodyAngle = 0;
-  spatialState.bodyDirectionVec = Vector3(0, -1, 0);
+  spatialState.bodyDirectionVec = result.bodyFacing;
   spatialState.bodyAngle = 0;
   spatialState.foot = e_Foot_Right;
 
@@ -937,10 +955,11 @@ void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {
   }
 }
 
-void HumanoidBase::ResetSituation(const Vector3 &focusPos) {
+void HumanoidBase::ResetSituation(
+    const PlayerResetKinematicEvaluation &evaluation) {
   DO_VALIDATION;
   mentalImageTime = 0;
-  ResetPosition(spatialState.position, focusPos);
+  ResetPosition(evaluation);
 }
 
 bool HumanoidBase::_HighOrBouncyBall() const {

@@ -110,12 +110,10 @@ void Player::Activate(std::shared_ptr<AnimCollection> animCollection,
 
   controller.reset(new ElizaController(match, lazyPlayer));
   CastController()->SetPlayer(this);
-  CastHumanoid()->ResetPosition(
+  ResetPosition(
       GetFormationEntry().position * 25 *
           Vector3(-team->GetDynamicSide(), -team->GetDynamicSide(), 0),
       Vector3(0));
-  SynchronizeKinematicState();
-  BeginSimulationAction();
   SetDynamicFormationEntry(GetFormationEntry());
 }
 
