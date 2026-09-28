@@ -20,7 +20,7 @@
 
 #include "../defines.hpp"
 
-#include <boost/detail/atomic_count.hpp>
+#include <atomic>
 
 namespace blunted {
 
@@ -38,7 +38,7 @@ namespace blunted {
     protected:
 
     private:
-      volatile long refCount = 0;
+      std::atomic<long> refCount{0};
       friend void intrusive_ptr_add_ref(RefCounted *p);
       friend void intrusive_ptr_release(RefCounted *p);
 
