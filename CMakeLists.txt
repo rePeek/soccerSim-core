@@ -6,23 +6,13 @@ include(CTest)  # defines BUILD_TESTING
 
 set(PACKAGE gameplayfootball)
 
-# Project-wide default only: every target opts into an explicit C++ standard
-# below and nobody relies on compiler extensions.
-set(CMAKE_CXX_EXTENSIONS OFF)
-
 include(sources.cmake)
-
-# Core compilation contract shared by the whole headless core. Kept as a
-# helper so the seven library targets and the test executables configure the
-# same way, without a global include_directories() or CMAKE_CXX_FLAGS.
-set(FOOTBALL_CORE_OPTIONS ${GCC_COVERAGE_COMPILE_FLAGS} -fPIC -g -O3)
 
 function(football_configure_target tgt)
   target_include_directories(${tgt} PUBLIC
     ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/src/cmake)
   target_compile_features(${tgt} PUBLIC cxx_std_23)
-  target_compile_options(${tgt} PRIVATE ${FOOTBALL_CORE_OPTIONS})
 endfunction()
 
 # --- object libraries: one translation unit at a time -----------------------

@@ -21,8 +21,9 @@
             ];
 
             shellHook = ''
-              echo "Football engine build environment loaded."
-              echo "Build with: cmake -S . -B build -G Ninja && cmake --build build"
+              echo "Configure: cmake --preset release   (or: debug)"
+              echo "Build:     cmake --build --preset release"
+              echo "Test:      ctest --preset release"
             '';
           };
         });
