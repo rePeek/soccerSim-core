@@ -7,6 +7,16 @@
 // Authoritative, behavior-free movement state of a player (Phase 5).
 // Pure simulation data: no Humanoid/Player/controller pointers.
 //
+// Authority flow (Phase 7F-1 audit):
+//  - Non-locomotion ticks: HumanoidBase::CalculateSpatialState writes the
+//    legacy SpatialState (animation root motion), and PlayerBase::
+//    SynchronizeKinematicState projects its four gameplay fields here.
+//  - Pure-locomotion ticks: PlayerLocomotion::Step + PlayerBodyFacing::Step
+//    produce this PlayerState, and HumanoidBase::ApplySimulationMovementState
+//    projects it back into SpatialState.
+//  - H3e flips the producer to make this the single authority; until then the
+//    mirror is kept bit-exact by CheckSimulationKinematicOracle().
+//
 // `speed` is deliberately NOT stored — it is velocity.GetLength() everywhere.
 // Use Speed() when the scalar is needed.
 struct PlayerState {
