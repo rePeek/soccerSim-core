@@ -27,9 +27,8 @@
 // Team* pointers. This is the container that later phases (Physics / Action /
 // Rules / Replay) read from and write to.
 //
-// NOT yet authoritative: the fields are default-constructed placeholders and
-// the real data still lives in legacy Match/Ball/Player. The first ownership
-// flip (BallState, Phase 7) starts making this the single source of truth.
+// BallState is authoritative from Phase 7 onward (it lives here).
+// PlayerState and MatchState are still migrating from the legacy model.
 struct WorldState {
   unsigned long time_ms = 0;
   BallState ball;

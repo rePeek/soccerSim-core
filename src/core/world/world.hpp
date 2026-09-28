@@ -21,8 +21,8 @@ class GameTask;  // legacy
 //
 // Phase 3: a simulation entry seam — it borrows the legacy GameTask and
 // forwards Step() to it.
-// Phase 6: it owns the WorldState slot. The data itself still lives in the
-// legacy Match/Ball/Player; Phase 7 starts migrating it here.
+// Phase 6+: it owns the WorldState. BallState is authoritative here from
+// Phase 7; PlayerState and MatchState still migrate from legacy.
 class World {
 public:
   // World borrows the legacy GameTask; it does not own it. The invariant
@@ -32,8 +32,8 @@ public:
   // Advance the simulation by one phase (tick).
   void Step();
 
-  // Ownership slot for the simulation state (Phase 6). Data migrates here
-  // starting with the BallState flip in Phase 7.
+  // Ownership slot for the simulation state (Phase 6+). BallState is
+  // authoritative here since Phase 7; the rest still migrates.
   WorldState& GetState() { return state_; }
   const WorldState& GetState() const { return state_; }
 

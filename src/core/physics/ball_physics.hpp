@@ -20,7 +20,7 @@
 #include "core/state/ball_state.hpp"
 
 // Physical constants extracted from the legacy Ball::CalculatePrediction()
-// (Phase 7B). No woodwork/net collisions yet (Phase 7D), no Match dependency.
+// (Phase 7B). No Match dependency.
 struct BallPhysicsParams {
   float bounce = 0.62f;         // 1 = full bounce, 0 = no bounce
   float linearBounce = 0.06f;   // bigger = more brake force
@@ -131,10 +131,10 @@ inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& momentum,
 }
 
 
-// Single-step ball integration: free motion (gravity, drag, swerve) plus
-// ground interaction (bounce, ground friction, ground-induced rotation).
-// Pure function of the input state. Woodwork and net collisions stay in the
-// legacy CalculatePrediction until Phase 7D.
+// Single-step ball integration: free motion (gravity, drag, swerve), ground
+// interaction (bounce, ground friction, ground-induced rotation) and optional
+// goal-frame contact (post/crossbar). Pure function of the input state.
+// Net physics was removed (visual only); no Match dependency.
 struct BallPhysics {
   static BallState Step(const BallState& current, float dt,
                         const BallPhysicsParams& p, bool apply_woodwork,
@@ -189,7 +189,11 @@ struct BallPhysics {
       momentum.coords[1] = xy.coords[1];
     }
 
-    // Woodwork contact (post / crossbar), first step only.
+    // Woodwork contact (post / crossbar).
+    // Legacy prediction compatibility: the real/current step checks goal-frame
+    // contact, cached future prediction steps historically do not. Keeping this
+    // flag preserves regression-exact behavior; a future physics-correctness
+    // pass may check contact on every step.
     if (apply_woodwork) {
       ApplyWoodwork(pos, momentum, p, goal);
     }
