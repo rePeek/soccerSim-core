@@ -39,7 +39,96 @@ struct GoalGeometry {
   float goalHalfWidth = 3.7f;   // y extent of the goal mouth
   float goalHeight = 2.5f;      // z extent of the goal mouth
   float postRadius = 0.07f;
+  float postAbsorbInv = 0.8f;
 };
+
+// Post and crossbar contact (Phase 7E). Geometry-only, extracted verbatim
+// from the legacy CalculatePrediction; modifies position and momentum.
+inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& momentum,
+                          const BallPhysicsParams& p, const GoalGeometry& g) {
+  const float ballRadius = p.radius;
+  const float postRadius = g.postRadius;
+
+  // Posts.
+  if (pos.coords[2] < g.goalHeight + ballRadius + postRadius &&
+      (pos.Get2D().GetAbsolute() -
+       blunted::Vector3(g.halfWidth, g.goalHalfWidth, 0))
+              .GetLength() < ballRadius + postRadius) {
+    blunted::Vector3 normal;
+    if (pos.coords[0] < 0) {
+      if (pos.coords[1] < 0) {
+        normal = (pos.Get2D() -
+                  blunted::Vector3(-g.halfWidth, -g.goalHalfWidth, 0))
+                     .GetNormalized(blunted::Vector3(1, 0, 0));
+        float nextPosZ = pos.coords[2];
+        pos = blunted::Vector3(-g.halfWidth, -g.goalHalfWidth, 0) +
+              normal * (postRadius + ballRadius);
+        pos.coords[2] = nextPosZ;
+      } else {
+        normal = (pos.Get2D() -
+                  blunted::Vector3(-g.halfWidth, g.goalHalfWidth, 0))
+                     .GetNormalized(blunted::Vector3(1, 0, 0));
+        float nextPosZ = pos.coords[2];
+        pos = blunted::Vector3(-g.halfWidth, g.goalHalfWidth, 0) +
+              normal * (postRadius + ballRadius);
+        pos.coords[2] = nextPosZ;
+      }
+    } else {
+      if (pos.coords[1] < 0) {
+        normal = (pos.Get2D() -
+                  blunted::Vector3(g.halfWidth, -g.goalHalfWidth, 0))
+                     .GetNormalized(blunted::Vector3(-1, 0, 0));
+        float nextPosZ = pos.coords[2];
+        pos = blunted::Vector3(g.halfWidth, -g.goalHalfWidth, 0) +
+              normal * (postRadius + ballRadius);
+        pos.coords[2] = nextPosZ;
+      } else {
+        normal = (pos.Get2D() -
+                  blunted::Vector3(g.halfWidth, g.goalHalfWidth, 0))
+                     .GetNormalized(blunted::Vector3(-1, 0, 0));
+        float nextPosZ = pos.coords[2];
+        pos = blunted::Vector3(g.halfWidth, g.goalHalfWidth, 0) +
+              normal * (postRadius + ballRadius);
+        pos.coords[2] = nextPosZ;
+      }
+    }
+    momentum = (momentum.Get2D().GetNormalized(normal) + (normal * 1.1f))
+                   .GetNormalized() *
+                   momentum.Get2D().GetLength() * g.postAbsorbInv +
+               (blunted::Vector3(0, 0, 1) * momentum.coords[2]);
+  }
+
+  // Crossbar.
+  blunted::Vector3 nextPosXZ = pos * blunted::Vector3(1, 0, 1);
+  if ((nextPosXZ.GetAbsolute() -
+       blunted::Vector3(g.halfWidth, 0, g.goalHeight))
+              .GetLength() < ballRadius + postRadius &&
+      std::fabs(pos.coords[1]) < g.goalHalfWidth + ballRadius + postRadius) {
+    blunted::Vector3 normal;
+    if (pos.coords[0] < 0) {
+      normal = (nextPosXZ -
+                blunted::Vector3(-g.halfWidth, 0, g.goalHeight))
+                   .GetNormalized(blunted::Vector3(0, 0, 1));
+      float nextPosY = pos.coords[1];
+      pos = blunted::Vector3(-g.halfWidth, 0, g.goalHeight) +
+            normal * (postRadius + ballRadius);
+      pos.coords[1] = nextPosY;
+    } else {
+      normal = (nextPosXZ -
+                blunted::Vector3(g.halfWidth, 0, g.goalHeight))
+                   .GetNormalized(blunted::Vector3(0, 0, -1));
+      float nextPosY = pos.coords[1];
+      pos = blunted::Vector3(g.halfWidth, 0, g.goalHeight) +
+            normal * (postRadius + ballRadius);
+      pos.coords[1] = nextPosY;
+    }
+    blunted::Vector3 momentumPredictXZ = momentum * blunted::Vector3(1, 0, 1);
+    momentum = (momentumPredictXZ.GetNormalized(normal) + (normal * 1.1f))
+                   .GetNormalized() *
+                   momentumPredictXZ.GetLength() * g.postAbsorbInv +
+               (blunted::Vector3(0, 1, 0) * momentum.coords[1]);
+  }
+}
 
 
 // Single-step ball integration: free motion (gravity, drag, swerve) plus
@@ -48,7 +137,8 @@ struct GoalGeometry {
 // legacy CalculatePrediction until Phase 7D.
 struct BallPhysics {
   static BallState Step(const BallState& current, float dt,
-                        const BallPhysicsParams& p) {
+                        const BallPhysicsParams& p, bool apply_woodwork,
+                        const GoalGeometry& goal) {
     BallState next = current;
     blunted::Vector3 momentum = current.momentum;
     blunted::Vector3 pos = current.position;
@@ -97,6 +187,11 @@ struct BallPhysics {
       xy *= newVelo;
       momentum.coords[0] = xy.coords[0];
       momentum.coords[1] = xy.coords[1];
+    }
+
+    // Woodwork contact (post / crossbar), first step only.
+    if (apply_woodwork) {
+      ApplyWoodwork(pos, momentum, p, goal);
     }
 
     // Ground-induced rotation + rotation-induced ground friction.
