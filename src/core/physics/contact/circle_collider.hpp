@@ -3,6 +3,10 @@
 
 #include "foundation/math/vector3.hpp"
 
+// Contact geometry and contact facts live in `football::contact`: they are
+// consumed by Physics, Action, Rules/Events and Replay, not just by one solver.
+namespace football::contact {
+
 // Planar circle used as ordinary player-body contact geometry.
 //
 // This is a Derived value (Profile + State -> shape), rebuilt on demand and
@@ -21,5 +25,7 @@ struct CircleCollider {
 
   void Mirror() { center.Mirror(); }
 };
+
+}  // namespace football::contact
 
 #endif  // _HPP_CORE_PHYSICS_CONTACT_CIRCLE_COLLIDER

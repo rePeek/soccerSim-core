@@ -762,8 +762,10 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
   constexpr float similarForceFactor = 0.25f; // 0.5f would be the full effect
 
   // Derived colliders (Profile + State). The serialized shadow is not read here.
-  const CircleCollider p1Collider = p1->GetDerivedGroundCollider();
-  const CircleCollider p2Collider = p2->GetDerivedGroundCollider();
+  const football::contact::CircleCollider p1Collider =
+      p1->GetDerivedGroundCollider();
+  const football::contact::CircleCollider p2Collider =
+      p2->GetDerivedGroundCollider();
   Vector3 p1pos = p1Collider.center;
   Vector3 p2pos = p2Collider.center;
   float distance = (p1pos - p2pos).GetLength();
@@ -1041,7 +1043,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     Player *victim = tackle == 1 ? p2 : p1;
 
     // Derived, like the movement state: Profile + State, never the shadow.
-    const CircleCollider victimCollider =
+    const football::contact::CircleCollider victimCollider =
         victim->GetDerivedGroundCollider();
     if (tacklerVolume.Intersects(victimCollider)) {
       DO_VALIDATION;

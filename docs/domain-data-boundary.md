@@ -90,12 +90,20 @@ stable the player is right now.
 
 Speed (`|velocity|`), distance to ball, pressure, ETA, and collider geometry.
 
-The contact geometry primitive `CircleCollider` lives in core
-(`core/physics/contact/circle_collider.hpp`), and `BuildPlayerGroundCollider
-(profile, state)` in `core/physics/contact/player_collider.hpp` is the
-canonical mapping: `radius` from `PlayerProfile::physical.bodyRadius`,
-`center` from `PlayerState::position`. Core never includes `onthepitch`;
-legacy code includes core, not the other way round.
+New contact types live in `namespace football::contact`, alongside
+`football::domain`. Contact is a shared fact (Physics, Action, Rules/Events and
+Replay all consume it), not a detail of one solver, so it gets its own
+namespace at the same level as the domain entities. `Contact`,
+`ContactDetector`, `ContactResolver`, `ContactMaterial` and further shapes
+belong there.
+
+The contact geometry primitive `football::contact::CircleCollider` lives in
+core (`core/physics/contact/circle_collider.hpp`), and
+`football::contact::BuildPlayerGroundCollider(profile, state)` in
+`core/physics/contact/player_collider.hpp` is the canonical mapping: `radius`
+from `PlayerProfile::physical.bodyRadius`, `center` from
+`PlayerState::position`. Core never includes `onthepitch`; legacy code
+includes core, not the other way round.
 
 `PlayerBase` keeps one `groundCollider` copy only as a serialized
 compatibility shadow, projected from the authoritative inputs and checked

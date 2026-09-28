@@ -30,7 +30,7 @@ struct PlayerActionVolume {
 
   // Capsule [origin, origin + axis * length] against a horizontal circle.
   // Everything is evaluated on the pitch plane, so body height is ignored.
-  bool Intersects(const CircleCollider &other) const {
+  bool Intersects(const football::contact::CircleCollider &other) const {
     if (!active) return false;
     const Vector3 toCenter = (other.center - origin).Get2D();
     const float along = clamp(toCenter.GetDotProduct(axis), 0.0f, length);

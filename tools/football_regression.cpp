@@ -691,12 +691,13 @@ void CheckPlayerGroundCollider() {
   football::domain::PlayerProfile profile;
   PlayerState state;
   state.position = Vector3(0.0f, 0.0f, 2.0f);
-  const CircleCollider first = BuildPlayerGroundCollider(profile, state);
+  const football::contact::CircleCollider first =
+      football::contact::BuildPlayerGroundCollider(profile, state);
   RequireNear(first.center.coords[2], 0.0f,
               "ground collider should stay on the pitch plane");
   RequireNear(first.radius, 0.36f, "ground collider radius default");
 
-  CircleCollider second;
+  football::contact::CircleCollider second;
   second.radius = profile.physical.bodyRadius;
   second.SetCenter(Vector3(0.71f, 0.0f, 0.0f));
   Require(first.Intersects(second),
@@ -890,7 +891,7 @@ void CheckPlayerActionVolume() {
   Require(slide.active, "slide inside the contact window should be active");
   RequireNear(slide.axis.coords[1], -1.0f, "slide axis should follow facing y");
 
-  CircleCollider victim;
+  football::contact::CircleCollider victim;
   const float reach = parameters.slideReach + parameters.slideRadius +
                       victim.radius;
   victim.SetCenter(Vector3(0.0f, -1.0f, 0.0f));
@@ -1013,7 +1014,8 @@ std::string CaptureSimulationDigest(GameEnv& env) {
     AppendDigestFloat(out, kinematics.velocity.coords[1]);
     AppendDigestFloat(out, kinematics.movementFacing.coords[0]);
     AppendDigestFloat(out, kinematics.movementFacing.coords[1]);
-    const CircleCollider& ground = actor->GetGroundCollider();
+    const football::contact::CircleCollider& ground =
+        actor->GetGroundCollider();
     AppendDigestFloat(out, ground.center.coords[0]);
     AppendDigestFloat(out, ground.center.coords[1]);
     AppendDigestFloat(out, ground.radius);
@@ -1110,7 +1112,8 @@ std::vector<NamedDigestFloat> CaptureResetDigestFloats(GameEnv& env) {
                            kinematics.movementFacing.coords[0]);
     AppendNamedDigestFloat(fields, actor_name + ".kinematic.facing.y",
                            kinematics.movementFacing.coords[1]);
-    const CircleCollider& ground = actor->GetGroundCollider();
+    const football::contact::CircleCollider& ground =
+        actor->GetGroundCollider();
     AppendNamedDigestFloat(fields, actor_name + ".ground.center.x",
                            ground.center.coords[0]);
     AppendNamedDigestFloat(fields, actor_name + ".ground.center.y",
@@ -1238,8 +1241,10 @@ void CheckKinematicMirrorConsistency(GameEnv& env, const std::string& label) {
       // authoritative. Radius is pinned to the legacy 0.36 m value.
       RequireNear(profile.physical.bodyRadius, 0.36f,
                   label + ": body radius authority changed value");
-      const CircleCollider derived = roster[i]->GetDerivedGroundCollider();
-      const CircleCollider& shadow = roster[i]->GetGroundCollider();
+      const football::contact::CircleCollider derived =
+          roster[i]->GetDerivedGroundCollider();
+      const football::contact::CircleCollider& shadow =
+          roster[i]->GetGroundCollider();
       Require(FloatBits(derived.radius) == FloatBits(shadow.radius) &&
                   FloatBits(derived.center.coords[0]) ==
                       FloatBits(shadow.center.coords[0]) &&

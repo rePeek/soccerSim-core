@@ -327,15 +327,15 @@ void PlayerBase::CheckSimulationKinematicOracle() const {
   }
 }
 
-CircleCollider PlayerBase::GetDerivedGroundCollider() const {
+football::contact::CircleCollider PlayerBase::GetDerivedGroundCollider() const {
   DO_VALIDATION;
-  return BuildPlayerGroundCollider(domainPlayer.Profile(),
+  return football::contact::BuildPlayerGroundCollider(domainPlayer.Profile(),
                                    domainPlayer.State());
 }
 
 void PlayerBase::CheckGroundColliderOracle() const {
   DO_VALIDATION;
-  const CircleCollider derived = GetDerivedGroundCollider();
+  const football::contact::CircleCollider derived = GetDerivedGroundCollider();
   std::string mismatch;
   if (!Vector3BitsEqual(groundCollider.center, derived.center)) {
     mismatch = "center";

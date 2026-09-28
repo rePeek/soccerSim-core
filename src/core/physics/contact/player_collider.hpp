@@ -5,6 +5,8 @@
 #include "core/physics/contact/circle_collider.hpp"
 #include "core/state/player_state.hpp"
 
+namespace football::contact {
+
 // Canonical mapping from a player entity to contact geometry.
 //
 // Radius is an inherent property of the player; the center is current
@@ -19,5 +21,7 @@ inline CircleCollider BuildPlayerGroundCollider(
   collider.radius = profile.physical.bodyRadius;
   return collider;
 }
+
+}  // namespace football::contact
 
 #endif  // _HPP_CORE_PHYSICS_CONTACT_PLAYER_COLLIDER
