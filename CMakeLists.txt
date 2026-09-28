@@ -15,10 +15,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS} -fPIC -g -O3")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -O3 -g")
-# The core links only Boost and system runtime libraries.
-
-FIND_PACKAGE(Boost REQUIRED COMPONENTS thread system filesystem)
-include_directories(${Boost_INCLUDE_DIRS})
+# The core links only system runtime libraries.
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/src/cmake)
@@ -42,8 +39,7 @@ add_library(blunted2 ${BLUNTED_CORE_SOURCES} ${BLUNTED_CORE_HEADERS} ${OWN_LIBRA
 add_library(gamelib ${GAME_SOURCES} ${GAME_HEADERS})
 add_library(datalib ${DATA_SOURCES} ${DATA_HEADERS})
 
-set(ENGINE_LIBRARIES gamelib datalib blunted2
-   Boost::filesystem Boost::system Boost::thread)
+set(ENGINE_LIBRARIES gamelib datalib blunted2)
 
 add_library(enginecore OBJECT ${CORE_SOURCES} ${CORE_HEADERS}
    src/game_env.cpp src/game_env.hpp

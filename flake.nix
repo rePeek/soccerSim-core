@@ -19,7 +19,6 @@
               pkgs.gnumake
               pkgs.pkg-config
               pkgs.ninja
-              pkgs.boost
 
             ];
 
