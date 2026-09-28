@@ -1226,6 +1226,31 @@ void CheckKinematicMirrorConsistency(GameEnv& env, const std::string& label) {
                   roster[i]->GetPlayerData()->GetStat(physical_balance),
                   label + ": player profile balance mapping team " +
                       std::to_string(team_id) + " index " + std::to_string(i));
+      // Collider is Derived from Profile + State. The stored copy is a
+      // serialized compatibility shadow; it must be bit-identical, not
+      // authoritative. Radius is pinned to the legacy 0.36 m value.
+      RequireNear(profile.physical.bodyRadius, 0.36f,
+                  label + ": body radius authority changed value");
+      const PlayerGroundCollider derived = roster[i]->GetDerivedGroundCollider();
+      const PlayerGroundCollider& shadow = roster[i]->GetGroundCollider();
+      Require(FloatBits(derived.radius) == FloatBits(shadow.radius) &&
+                  FloatBits(derived.center.coords[0]) ==
+                      FloatBits(shadow.center.coords[0]) &&
+                  FloatBits(derived.center.coords[1]) ==
+                      FloatBits(shadow.center.coords[1]),
+              label + ": collider shadow is stale");
+      Require(FloatBits(derived.radius) ==
+                  FloatBits(profile.physical.bodyRadius),
+              label + ": collider radius must come from PlayerProfile");
+      Require(FloatBits(derived.center.coords[0]) ==
+                      FloatBits(roster[i]->GetKinematicState()
+                                   .position.Get2D()
+                                   .coords[0]) &&
+                  FloatBits(derived.center.coords[1]) ==
+                      FloatBits(roster[i]->GetKinematicState()
+                                   .position.Get2D()
+                                   .coords[1]),
+              label + ": collider center must come from PlayerState");
     }
   }
   for (const Player* player : players) {

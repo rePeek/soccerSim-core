@@ -80,10 +80,17 @@ stable the player is right now.
 
 ## Derived, not state
 
-Speed (`|velocity|`), collider center (`position.xy`) and geometry
-(`Profile + State + ActionState` via a collider builder), distance to ball,
-pressure, ETA. `PlayerGroundCollider`, `PlayerBodyCollider` and
-`PlayerActionVolume` are derived objects, not a second source of authority.
+Speed (`|velocity|`), distance to ball, pressure, ETA, and collider geometry.
+
+`PlayerGroundCollider` is now built by `BuildPlayerGroundCollider(profile,
+state)`: `radius` comes from `PlayerProfile::physical.bodyRadius`, `center`
+from `PlayerState::position`. `PlayerBase` keeps one `groundCollider` copy
+only as a serialized compatibility shadow, projected from the authoritative
+inputs and checked bit-exact by `CheckGroundColliderOracle()` at every
+mutation point and on restore. New simulation/contact code must use
+`GetDerivedGroundCollider()`, never the shadow. `PlayerBodyCollider` and
+`PlayerActionVolume` are still parameter structs rather than profile/state
+derived.
 
 ## Not profile, not state
 
@@ -97,6 +104,7 @@ therefore `WorldState + PlayerProfile + TeamContext`.
   `angularVelocity` (separate, save-format-visible commit).
 - Split `BallPhysicsParams` into `BallProfile` / `EnvironmentProfile` /
   contact materials.
-- Make colliders derived and profile-sized.
+- Make `PlayerBodyCollider`/`PlayerActionVolume` derived from Profile + State
+  (+ ActionState) instead of standalone parameter structs.
 - Add `PlayerConditionState`, then technical/mental/personality profile groups.
 - 7G contact work consumes `BallProfile`/`PlayerProfile` instead of literals.

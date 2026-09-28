@@ -291,6 +291,10 @@ class PlayerBase {
       DO_VALIDATION;
       return groundCollider;
     }
+    // Canonical collider for new simulation/contact consumers: computed from
+    // the authoritative profile and state. GetGroundCollider() above is only a
+    // serialized compatibility shadow kept bit-equal by CheckGroundColliderOracle().
+    PlayerGroundCollider GetDerivedGroundCollider() const;
     // Gameplay reads the sole persistent, simulation-authoritative action
     // schedule. Humanoid provides only a temporary legacy oracle.
     const PlayerActionState &GetSimulationActionState() const {
@@ -372,6 +376,12 @@ class PlayerBase {
     // field reported. Callers are the mirror writers and state restore, so the
     // contract is checked at every movement mutation point.
     void CheckSimulationKinematicOracle() const;
+    // Same invariant for the legacy collider shadow: center and radius must be
+    // exactly the Derived collider of the authoritative profile and state.
+    void CheckGroundColliderOracle() const;
+    // Writes the compatibility shadow from the authoritative inputs. This is a
+    // projection, not a gameplay mutation; the derived collider is canonical.
+    void ProjectGroundColliderShadow();
 
     float GetDecayingPositionOffsetLength() { DO_VALIDATION; return humanoid->GetDecayingPositionOffsetLength(); }
 
@@ -415,7 +425,7 @@ class PlayerBase {
     football::domain::PlayerProfile localProfile;  // bench / officials
     football::domain::Player domainPlayer;
     PlayerKinematicState &kinematicState;  // aliases domainPlayer.State()
-    PlayerGroundCollider groundCollider;
+    PlayerGroundCollider groundCollider;  // compatibility/serialized shadow
     PlayerActionState actionState;
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;

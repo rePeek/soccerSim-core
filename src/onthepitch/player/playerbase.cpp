@@ -280,6 +280,9 @@ PlayerBase::PlayerBase(
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;
   fatigueFactorInv = 1.0;
+  // Seed the serialized compatibility shadow from Profile + State so it is
+  // consistent before the first tick, like the movement mirror.
+  ProjectGroundColliderShadow();
 }
 
 PlayerBase::~PlayerBase() {
@@ -324,11 +327,41 @@ void PlayerBase::CheckSimulationKinematicOracle() const {
   }
 }
 
+PlayerGroundCollider PlayerBase::GetDerivedGroundCollider() const {
+  DO_VALIDATION;
+  return BuildPlayerGroundCollider(domainPlayer.Profile(),
+                                   domainPlayer.State());
+}
+
+void PlayerBase::CheckGroundColliderOracle() const {
+  DO_VALIDATION;
+  const PlayerGroundCollider derived = GetDerivedGroundCollider();
+  std::string mismatch;
+  if (!Vector3BitsEqual(groundCollider.center, derived.center)) {
+    mismatch = "center";
+  } else if (!FloatBitsEqual(groundCollider.radius, derived.radius)) {
+    mismatch = "radius";
+  }
+  if (!mismatch.empty()) {
+    Log(e_FatalError, "PlayerBase", "CheckGroundColliderOracle",
+        "the legacy collider shadow diverged from Profile + State: " +
+        mismatch);
+  }
+}
+
+void PlayerBase::ProjectGroundColliderShadow() {
+  DO_VALIDATION;
+  // Compatibility projection only. The Derived collider is canonical; this
+  // keeps the serialized shadow bit-equal until the save format is migrated.
+  groundCollider = GetDerivedGroundCollider();
+  CheckGroundColliderOracle();
+}
+
 void PlayerBase::Mirror() {
   DO_VALIDATION;
   humanoid->Mirror();
   kinematicState.Mirror();
-  groundCollider.Mirror();
+  ProjectGroundColliderShadow();
   CheckSimulationKinematicOracle();
 }
 
@@ -339,7 +372,7 @@ void PlayerBase::ApplyKinematicResult(
   kinematicState.velocity = result.velocity;
   kinematicState.movementFacing = result.movementFacing;
   kinematicState.torsoFacing = result.torsoFacing;
-  groundCollider.SetCenter(kinematicState.position);
+  ProjectGroundColliderShadow();
 }
 void PlayerBase::SynchronizeKinematicState() {
   DO_VALIDATION;
@@ -347,7 +380,7 @@ void PlayerBase::SynchronizeKinematicState() {
   kinematicState.velocity = humanoid->GetMovement();
   kinematicState.movementFacing = humanoid->GetDirectionVec();
   kinematicState.torsoFacing = humanoid->GetBodyDirectionVec();
-  groundCollider.SetCenter(kinematicState.position);
+  ProjectGroundColliderShadow();
   CheckSimulationKinematicOracle();
 }
 
@@ -756,6 +789,7 @@ void PlayerBase::ProcessStateBase(EnvState *state) {
   // A restored Humanoid spatial state, kinematic mirror and collider must
   // agree before any subsequent tick or reader can observe either.
   CheckSimulationKinematicOracle();
+  CheckGroundColliderOracle();
   actionState.ProcessState(state);
   // The continuity epoch decides whether a repair queries the controller, so it
   // is gameplay state and must survive save/load exactly. Its tracking booleans
