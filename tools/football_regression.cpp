@@ -60,7 +60,7 @@ void CheckBallProfileBoundary() {
               "ball reset height must come from profile");
   state.position.coords[2] = 0.0f;
   const BallState next = BallPhysics::Step(
-      state, 0.01f, profile, BallPhysicsParams(), false, GoalGeometry());
+      state, 0.01f, profile, false, GoalGeometry());
   // Ground contact uses the profile radius: the ball bottom is corrected
   // onto the plane (z == radius), after which the rebound velocity integrates
   // it slightly above the plane in the same step.
@@ -73,7 +73,6 @@ void CheckBallProfileBoundary() {
 
 void CheckBallGroundImpact() {
   football::domain::BallProfile ball;      // radius 0.11
-  BallPhysicsParams params;
   GoalGeometry goal;
 
   // Falling while touching the plane: the impact impulse reflects vz upward.
@@ -82,7 +81,7 @@ void CheckBallGroundImpact() {
     state.position = Vector3(0.0f, 0.0f, ball.radius);
     state.velocity = Vector3(0.0f, 0.0f, -5.0f);
     const BallState next =
-        BallPhysics::Step(state, 0.01f, ball, params, false, goal);
+        BallPhysics::Step(state, 0.01f, ball, false, goal);
     Require(next.velocity.coords[2] > 0.0f,
             "ground impact: falling ball rebounds upward");
   }
@@ -94,11 +93,53 @@ void CheckBallGroundImpact() {
     state.position = Vector3(0.0f, 0.0f, 0.05f);
     state.velocity = Vector3(0.0f, 0.0f, 3.0f);
     const BallState next =
-        BallPhysics::Step(state, 0.01f, ball, params, false, goal);
+        BallPhysics::Step(state, 0.01f, ball, false, goal);
     Require(next.position.coords[2] >= ball.radius,
             "ground impact: penetrated position is corrected");
     Require(next.velocity.coords[2] > 0.0f,
             "ground impact: separating keeps upward velocity");
+  }
+}
+
+void CheckGroundDynamics() {
+  football::domain::BallProfile ball;  // radius 0.11, inertiaFactor 2/3
+  GroundDynamicsParams params;
+
+  // Rolling: no-slip, rolling resistance slows without breaking no-slip.
+  {
+    BallState state;
+    state.velocity = Vector3(8.0f, 0.0f, 0.0f);
+    state.angularVelocity = Vector3(0.0f, 8.0f / ball.radius, 0.0f);
+    GroundDynamics::Step(state, 0.01f, ball, params);
+    Require(state.velocity.coords[0] < 8.0f,
+            "ground dynamics: rolling resistance slows");
+    RequireNear(state.angularVelocity.coords[1],
+                state.velocity.coords[0] / ball.radius,
+                "ground dynamics: rolling keeps no-slip");
+  }
+
+  // Sliding: friction decelerates and torques the ball toward rolling.
+  {
+    BallState state;
+    state.velocity = Vector3(8.0f, 0.0f, 0.0f);
+    state.angularVelocity = Vector3(0.0f, 0.0f, 0.0f);
+    GroundDynamics::Step(state, 0.01f, ball, params);
+    Require(state.velocity.coords[0] < 8.0f,
+            "ground dynamics: sliding friction slows");
+    Require(state.angularVelocity.coords[1] > 0.0f,
+            "ground dynamics: sliding torques the ball");
+  }
+
+  // Rest: a slow no-slip ball stops its horizontal motion and roll spin.
+  {
+    BallState state;
+    state.velocity = Vector3(0.05f, 0.0f, 0.0f);
+    state.angularVelocity = Vector3(0.0f, 0.05f / ball.radius, 0.0f);
+    GroundDynamics::Step(state, 0.01f, ball, params);
+    RequireNear(state.velocity.coords[0], 0.0f,
+                "ground dynamics: rest stops horizontal motion");
+    RequireNear(state.angularVelocity.coords[1], 0.0f,
+                "ground dynamics: rest stops roll spin");
   }
 }
 
@@ -1804,21 +1845,21 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
       {1, -1, Position(0.0f, 0.0f, 0.11023543f, true),
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
-       UINT64_C(5403602966248765247)},
+       UINT64_C(10949155860364356543)},
       // 4f-a3b3: locomotion cadence samples cached Movement without triggering
       // SelectAnim; animation opportunities alone own presentation selection.
-      {100, 77, Position(0.0f, 0.0f, 0.11023543f, true),
-       Position(-1.01102936f, 0.0f, 0.0f, true),
-       Position(1.01102936f, 0.0f, 0.0f, true), 1, 0, false,
-       UINT64_C(936258789085288081)},
-      {500, 452, Position(0.518507123f, 0.26685369f, 0.237014517f, true),
-       Position(-0.829147637f, 0.00534466188f, 0.0f, true),
-       Position(0.985064626f, 0.012179262f, 0.0f, true), 1, 0, true,
-       UINT64_C(14857078612500148393)},
-      {1000, 952, Position(0.555289447f, 0.0327837728f, 0.116793878f, true),
-       Position(-0.821916342f, 0.00454159221f, 0.0f, true),
-       Position(0.976844072f, 0.00256741489f, 0.0f, true), 1, 0, true,
-       UINT64_C(8465427778040394883)},
+      {100, 79, Position(0.57982713f, 0.132477671f, 0.139237508f, true),
+       Position(-0.825538993f, 0.00424896972f, 0.0f, true),
+       Position(0.989513755f, 0.00482423371f, 0.0f, true), 0, 0, true,
+       UINT64_C(7543637006162618651)},
+      {500, 479, Position(-0.505902231f, 0.0184332095f, 0.11896643f, true),
+       Position(-0.986252308f, -0.00408939971f, 0.0f, true),
+       Position(0.818147361f, 0.000653602765f, 0.0f, true), 0, 0, true,
+       UINT64_C(7411275854211029185)},
+      {1000, 979, Position(0.511865318f, 0.252029091f, 0.146029159f, true),
+       Position(-0.823225439f, 0.00178637577f, 0.0f, true),
+       Position(0.98967737f, 0.0192346312f, 0.0f, true), 0, 0, true,
+       UINT64_C(16158849829440706208)},
   };
 
 
@@ -4752,6 +4793,7 @@ int main(int argc, char** argv) {
 
     CheckBallProfileBoundary();
     CheckBallGroundImpact();
+    CheckGroundDynamics();
     CheckBallDynamics();
     CheckBallSpinConvention();
     CheckBallContactResolver();

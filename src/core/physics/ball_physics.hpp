@@ -10,17 +10,9 @@
 #include "core/contact/ball_contact.hpp"
 #include "core/contact/ball_contact_resolver.hpp"
 #include "core/contact/ball_ground_contact.hpp"
+#include "core/physics/ground_dynamics.hpp"
 
-// Persistent ground-contact parameters. Impact response (the old bounce and
-// linearBounce) moved to BallContactResolver + ContactMaterial in 7G-7d-b;
-// free flight moved to BallDynamicsParams. These remaining knobs still drive
-// the legacy persistent friction and rolling feedback until GroundDynamics
-// replaces them.
-struct BallPhysicsParams {
-  float friction = 0.04f;       // legacy persistent horizontal friction
-  float linearFriction = 1.6f;  // legacy linear rolling resistance
-  float grassHeight = 0.025f;
-};
+
 
 // Goal / pitch geometry (Phase 7D). Values match the legacy constants in
 // gamedefines.hpp so woodwork contact stays numerically aligned.
@@ -121,14 +113,13 @@ inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& velocity,
   }
 }
 
-// Single-step ball integration. Free flight uses the v2 BallDynamics
-// (gravity, quadratic drag, Magnus, viscous angular drag); contact response
-// (ground bounce/friction, ground-induced rotation, woodwork) remains the
-// legacy model for now so each behaviour change can be measured separately.
+// Single-step ball integration: BallDynamics (free flight) -> ground impact
+// (detector + resolver + positional correction) -> woodwork -> ground
+// persistent dynamics (sliding/rolling/rest) -> integration.
 struct BallPhysics {
   static BallState Step(const BallState& current, float dt,
                         const football::domain::BallProfile& ball,
-                        const BallPhysicsParams& p, bool apply_woodwork,
+                        bool apply_woodwork,
                         const GoalGeometry& goal) {
     DO_VALIDATION;
     BallState next = current;
@@ -136,28 +127,10 @@ struct BallPhysics {
     // ---- Free flight: acceleration (velocity + angular velocity). ----
     BallDynamics::ApplyForces(next, dt, ball, BallDynamicsParams());
 
-    float frictionFactor = 0.0f;
-
-    // Grass influence (0 == no friction, 1 == all friction).
-    float ballBottom = next.position.coords[2] - ball.radius;
-    float grassInfluenceBias =
-        blunted::clamp(1.0f - (ballBottom / p.grassHeight), 0.0f, 1.0f);
-    grassInfluenceBias = std::pow(grassInfluenceBias, 0.7f);
-
-    // Ground impact (7G-7d-b): detector -> impulse resolver -> positional
-    // correction. Detection still happens before position integration, so the
-    // collision timing is unchanged. Persistent legacy friction/rolling below
-    // is intentionally left in place for the next step.
+    // Ground impact: detector -> impulse resolver -> positional correction.
     const auto groundContact =
         football::contact::DetectBallGroundContact(next, ball);
     if (groundContact) {
-      // Capture the legacy impact-strength signal BEFORE the resolver flips
-      // vz, so the persistent rolling block keeps its old input.
-      if (next.velocity.coords[2] < 0.0f) {
-        frictionFactor = blunted::NormalizedClamp(
-            -next.velocity.coords[2] - 0.5f, 0.0f, 12.0f);
-      }
-
       football::contact::ContactMaterial material;
       football::contact::BallContactResolver::Resolve(next, ball, *groundContact,
                                                        material);
@@ -167,65 +140,15 @@ struct BallPhysics {
       next.position += groundContact->normal * groundContact->penetration;
     }
 
-    // Ground friction (legacy).
-    if (next.position.coords[2] < ball.radius + p.grassHeight) {
-      float adaptedFriction = (p.friction * grassInfluenceBias);
-      blunted::Vector3 xy = next.velocity.Get2D();
-      float velo = xy.GetLength();
-      float newVelo = velo - adaptedFriction * std::pow(velo, 2.0f) * dt;
-      newVelo = blunted::clamp(
-          newVelo - (p.linearFriction * grassInfluenceBias * dt), 0.0f,
-          100000.0f);
-      xy.Normalize(blunted::Vector3(0));
-      xy *= newVelo;
-      next.velocity.coords[0] = xy.coords[0];
-      next.velocity.coords[1] = xy.coords[1];
-    }
-
-    // Woodwork contact (post / crossbar), legacy geometry.
+    // Woodwork contact (post / crossbar), legacy geometry (7G-7e replaces).
     if (apply_woodwork) {
       ApplyWoodwork(next.position, next.velocity, ball, goal);
     }
 
-    // Ground-induced rotation + rotation-induced ground friction. Legacy
-    // behaviour re-expressed with a Vector3 angular velocity in rad/s.
-    if (next.position.coords[2] < ball.radius + p.grassHeight) {
-      const float invRadius = 1.0f / ball.radius;
-      // No-slip rolling angular velocity. The legacy quaternion path clamped
-      // each axis to ~1540 rad/s (0.49 pi rad per millisecond), unreachable in
-      // practice, so that clamp is omitted.
-      blunted::Vector3 rollingAngularVelocity(
-          -next.velocity.coords[1] * invRadius,
-          next.velocity.coords[0] * invRadius, 0.0f);
-
-      const float maxRotationRate = blunted::pi * grassInfluenceBias +
-                                    (frictionFactor > 0.0f
-                                         ? 4.0f * blunted::pi
-                                         : 0.0f);
-      const blunted::Vector3 rotationDelta =
-          rollingAngularVelocity - next.angularVelocity;
-      const float rotationDeltaLength = rotationDelta.GetLength();
-      if (rotationDeltaLength > maxRotationRate) {
-        next.angularVelocity +=
-            rotationDelta.GetNormalized(blunted::Vector3(0)) * maxRotationRate;
-      } else {
-        next.angularVelocity = rollingAngularVelocity;
-      }
-
-      // Spin feeds back into the ground velocity (legacy rotation-induced
-      // ground friction): bias xy velocity toward the rolling-equivalent value.
-      blunted::Vector3 spinLinearVelocity;
-      spinLinearVelocity.coords[0] = next.angularVelocity.coords[1] * ball.radius;
-      spinLinearVelocity.coords[1] = -next.angularVelocity.coords[0] * ball.radius;
-      spinLinearVelocity.coords[2] = 0.0f;
-
-      float rotBias = 0.01f * grassInfluenceBias;
-      if (frictionFactor > 0.0f) rotBias += 0.5f * frictionFactor;
-      rotBias = blunted::clamp(rotBias, 0.0f, 1.0f);
-      next.velocity.coords[0] = next.velocity.coords[0] * (1.0f - rotBias) +
-                                spinLinearVelocity.coords[0] * rotBias;
-      next.velocity.coords[1] = next.velocity.coords[1] * (1.0f - rotBias) +
-                                spinLinearVelocity.coords[1] * rotBias;
+    // Ground persistent dynamics (7G-7d-c): sliding -> rolling -> rest.
+    const GroundDynamicsParams groundParams;
+    if (next.position.coords[2] <= ball.radius + groundParams.contactTolerance) {
+      GroundDynamics::Step(next, dt, ball, groundParams);
     }
 
     // Position integration, after every velocity/position correction.

@@ -139,7 +139,7 @@ BallSpatialInfo BallLegacy::CalculatePrediction() {
     stepState.angularVelocity = angularVelocityPredict;
     stepState.orientation = nextOrientation;
     stepState = BallPhysics::Step(stepState, timeStep, ball_->Profile(),
-                                  BallPhysicsParams(), firstTime, GoalGeometry());
+                                  firstTime, GoalGeometry());
     nextPos = stepState.position;
     velocityPredict = stepState.velocity;
     angularVelocityPredict = stepState.angularVelocity;
