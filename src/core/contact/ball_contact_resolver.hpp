@@ -11,13 +11,15 @@
 
 namespace football::contact {
 
-// Impulse response for a rigid uniform sphere (7G-7c).
+// Impulse response for a rigid sphere (7G-7c), with the inertia factor read
+// from BallProfile so solid/spherical-shell/calibrated moments share the
+// same math.
 //
-//   r      = contact.point - ball.position        (lever arm)
+//   r      = -normal * radius                     (lever arm)
 //   vc     = v + omega x r                        (contact-point velocity)
 //   vn     = dot(vc, n)                           (normal approach speed)
 //   Jn     = -(1 + e) m vn                        (normal impulse)
-//   Jstick = (2/7) m |vt|                         (stick impulse, I = 2/5 m R^2)
+//   Jstick = (k / (1 + k)) m |vt|                 (I = k m R^2)
 //   Jt     = min(Jstick, mu Jn)                   (Coulomb friction)
 //   v     += (Jn n + Jt) / m
 //   omega += (r x Jt) / I
@@ -33,10 +35,15 @@ struct BallContactResolver {
     DO_VALIDATION;
     assert(ball.mass > 0.0f);
     assert(ball.radius > 0.0f);
+    assert(ball.inertiaFactor > 0.0f);
+    // A contact without a usable normal is invalid: fail loudly instead of
+    // silently turning it into a ground bounce.
+    assert(contact.normal.GetLength() > 1e-6f);
+    const blunted::Vector3 normal = contact.normal.GetNormalized();
 
-    const blunted::Vector3 normal =
-        contact.normal.GetNormalized(blunted::Vector3(0.0f, 0.0f, 1.0f));
-    const blunted::Vector3 leverArm = contact.point - state.position;
+    // The physics lever arm is the ball radius along the contact normal.
+    // contact.point is used only for events/debug/penetration correction.
+    const blunted::Vector3 leverArm = normal * -ball.radius;
 
     const blunted::Vector3 contactVelocity =
         state.velocity + state.angularVelocity.GetCrossProduct(leverArm);
@@ -58,7 +65,9 @@ struct BallContactResolver {
     constexpr float kSpeedEpsilon = 1e-6f;
     blunted::Vector3 tangentialImpulse(0.0f, 0.0f, 0.0f);
     if (tangentialSpeed > kSpeedEpsilon) {
-      const float stickImpulse = (2.0f / 7.0f) * ball.mass * tangentialSpeed;
+      const float stickFactor =
+          ball.inertiaFactor / (1.0f + ball.inertiaFactor);
+      const float stickImpulse = stickFactor * ball.mass * tangentialSpeed;
       const float frictionLimit =
           material.friction * std::fabs(normalImpulse);
       const float tangentialMagnitude = std::min(stickImpulse, frictionLimit);
@@ -68,7 +77,8 @@ struct BallContactResolver {
 
     state.velocity += (normalImpulseVec + tangentialImpulse) / ball.mass;
 
-    const float inertia = 0.4f * ball.mass * ball.radius * ball.radius;
+    const float inertia =
+        ball.inertiaFactor * ball.mass * ball.radius * ball.radius;
     state.angularVelocity +=
         leverArm.GetCrossProduct(tangentialImpulse) / inertia;
   }

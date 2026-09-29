@@ -216,8 +216,9 @@ void CheckBallContactResolver() {
                 "ball contact: oblique normal bounce");
     Require(state.velocity.coords[0] < 3.0f,
             "ball contact: friction slows vx");
-    Require(state.angularVelocity.coords[1] > 19.0f &&
-                state.angularVelocity.coords[1] < 20.0f,
+    // inertiaFactor = 2/3 -> stickFactor = (2/3)/(5/3) = 2/5.
+    Require(state.angularVelocity.coords[1] > 16.0f &&
+                state.angularVelocity.coords[1] < 17.0f,
             "ball contact: friction spins around +Y");
     RequireNear(state.angularVelocity.coords[0], 0.0f,
                 "ball contact: no x spin");
@@ -239,6 +240,57 @@ void CheckBallContactResolver() {
     BallContactResolver::Resolve(state, ball, contact, material);
     RequireNear(state.velocity.coords[2], 3.0f,
                 "ball contact: separating is a no-op");
+  }
+
+  // The contact-point velocity is v + omega x r, not just v, so existing
+  // spin contributes to the slip friction responds to. +Y spin moves the
+  // bottom contact point toward +x, reducing the slip below the no-spin case,
+  // so friction removes less vx.
+  {
+    auto resolve = [&](float spin_y) {
+      BallState state;
+      state.position = Vector3(0.0f, 0.0f, ball.radius);
+      state.velocity = Vector3(3.0f, 0.0f, -4.0f);
+      state.angularVelocity = Vector3(0.0f, spin_y, 0.0f);
+      BallContact contact;
+      contact.point = Vector3(0.0f, 0.0f, 0.0f);
+      contact.normal = Vector3(0.0f, 0.0f, 1.0f);
+      ContactMaterial material;
+      material.restitution = 0.5f;
+      material.friction = 0.5f;
+      BallContactResolver::Resolve(state, ball, contact, material);
+      return state;
+    };
+    const BallState no_spin = resolve(0.0f);
+    const BallState with_spin = resolve(10.0f);
+    Require(with_spin.velocity.coords[0] > no_spin.velocity.coords[0],
+            "ball contact: initial spin reduces slip");
+  }
+
+  // A non-unit normal is normalized; the resolver must not fall back to a
+  // default direction. (A zero normal is rejected by assertion instead.)
+  {
+    BallState unit_state;
+    unit_state.position = Vector3(0.0f, 0.0f, ball.radius);
+    unit_state.velocity = Vector3(0.0f, 0.0f, -5.0f);
+    BallContact unit_contact;
+    unit_contact.point = Vector3(0.0f, 0.0f, 0.0f);
+    unit_contact.normal = Vector3(0.0f, 0.0f, 1.0f);
+    ContactMaterial material;
+    material.restitution = 0.5f;
+    material.friction = 0.0f;
+    BallContactResolver::Resolve(unit_state, ball, unit_contact, material);
+
+    BallState scaled_state;
+    scaled_state.position = Vector3(0.0f, 0.0f, ball.radius);
+    scaled_state.velocity = Vector3(0.0f, 0.0f, -5.0f);
+    BallContact scaled_contact;
+    scaled_contact.point = Vector3(0.0f, 0.0f, 0.0f);
+    scaled_contact.normal = Vector3(0.0f, 0.0f, 5.0f);
+    BallContactResolver::Resolve(scaled_state, ball, scaled_contact, material);
+
+    RequireNear(unit_state.velocity.coords[2], scaled_state.velocity.coords[2],
+                "ball contact: non-unit normal normalized");
   }
 }
 

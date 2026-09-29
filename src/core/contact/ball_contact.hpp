@@ -6,13 +6,13 @@
 namespace football::contact {
 
 // Ball-centric contact fact (7G-7c). Same frozen semantics as Contact: the
-// point sits on the ball surface and the normal points away from the colliding
-// surface into the ball, so the contact lever arm is
+// normal points away from the colliding surface into the ball.
 //
-//   r = point - ballCentre
-//
-// and r is (anti-)parallel to the normal for a spherical contact. This is the
-// input the impulse resolver needs to couple translation and spin.
+// `point` is the ball-surface contact point used for events, debug drawing
+// and position/penetration correction. The impulse resolver deliberately
+// does NOT derive its lever arm from `point`: for a sphere the physics lever
+// arm is always -normal * radius, so a detector that reports an
+// obstacle-surface point cannot silently corrupt the spin response.
 struct BallContact {
   blunted::Vector3 point = blunted::Vector3(0);
   blunted::Vector3 normal = blunted::Vector3(0, 0, 0);  // surface -> ball
