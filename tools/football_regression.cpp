@@ -21,6 +21,7 @@
 #include "core/contact/contact.hpp"
 #include "core/contact/player_collider.hpp"
 #include "core/contact/ball_contact_resolver.hpp"
+#include "core/contact/ball_ground_contact.hpp"
 #include "core/contact/player_contact.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
@@ -292,6 +293,37 @@ void CheckBallContactResolver() {
     RequireNear(unit_state.velocity.coords[2], scaled_state.velocity.coords[2],
                 "ball contact: non-unit normal normalized");
   }
+}
+
+void CheckBallGroundDetector() {
+  using football::contact::DetectBallGroundContact;
+
+  football::domain::BallProfile ball;  // radius 0.11
+  BallState state;
+
+  // Separated: ball bottom above the plane.
+  state.position = Vector3(1.0f, 2.0f, 0.2f);
+  Require(!DetectBallGroundContact(state, ball).has_value(),
+          "ground detect: separated");
+
+  // Touching: bottom exactly on the plane, penetration 0, normal up.
+  state.position = Vector3(1.0f, 2.0f, ball.radius);
+  auto contact = DetectBallGroundContact(state, ball);
+  Require(contact.has_value(), "ground detect: touching");
+  RequireNear(contact->penetration, 0.0f, "ground detect: touching penetration");
+  RequireNear(contact->normal.coords[0], 0.0f, "ground detect: normal x");
+  RequireNear(contact->normal.coords[1], 0.0f, "ground detect: normal y");
+  RequireNear(contact->normal.coords[2], 1.0f, "ground detect: normal z");
+  RequireNear(contact->point.coords[0], 1.0f, "ground detect: point x");
+  RequireNear(contact->point.coords[1], 2.0f, "ground detect: point y");
+  RequireNear(contact->point.coords[2], 0.0f, "ground detect: point z");
+
+  // Overlap: bottom below the plane, penetration == radius - z.
+  state.position = Vector3(1.0f, 2.0f, 0.05f);
+  contact = DetectBallGroundContact(state, ball);
+  Require(contact.has_value(), "ground detect: overlap");
+  RequireNear(contact->penetration, ball.radius - 0.05f,
+              "ground detect: overlap penetration");
 }
 
 void CheckPlayerDecisionScheduler() {
@@ -4685,6 +4717,7 @@ int main(int argc, char** argv) {
     CheckBallDynamics();
     CheckBallSpinConvention();
     CheckBallContactResolver();
+    CheckBallGroundDetector();
     CheckPlayerKinematics();
     CheckPlayerKinematicMirror();
     CheckPlayerBodyFacing();

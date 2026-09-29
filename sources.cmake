@@ -111,6 +111,7 @@ set(CORE_HEADERS
    src/core/contact/contact.hpp
    src/core/contact/ball_contact.hpp
    src/core/contact/ball_contact_resolver.hpp
+   src/core/contact/ball_ground_contact.hpp
    src/core/contact/player_collider.hpp
    src/core/contact/player_contact.hpp
    src/core/domain/ball/ball.hpp
