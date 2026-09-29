@@ -20,6 +20,7 @@
 #include "core/contact/circle_contact.hpp"
 #include "core/contact/contact.hpp"
 #include "core/contact/player_collider.hpp"
+#include "core/contact/ball_contact_resolver.hpp"
 #include "core/contact/player_contact.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
@@ -167,6 +168,77 @@ void CheckBallSpinConvention() {
     b.SetRotation(0.0f, 0.0f, 1.0f, 1.0f);
     RequireNear(state.angularVelocity.coords[2], 1.0f,
                 "spin: SetRotation z maps to +Z");
+  }
+}
+
+void CheckBallContactResolver() {
+  using football::contact::BallContact;
+  using football::contact::BallContactResolver;
+  using football::contact::ContactMaterial;
+
+  football::domain::BallProfile ball;  // mass 0.43, radius 0.11
+
+  // Pure normal bounce: vz reflects by restitution, no lateral or spin.
+  {
+    BallState state;
+    state.position = Vector3(0.0f, 0.0f, ball.radius);
+    state.velocity = Vector3(0.0f, 0.0f, -5.0f);
+    BallContact contact;
+    contact.point = Vector3(0.0f, 0.0f, 0.0f);
+    contact.normal = Vector3(0.0f, 0.0f, 1.0f);
+    ContactMaterial material;
+    material.restitution = 0.5f;
+    material.friction = 0.0f;
+    BallContactResolver::Resolve(state, ball, contact, material);
+    RequireNear(state.velocity.coords[2], 2.5f,
+                "ball contact: restitution bounce");
+    RequireNear(state.velocity.coords[0], 0.0f,
+                "ball contact: no lateral from normal");
+    RequireNear(state.angularVelocity.coords[1], 0.0f,
+                "ball contact: no spin from normal");
+  }
+
+  // Oblique impact: normal bounce plus Coulomb friction that slows vx and
+  // spins the ball around +Y (spin <-> translation coupling).
+  {
+    BallState state;
+    state.position = Vector3(0.0f, 0.0f, ball.radius);
+    state.velocity = Vector3(3.0f, 0.0f, -4.0f);
+    BallContact contact;
+    contact.point = Vector3(0.0f, 0.0f, 0.0f);
+    contact.normal = Vector3(0.0f, 0.0f, 1.0f);
+    ContactMaterial material;
+    material.restitution = 0.5f;
+    material.friction = 0.5f;
+    BallContactResolver::Resolve(state, ball, contact, material);
+    // vn = -4, e = 0.5 -> vz = -e * vn = 2.
+    RequireNear(state.velocity.coords[2], 2.0f,
+                "ball contact: oblique normal bounce");
+    Require(state.velocity.coords[0] < 3.0f,
+            "ball contact: friction slows vx");
+    Require(state.angularVelocity.coords[1] > 19.0f &&
+                state.angularVelocity.coords[1] < 20.0f,
+            "ball contact: friction spins around +Y");
+    RequireNear(state.angularVelocity.coords[0], 0.0f,
+                "ball contact: no x spin");
+    RequireNear(state.angularVelocity.coords[2], 0.0f,
+                "ball contact: no z spin");
+  }
+
+  // A separating contact needs no impulse.
+  {
+    BallState state;
+    state.position = Vector3(0.0f, 0.0f, ball.radius);
+    state.velocity = Vector3(0.0f, 0.0f, 3.0f);
+    BallContact contact;
+    contact.point = Vector3(0.0f, 0.0f, 0.0f);
+    contact.normal = Vector3(0.0f, 0.0f, 1.0f);
+    ContactMaterial material;
+    material.restitution = 0.5f;
+    material.friction = 0.5f;
+    BallContactResolver::Resolve(state, ball, contact, material);
+    RequireNear(state.velocity.coords[2], 3.0f,
+                "ball contact: separating is a no-op");
   }
 }
 
@@ -4560,6 +4632,7 @@ int main(int argc, char** argv) {
     CheckBallProfileBoundary();
     CheckBallDynamics();
     CheckBallSpinConvention();
+    CheckBallContactResolver();
     CheckPlayerKinematics();
     CheckPlayerKinematicMirror();
     CheckPlayerBodyFacing();
