@@ -7,8 +7,10 @@ Ball::Ball(const BallProfile& profile, BallState& state)
 
 void Ball::SetRotation(blunted::real x, blunted::real y, blunted::real z,
                        float bias) {
-  // radians per second for each axis
-  const blunted::Vector3 target(x, y, z);
+  // Legacy axis convention: x is the forward-roll axis and maps to spin around
+  // -X, while y and z map to +Y/+Z. Preserved so topspin/backspin keep their
+  // direction after the Quaternion -> Vector3 angularVelocity migration.
+  const blunted::Vector3 target(-x, y, z);
   state_.angularVelocity =
       state_.angularVelocity * (1.0f - bias) + target * bias;
 }

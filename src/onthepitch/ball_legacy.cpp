@@ -90,7 +90,8 @@ void BallLegacy::SetMomentum(const Vector3 &target) {
 
 void BallLegacy::SetRotation(real x, real y, real z, float bias) {
   DO_VALIDATION;  // radians per second for each axis
-  const Vector3 target(x, y, z);
+  // Legacy axis convention: x (forward roll) maps to -X, y/z to +Y/+Z.
+  const Vector3 target(-x, y, z);
   ball_->State().angularVelocity =
       ball_->State().angularVelocity * (1.0f - bias) + target * bias;
   CalculatePrediction();

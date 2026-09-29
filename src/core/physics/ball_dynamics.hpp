@@ -13,20 +13,22 @@
 //   gravity      a = (0, 0, g)
 //   drag         a = -0.5 rho Cd A |v| v / m
 //   Magnus       a =  0.5 rho Cl A r (w x v) / m
-//   angular drag w -= w * k * dt            (viscous spin decay)
+//   spin damping w -= w * k * dt            (empirical exponential decay)
 //
 // Semi-implicit Euler is used for velocity/angular-velocity and orientation;
 // position integration stays in BallPhysics::Step so contact response can
 // still clamp/reflect the position before it is committed.
 //
-// These are textbook equations (Reynolds-drag, Kutta-Joukowski Magnus and
-// viscous torque), not a port of any external codebase.
+// These are textbook equations (Reynolds drag, Kutta-Joukowski Magnus),
+// reimplemented from the standard formulas, not ported from any external
+// codebase. All coefficients below are physics-model knobs, not verified
+// football constants.
 struct BallDynamicsParams {
   float gravity = -9.81f;         // m/s^2
   float airDensity = 1.225f;      // kg/m^3
-  float dragCoefficient = 0.47f;  // sphere
-  float liftCoefficient = 0.2f;   // Magnus lift (tuning knob)
-  float angularDrag = 0.5f;       // viscous angular drag (1/s)
+  float dragCoefficient = 0.47f; // physics-model knob (sphere nominal)
+  float liftCoefficient = 0.2f;  // physics-model knob (Magnus lift)
+  float spinDamping = 0.5f;      // 1/s, empirical exponential spin decay
 };
 
 struct BallDynamics {
@@ -61,17 +63,23 @@ struct BallDynamics {
 
     state.velocity += acceleration * dt;
     state.angularVelocity -=
-        state.angularVelocity * (params.angularDrag * dt);
+        state.angularVelocity * (params.spinDamping * dt);
   }
 
   // Advances the accumulated orientation by the current angular velocity.
+  // angularVelocity is a world-space spin vector (rad/s), NOT Euler-angle
+  // rates: integrate by rotating around the spin axis by |omega| * dt.
   static void IntegrateOrientation(BallState &state, float dt) {
     DO_VALIDATION;
-    const blunted::Vector3 deltaAxis = state.angularVelocity * dt;
-    blunted::Quaternion deltaRotation;
-    deltaRotation.SetAngles(deltaAxis.coords[0], deltaAxis.coords[1],
-                            deltaAxis.coords[2]);
-    state.orientation = deltaRotation * state.orientation;
+    const float omega = state.angularVelocity.GetLength();
+    constexpr float kSpinEpsilon = 1e-6f;
+    if (omega > kSpinEpsilon) {
+      const blunted::Vector3 axis = state.angularVelocity / omega;
+      blunted::Quaternion deltaRotation;
+      deltaRotation.SetAngleAxis(omega * dt, axis);
+      state.orientation = deltaRotation * state.orientation;
+      state.orientation.Normalize();
+    }
   }
 };
 

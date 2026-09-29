@@ -102,6 +102,74 @@ void CheckBallDynamics() {
           "ball dynamics: angular drag decays spin");
 }
 
+void CheckBallSpinConvention() {
+  football::domain::BallProfile ball;  // radius 0.11, mass 0.43
+
+  // Pure-Magnus parameters so gravity and drag do not mask the deflection
+  // direction being asserted.
+  BallDynamicsParams magnus;
+  magnus.gravity = 0.0f;
+  magnus.dragCoefficient = 0.0f;
+  magnus.spinDamping = 0.0f;
+
+  auto deflection = [&](blunted::Vector3 omega, blunted::Vector3 velocity) {
+    BallState state;
+    state.velocity = velocity;
+    state.angularVelocity = omega;
+    BallDynamics::ApplyForces(state, 0.01f, ball, magnus);
+    return state.velocity - velocity;
+  };
+
+  // Reference: (+Z) x (+X) = +Y.
+  {
+    const blunted::Vector3 d = deflection(Vector3(0, 0, 1), Vector3(1, 0, 0));
+    Require(d.coords[1] > 0.0f, "spin: +Z x +X deflects +Y");
+    RequireNear(d.coords[0], 0.0f, "spin: +Z x +X no x");
+    RequireNear(d.coords[2], 0.0f, "spin: +Z x +X no z");
+  }
+
+  // Forward is -Y (the default movementFacing). World spin is a vector in
+  // rad/s around world axes.
+  //   topspin  omega=+X -> Magnus = (+X) x (-Y) = -Z  (ball dips)
+  //   backspin omega=-X -> Magnus = (-X) x (-Y) = +Z  (ball lifts)
+  {
+    const blunted::Vector3 d = deflection(Vector3(1, 0, 0), Vector3(0, -1, 0));
+    Require(d.coords[2] < 0.0f, "spin: topspin dips (-Z)");
+  }
+  {
+    const blunted::Vector3 d = deflection(Vector3(-1, 0, 0), Vector3(0, -1, 0));
+    Require(d.coords[2] > 0.0f, "spin: backspin lifts (+Z)");
+  }
+
+  // Lateral sidespin around the vertical Z axis.
+  //   omega=+Z -> Magnus = (+Z) x (-Y) = +X
+  //   omega=-Z -> Magnus = (-Z) x (-Y) = -X
+  {
+    const blunted::Vector3 d = deflection(Vector3(0, 0, 1), Vector3(0, -1, 0));
+    Require(d.coords[0] > 0.0f, "spin: +Z sidespin deflects +X");
+  }
+  {
+    const blunted::Vector3 d = deflection(Vector3(0, 0, -1), Vector3(0, -1, 0));
+    Require(d.coords[0] < 0.0f, "spin: -Z sidespin deflects -X");
+  }
+
+  // SetRotation axis mapping preserves the legacy convention: x is the
+  // forward-roll axis and maps to spin around -X; y/z map to +Y/+Z.
+  {
+    BallState state;
+    football::domain::Ball b(ball, state);
+    b.SetRotation(1.0f, 0.0f, 0.0f, 1.0f);
+    RequireNear(state.angularVelocity.coords[0], -1.0f,
+                "spin: SetRotation x maps to -X");
+    b.SetRotation(0.0f, 1.0f, 0.0f, 1.0f);
+    RequireNear(state.angularVelocity.coords[1], 1.0f,
+                "spin: SetRotation y maps to +Y");
+    b.SetRotation(0.0f, 0.0f, 1.0f, 1.0f);
+    RequireNear(state.angularVelocity.coords[2], 1.0f,
+                "spin: SetRotation z maps to +Z");
+  }
+}
+
 void CheckPlayerDecisionScheduler() {
   PlayerDecisionScheduler scheduler;
   Require(scheduler.Due(0, 240),
@@ -1548,18 +1616,18 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
        UINT64_C(5345881034876005748)},
       // 4f-a3b3: locomotion cadence samples cached Movement without triggering
       // SelectAnim; animation opportunities alone own presentation selection.
-      {100, 79, Position(0.930167735f, -0.020185018f, 0.75246489f, true),
-       Position(-0.825539052f, 0.0042494298f, 0.0f, true),
-       Position(0.984992087f, 0.000926736742f, 0.0f, true), 0, 0, true,
-       UINT64_C(17816233755231752721)},
-      {500, 458, Position(0.0682424679f, -0.0536359437f, 1.21959066f, true),
-       Position(-0.813227415f, -0.00477799308f, 0.0f, true),
-       Position(0.835840821f, 0.0022332517f, 0.0f, true), 0, 0, true,
-       UINT64_C(2823984068525707808)},
-      {1000, 895, Position(-0.207331315f, -0.170585155f, 0.317979217f, true),
-       Position(-0.87915349f, -0.0311539564f, 0.0f, true),
-       Position(0.831206203f, 0.00520247314f, 0.0f, true), 0, 0, true,
-       UINT64_C(13515721643752051873)},
+      {100, 75, Position(0.0f, 0.0f, 0.110616423f, true),
+       Position(-1.01102936f, 0.0f, 0.0f, true),
+       Position(1.01102936f, 0.0f, 0.0f, true), 1, 0, false,
+       UINT64_C(2393828027033680625)},
+      {500, 452, Position(-0.0947955549f, -0.00410375698f, 0.40825361f, true),
+       Position(-0.841157079f, 0.00559748895f, 0.0f, true),
+       Position(0.857088029f, 0.0219561942f, 0.0f, true), 1, 0, true,
+       UINT64_C(4870193997713246218)},
+      {1000, 952, Position(0.614234865f, 0.186714619f, 0.233391598f, true),
+       Position(-0.830221653f, -0.00217785081f, 0.0f, true),
+       Position(0.981210589f, 0.0123745427f, 0.0f, true), 1, 0, true,
+       UINT64_C(9868276062982582842)},
   };
 
 
@@ -4491,6 +4559,7 @@ int main(int argc, char** argv) {
 
     CheckBallProfileBoundary();
     CheckBallDynamics();
+    CheckBallSpinConvention();
     CheckPlayerKinematics();
     CheckPlayerKinematicMirror();
     CheckPlayerBodyFacing();
