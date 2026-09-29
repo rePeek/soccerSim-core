@@ -8,23 +8,23 @@
 #include "core/contact/ball_contact.hpp"
 #include "core/model/ball/ball.hpp"
 
-namespace football::contact {
+namespace football_sim::contact {
 
 // Rigid-sphere impulse response. Geometry and material stay separate from the
 // mutable model; the resolver computes next state and commits it via SetState.
 struct BallContactResolver {
-  static void Resolve(football::model::Ball& ball, const BallContact& contact,
-                      const blunted::Vector3& surfaceVelocity,
+  static void Resolve(football_sim::Ball& ball, const BallContact& contact,
+                      const football_sim::math::Vector3& surfaceVelocity,
                       const ContactMaterial& material) {
     assert(ball.Mass() > 0.0f);
     assert(ball.Radius() > 0.0f);
     assert(ball.InertiaFactor() > 0.0f);
     assert(contact.normal.GetLength() > 1e-6f);
 
-    football::model::BallState next = ball.State();
-    const blunted::Vector3 normal = contact.normal.GetNormalized();
-    const blunted::Vector3 leverArm = normal * -ball.Radius();
-    const blunted::Vector3 contactVelocity =
+    football_sim::BallState next = ball.State();
+    const football_sim::math::Vector3 normal = contact.normal.GetNormalized();
+    const football_sim::math::Vector3 leverArm = normal * -ball.Radius();
+    const football_sim::math::Vector3 contactVelocity =
         next.velocity - surfaceVelocity +
         next.angularVelocity.GetCrossProduct(leverArm);
     const float normalSpeed = contactVelocity.GetDotProduct(normal);
@@ -32,12 +32,12 @@ struct BallContactResolver {
 
     const float normalImpulse =
         -(1.0f + material.restitution) * ball.Mass() * normalSpeed;
-    const blunted::Vector3 normalImpulseVector = normal * normalImpulse;
-    const blunted::Vector3 tangentialVelocity =
+    const football_sim::math::Vector3 normalImpulseVector = normal * normalImpulse;
+    const football_sim::math::Vector3 tangentialVelocity =
         contactVelocity - normal * normalSpeed;
     const float tangentialSpeed = tangentialVelocity.GetLength();
 
-    blunted::Vector3 tangentialImpulse(0.0f, 0.0f, 0.0f);
+    football_sim::math::Vector3 tangentialImpulse(0.0f, 0.0f, 0.0f);
     constexpr float kSpeedEpsilon = 1e-6f;
     if (tangentialSpeed > kSpeedEpsilon) {
       const float stickFactor =
@@ -58,6 +58,6 @@ struct BallContactResolver {
   }
 };
 
-}  // namespace football::contact
+}  // namespace football_sim::contact
 
 #endif  // FOOTBALL_CORE_CONTACT_BALL_CONTACT_RESOLVER_HPP

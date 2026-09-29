@@ -7,7 +7,7 @@
 #include "core/contact/ball_contact.hpp"
 #include "core/contact/capsule_collider.hpp"
 
-namespace football::contact {
+namespace football_sim::contact {
 
 // Internal: smallest root t in [0,1] of a t^2 + b t + c = 0.
 inline bool SmallestRootInUnitInterval(float a, float b, float c, float &t) {
@@ -64,23 +64,23 @@ inline bool SmallestRootInUnitInterval(float a, float b, float c, float &t) {
 // velocity, forces or the resolver -- it only answers "when does the moving
 // point enter the expanded capsule (R = sphereRadius + capsule.radius)".
 inline std::optional<BallContact> SweepSphereCapsule(
-    const blunted::Vector3 &start, const blunted::Vector3 &end,
+    const football_sim::math::Vector3 &start, const football_sim::math::Vector3 &end,
     float sphereRadius, const CapsuleCollider &capsule, float dt) {
   DO_VALIDATION;
   const float expandedRadius = sphereRadius + capsule.radius;
-  const blunted::Vector3 axis = capsule.tipB - capsule.tipA;
+  const football_sim::math::Vector3 axis = capsule.tipB - capsule.tipA;
   const float axisLengthSq = axis.GetSquaredLength();
-  const blunted::Vector3 motion = end - start;
+  const football_sim::math::Vector3 motion = end - start;
 
   // Already touching or overlapping at the start of the step: report the
   // current instant using the discrete geometry.
-  const blunted::Vector3 spineStart =
+  const football_sim::math::Vector3 spineStart =
       ClosestPointOnSegment(start, capsule.tipA, capsule.tipB);
   const float startDistance = (start - spineStart).GetLength();
   if (startDistance <= expandedRadius) {
     BallContact contact;
     contact.normal =
-        (start - spineStart).GetNormalized(blunted::Vector3(1.0f, 0.0f, 0.0f));
+        (start - spineStart).GetNormalized(football_sim::math::Vector3(1.0f, 0.0f, 0.0f));
     contact.point = spineStart + contact.normal * capsule.radius;
     contact.penetration = expandedRadius - startDistance;
     contact.timeWithinTick = 0.0f;
@@ -93,13 +93,13 @@ inline std::optional<BallContact> SweepSphereCapsule(
   // Cap A: swept point vs sphere at tipA. Valid only when the hit point is
   // beyond the A end (closest segment point is tipA).
   {
-    const blunted::Vector3 m = start - capsule.tipA;
+    const football_sim::math::Vector3 m = start - capsule.tipA;
     const float a = motion.GetSquaredLength();
     const float b = 2.0f * m.GetDotProduct(motion);
     const float c = m.GetSquaredLength() - expandedRadius * expandedRadius;
     float t;
     if (SmallestRootInUnitInterval(a, b, c, t) && t < bestT) {
-      const blunted::Vector3 center = start + motion * t;
+      const football_sim::math::Vector3 center = start + motion * t;
       if ((center - capsule.tipA).GetDotProduct(axis) <= 0.0f) {
         bestT = t;
         bestKind = 1;
@@ -110,17 +110,17 @@ inline std::optional<BallContact> SweepSphereCapsule(
   // Capsule body: swept point vs the infinite cylinder around the axis,
   // valid only while the hit's projection stays inside the segment.
   if (axisLengthSq > 1e-12f) {
-    const blunted::Vector3 m = start - capsule.tipA;
+    const football_sim::math::Vector3 m = start - capsule.tipA;
     const float projM = m.GetDotProduct(axis) / axisLengthSq;
     const float projD = motion.GetDotProduct(axis) / axisLengthSq;
-    const blunted::Vector3 f = m - axis * projM;  // perpendicular of start
-    const blunted::Vector3 g = motion - axis * projD;  // perpendicular of motion
+    const football_sim::math::Vector3 f = m - axis * projM;  // perpendicular of start
+    const football_sim::math::Vector3 g = motion - axis * projD;  // perpendicular of motion
     const float a = g.GetSquaredLength();
     const float b = 2.0f * f.GetDotProduct(g);
     const float c = f.GetSquaredLength() - expandedRadius * expandedRadius;
     float t;
     if (SmallestRootInUnitInterval(a, b, c, t) && t < bestT) {
-      const blunted::Vector3 center = start + motion * t;
+      const football_sim::math::Vector3 center = start + motion * t;
       const float proj = (center - capsule.tipA).GetDotProduct(axis);
       if (proj >= 0.0f && proj <= axisLengthSq) {
         bestT = t;
@@ -132,13 +132,13 @@ inline std::optional<BallContact> SweepSphereCapsule(
   // Cap B: swept point vs sphere at tipB. Valid only when the hit point is
   // beyond the B end.
   {
-    const blunted::Vector3 m = start - capsule.tipB;
+    const football_sim::math::Vector3 m = start - capsule.tipB;
     const float a = motion.GetSquaredLength();
     const float b = 2.0f * m.GetDotProduct(motion);
     const float c = m.GetSquaredLength() - expandedRadius * expandedRadius;
     float t;
     if (SmallestRootInUnitInterval(a, b, c, t) && t < bestT) {
-      const blunted::Vector3 center = start + motion * t;
+      const football_sim::math::Vector3 center = start + motion * t;
       if ((center - capsule.tipA).GetDotProduct(axis) >= axisLengthSq) {
         bestT = t;
         bestKind = 2;
@@ -149,19 +149,19 @@ inline std::optional<BallContact> SweepSphereCapsule(
   if (bestKind < 0) return std::nullopt;
 
   const float u = bestT;
-  const blunted::Vector3 centerAtHit = start + motion * u;
-  const blunted::Vector3 spinePoint =
+  const football_sim::math::Vector3 centerAtHit = start + motion * u;
+  const football_sim::math::Vector3 spinePoint =
       ClosestPointOnSegment(centerAtHit, capsule.tipA, capsule.tipB);
 
   BallContact contact;
   contact.normal =
-      (centerAtHit - spinePoint).GetNormalized(blunted::Vector3(1.0f, 0.0f, 0.0f));
+      (centerAtHit - spinePoint).GetNormalized(football_sim::math::Vector3(1.0f, 0.0f, 0.0f));
   contact.point = spinePoint + contact.normal * capsule.radius;
   contact.penetration = 0.0f;
   contact.timeWithinTick = u * dt;
   return contact;
 }
 
-}  // namespace football::contact
+}  // namespace football_sim::contact
 
 #endif  // _HPP_CORE_CONTACT_SWEEP_SPHERE_CAPSULE

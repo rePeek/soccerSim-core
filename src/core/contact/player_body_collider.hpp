@@ -3,7 +3,7 @@
 
 #include "core/contact/capsule_collider.hpp"
 
-namespace football::contact {
+namespace football_sim::contact {
 
 // Approximate passive body volume: three upright capsules (upper torso,
 // lower body, head as a degenerate capsule). Geometry only -- built from a
@@ -32,21 +32,21 @@ struct PlayerBodyCollider {
   CapsuleCollider head;
 };
 
-inline CapsuleCollider MakeVerticalCapsule(const blunted::Vector3 &origin,
+inline CapsuleCollider MakeVerticalCapsule(const football_sim::math::Vector3 &origin,
                                            float radius, float centerZ,
                                            float halfHeight) {
   CapsuleCollider capsule;
-  capsule.tipA = origin + blunted::Vector3(0.0f, 0.0f, centerZ - halfHeight);
-  capsule.tipB = origin + blunted::Vector3(0.0f, 0.0f, centerZ + halfHeight);
+  capsule.tipA = origin + football_sim::math::Vector3(0.0f, 0.0f, centerZ - halfHeight);
+  capsule.tipB = origin + football_sim::math::Vector3(0.0f, 0.0f, centerZ + halfHeight);
   capsule.radius = radius;
   return capsule;
 }
 
 inline PlayerBodyCollider BuildPlayerBodyCollider(
-    const blunted::Vector3 &position,
+    const football_sim::math::Vector3 &position,
     const PlayerBodyColliderParameters &parameters =
         PlayerBodyColliderParameters()) {
-  const blunted::Vector3 origin = position.Get2D();
+  const football_sim::math::Vector3 origin = position.Get2D();
   PlayerBodyCollider body;
   body.upperBody = MakeVerticalCapsule(origin, parameters.upperRadius,
                                        parameters.upperCenterZ,
@@ -59,6 +59,6 @@ inline PlayerBodyCollider BuildPlayerBodyCollider(
   return body;
 }
 
-}  // namespace football::contact
+}  // namespace football_sim::contact
 
 #endif  // _HPP_CORE_CONTACT_PLAYER_BODY_COLLIDER

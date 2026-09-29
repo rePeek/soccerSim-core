@@ -6,7 +6,7 @@
 #include "core/contact/circle_collider.hpp"
 #include "core/contact/contact.hpp"
 
-namespace football::contact {
+namespace football_sim::contact {
 
 // Planar circle-circle detection, the primitive behind player-player ground
 // contact. Pure geometry: no PlayerBase, no Match, no stats, no mutation.
@@ -21,7 +21,7 @@ namespace football::contact {
 inline std::optional<Contact> DetectContact(const CircleCollider &a,
                                             const CircleCollider &b) {
   DO_VALIDATION;
-  const blunted::Vector3 fromAtoB = (b.center - a.center).Get2D();
+  const football_sim::math::Vector3 fromAtoB = (b.center - a.center).Get2D();
   const float distance = fromAtoB.GetLength();
   const float sumRadii = a.radius + b.radius;
 
@@ -32,7 +32,7 @@ inline std::optional<Contact> DetectContact(const CircleCollider &a,
   // Coincident centers have no unique normal; +x is an arbitrary but
   // deterministic tie-breaker. It is not claimed to be mirror-symmetric.
   Contact contact;
-  contact.normal = fromAtoB.GetNormalized(blunted::Vector3(1.0f, 0.0f, 0.0f));
+  contact.normal = fromAtoB.GetNormalized(football_sim::math::Vector3(1.0f, 0.0f, 0.0f));
   contact.normal.coords[2] = 0.0f;
   contact.penetration = sumRadii - distance;
 
@@ -44,6 +44,6 @@ inline std::optional<Contact> DetectContact(const CircleCollider &a,
   return contact;
 }
 
-}  // namespace football::contact
+}  // namespace football_sim::contact
 
 #endif  // _HPP_CORE_CONTACT_CIRCLE_CONTACT

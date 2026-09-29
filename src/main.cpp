@@ -20,7 +20,7 @@
 
 #include "ai/ai_keyboard.hpp"
 #include "base/log.hpp"
-#include "base/math/bluntmath.hpp"
+#include "base/math/math.hpp"
 #include "base/utils.hpp"
 #include "file.h"
 #include "main.hpp"

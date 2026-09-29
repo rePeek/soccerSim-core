@@ -6,6 +6,8 @@
 
 #include "core/model/ball/ball.hpp"
 
+namespace football_sim::physics {
+
 struct GroundDynamicsParams {
   float gravityMagnitude = 9.81f;
   float slideFriction = 0.4f;
@@ -18,13 +20,13 @@ struct GroundDynamicsParams {
 // Persistent ground contact (sliding -> rolling -> rest). It computes the
 // whole next BallState before committing it through the model.
 struct GroundDynamics {
-  static void Step(football::model::Ball& ball, float dt,
+  static void Step(football_sim::Ball& ball, float dt,
                    const GroundDynamicsParams& params = {}) {
     assert(dt > 0.0f);
     assert(ball.Radius() > 0.0f);
     assert(ball.InertiaFactor() > 0.0f);
 
-    football::model::BallState next = ball.State();
+    football_sim::BallState next = ball.State();
     const float radius = ball.Radius();
     const float tangentialX =
         next.velocity.coords[0] - next.angularVelocity.coords[1] * radius;
@@ -76,4 +78,5 @@ struct GroundDynamics {
   }
 };
 
+}  // namespace football_sim::physics
 #endif  // FOOTBALL_CORE_PHYSICS_GROUND_DYNAMICS_HPP

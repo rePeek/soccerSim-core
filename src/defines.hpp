@@ -53,7 +53,7 @@ typedef std::string screenshoot;
 
 using namespace std::placeholders;
 
-namespace blunted {
+namespace football_sim {
   class Animation;
   //using namespace boost;
 }
@@ -75,7 +75,7 @@ class EnvState {
   const ScenarioConfig* getConfig() { return scenario_config; }
   const GameContext* getContext() { return context; }
   void process(std::string &value);
-  void process(blunted::Animation* &value);
+  void process(football_sim::Animation*& value);
   template<typename T> void process(std::vector<T>& collection) {
     int size = collection.size();
     process(size);
@@ -116,7 +116,8 @@ class EnvState {
   template<typename T> void process(T& obj) {
     if (load) {
       if (pos + sizeof(T) > state.size()) {
-        Log(blunted::e_FatalError, "EnvState", "state", "state is invalid");
+        football_sim::Log(football_sim::e_FatalError, "EnvState", "state",
+                          "state is invalid");
       }
       memcpy(&obj, &state[pos], sizeof(T));
       pos += sizeof(T);
@@ -130,21 +131,24 @@ class EnvState {
         std::cout << "Value:     " << obj << std::endl;
         std::cout << "Reference: " << (*(T*) &reference[pos]) << std::endl;
         if (crash) {
-          Log(blunted::e_FatalError, "EnvState", "state", "Reference mismatch");
+          football_sim::Log(football_sim::e_FatalError, "EnvState", "state",
+                            "Reference mismatch");
         } else {
           print_stacktrace();
         }
       }
       pos += sizeof(T);
       if (pos > 10000000) {
-        Log(blunted::e_FatalError, "EnvState", "state", "state is too big");
+        football_sim::Log(football_sim::e_FatalError, "EnvState", "state",
+                          "state is too big");
       }
     }
   }
   void SetPlayers(const std::vector<Player*>& players);
   void SetHumanControllers(const std::vector<HumanGamer*>& controllers);
   void SetControllers(const std::vector<AIControlledKeyboard*>& controllers);
-  void SetAnimations(const std::vector<blunted::Animation*>& animations);
+  void SetAnimations(
+      const std::vector<football_sim::Animation*>& animations);
   void SetTeams(Team* team0, Team* team1);
   const std::string& GetState();
  protected:
@@ -154,7 +158,7 @@ class EnvState {
   char disable_cnt = 0;
   bool crash = false;
   std::vector<Player*> players;
-  std::vector<blunted::Animation*> animations;
+  std::vector<football_sim::Animation*> animations;
   std::vector<Team*> teams;
   std::vector<HumanGamer*> human_controllers;
   std::vector<AIControlledKeyboard*> controllers;

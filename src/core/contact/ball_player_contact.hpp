@@ -8,7 +8,7 @@
 #include "core/contact/sphere_capsule_contact.hpp"
 #include "core/contact/sweep_sphere_capsule.hpp"
 
-namespace football::contact {
+namespace football_sim::contact {
 
 // Passive player-body vs ball contact (7G-7a). The body is a fixed trio of
 // capsules built from the player's ground position; the ball is a sphere.
@@ -16,7 +16,7 @@ namespace football::contact {
 // nothing about Match, possession, actions, the referee or GetStat().
 inline std::optional<BallContact> DetectPlayerBodyBallContact(
     const PlayerBodyCollider &body,
-    const blunted::Vector3 &ballPosition, float ballRadius) {
+    const football_sim::math::Vector3 &ballPosition, float ballRadius) {
   DO_VALIDATION;
   const CapsuleCollider *volumes[3] = {&body.upperBody, &body.lowerBody,
                                        &body.head};
@@ -39,13 +39,13 @@ inline std::optional<BallContact> DetectPlayerBodyBallContact(
 // body parts but never inspects approach/separation or mutates state.
 inline std::optional<BallContact> SweepPlayerBodyBallContact(
     const PlayerBodyCollider &body,
-    const blunted::Vector3 &ballStart, const blunted::Vector3 &ballEnd,
-    const blunted::Vector3 &playerStart, const blunted::Vector3 &playerEnd,
+    const football_sim::math::Vector3 &ballStart, const football_sim::math::Vector3 &ballEnd,
+    const football_sim::math::Vector3 &playerStart, const football_sim::math::Vector3 &playerEnd,
     float ballRadius, float dt) {
   DO_VALIDATION;
-  const blunted::Vector3 relativeDelta =
+  const football_sim::math::Vector3 relativeDelta =
       (ballEnd - ballStart) - (playerEnd - playerStart);
-  const blunted::Vector3 relativeEnd = ballStart + relativeDelta;
+  const football_sim::math::Vector3 relativeEnd = ballStart + relativeDelta;
   const CapsuleCollider *volumes[3] = {&body.upperBody, &body.lowerBody,
                                        &body.head};
   std::optional<BallContact> earliest;
@@ -60,6 +60,6 @@ inline std::optional<BallContact> SweepPlayerBodyBallContact(
   return earliest;
 }
 
-}  // namespace football::contact
+}  // namespace football_sim::contact
 
 #endif  // _HPP_CORE_CONTACT_BALL_PLAYER_CONTACT

@@ -8,7 +8,7 @@
 #include "core/model/ball/ball.hpp"
 #include "core/model/player/player.hpp"
 
-namespace football::model {
+namespace football_sim {
 
 // Headless simulation authority. A copy of World is a complete prediction
 // branch: Ball and Player each copy their immutable attributes and current
@@ -33,6 +33,6 @@ class World {
   std::uint64_t tick_ = 0;
 };
 
-}  // namespace football::model
+}  // namespace football_sim
 
 #endif  // FOOTBALL_CORE_MODEL_WORLD_HPP

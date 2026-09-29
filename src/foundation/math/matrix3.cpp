@@ -19,7 +19,7 @@
 #include "matrix4.hpp"
 #include "vector3.hpp"
 
-namespace blunted {
+namespace football_sim::math {
 
   const Matrix3 Matrix3::ZERO(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
   const Matrix3 Matrix3::IDENTITY(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);

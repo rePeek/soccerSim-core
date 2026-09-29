@@ -12,25 +12,25 @@
 #include "core/contact/player_collider.hpp"
 #include "core/model/player/player.hpp"
 
-namespace football::contact {
+namespace football_sim::contact {
 
 inline std::optional<Contact> DetectPlayerContact(
-    const football::model::Player& a, const football::model::Player& b) {
+    const football_sim::Player& a, const football_sim::Player& b) {
   return DetectContact(BuildPlayerGroundCollider(a), BuildPlayerGroundCollider(b));
 }
 
 struct PlayerContactResolution {
-  blunted::Vector3 positionDeltaA = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Vector3 positionDeltaB = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Vector3 velocityDeltaA = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Vector3 velocityDeltaB = blunted::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 positionDeltaA = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 positionDeltaB = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 velocityDeltaA = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 velocityDeltaB = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
 };
 
 // Football players are non-bouncing dynamic bodies: solve positional overlap
 // and inward normal velocity only. Strength/balance remain gameplay inputs,
 // deliberately outside this base physical constraint.
 inline PlayerContactResolution ResolvePlayerContact(
-    const football::model::Player& a, const football::model::Player& b,
+    const football_sim::Player& a, const football_sim::Player& b,
     const Contact& contact) {
   assert(std::isfinite(a.Mass()) && a.Mass() > 0.0f);
   assert(std::isfinite(b.Mass()) && b.Mass() > 0.0f);
@@ -41,14 +41,14 @@ inline PlayerContactResolution ResolvePlayerContact(
   const float inverseMassSum = inverseMassA + inverseMassB;
   const float weightA = inverseMassA / inverseMassSum;
   const float weightB = inverseMassB / inverseMassSum;
-  const blunted::Vector3 normal = contact.normal.Get2D();
+  const football_sim::math::Vector3 normal = contact.normal.Get2D();
 
   result.positionDeltaA = normal * (-contact.penetration * weightA);
   result.positionDeltaB = normal * (contact.penetration * weightB);
   result.positionDeltaA.coords[2] = 0.0f;
   result.positionDeltaB.coords[2] = 0.0f;
 
-  const blunted::Vector3 relativeVelocity =
+  const football_sim::math::Vector3 relativeVelocity =
       b.Velocity().Get2D() - a.Velocity().Get2D();
   const float relativeNormal = relativeVelocity.GetDotProduct(normal);
   if (relativeNormal < 0.0f) {
@@ -62,10 +62,10 @@ inline PlayerContactResolution ResolvePlayerContact(
 }
 
 inline void ApplyPlayerContactResolution(
-    football::model::Player& a, football::model::Player& b,
+    football_sim::Player& a, football_sim::Player& b,
     const PlayerContactResolution& resolution) {
-  football::model::PlayerState nextA = a.State();
-  football::model::PlayerState nextB = b.State();
+  football_sim::PlayerState nextA = a.State();
+  football_sim::PlayerState nextB = b.State();
   nextA.position += resolution.positionDeltaA;
   nextB.position += resolution.positionDeltaB;
   nextA.velocity += resolution.velocityDeltaA;
@@ -81,7 +81,7 @@ struct PlayerContactSolverConfig {
 // Stable PlayerId, rather than vector position or pointer address, defines
 // deterministic Gauss-Seidel pair order.
 inline void ResolvePlayerContactBatch(
-    std::vector<std::reference_wrapper<football::model::Player>>& players,
+    std::vector<std::reference_wrapper<football_sim::Player>>& players,
     const PlayerContactSolverConfig& config = {}) {
   assert(config.iterations > 0);
   std::stable_sort(
@@ -94,8 +94,8 @@ inline void ResolvePlayerContactBatch(
   for (int iteration = 0; iteration < config.iterations; ++iteration) {
     for (std::size_t i = 0; i < players.size(); ++i) {
       for (std::size_t j = i + 1; j < players.size(); ++j) {
-        football::model::Player& a = players[i].get();
-        football::model::Player& b = players[j].get();
+        football_sim::Player& a = players[i].get();
+        football_sim::Player& b = players[j].get();
         const std::optional<Contact> contact = DetectPlayerContact(a, b);
         if (!contact) continue;
         const PlayerContactResolution resolution =
@@ -106,6 +106,6 @@ inline void ResolvePlayerContactBatch(
   }
 }
 
-}  // namespace football::contact
+}  // namespace football_sim::contact
 
 #endif  // FOOTBALL_CORE_CONTACT_PLAYER_CONTACT_HPP

@@ -29,7 +29,7 @@ void DoValidation(int line, const char* file);
   #define DO_VALIDATION ;
 #endif
 
-namespace blunted {
+namespace football_sim {
 
   enum e_LogType {
     e_Warning,

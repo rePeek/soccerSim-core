@@ -16,7 +16,7 @@ add_library(footballCore STATIC
   src/foundation/math/matrix3.cpp
   src/foundation/math/matrix4.cpp
   src/foundation/math/quaternion.cpp
-  src/foundation/math/bluntmath.cpp
+  src/foundation/math/math.cpp
   src/core/model/ball/ball.cpp
   src/core/model/player/player.cpp
   src/core/physics/physics_system.cpp

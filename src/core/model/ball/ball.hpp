@@ -4,17 +4,17 @@
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
 
-namespace football::model {
+namespace football_sim {
 
 // Dynamic simulation data for one ball. It deliberately lives beside Ball,
 // rather than in a separate state module: a Ball is immutable configuration
 // plus this mutable value.
 struct BallState {
-  blunted::Vector3 position = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Vector3 velocity = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Vector3 angularVelocity = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Quaternion orientation =
-      blunted::Quaternion(blunted::QUATERNION_IDENTITY);
+  football_sim::math::Vector3 position = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 velocity = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 angularVelocity = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Quaternion orientation =
+      football_sim::math::Quaternion(football_sim::math::QUATERNION_IDENTITY);
 };
 
 // Thin simulation model. Fixed physical attributes are set once at
@@ -32,11 +32,11 @@ class Ball {
   const BallState& State() const { return state_; }
   void SetState(const BallState& next) { state_ = next; }
 
-  const blunted::Vector3& Position() const { return state_.position; }
-  const blunted::Vector3& Velocity() const { return state_.velocity; }
+  const football_sim::math::Vector3& Position() const { return state_.position; }
+  const football_sim::math::Vector3& Velocity() const { return state_.velocity; }
   float Speed() const { return state_.velocity.GetLength(); }
 
-  void Reset(const blunted::Vector3& focusPosition);
+  void Reset(const football_sim::math::Vector3& focusPosition);
 
  private:
   const float radius_;
@@ -45,6 +45,6 @@ class Ball {
   BallState state_;
 };
 
-}  // namespace football::model
+}  // namespace football_sim
 
 #endif  // FOOTBALL_CORE_MODEL_BALL_HPP

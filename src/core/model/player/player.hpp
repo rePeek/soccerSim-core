@@ -6,7 +6,7 @@
 
 #include "foundation/math/vector3.hpp"
 
-namespace football::model {
+namespace football_sim {
 
 using PlayerId = std::uint32_t;
 inline constexpr PlayerId kInvalidPlayerId = std::numeric_limits<PlayerId>::max();
@@ -14,10 +14,10 @@ inline constexpr PlayerId kInvalidPlayerId = std::numeric_limits<PlayerId>::max(
 // Dynamic movement data. Identity and physical ability deliberately do not
 // live here: those are immutable player attributes.
 struct PlayerState {
-  blunted::Vector3 position = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Vector3 velocity = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Vector3 movementFacing = blunted::Vector3(0.0f, -1.0f, 0.0f);
-  blunted::Vector3 torsoFacing = blunted::Vector3(0.0f, -1.0f, 0.0f);
+  football_sim::math::Vector3 position = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 velocity = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 movementFacing = football_sim::math::Vector3(0.0f, -1.0f, 0.0f);
+  football_sim::math::Vector3 torsoFacing = football_sim::math::Vector3(0.0f, -1.0f, 0.0f);
 
   void Mirror() {
     position.Mirror();
@@ -26,10 +26,10 @@ struct PlayerState {
 };
 
 struct PlayerKinematicResult {
-  blunted::Vector3 position = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Vector3 velocity = blunted::Vector3(0.0f, 0.0f, 0.0f);
-  blunted::Vector3 movementFacing = blunted::Vector3(0.0f, -1.0f, 0.0f);
-  blunted::Vector3 torsoFacing = blunted::Vector3(0.0f, -1.0f, 0.0f);
+  football_sim::math::Vector3 position = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 velocity = football_sim::math::Vector3(0.0f, 0.0f, 0.0f);
+  football_sim::math::Vector3 movementFacing = football_sim::math::Vector3(0.0f, -1.0f, 0.0f);
+  football_sim::math::Vector3 torsoFacing = football_sim::math::Vector3(0.0f, -1.0f, 0.0f);
 };
 
 inline float Speed(const PlayerState& state) {
@@ -55,13 +55,13 @@ class Player {
   const PlayerState& State() const { return state_; }
   void SetState(const PlayerState& next) { state_ = next; }
 
-  const blunted::Vector3& Position() const { return state_.position; }
-  const blunted::Vector3& Velocity() const { return state_.velocity; }
-  const blunted::Vector3& MovementFacing() const {
+  const football_sim::math::Vector3& Position() const { return state_.position; }
+  const football_sim::math::Vector3& Velocity() const { return state_.velocity; }
+  const football_sim::math::Vector3& MovementFacing() const {
     return state_.movementFacing;
   }
-  const blunted::Vector3& TorsoFacing() const { return state_.torsoFacing; }
-  float Speed() const { return football::model::Speed(state_); }
+  const football_sim::math::Vector3& TorsoFacing() const { return state_.torsoFacing; }
+  float Speed() const { return football_sim::Speed(state_); }
 
  private:
   const PlayerId id_;
@@ -73,6 +73,6 @@ class Player {
   PlayerState state_;
 };
 
-}  // namespace football::model
+}  // namespace football_sim
 
 #endif  // FOOTBALL_CORE_MODEL_PLAYER_HPP

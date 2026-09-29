@@ -7,6 +7,8 @@
 
 #include "core/physics/player_movement.hpp"
 
+namespace football_sim::physics {
+
 // Single definitions for the reachability diagnostics. They live in the library
 // so that the engine and the regression tool share one counter; see the comment
 // in the header.
@@ -29,3 +31,5 @@ int &PlayerReachabilityReuses() {
   static int reuses = 0;
   return reuses;
 }
+
+}  // namespace football_sim::physics

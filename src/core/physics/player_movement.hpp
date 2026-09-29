@@ -7,17 +7,19 @@
 
 #include "base/log.hpp"
 #include "core/model/player/player.hpp"
-#include "foundation/math/bluntmath.hpp"
+#include "foundation/math/math.hpp"
+
+namespace football_sim::physics {
 
 // Pure evaluators below work on a local state; authoritative callers copy that
 // result into Player through SetState().
-using PlayerKinematicState = football::model::PlayerState;
+using PlayerKinematicState = football_sim::PlayerState;
 
 // Inputs are intentionally independent from PlayerCommand so that action
 // execution can later impose movement constraints without exposing Humanoid.
 struct PlayerKinematicInput {
-  blunted::Vector3 desiredVelocity = blunted::Vector3(0);
-  blunted::Vector3 desiredFacing = blunted::Vector3(0, -1, 0);
+  football_sim::math::Vector3 desiredVelocity = football_sim::math::Vector3(0);
+  football_sim::math::Vector3 desiredFacing = football_sim::math::Vector3(0, -1, 0);
 };
 
 struct PlayerKinematicParameters {
@@ -31,7 +33,7 @@ struct PlayerKinematicParameters {
 // Runtime locomotion uses PlayerLocomotion and PlayerBodyFacing below.
 class PlayerKinematics {
  public:
-  static void Step(football::model::Player& player,
+  static void Step(football_sim::Player& player,
                    const PlayerKinematicInput& input,
                    const PlayerKinematicParameters& parameters, float dt) {
     PlayerKinematicState next = player.State();
@@ -49,35 +51,35 @@ class PlayerKinematics {
     assert(parameters.braking >= 0.0f);
     assert(parameters.maxTurnRate >= 0.0f);
 
-    blunted::Vector3 desiredVelocity = input.desiredVelocity.Get2D();
+    football_sim::math::Vector3 desiredVelocity = input.desiredVelocity.Get2D();
     const float desiredSpeed = desiredVelocity.GetLength();
     if (desiredSpeed > parameters.maxSpeed) {
       desiredVelocity =
-          desiredVelocity.GetNormalized(blunted::Vector3(0)) *
+          desiredVelocity.GetNormalized(football_sim::math::Vector3(0)) *
           parameters.maxSpeed;
     }
 
-    const blunted::Vector3 velocityDelta = desiredVelocity - state.velocity;
+    const football_sim::math::Vector3 velocityDelta = desiredVelocity - state.velocity;
     const float changeLimit =
         (desiredVelocity.GetLength() < state.velocity.GetLength() ? parameters.braking
                                                   : parameters.acceleration) *
         dt;
     if (velocityDelta.GetLength() > changeLimit && changeLimit > 0.0f) {
-      state.velocity += velocityDelta.GetNormalized(blunted::Vector3(0)) *
+      state.velocity += velocityDelta.GetNormalized(football_sim::math::Vector3(0)) *
                         changeLimit;
     } else {
       state.velocity = desiredVelocity;
     }
     state.velocity.coords[2] = 0.0f;
 
-    const blunted::Vector3 currentFacing =
-        state.movementFacing.Get2D().GetNormalized(blunted::Vector3(0, -1, 0));
-    const blunted::Vector3 desiredFacing =
+    const football_sim::math::Vector3 currentFacing =
+        state.movementFacing.Get2D().GetNormalized(football_sim::math::Vector3(0, -1, 0));
+    const football_sim::math::Vector3 desiredFacing =
         input.desiredFacing.Get2D().GetNormalized(currentFacing);
     const float requestedTurn = desiredFacing.GetAngle2D(currentFacing);
     const float turnLimit = parameters.maxTurnRate * dt;
     const float appliedTurn =
-        blunted::clamp(requestedTurn, -turnLimit, turnLimit);
+        football_sim::math::clamp(requestedTurn, -turnLimit, turnLimit);
     state.movementFacing = currentFacing.GetRotated2D(appliedTurn).GetNormalized(
         currentFacing);
     state.movementFacing.coords[2] = 0.0f;
@@ -89,7 +91,7 @@ class PlayerKinematics {
 
 
 // ===== PlayerLocomotion: procedural locomotion kernel =====
-using namespace blunted;
+using namespace football_sim::math;
 
 // Simulation-owned procedural locomotion for pure Movement ticks.
 //
@@ -172,7 +174,7 @@ class PlayerLocomotion {
  public:
   // Moves one step of dt seconds. Planar only: the z coordinate of position,
   // velocity and facing is always forced back to 0.
-  static void Step(football::model::Player& player,
+  static void Step(football_sim::Player& player,
                    const PlayerLocomotionInput& input,
                    const PlayerLocomotionParameters& parameters, float dt) {
     PlayerKinematicState next = player.State();
@@ -606,7 +608,7 @@ class PlayerBodyFacing {
         locomotionFacing);
   }
 
-  static void Step(football::model::Player& player,
+  static void Step(football_sim::Player& player,
                    const PlayerBodyFacingInput& input,
                    const PlayerBodyFacingParameters& parameters, float dt) {
     PlayerKinematicState next = player.State();
@@ -643,4 +645,5 @@ class PlayerBodyFacing {
 };
 
 
+}  // namespace football_sim::physics
 #endif  // _HPP_CORE_PHYSICS_PLAYER_MOVEMENT

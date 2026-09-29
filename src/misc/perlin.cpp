@@ -23,7 +23,7 @@
 #include <cmath>
 
 #include "../base/log.hpp"
-#include "../base/math/bluntmath.hpp"
+#include "../base/math/math.hpp"
 
 using namespace blunted;
 

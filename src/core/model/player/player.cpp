@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-namespace football::model {
+namespace football_sim {
 
 Player::Player(PlayerId id, float height, float mass, float bodyRadius,
                float strength, float balance)
@@ -18,4 +18,4 @@ Player::Player(PlayerId id, float height, float mass, float bodyRadius,
   assert(bodyRadius_ > 0.0f);
 }
 
-}  // namespace football::model
+}  // namespace football_sim

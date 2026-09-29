@@ -6,6 +6,8 @@
 
 #include "core/model/ball/ball.hpp"
 
+namespace football_sim::physics {
+
 struct BallDynamicsParams {
   float gravity = -9.81f;
   float airDensity = 1.225f;
@@ -17,15 +19,15 @@ struct BallDynamicsParams {
 // Standard rigid-ball free-flight dynamics. The object remains thin: all
 // calculations are here and the completed state is committed through Ball.
 struct BallDynamics {
-  static void ApplyForces(football::model::Ball& ball, float dt,
+  static void ApplyForces(football_sim::Ball& ball, float dt,
                           const BallDynamicsParams& params = {}) {
     assert(dt > 0.0f);
     assert(ball.Mass() > 0.0f);
 
-    football::model::BallState next = ball.State();
+    football_sim::BallState next = ball.State();
     const float invMass = 1.0f / ball.Mass();
-    const float crossSection = blunted::pi * ball.Radius() * ball.Radius();
-    blunted::Vector3 acceleration(0.0f, 0.0f, params.gravity);
+    const float crossSection = football_sim::math::pi * ball.Radius() * ball.Radius();
+    football_sim::math::Vector3 acceleration(0.0f, 0.0f, params.gravity);
 
     const float speed = next.velocity.GetLength();
     if (speed > 0.0f) {
@@ -43,13 +45,13 @@ struct BallDynamics {
     ball.SetState(next);
   }
 
-  static void IntegrateOrientation(football::model::Ball& ball, float dt) {
-    football::model::BallState next = ball.State();
+  static void IntegrateOrientation(football_sim::Ball& ball, float dt) {
+    football_sim::BallState next = ball.State();
     const float omega = next.angularVelocity.GetLength();
     constexpr float kSpinEpsilon = 1e-6f;
     if (omega > kSpinEpsilon) {
-      const blunted::Vector3 axis = next.angularVelocity / omega;
-      blunted::Quaternion deltaRotation;
+      const football_sim::math::Vector3 axis = next.angularVelocity / omega;
+      football_sim::math::Quaternion deltaRotation;
       deltaRotation.SetAngleAxis(omega * dt, axis);
       next.orientation = deltaRotation * next.orientation;
       next.orientation.Normalize();
@@ -58,4 +60,5 @@ struct BallDynamics {
   }
 };
 
+}  // namespace football_sim::physics
 #endif  // FOOTBALL_CORE_PHYSICS_BALL_DYNAMICS_HPP

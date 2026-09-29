@@ -15,8 +15,8 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _hpp_bluntmath
-#define _hpp_bluntmath
+#ifndef _hpp_math
+#define _hpp_math
 
 #include <cmath>
 #include <limits>
@@ -26,7 +26,7 @@
 
 
 
-namespace blunted {
+namespace football_sim::math {
   typedef float real;
 
   real clamp(const real value, const real min, const real max);
@@ -92,5 +92,4 @@ namespace blunted {
 
   radian ModulateIntoRange(real min, real max, radian value);
 }
-
 #endif

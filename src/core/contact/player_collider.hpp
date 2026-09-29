@@ -4,16 +4,16 @@
 #include "core/contact/circle_collider.hpp"
 #include "core/model/player/player.hpp"
 
-namespace football::contact {
+namespace football_sim::contact {
 
 inline CircleCollider BuildPlayerGroundCollider(
-    const football::model::Player& player) {
+    const football_sim::Player& player) {
   CircleCollider collider;
   collider.center = player.Position().Get2D();
   collider.radius = player.BodyRadius();
   return collider;
 }
 
-}  // namespace football::contact
+}  // namespace football_sim::contact
 
 #endif  // FOOTBALL_CORE_CONTACT_PLAYER_COLLIDER_HPP

@@ -15,7 +15,7 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "bluntmath.hpp"
+#include "math.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -27,12 +27,12 @@ namespace {
 std::mt19937 deterministicRng(0);
 std::mt19937 nondeterministicRng(std::random_device{}());
 
-blunted::real DrawUnit(std::mt19937& engine) {
-  return std::uniform_real_distribution<blunted::real>(0.0f, 1.0f)(engine);
+football_sim::math::real DrawUnit(std::mt19937& engine) {
+  return std::uniform_real_distribution<football_sim::math::real>(0.0f, 1.0f)(engine);
 }
 }  // namespace
 
-namespace blunted {
+namespace football_sim::math {
 
   unsigned int fastrandseed = 0;
 

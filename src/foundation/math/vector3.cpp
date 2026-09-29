@@ -23,7 +23,7 @@
 
 #include "../../base/log.hpp"
 
-namespace blunted {
+namespace football_sim::math {
 
 Vector3::Vector3() {
   DO_VALIDATION;

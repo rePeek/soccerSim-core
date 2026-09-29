@@ -15,14 +15,14 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _hpp_bluntmath_matrix4
-#define _hpp_bluntmath_matrix4
+#ifndef _hpp_math_matrix4
+#define _hpp_math_matrix4
 
-#include "bluntmath.hpp"
+#include "math.hpp"
 #include "vector3.hpp"
 #include "quaternion.hpp"
 
-namespace blunted {
+namespace football_sim::math {
 
   static real MATRIX4_IDENTITY[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 

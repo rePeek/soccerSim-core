@@ -20,7 +20,7 @@
 
 #include <cmath>
 
-namespace blunted {
+namespace football_sim::math {
 
 Matrix4::Matrix4() {
   DO_VALIDATION;

@@ -3,7 +3,7 @@
 
 #include "foundation/math/vector3.hpp"
 
-namespace football::contact {
+namespace football_sim::contact {
 
 // Ball-centric contact fact (7G-7c). Same frozen semantics as Contact: the
 // normal points away from the colliding surface into the ball.
@@ -14,8 +14,8 @@ namespace football::contact {
 // -normal * radius -- so a detector that reports an obstacle-surface point
 // cannot silently corrupt the spin response.
 struct BallContact {
-  blunted::Vector3 point = blunted::Vector3(0);
-  blunted::Vector3 normal = blunted::Vector3(0, 0, 0);  // surface -> ball
+  football_sim::math::Vector3 point = football_sim::math::Vector3(0);
+  football_sim::math::Vector3 normal = football_sim::math::Vector3(0, 0, 0);  // surface -> ball
   float penetration = 0.0f;  // reserved; the impulse solve is velocity-based
 
   // Seconds from the beginning of the current physics step, in [0, dt].
@@ -30,6 +30,6 @@ struct ContactMaterial {
   float friction = 0.4f;      // Coulomb friction coefficient (NOT legacy 0.04)
 };
 
-}  // namespace football::contact
+}  // namespace football_sim::contact
 
 #endif  // _HPP_CORE_CONTACT_BALL_CONTACT

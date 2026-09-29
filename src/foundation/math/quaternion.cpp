@@ -19,7 +19,7 @@
 
 #include <cmath>
 
-#include "bluntmath.hpp"
+#include "math.hpp"
 #include "vector3.hpp"
 #include "matrix3.hpp"
 
@@ -29,7 +29,7 @@
 // lots of credit to the ogre3d crew!
 // http://www.ogre3d.org/
 
-namespace blunted {
+namespace football_sim::math {
 
 Quaternion::Quaternion(real x, real y, real z, real w) {
   DO_VALIDATION;

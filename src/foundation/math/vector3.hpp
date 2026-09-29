@@ -15,18 +15,18 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _hpp_bluntmath_vector3
-#define _hpp_bluntmath_vector3
+#ifndef _hpp_math_vector3
+#define _hpp_math_vector3
 
 #include <cmath>
 #include <iostream>
 
-#include "bluntmath.hpp"
+#include "math.hpp"
 #include "matrix3.hpp"
 #include "matrix4.hpp"
 #include "quaternion.hpp"
 
-namespace blunted {
+namespace football_sim::math {
 
   class Vector3;
 

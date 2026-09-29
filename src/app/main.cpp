@@ -14,15 +14,15 @@ namespace {
 
 constexpr float kTickSeconds = 0.01f;
 
-football::model::Ball ParseBall(const nlohmann::json& config) {
-  return football::model::Ball(
+football_sim::Ball ParseBall(const nlohmann::json& config) {
+  return football_sim::Ball(
       config.value("radius", 0.11f), config.value("mass", 0.43f),
       config.value("inertiaFactor", 2.0f / 3.0f));
 }
 
-std::vector<football::model::Player> ParsePlayers(
+std::vector<football_sim::Player> ParsePlayers(
     const nlohmann::json& config) {
-  std::vector<football::model::Player> players;
+  std::vector<football_sim::Player> players;
   if (!config.contains("players")) return players;
 
   const nlohmann::json& entries = config.at("players");
@@ -32,7 +32,7 @@ std::vector<football::model::Player> ParsePlayers(
   players.reserve(entries.size());
   for (const nlohmann::json& entry : entries) {
     players.emplace_back(
-        entry.at("id").get<football::model::PlayerId>(),
+        entry.at("id").get<football_sim::PlayerId>(),
         entry.value("height", 1.80f), entry.value("mass", 75.0f),
         entry.value("bodyRadius", 0.36f), entry.value("strength", 0.5f),
         entry.value("balance", 0.5f));
@@ -79,16 +79,16 @@ int main(int argc, char** argv) {
       throw std::runtime_error("profile JSON requires a 'ball' object");
     }
 
-    football::model::World world(ParseBall(config.at("ball")),
+    football_sim::World world(ParseBall(config.at("ball")),
                                  ParsePlayers(config));
-    PhysicsSystem physics;
+    football_sim::physics::PhysicsSystem physics;
     std::printf("footballSim: profile=%s, players=%zu, ticks=%d, dt=%.2f\n",
                 configPath.c_str(), world.Players().size(), ticks,
                 static_cast<double>(kTickSeconds));
     for (int tick = 0; tick < ticks; ++tick) {
       physics.Step(world, kTickSeconds);
       if (tick % 10 == 0) {
-        const football::model::BallState& state = world.GetBall().State();
+        const football_sim::BallState& state = world.GetBall().State();
         std::printf(
             "t=%6.3f ball=(%7.2f, %7.2f, %6.2f) v=(%6.2f, %6.2f, %6.2f)\n",
             static_cast<double>((tick + 1) * kTickSeconds),

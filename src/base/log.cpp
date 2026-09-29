@@ -30,7 +30,7 @@ std::string now() {
   return ctime(&tt);
 }
 
-namespace blunted {
+namespace football_sim {
 
 void Log(e_LogType logType, std::string className, std::string methodName,
          std::string message) {
