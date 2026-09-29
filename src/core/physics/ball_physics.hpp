@@ -10,6 +10,8 @@
 #include "core/contact/ball_contact.hpp"
 #include "core/contact/ball_contact_resolver.hpp"
 #include "core/contact/ball_ground_contact.hpp"
+#include "core/contact/capsule_collider.hpp"
+#include "core/contact/sphere_capsule_contact.hpp"
 #include "core/physics/ground_dynamics.hpp"
 
 
@@ -24,93 +26,39 @@ struct GoalGeometry {
   float postAbsorbInv = 0.8f;
 };
 
-// Post and crossbar contact (Phase 7E). Geometry-only, extracted verbatim
-// from the legacy CalculatePrediction; modifies position and velocity.
-inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& velocity,
-                          const football::domain::BallProfile& ball,
-                          const GoalGeometry& g) {
-  const float ballRadius = ball.radius;
-  const float postRadius = g.postRadius;
-
-  // Posts.
-  if (pos.coords[2] < g.goalHeight + ballRadius + postRadius &&
-      (pos.Get2D().GetAbsolute() -
-       blunted::Vector3(g.halfWidth, g.goalHalfWidth, 0))
-              .GetLength() < ballRadius + postRadius) {
-    blunted::Vector3 normal;
-    if (pos.coords[0] < 0) {
-      if (pos.coords[1] < 0) {
-        normal = (pos.Get2D() -
-                  blunted::Vector3(-g.halfWidth, -g.goalHalfWidth, 0))
-                     .GetNormalized(blunted::Vector3(1, 0, 0));
-        float nextPosZ = pos.coords[2];
-        pos = blunted::Vector3(-g.halfWidth, -g.goalHalfWidth, 0) +
-              normal * (postRadius + ballRadius);
-        pos.coords[2] = nextPosZ;
-      } else {
-        normal = (pos.Get2D() -
-                  blunted::Vector3(-g.halfWidth, g.goalHalfWidth, 0))
-                     .GetNormalized(blunted::Vector3(1, 0, 0));
-        float nextPosZ = pos.coords[2];
-        pos = blunted::Vector3(-g.halfWidth, g.goalHalfWidth, 0) +
-              normal * (postRadius + ballRadius);
-        pos.coords[2] = nextPosZ;
-      }
-    } else {
-      if (pos.coords[1] < 0) {
-        normal = (pos.Get2D() -
-                  blunted::Vector3(g.halfWidth, -g.goalHalfWidth, 0))
-                     .GetNormalized(blunted::Vector3(-1, 0, 0));
-        float nextPosZ = pos.coords[2];
-        pos = blunted::Vector3(g.halfWidth, -g.goalHalfWidth, 0) +
-              normal * (postRadius + ballRadius);
-        pos.coords[2] = nextPosZ;
-      } else {
-        normal = (pos.Get2D() -
-                  blunted::Vector3(g.halfWidth, g.goalHalfWidth, 0))
-                     .GetNormalized(blunted::Vector3(-1, 0, 0));
-        float nextPosZ = pos.coords[2];
-        pos = blunted::Vector3(g.halfWidth, g.goalHalfWidth, 0) +
-              normal * (postRadius + ballRadius);
-        pos.coords[2] = nextPosZ;
+// 7G-7e: woodwork contact is detector -> resolver, the same pipeline as the
+// ground. Posts are vertical capsules at the four goal-mouth corners and the
+// crossbar is a horizontal capsule along y at each end of the pitch.
+inline std::optional<football::contact::BallContact> DetectBallWoodworkContact(
+    const BallState &state, const football::domain::BallProfile &ball,
+    const GoalGeometry &g) {
+  const float postX[2] = {-g.halfWidth, g.halfWidth};
+  const float postY[2] = {-g.goalHalfWidth, g.goalHalfWidth};
+  for (float x : postX) {
+    for (float y : postY) {
+      football::contact::CapsuleCollider post;
+      post.tipA = blunted::Vector3(x, y, 0.0f);
+      post.tipB = blunted::Vector3(x, y, g.goalHeight);
+      post.radius = g.postRadius;
+      if (auto contact = football::contact::DetectSphereCapsuleContact(
+              state.position, ball.radius, post)) {
+        return contact;
       }
     }
-    velocity = (velocity.Get2D().GetNormalized(normal) + (normal * 1.1f))
-                   .GetNormalized() *
-                   velocity.Get2D().GetLength() * g.postAbsorbInv +
-               (blunted::Vector3(0, 0, 1) * velocity.coords[2]);
   }
 
-  // Crossbar.
-  blunted::Vector3 nextPosXZ = pos * blunted::Vector3(1, 0, 1);
-  if ((nextPosXZ.GetAbsolute() -
-       blunted::Vector3(g.halfWidth, 0, g.goalHeight))
-              .GetLength() < ballRadius + postRadius &&
-      std::fabs(pos.coords[1]) < g.goalHalfWidth + ballRadius + postRadius) {
-    blunted::Vector3 normal;
-    if (pos.coords[0] < 0) {
-      normal = (nextPosXZ -
-                blunted::Vector3(-g.halfWidth, 0, g.goalHeight))
-                   .GetNormalized(blunted::Vector3(0, 0, 1));
-      float nextPosY = pos.coords[1];
-      pos = blunted::Vector3(-g.halfWidth, 0, g.goalHeight) +
-            normal * (postRadius + ballRadius);
-      pos.coords[1] = nextPosY;
-    } else {
-      normal = (nextPosXZ -
-                blunted::Vector3(g.halfWidth, 0, g.goalHeight))
-                   .GetNormalized(blunted::Vector3(0, 0, -1));
-      float nextPosY = pos.coords[1];
-      pos = blunted::Vector3(g.halfWidth, 0, g.goalHeight) +
-            normal * (postRadius + ballRadius);
-      pos.coords[1] = nextPosY;
+  const float barX[2] = {-g.halfWidth, g.halfWidth};
+  for (float x : barX) {
+    football::contact::CapsuleCollider bar;
+    bar.tipA = blunted::Vector3(x, -g.goalHalfWidth, g.goalHeight);
+    bar.tipB = blunted::Vector3(x, g.goalHalfWidth, g.goalHeight);
+    bar.radius = g.postRadius;
+    if (auto contact = football::contact::DetectSphereCapsuleContact(
+            state.position, ball.radius, bar)) {
+      return contact;
     }
-    blunted::Vector3 velocityPredictXZ = velocity * blunted::Vector3(1, 0, 1);
-    velocity = (velocityPredictXZ.GetNormalized(normal) + (normal * 1.1f))
-                   .GetNormalized() *
-                   velocityPredictXZ.GetLength() * g.postAbsorbInv +
-               (blunted::Vector3(0, 1, 0) * velocity.coords[1]);
   }
+  return std::nullopt;
 }
 
 // Single-step ball integration: BallDynamics (free flight) -> ground impact
@@ -140,9 +88,16 @@ struct BallPhysics {
       next.position += groundContact->normal * groundContact->penetration;
     }
 
-    // Woodwork contact (post / crossbar), legacy geometry (7G-7e replaces).
+    // Woodwork contact (7G-7e): detector -> impulse resolver -> positional
+    // correction, the same pipeline as the ground.
     if (apply_woodwork) {
-      ApplyWoodwork(next.position, next.velocity, ball, goal);
+      if (const auto woodworkContact =
+              DetectBallWoodworkContact(next, ball, goal)) {
+        football::contact::ContactMaterial material;
+        football::contact::BallContactResolver::Resolve(next, ball, *woodworkContact,
+                                                         material);
+        next.position += woodworkContact->normal * woodworkContact->penetration;
+      }
     }
 
     // Ground persistent dynamics (7G-7d-c): sliding -> rolling -> rest.

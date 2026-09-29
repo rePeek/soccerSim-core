@@ -143,6 +143,45 @@ void CheckGroundDynamics() {
   }
 }
 
+void CheckBallWoodwork() {
+  using football::contact::CapsuleCollider;
+  using football::contact::DetectSphereCapsuleContact;
+
+  // Sphere-capsule contact geometry.
+  {
+    CapsuleCollider capsule;
+    capsule.tipA = Vector3(0.0f, 0.0f, 0.0f);
+    capsule.tipB = Vector3(0.0f, 0.0f, 2.5f);
+    capsule.radius = 0.07f;
+
+    auto c = DetectSphereCapsuleContact(Vector3(1.0f, 0.0f, 0.0f), 0.11f, capsule);
+    Require(!c.has_value(), "sphere-capsule: separated");
+
+    c = DetectSphereCapsuleContact(Vector3(0.18f, 0.0f, 0.0f), 0.11f, capsule);
+    Require(c.has_value(), "sphere-capsule: touching");
+    RequireNear(c->penetration, 0.0f, "sphere-capsule: touching penetration");
+    RequireNear(c->normal.coords[0], 1.0f, "sphere-capsule: normal x");
+    RequireNear(c->point.coords[0], 0.07f, "sphere-capsule: point on surface");
+
+    c = DetectSphereCapsuleContact(Vector3(0.10f, 0.0f, 0.0f), 0.11f, capsule);
+    Require(c.has_value(), "sphere-capsule: overlap");
+    RequireNear(c->penetration, 0.18f - 0.10f, "sphere-capsule: overlap penetration");
+  }
+
+  // Woodwork detector: a ball just outside a post reports a contact.
+  {
+    GoalGeometry goal;
+    football::domain::BallProfile ball;
+    BallState state;
+    state.position =
+        Vector3(goal.halfWidth + 0.10f, goal.goalHalfWidth, 0.5f);
+    const auto c = DetectBallWoodworkContact(state, ball, goal);
+    Require(c.has_value(), "woodwork: post contact");
+    RequireNear(c->normal.coords[0], 1.0f, "woodwork: post normal points +x");
+    Require(c->penetration > 0.0f, "woodwork: post penetration");
+  }
+}
+
 void CheckBallDynamics() {
   football::domain::BallProfile ball;  // radius 0.11, mass 0.43
   BallDynamicsParams params;
@@ -4794,6 +4833,7 @@ int main(int argc, char** argv) {
     CheckBallProfileBoundary();
     CheckBallGroundImpact();
     CheckGroundDynamics();
+    CheckBallWoodwork();
     CheckBallDynamics();
     CheckBallSpinConvention();
     CheckBallContactResolver();
