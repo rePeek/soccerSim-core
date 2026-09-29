@@ -1,167 +1,106 @@
-#ifndef _HPP_CORE_CONTACT_PLAYER_CONTACT
-#define _HPP_CORE_CONTACT_PLAYER_CONTACT
+#ifndef FOOTBALL_CORE_CONTACT_PLAYER_CONTACT_HPP
+#define FOOTBALL_CORE_CONTACT_PLAYER_CONTACT_HPP
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <functional>
 #include <optional>
 #include <vector>
 
 #include "core/contact/circle_contact.hpp"
 #include "core/contact/player_collider.hpp"
-#include "core/model/player/player_profile.hpp"
 #include "core/model/player/player.hpp"
 
 namespace football::contact {
 
-// 7G-2: player-player contact detector adapter.
-//
-// PlayerProfile + PlayerState -> BuildPlayerGroundCollider -> DetectContact.
-// This is a pure core API: it knows nothing about PlayerBase, Match,
-// possession, the referee, or GetStat(). Radius comes from the profile and the
-// center from the state, both of which are simulation-owned.
 inline std::optional<Contact> DetectPlayerContact(
-    const football::model::PlayerProfile &a_profile,
-    const PlayerState &a_state,
-    const football::model::PlayerProfile &b_profile,
-    const PlayerState &b_state) {
-  DO_VALIDATION;
-  return DetectContact(BuildPlayerGroundCollider(a_profile, a_state),
-                       BuildPlayerGroundCollider(b_profile, b_state));
+    const football::model::Player& a, const football::model::Player& b) {
+  return DetectContact(BuildPlayerGroundCollider(a), BuildPlayerGroundCollider(b));
 }
 
-// 7G-3: the resolver returns a *result*, it does not mutate state.
-//
-//   State + Profile + Contact
-//            |
-//          Resolver
-//            |
-//       Resolution Result
-//
-// Callers decide when to commit (ApplyPlayerContactResolution or the batch
-// solver below). This keeps detector ("what happened geometrically") separate
-// from resolver ("how physical state responds").
 struct PlayerContactResolution {
-  blunted::Vector3 positionDeltaA = blunted::Vector3(0);
-  blunted::Vector3 positionDeltaB = blunted::Vector3(0);
-
-  blunted::Vector3 velocityDeltaA = blunted::Vector3(0);
-  blunted::Vector3 velocityDeltaB = blunted::Vector3(0);
+  blunted::Vector3 positionDeltaA = blunted::Vector3(0.0f, 0.0f, 0.0f);
+  blunted::Vector3 positionDeltaB = blunted::Vector3(0.0f, 0.0f, 0.0f);
+  blunted::Vector3 velocityDeltaA = blunted::Vector3(0.0f, 0.0f, 0.0f);
+  blunted::Vector3 velocityDeltaB = blunted::Vector3(0.0f, 0.0f, 0.0f);
 };
 
-// 7G-4: first player-player constraint solver.
-//
-// It solves exactly two things, nothing more:
-//   1. positional separation, distributed by inverse mass;
-//   2. the inward normal velocity constraint (restitution == 0).
-//
-// Football players are not billiard balls: there is no bounce. `mass` drives
-// the physical response; `strength` and `balance` are gameplay responses and
-// are deliberately absent from this base solver.
+// Football players are non-bouncing dynamic bodies: solve positional overlap
+// and inward normal velocity only. Strength/balance remain gameplay inputs,
+// deliberately outside this base physical constraint.
 inline PlayerContactResolution ResolvePlayerContact(
-    const football::model::PlayerProfile &a_profile,
-    const PlayerState &a_state,
-    const football::model::PlayerProfile &b_profile,
-    const PlayerState &b_state, const Contact &contact) {
-  DO_VALIDATION;
+    const football::model::Player& a, const football::model::Player& b,
+    const Contact& contact) {
+  assert(std::isfinite(a.Mass()) && a.Mass() > 0.0f);
+  assert(std::isfinite(b.Mass()) && b.Mass() > 0.0f);
+
   PlayerContactResolution result;
-
-  // Dynamic bodies only. mass == 0 must not silently mean "infinite mass";
-  // a future kinematic/static body should carry inverseMass = 0 explicitly.
-  assert(std::isfinite(a_profile.physical.mass) && a_profile.physical.mass > 0.0f);
-  assert(std::isfinite(b_profile.physical.mass) && b_profile.physical.mass > 0.0f);
-  const float invA = 1.0f / a_profile.physical.mass;
-  const float invB = 1.0f / b_profile.physical.mass;
-  const float invSum = invA + invB;
-
-  const float wA = invA / invSum;
-  const float wB = invB / invSum;
+  const float inverseMassA = 1.0f / a.Mass();
+  const float inverseMassB = 1.0f / b.Mass();
+  const float inverseMassSum = inverseMassA + inverseMassB;
+  const float weightA = inverseMassA / inverseMassSum;
+  const float weightB = inverseMassB / inverseMassSum;
   const blunted::Vector3 normal = contact.normal.Get2D();
 
-  // Positional separation. A moves along -normal, B along +normal, each by its
-  // inverse-mass share of the penetration.
-  const float separation = contact.penetration;
-  result.positionDeltaA = normal * (-separation * wA);
-  result.positionDeltaB = normal * (separation * wB);
+  result.positionDeltaA = normal * (-contact.penetration * weightA);
+  result.positionDeltaB = normal * (contact.penetration * weightB);
   result.positionDeltaA.coords[2] = 0.0f;
   result.positionDeltaB.coords[2] = 0.0f;
 
-  // Inward normal velocity constraint. If the bodies are still approaching
-  // along the contact normal, remove exactly that approach velocity (e == 0).
-  const blunted::Vector3 relative =
-      b_state.velocity.Get2D() - a_state.velocity.Get2D();
-  const float relativeNormal = relative.GetDotProduct(normal);
+  const blunted::Vector3 relativeVelocity =
+      b.Velocity().Get2D() - a.Velocity().Get2D();
+  const float relativeNormal = relativeVelocity.GetDotProduct(normal);
   if (relativeNormal < 0.0f) {
-    const float impulse = -relativeNormal / invSum;  // restitution == 0
-    result.velocityDeltaA = normal * (-impulse * invA);
-    result.velocityDeltaB = normal * (impulse * invB);
+    const float impulse = -relativeNormal / inverseMassSum;
+    result.velocityDeltaA = normal * (-impulse * inverseMassA);
+    result.velocityDeltaB = normal * (impulse * inverseMassB);
     result.velocityDeltaA.coords[2] = 0.0f;
     result.velocityDeltaB.coords[2] = 0.0f;
   }
   return result;
 }
 
-inline void ApplyPlayerContactResolution(PlayerState &a_state, PlayerState &b_state,
-                                         const PlayerContactResolution &resolution) {
-  DO_VALIDATION;
-  a_state.position += resolution.positionDeltaA;
-  b_state.position += resolution.positionDeltaB;
-  a_state.velocity += resolution.velocityDeltaA;
-  b_state.velocity += resolution.velocityDeltaB;
+inline void ApplyPlayerContactResolution(
+    football::model::Player& a, football::model::Player& b,
+    const PlayerContactResolution& resolution) {
+  football::model::PlayerState nextA = a.State();
+  football::model::PlayerState nextB = b.State();
+  nextA.position += resolution.positionDeltaA;
+  nextB.position += resolution.positionDeltaB;
+  nextA.velocity += resolution.velocityDeltaA;
+  nextB.velocity += resolution.velocityDeltaB;
+  a.SetState(nextA);
+  b.SetState(nextB);
 }
 
-// 7G-6: a predicted batch of player states resolved together.
-//
-// The body holds a caller-provided stable index plus a snapshot of the
-// profile/state pair. The solver:
-//   1. sorts bodies by `index` (never by pointer address), so Replay,
-//      training and regression stay bit-exact;
-//   2. sweeps all unordered pairs in that order, detect -> resolve -> apply,
-//      for a fixed number of iterations (Gauss-Seidel style).
-//
-// 22 players is 231 pairs; a brute-force broad phase is more than enough for
-// the first version, so there is no spatial hash.
-struct PlayerContactBody {
-  int index = -1;  // caller-provided stable ordering key
-  football::model::PlayerProfile profile;
-  PlayerState state;
-};
-
 struct PlayerContactSolverConfig {
-  int iterations = 8;  // fixed, deterministic sweep count
+  int iterations = 8;
 };
 
+// Stable PlayerId, rather than vector position or pointer address, defines
+// deterministic Gauss-Seidel pair order.
 inline void ResolvePlayerContactBatch(
-    std::vector<PlayerContactBody> &bodies,
-    const PlayerContactSolverConfig &config = PlayerContactSolverConfig{}) {
-  DO_VALIDATION;
+    std::vector<std::reference_wrapper<football::model::Player>>& players,
+    const PlayerContactSolverConfig& config = {}) {
   assert(config.iterations > 0);
-  // Stable indices are a solver precondition, not a regression oracle: a
-  // forgotten or duplicated index silently makes Gauss-Seidel order depend on
-  // the caller's vector layout, which would break Replay/dataset/self-play.
-  for (const PlayerContactBody &body : bodies) assert(body.index >= 0);
-
-  std::stable_sort(bodies.begin(), bodies.end(),
-                   [](const PlayerContactBody &x, const PlayerContactBody &y) {
-                     return x.index < y.index;
-                   });
-
-  for (std::size_t i = 1; i < bodies.size(); ++i) {
-    assert(bodies[i - 1].index != bodies[i].index);
+  std::stable_sort(
+      players.begin(), players.end(),
+      [](const auto& left, const auto& right) { return left.get().Id() < right.get().Id(); });
+  for (std::size_t i = 1; i < players.size(); ++i) {
+    assert(players[i - 1].get().Id() != players[i].get().Id());
   }
-  const int count = static_cast<int>(bodies.size());
+
   for (int iteration = 0; iteration < config.iterations; ++iteration) {
-    DO_VALIDATION;
-    for (int i = 0; i < count; ++i) {
-      for (int j = i + 1; j < count; ++j) {
-        const std::optional<Contact> contact =
-            DetectContact(BuildPlayerGroundCollider(bodies[i].profile, bodies[i].state),
-                          BuildPlayerGroundCollider(bodies[j].profile, bodies[j].state));
+    for (std::size_t i = 0; i < players.size(); ++i) {
+      for (std::size_t j = i + 1; j < players.size(); ++j) {
+        football::model::Player& a = players[i].get();
+        football::model::Player& b = players[j].get();
+        const std::optional<Contact> contact = DetectPlayerContact(a, b);
         if (!contact) continue;
         const PlayerContactResolution resolution =
-            ResolvePlayerContact(bodies[i].profile, bodies[i].state,
-                                 bodies[j].profile, bodies[j].state, *contact);
-        ApplyPlayerContactResolution(bodies[i].state, bodies[j].state, resolution);
+            ResolvePlayerContact(a, b, *contact);
+        ApplyPlayerContactResolution(a, b, resolution);
       }
     }
   }
@@ -169,4 +108,4 @@ inline void ResolvePlayerContactBatch(
 
 }  // namespace football::contact
 
-#endif  // _HPP_CORE_CONTACT_PLAYER_CONTACT
+#endif  // FOOTBALL_CORE_CONTACT_PLAYER_CONTACT_HPP

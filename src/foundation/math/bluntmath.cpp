@@ -17,9 +17,20 @@
 
 #include "bluntmath.hpp"
 
+#include <cassert>
 #include <cmath>
+#include <random>
 
-#include "../../main.hpp"
+#include "base/log.hpp"
+
+namespace {
+std::mt19937 deterministicRng(0);
+std::mt19937 nondeterministicRng(std::random_device{}());
+
+blunted::real DrawUnit(std::mt19937& engine) {
+  return std::uniform_real_distribution<blunted::real>(0.0f, 1.0f)(engine);
+}
+}  // namespace
 
 namespace blunted {
 
@@ -64,29 +75,20 @@ namespace blunted {
   }
 
   void randomseed(unsigned int seed) {
-    DO_VALIDATION;
-    GetContext().rng.engine().seed(seed);
-    GetContext().rng_non_deterministic.engine().seed(seed);
+    deterministicRng.seed(seed);
+    nondeterministicRng.seed(seed);
   }
 
   inline real boostrandom() {
-    DO_VALIDATION;
-    GetContext().rng_draw_count++;
-    return GetContext().rng();
+    return DrawUnit(deterministicRng);
   }
 
   real boostrandom(real min, real max) {
-    DO_VALIDATION;
-    float stretch = max - min;
-    real value = min + (boostrandom() * stretch);
-    return value;
+    return min + boostrandom() * (max - min);
   }
 
   real random_non_determ(real min, real max) {
-    DO_VALIDATION;
-    float stretch = max - min;
-    real value = min + (GetContext().rng_non_deterministic() * stretch);
-    return value;
+    return min + DrawUnit(nondeterministicRng) * (max - min);
   }
 
   radian ModulateIntoRange(real min, real max, radian value) {

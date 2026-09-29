@@ -1,89 +1,61 @@
 cmake_minimum_required(VERSION 3.24)
 
-set(OUTPUT_LIB_NAME game)
-project(gameplayfootball LANGUAGES CXX)
-include(CTest)  # defines BUILD_TESTING
+project(football LANGUAGES CXX)
 
-set(PACKAGE gameplayfootball)
+include(CTest)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake)
 
-include(sources.cmake)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-function(football_configure_target tgt)
-  target_include_directories(${tgt} PUBLIC
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_SOURCE_DIR}/src/cmake)
-  target_compile_features(${tgt} PUBLIC cxx_std_23)
-endfunction()
+add_library(footballCore STATIC
+  src/base/log.cpp
+  src/cmake/backtrace.cpp
+  src/foundation/math/vector3.cpp
+  src/foundation/math/matrix3.cpp
+  src/foundation/math/matrix4.cpp
+  src/foundation/math/quaternion.cpp
+  src/foundation/math/bluntmath.cpp
+  src/core/model/ball/ball.cpp
+  src/core/model/player/player.cpp
+  src/core/physics/physics_system.cpp
+  src/core/physics/player_movement.cpp
+)
+target_include_directories(footballCore PUBLIC
+  ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_SOURCE_DIR}/src/cmake
+)
+target_compile_features(footballCore PUBLIC cxx_std_23)
 
-# --- object libraries: one translation unit at a time -----------------------
-add_library(football_base OBJECT
-  ${BASE_SOURCES} ${BASE_HEADERS} ${BASE_GEOMETRY_HEADERS} ${BASE_MATH_HEADERS})
-add_library(football_types OBJECT ${TYPES_SOURCES} ${TYPES_HEADERS})
-add_library(football_utils OBJECT
-  ${UTILS_SOURCES} ${UTILS_HEADERS} ${UTILS_EXT_HEADERS})
+# JSON is an application concern: footballCore remains dependency-free.
+CPMAddPackage(
+  NAME nlohmann_json
+  GITHUB_REPOSITORY nlohmann/json
+  GIT_TAG v3.11.3
+  OPTIONS "JSON_BuildTests OFF"
+)
 
-# --- static libraries -------------------------------------------------------
-# football_foundation bundles base/types/utils behind one archive boundary,
-# mirroring the historical blunted2 aggregation without changing which
-# translation units land in the final shared library.
-add_library(football_foundation STATIC
-  ${BLUNTED_CORE_SOURCES} ${BLUNTED_CORE_HEADERS}
-  $<TARGET_OBJECTS:football_base>
-  $<TARGET_OBJECTS:football_types>
-  $<TARGET_OBJECTS:football_utils>)
-add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
-add_library(football_data STATIC ${DATA_SOURCES} ${DATA_HEADERS})
-
-# --- engine object layer + the shared library -------------------------------
-add_library(football_engine OBJECT
-  ${CORE_SOURCES} ${CORE_HEADERS}
-  src/game_env.cpp src/game_env.hpp
-  src/ai/ai_keyboard.cpp src/ai/ai_keyboard.hpp)
-
-add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
-# Order matters: static archives are scanned once, left to right, so the
-# leaf libraries that provide symbols (football_foundation) must come after
-# the libraries that consume them (football_sim, football_data).
-target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE
-  football_sim football_data football_foundation)
-
-foreach(tgt IN ITEMS
-    football_base football_types football_utils
-    football_foundation football_sim football_data
-    football_engine ${OUTPUT_LIB_NAME})
-  football_configure_target(${tgt})
-endforeach()
-
-# --- headless simulation executable ------------------------------------------
 add_executable(footballSim src/app/main.cpp)
-target_link_libraries(footballSim PRIVATE ${OUTPUT_LIB_NAME})
-football_configure_target(footballSim)
-
-# --- tests ------------------------------------------------------------------
-add_executable(football_smoke tools/football_smoke.cpp)
-target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
-football_configure_target(football_smoke)
+target_link_libraries(footballSim PRIVATE
+  footballCore
+  nlohmann_json::nlohmann_json
+)
+target_compile_features(footballSim PRIVATE cxx_std_23)
 
 if(BUILD_TESTING)
-  add_executable(football_regression tools/football_regression.cpp)
-  target_link_libraries(football_regression PRIVATE ${OUTPUT_LIB_NAME})
-  football_configure_target(football_regression)
+  CPMAddPackage(
+    NAME Catch2
+    GITHUB_REPOSITORY catchorg/Catch2
+    GIT_TAG v3.7.1
+    OPTIONS "CATCH_BUILD_TESTING OFF" "CATCH_INSTALL_DOCS OFF"
+  )
 
-  add_test(NAME football_regression COMMAND football_regression)
-  set_tests_properties(football_regression PROPERTIES
-    ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
-  add_test(NAME football_animation_ab COMMAND football_regression --animation-ab)
-  set_tests_properties(football_animation_ab PROPERTIES
-    ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
-  add_test(NAME football_animation_ab_lifecycle
-    COMMAND football_regression --animation-ab-lifecycle)
-  set_tests_properties(football_animation_ab_lifecycle PROPERTIES
-    ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
+  add_executable(footballCoreTests tests/football_core_tests.cpp)
+  target_link_libraries(footballCoreTests PRIVATE footballCore Catch2::Catch2WithMain)
+  target_compile_features(footballCoreTests PRIVATE cxx_std_23)
+  add_test(NAME footballCoreTests COMMAND footballCoreTests)
 endif()
 
-# Keep the completed headless boundary from growing back through a convenient
-# include or an accidental link dependency (graphics and Boost are both
-# rejected by this guard).
-add_test(NAME football_headless_core_guard
-  COMMAND ${CMAKE_SOURCE_DIR}/tools/football_headless_core_guard.sh
-    $<TARGET_FILE:${OUTPUT_LIB_NAME}> ${CMAKE_SOURCE_DIR}/src)
+# The legacy onthepitch / engine / graphics sources remain in the repository
+# for reference, but are deliberately absent from this headless build.

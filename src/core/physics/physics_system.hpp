@@ -1,18 +1,24 @@
-#ifndef _HPP_CORE_PHYSICS_PHYSICS_SYSTEM
-#define _HPP_CORE_PHYSICS_PHYSICS_SYSTEM
+#ifndef FOOTBALL_CORE_PHYSICS_PHYSICS_SYSTEM_HPP
+#define FOOTBALL_CORE_PHYSICS_PHYSICS_SYSTEM_HPP
 
-struct WorldState;
+#include <vector>
 
-// Deterministic simulation system: advances the authoritative WorldState by
-// one tick. No ownership, no hidden mutable state, and no reads of global
-// Match/GameEnv/singletons.
-//
-// Phase 7A: empty shell. It does not run yet — World::Step still forwards to
-// the legacy GameTask. The shell only fixes the dependency direction:
-// core/state <- core/physics <- core/world.
+#include "core/model/world.hpp"
+#include "core/physics/ball_physics.hpp"
+
+// Deterministic headless tick orchestrator. World owns every mutable model;
+// PhysicsSystem owns no simulation state and receives only tick-local contact
+// candidates captured by the caller.
 class PhysicsSystem {
-public:
-  void Step(WorldState& state, float dt);
+ public:
+  explicit PhysicsSystem(GoalGeometry goal = {}) : goal_(goal) {}
+
+  BallPhysicsStepResult Step(
+      football::model::World& world, float dt,
+      const std::vector<PlayerBodyCandidate>& playerBodies = {});
+
+ private:
+  GoalGeometry goal_;
 };
 
-#endif  // _HPP_CORE_PHYSICS_PHYSICS_SYSTEM
+#endif  // FOOTBALL_CORE_PHYSICS_PHYSICS_SYSTEM_HPP

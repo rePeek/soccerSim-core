@@ -1,12 +1,17 @@
 #ifndef _HPP_CORE_PHYSICS_PLAYER_MOVEMENT
 #define _HPP_CORE_PHYSICS_PLAYER_MOVEMENT
 
+#include <algorithm>
+#include <cassert>
 #include <cmath>
-#include "../../defines.hpp"
-#include "core/model/player/player.hpp"
 
-// ===== PlayerKinematics: state alias + simple kinematic model =====
-using PlayerKinematicState = PlayerState;
+#include "base/log.hpp"
+#include "core/model/player/player.hpp"
+#include "foundation/math/bluntmath.hpp"
+
+// Pure evaluators below work on a local state; authoritative callers copy that
+// result into Player through SetState().
+using PlayerKinematicState = football::model::PlayerState;
 
 // Inputs are intentionally independent from PlayerCommand so that action
 // execution can later impose movement constraints without exposing Humanoid.
@@ -26,6 +31,14 @@ struct PlayerKinematicParameters {
 // Runtime locomotion uses PlayerLocomotion and PlayerBodyFacing below.
 class PlayerKinematics {
  public:
+  static void Step(football::model::Player& player,
+                   const PlayerKinematicInput& input,
+                   const PlayerKinematicParameters& parameters, float dt) {
+    PlayerKinematicState next = player.State();
+    Step(next, input, parameters, dt);
+    player.SetState(next);
+  }
+
   static void Step(PlayerKinematicState &state,
                    const PlayerKinematicInput &input,
                    const PlayerKinematicParameters &parameters, float dt) {
@@ -159,6 +172,14 @@ class PlayerLocomotion {
  public:
   // Moves one step of dt seconds. Planar only: the z coordinate of position,
   // velocity and facing is always forced back to 0.
+  static void Step(football::model::Player& player,
+                   const PlayerLocomotionInput& input,
+                   const PlayerLocomotionParameters& parameters, float dt) {
+    PlayerKinematicState next = player.State();
+    Step(next, input, parameters, dt);
+    player.SetState(next);
+  }
+
   static void Step(PlayerKinematicState &state,
                    const PlayerLocomotionInput &input,
                    const PlayerLocomotionParameters &parameters, float dt) {
@@ -583,6 +604,14 @@ class PlayerBodyFacing {
                                         parameters.maxRelativeAngle);
     return locomotionFacing.GetRotated2D(allowedRelative).GetNormalized(
         locomotionFacing);
+  }
+
+  static void Step(football::model::Player& player,
+                   const PlayerBodyFacingInput& input,
+                   const PlayerBodyFacingParameters& parameters, float dt) {
+    PlayerKinematicState next = player.State();
+    Step(next, input, parameters, dt);
+    player.SetState(next);
   }
 
   // Advance one planar torso-orientation step. Turn rate is a hard state

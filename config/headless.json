@@ -1,0 +1,17 @@
+{
+  "ball": {
+    "radius": 0.11,
+    "mass": 0.43,
+    "inertiaFactor": 0.6666667
+  },
+  "players": [
+    {
+      "id": 0,
+      "height": 1.80,
+      "mass": 75.0,
+      "bodyRadius": 0.36,
+      "strength": 0.5,
+      "balance": 0.5
+    }
+  ]
+}

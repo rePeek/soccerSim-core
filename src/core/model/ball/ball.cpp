@@ -1,26 +1,22 @@
 #include "ball.hpp"
 
+#include <cassert>
+
 namespace football::model {
 
-Ball::Ball(const BallProfile& profile, BallState& state)
-    : profile_(profile), state_(state) {}
-
-void Ball::SetRotation(blunted::real x, blunted::real y, blunted::real z,
-                       float bias) {
-  // Legacy axis convention: x is the forward-roll axis and maps to spin around
-  // -X, while y and z map to +Y/+Z. Preserved so topspin/backspin keep their
-  // direction after the Quaternion -> Vector3 angularVelocity migration.
-  const blunted::Vector3 target(-x, y, z);
-  state_.angularVelocity =
-      state_.angularVelocity * (1.0f - bias) + target * bias;
+Ball::Ball(float radius, float mass, float inertiaFactor)
+    : radius_(radius), mass_(mass), inertiaFactor_(inertiaFactor) {
+  assert(radius_ > 0.0f);
+  assert(mass_ > 0.0f);
+  assert(inertiaFactor_ > 0.0f);
+  Reset(blunted::Vector3(0.0f, 0.0f, 0.0f));
 }
 
-void Ball::Reset(const blunted::Vector3& focusPos) {
-  state_.velocity = blunted::Vector3(0);
-  state_.angularVelocity = blunted::Vector3(0);
-  state_.position =
-      blunted::Vector3(focusPos + blunted::Vector3(0, 0, profile_.radius));
-  state_.orientation = blunted::Quaternion(blunted::QUATERNION_IDENTITY);
+void Ball::Reset(const blunted::Vector3& focusPosition) {
+  BallState next;
+  next.position = focusPosition + blunted::Vector3(0.0f, 0.0f, radius_);
+  next.orientation = blunted::Quaternion(blunted::QUATERNION_IDENTITY);
+  SetState(next);
 }
 
 }  // namespace football::model

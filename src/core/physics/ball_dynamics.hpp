@@ -1,86 +1,61 @@
-#ifndef _HPP_CORE_PHYSICS_BALL_DYNAMICS
-#define _HPP_CORE_PHYSICS_BALL_DYNAMICS
+#ifndef FOOTBALL_CORE_PHYSICS_BALL_DYNAMICS_HPP
+#define FOOTBALL_CORE_PHYSICS_BALL_DYNAMICS_HPP
 
 #include <cassert>
 #include <cmath>
 
 #include "core/model/ball/ball.hpp"
-#include "core/model/ball/ball_profile.hpp"
 
-// 7G-7b: standard rigid-ball free-flight dynamics, re-implemented from the
-// standard equations rather than the legacy magic-number swerve:
-//
-//   gravity      a = (0, 0, g)
-//   drag         a = -0.5 rho Cd A |v| v / m
-//   Magnus       a =  0.5 rho Cl A r (w x v) / m
-//   spin damping w -= w * k * dt            (empirical exponential decay)
-//
-// Semi-implicit Euler is used for velocity/angular-velocity and orientation;
-// position integration stays in BallPhysics::Step so contact response can
-// still clamp/reflect the position before it is committed.
-//
-// These are textbook equations (Reynolds drag, Kutta-Joukowski Magnus),
-// reimplemented from the standard formulas, not ported from any external
-// codebase. All coefficients below are physics-model knobs, not verified
-// football constants.
 struct BallDynamicsParams {
-  float gravity = -9.81f;         // m/s^2
-  float airDensity = 1.225f;      // kg/m^3
-  float dragCoefficient = 0.47f; // physics-model knob (sphere nominal)
-  float liftCoefficient = 0.2f;  // physics-model knob (Magnus lift)
-  float spinDamping = 0.5f;      // 1/s, empirical exponential spin decay
+  float gravity = -9.81f;
+  float airDensity = 1.225f;
+  float dragCoefficient = 0.47f;
+  float liftCoefficient = 0.2f;
+  float spinDamping = 0.5f;
 };
 
+// Standard rigid-ball free-flight dynamics. The object remains thin: all
+// calculations are here and the completed state is committed through Ball.
 struct BallDynamics {
-  // Accelerations only: updates velocity and angularVelocity. Position and
-  // orientation are deliberately left untouched so contact response can run
-  // between the force step and the integration step.
-  static void ApplyForces(BallState &state, float dt,
-                          const football::model::BallProfile &ball,
-                          const BallDynamicsParams &params) {
-    DO_VALIDATION;
+  static void ApplyForces(football::model::Ball& ball, float dt,
+                          const BallDynamicsParams& params = {}) {
     assert(dt > 0.0f);
-    assert(ball.mass > 0.0f);
+    assert(ball.Mass() > 0.0f);
 
-    const float invMass = 1.0f / ball.mass;
-    const float crossSection = blunted::pi * ball.radius * ball.radius;
-
+    football::model::BallState next = ball.State();
+    const float invMass = 1.0f / ball.Mass();
+    const float crossSection = blunted::pi * ball.Radius() * ball.Radius();
     blunted::Vector3 acceleration(0.0f, 0.0f, params.gravity);
 
-    const float speed = state.velocity.GetLength();
+    const float speed = next.velocity.GetLength();
     if (speed > 0.0f) {
-      // Quadratic aerodynamic drag opposes the velocity.
-      acceleration += state.velocity *
+      acceleration += next.velocity *
                       (-0.5f * params.airDensity * params.dragCoefficient *
                        crossSection * speed * invMass);
-
-      // Magnus lift is perpendicular to both spin and velocity.
       acceleration +=
-          state.angularVelocity.GetCrossProduct(state.velocity) *
+          next.angularVelocity.GetCrossProduct(next.velocity) *
           (0.5f * params.airDensity * params.liftCoefficient * crossSection *
-           ball.radius * invMass);
+           ball.Radius() * invMass);
     }
 
-    state.velocity += acceleration * dt;
-    state.angularVelocity -=
-        state.angularVelocity * (params.spinDamping * dt);
+    next.velocity += acceleration * dt;
+    next.angularVelocity -= next.angularVelocity * (params.spinDamping * dt);
+    ball.SetState(next);
   }
 
-  // Advances the accumulated orientation by the current angular velocity.
-  // angularVelocity is a world-space spin vector (rad/s), NOT Euler-angle
-  // rates: integrate by rotating around the spin axis by |omega| * dt.
-  static void IntegrateOrientation(BallState &state, float dt) {
-    DO_VALIDATION;
-    const float omega = state.angularVelocity.GetLength();
+  static void IntegrateOrientation(football::model::Ball& ball, float dt) {
+    football::model::BallState next = ball.State();
+    const float omega = next.angularVelocity.GetLength();
     constexpr float kSpinEpsilon = 1e-6f;
     if (omega > kSpinEpsilon) {
-      const blunted::Vector3 axis = state.angularVelocity / omega;
+      const blunted::Vector3 axis = next.angularVelocity / omega;
       blunted::Quaternion deltaRotation;
       deltaRotation.SetAngleAxis(omega * dt, axis);
-      state.orientation = deltaRotation * state.orientation;
-      state.orientation.Normalize();
+      next.orientation = deltaRotation * next.orientation;
+      next.orientation.Normalize();
+      ball.SetState(next);
     }
   }
 };
 
-#endif  // _HPP_CORE_PHYSICS_BALL_DYNAMICS
+#endif  // FOOTBALL_CORE_PHYSICS_BALL_DYNAMICS_HPP

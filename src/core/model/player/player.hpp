@@ -1,91 +1,78 @@
-#ifndef _HPP_CORE_MODEL_PLAYER
-#define _HPP_CORE_MODEL_PLAYER
+#ifndef FOOTBALL_CORE_MODEL_PLAYER_HPP
+#define FOOTBALL_CORE_MODEL_PLAYER_HPP
 
-#include "../../../defines.hpp"
+#include <cstdint>
+#include <limits>
+
 #include "foundation/math/vector3.hpp"
-#include "player_profile.hpp"
 
-// Authoritative, behavior-free movement state of a player (Phase 5).
-// Pure simulation data: no Humanoid/Player/controller pointers.
-//
-// Authority flow (Phases 7F / 7G-0):
-//  - Per-tick self-movement and reset/lifecycle evaluations produce a
-//    PlayerKinematicResult, applied through PlayerBase::ApplyKinematicResult.
-//  - HumanoidBase projects PlayerState into legacy SpatialState; animation root
-//    motion is a legacy kinematic evaluator, not self-movement authority.
-//  - Collision-driven correction now writes PlayerState first and projects
-//    forward into SpatialState (7G-5); Humanoid no longer reverse-syncs it.
-//  - The serialized compatibility copy and the bit-exact
-//    CheckSimulationKinematicOracle() remain in place.
-//
-// `speed` is deliberately NOT stored — it is velocity.GetLength() everywhere.
-// Use Speed() when the scalar is needed.
-//
-// Lives next to the player domain entity: player is profile + state + entity.
+namespace football::model {
+
+using PlayerId = std::uint32_t;
+inline constexpr PlayerId kInvalidPlayerId = std::numeric_limits<PlayerId>::max();
+
+// Dynamic movement data. Identity and physical ability deliberately do not
+// live here: those are immutable player attributes.
 struct PlayerState {
-  blunted::Vector3 position = blunted::Vector3(0);
-  blunted::Vector3 velocity = blunted::Vector3(0);
-  blunted::Vector3 movementFacing = blunted::Vector3(0, -1, 0);
-  // Torso orientation: procedural PlayerBodyFacing or legacy animation.
-  blunted::Vector3 torsoFacing = blunted::Vector3(0, -1, 0);
+  blunted::Vector3 position = blunted::Vector3(0.0f, 0.0f, 0.0f);
+  blunted::Vector3 velocity = blunted::Vector3(0.0f, 0.0f, 0.0f);
+  blunted::Vector3 movementFacing = blunted::Vector3(0.0f, -1.0f, 0.0f);
+  blunted::Vector3 torsoFacing = blunted::Vector3(0.0f, -1.0f, 0.0f);
 
-  // Mirrors position and velocity like the legacy spatial state.
-  // movementFacing and torsoFacing remain unchanged: HumanoidBase's spatial
-  // state mirror only negates position and movements.
   void Mirror() {
     position.Mirror();
     velocity.Mirror();
   }
-
-  void ProcessState(EnvState *state) {
-    DO_VALIDATION;
-    state->process(position);
-    state->process(velocity);
-    state->process(movementFacing);
-    state->process(torsoFacing);
-  }
 };
 
-// Complete evaluated kinematics for one player tick. This is deliberately
-// separate from PlayerState: evaluators produce a result, while PlayerBase
-// applies it to the authoritative state owned by World for team slots.
 struct PlayerKinematicResult {
-  blunted::Vector3 position = blunted::Vector3(0);
-  blunted::Vector3 velocity = blunted::Vector3(0);
-  blunted::Vector3 movementFacing = blunted::Vector3(0, -1, 0);
-  blunted::Vector3 torsoFacing = blunted::Vector3(0, -1, 0);
+  blunted::Vector3 position = blunted::Vector3(0.0f, 0.0f, 0.0f);
+  blunted::Vector3 velocity = blunted::Vector3(0.0f, 0.0f, 0.0f);
+  blunted::Vector3 movementFacing = blunted::Vector3(0.0f, -1.0f, 0.0f);
+  blunted::Vector3 torsoFacing = blunted::Vector3(0.0f, -1.0f, 0.0f);
 };
 
-// Derived accessor: speed is always the length of the velocity vector.
-inline float Speed(const PlayerState &state) {
+inline float Speed(const PlayerState& state) {
   return state.velocity.GetLength();
 }
 
-namespace football::model {
-
-// Player is the football domain entity (Phase 7F-0).
-//
-// It binds a match-lifetime profile to the World-owned state without owning
-// movement algorithms. Animation, AI and action compatibility stay in the
-// legacy Player/PlayerBase facade.
+// Thin simulation model. `id` is an immutable part of the player profile,
+// alongside physical dimensions and abilities. State updates are committed as
+// one value so physics owns all calculations and Player remains behavior-free.
 class Player {
  public:
-  Player(const PlayerProfile& profile, PlayerState& state);
-  const PlayerProfile& Profile() const { return profile_; }
+  Player(PlayerId id, float height = 1.80f, float mass = 75.0f,
+         float bodyRadius = 0.36f, float strength = 0.5f,
+         float balance = 0.5f);
 
-  PlayerState& State() { return state_; }
+  PlayerId Id() const { return id_; }
+  float Height() const { return height_; }
+  float Mass() const { return mass_; }
+  float BodyRadius() const { return bodyRadius_; }
+  float Strength() const { return strength_; }
+  float Balance() const { return balance_; }
+
   const PlayerState& State() const { return state_; }
+  void SetState(const PlayerState& next) { state_ = next; }
 
   const blunted::Vector3& Position() const { return state_.position; }
   const blunted::Vector3& Velocity() const { return state_.velocity; }
-  const blunted::Vector3& MovementFacing() const { return state_.movementFacing; }
+  const blunted::Vector3& MovementFacing() const {
+    return state_.movementFacing;
+  }
   const blunted::Vector3& TorsoFacing() const { return state_.torsoFacing; }
+  float Speed() const { return football::model::Speed(state_); }
 
  private:
-  const PlayerProfile& profile_;
-  PlayerState& state_;
+  const PlayerId id_;
+  const float height_;
+  const float mass_;
+  const float bodyRadius_;
+  const float strength_;
+  const float balance_;
+  PlayerState state_;
 };
 
 }  // namespace football::model
 
-#endif  // _HPP_CORE_MODEL_PLAYER
+#endif  // FOOTBALL_CORE_MODEL_PLAYER_HPP

@@ -16,13 +16,12 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include <chrono>
-#include "log.hpp"
-#include "../main.hpp"
-#include "../defines.hpp"
-
-#include <iostream>
-#include <fstream>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
+
+#include "backtrace.h"
+#include "log.hpp"
 
 std::string now() {
   auto now = std::chrono::system_clock::now();
