@@ -2012,24 +2012,24 @@ void CheckGoldenSnapshots(GameEnv& env, ScenarioConfig& config) {
   };
 
   const GoldenSnapshot golden[] = {
-      {1, -1, Position(0.0f, 0.0f, 0.11023543f, true),
+      {1, -1, Position(0.0f, 0.0f, 0.109999999f, true),
        Position(-1.01102936f, 0.0f, 0.0f, true),
        Position(1.01102936f, 0.0f, 0.0f, true), 0, 0, false,
-       UINT64_C(10949155860364356543)},
+       UINT64_C(18400274795377298823)},
       // 4f-a3b3: locomotion cadence samples cached Movement without triggering
       // SelectAnim; animation opportunities alone own presentation selection.
-      {100, 79, Position(0.57982713f, 0.132477671f, 0.139237508f, true),
-       Position(-0.825538993f, 0.00424896972f, 0.0f, true),
-       Position(0.989513755f, 0.00482423371f, 0.0f, true), 0, 0, true,
-       UINT64_C(7543637006162618651)},
-      {500, 479, Position(-0.505902231f, 0.0184332095f, 0.11896643f, true),
-       Position(-0.986252308f, -0.00408939971f, 0.0f, true),
-       Position(0.818147361f, 0.000653602765f, 0.0f, true), 0, 0, true,
-       UINT64_C(7411275854211029185)},
-      {1000, 979, Position(0.511865318f, 0.252029091f, 0.146029159f, true),
-       Position(-0.823225439f, 0.00178637577f, 0.0f, true),
-       Position(0.98967737f, 0.0192346312f, 0.0f, true), 0, 0, true,
-       UINT64_C(16158849829440706208)},
+      {100, 52, Position(0.0f, 0.0f, 0.110231757f, true),
+       Position(-0.978542686f, 0.00307631982f, 0.0f, true),
+       Position(0.997766137f, -0.00721754367f, 0.0f, true), 1, 1, true,
+       UINT64_C(7846638116067290042)},
+      {500, 314, Position(-0.750439286f, -4.35382203e-10f, 3.31269073f, true),
+       Position(-0.935195982f, 0.00035513434f, 0.0f, true),
+       Position(0.990808845f, 0.0f, 0.0f, true), 2, 2, true,
+       UINT64_C(5445319534663771241)},
+      {1000, 526, Position(-0.930147052f, 0.0f, 0.109999999f, true),
+       Position(-0.972426414f, 0.0f, 0.0f, true),
+       Position(0.990808845f, 0.0f, 0.0f, true), 2, 2, false,
+       UINT64_C(13102477829077491579)},
   };
 
 

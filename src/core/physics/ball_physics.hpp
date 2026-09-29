@@ -12,6 +12,7 @@
 #include "core/contact/ball_ground_contact.hpp"
 #include "core/contact/capsule_collider.hpp"
 #include "core/contact/sphere_capsule_contact.hpp"
+#include "core/contact/sweep_sphere_capsule.hpp"
 #include "core/physics/ground_dynamics.hpp"
 
 
@@ -61,6 +62,45 @@ inline std::optional<football::contact::BallContact> DetectBallWoodworkContact(
   return std::nullopt;
 }
 
+// 7G-8-b: swept woodwork contact. Same capsules as the discrete detector,
+// but the sphere centre moves along the chord start -> end; returns the
+// earliest timeWithinTick across posts and crossbar.
+inline std::optional<football::contact::BallContact> SweepBallWoodworkContact(
+    const blunted::Vector3 &start, const blunted::Vector3 &end,
+    const football::domain::BallProfile &ball, const GoalGeometry &g,
+    float dt) {
+  std::optional<football::contact::BallContact> earliest;
+  const auto consider = [&](const football::contact::CapsuleCollider &capsule) {
+    if (auto c = football::contact::SweepSphereCapsule(
+            start, end, ball.radius, capsule, dt)) {
+      if (!earliest || c->timeWithinTick < earliest->timeWithinTick) {
+        earliest = c;
+      }
+    }
+  };
+
+  const float postX[2] = {-g.halfWidth, g.halfWidth};
+  const float postY[2] = {-g.goalHalfWidth, g.goalHalfWidth};
+  for (float x : postX) {
+    for (float y : postY) {
+      football::contact::CapsuleCollider post;
+      post.tipA = blunted::Vector3(x, y, 0.0f);
+      post.tipB = blunted::Vector3(x, y, g.goalHeight);
+      post.radius = g.postRadius;
+      consider(post);
+    }
+  }
+  const float barX[2] = {-g.halfWidth, g.halfWidth};
+  for (float x : barX) {
+    football::contact::CapsuleCollider bar;
+    bar.tipA = blunted::Vector3(x, -g.goalHalfWidth, g.goalHeight);
+    bar.tipB = blunted::Vector3(x, g.goalHalfWidth, g.goalHeight);
+    bar.radius = g.postRadius;
+    consider(bar);
+  }
+  return earliest;
+}
+
 // Single-step ball integration: BallDynamics (free flight) -> ground impact
 // (detector + resolver + positional correction) -> woodwork -> ground
 // persistent dynamics (sliding/rolling/rest) -> integration.
@@ -75,29 +115,65 @@ struct BallPhysics {
     // ---- Free flight: acceleration (velocity + angular velocity). ----
     BallDynamics::ApplyForces(next, dt, ball, BallDynamicsParams());
 
-    // Ground impact: detector -> impulse resolver -> positional correction.
-    const auto groundContact =
-        football::contact::DetectBallGroundContact(next, ball);
-    if (groundContact) {
-      football::contact::ContactMaterial material;
-      football::contact::BallContactResolver::Resolve(next, ball, *groundContact,
-                                                       material);
+    // ---- CCD loop (7G-8-b/c): find the earliest impact among static
+    // obstacles (ground plane + woodwork), resolve it, advance to it, and
+    // repeat until the tick's time is consumed. -------
+    float remaining = dt;
+    constexpr int kMaxContactIterations = 8;
+    for (int iteration = 0;
+         iteration < kMaxContactIterations && remaining > 0.0f; ++iteration) {
+      const blunted::Vector3 end = next.position + next.velocity * remaining;
 
-      // Positional correction is independent of the impulse: even a ball
-      // that is already separating gets lifted back onto the surface.
-      next.position += groundContact->normal * groundContact->penetration;
-    }
+      std::optional<football::contact::BallContact> earliest;
+      float earliestTime = remaining;
 
-    // Woodwork contact (7G-7e): detector -> impulse resolver -> positional
-    // correction, the same pipeline as the ground.
-    if (apply_woodwork) {
-      if (const auto woodworkContact =
-              DetectBallWoodworkContact(next, ball, goal)) {
-        football::contact::ContactMaterial material;
-        football::contact::BallContactResolver::Resolve(next, ball, *woodworkContact,
-                                                         material);
-        next.position += woodworkContact->normal * woodworkContact->penetration;
+      // Ground plane. Penetrating -> t=0 correction; otherwise a falling
+      // ball reaches the plane when its centre is at z == radius.
+      const float groundGap = next.position.coords[2] - ball.radius;
+      if (groundGap < 0.0f) {
+        football::contact::BallContact ground;
+        ground.normal = blunted::Vector3(0.0f, 0.0f, 1.0f);
+        ground.point = next.position.Get2D();
+        ground.penetration = -groundGap;
+        ground.timeWithinTick = 0.0f;
+        earliest = ground;
+        earliestTime = 0.0f;
+      } else if (next.velocity.coords[2] < 0.0f) {
+        const float t = groundGap / -next.velocity.coords[2];
+        football::contact::BallContact ground;
+        ground.normal = blunted::Vector3(0.0f, 0.0f, 1.0f);
+        ground.point = (next.position + next.velocity * t).Get2D();
+        ground.penetration = 0.0f;
+        ground.timeWithinTick = t;
+        earliest = ground;
+        earliestTime = t;
       }
+
+      // Woodwork: swept sphere against each static capsule.
+      if (apply_woodwork) {
+        if (auto wood = SweepBallWoodworkContact(
+                next.position, end, ball, goal, remaining)) {
+          if (wood->timeWithinTick < earliestTime) {
+            earliest = wood;
+            earliestTime = wood->timeWithinTick;
+          }
+        }
+      }
+
+      if (!earliest) {
+        next.position += next.velocity * remaining;
+        remaining = 0.0f;
+        break;
+      }
+
+      // Advance to the impact instant, then resolve impulse and correct
+      // position independently of the impulse.
+      next.position += next.velocity * earliest->timeWithinTick;
+      football::contact::ContactMaterial material;
+      football::contact::BallContactResolver::Resolve(next, ball, *earliest,
+                                                       material);
+      next.position += earliest->normal * earliest->penetration;
+      remaining -= earliest->timeWithinTick;
     }
 
     // Ground persistent dynamics (7G-7d-c): sliding -> rolling -> rest.
@@ -105,9 +181,6 @@ struct BallPhysics {
     if (next.position.coords[2] <= ball.radius + groundParams.contactTolerance) {
       GroundDynamics::Step(next, dt, ball, groundParams);
     }
-
-    // Position integration, after every velocity/position correction.
-    next.position += next.velocity * dt;
 
     // Orientation integration.
     BallDynamics::IntegrateOrientation(next, dt);
