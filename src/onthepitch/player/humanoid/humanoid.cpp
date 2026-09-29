@@ -951,16 +951,16 @@ void Humanoid::Process() {
     DO_VALIDATION;
     if (match->GetBall()->Predict(0).coords[1] > 20.05f) {
       DO_VALIDATION;
-      OffsetPosition(Vector3(0, clamp(20.05f - match->GetBall()->Predict(0).coords[1], -0.5f, 0.5f), 0) * 0.3f);
+      CastPlayer()->OffsetPosition(Vector3(0, clamp(20.05f - match->GetBall()->Predict(0).coords[1], -0.5f, 0.5f), 0) * 0.3f);
     }
     if (match->GetBall()->Predict(0).coords[1] < -20.05f) {
       DO_VALIDATION;
-      OffsetPosition(Vector3(0, clamp(-20.05f - match->GetBall()->Predict(0).coords[1], -0.5f, 0.5f), 0) * 0.3f);
+      CastPlayer()->OffsetPosition(Vector3(0, clamp(-20.05f - match->GetBall()->Predict(0).coords[1], -0.5f, 0.5f), 0) * 0.3f);
     }
     if (match->GetBall()->Predict(0).coords[0] * -team->GetDynamicSide() >
         -pitchHalfW + 16.4f) {
       DO_VALIDATION;
-      OffsetPosition(Vector3(clamp((-pitchHalfW + 16.4f) -
+      CastPlayer()->OffsetPosition(Vector3(clamp((-pitchHalfW + 16.4f) -
                                        match->GetBall()->Predict(0).coords[0] *
                                            -team->GetDynamicSide(),
                                    -0.5f, 0.5f),
@@ -970,7 +970,7 @@ void Humanoid::Process() {
     if (match->GetBall()->Predict(0).coords[0] * -team->GetDynamicSide() <
         -pitchHalfW + 0.1f) {
       DO_VALIDATION;
-      OffsetPosition(Vector3(clamp((-pitchHalfW + 0.1f) -
+      CastPlayer()->OffsetPosition(Vector3(clamp((-pitchHalfW + 0.1f) -
                                        match->GetBall()->Predict(0).coords[0] *
                                            -team->GetDynamicSide(),
                                    -0.5f, 0.5f),

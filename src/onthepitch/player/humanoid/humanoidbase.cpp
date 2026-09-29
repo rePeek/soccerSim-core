@@ -922,6 +922,11 @@ void HumanoidBase::OffsetPosition(const Vector3 &offset) {
 
   assert(offset.coords[2] == 0.0f);
 
+  // 7G-5: this is now a one-way compatibility projection. The authoritative
+  // PlayerState is written by the caller (PlayerBase::OffsetPosition) before
+  // this runs, so the legacy animation fields here follow the state instead of
+  // driving it. SynchronizeKinematicState() is no longer called by collision
+  // gameplay.
   nextStartPos += offset;
   startPos += offset;
   spatialState.position += offset;
@@ -929,8 +934,6 @@ void HumanoidBase::OffsetPosition(const Vector3 &offset) {
   decayingPositionOffset += offset;
   if (decayingPositionOffset.GetLength() > 0.1f) decayingPositionOffset = decayingPositionOffset.GetNormalized() * 0.1f;
   currentAnim.positionOffset += offset;
-
-  if (player) player->SynchronizeKinematicState();
 }
 
 void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {

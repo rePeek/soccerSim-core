@@ -17,7 +17,10 @@
 #include "core/physics/player_movement.hpp"
 #include "core/physics/player_movement.hpp"
 #include "core/physics/player_movement.hpp"
+#include "core/contact/circle_contact.hpp"
+#include "core/contact/contact.hpp"
 #include "core/contact/player_collider.hpp"
+#include "core/contact/player_contact.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
 #include "onthepitch/player/player_body_collider.hpp"
@@ -706,6 +709,200 @@ void CheckPlayerGroundCollider() {
   second.SetCenter(Vector3(0.72f, 0.0f, 0.0f));
   Require(!first.Intersects(second),
           "ground colliders should not intersect at the radius boundary");
+}
+
+void CheckContactDetection() {
+  using football::contact::CircleCollider;
+  using football::contact::DetectContact;
+
+  CircleCollider a;
+  a.center = Vector3(0.0f, 0.0f, 0.0f);
+  a.radius = 0.36f;
+
+  CircleCollider b;
+  b.radius = 0.36f;
+
+  // separated -> nullopt
+  b.center = Vector3(1.0f, 0.0f, 0.0f);
+  Require(!DetectContact(a, b).has_value(), "DetectContact separated");
+
+  // touching: distance == rA + rB, penetration == 0, normal A -> B
+  b.center = Vector3(0.72f, 0.0f, 0.0f);
+  auto contact = DetectContact(a, b);
+  Require(contact.has_value(), "DetectContact touching");
+  RequireNear(contact->penetration, 0.0f, "DetectContact touching penetration");
+  RequireNear(contact->normal.coords[0], 1.0f,
+              "DetectContact touching normal x");
+  RequireNear(contact->normal.coords[1], 0.0f,
+              "DetectContact touching normal y");
+
+  // overlap: penetration == rA + rB - distance
+  b.center = Vector3(0.5f, 0.0f, 0.0f);
+  contact = DetectContact(a, b);
+  Require(contact.has_value(), "DetectContact overlap");
+  RequireNear(contact->penetration, 0.72f - 0.5f,
+              "DetectContact overlap penetration");
+
+  // unequal radii
+  b.radius = 0.2f;
+  contact = DetectContact(a, b);
+  Require(contact.has_value(), "DetectContact unequal radii");
+  RequireNear(contact->penetration, 0.36f + 0.2f - 0.5f,
+              "DetectContact unequal radii penetration");
+
+  // swapped arguments: penetration reproduces exactly, normal flips
+  CircleCollider c1;
+  c1.center = Vector3(2.0f, 1.0f, 0.0f);
+  c1.radius = 0.3f;
+  CircleCollider c2;
+  c2.center = Vector3(2.3f, 1.0f, 0.0f);
+  c2.radius = 0.25f;
+  const auto ab = DetectContact(c1, c2);
+  const auto ba = DetectContact(c2, c1);
+  Require(ab.has_value() && ba.has_value(), "DetectContact swapped has value");
+  RequireNear(ab->penetration, ba->penetration,
+              "DetectContact swapped penetration");
+  RequireNear(ab->normal.coords[0], -ba->normal.coords[0],
+              "DetectContact swapped normal x");
+  RequireNear(ab->normal.coords[1], -ba->normal.coords[1],
+              "DetectContact swapped normal y");
+
+  // coincident centers -> deterministic fallback normal
+  CircleCollider same1;
+  same1.center = Vector3(1.0f, 2.0f, 0.0f);
+  same1.radius = 0.3f;
+  CircleCollider same2;
+  same2.center = Vector3(1.0f, 2.0f, 0.0f);
+  same2.radius = 0.25f;
+  const auto same = DetectContact(same1, same2);
+  Require(same.has_value(), "DetectContact coincident has value");
+  RequireNear(same->penetration, 0.3f + 0.25f,
+              "DetectContact coincident penetration");
+  RequireNear(same->normal.coords[0], 1.0f,
+              "DetectContact coincident fallback x");
+  RequireNear(same->normal.coords[1], 0.0f,
+              "DetectContact coincident fallback y");
+}
+
+void CheckPlayerContactDetector() {
+  football::domain::PlayerProfile a_profile;
+  football::domain::PlayerProfile b_profile;
+  PlayerState a_state;
+  PlayerState b_state;
+
+  a_state.position = Vector3(0.0f, 0.0f, 0.0f);
+  b_state.position = Vector3(0.5f, 0.0f, 0.0f);
+  const auto contact = football::contact::DetectPlayerContact(
+      a_profile, a_state, b_profile, b_state);
+  Require(contact.has_value(), "DetectPlayerContact overlap");
+  RequireNear(contact->penetration, 0.72f - 0.5f,
+              "DetectPlayerContact penetration");
+  RequireNear(contact->normal.coords[0], 1.0f,
+              "DetectPlayerContact normal x");
+
+  b_state.position = Vector3(1.0f, 0.0f, 0.0f);
+  Require(!football::contact::DetectPlayerContact(a_profile, a_state, b_profile,
+                                                    b_state).has_value(),
+          "DetectPlayerContact separated");
+}
+
+void CheckPlayerContactResolver() {
+  using football::contact::ResolvePlayerContact;
+  football::domain::PlayerProfile a_profile;  // mass 75
+  football::domain::PlayerProfile b_profile;  // mass 75
+  PlayerState a_state;
+  PlayerState b_state;
+
+  a_state.position = Vector3(0.0f, 0.0f, 0.0f);
+  b_state.position = Vector3(0.5f, 0.0f, 0.0f);
+  football::contact::Contact contact;
+  contact.normal = Vector3(1.0f, 0.0f, 0.0f);
+  contact.penetration = 0.72f - 0.5f;
+  contact.point = Vector3(0.0f, 0.0f, 0.0f);
+
+  auto res = ResolvePlayerContact(a_profile, a_state, b_profile, b_state, contact);
+  RequireNear(res.positionDeltaA.coords[0], -0.11f,
+              "resolver equal mass A separation");
+  RequireNear(res.positionDeltaB.coords[0], 0.11f,
+              "resolver equal mass B separation");
+  RequireNear(res.velocityDeltaA.GetLength(), 0.0f,
+              "resolver stationary velocity A");
+  RequireNear(res.velocityDeltaB.GetLength(), 0.0f,
+              "resolver stationary velocity B");
+
+  // Heavier body carries proportionally less separation (75 vs 150).
+  b_profile.physical.mass = 150.0f;
+  res = ResolvePlayerContact(a_profile, a_state, b_profile, b_state, contact);
+  RequireNear(res.positionDeltaA.coords[0], -0.22f * 2.0f / 3.0f,
+              "resolver unequal mass A separation");
+  RequireNear(res.positionDeltaB.coords[0], 0.22f / 3.0f,
+              "resolver unequal mass B separation");
+
+  // Approaching equal masses: normal approach velocity is fully removed.
+  b_profile.physical.mass = 75.0f;
+  b_state.velocity = Vector3(-2.0f, 0.0f, 0.0f);
+  res = ResolvePlayerContact(a_profile, a_state, b_profile, b_state, contact);
+  RequireNear(res.velocityDeltaA.coords[0], -1.0f,
+              "resolver approach A velocity");
+  RequireNear(res.velocityDeltaB.coords[0], 1.0f,
+              "resolver approach B velocity");
+
+  // Separating bodies receive no velocity correction (restitution 0).
+  b_state.velocity = Vector3(2.0f, 0.0f, 0.0f);
+  res = ResolvePlayerContact(a_profile, a_state, b_profile, b_state, contact);
+  RequireNear(res.velocityDeltaA.coords[0], 0.0f,
+              "resolver separating A velocity");
+  RequireNear(res.velocityDeltaB.coords[0], 0.0f,
+              "resolver separating B velocity");
+}
+
+void CheckPlayerContactBatchSolver() {
+  using football::contact::PlayerContactBody;
+  using football::contact::ResolvePlayerContactBatch;
+
+  auto make_body = [](int index, float x) {
+    PlayerContactBody body;
+    body.index = index;
+    body.state.position = Vector3(x, 0.0f, 0.0f);
+    body.state.velocity = Vector3(0.0f, 0.0f, 0.0f);
+    return body;
+  };
+
+  // Three equal players in a chain: A-B and B-C overlap, A-C does not.
+  std::vector<PlayerContactBody> bodies;
+  bodies.push_back(make_body(0, 0.0f));
+  bodies.push_back(make_body(1, 0.5f));
+  bodies.push_back(make_body(2, 1.0f));
+  ResolvePlayerContactBatch(bodies);
+
+  const float kSlop = 1e-4f;
+  for (size_t i = 0; i < bodies.size(); ++i) {
+    for (size_t j = i + 1; j < bodies.size(); ++j) {
+      const float distance =
+          (bodies[i].state.position.Get2D() - bodies[j].state.position.Get2D())
+              .GetLength();
+      const float sum = bodies[i].profile.physical.bodyRadius +
+                        bodies[j].profile.physical.bodyRadius;
+      Require(distance >= sum - kSlop,
+              "batch solver should separate every pair");
+    }
+  }
+
+  // Determinism: the same geometry keyed by index resolves identically
+  // regardless of input order (result order is sorted by index).
+  std::vector<PlayerContactBody> shuffled;
+  shuffled.push_back(make_body(2, 1.0f));
+  shuffled.push_back(make_body(0, 0.0f));
+  shuffled.push_back(make_body(1, 0.5f));
+  ResolvePlayerContactBatch(shuffled);
+  for (size_t i = 0; i < bodies.size(); ++i) {
+    RequireNear(bodies[i].state.position.coords[0],
+                shuffled[i].state.position.coords[0],
+                "batch solver determinism x");
+    RequireNear(bodies[i].state.position.coords[1],
+                shuffled[i].state.position.coords[1],
+                "batch solver determinism y");
+  }
 }
 
 void CheckPlayerActionExecutor() {
@@ -4213,6 +4410,10 @@ int main(int argc, char** argv) {
     CheckProceduralLocomotionPrediction();
     CheckProceduralInterceptPrediction();
     CheckPlayerGroundCollider();
+    CheckContactDetection();
+    CheckPlayerContactDetector();
+    CheckPlayerContactResolver();
+    CheckPlayerContactBatchSolver();
     CheckPlayerActionExecutor();
     CheckPlayerDecisionScheduler();
     CheckPureLocomotionBoundary();

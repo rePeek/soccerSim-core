@@ -376,6 +376,9 @@ void PlayerBase::ApplyKinematicResult(
 }
 void PlayerBase::SynchronizeKinematicState() {
   DO_VALIDATION;
+  // 7G-5: retained as a compatibility shell only. Collision gameplay no
+  // longer calls it: PlayerBase::OffsetPosition now writes the authoritative
+  // PlayerState first and projects forward, so Humanoid never drives State.
   kinematicState.position = humanoid->GetPosition();
   kinematicState.velocity = humanoid->GetMovement();
   kinematicState.movementFacing = humanoid->GetDirectionVec();
@@ -655,8 +658,14 @@ void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
 
 void PlayerBase::OffsetPosition(const Vector3 &offset) {
   DO_VALIDATION;
+  // 7G-5: the authoritative PlayerState is the sole write point. The legacy
+  // Humanoid spatial fields are projected forward from the state below, so
+  // collision corrections never reverse-sync (Humanoid -> State) anymore.
+  assert(offset.coords[2] == 0.0f);
+  kinematicState.position += offset;
+  ProjectGroundColliderShadow();
   humanoid->OffsetPosition(offset);
-  SynchronizeKinematicState();
+  CheckSimulationKinematicOracle();
   CheckSimulationActionOracle();
 }
 
