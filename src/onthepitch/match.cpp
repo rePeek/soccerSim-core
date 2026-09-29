@@ -24,6 +24,7 @@
 #include "../base/geometry/triangle.hpp"
 #include "../base/log.hpp"
 #include "../game_env.hpp"
+#include "core/contact/player_contact.hpp"
 #include "core/world/world_profiles.hpp"
 #include "../main.hpp"
 #include "AIsupport/AIfunctions.hpp"
@@ -699,6 +700,20 @@ void Match::CalculateBestPossessionTeamID() {
   }
 }
 
+PlayerContactOracleAudit &PlayerContactOracleAuditFor() {
+  static PlayerContactOracleAudit audit;
+  return audit;
+}
+
+bool &PlayerContactOracleAuditEnabled() {
+  static bool enabled = false;
+  return enabled;
+}
+
+void ResetPlayerContactOracleAudit() {
+  PlayerContactOracleAuditFor() = PlayerContactOracleAudit{};
+}
+
 void Match::CheckHumanoidCollisions() {
   DO_VALIDATION;
   std::vector<Player*> players;
@@ -769,6 +784,37 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
   Vector3 p1pos = p1Collider.center;
   Vector3 p2pos = p2Collider.center;
   float distance = (p1pos - p2pos).GetLength();
+
+  // 7G-6b: legacy-vs-new contact geometry oracle. Pure observation: it reads
+  // the same derived colliders legacy uses and compares them against the new
+  // core detector, but writes nothing into gameplay state.
+  if (PlayerContactOracleAuditEnabled()) {
+    PlayerContactOracleAudit &audit = PlayerContactOracleAuditFor();
+    const bool legacy_overlap = p1Collider.Intersects(p2Collider);
+    const auto new_contact = football::contact::DetectPlayerContact(
+        p1->Entity().Profile(), p1->Entity().State(), p2->Entity().Profile(),
+        p2->Entity().State());
+    const bool new_overlap = new_contact.has_value();
+    ++audit.pairs;
+    if (legacy_overlap) ++audit.legacy_overlap;
+    if (new_overlap) ++audit.new_contact;
+    if (legacy_overlap && new_overlap) {
+      ++audit.both;
+    } else if (legacy_overlap) {
+      ++audit.legacy_only;
+    } else if (new_overlap) {
+      ++audit.new_only;
+    }
+    if (new_overlap) {
+      if (new_contact->penetration == 0.0f) {
+        ++audit.touching;
+      } else {
+        ++audit.overlap;
+        if (new_contact->penetration > audit.max_penetration)
+          audit.max_penetration = new_contact->penetration;
+      }
+    }
+  }
 
   Vector3 p1movement = p1->GetKinematicState().velocity;
   Vector3 p2movement = p2->GetKinematicState().velocity;

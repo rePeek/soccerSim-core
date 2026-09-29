@@ -4075,6 +4075,35 @@ void MeasureContactAuthority(GameEnv& env, ScenarioConfig& config) {
           "contact authority: corpus never scheduled and delivered a contact");
 }
 
+void MeasurePlayerContactOracle(GameEnv& env, ScenarioConfig& config) {
+  ResetPlayerContactOracleAudit();
+  PlayerContactOracleAuditEnabled() = true;
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "player contact oracle: kickoff");
+  Advance(env, 1000);
+  PlayerContactOracleAuditEnabled() = false;
+  const PlayerContactOracleAudit &audit = PlayerContactOracleAuditFor();
+
+  std::cout << "  player_contact_oracle pairs=" << audit.pairs
+            << " legacy_overlap=" << audit.legacy_overlap
+            << " new_contact=" << audit.new_contact
+            << " both=" << audit.both
+            << " legacy_only=" << audit.legacy_only
+            << " new_only=" << audit.new_only
+            << " touching=" << audit.touching
+            << " overlap=" << audit.overlap
+            << " max_penetration=" << audit.max_penetration << "\n";
+
+  Require(audit.pairs > 0, "player contact oracle: no pairs observed");
+  // legacy Intersects() is distance < sum and the new detector is
+  // distance <= sum, so a legacy overlap must always be a new contact too.
+  Require(audit.legacy_only == 0,
+          "player contact oracle: legacy overlap must be a subset of new contact");
+  // The only contacts the legacy detector can miss are exactly-touching pairs.
+  Require(audit.new_only == audit.touching,
+          "player contact oracle: new-only contacts must be touching");
+}
+
 void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   Require(!env.get_info().is_in_play, "kickoff should begin paused");
@@ -4482,6 +4511,7 @@ int main(int argc, char** argv) {
     CheckReachabilityCadence(env, config);
     CheckReverseTeamProcessing(env, config);
     MeasureContactAuthority(env, config);
+    MeasurePlayerContactOracle(env, config);
     std::cout << "football_regression: PASS\n";
     return 0;
   } catch (const RegressionFailure& failure) {

@@ -45,6 +45,25 @@ struct PlayerBounce {
   float force = 0.0f;
 };
 
+// 7G-6b: transient oracle for the legacy-vs-new player-player contact
+// geometry. It is disabled by default and never touches gameplay state; it
+// only counts how often legacy CircleCollider::Intersects() disagrees with
+// core/contact DetectPlayerContact() over a real match corpus.
+struct PlayerContactOracleAudit {
+  int pairs = 0;
+  int legacy_overlap = 0;
+  int new_contact = 0;
+  int both = 0;
+  int legacy_only = 0;
+  int new_only = 0;
+  int touching = 0;
+  int overlap = 0;
+  float max_penetration = 0.0f;
+};
+PlayerContactOracleAudit &PlayerContactOracleAuditFor();
+bool &PlayerContactOracleAuditEnabled();
+void ResetPlayerContactOracleAudit();
+
 class Match {
 
   public:
