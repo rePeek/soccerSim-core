@@ -33,7 +33,7 @@ BallLegacy::BallLegacy(const football::domain::BallProfile& profile,
 BallLegacy::~BallLegacy() { DO_VALIDATION; }
 
 void BallLegacy::Mirror() {
-  ball_->State().momentum.Mirror();
+  ball_->State().velocity.Mirror();
   for (auto &a : predictions) {
     a.Mirror();
   }
@@ -55,9 +55,7 @@ void BallLegacy::GetPredictionArray(std::vector<Vector3> &target) {
 
 Vector3 BallLegacy::GetRotation() {
   DO_VALIDATION;
-  real x, y, z;
-  ball_->State().rotation_ms.GetAngles(x, y, z);
-  return Vector3(x, y, z);
+  return ball_->State().angularVelocity;
 }
 
 void BallLegacy::Touch(const Vector3 &target) {
@@ -79,45 +77,38 @@ void BallLegacy::SetPosition(const Vector3 &target) {
   DO_VALIDATION;
   valid_predictions = 0;
   ball_->State().position.Set(target);
-  ball_->State().momentum.Set(0);
+  ball_->State().velocity.Set(0);
   SetRotation(0, 0, 0, 1.0);
   ballPosHistory.clear();
 }
 
 void BallLegacy::SetMomentum(const Vector3 &target) {
   DO_VALIDATION;
-  ball_->State().momentum.Set(target);
+  ball_->State().velocity.Set(target);
   CalculatePrediction();
 }
 
 void BallLegacy::SetRotation(real x, real y, real z, float bias) {
   DO_VALIDATION;  // radians per second for each axis
-  Quaternion rotX;
-  rotX.SetAngleAxis(clamp(x * 0.001f, -pi * 0.49f, pi * 0.49f), Vector3(-1, 0, 0));
-  Quaternion rotY;
-  rotY.SetAngleAxis(clamp(y * 0.001f, -pi * 0.49f, pi * 0.49f), Vector3(0, 1, 0));
-  Quaternion rotZ;
-  rotZ.SetAngleAxis(clamp(z * 0.001f, -pi * 0.49f, pi * 0.49f), Vector3(0, 0, 1));
-
-  Quaternion tmpRotation_ms = rotX * rotY * rotZ;
-  ball_->State().rotation_ms = ball_->State().rotation_ms.GetSlerped(bias, tmpRotation_ms);
-
+  const Vector3 target(x, y, z);
+  ball_->State().angularVelocity =
+      ball_->State().angularVelocity * (1.0f - bias) + target * bias;
   CalculatePrediction();
 }
 
 BallSpatialInfo BallLegacy::CalculatePrediction() {
   DO_VALIDATION;
 
-  Vector3 newMomentum;
-  Quaternion newRotation_ms;
+  Vector3 newVelocity;
+  Vector3 newAngularVelocity;
 
 
   // fill predictions
 
   Vector3 nextPos = ball_->State().position;
   Quaternion nextOrientation = ball_->State().orientation;
-  Vector3 momentumPredict = ball_->State().momentum;
-  Quaternion rotationPredict_ms = ball_->State().rotation_ms;
+  Vector3 velocityPredict = ball_->State().velocity;
+  Vector3 angularVelocityPredict = ball_->State().angularVelocity;
 
   predictions[0] = nextPos;
 
@@ -143,20 +134,20 @@ BallSpatialInfo BallLegacy::CalculatePrediction() {
 
     BallState stepState;
     stepState.position = nextPos;
-    stepState.momentum = momentumPredict;
-    stepState.rotation_ms = rotationPredict_ms;
+    stepState.velocity = velocityPredict;
+    stepState.angularVelocity = angularVelocityPredict;
     stepState.orientation = nextOrientation;
     stepState = BallPhysics::Step(stepState, timeStep, ball_->Profile(),
                                   BallPhysicsParams(), firstTime, GoalGeometry());
     nextPos = stepState.position;
-    momentumPredict = stepState.momentum;
-    rotationPredict_ms = stepState.rotation_ms;
+    velocityPredict = stepState.velocity;
+    angularVelocityPredict = stepState.angularVelocity;
     nextOrientation = stepState.orientation;
 
     if (predictTime_ms == 10) {
       DO_VALIDATION;
-      newMomentum = momentumPredict;
-      newRotation_ms = rotationPredict_ms;
+      newVelocity = velocityPredict;
+      newAngularVelocity = angularVelocityPredict;
       orientPrediction = nextOrientation;
       if (valid_predictions > 0 && predictions[2] == nextPos) {
         DO_VALIDATION;
@@ -171,7 +162,7 @@ BallSpatialInfo BallLegacy::CalculatePrediction() {
     firstTime = false;
   }
 
-  return BallSpatialInfo(newMomentum, newRotation_ms);
+  return BallSpatialInfo(newVelocity, newAngularVelocity);
 }
 
 Vector3 BallLegacy::GetAveragePosition(unsigned int duration_ms) const {
@@ -192,8 +183,8 @@ Vector3 BallLegacy::GetAveragePosition(unsigned int duration_ms) const {
 void BallLegacy::Process() {
   DO_VALIDATION;
   BallSpatialInfo spatialInfo = CalculatePrediction();
-  ball_->State().momentum = spatialInfo.momentum;
-  ball_->State().rotation_ms = spatialInfo.rotation_ms;
+  ball_->State().velocity = spatialInfo.velocity;
+  ball_->State().angularVelocity = spatialInfo.angularVelocity;
 
   ball_->State().position = Predict(10);
   ball_->State().orientation = orientPrediction;
@@ -205,8 +196,8 @@ void BallLegacy::Process() {
 
 void BallLegacy::ResetSituation(const Vector3 &focusPos) {
   DO_VALIDATION;
-  ball_->State().momentum = Vector3(0);
-  ball_->State().rotation_ms = QUATERNION_IDENTITY;
+  ball_->State().velocity = Vector3(0);
+  ball_->State().angularVelocity = Vector3(0);
   for (unsigned int i = 0; i < ballPredictionSize_ms / 10; i++) {
     DO_VALIDATION;
     predictions[i] = Vector3(focusPos + Vector3(0, 0, 0.11));
@@ -220,8 +211,8 @@ void BallLegacy::ResetSituation(const Vector3 &focusPos) {
 
 void BallLegacy::ProcessState(EnvState *state) {
   DO_VALIDATION;
-  state->process(ball_->State().momentum);
-  state->process(ball_->State().rotation_ms);
+  state->process(ball_->State().velocity);
+  state->process(ball_->State().angularVelocity);
   for (int x = 0; x < sizeof(predictions) / sizeof(predictions[0]); x++) {
     state->process(predictions[x]);
   }

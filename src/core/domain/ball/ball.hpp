@@ -21,14 +21,14 @@ public:
   const BallState& State() const { return state_; }
 
   const blunted::Vector3& Position() const { return state_.position; }
-  const blunted::Vector3& Momentum() const { return state_.momentum; }
-  float Speed() const { return state_.momentum.GetLength(); }
+  const blunted::Vector3& Velocity() const { return state_.velocity; }
+  float Speed() const { return state_.velocity.GetLength(); }
 
   void SetPosition(const blunted::Vector3& position) {
     state_.position = position;
   }
-  void SetMomentum(const blunted::Vector3& momentum) {
-    state_.momentum = momentum;
+  void SetVelocity(const blunted::Vector3& velocity) {
+    state_.velocity = velocity;
   }
   void SetRotation(blunted::real x, blunted::real y, blunted::real z,
                    float bias = 1.0f);

@@ -32,12 +32,12 @@ using namespace blunted;
 class Match;
 
 struct BallSpatialInfo {
-  BallSpatialInfo(const Vector3 &momentum, const Quaternion &rotation_ms) { DO_VALIDATION;
-    this->momentum = momentum;
-    this->rotation_ms = rotation_ms;
+  BallSpatialInfo(const Vector3 &velocity, const Vector3 &angularVelocity) { DO_VALIDATION;
+    this->velocity = velocity;
+    this->angularVelocity = angularVelocity;
   }
-  Vector3 momentum;
-  Quaternion rotation_ms;
+  Vector3 velocity;
+  Vector3 angularVelocity;
 };
 
 // Legacy facade: prediction cache, mental-image / possession updates and the
@@ -64,7 +64,7 @@ class BallLegacy {
     const football::domain::Ball& Entity() const { return *ball_; }
 
     void GetPredictionArray(std::vector<Vector3> &target);
-    Vector3 GetMovement() { return ball_->State().momentum; }
+    Vector3 GetMovement() { return ball_->State().velocity; }
     Vector3 GetRotation();
     void Touch(const Vector3 &target);
     void SetPosition(const Vector3 &target);

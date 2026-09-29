@@ -6,16 +6,17 @@
 
 #include "core/state/ball_state.hpp"
 #include "core/domain/ball/ball_profile.hpp"
+#include "core/physics/ball_dynamics.hpp"
 
-// Physical constants extracted from the legacy Ball::CalculatePrediction()
-// (Phase 7B). No Match dependency.
+// Legacy contact-response parameters, kept apart from the v2 free-flight
+// parameters in BallDynamicsParams. The old `gravity` and `drag` knobs have
+// moved to BallDynamicsParams; the remaining fields only drive ground and
+// woodwork contact.
 struct BallPhysicsParams {
   float bounce = 0.62f;         // 1 = full bounce, 0 = no bounce
   float linearBounce = 0.06f;   // bigger = more brake force
-  float drag = 0.015f;          // bigger = more
   float friction = 0.04f;       // bigger = more
   float linearFriction = 1.6f;  // bigger = more, arbitrary scale
-  float gravity = -9.81f;
   float grassHeight = 0.025f;
 };
 
@@ -30,8 +31,8 @@ struct GoalGeometry {
 };
 
 // Post and crossbar contact (Phase 7E). Geometry-only, extracted verbatim
-// from the legacy CalculatePrediction; modifies position and momentum.
-inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& momentum,
+// from the legacy CalculatePrediction; modifies position and velocity.
+inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& velocity,
                           const football::domain::BallProfile& ball,
                           const GoalGeometry& g) {
   const float ballRadius = ball.radius;
@@ -80,10 +81,10 @@ inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& momentum,
         pos.coords[2] = nextPosZ;
       }
     }
-    momentum = (momentum.Get2D().GetNormalized(normal) + (normal * 1.1f))
+    velocity = (velocity.Get2D().GetNormalized(normal) + (normal * 1.1f))
                    .GetNormalized() *
-                   momentum.Get2D().GetLength() * g.postAbsorbInv +
-               (blunted::Vector3(0, 0, 1) * momentum.coords[2]);
+                   velocity.Get2D().GetLength() * g.postAbsorbInv +
+               (blunted::Vector3(0, 0, 1) * velocity.coords[2]);
   }
 
   // Crossbar.
@@ -110,63 +111,53 @@ inline void ApplyWoodwork(blunted::Vector3& pos, blunted::Vector3& momentum,
             normal * (postRadius + ballRadius);
       pos.coords[1] = nextPosY;
     }
-    blunted::Vector3 momentumPredictXZ = momentum * blunted::Vector3(1, 0, 1);
-    momentum = (momentumPredictXZ.GetNormalized(normal) + (normal * 1.1f))
+    blunted::Vector3 velocityPredictXZ = velocity * blunted::Vector3(1, 0, 1);
+    velocity = (velocityPredictXZ.GetNormalized(normal) + (normal * 1.1f))
                    .GetNormalized() *
-                   momentumPredictXZ.GetLength() * g.postAbsorbInv +
-               (blunted::Vector3(0, 1, 0) * momentum.coords[1]);
+                   velocityPredictXZ.GetLength() * g.postAbsorbInv +
+               (blunted::Vector3(0, 1, 0) * velocity.coords[1]);
   }
 }
 
-
-// Single-step ball integration: free motion (gravity, drag, swerve), ground
-// interaction (bounce, ground friction, ground-induced rotation) and optional
-// goal-frame contact (post/crossbar). Pure function of the input state.
-// Net physics was removed (visual only); no Match dependency.
+// Single-step ball integration. Free flight uses the v2 BallDynamics
+// (gravity, quadratic drag, Magnus, viscous angular drag); contact response
+// (ground bounce/friction, ground-induced rotation, woodwork) remains the
+// legacy model for now so each behaviour change can be measured separately.
 struct BallPhysics {
   static BallState Step(const BallState& current, float dt,
                         const football::domain::BallProfile& ball,
                         const BallPhysicsParams& p, bool apply_woodwork,
                         const GoalGeometry& goal) {
+    DO_VALIDATION;
     BallState next = current;
-    blunted::Vector3 momentum = current.momentum;
-    blunted::Vector3 pos = current.position;
-    blunted::Quaternion rotation_ms = current.rotation_ms;
-    blunted::Quaternion orientation = current.orientation;
+
+    // ---- Free flight: acceleration (velocity + angular velocity). ----
+    BallDynamics::ApplyForces(next, dt, ball, BallDynamicsParams());
 
     float frictionFactor = 0.0f;
 
-    // Gravity: vz = vz0 + g * t.
-    momentum.coords[2] = momentum.coords[2] + p.gravity * dt;
-
-    // Air resistance.
-    float momentumVelo = momentum.GetLength();
-    float momentumVeloDragged =
-        momentumVelo - p.drag * std::pow(momentumVelo, 2.0f) * dt;
-    momentum = momentum.GetNormalized(0) * momentumVeloDragged;
-
     // Grass influence (0 == no friction, 1 == all friction).
-    float ballBottom = pos.coords[2] - ball.radius;
+    float ballBottom = next.position.coords[2] - ball.radius;
     float grassInfluenceBias =
         blunted::clamp(1.0f - (ballBottom / p.grassHeight), 0.0f, 1.0f);
     grassInfluenceBias = std::pow(grassInfluenceBias, 0.7f);
 
-    // Bounce.
-    if (pos.coords[2] < ball.radius) {
-      if (momentum.coords[2] < 0.0f) {
+    // Ground bounce (legacy contact response).
+    if (next.position.coords[2] < ball.radius) {
+      if (next.velocity.coords[2] < 0.0f) {
         frictionFactor = blunted::NormalizedClamp(
-            -momentum.coords[2] - 0.5f, 0.0f, 12.0f);
-        momentum.coords[2] = -momentum.coords[2] * p.bounce;
-        momentum.coords[2] =
-            std::max(momentum.coords[2] - p.linearBounce, 0.0f);
+            -next.velocity.coords[2] - 0.5f, 0.0f, 12.0f);
+        next.velocity.coords[2] = -next.velocity.coords[2] * p.bounce;
+        next.velocity.coords[2] =
+            std::max(next.velocity.coords[2] - p.linearBounce, 0.0f);
       }
-      pos.coords[2] = ball.radius;
+      next.position.coords[2] = ball.radius;
     }
 
-    // Ground friction.
-    if (pos.coords[2] < ball.radius + p.grassHeight) {
+    // Ground friction (legacy).
+    if (next.position.coords[2] < ball.radius + p.grassHeight) {
       float adaptedFriction = (p.friction * grassInfluenceBias);
-      blunted::Vector3 xy = momentum.Get2D();
+      blunted::Vector3 xy = next.velocity.Get2D();
       float velo = xy.GetLength();
       float newVelo = velo - adaptedFriction * std::pow(velo, 2.0f) * dt;
       newVelo = blunted::clamp(
@@ -174,123 +165,62 @@ struct BallPhysics {
           100000.0f);
       xy.Normalize(blunted::Vector3(0));
       xy *= newVelo;
-      momentum.coords[0] = xy.coords[0];
-      momentum.coords[1] = xy.coords[1];
+      next.velocity.coords[0] = xy.coords[0];
+      next.velocity.coords[1] = xy.coords[1];
     }
 
-    // Woodwork contact (post / crossbar).
-    // Legacy prediction compatibility: the real/current step checks goal-frame
-    // contact, cached future prediction steps historically do not. Keeping this
-    // flag preserves regression-exact behavior; a future physics-correctness
-    // pass may check contact on every step.
+    // Woodwork contact (post / crossbar), legacy geometry.
     if (apply_woodwork) {
-      ApplyWoodwork(pos, momentum, ball, goal);
+      ApplyWoodwork(next.position, next.velocity, ball, goal);
     }
 
-    // Ground-induced rotation + rotation-induced ground friction.
-    if (pos.coords[2] < ball.radius + p.grassHeight) {
-      blunted::radian xR, yR;
-      xR = momentum.coords[1] / ball.radius;
-      yR = momentum.coords[0] / ball.radius;
+    // Ground-induced rotation + rotation-induced ground friction. Legacy
+    // behaviour re-expressed with a Vector3 angular velocity in rad/s.
+    if (next.position.coords[2] < ball.radius + p.grassHeight) {
+      const float invRadius = 1.0f / ball.radius;
+      // No-slip rolling angular velocity. The legacy quaternion path clamped
+      // each axis to ~1540 rad/s (0.49 pi rad per millisecond), unreachable in
+      // practice, so that clamp is omitted.
+      blunted::Vector3 rollingAngularVelocity(
+          -next.velocity.coords[1] * invRadius,
+          next.velocity.coords[0] * invRadius, 0.0f);
 
-      blunted::Quaternion rotX;
-      rotX.SetAngleAxis(
-          blunted::clamp(xR * 0.001f, -blunted::pi * 0.49f,
-                         blunted::pi * 0.49f),
-          blunted::Vector3(-1, 0, 0));
-      blunted::Quaternion rotY;
-      rotY.SetAngleAxis(
-          blunted::clamp(yR * 0.001f, -blunted::pi * 0.49f,
-                         blunted::pi * 0.49f),
-          blunted::Vector3(0, 1, 0));
-
-      blunted::Quaternion groundRot = rotX * rotY;
-
-      blunted::Quaternion oldToNewRotation =
-          rotation_ms.GetRotationTo(groundRot).GetNormalized();
-      blunted::radian rotationChangePerSecond =
-          std::fabs(oldToNewRotation.GetRotationAngle(
-              blunted::QUATERNION_IDENTITY)) *
-          1000.0f;
-
-      blunted::radian maxRotationChangePerSecond =
-          1.0f * blunted::pi * grassInfluenceBias;
-      if (frictionFactor > 0.0f) {
-        maxRotationChangePerSecond += 4.0f * blunted::pi;
-      }
-      blunted::radian factor = 1.0f;
-      if (rotationChangePerSecond > maxRotationChangePerSecond) {
-        factor = maxRotationChangePerSecond / rotationChangePerSecond;
-      }
-      if (factor < 1.0f) {
-        oldToNewRotation = oldToNewRotation.GetRotationMultipliedBy(factor);
+      const float maxRotationRate = blunted::pi * grassInfluenceBias +
+                                    (frictionFactor > 0.0f
+                                         ? 4.0f * blunted::pi
+                                         : 0.0f);
+      const blunted::Vector3 rotationDelta =
+          rollingAngularVelocity - next.angularVelocity;
+      const float rotationDeltaLength = rotationDelta.GetLength();
+      if (rotationDeltaLength > maxRotationRate) {
+        next.angularVelocity +=
+            rotationDelta.GetNormalized(blunted::Vector3(0)) * maxRotationRate;
+      } else {
+        next.angularVelocity = rollingAngularVelocity;
       }
 
-      blunted::Quaternion newRotationPredict_ms =
-          oldToNewRotation * rotation_ms;
+      // Spin feeds back into the ground velocity (legacy rotation-induced
+      // ground friction): bias xy velocity toward the rolling-equivalent value.
+      blunted::Vector3 spinLinearVelocity;
+      spinLinearVelocity.coords[0] = next.angularVelocity.coords[1] * ball.radius;
+      spinLinearVelocity.coords[1] = -next.angularVelocity.coords[0] * ball.radius;
+      spinLinearVelocity.coords[2] = 0.0f;
 
-      blunted::real x, y, z;
-      rotation_ms.GetAngles(x, y, z);
-      x = -x;
-
-      blunted::Vector3 ballRotationMomentum;
-      ballRotationMomentum.coords[0] = y * ball.radius * 1000.0f;
-      ballRotationMomentum.coords[1] = x * ball.radius * 1000.0f;
-
-      float rotBias = 0.01f;
-      rotBias *= grassInfluenceBias;
-      if (frictionFactor > 0.0f) {
-        rotBias += 0.5f * frictionFactor;
-      }
+      float rotBias = 0.01f * grassInfluenceBias;
+      if (frictionFactor > 0.0f) rotBias += 0.5f * frictionFactor;
       rotBias = blunted::clamp(rotBias, 0.0f, 1.0f);
-      momentum.coords[0] =
-          momentum.coords[0] * (1.0f - rotBias) +
-          ballRotationMomentum.coords[0] * rotBias;
-      momentum.coords[1] =
-          momentum.coords[1] * (1.0f - rotBias) +
-          ballRotationMomentum.coords[1] * rotBias;
-
-      rotation_ms = newRotationPredict_ms;
+      next.velocity.coords[0] = next.velocity.coords[0] * (1.0f - rotBias) +
+                                spinLinearVelocity.coords[0] * rotBias;
+      next.velocity.coords[1] = next.velocity.coords[1] * (1.0f - rotBias) +
+                                spinLinearVelocity.coords[1] * rotBias;
     }
 
-    // Magnus effect (swerve).
-    {
-      blunted::Vector3 rotVec;
-      rotation_ms.GetAngles(rotVec.coords[0], rotVec.coords[1],
-                            rotVec.coords[2]);
-      rotVec *= 10.0f;
-
-      float swerveAmount =
-          blunted::NormalizedClamp(momentum.GetLength(), 0.0f, 70.0f);
-      swerveAmount =
-          std::pow(std::sin(swerveAmount * blunted::pi * 0.94f), 2.6f);
-      blunted::Vector3 adaptedMomentumPredict =
-          momentum.GetNormalized(0) * swerveAmount * 30.0f;
-
-      blunted::Vector3 swerve =
-          adaptedMomentumPredict.GetCrossProduct(-rotVec) * 1.0;
-
-      momentum += swerve * dt;
-    }
-
-    // Position integration.
-    pos += momentum * dt;
+    // Position integration, after every velocity/position correction.
+    next.position += next.velocity * dt;
 
     // Orientation integration.
-    blunted::Vector3 rotationVector;
-    rotation_ms.GetAngles(rotationVector.coords[0], rotationVector.coords[1],
-                          rotationVector.coords[2]);
-    rotationVector *= dt / 0.001f;
-    blunted::Quaternion rotationPredictTimeStepped;
-    rotationPredictTimeStepped.SetAngles(rotationVector.coords[0],
-                                         rotationVector.coords[1],
-                                         rotationVector.coords[2]);
-    orientation = rotationPredictTimeStepped * orientation;
+    BallDynamics::IntegrateOrientation(next, dt);
 
-    next.position = pos;
-    next.momentum = momentum;
-    next.rotation_ms = rotation_ms;
-    next.orientation = orientation;
     return next;
   }
 };
