@@ -98,13 +98,15 @@ void BallLegacy::SetRotation(real x, real y, real z, float bias) {
 }
 
 BallSpatialInfo BallLegacy::CalculatePrediction() {
+  return CalculatePrediction(std::vector<PlayerBodyCandidate>{});
+}
+
+BallSpatialInfo BallLegacy::CalculatePrediction(
+    const std::vector<PlayerBodyCandidate> &players) {
   DO_VALIDATION;
 
   Vector3 newVelocity;
   Vector3 newAngularVelocity;
-
-
-  // fill predictions
 
   Vector3 nextPos = ball_->State().position;
   Quaternion nextOrientation = ball_->State().orientation;
@@ -113,20 +115,15 @@ BallSpatialInfo BallLegacy::CalculatePrediction() {
 
   predictions[0] = nextPos;
 
-
-  constexpr float timeStep = 0.01f;//0.001f; // seconds
-
+  constexpr float timeStep = 0.01f;
+  static const std::vector<PlayerBodyCandidate> kNoPlayers;
   bool firstTime = true;
   bool use_cache = false;
-
 
   for (unsigned int predictTime_ms = int(timeStep * 1000.0f);
        predictTime_ms < ballPredictionSize_ms + cachedPredictions * 10;
        predictTime_ms += int(timeStep * 1000.0f)) {
     DO_VALIDATION;
-    // Originally game was recomputing ball's prediction for 300 steps into the
-    // future, which was expensive. Now we cache 100 additional steps and if
-    // the ball was not touched etc. we just shift predictions by one.
     if (use_cache) {
       DO_VALIDATION;
       predictions[predictTime_ms / 10] = predictions[predictTime_ms / 10 + 1];
@@ -138,8 +135,14 @@ BallSpatialInfo BallLegacy::CalculatePrediction() {
     stepState.velocity = velocityPredict;
     stepState.angularVelocity = angularVelocityPredict;
     stepState.orientation = nextOrientation;
-    stepState = BallPhysics::Step(stepState, timeStep, ball_->Profile(),
-                                  firstTime, GoalGeometry(), {}).state;
+    // Only the first (authoritative) 10ms step carries player bodies; the
+    // future trajectory is a pure ball/environment prediction.
+    const std::vector<PlayerBodyCandidate> &stepPlayers =
+        firstTime ? players : kNoPlayers;
+    BallPhysicsStepResult stepResult =
+        BallPhysics::Step(stepState, timeStep, ball_->Profile(), firstTime,
+                          GoalGeometry(), stepPlayers);
+    stepState = stepResult.state;
     nextPos = stepState.position;
     velocityPredict = stepState.velocity;
     angularVelocityPredict = stepState.angularVelocity;
@@ -150,6 +153,12 @@ BallSpatialInfo BallLegacy::CalculatePrediction() {
       newVelocity = velocityPredict;
       newAngularVelocity = angularVelocityPredict;
       orientPrediction = nextOrientation;
+      // Prediction-only steps ignore impacts; the authoritative tick stores
+      // them for Match-side attribution.
+      if (!players.empty()) {
+        lastStepImpacts = stepResult.impacts;
+        lastStepImpactCount = stepResult.impactCount;
+      }
       if (valid_predictions > 0 && predictions[2] == nextPos) {
         DO_VALIDATION;
         valid_predictions--;
@@ -182,8 +191,12 @@ Vector3 BallLegacy::GetAveragePosition(unsigned int duration_ms) const {
 }
 
 void BallLegacy::Process() {
+  Process(std::vector<PlayerBodyCandidate>{});
+}
+
+void BallLegacy::Process(const std::vector<PlayerBodyCandidate> &players) {
   DO_VALIDATION;
-  BallSpatialInfo spatialInfo = CalculatePrediction();
+  BallSpatialInfo spatialInfo = CalculatePrediction(players);
   ball_->State().velocity = spatialInfo.velocity;
   ball_->State().angularVelocity = spatialInfo.angularVelocity;
 

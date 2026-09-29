@@ -25,6 +25,8 @@
 #include "../utils.hpp"
 #include "core/state/ball_state.hpp"
 #include "core/domain/ball/ball.hpp"
+#include "core/physics/ball_physics.hpp"
+#include <array>
 #include <memory>
 
 using namespace blunted;
@@ -70,11 +72,18 @@ class BallLegacy {
     void SetPosition(const Vector3 &target);
     void SetMomentum(const Vector3 &target);
     void SetRotation(real x, real y, real z, float bias = 1.0);     // radians per second for each axis
-    BallSpatialInfo CalculatePrediction();  // returns momentum in 10ms
+    BallSpatialInfo CalculatePrediction();
+    BallSpatialInfo CalculatePrediction(
+        const std::vector<PlayerBodyCandidate> &players);
 
     Vector3 GetAveragePosition(unsigned int duration_ms) const;
 
     void Process();
+    void Process(const std::vector<PlayerBodyCandidate> &players);
+    const std::array<BallImpact, 8> &GetLastStepImpacts() const {
+      return lastStepImpacts;
+    }
+    uint8_t GetLastStepImpactCount() const { return lastStepImpactCount; }
     Quaternion GetOrientation() const { return ball_->State().orientation; }
 
     void ResetSituation(const Vector3 &focusPos);
@@ -88,6 +97,11 @@ class BallLegacy {
     std::list<Vector3> ballPosHistory;
 
     Match *match;
+
+    // Impacts from the authoritative 10ms tick (prediction steps ignore
+    // impacts; they only produce a trajectory).
+    std::array<BallImpact, 8> lastStepImpacts;
+    uint8_t lastStepImpactCount = 0;
 
 
 };
