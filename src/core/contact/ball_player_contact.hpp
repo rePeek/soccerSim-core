@@ -6,6 +6,7 @@
 #include "core/contact/ball_contact.hpp"
 #include "core/contact/player_body_collider.hpp"
 #include "core/contact/sphere_capsule_contact.hpp"
+#include "core/contact/sweep_sphere_capsule.hpp"
 
 namespace football::contact {
 
@@ -26,6 +27,37 @@ inline std::optional<BallContact> DetectPlayerBodyBallContact(
     }
   }
   return std::nullopt;
+}
+
+// 7G-8-d-a: moving player body vs ball CCD. The player capsule trio is
+// treated as static while the ball sweeps the relative chord
+//
+//   ballDelta - playerDelta
+//
+// so a closing player shortens the time of impact exactly as expected.
+// Geometry only: it returns the earliest timeWithinTick across the three
+// body parts but never inspects approach/separation or mutates state.
+inline std::optional<BallContact> SweepPlayerBodyBallContact(
+    const PlayerBodyCollider &body,
+    const blunted::Vector3 &ballStart, const blunted::Vector3 &ballEnd,
+    const blunted::Vector3 &playerStart, const blunted::Vector3 &playerEnd,
+    float ballRadius, float dt) {
+  DO_VALIDATION;
+  const blunted::Vector3 relativeDelta =
+      (ballEnd - ballStart) - (playerEnd - playerStart);
+  const blunted::Vector3 relativeEnd = ballStart + relativeDelta;
+  const CapsuleCollider *volumes[3] = {&body.upperBody, &body.lowerBody,
+                                       &body.head};
+  std::optional<BallContact> earliest;
+  for (const CapsuleCollider *volume : volumes) {
+    if (auto c = SweepSphereCapsule(ballStart, relativeEnd, ballRadius,
+                                    *volume, dt)) {
+      if (!earliest || c->timeWithinTick < earliest->timeWithinTick) {
+        earliest = c;
+      }
+    }
+  }
+  return earliest;
 }
 
 }  // namespace football::contact

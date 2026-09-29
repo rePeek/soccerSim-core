@@ -211,6 +211,49 @@ void CheckPlayerBodyBallContact() {
               "player-body ball: head penetration");
 }
 
+void CheckSweepPlayerBodyBallContact() {
+  using football::contact::BuildPlayerBodyCollider;
+  using football::contact::SweepPlayerBodyBallContact;
+
+  const auto body = BuildPlayerBodyCollider(Vector3(0.0f, 0.0f, 0.0f));
+  const float ballRadius = 0.11f;
+  const float dt = 1.0f;
+  const float upperRadius = 0.22f;
+  const float expanded = upperRadius + ballRadius;  // 0.33
+
+  // Static player: equivalent to a plain static capsule sweep.
+  {
+    const auto c = SweepPlayerBodyBallContact(
+        body, Vector3(-1.0f, 0.0f, 1.11f), Vector3(1.0f, 0.0f, 1.11f),
+        Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f), ballRadius, dt);
+    Require(c.has_value(), "moving sweep: static player hit");
+    RequireNear(c->timeWithinTick, (1.0f - expanded) / 2.0f,
+                "moving sweep: static player TOI");
+    RequireNear(c->normal.coords[0], -1.0f,
+                "moving sweep: static player normal -x");
+  }
+
+  // Co-moving player: the closing player shortens the relative distance, so
+  // the TOI is later than the static case (relative speed is smaller).
+  {
+    const auto c = SweepPlayerBodyBallContact(
+        body, Vector3(-1.0f, 0.0f, 1.11f), Vector3(1.0f, 0.0f, 1.11f),
+        Vector3(0.0f, 0.0f, 0.0f), Vector3(1.0f, 0.0f, 0.0f), ballRadius, dt);
+    Require(c.has_value(), "moving sweep: co-moving player hit");
+    // relativeDelta = (2,0,0) - (1,0,0) = (1,0,0); hit at relative x = -0.33
+    RequireNear(c->timeWithinTick, 1.0f - expanded,
+                "moving sweep: co-moving player TOI");
+  }
+
+  // Player moving away faster than the ball: no contact this tick.
+  {
+    const auto c = SweepPlayerBodyBallContact(
+        body, Vector3(-1.0f, 0.0f, 1.11f), Vector3(-0.5f, 0.0f, 1.11f),
+        Vector3(0.0f, 0.0f, 0.0f), Vector3(2.0f, 0.0f, 0.0f), ballRadius, dt);
+    Require(!c.has_value(), "moving sweep: separating player miss");
+  }
+}
+
 void CheckBallControlConstraint() {
   using football::contact::BallControlConstraint;
   using football::contact::BallControlType;
@@ -4966,6 +5009,7 @@ int main(int argc, char** argv) {
     CheckGroundDynamics();
     CheckBallWoodwork();
     CheckPlayerBodyBallContact();
+    CheckSweepPlayerBodyBallContact();
     CheckBallControlConstraint();
     CheckSweepSphereCapsule();
     CheckBallDynamics();
