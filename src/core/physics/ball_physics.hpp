@@ -7,16 +7,18 @@
 #include "core/state/ball_state.hpp"
 #include "core/domain/ball/ball_profile.hpp"
 #include "core/physics/ball_dynamics.hpp"
+#include "core/contact/ball_contact.hpp"
+#include "core/contact/ball_contact_resolver.hpp"
+#include "core/contact/ball_ground_contact.hpp"
 
-// Legacy contact-response parameters, kept apart from the v2 free-flight
-// parameters in BallDynamicsParams. The old `gravity` and `drag` knobs have
-// moved to BallDynamicsParams; the remaining fields only drive ground and
-// woodwork contact.
+// Persistent ground-contact parameters. Impact response (the old bounce and
+// linearBounce) moved to BallContactResolver + ContactMaterial in 7G-7d-b;
+// free flight moved to BallDynamicsParams. These remaining knobs still drive
+// the legacy persistent friction and rolling feedback until GroundDynamics
+// replaces them.
 struct BallPhysicsParams {
-  float bounce = 0.62f;         // 1 = full bounce, 0 = no bounce
-  float linearBounce = 0.06f;   // bigger = more brake force
-  float friction = 0.04f;       // bigger = more
-  float linearFriction = 1.6f;  // bigger = more, arbitrary scale
+  float friction = 0.04f;       // legacy persistent horizontal friction
+  float linearFriction = 1.6f;  // legacy linear rolling resistance
   float grassHeight = 0.025f;
 };
 
@@ -142,16 +144,27 @@ struct BallPhysics {
         blunted::clamp(1.0f - (ballBottom / p.grassHeight), 0.0f, 1.0f);
     grassInfluenceBias = std::pow(grassInfluenceBias, 0.7f);
 
-    // Ground bounce (legacy contact response).
-    if (next.position.coords[2] < ball.radius) {
+    // Ground impact (7G-7d-b): detector -> impulse resolver -> positional
+    // correction. Detection still happens before position integration, so the
+    // collision timing is unchanged. Persistent legacy friction/rolling below
+    // is intentionally left in place for the next step.
+    const auto groundContact =
+        football::contact::DetectBallGroundContact(next, ball);
+    if (groundContact) {
+      // Capture the legacy impact-strength signal BEFORE the resolver flips
+      // vz, so the persistent rolling block keeps its old input.
       if (next.velocity.coords[2] < 0.0f) {
         frictionFactor = blunted::NormalizedClamp(
             -next.velocity.coords[2] - 0.5f, 0.0f, 12.0f);
-        next.velocity.coords[2] = -next.velocity.coords[2] * p.bounce;
-        next.velocity.coords[2] =
-            std::max(next.velocity.coords[2] - p.linearBounce, 0.0f);
       }
-      next.position.coords[2] = ball.radius;
+
+      football::contact::ContactMaterial material;
+      football::contact::BallContactResolver::Resolve(next, ball, *groundContact,
+                                                       material);
+
+      // Positional correction is independent of the impulse: even a ball
+      // that is already separating gets lifted back onto the surface.
+      next.position += groundContact->normal * groundContact->penetration;
     }
 
     // Ground friction (legacy).
