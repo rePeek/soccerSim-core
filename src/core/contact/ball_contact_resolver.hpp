@@ -16,7 +16,7 @@ namespace football::contact {
 // same math.
 //
 //   r      = -normal * radius                     (lever arm)
-//   vc     = v + omega x r                        (contact-point velocity)
+//   vc     = (v - surfaceVelocity) + omega x r   (contact-point velocity)
 //   vn     = dot(vc, n)                           (normal approach speed)
 //   Jn     = -(1 + e) m vn                        (normal impulse)
 //   Jstick = (k / (1 + k)) m |vt|                 (I = k m R^2)
@@ -31,6 +31,7 @@ struct BallContactResolver {
   static void Resolve(BallState &state,
                       const football::domain::BallProfile &ball,
                       const BallContact &contact,
+                      const blunted::Vector3 &surfaceVelocity,
                       const ContactMaterial &material) {
     DO_VALIDATION;
     assert(ball.mass > 0.0f);
@@ -45,8 +46,11 @@ struct BallContactResolver {
     // contact.point is used only for events/debug/penetration correction.
     const blunted::Vector3 leverArm = normal * -ball.radius;
 
+    // Relative contact-point velocity: the surface may itself be moving
+    // (a running player); static obstacles pass surfaceVelocity == 0.
     const blunted::Vector3 contactVelocity =
-        state.velocity + state.angularVelocity.GetCrossProduct(leverArm);
+        state.velocity - surfaceVelocity +
+        state.angularVelocity.GetCrossProduct(leverArm);
     const float normalSpeed = contactVelocity.GetDotProduct(normal);
 
     // A separating contact needs no impulse; applying one would pull the ball

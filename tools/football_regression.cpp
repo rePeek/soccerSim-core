@@ -64,7 +64,7 @@ void CheckBallProfileBoundary() {
               "ball reset height must come from profile");
   state.position.coords[2] = 0.0f;
   const BallState next = BallPhysics::Step(
-      state, 0.01f, profile, false, GoalGeometry());
+      state, 0.01f, profile, false, GoalGeometry(), {}).state;
   // Ground contact uses the profile radius: the ball bottom is corrected
   // onto the plane (z == radius), after which the rebound velocity integrates
   // it slightly above the plane in the same step.
@@ -85,7 +85,7 @@ void CheckBallGroundImpact() {
     state.position = Vector3(0.0f, 0.0f, ball.radius);
     state.velocity = Vector3(0.0f, 0.0f, -5.0f);
     const BallState next =
-        BallPhysics::Step(state, 0.01f, ball, false, goal);
+        BallPhysics::Step(state, 0.01f, ball, false, goal, {}).state;
     Require(next.velocity.coords[2] > 0.0f,
             "ground impact: falling ball rebounds upward");
   }
@@ -97,7 +97,7 @@ void CheckBallGroundImpact() {
     state.position = Vector3(0.0f, 0.0f, 0.05f);
     state.velocity = Vector3(0.0f, 0.0f, 3.0f);
     const BallState next =
-        BallPhysics::Step(state, 0.01f, ball, false, goal);
+        BallPhysics::Step(state, 0.01f, ball, false, goal, {}).state;
     Require(next.position.coords[2] >= ball.radius,
             "ground impact: penetrated position is corrected");
     Require(next.velocity.coords[2] > 0.0f,
@@ -479,7 +479,7 @@ void CheckBallContactResolver() {
     ContactMaterial material;
     material.restitution = 0.5f;
     material.friction = 0.0f;
-    BallContactResolver::Resolve(state, ball, contact, material);
+    BallContactResolver::Resolve(state, ball, contact, Vector3(0), material);
     RequireNear(state.velocity.coords[2], 2.5f,
                 "ball contact: restitution bounce");
     RequireNear(state.velocity.coords[0], 0.0f,
@@ -500,7 +500,7 @@ void CheckBallContactResolver() {
     ContactMaterial material;
     material.restitution = 0.5f;
     material.friction = 0.5f;
-    BallContactResolver::Resolve(state, ball, contact, material);
+    BallContactResolver::Resolve(state, ball, contact, Vector3(0), material);
     // vn = -4, e = 0.5 -> vz = -e * vn = 2.
     RequireNear(state.velocity.coords[2], 2.0f,
                 "ball contact: oblique normal bounce");
@@ -527,7 +527,7 @@ void CheckBallContactResolver() {
     ContactMaterial material;
     material.restitution = 0.5f;
     material.friction = 0.5f;
-    BallContactResolver::Resolve(state, ball, contact, material);
+    BallContactResolver::Resolve(state, ball, contact, Vector3(0), material);
     RequireNear(state.velocity.coords[2], 3.0f,
                 "ball contact: separating is a no-op");
   }
@@ -548,7 +548,7 @@ void CheckBallContactResolver() {
       ContactMaterial material;
       material.restitution = 0.5f;
       material.friction = 0.5f;
-      BallContactResolver::Resolve(state, ball, contact, material);
+      BallContactResolver::Resolve(state, ball, contact, Vector3(0), material);
       return state;
     };
     const BallState no_spin = resolve(0.0f);
@@ -569,7 +569,7 @@ void CheckBallContactResolver() {
     ContactMaterial material;
     material.restitution = 0.5f;
     material.friction = 0.0f;
-    BallContactResolver::Resolve(unit_state, ball, unit_contact, material);
+    BallContactResolver::Resolve(unit_state, ball, unit_contact, Vector3(0), material);
 
     BallState scaled_state;
     scaled_state.position = Vector3(0.0f, 0.0f, ball.radius);
@@ -577,7 +577,7 @@ void CheckBallContactResolver() {
     BallContact scaled_contact;
     scaled_contact.point = Vector3(0.0f, 0.0f, 0.0f);
     scaled_contact.normal = Vector3(0.0f, 0.0f, 5.0f);
-    BallContactResolver::Resolve(scaled_state, ball, scaled_contact, material);
+    BallContactResolver::Resolve(scaled_state, ball, scaled_contact, Vector3(0), material);
 
     RequireNear(unit_state.velocity.coords[2], scaled_state.velocity.coords[2],
                 "ball contact: non-unit normal normalized");
