@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_CORE_CONTACT_PLAYER_COLLIDER_HPP
 #define FOOTBALL_CORE_CONTACT_PLAYER_COLLIDER_HPP
 
-#include "core/contact/circle_collider.hpp"
+#include "core/physics/contact/geometry/circle_collider.hpp"
 #include "core/model/player/player.hpp"
 
 namespace football_sim::contact {

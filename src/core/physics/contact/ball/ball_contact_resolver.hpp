@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cmath>
 
-#include "core/contact/ball_contact.hpp"
+#include "core/physics/contact/ball/ball_contact.hpp"
 #include "core/model/ball/ball.hpp"
 
 namespace football_sim::contact {

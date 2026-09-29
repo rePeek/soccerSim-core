@@ -1,7 +1,7 @@
 #ifndef _HPP_CORE_CONTACT_PLAYER_BODY_COLLIDER
 #define _HPP_CORE_CONTACT_PLAYER_BODY_COLLIDER
 
-#include "core/contact/capsule_collider.hpp"
+#include "core/physics/contact/geometry/capsule_collider.hpp"
 
 namespace football_sim::contact {
 

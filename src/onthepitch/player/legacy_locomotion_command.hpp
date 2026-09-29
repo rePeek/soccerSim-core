@@ -10,7 +10,7 @@
 
 #include "../../defines.hpp"
 #include "humanoid/animcollection.hpp"
-#include "core/physics/player_movement.hpp"
+#include "core/physics/movement/player/player_movement.hpp"
 
 // Compatibility adapter between the legacy PlayerCommand and the simulation
 // -owned locomotion model.

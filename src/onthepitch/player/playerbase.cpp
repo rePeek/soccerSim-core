@@ -17,7 +17,7 @@
 
 #include "player.hpp"
 #include "player_action_executor.hpp"
-#include "core/physics/player_movement.hpp"
+#include "core/physics/movement/player/player_movement.hpp"
 #include "locomotion_intent_scheduler.hpp"
 #include "legacy_locomotion_command.hpp"
 #include "player_profile_adapter.hpp"

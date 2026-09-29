@@ -5,7 +5,7 @@
 //  Copyright 2026
 //
 
-#include "core/physics/player_movement.hpp"
+#include "core/physics/movement/player/player_movement.hpp"
 
 namespace football_sim::physics {
 

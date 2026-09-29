@@ -3,8 +3,8 @@
 
 #include <optional>
 
-#include "core/contact/circle_collider.hpp"
-#include "core/contact/contact.hpp"
+#include "core/physics/contact/geometry/circle_collider.hpp"
+#include "core/physics/contact/geometry/contact.hpp"
 
 namespace football_sim::contact {
 

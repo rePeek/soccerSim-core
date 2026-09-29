@@ -8,8 +8,8 @@
 #include <optional>
 #include <vector>
 
-#include "core/contact/circle_contact.hpp"
-#include "core/contact/player_collider.hpp"
+#include "core/physics/contact/geometry/circle_contact.hpp"
+#include "core/physics/contact/player/player_collider.hpp"
 #include "core/model/player/player.hpp"
 
 namespace football_sim::contact {

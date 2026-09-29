@@ -10,7 +10,7 @@
 
 #include <array>
 
-#include "core/physics/player_movement.hpp"
+#include "core/physics/movement/player/player_movement.hpp"
 
 // Approximate body volume used for *passive* ball-body collisions.
 //

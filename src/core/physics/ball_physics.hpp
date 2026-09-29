@@ -7,16 +7,16 @@
 #include <optional>
 #include <vector>
 
-#include "core/contact/ball_contact.hpp"
-#include "core/contact/ball_contact_resolver.hpp"
-#include "core/contact/capsule_collider.hpp"
-#include "core/contact/player_body_collider.hpp"
-#include "core/contact/sphere_capsule_contact.hpp"
-#include "core/contact/sweep_sphere_capsule.hpp"
+#include "core/physics/contact/ball/ball_contact.hpp"
+#include "core/physics/contact/ball/ball_contact_resolver.hpp"
+#include "core/physics/contact/geometry/capsule_collider.hpp"
+#include "core/physics/contact/geometry/player_body_collider.hpp"
+#include "core/physics/contact/geometry/sphere_capsule_contact.hpp"
+#include "core/physics/contact/geometry/sweep_sphere_capsule.hpp"
 #include "core/model/ball/ball.hpp"
 #include "core/model/player/player.hpp"
-#include "core/physics/ball_dynamics.hpp"
-#include "core/physics/ground_dynamics.hpp"
+#include "core/physics/movement/ball/ball_dynamics.hpp"
+#include "core/physics/contact/ball/ground_dynamics.hpp"
 
 namespace football_sim::physics {
 

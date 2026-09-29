@@ -1,11 +1,11 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "core/contact/player_contact.hpp"
+#include "core/physics/contact/player/player_contact.hpp"
 #include "core/model/ball/ball.hpp"
 #include "core/model/player/player.hpp"
 #include "core/physics/ball_physics.hpp"
-#include "core/physics/player_movement.hpp"
+#include "core/physics/movement/player/player_movement.hpp"
 #include "core/math/math.hpp"
 
 

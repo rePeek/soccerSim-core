@@ -2,7 +2,7 @@
 
 #include <functional>
 
-#include "core/contact/player_contact.hpp"
+#include "core/physics/contact/player/player_contact.hpp"
 
 namespace football_sim::physics {
 

@@ -4,8 +4,8 @@
 #include <cmath>
 #include <optional>
 
-#include "core/contact/ball_contact.hpp"
-#include "core/contact/capsule_collider.hpp"
+#include "core/physics/contact/ball/ball_contact.hpp"
+#include "core/physics/contact/geometry/capsule_collider.hpp"
 
 namespace football_sim::contact {
 

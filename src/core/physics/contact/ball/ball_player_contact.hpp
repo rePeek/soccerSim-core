@@ -3,10 +3,10 @@
 
 #include <optional>
 
-#include "core/contact/ball_contact.hpp"
-#include "core/contact/player_body_collider.hpp"
-#include "core/contact/sphere_capsule_contact.hpp"
-#include "core/contact/sweep_sphere_capsule.hpp"
+#include "core/physics/contact/ball/ball_contact.hpp"
+#include "core/physics/contact/geometry/player_body_collider.hpp"
+#include "core/physics/contact/geometry/sphere_capsule_contact.hpp"
+#include "core/physics/contact/geometry/sweep_sphere_capsule.hpp"
 
 namespace football_sim::contact {
 
