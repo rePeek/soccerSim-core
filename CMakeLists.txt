@@ -54,6 +54,11 @@ foreach(tgt IN ITEMS
   football_configure_target(${tgt})
 endforeach()
 
+# --- headless simulation executable ------------------------------------------
+add_executable(footballSim src/app/main.cpp)
+target_link_libraries(footballSim PRIVATE ${OUTPUT_LIB_NAME})
+football_configure_target(footballSim)
+
 # --- tests ------------------------------------------------------------------
 add_executable(football_smoke tools/football_smoke.cpp)
 target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
