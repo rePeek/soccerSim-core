@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cmath>
 
-#include "base/log.hpp"
 #include "core/model/player/player.hpp"
 #include "foundation/math/math.hpp"
 
@@ -44,7 +43,7 @@ class PlayerKinematics {
   static void Step(PlayerKinematicState &state,
                    const PlayerKinematicInput &input,
                    const PlayerKinematicParameters &parameters, float dt) {
-    DO_VALIDATION;
+
     assert(dt > 0.0f);
     assert(parameters.maxSpeed >= 0.0f);
     assert(parameters.acceleration >= 0.0f);
@@ -185,7 +184,7 @@ class PlayerLocomotion {
   static void Step(PlayerKinematicState &state,
                    const PlayerLocomotionInput &input,
                    const PlayerLocomotionParameters &parameters, float dt) {
-    DO_VALIDATION;
+
     assert(dt > 0.0f);
     assert(parameters.maxSpeed > 0.0f);
     assert(parameters.acceleration > 0.0f);
@@ -246,7 +245,7 @@ class PlayerLocomotion {
   // target exactly rather than overshooting it.
   static float ApproachAsymmetric(float current, float target,
                                   float acceleration, float braking, float dt) {
-    DO_VALIDATION;
+
     const float rate = target < current ? braking : acceleration;
     const float maxStep = rate * dt;
     const float delta = target - current;
@@ -261,7 +260,7 @@ class PlayerLocomotion {
                                       const PlayerLocomotionInput &input,
                                       const PlayerLocomotionParameters &parameters,
                                       int time_ms) {
-    DO_VALIDATION;
+
     for (int elapsed = 0; elapsed < time_ms; elapsed += 10) {
       Step(state, input, parameters, 0.01f);
     }
@@ -280,7 +279,7 @@ class PlayerLocomotion {
       const PlayerKinematicState &start, const Vector3 &target,
       const PlayerLocomotionParameters &parameters, float desired_speed,
       int horizon_ms, float usual_radius, float optimistic_radius) {
-    DO_VALIDATION;
+
     PlayerLocomotionReach reach;
     if (desired_speed <= 0.0f) return reach;
     PlayerKinematicState state = start;
@@ -320,7 +319,7 @@ class PlayerLocomotion {
       const PlayerKinematicState &start, TargetAtTime target_at,
       const PlayerLocomotionParameters &parameters, float desired_speed,
       int horizon_ms, float usual_radius, float optimistic_radius) {
-    DO_VALIDATION;
+
     ++PlayerLocomotionInterceptSolverCalls();
     PlayerLocomotionReach intercept;
     if (desired_speed <= 0.0f) return intercept;
@@ -379,7 +378,7 @@ class PlayerLocomotion {
                                        const Vector3 &ball_velocity,
                                        float speed, int horizon_ms,
                                        float radius) {
-    DO_VALIDATION;
+
     if (speed <= 0.0f) return -1;
     const Vector3 offset = ball_position.Get2D() - start.position;
     const Vector3 ball_motion = ball_velocity.Get2D();
@@ -429,7 +428,7 @@ class PlayerLocomotion {
                                      const PlayerLocomotionParameters &parameters,
                                      float desired_speed, int horizon_ms,
                                      float radius) {
-    DO_VALIDATION;
+
     if (desired_speed <= 0.0f) return -1;
     const float cruise = std::min(desired_speed, parameters.maxSpeed);
     if (cruise <= 0.0f || parameters.maxSpeed <= 0.0f) return -1;
@@ -535,7 +534,7 @@ class PlayerLocomotion {
       const PlayerLocomotionParameters &parameters, float desired_speed,
       int horizon_ms, int exact_horizon_ms, float usual_radius,
       float optimistic_radius, bool steady_state = false) {
-    DO_VALIDATION;
+
     PlayerLocomotionReach reach = EstimateEarliestInterceptExact(
         start, target_at, parameters, desired_speed, exact_horizon_ms,
         usual_radius, optimistic_radius);
@@ -595,7 +594,7 @@ class PlayerBodyFacing {
   static Vector3 AllowedTarget(const PlayerKinematicState &state,
                                const PlayerBodyFacingInput &input,
                                const PlayerBodyFacingParameters &parameters) {
-    DO_VALIDATION;
+
     const Vector3 locomotionFacing =
         state.movementFacing.Get2D().GetNormalized(Vector3(0, -1, 0));
     const Vector3 desired =
@@ -625,7 +624,7 @@ class PlayerBodyFacing {
   static void Step(PlayerKinematicState &state,
                    const PlayerBodyFacingInput &input,
                    const PlayerBodyFacingParameters &parameters, float dt) {
-    DO_VALIDATION;
+
     assert(dt > 0.0f);
     assert(parameters.maxTurnRate >= 0.0f);
     assert(parameters.maxRelativeAngle >= 0.0f);

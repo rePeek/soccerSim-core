@@ -66,7 +66,7 @@ inline bool SmallestRootInUnitInterval(float a, float b, float c, float &t) {
 inline std::optional<BallContact> SweepSphereCapsule(
     const football_sim::math::Vector3 &start, const football_sim::math::Vector3 &end,
     float sphereRadius, const CapsuleCollider &capsule, float dt) {
-  DO_VALIDATION;
+
   const float expandedRadius = sphereRadius + capsule.radius;
   const football_sim::math::Vector3 axis = capsule.tipB - capsule.tipA;
   const float axisLengthSq = axis.GetSquaredLength();

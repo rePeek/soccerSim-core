@@ -20,7 +20,7 @@ namespace football_sim::contact {
 //   coincident center -> deterministic fallback normal (+x)
 inline std::optional<Contact> DetectContact(const CircleCollider &a,
                                             const CircleCollider &b) {
-  DO_VALIDATION;
+
   const football_sim::math::Vector3 fromAtoB = (b.center - a.center).Get2D();
   const float distance = fromAtoB.GetLength();
   const float sumRadii = a.radius + b.radius;

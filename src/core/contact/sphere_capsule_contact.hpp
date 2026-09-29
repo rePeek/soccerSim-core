@@ -16,7 +16,7 @@ namespace football_sim::contact {
 inline std::optional<BallContact> DetectSphereCapsuleContact(
     const football_sim::math::Vector3 &center, float sphereRadius,
     const CapsuleCollider &capsule) {
-  DO_VALIDATION;
+
   const football_sim::math::Vector3 spinePoint =
       ClosestPointOnSegment(center, capsule.tipA, capsule.tipB);
   const football_sim::math::Vector3 fromCapsuleToCenter = center - spinePoint;

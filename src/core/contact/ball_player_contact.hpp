@@ -17,7 +17,7 @@ namespace football_sim::contact {
 inline std::optional<BallContact> DetectPlayerBodyBallContact(
     const PlayerBodyCollider &body,
     const football_sim::math::Vector3 &ballPosition, float ballRadius) {
-  DO_VALIDATION;
+
   const CapsuleCollider *volumes[3] = {&body.upperBody, &body.lowerBody,
                                        &body.head};
   for (const CapsuleCollider *volume : volumes) {
@@ -42,7 +42,7 @@ inline std::optional<BallContact> SweepPlayerBodyBallContact(
     const football_sim::math::Vector3 &ballStart, const football_sim::math::Vector3 &ballEnd,
     const football_sim::math::Vector3 &playerStart, const football_sim::math::Vector3 &playerEnd,
     float ballRadius, float dt) {
-  DO_VALIDATION;
+
   const football_sim::math::Vector3 relativeDelta =
       (ballEnd - ballStart) - (playerEnd - playerStart);
   const football_sim::math::Vector3 relativeEnd = ballStart + relativeDelta;

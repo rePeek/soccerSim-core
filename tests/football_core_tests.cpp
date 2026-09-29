@@ -6,7 +6,15 @@
 #include "core/model/player/player.hpp"
 #include "core/physics/ball_physics.hpp"
 #include "core/physics/player_movement.hpp"
+#include "foundation/math/math.hpp"
 
+
+TEST_CASE("math helpers enforce their explicit range contract") {
+  REQUIRE(football_sim::math::clamp(-1.0f, 0.0f, 1.0f) == 0.0f);
+  REQUIRE(football_sim::math::clamp(2.0f, 0.0f, 1.0f) == 1.0f);
+  REQUIRE(football_sim::math::NormalizedClamp(0.5f, 0.0f, 1.0f) ==
+          Catch::Approx(0.5f));
+}
 TEST_CASE("Ball owns immutable attributes and commits whole state") {
   football_sim::Ball ball(0.12f, 0.50f, 0.40f);
   REQUIRE(ball.Radius() == Catch::Approx(0.12f));

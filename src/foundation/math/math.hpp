@@ -22,12 +22,13 @@
 #include <limits>
 #include <assert.h>
 #include <iostream>
-#include "../../base/log.hpp"
 
 
 
 namespace football_sim::math {
   typedef float real;
+
+  inline constexpr real kEpsilon = 1.0e-6f;
 
   real clamp(const real value, const real min, const real max);
   real NormalizedClamp(const real value, const real min, const real max);
@@ -36,13 +37,13 @@ namespace football_sim::math {
   constexpr real pi = 3.1415926535897932384626433832795028841972f; // last decimal rounded ;)
   class radian {
    public:
-    radian() { DO_VALIDATION;}
-    radian(float r) : _angle(r) { DO_VALIDATION;}
+    radian() { }
+    radian(float r) : _angle(r) { }
     std::ostream& operator<<(std::ostream& os) {
       os << _angle << " " << _rotated;
       return os;
     }
-    radian &operator+=(radian r) { DO_VALIDATION;
+    radian &operator+=(radian r) {
       _angle += r._angle;
       _rotated ^= r._rotated;
       return *this;
@@ -52,21 +53,21 @@ namespace football_sim::math {
       _rotated ^= r._rotated;
       return *this;
     }
-    radian &operator/=(radian r) { DO_VALIDATION;
+    radian &operator/=(radian r) {
       *this = radian(real(*this) / real(r));
       return *this;
     }
-    radian &operator*=(radian r) { DO_VALIDATION;
+    radian &operator*=(radian r) {
       *this = radian(real(*this) * real(r));
       return *this;
     }
     operator real() const {
-      if (_rotated) { DO_VALIDATION;
+      if (_rotated) {
         return _angle - pi;
       }
       return _angle;
     }
-    void Mirror() { DO_VALIDATION;
+    void Mirror() {
       _rotated = !_rotated;
     }
    private:
@@ -85,7 +86,7 @@ namespace football_sim::math {
   // Presentation-only RNG. Must not affect simulation state.
   real random_non_determ(real min, real max);
 
-  inline float curve(float source, float bias = 1.0f) { DO_VALIDATION; // make linear / into sined _/-
+  inline float curve(float source, float bias = 1.0f) {  // make linear / into sined _/-
     return (std::sin((source - 0.5f) * pi) * 0.5f + 0.5f) * bias +
            source * (1.0f - bias);
   }
