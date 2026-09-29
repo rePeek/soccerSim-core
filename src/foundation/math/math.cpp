@@ -21,7 +21,6 @@
 #include <cmath>
 #include <random>
 
-#include "base/log.hpp"
 
 namespace {
 std::mt19937 deterministicRng(0);

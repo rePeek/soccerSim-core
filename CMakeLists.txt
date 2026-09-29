@@ -10,8 +10,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(footballCore STATIC
-  src/base/log.cpp
-  src/cmake/backtrace.cpp
   src/foundation/math/vector3.cpp
   src/foundation/math/matrix3.cpp
   src/foundation/math/matrix4.cpp
@@ -24,9 +22,17 @@ add_library(footballCore STATIC
 )
 target_include_directories(footballCore PUBLIC
   ${PROJECT_SOURCE_DIR}/src
-  ${PROJECT_SOURCE_DIR}/src/cmake
 )
 target_compile_features(footballCore PUBLIC cxx_std_23)
+
+CPMAddPackage(
+  NAME spdlog
+  GITHUB_REPOSITORY gabime/spdlog
+  GIT_TAG v1.15.3
+  OPTIONS "SPDLOG_BUILD_EXAMPLE OFF" "SPDLOG_BUILD_TESTS OFF"
+          "SPDLOG_BUILD_BENCH OFF" "SPDLOG_INSTALL OFF"
+)
+target_link_libraries(footballCore PRIVATE spdlog::spdlog)
 
 # JSON is an application concern: footballCore remains dependency-free.
 CPMAddPackage(
