@@ -4660,6 +4660,33 @@ void MeasurePlayerContactOracle(GameEnv& env, ScenarioConfig& config) {
           "player contact oracle: new-only contacts must be touching");
 }
 
+void MeasurePlayerBallContactOracle(GameEnv& env, ScenarioConfig& config) {
+  ResetPlayerBallContactOracleAudit();
+  PlayerBallContactOracleAuditEnabled() = true;
+  env.reset(config, false);
+  WaitUntilInPlay(env, 60, "player-ball oracle: kickoff");
+  Advance(env, 1000);
+  PlayerBallContactOracleAuditEnabled() = false;
+  const PlayerBallContactOracleAudit &audit = PlayerBallContactOracleAuditFor();
+
+  std::cout << "  player_ball_oracle pairs=" << audit.pairs
+            << " legacy_overlap=" << audit.legacy_overlap
+            << " new_hit=" << audit.new_hit
+            << " both=" << audit.both
+            << " legacy_only=" << audit.legacy_only
+            << " new_only=" << audit.new_only
+            << " t0_touching=" << audit.new_t0_touching
+            << " t0_overlap=" << audit.new_t0_overlap
+            << " max_toi=" << audit.max_time_within_tick << "\n";
+
+  Require(audit.pairs > 0, "player-ball oracle: no pairs observed");
+  // The sweep must see at least every discrete overlap (a current overlap is
+  // a t=0 sweep hit); new_only is the potential tunnelling the discrete
+  // detector would have missed, not a correctness failure.
+  Require(audit.new_hit >= audit.legacy_overlap,
+          "player-ball oracle: sweep must not miss a discrete overlap");
+}
+
 void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   Require(!env.get_info().is_in_play, "kickoff should begin paused");
@@ -5079,6 +5106,7 @@ int main(int argc, char** argv) {
     CheckReverseTeamProcessing(env, config);
     MeasureContactAuthority(env, config);
     MeasurePlayerContactOracle(env, config);
+    MeasurePlayerBallContactOracle(env, config);
     std::cout << "football_regression: PASS\n";
     return 0;
   } catch (const RegressionFailure& failure) {

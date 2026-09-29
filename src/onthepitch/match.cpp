@@ -25,6 +25,8 @@
 #include "../base/log.hpp"
 #include "../game_env.hpp"
 #include "core/contact/player_contact.hpp"
+#include "core/contact/player_body_collider.hpp"
+#include "core/contact/ball_player_contact.hpp"
 #include "core/world/world_profiles.hpp"
 #include "../main.hpp"
 #include "AIsupport/AIfunctions.hpp"
@@ -714,6 +716,20 @@ void ResetPlayerContactOracleAudit() {
   PlayerContactOracleAuditFor() = PlayerContactOracleAudit{};
 }
 
+PlayerBallContactOracleAudit &PlayerBallContactOracleAuditFor() {
+  static PlayerBallContactOracleAudit audit;
+  return audit;
+}
+
+bool &PlayerBallContactOracleAuditEnabled() {
+  static bool enabled = false;
+  return enabled;
+}
+
+void ResetPlayerBallContactOracleAudit() {
+  PlayerBallContactOracleAuditFor() = PlayerBallContactOracleAudit{};
+}
+
 void Match::CheckHumanoidCollisions() {
   DO_VALIDATION;
   std::vector<Player*> players;
@@ -1118,6 +1134,59 @@ void Match::CheckBallCollisions() {
   std::vector<Player*> players;
   GetTeam(first_team)->GetActivePlayers(players);
   GetTeam(second_team)->GetActivePlayers(players);
+
+  // 7G-8-d-b: player-ball geometry oracle (observation only). Compare the
+  // legacy discrete body-volume overlap against the new swept body CCD.
+  if (PlayerBallContactOracleAuditEnabled()) {
+    PlayerBallContactOracleAudit &audit = PlayerBallContactOracleAuditFor();
+    const Vector3 ballPos = ball->Predict(0);
+    const Vector3 ballVel = ball->GetMovement();
+    const Vector3 ballEnd = ballPos + ballVel * 0.01f;
+    const float ballRadius = ball->Entity().Profile().radius;
+    for (Player *p : players) {
+      const Vector3 playerPos = p->GetKinematicState().position;
+      const Vector3 playerEnd =
+          playerPos + p->GetKinematicState().velocity * 0.01f;
+
+      bool legacyOverlap = false;
+      const PlayerBodyCollider legacyBody =
+          BuildBodyCollider(p->GetKinematicState());
+      for (const BodyVolume *volume : legacyBody.GetVolumes()) {
+        if (volume->IntersectsSphere(ballPos, ballRadius)) {
+          legacyOverlap = true;
+          break;
+        }
+      }
+
+      const football::contact::PlayerBodyCollider coreBody =
+          football::contact::BuildPlayerBodyCollider(playerPos);
+      const auto hit = football::contact::SweepPlayerBodyBallContact(
+          coreBody, ballPos, ballEnd, playerPos, playerEnd, ballRadius, 0.01f);
+
+      ++audit.pairs;
+      const bool newHit = hit.has_value();
+      if (legacyOverlap) ++audit.legacy_overlap;
+      if (newHit) ++audit.new_hit;
+      if (legacyOverlap && newHit) {
+        ++audit.both;
+      } else if (legacyOverlap) {
+        ++audit.legacy_only;
+      } else if (newHit) {
+        ++audit.new_only;
+      }
+      if (newHit) {
+        if (hit->timeWithinTick == 0.0f) {
+          if (hit->penetration > 0.0f) {
+            ++audit.new_t0_overlap;
+          } else {
+            ++audit.new_t0_touching;
+          }
+        }
+        audit.max_time_within_tick =
+            std::max(audit.max_time_within_tick, hit->timeWithinTick);
+      }
+    }
+  }
 
   Vector3 bounceVec;
   float bias = 0.0;

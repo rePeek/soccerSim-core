@@ -64,6 +64,25 @@ PlayerContactOracleAudit &PlayerContactOracleAuditFor();
 bool &PlayerContactOracleAuditEnabled();
 void ResetPlayerContactOracleAudit();
 
+// 7G-8-d-b: transient player-ball geometry oracle. It compares the legacy
+// discrete body-volume overlap against the new swept player-body CCD over
+// the same tick, without touching gameplay authority. `new_only` counts
+// potential tunnelling the discrete detector would have missed.
+struct PlayerBallContactOracleAudit {
+  int pairs = 0;
+  int legacy_overlap = 0;
+  int new_hit = 0;
+  int both = 0;
+  int legacy_only = 0;
+  int new_only = 0;
+  int new_t0_touching = 0;
+  int new_t0_overlap = 0;
+  float max_time_within_tick = 0.0f;
+};
+PlayerBallContactOracleAudit &PlayerBallContactOracleAuditFor();
+bool &PlayerBallContactOracleAuditEnabled();
+void ResetPlayerBallContactOracleAudit();
+
 class Match {
 
   public:
