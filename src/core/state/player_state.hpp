@@ -12,7 +12,8 @@
 //    PlayerKinematicResult, applied through PlayerBase::ApplyKinematicResult.
 //  - HumanoidBase projects PlayerState into legacy SpatialState; animation root
 //    motion is a legacy kinematic evaluator, not self-movement authority.
-//  - Collision-driven correction remains a transitional reverse sync for 7G.
+//  - Collision-driven correction now writes PlayerState first and projects
+//    forward into SpatialState (7G-5); Humanoid no longer reverse-syncs it.
 //  - The serialized compatibility copy and the bit-exact
 //    CheckSimulationKinematicOracle() remain in place.
 //

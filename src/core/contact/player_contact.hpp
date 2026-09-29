@@ -2,6 +2,8 @@
 #define _HPP_CORE_CONTACT_PLAYER_CONTACT
 
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <optional>
 #include <vector>
 
@@ -64,10 +66,13 @@ inline PlayerContactResolution ResolvePlayerContact(
   DO_VALIDATION;
   PlayerContactResolution result;
 
+  // Dynamic bodies only. mass == 0 must not silently mean "infinite mass";
+  // a future kinematic/static body should carry inverseMass = 0 explicitly.
+  assert(std::isfinite(a_profile.physical.mass) && a_profile.physical.mass > 0.0f);
+  assert(std::isfinite(b_profile.physical.mass) && b_profile.physical.mass > 0.0f);
   const float invA = 1.0f / a_profile.physical.mass;
   const float invB = 1.0f / b_profile.physical.mass;
   const float invSum = invA + invB;
-  if (invSum <= 0.0f) return result;  // both bodies are kinematic/infinite mass
 
   const float wA = invA / invSum;
   const float wB = invB / invSum;
@@ -130,11 +135,20 @@ inline void ResolvePlayerContactBatch(
     std::vector<PlayerContactBody> &bodies,
     const PlayerContactSolverConfig &config = PlayerContactSolverConfig{}) {
   DO_VALIDATION;
+  assert(config.iterations > 0);
+  // Stable indices are a solver precondition, not a regression oracle: a
+  // forgotten or duplicated index silently makes Gauss-Seidel order depend on
+  // the caller's vector layout, which would break Replay/dataset/self-play.
+  for (const PlayerContactBody &body : bodies) assert(body.index >= 0);
+
   std::stable_sort(bodies.begin(), bodies.end(),
                    [](const PlayerContactBody &x, const PlayerContactBody &y) {
                      return x.index < y.index;
                    });
 
+  for (std::size_t i = 1; i < bodies.size(); ++i) {
+    assert(bodies[i - 1].index != bodies[i].index);
+  }
   const int count = static_cast<int>(bodies.size());
   for (int iteration = 0; iteration < config.iterations; ++iteration) {
     DO_VALIDATION;

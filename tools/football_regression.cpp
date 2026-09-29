@@ -726,6 +726,11 @@ void CheckContactDetection() {
   b.center = Vector3(1.0f, 0.0f, 0.0f);
   Require(!DetectContact(a, b).has_value(), "DetectContact separated");
 
+  // strict semantics: no slop. Even a hair past the boundary is separated.
+  b.center = Vector3(0.72001f, 0.0f, 0.0f);
+  Require(!DetectContact(a, b).has_value(),
+          "DetectContact strict boundary is separated");
+
   // touching: distance == rA + rB, penetration == 0, normal A -> B
   b.center = Vector3(0.72f, 0.0f, 0.0f);
   auto contact = DetectContact(a, b);
@@ -766,6 +771,13 @@ void CheckContactDetection() {
               "DetectContact swapped normal x");
   RequireNear(ab->normal.coords[1], -ba->normal.coords[1],
               "DetectContact swapped normal y");
+  RequireNear(ab->point.coords[0], ba->point.coords[0],
+              "DetectContact swapped point x");
+  RequireNear(ab->point.coords[1], ba->point.coords[1],
+              "DetectContact swapped point y");
+  RequireNear(ab->normal.GetLength(), 1.0f, "DetectContact unit normal");
+  RequireNear(ab->normal.coords[2], 0.0f, "DetectContact planar normal z");
+  RequireNear(ab->point.coords[2], 0.0f, "DetectContact planar point z");
 
   // coincident centers -> deterministic fallback normal
   CircleCollider same1;
@@ -895,13 +907,18 @@ void CheckPlayerContactBatchSolver() {
   shuffled.push_back(make_body(0, 0.0f));
   shuffled.push_back(make_body(1, 0.5f));
   ResolvePlayerContactBatch(shuffled);
+  // Determinism: the same geometry keyed by index resolves bit-identically
+  // regardless of input order (result order is sorted by index). Replay,
+  // dataset generation and self-play all depend on exact float bits.
   for (size_t i = 0; i < bodies.size(); ++i) {
-    RequireNear(bodies[i].state.position.coords[0],
-                shuffled[i].state.position.coords[0],
-                "batch solver determinism x");
-    RequireNear(bodies[i].state.position.coords[1],
-                shuffled[i].state.position.coords[1],
-                "batch solver determinism y");
+    Require(std::memcmp(bodies[i].state.position.coords,
+                        shuffled[i].state.position.coords,
+                        sizeof(bodies[i].state.position.coords)) == 0,
+            "batch solver position must be bit deterministic");
+    Require(std::memcmp(bodies[i].state.velocity.coords,
+                        shuffled[i].state.velocity.coords,
+                        sizeof(bodies[i].state.velocity.coords)) == 0,
+            "batch solver velocity must be bit deterministic");
   }
 }
 

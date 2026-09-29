@@ -1,7 +1,6 @@
 #ifndef _HPP_CORE_CONTACT_CIRCLE_CONTACT
 #define _HPP_CORE_CONTACT_CIRCLE_CONTACT
 
-#include <algorithm>
 #include <optional>
 
 #include "core/contact/circle_collider.hpp"
@@ -26,18 +25,16 @@ inline std::optional<Contact> DetectContact(const CircleCollider &a,
   const float distance = fromAtoB.GetLength();
   const float sumRadii = a.radius + b.radius;
 
-  // A hair of contact slop keeps the exact "touching" boundary robust to float
-  // rounding. It can only ever report a contact for a marginally-separated
-  // pair (penetration clamped to 0); it never invents an overlap.
-  constexpr float kContactEpsilon = 1e-5f;
-  if (distance > sumRadii + kContactEpsilon) return std::nullopt;
+  // Strict frozen semantics: separated means distance > sumRadii. There is no
+  // slop here; tolerance belongs to the solver, not to contact geometry.
+  if (distance > sumRadii) return std::nullopt;
 
-  // Coincident centers would make the normal undefined. Fall back to +x so the
-  // result is deterministic across runs, replays and mirrored play.
+  // Coincident centers have no unique normal; +x is an arbitrary but
+  // deterministic tie-breaker. It is not claimed to be mirror-symmetric.
   Contact contact;
   contact.normal = fromAtoB.GetNormalized(blunted::Vector3(1.0f, 0.0f, 0.0f));
   contact.normal.coords[2] = 0.0f;
-  contact.penetration = std::max(0.0f, sumRadii - distance);
+  contact.penetration = sumRadii - distance;
 
   // Midpoint of the overlapping band along the contact line. penetration == 0
   // yields exactly a.center + normal * a.radius == b.center - normal * b.radius.
