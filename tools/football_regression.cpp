@@ -24,6 +24,7 @@
 #include "core/contact/ball_ground_contact.hpp"
 #include "core/contact/player_body_collider.hpp"
 #include "core/contact/ball_player_contact.hpp"
+#include "core/contact/ball_control_constraint.hpp"
 #include "core/contact/player_contact.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
@@ -207,6 +208,25 @@ void CheckPlayerBodyBallContact() {
   Require(c.has_value(), "player-body ball: head contact");
   RequireNear(c->penetration, 0.22f - 0.15f,
               "player-body ball: head penetration");
+}
+
+void CheckBallControlConstraint() {
+  using football::contact::BallControlConstraint;
+  using football::contact::BallControlType;
+
+  BallControlConstraint inactive;
+  Require(!inactive.IsActive(), "control constraint: default inactive");
+
+  BallControlConstraint trap;
+  trap.ownerId = 7;
+  trap.type = BallControlType::Trap;
+  Require(trap.IsActive(), "control constraint: trap active");
+  Require(trap.type == BallControlType::Trap, "control constraint: trap type");
+
+  BallControlConstraint catchc;
+  catchc.ownerId = 1;
+  catchc.type = BallControlType::Catch;
+  Require(catchc.type == BallControlType::Catch, "control constraint: catch type");
 }
 
 void CheckBallDynamics() {
@@ -4862,6 +4882,7 @@ int main(int argc, char** argv) {
     CheckGroundDynamics();
     CheckBallWoodwork();
     CheckPlayerBodyBallContact();
+    CheckBallControlConstraint();
     CheckBallDynamics();
     CheckBallSpinConvention();
     CheckBallContactResolver();
