@@ -74,7 +74,7 @@ void Team::InitPlayers(
     // WorldState has 11 slots per team; extra bench entries retain local state.
     PlayerState *slot =
         i < MAX_PLAYERS ? &match->GetTeamPlayerState(id, i) : nullptr;
-    const football::domain::PlayerProfile *profile =
+    const football::model::PlayerProfile *profile =
         i < MAX_PLAYERS ? &match->GetTeamPlayerProfile(id, i) : nullptr;
     Player *player = new Player(this, playerData, slot, profile);
     players.push_back(player);

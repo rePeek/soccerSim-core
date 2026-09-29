@@ -38,7 +38,7 @@ struct WorldState;
 struct PlayerState;
 struct WorldProfiles;
 
-namespace football::domain { struct PlayerProfile; }
+namespace football::model { struct PlayerProfile; }
 
 struct PlayerBounce {
   Player *opp;
@@ -99,7 +99,7 @@ class Match {
     int GetScore(int teamID) { DO_VALIDATION; return matchData->GetGoalCount(teamID); }
     // Team slots are stable across activation; officials retain local state.
     PlayerState& GetTeamPlayerState(int team_id, int team_index);
-    const football::domain::PlayerProfile& GetTeamPlayerProfile(
+    const football::model::PlayerProfile& GetTeamPlayerProfile(
         int team_id, int team_index) const;
     BallLegacy *GetBall() { DO_VALIDATION; return ball; }
     Team *GetTeam(int teamID) { DO_VALIDATION; return teams[teamID]; }

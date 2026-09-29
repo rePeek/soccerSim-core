@@ -36,7 +36,7 @@ extra bench players still have local movement state. Substitution/rebinding
 of an extra bench player into a World slot is not part of 7G-0; it needs an
 explicit policy before contact prediction assumes all active players are
 World-owned. The current player and ball domain entities live in
-`football::domain`; legacy `::Player` and `BallLegacy` remain facades.
+`football::model`; legacy `::Player` and `BallLegacy` remain facades.
 `PlayerKinematics` is experimental/reference only; runtime movement is
 `PlayerLocomotion` + `PlayerBodyFacing`. PlayerState and PlayerKinematicResult
 use `movementFacing` for locomotion direction and `torsoFacing` for torso

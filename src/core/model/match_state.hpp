@@ -1,5 +1,5 @@
-#ifndef _HPP_CORE_STATE_MATCH_STATE
-#define _HPP_CORE_STATE_MATCH_STATE
+#ifndef _HPP_CORE_MODEL_MATCH_STATE
+#define _HPP_CORE_MODEL_MATCH_STATE
 
 #include "../../defines.hpp"
 
@@ -19,4 +19,4 @@ struct MatchState {
   }
 };
 
-#endif  // _HPP_CORE_STATE_MATCH_STATE
+#endif  // _HPP_CORE_MODEL_MATCH_STATE

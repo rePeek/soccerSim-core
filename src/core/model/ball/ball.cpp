@@ -1,6 +1,6 @@
 #include "ball.hpp"
 
-namespace football::domain {
+namespace football::model {
 
 Ball::Ball(const BallProfile& profile, BallState& state)
     : profile_(profile), state_(state) {}
@@ -23,4 +23,4 @@ void Ball::Reset(const blunted::Vector3& focusPos) {
   state_.orientation = blunted::Quaternion(blunted::QUATERNION_IDENTITY);
 }
 
-}  // namespace football::domain
+}  // namespace football::model

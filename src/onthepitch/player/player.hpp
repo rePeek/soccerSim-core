@@ -43,7 +43,7 @@ class Player : public PlayerBase {
 
   public:
     Player(Team *team, PlayerData *playerData, PlayerState* state,
-           const football::domain::PlayerProfile* profile);
+           const football::model::PlayerProfile* profile);
     virtual ~Player();
 
     Humanoid *CastHumanoid();

@@ -4,8 +4,8 @@
 #include <optional>
 
 #include "core/contact/ball_contact.hpp"
-#include "core/domain/ball/ball_profile.hpp"
-#include "core/state/ball_state.hpp"
+#include "core/model/ball/ball_profile.hpp"
+#include "core/model/ball/ball.hpp"
 
 namespace football::contact {
 
@@ -25,7 +25,7 @@ namespace football::contact {
 // to run an impulse response and/or positional correction.
 inline std::optional<BallContact> DetectBallGroundContact(
     const BallState &state,
-    const football::domain::BallProfile &ball) {
+    const football::model::BallProfile &ball) {
   DO_VALIDATION;
   const float bottom = state.position.coords[2] - ball.radius;
   if (bottom > 0.0f) return std::nullopt;

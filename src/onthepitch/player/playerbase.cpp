@@ -267,7 +267,7 @@ bool FloatBitsEqual(float a, float b) {
 
 PlayerBase::PlayerBase(
     Match *match, PlayerData *playerData, PlayerState *world_player_state,
-    const football::domain::PlayerProfile *world_profile)
+    const football::model::PlayerProfile *world_profile)
     : match(match),
       playerData(playerData),
       stable_id(GetContext().stablePlayerCount++),

@@ -3,7 +3,7 @@
 
 #include <cmath>
 #include "../../defines.hpp"
-#include "core/state/player_state.hpp"
+#include "core/model/player/player.hpp"
 
 // ===== PlayerKinematics: state alias + simple kinematic model =====
 using PlayerKinematicState = PlayerState;

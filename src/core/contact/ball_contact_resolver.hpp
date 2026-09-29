@@ -6,8 +6,8 @@
 #include <cmath>
 
 #include "core/contact/ball_contact.hpp"
-#include "core/domain/ball/ball_profile.hpp"
-#include "core/state/ball_state.hpp"
+#include "core/model/ball/ball_profile.hpp"
+#include "core/model/ball/ball.hpp"
 
 namespace football::contact {
 
@@ -29,7 +29,7 @@ namespace football::contact {
 // wired into production yet (7G-7d moves the ground contact onto it).
 struct BallContactResolver {
   static void Resolve(BallState &state,
-                      const football::domain::BallProfile &ball,
+                      const football::model::BallProfile &ball,
                       const BallContact &contact,
                       const blunted::Vector3 &surfaceVelocity,
                       const ContactMaterial &material) {

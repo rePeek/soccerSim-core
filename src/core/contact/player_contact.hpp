@@ -9,8 +9,8 @@
 
 #include "core/contact/circle_contact.hpp"
 #include "core/contact/player_collider.hpp"
-#include "core/domain/player/player_profile.hpp"
-#include "core/state/player_state.hpp"
+#include "core/model/player/player_profile.hpp"
+#include "core/model/player/player.hpp"
 
 namespace football::contact {
 
@@ -21,9 +21,9 @@ namespace football::contact {
 // possession, the referee, or GetStat(). Radius comes from the profile and the
 // center from the state, both of which are simulation-owned.
 inline std::optional<Contact> DetectPlayerContact(
-    const football::domain::PlayerProfile &a_profile,
+    const football::model::PlayerProfile &a_profile,
     const PlayerState &a_state,
-    const football::domain::PlayerProfile &b_profile,
+    const football::model::PlayerProfile &b_profile,
     const PlayerState &b_state) {
   DO_VALIDATION;
   return DetectContact(BuildPlayerGroundCollider(a_profile, a_state),
@@ -59,9 +59,9 @@ struct PlayerContactResolution {
 // the physical response; `strength` and `balance` are gameplay responses and
 // are deliberately absent from this base solver.
 inline PlayerContactResolution ResolvePlayerContact(
-    const football::domain::PlayerProfile &a_profile,
+    const football::model::PlayerProfile &a_profile,
     const PlayerState &a_state,
-    const football::domain::PlayerProfile &b_profile,
+    const football::model::PlayerProfile &b_profile,
     const PlayerState &b_state, const Contact &contact) {
   DO_VALIDATION;
   PlayerContactResolution result;
@@ -123,7 +123,7 @@ inline void ApplyPlayerContactResolution(PlayerState &a_state, PlayerState &b_st
 // the first version, so there is no spatial hash.
 struct PlayerContactBody {
   int index = -1;  // caller-provided stable ordering key
-  football::domain::PlayerProfile profile;
+  football::model::PlayerProfile profile;
   PlayerState state;
 };
 

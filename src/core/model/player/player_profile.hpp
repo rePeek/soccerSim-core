@@ -1,7 +1,7 @@
-#ifndef _HPP_CORE_DOMAIN_PLAYER_PROFILE
-#define _HPP_CORE_DOMAIN_PLAYER_PROFILE
+#ifndef _HPP_CORE_MODEL_PLAYER_PROFILE
+#define _HPP_CORE_MODEL_PLAYER_PROFILE
 
-namespace football::domain {
+namespace football::model {
 
 // Match-lifetime physical properties. Ability is not current condition:
 // balance is a skill, not the player's instantaneous stability after contact.
@@ -17,6 +17,6 @@ struct PlayerProfile {
   PlayerPhysicalProfile physical;
 };
 
-}  // namespace football::domain
+}  // namespace football::model
 
-#endif  // _HPP_CORE_DOMAIN_PLAYER_PROFILE
+#endif  // _HPP_CORE_MODEL_PLAYER_PROFILE

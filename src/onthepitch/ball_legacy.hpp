@@ -23,8 +23,8 @@
 #include "../defines.hpp"
 #include "../gamedefines.hpp"
 #include "../utils.hpp"
-#include "core/state/ball_state.hpp"
-#include "core/domain/ball/ball.hpp"
+#include "core/model/ball/ball.hpp"
+#include "core/model/ball/ball.hpp"
 #include "core/physics/ball_physics.hpp"
 #include <array>
 #include <memory>
@@ -43,11 +43,11 @@ struct BallSpatialInfo {
 };
 
 // Legacy facade: prediction cache, mental-image / possession updates and the
-// Match pointer stay here. The composed football::domain::Ball references the state.
+// Match pointer stay here. The composed football::model::Ball references the state.
 class BallLegacy {
 
   public:
-    BallLegacy(const football::domain::BallProfile& profile, BallState& state,
+    BallLegacy(const football::model::BallProfile& profile, BallState& state,
                Match *match);
     virtual ~BallLegacy();
 
@@ -62,8 +62,8 @@ class BallLegacy {
     }
 
     // Composed domain entity (Phase 7E.5).
-    football::domain::Ball& Entity() { return *ball_; }
-    const football::domain::Ball& Entity() const { return *ball_; }
+    football::model::Ball& Entity() { return *ball_; }
+    const football::model::Ball& Entity() const { return *ball_; }
 
     void GetPredictionArray(std::vector<Vector3> &target);
     Vector3 GetMovement() { return ball_->State().velocity; }
@@ -88,7 +88,7 @@ class BallLegacy {
 
     void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState *state);
-    std::unique_ptr<football::domain::Ball> ball_;  // composed domain entity
+    std::unique_ptr<football::model::Ball> ball_;  // composed domain entity
 
     Vector3 predictions[ballPredictionSize_ms / 10 + cachedPredictions + 1];
     int valid_predictions = 0;

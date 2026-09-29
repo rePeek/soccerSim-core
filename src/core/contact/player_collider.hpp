@@ -1,9 +1,9 @@
 #ifndef _HPP_CORE_CONTACT_PLAYER_COLLIDER
 #define _HPP_CORE_CONTACT_PLAYER_COLLIDER
 
-#include "core/domain/player/player_profile.hpp"
+#include "core/model/player/player_profile.hpp"
 #include "core/contact/circle_collider.hpp"
-#include "core/state/player_state.hpp"
+#include "core/model/player/player.hpp"
 
 namespace football::contact {
 
@@ -14,7 +14,7 @@ namespace football::contact {
 // keep a serialized copy as a compatibility shadow, but new simulation and
 // contact consumers must build the shape through this function.
 inline CircleCollider BuildPlayerGroundCollider(
-    const football::domain::PlayerProfile &profile,
+    const football::model::PlayerProfile &profile,
     const PlayerState &state) {
   CircleCollider collider;
   collider.center = state.position.Get2D();

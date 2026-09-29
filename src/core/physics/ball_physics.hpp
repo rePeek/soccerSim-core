@@ -7,9 +7,9 @@
 #include <cstdint>
 #include <vector>
 
-#include "core/state/ball_state.hpp"
-#include "core/state/player_id.hpp"
-#include "core/domain/ball/ball_profile.hpp"
+#include "core/model/ball/ball.hpp"
+#include "core/model/player_id.hpp"
+#include "core/model/ball/ball_profile.hpp"
 #include "core/physics/ball_dynamics.hpp"
 #include "core/contact/ball_contact.hpp"
 #include "core/contact/ball_contact_resolver.hpp"
@@ -69,7 +69,7 @@ struct GoalGeometry {
 // ground. Posts are vertical capsules at the four goal-mouth corners and the
 // crossbar is a horizontal capsule along y at each end of the pitch.
 inline std::optional<football::contact::BallContact> DetectBallWoodworkContact(
-    const BallState &state, const football::domain::BallProfile &ball,
+    const BallState &state, const football::model::BallProfile &ball,
     const GoalGeometry &g) {
   const float postX[2] = {-g.halfWidth, g.halfWidth};
   const float postY[2] = {-g.goalHalfWidth, g.goalHalfWidth};
@@ -105,7 +105,7 @@ inline std::optional<football::contact::BallContact> DetectBallWoodworkContact(
 // earliest timeWithinTick across posts and crossbar.
 inline std::optional<football::contact::BallContact> SweepBallWoodworkContact(
     const blunted::Vector3 &start, const blunted::Vector3 &end,
-    const football::domain::BallProfile &ball, const GoalGeometry &g,
+    const football::model::BallProfile &ball, const GoalGeometry &g,
     float dt) {
   std::optional<football::contact::BallContact> earliest;
   const auto consider = [&](const football::contact::CapsuleCollider &capsule) {
@@ -173,7 +173,7 @@ inline std::optional<football::contact::BallContact> SweepPlayerBodyCandidate(
 struct BallPhysics {
   static BallPhysicsStepResult Step(
       const BallState& current, float dt,
-      const football::domain::BallProfile& ball, bool apply_woodwork,
+      const football::model::BallProfile& ball, bool apply_woodwork,
       const GoalGeometry& goal,
       const std::vector<PlayerBodyCandidate>& players) {
     BallPhysicsStepResult result;

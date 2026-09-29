@@ -53,10 +53,10 @@ void Require(bool condition, const std::string& message) {
 void RequireNear(float actual, float expected, const std::string& label);
 
 void CheckBallProfileBoundary() {
-  football::domain::BallProfile profile;
+  football::model::BallProfile profile;
   profile.radius = 0.2f;
   BallState state;
-  football::domain::Ball ball(profile, state);
+  football::model::Ball ball(profile, state);
   Require(&ball.Profile() == &profile && &ball.State() == &state,
           "ball domain entity must borrow profile and state");
   ball.Reset(Vector3(0));
@@ -76,7 +76,7 @@ void CheckBallProfileBoundary() {
 }
 
 void CheckBallGroundImpact() {
-  football::domain::BallProfile ball;      // radius 0.11
+  football::model::BallProfile ball;      // radius 0.11
   GoalGeometry goal;
 
   // Falling while touching the plane: the impact impulse reflects vz upward.
@@ -106,7 +106,7 @@ void CheckBallGroundImpact() {
 }
 
 void CheckGroundDynamics() {
-  football::domain::BallProfile ball;  // radius 0.11, inertiaFactor 2/3
+  football::model::BallProfile ball;  // radius 0.11, inertiaFactor 2/3
   GroundDynamicsParams params;
 
   // Rolling: no-slip, rolling resistance slows without breaking no-slip.
@@ -175,7 +175,7 @@ void CheckBallWoodwork() {
   // Woodwork detector: a ball just outside a post reports a contact.
   {
     GoalGeometry goal;
-    football::domain::BallProfile ball;
+    football::model::BallProfile ball;
     BallState state;
     state.position =
         Vector3(goal.halfWidth + 0.10f, goal.goalHalfWidth, 0.5f);
@@ -357,7 +357,7 @@ void CheckSweepSphereCapsule() {
 }
 
 void CheckBallDynamics() {
-  football::domain::BallProfile ball;  // radius 0.11, mass 0.43
+  football::model::BallProfile ball;  // radius 0.11, mass 0.43
   BallDynamicsParams params;
 
   // Zero velocity / zero spin: the only acceleration is gravity.
@@ -394,7 +394,7 @@ void CheckBallDynamics() {
 }
 
 void CheckBallSpinConvention() {
-  football::domain::BallProfile ball;  // radius 0.11, mass 0.43
+  football::model::BallProfile ball;  // radius 0.11, mass 0.43
 
   // Pure-Magnus parameters so gravity and drag do not mask the deflection
   // direction being asserted.
@@ -448,7 +448,7 @@ void CheckBallSpinConvention() {
   // forward-roll axis and maps to spin around -X; y/z map to +Y/+Z.
   {
     BallState state;
-    football::domain::Ball b(ball, state);
+    football::model::Ball b(ball, state);
     b.SetRotation(1.0f, 0.0f, 0.0f, 1.0f);
     RequireNear(state.angularVelocity.coords[0], -1.0f,
                 "spin: SetRotation x maps to -X");
@@ -466,7 +466,7 @@ void CheckBallContactResolver() {
   using football::contact::BallContactResolver;
   using football::contact::ContactMaterial;
 
-  football::domain::BallProfile ball;  // mass 0.43, radius 0.11
+  football::model::BallProfile ball;  // mass 0.43, radius 0.11
 
   // Pure normal bounce: vz reflects by restitution, no lateral or spin.
   {
@@ -587,7 +587,7 @@ void CheckBallContactResolver() {
 void CheckBallGroundDetector() {
   using football::contact::DetectBallGroundContact;
 
-  football::domain::BallProfile ball;  // radius 0.11
+  football::model::BallProfile ball;  // radius 0.11
   BallState state;
 
   // Separated: ball bottom above the plane.
@@ -1241,7 +1241,7 @@ void CheckPlayerGroundCollider() {
   // The primitive has no implicit radius. Geometry comes from Profile + State
   // through the canonical builder; the profile default is pinned to the legacy
   // 0.36 m contact radius.
-  football::domain::PlayerProfile profile;
+  football::model::PlayerProfile profile;
   PlayerState state;
   state.position = Vector3(0.0f, 0.0f, 2.0f);
   const football::contact::CircleCollider first =
@@ -1347,8 +1347,8 @@ void CheckContactDetection() {
 }
 
 void CheckPlayerContactDetector() {
-  football::domain::PlayerProfile a_profile;
-  football::domain::PlayerProfile b_profile;
+  football::model::PlayerProfile a_profile;
+  football::model::PlayerProfile b_profile;
   PlayerState a_state;
   PlayerState b_state;
 
@@ -1370,8 +1370,8 @@ void CheckPlayerContactDetector() {
 
 void CheckPlayerContactResolver() {
   using football::contact::ResolvePlayerContact;
-  football::domain::PlayerProfile a_profile;  // mass 75
-  football::domain::PlayerProfile b_profile;  // mass 75
+  football::model::PlayerProfile a_profile;  // mass 75
+  football::model::PlayerProfile b_profile;  // mass 75
   PlayerState a_state;
   PlayerState b_state;
 
@@ -1698,7 +1698,7 @@ void CheckPlayerBodyCollider() {
 
   // Body radii must stay body-sized: the ground contest radius is a contact
   // radius and is larger.
-  const football::domain::PlayerProfile profile;
+  const football::model::PlayerProfile profile;
   Require(body.upperBody.radius < profile.physical.bodyRadius,
           "body collider must not reuse the ground contest radius");
 

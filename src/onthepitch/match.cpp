@@ -52,7 +52,7 @@ PlayerState& Match::GetTeamPlayerState(int team_id, int team_index) {
   return world_state.players[team_id * MAX_PLAYERS + team_index];
 }
 
-const football::domain::PlayerProfile& Match::GetTeamPlayerProfile(
+const football::model::PlayerProfile& Match::GetTeamPlayerProfile(
     int team_id, int team_index) const {
   assert(team_id >= 0 && team_id < 2);
   assert(team_index >= 0 && team_index < MAX_PLAYERS);

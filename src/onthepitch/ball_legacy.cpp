@@ -23,9 +23,9 @@
 #include "match.hpp"
 
 
-BallLegacy::BallLegacy(const football::domain::BallProfile& profile,
+BallLegacy::BallLegacy(const football::model::BallProfile& profile,
                        BallState& state, Match *match)
-    : ball_(new football::domain::Ball(profile, state)), match(match) {
+    : ball_(new football::model::Ball(profile, state)), match(match) {
   DO_VALIDATION;
   CalculatePrediction();
 }

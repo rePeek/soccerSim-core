@@ -1,14 +1,14 @@
 #ifndef _HPP_PLAYER_PROFILE_ADAPTER
 #define _HPP_PLAYER_PROFILE_ADAPTER
 
-#include "core/domain/player/player_profile.hpp"
+#include "core/model/player/player_profile.hpp"
 #include "data/playerdata.hpp"
 
 // Boundary from database/legacy data to match-lifetime simulation properties.
 // Do not fabricate mass or strength from unrelated legacy balance/height stats.
-inline football::domain::PlayerProfile MakeSimulationPlayerProfile(
+inline football::model::PlayerProfile MakeSimulationPlayerProfile(
     const PlayerData& data) {
-  football::domain::PlayerProfile profile;
+  football::model::PlayerProfile profile;
   profile.physical.height = data.GetHeight();
   profile.physical.balance = data.GetStat(physical_balance);
   return profile;

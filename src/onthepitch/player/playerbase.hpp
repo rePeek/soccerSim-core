@@ -20,7 +20,7 @@
 
 #include "humanoid/humanoidbase.hpp"
 #include "core/physics/player_movement.hpp"
-#include "core/domain/player/player.hpp"
+#include "core/model/player/player.hpp"
 #include "core/contact/player_collider.hpp"
 #include "player_action.hpp"
 #include "locomotion_intent_scheduler.hpp"
@@ -168,7 +168,7 @@ class PlayerBase {
   public:
     PlayerBase(Match *match, PlayerData *playerData,
                PlayerState *world_player_state = nullptr,
-               const football::domain::PlayerProfile *world_profile = nullptr);
+               const football::model::PlayerProfile *world_profile = nullptr);
     virtual ~PlayerBase();
     void Mirror();
 
@@ -283,7 +283,7 @@ class PlayerBase {
       DO_VALIDATION;
       return kinematicState;
     }
-    const football::domain::Player& Entity() const { return domainPlayer; }
+    const football::model::Player& Entity() const { return domainPlayer; }
     // Sole mutation point for evaluated movement kinematics. Callers must
     // project this state to HumanoidBase::SpatialState before exposing the tick.
     void ApplyKinematicResult(const PlayerKinematicResult &result);
@@ -422,8 +422,8 @@ class PlayerBase {
 
     std::unique_ptr<HumanoidBase> humanoid;
     PlayerKinematicState localKinematicState;  // officials (not team slots)
-    football::domain::PlayerProfile localProfile;  // bench / officials
-    football::domain::Player domainPlayer;
+    football::model::PlayerProfile localProfile;  // bench / officials
+    football::model::Player domainPlayer;
     PlayerKinematicState &kinematicState;  // aliases domainPlayer.State()
     football::contact::CircleCollider groundCollider;  // serialized shadow
     PlayerActionState actionState;

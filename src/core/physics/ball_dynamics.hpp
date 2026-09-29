@@ -4,8 +4,8 @@
 #include <cassert>
 #include <cmath>
 
-#include "core/state/ball_state.hpp"
-#include "core/domain/ball/ball_profile.hpp"
+#include "core/model/ball/ball.hpp"
+#include "core/model/ball/ball_profile.hpp"
 
 // 7G-7b: standard rigid-ball free-flight dynamics, re-implemented from the
 // standard equations rather than the legacy magic-number swerve:
@@ -36,7 +36,7 @@ struct BallDynamics {
   // orientation are deliberately left untouched so contact response can run
   // between the force step and the integration step.
   static void ApplyForces(BallState &state, float dt,
-                          const football::domain::BallProfile &ball,
+                          const football::model::BallProfile &ball,
                           const BallDynamicsParams &params) {
     DO_VALIDATION;
     assert(dt > 0.0f);

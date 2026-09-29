@@ -1,7 +1,7 @@
-#ifndef _HPP_CORE_DOMAIN_BALL_PROFILE
-#define _HPP_CORE_DOMAIN_BALL_PROFILE
+#ifndef _HPP_CORE_MODEL_BALL_PROFILE
+#define _HPP_CORE_MODEL_BALL_PROFILE
 
-namespace football::domain {
+namespace football::model {
 
 // Match-lifetime properties of the ball. Contact material and environment
 // parameters are separate; they are not intrinsic properties of the ball.
@@ -14,6 +14,6 @@ struct BallProfile {
   float inertiaFactor = 2.0f / 3.0f;
 };
 
-}  // namespace football::domain
+}  // namespace football::model
 
-#endif  // _HPP_CORE_DOMAIN_BALL_PROFILE
+#endif  // _HPP_CORE_MODEL_BALL_PROFILE

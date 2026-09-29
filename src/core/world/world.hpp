@@ -2,7 +2,7 @@
 #define _HPP_CORE_WORLD
 
 class GameTask;  // legacy
-#include "core/state/world_state.hpp"
+#include "core/model/world_state.hpp"
 #include "core/world/world_profiles.hpp"
 
 // World is the future top-level simulation orchestrator.

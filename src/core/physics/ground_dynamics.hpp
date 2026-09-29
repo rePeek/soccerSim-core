@@ -4,8 +4,8 @@
 #include <cassert>
 #include <cmath>
 
-#include "core/domain/ball/ball_profile.hpp"
-#include "core/state/ball_state.hpp"
+#include "core/model/ball/ball_profile.hpp"
+#include "core/model/ball/ball.hpp"
 
 // 7G-7d-c: persistent ground dynamics for a ball already in contact with the
 // plane. This is the complement of the impact resolver: it models the
@@ -36,7 +36,7 @@ struct GroundDynamicsParams {
 
 struct GroundDynamics {
   static void Step(BallState &state, float dt,
-                   const football::domain::BallProfile &ball,
+                   const football::model::BallProfile &ball,
                    const GroundDynamicsParams &params) {
     DO_VALIDATION;
     assert(dt > 0.0f);

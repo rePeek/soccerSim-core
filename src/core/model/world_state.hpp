@@ -1,12 +1,12 @@
-#ifndef _HPP_CORE_STATE_WORLD_STATE
-#define _HPP_CORE_STATE_WORLD_STATE
+#ifndef _HPP_CORE_MODEL_WORLD_STATE
+#define _HPP_CORE_MODEL_WORLD_STATE
 
 #include <array>
 
 #include "../../defines.hpp"
-#include "ball_state.hpp"
+#include "ball/ball.hpp"
 #include "match_state.hpp"
-#include "player_state.hpp"
+#include "player/player.hpp"
 
 // Schema and ownership slot for the football world state (Phase 6).
 //
@@ -34,4 +34,4 @@ struct WorldState {
   }
 };
 
-#endif  // _HPP_CORE_STATE_WORLD_STATE
+#endif  // _HPP_CORE_MODEL_WORLD_STATE

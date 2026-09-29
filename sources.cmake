@@ -98,10 +98,9 @@ set(CORE_HEADERS
    src/misc/hungarian.h
    src/core/world/world.hpp
    src/core/world/world_profiles.hpp
-   src/core/state/ball_state.hpp
-   src/core/state/player_state.hpp
-   src/core/state/match_state.hpp
-   src/core/state/world_state.hpp
+   src/core/model/match_state.hpp
+   src/core/model/player_id.hpp
+   src/core/model/world_state.hpp
    src/core/physics/physics_system.hpp
    src/core/physics/ball_physics.hpp
    src/core/physics/ball_dynamics.hpp
@@ -121,10 +120,10 @@ set(CORE_HEADERS
    src/core/contact/ball_control_constraint.hpp
    src/core/contact/player_collider.hpp
    src/core/contact/player_contact.hpp
-   src/core/domain/ball/ball.hpp
-   src/core/domain/ball/ball_profile.hpp
-   src/core/domain/player/player.hpp
-   src/core/domain/player/player_profile.hpp
+   src/core/model/ball/ball.hpp
+   src/core/model/ball/ball_profile.hpp
+   src/core/model/player/player.hpp
+   src/core/model/player/player_profile.hpp
 )
 
 set(CORE_SOURCES
@@ -135,8 +134,8 @@ set(CORE_SOURCES
    src/gametask.cpp
    src/core/world/world.cpp
    src/core/physics/physics_system.cpp
-   src/core/domain/ball/ball.cpp
-   src/core/domain/player/player.cpp
+   src/core/model/ball/ball.cpp
+   src/core/model/player/player.cpp
    src/core/physics/player_movement.cpp
    src/utils.cpp
    src/main.cpp

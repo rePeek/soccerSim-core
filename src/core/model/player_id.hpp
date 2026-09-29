@@ -1,5 +1,5 @@
-#ifndef _HPP_CORE_STATE_PLAYER_ID
-#define _HPP_CORE_STATE_PLAYER_ID
+#ifndef _HPP_CORE_MODEL_PLAYER_ID
+#define _HPP_CORE_MODEL_PLAYER_ID
 
 #include <cstdint>
 
@@ -11,4 +11,4 @@
 using PlayerId = uint32_t;
 constexpr PlayerId kInvalidPlayerId = UINT32_MAX;
 
-#endif  // _HPP_CORE_STATE_PLAYER_ID
+#endif  // _HPP_CORE_MODEL_PLAYER_ID

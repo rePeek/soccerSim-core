@@ -51,7 +51,7 @@ constexpr int kReachabilityExactHorizon_ms = 500;
 }  // namespace
 
 Player::Player(Team *team, PlayerData *playerData, PlayerState* state,
-               const football::domain::PlayerProfile* profile)
+               const football::model::PlayerProfile* profile)
     : PlayerBase(team->GetMatch(), playerData, state, profile), team(team) {
   DO_VALIDATION;
   SetDesiredTimeToBall_ms(0);

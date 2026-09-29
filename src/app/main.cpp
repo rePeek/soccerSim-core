@@ -9,10 +9,10 @@
 #include <vector>
 
 #include "core/contact/player_contact.hpp"
-#include "core/domain/ball/ball_profile.hpp"
-#include "core/domain/player/player_profile.hpp"
+#include "core/model/ball/ball_profile.hpp"
+#include "core/model/player/player_profile.hpp"
 #include "core/physics/ball_physics.hpp"
-#include "core/state/world_state.hpp"
+#include "core/model/world_state.hpp"
 
 namespace {
 
@@ -23,8 +23,8 @@ constexpr float kDt = 0.01f;  // 10 ms tick, matches the engine cadence
 int main(int argc, char **argv) {
   const int ticks = argc > 1 ? std::atoi(argv[1]) : 300;
 
-  football::domain::BallProfile ball_profile;
-  football::domain::PlayerProfile player_profile;
+  football::model::BallProfile ball_profile;
+  football::model::PlayerProfile player_profile;
 
   WorldState world;
   world.ball.position = blunted::Vector3(0.0f, 0.0f, 0.5f);
