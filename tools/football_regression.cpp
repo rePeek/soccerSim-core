@@ -22,6 +22,8 @@
 #include "core/contact/player_collider.hpp"
 #include "core/contact/ball_contact_resolver.hpp"
 #include "core/contact/ball_ground_contact.hpp"
+#include "core/contact/player_body_collider.hpp"
+#include "core/contact/ball_player_contact.hpp"
 #include "core/contact/player_contact.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
@@ -180,6 +182,31 @@ void CheckBallWoodwork() {
     RequireNear(c->normal.coords[0], 1.0f, "woodwork: post normal points +x");
     Require(c->penetration > 0.0f, "woodwork: post penetration");
   }
+}
+
+void CheckPlayerBodyBallContact() {
+  using football::contact::BuildPlayerBodyCollider;
+  using football::contact::DetectPlayerBodyBallContact;
+
+  const auto body = BuildPlayerBodyCollider(Vector3(0.0f, 0.0f, 0.0f));
+  const float ballRadius = 0.11f;
+
+  // Ball beside the upper body reports a contact with the correct depth.
+  auto c =
+      DetectPlayerBodyBallContact(body, Vector3(0.25f, 0.0f, 1.11f), ballRadius);
+  Require(c.has_value(), "player-body ball: upper body contact");
+  RequireNear(c->penetration, 0.33f - 0.25f,
+              "player-body ball: upper body penetration");
+
+  // A ball far from the body does not.
+  c = DetectPlayerBodyBallContact(body, Vector3(5.0f, 0.0f, 1.0f), ballRadius);
+  Require(!c.has_value(), "player-body ball: separated");
+
+  // Head is a degenerate capsule (sphere).
+  c = DetectPlayerBodyBallContact(body, Vector3(0.0f, 0.0f, 1.76f), ballRadius);
+  Require(c.has_value(), "player-body ball: head contact");
+  RequireNear(c->penetration, 0.22f - 0.15f,
+              "player-body ball: head penetration");
 }
 
 void CheckBallDynamics() {
@@ -4834,6 +4861,7 @@ int main(int argc, char** argv) {
     CheckBallGroundImpact();
     CheckGroundDynamics();
     CheckBallWoodwork();
+    CheckPlayerBodyBallContact();
     CheckBallDynamics();
     CheckBallSpinConvention();
     CheckBallContactResolver();
