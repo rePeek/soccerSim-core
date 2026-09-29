@@ -1,4 +1,4 @@
 // Forwarding header kept for compatibility during the Phase 1 move.
-// Real implementation lives in foundation/math/matrix3.hpp
+// Real implementation lives in core/math/matrix3.hpp
 #pragma once
-#include "foundation/math/matrix3.hpp"
+#include "core/math/matrix3.hpp"

@@ -6,7 +6,7 @@
 #include <cmath>
 
 #include "core/model/player/player.hpp"
-#include "foundation/math/math.hpp"
+#include "core/math/math.hpp"
 
 namespace football_sim::physics {
 

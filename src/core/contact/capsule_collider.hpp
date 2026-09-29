@@ -1,7 +1,7 @@
 #ifndef _HPP_CORE_CONTACT_CAPSULE_COLLIDER
 #define _HPP_CORE_CONTACT_CAPSULE_COLLIDER
 
-#include "foundation/math/vector3.hpp"
+#include "core/math/vector3.hpp"
 
 namespace football_sim::contact {
 

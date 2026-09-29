@@ -1,0 +1,25 @@
+include_guard(GLOBAL)
+
+CPMAddPackage(
+  NAME spdlog
+  GITHUB_REPOSITORY gabime/spdlog
+  GIT_TAG v1.15.3
+  OPTIONS "SPDLOG_BUILD_EXAMPLE OFF" "SPDLOG_BUILD_TESTS OFF"
+          "SPDLOG_BUILD_BENCH OFF" "SPDLOG_INSTALL OFF"
+)
+
+CPMAddPackage(
+  NAME nlohmann_json
+  GITHUB_REPOSITORY nlohmann/json
+  GIT_TAG v3.11.3
+  OPTIONS "JSON_BuildTests OFF"
+)
+
+if(BUILD_TESTING)
+  CPMAddPackage(
+    NAME Catch2
+    GITHUB_REPOSITORY catchorg/Catch2
+    GIT_TAG v3.7.1
+    OPTIONS "CATCH_BUILD_TESTING OFF" "CATCH_INSTALL_DOCS OFF"
+  )
+endif()

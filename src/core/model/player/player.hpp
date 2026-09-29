@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <limits>
 
-#include "foundation/math/vector3.hpp"
+#include "core/math/vector3.hpp"
 
 namespace football_sim {
 

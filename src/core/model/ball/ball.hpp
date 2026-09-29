@@ -1,8 +1,8 @@
 #ifndef FOOTBALL_CORE_MODEL_BALL_HPP
 #define FOOTBALL_CORE_MODEL_BALL_HPP
 
-#include "foundation/math/quaternion.hpp"
-#include "foundation/math/vector3.hpp"
+#include "core/math/quaternion.hpp"
+#include "core/math/vector3.hpp"
 
 namespace football_sim {
 

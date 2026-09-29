@@ -1,7 +1,7 @@
 #ifndef _HPP_CORE_CONTACT_CIRCLE_COLLIDER
 #define _HPP_CORE_CONTACT_CIRCLE_COLLIDER
 
-#include "foundation/math/vector3.hpp"
+#include "core/math/vector3.hpp"
 
 // Contact geometry and contact facts live in `football_sim::contact`: they are
 // consumed by Physics, Action, Rules/Events and Replay, not just by one solver.

@@ -6,7 +6,7 @@
 #include "core/model/player/player.hpp"
 #include "core/physics/ball_physics.hpp"
 #include "core/physics/player_movement.hpp"
-#include "foundation/math/math.hpp"
+#include "core/math/math.hpp"
 
 
 TEST_CASE("math helpers enforce their explicit range contract") {
