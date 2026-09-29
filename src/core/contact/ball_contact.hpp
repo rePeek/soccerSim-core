@@ -17,6 +17,11 @@ struct BallContact {
   blunted::Vector3 point = blunted::Vector3(0);
   blunted::Vector3 normal = blunted::Vector3(0, 0, 0);  // surface -> ball
   float penetration = 0.0f;  // reserved; the impulse solve is velocity-based
+
+  // Seconds from the beginning of the current physics step, in [0, dt].
+  // Discrete detectors report 0.0f (contact at the current instant); swept
+  // detectors report the time of first impact. Never a [0,1] fraction or ms.
+  float timeWithinTick = 0.0f;
 };
 
 // Material response, deliberately separate from the geometric contact.

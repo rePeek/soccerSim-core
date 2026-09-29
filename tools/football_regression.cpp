@@ -25,6 +25,7 @@
 #include "core/contact/player_body_collider.hpp"
 #include "core/contact/ball_player_contact.hpp"
 #include "core/contact/ball_control_constraint.hpp"
+#include "core/contact/sweep_sphere_capsule.hpp"
 #include "core/contact/player_contact.hpp"
 #include "onthepitch/player/player_action_executor.hpp"
 #include "onthepitch/player/player_action_volume.hpp"
@@ -227,6 +228,89 @@ void CheckBallControlConstraint() {
   catchc.ownerId = 1;
   catchc.type = BallControlType::Catch;
   Require(catchc.type == BallControlType::Catch, "control constraint: catch type");
+}
+
+void CheckSweepSphereCapsule() {
+  using football::contact::CapsuleCollider;
+  using football::contact::SweepSphereCapsule;
+
+  CapsuleCollider capsule;
+  capsule.tipA = Vector3(0.0f, 0.0f, 0.0f);
+  capsule.tipB = Vector3(0.0f, 0.0f, 2.5f);
+  capsule.radius = 0.07f;
+  const float sphereRadius = 0.11f;
+  const float dt = 1.0f;  // timeWithinTick then equals the [0,1] sweep u
+
+  // 1. miss: path passes with clearance.
+  {
+    const auto c = SweepSphereCapsule(Vector3(-2.0f, 0.0f, 1.0f),
+                                      Vector3(-1.0f, 0.0f, 1.0f), sphereRadius,
+                                      capsule, dt);
+    Require(!c.has_value(), "sweep: miss");
+  }
+
+  // 2. side hit: horizontal sweep into the vertical body.
+  {
+    const auto c = SweepSphereCapsule(Vector3(-1.0f, 0.0f, 1.0f),
+                                      Vector3(1.0f, 0.0f, 1.0f), sphereRadius,
+                                      capsule, dt);
+    Require(c.has_value(), "sweep: side hit");
+    RequireNear(c->penetration, 0.0f, "sweep: side hit penetration 0");
+    Require(c->timeWithinTick > 0.0f && c->timeWithinTick < dt,
+            "sweep: side hit TOI in (0, dt)");
+    RequireNear(c->normal.coords[0], -1.0f, "sweep: side hit normal -x");
+    RequireNear(c->point.coords[0], -0.07f, "sweep: side hit point on surface");
+  }
+
+  // 3. cap hit: approach the tip from above.
+  {
+    const auto c = SweepSphereCapsule(Vector3(0.0f, 0.0f, 3.0f),
+                                      Vector3(0.0f, 0.0f, 2.4f), sphereRadius,
+                                      capsule, dt);
+    Require(c.has_value(), "sweep: cap hit");
+    RequireNear(c->penetration, 0.0f, "sweep: cap hit penetration 0");
+    RequireNear(c->normal.coords[2], 1.0f, "sweep: cap hit normal +z");
+  }
+
+  // 4. tangent: grazing contact must still produce a stable hit.
+  {
+    const auto c = SweepSphereCapsule(Vector3(-1.0f, 0.18f, 1.0f),
+                                      Vector3(1.0f, 0.18f, 1.0f), sphereRadius,
+                                      capsule, dt);
+    Require(c.has_value(), "sweep: tangent hit");
+    RequireNear(c->timeWithinTick, 0.5f, "sweep: tangent TOI");
+    RequireNear(c->normal.coords[1], 1.0f, "sweep: tangent normal +y");
+  }
+
+  // 5. starts touching: t = 0, penetration = 0.
+  {
+    const auto c = SweepSphereCapsule(Vector3(0.18f, 0.0f, 1.0f),
+                                      Vector3(1.0f, 0.0f, 1.0f), sphereRadius,
+                                      capsule, dt);
+    Require(c.has_value(), "sweep: starts touching");
+    RequireNear(c->timeWithinTick, 0.0f, "sweep: touching TOI 0");
+    RequireNear(c->penetration, 0.0f, "sweep: touching penetration 0");
+  }
+
+  // 6. starts overlapping: t = 0, penetration > 0.
+  {
+    const auto c = SweepSphereCapsule(Vector3(0.10f, 0.0f, 1.0f),
+                                      Vector3(1.0f, 0.0f, 1.0f), sphereRadius,
+                                      capsule, dt);
+    Require(c.has_value(), "sweep: starts overlapping");
+    RequireNear(c->timeWithinTick, 0.0f, "sweep: overlapping TOI 0");
+    RequireNear(c->penetration, 0.18f - 0.10f, "sweep: overlapping penetration");
+  }
+
+  // 7. separating from overlap still reports the t = 0 contact; the
+  //    resolver decides whether an impulse fires.
+  {
+    const auto c = SweepSphereCapsule(Vector3(0.10f, 0.0f, 1.0f),
+                                      Vector3(-1.0f, 0.0f, 1.0f), sphereRadius,
+                                      capsule, dt);
+    Require(c.has_value(), "sweep: separating still reports contact");
+    RequireNear(c->timeWithinTick, 0.0f, "sweep: separating TOI 0");
+  }
 }
 
 void CheckBallDynamics() {
@@ -4883,6 +4967,7 @@ int main(int argc, char** argv) {
     CheckBallWoodwork();
     CheckPlayerBodyBallContact();
     CheckBallControlConstraint();
+    CheckSweepSphereCapsule();
     CheckBallDynamics();
     CheckBallSpinConvention();
     CheckBallContactResolver();

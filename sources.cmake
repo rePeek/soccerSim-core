@@ -115,6 +115,7 @@ set(CORE_HEADERS
    src/core/contact/ball_ground_contact.hpp
    src/core/contact/capsule_collider.hpp
    src/core/contact/sphere_capsule_contact.hpp
+   src/core/contact/sweep_sphere_capsule.hpp
    src/core/contact/player_body_collider.hpp
    src/core/contact/ball_player_contact.hpp
    src/core/contact/ball_control_constraint.hpp
