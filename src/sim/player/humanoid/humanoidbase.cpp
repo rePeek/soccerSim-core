@@ -416,11 +416,11 @@ void RecordMovementCommandAcceptance(bool material_candidate,
                                      int previous_elapsed_ms,
                                      e_InterruptAnim interrupt,
                                      const PlayerCommand &command,
-                                     const Animation *anim) {
+                                     int frame_count) {
   if (command.desiredFunctionType != e_FunctionType_Movement) return;
   if (material_candidate) ++HumanoidMaterialCommandsAccepted();
   ++HumanoidMovementSelections();
-  HumanoidSelectedMovementFrames().push_back(anim->GetFrameCount());
+  HumanoidSelectedMovementFrames().push_back(frame_count);
   if (previous_type == e_FunctionType_Movement) {
     // How long the movement command being replaced had been in force. This is
     // exactly the duration the animation lifecycle currently decides.
@@ -481,17 +481,14 @@ int &HumanoidFootOutgoingAngleBucketDiff() { static int value = 0; return value;
 int &HumanoidFootSpecialStateDiff() { static int value = 0; return value; }
 int &HumanoidFootLifecycleChanged() { static int value = 0; return value; }
 
-void RecordFootCounterfactual(int with_foot_head, int without_foot_head,
-                              AnimCollection *anims) {
+void RecordFootCounterfactual(int with_foot_head, int without_foot_head) {
   ++HumanoidFootCounterfactualSelections();
   if (with_foot_head == without_foot_head) return;
   ++HumanoidFootWinnerChanged();
-  Animation *with_foot = anims->GetAnim(with_foot_head);
-  Animation *without_foot = anims->GetAnim(without_foot_head);
   const AnimationClip &cw = GetContext().bakedAnims->Get(static_cast<uint32_t>(with_foot_head));
   const AnimationClip &co = GetContext().bakedAnims->Get(static_cast<uint32_t>(without_foot_head));
   bool lifecycle_changed = false;
-  if (with_foot->GetFrameCount() != without_foot->GetFrameCount()) {
+  if (cw.frame_count != co.frame_count) {
     ++HumanoidFootFrameCountDiff();
     lifecycle_changed = true;
   }
@@ -568,6 +565,13 @@ const AnimationClip &HumanoidBase::GetBakedClip(int id) const {
 const AnimationClip &HumanoidBase::GetCurrentBakedClip() const {
   DO_VALIDATION;
   return GetBakedClip(currentAnim.bakedId);
+}
+
+float &HumanoidBase::OrderScratch(int id) const {
+  if (orderScratch_.size() <= static_cast<size_t>(id)) {
+    orderScratch_.resize(static_cast<size_t>(id) + 1, 0.0f);
+  }
+  return orderScratch_[static_cast<size_t>(id)];
 }
 void HumanoidBase::Mirror() {
   // Mirrors the field-level legacy contract, not a whole-state coordinate
@@ -790,7 +794,7 @@ void HumanoidBase::Process() {
   // start with +1, because we want to influence the first frame as well
   // as for finishing, finish with frameBias = 1.0, even if the last frame is 'spiritually' the one-to-last, since the first frame of the next anim is actually 'same-tempered' as the current anim's last frame.
   // however, it works best to have all values 'done' at this one-to-last frame, so the next anim can read out these correct (new starting) values.
-  float frameBias = (currentAnim.frameNum + 1) / (float)(currentAnim.anim->GetEffectiveFrameCount() + 1);
+  float frameBias = (currentAnim.frameNum + 1) / (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) + 1);
 
   // not sure if this is correct!
   // radian beginAngle = currentAnim.rotationSmuggle.begin;// * (1.0f - frameBias); // more influence in the beginning; act more like it was 0 later on. (yes, next one is a bias within a bias) *edit: disabled, looks better without
@@ -879,7 +883,6 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   int idleAnimID = GetIdleMovementAnimID();
   currentAnim.id = idleAnimID;
   currentAnim.bakedId = idleAnimID;
-  currentAnim.anim = anims->GetAnim(currentAnim.id);
   currentAnim.positions.clear();
   currentAnim.positions = match->GetAnimPositionCache(currentAnim.bakedId);
   currentAnim.frameNum =
@@ -988,7 +991,7 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
 
     for (auto &anim : dataSet) {
       DO_VALIDATION;
-      anims->GetAnim(anim)->order_float = GetMovementSimilarity(anim, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
+      OrderScratch(anim) = GetMovementSimilarity(anim, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
     }
     std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareByOrderFloat, this, _1, _2));
 
@@ -1001,8 +1004,7 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
       }
     }
 
-    Animation *bestAnim = anims->GetAnim(*dataSet.begin());
-
+  
     bestQuadrantID = GetBakedClip(*dataSet.begin()).metadata.quadrant;
   }
 
@@ -1012,7 +1014,6 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
   iter++;
   while (iter != dataSet.end()) {
     DO_VALIDATION;
-    Animation *anim = anims->GetAnim(*iter);
 
     if (strict) {
       DO_VALIDATION;
@@ -1057,7 +1058,7 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
   assert(dataSet.size() != 0);
   for (auto &anim : dataSet) {
     DO_VALIDATION;
-    anims->GetAnim(anim)->order_float = DirectionSimilarityRating(anim);
+    OrderScratch(anim) = DirectionSimilarityRating(anim);
   }
   std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareByOrderFloat, this, _1, _2));
 
@@ -1070,7 +1071,6 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
     }
   }
 
-  Animation *bestAnim = anims->GetAnim(*dataSet.begin());
   const AnimationClip &bestClip = GetBakedClip(*dataSet.begin());
 
   radian bestOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(bestClip.metadata.outgoing_body_angle);
@@ -1082,7 +1082,6 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
   while (iter != dataSet.end()) {
     DO_VALIDATION;
 
-    Animation *anim = anims->GetAnim(*iter);
     const AnimationClip &animClip = GetBakedClip(*iter);
 
     radian animOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(animClip.metadata.outgoing_body_angle);
@@ -1221,11 +1220,10 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
       command.desiredFunctionType == e_FunctionType_Special) {
     DO_VALIDATION;
     selectedAnimID = *dataSet.begin();
-    Animation *nextAnim = anims->GetAnim(selectedAnimID);
     Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
     assert(desiredMovement.coords[2] == 0.0f);
     Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);
-    if (command.useDesiredLookAt) desiredBodyDirectionRel = ((command.desiredLookAt - spatialState.position).Get2D().GetRotated2D(-spatialState.angle) - nextAnim->GetTranslation()).GetNormalized(Vector3(0, -1, 0));
+    if (command.useDesiredLookAt) desiredBodyDirectionRel = ((command.desiredLookAt - spatialState.position).Get2D().GetRotated2D(-spatialState.angle) - GetBakedClip(selectedAnimID).metadata.translation).GetNormalized(Vector3(0, -1, 0));
     Vector3 physicsVector = CalculatePhysicsVector(selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
   }
 
@@ -1261,7 +1259,6 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     DO_VALIDATION;
     previousAnim_frameNum = currentAnim.frameNum;
     previousAnim_functionType = currentAnim.functionType;
-    currentAnim.anim = anims->GetAnim(selectedAnimID);
     currentAnim.id = selectedAnimID;
     currentAnim.bakedId = selectedAnimID;
     currentAnim.functionType = command.desiredFunctionType;
@@ -1286,7 +1283,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     currentAnim.originatingCommand = command;
     RecordMovementCommandAcceptance(material_candidate, action.type,
                                     action.elapsedTime_ms, localInterruptAnim,
-                                    command, currentAnim.anim);
+                                    command, static_cast<int>(GetCurrentBakedClip().frame_count));
     player->BeginSimulationAction();
 
     return true;
@@ -1301,10 +1298,10 @@ void HumanoidBase::CalculatePredictedSituation(Vector3 &predictedPos,
 
   if (currentAnim.positions.size() > (unsigned int)currentAnim.frameNum) {
     DO_VALIDATION;
-    assert(currentAnim.positions.size() > (unsigned int)currentAnim.anim->GetEffectiveFrameCount());
-    predictedPos = spatialState.position + currentAnim.positions.at(currentAnim.anim->GetEffectiveFrameCount()) + currentAnim.actionSmuggle + currentAnim.actionSmuggleSustain + currentAnim.movementSmuggle;
+    assert(currentAnim.positions.size() > (unsigned int)(static_cast<int>(GetCurrentBakedClip().frame_count) - 1));
+    predictedPos = spatialState.position + currentAnim.positions.at((static_cast<int>(GetCurrentBakedClip().frame_count) - 1)) + currentAnim.actionSmuggle + currentAnim.actionSmuggleSustain + currentAnim.movementSmuggle;
   } else {
-    predictedPos = spatialState.position + currentAnim.anim->GetTranslation().Get2D().GetRotated2D(spatialState.angle) + currentAnim.actionSmuggle + currentAnim.actionSmuggleSustain + currentAnim.movementSmuggle;
+    predictedPos = spatialState.position + GetCurrentBakedClip().metadata.translation.Get2D().GetRotated2D(spatialState.angle) + currentAnim.actionSmuggle + currentAnim.actionSmuggleSustain + currentAnim.movementSmuggle;
   }
 
   predictedAngle = spatialState.angle + GetCurrentBakedClip().metadata.outgoing_angle + currentAnim.rotationSmuggle.end;
@@ -1332,7 +1329,7 @@ void HumanoidBase::CalculateSpatialState() {
     // H3e4d2: root-motion and body-pose producers are dead on this path. Foot
     // remains animation-owned gait/selection state until its separate audit.
     if (currentAnim.frameNum > 12) {
-      spatialState.foot = currentAnim.anim->GetOutgoingFoot();
+      spatialState.foot = static_cast<e_Foot>(GetCurrentBakedClip().metadata.outgoing_foot);
     }
     ++HumanoidProceduralMovementTicks();
     return;
@@ -1349,7 +1346,7 @@ void HumanoidBase::CalculateSpatialState() {
 
   if (currentAnim.frameNum > 12) {
     DO_VALIDATION;
-    spatialState.foot = currentAnim.anim->GetOutgoingFoot();
+    spatialState.foot = static_cast<e_Foot>(GetCurrentBakedClip().metadata.outgoing_foot);
   }
 
   assert(startPos.coords[2] == 0.0f);
@@ -1462,7 +1459,7 @@ void HumanoidBase::CalculateSpatialState() {
 void HumanoidBase::CalculateFactualSpatialState() {
   DO_VALIDATION;
 
-  spatialState.foot = currentAnim.anim->GetOutgoingFoot();
+  spatialState.foot = static_cast<e_Foot>(GetCurrentBakedClip().metadata.outgoing_foot);
 
   if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
     DO_VALIDATION;
@@ -1619,8 +1616,8 @@ void HumanoidBase::SetFootSimilarityPredicate(e_Foot desiredFoot) const {
 bool HumanoidBase::CompareFootSimilarity(e_Foot foot, int animIndex1, int animIndex2) const {
   int one = 1;
   int two = 1;
-  if (anims->GetAnim(animIndex1)->GetCurrentFoot() == predicate_DesiredFoot) one = 0;
-  if (anims->GetAnim(animIndex2)->GetCurrentFoot() == predicate_DesiredFoot) two = 0;
+  if (static_cast<e_Foot>(GetBakedClip(animIndex1).metadata.current_foot) == predicate_DesiredFoot) one = 0;
+  if (static_cast<e_Foot>(GetBakedClip(animIndex2).metadata.current_foot) == predicate_DesiredFoot) two = 0;
   if (FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) == e_Velocity_Idle) one = 0;
   if (FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) == e_Velocity_Idle) two = 0;
   return one < two;
@@ -1667,7 +1664,7 @@ float HumanoidBase::GetMovementSimilarity(int animIndex, const Vector3 &relDesir
 
   Vector3 desiredMovement = relDesiredDirection * EnumToFloatVelocity(desiredVelocity);
 
-  Vector3 outgoingDirection = ForceIntoPreferredDirectionVec(anims->GetAnim(animIndex)->GetOutgoingDirection());
+  Vector3 outgoingDirection = ForceIntoPreferredDirectionVec(GetBakedClip(animIndex).metadata.outgoing_direction);
   float outgoingVelocity = RangeVelocity(GetBakedClip(animIndex).metadata.outgoing_velocity);
   Vector3 outgoingMovement = outgoingDirection * outgoingVelocity;
 
@@ -1714,8 +1711,8 @@ bool HumanoidBase::CompareMovementSimilarity(int animIndex1, int animIndex2) con
 }
 
 bool HumanoidBase::CompareByOrderFloat(int animIndex1, int animIndex2) const {
-  float rating1 = anims->GetAnim(animIndex1)->order_float;
-  float rating2 = anims->GetAnim(animIndex2)->order_float;
+  float rating1 = OrderScratch(animIndex1);
+  float rating2 = OrderScratch(animIndex2);
   return rating1 < rating2;
 }
 
@@ -1724,8 +1721,8 @@ void HumanoidBase::SetIncomingBodyDirectionSimilarityPredicate(const Vector3 &re
 }
 
 bool HumanoidBase::CompareIncomingBodyDirectionSimilarity(int animIndex1, int animIndex2) const {
-  float rating1 = std::fabs(ForceIntoAllowedBodyDirectionVec(anims->GetAnim(animIndex1)->GetIncomingBodyDirection()).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
-  float rating2 = std::fabs(ForceIntoAllowedBodyDirectionVec(anims->GetAnim(animIndex2)->GetIncomingBodyDirection()).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
+  float rating1 = std::fabs(ForceIntoAllowedBodyDirectionVec(GetBakedClip(animIndex1).metadata.incoming_body_direction).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
+  float rating2 = std::fabs(ForceIntoAllowedBodyDirectionVec(GetBakedClip(animIndex2).metadata.incoming_body_direction).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
   if (FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) == e_Velocity_Idle) rating1 = 0;//-1;
   if (FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) == e_Velocity_Idle) rating2 = 0;//-1;
 
@@ -1737,12 +1734,11 @@ void HumanoidBase::SetBodyDirectionSimilarityPredicate(const Vector3 &lookAt) co
 }
 
 real HumanoidBase::DirectionSimilarityRating(int animIndex) const {
-  Animation *a1 = anims->GetAnim(animIndex);
   const AnimationClip &a1Clip = GetBakedClip(animIndex);
-  Vector3 relDesiredBodyDirection1 = ((predicate_LookAt - spatialState.position).GetRotated2D(-spatialState.angle) - a1->GetTranslation()).GetNormalized(Vector3(0, -1, 0));
+  Vector3 relDesiredBodyDirection1 = ((predicate_LookAt - spatialState.position).GetRotated2D(-spatialState.angle) - a1Clip.metadata.translation).GetNormalized(Vector3(0, -1, 0));
   radian maxAngleSmuggle = 0.1f * pi;
-  radian outgoingAngle1 = a1->GetOutgoingDirection().GetRotated2D( clamp(predicate_RelDesiredDirection.GetAngle2D(a1->GetOutgoingDirection()), -maxAngleSmuggle, maxAngleSmuggle) ).GetAngle2D(Vector3(0, -1, 0));
-  Vector3 predictedOutgoingBodyDirection1 = a1->GetOutgoingBodyDirection().GetRotated2D(outgoingAngle1);
+  radian outgoingAngle1 = a1Clip.metadata.outgoing_direction.GetRotated2D( clamp(predicate_RelDesiredDirection.GetAngle2D(a1Clip.metadata.outgoing_direction), -maxAngleSmuggle, maxAngleSmuggle) ).GetAngle2D(Vector3(0, -1, 0));
+  Vector3 predictedOutgoingBodyDirection1 = Vector3(0, -1, 0).GetRotated2D(a1Clip.metadata.outgoing_body_angle).GetRotated2D(outgoingAngle1);
   radian rating1 = std::fabs(predictedOutgoingBodyDirection1.GetAngle2D(relDesiredBodyDirection1));
   // penalty for body angles (as opposed to straight forward), to get a slight preference for forward angles
   rating1 += std::fabs(a1Clip.metadata.outgoing_body_angle) * 0.05f;
@@ -1797,7 +1793,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
 
   positions_ret.clear();
 
-  Animation *anim = anims->GetAnim(animID);
   const AnimationClip &clip = GetBakedClip(animID);
 
   int animTouchFrame = clip.metadata.touch_frame;
@@ -1811,7 +1806,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   float incomingSwitchBias = 0.0f; // anything other than 0.0 may result in unpuristic behavior
   float outgoingSwitchBias = 0.0f;
 
-  e_DefString animType = anim->GetAnimType();
+  e_DefString animType = static_cast<e_DefString>(clip.metadata.action_type);
 
   if (animType == e_DefString_BallControl) {
     DO_VALIDATION;
@@ -1845,7 +1840,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   Vector3 animIncomingMovement = Vector3(0, -1, 0).GetRotated2D(spatialState.angle) * RangeVelocity(clip.metadata.incoming_velocity);
   Vector3 adaptedCurrentMovement = animIncomingMovement * incomingSwitchBias + spatialState.movement * (1.0f - incomingSwitchBias);
 
-  Vector3 predictedOutgoingMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle);
+  Vector3 predictedOutgoingMovement = clip.metadata.outgoing_movement.GetRotated2D(spatialState.angle);
   Vector3 velocifiedDesiredMovement = (useDesiredMovement) ? desiredMovement : predictedOutgoingMovement;
 
   assert(desiredMovement.coords[2] == 0.0f);
@@ -1953,7 +1948,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   if (mod_AllowRotation && physicsBias > 0.0f) {
     DO_VALIDATION;
     Vector3 animOutgoingVector = predictedOutgoingMovement.GetNormalized(0);
-    if (FloatToEnumVelocity(predictedOutgoingMovement.GetLength()) == e_Velocity_Idle) animOutgoingVector = anim->GetOutgoingDirection().GetRotated2D(spatialState.angle);
+    if (FloatToEnumVelocity(predictedOutgoingMovement.GetLength()) == e_Velocity_Idle) animOutgoingVector = clip.metadata.outgoing_direction.GetRotated2D(spatialState.angle);
     Vector3 desiredVector = adaptedDesiredMovement.GetNormalized(0);
     if (FloatToEnumVelocity(adaptedDesiredMovement.GetLength()) == e_Velocity_Idle) desiredVector = desiredBodyDirectionRel.GetRotated2D(spatialState.angle);
     radian toDesiredAngle = desiredVector.GetAngle2D(animOutgoingVector);
@@ -1988,7 +1983,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     brakeBias *= (touch) ? 1.0f : 0.8f;
     brakeBias *= (1.0f - stat_agility * 0.2f);
 
-    Vector3 animOutgoingMovement = anim->GetOutgoingMovement();
+    Vector3 animOutgoingMovement = clip.metadata.outgoing_movement;
     animOutgoingMovement.Rotate2D(toDesiredAngle_capped);
     brakeBias *= std::pow(NormalizedClamp(spatialState.floatVelocity,
                                           idleVelocity, sprintVelocity - 0.5f),
@@ -2006,14 +2001,14 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   }
 
   // --- loop da loop ------------------------------------------------------------------------------------------------------------------------------------------
-  for (int time_ms = 0; time_ms < anim->GetFrameCount() * 10;
+  for (int time_ms = 0; time_ms < static_cast<int>(clip.frame_count) * 10;
        time_ms += timeStep_ms) {
     DO_VALIDATION;
 
     // start with +1, because we want to influence the first frame as well
     // as for finishing, finish with frameBias = 1.0, even if the last frame is 'spiritually' the one-to-last, since the first frame of the next anim is actually 'same-tempered' as the current anim's last frame.
     // however, it works best to have all values 'done' at this one-to-last frame, so the next anim can read out these correct (new starting) values.
-    float frameBias = (time_ms + 10) / (float)((anim->GetEffectiveFrameCount() + 1) * 10);
+    float frameBias = (time_ms + 10) / (float)(((static_cast<int>(clip.frame_count) - 1) + 1) * 10);
 
     float lagExp = 1.0f;
     if (mod_PointinessCurve && physicsBias > 0.0f &&
@@ -2035,7 +2030,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
       lagExp = lagExp * physicsBias + 1.0f * (1.0f - physicsBias);
     }
     float adaptedFrameBias = std::pow(frameBias, lagExp);
-    Vector3 animMovement = CalculateMovementAtFrame(origPositionCache, anim->GetEffectiveFrameCount() * adaptedFrameBias, 1).GetRotated2D(spatialState.angle);
+    Vector3 animMovement = CalculateMovementAtFrame(origPositionCache, (static_cast<int>(clip.frame_count) - 1) * adaptedFrameBias, 1).GetRotated2D(spatialState.angle);
 
     float animVelo = animMovement.GetLength();
     Vector3 adaptedAnimMovement = animMovement;
@@ -2276,7 +2271,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     Vector3 tmpTemporalMovement = temporalMovement + toDesired;
 
     // make sure outgoing velocity is of the same idleness as the anim
-    if (time_ms >= (anim->GetFrameCount() - 2) * 10) {
+    if (time_ms >= (static_cast<int>(clip.frame_count) - 2) * 10) {
       DO_VALIDATION;
 
       bool hardQuantize = true;
@@ -2286,18 +2281,18 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
         DO_VALIDATION;
         // soft version
         if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) == e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) != e_Velocity_Idle) tmpTemporalMovement.NormalizeTo(idleDribbleSwitch - 0.01f);
-        else if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) == e_Velocity_Idle) tmpTemporalMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle).GetNormalizedTo(idleDribbleSwitch + 0.01f);
+        else if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) == e_Velocity_Idle) tmpTemporalMovement = clip.metadata.outgoing_movement.GetRotated2D(spatialState.angle).GetNormalizedTo(idleDribbleSwitch + 0.01f);
       } else {
         // hard version
         if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) == e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) != e_Velocity_Idle) tmpTemporalMovement = 0;
-        else if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) == e_Velocity_Idle) tmpTemporalMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle).GetNormalizedTo(dribbleVelocity);
+        else if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) == e_Velocity_Idle) tmpTemporalMovement = clip.metadata.outgoing_movement.GetRotated2D(spatialState.angle).GetNormalizedTo(dribbleVelocity);
       }
     }
 
     assert(tmpTemporalMovement.coords[2] == 0.0f);
     temporalMovement = tmpTemporalMovement;
 
-    if (time_ms >= (anim->GetFrameCount() - 2) * 10) penaltyBreakFactor = 0.0f;
+    if (time_ms >= (static_cast<int>(clip.frame_count) - 2) * 10) penaltyBreakFactor = 0.0f;
     currentPosition += temporalMovement * (1.0f - penaltyBreakFactor) * (timeStep_ms / 1000.0f);
     assert(currentPosition.coords[2] == 0.0f);
 
@@ -2315,13 +2310,13 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     */
   }
 
-  assert(positions_ret.size() >= (unsigned int)anim->GetFrameCount());
+  assert(positions_ret.size() >= (unsigned int)static_cast<int>(clip.frame_count));
   resultingMovement = temporalMovement;
 
   if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle &&
       FloatToEnumVelocity(resultingMovement.GetLength()) != e_Velocity_Idle) {
     DO_VALIDATION;
-    rotationOffset_ret = resultingMovement.GetRotated2D(-spatialState.angle).GetAngle2D(anim->GetOutgoingMovement());
+    rotationOffset_ret = resultingMovement.GetRotated2D(-spatialState.angle).GetAngle2D(clip.metadata.outgoing_movement);
   } else {
     rotationOffset_ret = toDesiredAngle_capped * physicsBias;
   }
@@ -2341,7 +2336,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
       DO_VALIDATION;  // else: too much
 
       float outgoingVelocityFactorInv = 1.0f - NormalizedClamp(resultingMovement.GetLength(), idleDribbleSwitch, sprintVelocity - 1.0f) * 1.0f;
-      float animLengthFactor = NormalizedClamp(anim->GetFrameCount(), 0, 25);
+      float animLengthFactor = NormalizedClamp(static_cast<int>(clip.frame_count), 0, 25);
       radian maximizedRotationOffset = clamp(desiredRotationOffset, outgoingVelocityFactorInv * animLengthFactor * angleFactor * -maxAngle,
                                                                     outgoingVelocityFactorInv * animLengthFactor * angleFactor *  maxAngle);
 

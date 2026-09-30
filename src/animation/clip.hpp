@@ -180,6 +180,24 @@ struct FootballAnimationMetadata {
   }
 };
 
+// One contact touch (frame + ball position), mirroring
+// FootballAnimationExtension::GetTouch.
+struct BakedTouch {
+  int32_t frame = 0;
+  Vector3 position;
+
+  void Serialize(std::ostream& os) const {
+    SimAnimWriteI32(os, frame);
+    FootballAnimationMetadata::WriteVec3(os, position);
+  }
+  static BakedTouch Deserialize(std::istream& is) {
+    BakedTouch t;
+    t.frame = SimAnimReadI32(is);
+    t.position = FootballAnimationMetadata::ReadVec3(is);
+    return t;
+  }
+};
+
 // Immutable runtime animation data. Baked ahead of time by anim_baker; the
 // simulation never parses source assets.
 struct AnimationClip {
@@ -198,6 +216,9 @@ struct AnimationClip {
   // Baked contact (first touch).
   bool has_contact = false;
   Vector3 contact_position;
+
+  // Full touch list (frame + position).
+  std::vector<BakedTouch> touches;
 
   void Serialize(std::ostream& os) const {
     SimAnimWriteString(os, name);
@@ -224,6 +245,8 @@ struct AnimationClip {
       SimAnimWriteF32(os, contact_position.coords[1]);
       SimAnimWriteF32(os, contact_position.coords[2]);
     }
+    SimAnimWriteU32(os, static_cast<uint32_t>(touches.size()));
+    for (const BakedTouch& t : touches) t.Serialize(os);
   }
 
   static AnimationClip Deserialize(std::istream& is, uint32_t id) {
@@ -258,6 +281,11 @@ struct AnimationClip {
       clip.contact_position.coords[0] = SimAnimReadF32(is);
       clip.contact_position.coords[1] = SimAnimReadF32(is);
       clip.contact_position.coords[2] = SimAnimReadF32(is);
+    }
+    const uint32_t touch_count = SimAnimReadU32(is);
+    clip.touches.reserve(touch_count);
+    for (uint32_t t = 0; t < touch_count; ++t) {
+      clip.touches.push_back(BakedTouch::Deserialize(is));
     }
     return clip;
   }

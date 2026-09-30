@@ -74,17 +74,13 @@ Match::Match(std::unique_ptr<MatchData> match_data,
         GetGameConfig().updatePath("media/animations/templates"),
         GetGameConfig().updatePath("media/objects/players/player.object")});
 
-    // B5b1: load the baked library alongside the legacy one and verify the
-    // index -> AnimationId mapping is stable. No execution path switches yet.
+    // B5b7: the runtime reads only the baked library; the legacy collection
+    // remains loaded solely so the remaining legacy reads can be removed
+    // incrementally (removed entirely in B5c).
     auto& baked = GetContext().bakedAnims;
     if (!baked) {
       baked = std::make_shared<AnimationLibrary>();
       assert(baked->Load(GFOOTBALL_BAKED_ANIM_PATH));
-      assert(anims->GetAnimations().size() == baked->Size());
-      for (uint32_t id = 0; id < baked->Size(); ++id) {
-        assert(anims->GetAnim(static_cast<int>(id))->GetName() ==
-               baked->Get(id).name);
-      }
     }
   } else {
     for (auto& a : anims->GetAnimations()) {

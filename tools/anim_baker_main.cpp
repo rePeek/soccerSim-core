@@ -95,14 +95,27 @@ std::vector<AnimationClip> BakeClips(const std::vector<Animation*>& animations) 
     clip.metadata.outgoing_movement = anim->GetOutgoingMovement();
     clip.metadata.translation = anim->GetTranslation();
     clip.metadata.outgoing_foot = static_cast<int32_t>(anim->GetOutgoingFoot());
-    // Contact (first touch).
+    // Contact (first touch at the default touchframe).
+    auto football = std::static_pointer_cast<FootballAnimationExtension>(
+        anim->GetExtension("football"));
     if (clip.metadata.touch_frame >= 0) {
       Vector3 contact_pos;
-      if (std::static_pointer_cast<FootballAnimationExtension>(
-              anim->GetExtension("football"))
-              ->GetTouchPos(clip.metadata.touch_frame, contact_pos)) {
+      if (football->GetTouchPos(clip.metadata.touch_frame, contact_pos)) {
         clip.has_contact = true;
         clip.contact_position = contact_pos;
+      }
+    }
+    // Full touch list, mirroring FootballAnimationExtension::GetTouch.
+    const int touch_count = football->GetTouchCount();
+    clip.touches.reserve(touch_count);
+    for (int t = 0; t < touch_count; ++t) {
+      BakedTouch bt;
+      Vector3 pos;
+      int frame = 0;
+      if (football->GetTouch(t, pos, frame)) {
+        bt.frame = frame;
+        bt.position = pos;
+        clip.touches.push_back(bt);
       }
     }
 
@@ -315,6 +328,28 @@ int Verify(const std::vector<Animation*>& legacy,
                  cp.coords[2] != clip.contact_position.coords[2]))) {
       std::cerr << "VERIFY clip " << i << ": contact mismatch\n";
       ++mismatches;
+    }
+
+    const auto football = std::static_pointer_cast<FootballAnimationExtension>(
+        anim->GetExtension("football"));
+    if (static_cast<int>(clip.touches.size()) != football->GetTouchCount()) {
+      std::cerr << "VERIFY clip " << i << ": touch count mismatch\n";
+      ++mismatches;
+    } else {
+      for (int t = 0; t < static_cast<int>(clip.touches.size()); ++t) {
+        Vector3 pos;
+        int frame = 0;
+        football->GetTouch(t, pos, frame);
+        if (clip.touches[t].frame != frame ||
+            clip.touches[t].position.coords[0] != pos.coords[0] ||
+            clip.touches[t].position.coords[1] != pos.coords[1] ||
+            clip.touches[t].position.coords[2] != pos.coords[2]) {
+          std::cerr << "VERIFY clip " << i << ": touch " << t
+                    << " mismatch\n";
+          ++mismatches;
+          break;
+        }
+      }
     }
   }
 

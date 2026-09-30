@@ -531,7 +531,9 @@ void Humanoid::Process() {
     }
 
     Vector3 desiredBallPosition;
-    std::static_pointer_cast<FootballAnimationExtension>(currentAnim.anim->GetExtension("football"))->GetTouchPos(action.contactFrame, desiredBallPosition);
+    for (const auto& t : GetCurrentBakedClip().touches) {
+      if (t.frame == action.contactFrame) desiredBallPosition = t.position;
+    }
     float desiredBallHeight = desiredBallPosition.coords[2];
     if (contact_audit)
       contact_audit->desired_ball_heights.push_back(desiredBallHeight);
@@ -869,7 +871,7 @@ void Humanoid::Process() {
   // start with +1, because we want to influence the first frame as well
   // as for finishing, finish with frameBias = 1.0, even if the last frame is 'spiritually' the one-to-last, since the first frame of the next anim is actually 'same-tempered' as the current anim's last frame.
   // however, it works best to have all values 'done' at this one-to-last frame, so the next anim can read out these correct (new starting) values.
-  float frameBias = (currentAnim.frameNum + 1) / (float)(currentAnim.anim->GetEffectiveFrameCount() + 1);
+  float frameBias = (currentAnim.frameNum + 1) / (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) + 1);
 
   if (currentAnim.touchFrame != -1 &&
       currentAnim.frameNum <= currentAnim.touchFrame) {
@@ -897,23 +899,23 @@ void Humanoid::Process() {
   // movement smuggle
 
   if (currentAnim.touchFrame == -1 &&
-      currentAnim.frameNum <= currentAnim.anim->GetEffectiveFrameCount()) {
+      currentAnim.frameNum <= (static_cast<int>(GetCurrentBakedClip().frame_count) - 1)) {
     DO_VALIDATION;  // omit one frame, or balltouch will be influenced because
                     // of velo
     // linear version *outdated*
-    // spatialState.movementSmuggleMovement = currentAnim.movementSmuggle / (float)(currentAnim.anim->GetEffectiveFrameCount());
+    // spatialState.movementSmuggleMovement = currentAnim.movementSmuggle / (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1));
     // currentAnim.movementSmuggleOffset += spatialState.movementSmuggleMovement;
 
     // smooth version
     float value =
         std::cos((currentAnim.frameNum /
-                      (float)(currentAnim.anim->GetEffectiveFrameCount() + 1) -
+                      (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) + 1) -
                   0.5f) *
                  pi * 2.0f) +
         1.0f;
     // add some linearity
     value = value * 0.1f + 0.9f;
-    spatialState.movementSmuggleMovement = (currentAnim.movementSmuggle / (float)(currentAnim.anim->GetEffectiveFrameCount() + 1)) * value * 100.0f;
+    spatialState.movementSmuggleMovement = (currentAnim.movementSmuggle / (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) + 1)) * value * 100.0f;
     currentAnim.movementSmuggleOffset += spatialState.movementSmuggleMovement / 100.0f;
   } else {
     spatialState.movementSmuggleMovement = Vector3(0);
@@ -922,7 +924,7 @@ void Humanoid::Process() {
   // rotation smuggle
 
   int beginRotationFrameCount = 16; // after this amount of frames, be ready with 'ease-in' rotation smuggle
-  float cappedFrameBias = std::min(1.0f, (currentAnim.frameNum + 1) / (float)std::min(beginRotationFrameCount, currentAnim.anim->GetEffectiveFrameCount() + 1));
+  float cappedFrameBias = std::min(1.0f, (currentAnim.frameNum + 1) / (float)std::min(beginRotationFrameCount, (static_cast<int>(GetCurrentBakedClip().frame_count) - 1) + 1));
   float beginFrameBias = cappedFrameBias;
   float endFrameBias = cappedFrameBias;
   if (currentAnim.touchFrame != -1) {
@@ -934,7 +936,7 @@ void Humanoid::Process() {
       if (currentAnim.frameNum > currentAnim.touchFrame) {
         DO_VALIDATION;
         // end rotation smuggle starts after touch
-        endFrameBias = (currentAnim.frameNum - currentAnim.touchFrame) / (float)(currentAnim.anim->GetEffectiveFrameCount() - currentAnim.touchFrame);
+        endFrameBias = (currentAnim.frameNum - currentAnim.touchFrame) / (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) - currentAnim.touchFrame);
       } else {
         // no smuggle before touch
         endFrameBias = 0.0f;
@@ -1014,7 +1016,6 @@ void Humanoid::SelectRetainAnim() {
   startAngle = FixAngle((Vector3(0) - startPos).GetAngle2D());//0.5 * pi; (facing right)
 
   currentAnim.positions.clear();
-  currentAnim.anim = anims->GetAnim(*dataSet.begin());
   currentAnim.id = *dataSet.begin();
   currentAnim.bakedId = *dataSet.begin();
   currentAnim.frameNum = 0;
@@ -1377,13 +1378,13 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
         DO_VALIDATION;
         assert(!dataSet.empty());
         Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
-        Animation *bestWeGot = anims->GetAnim(*dataSet.begin());
-        Vector3 bestWeGotMovement = bestWeGot->GetOutgoingMovement().GetRotated2D(spatialState.angle);
+        const AnimationClip &bestWeGot = GetBakedClip(*dataSet.begin());
+        Vector3 bestWeGotMovement = bestWeGot.metadata.outgoing_movement.GetRotated2D(spatialState.angle);
         float currentDesiredDot = command.desiredDirection.GetDotProduct(spatialState.directionVec);
 
         bool allowAnim = true;
 
-        radian angleDiff = std::fabs(bestWeGot->GetOutgoingDirection().GetRotated2D(spatialState.angle).GetAngle2D(command.desiredDirection));
+        radian angleDiff = std::fabs(bestWeGot.metadata.outgoing_direction.GetRotated2D(spatialState.angle).GetAngle2D(command.desiredDirection));
         if (angleDiff > 0.375f * pi) {
           DO_VALIDATION;  // so we accept at least either 000 or 135 deg anims,
                           // which are two common anim types that are often
@@ -1490,8 +1491,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
       std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
     }
     if (!dataSet.empty() && !withoutFootSort.empty()) {
-      RecordFootCounterfactual(*dataSet.begin(), *withoutFootSort.begin(),
-                               anims.get());
+      RecordFootCounterfactual(*dataSet.begin(), *withoutFootSort.begin());
     }
   }
   MovementAnimationPerturbation &perturbation =
@@ -1503,8 +1503,8 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
       !dataSet.empty() && !withoutFootSort.empty() &&
       dataSet.front() != withoutFootSort.front() &&
       (!perturbation.require_frame_count_difference ||
-       anims->GetAnim(dataSet.front())->GetFrameCount() !=
-           anims->GetAnim(withoutFootSort.front())->GetFrameCount())) {
+       GetBakedClip(dataSet.front()).frame_count !=
+           GetBakedClip(withoutFootSort.front()).frame_count)) {
     perturbation.applied = true;
     perturbation.player_id = CastPlayer()->GetStableID();
     perturbation.time_ms = static_cast<int>(match->GetActualTime_ms());
@@ -1540,7 +1540,6 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     DO_VALIDATION;
 
     selectedAnimID = *dataSet.begin();
-    Animation *nextAnim = anims->GetAnim(selectedAnimID);
     Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
     assert(desiredMovement.coords[2] == 0.0f);
     Vector3 physicsVector = CalculatePhysicsVector(selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
@@ -1570,8 +1569,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
       if (dataSet.size() > 0) {
         DO_VALIDATION;
         selectedAnimID = *dataSet.begin();
-        Animation *nextAnim = anims->GetAnim(selectedAnimID);
-        Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
+            Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
         assert(desiredMovement.coords[2] == 0.0f);
         Vector3 physicsVector = CalculatePhysicsVector(selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
       }
@@ -1614,10 +1612,9 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     previousAnim_frameNum = currentAnim.frameNum;
     previousAnim_functionType = currentAnim.functionType;
 
-    currentAnim.anim = anims->GetAnim(selectedAnimID);
     currentAnim.id = selectedAnimID;
     currentAnim.bakedId = selectedAnimID;
-    currentAnim.functionType = command.desiredFunctionType;//StringToFunctionType(currentAnim.anim->GetVariable("type"));
+    currentAnim.functionType = command.desiredFunctionType;
     currentAnim.frameNum = 0;
     currentAnim.touchFrame = touchFrame_tmp;
     currentAnim.originatingInterrupt = localInterruptAnim;
@@ -1639,7 +1636,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     currentAnim.originatingCommand = command;
     RecordMovementCommandAcceptance(material_candidate, action.type,
                                     action.elapsedTime_ms, localInterruptAnim,
-                                    command, currentAnim.anim);
+                                    command, static_cast<int>(GetCurrentBakedClip().frame_count));
     currentAnim.movementSmuggle = CalculateMovementSmuggle(command.desiredDirection, command.desiredVelocityFloat);
     currentAnim.movementSmuggleOffset = Vector3(0);
     CastPlayer()->BeginSimulationAction();
@@ -1678,14 +1675,13 @@ bool Humanoid::NeedTouch(int animID, const PlayerCommand &command) {
 
   // when idle (and desiredvelo is idle as well), don't want to touch the ball every frame
 
-  Animation *anim = anims->GetAnim(animID);
   const AnimationClip &clip = GetBakedClip(animID);
 
   if (FloatToEnumVelocity(clip.metadata.outgoing_velocity != e_Velocity_Idle)) return true;
   if (command.desiredVelocityFloat > idleDribbleSwitch) return true;
   if (std::fabs(match->GetBall()->GetMovement().GetLength()) > 2.0f) return true;
 
-  Vector3 animMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle) * 0.3f + spatialState.movement * 0.7f;
+  Vector3 animMovement = clip.metadata.outgoing_movement.GetRotated2D(spatialState.angle) * 0.3f + spatialState.movement * 0.7f;
 
   float animVelo = animMovement.GetLength();
   animMovement.Normalize(spatialState.directionVec);
@@ -1710,10 +1706,12 @@ bool Humanoid::NeedTouch(int animID, const PlayerCommand &command) {
   return false;
 }
 
-float Humanoid::GetBodyBallDistanceAdvantage(const Animation *anim, e_FunctionType functionType, const Vector3 &animTouchMovement, const Vector3 &touchMovement, const Vector3 &incomingMovement, const Vector3 &outgoingMovement, radian outgoingAngle, /*const Vector3 &animBallToBall2D, */const Vector3 &bodyPos, const Vector3 &FFO, const Vector3 &animBallPos2D, const Vector3 &actualBallPos2D, const Vector3 &ballMovement2D, float radiusFactor, float radiusCheatDistance, float decayPow, bool debug) const {
+float Humanoid::GetBodyBallDistanceAdvantage(int animID, e_FunctionType functionType, const Vector3 &animTouchMovement, const Vector3 &touchMovement, const Vector3 &incomingMovement, const Vector3 &outgoingMovement, radian outgoingAngle, /*const Vector3 &animBallToBall2D, */const Vector3 &bodyPos, const Vector3 &FFO, const Vector3 &animBallPos2D, const Vector3 &actualBallPos2D, const Vector3 &ballMovement2D, float radiusFactor, float radiusCheatDistance, float decayPow, bool debug) const {
 
   assert(touchMovement.coords[2] == 0.0f);
   assert(bodyPos.coords[2] == 0.0f);
+
+  const AnimationClip &clip = GetBakedClip(animID);
 
   // super simplistic debug version
   //if (animBallPos2D.GetDistance(actualBallPos2D) < radiusFactor * 1.0) return 1.0f; else return 0.0f;
@@ -1730,7 +1728,7 @@ float Humanoid::GetBodyBallDistanceAdvantage(const Animation *anim, e_FunctionTy
   float highestVelocity = (highestTouchVelocity > highestInOutVelocity) ? highestTouchVelocity : highestInOutVelocity;
 
   float velocityChange = outgoingVelocity - incomingVelocity;
-  float velocityChange_mps = velocityChange / (anim->GetFrameCount() * 0.01f);
+  float velocityChange_mps = velocityChange / (static_cast<int>(clip.frame_count) * 0.01f);
 
   float bodyAnimBallBonus = 1.0f - curve(NormalizedClamp(((bodyPos + FFO.GetNormalized(0) * 0.1f) - animBallPos2D).GetLength(), 0.0f, 0.7f), 0.7f); // less FFO feels better
   float bodyActualBallBonus = 1.0f - curve(NormalizedClamp(((bodyPos + FFO.GetNormalized(0) * 0.1f) - actualBallPos2D).GetLength(), 0.0f, 0.7f), 0.4f);
@@ -1846,8 +1844,8 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
 
   float playerHeight = player->GetPlayerData()->GetHeight();
 
-  e_FunctionType functionType =
-      StringToFunctionType(anims->GetAnim(*iter)->GetAnimType());
+  e_FunctionType functionType = StringToFunctionType(
+      static_cast<e_DefString>(GetBakedClip(*iter).metadata.action_type));
 
   radian rotationSmuggle_ret_tmp = 0;
   radian predictedAngle = 0;
@@ -1859,7 +1857,6 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
   while (iter != sortedDataSet.end() && found == false) {
     DO_VALIDATION;
 
-    Animation *anim = anims->GetAnim(*iter);
     const AnimationClip &clip = GetBakedClip(*iter);
     bool isBase = clip.metadata.base_animation;
 
@@ -1884,11 +1881,9 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
     Vector3 outgoingMovement = CalculateOutgoingMovement(positions_ret).GetRotated2D(-spatialState.angle);
     adaptedOutgoingMovement = outgoingMovement; // may be changed into touchMovement later on, when an anim is found
 
-    int frameCount = anim->GetEffectiveFrameCount();
+    int frameCount = static_cast<int>(clip.frame_count) - 1;
 
-    std::shared_ptr<FootballAnimationExtension> footballExtension = std::static_pointer_cast<FootballAnimationExtension>(anim->GetExtension("football"));
-
-    int totalTouches = footballExtension->GetTouchCount();
+    const int totalTouches = static_cast<int>(clip.touches.size());
     int touchIDs[totalTouches];
     int count = 0;
 
@@ -1911,8 +1906,8 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
     while (touchNum < totalTouches && found == false) {
       DO_VALIDATION;
 
-      bool exists = footballExtension->GetTouch(touchIDs[touchNum], animBallPos, animTouchFrame);
-      assert(exists);
+      animBallPos = clip.touches[touchIDs[touchNum]].position;
+      animTouchFrame = clip.touches[touchIDs[touchNum]].frame;
 
       // out of bounds?
       if (match->GetBallRetainer() != player) {
@@ -2074,7 +2069,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
         bool debug = false;
 
         float touchFramedRadiusFactor = radiusFactor * touchFrameFactor;
-        float bodyBallDistanceAdvantage = GetBodyBallDistanceAdvantage(anim, functionType, animTouchMovement, touchMovement, incomingMovement, adaptedOutgoingMovement, predictedAngle, bodyPos, FFO, animBallPos.Get2D(), ballPos.Get2D(), ballMovement.Get2D(), touchFramedRadiusFactor, radiusCheatOffset, 1.0f, debug);
+        float bodyBallDistanceAdvantage = GetBodyBallDistanceAdvantage(*iter, functionType, animTouchMovement, touchMovement, incomingMovement, adaptedOutgoingMovement, predictedAngle, bodyPos, FFO, animBallPos.Get2D(), ballPos.Get2D(), ballMovement.Get2D(), touchFramedRadiusFactor, radiusCheatOffset, 1.0f, debug);
 
         if (bodyBallDistanceAdvantage >= 1.0f ||
             match->GetBallRetainer() == player) {
@@ -2202,7 +2197,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(const Vector3 &desiredDirection,
     DO_VALIDATION;
     timeToBall_ms = CastPlayer()->GetDesiredTimeToBall_ms();
   }
-  unsigned int animTime_ms = currentAnim.anim->GetFrameCount() * 10;
+  unsigned int animTime_ms = static_cast<int>(GetCurrentBakedClip().frame_count) * 10;
   unsigned int futureTime_ms = std::max(animTime_ms + defaultTouchOffset_ms, timeToBall_ms);
 
   Vector3 predictedOutgoingMovement = CalculateOutgoingMovement(currentAnim.positions);
@@ -2248,7 +2243,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(const Vector3 &desiredDirection,
   float resultingVelocity = resultingMovement.GetLength();
   if (resultingVelocity > predictedVelocity && resultingVelocity > maxEffectVelocity) return Vector3(0);
 
-  toDesired.NormalizeMax(maxSmuggleMPS * (currentAnim.anim->GetEffectiveFrameCount() * 0.01f));
+  toDesired.NormalizeMax(maxSmuggleMPS * ((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) * 0.01f));
 
   //SetGreenDebugPilon(predictedPos);
 

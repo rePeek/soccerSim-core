@@ -312,7 +312,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   Vector3 plannedBallPos = physicsPlannedBallPos * physicsBias + desiredPlannedBallPos * (1.0f - physicsBias);
   Vector3 toPlannedBall = plannedBallPos - ball->Predict(0).Get2D();
 
-  float timeToGo = ((currentAnim.anim->GetEffectiveFrameCount() - frameNum) * 10) * 0.001f;
+  float timeToGo = ((static_cast<int>(GetBakedClipFor(currentAnim).frame_count) - 1 - frameNum) * 10) * 0.001f;
   timeToGo += physicsDelayTime * physicsBias + desiredDelayTime * (1.0f - physicsBias);
   timeToGo += defaultTouchOffset_ms * 0.001f;//0.08f; // time into next anim where we want to hit the ball
 

@@ -52,7 +52,7 @@ class Humanoid : public HumanoidBase {
     virtual bool SelectAnim(const PlayerCommand &command, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false); // returns false on no applicable anim found
     bool NeedTouch(int animID, const PlayerCommand &command);
     float GetBodyBallDistanceAdvantage(
-        const Animation *anim, e_FunctionType functionType,
+        int animID, e_FunctionType functionType,
         const Vector3 &animTouchMovement, const Vector3 &touchMovement,
         const Vector3 &incomingMovement, const Vector3 &outgoingMovement,
         radian outgoingAngle,

@@ -191,8 +191,7 @@ int &HumanoidFootOutgoingAngleBitsDiff();
 int &HumanoidFootOutgoingAngleBucketDiff();
 int &HumanoidFootSpecialStateDiff();
 int &HumanoidFootLifecycleChanged();
-void RecordFootCounterfactual(int with_foot_head, int without_foot_head,
-                              AnimCollection *anims);
+void RecordFootCounterfactual(int with_foot_head, int without_foot_head);
 // 4f-c diagnostic A/B hook. Transient and disabled in normal gameplay; a
 // restored branch can choose the alternative Movement foot order exactly once.
 struct MovementAnimationPerturbation {
@@ -280,7 +279,6 @@ struct RotationSmuggle {
 };
 
 struct Anim {
-  Animation *anim = 0;
   signed int id = 0;
   signed int bakedId = 0;  // stable AnimationId (B5b1 proved id == baked index)
   int frameNum = 0;
@@ -302,7 +300,6 @@ struct Anim {
   PlayerCommand originatingCommand;
   std::vector<Vector3> positions;
   void ProcessState(EnvState* state) { DO_VALIDATION;
-    state->process(anim);
     state->process(id);
     state->process(bakedId);
     state->process(frameNum);
@@ -393,7 +390,7 @@ class HumanoidBase {
     virtual void Process();
 
     inline int GetFrameNum() { DO_VALIDATION; return currentAnim.frameNum; }
-    inline int GetFrameCount() { DO_VALIDATION; return currentAnim.anim->GetFrameCount(); }
+    inline int GetFrameCount() { DO_VALIDATION; return static_cast<int>(GetCurrentBakedClip().frame_count); }
 
     inline Vector3 GetPosition() const { return spatialState.position; }
     inline Vector3 GetDirectionVec() const { return spatialState.directionVec; }
@@ -424,6 +421,9 @@ class HumanoidBase {
     // these resolve through the stable AnimationId into the read-only library.
     const AnimationClip &GetBakedClip(int id) const;
     const AnimationClip &GetCurrentBakedClip() const;
+    // Per-animation scratch for the selection sort predicates (replaces the
+    // legacy mutable Animation::order_float field).
+    float &OrderScratch(int id) const;
 
     virtual void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState* state);
@@ -540,6 +540,7 @@ class HumanoidBase {
     mutable Vector3 predicate_RelDesiredTripDirection;
     mutable Vector3 predicate_RelDesiredBallDirection;
     mutable float predicate_idle = 0.0f;
+    mutable std::vector<float> orderScratch_;
 
     // Should be dynamically retrieved from match, don't cache.
     int mentalImageTime = 0;
@@ -553,6 +554,6 @@ void RecordMovementCommandAcceptance(bool material_candidate,
                                      int previous_elapsed_ms,
                                      e_InterruptAnim interrupt,
                                      const PlayerCommand &command,
-                                     const Animation *anim);
+                                     int frame_count);
 
 #endif
