@@ -20,6 +20,7 @@
 
 #include "animation/animcollection.hpp"
 
+class Match;
 class PlayerBase;
 class PlayerOfficial;
 class PlayerData;

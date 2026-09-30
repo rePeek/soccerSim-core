@@ -23,8 +23,6 @@
 #include "animation/extensions/footballanimationextension.hpp"
 
 #include "foundation/file.h"
-#include "sim/player/humanoid/humanoid.hpp"
-#include "sim/player/humanoid/humanoid_utils.hpp"
 
 void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap) {
   DO_VALIDATION;

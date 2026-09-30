@@ -67,6 +67,7 @@ set(TYPES_SOURCES
 
 
 set(UTILS_HEADERS
+   src/animation/types.hpp
    src/animation/animation.hpp
    src/animation/xmlloader.hpp
 )

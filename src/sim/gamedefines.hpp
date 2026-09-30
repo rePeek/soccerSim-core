@@ -19,6 +19,7 @@
 #define _HPP_GAMEDEFINES
 
 #include "env/defines.hpp"
+#include "animation/types.hpp"
 
 #include "foundation/math/vector3.hpp"
 
@@ -27,16 +28,8 @@
 
 using namespace blunted;
 
-const float idleVelocity = 0.0f;
-const float dribbleVelocity = 3.5f;
-const float walkVelocity = 5.0f;
-const float sprintVelocity = 8.0f;
-
 const float animSprintVelocity = 7.0f;
 
-const float idleDribbleSwitch = 1.8f;
-const float dribbleWalkSwitch = 4.2f;
-const float walkSprintSwitch = 6.0f;
 // PES6 digital control mode, quantizes some input to x degree angles
 const bool quantizeDirection = true;
 
@@ -73,38 +66,12 @@ const float defaultPlayerHeight = 1.92f;
 
 const int temporalSmoother_history_ms = 20;
 
-typedef std::vector<int> DataSet;
 
 class Player;
 
 enum e_Side {
   e_Side_Left,
   e_Side_Right
-};
-
-enum e_Velocity {
-  e_Velocity_Idle,
-  e_Velocity_Dribble,
-  e_Velocity_Walk,
-  e_Velocity_Sprint
-};
-
-enum e_FunctionType {
-  e_FunctionType_None,
-  e_FunctionType_Movement,
-  e_FunctionType_BallControl,
-  e_FunctionType_Trap,
-  e_FunctionType_ShortPass,
-  e_FunctionType_LongPass,
-  e_FunctionType_HighPass,
-  e_FunctionType_Header,
-  e_FunctionType_Shot,
-  e_FunctionType_Deflect,
-  e_FunctionType_Catch,
-  e_FunctionType_Interfere,
-  e_FunctionType_Trip,
-  e_FunctionType_Sliding,
-  e_FunctionType_Special
 };
 
 enum e_TouchType {

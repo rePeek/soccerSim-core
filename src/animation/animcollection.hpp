@@ -19,12 +19,11 @@
 #define _HPP_FOOTBALL_ONTHEPITCH_ANIMCOLLECTION
 
 #include "animation/animation.hpp"
-#include "sim/ball.hpp"
 
 #include "animation/import_hierarchy.hpp"
 #include "animation/import_loader.hpp"
 
-#include "sim/gamedefines.hpp"
+#include "animation/types.hpp"
 
 using namespace blunted;
 

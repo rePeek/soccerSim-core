@@ -45,31 +45,6 @@ void QuantizeDirection(Vector3 &inputDirection, float bias) {
 }
 
 
-int GetVelocityID(e_Velocity velo, bool treatDribbleAsWalk) {
-  DO_VALIDATION;
-  int id = 0;
-  switch (velo) {
-    DO_VALIDATION;
-    case e_Velocity_Idle:
-      id = 0;
-      break;
-    case e_Velocity_Dribble:
-      id = 1;
-      break;
-    case e_Velocity_Walk:
-      id = 2;
-      break;
-    case e_Velocity_Sprint:
-      id = 3;
-      break;
-    default:
-      id = 0;
-      break;
-  }
-  if (treatDribbleAsWalk && id > 1) id--;
-  return id;
-}
-
 std::map < e_PositionName, std::vector<Stat> > defaultProfiles;
 
 float CalculateStat(float baseStat, float profileStat, float age,
