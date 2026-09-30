@@ -54,14 +54,12 @@ set(CORE_HEADERS
    src/sim/utils.hpp
    src/sim/rng.hpp
    src/env/main.hpp
-   src/env/gametask.hpp
    src/env/rng.hpp
    src/env/defines.hpp
 )
 
 
 set(CORE_SOURCES
-   src/env/gametask.cpp
    src/sim/utils.cpp
    src/env/main.cpp
    src/sim/gamedefines.cpp
@@ -100,6 +98,7 @@ set(GAME_HEADERS
    src/sim/ball.hpp
    src/sim/team.hpp
    src/sim/match_config.hpp
+   src/sim/simulation.hpp
    src/sim/match.hpp
    src/sim/value_history.hpp
    src/sim/ai_support/AIfunctions.hpp
@@ -130,6 +129,7 @@ set(GAME_SOURCES
    src/sim/humangamer.cpp
    src/sim/ball.cpp
    src/sim/match.cpp
+   src/sim/simulation.cpp
    src/sim/referee.cpp
    src/sim/ai_support/mentalimage.cpp
    src/sim/ai_support/AIfunctions.cpp

@@ -104,7 +104,7 @@ src/
 │       baked_selector, simanim_format, types, selection_*, quadrant
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
-│   ├── match, match_config, team, ball, referee, officials, humangamer, teamAIcontroller
+│   ├── simulation, match, match_config, team, ball, referee, officials, humangamer, teamAIcontroller
 │   ├── ai_support/     AIfunctions, mentalimage
 │   ├── utils.*         QuantizeDirection / GetVelocityID 等游戏工具
 │   └── player/
@@ -115,7 +115,7 @@ src/
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
 ├── controller/      协议无关的控制输入接口，以及 GRF action 适配器
 ├── env/             对外环境层
-│   ├── game_env, gametask, main, rng（全局 RNG 入口，owner 是 GameContext）
+│   ├── game_env, main, rng（全局 RNG 入口，owner 是 GameContext）
 │   └── defines        EnvState / Position / SharedInfo
 ├── data/            matchdata, playerdata, teamdata（DB/序列化）
 └── ai/              ai_keyboard, ihidevice.hpp
@@ -169,11 +169,11 @@ files are inputs to the regression baseline.
 
 ```
 main() [src/env/main.cpp]        thread_local GameEnv* game;
-  → run_game()                   builds GameContext + GameTask + AIControlledKeyboard[]
+  → run_game()                   builds GameContext + Simulation + AIControlledKeyboard[]
   → GameEnv [src/env/game_env.*] start_game / reset(config) / step / action /
                                   get_info→SharedInfo / get_state / set_state
-      → GameTask [src/env/gametask.*]::ProcessPhase()
-          → Match [src/sim/match.*]::Process()  per-tick loop (10ms steps)
+      → Simulation [src/sim/simulation.*] owns match lifecycle
+          → Match [src/sim/match.*]::Step()         per-tick loop (10ms steps)
               → Ball::Process()                  physics + prediction buffer
               → Team → Player::Process()         Humanoid animation + controller strategy
               → Referee / Officials              rules, fouls, match phase

@@ -20,6 +20,9 @@
 #include <cmath>
 
 #include "sim/ai_support/AIfunctions.hpp"
+#include "sim/match.hpp"
+#include "sim/player/player.hpp"
+#include "sim/team.hpp"
 
 #include "env/main.hpp"
 

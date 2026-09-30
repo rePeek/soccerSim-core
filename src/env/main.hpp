@@ -23,7 +23,7 @@ GameEnv* GetGame();
 
 #include "ai/ai_keyboard.hpp"
 
-#include "env/gametask.hpp"
+#include "sim/simulation.hpp"
 #include "sim/match_config.hpp"
 #include "env/rng.hpp"
 #include "ai/ihidevice.hpp"
@@ -212,7 +212,9 @@ enum GameState {
 class GameContext {
  public:
   GameContext() { }
-  std::shared_ptr<GameTask> gameTask;
+  std::unique_ptr<Simulation> simulation;
+  // Transitional alias for internal callers using the old GameTask field.
+  Simulation* gameTask = nullptr;
   std::unique_ptr<MatchConfig> matchConfig;
   Properties *config = nullptr;
 
@@ -238,11 +240,9 @@ class GameContext {
   void ProcessState(EnvState* state);
 };
 
-class Match;
 
 void SetGame(GameEnv* c);
 GameContext& GetContext();
-std::shared_ptr<GameTask> GetGameTask();
 
 Properties *GetConfiguration();
 ScenarioConfig& GetScenarioConfig();

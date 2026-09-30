@@ -20,7 +20,6 @@
 #include "env/main.hpp"
 
 class AIControlledKeyboard;
-class GameTask;
 
 typedef std::vector<std::string> StringVector;
 

@@ -26,13 +26,12 @@
 #include "ai/ai_keyboard.hpp"
 #include "support/diagnostics/assert.hpp"
 #include "support/io/file.hpp"
-#include "env/gametask.hpp"
 
 using std::string;
 
 void GameEnv::do_step(int count) {
   while (count--) {
-    context->gameTask->GetMatch()->Step();
+    context->simulation->match()->Step();
   }
 }
 
@@ -116,7 +115,7 @@ void GameEnv::start_game() {
 
 SharedInfo GameEnv::get_info() {
   SharedInfo info;
-  GetGameTask()->GetMatch()->GetState(&info);
+  context->simulation->match()->GetState(&info);
   info.step = context->step;
   return info;
 }
@@ -163,7 +162,7 @@ void GameEnv::step() {
   // We do 10 environment steps per second, while game does 100 frames of
   // physics animation.
   do_step(GetGameConfig().physics_steps_per_frame);
-  if (context->gameTask->GetMatch()->IsInPlay()) {
+  if (context->simulation->match()->IsInPlay()) {
     context->step++;
     for (auto controller : GetControllers()) {
       controller->ResetNotSticky();
@@ -175,7 +174,7 @@ void GameEnv::ProcessState(EnvState* state) {
   state->process(this->state);
   state->process(waiting_for_game_count);
   context->ProcessState(state);
-  context->gameTask->GetMatch()->ProcessState(state);
+  context->simulation->match()->ProcessState(state);
 }
 
 void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
@@ -186,6 +185,8 @@ void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
   for (auto controller : GetControllers()) {
     controller->SetDisabled(true);
   }
-  GetGameTask()->StopMatch();
-  GetGameTask()->StartMatch(std::move(context->matchConfig), animations);
+  randomize(game_config.game_engine_random_seed);
+  context->simulation->Stop();
+  context->simulation->Reset(std::move(context->matchConfig), GetControllers(),
+                             animations);
 }

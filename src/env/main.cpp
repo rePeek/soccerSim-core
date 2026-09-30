@@ -42,9 +42,6 @@ GameContext& GetContext() {
 
 void SetGame(GameEnv* c) { game = c; }
 
-std::shared_ptr<GameTask> GetGameTask() {
-  return game->context->gameTask;
-}
 
 
 Properties* GetConfiguration() {
@@ -78,12 +75,14 @@ void run_game(Properties* input_config) {
   }
   // sequences
 
-  game->context->gameTask = std::shared_ptr<GameTask>(new GameTask());
+  game->context->simulation = std::make_unique<Simulation>();
+  game->context->gameTask = game->context->simulation.get();
 }
   // fire!
 
 void quit_game() {
-  game->context->gameTask.reset();
+  game->context->gameTask = nullptr;
+  game->context->simulation.reset();
 
   for (unsigned int i = 0; i < game->context->controllers.size(); i++) {
     delete game->context->controllers[i];
