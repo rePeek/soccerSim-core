@@ -11,6 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Football-domain value types. No project dependency of any kind: this is the
+# leaf of the source DAG. Header-only, so it is registered here but compiled
+# into whichever target includes it.
+set(MODEL_HEADERS
+   src/model/football_types.hpp
+)
+
+
 set(BASE_HEADERS
    src/foundation/defines.hpp
    src/foundation/log.hpp
@@ -56,7 +64,7 @@ set(BASE_SOURCES
 
 
 
-set(UTILS_HEADERS
+set(ANIMATION_HEADERS
    src/animation/types.hpp
    src/animation/selection_math.hpp
    src/animation/selection_query.hpp
@@ -68,9 +76,7 @@ set(UTILS_HEADERS
 )
 
 
-
-
-set(UTILS_SOURCES
+set(ANIMATION_SOURCES
    src/animation/library.cpp
    src/animation/baked_selector.cpp
 )
@@ -82,13 +88,6 @@ set(LEGACY_ANIM_SOURCES
    tools/animBaker/animation/import_loader.cpp
    tools/animBaker/animation/extensions/footballanimationextension.cpp
 )
-set(BLUNTED_CORE_HEADERS
-   src/env/defines.hpp
-)
-
-
-set(BLUNTED_CORE_SOURCES
-)
 
 
 set(CORE_HEADERS
@@ -98,6 +97,7 @@ set(CORE_HEADERS
    src/env/gametask.hpp
    src/env/match_setup.hpp
    src/env/rng.hpp
+   src/env/defines.hpp
 )
 
 

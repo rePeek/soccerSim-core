@@ -17,22 +17,39 @@ function(football_configure_target tgt)
 endfunction()
 
 # --- object libraries: one translation unit at a time -----------------------
-add_library(football_base OBJECT
+# Generic bottom layer. It may not depend on anything else in the project.
+add_library(football_foundation_objects OBJECT
   ${BASE_SOURCES} ${BASE_HEADERS} ${BASE_GEOMETRY_HEADERS} ${BASE_MATH_HEADERS})
-add_library(football_utils OBJECT
-  ${UTILS_SOURCES} ${UTILS_HEADERS})
+
+# Runtime animation. Depends on the bottom layer only.
+add_library(football_animation_objects OBJECT
+  ${ANIMATION_SOURCES} ${ANIMATION_HEADERS})
+
+# Offline baker sources. Built for tools and tests, never linked into the
+# runtime shared library.
 add_library(football_legacy_anim OBJECT ${LEGACY_ANIM_SOURCES})
 target_include_directories(football_legacy_anim PUBLIC
   ${PROJECT_SOURCE_DIR}/tools/animBaker)
 
 # --- static libraries -------------------------------------------------------
-# football_foundation bundles the generic base and runtime-animation objects.
+# The layering below spells out the source DAG in build order:
+#
+#   foundation <- animation <- data <- sim <- engine
+#
+# Declaring the edges here keeps archive order correct instead of relying on
+# a hand-maintained link line.
 add_library(football_foundation STATIC
-  ${BLUNTED_CORE_SOURCES} ${BLUNTED_CORE_HEADERS}
-  $<TARGET_OBJECTS:football_base>
-  $<TARGET_OBJECTS:football_utils>)
-add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
+  $<TARGET_OBJECTS:football_foundation_objects>)
+
+add_library(football_animation STATIC
+  $<TARGET_OBJECTS:football_animation_objects>)
+target_link_libraries(football_animation PUBLIC football_foundation)
+
 add_library(football_data STATIC ${DATA_SOURCES} ${DATA_HEADERS})
+target_link_libraries(football_data PUBLIC football_animation)
+
+add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
+target_link_libraries(football_sim PUBLIC football_data)
 
 # --- engine object layer + the shared library -------------------------------
 add_library(football_engine OBJECT
@@ -41,15 +58,12 @@ add_library(football_engine OBJECT
   src/ai/ai_keyboard.cpp src/ai/ai_keyboard.hpp)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
-# Order matters: static archives are scanned once, left to right, so the
-# leaf libraries that provide symbols (football_foundation) must come after
-# the libraries that consume them (football_sim, football_data).
-target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE
-  football_sim football_data football_foundation)
+target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE football_sim)
 
 foreach(tgt IN ITEMS
-    football_base football_utils football_legacy_anim
-    football_foundation football_sim football_data
+    football_foundation_objects football_animation_objects
+    football_legacy_anim
+    football_foundation football_animation football_data football_sim
     football_engine ${OUTPUT_LIB_NAME})
   football_configure_target(${tgt})
 endforeach()
@@ -60,7 +74,8 @@ target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
 football_configure_target(football_smoke)
 
 add_executable(football_anim_baker tools/animBaker/anim_baker_main.cpp)
-target_link_libraries(football_anim_baker PRIVATE football_legacy_anim football_foundation)
+target_link_libraries(football_anim_baker PRIVATE
+  football_legacy_anim football_animation football_foundation)
 football_configure_target(football_anim_baker)
 
 add_test(NAME football_anim_baker_standalone_guard

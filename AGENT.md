@@ -89,14 +89,15 @@ list on this branch). A new file that is not listed there will not be compiled.
 
 ```
 src/
-├── foundation/     通用基础：数学/几何/日志/工具（原 blunted base）
-│   ├── math/           vector3, matrix3/4, quaternion, bluntmath
-│   ├── geometry/       aabb, line, plane, triangle, trianglemeshutils
-│   ├── defines.hpp    基础宏/常量/枚举（CHECK/EPSILON/MAX_PLAYERS/e_* 枚举）
+├── model/           领域值类型（football_types.hpp: e_PlayerRole/e_GameMode/
+│                    e_PlayerColor/kPlayersPerTeam）。无任何项目内依赖。
+├── foundation/      通用基础，依赖 DAG 的最底层（原 blunted base）
+│   ├── math/           vector3, matrix3/4, quaternion, bluntmath, rng（纯算法）
+│   ├── geometry/       line, triangle（aabb/plane/trianglemeshutils 已删）
+│   ├── defines.hpp    仅通用宏/常量（CHECK/EPSILON）；不含足球领域枚举
 │   ├── log, properties, utils, xml_loader, backtrace, file
-│   ├── types/          refcounted, command
 │   └── misc/           hungarian（通用算法；perlin 已删）
-├── animation/      runtime 动画系统
+├── animation/      runtime 动画系统（只依赖 foundation）
 │   └── 运行时只读（baked schema + 选择器）：clip, library,
 │       baked_selector, simanim_format, types, selection_*, quadrant
 ├── sim/             仿真核心（原 onthepitch）
@@ -111,12 +112,43 @@ src/
 │       │                elizacontroller, refereecontroller, strategies/offtheball/*
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
 ├── env/             对外环境层
-│   ├── game_env, gametask, main
+│   ├── game_env, gametask, main, rng（全局 RNG 入口，owner 是 GameContext）
 │   ├── defines        EnvState / Position / SharedInfo
 │   └── match_setup, gfootball_actions.h
 ├── data/            matchdata, playerdata, teamdata（DB/序列化）
 └── ai/              ai_keyboard, ihidevice.hpp
 ```
+
+### 分层与边界守卫
+
+已实现的下半段（能在 `CMakeLists.txt` 的 static library 边上看到）：
+
+```text
+model (叶) ← foundation ← animation ← data ← sim ← engine ← game
+```
+
+- `foundation` 只能 include STL 与自身。`foundation_boundary_guard` 强制这一点。
+- `animation` 只能 include `foundation`（无上层 include）。
+- `football_animation` 是独立 archive；`libfootball_foundation.a` 不含任何
+  动画符号。
+
+尚未清理的上半段（不要在此基础上新增反向边）：
+
+- `sim/**` 与 `data/**` 仍 include `env/main.hpp`、`env/defines.hpp`。
+- `env` 的 `GameContext` 仍同时持有 `SimulationRng` 状态与 checkpoint
+  序列化，是历史遗留；长期应拆出 `SimulationState`。
+- 全局 RNG 入口（`boostrandom`/`randomseed`/`random_non_determ`）声明在
+  `env/rng.hpp`，因为它们需要选择 context 持有的 generator；算法本体
+  （`Rng`/`SimulationRng`/`PresentationRng`）在 `foundation/math/rng.hpp`。
+  确定性的 `SimulationRng` 状态属于 simulation checkpoint，只有 simulation
+  代码可以抽取；多抽一次就会改变之后所有随机序列。
+
+机械守卫（CTest，改坏边界会直接失败）：
+
+- `foundation_boundary_guard`：禁止 foundation include 上层，也禁止出现
+  `GetContext`/`EnvState`/`boostrandom`/`randomseed`/`random_non_determ`。
+- `runtime_animation_boundary_guard`：禁止 runtime 依赖离线 `.anim` 管线。
+- `football_headless_core_guard`：禁止 graphics/Boost 依赖回流。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
 entry point and guards, plus legacy `animation/`, `animcollection/`, import
