@@ -1014,8 +1014,7 @@ void Humanoid::SelectRetainAnim() {
   startAngle = FixAngle((Vector3(0) - startPos).GetAngle2D());//0.5 * pi; (facing right)
 
   currentAnim.positions.clear();
-  currentAnim.id = *dataSet.begin();
-  currentAnim.bakedId = *dataSet.begin();
+  currentAnim.animationId = *dataSet.begin();
   currentAnim.frameNum = 0;
   currentAnim.touchFrame = -1;
   currentAnim.actionSmuggle = Vector3(0);
@@ -1610,8 +1609,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     previousAnim_frameNum = currentAnim.frameNum;
     previousAnim_functionType = currentAnim.functionType;
 
-    currentAnim.id = selectedAnimID;
-    currentAnim.bakedId = selectedAnimID;
+    currentAnim.animationId = selectedAnimID;
     currentAnim.functionType = command.desiredFunctionType;
     currentAnim.frameNum = 0;
     currentAnim.touchFrame = touchFrame_tmp;

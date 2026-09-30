@@ -26,6 +26,7 @@
 #include "data/matchdata.hpp"
 #include "env/match_setup.hpp"
 #include "sim/ai_support/mentalimage.hpp"
+#include "animation/types.hpp"
 
 #include "foundation/types/command.hpp"
 
@@ -123,7 +124,7 @@ class Match {
     float GetMatchDurationFactor() const { return matchDurationFactor; }
     bool GetUseMagnet() const { return _useMagnet; }
 
-    const std::vector<Vector3> &GetAnimPositionCache(int baked_id) const;
+    const std::vector<Vector3> &GetAnimPositionCache(AnimationId animation_id) const;
 
 
     int FirstTeam() { DO_VALIDATION; return first_team; }

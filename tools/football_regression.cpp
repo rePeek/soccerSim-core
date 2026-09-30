@@ -1474,7 +1474,7 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
         continue;
       }
       pending.push_back(PendingSample{player, player->GetKinematicState(),
-                                      command, anim->id});
+                                      command, anim->animationId});
     }
 
     env.step();
@@ -1531,7 +1531,7 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
       const double legacy_step =
           (actual.position - sample.state.position).GetLength();
       const bool action_continued =
-          sample.player->GetCurrentAnim()->id == sample.anim_id;
+          sample.player->GetCurrentAnim()->animationId == sample.anim_id;
       if (action_continued && legacy_step <= plausible_step_limit) {
         clean_position_error_sum += position_error;
         clean_velocity_error_sum += velocity_error;
@@ -1746,7 +1746,7 @@ void MeasureLocomotionRegimeTransitions(GameEnv& env,
         continue;
       }
       pending.push_back(PendingSample{player, player->GetKinematicState(),
-                                      command, anim->id});
+                                      command, anim->animationId});
     }
 
     env.step();
@@ -1757,7 +1757,7 @@ void MeasureLocomotionRegimeTransitions(GameEnv& env,
           sample.player->GetKinematicState();
       const double legacy_step =
           (actual.position - sample.state.position).GetLength();
-      if (sample.player->GetCurrentAnim()->id != sample.anim_id ||
+      if (sample.player->GetCurrentAnim()->animationId != sample.anim_id ||
           legacy_step > plausible_step_limit) {
         continue;
       }
@@ -1881,7 +1881,7 @@ void MeasureLegacyBodyFacing(GameEnv& env, ScenarioConfig& config) {
       if (!player->IsEligibleForProceduralLocomotion()) continue;
       const Anim* anim = player->GetCurrentAnim();
       pending.push_back(PendingSample{player, player->GetKinematicState(),
-                                      anim->originatingCommand, anim->id});
+                                      anim->originatingCommand, anim->animationId});
     }
 
     env.step();
@@ -1915,7 +1915,7 @@ void MeasureLegacyBodyFacing(GameEnv& env, ScenarioConfig& config) {
       bucket.absolute_turns.push_back(turn);
       ++bucket.turn_samples;
       if (sample.player->IsEligibleForProceduralLocomotion() &&
-          sample.player->GetCurrentAnim()->id == sample.anim_id) {
+          sample.player->GetCurrentAnim()->animationId == sample.anim_id) {
         bucket.absolute_continued_turns.push_back(turn);
         ++bucket.continued_turn_samples;
       }
@@ -3490,7 +3490,7 @@ void CheckMovementAnimationPerturbation(GameEnv& env, ScenarioConfig& config,
       match->GetActiveTeamPlayers(match->SecondTeam(), players);
       for (Player *player : players) {
         tick.actors.push_back(Actor{
-            player->GetStableID(), player->GetCurrentAnim()->id,
+            player->GetStableID(), player->GetCurrentAnim()->animationId,
             player->GetKinematicState(), player->GetSimulationActionState().type,
             player->GetSimulationActionState().frame,
             player->GetSimulationActionState().frameCount,

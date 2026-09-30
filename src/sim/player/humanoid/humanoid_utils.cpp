@@ -31,7 +31,8 @@
 
 namespace {
 const AnimationClip &GetBakedClipFor(const Anim &anim) {
-  return GetContext().bakedAnims->Get(static_cast<uint32_t>(anim.bakedId));
+  return GetContext().bakedAnims->Get(
+      static_cast<uint32_t>(anim.animationId));
 }
 }  // namespace
 
@@ -391,7 +392,8 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
 
   Ball *ball = match->GetBall();
 
-  const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(currentAnim.bakedId);
+  const std::vector<Vector3> &origPositionCache =
+      match->GetAnimPositionCache(currentAnim.animationId);
   Vector3 touchMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum).GetRotated2D(spatialState.angle); // spatialState.movement isn't reliable because of smuggles and such
   //SetRedDebugPilon(player->GetPosition() + touchMovement);
   Vector3 touchDirection = touchMovement.GetNormalized(spatialState.directionVec);

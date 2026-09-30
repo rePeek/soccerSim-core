@@ -279,8 +279,7 @@ struct RotationSmuggle {
 };
 
 struct Anim {
-  signed int id = 0;
-  signed int bakedId = 0;  // stable AnimationId (B5b1 proved id == baked index)
+  AnimationId animationId = 0;
   int frameNum = 0;
   e_FunctionType functionType = e_FunctionType_None;
   e_InterruptAnim originatingInterrupt = e_InterruptAnim_None;
@@ -300,8 +299,14 @@ struct Anim {
   PlayerCommand originatingCommand;
   std::vector<Vector3> positions;
   void ProcessState(EnvState* state) { DO_VALIDATION;
-    state->process(id);
-    state->process(bakedId);
+    // Preserve the historical [id][bakedId] wire layout until the
+    // simulation-state schema receives an explicit versioned migration.
+    AnimationId legacy_id = animationId;
+    state->process(legacy_id);
+    state->process(animationId);
+    if (state->Load()) {
+      assert(legacy_id == animationId);
+    }
     state->process(frameNum);
     state->process(functionType);
     state->process(originatingInterrupt);
@@ -419,7 +424,7 @@ class HumanoidBase {
 
     // Baked clip access. The runtime never reads legacy Animation objects;
     // these resolve through the stable AnimationId into the read-only library.
-    const AnimationClip &GetBakedClip(int id) const;
+    const AnimationClip &GetBakedClip(AnimationId id) const;
     const AnimationClip &GetCurrentBakedClip() const;
     // Per-animation scratch for the selection sort predicates (replaces the
     // legacy mutable Animation::order_float field).

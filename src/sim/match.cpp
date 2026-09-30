@@ -34,8 +34,9 @@
 
 
 
-const std::vector<Vector3> &Match::GetAnimPositionCache(int baked_id) const {
-  return GetContext().bakedAnims->Get(static_cast<uint32_t>(baked_id))
+const std::vector<Vector3> &Match::GetAnimPositionCache(
+    AnimationId animation_id) const {
+  return GetContext().bakedAnims->Get(static_cast<uint32_t>(animation_id))
       .root_positions;
 }
 

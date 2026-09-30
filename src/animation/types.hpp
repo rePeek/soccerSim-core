@@ -14,8 +14,14 @@
 #ifndef _HPP_ANIMATION_TYPES
 #define _HPP_ANIMATION_TYPES
 
+#include <cstdint>
 #include "foundation/defines.hpp"
 #include "foundation/math/bluntmath.hpp"
+
+// Runtime identity of an entry in AnimationLibrary. Keep this signed while
+// selection still uses -1 as its invalid sentinel.
+using AnimationId = int32_t;
+static_assert(sizeof(AnimationId) == sizeof(signed int));
 
 // Animation-domain movement buckets and action kinds. These live here (not in
 // sim/) so that animation stays free of any sim/ dependency: sim depends on

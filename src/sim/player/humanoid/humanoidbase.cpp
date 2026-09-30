@@ -555,14 +555,14 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match)
 
 HumanoidBase::~HumanoidBase() {}
 
-const AnimationClip &HumanoidBase::GetBakedClip(int id) const {
+const AnimationClip &HumanoidBase::GetBakedClip(AnimationId id) const {
   DO_VALIDATION;
   return GetContext().bakedAnims->Get(static_cast<uint32_t>(id));
 }
 
 const AnimationClip &HumanoidBase::GetCurrentBakedClip() const {
   DO_VALIDATION;
-  return GetBakedClip(currentAnim.bakedId);
+  return GetBakedClip(currentAnim.animationId);
 }
 
 float &HumanoidBase::OrderScratch(int id) const {
@@ -878,11 +878,10 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   spatialState.bodyAngle = 0;
   spatialState.foot = e_Foot_Right;
 
-  int idleAnimID = GetIdleMovementAnimID();
-  currentAnim.id = idleAnimID;
-  currentAnim.bakedId = idleAnimID;
+  const AnimationId idleAnimID = GetIdleMovementAnimID();
+  currentAnim.animationId = idleAnimID;
   currentAnim.positions.clear();
-  currentAnim.positions = match->GetAnimPositionCache(currentAnim.bakedId);
+  currentAnim.positions = match->GetAnimPositionCache(currentAnim.animationId);
   currentAnim.frameNum =
       boostrandom(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
   currentAnim.touchFrame = -1;
@@ -1257,8 +1256,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     DO_VALIDATION;
     previousAnim_frameNum = currentAnim.frameNum;
     previousAnim_functionType = currentAnim.functionType;
-    currentAnim.id = selectedAnimID;
-    currentAnim.bakedId = selectedAnimID;
+    currentAnim.animationId = selectedAnimID;
     currentAnim.functionType = command.desiredFunctionType;
     currentAnim.frameNum = 0;
     currentAnim.touchFrame = touchFrame_tmp;
@@ -1360,7 +1358,8 @@ void HumanoidBase::CalculateSpatialState() {
     DO_VALIDATION;
     // this way, action cheating is being omitted from the current movement, making for better requeues. however, keep in mind that
     // movementoffsets, from bumping into other players, for example, will also be ignored this way.
-    const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(currentAnim.bakedId);
+    const std::vector<Vector3> &origPositionCache =
+        match->GetAnimPositionCache(currentAnim.animationId);
     spatialState.animMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum, 1).GetRotated2D(startAngle);
   }
   spatialState.movement = spatialState.physicsMovement; // PICK DEFAULT
