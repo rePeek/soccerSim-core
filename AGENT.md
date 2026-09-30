@@ -93,17 +93,12 @@ src/
 │   ├── math/           vector3, matrix3/4, quaternion, bluntmath
 │   ├── geometry/       aabb, line, plane, triangle, trianglemeshutils
 │   ├── defines.hpp    基础宏/常量/枚举（CHECK/EPSILON/MAX_PLAYERS/e_* 枚举）
-│   ├── log, properties, utils, backtrace, file
+│   ├── log, properties, utils, xml_loader, backtrace, file
 │   ├── types/          refcounted, command
 │   └── misc/           hungarian（通用算法；perlin 已删）
-├── animation/      动画系统
-│   ├── 运行时只读（baked schema + 选择器）：clip, library,
-│   │   baked_selector, simanim_format, types
-│   ├── xmlloader   仍保留在运行时（data/ 层解析球员/球队 XML 字符串）
-│   ├── 离线 baker 专用（只链入 football_anim_baker，不链入 libgame.so）：
-│   │   animation, animcollection, import_hierarchy, import_loader,
-│   │   extensions/footballanimationextension
-│   └── extensions/ animationextension（接口基类）
+├── animation/      runtime 动画系统
+│   └── 运行时只读（baked schema + 选择器）：clip, library,
+│       baked_selector, simanim_format, types, selection_*, quadrant
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
 │   ├── match, team, ball, referee, officials, humangamer, teamAIcontroller
@@ -122,6 +117,14 @@ src/
 ├── data/            matchdata, playerdata, teamdata（DB/序列化）
 └── ai/              ai_keyboard, ihidevice.hpp
 ```
+
+`tools/animBaker/` holds the offline source-animation pipeline: the baker
+entry point and guards, plus legacy `animation/`, `animcollection/`, import
+hierarchy/loader and animation extensions. It is linked by
+`football_anim_baker` and the legacy validation paths in
+`football_regression`, never by `libgame.so`.
+`foundation/xml_loader.*` is shared infrastructure for runtime data and the
+offline importer; runtime animation itself does not parse XML.
 
 `data/` holds animation files (`.anim`), object models (`.ase`/`.object`), textures,
 shaders, and team/player database files. Do not edit these casually; the animation

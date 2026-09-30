@@ -32,7 +32,6 @@
 
 #include "sim/ai_support/AIfunctions.hpp"
 
-#include "animation/extensions/footballanimationextension.hpp"
 #include "animation/baked_selector.hpp"
 
 

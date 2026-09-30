@@ -21,8 +21,10 @@ add_library(football_base OBJECT
   ${BASE_SOURCES} ${BASE_HEADERS} ${BASE_GEOMETRY_HEADERS} ${BASE_MATH_HEADERS})
 add_library(football_types OBJECT ${TYPES_SOURCES} ${TYPES_HEADERS})
 add_library(football_utils OBJECT
-  ${UTILS_SOURCES} ${UTILS_HEADERS} ${UTILS_EXT_HEADERS})
+  ${UTILS_SOURCES} ${UTILS_HEADERS})
 add_library(football_legacy_anim OBJECT ${LEGACY_ANIM_SOURCES})
+target_include_directories(football_legacy_anim PUBLIC
+  ${PROJECT_SOURCE_DIR}/tools/animBaker)
 
 # --- static libraries -------------------------------------------------------
 # football_foundation bundles base/types/utils behind one archive boundary,
@@ -61,16 +63,16 @@ add_executable(football_smoke tools/football_smoke.cpp)
 target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
 football_configure_target(football_smoke)
 
-add_executable(football_anim_baker tools/anim_baker_main.cpp)
+add_executable(football_anim_baker tools/animBaker/anim_baker_main.cpp)
 target_link_libraries(football_anim_baker PRIVATE football_legacy_anim football_foundation)
 football_configure_target(football_anim_baker)
 
 add_test(NAME football_anim_baker_standalone_guard
-  COMMAND ${CMAKE_SOURCE_DIR}/tools/anim_baker_standalone_guard.sh
-    ${CMAKE_SOURCE_DIR}/tools/anim_baker_main.cpp)
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/animBaker/anim_baker_standalone_guard.sh
+    ${CMAKE_SOURCE_DIR}/tools/animBaker/anim_baker_main.cpp)
 
 add_test(NAME football_anim_bake_determinism
-  COMMAND ${CMAKE_SOURCE_DIR}/tools/anim_bake_determinism.sh
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/animBaker/anim_bake_determinism.sh
     $<TARGET_FILE:football_anim_baker> ${CMAKE_SOURCE_DIR}/data)
 
 if(BUILD_TESTING)

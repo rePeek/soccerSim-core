@@ -14,6 +14,8 @@ forbidden_headers='
   animation/import_loader.hpp
   animation/import_hierarchy.hpp
   animation/xmlloader.hpp
+  animation/extensions/animationextension.hpp
+  animation/extensions/footballanimationextension.hpp
 '
 
 for header in $forbidden_headers; do

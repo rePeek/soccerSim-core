@@ -84,10 +84,6 @@ set(UTILS_HEADERS
 )
 
 
-set(UTILS_EXT_HEADERS
-   src/animation/extensions/animationextension.hpp
-   src/animation/extensions/footballanimationextension.hpp
-)
 
 
 set(UTILS_SOURCES
@@ -96,11 +92,11 @@ set(UTILS_SOURCES
 )
 
 set(LEGACY_ANIM_SOURCES
-   src/animation/animation.cpp
-   src/animation/animcollection.cpp
-   src/animation/import_hierarchy.cpp
-   src/animation/import_loader.cpp
-   src/animation/extensions/footballanimationextension.cpp
+   tools/animBaker/animation/animation.cpp
+   tools/animBaker/animation/animcollection.cpp
+   tools/animBaker/animation/import_hierarchy.cpp
+   tools/animBaker/animation/import_loader.cpp
+   tools/animBaker/animation/extensions/footballanimationextension.cpp
 )
 set(BLUNTED_CORE_HEADERS
    src/env/defines.hpp
