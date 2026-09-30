@@ -18,7 +18,7 @@
 #ifndef _HPP_OFFICIALS
 #define _HPP_OFFICIALS
 
-#include "animation/animcollection.hpp"
+#include "env/defines.hpp"
 
 class Match;
 class PlayerBase;

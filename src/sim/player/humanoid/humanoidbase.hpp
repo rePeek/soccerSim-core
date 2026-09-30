@@ -23,7 +23,7 @@
 #include "sim/gamedefines.hpp"
 #include "sim/utils.hpp"
 
-#include "animation/animcollection.hpp"
+#include "animation/selection_query.hpp"
 #include "animation/clip.hpp"
 
 #include "sim/player/player_kinematics.hpp"

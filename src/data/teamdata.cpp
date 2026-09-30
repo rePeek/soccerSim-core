@@ -21,6 +21,7 @@
 #include <cctype>
 
 #include "foundation/utils.hpp"
+#include "foundation/xml_loader.hpp"
 #include "env/main.hpp"
 
 Vector3 GetDefaultRolePosition(e_PlayerRole role) {

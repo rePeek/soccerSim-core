@@ -24,8 +24,8 @@
 
 #include "sim/player/humanoid/humanoid.hpp"
 
-#include "animation/animcollection.hpp"
-#include "animation/extensions/footballanimationextension.hpp"
+#include "animation/clip.hpp"
+#include "animation/types.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "sim/player/playerbase.hpp"
 

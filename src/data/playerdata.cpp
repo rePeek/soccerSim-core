@@ -20,6 +20,7 @@
 #include <cmath>
 
 #include "foundation/utils.hpp"
+#include "foundation/xml_loader.hpp"
 
 #include "env/main.hpp"
 

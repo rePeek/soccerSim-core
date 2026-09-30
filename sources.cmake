@@ -16,6 +16,7 @@ set(BASE_HEADERS
    src/foundation/log.hpp
    src/foundation/utils.hpp
    src/foundation/properties.hpp
+   src/foundation/xml_loader.hpp
 )
 
 
@@ -55,6 +56,7 @@ set(BASE_SOURCES
    src/foundation/math/rng.cpp
    src/foundation/math/quaternion.cpp
    src/foundation/math/matrix4.cpp
+   src/foundation/xml_loader.cpp
 )
 
 
@@ -72,12 +74,13 @@ set(TYPES_SOURCES
 
 set(UTILS_HEADERS
    src/animation/types.hpp
+   src/animation/selection_math.hpp
+   src/animation/selection_query.hpp
+   src/animation/quadrant.hpp
    src/animation/simanim_format.hpp
    src/animation/clip.hpp
    src/animation/library.hpp
    src/animation/baked_selector.hpp
-   src/animation/animation.hpp
-   src/animation/xmlloader.hpp
 )
 
 
@@ -90,7 +93,6 @@ set(UTILS_EXT_HEADERS
 set(UTILS_SOURCES
    src/animation/library.cpp
    src/animation/baked_selector.cpp
-   src/animation/xmlloader.cpp
 )
 
 set(LEGACY_ANIM_SOURCES
@@ -132,9 +134,6 @@ set(GAME_HEADERS
    src/sim/officials.hpp
    src/sim/player/humanoid/humanoidbase.hpp
    src/sim/player/humanoid/humanoid.hpp
-   src/animation/import_hierarchy.hpp
-   src/animation/import_loader.hpp
-   src/animation/animcollection.hpp
    src/sim/player/humanoid/humanoid_utils.hpp
    src/sim/player/playerofficial.hpp
    src/sim/player/playerbase.hpp

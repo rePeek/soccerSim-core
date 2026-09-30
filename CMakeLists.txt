@@ -96,3 +96,7 @@ endif()
 add_test(NAME football_headless_core_guard
   COMMAND ${CMAKE_SOURCE_DIR}/tools/football_headless_core_guard.sh
     $<TARGET_FILE:${OUTPUT_LIB_NAME}> ${CMAKE_SOURCE_DIR}/src)
+
+add_test(NAME runtime_animation_boundary_guard
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/runtime_animation_boundary_guard.sh
+    ${CMAKE_SOURCE_DIR}/src)

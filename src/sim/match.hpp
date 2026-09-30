@@ -25,7 +25,6 @@
 
 #include "data/matchdata.hpp"
 #include "env/match_setup.hpp"
-#include "animation/animcollection.hpp"
 #include "sim/ai_support/mentalimage.hpp"
 
 #include "foundation/types/command.hpp"

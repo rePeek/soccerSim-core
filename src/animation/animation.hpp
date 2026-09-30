@@ -25,56 +25,13 @@
 
 #include "animation/extensions/animationextension.hpp"
 
-#include "animation/xmlloader.hpp"
+#include "foundation/xml_loader.hpp"
 #include "animation/types.hpp"
 
 namespace blunted {
 
 struct ImportNode;
 
-enum e_DefString {
-  e_DefString_Empty = 0,
-  e_DefString_OutgoingSpecialState = 1,
-  e_DefString_IncomingSpecialState = 2,
-  e_DefString_SpecialVar1 = 3,
-  e_DefString_SpecialVar2 = 4,
-  e_DefString_Type = 5,
-  e_DefString_Trap = 6,
-  e_DefString_Deflect = 7,
-  e_DefString_Interfere = 8,
-  e_DefString_Trip = 9,
-  e_DefString_ShortPass = 10,
-  e_DefString_LongPass = 11,
-  e_DefString_Shot = 12,
-  e_DefString_Sliding = 13,
-  e_DefString_Movement = 14,
-  e_DefString_Special = 15,
-  e_DefString_BallControl = 16,
-  e_DefString_HighPass = 17,
-  e_DefString_Catch = 18,
-  e_DefString_OutgoingRetainState = 19,
-  e_DefString_IncomingRetainState = 20,
-  e_DefString_Size = 21
-};
-
-
-inline e_FunctionType StringToFunctionType(e_DefString fun) {
-  DO_VALIDATION;
-  if (fun == e_DefString_Movement) return e_FunctionType_Movement;
-  if (fun == e_DefString_BallControl) return e_FunctionType_BallControl;
-  if (fun == e_DefString_Trap) return e_FunctionType_Trap;
-  if (fun == e_DefString_ShortPass) return e_FunctionType_ShortPass;
-  if (fun == e_DefString_LongPass) return e_FunctionType_LongPass;
-  if (fun == e_DefString_HighPass) return e_FunctionType_HighPass;
-  if (fun == e_DefString_Shot) return e_FunctionType_Shot;
-  if (fun == e_DefString_Deflect) return e_FunctionType_Deflect;
-  if (fun == e_DefString_Catch) return e_FunctionType_Catch;
-  if (fun == e_DefString_Interfere) return e_FunctionType_Interfere;
-  if (fun == e_DefString_Trip) return e_FunctionType_Trip;
-  if (fun == e_DefString_Sliding) return e_FunctionType_Sliding;
-  if (fun == e_DefString_Special) return e_FunctionType_Special;
-  return e_FunctionType_None;
-}
 
   struct KeyFrame {
     Quaternion orientation;
@@ -109,23 +66,6 @@ inline e_FunctionType StringToFunctionType(e_DefString fun) {
     }
   };
 
-  enum BodyPart {
-    middle,
-    neck,
-    left_thigh,
-    right_thigh,
-    left_knee,
-    right_knee,
-    left_ankle,
-    right_ankle,
-    left_shoulder,
-    right_shoulder,
-    left_elbow,
-    right_elbow,
-    body,
-    player,
-    body_part_max
-  };
 
   // Body-part name -> the imported transform it drives. Replaces the old
   // NodeMap of scene-graph Nodes; sparse because the map only holds the body
@@ -216,10 +156,6 @@ inline e_FunctionType StringToFunctionType(e_DefString fun) {
     KeyFrames animation; // frame, angles
   };
 
-  enum e_Foot {
-    e_Foot_Left,
-    e_Foot_Right
-  };
 
   struct BiasedOffset {
     Quaternion orientation;

@@ -797,12 +797,12 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
 
     // select by PROPERTIES
 
-    if (query.properties.incoming_special_state().compare(animations[i]->GetVariableCache().incoming_special_state()) != 0) continue;
+    if (query.properties.incoming_special_state != animations[i]->GetVariableCache().incoming_special_state()) continue;
     // hax: allow switching of hands (except for deflect anims) (in future, maybe make special case for 'both hands at the same time')
-    if ((query.functionType == e_FunctionType_Deflect || ((query.properties.incoming_retain_state().compare("") != 0) != (animations[i]->GetVariableCache().incoming_retain_state().compare("") != 0))) &&
-        query.properties.incoming_retain_state().compare(animations[i]->GetVariableCache().incoming_retain_state()) != 0) continue;
-    if (query.properties.specialvar1() != animations[i]->GetVariableCache().specialvar1()) continue;
-    if (query.properties.specialvar2() != animations[i]->GetVariableCache().specialvar2()) continue;
+    if ((query.functionType == e_FunctionType_Deflect || ((query.properties.incoming_retain_state.empty()) != (animations[i]->GetVariableCache().incoming_retain_state().empty()))) &&
+        query.properties.incoming_retain_state != animations[i]->GetVariableCache().incoming_retain_state()) continue;
+    if (query.properties.special_var1 != animations[i]->GetVariableCache().specialvar1()) continue;
+    if (query.properties.special_var2 != animations[i]->GetVariableCache().specialvar2()) continue;
 
 
     // select by TRIP TYPE
@@ -863,6 +863,15 @@ int AnimCollection::GetQuadrantID(Animation *animation, const Vector3 &movement,
   return quadrantID;
 }
 
+// Legacy checkpoint serialization is intentionally kept outside the shared
+// Quadrant value type used by baked runtime selection.
+void ProcessQuadrantState(EnvState* state, Quadrant& quadrant) {
+  state->process(quadrant.id);
+  state->process(quadrant.position);
+  state->process(quadrant.velocity);
+  state->process(quadrant.angle);
+}
+
 void AnimCollection::ProcessState(EnvState *state) {
   int size = animations.size();
   state->process(size);
@@ -873,8 +882,8 @@ void AnimCollection::ProcessState(EnvState *state) {
   size = quadrants.size();
   state->process(size);
   quadrants.resize(size);
-  for (auto &q : quadrants) {
-    q.ProcessState(state);
+  for (auto& q : quadrants) {
+    ProcessQuadrantState(state, q);
   }
   state->process(maxIncomingBallDirectionDeviation);
   state->process(maxOutgoingBallDirectionDeviation);

@@ -263,7 +263,6 @@ class GameContext {
   bool already_loaded = false;
   int playerCount = 0;
   int stablePlayerCount = 0;
-  BiasedOffsets emptyOffsets;
   std::shared_ptr<AnimationLibrary> bakedAnims;
   int step = 0;
   int tracker_disabled = 1;

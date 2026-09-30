@@ -11,14 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// written by bastiaan konings schuiling 2008 - 2014
-// this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
-// i do not offer support, so don't ask. to be used for inspiration :)
+#include "foundation/xml_loader.hpp"
 
-#include "animation/xmlloader.hpp"
-
-#include "foundation/utils.hpp"
 #include "foundation/log.hpp"
+#include "foundation/utils.hpp"
 
 namespace blunted {
 
@@ -26,10 +22,9 @@ XMLLoader::XMLLoader() { DO_VALIDATION; }
 
 XMLLoader::~XMLLoader() { DO_VALIDATION; }
 
-XMLTree XMLLoader::LoadFile(const std::string &filename) {
+XMLTree XMLLoader::LoadFile(const std::string& filename) {
   DO_VALIDATION;
-  std::string source;
-  source = file_to_string(filename);
+  std::string source = file_to_string(filename);
 
   XMLTree tree;
   BuildTree(tree, source);
@@ -37,7 +32,7 @@ XMLTree XMLLoader::LoadFile(const std::string &filename) {
   return tree;
 }
 
-XMLTree XMLLoader::Load(const std::string &file) {
+XMLTree XMLLoader::Load(const std::string& file) {
   DO_VALIDATION;
   XMLTree tree;
   BuildTree(tree, file);
@@ -45,7 +40,7 @@ XMLTree XMLLoader::Load(const std::string &file) {
   return tree;
 }
 
-void XMLLoader::BuildTree(XMLTree &tree, const std::string &source) {
+void XMLLoader::BuildTree(XMLTree& tree, const std::string& source) {
   DO_VALIDATION;
 
   size_t index_end = 0;
@@ -53,25 +48,19 @@ void XMLLoader::BuildTree(XMLTree &tree, const std::string &source) {
 
   if (index == std::string::npos) {
     DO_VALIDATION;
-    // no tags, must be a value
+    // No tags: this is a value.
     tree.value = source;
     tree.value.erase(remove_if(tree.value.begin(), tree.value.end(), isspace),
                      tree.value.end());
-    // printf("value: '%s'\n", source.c_str());
     return;
   }
-
-  // a tag (or multiple), so must contain children
 
   while (index != std::string::npos) {
     DO_VALIDATION;
     index_end = source.find('>', index);
     std::string tag = source.substr(index + 1, index_end - index - 1);
-    // printf("tag: '%s'\n", tag.c_str());
     index = index_end;
-    // index is now directly behind opening tag
 
-    // find closing tag
     int recurse_counter = 1;
     size_t index_nexttag_open = 0;
     size_t index_nexttag_close = 0;
@@ -79,7 +68,6 @@ void XMLLoader::BuildTree(XMLTree &tree, const std::string &source) {
       DO_VALIDATION;
       index_nexttag_open = source.find("<" + tag + ">", index_end + 1);
       index_nexttag_close = source.find("</" + tag + ">", index_end + 1);
-      // printf("%i %i\n", index_nexttag_open, index_nexttag_close);
       if (index_nexttag_open > index_nexttag_close ||
           index_nexttag_open == std::string::npos) {
         DO_VALIDATION;
@@ -89,7 +77,6 @@ void XMLLoader::BuildTree(XMLTree &tree, const std::string &source) {
         recurse_counter++;
         index_end = index_nexttag_open;
       }
-      // printf("%i\n", recurse_counter);
       if (index_end == std::string::npos) {
         DO_VALIDATION;
         Log(e_FatalError, "XMLLoader", "BuildTree",
@@ -98,17 +85,14 @@ void XMLLoader::BuildTree(XMLTree &tree, const std::string &source) {
     }
 
     std::string data = source.substr(index + 1, index_end - index - 1);
-    // printf("data: '%s'\n", data.c_str());
 
     XMLTree child;
     BuildTree(child, data);
     tree.children.insert(std::make_pair(tag, child));
 
-    // close
     index = source.find('>', index_end);
-
-    // find next tag
     index = source.find('<', index);
   }
 }
-}
+
+}  // namespace blunted

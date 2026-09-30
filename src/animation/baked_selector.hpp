@@ -17,7 +17,9 @@
 #include <cstdint>
 #include <vector>
 
-#include "animation/animcollection.hpp"  // CrudeSelectionQuery
+#include "animation/quadrant.hpp"
+#include "animation/selection_math.hpp"
+#include "animation/selection_query.hpp"
 #include "animation/clip.hpp"
 
 // Selection over baked AnimationClips. This is a line-for-line translation of

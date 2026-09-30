@@ -296,15 +296,15 @@ void BakedAnimationSelector::CrudeSelection(
     }
 
     // select by PROPERTIES
-    if (query.properties.incoming_special_state() != m.incoming_special_state)
+    if (query.properties.incoming_special_state != m.incoming_special_state)
       continue;
     if ((query.functionType == e_FunctionType_Deflect ||
-         ((query.properties.incoming_retain_state().empty()) !=
+         ((query.properties.incoming_retain_state.empty()) !=
           m.incoming_retain_state.empty())) &&
-        query.properties.incoming_retain_state() != m.incoming_retain_state)
+        query.properties.incoming_retain_state != m.incoming_retain_state)
       continue;
-    if (query.properties.specialvar1() != m.special_var1) continue;
-    if (query.properties.specialvar2() != m.special_var2) continue;
+    if (query.properties.special_var1 != m.special_var1) continue;
+    if (query.properties.special_var2 != m.special_var2) continue;
 
     // select by TRIP TYPE
     if (query.byTripType) {

@@ -999,8 +999,7 @@ void Humanoid::SelectRetainAnim() {
   query.incomingVelocity = e_Velocity_Idle;
   query.byOutgoingVelocity = true;
   query.outgoingVelocity = e_Velocity_Idle;
-  query.properties.set("incoming_retain_state", "right_elbow");
-  query.properties.set("outgoing_retain_state", "right_elbow");
+  query.properties.incoming_retain_state = "right_elbow";
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
@@ -1293,10 +1292,10 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     query.tripType = command.tripType;
   }
 
-  query.properties.set("incoming_special_state", GetCurrentBakedClip().metadata.outgoing_special_state);
-  if (match->GetBallRetainer() == player) query.properties.set("incoming_retain_state", GetCurrentBakedClip().metadata.outgoing_retain_state);
-  if (command.useSpecialVar1) query.properties.set_specialvar1(command.specialVar1);
-  if (command.useSpecialVar2) query.properties.set_specialvar2(command.specialVar2);
+  query.properties.incoming_special_state = GetCurrentBakedClip().metadata.outgoing_special_state;
+  if (match->GetBallRetainer() == player) query.properties.incoming_retain_state = GetCurrentBakedClip().metadata.outgoing_retain_state;
+  if (command.useSpecialVar1) query.properties.special_var1 = command.specialVar1;
+  if (command.useSpecialVar2) query.properties.special_var2 = command.specialVar2;
 
   if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle; // standing up anims always start out idle
 

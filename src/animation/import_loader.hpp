@@ -22,7 +22,7 @@
 // local modes, so that is what is produced now.
 
 #include "foundation/properties.hpp"
-#include "animation/xmlloader.hpp"
+#include "foundation/xml_loader.hpp"
 #include "animation/import_hierarchy.hpp"
 
 namespace blunted {

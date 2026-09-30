@@ -23,7 +23,6 @@
 #include "sim/ball.hpp"
 
 #include "foundation/math/vector3.hpp"
-#include "animation/animation.hpp"
 
 using namespace blunted;
 
