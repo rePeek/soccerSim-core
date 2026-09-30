@@ -43,10 +43,3 @@ bool GameTask::StopMatch() {
   }
   return false;
 }
-
-void GameTask::ProcessPhase() {
-
-  // The simulation tick. When this returns, every piece of
-  // simulation-authoritative state for this tick is complete.
-  match->Process();
-}

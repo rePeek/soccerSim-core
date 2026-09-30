@@ -433,7 +433,7 @@ void Match::GetState(SharedInfo *state) {
 
 // THE SPICE
 
-bool Match::Process() {
+bool Match::Step() {
   bool reverse = GetScenarioConfig().reverse_team_processing;
 
 

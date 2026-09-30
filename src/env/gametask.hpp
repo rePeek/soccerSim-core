@@ -33,8 +33,6 @@ class GameTask {
     void StartMatch(std::unique_ptr<MatchConfig> config, bool init_animation);
     bool StopMatch();
 
-    void ProcessPhase();
-
     Match *GetMatch() { return match.get(); }
 
   protected:

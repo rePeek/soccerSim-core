@@ -114,7 +114,10 @@ class Match {
     void GetTeamState(SharedInfo *state, std::map<AIControlledKeyboard*, int>& controller_mapping, int team_id);
     void GetState(SharedInfo* state);
     void ProcessState(EnvState* state);
-    bool Process();
+    // Advances one authoritative simulation tick.
+    bool Step();
+    // Compatibility alias for callers using the legacy Match API.
+    bool Process() { return Step(); }
 
 
 

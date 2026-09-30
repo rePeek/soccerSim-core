@@ -32,7 +32,7 @@ using std::string;
 
 void GameEnv::do_step(int count) {
   while (count--) {
-    context->gameTask->ProcessPhase();
+    context->gameTask->GetMatch()->Step();
   }
 }
 
