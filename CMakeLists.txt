@@ -10,8 +10,7 @@ include(sources.cmake)
 
 function(football_configure_target tgt)
   target_include_directories(${tgt} PUBLIC
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_SOURCE_DIR}/src/cmake)
+    ${PROJECT_SOURCE_DIR}/src)
   target_compile_features(${tgt} PUBLIC cxx_std_23)
 endfunction()
 

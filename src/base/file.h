@@ -16,7 +16,7 @@
 
 #include "../defines.hpp"
 
-#include "../base/log.hpp"
+#include "log.hpp"
 #include <filesystem>
 
 namespace fs = std::filesystem;

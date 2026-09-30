@@ -88,8 +88,8 @@ set(BLUNTED_CORE_SOURCES
 
 
 set(CORE_HEADERS
-   src/cmake/backtrace.h
-   src/cmake/file.h
+   src/base/backtrace.h
+   src/base/file.h
    src/gamedefines.hpp
    src/utils.hpp
    src/main.hpp
@@ -99,8 +99,8 @@ set(CORE_HEADERS
 )
 
 set(CORE_SOURCES
-   src/cmake/backtrace.cpp
-   src/cmake/file.cpp
+   src/base/backtrace.cpp
+   src/base/file.cpp
    src/misc/perlin.cpp
    src/misc/hungarian.cpp
    src/gametask.cpp

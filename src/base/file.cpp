@@ -13,7 +13,7 @@
 
 #include "file.h"
 
-#include "../base/log.hpp"
+#include "log.hpp"
 #include "../main.hpp"
 
 namespace fs = std::filesystem;

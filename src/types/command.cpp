@@ -16,7 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "command.hpp"
-#include "backtrace.h"
+#include "base/backtrace.h"
 
 namespace blunted {
 
