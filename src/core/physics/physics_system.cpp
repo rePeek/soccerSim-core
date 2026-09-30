@@ -8,9 +8,10 @@ namespace football_sim::physics {
 
 BallPhysicsStepResult PhysicsSystem::Step(
     football_sim::World& world, float dt,
-    const std::vector<PlayerBodyCandidate>& playerBodies) {
+    const std::vector<football_sim::contact::PlayerBodyCandidate>&
+        playerBodies) {
   BallPhysicsStepResult result =
-      BallPhysics::Step(world.GetBall(), dt, true, goal_, playerBodies);
+      SolveBallTick(world.GetBall(), dt, true, goal_, playerBodies);
 
   std::vector<std::reference_wrapper<football_sim::Player>> players;
   players.reserve(world.Players().size());

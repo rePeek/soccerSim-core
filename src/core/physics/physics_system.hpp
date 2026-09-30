@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "core/model/world.hpp"
-#include "core/physics/ball_physics.hpp"
+#include "core/physics/ball_solver.hpp"
 
 namespace football_sim::physics {
 
@@ -13,14 +13,16 @@ namespace football_sim::physics {
 // candidates captured by the caller.
 class PhysicsSystem {
  public:
-  explicit PhysicsSystem(GoalGeometry goal = {}) : goal_(goal) {}
+  explicit PhysicsSystem(football_sim::contact::GoalGeometry goal = {})
+      : goal_(goal) {}
 
   BallPhysicsStepResult Step(
       football_sim::World& world, float dt,
-      const std::vector<PlayerBodyCandidate>& playerBodies = {});
+      const std::vector<football_sim::contact::PlayerBodyCandidate>&
+          playerBodies = {});
 
  private:
-  GoalGeometry goal_;
+  football_sim::contact::GoalGeometry goal_;
 };
 
 }  // namespace football_sim::physics

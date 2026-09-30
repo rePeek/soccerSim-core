@@ -4,7 +4,7 @@
 #include "core/physics/contact/player/player_contact.hpp"
 #include "core/model/ball/ball.hpp"
 #include "core/model/player/player.hpp"
-#include "core/physics/ball_physics.hpp"
+#include "core/physics/ball_solver.hpp"
 #include "core/physics/movement/player/player_movement.hpp"
 #include "core/math/math.hpp"
 
@@ -48,8 +48,8 @@ TEST_CASE("Ball physics mutates Ball rather than a detached state") {
   ball.SetState(next);
 
   const football_sim::physics::BallPhysicsStepResult result =
-      football_sim::physics::BallPhysics::Step(
-          ball, 0.01f, false, football_sim::physics::GoalGeometry{});
+      football_sim::physics::SolveBallTick(
+          ball, 0.01f, false, football_sim::contact::GoalGeometry{}, {});
   REQUIRE(result.impactCount == 0);
   REQUIRE(ball.State().velocity.coords[2] < 0.0f);
   REQUIRE(ball.State().position.coords[2] < 2.0f);
