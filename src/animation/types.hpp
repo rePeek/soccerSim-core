@@ -15,8 +15,8 @@
 #define _HPP_ANIMATION_TYPES
 
 #include <cstdint>
-#include "foundation/defines.hpp"
-#include "foundation/math/bluntmath.hpp"
+#include <vector>
+#include "foundation/math/scalar.hpp"
 
 // Runtime identity of an entry in AnimationLibrary. Keep this signed while
 // selection still uses -1 as its invalid sentinel.

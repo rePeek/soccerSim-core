@@ -19,23 +19,28 @@ endfunction()
 # Foundation owns its source list and can also be consumed independently with
 # add_subdirectory(path/to/src/foundation).
 add_subdirectory(src/foundation)
+add_subdirectory(src/support)
 
 # --- object libraries: one translation unit at a time -----------------------
 # Runtime animation. Depends on the bottom layer only.
 add_library(football_animation_objects OBJECT
   ${ANIMATION_SOURCES} ${ANIMATION_HEADERS})
+target_link_libraries(football_animation_objects PRIVATE football_foundation)
 
 # Offline baker sources. Built for tools and tests, never linked into the
 # runtime shared library.
 add_library(football_legacy_anim OBJECT ${LEGACY_ANIM_SOURCES})
+target_link_libraries(football_legacy_anim PUBLIC football_support football_foundation)
 target_include_directories(football_legacy_anim PUBLIC
   ${PROJECT_SOURCE_DIR}/tools/animBaker)
 
 # --- static libraries -------------------------------------------------------
 # The layering below spells out the source DAG in build order:
 #
-#   foundation <- animation <- data <- sim <- engine
+#   foundation <- support <- data <- sim <- engine
 #
+# Runtime animation depends directly on foundation only; source importers
+# use support for XML, files, text, and configuration.
 # Declaring the edges here keeps archive order correct instead of relying on
 # a hand-maintained link line.
 
@@ -44,7 +49,7 @@ add_library(football_animation STATIC
 target_link_libraries(football_animation PUBLIC football_foundation)
 
 add_library(football_data STATIC ${DATA_SOURCES} ${DATA_HEADERS})
-target_link_libraries(football_data PUBLIC football_animation)
+target_link_libraries(football_data PUBLIC football_animation football_support)
 
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
 target_link_libraries(football_sim PUBLIC football_data)
@@ -72,7 +77,7 @@ football_configure_target(football_smoke)
 
 add_executable(football_anim_baker tools/animBaker/anim_baker_main.cpp)
 target_link_libraries(football_anim_baker PRIVATE
-  football_legacy_anim football_animation football_foundation)
+  football_legacy_anim football_animation football_foundation football_support)
 football_configure_target(football_anim_baker)
 
 add_test(NAME football_anim_baker_standalone_guard

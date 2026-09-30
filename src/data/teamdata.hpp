@@ -18,8 +18,9 @@
 #ifndef _HPP_TEAMDATA
 #define _HPP_TEAMDATA
 
-#include "foundation/defines.hpp"
-#include "foundation/properties.hpp"
+#include <string>
+#include <vector>
+#include "support/config/properties.hpp"
 
 #include "sim/gamedefines.hpp"
 #include "data/playerdata.hpp"

@@ -11,10 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _HPP_FOUNDATION_XML_LOADER
-#define _HPP_FOUNDATION_XML_LOADER
+#ifndef FOOTBALL_SUPPORT_IO_XML_LOADER_HPP
+#define FOOTBALL_SUPPORT_IO_XML_LOADER_HPP
 
-#include "foundation/defines.hpp"
+#include <map>
+#include <string>
 
 namespace blunted {
 
@@ -27,8 +28,7 @@ struct XMLTree {
   map_XMLTree children;
 };
 
-// Small XML reader shared by runtime data and offline importers. It belongs to
-// foundation rather than the animation domain.
+// Small XML reader shared by runtime data and offline importers.
 class XMLLoader {
  public:
   XMLLoader();
@@ -43,4 +43,4 @@ class XMLLoader {
 
 }  // namespace blunted
 
-#endif
+#endif  // FOOTBALL_SUPPORT_IO_XML_LOADER_HPP

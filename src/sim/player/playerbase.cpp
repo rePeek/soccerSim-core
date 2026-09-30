@@ -15,6 +15,7 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
+#include "support/diagnostics/log.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/player_action_executor.hpp"
 #include "sim/player/player_locomotion.hpp"

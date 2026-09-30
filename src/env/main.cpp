@@ -19,10 +19,10 @@
 #include <string>
 
 #include "ai/ai_keyboard.hpp"
-#include "foundation/log.hpp"
-#include "foundation/math/bluntmath.hpp"
-#include "foundation/utils.hpp"
-#include "foundation/file.h"
+#include "support/diagnostics/log.hpp"
+#include "foundation/math/scalar.hpp"
+#include "support/text/string_utils.hpp"
+#include "support/io/file.hpp"
 #include "env/main.hpp"
 #include "env/game_env.hpp"
 #include "env/rng.hpp"

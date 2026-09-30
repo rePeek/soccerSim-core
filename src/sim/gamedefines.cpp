@@ -20,9 +20,9 @@
 
 #include <cmath>
 
-#include "foundation/log.hpp"
-#include "foundation/utils.hpp"
-#include "foundation/file.h"
+#include "support/diagnostics/log.hpp"
+#include "support/text/string_utils.hpp"
+#include "support/io/file.hpp"
 #include "env/main.hpp"
 
 

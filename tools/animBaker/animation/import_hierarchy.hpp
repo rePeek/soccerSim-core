@@ -34,7 +34,7 @@
 // Scale is deliberately absent: nothing on the import path ever called
 // SetScale, and multiplying by a unit scale is exact in IEEE arithmetic.
 
-#include "foundation/defines.hpp"
+
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
 

@@ -11,10 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "foundation/xml_loader.hpp"
+#include "support/io/xml_loader.hpp"
 
-#include "foundation/log.hpp"
-#include "foundation/utils.hpp"
+#include <algorithm>
+#include <cctype>
+
+#include "support/diagnostics/log.hpp"
+#include "support/io/file.hpp"
 
 namespace blunted {
 
@@ -23,7 +26,7 @@ XMLLoader::XMLLoader() {}
 XMLLoader::~XMLLoader() {}
 
 XMLTree XMLLoader::LoadFile(const std::string& filename) {
-  std::string source = file_to_string(filename);
+  const std::string source = file_to_string(filename);
 
   XMLTree tree;
   BuildTree(tree, source);
@@ -46,8 +49,10 @@ void XMLLoader::BuildTree(XMLTree& tree, const std::string& source) {
   if (index == std::string::npos) {
     // No tags: this is a value.
     tree.value = source;
-    tree.value.erase(remove_if(tree.value.begin(), tree.value.end(), isspace),
-                     tree.value.end());
+    tree.value.erase(
+        std::remove_if(tree.value.begin(), tree.value.end(),
+                       [](unsigned char c) { return std::isspace(c); }),
+        tree.value.end());
     return;
   }
 

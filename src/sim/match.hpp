@@ -22,6 +22,7 @@
 #include "sim/ball.hpp"
 #include "sim/referee.hpp"
 #include "sim/officials.hpp"
+#include "sim/value_history.hpp"
 
 #include "data/matchdata.hpp"
 #include "env/match_setup.hpp"

@@ -52,6 +52,7 @@ set(LEGACY_ANIM_SOURCES
 set(CORE_HEADERS
    src/sim/gamedefines.hpp
    src/sim/utils.hpp
+   src/sim/rng.hpp
    src/env/main.hpp
    src/env/gametask.hpp
    src/env/match_setup.hpp
@@ -100,6 +101,7 @@ set(GAME_HEADERS
    src/sim/ball.hpp
    src/sim/team.hpp
    src/sim/match.hpp
+   src/sim/value_history.hpp
    src/sim/ai_support/AIfunctions.hpp
    src/sim/ai_support/mentalimage.hpp
    src/sim/teamAIcontroller.hpp

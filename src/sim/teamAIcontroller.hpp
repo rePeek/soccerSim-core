@@ -20,7 +20,7 @@
 
 #include "sim/gamedefines.hpp"
 
-#include "foundation/properties.hpp"
+#include "support/config/properties.hpp"
 
 class Match;
 class Team;

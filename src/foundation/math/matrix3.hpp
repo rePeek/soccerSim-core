@@ -15,10 +15,10 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _hpp_bluntmath_matrix3
-#define _hpp_bluntmath_matrix3
+#ifndef FOOTBALL_FOUNDATION_MATH_MATRIX3_HPP
+#define FOOTBALL_FOUNDATION_MATH_MATRIX3_HPP
 
-#include "foundation/math/bluntmath.hpp"
+#include "foundation/math/scalar.hpp"
 
 namespace blunted {
 

@@ -36,8 +36,8 @@
  ********************************************************************
  ********************************************************************/
 
-#ifndef HUNGARIAN_H
-#define HUNGARIAN_H
+#ifndef FOOTBALL_FOUNDATION_ALGORITHM_HUNGARIAN_HPP
+#define FOOTBALL_FOUNDATION_ALGORITHM_HUNGARIAN_HPP
 
 #ifdef __cplusplus
 extern "C" {
@@ -79,7 +79,7 @@ int hungarian_solve(hungarian_problem_t* p);
 }
 #endif
 
-#endif
+#endif  // FOOTBALL_FOUNDATION_ALGORITHM_HUNGARIAN_HPP
 
 
 

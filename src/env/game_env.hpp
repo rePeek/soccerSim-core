@@ -14,6 +14,7 @@
 #ifndef _GAME_ENV
 #define _GAME_ENV
 
+#include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/gamedefines.hpp"
 #include "env/gfootball_actions.h"

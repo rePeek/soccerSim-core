@@ -19,13 +19,14 @@
 #define _HPP_PLAYERDATA
 
 #include <stdlib.h>
-#include "foundation/defines.hpp"
+#include <cstdlib>
+#include <string>
 
 #include "sim/gamedefines.hpp"
 #include "sim/utils.hpp"
 
-#include "foundation/properties.hpp"
-#include "foundation/utils.hpp"
+#include "support/config/properties.hpp"
+#include "support/text/string_utils.hpp"
 
 class PlayerProperties {
  public:

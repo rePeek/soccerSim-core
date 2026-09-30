@@ -15,11 +15,15 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _HPP_BASE_PROPERTIES
-#define _HPP_BASE_PROPERTIES
+#ifndef FOOTBALL_SUPPORT_CONFIG_PROPERTIES_HPP
+#define FOOTBALL_SUPPORT_CONFIG_PROPERTIES_HPP
 
-#include "foundation/defines.hpp"
-#include "foundation/math/bluntmath.hpp"
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "foundation/math/scalar.hpp"
 
 namespace blunted {
 
@@ -56,4 +60,4 @@ namespace blunted {
 
 }
 
-#endif
+#endif  // FOOTBALL_SUPPORT_CONFIG_PROPERTIES_HPP

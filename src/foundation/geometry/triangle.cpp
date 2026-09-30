@@ -18,6 +18,7 @@
 #include "foundation/geometry/triangle.hpp"
 
 #include <cmath>
+#include <cstring>
 
 namespace blunted {
 

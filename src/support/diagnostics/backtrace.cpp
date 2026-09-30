@@ -11,12 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdio.h>
+#include <cstdlib>
 #include <execinfo.h>
+#include <csignal>
+#include <cstdio>
 #include <unistd.h>
-#include <signal.h>
-#include "foundation/backtrace.h"
-#include <stdlib.h>
+
+#include "support/diagnostics/backtrace.hpp"
 
 void print_stacktrace() {
   void *array[20];

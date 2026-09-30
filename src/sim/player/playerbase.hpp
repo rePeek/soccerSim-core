@@ -18,6 +18,7 @@
 #ifndef _HPP_PLAYERBASE
 #define _HPP_PLAYERBASE
 
+#include <memory>
 #include "sim/player/humanoid/humanoidbase.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_ground_collider.hpp"

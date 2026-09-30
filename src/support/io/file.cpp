@@ -11,12 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "foundation/file.h"
+#include "support/io/file.hpp"
 
-#include "foundation/log.hpp"
+#include <fstream>
 
-using namespace blunted;
-namespace fs = std::filesystem;
+#include "support/diagnostics/log.hpp"
 
 std::string GetFile(const std::string &fileName) {
   std::ifstream file;
@@ -30,7 +29,7 @@ std::string GetFile(const std::string &fileName) {
 void GetFilesRec(fs::path path, const std::string &extension,
                  std::vector<std::string> &files) {
   if (!fs::exists(path) || !fs::is_directory(path)) {
-    Log(e_Error, "DirectoryParser", "Parse",
+    blunted::Log(blunted::e_Error, "DirectoryParser", "Parse",
         "Could not open directory " + path.string() + " for reading");
   }
   fs::directory_iterator dirIter(path);
@@ -56,4 +55,29 @@ void GetFilesRec(fs::path path, const std::string &extension,
 void GetFiles(std::string path, const std::string &extension,
               std::vector<std::string> &files) {
   GetFilesRec(path, extension, files);
+}
+
+std::string file_to_string(const std::string& filename) {
+  return GetFile(filename);
+}
+
+void file_to_vector(const std::string& filename,
+                    std::vector<std::string>& destination) {
+  const std::string file = GetFile(filename);
+  std::string::size_type last_pos = 0;
+  std::string::size_type pos = file.find('\n');
+  while (pos != std::string::npos) {
+    destination.push_back(file.substr(last_pos, pos - last_pos));
+    last_pos = pos + 1;
+    pos = file.find('\n', last_pos);
+  }
+  if (last_pos < file.size()) destination.push_back(file.substr(last_pos));
+}
+
+std::string get_file_name(const std::string& filename) {
+  return std::filesystem::path(filename).filename().string();
+}
+
+std::string get_file_extension(const std::string& filename) {
+  return filename.substr(filename.find_last_of('.') + 1);
 }

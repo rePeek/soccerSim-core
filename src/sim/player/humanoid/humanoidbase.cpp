@@ -16,6 +16,10 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include <algorithm>
+#include <functional>
+#include "support/text/string_utils.hpp"
+#include "support/diagnostics/log.hpp"
+#include <algorithm>
 #include <iostream>
 #include <unordered_map>
 #include <cmath>

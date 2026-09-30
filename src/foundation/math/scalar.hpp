@@ -15,14 +15,13 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _hpp_bluntmath
-#define _hpp_bluntmath
+#ifndef FOOTBALL_FOUNDATION_MATH_SCALAR_HPP
+#define FOOTBALL_FOUNDATION_MATH_SCALAR_HPP
 
+#include <cassert>
 #include <cmath>
-#include <limits>
-#include <assert.h>
 #include <iostream>
-#include "foundation/log.hpp"
+#include <limits>
 
 
 
@@ -34,6 +33,7 @@ namespace blunted {
 
   // you can never be too specific ;)
   constexpr real pi = 3.1415926535897932384626433832795028841972f; // last decimal rounded ;)
+  constexpr real EPSILON = 0.000001f;
   class radian {
    public:
     radian() { }
@@ -87,4 +87,4 @@ namespace blunted {
   radian ModulateIntoRange(real min, real max, radian value);
 }
 
-#endif
+#endif  // FOOTBALL_FOUNDATION_MATH_SCALAR_HPP

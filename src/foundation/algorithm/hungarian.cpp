@@ -36,12 +36,10 @@
  ********************************************************************
  ********************************************************************/
 
-#include "foundation/misc/hungarian.h"
+#include "foundation/algorithm/hungarian.hpp"
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "foundation/log.hpp"
+#include <cstdio>
+#include <cstdlib>
 
 #define INF (0x7FFFFFFF)
 #define hungarian_test_alloc(X) do {if ((void *)(X) == NULL) fprintf(stderr, "Out of memory in %s, (%s, line %d).\n", __FUNCTION__, __FILE__, __LINE__); } while (0)

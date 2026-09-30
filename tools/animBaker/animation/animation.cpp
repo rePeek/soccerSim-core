@@ -18,7 +18,9 @@
 #include "animation/animation.hpp"
 #include "animation/import_hierarchy.hpp"
 
-#include "foundation/utils.hpp"
+#include "support/io/file.hpp"
+#include "support/text/string_utils.hpp"
+#include "support/text/value_codec.hpp"
 
 #include <stdio.h>
 

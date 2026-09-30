@@ -18,7 +18,6 @@
 #ifndef _HPP_BASE_GEOMETRY_TRIANGLE
 #define _HPP_BASE_GEOMETRY_TRIANGLE
 
-#include "foundation/defines.hpp"
 
 #include "foundation/math/vector3.hpp"
 #include "foundation/geometry/line.hpp"

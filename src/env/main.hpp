@@ -29,8 +29,8 @@ GameEnv* GetGame();
 #include "ai/ihidevice.hpp"
 #include "animation/library.hpp"
 
-#include "foundation/math/rng.hpp"
-#include "foundation/properties.hpp"
+#include "sim/rng.hpp"
+#include "support/config/properties.hpp"
 #include <memory>
 
 #define SHARED_PTR std::shared_ptr

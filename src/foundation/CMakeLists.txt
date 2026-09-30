@@ -10,27 +10,14 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 add_library(football_foundation STATIC
-  backtrace.cpp
-  backtrace.h
-  defines.hpp
-  file.cpp
-  file.h
-  log.cpp
-  log.hpp
-  properties.cpp
-  properties.hpp
-  utils.cpp
-  utils.hpp
-  xml_loader.cpp
-  xml_loader.hpp
+  algorithm/hungarian.cpp
+  algorithm/hungarian.hpp
 
   geometry/line.cpp
   geometry/line.hpp
   geometry/triangle.cpp
   geometry/triangle.hpp
 
-  math/bluntmath.cpp
-  math/bluntmath.hpp
   math/matrix3.cpp
   math/matrix3.hpp
   math/matrix4.cpp
@@ -38,11 +25,10 @@ add_library(football_foundation STATIC
   math/quaternion.cpp
   math/quaternion.hpp
   math/rng.hpp
+  math/scalar.cpp
+  math/scalar.hpp
   math/vector3.cpp
   math/vector3.hpp
-
-  misc/hungarian.cpp
-  misc/hungarian.h
 )
 
 add_library(football::foundation ALIAS football_foundation)

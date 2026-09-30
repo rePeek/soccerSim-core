@@ -13,10 +13,11 @@
 
 #include "animation/baked_selector.hpp"
 
+#include <cassert>
 #include <cmath>
 #include <string>
 
-#include "foundation/utils.hpp"
+
 
 using namespace blunted;
 
@@ -256,8 +257,7 @@ void BakedAnimationSelector::CrudeSelection(
     if (query.byIncomingBallDirection) {
       Vector3 anim_ball_direction = m.incoming_ball_direction;
       if (anim_ball_direction.GetLength() < 0.1f) {
-        Log(e_FatalError, "BakedAnimationSelector", "CrudeSelection",
-            "Anim " + clip.name + " missing incoming ball direction");
+        assert(false && "baked animation is missing incoming ball direction");
       }
       if (anim_ball_direction.GetLength() != 0.0f &&
           query.incomingBallDirection.GetLength() != 0.0f) {

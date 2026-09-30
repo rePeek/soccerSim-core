@@ -13,7 +13,7 @@
 
 #include "animation/import_loader.hpp"
 
-#include "foundation/utils.hpp"
+#include "support/text/value_codec.hpp"
 #include <filesystem>
 
 namespace blunted {

@@ -18,6 +18,9 @@
 #ifndef _HPP_ANIMATION
 #define _HPP_ANIMATION
 
+#include <algorithm>
+#include <memory>
+#include "support/diagnostics/log.hpp"
 #include "env/defines.hpp"
 #include <iostream>
 
@@ -25,7 +28,7 @@
 
 #include "animation/extensions/animationextension.hpp"
 
-#include "foundation/xml_loader.hpp"
+#include "support/io/xml_loader.hpp"
 #include "animation/types.hpp"
 
 namespace blunted {

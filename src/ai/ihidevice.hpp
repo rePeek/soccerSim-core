@@ -19,7 +19,7 @@
 #define _HPP_HIDEVICE
 
 #include "foundation/math/vector3.hpp"
-#include "foundation/defines.hpp"
+
 #include "ai/ai_keyboard.hpp"
 
 using namespace blunted;

@@ -15,12 +15,13 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
+#include "support/diagnostics/log.hpp"
 #include "data/playerdata.hpp"
 
 #include <cmath>
 
-#include "foundation/utils.hpp"
-#include "foundation/xml_loader.hpp"
+#include "support/text/value_codec.hpp"
+#include "support/io/xml_loader.hpp"
 
 #include "env/main.hpp"
 #include "env/rng.hpp"

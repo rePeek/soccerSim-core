@@ -8,7 +8,7 @@
 #ifndef _HPP_LEGACY_LOCOMOTION_COMMAND
 #define _HPP_LEGACY_LOCOMOTION_COMMAND
 
-#include "foundation/defines.hpp"
+#include <cassert>
 #include "animation/types.hpp"
 #include "sim/player/player_locomotion.hpp"
 

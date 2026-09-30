@@ -21,7 +21,7 @@
 
 #include <cmath>
 
-#include "foundation/log.hpp"
+#include <cassert>
 
 namespace blunted {
 
@@ -70,7 +70,7 @@ void Vector3::Set(const Vector3 &vec) {
       case 2:
         return coords[2];
       default:
-        Log(e_FatalError, "Vector", "GetEnvCoord", "Invalid coordinate");
+        assert(false && "invalid coordinate index");
     }
     return 0;
   }
@@ -87,7 +87,7 @@ void Vector3::Set(const Vector3 &vec) {
         coords[2] = value;
         break;
       default:
-        Log(e_FatalError, "Vector", "GetEnvCoord", "Invalid coordinate");
+        assert(false && "invalid coordinate index");
     }
   }
 
@@ -189,7 +189,6 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   void Vector3::NormalizeTo(float length) {
-    if (fabs(this->coords[0]) < 0.000001f && fabs(this->coords[1]) < 0.000001f && fabs(this->coords[2]) < 0.000001f) Log(e_Warning, "Vector3", "NormalizeTo", "Trying to normalize 0-vector");
     real f = length / std::sqrt(GetDotProduct(*this));
 
     coords[0] *= f;
@@ -217,7 +216,6 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   Vector3 Vector3::GetNormalizedTo(float length) const {
-    if (fabs(this->coords[0]) < 0.000001f && fabs(this->coords[1]) < 0.000001f && fabs(this->coords[2]) < 0.000001f) Log(e_Warning, "Vector3", "GetNormalizedTo", "Trying to normalize 0-vector");
     Vector3 tmp(*this);
     tmp.NormalizeTo(length);
     return tmp;

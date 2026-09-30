@@ -20,7 +20,7 @@
 #include "animation/extensions/footballanimationextension.hpp"
 #include "animation/animation.hpp"
 
-#include "foundation/utils.hpp"
+#include "support/text/string_utils.hpp"
 
 namespace blunted {
 

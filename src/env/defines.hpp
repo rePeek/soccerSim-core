@@ -19,7 +19,15 @@
 #define _HPP_DEFINES
 
 
-#include "foundation/defines.hpp"
+#include <cstring>
+#include <iostream>
+#include <list>
+#include <string>
+#include <typeinfo>
+#include <vector>
+
+#include "support/diagnostics/backtrace.hpp"
+#include "support/diagnostics/log.hpp"
 #include "model/football_types.hpp"
 
 #define X_FIELD_SCALE 54.4

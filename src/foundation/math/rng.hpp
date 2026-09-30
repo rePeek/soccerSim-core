@@ -1,17 +1,7 @@
 // Random number generation algorithms.
 //
-// This is deliberately a pure value/algorithm layer: it owns no game state and
-// performs no I/O. Naming a generator type here is what keeps the determinism
-// contract checkable at compile time:
-//
-//   SimulationRng   - state is part of the simulation checkpoint. Any extra
-//                     draw shifts every later draw, so only simulation code
-//                     may touch it.
-//   PresentationRng - cosmetic jitter only. Never serialized; drawing from it
-//                     must never influence simulation state.
-//
-// Ownership of the instances (and the "how do we store it" adapter) lives
-// above this layer.
+// This is deliberately a pure value/algorithm layer: it owns no game state,
+// I/O, or authority. Callers decide what a generator instance represents.
 #ifndef _HPP_BASE_MATH_RNG
 #define _HPP_BASE_MATH_RNG
 
@@ -47,13 +37,6 @@ class Rng {
   std::uniform_real_distribution<float> distribution_;
 };
 
-// Deterministic simulation randomness. Serialized as part of the simulation
-// state, so its draw order is part of the observable result.
-class SimulationRng : public Rng {};
-
-// Presentation-only randomness (for example the position of the sun). Never
-// serialized and never allowed to feed simulation state.
-class PresentationRng : public Rng {};
 
 }
 

@@ -16,7 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "foundation/math/matrix4.hpp"
-#include "foundation/defines.hpp"
+#include "foundation/math/scalar.hpp"
 
 #include <cmath>
 

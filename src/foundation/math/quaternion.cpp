@@ -19,11 +19,10 @@
 
 #include <cmath>
 
-#include "foundation/math/bluntmath.hpp"
+#include "foundation/math/scalar.hpp"
 #include "foundation/math/vector3.hpp"
 #include "foundation/math/matrix3.hpp"
 
-#include "foundation/log.hpp"
 
 // most of the formulas derived from ogre3d
 // lots of credit to the ogre3d crew!
@@ -165,7 +164,6 @@ void Quaternion::Set(const Matrix3 &mat) {
   Quaternion Quaternion::GetInverse() const {
     real fnorm = GetMagnitude();
     if (fnorm < 0.000001f) {
-      //Log(e_Warning, "Quaternion", "GetInverse", "Unable to normalize quaternion");
       return QUATERNION_IDENTITY;
     } else {
       real finvnorm = 1.0 / fnorm;

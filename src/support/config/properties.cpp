@@ -15,15 +15,12 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "foundation/properties.hpp"
+#include "support/config/properties.hpp"
 
-#include "foundation/utils.hpp"
-#include "foundation/log.hpp"
+#include <cmath>
+#include <cstdlib>
 
-#include <fstream>
-#include <iostream>
-
-using namespace std;
+#include "support/text/string_utils.hpp"
 
 namespace blunted {
 

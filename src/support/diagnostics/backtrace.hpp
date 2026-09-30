@@ -11,19 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _CMAKE_FILE_H_
-#define _CMAKE_FILE_H_
+#ifndef FOOTBALL_SUPPORT_DIAGNOSTICS_BACKTRACE_HPP
+#define FOOTBALL_SUPPORT_DIAGNOSTICS_BACKTRACE_HPP
 
-#include "foundation/defines.hpp"
+void print_stacktrace();
+void install_stacktrace();
 
-#include "foundation/log.hpp"
-#include <filesystem>
-
-namespace fs = std::filesystem;
-
-std::string GetFile(const std::string& fileName);
-
-void GetFiles(std::string path, const std::string& extension,
-              std::vector<std::string>& files);
-
-#endif  // _CMAKE_FILE_H_
+#endif  // FOOTBALL_SUPPORT_DIAGNOSTICS_BACKTRACE_HPP

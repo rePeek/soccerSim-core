@@ -15,13 +15,13 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _hpp_bluntmath_vector3
-#define _hpp_bluntmath_vector3
+#ifndef FOOTBALL_FOUNDATION_MATH_VECTOR3_HPP
+#define FOOTBALL_FOUNDATION_MATH_VECTOR3_HPP
 
 #include <cmath>
 #include <iostream>
 
-#include "foundation/math/bluntmath.hpp"
+#include "foundation/math/scalar.hpp"
 #include "foundation/math/matrix3.hpp"
 #include "foundation/math/matrix4.hpp"
 #include "foundation/math/quaternion.hpp"

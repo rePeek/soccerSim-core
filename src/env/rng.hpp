@@ -11,9 +11,12 @@
 #ifndef _HPP_ENV_RNG
 #define _HPP_ENV_RNG
 
-#include "foundation/math/bluntmath.hpp"
+#include "foundation/math/scalar.hpp"
+#include "foundation/math/rng.hpp"
 
 namespace blunted {
+
+using PresentationRng = Rng;
 
   void randomseed(unsigned int seed);
   // Deterministic simulation RNG. Presentation code must not use this:

@@ -15,34 +15,23 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _HPP_FOUNDATION_DEFINES
-#define _HPP_FOUNDATION_DEFINES
+#ifndef FOOTBALL_SUPPORT_DIAGNOSTICS_LOG_HPP
+#define FOOTBALL_SUPPORT_DIAGNOSTICS_LOG_HPP
 
-
-#include <cstdio>
-#include <cstdlib>
-#include <cassert>
-#include <cstring>
-
-#include <fstream>
-#include <cmath>
-
-#include <algorithm>
+#include "support/diagnostics/log.hpp"
 #include <string>
-#include <list>
-#include <vector>
-#include <map>
-#include <deque>
 
-#include <memory>
-#include <functional>
-#include "foundation/backtrace.h"
-#include "foundation/log.hpp"
+namespace blunted {
 
-#define CHECK(a) assert(a);
-#define CHECK_EQ(a, b) assert((a) == (b));
+enum e_LogType {
+  e_Warning,
+  e_Error,
+  e_FatalError
+};
 
-constexpr float EPSILON = 0.000001;
+void Log(e_LogType log_type, std::string class_name, std::string method_name,
+         std::string message);
 
+}  // namespace blunted
 
-#endif
+#endif  // FOOTBALL_SUPPORT_DIAGNOSTICS_LOG_HPP

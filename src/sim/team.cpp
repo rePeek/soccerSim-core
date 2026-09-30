@@ -16,6 +16,7 @@
 // should generally not be used for anything important. i do not offer support,
 // so don't ask. to be used for inspiration :)
 
+#include <algorithm>
 #include "sim/team.hpp"
 
 #include "sim/gamedefines.hpp"

@@ -13,6 +13,8 @@
 
 #undef NDEBUG
 
+#include "support/diagnostics/backtrace.hpp"
+#include "support/diagnostics/log.hpp"
 #include "env/game_env.hpp"
 
 #include <cerrno>
@@ -21,7 +23,8 @@
 #include <ratio>
 
 #include "ai/ai_keyboard.hpp"
-#include "foundation/file.h"
+#include "support/diagnostics/assert.hpp"
+#include "support/io/file.hpp"
 #include "env/gametask.hpp"
 
 using std::string;

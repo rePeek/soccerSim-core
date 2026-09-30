@@ -18,6 +18,7 @@
 #ifndef _HPP_TEAM
 #define _HPP_TEAM
 
+#include <memory>
 #include "sim/player/player.hpp"
 #include "data/teamdata.hpp"
 #include "sim/teamAIcontroller.hpp"

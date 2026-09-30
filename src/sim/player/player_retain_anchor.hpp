@@ -8,7 +8,7 @@
 #ifndef _HPP_PLAYER_RETAIN_ANCHOR
 #define _HPP_PLAYER_RETAIN_ANCHOR
 
-#include "foundation/defines.hpp"
+#include <string>
 
 // Body-local anchor that a retained ball sticks to.
 //
