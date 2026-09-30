@@ -33,6 +33,7 @@
 #include "sim/ai_support/AIfunctions.hpp"
 
 #include "animation/extensions/footballanimationextension.hpp"
+#include "animation/baked_selector.hpp"
 
 
 constexpr bool animSmoothing = true;
@@ -1001,7 +1002,8 @@ void Humanoid::SelectRetainAnim() {
   query.properties.set("outgoing_retain_state", "right_elbow");
 
   DataSet dataSet;
-  anims->CrudeSelection(dataSet, query);
+  BakedAnimationSelector::CrudeSelection(
+      GetContext().bakedAnims->Clips(), query, dataSet);
 
   assert(dataSet.size() != 0);
 
@@ -1299,7 +1301,8 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
   if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle; // standing up anims always start out idle
 
   DataSet dataSet;
-  anims->CrudeSelection(dataSet, query);
+  BakedAnimationSelector::CrudeSelection(
+      GetContext().bakedAnims->Clips(), query, dataSet);
   if (dataSet.size() == 0) {
     DO_VALIDATION;
     if (command.desiredFunctionType == e_FunctionType_Movement) {

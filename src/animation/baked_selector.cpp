@@ -65,7 +65,7 @@ constexpr float kMaxOutgoingBallDirectionDeviation = 0.25f * pi;
 void BakedAnimationSelector::CrudeSelection(
     const std::vector<AnimationClip>& clips,
     const CrudeSelectionQuery& query,
-    std::vector<uint32_t>& data_set) {
+    DataSet& data_set) {
   const int anim_size = static_cast<int>(clips.size());
 
   for (int i = 0; i < anim_size; i++) {
@@ -330,6 +330,37 @@ void BakedAnimationSelector::CrudeSelection(
       }
     }
 
-    data_set.push_back(clip.id);
+    data_set.push_back(static_cast<int>(clip.id));
   }
+}
+
+Quadrant BakedAnimationSelector::GetQuadrant(int id) {
+  Quadrant q;
+  q.id = id;
+  if (id == 0) {
+    q.velocity = e_Velocity_Idle;
+    q.angle = 0;
+    q.position = Vector3(0, 0, 0);
+    return q;
+  }
+
+  const int rel = id - 1;
+  const int velocity_id = rel / 11;
+  const int angle_id = rel % 11;
+  if (velocity_id == 0) q.velocity = e_Velocity_Dribble;
+  else if (velocity_id == 1) q.velocity = e_Velocity_Walk;
+  else q.velocity = e_Velocity_Sprint;
+
+  // Angle table mirrors legacy AnimCollection. angle_id 10 was an
+  // uninitialized entry in the legacy constructor and is never assigned to
+  // any clip; use 0 so the lookup stays deterministic.
+  const float angle_table[11] = {
+      pi / 180.0f * 0.0f,   pi / 180.0f * 20.0f,  pi / 180.0f * 45.0f,
+      pi / 180.0f * 90.0f,  pi / 180.0f * 135.0f, pi / 180.0f * 179.0f,
+      pi / 180.0f * -20.0f, pi / 180.0f * -45.0f, pi / 180.0f * -90.0f,
+      pi / 180.0f * -135.0f, 0.0f};
+  q.angle = angle_table[angle_id];
+  q.position = Vector3(0, -1, 0).GetRotated2D(q.angle) *
+               EnumToFloatVelocity(q.velocity);
+  return q;
 }

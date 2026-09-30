@@ -26,7 +26,12 @@ class BakedAnimationSelector {
  public:
   static void CrudeSelection(const std::vector<AnimationClip>& clips,
                              const CrudeSelectionQuery& query,
-                             std::vector<uint32_t>& data_set);
+                             DataSet& data_set);
+
+  // Deterministic quadrant table (velocity + angle) mirroring the legacy
+  // AnimCollection constructor. Position is included for parity but the
+  // runtime selection only reads velocity/angle.
+  static Quadrant GetQuadrant(int id);
 };
 
 #endif

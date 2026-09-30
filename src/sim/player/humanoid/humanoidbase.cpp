@@ -35,6 +35,7 @@
 #include "sim/ai_support/AIfunctions.hpp"
 
 #include "animation/extensions/footballanimationextension.hpp"
+#include "animation/baked_selector.hpp"
 
 
 constexpr float bodyRotationSmoothingFactor = 1.0f;
@@ -819,7 +820,8 @@ int HumanoidBase::GetIdleMovementAnimID() {
   query.outgoingVelocity = e_Velocity_Idle;
 
   DataSet dataSet;
-  anims->CrudeSelection(dataSet, query);
+  BakedAnimationSelector::CrudeSelection(
+      GetContext().bakedAnims->Clips(), query, dataSet);
 
   SetIdlePredicate(1);
   std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
@@ -1004,7 +1006,7 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
     bestQuadrantID = GetBakedClip(*dataSet.begin()).metadata.quadrant;
   }
 
-  const Quadrant &quadrant = anims->GetQuadrant(bestQuadrantID);
+  const Quadrant &quadrant = BakedAnimationSelector::GetQuadrant(bestQuadrantID);
 
   DataSet::iterator iter = dataSet.begin();
   iter++;
@@ -1022,8 +1024,8 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
       }
     } else {
       int quadrantID = GetBakedClip(*iter).metadata.quadrant;
-      const Quadrant &bestQuadrant = anims->GetQuadrant(bestQuadrantID);
-      const Quadrant &quadrant = anims->GetQuadrant(quadrantID);
+      const Quadrant &bestQuadrant = BakedAnimationSelector::GetQuadrant(bestQuadrantID);
+      const Quadrant &quadrant = BakedAnimationSelector::GetQuadrant(quadrantID);
 
       bool predicate = true;
 
@@ -1144,7 +1146,8 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle; // standing up anims always start out idle
 
   DataSet dataSet;
-  anims->CrudeSelection(dataSet, query);
+  BakedAnimationSelector::CrudeSelection(
+      GetContext().bakedAnims->Clips(), query, dataSet);
   if (dataSet.size() == 0) {
     DO_VALIDATION;
     if (command.desiredFunctionType == e_FunctionType_Movement) {

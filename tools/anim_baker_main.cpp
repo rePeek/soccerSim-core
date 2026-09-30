@@ -481,7 +481,7 @@ int VerifySelection(AnimCollection& legacy,
     DataSet legacy_set;
     legacy.CrudeSelection(legacy_set, q);
 
-    std::vector<uint32_t> baked_set;
+    DataSet baked_set;
     BakedAnimationSelector::CrudeSelection(clips, q, baked_set);
 
     if (legacy_set.size() != baked_set.size()) {
@@ -491,7 +491,7 @@ int VerifySelection(AnimCollection& legacy,
       continue;
     }
     for (size_t k = 0; k < legacy_set.size(); ++k) {
-      if (legacy_set[k] != static_cast<int>(baked_set[k])) {
+      if (legacy_set[k] != baked_set[k]) {
         std::cerr << "VERIFY-SELECTION query " << qi << " index " << k
                   << ": " << legacy_set[k] << " vs " << baked_set[k] << "\n";
         ++mismatches;
