@@ -82,8 +82,10 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 
 ### Adding/removing source files
 
-`src/**/*.cpp`/`.hpp` must be registered in **`sources.cmake`** (the single source
-list on this branch). A new file that is not listed there will not be compiled.
+- `src/foundation/**` is owned by `src/foundation/CMakeLists.txt`; register new
+  foundation files there. The root project consumes it with
+  `add_subdirectory(src/foundation)`.
+- Other `src/**/*.cpp`/`.hpp` files must be registered in `sources.cmake`.
 
 ## Source layout (current branch)
 

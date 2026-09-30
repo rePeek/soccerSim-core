@@ -19,47 +19,6 @@ set(MODEL_HEADERS
 )
 
 
-set(BASE_HEADERS
-   src/foundation/defines.hpp
-   src/foundation/log.hpp
-   src/foundation/utils.hpp
-   src/foundation/properties.hpp
-   src/foundation/xml_loader.hpp
-)
-
-
-set(BASE_GEOMETRY_HEADERS
-   src/foundation/geometry/triangle.hpp
-   src/foundation/geometry/line.hpp
-)
-
-
-set(BASE_MATH_HEADERS
-   src/foundation/math/quaternion.hpp
-   src/foundation/math/matrix3.hpp
-   src/foundation/math/matrix4.hpp
-   src/foundation/math/vector3.hpp
-   src/foundation/math/bluntmath.hpp
-   src/foundation/math/rng.hpp
-)
-
-
-set(BASE_SOURCES
-   src/foundation/utils.cpp
-   src/foundation/properties.cpp
-   src/foundation/log.cpp
-   src/foundation/backtrace.cpp
-   src/foundation/file.cpp
-   src/foundation/misc/hungarian.cpp
-   src/foundation/geometry/triangle.cpp
-   src/foundation/geometry/line.cpp
-   src/foundation/math/vector3.cpp
-   src/foundation/math/matrix3.cpp
-   src/foundation/math/bluntmath.cpp
-   src/foundation/math/quaternion.cpp
-   src/foundation/math/matrix4.cpp
-   src/foundation/xml_loader.cpp
-)
 
 
 

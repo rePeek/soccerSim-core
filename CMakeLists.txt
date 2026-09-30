@@ -16,11 +16,11 @@ function(football_configure_target tgt)
     GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")
 endfunction()
 
-# --- object libraries: one translation unit at a time -----------------------
-# Generic bottom layer. It may not depend on anything else in the project.
-add_library(football_foundation_objects OBJECT
-  ${BASE_SOURCES} ${BASE_HEADERS} ${BASE_GEOMETRY_HEADERS} ${BASE_MATH_HEADERS})
+# Foundation owns its source list and can also be consumed independently with
+# add_subdirectory(path/to/src/foundation).
+add_subdirectory(src/foundation)
 
+# --- object libraries: one translation unit at a time -----------------------
 # Runtime animation. Depends on the bottom layer only.
 add_library(football_animation_objects OBJECT
   ${ANIMATION_SOURCES} ${ANIMATION_HEADERS})
@@ -38,8 +38,6 @@ target_include_directories(football_legacy_anim PUBLIC
 #
 # Declaring the edges here keeps archive order correct instead of relying on
 # a hand-maintained link line.
-add_library(football_foundation STATIC
-  $<TARGET_OBJECTS:football_foundation_objects>)
 
 add_library(football_animation STATIC
   $<TARGET_OBJECTS:football_animation_objects>)
@@ -61,9 +59,8 @@ add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
 target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE football_sim)
 
 foreach(tgt IN ITEMS
-    football_foundation_objects football_animation_objects
-    football_legacy_anim
-    football_foundation football_animation football_data football_sim
+    football_animation_objects football_legacy_anim
+    football_animation football_data football_sim
     football_engine ${OUTPUT_LIB_NAME})
   football_configure_target(${tgt})
 endforeach()
