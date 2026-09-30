@@ -30,7 +30,8 @@ developed**. Do not build against it, port from it, or merge toward it.
 markers reference `main`'s history and do **not** describe the current tree. Read it
 only for terminology/intent; it is not the roadmap for this branch.
 
-Do not create `src/foundation/`, `src/core/`, or `src/legacy/` directories here.
+Do not create `src/core/` or `src/legacy/` directories here (those belong to the
+frozen `main` branch).
 
 ## Build, run, test
 
@@ -54,9 +55,8 @@ Runtime note: simulation binaries need the data directory:
 export GFOOTBALL_DATA_DIR="$PWD/data"
 ```
 
-`build/` is git-ignored. A stale `build/release/` tree from the `main` branch may be
-present; reconfigure from scratch (`rm -rf build/release` first) if a preset
-configure behaves unexpectedly.
+`build/` is git-ignored. If a preset configure behaves unexpectedly after a large
+restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 
 ### Test targets
 
@@ -81,35 +81,32 @@ list on this branch). A new file that is not listed there will not be compiled.
 
 ```
 src/
-├── base/             blunted engine foundation — namespace blunted
+├── foundation/     通用基础：数学/几何/日志/工具（原 blunted base）
 │   ├── math/           vector3, matrix3/4, quaternion, bluntmath
 │   ├── geometry/       aabb, line, plane, triangle, trianglemeshutils
-│   └── log, properties, utils
-├── types/            refcounted, command (blunted base types)
-├── utils/            animation, xmlloader, animationextensions/footballanimationextension
-├── onthepitch/       the football game layer (the bulk of the simulation)
+│   ├── log, properties, utils, backtrace, file
+│   ├── types/          refcounted, command
+│   └── misc/           hungarian（通用算法；perlin 已删）
+├── animation/      动画系统
+│   ├── animation, xmlloader
+│   ├── animcollection, import_hierarchy, import_loader
+│   └── extensions/    animationextension, footballanimationextension
+├── sim/             仿真核心（原 onthepitch）
 │   ├── match, team, ball, referee, officials, humangamer, teamAIcontroller
-│   ├── player/         player, playerbase, playerofficial
-│   │   ├── humanoid/     animation playback/selection (root motion)
-│   │   ├── controller/   icontroller, playercontroller, humancontroller,
-│   │   │                 elizacontroller, refereecontroller, strategies/offtheball/*
-│   │   └── player_kinematics.hpp, player_locomotion.*, player_body_facing.hpp,
-│   │       player_*_collider.hpp, player_action*, player_*_scheduler.hpp
-│   └── AIsupport/     AIfunctions, mentalimage
-├── data/             matchdata, playerdata, teamdata (DB/serialization)
-├── misc/             perlin, hungarian
-├── cmake/            backtrace, file helpers
-├── hid/              ihidevice.hpp (input abstraction)
-├── ai/               ai_keyboard (AIControlledKeyboard — button/direction input)
-├── main.cpp/main.hpp   GameEnv, GameContext, GameState, ScenarioConfig, GameConfig,
-│                       SharedInfo, Position, EnvState, Tracker
-├── game_env.*        GameEnv implementation (external/Python-facing API)
-├── gametask.*        GameTask (owns Match, ProcessPhase)
-├── defines.hpp/.cpp  blunted core types, enums, EnvState serialization
-├── gamedefines.*     gameplay constants (velocities, tuning values)
-├── match_setup.hpp   formation/match setup types
-├── utils.*           misc gameplay helpers
-└── gfootball_actions.h
+│   ├── ai_support/     AIfunctions, mentalimage
+│   ├── utils.*         QuantizeDirection / GetVelocityID 等游戏工具
+│   └── player/
+│       ├── player, playerbase, playerofficial, player_locomotion, *_collider,
+│       │   player_action*, *_scheduler, player_kinematics, player_body_facing
+│       ├── controller/  icontroller, playercontroller, humancontroller,
+│       │                elizacontroller, refereecontroller, strategies/offtheball/*
+│       └── humanoid/    humanoid, humanoidbase, humanoid_utils
+├── env/             对外环境层
+│   ├── game_env, gametask, main
+│   ├── defines, gamedefines
+│   └── match_setup, gfootball_actions.h
+├── data/            matchdata, playerdata, teamdata（DB/序列化）
+└── ai/              ai_keyboard, ihidevice.hpp
 ```
 
 `data/` holds animation files (`.anim`), object models (`.ase`/`.object`), textures,
@@ -119,15 +116,15 @@ files are inputs to the regression baseline.
 ## Runtime data flow
 
 ```
-main() [src/main.cpp]            thread_local GameEnv* game; Tracker tracker;
+main() [src/env/main.cpp]        thread_local GameEnv* game; Tracker tracker;
   → run_game()                   builds GameContext + GameTask + AIControlledKeyboard[]
-  → GameEnv                      start_game / reset(config) / step / action /
-                                 get_info→SharedInfo / get_state / set_state
-      → GameTask::ProcessPhase()
-          → Match::Process()     per-tick loop (10ms simulation steps)
-              → Ball::Process()          physics + prediction buffer
-              → Team → Player::Process() Humanoid animation + controller strategy
-              → Referee / Officials      rules, fouls, match phase
+  → GameEnv [src/env/game_env.*] start_game / reset(config) / step / action /
+                                  get_info→SharedInfo / get_state / set_state
+      → GameTask [src/env/gametask.*]::ProcessPhase()
+          → Match [src/sim/match.*]::Process()  per-tick loop (10ms steps)
+              → Ball::Process()                  physics + prediction buffer
+              → Team → Player::Process()         Humanoid animation + controller strategy
+              → Referee / Officials              rules, fouls, match phase
 ```
 
 - `GameEnv` is the stable public API; `Match`/`Player`/`Humanoid` are internals.
@@ -161,11 +158,11 @@ The active migration on this branch is **animation root-motion → explicit proc
 kinematics** for player movement. (The broader `REFACTOR_PLAN.md` architecture split —
 state vs systems vs world — belongs to the frozen `main` branch, not this one.) Key files:
 
-- `src/onthepitch/player/player_kinematics.hpp` — explicit `PlayerKinematicState` +
+- `src/sim/player/player_kinematics.hpp` — explicit `PlayerKinematicState` +
   `PlayerKinematics::Step` (velocity/accel/braking/turn).
-- `src/onthepitch/player/player_locomotion.*`, `player_body_facing.hpp` — procedural
+- `src/sim/player/player_locomotion.*`, `player_body_facing.hpp` — procedural
   locomotion producers.
-- `src/onthepitch/player/player_decision_scheduler.hpp`, `locomotion_intent_scheduler.hpp`
+- `src/sim/player/player_decision_scheduler.hpp`, `locomotion_intent_scheduler.hpp`
   — decision/locomotion cadence.
 - `tools/4f-b-pure-locomotion-animation-read-audit.md` and
   `tools/5a1-contact-authority.md` — audit notes documenting what still reads

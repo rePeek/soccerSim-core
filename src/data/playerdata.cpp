@@ -15,13 +15,13 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "playerdata.hpp"
+#include "data/playerdata.hpp"
 
 #include <cmath>
 
-#include "../base/utils.hpp"
+#include "foundation/utils.hpp"
 
-#include "../main.hpp"
+#include "env/main.hpp"
 
 PlayerStat PlayerStatFromString(const std::string& name) {
   DO_VALIDATION;

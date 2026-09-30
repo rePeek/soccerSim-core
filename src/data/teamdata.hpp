@@ -18,11 +18,11 @@
 #ifndef _HPP_TEAMDATA
 #define _HPP_TEAMDATA
 
-#include "../defines.hpp"
-#include "../base/properties.hpp"
+#include "env/defines.hpp"
+#include "foundation/properties.hpp"
 
-#include "../gamedefines.hpp"
-#include "playerdata.hpp"
+#include "env/gamedefines.hpp"
+#include "data/playerdata.hpp"
 
 struct TeamTactics {
   Properties userProperties;

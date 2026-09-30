@@ -16,12 +16,12 @@
 // should generally not be used for anything important. i do not offer support,
 // so don't ask. to be used for inspiration :)
 
-#include "teamdata.hpp"
+#include "data/teamdata.hpp"
 
 #include <cctype>
 
-#include "../base/utils.hpp"
-#include "../main.hpp"
+#include "foundation/utils.hpp"
+#include "env/main.hpp"
 
 Vector3 GetDefaultRolePosition(e_PlayerRole role) {
   DO_VALIDATION;

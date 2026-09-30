@@ -12,172 +12,180 @@
 # limitations under the License.
 
 set(BASE_HEADERS
-   src/base/log.hpp
-   src/base/utils.hpp
-   src/base/properties.hpp
+   src/foundation/log.hpp
+   src/foundation/utils.hpp
+   src/foundation/properties.hpp
 )
+
 
 set(BASE_GEOMETRY_HEADERS
-   src/base/geometry/aabb.hpp
-   src/base/geometry/trianglemeshutils.hpp
-   src/base/geometry/plane.hpp
-   src/base/geometry/triangle.hpp
-   src/base/geometry/line.hpp
+   src/foundation/geometry/aabb.hpp
+   src/foundation/geometry/trianglemeshutils.hpp
+   src/foundation/geometry/plane.hpp
+   src/foundation/geometry/triangle.hpp
+   src/foundation/geometry/line.hpp
 )
+
 
 set(BASE_MATH_HEADERS
-   src/base/math/quaternion.hpp
-   src/base/math/matrix3.hpp
-   src/base/math/matrix4.hpp
-   src/base/math/vector3.hpp
-   src/base/math/bluntmath.hpp
+   src/foundation/math/quaternion.hpp
+   src/foundation/math/matrix3.hpp
+   src/foundation/math/matrix4.hpp
+   src/foundation/math/vector3.hpp
+   src/foundation/math/bluntmath.hpp
 )
 
+
 set(BASE_SOURCES
-   src/base/utils.cpp
-   src/base/properties.cpp
-   src/base/log.cpp
-   src/base/geometry/triangle.cpp
-   src/base/geometry/line.cpp
-   src/base/geometry/trianglemeshutils.cpp
-   src/base/geometry/aabb.cpp
-   src/base/geometry/plane.cpp
-   src/base/math/vector3.cpp
-   src/base/math/matrix3.cpp
-   src/base/math/bluntmath.cpp
-   src/base/math/quaternion.cpp
-   src/base/math/matrix4.cpp
+   src/foundation/utils.cpp
+   src/foundation/properties.cpp
+   src/foundation/log.cpp
+   src/foundation/geometry/triangle.cpp
+   src/foundation/geometry/line.cpp
+   src/foundation/geometry/trianglemeshutils.cpp
+   src/foundation/geometry/aabb.cpp
+   src/foundation/geometry/plane.cpp
+   src/foundation/math/vector3.cpp
+   src/foundation/math/matrix3.cpp
+   src/foundation/math/bluntmath.cpp
+   src/foundation/math/quaternion.cpp
+   src/foundation/math/matrix4.cpp
 )
 
 
 set(TYPES_HEADERS
-   src/types/refcounted.hpp
-   src/types/command.hpp
+   src/foundation/types/refcounted.hpp
+   src/foundation/types/command.hpp
 )
 
+
 set(TYPES_SOURCES
-   src/types/refcounted.cpp
-   src/types/command.cpp
+   src/foundation/types/refcounted.cpp
+   src/foundation/types/command.cpp
 )
 
 
 set(UTILS_HEADERS
-   src/utils/animation.hpp
-   src/utils/xmlloader.hpp
+   src/animation/animation.hpp
+   src/animation/xmlloader.hpp
 )
+
 
 set(UTILS_EXT_HEADERS
-   src/utils/animationextensions/animationextension.hpp
-   src/utils/animationextensions/footballanimationextension.hpp
+   src/animation/extensions/animationextension.hpp
+   src/animation/extensions/footballanimationextension.hpp
 )
 
+
 set(UTILS_SOURCES
-   src/utils/animation.cpp
-   src/utils/xmlloader.cpp
-   src/utils/animationextensions/footballanimationextension.cpp
+   src/animation/animation.cpp
+   src/animation/xmlloader.cpp
+   src/animation/extensions/footballanimationextension.cpp
 )
 
 
 set(BLUNTED_CORE_HEADERS
-   src/defines.hpp
+   src/env/defines.hpp
 )
+
 
 set(BLUNTED_CORE_SOURCES
 )
 
 
-
 set(CORE_HEADERS
-   src/base/backtrace.h
-   src/base/file.h
-   src/gamedefines.hpp
-   src/utils.hpp
-   src/main.hpp
-   src/gametask.hpp
-   src/match_setup.hpp
-   src/misc/hungarian.h
+   src/foundation/backtrace.h
+   src/foundation/file.h
+   src/env/gamedefines.hpp
+   src/sim/utils.hpp
+   src/env/main.hpp
+   src/env/gametask.hpp
+   src/env/match_setup.hpp
+   src/foundation/misc/hungarian.h
 )
+
 
 set(CORE_SOURCES
-   src/base/backtrace.cpp
-   src/base/file.cpp
-   src/misc/perlin.cpp
-   src/misc/hungarian.cpp
-   src/gametask.cpp
-   src/utils.cpp
-   src/main.cpp
-   src/gamedefines.cpp
-   src/defines.cpp
+   src/foundation/backtrace.cpp
+   src/foundation/file.cpp
+   src/foundation/misc/hungarian.cpp
+   src/env/gametask.cpp
+   src/sim/utils.cpp
+   src/env/main.cpp
+   src/env/gamedefines.cpp
+   src/env/defines.cpp
 )
+
 
 set(GAME_HEADERS
-   src/onthepitch/humangamer.hpp
-   src/onthepitch/officials.hpp
-   src/onthepitch/player/humanoid/humanoidbase.hpp
-   src/onthepitch/player/humanoid/humanoid.hpp
-   src/onthepitch/player/humanoid/import_hierarchy.hpp
-   src/onthepitch/player/humanoid/import_loader.hpp
-   src/onthepitch/player/humanoid/animcollection.hpp
-   src/onthepitch/player/humanoid/humanoid_utils.hpp
-   src/onthepitch/player/playerofficial.hpp
-   src/onthepitch/player/playerbase.hpp
-   src/onthepitch/player/player_kinematics.hpp
-   src/onthepitch/player/player_retain_anchor.hpp
-   src/onthepitch/player/player_ground_collider.hpp
-   src/onthepitch/player/player_body_collider.hpp
-   src/onthepitch/player/player_action.hpp
-   src/onthepitch/player/player_action_executor.hpp
-   src/onthepitch/player/player_action_volume.hpp
-   src/onthepitch/player/player.hpp
-   src/onthepitch/player/controller/icontroller.hpp
-   src/onthepitch/player/controller/elizacontroller.hpp
-   src/onthepitch/player/controller/humancontroller.hpp
-   src/onthepitch/player/controller/playercontroller.hpp
-   src/onthepitch/player/controller/strategies/strategy.hpp
-   src/onthepitch/player/controller/strategies/offtheball/default_off.hpp
-   src/onthepitch/player/controller/strategies/offtheball/default_def.hpp
-   src/onthepitch/player/controller/strategies/offtheball/default_mid.hpp
-   src/onthepitch/player/controller/strategies/offtheball/goalie_default.hpp
-   src/onthepitch/player/controller/refereecontroller.hpp
-   src/onthepitch/referee.hpp
-   src/onthepitch/ball.hpp
-   src/onthepitch/team.hpp
-   src/onthepitch/match.hpp
-   src/onthepitch/AIsupport/AIfunctions.hpp
-   src/onthepitch/AIsupport/mentalimage.hpp
-   src/onthepitch/teamAIcontroller.hpp
+   src/sim/humangamer.hpp
+   src/sim/officials.hpp
+   src/sim/player/humanoid/humanoidbase.hpp
+   src/sim/player/humanoid/humanoid.hpp
+   src/animation/import_hierarchy.hpp
+   src/animation/import_loader.hpp
+   src/animation/animcollection.hpp
+   src/sim/player/humanoid/humanoid_utils.hpp
+   src/sim/player/playerofficial.hpp
+   src/sim/player/playerbase.hpp
+   src/sim/player/player_kinematics.hpp
+   src/sim/player/player_retain_anchor.hpp
+   src/sim/player/player_ground_collider.hpp
+   src/sim/player/player_body_collider.hpp
+   src/sim/player/player_action.hpp
+   src/sim/player/player_action_executor.hpp
+   src/sim/player/player_action_volume.hpp
+   src/sim/player/player.hpp
+   src/sim/player/controller/icontroller.hpp
+   src/sim/player/controller/elizacontroller.hpp
+   src/sim/player/controller/humancontroller.hpp
+   src/sim/player/controller/playercontroller.hpp
+   src/sim/player/controller/strategies/strategy.hpp
+   src/sim/player/controller/strategies/offtheball/default_off.hpp
+   src/sim/player/controller/strategies/offtheball/default_def.hpp
+   src/sim/player/controller/strategies/offtheball/default_mid.hpp
+   src/sim/player/controller/strategies/offtheball/goalie_default.hpp
+   src/sim/player/controller/refereecontroller.hpp
+   src/sim/referee.hpp
+   src/sim/ball.hpp
+   src/sim/team.hpp
+   src/sim/match.hpp
+   src/sim/ai_support/AIfunctions.hpp
+   src/sim/ai_support/mentalimage.hpp
+   src/sim/teamAIcontroller.hpp
 )
 
+
 set(GAME_SOURCES
-   src/onthepitch/officials.cpp
-   src/onthepitch/player/humanoid/humanoid_utils.cpp
-   src/onthepitch/player/humanoid/import_hierarchy.cpp
-   src/onthepitch/player/humanoid/import_loader.cpp
-   src/onthepitch/player/humanoid/animcollection.cpp
-   src/onthepitch/player/humanoid/humanoidbase.cpp
-   src/onthepitch/player/humanoid/humanoid.cpp
-   src/onthepitch/player/playerofficial.cpp
-   src/onthepitch/player/player.cpp
-   src/onthepitch/player/playerbase.cpp
-   src/onthepitch/player/player_locomotion.cpp
-   src/onthepitch/player/controller/playercontroller.cpp
-   src/onthepitch/player/controller/humancontroller.cpp
-   src/onthepitch/player/controller/icontroller.cpp
-   src/onthepitch/player/controller/refereecontroller.cpp
-   src/onthepitch/player/controller/elizacontroller.cpp
-   src/onthepitch/player/controller/strategies/strategy.cpp
-   src/onthepitch/player/controller/strategies/offtheball/default_mid.cpp
-   src/onthepitch/player/controller/strategies/offtheball/default_off.cpp
-   src/onthepitch/player/controller/strategies/offtheball/default_def.cpp
-   src/onthepitch/player/controller/strategies/offtheball/goalie_default.cpp
-   src/onthepitch/humangamer.cpp
-   src/onthepitch/ball.cpp
-   src/onthepitch/match.cpp
-   src/onthepitch/referee.cpp
-   src/onthepitch/AIsupport/mentalimage.cpp
-   src/onthepitch/AIsupport/AIfunctions.cpp
-   src/onthepitch/team.cpp
-   src/onthepitch/teamAIcontroller.cpp
+   src/sim/officials.cpp
+   src/sim/player/humanoid/humanoid_utils.cpp
+   src/animation/import_hierarchy.cpp
+   src/animation/import_loader.cpp
+   src/animation/animcollection.cpp
+   src/sim/player/humanoid/humanoidbase.cpp
+   src/sim/player/humanoid/humanoid.cpp
+   src/sim/player/playerofficial.cpp
+   src/sim/player/player.cpp
+   src/sim/player/playerbase.cpp
+   src/sim/player/player_locomotion.cpp
+   src/sim/player/controller/playercontroller.cpp
+   src/sim/player/controller/humancontroller.cpp
+   src/sim/player/controller/icontroller.cpp
+   src/sim/player/controller/refereecontroller.cpp
+   src/sim/player/controller/elizacontroller.cpp
+   src/sim/player/controller/strategies/strategy.cpp
+   src/sim/player/controller/strategies/offtheball/default_mid.cpp
+   src/sim/player/controller/strategies/offtheball/default_off.cpp
+   src/sim/player/controller/strategies/offtheball/default_def.cpp
+   src/sim/player/controller/strategies/offtheball/goalie_default.cpp
+   src/sim/humangamer.cpp
+   src/sim/ball.cpp
+   src/sim/match.cpp
+   src/sim/referee.cpp
+   src/sim/ai_support/mentalimage.cpp
+   src/sim/ai_support/AIfunctions.cpp
+   src/sim/team.cpp
+   src/sim/teamAIcontroller.cpp
 )
 
 
@@ -186,6 +194,7 @@ set(DATA_HEADERS
    src/data/teamdata.hpp
    src/data/playerdata.hpp
 )
+
 
 set(DATA_SOURCES
    src/data/matchdata.cpp

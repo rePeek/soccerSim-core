@@ -15,8 +15,8 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "matchdata.hpp"
-#include "../main.hpp"
+#include "data/matchdata.hpp"
+#include "env/main.hpp"
 #include <vector>
 #include <algorithm>
 

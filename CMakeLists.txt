@@ -36,7 +36,7 @@ add_library(football_data STATIC ${DATA_SOURCES} ${DATA_HEADERS})
 # --- engine object layer + the shared library -------------------------------
 add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
-  src/game_env.cpp src/game_env.hpp
+  src/env/game_env.cpp src/env/game_env.hpp
   src/ai/ai_keyboard.cpp src/ai/ai_keyboard.hpp)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)

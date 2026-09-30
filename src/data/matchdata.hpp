@@ -18,11 +18,11 @@
 #ifndef _HPP_MATCHDATA
 #define _HPP_MATCHDATA
 
-#include "../defines.hpp"
+#include "env/defines.hpp"
 
-#include "../gamedefines.hpp"
+#include "env/gamedefines.hpp"
 
-#include "teamdata.hpp"
+#include "data/teamdata.hpp"
 
 class MatchData {
 

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 
-#include "game_env.hpp"
+#include "env/game_env.hpp"
 
 
 namespace {

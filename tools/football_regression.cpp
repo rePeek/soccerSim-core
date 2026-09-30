@@ -10,21 +10,21 @@
 #include <sstream>
 #include <string>
 
-#include "game_env.hpp"
-#include "onthepitch/AIsupport/AIfunctions.hpp"
-#include "onthepitch/player/legacy_locomotion_command.hpp"
-#include "onthepitch/player/player_kinematics.hpp"
-#include "onthepitch/player/player_body_facing.hpp"
-#include "onthepitch/player/player_locomotion.hpp"
-#include "onthepitch/player/player_ground_collider.hpp"
-#include "onthepitch/player/player_action_executor.hpp"
-#include "onthepitch/player/player_action_volume.hpp"
-#include "onthepitch/player/player_body_collider.hpp"
-#include "onthepitch/player/player_retain_anchor.hpp"
-#include "onthepitch/player/humanoid/animcollection.hpp"
-#include "onthepitch/player/humanoid/import_hierarchy.hpp"
-#include "onthepitch/player/humanoid/import_loader.hpp"
-#include "onthepitch/player/player_decision_scheduler.hpp"
+#include "env/game_env.hpp"
+#include "sim/ai_support/AIfunctions.hpp"
+#include "sim/player/legacy_locomotion_command.hpp"
+#include "sim/player/player_kinematics.hpp"
+#include "sim/player/player_body_facing.hpp"
+#include "sim/player/player_locomotion.hpp"
+#include "sim/player/player_ground_collider.hpp"
+#include "sim/player/player_action_executor.hpp"
+#include "sim/player/player_action_volume.hpp"
+#include "sim/player/player_body_collider.hpp"
+#include "sim/player/player_retain_anchor.hpp"
+#include "animation/animcollection.hpp"
+#include "animation/import_hierarchy.hpp"
+#include "animation/import_loader.hpp"
+#include "sim/player/player_decision_scheduler.hpp"
 
 namespace {
 

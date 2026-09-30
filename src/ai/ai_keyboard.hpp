@@ -14,9 +14,9 @@
 #ifndef _AI_KEYBOARD
 #define _AI_KEYBOARD
 
-#include "../base/math/vector3.hpp"
-#include "../defines.hpp"
-#include "../hid/ihidevice.hpp"
+#include "foundation/math/vector3.hpp"
+#include "env/defines.hpp"
+#include "ai/ihidevice.hpp"
 #include <set>
 
 

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ai_keyboard.hpp"
+#include "ai/ai_keyboard.hpp"
 
 AIControlledKeyboard::AIControlledKeyboard(e_PlayerColor color) : playerColor(color) {
   DO_VALIDATION;
