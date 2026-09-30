@@ -29,6 +29,7 @@
 #include "animation/animation.hpp"
 #include "animation/clip.hpp"
 #include "animation/library.hpp"
+#include "animation/extensions/footballanimationextension.hpp"
 #include "foundation/math/vector3.hpp"
 
 using namespace blunted;
@@ -53,6 +54,17 @@ std::vector<AnimationClip> BakeClips(const std::vector<Animation*>& animations) 
     clip.touch_frame = std::atoi(anim->GetVariable("touchframe").c_str());
     clip.quadrant_id = std::atoi(anim->GetVariable("quadrant_id").c_str());
     clip.anim_type = static_cast<int32_t>(anim->GetAnimType());
+
+    // Contact (first touch).
+    if (clip.touch_frame >= 0) {
+      Vector3 contact_pos;
+      if (std::static_pointer_cast<FootballAnimationExtension>(
+              anim->GetExtension("football"))
+              ->GetTouchPos(clip.touch_frame, contact_pos)) {
+        clip.has_contact = true;
+        clip.contact_position = contact_pos;
+      }
+    }
 
     clip.root_positions.reserve(clip.frame_count);
     clip.poses.reserve(clip.frame_count);

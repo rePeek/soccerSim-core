@@ -60,6 +60,10 @@ struct AnimationClip {
   int32_t quadrant_id = 0;
   int32_t anim_type = 0;
 
+  // Baked contact (first touch).
+  bool has_contact = false;
+  Vector3 contact_position;
+
   void Serialize(std::ostream& os) const {
     SimAnimWriteString(os, name);
     SimAnimWriteU32(os, frame_count);
@@ -86,6 +90,12 @@ struct AnimationClip {
     SimAnimWriteI32(os, touch_frame);
     SimAnimWriteI32(os, quadrant_id);
     SimAnimWriteI32(os, anim_type);
+    SimAnimWriteU32(os, has_contact ? 1u : 0u);
+    if (has_contact) {
+      SimAnimWriteF32(os, contact_position.coords[0]);
+      SimAnimWriteF32(os, contact_position.coords[1]);
+      SimAnimWriteF32(os, contact_position.coords[2]);
+    }
   }
 
   static AnimationClip Deserialize(std::istream& is, uint32_t id) {
@@ -122,6 +132,12 @@ struct AnimationClip {
     clip.touch_frame = SimAnimReadI32(is);
     clip.quadrant_id = SimAnimReadI32(is);
     clip.anim_type = SimAnimReadI32(is);
+    clip.has_contact = SimAnimReadU32(is) != 0;
+    if (clip.has_contact) {
+      clip.contact_position.coords[0] = SimAnimReadF32(is);
+      clip.contact_position.coords[1] = SimAnimReadF32(is);
+      clip.contact_position.coords[2] = SimAnimReadF32(is);
+    }
     return clip;
   }
 };

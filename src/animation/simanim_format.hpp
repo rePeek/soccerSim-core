@@ -25,7 +25,7 @@
 // it only knows byte layout and primitive (de)serialization.
 
 constexpr char kSimAnimMagic[8] = {'S', 'I', 'M', 'A', 'N', 'I', 'M', '1'};
-constexpr uint32_t kSimAnimVersion = 2;
+constexpr uint32_t kSimAnimVersion = 3;
 
 inline void SimAnimWriteU32(std::ostream& os, uint32_t v) {
   os.write(reinterpret_cast<const char*>(&v), sizeof(v));
