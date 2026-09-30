@@ -287,8 +287,8 @@ void Humanoid::Process() {
         e_FunctionType_BallControl && TouchPending() && allowBallControlReQueue
         && action.frame <= maxBallControlReQueueFrame) ) &&
         */
-        currentAnim.anim->GetVariableCache().incoming_special_state().empty() &&
-        currentAnim.anim->GetVariableCache().outgoing_special_state().empty()) {
+        GetCurrentBakedClip().metadata.incoming_special_state.empty() &&
+        GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
       DO_VALIDATION;
       mayReQueue = true;
     } else {
@@ -379,7 +379,7 @@ void Humanoid::Process() {
     if (interruptAnim == e_InterruptAnim_Switch && !found) {
       DO_VALIDATION;
       Log(e_Warning, "Humanoid", "Process", "RED ALERT! NO APPLICABLE ANIM FOUND! NOOOO!");
-      Log(e_Warning, "Humanoid", "Process", "currentanimtype: " + currentAnim.anim->GetVariable("type"));
+      Log(e_Warning, "Humanoid", "Process", "currentanimtype: " + int_to_str(GetCurrentBakedClip().metadata.action_type));
       for (unsigned int i = 0; i < commandQueue.size(); i++) {
         DO_VALIDATION;
         Log(e_Warning, "Humanoid", "Process", "desiredanimtype:" + int_to_str(commandQueue[i].desiredFunctionType));
@@ -388,7 +388,7 @@ void Humanoid::Process() {
       }
       Log(e_Warning, "Humanoid", "Process", "current velo: " + real_to_str(spatialState.floatVelocity));
       Log(e_Warning, "Humanoid", "Process", "current body angle: abs: " + real_to_str(spatialState.bodyAngle) + ", rel: " + real_to_str(spatialState.relBodyAngle));
-      Log(e_Warning, "Humanoid", "Process", "special state: " + currentAnim.anim->GetVariableCache().outgoing_special_state());
+      Log(e_Warning, "Humanoid", "Process", "special state: " + GetCurrentBakedClip().metadata.outgoing_special_state);
       print_stacktrace();
       exit(1);
     }
@@ -406,7 +406,7 @@ void Humanoid::Process() {
       CalculatePredictedSituation(nextStartPos, nextStartAngle);
 
       // decaying difficulty
-      float animDiff = atof(currentAnim.anim->GetVariable("animdifficultyfactor").c_str());
+      float animDiff = GetCurrentBakedClip().metadata.difficulty;
       if (animDiff > decayingDifficultyFactor) decayingDifficultyFactor = animDiff;
 
       // if we just requeued, for example, from movement to ballcontrol, there's no reason we can not immediately requeue to another ballcontrol again (next time). only apply the initial requeue delay on subsequent anims of the same type
@@ -509,7 +509,7 @@ void Humanoid::Process() {
 
     match->GetBall()->Touch(touchVec);
     match->GetBall()->SetRotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias)); // 0.9
-    team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));//, e_TouchType_Accidental);
+    team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));//, e_TouchType_Accidental);
   }
   // ---------------------- / EXPERIMENTAL ------------------------------------------------
 
@@ -539,7 +539,7 @@ void Humanoid::Process() {
 
     float fullBallDistance = (match->GetBall()->Predict(0) - (currentAnim.touchPos + currentAnim.positionOffset)).GetLength();
 
-    if (!currentAnim.anim->GetVariableCache().incoming_retain_state().empty()) {
+    if (!GetCurrentBakedClip().metadata.incoming_retain_state.empty()) {
       DO_VALIDATION;
       fullBallDistance = 0.0f;
       touchableDistance = 1.0f;
@@ -556,7 +556,7 @@ void Humanoid::Process() {
       contact_audit->bumpy_ride_biases.push_back(bumpyRideBias);
       const float height_gap = std::fabs(
           desiredBallHeight - match->GetBall()->Predict(0).coords[2]);
-      if (!currentAnim.anim->GetVariableCache().incoming_retain_state().empty())
+      if (!GetCurrentBakedClip().metadata.incoming_retain_state.empty())
         ++contact_audit->incoming_retain_override;
       if (!(fullBallDistance < touchableDistance)) {
         ++contact_audit->distance_rejected;
@@ -603,7 +603,7 @@ void Humanoid::Process() {
         record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias));
 
-        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));
+        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
       else if (currentAnim.functionType == e_FunctionType_BallControl) {
@@ -623,7 +623,7 @@ void Humanoid::Process() {
         record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias)); // 1.0
 
-        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));
+        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
       else if (currentAnim.functionType == e_FunctionType_ShortPass ||
@@ -707,7 +707,7 @@ void Humanoid::Process() {
         radian yRot = touchVec.GetNormalized(0).coords[0] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
         match->GetBall()->SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias));
 
-        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));
+        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
       else if (currentAnim.functionType == e_FunctionType_Shot) {
@@ -740,7 +740,7 @@ void Humanoid::Process() {
         match->GetBall()->Touch(touchVec);
         record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias));
-        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));
+        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
       else if (currentAnim.functionType == e_FunctionType_Interfere) {
@@ -765,7 +765,7 @@ void Humanoid::Process() {
       else if (currentAnim.functionType == e_FunctionType_Deflect) {
         DO_VALIDATION;
         bool canRetain = true; // can we grab hold of the ball?
-        if (currentAnim.anim->GetVariable("outgoing_retain_state").compare("") == 0) canRetain = false; // not the right anim, hopeless!
+        if (GetCurrentBakedClip().metadata.outgoing_retain_state.compare("") == 0) canRetain = false; // not the right anim, hopeless!
         if (match->GetBallRetainer() != 0) canRetain = false; // somebody is already holding the ball :( (dafuq, this should not happen, right?)
 
         float veloDifficulty = NormalizedClamp((match->GetBall()->GetMovement() - spatialState.movement).GetLength(), 0.0f, 40.0f);
@@ -805,7 +805,7 @@ void Humanoid::Process() {
 
       else if (currentAnim.functionType == e_FunctionType_Sliding) {
         DO_VALIDATION;
-        Vector3 touchVec = GetVectorFromString(currentAnim.anim->GetVariable("balldirection")).GetRotated2D(spatialState.angle);
+        Vector3 touchVec = GetCurrentBakedClip().metadata.outgoing_ball_direction.GetRotated2D(spatialState.angle);
         touchVec = touchVec * 6.0f + match->GetBall()->GetMovement() * -0.28f;
         touchVec += Vector3(0, 0, 6);
 
@@ -826,22 +826,22 @@ void Humanoid::Process() {
     DO_VALIDATION;
     if (((!action.HasScheduledContact() ||
           action.frame >= action.contactFrame) &&
-         currentAnim.anim->GetVariable("outgoing_retain_state") != "") ||
+         GetCurrentBakedClip().metadata.outgoing_retain_state != "") ||
         (action.HasScheduledContact() &&
          action.frame < action.contactFrame &&
-         currentAnim.anim->GetVariableCache().incoming_retain_state() != "") ||
-        (currentAnim.anim->GetVariable("incoming_retain_state") != "" &&
-         currentAnim.anim->GetVariable("outgoing_retain_state") != "")) {
+         GetCurrentBakedClip().metadata.incoming_retain_state != "") ||
+        (GetCurrentBakedClip().metadata.incoming_retain_state != "" &&
+         GetCurrentBakedClip().metadata.outgoing_retain_state != "")) {
       DO_VALIDATION;
       // Anchor the ball to a body-semantic local offset. The retain state
       // string decides which anchor; the position itself is a pure function of
       // simulation state, so it no longer depends on when the animation pose
       // was last refreshed.
       std::string retainState =
-          currentAnim.anim->GetVariable("outgoing_retain_state");
+          GetCurrentBakedClip().metadata.outgoing_retain_state;
       if (retainState.empty()) {
         DO_VALIDATION;
-        retainState = currentAnim.anim->GetVariable("incoming_retain_state");
+        retainState = GetCurrentBakedClip().metadata.incoming_retain_state;
       }
       RetainAnchorKind anchor;
       if (!ParseRetainAnchorKind(retainState, anchor)) {
@@ -1256,7 +1256,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
 
   query.bySide = false;
   if (command.useDesiredLookAt &&
-      currentAnim.anim->GetVariableCache().outgoing_special_state().empty() &&
+      GetCurrentBakedClip().metadata.outgoing_special_state.empty() &&
       match->GetBallRetainer() != CastPlayer()) {
     DO_VALIDATION;
     Vector3 playerLookAtVec = (command.desiredLookAt - spatialState.position).GetNormalized(spatialState.directionVec);
@@ -1291,12 +1291,12 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     query.tripType = command.tripType;
   }
 
-  query.properties.set("incoming_special_state", currentAnim.anim->GetVariableCache().outgoing_special_state());
-  if (match->GetBallRetainer() == player) query.properties.set("incoming_retain_state", currentAnim.anim->GetVariable("outgoing_retain_state"));
+  query.properties.set("incoming_special_state", GetCurrentBakedClip().metadata.outgoing_special_state);
+  if (match->GetBallRetainer() == player) query.properties.set("incoming_retain_state", GetCurrentBakedClip().metadata.outgoing_retain_state);
   if (command.useSpecialVar1) query.properties.set_specialvar1(command.specialVar1);
   if (command.useSpecialVar2) query.properties.set_specialvar2(command.specialVar2);
 
-  if (!currentAnim.anim->GetVariableCache().outgoing_special_state().empty()) query.incomingVelocity = e_Velocity_Idle; // standing up anims always start out idle
+  if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle; // standing up anims always start out idle
 
   DataSet dataSet;
   anims->CrudeSelection(dataSet, query);
@@ -1586,10 +1586,8 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
 
         ((FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) !=
               e_Velocity_Idle &&
-          currentAnim.anim->GetVariableCache().quadrant_id() ==
-              anims->GetAnim(selectedAnimID)
-                  ->GetVariableCache()
-                  .quadrant_id()) ||
+          GetCurrentBakedClip().metadata.quadrant ==
+              GetBakedClip(selectedAnimID).metadata.quadrant) ||
          ((FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) ==
                e_Velocity_Idle &&
            FloatToEnumVelocity(
@@ -1653,17 +1651,17 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
       if (command.modifier & e_PlayerCommandModifier_KnockOn) ++audit.knock_on;
       if (command.touchInfo.targetPlayer) ++audit.command_target;
       if (command.touchInfo.forcedTargetPlayer) ++audit.forced_target;
-      if (!currentAnim.anim->GetVariable("touch_maxpowerfactor").empty())
+      if (GetCurrentBakedClip().metadata.touch_max_power_factor != 0.0f)
         ++audit.max_power_profile_present;
-      if (!currentAnim.anim->GetVariable("touch_difficultyfactor").empty())
+      if (GetCurrentBakedClip().metadata.touch_difficulty_factor != 0.0f)
         ++audit.difficulty_profile_present;
-      if (!currentAnim.anim->GetVariable("balldirection").empty())
+      if (GetCurrentBakedClip().metadata.outgoing_ball_direction.GetLength() != 0.0f)
         ++audit.native_ball_direction_present;
-      if (!currentAnim.anim->GetVariable("touch_bodypart").empty())
+      if (!GetCurrentBakedClip().metadata.touch_bodypart.empty())
         ++audit.contact_bodypart_present;
-      if (!currentAnim.anim->GetVariable("incoming_retain_state").empty())
+      if (!GetCurrentBakedClip().metadata.incoming_retain_state.empty())
         ++audit.incoming_retain_present;
-      if (!currentAnim.anim->GetVariable("outgoing_retain_state").empty())
+      if (!GetCurrentBakedClip().metadata.outgoing_retain_state.empty())
         ++audit.outgoing_retain_present;
     }
     return true;
@@ -1860,7 +1858,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
 
     Animation *anim = anims->GetAnim(*iter);
     const AnimationClip &clip = GetBakedClip(*iter);
-    bool isBase = anim->GetVariableCache().baseanim();
+    bool isBase = clip.metadata.base_animation;
 
     const std::vector<Vector3> &origPositionCache = clip.root_positions;
 
@@ -1891,7 +1889,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
     int touchIDs[totalTouches];
     int count = 0;
 
-    int defaultTouchFrame = atoi(anim->GetVariable("touchframe").c_str());
+    int defaultTouchFrame = clip.metadata.touch_frame;
     assert(defaultTouchFrame >= 0 && defaultTouchFrame < frameCount);
 
     // first the middle one down to the first
@@ -2189,7 +2187,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(const Vector3 &desiredDirection,
   if (!enableMovementSmuggle) return Vector3(0);
 
   if (team->GetDesignatedTeamPossessionPlayer() != player || match->GetDesignatedPossessionPlayer() != player ||
-      currentAnim.touchFrame != -1 || (currentAnim.functionType == e_FunctionType_Trip && currentAnim.anim->GetVariable("triptype").compare("1") != 0) || currentAnim.anim->GetVariableCache().incoming_special_state().compare("") != 0 || currentAnim.anim->GetVariableCache().outgoing_special_state().compare("") != 0 ||
+      currentAnim.touchFrame != -1 || (currentAnim.functionType == e_FunctionType_Trip && GetCurrentBakedClip().metadata.trip_type != 1) || GetCurrentBakedClip().metadata.incoming_special_state.compare("") != 0 || GetCurrentBakedClip().metadata.outgoing_special_state.compare("") != 0 ||
       !match->IsInPlay() || match->IsInSetPiece() || match->GetBallRetainer() != 0) return Vector3(0);
 
   Vector3 toDesired;
@@ -2268,7 +2266,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
 
   // fetch vars
 
-  float maxPowerFactor = atof(currentAnim.anim->GetVariable("touch_maxpowerfactor").c_str());
+  float maxPowerFactor = GetCurrentBakedClip().metadata.touch_max_power_factor;
   if (maxPowerFactor == 0.0f) maxPowerFactor = 1.0f;
   maxPowerFactor = maxPowerFactor * 0.7f + 0.3f;
 
@@ -2285,7 +2283,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
 
   // difficulty
 
-  float difficultyFactor = atof(currentAnim.anim->GetVariable("touch_difficultyfactor").c_str());
+  float difficultyFactor = GetCurrentBakedClip().metadata.touch_difficulty_factor;
 
   // apply stats
   if (functionType == e_FunctionType_ShortPass ||
@@ -2300,7 +2298,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
   // difficult balls may go into a more random orientation, or, if the anim has a default outgoing direction, it may converge towards that (since it is the easiest direction for that anim)
   radian randomRotation = 0.0f;
   randomRotation = distanceFactor * 0.15f + heightFactor * 0.15f + ballMovementFactor * 0.3f + difficultyFactor * 0.5f;
-  Vector3 animBallDirection = GetVectorFromString(currentAnim.anim->GetVariable("balldirection")).GetRotated2D(startAngle + currentAnim.rotationSmuggleOffset);
+  Vector3 animBallDirection = GetCurrentBakedClip().metadata.outgoing_ball_direction.GetRotated2D(startAngle + currentAnim.rotationSmuggleOffset);
   if (animBallDirection.GetLength() > 0.01f) {
     DO_VALIDATION;
     float bias = clamp(randomRotation * 1.5f, 0.0f, 1.0f);

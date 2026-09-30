@@ -70,6 +70,20 @@ struct FootballAnimationMetadata {
   std::string forced_foot;
   std::string touch_foot;
 
+  // Runtime-only derived/string fields (B5b5/B5b7). Baked from legacy
+  // string variables and motion getters that are not recoverable from
+  // keyframes alone.
+  std::string outgoing_special_state;
+  std::string touch_bodypart;
+  float touch_max_power_factor = 0.0f;
+  float touch_difficulty_factor = 0.0f;
+  float priority = 0.0f;
+  Vector3 bump_direction;
+  Vector3 incoming_movement;
+  Vector3 outgoing_movement;
+  Vector3 translation;
+  int32_t outgoing_foot = 0;
+
   static void WriteVec3(std::ostream& os, const Vector3& v) {
     SimAnimWriteF32(os, v.coords[0]);
     SimAnimWriteF32(os, v.coords[1]);
@@ -111,6 +125,16 @@ struct FootballAnimationMetadata {
     SimAnimWriteString(os, incoming_special_state);
     SimAnimWriteString(os, forced_foot);
     SimAnimWriteString(os, touch_foot);
+    SimAnimWriteString(os, outgoing_special_state);
+    SimAnimWriteString(os, touch_bodypart);
+    SimAnimWriteF32(os, touch_max_power_factor);
+    SimAnimWriteF32(os, touch_difficulty_factor);
+    SimAnimWriteF32(os, priority);
+    WriteVec3(os, bump_direction);
+    WriteVec3(os, incoming_movement);
+    WriteVec3(os, outgoing_movement);
+    WriteVec3(os, translation);
+    SimAnimWriteI32(os, outgoing_foot);
   }
 
   static FootballAnimationMetadata Deserialize(std::istream& is) {
@@ -142,6 +166,16 @@ struct FootballAnimationMetadata {
     m.incoming_special_state = SimAnimReadString(is);
     m.forced_foot = SimAnimReadString(is);
     m.touch_foot = SimAnimReadString(is);
+    m.outgoing_special_state = SimAnimReadString(is);
+    m.touch_bodypart = SimAnimReadString(is);
+    m.touch_max_power_factor = SimAnimReadF32(is);
+    m.touch_difficulty_factor = SimAnimReadF32(is);
+    m.priority = SimAnimReadF32(is);
+    m.bump_direction = ReadVec3(is);
+    m.incoming_movement = ReadVec3(is);
+    m.outgoing_movement = ReadVec3(is);
+    m.translation = ReadVec3(is);
+    m.outgoing_foot = SimAnimReadI32(is);
     return m;
   }
 };

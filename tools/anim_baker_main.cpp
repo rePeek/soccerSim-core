@@ -80,6 +80,21 @@ std::vector<AnimationClip> BakeClips(const std::vector<Animation*>& animations) 
     clip.metadata.incoming_special_state = anim->GetVariableCache().incoming_special_state();
     clip.metadata.forced_foot = anim->GetVariable("forcedfoot");
     clip.metadata.touch_foot = anim->GetVariable("touchfoot");
+    clip.metadata.outgoing_special_state =
+        anim->GetVariableCache().outgoing_special_state();
+    clip.metadata.touch_bodypart = anim->GetVariable("touch_bodypart");
+    clip.metadata.touch_max_power_factor = static_cast<float>(
+        std::atof(anim->GetVariable("touch_maxpowerfactor").c_str()));
+    clip.metadata.touch_difficulty_factor = static_cast<float>(
+        std::atof(anim->GetVariable("touch_difficultyfactor").c_str()));
+    clip.metadata.priority =
+        static_cast<float>(std::atof(anim->GetVariable("priority").c_str()));
+    clip.metadata.bump_direction =
+        GetVectorFromString(anim->GetVariable("bumpdirection"));
+    clip.metadata.incoming_movement = anim->GetIncomingMovement();
+    clip.metadata.outgoing_movement = anim->GetOutgoingMovement();
+    clip.metadata.translation = anim->GetTranslation();
+    clip.metadata.outgoing_foot = static_cast<int32_t>(anim->GetOutgoingFoot());
     // Contact (first touch).
     if (clip.metadata.touch_frame >= 0) {
       Vector3 contact_pos;
@@ -267,7 +282,25 @@ int Verify(const std::vector<Animation*>& legacy,
         m.incoming_special_state !=
             anim->GetVariableCache().incoming_special_state() ||
         m.forced_foot != anim->GetVariable("forcedfoot") ||
-        m.touch_foot != anim->GetVariable("touchfoot")) {
+        m.touch_foot != anim->GetVariable("touchfoot") ||
+        m.outgoing_special_state !=
+            anim->GetVariableCache().outgoing_special_state() ||
+        m.touch_bodypart != anim->GetVariable("touch_bodypart") ||
+        m.touch_max_power_factor !=
+            static_cast<float>(std::atof(
+                anim->GetVariable("touch_maxpowerfactor").c_str())) ||
+        m.touch_difficulty_factor !=
+            static_cast<float>(std::atof(
+                anim->GetVariable("touch_difficultyfactor").c_str())) ||
+        m.priority !=
+            static_cast<float>(std::atof(
+                anim->GetVariable("priority").c_str())) ||
+        m.bump_direction !=
+            GetVectorFromString(anim->GetVariable("bumpdirection")) ||
+        m.incoming_movement != anim->GetIncomingMovement() ||
+        m.outgoing_movement != anim->GetOutgoingMovement() ||
+        m.translation != anim->GetTranslation() ||
+        m.outgoing_foot != static_cast<int32_t>(anim->GetOutgoingFoot())) {
       std::cerr << "VERIFY clip " << i << ": metadata mismatch\n";
       ++mismatches;
     }

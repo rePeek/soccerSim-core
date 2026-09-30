@@ -436,7 +436,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
        std::pow(currentAnim.originatingCommand.touchInfo.desiredPower, 0.5f) *
            0.3f);
 
-  float animMaxPowerFactor = atof(currentAnim.anim->GetVariable("touch_maxpowerfactor").c_str());
+  float animMaxPowerFactor = GetBakedClipFor(currentAnim).metadata.touch_max_power_factor;
   if (animMaxPowerFactor == 0.0f) animMaxPowerFactor = 1.0f;
 
   float power = clamp(powerFactor * adaptedDesiredPower, 0.0f, (32.0f + player->GetStat(physical_shotpower) * 13.0f) * (0.2f + animMaxPowerFactor * 0.8f));

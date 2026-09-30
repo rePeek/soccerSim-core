@@ -494,8 +494,8 @@ void RecordFootCounterfactual(int with_foot_head, int without_foot_head,
     ++HumanoidFootFrameCountDiff();
     lifecycle_changed = true;
   }
-  if (with_foot->GetVariableCache().quadrant_id() !=
-      without_foot->GetVariableCache().quadrant_id()) {
+  if (cw.metadata.quadrant !=
+      co.metadata.quadrant) {
     ++HumanoidFootQuadrantDiff();
     lifecycle_changed = true;
   }
@@ -516,10 +516,10 @@ void RecordFootCounterfactual(int with_foot_head, int without_foot_head,
     ++HumanoidFootOutgoingAngleBucketDiff();
     lifecycle_changed = true;
   }
-  if (with_foot->GetVariableCache().outgoing_special_state() !=
-          without_foot->GetVariableCache().outgoing_special_state() ||
-      with_foot->GetVariableCache().incoming_special_state() !=
-          without_foot->GetVariableCache().incoming_special_state()) {
+  if (cw.metadata.outgoing_special_state !=
+          co.metadata.outgoing_special_state ||
+      cw.metadata.incoming_special_state !=
+          co.metadata.incoming_special_state) {
     ++HumanoidFootSpecialStateDiff();
     lifecycle_changed = true;
   }
@@ -748,7 +748,7 @@ void HumanoidBase::Process() {
     if (interruptAnim != e_InterruptAnim_ReQueue && !found) {
       DO_VALIDATION;
       printf("RED ALERT! NO APPLICABLE ANIM FOUND FOR HUMANOIDBASE! NOOOO!\n");
-      printf("currentanimtype: %s\n", currentAnim.anim->GetVariable("type").c_str());
+      printf("currentanimtype: %i\n", GetCurrentBakedClip().metadata.action_type);
       for (unsigned int i = 0; i < commandQueue.size(); i++) {
         DO_VALIDATION;
         printf("desiredanimtype: %i\n", commandQueue[i].desiredFunctionType);
@@ -763,7 +763,7 @@ void HumanoidBase::Process() {
       CalculatePredictedSituation(nextStartPos, nextStartAngle);
 
       // decaying difficulty
-      float animDiff = atof(currentAnim.anim->GetVariable("animdifficultyfactor").c_str());
+      float animDiff = GetCurrentBakedClip().metadata.difficulty;
       if (animDiff > decayingDifficultyFactor) decayingDifficultyFactor = animDiff;
       // if we just requeued, for example, from movement to ballcontrol, there's no reason we can not immediately requeue to another ballcontrol again (next time). only apply the initial requeue delay on subsequent anims of the same type
       // (so we can have a fast ballcontrol -> ballcontrol requeue, but after that, use the initial delay)
@@ -932,14 +932,12 @@ void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {
   DO_VALIDATION;
   if (match->GetBallRetainer() == player) return;
   const PlayerActionState &action = player->GetSimulationActionState();
-  if (currentAnim.anim->GetVariableCache().incoming_special_state().compare(
-          "") == 0 &&
-      currentAnim.anim->GetVariableCache().outgoing_special_state().compare(
-          "") == 0) {
+  if (GetCurrentBakedClip().metadata.incoming_special_state.empty() &&
+      GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
     DO_VALIDATION;
     if (this->interruptAnim == e_InterruptAnim_None &&
         (action.type != e_FunctionType_Trip ||
-         (currentAnim.anim->GetVariable("triptype").compare("1") == 0 &&
+         (GetCurrentBakedClip().metadata.trip_type == 1 &&
           tripType > 1)) &&
         action.type != e_FunctionType_Sliding) {
       DO_VALIDATION;
@@ -1003,7 +1001,7 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
 
     Animation *bestAnim = anims->GetAnim(*dataSet.begin());
 
-    bestQuadrantID = bestAnim->GetVariableCache().quadrant_id();
+    bestQuadrantID = GetBakedClip(*dataSet.begin()).metadata.quadrant;
   }
 
   const Quadrant &quadrant = anims->GetQuadrant(bestQuadrantID);
@@ -1016,20 +1014,20 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
 
     if (strict) {
       DO_VALIDATION;
-      if (anim->GetVariableCache().quadrant_id() == bestQuadrantID) {
+      if (GetBakedClip(*iter).metadata.quadrant == bestQuadrantID) {
         DO_VALIDATION;
         iter++;
       } else {
         iter = dataSet.erase(iter);
       }
     } else {
-      int quadrantID = anim->GetVariableCache().quadrant_id();
+      int quadrantID = GetBakedClip(*iter).metadata.quadrant;
       const Quadrant &bestQuadrant = anims->GetQuadrant(bestQuadrantID);
       const Quadrant &quadrant = anims->GetQuadrant(quadrantID);
 
       bool predicate = true;
 
-      if (!anim->GetVariableCache().lastditch()) {
+      if (!GetBakedClip(*iter).metadata.last_ditch) {
         DO_VALIDATION;  // last ditch anims may always change velo
         if (std::abs(GetVelocityID(quadrant.velocity, true) - GetVelocityID(bestQuadrant.velocity, true)) > allowedVelocitySteps) predicate = false;
       }
@@ -1138,12 +1136,12 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     query.byTripType = true;
     query.tripType = command.tripType;
   }
-  query.properties.set("incoming_special_state", currentAnim.anim->GetVariableCache().outgoing_special_state());
-  if (match->GetBallRetainer() == player) query.properties.set("incoming_retain_state", currentAnim.anim->GetVariable("outgoing_retain_state"));
+  query.properties.set("incoming_special_state", GetCurrentBakedClip().metadata.outgoing_special_state);
+  if (match->GetBallRetainer() == player) query.properties.set("incoming_retain_state", GetCurrentBakedClip().metadata.outgoing_retain_state);
   if (command.useSpecialVar1) query.properties.set_specialvar1(command.specialVar1);
   if (command.useSpecialVar2) query.properties.set_specialvar2(command.specialVar2);
 
-  if (!currentAnim.anim->GetVariableCache().outgoing_special_state().empty()) query.incomingVelocity = e_Velocity_Idle; // standing up anims always start out idle
+  if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle; // standing up anims always start out idle
 
   DataSet dataSet;
   anims->CrudeSelection(dataSet, query);
@@ -1239,10 +1237,8 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
 
         ((FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) !=
               e_Velocity_Idle &&
-          currentAnim.anim->GetVariableCache().quadrant_id() ==
-              anims->GetAnim(selectedAnimID)
-                  ->GetVariableCache()
-                  .quadrant_id()) ||
+          GetCurrentBakedClip().metadata.quadrant ==
+              GetBakedClip(selectedAnimID).metadata.quadrant) ||
          (FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) ==
               e_Velocity_Idle &&
           std::fabs((ForceIntoPreferredDirectionAngle(
@@ -1465,7 +1461,7 @@ void HumanoidBase::CalculateFactualSpatialState() {
 
   spatialState.foot = currentAnim.anim->GetOutgoingFoot();
 
-  if (!currentAnim.anim->GetVariableCache().outgoing_special_state().empty()) {
+  if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
     DO_VALIDATION;
     spatialState.floatVelocity = 0;
     spatialState.enumVelocity = e_Velocity_Idle;
@@ -1759,22 +1755,22 @@ void HumanoidBase::SetTripDirectionSimilarityPredicate(const Vector3 &relDesired
 }
 
 bool HumanoidBase::CompareTripDirectionSimilarity(int animIndex1, int animIndex2) const {
-  float rating1 = -GetVectorFromString(anims->GetAnim(animIndex1)->GetVariable("bumpdirection")).GetDotProduct(predicate_RelDesiredTripDirection);
-  float rating2 = -GetVectorFromString(anims->GetAnim(animIndex2)->GetVariable("bumpdirection")).GetDotProduct(predicate_RelDesiredTripDirection);
+  float rating1 = -GetBakedClip(animIndex1).metadata.bump_direction.GetDotProduct(predicate_RelDesiredTripDirection);
+  float rating2 = -GetBakedClip(animIndex2).metadata.bump_direction.GetDotProduct(predicate_RelDesiredTripDirection);
   return rating1 < rating2;
 }
 
 bool HumanoidBase::CompareBaseanimSimilarity(int animIndex1, int animIndex2) const {
-  bool isBase1 = anims->GetAnim(animIndex1)->GetVariableCache().baseanim();
-  bool isBase2 = anims->GetAnim(animIndex2)->GetVariableCache().baseanim();
+  bool isBase1 = GetBakedClip(animIndex1).metadata.base_animation;
+  bool isBase2 = GetBakedClip(animIndex2).metadata.base_animation;
 
   if (isBase1 == true && isBase2 == false) return true;
   return false;
 }
 
 bool HumanoidBase::CompareCatchOrDeflect(int animIndex1, int animIndex2) const {
-  bool catch1 = (anims->GetAnim(animIndex1)->GetVariable("outgoing_retain_state").compare("") != 0);
-  bool catch2 = (anims->GetAnim(animIndex2)->GetVariable("outgoing_retain_state").compare("") != 0);
+  bool catch1 = (GetBakedClip(animIndex1).metadata.outgoing_retain_state != "");
+  bool catch2 = (GetBakedClip(animIndex2).metadata.outgoing_retain_state != "");
 
   if (catch1 == true && catch2 == false) return true;
   return false;
@@ -1785,13 +1781,13 @@ void HumanoidBase::SetIdlePredicate(float desiredValue) const {
 }
 
 bool HumanoidBase::CompareIdleVariable(int animIndex1, int animIndex2) const {
-  return std::fabs(anims->GetAnim(animIndex1)->GetVariableCache().idlelevel() - predicate_idle) <
-         std::fabs(anims->GetAnim(animIndex2)->GetVariableCache().idlelevel() - predicate_idle);
+  return std::fabs(GetBakedClip(animIndex1).metadata.idle_level - predicate_idle) <
+         std::fabs(GetBakedClip(animIndex2).metadata.idle_level - predicate_idle);
 }
 
 bool HumanoidBase::ComparePriorityVariable(int animIndex1, int animIndex2) const {
-  return std::fabs(atof(anims->GetAnim(animIndex1)->GetVariable("priority").c_str())) <
-         std::fabs(atof(anims->GetAnim(animIndex2)->GetVariable("priority").c_str()));
+  return std::fabs(GetBakedClip(animIndex1).metadata.priority) <
+         std::fabs(GetBakedClip(animIndex2).metadata.priority);
 }
 
 Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement, const Vector3 &desiredMovement, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, radian &rotationOffset_ret) const {
@@ -1801,7 +1797,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   Animation *anim = anims->GetAnim(animID);
   const AnimationClip &clip = GetBakedClip(animID);
 
-  int animTouchFrame = atoi(anim->GetVariable("touchframe").c_str());
+  int animTouchFrame = clip.metadata.touch_frame;
   bool touch = (animTouchFrame > 0);
 
   float stat_agility = player->GetStat(physical_agility);
@@ -1840,8 +1836,8 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     outgoingSwitchBias = 1.0f;
   }
 
-  if (anim->GetVariableCache().incoming_special_state().compare("") != 0 ||
-      anim->GetVariableCache().outgoing_special_state().compare("") != 0) outgoingSwitchBias = 1.0f;
+  if (!clip.metadata.incoming_special_state.empty() ||
+      !clip.metadata.outgoing_special_state.empty()) outgoingSwitchBias = 1.0f;
 
   Vector3 animIncomingMovement = Vector3(0, -1, 0).GetRotated2D(spatialState.angle) * RangeVelocity(clip.metadata.incoming_velocity);
   Vector3 adaptedCurrentMovement = animIncomingMovement * incomingSwitchBias + spatialState.movement * (1.0f - incomingSwitchBias);
@@ -1863,9 +1859,9 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
 
   const int timeStep_ms = 10;
 
-  bool isBaseAnim = anim->GetVariableCache().baseanim();
+  bool isBaseAnim = clip.metadata.base_animation;
 
-  float difficultyFactor = atof(anim->GetVariable("animdifficultyfactor").c_str());
+  float difficultyFactor = clip.metadata.difficulty;
   float difficultyPenaltyFactor = std::pow(
       clamp((difficultyFactor - 0.0f) *
                 (1.0f - (stat_agility * 0.2f + stat_acceleration * 0.2f)) *
@@ -1930,10 +1926,10 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   if (animType== e_DefString_Deflect)     { physicsBias *= 0.0f; }
 
   if (animType== e_DefString_Sliding)     { physicsBias *= 1.0f; }
-  if (animType== e_DefString_Trip)        { if (anim->GetVariable("triptype").compare("1") == 0) physicsBias *= 0.5f; else physicsBias *= 0.0f; }
+  if (animType== e_DefString_Trip)        { if (clip.metadata.trip_type == 1) physicsBias *= 0.5f; else physicsBias *= 0.0f; }
 
   if (animType== e_DefString_Special)     { physicsBias *= 0.0f; }
-  if (anim->GetVariableCache().incoming_special_state().compare("") != 0)
+  if (!clip.metadata.incoming_special_state.empty())
                                             { physicsBias *= 0.0f; }
 
   bool mod_AllowRotation = true;
@@ -2281,7 +2277,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
       DO_VALIDATION;
 
       bool hardQuantize = true;
-      if (!hardQuantize && anim->GetVariableCache().outgoing_special_state().compare("") != 0) hardQuantize = true;
+      if (!hardQuantize && !clip.metadata.outgoing_special_state.empty()) hardQuantize = true;
 
       if (!hardQuantize) {
         DO_VALIDATION;
