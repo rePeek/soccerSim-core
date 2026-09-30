@@ -24,20 +24,23 @@ class AIControlledKeyboard : public ExternalController {
   public:
     AIControlledKeyboard(e_PlayerColor color);
     bool GetButton(e_ButtonFunction buttonFunction) override;
-    void ResetNotSticky();
+    void ResetNotSticky() override;
     void SetButton(e_ButtonFunction buttonFunction, bool state) override;
-    bool GetPreviousButtonState(e_ButtonFunction buttonFunction);
-    blunted::Vector3 GetDirection();
+    bool GetPreviousButtonState(e_ButtonFunction buttonFunction) override;
+    blunted::Vector3 GetDirection() override;
     blunted::Vector3 GetOriginalDirection() override;
 
     // Methods for remote controlling.
     void SetDirection(const blunted::Vector3& new_direction) override;
-    bool Disabled() { return disabled_;}
+    bool Disabled() const override { return disabled_; }
     void SetDisabled(bool disabled) override;
     void Reset();
     void ProcessState(EnvState* state);
-    void Mirror(float mirror);
+    void Mirror(float mirror) override;
     e_PlayerColor GetPlayerColor() const { return playerColor; }
+    int GetPlayerColorIndex() const override {
+      return static_cast<int>(playerColor);
+    }
 
   private:
     blunted::Vector3 direction_;

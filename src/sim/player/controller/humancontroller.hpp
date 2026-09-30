@@ -20,14 +20,14 @@
 
 #include "sim/player/controller/playercontroller.hpp"
 
-#include "ai/ihidevice.hpp"
+#include "controller/controller_input.hpp"
 
 class Player;
 
 class HumanController : public PlayerController {
 
   public:
-    HumanController(Match *match = nullptr, AIControlledKeyboard *hid = nullptr);
+    HumanController(Match *match = nullptr, ControllerInput *hid = nullptr);
     virtual ~HumanController();
 
     virtual void SetPlayer(PlayerBase *player);
@@ -40,14 +40,14 @@ class HumanController : public PlayerController {
     virtual Vector3 GetDirection();
     virtual float GetFloatVelocity();
 
-    void PreProcess(Match *match, AIControlledKeyboard *hid) {
+    void PreProcess(Match *match, ControllerInput *hid) {
       this->match = match;
       this->hid = hid;
    }
 
     void ProcessState(EnvState* state) {
       ProcessPlayerController(state);
-      hid->ProcessState(state);
+      state->ProcessControllerState(hid);
       state->process(actionMode);
       state->process(actionButton);
       state->process(actionBufferTime_ms);
@@ -58,7 +58,7 @@ class HumanController : public PlayerController {
     }
     virtual int GetReactionTime_ms();
 
-    AIControlledKeyboard *GetHIDevice() { return hid; }
+    ControllerInput *GetHIDevice() { return hid; }
 
     int GetActionMode() { return actionMode; }
 
@@ -68,7 +68,7 @@ class HumanController : public PlayerController {
 
     void _GetHidInput(Vector3 &rawInputDirection, float &rawInputVelocityFloat);
 
-    AIControlledKeyboard *hid;
+    ControllerInput *hid;
 
     // set when a contextual button (example: pass/defend button) is pressed
     // once this is set and the button stays pressed, it stays the same

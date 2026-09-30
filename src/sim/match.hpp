@@ -24,6 +24,7 @@
 #include "sim/officials.hpp"
 #include "sim/value_history.hpp"
 
+#include "controller/controller_set.hpp"
 #include "data/matchdata.hpp"
 #include "sim/match_config.hpp"
 #include "sim/ai_support/mentalimage.hpp"
@@ -43,7 +44,7 @@ class Match {
 
   public:
     Match(std::unique_ptr<MatchData> matchData,
-          const std::vector<AIControlledKeyboard*> &controllers,
+          const ControllerSet& controllers,
           const MatchConfig& config, bool init_animation);
     virtual ~Match();
 
@@ -111,7 +112,9 @@ class Match {
     void BumpActualTime_ms(unsigned long time);
 
 
-    void GetTeamState(SharedInfo *state, std::map<AIControlledKeyboard*, int>& controller_mapping, int team_id);
+    void GetTeamState(SharedInfo *state,
+                      std::map<ControllerInput*, int>& controller_mapping,
+                      int team_id);
     void GetState(SharedInfo* state);
     void ProcessState(EnvState* state);
     // Advances one authoritative simulation tick.
@@ -153,7 +156,7 @@ class Match {
 
 
 
-    const std::vector<AIControlledKeyboard*> &controllers;
+    const ControllerSet& controllers;
     std::vector<ControllerSetup> controllerSetup;
 
     Ball *ball = nullptr;

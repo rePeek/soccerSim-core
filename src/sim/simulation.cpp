@@ -9,7 +9,7 @@ Simulation::~Simulation() {
 }
 
 void Simulation::Reset(std::unique_ptr<MatchConfig> config,
-                       const std::vector<AIControlledKeyboard*>& controllers,
+                       const ControllerSet& controllers,
                        bool init_animation) {
   assert(config);
   assert(config->match_data);

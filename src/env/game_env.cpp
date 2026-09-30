@@ -188,6 +188,6 @@ void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
   }
   randomize(game_config.game_engine_random_seed);
   context->simulation->Stop();
-  context->simulation->Reset(std::move(match_config), GetControllers(),
+  context->simulation->Reset(std::move(match_config), context->controllerSet,
                              animations);
 }

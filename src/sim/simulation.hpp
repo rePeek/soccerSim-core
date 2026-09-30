@@ -2,11 +2,10 @@
 #define FOOTBALL_SIM_SIMULATION_HPP
 
 #include <memory>
-#include <vector>
 
+#include "controller/controller_set.hpp"
 #include "sim/match_config.hpp"
 
-class AIControlledKeyboard;
 class Match;
 class EnvState;
 class SharedInfo;
@@ -19,7 +18,7 @@ class Simulation {
   ~Simulation();
 
   void Reset(std::unique_ptr<MatchConfig> config,
-             const std::vector<AIControlledKeyboard*>& controllers,
+             const ControllerSet& controllers,
              bool init_animation);
   bool Stop();
   void Step();
@@ -29,9 +28,6 @@ class Simulation {
 
   Match* match() { return match_.get(); }
   const Match* match() const { return match_.get(); }
-
-  // Compatibility accessor for legacy internal callers.
-  Match* GetMatch() { return match(); }
 
  private:
   std::unique_ptr<Match> match_;

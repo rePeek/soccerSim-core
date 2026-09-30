@@ -72,16 +72,15 @@ void run_game(Properties* input_config) {
   for (int x = 0; x < 2 * kPlayersPerTeam; x++) {
     e_PlayerColor color = e_PlayerColor(x % (e_PlayerColor_Default + 1));
     game->context->controllers.push_back(new AIControlledKeyboard(color));
+    game->context->controllerSet.Add(*game->context->controllers.back());
   }
   // sequences
 
   game->context->simulation = std::make_unique<Simulation>();
-  game->context->gameTask = game->context->simulation.get();
 }
   // fire!
 
 void quit_game() {
-  game->context->gameTask = nullptr;
   game->context->simulation.reset();
 
   for (unsigned int i = 0; i < game->context->controllers.size(); i++) {

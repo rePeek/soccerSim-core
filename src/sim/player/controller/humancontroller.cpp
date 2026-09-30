@@ -26,7 +26,7 @@
 
 #include "env/main.hpp"
 
-HumanController::HumanController(Match *match, AIControlledKeyboard *hid)
+HumanController::HumanController(Match *match, ControllerInput *hid)
     : PlayerController(match), hid(hid) {
   Reset();
 }

@@ -972,7 +972,7 @@ void AppendDigestInt(std::string& out, const T& value) {
 // a draw count: equal draw counts do not imply an equal stream.
 std::string CaptureSimulationDigest(GameEnv& env) {
   std::string out;
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
 
   std::vector<Player*> players;
   match->GetActiveTeamPlayers(match->FirstTeam(), players);
@@ -1071,7 +1071,7 @@ void AppendNamedDigestFloat(std::vector<NamedDigestFloat>& fields,
 
 std::vector<NamedDigestFloat> CaptureResetDigestFloats(GameEnv& env) {
   std::vector<NamedDigestFloat> fields;
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
 
   const auto append_actor = [&](const PlayerBase* actor,
                                 const std::string& actor_name) {
@@ -1174,15 +1174,15 @@ void Advance(GameEnv& env, int steps) {
 
 void WaitUntilInPlay(GameEnv& env, int max_steps, const std::string& label) {
   for (int step = 0; step < max_steps; ++step) {
-    if (env.context->gameTask->GetMatch()->IsInPlay()) return;
+    if (env.context->simulation->match()->IsInPlay()) return;
     env.step();
   }
-  Require(env.context->gameTask->GetMatch()->IsInPlay(),
+  Require(env.context->simulation->match()->IsInPlay(),
           label + ": game did not resume");
 }
 
 void CheckKinematicMirrorConsistency(GameEnv& env, const std::string& label) {
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
   std::vector<Player*> players;
   match->GetActiveTeamPlayers(match->FirstTeam(), players);
   match->GetActiveTeamPlayers(match->SecondTeam(), players);
@@ -1332,7 +1332,7 @@ void CheckResetBitDeterminism(GameEnv& env, const ScenarioConfig& config) {
 void CheckMovementAuthorityTiming(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "movement authority timing: kickoff");
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
 
   std::vector<Player*> players;
   match->GetActiveTeamPlayers(match->FirstTeam(), players);
@@ -1405,7 +1405,7 @@ void MeasureProceduralLocomotionDivergence(GameEnv& env,
                                            ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "procedural locomotion divergence: kickoff");
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
 
   struct PendingSample {
     Player* player;
@@ -1706,7 +1706,7 @@ void MeasureLocomotionRegimeTransitions(GameEnv& env,
                                         ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "locomotion regimes: kickoff");
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
 
   struct TransitionCell {
     int samples = 0;
@@ -1848,7 +1848,7 @@ void MeasureLocomotionRegimeTransitions(GameEnv& env,
 void MeasureLegacyBodyFacing(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "body-facing measurement: kickoff");
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
 
   struct PendingSample {
     Player* player;
@@ -2489,7 +2489,7 @@ void MeasureMovementCommandLifecycle(GameEnv& env, ScenarioConfig& config) {
 void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "body-facing shadow grid: kickoff");
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
 
   struct Pending { Player* player; PlayerKinematicState state; PlayerCommand command; };
   struct Shadow {
@@ -2709,7 +2709,7 @@ void MeasureBodyFacingShadowGrid(GameEnv& env, ScenarioConfig& config) {
 void MeasureLocomotionPrediction(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "locomotion prediction: kickoff");
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
 
   struct PendingPrediction {
     Player* player;
@@ -2889,7 +2889,7 @@ void MeasureLocomotionPrediction(GameEnv& env, ScenarioConfig& config) {
 void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "intercept prediction: kickoff");
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
   Ball* ball = match->GetBall();
 
   // The legacy dual estimate uses a usual (touchable) and an optimistic radius,
@@ -2993,7 +2993,7 @@ void MeasureInterceptPrediction(GameEnv& env, ScenarioConfig& config) {
 void CheckReachabilityCadence(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "planner cadence: kickoff");
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
 
   const int refresh_ticks = 10;
   int eligible_actor_ticks = 0;
@@ -3094,7 +3094,7 @@ void MeasureHybridInterceptApproximation(GameEnv& env,
                                          ScenarioConfig& config) {
   env.reset(config, false);
   WaitUntilInPlay(env, 60, "hybrid intercept: kickoff");
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
   Ball* ball = match->GetBall();
 
   const int candidate_horizons[] = {0,    100,  200,  300,  400,  500, 600,
@@ -3297,7 +3297,7 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   Advance(env, 300);
   RequireInfoEqual(env.get_info(), first_reset, "repeat reset");
-  CheckActionStateOracle(env.context->gameTask->GetMatch(),
+  CheckActionStateOracle(env.context->simulation->match(),
                          "action state oracle after reset");
   CheckKinematicMirrorConsistency(env, "kinematic mirror after repeat reset");
 
@@ -3308,7 +3308,7 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   const std::string digest_after_restore = CaptureSimulationDigest(env);
 
   env.set_state(serialized);
-  CheckActionStateOracle(env.context->gameTask->GetMatch(),
+  CheckActionStateOracle(env.context->simulation->match(),
                          "action state oracle immediately after state restore");
   CheckKinematicMirrorConsistency(
       env, "kinematic mirror immediately after state restore");
@@ -3317,7 +3317,7 @@ void CheckResetAndStateRoundTrip(GameEnv& env, ScenarioConfig& config) {
   Require(CaptureSimulationDigest(env) == digest_after_restore,
           "state round-trip: simulation digest differs (presentation RNG must "
           "not be part of simulation state)");
-  CheckActionStateOracle(env.context->gameTask->GetMatch(),
+  CheckActionStateOracle(env.context->simulation->match(),
                          "action state oracle after state restore");
   CheckKinematicMirrorConsistency(env, "kinematic mirror after state restore");
 }
@@ -3333,7 +3333,7 @@ void CheckDecisionContinuityRestoreDeterminism(GameEnv& env,
   WaitUntilInPlay(env, 60, "continuity restore: kickoff");
   Advance(env, 50);
   const std::string serialized = env.get_state("");
-  Match *snapshot_match = env.context->gameTask->GetMatch();
+  Match *snapshot_match = env.context->simulation->match();
   std::vector<Player *> snapshot_players;
   snapshot_match->GetTeam(0)->GetActivePlayers(snapshot_players);
   Require(!snapshot_players.empty(), "decision restore: no active players");
@@ -3360,7 +3360,7 @@ void CheckDecisionContinuityRestoreDeterminism(GameEnv& env,
     int repair_missing = 0;
   };
   const auto run_branch = [&]() {
-    Match *match = env.context->gameTask->GetMatch();
+    Match *match = env.context->simulation->match();
     std::vector<Player *> players;
     match->GetTeam(0)->GetActivePlayers(players);
     Require(!players.empty(), "continuity restore: no active players");
@@ -3396,7 +3396,7 @@ void CheckDecisionContinuityRestoreDeterminism(GameEnv& env,
 
   env.set_state(serialized);
   std::vector<Player *> restored_players;
-  env.context->gameTask->GetMatch()->GetTeam(0)->GetActivePlayers(restored_players);
+  env.context->simulation->match()->GetTeam(0)->GetActivePlayers(restored_players);
   Player *restored_player = nullptr;
   for (Player *candidate : restored_players) {
     if (candidate->GetStableID() == snapshot_id) restored_player = candidate;
@@ -3483,7 +3483,7 @@ void CheckMovementAnimationPerturbation(GameEnv& env, ScenarioConfig& config,
       Tick tick;
       tick.digest = CaptureSimulationDigest(env);
       tick.decision_queries = PlayerDecisionClockQueries() - queries_before;
-      Match *match = env.context->gameTask->GetMatch();
+      Match *match = env.context->simulation->match();
       tick.time_ms = static_cast<int>(match->GetActualTime_ms());
       std::vector<Player *> players;
       match->GetActiveTeamPlayers(match->FirstTeam(), players);
@@ -3791,7 +3791,7 @@ void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
   WaitUntilInPlay(env, 30, "initial kickoff");
   Advance(env, 5);  // Let kickoff's set-piece relaxation period elapse.
 
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
   match->GetBall()->SetPosition(
       Vector3(0.0f, pitchHalfH + lineHalfW + 0.5f, 0.5f));
   match->GetBall()->SetMomentum(Vector3(0));
@@ -3806,7 +3806,7 @@ void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
   WaitUntilInPlay(env, 60, "throw-in restart");
   Advance(env, 5);  // Let throw-in's set-piece relaxation period elapse.
 
-  match = env.context->gameTask->GetMatch();
+  match = env.context->simulation->match();
   const int score_before = match->GetScore(0) + match->GetScore(1);
   match->GetBall()->SetPosition(
       Vector3(pitchHalfW + lineHalfW - 0.3f, 0.0f, 0.5f));
@@ -3963,7 +3963,7 @@ void CheckReverseTeamProcessing(GameEnv& env, ScenarioConfig& config) {
 
   // Phase 1: per-tick frame invariant.
   env.reset(config, false);
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
   Require(match->FirstTeam() == 1 && match->SecondTeam() == 0,
           "reverse_team_processing must process team 1 first");
 
@@ -4094,7 +4094,7 @@ void CheckRetainAnchor(GameEnv& env, ScenarioConfig& config) {
   env.reset(config, false);
   for (int i = 0; i < 40; ++i) env.step();
 
-  Match* match = env.context->gameTask->GetMatch();
+  Match* match = env.context->simulation->match();
   std::vector<Player*> players;
   match->GetActiveTeamPlayers(match->FirstTeam(), players);
   Require(!players.empty(), "retain scenario: no active player");

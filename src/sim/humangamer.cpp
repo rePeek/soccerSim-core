@@ -22,7 +22,7 @@
 
 #include "env/main.hpp"
 
-HumanGamer::HumanGamer(Team *team, AIControlledKeyboard *hid)
+HumanGamer::HumanGamer(Team *team, ControllerInput *hid)
     : team(team), hid(hid), controller(team->GetMatch(), hid) {
   SetSelectedPlayer(0);
 }

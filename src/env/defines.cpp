@@ -16,6 +16,8 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "env/defines.hpp"
+#include "ai/ai_keyboard.hpp"
+#include "controller/controller_set.hpp"
 
 #include "env/game_env.hpp"
 #include "env/main.hpp"
@@ -27,4 +29,31 @@ EnvState::EnvState(GameEnv* game, const std::string& state,
       reference(reference),
       scenario_config(&game->scenario_config),
       context(game->context) {
+}
+
+void EnvState::process(ControllerInput*& value) {
+  void* raw = value;
+  process(reinterpret_cast<void**>(&controllers[0]), controllers.size(), raw);
+  value = static_cast<AIControlledKeyboard*>(raw);
+}
+
+void EnvState::ProcessControllerState(ControllerInput* controller) {
+  auto* keyboard = dynamic_cast<AIControlledKeyboard*>(controller);
+  if (!keyboard) {
+    Log(blunted::e_FatalError, "EnvState", "controller",
+        "controller does not support legacy checkpointing");
+  }
+  keyboard->ProcessState(this);
+}
+
+void EnvState::SetControllers(const ControllerSet& controller_set) {
+  controllers.clear();
+  for (auto* controller : controller_set.controllers()) {
+    auto* keyboard = dynamic_cast<AIControlledKeyboard*>(controller);
+    if (!keyboard) {
+      Log(blunted::e_FatalError, "EnvState", "controller",
+          "controller does not support legacy checkpointing");
+    }
+    controllers.push_back(keyboard);
+  }
 }

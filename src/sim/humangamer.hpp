@@ -22,7 +22,7 @@
 
 
 #include "sim/player/controller/humancontroller.hpp"
-#include "ai/ihidevice.hpp"
+#include "controller/controller_input.hpp"
 
 using namespace blunted;
 
@@ -31,7 +31,7 @@ class Team;
 class HumanGamer {
 
   public:
-    HumanGamer(Team *team, AIControlledKeyboard *hid);
+    HumanGamer(Team *team, ControllerInput *hid);
     HumanGamer() {}
     HumanGamer(const HumanGamer&) = delete;
     void operator=(const HumanGamer&) = delete;
@@ -41,13 +41,13 @@ class HumanGamer {
       return selectedPlayer;
     }
     void SetSelectedPlayer(Player* player);
-    AIControlledKeyboard *GetHIDevice() { return hid; }
+    ControllerInput *GetHIDevice() { return hid; }
     HumanController* GetHumanController() { return &controller; }
     void ProcessState(EnvState *state);
 
   protected:
     Team *team = nullptr;
-    AIControlledKeyboard *hid = nullptr;
+    ControllerInput *hid = nullptr;
     HumanController controller;
     Player *selectedPlayer = nullptr;
 };

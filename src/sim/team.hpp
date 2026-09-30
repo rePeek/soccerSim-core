@@ -81,7 +81,7 @@ class Team {
         v.push_back(g.get());
       }
     }
-    void AddHumanGamers(const std::vector<AIControlledKeyboard*>& controllers);
+    void AddHumanGamers(const std::vector<ControllerInput*>& controllers);
     void DeleteHumanGamers();
     e_PlayerColor GetPlayerColor(PlayerBase* player);
     int HumanControlledToBallDistance();

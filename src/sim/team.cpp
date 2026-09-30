@@ -113,7 +113,7 @@ int Team::GetActivePlayersCount() const {
   return count;
 }
 
-void Team::AddHumanGamers(const std::vector<AIControlledKeyboard*>& controllers) {
+void Team::AddHumanGamers(const std::vector<ControllerInput*>& controllers) {
   for (auto controller : controllers) {
     humanGamers.push_back(std::make_unique<HumanGamer>(this, controller));
     switchPriority.push_back(humanGamers.size() - 1);
@@ -146,7 +146,8 @@ void Team::DeleteHumanGamers() {
 
 e_PlayerColor Team::GetPlayerColor(PlayerBase *player) {
   if (player->ExternalController()) {
-    return player->ExternalController()->GetHIDevice()->GetPlayerColor();
+    return static_cast<e_PlayerColor>(
+        player->ExternalController()->GetHIDevice()->GetPlayerColorIndex());
   }
   return e_PlayerColor_Default;
 }

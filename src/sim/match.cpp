@@ -59,7 +59,7 @@ const std::vector<Vector3> &Match::GetAnimPositionCache(
 }
 
 Match::Match(std::unique_ptr<MatchData> match_data,
-             const std::vector<AIControlledKeyboard *> &controllers,
+             const ControllerSet& controllers,
              const MatchConfig& config, bool animations)
     : matchData(std::move(match_data)),
       first_team(GetScenarioConfig().reverse_team_processing ? 1 : 0),
@@ -183,8 +183,8 @@ void Match::Exit() {
 
 void Match::UpdateControllerSetup() {
   const std::vector<ControllerSetup>& controller = controllerSetup;
-  std::vector<AIControlledKeyboard*> left_players;
-  std::vector<AIControlledKeyboard*> right_players;
+  std::vector<ControllerInput*> left_players;
+  std::vector<ControllerInput*> right_players;
   for (unsigned int i = 0; i < controller.size(); i++) {
     float mirror = 1.0;
     if (controller[i].side == -1) {
@@ -294,16 +294,16 @@ void Match::ProcessState(EnvState* state) {
   officials->ProcessState(state);
   {
     std::vector<HumanGamer*> human_gamers;
-    std::set<AIControlledKeyboard*> visited;
+    std::set<ControllerInput*> visited;
     teams[first_team]->GetHumanControllers(human_gamers);
     teams[second_team]->GetHumanControllers(human_gamers);
     for (auto& c : human_gamers) {
-      c->GetHIDevice()->ProcessState(state);
+      state->ProcessControllerState(c->GetHIDevice());
       visited.insert(c->GetHIDevice());
     }
-    for (auto& c : controllers) {
-      if (!visited.count(c)) {
-        c->ProcessState(state);
+    for (auto* controller : controllers.controllers()) {
+      if (!visited.count(controller)) {
+        state->ProcessControllerState(controller);
       }
     }
   }
@@ -353,7 +353,7 @@ void Match::ProcessState(EnvState* state) {
 }
 
 void Match::GetTeamState(SharedInfo *state,
-                         std::map<AIControlledKeyboard *, int> &controller_mapping,
+                         std::map<ControllerInput*, int>& controller_mapping,
                          int team_id) {
   std::vector<PlayerInfo> &team =
       team_id == 0 ? state->left_team : state->right_team;
@@ -418,13 +418,13 @@ void Match::GetState(SharedInfo *state) {
   state->right_controllers.clear();
   state->right_controllers.resize(GetScenarioConfig().right_team.size());
 
-  std::map<AIControlledKeyboard*, int> controller_mapping;
+  std::map<ControllerInput*, int> controller_mapping;
   {
-    auto controllers = GetControllers();
-    CHECK(controllers.size() == 2 * kPlayersPerTeam);
+    const auto& inputs = controllers.controllers();
+    CHECK(inputs.size() == 2 * kPlayersPerTeam);
     for (int x = 0; x < kPlayersPerTeam; x++) {
-      controller_mapping[controllers[x]] = x;
-      controller_mapping[controllers[x + kPlayersPerTeam]] = x;
+      controller_mapping[inputs[x]] = x;
+      controller_mapping[inputs[x + kPlayersPerTeam]] = x;
     }
   }
   GetTeamState(state, controller_mapping, first_team);

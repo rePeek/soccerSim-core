@@ -5,11 +5,12 @@
 #include <vector>
 
 #include "data/matchdata.hpp"
+#include "controller/controller_id.hpp"
 
 // Authoritative match-start configuration. It deliberately contains no GUI
 // objects, so simulation can be configured without MenuTask or WindowManager.
 struct ControllerSetup {
-  int controller_id = 0;
+  ControllerId controller_id = 0;
   int side = 0;  // -1 = left, 0 = builtin AI, 1 = right
 };
 

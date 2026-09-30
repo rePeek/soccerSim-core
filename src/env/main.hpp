@@ -213,11 +213,10 @@ class GameContext {
  public:
   GameContext() { }
   std::unique_ptr<Simulation> simulation;
-  // Transitional alias for internal callers using the old GameTask field.
-  Simulation* gameTask = nullptr;
   Properties *config = nullptr;
 
   std::vector<AIControlledKeyboard*> controllers;
+  ControllerSet controllerSet;
 
   // Simulation RNG. Its state is checkpointed, so draw order is observable.
   SimulationRng rng;
