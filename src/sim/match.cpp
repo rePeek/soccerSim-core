@@ -83,7 +83,12 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   auto& baked = GetContext().bakedAnims;
   if (!baked) {
     baked = std::make_shared<AnimationLibrary>();
-    assert(baked->Load(GFOOTBALL_BAKED_ANIM_PATH));
+    // Deliberately not assert()/CHECK(): both compile to ((void)0) under
+    // NDEBUG, which would silently skip the load and leave an empty
+    // library behind.
+    if (!baked->Load(GFOOTBALL_BAKED_ANIM_PATH)) {
+      Log(e_FatalError, "Match", "Match", "cannot load baked animations");
+    }
   }
   designatedPossessionPlayer = 0;
 
