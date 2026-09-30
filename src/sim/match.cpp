@@ -34,6 +34,22 @@
 
 
 
+namespace {
+
+// Keep the historical ValueHistory wire layout out of foundation.
+template <typename T>
+void ProcessValueHistoryState(EnvState* state, ValueHistory<T>& history) {
+  unsigned int max_time_ms = history.GetMaxTime_ms();
+  std::list<T> values = history.GetValues();
+  state->process(max_time_ms);
+  state->process(values);
+  if (state->Load()) {
+    history.Restore(max_time_ms, values);
+  }
+}
+
+}  // namespace
+
 const std::vector<Vector3> &Match::GetAnimPositionCache(
     AnimationId animation_id) const {
   return GetContext().bakedAnims->Get(static_cast<uint32_t>(animation_id))
@@ -339,7 +355,7 @@ void Match::ProcessState(EnvState* state) {
   state->process(bestPossessionTeam);
   state->process(designatedPossessionPlayer);
   state->process(ballRetainer);
-  possessionSideHistory.ProcessState(state);
+  ProcessValueHistoryState(state, possessionSideHistory);
   state->process(lastBodyBallCollisionTime_ms);
   referee->ProcessState(state);
 

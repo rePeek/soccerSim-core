@@ -18,9 +18,8 @@
 #ifndef _HPP_BASE_PROPERTIES
 #define _HPP_BASE_PROPERTIES
 
-#include "env/defines.hpp"
-
-#include "foundation/math/vector3.hpp"
+#include "foundation/defines.hpp"
+#include "foundation/math/bluntmath.hpp"
 
 namespace blunted {
 
@@ -50,7 +49,6 @@ namespace blunted {
       void AddProperties(const Properties *userprops);
       void AddProperties(const Properties &userprops);
       const map_Properties *GetProperties() const;
-      void ProcessState(EnvState* state);
 
      protected:
       map_Properties properties;

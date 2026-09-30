@@ -29,6 +29,38 @@
 
 #include "env/main.hpp"
 
+namespace {
+
+// EnvState serialization belongs to the simulation owner, not Properties.
+void ProcessPropertiesState(EnvState* state, blunted::Properties& properties) {
+  if (state->Load()) {
+    int size = 0;
+    state->process(size);
+    blunted::Properties restored;
+    while (size--) {
+      std::string key;
+      std::string value;
+      state->process(key);
+      state->process(value);
+      restored.Set(key, value);
+    }
+    properties = restored;
+    return;
+  }
+
+  const blunted::map_Properties* values = properties.GetProperties();
+  int size = static_cast<int>(values->size());
+  state->process(size);
+  for (const auto& value : *values) {
+    std::string key = value.first;
+    std::string data = value.second;
+    state->process(key);
+    state->process(data);
+  }
+}
+
+}  // namespace
+
 bool ReverseSortTacticalOpponentInfo(const TacticalOpponentInfo &a,
                                      const TacticalOpponentInfo &b) {
   DO_VALIDATION;
@@ -1301,8 +1333,8 @@ void TeamAIController::ProcessState(EnvState *state) {
   DO_VALIDATION;
   state->process(taker);
   state->process(setPieceType);
-  baseTeamTactics.ProcessState(state);
-  liveTeamTactics.ProcessState(state);
+  ProcessPropertiesState(state, baseTeamTactics);
+  ProcessPropertiesState(state, liveTeamTactics);
   state->process(offensivenessBias);
   state->process(teamHasPossession);
   state->process(teamHasUniquePossession);

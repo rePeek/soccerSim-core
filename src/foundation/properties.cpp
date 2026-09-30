@@ -17,7 +17,6 @@
 
 #include "foundation/properties.hpp"
 
-#include "env/defines.hpp"
 #include "foundation/utils.hpp"
 #include "foundation/log.hpp"
 
@@ -139,32 +138,5 @@ bool Properties::Exists(const std::string &name) const {
     return &properties;
   }
 
-  void Properties::ProcessState(EnvState *state) {
-    DO_VALIDATION;
-    if (state->Load()) {
-      DO_VALIDATION;
-      properties.clear();
-      int size;
-      state->process(size);
-      while (size--) {
-        DO_VALIDATION;
-        string key;
-        string value;
-        state->process(key);
-        state->process(value);
-        properties[key] = value;
-      }
-    } else {
-      int size = properties.size();
-      state->process(size);
-      for (const auto &x : properties) {
-        DO_VALIDATION;
-        string key = x.first;
-        string value = x.second;
-        state->process(key);
-        state->process(value);
-      }
-    }
-  }
 
   }  // namespace blunted

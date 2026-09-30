@@ -53,7 +53,6 @@ set(BASE_SOURCES
    src/foundation/math/vector3.cpp
    src/foundation/math/matrix3.cpp
    src/foundation/math/bluntmath.cpp
-   src/foundation/math/rng.cpp
    src/foundation/math/quaternion.cpp
    src/foundation/math/matrix4.cpp
    src/foundation/xml_loader.cpp
@@ -122,6 +121,7 @@ set(CORE_SOURCES
    src/env/main.cpp
    src/sim/gamedefines.cpp
    src/env/defines.cpp
+   src/env/rng.cpp
 )
 
 

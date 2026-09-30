@@ -18,7 +18,8 @@
 #ifndef _HPP_BASE_UTILS
 #define _HPP_BASE_UTILS
 
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
+#include "foundation/math/bluntmath.hpp"
 
 
 namespace blunted {
@@ -109,9 +110,12 @@ namespace blunted {
       void Clear() { DO_VALIDATION;
         values.clear();
       }
-      void ProcessState(EnvState *state) { DO_VALIDATION;
-        state->process(maxTime_ms);
-        state->process(values);
+      unsigned int GetMaxTime_ms() const { return maxTime_ms; }
+      const std::list<T>& GetValues() const { return values; }
+      void Restore(unsigned int restored_max_time_ms,
+                   const std::list<T>& restored_values) {
+        maxTime_ms = restored_max_time_ms;
+        values = restored_values;
       }
 
     protected:

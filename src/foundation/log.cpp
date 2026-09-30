@@ -17,7 +17,6 @@
 
 #include <chrono>
 #include "foundation/log.hpp"
-#include "env/main.hpp"
 #include "foundation/defines.hpp"
 
 #include <iostream>
