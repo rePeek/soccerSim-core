@@ -62,5 +62,5 @@ void GetFilesRec(fs::path path, const std::string &extension,
 void GetFiles(std::string path, const std::string &extension,
               std::vector<std::string> &files) {
   DO_VALIDATION;
-  GetFilesRec(GetGameConfig().updatePath(path), extension, files);
+  GetFilesRec(path, extension, files);
 }

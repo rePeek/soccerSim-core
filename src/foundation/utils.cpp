@@ -174,13 +174,13 @@ void tokenize(const std::string &str, std::vector<std::string> &tokens,
 
 std::string file_to_string(std::string filename) {
   DO_VALIDATION;
-  return GetFile(GetGameConfig().updatePath(filename));
+  return GetFile(filename);
 }
 
 void file_to_vector(std::string filename,
                     std::vector<std::string> &destination) {
   DO_VALIDATION;
-  std::string file = GetFile(GetGameConfig().updatePath(filename));
+  std::string file = GetFile(filename);
   int last_pos = 0;
   for (int x = 0; x < file.length(); x++) {
     DO_VALIDATION;
