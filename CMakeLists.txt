@@ -59,8 +59,12 @@ target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
 football_configure_target(football_smoke)
 
 add_executable(football_anim_baker tools/anim_baker_main.cpp)
-target_link_libraries(football_anim_baker PRIVATE ${OUTPUT_LIB_NAME})
+target_link_libraries(football_anim_baker PRIVATE football_sim football_foundation)
 football_configure_target(football_anim_baker)
+
+add_test(NAME football_anim_baker_standalone_guard
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/anim_baker_standalone_guard.sh
+    ${CMAKE_SOURCE_DIR}/tools/anim_baker_main.cpp)
 
 add_test(NAME football_anim_bake_determinism
   COMMAND ${CMAKE_SOURCE_DIR}/tools/anim_bake_determinism.sh

@@ -41,6 +41,9 @@ set(BASE_SOURCES
    src/foundation/utils.cpp
    src/foundation/properties.cpp
    src/foundation/log.cpp
+   src/foundation/backtrace.cpp
+   src/foundation/file.cpp
+   src/foundation/misc/hungarian.cpp
    src/foundation/geometry/triangle.cpp
    src/foundation/geometry/line.cpp
    src/foundation/geometry/trianglemeshutils.cpp
@@ -49,6 +52,7 @@ set(BASE_SOURCES
    src/foundation/math/vector3.cpp
    src/foundation/math/matrix3.cpp
    src/foundation/math/bluntmath.cpp
+   src/foundation/math/rng.cpp
    src/foundation/math/quaternion.cpp
    src/foundation/math/matrix4.cpp
 )
@@ -96,21 +100,15 @@ set(BLUNTED_CORE_SOURCES
 
 
 set(CORE_HEADERS
-   src/foundation/backtrace.h
-   src/foundation/file.h
    src/sim/gamedefines.hpp
    src/sim/utils.hpp
    src/env/main.hpp
    src/env/gametask.hpp
    src/env/match_setup.hpp
-   src/foundation/misc/hungarian.h
 )
 
 
 set(CORE_SOURCES
-   src/foundation/backtrace.cpp
-   src/foundation/file.cpp
-   src/foundation/misc/hungarian.cpp
    src/env/gametask.cpp
    src/sim/utils.cpp
    src/env/main.cpp

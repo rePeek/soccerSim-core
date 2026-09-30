@@ -41,8 +41,19 @@ class EnvState {
   EnvState(GameEnv* game_env, const std::string& state, const std::string reference = "");
   const ScenarioConfig* getConfig() { return scenario_config; }
   const GameContext* getContext() { return context; }
-  void process(std::string &value);
-  void process(blunted::Animation* &value);
+  void process(std::string &value) {
+    int s = value.size();
+    process(s);
+    value.resize(s);
+    for (char& c : value) {
+      process(c);
+    }
+  }
+  void process(blunted::Animation* &value) {
+    void* v = value;
+    process(reinterpret_cast<void**>(&animations[0]), animations.size(), v);
+    value = static_cast<blunted::Animation*>(v);
+  }
   template<typename T> void process(std::vector<T>& collection) {
     int size = collection.size();
     process(size);
@@ -59,10 +70,26 @@ class EnvState {
       process(el);
     }
   }
-  void process(Player*& value);
-  void process(HumanGamer*& value);
-  void process(AIControlledKeyboard*& value);
-  void process(Team*& value);
+  void process(Player*& value) {
+    void* v = value;
+    process(reinterpret_cast<void**>(&players[0]), players.size(), v);
+    value = static_cast<Player*>(v);
+  }
+  void process(HumanGamer*& value) {
+    void* v = value;
+    process(reinterpret_cast<void**>(&human_controllers[0]), human_controllers.size(), v);
+    value = static_cast<HumanGamer*>(v);
+  }
+  void process(AIControlledKeyboard*& value) {
+    void* v = value;
+    process(reinterpret_cast<void**>(&controllers[0]), controllers.size(), v);
+    value = static_cast<AIControlledKeyboard*>(v);
+  }
+  void process(Team*& value) {
+    void* v = value;
+    process(reinterpret_cast<void**>(&teams[0]), 2, v);
+    value = static_cast<Team*>(v);
+  }
   bool isFailure() {
     return failure;
   }
@@ -79,7 +106,7 @@ class EnvState {
   int getpos() {
     return pos;
   }
-  bool eos();
+  bool eos() { return pos == state.size(); }
   template<typename T> void process(T& obj) {
     if (load) {
       if (pos + sizeof(T) > state.size()) {
@@ -108,12 +135,15 @@ class EnvState {
       }
     }
   }
-  void SetPlayers(const std::vector<Player*>& players);
-  void SetHumanControllers(const std::vector<HumanGamer*>& controllers);
-  void SetControllers(const std::vector<AIControlledKeyboard*>& controllers);
-  void SetAnimations(const std::vector<blunted::Animation*>& animations);
-  void SetTeams(Team* team0, Team* team1);
-  const std::string& GetState();
+  void SetPlayers(const std::vector<Player*>& players) { this->players = players; }
+  void SetHumanControllers(const std::vector<HumanGamer*>& controllers) { this->human_controllers = controllers; }
+  void SetControllers(const std::vector<AIControlledKeyboard*>& controllers) { this->controllers = controllers; }
+  void SetAnimations(const std::vector<blunted::Animation*>& animations) { this->animations = animations; }
+  void SetTeams(Team* team0, Team* team1) {
+    this->teams.push_back(team0);
+    this->teams.push_back(team1);
+  }
+  const std::string& GetState() { return state; }
  protected:
   bool failure = false;
   bool stack = true;
@@ -131,7 +161,34 @@ class EnvState {
   ScenarioConfig* scenario_config;
   GameContext* context;
  private:
-  void process(void** collection, int size, void*& element);
+  void process(void** collection, int size, void*& element) {
+    DO_VALIDATION;
+    if (load) {
+      int index;
+      process(index);
+      if (index == -1) {
+        element = 0;
+      } else {
+        if (index >= size) {
+          Log(blunted::e_FatalError, "EnvState", "element", "element index out of bound");
+        }
+        element = collection[index];
+      }
+    } else {
+      if (element == 0) {
+        int index = -1;
+        process(index);
+      } else {
+        for (int x = 0; x < size; x++) {
+          if (collection[x] == element) {
+            process(x);
+            return;
+          }
+        }
+        Log(blunted::e_FatalError, "EnvState", "element", "element not found");
+      }
+    }
+  }
 };
 
 // 3-d position of object (available from python).

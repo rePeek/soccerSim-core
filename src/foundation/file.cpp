@@ -14,8 +14,8 @@
 #include "foundation/file.h"
 
 #include "foundation/log.hpp"
-#include "env/main.hpp"
 
+using namespace blunted;
 namespace fs = std::filesystem;
 
 std::string GetFile(const std::string &fileName) {

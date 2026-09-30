@@ -19,10 +19,10 @@
 
 #include <cmath>
 
-#include "env/main.hpp"
 #include "animation/extensions/footballanimationextension.hpp"
 
 #include "foundation/file.h"
+#include "foundation/utils.hpp"
 
 void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap) {
   DO_VALIDATION;

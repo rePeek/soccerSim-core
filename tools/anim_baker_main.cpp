@@ -13,11 +13,9 @@
 
 // Minimal first-stage animation baker.
 //
-// This deliberately reuses the legacy AnimCollection::Load()/_PrepareAnim()
-// path (so it needs a GameEnv / GFOOTBALL_DATA_DIR for now) and extracts the
-// already-prepared clips into a plain binary "simanim" artifact. The point of
-// this stage is to prove the offline bake -> runtime read loop and its
-// determinism, before the loaders are moved out of src/ into the baker.
+// Standalone animation baker. It drives the legacy AnimCollection::Load()/
+// _PrepareAnim() importer directly (no runtime environment) and serializes the
+// prepared clips into a plain binary "simanim" artifact.
 
 #include <cstdint>
 #include <cstdlib>
@@ -28,8 +26,7 @@
 #include <string>
 #include <vector>
 
-#include "env/game_env.hpp"
-#include "env/main.hpp"
+#include <filesystem>
 #include "animation/animcollection.hpp"
 #include "animation/animation.hpp"
 #include "foundation/math/vector3.hpp"
@@ -85,19 +82,8 @@ std::string ReadString(std::istream& is) {
   return s;
 }
 
-std::shared_ptr<ScenarioConfig> MakeConfig() {
-  auto config = ScenarioConfig::make();
-  config->left_agents = 0;
-  config->right_agents = 0;
-  config->real_time = false;
-  config->deterministic = true;
-  config->game_engine_random_seed = 42;
-  return config;
-}
 
-std::vector<ClipRecord> BakeClips() {
-  const auto& anims = GetContext().anims;
-  const std::vector<Animation*>& animations = anims->GetAnimations();
+std::vector<ClipRecord> BakeClips(const std::vector<Animation*>& animations) {
 
   std::vector<ClipRecord> clips;
   clips.reserve(animations.size());
@@ -220,38 +206,43 @@ int Check(const std::string& path, const std::vector<ClipRecord>& baked) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  std::string input_dir;
   std::string out_path;
   std::string check_path;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
-    if (arg == "--out" && i + 1 < argc) {
+    if (arg == "--input" && i + 1 < argc) {
+      input_dir = argv[++i];
+    } else if (arg == "--out" && i + 1 < argc) {
       out_path = argv[++i];
     } else if (arg == "--check" && i + 1 < argc) {
       check_path = argv[++i];
     } else {
-      std::cerr << "usage: " << argv[0] << " [--out FILE] [--check FILE]\n";
+      std::cerr << "usage: " << argv[0] << " --input DIR [--out FILE] [--check FILE]\n";
       return 2;
     }
   }
 
+  if (input_dir.empty()) {
+    std::cerr << "anim_baker: --input DIR is required\n";
+    return 2;
+  }
   if (out_path.empty() && check_path.empty()) {
     std::cerr << "anim_baker: specify --out FILE and/or --check FILE\n";
     return 2;
   }
 
-  GameEnv env;
-  env.game_config.render = false;
-  env.start_game();
+  const std::filesystem::path data_dir = std::filesystem::absolute(input_dir);
+  AnimationSourcePaths paths{
+      (data_dir / "media/animations").string(),
+      (data_dir / "media/animations/templates").string(),
+      (data_dir / "media/objects/players/player.object").string(),
+  };
 
-  auto config = MakeConfig();
-  env.reset(*config, false);
+  AnimCollection anims;
+  anims.Load(paths);
 
-  if (!GetContext().anims) {
-    std::cerr << "anim_baker: no AnimCollection loaded after reset\n";
-    return 1;
-  }
-
-  const std::vector<ClipRecord> clips = BakeClips();
+  const std::vector<ClipRecord> clips = BakeClips(anims.GetAnimations());
 
   int status = 0;
   if (!out_path.empty()) status |= Export(out_path, clips);

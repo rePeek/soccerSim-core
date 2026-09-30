@@ -18,7 +18,6 @@
 #include "foundation/utils.hpp"
 #include <filesystem>
 
-#include "env/main.hpp"
 #include "foundation/file.h"
 #include "foundation/log.hpp"
 #include "foundation/math/quaternion.hpp"
@@ -39,7 +38,6 @@ s_treeentry::~s_treeentry() {
 
 s_tree *tree_load(std::string asefile) {
   DO_VALIDATION;
-  asefile = GetGameConfig().updatePath(asefile);
   const std::string &datafile = GetFile(asefile);
   const char *data = datafile.c_str();
   int len = datafile.size();

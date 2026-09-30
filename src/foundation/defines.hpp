@@ -91,4 +91,9 @@ enum e_Team {
   e_Right,
 };
 
+enum e_Side {
+  e_Side_Left,
+  e_Side_Right
+};
+
 #endif

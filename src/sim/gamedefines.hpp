@@ -69,10 +69,6 @@ const int temporalSmoother_history_ms = 20;
 
 class Player;
 
-enum e_Side {
-  e_Side_Left,
-  e_Side_Right
-};
 
 enum e_TouchType {
   e_TouchType_Intentional_Kicked, // goalies can't touch this

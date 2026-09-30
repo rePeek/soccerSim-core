@@ -14,7 +14,7 @@ data_dir=$2
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-GFOOTBALL_DATA_DIR="$data_dir" "$baker" --out "$tmp/a.simanim"
-GFOOTBALL_DATA_DIR="$data_dir" "$baker" --out "$tmp/b.simanim"
+"$baker" --input "$data_dir" --out "$tmp/a.simanim"
+"$baker" --input "$data_dir" --out "$tmp/b.simanim"
 cmp "$tmp/a.simanim" "$tmp/b.simanim"
-GFOOTBALL_DATA_DIR="$data_dir" "$baker" --check "$tmp/a.simanim"
+"$baker" --input "$data_dir" --check "$tmp/a.simanim"
