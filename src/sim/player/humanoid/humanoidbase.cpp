@@ -1249,6 +1249,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     previousAnim_functionType = currentAnim.functionType;
     currentAnim.anim = anims->GetAnim(selectedAnimID);
     currentAnim.id = selectedAnimID;
+    currentAnim.bakedId = selectedAnimID;
     currentAnim.functionType = command.desiredFunctionType;
     currentAnim.frameNum = 0;
     currentAnim.touchFrame = touchFrame_tmp;

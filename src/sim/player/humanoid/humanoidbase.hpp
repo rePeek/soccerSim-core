@@ -281,6 +281,7 @@ struct RotationSmuggle {
 struct Anim {
   Animation *anim = 0;
   signed int id = 0;
+  signed int bakedId = 0;  // stable AnimationId (B5b1 proved id == baked index)
   int frameNum = 0;
   e_FunctionType functionType = e_FunctionType_None;
   e_InterruptAnim originatingInterrupt = e_InterruptAnim_None;
