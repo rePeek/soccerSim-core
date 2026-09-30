@@ -55,12 +55,25 @@ std::vector<AnimationClip> BakeClips(const std::vector<Animation*>& animations) 
     clip.anim_type = static_cast<int32_t>(anim->GetAnimType());
 
     clip.root_positions.reserve(clip.frame_count);
-    Quaternion orientation;  // unused; root orientation is not baked yet
-    Vector3 position;
+    clip.poses.reserve(clip.frame_count);
     for (uint32_t frame = 0; frame < clip.frame_count; ++frame) {
+      // Root motion (player body part, z zeroed for 2D simulation).
+      Quaternion orientation;
+      Vector3 position;
       anim->GetKeyFrame(player, static_cast<int>(frame), orientation, position);
       position.coords[2] = 0.0f;
       clip.root_positions.push_back(position);
+
+      // Full per-joint pose.
+      PoseFrame pose;
+      for (size_t b = 0; b < kBodyPartCount; ++b) {
+        Quaternion o;
+        Vector3 p;
+        anim->GetKeyFrame(static_cast<BodyPart>(b), static_cast<int>(frame), o, p);
+        pose.orientations[b] = o;
+        pose.positions[b] = p;
+      }
+      clip.poses.push_back(std::move(pose));
     }
 
     clips.push_back(std::move(clip));

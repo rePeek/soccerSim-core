@@ -14,14 +14,28 @@
 #ifndef _HPP_ANIMATION_CLIP
 #define _HPP_ANIMATION_CLIP
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
 
 #include "animation/simanim_format.hpp"
+#include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
 
 using namespace blunted;
+
+// Number of animated body parts. Must match the legacy BodyPart::body_part_max
+// so that a baked pose can be compared index-for-index against
+// Animation::GetKeyFrame(BodyPart, ...).
+constexpr size_t kBodyPartCount = 14;
+
+// Per-frame joint pose, one entry per body part (indices follow the legacy
+// BodyPart enum order: middle..player).
+struct PoseFrame {
+  std::array<Quaternion, kBodyPartCount> orientations;
+  std::array<Vector3, kBodyPartCount> positions;
+};
 
 // Immutable runtime animation data. Baked ahead of time by anim_baker; the
 // simulation never parses source assets.
@@ -32,6 +46,9 @@ struct AnimationClip {
 
   // Root motion, one position per frame (z already zeroed).
   std::vector<Vector3> root_positions;
+
+  // Full per-frame joint pose.
+  std::vector<PoseFrame> poses;
 
   // Scalar metadata (typed-metadata migration lands in a later stage).
   float incoming_velocity = 0.0f;
@@ -50,6 +67,16 @@ struct AnimationClip {
       SimAnimWriteF32(os, p.coords[0]);
       SimAnimWriteF32(os, p.coords[1]);
       SimAnimWriteF32(os, p.coords[2]);
+    }
+    for (const PoseFrame& pose : poses) {
+      for (size_t b = 0; b < kBodyPartCount; ++b) {
+        for (int e = 0; e < 4; ++e) {
+          SimAnimWriteF32(os, pose.orientations[b].elements[e]);
+        }
+        SimAnimWriteF32(os, pose.positions[b].coords[0]);
+        SimAnimWriteF32(os, pose.positions[b].coords[1]);
+        SimAnimWriteF32(os, pose.positions[b].coords[2]);
+      }
     }
     SimAnimWriteF32(os, incoming_velocity);
     SimAnimWriteF32(os, outgoing_velocity);
@@ -73,6 +100,19 @@ struct AnimationClip {
       p.coords[1] = SimAnimReadF32(is);
       p.coords[2] = SimAnimReadF32(is);
       clip.root_positions.push_back(p);
+    }
+    clip.poses.reserve(clip.frame_count);
+    for (uint32_t f = 0; f < clip.frame_count; ++f) {
+      PoseFrame pose;
+      for (size_t b = 0; b < kBodyPartCount; ++b) {
+        for (int e = 0; e < 4; ++e) {
+          pose.orientations[b].elements[e] = SimAnimReadF32(is);
+        }
+        pose.positions[b].coords[0] = SimAnimReadF32(is);
+        pose.positions[b].coords[1] = SimAnimReadF32(is);
+        pose.positions[b].coords[2] = SimAnimReadF32(is);
+      }
+      clip.poses.push_back(std::move(pose));
     }
     clip.incoming_velocity = SimAnimReadF32(is);
     clip.outgoing_velocity = SimAnimReadF32(is);
