@@ -1,19 +1,8 @@
-// Copyright 2019 Google LLC & Bastiaan Konings
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+#ifndef FOOTBALL_CONTROLLER_GRF_ACTION_HPP
+#define FOOTBALL_CONTROLLER_GRF_ACTION_HPP
 
-#ifndef GFOOTBALL_ACTIONS_H
-#define GFOOTBALL_ACTIONS_H
-
+// Stable GRF external-action protocol. This is a controller input protocol,
+// not an environment or simulation concept.
 enum Action {
   game_idle = 0,
   game_left = 1,
@@ -50,4 +39,4 @@ enum Action {
   game_builtin_ai = 32
 };
 
-#endif
+#endif  // FOOTBALL_CONTROLLER_GRF_ACTION_HPP

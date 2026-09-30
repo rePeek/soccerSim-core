@@ -13,6 +13,10 @@
 
 #include "ai/ai_keyboard.hpp"
 
+#include <cstring>
+
+#include "env/defines.hpp"
+
 AIControlledKeyboard::AIControlledKeyboard(e_PlayerColor color) : playerColor(color) {
   Reset();
 }

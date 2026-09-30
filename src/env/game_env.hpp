@@ -17,7 +17,6 @@
 #include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/gamedefines.hpp"
-#include "env/gfootball_actions.h"
 #include "env/main.hpp"
 
 class AIControlledKeyboard;
@@ -46,7 +45,8 @@ struct GameEnv {
   // Get the current state of the game (observation).
   SharedInfo get_info();
 
-  // Executes the action inside the game.
+  // Legacy GRF compatibility entry points. Action semantics live in
+  // controller/grf; env only selects the owned controller and forwards.
   bool sticky_action_state(int action, bool left_team, int player);
   void action(int action, bool left_team, int player);
   void reset(const ScenarioConfig& game_config, bool init_animation);

@@ -16,6 +16,7 @@
 #include "support/diagnostics/backtrace.hpp"
 #include "support/diagnostics/log.hpp"
 #include "env/game_env.hpp"
+#include "controller/grf/grf_action_controller.hpp"
 
 #include <cerrno>
 #include <ctime>
@@ -122,148 +123,19 @@ SharedInfo GameEnv::get_info() {
 
 bool GameEnv::sticky_action_state(int action, bool left_team, int player) {
   SetGame(this);
-  int controller_id = player + (left_team ? 0 : 11);
-  auto controller =
+  const int controller_id = player + (left_team ? 0 : 11);
+  auto* controller =
       static_cast<AIControlledKeyboard*>(GetControllers()[controller_id]);
-  switch (Action(action)) {
-    case game_left:
-      return controller->GetOriginalDirection() == Vector3(-1, 0, 0);
-    case game_top_left:
-      return controller->GetOriginalDirection() == Vector3(-1, 1, 0);
-    case game_top:
-      return controller->GetOriginalDirection() == Vector3(0, 1, 0);
-    case game_top_right:
-      return controller->GetOriginalDirection() == Vector3(1, 1, 0);
-    case game_right:
-      return controller->GetOriginalDirection() == Vector3(1, 0, 0);
-    case game_bottom_right:
-      return controller->GetOriginalDirection() == Vector3(1, -1, 0);
-    case game_bottom:
-      return controller->GetOriginalDirection() == Vector3(0, -1, 0);
-    case game_bottom_left:
-      return controller->GetOriginalDirection() == Vector3(-1, -1, 0);
-    case game_keeper_rush:
-      return controller->GetButton(e_ButtonFunction_KeeperRush);
-    case game_pressure:
-      return controller->GetButton(e_ButtonFunction_Pressure);
-    case game_team_pressure:
-      return controller->GetButton(e_ButtonFunction_TeamPressure);
-    case game_sprint:
-      return controller->GetButton(e_ButtonFunction_Sprint);
-    case game_dribble:
-      return controller->GetButton(e_ButtonFunction_Dribble);
-    default:
-      Log(e_FatalError, "football", "main", "invalid sticky action");
-  }
-  return false;
+  return GrfActionController::IsStickyActionActive(
+      static_cast<Action>(action), *controller);
 }
 
 void GameEnv::action(int action, bool left_team, int player) {
   SetGame(this);
-  int controller_id = player + (left_team ? 0 : 11);
-  auto controller = static_cast<AIControlledKeyboard*>(GetControllers()[controller_id]);
-  controller->SetDisabled(false);
-  switch (Action(action)) {
-    case game_idle:
-      break;
-    case game_left:
-      controller->SetDirection(Vector3(-1, 0, 0));
-      break;
-    case game_top_left:
-      controller->SetDirection(Vector3(-1, 1, 0));
-      break;
-    case game_top:
-      controller->SetDirection(Vector3(0, 1, 0));
-      break;
-    case game_top_right:
-      controller->SetDirection(Vector3(1, 1, 0));
-      break;
-    case game_right:
-      controller->SetDirection(Vector3(1, 0, 0));
-      break;
-    case game_bottom_right:
-      controller->SetDirection(Vector3(1, -1, 0));
-      break;
-    case game_bottom:
-      controller->SetDirection(Vector3(0, -1, 0));
-      break;
-    case game_bottom_left:
-      controller->SetDirection(Vector3(-1, -1, 0));
-      break;
-
-    case game_long_pass:
-      controller->SetButton(e_ButtonFunction_LongPass, true);
-      break;
-    case game_high_pass:
-      controller->SetButton(e_ButtonFunction_HighPass, true);
-      break;
-    case game_short_pass:
-      controller->SetButton(e_ButtonFunction_ShortPass, true);
-      break;
-    case game_shot:
-      controller->SetButton(e_ButtonFunction_Shot, true);
-      break;
-    case game_keeper_rush:
-      controller->SetButton(e_ButtonFunction_KeeperRush, true);
-      break;
-    case game_sliding:
-      controller->SetButton(e_ButtonFunction_Sliding, true);
-      break;
-    case game_pressure:
-      controller->SetButton(e_ButtonFunction_Pressure, true);
-      break;
-    case game_team_pressure:
-      controller->SetButton(e_ButtonFunction_TeamPressure, true);
-      break;
-    case game_switch:
-      controller->SetButton(e_ButtonFunction_Switch, true);
-      break;
-    case game_sprint:
-      controller->SetButton(e_ButtonFunction_Sprint, true);
-      break;
-    case game_dribble:
-      controller->SetButton(e_ButtonFunction_Dribble, true);
-      break;
-    case game_release_direction:
-      controller->SetDirection(Vector3(0, 0, 0));
-      break;
-    case game_release_long_pass:
-      controller->SetButton(e_ButtonFunction_LongPass, false);
-      break;
-    case game_release_high_pass:
-      controller->SetButton(e_ButtonFunction_HighPass, false);
-      break;
-    case game_release_short_pass:
-      controller->SetButton(e_ButtonFunction_ShortPass, false);
-      break;
-    case game_release_shot:
-      controller->SetButton(e_ButtonFunction_Shot, false);
-      break;
-    case game_release_keeper_rush:
-      controller->SetButton(e_ButtonFunction_KeeperRush, false);
-      break;
-    case game_release_sliding:
-      controller->SetButton(e_ButtonFunction_Sliding, false);
-      break;
-    case game_release_pressure:
-      controller->SetButton(e_ButtonFunction_Pressure, false);
-      break;
-    case game_release_team_pressure:
-      controller->SetButton(e_ButtonFunction_TeamPressure, false);
-      break;
-    case game_release_switch:
-      controller->SetButton(e_ButtonFunction_Switch, false);
-      break;
-    case game_release_sprint:
-      controller->SetButton(e_ButtonFunction_Sprint, false);
-      break;
-    case game_release_dribble:
-      controller->SetButton(e_ButtonFunction_Dribble, false);
-      break;
-    case game_builtin_ai:
-      controller->SetDisabled(true);
-      break;
-  }
+  const int controller_id = player + (left_team ? 0 : 11);
+  auto* controller =
+      static_cast<AIControlledKeyboard*>(GetControllers()[controller_id]);
+  GrfActionController::Apply(static_cast<Action>(action), *controller);
 }
 
 std::string GameEnv::get_state(const std::string& pickle) {

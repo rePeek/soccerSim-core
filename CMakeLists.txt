@@ -20,6 +20,7 @@ endfunction()
 # add_subdirectory(path/to/src/foundation).
 add_subdirectory(src/foundation)
 add_subdirectory(src/support)
+add_subdirectory(src/controller)
 
 # --- object libraries: one translation unit at a time -----------------------
 # Runtime animation. Depends on the bottom layer only.
@@ -38,9 +39,13 @@ target_include_directories(football_legacy_anim PUBLIC
 # The layering below spells out the source DAG in build order:
 #
 #   foundation <- support <- data <- sim <- engine
+#         ^                    ^
+#         └──── controller ────┘
 #
 # Runtime animation depends directly on foundation only; source importers
-# use support for XML, files, text, and configuration.
+# use support for XML, files, text, and configuration. Controller is an
+# independent input-protocol module; sim consumes only its abstract input
+# surface, while env composes the concrete legacy adapter and GRF protocol.
 # Declaring the edges here keeps archive order correct instead of relying on
 # a hand-maintained link line.
 
@@ -52,16 +57,17 @@ add_library(football_data STATIC ${DATA_SOURCES} ${DATA_HEADERS})
 target_link_libraries(football_data PUBLIC football_animation football_support)
 
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
-target_link_libraries(football_sim PUBLIC football_data)
+target_link_libraries(football_sim PUBLIC football_data football_controller)
 
 # --- engine object layer + the shared library -------------------------------
 add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
   src/env/game_env.cpp src/env/game_env.hpp
   src/ai/ai_keyboard.cpp src/ai/ai_keyboard.hpp)
+target_link_libraries(football_engine PRIVATE football_controller)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
-target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE football_sim)
+target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE football_sim football_controller)
 
 foreach(tgt IN ITEMS
     football_animation_objects football_legacy_anim
@@ -123,3 +129,7 @@ add_test(NAME foundation_boundary_guard
 add_test(NAME legacy_validation_guard
   COMMAND ${CMAKE_SOURCE_DIR}/tools/legacy_validation_guard.sh
     ${CMAKE_SOURCE_DIR})
+
+add_test(NAME controller_boundary_guard
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/controller_boundary_guard.sh
+    ${CMAKE_SOURCE_DIR}/src)

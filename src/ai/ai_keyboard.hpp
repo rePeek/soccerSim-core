@@ -14,42 +14,26 @@
 #ifndef _AI_KEYBOARD
 #define _AI_KEYBOARD
 
-#include "foundation/math/vector3.hpp"
-#include "env/defines.hpp"
-#include "ai/ihidevice.hpp"
-#include <set>
+#include "controller/external_controller.hpp"
+#include "model/football_types.hpp"
 
+class EnvState;
 
-enum e_ButtonFunction {
-  e_ButtonFunction_LongPass,
-  e_ButtonFunction_HighPass,
-  e_ButtonFunction_ShortPass,
-  e_ButtonFunction_Shot,
-  e_ButtonFunction_KeeperRush,
-  e_ButtonFunction_Sliding,
-  e_ButtonFunction_Pressure,
-  e_ButtonFunction_TeamPressure,
-  e_ButtonFunction_Switch,
-  e_ButtonFunction_Sprint,
-  e_ButtonFunction_Dribble,
-  e_ButtonFunction_Size
-};
-
-class AIControlledKeyboard {
+class AIControlledKeyboard : public ExternalController {
 
   public:
     AIControlledKeyboard(e_PlayerColor color);
-    bool GetButton(e_ButtonFunction buttonFunction);
+    bool GetButton(e_ButtonFunction buttonFunction) override;
     void ResetNotSticky();
-    void SetButton(e_ButtonFunction buttonFunction, bool state);
+    void SetButton(e_ButtonFunction buttonFunction, bool state) override;
     bool GetPreviousButtonState(e_ButtonFunction buttonFunction);
     blunted::Vector3 GetDirection();
-    blunted::Vector3 GetOriginalDirection();
+    blunted::Vector3 GetOriginalDirection() override;
 
     // Methods for remote controlling.
-    void SetDirection(const blunted::Vector3& new_direction);
+    void SetDirection(const blunted::Vector3& new_direction) override;
     bool Disabled() { return disabled_;}
-    void SetDisabled(bool disabled);
+    void SetDisabled(bool disabled) override;
     void Reset();
     void ProcessState(EnvState* state);
     void Mirror(float mirror);
