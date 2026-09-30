@@ -18,3 +18,4 @@ trap 'rm -rf "$tmp"' EXIT
 "$baker" --input "$data_dir" --out "$tmp/b.simanim"
 cmp "$tmp/a.simanim" "$tmp/b.simanim"
 "$baker" --input "$data_dir" --check "$tmp/a.simanim"
+"$baker" --input "$data_dir" --verify "$tmp/a.simanim"

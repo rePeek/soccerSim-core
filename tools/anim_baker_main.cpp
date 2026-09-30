@@ -154,12 +154,110 @@ int Check(const std::string& path, const std::vector<AnimationClip>& baked) {
   return 0;
 }
 
+int Verify(const std::vector<Animation*>& legacy,
+          const AnimationLibrary& library) {
+  if (legacy.size() != library.Size()) {
+    std::cerr << "anim_baker: VERIFY FAILED: clip count " << legacy.size()
+              << " vs " << library.Size() << "\n";
+    return 1;
+  }
+
+  size_t mismatches = 0;
+  for (size_t i = 0; i < legacy.size(); ++i) {
+    Animation* anim = legacy[i];
+    const AnimationClip& clip = library.Clips()[i];
+
+    if (anim->GetName() != clip.name) {
+      std::cerr << "VERIFY clip " << i << ": name mismatch\n";
+      ++mismatches;
+    }
+    if (static_cast<uint32_t>(anim->GetFrameCount()) != clip.frame_count) {
+      std::cerr << "VERIFY clip " << i << ": frame count mismatch\n";
+      ++mismatches;
+      continue;
+    }
+
+    for (uint32_t f = 0; f < clip.frame_count; ++f) {
+      Quaternion o;
+      Vector3 p;
+      anim->GetKeyFrame(player, static_cast<int>(f), o, p);
+      p.coords[2] = 0.0f;
+      for (int c = 0; c < 3; ++c) {
+        if (p.coords[c] != clip.root_positions[f].coords[c]) {
+          std::cerr << "VERIFY clip " << i << " frame " << f
+                    << ": root mismatch\n";
+          ++mismatches;
+          break;
+        }
+      }
+      for (size_t b = 0; b < kBodyPartCount; ++b) {
+        anim->GetKeyFrame(static_cast<BodyPart>(b), static_cast<int>(f), o, p);
+        for (int e = 0; e < 4; ++e) {
+          if (o.elements[e] != clip.poses[f].orientations[b].elements[e]) {
+            std::cerr << "VERIFY clip " << i << " frame " << f
+                      << " body " << b << ": orientation mismatch\n";
+            ++mismatches;
+          }
+        }
+        for (int c = 0; c < 3; ++c) {
+          if (p.coords[c] != clip.poses[f].positions[b].coords[c]) {
+            std::cerr << "VERIFY clip " << i << " frame " << f
+                      << " body " << b << ": position mismatch\n";
+            ++mismatches;
+          }
+        }
+      }
+    }
+
+    const FootballAnimationMetadata& m = clip.metadata;
+    if (m.action_type != static_cast<int32_t>(anim->GetAnimType()) ||
+        m.incoming_velocity != anim->GetIncomingVelocity() ||
+        m.outgoing_velocity != anim->GetOutgoingVelocity() ||
+        m.incoming_body_angle != anim->GetIncomingBodyAngle() ||
+        m.outgoing_body_angle != anim->GetOutgoingBodyAngle() ||
+        m.difficulty !=
+            static_cast<float>(
+                std::atof(anim->GetVariable("animdifficultyfactor").c_str())) ||
+        m.touch_frame != std::atoi(anim->GetVariable("touchframe").c_str()) ||
+        m.quadrant != anim->GetVariableCache().quadrant_id() ||
+        m.last_ditch != anim->GetVariableCache().lastditch() ||
+        m.base_animation != anim->GetVariableCache().baseanim() ||
+        m.idle_level != anim->GetVariableCache().idlelevel() ||
+        m.special_var1 != anim->GetVariableCache().specialvar1() ||
+        m.special_var2 != anim->GetVariableCache().specialvar2()) {
+      std::cerr << "VERIFY clip " << i << ": metadata mismatch\n";
+      ++mismatches;
+    }
+
+    Vector3 cp;
+    const bool has = std::static_pointer_cast<FootballAnimationExtension>(
+                         anim->GetExtension("football"))
+                         ->GetTouchPos(m.touch_frame, cp);
+    if (has != clip.has_contact ||
+        (has && (cp.coords[0] != clip.contact_position.coords[0] ||
+                 cp.coords[1] != clip.contact_position.coords[1] ||
+                 cp.coords[2] != clip.contact_position.coords[2]))) {
+      std::cerr << "VERIFY clip " << i << ": contact mismatch\n";
+      ++mismatches;
+    }
+  }
+
+  if (mismatches) {
+    std::cerr << "anim_baker: VERIFY FAILED (" << mismatches << " mismatches)\n";
+    return 1;
+  }
+  std::cout << "anim_baker: VERIFY PASSED (" << legacy.size()
+            << " clips, all fields equivalent)\n";
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
   std::string input_dir;
   std::string out_path;
   std::string check_path;
+  std::string verify_path;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--input" && i + 1 < argc) {
@@ -168,8 +266,11 @@ int main(int argc, char** argv) {
       out_path = argv[++i];
     } else if (arg == "--check" && i + 1 < argc) {
       check_path = argv[++i];
+    } else if (arg == "--verify" && i + 1 < argc) {
+      verify_path = argv[++i];
     } else {
-      std::cerr << "usage: " << argv[0] << " --input DIR [--out FILE] [--check FILE]\n";
+      std::cerr << "usage: " << argv[0]
+                << " --input DIR [--out FILE] [--check FILE] [--verify FILE]\n";
       return 2;
     }
   }
@@ -178,8 +279,8 @@ int main(int argc, char** argv) {
     std::cerr << "anim_baker: --input DIR is required\n";
     return 2;
   }
-  if (out_path.empty() && check_path.empty()) {
-    std::cerr << "anim_baker: specify --out FILE and/or --check FILE\n";
+  if (out_path.empty() && check_path.empty() && verify_path.empty()) {
+    std::cerr << "anim_baker: specify --out, --check and/or --verify\n";
     return 2;
   }
 
@@ -198,5 +299,10 @@ int main(int argc, char** argv) {
   int status = 0;
   if (!out_path.empty()) status |= Export(out_path, clips);
   if (!check_path.empty()) status |= Check(check_path, clips);
+  if (!verify_path.empty()) {
+    AnimationLibrary library;
+    if (!library.Load(verify_path)) return 1;
+    status |= Verify(anims.GetAnimations(), library);
+  }
   return status;
 }
