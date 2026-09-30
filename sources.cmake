@@ -21,9 +21,6 @@ set(BASE_HEADERS
 
 
 set(BASE_GEOMETRY_HEADERS
-   src/foundation/geometry/aabb.hpp
-   src/foundation/geometry/trianglemeshutils.hpp
-   src/foundation/geometry/plane.hpp
    src/foundation/geometry/triangle.hpp
    src/foundation/geometry/line.hpp
 )
@@ -47,9 +44,6 @@ set(BASE_SOURCES
    src/foundation/misc/hungarian.cpp
    src/foundation/geometry/triangle.cpp
    src/foundation/geometry/line.cpp
-   src/foundation/geometry/trianglemeshutils.cpp
-   src/foundation/geometry/aabb.cpp
-   src/foundation/geometry/plane.cpp
    src/foundation/math/vector3.cpp
    src/foundation/math/matrix3.cpp
    src/foundation/math/bluntmath.cpp
@@ -59,16 +53,6 @@ set(BASE_SOURCES
 )
 
 
-set(TYPES_HEADERS
-   src/foundation/types/refcounted.hpp
-   src/foundation/types/command.hpp
-)
-
-
-set(TYPES_SOURCES
-   src/foundation/types/refcounted.cpp
-   src/foundation/types/command.cpp
-)
 
 
 set(UTILS_HEADERS

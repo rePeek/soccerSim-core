@@ -27,40 +27,6 @@ namespace blunted {
   class Vector3;
   class Quaternion;
 
-  // generic tree structure
-  struct s_tree;
-
-  struct s_treeentry {
-    std::string name;
-    std::vector <std::string> values;
-
-    s_tree *subtree;
-
-    s_treeentry() { DO_VALIDATION;
-      subtree = NULL;
-    }
-
-    ~s_treeentry();
-  };
-
-  struct s_tree {
-    std::vector <s_treeentry*> entries;
-
-    ~s_tree() { DO_VALIDATION;
-      for (int i = 0; i < (signed int)entries.size(); i++) { DO_VALIDATION;
-        delete entries[i];
-      }
-      entries.clear();
-    }
-  };
-
-  // ----- load .ase file into a tree
-  s_tree *tree_load(std::string asefile);
-  s_tree *tree_readblock(const char*& datafile, int& len);
-
-  // tree structure utility functions
-  const s_treeentry *treeentry_find(const s_tree *tree, const std::string needle);
-  const s_tree *tree_find(const s_tree *tree, const std::string needle);
 
   // string functions
   std::string stringchomp(std::string input, char chomp);

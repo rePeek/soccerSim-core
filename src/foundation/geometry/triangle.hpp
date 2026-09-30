@@ -21,7 +21,7 @@
 #include "foundation/defines.hpp"
 
 #include "foundation/math/vector3.hpp"
-#include "foundation/geometry/aabb.hpp"
+#include "foundation/geometry/line.hpp"
 
 namespace blunted {
 

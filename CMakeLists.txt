@@ -19,7 +19,6 @@ endfunction()
 # --- object libraries: one translation unit at a time -----------------------
 add_library(football_base OBJECT
   ${BASE_SOURCES} ${BASE_HEADERS} ${BASE_GEOMETRY_HEADERS} ${BASE_MATH_HEADERS})
-add_library(football_types OBJECT ${TYPES_SOURCES} ${TYPES_HEADERS})
 add_library(football_utils OBJECT
   ${UTILS_SOURCES} ${UTILS_HEADERS})
 add_library(football_legacy_anim OBJECT ${LEGACY_ANIM_SOURCES})
@@ -27,13 +26,10 @@ target_include_directories(football_legacy_anim PUBLIC
   ${PROJECT_SOURCE_DIR}/tools/animBaker)
 
 # --- static libraries -------------------------------------------------------
-# football_foundation bundles base/types/utils behind one archive boundary,
-# mirroring the historical blunted2 aggregation without changing which
-# translation units land in the final shared library.
+# football_foundation bundles the generic base and runtime-animation objects.
 add_library(football_foundation STATIC
   ${BLUNTED_CORE_SOURCES} ${BLUNTED_CORE_HEADERS}
   $<TARGET_OBJECTS:football_base>
-  $<TARGET_OBJECTS:football_types>
   $<TARGET_OBJECTS:football_utils>)
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
 add_library(football_data STATIC ${DATA_SOURCES} ${DATA_HEADERS})
@@ -52,7 +48,7 @@ target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE
   football_sim football_data football_foundation)
 
 foreach(tgt IN ITEMS
-    football_base football_types football_utils football_legacy_anim
+    football_base football_utils football_legacy_anim
     football_foundation football_sim football_data
     football_engine ${OUTPUT_LIB_NAME})
   football_configure_target(${tgt})

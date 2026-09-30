@@ -28,7 +28,6 @@
 #include "sim/ai_support/mentalimage.hpp"
 #include "animation/types.hpp"
 
-#include "foundation/types/command.hpp"
 
 
 #include <fstream>
