@@ -156,6 +156,14 @@ struct Quadrant {
 // Body-part names -> imported transform. See import_hierarchy.hpp.
 void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap);
 
+// Resolved source-asset locations. Passed explicitly so the loader does not
+// depend on the runtime global GameConfig.
+struct AnimationSourcePaths {
+  std::string animation_dir;
+  std::string template_dir;
+  std::string player_object;
+};
+
 class AnimCollection {
 
   public:
@@ -164,7 +172,7 @@ class AnimCollection {
     virtual ~AnimCollection();
 
     void Clear();
-    void Load();
+    void Load(const AnimationSourcePaths& paths);
 
     const std::vector < Animation* > &GetAnimations() const;
 

@@ -67,7 +67,10 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   if (!anims) {
     DO_VALIDATION;
     anims = std::shared_ptr<AnimCollection>(new AnimCollection());
-    anims->Load();
+    anims->Load(AnimationSourcePaths{
+        GetGameConfig().updatePath("media/animations"),
+        GetGameConfig().updatePath("media/animations/templates"),
+        GetGameConfig().updatePath("media/objects/players/player.object")});
     // cache animation positions
 
     const std::vector < Animation* > &animationsTmp = anims->GetAnimations();

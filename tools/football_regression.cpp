@@ -3839,8 +3839,8 @@ void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
 //      cache would go stale and the import would silently change.
 void CheckImportHierarchy() {
   ImportLoader loader;
-  ImportHierarchy hierarchy =
-      loader.LoadObject("media/objects/players/player.object");
+  ImportHierarchy hierarchy = loader.LoadObject(
+      GetGameConfig().updatePath("media/objects/players/player.object"));
   ImportNode* root = hierarchy.root.get();
   Require(root != nullptr, "import: the loader returned no root node");
 

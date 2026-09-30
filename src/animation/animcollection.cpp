@@ -366,13 +366,13 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
   }
 }
 
-void AnimCollection::Load() {
+void AnimCollection::Load(const AnimationSourcePaths& paths) {
   DO_VALIDATION;
   // load utility player to get things like foot position in the frames around the balltouch etc.
 
   ImportLoader loader;
   ImportHierarchy hierarchy =
-      loader.LoadObject("media/objects/players/player.object");
+      loader.LoadObject(paths.player_object);
   hierarchy.root->SetName("player");
   hierarchy.root->SetLocalMode(e_LocalMode_Absolute);
 
@@ -393,7 +393,7 @@ void AnimCollection::Load() {
   // auto generated anims
 
   std::vector<std::string> files;
-  GetFiles("media/animations/templates", "anim", files);
+  GetFiles(paths.template_dir, "anim", files);
   sort(files.begin(), files.end());
 
   std::vector<Animation*> templates;
@@ -431,7 +431,7 @@ void AnimCollection::Load() {
   // load all other animations
 
   files.clear();
-  GetFiles("media/animations", "anim", files);
+  GetFiles(paths.animation_dir, "anim", files);
   sort(files.begin(), files.end());
 
   bool omitLuxuryAnims = true;
