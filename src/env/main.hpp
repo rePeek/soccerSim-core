@@ -38,6 +38,7 @@ void DoValidation(int line, const char* file);
 #include "env/gametask.hpp"
 #include "env/match_setup.hpp"
 #include "ai/ihidevice.hpp"
+#include "animation/library.hpp"
 
 #include "foundation/properties.hpp"
 #include <random>
@@ -264,6 +265,7 @@ class GameContext {
   int stablePlayerCount = 0;
   BiasedOffsets emptyOffsets;
   std::shared_ptr<AnimCollection> anims;
+  std::shared_ptr<AnimationLibrary> bakedAnims;
   std::map<Animation*, std::vector<Vector3>> animPositionCache;
   int step = 0;
   int tracker_disabled = 1;

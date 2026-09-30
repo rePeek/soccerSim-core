@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/match.hpp"
+#include "animation/library.hpp"
 
 #include "foundation/geometry/line.hpp"
 #include <algorithm>
@@ -71,6 +72,19 @@ Match::Match(std::unique_ptr<MatchData> match_data,
         GetGameConfig().updatePath("media/animations"),
         GetGameConfig().updatePath("media/animations/templates"),
         GetGameConfig().updatePath("media/objects/players/player.object")});
+
+    // B5b1: load the baked library alongside the legacy one and verify the
+    // index -> AnimationId mapping is stable. No execution path switches yet.
+    auto& baked = GetContext().bakedAnims;
+    if (!baked) {
+      baked = std::make_shared<AnimationLibrary>();
+      assert(baked->Load(GFOOTBALL_BAKED_ANIM_PATH));
+      assert(anims->GetAnimations().size() == baked->Size());
+      for (uint32_t id = 0; id < baked->Size(); ++id) {
+        assert(anims->GetAnim(static_cast<int>(id))->GetName() ==
+               baked->Get(id).name);
+      }
+    }
     // cache animation positions
 
     const std::vector < Animation* > &animationsTmp = anims->GetAnimations();

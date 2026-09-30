@@ -12,6 +12,8 @@ function(football_configure_target tgt)
   target_include_directories(${tgt} PUBLIC
     ${PROJECT_SOURCE_DIR}/src)
   target_compile_features(${tgt} PUBLIC cxx_std_23)
+  target_compile_definitions(${tgt} PUBLIC
+    GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")
 endfunction()
 
 # --- object libraries: one translation unit at a time -----------------------
