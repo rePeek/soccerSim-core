@@ -25,6 +25,7 @@
 #include "foundation/file.h"
 #include "env/main.hpp"
 #include "env/game_env.hpp"
+#include "env/rng.hpp"
 
 using std::string;
 

@@ -28,6 +28,7 @@
 
 
 #include "foundation/geometry/triangle.hpp"
+#include "env/rng.hpp"
 
 namespace {
 

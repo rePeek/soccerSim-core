@@ -23,6 +23,7 @@
 #include "foundation/xml_loader.hpp"
 
 #include "env/main.hpp"
+#include "env/rng.hpp"
 
 PlayerStat PlayerStatFromString(const std::string& name) {
   DO_VALIDATION;

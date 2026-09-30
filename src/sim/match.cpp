@@ -26,6 +26,7 @@
 #include "foundation/log.hpp"
 #include "env/game_env.hpp"
 #include "env/main.hpp"
+#include "env/rng.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "foundation/file.h"
 #include "sim/player/playerofficial.hpp"

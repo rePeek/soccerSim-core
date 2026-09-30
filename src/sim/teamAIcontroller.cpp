@@ -28,6 +28,7 @@
 #include "foundation/misc/hungarian.h"
 
 #include "env/main.hpp"
+#include "env/rng.hpp"
 
 namespace {
 

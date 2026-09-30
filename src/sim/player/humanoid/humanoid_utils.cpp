@@ -19,6 +19,7 @@
 #include <cmath>
 
 #include "env/main.hpp"
+#include "env/rng.hpp"
 
 #include "sim/match.hpp"
 

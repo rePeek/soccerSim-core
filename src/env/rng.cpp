@@ -15,36 +15,32 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "foundation/math/bluntmath.hpp"
+#include "env/rng.hpp"
 
 #include "env/main.hpp"
 
 namespace blunted {
 
+  // Accessors, not algorithm: the draw math lives in foundation/math/rng.hpp.
+  // These exist only because simulation code reaches the context RNG through
+  // a global today.
   void randomseed(unsigned int seed) {
     DO_VALIDATION;
-    GetContext().rng.engine().seed(seed);
-    GetContext().rng_non_deterministic.engine().seed(seed);
-  }
-
-  inline real boostrandom() {
-    DO_VALIDATION;
-    GetContext().rng_draw_count++;
-    return GetContext().rng();
+    GetContext().rng.Seed(seed);
+    GetContext().rng_non_deterministic.Seed(seed);
   }
 
   real boostrandom(real min, real max) {
     DO_VALIDATION;
-    float stretch = max - min;
-    real value = min + (boostrandom() * stretch);
-    return value;
+    // Diagnostic counter: presentation code drawing from the deterministic
+    // RNG shows up here.
+    GetContext().rng_draw_count++;
+    return GetContext().rng.Uniform(min, max);
   }
 
   real random_non_determ(real min, real max) {
     DO_VALIDATION;
-    float stretch = max - min;
-    real value = min + (GetContext().rng_non_deterministic() * stretch);
-    return value;
+    return GetContext().rng_non_deterministic.Uniform(min, max);
   }
 
 }

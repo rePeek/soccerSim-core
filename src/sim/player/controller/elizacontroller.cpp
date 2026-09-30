@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "env/main.hpp"
+#include "env/rng.hpp"
 
 #include "foundation/geometry/line.hpp"
 #include "sim/player/controller/elizacontroller.hpp"

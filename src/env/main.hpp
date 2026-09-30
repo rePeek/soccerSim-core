@@ -37,11 +37,12 @@ void DoValidation(int line, const char* file);
 
 #include "env/gametask.hpp"
 #include "env/match_setup.hpp"
+#include "env/rng.hpp"
 #include "ai/ihidevice.hpp"
 #include "animation/library.hpp"
 
+#include "foundation/math/rng.hpp"
 #include "foundation/properties.hpp"
-#include <random>
 #include <memory>
 #include <condition_variable>
 #include <mutex>
@@ -231,25 +232,8 @@ class GameContext {
 
   std::vector<AIControlledKeyboard*> controllers;
 
-  typedef std::mt19937 BaseGenerator;
-  typedef std::uniform_real_distribution<float> Distribution;
-
-  // Callable replacing boost::variate_generator: operator() draws a float
-  // in [0, 1), engine() exposes the raw generator for seeding and state
-  // streaming. std::mt19937 + std::uniform_real_distribution<float> are
-  // bit-identical to the boost equivalents for equal seeds (verified over
-  // 10M raw draws).
-  class Generator {
-   public:
-    Generator() : engine_(), distribution_(0.0f, 1.0f) {}
-    float operator()() { return distribution_(engine_); }
-    BaseGenerator &engine() { return engine_; }
-
-   private:
-    BaseGenerator engine_;
-    Distribution distribution_;
-  };
-  Generator rng;
+  // Simulation RNG. Its state is checkpointed, so draw order is observable.
+  SimulationRng rng;
 
   // Diagnostic counter: how many times the deterministic simulation RNG has
   // been drawn. Presentation code drawing from it shows up here.
@@ -259,7 +243,7 @@ class GameContext {
   // in deterministic mode) to be used in places which generate deterministic
   // game state. Second one is used in places which are optional and don't
   // affect observations (like position of the sun).
-  Generator rng_non_deterministic;
+  PresentationRng rng_non_deterministic;
   bool already_loaded = false;
   int playerCount = 0;
   int stablePlayerCount = 0;

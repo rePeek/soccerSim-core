@@ -31,6 +31,7 @@
 #include "sim/match.hpp"
 
 #include "env/main.hpp"
+#include "env/rng.hpp"
 
 #include "sim/ai_support/AIfunctions.hpp"
 

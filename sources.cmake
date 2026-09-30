@@ -32,6 +32,7 @@ set(BASE_MATH_HEADERS
    src/foundation/math/matrix4.hpp
    src/foundation/math/vector3.hpp
    src/foundation/math/bluntmath.hpp
+   src/foundation/math/rng.hpp
 )
 
 
@@ -96,6 +97,7 @@ set(CORE_HEADERS
    src/env/main.hpp
    src/env/gametask.hpp
    src/env/match_setup.hpp
+   src/env/rng.hpp
 )
 
 
