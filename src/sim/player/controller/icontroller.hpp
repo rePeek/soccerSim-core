@@ -20,7 +20,7 @@
 
 #include "sim/player/humanoid/humanoid.hpp"
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 class Match;
 class PlayerBase;

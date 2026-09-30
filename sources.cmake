@@ -12,6 +12,7 @@
 # limitations under the License.
 
 set(BASE_HEADERS
+   src/foundation/defines.hpp
    src/foundation/log.hpp
    src/foundation/utils.hpp
    src/foundation/properties.hpp
@@ -96,7 +97,7 @@ set(BLUNTED_CORE_SOURCES
 set(CORE_HEADERS
    src/foundation/backtrace.h
    src/foundation/file.h
-   src/env/gamedefines.hpp
+   src/sim/gamedefines.hpp
    src/sim/utils.hpp
    src/env/main.hpp
    src/env/gametask.hpp
@@ -112,7 +113,7 @@ set(CORE_SOURCES
    src/env/gametask.cpp
    src/sim/utils.cpp
    src/env/main.cpp
-   src/env/gamedefines.cpp
+   src/sim/gamedefines.cpp
    src/env/defines.cpp
 )
 

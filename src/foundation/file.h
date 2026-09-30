@@ -14,7 +14,7 @@
 #ifndef _CMAKE_FILE_H_
 #define _CMAKE_FILE_H_
 
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
 
 #include "foundation/log.hpp"
 #include <filesystem>

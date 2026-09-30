@@ -23,7 +23,7 @@
 #include "sim/player/controller/strategies/offtheball/default_mid.hpp"
 #include "sim/player/controller/strategies/offtheball/default_off.hpp"
 #include "sim/player/controller/strategies/offtheball/goalie_default.hpp"
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 struct Prerequisites;
 class Strategy;

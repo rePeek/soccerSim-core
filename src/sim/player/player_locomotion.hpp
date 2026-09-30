@@ -10,7 +10,7 @@
 
 #include <cmath>
 
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
 #include "sim/player/player_kinematics.hpp"
 
 // This header is used from its own translation unit as well, so it cannot rely

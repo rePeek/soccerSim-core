@@ -18,7 +18,7 @@
 #ifndef _HPP_HUMANOID_UTILS
 #define _HPP_HUMANOID_UTILS
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 #include "sim/ball.hpp"
 

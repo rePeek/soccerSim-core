@@ -18,10 +18,10 @@
 #ifndef _HPP_TEAMDATA
 #define _HPP_TEAMDATA
 
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
 #include "foundation/properties.hpp"
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 #include "data/playerdata.hpp"
 
 struct TeamTactics {

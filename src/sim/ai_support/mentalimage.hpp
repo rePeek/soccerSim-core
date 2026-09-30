@@ -22,7 +22,7 @@
 
 #include "foundation/math/vector3.hpp"
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 using namespace blunted;
 

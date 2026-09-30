@@ -18,7 +18,7 @@
 #ifndef _HPP_HUMANOID
 #define _HPP_HUMANOID
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 #include "sim/player/humanoid/humanoidbase.hpp"
 

@@ -24,7 +24,7 @@
 #include "animation/import_hierarchy.hpp"
 #include "animation/import_loader.hpp"
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 using namespace blunted;
 

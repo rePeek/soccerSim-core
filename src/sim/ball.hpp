@@ -21,7 +21,7 @@
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
 #include "env/defines.hpp"
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 #include "sim/utils.hpp"
 
 using namespace blunted;

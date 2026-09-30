@@ -18,7 +18,7 @@
 #ifndef _HPP_UTILS_XMLLOADER
 #define _HPP_UTILS_XMLLOADER
 
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
 
 namespace blunted {
 

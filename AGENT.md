@@ -33,6 +33,14 @@ only for terminology/intent; it is not the roadmap for this branch.
 Do not create `src/core/` or `src/legacy/` directories here (those belong to the
 frozen `main` branch).
 
+## Working rules
+
+- **Structural changes must update AGENT.md.** Any commit that moves, renames, adds,
+  or removes files/directories under `src/` (or changes build targets) must keep the
+  "Source layout" tree and path references in this file in sync.
+- **Commit locally, never push.** After finishing a change, stage it and commit it
+  locally. Do **not** `git push` — remote pushes are done by the maintainer.
+
 ## Build, run, test
 
 Toolchain: CMake >= 3.24, Ninja, a C++23 compiler. The `flake.nix` dev shell provides
@@ -84,6 +92,7 @@ src/
 ├── foundation/     通用基础：数学/几何/日志/工具（原 blunted base）
 │   ├── math/           vector3, matrix3/4, quaternion, bluntmath
 │   ├── geometry/       aabb, line, plane, triangle, trianglemeshutils
+│   ├── defines.hpp    基础宏/常量/枚举（CHECK/EPSILON/MAX_PLAYERS/e_* 枚举）
 │   ├── log, properties, utils, backtrace, file
 │   ├── types/          refcounted, command
 │   └── misc/           hungarian（通用算法；perlin 已删）
@@ -92,6 +101,7 @@ src/
 │   ├── animcollection, import_hierarchy, import_loader
 │   └── extensions/    animationextension, footballanimationextension
 ├── sim/             仿真核心（原 onthepitch）
+│   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
 │   ├── match, team, ball, referee, officials, humangamer, teamAIcontroller
 │   ├── ai_support/     AIfunctions, mentalimage
 │   ├── utils.*         QuantizeDirection / GetVelocityID 等游戏工具
@@ -103,7 +113,7 @@ src/
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
 ├── env/             对外环境层
 │   ├── game_env, gametask, main
-│   ├── defines, gamedefines
+│   ├── defines        EnvState / Position / SharedInfo
 │   └── match_setup, gfootball_actions.h
 ├── data/            matchdata, playerdata, teamdata（DB/序列化）
 └── ai/              ai_keyboard, ihidevice.hpp

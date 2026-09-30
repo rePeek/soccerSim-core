@@ -18,7 +18,7 @@
 #ifndef _HPP_REFCOUNTED
 #define _HPP_REFCOUNTED
 
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
 
 #include <atomic>
 

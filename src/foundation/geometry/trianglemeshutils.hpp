@@ -18,7 +18,7 @@
 #ifndef _HPP_TRIANGLEMESHUTILS
 #define _HPP_TRIANGLEMESHUTILS
 
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
 
 namespace blunted {
 

@@ -19,9 +19,9 @@
 #define _HPP_PLAYERDATA
 
 #include <stdlib.h>
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 #include "sim/utils.hpp"
 
 #include "foundation/properties.hpp"

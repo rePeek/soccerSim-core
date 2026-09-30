@@ -20,7 +20,7 @@
 
 #include "foundation/math/vector3.hpp"
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 #include "sim/utils.hpp"
 
 #include "animation/animcollection.hpp"

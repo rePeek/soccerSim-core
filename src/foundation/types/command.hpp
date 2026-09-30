@@ -18,7 +18,7 @@
 #ifndef _HPP_COMMAND
 #define _HPP_COMMAND
 
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
 
 
 #include "foundation/types/refcounted.hpp"

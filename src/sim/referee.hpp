@@ -21,7 +21,7 @@
 #include <set>
 
 #include "env/defines.hpp"
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 
 using namespace blunted;

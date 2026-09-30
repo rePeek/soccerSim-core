@@ -18,7 +18,7 @@
 #ifndef _HPP_TEAM_AICONTROLLER
 #define _HPP_TEAM_AICONTROLLER
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 #include "foundation/properties.hpp"
 

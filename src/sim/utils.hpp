@@ -18,7 +18,7 @@
 #ifndef _HPP_FOOTBALL_UTILS
 #define _HPP_FOOTBALL_UTILS
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 
 

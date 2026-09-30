@@ -19,44 +19,13 @@
 #define _HPP_DEFINES
 
 
-#include <cstdio>
-#include <cstdlib>
-#include <cassert>
-#include <cstring>
-
-#include <fstream>
-#include <cmath>
-
-#include <algorithm>
-#include <string>
-#include <list>
-#include <vector>
-#include <map>
-#include <deque>
-
-#include <memory>
-#include <functional>
-#include "foundation/backtrace.h"
-#include "foundation/log.hpp"
-
-#define CHECK(a) assert(a);
-#define CHECK_EQ(a, b) assert((a) == (b));
-
-constexpr float EPSILON = 0.000001;
+#include "foundation/defines.hpp"
 
 #define X_FIELD_SCALE 54.4
 #define Y_FIELD_SCALE -83.6
 #define Z_FIELD_SCALE 1
-#define MAX_PLAYERS 11
 
-typedef std::string screenshoot;
-
-using namespace std::placeholders;
-
-namespace blunted {
-  class Animation;
-  //using namespace boost;
-}
+#include "foundation/math/vector3.hpp"
 
 class Player;
 class Team;
@@ -66,8 +35,6 @@ class ScenarioConfig;
 class GameContext;
 class GameEnv;
 
-
-#include "foundation/math/vector3.hpp"
 
 class EnvState {
  public:
@@ -202,43 +169,6 @@ struct Position {
   std::string debug();
  private:
   float value[3];
-};
-
-enum e_PlayerRole {
-  e_PlayerRole_GK,
-  e_PlayerRole_CB,
-  e_PlayerRole_LB,
-  e_PlayerRole_RB,
-  e_PlayerRole_DM,
-  e_PlayerRole_CM,
-  e_PlayerRole_LM,
-  e_PlayerRole_RM,
-  e_PlayerRole_AM,
-  e_PlayerRole_CF,
-};
-
-enum e_GameMode {
-  e_GameMode_Normal,
-  e_GameMode_KickOff,
-  e_GameMode_GoalKick,
-  e_GameMode_FreeKick,
-  e_GameMode_Corner,
-  e_GameMode_ThrowIn,
-  e_GameMode_Penalty,
-};
-
-enum e_PlayerColor {
-  e_PlayerColor_Blue,
-  e_PlayerColor_Green,
-  e_PlayerColor_Red,
-  e_PlayerColor_Yellow,
-  e_PlayerColor_Purple,
-  e_PlayerColor_Default
-};
-
-enum e_Team {
-  e_Left,
-  e_Right,
 };
 
 // Information about the player (available from python).

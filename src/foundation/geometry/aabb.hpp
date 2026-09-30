@@ -20,7 +20,7 @@
 
 #include "foundation/math/vector3.hpp"
 #include "foundation/math/quaternion.hpp"
-#include "env/defines.hpp"
+#include "foundation/defines.hpp"
 
 #include "foundation/geometry/line.hpp"
 #include "foundation/geometry/plane.hpp"

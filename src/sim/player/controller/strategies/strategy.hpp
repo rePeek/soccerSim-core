@@ -18,7 +18,7 @@
 #ifndef _HPP_STRATEGY
 #define _HPP_STRATEGY
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 #include "sim/ai_support/AIfunctions.hpp"
 #include "sim/ai_support/mentalimage.hpp"

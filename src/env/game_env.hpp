@@ -15,7 +15,7 @@
 #define _GAME_ENV
 
 #include "sim/match.hpp"
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 #include "env/gfootball_actions.h"
 #include "env/main.hpp"
 

@@ -26,7 +26,7 @@
 #include "animation/extensions/animationextension.hpp"
 
 #include "animation/xmlloader.hpp"
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 namespace blunted {
 

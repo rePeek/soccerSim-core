@@ -18,7 +18,7 @@
 #ifndef _HPP_AISUPPORT_AIFUNCTIONS
 #define _HPP_AISUPPORT_AIFUNCTIONS
 
-#include "env/gamedefines.hpp"
+#include "sim/gamedefines.hpp"
 
 class MentalImage;
 class Ball;
