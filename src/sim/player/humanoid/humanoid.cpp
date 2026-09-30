@@ -493,7 +493,7 @@ void Humanoid::Process() {
   if (controlledBallCollision && !action.HasScheduledContact()) {
     DO_VALIDATION;
     Vector3 currentBallVec = match->GetBall()->GetMovement();
-    radian nextBodyAngle = startAngle + currentAnim.anim->GetOutgoingAngle() + currentAnim.anim->GetOutgoingBodyAngle() + currentAnim.rotationSmuggle.end;
+    radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + currentAnim.rotationSmuggle.end;
 
     radian xRot = 0;
     radian yRot = 0;
@@ -581,7 +581,7 @@ void Humanoid::Process() {
             1.0f) {
       DO_VALIDATION;
 
-      radian nextBodyAngle = startAngle + currentAnim.anim->GetOutgoingAngle() + currentAnim.anim->GetOutgoingBodyAngle() + currentAnim.rotationSmuggle.end;
+      radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + currentAnim.rotationSmuggle.end;
 
       if (currentAnim.functionType == e_FunctionType_Trap ||
           (currentAnim.functionType == e_FunctionType_BallControl &&
@@ -1584,21 +1584,21 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     // don't requeue to same quadrant
     if (action.type == command.desiredFunctionType &&
 
-        ((FloatToEnumVelocity(currentAnim.anim->GetOutgoingVelocity()) !=
+        ((FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) !=
               e_Velocity_Idle &&
           currentAnim.anim->GetVariableCache().quadrant_id() ==
               anims->GetAnim(selectedAnimID)
                   ->GetVariableCache()
                   .quadrant_id()) ||
-         ((FloatToEnumVelocity(currentAnim.anim->GetOutgoingVelocity()) ==
+         ((FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) ==
                e_Velocity_Idle &&
            FloatToEnumVelocity(
-               anims->GetAnim(selectedAnimID)->GetOutgoingVelocity()) ==
+               GetBakedClip(selectedAnimID).metadata.outgoing_velocity) ==
                e_Velocity_Idle) &&
           std::fabs((ForceIntoPreferredDirectionAngle(
-                    currentAnim.anim->GetOutgoingAngle()) -
+                    GetCurrentBakedClip().metadata.outgoing_angle) -
                 ForceIntoPreferredDirectionAngle(
-                    anims->GetAnim(selectedAnimID)->GetOutgoingAngle()))) <
+                    GetBakedClip(selectedAnimID).metadata.outgoing_angle))) <
               0.06f * pi))) {
       DO_VALIDATION;
 
@@ -1621,7 +1621,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     currentAnim.touchFrame = touchFrame_tmp;
     currentAnim.originatingInterrupt = localInterruptAnim;
     currentAnim.touchPos = touchPos_tmp;
-    currentAnim.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatialState.relBodyAngleNonquantized - currentAnim.anim->GetIncomingBodyAngle()) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
+    currentAnim.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatialState.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
     currentAnim.rotationSmuggle.end = rotationSmuggle_tmp;
     currentAnim.rotationSmuggleOffset = 0;
     currentAnim.actionSmuggle = actionSmuggle_tmp;
@@ -1678,8 +1678,9 @@ bool Humanoid::NeedTouch(int animID, const PlayerCommand &command) {
   // when idle (and desiredvelo is idle as well), don't want to touch the ball every frame
 
   Animation *anim = anims->GetAnim(animID);
+  const AnimationClip &clip = GetBakedClip(animID);
 
-  if (FloatToEnumVelocity(anim->GetOutgoingVelocity() != e_Velocity_Idle)) return true;
+  if (FloatToEnumVelocity(clip.metadata.outgoing_velocity != e_Velocity_Idle)) return true;
   if (command.desiredVelocityFloat > idleDribbleSwitch) return true;
   if (std::fabs(match->GetBall()->GetMovement().GetLength()) > 2.0f) return true;
 
@@ -1691,7 +1692,7 @@ bool Humanoid::NeedTouch(int animID, const PlayerCommand &command) {
   auto currentMentalImage = match->GetMentalImage(mentalImageTime);
   Vector3 ballMovement = (currentMentalImage->GetBallPrediction(250).Get2D() - currentMentalImage->GetBallPrediction(240).Get2D()) * 100;
 
-  if (std::fabs(anim->GetOutgoingAngle()) > 0.125f * pi) return true;
+  if (std::fabs(clip.metadata.outgoing_angle) > 0.125f * pi) return true;
 
   float distanceDeviation = (animMovement - ballMovement).GetLength();
   if (distanceDeviation >= 2.0) return true;
@@ -1699,7 +1700,7 @@ bool Humanoid::NeedTouch(int animID, const PlayerCommand &command) {
   float velocityDeviation = animMovement.GetLength() - ballMovement.GetLength(); // negative == ball is faster
   if (velocityDeviation < -1.4 || velocityDeviation >= 0.7) return true;
 
-  if (FloatToEnumVelocity(anim->GetOutgoingVelocity()) != e_Velocity_Idle) {
+  if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle) {
     DO_VALIDATION;
     float angleDeviation = animMovement.GetNormalized(spatialState.directionVec).GetDotProduct(ballMovement.GetNormalized(spatialState.directionVec));
     if (angleDeviation < 0.975) return true;
@@ -1866,7 +1867,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
     Vector3 physicsVector = CalculatePhysicsVector(*iter, useDesiredMovement, desiredMovement, useDesiredBodyDirection, desiredBodyDirectionRel, positions_ret, rotationSmuggle_ret_tmp);
 
     // anim space!
-    predictedAngle = anim->GetOutgoingAngle() + rotationSmuggle_ret_tmp;
+    predictedAngle = clip.metadata.outgoing_angle + rotationSmuggle_ret_tmp;
     predictedAngle = ModulateIntoRange(-pi, pi, predictedAngle);
 
     // iterate all possible touches of this anim
@@ -2209,7 +2210,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(const Vector3 &desiredDirection,
   CalculatePredictedSituation(predictedPos, predictedAngle);
   Vector3 ballPos = match->GetMentalImage(mentalImageTime)->GetBallPrediction(futureTime_ms);
   float ballHeight = ballPos.coords[2];
-  Vector3 ffo = GetFrontOfFootOffsetRel(predictedOutgoingMovement.GetLength(), currentAnim.anim->GetOutgoingBodyAngle(), ballHeight).GetRotated2D(predictedAngle);
+  Vector3 ffo = GetFrontOfFootOffsetRel(predictedOutgoingMovement.GetLength(), GetCurrentBakedClip().metadata.outgoing_body_angle, ballHeight).GetRotated2D(predictedAngle);
   Vector3 desiredBallPos = predictedPos + ffo;
 
   if (!CastPlayer()->HasPossession()) {
@@ -2234,7 +2235,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(const Vector3 &desiredDirection,
   }
 
   unsigned int maxEffectTimeTreshold_ms = 250 + defaultTouchOffset_ms; // if the ball is this much longer 'farther away' than feasible, rather postpone effect until next anim (else we may overrun)
-  if (FloatToEnumVelocity(currentAnim.anim->GetOutgoingVelocity()) == e_Velocity_Idle) maxEffectTimeTreshold_ms = 2000; // no danger of overrunning
+  if (FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) == e_Velocity_Idle) maxEffectTimeTreshold_ms = 2000; // no danger of overrunning
   float maxEffectVelocity = dribbleWalkSwitch;
   float maxSmuggleMPS = 1.6f;
 

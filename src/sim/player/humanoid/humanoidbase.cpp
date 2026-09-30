@@ -487,6 +487,8 @@ void RecordFootCounterfactual(int with_foot_head, int without_foot_head,
   ++HumanoidFootWinnerChanged();
   Animation *with_foot = anims->GetAnim(with_foot_head);
   Animation *without_foot = anims->GetAnim(without_foot_head);
+  const AnimationClip &cw = GetContext().bakedAnims->Get(static_cast<uint32_t>(with_foot_head));
+  const AnimationClip &co = GetContext().bakedAnims->Get(static_cast<uint32_t>(without_foot_head));
   bool lifecycle_changed = false;
   if (with_foot->GetFrameCount() != without_foot->GetFrameCount()) {
     ++HumanoidFootFrameCountDiff();
@@ -497,13 +499,13 @@ void RecordFootCounterfactual(int with_foot_head, int without_foot_head,
     ++HumanoidFootQuadrantDiff();
     lifecycle_changed = true;
   }
-  if (FloatToEnumVelocity(with_foot->GetOutgoingVelocity()) !=
-      FloatToEnumVelocity(without_foot->GetOutgoingVelocity())) {
+  if (FloatToEnumVelocity(cw.metadata.outgoing_velocity) !=
+      FloatToEnumVelocity(co.metadata.outgoing_velocity)) {
     ++HumanoidFootOutgoingVelocityDiff();
     lifecycle_changed = true;
   }
-  const float with_angle = with_foot->GetOutgoingAngle();
-  const float without_angle = without_foot->GetOutgoingAngle();
+  const float with_angle = cw.metadata.outgoing_angle;
+  const float without_angle = co.metadata.outgoing_angle;
   if (with_angle != without_angle) ++HumanoidFootOutgoingAngleBitsDiff();
   // The requeue path buckets outgoing angles, so a different number only
   // matters when it lands in a different bucket. ~20 degrees, as an
@@ -1069,9 +1071,10 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
   }
 
   Animation *bestAnim = anims->GetAnim(*dataSet.begin());
+  const AnimationClip &bestClip = GetBakedClip(*dataSet.begin());
 
-  radian bestOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(bestAnim->GetOutgoingBodyAngle());
-  radian bestOutgoingAngle = ForceIntoPreferredDirectionAngle(bestAnim->GetOutgoingAngle());
+  radian bestOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(bestClip.metadata.outgoing_body_angle);
+  radian bestOutgoingAngle = ForceIntoPreferredDirectionAngle(bestClip.metadata.outgoing_angle);
   radian bestLookAngle = bestOutgoingBodyAngle + bestOutgoingAngle;
 
   DataSet::iterator iter = dataSet.begin();
@@ -1080,9 +1083,10 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
     DO_VALIDATION;
 
     Animation *anim = anims->GetAnim(*iter);
+    const AnimationClip &animClip = GetBakedClip(*iter);
 
-    radian animOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(anim->GetOutgoingBodyAngle());
-    radian animOutgoingAngle = ForceIntoPreferredDirectionAngle(anim->GetOutgoingAngle());
+    radian animOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(animClip.metadata.outgoing_body_angle);
+    radian animOutgoingAngle = ForceIntoPreferredDirectionAngle(animClip.metadata.outgoing_angle);
     radian animLookAngle = animOutgoingBodyAngle + animOutgoingAngle;
 
     float adaptedAllowedAngle = 0.06f * pi; // between 0 and 20 deg
@@ -1233,18 +1237,18 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     // don't requeue to same quadrant
     if (action.type == command.desiredFunctionType &&
 
-        ((FloatToEnumVelocity(currentAnim.anim->GetOutgoingVelocity()) !=
+        ((FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) !=
               e_Velocity_Idle &&
           currentAnim.anim->GetVariableCache().quadrant_id() ==
               anims->GetAnim(selectedAnimID)
                   ->GetVariableCache()
                   .quadrant_id()) ||
-         (FloatToEnumVelocity(currentAnim.anim->GetOutgoingVelocity()) ==
+         (FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) ==
               e_Velocity_Idle &&
           std::fabs((ForceIntoPreferredDirectionAngle(
-                    currentAnim.anim->GetOutgoingAngle()) -
+                    GetCurrentBakedClip().metadata.outgoing_angle) -
                 ForceIntoPreferredDirectionAngle(
-                    anims->GetAnim(selectedAnimID)->GetOutgoingAngle()))) <
+                    GetBakedClip(selectedAnimID).metadata.outgoing_angle))) <
               0.20f * pi))) {
       DO_VALIDATION;
 
@@ -1266,7 +1270,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     currentAnim.touchFrame = touchFrame_tmp;
     currentAnim.originatingInterrupt = localInterruptAnim;
     currentAnim.touchPos = touchPos_tmp;
-    currentAnim.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatialState.relBodyAngleNonquantized - currentAnim.anim->GetIncomingBodyAngle()) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle, bodyRotationSmoothingMaxAngle);
+    currentAnim.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatialState.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle, bodyRotationSmoothingMaxAngle);
     currentAnim.rotationSmuggle.end = rotationSmuggle_tmp;
     currentAnim.rotationSmuggleOffset = 0;
     currentAnim.actionSmuggle = actionSmuggle_tmp;
@@ -1304,7 +1308,7 @@ void HumanoidBase::CalculatePredictedSituation(Vector3 &predictedPos,
     predictedPos = spatialState.position + currentAnim.anim->GetTranslation().Get2D().GetRotated2D(spatialState.angle) + currentAnim.actionSmuggle + currentAnim.actionSmuggleSustain + currentAnim.movementSmuggle;
   }
 
-  predictedAngle = spatialState.angle + currentAnim.anim->GetOutgoingAngle() + currentAnim.rotationSmuggle.end;
+  predictedAngle = spatialState.angle + GetCurrentBakedClip().metadata.outgoing_angle + currentAnim.rotationSmuggle.end;
   predictedAngle = ModulateIntoRange(-pi, pi, predictedAngle);
   assert(predictedPos.coords[2] == 0.0f);
 }
@@ -1618,8 +1622,8 @@ bool HumanoidBase::CompareFootSimilarity(e_Foot foot, int animIndex1, int animIn
   int two = 1;
   if (anims->GetAnim(animIndex1)->GetCurrentFoot() == predicate_DesiredFoot) one = 0;
   if (anims->GetAnim(animIndex2)->GetCurrentFoot() == predicate_DesiredFoot) two = 0;
-  if (FloatToEnumVelocity(anims->GetAnim(animIndex1)->GetIncomingVelocity()) == e_Velocity_Idle) one = 0;
-  if (FloatToEnumVelocity(anims->GetAnim(animIndex2)->GetIncomingVelocity()) == e_Velocity_Idle) two = 0;
+  if (FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) == e_Velocity_Idle) one = 0;
+  if (FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) == e_Velocity_Idle) two = 0;
   return one < two;
 }
 
@@ -1629,21 +1633,21 @@ void HumanoidBase::SetIncomingVelocitySimilarityPredicate(e_Velocity velocity) c
 
 bool HumanoidBase::CompareIncomingVelocitySimilarity(int animIndex1, int animIndex2) const {
   /* old version
-  float rating1 = std::fabs(clamp(RangeVelocity(anims->GetAnim(animIndex1)->GetIncomingVelocity()) - EnumToFloatVelocity(predicate_IncomingVelocity), -sprintVelocity, sprintVelocity));
-  float rating2 = std::fabs(clamp(RangeVelocity(anims->GetAnim(animIndex2)->GetIncomingVelocity()) - EnumToFloatVelocity(predicate_IncomingVelocity), -sprintVelocity, sprintVelocity));
+  float rating1 = std::fabs(clamp(RangeVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) - EnumToFloatVelocity(predicate_IncomingVelocity), -sprintVelocity, sprintVelocity));
+  float rating2 = std::fabs(clamp(RangeVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) - EnumToFloatVelocity(predicate_IncomingVelocity), -sprintVelocity, sprintVelocity));
   */
 
   int currentVelocityID = GetVelocityID(predicate_IncomingVelocity);
 
   // rate difference anim incoming / actual incoming
-  int anim1_incomingVelocityID = GetVelocityID(FloatToEnumVelocity(anims->GetAnim(animIndex1)->GetIncomingVelocity()));
-  int anim2_incomingVelocityID = GetVelocityID(FloatToEnumVelocity(anims->GetAnim(animIndex2)->GetIncomingVelocity()));
+  int anim1_incomingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity));
+  int anim2_incomingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity));
   float rating1 = std::fabs(clamp(anim1_incomingVelocityID - currentVelocityID, -3, 3));
   float rating2 = std::fabs(clamp(anim2_incomingVelocityID - currentVelocityID, -3, 3));
 
   // also add a penalty for anim incoming velocities which aren't between actual incoming and anim outgoing
-  int anim1_outgoingVelocityID = GetVelocityID(FloatToEnumVelocity(anims->GetAnim(animIndex1)->GetOutgoingVelocity()));
-  int anim2_outgoingVelocityID = GetVelocityID(FloatToEnumVelocity(anims->GetAnim(animIndex2)->GetOutgoingVelocity()));
+  int anim1_outgoingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.outgoing_velocity));
+  int anim2_outgoingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.outgoing_velocity));
   if (anim1_incomingVelocityID > std::max(currentVelocityID, anim1_outgoingVelocityID)) rating1 += 0.5f;
   if (anim1_incomingVelocityID < std::min(currentVelocityID, anim1_outgoingVelocityID)) rating1 += 0.5f;
   if (anim2_incomingVelocityID > std::max(currentVelocityID, anim2_outgoingVelocityID)) rating2 += 0.5f;
@@ -1665,7 +1669,7 @@ float HumanoidBase::GetMovementSimilarity(int animIndex, const Vector3 &relDesir
   Vector3 desiredMovement = relDesiredDirection * EnumToFloatVelocity(desiredVelocity);
 
   Vector3 outgoingDirection = ForceIntoPreferredDirectionVec(anims->GetAnim(animIndex)->GetOutgoingDirection());
-  float outgoingVelocity = RangeVelocity(anims->GetAnim(animIndex)->GetOutgoingVelocity());
+  float outgoingVelocity = RangeVelocity(GetBakedClip(animIndex).metadata.outgoing_velocity);
   Vector3 outgoingMovement = outgoingDirection * outgoingVelocity;
 
   // anims that end at lower velocities have an advantage: they don't get dragged into the currentmovement that much
@@ -1723,8 +1727,8 @@ void HumanoidBase::SetIncomingBodyDirectionSimilarityPredicate(const Vector3 &re
 bool HumanoidBase::CompareIncomingBodyDirectionSimilarity(int animIndex1, int animIndex2) const {
   float rating1 = std::fabs(ForceIntoAllowedBodyDirectionVec(anims->GetAnim(animIndex1)->GetIncomingBodyDirection()).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
   float rating2 = std::fabs(ForceIntoAllowedBodyDirectionVec(anims->GetAnim(animIndex2)->GetIncomingBodyDirection()).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
-  if (FloatToEnumVelocity(anims->GetAnim(animIndex1)->GetIncomingVelocity()) == e_Velocity_Idle) rating1 = 0;//-1;
-  if (FloatToEnumVelocity(anims->GetAnim(animIndex2)->GetIncomingVelocity()) == e_Velocity_Idle) rating2 = 0;//-1;
+  if (FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) == e_Velocity_Idle) rating1 = 0;//-1;
+  if (FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) == e_Velocity_Idle) rating2 = 0;//-1;
 
   return rating1 < rating2;
 }
@@ -1735,13 +1739,14 @@ void HumanoidBase::SetBodyDirectionSimilarityPredicate(const Vector3 &lookAt) co
 
 real HumanoidBase::DirectionSimilarityRating(int animIndex) const {
   Animation *a1 = anims->GetAnim(animIndex);
+  const AnimationClip &a1Clip = GetBakedClip(animIndex);
   Vector3 relDesiredBodyDirection1 = ((predicate_LookAt - spatialState.position).GetRotated2D(-spatialState.angle) - a1->GetTranslation()).GetNormalized(Vector3(0, -1, 0));
   radian maxAngleSmuggle = 0.1f * pi;
   radian outgoingAngle1 = a1->GetOutgoingDirection().GetRotated2D( clamp(predicate_RelDesiredDirection.GetAngle2D(a1->GetOutgoingDirection()), -maxAngleSmuggle, maxAngleSmuggle) ).GetAngle2D(Vector3(0, -1, 0));
   Vector3 predictedOutgoingBodyDirection1 = a1->GetOutgoingBodyDirection().GetRotated2D(outgoingAngle1);
   radian rating1 = std::fabs(predictedOutgoingBodyDirection1.GetAngle2D(relDesiredBodyDirection1));
   // penalty for body angles (as opposed to straight forward), to get a slight preference for forward angles
-  rating1 += std::fabs(a1->GetOutgoingBodyAngle()) * 0.05f;
+  rating1 += std::fabs(a1Clip.metadata.outgoing_body_angle) * 0.05f;
   return rating1;
 }
 
@@ -1838,7 +1843,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   if (anim->GetVariableCache().incoming_special_state().compare("") != 0 ||
       anim->GetVariableCache().outgoing_special_state().compare("") != 0) outgoingSwitchBias = 1.0f;
 
-  Vector3 animIncomingMovement = Vector3(0, -1, 0).GetRotated2D(spatialState.angle) * RangeVelocity(anim->GetIncomingVelocity());
+  Vector3 animIncomingMovement = Vector3(0, -1, 0).GetRotated2D(spatialState.angle) * RangeVelocity(clip.metadata.incoming_velocity);
   Vector3 adaptedCurrentMovement = animIncomingMovement * incomingSwitchBias + spatialState.movement * (1.0f - incomingSwitchBias);
 
   Vector3 predictedOutgoingMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle);
@@ -2125,7 +2130,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
         touchDifficultyFactor *=
             1.0f -
             std::pow(
-                std::fabs(anim->GetOutgoingAngle()) / pi,
+                std::fabs(clip.metadata.outgoing_angle) / pi,
                 0.75f);  // don't help with braking (when going nearer 180 deg)
 
         float veloFactor = NormalizedClamp(temporalMovement.GetLength(), walkVelocity, sprintVelocity);
@@ -2281,12 +2286,12 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
       if (!hardQuantize) {
         DO_VALIDATION;
         // soft version
-        if (FloatToEnumVelocity(anim->GetOutgoingVelocity()) == e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) != e_Velocity_Idle) tmpTemporalMovement.NormalizeTo(idleDribbleSwitch - 0.01f);
-        else if (FloatToEnumVelocity(anim->GetOutgoingVelocity()) != e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) == e_Velocity_Idle) tmpTemporalMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle).GetNormalizedTo(idleDribbleSwitch + 0.01f);
+        if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) == e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) != e_Velocity_Idle) tmpTemporalMovement.NormalizeTo(idleDribbleSwitch - 0.01f);
+        else if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) == e_Velocity_Idle) tmpTemporalMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle).GetNormalizedTo(idleDribbleSwitch + 0.01f);
       } else {
         // hard version
-        if (FloatToEnumVelocity(anim->GetOutgoingVelocity()) == e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) != e_Velocity_Idle) tmpTemporalMovement = 0;
-        else if (FloatToEnumVelocity(anim->GetOutgoingVelocity()) != e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) == e_Velocity_Idle) tmpTemporalMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle).GetNormalizedTo(dribbleVelocity);
+        if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) == e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) != e_Velocity_Idle) tmpTemporalMovement = 0;
+        else if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) == e_Velocity_Idle) tmpTemporalMovement = anim->GetOutgoingMovement().GetRotated2D(spatialState.angle).GetNormalizedTo(dribbleVelocity);
       }
     }
 
@@ -2314,7 +2319,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   assert(positions_ret.size() >= (unsigned int)anim->GetFrameCount());
   resultingMovement = temporalMovement;
 
-  if (FloatToEnumVelocity(anim->GetOutgoingVelocity()) != e_Velocity_Idle &&
+  if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle &&
       FloatToEnumVelocity(resultingMovement.GetLength()) != e_Velocity_Idle) {
     DO_VALIDATION;
     rotationOffset_ret = resultingMovement.GetRotated2D(-spatialState.angle).GetAngle2D(anim->GetOutgoingMovement());
@@ -2330,7 +2335,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     float angleFactor = 0.5f;
     radian maxAngle = 0.25f * pi;
 
-    radian predictedAngleRel = anim->GetOutgoingAngle() + anim->GetOutgoingBodyAngle() + rotationOffset_ret;
+    radian predictedAngleRel = clip.metadata.outgoing_angle + clip.metadata.outgoing_body_angle + rotationOffset_ret;
     radian desiredRotationOffset = desiredBodyDirectionRel.GetRotated2D(-predictedAngleRel).GetAngle2D(Vector3(0, -1, 0));
 
     if (std::fabs(desiredRotationOffset) < 0.5f * pi) {

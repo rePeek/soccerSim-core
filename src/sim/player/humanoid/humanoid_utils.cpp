@@ -29,6 +29,12 @@
 #include "sim/ai_support/AIfunctions.hpp"
 #include "sim/player/playerbase.hpp"
 
+namespace {
+const AnimationClip &GetBakedClipFor(const Anim &anim) {
+  return GetContext().bakedAnims->Get(static_cast<uint32_t>(anim.bakedId));
+}
+}  // namespace
+
 e_TouchType GetTouchTypeForBodyPart(const std::string &bodypartname) {
   DO_VALIDATION;
   if (bodypartname.find("foot") != std::string::npos ||
@@ -235,7 +241,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
     physicsBias = 0.9f;
   }
 
-  if (FloatToEnumVelocity(currentAnim.anim->GetOutgoingVelocity()) == e_Velocity_Idle) physicsBias = 1.0f;
+  if (FloatToEnumVelocity(GetBakedClipFor(currentAnim).metadata.outgoing_velocity) == e_Velocity_Idle) physicsBias = 1.0f;
 
   float explosivenessFactor = 0.6f;
   float maximumOverdrive_mps = 1.0f * explosivenessFactor;
@@ -246,7 +252,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   float dotFactor = clamp(std::min(dotFactor1, dotFactor2), 0.0f, 1.0f);  // clamp for numerical problems, don't want negative values out of this.
   maximumOverdrive_mps *= dotFactor;
 
-  if (FloatToEnumVelocity(currentAnim.anim->GetOutgoingVelocity()) == e_Velocity_Idle) maximumOverdrive_mps = 0.0f;
+  if (FloatToEnumVelocity(GetBakedClipFor(currentAnim).metadata.outgoing_velocity) == e_Velocity_Idle) maximumOverdrive_mps = 0.0f;
 
   float originatingBias = 0.7f;
 
@@ -269,7 +275,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   float physicsVelocity = physicsMovement.GetLength();
 
   Vector3 FFOsrc = GetFrontOfFootOffsetRel(physicsVelocity, nextBodyAngle - spatialState.angle, ball->Predict(0).coords[2]);
-  float annoyanceVeloFactor = curve(NormalizedClamp(currentAnim.anim->GetOutgoingVelocity(), idleVelocity, sprintVelocity), 0.7f); // do not apply effect to low velo's; makes it too chaotic
+  float annoyanceVeloFactor = curve(NormalizedClamp(GetBakedClipFor(currentAnim).metadata.outgoing_velocity, idleVelocity, sprintVelocity), 0.7f); // do not apply effect to low velo's; makes it too chaotic
   float opponentAnnoyanceFactor = (1.0f - NormalizedClamp(player->GetClosestOpponentDistance(), 0.5f, 1.5f)) * (1.0f - (player->GetStat(mental_calmness) * 0.5f + player->GetStat(physical_balance) * 0.3f)) * annoyanceVeloFactor;
   Vector3 FFO = Vector3(0, -1, 0).GetRotated2D(nextBodyAngle) * (FFOsrc.GetLength() + ffoOffset + opponentAnnoyanceFactor * 3.0f); // positionOffset is already in ffoOffset (though only for trap atm)
   float heightFFOOffset = NormalizedClamp(ball->Predict(0).coords[2], 0.5f, 1.0f) * 0.5f; // bounce high balls off body - else they keep colliding inside body and stuff like that
