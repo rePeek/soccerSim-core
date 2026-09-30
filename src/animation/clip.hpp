@@ -44,6 +44,7 @@ struct FootballAnimationMetadata {
   float outgoing_velocity = 0.0f;
   float incoming_body_angle = 0.0f;
   float outgoing_body_angle = 0.0f;
+  float outgoing_angle = 0.0f;
   float difficulty = 0.0f;
   int32_t touch_frame = -1;
   int32_t quadrant = 0;
@@ -53,12 +54,42 @@ struct FootballAnimationMetadata {
   float special_var1 = 0.0f;
   float special_var2 = 0.0f;
 
+  // Selection-only fields. Baked verbatim from the legacy getters so the
+  // baked selector can reproduce CrudeSelection exactly.
+  Vector3 incoming_body_direction;
+  Vector3 outgoing_direction;
+  Vector3 incoming_ball_direction;
+  Vector3 outgoing_ball_direction;
+  float incoming_ball_direction_max_deviation = 0.0f;
+  float outgoing_ball_direction_max_deviation = 0.0f;
+  int32_t trip_type = 0;
+  int32_t current_foot = 0;
+  std::string incoming_retain_state;
+  std::string outgoing_retain_state;
+  std::string incoming_special_state;
+  std::string forced_foot;
+  std::string touch_foot;
+
+  static void WriteVec3(std::ostream& os, const Vector3& v) {
+    SimAnimWriteF32(os, v.coords[0]);
+    SimAnimWriteF32(os, v.coords[1]);
+    SimAnimWriteF32(os, v.coords[2]);
+  }
+  static Vector3 ReadVec3(std::istream& is) {
+    Vector3 v;
+    v.coords[0] = SimAnimReadF32(is);
+    v.coords[1] = SimAnimReadF32(is);
+    v.coords[2] = SimAnimReadF32(is);
+    return v;
+  }
+
   void Serialize(std::ostream& os) const {
     SimAnimWriteI32(os, action_type);
     SimAnimWriteF32(os, incoming_velocity);
     SimAnimWriteF32(os, outgoing_velocity);
     SimAnimWriteF32(os, incoming_body_angle);
     SimAnimWriteF32(os, outgoing_body_angle);
+    SimAnimWriteF32(os, outgoing_angle);
     SimAnimWriteF32(os, difficulty);
     SimAnimWriteI32(os, touch_frame);
     SimAnimWriteI32(os, quadrant);
@@ -67,6 +98,19 @@ struct FootballAnimationMetadata {
     SimAnimWriteF32(os, idle_level);
     SimAnimWriteF32(os, special_var1);
     SimAnimWriteF32(os, special_var2);
+    WriteVec3(os, incoming_body_direction);
+    WriteVec3(os, outgoing_direction);
+    WriteVec3(os, incoming_ball_direction);
+    WriteVec3(os, outgoing_ball_direction);
+    SimAnimWriteF32(os, incoming_ball_direction_max_deviation);
+    SimAnimWriteF32(os, outgoing_ball_direction_max_deviation);
+    SimAnimWriteI32(os, trip_type);
+    SimAnimWriteI32(os, current_foot);
+    SimAnimWriteString(os, incoming_retain_state);
+    SimAnimWriteString(os, outgoing_retain_state);
+    SimAnimWriteString(os, incoming_special_state);
+    SimAnimWriteString(os, forced_foot);
+    SimAnimWriteString(os, touch_foot);
   }
 
   static FootballAnimationMetadata Deserialize(std::istream& is) {
@@ -76,6 +120,7 @@ struct FootballAnimationMetadata {
     m.outgoing_velocity = SimAnimReadF32(is);
     m.incoming_body_angle = SimAnimReadF32(is);
     m.outgoing_body_angle = SimAnimReadF32(is);
+    m.outgoing_angle = SimAnimReadF32(is);
     m.difficulty = SimAnimReadF32(is);
     m.touch_frame = SimAnimReadI32(is);
     m.quadrant = SimAnimReadI32(is);
@@ -84,6 +129,19 @@ struct FootballAnimationMetadata {
     m.idle_level = SimAnimReadF32(is);
     m.special_var1 = SimAnimReadF32(is);
     m.special_var2 = SimAnimReadF32(is);
+    m.incoming_body_direction = ReadVec3(is);
+    m.outgoing_direction = ReadVec3(is);
+    m.incoming_ball_direction = ReadVec3(is);
+    m.outgoing_ball_direction = ReadVec3(is);
+    m.incoming_ball_direction_max_deviation = SimAnimReadF32(is);
+    m.outgoing_ball_direction_max_deviation = SimAnimReadF32(is);
+    m.trip_type = SimAnimReadI32(is);
+    m.current_foot = SimAnimReadI32(is);
+    m.incoming_retain_state = SimAnimReadString(is);
+    m.outgoing_retain_state = SimAnimReadString(is);
+    m.incoming_special_state = SimAnimReadString(is);
+    m.forced_foot = SimAnimReadString(is);
+    m.touch_foot = SimAnimReadString(is);
     return m;
   }
 };

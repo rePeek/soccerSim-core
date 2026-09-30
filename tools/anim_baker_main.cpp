@@ -31,6 +31,7 @@
 #include "animation/library.hpp"
 #include "animation/extensions/footballanimationextension.hpp"
 #include "foundation/math/vector3.hpp"
+#include "foundation/utils.hpp"
 
 using namespace blunted;
 
@@ -59,7 +60,25 @@ std::vector<AnimationClip> BakeClips(const std::vector<Animation*>& animations) 
     clip.metadata.idle_level = anim->GetVariableCache().idlelevel();
     clip.metadata.special_var1 = anim->GetVariableCache().specialvar1();
     clip.metadata.special_var2 = anim->GetVariableCache().specialvar2();
-
+    clip.metadata.outgoing_angle = anim->GetOutgoingAngle();
+    clip.metadata.incoming_body_direction = anim->GetIncomingBodyDirection();
+    clip.metadata.outgoing_direction = anim->GetOutgoingDirection();
+    clip.metadata.incoming_ball_direction =
+        GetVectorFromString(anim->GetVariable("incomingballdirection"));
+    clip.metadata.outgoing_ball_direction =
+        GetVectorFromString(anim->GetVariable("balldirection"));
+    clip.metadata.incoming_ball_direction_max_deviation =
+        static_cast<float>(std::atof(anim->GetVariable("incomingballdirection_maxdeviation").c_str()));
+    clip.metadata.outgoing_ball_direction_max_deviation =
+        static_cast<float>(std::atof(anim->GetVariable("outgoingballdirection_maxdeviation").c_str()));
+    clip.metadata.trip_type =
+        static_cast<int32_t>(std::round(std::atof(anim->GetVariable("triptype").c_str())));
+    clip.metadata.current_foot = static_cast<int32_t>(anim->GetCurrentFoot());
+    clip.metadata.incoming_retain_state = anim->GetVariableCache().incoming_retain_state();
+    clip.metadata.outgoing_retain_state = anim->GetVariable("outgoing_retain_state");
+    clip.metadata.incoming_special_state = anim->GetVariableCache().incoming_special_state();
+    clip.metadata.forced_foot = anim->GetVariable("forcedfoot");
+    clip.metadata.touch_foot = anim->GetVariable("touchfoot");
     // Contact (first touch).
     if (clip.metadata.touch_frame >= 0) {
       Vector3 contact_pos;
@@ -224,7 +243,30 @@ int Verify(const std::vector<Animation*>& legacy,
         m.base_animation != anim->GetVariableCache().baseanim() ||
         m.idle_level != anim->GetVariableCache().idlelevel() ||
         m.special_var1 != anim->GetVariableCache().specialvar1() ||
-        m.special_var2 != anim->GetVariableCache().specialvar2()) {
+        m.special_var2 != anim->GetVariableCache().specialvar2() ||
+        m.outgoing_angle != anim->GetOutgoingAngle() ||
+        m.incoming_body_direction != anim->GetIncomingBodyDirection() ||
+        m.outgoing_direction != anim->GetOutgoingDirection() ||
+        m.incoming_ball_direction !=
+            GetVectorFromString(anim->GetVariable("incomingballdirection")) ||
+        m.outgoing_ball_direction !=
+            GetVectorFromString(anim->GetVariable("balldirection")) ||
+        m.incoming_ball_direction_max_deviation !=
+            static_cast<float>(std::atof(
+                anim->GetVariable("incomingballdirection_maxdeviation").c_str())) ||
+        m.outgoing_ball_direction_max_deviation !=
+            static_cast<float>(std::atof(
+                anim->GetVariable("outgoingballdirection_maxdeviation").c_str())) ||
+        m.trip_type !=
+            static_cast<int32_t>(std::round(
+                std::atof(anim->GetVariable("triptype").c_str()))) ||
+        m.current_foot != static_cast<int32_t>(anim->GetCurrentFoot()) ||
+        m.incoming_retain_state != anim->GetVariableCache().incoming_retain_state() ||
+        m.outgoing_retain_state != anim->GetVariable("outgoing_retain_state") ||
+        m.incoming_special_state !=
+            anim->GetVariableCache().incoming_special_state() ||
+        m.forced_foot != anim->GetVariable("forcedfoot") ||
+        m.touch_foot != anim->GetVariable("touchfoot")) {
       std::cerr << "VERIFY clip " << i << ": metadata mismatch\n";
       ++mismatches;
     }
