@@ -45,7 +45,7 @@ class HumanController : public PlayerController {
       this->hid = hid;
    }
 
-    void ProcessState(EnvState* state) { DO_VALIDATION;
+    void ProcessState(EnvState* state) {
       ProcessPlayerController(state);
       hid->ProcessState(state);
       state->process(actionMode);
@@ -60,7 +60,7 @@ class HumanController : public PlayerController {
 
     AIControlledKeyboard *GetHIDevice() { return hid; }
 
-    int GetActionMode() { DO_VALIDATION; return actionMode; }
+    int GetActionMode() { return actionMode; }
 
     virtual void Reset();
 

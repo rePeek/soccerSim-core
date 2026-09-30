@@ -17,7 +17,6 @@
 #include "animation/types.hpp"
 
 inline blunted::radian FixAngle(blunted::radian angle) {
-  DO_VALIDATION;
   // Convert engine angle into football angle (different base orientation:
   // 'down' on y instead of 'right' on x).
   angle += 0.5f * blunted::pi;

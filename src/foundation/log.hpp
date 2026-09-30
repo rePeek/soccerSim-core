@@ -20,14 +20,6 @@
 
 #include <string>
 
-void DoValidation(int line, const char* file);
-// Uncomment line below to enable validation.
-// #define FULL_VALIDATION 1
-#ifdef FULL_VALIDATION
-  #define DO_VALIDATION DoValidation(__LINE__, __FILE__);
-#else
-  #define DO_VALIDATION ;
-#endif
 
 namespace blunted {
 

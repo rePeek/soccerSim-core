@@ -29,12 +29,12 @@
 
 class PlayerProperties {
  public:
-  PlayerProperties() { DO_VALIDATION;
-    for (int x = 0; x < player_stat_max; x++) { DO_VALIDATION;
+  PlayerProperties() {
+    for (int x = 0; x < player_stat_max; x++) {
       data[x] = 1.0f;
     }
   }
-  void Set(PlayerStat name, real value) { DO_VALIDATION;
+  void Set(PlayerStat name, real value) {
     data[name] = atof(real_to_str(value).c_str());
   }
   real GetReal(PlayerStat name) const {
@@ -58,7 +58,7 @@ class PlayerData {
     int GetSkinColor() const { return skinColor; }
 
     std::string GetHairStyle() const { return hairStyle; }
-    void SetHairStyle(const std::string& style) { DO_VALIDATION; hairStyle = style; }
+    void SetHairStyle(const std::string& style) { hairStyle = style; }
 
     std::string GetHairColor() const { return hairColor; }
     float GetHeight() const { return height; }

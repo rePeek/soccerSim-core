@@ -32,7 +32,6 @@
 inline PlayerLocomotionInput BuildLegacyLocomotionInput(
     const PlayerCommand &command, const PlayerKinematicState &state,
     float maxSpeed, const Vector3 &idle_facing_fallback) {
-  DO_VALIDATION;
   PlayerLocomotionInput input;
 
   float desiredSpeed = clamp(command.desiredVelocityFloat, 0.0f, maxSpeed);

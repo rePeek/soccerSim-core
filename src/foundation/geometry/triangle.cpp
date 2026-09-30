@@ -36,7 +36,7 @@ namespace blunted {
 #define COMPUTE_INTERVALS(VV0, VV1, VV2, D0, D1, D2, D0D1, D0D2, A, B, C, X0, \
                           X1)                                                 \
   {                                                                           \
-    DO_VALIDATION;                                                            \
+                                                                \
     if (D0D1 > 0.0f) {                                                        \
       /* here we know that D0D2<=0.0 */                                       \
       /* that is D0, D1 are on the same side, D2 on the other or on the plane \
@@ -139,10 +139,9 @@ namespace blunted {
     }                                         \
   }
 
-Triangle::Triangle() { DO_VALIDATION; }
+Triangle::Triangle() {}
 
 Triangle::Triangle(const Triangle &triangle) {
-  DO_VALIDATION;
 
   memcpy(vertices, triangle.vertices, sizeof(triangle.vertices));
   memcpy(textureVertices, triangle.textureVertices,
@@ -153,14 +152,11 @@ Triangle::Triangle(const Triangle &triangle) {
 }
 
 Triangle::Triangle(const Vector3 &v1, const Vector3 &v2, const Vector3 &v3) {
-  DO_VALIDATION;
   SetVertex(0, v1);
   SetVertex(1, v2);
   SetVertex(2, v3);
   for (int v = 0; v < 3; v++) {
-    DO_VALIDATION;
     for (int tu = 0; tu < 8; tu++) {
-      DO_VALIDATION;
       textureVertices[v][tu].Set(0, 0, 0);
     }
     normals[v].Set(0, 0, 0);
@@ -169,12 +165,11 @@ Triangle::Triangle(const Vector3 &v1, const Vector3 &v2, const Vector3 &v3) {
   }
 }
 
-Triangle::~Triangle() { DO_VALIDATION; }
+Triangle::~Triangle() {}
 bool Triangle::operator==(const Triangle &triangle) const {
   if (vertices[0] == triangle.GetVertex(0) &&
       vertices[1] == triangle.GetVertex(1) &&
       vertices[2] == triangle.GetVertex(2)) {
-    DO_VALIDATION;
     return true;
   }
   return false;
@@ -235,7 +230,6 @@ bool Triangle::operator==(const Triangle &triangle) const {
   // ----- utility
 
   void Triangle::CalculateTangents() {
-    DO_VALIDATION;
 
     // http://www.3dkingdoms.com/weekly/weekly.php?a=37
 
@@ -247,10 +241,8 @@ bool Triangle::operator==(const Triangle &triangle) const {
     float cp = edge1uv.coords[1] * edge2uv.coords[0] - edge1uv.coords[0] * edge2uv.coords[1];
 
     if (cp != 0.0f) {
-      DO_VALIDATION;
       float mul = 1.0f / cp;
       for (int v = 0; v < 3; v++) {
-        DO_VALIDATION;
         tangents[v]   = (edge1 * -edge2uv.coords[1] + edge2 * edge1uv.coords[1]) * mul;
         biTangents[v] = (edge1 * -edge2uv.coords[0] + edge2 * edge1uv.coords[0]) * mul;
         tangents[v].Normalize();
@@ -264,7 +256,7 @@ bool Triangle::operator==(const Triangle &triangle) const {
         //  In mathematics, “Vector A has the same orientation as Vector B”
         //  translates as dot(A,B)>0, so we need to check if dot( cross(n,t) , b
         //  ) > 0. If it’s false, just invert t : if (glm::dot(glm::cross(n, t),
-        //  b) < 0.0f) { DO_VALIDATION;
+        //  b) < 0.0f) {
         //    t = t * -1.0f;
         //  }"
         Vector3 crossProduct = normals[v].GetCrossProduct(tangents[v]);
@@ -272,13 +264,11 @@ bool Triangle::operator==(const Triangle &triangle) const {
         //printf("dot: %f\n", dotProduct);
         // check for > 0 and change bitangents, since we want a left handed TBN (todo: is that so?)
         if (dotProduct > 0.0f) {
-          DO_VALIDATION;
           biTangents[v] = -biTangents[v];
         }
       }
     } else {
       for (int v = 0; v < 3; v++) {
-        DO_VALIDATION;
         // no texture coords; make something up
         tangents[v].Set(1, 0, 0);
         biTangents[v].Set(0, 1, 0);

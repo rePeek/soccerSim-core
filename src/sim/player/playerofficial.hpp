@@ -38,7 +38,7 @@ class PlayerOfficial : public PlayerBase {
     HumanoidBase *CastHumanoid();
     RefereeController *CastController();
 
-    e_OfficialType GetOfficialType() { DO_VALIDATION; return officialType; }
+    e_OfficialType GetOfficialType() { return officialType; }
 
     virtual void Activate(bool lazyPlayer);
     virtual void Deactivate();

@@ -33,7 +33,6 @@ class PlayerBodyFacing {
   static Vector3 AllowedTarget(const PlayerKinematicState &state,
                                const PlayerBodyFacingInput &input,
                                const PlayerBodyFacingParameters &parameters) {
-    DO_VALIDATION;
     const Vector3 locomotionFacing =
         state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
     const Vector3 desired =
@@ -55,7 +54,6 @@ class PlayerBodyFacing {
   static void Step(PlayerKinematicState &state,
                    const PlayerBodyFacingInput &input,
                    const PlayerBodyFacingParameters &parameters, float dt) {
-    DO_VALIDATION;
     assert(dt > 0.0f);
     assert(parameters.maxTurnRate >= 0.0f);
     assert(parameters.maxRelativeAngle >= 0.0f);

@@ -22,7 +22,6 @@ struct PlayerDecisionScheduler {
 
   // Both the last refresh and initialization state are gameplay state.
   void ProcessState(EnvState *state) {
-    DO_VALIDATION;
     state->process(lastRefreshTime_ms);
     state->process(initialized);
   }

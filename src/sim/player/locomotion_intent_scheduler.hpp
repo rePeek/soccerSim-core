@@ -36,7 +36,6 @@ struct LocomotionIntentScheduler {
   // state, so it must survive save/load. refreshes stays telemetry and is
   // deliberately not serialized.
   void ProcessState(EnvState *state) {
-    DO_VALIDATION;
     state->process(nextRefreshTime_ms);
   }
 };

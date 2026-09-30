@@ -54,11 +54,11 @@ class AnimCollection {
 
     void CrudeSelection(DataSet &dataSet, const CrudeSelectionQuery &query);
 
-    inline Animation* GetAnim(int index) { DO_VALIDATION;
+    inline Animation* GetAnim(int index) {
       return animations.at(index);
     }
 
-    inline const Quadrant &GetQuadrant(int id) { DO_VALIDATION;
+    inline const Quadrant &GetQuadrant(int id) {
       return quadrants.at(id);
     }
 

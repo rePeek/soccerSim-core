@@ -89,7 +89,6 @@ enum e_DefString {
 };
 
 inline e_FunctionType StringToFunctionType(e_DefString fun) {
-  DO_VALIDATION;
   if (fun == e_DefString_Movement) return e_FunctionType_Movement;
   if (fun == e_DefString_BallControl) return e_FunctionType_BallControl;
   if (fun == e_DefString_Trap) return e_FunctionType_Trap;
@@ -133,10 +132,8 @@ enum BodyPart {
 typedef std::vector<int> DataSet;
 
 inline int GetVelocityID(e_Velocity velo, bool treatDribbleAsWalk = false) {
-  DO_VALIDATION;
   int id = 0;
   switch (velo) {
-    DO_VALIDATION;
     case e_Velocity_Idle:
       id = 0;
       break;
@@ -158,7 +155,6 @@ inline int GetVelocityID(e_Velocity velo, bool treatDribbleAsWalk = false) {
 }
 
 inline float RangeVelocity(float velocity) {
-  DO_VALIDATION;
   float ret_velocity = idleVelocity;
   if (velocity >= idleDribbleSwitch && velocity < dribbleWalkSwitch)
     ret_velocity = dribbleVelocity;
@@ -170,14 +166,12 @@ inline float RangeVelocity(float velocity) {
 }
 
 inline float ClampVelocity(float velocity) {
-  DO_VALIDATION;
   if (velocity < 0) return 0;
   if (velocity > sprintVelocity) return sprintVelocity;
   return velocity;
 }
 
 inline float EnumToFloatVelocity(e_Velocity velocity) {
-  DO_VALIDATION;
   switch (velocity) {
     case e_Velocity_Idle: return idleVelocity;
     case e_Velocity_Dribble: return dribbleVelocity;
@@ -188,7 +182,6 @@ inline float EnumToFloatVelocity(e_Velocity velocity) {
 }
 
 inline e_Velocity FloatToEnumVelocity(float velocity) {
-  DO_VALIDATION;
   const float ranged_velocity = RangeVelocity(velocity);
   if (ranged_velocity == idleVelocity) return e_Velocity_Idle;
   if (ranged_velocity == dribbleVelocity) return e_Velocity_Dribble;

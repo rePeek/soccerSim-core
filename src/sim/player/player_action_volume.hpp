@@ -58,7 +58,6 @@ struct PlayerActionVolumeParameters {
 inline PlayerActionVolume BuildTackleVolume(
     const PlayerActionState &action, const PlayerKinematicState &kinematics,
     const PlayerActionVolumeParameters &parameters = PlayerActionVolumeParameters()) {
-  DO_VALIDATION;
 
   PlayerActionVolume volume;
   if (action.type != e_FunctionType_Sliding &&

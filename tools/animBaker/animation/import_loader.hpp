@@ -29,8 +29,8 @@ namespace blunted {
 
 class ImportLoader {
  public:
-  ImportLoader() { DO_VALIDATION; }
-  ~ImportLoader() { DO_VALIDATION; }
+  ImportLoader() {}
+  ~ImportLoader() {}
 
   ImportHierarchy LoadObject(const std::string& filename,
                              const Vector3& offset = Vector3(0)) const;

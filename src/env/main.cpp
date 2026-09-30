@@ -33,17 +33,8 @@ using std::string;
 using namespace blunted;
 
 thread_local GameEnv* game;
-Tracker tracker;
-
-void DoValidation(int line, const char* file) {
-  auto game = GetGame();
-  if (game) {
-    tracker.verify(line, file);
-  }
-}
 
 GameEnv* GetGame() { return game; }
-Tracker* GetTracker() { return &tracker; }
 
 GameContext& GetContext() {
   return *game->context;
@@ -73,18 +64,15 @@ const std::vector<AIControlledKeyboard*>& GetControllers() {
 }
 
 void randomize(unsigned int seed) {
-  DO_VALIDATION;
   srand(seed);
   rand();  // Discard the first value before using the C RNG.
   randomseed(seed); // for the boost random
 }
 
 void run_game(Properties* input_config) {
-  DO_VALIDATION;
   game->context->config = input_config;
   randomize(0);
   for (int x = 0; x < 2 * kPlayersPerTeam; x++) {
-    DO_VALIDATION;
     e_PlayerColor color = e_PlayerColor(x % (e_PlayerColor_Default + 1));
     game->context->controllers.push_back(new AIControlledKeyboard(color));
   }
@@ -95,11 +83,9 @@ void run_game(Properties* input_config) {
   // fire!
 
 void quit_game() {
-  DO_VALIDATION;
   game->context->gameTask.reset();
 
   for (unsigned int i = 0; i < game->context->controllers.size(); i++) {
-    DO_VALIDATION;
     delete game->context->controllers[i];
   }
   game->context->controllers.clear();
@@ -108,33 +94,6 @@ void quit_game() {
   delete game->context->config;
 }
 
-void Tracker::verify_snapshot(long pos, int line, const char* file,
-                              const std::string& trace) {
-  bool failure = false;
-  long waiting_pos = waiting_game->context->tracker_pos;
-  if (pos != waiting_pos || line != waiting_line ||
-      strcmp(file, waiting_file)) {
-    failure = true;
-  }
-  if (!failure) {
-    if (!game->context->gameTask->GetMatch()) return;
-    EnvState reader1(game, "");
-    game->ProcessState(&reader1);
-    EnvState reader2(waiting_game, "", reader1.GetState());
-    waiting_game->ProcessState(&reader2);
-    failure = reader2.isFailure();
-  }
-  if (failure) {
-    std::cout << "Validation range: " << start << " - " << end << std::endl;
-    std::cout << "Position: " << pos << " vs " << waiting_pos << std::endl;
-    std::cout << "Line: " << line << " vs " << waiting_line << std::endl;
-    std::cout << "File: " << file << " vs " << waiting_file << std::endl;
-    std::cout << "Stack: " << trace << " vs " << waiting_stack_trace
-              << std::endl;
-    std::cout << "Game ptr: " << game << " vs " << waiting_game << std::endl;
-    Log(blunted::e_FatalError, "State comparison failure", "", "");
-  }
-}
 
 void GameContext::ProcessState(EnvState* state) {
   for (int x = 0; x < sizeof(rng); x++) {

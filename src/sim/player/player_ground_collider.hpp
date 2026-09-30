@@ -26,7 +26,6 @@ struct PlayerGroundCollider {
   void Mirror() { center.Mirror(); }
 
   void ProcessState(EnvState *state) {
-    DO_VALIDATION;
     state->process(center);
     state->process(radius);
   }

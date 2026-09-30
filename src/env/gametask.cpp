@@ -20,15 +20,13 @@
 #include "env/main.hpp"
 
 
-GameTask::GameTask() { DO_VALIDATION; }
+GameTask::GameTask() {}
 
 GameTask::~GameTask() {
-  DO_VALIDATION;
   StopMatch();
 }
 
 void GameTask::StartMatch(std::unique_ptr<MatchSetup> setup, bool animations) {
-  DO_VALIDATION;
   randomize(GetScenarioConfig().game_engine_random_seed);
   assert(setup);
   assert(setup->match_data);
@@ -38,9 +36,7 @@ void GameTask::StartMatch(std::unique_ptr<MatchSetup> setup, bool animations) {
 }
 
 bool GameTask::StopMatch() {
-  DO_VALIDATION;
   if (match) {
-    DO_VALIDATION;
     match->Exit();
     match.reset();
     return true;
@@ -49,7 +45,6 @@ bool GameTask::StopMatch() {
 }
 
 void GameTask::ProcessPhase() {
-  DO_VALIDATION;
 
   // The simulation tick. When this returns, every piece of
   // simulation-authoritative state for this tick is complete.

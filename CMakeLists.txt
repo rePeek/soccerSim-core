@@ -114,3 +114,7 @@ add_test(NAME runtime_animation_boundary_guard
 add_test(NAME foundation_boundary_guard
   COMMAND ${CMAKE_SOURCE_DIR}/tools/foundation_boundary_guard.sh
     ${CMAKE_SOURCE_DIR}/src)
+
+add_test(NAME legacy_validation_guard
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/legacy_validation_guard.sh
+    ${CMAKE_SOURCE_DIR})

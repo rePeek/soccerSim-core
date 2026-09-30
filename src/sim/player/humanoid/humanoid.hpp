@@ -38,11 +38,11 @@ class Humanoid : public HumanoidBase {
     virtual void Process();
 
 
-    bool TouchPending() { DO_VALIDATION; return (currentAnim.frameNum < currentAnim.touchFrame) ? true : false; }
-    bool TouchAnim() { DO_VALIDATION; return (currentAnim.touchFrame != -1) ? true : false; }
-    Vector3 GetTouchPos() { DO_VALIDATION; return currentAnim.touchPos; }
-    int GetTouchFrame() { DO_VALIDATION; return currentAnim.touchFrame; }
-    int GetCurrentFrame() { DO_VALIDATION; return currentAnim.frameNum; }
+    bool TouchPending() { return (currentAnim.frameNum < currentAnim.touchFrame) ? true : false; }
+    bool TouchAnim() { return (currentAnim.touchFrame != -1) ? true : false; }
+    Vector3 GetTouchPos() { return currentAnim.touchPos; }
+    int GetTouchFrame() { return currentAnim.touchFrame; }
+    int GetCurrentFrame() { return currentAnim.frameNum; }
 
     void SelectRetainAnim();
 

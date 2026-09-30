@@ -34,26 +34,26 @@ namespace blunted {
       ~Triangle();
       bool operator == (const Triangle &triangle) const;
 
-      inline void SetVertex(unsigned char pos, const Vector &vec) { DO_VALIDATION;
+      inline void SetVertex(unsigned char pos, const Vector &vec) {
         vertices[pos].coords[0] = vec.coords[0];
         vertices[pos].coords[1] = vec.coords[1];
         vertices[pos].coords[2] = vec.coords[2];
       }
 
-      inline void SetTextureVertex(unsigned char texture_unit, unsigned char pos, const real x, const real y, const real z) { DO_VALIDATION;
+      inline void SetTextureVertex(unsigned char texture_unit, unsigned char pos, const real x, const real y, const real z) {
         textureVertices[pos][texture_unit].coords[0] = x;
         textureVertices[pos][texture_unit].coords[1] = y;
         textureVertices[pos][texture_unit].coords[2] = z;
       }
 
-      inline void SetNormal(unsigned char pos, const real x, const real y, const real z) { DO_VALIDATION;
+      inline void SetNormal(unsigned char pos, const real x, const real y, const real z) {
         normals[pos].coords[0] = x;
         normals[pos].coords[1] = y;
         normals[pos].coords[2] = z;
       }
 
-      inline void SetNormals(const Vector &vec) { DO_VALIDATION;
-        for (int i = 0; i < 3; i++) { DO_VALIDATION;
+      inline void SetNormals(const Vector &vec) {
+        for (int i = 0; i < 3; i++) {
           normals[i].coords[0] = vec.coords[0];
           normals[i].coords[1] = vec.coords[1];
           normals[i].coords[2] = vec.coords[2];

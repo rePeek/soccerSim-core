@@ -32,7 +32,7 @@ class PlayerBase;
 #include "data/teamdata.hpp"
 
 struct TimeNeeded {
-  TimeNeeded() { DO_VALIDATION;
+  TimeNeeded() {
     usual_ms = 0;
     optimistic_ms = 0;
   }

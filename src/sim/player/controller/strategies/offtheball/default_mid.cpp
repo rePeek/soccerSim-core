@@ -25,7 +25,6 @@ void DefaultMidfieldStrategy::RequestInput(ElizaController *controller,
                                            const MentalImage *mentalImage,
                                            Vector3 &direction,
                                            float &velocity) {
-  DO_VALIDATION;
 
   bool offensiveComponents = true;
   bool defensiveComponents = true;
@@ -38,17 +37,14 @@ void DefaultMidfieldStrategy::RequestInput(ElizaController *controller,
   Vector3 desiredPosition = desiredPosition_static * staticPositionBias + desiredPosition_dynamic * (1.0f - staticPositionBias);
 
   if (offensiveComponents) {
-    DO_VALIDATION;
     // support position
     float attackBias = NormalizedClamp((controller->GetFadingTeamPossessionAmount() - 0.5f) * 1.0f, 0.1f, 0.7f);
     bool makeRun = false;
     if (attackBias > 0.9f) {
-      DO_VALIDATION;
       if (controller->GetTeam()->GetController()->GetEndApplyAttackingRun_ms() >
               controller->GetMatch()->GetActualTime_ms() &&
           controller->GetTeam()->GetController()->GetAttackingRunPlayer() ==
               controller->GetPlayer()) {
-        DO_VALIDATION;
         makeRun = true;
       }
     }
@@ -57,7 +53,6 @@ void DefaultMidfieldStrategy::RequestInput(ElizaController *controller,
   }
 
   if (defensiveComponents) {
-    DO_VALIDATION;
 
     float mindset = AI_GetMindSet(static_cast<Player*>(controller->GetPlayer())->GetDynamicFormationEntry().role);
     controller->AddDefensiveComponent(

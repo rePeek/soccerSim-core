@@ -18,12 +18,11 @@
 
 namespace blunted {
 
-XMLLoader::XMLLoader() { DO_VALIDATION; }
+XMLLoader::XMLLoader() {}
 
-XMLLoader::~XMLLoader() { DO_VALIDATION; }
+XMLLoader::~XMLLoader() {}
 
 XMLTree XMLLoader::LoadFile(const std::string& filename) {
-  DO_VALIDATION;
   std::string source = file_to_string(filename);
 
   XMLTree tree;
@@ -33,7 +32,6 @@ XMLTree XMLLoader::LoadFile(const std::string& filename) {
 }
 
 XMLTree XMLLoader::Load(const std::string& file) {
-  DO_VALIDATION;
   XMLTree tree;
   BuildTree(tree, file);
 
@@ -41,13 +39,11 @@ XMLTree XMLLoader::Load(const std::string& file) {
 }
 
 void XMLLoader::BuildTree(XMLTree& tree, const std::string& source) {
-  DO_VALIDATION;
 
   size_t index_end = 0;
   size_t index = source.find('<', 0);
 
   if (index == std::string::npos) {
-    DO_VALIDATION;
     // No tags: this is a value.
     tree.value = source;
     tree.value.erase(remove_if(tree.value.begin(), tree.value.end(), isspace),
@@ -56,7 +52,6 @@ void XMLLoader::BuildTree(XMLTree& tree, const std::string& source) {
   }
 
   while (index != std::string::npos) {
-    DO_VALIDATION;
     index_end = source.find('>', index);
     std::string tag = source.substr(index + 1, index_end - index - 1);
     index = index_end;
@@ -65,12 +60,10 @@ void XMLLoader::BuildTree(XMLTree& tree, const std::string& source) {
     size_t index_nexttag_open = 0;
     size_t index_nexttag_close = 0;
     while (recurse_counter != 0) {
-      DO_VALIDATION;
       index_nexttag_open = source.find("<" + tag + ">", index_end + 1);
       index_nexttag_close = source.find("</" + tag + ">", index_end + 1);
       if (index_nexttag_open > index_nexttag_close ||
           index_nexttag_open == std::string::npos) {
-        DO_VALIDATION;
         recurse_counter--;
         index_end = index_nexttag_close;
       } else {
@@ -78,7 +71,6 @@ void XMLLoader::BuildTree(XMLTree& tree, const std::string& source) {
         index_end = index_nexttag_open;
       }
       if (index_end == std::string::npos) {
-        DO_VALIDATION;
         Log(e_FatalError, "XMLLoader", "BuildTree",
             "No closing tag found for <" + tag + ">");
       }

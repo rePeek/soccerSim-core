@@ -19,19 +19,7 @@
 #define _HPP_MAIN
 
 class GameEnv;
-class Tracker;
-Tracker* GetTracker();
 GameEnv* GetGame();
-
-void DoValidation(int line, const char* file);
-
-// Uncomment line below to enable validation.
-// #define FULL_VALIDATION 1
-#ifdef FULL_VALIDATION
-  #define DO_VALIDATION DoValidation(__LINE__, __FILE__);
-#else
-#define DO_VALIDATION ;
-#endif
 
 #include "ai/ai_keyboard.hpp"
 
@@ -44,8 +32,6 @@ void DoValidation(int line, const char* file);
 #include "foundation/math/rng.hpp"
 #include "foundation/properties.hpp"
 #include <memory>
-#include <condition_variable>
-#include <mutex>
 
 #define SHARED_PTR std::shared_ptr
 #define WEAK_PTR std::weak_ptr
@@ -103,14 +89,14 @@ struct ScenarioConfig {
     ComputeCache();
     return cached_controllable_right_players;
   }
-  bool LeftTeamOwnsBall() { DO_VALIDATION;
+  bool LeftTeamOwnsBall() {
     float leftDistance = 1000000;
     float rightDistance = 1000000;
-    for (auto& player : left_team) { DO_VALIDATION;
+    for (auto& player : left_team) {
       leftDistance = std::min(leftDistance,
           (player.start_position - ball_position).GetLength());
     }
-    for (auto& player : right_team) { DO_VALIDATION;
+    for (auto& player : right_team) {
       rightDistance = std::min(rightDistance,
           (player.start_position - ball_position).GetLength());
     }
@@ -249,8 +235,6 @@ class GameContext {
   int stablePlayerCount = 0;
   std::shared_ptr<AnimationLibrary> bakedAnims;
   int step = 0;
-  int tracker_disabled = 1;
-  long tracker_pos = 0;
   void ProcessState(EnvState* state);
 };
 
@@ -271,56 +255,5 @@ void randomize(unsigned int seed);
 void quit_game();
 int main(int argc, char** argv);
 
-class Tracker {
- public:
-  void setup(long start, long end) {
-    this->start = start;
-    this->end = end;
-    GetContext().tracker_disabled = 0;
-    GetContext().tracker_pos = 0;
-  }
-  void setDisabled(bool disabled) {
-    GetContext().tracker_disabled += disabled ? 1 : -1;
-  }
-  bool enabled() {
-    return GetContext().tracker_disabled == 0;
-  }
-  inline void verify(int line, const char* file) {
-    if (GetContext().tracker_disabled) return;
-    GetContext().tracker_pos++;
-    if (GetContext().tracker_pos < start || GetContext().tracker_pos > end) return;
-    std::unique_lock<std::mutex> lock(mtx);
-    std::string trace;
-    if (waiting_game == nullptr) {
-      if (GetContext().tracker_pos % 10000 == 0) {
-        std::cout << "Validating: " << GetContext().tracker_pos << std::endl;
-      }
-      waiting_stack_trace = trace;
-      waiting_game = GetGame();
-      waiting_line = line;
-      waiting_file = file;
-      cv.wait(lock);
-      return;
-    }
-    GetContext().tracker_disabled++;
-    verify_snapshot(GetContext().tracker_pos, line, file, trace);
-    GetContext().tracker_disabled--;
-    waiting_game = nullptr;
-    cv.notify_one();
-  }
- private:
-  void verify_snapshot(long pos, int line, const char* file, const std::string& trace);
-  // Tweak start and end to verify that line numbers match for
-  // each call in the verification range (2 bytes / call).
-  long start = 0LL;
-  long end = 1000000000LL;
-  bool verify_stack_trace = true;
-  std::mutex mtx;
-  std::condition_variable cv;
-  GameEnv* waiting_game = nullptr;
-  int waiting_line;
-  const char* waiting_file;
-  std::string waiting_stack_trace;
-};
 
 #endif

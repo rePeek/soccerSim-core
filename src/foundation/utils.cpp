@@ -29,7 +29,6 @@ namespace blunted {
   // string functions
 
 std::string stringchomp(std::string input, char chomp) {
-  DO_VALIDATION;
   if (input.find_first_not_of(chomp) < input.length())
     return (input.substr(input.find_first_not_of(chomp)));
   return "";
@@ -38,14 +37,12 @@ std::string stringchomp(std::string input, char chomp) {
   // tokenizer code from oopweb.com
 void tokenize(const std::string &str, std::vector<std::string> &tokens,
               const std::string &delimiters) {
-  DO_VALIDATION;
   // Skip delimiters at beginning.
   std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
   // Find first "non-delimiter".
   std::string::size_type pos = str.find_first_of(delimiters, lastPos);
 
   while (std::string::npos != pos || std::string::npos != lastPos) {
-    DO_VALIDATION;
     // Found a token, add it to the vector.
     tokens.push_back(str.substr(lastPos, pos - lastPos));
     // Skip delimiters.  Note the "not_of"
@@ -56,41 +53,33 @@ void tokenize(const std::string &str, std::vector<std::string> &tokens,
 }
 
 std::string file_to_string(std::string filename) {
-  DO_VALIDATION;
   return GetFile(filename);
 }
 
 void file_to_vector(std::string filename,
                     std::vector<std::string> &destination) {
-  DO_VALIDATION;
   std::string file = GetFile(filename);
   int last_pos = 0;
   for (int x = 0; x < file.length(); x++) {
-    DO_VALIDATION;
     if (file[x] == '\n') {
-      DO_VALIDATION;
       destination.push_back(file.substr(last_pos, x - last_pos));
       last_pos = x + 1;
     }
   }
   if (last_pos < file.length()) {
-    DO_VALIDATION;
     destination.push_back(file.substr(last_pos, file.length() - last_pos));
   }
 }
 
 std::string get_file_name(const std::string &filename) {
-  DO_VALIDATION;
   return std::filesystem::path(filename).filename().string();
 }
 
 std::string get_file_extension(const std::string &filename) {
-  DO_VALIDATION;
   return filename.substr(filename.find_last_of('.') + 1);
 }
 
 std::string int_to_str(int i) {
-  DO_VALIDATION;
   std::string i_str;
   char i_c[16];
   snprintf(i_c, 16, "%i", i);
@@ -99,7 +88,6 @@ std::string int_to_str(int i) {
 }
 
 std::string real_to_str(real r) {
-  DO_VALIDATION;
   std::string r_str;
   char r_c[32];
   snprintf(r_c, 32, "%f", r);
@@ -108,7 +96,6 @@ std::string real_to_str(real r) {
 }
 
 std::string GetStringFromVector(const Vector3 &vec) {
-  DO_VALIDATION;
   std::string tmp;
   tmp = "";
   char tmpC[1000];
@@ -118,9 +105,7 @@ std::string GetStringFromVector(const Vector3 &vec) {
 }
 
 Vector3 GetVectorFromString(const std::string &vecString) {
-  DO_VALIDATION;
   if (vecString.compare("") == 0) {
-    DO_VALIDATION;
     printf("vectorfromstring warning, no value\n");
     return Vector3(0.0f);
   }
@@ -139,7 +124,6 @@ Vector3 GetVectorFromString(const std::string &vecString) {
 }
 
 Quaternion GetQuaternionFromString(const std::string &quatString) {
-  DO_VALIDATION;
   std::vector<std::string> tokenizedString;
   std::string delimiter = ",";
   tokenize(quatString, tokenizedString, delimiter);

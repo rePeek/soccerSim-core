@@ -78,7 +78,6 @@ inline PlayerBodyCollider BuildBodyCollider(
     const PlayerKinematicState &kinematics,
     const PlayerBodyColliderParameters &parameters =
         PlayerBodyColliderParameters()) {
-  DO_VALIDATION;
 
   const Vector3 origin = kinematics.position.Get2D();
 

@@ -156,7 +156,6 @@ class EnvState {
   GameContext* context;
  private:
   void process(void** collection, int size, void*& element) {
-    DO_VALIDATION;
     if (load) {
       int index;
       process(index);

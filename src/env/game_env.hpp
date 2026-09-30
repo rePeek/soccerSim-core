@@ -38,7 +38,7 @@ class ContextHolder {
 
 // Game environment. This is the class that can be used directly from Python.
 struct GameEnv {
-  GameEnv() { DO_VALIDATION;}
+  GameEnv() { }
   // Start the game (in separate process).
   void start_game();
 
@@ -51,7 +51,6 @@ struct GameEnv {
   void reset(const ScenarioConfig& game_config, bool init_animation);
   std::string get_state(const std::string& pickle);
   std::string set_state(const std::string& state);
-  void tracker_setup(long start, long end) { GetTracker()->setup(start, end); }
   void step();
   void ProcessState(EnvState* state);
   ScenarioConfig& config();

@@ -23,27 +23,22 @@
 namespace blunted {
 
 Matrix4::Matrix4() {
-  DO_VALIDATION;
   for (int i = 0; i < 16; i++) {
-    DO_VALIDATION;
     elements[i] = 0;
   }
 }
 
 Matrix4::Matrix4(const real values[16]) {
-  DO_VALIDATION;
   for (int i = 0; i < 16; i++) {
-    DO_VALIDATION;
     elements[i] = values[i];
   }
 }
 
-Matrix4::~Matrix4() { DO_VALIDATION; }
+Matrix4::~Matrix4() {}
 
 // ----- operator overloading
 
 void Matrix4::operator=(const Matrix3 &mat3) {
-  DO_VALIDATION;
   elements[0] = mat3.elements[0];
   elements[1] = mat3.elements[1];
   elements[2] = mat3.elements[2];
@@ -61,9 +56,7 @@ void Matrix4::operator=(const Matrix3 &mat3) {
     Matrix4 result;
 
     for (int r = 0; r < 4; r++) {
-      DO_VALIDATION;
       for (int c = 0; c < 4; c++) {
-        DO_VALIDATION;
         result.elements[r * 4 + c] =
           elements[r * 4 + 0] * multiplier.elements[0 + c] +
           elements[r * 4 + 1] * multiplier.elements[4 + c] +
@@ -76,16 +69,13 @@ void Matrix4::operator=(const Matrix3 &mat3) {
   }
 
   bool Matrix4::operator==(const Matrix4 &mat) {
-    DO_VALIDATION;
     for (int i = 0; i < 16; i++) {
-      DO_VALIDATION;
       if (elements[i] != mat.elements[i]) return false;
     }
     return true;
   }
 
   bool Matrix4::operator!=(const Matrix4 &mat) {
-    DO_VALIDATION;
     return !(*this == mat);
   }
 
@@ -97,7 +87,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
     real dst[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     for (int i = 0; i < 16; i++) {
-      DO_VALIDATION;
       mat[i] = elements[i];
     }
 
@@ -106,7 +95,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
     real    det;     /* determinant                                  */
     /* transpose matrix */
     for (int i = 0; i < 4; i++) {
-      DO_VALIDATION;
       src[i] = mat[i * 4];
       src[i + 4] = mat[i * 4 + 1];
       src[i + 8] = mat[i * 4 + 2];
@@ -176,7 +164,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
     det=src[0]*dst[0]+src[1]*dst[1]+src[2]*dst[2]+src[3]*dst[3];
     /* calculate matrix inverse */
     if (det != 0.0f) {
-      DO_VALIDATION;
       det = 1/det;
       for (int j = 0; j < 16; j++)
           dst[j] *= det;
@@ -187,10 +174,8 @@ void Matrix4::operator=(const Matrix3 &mat3) {
   }
 
   void Matrix4::Transpose() {
-    DO_VALIDATION;
     Matrix4 tmp = GetTransposed();
     for (int i = 0; i < 16; i++) {
-      DO_VALIDATION;
       elements[i] = tmp.elements[i];
     }
   }
@@ -222,7 +207,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
   }
 
   void Matrix4::SetTranslation(const Vector3 &trans) {
-    DO_VALIDATION;
     elements[3] = trans.coords[0];
     elements[7] = trans.coords[1];
     elements[11] = trans.coords[2];
@@ -233,14 +217,12 @@ void Matrix4::operator=(const Matrix3 &mat3) {
   }
 
   void Matrix4::Translate(const Vector3 &trans) {
-    DO_VALIDATION;
     elements[3] += trans.coords[0];
     elements[7] += trans.coords[1];
     elements[11] += trans.coords[2];
   }
 
   Matrix4 Matrix4::GetTranslated(const Vector3 &trans) {
-    DO_VALIDATION;
     Matrix4 tmp(elements);
     tmp.elements[3] += trans.coords[0];
     tmp.elements[7] += trans.coords[1];
@@ -249,7 +231,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
   }
 
   void Matrix4::SetScale(const Vector3 &scale) {
-    DO_VALIDATION;
     elements[0] = scale.coords[0];
     elements[5] = scale.coords[1];
     elements[10] = scale.coords[2];
@@ -261,7 +242,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
 
   void Matrix4::Construct(const Vector3 &position, const Vector3 &scale,
                           const Quaternion &rotation) {
-    DO_VALIDATION;
     // credit to the ogre3d crew
     // http://www.ogre3d.org/
 
@@ -287,7 +267,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
 
   void Matrix4::ConstructInverse(const Vector3 &position, const Vector3 &scale,
                                  const Quaternion &rotation) {
-    DO_VALIDATION;
     // credit to the ogre3d crew
     // http://www.ogre3d.org/
 
@@ -320,7 +299,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
 
   void Matrix4::MultiplyVec4(float x, float y, float z, float w, float &rx,
                              float &ry, float &rz, float &rw) {
-    DO_VALIDATION;
     rx = elements[0] * x + elements[1] * y + elements[2] * z + elements[3] * w;
     ry = elements[4] * x + elements[5] * y + elements[6] * z + elements[7] * w;
     rz = elements[8] * x + elements[9] * y + elements[10] * z + elements[11] * w;
@@ -329,7 +307,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
 
   void Matrix4::ConstructProjection(float fov, float aspect, float zNear,
                                     float zFar) {
-    DO_VALIDATION;
 
     // https://solarianprogrammer.com/2013/05/22/opengl-101-matrices-projection-view-model/
 
@@ -340,7 +317,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
 
     volatile float zFar_min_zNear = 0;
     if (fabs(zFar - zNear) > EPSILON) {
-      DO_VALIDATION;
       zFar_min_zNear = 1.0f / (zFar - zNear);
     }
 
@@ -369,7 +345,6 @@ void Matrix4::operator=(const Matrix3 &mat3) {
 
   void Matrix4::ConstructOrtho(float left, float right, float bottom, float top,
                                float zNear, float zFar) {
-    DO_VALIDATION;
 
     // https://solarianprogrammer.com/2013/05/22/opengl-101-matrices-projection-view-model/
 

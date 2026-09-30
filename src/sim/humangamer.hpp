@@ -41,8 +41,8 @@ class HumanGamer {
       return selectedPlayer;
     }
     void SetSelectedPlayer(Player* player);
-    AIControlledKeyboard *GetHIDevice() { DO_VALIDATION; return hid; }
-    HumanController* GetHumanController() { DO_VALIDATION; return &controller; }
+    AIControlledKeyboard *GetHIDevice() { return hid; }
+    HumanController* GetHumanController() { return &controller; }
     void ProcessState(EnvState *state);
 
   protected:

@@ -30,10 +30,10 @@ class Team {
   public:
     Team(int id, Match *match, TeamData *teamData, float aiDifficulty);
     void Mirror();
-    bool isMirrored() { DO_VALIDATION;
+    bool isMirrored() {
       return mirrored;
     }
-    bool onOriginalSide() { DO_VALIDATION;
+    bool onOriginalSide() {
       return id == 0 ? (side == -1) : (side == 1);
     }
 
@@ -43,23 +43,23 @@ class Team {
 
     void InitPlayers();
 
-    Match *GetMatch() { DO_VALIDATION; return match; }
-    TeamAIController *GetController() { DO_VALIDATION; return teamController; }
+    Match *GetMatch() { return match; }
+    TeamAIController *GetController() { return teamController; }
 
     int GetID() const { return id; }
-    inline signed int GetDynamicSide() { DO_VALIDATION;
+    inline signed int GetDynamicSide() {
       return side;
     }
-    inline signed int GetStaticSide() { DO_VALIDATION;
+    inline signed int GetStaticSide() {
       return id == 0 ? -1 : 1;
     }
-    const TeamData *GetTeamData() { DO_VALIDATION; return teamData; }
+    const TeamData *GetTeamData() { return teamData; }
 
     FormationEntry GetFormationEntry(void* player);
     void SetFormationEntry(Player* player, FormationEntry entry);
     float GetAiDifficulty() const { return aiDifficulty; }
     const std::vector<Player *> &GetAllPlayers() { return players; }
-    void GetAllPlayers(std::vector<Player*> &allPlayers) { DO_VALIDATION;
+    void GetAllPlayers(std::vector<Player*> &allPlayers) {
       allPlayers.insert(allPlayers.end(), players.begin(), players.end());
     }
     void GetActivePlayers(std::vector<Player *> &activePlayers);
@@ -68,7 +68,7 @@ class Team {
 
     unsigned int GetHumanGamerCount() {
       int count = 0;
-      for (auto& g: humanGamers) { DO_VALIDATION;
+      for (auto& g: humanGamers) {
         if (!g->GetHumanController()->Disabled()) {
           count++;
         }
@@ -76,7 +76,7 @@ class Team {
       return count;
     }
     void GetHumanControllers(std::vector<HumanGamer*>& v) {
-      for (auto& g: humanGamers) { DO_VALIDATION;
+      for (auto& g: humanGamers) {
         v.push_back(g.get());
       }
     }
@@ -88,7 +88,7 @@ class Team {
     bool HasPossession() const;
     bool HasUniquePossession() const;
     int GetTimeNeededToGetToBall_ms() const;
-    Player *GetDesignatedTeamPossessionPlayer() { DO_VALIDATION;
+    Player *GetDesignatedTeamPossessionPlayer() {
       return designatedTeamPossessionPlayer;
     }
     void UpdateDesignatedTeamPossessionPlayer();
@@ -100,7 +100,7 @@ class Team {
     void SetLastTouchPlayer(
         Player *player, e_TouchType touchType = e_TouchType_Intentional_Kicked);
     Player *GetLastTouchPlayer() const { return lastTouchPlayer; }
-    float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0) { DO_VALIDATION;
+    float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0) {
       return lastTouchPlayer
                  ? lastTouchPlayer->GetLastTouchBias(decay_ms, time_ms)
                  : 0;
@@ -109,8 +109,8 @@ class Team {
     void ResetSituation(const Vector3 &focusPos);
 
     void HumanGamersSelectAnyone();
-    void SetOpponent(Team* opponent) { DO_VALIDATION; this->opponent = opponent; }
-    Team* Opponent() { DO_VALIDATION; return opponent; }
+    void SetOpponent(Team* opponent) { this->opponent = opponent; }
+    Team* Opponent() { return opponent; }
     void SelectPlayer(Player *player);
     void DeselectPlayer(Player *player);
 

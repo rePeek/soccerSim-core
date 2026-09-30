@@ -262,17 +262,17 @@ enum e_InterruptAnim {
 };
 
 struct RotationSmuggle {
-  RotationSmuggle() { DO_VALIDATION;
+  RotationSmuggle() {
     begin = 0;
     end = 0;
   }
-  void operator = (const float &value) { DO_VALIDATION;
+  void operator = (const float &value) {
     begin = value;
     end = value;
   }
   radian begin;
   radian end;
-  void ProcessState(EnvState* state) { DO_VALIDATION;
+  void ProcessState(EnvState* state) {
     state->process(begin);
     state->process(end);
   }
@@ -298,7 +298,7 @@ struct Anim {
   Vector3 positionOffset;
   PlayerCommand originatingCommand;
   std::vector<Vector3> positions;
-  void ProcessState(EnvState* state) { DO_VALIDATION;
+  void ProcessState(EnvState* state) {
     // Preserve the historical [id][bakedId] wire layout until the
     // simulation-state schema receives an explicit versioned migration.
     AnimationId legacy_id = animationId;
@@ -351,7 +351,7 @@ struct SpatialState {
   Vector3 relBodyDirectionVecNonquantized;
   e_Foot foot;
 
-  void Mirror() { DO_VALIDATION;
+  void Mirror() {
     position.Mirror();
     actualMovement.Mirror();
     physicsMovement.Mirror();
@@ -362,7 +362,7 @@ struct SpatialState {
     positionOffsetMovement.Mirror();
   }
 
-  void ProcessState(EnvState* state) { DO_VALIDATION;
+  void ProcessState(EnvState* state) {
     state->process(position);
     state->process(angle);
     state->process(directionVec);
@@ -394,8 +394,8 @@ class HumanoidBase {
 
     virtual void Process();
 
-    inline int GetFrameNum() { DO_VALIDATION; return currentAnim.frameNum; }
-    inline int GetFrameCount() { DO_VALIDATION; return static_cast<int>(GetCurrentBakedClip().frame_count); }
+    inline int GetFrameNum() { return currentAnim.frameNum; }
+    inline int GetFrameCount() { return static_cast<int>(GetCurrentBakedClip().frame_count); }
 
     inline Vector3 GetPosition() const { return spatialState.position; }
     inline Vector3 GetDirectionVec() const { return spatialState.directionVec; }
@@ -420,7 +420,7 @@ class HumanoidBase {
     virtual float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
     virtual float GetDecayingDifficultyFactor() const { return decayingDifficultyFactor; }
 
-    const Anim *GetCurrentAnim() { DO_VALIDATION; return &currentAnim; }
+    const Anim *GetCurrentAnim() { return &currentAnim; }
 
     // Baked clip access. The runtime never reads legacy Animation objects;
     // these resolve through the stable AnimationId into the read-only library.

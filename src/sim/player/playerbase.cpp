@@ -91,7 +91,6 @@ void ResetLocomotionReentryAudits() {
 }
 
 void PlayerBase::CheckDecisionLocomotionIntentOracle() const {
-  DO_VALIDATION;
   // Producer contract for the executed intent. The executability half lives in
   // HasExecutableDecisionLocomotionIntent(); this half stays fatal so a Direct
   // publication that is not a Movement intent can never silently execute.
@@ -253,12 +252,10 @@ namespace {
 // right is a synchronization bug, and masking it would let a later procedural
 // producer inherit an inconsistent baseline.
 bool Vector3BitsEqual(const Vector3 &a, const Vector3 &b) {
-  DO_VALIDATION;
   return std::memcmp(a.coords, b.coords, sizeof(a.coords)) == 0;
 }
 
 bool FloatBitsEqual(float a, float b) {
-  DO_VALIDATION;
   return std::memcmp(&a, &b, sizeof(float)) == 0;
 }
 
@@ -268,19 +265,16 @@ PlayerBase::PlayerBase(Match *match, PlayerData *playerData)
     : match(match),
       playerData(playerData),
       stable_id(GetContext().stablePlayerCount++) {
-  DO_VALIDATION;
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;
   fatigueFactorInv = 1.0;
 }
 
 PlayerBase::~PlayerBase() {
-  DO_VALIDATION;
   if (isActive) Deactivate();
 }
 
 bool PlayerBase::IsKinematicMirrorConsistent() const {
-  DO_VALIDATION;
   return Vector3BitsEqual(kinematicState.position, humanoid->GetPosition()) &&
          Vector3BitsEqual(kinematicState.velocity, humanoid->GetMovement()) &&
          Vector3BitsEqual(kinematicState.facing, humanoid->GetDirectionVec()) &&
@@ -293,7 +287,6 @@ bool PlayerBase::IsKinematicMirrorConsistent() const {
 }
 
 void PlayerBase::CheckSimulationKinematicOracle() const {
-  DO_VALIDATION;
   const Vector3 &position = humanoid->GetPosition();
   const Vector3 &movement = humanoid->GetMovement();
   const Vector3 &direction = humanoid->GetDirectionVec();
@@ -322,7 +315,6 @@ void PlayerBase::CheckSimulationKinematicOracle() const {
 }
 
 void PlayerBase::Mirror() {
-  DO_VALIDATION;
   humanoid->Mirror();
   kinematicState.Mirror();
   groundCollider.Mirror();
@@ -330,7 +322,6 @@ void PlayerBase::Mirror() {
 }
 
 void PlayerBase::SynchronizeKinematicState() {
-  DO_VALIDATION;
   kinematicState.position = humanoid->GetPosition();
   kinematicState.velocity = humanoid->GetMovement();
   kinematicState.facing = humanoid->GetDirectionVec();
@@ -341,7 +332,6 @@ void PlayerBase::SynchronizeKinematicState() {
 }
 
 bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
-  DO_VALIDATION;
   decisionMovementSelection = false;
   const float distance_to_ball =
       (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
@@ -369,7 +359,6 @@ bool PlayerBase::NoteLocomotionIntentCadence(bool legacy_opportunity) {
 
 void PlayerBase::PublishPlayerDecisionQueue(
     const PlayerCommandQueue &commands, int now_ms) {
-  DO_VALIDATION;
   playerDecisionQueue.commands = commands;
   playerDecisionQueue.initialized = true;
   ++playerDecisionQueue.generation;
@@ -378,7 +367,6 @@ void PlayerBase::PublishPlayerDecisionQueue(
 
 void PlayerBase::CommitLocomotionIntentRefresh() {
   ++HumanoidIntentRefreshCommits();
-  DO_VALIDATION;
   const float distance_to_ball =
       (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
   ++PlayerLocomotionIntentConsumedTicks();
@@ -411,7 +399,6 @@ void DumpQueryOpportunities() {
   fflush(stdout);
 }
 void PlayerBase::NoteControllerQuery(bool had_movement_candidate) {
-  DO_VALIDATION;
   const int now_ms = static_cast<int>(match->GetActualTime_ms());
   ++tr_query_gen;
   tr_last_query_ms = now_ms;
@@ -433,13 +420,11 @@ void PlayerBase::NoteControllerQuery(bool had_movement_candidate) {
 }
 
 void PlayerBase::NoteDecisionMovementSelection(bool movement_selected) {
-  DO_VALIDATION;
   decisionMovementSelection = movement_selected;
 }
 
 void PlayerBase::ObserveSimulationDecisionQueue(
     const PlayerCommandQueue &commands, int now_ms) {
-  DO_VALIDATION;
   simulationDecisionQueue.commands = commands;
   simulationDecisionQueue.initialized = true;
   ++simulationDecisionQueue.generation;
@@ -450,7 +435,6 @@ void PlayerBase::ObserveSimulationDecisionQueue(
 // decision locomotion state and the publication telemetry, and never touches the
 // compatibility movement command slot.
 void PlayerBase::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
-  DO_VALIDATION;
   if (command.desiredFunctionType != e_FunctionType_Movement ||
       !command.useDesiredMovement) {
     Log(e_FatalError, "PlayerBase", "PublishDecisionLocomotionIntent",
@@ -503,7 +487,6 @@ void PlayerBase::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
 // published, so callers commit the scheduler refresh only on a real publication.
 // Both Process() paths (real players and officials) share it.
 bool PlayerBase::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue) {
-  DO_VALIDATION;
   for (const PlayerCommand &candidate : queue) {
     if (candidate.desiredFunctionType == e_FunctionType_Movement &&
         candidate.useDesiredMovement) {
@@ -516,7 +499,6 @@ bool PlayerBase::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue)
 
 
 PlayerActionState PlayerBase::CaptureLegacyActionState() const {
-  DO_VALIDATION;
   PlayerActionState legacy;
   legacy.type = humanoid->GetCurrentFunctionType();
   legacy.frame = humanoid->GetFrameNum();
@@ -532,7 +514,6 @@ PlayerActionState PlayerBase::CaptureLegacyActionState() const {
 }
 
 void PlayerBase::CheckSimulationActionOracle() const {
-  DO_VALIDATION;
   const PlayerActionState legacy = CaptureLegacyActionState();
   const bool contactPositionMatches =
       std::memcmp(actionState.contactPosition.coords,
@@ -568,7 +549,6 @@ void PlayerBase::CheckSimulationActionOracle() const {
 }
 
 void PlayerBase::BeginSimulationAction() {
-  DO_VALIDATION;
   const Anim *anim = humanoid->GetCurrentAnim();
   PlayerActionDefinition definition;
   definition.type = humanoid->GetCurrentFunctionType();
@@ -589,26 +569,22 @@ void PlayerBase::BeginSimulationAction() {
 }
 
 void PlayerBase::StepSimulationAction(int elapsedTime_ms) {
-  DO_VALIDATION;
   PlayerActionExecutor::Step(actionState, elapsedTime_ms);
   CheckSimulationActionOracle();
 }
 
 bool PlayerBase::IsEligibleForProceduralLocomotion() const {
-  DO_VALIDATION;
   return actionState.IsPureLocomotion(match->GetBallRetainer() == this);
 }
 
 
 void PlayerBase::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
-  DO_VALIDATION;
   humanoid->ResetPosition(newPos, focusPos);
   SynchronizeKinematicState();
   BeginSimulationAction();
 }
 
 void PlayerBase::OffsetPosition(const Vector3 &offset) {
-  DO_VALIDATION;
   humanoid->OffsetPosition(offset);
   SynchronizeKinematicState();
   CheckSimulationActionOracle();
@@ -619,7 +595,6 @@ void PlayerBase::SetNextResetSituationAuditContext(int context) {
 }
 
 void PlayerBase::Deactivate() {
-  DO_VALIDATION;
   SetNextResetSituationAuditContext(kResetSituationBaseDeactivateSecond);
   ResetSituation(GetPosition());
   isActive = false;
@@ -627,7 +602,6 @@ void PlayerBase::Deactivate() {
 }
 
 IController *PlayerBase::GetController() {
-  DO_VALIDATION;
   if (ExternalControllerActive()) {
     return externalController->GetHumanController();
   } else {
@@ -636,7 +610,6 @@ IController *PlayerBase::GetController() {
 }
 
 void PlayerBase::RequestCommand(PlayerCommandQueue &commandQueue) {
-  DO_VALIDATION;
   if (ExternalControllerActive()) {
     externalController->GetHumanController()->RequestCommand(commandQueue);
   } else {
@@ -645,10 +618,8 @@ void PlayerBase::RequestCommand(PlayerCommandQueue &commandQueue) {
 }
 
 void PlayerBase::SetExternalController(HumanGamer *externalController) {
-  DO_VALIDATION;
   this->externalController = externalController;
   if (this->externalController) {
-    DO_VALIDATION;
     this->externalController->GetHumanController()->Reset();
     this->externalController->GetHumanController()->SetPlayer(this);
   } else {
@@ -657,19 +628,15 @@ void PlayerBase::SetExternalController(HumanGamer *externalController) {
 }
 
 HumanController *PlayerBase::ExternalController() {
-  DO_VALIDATION;
   return externalController ? externalController->GetHumanController() : nullptr;
 }
 
 bool PlayerBase::ExternalControllerActive() {
-  DO_VALIDATION;
   return externalController && !externalController->GetHumanController()->Disabled();
 }
 
 void PlayerBase::Process() {
-  DO_VALIDATION;
   if (isActive) {
-    DO_VALIDATION;
     if (ExternalControllerActive()) externalController->GetHumanController()->Process(); else controller->Process();
     humanoid->Process();
     SynchronizeKinematicState();
@@ -693,7 +660,6 @@ float PlayerBase::GetVelocityMultiplier() const {
 }
 
 float PlayerBase::GetLastTouchBias(int decay_ms, unsigned long time_ms) {
-  DO_VALIDATION;
   unsigned long adaptedTime_ms = time_ms;
   if (time_ms == 0) adaptedTime_ms = match->GetActualTime_ms();
   if (decay_ms > 0) return 1.0f - clamp((adaptedTime_ms - GetLastTouchTime_ms()) / (float)decay_ms, 0.0f, 1.0f);
@@ -701,7 +667,6 @@ float PlayerBase::GetLastTouchBias(int decay_ms, unsigned long time_ms) {
 }
 
 void PlayerBase::ResetSituation(const Vector3 &focusPos) {
-  DO_VALIDATION;
   positionHistoryPerSecond.clear();
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;
@@ -729,7 +694,6 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
 }
 
 void PlayerBase::ProcessStateBase(EnvState *state) {
-  DO_VALIDATION;
   state->process(isActive);
   humanoid->ProcessState(state);
   kinematicState.ProcessState(state);

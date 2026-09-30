@@ -25,18 +25,15 @@
 #include "env/main.hpp"
 
 RefereeController::RefereeController(Match *match) : IController(match) {
-  DO_VALIDATION;
 }
 
-RefereeController::~RefereeController() { DO_VALIDATION; }
+RefereeController::~RefereeController() {}
 
 PlayerOfficial *RefereeController::CastPlayer() {
-  DO_VALIDATION;
   return static_cast<PlayerOfficial *>(player);
 }
 
 void RefereeController::GetForceField(std::vector<ForceSpot> &forceField) {
-  DO_VALIDATION;
   {
     ForceSpot forceSpot;
     forceSpot.origin =
@@ -62,7 +59,6 @@ void RefereeController::GetForceField(std::vector<ForceSpot> &forceField) {
                               players);
   match->GetActiveTeamPlayers(match->SecondTeam(), players);
   for (unsigned int i = 0; i < players.size(); i++) {
-    DO_VALIDATION;
     ForceSpot forceSpot;
     forceSpot.origin = players[i]->GetPosition() + players[i]->GetMovement() * 0.4f;
     forceSpot.magnetType = e_MagnetType_Repel;
@@ -74,10 +70,8 @@ void RefereeController::GetForceField(std::vector<ForceSpot> &forceField) {
 }
 
 void RefereeController::RequestCommand(PlayerCommandQueue &commandQueue) {
-  DO_VALIDATION;
 
   switch (CastPlayer()->GetOfficialType()) {
-    DO_VALIDATION;
 
     case e_OfficialType_Referee:
       if (match->GetReferee()->GetBuffer().active == true &&
@@ -85,12 +79,11 @@ void RefereeController::RequestCommand(PlayerCommandQueue &commandQueue) {
            match->GetReferee()->GetCurrentFoulType() == 3) &&
           match->GetReferee()->GetBuffer().prepareTime >
               match->GetActualTime_ms() + 5000) {
-        DO_VALIDATION;  // FOUL, walk towards offender
+          // FOUL, walk towards offender
 
         Vector3 desiredPosition = match->GetReferee()->GetCurrentFoulPlayer()->GetPosition() + (CastPlayer()->GetPosition() - match->GetReferee()->GetCurrentFoulPlayer()->GetPosition()).GetNormalized(0) * 2.0;
 
         if ((CastPlayer()->GetPosition() - desiredPosition).GetLength() > 2.0) {
-          DO_VALIDATION;
           PlayerCommand command;
           command.desiredFunctionType = e_FunctionType_Movement;
           command.useDesiredMovement = true;
@@ -151,7 +144,6 @@ void RefereeController::RequestCommand(PlayerCommandQueue &commandQueue) {
         float offside = 0.0f;
         Vector3 desiredPosition;
         if (player->GetPosition().coords[1] < 0) {
-          DO_VALIDATION;
           offside = AI_GetOffsideLine(match, match->GetMentalImage(0), 1);
           desiredPosition = Vector3(offside, -(pitchHalfH + 0.8f), 0);
         } else {
@@ -169,21 +161,18 @@ void RefereeController::RequestCommand(PlayerCommandQueue &commandQueue) {
   }
 }
 
-void RefereeController::Process() { DO_VALIDATION; }
+void RefereeController::Process() {}
 
 Vector3 RefereeController::GetDirection() {
-  DO_VALIDATION;
   return player->GetDirectionVec();
 }
 
 float RefereeController::GetFloatVelocity() {
-  DO_VALIDATION;
   return player->GetFloatVelocity();
 }
 
 int RefereeController::GetReactionTime_ms() {
-  DO_VALIDATION;
   return 60;
 }
 
-void RefereeController::Reset() { DO_VALIDATION; }
+void RefereeController::Reset() {}

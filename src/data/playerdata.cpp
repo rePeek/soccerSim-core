@@ -26,7 +26,6 @@
 #include "env/rng.hpp"
 
 PlayerStat PlayerStatFromString(const std::string& name) {
-  DO_VALIDATION;
   if (name == "physical_balance") return physical_balance;
   if (name == "physical_reaction") return physical_reaction;
   if (name == "physical_acceleration") return physical_acceleration;
@@ -55,7 +54,6 @@ PlayerStat PlayerStatFromString(const std::string& name) {
 }
 
 PlayerData::PlayerData(int playerDatabaseID, bool left_team) {
-  DO_VALIDATION;
 
   std::string profileString;
   float baseStat = 0.0f;
@@ -67,7 +65,6 @@ PlayerData::PlayerData(int playerDatabaseID, bool left_team) {
   height = 1.8f;
 
   switch (playerDatabaseID) {
-    DO_VALIDATION;
     case 398:
       if (left_team) {
         firstName = "Ada";
@@ -496,7 +493,6 @@ PlayerData::PlayerData(int playerDatabaseID, bool left_team) {
   //printf("player: %s, %s (age %i)\n", lastName.c_str(), firstName.c_str(), age);
   map_XMLTree::const_iterator iter = tree.children.begin();
   while (iter != tree.children.end()) {
-    DO_VALIDATION;
     float profileStat = atof((*iter).second.value.c_str()); // profile value
 
     float value = CalculateStat(baseStat, profileStat, age, e_DevelopmentCurveType_Normal);
@@ -509,7 +505,6 @@ PlayerData::PlayerData(int playerDatabaseID, bool left_team) {
 }
 
 PlayerData::PlayerData() {
-  DO_VALIDATION;
   // officials, for example, use this constructor
   skinColor = int(std::round(boostrandom(1, 4)));
   hairStyle = "short01";
@@ -542,8 +537,7 @@ PlayerData::PlayerData() {
 }
 
 void PlayerData::UpdateValues() {
-  DO_VALIDATION;
   physical_velocity = GetStat(PlayerStat::physical_velocity);
 }
 
-PlayerData::~PlayerData() { DO_VALIDATION; }
+PlayerData::~PlayerData() {}

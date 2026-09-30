@@ -29,7 +29,7 @@ using namespace blunted;
 class Match;
 
 struct BallSpatialInfo {
-  BallSpatialInfo(const Vector3 &momentum, const Quaternion &rotation_ms) { DO_VALIDATION;
+  BallSpatialInfo(const Vector3 &momentum, const Quaternion &rotation_ms) {
     this->momentum = momentum;
     this->rotation_ms = rotation_ms;
   }

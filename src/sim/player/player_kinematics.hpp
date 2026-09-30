@@ -38,7 +38,6 @@ struct PlayerKinematicState {
   }
 
   void ProcessState(EnvState *state) {
-    DO_VALIDATION;
     state->process(position);
     state->process(velocity);
     state->process(facing);
@@ -66,7 +65,6 @@ class PlayerKinematics {
   static void Step(PlayerKinematicState &state,
                    const PlayerKinematicInput &input,
                    const PlayerKinematicParameters &parameters, float dt) {
-    DO_VALIDATION;
     assert(dt > 0.0f);
     assert(parameters.maxSpeed >= 0.0f);
     assert(parameters.acceleration >= 0.0f);

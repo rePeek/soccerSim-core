@@ -26,14 +26,12 @@
 namespace blunted {
 
 Vector3::Vector3() {
-  DO_VALIDATION;
   coords[0] = 0;
   coords[1] = 0;
   coords[2] = 0;
 }
 
 Vector3::Vector3(real xyz) {
-  DO_VALIDATION;
   coords[0] = xyz;
   coords[1] = xyz;
   coords[2] = xyz;
@@ -46,7 +44,6 @@ Vector3::Vector3(real x, real y, real z) {
 }
 
 void Vector3::Set(real xyz) {
-  DO_VALIDATION;
   coords[0] = xyz;
   coords[1] = xyz;
   coords[2] = xyz;
@@ -59,7 +56,6 @@ void Vector3::Set(real x, real y, real z) {
 }
 
 void Vector3::Set(const Vector3 &vec) {
-  DO_VALIDATION;
   coords[0] = vec.coords[0];
   coords[1] = vec.coords[1];
   coords[2] = vec.coords[2];
@@ -67,7 +63,6 @@ void Vector3::Set(const Vector3 &vec) {
 
   float Vector3::GetEnvCoord(int index) const {
     switch (index) {
-      DO_VALIDATION;
       case 0:
         return coords[0];
       case 1:
@@ -81,9 +76,7 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   void Vector3::SetEnvCoord(int index, float value) {
-    DO_VALIDATION;
     switch (index) {
-      DO_VALIDATION;
       case 0:
         coords[0] = value;
         break;
@@ -101,7 +94,6 @@ void Vector3::Set(const Vector3 &vec) {
   // ----- operator overloading
 
   void Vector3::operator=(const Quaternion &quat) {
-    DO_VALIDATION;
     // http://www.devmaster.net/forums/showthread.php?t=14097
     // thanks @ reedbeta
 
@@ -113,7 +105,6 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   Vector3 &Vector3::operator*=(const Matrix3 &mat) {
-    DO_VALIDATION;
     Vector3 tmp;
     tmp.coords[0] = coords[0] * mat.elements[0] + coords[1] * mat.elements[3] + coords[2] * mat.elements[6];
     tmp.coords[1] = coords[0] * mat.elements[1] + coords[1] * mat.elements[4] + coords[2] * mat.elements[7];
@@ -127,7 +118,6 @@ void Vector3::Set(const Vector3 &vec) {
 
   // not sure if legal
   Vector3 &Vector3::operator*=(const Matrix4 &mat) {
-    DO_VALIDATION;
 
     const Matrix3 bla = Matrix3(mat);
     Vector3 tmp = *this;
@@ -160,7 +150,6 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   void Vector3::FastNormalize() {
-    DO_VALIDATION;
 
     // http://www.devmaster.net/forums/showthread.php?t=4460
 
@@ -178,11 +167,9 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   void Vector3::Normalize(const Vector3 &ifNull) {
-    DO_VALIDATION;
     if (fabs(this->coords[0]) < 0.000001f &&
         fabs(this->coords[1]) < 0.000001f &&
         fabs(this->coords[2]) < 0.000001f) {
-      DO_VALIDATION;
       this->coords[0] = ifNull.coords[0];
       this->coords[1] = ifNull.coords[1];
       this->coords[2] = ifNull.coords[2];
@@ -195,7 +182,6 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   void Vector3::Normalize() {
-    DO_VALIDATION;
     real f = 1.0f / std::sqrt(GetDotProduct(*this));
     coords[0] *= f;
     coords[1] *= f;
@@ -203,7 +189,6 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   void Vector3::NormalizeTo(float length) {
-    DO_VALIDATION;
     if (fabs(this->coords[0]) < 0.000001f && fabs(this->coords[1]) < 0.000001f && fabs(this->coords[2]) < 0.000001f) Log(e_Warning, "Vector3", "NormalizeTo", "Trying to normalize 0-vector");
     real f = length / std::sqrt(GetDotProduct(*this));
 
@@ -213,9 +198,7 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   void Vector3::NormalizeMax(float length) {
-    DO_VALIDATION;
     if (GetLength() > length) {
-      DO_VALIDATION;
       Normalize();
       *this *= length;
     }
@@ -263,7 +246,6 @@ void Vector3::Set(const Vector3 &vec) {
   bool Vector3::Compare(const Vector3 &test) const {
     if (test.coords[0] == coords[0] && test.coords[1] == coords[1] &&
         test.coords[2] == coords[2]) {
-      DO_VALIDATION;
       return true;
     } else {
       return false;
@@ -279,7 +261,6 @@ void Vector3::Set(const Vector3 &vec) {
     Vector3 difference = deviant - *this;
     float differenceDistance = difference.GetLength();
     if (differenceDistance > maxDeviation) {
-      DO_VALIDATION;
       result += difference.GetNormalized() * (differenceDistance - maxDeviation);
     }
     if (maxDeviation == 0.0f) assert(deviant.GetDistance(result) < 0.001f);
@@ -296,12 +277,11 @@ void Vector3::Set(const Vector3 &vec) {
     radian v2_to_this = (*this).GetAngle2D(v2);
     if (signSide(v1_to_this) != direction ||
         signSide(v2_to_this) == direction) {
-      DO_VALIDATION;  // wrong side! (what this does: make 2 cross sections
+        // wrong side! (what this does: make 2 cross sections
                       // through the virtual circle, one for each parameter, and
                       // check if we are on the wrong side of either one
       // check to which parameter-vec we are the closest and clamp to that one
       if (fabs(v1_to_this) < fabs(v2_to_this)) {
-        DO_VALIDATION;
         result = v1;
       } else {
         result = v2;
@@ -312,7 +292,6 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   void Vector3::Extrapolate(const Vector3 &direction, unsigned long time) {
-    DO_VALIDATION;
     *this += direction * (time / 1000.0);
   }
 

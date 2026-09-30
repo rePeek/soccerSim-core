@@ -151,6 +151,7 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
   `GetContext`/`EnvState`/`boostrandom`/`randomseed`/`random_non_determ`。
 - `runtime_animation_boundary_guard`：禁止 runtime 依赖离线 `.anim` 管线。
 - `football_headless_core_guard`：禁止 graphics/Boost 依赖回流。
+- `legacy_validation_guard`：禁止已经删除的逐语句 validation 宏/函数回流。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
 entry point and guards, plus legacy `animation/`, `animcollection/`, import
@@ -167,7 +168,7 @@ files are inputs to the regression baseline.
 ## Runtime data flow
 
 ```
-main() [src/env/main.cpp]        thread_local GameEnv* game; Tracker tracker;
+main() [src/env/main.cpp]        thread_local GameEnv* game;
   → run_game()                   builds GameContext + GameTask + AIControlledKeyboard[]
   → GameEnv [src/env/game_env.*] start_game / reset(config) / step / action /
                                   get_info→SharedInfo / get_state / set_state
@@ -190,9 +191,6 @@ main() [src/env/main.cpp]        thread_local GameEnv* game; Tracker tracker;
 - **Namespace**: `blunted::` for foundation math/geometry/types. The football layer is
   in the global namespace with `e_*` enums and plain classes.
 - **Include guards**: legacy headers use `#ifndef _HPP_...` / `#define _HPP_...` style.
-- **Validation**: `DO_VALIDATION` (a no-op unless `FULL_VALIDATION` is defined) hooks
-  into `Tracker::verify`, which drives cross-process deterministic replay comparison.
-  Leave it in place when editing.
 - **No mirror state**: an authoritative field is stored once; derived values are
   accessors (e.g. `speed == velocity.GetLength()`), never a second field.
 - **Determinism is the product.** Before and after any refactor, run the regression

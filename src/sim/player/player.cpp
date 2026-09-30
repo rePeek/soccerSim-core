@@ -53,7 +53,6 @@ constexpr int kReachabilityExactHorizon_ms = 500;
 
 Player::Player(Team *team, PlayerData *playerData)
     : PlayerBase(team->GetMatch(), playerData), team(team) {
-  DO_VALIDATION;
   SetDesiredTimeToBall_ms(0);
 
   triggerControlledBallCollision = false;
@@ -68,16 +67,13 @@ Player::Player(Team *team, PlayerData *playerData)
 }
 
 Player::~Player() {
-  DO_VALIDATION;
 }
 
 Humanoid *Player::CastHumanoid() {
-  DO_VALIDATION;
   return static_cast<Humanoid *>(humanoid.get());
 }
 
 ElizaController *Player::CastController() {
-  DO_VALIDATION;
   return static_cast<ElizaController *>(controller.get());
 }
 
@@ -86,7 +82,6 @@ int Player::GetTeamID() const {
 }
 
 Vector3 Player::GetPitchPosition() {
-  DO_VALIDATION;
   Vector3 pos = GetPosition();
   if (!team->onOriginalSide()) {
     pos.Mirror();
@@ -95,12 +90,10 @@ Vector3 Player::GetPitchPosition() {
 }
 
 Team *Player::GetTeam() {
-  DO_VALIDATION;
   return team;
 }
 
 void Player::Activate(bool lazyPlayer) {
-  DO_VALIDATION;
 
   assert(!isActive);
 
@@ -120,11 +113,9 @@ void Player::Activate(bool lazyPlayer) {
 }
 
 void Player::Deactivate() {
-  DO_VALIDATION;
   SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateFirst);
   ResetSituation(GetPosition());
   if (ExternalController()) {
-    DO_VALIDATION;
     team->DeselectPlayer(this); // don't want any humangamer to have control of this player anymore
   }
 
@@ -133,7 +124,6 @@ void Player::Deactivate() {
 }
 
 FormationEntry Player::GetFormationEntry() {
-  DO_VALIDATION;
   return team->GetFormationEntry(this);
 }
 
@@ -155,7 +145,6 @@ bool Player::AllowLastDitch(bool includingPossessionAmount) const {
 }
 
 float Player::GetAverageVelocity(float timePeriod_sec) {
-  DO_VALIDATION;
   assert((int)timePeriod_sec > 0);
   unsigned int logSize = positionHistoryPerSecond.size();
   if (logSize == 0) return 0;
@@ -163,7 +152,6 @@ float Player::GetAverageVelocity(float timePeriod_sec) {
   float totalDistance = 0;
   unsigned int count = 0;
   while (count <= (unsigned int)timePeriod_sec) {
-    DO_VALIDATION;
     Vector3 pos = positionHistoryPerSecond.at(logSize - 1 - count);
     if (count > 0) totalDistance += (pos - prevPos).GetLength();
     count++;
@@ -174,7 +162,6 @@ float Player::GetAverageVelocity(float timePeriod_sec) {
 }
 
 void Player::UpdatePossessionStats() {
-  DO_VALIDATION;
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
 
   const e_FunctionType action_type = GetCurrentFunctionType();
@@ -258,7 +245,6 @@ void Player::UpdatePossessionStats() {
          action_type == e_FunctionType_HighPass ||
          action_type == e_FunctionType_Shot) &&
         !TouchPending()) {
-      DO_VALIDATION;
       startTime_ms = 500;
     }
 
@@ -268,9 +254,7 @@ void Player::UpdatePossessionStats() {
     bool precise = (team->GetDesignatedTeamPossessionPlayer() == this) ? true : false;
     for (unsigned int ms = startTime_ms; ms < ballPredictionSize_ms;
          ms += timeStep_ms) {
-      DO_VALIDATION;
       if (match->GetBall()->Predict(ms).coords[2] < 1.5f) {
-        DO_VALIDATION;
         TimeNeeded result = AI_GetTimeNeededForDistance_ms(
             GetPosition(), GetMovement(), match->GetBall()->Predict(ms).Get2D(),
             GetMaxVelocity(), precise, ms);
@@ -278,18 +262,15 @@ void Player::UpdatePossessionStats() {
         unsigned int timeNeeded_optimistic = result.optimistic_ms;
 
         if (timeNeeded_optimistic <= ms) {
-          DO_VALIDATION;
           if (ms < timeNeededToGetToBall_optimistic_ms) {
             timeNeededToGetToBall_optimistic_ms = ms;
           }
         }
 
         if (timeNeeded <= ms) {
-          DO_VALIDATION;
 
           // refinement round!
           if (!refine) {
-            DO_VALIDATION;
 
             ms = previous_ms;
             timeStep_ms = 10;
@@ -304,7 +285,6 @@ void Player::UpdatePossessionStats() {
 
       // refine timestep (optimisation)
       if (!refine) {
-        DO_VALIDATION;
         float balldist = (GetPosition() - match->GetBall()->Predict(ms).Get2D()).GetLength() + 0.2f; // add a little buffer
         float maxBallVelo = 50;
         // how long does it take for the ball at max velo to travel balldist?
@@ -321,14 +301,12 @@ void Player::UpdatePossessionStats() {
   }
 
   if (TouchAnim() && TouchPending()) {
-    DO_VALIDATION;
     unsigned int animTimeToBall_ms = (GetTouchFrame() - GetCurrentFrame()) * 10;
     timeNeededToGetToBall_ms = std::min(timeNeededToGetToBall_ms, animTimeToBall_ms);
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   }
 
   if (timeNeededToGetToBall_ms < defaultTouchOffset_ms) {
-    DO_VALIDATION;
     // apply quantum mechanics on the scale of the very small ;)
     timeNeededToGetToBall_ms = NormalizedClamp(((GetPosition() + GetMovement() * (defaultTouchOffset_ms * 0.001)) - match->GetBall()->Predict(defaultTouchOffset_ms).Get2D()).GetLength(), 0.0f, 0.6f) * defaultTouchOffset_ms;
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
@@ -339,7 +317,6 @@ void Player::UpdatePossessionStats() {
        action_type == e_FunctionType_HighPass ||
        action_type == e_FunctionType_Shot) &&
       !TouchPending()) {
-    DO_VALIDATION;
     hasPossession = false;
   } else {
     hasPossession = AI_HasPossession(match->GetBall(), this);
@@ -349,7 +326,6 @@ void Player::UpdatePossessionStats() {
   this->hasUniquePossession = hasPossession && !match->GetTeam(abs(team->GetID() - 1))->HasPossession();
 
   if (match->GetBallRetainer() == this) {
-    DO_VALIDATION;
     timeNeededToGetToBall_ms = 1;
     timeNeededToGetToBall_optimistic_ms = 1;
     SetDesiredTimeToBall_ms(timeNeededToGetToBall_ms);
@@ -357,7 +333,6 @@ void Player::UpdatePossessionStats() {
     hasBestPossession = true;
     hasUniquePossession = true;
   } else if (match->GetBallRetainer() != 0) {
-    DO_VALIDATION;
     hasPossession = false;
     hasBestPossession = false;
     hasUniquePossession = false;
@@ -370,10 +345,8 @@ float Player::GetClosestOpponentDistance() const {
 }
 
 void Player::Process() {
-  DO_VALIDATION;
 
   if (isActive) {
-    DO_VALIDATION;
 
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
 
@@ -381,16 +354,11 @@ void Player::Process() {
     CastController()->Process();
 
     if (match->IsInPlay()) {
-      DO_VALIDATION;
       if (match->GetActualTime_ms() % 1000 == 0) {
-        DO_VALIDATION;
         positionHistoryPerSecond.push_back(GetPosition());
-        DO_VALIDATION;
       }
-      DO_VALIDATION;
       if (hasPossession) possessionDuration_ms += 10; else possessionDuration_ms = 0;
       if ((match->GetActualTime_ms() + GetStableID() * 10) % 100 == 0) {
-        DO_VALIDATION;
         _CalculateTacticalSituation();
       }
     }
@@ -410,7 +378,6 @@ void Player::Process() {
     // Don't send off the last player on the team.
     if (cards > 1 && cardEffectiveTime_ms <= match->GetActualTime_ms() &&
         GetTeam()->GetActivePlayersCount() > 1) {
-      DO_VALIDATION;
       SendOff();
     }
   }
@@ -418,15 +385,12 @@ void Player::Process() {
 
 
 void Player::Put2D(bool /*mirror*/) {
-  DO_VALIDATION;
 }
 
 void Player::Hide2D() {
-  DO_VALIDATION;
 }
 
 void Player::SendOff() {
-  DO_VALIDATION;
   // The deterministic RNG draw is deliberately kept: the baseline depends on
   // this consumption. The message it used to select is gone, so removing the
   // draw would be a gameplay change rather than a cleanup.
@@ -435,7 +399,6 @@ void Player::SendOff() {
   Deactivate();
 
   if (GetFormationEntry().role == e_PlayerRole_GK) {
-    DO_VALIDATION;
     FormationEntry entry = GetFormationEntry();
     std::vector<Player*> activePlayers;
     team->GetActivePlayers(activePlayers);
@@ -458,7 +421,6 @@ float Player::GetStat(PlayerStat name) const {
 }
 
 void Player::ProcessState(EnvState *state) {
-  DO_VALIDATION;
   ProcessStateBase(state);
   state->process(manMarking);
   dynamicFormationEntry.ProcessState(state);
@@ -477,7 +439,6 @@ void Player::ProcessState(EnvState *state) {
 }
 
 void Player::ResetSituation(const Vector3 &focusPos) {
-  DO_VALIDATION;
   PlayerBase::ResetSituation(focusPos);
 
   hasPossession = false;
@@ -497,7 +458,6 @@ void Player::ResetSituation(const Vector3 &focusPos) {
 }
 
 void Player::_CalculateTacticalSituation() {
-  DO_VALIDATION;
   const MentalImage *mentalImage = static_cast<PlayerController*>(GetController())->GetMentalImage();
   assert(mentalImage);
   assert(IsActive());

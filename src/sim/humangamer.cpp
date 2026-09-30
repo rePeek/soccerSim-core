@@ -24,30 +24,24 @@
 
 HumanGamer::HumanGamer(Team *team, AIControlledKeyboard *hid)
     : team(team), hid(hid), controller(team->GetMatch(), hid) {
-  DO_VALIDATION;
   SetSelectedPlayer(0);
 }
 
 HumanGamer::~HumanGamer() {
-  DO_VALIDATION;
   if (selectedPlayer) {
-    DO_VALIDATION;
     selectedPlayer->SetExternalController(0);
   }
 }
 
 void HumanGamer::SetSelectedPlayer(Player *player) {
-  DO_VALIDATION;
   if (player && player->ExternalController()) {
     return;
   }
   if (selectedPlayer) {
-    DO_VALIDATION;
     if (selectedPlayer == player) return;
     selectedPlayer->SetExternalController(0);
   }
   if (player) {
-    DO_VALIDATION;
     selectedPlayer = player;
     selectedPlayer->SetExternalController(this);
   } else {
@@ -56,7 +50,6 @@ void HumanGamer::SetSelectedPlayer(Player *player) {
 }
 
 void HumanGamer::ProcessState(EnvState *state) {
-  DO_VALIDATION;
   state->process(selectedPlayer);
   state->process(team);
   state->setValidate(false);

@@ -25,13 +25,11 @@ namespace blunted {
   // These exist only because simulation code reaches the context RNG through
   // a global today.
   void randomseed(unsigned int seed) {
-    DO_VALIDATION;
     GetContext().rng.Seed(seed);
     GetContext().rng_non_deterministic.Seed(seed);
   }
 
   real boostrandom(real min, real max) {
-    DO_VALIDATION;
     // Diagnostic counter: presentation code drawing from the deterministic
     // RNG shows up here.
     GetContext().rng_draw_count++;
@@ -39,7 +37,6 @@ namespace blunted {
   }
 
   real random_non_determ(real min, real max) {
-    DO_VALIDATION;
     return GetContext().rng_non_deterministic.Uniform(min, max);
   }
 

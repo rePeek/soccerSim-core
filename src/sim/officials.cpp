@@ -27,7 +27,6 @@
 
 Officials::Officials(Match *match)
     : match(match) {
-  DO_VALIDATION;
   playerData = new PlayerData();
   referee = new PlayerOfficial(e_OfficialType_Referee, match, playerData);
   linesmen[0] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
@@ -47,7 +46,6 @@ Officials::Officials(Match *match)
 }
 
 Officials::~Officials() {
-  DO_VALIDATION;
   delete referee;
   delete linesmen[0];
   delete linesmen[1];
@@ -55,31 +53,25 @@ Officials::~Officials() {
 }
 
 void Officials::Mirror() {
-  DO_VALIDATION;
   referee->Mirror();
   linesmen[0]->Mirror();
   linesmen[1]->Mirror();
 }
 
 void Officials::GetPlayers(std::vector<PlayerBase *> &players) {
-  DO_VALIDATION;
   players.push_back(referee);
   players.push_back(linesmen[0]);
   players.push_back(linesmen[1]);
 }
 
 void Officials::Process() {
-  DO_VALIDATION;
   referee->Process();
-  GetContext().tracker_disabled++;
   linesmen[0]->Process();
   linesmen[1]->Process();
-  GetContext().tracker_disabled--;
 }
 
 
 void Officials::ProcessState(EnvState *state) {
-  DO_VALIDATION;
   referee->ProcessStateBase(state);
   state->setValidate(false);
   linesmen[0]->ProcessStateBase(state);

@@ -22,12 +22,10 @@
 #include <cmath>
 
 float GetQuantizedDirectionBias() {
-  DO_VALIDATION;
   return GetConfiguration()->GetReal("gameplay_quantizeddirectionbias", _default_QuantizedDirectionBias);
 }
 
 void QuantizeDirection(Vector3 &inputDirection, float bias) {
-  DO_VALIDATION;
 
   // digitize input
 
@@ -49,7 +47,6 @@ std::map < e_PositionName, std::vector<Stat> > defaultProfiles;
 
 float CalculateStat(float baseStat, float profileStat, float age,
                     e_DevelopmentCurveType developmentCurveType) {
-  DO_VALIDATION;
 
 
   float idealAge = 27;

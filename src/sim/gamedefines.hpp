@@ -102,7 +102,7 @@ struct TouchInfo {
   float           desiredPower = 0;
   Player          *targetPlayer = 0; // null == do not use
   Player          *forcedTargetPlayer = 0; // null == do not use
-  void ProcessState(EnvState* state) { DO_VALIDATION;
+  void ProcessState(EnvState* state) {
     state->process(inputDirection);
     state->process(inputPower);
     state->process(autoDirectionBias);
@@ -129,7 +129,7 @@ struct PlayerCommand {
     3: referee showing card
   */
 
-  PlayerCommand() { DO_VALIDATION;
+  PlayerCommand() {
     desiredFunctionType = e_FunctionType_Movement;
     useDesiredMovement = false;
     desiredVelocityFloat = idleVelocity;
@@ -174,7 +174,7 @@ struct PlayerCommand {
   int            specialVar2;
 
   int            modifier;
-  void ProcessState(EnvState* state) { DO_VALIDATION;
+  void ProcessState(EnvState* state) {
     state->process(desiredFunctionType);
     state->process(useDesiredMovement);
     state->process(desiredDirection);
@@ -214,7 +214,7 @@ const float goalHalfWidth = 3.7f;
 const float FORMATION_Y_SCALE = -2.36f;
 
 struct FormationEntry {
-  FormationEntry() { DO_VALIDATION;}
+  FormationEntry() { }
   // Constructor accepts environment coordinates.
   FormationEntry(float x, float y, e_PlayerRole role, bool lazy,
                  bool controllable)
@@ -223,7 +223,6 @@ struct FormationEntry {
         role(role),
         lazy(lazy),
         controllable(controllable) {
-    DO_VALIDATION;
   }
   bool operator == (const FormationEntry& f) const {
     return role == f.role &&
@@ -231,12 +230,12 @@ struct FormationEntry {
         position == f.position &&
         controllable == f.controllable;
   }
-  Vector3 position_env() { DO_VALIDATION;
+  Vector3 position_env() {
     return Vector3(position.coords[0],
                    position.coords[1] / FORMATION_Y_SCALE,
                    position.coords[2]);
   }
-  void ProcessState(EnvState* state) { DO_VALIDATION;
+  void ProcessState(EnvState* state) {
     state->process(role);
     state->process(position);
     state->process(start_position);
@@ -258,7 +257,7 @@ struct PlayerImage {
   Player *player;
   e_Velocity velocity = e_Velocity_Idle;
   e_PlayerRole role;
-  void ProcessState(EnvState* state) { DO_VALIDATION;
+  void ProcessState(EnvState* state) {
     state->process(position);
     state->process(directionVec);
     state->process(movement);
@@ -266,7 +265,7 @@ struct PlayerImage {
     state->process(velocity);
     state->process(role);
   }
-  void Mirror() { DO_VALIDATION;
+  void Mirror() {
     position.Mirror();
     directionVec.Mirror();
     movement.Mirror();
@@ -274,7 +273,7 @@ struct PlayerImage {
 };
 
 struct PlayerImagePosition {
-  PlayerImagePosition(const Vector3& position, const Vector3& movement, e_PlayerRole player_role) : position(position), movement(movement), player_role(player_role) { DO_VALIDATION;}
+  PlayerImagePosition(const Vector3& position, const Vector3& movement, e_PlayerRole player_role) : position(position), movement(movement), player_role(player_role) { }
   Vector3 position;
   Vector3 movement;
   e_PlayerRole player_role;

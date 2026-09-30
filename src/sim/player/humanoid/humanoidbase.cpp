@@ -543,7 +543,6 @@ const radian preferredDirectionAngles[] = {
 HumanoidBase::HumanoidBase(PlayerBase *player, Match *match)
     : match(match),
       player(player) {
-  DO_VALIDATION;
   interruptAnim = e_InterruptAnim_None;
   reQueueDelayFrames = 0;
   decayingPositionOffset = Vector3(0);
@@ -558,12 +557,10 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match)
 HumanoidBase::~HumanoidBase() {}
 
 const AnimationClip &HumanoidBase::GetBakedClip(AnimationId id) const {
-  DO_VALIDATION;
   return GetContext().bakedAnims->Get(static_cast<uint32_t>(id));
 }
 
 const AnimationClip &HumanoidBase::GetCurrentBakedClip() const {
-  DO_VALIDATION;
   return GetBakedClip(currentAnim.animationId);
 }
 
@@ -596,7 +593,6 @@ void HumanoidBase::Mirror() {
 }
 
 void HumanoidBase::Process() {
-  DO_VALIDATION;
 
   decayingPositionOffset *= 0.95f;
   if (decayingPositionOffset.GetLength() < 0.005) decayingPositionOffset.Set(0);
@@ -617,7 +613,6 @@ void HumanoidBase::Process() {
   previousAnim_frameNum++;
 
   if (action.IsAtLastFrame() && interruptAnim == e_InterruptAnim_None) {
-    DO_VALIDATION;
     interruptAnim = e_InterruptAnim_Switch;
   }
 
@@ -626,9 +621,7 @@ void HumanoidBase::Process() {
   // already some anim interrupt waiting?
 
   if (mayReQueue) {
-    DO_VALIDATION;
     if (interruptAnim != e_InterruptAnim_None) {
-      DO_VALIDATION;
       mayReQueue = false;
     }
   }
@@ -636,7 +629,6 @@ void HumanoidBase::Process() {
   // okay, see if we need to requeue
 
   if (mayReQueue) {
-    DO_VALIDATION;
     interruptAnim = e_InterruptAnim_ReQueue;
   }
 
@@ -648,7 +640,6 @@ void HumanoidBase::Process() {
   const bool simulation_due =
       player->NoteLocomotionIntentCadence(legacy_opportunity);
   if (legacy_opportunity || simulation_due) {
-    DO_VALIDATION;
 
     PlayerCommandQueue commandQueue;
     // 4b''-prep: the controller's own queue is kept separate from what SelectAnim
@@ -677,7 +668,6 @@ void HumanoidBase::Process() {
         interruptAnim == e_InterruptAnim_Trip && tripType != 0;
 
     if (trip_local_queue) {
-      DO_VALIDATION;
       AddTripCommandToQueue(commandQueue, tripDirection, tripType);
       tripType = 0;
       commandQueue.push_back(GetBasicMovementCommand(tripDirection, spatialState.floatVelocity)); // backup, if there's no applicable trip anim
@@ -724,7 +714,6 @@ void HumanoidBase::Process() {
     bool found = false;
     if (legacy_opportunity) {
       for (unsigned int i = 0; i < commandQueue.size(); i++) {
-        DO_VALIDATION;
 
         const PlayerCommand &command = commandQueue[i];
 
@@ -751,17 +740,14 @@ void HumanoidBase::Process() {
       }
     }
     if (interruptAnim != e_InterruptAnim_ReQueue && !found) {
-      DO_VALIDATION;
       printf("RED ALERT! NO APPLICABLE ANIM FOUND FOR HUMANOIDBASE! NOOOO!\n");
       printf("currentanimtype: %i\n", GetCurrentBakedClip().metadata.action_type);
       for (unsigned int i = 0; i < commandQueue.size(); i++) {
-        DO_VALIDATION;
         printf("desiredanimtype: %i\n", commandQueue[i].desiredFunctionType);
       }
     }
 
     if (found) {
-      DO_VALIDATION;
       startPos = spatialState.position;
       startAngle = spatialState.angle;
 
@@ -774,7 +760,6 @@ void HumanoidBase::Process() {
       // (so we can have a fast ballcontrol -> ballcontrol requeue, but after that, use the initial delay)
       if (interruptAnim == e_InterruptAnim_ReQueue &&
           previousAnim_functionType == action.type) {
-        DO_VALIDATION;
         reQueueDelayFrames = initialReQueueDelayFrames; // don't try requeueing (some types of anims, see selectanim()) too often
       }
     }
@@ -784,7 +769,6 @@ void HumanoidBase::Process() {
   interruptAnim = e_InterruptAnim_None;
 
   if (startPos.coords[2] != 0.f) {
-    DO_VALIDATION;
     // the z coordinate not being 0 denotes something went horribly wrong :P
     Log(e_FatalError, "HumanoidBase", "Process", "BWAAAAAH FLYING PLAYERS!! height: " + real_to_str(startPos.coords[2]));
   }
@@ -807,14 +791,12 @@ void HumanoidBase::Process() {
   // next frame
 
   if (currentAnim.positions.size() > (unsigned int)currentAnim.frameNum) {
-    DO_VALIDATION;
   } else {
   }
 
 }
 
 int HumanoidBase::GetIdleMovementAnimID() {
-  DO_VALIDATION;
   CrudeSelectionQuery query;
   query.byFunctionType = true;
   query.functionType = e_FunctionType_Movement;
@@ -849,7 +831,6 @@ int HumanoidBase::GetIdleMovementAnimID() {
 
 void HumanoidBase::ResetPosition(const Vector3 &newPos,
                                  const Vector3 &focusPos) {
-  DO_VALIDATION;
 
   startPos = newPos;
   startAngle = FixAngle((focusPos - newPos).GetNormalized(Vector3(0, -1, 0)).GetAngle2D());
@@ -917,7 +898,6 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
 }
 
 void HumanoidBase::OffsetPosition(const Vector3 &offset) {
-  DO_VALIDATION;
 
   assert(offset.coords[2] == 0.0f);
 
@@ -933,18 +913,15 @@ void HumanoidBase::OffsetPosition(const Vector3 &offset) {
 }
 
 void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {
-  DO_VALIDATION;
   if (match->GetBallRetainer() == player) return;
   const PlayerActionState &action = player->GetSimulationActionState();
   if (GetCurrentBakedClip().metadata.incoming_special_state.empty() &&
       GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
-    DO_VALIDATION;
     if (this->interruptAnim == e_InterruptAnim_None &&
         (action.type != e_FunctionType_Trip ||
          (GetCurrentBakedClip().metadata.trip_type == 1 &&
           tripType > 1)) &&
         action.type != e_FunctionType_Sliding) {
-      DO_VALIDATION;
       this->interruptAnim = e_InterruptAnim_Trip;
       this->tripDirection = tripVector;
       this->tripType = tripType;
@@ -953,7 +930,6 @@ void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {
 }
 
 void HumanoidBase::ResetSituation(const Vector3 &focusPos) {
-  DO_VALIDATION;
   mentalImageTime = 0;
   ResetPosition(spatialState.position, focusPos);
 }
@@ -964,10 +940,9 @@ bool HumanoidBase::_HighOrBouncyBall() const {
   float ballBounce = std::fabs(match->GetBall()->GetMovement().coords[2]);
   bool highBall = false;
   if (ballHeight1 > 0.3f || ballHeight2 > 0.3f) {
-    DO_VALIDATION;
     highBall = true;
   } else if (ballBounce > 1.0f) {
-    DO_VALIDATION;  // low balls are also treated as 'high ball' when there's a
+      // low balls are also treated as 'high ball' when there's a
                     // lot of bounce going on (hard to control)
     highBall = true;
   }
@@ -980,25 +955,20 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
                                            bool strict, radian allowedAngle,
                                            int allowedVelocitySteps,
                                            int forcedQuadrantID) {
-  DO_VALIDATION;
 
   assert(dataSet.size() != 0);
 
   int bestQuadrantID = forcedQuadrantID;
   if (bestQuadrantID == -1) {
-    DO_VALIDATION;
 
     for (auto &anim : dataSet) {
-      DO_VALIDATION;
       OrderScratch(anim) = GetMovementSimilarity(anim, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
     }
     std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareByOrderFloat, this, _1, _2));
 
     // we want the best anim to be a baseanim, and compare other anims to it
     if (strict) {
-      DO_VALIDATION;
       if (command.desiredFunctionType != e_FunctionType_Movement) {
-        DO_VALIDATION;
         std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
       }
     }
@@ -1012,12 +982,9 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
   DataSet::iterator iter = dataSet.begin();
   iter++;
   while (iter != dataSet.end()) {
-    DO_VALIDATION;
 
     if (strict) {
-      DO_VALIDATION;
       if (GetBakedClip(*iter).metadata.quadrant == bestQuadrantID) {
-        DO_VALIDATION;
         iter++;
       } else {
         iter = dataSet.erase(iter);
@@ -1030,13 +997,12 @@ void HumanoidBase::_KeepBestDirectionAnims(DataSet &dataSet,
       bool predicate = true;
 
       if (!GetBakedClip(*iter).metadata.last_ditch) {
-        DO_VALIDATION;  // last ditch anims may always change velo
+          // last ditch anims may always change velo
         if (std::abs(GetVelocityID(quadrant.velocity, true) - GetVelocityID(bestQuadrant.velocity, true)) > allowedVelocitySteps) predicate = false;
       }
       if (std::fabs(quadrant.angle - bestQuadrant.angle) > allowedAngle) predicate = false;
 
       if (predicate) {
-        DO_VALIDATION;
         iter++;
       } else {
         iter = dataSet.erase(iter);
@@ -1050,22 +1016,18 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
                                                const PlayerCommand &command,
                                                bool strict,
                                                radian allowedAngle) {
-  DO_VALIDATION;
 
   // delete nonqualified bodydir quadrants
 
   assert(dataSet.size() != 0);
   for (auto &anim : dataSet) {
-    DO_VALIDATION;
     OrderScratch(anim) = DirectionSimilarityRating(anim);
   }
   std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareByOrderFloat, this, _1, _2));
 
   // we want the best anim to be a baseanim, and compare other anims to it
   if (strict) {
-    DO_VALIDATION;
     if (command.desiredFunctionType != e_FunctionType_Movement) {
-      DO_VALIDATION;
       std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
     }
   }
@@ -1079,7 +1041,6 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
   DataSet::iterator iter = dataSet.begin();
   iter++;
   while (iter != dataSet.end()) {
-    DO_VALIDATION;
 
     const AnimationClip &animClip = GetBakedClip(*iter);
 
@@ -1089,11 +1050,9 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
 
     float adaptedAllowedAngle = 0.06f * pi; // between 0 and 20 deg
     if (!strict) {
-      DO_VALIDATION;
       adaptedAllowedAngle = allowedAngle;
     }
     if (std::fabs(animLookAngle - bestLookAngle) <= adaptedAllowedAngle) {
-      DO_VALIDATION;
       iter++;
     } else {
       iter = dataSet.erase(iter);
@@ -1104,7 +1063,7 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
 bool HumanoidBase::SelectAnim(const PlayerCommand &command,
                               e_InterruptAnim localInterruptAnim,
                               bool preferPassAndShot) {
-  DO_VALIDATION;  // returns false on no applicable anim found
+    // returns false on no applicable anim found
   assert(command.desiredDirection.coords[2] == 0.0f);
   const PlayerActionState &action = player->GetSimulationActionState();
   const bool material_candidate =
@@ -1132,7 +1091,6 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   query.incomingBodyDirection_ForceLinearity = true;
 
   if (command.desiredFunctionType == e_FunctionType_Trip) {
-    DO_VALIDATION;
     query.byTripType = true;
     query.tripType = command.tripType;
   }
@@ -1147,9 +1105,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   BakedAnimationSelector::CrudeSelection(
       GetContext().bakedAnims->Clips(), query, dataSet);
   if (dataSet.size() == 0) {
-    DO_VALIDATION;
     if (command.desiredFunctionType == e_FunctionType_Movement) {
-      DO_VALIDATION;
       dataSet.push_back(GetIdleMovementAnimID()); // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
     } else
       return false;
@@ -1160,13 +1116,11 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   float adaptedDesiredVelocityFloat = command.desiredVelocityFloat;
 
   if (command.useDesiredMovement) {
-    DO_VALIDATION;
 
     Vector3 relDesiredDirection = command.desiredDirection.GetRotated2D(-spatialState.angle);
     SetMovementSimilarityPredicate(relDesiredDirection, FloatToEnumVelocity(adaptedDesiredVelocityFloat));
     SetBodyDirectionSimilarityPredicate(command.desiredLookAt);
     if (command.desiredFunctionType == e_FunctionType_Movement) {
-      DO_VALIDATION;
       _KeepBestDirectionAnims(dataSet, command);
       if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command);
     }
@@ -1190,14 +1144,12 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareIncomingVelocitySimilarity, this, _1, _2));
 
   if (command.useDesiredTripDirection) {
-    DO_VALIDATION;
     Vector3 relDesiredTripDirection = command.desiredTripDirection.GetRotated2D(-spatialState.angle);
     SetTripDirectionSimilarityPredicate(relDesiredTripDirection);
     std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareTripDirectionSimilarity, this, _1, _2));
   }
 
   if (command.desiredFunctionType != e_FunctionType_Movement) {
-    DO_VALIDATION;
     std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareBaseanimSimilarity, this, _1, _2));
   }
 
@@ -1211,13 +1163,11 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   radian rotationSmuggle_tmp = 0;
 
   if (dataSet.size() == 0) {
-    DO_VALIDATION;
     return false;
   }
   if (command.desiredFunctionType == e_FunctionType_Movement ||
       command.desiredFunctionType == e_FunctionType_Trip ||
       command.desiredFunctionType == e_FunctionType_Special) {
-    DO_VALIDATION;
     selectedAnimID = *dataSet.begin();
     Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
     assert(desiredMovement.coords[2] == 0.0f);
@@ -1230,7 +1180,6 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
 
   if (localInterruptAnim == e_InterruptAnim_ReQueue && selectedAnimID != -1 &&
       currentAnim.positions.size() > 1 && positions_tmp.size() > 1) {
-    DO_VALIDATION;
 
     // don't requeue to same quadrant
     if (action.type == command.desiredFunctionType &&
@@ -1246,7 +1195,6 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
                 ForceIntoPreferredDirectionAngle(
                     GetBakedClip(selectedAnimID).metadata.outgoing_angle))) <
               0.20f * pi))) {
-      DO_VALIDATION;
 
       selectedAnimID = -1;
     }
@@ -1255,7 +1203,6 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   // make it so
 
   if (selectedAnimID != -1) {
-    DO_VALIDATION;
     previousAnim_frameNum = currentAnim.frameNum;
     previousAnim_functionType = currentAnim.functionType;
     currentAnim.animationId = selectedAnimID;
@@ -1292,10 +1239,8 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
 
 void HumanoidBase::CalculatePredictedSituation(Vector3 &predictedPos,
                                                radian &predictedAngle) {
-  DO_VALIDATION;
 
   if (currentAnim.positions.size() > (unsigned int)currentAnim.frameNum) {
-    DO_VALIDATION;
     assert(currentAnim.positions.size() > (unsigned int)(static_cast<int>(GetCurrentBakedClip().frame_count) - 1));
     predictedPos = spatialState.position + currentAnim.positions.at((static_cast<int>(GetCurrentBakedClip().frame_count) - 1)) + currentAnim.actionSmuggle + currentAnim.actionSmuggleSustain + currentAnim.movementSmuggle;
   } else {
@@ -1322,7 +1267,6 @@ bool HumanoidBase::UsesProceduralLocomotion() const {
 
 
 void HumanoidBase::CalculateSpatialState() {
-  DO_VALIDATION;
   if (UsesProceduralLocomotion()) {
     // H3e4d2: root-motion and body-pose producers are dead on this path. Foot
     // remains animation-owned gait/selection state until its separate audit.
@@ -1334,7 +1278,6 @@ void HumanoidBase::CalculateSpatialState() {
   }
   Vector3 position;
   if (currentAnim.positions.size() > (unsigned int)currentAnim.frameNum) {
-    DO_VALIDATION;
     position = startPos + currentAnim.positions.at(currentAnim.frameNum) + currentAnim.actionSmuggleOffset + currentAnim.actionSmuggleSustainOffset + currentAnim.movementSmuggleOffset;
   } else {
     position = GetCurrentBakedClip().poses[currentAnim.frameNum].positions[BodyPart::player];
@@ -1343,7 +1286,6 @@ void HumanoidBase::CalculateSpatialState() {
   }
 
   if (currentAnim.frameNum > 12) {
-    DO_VALIDATION;
     spatialState.foot = static_cast<e_Foot>(GetCurrentBakedClip().metadata.outgoing_foot);
   }
 
@@ -1357,7 +1299,6 @@ void HumanoidBase::CalculateSpatialState() {
   spatialState.physicsMovement = spatialState.actualMovement - (spatialState.actionSmuggleMovement) - (spatialState.movementSmuggleMovement) - (spatialState.positionOffsetMovement * positionOffsetMovementIgnoreFactor);
   spatialState.animMovement = spatialState.physicsMovement;
   if (currentAnim.positions.size() > 0) {
-    DO_VALIDATION;
     // this way, action cheating is being omitted from the current movement, making for better requeues. however, keep in mind that
     // movementoffsets, from bumping into other players, for example, will also be ignored this way.
     const std::vector<Vector3> &origPositionCache =
@@ -1387,7 +1328,6 @@ void HumanoidBase::CalculateSpatialState() {
   spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
 
   if (spatialState.enumVelocity != e_Velocity_Idle) {
-    DO_VALIDATION;
     spatialState.directionVec = spatialState.movement.GetNormalized();
   } else {
     // too slow for comfort, use body direction as global direction
@@ -1398,7 +1338,6 @@ void HumanoidBase::CalculateSpatialState() {
   spatialState.angle = ModulateIntoRange(-pi, pi, FixAngle(spatialState.directionVec.GetAngle2D()));
 
   if (spatialState.enumVelocity != e_Velocity_Idle) {
-    DO_VALIDATION;
     Vector3 adaptedBodyDirectionVec = bodyDirectionVec.GetRotated2D(-spatialState.angle);
     // prefer straight forward, so lie about the actual direction a bit
     // this may fix bugs of body dir being non-0 somewhere during 0 anims
@@ -1410,9 +1349,7 @@ void HumanoidBase::CalculateSpatialState() {
     radian bodyAngleRel = adaptedBodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
     if (spatialState.enumVelocity == e_Velocity_Sprint &&
         std::fabs(bodyAngleRel) >= 0.125f * pi) {
-      DO_VALIDATION;
       if (preferCorrectVeloOverCorrectAngle) {
-        DO_VALIDATION;
         // on impossible combinations of velocity and body angle, decrease body angle
         adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(0.12f * pi * signSide(bodyAngleRel));
       } else {
@@ -1422,9 +1359,7 @@ void HumanoidBase::CalculateSpatialState() {
       }
     } else if (spatialState.enumVelocity == e_Velocity_Walk &&
                std::fabs(bodyAngleRel) >= 0.5f * pi) {
-      DO_VALIDATION;
       if (preferCorrectVeloOverCorrectAngle) {
-        DO_VALIDATION;
         // on impossible combinations of velocity and body angle, decrease body angle
         adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(0.495f * pi * signSide(bodyAngleRel));
       } else {
@@ -1456,12 +1391,10 @@ void HumanoidBase::CalculateSpatialState() {
 }
 
 void HumanoidBase::CalculateFactualSpatialState() {
-  DO_VALIDATION;
 
   spatialState.foot = static_cast<e_Foot>(GetCurrentBakedClip().metadata.outgoing_foot);
 
   if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
-    DO_VALIDATION;
     spatialState.floatVelocity = 0;
     spatialState.enumVelocity = e_Velocity_Idle;
     spatialState.movement = Vector3(0);
@@ -1472,7 +1405,6 @@ void HumanoidBase::CalculateFactualSpatialState() {
 
 void HumanoidBase::ApplySimulationMovementState(
     const PlayerKinematicState &state) {
-  DO_VALIDATION;
   spatialState.position = state.position;
   spatialState.movement = state.velocity;
   if (UsesProceduralLocomotion()) {
@@ -1497,7 +1429,6 @@ void HumanoidBase::ApplySimulationMovementState(
 
 void HumanoidBase::ApplySimulationBodyState(
     const PlayerKinematicState &state) {
-  DO_VALIDATION;
   // Continuous simulation truth. Nothing in this function writes back into
   // state.bodyFacing, so legacy quantization cannot corrupt torso authority.
   spatialState.bodyDirectionVec = state.bodyFacing;
@@ -1520,7 +1451,6 @@ void HumanoidBase::ApplySimulationBodyState(
 
 void HumanoidBase::ProjectMovementState(
     const PlayerKinematicState &tickStartState) {
-  DO_VALIDATION;
   if (!player) return;
   if (!UsesProceduralLocomotion()) {
     // Non-locomotion ticks keep the legacy animation root motion. Projecting
@@ -1567,9 +1497,7 @@ void HumanoidBase::ProjectMovementState(
 void HumanoidBase::AddTripCommandToQueue(PlayerCommandQueue &commandQueue,
                                          const Vector3 &tripVector,
                                          int tripType) {
-  DO_VALIDATION;
   if (tripType == 1) {
-    DO_VALIDATION;
     commandQueue.push_back(GetTripCommand(tripDirection, tripType));
   } else {
     // allow both types 2 and 3, but prefer the right one
@@ -1583,7 +1511,6 @@ void HumanoidBase::AddTripCommandToQueue(PlayerCommandQueue &commandQueue,
 
 PlayerCommand HumanoidBase::GetTripCommand(const Vector3 &tripVector,
                                            int tripType) {
-  DO_VALIDATION;
   PlayerCommand command;
   command.desiredFunctionType = e_FunctionType_Trip;
   command.useDesiredMovement = false;
@@ -1597,7 +1524,6 @@ PlayerCommand HumanoidBase::GetTripCommand(const Vector3 &tripVector,
 
 PlayerCommand HumanoidBase::GetBasicMovementCommand(
     const Vector3 &desiredDirection, float velocityFloat) {
-  DO_VALIDATION;
   PlayerCommand command;
   command.desiredFunctionType = e_FunctionType_Movement;
   command.useDesiredMovement = true;
@@ -1808,28 +1734,20 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   e_DefString animType = static_cast<e_DefString>(clip.metadata.action_type);
 
   if (animType == e_DefString_BallControl) {
-    DO_VALIDATION;
     outgoingSwitchBias = 0.0f;
   } else if (animType == e_DefString_Trap) {
-    DO_VALIDATION;
     outgoingSwitchBias = 0.0f;
   } else if (animType == e_DefString_Interfere) {
-    DO_VALIDATION;
     outgoingSwitchBias = 0.0f;
   } else if (animType == e_DefString_Deflect) {
-    DO_VALIDATION;
     outgoingSwitchBias = 1.0f;
   } else if (animType == e_DefString_Sliding) {
-    DO_VALIDATION;
     outgoingSwitchBias = 0.0f;
   } else if (animType == e_DefString_Special) {
-    DO_VALIDATION;
     outgoingSwitchBias = 1.0f;
   } else if (animType == e_DefString_Trip) {
-    DO_VALIDATION;
     outgoingSwitchBias = 0.5f; // direction partly predecided by collision function in match class
   } else if (touch) {
-    DO_VALIDATION;
     outgoingSwitchBias = 1.0f;
   }
 
@@ -1887,7 +1805,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   radian maxAngleMod_overAnimAngle = 0.125f * pi;
   radian maxAngleMod_straightAnimAngle = 0.125f * pi;
   if (touch) {
-    DO_VALIDATION;
     float bonus = 1.0f - std::pow(NormalizedClamp((adaptedCurrentMovement +
                                                    predictedOutgoingMovement)
                                                           .GetLength() *
@@ -1901,7 +1818,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     maxAngleMod_straightAnimAngle = 0.1f * pi * bonus;
   }
   if (animType == e_DefString_Sliding) {
-    DO_VALIDATION;
     maxAngleMod_underAnimAngle = 0.5f * pi;
     maxAngleMod_overAnimAngle = 0.5f * pi;
     maxAngleMod_straightAnimAngle = 0.5f * pi;
@@ -1910,7 +1826,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   if (animType == e_DefString_Movement)    { physicsBias *= 1.0f; }
 
   if (animType == e_DefString_BallControl) {
-    DO_VALIDATION;
     physicsBias *= 1.0f;
   }
   if (animType== e_DefString_Trap)        { physicsBias *= 1.0f; }
@@ -1945,22 +1860,19 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
 
   radian toDesiredAngle_capped = 0;
   if (mod_AllowRotation && physicsBias > 0.0f) {
-    DO_VALIDATION;
     Vector3 animOutgoingVector = predictedOutgoingMovement.GetNormalized(0);
     if (FloatToEnumVelocity(predictedOutgoingMovement.GetLength()) == e_Velocity_Idle) animOutgoingVector = clip.metadata.outgoing_direction.GetRotated2D(spatialState.angle);
     Vector3 desiredVector = adaptedDesiredMovement.GetNormalized(0);
     if (FloatToEnumVelocity(adaptedDesiredMovement.GetLength()) == e_Velocity_Idle) desiredVector = desiredBodyDirectionRel.GetRotated2D(spatialState.angle);
     radian toDesiredAngle = desiredVector.GetAngle2D(animOutgoingVector);
     if (std::fabs(toDesiredAngle) <= 0.5f * pi || animType == e_DefString_Sliding) {
-      DO_VALIDATION;  // if we want > x degrees, just skip it to next anim,
+        // if we want > x degrees, just skip it to next anim,
                       // it'll only look weird otherwise
 
       radian animChange = animOutgoingVector.GetAngle2D(spatialState.directionVec);
       if (std::fabs(animChange) > 0.06f * pi) {
-        DO_VALIDATION;
         int sign = signSide(animChange);
         if (signSide(toDesiredAngle) == sign) {
-          DO_VALIDATION;
           toDesiredAngle_capped = clamp(toDesiredAngle, -maxAngleMod_overAnimAngle, maxAngleMod_overAnimAngle);
         } else {
           toDesiredAngle_capped = clamp(toDesiredAngle, -maxAngleMod_underAnimAngle, maxAngleMod_underAnimAngle);
@@ -1976,7 +1888,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   float maximumOutgoingVelocity = sprintVelocity;
   // brake on cornering
   if (mod_CorneringBraking) {
-    DO_VALIDATION;
 
     float brakeBias = 0.8f;
     brakeBias *= (touch) ? 1.0f : 0.8f;
@@ -2002,7 +1913,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   // --- loop da loop ------------------------------------------------------------------------------------------------------------------------------------------
   for (int time_ms = 0; time_ms < static_cast<int>(clip.frame_count) * 10;
        time_ms += timeStep_ms) {
-    DO_VALIDATION;
 
     // start with +1, because we want to influence the first frame as well
     // as for finishing, finish with frameBias = 1.0, even if the last frame is 'spiritually' the one-to-last, since the first frame of the next anim is actually 'same-tempered' as the current anim's last frame.
@@ -2013,11 +1923,9 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     if (mod_PointinessCurve && physicsBias > 0.0f &&
         (animType == e_DefString_BallControl ||
          animType == e_DefString_Movement)) {
-      DO_VALIDATION;
       lagExp = 1.4f - _default_AgilityFactor * 0.8f;
       lagExp *= 1.2f - stat_agility * 0.4f;
       if (touch) {
-        DO_VALIDATION;
         lagExp += -0.1f + clamp(difficultyFactor * 0.4f, 0.0f, 0.5f);
       } else {
         lagExp += -0.2f + clamp(difficultyFactor * 0.2f, 0.0f, 0.2f);
@@ -2040,10 +1948,9 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     if (animVelo > walkSprintSwitch &&
         (animType == e_DefString_Movement ||
          animType == e_DefString_BallControl || animType == e_DefString_Trap)) {
-      DO_VALIDATION;
 
       if (maxVelocity > animVelo) {
-        DO_VALIDATION;  // only speed up, don't slow down. may be faster parts
+          // only speed up, don't slow down. may be faster parts
                         // (jumps and such) within anim, allow this
         adaptedAnimVelo = StretchSprintTo(animVelo, animSprintVelocity, maxVelocity);
         adaptedAnimMovement = adaptedAnimMovement.GetNormalized(0) * adaptedAnimVelo;
@@ -2062,17 +1969,14 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     adaptedAnimMovement = adaptedAnimMovement.GetNormalized(0) * adaptedAnimVelo;
 
     if (mod_CorneringBraking) {
-      DO_VALIDATION;
       float frameBiasedMaximumOutgoingVelocity = sprintVelocity * (1.0f - frameBias) + maximumOutgoingVelocity * frameBias;
       if (adaptedAnimVelo > frameBiasedMaximumOutgoingVelocity) {
-        DO_VALIDATION;
         adaptedAnimVelo = frameBiasedMaximumOutgoingVelocity;
         adaptedAnimMovement = adaptedAnimMovement.GetNormalized(0) * adaptedAnimVelo;
       }
     }
 
     if (mod_MaximumAccelDecel) {
-      DO_VALIDATION;
       // this is basically meant to enforce transitions to be smoother, disallowing bizarre steps. however, with low enough max values, it can also serve as a physics slowness thing.
       // in that regard, the maxaccel part is somewhat similar to the air resistance mod below. they can live together; this one can serve as a constant maximum, and the air resistance as a velocity-based maximum.
       // update: decided to not let them live together, this should now purely be used for capping transition speed
@@ -2081,7 +1985,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
       float currentVelo = temporalMovement.GetLength();
       float veloChangeMPS = (adaptedAnimVelo - currentVelo) / ((float)timeStep_ms * 0.001f);
       if (veloChangeMPS < -maxDecelMPS || veloChangeMPS > maxAccelMPS) {
-        DO_VALIDATION;
         adaptedAnimVelo = currentVelo + clamp(veloChangeMPS, -maxDecelMPS, maxAccelMPS) * ((float)timeStep_ms * 0.001f);
         adaptedAnimMovement = adaptedAnimMovement.GetNormalized(0) * adaptedAnimVelo;
       }
@@ -2106,13 +2009,11 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
 
     float penaltyBreakFactor = 0.0f;
     if (mod_BrakeOnTouch) {
-      DO_VALIDATION;
       // slow down after touching ball
       // (precalc at touchframe, because temporalMovement will change because of this, so if we don't precalc then changing numBrakeFrames will change the amount of effect)
       int numBrakeFrames = 15;
       if (touch && time_ms >= animTouchFrame * 10 &&
           time_ms < (animTouchFrame + numBrakeFrames) * 10) {
-        DO_VALIDATION;
         int brakeFramesInto = (time_ms - (animTouchFrame * 10)) / 10;
         float brakeFrameFactor =
             std::pow(1.0f - (brakeFramesInto / (float)numBrakeFrames), 0.5f);
@@ -2136,19 +2037,17 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     // increase over multiple frames for smoother effect, and so we get a proper
     effect even if maxChange isn't very high int numBrakeFrames = 5; if (touch
     && time_ms >= animTouchFrame * 10 && time_ms < (animTouchFrame +
-    numBrakeFrames) * 10) { DO_VALIDATION; int framesInto = (time_ms -
+    numBrakeFrames) * 10) { int framesInto = (time_ms -
     (animTouchFrame * 10)) / 10; toDesired += -temporalMovement.GetNormalized(0)
     * (ballTouchSlowdownAmount / (float)(numBrakeFrames - framesInto));
     }
     */
 
     if (mod_MaxCornering) {
-      DO_VALIDATION;
       Vector3 predictedMovement = temporalMovement + toDesired;
       float startVelo = idleDribbleSwitch;
       if (temporalMovement.GetLength() > startVelo &&
           predictedMovement.GetLength() > startVelo) {
-        DO_VALIDATION;
         radian angle = predictedMovement.GetNormalized().GetAngle2D(temporalMovement.GetNormalized());
         float maxAngleFactor = 1.0f * (timeStep_ms / 1000.0f);
         maxAngleFactor *= (0.7f + 0.3f * stat_agility);
@@ -2160,17 +2059,14 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
         maxAngle /= (veloFactor + 0.01f);
 
         if (std::fabs(angle) > maxAngle) {
-          DO_VALIDATION;
 
           int mode = 1; // 0: restrict max angle, 1: restrict velocity
 
           if (mode == 0) {
-            DO_VALIDATION;
             Vector3 restrictedPredictedMovement = predictedMovement.GetRotated2D((std::fabs(angle) - maxAngle) * -signSide(angle));
             Vector3 newToDesired = restrictedPredictedMovement - temporalMovement;
             toDesired = newToDesired;
           } else if (mode == 1) {
-            DO_VALIDATION;
             radian overAngle = std::fabs(angle) - maxAngle; // > 0
             toDesired += -temporalMovement * clamp(overAngle / pi * 3.0f, 0.0f, 1.0f);// was: 3
           }
@@ -2179,7 +2075,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     }
 
     if (mod_MaxChange) {
-      DO_VALIDATION;
       float maxChange = 0.03f;
       if (animType== e_DefString_Trip) maxChange *= 0.7f;
       if (animType== e_DefString_Sliding) maxChange = 0.1f;
@@ -2198,7 +2093,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
 
       // lose power 'around' touch
 
-      // if (touch && time_ms >= animTouchFrame * 10) { DO_VALIDATION;
+      // if (touch && time_ms >= animTouchFrame * 10) {
       //   int influenceFrames = 16; // number of frames to slow down on each
       //   'side' of the balltouch
       //   //float frameBias = NormalizedClamp(std::fabs((animTouchFrame * 10) -
@@ -2220,13 +2115,11 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
 
     if (mod_AirResistance && animType != e_DefString_Sliding &&
         animType != e_DefString_Deflect) {
-      DO_VALIDATION;
       float veloExp = 1.8f;
       float accelPower = 11.0f * accelerationMultiplier;
       float falloffStartVelo = idleDribbleSwitch;
 
       if ((temporalMovement + toDesired).GetLength() > falloffStartVelo) {
-        DO_VALIDATION;
 
         // less accelpower on tough anims
         accelPower *= 1.0f - difficultyPenaltyFactor * 0.4f;
@@ -2247,7 +2140,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
         Vector3 forwardVector;
         if ((temporalMovement + toDesired).GetLength() >
             temporalMovement.GetLength()) {
-          DO_VALIDATION;  // outside the 'velocity circle'
+            // outside the 'velocity circle'
           Vector3 destination = temporalMovement + toDesired;
           float velo = temporalMovement.GetLength();
           float accel = destination.GetLength() - velo;
@@ -2258,7 +2151,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
         float maxAccelerationMPS = accelPower * (1.0f - veloAirResistanceFactor) * (stat_acceleration * 0.3f + 0.7f);
         float maxAccelerationAddition = maxAccelerationMPS * (timeStep_ms / 1000.0f);
         if (accelerationAddition > maxAccelerationAddition) {
-          DO_VALIDATION;
           float remainingFactor = maxAccelerationAddition / accelerationAddition;
           toDesired = toDesired - forwardVector * (1.0f - remainingFactor);
         }
@@ -2271,13 +2163,11 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
 
     // make sure outgoing velocity is of the same idleness as the anim
     if (time_ms >= (static_cast<int>(clip.frame_count) - 2) * 10) {
-      DO_VALIDATION;
 
       bool hardQuantize = true;
       if (!hardQuantize && !clip.metadata.outgoing_special_state.empty()) hardQuantize = true;
 
       if (!hardQuantize) {
-        DO_VALIDATION;
         // soft version
         if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) == e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) != e_Velocity_Idle) tmpTemporalMovement.NormalizeTo(idleDribbleSwitch - 0.01f);
         else if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle && FloatToEnumVelocity(tmpTemporalMovement.GetLength()) == e_Velocity_Idle) tmpTemporalMovement = clip.metadata.outgoing_movement.GetRotated2D(spatialState.angle).GetNormalizedTo(idleDribbleSwitch + 0.01f);
@@ -2296,13 +2186,12 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     assert(currentPosition.coords[2] == 0.0f);
 
     if (time_ms % 10 == 0) {
-      DO_VALIDATION;
       positions_ret.push_back(currentPosition);
     }
 
     /*
     // dynamic timestep: more precision at high velocities
-    if ((int)time_ms % 10 == 0) { DO_VALIDATION;
+    if ((int)time_ms % 10 == 0) {
       //if (temporalMovement.GetLength() > walkVelocity) timeStep_ms = 5; else
     timeStep_ms = 10; timeStep_ms = 10;
     }
@@ -2314,7 +2203,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
 
   if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) != e_Velocity_Idle &&
       FloatToEnumVelocity(resultingMovement.GetLength()) != e_Velocity_Idle) {
-    DO_VALIDATION;
     rotationOffset_ret = resultingMovement.GetRotated2D(-spatialState.angle).GetAngle2D(clip.metadata.outgoing_movement);
   } else {
     rotationOffset_ret = toDesiredAngle_capped * physicsBias;
@@ -2323,7 +2211,6 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   // body direction assist
   if (mod_CheatBodyDirection && useDesiredBodyDirection &&
       animType == e_DefString_Movement) {
-    DO_VALIDATION;
 
     float angleFactor = 0.5f;
     radian maxAngle = 0.25f * pi;
@@ -2332,7 +2219,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
     radian desiredRotationOffset = desiredBodyDirectionRel.GetRotated2D(-predictedAngleRel).GetAngle2D(Vector3(0, -1, 0));
 
     if (std::fabs(desiredRotationOffset) < 0.5f * pi) {
-      DO_VALIDATION;  // else: too much
+        // else: too much
 
       float outgoingVelocityFactorInv = 1.0f - NormalizedClamp(resultingMovement.GetLength(), idleDribbleSwitch, sprintVelocity - 1.0f) * 1.0f;
       float animLengthFactor = NormalizedClamp(static_cast<int>(clip.frame_count), 0, 25);
@@ -2354,10 +2241,8 @@ Vector3 HumanoidBase::ForceIntoAllowedBodyDirectionVec(const Vector3 &src) const
   float bestDot = -1.0f;
   Vector3 best;
   for (const Vector3 &vec : allowedBodyDirVecs) {
-    DO_VALIDATION;
     float nDotL = vec.GetDotProduct(src);
     if (nDotL > bestDot) {
-      DO_VALIDATION;
       bestDot = nDotL;
       best = vec;
     }
@@ -2371,10 +2256,8 @@ radian HumanoidBase::ForceIntoAllowedBodyDirectionAngle(radian angle) const {
   float bestAngleDiff = 10000.0;
   radian bestValue = 0;
   for (auto v : allowedBodyDirAngles) {
-    DO_VALIDATION;
     float diff = std::fabs(v - angle);
     if (diff < bestAngleDiff) {
-      DO_VALIDATION;
       bestAngleDiff = diff;
       bestValue = v;
     }
@@ -2387,10 +2270,8 @@ Vector3 HumanoidBase::ForceIntoPreferredDirectionVec(const Vector3 &src) const {
   float bestDot = -1.0f;
   Vector3 bestValue;
   for (auto &v : preferredDirectionVecs) {
-    DO_VALIDATION;
     float nDotL = v.GetDotProduct(src);
     if (nDotL > bestDot) {
-      DO_VALIDATION;
       bestDot = nDotL;
       bestValue = v;
     }
@@ -2403,10 +2284,8 @@ radian HumanoidBase::ForceIntoPreferredDirectionAngle(radian angle) const {
   float bestAngleDiff = 10000.0;
   radian bestValue;
   for (auto v : preferredDirectionAngles) {
-    DO_VALIDATION;
     float diff = std::fabs(v - angle);
     if (diff < bestAngleDiff) {
-      DO_VALIDATION;
       bestAngleDiff = diff;
       bestValue = v;
     }
@@ -2415,7 +2294,6 @@ radian HumanoidBase::ForceIntoPreferredDirectionAngle(radian angle) const {
 }
 
 void HumanoidBase::ProcessState(EnvState *state) {
-  DO_VALIDATION;
   currentAnim.ProcessState(state);
   state->process(previousAnim_frameNum);
   state->process(previousAnim_functionType);

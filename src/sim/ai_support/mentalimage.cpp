@@ -22,7 +22,6 @@
 
 MentalImage::MentalImage(Match* match)
     : timeStamp_ms(match->GetActualTime_ms()), match(match) {
-  DO_VALIDATION;
   timeStamp_ms = match->GetActualTime_ms();
   std::vector<Player*> allPlayers;
   match->GetTeam(match->FirstTeam())->GetActivePlayers(allPlayers);
@@ -31,7 +30,6 @@ MentalImage::MentalImage(Match* match)
 
   for (int playerCounter = 0; playerCounter < (signed int)allPlayers.size();
        playerCounter++) {
-    DO_VALIDATION;
 
     Player *player = allPlayers.at(playerCounter);
 
@@ -92,9 +90,7 @@ void MentalImage::ProcessState(EnvState* state, Match* match) {
 
 PlayerImage MentalImage::GetPlayerImage(PlayerBase* p) const {
   for (auto& player : players) {
-    DO_VALIDATION;
     if (player.player == p) {
-      DO_VALIDATION;
       PlayerImage newImage = player;
       Vector3 extrapolation = player.movement * GetTimeStampNeg_ms() * 0.001f;
       newImage.position = player.position + extrapolation;
@@ -112,9 +108,7 @@ std::vector<PlayerImagePosition> MentalImage::GetTeamPlayerImages(int teamID) co
   std::vector<PlayerImagePosition> result;
   result.reserve(11);
   for (auto& player : players) {
-    DO_VALIDATION;
     if (player.player->IsActive() && player.player->GetTeamID() == teamID) {
-      DO_VALIDATION;
       Vector3 extrapolation = player.movement * GetTimeStampNeg_ms() * 0.001f;
       Vector3 position = player.position + extrapolation;
       position = position.EnforceMaximumDeviation(player.player->GetPosition(), maxDistanceDeviation);
@@ -126,7 +120,6 @@ std::vector<PlayerImagePosition> MentalImage::GetTeamPlayerImages(int teamID) co
 }
 
 void MentalImage::UpdateBallPredictions() {
-  DO_VALIDATION;
   match->GetBall()->GetPredictionArray(ballPredictions);
 }
 

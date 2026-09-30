@@ -17,7 +17,6 @@ namespace blunted {
 
 ImportNode::ImportNode(std::string name, ImportNodeKind kind)
     : name(std::move(name)), kind(kind) {
-  DO_VALIDATION;
   // The legacy defaults, kept exactly: Spatial's constructor left the local
   // rotation at SetAngleAxis(0, (0, 0, -1)) and the position at the origin.
   // The axis is not cosmetic -- sinf(0) * -1 is -0.0f, and that sign is
@@ -29,7 +28,6 @@ ImportNode::ImportNode(std::string name, ImportNodeKind kind)
 
 void ImportNode::SetPosition(const Vector3& value,
                              bool update_derived_transforms) {
-  DO_VALIDATION;
   localPosition = value;
   if (update_derived_transforms) UpdateDerivedTransforms();
 }
@@ -41,7 +39,6 @@ void ImportNode::SetRotation(const Quaternion& value,
 }
 
 ImportNode* ImportNode::AddChild(std::unique_ptr<ImportNode> child) {
-  DO_VALIDATION;
   child->parent = this;
   child->UpdateDerivedTransforms();
   children.push_back(std::move(child));
@@ -49,16 +46,13 @@ ImportNode* ImportNode::AddChild(std::unique_ptr<ImportNode> child) {
 }
 
 void ImportNode::InvalidateDerivedTransforms() {
-  DO_VALIDATION;
   derivedPositionDirty = true;
   derivedRotationDirty = true;
 }
 
 void ImportNode::UpdateDerivedTransforms() {
-  DO_VALIDATION;
   InvalidateDerivedTransforms();
   for (auto& child : children) {
-    DO_VALIDATION;
     child->UpdateDerivedTransforms();
   }
 }
@@ -67,11 +61,8 @@ void ImportNode::UpdateDerivedTransforms() {
 // always-unit scale factor.
 Vector3 ImportNode::GetDerivedPosition() const {
   if (derivedPositionDirty) {
-    DO_VALIDATION;
     if (localMode == e_LocalMode_Relative) {
-      DO_VALIDATION;
       if (parent) {
-        DO_VALIDATION;
         const Quaternion parentDerivedRotation = parent->GetDerivedRotation();
         const Vector3 parentDerivedPosition = parent->GetDerivedPosition();
 
@@ -90,11 +81,8 @@ Vector3 ImportNode::GetDerivedPosition() const {
 
 Quaternion ImportNode::GetDerivedRotation() const {
   if (derivedRotationDirty) {
-    DO_VALIDATION;
     if (localMode == e_LocalMode_Relative) {
-      DO_VALIDATION;
       if (parent) {
-        DO_VALIDATION;
         cachedDerivedRotation =
             (parent->GetDerivedRotation() * localRotation).GetNormalized();
       } else {
@@ -109,7 +97,6 @@ Quaternion ImportNode::GetDerivedRotation() const {
 }
 
 void ImportNode::CollectAnchors(std::vector<ImportNode*>& out) const {
-  DO_VALIDATION;
   for (const auto& child : children) {
     if (child->kind == ImportNodeKind::Anchor) out.push_back(child.get());
   }

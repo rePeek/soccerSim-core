@@ -50,9 +50,9 @@ class Match {
     void Mirror(bool team_0, bool team_1, bool ball);
 
     void UpdateControllerSetup();
-    int GetScore(int teamID) { DO_VALIDATION; return matchData->GetGoalCount(teamID); }
-    Ball *GetBall() { DO_VALIDATION; return ball; }
-    Team *GetTeam(int teamID) { DO_VALIDATION; return teams[teamID]; }
+    int GetScore(int teamID) { return matchData->GetGoalCount(teamID); }
+    Ball *GetBall() { return ball; }
+    Team *GetTeam(int teamID) { return teams[teamID]; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
     void GetOfficialPlayers(std::vector<PlayerBase*> &players);
 
@@ -64,42 +64,42 @@ class Match {
     void SetMatchPhase(e_MatchPhase newMatchPhase);
     e_MatchPhase GetMatchPhase() const { return matchPhase; }
 
-    void StartPlay() { DO_VALIDATION; inPlay = true; }
-    void StopPlay() { DO_VALIDATION; inPlay = false; }
+    void StartPlay() { inPlay = true; }
+    void StopPlay() { inPlay = false; }
     bool IsInPlay() const { return inPlay; }
 
-    void StartSetPiece() { DO_VALIDATION; inSetPiece = true; }
-    void StopSetPiece() { DO_VALIDATION; inSetPiece = false; }
+    void StartSetPiece() { inSetPiece = true; }
+    void StopSetPiece() { inSetPiece = false; }
     bool IsInSetPiece() const { return inSetPiece; }
-    Referee *GetReferee() { DO_VALIDATION; return referee; }
-    Officials *GetOfficials() { DO_VALIDATION; return officials; }
+    Referee *GetReferee() { return referee; }
+    Officials *GetOfficials() { return officials; }
 
-    void SetGoalScored(bool onOff) { DO_VALIDATION; if (onOff == false) ballIsInGoal = false; goalScored = onOff; }
+    void SetGoalScored(bool onOff) { if (onOff == false) ballIsInGoal = false; goalScored = onOff; }
     bool IsGoalScored() const { return goalScored; }
     Team* GetLastGoalTeam() const { return lastGoalTeam; }
-    void SetLastTouchTeamID(int id, e_TouchType touchType = e_TouchType_Intentional_Kicked) { DO_VALIDATION; lastTouchTeamIDs[touchType] = id; lastTouchTeamID = id; referee->BallTouched(); }
+    void SetLastTouchTeamID(int id, e_TouchType touchType = e_TouchType_Intentional_Kicked) { lastTouchTeamIDs[touchType] = id; lastTouchTeamID = id; referee->BallTouched(); }
     int GetLastTouchTeamID(e_TouchType touchType) const { return lastTouchTeamIDs[touchType]; }
     int GetLastTouchTeamID() const { return lastTouchTeamID; }
-    Team *GetLastTouchTeam() { DO_VALIDATION;
+    Team *GetLastTouchTeam() {
       if (lastTouchTeamID != -1)
         return teams[lastTouchTeamID];
       else
         return teams[first_team];
     }
-    Player *GetLastTouchPlayer() { DO_VALIDATION;
+    Player *GetLastTouchPlayer() {
       if (GetLastTouchTeam())
         return GetLastTouchTeam()->GetLastTouchPlayer();
       else
         return 0;
     }
-    float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0) { DO_VALIDATION; if (GetLastTouchTeam()) return GetLastTouchTeam()->GetLastTouchBias(decay_ms, time_ms); else return 0; }
+    float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0) { if (GetLastTouchTeam()) return GetLastTouchTeam()->GetLastTouchBias(decay_ms, time_ms); else return 0; }
     bool IsBallInGoal() const { return ballIsInGoal; }
 
     Team* GetBestPossessionTeam();
 
-    Player *GetDesignatedPossessionPlayer() { DO_VALIDATION; return designatedPossessionPlayer; }
-    Player *GetBallRetainer() { DO_VALIDATION; return ballRetainer; }
-    void SetBallRetainer(Player *retainer) { DO_VALIDATION;
+    Player *GetDesignatedPossessionPlayer() { return designatedPossessionPlayer; }
+    Player *GetBallRetainer() { return ballRetainer; }
+    void SetBallRetainer(Player *retainer) {
       ballRetainer = retainer;
     }
 
@@ -118,7 +118,7 @@ class Match {
 
 
 
-    MatchData* GetMatchData() { DO_VALIDATION; return matchData.get(); }
+    MatchData* GetMatchData() { return matchData.get(); }
 
     float GetMatchDurationFactor() const { return matchDurationFactor; }
     bool GetUseMagnet() const { return _useMagnet; }
@@ -126,9 +126,9 @@ class Match {
     const std::vector<Vector3> &GetAnimPositionCache(AnimationId animation_id) const;
 
 
-    int FirstTeam() { DO_VALIDATION; return first_team; }
-    int SecondTeam() { DO_VALIDATION; return second_team; }
-    bool isBallMirrored() { DO_VALIDATION; return ball_mirrored; }
+    int FirstTeam() { return first_team; }
+    int SecondTeam() { return second_team; }
+    bool isBallMirrored() { return ball_mirrored; }
 
   private:
     bool CheckForGoal(signed int side, const Vector3& previousBallPos);

@@ -33,7 +33,7 @@ class Officials {
     void Mirror();
 
     void GetPlayers(std::vector<PlayerBase*> &players);
-    PlayerOfficial *GetReferee() { DO_VALIDATION; return referee; }
+    PlayerOfficial *GetReferee() { return referee; }
 
     void Process();
 

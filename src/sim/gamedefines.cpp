@@ -28,7 +28,6 @@
 
 
 e_PlayerRole GetRoleFromString(const std::string &roleString) {
-  DO_VALIDATION;
   if (roleString.compare("GK") == 0) return e_PlayerRole_GK;
   if (roleString.compare("CB") == 0) return e_PlayerRole_CB;
   if (roleString.compare("LB") == 0) return e_PlayerRole_LB;

@@ -49,10 +49,10 @@ namespace blunted {
   template <typename T> class ValueHistory {
 
     public:
-      ValueHistory(unsigned int maxTime_ms = 10000) : maxTime_ms(maxTime_ms) { DO_VALIDATION;}
-      virtual ~ValueHistory() { DO_VALIDATION;}
+      ValueHistory(unsigned int maxTime_ms = 10000) : maxTime_ms(maxTime_ms) { }
+      virtual ~ValueHistory() { }
 
-      void Insert(const T &value) { DO_VALIDATION;
+      void Insert(const T &value) {
         values.push_back(value);
         if (values.size() > maxTime_ms / 10) values.pop_front();
       }
@@ -60,10 +60,10 @@ namespace blunted {
       T GetAverage(unsigned int time_ms) const {
         T total = 0;
         unsigned int count = 0;
-        if (!values.empty()) { DO_VALIDATION;
+        if (!values.empty()) {
           typename std::list<T>::const_iterator iter = values.end();
           iter--;
-          while (count <= time_ms / 10) { DO_VALIDATION;
+          while (count <= time_ms / 10) {
             total += (*iter);
             count++;
             if (iter == values.begin()) break; else iter--;
@@ -73,7 +73,7 @@ namespace blunted {
         return total;
       }
 
-      void Clear() { DO_VALIDATION;
+      void Clear() {
         values.clear();
       }
       unsigned int GetMaxTime_ms() const { return maxTime_ms; }

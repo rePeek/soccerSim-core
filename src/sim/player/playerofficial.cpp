@@ -27,23 +27,19 @@
 PlayerOfficial::PlayerOfficial(e_OfficialType officialType, Match *match,
                                PlayerData *playerData)
     : PlayerBase(match, playerData), officialType(officialType) {
-  DO_VALIDATION;
 }
 
-PlayerOfficial::~PlayerOfficial() { DO_VALIDATION; }
+PlayerOfficial::~PlayerOfficial() {}
 
 HumanoidBase *PlayerOfficial::CastHumanoid() {
-  DO_VALIDATION;
   return static_cast<HumanoidBase *>(humanoid.get());
 }
 
 RefereeController *PlayerOfficial::CastController() {
-  DO_VALIDATION;
   return static_cast<RefereeController *>(controller.get());
 }
 
 void PlayerOfficial::Activate(bool lazyPlayer) {
-  DO_VALIDATION;
   isActive = true;
   humanoid.reset(new HumanoidBase(this, match));
 
@@ -56,12 +52,10 @@ void PlayerOfficial::Activate(bool lazyPlayer) {
 }
 
 void PlayerOfficial::Deactivate() {
-  DO_VALIDATION;
   PlayerBase::Deactivate();
 }
 
 void PlayerOfficial::Process() {
-  DO_VALIDATION;
   CastController()->Process();
   CastHumanoid()->Process();
   SynchronizeKinematicState();

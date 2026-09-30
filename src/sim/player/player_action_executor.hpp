@@ -30,7 +30,6 @@ class PlayerActionExecutor {
  public:
   static void Begin(PlayerActionState &state,
                     const PlayerActionDefinition &definition) {
-    DO_VALIDATION;
     assert(definition.durationTime_ms > 0);
     assert(definition.durationTime_ms % 10 == 0);
     assert(definition.contactTime_ms == -1 ||
@@ -51,7 +50,6 @@ class PlayerActionExecutor {
   }
 
   static PlayerActionStepResult Step(PlayerActionState &state, int dt_ms) {
-    DO_VALIDATION;
     assert(dt_ms > 0);
     assert(dt_ms % 10 == 0);
     assert(state.durationTime_ms > 0);

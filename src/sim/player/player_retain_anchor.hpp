@@ -38,7 +38,6 @@ enum class RetainAnchorKind {
 // put the ball somewhere plausible but wrong, which is very hard to spot.
 inline bool ParseRetainAnchorKind(const std::string &state,
                                   RetainAnchorKind &kind) {
-  DO_VALIDATION;
   if (state == "right_elbow") {
     kind = RetainAnchorKind::RightElbow;
     return true;
@@ -62,7 +61,6 @@ struct RetainAnchorOffset {
 };
 
 inline RetainAnchorOffset GetRetainAnchorOffset(RetainAnchorKind kind) {
-  DO_VALIDATION;
   RetainAnchorOffset offset;
   offset.height = 1.26f;
   offset.right = kind == RetainAnchorKind::RightElbow ? 0.15f : -0.15f;
@@ -75,7 +73,6 @@ inline RetainAnchorOffset GetRetainAnchorOffset(RetainAnchorKind kind) {
 inline Vector3 ComputeRetainAnchor(const Vector3 &position,
                                    const Vector3 &bodyDirection,
                                    RetainAnchorKind kind) {
-  DO_VALIDATION;
   const RetainAnchorOffset local = GetRetainAnchorOffset(kind);
   const Vector3 forward =
       bodyDirection.Get2D().GetNormalized(Vector3(0, -1, 0));

@@ -69,7 +69,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
       matchDurationFactor(
           GetConfiguration()->GetReal("match_duration", 1.0) * 0.2f + 0.05f),
       _useMagnet(GetScenarioConfig().use_magnet) {
-  DO_VALIDATION;
   GetContext().stablePlayerCount = 0;
 
 
@@ -133,7 +132,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   matchTime_ms = 0;
   lastGoalTeam = 0;
   for (unsigned int i = 0; i < e_TouchType_SIZE; i++) {
-    DO_VALIDATION;
     lastTouchTeamIDs[i] = -1;
   }
   lastTouchTeamID = -1;
@@ -150,10 +148,9 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
 }
 
-Match::~Match() { DO_VALIDATION; }
+Match::~Match() {}
 
 void Match::Mirror(bool team_0, bool team_1, bool ball) {
-  GetTracker()->setDisabled(true);
   if (team_0) {
     teams[0]->Mirror();
   }
@@ -167,11 +164,9 @@ void Match::Mirror(bool team_0, bool team_1, bool ball) {
   for (auto &i : mentalImages) {
     i.Mirror(team_0, team_1, ball);
   }
-  GetTracker()->setDisabled(false);
 }
 
 void Match::Exit() {
-  DO_VALIDATION;
   teams[first_team]->Exit();
   teams[second_team]->Exit();
   delete teams[first_team];
@@ -186,21 +181,16 @@ void Match::Exit() {
 
 
 void Match::UpdateControllerSetup() {
-  DO_VALIDATION;
   const std::vector<ControllerSetup>& controller = controllerSetup;
   std::vector<AIControlledKeyboard*> left_players;
   std::vector<AIControlledKeyboard*> right_players;
   for (unsigned int i = 0; i < controller.size(); i++) {
-    DO_VALIDATION;
     float mirror = 1.0;
     if (controller[i].side == -1) {
       left_players.push_back(controllers.at(controller[i].controller_id));
-      DO_VALIDATION;
     } else if (controller[i].side == 1) {
       right_players.push_back(controllers.at(controller[i].controller_id));
-      DO_VALIDATION;
       if (teams[1]->GetDynamicSide() == -1) {
-        DO_VALIDATION;
         mirror = -1.0;
       }
     }
@@ -212,17 +202,14 @@ void Match::UpdateControllerSetup() {
 
 
 void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
-  DO_VALIDATION;
   teams[teamID]->GetActivePlayers(players);
 }
 
 void Match::GetOfficialPlayers(std::vector<PlayerBase *> &players) {
-  DO_VALIDATION;
   officials->GetPlayers(players);
 }
 
 MentalImage *Match::GetMentalImage(int history_ms) {
-  DO_VALIDATION;
   int index = int(round((float)history_ms / 100.0));
   if (index >= (signed int)mentalImages.size()) index = mentalImages.size() - 1;
   if (index < 0) index = 0;
@@ -230,19 +217,16 @@ MentalImage *Match::GetMentalImage(int history_ms) {
 }
 
 void Match::UpdateLatestMentalImageBallPredictions() {
-  DO_VALIDATION;
   if (!mentalImages.empty()) mentalImages[0].UpdateBallPredictions();
 }
 
 void Match::ResetSituation(const Vector3 &focusPos) {
-  DO_VALIDATION;
   SetBallRetainer(0);
   SetGoalScored(false);
   mentalImages.clear();
   goalScored = false;
   ballIsInGoal = false;
   for (unsigned int i = 0; i < e_TouchType_SIZE; i++) {
-    DO_VALIDATION;
     lastTouchTeamIDs[i] = -1;
   }
   lastTouchTeamID = -1;
@@ -266,7 +250,6 @@ void Match::SetMatchPhase(e_MatchPhase newMatchPhase) {
 }
 
 Team *Match::GetBestPossessionTeam() {
-  DO_VALIDATION;
   return bestPossessionTeam;
 }
 
@@ -371,7 +354,6 @@ void Match::ProcessState(EnvState* state) {
 void Match::GetTeamState(SharedInfo *state,
                          std::map<AIControlledKeyboard *, int> &controller_mapping,
                          int team_id) {
-  DO_VALIDATION;
   std::vector<PlayerInfo> &team =
       team_id == 0 ? state->left_team : state->right_team;
   team.clear();
@@ -379,10 +361,8 @@ void Match::GetTeamState(SharedInfo *state,
   teams[team_id]->GetAllPlayers(players);
   auto main_player = teams[team_id]->MainSelectedPlayer();
   for (auto player : players) {
-    DO_VALIDATION;
     auto controller = player->ExternalController();
     if (controller) {
-      DO_VALIDATION;
       if (team_id == 0) {
         state->left_controllers[controller_mapping[controller->GetHIDevice()]]
             .controlled_player = team.size();
@@ -392,7 +372,6 @@ void Match::GetTeamState(SharedInfo *state,
       }
     }
     if (player->CastHumanoid() != NULL) {
-      DO_VALIDATION;
       auto position = player->GetPosition();
       auto movement = player->GetMovement();
       if (team_id == 1) {
@@ -409,7 +388,6 @@ void Match::GetTeamState(SharedInfo *state,
       info.role = player->GetFormationEntry().role;
       if (player->HasPossession() && GetLastTouchTeamID() != -1 &&
           GetLastTouchTeam()->GetLastTouchPlayer() == player) {
-        DO_VALIDATION;
         state->ball_owned_player = team.size();
         state->ball_owned_team = GetLastTouchTeamID();
       }
@@ -420,7 +398,6 @@ void Match::GetTeamState(SharedInfo *state,
 }
 
 void Match::GetState(SharedInfo *state) {
-  DO_VALIDATION;
   state->ball_position = ball->GetAveragePosition(5).coords;
   state->ball_rotation =
       (ball->GetRotation() / GetGameConfig().physics_steps_per_frame).coords;
@@ -445,7 +422,6 @@ void Match::GetState(SharedInfo *state) {
     auto controllers = GetControllers();
     CHECK(controllers.size() == 2 * kPlayersPerTeam);
     for (int x = 0; x < kPlayersPerTeam; x++) {
-      DO_VALIDATION;
       controller_mapping[controllers[x]] = x;
       controller_mapping[controllers[x + kPlayersPerTeam]] = x;
     }
@@ -457,20 +433,16 @@ void Match::GetState(SharedInfo *state) {
 // THE SPICE
 
 bool Match::Process() {
-  DO_VALIDATION;
   bool reverse = GetScenarioConfig().reverse_team_processing;
-  DO_VALIDATION;
 
 
   Mirror(reverse, !reverse, reverse);
   if (IsInPlay()) {
-    DO_VALIDATION;
     CheckBallCollisions();
   }
 
   // HIJ IS EEN HONDELUUUL
   referee->Process();
-  DO_VALIDATION;
   Vector3 previousBallPos = ball->Predict(0);
   Mirror(reverse, !reverse, reverse);
   if (!IsInPlay() && referee->GetBuffer().prepareTime + 10 < GetActualTime_ms()) {
@@ -484,10 +456,8 @@ bool Match::Process() {
 
   // create mental images for the AI to use
   if (mentalImages.empty() || GetActualTime_ms() % 100 == 0) {
-    DO_VALIDATION;
     mentalImages.insert(mentalImages.begin(), MentalImage(this));
     if (mentalImages.size() > 3) {
-      DO_VALIDATION;
       mentalImages.pop_back();
     }
   }
@@ -515,12 +485,9 @@ bool Match::Process() {
   CalculateBestPossessionTeamID();
 
   if (GetBallRetainer() == 0) {
-    DO_VALIDATION;
     if (GetBestPossessionTeam()) {
-      DO_VALIDATION;
       Player *candidate = GetBestPossessionTeam()->GetDesignatedTeamPossessionPlayer();
       if (candidate != GetDesignatedPossessionPlayer()) {
-        DO_VALIDATION;
         unsigned int designatedTime = GetDesignatedPossessionPlayer()->GetTimeNeededToGetToBall_ms();
         unsigned int candidateTime = candidate->GetTimeNeededToGetToBall_ms();
         float timeRating = (float)(candidateTime + 10) / (float)(designatedTime + 10);
@@ -552,10 +519,8 @@ bool Match::Process() {
   ballIsInGoal |= goal;
   Mirror(reverse, !reverse, reverse);
   if (IsInPlay()) {
-    DO_VALIDATION;
     if (goal) {
       int team = first_team_goal ? second_team : first_team;
-      DO_VALIDATION;
       matchData->SetGoalCount(teams[team]->GetID(),
                               matchData->GetGoalCount(team) + 1);
       goalScored = true;
@@ -563,14 +528,12 @@ bool Match::Process() {
       teams[team]->GetController()->UpdateTactics();
     }
     if (first_team_goal || second_team_goal) {
-      DO_VALIDATION;
 
       // find out who scored
       bool ownGoal = true;
       if (GetLastTouchTeamID(e_TouchType_Intentional_Kicked) == GetLastGoalTeam()->GetID() || GetLastTouchTeamID(e_TouchType_Intentional_Nonkicked) == GetLastGoalTeam()->GetID()) ownGoal = false;
 
       if (!ownGoal) {
-        DO_VALIDATION;
         lastGoalScorer = GetLastGoalTeam()->GetLastTouchPlayer();
       }
 
@@ -582,9 +545,7 @@ bool Match::Process() {
   // average possession side
 
    if (IsInPlay()) {
-     DO_VALIDATION;
      if (GetBestPossessionTeam()) {
-       DO_VALIDATION;
        float sideValue = 0;
        sideValue += (GetTeam(0)->GetFadingTeamPossessionAmount() - 0.5f) *
            GetTeam(0)->GetDynamicSide();
@@ -598,10 +559,9 @@ bool Match::Process() {
        (GetReferee()->GetCurrentFoulType() == 2 ||
            GetReferee()->GetCurrentFoulType() == 3) &&
            GetReferee()->GetBuffer().stopTime < GetActualTime_ms() - 1000) {
-     DO_VALIDATION;
 
      if (GetReferee()->GetBuffer().prepareTime > GetActualTime_ms()) {
-       DO_VALIDATION;  // FOUL, film referee
+         // FOUL, film referee
        if (officials->GetReferee()->GetSimulationActionState().type == e_FunctionType_Special) referee->AlterSetPiecePrepareTime(GetActualTime_ms() + 1000);
      }
   }
@@ -609,7 +569,6 @@ bool Match::Process() {
 }
 
 bool Match::CheckForGoal(signed int side, const Vector3 &previousBallPos) {
-  DO_VALIDATION;
   if (fabs(ball->Predict(10).coords[0]) < pitchHalfW - 1.0) return false;
 
   Line line;
@@ -628,28 +587,22 @@ bool Match::CheckForGoal(signed int side, const Vector3 &previousBallPos) {
   goal2.SetNormals(Vector3(-side, 0, 0));
 
   Vector3 intersectVec;
-  GetTracker()->setDisabled(true);
   bool intersect1 = goal1.IntersectsLine(line, intersectVec);
   bool intersect2 = goal2.IntersectsLine(line, intersectVec);
-  GetTracker()->setDisabled(false);
   // extra check: ball could have gone 'in' via the side netting, if line begin
   // == inside pitch, but outside of post, and line end == in goal. disallow!
   if (fabs(previousBallPos.coords[1]) > 3.7 &&
       fabs(previousBallPos.coords[0]) > pitchHalfW - lineHalfW - 0.11) {
-    DO_VALIDATION;
     return false;
   }
   if (intersect1 || intersect2) {
-    DO_VALIDATION;
     return true;
   }
   return false;
 }
 
 void Match::CalculateBestPossessionTeamID() {
-  DO_VALIDATION;
   if (GetBallRetainer() != 0) {
-    DO_VALIDATION;
     bestPossessionTeam = GetBallRetainer()->GetTeam();
   } else {
     int bestTime_ms[2] = { 100000, 100000 };
@@ -667,7 +620,6 @@ void Match::CalculateBestPossessionTeamID() {
 }
 
 void Match::CheckHumanoidCollisions() {
-  DO_VALIDATION;
   std::vector<Player*> players;
 
   GetTeam(first_team)->GetActivePlayers(players);
@@ -681,32 +633,26 @@ void Match::CheckHumanoidCollisions() {
 
   // check each combination of humanoids once
   for (unsigned int i1 = 0; i1 < players.size() - 1; i1++) {
-    DO_VALIDATION;
     for (unsigned int i2 = i1 + 1; i2 < players.size(); i2++) {
-      DO_VALIDATION;
       CheckHumanoidCollision(players.at(i1), players.at(i2), playerBounces.at(i1), playerBounces.at(i2));
     }
   }
 
   // do bouncy magic
   for (unsigned int i1 = 0; i1 < players.size(); i1++) {
-    DO_VALIDATION;
 
     float totalForce = 0.0f;
 
     for (unsigned int i2 = 0; i2 < playerBounces.at(i1).size(); i2++) {
-      DO_VALIDATION;
 
       const PlayerBounce &bounce = playerBounces.at(i1).at(i2);
       totalForce += bounce.force;
     }
 
     if (totalForce > 0.0f) {
-      DO_VALIDATION;
 
       Vector3 bounceVec;
       for (unsigned int i2 = 0; i2 < playerBounces.at(i1).size(); i2++) {
-        DO_VALIDATION;
 
         const PlayerBounce &bounce = playerBounces.at(i1).at(i2);
         bounceVec += (bounce.opp->GetMovement() - players.at(i1)->GetMovement()) * bounce.force * (bounce.force / totalForce);
@@ -721,7 +667,6 @@ void Match::CheckHumanoidCollisions() {
 void Match::CheckHumanoidCollision(Player *p1, Player *p2,
                                    std::vector<PlayerBounce> &p1Bounce,
                                    std::vector<PlayerBounce> &p2Bounce) {
-  DO_VALIDATION;
   constexpr float distanceFactor = 0.72f;
   constexpr float bouncePlayerRadius = 0.5f * distanceFactor;
   constexpr float similarPlayerRadius = 0.8f * distanceFactor;
@@ -746,7 +691,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 
   if (distance < bouncePlayerRadius * 2.0f ||
       distance < (bouncePlayerRadius + similarPlayerRadius) * 2.0f) {
-    DO_VALIDATION;
 
     bounceVec = (p1pos - p2pos).GetNormalized(Vector3(0, -1, 0));
 
@@ -757,7 +701,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     p2backFacing = clamp(p2facing.GetDotProduct(-bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f);
 
     if (p1->GetGroundCollider().Intersects(p2->GetGroundCollider())) {
-      DO_VALIDATION;
 
       bounceBias += p1backFacing * 0.8f;
       bounceBias -= p2backFacing * 0.8f;
@@ -784,7 +727,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
       // closest to ball
       if (p1 == p1->GetTeam()->GetDesignatedTeamPossessionPlayer() &&
           p2 == p2->GetTeam()->GetDesignatedTeamPossessionPlayer()) {
-        DO_VALIDATION;
         float p1BallDistance = (GetBall()->Predict(10).Get2D() - p1->GetPosition()).GetLength();
         float p2BallDistance = (GetBall()->Predict(10).Get2D() - p2->GetPosition()).GetLength();
         float ballDistanceDiffFactor = clamp(std::min(p2BallDistance, 1.2f) - std::min(p1BallDistance, 1.2f), -0.6f, 0.6f) * 1.0f; // std::min is cap so difference won't matter if ball is far away (so only used in battles about the ball)
@@ -815,7 +757,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 
 
       if (GetDesignatedPossessionPlayer() == p2 && p2->HasPossession()) {
-        DO_VALIDATION;
         Vector3 p2_leftside = p2pos + p2->GetKinematicState().facing.GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
         Vector3 p2_rightside = p2pos + p2->GetKinematicState().facing.GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
         float p1_to_p2_left = (p1pos - p2_leftside).GetLength();
@@ -826,7 +767,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
       }
 
       else if (GetDesignatedPossessionPlayer() == p1 && p1->HasPossession()) {
-        DO_VALIDATION;
         Vector3 p1_leftside = p1pos + p1->GetKinematicState().facing.GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
         Vector3 p1_rightside = p1pos + p1->GetKinematicState().facing.GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
         float p2_to_p1_left = (p2pos - p1_leftside).GetLength();
@@ -851,7 +791,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 
     if (similarForceFactor > 0.0f &&
         distance < (bouncePlayerRadius + similarPlayerRadius) * 2.0f) {
-      DO_VALIDATION;
       float shellDistance = std::max(0.0f, distance - bouncePlayerRadius * 2.0f);
 
       similarBias += p1backFacing * 0.8f;
@@ -868,7 +807,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
       // closest to ball
       if (p1 == p1->GetTeam()->GetDesignatedTeamPossessionPlayer() &&
           p2 == p2->GetTeam()->GetDesignatedTeamPossessionPlayer()) {
-        DO_VALIDATION;
         float p1BallDistance = (GetBall()->Predict(10).Get2D() - p1->GetPosition()).GetLength();
         float p2BallDistance = (GetBall()->Predict(10).Get2D() - p2->GetPosition()).GetLength();
         float ballDistanceDiffFactor = clamp(std::min(p2BallDistance, 1.2f) - std::min(p1BallDistance, 1.2f), -0.6f, 0.6f) * 1.0f; // std::min is cap so difference won't matter if ball is far away (so only used in battles about the ball)
@@ -904,7 +842,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     // u b trippin?
 
     if (distance < bouncePlayerRadius * 2.0f) {
-      DO_VALIDATION;
 
       float p1sensitivity = 0.0f;
       float p2sensitivity = 0.0f;
@@ -958,23 +895,19 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
       float trip2threshold = 0.58f;
 
       if (p1sensitivity > trip0threshold) {
-        DO_VALIDATION;
         int tripType = 0;
         if (p1sensitivity > trip1threshold) tripType = 1;
         if (p1sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
-          DO_VALIDATION;
           p1->TripMe((p1->GetKinematicState().velocity * 0.1f + p2->GetKinematicState().velocity * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec), tripType);
           referee->TripNotice(p1, p2, tripType);
         }
       }
       if (p2sensitivity > trip0threshold) {
-        DO_VALIDATION;
         int tripType = 0;
         if (p2sensitivity > trip1threshold) tripType = 1;
         if (p2sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
-          DO_VALIDATION;
           p2->TripMe((p2->GetKinematicState().velocity * 0.1f + p1->GetKinematicState().velocity * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec), tripType);
           referee->TripNotice(p2, p1, tripType);
         }
@@ -998,7 +931,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
   if (p1Tackle.active) tackle += 1;
   if (p2Tackle.active) tackle += 2;
   if (distance < 2.0f && tackle > 0 && tackle < 3) {
-    DO_VALIDATION;  // if tackle is 3, ignore both
+      // if tackle is 3, ignore both
     const PlayerActionVolume &tacklerVolume =
         tackle == 1 ? p1Tackle : p2Tackle;
     const PlayerActionState &tacklerAction =
@@ -1007,10 +940,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     Player *victim = tackle == 1 ? p2 : p1;
 
     if (tacklerVolume.Intersects(victim->GetGroundCollider())) {
-      DO_VALIDATION;
       if (tacklerAction.frame > 10 &&
           tacklerAction.frame < tacklerAction.frameCount - 6) {
-        DO_VALIDATION;
         Vector3 tripVec = victim->GetKinematicState().facing;
         int tripType = 3;  // sliding
         if (tacklerAction.type == e_FunctionType_Interfere)
@@ -1023,7 +954,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
 }
 
 void Match::CheckBallCollisions() {
-  DO_VALIDATION;
 
 
 
@@ -1040,7 +970,6 @@ void Match::CheckBallCollisions() {
 
   //printf("lasttouchbias: %f, isnul?: %s\n", GetLastTouchBias(200), GetLastTouchBias(200) == 0.0f ? "true" : "false");
   for (int i = 0; i < (signed int)players.size(); i++) {
-    DO_VALIDATION;
     const PlayerActionState &action = players[i]->GetSimulationActionState();
 
     bool biggestRatio = false;
@@ -1053,7 +982,7 @@ void Match::CheckBallCollisions() {
 
     if (lastTouchBias <= 0.01f &&
         oppLastTouchBias > 0.01f /* && ballTowardsPlayer*/) {
-      DO_VALIDATION;  // cannot collide if opp didn't recently touch ball (we
+        // cannot collide if opp didn't recently touch ball (we
                       // would be able to predict ball by then), or if player
                       // itself already did (to overcome the 'perpetuum
                       // collision' problem, and to allow for 'controlled ball
@@ -1066,7 +995,6 @@ void Match::CheckBallCollisions() {
 
       bool directionChangedUnexpectedly = false;
       if (onlyWhenDirectionChangedUnexpectedly) {
-        DO_VALIDATION;
         float unexpectedDistance = (GetMentalImage(players[i]->GetController()->GetReactionTime_ms() + action.elapsedTime_ms)->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // mental image from when the action began
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
@@ -1075,7 +1003,6 @@ void Match::CheckBallCollisions() {
       if (collisionAnim && !players[i]->HasUniquePossession() &&
           (onlyWhenDirectionChangedUnexpectedly ==
            directionChangedUnexpectedly)) {
-        DO_VALIDATION;
 
         float boundingBoxSizeOffset = -0.1f; // fake a big AABB for more blocking fun, or a small one for less bouncy bounce
         if (!players[i]->HasPossession()) boundingBoxSizeOffset += 0.03f; else
@@ -1083,30 +1010,25 @@ void Match::CheckBallCollisions() {
 
         if (action.type == e_FunctionType_Sliding ||
             action.type == e_FunctionType_Interfere) {
-          DO_VALIDATION;
           boundingBoxSizeOffset += 0.1f;
         }
         if (action.type == e_FunctionType_Deflect) {
-          DO_VALIDATION;
           boundingBoxSizeOffset += 0.2f;
         }
 
         if (((players[i]->GetPosition() + Vector3(0, 0, 0.8f)) -
              ball->Predict(0))
                 .GetLength() < 2.5f) {
-          DO_VALIDATION;  // premature optimization is the root of all evil :D
+            // premature optimization is the root of all evil :D
           const PlayerBodyCollider body =
               BuildBodyCollider(players[i]->GetKinematicState());
           for (const BodyVolume *volume : body.GetVolumes()) {
-            DO_VALIDATION;
             float ballRadius = 0.11f + boundingBoxSizeOffset;
             if (volume->IntersectsSphere(ball->Predict(0), ballRadius)) {
-              DO_VALIDATION;
               if (players[i] == players[i]
                                     ->GetTeam()
                                     ->GetDesignatedTeamPossessionPlayer() &&
                   GetLastTouchBias(200) < 0.01f) {
-                DO_VALIDATION;
                 players[i]->TriggerControlledBallCollision();
               } else {
                 float movementBias = oppLastTouchBias * 0.8f + 0.2f;
@@ -1138,7 +1060,6 @@ void Match::CheckBallCollisions() {
   }
 
   if (bias > 0.0f) {
-    DO_VALIDATION;
     bounceVec /= (bounceCount * 1.0f);
     bounceVec.coords[2] *= 0.6f;
     bounceVec.Normalize();
@@ -1162,14 +1083,12 @@ void Match::CheckBallCollisions() {
 
 void Match::BumpActualTime_ms(unsigned long time) {
   if (IsInPlay()) {
-    DO_VALIDATION;
     matchTime_ms += time * (1.0f / matchDurationFactor);
   }
   actualTime_ms += time;
   if (IsGoalScored()) goalScoredTimer += time; else goalScoredTimer = 0;
 
   if (IsInPlay() && !IsInSetPiece()) {
-    DO_VALIDATION;
     GetMatchData()->AddPossessionTime(teams[0] == designatedPossessionPlayer->GetTeam() ? 0 : 1, time);
   }
 }

@@ -27,19 +27,13 @@
 using std::string;
 
 void GameEnv::do_step(int count) {
-  DO_VALIDATION;
   while (count--) {
-    DO_VALIDATION;
     context->gameTask->ProcessPhase();
-  }
-  if (context->gameTask->GetMatch()->IsInPlay()) {
-    DoValidation(__LINE__, __FILE__);
   }
 }
 
 float Position::env_coord(int index) const {
   switch (index) {
-    DO_VALIDATION;
     case 0:
       return value[0] / X_FIELD_SCALE;
     case 1:
@@ -53,13 +47,11 @@ float Position::env_coord(int index) const {
 }
 
 std::string Position::debug() {
-  DO_VALIDATION;
   return std::to_string(value[0]) + "," + std::to_string(value[1]) + "," +
          std::to_string(value[2]);
 }
 
 void GameEnv::setConfig(const ScenarioConfig& scenario_config) {
-  DO_VALIDATION;
 
   // ScenarioConfig belongs to the caller and stays in public pitch units. The
   // match owns this scaled copy; mutating the caller here used to flip the sign
@@ -108,7 +100,6 @@ void GameEnv::start_game() {
 
   char* data_dir = getenv("GFOOTBALL_DATA_DIR");
   if (data_dir) {
-    DO_VALIDATION;
     GetGameConfig().data_dir = data_dir;
   }
   Properties* config = new Properties();
@@ -117,15 +108,12 @@ void GameEnv::start_game() {
   run_game(config);
   auto scenario_config = ScenarioConfig::make();
   reset(*scenario_config, false);
-  DO_VALIDATION;
 }
 
 SharedInfo GameEnv::get_info() {
-  GetTracker()->setDisabled(true);
   SharedInfo info;
   GetGameTask()->GetMatch()->GetState(&info);
   info.step = context->step;
-  GetTracker()->setDisabled(false);
   return info;
 }
 
@@ -169,7 +157,6 @@ bool GameEnv::sticky_action_state(int action, bool left_team, int player) {
 
 void GameEnv::action(int action, bool left_team, int player) {
   SetGame(this);
-  GetTracker()->setDisabled(true);
   int controller_id = player + (left_team ? 0 : 11);
   auto controller = static_cast<AIControlledKeyboard*>(GetControllers()[controller_id]);
   controller->SetDisabled(false);
@@ -274,7 +261,6 @@ void GameEnv::action(int action, bool left_team, int player) {
       controller->SetDisabled(true);
       break;
   }
-  GetTracker()->setDisabled(false);
 }
 
 std::string GameEnv::get_state(const std::string& pickle) {
@@ -299,19 +285,14 @@ std::string GameEnv::set_state(const std::string& state) {
 }
 
 void GameEnv::step() {
-  DO_VALIDATION;
   // We do 10 environment steps per second, while game does 100 frames of
   // physics animation.
   do_step(GetGameConfig().physics_steps_per_frame);
   if (context->gameTask->GetMatch()->IsInPlay()) {
-    DO_VALIDATION;
-    GetTracker()->setDisabled(true);
     context->step++;
     for (auto controller : GetControllers()) {
-      DO_VALIDATION;
       controller->ResetNotSticky();
     }
-    GetTracker()->setDisabled(false);
   }
 }
 
@@ -323,15 +304,11 @@ void GameEnv::ProcessState(EnvState* state) {
 }
 
 void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
-  DO_VALIDATION;
   ContextHolder c(this);
-  // Reset call disables tracker.
-  GetTracker()->setDisabled(true);
   context->step = -1;
   waiting_for_game_count = 0;
   setConfig(game_config);
   for (auto controller : GetControllers()) {
-    DO_VALIDATION;
     controller->SetDisabled(true);
   }
   GetGameTask()->StopMatch();

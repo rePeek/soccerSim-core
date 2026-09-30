@@ -28,19 +28,19 @@ class PlayerBase;
 class IController {
 
   public:
-    IController(Match *match) : match(match) { DO_VALIDATION;};
-    virtual ~IController() { DO_VALIDATION;};
+    IController(Match *match) : match(match) { };
+    virtual ~IController() { };
 
     virtual void RequestCommand(PlayerCommandQueue &commandQueue) = 0;
-    virtual void Process() { DO_VALIDATION;};
+    virtual void Process() { };
     virtual Vector3 GetDirection() = 0;
     virtual void ProcessState(EnvState* state) = 0;
     virtual float GetFloatVelocity() = 0;
     virtual void SetPlayer(PlayerBase *player);
 
     // for convenience
-    PlayerBase *GetPlayer() { DO_VALIDATION; return player; }
-    Match *GetMatch() { DO_VALIDATION; return match; }
+    PlayerBase *GetPlayer() { return player; }
+    Match *GetMatch() { return match; }
 
     virtual int GetReactionTime_ms();
 

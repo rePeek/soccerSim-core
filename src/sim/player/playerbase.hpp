@@ -55,7 +55,6 @@ struct PlayerDecisionQueueState {
   bool initialized = false;
   unsigned long long generation = 0;
   void ProcessState(EnvState *state) {
-    DO_VALIDATION;
     int size = static_cast<int>(commands.size());
     state->process(size);
     if (state->Load()) commands.resize(size);
@@ -83,7 +82,6 @@ struct PlayerDecisionLocomotionState {
   bool wasEligibleLastTick = false;
   bool continuityStarted = false;
   void ProcessState(EnvState *state) {
-    DO_VALIDATION;
     command.ProcessState(state);
     state->process(initialized);
     state->process(continuityEpoch);
@@ -170,9 +168,9 @@ class PlayerBase {
     void Mirror();
 
     inline int GetStableID() const { return stable_id; }
-    inline const PlayerData* GetPlayerData() { DO_VALIDATION; return playerData; }
+    inline const PlayerData* GetPlayerData() { return playerData; }
 
-    inline bool IsActive() { DO_VALIDATION; return isActive; }
+    inline bool IsActive() { return isActive; }
 
     // get ready for some action
     virtual void Activate(bool lazyPlayer) = 0;
@@ -228,15 +226,14 @@ class PlayerBase {
                  decisionLocomotionState.continuityEpoch;
     }
     const PlayerCommand &GetDecisionLocomotionIntent() const {
-      DO_VALIDATION;
       return decisionLocomotionState.command;
     }
     // Decision-side execution oracle. The gate answers executability; this answers
     // the producer contract, which stays fatal rather than being folded into the
     // gate predicate.
     void CheckDecisionLocomotionIntentOracle() const;
-    inline int GetFrameNum() { DO_VALIDATION; return humanoid->GetFrameNum(); }
-    inline int GetFrameCount() { DO_VALIDATION; return humanoid->GetFrameCount(); }
+    inline int GetFrameNum() { return humanoid->GetFrameNum(); }
+    inline int GetFrameCount() { return humanoid->GetFrameCount(); }
 
     // Gameplay-facing movement state. It is NOT yet the producer: Humanoid's
     // spatial state is still authoritative for movement, and `kinematicState`
@@ -283,17 +280,14 @@ class PlayerBase {
     }
     void NoteProcessedPlayerTick() { hasProcessedPlayerTick = true; }
     const PlayerKinematicState &GetKinematicState() const {
-      DO_VALIDATION;
       return kinematicState;
     }
     const PlayerGroundCollider &GetGroundCollider() const {
-      DO_VALIDATION;
       return groundCollider;
     }
     // Gameplay reads the sole persistent, simulation-authoritative action
     // schedule. Humanoid provides only a temporary legacy oracle.
     const PlayerActionState &GetSimulationActionState() const {
-      DO_VALIDATION;
       return actionState;
     }
     // H3e4f-c2a: observation only. The simulation keeps its own locomotion
@@ -328,7 +322,6 @@ class PlayerBase {
       return simulationDecisionQueue.initialized;
     }
     const PlayerCommandQueue &GetSimulationDecisionQueue() const {
-      DO_VALIDATION;
       return simulationDecisionQueue.commands;
     }
     int GetSimulationDecisionQueueAge_ms(int now_ms) const {
@@ -339,7 +332,6 @@ class PlayerBase {
     // 4f-a3a: independent Player Decision Clock and its serialized latest queue.
     bool HasPlayerDecisionQueue() const { return playerDecisionQueue.initialized; }
     const PlayerCommandQueue &GetPlayerDecisionQueue() const {
-      DO_VALIDATION;
       return playerDecisionQueue.commands;
     }
     unsigned long long GetPlayerDecisionGeneration() const {
@@ -355,7 +347,7 @@ class PlayerBase {
     // legacy projection. It is intentionally a fatal invariant in all builds.
     void CheckSimulationActionOracle() const;
 
-    void TripMe(const Vector3 &tripVector, int tripType) { DO_VALIDATION; humanoid->TripMe(tripVector, tripType); }
+    void TripMe(const Vector3 &tripVector, int tripType) { humanoid->TripMe(tripVector, tripType); }
 
     void RequestCommand(PlayerCommandQueue &commandQueue);
     IController *GetController();
@@ -372,7 +364,7 @@ class PlayerBase {
     // contract is checked at every movement mutation point.
     void CheckSimulationKinematicOracle() const;
 
-    float GetDecayingPositionOffsetLength() { DO_VALIDATION; return humanoid->GetDecayingPositionOffsetLength(); }
+    float GetDecayingPositionOffsetLength() { return humanoid->GetDecayingPositionOffsetLength(); }
 
     virtual void Process();
 
@@ -381,17 +373,17 @@ class PlayerBase {
     float GetVelocityMultiplier() const;
     float GetMaxVelocity() const;
 
-    const Anim *GetCurrentAnim() { DO_VALIDATION; return humanoid->GetCurrentAnim(); }
+    const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
 
-    void SetLastTouchTime_ms(unsigned long touchTime_ms) { DO_VALIDATION; this->lastTouchTime_ms = touchTime_ms; }
-    unsigned long GetLastTouchTime_ms() { DO_VALIDATION; return lastTouchTime_ms; }
-    void SetLastTouchType(e_TouchType touchType) { DO_VALIDATION; this->lastTouchType = touchType; }
-    e_TouchType GetLastTouchType() { DO_VALIDATION; return lastTouchType; }
+    void SetLastTouchTime_ms(unsigned long touchTime_ms) { this->lastTouchTime_ms = touchTime_ms; }
+    unsigned long GetLastTouchTime_ms() { return lastTouchTime_ms; }
+    void SetLastTouchType(e_TouchType touchType) { this->lastTouchType = touchType; }
+    e_TouchType GetLastTouchType() { return lastTouchType; }
     float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0);
 
 
     float GetFatigueFactorInv() const { return fatigueFactorInv; }
-    void RelaxFatigue(float howMuch) { DO_VALIDATION;
+    void RelaxFatigue(float howMuch) {
       fatigueFactorInv += howMuch;
       fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
     }

@@ -51,7 +51,6 @@ struct PlayerActionState {
   }
 
   void ProcessState(EnvState *state) {
-    DO_VALIDATION;
     state->process(type);
     state->process(frame);
     state->process(frameCount);

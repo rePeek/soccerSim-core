@@ -47,7 +47,6 @@
 #define hungarian_test_alloc(X) do {if ((void *)(X) == NULL) fprintf(stderr, "Out of memory in %s, (%s, line %d).\n", __FUNCTION__, __FILE__, __LINE__); } while (0)
 
 int** array_to_matrix(int* m, int rows, int cols) {
-  DO_VALIDATION;
   int i,j;
   int** r;
   r = (int**)calloc(rows,sizeof(int*));
@@ -61,13 +60,11 @@ int** array_to_matrix(int* m, int rows, int cols) {
 }
 
 int hungarian_imax(int a, int b) {
-  DO_VALIDATION;
   return (a<b)?b:a;
 }
 
 int hungarian_init(hungarian_problem_t* p, int** cost_matrix, int rows,
                    int cols, int mode) {
-  DO_VALIDATION;
 
   int i,j, org_cols, org_rows;
   int max_cost;
@@ -90,13 +87,11 @@ int hungarian_init(hungarian_problem_t* p, int** cost_matrix, int rows,
   hungarian_test_alloc(p->assignment);
 
   for (i = 0; i < p->num_rows; i++) {
-    DO_VALIDATION;
     p->cost[i] = (int*)calloc(cols,sizeof(int));
     hungarian_test_alloc(p->cost[i]);
     p->assignment[i] = (int*)calloc(cols,sizeof(int));
     hungarian_test_alloc(p->assignment[i]);
     for (j = 0; j < p->num_cols; j++) {
-      DO_VALIDATION;
       p->cost[i][j] =  (i < org_rows && j < org_cols) ? cost_matrix[i][j] : 0;
       p->assignment[i][j] = 0;
 
@@ -106,16 +101,12 @@ int hungarian_init(hungarian_problem_t* p, int** cost_matrix, int rows,
   }
 
   if (mode == HUNGARIAN_MODE_MAXIMIZE_UTIL) {
-    DO_VALIDATION;
     for (i = 0; i < p->num_rows; i++) {
-      DO_VALIDATION;
       for (j = 0; j < p->num_cols; j++) {
-        DO_VALIDATION;
         p->cost[i][j] =  max_cost - p->cost[i][j];
       }
     }
   } else if (mode == HUNGARIAN_MODE_MINIMIZE_COST) {
-    DO_VALIDATION;
     // nothing to do
   } else
     fprintf(stderr,"%s: unknown mode. Mode was set to HUNGARIAN_MODE_MINIMIZE_COST !\n", __FUNCTION__);
@@ -124,10 +115,8 @@ int hungarian_init(hungarian_problem_t* p, int** cost_matrix, int rows,
 }
 
 void hungarian_free(hungarian_problem_t* p) {
-  DO_VALIDATION;
   int i;
   for (i = 0; i < p->num_rows; i++) {
-    DO_VALIDATION;
     free(p->cost[i]);
     free(p->assignment[i]);
   }
@@ -172,14 +161,12 @@ int hungarian_solve(hungarian_problem_t* p)
   hungarian_test_alloc(slack);
 
   for (i = 0; i < p->num_rows; i++) {
-    DO_VALIDATION;
     col_mate[i]=0;
     unchosen_row[i]=0;
     row_dec[i]=0;
     slack_row[i]=0;
   }
   for (j = 0; j < p->num_cols; j++) {
-    DO_VALIDATION;
     row_mate[j]=0;
     parent_row[j] = 0;
     col_inc[j]=0;

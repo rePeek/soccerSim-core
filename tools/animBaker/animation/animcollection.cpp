@@ -25,11 +25,9 @@
 #include "foundation/utils.hpp"
 
 void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap) {
-  DO_VALIDATION;
   nodeMap[BodyPartFromString(targetNode->GetName())] = targetNode;
 
   for (const auto &child : targetNode->children) {
-    DO_VALIDATION;
     // Only <node> entries carry body-part names; <geometry> entries are the
     // anchors measured against, not joints the animation poses.
     if (child->kind == ImportNodeKind::Node) {
@@ -39,7 +37,6 @@ void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap) {
 }
 
 AnimCollection::AnimCollection() {
-  DO_VALIDATION;
   maxIncomingBallDirectionDeviation = 0.25f * pi;
   maxOutgoingBallDirectionDeviation = 0.25f * pi;
 
@@ -58,7 +55,6 @@ AnimCollection::AnimCollection() {
 
   int id = 1;
   for (int velocityID = 1; velocityID < 4; velocityID++) {
-    DO_VALIDATION;
 
     e_Velocity velocity;
     if (velocityID == 1) velocity = e_Velocity_Dribble;
@@ -66,7 +62,6 @@ AnimCollection::AnimCollection() {
     else if (velocityID == 3) velocity = e_Velocity_Sprint;
 
     for (int angleID = 0; angleID < 11; angleID++) {
-      DO_VALIDATION;
 
       radian angle;
       if      (angleID == 0)  angle = pi / 180.0f *    0.0f;
@@ -94,15 +89,12 @@ AnimCollection::AnimCollection() {
 }
 
 AnimCollection::~AnimCollection() {
-  DO_VALIDATION;
   Clear();
 }
 
 void AnimCollection::Clear() {
-  DO_VALIDATION;
   std::vector < Animation* >::iterator animIter = animations.begin();
   while (animIter != animations.end()) {
-    DO_VALIDATION;
     delete *animIter;
     animIter++;
   }
@@ -110,10 +102,8 @@ void AnimCollection::Clear() {
 }
 
 radian GetAngle(int directionID) {
-  DO_VALIDATION;
   radian angle = 0.0f;
   switch (directionID) {
-    DO_VALIDATION;
     case 0:
       angle = 0.0f;
       break;
@@ -149,22 +139,18 @@ radian GetAngle(int directionID) {
 
 void GenerateAutoAnims(const std::vector<Animation *> &templates,
                        std::vector<Animation *> &autoAnims) {
-  DO_VALIDATION;
 
   const float leanAmount = 0.001f;
   const int frameCount = 25;
   const float margin = 0.01f;
 
   for (unsigned int t1 = 0; t1 < templates.size(); t1++) {
-    DO_VALIDATION;
     for (unsigned int t2 = 0; t2 < templates.size(); t2++) {
-      DO_VALIDATION;
 
       Animation *anim1 = templates.at(t1);
       Animation *anim2 = templates.at(t2);
 
       for (unsigned int direction = 0; direction < 9; direction++) {
-        DO_VALIDATION;
 
         radian angle = GetAngle(direction);
         float incomingVelocityT1 = anim1->GetIncomingVelocity();
@@ -227,7 +213,6 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
         float animSpeedFactor = 1.0f;
 
         if (legalAnim == true) {
-          DO_VALIDATION;
 
           Animation *gen = new Animation(*templates.at(t1));
           gen->SetName("autogen [v" + int_to_str(GetVelocityID(FloatToEnumVelocity(incomingVelocityT1))) + " b" + int_to_str(incomingBodyAngleT1 / pi * 180) + "] => [v" + int_to_str(GetVelocityID(FloatToEnumVelocity(outgoingVelocityT2))) + " b" + int_to_str(outgoingBodyAngleT2 / pi * 180) + " a" + int_to_str(angle / pi * 180) + "]");
@@ -237,7 +222,6 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
           std::vector<NodeAnimation*> &nodeAnimsT2 = anim2->GetNodeAnimations();
 
           for (unsigned int n = 0; n < nodeAnimsT1.size(); n++) {
-            DO_VALIDATION;
 
             gen->GetNodeAnimations().at(n)->animation.clear();
 
@@ -258,15 +242,12 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
             std::list<int> keyFrames; // frames at which one of the two anims has a keyframe
             // first, add all keyframes, even if duplicate
             for (const auto &i : animationT1.d) {
-              DO_VALIDATION;
               keyFrames.push_back(i.first);
             }
             for (const auto &i : animationT2.d) {
-              DO_VALIDATION;
               keyFrames.push_back(i.first);
             }
             if (n == 0) {
-              DO_VALIDATION;
               // make sure there's 2 position keyframes close to each other at the start and at the end, so we will have the right ingoing and outgoing velocities
               keyFrames.push_back(1);
               keyFrames.push_back(23);
@@ -281,7 +262,6 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
 
             std::list<int>::iterator keyIter = keyFrames.begin();
             while (keyIter != keyFrames.end()) {
-              DO_VALIDATION;
               int frame = *keyIter;
               float targetFrame = frame * (1.0f / animSpeedFactor);
 
@@ -310,7 +290,7 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
               Quaternion orientation = orientationT1.GetSlerped(bias, orientationT2);
 
               if (n == 1) {
-                DO_VALIDATION;  // body
+                  // body
                 // body orientation
                 Quaternion angleQuat;
                 angleQuat.SetAngleAxis(
@@ -332,7 +312,7 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
 
               float height = 0.0f;
               if (n == 0) {
-                DO_VALIDATION;  // player
+                  // player
                 // if (outgoingVeloID == 0 && incomingVeloID != 0)
                 // printf("frame: %i, bias: %f\n", frame, bias);
                 cumulativePosition += anim1->GetIncomingMovement() * ((frame - prevFrame) * 0.01f) * (1.0f - bias) +
@@ -367,7 +347,6 @@ void GenerateAutoAnims(const std::vector<Animation *> &templates,
 }
 
 void AnimCollection::Load(const AnimationSourcePaths& paths) {
-  DO_VALIDATION;
   // load utility player to get things like foot position in the frames around the balltouch etc.
 
   ImportLoader loader;
@@ -398,7 +377,6 @@ void AnimCollection::Load(const AnimationSourcePaths& paths) {
 
   std::vector<Animation*> templates;
   for (unsigned int i = 0; i < files.size(); i++) {
-    DO_VALIDATION;
     Animation *animTemplate = new Animation();
     animTemplate->Load(files[i]);
     templates.push_back(animTemplate);
@@ -408,14 +386,12 @@ void AnimCollection::Load(const AnimationSourcePaths& paths) {
   GenerateAutoAnims(templates, autoAnims);
   std::vector < Animation* >::iterator animIter = templates.begin();
   while (animIter != templates.end()) {
-    DO_VALIDATION;
     delete *animIter;
     animIter++;
   }
   templates.clear();
 
   for (unsigned int i = 0; i < autoAnims.size(); i++) {
-    DO_VALIDATION;
     Animation *animation = new Animation(*autoAnims[i]);
     std::shared_ptr<FootballAnimationExtension> extension(new FootballAnimationExtension(animation));
     animation->AddExtension("football", extension);
@@ -437,18 +413,15 @@ void AnimCollection::Load(const AnimationSourcePaths& paths) {
   bool omitLuxuryAnims = true;
 
   for (unsigned int i = 0; i < files.size(); i++) {
-    DO_VALIDATION;
 
     //printf("%s\n", files[i].c_str());
 
     if ((omitLuxuryAnims && files[i].find("luxury") != std::string::npos) ||
         files[i].find("templates") != std::string::npos) {
-      DO_VALIDATION;
       //printf ("ignoring\n");
 
     } else {
       for (int mirror = 0; mirror < 2; mirror++) {
-        DO_VALIDATION;
         Animation *animation = new Animation();
         std::shared_ptr<FootballAnimationExtension> extension(new FootballAnimationExtension(animation));
         animation->AddExtension("football", extension);
@@ -467,12 +440,12 @@ void AnimCollection::Load(const AnimationSourcePaths& paths) {
         // more correct (to get proper leg movement for walking velocities)
         would be to create separate anims for these, but i'm feeling lazy if
         (animation->GetAnimType().compare(e_DefString_Movement) == 0) {
-        DO_VALIDATION; if (std::fabs(animation->GetIncomingBodyAngle()) > 0.5 * pi ||
-        std::fabs(animation->GetOutgoingBodyAngle()) > 0.5 * pi) { DO_VALIDATION; if
+         if (std::fabs(animation->GetIncomingBodyAngle()) > 0.5 * pi ||
+        std::fabs(animation->GetOutgoingBodyAngle()) > 0.5 * pi) { if
         (FloatToEnumVelocity(animation->GetIncomingVelocity()) ==
         e_Velocity_Dribble ||
         FloatToEnumVelocity(animation->GetOutgoingVelocity()) ==
-        e_Velocity_Dribble) { DO_VALIDATION;
+        e_Velocity_Dribble) {
 
               Animation *animation2 = new Animation();
               std::shared_ptr<FootballAnimationExtension> extension(new
@@ -499,7 +472,6 @@ const std::vector < Animation* > &AnimCollection::GetAnimations() const {
 
 void AnimCollection::CrudeSelection(DataSet &dataSet,
                                     const CrudeSelectionQuery &query) {
-  DO_VALIDATION;
 
   // makes a crude selection to later refine
 
@@ -507,29 +479,24 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
   int animSize = animations.size();
 
   for (int i = 0; i < animSize; i++) {
-    DO_VALIDATION;
 
     e_DefString animType = animations[i]->GetAnimType();
 
     // select by TYPE
 
     if (query.byFunctionType == true) {
-      DO_VALIDATION;
       if (_CheckFunctionType(animType, query.functionType) == false) continue;
     }
 
     // select by INCOMING VELOCITY
 
     if (query.byIncomingVelocity == true) {
-      DO_VALIDATION;
 
       e_Velocity animIncomingVelocity = FloatToEnumVelocity(animations[i]->GetIncomingVelocity());
 
       if (query.incomingVelocity_Strict == false) {
-        DO_VALIDATION;
 
         if (query.incomingVelocity_NoDribbleToIdle) {
-          DO_VALIDATION;
           if (animIncomingVelocity == e_Velocity_Idle && query.incomingVelocity == e_Velocity_Dribble) continue;
         }
         if (animIncomingVelocity == e_Velocity_Idle && query.incomingVelocity == e_Velocity_Walk) continue;
@@ -539,12 +506,10 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
         if (animIncomingVelocity == e_Velocity_Sprint && query.incomingVelocity == e_Velocity_Idle) continue;
 
         if (query.incomingVelocity_NoDribbleToSprint) {
-          DO_VALIDATION;
           if (animIncomingVelocity == e_Velocity_Sprint && query.incomingVelocity == e_Velocity_Dribble) continue;
         }
 
         if (query.incomingVelocity_ForceLinearity) {
-          DO_VALIDATION;
           // disallow going from current -> slower/faster -> current; the complete section needs to be linear
           float animIncomingVelocityFloat = RangeVelocity(animations[i]->GetIncomingVelocity());
           float animOutgoingVelocityFloat = RangeVelocity(animations[i]->GetOutgoingVelocity());
@@ -579,14 +544,12 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
     // select by OUTGOING VELOCITY
 
     if (query.byOutgoingVelocity == true) {
-      DO_VALIDATION;
       if (FloatToEnumVelocity(animations[i]->GetOutgoingVelocity()) != query.outgoingVelocity) continue;
     }
 
     // CULL WRONG ROTATIONAL SIDE
 
     if (query.bySide == true) {
-      DO_VALIDATION;
 
       Vector3 animIncomingDirection = animations[i]->GetIncomingBodyDirection();
 
@@ -598,7 +561,7 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
       Vector3 fencedDirection = query.lookAtVecRel.GetRotated2D(pi);
 
       if (std::fabs(animTurnAngle) > 0.06f * pi) {
-        DO_VALIDATION;  // threshold
+          // threshold
         const bool animTurnsLeft = animTurnAngle > 0;
 
         radian animIncomingToFenceAngle = fencedDirection.GetAngle2D(animIncomingDirection);
@@ -626,12 +589,10 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
     // select by RETAIN BALL
 
     if (query.byPickupBall == true) {
-      DO_VALIDATION;
       if ((animations[i]->GetVariable("outgoing_retain_state") == "" &&
            query.pickupBall == true) ||
           (animations[i]->GetVariable("outgoing_retain_state") != "" &&
            query.pickupBall == false)) {
-        DO_VALIDATION;
         continue;
       }
     }
@@ -639,9 +600,7 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
     // select LAST DITCH ANIMS
 
     if (query.allowLastDitchAnims == false) {
-      DO_VALIDATION;
       if (animations[i]->GetVariableCache().lastditch()) {
-        DO_VALIDATION;
         continue;
       }
     }
@@ -651,21 +610,19 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
     if (query.byIncomingBodyDirection == true &&
         !(query.byIncomingVelocity == true &&
           query.incomingVelocity == e_Velocity_Idle)) {
-      DO_VALIDATION;
 
       radian marginRadians = 0.06f * pi; // anims can deviate a few degrees from the desired (quantized) directions
 
       if (FloatToEnumVelocity(animations[i]->GetIncomingVelocity()) !=
           e_Velocity_Idle) {
-        DO_VALIDATION;
 
         Vector3 incomingBodyDir = animations[i]->GetIncomingBodyDirection();
 
         /* this is implicitly happening already because of the section after
            this one anyway, so disable *todo: is it?
-                  //if (selectAnim) { DO_VALIDATION;
+                  //if (selectAnim) {
                     if (query.incomingBodyDirection_Strict == true) {
-           DO_VALIDATION; // == non-movement, atm
+            // == non-movement, atm
                       // strict
                       //if (std::fabs(incomingBodyDir.GetAngle2D(Vector3(0, -1, 0)))
            > std::fabs(query.incomingBodyDirection.GetAngle2D(Vector3(0, -1, 0))) +
@@ -703,7 +660,6 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
         //if (std::fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(Vector3(0, -1, 0)) - query.incomingBodyDirection.GetAngle2D(Vector3(0, -1, 0))) > 0.5f * pi + marginRadians) continue;
         // this version is not just moar beautiful, but also allows for -135 to 135 deg and vice versa
         if (query.incomingBodyDirection_Strict == true) {
-          DO_VALIDATION;
           if (std::fabs(incomingBodyDir.GetAngle2D(query.incomingBodyDirection)) > marginRadians) continue;
         } else {
           if (std::fabs(incomingBodyDir.GetAngle2D(query.incomingBodyDirection)) > 0.5f * pi + marginRadians) continue;
@@ -713,7 +669,6 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
         //if (std::fabs(outgoingBodyDir.GetAngle2D(query.incomingBodyDirection)) > 0.75f * pi + marginRadians) continue;
 
         if (query.incomingBodyDirection_ForceLinearity) {
-          DO_VALIDATION;
           // if anim incoming body dir == between (including) query incoming and anim outgoing dir, then this anim is legal (or rather: won't look idiotic)
           // how do we check this?
           // 1. if we look at the smallest angles between (anim incoming -> query incoming) and (anim incoming -> anim outgoing), one has to be positive, the other negative.
@@ -725,7 +680,6 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
                shortestAngle2 > marginRadians) ||
               (shortestAngle1 < -marginRadians &&
                shortestAngle2 < -marginRadians)) {
-            DO_VALIDATION;
             continue;
           }
           if (std::fabs(shortestAngle1) + std::fabs(shortestAngle2) > pi + marginRadians) continue;
@@ -733,12 +687,10 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
 
       } else if (FloatToEnumVelocity(animations[i]->GetIncomingVelocity()) ==
                  e_Velocity_Idle) {
-        DO_VALIDATION;
 
         // allow only same angle (which is moving anims with 0 outgoing body angle. since @ idle, that will become their only angle)
         //if (std::fabs(animations[i]->GetIncomingBodyDirection().GetAngle2D(query.incomingBodyDirection)) > marginRadians) continue;
         if (query.incomingBodyDirection_Strict == true) {
-          DO_VALIDATION;
           if (std::fabs(Vector3(0, -1, 0).GetAngle2D(query.incomingBodyDirection)) > marginRadians) continue;
         } else {
           if (std::fabs(Vector3(0, -1, 0).GetAngle2D(query.incomingBodyDirection)) > 0.25f * pi + marginRadians) continue;
@@ -750,15 +702,12 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
     // select by INCOMING BALL DIRECTION
 
     if (query.byIncomingBallDirection == true) {
-      DO_VALIDATION;
       Vector3 animBallDirection = GetVectorFromString(animations[i]->GetVariable("incomingballdirection"));
       if (animBallDirection.GetLength() < 0.1f) {
-        DO_VALIDATION;
         Log(e_FatalError, "AnimCollection", "Crudeselection", "Anim " + animations[i]->GetName() + " missing incoming ball direction");
       }
       if (animBallDirection.GetLength() != 0.0f &&
           query.incomingBallDirection.GetLength() != 0.0f) {
-        DO_VALIDATION;
 
         // decimate height diff
         animBallDirection.coords[2] *= 0.4f;
@@ -775,7 +724,6 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
         //printf("%f\n", ballDirectionDiff);
         radian maxDeviation = std::fabs(atof(animations[i]->GetVariable("incomingballdirection_maxdeviation").c_str()) * pi);
         if (maxDeviation == 0.0f) {
-          DO_VALIDATION;
           maxDeviation = maxIncomingBallDirectionDeviation;//0.45f;
           if (animType == e_DefString_Deflect) maxDeviation = 0.4f * pi;
         }
@@ -786,7 +734,6 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
     // select by OUTGOING BALL DIRECTION
 
     if (query.byOutgoingBallDirection == true) {
-      DO_VALIDATION;
       Vector3 animBallDirection = GetVectorFromString(animations[i]->GetVariable("balldirection"));
       animBallDirection.Normalize(Vector3(0));
       //printf("%s\n", animations[i]->GetName().c_str());
@@ -797,7 +744,6 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
       //printf("%f\n", ballDirectionDiff);
       radian maxDeviation = std::fabs(atof(animations[i]->GetVariable("outgoingballdirection_maxdeviation").c_str()) * pi);
       if (maxDeviation == 0.0) {
-        DO_VALIDATION;
         maxDeviation = maxOutgoingBallDirectionDeviation;
       }
       if (ballDirectionAngle > maxDeviation) continue;
@@ -816,7 +762,6 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
     // select by TRIP TYPE
 
     if (query.byTripType == true) {
-      DO_VALIDATION;
       if (int(std::round(atof(animations[i]->GetVariable("triptype").c_str()))) != query.tripType) continue;
     }
 
@@ -824,14 +769,12 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
 
 
     if (query.heedForcedFoot == true) {
-      DO_VALIDATION;
 
       std::string forcedFoot = animations[i]->GetVariable("forcedfoot");
       int which = 0;
       if (forcedFoot.compare("strong") == 0) which = 1;
       else if (forcedFoot.compare("weak") == 0) which = 2;
       if (which != 0) {
-        DO_VALIDATION;
 
         std::string touchFoot = animations[i]->GetVariable("touchfoot");
         e_Foot animFoot = e_Foot_Right;
@@ -839,7 +782,6 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
 
           // for mirrored anims that, therefore, don't start with right foot
         if (animations[i]->GetCurrentFoot() == e_Foot_Left) {
-          DO_VALIDATION;
           if (animFoot == e_Foot_Left) animFoot = e_Foot_Right; else animFoot = e_Foot_Left;
         }
 
@@ -859,10 +801,8 @@ int AnimCollection::GetQuadrantID(Animation *animation, const Vector3 &movement,
   int quadrantID = 0;
   float shortestDistance = 100000.0f;
   for (unsigned int i = 0; i < quadrants.size(); i++) {
-    DO_VALIDATION;
     float distance = adaptedMovement.GetDistance(quadrants[i].position);
     if (distance < shortestDistance) {
-      DO_VALIDATION;
       shortestDistance = distance;
       quadrantID = quadrants[i].id;
     }
@@ -901,13 +841,11 @@ void AnimCollection::ProcessState(EnvState *state) {
 int AddExtraTouches(Animation *animation,
                     const std::vector<ImportNode *> &bodyParts,
                     const ImportNodeMap &nodeMap) {
-  DO_VALIDATION;
   Vector3 animBallPos;
   int animTouchFrame = -1;
   bool isTouch = std::static_pointer_cast<FootballAnimationExtension>(animation->GetExtension("football"))->GetFirstTouch(animBallPos, animTouchFrame);
   //printf("touchframe: %i\n", animTouchFrame);
   if (isTouch) {
-    DO_VALIDATION;
     //printf("[touchframe: %i(%i); nodeMap size: %i] ", animTouchFrame, animation->GetFrameCount(), nodeMap.size());
 
     // find out what body part the balltouchpos is closest to
@@ -919,10 +857,8 @@ int AddExtraTouches(Animation *animation,
     std::vector<ImportNode *>::const_iterator iter = bodyParts.begin();
 
     while (iter != bodyParts.end()) {
-      DO_VALIDATION;
       float distance = (animBallPos - (*iter)->GetDerivedPosition()).GetLength();
       if (distance < closestDistance) {
-        DO_VALIDATION;
         closestDistance = distance;
         closestBodyPart = *iter;
         toBallVector = animBallPos - (*iter)->GetDerivedPosition();
@@ -947,9 +883,9 @@ int AddExtraTouches(Animation *animation,
     /*
         float bodypartBias = 0.9f;
         std::string animType = animation->GetVariable("type");
-        if (animType.compare("ballcontrol") != 0) { DO_VALIDATION;
+        if (animType.compare("ballcontrol") != 0) {
         //if (animType.compare("shortpass") == 0 || animType.compare("highpass")
-       == 0 || animType.compare("shot") == 0) { DO_VALIDATION; bodypartBias =
+       == 0 || animType.compare("shot") == 0) { bodypartBias =
        0.95f;
         }
     */
@@ -957,9 +893,7 @@ int AddExtraTouches(Animation *animation,
 
     for (int i = animTouchFrame - range_pre;
          i < animTouchFrame + range_post + 1; i += 1) {
-      DO_VALIDATION;
       if (i >= 0 && i < animation->GetFrameCount() - frameOffset - 1) {
-        DO_VALIDATION;
 
         // set animation to this frame
         animation->Apply(nodeMap, i, 0, false);
@@ -1003,7 +937,6 @@ int AddExtraTouches(Animation *animation,
 }
 
 float CalculateAnimDifficulty(Animation *animation, float &absoluteDifficulty) {
-  DO_VALIDATION;
   Vector3 animBallPos;
   int animTouchFrame = 0;
   bool isTouch = std::static_pointer_cast<FootballAnimationExtension>(animation->GetExtension("football"))->GetFirstTouch(animBallPos, animTouchFrame);
@@ -1042,7 +975,6 @@ float CalculateAnimDifficulty(Animation *animation, float &absoluteDifficulty) {
   absoluteDifficulty = clamp(absoluteDifficultyFactor, 0.0, 1.0);
 
   if (isTouch) {
-    DO_VALIDATION;
     expectedFrameCount *= 1.1f;
     expectedFrameCount += 4;
   }
@@ -1057,7 +989,6 @@ float CalculateAnimDifficulty(Animation *animation, float &absoluteDifficulty) {
 void AnimCollection::_PrepareAnim(
     Animation *animation, const std::vector<ImportNode *> &bodyParts,
     const ImportNodeMap &nodeMap, bool convertAngledDribbleToWalk) {
-  DO_VALIDATION;
 
   //animation->Hax();
 
@@ -1092,7 +1023,6 @@ void AnimCollection::_PrepareAnim(
 
 inline bool AnimCollection::_CheckFunctionType(e_DefString functionType, e_FunctionType queryFunctionType) const {
   switch (queryFunctionType) {
-    DO_VALIDATION;
 
     case e_FunctionType_Movement:
       return functionType == e_DefString_Movement;
