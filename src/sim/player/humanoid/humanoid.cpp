@@ -35,6 +35,8 @@
 #include "animation/baked_selector.hpp"
 
 
+using std::placeholders::_1;
+using std::placeholders::_2;
 constexpr bool animSmoothing = true;
 constexpr float cheatFactor = 0.5f;
 constexpr bool useContinuousBallCheck = true;

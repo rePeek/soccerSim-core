@@ -37,6 +37,8 @@
 #include "animation/baked_selector.hpp"
 
 
+using std::placeholders::_1;
+using std::placeholders::_2;
 constexpr float bodyRotationSmoothingFactor = 1.0f;
 constexpr float bodyRotationSmoothingMaxAngle = 0.25f * pi;
 constexpr float initialReQueueDelayFrames = 32;

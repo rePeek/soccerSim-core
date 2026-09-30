@@ -71,9 +71,9 @@ void GameEnv::setConfig(const ScenarioConfig& scenario_config) {
       scaled_config.ball_position.coords[1] * Y_FIELD_SCALE;
 
   CHECK(scaled_config.left_agents >= 0);
-  CHECK(scaled_config.left_agents <= MAX_PLAYERS);
+  CHECK(scaled_config.left_agents <= kPlayersPerTeam);
   CHECK(scaled_config.right_agents >= 0);
-  CHECK(scaled_config.right_agents <= MAX_PLAYERS);
+  CHECK(scaled_config.right_agents <= kPlayersPerTeam);
 
   // MatchData reads GetScenarioConfig() in its constructor, so publish the
   // scaled snapshot before constructing it rather than accidentally using the
@@ -82,14 +82,14 @@ void GameEnv::setConfig(const ScenarioConfig& scenario_config) {
 
   std::unique_ptr<MatchSetup> setup(new MatchSetup());
   setup->match_data.reset(new MatchData());
-  setup->controllers.reserve(2 * MAX_PLAYERS);
-  for (int controller = 0; controller < 2 * MAX_PLAYERS; ++controller) {
+  setup->controllers.reserve(2 * kPlayersPerTeam);
+  for (int controller = 0; controller < 2 * kPlayersPerTeam; ++controller) {
     ControllerSetup selection;
     selection.controller_id = controller;
     if (controller < scaled_config.left_agents) {
       selection.side = -1;
-    } else if (controller >= MAX_PLAYERS &&
-               controller < MAX_PLAYERS + scaled_config.right_agents) {
+    } else if (controller >= kPlayersPerTeam &&
+               controller < kPlayersPerTeam + scaled_config.right_agents) {
       selection.side = 1;
     }
     setup->controllers.push_back(selection);

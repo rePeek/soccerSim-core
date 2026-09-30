@@ -20,6 +20,7 @@
 
 
 #include "foundation/defines.hpp"
+#include "model/football_types.hpp"
 
 #define X_FIELD_SCALE 54.4
 #define Y_FIELD_SCALE -83.6

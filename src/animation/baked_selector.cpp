@@ -154,7 +154,7 @@ void BakedAnimationSelector::CrudeSelection(
       Vector3 fenced_direction = query.lookAtVecRel.GetRotated2D(pi);
 
       if (std::fabs(anim_turn_angle) > 0.06f * pi) {
-        e_Side anim_side = (anim_turn_angle > 0) ? e_Side_Left : e_Side_Right;
+        const bool anim_turns_left = anim_turn_angle > 0;
 
         radian anim_incoming_to_fence_angle =
             fenced_direction.GetAngle2D(anim_incoming_direction);
@@ -163,22 +163,23 @@ void BakedAnimationSelector::CrudeSelection(
         radian fence_to_outgoing_angle =
             anim_outgoing_direction.GetAngle2D(fenced_direction);
 
-        e_Side anim_incoming_to_fence_side =
-            (anim_incoming_to_fence_angle > 0) ? e_Side_Left : e_Side_Right;
-        e_Side query_incoming_to_fence_side =
-            (query_incoming_to_fence_angle > 0) ? e_Side_Left : e_Side_Right;
-        e_Side fence_to_anim_outgoing_side =
-            (fence_to_outgoing_angle > 0) ? e_Side_Left : e_Side_Right;
+        const bool anim_incoming_to_fence_turns_left =
+            anim_incoming_to_fence_angle > 0;
+        const bool query_incoming_to_fence_turns_left =
+            query_incoming_to_fence_angle > 0;
+        const bool fence_to_anim_outgoing_turns_left =
+            fence_to_outgoing_angle > 0;
 
-        if (anim_incoming_to_fence_side == anim_side &&
-            fence_to_anim_outgoing_side == anim_side &&
+        if (anim_incoming_to_fence_turns_left == anim_turns_left &&
+            fence_to_anim_outgoing_turns_left == anim_turns_left &&
             std::fabs(anim_incoming_to_fence_angle + fence_to_outgoing_angle) <
                 pi)
           continue;
-        if (query_incoming_to_fence_side == anim_side &&
-            fence_to_anim_outgoing_side == anim_side &&
-            std::fabs(query_incoming_to_fence_side + fence_to_outgoing_angle) <
-                pi)
+        if (query_incoming_to_fence_turns_left == anim_turns_left &&
+            fence_to_anim_outgoing_turns_left == anim_turns_left &&
+            // Preserve the legacy e_Side_Right == 1 wire-independent test.
+            std::fabs(static_cast<float>(!query_incoming_to_fence_turns_left) +
+                      fence_to_outgoing_angle) < pi)
           continue;
       }
     }

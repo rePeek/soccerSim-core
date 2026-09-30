@@ -82,7 +82,7 @@ void run_game(Properties* input_config) {
   DO_VALIDATION;
   game->context->config = input_config;
   randomize(0);
-  for (int x = 0; x < 2 * MAX_PLAYERS; x++) {
+  for (int x = 0; x < 2 * kPlayersPerTeam; x++) {
     DO_VALIDATION;
     e_PlayerColor color = e_PlayerColor(x % (e_PlayerColor_Default + 1));
     game->context->controllers.push_back(new AIControlledKeyboard(color));

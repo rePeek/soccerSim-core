@@ -437,11 +437,11 @@ void Match::GetState(SharedInfo *state) {
   std::map<AIControlledKeyboard*, int> controller_mapping;
   {
     auto controllers = GetControllers();
-    CHECK(controllers.size() == 2 * MAX_PLAYERS);
-    for (int x = 0; x < MAX_PLAYERS; x++) {
+    CHECK(controllers.size() == 2 * kPlayersPerTeam);
+    for (int x = 0; x < kPlayersPerTeam; x++) {
       DO_VALIDATION;
       controller_mapping[controllers[x]] = x;
-      controller_mapping[controllers[x + MAX_PLAYERS]] = x;
+      controller_mapping[controllers[x + kPlayersPerTeam]] = x;
     }
   }
   GetTeamState(state, controller_mapping, first_team);

@@ -599,19 +599,27 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
 
       if (std::fabs(animTurnAngle) > 0.06f * pi) {
         DO_VALIDATION;  // threshold
-        e_Side animSide = (animTurnAngle > 0) ? e_Side_Left : e_Side_Right;
+        const bool animTurnsLeft = animTurnAngle > 0;
 
         radian animIncomingToFenceAngle = fencedDirection.GetAngle2D(animIncomingDirection);
         radian queryIncomingToFenceAngle = fencedDirection.GetAngle2D(query.incomingBodyDirection);
         radian fenceToOutgoingAngle = animOutgoingDirection.GetAngle2D(fencedDirection);
 
-        e_Side animIncomingToFenceSide = (animIncomingToFenceAngle > 0) ? e_Side_Left : e_Side_Right;
-        e_Side queryIncomingToFenceSide = (queryIncomingToFenceAngle > 0) ? e_Side_Left : e_Side_Right;
-        e_Side fenceToAnimOutgoingSide = (fenceToOutgoingAngle > 0) ? e_Side_Left : e_Side_Right;
+        const bool animIncomingToFenceTurnsLeft = animIncomingToFenceAngle > 0;
+        const bool queryIncomingToFenceTurnsLeft = queryIncomingToFenceAngle > 0;
+        const bool fenceToAnimOutgoingTurnsLeft = fenceToOutgoingAngle > 0;
 
         // passes through fence! n000!
-        if (animIncomingToFenceSide  == animSide && fenceToAnimOutgoingSide == animSide && std::fabs(animIncomingToFenceAngle + fenceToOutgoingAngle) < pi) continue;
-        if (queryIncomingToFenceSide == animSide && fenceToAnimOutgoingSide == animSide && std::fabs(queryIncomingToFenceSide + fenceToOutgoingAngle) < pi) continue;
+        if (animIncomingToFenceTurnsLeft == animTurnsLeft &&
+            fenceToAnimOutgoingTurnsLeft == animTurnsLeft &&
+            std::fabs(animIncomingToFenceAngle + fenceToOutgoingAngle) < pi)
+          continue;
+        if (queryIncomingToFenceTurnsLeft == animTurnsLeft &&
+            fenceToAnimOutgoingTurnsLeft == animTurnsLeft &&
+            // Preserve the legacy e_Side_Right == 1 test.
+            std::fabs(static_cast<float>(!queryIncomingToFenceTurnsLeft) +
+                      fenceToOutgoingAngle) < pi)
+          continue;
       }
     }
 
