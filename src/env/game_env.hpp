@@ -56,7 +56,8 @@ struct GameEnv {
   ScenarioConfig& config();
 
  private:
-  void setConfig(const ScenarioConfig& scenario_config);
+  std::unique_ptr<MatchConfig> BuildMatchConfig(
+      const ScenarioConfig& scenario_config);
   void do_step(int count);
   void getObservations();
   AIControlledKeyboard* keyboard_ = nullptr;

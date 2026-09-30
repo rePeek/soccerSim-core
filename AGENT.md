@@ -172,7 +172,7 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
   → run_game()                   builds GameContext + Simulation + AIControlledKeyboard[]
   → GameEnv [src/env/game_env.*] start_game / reset(config) / step / action /
                                   get_info→SharedInfo / get_state / set_state
-      → Simulation [src/sim/simulation.*] owns match lifecycle
+      → Simulation [src/sim/simulation.*] owns match lifecycle; env builds MatchConfig
           → Match [src/sim/match.*]::Step()         per-tick loop (10ms steps)
               → Ball::Process()                  physics + prediction buffer
               → Team → Player::Process()         Humanoid animation + controller strategy

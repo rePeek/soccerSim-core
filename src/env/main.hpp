@@ -215,7 +215,6 @@ class GameContext {
   std::unique_ptr<Simulation> simulation;
   // Transitional alias for internal callers using the old GameTask field.
   Simulation* gameTask = nullptr;
-  std::unique_ptr<MatchConfig> matchConfig;
   Properties *config = nullptr;
 
   std::vector<AIControlledKeyboard*> controllers;

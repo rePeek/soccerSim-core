@@ -31,7 +31,7 @@ using std::string;
 
 void GameEnv::do_step(int count) {
   while (count--) {
-    context->simulation->match()->Step();
+    context->simulation->Step();
   }
 }
 
@@ -54,7 +54,8 @@ std::string Position::debug() {
          std::to_string(value[2]);
 }
 
-void GameEnv::setConfig(const ScenarioConfig& scenario_config) {
+std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
+    const ScenarioConfig& scenario_config) {
 
   // ScenarioConfig belongs to the caller and stays in public pitch units. The
   // match owns this scaled copy; mutating the caller here used to flip the sign
@@ -89,7 +90,7 @@ void GameEnv::setConfig(const ScenarioConfig& scenario_config) {
     }
     config->controllers.push_back(selection);
   }
-  context->matchConfig = std::move(config);
+  return config;
 }
 
 void GameEnv::start_game() {
@@ -115,7 +116,7 @@ void GameEnv::start_game() {
 
 SharedInfo GameEnv::get_info() {
   SharedInfo info;
-  context->simulation->match()->GetState(&info);
+  context->simulation->GetState(&info);
   info.step = context->step;
   return info;
 }
@@ -162,7 +163,7 @@ void GameEnv::step() {
   // We do 10 environment steps per second, while game does 100 frames of
   // physics animation.
   do_step(GetGameConfig().physics_steps_per_frame);
-  if (context->simulation->match()->IsInPlay()) {
+  if (context->simulation->IsInPlay()) {
     context->step++;
     for (auto controller : GetControllers()) {
       controller->ResetNotSticky();
@@ -174,19 +175,19 @@ void GameEnv::ProcessState(EnvState* state) {
   state->process(this->state);
   state->process(waiting_for_game_count);
   context->ProcessState(state);
-  context->simulation->match()->ProcessState(state);
+  context->simulation->ProcessState(state);
 }
 
 void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
   ContextHolder c(this);
   context->step = -1;
   waiting_for_game_count = 0;
-  setConfig(game_config);
+  auto match_config = BuildMatchConfig(game_config);
   for (auto controller : GetControllers()) {
     controller->SetDisabled(true);
   }
   randomize(game_config.game_engine_random_seed);
   context->simulation->Stop();
-  context->simulation->Reset(std::move(context->matchConfig), GetControllers(),
+  context->simulation->Reset(std::move(match_config), GetControllers(),
                              animations);
 }
