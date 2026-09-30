@@ -104,7 +104,7 @@ src/
 │       baked_selector, simanim_format, types, selection_*, quadrant
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
-│   ├── match, team, ball, referee, officials, humangamer, teamAIcontroller
+│   ├── match, match_config, team, ball, referee, officials, humangamer, teamAIcontroller
 │   ├── ai_support/     AIfunctions, mentalimage
 │   ├── utils.*         QuantizeDirection / GetVelocityID 等游戏工具
 │   └── player/
@@ -113,10 +113,10 @@ src/
 │       ├── controller/  icontroller, playercontroller, humancontroller,
 │       │                elizacontroller, refereecontroller, strategies/offtheball/*
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
+├── controller/      协议无关的控制输入接口，以及 GRF action 适配器
 ├── env/             对外环境层
 │   ├── game_env, gametask, main, rng（全局 RNG 入口，owner 是 GameContext）
-│   ├── defines        EnvState / Position / SharedInfo
-│   └── match_setup, gfootball_actions.h
+│   └── defines        EnvState / Position / SharedInfo
 ├── data/            matchdata, playerdata, teamdata（DB/序列化）
 └── ai/              ai_keyboard, ihidevice.hpp
 ```

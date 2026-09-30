@@ -25,7 +25,7 @@
 #include "sim/value_history.hpp"
 
 #include "data/matchdata.hpp"
-#include "env/match_setup.hpp"
+#include "sim/match_config.hpp"
 #include "sim/ai_support/mentalimage.hpp"
 #include "animation/types.hpp"
 
@@ -44,7 +44,7 @@ class Match {
   public:
     Match(std::unique_ptr<MatchData> matchData,
           const std::vector<AIControlledKeyboard*> &controllers,
-          const MatchSetup& setup, bool init_animation);
+          const MatchConfig& config, bool init_animation);
     virtual ~Match();
 
     void Exit();

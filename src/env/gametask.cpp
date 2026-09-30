@@ -26,12 +26,12 @@ GameTask::~GameTask() {
   StopMatch();
 }
 
-void GameTask::StartMatch(std::unique_ptr<MatchSetup> setup, bool animations) {
+void GameTask::StartMatch(std::unique_ptr<MatchConfig> config, bool animations) {
   randomize(GetScenarioConfig().game_engine_random_seed);
-  assert(setup);
-  assert(setup->match_data);
+  assert(config);
+  assert(config->match_data);
   assert(!match);
-  match.reset(new Match(std::move(setup->match_data), GetControllers(), *setup,
+  match.reset(new Match(std::move(config->match_data), GetControllers(), *config,
                         animations));
 }
 

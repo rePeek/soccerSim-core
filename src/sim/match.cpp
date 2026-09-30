@@ -60,12 +60,12 @@ const std::vector<Vector3> &Match::GetAnimPositionCache(
 
 Match::Match(std::unique_ptr<MatchData> match_data,
              const std::vector<AIControlledKeyboard *> &controllers,
-             const MatchSetup& setup, bool animations)
+             const MatchConfig& config, bool animations)
     : matchData(std::move(match_data)),
       first_team(GetScenarioConfig().reverse_team_processing ? 1 : 0),
       second_team(GetScenarioConfig().reverse_team_processing ? 0 : 1),
       controllers(controllers),
-      controllerSetup(setup.controllers),
+      controllerSetup(config.controllers),
       possessionSideHistory(6000),
       matchDurationFactor(
           GetConfiguration()->GetReal("match_duration", 1.0) * 0.2f + 0.05f),

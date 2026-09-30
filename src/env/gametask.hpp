@@ -20,7 +20,7 @@
 
 #include "sim/match.hpp"
 
-#include "env/match_setup.hpp"
+#include "sim/match_config.hpp"
 
 using namespace blunted;
 
@@ -30,7 +30,7 @@ class GameTask {
     GameTask();
     ~GameTask();
 
-    void StartMatch(std::unique_ptr<MatchSetup> setup, bool init_animation);
+    void StartMatch(std::unique_ptr<MatchConfig> config, bool init_animation);
     bool StopMatch();
 
     void ProcessPhase();

@@ -55,7 +55,6 @@ set(CORE_HEADERS
    src/sim/rng.hpp
    src/env/main.hpp
    src/env/gametask.hpp
-   src/env/match_setup.hpp
    src/env/rng.hpp
    src/env/defines.hpp
 )
@@ -100,6 +99,7 @@ set(GAME_HEADERS
    src/sim/referee.hpp
    src/sim/ball.hpp
    src/sim/team.hpp
+   src/sim/match_config.hpp
    src/sim/match.hpp
    src/sim/value_history.hpp
    src/sim/ai_support/AIfunctions.hpp

@@ -24,7 +24,7 @@ GameEnv* GetGame();
 #include "ai/ai_keyboard.hpp"
 
 #include "env/gametask.hpp"
-#include "env/match_setup.hpp"
+#include "sim/match_config.hpp"
 #include "env/rng.hpp"
 #include "ai/ihidevice.hpp"
 #include "animation/library.hpp"
@@ -213,7 +213,7 @@ class GameContext {
  public:
   GameContext() { }
   std::shared_ptr<GameTask> gameTask;
-  std::unique_ptr<MatchSetup> matchSetup;
+  std::unique_ptr<MatchConfig> matchConfig;
   Properties *config = nullptr;
 
   std::vector<AIControlledKeyboard*> controllers;

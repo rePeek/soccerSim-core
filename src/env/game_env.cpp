@@ -76,9 +76,9 @@ void GameEnv::setConfig(const ScenarioConfig& scenario_config) {
   // previous reset's configuration.
   this->scenario_config = scaled_config;
 
-  std::unique_ptr<MatchSetup> setup(new MatchSetup());
-  setup->match_data.reset(new MatchData());
-  setup->controllers.reserve(2 * kPlayersPerTeam);
+  std::unique_ptr<MatchConfig> config(new MatchConfig());
+  config->match_data.reset(new MatchData());
+  config->controllers.reserve(2 * kPlayersPerTeam);
   for (int controller = 0; controller < 2 * kPlayersPerTeam; ++controller) {
     ControllerSetup selection;
     selection.controller_id = controller;
@@ -88,9 +88,9 @@ void GameEnv::setConfig(const ScenarioConfig& scenario_config) {
                controller < kPlayersPerTeam + scaled_config.right_agents) {
       selection.side = 1;
     }
-    setup->controllers.push_back(selection);
+    config->controllers.push_back(selection);
   }
-  context->matchSetup = std::move(setup);
+  context->matchConfig = std::move(config);
 }
 
 void GameEnv::start_game() {
@@ -187,5 +187,5 @@ void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
     controller->SetDisabled(true);
   }
   GetGameTask()->StopMatch();
-  GetGameTask()->StartMatch(std::move(context->matchSetup), animations);
+  GetGameTask()->StartMatch(std::move(context->matchConfig), animations);
 }
