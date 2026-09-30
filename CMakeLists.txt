@@ -58,6 +58,14 @@ add_executable(football_smoke tools/football_smoke.cpp)
 target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
 football_configure_target(football_smoke)
 
+add_executable(football_anim_baker tools/anim_baker_main.cpp)
+target_link_libraries(football_anim_baker PRIVATE ${OUTPUT_LIB_NAME})
+football_configure_target(football_anim_baker)
+
+add_test(NAME football_anim_bake_determinism
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/anim_bake_determinism.sh
+    $<TARGET_FILE:football_anim_baker> ${CMAKE_SOURCE_DIR}/data)
+
 if(BUILD_TESTING)
   add_executable(football_regression tools/football_regression.cpp)
   target_link_libraries(football_regression PRIVATE ${OUTPUT_LIB_NAME})
