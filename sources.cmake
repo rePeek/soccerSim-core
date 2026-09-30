@@ -75,6 +75,7 @@ set(UTILS_HEADERS
    src/animation/simanim_format.hpp
    src/animation/clip.hpp
    src/animation/library.hpp
+   src/animation/baked_selector.hpp
    src/animation/animation.hpp
    src/animation/xmlloader.hpp
 )
@@ -89,6 +90,7 @@ set(UTILS_EXT_HEADERS
 set(UTILS_SOURCES
    src/animation/animation.cpp
    src/animation/library.cpp
+   src/animation/baked_selector.cpp
    src/animation/xmlloader.cpp
    src/animation/extensions/footballanimationextension.cpp
 )
