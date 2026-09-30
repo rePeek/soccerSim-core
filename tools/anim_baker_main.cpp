@@ -45,22 +45,27 @@ std::vector<AnimationClip> BakeClips(const std::vector<Animation*>& animations) 
     clip.id = static_cast<uint32_t>(i);
     clip.name = anim->GetName();
     clip.frame_count = static_cast<uint32_t>(anim->GetFrameCount());
-    clip.incoming_velocity = anim->GetIncomingVelocity();
-    clip.outgoing_velocity = anim->GetOutgoingVelocity();
-    clip.incoming_body_angle = anim->GetIncomingBodyAngle();
-    clip.outgoing_body_angle = anim->GetOutgoingBodyAngle();
-    clip.anim_difficulty =
+    clip.metadata.incoming_velocity = anim->GetIncomingVelocity();
+    clip.metadata.outgoing_velocity = anim->GetOutgoingVelocity();
+    clip.metadata.incoming_body_angle = anim->GetIncomingBodyAngle();
+    clip.metadata.outgoing_body_angle = anim->GetOutgoingBodyAngle();
+    clip.metadata.difficulty =
         static_cast<float>(std::atof(anim->GetVariable("animdifficultyfactor").c_str()));
-    clip.touch_frame = std::atoi(anim->GetVariable("touchframe").c_str());
-    clip.quadrant_id = std::atoi(anim->GetVariable("quadrant_id").c_str());
-    clip.anim_type = static_cast<int32_t>(anim->GetAnimType());
+    clip.metadata.touch_frame = std::atoi(anim->GetVariable("touchframe").c_str());
+    clip.metadata.quadrant = anim->GetVariableCache().quadrant_id();
+    clip.metadata.action_type = static_cast<int32_t>(anim->GetAnimType());
+    clip.metadata.last_ditch = anim->GetVariableCache().lastditch();
+    clip.metadata.base_animation = anim->GetVariableCache().baseanim();
+    clip.metadata.idle_level = anim->GetVariableCache().idlelevel();
+    clip.metadata.special_var1 = anim->GetVariableCache().specialvar1();
+    clip.metadata.special_var2 = anim->GetVariableCache().specialvar2();
 
     // Contact (first touch).
-    if (clip.touch_frame >= 0) {
+    if (clip.metadata.touch_frame >= 0) {
       Vector3 contact_pos;
       if (std::static_pointer_cast<FootballAnimationExtension>(
               anim->GetExtension("football"))
-              ->GetTouchPos(clip.touch_frame, contact_pos)) {
+              ->GetTouchPos(clip.metadata.touch_frame, contact_pos)) {
         clip.has_contact = true;
         clip.contact_position = contact_pos;
       }

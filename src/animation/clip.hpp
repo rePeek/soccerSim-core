@@ -37,6 +37,57 @@ struct PoseFrame {
   std::array<Vector3, kBodyPartCount> positions;
 };
 
+// Typed, baked animation metadata. The runtime never reads string variables.
+struct FootballAnimationMetadata {
+  int32_t action_type = 0;       // e_FunctionType
+  float incoming_velocity = 0.0f;
+  float outgoing_velocity = 0.0f;
+  float incoming_body_angle = 0.0f;
+  float outgoing_body_angle = 0.0f;
+  float difficulty = 0.0f;
+  int32_t touch_frame = -1;
+  int32_t quadrant = 0;
+  bool last_ditch = false;
+  bool base_animation = false;
+  float idle_level = 0.0f;
+  float special_var1 = 0.0f;
+  float special_var2 = 0.0f;
+
+  void Serialize(std::ostream& os) const {
+    SimAnimWriteI32(os, action_type);
+    SimAnimWriteF32(os, incoming_velocity);
+    SimAnimWriteF32(os, outgoing_velocity);
+    SimAnimWriteF32(os, incoming_body_angle);
+    SimAnimWriteF32(os, outgoing_body_angle);
+    SimAnimWriteF32(os, difficulty);
+    SimAnimWriteI32(os, touch_frame);
+    SimAnimWriteI32(os, quadrant);
+    SimAnimWriteU32(os, last_ditch ? 1u : 0u);
+    SimAnimWriteU32(os, base_animation ? 1u : 0u);
+    SimAnimWriteF32(os, idle_level);
+    SimAnimWriteF32(os, special_var1);
+    SimAnimWriteF32(os, special_var2);
+  }
+
+  static FootballAnimationMetadata Deserialize(std::istream& is) {
+    FootballAnimationMetadata m;
+    m.action_type = SimAnimReadI32(is);
+    m.incoming_velocity = SimAnimReadF32(is);
+    m.outgoing_velocity = SimAnimReadF32(is);
+    m.incoming_body_angle = SimAnimReadF32(is);
+    m.outgoing_body_angle = SimAnimReadF32(is);
+    m.difficulty = SimAnimReadF32(is);
+    m.touch_frame = SimAnimReadI32(is);
+    m.quadrant = SimAnimReadI32(is);
+    m.last_ditch = SimAnimReadU32(is) != 0;
+    m.base_animation = SimAnimReadU32(is) != 0;
+    m.idle_level = SimAnimReadF32(is);
+    m.special_var1 = SimAnimReadF32(is);
+    m.special_var2 = SimAnimReadF32(is);
+    return m;
+  }
+};
+
 // Immutable runtime animation data. Baked ahead of time by anim_baker; the
 // simulation never parses source assets.
 struct AnimationClip {
@@ -50,15 +101,7 @@ struct AnimationClip {
   // Full per-frame joint pose.
   std::vector<PoseFrame> poses;
 
-  // Scalar metadata (typed-metadata migration lands in a later stage).
-  float incoming_velocity = 0.0f;
-  float outgoing_velocity = 0.0f;
-  float incoming_body_angle = 0.0f;
-  float outgoing_body_angle = 0.0f;
-  float anim_difficulty = 0.0f;
-  int32_t touch_frame = 0;
-  int32_t quadrant_id = 0;
-  int32_t anim_type = 0;
+  FootballAnimationMetadata metadata;
 
   // Baked contact (first touch).
   bool has_contact = false;
@@ -82,14 +125,7 @@ struct AnimationClip {
         SimAnimWriteF32(os, pose.positions[b].coords[2]);
       }
     }
-    SimAnimWriteF32(os, incoming_velocity);
-    SimAnimWriteF32(os, outgoing_velocity);
-    SimAnimWriteF32(os, incoming_body_angle);
-    SimAnimWriteF32(os, outgoing_body_angle);
-    SimAnimWriteF32(os, anim_difficulty);
-    SimAnimWriteI32(os, touch_frame);
-    SimAnimWriteI32(os, quadrant_id);
-    SimAnimWriteI32(os, anim_type);
+    metadata.Serialize(os);
     SimAnimWriteU32(os, has_contact ? 1u : 0u);
     if (has_contact) {
       SimAnimWriteF32(os, contact_position.coords[0]);
@@ -124,14 +160,7 @@ struct AnimationClip {
       }
       clip.poses.push_back(std::move(pose));
     }
-    clip.incoming_velocity = SimAnimReadF32(is);
-    clip.outgoing_velocity = SimAnimReadF32(is);
-    clip.incoming_body_angle = SimAnimReadF32(is);
-    clip.outgoing_body_angle = SimAnimReadF32(is);
-    clip.anim_difficulty = SimAnimReadF32(is);
-    clip.touch_frame = SimAnimReadI32(is);
-    clip.quadrant_id = SimAnimReadI32(is);
-    clip.anim_type = SimAnimReadI32(is);
+    clip.metadata = FootballAnimationMetadata::Deserialize(is);
     clip.has_contact = SimAnimReadU32(is) != 0;
     if (clip.has_contact) {
       clip.contact_position.coords[0] = SimAnimReadF32(is);
