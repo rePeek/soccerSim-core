@@ -38,8 +38,9 @@ std::shared_ptr<AnimCollection> Match::GetAnimCollection() {
   return GetContext().anims;
 }
 
-const std::vector<Vector3> &Match::GetAnimPositionCache(Animation *anim) const {
-  return GetContext().animPositionCache.find(anim)->second;
+const std::vector<Vector3> &Match::GetAnimPositionCache(int baked_id) const {
+  return GetContext().bakedAnims->Get(static_cast<uint32_t>(baked_id))
+      .root_positions;
 }
 
 Match::Match(std::unique_ptr<MatchData> match_data,
@@ -84,23 +85,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
         assert(anims->GetAnim(static_cast<int>(id))->GetName() ==
                baked->Get(id).name);
       }
-    }
-    // cache animation positions
-
-    const std::vector < Animation* > &animationsTmp = anims->GetAnimations();
-    for (unsigned int i = 0; i < animationsTmp.size(); i++) {
-      DO_VALIDATION;
-      std::vector<Vector3> positions;
-      Animation *someAnim = animationsTmp[i];
-      Quaternion dud;
-      Vector3 position;
-      for (int frame = 0; frame < someAnim->GetFrameCount(); frame++) {
-        DO_VALIDATION;
-        someAnim->GetKeyFrame(player, frame, dud, position);
-        position.coords[2] = 0.0f;
-        positions.push_back(position);
-      }
-      GetContext().animPositionCache.insert(std::pair < Animation*, std::vector<Vector3> >(someAnim, positions));
     }
   } else {
     for (auto& a : anims->GetAnimations()) {

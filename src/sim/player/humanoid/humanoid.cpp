@@ -1014,6 +1014,7 @@ void Humanoid::SelectRetainAnim() {
   currentAnim.positions.clear();
   currentAnim.anim = anims->GetAnim(*dataSet.begin());
   currentAnim.id = *dataSet.begin();
+  currentAnim.bakedId = *dataSet.begin();
   currentAnim.frameNum = 0;
   currentAnim.touchFrame = -1;
   currentAnim.actionSmuggle = Vector3(0);
@@ -1539,7 +1540,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     Animation *nextAnim = anims->GetAnim(selectedAnimID);
     Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
     assert(desiredMovement.coords[2] == 0.0f);
-    Vector3 physicsVector = CalculatePhysicsVector(nextAnim, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
+    Vector3 physicsVector = CalculatePhysicsVector(selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
   } else if (command.desiredFunctionType == e_FunctionType_BallControl) {
     DO_VALIDATION;
     if (NeedTouch(*dataSet.begin(), command)) {
@@ -1569,7 +1570,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
         Animation *nextAnim = anims->GetAnim(selectedAnimID);
         Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
         assert(desiredMovement.coords[2] == 0.0f);
-        Vector3 physicsVector = CalculatePhysicsVector(nextAnim, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
+        Vector3 physicsVector = CalculatePhysicsVector(selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
       }
     }
   }
@@ -1614,6 +1615,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
 
     currentAnim.anim = anims->GetAnim(selectedAnimID);
     currentAnim.id = selectedAnimID;
+    currentAnim.bakedId = selectedAnimID;
     currentAnim.functionType = command.desiredFunctionType;//StringToFunctionType(currentAnim.anim->GetVariable("type"));
     currentAnim.frameNum = 0;
     currentAnim.touchFrame = touchFrame_tmp;
@@ -1856,11 +1858,12 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
     DO_VALIDATION;
 
     Animation *anim = anims->GetAnim(*iter);
+    const AnimationClip &clip = GetBakedClip(*iter);
     bool isBase = anim->GetVariableCache().baseanim();
 
-    const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(anim);
+    const std::vector<Vector3> &origPositionCache = clip.root_positions;
 
-    Vector3 physicsVector = CalculatePhysicsVector(anim, useDesiredMovement, desiredMovement, useDesiredBodyDirection, desiredBodyDirectionRel, positions_ret, rotationSmuggle_ret_tmp);
+    Vector3 physicsVector = CalculatePhysicsVector(*iter, useDesiredMovement, desiredMovement, useDesiredBodyDirection, desiredBodyDirectionRel, positions_ret, rotationSmuggle_ret_tmp);
 
     // anim space!
     predictedAngle = anim->GetOutgoingAngle() + rotationSmuggle_ret_tmp;
@@ -1934,7 +1937,9 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
       bodyPos = positions_ret.at(animTouchFrame).GetRotated2D(-spatialState.angle);
       bodyPos.coords[2] = 0;
 
-      anim->GetKeyFrame(BodyPart::player, animTouchFrame, animBodyRot, animBodyPos);
+      const auto &touchPose = clip.poses[animTouchFrame];
+      animBodyRot = touchPose.orientations[BodyPart::player];
+      animBodyPos = touchPose.positions[BodyPart::player];
 
       real x, y, z;
       animBodyRot.GetAngles(x, y, z);

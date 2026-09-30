@@ -24,6 +24,7 @@
 #include "sim/utils.hpp"
 
 #include "animation/animcollection.hpp"
+#include "animation/clip.hpp"
 
 #include "sim/player/player_kinematics.hpp"
 
@@ -303,6 +304,7 @@ struct Anim {
   void ProcessState(EnvState* state) { DO_VALIDATION;
     state->process(anim);
     state->process(id);
+    state->process(bakedId);
     state->process(frameNum);
     state->process(functionType);
     state->process(originatingInterrupt);
@@ -418,6 +420,11 @@ class HumanoidBase {
 
     const Anim *GetCurrentAnim() { DO_VALIDATION; return &currentAnim; }
 
+    // Baked clip access. The runtime never reads legacy Animation objects;
+    // these resolve through the stable AnimationId into the read-only library.
+    const AnimationClip &GetBakedClip(int id) const;
+    const AnimationClip &GetCurrentBakedClip() const;
+
     virtual void ResetSituation(const Vector3 &focusPos);
     void ProcessState(EnvState* state);
 
@@ -478,12 +485,12 @@ class HumanoidBase {
     bool CompareIdleVariable(int animIndex1, int animIndex2) const;
     bool ComparePriorityVariable(int animIndex1, int animIndex2) const;
 
-    Vector3 CalculatePhysicsVector(Animation *anim, bool useDesiredMovement,
-                                   const Vector3 &desiredMovement,
-                                   bool useDesiredBodyDirection,
-                                   const Vector3 &desiredBodyDirectionRel,
-                                   std::vector<Vector3> &positions_ret,
-                                   radian &rotationOffset_ret) const;
+    Vector3 CalculatePhysicsVector(int animID, bool useDesiredMovement,
+                                  const Vector3 &desiredMovement,
+                                  bool useDesiredBodyDirection,
+                                  const Vector3 &desiredBodyDirectionRel,
+                                  std::vector<Vector3> &positions_ret,
+                                  radian &rotationOffset_ret) const;
 
     Vector3 ForceIntoAllowedBodyDirectionVec(const Vector3 &src) const;
     radian ForceIntoAllowedBodyDirectionAngle(radian angle) const; // for making small differences irrelevant while sorting

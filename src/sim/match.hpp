@@ -125,7 +125,7 @@ class Match {
     float GetMatchDurationFactor() const { return matchDurationFactor; }
     bool GetUseMagnet() const { return _useMagnet; }
 
-    const std::vector<Vector3> &GetAnimPositionCache(Animation *anim) const;
+    const std::vector<Vector3> &GetAnimPositionCache(int baked_id) const;
 
 
     int FirstTeam() { DO_VALIDATION; return first_team; }

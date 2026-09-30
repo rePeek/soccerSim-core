@@ -556,6 +556,16 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
 }
 
 HumanoidBase::~HumanoidBase() {}
+
+const AnimationClip &HumanoidBase::GetBakedClip(int id) const {
+  DO_VALIDATION;
+  return GetContext().bakedAnims->Get(static_cast<uint32_t>(id));
+}
+
+const AnimationClip &HumanoidBase::GetCurrentBakedClip() const {
+  DO_VALIDATION;
+  return GetBakedClip(currentAnim.bakedId);
+}
 void HumanoidBase::Mirror() {
   // Mirrors the field-level legacy contract, not a whole-state coordinate
   // transform: SpatialState::Mirror negates the movement fields but leaves the
@@ -864,11 +874,12 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
 
   int idleAnimID = GetIdleMovementAnimID();
   currentAnim.id = idleAnimID;
+  currentAnim.bakedId = idleAnimID;
   currentAnim.anim = anims->GetAnim(currentAnim.id);
   currentAnim.positions.clear();
-  currentAnim.positions = match->GetAnimPositionCache(currentAnim.anim);
+  currentAnim.positions = match->GetAnimPositionCache(currentAnim.bakedId);
   currentAnim.frameNum =
-      boostrandom(0, currentAnim.anim->GetEffectiveFrameCount() - 1);
+      boostrandom(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
   currentAnim.touchFrame = -1;
   currentAnim.originatingInterrupt = e_InterruptAnim_None;
   currentAnim.actionSmuggle = Vector3(0);
@@ -1210,7 +1221,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     assert(desiredMovement.coords[2] == 0.0f);
     Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);
     if (command.useDesiredLookAt) desiredBodyDirectionRel = ((command.desiredLookAt - spatialState.position).Get2D().GetRotated2D(-spatialState.angle) - nextAnim->GetTranslation()).GetNormalized(Vector3(0, -1, 0));
-    Vector3 physicsVector = CalculatePhysicsVector(nextAnim, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
+    Vector3 physicsVector = CalculatePhysicsVector(selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
   }
 
   // check if we really want to requeue - only requeue movement to movement, for example, when we want to go a different direction
@@ -1328,8 +1339,7 @@ void HumanoidBase::CalculateSpatialState() {
     DO_VALIDATION;
     position = startPos + currentAnim.positions.at(currentAnim.frameNum) + currentAnim.actionSmuggleOffset + currentAnim.actionSmuggleSustainOffset + currentAnim.movementSmuggleOffset;
   } else {
-    Quaternion orientation;
-    currentAnim.anim->GetKeyFrame(BodyPart::player, currentAnim.frameNum, orientation, position);
+    position = GetCurrentBakedClip().poses[currentAnim.frameNum].positions[BodyPart::player];
     position.coords[2] = 0.0f;
     position = startPos + position.GetRotated2D(startAngle) + currentAnim.actionSmuggleOffset + currentAnim.actionSmuggleSustainOffset + currentAnim.movementSmuggleOffset;
   }
@@ -1352,7 +1362,7 @@ void HumanoidBase::CalculateSpatialState() {
     DO_VALIDATION;
     // this way, action cheating is being omitted from the current movement, making for better requeues. however, keep in mind that
     // movementoffsets, from bumping into other players, for example, will also be ignored this way.
-    const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(currentAnim.anim);
+    const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(currentAnim.bakedId);
     spatialState.animMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum, 1).GetRotated2D(startAngle);
   }
   spatialState.movement = spatialState.physicsMovement; // PICK DEFAULT
@@ -1364,7 +1374,9 @@ void HumanoidBase::CalculateSpatialState() {
     ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
   Vector3 bodyPosition;
   Quaternion bodyOrientation;
-  currentAnim.anim->GetKeyFrame(body, currentAnim.frameNum, bodyOrientation, bodyPosition);
+  const auto &bodyPose = GetCurrentBakedClip().poses[currentAnim.frameNum];
+  bodyOrientation = bodyPose.orientations[body];
+  bodyPosition = bodyPose.positions[body];
   real x, y, z;
   bodyOrientation.GetAngles(x, y, z);
 
@@ -1777,9 +1789,12 @@ bool HumanoidBase::ComparePriorityVariable(int animIndex1, int animIndex2) const
          std::fabs(atof(anims->GetAnim(animIndex2)->GetVariable("priority").c_str()));
 }
 
-Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMovement, const Vector3 &desiredMovement, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, radian &rotationOffset_ret) const {
+Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement, const Vector3 &desiredMovement, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, radian &rotationOffset_ret) const {
 
   positions_ret.clear();
+
+  Animation *anim = anims->GetAnim(animID);
+  const AnimationClip &clip = GetBakedClip(animID);
 
   int animTouchFrame = atoi(anim->GetVariable("touchframe").c_str());
   bool touch = (animTouchFrame > 0);
@@ -1863,7 +1878,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMov
 
   // orig anim positions
 
-  const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(anim);
+  const std::vector<Vector3> &origPositionCache = clip.root_positions;
 
   Vector3 currentPosition;
 

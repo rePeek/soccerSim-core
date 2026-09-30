@@ -385,7 +385,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
 
   Ball *ball = match->GetBall();
 
-  const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(currentAnim.anim);
+  const std::vector<Vector3> &origPositionCache = match->GetAnimPositionCache(currentAnim.bakedId);
   Vector3 touchMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum).GetRotated2D(spatialState.angle); // spatialState.movement isn't reliable because of smuggles and such
   //SetRedDebugPilon(player->GetPosition() + touchMovement);
   Vector3 touchDirection = touchMovement.GetNormalized(spatialState.directionVec);
