@@ -30,6 +30,7 @@
 #include "animation/clip.hpp"
 #include "animation/library.hpp"
 #include "animation/extensions/footballanimationextension.hpp"
+#include "animation/baked_selector.hpp"
 #include "foundation/math/vector3.hpp"
 #include "foundation/utils.hpp"
 
@@ -293,6 +294,188 @@ int Verify(const std::vector<Animation*>& legacy,
   return 0;
 }
 
+std::vector<CrudeSelectionQuery> BuildQueryMatrix() {
+  std::vector<CrudeSelectionQuery> queries;
+
+  const e_Velocity velocities[] = {e_Velocity_Idle, e_Velocity_Dribble,
+                                    e_Velocity_Walk, e_Velocity_Sprint};
+  const e_FunctionType types[] = {
+      e_FunctionType_Movement,   e_FunctionType_BallControl,
+      e_FunctionType_Trap,       e_FunctionType_ShortPass,
+      e_FunctionType_LongPass,   e_FunctionType_HighPass,
+      e_FunctionType_Shot,       e_FunctionType_Deflect,
+      e_FunctionType_Catch,      e_FunctionType_Interfere,
+      e_FunctionType_Trip,       e_FunctionType_Sliding,
+      e_FunctionType_Special};
+  const Vector3 dirs[] = {Vector3(0, -1, 0), Vector3(1, 0, 0),
+                           Vector3(0, 1, 0), Vector3(-1, 0, 0)};
+
+  // byFunctionType x byIncomingVelocity (strict and non-strict).
+  for (e_FunctionType t : types) {
+    for (e_Velocity v : velocities) {
+      for (int strict = 0; strict < 2; ++strict) {
+        CrudeSelectionQuery q;
+        q.byFunctionType = true;
+        q.functionType = t;
+        q.byIncomingVelocity = true;
+        q.incomingVelocity = v;
+        q.incomingVelocity_Strict = strict != 0;
+        queries.push_back(q);
+      }
+    }
+  }
+
+  // Velocity force-linearity + no-dribble-to-idle/sprint.
+  for (int f = 0; f < 2; ++f) {
+    CrudeSelectionQuery q;
+    q.byFunctionType = true;
+    q.functionType = e_FunctionType_Movement;
+    q.byIncomingVelocity = true;
+    q.incomingVelocity = e_Velocity_Walk;
+    q.incomingVelocity_ForceLinearity = f != 0;
+    q.incomingVelocity_NoDribbleToIdle = true;
+    q.incomingVelocity_NoDribbleToSprint = true;
+    queries.push_back(q);
+  }
+
+  // byOutgoingVelocity.
+  for (e_Velocity v : velocities) {
+    CrudeSelectionQuery q;
+    q.byOutgoingVelocity = true;
+    q.outgoingVelocity = v;
+    queries.push_back(q);
+  }
+
+  // bySide.
+  for (const Vector3& d : dirs) {
+    CrudeSelectionQuery q;
+    q.bySide = true;
+    q.lookAtVecRel = d;
+    queries.push_back(q);
+  }
+
+  // byPickupBall.
+  for (int p = 0; p < 2; ++p) {
+    CrudeSelectionQuery q;
+    q.byPickupBall = true;
+    q.pickupBall = p != 0;
+    queries.push_back(q);
+  }
+
+  // allowLastDitchAnims.
+  for (int a = 0; a < 2; ++a) {
+    CrudeSelectionQuery q;
+    q.allowLastDitchAnims = a != 0;
+    queries.push_back(q);
+  }
+
+  // byIncomingBodyDirection (strict x forceLinearity).
+  for (const Vector3& d : dirs) {
+    for (int s = 0; s < 2; ++s) {
+      for (int f = 0; f < 2; ++f) {
+        CrudeSelectionQuery q;
+        q.byIncomingBodyDirection = true;
+        q.incomingBodyDirection = d;
+        q.incomingBodyDirection_Strict = s != 0;
+        q.incomingBodyDirection_ForceLinearity = f != 0;
+        queries.push_back(q);
+      }
+    }
+  }
+
+  // byIncomingBallDirection. Real runtime only enables this for Trap,
+  // Interfere and Deflect (the types that always carry an incoming ball
+  // direction).
+  const e_FunctionType incoming_ball_types[] = {
+      e_FunctionType_Trap, e_FunctionType_Interfere, e_FunctionType_Deflect};
+  for (e_FunctionType t : incoming_ball_types) {
+    for (const Vector3& d : dirs) {
+      CrudeSelectionQuery q;
+      q.byFunctionType = true;
+      q.functionType = t;
+      q.byIncomingBallDirection = true;
+      q.incomingBallDirection = d;
+      queries.push_back(q);
+    }
+  }
+
+  // byOutgoingBallDirection (touch types; no fatal on a missing value).
+  const e_FunctionType touch_types[] = {
+      e_FunctionType_BallControl, e_FunctionType_Trap,   e_FunctionType_ShortPass,
+      e_FunctionType_LongPass,   e_FunctionType_HighPass, e_FunctionType_Shot,
+      e_FunctionType_Deflect,    e_FunctionType_Catch,    e_FunctionType_Interfere};
+  for (e_FunctionType t : touch_types) {
+    for (const Vector3& d : dirs) {
+      CrudeSelectionQuery q;
+      q.byFunctionType = true;
+      q.functionType = t;
+      q.byOutgoingBallDirection = true;
+      q.outgoingBallDirection = d;
+      queries.push_back(q);
+    }
+  }
+
+  // byTripType.
+  for (int t = 1; t <= 3; ++t) {
+    CrudeSelectionQuery q;
+    q.byFunctionType = true;
+    q.functionType = e_FunctionType_Trip;
+    q.byTripType = true;
+    q.tripType = t;
+    queries.push_back(q);
+  }
+
+  // heedForcedFoot.
+  for (e_Foot foot : {e_Foot_Left, e_Foot_Right}) {
+    CrudeSelectionQuery q;
+    q.heedForcedFoot = true;
+    q.strongFoot = foot;
+    queries.push_back(q);
+  }
+
+  return queries;
+}
+
+int VerifySelection(AnimCollection& legacy,
+                    const AnimationLibrary& library) {
+  const std::vector<AnimationClip>& clips = library.Clips();
+  const std::vector<CrudeSelectionQuery> queries = BuildQueryMatrix();
+
+  size_t mismatches = 0;
+  for (size_t qi = 0; qi < queries.size(); ++qi) {
+    const CrudeSelectionQuery& q = queries[qi];
+
+    DataSet legacy_set;
+    legacy.CrudeSelection(legacy_set, q);
+
+    std::vector<uint32_t> baked_set;
+    BakedAnimationSelector::CrudeSelection(clips, q, baked_set);
+
+    if (legacy_set.size() != baked_set.size()) {
+      std::cerr << "VERIFY-SELECTION query " << qi << ": size "
+                << legacy_set.size() << " vs " << baked_set.size() << "\n";
+      ++mismatches;
+      continue;
+    }
+    for (size_t k = 0; k < legacy_set.size(); ++k) {
+      if (legacy_set[k] != static_cast<int>(baked_set[k])) {
+        std::cerr << "VERIFY-SELECTION query " << qi << " index " << k
+                  << ": " << legacy_set[k] << " vs " << baked_set[k] << "\n";
+        ++mismatches;
+        break;
+      }
+    }
+  }
+
+  if (mismatches) {
+    std::cerr << "anim_baker: VERIFY-SELECTION FAILED (" << mismatches
+              << " mismatches over " << queries.size() << " queries)\n";
+    return 1;
+  }
+  std::cout << "anim_baker: VERIFY-SELECTION PASSED (" << queries.size()
+            << " queries, exact vectors)\n";
+  return 0;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -300,6 +483,7 @@ int main(int argc, char** argv) {
   std::string out_path;
   std::string check_path;
   std::string verify_path;
+  std::string verify_selection_path;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--input" && i + 1 < argc) {
@@ -310,9 +494,12 @@ int main(int argc, char** argv) {
       check_path = argv[++i];
     } else if (arg == "--verify" && i + 1 < argc) {
       verify_path = argv[++i];
+    } else if (arg == "--verify-selection" && i + 1 < argc) {
+      verify_selection_path = argv[++i];
     } else {
       std::cerr << "usage: " << argv[0]
-                << " --input DIR [--out FILE] [--check FILE] [--verify FILE]\n";
+                << " --input DIR [--out FILE] [--check FILE] [--verify FILE]"
+                << " [--verify-selection FILE]\n";
       return 2;
     }
   }
@@ -321,8 +508,9 @@ int main(int argc, char** argv) {
     std::cerr << "anim_baker: --input DIR is required\n";
     return 2;
   }
-  if (out_path.empty() && check_path.empty() && verify_path.empty()) {
-    std::cerr << "anim_baker: specify --out, --check and/or --verify\n";
+  if (out_path.empty() && check_path.empty() && verify_path.empty() &&
+      verify_selection_path.empty()) {
+    std::cerr << "anim_baker: specify --out, --check, --verify and/or --verify-selection\n";
     return 2;
   }
 
@@ -345,6 +533,11 @@ int main(int argc, char** argv) {
     AnimationLibrary library;
     if (!library.Load(verify_path)) return 1;
     status |= Verify(anims.GetAnimations(), library);
+  }
+  if (!verify_selection_path.empty()) {
+    AnimationLibrary library;
+    if (!library.Load(verify_selection_path)) return 1;
+    status |= VerifySelection(anims, library);
   }
   return status;
 }
