@@ -98,15 +98,14 @@ Team *Player::GetTeam() {
   return team;
 }
 
-void Player::Activate(std::shared_ptr<AnimCollection> animCollection,
-                      bool lazyPlayer) {
+void Player::Activate(bool lazyPlayer) {
   DO_VALIDATION;
 
   assert(!isActive);
 
   isActive = true;
 
-  humanoid.reset(new Humanoid(this, animCollection));
+  humanoid.reset(new Humanoid(this));
 
   controller.reset(new ElizaController(match, lazyPlayer));
   CastController()->SetPlayer(this);

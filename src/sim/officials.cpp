@@ -25,8 +25,7 @@
 
 #include "env/main.hpp"
 
-Officials::Officials(Match *match,
-                     std::shared_ptr<AnimCollection> animCollection)
+Officials::Officials(Match *match)
     : match(match) {
   DO_VALIDATION;
   playerData = new PlayerData();
@@ -34,9 +33,9 @@ Officials::Officials(Match *match,
   linesmen[0] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
   linesmen[1] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
 
-  referee->Activate(match->GetAnimCollection(), false);
-  linesmen[0]->Activate(match->GetAnimCollection(), false);
-  linesmen[1]->Activate(match->GetAnimCollection(), false);
+  referee->Activate(false);
+  linesmen[0]->Activate(false);
+  linesmen[1]->Activate(false);
 
   // Route official placement through PlayerBase::ResetPosition so the
   // simulation-owned movement state is synchronized. Calling

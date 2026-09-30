@@ -22,6 +22,7 @@ add_library(football_base OBJECT
 add_library(football_types OBJECT ${TYPES_SOURCES} ${TYPES_HEADERS})
 add_library(football_utils OBJECT
   ${UTILS_SOURCES} ${UTILS_HEADERS} ${UTILS_EXT_HEADERS})
+add_library(football_legacy_anim OBJECT ${LEGACY_ANIM_SOURCES})
 
 # --- static libraries -------------------------------------------------------
 # football_foundation bundles base/types/utils behind one archive boundary,
@@ -49,7 +50,7 @@ target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE
   football_sim football_data football_foundation)
 
 foreach(tgt IN ITEMS
-    football_base football_types football_utils
+    football_base football_types football_utils football_legacy_anim
     football_foundation football_sim football_data
     football_engine ${OUTPUT_LIB_NAME})
   football_configure_target(${tgt})
@@ -61,7 +62,7 @@ target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
 football_configure_target(football_smoke)
 
 add_executable(football_anim_baker tools/anim_baker_main.cpp)
-target_link_libraries(football_anim_baker PRIVATE football_sim football_foundation)
+target_link_libraries(football_anim_baker PRIVATE football_legacy_anim football_foundation)
 football_configure_target(football_anim_baker)
 
 add_test(NAME football_anim_baker_standalone_guard
@@ -74,7 +75,7 @@ add_test(NAME football_anim_bake_determinism
 
 if(BUILD_TESTING)
   add_executable(football_regression tools/football_regression.cpp)
-  target_link_libraries(football_regression PRIVATE ${OUTPUT_LIB_NAME})
+  target_link_libraries(football_regression PRIVATE ${OUTPUT_LIB_NAME} football_legacy_anim)
   football_configure_target(football_regression)
 
   add_test(NAME football_regression COMMAND football_regression)

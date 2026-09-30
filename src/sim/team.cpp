@@ -64,8 +64,7 @@ void Team::Exit() {
 
 }
 
-void Team::InitPlayers(
-                       std::shared_ptr<AnimCollection> animCollection) {
+void Team::InitPlayers() {
   DO_VALIDATION;
   // load all players in the team, even the players who sit on the bench. aww.
   for (int i = 0; i < (signed int)teamData->GetPlayerNum(); i++) {
@@ -78,7 +77,7 @@ void Team::InitPlayers(
       DO_VALIDATION;
       // activate playerCount players (the starting eleven, usually)
       auto formation = GetFormationEntry(player);
-      player->Activate(match->GetAnimCollection(), formation.lazy);
+      player->Activate(formation.lazy);
     }
   }
 

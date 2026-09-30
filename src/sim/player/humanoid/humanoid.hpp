@@ -30,7 +30,7 @@ class Team;
 class Humanoid : public HumanoidBase {
 
   public:
-    Humanoid(Player *player, std::shared_ptr<AnimCollection> animCollection);
+    Humanoid(Player *player);
     virtual ~Humanoid();
 
     Player *CastPlayer() const;

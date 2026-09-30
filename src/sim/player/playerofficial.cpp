@@ -42,11 +42,10 @@ RefereeController *PlayerOfficial::CastController() {
   return static_cast<RefereeController *>(controller.get());
 }
 
-void PlayerOfficial::Activate(std::shared_ptr<AnimCollection> animCollection,
-                              bool lazyPlayer) {
+void PlayerOfficial::Activate(bool lazyPlayer) {
   DO_VALIDATION;
   isActive = true;
-  humanoid.reset(new HumanoidBase(this, match, animCollection));
+  humanoid.reset(new HumanoidBase(this, match));
 
   CastHumanoid()->ResetPosition(Vector3(0), Vector3(0));
   SynchronizeKinematicState();

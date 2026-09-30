@@ -538,11 +538,9 @@ const radian preferredDirectionAngles[] = {
     -0.999 * pi
 };
 
-HumanoidBase::HumanoidBase(PlayerBase *player, Match *match,
-                           std::shared_ptr<AnimCollection> animCollection)
+HumanoidBase::HumanoidBase(PlayerBase *player, Match *match)
     : match(match),
-      player(player),
-      anims(animCollection) {
+      player(player) {
   DO_VALIDATION;
   interruptAnim = e_InterruptAnim_None;
   reQueueDelayFrames = 0;

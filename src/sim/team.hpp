@@ -41,8 +41,7 @@ class Team {
 
     void Exit();
 
-    void InitPlayers(
-                     std::shared_ptr<AnimCollection> animCollection);
+    void InitPlayers();
 
     Match *GetMatch() { DO_VALIDATION; return match; }
     TeamAIController *GetController() { DO_VALIDATION; return teamController; }

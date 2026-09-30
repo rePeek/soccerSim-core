@@ -150,8 +150,5 @@ void GameContext::ProcessState(EnvState* state) {
   }
   game->scenario_config.ProcessStateConstant(state);
   game->scenario_config.ProcessState(state);
-#ifdef FULL_VALIDATION
-  anims->ProcessState(state);
-#endif
   state->process(step);
 }

@@ -97,9 +97,13 @@ src/
 │   ├── types/          refcounted, command
 │   └── misc/           hungarian（通用算法；perlin 已删）
 ├── animation/      动画系统
-│   ├── animation, xmlloader
-│   ├── animcollection, import_hierarchy, import_loader
-│   └── extensions/    animationextension, footballanimationextension
+│   ├── 运行时只读（baked schema + 选择器）：clip, library,
+│   │   baked_selector, simanim_format, types
+│   ├── xmlloader   仍保留在运行时（data/ 层解析球员/球队 XML 字符串）
+│   ├── 离线 baker 专用（只链入 football_anim_baker，不链入 libgame.so）：
+│   │   animation, animcollection, import_hierarchy, import_loader,
+│   │   extensions/footballanimationextension
+│   └── extensions/ animationextension（接口基类）
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
 │   ├── match, team, ball, referee, officials, humangamer, teamAIcontroller
@@ -166,7 +170,12 @@ main() [src/env/main.cpp]        thread_local GameEnv* game; Tracker tracker;
 
 The active migration on this branch is **animation root-motion → explicit procedural
 kinematics** for player movement. (The broader `REFACTOR_PLAN.md` architecture split —
-state vs systems vs world — belongs to the frozen `main` branch, not this one.) Key files:
+state vs systems vs world — belongs to the frozen `main` branch, not this one.)
+
+The animation pipeline is fully baked: the runtime reads only
+`assets/runtime/animations.simanim` via `AnimationLibrary`/`BakedAnimationSelector`;
+the legacy `.anim`/XML/`player.object` parsing lives only in `football_anim_baker`
+(`football_legacy_anim` target, not linked into `libgame.so`). Key files:
 
 - `src/sim/player/player_kinematics.hpp` — explicit `PlayerKinematicState` +
   `PlayerKinematics::Step` (velocity/accel/braking/turn).

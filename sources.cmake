@@ -88,14 +88,18 @@ set(UTILS_EXT_HEADERS
 
 
 set(UTILS_SOURCES
-   src/animation/animation.cpp
    src/animation/library.cpp
    src/animation/baked_selector.cpp
    src/animation/xmlloader.cpp
-   src/animation/extensions/footballanimationextension.cpp
 )
 
-
+set(LEGACY_ANIM_SOURCES
+   src/animation/animation.cpp
+   src/animation/animcollection.cpp
+   src/animation/import_hierarchy.cpp
+   src/animation/import_loader.cpp
+   src/animation/extensions/footballanimationextension.cpp
+)
 set(BLUNTED_CORE_HEADERS
    src/env/defines.hpp
 )
@@ -165,9 +169,6 @@ set(GAME_HEADERS
 set(GAME_SOURCES
    src/sim/officials.cpp
    src/sim/player/humanoid/humanoid_utils.cpp
-   src/animation/import_hierarchy.cpp
-   src/animation/import_loader.cpp
-   src/animation/animcollection.cpp
    src/sim/player/humanoid/humanoidbase.cpp
    src/sim/player/humanoid/humanoid.cpp
    src/sim/player/playerofficial.cpp

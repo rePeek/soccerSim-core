@@ -68,9 +68,8 @@ constexpr bool allowBallControlReQueue = true;
 constexpr bool allowTrapReQueue = true;
 constexpr bool allowPreTouchRotationSmuggle = false;
 
-Humanoid::Humanoid(Player *player,
-                   std::shared_ptr<AnimCollection> animCollection)
-    : HumanoidBase(player, player->GetTeam()->GetMatch(), animCollection) {
+Humanoid::Humanoid(Player *player)
+    : HumanoidBase(player, player->GetTeam()->GetMatch()) {
   DO_VALIDATION;
   team = CastPlayer()->GetTeam();
 }

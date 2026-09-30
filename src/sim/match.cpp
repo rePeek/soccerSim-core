@@ -33,10 +33,6 @@
 #include "sim/player/player_body_collider.hpp"
 
 
-std::shared_ptr<AnimCollection> Match::GetAnimCollection() {
-  DO_VALIDATION;
-  return GetContext().anims;
-}
 
 const std::vector<Vector3> &Match::GetAnimPositionCache(int baked_id) const {
   return GetContext().bakedAnims->Get(static_cast<uint32_t>(baked_id))
@@ -56,7 +52,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
           GetConfiguration()->GetReal("match_duration", 1.0) * 0.2f + 0.05f),
       _useMagnet(GetScenarioConfig().use_magnet) {
   DO_VALIDATION;
-  auto& anims = GetContext().anims;
   GetContext().stablePlayerCount = 0;
 
 
@@ -66,26 +61,11 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
   ball = new Ball(this);
 
-  if (!anims) {
-    DO_VALIDATION;
-    anims = std::shared_ptr<AnimCollection>(new AnimCollection());
-    anims->Load(AnimationSourcePaths{
-        GetGameConfig().updatePath("media/animations"),
-        GetGameConfig().updatePath("media/animations/templates"),
-        GetGameConfig().updatePath("media/objects/players/player.object")});
-
-    // B5b7: the runtime reads only the baked library; the legacy collection
-    // remains loaded solely so the remaining legacy reads can be removed
-    // incrementally (removed entirely in B5c).
-    auto& baked = GetContext().bakedAnims;
-    if (!baked) {
-      baked = std::make_shared<AnimationLibrary>();
-      assert(baked->Load(GFOOTBALL_BAKED_ANIM_PATH));
-    }
-  } else {
-    for (auto& a : anims->GetAnimations()) {
-      a->DirtyCache();
-    }
+  // B5c: the runtime loads only the baked animation library.
+  auto& baked = GetContext().bakedAnims;
+  if (!baked) {
+    baked = std::make_shared<AnimationLibrary>();
+    assert(baked->Load(GFOOTBALL_BAKED_ANIM_PATH));
   }
   designatedPossessionPlayer = 0;
 
@@ -104,8 +84,8 @@ Match::Match(std::unique_ptr<MatchData> match_data,
                            : GetScenarioConfig().left_team_difficulty);
   teams[first_team]->SetOpponent(teams[second_team]);
   teams[second_team]->SetOpponent(teams[first_team]);
-  teams[first_team]->InitPlayers(anims);
-  teams[second_team]->InitPlayers(anims);
+  teams[first_team]->InitPlayers();
+  teams[second_team]->InitPlayers();
 
   std::vector<Player*> activePlayers;
   teams[first_team]->GetActivePlayers(activePlayers);
@@ -115,7 +95,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
   // officials
 
-  officials = new Officials(this, anims);
+  officials = new Officials(this);
 
 
 
@@ -286,7 +266,6 @@ void Match::ProcessState(EnvState* state) {
   teams[second_team]->GetAllPlayers(players);
   state->SetControllers(controllers);
   state->SetPlayers(players);
-  state->SetAnimations(state->getContext()->anims->GetAnimations());
   state->SetTeams(teams[first_team], teams[second_team]);
 
   int size = mentalImages.size();

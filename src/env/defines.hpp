@@ -49,11 +49,6 @@ class EnvState {
       process(c);
     }
   }
-  void process(blunted::Animation* &value) {
-    void* v = value;
-    process(reinterpret_cast<void**>(&animations[0]), animations.size(), v);
-    value = static_cast<blunted::Animation*>(v);
-  }
   template<typename T> void process(std::vector<T>& collection) {
     int size = collection.size();
     process(size);
@@ -138,7 +133,6 @@ class EnvState {
   void SetPlayers(const std::vector<Player*>& players) { this->players = players; }
   void SetHumanControllers(const std::vector<HumanGamer*>& controllers) { this->human_controllers = controllers; }
   void SetControllers(const std::vector<AIControlledKeyboard*>& controllers) { this->controllers = controllers; }
-  void SetAnimations(const std::vector<blunted::Animation*>& animations) { this->animations = animations; }
   void SetTeams(Team* team0, Team* team1) {
     this->teams.push_back(team0);
     this->teams.push_back(team1);
@@ -151,7 +145,6 @@ class EnvState {
   char disable_cnt = 0;
   bool crash = false;
   std::vector<Player*> players;
-  std::vector<blunted::Animation*> animations;
   std::vector<Team*> teams;
   std::vector<HumanGamer*> human_controllers;
   std::vector<AIControlledKeyboard*> controllers;

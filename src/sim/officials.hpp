@@ -28,7 +28,7 @@ class PlayerData;
 class Officials {
 
   public:
-    Officials(Match *match, std::shared_ptr<AnimCollection> animCollection);
+    Officials(Match *match);
     ~Officials();
     void Mirror();
 

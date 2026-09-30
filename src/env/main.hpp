@@ -264,9 +264,7 @@ class GameContext {
   int playerCount = 0;
   int stablePlayerCount = 0;
   BiasedOffsets emptyOffsets;
-  std::shared_ptr<AnimCollection> anims;
   std::shared_ptr<AnimationLibrary> bakedAnims;
-  std::map<Animation*, std::vector<Vector3>> animPositionCache;
   int step = 0;
   int tracker_disabled = 1;
   long tracker_pos = 0;

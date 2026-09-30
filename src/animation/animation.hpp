@@ -58,7 +58,23 @@ enum e_DefString {
 };
 
 
-e_FunctionType StringToFunctionType(e_DefString fun);
+inline e_FunctionType StringToFunctionType(e_DefString fun) {
+  DO_VALIDATION;
+  if (fun == e_DefString_Movement) return e_FunctionType_Movement;
+  if (fun == e_DefString_BallControl) return e_FunctionType_BallControl;
+  if (fun == e_DefString_Trap) return e_FunctionType_Trap;
+  if (fun == e_DefString_ShortPass) return e_FunctionType_ShortPass;
+  if (fun == e_DefString_LongPass) return e_FunctionType_LongPass;
+  if (fun == e_DefString_HighPass) return e_FunctionType_HighPass;
+  if (fun == e_DefString_Shot) return e_FunctionType_Shot;
+  if (fun == e_DefString_Deflect) return e_FunctionType_Deflect;
+  if (fun == e_DefString_Catch) return e_FunctionType_Catch;
+  if (fun == e_DefString_Interfere) return e_FunctionType_Interfere;
+  if (fun == e_DefString_Trip) return e_FunctionType_Trip;
+  if (fun == e_DefString_Sliding) return e_FunctionType_Sliding;
+  if (fun == e_DefString_Special) return e_FunctionType_Special;
+  return e_FunctionType_None;
+}
 
   struct KeyFrame {
     Quaternion orientation;

@@ -175,7 +175,7 @@ class PlayerBase {
     inline bool IsActive() { DO_VALIDATION; return isActive; }
 
     // get ready for some action
-    virtual void Activate(std::shared_ptr<AnimCollection> animCollection, bool lazyPlayer) = 0;
+    virtual void Activate(bool lazyPlayer) = 0;
     // go back to bench/take a shower
     virtual void Deactivate();
 

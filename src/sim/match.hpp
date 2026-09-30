@@ -56,7 +56,6 @@ class Match {
     Team *GetTeam(int teamID) { DO_VALIDATION; return teams[teamID]; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
     void GetOfficialPlayers(std::vector<PlayerBase*> &players);
-    std::shared_ptr<AnimCollection> GetAnimCollection();
 
     MentalImage* GetMentalImage(int history_ms);
     void UpdateLatestMentalImageBallPredictions();
