@@ -11,8 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Minimal first-stage animation baker.
-//
 // Standalone animation baker. It drives the legacy AnimCollection::Load()/
 // _PrepareAnim() importer directly (no runtime environment) and serializes the
 // prepared clips into a plain binary "simanim" artifact.
@@ -25,71 +23,25 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
 #include <filesystem>
+
 #include "animation/animcollection.hpp"
 #include "animation/animation.hpp"
+#include "animation/clip.hpp"
+#include "animation/library.hpp"
 #include "foundation/math/vector3.hpp"
 
 using namespace blunted;
 
 namespace {
 
-constexpr char kMagic[8] = {'S', 'I', 'M', 'A', 'N', 'I', 'M', '1'};
-constexpr uint32_t kVersion = 1;
-
-struct ClipRecord {
-  std::string name;
-  uint32_t frame_count = 0;
-  std::vector<Vector3> root_positions;  // z already zeroed, one per frame
-  float incoming_velocity = 0.0f;
-  float outgoing_velocity = 0.0f;
-  float incoming_body_angle = 0.0f;
-  float outgoing_body_angle = 0.0f;
-  float anim_difficulty = 0.0f;
-  int32_t touch_frame = 0;
-  int32_t quadrant_id = 0;
-  int32_t anim_type = 0;
-};
-
-void WriteU32(std::ostream& os, uint32_t v) { os.write(reinterpret_cast<const char*>(&v), sizeof(v)); }
-void WriteI32(std::ostream& os, int32_t v) { os.write(reinterpret_cast<const char*>(&v), sizeof(v)); }
-void WriteF32(std::ostream& os, float v) { os.write(reinterpret_cast<const char*>(&v), sizeof(v)); }
-void WriteString(std::ostream& os, const std::string& s) {
-  WriteU32(os, static_cast<uint32_t>(s.size()));
-  os.write(s.data(), static_cast<std::streamsize>(s.size()));
-}
-
-uint32_t ReadU32(std::istream& is) {
-  uint32_t v = 0;
-  is.read(reinterpret_cast<char*>(&v), sizeof(v));
-  return v;
-}
-int32_t ReadI32(std::istream& is) {
-  int32_t v = 0;
-  is.read(reinterpret_cast<char*>(&v), sizeof(v));
-  return v;
-}
-float ReadF32(std::istream& is) {
-  float v = 0.0f;
-  is.read(reinterpret_cast<char*>(&v), sizeof(v));
-  return v;
-}
-std::string ReadString(std::istream& is) {
-  const uint32_t len = ReadU32(is);
-  std::string s(len, '\0');
-  if (len > 0) is.read(s.data(), len);
-  return s;
-}
-
-
-std::vector<ClipRecord> BakeClips(const std::vector<Animation*>& animations) {
-
-  std::vector<ClipRecord> clips;
+std::vector<AnimationClip> BakeClips(const std::vector<Animation*>& animations) {
+  std::vector<AnimationClip> clips;
   clips.reserve(animations.size());
-
-  for (Animation* anim : animations) {
-    ClipRecord clip;
+  for (size_t i = 0; i < animations.size(); ++i) {
+    Animation* anim = animations[i];
+    AnimationClip clip;
+    clip.id = static_cast<uint32_t>(i);
     clip.name = anim->GetName();
     clip.frame_count = static_cast<uint32_t>(anim->GetFrameCount());
     clip.incoming_velocity = anim->GetIncomingVelocity();
@@ -116,54 +68,21 @@ std::vector<ClipRecord> BakeClips(const std::vector<Animation*>& animations) {
   return clips;
 }
 
-void Serialize(std::ostream& os, const std::vector<ClipRecord>& clips) {
-  os.write(kMagic, sizeof(kMagic));
-  WriteU32(os, kVersion);
-  WriteU32(os, static_cast<uint32_t>(clips.size()));
-
-  for (const ClipRecord& clip : clips) {
-    WriteString(os, clip.name);
-    WriteU32(os, clip.frame_count);
-    for (const Vector3& p : clip.root_positions) {
-      WriteF32(os, p.coords[0]);
-      WriteF32(os, p.coords[1]);
-      WriteF32(os, p.coords[2]);
-    }
-    WriteF32(os, clip.incoming_velocity);
-    WriteF32(os, clip.outgoing_velocity);
-    WriteF32(os, clip.incoming_body_angle);
-    WriteF32(os, clip.outgoing_body_angle);
-    WriteF32(os, clip.anim_difficulty);
-    WriteI32(os, clip.touch_frame);
-    WriteI32(os, clip.quadrant_id);
-    WriteI32(os, clip.anim_type);
+void Serialize(std::ostream& os, const std::vector<AnimationClip>& clips) {
+  SimAnimWriteHeader(os, static_cast<uint32_t>(clips.size()));
+  for (const AnimationClip& clip : clips) {
+    clip.Serialize(os);
   }
 }
 
-std::vector<char> SerializeToBuffer(const std::vector<ClipRecord>& clips) {
+std::vector<char> SerializeToBuffer(const std::vector<AnimationClip>& clips) {
   std::ostringstream oss(std::ios::binary);
   Serialize(oss, clips);
   const std::string s = oss.str();
   return std::vector<char>(s.begin(), s.end());
 }
 
-bool ReadHeaderAndVerify(std::istream& is, uint32_t& clip_count) {
-  char magic[8] = {};
-  is.read(magic, sizeof(magic));
-  if (std::memcmp(magic, kMagic, sizeof(magic)) != 0) {
-    std::cerr << "anim_baker: bad magic\n";
-    return false;
-  }
-  const uint32_t version = ReadU32(is);
-  if (version != kVersion) {
-    std::cerr << "anim_baker: unsupported version " << version << "\n";
-    return false;
-  }
-  clip_count = ReadU32(is);
-  return true;
-}
-
-int Export(const std::string& path, const std::vector<ClipRecord>& clips) {
+int Export(const std::string& path, const std::vector<AnimationClip>& clips) {
   std::ofstream os(path, std::ios::binary | std::ios::trunc);
   if (!os) {
     std::cerr << "anim_baker: cannot open " << path << " for writing\n";
@@ -171,22 +90,24 @@ int Export(const std::string& path, const std::vector<ClipRecord>& clips) {
   }
   Serialize(os, clips);
   std::cout << "anim_baker: wrote " << clips.size() << " clips to " << path
-            << " (" << sizeof(kMagic) + 8 << " header bytes + clip data)\n";
+            << "\n";
   return 0;
 }
 
-int Check(const std::string& path, const std::vector<ClipRecord>& baked) {
-  std::ifstream is(path, std::ios::binary);
-  if (!is) {
-    std::cerr << "anim_baker: cannot open " << path << " for reading\n";
+int Check(const std::string& path, const std::vector<AnimationClip>& baked) {
+  AnimationLibrary library;
+  if (!library.Load(path)) {
+    std::cerr << "anim_baker: CHECK FAILED: cannot load " << path << "\n";
     return 1;
   }
-  uint32_t clip_count = 0;
-  if (!ReadHeaderAndVerify(is, clip_count)) return 1;
+  if (library.Size() != baked.size()) {
+    std::cerr << "anim_baker: CHECK FAILED: clip count mismatch\n";
+    return 1;
+  }
 
   // Re-derive the expected bytes from the freshly baked clips and compare.
   const std::vector<char> expected = SerializeToBuffer(baked);
-  is.clear();
+  std::ifstream is(path, std::ios::binary);
   is.seekg(0, std::ios::end);
   const std::streamoff size = is.tellg();
   is.seekg(0, std::ios::beg);
@@ -198,8 +119,8 @@ int Check(const std::string& path, const std::vector<ClipRecord>& baked) {
     std::cerr << "anim_baker: CHECK FAILED: artifact does not match a fresh bake\n";
     return 1;
   }
-  std::cout << "anim_baker: CHECK PASSED (" << clip_count << " clips, "
-            << expected.size() << " bytes, byte-identical)\n";
+  std::cout << "anim_baker: CHECK PASSED (" << baked.size() << " clips, "
+            << expected.size() << " bytes, byte-identical + readable)\n";
   return 0;
 }
 
@@ -242,7 +163,7 @@ int main(int argc, char** argv) {
   AnimCollection anims;
   anims.Load(paths);
 
-  const std::vector<ClipRecord> clips = BakeClips(anims.GetAnimations());
+  const std::vector<AnimationClip> clips = BakeClips(anims.GetAnimations());
 
   int status = 0;
   if (!out_path.empty()) status |= Export(out_path, clips);

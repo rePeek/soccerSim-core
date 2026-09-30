@@ -72,6 +72,9 @@ set(TYPES_SOURCES
 
 set(UTILS_HEADERS
    src/animation/types.hpp
+   src/animation/simanim_format.hpp
+   src/animation/clip.hpp
+   src/animation/library.hpp
    src/animation/animation.hpp
    src/animation/xmlloader.hpp
 )
@@ -85,6 +88,7 @@ set(UTILS_EXT_HEADERS
 
 set(UTILS_SOURCES
    src/animation/animation.cpp
+   src/animation/library.cpp
    src/animation/xmlloader.cpp
    src/animation/extensions/footballanimationextension.cpp
 )
