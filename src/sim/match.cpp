@@ -416,6 +416,14 @@ void Match::GetState(SharedInfo *state) {
 bool Match::Step() {
   bool reverse = GetScenarioConfig().reverse_team_processing;
 
+  for (int team_id = 0; team_id < 2; ++team_id) {
+    std::vector<Player*> players;
+    teams[team_id]->GetAllPlayers(players);
+    for (Player* player : players) {
+      player->ClearPlayerIntent();
+    }
+  }
+
   MatchWorldStateView world(*this);
   control_system_.Step(world);
   for (const ControlledPlayerIntent& controlled : control_system_.player_intents()) {
