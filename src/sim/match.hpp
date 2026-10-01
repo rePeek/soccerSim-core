@@ -54,8 +54,8 @@ class Match {
 
     void UpdateControllerSetup();
     int GetScore(int teamID) { return matchData->GetGoalCount(teamID); }
-    Ball *GetBall() { return ball; }
-    Team *GetTeam(int teamID) { return teams[teamID]; }
+    Ball *GetBall() const { return ball; }
+    Team *GetTeam(int teamID) const { return teams[teamID]; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
     void GetOfficialPlayers(std::vector<PlayerBase*> &players);
 

@@ -2,7 +2,7 @@
 #define FOOTBALL_STATE_WORLD_STATE_HPP
 
 #include <cstdint>
-#include <span>
+#include <vector>
 
 #include "domain/ids.hpp"
 #include "foundation/math/vector3.hpp"
@@ -17,15 +17,13 @@ struct WorldPlayerState {
   bool has_possession = false;
 };
 
-// Read-only projection of authoritative match state. Decision systems receive
-// only this value-oriented interface, never mutable simulation objects.
-class WorldStateView {
- public:
-  virtual ~WorldStateView() = default;
-
-  virtual std::uint64_t tick() const = 0;
-  virtual blunted::Vector3 ball_position() const = 0;
-  virtual std::span<const WorldPlayerState> players() const = 0;
+// Immutable-by-convention value snapshot of authoritative match state. It can
+// be retained for replay, training data, and diagnostics without exposing
+// mutable simulation objects.
+struct WorldState {
+  std::uint64_t tick = 0;
+  blunted::Vector3 ball_position = blunted::Vector3(0);
+  std::vector<WorldPlayerState> players;
 };
 
 #endif  // FOOTBALL_STATE_WORLD_STATE_HPP

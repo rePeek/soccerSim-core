@@ -13,7 +13,7 @@ class PlayerAI {
  public:
   virtual ~PlayerAI() = default;
 
-  virtual void Update(const WorldStateView& world,
+  virtual void Update(const WorldState& world,
                       std::span<const TacticalBoard> tactics,
                       PlayerControlSet& controls) = 0;
 };

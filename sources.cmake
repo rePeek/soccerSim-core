@@ -101,7 +101,7 @@ set(GAME_HEADERS
    src/sim/match_config.hpp
    src/sim/simulation.hpp
    src/sim/match.hpp
-   src/sim/match_world_state_view.hpp
+   src/sim/match_world_state.hpp
    src/sim/value_history.hpp
    src/sim/ai_support/AIfunctions.hpp
    src/sim/ai_support/mentalimage.hpp
@@ -132,7 +132,7 @@ set(GAME_SOURCES
    src/sim/humangamer.cpp
    src/sim/ball.cpp
    src/sim/match.cpp
-   src/sim/match_world_state_view.cpp
+   src/sim/match_world_state.cpp
    src/sim/simulation.cpp
    src/sim/referee.cpp
    src/sim/ai_support/mentalimage.cpp
