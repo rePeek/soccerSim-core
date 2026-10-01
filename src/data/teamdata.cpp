@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cctype>
 #include "data/teamdata.hpp"
+#include "data/match_setup.hpp"
 
 #include <cctype>
 
@@ -271,6 +272,26 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
   playerData.push_back(new PlayerData(391, teamDatabaseID == 3));
   playerData.push_back(new PlayerData(264, teamDatabaseID == 3));
   playerData.resize(player_count);
+}
+
+TeamData::TeamData(TeamSetup setup, bool left_team)
+    : TeamData(left_team ? 3 : 8, setup.formation) {
+  assert(!setup.players.empty());
+  assert(setup.formation.empty() ||
+         setup.formation.size() == setup.players.size());
+
+  for (PlayerData* player : playerData) {
+    delete player;
+  }
+  playerData.clear();
+  playerData.reserve(setup.players.size());
+  for (const PlayerSetup& player : setup.players) {
+    playerData.push_back(new PlayerData(player.database_id, left_team));
+  }
+
+  if (!setup.name.empty()) {
+    name = std::move(setup.name);
+  }
 }
 
 TeamData::~TeamData() {

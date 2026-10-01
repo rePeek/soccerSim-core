@@ -74,7 +74,7 @@ add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
 target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE football_sim football_controller)
 
 add_executable(football_app src/app/app.cpp)
-target_link_libraries(football_app PRIVATE ${OUTPUT_LIB_NAME})
+target_link_libraries(football_app PRIVATE ${OUTPUT_LIB_NAME} football_data)
 football_configure_target(football_app)
 
 foreach(tgt IN ITEMS

@@ -40,6 +40,7 @@ struct GameEnv {
   GameEnv() { }
   // Start the game (in separate process).
   void start_game();
+  void start_game(MatchSetup setup);
   // Creates a match in an initialized environment that has no active match.
   void init(const ScenarioConfig& game_config, bool init_animation);
 
@@ -58,6 +59,8 @@ struct GameEnv {
  private:
   std::unique_ptr<MatchConfig> BuildMatchConfig(
       const ScenarioConfig& scenario_config);
+  std::unique_ptr<MatchConfig> BuildMatchConfig(
+      const ScenarioConfig& scenario_config, MatchSetup setup);
   void do_step(int count);
   void getObservations();
  public:

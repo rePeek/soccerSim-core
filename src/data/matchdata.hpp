@@ -22,12 +22,14 @@
 
 #include "sim/gamedefines.hpp"
 
+#include "data/match_setup.hpp"
 #include "data/teamdata.hpp"
 
 class MatchData {
 
   public:
     MatchData();
+    explicit MatchData(MatchSetup setup);
     TeamData& GetTeamData(int id) { return teamData[id]; }
     int GetGoalCount(int id) { return goalCount[id]; }
     void SetGoalCount(int id, int amount) { goalCount[id] = amount; }
@@ -44,6 +46,7 @@ class MatchData {
     int goalCount[2];
 
     float possession60seconds; // -60 to 60 for possession of team 1 / 2 respectively
+    PitchSetup pitch;
 
 };
 

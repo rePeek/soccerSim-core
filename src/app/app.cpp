@@ -32,7 +32,8 @@ int main(int argc, char** argv) {
   try {
     const int steps = ParseSteps(argc, argv);
     GameEnv environment;
-    environment.start_game();
+    MatchSetup setup = MakeDefaultMatchSetup();
+    environment.start_game(std::move(setup));
     for (int step = 0; step < steps; ++step) {
       environment.step();
     }

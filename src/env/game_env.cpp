@@ -79,6 +79,13 @@ std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
   return config;
 }
 
+std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
+    const ScenarioConfig& scenario_config, MatchSetup setup) {
+  std::unique_ptr<MatchConfig> config = BuildMatchConfig(scenario_config);
+  config->match_data = std::make_unique<MatchData>(std::move(setup));
+  return config;
+}
+
 void GameEnv::start_game() {
   assert(context == nullptr);
   install_stacktrace();
@@ -98,6 +105,33 @@ void GameEnv::start_game() {
   run_game(config);
   auto scenario_config = ScenarioConfig::make();
   init(*scenario_config, false);
+}
+
+void GameEnv::start_game(MatchSetup setup) {
+  assert(context == nullptr);
+  install_stacktrace();
+  std::cout.precision(17);
+  context = new GameContext();
+  ContextHolder c(this);
+  std::cout << std::unitbuf;
+
+  char* data_dir = getenv("GFOOTBALL_DATA_DIR");
+  if (data_dir) {
+    GetGameConfig().data_dir = data_dir;
+  }
+  Properties* config = new Properties();
+  config->Set("match_duration", 0.027);
+  config->Set("game", 0);
+  run_game(config);
+
+  auto scenario_config = ScenarioConfig::make();
+  controls_.Clear();
+  context->step = -1;
+  waiting_for_game_count = 0;
+  auto match_config = BuildMatchConfig(*scenario_config, std::move(setup));
+  randomize(scenario_config->game_engine_random_seed);
+  context->simulation->Init(std::move(match_config), context->controllerSet,
+                            false);
 }
 
 SharedInfo GameEnv::get_info() {

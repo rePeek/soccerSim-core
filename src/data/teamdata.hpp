@@ -25,6 +25,8 @@
 #include "sim/gamedefines.hpp"
 #include "data/playerdata.hpp"
 
+struct TeamSetup;
+
 struct TeamTactics {
   Properties userProperties;
 };
@@ -33,6 +35,7 @@ class TeamData {
 
   public:
     TeamData(int teamDatabaseID, const std::vector<FormationEntry>& f);
+    TeamData(TeamSetup setup, bool left_team);
     ~TeamData();
 
     std::string GetName() const { return name; }
