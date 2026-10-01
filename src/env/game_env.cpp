@@ -69,13 +69,13 @@ std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
   CHECK(scaled_config.right_agents >= 0);
   CHECK(scaled_config.right_agents <= kPlayersPerTeam);
 
-  // MatchData reads GetScenarioConfig() in its constructor, so publish the
-  // scaled snapshot before constructing it rather than accidentally using the
-  // previous reset's configuration.
+  // Publish the scaled snapshot before constructing the teams: the scenario
+  // remains the source of the env-level episode configuration.
   this->scenario_config = scaled_config;
 
   std::unique_ptr<MatchConfig> config(new MatchConfig());
-  config->match_data.reset(new MatchData());
+  config->match_data.reset(new MatchData(scaled_config.left_team,
+                                        scaled_config.right_team));
   return config;
 }
 

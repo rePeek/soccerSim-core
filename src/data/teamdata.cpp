@@ -275,7 +275,8 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
 }
 
 TeamData::TeamData(TeamSetup setup, bool left_team)
-    : TeamData(left_team ? 3 : 8, setup.formation) {
+    : TeamData(left_team ? kHomeTeamDatabaseId : kAwayTeamDatabaseId,
+               setup.formation) {
   assert(!setup.players.empty());
   assert(setup.formation.empty() ||
          setup.formation.size() == setup.players.size());

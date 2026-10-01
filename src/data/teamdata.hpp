@@ -27,6 +27,11 @@
 
 struct TeamSetup;
 
+// Legacy team database identities. They still select the hardcoded team
+// profile (name, colours, kit) used until MatchSetup carries it directly.
+constexpr int kHomeTeamDatabaseId = 3;
+constexpr int kAwayTeamDatabaseId = 8;
+
 struct TeamTactics {
   Properties userProperties;
 };

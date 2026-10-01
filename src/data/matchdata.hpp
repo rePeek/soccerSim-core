@@ -28,7 +28,10 @@
 class MatchData {
 
   public:
-    MatchData();
+    // Formations come from the caller; MatchData no longer reads the ambient
+    // ScenarioConfig singleton.
+    MatchData(const std::vector<FormationEntry>& home_formation,
+              const std::vector<FormationEntry>& away_formation);
     explicit MatchData(MatchSetup setup);
     TeamData& GetTeamData(int id) { return teamData[id]; }
     int GetGoalCount(int id) { return goalCount[id]; }

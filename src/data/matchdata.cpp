@@ -16,13 +16,13 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "data/matchdata.hpp"
-#include "env/main.hpp"
 #include <vector>
 #include <algorithm>
 
-MatchData::MatchData()
-    : teamData{TeamData(3, GetScenarioConfig().left_team),
-               TeamData(8, GetScenarioConfig().right_team)} {
+MatchData::MatchData(const std::vector<FormationEntry>& home_formation,
+                     const std::vector<FormationEntry>& away_formation)
+    : teamData{TeamData(kHomeTeamDatabaseId, home_formation),
+               TeamData(kAwayTeamDatabaseId, away_formation)} {
   goalCount[0] = 0;
   goalCount[1] = 0;
 
