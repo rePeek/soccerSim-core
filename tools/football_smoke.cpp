@@ -42,7 +42,6 @@ int main(int argc, char** argv) {
   }
 
   GameEnv env;
-  env.game_config.render = false;
   env.start_game();
 
   auto config = ScenarioConfig::make();

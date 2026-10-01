@@ -4143,7 +4143,6 @@ int main(int argc, char** argv) {
     CheckPlayerActionVolume();
     CheckPlayerBodyCollider();
     GameEnv env;
-    env.game_config.render = false;
     env.start_game();
     ScenarioConfig config = MakeBuiltinAiConfig();
 
