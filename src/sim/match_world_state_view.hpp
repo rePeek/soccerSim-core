@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "control/world_state_view.hpp"
+#include "state/world_state.hpp"
 
 class Match;
 

@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_CONTROL_COACH_TEAM_PLAN_HPP
-#define FOOTBALL_CONTROL_COACH_TEAM_PLAN_HPP
+#ifndef FOOTBALL_CONTROL_TACTICAL_BOARD_HPP
+#define FOOTBALL_CONTROL_TACTICAL_BOARD_HPP
 
 #include <optional>
 #include <vector>
@@ -7,8 +7,8 @@
 #include "control/control_ids.hpp"
 #include "foundation/math/vector3.hpp"
 
-// Coarse role assignment owned by the decision domain. It is intentionally
-// separate from simulation's current formation and animation enums.
+// Coarse role assignment owned by persistent team-control state. It is
+// deliberately separate from simulation formation and animation enums.
 enum class PlannedPlayerRole {
   Unspecified,
   Goalkeeper,
@@ -26,7 +26,9 @@ struct PlayerDirective {
   bool press = false;
 };
 
-struct TeamPlan {
+// Persistent team-control state. Coach AI mutates this board; player AI reads
+// it when producing frame-local PlayerControl values.
+struct TacticalBoard {
   TeamId team = kInvalidTeamId;
   float width = 0.0f;
   float depth = 0.0f;
@@ -34,4 +36,4 @@ struct TeamPlan {
   std::optional<PlayerId> set_piece_taker;
 };
 
-#endif  // FOOTBALL_CONTROL_COACH_TEAM_PLAN_HPP
+#endif  // FOOTBALL_CONTROL_TACTICAL_BOARD_HPP

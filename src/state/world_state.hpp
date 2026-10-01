@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_CONTROL_WORLD_STATE_VIEW_HPP
-#define FOOTBALL_CONTROL_WORLD_STATE_VIEW_HPP
+#ifndef FOOTBALL_STATE_WORLD_STATE_HPP
+#define FOOTBALL_STATE_WORLD_STATE_HPP
 
 #include <cstdint>
 #include <span>
@@ -17,9 +17,8 @@ struct WorldPlayerState {
   bool has_possession = false;
 };
 
-// Read-only projection of authoritative match state for control decisions.
-// Simulation will provide its concrete view; controls never receive mutable
-// Match, Team, or Player objects.
+// Read-only projection of authoritative match state. Decision systems receive
+// only this value-oriented interface, never mutable simulation objects.
 class WorldStateView {
  public:
   virtual ~WorldStateView() = default;
@@ -29,4 +28,4 @@ class WorldStateView {
   virtual std::span<const WorldPlayerState> players() const = 0;
 };
 
-#endif  // FOOTBALL_CONTROL_WORLD_STATE_VIEW_HPP
+#endif  // FOOTBALL_STATE_WORLD_STATE_HPP

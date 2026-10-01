@@ -19,6 +19,7 @@ endfunction()
 # Foundation owns its source list and can also be consumed independently with
 # add_subdirectory(path/to/src/foundation).
 add_subdirectory(src/foundation)
+add_subdirectory(src/state)
 add_subdirectory(src/control)
 add_subdirectory(src/support)
 add_subdirectory(src/controller)
@@ -83,7 +84,7 @@ add_executable(football_smoke tools/football_smoke.cpp)
 target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
 football_configure_target(football_smoke)
 
-add_executable(football_control_test tools/control_system_test.cpp)
+add_executable(football_control_test tools/player_control_set_test.cpp)
 target_link_libraries(football_control_test PRIVATE football_control)
 football_configure_target(football_control_test)
 add_test(NAME football_control_test COMMAND football_control_test)

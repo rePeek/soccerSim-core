@@ -18,8 +18,8 @@
 #include "sim/match.hpp"
 #include "sim/gamedefines.hpp"
 #include "env/main.hpp"
+#include "control/player_control_set.hpp"
 
-class ControlSystem;
 
 typedef std::vector<std::string> StringVector;
 
@@ -43,7 +43,7 @@ struct GameEnv {
 
   // Get the current state of the game (observation).
   SharedInfo get_info();
-  ControlSystem& control_system();
+  PlayerControlSet& controls() { return controls_; }
 
   void reset(const ScenarioConfig& game_config, bool init_animation);
   std::string get_state(const std::string& pickle);
@@ -61,6 +61,7 @@ struct GameEnv {
   ScenarioConfig scenario_config;
   GameConfig game_config;
   GameContext* context = nullptr;
+  PlayerControlSet controls_;
   GameState state = game_created;
   int waiting_for_game_count = 0;
 };

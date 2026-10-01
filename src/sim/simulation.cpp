@@ -18,9 +18,9 @@ void Simulation::Reset(std::unique_ptr<MatchConfig> config,
                                    *config, init_animation);
 }
 
-void Simulation::Step() {
+void Simulation::Step(const PlayerControlSet& controls) {
   assert(match_);
-  match_->Step();
+  match_->Step(controls);
 }
 
 void Simulation::ProcessState(EnvState* state) {
@@ -37,10 +37,6 @@ bool Simulation::IsInPlay() const {
   return match_ && match_->IsInPlay();
 }
 
-ControlSystem& Simulation::control_system() {
-  assert(match_);
-  return match_->control_system();
-}
 
 bool Simulation::Stop() {
   if (!match_) return false;

@@ -21,7 +21,7 @@
 #include "sim/player/player_locomotion.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
-#include "sim/player/player_intent_builder.hpp"
+#include "sim/player/player_control_builder.hpp"
 
 #include <cstring>
 
@@ -612,8 +612,8 @@ IController *PlayerBase::GetController() {
 }
 
 void PlayerBase::RequestCommand(PlayerCommandQueue &commandQueue) {
-  if (controlIntent) {
-    commandQueue = BuildPlayerCommands(*controlIntent, *this);
+  if (control_) {
+    commandQueue = BuildPlayerCommands(*control_, *this);
   } else if (ExternalControllerActive()) {
     externalController->GetHumanController()->RequestCommand(commandQueue);
   } else {

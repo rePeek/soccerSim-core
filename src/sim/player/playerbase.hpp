@@ -26,7 +26,7 @@
 #include "sim/player/player_action.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
-#include "control/player/player_intent.hpp"
+#include "control/player_control.hpp"
 
 // Caller scope for the remaining ResetSituation instrumentation. This is
 // observation only; Deactivate's double reset is deliberately not changed here.
@@ -357,8 +357,8 @@ class PlayerBase {
     void SetExternalController(HumanGamer *externalController);
     HumanController *ExternalController();
     bool ExternalControllerActive();
-    void SetPlayerIntent(const PlayerIntent& intent) { controlIntent = intent; }
-    void ClearPlayerIntent() { controlIntent.reset(); }
+    void SetControl(const PlayerControl& control) { control_ = control; }
+    void ClearControl() { control_.reset(); }
 
     // Bit-exact mirror check: position, velocity, locomotion facing, body
     // facing, derived speed and the collider center must all match the Humanoid
@@ -460,7 +460,7 @@ class PlayerBase {
     int resetSituationAuditContext = kResetSituationUnspecified;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
-    std::optional<PlayerIntent> controlIntent;
+    std::optional<PlayerControl> control_;
 
     bool isActive = false;
 

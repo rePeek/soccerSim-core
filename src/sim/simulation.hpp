@@ -5,9 +5,9 @@
 
 #include "controller/controller_set.hpp"
 #include "sim/match_config.hpp"
+#include "control/player_control_set.hpp"
 
 class Match;
-class ControlSystem;
 class EnvState;
 class SharedInfo;
 
@@ -22,14 +22,13 @@ class Simulation {
              const ControllerSet& controllers,
              bool init_animation);
   bool Stop();
-  void Step();
+  void Step(const PlayerControlSet& controls);
   void ProcessState(EnvState* state);
   void GetState(SharedInfo* state);
   bool IsInPlay() const;
 
   Match* match() { return match_.get(); }
   const Match* match() const { return match_.get(); }
-  ControlSystem& control_system();
 
  private:
   std::unique_ptr<Match> match_;

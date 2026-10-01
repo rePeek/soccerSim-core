@@ -29,7 +29,7 @@
 #include "sim/match_config.hpp"
 #include "sim/ai_support/mentalimage.hpp"
 #include "animation/types.hpp"
-#include "control/control_system.hpp"
+#include "control/player_control_set.hpp"
 
 
 
@@ -58,7 +58,6 @@ class Match {
     Team *GetTeam(int teamID) { return teams[teamID]; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
     void GetOfficialPlayers(std::vector<PlayerBase*> &players);
-    ControlSystem& control_system() { return control_system_; }
 
     MentalImage* GetMentalImage(int history_ms);
     void UpdateLatestMentalImageBallPredictions();
@@ -118,9 +117,9 @@ class Match {
     void GetState(SharedInfo* state);
     void ProcessState(EnvState* state);
     // Advances one authoritative simulation tick.
-    bool Step();
-    // Compatibility alias for callers using the legacy Match API.
-    bool Process() { return Step(); }
+    bool Step(const PlayerControlSet& controls);
+    // Legacy direct-match callers have no control source.
+    bool Process() { return Step(PlayerControlSet{}); }
 
 
 
@@ -158,7 +157,6 @@ class Match {
 
     const ControllerSet& controllers;
     std::vector<ControllerSetup> controllerSetup;
-    ControlSystem control_system_;
 
     Ball *ball = nullptr;
 

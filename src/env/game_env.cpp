@@ -29,7 +29,7 @@ using std::string;
 
 void GameEnv::do_step(int count) {
   while (count--) {
-    context->simulation->Step();
+    context->simulation->Step(controls_);
   }
 }
 
@@ -107,9 +107,6 @@ SharedInfo GameEnv::get_info() {
   return info;
 }
 
-ControlSystem& GameEnv::control_system() {
-  return context->simulation->control_system();
-}
 
 
 std::string GameEnv::get_state(const std::string& pickle) {
