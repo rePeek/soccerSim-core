@@ -100,7 +100,6 @@ void GameEnv::start_game() {
     GetGameConfig().data_dir = data_dir;
   }
   Properties* config = new Properties();
-  config->Set("match_duration", 0.027);
   run_game(config);
   auto scenario_config = ScenarioConfig::make();
   init(*scenario_config, false);
@@ -119,7 +118,6 @@ void GameEnv::start_game(MatchSetup setup) {
     GetGameConfig().data_dir = data_dir;
   }
   Properties* config = new Properties();
-  config->Set("match_duration", 0.027);
   run_game(config);
 
   auto scenario_config = ScenarioConfig::make();

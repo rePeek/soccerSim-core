@@ -17,6 +17,9 @@ struct ControllerSetup {
 struct MatchConfig {
   std::vector<ControllerSetup> controllers;
   std::unique_ptr<MatchData> match_data;
+  // Scales how fast match time advances. Replaces the legacy
+  // Properties["match_duration"] lookup that Match used to read.
+  float match_duration = 0.027f;
 };
 
 #endif  // FOOTBALL_SIM_MATCH_CONFIG_HPP

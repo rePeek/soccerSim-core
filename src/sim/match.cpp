@@ -67,8 +67,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
       controllers(controllers),
       controllerSetup(config.controllers),
       possessionSideHistory(6000),
-      matchDurationFactor(
-          GetConfiguration()->GetReal("match_duration", 1.0) * 0.2f + 0.05f),
+      matchDurationFactor(config.match_duration * 0.2f + 0.05f),
       _useMagnet(GetScenarioConfig().use_magnet) {
   GetContext().stablePlayerCount = 0;
 
