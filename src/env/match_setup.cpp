@@ -22,3 +22,15 @@ MatchSetup MakeDefaultMatchSetup() {
   setup.away = MakeDefaultTeamSetup("Real Bayesians");
   return setup;
 }
+
+TeamCreationData ToTeamCreationData(const TeamSetup& team, int database_id) {
+  TeamCreationData data;
+  data.database_id = database_id;
+  data.formation = team.formation;
+  data.name = team.name;
+  data.player_ids.reserve(team.players.size());
+  for (const PlayerSetup& player : team.players) {
+    data.player_ids.push_back(player.database_id);
+  }
+  return data;
+}

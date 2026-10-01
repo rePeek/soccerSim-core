@@ -17,6 +17,7 @@
 #include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/gamedefines.hpp"
+#include "env/match_setup.hpp"
 #include "env/main.hpp"
 #include "control/player_control_set.hpp"
 

@@ -1,10 +1,11 @@
-#ifndef FOOTBALL_DATA_MATCH_SETUP_HPP
-#define FOOTBALL_DATA_MATCH_SETUP_HPP
+#ifndef FOOTBALL_ENV_MATCH_SETUP_HPP
+#define FOOTBALL_ENV_MATCH_SETUP_HPP
 
 #include <string>
 #include <vector>
 
 #include "sim/gamedefines.hpp"
+#include "data/teamdata.hpp"
 // Static player identity used to construct a match. PlayerData still builds
 // its legacy profile at simulation startup; this remains a value type so a
 // MatchSetup can be created before a GameContext and its RNG exist.
@@ -37,4 +38,8 @@ struct MatchSetup {
 // MatchSetup explicitly.
 MatchSetup MakeDefaultMatchSetup();
 
-#endif  // FOOTBALL_DATA_MATCH_SETUP_HPP
+// Adapts a TeamSetup to the inputs TeamData consumes. This lives in env/, the
+// composition layer, so that data/ does not depend on the environment types.
+TeamCreationData ToTeamCreationData(const TeamSetup& team, int database_id);
+
+#endif  // FOOTBALL_ENV_MATCH_SETUP_HPP

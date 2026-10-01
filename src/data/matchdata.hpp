@@ -22,17 +22,14 @@
 
 #include "sim/gamedefines.hpp"
 
-#include "env/match_setup.hpp"
 #include "data/teamdata.hpp"
 
 class MatchData {
 
   public:
-    // Formations come from the caller; MatchData no longer reads the ambient
-    // ScenarioConfig singleton.
-    MatchData(const std::vector<FormationEntry>& home_formation,
-              const std::vector<FormationEntry>& away_formation);
-    explicit MatchData(MatchSetup setup);
+    // Team composition comes from the caller; MatchData no longer reads the
+    // ambient ScenarioConfig singleton.
+    MatchData(const TeamCreationData& home, const TeamCreationData& away);
     TeamData& GetTeamData(int id) { return teamData[id]; }
     int GetGoalCount(int id) { return goalCount[id]; }
     void SetGoalCount(int id, int amount) { goalCount[id] = amount; }
@@ -49,7 +46,6 @@ class MatchData {
     int goalCount[2];
 
     float possession60seconds; // -60 to 60 for possession of team 1 / 2 respectively
-    PitchSetup pitch;
 
 };
 

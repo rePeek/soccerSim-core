@@ -19,14 +19,12 @@
 #include <algorithm>
 #include <cctype>
 #include "data/teamdata.hpp"
-#include "env/match_setup.hpp"
 
 #include <cctype>
 
 #include "support/text/string_utils.hpp"
 #include "support/text/value_codec.hpp"
 #include "support/io/xml_loader.hpp"
-#include "env/main.hpp"
 
 Vector3 GetDefaultRolePosition(e_PlayerRole role) {
   switch (role) {
@@ -70,7 +68,9 @@ Vector3 GetDefaultRolePosition(e_PlayerRole role) {
   }
 }
 
-TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
+TeamData::TeamData(const TeamCreationData& data) {
+  const int teamDatabaseID = data.database_id;
+  const std::vector<FormationEntry>& f = data.formation;
   formation.resize(f.empty() ? playerNum : f.size());
   int player_count = formation.size();
   color1.Set(0, 0, 0);
@@ -148,8 +148,12 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
       kit_url = "images_teams/primeradivision/realmadrid";
       shortName = "RBA";
       color1 = Vector3(255, 255, 255);
-      color2 = Vector3(50, 50, 126);
-      break;
+  }
+
+  // An explicit name from the caller wins over the legacy database name.
+  if (!data.name.empty()) {
+    name = data.name;
+    shortName.clear();
   }
 
   if (shortName.compare("") == 0) {
@@ -260,40 +264,20 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
 
   tree = loader.Load(factoryTacticsString);
   // load players
-  playerData.push_back(new PlayerData(398, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(11, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(254, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(320, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(103, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(188, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(74, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(332, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(290, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(391, teamDatabaseID == 3));
-  playerData.push_back(new PlayerData(264, teamDatabaseID == 3));
+  const bool left_team = teamDatabaseID == kHomeTeamDatabaseId;
+  static constexpr int kLegacyRoster[] = {398, 11, 254, 320, 103, 188,
+                                          74,  332, 290, 391, 264};
+  const std::vector<int>& roster =
+      data.player_ids.empty()
+          ? std::vector<int>(std::begin(kLegacyRoster),
+                             std::end(kLegacyRoster))
+          : data.player_ids;
+  for (int player_id : roster) {
+    playerData.push_back(new PlayerData(player_id, left_team));
+  }
   playerData.resize(player_count);
 }
 
-TeamData::TeamData(TeamSetup setup, bool left_team)
-    : TeamData(left_team ? kHomeTeamDatabaseId : kAwayTeamDatabaseId,
-               setup.formation) {
-  assert(!setup.players.empty());
-  assert(setup.formation.empty() ||
-         setup.formation.size() == setup.players.size());
-
-  for (PlayerData* player : playerData) {
-    delete player;
-  }
-  playerData.clear();
-  playerData.reserve(setup.players.size());
-  for (const PlayerSetup& player : setup.players) {
-    playerData.push_back(new PlayerData(player.database_id, left_team));
-  }
-
-  if (!setup.name.empty()) {
-    name = std::move(setup.name);
-  }
-}
 
 TeamData::~TeamData() {
   for (int i = 0; i < (signed int)playerData.size(); i++) {

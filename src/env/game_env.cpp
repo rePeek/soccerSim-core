@@ -73,16 +73,28 @@ std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
   // remains the source of the env-level episode configuration.
   this->scenario_config = scaled_config;
 
+  TeamCreationData home;
+  home.database_id = kHomeTeamDatabaseId;
+  home.formation = scaled_config.left_team;
+  TeamCreationData away;
+  away.database_id = kAwayTeamDatabaseId;
+  away.formation = scaled_config.right_team;
+
   std::unique_ptr<MatchConfig> config(new MatchConfig());
-  config->match_data.reset(new MatchData(scaled_config.left_team,
-                                        scaled_config.right_team));
+  config->match_data.reset(new MatchData(home, away));
+  config->reverse_team_processing = scaled_config.reverse_team_processing;
+  config->use_magnet = scaled_config.use_magnet;
+  config->left_team_difficulty = scaled_config.left_team_difficulty;
+  config->right_team_difficulty = scaled_config.right_team_difficulty;
   return config;
 }
 
 std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
     const ScenarioConfig& scenario_config, MatchSetup setup) {
   std::unique_ptr<MatchConfig> config = BuildMatchConfig(scenario_config);
-  config->match_data = std::make_unique<MatchData>(std::move(setup));
+  config->match_data.reset(new MatchData(
+      ToTeamCreationData(setup.home, kHomeTeamDatabaseId),
+      ToTeamCreationData(setup.away, kAwayTeamDatabaseId)));
   return config;
 }
 

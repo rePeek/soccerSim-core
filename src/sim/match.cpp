@@ -62,13 +62,13 @@ Match::Match(std::unique_ptr<MatchData> match_data,
              const ControllerSet& controllers,
              const MatchConfig& config, bool animations)
     : matchData(std::move(match_data)),
-      first_team(GetScenarioConfig().reverse_team_processing ? 1 : 0),
-      second_team(GetScenarioConfig().reverse_team_processing ? 0 : 1),
+      first_team(config.reverse_team_processing ? 1 : 0),
+      second_team(config.reverse_team_processing ? 0 : 1),
       controllers(controllers),
       controllerSetup(config.controllers),
       possessionSideHistory(6000),
       matchDurationFactor(config.match_duration * 0.2f + 0.05f),
-      _useMagnet(GetScenarioConfig().use_magnet) {
+      _useMagnet(config.use_magnet) {
   GetContext().stablePlayerCount = 0;
 
 
@@ -98,12 +98,12 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
   teams[first_team] =
       new Team(first_team, this, &matchData->GetTeamData(first_team),
-               first_team ? GetScenarioConfig().right_team_difficulty
-                          : GetScenarioConfig().left_team_difficulty);
+               first_team ? config.right_team_difficulty
+                          : config.left_team_difficulty);
   teams[second_team] =
       new Team(second_team, this, &matchData->GetTeamData(second_team),
-               second_team ? GetScenarioConfig().right_team_difficulty
-                           : GetScenarioConfig().left_team_difficulty);
+               second_team ? config.right_team_difficulty
+                           : config.left_team_difficulty);
   teams[first_team]->SetOpponent(teams[second_team]);
   teams[second_team]->SetOpponent(teams[first_team]);
   teams[first_team]->InitPlayers();

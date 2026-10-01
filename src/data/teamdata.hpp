@@ -25,12 +25,19 @@
 #include "sim/gamedefines.hpp"
 #include "data/playerdata.hpp"
 
-struct TeamSetup;
-
 // Legacy team database identities. They still select the hardcoded team
-// profile (name, colours, kit) used until MatchSetup carries it directly.
+// profile (name, colours, kit) used until a team carries it directly.
 constexpr int kHomeTeamDatabaseId = 3;
 constexpr int kAwayTeamDatabaseId = 8;
+
+// Static inputs for creating one team. An empty `player_ids` selects the
+// legacy hardcoded roster; an empty `name` keeps the database name.
+struct TeamCreationData {
+  int database_id = kHomeTeamDatabaseId;
+  std::vector<FormationEntry> formation;
+  std::vector<int> player_ids;
+  std::string name;
+};
 
 struct TeamTactics {
   Properties userProperties;
@@ -39,8 +46,7 @@ struct TeamTactics {
 class TeamData {
 
   public:
-    TeamData(int teamDatabaseID, const std::vector<FormationEntry>& f);
-    TeamData(TeamSetup setup, bool left_team);
+    explicit TeamData(const TeamCreationData& data);
     ~TeamData();
 
     std::string GetName() const { return name; }

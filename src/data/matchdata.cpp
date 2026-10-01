@@ -19,24 +19,15 @@
 #include <vector>
 #include <algorithm>
 
-MatchData::MatchData(const std::vector<FormationEntry>& home_formation,
-                     const std::vector<FormationEntry>& away_formation)
-    : teamData{TeamData(kHomeTeamDatabaseId, home_formation),
-               TeamData(kAwayTeamDatabaseId, away_formation)} {
+MatchData::MatchData(const TeamCreationData& home,
+                     const TeamCreationData& away)
+    : teamData{TeamData(home), TeamData(away)} {
   goalCount[0] = 0;
   goalCount[1] = 0;
 
   possession60seconds = 0.0f;
 }
 
-MatchData::MatchData(MatchSetup setup)
-    : teamData{TeamData(std::move(setup.home), true),
-               TeamData(std::move(setup.away), false)},
-      pitch(std::move(setup.pitch)) {
-  goalCount[0] = 0;
-  goalCount[1] = 0;
-  possession60seconds = 0.0f;
-}
 
 void MatchData::AddPossessionTime(int teamID, unsigned long time) {
   if (teamID == 0) possession60seconds = std::max(possession60seconds - (0.001f * time), -60.0f);
