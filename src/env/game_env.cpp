@@ -148,6 +148,7 @@ void GameEnv::ProcessState(EnvState* state) {
 
 void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
   ContextHolder c(this);
+  controls_.Clear();
   context->step = -1;
   waiting_for_game_count = 0;
   auto match_config = BuildMatchConfig(game_config);
