@@ -212,7 +212,6 @@ class GameContext {
  public:
   GameContext() { }
   std::unique_ptr<Simulation> simulation;
-  Properties *config = nullptr;
   // Retained solely so legacy checkpoint bytes remain readable during the
   // state-codec migration. They are not exposed as an input API.
   std::vector<AIControlledKeyboard*> checkpointControllers;
@@ -243,12 +242,11 @@ class GameContext {
 void SetGame(GameEnv* c);
 GameContext& GetContext();
 
-Properties *GetConfiguration();
 ScenarioConfig& GetScenarioConfig();
 GameConfig& GetGameConfig();
 
 
-void run_game(Properties* input_config);
+void run_game();
 void randomize(unsigned int seed);
 void quit_game();
 int main(int argc, char** argv);

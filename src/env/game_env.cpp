@@ -99,8 +99,7 @@ void GameEnv::start_game() {
   if (data_dir) {
     GetGameConfig().data_dir = data_dir;
   }
-  Properties* config = new Properties();
-  run_game(config);
+  run_game();
   auto scenario_config = ScenarioConfig::make();
   init(*scenario_config, false);
 }
@@ -117,8 +116,7 @@ void GameEnv::start_game(MatchSetup setup) {
   if (data_dir) {
     GetGameConfig().data_dir = data_dir;
   }
-  Properties* config = new Properties();
-  run_game(config);
+  run_game();
 
   auto scenario_config = ScenarioConfig::make();
   controls_.Clear();

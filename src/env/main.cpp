@@ -44,10 +44,6 @@ void SetGame(GameEnv* c) { game = c; }
 
 
 
-Properties* GetConfiguration() {
-  return game->context->config;
-}
-
 ScenarioConfig& GetScenarioConfig() {
   return game->scenario_config;
 }
@@ -63,8 +59,7 @@ void randomize(unsigned int seed) {
   randomseed(seed); // for the boost random
 }
 
-void run_game(Properties* input_config) {
-  game->context->config = input_config;
+void run_game() {
   randomize(0);
   for (int x = 0; x < 2 * kPlayersPerTeam; ++x) {
     const e_PlayerColor color =
@@ -89,7 +84,6 @@ void quit_game() {
 
 
 
-  delete game->context->config;
 }
 
 

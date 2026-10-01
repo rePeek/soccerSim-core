@@ -22,7 +22,7 @@
 #include <cmath>
 
 float GetQuantizedDirectionBias() {
-  return GetConfiguration()->GetReal("gameplay_quantizeddirectionbias", _default_QuantizedDirectionBias);
+  return _default_QuantizedDirectionBias;
 }
 
 void QuantizeDirection(Vector3 &inputDirection, float bias) {
@@ -31,7 +31,7 @@ void QuantizeDirection(Vector3 &inputDirection, float bias) {
 
   Vector3 inputDirectionNorm = inputDirection.GetNormalized(0);
 
-  int directions = GetConfiguration()->GetInt("gameplay_quantizeddirectioncount", 8);
+  int directions = 8;
 
   radian angle = inputDirectionNorm.GetAngle2D();
   angle /= pi * 2.0f;
