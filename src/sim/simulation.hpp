@@ -6,6 +6,7 @@
 #include "controller/controller_set.hpp"
 #include "sim/match_config.hpp"
 #include "control/player_control_set.hpp"
+#include "state/world_state.hpp"
 
 class Match;
 class EnvState;
@@ -26,6 +27,7 @@ class Simulation {
   void ProcessState(EnvState* state);
   void GetState(SharedInfo* state);
   bool IsInPlay() const;
+  WorldState Observe() const;
 
   Match* match() { return match_.get(); }
   const Match* match() const { return match_.get(); }

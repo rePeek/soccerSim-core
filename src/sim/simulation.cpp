@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include "sim/match.hpp"
+#include "sim/match_world_state.hpp"
 
 Simulation::~Simulation() {
   Stop();
@@ -35,6 +36,11 @@ void Simulation::GetState(SharedInfo* state) {
 
 bool Simulation::IsInPlay() const {
   return match_ && match_->IsInPlay();
+}
+
+WorldState Simulation::Observe() const {
+  assert(match_);
+  return BuildWorldState(*match_);
 }
 
 

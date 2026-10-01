@@ -44,6 +44,7 @@ struct GameEnv {
   // Get the current state of the game (observation).
   SharedInfo get_info();
   PlayerControlSet& controls() { return controls_; }
+  WorldState Observe() const;
 
   void reset(const ScenarioConfig& game_config, bool init_animation);
   std::string get_state(const std::string& pickle);

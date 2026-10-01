@@ -107,6 +107,10 @@ SharedInfo GameEnv::get_info() {
   return info;
 }
 
+WorldState GameEnv::Observe() const {
+  return context->simulation->Observe();
+}
+
 
 
 std::string GameEnv::get_state(const std::string& pickle) {
