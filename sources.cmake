@@ -56,6 +56,7 @@ set(CORE_HEADERS
    src/env/main.hpp
    src/env/rng.hpp
    src/env/defines.hpp
+   src/env/match_setup.hpp
 )
 
 
@@ -65,6 +66,7 @@ set(CORE_SOURCES
    src/sim/gamedefines.cpp
    src/env/defines.cpp
    src/env/rng.cpp
+   src/env/match_setup.cpp
 )
 
 
@@ -146,13 +148,11 @@ set(DATA_HEADERS
    src/data/matchdata.hpp
    src/data/teamdata.hpp
    src/data/playerdata.hpp
-   src/data/match_setup.hpp
 )
 
 
 set(DATA_SOURCES
    src/data/matchdata.cpp
-   src/data/match_setup.cpp
    src/data/playerdata.cpp
    src/data/teamdata.cpp
 )

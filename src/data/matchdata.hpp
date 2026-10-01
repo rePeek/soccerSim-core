@@ -22,7 +22,7 @@
 
 #include "sim/gamedefines.hpp"
 
-#include "data/match_setup.hpp"
+#include "env/match_setup.hpp"
 #include "data/teamdata.hpp"
 
 class MatchData {
