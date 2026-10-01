@@ -17,8 +17,8 @@ enum class ControlAction {
   Tackle,
 };
 
-// Frame-local control state for one player. Player AI writes these values;
-// simulation translates them into its existing command queue.
+// Persistent control target for one player. It remains active until replaced
+// or cleared; simulation translates it into its existing command queue.
 struct PlayerControl {
   PlayerId player = kInvalidPlayerId;
   blunted::Vector3 move_direction = blunted::Vector3(0);
