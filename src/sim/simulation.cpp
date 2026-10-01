@@ -9,7 +9,7 @@ Simulation::~Simulation() {
   Stop();
 }
 
-void Simulation::Reset(std::unique_ptr<MatchConfig> config,
+void Simulation::Init(std::unique_ptr<MatchConfig> config,
                        const ControllerSet& controllers,
                        bool init_animation) {
   assert(config);

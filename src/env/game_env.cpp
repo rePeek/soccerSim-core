@@ -97,7 +97,7 @@ void GameEnv::start_game() {
   config->Set("game", 0);
   run_game(config);
   auto scenario_config = ScenarioConfig::make();
-  reset(*scenario_config, false);
+  init(*scenario_config, false);
 }
 
 SharedInfo GameEnv::get_info() {
@@ -150,14 +150,18 @@ void GameEnv::ProcessState(EnvState* state) {
   context->simulation->ProcessState(state);
 }
 
-void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
+void GameEnv::init(const ScenarioConfig& game_config, bool animations) {
   ContextHolder c(this);
   controls_.Clear();
   context->step = -1;
   waiting_for_game_count = 0;
   auto match_config = BuildMatchConfig(game_config);
   randomize(game_config.game_engine_random_seed);
+  context->simulation->Init(std::move(match_config), context->controllerSet,
+                            animations);
+}
+
+void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
   context->simulation->Stop();
-  context->simulation->Reset(std::move(match_config), context->controllerSet,
-                             animations);
+  init(game_config, animations);
 }

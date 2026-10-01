@@ -40,6 +40,8 @@ struct GameEnv {
   GameEnv() { }
   // Start the game (in separate process).
   void start_game();
+  // Creates a match in an initialized environment that has no active match.
+  void init(const ScenarioConfig& game_config, bool init_animation);
 
   // Get the current state of the game (observation).
   SharedInfo get_info();

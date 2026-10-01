@@ -19,7 +19,7 @@ class Simulation {
   Simulation() = default;
   ~Simulation();
 
-  void Reset(std::unique_ptr<MatchConfig> config,
+  void Init(std::unique_ptr<MatchConfig> config,
              const ControllerSet& controllers,
              bool init_animation);
   bool Stop();
