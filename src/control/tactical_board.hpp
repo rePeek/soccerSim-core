@@ -4,7 +4,7 @@
 #include <optional>
 #include <vector>
 
-#include "control/control_ids.hpp"
+#include "domain/ids.hpp"
 #include "foundation/math/vector3.hpp"
 
 // Coarse role assignment owned by persistent team-control state. It is

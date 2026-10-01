@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <span>
 
-#include "control/control_ids.hpp"
+#include "domain/ids.hpp"
 #include "foundation/math/vector3.hpp"
 
 struct WorldPlayerState {

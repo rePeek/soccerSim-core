@@ -19,6 +19,7 @@ endfunction()
 # Foundation owns its source list and can also be consumed independently with
 # add_subdirectory(path/to/src/foundation).
 add_subdirectory(src/foundation)
+add_subdirectory(src/domain)
 add_subdirectory(src/state)
 add_subdirectory(src/control)
 add_subdirectory(src/support)

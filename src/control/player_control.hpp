@@ -3,7 +3,7 @@
 
 #include <optional>
 
-#include "control/control_ids.hpp"
+#include "domain/ids.hpp"
 #include "foundation/math/vector3.hpp"
 
 // Football-domain action request. This intentionally does not expose input
