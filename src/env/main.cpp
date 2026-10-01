@@ -66,6 +66,13 @@ void randomize(unsigned int seed) {
 void run_game(Properties* input_config) {
   game->context->config = input_config;
   randomize(0);
+  for (int x = 0; x < 2 * kPlayersPerTeam; ++x) {
+    const e_PlayerColor color =
+        e_PlayerColor(x % (e_PlayerColor_Default + 1));
+    auto* controller = new AIControlledKeyboard(color);
+    game->context->checkpointControllers.push_back(controller);
+    game->context->controllerSet.Add(*controller);
+  }
   // sequences
 
   game->context->simulation = std::make_unique<Simulation>();
@@ -74,6 +81,11 @@ void run_game(Properties* input_config) {
 
 void quit_game() {
   game->context->simulation.reset();
+
+  for (AIControlledKeyboard* controller : game->context->checkpointControllers) {
+    delete controller;
+  }
+  game->context->checkpointControllers.clear();
 
 
 

@@ -20,6 +20,7 @@
 
 class GameEnv;
 GameEnv* GetGame();
+class AIControlledKeyboard;
 
 
 #include "sim/simulation.hpp"
@@ -212,6 +213,9 @@ class GameContext {
   GameContext() { }
   std::unique_ptr<Simulation> simulation;
   Properties *config = nullptr;
+  // Retained solely so legacy checkpoint bytes remain readable during the
+  // state-codec migration. They are not exposed as an input API.
+  std::vector<AIControlledKeyboard*> checkpointControllers;
 
   ControllerSet controllerSet;
 
