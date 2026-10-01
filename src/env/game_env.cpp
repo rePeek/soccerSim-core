@@ -121,6 +121,10 @@ SharedInfo GameEnv::get_info() {
   return info;
 }
 
+ControlSystem& GameEnv::control_system() {
+  return context->simulation->control_system();
+}
+
 bool GameEnv::sticky_action_state(int action, bool left_team, int player) {
   SetGame(this);
   const int controller_id = player + (left_team ? 0 : 11);

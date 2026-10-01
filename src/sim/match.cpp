@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/match.hpp"
+#include "sim/match_world_state_view.hpp"
 #include "animation/library.hpp"
 
 #include "foundation/geometry/line.hpp"
@@ -435,6 +436,20 @@ void Match::GetState(SharedInfo *state) {
 
 bool Match::Step() {
   bool reverse = GetScenarioConfig().reverse_team_processing;
+
+  MatchWorldStateView world(*this);
+  control_system_.Step(world);
+  for (const ControlledPlayerIntent& controlled : control_system_.player_intents()) {
+    for (int team_id = 0; team_id < 2; ++team_id) {
+      std::vector<Player*> players;
+      teams[team_id]->GetAllPlayers(players);
+      for (Player* player : players) {
+        if (static_cast<PlayerId>(player->GetStableID()) == controlled.player) {
+          player->SetPlayerIntent(controlled.intent);
+        }
+      }
+    }
+  }
 
 
   Mirror(reverse, !reverse, reverse);

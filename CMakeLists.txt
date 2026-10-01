@@ -19,6 +19,7 @@ endfunction()
 # Foundation owns its source list and can also be consumed independently with
 # add_subdirectory(path/to/src/foundation).
 add_subdirectory(src/foundation)
+add_subdirectory(src/control)
 add_subdirectory(src/support)
 add_subdirectory(src/controller)
 
@@ -39,13 +40,14 @@ target_include_directories(football_legacy_anim PUBLIC
 # The layering below spells out the source DAG in build order:
 #
 #   foundation <- support <- data <- sim <- engine
-#         ^                    ^
-#         └──── controller ────┘
+#         ^                  ^
+#         ├── control ───────┘
+#         └── controller (temporary legacy input)
 #
 # Runtime animation depends directly on foundation only; source importers
-# use support for XML, files, text, and configuration. Controller is an
-# independent input-protocol module; sim consumes only its abstract input
-# surface, while env composes the concrete legacy adapter and GRF protocol.
+# use support for XML, files, text, and configuration. Control owns the new
+# decision domain. Controller remains only while the legacy input path is
+# removed; it is not a future simulation boundary.
 # Declaring the edges here keeps archive order correct instead of relying on
 # a hand-maintained link line.
 
@@ -57,7 +59,7 @@ add_library(football_data STATIC ${DATA_SOURCES} ${DATA_HEADERS})
 target_link_libraries(football_data PUBLIC football_animation football_support)
 
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
-target_link_libraries(football_sim PUBLIC football_data football_controller)
+target_link_libraries(football_sim PUBLIC football_data football_control football_controller)
 
 # --- engine object layer + the shared library -------------------------------
 add_library(football_engine OBJECT
@@ -80,6 +82,11 @@ endforeach()
 add_executable(football_smoke tools/football_smoke.cpp)
 target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
 football_configure_target(football_smoke)
+
+add_executable(football_control_test tools/control_system_test.cpp)
+target_link_libraries(football_control_test PRIVATE football_control)
+football_configure_target(football_control_test)
+add_test(NAME football_control_test COMMAND football_control_test)
 
 add_executable(football_anim_baker tools/animBaker/anim_baker_main.cpp)
 target_link_libraries(football_anim_baker PRIVATE

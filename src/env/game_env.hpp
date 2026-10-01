@@ -20,6 +20,7 @@
 #include "env/main.hpp"
 
 class AIControlledKeyboard;
+class ControlSystem;
 
 typedef std::vector<std::string> StringVector;
 
@@ -43,6 +44,7 @@ struct GameEnv {
 
   // Get the current state of the game (observation).
   SharedInfo get_info();
+  ControlSystem& control_system();
 
   // Legacy GRF compatibility entry points. Action semantics live in
   // controller/grf; env only selects the owned controller and forwards.

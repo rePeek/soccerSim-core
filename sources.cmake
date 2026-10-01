@@ -76,6 +76,7 @@ set(GAME_HEADERS
    src/sim/player/humanoid/humanoid_utils.hpp
    src/sim/player/playerofficial.hpp
    src/sim/player/playerbase.hpp
+   src/sim/player/player_intent_builder.hpp
    src/sim/player/player_kinematics.hpp
    src/sim/player/player_retain_anchor.hpp
    src/sim/player/player_ground_collider.hpp
@@ -100,6 +101,7 @@ set(GAME_HEADERS
    src/sim/match_config.hpp
    src/sim/simulation.hpp
    src/sim/match.hpp
+   src/sim/match_world_state_view.hpp
    src/sim/value_history.hpp
    src/sim/ai_support/AIfunctions.hpp
    src/sim/ai_support/mentalimage.hpp
@@ -115,6 +117,7 @@ set(GAME_SOURCES
    src/sim/player/playerofficial.cpp
    src/sim/player/player.cpp
    src/sim/player/playerbase.cpp
+   src/sim/player/player_intent_builder.cpp
    src/sim/player/player_locomotion.cpp
    src/sim/player/controller/playercontroller.cpp
    src/sim/player/controller/humancontroller.cpp
@@ -129,6 +132,7 @@ set(GAME_SOURCES
    src/sim/humangamer.cpp
    src/sim/ball.cpp
    src/sim/match.cpp
+   src/sim/match_world_state_view.cpp
    src/sim/simulation.cpp
    src/sim/referee.cpp
    src/sim/ai_support/mentalimage.cpp

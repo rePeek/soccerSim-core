@@ -37,6 +37,11 @@ bool Simulation::IsInPlay() const {
   return match_ && match_->IsInPlay();
 }
 
+ControlSystem& Simulation::control_system() {
+  assert(match_);
+  return match_->control_system();
+}
+
 bool Simulation::Stop() {
   if (!match_) return false;
   match_->Exit();

@@ -7,6 +7,7 @@
 #include "sim/match_config.hpp"
 
 class Match;
+class ControlSystem;
 class EnvState;
 class SharedInfo;
 
@@ -28,6 +29,7 @@ class Simulation {
 
   Match* match() { return match_.get(); }
   const Match* match() const { return match_.get(); }
+  ControlSystem& control_system();
 
  private:
   std::unique_ptr<Match> match_;

@@ -19,12 +19,14 @@
 #define _HPP_PLAYERBASE
 
 #include <memory>
+#include <optional>
 #include "sim/player/humanoid/humanoidbase.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_ground_collider.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
+#include "control/player/player_intent.hpp"
 
 // Caller scope for the remaining ResetSituation instrumentation. This is
 // observation only; Deactivate's double reset is deliberately not changed here.
@@ -355,6 +357,8 @@ class PlayerBase {
     void SetExternalController(HumanGamer *externalController);
     HumanController *ExternalController();
     bool ExternalControllerActive();
+    void SetPlayerIntent(const PlayerIntent& intent) { controlIntent = intent; }
+    void ClearPlayerIntent() { controlIntent.reset(); }
 
     // Bit-exact mirror check: position, velocity, locomotion facing, body
     // facing, derived speed and the collider center must all match the Humanoid
@@ -456,6 +460,7 @@ class PlayerBase {
     int resetSituationAuditContext = kResetSituationUnspecified;
     std::unique_ptr<IController> controller;
     HumanGamer *externalController = 0;
+    std::optional<PlayerIntent> controlIntent;
 
     bool isActive = false;
 
