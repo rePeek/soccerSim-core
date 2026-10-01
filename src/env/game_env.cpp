@@ -16,14 +16,12 @@
 #include "support/diagnostics/backtrace.hpp"
 #include "support/diagnostics/log.hpp"
 #include "env/game_env.hpp"
-#include "controller/grf/grf_action_controller.hpp"
 
 #include <cerrno>
 #include <ctime>
 #include <iostream>
 #include <ratio>
 
-#include "ai/ai_keyboard.hpp"
 #include "support/diagnostics/assert.hpp"
 #include "support/io/file.hpp"
 
@@ -78,18 +76,6 @@ std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
 
   std::unique_ptr<MatchConfig> config(new MatchConfig());
   config->match_data.reset(new MatchData());
-  config->controllers.reserve(2 * kPlayersPerTeam);
-  for (int controller = 0; controller < 2 * kPlayersPerTeam; ++controller) {
-    ControllerSetup selection;
-    selection.controller_id = controller;
-    if (controller < scaled_config.left_agents) {
-      selection.side = -1;
-    } else if (controller >= kPlayersPerTeam &&
-               controller < kPlayersPerTeam + scaled_config.right_agents) {
-      selection.side = 1;
-    }
-    config->controllers.push_back(selection);
-  }
   return config;
 }
 
@@ -125,22 +111,6 @@ ControlSystem& GameEnv::control_system() {
   return context->simulation->control_system();
 }
 
-bool GameEnv::sticky_action_state(int action, bool left_team, int player) {
-  SetGame(this);
-  const int controller_id = player + (left_team ? 0 : 11);
-  auto* controller =
-      static_cast<AIControlledKeyboard*>(GetControllers()[controller_id]);
-  return GrfActionController::IsStickyActionActive(
-      static_cast<Action>(action), *controller);
-}
-
-void GameEnv::action(int action, bool left_team, int player) {
-  SetGame(this);
-  const int controller_id = player + (left_team ? 0 : 11);
-  auto* controller =
-      static_cast<AIControlledKeyboard*>(GetControllers()[controller_id]);
-  GrfActionController::Apply(static_cast<Action>(action), *controller);
-}
 
 std::string GameEnv::get_state(const std::string& pickle) {
   ContextHolder c(this);
@@ -169,9 +139,6 @@ void GameEnv::step() {
   do_step(GetGameConfig().physics_steps_per_frame);
   if (context->simulation->IsInPlay()) {
     context->step++;
-    for (auto controller : GetControllers()) {
-      controller->ResetNotSticky();
-    }
   }
 }
 
@@ -187,9 +154,6 @@ void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
   context->step = -1;
   waiting_for_game_count = 0;
   auto match_config = BuildMatchConfig(game_config);
-  for (auto controller : GetControllers()) {
-    controller->SetDisabled(true);
-  }
   randomize(game_config.game_engine_random_seed);
   context->simulation->Stop();
   context->simulation->Reset(std::move(match_config), context->controllerSet,

@@ -114,9 +114,7 @@ class Match {
     void BumpActualTime_ms(unsigned long time);
 
 
-    void GetTeamState(SharedInfo *state,
-                      std::map<ControllerInput*, int>& controller_mapping,
-                      int team_id);
+    void GetTeamState(SharedInfo *state, int team_id);
     void GetState(SharedInfo* state);
     void ProcessState(EnvState* state);
     // Advances one authoritative simulation tick.

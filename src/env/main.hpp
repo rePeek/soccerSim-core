@@ -21,12 +21,10 @@
 class GameEnv;
 GameEnv* GetGame();
 
-#include "ai/ai_keyboard.hpp"
 
 #include "sim/simulation.hpp"
 #include "sim/match_config.hpp"
 #include "env/rng.hpp"
-#include "ai/ihidevice.hpp"
 #include "animation/library.hpp"
 
 #include "sim/rng.hpp"
@@ -215,7 +213,6 @@ class GameContext {
   std::unique_ptr<Simulation> simulation;
   Properties *config = nullptr;
 
-  std::vector<AIControlledKeyboard*> controllers;
   ControllerSet controllerSet;
 
   // Simulation RNG. Its state is checkpointed, so draw order is observable.
@@ -246,7 +243,6 @@ Properties *GetConfiguration();
 ScenarioConfig& GetScenarioConfig();
 GameConfig& GetGameConfig();
 
-const std::vector<AIControlledKeyboard*> &GetControllers();
 
 void run_game(Properties* input_config);
 void randomize(unsigned int seed);

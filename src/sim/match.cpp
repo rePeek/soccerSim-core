@@ -353,9 +353,7 @@ void Match::ProcessState(EnvState* state) {
   Mirror(team_0_mirror, team_1_mirror, ball_mirror);
 }
 
-void Match::GetTeamState(SharedInfo *state,
-                         std::map<ControllerInput*, int>& controller_mapping,
-                         int team_id) {
+void Match::GetTeamState(SharedInfo *state, int team_id) {
   std::vector<PlayerInfo> &team =
       team_id == 0 ? state->left_team : state->right_team;
   team.clear();
@@ -363,16 +361,6 @@ void Match::GetTeamState(SharedInfo *state,
   teams[team_id]->GetAllPlayers(players);
   auto main_player = teams[team_id]->MainSelectedPlayer();
   for (auto player : players) {
-    auto controller = player->ExternalController();
-    if (controller) {
-      if (team_id == 0) {
-        state->left_controllers[controller_mapping[controller->GetHIDevice()]]
-            .controlled_player = team.size();
-      } else {
-        state->right_controllers[controller_mapping[controller->GetHIDevice()]]
-            .controlled_player = team.size();
-      }
-    }
     if (player->CastHumanoid() != NULL) {
       auto position = player->GetPosition();
       auto movement = player->GetMovement();
@@ -419,17 +407,8 @@ void Match::GetState(SharedInfo *state) {
   state->right_controllers.clear();
   state->right_controllers.resize(GetScenarioConfig().right_team.size());
 
-  std::map<ControllerInput*, int> controller_mapping;
-  {
-    const auto& inputs = controllers.controllers();
-    CHECK(inputs.size() == 2 * kPlayersPerTeam);
-    for (int x = 0; x < kPlayersPerTeam; x++) {
-      controller_mapping[inputs[x]] = x;
-      controller_mapping[inputs[x + kPlayersPerTeam]] = x;
-    }
-  }
-  GetTeamState(state, controller_mapping, first_team);
-  GetTeamState(state, controller_mapping, second_team);
+  GetTeamState(state, first_team);
+  GetTeamState(state, second_team);
 }
 
 // THE SPICE

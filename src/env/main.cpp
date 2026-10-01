@@ -56,9 +56,6 @@ GameConfig& GetGameConfig() {
   return game->game_config;
 }
 
-const std::vector<AIControlledKeyboard*>& GetControllers() {
-  return game->context->controllers;
-}
 
 void randomize(unsigned int seed) {
   srand(seed);
@@ -69,11 +66,6 @@ void randomize(unsigned int seed) {
 void run_game(Properties* input_config) {
   game->context->config = input_config;
   randomize(0);
-  for (int x = 0; x < 2 * kPlayersPerTeam; x++) {
-    e_PlayerColor color = e_PlayerColor(x % (e_PlayerColor_Default + 1));
-    game->context->controllers.push_back(new AIControlledKeyboard(color));
-    game->context->controllerSet.Add(*game->context->controllers.back());
-  }
   // sequences
 
   game->context->simulation = std::make_unique<Simulation>();
@@ -83,10 +75,6 @@ void run_game(Properties* input_config) {
 void quit_game() {
   game->context->simulation.reset();
 
-  for (unsigned int i = 0; i < game->context->controllers.size(); i++) {
-    delete game->context->controllers[i];
-  }
-  game->context->controllers.clear();
 
 
   delete game->context->config;

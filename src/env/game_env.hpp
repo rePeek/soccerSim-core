@@ -19,7 +19,6 @@
 #include "sim/gamedefines.hpp"
 #include "env/main.hpp"
 
-class AIControlledKeyboard;
 class ControlSystem;
 
 typedef std::vector<std::string> StringVector;
@@ -46,10 +45,6 @@ struct GameEnv {
   SharedInfo get_info();
   ControlSystem& control_system();
 
-  // Legacy GRF compatibility entry points. Action semantics live in
-  // controller/grf; env only selects the owned controller and forwards.
-  bool sticky_action_state(int action, bool left_team, int player);
-  void action(int action, bool left_team, int player);
   void reset(const ScenarioConfig& game_config, bool init_animation);
   std::string get_state(const std::string& pickle);
   std::string set_state(const std::string& state);
@@ -62,7 +57,6 @@ struct GameEnv {
       const ScenarioConfig& scenario_config);
   void do_step(int count);
   void getObservations();
-  AIControlledKeyboard* keyboard_ = nullptr;
  public:
   ScenarioConfig scenario_config;
   GameConfig game_config;
