@@ -3840,9 +3840,11 @@ void CheckMatchTransitions(GameEnv& env, ScenarioConfig& config) {
 //      invalidation reproduces the same bits. If invalidation were missed the
 //      cache would go stale and the import would silently change.
 void CheckImportHierarchy() {
+  const char* data_dir = std::getenv("GFOOTBALL_DATA_DIR");
+  Require(data_dir != nullptr, "import: missing fixture data directory");
   ImportLoader loader;
   ImportHierarchy hierarchy = loader.LoadObject(
-      GetGameConfig().updatePath("media/objects/players/player.object"));
+      std::string(data_dir) + "/media/objects/players/player.object");
   ImportNode* root = hierarchy.root.get();
   Require(root != nullptr, "import: the loader returned no root node");
 
@@ -4317,6 +4319,69 @@ void CheckGameEnvLifecycle() {
 }
 
 
+void CheckEnvironmentCadence(GameEnv& env) {
+  Require(env.physics_steps_per_frame == 10, "cadence: default changed");
+  env.physics_steps_per_frame = 3;
+  env.reset(*ScenarioConfig::make(), false);
+  Require(env.physics_steps_per_frame == 3, "cadence: reset changed the tick count");
+  Match* match = env.context->simulation->match();
+  match->StartPlay();
+  match->GetBall()->SetPosition(Vector3(0, 0, 10));
+  match->GetBall()->SetMomentum(Vector3(3.1415927f, -2.7182818f, -0.0f));
+  match->GetBall()->SetRotation(0.71f, -1.13f, -0.0f);
+  const auto position = [](const Vector3& value) {
+    return Position(value.coords[0], value.coords[1], value.coords[2]);
+  };
+  const auto check_observation = [&]() {
+    SharedInfo raw;
+    env.context->simulation->GetState(&raw);
+    Require(raw.ball_direction == position(match->GetBall()->GetMovement()) &&
+                raw.ball_rotation == position(match->GetBall()->GetRotation()),
+            "cadence: simulation must expose unscaled ball motion");
+    SharedInfo expected = raw;
+    expected.ball_direction =
+        position(match->GetBall()->GetMovement() / env.physics_steps_per_frame);
+    expected.ball_rotation =
+        position(match->GetBall()->GetRotation() / env.physics_steps_per_frame);
+    for (int team_id = 0; team_id < 2; ++team_id) {
+      const auto& raw_team = team_id == 0 ? raw.left_team : raw.right_team;
+      auto& expected_team = team_id == 0 ? expected.left_team : expected.right_team;
+      std::vector<Player*> players;
+      match->GetTeam(team_id)->GetAllPlayers(players);
+      std::size_t index = 0;
+      for (Player* player : players) {
+        if (!player->CastHumanoid()) continue;
+        Vector3 movement = player->GetMovement();
+        if (team_id == 1) movement.Mirror();
+        Require(index < raw_team.size() &&
+                    raw_team[index].player_direction == position(movement),
+                "cadence: simulation must expose unscaled player motion");
+        expected_team[index].player_direction =
+            position(movement / env.physics_steps_per_frame);
+        ++index;
+      }
+      Require(index == raw_team.size(), "cadence: incomplete player projection");
+    }
+    expected.step = env.context->step;
+    RequireInfoEqual(env.get_info(), expected, "environment cadence projection");
+  };
+  for (int count : {1, 3, 7, 10}) {
+    env.physics_steps_per_frame = count;
+    check_observation();
+    const unsigned long before = match->GetActualTime_ms();
+    env.step();
+    Require(match->GetActualTime_ms() == before + count * 10,
+            "cadence: one environment step advanced the wrong tick count");
+    check_observation();
+  }
+  Position signed_zero(1.2345678f, -2.3456789f, -0.0f);
+  signed_zero /= 7.0f;
+  Require(signed_zero == position(Vector3(1.2345678f, -2.3456789f, -0.0f) / 7) &&
+              std::signbit(signed_zero.env_coord(2)),
+          "cadence: component division changed precision or signed zero");
+}
+
+
 int main(int argc, char** argv) {
   if (!std::getenv("GFOOTBALL_DATA_DIR")) {
     std::cerr << "Set GFOOTBALL_DATA_DIR before running football_regression.\n";
@@ -4385,6 +4450,8 @@ int main(int argc, char** argv) {
     CheckReachabilityCadence(env, config);
     CheckReverseTeamProcessing(env, config);
     MeasureContactAuthority(env, config);
+    // New tick-driving checks run after the cumulative legacy measurements.
+    CheckEnvironmentCadence(env);
     std::cout << "football_regression: PASS\n";
     return 0;
   } catch (const RegressionFailure& failure) {

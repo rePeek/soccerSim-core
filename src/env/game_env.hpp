@@ -77,7 +77,8 @@ struct GameEnv {
 
  public:
   ScenarioConfig scenario_config;
-  GameConfig game_config;
+  // Simulation ticks advanced by one environment step (10 ms per tick).
+  int physics_steps_per_frame = 10;
   std::unique_ptr<GameContext> context;
   PlayerControlSet controls_;
   GameState state = game_created;

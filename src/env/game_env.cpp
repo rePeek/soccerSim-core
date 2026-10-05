@@ -80,18 +80,24 @@ void GameEnv::start_game() {
   // feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
   std::cout << std::unitbuf;
 
-  char* data_dir = getenv("GFOOTBALL_DATA_DIR");
-  if (data_dir) {
-    GetGameConfig().data_dir = data_dir;
-  }
   run_game();
   auto scenario_config = ScenarioConfig::make();
   init(*scenario_config, false);
 }
 
 SharedInfo GameEnv::get_info() {
+  CHECK(physics_steps_per_frame > 0);
   SharedInfo info;
   context->simulation->GetState(&info);
+  // Preserve the legacy observation division, but keep environment cadence
+  // out of the simulation's raw state. Do not round-trip via env coordinates.
+  for (auto* team : {&info.left_team, &info.right_team}) {
+    for (PlayerInfo& player : *team) {
+      player.player_direction /= physics_steps_per_frame;
+    }
+  }
+  info.ball_direction /= physics_steps_per_frame;
+  info.ball_rotation /= physics_steps_per_frame;
   info.step = context->step;
   return info;
 }
@@ -124,9 +130,8 @@ std::string GameEnv::set_state(const std::string& state) {
 }
 
 void GameEnv::step() {
-  // We do 10 environment steps per second, while game does 100 frames of
-  // physics animation.
-  do_step(GetGameConfig().physics_steps_per_frame);
+  CHECK(physics_steps_per_frame > 0);
+  do_step(physics_steps_per_frame);
   if (context->simulation->IsInPlay()) {
     context->step++;
   }

@@ -48,11 +48,6 @@ ScenarioConfig& GetScenarioConfig() {
   return game->scenario_config;
 }
 
-GameConfig& GetGameConfig() {
-  return game->game_config;
-}
-
-
 void randomize(unsigned int seed) {
   srand(seed);
   rand();  // Discard the first value before using the C RNG.

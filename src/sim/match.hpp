@@ -117,6 +117,7 @@ class Match {
     void BumpActualTime_ms(unsigned long time);
 
 
+    // Legacy projection with raw motion, independent of environment cadence.
     void GetTeamState(SharedInfo *state, int team_id);
     void GetState(SharedInfo* state);
     void ProcessState(EnvState* state);

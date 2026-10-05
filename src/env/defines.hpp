@@ -221,6 +221,13 @@ struct Position {
     value[2] = position[2];
     return *this;
   }
+  // Raw component division, matching Vector3's legacy float arithmetic.
+  Position& operator/=(float divisor) {
+    value[0] /= divisor;
+    value[1] /= divisor;
+    value[2] /= divisor;
+    return *this;
+  }
   bool operator == (const Position& f) const {
     return value[0] == f.value[0] &&
         value[1] == f.value[1] &&

@@ -371,8 +371,7 @@ void Match::GetTeamState(SharedInfo *state, int team_id) {
       }
       PlayerInfo info;
       info.player_position = position.coords;
-      info.player_direction =
-          (movement / GetGameConfig().physics_steps_per_frame).coords;
+      info.player_direction = movement.coords;
       info.tired_factor = 1 - player->GetFatigueFactorInv();
       info.has_card = player->HasCards();
       info.is_active = player->IsActive();
@@ -390,10 +389,8 @@ void Match::GetTeamState(SharedInfo *state, int team_id) {
 
 void Match::GetState(SharedInfo *state) {
   state->ball_position = ball->GetAveragePosition(5).coords;
-  state->ball_rotation =
-      (ball->GetRotation() / GetGameConfig().physics_steps_per_frame).coords;
-  state->ball_direction =
-      (ball->GetMovement() / GetGameConfig().physics_steps_per_frame).coords;
+  state->ball_rotation = ball->GetRotation().coords;
+  state->ball_direction = ball->GetMovement().coords;
   state->ball_owned_player = -1;
   state->ball_owned_team = -1;
   state->left_goals = GetScore(0);

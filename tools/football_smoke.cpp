@@ -36,11 +36,6 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  if (!std::getenv("GFOOTBALL_DATA_DIR")) {
-    std::cerr << "Set GFOOTBALL_DATA_DIR before running " << argv[0] << ".\n";
-    return 2;
-  }
-
   GameEnv env;
   env.start_game();
 

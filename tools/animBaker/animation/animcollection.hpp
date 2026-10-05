@@ -33,7 +33,7 @@ using namespace blunted;
 void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap);
 
 // Resolved source-asset locations. Passed explicitly so the loader does not
-// depend on the runtime global GameConfig.
+// depend on runtime environment globals.
 struct AnimationSourcePaths {
   std::string animation_dir;
   std::string template_dir;

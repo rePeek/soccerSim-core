@@ -41,26 +41,6 @@ enum e_RenderingMode {
   e_Offscreen
 };
 
-class GameConfig {
- public:
-  static SHARED_PTR<GameConfig> make() {
-    return SHARED_PTR<GameConfig>(new GameConfig());
-  }
-  // Directory with textures and other resources.
-  std::string data_dir;
-  // How many physics animation steps are done per single environment step.
-  int physics_steps_per_frame = 10;
-  std::string updatePath(const std::string& path) {
-    if (path[0] == '/') {
-      return path;
-    }
-    return data_dir + '/' + path;
-  }
- private:
-  GameConfig() { }
-  friend GameEnv;
-};
-
 struct ScenarioConfig {
  public:
   static SHARED_PTR<ScenarioConfig> make() {
@@ -233,7 +213,6 @@ void SetGame(GameEnv* c);
 GameContext& GetContext();
 
 ScenarioConfig& GetScenarioConfig();
-GameConfig& GetGameConfig();
 
 
 void run_game();

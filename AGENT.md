@@ -57,7 +57,8 @@ cmake --build --preset release
 ctest --preset release
 ```
 
-Runtime note: simulation binaries need the data directory:
+Regression fixture imports need a test-side data directory (the runtime no longer
+reads `GFOOTBALL_DATA_DIR`; it loads the configured baked animation asset):
 
 ```sh
 export GFOOTBALL_DATA_DIR="$PWD/data"
@@ -236,7 +237,12 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
   `Match` owns a read-only copy. Only legacy geometry is supported for now.
   Transitional constants in `gamedefines.hpp` derive from that same geometry.
   Configurable dimensions require migrating remaining consumers and scaling.
-- `physics_steps_per_frame` (default 10) subdivides each environment step.
+- No `GameConfig` or `GetGameConfig()` remains. `GameEnv::physics_steps_per_frame`
+  (positive, default 10) controls how many 10 ms simulation ticks one environment
+  step advances. `GameEnv::get_info()` applies the legacy player/ball direction
+  and ball rotation division using that cadence, in raw float components before
+  public-coordinate conversion. `Simulation::GetState` / `Match::GetState` expose
+  unscaled motion and never read environment cadence. Fixture paths belong to tests.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
   (`GameContext::rng`). Never introduce unordered-container iteration order or
   hidden global mutable state into simulation logic.
