@@ -1,64 +1,34 @@
 #include <cstdlib>
 #include <iostream>
-#include <string>
 
+#include "data/default_teams.hpp"
 #include "env/game_env.hpp"
 #include "support/diagnostics/backtrace.hpp"
-
-
-namespace {
-
-void PrintPosition(const char* label, const Position& position) {
-  std::cout << label << "=(" << position.env_coord(0) << ", "
-            << position.env_coord(1) << ", " << position.env_coord(2) << ')';
-}
-
-void PrintState(int iteration, const SharedInfo& state) {
-  std::cout << "iteration=" << iteration << " step=" << state.step << ' ';
-  PrintPosition("ball", state.ball_position);
-  std::cout << " score=" << state.left_goals << ':' << state.right_goals;
-
-  if (!state.left_team.empty() && !state.right_team.empty()) {
-    std::cout << ' ';
-    PrintPosition("left_player_0", state.left_team.front().player_position);
-    std::cout << ' ';
-    PrintPosition("right_player_0", state.right_team.front().player_position);
-  }
-
-  std::cout << " in_play=" << state.is_in_play << '\n';
-}
-
-}  // namespace
 
 int main(int argc, char** argv) {
   install_stacktrace();
   std::cout.precision(17);
   std::cout << std::unitbuf;
-  const int steps = argc > 1 ? std::atoi(argv[1]) : 1000;
-  if (steps < 1) {
-    std::cerr << "Usage: " << argv[0] << " [positive-step-count]\n";
+  const int ticks = argc > 1 ? std::atoi(argv[1]) : 1000;
+  if (ticks < 1) {
+    std::cerr << "Usage: " << argv[0] << " [positive-tick-count]\n";
     return 2;
   }
 
-  GameEnv env;
+  GameEnv env{football::data::MakeDefaultHomeTeam(),
+              football::data::MakeDefaultAwayTeam(),
+              football::model::MakeLegacyPitch()};
   env.start_game();
-
-  auto config = ScenarioConfig::make();
-  config->left_agents = 0;
-  config->right_agents = 0;
-  config->real_time = false;
-  config->deterministic = true;
-  config->game_engine_random_seed = 42;
-
-  // Empty formations deliberately use TeamData's built-in 11-player formation.
-  env.reset(*config, false);
-
-  for (int i = 0; i < steps; ++i) {
+  for (int tick = 0; tick < ticks; ++tick) {
     env.step();
-    if (i == 0 || (i + 1) % 100 == 0 || i + 1 == steps) {
-      PrintState(i + 1, env.get_info());
+    if (tick == 0 || (tick + 1) % 100 == 0 || tick + 1 == ticks) {
+      const WorldState world = env.observe();
+      std::cout << "tick=" << world.tick << " players=" << world.players.size()
+                << " ball=(" << world.ball_position.coords[0] << ", "
+                << world.ball_position.coords[1] << ", "
+                << world.ball_position.coords[2] << ")\n";
     }
   }
-
+  env.stop_game();
   return 0;
 }

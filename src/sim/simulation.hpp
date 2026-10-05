@@ -30,7 +30,7 @@ class Simulation {
   bool Stop();
   void Step(const PlayerControlSet& controls);
   void ProcessState(EnvState* state);
-  // Legacy projection with unscaled motion; GameEnv applies cadence conversion.
+  // Internal legacy projection with raw motion. Core clients use Observe().
   void GetState(SharedInfo* state);
   bool IsInPlay() const;
   WorldState Observe() const;

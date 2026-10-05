@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
       environment.step();
     }
 
-    const WorldState world = environment.Observe();
+    const WorldState world = environment.observe();
     std::cout << "tick=" << world.tick << " players=" << world.players.size()
               << "\n";
 

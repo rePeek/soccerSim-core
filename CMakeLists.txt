@@ -86,8 +86,13 @@ endforeach()
 
 # --- tests ------------------------------------------------------------------
 add_executable(football_smoke tools/football_smoke.cpp)
-target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME})
+target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME} football_data)
 football_configure_target(football_smoke)
+
+add_executable(football_game_env_test tools/game_env_test.cpp)
+target_link_libraries(football_game_env_test PRIVATE ${OUTPUT_LIB_NAME} football_data)
+football_configure_target(football_game_env_test)
+add_test(NAME football_game_env_test COMMAND football_game_env_test)
 
 add_executable(football_control_test tools/player_control_set_test.cpp)
 target_link_libraries(football_control_test PRIVATE football_control)

@@ -26,6 +26,7 @@
 #include "env/main.hpp"
 #include "env/game_env.hpp"
 #include "env/rng.hpp"
+#include "sim/match.hpp"
 
 using std::string;
 
@@ -37,7 +38,7 @@ thread_local GameEnv* game;
 GameEnv* GetGame() { return game; }
 
 GameContext& GetContext() {
-  return *game->context;
+  return *game->context_;
 }
 
 void SetGame(GameEnv* c) { game = c; }
@@ -45,7 +46,7 @@ void SetGame(GameEnv* c) { game = c; }
 
 
 ScenarioConfig& GetScenarioConfig() {
-  return game->scenario_config;
+  return *game->scenario_config_;
 }
 
 void randomize(unsigned int seed) {
@@ -60,22 +61,22 @@ void run_game() {
     const e_PlayerColor color =
         e_PlayerColor(x % (e_PlayerColor_Default + 1));
     auto* controller = new AIControlledKeyboard(color);
-    game->context->checkpointControllers.push_back(controller);
-    game->context->controllerSet.Add(*controller);
+    GetContext().checkpointControllers.push_back(controller);
+    GetContext().controllerSet.Add(*controller);
   }
   // sequences
 
-  game->context->simulation = std::make_unique<Simulation>();
+  GetContext().simulation = std::make_unique<Simulation>();
 }
   // fire!
 
 void quit_game() {
-  game->context->simulation.reset();
+  GetContext().simulation.reset();
 
-  for (AIControlledKeyboard* controller : game->context->checkpointControllers) {
+  for (AIControlledKeyboard* controller : GetContext().checkpointControllers) {
     delete controller;
   }
-  game->context->checkpointControllers.clear();
+  GetContext().checkpointControllers.clear();
 
 
 
@@ -88,14 +89,14 @@ void GameContext::ProcessState(EnvState* state) {
   }
   if (state->Load()) {
     EnvState reader(game, "");
-    game->scenario_config.ProcessStateConstant(&reader);
+    GetScenarioConfig().ProcessStateConstant(&reader);
     if (reader.GetState() != state->GetState().substr(state->getpos(),
         reader.GetState().length())) {
       Log(e_FatalError, "football", "set_state",
           "Current environment scenario != scenario in the state.");
     }
   }
-  game->scenario_config.ProcessStateConstant(state);
-  game->scenario_config.ProcessState(state);
+  GetScenarioConfig().ProcessStateConstant(state);
+  GetScenarioConfig().ProcessState(state);
   state->process(step);
 }

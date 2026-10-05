@@ -13,29 +13,27 @@
 
 #undef NDEBUG
 
-#include "support/diagnostics/log.hpp"
 #include "env/game_env.hpp"
-#include "env/model_adapter.hpp"
 
-#include <string>
 #include <utility>
 
+#include "env/main.hpp"
+#include "env/model_adapter.hpp"
 #include "support/diagnostics/assert.hpp"
-
-using std::string;
+#include "support/diagnostics/log.hpp"
 
 namespace {
 
 class ContextHolder {
  public:
-  ContextHolder(GameEnv* game) : game(game) { SetGame(game); }
+  explicit ContextHolder(GameEnv* game) : game_(game) { SetGame(game); }
   ~ContextHolder() {
-    if (GetGame() != game) {
-      Log(e_FatalError, "football", "main", "game state was corrupted");
+    if (GetGame() != game_) {
+      Log(blunted::e_FatalError, "football", "main", "game state was corrupted");
     }
   }
  private:
-  const GameEnv* game;
+  const GameEnv* game_;
 };
 
 }  // namespace
@@ -44,106 +42,57 @@ GameEnv::GameEnv(football::model::Team home, football::model::Team away,
                  football::model::Pitch pitch)
     : home_team_(std::move(home)),
       away_team_(std::move(away)),
-      pitch_(std::move(pitch)) {}
+      pitch_(std::move(pitch)),
+      scenario_config_(new ScenarioConfig()) {}
 
 GameEnv::~GameEnv() {
+  stop_game();
+}
+
+void GameEnv::stop_game() {
   GameEnv* previous = GetGame();
-  if (context) {
-    // Legacy teardown uses GetContext(), so bind this environment until all
-    // context-owned resources have been destroyed.
+  if (context_) {
+    // Legacy teardown still uses GetContext(). Preserve another active game.
     SetGame(this);
     quit_game();
-    context.reset();
+    context_.reset();
   }
+  controls_.Clear();
   SetGame(previous == this ? nullptr : previous);
 }
 
-void GameEnv::do_step(int count) {
-  while (count--) {
-    context->simulation->Step(controls_);
-  }
-}
-
 void GameEnv::start_game() {
-  assert(context == nullptr);
-  context = std::make_unique<GameContext>();
+  CHECK(!context_);
+  context_ = std::make_unique<GameContext>();
   ContextHolder c(this);
-
   run_game();
-  auto scenario_config = ScenarioConfig::make();
-  init(*scenario_config, false);
+  init_legacy();
 }
 
-SharedInfo GameEnv::get_info() {
-  CHECK(physics_steps_per_frame > 0);
-  SharedInfo info;
-  context->simulation->GetState(&info);
-  // Preserve the legacy observation division, but keep environment cadence
-  // out of the simulation's raw state. Do not round-trip via env coordinates.
-  for (auto* team : {&info.left_team, &info.right_team}) {
-    for (PlayerInfo& player : *team) {
-      player.player_direction /= physics_steps_per_frame;
-    }
-  }
-  info.ball_direction /= physics_steps_per_frame;
-  info.ball_rotation /= physics_steps_per_frame;
-  info.step = context->step;
-  return info;
-}
-
-WorldState GameEnv::Observe() const {
-  return context->simulation->Observe();
-}
-
-
-
-std::string GameEnv::get_state(const std::string& pickle) {
+void GameEnv::reset_game() {
+  CHECK(context_ && context_->simulation);
   ContextHolder c(this);
-  EnvState reader(this, "");
-  string mutable_picke = pickle;
-  reader.process(mutable_picke);
-  ProcessState(&reader);
-  return reader.GetState();
-}
-
-std::string GameEnv::set_state(const std::string& state) {
-  SetGame(this);
-  EnvState writer(this, state);
-  string pickle;
-  writer.process(pickle);
-  ProcessState(&writer);
-  if (!writer.eos()) {
-    Log(e_FatalError, "football", "main", "corrupted state");
-  }
-  return pickle;
+  context_->simulation->Stop();
+  init_legacy();
 }
 
 void GameEnv::step() {
-  CHECK(physics_steps_per_frame > 0);
-  do_step(physics_steps_per_frame);
-  if (context->simulation->IsInPlay()) {
-    context->step++;
-  }
+  CHECK(context_ && context_->simulation);
+  ContextHolder c(this);
+  context_->simulation->Step(controls_);
 }
 
-void GameEnv::ProcessState(EnvState* state) {
-  state->process(this->state);
-  state->process(waiting_for_game_count);
-  context->ProcessState(state);
-  context->simulation->ProcessState(state);
+WorldState GameEnv::observe() const {
+  CHECK(context_ && context_->simulation);
+  ContextHolder c(const_cast<GameEnv*>(this));
+  return context_->simulation->Observe();
 }
 
-void GameEnv::init(const ScenarioConfig& game_config, bool animations) {
+void GameEnv::init_legacy() {
   ContextHolder c(this);
   controls_.Clear();
-  context->step = -1;
-  waiting_for_game_count = 0;
-  scenario_config = ToRuntimeScenario(game_config, home_team_, away_team_);
-  context->simulation->Init(home_team_, away_team_, pitch_, scenario_config,
-                            context->controllerSet, animations);
-}
-
-void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {
-  context->simulation->Stop();
-  init(game_config, animations);
+  context_->step = -1;
+  *scenario_config_ = ToRuntimeScenario(*ScenarioConfig::make(), home_team_, away_team_);
+  context_->simulation->Init(home_team_, away_team_, pitch_, *scenario_config_,
+                            context_->controllerSet, false);
 }

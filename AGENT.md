@@ -9,9 +9,9 @@ It is a heavily modified fork of
 [BazkieBumpercar/GameplayFootball](https://github.com/BazkieBumpercar/GameplayFootball),
 which itself descends from Google Research Football and the `blunted2` engine.
 
-The engine is deterministic, animation/physics driven, and exposes a `GameEnv` API
-that mirrors the Google Research Football `gfootball` environment (observations as
-`SharedInfo`, discrete `action()`, `reset(config)`, and binary `get_state`/`set_state`).
+The engine is deterministic, animation/physics driven, and exposes a core `GameEnv`
+API: explicitly declared teams/pitch, start/reset/stop, one 10 ms tick per `step()`,
+controls and `WorldState` observations. The GRF environment adapter is removed.
 
 - Remote: `git@github.com:rePeek/soccerSim-core.git`
 - License: Apache-2.0 (`LICENSE`); the `blunted` foundation code is public domain
@@ -69,16 +69,23 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 
 ### Test targets
 
-- `football_regression` — the safety net. ~4200 lines in `tools/football_regression.cpp`:
-  unit checks (kinematics, body facing, locomotion, colliders, schedulers, command
-  adapters), golden-snapshot comparison, save/load round-trips, symmetry
-  (`reverse_team_processing`) and A/B animation perturbation checks. Requires
-  `GFOOTBALL_DATA_DIR`. Flags: `--print-baseline` (regenerate golden), `--animation-ab`,
-  `--animation-ab-lifecycle`.
+- `football_regression` — core simulation regression (`tools/football_regression.cpp`):
+  preserved independent kinematics, body facing, locomotion, collider, scheduler
+  and command-adapter checks; 100 Hz raw WorldState goldens, authoritative-state
+  and RNG reset/replay checks, model ownership, canonical frames and offline import
+  fixtures. Animation A/B branches reset/replay rather than load a checkpoint.
+  `--print-baseline`, `--animation-ab`, `--animation-ab-lifecycle` remain available.
+  Only offline import fixtures require `GFOOTBALL_DATA_DIR`. The former GRF
+  projection/cadence, episode-override and legacy checkpoint assertions and
+  GRF-specific telemetry were retired with that interface. These new core goldens
+  intentionally do not represent the removed 100 ms GRF observation contract.
 - `football_model_test` — STL-only domain-model checks (`tools/model_test.cpp`),
   linked solely to `football::model`; does not initialize a simulation or need data.
-- `football_smoke` — minimal `GameEnv` headless run (`tools/football_smoke.cpp`);
-  optional positional arg is the step count (default 1000).
+- `football_game_env_test` — core API checks (`tools/game_env_test.cpp`): no default
+  constructor or legacy surface, one-tick stepping, reset/restart determinism,
+  retained observations and independently stepped live environments.
+- `football_smoke` — core `GameEnv` headless run (`tools/football_smoke.cpp`);
+  optional positional arg is the simulation tick count (default 1000).
 - `football_headless_core_guard` — shell test (`tools/football_headless_core_guard.sh`)
   asserting `libgame.so` has no graphics `NEEDED` deps (SDL/GL/X11…) and that `src/`
   has no graphics include. **Do not add graphics or Boost dependencies to core.**
@@ -188,10 +195,10 @@ files are inputs to the regression baseline.
 ## Runtime data flow
 
 ```
-main() [src/env/main.cpp]        thread_local GameEnv* game;
-  → run_game()                   builds GameContext + Simulation + AIControlledKeyboard[]
-  → GameEnv [src/env/game_env.*] start_game / reset(config) / step / action /
-                                  get_info→SharedInfo / get_state / set_state
+main() [src/app/app.cpp]
+  → GameEnv(home, away, pitch) [src/env/game_env.*]
+      start_game / reset_game / stop_game / step / controls / observe→WorldState
+      → private GameContext (legacy runtime container; RNG, controllers, animation)
       → Simulation [src/sim/simulation.*] builds MatchData and owns match lifecycle
           → Match [src/sim/match.*]::Step()         per-tick loop (10ms steps)
               → Ball::Process()                  physics + prediction buffer
@@ -205,14 +212,15 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
   `env/defines.cpp`. Stack-trace installation and console formatting belong to
   application/tool entry points, never to `GameEnv::start_game()`.
 - Static composition uses `football::model::Team`, `Player`, `Formation` and
-  `Pitch` (`src/model/`). `GameEnv(home, away, pitch)` retains these descriptions
-  across resets; no `MatchSetup`/`TeamSetup`/`PlayerSetup` layer remains. The default
-  `GameEnv()` still supports legacy ScenarioConfig-only callers. Non-empty scenario
-  formations override model positions without replacing the retained roster.
-- No `MatchConfig` or heap-allocated startup wrapper remains. `GameEnv::init`
-  retains the converted episode input and passes its two team models and pitch
-  directly to `Simulation::Init`. Default team descriptions are ordinary empty
-  values, not a pair of optionals; legacy roster fallback happens in runtime data.
+  `Pitch` (`src/model/`). `GameEnv(home, away, pitch)` requires explicit descriptions
+  and retains them across reset/restart. There is no default `GameEnv()`, public
+  runtime state, public episode configuration or startup/composition wrapper.
+- `GameEnv::init_legacy` privately prepares the runtime episode and passes team
+  models/pitch to `Simulation::Init`. `GameContext` and the legacy episode input
+  remain opaque implementation details, not new model or configuration layers.
+- The GRF compatibility adapter is deleted completely: no substitute shim, test
+  support adapter, duplicate owner or public cadence/checkpoint API. Regression
+  uses the core interface; internal simulation diagnostics may inspect GetContext.
 - Simulation creates `MatchData`, then applies the episode RNG seed, then creates
   match actors. Preserve that order: legacy profile constructors consume RNG
   before reseeding. The explicit `ScenarioConfig` argument remains a transitional
@@ -241,12 +249,16 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
   `Match` owns a read-only copy. Only legacy geometry is supported for now.
   Transitional constants in `gamedefines.hpp` derive from that same geometry.
   Configurable dimensions require migrating remaining consumers and scaling.
-- No `GameConfig` or `GetGameConfig()` remains. `GameEnv::physics_steps_per_frame`
-  (positive, default 10) controls how many 10 ms simulation ticks one environment
-  step advances. `GameEnv::get_info()` applies the legacy player/ball direction
-  and ball rotation division using that cadence, in raw float components before
-  public-coordinate conversion. `Simulation::GetState` / `Match::GetState` expose
-  unscaled motion and never read environment cadence. Fixture paths belong to tests.
+- Core `GameEnv::step()` calls `Simulation::Step` exactly once (10 ms). There is no
+  `physics_steps_per_frame`, batching helper or observation scaling on its API.
+  Callers batch explicitly with a loop. `observe()` returns raw `WorldState` values.
+  The CLI `--steps=N` now means N simulation ticks, not N legacy 100 ms frames.
+- `Simulation::GetState` / `Match::GetState` are still internal unscaled legacy
+  projections; they are not exposed through `GameEnv`. `ScenarioConfig`, `EnvState`
+  and `GetContext` still have simulation-internal users and are a separate migration.
+  The internal `animations` flag affects referee restart timing, not just rendering;
+  its existing false/default behavior is preserved. No `GameConfig` or ambient
+  cadence wrapper remains. Fixture paths belong to tests.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
   (`GameContext::rng`). Never introduce unordered-container iteration order or
   hidden global mutable state into simulation logic.
