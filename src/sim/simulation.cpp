@@ -15,8 +15,7 @@ Simulation::~Simulation() {
 void Simulation::Init(
     const football::model::Team& home, const football::model::Team& away,
     const football::model::Pitch& pitch, const ScenarioConfig& scenario,
-    const ControllerSet& controllers, bool init_animation,
-    const std::vector<ControllerAssignment>& assignments) {
+    bool init_animation) {
   assert(!match_);
   auto match_data = std::make_unique<MatchData>(
       ToTeamCreationData(home, kHomeTeamDatabaseId, scenario.left_team),
@@ -32,8 +31,8 @@ void Simulation::Init(
   options.use_magnet = scenario.use_magnet;
   options.left_team_difficulty = scenario.left_team_difficulty;
   options.right_team_difficulty = scenario.right_team_difficulty;
-  match_ = std::make_unique<Match>(std::move(match_data), controllers, pitch,
-                                  options, init_animation, assignments);
+  match_ = std::make_unique<Match>(std::move(match_data), pitch, options,
+                                  init_animation);
 }
 
 void Simulation::Step(const PlayerControlSet& controls) {

@@ -94,5 +94,5 @@ void GameEnv::init_legacy() {
   context_->step = -1;
   *scenario_config_ = ToRuntimeScenario(*ScenarioConfig::make(), home_team_, away_team_);
   context_->simulation->Init(home_team_, away_team_, pitch_, *scenario_config_,
-                            context_->controllerSet, false);
+                             false);
 }

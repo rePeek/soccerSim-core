@@ -59,16 +59,12 @@ const std::vector<Vector3> &Match::GetAnimPositionCache(
 }
 
 Match::Match(std::unique_ptr<MatchData> match_data,
-             const ControllerSet& controllers,
              const football::model::Pitch& pitch,
-             const MatchOptions& options, bool animations,
-             const std::vector<ControllerAssignment>& assignments)
+             const MatchOptions& options, bool animations)
     : matchData(std::move(match_data)),
       pitch_(pitch),
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
-      controllers(controllers),
-      controller_assignments_(assignments),
       possessionSideHistory(6000),
       matchDurationFactor(options.match_duration * 0.2f + 0.05f),
       _useMagnet(options.use_magnet) {
@@ -183,27 +179,6 @@ void Match::Exit() {
 }
 
 
-void Match::UpdateControllerSetup() {
-  const std::vector<ControllerAssignment>& controller = controller_assignments_;
-  std::vector<ControllerInput*> left_players;
-  std::vector<ControllerInput*> right_players;
-  for (unsigned int i = 0; i < controller.size(); i++) {
-    float mirror = 1.0;
-    if (controller[i].side == -1) {
-      left_players.push_back(controllers.at(controller[i].controller_id));
-    } else if (controller[i].side == 1) {
-      right_players.push_back(controllers.at(controller[i].controller_id));
-      if (teams[1]->GetDynamicSide() == -1) {
-        mirror = -1.0;
-      }
-    }
-    controllers.at(controller[i].controller_id)->Mirror(mirror);
-  }
-  teams[0]->AddHumanGamers(left_players);
-  teams[1]->AddHumanGamers(right_players);
-}
-
-
 void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
   teams[teamID]->GetActivePlayers(players);
 }
@@ -273,7 +248,6 @@ void Match::ProcessState(EnvState* state) {
   std::vector<Player*> players;
   teams[first_team]->GetAllPlayers(players);
   teams[second_team]->GetAllPlayers(players);
-  state->SetControllers(controllers);
   state->SetPlayers(players);
   state->SetTeams(teams[first_team], teams[second_team]);
 
@@ -289,26 +263,14 @@ void Match::ProcessState(EnvState* state) {
   teams[first_team]->GetHumanControllers(humanControllers);
   teams[second_team]->GetHumanControllers(humanControllers);
   state->SetHumanControllers(humanControllers);
+  for (HumanGamer* human : humanControllers) {
+    state->ProcessControllerState(human->GetHIDevice());
+  }
   for (auto &player : players) {
     player->ProcessState(state);
   }
   matchData->ProcessState(state, first_team);
   officials->ProcessState(state);
-  {
-    std::vector<HumanGamer*> human_gamers;
-    std::set<ControllerInput*> visited;
-    teams[first_team]->GetHumanControllers(human_gamers);
-    teams[second_team]->GetHumanControllers(human_gamers);
-    for (auto& c : human_gamers) {
-      state->ProcessControllerState(c->GetHIDevice());
-      visited.insert(c->GetHIDevice());
-    }
-    for (auto* controller : controllers.controllers()) {
-      if (!visited.count(controller)) {
-        state->ProcessControllerState(controller);
-      }
-    }
-  }
   ball->ProcessState(state);
   state->process(matchTime_ms);
   state->process(actualTime_ms);

@@ -41,7 +41,6 @@ class Player;
 class Team;
 class HumanGamer;
 class AIControlledKeyboard;
-class ControllerSet;
 class ScenarioConfig;
 class GameContext;
 class GameEnv;
@@ -146,7 +145,6 @@ class EnvState {
   void SetPlayers(const std::vector<Player*>& players) { this->players = players; }
   void SetHumanControllers(const std::vector<HumanGamer*>& controllers) { this->human_controllers = controllers; }
   void SetControllers(const std::vector<AIControlledKeyboard*>& controllers) { this->controllers = controllers; }
-  void SetControllers(const ControllerSet& controllers);
   void SetTeams(Team* team0, Team* team1) {
     this->teams.push_back(team0);
     this->teams.push_back(team1);

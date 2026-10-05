@@ -127,7 +127,7 @@ src/
 │       ├── controller/  icontroller, playercontroller（私有方向量化）, humancontroller,
 │       │                elizacontroller, refereecontroller, strategies/offtheball/*
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
-├── controller/      协议无关的控制输入接口，以及 GRF action 适配器
+├── controller/      legacy input 迁移尾巴：ControllerSet 已无人读取，只剩 GameContext 写入
 ├── state/           对外运行时值快照（依赖 model 身份类型与 foundation 数学）
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
@@ -226,8 +226,17 @@ main() [src/app/app.cpp]
   before reseeding. The explicit `ScenarioConfig` argument remains a transitional
   episode input, not a new model or an ambient read.
 - `sim/match_options.hpp` holds only time/rule/difficulty values snapshotted by
-  simulation. Pitch and runtime ownership are separate constructor arguments;
-  controller assignments live in `controller/controller_set.hpp`.
+  simulation. Pitch and runtime ownership are separate constructor arguments.
+- `Simulation::Init` and `Match` no longer take or store a controller registry.
+  `Match::UpdateControllerSetup` and `Match::controller_assignments_` are deleted.
+  Players read `PlayerControlSet` first (`PlayerBase::RequestCommand`); otherwise the
+  per-player `ElizaController` created by `Player` decides.
+- `GameContext::controllerSet` and `controllerSet.Add()` in `run_game()` are now
+  write-only legacy state: no reader remains. With no controller assignments,
+  `Team::AddHumanGamers` is unreachable, so `externalController` is always null and
+  the human-input path is dormant. The unreachable checkpoint cluster (`EnvState`,
+  every `ProcessState`, `checkpointControllers`, `AIControlledKeyboard` registry)
+  is the next removal; do not add new readers to any of it.
 - `model::Player` owns its static identity, appearance and all 22 base abilities.
   `PlayerStat` and `PlayerAttributes` live together in `src/model/player.hpp`.
   `PlayerDatabaseId` is provenance, not a request to reload values at startup; it

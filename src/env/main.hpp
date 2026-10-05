@@ -24,6 +24,7 @@ class AIControlledKeyboard;
 
 
 #include "sim/simulation.hpp"
+#include "controller/controller_set.hpp"
 #include "sim/gamedefines.hpp"
 #include "env/rng.hpp"
 #include "animation/library.hpp"

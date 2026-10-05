@@ -24,7 +24,7 @@
 #include "sim/officials.hpp"
 #include "sim/value_history.hpp"
 
-#include "controller/controller_set.hpp"
+#include "controller/controller_input.hpp"
 #include "data/matchdata.hpp"
 #include "sim/match_options.hpp"
 #include "model/pitch.hpp"
@@ -46,16 +46,13 @@ class Match {
 
   public:
     Match(std::unique_ptr<MatchData> matchData,
-          const ControllerSet& controllers,
           const football::model::Pitch& pitch,
-          const MatchOptions& options, bool init_animation,
-          const std::vector<ControllerAssignment>& assignments = {});
+          const MatchOptions& options, bool init_animation);
     virtual ~Match();
 
     void Exit();
     void Mirror(bool team_0, bool team_1, bool ball);
 
-    void UpdateControllerSetup();
     int GetScore(int teamID) { return matchData->GetGoalCount(teamID); }
     Ball *GetBall() const { return ball; }
     Team *GetTeam(int teamID) const { return teams[teamID]; }
@@ -161,8 +158,6 @@ class Match {
 
 
 
-    const ControllerSet& controllers;
-    std::vector<ControllerAssignment> controller_assignments_;
 
     Ball *ball = nullptr;
 
