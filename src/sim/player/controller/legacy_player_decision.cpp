@@ -15,17 +15,17 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "sim/player/controller/icontroller.hpp"
+#include "sim/player/controller/legacy_player_decision.hpp"
 
 #include <cmath>
 
 #include "sim/match.hpp"
 #include "sim/player/player.hpp"
 
-void IController::SetPlayer(Player *player) {
+void LegacyPlayerDecision::SetPlayer(Player *player) {
   this->player = player;
 }
 
-int IController::GetReactionTime_ms() {
+int LegacyPlayerDecision::GetReactionTime_ms() {
   return int(std::round(80.0f - player->GetStat(football::model::PlayerStat::physical_reaction) * 40.0f));
 }

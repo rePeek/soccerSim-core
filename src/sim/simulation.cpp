@@ -10,6 +10,8 @@
 #include "sim/animation/library.hpp"
 
 #include "support/diagnostics/log.hpp"
+#include "sim/player/controller/eliza_decision_factory.hpp"
+#include "sim/team_ai_decision_factory.hpp"
 
 #include "sim/match.hpp"
 #include "sim/match_world_state.hpp"
@@ -103,7 +105,9 @@ void ValidatePlayers(const football::model::Team& home, const football::model::T
 
 }  // namespace
 
-Simulation::Simulation() {
+Simulation::Simulation()
+    : player_decision_factory_(MakeElizaPlayerDecisionFactory()),
+      team_decision_factory_(MakeTeamAiDecisionFactory()) {
   // The pre-match profile draws historically ran on an RNG freshly seeded with
   // 0, before the episode seed was applied in Init(). Keep that exact window.
   rng_.Seed(0);
@@ -137,7 +141,8 @@ void Simulation::Init(
 
   EnsureAnimationLibrary();
   match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
-                                  animations_, init_animation);
+                                  animations_, player_decision_factory_,
+                                  team_decision_factory_, init_animation);
 }
 
 void Simulation::EnsureAnimationLibrary() {

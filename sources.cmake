@@ -78,7 +78,9 @@ set(GAME_HEADERS
    src/sim/player/player_action_executor.hpp
    src/sim/player/player_action_volume.hpp
    src/sim/player/player.hpp
-   src/sim/player/controller/icontroller.hpp
+   src/sim/player/controller/legacy_player_decision.hpp
+   src/sim/player/controller/legacy_player_decision_factory.hpp
+   src/sim/player/controller/eliza_decision_factory.hpp
    src/sim/player/controller/elizacontroller.hpp
    src/sim/player/controller/humancontroller.hpp
    src/sim/player/controller/playercontroller.hpp
@@ -97,6 +99,9 @@ set(GAME_HEADERS
    src/sim/value_history.hpp
    src/sim/ai_support/AIfunctions.hpp
    src/sim/ai_support/mentalimage.hpp
+   src/sim/legacy_team_decision.hpp
+   src/sim/legacy_team_decision_factory.hpp
+   src/sim/team_ai_decision_factory.hpp
    src/sim/teamAIcontroller.hpp
 )
 
@@ -110,7 +115,8 @@ set(GAME_SOURCES
    src/sim/player/player_locomotion.cpp
    src/sim/player/controller/playercontroller.cpp
    src/sim/player/controller/humancontroller.cpp
-   src/sim/player/controller/icontroller.cpp
+   src/sim/player/controller/legacy_player_decision.cpp
+   src/sim/player/controller/eliza_decision_factory.cpp
    src/sim/player/controller/elizacontroller.cpp
    src/sim/player/controller/strategies/strategy.cpp
    src/sim/player/controller/strategies/offtheball/default_mid.cpp
@@ -128,6 +134,7 @@ set(GAME_SOURCES
    src/sim/ai_support/AIfunctions.cpp
    src/sim/team.cpp
    src/sim/teamAIcontroller.cpp
+   src/sim/team_ai_decision_factory.cpp
 )
 
 

@@ -519,7 +519,7 @@ float HumanController::GetFloatVelocity() {
 }
 
 int HumanController::GetReactionTime_ms() {
-  return IController::GetReactionTime_ms(); // already have human reaction time to contend with
+  return LegacyPlayerDecision::GetReactionTime_ms(); // already have human reaction time to contend with
 }
 
 void HumanController::Reset() {

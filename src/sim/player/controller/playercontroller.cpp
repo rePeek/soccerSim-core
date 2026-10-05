@@ -49,7 +49,7 @@ void QuantizeDirection(Vector3 &inputDirection, float bias) {
 
 }  // namespace
 
-PlayerController::PlayerController(Match *match) : IController(match) {
+PlayerController::PlayerController(Match *match) : LegacyPlayerDecision(match) {
   Reset();
 }
 
@@ -60,7 +60,7 @@ void PlayerController::Process() {
 }
 
 void PlayerController::SetPlayer(Player *player) {
-  IController::SetPlayer(player);
+  LegacyPlayerDecision::SetPlayer(player);
   this->team = CastPlayer()->GetTeam();
   this->oppTeam = match->GetTeam(abs(this->team->GetID() - 1));
   assert(this->oppTeam);
@@ -75,7 +75,7 @@ const MentalImage *PlayerController::GetMentalImage() {
 }
 
 int PlayerController::GetReactionTime_ms() {
-  int reactionTime_ms = IController::GetReactionTime_ms();
+  int reactionTime_ms = LegacyPlayerDecision::GetReactionTime_ms();
   reactionTime_ms += (1.0f - GetTeam()->GetAiDifficulty()) * 100;
   return reactionTime_ms;
 }

@@ -18,24 +18,24 @@
 #ifndef _HPP_FOOTBALL_ONTHEPITCH_PLAYERCONTROLLER
 #define _HPP_FOOTBALL_ONTHEPITCH_PLAYERCONTROLLER
 
-#include "sim/player/controller/icontroller.hpp"
+#include "sim/player/controller/legacy_player_decision.hpp"
 
-class PlayerController : public IController {
+class PlayerController : public LegacyPlayerDecision {
 
   public:
     PlayerController(Match *match);
     virtual ~PlayerController() { };
 
-    virtual void Process();
+    void Process() override;
 
     void SetPlayer(Player *player) override;
     Player *CastPlayer();
     Team *GetTeam() { return team; }
     Team *GetOppTeam() { return oppTeam; }
 
-    const MentalImage *GetMentalImage();
+    const MentalImage *GetMentalImage() override;
 
-    virtual int GetReactionTime_ms();
+    int GetReactionTime_ms() override;
 
     float GetLastSwitchBias();
 

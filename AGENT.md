@@ -149,14 +149,19 @@ src/
 │   │                   运行时只读（baked schema + 选择器）：clip, library,
 │   │                   baked_selector, simanim_format, types, selection_*, quadrant
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
-│   ├── simulation, match, match_options（仅规则参数）, team, ball, referee（规则）, humangamer, teamAIcontroller
+│   ├── simulation, match, match_options（仅规则参数）, team, ball, referee（规则）, humangamer
+│   ├── legacy_team_decision, legacy_team_decision_factory  见下方迁移说明（临时 seam）
+│   ├── team_ai_decision_factory  临时的默认 team 决策工厂（随后搬入 ai/）
+│   ├── teamAIcontroller         legacy team 决策实现（随后搬入 ai/）
 │   ├── formation       role adaptation / personal-space 归一化（纯算法，无 DB 查找）
 │   ├── ai_support/     AIfunctions, mentalimage
 │   └── player/
 │       ├── player（具体 runtime；仅模型 PlayerId 与私有 schedule_phase_，无 runtime index）, player_locomotion, *_collider,
 │       │   player_action*, *_scheduler, player_kinematics, player_body_facing
-│       ├── controller/  icontroller, playercontroller（私有方向量化）, humancontroller,
-│       │                elizacontroller, strategies/offtheball/*
+│       ├── controller/  legacy_player_decision（端口）, legacy_player_decision_factory,
+│       │                eliza_decision_factory（临时默认工厂）, playercontroller（Eliza/Human 共用的
+│       │                legacy command planner）, humancontroller, elizacontroller（随后搬入 ai/）,
+│       │                strategies/offtheball/*（随后搬入 ai/）
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
 ├── controller/      协议无关控制输入接口（controller_input/external_controller）
 ├── observation/     对外观测契约：WorldState / WorldPlayerState 值类型
@@ -238,6 +243,51 @@ compiler cannot see them either); removing one stays a review item.
   不要在环境所有权工作中删除仍有 reader 的 ControllerInput。
 - `env/rng.*` 已删除；确定性的 `SimulationRng` 由 `Simulation` 持有，算法本体在
   `foundation/math/rng.hpp`。没有全局 RNG 入口；正常重构不得额外抽取随机数。
+
+
+### 决策层迁移（进行中，第 1 阶段已完成）
+
+**不变式：`sim` 永不 include `ai`。** 同一 `.so` 里可以有多个单向依赖模块，
+所以“默认 AI 是否链进 libgame.so”（当前选 A，包含）与依赖方向是两件事。
+先锁死方向，以后拆成 `libfootball_core.so` + `libfootball_ai.so` 才容易。
+
+最终形态（尚未到达）：
+
+```text
+WorldState + TacticalBoard
+        ↓
+     PlayerAI
+        ↓
+  PlayerControlSet
+        ↓
+    Simulation          // 不应当知道 IController/决定对象的任何事
+```
+
+第 1 阶段只做 dependency inversion，不重新定义领域模型，不搬文件，goldens 不变：
+
+- `LegacyPlayerDecision`（原 `IController`）与 `LegacyTeamDecision` 是 sim 侧的**抽象
+  端口**；`Player` 持有 `unique_ptr<LegacyPlayerDecision>`，`Team` 持有
+  `unique_ptr<LegacyTeamDecision>`，两者都不再 new 具体实现。
+- 构造通过 `LegacyPlayerDecisionFactory` / `LegacyTeamDecisionFactory` 注入；
+  `Simulation` 目前持有默认工厂（`eliza_decision_factory.*` /
+  `team_ai_decision_factory.*`），这是 **A 模式的临时便利**，第 2 阶段会移到组合根，
+  绝不能把默认实现定义在 `env`（否则形成 `env -> ai`，A→B 就不再便宜）。
+- 这两个端口是**脚手架**，不是公共 API：命名带 `Legacy` 正是为了避免被当成终局
+  设计。`LegacyTeamDecision` 第一版故意很胖，因为 set-piece taker、attacking run /
+  team pressure 计时器这类**比赛状态**还挂在决策者身上；这些应在第 4 阶段搬回
+  match/rules，然后端口收缩。不要把它“整理”成一个漂亮的 `ITeamController`。
+- `HumanController` / `HumanGamer` **不搬进 `ai/`**：`HumanGamer` 是 player selection /
+  input ownership，`HumanController` 是输入到 legacy command 的适配，它们不是 AI。
+  `PlayerController` 也暂时留在 sim，因为它是 Eliza 与 Human 共用的 legacy
+  execution/planning 基类。
+
+后续阶段：**2)** 把 `elizacontroller`、`strategies/*`、`teamAIcontroller`（连默认工厂）
+搬入 `src/ai/`，新增 `football_ai`（依赖 sim/control/controller/foundation/model），ai 实现
+上述端口；**3)** 拆 `AIfunctions`（AI-only → ai；runtime/rules/execution → sim；删掉零
+调用者的 `AI_GetAutoPass`），并把名字恢复真实语义（`sim/query/`、`sim/rules/offside`、
+`sim/player/kick_targeting` vs `ai/formation`、`ai/dribble`、`ai/positioning`）；**4)** 消除胖
+team 端口里的 simulation state；**5)** 最后才把 legacy 端口迁向
+`WorldState`/`TacticalBoard` → `PlayerControlSet`。
 
 机械守卫（CTest，改坏边界会直接失败）：
 

@@ -24,8 +24,8 @@
 #include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/team.hpp"
-#include "sim/player/controller/elizacontroller.hpp"
-#include "sim/player/controller/strategies/strategy.hpp"
+#include "sim/player/controller/legacy_player_decision.hpp"
+#include "sim/ai_support/AIfunctions.hpp"
 #include "sim/player/player_action_executor.hpp"
 #include "sim/player/player_locomotion.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
@@ -629,7 +629,7 @@ void Player::Deactivate() {
   GetTeam()->UpdateDesignatedTeamPossessionPlayer();
 }
 
-IController *Player::GetController() {
+LegacyPlayerDecision *Player::GetController() {
   if (ExternalControllerActive()) {
     return externalController->GetHumanController();
   } else {
@@ -669,7 +669,7 @@ void Player::Process() {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
     if (ExternalControllerActive()) externalController->GetHumanController()->Process();
-    CastController()->Process();
+    controller->Process();
     if (match->IsInPlay()) {
       if (match->GetActualTime_ms() % 1000 == 0) {
         positionHistoryPerSecond.push_back(GetPosition());
@@ -749,10 +749,6 @@ void Player::ResetRuntimeState(const Vector3 &focusPos) {
 
 Humanoid *Player::CastHumanoid() { return humanoid.get(); }
 
-ElizaController *Player::CastController() {
-  return static_cast<ElizaController *>(controller.get());
-}
-
 int Player::GetTeamID() const { return team->GetID(); }
 Team *Player::GetTeam() { return team; }
 
@@ -766,8 +762,10 @@ void Player::Activate(bool lazyPlayer) {
   assert(!isActive);
   isActive = true;
   humanoid.reset(new Humanoid(this));
-  controller.reset(new ElizaController(match, lazyPlayer));
-  CastController()->SetPlayer(this);
+  // The decision owner is supplied by the match, never named here: the
+  // simulation depends on the abstract port only.
+  controller = match->CreatePlayerDecision(lazyPlayer);
+  controller->SetPlayer(this);
   CastHumanoid()->ResetPosition(
       GetFormationEntry().position * 25 *
           Vector3(-team->GetDynamicSide(), -team->GetDynamicSide(), 0),
@@ -973,7 +971,7 @@ void Player::ResetSituation(const Vector3 &focusPos) {
 }
 
 void Player::_CalculateTacticalSituation() {
-  const MentalImage *mentalImage = static_cast<PlayerController*>(GetController())->GetMentalImage();
+  const MentalImage *mentalImage = GetController()->GetMentalImage();
   assert(mentalImage);
   assert(IsActive());
   float time_sec = 0.5f;

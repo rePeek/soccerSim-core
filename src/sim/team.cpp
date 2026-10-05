@@ -24,14 +24,17 @@
 #include "sim/match.hpp"
 #include "sim/formation.hpp"
 
-Team::Team(int id, Match *match, const football::model::Team& model, float aiDifficulty)
+Team::Team(int id, Match *match, const football::model::Team& model,
+           const LegacyTeamDecisionFactory& decision_factory, float aiDifficulty)
     : id(id), match(match), model_(model), formation_(BuildFormation(model)),
       aiDifficulty(aiDifficulty) {
   assert(id == 0 || id == 1);
   // Retain the legacy six-decimal Properties conversion for live AI numerics.
   for (const auto& [key, value] : model_.tactics) tactics_.Set(key, value);
 
-  teamController = new TeamAIController(this);
+  // The decision owner is supplied by the match, never named here: the
+  // simulation depends on the abstract port only.
+  teamController = decision_factory.Create(*this);
 
   timeNeededToGetToBall_ms = 100;
   hasPossession = false;
@@ -58,7 +61,7 @@ void Team::Exit() {
     delete players[i];
   }
 
-  delete teamController;
+  teamController.reset();
 
 }
 

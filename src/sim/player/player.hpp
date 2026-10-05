@@ -139,7 +139,7 @@ int &LocomotionReentryMeasurementEpoch();
 void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
 #include "model/player.hpp"
-#include "sim/player/controller/icontroller.hpp"
+#include "sim/player/controller/legacy_player_decision.hpp"
 #include "sim/humangamer.hpp"
 
 
@@ -155,7 +155,6 @@ struct TacticalPlayerSituation {
 };
 
 class Team;
-class ElizaController;
 
 // Concrete football-player runtime; no shared official-actor base remains.
 class Player final {
@@ -350,7 +349,7 @@ class Player final {
     void TripMe(const Vector3 &tripVector, int tripType) { humanoid->TripMe(tripVector, tripType); }
 
     void RequestCommand(PlayerCommandQueue &commandQueue);
-    IController *GetController();
+    LegacyPlayerDecision *GetController();
     void SetExternalController(HumanGamer *externalController);
     HumanController *ExternalController();
     bool ExternalControllerActive();
@@ -394,7 +393,6 @@ class Player final {
     void ResetSituation(const Vector3 &focusPos);
 
     Humanoid *CastHumanoid();
-    ElizaController *CastController();
     int GetTeamID() const;
     Team *GetTeam();
     Vector3 GetPitchPosition();
@@ -499,7 +497,7 @@ class Player final {
     int tr_last_query_retains = 0;
     int tr_last_query_had_candidate = 0;
     int resetSituationAuditContext = kResetSituationUnspecified;
-    std::unique_ptr<IController> controller;
+    std::unique_ptr<LegacyPlayerDecision> controller;
     HumanGamer *externalController = 0;
     std::optional<PlayerControl> control_;
 
