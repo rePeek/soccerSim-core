@@ -16,6 +16,11 @@
 # into whichever target includes it.
 set(MODEL_HEADERS
    src/model/football_types.hpp
+   src/model/ids.hpp
+   src/model/player.hpp
+   src/model/team.hpp
+   src/model/formation.hpp
+   src/model/pitch.hpp
 )
 
 
@@ -56,7 +61,7 @@ set(CORE_HEADERS
    src/env/main.hpp
    src/env/rng.hpp
    src/env/defines.hpp
-   src/env/match_setup.hpp
+   src/env/model_adapter.hpp
 )
 
 
@@ -66,7 +71,7 @@ set(CORE_SOURCES
    src/sim/gamedefines.cpp
    src/env/defines.cpp
    src/env/rng.cpp
-   src/env/match_setup.cpp
+   src/env/model_adapter.cpp
 )
 
 
@@ -101,7 +106,6 @@ set(GAME_HEADERS
    src/sim/ball.hpp
    src/sim/team.hpp
    src/sim/match_config.hpp
-   src/sim/pitch.hpp
    src/sim/simulation.hpp
    src/sim/match.hpp
    src/sim/match_world_state.hpp

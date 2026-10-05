@@ -6,6 +6,8 @@
 #include <string_view>
 
 #include "env/game_env.hpp"
+#include "model/team.hpp"
+#include "model/pitch.hpp"
 
 namespace {
 int ParseSteps(int argc, char** argv) {
@@ -30,9 +32,10 @@ int ParseSteps(int argc, char** argv) {
 int main(int argc, char** argv) {
   try {
     const int steps = ParseSteps(argc, argv);
-    GameEnv environment;
-    MatchSetup setup = MakeDefaultMatchSetup();
-    environment.start_game(std::move(setup));
+    GameEnv environment{football::model::MakeDefaultHomeTeam(),
+                        football::model::MakeDefaultAwayTeam(),
+                        football::model::MakeLegacyPitch()};
+    environment.start_game();
     for (int step = 0; step < steps; ++step) {
       environment.step();
     }

@@ -1,12 +1,11 @@
-#ifndef FOOTBALL_SIM_PITCH_HPP
-#define FOOTBALL_SIM_PITCH_HPP
+#ifndef FOOTBALL_MODEL_PITCH_HPP
+#define FOOTBALL_MODEL_PITCH_HPP
 
-#include "foundation/math/vector3.hpp"
+namespace football::model {
 
-// Read-only pitch geometry in simulation metres: x is length, y is width,
-// and the centre spot is the origin. This initial version deliberately exposes
-// only the legacy geometry; arbitrary dimensions also require migrating the
-// remaining AI and environment-coordinate assumptions.
+// Read-only pitch geometry in metres: x is length, y is width, and the centre
+// spot is the origin. This version deliberately exposes only legacy geometry;
+// arbitrary dimensions also require migrating AI and coordinate assumptions.
 class Pitch {
  public:
   constexpr Pitch() = default;
@@ -22,13 +21,11 @@ class Pitch {
   constexpr float goal_height() const { return goal_height_; }
   constexpr float goal_depth() const { return goal_depth_; }
 
-  // Geometric bounds only. Ball radius, line crossing and restart decisions
-  // remain responsibilities of the simulation and referee.
-  bool contains(const blunted::Vector3& position) const {
-    return position.coords[0] >= -half_length() &&
-           position.coords[0] <= half_length() &&
-           position.coords[1] >= -half_width() &&
-           position.coords[1] <= half_width();
+  // Ground-plane bounds only. Ball radius, line crossing and restart decisions
+  // belong to the runtime simulation and referee, not this domain description.
+  constexpr bool contains(float x, float y) const {
+    return x >= -half_length() && x <= half_length() &&
+           y >= -half_width() && y <= half_width();
   }
 
   bool operator==(const Pitch&) const = default;
@@ -46,4 +43,6 @@ class Pitch {
 
 constexpr Pitch MakeLegacyPitch() { return Pitch{}; }
 
-#endif  // FOOTBALL_SIM_PITCH_HPP
+}  // namespace football::model
+
+#endif  // FOOTBALL_MODEL_PITCH_HPP

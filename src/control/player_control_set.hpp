@@ -9,7 +9,7 @@
 
 class PlayerControlSet {
  public:
-  void Set(PlayerId player, PlayerControl control) {
+  void Set(football::model::PlayerId player, PlayerControl control) {
     control.player = player;
     for (PlayerControl& existing : controls_) {
       if (existing.player == player) {
@@ -20,7 +20,7 @@ class PlayerControlSet {
     controls_.push_back(std::move(control));
   }
 
-  const PlayerControl* Get(PlayerId player) const {
+  const PlayerControl* Get(football::model::PlayerId player) const {
     for (const PlayerControl& control : controls_) {
       if (control.player == player) return &control;
     }

@@ -9,9 +9,9 @@ if(NOT TARGET football_foundation)
                    ${CMAKE_CURRENT_BINARY_DIR}/foundation)
 endif()
 
-if(NOT TARGET football_domain)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../domain
-                   ${CMAKE_CURRENT_BINARY_DIR}/domain)
+if(NOT TARGET football_model)
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../model
+                   ${CMAKE_CURRENT_BINARY_DIR}/model)
 endif()
 
 add_library(football_state INTERFACE)
@@ -20,4 +20,4 @@ target_include_directories(football_state INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>)
 target_compile_features(football_state INTERFACE cxx_std_23)
 target_link_libraries(football_state INTERFACE
-  football_foundation football_domain)
+  football_foundation football_model)

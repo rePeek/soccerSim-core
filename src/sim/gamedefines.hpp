@@ -20,7 +20,7 @@
 
 #include "env/defines.hpp"
 #include "animation/types.hpp"
-#include "sim/pitch.hpp"
+#include "model/pitch.hpp"
 
 #include "foundation/math/vector3.hpp"
 
@@ -204,18 +204,20 @@ e_PlayerRole GetRoleFromString(const std::string &roleString);
 
 // Transitional aliases for legacy AI and controller code. Pitch is the single
 // source of geometry; new match code should query its owned Pitch instead.
-inline constexpr float pitchHalfW = MakeLegacyPitch().half_length();
-inline constexpr float pitchHalfH = MakeLegacyPitch().half_width();
-inline constexpr float pitchFullHalfW = MakeLegacyPitch().full_half_length();
-inline constexpr float pitchFullHalfH = MakeLegacyPitch().full_half_width();
-inline constexpr float lineHalfW = MakeLegacyPitch().line_half_width();
+inline constexpr float pitchHalfW = football::model::MakeLegacyPitch().half_length();
+inline constexpr float pitchHalfH = football::model::MakeLegacyPitch().half_width();
+inline constexpr float pitchFullHalfW = football::model::MakeLegacyPitch().full_half_length();
+inline constexpr float pitchFullHalfH = football::model::MakeLegacyPitch().full_half_width();
+inline constexpr float lineHalfW = football::model::MakeLegacyPitch().line_half_width();
 
-inline constexpr float goalDepth = MakeLegacyPitch().goal_depth();
-inline constexpr float goalHeight = MakeLegacyPitch().goal_height();
-inline constexpr float goalHalfWidth = MakeLegacyPitch().goal_half_width();
+inline constexpr float goalDepth = football::model::MakeLegacyPitch().goal_depth();
+inline constexpr float goalHeight = football::model::MakeLegacyPitch().goal_height();
+inline constexpr float goalHalfWidth = football::model::MakeLegacyPitch().goal_half_width();
 
 const float FORMATION_Y_SCALE = -2.36f;
 
+// Legacy role-adapted runtime/checkpoint representation. Initial domain
+// declarations live in model/formation.hpp and are converted by env/.
 struct FormationEntry {
   FormationEntry() { }
   // Constructor accepts environment coordinates.

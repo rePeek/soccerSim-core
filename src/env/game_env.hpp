@@ -14,10 +14,13 @@
 #ifndef _GAME_ENV
 #define _GAME_ENV
 
+#include <optional>
+
+#include "model/team.hpp"
+#include "model/pitch.hpp"
 #include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/gamedefines.hpp"
-#include "env/match_setup.hpp"
 #include "env/main.hpp"
 #include "control/player_control_set.hpp"
 
@@ -39,6 +42,8 @@ class ContextHolder {
 // Game environment. This is the class that can be used directly from Python.
 struct GameEnv {
   GameEnv() = default;
+  GameEnv(football::model::Team home, football::model::Team away,
+          football::model::Pitch pitch);
   ~GameEnv();
   GameEnv(const GameEnv&) = delete;
   GameEnv& operator=(const GameEnv&) = delete;
@@ -47,7 +52,6 @@ struct GameEnv {
   GameEnv& operator=(GameEnv&&) = delete;
   // Start the game (in separate process).
   void start_game();
-  void start_game(MatchSetup setup);
   // Creates a match in an initialized environment that has no active match.
   void init(const ScenarioConfig& game_config, bool init_animation);
 
@@ -66,10 +70,14 @@ struct GameEnv {
  private:
   std::unique_ptr<MatchConfig> BuildMatchConfig(
       const ScenarioConfig& scenario_config);
-  std::unique_ptr<MatchConfig> BuildMatchConfig(
-      const ScenarioConfig& scenario_config, MatchSetup setup);
   void do_step(int count);
   void getObservations();
+  // The default constructor retains the legacy ScenarioConfig-only path.
+  // Explicit composition stores both teams together through the constructor.
+  std::optional<football::model::Team> home_team_;
+  std::optional<football::model::Team> away_team_;
+  football::model::Pitch pitch_;
+
  public:
   ScenarioConfig scenario_config;
   GameConfig game_config;

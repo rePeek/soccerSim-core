@@ -4,7 +4,7 @@
 #include <optional>
 #include <vector>
 
-#include "domain/ids.hpp"
+#include "model/ids.hpp"
 #include "foundation/math/vector3.hpp"
 
 // Coarse role assignment owned by persistent team-control state. It is
@@ -18,10 +18,10 @@ enum class PlannedPlayerRole {
 };
 
 struct PlayerDirective {
-  PlayerId player = kInvalidPlayerId;
+  football::model::PlayerId player = football::model::kInvalidPlayerId;
   PlannedPlayerRole role = PlannedPlayerRole::Unspecified;
   std::optional<blunted::Vector3> formation_position;
-  std::optional<PlayerId> marking_target;
+  std::optional<football::model::PlayerId> marking_target;
   bool attacking_run = false;
   bool press = false;
 };
@@ -29,11 +29,11 @@ struct PlayerDirective {
 // Persistent team-control state. Coach AI mutates this board; player AI reads
 // it when producing frame-local PlayerControl values.
 struct TacticalBoard {
-  TeamId team = kInvalidTeamId;
+  football::model::TeamId team = football::model::kInvalidTeamId;
   float width = 0.0f;
   float depth = 0.0f;
   std::vector<PlayerDirective> players;
-  std::optional<PlayerId> set_piece_taker;
+  std::optional<football::model::PlayerId> set_piece_taker;
 };
 
 #endif  // FOOTBALL_CONTROL_TACTICAL_BOARD_HPP

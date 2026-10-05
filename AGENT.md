@@ -74,6 +74,8 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
   (`reverse_team_processing`) and A/B animation perturbation checks. Requires
   `GFOOTBALL_DATA_DIR`. Flags: `--print-baseline` (regenerate golden), `--animation-ab`,
   `--animation-ab-lifecycle`.
+- `football_model_test` — STL-only domain-model checks (`tools/model_test.cpp`),
+  linked solely to `football::model`; does not initialize a simulation or need data.
 - `football_smoke` — minimal `GameEnv` headless run (`tools/football_smoke.cpp`);
   optional positional arg is the step count (default 1000).
 - `football_headless_core_guard` — shell test (`tools/football_headless_core_guard.sh`)
@@ -91,8 +93,12 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 
 ```
 src/
-├── model/           领域值类型（football_types.hpp: e_PlayerRole/e_GameMode/
-│                    e_PlayerColor/kPlayersPerTeam）。无任何项目内依赖。
+├── model/           静态领域描述（football::model；只依赖 STL 与自身）
+│   ├── ids.hpp        比赛内 PlayerId/TeamId 与独立的 PlayerDatabaseId
+│   ├── player, team   球员身份引用、球队组成与默认队伍
+│   ├── formation      公开坐标下的初始阵型描述，不含 checkpoint/runtime 状态
+│   ├── pitch          唯一场地几何值类型（当前保持 legacy 110 × 72 尺寸）
+│   └── football_types e_PlayerRole/e_GameMode/e_PlayerColor/kPlayersPerTeam
 ├── foundation/      通用基础，依赖 DAG 的最底层（原 blunted base）
 │   ├── math/           vector3, matrix3/4, quaternion, bluntmath, rng（纯算法）
 │   ├── geometry/       line, triangle（aabb/plane/trianglemeshutils 已删）
@@ -105,7 +111,6 @@ src/
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
 │   ├── simulation, match, match_config, team, ball, referee, officials, humangamer, teamAIcontroller
-│   ├── pitch.hpp      只读场地几何值对象（当前保持 legacy 110 × 72 尺寸）
 │   ├── ai_support/     AIfunctions, mentalimage
 │   ├── utils.*         QuantizeDirection / GetVelocityID 等游戏工具
 │   └── player/
@@ -115,9 +120,11 @@ src/
 │       │                elizacontroller, refereecontroller, strategies/offtheball/*
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
 ├── controller/      协议无关的控制输入接口，以及 GRF action 适配器
+├── state/           对外运行时值快照（依赖 model 身份类型与 foundation 数学）
+├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
 │   ├── game_env, main, rng（全局 RNG 入口，owner 是 GameContext）
-│   ├── match_setup    球队声明与比赛组装；场地直接使用 sim/Pitch
+│   ├── model_adapter  静态模型 → legacy TeamCreationData / FormationEntry 转换
 │   └── defines        EnvState / Position / SharedInfo
 ├── data/            matchdata, playerdata, teamdata（DB/序列化）
 └── ai/              ai_keyboard, ihidevice.hpp
@@ -131,6 +138,9 @@ src/
 model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 ```
 
+- `model` 只能 include STL 与自身；`model_boundary_guard` 防止 runtime/IO 依赖回流。
+  `football_model` / `football::model` 接口库替代原 `football_domain`；不再存在
+  `src/domain/`。模型可独立使用，`cmake -S src/model -B build/model-standalone`。
 - `foundation` 只能 include STL 与自身。`foundation_boundary_guard` 强制这一点。
 - `animation` 只能 include `foundation`（无上层 include）。
 - `football_animation` 是独立 archive；`libfootball_foundation.a` 不含任何
@@ -149,6 +159,8 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 
 机械守卫（CTest，改坏边界会直接失败）：
 
+- `model_boundary_guard`：禁止 model include 其他项目层，禁止环境全局入口、
+  checkpoint 与文件格式/IO 实现。
 - `foundation_boundary_guard`：禁止 foundation include 上层，也禁止出现
   `GetContext`/`EnvState`/`boostrandom`/`randomseed`/`random_non_determ`。
 - `runtime_animation_boundary_guard`：禁止 runtime 依赖离线 `.anim` 管线。
@@ -182,12 +194,22 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
 ```
 
 - `GameEnv` is the stable public API; `Match`/`Player`/`Humanoid` are internals.
-- `Pitch` (`src/sim/pitch.hpp`) is the sole pitch value type; there is no separate
-  setup/runtime representation. `MatchConfig` passes it by value and `Match` owns
-  a read-only copy. Only the legacy geometry is supported for now. Transitional
-  pitch constants in `gamedefines.hpp` derive from that same geometry, not a
-  second set of dimensions. Do not introduce configurable dimensions without
-  migrating those remaining consumers and environment-coordinate scaling.
+- Static composition uses `football::model::Team`, `Player`, `Formation` and
+  `Pitch` (`src/model/`). `GameEnv(home, away, pitch)` retains these descriptions
+  across resets; no `MatchSetup`/`TeamSetup`/`PlayerSetup` layer remains. The default
+  `GameEnv()` still supports legacy ScenarioConfig-only callers. Non-empty scenario
+  formations override model positions without replacing the retained roster.
+- `model::Player` currently identifies a legacy profile by `PlayerDatabaseId`.
+  Names and attributes are still resolved by `PlayerData`, which consumes the
+  legacy RNG during initialization. Do not confuse database keys with match-local
+  `PlayerId`, or move profile resolution/RNG into the static model.
+- `model::FormationEntry` is an initial declaration in public pitch coordinates.
+  The legacy global `FormationEntry` is a separate role-adapted runtime/checkpoint
+  representation; conversion and coordinate scaling live in `env/model_adapter.*`.
+- `model::Pitch` is the sole pitch value type. `MatchConfig` passes it by value and
+  `Match` owns a read-only copy. Only legacy geometry is supported for now.
+  Transitional constants in `gamedefines.hpp` derive from that same geometry.
+  Configurable dimensions require migrating remaining consumers and scaling.
 - `physics_steps_per_frame` (default 10) subdivides each environment step.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
   (`GameContext::rng`). Never introduce unordered-container iteration order or
@@ -196,8 +218,10 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
 ## Conventions and gotchas
 
 - **C++23**, extensions off, position-independent code on (see `CMakeLists.txt`).
-- **Namespace**: `blunted::` for foundation math/geometry/types. The football layer is
-  in the global namespace with `e_*` enums and plain classes.
+- **Namespace**: `football::model` for static domain descriptions and identities;
+  `blunted::` for foundation math/geometry/types. Legacy runtime classes and `e_*`
+  enums remain global for now; model construction must not depend on them through
+  simulation or environment headers.
 - **Include guards**: legacy headers use `#ifndef _HPP_...` / `#define _HPP_...` style.
 - **No mirror state**: an authoritative field is stored once; derived values are
   accessors (e.g. `speed == velocity.GetLength()`), never a second field.

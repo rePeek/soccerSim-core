@@ -3,7 +3,7 @@
 
 #include <optional>
 
-#include "domain/ids.hpp"
+#include "model/ids.hpp"
 #include "foundation/math/vector3.hpp"
 
 // Football-domain action request. This intentionally does not expose input
@@ -20,12 +20,12 @@ enum class ControlAction {
 // Persistent control target for one player. It remains active until replaced
 // or cleared; simulation translates it into its existing command queue.
 struct PlayerControl {
-  PlayerId player = kInvalidPlayerId;
+  football::model::PlayerId player = football::model::kInvalidPlayerId;
   blunted::Vector3 move_direction = blunted::Vector3(0);
   float desired_speed = 0.0f;
   std::optional<blunted::Vector3> look_at;
   ControlAction action = ControlAction::None;
-  std::optional<PlayerId> target_player;
+  std::optional<football::model::PlayerId> target_player;
   std::optional<blunted::Vector3> target_position;
   float power = 0.0f;
 };

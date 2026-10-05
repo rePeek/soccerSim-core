@@ -4122,25 +4122,80 @@ void CheckRetainAnchor(GameEnv& env, ScenarioConfig& config) {
 
 
 void CheckPitchGeometry() {
-  constexpr Pitch pitch = MakeLegacyPitch();
+  constexpr football::model::Pitch pitch = football::model::MakeLegacyPitch();
   static_assert(pitch.length() == 110.0f && pitch.width() == 72.0f);
   static_assert(pitchHalfW == 55.0f && pitchHalfH == 36.0f);
   static_assert(pitchFullHalfW == 60.0f && pitchFullHalfH == 40.0f);
   static_assert(lineHalfW == 0.06f);
   static_assert(goalDepth == 2.55f && goalHeight == 2.5f && goalHalfWidth == 3.7f);
 
-  Require(pitch.contains(Vector3(0, 0, 10)),
-          "pitch: bounds must use the ground-plane projection");
-  Require(pitch.contains(Vector3(55, 36, 0)) &&
-              pitch.contains(Vector3(-55, -36, 0)),
+  Require(pitch.contains(0, 0), "pitch: centre spot must be inside");
+  Require(pitch.contains(55, 36) && pitch.contains(-55, -36),
           "pitch: boundary must be included and symmetric");
-  Require(!pitch.contains(Vector3(55.01f, 0, 0)) &&
-              !pitch.contains(Vector3(-55.01f, 0, 0)) &&
-              !pitch.contains(Vector3(0, 36.01f, 0)) &&
-              !pitch.contains(Vector3(0, -36.01f, 0)),
+  Require(!pitch.contains(55.01f, 0) && !pitch.contains(-55.01f, 0) &&
+              !pitch.contains(0, 36.01f) && !pitch.contains(0, -36.01f),
           "pitch: positions beyond the lines must be excluded");
-  Require(MakeDefaultMatchSetup().pitch == pitch,
-          "pitch: default composition must use the actual simulation geometry");
+}
+
+void CheckModelComposition() {
+  namespace model = football::model;
+  model::Team home = model::MakeDefaultHomeTeam();
+  model::Team away = model::MakeDefaultAwayTeam();
+  home.name = "Static Home";
+  away.name = "Static Away";
+  std::swap(home.players[0], home.players[1]);
+  for (int i = 0; i < kPlayersPerTeam; ++i) {
+    home.formation.push_back({{-0.4f, 0.25f},
+                              i == 0 ? e_PlayerRole_GK : e_PlayerRole_CM,
+                              false, i != 0});
+  }
+
+  GameEnv env{home, away, model::MakeLegacyPitch()};
+  Require(!env.context, "model: composition must not allocate runtime objects");
+  // The environment must own descriptions, not borrow the caller's objects.
+  home.name = "Changed after construction";
+  home.players[0].database_id = 398;
+  env.start_game();
+  Require(env.scenario_config.left_team.size() == kPlayersPerTeam &&
+              !env.scenario_config.left_team.front().controllable,
+          "model: environment selection did not receive the effective formation");
+
+  const auto check_roster = [&env]() {
+    Match* match = env.context->simulation->match();
+    const TeamData& home_data = match->GetMatchData()->GetTeamData(0);
+    Require(home_data.GetName() == "Static Home" &&
+                match->GetMatchData()->GetTeamData(1).GetName() == "Static Away",
+            "model: team names did not reach the runtime");
+    Require(home_data.GetPlayerData(0)->GetLastName() == "Turing",
+            "model: static roster order was not retained");
+    Require(match->pitch() == football::model::MakeLegacyPitch(),
+            "model: match lost its pitch description");
+  };
+  check_roster();
+  auto entry = env.context->simulation->match()->GetTeam(0)->GetTeamData()
+                   ->GetFormationEntry(0);
+  Require(entry.start_position.coords[0] == -0.4f &&
+              entry.start_position.coords[1] == 0.25f * FORMATION_Y_SCALE &&
+              !entry.controllable && entry.role == e_PlayerRole_GK,
+          "model: initial formation conversion changed coordinates or flags");
+
+  env.reset(*ScenarioConfig::make(), false);
+  check_roster();
+  entry = env.context->simulation->match()->GetTeam(0)->GetTeamData()
+              ->GetFormationEntry(0);
+  Require(entry.start_position.coords[1] == 0.25f * FORMATION_Y_SCALE,
+          "model: reset discarded the retained initial formation");
+
+  auto scenario = ScenarioConfig::make();
+  scenario->left_team.assign(
+      kPlayersPerTeam, FormationEntry(-0.2f, 0.125f, e_PlayerRole_CM, false, true));
+  env.reset(*scenario, false);
+  check_roster();
+  entry = env.context->simulation->match()->GetTeam(0)->GetTeamData()
+              ->GetFormationEntry(0);
+  Require(entry.start_position.coords[0] == -0.2f &&
+              entry.start_position.coords[1] == 0.125f * FORMATION_Y_SCALE,
+          "model: scenario formation override did not reach the runtime");
 }
 
 
@@ -4162,10 +4217,10 @@ void CheckGameEnvLifecycle() {
   {
     GameEnv env;
     env.start_game();
-    Require(env.context->simulation->match()->pitch() == MakeLegacyPitch(),
+    Require(env.context->simulation->match()->pitch() == football::model::MakeLegacyPitch(),
             "pitch: default startup did not initialize match geometry");
     env.reset(*ScenarioConfig::make(), false);
-    Require(env.context->simulation->match()->pitch() == MakeLegacyPitch(),
+    Require(env.context->simulation->match()->pitch() == football::model::MakeLegacyPitch(),
             "pitch: reset changed the match geometry");
     {
       GameEnv unstarted;
@@ -4189,9 +4244,11 @@ void CheckGameEnvLifecycle() {
 
   struct Unwind {};
   try {
-    GameEnv env;
-    env.start_game(MakeDefaultMatchSetup());
-    Require(env.context->simulation->match()->pitch() == MakeLegacyPitch(),
+    GameEnv env{football::model::MakeDefaultHomeTeam(),
+                football::model::MakeDefaultAwayTeam(),
+                football::model::MakeLegacyPitch()};
+    env.start_game();
+    Require(env.context->simulation->match()->pitch() == football::model::MakeLegacyPitch(),
             "pitch: explicit composition did not initialize match geometry");
     throw Unwind{};
   } catch (const Unwind&) {
@@ -4223,6 +4280,7 @@ int main(int argc, char** argv) {
     CheckPlayerBodyCollider();
     CheckPitchGeometry();
     CheckGameEnvLifecycle();
+    CheckModelComposition();
     GameEnv env;
     env.start_game();
     ScenarioConfig config = MakeBuiltinAiConfig();

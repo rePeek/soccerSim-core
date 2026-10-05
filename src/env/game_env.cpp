@@ -16,6 +16,7 @@
 #include "support/diagnostics/backtrace.hpp"
 #include "support/diagnostics/log.hpp"
 #include "env/game_env.hpp"
+#include "env/model_adapter.hpp"
 
 #include <cerrno>
 #include <ctime>
@@ -26,6 +27,12 @@
 #include "support/io/file.hpp"
 
 using std::string;
+
+GameEnv::GameEnv(football::model::Team home, football::model::Team away,
+                 football::model::Pitch pitch)
+    : home_team_(std::move(home)),
+      away_team_(std::move(away)),
+      pitch_(std::move(pitch)) {}
 
 GameEnv::~GameEnv() {
   GameEnv* previous = GetGame();
@@ -81,33 +88,35 @@ std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
   CHECK(scaled_config.right_agents >= 0);
   CHECK(scaled_config.right_agents <= kPlayersPerTeam);
 
-  // Publish the scaled snapshot before constructing the teams: the scenario
-  // remains the source of the env-level episode configuration.
-  this->scenario_config = scaled_config;
-
   TeamCreationData home;
-  home.database_id = kHomeTeamDatabaseId;
-  home.formation = scaled_config.left_team;
   TeamCreationData away;
-  away.database_id = kAwayTeamDatabaseId;
+  if (home_team_) {
+    home = ToTeamCreationData(*home_team_, kHomeTeamDatabaseId);
+    away = ToTeamCreationData(*away_team_, kAwayTeamDatabaseId);
+  } else {
+    home.database_id = kHomeTeamDatabaseId;
+    away.database_id = kAwayTeamDatabaseId;
+  }
+  // An episode may override initial positions without replacing the retained
+  // static roster. Publish the effective formations for env-level selection
+  // and rules as well as for runtime team construction.
+  if (scaled_config.left_team.empty()) {
+    scaled_config.left_team = home.formation;
+  }
+  if (scaled_config.right_team.empty()) {
+    scaled_config.right_team = away.formation;
+  }
+  home.formation = scaled_config.left_team;
   away.formation = scaled_config.right_team;
+  this->scenario_config = scaled_config;
 
   std::unique_ptr<MatchConfig> config(new MatchConfig());
   config->match_data.reset(new MatchData(home, away));
+  config->pitch = pitch_;
   config->reverse_team_processing = scaled_config.reverse_team_processing;
   config->use_magnet = scaled_config.use_magnet;
   config->left_team_difficulty = scaled_config.left_team_difficulty;
   config->right_team_difficulty = scaled_config.right_team_difficulty;
-  return config;
-}
-
-std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
-    const ScenarioConfig& scenario_config, MatchSetup setup) {
-  std::unique_ptr<MatchConfig> config = BuildMatchConfig(scenario_config);
-  config->match_data.reset(new MatchData(
-      ToTeamCreationData(setup.home, kHomeTeamDatabaseId),
-      ToTeamCreationData(setup.away, kAwayTeamDatabaseId)));
-  config->pitch = setup.pitch;
   return config;
 }
 
@@ -127,30 +136,6 @@ void GameEnv::start_game() {
   run_game();
   auto scenario_config = ScenarioConfig::make();
   init(*scenario_config, false);
-}
-
-void GameEnv::start_game(MatchSetup setup) {
-  assert(context == nullptr);
-  install_stacktrace();
-  std::cout.precision(17);
-  context = std::make_unique<GameContext>();
-  ContextHolder c(this);
-  std::cout << std::unitbuf;
-
-  char* data_dir = getenv("GFOOTBALL_DATA_DIR");
-  if (data_dir) {
-    GetGameConfig().data_dir = data_dir;
-  }
-  run_game();
-
-  auto scenario_config = ScenarioConfig::make();
-  controls_.Clear();
-  context->step = -1;
-  waiting_for_game_count = 0;
-  auto match_config = BuildMatchConfig(*scenario_config, std::move(setup));
-  randomize(scenario_config->game_engine_random_seed);
-  context->simulation->Init(std::move(match_config), context->controllerSet,
-                            false);
 }
 
 SharedInfo GameEnv::get_info() {

@@ -19,7 +19,7 @@ endfunction()
 # Foundation owns its source list and can also be consumed independently with
 # add_subdirectory(path/to/src/foundation).
 add_subdirectory(src/foundation)
-add_subdirectory(src/domain)
+add_subdirectory(src/model)
 add_subdirectory(src/state)
 add_subdirectory(src/control)
 add_subdirectory(src/support)
@@ -58,7 +58,7 @@ add_library(football_animation STATIC
 target_link_libraries(football_animation PUBLIC football_foundation)
 
 add_library(football_data STATIC ${DATA_SOURCES} ${DATA_HEADERS})
-target_link_libraries(football_data PUBLIC football_animation football_support)
+target_link_libraries(football_data PUBLIC football_animation football_support football_model)
 
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
 target_link_libraries(football_sim PUBLIC football_data football_control football_controller)
@@ -68,7 +68,7 @@ add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
   src/env/game_env.cpp src/env/game_env.hpp
   src/ai/ai_keyboard.cpp src/ai/ai_keyboard.hpp)
-target_link_libraries(football_engine PRIVATE football_controller)
+target_link_libraries(football_engine PRIVATE football_controller football_model)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
 target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE football_sim football_controller)
@@ -93,6 +93,14 @@ add_executable(football_control_test tools/player_control_set_test.cpp)
 target_link_libraries(football_control_test PRIVATE football_control)
 football_configure_target(football_control_test)
 add_test(NAME football_control_test COMMAND football_control_test)
+
+add_executable(football_model_test tools/model_test.cpp)
+target_link_libraries(football_model_test PRIVATE football::model)
+add_test(NAME football_model_test COMMAND football_model_test)
+
+add_test(NAME model_boundary_guard
+  COMMAND sh ${CMAKE_SOURCE_DIR}/tools/model_boundary_guard.sh
+    ${CMAKE_SOURCE_DIR}/src)
 
 add_executable(football_anim_baker tools/animBaker/anim_baker_main.cpp)
 target_link_libraries(football_anim_baker PRIVATE

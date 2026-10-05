@@ -421,7 +421,7 @@ bool Match::Step(const PlayerControlSet& controls) {
     for (Player* player : players) {
       player->ClearControl();
       if (const PlayerControl* control =
-              controls.Get(static_cast<PlayerId>(player->GetStableID()))) {
+              controls.Get(static_cast<football::model::PlayerId>(player->GetStableID()))) {
         player->SetControl(*control);
       }
     }

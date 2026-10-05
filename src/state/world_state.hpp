@@ -4,12 +4,12 @@
 #include <cstdint>
 #include <vector>
 
-#include "domain/ids.hpp"
+#include "model/ids.hpp"
 #include "foundation/math/vector3.hpp"
 
 struct WorldPlayerState {
-  PlayerId id = kInvalidPlayerId;
-  TeamId team = kInvalidTeamId;
+  football::model::PlayerId id = football::model::kInvalidPlayerId;
+  football::model::TeamId team = football::model::kInvalidTeamId;
   blunted::Vector3 position = blunted::Vector3(0);
   blunted::Vector3 velocity = blunted::Vector3(0);
   blunted::Vector3 facing = blunted::Vector3(1, 0, 0);

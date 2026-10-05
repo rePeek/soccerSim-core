@@ -27,7 +27,7 @@
 #include "controller/controller_set.hpp"
 #include "data/matchdata.hpp"
 #include "sim/match_config.hpp"
-#include "sim/pitch.hpp"
+#include "model/pitch.hpp"
 #include "sim/ai_support/mentalimage.hpp"
 #include "animation/types.hpp"
 #include "control/player_control_set.hpp"
@@ -57,7 +57,7 @@ class Match {
     int GetScore(int teamID) { return matchData->GetGoalCount(teamID); }
     Ball *GetBall() const { return ball; }
     Team *GetTeam(int teamID) const { return teams[teamID]; }
-    const Pitch& pitch() const { return pitch_; }
+    const football::model::Pitch& pitch() const { return pitch_; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
     void GetOfficialPlayers(std::vector<PlayerBase*> &players);
 
@@ -148,7 +148,7 @@ class Match {
 
 
     std::unique_ptr<MatchData> matchData;
-    const Pitch pitch_;
+    const football::model::Pitch pitch_;
     Team *teams[2];
     int first_team = 0;
     int second_team = 1;
