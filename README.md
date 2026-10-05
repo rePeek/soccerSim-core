@@ -26,6 +26,11 @@ One `step()` calls the simulation once: a 10 ms tick (100 Hz). Batch explicitly
 with a loop. `football_app --steps=100` therefore advances 100 ticks, not 100
 legacy observation frames. Configure commands through `game.controls()`.
 
+`GameEnv` directly owns its `Simulation`; there is no active-environment global
+or context binding. Reset retains the runtime RNG and animation cache; stop
+releases the runtime, and restart constructs it afresh. Controls clear on
+start/reset/stop. Rejected startup leaves the environment stopped.
+
 Custom player descriptions must provide a valid `model::Player::id`, unique
 across both rosters. `PlayerId` lives in `model/player.hpp`; `database_id` is only
 legacy profile provenance and never supplies identity. Controls and observations
@@ -40,10 +45,11 @@ never appears in the public snapshot or serves as a control key.
 observations or checkpoint serialization. The GRF compatibility adapter, the
 binary checkpoint layer and the `ScenarioConfig` episode input have all been
 deleted, not moved to test support. Match rules are the `MatchOptions` defaults,
-snapshotted by `Match`; regression uses the core API and raw `WorldState`
-snapshots, and animation branches use deterministic reset/replay. A future
-save/load feature should serialize an explicit state value object rather than
-per-class byte hooks.
+snapshotted by `Match`. Internal regression diagnostics own/pass `Simulation`
+explicitly, while public `GameEnv` checks use only raw `WorldState` snapshots;
+animation branches use deterministic reset/replay. No environment runtime
+accessor or diagnostic compatibility shim remains. A future save/load feature
+should serialize an explicit state value object rather than per-class byte hooks.
 
 The headless core retains `Referee` as the football rules engine (fouls, cards,
 offside and restarts), not as a moving actor. Referee/linesman humanoids are

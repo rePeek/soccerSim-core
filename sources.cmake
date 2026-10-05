@@ -56,12 +56,10 @@ set(LEGACY_ANIM_SOURCES
 set(CORE_HEADERS
    src/sim/gamedefines.hpp
    src/sim/rng.hpp
-   src/env/main.hpp
 )
 
 
 set(CORE_SOURCES
-   src/env/main.cpp
    src/sim/gamedefines.cpp
 )
 

@@ -6,7 +6,7 @@
 namespace football::data {
 
 // Resolves legacy names, appearance and age-adjusted abilities into a static
-// model. No GameContext or simulation RNG is needed; unknown keys retain the
+// model. No environment or simulation RNG is needed; unknown keys retain the
 // legacy neutral defaults and unspecified skin colour.
 model::Player LoadLegacyPlayerProfile(model::PlayerDatabaseId database_id,
                                      bool left_team);

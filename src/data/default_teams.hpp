@@ -5,7 +5,7 @@
 
 namespace football::data {
 
-// Legacy profile-backed defaults, resolved before a GameContext exists.
+// Static legacy profile-backed defaults; no environment or simulation is needed.
 model::Team MakeDefaultHomeTeam();
 model::Team MakeDefaultAwayTeam();
 

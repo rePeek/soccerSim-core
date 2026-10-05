@@ -11,7 +11,7 @@
 #include <type_traits>
 
 #include "env/game_env.hpp"
-#include "env/main.hpp"
+#include "sim/simulation.hpp"
 #include "sim/match.hpp"
 #include "data/default_teams.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
@@ -880,9 +880,9 @@ void AppendDigestInt(std::string& out, const T& value) {
 // A presentation-independent fingerprint of everything the next simulation
 // tick may read. Deliberately includes the deterministic RNG *state*, not just
 // a draw count: equal draw counts do not imply an equal stream.
-std::string CaptureSimulationDigest() {
+std::string CaptureSimulationDigest(Simulation& simulation) {
   std::string out;
-  Match* match = GetContext().simulation->match();
+  Match* match = simulation.match();
 
   std::vector<Player*> players;
   match->GetActiveTeamPlayers(match->FirstTeam(), players);
@@ -952,12 +952,20 @@ std::string CaptureSimulationDigest() {
   return out;
 }
 
-void Advance(GameEnv& game, int ticks) {
-  for (int tick = 0; tick < ticks; ++tick) game.step();
+// A fixture initializer, not an environment adapter or runtime accessor.
+void InitDefaultMatch(Simulation& simulation) {
+  simulation.Stop();
+  simulation.Init(football::data::MakeDefaultHomeTeam(),
+                  football::data::MakeDefaultAwayTeam(),
+                  football::model::MakeLegacyPitch(), MatchOptions{}, false);
 }
 
-void CheckCanonicalFrame() {
-  Match* match = GetContext().simulation->match();
+void Advance(Simulation& simulation, int ticks) {
+  for (int tick = 0; tick < ticks; ++tick) simulation.Step(PlayerControlSet{});
+}
+
+void CheckCanonicalFrame(Simulation& simulation) {
+  Match* match = simulation.match();
   Require(!match->isBallMirrored() && !match->GetTeam(0)->isMirrored() &&
               !match->GetTeam(1)->isMirrored(),
           "simulation tick leaked a mirrored frame");
@@ -972,11 +980,10 @@ static_assert(std::is_final_v<Player>);
 static_assert(!std::is_polymorphic_v<Player>);
 static_assert(!std::is_abstract_v<Player>);
 
-void CheckFlattenedPlayerLifecycle(GameEnv& game) {
-  game.reset_game();
-  Advance(game, 201);
-  Simulation* simulation = GetContext().simulation.get();
-  Match* match = simulation->match();
+void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
+  InitDefaultMatch(simulation);
+  Advance(simulation, 201);
+  Match* match = simulation.match();
   std::vector<Player*> players;
   match->GetTeam(1)->GetActivePlayers(players);
   Player* player = players.at(1);
@@ -1025,9 +1032,9 @@ void CheckFlattenedPlayerLifecycle(GameEnv& game) {
   match->GetActiveTeamPlayers(1, remaining);
   expected = rng;
   for (std::size_t i = 0; i < remaining.size(); ++i) (void)expected();
-  Require(simulation->Stop() && rng.engine() == expected.engine(),
+  Require(simulation.Stop() && rng.engine() == expected.engine(),
           "flattening changed active-player teardown or its RNG window");
-  game.reset_game();
+  InitDefaultMatch(simulation);
 }
 
 template <class T> concept HasOfficialActors =
@@ -1057,14 +1064,14 @@ class RefereeFixture : public Referee {
   }
 };
 
-void CheckRefereeRules(GameEnv& game) {
+void CheckRefereeRules(Simulation& simulation) {
   // Both clock policies, both restart types, ordinary/yellow/red/second-yellow.
   for (bool animations : {false, true}) {
     for (bool penalty : {false, true}) {
       for (int scenario : {1, 2, 3, 4}) {
-        game.reset_game();
-        Advance(game, 201);  // Leave the initial kickoff, into open play.
-        Match* match = GetContext().simulation->match();
+        InitDefaultMatch(simulation);
+        Advance(simulation, 201);  // Leave the initial kickoff, into open play.
+        Match* match = simulation.match();
         Require(match->IsInPlay() && !match->IsInSetPiece(),
                 "referee fixture should be in open play");
         std::vector<Player*> home, away;
@@ -1127,11 +1134,11 @@ void CheckRefereeRules(GameEnv& game) {
         // Card state remains gameplay: a red or second yellow sends off a
         // football player, whereas one yellow leaves the player active.
         if (match->GetActualTime_ms() < effective_time) {
-          game.step();
+          simulation.Step(PlayerControlSet{});
           Require(offender->IsActive(), "card took effect before its deadline");
           match->BumpActualTime_ms(effective_time - match->GetActualTime_ms());
         }
-        game.step();
+        simulation.Step(PlayerControlSet{});
         const bool send_off = scenario == 3 || scenario == 4;
         Require(offender->IsActive() == !send_off &&
                     match->GetTeam(0)->GetActivePlayersCount() == (send_off ? 10 : 11),
@@ -1141,9 +1148,9 @@ void CheckRefereeRules(GameEnv& game) {
   }
 
   {
-    game.reset_game();
-    Advance(game, 201);
-    Match* match = GetContext().simulation->match();
+    InitDefaultMatch(simulation);
+    Advance(simulation, 201);
+    Match* match = simulation.match();
     std::vector<Player*> home, away;
     match->GetTeam(0)->GetActivePlayers(home);
     match->GetTeam(1)->GetActivePlayers(away);
@@ -1158,9 +1165,9 @@ void CheckRefereeRules(GameEnv& game) {
 
   // Real Match-owned rule engine, no fixture: record an offside pass and
   // reception. Neither positioning nor detection requires a linesman.
-  game.reset_game();
-  Advance(game, 201);
-  Match* match = GetContext().simulation->match();
+  InitDefaultMatch(simulation);
+  Advance(simulation, 201);
+  Match* match = simulation.match();
   std::vector<Player*> home, away;
   match->GetTeam(0)->GetActivePlayers(home);
   match->GetTeam(1)->GetActivePlayers(away);
@@ -1195,20 +1202,25 @@ constexpr GoldenSnapshot golden[] = {
     {1000, UINT64_C(11167980816582236617), UINT64_C(12759021268043178079)},
 };
 
-void CheckGoldenSnapshots(GameEnv& game, bool print_baseline) {
+void CheckGoldenSnapshots(Simulation& simulation, GameEnv& game, bool print_baseline) {
+  InitDefaultMatch(simulation);
   game.reset_game();
   int completed = 0;
   for (const GoldenSnapshot& expected : golden) {
-    Advance(game, expected.ticks - completed);
-    completed = expected.ticks;
-    const WorldState world = game.observe();
-    const std::string digest = CaptureSimulationDigest();
+    Advance(simulation, expected.ticks - completed);
+    for (; completed < expected.ticks; ++completed) game.step();
+    const WorldState world = simulation.Observe();
+    const std::string digest = CaptureSimulationDigest(simulation);
     const uint64_t world_hash = HashWorld(world);
     const uint64_t simulation_hash =
         HashBytes(UINT64_C(1469598103934665603), digest.data(), digest.size());
-    CheckCanonicalFrame();
+    CheckCanonicalFrame(simulation);
     Require(world.tick == static_cast<uint64_t>(completed),
             "one step no longer means one simulation tick");
+    // Public API coverage stays public: compare a separately owned environment,
+    // never inspect its internals or install a compatible diagnostic accessor.
+    Require(HashWorld(game.observe()) == world_hash,
+            "GameEnv diverged from direct Simulation at tick " + std::to_string(completed));
     if (print_baseline) {
       std::cout << "    {" << completed << ", UINT64_C(" << world_hash
                 << "), UINT64_C(" << simulation_hash << ")},\n";
@@ -1220,23 +1232,40 @@ void CheckGoldenSnapshots(GameEnv& game, bool print_baseline) {
   }
 }
 
-void CheckResetDeterminism(GameEnv& game) {
-  game.reset_game();
-  const uint64_t initial = HashWorld(game.observe());
-  const std::string initial_digest = CaptureSimulationDigest();
-  Advance(game, 1000);
-  const uint64_t advanced = HashWorld(game.observe());
-  const std::string advanced_digest = CaptureSimulationDigest();
+void CheckResetDeterminism(Simulation& simulation) {
+  InitDefaultMatch(simulation);
+  const AnimationLibrary* animations = &simulation.match()->GetAnimationLibrary();
+  const uint64_t initial = HashWorld(simulation.Observe());
+  const std::string initial_digest = CaptureSimulationDigest(simulation);
+  Advance(simulation, 1000);
+  const uint64_t advanced = HashWorld(simulation.Observe());
+  const std::string advanced_digest = CaptureSimulationDigest(simulation);
   for (int repeat = 0; repeat < 2; ++repeat) {
-    game.reset_game();
-    Require(HashWorld(game.observe()) == initial &&
-                CaptureSimulationDigest() == initial_digest,
+    InitDefaultMatch(simulation);
+    Require(&simulation.match()->GetAnimationLibrary() == animations,
+            "reset replaced the Simulation-owned animation library");
+    Require(HashWorld(simulation.Observe()) == initial &&
+                CaptureSimulationDigest(simulation) == initial_digest,
             "reset changed initial authoritative state or RNG");
-    Advance(game, 1000);
-    Require(HashWorld(game.observe()) == advanced &&
-                CaptureSimulationDigest() == advanced_digest,
+    Advance(simulation, 1000);
+    Require(HashWorld(simulation.Observe()) == advanced &&
+                CaptureSimulationDigest(simulation) == advanced_digest,
             "reset/replay changed authoritative state or RNG");
   }
+  Require(simulation.Stop() && simulation.match() == nullptr &&
+              !simulation.IsInPlay() && !simulation.Stop(),
+          "direct Simulation stop is not idempotent");
+  // Keep another library alive while rebuilding the stopped match. This also
+  // catches a library accidentally released by Stop and reused by the allocator.
+  Simulation independent;
+  InitDefaultMatch(independent);
+  Require(&independent.match()->GetAnimationLibrary() != animations,
+          "independent Simulation inherited a released or ambient library");
+  InitDefaultMatch(simulation);
+  Require(&simulation.match()->GetAnimationLibrary() == animations &&
+              HashWorld(simulation.Observe()) == initial &&
+              CaptureSimulationDigest(simulation) == initial_digest,
+          "Stop/Init lost the cached library, initial state or RNG replay");
 }
 
 void CheckImportHierarchy() {
@@ -1268,24 +1297,26 @@ void CheckModelComposition() {
   home.players.front().attributes.set(model::PlayerStat::physical_velocity,
                                      0.8123456f);
   const model::PlayerAttributes attributes = home.players.front().attributes;
-  GameEnv game{home, away, model::MakeLegacyPitch()};
-  home.name = "Changed after construction";
+  const model::Team declared_home = home;
+  Simulation simulation;
+  simulation.Init(home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
+  home.name = "Changed after initialization";
   home.players.front().attributes.fill(0.1f);
-  game.start_game();
   for (int repeat = 0; repeat < 2; ++repeat) {
-    Match* match = GetContext().simulation->match();
+    Match* match = simulation.match();
     const TeamData& team = match->GetMatchData()->GetTeamData(0);
     Require(team.GetName() == "Static Home" &&
                 team.GetPlayerData(0)->GetModel().attributes == attributes &&
                 match->pitch() == model::MakeLegacyPitch(),
             "core lost owned team, ability or pitch descriptions");
-    game.reset_game();
+    simulation.Stop();
+    simulation.Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
   }
 }
 
 // A/B branches are replayed from the same declared match, not restored through
 // the deleted legacy checkpoint API. The hook remains a runtime test diagnostic.
-void CheckMovementAnimationPerturbation(GameEnv& game, bool frame_count) {
+void CheckMovementAnimationPerturbation(Simulation& simulation, bool frame_count) {
   struct Tick {
     std::string digest;
     int time_ms;
@@ -1295,17 +1326,17 @@ void CheckMovementAnimationPerturbation(GameEnv& game, bool frame_count) {
   MovementAnimationPerturbation& hook = MovementAnimationPerturbationAudit();
   const auto run = [&](bool perturb) {
     hook = MovementAnimationPerturbation{};
-    game.reset_game();
-    Advance(game, 600);
+    InitDefaultMatch(simulation);
+    Advance(simulation, 600);
     hook.require_frame_count_difference = frame_count;
     std::vector<Tick> ticks;
     for (int tick = 0; tick < 4000; ++tick) {
       hook.enabled = perturb && tick >= 10;
       const int queries_before = PlayerDecisionClockQueries();
-      game.step();
-      CheckCanonicalFrame();
-      ticks.push_back({CaptureSimulationDigest(),
-                       static_cast<int>(GetContext().simulation->match()->GetActualTime_ms()),
+      simulation.Step(PlayerControlSet{});
+      CheckCanonicalFrame(simulation);
+      ticks.push_back({CaptureSimulationDigest(simulation),
+                       static_cast<int>(simulation.match()->GetActualTime_ms()),
                        PlayerDecisionClockQueries() - queries_before, hook.applied});
     }
     hook.enabled = false;
@@ -1370,23 +1401,22 @@ int main(int argc, char** argv) {
     CheckPlayerActionVolume();
     CheckPlayerBodyCollider();
     CheckModelComposition();
-    GameEnv game{football::data::MakeDefaultHomeTeam(),
-                 football::data::MakeDefaultAwayTeam(),
-                 football::model::MakeLegacyPitch()};
-    game.start_game();
+    Simulation simulation;
+    InitDefaultMatch(simulation);
     const std::string mode = argc > 1 ? argv[1] : "";
-    if (mode == "--print-baseline") {
-      CheckGoldenSnapshots(game, true);
-      return 0;
-    }
     if (mode == "--animation-ab" || mode == "--animation-ab-lifecycle") {
-      CheckMovementAnimationPerturbation(game, mode == "--animation-ab-lifecycle");
+      CheckMovementAnimationPerturbation(simulation, mode == "--animation-ab-lifecycle");
     } else {
-      Require(mode.empty(), "unknown regression mode");
-      CheckGoldenSnapshots(game, false);
-      CheckResetDeterminism(game);
-      CheckRefereeRules(game);
-      CheckFlattenedPlayerLifecycle(game);
+      Require(mode.empty() || mode == "--print-baseline", "unknown regression mode");
+      GameEnv game{football::data::MakeDefaultHomeTeam(),
+                   football::data::MakeDefaultAwayTeam(),
+                   football::model::MakeLegacyPitch()};
+      game.start_game();
+      CheckGoldenSnapshots(simulation, game, mode == "--print-baseline");
+      if (mode == "--print-baseline") return 0;
+      CheckResetDeterminism(simulation);
+      CheckRefereeRules(simulation);
+      CheckFlattenedPlayerLifecycle(simulation);
       CheckImportHierarchy();
     }
     std::cout << "football_regression: PASS (core API)\n";

@@ -121,7 +121,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   away.players[0].id = 0;  // Valid identity, but not this actor's execution index.
   MatchOptions options;
   options.reverse_team_processing = reverse;
-  Simulation reference, renamed;  // No GameEnv/GetContext needed.
+  Simulation reference, renamed;  // Independent runtimes, no environment binding.
   reference.Init(default_home, default_away, model::MakeLegacyPitch(), options, false);
   renamed.Init(home, away, model::MakeLegacyPitch(), options, false);
   CheckIdentity(renamed, home, away);

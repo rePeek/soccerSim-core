@@ -38,12 +38,31 @@ if grep -R -n -E \
   exit 1
 fi
 
-# Simulation/data no longer use environment bindings for options, animation,
-# RNG or numbering. Only env lifecycle and internal tool diagnostics may bind.
+# GameEnv owns Simulation directly. Retired binding/lifecycle APIs are forbidden
+# everywhere, including internal diagnostic tools and shared-library symbols.
+retired_context='\b(GameContext|GetContext|GetGame|SetGame|ContextHolder|run_game|quit_game|e_RenderingMode|GameState)\b|env/main\.(hpp|cpp)'
 if grep -R -n -E \
     --include='*.cpp' --include='*.hpp' --include='*.h' \
-    '^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"]env/|\b(GetContext|GetGame|SetGame)\b' \
+    "$retired_context" "$source_dir" \
+    "$source_dir/../tools/football_regression.cpp" \
+    "$source_dir/../tools/player_identity_test.cpp"; then
+  echo "headless-core guard: retired environment binding in runtime/diagnostics" >&2
+  exit 1
+fi
+if nm -C "$library" | grep -E "$retired_context"; then
+  echo "headless-core guard: retired environment binding in $library" >&2
+  exit 1
+fi
+if [ -e "$source_dir/env/main.hpp" ] || [ -e "$source_dir/env/main.cpp" ]; then
+  echo "headless-core guard: retired environment binding file" >&2
+  exit 1
+fi
+
+# Simulation/data cannot grow a dependency on the public environment either.
+if grep -R -n -E \
+    --include='*.cpp' --include='*.hpp' --include='*.h' \
+    '^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"]env/' \
     "$source_dir/sim" "$source_dir/data"; then
-  echo "headless-core guard: ambient environment dependency in simulation/data" >&2
+  echo "headless-core guard: environment dependency in simulation/data" >&2
   exit 1
 fi

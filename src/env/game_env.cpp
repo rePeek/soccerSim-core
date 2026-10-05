@@ -17,26 +17,8 @@
 
 #include <utility>
 
-#include "env/main.hpp"
-#include "sim/match_options.hpp"
+#include "sim/simulation.hpp"
 #include "support/diagnostics/assert.hpp"
-#include "support/diagnostics/log.hpp"
-
-namespace {
-
-class ContextHolder {
- public:
-  explicit ContextHolder(GameEnv* game) : game_(game) { SetGame(game); }
-  ~ContextHolder() {
-    if (GetGame() != game_) {
-      Log(blunted::e_FatalError, "football", "main", "game state was corrupted");
-    }
-  }
- private:
-  const GameEnv* game_;
-};
-
-}  // namespace
 
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
                  football::model::Pitch pitch)
@@ -49,48 +31,36 @@ GameEnv::~GameEnv() {
 }
 
 void GameEnv::stop_game() {
-  GameEnv* previous = GetGame();
-  if (context_) {
-    // Legacy teardown still uses GetContext(). Preserve another active game.
-    SetGame(this);
-    quit_game();
-    context_.reset();
-  }
+  simulation_.reset();
   controls_.Clear();
-  SetGame(previous == this ? nullptr : previous);
 }
 
 void GameEnv::start_game() {
-  CHECK(!context_);
-  context_ = std::make_unique<GameContext>();
-  ContextHolder c(this);
-  run_game();
-  init_match();
+  CHECK(!simulation_);
+  // Publish only an initialized runtime; a rejected description leaves us stopped.
+  auto simulation = std::make_unique<Simulation>();
+  init_match(*simulation);
+  simulation_ = std::move(simulation);
 }
 
 void GameEnv::reset_game() {
-  CHECK(context_ && context_->simulation);
-  ContextHolder c(this);
-  context_->simulation->Stop();
-  init_match();
+  CHECK(simulation_);
+  simulation_->Stop();
+  init_match(*simulation_);
 }
 
 void GameEnv::step() {
-  CHECK(context_ && context_->simulation);
-  ContextHolder c(this);
-  context_->simulation->Step(controls_);
+  CHECK(simulation_);
+  simulation_->Step(controls_);
 }
 
 WorldState GameEnv::observe() const {
-  CHECK(context_ && context_->simulation);
-  ContextHolder c(const_cast<GameEnv*>(this));
-  return context_->simulation->Observe();
+  CHECK(simulation_);
+  return simulation_->Observe();
 }
 
-void GameEnv::init_match() {
-  ContextHolder c(this);
+void GameEnv::init_match(Simulation& simulation) {
   controls_.Clear();
   // The legacy episode defaults are now the only possible match options.
-  context_->simulation->Init(home_team_, away_team_, pitch_, MatchOptions{},
-                             false);
+  simulation.Init(home_team_, away_team_, pitch_, MatchOptions{}, false);
 }

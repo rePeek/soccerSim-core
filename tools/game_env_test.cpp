@@ -1,10 +1,12 @@
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <type_traits>
 
 #include "data/default_teams.hpp"
 #include "env/game_env.hpp"
+#include "sim/simulation.hpp"
 
 static_assert(!std::is_default_constructible_v<GameEnv>);
 static_assert(!std::is_copy_constructible_v<GameEnv>);
@@ -28,6 +30,11 @@ static_assert(!HasLegacyCheckpoint<GameEnv>);
 static_assert(!HasLegacyInit<GameEnv>);
 static_assert(!HasLegacyReset<GameEnv>);
 static_assert(!HasLegacyFields<GameEnv>);
+template<class T> concept HasRuntimeAccess =
+    requires(T& env) { env.simulation(); } || requires(T& env) { env.simulation_; } ||
+    requires(T& env) { env.GetSimulation(); } || requires(T& env) { env.match(); } ||
+    requires { &T::GetContext; };
+static_assert(!HasRuntimeAccess<GameEnv>);
 
 namespace {
 
@@ -62,9 +69,13 @@ void RequireSameWorld(const WorldState& a, const WorldState& b) {
 
 void CheckCoreAPI() {
   auto game = MakeGame();
+  game.controls().Set(0, PlayerControl{});
   game.stop_game();  // Safe before startup, and safe repeatedly.
+  Require(game.controls().controls().empty(), "inactive stop retained controls");
   game.stop_game();
+  game.controls().Set(0, PlayerControl{});
   game.start_game();
+  Require(game.controls().controls().empty(), "startup retained controls");
   const WorldState initial = game.observe();
   Require(initial.tick == 0 && initial.players.size() == 22, "invalid startup");
   game.step();
@@ -81,14 +92,16 @@ void CheckCoreAPI() {
   for (int i = 0; i < 100; ++i) game.step();
   RequireSameWorld(game.observe(), first_run);
 
+  game.controls().Set(initial.players.front().id, PlayerControl{});
   game.stop_game();
+  Require(game.controls().controls().empty(), "stop retained old controls");
   game.stop_game();
   game.start_game();
   RequireSameWorld(game.observe(), initial);
   for (int i = 0; i < 100; ++i) game.step();
   RequireSameWorld(game.observe(), first_run);
 
-  // A second live environment must not hijack the first one's legacy globals.
+  // A second live environment must not interfere with the first one's runtime.
   {
     auto other = MakeGame();
     other.start_game();
@@ -100,8 +113,8 @@ void CheckCoreAPI() {
     RequireSameWorld(other.observe(), first_run);
     RequireSameWorld(game.observe(), first_run);
   }
-  game.step();  // Inactive environment destruction must preserve the live one.
-  Require(game.observe().tick == 101, "inactive teardown damaged live game");
+  game.step();  // Destroying another environment must preserve the surviving one.
+  Require(game.observe().tick == 101, "peer teardown damaged live game");
 }
 
 void CheckDeclaredIdentity() {
@@ -128,12 +141,117 @@ void CheckDeclaredIdentity() {
   RequireSameWorld(game.observe(), initial);
 }
 
+void CheckIndependentLifetimes() {
+  auto reference = MakeGame();
+  auto survivor = MakeGame();
+  reference.start_game();
+  survivor.start_game();
+  PlayerControl command;
+  command.move_direction = blunted::Vector3(1, 0, 0);
+  command.desired_speed = 5.0f;
+  reference.controls().Set(1, command);
+  survivor.controls().Set(1, command);
+  {
+    auto peer = MakeGame();
+    peer.start_game();
+    command.move_direction = blunted::Vector3(0, -1, 0);
+    peer.controls().Set(12, command);
+    for (int tick = 0; tick < 150; ++tick) {
+      reference.step();
+      survivor.step();
+      if (tick == 40) {
+        peer.reset_game();
+        Require(peer.controls().controls().empty(), "peer reset retained controls");
+        peer.controls().Set(12, command);
+      }
+      if (tick == 80) {
+        peer.stop_game();
+        Require(peer.controls().controls().empty(), "peer stop retained controls");
+      }
+      if (tick == 81) peer.start_game();
+      if (tick % 3 == 0) peer.step();  // Deliberately different clocks.
+      Require(survivor.controls().Get(1) != nullptr, "peer cleared surviving controls");
+      RequireSameWorld(survivor.observe(), reference.observe());
+    }
+    peer.step();
+  }  // Destroy the last stepped environment while the other two remain live.
+  survivor.step();
+  reference.step();
+  RequireSameWorld(survivor.observe(), reference.observe());
+}
+
+void CheckDeclaredComposition() {
+  namespace model = football::model;
+  auto home = football::data::MakeDefaultHomeTeam();
+  const auto away = football::data::MakeDefaultAwayTeam();
+  home.name = "Static Home";
+  home.players[1].attributes.set(model::PlayerStat::physical_velocity, 0.8123456f);
+  home.players[1].height = 1.93f;
+  const auto declared_home = home;
+  GameEnv game{home, away, model::MakeLegacyPitch()};
+  home.name = "Changed after construction";
+  home.players[1].attributes.fill(0.1f);
+  home.players[1].height = 1.5f;
+  game.start_game();
+  auto reference = std::make_unique<Simulation>();
+  reference->Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
+  for (int repeat = 0; repeat < 3; ++repeat) {
+    RequireSameWorld(game.observe(), reference->Observe());
+    for (int tick = 0; tick < 600; ++tick) {
+      game.step();
+      reference->Step(PlayerControlSet{});
+      RequireSameWorld(game.observe(), reference->Observe());
+    }
+    if (repeat == 0) {
+      game.reset_game();
+      reference->Stop();
+      reference->Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
+    } else if (repeat == 1) {
+      game.stop_game();
+      game.start_game();
+      reference = std::make_unique<Simulation>();
+      reference->Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
+    }
+  }
+}
+
+void CheckRejectedStartup() {
+  auto live = MakeGame();
+  live.start_game();
+  const WorldState initial = live.observe();
+  auto home = football::data::MakeDefaultHomeTeam();
+  auto away = football::data::MakeDefaultAwayTeam();
+  away.players.front().id = home.players.front().id;
+  GameEnv rejected{home, away, football::model::MakeLegacyPitch()};
+  // Failed startup must not publish a half-initialized Simulation. Repeating
+  // startup without stop should throw validation again, not a lifecycle assert.
+  for (int attempt = 0; attempt < 2; ++attempt) {
+    rejected.controls().Set(0, PlayerControl{});
+    bool threw = false;
+    try {
+      rejected.start_game();
+    } catch (const std::invalid_argument&) {
+      threw = true;
+    }
+    Require(threw && rejected.controls().controls().empty(),
+            "rejected startup retained a runtime or stale controls");
+    RequireSameWorld(live.observe(), initial);
+  }
+  rejected.stop_game();
+  rejected.stop_game();
+  live.step();
+  Require(live.observe().tick == 1, "rejected startup damaged the live environment");
+}
+
 }  // namespace
 
 int main() {
   try {
     CheckCoreAPI();
     CheckDeclaredIdentity();
+    CheckIndependentLifetimes();
+    CheckDeclaredComposition();
+    CheckRejectedStartup();
     std::cout << "football_game_env_test: PASS\n";
     return 0;
   } catch (const std::exception& error) {

@@ -21,7 +21,7 @@
 #include "model/team.hpp"
 #include "state/world_state.hpp"
 
-class GameContext;
+class Simulation;
 
 // Owns an explicitly declared match. One step advances one simulation tick.
 class GameEnv {
@@ -31,7 +31,7 @@ class GameEnv {
   ~GameEnv();
   GameEnv(const GameEnv&) = delete;
   GameEnv& operator=(const GameEnv&) = delete;
-  // Legacy thread-local runtime bindings require a stable address.
+  // A live environment has a single owner; copying/moving is not part of the API.
   GameEnv(GameEnv&&) = delete;
   GameEnv& operator=(GameEnv&&) = delete;
 
@@ -47,14 +47,11 @@ class GameEnv {
   football::model::Team home_team_;
   football::model::Team away_team_;
   football::model::Pitch pitch_;
-  std::unique_ptr<GameContext> context_;
+  std::unique_ptr<Simulation> simulation_;
   PlayerControlSet controls_;
 
   // Starts a match from the retained team and pitch descriptions.
-  void init_match();
-
-  // Transitional bridge, not a public runtime access API.
-  friend GameContext& GetContext();
+  void init_match(Simulation& simulation);
 };
 
 #endif  // FOOTBALL_ENV_GAME_ENV_HPP

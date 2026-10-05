@@ -72,7 +72,8 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 - `football_regression` — core simulation regression (`tools/football_regression.cpp`):
   preserved independent kinematics, body facing, locomotion, collider, scheduler
   and command-adapter checks; 100 Hz raw WorldState goldens, authoritative-state
-  and RNG reset/replay checks, model ownership, canonical frames and offline import
+  and RNG reset/replay checks, direct Simulation diagnostics, model ownership,
+  canonical frames, cached-animation lifetime and offline import
   fixtures; rule-only foul/card/restart timing, penalty, advantage and offside
   tests; concrete/non-polymorphic Player, difficulty/fatigue-adjusted stats and
   deactivation/teardown RNG-window checks. Animation A/B branches reset/replay
@@ -86,7 +87,9 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
   linked solely to `football::model`; does not initialize a simulation or need data.
 - `football_game_env_test` — core API checks (`tools/game_env_test.cpp`): no default
   constructor or legacy surface, one-tick stepping, reset/restart determinism,
-  retained observations and independently stepped live environments.
+  retained observations, copied abilities/height/IDs across reset/restart, control
+  isolation, independently stepped live environments, peer teardown and rejected
+  startup (no half-initialized runtime is published).
 - `football_player_identity_test` — direct Simulation checks with no environment
   binding (`tools/player_identity_test.cpp`): sparse/full-width IDs, model-ID
   controls, index-independent numerical/RNG replay, reversed construction,
@@ -97,7 +100,8 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 - `football_headless_core_guard` — shell test (`tools/football_headless_core_guard.sh`)
   asserting `libgame.so` has no graphics `NEEDED` deps (SDL/GL/X11…), that `src/`
   has no graphics include, simulated official actors or animation-driven restart
-  timing hook. **Do not add graphics or Boost dependencies to core.**
+  timing hook, and no retired environment binding in runtime/diagnostics/symbols.
+  **Do not add graphics or Boost dependencies to core.**
 
 ### Adding/removing source files
 
@@ -139,9 +143,9 @@ src/
 ├── state/           对外运行时值快照（依赖 model 身份类型与 foundation 数学）
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
-│   ├── game_env, main（环境绑定与生命周期；已无 RNG 入口）
+│   └── game_env        直接持有 Simulation；无 context/ambient binding/lifecycle wrapper
 ├── data/            legacy 资料导入与 runtime 兼容层
-│   ├── player_profile  无 GameContext/RNG 的资料解析与年龄/能力计算
+│   ├── player_profile  无环境/RNG 的资料解析与年龄/能力计算
 │   ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
 │   ├── model_adapter  模型/初始阵型 → TeamCreationData / FormationEntry；先解析空 roster 默认
 │   ├── playerdata      持有 model::Player 的兼容 facade；无独立 stats/cache
@@ -167,8 +171,10 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 
 尚未清理的上半段（不要在此基础上新增反向边）：
 
-- `sim/**` 与 `data/**` 不再 include `env/**` 或调用环境全局入口。
-  `GameContext` 只余 env 生命周期的 Simulation 所有权，下一步删除。
+- `sim/**` 与 `data/**` 不 include `env/**`；整个 runtime 已无环境全局入口。
+  `GameEnv` 直接持有 `unique_ptr<Simulation>`，不再存在 `GameContext` 或 active-game binding。
+- `controller/**` 与 HumanGamer/HumanController 的 legacy 输入簇仍待单独审计；
+  不要在环境所有权工作中删除仍有 reader 的 ControllerInput。
 - `env/rng.*` 已删除；确定性的 `SimulationRng` 由 `Simulation` 持有，算法本体在
   `foundation/math/rng.hpp`。没有全局 RNG 入口；正常重构不得额外抽取随机数。
 
@@ -181,7 +187,8 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 - `runtime_animation_boundary_guard`：禁止 runtime 依赖离线 `.anim` 管线。
 - `football_headless_core_guard`：禁止 graphics/Boost、裁判 humanoid actors、
   已删除的 PlayerBase、ambient numbering、model/ids.hpp 与动画重开球 timing hook
-  回流；同时禁止 sim/data include env 或调用 GetContext/GetGame/SetGame。
+  回流；同时禁止整个 runtime/内部诊断/共享库符号出现已删除的环境绑定，
+  并禁止 sim/data include env。
 - `legacy_validation_guard`：禁止已经删除的逐语句 validation 宏/函数回流。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
@@ -202,8 +209,8 @@ files are inputs to the regression baseline.
 main() [src/app/app.cpp]
   → GameEnv(home, away, pitch) [src/env/game_env.*]
       start_game / reset_game / stop_game / step / controls / observe→WorldState
-      → private GameContext (only transitional Simulation ownership)
-      → Simulation [src/sim/simulation.*] builds MatchData and owns match lifecycle
+      → private unique_ptr<Simulation> [src/sim/simulation.*]
+          builds MatchData and owns match lifecycle, RNG and baked-animation cache
           → Match [src/sim/match.*]::Step()         per-tick loop (10ms steps)
               → Ball::Process()                  physics + prediction buffer
               → Team → Player::Process()         Humanoid animation + controller strategy
@@ -218,12 +225,20 @@ main() [src/app/app.cpp]
   `Pitch` (`src/model/`). `GameEnv(home, away, pitch)` requires explicit descriptions
   and retains them across reset/restart. There is no default `GameEnv()`, public
   runtime state, public episode configuration or startup/composition wrapper.
-- `GameEnv::init_match` starts a match from the retained team and pitch
-  descriptions and passes `MatchOptions` to `Simulation::Init`. `GameContext` stays
-  an opaque implementation detail, not a configuration layer.
+- `GameEnv::init_match(Simulation&)` starts a match from retained team/pitch
+  descriptions with default `MatchOptions`. Startup initializes a local Simulation
+  before publishing ownership; validation failure leaves the environment stopped.
+  Reset keeps the same Simulation (and its RNG/library), releases Match and
+  clears controls before Init. Stop destroys Simulation and clears controls;
+  stop/start creates a fresh seeded runtime and animation library.
+- `GameContext`, `GetContext`/`GetGame`/`SetGame`, `ContextHolder`, `run_game`/
+  `quit_game`, dead `e_RenderingMode`/`GameState` and `env/main.*` are deleted.
+  There is no active environment, thread-local binding or compatible accessor.
+  Internal regression diagnostics explicitly own/pass Simulation; raw goldens
+  also compare a separate GameEnv solely through its public API.
 - The GRF compatibility adapter is deleted completely: no substitute shim, test
   support adapter, duplicate owner or public cadence/checkpoint API. Regression
-  uses the core interface; internal simulation diagnostics may inspect GetContext.
+  uses direct Simulation fixtures and public GameEnv/WorldState assertions.
 - Simulation creates `MatchData`, then applies the RNG seed, then creates match
   actors. Preserve that order: legacy profile constructors consume RNG before
   reseeding. There is no episode-config argument: the match rules are the
@@ -236,7 +251,7 @@ main() [src/app/app.cpp]
   Players read `PlayerControlSet` first (`Player::RequestCommand`); otherwise the
   per-player `ElizaController` created by `Player` decides.
 - The checkpoint serialization layer is deleted completely: `EnvState`, every
-  `ProcessState`/`ProcessStateBase`, the `GameContext` controller registry and
+  `ProcessState`/`ProcessStateBase`, the old controller registry and
   `AIControlledKeyboard` are gone, together with `env/defines.*` and
   `ai/ai_keyboard.*`. No byte-blob save/load remains; `GameEnv` never exposed it
   and regression uses reset/replay instead. If durable save/load is ever needed,
@@ -292,8 +307,9 @@ main() [src/app/app.cpp]
   The CLI `--steps=N` now means N simulation ticks, not N legacy 100 ms frames.
 - Baked animations are owned explicitly: `Simulation` loads the library once and
   shares it with each `Match`, which exposes `GetAnimationLibrary()` for
-  `Humanoid`/`HumanoidBase` and `Match::GetAnimPositionCache`. No actor reaches
-  for `GetContext().bakedAnims`.
+  `Humanoid`/`HumanoidBase` and `Match::GetAnimPositionCache`. No actor uses
+  an ambient environment to obtain animations; Stop keeps this cache until
+  its Simulation owner is destroyed.
 - `ScenarioConfig` and `GetScenarioConfig()` are deleted. Tick-time readers
   (`Referee`, `Team`, `TeamAIController`, `Match::Step`) use `Match::options()`;
   the legacy derived helpers became the `left_team_owns_ball` /
@@ -305,10 +321,9 @@ main() [src/app/app.cpp]
   now draws through the `Match`/`PlayerData` it already has, so `boostrandom()` is
   deleted. Preserve that seed window: reseeding before `MatchData` would change
   every downstream draw.
-- `GetContext()` is now used only for env lifecycle and internal diagnostic
-  tools. `stablePlayerCount`, `stable_id` and `GetStableID` are deleted, not
-  relocated. Simulation/data have no ambient environment dependency. The dead
-  presentation RNG channel (`env/rng.*`, `PresentationRng`, `randomseed`,
+- `stablePlayerCount`, `stable_id` and `GetStableID` are deleted, not relocated.
+  Neither simulation/data nor environment lifecycle has an ambient binding.
+  The dead presentation RNG channel (`env/rng.*`, `PresentationRng`, `randomseed`,
   `random_non_determ`, `randomize()` and C `rand()`) remains deleted.
   The internal `animations` flag affects referee restart timing, not just
   rendering; its false/default behavior is preserved. Fixture paths are test-only.
@@ -345,10 +360,11 @@ main() [src/app/app.cpp]
   per active player (zero for inactive), exactly the old base-destructor window;
   do not invoke roster callbacks while `Team::Exit` is deleting the roster.
   This change preserves all post-official-removal goldens without regeneration.
-- Next: eliminate GameContext/GetContext bindings and let GameEnv directly own
-  Simulation. Identity/index separation and player flattening are complete;
-  the Humanoid hierarchy remains untouched. Do not fold its flattening into
-  the environment ownership change.
+- Environment ownership, identity/index separation and Player flattening are
+  complete. The Humanoid/HumanoidBase hierarchy remains untouched; its flattening
+  and the dormant legacy input/controller cluster are separate follow-up work.
+  Environment ownership removal preserves the current goldens and RNG windows
+  without regeneration.
 
 ## Conventions and gotchas
 
