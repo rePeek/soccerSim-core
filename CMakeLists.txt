@@ -62,10 +62,10 @@ add_library(football_animation STATIC
   $<TARGET_OBJECTS:football_animation_objects>)
 target_link_libraries(football_animation PUBLIC football_foundation)
 
-add_library(football_app_fixtures STATIC EXCLUDE_FROM_ALL
-  ${APP_FIXTURE_SOURCES} ${APP_FIXTURE_HEADERS})
-target_link_libraries(football_app_fixtures PUBLIC football_support football_model)
-football_configure_target(football_app_fixtures)
+add_library(football_app_support STATIC EXCLUDE_FROM_ALL
+  ${APP_SUPPORT_SOURCES} ${APP_SUPPORT_HEADERS})
+target_link_libraries(football_app_support PUBLIC football_support football_model)
+football_configure_target(football_app_support)
 
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
 target_link_libraries(football_sim PUBLIC football_animation football_support
@@ -81,8 +81,8 @@ add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
 target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE football_sim football_controller)
 
 if(FOOTBALL_BUILD_APP)
-  add_executable(football_app src/app/app.cpp)
-  target_link_libraries(football_app PRIVATE ${OUTPUT_LIB_NAME} football_app_fixtures)
+  add_executable(football_app ${APP_MAIN_SOURCES})
+  target_link_libraries(football_app PRIVATE ${OUTPUT_LIB_NAME} football_app_support)
   football_configure_target(football_app)
 endif()
 
@@ -98,18 +98,32 @@ endif()
 
 # --- tests ------------------------------------------------------------------
 if(BUILD_TESTING)
+  # Catch2 is fetched through CPM; its checkout is cached beside clangd's in
+  # .cache/, so reconfiguring never re-downloads it.
+  set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
+      CACHE PATH "CPM dependency source cache")
+  include(${PROJECT_SOURCE_DIR}/cmake/CPM.cmake)
+  CPMAddPackage(
+    NAME Catch2
+    GITHUB_REPOSITORY catchorg/Catch2
+    GIT_TAG v3.7.1
+    OPTIONS "CATCH_BUILD_TESTING OFF")
+  list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
+  include(Catch)
+
+  add_subdirectory(test)
 add_executable(football_smoke tools/football_smoke.cpp)
-target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME} football_app_fixtures)
+target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME} football_app_support)
 football_configure_target(football_smoke)
 
 add_executable(football_game_env_test tools/game_env_test.cpp)
-target_link_libraries(football_game_env_test PRIVATE ${OUTPUT_LIB_NAME} football_app_fixtures)
+target_link_libraries(football_game_env_test PRIVATE ${OUTPUT_LIB_NAME} football_app_support)
 football_configure_target(football_game_env_test)
 add_test(NAME football_game_env_test COMMAND football_game_env_test)
 
 add_executable(football_player_identity_test tools/player_identity_test.cpp)
 # Runs Simulation directly: numbering no longer needs environment bindings.
-target_link_libraries(football_player_identity_test PRIVATE ${OUTPUT_LIB_NAME} football_app_fixtures)
+target_link_libraries(football_player_identity_test PRIVATE ${OUTPUT_LIB_NAME} football_app_support)
 football_configure_target(football_player_identity_test)
 add_test(NAME football_player_identity_test COMMAND football_player_identity_test)
 
@@ -141,7 +155,7 @@ add_test(NAME football_anim_bake_determinism
 
   add_executable(football_regression tools/football_regression.cpp)
   target_link_libraries(football_regression PRIVATE
-    ${OUTPUT_LIB_NAME} football_app_fixtures football_legacy_anim)
+    ${OUTPUT_LIB_NAME} football_app_support football_legacy_anim)
   football_configure_target(football_regression)
 
   add_test(NAME football_regression COMMAND football_regression)

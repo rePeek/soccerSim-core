@@ -133,12 +133,20 @@ set(GAME_SOURCES
 
 list(APPEND GAME_HEADERS src/sim/formation.hpp)
 
-set(APP_FIXTURE_HEADERS
+# Executable-side code. It builds model descriptions from legacy data, so it may
+# use support (XML/text) but is never linked into the core shared library.
+set(APP_SUPPORT_HEADERS
+   src/app/args.hpp
    src/app/fixtures/legacy_player_profile.hpp
    src/app/fixtures/default_teams.hpp
 )
 
-set(APP_FIXTURE_SOURCES
+set(APP_SUPPORT_SOURCES
+   src/app/args.cpp
    src/app/fixtures/legacy_player_profile.cpp
    src/app/fixtures/default_teams.cpp
+)
+
+set(APP_MAIN_SOURCES
+   src/app/app.cpp
 )

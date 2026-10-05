@@ -65,3 +65,18 @@ should serialize an explicit state value object rather than per-class byte hooks
 The headless core retains `Referee` as the football rules engine (fouls, cards,
 offside and restarts), not as a moving actor. Referee/linesman humanoids are
 removed; card restart deadlines are fixed rules time, never animation duration.
+The headless core retains `Referee` as the football rules engine (fouls, cards,
+offside and restarts), not as a moving actor. Referee/linesman humanoids are
+removed; card restart deadlines are fixed rules time, never animation duration.
+
+## Tests
+
+`ctest --preset release` runs the core regression/diagnostic executables plus the
+Catch2 suites in `test/`, which cover the executable side: `--steps` parsing
+(`src/app/args.*`), the legacy importer and default team factories
+(`src/app/fixtures/`), the `GameEnv` composition the CLI builds, and the real
+`football_app` binary output. Catch2 is pulled in by
+[CPM](https://github.com/cpm-cmake/CPM.cmake) (`cmake/CPM.cmake`) and cached in
+`.cache/CPM`; nothing in `test/`, `src/app/` or Catch2 is linked into the core
+shared library. Configure with `-DBUILD_TESTING=OFF` for a network-free,
+dependency-free build, and `-DFOOTBALL_BUILD_APP=OFF` to skip the CLI as well.

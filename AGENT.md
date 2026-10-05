@@ -67,6 +67,15 @@ export GFOOTBALL_DATA_DIR="$PWD/data"
 `build/` is git-ignored. If a preset configure behaves unexpectedly after a large
 restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 
+Catch2 is the unit-test framework for the `test/` suites and is fetched by
+[CPM](https://github.com/cpm-cmake/CPM.cmake) (`cmake/CPM.cmake`, currently
+Catch2 v3.7.1). `CPM_SOURCE_CACHE` is pinned to `.cache/CPM`, which is already
+git-ignored, so reconfiguring never re-downloads the checkout. The fetch happens
+only under `BUILD_TESTING`; `-DBUILD_TESTING=OFF` (and any library-only consumer)
+configures without network access.
+`-DFOOTBALL_BUILD_APP=OFF` additionally skips the CLI executable and its sample
+inputs (`src/app/`); the core shared library never links them either way.
+
 ### Test targets
 
 - `football_regression` — core simulation regression (`tools/football_regression.cpp`):
@@ -112,7 +121,12 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 - `src/foundation/**` is owned by `src/foundation/CMakeLists.txt`; register new
   foundation files there. The root project consumes it with
   `add_subdirectory(src/foundation)`.
-- Other `src/**/*.cpp`/`.hpp` files must be registered in `sources.cmake`.
+- Other `src/**/*.cpp`/`.hpp` files must be registered in `sources.cmake`
+  (`GAME_*` for the core, `APP_SUPPORT_*`/`APP_MAIN_SOURCES` for the executable).
+- Executable-side C++ sources live in `src/app/` and are collected into the
+  `EXCLUDE_FROM_ALL` `football_app_support` archive; the core shared library never
+  links them. Unit tests live in `test/` and are registered in
+  `test/CMakeLists.txt` with Catch2 `TEST_CASE`/`SECTION` syntax.
 
 ## Source layout (current branch)
 
@@ -149,23 +163,38 @@ src/
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
 │   └── game_env        直接持有 Simulation；无 context/ambient binding/lifecycle wrapper
-└── app/             可执行文件侧，不进入 core .so
+└── app/             可执行文件侧（football_app_support），不进入 core .so
     ├── app.cpp        CLI 入口
+    ├── args           `--steps=N` 参数解析（可单独测试）
     └── fixtures/      legacy 默认队伍/球员资料 → model::Team/Player（仅 CLI 与测试）
         ├── legacy_player_profile
         └── default_teams
 ```
 
+Repository-root extras (tests only; never part of the core library):
+
+```text
+cmake/
+└── CPM.cmake        vendored CPM bootstrap; Catch2 is fetched through it
+
+test/                 Catch2 suites for the executable side
+├── app_args_test     CLI argument parsing
+├── app_fixtures_test default teams and legacy profile import
+└── app_cli_test      the GameEnv composition the CLI builds
+```
+
+
 The unused `src/ai/player/player_ai.hpp` interface and `src/ai/` directory are
-deleted. Active AI remains in `sim/teamAIcontroller.*`, `sim/
+deleted. Active AI remains in `sim/teamAIcontroller.*`, `sim/ai_support/` and
+`sim/player/controller/`. External decision code can consume `WorldState` and
+supply `PlayerControlSet` directly; no speculative AI base interface is required.
+
 The retired `src/data/` layer is deleted, not moved: `PlayerData`, `TeamData`,
 `MatchData` and `model_adapter` are gone. `Player` holds `const model::Player&`,
 `Team` owns a `model::Team` copy plus a derived `FormationEntry` vector and
 `Properties` tactics, and `Match` owns score/possession runtime state.
 `src/app/fixtures/` supplies legacy sample rosters for the CLI and tests; it may
-include `support`, and nothing in core may include `app/` or reference its symbols.ai_support/` and
-`sim/player/controller/`. External decision code can consume `WorldState` and
-supply `PlayerControlSet` directly; no speculative AI base interface is required.
+include `support`, and nothing in core may include `app/` or reference its symbols.
 
 ### 分层与边界守卫
 
@@ -175,6 +204,11 @@ supply `PlayerControlSet` directly; no speculative AI base interface is required
 model (叶) ← foundation ← animation ← support ← sim ← engine ← game
 app fixtures/importers (executables only) → model/support
 ```
+
+`football_app_support` (the `EXCLUDE_FROM_ALL` archive holding `src/app/`) and
+the Catch2 suites in `test/` sit strictly above this DAG: they may use the core,
+but no core target links them. The only third-party dependency (Catch2, via CPM)
+is fetched under `BUILD_TESTING` and is never a core dependency either.
 
 - `model` 只能 include STL 与自身；`model_boundary_guard` 防止 runtime/IO 依赖回流。
   `football_model` / `football::model` 接口库替代原 `football_domain`；不再存在
