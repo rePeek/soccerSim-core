@@ -212,6 +212,14 @@ the Catch2 suites in `test/` sit strictly above this DAG: they may use the core,
 but no core target links them. The only third-party dependency (Catch2, via CPM)
 is fetched under `BUILD_TESTING` and is never a core dependency either.
 
+Every target compiles with `-I src` (headers cross-reference `module/...`), so a
+missing link edge between two header-only contracts still compiles. The declared
+edges are therefore documentation, and `module_dependency_guard` is what keeps
+them true: CMake exports each module target's real transitive closure into
+`module_dependencies.txt` and the guard fails when a module includes a prefix its
+target does not declare. "Declared but unused" edges are not reported (the
+compiler cannot see them either); removing one stays a review item.
+
 - `model` 只能 include STL 与自身；`model_boundary_guard` 防止 runtime/IO 依赖回流。
   `football_model` / `football::model` 接口库替代原 `football_domain`；不再存在
   `src/domain/`。模型可独立使用，`cmake -S src/model -B build/model-standalone`。
@@ -243,6 +251,9 @@ is fetched under `BUILD_TESTING` and is never a core dependency either.
   回流；同时禁止整个 runtime/内部诊断/共享库符号出现已删除的环境绑定，
   并禁止 core 出现 `app/fixtures` 依赖或 `src/data` 回流。
 - `legacy_validation_guard`：禁止已经删除的逐语句 validation 宏/函数回流。
+- `module_dependency_guard`：把 CMake 导出的真实 target 闭包与 `src/<module>/` 实际
+  include 的项目前缀对比；未声明的依赖（例如 `sim` 用了 `observation/` 却没声明）
+  直接失败。`src/app` 与 `tools/` 不在范围内：它们位于 core 之上，可使用任意 core 模块。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
 entry point and guards, plus legacy `animation/`, `animcollection/`, import

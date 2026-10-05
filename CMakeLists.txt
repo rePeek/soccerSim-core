@@ -72,16 +72,19 @@ football_configure_target(football_app_support)
 
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
 target_link_libraries(football_sim PUBLIC football_animation football_support
-  football_model football_control football_controller)
+  football_model football_observation football_control football_controller)
 
 # --- engine object layer + the shared library -------------------------------
 add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
   src/env/game_env.cpp src/env/game_env.hpp)
-target_link_libraries(football_engine PRIVATE football_controller football_model)
+target_link_libraries(football_engine PRIVATE football_controller football_model
+  football_sim football_observation football_support football_control)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
-target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE football_sim football_controller)
+target_link_libraries(${OUTPUT_LIB_NAME}
+  PUBLIC football_observation football_control
+  PRIVATE football_sim football_controller)
 
 if(FOOTBALL_BUILD_APP)
   add_executable(football_app ${APP_MAIN_SOURCES})
@@ -171,6 +174,59 @@ add_test(NAME football_anim_bake_determinism
     COMMAND football_regression --animation-ab-lifecycle)
   set_tests_properties(football_animation_ab_lifecycle PROPERTIES
     ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
+# Declared link edges cannot be enforced by the compiler: every target builds
+# with -I src because headers cross-reference module/... paths, so an
+# undeclared include still compiles. Export the real transitive closure so
+# module_dependency_guard can check each module's includes against the edges
+# that were actually declared.
+function(football_direct_links tgt out_var)
+  set(_links)
+  foreach(_prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES)
+    get_target_property(_values ${tgt} ${_prop})
+    if(_values)
+      foreach(_value IN LISTS _values)
+        if(TARGET ${_value})
+          list(APPEND _links ${_value})
+        endif()
+      endforeach()
+    endif()
+  endforeach()
+  set(${out_var} ${_links} PARENT_SCOPE)
+endfunction()
+
+function(football_link_closure tgt out_var)
+  set(_closure ${tgt})
+  set(_queue ${tgt})
+  while(_queue)
+    list(POP_FRONT _queue _current)
+    football_direct_links(${_current} _links)
+    foreach(_link IN LISTS _links)
+      if(NOT _link IN_LIST _closure)
+        list(APPEND _closure ${_link})
+        list(APPEND _queue ${_link})
+      endif()
+    endforeach()
+  endwhile()
+  set(${out_var} ${_closure} PARENT_SCOPE)
+endfunction()
+
+set(_module_dependency_report "")
+foreach(_module_target IN ITEMS
+    football_foundation football_model football_observation football_control
+    football_controller football_support football_animation football_sim
+    football_engine football_app_support)
+  football_link_closure(${_module_target} _closure)
+  string(REPLACE ";" " " _closure_text "${_closure}")
+  string(APPEND _module_dependency_report
+    "${_module_target}: ${_closure_text}\n")
+endforeach()
+file(WRITE "${CMAKE_BINARY_DIR}/module_dependencies.txt"
+     "${_module_dependency_report}")
+
+add_test(NAME module_dependency_guard
+  COMMAND sh ${CMAKE_SOURCE_DIR}/tools/module_dependency_guard.sh
+    ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/module_dependencies.txt)
+
 
 # Keep the completed headless boundary from growing back through a convenient
 # include or an accidental link dependency (graphics and Boost are both
