@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cctype>
 #include "data/teamdata.hpp"
+#include "data/default_teams.hpp"
 
 #include <cctype>
 
@@ -265,15 +266,13 @@ TeamData::TeamData(const TeamCreationData& data) {
   tree = loader.Load(factoryTacticsString);
   // load players
   const bool left_team = teamDatabaseID == kHomeTeamDatabaseId;
-  static constexpr int kLegacyRoster[] = {398, 11, 254, 320, 103, 188,
-                                          74,  332, 290, 391, 264};
-  const std::vector<int>& roster =
-      data.player_ids.empty()
-          ? std::vector<int>(std::begin(kLegacyRoster),
-                             std::end(kLegacyRoster))
-          : data.player_ids;
-  for (int player_id : roster) {
-    playerData.push_back(new PlayerData(player_id, left_team));
+  const std::vector<football::model::Player> roster =
+      data.players.empty()
+          ? (left_team ? football::data::MakeDefaultHomeTeam()
+                       : football::data::MakeDefaultAwayTeam()).players
+          : data.players;
+  for (const football::model::Player& player : roster) {
+    playerData.push_back(new PlayerData(player));
   }
   playerData.resize(player_count);
 }

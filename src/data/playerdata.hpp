@@ -18,64 +18,36 @@
 #ifndef _HPP_PLAYERDATA
 #define _HPP_PLAYERDATA
 
-#include <stdlib.h>
-#include <cstdlib>
 #include <string>
 
-#include "sim/gamedefines.hpp"
-#include "sim/utils.hpp"
+#include "model/player.hpp"
 
-#include "support/config/properties.hpp"
-#include "support/text/string_utils.hpp"
-
-class PlayerProperties {
+// Compatibility facade for legacy simulation callers. The owned model is the
+// sole source of identity, appearance and abilities: no separate stats array
+// or cached physical_velocity is kept here.
+class PlayerData {
  public:
-  PlayerProperties() {
-    for (int x = 0; x < player_stat_max; x++) {
-      data[x] = 1.0f;
-    }
+  explicit PlayerData(football::model::Player player);
+  PlayerData(int playerDatabaseID, bool left_team);
+  PlayerData();
+  virtual ~PlayerData();
+
+  const football::model::Player& GetModel() const { return player_; }
+  std::string GetLastName() const { return player_.last_name; }
+  float GetStat(football::model::PlayerStat stat) const {
+    return player_.attributes.get(stat);
   }
-  void Set(PlayerStat name, real value) {
-    data[name] = atof(real_to_str(value).c_str());
+  float get_physical_velocity() const {
+    return GetStat(football::model::PlayerStat::physical_velocity);
   }
-  real GetReal(PlayerStat name) const {
-    return data[name];
-  }
+  int GetSkinColor() const { return player_.appearance.skin_color.value(); }
+  std::string GetHairStyle() const { return player_.appearance.hair_style; }
+  void SetHairStyle(const std::string& style) { player_.appearance.hair_style = style; }
+  std::string GetHairColor() const { return player_.appearance.hair_color; }
+  float GetHeight() const { return player_.height; }
 
  private:
-  real data[player_stat_max];
-};
-
-class PlayerData {
-
-  public:
-    PlayerData(int playerDatabaseID, bool left_team);
-    PlayerData();
-    virtual ~PlayerData();
-    std::string GetLastName() const { return lastName; }
-    inline float GetStat(PlayerStat name) const { return stats.GetReal(name); }
-    float get_physical_velocity() const { return physical_velocity; }
-
-    int GetSkinColor() const { return skinColor; }
-
-    std::string GetHairStyle() const { return hairStyle; }
-    void SetHairStyle(const std::string& style) { hairStyle = style; }
-
-    std::string GetHairColor() const { return hairColor; }
-    float GetHeight() const { return height; }
-
-  private:
-    void UpdateValues();
-    float physical_velocity = 0.0;
-  protected:
-    PlayerProperties stats;
-
-    int skinColor = 0;
-    std::string hairStyle;
-    std::string hairColor;
-    float height = 0.0f;
-    std::string firstName;
-    std::string lastName;
+  football::model::Player player_;
 };
 
 #endif

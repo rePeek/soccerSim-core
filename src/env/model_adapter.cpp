@@ -10,9 +10,6 @@ TeamCreationData ToTeamCreationData(const football::model::Team& team,
     data.formation.emplace_back(entry.position.x, entry.position.y, entry.role,
                                 entry.lazy, entry.controllable);
   }
-  data.player_ids.reserve(team.players.size());
-  for (const football::model::Player& player : team.players) {
-    data.player_ids.push_back(player.database_id);
-  }
+  data.players = team.players;
   return data;
 }

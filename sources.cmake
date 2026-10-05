@@ -153,11 +153,15 @@ set(DATA_HEADERS
    src/data/matchdata.hpp
    src/data/teamdata.hpp
    src/data/playerdata.hpp
+   src/data/player_profile.hpp
+   src/data/default_teams.hpp
 )
 
 
 set(DATA_SOURCES
    src/data/matchdata.cpp
    src/data/playerdata.cpp
+   src/data/player_profile.cpp
+   src/data/default_teams.cpp
    src/data/teamdata.cpp
 )

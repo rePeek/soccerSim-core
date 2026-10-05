@@ -19,6 +19,7 @@
 #define _HPP_FOOTBALL_UTILS
 
 #include "sim/gamedefines.hpp"
+#include "model/player.hpp"
 
 
 
@@ -29,62 +30,9 @@ void QuantizeDirection(Vector3 &inputDirection, float bias = 1.0f);
 
 
 
-// stats fiddling
-
-enum PlayerStat {
-  physical_balance,
-  physical_reaction,
-  physical_acceleration,
-  physical_velocity,
-  physical_stamina,
-  physical_agility,
-  physical_shotpower,
-  technical_standingtackle,
-  technical_slidingtackle,
-  technical_ballcontrol,
-  technical_dribble,
-  technical_shortpass,
-  technical_highpass,
-  technical_header,
-  technical_shot,
-  technical_volley,
-  mental_calmness,
-  mental_workrate,
-  mental_resilience,
-  mental_defensivepositioning,
-  mental_offensivepositioning,
-  mental_vision,
-  player_stat_max
-};
-
-enum e_PositionName {
-  e_PositionName_GK,
-  e_PositionName_SW,
-  e_PositionName_D,
-  e_PositionName_WB,
-  e_PositionName_DM,
-  e_PositionName_M,
-  e_PositionName_AM,
-  e_PositionName_F,
-  e_PositionName_ST
-};
-
-struct WeightedPosition {
-  e_PositionName positionName;
-  float weight = 0.0f;
-};
-
-struct Stat {
-  PlayerStat name;
-  float value = 0.0f;
-};
-
-enum e_DevelopmentCurveType {
-  e_DevelopmentCurveType_Early,
-  e_DevelopmentCurveType_Normal,
-  e_DevelopmentCurveType_Late
-};
-
-float CalculateStat(float baseStat, float profileStat, float age, e_DevelopmentCurveType developmentCurveType);
+// Transitional names for legacy runtime callers. The enum and ability values
+// are owned exclusively by model/player.hpp.
+using football::model::PlayerStat;
+using enum football::model::PlayerStat;
 
 #endif

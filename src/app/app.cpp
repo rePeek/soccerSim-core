@@ -6,7 +6,7 @@
 #include <string_view>
 
 #include "env/game_env.hpp"
-#include "model/team.hpp"
+#include "data/default_teams.hpp"
 #include "model/pitch.hpp"
 
 namespace {
@@ -32,8 +32,8 @@ int ParseSteps(int argc, char** argv) {
 int main(int argc, char** argv) {
   try {
     const int steps = ParseSteps(argc, argv);
-    GameEnv environment{football::model::MakeDefaultHomeTeam(),
-                        football::model::MakeDefaultAwayTeam(),
+    GameEnv environment{football::data::MakeDefaultHomeTeam(),
+                        football::data::MakeDefaultAwayTeam(),
                         football::model::MakeLegacyPitch()};
     environment.start_game();
     for (int step = 0; step < steps; ++step) {

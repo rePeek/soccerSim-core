@@ -11,6 +11,8 @@
 #include <string>
 
 #include "env/game_env.hpp"
+#include "data/default_teams.hpp"
+#include "data/player_profile.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_kinematics.hpp"
@@ -4139,11 +4141,28 @@ void CheckPitchGeometry() {
 
 void CheckModelComposition() {
   namespace model = football::model;
-  model::Team home = model::MakeDefaultHomeTeam();
-  model::Team away = model::MakeDefaultAwayTeam();
+  Require(GetGame() == nullptr, "model: profiles must load without a game context");
+  model::Team home = football::data::MakeDefaultHomeTeam();
+  model::Team away = football::data::MakeDefaultAwayTeam();
+  Require(home.players.front().first_name == "Ada" &&
+              away.players.front().last_name == "Meitner",
+          "model: default teams must contain resolved player descriptions");
+  for (const model::Player& player : home.players) {
+    for (float value : player.attributes.values()) {
+      Require(value > 0.0f && value <= 1.0f,
+              "model: legacy abilities were not resolved into the player");
+    }
+  }
+  const model::Player unknown = football::data::LoadLegacyPlayerProfile(-123, true);
+  Require(unknown.first_name.empty() && !unknown.appearance.skin_color &&
+              unknown.attributes.get(model::PlayerStat::physical_velocity) == 1.0f,
+          "model: unknown profile defaults changed");
   home.name = "Static Home";
   away.name = "Static Away";
   std::swap(home.players[0], home.players[1]);
+  home.players[0].attributes.set(model::PlayerStat::physical_velocity, 0.8123456f);
+  home.players[0].attributes.set(model::PlayerStat::technical_shortpass, 0.9234567f);
+  const model::PlayerAttributes expected_attributes = home.players[0].attributes;
   for (int i = 0; i < kPlayersPerTeam; ++i) {
     home.formation.push_back({{-0.4f, 0.25f},
                               i == 0 ? e_PlayerRole_GK : e_PlayerRole_CM,
@@ -4155,12 +4174,13 @@ void CheckModelComposition() {
   // The environment must own descriptions, not borrow the caller's objects.
   home.name = "Changed after construction";
   home.players[0].database_id = 398;
+  home.players[0].attributes.fill(0.1f);
   env.start_game();
   Require(env.scenario_config.left_team.size() == kPlayersPerTeam &&
               !env.scenario_config.left_team.front().controllable,
           "model: environment selection did not receive the effective formation");
 
-  const auto check_roster = [&env]() {
+  const auto check_roster = [&env, &expected_attributes]() {
     Match* match = env.context->simulation->match();
     const TeamData& home_data = match->GetMatchData()->GetTeamData(0);
     Require(home_data.GetName() == "Static Home" &&
@@ -4168,6 +4188,13 @@ void CheckModelComposition() {
             "model: team names did not reach the runtime");
     Require(home_data.GetPlayerData(0)->GetLastName() == "Turing",
             "model: static roster order was not retained");
+    const PlayerData* player_data = home_data.GetPlayerData(0);
+    Require(player_data->GetModel().attributes == expected_attributes &&
+                player_data->GetStat(football::model::PlayerStat::physical_velocity) ==
+                    0.8123456f && player_data->get_physical_velocity() == 0.8123456f &&
+                player_data->GetStat(football::model::PlayerStat::technical_shortpass) ==
+                    0.9234567f,
+            "model: caller abilities were reloaded, rounded or lost across reset");
     Require(match->pitch() == football::model::MakeLegacyPitch(),
             "model: match lost its pitch description");
   };
@@ -4244,8 +4271,8 @@ void CheckGameEnvLifecycle() {
 
   struct Unwind {};
   try {
-    GameEnv env{football::model::MakeDefaultHomeTeam(),
-                football::model::MakeDefaultAwayTeam(),
+    GameEnv env{football::data::MakeDefaultHomeTeam(),
+                football::data::MakeDefaultAwayTeam(),
                 football::model::MakeLegacyPitch()};
     env.start_game();
     Require(env.context->simulation->match()->pitch() == football::model::MakeLegacyPitch(),

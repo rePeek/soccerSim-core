@@ -95,7 +95,8 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 src/
 ├── model/           静态领域描述（football::model；只依赖 STL 与自身）
 │   ├── ids.hpp        比赛内 PlayerId/TeamId 与独立的 PlayerDatabaseId
-│   ├── player, team   球员身份引用、球队组成与默认队伍
+│   ├── player         PlayerStat / PlayerAttributes、姓名、年龄、身高与外观
+│   ├── team           静态球队组成；不解析 DB、不生成默认资料
 │   ├── formation      公开坐标下的初始阵型描述，不含 checkpoint/runtime 状态
 │   ├── pitch          唯一场地几何值类型（当前保持 legacy 110 × 72 尺寸）
 │   └── football_types e_PlayerRole/e_GameMode/e_PlayerColor/kPlayersPerTeam
@@ -126,7 +127,11 @@ src/
 │   ├── game_env, main, rng（全局 RNG 入口，owner 是 GameContext）
 │   ├── model_adapter  静态模型 → legacy TeamCreationData / FormationEntry 转换
 │   └── defines        EnvState / Position / SharedInfo
-├── data/            matchdata, playerdata, teamdata（DB/序列化）
+├── data/            legacy 资料导入与 runtime 兼容层
+│   ├── player_profile  无 GameContext/RNG 的资料解析与年龄/能力计算
+│   ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
+│   ├── playerdata      持有 model::Player 的兼容 facade；无独立 stats/cache
+│   └── matchdata, teamdata  runtime 组装与序列化
 └── ai/              ai_keyboard, ihidevice.hpp
 ```
 
@@ -199,10 +204,18 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
   across resets; no `MatchSetup`/`TeamSetup`/`PlayerSetup` layer remains. The default
   `GameEnv()` still supports legacy ScenarioConfig-only callers. Non-empty scenario
   formations override model positions without replacing the retained roster.
-- `model::Player` currently identifies a legacy profile by `PlayerDatabaseId`.
-  Names and attributes are still resolved by `PlayerData`, which consumes the
-  legacy RNG during initialization. Do not confuse database keys with match-local
-  `PlayerId`, or move profile resolution/RNG into the static model.
+- `model::Player` owns its static identity, appearance and all 22 base abilities.
+  `PlayerStat` and `PlayerAttributes` live together in `src/model/player.hpp`.
+  `PlayerDatabaseId` is provenance, not a request to reload values at startup; it
+  remains distinct from match-local `PlayerId`. Fatigue and actions stay runtime.
+- `football::data::LoadLegacyPlayerProfile` (`data/player_profile.*`) resolves old
+  profiles without a game context or RNG, preserving legacy decimal round-tripping
+  at the import boundary. Explicit model attributes are consumed without rounding.
+  Default team factories now live in `data/default_teams.*`, not the model.
+- `PlayerData` is a legacy facade owning one model, with no second ability array or
+  cached velocity. Runtime initialization still consumes the historical one skin
+  colour RNG draw per player/official, even for explicit appearances, to preserve
+  simulation RNG order. Missing skin colour is resolved only at this boundary.
 - `model::FormationEntry` is an initial declaration in public pitch coordinates.
   The legacy global `FormationEntry` is a separate role-adapted runtime/checkpoint
   representation; conversion and coordinate scaling live in `env/model_adapter.*`.

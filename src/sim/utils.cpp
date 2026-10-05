@@ -15,8 +15,6 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "env/main.hpp"
-
 #include "sim/utils.hpp"
 
 #include <cmath>
@@ -40,24 +38,4 @@ void QuantizeDirection(Vector3 &inputDirection, float bias) {
   angle *= pi * 2.0f;
 
   inputDirection = (inputDirectionNorm * (1.0 - bias) + (Vector3(1, 0, 0).GetRotated2D(angle) * bias)).GetNormalized(inputDirectionNorm) * inputDirection.GetLength();
-}
-
-
-std::map < e_PositionName, std::vector<Stat> > defaultProfiles;
-
-float CalculateStat(float baseStat, float profileStat, float age,
-                    e_DevelopmentCurveType developmentCurveType) {
-
-
-  float idealAge = 27;
-  float ageFactor = curve( 1.0f - NormalizedClamp(fabs(age - idealAge), 0, 13) * 0.5f , 1.0f) * 2.0f - 1.0f; // 0 .. 1
-  assert(ageFactor >= 0.0f && ageFactor <= 1.0f);
-  //ageFactor = clamp(ageFactor, 0.0f, 1.0f);
-
-  // this factor should roughly be around 1.0f for good players at their top age.
-  float agedBaseStat = baseStat * (ageFactor * 0.5f + 0.5f) * 1.2f;
-
-  float agedProfileStat = clamp(profileStat * 2.0f * agedBaseStat, 0.01f, 1.0f); // profile stat * 2 because average == 0.5
-
-  return agedProfileStat;
 }
