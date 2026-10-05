@@ -18,6 +18,7 @@ TeamSetup MakeDefaultTeamSetup(const std::string& name) {
 
 MatchSetup MakeDefaultMatchSetup() {
   MatchSetup setup;
+  setup.pitch = MakeLegacyPitch();
   setup.home = MakeDefaultTeamSetup("Frequentists United");
   setup.away = MakeDefaultTeamSetup("Real Bayesians");
   return setup;

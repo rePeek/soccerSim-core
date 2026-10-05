@@ -107,6 +107,7 @@ std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
   config->match_data.reset(new MatchData(
       ToTeamCreationData(setup.home, kHomeTeamDatabaseId),
       ToTeamCreationData(setup.away, kAwayTeamDatabaseId)));
+  config->pitch = setup.pitch;
   return config;
 }
 

@@ -4121,6 +4121,29 @@ void CheckRetainAnchor(GameEnv& env, ScenarioConfig& config) {
 }
 
 
+void CheckPitchGeometry() {
+  constexpr Pitch pitch = MakeLegacyPitch();
+  static_assert(pitch.length() == 110.0f && pitch.width() == 72.0f);
+  static_assert(pitchHalfW == 55.0f && pitchHalfH == 36.0f);
+  static_assert(pitchFullHalfW == 60.0f && pitchFullHalfH == 40.0f);
+  static_assert(lineHalfW == 0.06f);
+  static_assert(goalDepth == 2.55f && goalHeight == 2.5f && goalHalfWidth == 3.7f);
+
+  Require(pitch.contains(Vector3(0, 0, 10)),
+          "pitch: bounds must use the ground-plane projection");
+  Require(pitch.contains(Vector3(55, 36, 0)) &&
+              pitch.contains(Vector3(-55, -36, 0)),
+          "pitch: boundary must be included and symmetric");
+  Require(!pitch.contains(Vector3(55.01f, 0, 0)) &&
+              !pitch.contains(Vector3(-55.01f, 0, 0)) &&
+              !pitch.contains(Vector3(0, 36.01f, 0)) &&
+              !pitch.contains(Vector3(0, -36.01f, 0)),
+          "pitch: positions beyond the lines must be excluded");
+  Require(MakeDefaultMatchSetup().pitch == pitch,
+          "pitch: default composition must use the actual simulation geometry");
+}
+
+
 void CheckGameEnvLifecycle() {
   Require(GetGame() == nullptr, "lifecycle: unexpected initial binding");
   {
@@ -4139,6 +4162,11 @@ void CheckGameEnvLifecycle() {
   {
     GameEnv env;
     env.start_game();
+    Require(env.context->simulation->match()->pitch() == MakeLegacyPitch(),
+            "pitch: default startup did not initialize match geometry");
+    env.reset(*ScenarioConfig::make(), false);
+    Require(env.context->simulation->match()->pitch() == MakeLegacyPitch(),
+            "pitch: reset changed the match geometry");
     {
       GameEnv unstarted;
     }
@@ -4163,6 +4191,8 @@ void CheckGameEnvLifecycle() {
   try {
     GameEnv env;
     env.start_game(MakeDefaultMatchSetup());
+    Require(env.context->simulation->match()->pitch() == MakeLegacyPitch(),
+            "pitch: explicit composition did not initialize match geometry");
     throw Unwind{};
   } catch (const Unwind&) {
   }
@@ -4191,6 +4221,7 @@ int main(int argc, char** argv) {
     CheckLegacyLocomotionCommandAdapter();
     CheckPlayerActionVolume();
     CheckPlayerBodyCollider();
+    CheckPitchGeometry();
     CheckGameEnvLifecycle();
     GameEnv env;
     env.start_game();

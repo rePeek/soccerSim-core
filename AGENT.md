@@ -105,6 +105,7 @@ src/
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
 │   ├── simulation, match, match_config, team, ball, referee, officials, humangamer, teamAIcontroller
+│   ├── pitch.hpp      只读场地几何值对象（当前保持 legacy 110 × 72 尺寸）
 │   ├── ai_support/     AIfunctions, mentalimage
 │   ├── utils.*         QuantizeDirection / GetVelocityID 等游戏工具
 │   └── player/
@@ -116,6 +117,7 @@ src/
 ├── controller/      协议无关的控制输入接口，以及 GRF action 适配器
 ├── env/             对外环境层
 │   ├── game_env, main, rng（全局 RNG 入口，owner 是 GameContext）
+│   ├── match_setup    球队声明与比赛组装；场地直接使用 sim/Pitch
 │   └── defines        EnvState / Position / SharedInfo
 ├── data/            matchdata, playerdata, teamdata（DB/序列化）
 └── ai/              ai_keyboard, ihidevice.hpp
@@ -180,6 +182,12 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
 ```
 
 - `GameEnv` is the stable public API; `Match`/`Player`/`Humanoid` are internals.
+- `Pitch` (`src/sim/pitch.hpp`) is the sole pitch value type; there is no separate
+  setup/runtime representation. `MatchConfig` passes it by value and `Match` owns
+  a read-only copy. Only the legacy geometry is supported for now. Transitional
+  pitch constants in `gamedefines.hpp` derive from that same geometry, not a
+  second set of dimensions. Do not introduce configurable dimensions without
+  migrating those remaining consumers and environment-coordinate scaling.
 - `physics_steps_per_frame` (default 10) subdivides each environment step.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
   (`GameContext::rng`). Never introduce unordered-container iteration order or

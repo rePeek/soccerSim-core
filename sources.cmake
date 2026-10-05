@@ -101,6 +101,7 @@ set(GAME_HEADERS
    src/sim/ball.hpp
    src/sim/team.hpp
    src/sim/match_config.hpp
+   src/sim/pitch.hpp
    src/sim/simulation.hpp
    src/sim/match.hpp
    src/sim/match_world_state.hpp

@@ -6,6 +6,7 @@
 
 #include "data/matchdata.hpp"
 #include "controller/controller_id.hpp"
+#include "sim/pitch.hpp"
 
 // Authoritative match-start configuration. It deliberately contains no GUI
 // objects, so simulation can be configured without MenuTask or WindowManager.
@@ -15,6 +16,7 @@ struct ControllerSetup {
 };
 
 struct MatchConfig {
+  Pitch pitch;
   std::vector<ControllerSetup> controllers;
   std::unique_ptr<MatchData> match_data;
   // Scales how fast match time advances. Replaces the legacy

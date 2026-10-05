@@ -20,6 +20,7 @@
 
 #include "env/defines.hpp"
 #include "animation/types.hpp"
+#include "sim/pitch.hpp"
 
 #include "foundation/math/vector3.hpp"
 
@@ -201,15 +202,17 @@ typedef std::vector<PlayerCommand> PlayerCommandQueue;
 
 e_PlayerRole GetRoleFromString(const std::string &roleString);
 
-const float pitchHalfW = 55; // only inside side- and backlines
-const float pitchHalfH = 36;
-const float pitchFullHalfW = 60; // including 'rim'
-const float pitchFullHalfH = 40;
-const float lineHalfW = 0.06f;
+// Transitional aliases for legacy AI and controller code. Pitch is the single
+// source of geometry; new match code should query its owned Pitch instead.
+inline constexpr float pitchHalfW = MakeLegacyPitch().half_length();
+inline constexpr float pitchHalfH = MakeLegacyPitch().half_width();
+inline constexpr float pitchFullHalfW = MakeLegacyPitch().full_half_length();
+inline constexpr float pitchFullHalfH = MakeLegacyPitch().full_half_width();
+inline constexpr float lineHalfW = MakeLegacyPitch().line_half_width();
 
-const float goalDepth = 2.55f;
-const float goalHeight = 2.5f;
-const float goalHalfWidth = 3.7f;
+inline constexpr float goalDepth = MakeLegacyPitch().goal_depth();
+inline constexpr float goalHeight = MakeLegacyPitch().goal_height();
+inline constexpr float goalHalfWidth = MakeLegacyPitch().goal_half_width();
 
 const float FORMATION_Y_SCALE = -2.36f;
 

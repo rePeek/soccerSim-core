@@ -62,6 +62,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
              const ControllerSet& controllers,
              const MatchConfig& config, bool animations)
     : matchData(std::move(match_data)),
+      pitch_(config.pitch),
       first_team(config.reverse_team_processing ? 1 : 0),
       second_team(config.reverse_team_processing ? 0 : 1),
       controllers(controllers),
@@ -560,21 +561,25 @@ bool Match::Step(const PlayerControlSet& controls) {
 }
 
 bool Match::CheckForGoal(signed int side, const Vector3 &previousBallPos) {
-  if (fabs(ball->Predict(10).coords[0]) < pitchHalfW - 1.0) return false;
+  if (fabs(ball->Predict(10).coords[0]) < pitch_.half_length() - 1.0) return false;
 
   Line line;
   line.SetVertex(0, previousBallPos);
   line.SetVertex(1, ball->Predict(0));
 
+  const float goal_x =
+      (pitch_.half_length() + pitch_.line_half_width() + 0.11f) * side;
+  const float half_goal_width = pitch_.goal_half_width();
+  const float goal_height = pitch_.goal_height();
   Triangle goal1;
-  goal1.SetVertex(0, Vector3((pitchHalfW + lineHalfW + 0.11f) * side, 3.7f, 0));
-  goal1.SetVertex(1, Vector3((pitchHalfW + lineHalfW + 0.11f) * side, -3.7f, 0));
-  goal1.SetVertex(2, Vector3((pitchHalfW + lineHalfW + 0.11f) * side, 3.7f, 2.5f));
+  goal1.SetVertex(0, Vector3(goal_x, half_goal_width, 0));
+  goal1.SetVertex(1, Vector3(goal_x, -half_goal_width, 0));
+  goal1.SetVertex(2, Vector3(goal_x, half_goal_width, goal_height));
   goal1.SetNormals(Vector3(-side, 0, 0));
   Triangle goal2;
-  goal2.SetVertex(0, Vector3((pitchHalfW + lineHalfW + 0.11f) * side, -3.7f, 0));
-  goal2.SetVertex(1, Vector3((pitchHalfW + lineHalfW + 0.11f) * side, -3.7f, 2.5f));
-  goal2.SetVertex(2, Vector3((pitchHalfW + lineHalfW + 0.11f) * side, 3.7f, 2.5f));
+  goal2.SetVertex(0, Vector3(goal_x, -half_goal_width, 0));
+  goal2.SetVertex(1, Vector3(goal_x, -half_goal_width, goal_height));
+  goal2.SetVertex(2, Vector3(goal_x, half_goal_width, goal_height));
   goal2.SetNormals(Vector3(-side, 0, 0));
 
   Vector3 intersectVec;
@@ -583,7 +588,8 @@ bool Match::CheckForGoal(signed int side, const Vector3 &previousBallPos) {
   // extra check: ball could have gone 'in' via the side netting, if line begin
   // == inside pitch, but outside of post, and line end == in goal. disallow!
   if (fabs(previousBallPos.coords[1]) > 3.7 &&
-      fabs(previousBallPos.coords[0]) > pitchHalfW - lineHalfW - 0.11) {
+      fabs(previousBallPos.coords[0]) >
+          pitch_.half_length() - pitch_.line_half_width() - 0.11) {
     return false;
   }
   if (intersect1 || intersect2) {
