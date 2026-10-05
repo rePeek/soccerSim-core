@@ -19,7 +19,6 @@
 #include <cmath>
 #include "sim/player/controller/strategies/strategy.hpp"
 
-#include "env/main.hpp"
 
 void DefaultMidfieldStrategy::RequestInput(ElizaController *controller,
                                            const MentalImage *mentalImage,

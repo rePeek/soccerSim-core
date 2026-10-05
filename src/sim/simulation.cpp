@@ -7,7 +7,6 @@
 #include "animation/library.hpp"
 
 #include "data/model_adapter.hpp"
-#include "env/main.hpp"
 #include "support/diagnostics/log.hpp"
 
 #include "sim/match.hpp"
@@ -52,6 +51,13 @@ bool DynamicPlayerSelection(const std::vector<FormationEntry>& left,
 }
 
 }  // namespace
+
+Simulation::Simulation() {
+  // The pre-match profile draws historically ran on an RNG freshly seeded with
+  // 0, before the episode seed was applied in Init(). Keep that exact window.
+  rng_.Seed(0);
+}
+
 Simulation::~Simulation() {
   Stop();
 }
@@ -67,7 +73,7 @@ void Simulation::Init(
   const std::vector<FormationEntry> right = ToLegacyFormation(away.formation);
   auto match_data = std::make_unique<MatchData>(
       ToTeamCreationData(home, kHomeTeamDatabaseId, left),
-      ToTeamCreationData(away, kAwayTeamDatabaseId, right));
+      ToTeamCreationData(away, kAwayTeamDatabaseId, right), rng_);
 
   // Derived once here, so the referee and team selection never read ambient
   // configuration during a tick.
@@ -75,13 +81,13 @@ void Simulation::Init(
       LeftTeamOwnsBall(left, right, options.ball_position);
   options.dynamic_player_selection = DynamicPlayerSelection(left, right);
 
-  // Profile construction historically consumes skin-colour draws before the
-  // episode seed is applied. Seed here, before creating match actors, rather
-  // than moving it ahead of MatchData construction in the environment.
-  randomize(options.game_engine_random_seed);
+  // Profile construction consumes skin-colour draws before the match seed is
+  // applied. Reseed here, before creating match actors, rather than moving it
+  // ahead of the MatchData draws above.
+  rng_.Seed(options.game_engine_random_seed);
 
   EnsureAnimationLibrary();
-  match_ = std::make_unique<Match>(std::move(match_data), pitch, options,
+  match_ = std::make_unique<Match>(std::move(match_data), pitch, options, rng_,
                                   animations_, init_animation);
 }
 

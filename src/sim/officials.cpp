@@ -23,11 +23,11 @@
 
 #include "data/playerdata.hpp"
 
-#include "env/main.hpp"
+#include "sim/match.hpp"
 
 Officials::Officials(Match *match)
     : match(match) {
-  playerData = new PlayerData();
+  playerData = new PlayerData(match->rng());
   referee = new PlayerOfficial(e_OfficialType_Referee, match, playerData);
   linesmen[0] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);
   linesmen[1] = new PlayerOfficial(e_OfficialType_Linesman, match, playerData);

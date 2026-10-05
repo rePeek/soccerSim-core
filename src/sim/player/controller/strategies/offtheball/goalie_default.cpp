@@ -20,7 +20,6 @@
 #include "foundation/geometry/line.hpp"
 #include "foundation/geometry/triangle.hpp"
 
-#include "env/main.hpp"
 #include "sim/player/controller/strategies/strategy.hpp"
 
 void GoalieDefaultStrategy::RequestInput(ElizaController *controller,

@@ -20,7 +20,6 @@
 #include "sim/team.hpp"
 
 #include "sim/gamedefines.hpp"
-#include "env/main.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "sim/match.hpp"
 

@@ -28,7 +28,8 @@ class MatchData {
   public:
     // Team composition comes from the caller; MatchData reads no ambient
     // configuration.
-    MatchData(const TeamCreationData& home, const TeamCreationData& away);
+    MatchData(const TeamCreationData& home, const TeamCreationData& away,
+              blunted::Rng& rng);
     TeamData& GetTeamData(int id) { return teamData[id]; }
     int GetGoalCount(int id) { return goalCount[id]; }
     void SetGoalCount(int id, int amount) { goalCount[id] = amount; }

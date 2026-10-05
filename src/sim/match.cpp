@@ -25,9 +25,7 @@
 #include "foundation/geometry/triangle.hpp"
 #include "support/diagnostics/assert.hpp"
 #include "support/diagnostics/log.hpp"
-#include "env/game_env.hpp"
 #include "env/main.hpp"
-#include "env/rng.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "support/io/file.hpp"
 #include "sim/player/playerofficial.hpp"
@@ -46,11 +44,13 @@ const std::vector<Vector3> &Match::GetAnimPositionCache(
 Match::Match(std::unique_ptr<MatchData> match_data,
              const football::model::Pitch& pitch,
              const MatchOptions& options,
+             SimulationRng& rng,
              std::shared_ptr<const AnimationLibrary> animation_library,
              bool animations)
     : matchData(std::move(match_data)),
       pitch_(pitch),
       animations_(std::move(animation_library)),
+      rng_(rng),
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
       possessionSideHistory(6000),
@@ -874,8 +874,8 @@ void Match::CheckBallCollisions() {
     resultVector *= 0.7f;
 
     ball->Touch(resultVector);
-    ball->SetRotation(boostrandom(-30, 30), boostrandom(-30, 30),
-                      boostrandom(-30, 30), 0.5f * bias);
+    ball->SetRotation(rng_.Uniform(-30, 30), rng_.Uniform(-30, 30),
+                      rng_.Uniform(-30, 30), 0.5f * bias);
     lastBodyBallCollisionTime_ms = actualTime_ms;
   }
 }

@@ -17,7 +17,6 @@
 
 #include "sim/ai_support/mentalimage.hpp"
 
-#include "env/main.hpp"
 #include "sim/match.hpp"
 
 MentalImage::MentalImage(Match* match)

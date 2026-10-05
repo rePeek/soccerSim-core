@@ -28,8 +28,6 @@
 
 #include "foundation/algorithm/hungarian.hpp"
 
-#include "env/main.hpp"
-#include "env/rng.hpp"
 
 
 bool ReverseSortTacticalOpponentInfo(const TacticalOpponentInfo &a,
@@ -732,7 +730,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
                         Vector3(-team->GetDynamicSide() * pitchHalfW * 0.6,
                                 -team->GetDynamicSide() * pitchHalfH * 0.6, 0);
                     basePos.coords[1] +=
-                        boostrandom(-2.0f,
+                        match->rng().Uniform(-2.0f,
                                     2.0f);  // to stop people from bumping into
                                             // each other and such
                     basePos.coords[0] *= 0.5;

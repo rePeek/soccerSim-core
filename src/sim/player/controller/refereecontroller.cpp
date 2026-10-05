@@ -22,7 +22,6 @@
 #include "sim/match.hpp"
 #include "sim/player/playerofficial.hpp"
 
-#include "env/main.hpp"
 
 RefereeController::RefereeController(Match *match) : IController(match) {
 }

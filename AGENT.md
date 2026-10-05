@@ -159,12 +159,11 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 
 尚未清理的上半段（不要在此基础上新增反向边）：
 
-- `sim/**` 与 `data/**` 仍 include `env/main.hpp`（全局 RNG 入口与 GetContext）。
-- 全局 RNG 入口（`boostrandom`/`randomseed`/`random_non_determ`）声明在
-  `env/rng.hpp`，因为它们需要选择 context 持有的 generator；算法本体
-  （`Rng`/`SimulationRng`/`PresentationRng`）在 `foundation/math/rng.hpp`。
-  确定性的 `SimulationRng` 状态只有 simulation 代码可以抽取；多抽一次就会
-  改变之后所有随机序列。
+- `sim/**` 与 `data/**` 只剩 `match.cpp`/`playerbase.cpp` 还 include
+  `env/main.hpp`，而且只为 legacy 的 `stablePlayerCount`（下一步）。
+- `env/rng.hpp` 现在只剩 presentation 入口（`randomseed`/`random_non_determ`），
+  而二者已无任何使用者；确定性的 `SimulationRng` 已改为 `Simulation` 持有，
+  算法本体在 `foundation/math/rng.hpp`。多抽一次就会改变之后所有随机序列。
 
 机械守卫（CTest，改坏边界会直接失败）：
 
@@ -194,7 +193,7 @@ files are inputs to the regression baseline.
 main() [src/app/app.cpp]
   → GameEnv(home, away, pitch) [src/env/game_env.*]
       start_game / reset_game / stop_game / step / controls / observe→WorldState
-      → private GameContext (legacy runtime container; RNG, controllers, animation)
+      → private GameContext (Simulation owner + legacy stablePlayerCount)
       → Simulation [src/sim/simulation.*] builds MatchData and owns match lifecycle
           → Match [src/sim/match.*]::Step()         per-tick loop (10ms steps)
               → Ball::Process()                  physics + prediction buffer
@@ -266,9 +265,17 @@ main() [src/app/app.cpp]
   (`Referee`, `Team`, `TeamAIController`, `Match::Step`) use `Match::options()`;
   the legacy derived helpers became the `left_team_owns_ball` /
   `dynamic_player_selection` fields computed once in `Simulation::Init`.
-  `GetContext()` is now down to `SimulationRng`, `PresentationRng` and
-  `stablePlayerCount`; those are the next migrations. The RNG belongs to
-  `Simulation`, and the legacy runtime ordinal should become the model
+- The deterministic simulation RNG is owned by `Simulation` (`rng_`), seeded to 0
+  in its constructor and reseeded with `game_engine_random_seed` after the
+  `MatchData` profile draws, exactly as the legacy startup did. `Match` holds a
+  reference and exposes `Match::rng()`; every former `boostrandom()` call site
+  now draws through the `Match`/`PlayerData` it already has, so `boostrandom()` is
+  deleted. Preserve that seed window: reseeding before `MatchData` would change
+  every downstream draw.
+- `GetContext()` is now used only for `simulation` (env lifecycle), the
+  presentation RNG and `stablePlayerCount`. The presentation entry points
+  (`PresentationRng`, `randomseed`, `random_non_determ`) have **zero** callers and
+  are the next pure deletion. The legacy runtime ordinal should become the model
   `PlayerId` plus a match-local index rather than move to a new owner. The
   internal `animations` flag affects referee restart timing, not just rendering;
   its false/default behavior is preserved. Fixture paths belong to tests.

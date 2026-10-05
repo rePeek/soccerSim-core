@@ -27,6 +27,7 @@
 #include "controller/controller_input.hpp"
 #include "data/matchdata.hpp"
 #include "sim/match_options.hpp"
+#include "sim/rng.hpp"
 #include "model/pitch.hpp"
 #include "sim/ai_support/mentalimage.hpp"
 #include "animation/library.hpp"
@@ -49,6 +50,7 @@ class Match {
     Match(std::unique_ptr<MatchData> matchData,
           const football::model::Pitch& pitch,
           const MatchOptions& options,
+          SimulationRng& rng,
           std::shared_ptr<const AnimationLibrary> animations,
           bool init_animation);
     virtual ~Match();
@@ -64,6 +66,9 @@ class Match {
     const AnimationLibrary& GetAnimationLibrary() const { return *animations_; }
     // Snapshot of the match rules; never re-read from ambient state.
     const MatchOptions& options() const { return options_; }
+    // Deterministic simulation RNG, owned by Simulation and shared by every
+    // actor in this match.
+    SimulationRng& rng() { return rng_; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
     void GetOfficialPlayers(std::vector<PlayerBase*> &players);
 
@@ -154,6 +159,7 @@ class Match {
     std::unique_ptr<MatchData> matchData;
     const football::model::Pitch pitch_;
     const std::shared_ptr<const AnimationLibrary> animations_;
+    SimulationRng& rng_;
     Team *teams[2];
     int first_team = 0;
     int second_team = 1;

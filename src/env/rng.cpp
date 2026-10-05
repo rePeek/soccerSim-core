@@ -22,15 +22,9 @@
 namespace blunted {
 
   // Accessors, not algorithm: the draw math lives in foundation/math/rng.hpp.
-  // These exist only because simulation code reaches the context RNG through
-  // a global today.
+  // Presentation-only; never affects simulation state.
   void randomseed(unsigned int seed) {
-    GetContext().rng.Seed(seed);
     GetContext().rng_non_deterministic.Seed(seed);
-  }
-
-  real boostrandom(real min, real max) {
-    return GetContext().rng.Uniform(min, max);
   }
 
   real random_non_determ(real min, real max) {

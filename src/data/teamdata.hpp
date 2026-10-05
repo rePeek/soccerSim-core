@@ -20,6 +20,7 @@
 
 #include <string>
 #include <vector>
+#include "foundation/math/rng.hpp"
 #include "support/config/properties.hpp"
 
 #include "sim/gamedefines.hpp"
@@ -46,7 +47,7 @@ struct TeamTactics {
 class TeamData {
 
   public:
-    explicit TeamData(const TeamCreationData& data);
+    explicit TeamData(const TeamCreationData& data, blunted::Rng& rng);
     ~TeamData();
 
     std::string GetName() const { return name; }

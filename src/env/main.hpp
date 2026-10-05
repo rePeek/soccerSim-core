@@ -25,8 +25,6 @@ GameEnv* GetGame();
 #include "sim/simulation.hpp"
 #include "sim/gamedefines.hpp"
 #include "env/rng.hpp"
-
-#include "sim/rng.hpp"
 #include "support/config/properties.hpp"
 #include <memory>
 
@@ -49,14 +47,8 @@ class GameContext {
  public:
   GameContext() { }
   std::unique_ptr<Simulation> simulation;
-  // Simulation RNG. Draw order is observable simulation state.
-  SimulationRng rng;
-
-
-  // Two random number generators are needed. One (deterministic when running
-  // in deterministic mode) to be used in places which generate deterministic
-  // game state. Second one is used in places which are optional and don't
-  // affect observations (like position of the sun).
+  // Presentation-only RNG. It must never affect simulation state; its
+  // remaining users are audited before it is removed or given an owner.
   PresentationRng rng_non_deterministic;
   int stablePlayerCount = 0;
 };

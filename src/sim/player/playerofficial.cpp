@@ -21,7 +21,6 @@
 
 #include "sim/player/controller/refereecontroller.hpp"
 
-#include "env/main.hpp"
 
 PlayerOfficial::PlayerOfficial(e_OfficialType officialType, Match *match,
                                PlayerData *playerData)

@@ -29,7 +29,6 @@
 
 #include "sim/player/humanoid/humanoid_utils.hpp"
 
-#include "env/main.hpp"
 
 
 

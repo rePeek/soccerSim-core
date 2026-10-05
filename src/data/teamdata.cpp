@@ -69,7 +69,7 @@ Vector3 GetDefaultRolePosition(e_PlayerRole role) {
   }
 }
 
-TeamData::TeamData(const TeamCreationData& data) {
+TeamData::TeamData(const TeamCreationData& data, blunted::Rng& rng) {
   const int teamDatabaseID = data.database_id;
   const std::vector<FormationEntry>& f = data.formation;
   formation.resize(f.empty() ? playerNum : f.size());
@@ -272,7 +272,7 @@ TeamData::TeamData(const TeamCreationData& data) {
                        : football::data::MakeDefaultAwayTeam()).players
           : data.players;
   for (const football::model::Player& player : roster) {
-    playerData.push_back(new PlayerData(player));
+    playerData.push_back(new PlayerData(rng, player));
   }
   playerData.resize(player_count);
 }

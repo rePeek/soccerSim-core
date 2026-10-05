@@ -21,7 +21,6 @@
 #include <utility>
 
 #include "data/player_profile.hpp"
-#include "env/rng.hpp"
 
 namespace {
 football::model::Player MakeOfficialPlayer() {
@@ -31,21 +30,18 @@ football::model::Player MakeOfficialPlayer() {
 }
 }  // namespace
 
-PlayerData::PlayerData(football::model::Player player)
+PlayerData::PlayerData(blunted::Rng& rng, football::model::Player player)
     : player_(std::move(player)) {
   // Retain the historical one draw per runtime profile, even when the supplied
   // appearance is explicit. Moving parsing outside startup must not shift the
   // deterministic simulation's random sequence.
-  const int skin_color = int(std::round(blunted::boostrandom(1, 4)));
+  const int skin_color = int(std::round(rng.Uniform(1, 4)));
   if (!player_.appearance.skin_color) {
     player_.appearance.skin_color = skin_color;
   }
 }
 
-PlayerData::PlayerData(int playerDatabaseID, bool left_team)
-    : PlayerData(football::data::LoadLegacyPlayerProfile(playerDatabaseID,
-                                                        left_team)) {}
-
-PlayerData::PlayerData() : PlayerData(MakeOfficialPlayer()) {}
+PlayerData::PlayerData(blunted::Rng& rng)
+    : PlayerData(rng, MakeOfficialPlayer()) {}
 
 PlayerData::~PlayerData() = default;

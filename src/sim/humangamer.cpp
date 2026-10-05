@@ -20,7 +20,6 @@
 #include "sim/team.hpp"
 
 
-#include "env/main.hpp"
 
 HumanGamer::HumanGamer(Team *team, ControllerInput *hid)
     : team(team), hid(hid), controller(team->GetMatch(), hid) {

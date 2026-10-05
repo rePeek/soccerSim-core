@@ -20,8 +20,8 @@
 #include <algorithm>
 
 MatchData::MatchData(const TeamCreationData& home,
-                     const TeamCreationData& away)
-    : teamData{TeamData(home), TeamData(away)} {
+                     const TeamCreationData& away, blunted::Rng& rng)
+    : teamData{TeamData(home, rng), TeamData(away, rng)} {
   goalCount[0] = 0;
   goalCount[1] = 0;
 

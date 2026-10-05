@@ -28,7 +28,6 @@
 
 
 #include "foundation/geometry/triangle.hpp"
-#include "env/rng.hpp"
 
 namespace {
 
@@ -394,7 +393,7 @@ void Player::SendOff() {
   // The deterministic RNG draw is deliberately kept: the baseline depends on
   // this consumption. The message it used to select is gone, so removing the
   // draw would be a gameplay change rather than a cleanup.
-  (void)boostrandom(0, 3);
+  (void)match->rng().Uniform(0, 3);
 
   Deactivate();
 

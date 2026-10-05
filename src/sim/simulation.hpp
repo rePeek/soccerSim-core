@@ -7,17 +7,20 @@
 #include "model/team.hpp"
 #include "model/pitch.hpp"
 #include "sim/match_options.hpp"
+#include "sim/rng.hpp"
 #include "state/world_state.hpp"
 
 class Match;
 class AnimationLibrary;
 
-// Owns match lifecycle, the baked animation library and runtime construction.
-// Initialization preserves profile creation / RNG seeding order.
-// Controllers are not part of this boundary: players read PlayerControlSet.
+// Owns the match lifecycle, the deterministic simulation RNG and the baked
+// animation library. Initialization preserves profile creation / RNG seeding
+// order. Controllers are not part of this boundary: players read
+// PlayerControlSet, and the RNG reaches actors through Match.
 class Simulation {
  public:
-  Simulation() = default;
+  // Seeds the pre-match RNG state, exactly as the legacy startup did.
+  Simulation();
   ~Simulation();
 
   void Init(const football::model::Team& home,
@@ -35,6 +38,7 @@ class Simulation {
  private:
   void EnsureAnimationLibrary();
 
+  blunted::SimulationRng rng_;
   std::unique_ptr<Match> match_;
   std::shared_ptr<AnimationLibrary> animations_;
 };

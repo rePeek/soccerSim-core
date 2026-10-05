@@ -33,8 +33,6 @@
 #include "sim/team.hpp"
 #include "sim/match.hpp"
 
-#include "env/main.hpp"
-#include "env/rng.hpp"
 
 #include "sim/ai_support/AIfunctions.hpp"
 
@@ -720,7 +718,7 @@ void Humanoid::Process() {
             (match->GetBall()->Predict(0).Get2D() - spatialState.position)
                     .GetNormalized() *
                 4.0f +
-            Vector3(0, 0, boostrandom(0.5f, 1.5f));  // was 1 .. 6
+            Vector3(0, 0, match->rng().Uniform(0.5f, 1.5f));  // was 1 .. 6
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
@@ -753,7 +751,7 @@ void Humanoid::Process() {
           Vector3 touchVec =
               (-currentBallMovement * 0.1f + playerMovement * 2.0f +
                Vector3(-team->GetDynamicSide(), 0, 0) * 4.0f +
-               Vector3(0, boostrandom(-1, 1), 0))
+               Vector3(0, match->rng().Uniform(-1, 1), 0))
                   .GetNormalized(0) *
               (currentBallMovement.GetLength() * 0.3f +
                playerMovement.GetLength() * 2.5f);
@@ -2159,7 +2157,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
     resultTouch = resultTouch * (1.0f - bias) + nativeTouch * bias;
   } else {
     radian rotation =
-        boostrandom(-0.5f * pi, 0.5f * pi) * std::min((real) randomRotation, 0.5f);
+        match->rng().Uniform(-0.5f * pi, 0.5f * pi) * std::min((real) randomRotation, 0.5f);
     resultTouch.Rotate2D(rotation);
   }
 
@@ -2173,7 +2171,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
   resultTouch = resultTouch * (1.0f - ballMovementFactor) +
                 match->GetBall()->GetMovement() * ballMovementFactor;
 
-  resultTouch.coords[2] += difficultyFactor * 5.0f * boostrandom(0.2f, 1.0f);
+  resultTouch.coords[2] += difficultyFactor * 5.0f * match->rng().Uniform(0.2f, 1.0f);
 
   return resultTouch;
 }

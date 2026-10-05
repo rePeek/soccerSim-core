@@ -21,7 +21,6 @@
 #include "sim/match.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 
-#include "env/main.hpp"
 
 
 
@@ -179,7 +178,9 @@ void Referee::Process() {
           buffer.endPhase = false;
         }
 
-        randomize(match->options().game_engine_random_seed);
+        // Deterministic reseed at the second-half kickoff, as before; the
+        // presentation RNG is a separate concern.
+        match->rng().Seed(match->options().game_engine_random_seed);
         PrepareSetPiece(buffer.desiredSetPiece);
       }
 

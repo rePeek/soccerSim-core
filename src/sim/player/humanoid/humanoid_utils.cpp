@@ -18,8 +18,6 @@
 #include "sim/player/humanoid/humanoid_utils.hpp"
 #include <cmath>
 
-#include "env/main.hpp"
-#include "env/rng.hpp"
 
 #include "sim/match.hpp"
 
@@ -203,7 +201,7 @@ void GetDifficultyFactors(Match *match, Player *player,
 
   float skillPenaltyMultiplier =
       (1.0f - player->GetStat(football::model::PlayerStat::technical_ballcontrol) * 0.5f) *
-      boostrandom(0.5f, 1.0f);
+      match->rng().Uniform(0.5f, 1.0f);
   distanceFactor *= skillPenaltyMultiplier;
   heightFactor *= skillPenaltyMultiplier;
   ballMovementFactor *= skillPenaltyMultiplier;
@@ -473,7 +471,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
   // random dir
   worstCaseDirection =
       worstCaseDirection +
-      (Vector3(boostrandom(-1, 1), boostrandom(-1, 1), boostrandom(-1, 1)) *
+      (Vector3(match->rng().Uniform(-1, 1), match->rng().Uniform(-1, 1), match->rng().Uniform(-1, 1)) *
        0.5f * difficultyFactor);
   worstCaseDirection.Normalize();
 
@@ -486,7 +484,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
 
   // actual result
 
-  float worstCaseFactor = boostrandom(0.0f, 1.0f);
+  float worstCaseFactor = match->rng().Uniform(0.0f, 1.0f);
   worstCaseFactor =
       std::pow(worstCaseFactor, player->GetStat(football::model::PlayerStat::technical_shot) * 0.7f);
 
@@ -502,10 +500,10 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
   // forward/backward 'curve'
   xRot = -currentAnim.originatingCommand.touchInfo.desiredDirection.coords[1] *
              20.0f +
-         (boostrandom(-20, 20) * randomCurveFactor);
+         (match->rng().Uniform(-20, 20) * randomCurveFactor);
   yRot = -currentAnim.originatingCommand.touchInfo.desiredDirection.coords[0] *
              20.0f +
-         (boostrandom(-20, 20) * randomCurveFactor);
+         (match->rng().Uniform(-20, 20) * randomCurveFactor);
 
   // lateral curve
   radian bodyTouchAngle = spatialState.bodyDirectionVec.GetAngle2D(shot) / pi;
@@ -514,7 +512,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
   //printf("bodyTouchAngle: %f\n", bodyTouchAngle);
   radian amount = bodyTouchAngle * 0.25f;
   shot.Rotate2D(amount * (0.4f + 0.6f * NormalizedClamp(shot.GetLength(), 0.0f, 70.0f)));
-  zRot = amount * -420 + (boostrandom(-20, 20) * plannedCurveFactor);
+  zRot = amount * -420 + (match->rng().Uniform(-20, 20) * plannedCurveFactor);
 
   //SetRedDebugPilon(match->GetBall()->Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
 

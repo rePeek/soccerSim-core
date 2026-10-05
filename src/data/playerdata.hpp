@@ -22,14 +22,15 @@
 
 #include "model/player.hpp"
 
+#include "foundation/math/rng.hpp"
+
 // Compatibility facade for legacy simulation callers. The owned model is the
 // sole source of identity, appearance and abilities: no separate stats array
 // or cached physical_velocity is kept here.
 class PlayerData {
  public:
-  explicit PlayerData(football::model::Player player);
-  PlayerData(int playerDatabaseID, bool left_team);
-  PlayerData();
+  explicit PlayerData(blunted::Rng& rng, football::model::Player player);
+  explicit PlayerData(blunted::Rng& rng);
   virtual ~PlayerData();
 
   const football::model::Player& GetModel() const { return player_; }

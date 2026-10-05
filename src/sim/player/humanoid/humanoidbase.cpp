@@ -34,8 +34,6 @@
 #include "sim/player/player_body_facing.hpp"
 #include "sim/match.hpp"
 
-#include "env/main.hpp"
-#include "env/rng.hpp"
 
 #include "sim/ai_support/AIfunctions.hpp"
 
@@ -869,7 +867,7 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   currentAnim.positions.clear();
   currentAnim.positions = match->GetAnimPositionCache(currentAnim.animationId);
   currentAnim.frameNum =
-      boostrandom(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
+      match->rng().Uniform(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
   currentAnim.touchFrame = -1;
   currentAnim.originatingInterrupt = e_InterruptAnim_None;
   currentAnim.actionSmuggle = Vector3(0);

@@ -27,7 +27,6 @@
 #include "sim/ai_support/mentalimage.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 
-#include "env/main.hpp"
 
 namespace {
 

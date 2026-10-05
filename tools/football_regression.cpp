@@ -950,7 +950,7 @@ std::string CaptureSimulationDigest() {
 
   // Compare the actual deterministic RNG state, not a draw-count surrogate.
   std::ostringstream rngState;
-  rngState << GetContext().rng.engine();
+  rngState << match->rng().engine();
   out += rngState.str();
 
   return out;
