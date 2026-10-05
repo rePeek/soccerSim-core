@@ -2,13 +2,17 @@
 
 Scope: real Player locomotion only; Shot/Pass/Trap/BallControl contact and animation presentation are **not** Movement authority. Inventory at 4f-b3, following 4f-b1 (`070901b`) and 4f-b2 (`71c93e6`). No golden update for b1–b3.
 
+Current-tree naming: the `PlayerBase` methods in this historical inventory now
+live directly on `Player`; the base class and `playerbase.*` are deleted, without
+changing the audited locomotion/contact authority boundary.
+
 ## Searches
 
 ```sh
 rg -n 'kinematicShadow|GetKinematicShadow|UpdateKinematicShadow|ResetKinematicShadow' src tools
 rg -n 'originatingCommand|GetOriginatingCommand|GetCurrentAnim\(' src tools
 rg -n 'ProjectMovementState|UsesProceduralLocomotion|BuildLegacyLocomotionInput|PlayerLocomotion::Step' src
-rg -n 'GetFrameNum\(|GetFrameCount\(|animMovement|GetOutgoingFoot' src/onthepitch/player
+rg -n 'GetFrameNum\(|GetFrameCount\(|animMovement|GetOutgoingFoot' src/sim/player
 ```
 
 The first search has no results. No remaining source or regression read of `originatingCommand.useDesiredMovement` gates the locomotion/reentry or intercept audits. The reset/retain command-provenance counters have also been deleted: they were diagnostic reads of animation-carried Movement values, not controller or intent authority.

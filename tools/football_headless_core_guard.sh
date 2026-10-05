@@ -28,10 +28,11 @@ fi
 
 # Rules must not regain on-pitch referee/linesman actors or animation-driven
 # restart timing. Referee itself is the football rules engine and stays.
+# Player is concrete: do not restore the retired shared player/official base.
 if grep -R -n -E \
     --include='*.cpp' --include='*.hpp' --include='*.h' \
-    '\b(Officials|PlayerOfficial|RefereeController|GetOfficials|GetOfficialPlayers|AlterSetPiecePrepareTime)\b' \
+    '\b(Officials|PlayerOfficial|RefereeController|GetOfficials|GetOfficialPlayers|AlterSetPiecePrepareTime|PlayerBase)\b|playerbase\.(hpp|cpp)' \
     "$source_dir"; then
-  echo "headless-core guard: simulated official actor or timing hook in $source_dir" >&2
+  echo "headless-core guard: retired actor abstraction or timing hook in $source_dir" >&2
   exit 1
 fi

@@ -23,7 +23,7 @@
 #include "sim/gamedefines.hpp"
 
 class Match;
-class PlayerBase;
+class Player;
 
 class IController {
 
@@ -35,10 +35,10 @@ class IController {
     virtual void Process() { };
     virtual Vector3 GetDirection() = 0;
     virtual float GetFloatVelocity() = 0;
-    virtual void SetPlayer(PlayerBase *player);
+    virtual void SetPlayer(Player *player);
 
     // for convenience
-    PlayerBase *GetPlayer() { return player; }
+    Player *GetPlayer() { return player; }
     Match *GetMatch() { return match; }
 
     virtual int GetReactionTime_ms();
@@ -46,7 +46,7 @@ class IController {
     virtual void Reset() = 0;
 
   protected:
-    PlayerBase *player = 0;
+    Player *player = 0;
     Match *match;
 };
 

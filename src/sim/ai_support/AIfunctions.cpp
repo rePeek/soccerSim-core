@@ -219,13 +219,12 @@ float AI_GetOffsideLine(Match *match, const MentalImage *mentalImage,
   return offsideLine;
 }
 
-void AI_GetBestDribbleMovement(Match *match, PlayerBase *p,
+void AI_GetBestDribbleMovement(Match *match, Player *player,
                                const MentalImage *mentalImage,
                                Vector3 &desiredDirection,
                                float &desiredVelocity,
                                const TeamTactics &teamTactics) {
 
-  Player* player = static_cast<Player*>(p);
   Vector3 myPos = player->GetPosition();
   Vector3 myMov = player->GetMovement();
 

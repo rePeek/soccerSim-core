@@ -32,7 +32,7 @@ HumanController::HumanController(Match *match, ControllerInput *hid)
 
 HumanController::~HumanController() {}
 
-void HumanController::SetPlayer(PlayerBase *player) {
+void HumanController::SetPlayer(Player *player) {
   lastSwitchTime_ms = match->GetActualTime_ms();
 
   PlayerController::SetPlayer(player);

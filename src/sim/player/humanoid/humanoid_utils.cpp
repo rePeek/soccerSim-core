@@ -26,7 +26,7 @@
 #include "animation/clip.hpp"
 #include "animation/types.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
-#include "sim/player/playerbase.hpp"
+#include "sim/player/player.hpp"
 
 namespace {
 const AnimationClip &GetBakedClipFor(Match *match, const Anim &anim) {

@@ -80,7 +80,7 @@ Humanoid::Humanoid(Player *player)
 
 Humanoid::~Humanoid() {}
 
-Player *Humanoid::CastPlayer() const { return static_cast<Player*>(player); }
+Player *Humanoid::CastPlayer() const { return player; }
 
 bool _PassFiddlingEnabled() {
   return true;

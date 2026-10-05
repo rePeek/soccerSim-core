@@ -26,14 +26,14 @@
 using namespace blunted;
 
 class Match;
-class PlayerBase;
+class Player;
 
 class MentalImage {
  public:
   MentalImage() { }
   MentalImage(Match *match);
   void Mirror(bool team_0, bool team_1, bool ball);
-  PlayerImage GetPlayerImage(PlayerBase* player) const;
+  PlayerImage GetPlayerImage(Player* player) const;
   std::vector<PlayerImagePosition> GetTeamPlayerImages(int teamID) const;
   void UpdateBallPredictions();
   Vector3 GetBallPrediction(int time_ms) const;

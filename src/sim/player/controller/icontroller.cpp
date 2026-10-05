@@ -20,9 +20,9 @@
 #include <cmath>
 
 #include "sim/match.hpp"
-#include "sim/player/playerbase.hpp"
+#include "sim/player/player.hpp"
 
-void IController::SetPlayer(PlayerBase *player) {
+void IController::SetPlayer(Player *player) {
   this->player = player;
 }
 

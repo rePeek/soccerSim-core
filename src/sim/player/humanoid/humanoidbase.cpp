@@ -28,7 +28,7 @@
 
 #include "sim/player/humanoid/humanoid_utils.hpp"
 
-#include "sim/player/playerbase.hpp"
+#include "sim/player/player.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_locomotion.hpp"
 #include "sim/player/player_body_facing.hpp"
@@ -541,7 +541,7 @@ const radian preferredDirectionAngles[] = {
     -0.999 * pi
 };
 
-HumanoidBase::HumanoidBase(PlayerBase *player, Match *match)
+HumanoidBase::HumanoidBase(Player *player, Match *match)
     : match(match),
       player(player) {
   interruptAnim = e_InterruptAnim_None;
@@ -574,7 +574,7 @@ float &HumanoidBase::OrderScratch(int id) const {
 void HumanoidBase::Mirror() {
   // Mirrors the field-level legacy contract, not a whole-state coordinate
   // transform: SpatialState::Mirror negates the movement fields but leaves the
-  // facing/body fields untouched. PlayerBase::Mirror() mirrors its kinematic
+  // facing/body fields untouched. Player::Mirror() mirrors its kinematic
   // mirror with exactly the same asymmetry, and the movement oracle verifies
   // the result bit-exactly.
   startPos.Mirror();

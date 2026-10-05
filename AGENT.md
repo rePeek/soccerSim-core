@@ -74,7 +74,9 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
   and command-adapter checks; 100 Hz raw WorldState goldens, authoritative-state
   and RNG reset/replay checks, model ownership, canonical frames and offline import
   fixtures; rule-only foul/card/restart timing, penalty, advantage and offside
-  tests. Animation A/B branches reset/replay rather than load a checkpoint.
+  tests; concrete/non-polymorphic Player, difficulty/fatigue-adjusted stats and
+  deactivation/teardown RNG-window checks. Animation A/B branches reset/replay
+  rather than load a checkpoint.
   `--print-baseline`, `--animation-ab`, `--animation-ab-lifecycle` remain available.
   Only offline import fixtures require `GFOOTBALL_DATA_DIR`. The former GRF
   projection/cadence, episode-override and legacy checkpoint assertions and
@@ -124,7 +126,7 @@ src/
 │   ├── simulation, match, match_options（仅规则参数）, team, ball, referee（规则）, humangamer, teamAIcontroller
 │   ├── ai_support/     AIfunctions, mentalimage
 │   └── player/
-│       ├── player, playerbase, player_locomotion, *_collider,
+│       ├── player（具体 runtime，无 PlayerBase）, player_locomotion, *_collider,
 │       │   player_action*, *_scheduler, player_kinematics, player_body_facing
 │       ├── controller/  icontroller, playercontroller（私有方向量化）, humancontroller,
 │       │                elizacontroller, strategies/offtheball/*
@@ -161,7 +163,7 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 
 尚未清理的上半段（不要在此基础上新增反向边）：
 
-- `sim/**` 与 `data/**` 只剩 `match.cpp`/`playerbase.cpp` 还 include
+- `sim/**` 与 `data/**` 只剩 `match.cpp`/`player.cpp` 还 include
   `env/main.hpp`，而且只为 legacy 的 `stablePlayerCount`（下一步）。
 - `env/rng.*` 已删除；确定性的 `SimulationRng` 由 `Simulation` 持有，算法本体在
   `foundation/math/rng.hpp`。没有全局 RNG 入口；正常重构不得额外抽取随机数。
@@ -173,8 +175,8 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 - `foundation_boundary_guard`：禁止 foundation include 上层，也禁止出现
   `GetContext`/`EnvState`/`boostrandom`/`randomseed`/`random_non_determ`。
 - `runtime_animation_boundary_guard`：禁止 runtime 依赖离线 `.anim` 管线。
-- `football_headless_core_guard`：禁止 graphics/Boost、裁判 humanoid actors
-  与动画驱动的重开球 timing hook 回流。
+- `football_headless_core_guard`：禁止 graphics/Boost、裁判 humanoid actors、
+  已删除的 PlayerBase 抽象与动画驱动的重开球 timing hook 回流。
 - `legacy_validation_guard`：禁止已经删除的逐语句 validation 宏/函数回流。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
@@ -226,7 +228,7 @@ main() [src/app/app.cpp]
   effective initial formations (`left_team_owns_ball`, `dynamic_player_selection`).
 - `Simulation::Init` and `Match` no longer take or store a controller registry.
   `Match::UpdateControllerSetup` and `Match::controller_assignments_` are deleted.
-  Players read `PlayerControlSet` first (`PlayerBase::RequestCommand`); otherwise the
+  Players read `PlayerControlSet` first (`Player::RequestCommand`); otherwise the
   per-player `ElizaController` created by `Player` decides.
 - The checkpoint serialization layer is deleted completely: `EnvState`, every
   `ProcessState`/`ProcessStateBase`, the `GameContext` controller registry and
@@ -304,10 +306,21 @@ main() [src/app/app.cpp]
   digest changes because it no longer includes the three official actors.
   The new goldens explicitly document this change. Football-player ordinals
   remain unchanged (officials were allocated after the teams).
-- Next migration order: Phase 5A model `PlayerId` / dense match-local `PlayerIndex`,
-  then Phase 5B flatten `PlayerBase` into its sole concrete subtype `Player`,
-  then eliminate `stablePlayerCount`/`GameContext`. Do not flatten the Humanoid
-  hierarchy in the same change.
+- `PlayerBase` is flattened into concrete, final, non-polymorphic `Player`;
+  `playerbase.*` and its build entries are deleted, with no alias/shim. `Player`
+  directly owns movement/action/decision state, controller and `unique_ptr<Humanoid>`.
+  Team/AI/control/controller/Humanoid readers now take `Player*`/`Player&`.
+  Player-specific difficulty/fatigue-adjusted `GetStat` and `Process` are the
+  only implementations; unused base fallback implementations are gone.
+- Flattening preserves the two ordinary `Deactivate` resets and their two RNG
+  draws/continuity epochs. Teardown calls only private `ResetRuntimeState` once
+  per active player (zero for inactive), exactly the old base-destructor window;
+  do not invoke roster callbacks while `Team::Exit` is deleting the roster.
+  This change preserves all post-official-removal goldens without regeneration.
+- Next: model `PlayerId` / dense match-local `PlayerIndex`, then eliminate
+  `stablePlayerCount`/`GameContext`. The player flattening was deliberately done
+  first at the maintainer's request. Do not flatten the Humanoid hierarchy in
+  the same change.
 
 ## Conventions and gotchas
 

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <type_traits>
 
 #include "env/game_env.hpp"
 #include "env/main.hpp"
@@ -967,6 +968,68 @@ void CheckCanonicalFrame() {
   }
 }
 
+static_assert(std::is_final_v<Player>);
+static_assert(!std::is_polymorphic_v<Player>);
+static_assert(!std::is_abstract_v<Player>);
+
+void CheckFlattenedPlayerLifecycle(GameEnv& game) {
+  game.reset_game();
+  Advance(game, 201);
+  Simulation* simulation = GetContext().simulation.get();
+  Match* match = simulation->match();
+  std::vector<Player*> players;
+  match->GetTeam(1)->GetActivePlayers(players);
+  Player* player = players.at(1);
+  player->RelaxFatigue(-0.25f);
+  const auto stat = football::model::PlayerStat::physical_reaction;
+  float multiplier = 0.3f + 0.7f * player->GetTeam()->GetAiDifficulty();
+  multiplier *= 0.7f + 0.3f * player->GetFatigueFactorInv();
+  RequireNear(player->GetStat(stat), player->GetPlayerData()->GetStat(stat) * multiplier,
+              "flattened Player lost difficulty/fatigue-adjusted stats");
+
+  Require(player->GetController()->GetPlayer() == player,
+          "controller no longer references the concrete Player");
+  PlayerControl control;
+  control.move_direction = Vector3(1, 0, 0);
+  control.desired_speed = dribbleVelocity;
+  control.action = ControlAction::Shoot;
+  control.power = 0.6f;
+  player->SetControl(control);
+  PlayerCommandQueue commands;
+  player->RequestCommand(commands);
+  player->ClearControl();
+  Require(commands.size() == 1 &&
+              commands.front().desiredFunctionType == e_FunctionType_Shot &&
+              commands.front().desiredVelocityFloat == control.desired_speed &&
+              commands.front().useTouchInfo &&
+              commands.front().touchInfo.inputPower == control.power,
+          "flattening changed explicit-control command authority");
+
+  blunted::SimulationRng& rng = match->rng();
+  blunted::SimulationRng expected = rng;
+  (void)expected();
+  (void)expected();
+  const auto epoch = player->GetDecisionLocomotionContinuityEpoch();
+  player->Deactivate();
+  Require(!player->IsActive() && player->ExternalController() == nullptr &&
+              player->GetDecisionLocomotionContinuityEpoch() == epoch + 2 &&
+              rng.engine() == expected.engine() &&
+              match->GetTeam(1)->GetActivePlayersCount() == 10,
+          "flattening changed deactivation's double reset or RNG order");
+
+  // Simulation owns RNG after Stop; compare the teardown draws without
+  // retaining any deleted player/Match pointer. Active players reset once,
+  // inactive players not at all. Roster callbacks during deletion are unsafe.
+  std::vector<Player*> remaining;
+  match->GetActiveTeamPlayers(0, remaining);
+  match->GetActiveTeamPlayers(1, remaining);
+  expected = rng;
+  for (std::size_t i = 0; i < remaining.size(); ++i) (void)expected();
+  Require(simulation->Stop() && rng.engine() == expected.engine(),
+          "flattening changed active-player teardown or its RNG window");
+  game.reset_game();
+}
+
 template <class T> concept HasOfficialActors =
     requires { &T::GetOfficials; } || requires { &T::GetOfficialPlayers; };
 template <class T> concept HasAnimationRestartHook =
@@ -1324,6 +1387,7 @@ int main(int argc, char** argv) {
       CheckGoldenSnapshots(game, false);
       CheckResetDeterminism(game);
       CheckRefereeRules(game);
+      CheckFlattenedPlayerLifecycle(game);
       CheckImportHierarchy();
     }
     std::cout << "football_regression: PASS (core API)\n";

@@ -142,7 +142,7 @@ void Team::DeleteHumanGamers() {
   switchPriority.clear();
 }
 
-e_PlayerColor Team::GetPlayerColor(PlayerBase *player) {
+e_PlayerColor Team::GetPlayerColor(Player *player) {
   if (player->ExternalController()) {
     return static_cast<e_PlayerColor>(
         player->ExternalController()->GetHIDevice()->GetPlayerColorIndex());

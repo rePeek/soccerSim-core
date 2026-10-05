@@ -246,7 +246,7 @@ ContactAuthorityAudit &ContactAuthorityFor(e_FunctionType type);
 bool RecordSchedulerQuery(const PlayerCommand &in_force,
                           const PlayerCommand &candidate);
 
-class PlayerBase;
+class Player;
 class Match;
 
 enum e_InterruptAnim {
@@ -334,7 +334,7 @@ struct SpatialState {
 class HumanoidBase {
 
   public:
-    HumanoidBase(PlayerBase *player, Match *match);
+    HumanoidBase(Player *player, Match *match);
     virtual ~HumanoidBase();
     void Mirror();
 
@@ -448,7 +448,7 @@ class HumanoidBase {
     radian ForceIntoPreferredDirectionAngle(radian angle) const;
 
     Match *match;
-    PlayerBase *player;
+    Player *player;
     // Shared between all players, no need to snapshot.
     // Seems to contain current animation context.
 

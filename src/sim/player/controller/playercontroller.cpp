@@ -59,7 +59,7 @@ void PlayerController::Process() {
   _mentalImageTime = reactionTime_ms;
 }
 
-void PlayerController::SetPlayer(PlayerBase *player) {
+void PlayerController::SetPlayer(Player *player) {
   IController::SetPlayer(player);
   this->team = CastPlayer()->GetTeam();
   this->oppTeam = match->GetTeam(abs(this->team->GetID() - 1));
@@ -67,7 +67,7 @@ void PlayerController::SetPlayer(PlayerBase *player) {
 }
 
 Player *PlayerController::CastPlayer() {
-  return static_cast<Player *>(player);
+  return player;
 }
 
 const MentalImage *PlayerController::GetMentalImage() {

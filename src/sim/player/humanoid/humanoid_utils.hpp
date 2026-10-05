@@ -27,7 +27,7 @@
 using namespace blunted;
 
 struct SpatialState;
-class PlayerBase;
+class Player;
 class Match;
 struct Anim;
 

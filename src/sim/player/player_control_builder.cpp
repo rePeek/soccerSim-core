@@ -1,6 +1,6 @@
 #include "sim/player/player_control_builder.hpp"
 
-#include "sim/player/playerbase.hpp"
+#include "sim/player/player.hpp"
 
 namespace {
 e_FunctionType ToFunctionType(ControlAction action) {
@@ -17,7 +17,7 @@ e_FunctionType ToFunctionType(ControlAction action) {
 }  // namespace
 
 PlayerCommandQueue BuildPlayerCommands(const PlayerControl& control,
-                                       const PlayerBase& player) {
+                                       const Player& player) {
   PlayerCommand command;
   command.desiredFunctionType = ToFunctionType(control.action);
   command.useDesiredMovement = true;

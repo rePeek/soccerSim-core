@@ -16,90 +16,754 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/player/player.hpp"
-#include "sim/player/player_locomotion.hpp"
 
 #include <cmath>
+#include <cstring>
 
+#include "env/main.hpp"
+#include "foundation/geometry/triangle.hpp"
+#include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/team.hpp"
-
 #include "sim/player/controller/elizacontroller.hpp"
 #include "sim/player/controller/strategies/strategy.hpp"
+#include "sim/player/player_action_executor.hpp"
+#include "sim/player/player_locomotion.hpp"
+#include "sim/player/locomotion_intent_scheduler.hpp"
+#include "sim/player/legacy_locomotion_command.hpp"
+#include "sim/player/player_control_builder.hpp"
+
+int &SimulationOnlyGateMismatchForResetContext(int context) {
+  static int records[kResetSituationCallContextCount] = {};
+  return records[context];
+}
+
+const char *ResetSituationCallContextName(int context) {
+  switch (context) {
+    case kResetSituationInitialBeforeFirstPlayerTick: return "initial";
+    case kResetSituationRuntime: return "runtime";
+    case kResetSituationPlayerDeactivateFirst: return "player_deactivate_first";
+    case kResetSituationPlayerDeactivateSecond: return "player_deactivate_second";
+    default: return "unknown";
+  }
+}
+int &MovementOracleConsumesForSource(int source) {
+  static int records[5] = {};
+  return records[source];
+}
+int &DecisionLocomotionIntentPresentTicks() { static int value = 0; return value; }
+int &DecisionLocomotionIntentMissingTicks() { static int value = 0; return value; }
+int &DecisionLocomotionIntentMissingForSource(int source) {
+  static int records[5] = {};
+  return records[source];
+}
+long &DecisionLocomotionIntentAgeSum_ms() { static long value = 0; return value; }
+int &DecisionLocomotionIntentAgeCount() { static int value = 0; return value; }
+int &DecisionLocomotionIntentAgeMax_ms() { static int value = -1; return value; }
+int &ActionCoupledLegacyMismatch() { static int value = 0; return value; }
+int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
+  static int records[5] = {};
+  return records[source];
+}
+int &LocomotionActionExitCount() { static int value = 0; return value; }
+int &ContinuityRepairAttempts() { static int value = 0; return value; }
+int &ContinuityRepairPublications() { static int value = 0; return value; }
+int &ContinuityRepairCandidatesMissing() { static int value = 0; return value; }
+int &DecisionPublicationCauseCount(int cause) { static int records[3] = {}; return records[cause]; }
+void Player::NoteDecisionPublicationCause(int cause) { pendingPublicationCause = cause; }
+int &DecisionPublicationViaSimulationCadence() { static int value = 0; return value; }
+int &DecisionPublicationViaLegacyOpportunityOnly() { static int value = 0; return value; }
+int &DecisionPublicationWhileIneligible() { static int value = 0; return value; }
+int &ReentryFreshViaSimulationCadence() { static int value = 0; return value; }
+int &ReentryFreshViaLegacyOpportunityOnly() { static int value = 0; return value; }
+int &ReentryFreshWhileIneligible() { static int value = 0; return value; }
+
+int &LocomotionNegativeDecisionAgeSamples() { static int value = 0; return value; }
+int &LocomotionReentryMeasurementEpoch() { static int value = 0; return value; }
+void ResetLocomotionReentryAudits() {
+  for (int category = 0; category < 4; ++category) {
+    LocomotionReentryAuditFor(category) = LocomotionReentryAudit();
+  }
+  LocomotionActionExitCount() = 0;
+  LocomotionNegativeDecisionAgeSamples() = 0;
+  DecisionPublicationViaSimulationCadence() = 0;
+  DecisionPublicationViaLegacyOpportunityOnly() = 0;
+  DecisionPublicationWhileIneligible() = 0;
+  ReentryFreshViaSimulationCadence() = 0;
+  ReentryFreshViaLegacyOpportunityOnly() = 0;
+  ReentryFreshWhileIneligible() = 0;
+  // Per-player provenance is scoped by epoch, so a player resets its own audit
+  // state on its next tick without iterating the roster.
+  ++LocomotionReentryMeasurementEpoch();
+}
+
+void Player::CheckDecisionLocomotionIntentOracle() const {
+  // Producer contract for the executed intent. The executability half lives in
+  // HasExecutableDecisionLocomotionIntent(); this half stays fatal so a Direct
+  // publication that is not a Movement intent can never silently execute.
+  const PlayerCommand &command = decisionLocomotionState.command;
+  if (!decisionLocomotionState.initialized || !command.useDesiredMovement ||
+      command.desiredFunctionType != e_FunctionType_Movement ||
+      decisionLocomotionState.publishedEpoch !=
+          decisionLocomotionState.continuityEpoch) {
+    Log(e_FatalError, "Player", "CheckDecisionLocomotionIntentOracle",
+        "the executed locomotion intent is not a current-epoch Direct Movement "
+        "intent");
+  }
+}
+
+void Player::AdvanceLocomotionContinuity(bool eligible) {
+  // Gameplay transition. The audit below observes eligibility and must never
+  // decide the epoch, or telemetry bookkeeping would drive a controller query.
+  if (!decisionLocomotionState.continuityStarted) {
+    decisionLocomotionState.continuityStarted = true;
+    decisionLocomotionState.wasEligibleLastTick = eligible;
+    return;
+  }
+  if (decisionLocomotionState.wasEligibleLastTick && !eligible) {
+    ++decisionLocomotionState.continuityEpoch;
+  }
+  decisionLocomotionState.wasEligibleLastTick = eligible;
+}
+
+void Player::NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
+                                          int now_ms) {
+  // Measurement epoch: telemetry is transient and not serialized, so state
+  // restore can rewind the match clock behind it. Scope the audit to the epoch
+  // instead of letting earlier scenarios pollute it.
+  if (reentryAuditEpoch != LocomotionReentryMeasurementEpoch()) {
+    reentryAuditEpoch = LocomotionReentryMeasurementEpoch();
+    reentryAuditStarted = false;
+    locomotionExitRecorded = false;
+  }
+  const unsigned long long generation = decisionLocomotionAuditGeneration;
+  if (!reentryAuditStarted) {
+    reentryAuditStarted = true;
+    wasPureLocomotionLastTick = eligible;
+    resetSinceLastPlayerTick = false;
+    return;
+  }
+  if (!eligible) {
+    // An ordinary non-locomotion tick is not a re-entry. Only leaving
+    // locomotion is an event, and it arms the generation comparison.
+    if (wasPureLocomotionLastTick) {
+      decisionGenerationAtLocomotionExit = generation;
+      locomotionExitRecorded = true;
+      // The epoch itself is advanced by AdvanceLocomotionContinuity(); this is
+      // observation only.
+      ++LocomotionActionExitCount();
+    }
+    wasPureLocomotionLastTick = false;
+    return;
+  }
+  // Eligible from here on. An actor that began the audit in an action and later
+  // becomes locomotion-eligible has an initial transition, not an observed action
+  // re-entry; reserve category 2 for a recorded locomotion exit.
+  int category = 0;
+  if (resetSinceLastPlayerTick) {
+    category = 3;
+  } else if (wasPureLocomotionLastTick) {
+    category = 1;
+  } else if (locomotionExitRecorded) {
+    category = 2;
+  }
+  LocomotionReentryAudit &audit = LocomotionReentryAuditFor(category);
+  ++audit.ticks;
+  if (scheduler_due) ++audit.scheduler_due; else ++audit.scheduler_not_due;
+  // Shadow of the epoch rule. Continuous locomotion must never require a fresh
+  // decision just because the cadence is due.
+  if (decisionLocomotionState.publishedEpoch !=
+      decisionLocomotionState.continuityEpoch) {
+    ++audit.would_require_fresh;
+    if (lastResetSituation_ms > lastDirectMovementIntentPublication_ms) {
+      ++audit.stale_after_reset;
+    } else if (category == 2 && locomotionExitRecorded) {
+      // a3b2 no longer lets animation opportunities publish the missing axis.
+      // A stale action re-entry is repaired by the forced Player Decision tick
+      // later in this same Process() call, before locomotion execution.
+      ++audit.stale_after_action_exit;
+    } else {
+      ++audit.stale_not_explained_by_reset;
+    }
+  }
+  if (category >= 2) {
+    // Reset is itself the discontinuity, so it anchors the comparison; other
+    // re-entries require an observed locomotion exit.
+    const bool anchor_valid = category == 3 ? resetGenerationAnchorValid
+                                            : locomotionExitRecorded;
+    const unsigned long long anchor = category == 3
+        ? resetDecisionGeneration
+        : decisionGenerationAtLocomotionExit;
+    if (anchor_valid && generation != anchor) {
+      ++audit.generation_advanced;
+      if (lastPublicationViaSimulationCadence) {
+        ++ReentryFreshViaSimulationCadence();
+      } else {
+        ++ReentryFreshViaLegacyOpportunityOnly();
+      }
+      if (lastPublicationWhileIneligible) ++ReentryFreshWhileIneligible();
+    } else if (anchor_valid) {
+      ++audit.generation_unchanged;
+    }
+  }
+  if (lastDirectMovementIntentPublication_ms >= 0) {
+    const int age_ms = now_ms - lastDirectMovementIntentPublication_ms;
+    if (age_ms < 0) {
+      // A restorable clock cannot precede a publication in normal forward play.
+      ++LocomotionNegativeDecisionAgeSamples();
+    } else {
+      audit.decision_age_sum_ms += age_ms;
+      ++audit.decision_age_count;
+      if (age_ms > audit.decision_age_max_ms) audit.decision_age_max_ms = age_ms;
+    }
+  }
+  wasPureLocomotionLastTick = true;
+  resetSinceLastPlayerTick = false;
+}
 
 
-#include "foundation/geometry/triangle.hpp"
+int &DecisionLocomotionIntentPresentTicksLegacyGateFalse() {
+  static int value = 0;
+  return value;
+}
+int &DecisionLocomotionIntentMissingTicksLegacyGateFalse() {
+  static int value = 0;
+  return value;
+}
+LocomotionReentryAudit &LocomotionReentryAuditFor(int category) {
+  static LocomotionReentryAudit records[4];
+  return records[category];
+}
+const char *LocomotionReentryCategoryName(int category) {
+  switch (category) {
+    case 0: return "initial";
+    case 1: return "continuous";
+    case 2: return "action_reentry";
+    case 3: return "reset_reentry";
+    default: return "unknown";
+  }
+}
 
 namespace {
 
-// H3e1c-3c planner cadence for pure locomotion. Execution runs the locomotion
-// model every 10 ms; the intercept solver runs every 100 ms per actor,
-// staggered by stable id so the cost is spread across ticks. This is a
-// sampling policy, not a second physics model: between refreshes the estimate
-// is merely stale. Lowering it later trades CPU for freshness without touching
-// locomotion semantics.
+// Execute every 10 ms; refresh the intercept belief every 100 ms, staggered
+// by the unchanged runtime ordinal. Between refreshes the estimate is retained.
 constexpr int kReachabilityRefreshTicks = 10;
-
-// Near-horizon region of the reachability model that keeps exact locomotion
-// rollouts. Chosen from the H sweep (0..1500 ms) of the final estimator: the
-// reachability classification is identical for every setting, so this is purely
-// a fidelity-versus-cost knob for the reported time. Its cost minimum is at
-// 500 ms (0.0196 ms per call against 0.0202 at 700), and 500 ms already carries
-// p99 510 ms with at most one sub-second decision flip, so the lower end of the
-// measured knee is used.
+// Preserve the measured 500 ms exact-rollout horizon; beyond it, the same
+// analytic capability approximation applies. This is not another physics model.
 constexpr int kReachabilityExactHorizon_ms = 500;
+
+// Bit comparison, not an epsilon: a movement mirror that is only approximately
+// right is a synchronization bug, and masking it would let a later procedural
+// producer inherit an inconsistent baseline.
+bool Vector3BitsEqual(const Vector3 &a, const Vector3 &b) {
+  return std::memcmp(a.coords, b.coords, sizeof(a.coords)) == 0;
+}
+
+bool FloatBitsEqual(float a, float b) {
+  return std::memcmp(&a, &b, sizeof(float)) == 0;
+}
 
 }  // namespace
 
 Player::Player(Team *team, PlayerData *playerData)
-    : PlayerBase(team->GetMatch(), playerData), team(team) {
+    : match(team->GetMatch()),
+      playerData(playerData),
+      stable_id(GetContext().stablePlayerCount++),
+      team(team) {
+  lastTouchTime_ms = 0;
+  lastTouchType = e_TouchType_None;
+  fatigueFactorInv = 1.0;
   SetDesiredTimeToBall_ms(0);
-
   triggerControlledBallCollision = false;
-
   tacticalSituation.forwardSpaceRating = 0;
   tacticalSituation.toGoalSpaceRating = 0;
   tacticalSituation.spaceRating = 0;
-
   cards = 0;
-
   cardEffectiveTime_ms = 0;
 }
 
 Player::~Player() {
+  if (isActive) {
+    // Preserve the former base destructor's reset/RNG window without invoking
+    // roster callbacks: Team::Exit may already have deleted other players.
+    SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
+    ResetRuntimeState(GetPosition());
+    isActive = false;
+    externalController = nullptr;
+  }
 }
 
-Humanoid *Player::CastHumanoid() {
-  return static_cast<Humanoid *>(humanoid.get());
+bool Player::IsKinematicMirrorConsistent() const {
+  return Vector3BitsEqual(kinematicState.position, humanoid->GetPosition()) &&
+         Vector3BitsEqual(kinematicState.velocity, humanoid->GetMovement()) &&
+         Vector3BitsEqual(kinematicState.facing, humanoid->GetDirectionVec()) &&
+         Vector3BitsEqual(kinematicState.bodyFacing,
+                          humanoid->GetBodyDirectionVec()) &&
+         FloatBitsEqual(kinematicState.speed,
+                        kinematicState.velocity.GetLength()) &&
+         Vector3BitsEqual(groundCollider.center,
+                          kinematicState.position.Get2D());
 }
+
+void Player::CheckSimulationKinematicOracle() const {
+  const Vector3 &position = humanoid->GetPosition();
+  const Vector3 &movement = humanoid->GetMovement();
+  const Vector3 &direction = humanoid->GetDirectionVec();
+  const Vector3 &bodyDirection = humanoid->GetBodyDirectionVec();
+
+  std::string mismatch;
+  if (!Vector3BitsEqual(kinematicState.position, position)) {
+    mismatch = "position";
+  } else if (!Vector3BitsEqual(kinematicState.velocity, movement)) {
+    mismatch = "velocity";
+  } else if (!Vector3BitsEqual(kinematicState.facing, direction)) {
+    mismatch = "facing";
+  } else if (!Vector3BitsEqual(kinematicState.bodyFacing, bodyDirection)) {
+    mismatch = "body facing";
+  } else if (!FloatBitsEqual(kinematicState.speed,
+                             kinematicState.velocity.GetLength())) {
+    mismatch = "speed";
+  } else if (!Vector3BitsEqual(groundCollider.center, position.Get2D())) {
+    mismatch = "collider center";
+  }
+  if (!mismatch.empty()) {
+    Log(e_FatalError, "Player", "CheckSimulationKinematicOracle",
+        "the gameplay kinematic mirror diverged from the Humanoid spatial "
+        "state: " + mismatch);
+  }
+}
+
+void Player::Mirror() {
+  humanoid->Mirror();
+  kinematicState.Mirror();
+  groundCollider.Mirror();
+  CheckSimulationKinematicOracle();
+}
+
+void Player::SynchronizeKinematicState() {
+  kinematicState.position = humanoid->GetPosition();
+  kinematicState.velocity = humanoid->GetMovement();
+  kinematicState.facing = humanoid->GetDirectionVec();
+  kinematicState.bodyFacing = humanoid->GetBodyDirectionVec();
+  kinematicState.speed = kinematicState.velocity.GetLength();
+  groundCollider.SetCenter(kinematicState.position);
+  CheckSimulationKinematicOracle();
+}
+
+bool Player::NoteLocomotionIntentCadence(bool legacy_opportunity) {
+  decisionMovementSelection = false;
+  const float distance_to_ball =
+      (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
+  const int now_ms = static_cast<int>(match->GetActualTime_ms());
+  const bool due = locomotionIntentScheduler.Due(now_ms);
+  locomotionIntentDueThisTick = false;
+  if (due) {
+    ++PlayerLocomotionIntentDueTicks();
+    // A due tick during a non-locomotion action is not consumed: querying the
+    // controller there would hand locomotion an intent that is already hundreds
+    // of milliseconds old by the time the action ends. The clock simply stays
+    // overdue so the refresh happens on the first eligible tick.
+    if (!IsEligibleForProceduralLocomotion()) {
+      ++PlayerLocomotionIntentDueIneligibleTicks();
+    } else {
+      locomotionIntentDueThisTick = true;
+    }
+  }
+  if (legacy_opportunity) {
+    ++PlayerLocomotionIntentLegacyOpportunityTicks();
+    if (locomotionIntentDueThisTick) ++PlayerLocomotionIntentOverlapTicks();
+  }
+  return locomotionIntentDueThisTick;
+}
+
+void Player::PublishPlayerDecisionQueue(
+    const PlayerCommandQueue &commands, int now_ms) {
+  playerDecisionQueue.commands = commands;
+  playerDecisionQueue.initialized = true;
+  ++playerDecisionQueue.generation;
+  playerDecisionScheduler.Commit(now_ms);
+}
+
+void Player::CommitLocomotionIntentRefresh() {
+  ++HumanoidIntentRefreshCommits();
+  const float distance_to_ball =
+      (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
+  ++PlayerLocomotionIntentConsumedTicks();
+  locomotionIntentScheduler.Schedule(
+      static_cast<int>(match->GetActualTime_ms()),
+      LocomotionIntentScheduler::CadenceForDistance_ms(
+          distance_to_ball, match->GetBallRetainer() == this));
+}
+
+
+// 4b': intent refresh is held back purely because execution is not pure. This is
+// the conflation under measurement: the scheduler is due, but the execution gate
+// blocks the refresh.
+bool Player::LocomotionIntentRefreshHeldIneligible() const {
+  return locomotionIntentScheduler.Due(
+             static_cast<int>(match->GetActualTime_ms())) &&
+         !IsEligibleForProceduralLocomotion();
+}
+
+static int t4opp_queries = 0, t4opp_with_candidate = 0;
+static int t4opp_cand_not_due = 0, t4opp_cand_due_ineligible = 0, t4opp_cand_due_eligible = 0;
+static int t4opp_nocand_not_due = 0, t4opp_nocand_other = 0;
+
+void DumpQueryOpportunities() {
+  printf("4opp-SUMMARY queries=%d with_candidate=%d\n", t4opp_queries, t4opp_with_candidate);
+  printf("4opp-SUMMARY candidate: not_due=%d due+ineligible=%d due+eligible=%d\n",
+         t4opp_cand_not_due, t4opp_cand_due_ineligible, t4opp_cand_due_eligible);
+  printf("4opp-SUMMARY no_candidate: not_due=%d other=%d\n", t4opp_nocand_not_due,
+         t4opp_nocand_other);
+  fflush(stdout);
+}
+void Player::NoteControllerQuery(bool had_movement_candidate) {
+  const int now_ms = static_cast<int>(match->GetActualTime_ms());
+  ++tr_query_gen;
+  tr_last_query_ms = now_ms;
+  tr_last_query_due = locomotionIntentScheduler.Due(now_ms) ? 1 : 0;
+  tr_last_query_eligible = IsEligibleForProceduralLocomotion() ? 1 : 0;
+  tr_last_query_action = static_cast<int>(actionState.type);
+  tr_last_query_retains = match->GetBallRetainer() == this ? 1 : 0;
+  tr_last_query_had_candidate = had_movement_candidate ? 1 : 0;
+  ++t4opp_queries;
+  if (had_movement_candidate) {
+    ++t4opp_with_candidate;
+    if (!tr_last_query_due) ++t4opp_cand_not_due;
+    else if (!tr_last_query_eligible) ++t4opp_cand_due_ineligible;
+    else ++t4opp_cand_due_eligible;
+  } else {
+    if (!tr_last_query_due) ++t4opp_nocand_not_due;
+    else ++t4opp_nocand_other;
+  }
+}
+
+void Player::NoteDecisionMovementSelection(bool movement_selected) {
+  decisionMovementSelection = movement_selected;
+}
+
+void Player::ObserveSimulationDecisionQueue(
+    const PlayerCommandQueue &commands, int now_ms) {
+  simulationDecisionQueue.commands = commands;
+  simulationDecisionQueue.initialized = true;
+  ++simulationDecisionQueue.generation;
+  simulationDecisionQueue.updated_ms = now_ms;
+}
+
+// c2a: the Player Decision Clock's single publication entry point. It owns the
+// decision locomotion state and the publication telemetry, and never touches the
+// compatibility movement command slot.
+void Player::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
+  if (command.desiredFunctionType != e_FunctionType_Movement ||
+      !command.useDesiredMovement) {
+    Log(e_FatalError, "Player", "PublishDecisionLocomotionIntent",
+        "the Player Decision Clock published a non-Movement intent");
+  }
+  // 4f-a1: whether this publication materially rewrites the decision already in
+  // force. Only animation-owned (legacy-only) publications are counted, so the
+  // number answers how often a requeue actually moved the decision clock.
+  const int publication_cause = pendingPublicationCause;
+  const bool decision_materially_changed =
+      decisionLocomotionState.initialized &&
+      MovementCommandDiffersMaterially(decisionLocomotionState.command, command);
+  ++PlayerMovementCommandDirectAdoptions();
+  lastDirectMovementIntentPublication_ms =
+      static_cast<int>(match->GetActualTime_ms());
+  // Cause split without changing the player path: a publication on a tick where
+  // the simulation cadence was not due can only have come from the animation
+  // lifecycle's query opportunity.
+  lastPublicationViaSimulationCadence = pendingPublicationCause == 0;
+  ++DecisionPublicationCauseCount(pendingPublicationCause);
+  pendingPublicationCause = 0;
+  lastPublicationWhileIneligible = !IsEligibleForProceduralLocomotion();
+  if (lastPublicationViaSimulationCadence) {
+    ++DecisionPublicationViaSimulationCadence();
+  } else {
+    ++DecisionPublicationViaLegacyOpportunityOnly();
+  }
+  if (publication_cause == 1) {
+    ++LegacyOnlyDecisionPublications();
+    if (decision_materially_changed) ++LegacyOnlyDecisionMaterialChanges();
+    if (decisionMovementSelection) {
+      ++LegacyOnlyDecisionMovementSelectionPublications();
+      if (decision_materially_changed) {
+        ++LegacyOnlyDecisionMovementSelectionMaterialChanges();
+      }
+    }
+  }
+  if (lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
+  // A publication belongs to the continuity epoch it was produced in, which is
+  // what makes it usable for this epoch's locomotion execution.
+  decisionLocomotionState.command = command;
+  decisionLocomotionState.initialized = true;
+  ++decisionLocomotionAuditGeneration;
+  decisionLocomotionState.publishedEpoch =
+      decisionLocomotionState.continuityEpoch;
+}
+
+// Single place that turns a controller queue into a published locomotion intent.
+// Returns true only when a Movement candidate with useDesiredMovement was
+// published, so callers commit the scheduler refresh only on a real publication.
+bool Player::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue) {
+  for (const PlayerCommand &candidate : queue) {
+    if (candidate.desiredFunctionType == e_FunctionType_Movement &&
+        candidate.useDesiredMovement) {
+      PublishDecisionLocomotionIntent(candidate);
+      return true;
+    }
+  }
+  return false;
+}
+
+
+PlayerActionState Player::CaptureLegacyActionState() const {
+  PlayerActionState legacy;
+  legacy.type = humanoid->GetCurrentFunctionType();
+  legacy.frame = humanoid->GetFrameNum();
+  legacy.frameCount = humanoid->GetFrameCount();
+  legacy.elapsedTime_ms = legacy.frame * 10;
+  legacy.durationTime_ms = legacy.frameCount * 10;
+  const Anim *anim = humanoid->GetCurrentAnim();
+  legacy.contactFrame = anim->touchFrame;
+  legacy.contactTime_ms =
+      anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
+  legacy.contactPosition = anim->touchPos;
+  return legacy;
+}
+
+void Player::CheckSimulationActionOracle() const {
+  const PlayerActionState legacy = CaptureLegacyActionState();
+  const bool contactPositionMatches =
+      std::memcmp(actionState.contactPosition.coords,
+                  legacy.contactPosition.coords,
+                  sizeof(actionState.contactPosition.coords)) == 0;
+  std::string mismatch;
+  if (actionState.type != legacy.type) {
+    mismatch = "type";
+  } else if (actionState.frame != legacy.frame) {
+    mismatch = "frame";
+  } else if (actionState.frameCount != legacy.frameCount) {
+    mismatch = "frame count";
+  } else if (actionState.elapsedTime_ms != legacy.elapsedTime_ms) {
+    mismatch = "elapsed time";
+  } else if (actionState.durationTime_ms != legacy.durationTime_ms) {
+    mismatch = "duration";
+  } else if (actionState.contactTime_ms != legacy.contactTime_ms) {
+    mismatch = "contact time";
+  } else if (actionState.contactFrame != legacy.contactFrame) {
+    mismatch = "contact frame";
+  } else if (!contactPositionMatches) {
+    mismatch = "contact position bits";
+  }
+  if (!mismatch.empty()) {
+    Log(e_FatalError, "Player", "CheckSimulationActionOracle",
+        "authoritative action state diverged from legacy oracle: " + mismatch +
+            " (simulation frame=" + std::to_string(actionState.frame) +
+            ", legacy frame=" + std::to_string(legacy.frame) +
+            ", simulation elapsed=" +
+            std::to_string(actionState.elapsedTime_ms) +
+            ", legacy elapsed=" + std::to_string(legacy.elapsedTime_ms) + ")");
+  }
+}
+
+void Player::BeginSimulationAction() {
+  const Anim *anim = humanoid->GetCurrentAnim();
+  PlayerActionDefinition definition;
+  definition.type = humanoid->GetCurrentFunctionType();
+  definition.durationTime_ms = humanoid->GetFrameCount() * 10;
+  definition.contactTime_ms = anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
+  definition.contactPosition = anim->touchPos;
+  PlayerActionExecutor::Begin(actionState, definition);
+  PlayerActionExecutor::Begin(actionState, definition);
+
+  // ResetPosition can deliberately start an idle animation at a non-zero
+  // legacy frame. Establish that initial cursor once; normal ticks never
+  // derive executor time from Humanoid.
+  const int initialElapsedTime_ms = humanoid->GetFrameNum() * 10;
+  if (initialElapsedTime_ms > 0) {
+    PlayerActionExecutor::Step(actionState, initialElapsedTime_ms);
+  }
+  CheckSimulationActionOracle();
+}
+
+void Player::StepSimulationAction(int elapsedTime_ms) {
+  PlayerActionExecutor::Step(actionState, elapsedTime_ms);
+  CheckSimulationActionOracle();
+}
+
+bool Player::IsEligibleForProceduralLocomotion() const {
+  return actionState.IsPureLocomotion(match->GetBallRetainer() == this);
+}
+
+
+void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
+  humanoid->ResetPosition(newPos, focusPos);
+  SynchronizeKinematicState();
+  BeginSimulationAction();
+}
+
+void Player::OffsetPosition(const Vector3 &offset) {
+  humanoid->OffsetPosition(offset);
+  SynchronizeKinematicState();
+  CheckSimulationActionOracle();
+}
+
+void Player::SetNextResetSituationAuditContext(int context) {
+  resetSituationAuditContext = context;
+}
+
+void Player::Deactivate() {
+  SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateFirst);
+  ResetSituation(GetPosition());
+  if (ExternalController()) {
+    team->DeselectPlayer(this);
+  }
+  // Preserve both historical resets, including their RNG draws and epochs.
+  SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
+  ResetSituation(GetPosition());
+  isActive = false;
+  externalController = nullptr;
+  GetTeam()->UpdateDesignatedTeamPossessionPlayer();
+}
+
+IController *Player::GetController() {
+  if (ExternalControllerActive()) {
+    return externalController->GetHumanController();
+  } else {
+    return controller.get();
+  }
+}
+
+void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
+  if (control_) {
+    commandQueue = BuildPlayerCommands(*control_, *this);
+  } else if (ExternalControllerActive()) {
+    externalController->GetHumanController()->RequestCommand(commandQueue);
+  } else {
+    controller->RequestCommand(commandQueue);
+  }
+}
+
+void Player::SetExternalController(HumanGamer *externalController) {
+  this->externalController = externalController;
+  if (this->externalController) {
+    this->externalController->GetHumanController()->Reset();
+    this->externalController->GetHumanController()->SetPlayer(this);
+  } else {
+    controller->Reset();
+  }
+}
+
+HumanController *Player::ExternalController() {
+  return externalController ? externalController->GetHumanController() : nullptr;
+}
+
+bool Player::ExternalControllerActive() {
+  return externalController && !externalController->GetHumanController()->Disabled();
+}
+
+void Player::Process() {
+  if (isActive) {
+    desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
+    if (ExternalControllerActive()) externalController->GetHumanController()->Process();
+    CastController()->Process();
+    if (match->IsInPlay()) {
+      if (match->GetActualTime_ms() % 1000 == 0) {
+        positionHistoryPerSecond.push_back(GetPosition());
+      }
+      if (hasPossession) possessionDuration_ms += 10; else possessionDuration_ms = 0;
+      if ((match->GetActualTime_ms() + GetStableID() * 10) % 100 == 0) {
+        _CalculateTacticalSituation();
+      }
+    }
+    Vector3 posBefore = CastHumanoid()->GetPosition();
+    CastHumanoid()->Process();
+    SynchronizeKinematicState();
+    CheckSimulationActionOracle();
+    if (match->IsInPlay()) {
+      Vector3 posAfter = CastHumanoid()->GetPosition();
+      float distance = (posAfter - posBefore).GetLength();
+      fatigueFactorInv -= distance * 0.00003f * (2.0f - GetStaminaStat()) * (1.0f / match->GetMatchDurationFactor());
+      fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
+    }
+    // Don't send off the last player on the team.
+    if (cards > 1 && cardEffectiveTime_ms <= match->GetActualTime_ms() &&
+        GetTeam()->GetActivePlayersCount() > 1) {
+      SendOff();
+    }
+  }
+}
+
+float Player::GetStat(football::model::PlayerStat name) const {
+  float multiplier = 0.3f + 0.7f * team->GetAiDifficulty();
+  multiplier *= 0.7f + 0.3f * GetFatigueFactorInv();
+  return playerData->GetStat(name) * multiplier;
+}
+
+float Player::GetMaxVelocity() const {
+  // see humanoidbase's physics function
+  return sprintVelocity * GetVelocityMultiplier();
+}
+
+float Player::GetVelocityMultiplier() const {
+  // see humanoid_utils' physics function
+  return 0.9f + playerData->get_physical_velocity() * 0.1f;
+}
+
+float Player::GetLastTouchBias(int decay_ms, unsigned long time_ms) {
+  unsigned long adaptedTime_ms = time_ms;
+  if (time_ms == 0) adaptedTime_ms = match->GetActualTime_ms();
+  if (decay_ms > 0) return 1.0f - clamp((adaptedTime_ms - GetLastTouchTime_ms()) / (float)decay_ms, 0.0f, 1.0f);
+  return 0.0f;
+}
+
+void Player::ResetRuntimeState(const Vector3 &focusPos) {
+  positionHistoryPerSecond.clear();
+  lastTouchTime_ms = 0;
+  lastTouchType = e_TouchType_None;
+  if (IsActive()) {
+    // The reset itself is the discontinuity, so it anchors the generation that
+    // a later reset re-entry compares against.
+    resetDecisionGeneration = decisionLocomotionAuditGeneration;
+    resetGenerationAnchorValid = true;
+    lastResetSituation_ms = static_cast<int>(match->GetActualTime_ms());
+    resetSinceLastPlayerTick = true;
+    // A reset is also a continuity break, so any earlier intent is invalid.
+    ++decisionLocomotionState.continuityEpoch;
+    if (resetSituationAuditContext == kResetSituationUnspecified) {
+      resetSituationAuditContext = hasProcessedPlayerTick
+          ? kResetSituationRuntime
+          : kResetSituationInitialBeforeFirstPlayerTick;
+    }
+    lastResetSituationAuditContext = resetSituationAuditContext;
+    humanoid->ResetSituation(focusPos);
+    SynchronizeKinematicState();
+    BeginSimulationAction();
+  }
+  if (GetController()) GetController()->Reset();
+  resetSituationAuditContext = kResetSituationUnspecified;
+}
+
+Humanoid *Player::CastHumanoid() { return humanoid.get(); }
 
 ElizaController *Player::CastController() {
   return static_cast<ElizaController *>(controller.get());
 }
 
-int Player::GetTeamID() const {
-  return team->GetID();
-}
+int Player::GetTeamID() const { return team->GetID(); }
+Team *Player::GetTeam() { return team; }
 
 Vector3 Player::GetPitchPosition() {
   Vector3 pos = GetPosition();
-  if (!team->onOriginalSide()) {
-    pos.Mirror();
-  }
+  if (!team->onOriginalSide()) pos.Mirror();
   return pos;
 }
 
-Team *Player::GetTeam() {
-  return team;
-}
-
 void Player::Activate(bool lazyPlayer) {
-
   assert(!isActive);
-
   isActive = true;
-
   humanoid.reset(new Humanoid(this));
-
   controller.reset(new ElizaController(match, lazyPlayer));
   CastController()->SetPlayer(this);
   CastHumanoid()->ResetPosition(
@@ -111,35 +775,13 @@ void Player::Activate(bool lazyPlayer) {
   SetDynamicFormationEntry(GetFormationEntry());
 }
 
-void Player::Deactivate() {
-  SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateFirst);
-  ResetSituation(GetPosition());
-  if (ExternalController()) {
-    team->DeselectPlayer(this); // don't want any humangamer to have control of this player anymore
-  }
-
-  PlayerBase::Deactivate();
-  GetTeam()->UpdateDesignatedTeamPossessionPlayer();
-}
-
-FormationEntry Player::GetFormationEntry() {
-  return team->GetFormationEntry(this);
-}
-
-bool Player::HasPossession() const {
-  return hasPossession;
-}
-
-bool Player::HasBestPossession() const {
-  return hasBestPossession;
-}
-
-bool Player::HasUniquePossession() const {
-  return hasUniquePossession;
-}
+FormationEntry Player::GetFormationEntry() { return team->GetFormationEntry(this); }
+bool Player::HasPossession() const { return hasPossession; }
+bool Player::HasBestPossession() const { return hasBestPossession; }
+bool Player::HasUniquePossession() const { return hasUniquePossession; }
 
 bool Player::AllowLastDitch(bool includingPossessionAmount) const {
-  if (includingPossessionAmount && team->GetTeamPossessionAmount() < 1.0f) return true; // why team possession amount and not player's? answer: because we don't have that info here (todo: fix that)
+  if (includingPossessionAmount && team->GetTeamPossessionAmount() < 1.0f) return true;
   return (GetTimeNeededToGetToBall_optimistic_ms() * 1.7f + 800 < GetTimeNeededToGetToBall_ms());
 }
 
@@ -157,53 +799,29 @@ float Player::GetAverageVelocity(float timePeriod_sec) {
     if (logSize - count == 0) break;
     prevPos = pos;
   }
-  return totalDistance / timePeriod_sec; // don't divide by count, since lack of entries should not influence average
+  return totalDistance / timePeriod_sec;
 }
 
 void Player::UpdatePossessionStats() {
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
-
   const e_FunctionType action_type = GetCurrentFunctionType();
-
   if (IsEligibleForProceduralLocomotion()) {
-    // H3e1c-3c: pure locomotion reachability comes from the capability model
-    // rather than the legacy distance heuristic. The solver is deterministic
-    // but not free, so it runs on a staggered 100 ms cadence; the refresh phase
-    // is a pure function of the simulation clock and the stable id, so no
-    // scheduler state has to be serialized and a load resumes on the same
-    // schedule.
-    //
-    // P1c: between refreshes the previous estimate is RETAINED. Earlier this
-    // branch fell through to the default heuristic on every non-refresh tick,
-    // which meant nine ticks out of ten fed the AI a different model entirely:
-    // same capability model plus a stale estimate is the contract, and a
-    // different model is not.
+    // H3e1c-3c: solve on the staggered 100 ms cadence, retaining the capability
+    // estimate between refreshes. Do not fall back to the legacy heuristic on
+    // those nine intermediate ticks (P1c); that would change the AI's model.
     ++PlayerReachabilityEligibleTicks();
-    const int reachability_tick =
-        static_cast<int>(match->GetActualTime_ms() / 10);
+    const int reachability_tick = static_cast<int>(match->GetActualTime_ms() / 10);
     const bool scheduled_refresh =
         (reachability_tick + GetStableID()) % kReachabilityRefreshTicks == 0;
-    // Force a refresh right after entering pure locomotion, so the first ticks
-    // do not retain a value produced for a previous non-locomotion action.
-    // elapsedTime_ms == 0 is derived from the action state, so this keeps the
-    // schedule a pure function of deterministic simulation state.
-    const bool entering_pure_locomotion =
-        GetSimulationActionState().elapsedTime_ms == 0;
+    // First eligible tick after an action must not reuse an old action estimate.
+    const bool entering_pure_locomotion = GetSimulationActionState().elapsedTime_ms == 0;
     if (scheduled_refresh || entering_pure_locomotion) {
       ++PlayerReachabilityRefreshes();
       PlayerLocomotionParameters locomotion_parameters;
       locomotion_parameters.maxSpeed = GetMaxVelocity();
-      // Capability estimate, not a second simulator. Near horizon it is the
-      // exact locomotion rollout, so a close decision keeps a bounded error;
-      // beyond the horizon it is the analytic model derived from the same
-      // locomotion parameters. Measured against the exact oracle: MAE 64 ms,
-      // p50 10 ms, p99 490 ms, worst case 700 ms, and no "exact says reachable
-      // but the model says no" flips at all.
-      //
-      // It is deliberately allowed to differ from the exact rollout: the AI
-      // consumes a capability belief, and a later perception layer can turn
-      // exactly this difference into individual anticipation. The exact
-      // estimator stays as the oracle this one is measured against.
+      // Capability belief, not another simulator: exact near-horizon rollout,
+      // analytic approximation beyond 500 ms. The exact estimator remains the
+      // measurement oracle; this approximation need not reproduce its belief.
       const PlayerLocomotionReach reach =
           PlayerLocomotion::EstimateEarliestInterceptHybrid(
               GetKinematicState(),
@@ -211,119 +829,90 @@ void Player::UpdatePossessionStats() {
               locomotion_parameters, GetMaxVelocity(),
               static_cast<int>(ballPredictionSize_ms),
               kReachabilityExactHorizon_ms,
-              kLocomotionUsualReachRadius,
-              kLocomotionOptimisticReachRadius,
+              kLocomotionUsualReachRadius, kLocomotionOptimisticReachRadius,
               /*steady_state=*/true);
       timeNeededToGetToBall_ms =
           reach.usual_ms >= 0 ? static_cast<unsigned int>(reach.usual_ms)
                               : ballPredictionSize_ms;
       timeNeededToGetToBall_optimistic_ms =
-          reach.optimistic_ms >= 0
-              ? static_cast<unsigned int>(reach.optimistic_ms)
-              : ballPredictionSize_ms;
+          reach.optimistic_ms >= 0 ? static_cast<unsigned int>(reach.optimistic_ms)
+                                   : ballPredictionSize_ms;
     } else {
-      // Deliberately retain the previous capability estimate: same model,
-      // merely stale.
       ++PlayerReachabilityReuses();
     }
   } else {
-    // Non-locomotion actions keep the legacy heuristic: their movement is still
-    // animation root motion, so their reachability and their execution still
-    // agree.
+    // Non-locomotion actions keep the legacy heuristic because their execution
+    // still follows animation root motion.
     timeNeededToGetToBall_ms = std::max(
         ballPredictionSize_ms,
         (unsigned int)(std::round(
             (match->GetBall()->Predict(ballPredictionSize_ms - 10).Get2D() -
-             (GetPosition() + GetMovement() * 0.2f))
-                .GetLength() /
+             (GetPosition() + GetMovement() * 0.2f)).GetLength() /
             (GetMaxVelocity() * 0.75f) * 1000)));
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
     unsigned int startTime_ms = 0;
     if ((action_type == e_FunctionType_ShortPass ||
          action_type == e_FunctionType_LongPass ||
          action_type == e_FunctionType_HighPass ||
-         action_type == e_FunctionType_Shot) &&
-        !TouchPending()) {
+         action_type == e_FunctionType_Shot) && !TouchPending()) {
       startTime_ms = 500;
     }
-
     bool refine = false;
     unsigned int timeStep_ms = 10;
     unsigned int previous_ms = 0;
     bool precise = (team->GetDesignatedTeamPossessionPlayer() == this) ? true : false;
-    for (unsigned int ms = startTime_ms; ms < ballPredictionSize_ms;
-         ms += timeStep_ms) {
+    for (unsigned int ms = startTime_ms; ms < ballPredictionSize_ms; ms += timeStep_ms) {
       if (match->GetBall()->Predict(ms).coords[2] < 1.5f) {
         TimeNeeded result = AI_GetTimeNeededForDistance_ms(
             GetPosition(), GetMovement(), match->GetBall()->Predict(ms).Get2D(),
             GetMaxVelocity(), precise, ms);
         unsigned int timeNeeded = result.usual_ms;
         unsigned int timeNeeded_optimistic = result.optimistic_ms;
-
         if (timeNeeded_optimistic <= ms) {
           if (ms < timeNeededToGetToBall_optimistic_ms) {
             timeNeededToGetToBall_optimistic_ms = ms;
           }
         }
-
         if (timeNeeded <= ms) {
-
-          // refinement round!
           if (!refine) {
-
             ms = previous_ms;
             timeStep_ms = 10;
             refine = true;
-            // found!
           } else {
             timeNeededToGetToBall_ms = ms;
             break;
           }
         }
       }
-
-      // refine timestep (optimisation)
       if (!refine) {
-        float balldist = (GetPosition() - match->GetBall()->Predict(ms).Get2D()).GetLength() + 0.2f; // add a little buffer
+        float balldist = (GetPosition() - match->GetBall()->Predict(ms).Get2D()).GetLength() + 0.2f;
         float maxBallVelo = 50;
-        // how long does it take for the ball at max velo to travel balldist?
-        unsigned int timeToGo_ms =
-            int(std::round((balldist / maxBallVelo) * 1000.0f));
+        unsigned int timeToGo_ms = int(std::round((balldist / maxBallVelo) * 1000.0f));
         timeStep_ms = clamp(timeToGo_ms, 10, 500);
-        // round to 10s
         timeStep_ms = (timeStep_ms / 10) * 10;
-      } else
-        timeStep_ms = 10;
-
+      } else timeStep_ms = 10;
       previous_ms = ms;
     }
   }
-
   if (TouchAnim() && TouchPending()) {
     unsigned int animTimeToBall_ms = (GetTouchFrame() - GetCurrentFrame()) * 10;
     timeNeededToGetToBall_ms = std::min(timeNeededToGetToBall_ms, animTimeToBall_ms);
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   }
-
   if (timeNeededToGetToBall_ms < defaultTouchOffset_ms) {
-    // apply quantum mechanics on the scale of the very small ;)
     timeNeededToGetToBall_ms = NormalizedClamp(((GetPosition() + GetMovement() * (defaultTouchOffset_ms * 0.001)) - match->GetBall()->Predict(defaultTouchOffset_ms).Get2D()).GetLength(), 0.0f, 0.6f) * defaultTouchOffset_ms;
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   }
-
   if ((action_type == e_FunctionType_ShortPass ||
        action_type == e_FunctionType_LongPass ||
        action_type == e_FunctionType_HighPass ||
-       action_type == e_FunctionType_Shot) &&
-      !TouchPending()) {
+       action_type == e_FunctionType_Shot) && !TouchPending()) {
     hasPossession = false;
   } else {
     hasPossession = AI_HasPossession(match->GetBall(), this);
   }
-
   this->hasBestPossession = hasPossession && match->GetTeam(abs(team->GetID() - 1))->GetTimeNeededToGetToBall_ms() > this->GetTimeNeededToGetToBall_ms();
   this->hasUniquePossession = hasPossession && !match->GetTeam(abs(team->GetID() - 1))->HasPossession();
-
   if (match->GetBallRetainer() == this) {
     timeNeededToGetToBall_ms = 1;
     timeNeededToGetToBall_optimistic_ms = 1;
@@ -343,60 +932,13 @@ float Player::GetClosestOpponentDistance() const {
   return opp->GetPosition().GetDistance(GetPosition());
 }
 
-void Player::Process() {
-
-  if (isActive) {
-
-    desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
-
-    if (ExternalControllerActive()) externalController->GetHumanController()->Process();
-    CastController()->Process();
-
-    if (match->IsInPlay()) {
-      if (match->GetActualTime_ms() % 1000 == 0) {
-        positionHistoryPerSecond.push_back(GetPosition());
-      }
-      if (hasPossession) possessionDuration_ms += 10; else possessionDuration_ms = 0;
-      if ((match->GetActualTime_ms() + GetStableID() * 10) % 100 == 0) {
-        _CalculateTacticalSituation();
-      }
-    }
-
-    Vector3 posBefore = CastHumanoid()->GetPosition();
-
-    CastHumanoid()->Process();
-    SynchronizeKinematicState();
-    CheckSimulationActionOracle();
-
-    if (match->IsInPlay()) {
-      Vector3 posAfter = CastHumanoid()->GetPosition();
-      float distance = (posAfter - posBefore).GetLength();
-      fatigueFactorInv -= distance * 0.00003f * (2.0f - GetStaminaStat()) * (1.0f / match->GetMatchDurationFactor());
-      fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
-    }
-    // Don't send off the last player on the team.
-    if (cards > 1 && cardEffectiveTime_ms <= match->GetActualTime_ms() &&
-        GetTeam()->GetActivePlayersCount() > 1) {
-      SendOff();
-    }
-  }
-}
-
-
-void Player::Put2D(bool /*mirror*/) {
-}
-
-void Player::Hide2D() {
-}
+void Player::Put2D(bool /*mirror*/) {}
+void Player::Hide2D() {}
 
 void Player::SendOff() {
-  // The deterministic RNG draw is deliberately kept: the baseline depends on
-  // this consumption. The message it used to select is gone, so removing the
-  // draw would be a gameplay change rather than a cleanup.
+  // Preserve the historical draw even though its message was removed.
   (void)match->rng().Uniform(0, 3);
-
   Deactivate();
-
   if (GetFormationEntry().role == e_PlayerRole_GK) {
     FormationEntry entry = GetFormationEntry();
     std::vector<Player*> activePlayers;
@@ -412,17 +954,8 @@ float Player::GetStaminaStat() const {
   return playerData->GetStat(football::model::PlayerStat::physical_stamina);
 }
 
-float Player::GetStat(football::model::PlayerStat name) const {
-  float multiplier = 0.3f + 0.7f * team->GetAiDifficulty();
-  multiplier *= 0.7f + 0.3f * GetFatigueFactorInv();
-
-  return playerData->GetStat(name) * multiplier;
-}
-
-
 void Player::ResetSituation(const Vector3 &focusPos) {
-  PlayerBase::ResetSituation(focusPos);
-
+  ResetRuntimeState(focusPos);
   hasPossession = false;
   hasBestPossession = false;
   hasUniquePossession = false;
@@ -431,9 +964,7 @@ void Player::ResetSituation(const Vector3 &focusPos) {
   timeNeededToGetToBall_optimistic_ms = 1000;
   SetDesiredTimeToBall_ms(0);
   manMarking = 0;
-
   triggerControlledBallCollision = false;
-
   tacticalSituation.forwardSpaceRating = 0;
   tacticalSituation.toGoalSpaceRating = 0;
   tacticalSituation.spaceRating = 0;
@@ -443,27 +974,14 @@ void Player::_CalculateTacticalSituation() {
   const MentalImage *mentalImage = static_cast<PlayerController*>(GetController())->GetMentalImage();
   assert(mentalImage);
   assert(IsActive());
-
-  // calculate how free the path forward is
   float time_sec = 0.5f;
-  Vector3 checkPos = GetPosition() + Vector3(-team->GetDynamicSide(), 0, 0) *
-                                         sprintVelocity * time_sec;
-  tacticalSituation.forwardSpaceRating = AI_CalculateFreeSpace(match, mentalImage, team->GetID(), checkPos, 5.0f, time_sec); // FREESPACE :D :D
-
-  // calculate the amount of space this player has
-  //tacticalSituation.spaceRating = AI_CalculatePersonalFreeSpace(match, mentalImage, this, 8.0f, 8.0f, 0.2f);
+  Vector3 checkPos = GetPosition() + Vector3(-team->GetDynamicSide(), 0, 0) * sprintVelocity * time_sec;
+  tacticalSituation.forwardSpaceRating = AI_CalculateFreeSpace(match, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
   time_sec = 0.1f;
   checkPos = GetPosition() + GetMovement() * time_sec;
-  tacticalSituation.spaceRating = AI_CalculateFreeSpace(match, mentalImage, team->GetID(), checkPos, 5.0f, time_sec); // FREESPACE :D :D
-
-  // distance to opponent goal 0 .. 1 == farthest .. closest
+  tacticalSituation.spaceRating = AI_CalculateFreeSpace(match, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
   tacticalSituation.forwardRating =
-      1.0f - clamp((Vector3(pitchHalfW * -team->GetDynamicSide(), 0, 0) -
-                    GetPosition())
-                           .GetLength() /
-                       (pitchHalfW * 2.0f),
-                   0.0f, 1.0f);
-  tacticalSituation.forwardRating =
-      std::pow(tacticalSituation.forwardRating,
-               1.5f);  // more important when close to goal
+      1.0f - clamp((Vector3(pitchHalfW * -team->GetDynamicSide(), 0, 0) - GetPosition()).GetLength() /
+                       (pitchHalfW * 2.0f), 0.0f, 1.0f);
+  tacticalSituation.forwardRating = std::pow(tacticalSituation.forwardRating, 1.5f);
 }

@@ -84,7 +84,7 @@ class Team {
     }
     void AddHumanGamers(const std::vector<ControllerInput*>& controllers);
     void DeleteHumanGamers();
-    e_PlayerColor GetPlayerColor(PlayerBase* player);
+    e_PlayerColor GetPlayerColor(Player* player);
     int HumanControlledToBallDistance();
 
     bool HasPossession() const;

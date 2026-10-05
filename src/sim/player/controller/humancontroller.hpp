@@ -30,7 +30,7 @@ class HumanController : public PlayerController {
     HumanController(Match *match = nullptr, ControllerInput *hid = nullptr);
     virtual ~HumanController();
 
-    virtual void SetPlayer(PlayerBase *player);
+    void SetPlayer(Player *player) override;
     bool Disabled() const {
       return hid->Disabled();
     }

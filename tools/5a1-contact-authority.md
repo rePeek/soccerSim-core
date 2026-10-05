@@ -2,6 +2,10 @@
 
 **4f Movement migration is closed at its stated boundary:** direct pure-locomotion animation-command reads have been removed. This is not a claim of animation-independent gameplay: 4f-c showed that changing animation duration changes action lifecycle and gameplay. Contact authority is a separate migration; 5a1 only observes Shot, ShortPass, LongPass, HighPass, Trap and BallControl. It changes neither selection nor contact execution, Player Decision queries, controller calls or random draws.
 
+Current-tree naming: `PlayerBase::BeginSimulationAction` below is now
+`Player::BeginSimulationAction`. Flattening removed the base class, not the
+contact/animation authority described by this historical measurement.
+
 ## Ownership/dependency map
 
 `PlayerBase::BeginSimulationAction()` copies the accepted animation's frame count, `touchFrame` and `touchPos` into the simulation action definition. This makes the **cursor** simulation-owned, not the **initial timing or geometry**. At `Humanoid::Process()`'s scheduled-contact frame, execution still reads `currentAnim.touchPos + positionOffset`, the animation extension's `GetTouchPos(contactFrame)` (height), `incoming_retain_state` (distance override), `touch_bodypart` (touch classification) and the live ball state. The gate requires distance < 0.4 m (1.0 m for incoming retain) and height difference < 1.0 m. `bumpyRideBias` is derived from the distance and can modify the outgoing vector. Only a passed gate can request `Ball::Touch` for these six types. The action can be interrupted before reaching its contact frame. The simulation action's copied `contactPosition` does **not** replace the `currentAnim` geometry read at execution.
@@ -15,7 +19,7 @@
 | Trap | `GetTrapVector` → `GetBallControlVector`: accepted desired direction/velocity plus live controller float velocity, outgoing animation movement/velocity/frame count, spatial and live ball state. Difficulty factors include an existing random draw. | No pass/shot profile power/difficulty input; animation outgoing velocity and remaining duration affect control. |
 | BallControl | `GetBallControlVector`: same command, live controller velocity, outgoing animation movement/velocity/frame count, spatial and ball inputs; optional KnockOn branch uses command modifier. | Control vector depends on selected animation's outgoing motion and duration. |
 
-See `src/onthepitch/player/humanoid/humanoid.cpp` for the gate/branch and `humanoid_utils.cpp` for the Shot, Trap and BallControl vector helpers. Profile **presence counters** below are not an assertion that a value was non-default, or that a conditional profile branch ran. Likewise `command_target` counts a non-null accepted target, not necessarily the final target after `AI_GetPass`.
+See `src/sim/player/humanoid/humanoid.cpp` for the gate/branch and `humanoid_utils.cpp` for the Shot, Trap and BallControl vector helpers. Profile **presence counters** below are not an assertion that a value was non-default, or that a conditional profile branch ran. Likewise `command_target` counts a non-null accepted target, not necessarily the final target after `AI_GetPass`.
 
 ## Fixed-seed observation
 

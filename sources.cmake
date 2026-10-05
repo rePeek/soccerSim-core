@@ -72,7 +72,6 @@ set(GAME_HEADERS
    src/sim/player/humanoid/humanoidbase.hpp
    src/sim/player/humanoid/humanoid.hpp
    src/sim/player/humanoid/humanoid_utils.hpp
-   src/sim/player/playerbase.hpp
    src/sim/player/player_control_builder.hpp
    src/sim/player/player_kinematics.hpp
    src/sim/player/player_retain_anchor.hpp
@@ -110,7 +109,6 @@ set(GAME_SOURCES
    src/sim/player/humanoid/humanoidbase.cpp
    src/sim/player/humanoid/humanoid.cpp
    src/sim/player/player.cpp
-   src/sim/player/playerbase.cpp
    src/sim/player/player_control_builder.cpp
    src/sim/player/player_locomotion.cpp
    src/sim/player/controller/playercontroller.cpp

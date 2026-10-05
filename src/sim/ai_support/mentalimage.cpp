@@ -61,7 +61,7 @@ void MentalImage::Mirror(bool team_0, bool team_1, bool ball) {
 int MentalImage::GetTimeStampNeg_ms() const { return match->GetActualTime_ms() - timeStamp_ms; }
 
 
-PlayerImage MentalImage::GetPlayerImage(PlayerBase* p) const {
+PlayerImage MentalImage::GetPlayerImage(Player* p) const {
   for (auto& player : players) {
     if (player.player == p) {
       PlayerImage newImage = player;

@@ -28,7 +28,7 @@ class PlayerController : public IController {
 
     virtual void Process();
 
-    virtual void SetPlayer(PlayerBase *player);
+    void SetPlayer(Player *player) override;
     Player *CastPlayer();
     Team *GetTeam() { return team; }
     Team *GetOppTeam() { return oppTeam; }
