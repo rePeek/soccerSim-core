@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -27,6 +28,7 @@
 #include "animation/import_hierarchy.hpp"
 #include "animation/import_loader.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
+#include "support/diagnostics/backtrace.hpp"
 
 namespace {
 
@@ -4278,7 +4280,21 @@ void CheckGameEnvLifecycle() {
 
   {
     GameEnv env;
+    const auto saved_precision = std::cout.precision();
+    const auto saved_flags = std::cout.flags();
+    std::cout.precision(7);
+    std::cout.unsetf(std::ios_base::unitbuf);
+    const auto saved_handler = std::signal(SIGSEGV, SIG_DFL);
     env.start_game();
+    const bool console_unchanged =
+        std::cout.precision() == 7 &&
+        !(std::cout.flags() & std::ios_base::unitbuf);
+    const auto startup_handler = std::signal(SIGSEGV, saved_handler);
+    std::cout.precision(saved_precision);
+    std::cout.flags(saved_flags);
+    Require(console_unchanged, "lifecycle: startup changed console formatting");
+    Require(startup_handler == SIG_DFL,
+            "lifecycle: startup installed a process signal handler");
     Require(env.context->simulation->match()->pitch() == football::model::MakeLegacyPitch(),
             "pitch: default startup did not initialize match geometry");
     env.reset(*ScenarioConfig::make(), false);
@@ -4383,6 +4399,9 @@ void CheckEnvironmentCadence(GameEnv& env) {
 
 
 int main(int argc, char** argv) {
+  install_stacktrace();
+  std::cout.precision(17);
+  std::cout << std::unitbuf;
   if (!std::getenv("GFOOTBALL_DATA_DIR")) {
     std::cerr << "Set GFOOTBALL_DATA_DIR before running football_regression.\n";
     return 2;

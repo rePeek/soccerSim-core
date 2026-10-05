@@ -13,20 +13,32 @@
 
 #undef NDEBUG
 
-#include "support/diagnostics/backtrace.hpp"
 #include "support/diagnostics/log.hpp"
 #include "env/game_env.hpp"
 #include "env/model_adapter.hpp"
 
-#include <cerrno>
-#include <ctime>
-#include <iostream>
-#include <ratio>
+#include <string>
+#include <utility>
 
 #include "support/diagnostics/assert.hpp"
-#include "support/io/file.hpp"
 
 using std::string;
+
+namespace {
+
+class ContextHolder {
+ public:
+  ContextHolder(GameEnv* game) : game(game) { SetGame(game); }
+  ~ContextHolder() {
+    if (GetGame() != game) {
+      Log(e_FatalError, "football", "main", "game state was corrupted");
+    }
+  }
+ private:
+  const GameEnv* game;
+};
+
+}  // namespace
 
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
                  football::model::Pitch pitch)
@@ -52,33 +64,10 @@ void GameEnv::do_step(int count) {
   }
 }
 
-float Position::env_coord(int index) const {
-  switch (index) {
-    case 0:
-      return value[0] / X_FIELD_SCALE;
-    case 1:
-      return value[1] / Y_FIELD_SCALE;
-    case 2:
-      return value[2] / Z_FIELD_SCALE;
-    default:
-      Log(e_FatalError, "football", "main", "index out of range");
-      return 0;
-  }
-}
-
-std::string Position::debug() {
-  return std::to_string(value[0]) + "," + std::to_string(value[1]) + "," +
-         std::to_string(value[2]);
-}
-
 void GameEnv::start_game() {
   assert(context == nullptr);
-  install_stacktrace();
-  std::cout.precision(17);
   context = std::make_unique<GameContext>();
   ContextHolder c(this);
-  // feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
-  std::cout << std::unitbuf;
 
   run_game();
   auto scenario_config = ScenarioConfig::make();

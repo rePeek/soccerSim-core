@@ -3,6 +3,7 @@
 #include <string>
 
 #include "env/game_env.hpp"
+#include "support/diagnostics/backtrace.hpp"
 
 
 namespace {
@@ -30,6 +31,9 @@ void PrintState(int iteration, const SharedInfo& state) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  install_stacktrace();
+  std::cout.precision(17);
+  std::cout << std::unitbuf;
   const int steps = argc > 1 ? std::atoi(argv[1]) : 1000;
   if (steps < 1) {
     std::cerr << "Usage: " << argv[0] << " [positive-step-count]\n";

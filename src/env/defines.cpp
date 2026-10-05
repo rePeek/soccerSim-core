@@ -22,6 +22,27 @@
 #include "env/game_env.hpp"
 #include "env/main.hpp"
 
+#include "support/diagnostics/log.hpp"
+
+float Position::env_coord(int index) const {
+  switch (index) {
+    case 0:
+      return value[0] / X_FIELD_SCALE;
+    case 1:
+      return value[1] / Y_FIELD_SCALE;
+    case 2:
+      return value[2] / Z_FIELD_SCALE;
+    default:
+      Log(e_FatalError, "football", "main", "index out of range");
+      return 0;
+  }
+}
+
+std::string Position::debug() {
+  return std::to_string(value[0]) + "," + std::to_string(value[1]) + "," +
+         std::to_string(value[2]);
+}
+
 EnvState::EnvState(GameEnv* game, const std::string& state,
                    const std::string reference)
     : load(!state.empty()),

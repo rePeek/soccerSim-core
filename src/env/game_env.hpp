@@ -18,7 +18,6 @@
 
 #include "model/team.hpp"
 #include "model/pitch.hpp"
-#include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/gamedefines.hpp"
 #include "env/main.hpp"
@@ -26,18 +25,6 @@
 
 
 typedef std::vector<std::string> StringVector;
-
-class ContextHolder {
- public:
-  ContextHolder(GameEnv* game) : game(game) { SetGame(game); }
-  ~ContextHolder() {
-    if (GetGame() != game) {
-      Log(e_FatalError, "football", "main", "game state was corrupted");
-    }
-  }
- private:
-  const GameEnv* game;
-};
 
 // Game environment. This is the class that can be used directly from Python.
 struct GameEnv {
@@ -65,11 +52,9 @@ struct GameEnv {
   std::string set_state(const std::string& state);
   void step();
   void ProcessState(EnvState* state);
-  ScenarioConfig& config();
 
  private:
   void do_step(int count);
-  void getObservations();
   // Empty descriptions retain the legacy default roster/formation path.
   football::model::Team home_team_;
   football::model::Team away_team_;

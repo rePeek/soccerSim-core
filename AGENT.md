@@ -200,6 +200,10 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
 ```
 
 - `GameEnv` is the stable public API; `Match`/`Player`/`Humanoid` are internals.
+- `ContextHolder` is private to `env/game_env.cpp`; the undefined `config()` and
+  `getObservations()` declarations have been removed. `Position` methods live in
+  `env/defines.cpp`. Stack-trace installation and console formatting belong to
+  application/tool entry points, never to `GameEnv::start_game()`.
 - Static composition uses `football::model::Team`, `Player`, `Formation` and
   `Pitch` (`src/model/`). `GameEnv(home, away, pitch)` retains these descriptions
   across resets; no `MatchSetup`/`TeamSetup`/`PlayerSetup` layer remains. The default

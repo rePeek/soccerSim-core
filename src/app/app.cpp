@@ -8,6 +8,7 @@
 #include "env/game_env.hpp"
 #include "data/default_teams.hpp"
 #include "model/pitch.hpp"
+#include "support/diagnostics/backtrace.hpp"
 
 namespace {
 int ParseSteps(int argc, char** argv) {
@@ -30,6 +31,9 @@ int ParseSteps(int argc, char** argv) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  install_stacktrace();
+  std::cout.precision(17);
+  std::cout << std::unitbuf;
   try {
     const int steps = ParseSteps(argc, argv);
     GameEnv environment{football::data::MakeDefaultHomeTeam(),
