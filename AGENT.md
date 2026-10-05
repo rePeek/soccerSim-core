@@ -103,9 +103,16 @@ inputs (`src/app/`); the core shared library never links them either way.
   binding (`tools/player_identity_test.cpp`): sparse/full-width IDs, model-ID
   controls, identity-independent numerical/RNG replay, reversed construction,
   unequal rosters, reorder/side changes, send-offs, and rosters beyond 256 entries;
-  historical tactical/reachability/RNG fingerprints and container-ordered human
+  policy-versioned tactical/reachability/RNG fingerprints (`--print-baseline`) and container-ordered human
   controller selection (including repeated phases and descending IDs). Invalid
   or duplicate IDs/missing profiles/empty rosters fail before RNG consumption.
+- `football_default_ai_test` — seven value-policy cases; links only ai/contracts/Catch2,
+  not sim or game. Stateless replay, roster ties, eligibility, tactics, both sides,
+  restart authority and retention release.
+- `football_sim_control_boundary_test` — eight cases: AI-free execution, frame/ID
+  translation, snapshots, tactical lifetimes, hands legality, actual restarts and
+  Human/explicit priority; original-source placement/RNG baselines cover 72 cases.
+  Current complete CTest suite: 61 tests.
 - `football_smoke` — core `GameEnv` headless run (`tools/football_smoke.cpp`);
   optional positional arg is the simulation tick count (default 1000).
 - `football_headless_core_guard` — shell test (`tools/football_headless_core_guard.sh`)
@@ -142,36 +149,32 @@ src/
 │   ├── math/           vector3, matrix3/4, quaternion, bluntmath, rng（纯算法）
 │   ├── geometry/       line, triangle（aabb/plane/trianglemeshutils 已删）
 │   ├── defines.hpp    仅通用宏/常量（CHECK/EPSILON）；不含足球领域枚举
-│   ├── log, properties, utils, xml_loader, backtrace, file
-│   └── misc/           hungarian（通用算法；perlin 已删）
+│   └── algorithm/      hungarian（通用算法；perlin 已删）
+├── support/         通用配置/IO/诊断/codec（只依赖 foundation）
+│   ├── config/properties, diagnostics/log + backtrace
+│   └── io/file + xml_loader, text/string_utils + value_codec
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── animation/      runtime 动画子系统（只依赖 foundation；见下方 archive 说明）
 │   │                   运行时只读（baked schema + 选择器）：clip, library,
 │   │                   baked_selector, simanim_format, types, selection_*, quadrant
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
 │   ├── simulation, match, match_options（仅规则参数）, team, ball, referee（规则）, humangamer
-│   ├── legacy_player_decision, legacy_player_decision_factory
-│   ├── legacy_team_decision, legacy_team_decision_factory      见下方迁移说明（临时 seam）
-│   ├── legacy_decision_factories  组合根注入的决策实现（Simulation 不选默认值）
+│   ├── team_tactical_state  Human/team run/pressure/rush 请求的权威计时与目标
 │   ├── formation       role adaptation / personal-space 归一化（纯算法，无 DB 查找）
 │   ├── query/          player_query（空间/控球/切人查询）, reachability（运动学估算）
-│   ├── rules/          offside（规则几何）
+│   ├── rules/          offside（规则几何）, restart_placement（重开球定位/选择）
 │   ├── ai_support/     mentalimage（Match-owned 历史；未改动）
 │   └── player/
 │       ├── player（具体 runtime；仅模型 PlayerId 与私有 schedule_phase_，无 runtime index）, player_locomotion, *_collider,
 │       │   player_action*, *_scheduler, player_kinematics, player_body_facing,
-│       │   ball_approach（Human/Eliza 共用追球辅助）, kick_targeting（传射执行计算）
-│       ├── controller/  playercontroller（Eliza/Human 共用的 legacy command planner）,
+│       │   ball_approach（Human 追球/控球辅助）, kick_targeting（传射执行计算）
+│       ├── controller/  playercontroller（仅 Human 使用的 command planner，无 AI 基类）,
 │       │                humancontroller（输入→legacy command 适配）
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
-├── ai/              决策层（football_ai，只依赖 football_sim）
-│   ├── eliza_controller        player 决策实现
-│   ├── team_ai_controller      team 决策实现
-│   ├── eliza_decision_factory, team_ai_decision_factory  默认实现的工厂
-│   ├── formation_policy, dribble_policy, positioning  战术阵型/盘带/force-field policy
-│   └── strategies/             strategy, offtheball/*
+├── ai/              值决策层（football_ai，只依赖 observation/control 及其叶契约）
+│   └── default_ai      无 actor/cache/RNG 的 coach + player policy；输出 PlayerControlSet
 ├── controller/      协议无关控制输入接口（controller_input/external_controller）
-├── observation/     对外观测契约：WorldState / WorldPlayerState 值类型
+├── observation/     对外观测契约：WorldState / WorldPlayerState / WorldTeamState 值类型
 │                    （只依赖 model 身份类型与 foundation 数学；不含观测逻辑）
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
@@ -195,14 +198,18 @@ test/                 Catch2 suites and architecture guard negative tests
 ├── app_fixtures_test default teams and legacy profile import
 ├── app_cli_test      the GameEnv composition the CLI builds
 ├── sim_computation_test reachability baselines, query ordering, offside, kick mechanics
+├── default_ai_test      只链接 AI/值契约，决策不依赖 actor/runtime
+├── sim_control_boundary_test  controls/帧/规则/计时/Human
+├── restart_placement_test + fixture  原实现独立捕获的 72-case 精确 baseline
+├── default_ai_fixture   诊断自己的 observe → AI → controls → step 组合根
+├── baselines/pre_value_ai.md  替换默认策略前的历史黄金值
 └── module_dependency_guard_test.sh reverse-edge/obsolete API rejection
 ```
 
 
-The unused speculative `src/ai/player/player_ai.hpp` interface remains deleted.
-`src/ai/` now holds real legacy decisions and policy computations, implementing
-sim-side transitional ports. External decisions can still consume `WorldState`
-and supply `PlayerControlSet` directly; no speculative base interface is required.
+The unused speculative `src/ai/player/player_ai.hpp` remains deleted. Real default
+decisions now consume values in `default_ai.*`; no actor-calling decision interface
+or factory survives. External policies may observe/control Simulation directly.
 
 The retired `src/data/` layer is deleted, not moved: `PlayerData`, `TeamData`,
 `MatchData` and `model_adapter` are gone. `Player` holds `const model::Player&`,
@@ -216,8 +223,8 @@ include `support`, and nothing in core may include `app/` or reference its symbo
 已实现的下半段（能在 `CMakeLists.txt` 的 static library 边上看到）：
 
 ```text
-runtime:  model/foundation (叶) → sim/animation → sim → ai → engine/env → game
-契约:     model (STL only) → observation (对外值) → control (控制契约)
+runtime:  model/foundation (叶) → sim/animation → sim → engine/env → game
+policy:   model/foundation → observation/control → ai → engine/env → game
 exec:     app fixtures/importers → model + support（仅 executable，不进 .so）
 ```
 
@@ -254,89 +261,79 @@ compiler cannot see them either); removing one stays a review item.
   `foundation/math/rng.hpp`。没有全局 RNG 入口；正常重构不得额外抽取随机数。
 
 
-### 决策层迁移（Phase 1–3 已完成）
+### 决策层迁移（Phase 1–5 已完成）
 
-**不变式：`sim` 永不 include `ai`。** 同一 `.so` 里可以有多个单向依赖模块，
-所以“默认 AI 是否链进 libgame.so”（当前选 A，包含）与依赖方向是两件事。
-先锁死方向，以后拆成 `libfootball_core.so` + `libfootball_ai.so` 才容易。
-
-最终形态（尚未到达）：
+**不变式：sim 永不 include/link ai。** 默认 AI 仍在 `libgame.so`（A 模式）；
+部署打包与依赖方向独立。Phase 5 进一步让 AI 不再 include/link sim/actor runtime。
 
 ```text
-WorldState + TacticalBoard
-        ↓
-     PlayerAI
-        ↓
-  PlayerControlSet
-        ↓
-    Simulation          // 不应当知道 IController/决定对象的任何事
+WorldState + TacticalBoard → default player policy → PlayerControlSet → Simulation
 ```
 
-第 1–3 阶段已完成。**1) dependency inversion**（不重新定义领域模型、不搬文件）：
+**1–3（历史，bit-exact）**：用临时 player/team 决策端口倒转依赖，真实 Eliza /
+TeamAI / factories / strategies 搬入 ai；随后彻底删除 `AIfunctions.*` 分类，按
+policy、query、rules、mechanics 的语义归属拆分。旧端口不是终局接口。
 
-- `LegacyPlayerDecision`（原 `IController`）与 `LegacyTeamDecision` 是 sim 侧的**抽象
-  端口**；`Player` 持有 `unique_ptr<LegacyPlayerDecision>`，`Team` 持有
-  `unique_ptr<LegacyTeamDecision>`，两者都不再 new 具体实现，也不再有
-  `static_cast` 回具体类型的假抽象（`Player::CastController` 已删除）。
-- 构造通过 `LegacyPlayerDecisionFactory` / `LegacyTeamDecisionFactory` 注入。
+**4：回收权威状态。**
 
-**2) relocation + build graph**（纯搬迁，仍无行为变化）：
+- `RefereeBuffer` 是 restart type/taker/prepare/start 的唯一权威来源；不再在 AI
+  中缓存第二份 set-piece 状态。`sim/rules/restart_placement.*` 负责原来的定位、
+  taker 选择和 retain 动画；Referee 按原顺序/时钟/reseed 调用。Team 的 Human
+  便利查询只读 Referee，不保存 restart 状态，也不调用决定对象。
+  新 restart 的 pending 阶段清空旧 taker，直到 prepare 才发布本次 taker。
+- `Team` 持有 `TeamTacticalState`：attacking run（4000 ms）、pressure（500 ms）、
+  keeper rush（300 ms）的 deadline/目标。Human 输入发起请求，ResetSituation
+  清理；过期/送下场不把 actor 或 timer 留在 AI。`ObserveTactics()` 发布值。
+  pressure 的临时 Human marking 在替换/到期时清理，观测也按同一 deadline 截止；
+  不依赖已删除的周期 AI marking 来收尾。
+- 六种 restart × 两种 processing order × 两个 taker team × 三种 roster
+  （11/11、3/2、1/1）共 72 case，与独立编译的 7dd3c63 原 PrepareSetPiece +
+  formation policy 逐 case 比较浮点/动作/retain/taker/RNG，完全一致。捕获结果
+  固定在 `test/restart_placement_test.cpp`。裁判时钟/card/send-off 规则未改。
 
-- `src/ai/`（`football_ai`，`PUBLIC football_sim`）持有 `eliza_controller`、
-  `team_ai_controller`、两个默认工厂与 `strategies/`；这些文件从
-  `src/sim/` 搬出（`elizacontroller.*` → `eliza_controller.*`，
-  `teamAIcontroller.*` → `team_ai_controller.*`）。
-- **`football_sim` 绝不链接 `football_ai`**，也不 include `ai/`；
-  `module_dependency_guard` 会直接拒绝。
-- `Simulation` 不再选择默认实现：它构造时接收
-  `LegacyDecisionFactories`（`sim/legacy_decision_factories.hpp`）并原样转给 `Match`；
-  不提供默认构造，因此不存在“仿真自己挑了默认 AI”的状态。
-- 默认装配（A 模式）现在只在 **`src/env/game_env.cpp` 这一个 translation unit**
-  里出现：`CreateDefaultElizaDecisionFactory()` / `CreateDefaultTeamAIDecisionFactory()`
-  → `Simulation`。`game_env.hpp` 不出现任何 AI 类型，`GameEnv(home, away, pitch)`
-  签名不变。因此 `env → ai → sim` 是**组合依赖**，且局限在一个 TU；将来切 B 只需把
-  这两行移到 executable，Simulation 一行都不用改。
-- 直接持有 `Simulation` 的内部诊断（`football_regression`、`player_identity_test`、
-  `game_env_test`）各自用本地 `TestDecisionFactories()` 当组合根，属于机械改动。
+**5：实际值边界，而非 legacy 包装。**
 
-端口是**脚手架**，不是公共 API：命名带 `Legacy` 正是为了避免被当成终局设计。
-`LegacyTeamDecision` 第一版故意很胖，因为 set-piece taker、attacking run /
-team pressure 计时器这类**比赛状态**还挂在决策者身上；这些应在第 4 阶段搬回
-match/rules，然后端口收缩。不要把它“整理”成一个漂亮的 `ITeamController`。
+- `ai/default_ai.*` 提供 stateless `DefaultAI::Update(WorldState, boards, output)`
+  与 `UpdateTactics`。后者读 caller 提供的当 tick 静态 shape，写 caller-owned
+  tactical board；player policy 输出控制值。没有 Match/Team/Player/MentalImage
+  指针、回调、动画队列、隐藏 RNG 或 actor cache。每 tick 用新 shape，勿把前一
+  tick 的 adapted formation 当下一 tick 的静态 shape 再次累加。
+- `GameEnv::step()` 是唯一生产组合 TU：Observe/ObserveTactics → coach →
+  default player policy → merge 显式 controls → 一次 Simulation::Step（10 ms）。
+  AI 不覆盖活跃 Human；显式 control 优先于二者。`controls()` 不缓存 AI 默认输出。
+  `game_env.hpp` 没有 AI 类型，GameEnv 构造/API 不变。
+- `Simulation()` 现在可默认构造，因为完全没有决定对象。构造/Match/Player/Team
+  不接收 factory/decision。空 controls = idle movement（或已有 Human 输入），
+  不是仿真私自运行 AI。`test/default_ai_fixture.hpp` 是诊断自己的值组合根。
+- 删除全部 `Legacy*Decision*` / factories、Eliza、TeamAIController、旧 strategies
+  及不再使用的 actor-based policy helper。没有 alias、compat factory 或新
+  ITeamController。`football_ai PUBLIC football_observation football_control`；
+  `football_sim` 不含 AI，AI target 也不含 sim/support/controller/animation/engine。
+- WorldState 仍是 owning values、不是 simulation storage：补齐 ball velocity、
+  pitch、双方 score/defending direction、play/set-piece、restart type/taker、
+  ball retainer、actor Human ownership/lazy/max speed；positions/velocities/facing
+  和 controls 使用同一 home pitch frame。Builder 在实际消费时转换 processing
+  frame，按模型 ID 解析活跃队友，传射用 sim mechanics 算方向/力度/抛物线。
+  移动/视线投影到平面；动作命令有机械 movement fallback 来维持 reset/re-entry
+  intent。非法 hands save 和失活 recipient 在 execution 侧拒绝。
+- `HumanController` / `HumanGamer` 保留 sim input/selection ownership；其
+  `PlayerController` planner 不再继承决定端口，仅 Human 使用。`MentalImage`
+  仍是 Match-owned 执行历史；Player 的 execution reaction/cache 不是 AI 对象。
+  Humanoid/HumanoidBase 不 flatten，动画 cache、10 ms step、private phases、
+  reset/destruction 次数与 appearance/reseed 窗口保持原机制。
 
-`HumanController` / `HumanGamer` **不搬进 `ai/`**：`HumanGamer` 是 player selection /
-input ownership，`HumanController` 是输入到 legacy command 的适配，它们不是 AI。
-`PlayerController` 同样留在 sim，因为它是 Eliza 与 Human 共用的 legacy
-execution/planning 基类。`MentalImage` 也暂时留在 sim：它当前事实上是 runtime
-observation/history 缓存（`Match` 持有历史），不是 AI 专属类型。
+**明确的语义变化**：默认策略被真正替换为较小的确定性值策略（位置/追球、传射、
+接球/盘带、keeper 与 restart），不是无损搬运 Eliza 的多命令/动画反馈策略。
+AI 现在每 tick 从前一完整快照决策，不再抽取旧策略 RNG；不补 dummy draws。
+轨迹、policy/scheduling 黄金值与 A/B event ticks 已重新捕获，旧值保存在
+`test/baselines/pre_value_ai.md`。World hash 也显式枚举新增字段。不要声称 Phase 5
+bit-exact，也不要为了旧策略基线重建 runtime 指针/命令回调。
 
-**3) semantic ownership**：`src/sim/ai_support/AIfunctions.*` 整个删除，没有同名替代
-桶、兼容 alias 或 `AI_` 函数。保留原表达式、浮点字面量、循环/比较顺序、默认参数。
-
-- `ai/formation_policy.*`：`GetAdaptedFormationPosition`、`GetMindSet`；
-  `ai/dribble_policy.*`：`GetBestDribbleMovement`；
-  `ai/positioning.*`：`GetForceFieldMovement`。命名空间 `football::ai`。
-- `sim/query/player_query.*`：closest player(s)、free space、possession、switch-target；
-  `sim/query/reachability.*`：`TimeNeeded` 与 `GetTimeNeededForDistance_ms`。
-  命名空间 `football::sim::query`，不是 AI policy。
-- `sim/rules/offside.*`：`GetOffsideLine`（`football::sim::rules`），referee 与 AI 共用。
-- `sim/player/kick_targeting.*`：`GetPass` / `GetShotDirection`，用于排队及触球执行；
-  `sim/player/ball_approach.*`：`GetBallControlMovement` / `GetToBallMovement`。
-  命名空间 `football::sim::mechanics`。后两项经 `PlayerController::_MovementCommand`
-  被 Human 和 Eliza 共用，是输入追球/控球辅助，不是 AI-only；不能硬搬入 ai 制造反向边。
-- 原先“`AI_GetAutoPass` 零调用”判断不正确：`GetPass` 的末尾正在调用。删除的是
-  它的公共 API；原计算体保留为 `kick_targeting.cpp` 匿名命名空间中的
-  `CalculatePassDirectionAndPower`，不删活逻辑，不复制/保留旧 API。
-- `env`、Simulation ctor/factory ownership、MentalImage、Human/PlayerController
-  边界不变；调用侧只换 include 和限定名，不改 command/RNG/timing。
-- `module_dependency_guard` 补上 Phase 2 漏掉的 `ai/` include regex，且无论有没有
-  声明，都拒绝 sim 的 link closure 含 ai；拒绝 sim 中旧桶文件/API 回流。
-  `test/module_dependency_guard_test.sh` 用临时树验证这些负例。
-- `test/sim_computation_test.cpp` 加入 pre-extraction 函数独立编译捕获的精确
-  reachability 整数基线，以及查询 tie/append/inactive、两侧 offside 和 kick 测试。
-
-后续阶段：**4)** 消除胖 team 端口里的 simulation state；**5)** 最后才把 legacy
-端口迁向 `WorldState`/`TacticalBoard` → `PlayerControlSet`。
+通用计算继续在 sim：query/reachability、rules/offside、mechanics/ball_approach
+与 kick_targeting；不是因为 AI 不再调用就变成 AI policy。私有 pass direction/
+power 算法仍活跃，没有重建 `AI_` 公共 API。`module_dependency_guard` 同时检查
+实际 include 前缀和 CMake closure；拒绝 sim → ai、AI → actor/runtime 的直接或
+传递边、退役决定对象/file 与 AIfunctions/AI_ 回流。负例只修改临时树。
 
 机械守卫（CTest，改坏边界会直接失败）：
 
@@ -352,7 +349,7 @@ observation/history 缓存（`Match` 持有历史），不是 AI 专属类型。
 - `legacy_validation_guard`：禁止已经删除的逐语句 validation 宏/函数回流。
 - `module_dependency_guard`：把 CMake 导出的真实 target 闭包与 `src/<module>/` 实际
   include 的项目前缀（含 `ai/`）对比；未声明的依赖直接失败，并无条件禁止 sim → ai
-  link closure 与 sim 的 `AIfunctions`/`AI_` API 回流。有独立负例测试。
+  link closure、AI → actor/runtime closure、retired decision API/file 以及 AIfunctions/AI_ 回流。有独立负例测试。
   `src/app` 与 `tools/` 不在范围内：它们位于 core 之上，可使用任意 core 模块。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
@@ -373,8 +370,8 @@ ambiguity. The baker intentionally reuses the runtime `AnimationLibrary`/
 `BakedAnimationSelector` to load and verify the artifact it just wrote; that is
 why it links `football_animation` while still avoiding the simulation.
 
-`foundation/xml_loader.*` is shared infrastructure for runtime data and the
-offline importer; runtime animation itself does not parse XML.
+`support/io/xml_loader.*` is shared infrastructure for executable fixture/profile
+and offline importers; runtime animation itself does not parse XML.
 
 The repository-root `data/` directory (distinct from the deleted `src/data/` layer)
 holds animation files (`.anim`), object models (`.ase`/`.object`), textures,
@@ -387,11 +384,12 @@ files are inputs to the regression baseline.
 main() [src/app/app.cpp]
   → GameEnv(home, away, pitch) [src/env/game_env.*]
       start_game / reset_game / stop_game / step / controls / observe→WorldState
+      → observe/tactics → DefaultAI → merged PlayerControlSet（组合根，不在 sim）
       → private unique_ptr<Simulation> [src/sim/simulation.*]
           owns team descriptions, match lifecycle, RNG and baked-animation cache
           → Match [src/sim/match.*]::Step()         per-tick loop (10ms steps)
               → Ball::Process()                  physics + prediction buffer
-              → Team → Player::Process()         Humanoid animation + controller strategy
+              → Team → Player::Process()         execution / Humanoid / Human input
               → Referee                         rules, fouls, match phase
 ```
 
@@ -427,8 +425,8 @@ main() [src/app/app.cpp]
   effective initial formations (`left_team_owns_ball`, `dynamic_player_selection`).
 - `Simulation::Init` and `Match` no longer take or store a controller registry.
   `Match::UpdateControllerSetup` and `Match::controller_assignments_` are deleted.
-  Players read `PlayerControlSet` first (`Player::RequestCommand`); otherwise the
-  per-player `ElizaController` created by `Player` decides.
+  Players consume the supplied values first (`Player::RequestCommand`), otherwise
+  Human input if active, otherwise idle. Only GameEnv/diagnostic composition runs AI.
 - The checkpoint serialization layer is deleted completely: `EnvState`, every
   `ProcessState`/`ProcessStateBase`, the old controller registry and
   `AIControlledKeyboard` are gone, together with `env/defines.*` and
@@ -445,7 +443,7 @@ main() [src/app/app.cpp]
   or change of ends, not stable club identity. `WorldPlayerState::side` and
   `TacticalBoard::side` use it. Legacy rule-engine Team::GetID remains an integer
   slot (0/1); no model::Team::id or replacement generic IDs header is introduced.
-- `Player::GetID()` reads `playerData->GetModel().id` directly. There is no
+- `Player::GetID()` reads `model_.id` directly. There is no
   second runtime identity, ID remapping table or runtime numbering allocator.
   `PlayerIndex`, `index_` and `GetIndex()` are deleted, not aliased or renamed.
 - Roster order is container information. Human-controller selection filters
@@ -456,7 +454,7 @@ main() [src/app/app.cpp]
   count modulo 10 for the second roster (including reversed processing); Team
   cycles phases during creation. It has no getter and never enters model,
   controls or WorldState. Send-offs/inactivity do not compact surviving phases.
-  The historical 100 ms cadence, RNG windows and goldens remain unchanged.
+  The 100 ms phase cadence remains; Phase 5 intentionally versions policy/RNG fingerprints.
 - `Simulation` requires explicit rosters and rejects a `model::Team` with no
   players instead of resolving a database default. It validates duplicate or
   invalid ids and formation/profile sizes first, then consumes one skin-colour
@@ -490,7 +488,7 @@ main() [src/app/app.cpp]
   Configurable dimensions require migrating remaining consumers and scaling.
 - Core `GameEnv::step()` calls `Simulation::Step` exactly once (10 ms). There is no
   `physics_steps_per_frame`, batching helper or observation scaling on its API.
-  Callers batch explicitly with a loop. `observe()` returns raw `WorldState` values.
+  Callers batch explicitly with a loop. `observe()` returns unscaled home-frame WorldState values.
   The CLI `--steps=N` now means N simulation ticks, not N legacy 100 ms frames.
 - Baked animations are owned explicitly: `Simulation` loads the library once and
   shares it with each `Match`, which exposes `GetAnimationLibrary()` for
@@ -498,7 +496,7 @@ main() [src/app/app.cpp]
   an ambient environment to obtain animations; Stop keeps this cache until
   its Simulation owner is destroyed.
 - `ScenarioConfig` and `GetScenarioConfig()` are deleted. Tick-time readers
-  (`Referee`, `Team`, `TeamAIController`, `Match::Step`) use `Match::options()`;
+  (`Referee`, `Team`, `Match::Step`) use `Match::options()`;
   the legacy derived helpers became the `left_team_owns_ball` /
   `dynamic_player_selection` fields computed once in `Simulation::Init`.
 - The deterministic simulation RNG is owned by `Simulation` (`rng_`), seeded to 0
@@ -537,8 +535,8 @@ main() [src/app/app.cpp]
   remain unchanged (officials were allocated after the teams).
 - `PlayerBase` is flattened into concrete, final, non-polymorphic `Player`;
   `playerbase.*` and its build entries are deleted, with no alias/shim. `Player`
-  directly owns movement/action/decision state, controller and `unique_ptr<Humanoid>`.
-  Team/AI/control/controller/Humanoid readers now take `Player*`/`Player&`.
+  directly owns movement/action/execution-queue state and `unique_ptr<Humanoid>`,
+  not an AI controller. Human/control/Humanoid readers take `Player*`/`Player&`.
   Player-specific difficulty/fatigue-adjusted `GetStat` and `Process` are the
   only implementations; unused base fallback implementations are gone.
 - Flattening preserves the two ordinary `Deactivate` resets and their two RNG

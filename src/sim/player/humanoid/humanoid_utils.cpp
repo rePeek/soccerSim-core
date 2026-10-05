@@ -240,7 +240,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   float originatingBias = 0.7f;
 
   // using just controller velo
-  Vector3 desiredMovement = currentAnim.originatingCommand.desiredDirection * (currentAnim.originatingCommand.desiredVelocityFloat * originatingBias + player->GetController()->GetFloatVelocity() * (1.0f - originatingBias));
+  Vector3 desiredMovement = currentAnim.originatingCommand.desiredDirection * (currentAnim.originatingCommand.desiredVelocityFloat * originatingBias + player->GetControlSpeed() * (1.0f - originatingBias));
 
   // range velocity, pes6 style
   //desiredMovement = desiredMovement.GetNormalized(0) * RangeVelocity(desiredMovement.GetLength());

@@ -3,8 +3,6 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "ai/eliza_decision_factory.hpp"
-#include "ai/team_ai_decision_factory.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/ai_support/mentalimage.hpp"
 #include "sim/ball.hpp"
@@ -19,11 +17,9 @@
 
 namespace {
 
-// This test owns its runtime and composes defaults explicitly, just like the
-// other internal diagnostics. No GameEnv internals are exposed for testing.
+// Computations require no decision implementation or factory.
 struct Runtime {
-  Simulation simulation{LegacyDecisionFactories{
-      CreateDefaultElizaDecisionFactory(), CreateDefaultTeamAIDecisionFactory()}};
+  Simulation simulation;
 
   Runtime() {
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),

@@ -1,29 +1,25 @@
 #ifndef FOOTBALL_SIM_SIMULATION_HPP
 #define FOOTBALL_SIM_SIMULATION_HPP
 
+#include <array>
 #include <memory>
 
 #include "control/player_control_set.hpp"
+#include "control/tactical_board.hpp"
 #include "model/team.hpp"
 #include "model/pitch.hpp"
-#include "sim/legacy_decision_factories.hpp"
 #include "sim/match_options.hpp"
 #include "sim/rng.hpp"
 #include "observation/world_state.hpp"
 
-// Owns the match lifecycle, the deterministic simulation RNG and the baked
-// animation library. Initialization preserves profile creation / RNG seeding
-// order. Controllers are not part of this boundary: players read
-// PlayerControlSet, and the RNG reaches actors through Match.
 class Match;
 class AnimationLibrary;
+
+// Simulation knows controls, rules, runtime history and execution, not AI
+// objects or factories. Composition owns all decisions outside this boundary.
 class Simulation {
  public:
-  // Seeds the pre-match RNG state, exactly as the legacy startup did.
-  //
-  // The decision implementations are chosen by the composition root and
-  // forwarded unchanged: Simulation owns them but never picks a default.
-  explicit Simulation(LegacyDecisionFactories decisions);
+  Simulation();
   ~Simulation();
 
   void Init(const football::model::Team& home,
@@ -34,6 +30,7 @@ class Simulation {
   void Step(const PlayerControlSet& controls);
   bool IsInPlay() const;
   WorldState Observe() const;
+  std::array<TacticalBoard, 2> ObserveTactics() const;
 
   Match* match() { return match_.get(); }
   const Match* match() const { return match_.get(); }
@@ -44,7 +41,6 @@ class Simulation {
   blunted::SimulationRng rng_;
   std::unique_ptr<Match> match_;
   std::shared_ptr<AnimationLibrary> animations_;
-  const LegacyDecisionFactories decisions_;
 };
 
 #endif  // FOOTBALL_SIM_SIMULATION_HPP

@@ -12,8 +12,7 @@
 
 #include "env/game_env.hpp"
 #include "sim/simulation.hpp"
-#include "ai/eliza_decision_factory.hpp"
-#include "ai/team_ai_decision_factory.hpp"
+#include "../test/default_ai_fixture.hpp"
 #include "sim/match.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
@@ -31,11 +30,6 @@
 
 namespace {
 
-// The composition root for these diagnostics: pick the default decision
-// implementations, exactly like src/env/game_env.cpp does for the library.
-LegacyDecisionFactories TestDecisionFactories() {
-  return {CreateDefaultElizaDecisionFactory(), CreateDefaultTeamAIDecisionFactory()};
-}
 
 constexpr float kFloatTolerance = 1e-5f;
 
@@ -94,6 +88,21 @@ uint64_t HashWorld(const WorldState& world) {
     return HashBytes(hash, value.coords, sizeof(value.coords));
   };
   hash = vector_hash(hash, world.ball_position);
+  hash = vector_hash(hash, world.ball_velocity);
+  hash = HashValue(hash, world.pitch.length());
+  hash = HashValue(hash, world.pitch.width());
+  hash = HashValue(hash, world.in_play);
+  hash = HashValue(hash, world.in_set_piece);
+  hash = HashValue(hash, world.restart);
+  hash = HashValue(hash, world.restart_taker.has_value());
+  if (world.restart_taker) hash = HashValue(hash, *world.restart_taker);
+  hash = HashValue(hash, world.ball_retainer.has_value());
+  if (world.ball_retainer) hash = HashValue(hash, *world.ball_retainer);
+  for (const auto &team : world.teams) {
+    hash = HashValue(hash, team.side);
+    hash = HashValue(hash, team.defending_direction);
+    hash = HashValue(hash, team.score);
+  }
   hash = HashValue(hash, static_cast<uint32_t>(world.players.size()));
   for (const WorldPlayerState& player : world.players) {
     hash = HashValue(hash, player.id);
@@ -103,6 +112,9 @@ uint64_t HashWorld(const WorldState& world) {
     hash = vector_hash(hash, player.facing);
     hash = HashValue(hash, player.active);
     hash = HashValue(hash, player.has_possession);
+    hash = HashValue(hash, player.externally_controlled);
+    hash = HashValue(hash, player.lazy);
+    hash = HashValue(hash, player.max_speed);
   }
   return hash;
 }
@@ -968,7 +980,7 @@ void InitDefaultMatch(Simulation& simulation) {
 }
 
 void Advance(Simulation& simulation, int ticks) {
-  for (int tick = 0; tick < ticks; ++tick) simulation.Step(PlayerControlSet{});
+  for (int tick = 0; tick < ticks; ++tick) football::test::StepDefaultAI(simulation);
 }
 
 void CheckCanonicalFrame(Simulation& simulation) {
@@ -1002,8 +1014,9 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
               player->GetModel().attributes.get(stat) * multiplier,
               "flattened Player lost difficulty/fatigue-adjusted stats");
 
-  Require(player->GetController()->GetPlayer() == player,
-          "controller no longer references the concrete Player");
+  // No runtime actor owns or exposes a decision object.
+  static_assert(!football::test::HasDecisionObject<Player>);
+  static_assert(!football::test::HasDecisionObject<Team>);
   PlayerControl control;
   control.move_direction = Vector3(1, 0, 0);
   control.desired_speed = dribbleVelocity;
@@ -1013,7 +1026,7 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   PlayerCommandQueue commands;
   player->RequestCommand(commands);
   player->ClearControl();
-  Require(commands.size() == 1 &&
+  Require(commands.size() == 2 &&
               commands.front().desiredFunctionType == e_FunctionType_Shot &&
               commands.front().desiredVelocityFloat == control.desired_speed &&
               commands.front().useTouchInfo &&
@@ -1142,11 +1155,11 @@ void CheckRefereeRules(Simulation& simulation) {
         // Card state remains gameplay: a red or second yellow sends off a
         // football player, whereas one yellow leaves the player active.
         if (match->GetActualTime_ms() < effective_time) {
-          simulation.Step(PlayerControlSet{});
+          football::test::StepDefaultAI(simulation);
           Require(offender->IsActive(), "card took effect before its deadline");
           match->BumpActualTime_ms(effective_time - match->GetActualTime_ms());
         }
-        simulation.Step(PlayerControlSet{});
+        football::test::StepDefaultAI(simulation);
         const bool send_off = scenario == 3 || scenario == 4;
         Require(offender->IsActive() == !send_off &&
                     match->GetTeam(0)->GetActivePlayersCount() == (send_off ? 10 : 11),
@@ -1200,14 +1213,13 @@ struct GoldenSnapshot {
   uint64_t simulation_hash;
 };
 
-// Core 100 Hz / raw WorldState baseline, not the retired GRF projection.
-// Intentionally regenerated when simulated officials (and their RNG draws)
-// were deleted. The digest now contains only football-player actors.
+// Value-policy/home-frame baseline. This intentionally replaces Eliza/RNG
+// trajectories; the previous golden pairs are archived in test/baselines/.
 constexpr GoldenSnapshot golden[] = {
-    {1, UINT64_C(9302794185408323355), UINT64_C(12821310424240230946)},
-    {100, UINT64_C(4089301356990025244), UINT64_C(11211753855030439651)},
-    {500, UINT64_C(4132523896133699106), UINT64_C(15669018830692089552)},
-    {1000, UINT64_C(11167980816582236617), UINT64_C(12759021268043178079)},
+    {1, UINT64_C(6014326779720797982), UINT64_C(350760935552669674)},
+    {100, UINT64_C(8142532795858949093), UINT64_C(13725550824419574755)},
+    {500, UINT64_C(8459122586597459059), UINT64_C(7040189435179413637)},
+    {1000, UINT64_C(11000853123468269599), UINT64_C(10968404906479542722)},
 };
 
 void CheckGoldenSnapshots(Simulation& simulation, GameEnv& game, bool print_baseline) {
@@ -1265,7 +1277,7 @@ void CheckResetDeterminism(Simulation& simulation) {
           "direct Simulation stop is not idempotent");
   // Keep another library alive while rebuilding the stopped match. This also
   // catches a library accidentally released by Stop and reused by the allocator.
-  Simulation independent{TestDecisionFactories()};
+  Simulation independent;
   InitDefaultMatch(independent);
   Require(&independent.match()->GetAnimationLibrary() != animations,
           "independent Simulation inherited a released or ambient library");
@@ -1306,7 +1318,7 @@ void CheckModelComposition() {
                                      0.8123456f);
   const model::PlayerAttributes attributes = home.players.front().attributes;
   const model::Team declared_home = home;
-  Simulation simulation{TestDecisionFactories()};
+  Simulation simulation;
   simulation.Init(home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
   home.name = "Changed after initialization";
   home.players.front().attributes.fill(0.1f);
@@ -1341,7 +1353,7 @@ void CheckMovementAnimationPerturbation(Simulation& simulation, bool frame_count
     for (int tick = 0; tick < 4000; ++tick) {
       hook.enabled = perturb && tick >= 10;
       const int queries_before = PlayerDecisionClockQueries();
-      simulation.Step(PlayerControlSet{});
+      football::test::StepDefaultAI(simulation);
       CheckCanonicalFrame(simulation);
       ticks.push_back({CaptureSimulationDigest(simulation),
                        static_cast<int>(simulation.match()->GetActualTime_ms()),
@@ -1409,7 +1421,7 @@ int main(int argc, char** argv) {
     CheckPlayerActionVolume();
     CheckPlayerBodyCollider();
     CheckModelComposition();
-    Simulation simulation{TestDecisionFactories()};
+    Simulation simulation;
     InitDefaultMatch(simulation);
     const std::string mode = argc > 1 ? argv[1] : "";
     if (mode == "--animation-ab" || mode == "--animation-ab-lifecycle") {

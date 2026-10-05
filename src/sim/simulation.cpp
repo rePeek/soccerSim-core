@@ -104,8 +104,7 @@ void ValidatePlayers(const football::model::Team& home, const football::model::T
 
 }  // namespace
 
-Simulation::Simulation(LegacyDecisionFactories decisions)
-    : decisions_(std::move(decisions)) {
+Simulation::Simulation() {
   // The pre-match profile draws historically ran on an RNG freshly seeded with
   // 0, before the episode seed was applied in Init(). Keep that exact window.
   rng_.Seed(0);
@@ -139,8 +138,7 @@ void Simulation::Init(
 
   EnsureAnimationLibrary();
   match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
-                                  animations_, decisions_.player, decisions_.team,
-                                  init_animation);
+                                  animations_, init_animation);
 }
 
 void Simulation::EnsureAnimationLibrary() {
@@ -168,6 +166,11 @@ bool Simulation::IsInPlay() const {
 WorldState Simulation::Observe() const {
   assert(match_);
   return BuildWorldState(*match_);
+}
+
+std::array<TacticalBoard, 2> Simulation::ObserveTactics() const {
+  assert(match_);
+  return {match_->GetTeam(0)->ObserveTactics(), match_->GetTeam(1)->ObserveTactics()};
 }
 
 

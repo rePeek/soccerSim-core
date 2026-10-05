@@ -7,8 +7,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "env/game_env.hpp"
 #include "sim/simulation.hpp"
-#include "ai/eliza_decision_factory.hpp"
-#include "ai/team_ai_decision_factory.hpp"
+#include "../test/default_ai_fixture.hpp"
 
 static_assert(!std::is_default_constructible_v<GameEnv>);
 static_assert(!std::is_copy_constructible_v<GameEnv>);
@@ -40,11 +39,6 @@ static_assert(!HasRuntimeAccess<GameEnv>);
 
 namespace {
 
-// The composition root for these diagnostics: pick the default decision
-// implementations, exactly like src/env/game_env.cpp does for the library.
-LegacyDecisionFactories TestDecisionFactories() {
-  return {CreateDefaultElizaDecisionFactory(), CreateDefaultTeamAIDecisionFactory()};
-}
 
 void Require(bool condition, const char* message) {
   if (!condition) throw std::runtime_error(message);
@@ -62,7 +56,10 @@ bool SameVector(const blunted::Vector3& a, const blunted::Vector3& b) {
 
 void RequireSameWorld(const WorldState& a, const WorldState& b) {
   Require(a.tick == b.tick && SameVector(a.ball_position, b.ball_position) &&
-              a.players.size() == b.players.size(),
+              SameVector(a.ball_velocity, b.ball_velocity) &&
+              a.in_play == b.in_play && a.in_set_piece == b.in_set_piece &&
+              a.restart == b.restart && a.restart_taker == b.restart_taker &&
+              a.ball_retainer == b.ball_retainer && a.players.size() == b.players.size(),
           "world snapshot mismatch");
   for (std::size_t i = 0; i < a.players.size(); ++i) {
     const auto& x = a.players[i];
@@ -201,13 +198,13 @@ void CheckDeclaredComposition() {
   home.players[1].attributes.fill(0.1f);
   home.players[1].height = 1.5f;
   game.start_game();
-  auto reference = std::make_unique<Simulation>(TestDecisionFactories());
+  auto reference = std::make_unique<Simulation>();
   reference->Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
   for (int repeat = 0; repeat < 3; ++repeat) {
     RequireSameWorld(game.observe(), reference->Observe());
     for (int tick = 0; tick < 600; ++tick) {
       game.step();
-      reference->Step(PlayerControlSet{});
+      football::test::StepDefaultAI(*reference);
       RequireSameWorld(game.observe(), reference->Observe());
     }
     if (repeat == 0) {
@@ -217,7 +214,7 @@ void CheckDeclaredComposition() {
     } else if (repeat == 1) {
       game.stop_game();
       game.start_game();
-      reference = std::make_unique<Simulation>(TestDecisionFactories());
+      reference = std::make_unique<Simulation>();
       reference->Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
     }
   }

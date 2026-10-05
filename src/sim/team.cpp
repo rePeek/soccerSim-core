@@ -23,18 +23,16 @@
 #include "sim/query/player_query.hpp"
 #include "sim/match.hpp"
 #include "sim/formation.hpp"
+#include "sim/rules/offside.hpp"
 
 Team::Team(int id, Match *match, const football::model::Team& model,
-           const LegacyTeamDecisionFactory& decision_factory, float aiDifficulty)
+           float aiDifficulty)
     : id(id), match(match), model_(model), formation_(BuildFormation(model)),
       aiDifficulty(aiDifficulty) {
   assert(id == 0 || id == 1);
   // Retain the legacy six-decimal Properties conversion for live AI numerics.
   for (const auto& [key, value] : model_.tactics) tactics_.Set(key, value);
 
-  // The decision owner is supplied by the match, never named here: the
-  // simulation depends on the abstract port only.
-  teamController = decision_factory.Create(*this);
 
   timeNeededToGetToBall_ms = 100;
   hasPossession = false;
@@ -61,7 +59,7 @@ void Team::Exit() {
     delete players[i];
   }
 
-  teamController.reset();
+  tactical_state_ = {};
 
 }
 
@@ -75,8 +73,7 @@ void Team::InitPlayers(std::uint8_t first_schedule_phase) {
 
     if (i < playerNum) {
       // activate playerCount players (the starting eleven, usually)
-      auto formation = GetFormationEntry(player);
-      player->Activate(formation.lazy);
+      player->Activate();
     }
   }
 
@@ -229,7 +226,7 @@ void Team::ResetSituation(const Vector3 &focusPos) {
     }
   }
 
-  GetController()->Reset();
+  tactical_state_ = {};
 }
 
 void Team::HumanGamersSelectAnyone() {
@@ -313,18 +310,12 @@ void Team::Process() {
   }
 
   HumanGamersSelectAnyone();
-
-  if (match->IsInPlay() && !match->IsInSetPiece()) {
-    teamController->Process();
-
-    int team_offset = id == match->SecondTeam() ? 200 : 0;
-    if ((match->GetActualTime_ms() + team_offset) % 400 == 0) {
-      teamController->CalculateDynamicRoles();
-    }
-
-    if ((match->GetActualTime_ms() + team_offset + 100) % 400 == 0) {
-      teamController->CalculateManMarking();
-    }
+  // Pressure owns its temporary Human marking assistance; without the old
+  // periodic AI marking pass it must not leak beyond the request deadline.
+  if (tactical_state_.pressure_player &&
+      tactical_state_.pressure_until_ms <= match->GetActualTime_ms()) {
+    tactical_state_.pressure_player->SetManMarking(nullptr);
+    tactical_state_.pressure_player = nullptr;
   }
 
   for (unsigned int i = 0; i < players.size(); i++) {
@@ -506,4 +497,76 @@ Player *Team::GetGoalie() {
   }
 
   return 0;
+}
+
+Player *Team::GetPieceTaker() {
+  const auto &restart = match->GetReferee()->GetBuffer();
+  return restart.active && restart.teamID == id ? restart.taker : nullptr;
+}
+
+e_GameMode Team::GetSetPieceType() {
+  const auto &restart = match->GetReferee()->GetBuffer();
+  return restart.active ? restart.desiredSetPiece : e_GameMode_Normal;
+}
+
+float Team::GetOffsideTrapX() {
+  return football::sim::rules::GetOffsideLine(match, match->GetMentalImage(0), id);
+}
+
+void Team::ApplyAttackingRun(Player *manual_player) {
+  Player *possession = GetDesignatedTeamPossessionPlayer();
+  tactical_state_.attacking_run_until_ms = match->GetActualTime_ms() + 4000;
+  tactical_state_.attacking_runner = manual_player ? manual_player :
+      football::sim::query::GetClosestPlayer(this, possession->GetPosition() +
+          Vector3(-GetDynamicSide() * 26.f, 0, 0), true, possession);
+}
+
+void Team::ApplyTeamPressure() {
+  if (tactical_state_.pressure_player)
+    tactical_state_.pressure_player->SetManMarking(nullptr);
+  tactical_state_.pressure_until_ms = match->GetActualTime_ms() + 500;
+  Player *opponent = Opponent()->GetBestPossessionPlayer();
+  tactical_state_.pressure_player = football::sim::query::GetClosestPlayer(
+      this, opponent->GetPosition() + opponent->GetMovement() * 0.24f +
+      Vector3(GetDynamicSide(), 0, 0), true, GetGoalie());
+  if (tactical_state_.pressure_player) tactical_state_.pressure_player->SetManMarking(opponent);
+}
+
+void Team::ApplyKeeperRush() {
+  tactical_state_.keeper_rush_until_ms = match->GetActualTime_ms() + 300;
+}
+
+TacticalBoard Team::ObserveTactics() const {
+  TacticalBoard board;
+  board.side = GetTeamSide();
+  const int defend = id == 0 ? -1 : 1;
+  const auto now = match->GetActualTime_ms();
+  const auto &restart = match->GetReferee()->GetBuffer();
+  if (restart.active && restart.teamID == id && restart.taker)
+    board.set_piece_taker = restart.taker->GetID();
+  for (std::size_t i = 0; i < players.size(); ++i) {
+    const auto &formation = formation_[i];
+    PlayerDirective directive;
+    directive.player = players[i]->GetID();
+    switch (formation.role) {
+      case e_PlayerRole_GK: directive.role = PlannedPlayerRole::Goalkeeper; break;
+      case e_PlayerRole_CB: case e_PlayerRole_LB: case e_PlayerRole_RB:
+        directive.role = PlannedPlayerRole::Defender; break;
+      case e_PlayerRole_CF: directive.role = PlannedPlayerRole::Forward; break;
+      default: directive.role = PlannedPlayerRole::Midfielder; break;
+    }
+    directive.formation_position = formation.position *
+        Vector3(-defend * match->pitch().half_length() * 0.6f,
+                -defend * match->pitch().half_width() * 0.6f, 0);
+    directive.attacking_run = (tactical_state_.attacking_run_until_ms > now &&
+        tactical_state_.attacking_runner == players[i]) ||
+        (formation.role == e_PlayerRole_GK && tactical_state_.keeper_rush_until_ms > now);
+    directive.press = tactical_state_.pressure_until_ms > now &&
+                      tactical_state_.pressure_player == players[i];
+    if (directive.press) {
+      if (Player *mark = players[i]->GetManMarking()) directive.marking_target = mark->GetID();
+    }
+    board.players.push_back(directive);
+  }
+  return board;
 }

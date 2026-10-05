@@ -139,7 +139,6 @@ int &LocomotionReentryMeasurementEpoch();
 void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
 #include "model/player.hpp"
-#include "sim/legacy_player_decision.hpp"
 #include "sim/humangamer.hpp"
 
 
@@ -172,7 +171,7 @@ class Player final {
     inline bool IsActive() { return isActive; }
 
     // get ready for some action
-    void Activate(bool lazyPlayer);
+    void Activate();
     // go back to bench/take a shower
     void Deactivate();
 
@@ -349,7 +348,8 @@ class Player final {
     void TripMe(const Vector3 &tripVector, int tripType) { humanoid->TripMe(tripVector, tripType); }
 
     void RequestCommand(PlayerCommandQueue &commandQueue);
-    LegacyPlayerDecision *GetController();
+    int GetReactionTime_ms();
+    float GetControlSpeed();
     void SetExternalController(HumanGamer *externalController);
     HumanController *ExternalController();
     bool ExternalControllerActive();
@@ -375,7 +375,7 @@ class Player final {
     float GetMaxVelocity() const;
 
     const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
-    Match *GetMatch() { return match; }
+    Match *GetMatch() const { return match; }
 
     void SetLastTouchTime_ms(unsigned long touchTime_ms) { this->lastTouchTime_ms = touchTime_ms; }
     unsigned long GetLastTouchTime_ms() { return lastTouchTime_ms; }
@@ -394,7 +394,7 @@ class Player final {
 
     Humanoid *CastHumanoid();
     int GetTeamID() const;
-    Team *GetTeam();
+    Team *GetTeam() const;
     Vector3 GetPitchPosition();
     bool TouchPending() const { return GetSimulationActionState().IsContactPending(); }
     bool TouchAnim() const { return GetSimulationActionState().HasScheduledContact(); }
@@ -497,7 +497,7 @@ class Player final {
     int tr_last_query_retains = 0;
     int tr_last_query_had_candidate = 0;
     int resetSituationAuditContext = kResetSituationUnspecified;
-    std::unique_ptr<LegacyPlayerDecision> controller;
+    int tactical_image_time_ms_ = 0;
     HumanGamer *externalController = 0;
     std::optional<PlayerControl> control_;
 

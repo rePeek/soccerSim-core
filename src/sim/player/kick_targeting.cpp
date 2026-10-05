@@ -61,6 +61,8 @@ void GetPass(Player *player, e_FunctionType passType,
   float adaptedAutoPowerBias = autoPowerBias;
 
   assert(forcedTargetPlayer != player);
+  // A value control may outlive the recipient's activation until contact.
+  if (forcedTargetPlayer && !forcedTargetPlayer->IsActive()) forcedTargetPlayer = nullptr;
 
 
   // find out what player we intend to play to

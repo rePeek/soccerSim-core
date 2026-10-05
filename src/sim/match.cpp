@@ -16,8 +16,6 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/match.hpp"
-#include "sim/legacy_player_decision_factory.hpp"
-#include "sim/legacy_team_decision_factory.hpp"
 #include "sim/animation/library.hpp"
 
 #include "foundation/geometry/line.hpp"
@@ -45,13 +43,9 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
              const MatchOptions& options,
              SimulationRng& rng,
              std::shared_ptr<const AnimationLibrary> animation_library,
-             std::shared_ptr<const LegacyPlayerDecisionFactory> player_decision_factory,
-             std::shared_ptr<const LegacyTeamDecisionFactory> team_decision_factory,
              bool animations)
     : pitch_(pitch),
       animations_(std::move(animation_library)),
-      player_decision_factory_(std::move(player_decision_factory)),
-      team_decision_factory_(std::move(team_decision_factory)),
       rng_(rng),
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
@@ -77,12 +71,10 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
   const football::model::Team* descriptions[] = {&home, &away};
   teams[first_team] =
       new Team(first_team, this, *descriptions[first_team],
-               *team_decision_factory_,
                first_team ? options.right_team_difficulty
                           : options.left_team_difficulty);
   teams[second_team] =
       new Team(second_team, this, *descriptions[second_team],
-               *team_decision_factory_,
                second_team ? options.right_team_difficulty
                            : options.left_team_difficulty);
   teams[first_team]->SetOpponent(teams[second_team]);
@@ -122,9 +114,6 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
 
 Match::~Match() {}
 
-std::unique_ptr<LegacyPlayerDecision> Match::CreatePlayerDecision(bool lazy) {
-  return player_decision_factory_->Create(*this, lazy);
-}
 
 void Match::Mirror(bool team_0, bool team_1, bool ball) {
   if (team_0) {
@@ -306,7 +295,6 @@ bool Match::Step(const PlayerControlSet& controls) {
       ++score_[teams[team]->GetID()];
       goalScored = true;
       lastGoalTeam = teams[team];
-      teams[team]->GetController()->UpdateTactics();
     }
     if (first_team_goal || second_team_goal) {
 
@@ -771,7 +759,7 @@ void Match::CheckBallCollisions() {
 
       bool directionChangedUnexpectedly = false;
       if (onlyWhenDirectionChangedUnexpectedly) {
-        float unexpectedDistance = (GetMentalImage(players[i]->GetController()->GetReactionTime_ms() + action.elapsedTime_ms)->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // mental image from when the action began
+        float unexpectedDistance = (GetMentalImage(players[i]->GetReactionTime_ms() + action.elapsedTime_ms)->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // history from when the action began
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
 

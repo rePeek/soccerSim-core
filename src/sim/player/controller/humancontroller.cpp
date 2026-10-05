@@ -135,8 +135,8 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
 
       // force set piece methods
       if (match->IsInSetPiece() &&
-          team->GetController()->GetPieceTaker() == player &&
-          team->GetController()->GetSetPieceType() == e_GameMode_KickOff) {
+          team->GetPieceTaker() == player &&
+          team->GetSetPieceType() == e_GameMode_KickOff) {
 
         PlayerCommand command;
 
@@ -237,12 +237,12 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
 
       if (actionButton == e_ButtonFunction_TeamPressure) {
 
-        team->GetController()->ApplyTeamPressure();
+        team->ApplyTeamPressure();
       }
 
       if (actionButton == e_ButtonFunction_KeeperRush) {
 
-        team->GetController()->ApplyKeeperRush();
+        team->ApplyKeeperRush();
       }
 
     } else {
@@ -253,15 +253,13 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
 
   // set piece?
   if ((match->IsInSetPiece() &&
-       team->GetController()->GetPieceTaker() == player &&
+       team->GetPieceTaker() == player &&
        (actionMode != 2 || (actionMode == 2 && hid->GetButton(actionButton)) ||
         match->GetBallRetainer() == player)) ||
       (match->IsInSetPiece() &&
-       team->GetController()->GetPieceTaker() != player &&
+       team->GetPieceTaker() != player &&
        match->GetBallRetainer() == 0)) {
     _SetPieceCommand(commandQueue);
-    //if (team->GetController()->GetPieceTaker() == player) printf("waiting to take set piece!\n");
-    //if (team->GetController()->GetPieceTaker() != player) printf("waiting for teammate to take set piece!\n");
     return;
   }
 
@@ -389,7 +387,7 @@ void HumanController::Process() {
   // action?
 
   if (actionMode == 0 && (!match->IsInSetPiece() ||
-                          team->GetController()->GetPieceTaker() == player)) {
+                          team->GetPieceTaker() == player)) {
 
 
 
@@ -458,8 +456,8 @@ void HumanController::Process() {
       bool allowHighPass = true;
       bool allowShot = true;
 
-      if (team->GetController()->GetPieceTaker() == player &&
-          team->GetController()->GetSetPieceType() == e_GameMode_ThrowIn) {
+      if (team->GetPieceTaker() == player &&
+          team->GetSetPieceType() == e_GameMode_ThrowIn) {
         allowHighPass = false;
         allowShot = false;
       }
@@ -504,7 +502,7 @@ void HumanController::Process() {
     }
   }
 
-  if (hid->GetButton(e_ButtonFunction_Switch) && hasPossession) team->GetController()->ApplyAttackingRun();
+  if (hid->GetButton(e_ButtonFunction_Switch) && hasPossession) team->ApplyAttackingRun();
 }
 
 Vector3 HumanController::GetDirection() {
@@ -520,7 +518,8 @@ float HumanController::GetFloatVelocity() {
 }
 
 int HumanController::GetReactionTime_ms() {
-  return LegacyPlayerDecision::GetReactionTime_ms(); // already have human reaction time to contend with
+  // Human reaction adds no difficulty delay: preserve the original base arithmetic.
+  return int(std::round(80.f - player->GetStat(football::model::PlayerStat::physical_reaction) * 40.f));
 }
 
 void HumanController::Reset() {

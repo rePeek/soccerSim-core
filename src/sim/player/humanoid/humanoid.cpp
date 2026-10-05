@@ -98,7 +98,7 @@ void Humanoid::Process() {
 
   bool instaDoorheb = false;
   if (match->GetLastTouchTeamID() == team->GetID()) instaDoorheb = true;
-  mentalImageTime = instaDoorheb ? 0 : CastPlayer()->GetController()->GetReactionTime_ms();
+  mentalImageTime = instaDoorheb ? 0 : CastPlayer()->GetReactionTime_ms();
 
   // The authoritative movement state at tick start. Captured before
   // CalculateSpatialState so the procedural model integrates from the world

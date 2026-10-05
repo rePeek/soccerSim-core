@@ -13,8 +13,7 @@
 #include "sim/match.hpp"
 #include "sim/player/player.hpp"
 #include "sim/simulation.hpp"
-#include "ai/eliza_decision_factory.hpp"
-#include "ai/team_ai_decision_factory.hpp"
+#include "../test/default_ai_fixture.hpp"
 
 namespace model = football::model;
 static_assert(std::is_same_v<model::PlayerId, std::uint32_t>);
@@ -35,11 +34,6 @@ static_assert(!HasSchedulingDetail<Player>);
 
 namespace {
 
-// The composition root for these diagnostics: pick the default decision
-// implementations, exactly like src/env/game_env.cpp does for the library.
-LegacyDecisionFactories TestDecisionFactories() {
-  return {CreateDefaultElizaDecisionFactory(), CreateDefaultTeamAIDecisionFactory()};
-}
 
 void Require(bool condition, const char* message) {
   if (!condition) throw std::runtime_error(message);
@@ -126,7 +120,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   away.players[0].id = 0;  // Zero is a valid identity, not a scheduler phase.
   MatchOptions options;
   options.reverse_team_processing = reverse;
-  Simulation reference{TestDecisionFactories()}, renamed{TestDecisionFactories()};  // Independent runtimes, no environment binding.
+  Simulation reference, renamed;  // Independent runtimes, no decision owners.
   reference.Init(default_home, default_away, model::MakeLegacyPitch(), options, false);
   renamed.Init(home, away, model::MakeLegacyPitch(), options, false);
   CheckIdentity(renamed, home, away);
@@ -144,8 +138,8 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   renamed_controls.Set(1, wrong);
   const WorldState initial = renamed.Observe();
   for (int tick = 0; tick < 600; ++tick) {
-    reference.Step(reference_controls);
-    renamed.Step(renamed_controls);
+    football::test::StepDefaultAI(reference, reference_controls);
+    football::test::StepDefaultAI(renamed, renamed_controls);
     CheckSamePhysics(reference, renamed);
   }
   std::vector<Player*> players;
@@ -166,8 +160,8 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   CheckIdentity(renamed, home, away);
   CheckSamePhysics(reference, renamed);
   for (int tick = 0; tick < 200; ++tick) {
-    reference.Step(reference_controls);
-    renamed.Step(renamed_controls);
+    football::test::StepDefaultAI(reference, reference_controls);
+    football::test::StepDefaultAI(renamed, renamed_controls);
     CheckSamePhysics(reference, renamed);
   }
 
@@ -176,7 +170,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   CheckIdentity(renamed, home, away);
   Require(renamed.Observe().players[0].id == initial.players[0].id,
           "reset reassigned model identity");
-  for (int tick = 0; tick < 600; ++tick) renamed.Step(renamed_controls);
+  for (int tick = 0; tick < 600; ++tick) football::test::StepDefaultAI(renamed, renamed_controls);
   const WorldState replay = renamed.Observe();
   for (std::size_t i = 0; i < replay.players.size(); ++i) {
     Require(replay.players[i].id == replay_target.players[i].id &&
@@ -196,7 +190,7 @@ void CheckRosterComposition() {
   for (bool reverse : {false, true}) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
-    Simulation simulation{TestDecisionFactories()};
+    Simulation simulation;
     simulation.Init(home, away, model::MakeLegacyPitch(), options, false);
     CheckIdentity(simulation, home, away);
     simulation.Stop();
@@ -206,7 +200,7 @@ void CheckRosterComposition() {
   }
 
   // Home/away is a match role, not identity of the team/profile database.
-  Simulation swapped{TestDecisionFactories()};
+  Simulation swapped;
   swapped.Init(away, home, model::MakeLegacyPitch(), MatchOptions{}, false);
   CheckIdentity(swapped, away, home);
 
@@ -223,11 +217,11 @@ void CheckRosterComposition() {
   for (bool reverse : {false, true}) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
-    Simulation large{TestDecisionFactories()};
+    Simulation large;
     large.Init(home, away, model::MakeLegacyPitch(), options, false);
     CheckIdentity(large, home, away);
     Require(large.Observe().players.size() == 260, "phase storage limited roster size");
-    for (int tick = 0; tick < 350; ++tick) large.Step(PlayerControlSet{});
+    for (int tick = 0; tick < 350; ++tick) football::test::StepDefaultAI(large);
     CheckIdentity(large, home, away);
   }
 }
@@ -240,7 +234,7 @@ void CheckValidationAndDefaults() {
           "default identity is conflated with database provenance");
   Require(football::app::fixtures::LoadLegacyPlayerProfile(398, true).id == model::kInvalidPlayerId,
           "profile loader invented a player identity from provenance");
-  Simulation reference{TestDecisionFactories()};
+  Simulation reference;
   reference.Init(home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
   CheckIdentity(reference, home, away);
   auto& rng = reference.match()->rng();
@@ -276,8 +270,8 @@ void CheckValidationAndDefaults() {
   CheckIdentity(reference, home, away);  // A failed Init remains reusable.
 }
 
-// Captured before removing dense execution ordinals. Includes both staggered
-// caches, motion/actions and RNG; no scheduling getter is introduced for tests.
+// Policy-versioned fingerprints include caches, motion/actions and RNG.
+// Previous Eliza fingerprints are archived in test/baselines/pre_value_ai.md.
 std::uint64_t CaptureScheduleState(Simulation& simulation) {
   std::uint64_t hash = UINT64_C(1469598103934665603);
   const auto bytes = [&](const void* data, std::size_t size) {
@@ -323,7 +317,7 @@ std::uint64_t CaptureScheduleState(Simulation& simulation) {
   return hash;
 }
 
-void CheckHistoricalScheduling() {
+void CheckHistoricalScheduling(bool print_baseline) {
   struct Case {
     bool unequal;
     bool reverse;
@@ -331,10 +325,10 @@ void CheckHistoricalScheduling() {
     std::uint64_t after_send_off;
   };
   constexpr Case cases[] = {
-      {false, false, UINT64_C(1081277329640161974), UINT64_C(2153253164783353558)},
-      {false, true, UINT64_C(13929020379921652592), UINT64_C(13989442576941677585)},
-      {true, false, UINT64_C(5031617072857338529), UINT64_C(17380964153918716995)},
-      {true, true, UINT64_C(10672886534341869106), UINT64_C(15776948655175517899)},
+      {false, false, UINT64_C(13711565807151734712), UINT64_C(17201809211116718618)},
+      {false, true, UINT64_C(16717170963448916555), UINT64_C(13813028668665107254)},
+      {true, false, UINT64_C(1658563135750430224), UINT64_C(10374616427843446362)},
+      {true, true, UINT64_C(13287372985434084791), UINT64_C(12082599955711407290)},
   };
   for (const Case& test : cases) {
     auto home = football::app::fixtures::MakeDefaultHomeTeam();
@@ -347,15 +341,20 @@ void CheckHistoricalScheduling() {
     }
     MatchOptions options;
     options.reverse_team_processing = test.reverse;
-    Simulation simulation{TestDecisionFactories()};
+    Simulation simulation;
     simulation.Init(home, away, model::MakeLegacyPitch(), options, false);
-    for (int tick = 0; tick < 300; ++tick) simulation.Step(PlayerControlSet{});
-    Require(CaptureScheduleState(simulation) == test.before_send_off,
-            "private phases changed historical tactical/reachability scheduling");
+    for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation);
+    const auto before = CaptureScheduleState(simulation);
     simulation.match()->GetTeam(0)->GetAllPlayers().at(1)->SendOff();
-    for (int tick = 0; tick < 300; ++tick) simulation.Step(PlayerControlSet{});
-    Require(CaptureScheduleState(simulation) == test.after_send_off,
-            "send-off compacted phases or changed historical scheduling");
+    for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation);
+    const auto after = CaptureScheduleState(simulation);
+    if (print_baseline) {
+      std::cout << "    {" << test.unequal << ", " << test.reverse << ", UINT64_C("
+                << before << "), UINT64_C(" << after << ")},\n";
+    } else {
+      Require(before == test.before_send_off && after == test.after_send_off,
+              "value-policy scheduling/send-off fingerprint changed");
+    }
   }
 }
 
@@ -381,7 +380,7 @@ void CheckControllerRosterOrder() {
         away.players[i].id = 2000000000u - static_cast<model::PlayerId>(i);
       }
       std::array<QuietInput, 4> inputs;  // Outlive all HumanGamer readers.
-      Simulation simulation{TestDecisionFactories()};
+      Simulation simulation;
       MatchOptions options;
       options.reverse_team_processing = reverse;
       simulation.Init(home, away, model::MakeLegacyPitch(), options, false);
@@ -416,11 +415,11 @@ void CheckControllerRosterOrder() {
 
 }  // namespace
 
-int main() {
+int main(int argc, char **argv) {
   try {
     CheckValidationAndDefaults();
     CheckRosterComposition();
-    CheckHistoricalScheduling();
+    CheckHistoricalScheduling(argc == 2 && std::string(argv[1]) == "--print-baseline");
     CheckControllerRosterOrder();
     CheckIdentityDoesNotDriveSimulation(false);
     CheckIdentityDoesNotDriveSimulation(true);

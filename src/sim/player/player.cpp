@@ -24,7 +24,6 @@
 #include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/team.hpp"
-#include "sim/legacy_player_decision.hpp"
 #include "sim/query/player_query.hpp"
 #include "sim/query/reachability.hpp"
 #include "sim/player/player_action_executor.hpp"
@@ -630,12 +629,16 @@ void Player::Deactivate() {
   GetTeam()->UpdateDesignatedTeamPossessionPlayer();
 }
 
-LegacyPlayerDecision *Player::GetController() {
-  if (ExternalControllerActive()) {
-    return externalController->GetHumanController();
-  } else {
-    return controller.get();
-  }
+int Player::GetReactionTime_ms() {
+  if (ExternalControllerActive()) return ExternalController()->GetReactionTime_ms();
+  int reaction = int(std::round(80.f - GetStat(football::model::PlayerStat::physical_reaction) * 40.f));
+  reaction += (1.f - team->GetAiDifficulty()) * 100;
+  return reaction;
+}
+
+float Player::GetControlSpeed() {
+  if (control_) return control_->desired_speed;
+  return ExternalControllerActive() ? ExternalController()->GetFloatVelocity() : 0.f;
 }
 
 void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
@@ -644,7 +647,13 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
   } else if (ExternalControllerActive()) {
     externalController->GetHumanController()->RequestCommand(commandQueue);
   } else {
-    controller->RequestCommand(commandQueue);
+    // No implicit policy in sim: absent control is an idle movement intent.
+    PlayerControl idle;
+    idle.player = GetID();
+    idle.move_direction = GetDirectionVec();
+    if (team->GetDynamicSide() != (GetTeamID() == 0 ? -1 : 1))
+      idle.move_direction.Mirror();
+    commandQueue = BuildPlayerCommands(idle, *this);
   }
 }
 
@@ -654,7 +663,7 @@ void Player::SetExternalController(HumanGamer *externalController) {
     this->externalController->GetHumanController()->Reset();
     this->externalController->GetHumanController()->SetPlayer(this);
   } else {
-    controller->Reset();
+    tactical_image_time_ms_ = 0;
   }
 }
 
@@ -670,7 +679,9 @@ void Player::Process() {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
     if (ExternalControllerActive()) externalController->GetHumanController()->Process();
-    controller->Process();
+    tactical_image_time_ms_ = GetReactionTime_ms();
+    if (match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental)
+      tactical_image_time_ms_ = 0;
     if (match->IsInPlay()) {
       if (match->GetActualTime_ms() % 1000 == 0) {
         positionHistoryPerSecond.push_back(GetPosition());
@@ -744,14 +755,15 @@ void Player::ResetRuntimeState(const Vector3 &focusPos) {
     SynchronizeKinematicState();
     BeginSimulationAction();
   }
-  if (GetController()) GetController()->Reset();
+  if (ExternalControllerActive()) ExternalController()->Reset();
+  tactical_image_time_ms_ = 0;
   resetSituationAuditContext = kResetSituationUnspecified;
 }
 
 Humanoid *Player::CastHumanoid() { return humanoid.get(); }
 
 int Player::GetTeamID() const { return team->GetID(); }
-Team *Player::GetTeam() { return team; }
+Team *Player::GetTeam() const { return team; }
 
 Vector3 Player::GetPitchPosition() {
   Vector3 pos = GetPosition();
@@ -759,14 +771,10 @@ Vector3 Player::GetPitchPosition() {
   return pos;
 }
 
-void Player::Activate(bool lazyPlayer) {
+void Player::Activate() {
   assert(!isActive);
   isActive = true;
   humanoid.reset(new Humanoid(this));
-  // The decision owner is supplied by the match, never named here: the
-  // simulation depends on the abstract port only.
-  controller = match->CreatePlayerDecision(lazyPlayer);
-  controller->SetPlayer(this);
   CastHumanoid()->ResetPosition(
       GetFormationEntry().position * 25 *
           Vector3(-team->GetDynamicSide(), -team->GetDynamicSide(), 0),
@@ -972,7 +980,8 @@ void Player::ResetSituation(const Vector3 &focusPos) {
 }
 
 void Player::_CalculateTacticalSituation() {
-  const MentalImage *mentalImage = GetController()->GetMentalImage();
+  const MentalImage *mentalImage = ExternalControllerActive()
+      ? ExternalController()->GetMentalImage() : match->GetMentalImage(tactical_image_time_ms_);
   assert(mentalImage);
   assert(IsActive());
   float time_sec = 0.5f;

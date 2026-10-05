@@ -31,10 +31,6 @@
 #include "sim/animation/library.hpp"
 #include "sim/animation/types.hpp"
 #include "control/player_control_set.hpp"
-#include "sim/legacy_player_decision.hpp"
-
-class LegacyPlayerDecisionFactory;
-class LegacyTeamDecisionFactory;
 
 
 #include <fstream>
@@ -53,14 +49,9 @@ class Match {
           const MatchOptions& options,
           SimulationRng& rng,
           std::shared_ptr<const AnimationLibrary> animations,
-          std::shared_ptr<const LegacyPlayerDecisionFactory> player_decision_factory,
-          std::shared_ptr<const LegacyTeamDecisionFactory> team_decision_factory,
           bool init_animation);
     virtual ~Match();
 
-    // Creates the decision owner for one actor. The simulation never names a
-    // concrete implementation; the factory is injected from above.
-    std::unique_ptr<LegacyPlayerDecision> CreatePlayerDecision(bool lazy);
 
     void Exit();
     void Mirror(bool team_0, bool team_1, bool ball);
@@ -94,7 +85,7 @@ class Match {
     void StartSetPiece() { inSetPiece = true; }
     void StopSetPiece() { inSetPiece = false; }
     bool IsInSetPiece() const { return inSetPiece; }
-    Referee *GetReferee() { return referee_.get(); }
+    Referee *GetReferee() const { return referee_.get(); }
 
     void SetGoalScored(bool onOff) { if (onOff == false) ballIsInGoal = false; goalScored = onOff; }
     bool IsGoalScored() const { return goalScored; }
@@ -120,7 +111,7 @@ class Match {
     Team* GetBestPossessionTeam();
 
     Player *GetDesignatedPossessionPlayer() { return designatedPossessionPlayer; }
-    Player *GetBallRetainer() { return ballRetainer; }
+    Player *GetBallRetainer() const { return ballRetainer; }
     void SetBallRetainer(Player *retainer) {
       ballRetainer = retainer;
     }
@@ -165,8 +156,6 @@ class Match {
     float possession60seconds_ = 0.0f;
     const football::model::Pitch pitch_;
     const std::shared_ptr<const AnimationLibrary> animations_;
-    const std::shared_ptr<const LegacyPlayerDecisionFactory> player_decision_factory_;
-    const std::shared_ptr<const LegacyTeamDecisionFactory> team_decision_factory_;
     SimulationRng& rng_;
     Team *teams[2];
     int first_team = 0;

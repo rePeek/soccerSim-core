@@ -20,13 +20,8 @@
 #include "sim/simulation.hpp"
 #include "support/diagnostics/assert.hpp"
 
-// COMPOSITION ROOT. This is the only translation unit that names the default
-// decision implementations, so env -> ai -> sim and sim never depends on ai.
-// Switching to the B layout (AI supplied by the caller) means moving these two
-// calls to the executable and giving GameEnv an extra constructor; Simulation
-// itself does not change.
-#include "ai/eliza_decision_factory.hpp"
-#include "ai/team_ai_decision_factory.hpp"
+// Default AI remains in this library, but decisions are composed outside sim.
+#include "ai/default_ai.hpp"
 
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
                  football::model::Pitch pitch)
@@ -46,8 +41,7 @@ void GameEnv::stop_game() {
 void GameEnv::start_game() {
   CHECK(!simulation_);
   // Publish only an initialized runtime; a rejected description leaves us stopped.
-  auto simulation = std::make_unique<Simulation>(LegacyDecisionFactories{
-      CreateDefaultElizaDecisionFactory(), CreateDefaultTeamAIDecisionFactory()});
+  auto simulation = std::make_unique<Simulation>();
   init_match(*simulation);
   simulation_ = std::move(simulation);
 }
@@ -60,7 +54,15 @@ void GameEnv::reset_game() {
 
 void GameEnv::step() {
   CHECK(simulation_);
-  simulation_->Step(controls_);
+  auto boards = simulation_->ObserveTactics();
+  const WorldState world = simulation_->Observe();
+  football::ai::UpdateTactics(world, boards);
+  PlayerControlSet combined;
+  football::ai::DefaultAI{}.Update(world, boards, combined);
+  // Explicit controls override default decisions; no defaults are stored in
+  // controls(), and human-owned actors are omitted by the value policy.
+  for (const auto &control : controls_.controls()) combined.Set(control.player, control);
+  simulation_->Step(combined);
 }
 
 WorldState GameEnv::observe() const {

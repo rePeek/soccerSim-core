@@ -49,7 +49,7 @@ void QuantizeDirection(Vector3 &inputDirection, float bias) {
 
 }  // namespace
 
-PlayerController::PlayerController(Match *match) : LegacyPlayerDecision(match) {
+PlayerController::PlayerController(Match *match) : match(match) {
   Reset();
 }
 
@@ -60,7 +60,7 @@ void PlayerController::Process() {
 }
 
 void PlayerController::SetPlayer(Player *player) {
-  LegacyPlayerDecision::SetPlayer(player);
+  this->player = player;
   this->team = CastPlayer()->GetTeam();
   this->oppTeam = match->GetTeam(abs(this->team->GetID() - 1));
   assert(this->oppTeam);
@@ -75,7 +75,7 @@ const MentalImage *PlayerController::GetMentalImage() {
 }
 
 int PlayerController::GetReactionTime_ms() {
-  int reactionTime_ms = LegacyPlayerDecision::GetReactionTime_ms();
+  int reactionTime_ms = int(std::round(80.f - player->GetStat(football::model::PlayerStat::physical_reaction) * 40.f));
   reactionTime_ms += (1.0f - GetTeam()->GetAiDifficulty()) * 100;
   return reactionTime_ms;
 }
@@ -129,13 +129,13 @@ void PlayerController::AddDefensiveComponent(Vector3 &desiredPosition,
 
       // if shootingPoint.coords[0] exceeds offside trap line, alter oppToThresholdDistance in such a way, that it results in the shootingPoint being at least offsideTrapX distance away from goal (unless player is closer already)
       if (shootingPoint.coords[0] * team->GetDynamicSide() >
-          team->GetController()->GetOffsideTrapX() * team->GetDynamicSide()) {
+          team->GetOffsideTrapX() * team->GetDynamicSide()) {
         Line oppToGoalLine;
         oppToGoalLine.SetVertex(0, oppPos);
         oppToGoalLine.SetVertex(1, goalPos);
         Line offsideLine;
-        offsideLine.SetVertex(0, Vector3(team->GetController()->GetOffsideTrapX(), -pitchHalfH, 0));
-        offsideLine.SetVertex(1, Vector3(team->GetController()->GetOffsideTrapX(),  pitchHalfH, 0));
+        offsideLine.SetVertex(0, Vector3(team->GetOffsideTrapX(), -pitchHalfH, 0));
+        offsideLine.SetVertex(1, Vector3(team->GetOffsideTrapX(),  pitchHalfH, 0));
         shootingPoint = oppToGoalLine.GetIntersectionPoint(offsideLine);
         oppToThresholdDistance = (shootingPoint - oppPos).GetLength();
       }

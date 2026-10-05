@@ -23,7 +23,7 @@ class MentalImage;
 
 namespace football::sim::mechanics {
 
-// Shared Human/Eliza movement assistance toward predicted ball contact.
+// Human input movement assistance toward predicted ball contact.
 // This adapts an existing desired movement; it does not choose team tactics.
 unsigned int GetToBallMovement(
     Match *match, const MentalImage *mentalImage, Player *player,

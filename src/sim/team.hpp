@@ -24,8 +24,8 @@
 #include "model/team.hpp"
 #include "sim/player/player.hpp"
 #include "support/config/properties.hpp"
-#include "sim/legacy_team_decision.hpp"
-#include "sim/legacy_team_decision_factory.hpp"
+#include "sim/team_tactical_state.hpp"
+#include "control/tactical_board.hpp"
 #include "sim/humangamer.hpp"
 
 class Match;
@@ -34,7 +34,7 @@ class Team {
 
   public:
     Team(int id, Match *match, const football::model::Team& model,
-         const LegacyTeamDecisionFactory& decision_factory, float aiDifficulty);
+         float aiDifficulty);
     void Mirror();
     bool isMirrored() {
       return mirrored;
@@ -50,7 +50,13 @@ class Team {
     void InitPlayers(std::uint8_t first_schedule_phase);
 
     Match *GetMatch() { return match; }
-    LegacyTeamDecision *GetController() { return teamController.get(); }
+    TacticalBoard ObserveTactics() const;
+    Player *GetPieceTaker();
+    e_GameMode GetSetPieceType();
+    float GetOffsideTrapX();
+    void ApplyAttackingRun(Player *manual_player = nullptr);
+    void ApplyTeamPressure();
+    void ApplyKeeperRush();
 
     football::model::TeamSide GetTeamSide() const {
       return static_cast<football::model::TeamSide>(id);
@@ -152,7 +158,7 @@ class Team {
     float teamPossessionAmount = 0.0f;
     float fadingTeamPossessionAmount = 0.0f;
 
-    std::unique_ptr<LegacyTeamDecision> teamController;
+    TeamTacticalState tactical_state_;
 
     std::vector<Player*> players;
 

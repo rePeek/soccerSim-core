@@ -74,15 +74,13 @@ add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
 target_link_libraries(football_sim PUBLIC football_animation football_support
   football_model football_observation football_control football_controller)
 
-# The decision implementations. ai -> sim only: football_sim must never link
-# football_ai, or the domain dependency would point the wrong way.
+# Value policy links only read/control contracts, never the actor runtime.
 add_library(football_ai STATIC ${AI_SOURCES} ${AI_HEADERS})
-target_link_libraries(football_ai PUBLIC football_sim)
+target_link_libraries(football_ai PUBLIC football_observation football_control)
 football_configure_target(football_ai)
 
-# env is the composition root: game_env.cpp names the default ai factories and
-# the engine object layer therefore links football_ai. Keep the dependency in
-# that single translation unit; game_env.hpp exposes no AI type.
+# env composes observe -> default AI -> merged controls -> sim in one TU.
+# The library still ships default AI; game_env.hpp exposes no AI type.
 add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
   src/env/game_env.cpp src/env/game_env.hpp)

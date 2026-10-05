@@ -90,7 +90,6 @@ enum e_PlayerCommandModifier {
   e_PlayerCommandModifier_KnockOn = 1
 };
 
-class LegacyPlayerDecision;
 
 struct TouchInfo {
   Vector3         inputDirection;

@@ -78,8 +78,6 @@ set(GAME_HEADERS
    src/sim/player/player_action_executor.hpp
    src/sim/player/player_action_volume.hpp
    src/sim/player/player.hpp
-   src/sim/legacy_player_decision.hpp
-   src/sim/legacy_player_decision_factory.hpp
    src/sim/player/controller/humancontroller.hpp
    src/sim/player/controller/playercontroller.hpp
    src/sim/referee.hpp
@@ -96,9 +94,8 @@ set(GAME_HEADERS
    src/sim/player/ball_approach.hpp
    src/sim/player/kick_targeting.hpp
    src/sim/ai_support/mentalimage.hpp
-   src/sim/legacy_team_decision.hpp
-   src/sim/legacy_team_decision_factory.hpp
-   src/sim/legacy_decision_factories.hpp
+   src/sim/team_tactical_state.hpp
+   src/sim/rules/restart_placement.hpp
 )
 
 
@@ -111,7 +108,6 @@ set(GAME_SOURCES
    src/sim/player/player_locomotion.cpp
    src/sim/player/controller/playercontroller.cpp
    src/sim/player/controller/humancontroller.cpp
-   src/sim/legacy_player_decision.cpp
    src/sim/humangamer.cpp
    src/sim/ball.cpp
    src/sim/match.cpp
@@ -123,6 +119,7 @@ set(GAME_SOURCES
    src/sim/query/player_query.cpp
    src/sim/query/reachability.cpp
    src/sim/rules/offside.cpp
+   src/sim/rules/restart_placement.cpp
    src/sim/player/ball_approach.cpp
    src/sim/player/kick_targeting.cpp
    src/sim/team.cpp
@@ -131,35 +128,8 @@ set(GAME_SOURCES
 
 list(APPEND GAME_HEADERS src/sim/formation.hpp)
 
-set(AI_HEADERS
-   src/ai/eliza_controller.hpp
-   src/ai/eliza_decision_factory.hpp
-   src/ai/team_ai_controller.hpp
-   src/ai/team_ai_decision_factory.hpp
-   src/ai/formation_policy.hpp
-   src/ai/dribble_policy.hpp
-   src/ai/positioning.hpp
-   src/ai/strategies/strategy.hpp
-   src/ai/strategies/offtheball/default_off.hpp
-   src/ai/strategies/offtheball/default_def.hpp
-   src/ai/strategies/offtheball/default_mid.hpp
-   src/ai/strategies/offtheball/goalie_default.hpp
-)
-
-set(AI_SOURCES
-   src/ai/eliza_controller.cpp
-   src/ai/eliza_decision_factory.cpp
-   src/ai/team_ai_controller.cpp
-   src/ai/team_ai_decision_factory.cpp
-   src/ai/formation_policy.cpp
-   src/ai/dribble_policy.cpp
-   src/ai/positioning.cpp
-   src/ai/strategies/strategy.cpp
-   src/ai/strategies/offtheball/default_mid.cpp
-   src/ai/strategies/offtheball/default_off.cpp
-   src/ai/strategies/offtheball/default_def.cpp
-   src/ai/strategies/offtheball/goalie_default.cpp
-)
+set(AI_HEADERS src/ai/default_ai.hpp)
+set(AI_SOURCES src/ai/default_ai.cpp)
 
 # Executable-side code. It builds model descriptions from legacy data, so it may
 # use support (XML/text) but is never linked into the core shared library.

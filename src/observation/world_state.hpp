@@ -1,11 +1,14 @@
-#ifndef FOOTBALL_STATE_WORLD_STATE_HPP
-#define FOOTBALL_STATE_WORLD_STATE_HPP
+#ifndef FOOTBALL_OBSERVATION_WORLD_STATE_HPP
+#define FOOTBALL_OBSERVATION_WORLD_STATE_HPP
 
+#include <array>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "model/player.hpp"
 #include "model/team.hpp"
+#include "model/pitch.hpp"
 #include "foundation/math/vector3.hpp"
 
 struct WorldPlayerState {
@@ -16,15 +19,33 @@ struct WorldPlayerState {
   blunted::Vector3 facing = blunted::Vector3(1, 0, 0);
   bool active = false;
   bool has_possession = false;
+  bool externally_controlled = false;
+  bool lazy = false;
+  float max_speed = 0.0f;
 };
 
-// Immutable-by-convention value snapshot of authoritative match state. It can
-// be retained for replay, training data, and diagnostics without exposing
-// mutable simulation objects.
+struct WorldTeamState {
+  football::model::TeamSide side = football::model::TeamSide::Home;
+  int defending_direction = -1;
+  int score = 0;
+};
+
+// Value-only observation in one pitch frame (home defends negative x).
+// No actor pointers, animation/command queues, mutable runtime or AI objects.
 struct WorldState {
   std::uint64_t tick = 0;
   blunted::Vector3 ball_position = blunted::Vector3(0);
   std::vector<WorldPlayerState> players;
+  blunted::Vector3 ball_velocity = blunted::Vector3(0);
+  football::model::Pitch pitch;
+  std::array<WorldTeamState, 2> teams{{
+      {football::model::TeamSide::Home, -1, 0},
+      {football::model::TeamSide::Away, 1, 0}}};
+  bool in_play = false;
+  bool in_set_piece = false;
+  e_GameMode restart = e_GameMode_Normal;
+  std::optional<football::model::PlayerId> restart_taker;
+  std::optional<football::model::PlayerId> ball_retainer;
 };
 
-#endif  // FOOTBALL_STATE_WORLD_STATE_HPP
+#endif  // FOOTBALL_OBSERVATION_WORLD_STATE_HPP

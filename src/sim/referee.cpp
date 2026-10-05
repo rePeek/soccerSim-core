@@ -21,6 +21,7 @@
 #include "sim/match.hpp"
 #include "sim/rules/offside.hpp"
 #include "sim/ai_support/mentalimage.hpp"
+#include "sim/rules/restart_placement.hpp"
 
 namespace {
 // Fixed rules budget for issuing a card, independent of actor position,
@@ -139,6 +140,7 @@ void Referee::Process() {
         }
 
         buffer.active = true;
+        buffer.taker = nullptr;  // No prepared taker until this restart's deadline.
       }
     }
 
@@ -164,6 +166,7 @@ void Referee::Process() {
           if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -pitchHalfH;
           buffer.restartPos.coords[2] = 0;
           buffer.active = true;
+          buffer.taker = nullptr;
         }
       }
     }
@@ -202,8 +205,6 @@ void Referee::Process() {
          !buffer.taker->GetSimulationActionState().IsContactPending())) {
       buffer.active = false;
       match->StopSetPiece();
-      match->GetTeam(0)->GetController()->PrepareSetPiece(e_GameMode_Normal, match->GetTeam(1), -1, -1);
-      match->GetTeam(1)->GetController()->PrepareSetPiece(e_GameMode_Normal, match->GetTeam(0), -1, -1);
       afterSetPieceRelaxTime_ms = 400;
       foul.foulPlayer = 0;
       foul.foulType = 0;
@@ -229,16 +230,13 @@ void Referee::PrepareSetPiece(e_GameMode setPiece) {
                             ? -buffer.restartPos
                             : buffer.restartPos);
 
-  match->GetTeam(match->FirstTeam())
-      ->GetController()
-      ->PrepareSetPiece(setPiece, match->GetTeam(match->SecondTeam()),
-                        buffer.setpiece_team->GetID(), buffer.teamID);
-  match->GetTeam(match->SecondTeam())
-      ->GetController()
-      ->PrepareSetPiece(setPiece, match->GetTeam(match->FirstTeam()),
-                        buffer.setpiece_team->GetID(), buffer.teamID);
-
-  buffer.taker = match->GetTeam(buffer.teamID)->GetController()->GetPieceTaker();
+  Player *first_taker = PositionRestartPlayers(match->GetTeam(match->FirstTeam()),
+      setPiece, match->GetTeam(match->SecondTeam()),
+      buffer.setpiece_team->GetID(), buffer.teamID);
+  Player *second_taker = PositionRestartPlayers(match->GetTeam(match->SecondTeam()),
+      setPiece, match->GetTeam(match->FirstTeam()),
+      buffer.setpiece_team->GetID(), buffer.teamID);
+  buffer.taker = buffer.teamID == match->FirstTeam() ? first_taker : second_taker;
   // Reset offside state.
   offsidePlayers.clear();
 }
@@ -273,6 +271,7 @@ void Referee::BallTouched() {
           buffer.restartPos = ballOwner->GetPitchPosition();
           buffer.teamID = 1 - lastTouchTeamID;
           buffer.active = true;
+          buffer.taker = nullptr;
         }
       }
     }
@@ -428,6 +427,7 @@ bool Referee::CheckFoul() {
         : foul.foulPosition;
     buffer.teamID = foul.foulVictim->GetTeam()->GetID();
     buffer.active = true;
+    buffer.taker = nullptr;
     if (foul.foulType == 2) {
       foul.foulPlayer->GiveYellowCard(match->GetActualTime_ms() + 6000); // need to find out proper moment
     }

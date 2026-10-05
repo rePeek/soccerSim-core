@@ -18,7 +18,7 @@ int main() {
                football::model::MakeLegacyPitch()};
   game.start_game();
   for (int tick = 0; tick < 100; ++tick) game.step();
-  const WorldState world = game.observe(); // raw simulation coordinates/velocities
+  const WorldState world = game.observe(); // owning, unscaled home-pitch values
   game.reset_game();                       // same teams and pitch
   game.stop_game();
 }
@@ -27,6 +27,20 @@ int main() {
 One `step()` calls the simulation once: a 10 ms tick (100 Hz). Batch explicitly
 with a loop. `football_app --steps=100` therefore advances 100 ticks, not 100
 legacy observation frames. Configure commands through `game.controls()`.
+
+Default AI remains shipped in `libgame.so`, but runs outside simulation:
+`WorldState + TacticalBoard → DefaultAI → PlayerControlSet → Simulation`.
+Explicit controls override default decisions; active Human input stays in sim.
+Simulation itself has no decision objects/factories and no implicit AI fallback.
+AI links only observation/control contracts, never actor/runtime code. Snapshots
+include ball motion, play/restart/retention state and both team states; controls
+and observations use a common home pitch frame.
+
+The old Eliza strategy was intentionally replaced, not wrapped. Current policy
+goldens differ; historical values are recorded in
+[`test/baselines/pre_value_ai.md`](test/baselines/pre_value_ai.md). Rules, restart
+placement/RNG order, actor reset lifetimes and animation mechanics are separately
+verified.
 
 `GameEnv` directly owns its `Simulation`; there is no active-environment global
 or context binding. Reset retains the runtime RNG and animation cache; stop
@@ -65,17 +79,14 @@ should serialize an explicit state value object rather than per-class byte hooks
 The headless core retains `Referee` as the football rules engine (fouls, cards,
 offside and restarts), not as a moving actor. Referee/linesman humanoids are
 removed; card restart deadlines are fixed rules time, never animation duration.
-The headless core retains `Referee` as the football rules engine (fouls, cards,
-offside and restarts), not as a moving actor. Referee/linesman humanoids are
-removed; card restart deadlines are fixed rules time, never animation duration.
 
 ## Tests
 
 `ctest --preset release` runs the core regression/diagnostic executables plus the
-Catch2 suites in `test/`, which cover the executable side: `--steps` parsing
-(`src/app/args.*`), the legacy importer and default team factories
-(`src/app/fixtures/`), the `GameEnv` composition the CLI builds, and the real
-`football_app` binary output. Catch2 is pulled in by
+Catch2 suites in `test/`: value-only AI, controls/observations/rules, exact restart
+and computation baselines, executable argument parsing/importers/fixtures, CLI
+composition and binary output. Architecture guards have negative tests too.
+Catch2 is pulled in by
 [CPM](https://github.com/cpm-cmake/CPM.cmake) (`cmake/CPM.cmake`) and cached in
 `.cache/CPM`; nothing in `test/`, `src/app/` or Catch2 is linked into the core
 shared library. Configure with `-DBUILD_TESTING=OFF` for a network-free,

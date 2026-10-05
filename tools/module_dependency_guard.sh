@@ -62,6 +62,29 @@ case " $sim_closure " in
     ;;
 esac
 
+# Value AI may not regain access to actors, even by declaring a transitive edge.
+ai_closure=$(sed -n 's/^football_ai: //p' "$deps_file")
+for target in football_sim football_animation football_engine football_controller football_support football_app_support; do
+  case " $ai_closure " in
+    *" $target "*)
+      echo "module dependency guard: forbidden football_ai -> $target link" >&2
+      status=1
+      ;;
+  esac
+done
+
+if grep -RqE 'Legacy(PlayerDecision|TeamDecision|DecisionFactories)|CreateDefault(ElizaDecision|TeamAIDecision)Factory' \
+    --include='*.cpp' --include='*.hpp' --include='*.h' "$source_dir"; then
+  echo 'module dependency guard: retired decision object API' >&2
+  status=1
+fi
+for file in legacy_player_decision.cpp legacy_player_decision.hpp legacy_player_decision_factory.hpp legacy_team_decision.hpp legacy_team_decision_factory.hpp legacy_decision_factories.hpp; do
+  if [ -e "$source_dir/sim/$file" ]; then
+    echo 'module dependency guard: retired decision object file' >&2
+    status=1
+  fi
+done
+
 # Do not recreate the old ownership bucket or its misleading API names.
 if [ -d "$source_dir/sim" ]; then
   if [ -e "$source_dir/sim/ai_support/AIfunctions.hpp" ] ||

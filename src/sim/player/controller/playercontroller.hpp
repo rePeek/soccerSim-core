@@ -18,24 +18,32 @@
 #ifndef _HPP_FOOTBALL_ONTHEPITCH_PLAYERCONTROLLER
 #define _HPP_FOOTBALL_ONTHEPITCH_PLAYERCONTROLLER
 
-#include "sim/legacy_player_decision.hpp"
+#include "sim/gamedefines.hpp"
 
-class PlayerController : public LegacyPlayerDecision {
+class Match;
+class Player;
+class Team;
+class MentalImage;
+
+// Human input execution assistance only. No AI implements or calls this base.
+class PlayerController {
 
   public:
     PlayerController(Match *match);
     virtual ~PlayerController() { };
 
-    void Process() override;
+    virtual void Process();
 
-    void SetPlayer(Player *player) override;
+    virtual void SetPlayer(Player *player);
+    Player *GetPlayer() { return player; }
+    Match *GetMatch() { return match; }
     Player *CastPlayer();
     Team *GetTeam() { return team; }
     Team *GetOppTeam() { return oppTeam; }
 
-    const MentalImage *GetMentalImage() override;
+    const MentalImage *GetMentalImage();
 
-    int GetReactionTime_ms() override;
+    virtual int GetReactionTime_ms();
 
     float GetLastSwitchBias();
 
@@ -47,6 +55,8 @@ class PlayerController : public LegacyPlayerDecision {
     virtual void Reset();
 
   protected:
+    Player *player = nullptr;
+    Match *match;
     float OppBetweenBallAndMeDot();
     float CouldWinABallDuelLikeliness();
     virtual void _Preprocess();

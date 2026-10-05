@@ -15,6 +15,9 @@ enum class ControlAction {
   HighPass,
   Shoot,
   Tackle,
+  Dribble,
+  Trap,
+  Save,
 };
 
 // Persistent control target for one player. It remains active until replaced
