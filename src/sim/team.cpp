@@ -60,12 +60,13 @@ void Team::Exit() {
 
 }
 
-void Team::InitPlayers(PlayerIndex first_index) {
-  // load all players in the team, even the players who sit on the bench. aww.
+void Team::InitPlayers(std::uint8_t first_schedule_phase) {
+  // Roster traversal supplies order; phases repeat every ten players.
+  std::uint8_t schedule_phase = first_schedule_phase;
   for (int i = 0; i < (signed int)teamData->GetPlayerNum(); i++) {
     PlayerData *playerData = teamData->GetPlayerData(i);
-    Player *player = new Player(this, playerData,
-                                static_cast<PlayerIndex>(first_index + i));
+    Player *player = new Player(this, playerData, schedule_phase);
+    schedule_phase = (schedule_phase + 1) % 10;
     players.push_back(player);
 
     if (i < playerNum) {
@@ -123,12 +124,13 @@ void Team::AddHumanGamers(const std::vector<ControllerInput*>& controllers) {
   if (!result.empty()) {
     mainSelectedPlayer = result[0];
   }
-  // Keep controller-player mapping in roster/execution order, not ID order.
-  std::sort(result.begin(), result.end(), [](Player* a, Player* b) {
-        return a->GetIndex() < b->GetIndex();
-    });
-  for (unsigned int i = 0; i < result.size(); i++) {
-    humanGamers[i]->SetSelectedPlayer(result[i]);
+  // Bind the closest subset in the container's original roster order. Neither
+  // external IDs nor repeating scheduler phases describe controller order.
+  std::size_t controller_slot = 0;
+  for (Player* player : players) {
+    if (std::find(result.begin(), result.end(), player) != result.end()) {
+      humanGamers[controller_slot++]->SetSelectedPlayer(player);
+    }
   }
 }
 

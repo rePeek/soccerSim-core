@@ -92,9 +92,11 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
   startup (no half-initialized runtime is published).
 - `football_player_identity_test` — direct Simulation checks with no environment
   binding (`tools/player_identity_test.cpp`): sparse/full-width IDs, model-ID
-  controls, index-independent numerical/RNG replay, reversed construction,
-  unequal rosters, reorder/side changes, send-offs and indices 0..255; invalid
-  or duplicate IDs/missing profiles/overflow fail before RNG consumption.
+  controls, identity-independent numerical/RNG replay, reversed construction,
+  unequal rosters, reorder/side changes, send-offs, and rosters beyond 256 entries;
+  historical tactical/reachability/RNG fingerprints and container-ordered human
+  controller selection (including repeated phases and descending IDs). Invalid
+  or duplicate IDs/missing profiles fail before RNG consumption.
 - `football_smoke` — core `GameEnv` headless run (`tools/football_smoke.cpp`);
   optional positional arg is the simulation tick count (default 1000).
 - `football_headless_core_guard` — shell test (`tools/football_headless_core_guard.sh`)
@@ -134,7 +136,7 @@ src/
 │   ├── simulation, match, match_options（仅规则参数）, team, ball, referee（规则）, humangamer, teamAIcontroller
 │   ├── ai_support/     AIfunctions, mentalimage
 │   └── player/
-│       ├── player（具体 runtime；PlayerIndex 稠密索引，无 PlayerBase）, player_locomotion, *_collider,
+│       ├── player（具体 runtime；仅模型 PlayerId 与私有 schedule_phase_，无 runtime index）, player_locomotion, *_collider,
 │       │   player_action*, *_scheduler, player_kinematics, player_body_facing
 │       ├── controller/  icontroller, playercontroller（私有方向量化）, humancontroller,
 │       │                elizacontroller, strategies/offtheball/*
@@ -186,7 +188,7 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
   `GetContext`/`EnvState`/`boostrandom`/`randomseed`/`random_non_determ`。
 - `runtime_animation_boundary_guard`：禁止 runtime 依赖离线 `.anim` 管线。
 - `football_headless_core_guard`：禁止 graphics/Boost、裁判 humanoid actors、
-  已删除的 PlayerBase、ambient numbering、model/ids.hpp 与动画重开球 timing hook
+  已删除的 PlayerBase/PlayerIndex/GetIndex、ambient numbering、model/ids.hpp 与动画重开球 timing hook
   回流；同时禁止整个 runtime/内部诊断/共享库符号出现已删除的环境绑定，
   并禁止 sim/data include env。
 - `legacy_validation_guard`：禁止已经删除的逐语句 validation 宏/函数回流。
@@ -266,23 +268,33 @@ main() [src/app/app.cpp]
   or change of ends, not stable club identity. `WorldPlayerState::side` and
   `TacticalBoard::side` use it. Legacy rule-engine Team::GetID remains an integer
   slot (0/1); no model::Team::id or replacement generic IDs header is introduced.
-- Dense `PlayerIndex` lives next to runtime Player in `sim/player/player.hpp`.
-  `Player::GetIndex` is fixed for the match, including inactive/sent-off actors;
-  indices follow the original first-team/second-team construction and roster
-  order. Match passes team offsets, Team passes offset + roster slot, with no
-  allocation counter. Scheduling and controller-player sorting read the index;
-  controls, raw snapshots and animation diagnostics read `Player::GetID`,
-  directly from the owned model. Never use an ID as a scheduling phase/index.
+- `Player::GetID()` reads `playerData->GetModel().id` directly. There is no
+  second runtime identity, ID remapping table or runtime numbering allocator.
+  `PlayerIndex`, `index_` and `GetIndex()` are deleted, not aliased or renamed.
+- Roster order is container information. Human-controller selection filters
+  the closest subset by walking Team's original roster, with no ID/phase sort
+  and no stored roster slot. Ordinary vector/array positions remain local indices.
+- Player's private `const uint8_t schedule_phase_` is only a non-unique 0..9
+  stagger for tactical/reachability work. Match supplies the first roster's
+  count modulo 10 for the second roster (including reversed processing); Team
+  cycles phases during creation. It has no getter and never enters model,
+  controls or WorldState. Send-offs/inactivity do not compact surviving phases.
+  The historical 100 ms cadence, RNG windows and goldens remain unchanged.
 - The data adapter resolves legacy empty-roster defaults before `Simulation`
   validates all model IDs for uniqueness across both rosters and rejects the
-  invalid sentinel. Missing formation profiles or >256 effective actors fail
-  with std::invalid_argument, before profile RNG draws/reseeding/actors. Explicit
-  IDs are never generated or remapped by simulation. Default team factories
-  provide disjoint IDs 0..10 / 11..21 (unrelated to their identical DB rosters).
-  TeamData still consumes every declared profile draw before formation shrink,
-  but deletes omitted profiles rather than leaking them. No golden regeneration:
-  default identity values, index order, arithmetic and RNG remain identical.
-  Custom identity/control semantics intentionally now honor caller descriptions.
+  invalid sentinel or missing formation profiles, before profile RNG draws/
+  reseeding/actors. IDs are never generated or remapped by simulation. Default
+  team factories provide disjoint IDs 0..10 / 11..21, unrelated to their identical
+  DB rosters. TeamData consumes every declared profile draw before formation
+  shrink but deletes omitted profiles rather than leaking them.
+  The artificial 256-actor capacity check is removed with PlayerIndex: a
+  repeating scheduling phase is not a roster-size limit or identity. Tests
+  exercise 260 entries including inactive players; the on-pitch policy is
+  unchanged. Custom identities and controls still honor caller descriptions.
+- `Player::Mirror` skips never-activated bench entries, which have no Humanoid
+  pose. Active and sent-off players still own their Humanoid and retain the
+  original mirror/oracle path. This fixes the old null-pose bench dereference
+  without flattening Humanoid or changing supported-player numerical behavior.
 - `football::data::LoadLegacyPlayerProfile` (`data/player_profile.*`) resolves old
   profiles without a game context or RNG, preserving legacy decimal round-tripping
   at the import boundary. Explicit model attributes are consumed without rounding.
@@ -360,7 +372,7 @@ main() [src/app/app.cpp]
   per active player (zero for inactive), exactly the old base-destructor window;
   do not invoke roster callbacks while `Team::Exit` is deleting the roster.
   This change preserves all post-official-removal goldens without regeneration.
-- Environment ownership, identity/index separation and Player flattening are
+- Environment ownership, identity/order/scheduling separation and Player flattening are
   complete. The Humanoid/HumanoidBase hierarchy remains untouched; its flattening
   and the dormant legacy input/controller cluster are separate follow-up work.
   Environment ownership removal preserves the current goldens and RNG windows

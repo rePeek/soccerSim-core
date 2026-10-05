@@ -265,10 +265,10 @@ bool FloatBitsEqual(float a, float b) {
 
 }  // namespace
 
-Player::Player(Team *team, PlayerData *playerData, PlayerIndex index)
+Player::Player(Team *team, PlayerData *playerData, std::uint8_t schedule_phase)
     : match(team->GetMatch()),
       playerData(playerData),
-      index_(index),
+      schedule_phase_(schedule_phase % 10),
       team(team) {
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;
@@ -334,6 +334,9 @@ void Player::CheckSimulationKinematicOracle() const {
 }
 
 void Player::Mirror() {
+  // Never-activated bench entries have no runtime pose. Sent-off players still
+  // own their Humanoid and must keep the historical mirror/oracle path.
+  if (!humanoid) return;
   humanoid->Mirror();
   kinematicState.Mirror();
   groundCollider.Mirror();
@@ -672,7 +675,7 @@ void Player::Process() {
         positionHistoryPerSecond.push_back(GetPosition());
       }
       if (hasPossession) possessionDuration_ms += 10; else possessionDuration_ms = 0;
-      if ((match->GetActualTime_ms() + GetIndex() * 10) % 100 == 0) {
+      if ((match->GetActualTime_ms() + schedule_phase_ * 10) % 100 == 0) {
         _CalculateTacticalSituation();
       }
     }
@@ -811,7 +814,7 @@ void Player::UpdatePossessionStats() {
     ++PlayerReachabilityEligibleTicks();
     const int reachability_tick = static_cast<int>(match->GetActualTime_ms() / 10);
     const bool scheduled_refresh =
-        (reachability_tick + GetIndex()) % kReachabilityRefreshTicks == 0;
+        (reachability_tick + schedule_phase_) % kReachabilityRefreshTicks == 0;
     // First eligible tick after an action must not reuse an old action estimate.
     const bool entering_pure_locomotion = GetSimulationActionState().elapsedTime_ms == 0;
     if (scheduled_refresh || entering_pure_locomotion) {

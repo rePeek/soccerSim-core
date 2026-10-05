@@ -82,11 +82,11 @@ Match::Match(std::unique_ptr<MatchData> match_data,
                            : options.left_team_difficulty);
   teams[first_team]->SetOpponent(teams[second_team]);
   teams[second_team]->SetOpponent(teams[first_team]);
-  // Execution indices follow the historical actor-construction order, even
-  // when team processing is reversed. No allocator or ambient counter exists.
+  // Preserve the historical scheduling stagger across both rosters, including
+  // reversed processing. Only a periodic phase is passed, not a creation ID.
   teams[first_team]->InitPlayers(0);
-  teams[second_team]->InitPlayers(static_cast<PlayerIndex>(
-      matchData->GetTeamData(first_team).GetPlayerNum()));
+  teams[second_team]->InitPlayers(static_cast<std::uint8_t>(
+      matchData->GetTeamData(first_team).GetPlayerNum() % 10));
 
   std::vector<Player*> activePlayers;
   teams[first_team]->GetActivePlayers(activePlayers);

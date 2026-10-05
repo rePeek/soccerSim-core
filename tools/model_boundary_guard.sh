@@ -11,7 +11,7 @@ source_dir=$1
 forbidden_include='^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"][^">]*(foundation|env|sim|data|animation|control|controller|state|support|domain)/[^">]*[">]'
 forbidden_authority='\b(GetContext|GetGame|EnvState|boostrandom|randomseed|random_non_determ|Log)\b'
 forbidden_infrastructure='\b(fstream|filesystem|ifstream|ofstream|XMLLoader|XMLTree)\b'
-forbidden_runtime_type='\bPlayerIndex\b'
+forbidden_runtime_detail='\b(PlayerIndex|schedule_phase_|schedule_phase)\b'
 status=0
 
 if grep -R -n -E --include='*.cpp' --include='*.hpp' --include='*.h' \
@@ -21,8 +21,8 @@ if grep -R -n -E --include='*.cpp' --include='*.hpp' --include='*.h' \
 fi
 
 if grep -R -n -E --include='*.cpp' --include='*.hpp' --include='*.h' \
-    "$forbidden_authority|$forbidden_infrastructure|$forbidden_runtime_type" "$source_dir/model"; then
-  echo "model boundary guard: model may not access runtime state/indexing or I/O" >&2
+    "$forbidden_authority|$forbidden_infrastructure|$forbidden_runtime_detail" "$source_dir/model"; then
+  echo "model boundary guard: model may not access runtime scheduling/state or I/O" >&2
   status=1
 fi
 

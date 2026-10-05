@@ -38,8 +38,9 @@ use those IDs unchanged. Default team factories supply disjoint IDs 0–10 and
 11–21. Invalid/duplicate IDs are rejected at startup before simulation RNG draws.
 
 `WorldPlayerState::side` is `model::TeamSide::Home` or `Away`, not a stable club
-ID. Runtime `PlayerIndex` is a separate dense, match-local execution index; it
-never appears in the public snapshot or serves as a control key.
+ID. There is no second runtime player identity: `Player::GetID()` reads the
+owned model ID directly. Roster order comes from containers; a private repeating
+`schedule_phase_` only staggers calculations, never keys controls or snapshots.
 
 `GameEnv` does not expose runtime containers, episode configuration, GRF
 observations or checkpoint serialization. The GRF compatibility adapter, the

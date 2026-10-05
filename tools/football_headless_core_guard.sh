@@ -32,7 +32,7 @@ fi
 # Model identity must not fall back to the old ambient allocation ordinal.
 if grep -R -n -E \
     --include='*.cpp' --include='*.hpp' --include='*.h' \
-    '\b(Officials|PlayerOfficial|RefereeController|GetOfficials|GetOfficialPlayers|AlterSetPiecePrepareTime|PlayerBase|stablePlayerCount|GetStableID)\b|playerbase\.(hpp|cpp)|model/ids\.hpp' \
+    '\b(Officials|PlayerOfficial|RefereeController|GetOfficials|GetOfficialPlayers|AlterSetPiecePrepareTime|PlayerBase|stablePlayerCount|GetStableID|PlayerIndex|GetIndex)\b|playerbase\.(hpp|cpp)|model/ids\.hpp' \
     "$source_dir"; then
   echo "headless-core guard: retired abstraction, numbering or timing hook in $source_dir" >&2
   exit 1

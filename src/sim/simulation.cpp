@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <limits>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -14,7 +13,6 @@
 
 #include "sim/match.hpp"
 #include "sim/match_world_state.hpp"
-#include "sim/player/player.hpp"
 
 namespace {
 
@@ -62,10 +60,6 @@ void ValidatePlayers(const TeamCreationData& home, const TeamCreationData& away)
   };
   const std::size_t home_count = player_count(home);
   const std::size_t away_count = player_count(away);
-  constexpr std::size_t capacity = std::numeric_limits<PlayerIndex>::max() + 1u;
-  if (home_count > capacity || away_count > capacity - home_count) {
-    throw std::invalid_argument("match roster exceeds PlayerIndex capacity");
-  }
   if (home_count > home.players.size() || away_count > away.players.size()) {
     throw std::invalid_argument("formation has no corresponding player profile");
   }

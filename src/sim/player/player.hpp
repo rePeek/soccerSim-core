@@ -157,21 +157,17 @@ struct TacticalPlayerSituation {
 class Team;
 class ElizaController;
 
-// Dense, match-local execution index (0..255), not a model identity.
-using PlayerIndex = std::uint8_t;
-
 // Concrete football-player runtime; no shared official-actor base remains.
 class Player final {
 
   friend class HumanoidBase;
 
   public:
-    Player(Team *team, PlayerData *playerData, PlayerIndex index);
+    Player(Team *team, PlayerData *playerData, std::uint8_t schedule_phase);
     ~Player();
     void Mirror();
 
     football::model::PlayerId GetID() const { return playerData->GetModel().id; }
-    PlayerIndex GetIndex() const { return index_; }
     inline const PlayerData* GetPlayerData() { return playerData; }
 
     inline bool IsActive() { return isActive; }
@@ -447,7 +443,8 @@ class Player final {
     Match *match;
 
     const PlayerData* const playerData;
-    const PlayerIndex index_;
+    // Non-unique 0..9 offset for staggered 100 ms work, never identity or order.
+    const std::uint8_t schedule_phase_;
 
     std::unique_ptr<Humanoid> humanoid;
     PlayerKinematicState kinematicState;

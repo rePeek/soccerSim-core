@@ -18,6 +18,7 @@
 #ifndef _HPP_TEAM
 #define _HPP_TEAM
 
+#include <cstdint>
 #include <list>
 #include <memory>
 #include "model/team.hpp"
@@ -44,7 +45,7 @@ class Team {
 
     void Exit();
 
-    void InitPlayers(PlayerIndex first_index);
+    void InitPlayers(std::uint8_t first_schedule_phase);
 
     Match *GetMatch() { return match; }
     TeamAIController *GetController() { return teamController; }

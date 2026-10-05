@@ -1,7 +1,7 @@
 #include <array>
 #include <cstring>
 #include <iostream>
-#include <limits>
+#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -16,8 +16,6 @@
 
 namespace model = football::model;
 static_assert(std::is_same_v<model::PlayerId, std::uint32_t>);
-static_assert(std::is_same_v<PlayerIndex, std::uint8_t>);
-static_assert(!std::is_same_v<PlayerIndex, model::PlayerId>);
 static_assert(std::is_same_v<decltype(WorldPlayerState::side), model::TeamSide>);
 static_assert(std::is_same_v<decltype(TacticalBoard::side), model::TeamSide>);
 
@@ -25,6 +23,13 @@ template<class T> concept HasRuntimeIndex =
     requires { &T::GetIndex; } || requires { &T::index; };
 static_assert(!HasRuntimeIndex<model::Player>);
 static_assert(!HasRuntimeIndex<WorldPlayerState>);
+static_assert(!HasRuntimeIndex<Player>);
+template<class T> concept HasSchedulingDetail =
+    requires(T& value) { value.schedule_phase_; } ||
+    requires { &T::GetSchedulePhase; };
+static_assert(!HasSchedulingDetail<model::Player>);
+static_assert(!HasSchedulingDetail<WorldPlayerState>);
+static_assert(!HasSchedulingDetail<Player>);
 
 namespace {
 
@@ -81,22 +86,15 @@ void CheckSamePhysics(Simulation& a, Simulation& b) {
 void CheckIdentity(Simulation& simulation, const model::Team& home,
                    const model::Team& away) {
   const WorldState world = simulation.Observe();
-  std::array<bool, 256> seen{};
   std::size_t cursor = 0;
   Match* match = simulation.match();
-  const std::size_t first_count =
-      match->GetMatchData()->GetTeamData(match->FirstTeam()).GetPlayerNum();
   for (int side = 0; side < 2; ++side) {
     std::vector<Player*> players;
     match->GetTeam(side)->GetAllPlayers(players);
     const model::Team& description = side == 0 ? home : away;
     const auto team_side = side == 0 ? model::TeamSide::Home : model::TeamSide::Away;
     for (std::size_t i = 0; i < players.size(); ++i) {
-      const std::size_t index = (side == match->FirstTeam() ? 0 : first_count) + i;
       Player* player = players[i];
-      Require(player->GetIndex() == index && !seen.at(index),
-              "execution indices are not dense in construction order");
-      seen[index] = true;
       Require(player->GetID() == description.players.at(i).id &&
                   player->GetPlayerData()->GetModel().id == player->GetID() &&
                   world.players.at(cursor).id == player->GetID() &&
@@ -106,7 +104,6 @@ void CheckIdentity(Simulation& simulation, const model::Team& home,
     }
   }
   Require(cursor == world.players.size(), "missing world player identity");
-  for (std::size_t i = 0; i < cursor; ++i) Require(seen[i], "index has a hole");
 }
 
 void CheckIdentityDoesNotDriveSimulation(bool reverse) {
@@ -118,7 +115,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
     away.players[i].id = 2000000003u + static_cast<model::PlayerId>(i) * 19u;
   }
   home.players[0].id = model::kInvalidPlayerId - 1;
-  away.players[0].id = 0;  // Valid identity, but not this actor's execution index.
+  away.players[0].id = 0;  // Zero is a valid identity, not a scheduler phase.
   MatchOptions options;
   options.reverse_team_processing = reverse;
   Simulation reference, renamed;  // Independent runtimes, no environment binding.
@@ -151,7 +148,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
           "controls did not bind by model identity");
   const WorldState replay_target = renamed.Observe();
 
-  // Indices are fixed for the whole match, not compacted on a send-off.
+  // A send-off must not change other actors' scheduling or model identities.
   players.clear();
   reference.match()->GetTeam(0)->GetAllPlayers(players);
   players[1]->SendOff();
@@ -160,6 +157,11 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   players[1]->SendOff();
   CheckIdentity(renamed, home, away);
   CheckSamePhysics(reference, renamed);
+  for (int tick = 0; tick < 200; ++tick) {
+    reference.Step(reference_controls);
+    renamed.Step(renamed_controls);
+    CheckSamePhysics(reference, renamed);
+  }
 
   renamed.Stop();
   renamed.Init(home, away, model::MakeLegacyPitch(), options, false);
@@ -176,7 +178,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   }
 }
 
-void CheckRosterIndexing() {
+void CheckRosterComposition() {
   auto home = football::data::MakeDefaultHomeTeam();
   auto away = football::data::MakeDefaultAwayTeam();
   home.players.resize(3);
@@ -200,18 +202,26 @@ void CheckRosterIndexing() {
   swapped.Init(away, home, model::MakeLegacyPitch(), MatchOptions{}, false);
   CheckIdentity(swapped, away, home);
 
-  // Exercise the last representable index, including inactive roster entries.
-  home.players.resize(128, home.players[0]);
-  away.players.resize(128, away.players[0]);
-  home.formation.resize(128);
-  away.formation.resize(128);
-  for (std::size_t i = 0; i < 128; ++i) {
+  // Scheduler phases repeat; their byte storage is not a roster-size limit.
+  // Include inactive entries and cross the retired 256-actor boundary.
+  home.players.resize(130, home.players[0]);
+  away.players.resize(130, away.players[0]);
+  home.formation.resize(130);
+  away.formation.resize(130);
+  for (std::size_t i = 0; i < 130; ++i) {
     home.players[i].id = 1000u + static_cast<model::PlayerId>(i);
     away.players[i].id = 2000u + static_cast<model::PlayerId>(i);
   }
-  Simulation capacity;
-  capacity.Init(home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
-  CheckIdentity(capacity, home, away);
+  for (bool reverse : {false, true}) {
+    MatchOptions options;
+    options.reverse_team_processing = reverse;
+    Simulation large;
+    large.Init(home, away, model::MakeLegacyPitch(), options, false);
+    CheckIdentity(large, home, away);
+    Require(large.Observe().players.size() == 260, "phase storage limited roster size");
+    for (int tick = 0; tick < 350; ++tick) large.Step(PlayerControlSet{});
+    CheckIdentity(large, home, away);
+  }
 }
 
 void CheckValidationAndDefaults() {
@@ -238,7 +248,7 @@ void CheckValidationAndDefaults() {
       rejected = true;
     }
     Require(rejected && reference.match() == nullptr && rng.engine() == rng_before,
-            "invalid identity/index input was accepted or consumed RNG");
+            "invalid identity/formation input was accepted or consumed RNG");
   };
   auto invalid = home;
   invalid.players[0].id = model::kInvalidPlayerId;
@@ -260,12 +270,152 @@ void CheckValidationAndDefaults() {
   CheckIdentity(reference, home, away);  // A failed Init remains reusable.
 }
 
+// Captured before removing dense execution ordinals. Includes both staggered
+// caches, motion/actions and RNG; no scheduling getter is introduced for tests.
+std::uint64_t CaptureScheduleState(Simulation& simulation) {
+  std::uint64_t hash = UINT64_C(1469598103934665603);
+  const auto bytes = [&](const void* data, std::size_t size) {
+    const auto* p = static_cast<const unsigned char*>(data);
+    for (std::size_t i = 0; i < size; ++i) {
+      hash ^= p[i];
+      hash *= UINT64_C(1099511628211);
+    }
+  };
+  const auto value = [&](const auto& v) { bytes(&v, sizeof(v)); };
+  const WorldState world = simulation.Observe();
+  value(world.tick);
+  bytes(world.ball_position.coords, sizeof(world.ball_position.coords));
+  for (const auto& p : world.players) {
+    bytes(p.position.coords, sizeof(p.position.coords));
+    bytes(p.velocity.coords, sizeof(p.velocity.coords));
+    bytes(p.facing.coords, sizeof(p.facing.coords));
+    value(p.active);
+    value(p.has_possession);
+  }
+  for (int side = 0; side < 2; ++side) {
+    for (Player* p : simulation.match()->GetTeam(side)->GetAllPlayers()) {
+      const auto& action = p->GetSimulationActionState();
+      value(action.type);
+      value(action.frame);
+      value(action.frameCount);
+      value(action.elapsedTime_ms);
+      value(action.contactTime_ms);
+      value(p->GetTimeNeededToGetToBall_ms());
+      value(p->GetTimeNeededToGetToBall_previous_ms());
+      value(p->GetFatigueFactorInv());
+      const auto& tactics = p->GetTacticalSituation();
+      value(tactics.forwardSpaceRating);
+      value(tactics.toGoalSpaceRating);
+      value(tactics.spaceRating);
+      value(tactics.forwardRating);
+    }
+  }
+  std::ostringstream rng;
+  rng << simulation.match()->rng().engine();
+  const auto state = rng.str();
+  bytes(state.data(), state.size());
+  return hash;
+}
+
+void CheckHistoricalScheduling() {
+  struct Case {
+    bool unequal;
+    bool reverse;
+    std::uint64_t before_send_off;
+    std::uint64_t after_send_off;
+  };
+  constexpr Case cases[] = {
+      {false, false, UINT64_C(1081277329640161974), UINT64_C(2153253164783353558)},
+      {false, true, UINT64_C(13929020379921652592), UINT64_C(13989442576941677585)},
+      {true, false, UINT64_C(5031617072857338529), UINT64_C(17380964153918716995)},
+      {true, true, UINT64_C(10672886534341869106), UINT64_C(15776948655175517899)},
+  };
+  for (const Case& test : cases) {
+    auto home = football::data::MakeDefaultHomeTeam();
+    auto away = football::data::MakeDefaultAwayTeam();
+    if (test.unequal) {
+      home.players.resize(3);
+      away.players.resize(2);
+      home.formation.resize(3);
+      away.formation.resize(2);
+    }
+    MatchOptions options;
+    options.reverse_team_processing = test.reverse;
+    Simulation simulation;
+    simulation.Init(home, away, model::MakeLegacyPitch(), options, false);
+    for (int tick = 0; tick < 300; ++tick) simulation.Step(PlayerControlSet{});
+    Require(CaptureScheduleState(simulation) == test.before_send_off,
+            "private phases changed historical tactical/reachability scheduling");
+    simulation.match()->GetTeam(0)->GetAllPlayers().at(1)->SendOff();
+    for (int tick = 0; tick < 300; ++tick) simulation.Step(PlayerControlSet{});
+    Require(CaptureScheduleState(simulation) == test.after_send_off,
+            "send-off compacted phases or changed historical scheduling");
+  }
+}
+
+class QuietInput final : public ControllerInput {
+ public:
+  bool GetButton(e_ButtonFunction) override { return false; }
+  bool GetPreviousButtonState(e_ButtonFunction) override { return false; }
+  blunted::Vector3 GetDirection() override { return blunted::Vector3(0); }
+  blunted::Vector3 GetOriginalDirection() override { return blunted::Vector3(0); }
+  bool Disabled() const override { return false; }
+  void ResetNotSticky() override {}
+  void Mirror(float) override {}
+  int GetPlayerColorIndex() const override { return 0; }
+};
+
+void CheckControllerRosterOrder() {
+  for (bool reverse : {false, true}) {
+    for (int side : {0, 1}) {
+      auto home = football::data::MakeDefaultHomeTeam();
+      auto away = football::data::MakeDefaultAwayTeam();
+      for (std::size_t i = 0; i < home.players.size(); ++i) {
+        home.players[i].id = 4000000000u - static_cast<model::PlayerId>(i);
+        away.players[i].id = 2000000000u - static_cast<model::PlayerId>(i);
+      }
+      std::array<QuietInput, 4> inputs;  // Outlive all HumanGamer readers.
+      Simulation simulation;
+      MatchOptions options;
+      options.reverse_team_processing = reverse;
+      simulation.Init(home, away, model::MakeLegacyPitch(), options, false);
+      Team* team = simulation.match()->GetTeam(side);
+      const auto& roster = team->GetAllPlayers();
+      for (std::size_t i = 0; i < roster.size(); ++i) {
+        auto entry = roster[i]->GetFormationEntry();
+        entry.controllable = i == 0 || i == 1 || i == 10;
+        team->SetFormationEntry(roster[i], entry);
+        roster[i]->ResetPosition(blunted::Vector3(20.0f + i, 0, 0),
+                                 blunted::Vector3(0));
+      }
+      const auto ball = simulation.match()->GetBall()->Predict(0).Get2D();
+      roster[10]->ResetPosition(ball + blunted::Vector3(0.1f, 0, 0), ball);
+      roster[1]->ResetPosition(ball + blunted::Vector3(0.2f, 0, 0), ball);
+      roster[0]->ResetPosition(ball + blunted::Vector3(0.3f, 0, 0), ball);
+      team->AddHumanGamers({&inputs[0], &inputs[1], &inputs[2], &inputs[3]});
+      std::vector<HumanGamer*> controllers;
+      team->GetHumanControllers(controllers);
+      // Slots 0 and 10 share a phase, IDs run backwards, and closest order is
+      // 10,1,0. Only roster order can produce the required mapping 0,1,10.
+      Require(controllers.size() == 4 &&
+                  controllers[0]->GetSelectedPlayer() == roster[0] &&
+                  controllers[1]->GetSelectedPlayer() == roster[1] &&
+                  controllers[2]->GetSelectedPlayer() == roster[10] &&
+                  controllers[3]->GetSelectedPlayer() == nullptr &&
+                  team->MainSelectedPlayer() == roster[10],
+              "controller binding used IDs/phases/distance instead of roster order");
+    }
+  }
+}
+
 }  // namespace
 
 int main() {
   try {
     CheckValidationAndDefaults();
-    CheckRosterIndexing();
+    CheckRosterComposition();
+    CheckHistoricalScheduling();
+    CheckControllerRosterOrder();
     CheckIdentityDoesNotDriveSimulation(false);
     CheckIdentityDoesNotDriveSimulation(true);
     std::cout << "football_player_identity_test: PASS\n";
