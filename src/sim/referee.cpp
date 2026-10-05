@@ -32,7 +32,7 @@ Referee::Referee(Match *match, bool animations) : match(match), animations(anima
   buffer.stopTime = 0;
   buffer.prepareTime = 0;
   buffer.startTime = 2000;
-  buffer.restartPos = GetScenarioConfig().ball_position;
+    buffer.restartPos = match->options().ball_position;
   buffer.taker = 0;
   buffer.endPhase = true;
   buffer.active = true;
@@ -53,17 +53,17 @@ void Referee::Process() {
 
     Vector3 ballPos = match->GetBall()->Predict(0);
     // Single step maps to 1800 units.
-    if (match->GetMatchTime_ms() >= 1800 * GetScenarioConfig().second_half &&
+    if (match->GetMatchTime_ms() >= 1800 * match->options().second_half &&
         match->GetMatchPhase() == e_MatchPhase_1stHalf) {
       match->StopPlay();
       buffer.desiredSetPiece = e_GameMode_KickOff;
       buffer.stopTime = match->GetActualTime_ms();
       buffer.prepareTime = buffer.stopTime + 100;
       buffer.startTime = buffer.prepareTime + 200;
-      buffer.restartPos = GetScenarioConfig().ball_position;
+      buffer.restartPos = match->options().ball_position;
       buffer.active = true;
       buffer.endPhase = true;
-      buffer.teamID = GetScenarioConfig().LeftTeamOwnsBall() ? 1 : 0;
+      buffer.teamID = match->options().left_team_owns_ball ? 1 : 0;
       buffer.setpiece_team = match->GetTeam(buffer.teamID);
       buffer.taker = 0;
       foul.foulPlayer = 0;
@@ -75,7 +75,7 @@ void Referee::Process() {
     }
 
     // We process corner setup in not mirrored setup.
-    if (GetScenarioConfig().reverse_team_processing) {
+    if (match->options().reverse_team_processing) {
       ballPos.Mirror();
     }
 
@@ -93,7 +93,7 @@ void Referee::Process() {
 
         // corner, goal kick or kick off?
         Team *lastTouchTeam = match->GetLastTouchTeam();
-        if (lastTouchTeam == 0) lastTouchTeam = match->GetTeam(GetScenarioConfig().reverse_team_processing ? 1 : 0);
+        if (lastTouchTeam == 0) lastTouchTeam = match->GetTeam(match->options().reverse_team_processing ? 1 : 0);
         signed int lastSide = lastTouchTeam->GetStaticSide();
 
         if (match->IsGoalScored()) {
@@ -179,7 +179,7 @@ void Referee::Process() {
           buffer.endPhase = false;
         }
 
-        randomize(GetScenarioConfig().game_engine_random_seed);
+        randomize(match->options().game_engine_random_seed);
         PrepareSetPiece(buffer.desiredSetPiece);
       }
 
@@ -221,7 +221,7 @@ void Referee::PrepareSetPiece(e_GameMode setPiece) {
     buffer.restartPos.coords[1] = clamp(buffer.restartPos.coords[1],
                                         -0.95 * pitchHalfH, 0.95 * pitchHalfH);
   }
-  match->ResetSituation(GetScenarioConfig().reverse_team_processing
+  match->ResetSituation(match->options().reverse_team_processing
                             ? -buffer.restartPos
                             : buffer.restartPos);
 
@@ -248,7 +248,7 @@ void Referee::AlterSetPiecePrepareTime(unsigned long newTime_ms) {
 
 void Referee::BallTouched() {
 
-  if (!GetScenarioConfig().offsides) {
+  if (!match->options().offsides) {
     return;
   }
   // check for offside player receiving the ball

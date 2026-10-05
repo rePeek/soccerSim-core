@@ -372,7 +372,7 @@ void Team::Process() {
     // Don't do this for the very first step, as otherwise agent gets no player
     // controlled in the observations returned by reset().
     if (match->GetActualTime_ms() >= 2000) {
-      if (GetScenarioConfig().DynamicPlayerSelection()) {
+      if (match->options().dynamic_player_selection) {
         for (unsigned int i = 0; i < humanGamers.size(); i++) {
           if (humanGamers[i]->GetSelectedPlayer()) {
             humanGamers[i]->SetSelectedPlayer(0);

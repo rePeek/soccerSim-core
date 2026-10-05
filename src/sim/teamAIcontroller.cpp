@@ -1036,7 +1036,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
                 if (match->GetMatchTime_ms() > 0 &&
                     other_team->GetAllPlayers().size() ==
                         team->GetAllPlayers().size() &&
-                    (GetScenarioConfig().LeftTeamOwnsBall() ^
+                    (match->options().left_team_owns_ball ^
                      kickoffTakerTeamId == 0)) {
                   formation_players = other_team->GetAllPlayers();
                 }

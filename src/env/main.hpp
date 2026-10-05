@@ -31,8 +31,6 @@ GameEnv* GetGame();
 #include "support/config/properties.hpp"
 #include <memory>
 
-#define SHARED_PTR std::shared_ptr
-#define WEAK_PTR std::weak_ptr
 
 enum e_RenderingMode {
   e_Disabled,
@@ -40,100 +38,6 @@ enum e_RenderingMode {
   e_Offscreen
 };
 
-struct ScenarioConfig {
- public:
-  static SHARED_PTR<ScenarioConfig> make() {
-    return SHARED_PTR<ScenarioConfig>(new ScenarioConfig());
-  }
-  bool DynamicPlayerSelection() {
-    ComputeCache();
-    return cached_dynamic_player_selection;
-  }
-  int ControllableLeftPlayers() {
-    ComputeCache();
-    return cached_controllable_left_players;
-  }
-  int ControllableRightPlayers() {
-    ComputeCache();
-    return cached_controllable_right_players;
-  }
-  bool LeftTeamOwnsBall() {
-    float leftDistance = 1000000;
-    float rightDistance = 1000000;
-    for (auto& player : left_team) {
-      leftDistance = std::min(leftDistance,
-          (player.start_position - ball_position).GetLength());
-    }
-    for (auto& player : right_team) {
-      rightDistance = std::min(rightDistance,
-          (player.start_position - ball_position).GetLength());
-    }
-    return leftDistance < rightDistance;
-  }
-
-  // Start ball position.
-  Vector3 ball_position;
-  // Initial configuration of left team.
-  std::vector<FormationEntry> left_team;
-  // Initial configuration of right team.
-  std::vector<FormationEntry> right_team;
-  // How many left team players are controlled externally.
-  int left_agents = 1;
-  // How many right team players are controlled externally.
-  int right_agents = 0;
-  // Whether to use magnet logic (that automatically pushes active player
-  // towards the ball).
-  bool use_magnet = true;
-  // Are offsides enabled.
-  bool offsides = true;
-  // Should game run in "real time", ie. aiming at 100 physics animations
-  // or full speed otherwise.
-  bool real_time = false;
-  // Seed to use for random generators.
-  unsigned int game_engine_random_seed = 42;
-  // Reverse order of teams' processing, used for symmetry testing.
-  bool reverse_team_processing = false;
-  // Left team AI difficulty level, from 0.0 to 1.0.
-  float left_team_difficulty = 1.0;
-  // Right team AI difficulty level, from 0.0 to 1.0.
-  float right_team_difficulty = 0.6;
-  bool deterministic = false;
-  bool end_episode_on_score = false;
-  bool end_episode_on_possession_change = false;
-  bool end_episode_on_out_of_play = false;
-  int game_duration = 3000;
-  bool control_all_players = false;
-  int second_half = 999999999;
-
- private:
-  ScenarioConfig() { }
-  void ComputeCache() {
-    if (cache_computed) {
-      return;
-    }
-    cached_controllable_left_players = 0;
-    cached_controllable_right_players = 0;
-    for (auto& p : left_team) {
-      if (p.controllable) {
-        cached_controllable_left_players++;
-      }
-    }
-    for (auto& p : right_team) {
-      if (p.controllable) {
-        cached_controllable_right_players++;
-      }
-    }
-    cached_dynamic_player_selection =
-        !((cached_controllable_left_players == left_agents || left_agents == 0) &&
-        (cached_controllable_right_players == right_agents || right_agents == 0));
-    cache_computed = true;
-  }
-  int cached_controllable_left_players = -1;
-  int cached_controllable_right_players = -1;
-  bool cached_dynamic_player_selection = false;
-  bool cache_computed = false;
-  friend GameEnv;
-};
 
 enum GameState {
   game_created,
@@ -155,18 +59,14 @@ class GameContext {
   // game state. Second one is used in places which are optional and don't
   // affect observations (like position of the sun).
   PresentationRng rng_non_deterministic;
-  bool already_loaded = false;
-  int playerCount = 0;
   int stablePlayerCount = 0;
   std::shared_ptr<AnimationLibrary> bakedAnims;
-  int step = 0;
 };
 
 
 void SetGame(GameEnv* c);
 GameContext& GetContext();
 
-ScenarioConfig& GetScenarioConfig();
 
 
 void run_game();

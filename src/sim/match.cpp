@@ -52,6 +52,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
       second_team(options.reverse_team_processing ? 0 : 1),
       possessionSideHistory(6000),
       matchDurationFactor(options.match_duration * 0.2f + 0.05f),
+      options_(options),
       _useMagnet(options.use_magnet) {
   GetContext().stablePlayerCount = 0;
 
@@ -222,7 +223,7 @@ Team *Match::GetBestPossessionTeam() {
 // THE SPICE
 
 bool Match::Step(const PlayerControlSet& controls) {
-  bool reverse = GetScenarioConfig().reverse_team_processing;
+  bool reverse = options_.reverse_team_processing;
 
   for (int team_id = 0; team_id < 2; ++team_id) {
     std::vector<Player*> players;

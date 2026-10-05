@@ -26,8 +26,8 @@
 class MatchData {
 
   public:
-    // Team composition comes from the caller; MatchData no longer reads the
-    // ambient ScenarioConfig singleton.
+    // Team composition comes from the caller; MatchData reads no ambient
+    // configuration.
     MatchData(const TeamCreationData& home, const TeamCreationData& away);
     TeamData& GetTeamData(int id) { return teamData[id]; }
     int GetGoalCount(int id) { return goalCount[id]; }

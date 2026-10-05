@@ -18,7 +18,7 @@
 #include <utility>
 
 #include "env/main.hpp"
-#include "env/model_adapter.hpp"
+#include "sim/match_options.hpp"
 #include "support/diagnostics/assert.hpp"
 #include "support/diagnostics/log.hpp"
 
@@ -42,8 +42,7 @@ GameEnv::GameEnv(football::model::Team home, football::model::Team away,
                  football::model::Pitch pitch)
     : home_team_(std::move(home)),
       away_team_(std::move(away)),
-      pitch_(std::move(pitch)),
-      scenario_config_(new ScenarioConfig()) {}
+      pitch_(std::move(pitch)) {}
 
 GameEnv::~GameEnv() {
   stop_game();
@@ -66,14 +65,14 @@ void GameEnv::start_game() {
   context_ = std::make_unique<GameContext>();
   ContextHolder c(this);
   run_game();
-  init_legacy();
+  init_match();
 }
 
 void GameEnv::reset_game() {
   CHECK(context_ && context_->simulation);
   ContextHolder c(this);
   context_->simulation->Stop();
-  init_legacy();
+  init_match();
 }
 
 void GameEnv::step() {
@@ -88,11 +87,10 @@ WorldState GameEnv::observe() const {
   return context_->simulation->Observe();
 }
 
-void GameEnv::init_legacy() {
+void GameEnv::init_match() {
   ContextHolder c(this);
   controls_.Clear();
-  context_->step = -1;
-  *scenario_config_ = ToRuntimeScenario(*ScenarioConfig::make(), home_team_, away_team_);
-  context_->simulation->Init(home_team_, away_team_, pitch_, *scenario_config_,
+  // The legacy episode defaults are now the only possible match options.
+  context_->simulation->Init(home_team_, away_team_, pitch_, MatchOptions{},
                              false);
 }

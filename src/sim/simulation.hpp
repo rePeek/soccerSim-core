@@ -3,13 +3,13 @@
 
 #include <memory>
 
+#include "control/player_control_set.hpp"
 #include "model/team.hpp"
 #include "model/pitch.hpp"
-#include "control/player_control_set.hpp"
+#include "sim/match_options.hpp"
 #include "state/world_state.hpp"
 
 class Match;
-struct ScenarioConfig;
 
 // Owns match lifecycle and runtime construction. The legacy episode input is
 // explicit; initialization preserves profile creation / RNG seeding order.
@@ -21,8 +21,8 @@ class Simulation {
 
   void Init(const football::model::Team& home,
             const football::model::Team& away,
-            const football::model::Pitch& pitch,
-            const ScenarioConfig& scenario, bool init_animation);
+            const football::model::Pitch& pitch, MatchOptions options,
+            bool init_animation);
   bool Stop();
   void Step(const PlayerControlSet& controls);
   bool IsInPlay() const;

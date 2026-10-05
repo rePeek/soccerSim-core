@@ -57,6 +57,8 @@ class Match {
     Ball *GetBall() const { return ball; }
     Team *GetTeam(int teamID) const { return teams[teamID]; }
     const football::model::Pitch& pitch() const { return pitch_; }
+    // Snapshot of the match rules; never re-read from ambient state.
+    const MatchOptions& options() const { return options_; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
     void GetOfficialPlayers(std::vector<PlayerBase*> &players);
 
@@ -189,6 +191,9 @@ class Match {
 
     const float matchDurationFactor = 0.0f;
 
+    // Snapshot of the initialization options, including the values the referee
+    // and team selection used to read from the ambient scenario singleton.
+    const MatchOptions options_;
     // Whether to use magnet logic (that automatically pushes active player
     // towards the ball).
     const bool _useMagnet;

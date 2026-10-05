@@ -22,7 +22,6 @@
 #include "state/world_state.hpp"
 
 class GameContext;
-struct ScenarioConfig;
 
 // Owns an explicitly declared match. One step advances one simulation tick.
 class GameEnv {
@@ -51,13 +50,11 @@ class GameEnv {
   std::unique_ptr<GameContext> context_;
   PlayerControlSet controls_;
 
-  // Temporary implementation-only legacy episode input. Opaque in this header.
-  std::unique_ptr<ScenarioConfig> scenario_config_;
-  void init_legacy();
+  // Starts a match from the retained team and pitch descriptions.
+  void init_match();
 
-  // Transitional bridges, not a public runtime access API.
+  // Transitional bridge, not a public runtime access API.
   friend GameContext& GetContext();
-  friend ScenarioConfig& GetScenarioConfig();
 };
 
 #endif  // FOOTBALL_ENV_GAME_ENV_HPP

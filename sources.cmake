@@ -59,7 +59,6 @@ set(CORE_HEADERS
    src/sim/rng.hpp
    src/env/main.hpp
    src/env/rng.hpp
-   src/env/model_adapter.hpp
 )
 
 
@@ -67,7 +66,6 @@ set(CORE_SOURCES
    src/env/main.cpp
    src/sim/gamedefines.cpp
    src/env/rng.cpp
-   src/env/model_adapter.cpp
 )
 
 

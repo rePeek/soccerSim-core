@@ -132,7 +132,6 @@ src/
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
 │   ├── game_env, main, rng（全局 RNG 入口，owner 是 GameContext）
-│   ├── model_adapter  episode 坐标转换与有效初始阵型；不构造 runtime 对象
 ├── data/            legacy 资料导入与 runtime 兼容层
 │   ├── player_profile  无 GameContext/RNG 的资料解析与年龄/能力计算
 │   ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
@@ -211,29 +210,29 @@ main() [src/app/app.cpp]
   `Pitch` (`src/model/`). `GameEnv(home, away, pitch)` requires explicit descriptions
   and retains them across reset/restart. There is no default `GameEnv()`, public
   runtime state, public episode configuration or startup/composition wrapper.
-- `GameEnv::init_legacy` privately prepares the runtime episode and passes team
-  models/pitch to `Simulation::Init`. `GameContext` and the legacy episode input
-  remain opaque implementation details, not new model or configuration layers.
+- `GameEnv::init_match` starts a match from the retained team and pitch
+  descriptions and passes `MatchOptions` to `Simulation::Init`. `GameContext` stays
+  an opaque implementation detail, not a configuration layer.
 - The GRF compatibility adapter is deleted completely: no substitute shim, test
   support adapter, duplicate owner or public cadence/checkpoint API. Regression
   uses the core interface; internal simulation diagnostics may inspect GetContext.
-- Simulation creates `MatchData`, then applies the episode RNG seed, then creates
-  match actors. Preserve that order: legacy profile constructors consume RNG
-  before reseeding. The explicit `ScenarioConfig` argument remains a transitional
-  episode input, not a new model or an ambient read.
-- `sim/match_options.hpp` holds only time/rule/difficulty values snapshotted by
-  simulation. Pitch and runtime ownership are separate constructor arguments.
+- Simulation creates `MatchData`, then applies the RNG seed, then creates match
+  actors. Preserve that order: legacy profile constructors consume RNG before
+  reseeding. There is no episode-config argument: the match rules are the
+  `MatchOptions` defaults, snapshotted by `Match`.
+- `sim/match_options.hpp` is the only match-rule input: time/rule/difficulty
+  values, the kickoff ball position and the two booleans derived from the
+  effective initial formations (`left_team_owns_ball`,
 - `Simulation::Init` and `Match` no longer take or store a controller registry.
   `Match::UpdateControllerSetup` and `Match::controller_assignments_` are deleted.
   Players read `PlayerControlSet` first (`PlayerBase::RequestCommand`); otherwise the
   per-player `ElizaController` created by `Player` decides.
 - The checkpoint serialization layer is deleted completely: `EnvState`, every
-  `ProcessState`/`ProcessStateBase`, `ScenarioConfig::ProcessState`, the
-  `GameContext` controller registry and `AIControlledKeyboard` are gone, together
-  with `env/defines.*` and `ai/ai_keyboard.*`. No byte-blob save/load remains;
-  `GameEnv` never exposed it and regression uses reset/replay instead. If durable
-  save/load is ever needed, add an explicit state value object, not per-class
-  `memcpy` hooks.
+  `ProcessState`/`ProcessStateBase`, the `GameContext` controller registry and
+  `AIControlledKeyboard` are gone, together with `env/defines.*` and
+  `ai/ai_keyboard.*`. No byte-blob save/load remains; `GameEnv` never exposed it
+  and regression uses reset/replay instead. If durable save/load is ever needed,
+  add an explicit state value object, not per-class `memcpy` hooks.
 - `model::Player` owns its static identity, appearance and all 22 base abilities.
   `PlayerStat` and `PlayerAttributes` live together in `src/model/player.hpp`.
   `PlayerDatabaseId` is provenance, not a request to reload values at startup; it
@@ -248,9 +247,9 @@ main() [src/app/app.cpp]
   simulation RNG order. Missing skin colour is resolved only at this boundary.
 - `model::FormationEntry` is an initial declaration in public pitch coordinates.
   The legacy global `FormationEntry` is a separate role-adapted runtime/checkpoint
-  representation; conversion lives in `data/model_adapter.*`. The environment
-  adapter only prepares an episode copy with scaled ball coordinates and effective
-  formations, without changing the caller's input.
+  representation; conversion lives in `data/model_adapter.*`. `Simulation::Init`
+  converts `model::Team::formation` directly; there is no episode override and no
+  `env/model_adapter.*`.
 - `model::Pitch` is the sole pitch value type, passed directly to simulation.
   `Match` owns a read-only copy. Only legacy geometry is supported for now.
   Transitional constants in `gamedefines.hpp` derive from that same geometry.
@@ -259,12 +258,14 @@ main() [src/app/app.cpp]
   `physics_steps_per_frame`, batching helper or observation scaling on its API.
   Callers batch explicitly with a loop. `observe()` returns raw `WorldState` values.
   The CLI `--steps=N` now means N simulation ticks, not N legacy 100 ms frames.
-- `ScenarioConfig` and `GetContext` still have simulation-internal users and are a
-  separate migration. `X_FIELD_SCALE`/`Y_FIELD_SCALE` now live in
-  `env/model_adapter.cpp`; `sim/gamedefines.hpp` owns `FORMATION_Y_SCALE`.
-  The internal `animations` flag affects referee restart timing, not just
-  rendering; its existing false/default behavior is preserved. No `GameConfig`
-  or ambient cadence wrapper remains. Fixture paths belong to tests.
+- `ScenarioConfig` and `GetScenarioConfig()` are deleted. Tick-time readers
+  (`Referee`, `Team`, `TeamAIController`, `Match::Step`) use `Match::options()`;
+  the legacy derived helpers became the `left_team_owns_ball` /
+  `dynamic_player_selection` fields computed once in `Simulation::Init`.
+  `GetContext()` still exists for `bakedAnims`, `stablePlayerCount` and the RNG
+  entry points, and is the next migration. The internal `animations` flag affects
+  referee restart timing, not just rendering; its false/default behavior is
+  preserved. Fixture paths belong to tests.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
   (`GameContext::rng`). Never introduce unordered-container iteration order or
   hidden global mutable state into simulation logic.

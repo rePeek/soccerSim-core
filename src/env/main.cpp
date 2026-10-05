@@ -43,11 +43,6 @@ GameContext& GetContext() {
 void SetGame(GameEnv* c) { game = c; }
 
 
-
-ScenarioConfig& GetScenarioConfig() {
-  return *game->scenario_config_;
-}
-
 void randomize(unsigned int seed) {
   srand(seed);
   rand();  // Discard the first value before using the C RNG.
