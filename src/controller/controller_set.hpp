@@ -6,6 +6,13 @@
 #include "controller/controller_input.hpp"
 #include "controller/controller_id.hpp"
 
+// Assign a registered input device to a side without bundling match models or
+// runtime ownership. Side -1 is left, 0 builtin AI, and 1 right.
+struct ControllerAssignment {
+  ControllerId controller_id = 0;
+  int side = 0;
+};
+
 // Non-owning registry assembled by the environment. Simulation receives this
 // abstract input set rather than concrete device implementations.
 class ControllerSet {

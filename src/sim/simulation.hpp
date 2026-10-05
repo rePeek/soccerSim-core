@@ -4,24 +4,29 @@
 #include <memory>
 
 #include "controller/controller_set.hpp"
-#include "sim/match_config.hpp"
+#include "model/team.hpp"
+#include "model/pitch.hpp"
 #include "control/player_control_set.hpp"
 #include "state/world_state.hpp"
 
 class Match;
 class EnvState;
 class SharedInfo;
+struct ScenarioConfig;
 
-// Owns match lifecycle and advances the authoritative simulation. The
-// composition root supplies controller devices and performs legacy RNG setup.
+// Owns match lifecycle and runtime construction. The legacy episode input is
+// explicit; initialization preserves profile creation / RNG seeding order.
 class Simulation {
  public:
   Simulation() = default;
   ~Simulation();
 
-  void Init(std::unique_ptr<MatchConfig> config,
-             const ControllerSet& controllers,
-             bool init_animation);
+  void Init(const football::model::Team& home,
+            const football::model::Team& away,
+            const football::model::Pitch& pitch,
+            const ScenarioConfig& scenario, const ControllerSet& controllers,
+            bool init_animation,
+            const std::vector<ControllerAssignment>& assignments = {});
   bool Stop();
   void Step(const PlayerControlSet& controls);
   void ProcessState(EnvState* state);

@@ -71,55 +71,6 @@ std::string Position::debug() {
          std::to_string(value[2]);
 }
 
-std::unique_ptr<MatchConfig> GameEnv::BuildMatchConfig(
-    const ScenarioConfig& scenario_config) {
-
-  // ScenarioConfig belongs to the caller and stays in public pitch units. The
-  // match owns this scaled copy; mutating the caller here used to flip the sign
-  // bit of a zero y coordinate on every reset (+0 * negative scale -> -0).
-  ScenarioConfig scaled_config = scenario_config;
-  scaled_config.ball_position.coords[0] =
-      scaled_config.ball_position.coords[0] * X_FIELD_SCALE;
-  scaled_config.ball_position.coords[1] =
-      scaled_config.ball_position.coords[1] * Y_FIELD_SCALE;
-
-  CHECK(scaled_config.left_agents >= 0);
-  CHECK(scaled_config.left_agents <= kPlayersPerTeam);
-  CHECK(scaled_config.right_agents >= 0);
-  CHECK(scaled_config.right_agents <= kPlayersPerTeam);
-
-  TeamCreationData home;
-  TeamCreationData away;
-  if (home_team_) {
-    home = ToTeamCreationData(*home_team_, kHomeTeamDatabaseId);
-    away = ToTeamCreationData(*away_team_, kAwayTeamDatabaseId);
-  } else {
-    home.database_id = kHomeTeamDatabaseId;
-    away.database_id = kAwayTeamDatabaseId;
-  }
-  // An episode may override initial positions without replacing the retained
-  // static roster. Publish the effective formations for env-level selection
-  // and rules as well as for runtime team construction.
-  if (scaled_config.left_team.empty()) {
-    scaled_config.left_team = home.formation;
-  }
-  if (scaled_config.right_team.empty()) {
-    scaled_config.right_team = away.formation;
-  }
-  home.formation = scaled_config.left_team;
-  away.formation = scaled_config.right_team;
-  this->scenario_config = scaled_config;
-
-  std::unique_ptr<MatchConfig> config(new MatchConfig());
-  config->match_data.reset(new MatchData(home, away));
-  config->pitch = pitch_;
-  config->reverse_team_processing = scaled_config.reverse_team_processing;
-  config->use_magnet = scaled_config.use_magnet;
-  config->left_team_difficulty = scaled_config.left_team_difficulty;
-  config->right_team_difficulty = scaled_config.right_team_difficulty;
-  return config;
-}
-
 void GameEnv::start_game() {
   assert(context == nullptr);
   install_stacktrace();
@@ -193,10 +144,9 @@ void GameEnv::init(const ScenarioConfig& game_config, bool animations) {
   controls_.Clear();
   context->step = -1;
   waiting_for_game_count = 0;
-  auto match_config = BuildMatchConfig(game_config);
-  randomize(game_config.game_engine_random_seed);
-  context->simulation->Init(std::move(match_config), context->controllerSet,
-                            animations);
+  scenario_config = ToRuntimeScenario(game_config, home_team_, away_team_);
+  context->simulation->Init(home_team_, away_team_, pitch_, scenario_config,
+                            context->controllerSet, animations);
 }
 
 void GameEnv::reset(const ScenarioConfig& game_config, bool animations) {

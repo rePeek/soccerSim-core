@@ -103,7 +103,7 @@ set(GAME_HEADERS
    src/sim/referee.hpp
    src/sim/ball.hpp
    src/sim/team.hpp
-   src/sim/match_config.hpp
+   src/sim/match_options.hpp
    src/sim/simulation.hpp
    src/sim/match.hpp
    src/sim/match_world_state.hpp
@@ -150,6 +150,7 @@ set(GAME_SOURCES
 set(DATA_HEADERS
    src/data/matchdata.hpp
    src/data/teamdata.hpp
+   src/data/model_adapter.hpp
    src/data/playerdata.hpp
    src/data/player_profile.hpp
    src/data/default_teams.hpp
@@ -162,4 +163,5 @@ set(DATA_SOURCES
    src/data/player_profile.cpp
    src/data/default_teams.cpp
    src/data/teamdata.cpp
+   src/data/model_adapter.cpp
 )

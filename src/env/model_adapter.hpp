@@ -1,12 +1,14 @@
 #ifndef FOOTBALL_ENV_MODEL_ADAPTER_HPP
 #define FOOTBALL_ENV_MODEL_ADAPTER_HPP
 
-#include "data/teamdata.hpp"
 #include "model/team.hpp"
 
-// Bridges static domain descriptions to the legacy profile/formation inputs.
-// Neither model/ nor data/ depends on the environment's composition logic.
-TeamCreationData ToTeamCreationData(const football::model::Team& team,
-                                    int database_id);
+struct ScenarioConfig;
+
+// Keep the caller's episode description in public coordinates. The environment
+// retains a converted copy with effective initial formations for legacy readers.
+ScenarioConfig ToRuntimeScenario(const ScenarioConfig& scenario,
+                                 const football::model::Team& home,
+                                 const football::model::Team& away);
 
 #endif  // FOOTBALL_ENV_MODEL_ADAPTER_HPP

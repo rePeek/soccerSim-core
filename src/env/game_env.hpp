@@ -14,7 +14,7 @@
 #ifndef _GAME_ENV
 #define _GAME_ENV
 
-#include <optional>
+#include <memory>
 
 #include "model/team.hpp"
 #include "model/pitch.hpp"
@@ -68,14 +68,11 @@ struct GameEnv {
   ScenarioConfig& config();
 
  private:
-  std::unique_ptr<MatchConfig> BuildMatchConfig(
-      const ScenarioConfig& scenario_config);
   void do_step(int count);
   void getObservations();
-  // The default constructor retains the legacy ScenarioConfig-only path.
-  // Explicit composition stores both teams together through the constructor.
-  std::optional<football::model::Team> home_team_;
-  std::optional<football::model::Team> away_team_;
+  // Empty descriptions retain the legacy default roster/formation path.
+  football::model::Team home_team_;
+  football::model::Team away_team_;
   football::model::Pitch pitch_;
 
  public:

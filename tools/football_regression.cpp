@@ -4216,6 +4216,13 @@ void CheckModelComposition() {
   auto scenario = ScenarioConfig::make();
   scenario->left_team.assign(
       kPlayersPerTeam, FormationEntry(-0.2f, 0.125f, e_PlayerRole_CM, false, true));
+  scenario->ball_position = Vector3(0.125f, -0.0f, 0.0f);
+  const Vector3 requested_ball_position = scenario->ball_position;
+  scenario->reverse_team_processing = true;
+  scenario->use_magnet = false;
+  scenario->left_team_difficulty = 0.37f;
+  scenario->right_team_difficulty = 0.81f;
+  scenario->game_engine_random_seed = 73;
   env.reset(*scenario, false);
   check_roster();
   entry = env.context->simulation->match()->GetTeam(0)->GetTeamData()
@@ -4223,6 +4230,32 @@ void CheckModelComposition() {
   Require(entry.start_position.coords[0] == -0.2f &&
               entry.start_position.coords[1] == 0.125f * FORMATION_Y_SCALE,
           "model: scenario formation override did not reach the runtime");
+  Require(std::memcmp(scenario->ball_position.coords, requested_ball_position.coords,
+                      sizeof(requested_ball_position.coords)) == 0 &&
+              scenario->left_team.front().start_position.coords[1] ==
+                  0.125f * FORMATION_Y_SCALE,
+          "model: runtime preparation mutated the caller's episode input");
+  const Vector3 runtime_ball_position(
+      requested_ball_position.coords[0] * X_FIELD_SCALE,
+      requested_ball_position.coords[1] * Y_FIELD_SCALE,
+      requested_ball_position.coords[2]);
+  Require(std::memcmp(env.scenario_config.ball_position.coords,
+                      runtime_ball_position.coords,
+                      sizeof(runtime_ball_position.coords)) == 0,
+          "model: runtime episode coordinates were not converted");
+  Match* match = env.context->simulation->match();
+  Require(match->FirstTeam() == 1 && match->SecondTeam() == 0 &&
+              !match->GetUseMagnet() &&
+              match->GetTeam(0)->GetAiDifficulty() == 0.37f &&
+              match->GetTeam(1)->GetAiDifficulty() == 0.81f &&
+              match->GetMatchDurationFactor() == 0.027f * 0.2f + 0.05f,
+          "model: simulation lost the episode's match options");
+  env.scenario_config.reverse_team_processing = false;
+  env.scenario_config.use_magnet = true;
+  env.scenario_config.left_team_difficulty = 1.0f;
+  Require(match->FirstTeam() == 1 && !match->GetUseMagnet() &&
+              match->GetTeam(0)->GetAiDifficulty() == 0.37f,
+          "model: match options were not snapshotted at initialization");
 }
 
 

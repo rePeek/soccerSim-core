@@ -111,7 +111,7 @@ src/
 │       baked_selector, simanim_format, types, selection_*, quadrant
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
-│   ├── simulation, match, match_config, team, ball, referee, officials, humangamer, teamAIcontroller
+│   ├── simulation, match, match_options（仅规则参数）, team, ball, referee, officials, humangamer, teamAIcontroller
 │   ├── ai_support/     AIfunctions, mentalimage
 │   └── player/
 │       ├── player, playerbase, playerofficial, player_locomotion, *_collider,
@@ -124,11 +124,12 @@ src/
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
 │   ├── game_env, main, rng（全局 RNG 入口，owner 是 GameContext）
-│   ├── model_adapter  静态模型 → legacy TeamCreationData / FormationEntry 转换
+│   ├── model_adapter  episode 坐标转换与有效初始阵型；不构造 runtime 对象
 │   └── defines        EnvState / Position / SharedInfo
 ├── data/            legacy 资料导入与 runtime 兼容层
 │   ├── player_profile  无 GameContext/RNG 的资料解析与年龄/能力计算
 │   ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
+│   ├── model_adapter  模型/初始阵型 → legacy TeamCreationData / FormationEntry
 │   ├── playerdata      持有 model::Player 的兼容 facade；无独立 stats/cache
 │   └── matchdata, teamdata  runtime 组装与序列化
 └── ai/              ai_keyboard, ihidevice.hpp
@@ -190,7 +191,7 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
   → run_game()                   builds GameContext + Simulation + AIControlledKeyboard[]
   → GameEnv [src/env/game_env.*] start_game / reset(config) / step / action /
                                   get_info→SharedInfo / get_state / set_state
-      → Simulation [src/sim/simulation.*] owns match lifecycle; env builds MatchConfig
+      → Simulation [src/sim/simulation.*] builds MatchData and owns match lifecycle
           → Match [src/sim/match.*]::Step()         per-tick loop (10ms steps)
               → Ball::Process()                  physics + prediction buffer
               → Team → Player::Process()         Humanoid animation + controller strategy
@@ -203,6 +204,17 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
   across resets; no `MatchSetup`/`TeamSetup`/`PlayerSetup` layer remains. The default
   `GameEnv()` still supports legacy ScenarioConfig-only callers. Non-empty scenario
   formations override model positions without replacing the retained roster.
+- No `MatchConfig` or heap-allocated startup wrapper remains. `GameEnv::init`
+  retains the converted episode input and passes its two team models and pitch
+  directly to `Simulation::Init`. Default team descriptions are ordinary empty
+  values, not a pair of optionals; legacy roster fallback happens in runtime data.
+- Simulation creates `MatchData`, then applies the episode RNG seed, then creates
+  match actors. Preserve that order: legacy profile constructors consume RNG
+  before reseeding. The explicit `ScenarioConfig` argument remains a transitional
+  episode input, not a new model or an ambient read.
+- `sim/match_options.hpp` holds only time/rule/difficulty values snapshotted by
+  simulation. Pitch and runtime ownership are separate constructor arguments;
+  controller assignments live in `controller/controller_set.hpp`.
 - `model::Player` owns its static identity, appearance and all 22 base abilities.
   `PlayerStat` and `PlayerAttributes` live together in `src/model/player.hpp`.
   `PlayerDatabaseId` is provenance, not a request to reload values at startup; it
@@ -217,8 +229,10 @@ main() [src/env/main.cpp]        thread_local GameEnv* game;
   simulation RNG order. Missing skin colour is resolved only at this boundary.
 - `model::FormationEntry` is an initial declaration in public pitch coordinates.
   The legacy global `FormationEntry` is a separate role-adapted runtime/checkpoint
-  representation; conversion and coordinate scaling live in `env/model_adapter.*`.
-- `model::Pitch` is the sole pitch value type. `MatchConfig` passes it by value and
+  representation; conversion lives in `data/model_adapter.*`. The environment
+  adapter only prepares an episode copy with scaled ball coordinates and effective
+  formations, without changing the caller's input.
+- `model::Pitch` is the sole pitch value type, passed directly to simulation.
   `Match` owns a read-only copy. Only legacy geometry is supported for now.
   Transitional constants in `gamedefines.hpp` derive from that same geometry.
   Configurable dimensions require migrating remaining consumers and scaling.

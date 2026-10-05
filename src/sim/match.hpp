@@ -26,7 +26,7 @@
 
 #include "controller/controller_set.hpp"
 #include "data/matchdata.hpp"
-#include "sim/match_config.hpp"
+#include "sim/match_options.hpp"
 #include "model/pitch.hpp"
 #include "sim/ai_support/mentalimage.hpp"
 #include "animation/types.hpp"
@@ -47,7 +47,9 @@ class Match {
   public:
     Match(std::unique_ptr<MatchData> matchData,
           const ControllerSet& controllers,
-          const MatchConfig& config, bool init_animation);
+          const football::model::Pitch& pitch,
+          const MatchOptions& options, bool init_animation,
+          const std::vector<ControllerAssignment>& assignments = {});
     virtual ~Match();
 
     void Exit();
@@ -159,7 +161,7 @@ class Match {
 
 
     const ControllerSet& controllers;
-    std::vector<ControllerSetup> controllerSetup;
+    std::vector<ControllerAssignment> controller_assignments_;
 
     Ball *ball = nullptr;
 
