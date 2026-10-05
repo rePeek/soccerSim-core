@@ -159,7 +159,8 @@ src/
 │       │                elizacontroller, strategies/offtheball/*
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
 ├── controller/      协议无关控制输入接口（controller_input/external_controller）
-├── state/           对外运行时值快照（依赖 model 身份类型与 foundation 数学）
+├── observation/     对外观测契约：WorldState / WorldPlayerState 值类型
+│                    （只依赖 model 身份类型与 foundation 数学；不含观测逻辑）
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
 │   └── game_env        直接持有 Simulation；无 context/ambient binding/lifecycle wrapper
@@ -201,8 +202,9 @@ include `support`, and nothing in core may include `app/` or reference its symbo
 已实现的下半段（能在 `CMakeLists.txt` 的 static library 边上看到）：
 
 ```text
-model (叶) ← foundation ← animation ← support ← sim ← engine ← game
-app fixtures/importers (executables only) → model/support
+runtime:  model/foundation (叶) → animation → support → sim → engine/env → game
+契约:     model (STL only) → observation (对外值) → control (控制契约)
+exec:     app fixtures/importers → model + support（仅 executable，不进 .so）
 ```
 
 `football_app_support` (the `EXCLUDE_FROM_ALL` archive holding `src/app/`) and
@@ -220,9 +222,9 @@ is fetched under `BUILD_TESTING` and is never a core dependency either.
 
 尚未清理的上半段（不要在此基础上新增反向边）：
 
-- `sim/**` 不 include `env/**`；`model`/`foundation`/`animation`/`sim`/`env`/`state`/
-  `control`/`controller`/`support` 不 include `app/`、不引用 fixture 符号；`src/data/`
-  不再存在。整个 runtime 已无环境全局入口。
+- `sim/**` 不 include `env/**`；`model`/`foundation`/`animation`/`sim`/`env`/
+  `observation`/`control`/`controller`/`support` 不 include `app/`、不引用 fixture
+  符号；`src/data/` 不再存在。整个 runtime 已无环境全局入口。
 - `controller/**` 与 HumanGamer/HumanController 的 legacy 输入簇仍待单独审计；
   不要在环境所有权工作中删除仍有 reader 的 ControllerInput。
 - `env/rng.*` 已删除；确定性的 `SimulationRng` 由 `Simulation` 持有，算法本体在

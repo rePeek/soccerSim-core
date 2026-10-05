@@ -8,7 +8,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 source_dir=$1
-forbidden_include='^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"][^">]*(foundation|env|sim|data|animation|control|controller|state|support|domain)/[^">]*[">]'
+forbidden_include='^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"][^">]*(foundation|env|sim|data|animation|control|controller|observation|support|domain)/[^">]*[">]'
 forbidden_authority='\b(GetContext|GetGame|EnvState|boostrandom|randomseed|random_non_determ|Log)\b'
 forbidden_infrastructure='\b(fstream|filesystem|ifstream|ofstream|XMLLoader|XMLTree)\b'
 forbidden_runtime_detail='\b(PlayerIndex|schedule_phase_|schedule_phase)\b'

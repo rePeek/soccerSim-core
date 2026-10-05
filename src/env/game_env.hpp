@@ -19,7 +19,7 @@
 #include "control/player_control_set.hpp"
 #include "model/pitch.hpp"
 #include "model/team.hpp"
-#include "state/world_state.hpp"
+#include "observation/world_state.hpp"
 
 class Simulation;
 

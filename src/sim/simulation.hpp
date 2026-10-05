@@ -8,7 +8,7 @@
 #include "model/pitch.hpp"
 #include "sim/match_options.hpp"
 #include "sim/rng.hpp"
-#include "state/world_state.hpp"
+#include "observation/world_state.hpp"
 
 class Match;
 class AnimationLibrary;

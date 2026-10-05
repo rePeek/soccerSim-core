@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_MATCH_WORLD_STATE_HPP
 #define FOOTBALL_SIM_MATCH_WORLD_STATE_HPP
 
-#include "state/world_state.hpp"
+#include "observation/world_state.hpp"
 
 class Match;
 
