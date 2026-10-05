@@ -19,7 +19,8 @@
 #include <cmath>
 
 #include "sim/match.hpp"
-#include "sim/ai_support/AIfunctions.hpp"
+#include "sim/rules/offside.hpp"
+#include "sim/ai_support/mentalimage.hpp"
 
 namespace {
 // Fixed rules budget for issuing a card, independent of actor position,
@@ -285,7 +286,7 @@ void Referee::BallTouched() {
         buffer.desiredSetPiece != e_GameMode_Corner))) {
     // check for offside players at moment of touch
     MentalImage mentalImage(match);
-    float offside = AI_GetOffsideLine(match, &mentalImage, 1 - lastTouchTeamID);
+    float offside = football::sim::rules::GetOffsideLine(match, &mentalImage, 1 - lastTouchTeamID);
     std::vector<Player*> players;
     Team *team = match->GetTeam(lastTouchTeamID);
     team->GetActivePlayers(players);

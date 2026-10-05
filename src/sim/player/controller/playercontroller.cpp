@@ -25,7 +25,7 @@
 #include "sim/player/humanoid/humanoid_utils.hpp"
 
 #include "sim/ai_support/mentalimage.hpp"
-#include "sim/ai_support/AIfunctions.hpp"
+#include "sim/player/ball_approach.hpp"
 
 
 namespace {
@@ -552,7 +552,7 @@ void PlayerController::_MovementCommand(PlayerCommandQueue &commandQueue,
     if (hasBestPossession) {
 
       Vector3 autoLookAt; // dud
-      CastPlayer()->SetDesiredTimeToBall_ms(AI_GetBallControlMovement(
+      CastPlayer()->SetDesiredTimeToBall_ms(football::sim::mechanics::GetBallControlMovement(
           match->GetMentalImage(_mentalImageTime), CastPlayer(), quantizedInputDirection,
           inputVelocityFloat, autoDirection, autoVelocityFloat, autoLookAt));
       autoLookDirection = (autoLookAt - player->GetPosition()).GetNormalized(0);
@@ -564,12 +564,12 @@ void PlayerController::_MovementCommand(PlayerCommandQueue &commandQueue,
       if (extraHaste || forceMagnet) {
         haste = 1.0f;
       } else {
-        float thresholdPossessionAmountForHaste = 1.1f; // 2.0f - AI_GetMindSet(CastPlayer()->GetFormationEntry().role) * 2.0f; // attacking players may want to gamble on the defenders missing the ball
+        float thresholdPossessionAmountForHaste = 1.1f;
         if (adaptedPossessionAmount < thresholdPossessionAmountForHaste) haste = 1.0f;
       }
 
       Vector3 autoLookAt; // dud
-      CastPlayer()->SetDesiredTimeToBall_ms(AI_GetToBallMovement(
+      CastPlayer()->SetDesiredTimeToBall_ms(football::sim::mechanics::GetToBallMovement(
           match, match->GetMentalImage(_mentalImageTime), CastPlayer(), quantizedInputDirection,
           inputVelocityFloat, autoDirection, autoVelocityFloat, autoLookAt,
           haste));

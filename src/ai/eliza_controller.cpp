@@ -22,7 +22,13 @@
 #include <cmath>
 
 #include "sim/ai_support/mentalimage.hpp"
-#include "sim/ai_support/AIfunctions.hpp"
+#include "ai/formation_policy.hpp"
+#include "ai/dribble_policy.hpp"
+#include "ai/positioning.hpp"
+#include "sim/query/player_query.hpp"
+#include "sim/rules/offside.hpp"
+#include "sim/player/ball_approach.hpp"
+#include "sim/player/kick_targeting.hpp"
 
 #include "sim/player/humanoid/humanoid_utils.hpp"
 
@@ -47,7 +53,7 @@ void ElizaController::RequestCommand(PlayerCommandQueue &commandQueue) {
 
 
   FormationEntry entry = CastPlayer()->GetDynamicFormationEntry();
-  float mindSet = AI_GetMindSet(entry.role);
+  float mindSet = football::ai::GetMindSet(entry.role);
 
 
   // input
@@ -194,11 +200,11 @@ void ElizaController::RequestCommand(PlayerCommandQueue &commandQueue) {
         desiredTargetPosition =
             Vector3(pitchHalfW * team->GetDynamicSide(),
                     GetMatch()->rng().Uniform(-pitchHalfH, pitchHalfH), 0.0f);
-        Player *targetPlayer = AI_GetClosestPlayer(team, desiredTargetPosition, false, CastPlayer());
+        Player *targetPlayer = football::sim::query::GetClosestPlayer(team, desiredTargetPosition, false, CastPlayer());
 
         if (targetPlayer) {
           // check if this player is away from opponents, before throwing ball to him
-          Player *closestOpp = AI_GetClosestPlayer(match->GetTeam(abs(team->GetID() - 1)), targetPlayer->GetPosition(), false, 0);
+          Player *closestOpp = football::sim::query::GetClosestPlayer(match->GetTeam(abs(team->GetID() - 1)), targetPlayer->GetPosition(), false, 0);
           if (closestOpp) {
             if (((closestOpp->GetPosition() +
                   closestOpp->GetMovement() * 0.1f) -
@@ -216,8 +222,8 @@ void ElizaController::RequestCommand(PlayerCommandQueue &commandQueue) {
       }
 
       if (doCommand) {
-        if (actionCommand.touchInfo.forcedTargetPlayer == 0) actionCommand.touchInfo.forcedTargetPlayer = AI_GetClosestPlayer(team, desiredTargetPosition, false, CastPlayer());
-        AI_GetPass(CastPlayer(), actionCommand.desiredFunctionType, actionCommand.touchInfo.inputDirection, actionCommand.touchInfo.inputPower, actionCommand.touchInfo.autoDirectionBias, actionCommand.touchInfo.autoPowerBias, actionCommand.touchInfo.desiredDirection, actionCommand.touchInfo.desiredPower, actionCommand.touchInfo.targetPlayer, actionCommand.touchInfo.forcedTargetPlayer);
+        if (actionCommand.touchInfo.forcedTargetPlayer == 0) actionCommand.touchInfo.forcedTargetPlayer = football::sim::query::GetClosestPlayer(team, desiredTargetPosition, false, CastPlayer());
+        football::sim::mechanics::GetPass(CastPlayer(), actionCommand.desiredFunctionType, actionCommand.touchInfo.inputDirection, actionCommand.touchInfo.inputPower, actionCommand.touchInfo.autoDirectionBias, actionCommand.touchInfo.autoPowerBias, actionCommand.touchInfo.desiredDirection, actionCommand.touchInfo.desiredPower, actionCommand.touchInfo.targetPlayer, actionCommand.touchInfo.forcedTargetPlayer);
         commandQueue.push_back(actionCommand);
       }
     }
@@ -231,7 +237,7 @@ void ElizaController::RequestCommand(PlayerCommandQueue &commandQueue) {
       command.useDesiredMovement = true;
       command.useDesiredLookAt = true;
 
-      AI_GetBallControlMovement(
+      football::sim::mechanics::GetBallControlMovement(
           _mentalImage, CastPlayer(), player->GetDirectionVec(),
           walkVelocity, command.desiredDirection, command.desiredVelocityFloat,
           command.desiredLookAt);
@@ -364,7 +370,7 @@ void ElizaController::RequestCommand(PlayerCommandQueue &commandQueue) {
 
     if (CastPlayer() != match->GetDesignatedPossessionPlayer()) {
 
-      float mindSet = AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role);
+      float mindSet = football::ai::GetMindSet(CastPlayer()->GetDynamicFormationEntry().role);
       float huntDistanceThreshold = 10.0f + (1.0f - mindSet) * 10.0f; // 10 + .. * 10
       huntDistanceThreshold *= 0.5f * CastPlayer()->GetFatigueFactorInv() +
                                0.5f * (1.0f - NormalizedClamp(CastPlayer()->GetAverageVelocity(10), idleVelocity, sprintVelocity));
@@ -402,7 +408,7 @@ void ElizaController::RequestCommand(PlayerCommandQueue &commandQueue) {
             2;  // remember, this includes players with man marking id that are
                 // not controlled by this hunting code
         std::vector<Player *> closestPlayers;
-        AI_GetClosestPlayers(team,
+        football::sim::query::GetClosestPlayers(team,
                              opp->GetPosition() + opp->GetMovement() * 0.1f,
                              false, closestPlayers, huntingPlayersNum);
         bool close = false;
@@ -489,7 +495,7 @@ float ElizaController::GetLazyVelocity(float desiredVelocityFloat) {
   Vector3 oppPos = match->GetTeam(abs(team->GetID() - 1))->GetDesignatedTeamPossessionPlayer()->GetPosition();
   float actionDistance = (player->GetPosition() - oppPos).GetLength();
   float teamPossession = clamp(GetFadingTeamPossessionAmount() - 0.5f, 0.0f, 1.0f);
-  float mindSet = AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role);
+  float mindSet = football::ai::GetMindSet(CastPlayer()->GetDynamicFormationEntry().role);
 
   // if mindSet is high (offensive), be lazy when teamPossession is low. and the other way round for defenders.
   // (midfielders are always half-lazy by role this way; pow() them a bit if this is undesired; this will of course wear them out more than backs and strikers)
@@ -528,7 +534,7 @@ Vector3 ElizaController::GetSupportPosition_ForceField(
 
   // support position
 
-  float dynamicMindSet = AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role);
+  float dynamicMindSet = football::ai::GetMindSet(CastPlayer()->GetDynamicFormationEntry().role);
   float ballDistance = (match->GetBall()->Predict(250).Get2D() - player->GetPosition()).GetLength();
   float ballDistanceX = fabs(match->GetBall()->Predict(250).coords[0] - player->GetPosition().coords[0]);
 
@@ -569,7 +575,7 @@ Vector3 ElizaController::GetSupportPosition_ForceField(
   }
 
   float offsideX =
-      AI_GetOffsideLine(match, _mentalImage, abs(team->GetID() - 1), 240);
+      football::sim::rules::GetOffsideLine(match, _mentalImage, abs(team->GetID() - 1), 240);
   float adaptedMakeRun = makeRun;
 
   // actual base position
@@ -623,7 +629,7 @@ Vector3 ElizaController::GetSupportPosition_ForceField(
 
   // stay away from opponents
   std::vector<Player*> opponents;
-  AI_GetClosestPlayers(match->GetTeam(abs(team->GetID() - 1)), mainManPos * 0.3f + currentPos + 0.7f, false, opponents, 3);
+  football::sim::query::GetClosestPlayers(match->GetTeam(abs(team->GetID() - 1)), mainManPos * 0.3f + currentPos + 0.7f, false, opponents, 3);
   for (unsigned int i = 0; i < opponents.size(); i++) {
     const PlayerImage &oppImg = mentalImage->GetPlayerImage(opponents[i]);
     ForceSpot spot;
@@ -644,7 +650,7 @@ Vector3 ElizaController::GetSupportPosition_ForceField(
   // stay away from teammates
   if (team->GetFadingTeamPossessionAmount() >= 1.02f) {
     std::vector<Player*> players;
-    AI_GetClosestPlayers(team, currentPos, false, players, 6);
+    football::sim::query::GetClosestPlayers(team, currentPos, false, players, 6);
     for (unsigned int i = 0; i < players.size(); i++) {
       if (players[i] != CastPlayer()) {
         const PlayerImage &mateImg = mentalImage->GetPlayerImage(players[i]);
@@ -706,7 +712,7 @@ Vector3 ElizaController::GetSupportPosition_ForceField(
     }
   }
 
-  Vector3 forceFieldPosition = currentPos + AI_GetForceFieldMovement(forceField, currentPos, 7);//8);
+  Vector3 forceFieldPosition = currentPos + football::ai::GetForceFieldMovement(forceField, currentPos, 7);//8);
 
   float margin = 0.08f;
   if (forceNoOffside)
@@ -745,19 +751,19 @@ void ElizaController::GetOnTheBallCommands(
   // first selection
   float forwardSpaceWeight = 0.4f;
   float spaceWeight = 0.3f;
-  float forwardWeight = 2.0f + AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role) * 6.0f;
+  float forwardWeight = 2.0f + football::ai::GetMindSet(CastPlayer()->GetDynamicFormationEntry().role) * 6.0f;
 
   float totalWeight1 = forwardSpaceWeight + spaceWeight + forwardWeight;
-  float tacticalImprovementThreshold = 0.06f * (1.0f - AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role)); // only go on with pass selection if recipient has this much tactical advantage over current player
+  float tacticalImprovementThreshold = 0.06f * (1.0f - football::ai::GetMindSet(CastPlayer()->GetDynamicFormationEntry().role)); // only go on with pass selection if recipient has this much tactical advantage over current player
 
   // second selection
   float tacticalDiffWeight =
       1.0f +
-      std::pow(AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role),
+      std::pow(football::ai::GetMindSet(CastPlayer()->GetDynamicFormationEntry().role),
                2.0f) *
           10.0f;
   float passWeight = 1.0f;
-  float passMinimum = 0.2f * (1.0f - AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role)) - longPossessionFactor * 0.1f;
+  float passMinimum = 0.2f * (1.0f - football::ai::GetMindSet(CastPlayer()->GetDynamicFormationEntry().role)) - longPossessionFactor * 0.1f;
 
   float totalWeight2 = tacticalDiffWeight + passWeight;
 
@@ -846,7 +852,7 @@ void ElizaController::GetOnTheBallCommands(
   }
 
   // panic
-  float mindSet = AI_GetMindSet(CastPlayer()->GetDynamicFormationEntry().role);
+  float mindSet = football::ai::GetMindSet(CastPlayer()->GetDynamicFormationEntry().role);
   if (mindSet < 0.25f) {
     float panicProneness = 1.0f - mindSet * 2.0f;
     float goalCloseness =
@@ -931,7 +937,7 @@ void ElizaController::GetOnTheBallCommands(
   }
 
   e_Velocity enumVelocity = e_Velocity_Idle;
-  AI_GetBestDribbleMovement(match, player, _mentalImage,
+  football::ai::GetBestDribbleMovement(match, player, _mentalImage,
                             rawInputDirection, rawInputVelocityFloat,
                             team->GetTactics());
 }
@@ -948,7 +954,7 @@ void ElizaController::_AddPass(std::vector<PlayerCommand> &commandQueue,
   command.touchInfo.inputPower = 0;
   command.touchInfo.autoDirectionBias = 1.0f;
   command.touchInfo.autoPowerBias = 1.0f;
-  AI_GetPass(CastPlayer(), passType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer, command.touchInfo.forcedTargetPlayer);
+  football::sim::mechanics::GetPass(CastPlayer(), passType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer, command.touchInfo.forcedTargetPlayer);
   commandQueue.push_back(command);
 }
 

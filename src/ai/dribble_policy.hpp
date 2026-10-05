@@ -11,26 +11,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// written by bastiaan konings schuiling 2008 - 2015
-// this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
-// i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _HPP_STRATEGY
-#define _HPP_STRATEGY
+#ifndef FOOTBALL_AI_DRIBBLE_POLICY_HPP
+#define FOOTBALL_AI_DRIBBLE_POLICY_HPP
 
-#include "sim/gamedefines.hpp"
+#include "foundation/math/vector3.hpp"
+#include "support/config/properties.hpp"
 
-#include "sim/ai_support/mentalimage.hpp"
+class Match;
+class Player;
+class MentalImage;
 
-#include "ai/eliza_controller.hpp"
+namespace football::ai {
 
-#include "sim/player/player.hpp"
-#include "sim/team.hpp"
-#include "sim/match.hpp"
+void GetBestDribbleMovement(
+    Match *match, Player *player, const MentalImage *mentalImage,
+    blunted::Vector3 &desiredDirection, float &desiredVelocity,
+    const blunted::Properties &teamTactics);
 
-using namespace blunted;
+}  // namespace football::ai
 
-class Strategy {
-};
-
-#endif
+#endif  // FOOTBALL_AI_DRIBBLE_POLICY_HPP

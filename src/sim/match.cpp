@@ -27,7 +27,6 @@
 #include "foundation/geometry/triangle.hpp"
 #include "support/diagnostics/assert.hpp"
 #include "support/diagnostics/log.hpp"
-#include "sim/ai_support/AIfunctions.hpp"
 #include "support/io/file.hpp"
 #include "sim/player/player_action_volume.hpp"
 #include "sim/player/player_body_collider.hpp"

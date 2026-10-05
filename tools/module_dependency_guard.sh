@@ -53,6 +53,25 @@ value_of() {
 }
 
 status=0
+# No declaration may legalize sim -> ai (including indirect link edges).
+sim_closure=$(sed -n 's/^football_sim: //p' "$deps_file")
+case " $sim_closure " in
+  *' football_ai '*)
+    echo 'module dependency guard: forbidden football_sim -> football_ai link' >&2
+    status=1
+    ;;
+esac
+
+# Do not recreate the old ownership bucket or its misleading API names.
+if [ -d "$source_dir/sim" ]; then
+  if [ -e "$source_dir/sim/ai_support/AIfunctions.hpp" ] ||
+     [ -e "$source_dir/sim/ai_support/AIfunctions.cpp" ] ||
+     grep -RqE 'AIfunctions|(^|[^[:alnum:]_])AI_[[:alnum:]_]+' \
+       --include='*.cpp' --include='*.hpp' --include='*.h' "$source_dir/sim"; then
+    echo 'module dependency guard: obsolete AIfunctions/AI_ API in sim' >&2
+    status=1
+  fi
+fi
 for entry in $modules; do
   module=${entry%%:*}
   target=${entry#*:}
@@ -74,10 +93,10 @@ for entry in $modules; do
   # Project prefixes actually included anywhere under this module. The awk
   # split resolves sim/animation before the broader sim root.
   used=$(grep -Rh -o -E \
-      '#include "(foundation|model|observation|control|controller|support|sim|env|app)/[^"]*"' \
+      '#[[:space:]]*include[[:space:]]*["<](foundation|model|observation|control|controller|support|sim|env|app|ai)/[^">]*[">]' \
       --include='*.cpp' --include='*.hpp' --include='*.h' \
       "$source_dir/$module" 2>/dev/null \
-    | sed -E 's/#include "(.*)"/\1/' \
+    | sed -E 's/#[[:space:]]*include[[:space:]]*["<](.*)[">]/\1/' \
     | awk -F/ '{ print ($1 == "sim" && $2 == "animation") ? "sim/animation" : $1 }' \
     | sort -u)
 

@@ -16,7 +16,6 @@
 #include "ai/team_ai_decision_factory.hpp"
 #include "sim/match.hpp"
 #include "app/fixtures/default_teams.hpp"
-#include "sim/ai_support/AIfunctions.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_body_facing.hpp"

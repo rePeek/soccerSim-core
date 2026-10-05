@@ -19,7 +19,8 @@
 #include <math.h>
 #include <cmath>
 
-#include "sim/ai_support/AIfunctions.hpp"
+#include "sim/query/player_query.hpp"
+#include "sim/player/kick_targeting.hpp"
 #include "sim/match.hpp"
 #include "sim/player/player.hpp"
 #include "sim/team.hpp"
@@ -146,9 +147,9 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.touchInfo.inputPower = 0.1f; // dud
 
         Vector3 desiredTargetPosition = player->GetPosition() + player->GetDirectionVec() * 1.0f;
-        command.touchInfo.forcedTargetPlayer = AI_GetClosestPlayer(team, desiredTargetPosition, false, CastPlayer());
+        command.touchInfo.forcedTargetPlayer = football::sim::query::GetClosestPlayer(team, desiredTargetPosition, false, CastPlayer());
 
-        AI_GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer, command.touchInfo.forcedTargetPlayer);
+        football::sim::mechanics::GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer, command.touchInfo.forcedTargetPlayer);
 
         commandQueue.push_back(command);
 
@@ -164,7 +165,7 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.touchInfo.inputPower = inputPower;
         command.touchInfo.autoDirectionBias = _default_ShortPass_AutoDirection;
         command.touchInfo.autoPowerBias = _default_ShortPass_AutoPower;
-        AI_GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
+        football::sim::mechanics::GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
 
         commandQueue.push_back(command);
 
@@ -180,7 +181,7 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.touchInfo.inputPower = inputPower;
         command.touchInfo.autoDirectionBias = _default_ThroughPass_AutoDirection;
         command.touchInfo.autoPowerBias = _default_ThroughPass_AutoPower;
-        AI_GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
+        football::sim::mechanics::GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
 
         commandQueue.push_back(command);
 
@@ -196,7 +197,7 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.touchInfo.inputPower = inputPower;
         command.touchInfo.autoDirectionBias = _default_HighPass_AutoDirection;
         command.touchInfo.autoPowerBias = _default_HighPass_AutoPower;
-        AI_GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
+        football::sim::mechanics::GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
 
         commandQueue.push_back(command);
 
@@ -210,7 +211,7 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.touchInfo.inputDirection = inputDirection;
         command.touchInfo.autoDirectionBias = _default_Shot_AutoDirection;
         command.touchInfo.autoDirectionBias = 1.0f;
-        command.touchInfo.desiredDirection = AI_GetShotDirection(CastPlayer(), command.touchInfo.inputDirection, command.touchInfo.autoDirectionBias);
+        command.touchInfo.desiredDirection = football::sim::mechanics::GetShotDirection(CastPlayer(), command.touchInfo.inputDirection, command.touchInfo.autoDirectionBias);
         command.touchInfo.desiredPower =
             clamp(std::pow(gaugeFactor, 0.6f), 0.01f, 1.0f);
 

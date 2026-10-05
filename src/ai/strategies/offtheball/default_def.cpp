@@ -17,6 +17,7 @@
 
 #include "ai/strategies/strategy.hpp"
 #include "ai/strategies/offtheball/default_def.hpp"
+#include "ai/formation_policy.hpp"
 #include <cmath>
 
 void DefaultDefenseStrategy::RequestInput(ElizaController *controller,
@@ -41,7 +42,7 @@ void DefaultDefenseStrategy::RequestInput(ElizaController *controller,
 
   if (defensiveComponents) {
 
-    float mindset = AI_GetMindSet(static_cast<Player*>(controller->GetPlayer())->GetDynamicFormationEntry().role);
+    float mindset = football::ai::GetMindSet(static_cast<Player*>(controller->GetPlayer())->GetDynamicFormationEntry().role);
     controller->AddDefensiveComponent(
         desiredPosition,
         std::pow(

@@ -11,26 +11,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// written by bastiaan konings schuiling 2008 - 2015
-// this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
-// i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _HPP_STRATEGY
-#define _HPP_STRATEGY
+#ifndef FOOTBALL_AI_FORMATION_POLICY_HPP
+#define FOOTBALL_AI_FORMATION_POLICY_HPP
 
 #include "sim/gamedefines.hpp"
 
-#include "sim/ai_support/mentalimage.hpp"
+class Match;
+class Player;
 
-#include "ai/eliza_controller.hpp"
+namespace football::ai {
 
-#include "sim/player/player.hpp"
-#include "sim/team.hpp"
-#include "sim/match.hpp"
+Vector3 GetAdaptedFormationPosition(
+    Match *match, Player *player, float backXBound, float frontXBound,
+    float lowYBound, float highYBound, float xFocus, float xFocusStrength,
+    float yFocus, float yFocusStrength, const Vector3 &microFocus,
+    float microFocusStrength, float midfieldFocus, float midfieldFocusStrength,
+    bool useDynamicFormationPosition = true);
+float GetMindSet(e_PlayerRole role);
 
-using namespace blunted;
+}  // namespace football::ai
 
-class Strategy {
-};
-
-#endif
+#endif  // FOOTBALL_AI_FORMATION_POLICY_HPP

@@ -154,10 +154,13 @@ src/
 │   ├── legacy_team_decision, legacy_team_decision_factory      见下方迁移说明（临时 seam）
 │   ├── legacy_decision_factories  组合根注入的决策实现（Simulation 不选默认值）
 │   ├── formation       role adaptation / personal-space 归一化（纯算法，无 DB 查找）
-│   ├── ai_support/     AIfunctions, mentalimage（待 Phase 3 拆分）
+│   ├── query/          player_query（空间/控球/切人查询）, reachability（运动学估算）
+│   ├── rules/          offside（规则几何）
+│   ├── ai_support/     mentalimage（Match-owned 历史；未改动）
 │   └── player/
 │       ├── player（具体 runtime；仅模型 PlayerId 与私有 schedule_phase_，无 runtime index）, player_locomotion, *_collider,
-│       │   player_action*, *_scheduler, player_kinematics, player_body_facing
+│       │   player_action*, *_scheduler, player_kinematics, player_body_facing,
+│       │   ball_approach（Human/Eliza 共用追球辅助）, kick_targeting（传射执行计算）
 │       ├── controller/  playercontroller（Eliza/Human 共用的 legacy command planner）,
 │       │                humancontroller（输入→legacy command 适配）
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
@@ -165,6 +168,7 @@ src/
 │   ├── eliza_controller        player 决策实现
 │   ├── team_ai_controller      team 决策实现
 │   ├── eliza_decision_factory, team_ai_decision_factory  默认实现的工厂
+│   ├── formation_policy, dribble_policy, positioning  战术阵型/盘带/force-field policy
 │   └── strategies/             strategy, offtheball/*
 ├── controller/      协议无关控制输入接口（controller_input/external_controller）
 ├── observation/     对外观测契约：WorldState / WorldPlayerState 值类型
@@ -186,17 +190,19 @@ Repository-root extras (tests only; never part of the core library):
 cmake/
 └── CPM.cmake        vendored CPM bootstrap; Catch2 is fetched through it
 
-test/                 Catch2 suites for the executable side
+test/                 Catch2 suites and architecture guard negative tests
 ├── app_args_test     CLI argument parsing
 ├── app_fixtures_test default teams and legacy profile import
-└── app_cli_test      the GameEnv composition the CLI builds
+├── app_cli_test      the GameEnv composition the CLI builds
+├── sim_computation_test reachability baselines, query ordering, offside, kick mechanics
+└── module_dependency_guard_test.sh reverse-edge/obsolete API rejection
 ```
 
 
-The unused `src/ai/player/player_ai.hpp` interface and `src/ai/` directory are
-deleted. Active AI remains in `sim/teamAIcontroller.*`, `sim/ai_support/` and
-`sim/player/controller/`. External decision code can consume `WorldState` and
-supply `PlayerControlSet` directly; no speculative AI base interface is required.
+The unused speculative `src/ai/player/player_ai.hpp` interface remains deleted.
+`src/ai/` now holds real legacy decisions and policy computations, implementing
+sim-side transitional ports. External decisions can still consume `WorldState`
+and supply `PlayerControlSet` directly; no speculative base interface is required.
 
 The retired `src/data/` layer is deleted, not moved: `PlayerData`, `TeamData`,
 `MatchData` and `model_adapter` are gone. `Player` holds `const model::Player&`,
@@ -248,7 +254,7 @@ compiler cannot see them either); removing one stays a review item.
   `foundation/math/rng.hpp`。没有全局 RNG 入口；正常重构不得额外抽取随机数。
 
 
-### 决策层迁移（Phase 1–2 已完成）
+### 决策层迁移（Phase 1–3 已完成）
 
 **不变式：`sim` 永不 include `ai`。** 同一 `.so` 里可以有多个单向依赖模块，
 所以“默认 AI 是否链进 libgame.so”（当前选 A，包含）与依赖方向是两件事。
@@ -266,7 +272,7 @@ WorldState + TacticalBoard
     Simulation          // 不应当知道 IController/决定对象的任何事
 ```
 
-第 1–2 阶段已完成。**1) dependency inversion**（不重新定义领域模型、不搬文件）：
+第 1–3 阶段已完成。**1) dependency inversion**（不重新定义领域模型、不搬文件）：
 
 - `LegacyPlayerDecision`（原 `IController`）与 `LegacyTeamDecision` 是 sim 侧的**抽象
   端口**；`Player` 持有 `unique_ptr<LegacyPlayerDecision>`，`Team` 持有
@@ -304,15 +310,33 @@ input ownership，`HumanController` 是输入到 legacy command 的适配，它�
 execution/planning 基类。`MentalImage` 也暂时留在 sim：它当前事实上是 runtime
 observation/history 缓存（`Match` 持有历史），不是 AI 专属类型。
 
-后续阶段：**3)** 拆 `AIfunctions`（AI-only → ai；runtime/rules/execution → sim；删掉零
+**3) semantic ownership**：`src/sim/ai_support/AIfunctions.*` 整个删除，没有同名替代
+桶、兼容 alias 或 `AI_` 函数。保留原表达式、浮点字面量、循环/比较顺序、默认参数。
 
-后续阶段：**2)** 把 `elizacontroller`、`strategies/*`、`teamAIcontroller`（连默认工厂）
-搬入 `src/ai/`，新增 `football_ai`（依赖 sim/control/controller/foundation/model），ai 实现
-上述端口；**3)** 拆 `AIfunctions`（AI-only → ai；runtime/rules/execution → sim；删掉零
-调用者的 `AI_GetAutoPass`），并把名字恢复真实语义（`sim/query/`、`sim/rules/offside`、
-`sim/player/kick_targeting` vs `ai/formation`、`ai/dribble`、`ai/positioning`）；**4)** 消除胖
-team 端口里的 simulation state；**5)** 最后才把 legacy 端口迁向
-`WorldState`/`TacticalBoard` → `PlayerControlSet`。
+- `ai/formation_policy.*`：`GetAdaptedFormationPosition`、`GetMindSet`；
+  `ai/dribble_policy.*`：`GetBestDribbleMovement`；
+  `ai/positioning.*`：`GetForceFieldMovement`。命名空间 `football::ai`。
+- `sim/query/player_query.*`：closest player(s)、free space、possession、switch-target；
+  `sim/query/reachability.*`：`TimeNeeded` 与 `GetTimeNeededForDistance_ms`。
+  命名空间 `football::sim::query`，不是 AI policy。
+- `sim/rules/offside.*`：`GetOffsideLine`（`football::sim::rules`），referee 与 AI 共用。
+- `sim/player/kick_targeting.*`：`GetPass` / `GetShotDirection`，用于排队及触球执行；
+  `sim/player/ball_approach.*`：`GetBallControlMovement` / `GetToBallMovement`。
+  命名空间 `football::sim::mechanics`。后两项经 `PlayerController::_MovementCommand`
+  被 Human 和 Eliza 共用，是输入追球/控球辅助，不是 AI-only；不能硬搬入 ai 制造反向边。
+- 原先“`AI_GetAutoPass` 零调用”判断不正确：`GetPass` 的末尾正在调用。删除的是
+  它的公共 API；原计算体保留为 `kick_targeting.cpp` 匿名命名空间中的
+  `CalculatePassDirectionAndPower`，不删活逻辑，不复制/保留旧 API。
+- `env`、Simulation ctor/factory ownership、MentalImage、Human/PlayerController
+  边界不变；调用侧只换 include 和限定名，不改 command/RNG/timing。
+- `module_dependency_guard` 补上 Phase 2 漏掉的 `ai/` include regex，且无论有没有
+  声明，都拒绝 sim 的 link closure 含 ai；拒绝 sim 中旧桶文件/API 回流。
+  `test/module_dependency_guard_test.sh` 用临时树验证这些负例。
+- `test/sim_computation_test.cpp` 加入 pre-extraction 函数独立编译捕获的精确
+  reachability 整数基线，以及查询 tie/append/inactive、两侧 offside 和 kick 测试。
+
+后续阶段：**4)** 消除胖 team 端口里的 simulation state；**5)** 最后才把 legacy
+端口迁向 `WorldState`/`TacticalBoard` → `PlayerControlSet`。
 
 机械守卫（CTest，改坏边界会直接失败）：
 
@@ -327,8 +351,9 @@ team 端口里的 simulation state；**5)** 最后才把 legacy 端口迁向
   并禁止 core 出现 `app/fixtures` 依赖或 `src/data` 回流。
 - `legacy_validation_guard`：禁止已经删除的逐语句 validation 宏/函数回流。
 - `module_dependency_guard`：把 CMake 导出的真实 target 闭包与 `src/<module>/` 实际
-  include 的项目前缀对比；未声明的依赖（例如 `sim` 用了 `observation/` 却没声明）
-  直接失败。`src/app` 与 `tools/` 不在范围内：它们位于 core 之上，可使用任意 core 模块。
+  include 的项目前缀（含 `ai/`）对比；未声明的依赖直接失败，并无条件禁止 sim → ai
+  link closure 与 sim 的 `AIfunctions`/`AI_` API 回流。有独立负例测试。
+  `src/app` 与 `tools/` 不在范围内：它们位于 core 之上，可使用任意 core 模块。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
 entry point and guards, plus legacy `animation/`, `animcollection/`, import

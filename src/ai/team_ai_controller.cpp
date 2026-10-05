@@ -21,7 +21,9 @@
 #include "foundation/geometry/line.hpp"
 #include <cmath>
 
-#include "sim/ai_support/AIfunctions.hpp"
+#include "ai/formation_policy.hpp"
+#include "sim/query/player_query.hpp"
+#include "sim/rules/offside.hpp"
 
 #include "sim/team.hpp"
 #include "sim/match.hpp"
@@ -93,7 +95,7 @@ Player *SelectAttackingRunPlayer(Team *team) {
   Vector3 offenseFocusPos = possessionPlayer->GetPosition() +
                             Vector3(-team->GetDynamicSide() * 26.0f, 0, 0);
 
-  Player *attackingRunPlayer = AI_GetClosestPlayer(team, offenseFocusPos, true, possessionPlayer);
+  Player *attackingRunPlayer = football::sim::query::GetClosestPlayer(team, offenseFocusPos, true, possessionPlayer);
   return attackingRunPlayer;
 }
 
@@ -137,7 +139,7 @@ void TeamAIController::Process() {
                     opp->GetMovement().coords[0] * 0.1f + cautionDistance;
 
   // slacking teammate as max
-  float lineX = AI_GetOffsideLine(match, match->GetMentalImage(0),
+  float lineX = football::sim::rules::GetOffsideLine(match, match->GetMentalImage(0),
                                   std::abs(team->GetID()));
   float allowSlackDistance = 4.0f; // despite teammates slacking behind line this much, just hold the line
   if (lineX * team->GetDynamicSide() - allowSlackDistance >
@@ -191,7 +193,7 @@ void TeamAIController::Process() {
     0); float oppDangerDistance = (opp->GetPosition() - dangerPos).GetLength();
         Vector3 adaptedGoalPos = Vector3(pitchHalfW * team->GetSide(), 0, 0) *
     0.5 + opp->GetPosition() * 0.5; float oppGoalDistance = (opp->GetPosition()
-    - adaptedGoalPos).GetLength(); Player *p = AI_GetClosestPlayer(team,
+    - adaptedGoalPos).GetLength(); Player *p = football::sim::query::GetClosestPlayer(team,
     adaptedGoalPos, false); float usGoalDistance = (p->GetPosition() -
     adaptedGoalPos).GetLength(); if (usGoalDistance > oppGoalDistance - 3.2)
     opponentFreeRun = true;
@@ -228,7 +230,7 @@ void TeamAIController::Process() {
           std::vector<Player*> opponents;
           Vector3 spot = runner->GetPosition() * Vector3(1.0f, 0.8f, 0.0f) +
                          Vector3(team->GetDynamicSide() * 10.0f, 0, 0);
-          AI_GetClosestPlayers(team->GetMatch()->GetTeam(std::abs(team->GetID() - 1)), spot, false, opponents, 4);
+          football::sim::query::GetClosestPlayers(team->GetMatch()->GetTeam(std::abs(team->GetID() - 1)), spot, false, opponents, 4);
           float oppDensityRating = 1.0f;
           for (unsigned int i = 0; i < opponents.size(); i++) {
             float oppDistance = (opponents[i]->GetPosition() - spot).GetLength();
@@ -248,7 +250,7 @@ void TeamAIController::Process() {
   }
 
   if (match->GetActualTime_ms() % 1500 == 0) {
-    forwardSupportPlayer = AI_GetClosestPlayer(
+    forwardSupportPlayer = football::sim::query::GetClosestPlayer(
         team,
         team->GetDesignatedTeamPossessionPlayer()->GetPosition() *
                 Vector3(1.0f, 1.0f, 0.0f) +
@@ -332,8 +334,8 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(
   float offense_microFocusStrength    = mixup( liveTeamTactics.GetReal("position_offense_microfocus_strength"), "position_offense_microfocus_strength", role);
   float defense_microFocusStrength    = mixup( liveTeamTactics.GetReal("position_defense_microfocus_strength"), "position_defense_microfocus_strength", role);
 
-  offense_sideFocusStrength += (-0.5 + AI_GetMindSet(role)) * 0.2f;
-  defense_sideFocusStrength += ( 0.5 - AI_GetMindSet(role)) * 0.2f;
+  offense_sideFocusStrength += (-0.5 + football::ai::GetMindSet(role)) * 0.2f;
+  defense_sideFocusStrength += ( 0.5 - football::ai::GetMindSet(role)) * 0.2f;
   offense_sideFocusStrength = clamp(offense_sideFocusStrength + -0.3f + (       offensivenessBias) * 0.3f, 0.0f, 1.0f);
   defense_sideFocusStrength = clamp(defense_sideFocusStrength + -0.3f + (1.0f - offensivenessBias) * 0.3f, 0.0f, 1.0f);
 
@@ -408,7 +410,7 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(
   float yFocusStrength = 0.5f * possessionBias +
                          0.2f * (1.0f - possessionBias);
 
-  float defendFactor = (1.0f - AI_GetMindSet(role)) * (1.0f - possessionBias);
+  float defendFactor = (1.0f - football::ai::GetMindSet(role)) * (1.0f - possessionBias);
   Vector3 microFocus = focalPoint;// * Vector3(1.0f, 0.8f + (1.0f - defendFactor) * 0.2f, 0.0f); // defenders stay in the middle more
   Vector3 defensiveFocusPos =
       Vector3(clamp(microFocus.coords[0] + team->GetDynamicSide() * 2.0f,
@@ -449,7 +451,7 @@ Vector3 TeamAIController::GetAdaptedFormationPosition(
   if (!toggle_microFocus) microFocusStrength = 0.0f;
   if (!toggle_midfieldFocus) midfieldFocusStrength = 0.0f;
 
-  Vector3 desiredPos = AI_GetAdaptedFormationPosition(team->GetMatch(), player, backXBound, frontXBound, lowYBound, highYBound, xFocus, xFocusStrength, yFocus, yFocusStrength, microFocus, microFocusStrength, midfieldFocus, midfieldFocusStrength, useDynamicFormationPosition);
+  Vector3 desiredPos = football::ai::GetAdaptedFormationPosition(team->GetMatch(), player, backXBound, frontXBound, lowYBound, highYBound, xFocus, xFocusStrength, yFocus, yFocusStrength, microFocus, microFocusStrength, midfieldFocus, midfieldFocusStrength, useDynamicFormationPosition);
 
   desiredPos.coords[0] = clamp(desiredPos.coords[0], -pitchHalfW, pitchHalfW);
   desiredPos.coords[1] = clamp(desiredPos.coords[1], -pitchHalfH, pitchHalfH);
@@ -751,7 +753,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
                     // supporting players
                     if (isTakerTeam) {
                       std::vector<Player *> result;
-                      AI_GetClosestPlayers(team, Vector3(0), false, result, 2);
+                      football::sim::query::GetClosestPlayers(team, Vector3(0), false, result, 2);
                       for (unsigned int i = 0; i < result.size(); i++) {
                         result[i]->ResetPosition(
                             Vector3(0, i * 1.4 * team->GetDynamicSide(), 0),
@@ -773,7 +775,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
                     }
                     lowYBound = -pitchHalfH * 0.7;
                     highYBound = pitchHalfH * 0.7;
-                    Vector3 basePos = AI_GetAdaptedFormationPosition(
+                    Vector3 basePos = football::ai::GetAdaptedFormationPosition(
                         match, players[i], backXBound, frontXBound, lowYBound,
                         highYBound, 0, 0, 0, 0, 0, 0, 0, 0, false);
                     players[i]->ResetPosition(
@@ -808,7 +810,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
                     }
                     lowYBound = -pitchHalfH * 0.6;
                     highYBound = pitchHalfH * 0.6;
-                    Vector3 basePos = AI_GetAdaptedFormationPosition(
+                    Vector3 basePos = football::ai::GetAdaptedFormationPosition(
                         match, players[i], backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength,
@@ -854,7 +856,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
                     }
                     lowYBound = -pitchHalfH * 0.75f + ballPos.coords[1] * 0.25f;
                     highYBound = pitchHalfH * 0.75f + ballPos.coords[1] * 0.25f;
-                    Vector3 basePos = AI_GetAdaptedFormationPosition(
+                    Vector3 basePos = football::ai::GetAdaptedFormationPosition(
                         match, players[i], backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength, ballPos, 0.7, 0, 0, false);
@@ -913,7 +915,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
                     }
                     lowYBound = -pitchHalfH * 0.7;
                     highYBound = pitchHalfH * 0.7;
-                    Vector3 basePos = AI_GetAdaptedFormationPosition(
+                    Vector3 basePos = football::ai::GetAdaptedFormationPosition(
                         match, players[i], backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength, ballPos, 0.4, 0, 0, false);
@@ -940,7 +942,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
                        Vector3(team->GetDynamicSide() * pitchHalfW, 0, 0))
                               .GetLength() < 40.0) {
                     std::vector<Player *> result;
-                    AI_GetClosestPlayers(team,
+                    football::sim::query::GetClosestPlayers(team,
                                          match->GetBall()->Predict(0).Get2D(),
                                          false, result, 3);
                     for (unsigned int i = 0; i < result.size(); i++) {
@@ -988,7 +990,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
                     }
                     lowYBound = -pitchHalfH * 0.8;
                     highYBound = pitchHalfH * 0.8;
-                    Vector3 basePos = AI_GetAdaptedFormationPosition(
+                    Vector3 basePos = football::ai::GetAdaptedFormationPosition(
                         match, players[i], backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength, 0, 0, 0, 0, false);
@@ -1056,7 +1058,7 @@ void TeamAIController::PrepareSetPiece(e_GameMode setPiece, Team *other_team,
               if (isTakerTeam) {
                 auto ball_pos = match->GetBall()->Predict(0).Get2D();
                 std::vector<Player *> players;
-                AI_GetClosestPlayers(team, match->GetBall()->Predict(0).Get2D(),
+                football::sim::query::GetClosestPlayers(team, match->GetBall()->Predict(0).Get2D(),
                                      false, players, 2);
                 taker = players[0];
                 if (setPiece == e_GameMode_KickOff) {
@@ -1105,7 +1107,7 @@ void TeamAIController::ApplyTeamPressure() {
   Player *opp = match->GetTeam(std::abs(team->GetID() - 1))->GetBestPossessionPlayer();
   Vector3 opponentPos = opp->GetPosition() + opp->GetMovement() * 0.24f;
 
-  teamPressurePlayer = AI_GetClosestPlayer(
+  teamPressurePlayer = football::sim::query::GetClosestPlayer(
       team, opponentPos + Vector3(team->GetDynamicSide() * 1.0f, 0, 0), true,
       team->GetGoalie());
 

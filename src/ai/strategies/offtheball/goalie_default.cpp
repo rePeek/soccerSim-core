@@ -21,6 +21,7 @@
 #include "foundation/geometry/triangle.hpp"
 
 #include "ai/strategies/strategy.hpp"
+#include "sim/query/player_query.hpp"
 
 void GoalieDefaultStrategy::RequestInput(ElizaController *controller,
                                          const MentalImage *mentalImage,
@@ -107,7 +108,7 @@ void GoalieDefaultStrategy::RequestInput(ElizaController *controller,
         //SetGreenDebugPilon(shootingPoint);
 
         // now calculate the distance between this shooting point and our closest mate
-        Player *mate = AI_GetClosestPlayer(controller->GetTeam(), shootingPoint, false, static_cast<Player*>(controller->GetPlayer()));
+        Player *mate = football::sim::query::GetClosestPlayer(controller->GetTeam(), shootingPoint, false, static_cast<Player*>(controller->GetPlayer()));
         float mateToThresholdDistance = 99999;
         if (mate) {
           Vector3 matePos = mate->GetPosition() + mate->GetMovement() * 0.24f;
@@ -121,7 +122,7 @@ void GoalieDefaultStrategy::RequestInput(ElizaController *controller,
 
           // the amount of 'come out bias' is related to how dangerous the opponent's closest mate is if they are to receive the ball.
           // basically, the same as the above code, but with the secondary opponent and mate
-          Player *oppHelper = AI_GetClosestPlayer(controller->GetOppTeam(), goalPos, false, opp);
+          Player *oppHelper = football::sim::query::GetClosestPlayer(controller->GetOppTeam(), goalPos, false, opp);
           if (oppHelper) {
 
             Vector3 oppHelperPosition = oppHelper->GetPosition() + oppHelper->GetMovement() * 0.32f;
@@ -134,7 +135,7 @@ void GoalieDefaultStrategy::RequestInput(ElizaController *controller,
             //SetYellowDebugPilon(helperShootingPoint);
 
             // now calculate the distance between this shooting point and our closest mate
-            Player *mateHelper = AI_GetClosestPlayer(controller->GetTeam(), helperShootingPoint, false, static_cast<Player*>(controller->GetPlayer()));
+            Player *mateHelper = football::sim::query::GetClosestPlayer(controller->GetTeam(), helperShootingPoint, false, static_cast<Player*>(controller->GetPlayer()));
             float mateHelperToThresholdDistance = 99999;
             if (mateHelper) mateHelperToThresholdDistance = (helperShootingPoint - (mateHelper->GetPosition() + mateHelper->GetMovement() * 0.24f)).GetLength();
 

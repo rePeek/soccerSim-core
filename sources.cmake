@@ -90,7 +90,11 @@ set(GAME_HEADERS
    src/sim/match.hpp
    src/sim/match_world_state.hpp
    src/sim/value_history.hpp
-   src/sim/ai_support/AIfunctions.hpp
+   src/sim/query/player_query.hpp
+   src/sim/query/reachability.hpp
+   src/sim/rules/offside.hpp
+   src/sim/player/ball_approach.hpp
+   src/sim/player/kick_targeting.hpp
    src/sim/ai_support/mentalimage.hpp
    src/sim/legacy_team_decision.hpp
    src/sim/legacy_team_decision_factory.hpp
@@ -116,7 +120,11 @@ set(GAME_SOURCES
    src/sim/simulation.cpp
    src/sim/referee.cpp
    src/sim/ai_support/mentalimage.cpp
-   src/sim/ai_support/AIfunctions.cpp
+   src/sim/query/player_query.cpp
+   src/sim/query/reachability.cpp
+   src/sim/rules/offside.cpp
+   src/sim/player/ball_approach.cpp
+   src/sim/player/kick_targeting.cpp
    src/sim/team.cpp
 )
 
@@ -128,6 +136,9 @@ set(AI_HEADERS
    src/ai/eliza_decision_factory.hpp
    src/ai/team_ai_controller.hpp
    src/ai/team_ai_decision_factory.hpp
+   src/ai/formation_policy.hpp
+   src/ai/dribble_policy.hpp
+   src/ai/positioning.hpp
    src/ai/strategies/strategy.hpp
    src/ai/strategies/offtheball/default_off.hpp
    src/ai/strategies/offtheball/default_def.hpp
@@ -140,6 +151,9 @@ set(AI_SOURCES
    src/ai/eliza_decision_factory.cpp
    src/ai/team_ai_controller.cpp
    src/ai/team_ai_decision_factory.cpp
+   src/ai/formation_policy.cpp
+   src/ai/dribble_policy.cpp
+   src/ai/positioning.cpp
    src/ai/strategies/strategy.cpp
    src/ai/strategies/offtheball/default_mid.cpp
    src/ai/strategies/offtheball/default_off.cpp

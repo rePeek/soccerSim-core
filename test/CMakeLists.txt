@@ -43,3 +43,17 @@ if(TARGET football_app)
   set_tests_properties(football_app_cli_rejects_unknown_flag PROPERTIES
     WILL_FAIL TRUE)
 endif()
+
+
+# Runtime computation ownership has its own focused tests. App descriptions
+# remain test inputs and never become a runtime dependency.
+add_executable(football_sim_computation_test sim_computation_test.cpp)
+target_link_libraries(football_sim_computation_test PRIVATE
+  ${OUTPUT_LIB_NAME} football_app_support Catch2::Catch2WithMain)
+football_configure_target(football_sim_computation_test)
+catch_discover_tests(football_sim_computation_test PROPERTIES LABELS sim)
+
+add_test(NAME module_dependency_guard_negative_test
+  COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/module_dependency_guard_test.sh
+    ${PROJECT_SOURCE_DIR}/tools/module_dependency_guard.sh
+    ${PROJECT_BINARY_DIR}/module_dependencies.txt)

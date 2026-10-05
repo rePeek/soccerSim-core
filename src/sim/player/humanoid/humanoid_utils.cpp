@@ -25,7 +25,6 @@
 
 #include "sim/animation/clip.hpp"
 #include "sim/animation/types.hpp"
-#include "sim/ai_support/AIfunctions.hpp"
 #include "sim/player/player.hpp"
 
 namespace {

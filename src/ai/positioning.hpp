@@ -11,26 +11,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// written by bastiaan konings schuiling 2008 - 2015
-// this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
-// i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _HPP_STRATEGY
-#define _HPP_STRATEGY
+#ifndef FOOTBALL_AI_POSITIONING_HPP
+#define FOOTBALL_AI_POSITIONING_HPP
 
+#include <vector>
 #include "sim/gamedefines.hpp"
 
-#include "sim/ai_support/mentalimage.hpp"
+namespace football::ai {
 
-#include "ai/eliza_controller.hpp"
+// Tactical attraction/repulsion policy for dribbling and off-ball support.
+Vector3 GetForceFieldMovement(const std::vector<ForceSpot> &forceField,
+                              const Vector3 &currentPos,
+                              float attractorDampingDistance = 10);
 
-#include "sim/player/player.hpp"
-#include "sim/team.hpp"
-#include "sim/match.hpp"
+}  // namespace football::ai
 
-using namespace blunted;
-
-class Strategy {
-};
-
-#endif
+#endif  // FOOTBALL_AI_POSITIONING_HPP

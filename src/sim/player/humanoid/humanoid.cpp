@@ -34,7 +34,7 @@
 #include "sim/match.hpp"
 
 
-#include "sim/ai_support/AIfunctions.hpp"
+#include "sim/player/kick_targeting.hpp"
 
 #include "sim/animation/baked_selector.hpp"
 
@@ -616,7 +616,7 @@ void Humanoid::Process() {
         float tmpBallPower = ballPower;
         Player *tmpTargetPlayer = 0;
         Player *forcedTargetPlayer = 0;
-        AI_GetPass(CastPlayer(), currentAnim.originatingCommand.desiredFunctionType, inputDirection, currentAnim.originatingCommand.touchInfo.inputPower, currentAnim.originatingCommand.touchInfo.autoDirectionBias, currentAnim.originatingCommand.touchInfo.autoPowerBias, tmpBallDirection, tmpBallPower, tmpTargetPlayer, currentAnim.originatingCommand.touchInfo.forcedTargetPlayer);
+        football::sim::mechanics::GetPass(CastPlayer(), currentAnim.originatingCommand.desiredFunctionType, inputDirection, currentAnim.originatingCommand.touchInfo.inputPower, currentAnim.originatingCommand.touchInfo.autoDirectionBias, currentAnim.originatingCommand.touchInfo.autoPowerBias, tmpBallDirection, tmpBallPower, tmpTargetPlayer, currentAnim.originatingCommand.touchInfo.forcedTargetPlayer);
         float maxDeviationAngle = 0.15f * pi;
         radian angleDiff = tmpBallDirection.Get2D().GetAngle2D(ballDirection.Get2D());
         if (std::fabs(angleDiff) <= maxDeviationAngle) {
@@ -684,7 +684,7 @@ void Humanoid::Process() {
         Vector3 ballDirection = currentAnim.originatingCommand.touchInfo.desiredDirection;
         Vector3 inputDirection = currentAnim.originatingCommand.touchInfo.inputDirection;
         if (CastPlayer()->ExternalControllerActive()) inputDirection = CastPlayer()->ExternalController()->GetDirection();
-        Vector3 ballDirectionAltered = AI_GetShotDirection(CastPlayer(), inputDirection, currentAnim.originatingCommand.touchInfo.autoDirectionBias);
+        Vector3 ballDirectionAltered = football::sim::mechanics::GetShotDirection(CastPlayer(), inputDirection, currentAnim.originatingCommand.touchInfo.autoDirectionBias);
 
         float maxDeviationAngle = 0.1f * pi;
         radian angleDiff = ballDirectionAltered.Get2D().GetAngle2D(ballDirection.Get2D());

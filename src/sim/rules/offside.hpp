@@ -11,26 +11,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// written by bastiaan konings schuiling 2008 - 2015
-// this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
-// i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _HPP_STRATEGY
-#define _HPP_STRATEGY
+#ifndef FOOTBALL_SIM_RULES_OFFSIDE_HPP
+#define FOOTBALL_SIM_RULES_OFFSIDE_HPP
 
-#include "sim/gamedefines.hpp"
+class Match;
+class MentalImage;
 
-#include "sim/ai_support/mentalimage.hpp"
+namespace football::sim::rules {
 
-#include "ai/eliza_controller.hpp"
+// teamID identifies the defending team. Uses the second-deepest defender,
+// ball and halfway line; prediction and geometry retain legacy semantics.
+float GetOffsideLine(Match *match, const MentalImage *mentalImage, int teamID,
+                     unsigned int futureSim_ms = 0);
 
-#include "sim/player/player.hpp"
-#include "sim/team.hpp"
-#include "sim/match.hpp"
+}  // namespace football::sim::rules
 
-using namespace blunted;
-
-class Strategy {
-};
-
-#endif
+#endif  // FOOTBALL_SIM_RULES_OFFSIDE_HPP

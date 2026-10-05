@@ -20,7 +20,7 @@
 #include "sim/team.hpp"
 
 #include "sim/gamedefines.hpp"
-#include "sim/ai_support/AIfunctions.hpp"
+#include "sim/query/player_query.hpp"
 #include "sim/match.hpp"
 #include "sim/formation.hpp"
 
@@ -124,7 +124,7 @@ void Team::AddHumanGamers(const std::vector<ControllerInput*>& controllers) {
   }
   UpdateDesignatedTeamPossessionPlayer();
   std::vector<Player*> result;
-  AI_GetClosestPlayers(this, match->GetBall()->Predict(0).Get2D(), true, result, controllers.size(), true);
+  football::sim::query::GetClosestPlayers(this, match->GetBall()->Predict(0).Get2D(), true, result, controllers.size(), true);
   if (!result.empty()) {
     mainSelectedPlayer = result[0];
   }
@@ -140,7 +140,7 @@ void Team::AddHumanGamers(const std::vector<ControllerInput*>& controllers) {
 
 void Team::UpdateDesignatedTeamPossessionPlayer() {
   designatedTeamPossessionPlayer =
-      AI_GetClosestPlayer(this, match->GetBall()->Predict(0).Get2D(), false);
+      football::sim::query::GetClosestPlayer(this, match->GetBall()->Predict(0).Get2D(), false);
 }
 
 void Team::DeleteHumanGamers() {
@@ -236,12 +236,12 @@ void Team::HumanGamersSelectAnyone() {
   // make sure all human gamers have a player selected
   if (match->IsInPlay()) {
     if (mainSelectedPlayer == nullptr) {
-      mainSelectedPlayer = AI_GetClosestPlayer(
+      mainSelectedPlayer = football::sim::query::GetClosestPlayer(
           this, match->GetBall()->Predict(0).Get2D(), true, 0, true);
     }
     for (unsigned int i = 0; i < humanGamers.size(); i++) {
       if (!humanGamers[i]->GetSelectedPlayer()) {
-        Player *player = AI_GetClosestPlayer(
+        Player *player = football::sim::query::GetClosestPlayer(
             this, match->GetBall()->Predict(0).Get2D(), true, 0, true);
         if (player) {
           humanGamers[i]->SetSelectedPlayer(player);
@@ -269,7 +269,7 @@ void Team::DeselectPlayer(Player *player) {
     Player* selectedPlayer = humanGamers[i]->GetSelectedPlayer();
     if (selectedPlayer == player) {
       Player *somePlayer =
-          AI_GetClosestPlayer(this, player->GetPosition(), true, player, true);
+          football::sim::query::GetClosestPlayer(this, player->GetPosition(), true, player, true);
       if (somePlayer) {
         mainSelectedPlayer = somePlayer;
         humanGamers[i]->SetSelectedPlayer(somePlayer);
@@ -355,7 +355,7 @@ void Team::Process() {
             match->GetBestPossessionTeam() == this) {
           targetPlayer = GetBestPossessionPlayer();
         } else {
-          targetPlayer = AI_GetBestSwitchTargetPlayer(
+          targetPlayer = football::sim::query::GetBestSwitchTargetPlayer(
               match, this, humanGamers[i]->GetHIDevice()->GetDirection());
           if (targetPlayer)
             if (targetPlayer->ExternalController()) targetPlayer = 0;
