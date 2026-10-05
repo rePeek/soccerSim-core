@@ -30,7 +30,6 @@
 class PlayerData {
  public:
   explicit PlayerData(blunted::Rng& rng, football::model::Player player);
-  explicit PlayerData(blunted::Rng& rng);
   virtual ~PlayerData();
 
   const football::model::Player& GetModel() const { return player_; }

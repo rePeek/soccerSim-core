@@ -18,7 +18,7 @@
 #ifndef _HPP_REFEREE
 #define _HPP_REFEREE
 
-#include <set>
+#include <vector>
 
 #include "sim/gamedefines.hpp"
 
@@ -53,6 +53,7 @@ struct Foul {
   bool hasBeenProcessed = false;
 };
 
+// Football rules only: no on-pitch official actor or animation is required.
 class Referee {
 
   public:
@@ -64,8 +65,6 @@ class Referee {
     void PrepareSetPiece(e_GameMode setPiece);
 
     const RefereeBuffer &GetBuffer() { return buffer; };
-
-    void AlterSetPiecePrepareTime(unsigned long newTime_ms);
 
     void BallTouched();
     void TripNotice(Player *tripee, Player *tripper, int tackleType); // 1 == standing tackle resulting in little trip, 2 == standing tackle resulting in fall, 3 == sliding tackle

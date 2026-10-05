@@ -28,7 +28,6 @@
 #include "env/main.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "support/io/file.hpp"
-#include "sim/player/playerofficial.hpp"
 #include "sim/player/player_action_volume.hpp"
 #include "sim/player/player_body_collider.hpp"
 
@@ -94,18 +93,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   ballRetainer = 0;
 
 
-  // officials
-
-  officials = new Officials(this);
-
-
-
-
-
-
-
-  // 12th man sound
-
   // match params
 
   matchTime_ms = 0;
@@ -118,8 +105,8 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   bestPossessionTeam = 0;
   SetMatchPhase(e_MatchPhase_PreMatch);
 
-  // everybody hates him, this poor bloke
-  referee = new Referee(this, animations);
+  // Football rules, independent of any referee/linesman humanoid actors.
+  referee_ = std::make_unique<Referee>(this, animations);
 
 
 
@@ -150,9 +137,8 @@ void Match::Exit() {
   teams[second_team]->Exit();
   delete teams[first_team];
   delete teams[second_team];
-  delete officials;
   delete ball;
-  delete referee;
+  referee_.reset();
   mentalImages.clear();
 
 
@@ -161,10 +147,6 @@ void Match::Exit() {
 
 void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
   teams[teamID]->GetActivePlayers(players);
-}
-
-void Match::GetOfficialPlayers(std::vector<PlayerBase *> &players) {
-  officials->GetPlayers(players);
 }
 
 MentalImage *Match::GetMentalImage(int history_ms) {
@@ -198,7 +180,6 @@ void Match::ResetSituation(const Vector3 &focusPos) {
   ball->ResetSituation(focusPos);
   teams[first_team]->ResetSituation(focusPos);
   teams[second_team]->ResetSituation(focusPos);
-  officials->GetReferee()->ResetSituation(focusPos);
 }
 
 void Match::SetMatchPhase(e_MatchPhase newMatchPhase) {
@@ -237,11 +218,10 @@ bool Match::Step(const PlayerControlSet& controls) {
     CheckBallCollisions();
   }
 
-  // HIJ IS EEN HONDELUUUL
-  referee->Process();
+  referee_->Process();
   Vector3 previousBallPos = ball->Predict(0);
   Mirror(reverse, !reverse, reverse);
-  if (!IsInPlay() && referee->GetBuffer().prepareTime + 10 < GetActualTime_ms()) {
+  if (!IsInPlay() && referee_->GetBuffer().prepareTime + 10 < GetActualTime_ms()) {
     // Do not do simulation when game is on hold to save CPU.
     BumpActualTime_ms(10);
     return false;
@@ -267,10 +247,6 @@ bool Match::Step(const PlayerControlSet& controls) {
   Mirror(true, true, true);
   teams[second_team]->Process();
   Mirror(first_team == 0, first_team == 1, first_team == 0);
-
-  Mirror(reverse, !reverse, reverse);
-  officials->Process();
-  Mirror(reverse, !reverse, reverse);
 
   Mirror(first_team == 1, first_team == 0, first_team == 1);
   teams[first_team]->UpdatePossessionStats();
@@ -351,16 +327,6 @@ bool Match::Step(const PlayerControlSet& controls) {
      }
    }
 
-   if (GetReferee()->GetBuffer().active == true &&
-       (GetReferee()->GetCurrentFoulType() == 2 ||
-           GetReferee()->GetCurrentFoulType() == 3) &&
-           GetReferee()->GetBuffer().stopTime < GetActualTime_ms() - 1000) {
-
-     if (GetReferee()->GetBuffer().prepareTime > GetActualTime_ms()) {
-         // FOUL, film referee
-       if (officials->GetReferee()->GetSimulationActionState().type == e_FunctionType_Special) referee->AlterSetPiecePrepareTime(GetActualTime_ms() + 1000);
-     }
-  }
   return true;
 }
 
@@ -701,7 +667,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
         if (p1sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           p1->TripMe((p1->GetKinematicState().velocity * 0.1f + p2->GetKinematicState().velocity * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec), tripType);
-          referee->TripNotice(p1, p2, tripType);
+          referee_->TripNotice(p1, p2, tripType);
         }
       }
       if (p2sensitivity > trip0threshold) {
@@ -710,7 +676,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
         if (p2sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           p2->TripMe((p2->GetKinematicState().velocity * 0.1f + p1->GetKinematicState().velocity * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec), tripType);
-          referee->TripNotice(p2, p1, tripType);
+          referee_->TripNotice(p2, p1, tripType);
         }
       }
 
@@ -748,7 +714,7 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
         if (tacklerAction.type == e_FunctionType_Interfere)
           tripType = 1;  // was 2
         victim->TripMe(tripVec, tripType);
-        referee->TripNotice(victim, tackler, tripType);
+        referee_->TripNotice(victim, tackler, tripType);
       }
     }
   }

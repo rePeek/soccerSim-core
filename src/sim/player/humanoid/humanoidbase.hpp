@@ -76,8 +76,7 @@ int &PlayerLocomotionIntentDueIneligibleTicks();
 int &PlayerLocomotionIntentConsumedTicks();
 int &HumanoidEligibilityGainRefreshes();
 int &HumanoidEligibilityGainCandidatesMissing();
-// 4b''-player-path: telemetry is scoped by actor path on purpose. The previous
-// round's counters mixed the real-player Process with the officials/base one.
+// Telemetry for the football-player processing path.
 int &PlayerPathControllerQueries();
 int &PlayerPathQueriesWithMovement();
 int &PlayerPathQueriesWithMovementSuppressedByRepair();

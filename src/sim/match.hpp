@@ -21,7 +21,6 @@
 #include "sim/team.hpp"
 #include "sim/ball.hpp"
 #include "sim/referee.hpp"
-#include "sim/officials.hpp"
 #include "sim/value_history.hpp"
 
 #include "controller/controller_input.hpp"
@@ -70,7 +69,6 @@ class Match {
     // actor in this match.
     SimulationRng& rng() { return rng_; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
-    void GetOfficialPlayers(std::vector<PlayerBase*> &players);
 
     MentalImage* GetMentalImage(int history_ms);
     void UpdateLatestMentalImageBallPredictions();
@@ -87,13 +85,12 @@ class Match {
     void StartSetPiece() { inSetPiece = true; }
     void StopSetPiece() { inSetPiece = false; }
     bool IsInSetPiece() const { return inSetPiece; }
-    Referee *GetReferee() { return referee; }
-    Officials *GetOfficials() { return officials; }
+    Referee *GetReferee() { return referee_.get(); }
 
     void SetGoalScored(bool onOff) { if (onOff == false) ballIsInGoal = false; goalScored = onOff; }
     bool IsGoalScored() const { return goalScored; }
     Team* GetLastGoalTeam() const { return lastGoalTeam; }
-    void SetLastTouchTeamID(int id, e_TouchType touchType = e_TouchType_Intentional_Kicked) { lastTouchTeamIDs[touchType] = id; lastTouchTeamID = id; referee->BallTouched(); }
+    void SetLastTouchTeamID(int id, e_TouchType touchType = e_TouchType_Intentional_Kicked) { lastTouchTeamIDs[touchType] = id; lastTouchTeamID = id; referee_->BallTouched(); }
     int GetLastTouchTeamID(e_TouchType touchType) const { return lastTouchTeamIDs[touchType]; }
     int GetLastTouchTeamID() const { return lastTouchTeamID; }
     Team *GetLastTouchTeam() {
@@ -165,7 +162,6 @@ class Match {
     int second_team = 1;
     bool ball_mirrored = false;
 
-    Officials *officials;
 
 
 
@@ -197,7 +193,7 @@ class Match {
     unsigned int lastBodyBallCollisionTime_ms = 0;
 
 
-    Referee *referee;
+    std::unique_ptr<Referee> referee_;
 
 
 

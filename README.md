@@ -34,3 +34,7 @@ snapshotted by `Match`; regression uses the core API and raw `WorldState`
 snapshots, and animation branches use deterministic reset/replay. A future
 save/load feature should serialize an explicit state value object rather than
 per-class byte hooks.
+
+The headless core retains `Referee` as the football rules engine (fouls, cards,
+offside and restarts), not as a moving actor. Referee/linesman humanoids are
+removed; card restart deadlines are fixed rules time, never animation duration.

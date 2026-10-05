@@ -886,13 +886,8 @@ std::string CaptureSimulationDigest() {
   std::vector<Player*> players;
   match->GetActiveTeamPlayers(match->FirstTeam(), players);
   match->GetActiveTeamPlayers(match->SecondTeam(), players);
-  std::vector<PlayerBase*> actors(players.begin(), players.end());
-  std::vector<PlayerBase*> officials;
-  match->GetOfficialPlayers(officials);
-  actors.insert(actors.end(), officials.begin(), officials.end());
-
-  AppendDigestInt(out, actors.size());
-  for (const PlayerBase* actor : actors) {
+  AppendDigestInt(out, players.size());
+  for (const Player* actor : players) {
     const PlayerKinematicState& kinematics = actor->GetKinematicState();
     AppendDigestFloat(out, kinematics.position.coords[0]);
     AppendDigestFloat(out, kinematics.position.coords[1]);
@@ -972,6 +967,156 @@ void CheckCanonicalFrame() {
   }
 }
 
+template <class T> concept HasOfficialActors =
+    requires { &T::GetOfficials; } || requires { &T::GetOfficialPlayers; };
+template <class T> concept HasAnimationRestartHook =
+    requires { &T::AlterSetPiecePrepareTime; };
+static_assert(!HasOfficialActors<Match>);
+static_assert(!HasAnimationRestartHook<Referee>);
+
+// Test-only rule inputs: exercise CheckFoul/Process without relying on a
+// particular tackle clip or exposing a production foul-injection API.
+class RefereeFixture : public Referee {
+ public:
+  using Referee::Referee;
+  void RecordFoul(Player* offender, Player* victim, int type,
+                  const Vector3& position, bool advantage = false) {
+    buffer.active = false;
+    buffer.endPhase = false;
+    buffer.setpiece_team = victim->GetTeam();
+    foul = Foul{};
+    foul.foulPlayer = offender;
+    foul.foulVictim = victim;
+    foul.foulType = type;
+    foul.foulTime = match->GetActualTime_ms();
+    foul.foulPosition = position;
+    foul.advantage = advantage;
+  }
+};
+
+void CheckRefereeRules(GameEnv& game) {
+  // Both clock policies, both restart types, ordinary/yellow/red/second-yellow.
+  for (bool animations : {false, true}) {
+    for (bool penalty : {false, true}) {
+      for (int scenario : {1, 2, 3, 4}) {
+        game.reset_game();
+        Advance(game, 201);  // Leave the initial kickoff, into open play.
+        Match* match = GetContext().simulation->match();
+        Require(match->IsInPlay() && !match->IsInSetPiece() &&
+                    GetContext().stablePlayerCount == 22,
+                "only football players should allocate runtime ordinals");
+        std::vector<Player*> home, away;
+        match->GetTeam(0)->GetActivePlayers(home);
+        match->GetTeam(1)->GetActivePlayers(away);
+        Player* offender = home.at(1);
+        Player* victim = away.at(1);
+        const int foul_type = scenario == 4 ? 2 : scenario;
+        if (scenario == 4) offender->GiveYellowCard(0);
+        const Vector3 position = penalty
+            ? Vector3(-45.0f * victim->GetTeam()->GetStaticSide(), 0, 0)
+            : Vector3(0, 0, 0);
+        RefereeFixture rules(match, animations);
+        // Even advantage must be stopped for a penalty.
+        rules.RecordFoul(offender, victim, foul_type, position, penalty);
+        const auto rng_before = match->rng().engine();
+        const unsigned long stopped = match->GetActualTime_ms();
+        Require(rules.CheckFoul(), "unprocessed foul did not stop play");
+        const RefereeBuffer scheduled = rules.GetBuffer();
+        const unsigned long card_delay = foul_type >= 2 ? 10000 : 0;
+        const unsigned long effective_time = match->GetActualTime_ms() + 6000;
+        Require(!match->IsInPlay() && scheduled.active &&
+                    scheduled.desiredSetPiece == (penalty ? e_GameMode_Penalty
+                                                          : e_GameMode_FreeKick) &&
+                    scheduled.teamID == victim->GetTeam()->GetID() &&
+                    scheduled.stopTime == stopped &&
+                    scheduled.prepareTime == stopped + 2000 + card_delay &&
+                    scheduled.startTime == scheduled.prepareTime + 2000 &&
+                    match->GetActualTime_ms() ==
+                        stopped + (animations ? 0 : 1900 + card_delay) &&
+                    offender->HasCards() == (foul_type >= 2) &&
+                    match->rng().engine() == rng_before,
+                "rule restart/card budget changed or consumed RNG");
+        Require(!rules.CheckFoul() &&
+                    rules.GetBuffer().prepareTime == scheduled.prepareTime &&
+                    rules.GetBuffer().startTime == scheduled.startTime,
+                "foul was processed twice or its deadline changed");
+
+        // Advancing the rule clock alone cannot extend the card deadline.
+        // No official animation/controller participates in this loop.
+        while (match->GetActualTime_ms() < scheduled.prepareTime) {
+          rules.Process();
+          Require(rules.GetBuffer().prepareTime == scheduled.prepareTime &&
+                      rules.GetBuffer().startTime == scheduled.startTime &&
+                      rules.GetBuffer().taker == nullptr && !match->IsInPlay(),
+                  "restart prepared early or waited for an actor");
+          match->BumpActualTime_ms(10);
+        }
+        rules.Process();
+        Require(rules.GetBuffer().taker != nullptr && !match->IsInPlay(),
+                "restart not prepared at its rule deadline");
+        match->BumpActualTime_ms(scheduled.startTime - match->GetActualTime_ms() - 10);
+        rules.Process();
+        Require(!match->IsInPlay(), "restart whistle was early");
+        match->BumpActualTime_ms(10);
+        rules.Process();
+        Require(match->IsInPlay() && match->IsInSetPiece(),
+                "restart whistle needs an official actor");
+
+        // Card state remains gameplay: a red or second yellow sends off a
+        // football player, whereas one yellow leaves the player active.
+        if (match->GetActualTime_ms() < effective_time) {
+          game.step();
+          Require(offender->IsActive(), "card took effect before its deadline");
+          match->BumpActualTime_ms(effective_time - match->GetActualTime_ms());
+        }
+        game.step();
+        const bool send_off = scenario == 3 || scenario == 4;
+        Require(offender->IsActive() == !send_off &&
+                    match->GetTeam(0)->GetActivePlayersCount() == (send_off ? 10 : 11),
+                "disciplinary state lost red/second-yellow send-off semantics");
+      }
+    }
+  }
+
+  {
+    game.reset_game();
+    Advance(game, 201);
+    Match* match = GetContext().simulation->match();
+    std::vector<Player*> home, away;
+    match->GetTeam(0)->GetActivePlayers(home);
+    match->GetTeam(1)->GetActivePlayers(away);
+    RefereeFixture advantage(match, false);
+    advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), true);
+    Require(!advantage.CheckFoul() && match->IsInPlay(),
+            "advantage should not immediately stop open play");
+    match->BumpActualTime_ms(3010);
+    Require(!advantage.CheckFoul() && advantage.GetCurrentFoulType() == 0 &&
+                match->IsInPlay(), "expired advantage was not cancelled");
+  }
+
+  // Real Match-owned rule engine, no fixture: record an offside pass and
+  // reception. Neither positioning nor detection requires a linesman.
+  game.reset_game();
+  Advance(game, 201);
+  Match* match = GetContext().simulation->match();
+  std::vector<Player*> home, away;
+  match->GetTeam(0)->GetActivePlayers(home);
+  match->GetTeam(1)->GetActivePlayers(away);
+  const int side = match->GetTeam(0)->GetDynamicSide();
+  for (Player* defender : away)
+    defender->ResetPosition(Vector3(-10.0f * side, 0, 0), Vector3(0));
+  home.at(1)->ResetPosition(Vector3(0, 0, 0), Vector3(0));
+  home.at(2)->ResetPosition(Vector3(-45.0f * side, 0, 0), Vector3(0));
+  match->GetBall()->ResetSituation(Vector3(0));
+  match->GetTeam(0)->SetLastTouchPlayer(home.at(1));
+  Require(match->IsInPlay(), "offside flagged the passer instead of reception");
+  match->GetTeam(0)->SetLastTouchPlayer(home.at(2));
+  Require(!match->IsInPlay() && match->GetReferee()->GetBuffer().active &&
+              match->GetReferee()->GetBuffer().desiredSetPiece == e_GameMode_FreeKick &&
+              match->GetReferee()->GetBuffer().teamID == 1,
+          "offside detection depended on the deleted linesmen");
+}
+
 struct GoldenSnapshot {
   int ticks;
   uint64_t world_hash;
@@ -979,11 +1124,13 @@ struct GoldenSnapshot {
 };
 
 // Core 100 Hz / raw WorldState baseline, not the retired GRF projection.
+// Intentionally regenerated when simulated officials (and their RNG draws)
+// were deleted. The digest now contains only football-player actors.
 constexpr GoldenSnapshot golden[] = {
-    {1, UINT64_C(9302794185408323355), UINT64_C(14386585389189753704)},
-    {100, UINT64_C(4089301356990025244), UINT64_C(17378434466167283273)},
-    {500, UINT64_C(13326514055874942695), UINT64_C(3943809227009577338)},
-    {1000, UINT64_C(16765144610240680994), UINT64_C(4584669427478437214)},
+    {1, UINT64_C(9302794185408323355), UINT64_C(12821310424240230946)},
+    {100, UINT64_C(4089301356990025244), UINT64_C(11211753855030439651)},
+    {500, UINT64_C(4132523896133699106), UINT64_C(15669018830692089552)},
+    {1000, UINT64_C(11167980816582236617), UINT64_C(12759021268043178079)},
 };
 
 void CheckGoldenSnapshots(GameEnv& game, bool print_baseline) {
@@ -1081,6 +1228,7 @@ void CheckMovementAnimationPerturbation(GameEnv& game, bool frame_count) {
     std::string digest;
     int time_ms;
     int queries;
+    bool perturbation_applied;
   };
   MovementAnimationPerturbation& hook = MovementAnimationPerturbationAudit();
   const auto run = [&](bool perturb) {
@@ -1096,7 +1244,7 @@ void CheckMovementAnimationPerturbation(GameEnv& game, bool frame_count) {
       CheckCanonicalFrame();
       ticks.push_back({CaptureSimulationDigest(),
                        static_cast<int>(GetContext().simulation->match()->GetActualTime_ms()),
-                       PlayerDecisionClockQueries() - queries_before});
+                       PlayerDecisionClockQueries() - queries_before, hook.applied});
     }
     hook.enabled = false;
     return ticks;
@@ -1114,7 +1262,9 @@ void CheckMovementAnimationPerturbation(GameEnv& game, bool frame_count) {
                 baseline[i].time_ms == replay[i].time_ms &&
                 baseline[i].queries == replay[i].queries,
             "animation baseline is not deterministic under reset/replay");
-    if (changed[i].time_ms >= event.time_ms && event_tick < 0) {
+    // Post-tick time can equal the next tick's pre-event time; use the hook
+    // observed in this exact tick rather than infer an event from the clock.
+    if (changed[i].perturbation_applied && event_tick < 0) {
       event_tick = static_cast<int>(i);
     }
     if (first_difference < 0 &&
@@ -1173,6 +1323,7 @@ int main(int argc, char** argv) {
       Require(mode.empty(), "unknown regression mode");
       CheckGoldenSnapshots(game, false);
       CheckResetDeterminism(game);
+      CheckRefereeRules(game);
       CheckImportHierarchy();
     }
     std::cout << "football_regression: PASS (core API)\n";

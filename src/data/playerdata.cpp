@@ -20,16 +20,6 @@
 #include <cmath>
 #include <utility>
 
-#include "data/player_profile.hpp"
-
-namespace {
-football::model::Player MakeOfficialPlayer() {
-  football::model::Player player;
-  player.attributes.fill(0.6f);
-  return player;
-}
-}  // namespace
-
 PlayerData::PlayerData(blunted::Rng& rng, football::model::Player player)
     : player_(std::move(player)) {
   // Retain the historical one draw per runtime profile, even when the supplied
@@ -40,8 +30,5 @@ PlayerData::PlayerData(blunted::Rng& rng, football::model::Player player)
     player_.appearance.skin_color = skin_color;
   }
 }
-
-PlayerData::PlayerData(blunted::Rng& rng)
-    : PlayerData(rng, MakeOfficialPlayer()) {}
 
 PlayerData::~PlayerData() = default;

@@ -486,7 +486,6 @@ void PlayerBase::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
 // Single place that turns a controller queue into a published locomotion intent.
 // Returns true only when a Movement candidate with useDesiredMovement was
 // published, so callers commit the scheduler refresh only on a real publication.
-// Both Process() paths (real players and officials) share it.
 bool PlayerBase::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue) {
   for (const PlayerCommand &candidate : queue) {
     if (candidate.desiredFunctionType == e_FunctionType_Movement &&

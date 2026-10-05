@@ -25,3 +25,13 @@ if grep -R -n -E \
   echo "headless-core guard: retired engine include in $source_dir" >&2
   exit 1
 fi
+
+# Rules must not regain on-pitch referee/linesman actors or animation-driven
+# restart timing. Referee itself is the football rules engine and stays.
+if grep -R -n -E \
+    --include='*.cpp' --include='*.hpp' --include='*.h' \
+    '\b(Officials|PlayerOfficial|RefereeController|GetOfficials|GetOfficialPlayers|AlterSetPiecePrepareTime)\b' \
+    "$source_dir"; then
+  echo "headless-core guard: simulated official actor or timing hook in $source_dir" >&2
+  exit 1
+fi

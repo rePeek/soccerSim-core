@@ -73,7 +73,8 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
   preserved independent kinematics, body facing, locomotion, collider, scheduler
   and command-adapter checks; 100 Hz raw WorldState goldens, authoritative-state
   and RNG reset/replay checks, model ownership, canonical frames and offline import
-  fixtures. Animation A/B branches reset/replay rather than load a checkpoint.
+  fixtures; rule-only foul/card/restart timing, penalty, advantage and offside
+  tests. Animation A/B branches reset/replay rather than load a checkpoint.
   `--print-baseline`, `--animation-ab`, `--animation-ab-lifecycle` remain available.
   Only offline import fixtures require `GFOOTBALL_DATA_DIR`. The former GRF
   projection/cadence, episode-override and legacy checkpoint assertions and
@@ -87,8 +88,9 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 - `football_smoke` — core `GameEnv` headless run (`tools/football_smoke.cpp`);
   optional positional arg is the simulation tick count (default 1000).
 - `football_headless_core_guard` — shell test (`tools/football_headless_core_guard.sh`)
-  asserting `libgame.so` has no graphics `NEEDED` deps (SDL/GL/X11…) and that `src/`
-  has no graphics include. **Do not add graphics or Boost dependencies to core.**
+  asserting `libgame.so` has no graphics `NEEDED` deps (SDL/GL/X11…), that `src/`
+  has no graphics include, simulated official actors or animation-driven restart
+  timing hook. **Do not add graphics or Boost dependencies to core.**
 
 ### Adding/removing source files
 
@@ -119,13 +121,13 @@ src/
 │       baked_selector, simanim_format, types, selection_*, quadrant
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
-│   ├── simulation, match, match_options（仅规则参数）, team, ball, referee, officials, humangamer, teamAIcontroller
+│   ├── simulation, match, match_options（仅规则参数）, team, ball, referee（规则）, humangamer, teamAIcontroller
 │   ├── ai_support/     AIfunctions, mentalimage
 │   └── player/
-│       ├── player, playerbase, playerofficial, player_locomotion, *_collider,
+│       ├── player, playerbase, player_locomotion, *_collider,
 │       │   player_action*, *_scheduler, player_kinematics, player_body_facing
 │       ├── controller/  icontroller, playercontroller（私有方向量化）, humancontroller,
-│       │                elizacontroller, refereecontroller, strategies/offtheball/*
+│       │                elizacontroller, strategies/offtheball/*
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
 ├── controller/      协议无关控制输入接口（controller_input/external_controller）
 ├── state/           对外运行时值快照（依赖 model 身份类型与 foundation 数学）
@@ -161,9 +163,8 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 
 - `sim/**` 与 `data/**` 只剩 `match.cpp`/`playerbase.cpp` 还 include
   `env/main.hpp`，而且只为 legacy 的 `stablePlayerCount`（下一步）。
-- `env/rng.hpp` 现在只剩 presentation 入口（`randomseed`/`random_non_determ`），
-  而二者已无任何使用者；确定性的 `SimulationRng` 已改为 `Simulation` 持有，
-  算法本体在 `foundation/math/rng.hpp`。多抽一次就会改变之后所有随机序列。
+- `env/rng.*` 已删除；确定性的 `SimulationRng` 由 `Simulation` 持有，算法本体在
+  `foundation/math/rng.hpp`。没有全局 RNG 入口；正常重构不得额外抽取随机数。
 
 机械守卫（CTest，改坏边界会直接失败）：
 
@@ -172,7 +173,8 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 - `foundation_boundary_guard`：禁止 foundation include 上层，也禁止出现
   `GetContext`/`EnvState`/`boostrandom`/`randomseed`/`random_non_determ`。
 - `runtime_animation_boundary_guard`：禁止 runtime 依赖离线 `.anim` 管线。
-- `football_headless_core_guard`：禁止 graphics/Boost 依赖回流。
+- `football_headless_core_guard`：禁止 graphics/Boost、裁判 humanoid actors
+  与动画驱动的重开球 timing hook 回流。
 - `legacy_validation_guard`：禁止已经删除的逐语句 validation 宏/函数回流。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
@@ -198,7 +200,7 @@ main() [src/app/app.cpp]
           → Match [src/sim/match.*]::Step()         per-tick loop (10ms steps)
               → Ball::Process()                  physics + prediction buffer
               → Team → Player::Process()         Humanoid animation + controller strategy
-              → Referee / Officials              rules, fouls, match phase
+              → Referee                         rules, fouls, match phase
 ```
 
 - `GameEnv` is the stable public API; `Match`/`Player`/`Humanoid` are internals.
@@ -221,7 +223,7 @@ main() [src/app/app.cpp]
   `MatchOptions` defaults, snapshotted by `Match`.
 - `sim/match_options.hpp` is the only match-rule input: time/rule/difficulty
   values, the kickoff ball position and the two booleans derived from the
-  effective initial formations (`left_team_owns_ball`,
+  effective initial formations (`left_team_owns_ball`, `dynamic_player_selection`).
 - `Simulation::Init` and `Match` no longer take or store a controller registry.
   `Match::UpdateControllerSetup` and `Match::controller_assignments_` are deleted.
   Players read `PlayerControlSet` first (`PlayerBase::RequestCommand`); otherwise the
@@ -242,8 +244,9 @@ main() [src/app/app.cpp]
   Default team factories now live in `data/default_teams.*`, not the model.
 - `PlayerData` is a legacy facade owning one model, with no second ability array or
   cached velocity. Runtime initialization still consumes the historical one skin
-  colour RNG draw per player/official, even for explicit appearances, to preserve
-  simulation RNG order. Missing skin colour is resolved only at this boundary.
+  colour RNG draw per football player, even for explicit appearances. Missing
+  skin colour is resolved only at this boundary. The official-only profile
+  constructor is deleted, with no replacement/dummy RNG draws.
 - `model::FormationEntry` is an initial declaration in public pitch coordinates.
   The legacy global `FormationEntry` is a separate role-adapted runtime/checkpoint
   representation; conversion lives in `data/model_adapter.*`. `Simulation::Init`
@@ -275,12 +278,36 @@ main() [src/app/app.cpp]
 - `GetContext()` is now used only for `simulation` (env lifecycle) and the legacy
   `stablePlayerCount`. The presentation RNG channel (`env/rng.*`, `PresentationRng`,
   `randomseed`, `random_non_determ`, `randomize()` and its unused C `rand()`) had
-  zero callers and is deleted. The legacy runtime ordinal should become the model
+  no simulation consumers and is deleted. The legacy runtime ordinal should become the model
   `PlayerId` plus a match-local index rather than move to a new owner. The
   internal `animations` flag affects referee restart timing, not just rendering;
   its false/default behavior is preserved. Fixture paths belong to tests.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
   (`Simulation::rng_`). Never introduce unordered-container iteration order or
+  hidden global mutable state into simulation logic.
+- Simulated officials are removed: `Officials`, `PlayerOfficial`,
+  `RefereeController`, `Match::GetOfficials`/`GetOfficialPlayers` and the actor
+  reset/process paths are deleted. `Match` owns `std::unique_ptr<Referee> referee_`;
+  `Referee`, `Foul`, `RefereeBuffer`, offside, set pieces and disciplinary state
+  remain football rules. There is no substitute official actor or synthetic
+  look-at position; stopped players use their existing idle/ball-facing branch.
+- Card restarts use the fixed rule budget `kCardRestartDelayMs = 10000` in
+  `Referee::CheckFoul`, in addition to 2000 ms preparation and 2000 ms to the
+  whistle. The legacy compressed-clock policy still skips 1900 ms plus the
+  card budget when `animations == false`; it never reads an official clip.
+  `AlterSetPiecePrepareTime` and the Match animation-state timing feedback
+  are deleted. Yellow/red issuance and the existing effective-time/send-off
+  policy are unchanged.
+- Removing officials intentionally removes their profile/reset RNG draws.
+  This is a semantic change, not bit-exact compatibility: raw WorldState
+  goldens at ticks 1/100 stay identical, 500/1000 change; every simulation
+  digest changes because it no longer includes the three official actors.
+  The new goldens explicitly document this change. Football-player ordinals
+  remain unchanged (officials were allocated after the teams).
+- Next migration order: Phase 5A model `PlayerId` / dense match-local `PlayerIndex`,
+  then Phase 5B flatten `PlayerBase` into its sole concrete subtype `Player`,
+  then eliminate `stablePlayerCount`/`GameContext`. Do not flatten the Humanoid
+  hierarchy in the same change.
 
 ## Conventions and gotchas
 

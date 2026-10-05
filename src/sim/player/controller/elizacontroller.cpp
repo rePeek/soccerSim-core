@@ -27,7 +27,6 @@
 #include "sim/player/humanoid/humanoid_utils.hpp"
 
 #include "sim/player/controller/strategies/strategy.hpp"
-#include "sim/player/playerofficial.hpp"
 
 ElizaController::ElizaController(Match *match, bool lazyPlayer)
     : PlayerController(match), lazyPlayer(lazyPlayer) {
@@ -66,31 +65,6 @@ void ElizaController::RequestCommand(PlayerCommandQueue &commandQueue) {
 
   if (!match->IsInPlay() && match->IsGoalScored()) {
     _AddCelebration(commandQueue);
-    return;
-  }
-
-  // look at referee
-
-  else if (!match->IsInPlay() &&
-           match->GetReferee()->GetBuffer().active == true &&
-           (match->GetReferee()->GetCurrentFoulType() == 2 ||
-            match->GetReferee()->GetCurrentFoulType() == 3) &&
-           match->GetReferee()->GetBuffer().stopTime <
-               match->GetActualTime_ms() - 1000 &&
-           match->GetReferee()->GetBuffer().prepareTime >
-               match->GetActualTime_ms()) {
-
-    // look at referee
-    PlayerCommand command;
-    command.desiredFunctionType = e_FunctionType_Movement;
-    command.useDesiredMovement = true;
-    command.useDesiredLookAt = true;
-    command.desiredDirection = CastPlayer()->GetDirectionVec();
-    assert(command.desiredDirection.coords[2] == 0.0f);
-    command.desiredVelocityFloat = idleVelocity;
-    command.desiredLookAt = match->GetOfficials()->GetReferee()->GetPosition();
-    commandQueue.push_back(command);
-
     return;
   }
 

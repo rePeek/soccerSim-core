@@ -21,8 +21,11 @@
 #include "sim/match.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 
-
-
+namespace {
+// Fixed rules budget for issuing a card, independent of actor position,
+// clip selection and animation duration. Keep the existing 10-second budget.
+constexpr unsigned long kCardRestartDelayMs = 10000;
+}  // namespace
 
 Referee::Referee(Match *match, bool animations) : match(match), animations(animations) {
   buffer.desiredSetPiece = e_GameMode_KickOff;
@@ -178,8 +181,7 @@ void Referee::Process() {
           buffer.endPhase = false;
         }
 
-        // Deterministic reseed at the second-half kickoff, as before; the
-        // presentation RNG is a separate concern.
+        // Deterministic reseed before positioning players for every restart.
         match->rng().Seed(match->options().game_engine_random_seed);
         PrepareSetPiece(buffer.desiredSetPiece);
       }
@@ -238,13 +240,6 @@ void Referee::PrepareSetPiece(e_GameMode setPiece) {
   buffer.taker = match->GetTeam(buffer.teamID)->GetController()->GetPieceTaker();
   // Reset offside state.
   offsidePlayers.clear();
-}
-
-void Referee::AlterSetPiecePrepareTime(unsigned long newTime_ms) {
-  if (buffer.active) {
-    buffer.prepareTime = newTime_ms;
-    buffer.startTime = buffer.prepareTime + 2000;
-  }
 }
 
 void Referee::BallTouched() {
@@ -411,40 +406,25 @@ bool Referee::CheckFoul() {
   if (foul.foulType != 0 && foul.advantage == false && !foul.hasBeenProcessed) {
 
     match->StopPlay();
-    if (!penalty) {
-      buffer.desiredSetPiece = e_GameMode_FreeKick;
-      buffer.stopTime = match->GetActualTime_ms();
-      buffer.prepareTime = match->GetActualTime_ms() + 2000;
-      if (!animations) {
-        match->BumpActualTime_ms(1900);
-      }
-      if (foul.foulType >= 2) {
-        buffer.prepareTime += 10000;
-        if (!animations) {
-          match->BumpActualTime_ms(10000);
-        }
-
-      }
-      buffer.startTime = buffer.prepareTime + 2000;
-      buffer.restartPos = foul.foulPosition;
-    } else {
-      buffer.desiredSetPiece = e_GameMode_Penalty;
-      buffer.stopTime = match->GetActualTime_ms();
-      buffer.prepareTime = match->GetActualTime_ms() + 2000;
-      if (!animations) {
-        match->BumpActualTime_ms(1900);
-      }
-      if (foul.foulType >= 2) {
-        buffer.prepareTime += 10000;
-        if (!animations) {
-          match->BumpActualTime_ms(10000);
-        }
-      }
-      buffer.startTime = buffer.prepareTime + 2000;
-      buffer.restartPos = Vector3(
-          (pitchHalfW - 11.0) * foul.foulPlayer->GetTeam()->GetStaticSide(), 0,
-          0);
+    buffer.desiredSetPiece = penalty ? e_GameMode_Penalty : e_GameMode_FreeKick;
+    buffer.stopTime = match->GetActualTime_ms();
+    buffer.prepareTime = buffer.stopTime + 2000;
+    if (!animations) {
+      match->BumpActualTime_ms(1900);
     }
+    if (foul.foulType >= 2) {
+      buffer.prepareTime += kCardRestartDelayMs;
+      // Retain the legacy compressed-clock policy. This flag controls waiting
+      // time only; there is no official actor/animation to extend the deadline.
+      if (!animations) {
+        match->BumpActualTime_ms(kCardRestartDelayMs);
+      }
+    }
+    buffer.startTime = buffer.prepareTime + 2000;
+    buffer.restartPos = penalty
+        ? Vector3((pitchHalfW - 11.0) * foul.foulPlayer->GetTeam()->GetStaticSide(),
+                  0, 0)
+        : foul.foulPosition;
     buffer.teamID = foul.foulVictim->GetTeam()->GetID();
     buffer.active = true;
     if (foul.foulType == 2) {

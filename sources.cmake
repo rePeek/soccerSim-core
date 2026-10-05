@@ -69,11 +69,9 @@ set(CORE_SOURCES
 
 set(GAME_HEADERS
    src/sim/humangamer.hpp
-   src/sim/officials.hpp
    src/sim/player/humanoid/humanoidbase.hpp
    src/sim/player/humanoid/humanoid.hpp
    src/sim/player/humanoid/humanoid_utils.hpp
-   src/sim/player/playerofficial.hpp
    src/sim/player/playerbase.hpp
    src/sim/player/player_control_builder.hpp
    src/sim/player/player_kinematics.hpp
@@ -93,7 +91,6 @@ set(GAME_HEADERS
    src/sim/player/controller/strategies/offtheball/default_def.hpp
    src/sim/player/controller/strategies/offtheball/default_mid.hpp
    src/sim/player/controller/strategies/offtheball/goalie_default.hpp
-   src/sim/player/controller/refereecontroller.hpp
    src/sim/referee.hpp
    src/sim/ball.hpp
    src/sim/team.hpp
@@ -109,11 +106,9 @@ set(GAME_HEADERS
 
 
 set(GAME_SOURCES
-   src/sim/officials.cpp
    src/sim/player/humanoid/humanoid_utils.cpp
    src/sim/player/humanoid/humanoidbase.cpp
    src/sim/player/humanoid/humanoid.cpp
-   src/sim/player/playerofficial.cpp
    src/sim/player/player.cpp
    src/sim/player/playerbase.cpp
    src/sim/player/player_control_builder.cpp
@@ -121,7 +116,6 @@ set(GAME_SOURCES
    src/sim/player/controller/playercontroller.cpp
    src/sim/player/controller/humancontroller.cpp
    src/sim/player/controller/icontroller.cpp
-   src/sim/player/controller/refereecontroller.cpp
    src/sim/player/controller/elizacontroller.cpp
    src/sim/player/controller/strategies/strategy.cpp
    src/sim/player/controller/strategies/offtheball/default_mid.cpp
