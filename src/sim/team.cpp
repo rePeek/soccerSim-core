@@ -21,7 +21,6 @@
 
 #include "sim/gamedefines.hpp"
 #include "env/main.hpp"
-#include "sim/utils.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "sim/match.hpp"
 

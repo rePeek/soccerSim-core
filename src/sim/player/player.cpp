@@ -410,10 +410,10 @@ void Player::SendOff() {
 }
 
 float Player::GetStaminaStat() const {
-  return playerData->GetStat(physical_stamina);
+  return playerData->GetStat(football::model::PlayerStat::physical_stamina);
 }
 
-float Player::GetStat(PlayerStat name) const {
+float Player::GetStat(football::model::PlayerStat name) const {
   float multiplier = 0.3f + 0.7f * team->GetAiDifficulty();
   multiplier *= 0.7f + 0.3f * GetFatigueFactorInv();
 

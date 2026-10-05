@@ -1727,10 +1727,10 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
   int animTouchFrame = clip.metadata.touch_frame;
   bool touch = (animTouchFrame > 0);
 
-  float stat_agility = player->GetStat(physical_agility);
-  float stat_acceleration = player->GetStat(physical_acceleration);
-  float stat_velocity = player->GetStat(physical_velocity);
-  float stat_dribble = player->GetStat(technical_dribble);
+  float stat_agility = player->GetStat(football::model::PlayerStat::physical_agility);
+  float stat_acceleration = player->GetStat(football::model::PlayerStat::physical_acceleration);
+  float stat_velocity = player->GetStat(football::model::PlayerStat::physical_velocity);
+  float stat_dribble = player->GetStat(football::model::PlayerStat::technical_dribble);
 
   float incomingSwitchBias = 0.0f; // anything other than 0.0 may result in unpuristic behavior
   float outgoingSwitchBias = 0.0f;
@@ -1789,7 +1789,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
       0.7f);
 
   float powerFactor = 1.0f - clamp(std::pow(player->GetLastTouchBias(1000), 0.8f) * (0.8f - stat_dribble * 0.3f), 0.0f, 0.4f);
-  powerFactor *= 1.0f - clamp(decayingPositionOffset.GetLength() * (10.0f - player->GetStat(physical_balance) * 5.0f) - 0.1f, 0.0f, 0.3f);
+  powerFactor *= 1.0f - clamp(decayingPositionOffset.GetLength() * (10.0f - player->GetStat(football::model::PlayerStat::physical_balance) * 5.0f) - 0.1f, 0.0f, 0.3f);
 
   Vector3 temporalMovement = adaptedCurrentMovement;
 
@@ -1816,7 +1816,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
                                                   0, sprintVelocity),
                                   0.8f) *
                              0.8f;
-    bonus *= 0.6f + 0.4f * player->GetStat(technical_ballcontrol);
+    bonus *= 0.6f + 0.4f * player->GetStat(football::model::PlayerStat::technical_ballcontrol);
     maxAngleMod_underAnimAngle = 0.2f * pi * bonus;
     maxAngleMod_overAnimAngle = 0;
     maxAngleMod_straightAnimAngle = 0.1f * pi * bonus;

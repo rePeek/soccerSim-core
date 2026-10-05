@@ -534,7 +534,7 @@ float ElizaController::GetLazyVelocity(float desiredVelocityFloat) {
   // short term fatigue/work rate shortage ;)
   // does not heed dribble clamp above, as to simulate players having to stop to catch their breath
   float breathLeftFactor = 1.0f - NormalizedClamp(CastPlayer()->GetAverageVelocity(10), idleVelocity, sprintVelocity);
-  float workRate = CastPlayer()->GetStat(mental_workrate);
+  float workRate = CastPlayer()->GetStat(football::model::PlayerStat::mental_workrate);
   breathLeftFactor = std::pow(breathLeftFactor, 0.8f - workRate * 0.2f);
   breathLeftFactor = clamp(breathLeftFactor * 1.2f, 0.0f, 1.0f); // make sure beginning of sprint is full speed
   breathLeftFactor = breathLeftFactor * lazyFactor + 1.0f * (1.0f - lazyFactor); // sometimes, we really need to force it
@@ -767,7 +767,7 @@ void ElizaController::GetOnTheBallCommands(
   auto _mentalImage = match->GetMentalImage(_mentalImageTime);
   float oneTouchIsHard = 0.0f;
   float movementDiff = NormalizedClamp((match->GetBall()->GetMovement() - CastPlayer()->GetMovement()).GetLength(), 0.0f, 10.0f);
-  oneTouchIsHard = movementDiff - CastPlayer()->GetStat(technical_shortpass) * movementDiff * 0.8f;
+  oneTouchIsHard = movementDiff - CastPlayer()->GetStat(football::model::PlayerStat::technical_shortpass) * movementDiff * 0.8f;
 
   auto opponentPlayerImages = _mentalImage->GetTeamPlayerImages(abs(team->GetID() - 1));
 
@@ -951,8 +951,8 @@ void ElizaController::GetOnTheBallCommands(
       command.desiredVelocityFloat = rawInputVelocityFloat; // this is so we can use sprint/dribble buttons as shot modifiers
       command.touchInfo.desiredDirection =
           (Vector3((pitchHalfW + 1.0f) * -team->GetDynamicSide(),
-                   y + boostrandom(-1.0f + player->GetStat(technical_shot),
-                                   1.0f - player->GetStat(technical_shot)),
+                   y + boostrandom(-1.0f + player->GetStat(football::model::PlayerStat::technical_shot),
+                                   1.0f - player->GetStat(football::model::PlayerStat::technical_shot)),
                    0) -
            (CastPlayer()->GetPosition() + CastPlayer()->GetMovement() * 0.2f))
               .GetNormalized(Vector3(-team->GetDynamicSide(), 0, 0));

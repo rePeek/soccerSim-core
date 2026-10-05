@@ -21,7 +21,6 @@
 #include "foundation/math/vector3.hpp"
 
 #include "sim/gamedefines.hpp"
-#include "sim/utils.hpp"
 
 #include "animation/selection_query.hpp"
 #include "animation/clip.hpp"

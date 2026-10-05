@@ -29,6 +29,27 @@
 
 #include "env/main.hpp"
 
+namespace {
+
+float GetQuantizedDirectionBias() {
+  return _default_QuantizedDirectionBias;
+}
+
+// PES6-style input quantization belongs to the player controller, not a
+// shared simulation utility. Keep the legacy arithmetic order unchanged.
+void QuantizeDirection(Vector3 &inputDirection, float bias) {
+  Vector3 inputDirectionNorm = inputDirection.GetNormalized(0);
+  int directions = 8;
+  radian angle = inputDirectionNorm.GetAngle2D();
+  angle /= pi * 2.0f;
+  angle = std::round(angle * directions);
+  angle /= directions;
+  angle *= pi * 2.0f;
+  inputDirection = (inputDirectionNorm * (1.0 - bias) + (Vector3(1, 0, 0).GetRotated2D(angle) * bias)).GetNormalized(inputDirectionNorm) * inputDirection.GetLength();
+}
+
+}  // namespace
+
 PlayerController::PlayerController(Match *match) : IController(match) {
   Reset();
 }

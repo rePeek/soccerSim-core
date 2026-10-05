@@ -113,11 +113,10 @@ src/
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
 │   ├── simulation, match, match_config, team, ball, referee, officials, humangamer, teamAIcontroller
 │   ├── ai_support/     AIfunctions, mentalimage
-│   ├── utils.*         QuantizeDirection / GetVelocityID 等游戏工具
 │   └── player/
 │       ├── player, playerbase, playerofficial, player_locomotion, *_collider,
 │       │   player_action*, *_scheduler, player_kinematics, player_body_facing
-│       ├── controller/  icontroller, playercontroller, humancontroller,
+│       ├── controller/  icontroller, playercontroller（私有方向量化）, humancontroller,
 │       │                elizacontroller, refereecontroller, strategies/offtheball/*
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
 ├── controller/      协议无关的控制输入接口，以及 GRF action 适配器

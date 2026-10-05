@@ -22,7 +22,6 @@
 #include "foundation/math/vector3.hpp"
 #include "env/defines.hpp"
 #include "sim/gamedefines.hpp"
-#include "sim/utils.hpp"
 
 using namespace blunted;
 

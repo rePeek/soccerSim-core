@@ -244,7 +244,6 @@ const char *LocomotionReentryCategoryName(int category) {
 #include "sim/player/controller/strategies/strategy.hpp"
 
 #include "env/main.hpp"
-#include "sim/utils.hpp"
 
 #include "foundation/geometry/triangle.hpp"
 
@@ -649,7 +648,7 @@ void PlayerBase::Process() {
 }
 
 
-float PlayerBase::GetStat(PlayerStat name) const {
+float PlayerBase::GetStat(football::model::PlayerStat name) const {
   return playerData->GetStat(name);
 }
 

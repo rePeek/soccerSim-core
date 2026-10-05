@@ -18,6 +18,7 @@
 #ifndef _HPP_PLAYER
 #define _HPP_PLAYER
 
+#include "model/player.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/playerbase.hpp"
 
@@ -126,7 +127,7 @@ class Player : public PlayerBase {
     void SendOff();
 
     float GetStaminaStat() const;
-    virtual float GetStat(PlayerStat name) const;
+    virtual float GetStat(football::model::PlayerStat name) const;
 
     virtual void ResetSituation(const Vector3 &focusPos);
 

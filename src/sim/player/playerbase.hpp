@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <optional>
+#include "model/player.hpp"
 #include "sim/player/humanoid/humanoidbase.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_ground_collider.hpp"
@@ -374,7 +375,7 @@ class PlayerBase {
     virtual void Process();
 
 
-    virtual float GetStat(PlayerStat name) const;
+    virtual float GetStat(football::model::PlayerStat name) const;
     float GetVelocityMultiplier() const;
     float GetMaxVelocity() const;
 

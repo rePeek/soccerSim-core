@@ -235,7 +235,7 @@ void GoalieDefaultStrategy::CalculateIfBallIsBoundForGoal(
 
   int side = controller->GetTeam()->GetDynamicSide();
 
-  float panic = 1.02f + (1.0f - (controller->GetPlayer()->GetStat(mental_defensivepositioning) * 0.6f + controller->GetPlayer()->GetStat(mental_vision) * 0.4f)) * 0.5f;
+  float panic = 1.02f + (1.0f - (controller->GetPlayer()->GetStat(football::model::PlayerStat::mental_defensivepositioning) * 0.6f + controller->GetPlayer()->GetStat(football::model::PlayerStat::mental_vision) * 0.4f)) * 0.5f;
   if (mentalImage->GetBallPrediction(4000).coords[0] * side > pitchHalfW &&
       (controller->GetPlayer()->GetPosition() -
        mentalImage->GetBallPrediction(250))

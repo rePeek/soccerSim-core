@@ -740,7 +740,7 @@ void Humanoid::Process() {
         if (lastTouchPlayer) {
           reactionDifficulty =
               std::pow(lastTouchPlayer->GetLastTouchBias(
-                           1200 - player->GetStat(physical_reaction) * 400),
+                           1200 - player->GetStat(football::model::PlayerStat::physical_reaction) * 400),
                        0.6f);
         }
         if ((1.0f - veloDifficulty) * (1.0f - reactionDifficulty) < 0.3f) canRetain = false; // too hard!
@@ -1929,7 +1929,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
         // just touched ball
         float lastTouchBias = curve(player->GetLastTouchBias(600, match->GetActualTime_ms() + animTouchFrame * 10), 1.0f);
         if (lastTouchBias > 0.0f) {
-          float factor = 1.0f - lastTouchBias * 0.97f * (1.0f - player->GetStat(technical_ballcontrol) * 0.1f);
+          float factor = 1.0f - lastTouchBias * 0.97f * (1.0f - player->GetStat(football::model::PlayerStat::technical_ballcontrol) * 0.1f);
           radiusFactor *= factor;
           radiusCheatOffset *= factor;
         }
@@ -2141,8 +2141,8 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
 
   // apply stats
   if (functionType == e_FunctionType_ShortPass ||
-      functionType == e_FunctionType_LongPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(technical_shortpass) * 0.5f);
-  if (functionType == e_FunctionType_HighPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(technical_highpass)  * 0.5f);
+      functionType == e_FunctionType_LongPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(football::model::PlayerStat::technical_shortpass) * 0.5f);
+  if (functionType == e_FunctionType_HighPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(football::model::PlayerStat::technical_highpass)  * 0.5f);
 
   float distanceFactor = 0.0f;
   float heightFactor = 0.0f;
