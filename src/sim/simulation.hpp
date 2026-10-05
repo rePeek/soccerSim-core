@@ -10,9 +10,10 @@
 #include "state/world_state.hpp"
 
 class Match;
+class AnimationLibrary;
 
-// Owns match lifecycle and runtime construction. The legacy episode input is
-// explicit; initialization preserves profile creation / RNG seeding order.
+// Owns match lifecycle, the baked animation library and runtime construction.
+// Initialization preserves profile creation / RNG seeding order.
 // Controllers are not part of this boundary: players read PlayerControlSet.
 class Simulation {
  public:
@@ -32,7 +33,10 @@ class Simulation {
   const Match* match() const { return match_.get(); }
 
  private:
+  void EnsureAnimationLibrary();
+
   std::unique_ptr<Match> match_;
+  std::shared_ptr<AnimationLibrary> animations_;
 };
 
 #endif  // FOOTBALL_SIM_SIMULATION_HPP

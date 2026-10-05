@@ -949,7 +949,7 @@ void Humanoid::SelectRetainAnim() {
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
-      GetContext().bakedAnims->Clips(), query, dataSet);
+      match->GetAnimationLibrary().Clips(), query, dataSet);
 
   assert(dataSet.size() != 0);
 
@@ -1224,7 +1224,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
-      GetContext().bakedAnims->Clips(), query, dataSet);
+      match->GetAnimationLibrary().Clips(), query, dataSet);
   if (dataSet.size() == 0) {
     if (command.desiredFunctionType == e_FunctionType_Movement) {
       dataSet.push_back(GetIdleMovementAnimID()); // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
@@ -1397,7 +1397,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
       std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
     }
     if (!dataSet.empty() && !withoutFootSort.empty()) {
-      RecordFootCounterfactual(*dataSet.begin(), *withoutFootSort.begin());
+      RecordFootCounterfactual(match, *dataSet.begin(), *withoutFootSort.begin());
     }
   }
   MovementAnimationPerturbation &perturbation =

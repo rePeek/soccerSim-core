@@ -39,15 +39,18 @@
 
 const std::vector<Vector3> &Match::GetAnimPositionCache(
     AnimationId animation_id) const {
-  return GetContext().bakedAnims->Get(static_cast<uint32_t>(animation_id))
+  return animations_->Get(static_cast<uint32_t>(animation_id))
       .root_positions;
 }
 
 Match::Match(std::unique_ptr<MatchData> match_data,
              const football::model::Pitch& pitch,
-             const MatchOptions& options, bool animations)
+             const MatchOptions& options,
+             std::shared_ptr<const AnimationLibrary> animation_library,
+             bool animations)
     : matchData(std::move(match_data)),
       pitch_(pitch),
+      animations_(std::move(animation_library)),
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
       possessionSideHistory(6000),
@@ -63,17 +66,8 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
   ball = new Ball(this);
 
-  // B5c: the runtime loads only the baked animation library.
-  auto& baked = GetContext().bakedAnims;
-  if (!baked) {
-    baked = std::make_shared<AnimationLibrary>();
-    // Deliberately not assert()/CHECK(): both compile to ((void)0) under
-    // NDEBUG, which would silently skip the load and leave an empty
-    // library behind.
-    if (!baked->Load(GFOOTBALL_BAKED_ANIM_PATH)) {
-      Log(e_FatalError, "Match", "Match", "cannot load baked animations");
-    }
-  }
+  // The baked animation library is owned by the simulation and shared with
+  // every match it creates; the runtime reads only that baked artifact.
   designatedPossessionPlayer = 0;
 
 

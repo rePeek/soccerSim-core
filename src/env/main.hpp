@@ -25,7 +25,6 @@ GameEnv* GetGame();
 #include "sim/simulation.hpp"
 #include "sim/gamedefines.hpp"
 #include "env/rng.hpp"
-#include "animation/library.hpp"
 
 #include "sim/rng.hpp"
 #include "support/config/properties.hpp"
@@ -60,7 +59,6 @@ class GameContext {
   // affect observations (like position of the sun).
   PresentationRng rng_non_deterministic;
   int stablePlayerCount = 0;
-  std::shared_ptr<AnimationLibrary> bakedAnims;
 };
 
 

@@ -485,12 +485,13 @@ int &HumanoidFootOutgoingAngleBucketDiff() { static int value = 0; return value;
 int &HumanoidFootSpecialStateDiff() { static int value = 0; return value; }
 int &HumanoidFootLifecycleChanged() { static int value = 0; return value; }
 
-void RecordFootCounterfactual(int with_foot_head, int without_foot_head) {
+void RecordFootCounterfactual(Match* match, int with_foot_head,
+                              int without_foot_head) {
   ++HumanoidFootCounterfactualSelections();
   if (with_foot_head == without_foot_head) return;
   ++HumanoidFootWinnerChanged();
-  const AnimationClip &cw = GetContext().bakedAnims->Get(static_cast<uint32_t>(with_foot_head));
-  const AnimationClip &co = GetContext().bakedAnims->Get(static_cast<uint32_t>(without_foot_head));
+  const AnimationClip &cw = match->GetAnimationLibrary().Get(static_cast<uint32_t>(with_foot_head));
+  const AnimationClip &co = match->GetAnimationLibrary().Get(static_cast<uint32_t>(without_foot_head));
   bool lifecycle_changed = false;
   if (cw.frame_count != co.frame_count) {
     ++HumanoidFootFrameCountDiff();
@@ -559,7 +560,7 @@ HumanoidBase::HumanoidBase(PlayerBase *player, Match *match)
 HumanoidBase::~HumanoidBase() {}
 
 const AnimationClip &HumanoidBase::GetBakedClip(AnimationId id) const {
-  return GetContext().bakedAnims->Get(static_cast<uint32_t>(id));
+  return match->GetAnimationLibrary().Get(static_cast<uint32_t>(id));
 }
 
 const AnimationClip &HumanoidBase::GetCurrentBakedClip() const {
@@ -809,7 +810,7 @@ int HumanoidBase::GetIdleMovementAnimID() {
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
-      GetContext().bakedAnims->Clips(), query, dataSet);
+      match->GetAnimationLibrary().Clips(), query, dataSet);
 
   SetIdlePredicate(1);
   std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
@@ -1105,7 +1106,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
-      GetContext().bakedAnims->Clips(), query, dataSet);
+      match->GetAnimationLibrary().Clips(), query, dataSet);
   if (dataSet.size() == 0) {
     if (command.desiredFunctionType == e_FunctionType_Movement) {
       dataSet.push_back(GetIdleMovementAnimID()); // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)

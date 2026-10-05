@@ -29,6 +29,7 @@
 #include "sim/match_options.hpp"
 #include "model/pitch.hpp"
 #include "sim/ai_support/mentalimage.hpp"
+#include "animation/library.hpp"
 #include "animation/types.hpp"
 #include "control/player_control_set.hpp"
 
@@ -47,7 +48,9 @@ class Match {
   public:
     Match(std::unique_ptr<MatchData> matchData,
           const football::model::Pitch& pitch,
-          const MatchOptions& options, bool init_animation);
+          const MatchOptions& options,
+          std::shared_ptr<const AnimationLibrary> animations,
+          bool init_animation);
     virtual ~Match();
 
     void Exit();
@@ -57,6 +60,8 @@ class Match {
     Ball *GetBall() const { return ball; }
     Team *GetTeam(int teamID) const { return teams[teamID]; }
     const football::model::Pitch& pitch() const { return pitch_; }
+    // Baked animation library shared by every actor in this match.
+    const AnimationLibrary& GetAnimationLibrary() const { return *animations_; }
     // Snapshot of the match rules; never re-read from ambient state.
     const MatchOptions& options() const { return options_; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
@@ -148,6 +153,7 @@ class Match {
 
     std::unique_ptr<MatchData> matchData;
     const football::model::Pitch pitch_;
+    const std::shared_ptr<const AnimationLibrary> animations_;
     Team *teams[2];
     int first_team = 0;
     int second_team = 1;

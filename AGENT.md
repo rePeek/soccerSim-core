@@ -131,7 +131,7 @@ src/
 ├── state/           对外运行时值快照（依赖 model 身份类型与 foundation 数学）
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
-│   ├── game_env, main, rng（全局 RNG 入口，owner 是 GameContext）
+│   ├── game_env, main, rng（全局 RNG 入口，owner 还是 GameContext）
 ├── data/            legacy 资料导入与 runtime 兼容层
 │   ├── player_profile  无 GameContext/RNG 的资料解析与年龄/能力计算
 │   ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
@@ -258,14 +258,20 @@ main() [src/app/app.cpp]
   `physics_steps_per_frame`, batching helper or observation scaling on its API.
   Callers batch explicitly with a loop. `observe()` returns raw `WorldState` values.
   The CLI `--steps=N` now means N simulation ticks, not N legacy 100 ms frames.
+- Baked animations are owned explicitly: `Simulation` loads the library once and
+  shares it with each `Match`, which exposes `GetAnimationLibrary()` for
+  `Humanoid`/`HumanoidBase` and `Match::GetAnimPositionCache`. No actor reaches
+  for `GetContext().bakedAnims`.
 - `ScenarioConfig` and `GetScenarioConfig()` are deleted. Tick-time readers
   (`Referee`, `Team`, `TeamAIController`, `Match::Step`) use `Match::options()`;
   the legacy derived helpers became the `left_team_owns_ball` /
   `dynamic_player_selection` fields computed once in `Simulation::Init`.
-  `GetContext()` still exists for `bakedAnims`, `stablePlayerCount` and the RNG
-  entry points, and is the next migration. The internal `animations` flag affects
-  referee restart timing, not just rendering; its false/default behavior is
-  preserved. Fixture paths belong to tests.
+  `GetContext()` is now down to `SimulationRng`, `PresentationRng` and
+  `stablePlayerCount`; those are the next migrations. The RNG belongs to
+  `Simulation`, and the legacy runtime ordinal should become the model
+  `PlayerId` plus a match-local index rather than move to a new owner. The
+  internal `animations` flag affects referee restart timing, not just rendering;
+  its false/default behavior is preserved. Fixture paths belong to tests.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
   (`GameContext::rng`). Never introduce unordered-container iteration order or
   hidden global mutable state into simulation logic.

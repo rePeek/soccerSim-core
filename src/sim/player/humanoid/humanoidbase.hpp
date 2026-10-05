@@ -190,7 +190,8 @@ int &HumanoidFootOutgoingAngleBitsDiff();
 int &HumanoidFootOutgoingAngleBucketDiff();
 int &HumanoidFootSpecialStateDiff();
 int &HumanoidFootLifecycleChanged();
-void RecordFootCounterfactual(int with_foot_head, int without_foot_head);
+void RecordFootCounterfactual(Match* match, int with_foot_head,
+                              int without_foot_head);
 // 4f-c diagnostic A/B hook. Transient and disabled in normal gameplay; a
 // restored branch can choose the alternative Movement foot order exactly once.
 struct MovementAnimationPerturbation {

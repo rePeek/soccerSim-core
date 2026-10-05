@@ -31,8 +31,8 @@
 #include "sim/player/playerbase.hpp"
 
 namespace {
-const AnimationClip &GetBakedClipFor(const Anim &anim) {
-  return GetContext().bakedAnims->Get(
+const AnimationClip &GetBakedClipFor(Match *match, const Anim &anim) {
+  return match->GetAnimationLibrary().Get(
       static_cast<uint32_t>(anim.animationId));
 }
 }  // namespace
@@ -227,7 +227,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
     physicsBias = 0.9f;
   }
 
-  if (FloatToEnumVelocity(GetBakedClipFor(currentAnim).metadata.outgoing_velocity) == e_Velocity_Idle) physicsBias = 1.0f;
+  if (FloatToEnumVelocity(GetBakedClipFor(player->GetMatch(), currentAnim).metadata.outgoing_velocity) == e_Velocity_Idle) physicsBias = 1.0f;
 
   float explosivenessFactor = 0.6f;
   float maximumOverdrive_mps = 1.0f * explosivenessFactor;
@@ -238,7 +238,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   float dotFactor = clamp(std::min(dotFactor1, dotFactor2), 0.0f, 1.0f);  // clamp for numerical problems, don't want negative values out of this.
   maximumOverdrive_mps *= dotFactor;
 
-  if (FloatToEnumVelocity(GetBakedClipFor(currentAnim).metadata.outgoing_velocity) == e_Velocity_Idle) maximumOverdrive_mps = 0.0f;
+  if (FloatToEnumVelocity(GetBakedClipFor(player->GetMatch(), currentAnim).metadata.outgoing_velocity) == e_Velocity_Idle) maximumOverdrive_mps = 0.0f;
 
   float originatingBias = 0.7f;
 
@@ -261,7 +261,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   float physicsVelocity = physicsMovement.GetLength();
 
   Vector3 FFOsrc = GetFrontOfFootOffsetRel(physicsVelocity, nextBodyAngle - spatialState.angle, ball->Predict(0).coords[2]);
-  float annoyanceVeloFactor = curve(NormalizedClamp(GetBakedClipFor(currentAnim).metadata.outgoing_velocity, idleVelocity, sprintVelocity), 0.7f); // do not apply effect to low velo's; makes it too chaotic
+  float annoyanceVeloFactor = curve(NormalizedClamp(GetBakedClipFor(player->GetMatch(), currentAnim).metadata.outgoing_velocity, idleVelocity, sprintVelocity), 0.7f); // do not apply effect to low velo's; makes it too chaotic
   float opponentAnnoyanceFactor = (1.0f - NormalizedClamp(player->GetClosestOpponentDistance(), 0.5f, 1.5f)) * (1.0f - (player->GetStat(football::model::PlayerStat::mental_calmness) * 0.5f + player->GetStat(football::model::PlayerStat::physical_balance) * 0.3f)) * annoyanceVeloFactor;
   Vector3 FFO = Vector3(0, -1, 0).GetRotated2D(nextBodyAngle) * (FFOsrc.GetLength() + ffoOffset + opponentAnnoyanceFactor * 3.0f); // positionOffset is already in ffoOffset (though only for trap atm)
   float heightFFOOffset = NormalizedClamp(ball->Predict(0).coords[2], 0.5f, 1.0f) * 0.5f; // bounce high balls off body - else they keep colliding inside body and stuff like that
@@ -298,7 +298,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   Vector3 plannedBallPos = physicsPlannedBallPos * physicsBias + desiredPlannedBallPos * (1.0f - physicsBias);
   Vector3 toPlannedBall = plannedBallPos - ball->Predict(0).Get2D();
 
-  float timeToGo = ((static_cast<int>(GetBakedClipFor(currentAnim).frame_count) - 1 - frameNum) * 10) * 0.001f;
+  float timeToGo = ((static_cast<int>(GetBakedClipFor(player->GetMatch(), currentAnim).frame_count) - 1 - frameNum) * 10) * 0.001f;
   timeToGo += physicsDelayTime * physicsBias + desiredDelayTime * (1.0f - physicsBias);
   timeToGo += defaultTouchOffset_ms * 0.001f;//0.08f; // time into next anim where we want to hit the ball
 
@@ -421,7 +421,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
        std::pow(currentAnim.originatingCommand.touchInfo.desiredPower, 0.5f) *
            0.3f);
 
-  float animMaxPowerFactor = GetBakedClipFor(currentAnim).metadata.touch_max_power_factor;
+  float animMaxPowerFactor = GetBakedClipFor(match, currentAnim).metadata.touch_max_power_factor;
   if (animMaxPowerFactor == 0.0f) animMaxPowerFactor = 1.0f;
 
   float power = clamp(powerFactor * adaptedDesiredPower, 0.0f, (32.0f + player->GetStat(football::model::PlayerStat::physical_shotpower) * 13.0f) * (0.2f + animMaxPowerFactor * 0.8f));

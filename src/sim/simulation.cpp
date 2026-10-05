@@ -4,8 +4,11 @@
 #include <cassert>
 #include <vector>
 
+#include "animation/library.hpp"
+
 #include "data/model_adapter.hpp"
 #include "env/main.hpp"
+#include "support/diagnostics/log.hpp"
 
 #include "sim/match.hpp"
 #include "sim/match_world_state.hpp"
@@ -77,8 +80,20 @@ void Simulation::Init(
   // than moving it ahead of MatchData construction in the environment.
   randomize(options.game_engine_random_seed);
 
+  EnsureAnimationLibrary();
   match_ = std::make_unique<Match>(std::move(match_data), pitch, options,
-                                  init_animation);
+                                  animations_, init_animation);
+}
+
+void Simulation::EnsureAnimationLibrary() {
+  if (animations_) return;
+  animations_ = std::make_shared<AnimationLibrary>();
+  // Deliberately not assert()/CHECK(): both compile to ((void)0) under NDEBUG,
+  // which would silently skip the load and leave an empty library behind.
+  if (!animations_->Load(GFOOTBALL_BAKED_ANIM_PATH)) {
+    Log(blunted::e_FatalError, "Simulation", "Init",
+        "cannot load baked animations");
+  }
 }
 
 void Simulation::Step(const PlayerControlSet& controls) {

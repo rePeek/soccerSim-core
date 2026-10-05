@@ -364,6 +364,7 @@ class PlayerBase {
     float GetMaxVelocity() const;
 
     const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
+    Match *GetMatch() { return match; }
 
     void SetLastTouchTime_ms(unsigned long touchTime_ms) { this->lastTouchTime_ms = touchTime_ms; }
     unsigned long GetLastTouchTime_ms() { return lastTouchTime_ms; }
