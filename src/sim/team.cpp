@@ -22,12 +22,14 @@
 #include "sim/gamedefines.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "sim/match.hpp"
+#include "sim/formation.hpp"
 
-Team::Team(int id, Match *match, TeamData *teamData, float aiDifficulty)
-    : id(id), match(match), teamData(teamData), aiDifficulty(aiDifficulty) {
+Team::Team(int id, Match *match, const football::model::Team& model, float aiDifficulty)
+    : id(id), match(match), model_(model), formation_(BuildFormation(model)),
+      aiDifficulty(aiDifficulty) {
   assert(id == 0 || id == 1);
-  // assert(teamData->GetPlayerNum() >= playerNum); // does team have enough
-  // players?
+  // Retain the legacy six-decimal Properties conversion for live AI numerics.
+  for (const auto& [key, value] : model_.tactics) tactics_.Set(key, value);
 
   teamController = new TeamAIController(this);
 
@@ -63,9 +65,8 @@ void Team::Exit() {
 void Team::InitPlayers(std::uint8_t first_schedule_phase) {
   // Roster traversal supplies order; phases repeat every ten players.
   std::uint8_t schedule_phase = first_schedule_phase;
-  for (int i = 0; i < (signed int)teamData->GetPlayerNum(); i++) {
-    PlayerData *playerData = teamData->GetPlayerData(i);
-    Player *player = new Player(this, playerData, schedule_phase);
+  for (std::size_t i = 0; i < formation_.size(); ++i) {
+    Player *player = new Player(this, model_.players[i], schedule_phase);
     schedule_phase = (schedule_phase + 1) % 10;
     players.push_back(player);
 
@@ -82,7 +83,7 @@ void Team::InitPlayers(std::uint8_t first_schedule_phase) {
 FormationEntry Team::GetFormationEntry(void *player) {
   for (int i = 0; i < (signed int)players.size(); i++) {
     if (players[i] == player) {
-      return teamData->GetFormationEntry(i);
+      return formation_.at(i);
     }
   }
 
@@ -94,7 +95,7 @@ FormationEntry Team::GetFormationEntry(void *player) {
 void Team::SetFormationEntry(Player *player, FormationEntry entry) {
   for (int i = 0; i < (signed int)players.size(); i++) {
     if (players[i] == player) {
-      teamData->SetFormationEntry(i, entry);
+      formation_.at(i) = entry;
     }
   }
 }

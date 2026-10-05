@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "data/default_teams.hpp"
+#include "app/fixtures/default_teams.hpp"
 #include "env/game_env.hpp"
 #include "support/diagnostics/backtrace.hpp"
 
@@ -15,8 +15,8 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  GameEnv env{football::data::MakeDefaultHomeTeam(),
-              football::data::MakeDefaultAwayTeam(),
+  GameEnv env{football::app::fixtures::MakeDefaultHomeTeam(),
+              football::app::fixtures::MakeDefaultAwayTeam(),
               football::model::MakeLegacyPitch()};
   env.start_game();
   for (int tick = 0; tick < ticks; ++tick) {

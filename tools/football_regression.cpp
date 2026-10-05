@@ -13,7 +13,7 @@
 #include "env/game_env.hpp"
 #include "sim/simulation.hpp"
 #include "sim/match.hpp"
-#include "data/default_teams.hpp"
+#include "app/fixtures/default_teams.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_kinematics.hpp"
@@ -955,8 +955,8 @@ std::string CaptureSimulationDigest(Simulation& simulation) {
 // A fixture initializer, not an environment adapter or runtime accessor.
 void InitDefaultMatch(Simulation& simulation) {
   simulation.Stop();
-  simulation.Init(football::data::MakeDefaultHomeTeam(),
-                  football::data::MakeDefaultAwayTeam(),
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+                  football::app::fixtures::MakeDefaultAwayTeam(),
                   football::model::MakeLegacyPitch(), MatchOptions{}, false);
 }
 
@@ -991,7 +991,8 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   const auto stat = football::model::PlayerStat::physical_reaction;
   float multiplier = 0.3f + 0.7f * player->GetTeam()->GetAiDifficulty();
   multiplier *= 0.7f + 0.3f * player->GetFatigueFactorInv();
-  RequireNear(player->GetStat(stat), player->GetPlayerData()->GetStat(stat) * multiplier,
+  RequireNear(player->GetStat(stat),
+              player->GetModel().attributes.get(stat) * multiplier,
               "flattened Player lost difficulty/fatigue-adjusted stats");
 
   Require(player->GetController()->GetPlayer() == player,
@@ -1291,8 +1292,8 @@ void CheckImportHierarchy() {
 
 void CheckModelComposition() {
   namespace model = football::model;
-  auto home = football::data::MakeDefaultHomeTeam();
-  auto away = football::data::MakeDefaultAwayTeam();
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
   home.name = "Static Home";
   home.players.front().attributes.set(model::PlayerStat::physical_velocity,
                                      0.8123456f);
@@ -1304,9 +1305,9 @@ void CheckModelComposition() {
   home.players.front().attributes.fill(0.1f);
   for (int repeat = 0; repeat < 2; ++repeat) {
     Match* match = simulation.match();
-    const TeamData& team = match->GetMatchData()->GetTeamData(0);
-    Require(team.GetName() == "Static Home" &&
-                team.GetPlayerData(0)->GetModel().attributes == attributes &&
+    const football::model::Team& team = match->GetTeam(0)->GetModel();
+    Require(team.name == "Static Home" &&
+                team.players.at(0).attributes == attributes &&
                 match->pitch() == model::MakeLegacyPitch(),
             "core lost owned team, ability or pitch descriptions");
     simulation.Stop();
@@ -1408,8 +1409,8 @@ int main(int argc, char** argv) {
       CheckMovementAnimationPerturbation(simulation, mode == "--animation-ab-lifecycle");
     } else {
       Require(mode.empty() || mode == "--print-baseline", "unknown regression mode");
-      GameEnv game{football::data::MakeDefaultHomeTeam(),
-                   football::data::MakeDefaultAwayTeam(),
+      GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
+                   football::app::fixtures::MakeDefaultAwayTeam(),
                    football::model::MakeLegacyPitch()};
       game.start_game();
       CheckGoldenSnapshots(simulation, game, mode == "--print-baseline");

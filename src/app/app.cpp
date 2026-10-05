@@ -6,7 +6,7 @@
 #include <string_view>
 
 #include "env/game_env.hpp"
-#include "data/default_teams.hpp"
+#include "app/fixtures/default_teams.hpp"
 #include "model/pitch.hpp"
 #include "support/diagnostics/backtrace.hpp"
 
@@ -36,8 +36,8 @@ int main(int argc, char** argv) {
   std::cout << std::unitbuf;
   try {
     const int steps = ParseSteps(argc, argv);
-    GameEnv environment{football::data::MakeDefaultHomeTeam(),
-                        football::data::MakeDefaultAwayTeam(),
+    GameEnv environment{football::app::fixtures::MakeDefaultHomeTeam(),
+                        football::app::fixtures::MakeDefaultAwayTeam(),
                         football::model::MakeLegacyPitch()};
     environment.start_game();
     for (int step = 0; step < steps; ++step) {

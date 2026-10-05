@@ -39,14 +39,13 @@ const std::vector<Vector3> &Match::GetAnimPositionCache(
       .root_positions;
 }
 
-Match::Match(std::unique_ptr<MatchData> match_data,
+Match::Match(const football::model::Team& home, const football::model::Team& away,
              const football::model::Pitch& pitch,
              const MatchOptions& options,
              SimulationRng& rng,
              std::shared_ptr<const AnimationLibrary> animation_library,
              bool animations)
-    : matchData(std::move(match_data)),
-      pitch_(pitch),
+    : pitch_(pitch),
       animations_(std::move(animation_library)),
       rng_(rng),
       first_team(options.reverse_team_processing ? 1 : 0),
@@ -70,14 +69,13 @@ Match::Match(std::unique_ptr<MatchData> match_data,
 
   // teams
 
-  assert(matchData != 0);
-
+  const football::model::Team* descriptions[] = {&home, &away};
   teams[first_team] =
-      new Team(first_team, this, &matchData->GetTeamData(first_team),
+      new Team(first_team, this, *descriptions[first_team],
                first_team ? options.right_team_difficulty
                           : options.left_team_difficulty);
   teams[second_team] =
-      new Team(second_team, this, &matchData->GetTeamData(second_team),
+      new Team(second_team, this, *descriptions[second_team],
                second_team ? options.right_team_difficulty
                            : options.left_team_difficulty);
   teams[first_team]->SetOpponent(teams[second_team]);
@@ -86,7 +84,7 @@ Match::Match(std::unique_ptr<MatchData> match_data,
   // reversed processing. Only a periodic phase is passed, not a creation ID.
   teams[first_team]->InitPlayers(0);
   teams[second_team]->InitPlayers(static_cast<std::uint8_t>(
-      matchData->GetTeamData(first_team).GetPlayerNum() % 10));
+      teams[first_team]->GetAllPlayers().size() % 10));
 
   std::vector<Player*> activePlayers;
   teams[first_team]->GetActivePlayers(activePlayers);
@@ -294,8 +292,7 @@ bool Match::Step(const PlayerControlSet& controls) {
   if (IsInPlay()) {
     if (goal) {
       int team = first_team_goal ? second_team : first_team;
-      matchData->SetGoalCount(teams[team]->GetID(),
-                              matchData->GetGoalCount(team) + 1);
+      ++score_[teams[team]->GetID()];
       goalScored = true;
       lastGoalTeam = teams[team];
       teams[team]->GetController()->UpdateTactics();
@@ -857,6 +854,10 @@ void Match::BumpActualTime_ms(unsigned long time) {
   if (IsGoalScored()) goalScoredTimer += time; else goalScoredTimer = 0;
 
   if (IsInPlay() && !IsInSetPiece()) {
-    GetMatchData()->AddPossessionTime(teams[0] == designatedPossessionPlayer->GetTeam() ? 0 : 1, time);
+    if (teams[0] == designatedPossessionPlayer->GetTeam()) {
+      possession60seconds_ = std::max(possession60seconds_ - (0.001f * time), -60.0f);
+    } else {
+      possession60seconds_ = std::min(possession60seconds_ + (0.001f * time), 60.0f);
+    }
   }
 }

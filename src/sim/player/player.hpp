@@ -138,7 +138,7 @@ int &DecisionPublicationCauseCount(int cause);
 int &LocomotionReentryMeasurementEpoch();
 void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
-#include "data/playerdata.hpp"
+#include "model/player.hpp"
 #include "sim/player/controller/icontroller.hpp"
 #include "sim/humangamer.hpp"
 
@@ -163,12 +163,12 @@ class Player final {
   friend class HumanoidBase;
 
   public:
-    Player(Team *team, PlayerData *playerData, std::uint8_t schedule_phase);
+    Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase);
     ~Player();
     void Mirror();
 
-    football::model::PlayerId GetID() const { return playerData->GetModel().id; }
-    inline const PlayerData* GetPlayerData() { return playerData; }
+    football::model::PlayerId GetID() const { return model_.id; }
+    const football::model::Player& GetModel() const { return model_; }
 
     inline bool IsActive() { return isActive; }
 
@@ -442,7 +442,8 @@ class Player final {
     void SetNextResetSituationAuditContext(int context);
     Match *match;
 
-    const PlayerData* const playerData;
+    // Team owns an immutable description for the entire actor lifetime.
+    const football::model::Player& model_;
     // Non-unique 0..9 offset for staggered 100 ms work, never identity or order.
     const std::uint8_t schedule_phase_;
 

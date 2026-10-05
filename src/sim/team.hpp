@@ -23,7 +23,7 @@
 #include <memory>
 #include "model/team.hpp"
 #include "sim/player/player.hpp"
-#include "data/teamdata.hpp"
+#include "support/config/properties.hpp"
 #include "sim/teamAIcontroller.hpp"
 #include "sim/humangamer.hpp"
 
@@ -32,7 +32,7 @@ class Match;
 class Team {
 
   public:
-    Team(int id, Match *match, TeamData *teamData, float aiDifficulty);
+    Team(int id, Match *match, const football::model::Team& model, float aiDifficulty);
     void Mirror();
     bool isMirrored() {
       return mirrored;
@@ -61,7 +61,8 @@ class Team {
     inline signed int GetStaticSide() {
       return id == 0 ? -1 : 1;
     }
-    const TeamData *GetTeamData() { return teamData; }
+    const football::model::Team& GetModel() const { return model_; }
+    const Properties& GetTactics() const { return tactics_; }
 
     FormationEntry GetFormationEntry(void* player);
     void SetFormationEntry(Player* player, FormationEntry entry);
@@ -137,7 +138,9 @@ class Team {
     const int id;
     Match *match;
     Team *opponent = 0;
-    TeamData *teamData;
+    const football::model::Team model_;
+    std::vector<FormationEntry> formation_;
+    Properties tactics_;
     const float aiDifficulty;
 
     bool hasPossession = false;

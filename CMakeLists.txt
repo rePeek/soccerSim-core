@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.24)
 set(OUTPUT_LIB_NAME game)
 project(gameplayfootball LANGUAGES CXX)
 include(CTest)  # defines BUILD_TESTING
+option(FOOTBALL_BUILD_APP "Build the CLI executable and its sample inputs" ON)
 
 set(PACKAGE gameplayfootball)
 
@@ -33,18 +34,22 @@ target_link_libraries(football_animation_objects PRIVATE football_foundation)
 
 # Offline baker sources. Built for tools and tests, never linked into the
 # runtime shared library.
+if(BUILD_TESTING)
 add_library(football_legacy_anim OBJECT ${LEGACY_ANIM_SOURCES})
 target_link_libraries(football_legacy_anim PUBLIC football_support football_foundation)
 target_include_directories(football_legacy_anim PUBLIC
   ${PROJECT_SOURCE_DIR}/tools/animBaker)
+endif()
 
 # --- static libraries -------------------------------------------------------
 # The layering below spells out the source DAG in build order:
 #
-#   foundation <- support <- data <- sim <- engine
-#         ^                  ^
-#         ├── control ───────┘
+#   foundation <- support/animation <- sim <- engine <- game
+#         ^                            ^
+#         ├── model/control ────────────┘
 #         └── controller (temporary legacy input)
+#
+#   app fixtures/importers -> model/support (executable-only; no core edge)
 #
 # Runtime animation depends directly on foundation only; source importers
 # use support for XML, files, text, and configuration. Control owns the new
@@ -57,11 +62,14 @@ add_library(football_animation STATIC
   $<TARGET_OBJECTS:football_animation_objects>)
 target_link_libraries(football_animation PUBLIC football_foundation)
 
-add_library(football_data STATIC ${DATA_SOURCES} ${DATA_HEADERS})
-target_link_libraries(football_data PUBLIC football_animation football_support football_model)
+add_library(football_app_fixtures STATIC EXCLUDE_FROM_ALL
+  ${APP_FIXTURE_SOURCES} ${APP_FIXTURE_HEADERS})
+target_link_libraries(football_app_fixtures PUBLIC football_support football_model)
+football_configure_target(football_app_fixtures)
 
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
-target_link_libraries(football_sim PUBLIC football_data football_control football_controller)
+target_link_libraries(football_sim PUBLIC football_animation football_support
+  football_model football_control football_controller)
 
 # --- engine object layer + the shared library -------------------------------
 add_library(football_engine OBJECT
@@ -72,30 +80,36 @@ target_link_libraries(football_engine PRIVATE football_controller football_model
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
 target_link_libraries(${OUTPUT_LIB_NAME} PRIVATE football_sim football_controller)
 
-add_executable(football_app src/app/app.cpp)
-target_link_libraries(football_app PRIVATE ${OUTPUT_LIB_NAME} football_data)
-football_configure_target(football_app)
+if(FOOTBALL_BUILD_APP)
+  add_executable(football_app src/app/app.cpp)
+  target_link_libraries(football_app PRIVATE ${OUTPUT_LIB_NAME} football_app_fixtures)
+  football_configure_target(football_app)
+endif()
 
 foreach(tgt IN ITEMS
-    football_animation_objects football_legacy_anim
-    football_animation football_data football_sim
+    football_animation_objects
+    football_animation football_sim
     football_engine ${OUTPUT_LIB_NAME})
   football_configure_target(${tgt})
 endforeach()
+if(BUILD_TESTING)
+  football_configure_target(football_legacy_anim)
+endif()
 
 # --- tests ------------------------------------------------------------------
+if(BUILD_TESTING)
 add_executable(football_smoke tools/football_smoke.cpp)
-target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME} football_data)
+target_link_libraries(football_smoke PRIVATE ${OUTPUT_LIB_NAME} football_app_fixtures)
 football_configure_target(football_smoke)
 
 add_executable(football_game_env_test tools/game_env_test.cpp)
-target_link_libraries(football_game_env_test PRIVATE ${OUTPUT_LIB_NAME} football_data)
+target_link_libraries(football_game_env_test PRIVATE ${OUTPUT_LIB_NAME} football_app_fixtures)
 football_configure_target(football_game_env_test)
 add_test(NAME football_game_env_test COMMAND football_game_env_test)
 
 add_executable(football_player_identity_test tools/player_identity_test.cpp)
 # Runs Simulation directly: numbering no longer needs environment bindings.
-target_link_libraries(football_player_identity_test PRIVATE ${OUTPUT_LIB_NAME} football_data)
+target_link_libraries(football_player_identity_test PRIVATE ${OUTPUT_LIB_NAME} football_app_fixtures)
 football_configure_target(football_player_identity_test)
 add_test(NAME football_player_identity_test COMMAND football_player_identity_test)
 
@@ -125,10 +139,9 @@ add_test(NAME football_anim_bake_determinism
   COMMAND ${CMAKE_SOURCE_DIR}/tools/animBaker/anim_bake_determinism.sh
     $<TARGET_FILE:football_anim_baker> ${CMAKE_SOURCE_DIR}/data)
 
-if(BUILD_TESTING)
   add_executable(football_regression tools/football_regression.cpp)
   target_link_libraries(football_regression PRIVATE
-    ${OUTPUT_LIB_NAME} football_data football_legacy_anim)
+    ${OUTPUT_LIB_NAME} football_app_fixtures football_legacy_anim)
   football_configure_target(football_regression)
 
   add_test(NAME football_regression COMMAND football_regression)
@@ -141,7 +154,6 @@ if(BUILD_TESTING)
     COMMAND football_regression --animation-ab-lifecycle)
   set_tests_properties(football_animation_ab_lifecycle PROPERTIES
     ENVIRONMENT "GFOOTBALL_DATA_DIR=${CMAKE_SOURCE_DIR}/data")
-endif()
 
 # Keep the completed headless boundary from growing back through a convenient
 # include or an accidental link dependency (graphics and Boost are both
@@ -165,3 +177,4 @@ add_test(NAME legacy_validation_guard
 add_test(NAME controller_boundary_guard
   COMMAND ${CMAKE_SOURCE_DIR}/tools/controller_boundary_guard.sh
     ${CMAKE_SOURCE_DIR}/src)
+endif()  # BUILD_TESTING

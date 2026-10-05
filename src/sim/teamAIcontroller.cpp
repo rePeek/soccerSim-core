@@ -1132,12 +1132,10 @@ void TeamAIController::CalculateSituation() {
 }
 
 void TeamAIController::UpdateTactics() {
-  const TeamTactics &teamTactics = team->GetTeamData()->GetTactics();
+  const Properties &userTacticsModifiers = team->GetTactics();
 
-  const Properties &userTacticsModifiers = teamTactics.userProperties;
-
-  int goals = match->GetMatchData()->GetGoalCount(team->GetID());
-  int oppGoals = match->GetMatchData()->GetGoalCount(1 - team->GetID());
+  int goals = match->GetScore(team->GetID());
+  int oppGoals = match->GetScore(1 - team->GetID());
 
   liveTeamTactics = baseTeamTactics;
 
@@ -1150,7 +1148,7 @@ void TeamAIController::UpdateTactics() {
   float offenseBias = clamp(0.5f + (goalFactor - 0.5f) * (timeFactor * 1.0f), 0.0f, 1.0f);
 
 
-  float possessionFactor = match->GetMatchData()->GetPossessionFactor_60seconds();
+  float possessionFactor = match->GetPossessionFactor_60seconds();
   float recentPossessionBias;
   if (team->GetID() == 0) {
     recentPossessionBias = 0.5 - possessionFactor * 0.5f;

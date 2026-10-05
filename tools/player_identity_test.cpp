@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "control/tactical_board.hpp"
-#include "data/default_teams.hpp"
-#include "data/player_profile.hpp"
+#include "app/fixtures/default_teams.hpp"
+#include "app/fixtures/legacy_player_profile.hpp"
 #include "sim/match.hpp"
 #include "sim/player/player.hpp"
 #include "sim/simulation.hpp"
@@ -96,7 +96,7 @@ void CheckIdentity(Simulation& simulation, const model::Team& home,
     for (std::size_t i = 0; i < players.size(); ++i) {
       Player* player = players[i];
       Require(player->GetID() == description.players.at(i).id &&
-                  player->GetPlayerData()->GetModel().id == player->GetID() &&
+                  player->GetModel().id == player->GetID() &&
                   world.players.at(cursor).id == player->GetID() &&
                   world.players.at(cursor).side == team_side,
               "model identity/side was replaced with an execution ordinal");
@@ -107,8 +107,8 @@ void CheckIdentity(Simulation& simulation, const model::Team& home,
 }
 
 void CheckIdentityDoesNotDriveSimulation(bool reverse) {
-  const auto default_home = football::data::MakeDefaultHomeTeam();
-  const auto default_away = football::data::MakeDefaultAwayTeam();
+  const auto default_home = football::app::fixtures::MakeDefaultHomeTeam();
+  const auto default_away = football::app::fixtures::MakeDefaultAwayTeam();
   auto home = default_home, away = default_away;
   for (std::size_t i = 0; i < home.players.size(); ++i) {
     home.players[i].id = 4000000033u - static_cast<model::PlayerId>(i) * 17u;
@@ -179,8 +179,8 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
 }
 
 void CheckRosterComposition() {
-  auto home = football::data::MakeDefaultHomeTeam();
-  auto away = football::data::MakeDefaultAwayTeam();
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
   home.players.resize(3);
   away.players.resize(2);
   home.formation.resize(3);
@@ -225,18 +225,16 @@ void CheckRosterComposition() {
 }
 
 void CheckValidationAndDefaults() {
-  const auto home = football::data::MakeDefaultHomeTeam();
-  const auto away = football::data::MakeDefaultAwayTeam();
+  const auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   Require(home.players[0].id == 0 && away.players[0].id == 11 &&
               home.players[0].database_id == away.players[0].database_id,
           "default identity is conflated with database provenance");
-  Require(football::data::LoadLegacyPlayerProfile(398, true).id == model::kInvalidPlayerId,
+  Require(football::app::fixtures::LoadLegacyPlayerProfile(398, true).id == model::kInvalidPlayerId,
           "profile loader invented a player identity from provenance");
-  Simulation reference, fallback;
+  Simulation reference;
   reference.Init(home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
-  fallback.Init(model::Team{}, model::Team{}, model::MakeLegacyPitch(), MatchOptions{}, false);
-  CheckIdentity(fallback, home, away);
-  CheckSamePhysics(reference, fallback);
+  CheckIdentity(reference, home, away);
   auto& rng = reference.match()->rng();
   reference.Stop();
   const auto rng_before = rng.engine();
@@ -259,7 +257,7 @@ void CheckValidationAndDefaults() {
   reject(home, home);  // Duplicate across opponents, despite distinct sides.
   invalid = home;
   invalid.players[0].id = away.players[0].id;
-  reject(invalid, model::Team{});  // Includes the resolved default roster.
+  reject(invalid, model::Team{});  // An empty roster is no longer a default.
   invalid = home;
   invalid.players.resize(3);  // Empty formation still requires 11 profiles.
   reject(invalid, away);
@@ -331,8 +329,8 @@ void CheckHistoricalScheduling() {
       {true, true, UINT64_C(10672886534341869106), UINT64_C(15776948655175517899)},
   };
   for (const Case& test : cases) {
-    auto home = football::data::MakeDefaultHomeTeam();
-    auto away = football::data::MakeDefaultAwayTeam();
+    auto home = football::app::fixtures::MakeDefaultHomeTeam();
+    auto away = football::app::fixtures::MakeDefaultAwayTeam();
     if (test.unequal) {
       home.players.resize(3);
       away.players.resize(2);
@@ -368,8 +366,8 @@ class QuietInput final : public ControllerInput {
 void CheckControllerRosterOrder() {
   for (bool reverse : {false, true}) {
     for (int side : {0, 1}) {
-      auto home = football::data::MakeDefaultHomeTeam();
-      auto away = football::data::MakeDefaultAwayTeam();
+      auto home = football::app::fixtures::MakeDefaultHomeTeam();
+      auto away = football::app::fixtures::MakeDefaultAwayTeam();
       for (std::size_t i = 0; i < home.players.size(); ++i) {
         home.players[i].id = 4000000000u - static_cast<model::PlayerId>(i);
         away.players[i].id = 2000000000u - static_cast<model::PlayerId>(i);

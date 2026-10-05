@@ -223,12 +223,12 @@ void AI_GetBestDribbleMovement(Match *match, Player *player,
                                const MentalImage *mentalImage,
                                Vector3 &desiredDirection,
                                float &desiredVelocity,
-                               const TeamTactics &teamTactics) {
+                               const Properties &teamTactics) {
 
   Vector3 myPos = player->GetPosition();
   Vector3 myMov = player->GetMovement();
 
-  float offenseFactor = 0.7f + teamTactics.userProperties.GetReal("dribble_offensiveness", 0.5f) * 0.05f + AI_GetMindSet(player->GetDynamicFormationEntry().role) * 0.05f;
+  float offenseFactor = 0.7f + teamTactics.GetReal("dribble_offensiveness", 0.5f) * 0.05f + AI_GetMindSet(player->GetDynamicFormationEntry().role) * 0.05f;
   float powerMultiplier = 1.0f; // should alter (average) resulting velocity
 
   float future_sec = 0.25f;
@@ -252,7 +252,7 @@ void AI_GetBestDribbleMovement(Match *match, Player *player,
       std::pow(nearBackline,
                2.0f);  // near the end of the pitch, we want to get inside again
   centerModifierInv *= 0.5f; // stop going to the sides! wtf, todo, why does it prefer the sideline so much (probably because of no opponents :P)
-  Vector3 oppGoalPos = Vector3(-side * pitchHalfW, myPos.coords[1] * (1.0f - teamTactics.userProperties.GetReal("dribble_centermagnet", 0.5f)) * centerModifierInv, 0);
+  Vector3 oppGoalPos = Vector3(-side * pitchHalfW, myPos.coords[1] * (1.0f - teamTactics.GetReal("dribble_centermagnet", 0.5f)) * centerModifierInv, 0);
 
 
   std::vector<ForceSpot> forceField;

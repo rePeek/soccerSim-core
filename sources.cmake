@@ -121,6 +121,7 @@ set(GAME_SOURCES
    src/sim/ball.cpp
    src/sim/match.cpp
    src/sim/match_world_state.cpp
+   src/sim/formation.cpp
    src/sim/simulation.cpp
    src/sim/referee.cpp
    src/sim/ai_support/mentalimage.cpp
@@ -130,21 +131,14 @@ set(GAME_SOURCES
 )
 
 
-set(DATA_HEADERS
-   src/data/matchdata.hpp
-   src/data/teamdata.hpp
-   src/data/model_adapter.hpp
-   src/data/playerdata.hpp
-   src/data/player_profile.hpp
-   src/data/default_teams.hpp
+list(APPEND GAME_HEADERS src/sim/formation.hpp)
+
+set(APP_FIXTURE_HEADERS
+   src/app/fixtures/legacy_player_profile.hpp
+   src/app/fixtures/default_teams.hpp
 )
 
-
-set(DATA_SOURCES
-   src/data/matchdata.cpp
-   src/data/playerdata.cpp
-   src/data/player_profile.cpp
-   src/data/default_teams.cpp
-   src/data/teamdata.cpp
-   src/data/model_adapter.cpp
+set(APP_FIXTURE_SOURCES
+   src/app/fixtures/legacy_player_profile.cpp
+   src/app/fixtures/default_teams.cpp
 )

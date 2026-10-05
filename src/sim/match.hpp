@@ -24,7 +24,6 @@
 #include "sim/value_history.hpp"
 
 #include "controller/controller_input.hpp"
-#include "data/matchdata.hpp"
 #include "sim/match_options.hpp"
 #include "sim/rng.hpp"
 #include "model/pitch.hpp"
@@ -46,7 +45,7 @@ struct PlayerBounce {
 class Match {
 
   public:
-    Match(std::unique_ptr<MatchData> matchData,
+    Match(const football::model::Team& home, const football::model::Team& away,
           const football::model::Pitch& pitch,
           const MatchOptions& options,
           SimulationRng& rng,
@@ -57,7 +56,8 @@ class Match {
     void Exit();
     void Mirror(bool team_0, bool team_1, bool ball);
 
-    int GetScore(int teamID) { return matchData->GetGoalCount(teamID); }
+    int GetScore(int teamID) const { return score_[teamID]; }
+    float GetPossessionFactor_60seconds() const { return possession60seconds_ / 60.0f; }
     Ball *GetBall() const { return ball; }
     Team *GetTeam(int teamID) const { return teams[teamID]; }
     const football::model::Pitch& pitch() const { return pitch_; }
@@ -132,7 +132,6 @@ class Match {
 
 
 
-    MatchData* GetMatchData() { return matchData.get(); }
 
     float GetMatchDurationFactor() const { return matchDurationFactor; }
     bool GetUseMagnet() const { return _useMagnet; }
@@ -153,7 +152,8 @@ class Match {
     void CheckBallCollisions();
 
 
-    std::unique_ptr<MatchData> matchData;
+    int score_[2] = {0, 0};
+    float possession60seconds_ = 0.0f;
     const football::model::Pitch pitch_;
     const std::shared_ptr<const AnimationLibrary> animations_;
     SimulationRng& rng_;

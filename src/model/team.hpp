@@ -2,6 +2,7 @@
 #define FOOTBALL_MODEL_TEAM_HPP
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -15,11 +16,15 @@ namespace football::model {
 enum class TeamSide : std::uint8_t { Home = 0, Away = 1 };
 
 // Static team composition, independent of an opponent, controllers and match
-// state. Legacy adapters interpret an empty roster/formation as their defaults.
+// state. Callers supply players explicitly; there is no implicit database roster.
 struct Team {
   std::string name;
   std::vector<Player> players;
   Formation formation;
+  TacticalFormation tactical_formation;
+  // Static tactical preferences, not files, serialized Properties or live AI
+  // state. Unspecified preferences leave the simulation's algorithm defaults.
+  std::map<std::string, float> tactics;
 };
 
 }  // namespace football::model

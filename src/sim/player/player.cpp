@@ -265,9 +265,9 @@ bool FloatBitsEqual(float a, float b) {
 
 }  // namespace
 
-Player::Player(Team *team, PlayerData *playerData, std::uint8_t schedule_phase)
+Player::Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase)
     : match(team->GetMatch()),
-      playerData(playerData),
+      model_(model),
       schedule_phase_(schedule_phase % 10),
       team(team) {
   lastTouchTime_ms = 0;
@@ -700,7 +700,7 @@ void Player::Process() {
 float Player::GetStat(football::model::PlayerStat name) const {
   float multiplier = 0.3f + 0.7f * team->GetAiDifficulty();
   multiplier *= 0.7f + 0.3f * GetFatigueFactorInv();
-  return playerData->GetStat(name) * multiplier;
+  return model_.attributes.get(name) * multiplier;
 }
 
 float Player::GetMaxVelocity() const {
@@ -710,7 +710,7 @@ float Player::GetMaxVelocity() const {
 
 float Player::GetVelocityMultiplier() const {
   // see humanoid_utils' physics function
-  return 0.9f + playerData->get_physical_velocity() * 0.1f;
+  return 0.9f + model_.attributes.get(football::model::PlayerStat::physical_velocity) * 0.1f;
 }
 
 float Player::GetLastTouchBias(int decay_ms, unsigned long time_ms) {
@@ -953,7 +953,7 @@ void Player::SendOff() {
 }
 
 float Player::GetStaminaStat() const {
-  return playerData->GetStat(football::model::PlayerStat::physical_stamina);
+  return model_.attributes.get(football::model::PlayerStat::physical_stamina);
 }
 
 void Player::ResetSituation(const Vector3 &focusPos) {

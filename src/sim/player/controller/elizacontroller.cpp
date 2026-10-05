@@ -933,7 +933,7 @@ void ElizaController::GetOnTheBallCommands(
   e_Velocity enumVelocity = e_Velocity_Idle;
   AI_GetBestDribbleMovement(match, player, _mentalImage,
                             rawInputDirection, rawInputVelocityFloat,
-                            team->GetTeamData()->GetTactics());
+                            team->GetTactics());
 }
 
 void ElizaController::_AddPass(std::vector<PlayerCommand> &commandQueue,

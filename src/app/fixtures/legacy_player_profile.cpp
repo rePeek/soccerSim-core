@@ -15,7 +15,7 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "data/player_profile.hpp"
+#include "app/fixtures/legacy_player_profile.hpp"
 #include "foundation/math/scalar.hpp"
 #include "support/diagnostics/log.hpp"
 #include "support/io/xml_loader.hpp"
@@ -25,7 +25,7 @@
 #include <cmath>
 #include <cstdlib>
 
-namespace football::data {
+namespace football::app::fixtures {
 namespace {
 
 using namespace blunted;
@@ -528,4 +528,4 @@ model::Player LoadLegacyPlayerProfile(model::PlayerDatabaseId playerDatabaseID,
   return player;
 }
 
-}  // namespace football::data
+}  // namespace football::app::fixtures

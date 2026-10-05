@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-#include "data/default_teams.hpp"
+#include "app/fixtures/default_teams.hpp"
 #include "env/game_env.hpp"
 #include "sim/simulation.hpp"
 
@@ -43,8 +43,8 @@ void Require(bool condition, const char* message) {
 }
 
 GameEnv MakeGame() {
-  return GameEnv{football::data::MakeDefaultHomeTeam(),
-                 football::data::MakeDefaultAwayTeam(),
+  return GameEnv{football::app::fixtures::MakeDefaultHomeTeam(),
+                 football::app::fixtures::MakeDefaultAwayTeam(),
                  football::model::MakeLegacyPitch()};
 }
 
@@ -119,8 +119,8 @@ void CheckCoreAPI() {
 
 void CheckDeclaredIdentity() {
   namespace model = football::model;
-  auto home = football::data::MakeDefaultHomeTeam();
-  auto away = football::data::MakeDefaultAwayTeam();
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
   home.players[0].id = model::kInvalidPlayerId - 1;
   away.players[0].id = 0;
   GameEnv game{home, away, model::MakeLegacyPitch()};
@@ -182,8 +182,8 @@ void CheckIndependentLifetimes() {
 
 void CheckDeclaredComposition() {
   namespace model = football::model;
-  auto home = football::data::MakeDefaultHomeTeam();
-  const auto away = football::data::MakeDefaultAwayTeam();
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   home.name = "Static Home";
   home.players[1].attributes.set(model::PlayerStat::physical_velocity, 0.8123456f);
   home.players[1].height = 1.93f;
@@ -219,8 +219,8 @@ void CheckRejectedStartup() {
   auto live = MakeGame();
   live.start_game();
   const WorldState initial = live.observe();
-  auto home = football::data::MakeDefaultHomeTeam();
-  auto away = football::data::MakeDefaultAwayTeam();
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
   away.players.front().id = home.players.front().id;
   GameEnv rejected{home, away, football::model::MakeLegacyPitch()};
   // Failed startup must not publish a half-initialized Simulation. Repeating

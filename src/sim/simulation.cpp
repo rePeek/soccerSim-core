@@ -2,19 +2,39 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <set>
 #include <stdexcept>
 #include <vector>
 
 #include "animation/library.hpp"
 
-#include "data/model_adapter.hpp"
 #include "support/diagnostics/log.hpp"
 
 #include "sim/match.hpp"
 #include "sim/match_world_state.hpp"
 
 namespace {
+
+std::vector<FormationEntry> ToLegacyFormation(const football::model::Formation& model) {
+  std::vector<FormationEntry> result;
+  result.reserve(model.size());
+  for (const auto& entry : model) {
+    result.emplace_back(entry.position.x, entry.position.y, entry.role,
+                        entry.lazy, entry.controllable);
+  }
+  return result;
+}
+
+// Resolve only unspecified runtime appearance, never import or invent profiles.
+// Preserve the historical home-then-away draw for every declared profile, even
+// profiles omitted by a smaller formation and profiles with explicit appearance.
+void ResolveAppearance(football::model::Team& team, blunted::Rng& rng) {
+  for (auto& player : team.players) {
+    const int skin_color = int(std::round(rng.Uniform(1, 4)));
+    if (!player.appearance.skin_color) player.appearance.skin_color = skin_color;
+  }
+}
 
 // Mirrors the retired ScenarioConfig::LeftTeamOwnsBall(): the team whose nearest
 // initial formation player stands closer to the kickoff spot starts in possession.
@@ -54,9 +74,14 @@ bool DynamicPlayerSelection(const std::vector<FormationEntry>& left,
 
 // Validate the effective descriptions before profile draws, reseeding or
 // actor construction. Caller identities are never generated or renumbered.
-void ValidatePlayers(const TeamCreationData& home, const TeamCreationData& away) {
-  const auto player_count = [](const TeamCreationData& team) -> std::size_t {
-    return team.formation.empty() ? kPlayersPerTeam : team.formation.size();
+void ValidatePlayers(const football::model::Team& home, const football::model::Team& away) {
+  if (home.players.empty() || away.players.empty()) {
+    throw std::invalid_argument("match requires explicit player rosters");
+  }
+  const auto player_count = [](const football::model::Team& team) -> std::size_t {
+    return !team.formation.empty() ? team.formation.size()
+        : !team.tactical_formation.empty() ? team.tactical_formation.size()
+        : team.players.size();
   };
   const std::size_t home_count = player_count(home);
   const std::size_t away_count = player_count(away);
@@ -64,7 +89,7 @@ void ValidatePlayers(const TeamCreationData& home, const TeamCreationData& away)
     throw std::invalid_argument("formation has no corresponding player profile");
   }
   std::set<football::model::PlayerId> identities;
-  for (const TeamCreationData* team : {&home, &away}) {
+  for (const football::model::Team* team : {&home, &away}) {
     for (const football::model::Player& player : team->players) {
       if (player.id == football::model::kInvalidPlayerId) {
         throw std::invalid_argument("match player requires an explicit PlayerId");
@@ -93,16 +118,12 @@ void Simulation::Init(
     const football::model::Pitch& pitch, MatchOptions options,
     bool init_animation) {
   assert(!match_);
-  // Effective initial formations come from the model teams; there is no
-  // ambient episode override any more.
+  ValidatePlayers(home, away);
   const std::vector<FormationEntry> left = ToLegacyFormation(home.formation);
   const std::vector<FormationEntry> right = ToLegacyFormation(away.formation);
-  const TeamCreationData home_data =
-      ToTeamCreationData(home, kHomeTeamDatabaseId, left);
-  const TeamCreationData away_data =
-      ToTeamCreationData(away, kAwayTeamDatabaseId, right);
-  ValidatePlayers(home_data, away_data);
-  auto match_data = std::make_unique<MatchData>(home_data, away_data, rng_);
+  football::model::Team home_model = home, away_model = away;
+  ResolveAppearance(home_model, rng_);
+  ResolveAppearance(away_model, rng_);
 
   // Derived once here, so the referee and team selection never read ambient
   // configuration during a tick.
@@ -110,13 +131,12 @@ void Simulation::Init(
       LeftTeamOwnsBall(left, right, options.ball_position);
   options.dynamic_player_selection = DynamicPlayerSelection(left, right);
 
-  // Profile construction consumes skin-colour draws before the match seed is
-  // applied. Reseed here, before creating match actors, rather than moving it
-  // ahead of the MatchData draws above.
+  // Apply the episode seed after the appearance draws, before constructing
+  // actors. Moving those draws across this boundary changes simulation RNG.
   rng_.Seed(options.game_engine_random_seed);
 
   EnsureAnimationLibrary();
-  match_ = std::make_unique<Match>(std::move(match_data), pitch, options, rng_,
+  match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
                                   animations_, init_animation);
 }
 

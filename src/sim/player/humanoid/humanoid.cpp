@@ -1727,7 +1727,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
 
   Vector3 desiredMovement = desiredDirection * desiredVelocityFloat;
 
-  float playerHeight = player->GetPlayerData()->GetHeight();
+  float playerHeight = player->GetModel().height;
 
   e_FunctionType functionType = StringToFunctionType(
       static_cast<e_DefString>(GetBakedClip(*iter).metadata.action_type));
