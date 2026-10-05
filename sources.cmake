@@ -28,20 +28,20 @@ set(MODEL_HEADERS
 
 
 set(ANIMATION_HEADERS
-   src/animation/types.hpp
-   src/animation/selection_math.hpp
-   src/animation/selection_query.hpp
-   src/animation/quadrant.hpp
-   src/animation/simanim_format.hpp
-   src/animation/clip.hpp
-   src/animation/library.hpp
-   src/animation/baked_selector.hpp
+   src/sim/animation/types.hpp
+   src/sim/animation/selection_math.hpp
+   src/sim/animation/selection_query.hpp
+   src/sim/animation/quadrant.hpp
+   src/sim/animation/simanim_format.hpp
+   src/sim/animation/clip.hpp
+   src/sim/animation/library.hpp
+   src/sim/animation/baked_selector.hpp
 )
 
 
 set(ANIMATION_SOURCES
-   src/animation/library.cpp
-   src/animation/baked_selector.cpp
+   src/sim/animation/library.cpp
+   src/sim/animation/baked_selector.cpp
 )
 
 set(LEGACY_ANIM_SOURCES

@@ -8,7 +8,7 @@
 #ifndef _HPP_PLAYER_ACTION
 #define _HPP_PLAYER_ACTION
 
-#include "animation/types.hpp"
+#include "sim/animation/types.hpp"
 #include "foundation/math/vector3.hpp"
 
 using namespace blunted;

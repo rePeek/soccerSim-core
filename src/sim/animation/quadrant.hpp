@@ -11,28 +11,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _HPP_ANIMATION_LIBRARY
-#define _HPP_ANIMATION_LIBRARY
+#ifndef _HPP_ANIMATION_QUADRANT
+#define _HPP_ANIMATION_QUADRANT
 
-#include <cstdint>
-#include <filesystem>
-#include <vector>
+#include "foundation/math/vector3.hpp"
+#include "sim/animation/types.hpp"
 
-#include "animation/clip.hpp"
-
-// Read-only view over a baked animations.simanim artifact.
-class AnimationLibrary {
- public:
-  bool Load(const std::filesystem::path& path);
-
-  const AnimationClip& Get(uint32_t id) const { return clips_.at(id); }
-
-  const std::vector<AnimationClip>& Clips() const { return clips_; }
-
-  std::size_t Size() const { return clips_.size(); }
-
- private:
-  std::vector<AnimationClip> clips_;
+// Quantized outgoing movement (velocity plus angle). Kept as a pure value type
+// so baked runtime selection stays independent of the simulation runtime.
+struct Quadrant {
+  int id = 0;
+  blunted::Vector3 position;
+  e_Velocity velocity;
+  blunted::radian angle;
 };
 
 #endif

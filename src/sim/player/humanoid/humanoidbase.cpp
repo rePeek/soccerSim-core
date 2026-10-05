@@ -37,7 +37,7 @@
 
 #include "sim/ai_support/AIfunctions.hpp"
 
-#include "animation/baked_selector.hpp"
+#include "sim/animation/baked_selector.hpp"
 
 
 using std::placeholders::_1;

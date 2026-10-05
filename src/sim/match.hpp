@@ -28,8 +28,8 @@
 #include "sim/rng.hpp"
 #include "model/pitch.hpp"
 #include "sim/ai_support/mentalimage.hpp"
-#include "animation/library.hpp"
-#include "animation/types.hpp"
+#include "sim/animation/library.hpp"
+#include "sim/animation/types.hpp"
 #include "control/player_control_set.hpp"
 
 

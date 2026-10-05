@@ -9,7 +9,7 @@
 #define _HPP_LEGACY_LOCOMOTION_COMMAND
 
 #include <cassert>
-#include "animation/types.hpp"
+#include "sim/animation/types.hpp"
 #include "sim/player/player_locomotion.hpp"
 
 // Compatibility adapter between the legacy PlayerCommand and the simulation

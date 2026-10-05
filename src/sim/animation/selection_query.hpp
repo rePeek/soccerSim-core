@@ -17,7 +17,7 @@
 #include <string>
 
 #include "foundation/math/vector3.hpp"
-#include "animation/types.hpp"
+#include "sim/animation/types.hpp"
 
 // The subset of clip metadata used to refine a selection. This is deliberately
 // separate from the legacy Animation variable cache: baked runtime selection

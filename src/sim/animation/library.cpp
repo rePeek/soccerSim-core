@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "animation/library.hpp"
+#include "sim/animation/library.hpp"
 
 #include <fstream>
 #include <iostream>

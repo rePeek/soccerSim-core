@@ -27,7 +27,9 @@ add_subdirectory(src/support)
 add_subdirectory(src/controller)
 
 # --- object libraries: one translation unit at a time -----------------------
-# Runtime animation. Depends on the bottom layer only.
+# The simulation's runtime animation subsystem (src/sim/animation). It depends
+# on foundation only, and is kept as its own archive so the offline baker can
+# load and verify a baked .simanim without linking the simulation.
 add_library(football_animation_objects OBJECT
   ${ANIMATION_SOURCES} ${ANIMATION_HEADERS})
 target_link_libraries(football_animation_objects PRIVATE football_foundation)
@@ -44,17 +46,18 @@ endif()
 # --- static libraries -------------------------------------------------------
 # The layering below spells out the source DAG in build order:
 #
-#   foundation <- support/animation <- sim <- engine <- game
+#   foundation <- sim/animation <- sim <- engine <- game
 #         ^                            ^
 #         ├── model/control ────────────┘
 #         └── controller (temporary legacy input)
 #
+#   observation is a read-only contract leaf above model/foundation.
 #   app fixtures/importers -> model/support (executable-only; no core edge)
 #
-# Runtime animation depends directly on foundation only; source importers
-# use support for XML, files, text, and configuration. Control owns the new
-# decision domain. Controller remains only while the legacy input path is
-# removed; it is not a future simulation boundary.
+# The runtime animation archive below depends directly on foundation only;
+# source importers use support for XML, files, text, and configuration. Control
+# owns the new decision domain. Controller remains only while the legacy input
+# path is removed; it is not a future simulation boundary.
 # Declaring the edges here keeps archive order correct instead of relying on
 # a hand-maintained link line.
 

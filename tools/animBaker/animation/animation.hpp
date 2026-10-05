@@ -29,7 +29,7 @@
 #include "animation/extensions/animationextension.hpp"
 
 #include "support/io/xml_loader.hpp"
-#include "animation/types.hpp"
+#include "sim/animation/types.hpp"
 
 namespace blunted {
 

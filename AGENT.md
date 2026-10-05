@@ -144,10 +144,10 @@ src/
 │   ├── defines.hpp    仅通用宏/常量（CHECK/EPSILON）；不含足球领域枚举
 │   ├── log, properties, utils, xml_loader, backtrace, file
 │   └── misc/           hungarian（通用算法；perlin 已删）
-├── animation/      runtime 动画系统（只依赖 foundation）
-│   └── 运行时只读（baked schema + 选择器）：clip, library,
-│       baked_selector, simanim_format, types, selection_*, quadrant
 ├── sim/             仿真核心（原 onthepitch）
+│   ├── animation/      runtime 动画子系统（只依赖 foundation；见下方 archive 说明）
+│   │                   运行时只读（baked schema + 选择器）：clip, library,
+│   │                   baked_selector, simanim_format, types, selection_*, quadrant
 │   ├── gamedefines.*   游戏常量（velocity/e_Velocity/e_FunctionType）
 │   ├── simulation, match, match_options（仅规则参数）, team, ball, referee（规则）, humangamer, teamAIcontroller
 │   ├── formation       role adaptation / personal-space 归一化（纯算法，无 DB 查找）
@@ -202,7 +202,7 @@ include `support`, and nothing in core may include `app/` or reference its symbo
 已实现的下半段（能在 `CMakeLists.txt` 的 static library 边上看到）：
 
 ```text
-runtime:  model/foundation (叶) → animation → support → sim → engine/env → game
+runtime:  model/foundation (叶) → sim/animation → sim → engine/env → game
 契约:     model (STL only) → observation (对外值) → control (控制契约)
 exec:     app fixtures/importers → model + support（仅 executable，不进 .so）
 ```
@@ -216,15 +216,16 @@ is fetched under `BUILD_TESTING` and is never a core dependency either.
   `football_model` / `football::model` 接口库替代原 `football_domain`；不再存在
   `src/domain/`。模型可独立使用，`cmake -S src/model -B build/model-standalone`。
 - `foundation` 只能 include STL 与自身。`foundation_boundary_guard` 强制这一点。
-- `animation` 只能 include `foundation`（无上层 include）。
-- `football_animation` 是独立 archive；`libfootball_foundation.a` 不含任何
-  动画符号。
+- `sim/animation` 只能 include `foundation`（无上层 include）。
+- `football_animation` 仍是一个独立 archive（源码在 `sim/animation/`）：它只依赖
+  foundation，离线 baker 因此能在不链接整个仿真的前提下 load/verify 它烤出的
+  `.simanim`。`libfootball_foundation.a` 不含任何动画符号。
 
 尚未清理的上半段（不要在此基础上新增反向边）：
 
-- `sim/**` 不 include `env/**`；`model`/`foundation`/`animation`/`sim`/`env`/
+- `sim/**` 不 include `env/**`；`model`/`foundation`/`sim`/`env`/
   `observation`/`control`/`controller`/`support` 不 include `app/`、不引用 fixture
-  符号；`src/data/` 不再存在。整个 runtime 已无环境全局入口。
+  符号；`src/data/` 与顶层 `src/animation/` 不再存在。整个 runtime 已无环境全局入口。
 - `controller/**` 与 HumanGamer/HumanController 的 legacy 输入簇仍待单独审计；
   不要在环境所有权工作中删除仍有 reader 的 ControllerInput。
 - `env/rng.*` 已删除；确定性的 `SimulationRng` 由 `Simulation` 持有，算法本体在
@@ -248,6 +249,19 @@ entry point and guards, plus legacy `animation/`, `animcollection/`, import
 hierarchy/loader and animation extensions. It is linked by
 `football_anim_baker` and the legacy validation paths in
 `football_regression`, never by `libgame.so`.
+
+Two different include roots share the `animation/` name, and they are not the
+same thing:
+
+- `sim/animation/...` is the **runtime** baked-animation reader (owned by sim).
+- `animation/...` is the **offline legacy** pipeline, rooted at `tools/animBaker/`
+  (names: `animation.hpp`, `animcollection.hpp`, `import_*`, `extensions/*`).
+
+The filename sets are disjoint, so an include prefix identifies its root without
+ambiguity. The baker intentionally reuses the runtime `AnimationLibrary`/
+`BakedAnimationSelector` to load and verify the artifact it just wrote; that is
+why it links `football_animation` while still avoiding the simulation.
+
 `foundation/xml_loader.*` is shared infrastructure for runtime data and the
 offline importer; runtime animation itself does not parse XML.
 

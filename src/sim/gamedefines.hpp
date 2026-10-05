@@ -18,7 +18,7 @@
 #ifndef _HPP_GAMEDEFINES
 #define _HPP_GAMEDEFINES
 
-#include "animation/types.hpp"
+#include "sim/animation/types.hpp"
 #include "model/football_types.hpp"
 #include "model/pitch.hpp"
 

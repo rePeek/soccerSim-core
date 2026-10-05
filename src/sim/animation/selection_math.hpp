@@ -11,19 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _HPP_ANIMATION_QUADRANT
-#define _HPP_ANIMATION_QUADRANT
+#ifndef _HPP_ANIMATION_SELECTION_MATH
+#define _HPP_ANIMATION_SELECTION_MATH
 
-#include "foundation/math/vector3.hpp"
-#include "animation/types.hpp"
+#include "sim/animation/types.hpp"
 
-// Quantized outgoing movement (velocity plus angle). Kept as a pure value type
-// so baked runtime selection stays independent of the simulation runtime.
-struct Quadrant {
-  int id = 0;
-  blunted::Vector3 position;
-  e_Velocity velocity;
-  blunted::radian angle;
-};
+inline blunted::radian FixAngle(blunted::radian angle) {
+  // Convert engine angle into football angle (different base orientation:
+  // 'down' on y instead of 'right' on x).
+  angle += 0.5f * blunted::pi;
+  return blunted::ModulateIntoRange(-blunted::pi, blunted::pi, angle);
+}
 
 #endif

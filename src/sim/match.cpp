@@ -16,7 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/match.hpp"
-#include "animation/library.hpp"
+#include "sim/animation/library.hpp"
 
 #include "foundation/geometry/line.hpp"
 #include <algorithm>

@@ -66,7 +66,7 @@ forbidden_fixture_symbol='\b(MakeDefaultHomeTeam|MakeDefaultAwayTeam|LoadLegacyP
 if grep -R -n -E \
     --include='*.cpp' --include='*.hpp' --include='*.h' \
     "$forbidden_fixture_include|$forbidden_fixture_symbol" \
-    "$source_dir/model" "$source_dir/foundation" "$source_dir/animation" \
+    "$source_dir/model" "$source_dir/foundation" \
     "$source_dir/sim" "$source_dir/env" "$source_dir/observation" \
     "$source_dir/control" "$source_dir/controller" "$source_dir/support"; then
   echo "headless-core guard: app fixture/importer leaked into core" >&2

@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "animation/library.hpp"
+#include "sim/animation/library.hpp"
 
 #include "support/diagnostics/log.hpp"
 

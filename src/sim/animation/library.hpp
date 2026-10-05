@@ -11,16 +11,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _HPP_ANIMATION_SELECTION_MATH
-#define _HPP_ANIMATION_SELECTION_MATH
+#ifndef _HPP_ANIMATION_LIBRARY
+#define _HPP_ANIMATION_LIBRARY
 
-#include "animation/types.hpp"
+#include <cstdint>
+#include <filesystem>
+#include <vector>
 
-inline blunted::radian FixAngle(blunted::radian angle) {
-  // Convert engine angle into football angle (different base orientation:
-  // 'down' on y instead of 'right' on x).
-  angle += 0.5f * blunted::pi;
-  return blunted::ModulateIntoRange(-blunted::pi, blunted::pi, angle);
-}
+#include "sim/animation/clip.hpp"
+
+// Read-only view over a baked animations.simanim artifact.
+class AnimationLibrary {
+ public:
+  bool Load(const std::filesystem::path& path);
+
+  const AnimationClip& Get(uint32_t id) const { return clips_.at(id); }
+
+  const std::vector<AnimationClip>& Clips() const { return clips_; }
+
+  std::size_t Size() const { return clips_.size(); }
+
+ private:
+  std::vector<AnimationClip> clips_;
+};
 
 #endif

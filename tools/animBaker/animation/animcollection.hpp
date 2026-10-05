@@ -23,9 +23,9 @@
 #include "animation/import_hierarchy.hpp"
 #include "animation/import_loader.hpp"
 
-#include "animation/quadrant.hpp"
-#include "animation/selection_math.hpp"
-#include "animation/selection_query.hpp"
+#include "sim/animation/quadrant.hpp"
+#include "sim/animation/selection_math.hpp"
+#include "sim/animation/selection_query.hpp"
 
 using namespace blunted;
 
