@@ -38,7 +38,13 @@ class ContextHolder {
 
 // Game environment. This is the class that can be used directly from Python.
 struct GameEnv {
-  GameEnv() { }
+  GameEnv() = default;
+  ~GameEnv();
+  GameEnv(const GameEnv&) = delete;
+  GameEnv& operator=(const GameEnv&) = delete;
+  // The thread-local binding requires a stable environment address.
+  GameEnv(GameEnv&&) = delete;
+  GameEnv& operator=(GameEnv&&) = delete;
   // Start the game (in separate process).
   void start_game();
   void start_game(MatchSetup setup);
@@ -67,7 +73,7 @@ struct GameEnv {
  public:
   ScenarioConfig scenario_config;
   GameConfig game_config;
-  GameContext* context = nullptr;
+  std::unique_ptr<GameContext> context;
   PlayerControlSet controls_;
   GameState state = game_created;
   int waiting_for_game_count = 0;

@@ -61,7 +61,5 @@ int main(int argc, char** argv) {
     }
   }
 
-  // GameEnv currently has no owner-managed shutdown API. Process teardown is
-  // intentional here; a later runtime API can make shutdown testable.
   return 0;
 }

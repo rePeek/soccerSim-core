@@ -6,7 +6,6 @@
 #include <string_view>
 
 #include "env/game_env.hpp"
-#include "env/main.hpp"
 
 namespace {
 int ParseSteps(int argc, char** argv) {
@@ -42,9 +41,6 @@ int main(int argc, char** argv) {
     std::cout << "tick=" << world.tick << " players=" << world.players.size()
               << "\n";
 
-    quit_game();
-    delete environment.context;
-    environment.context = nullptr;
     return EXIT_SUCCESS;
   } catch (const std::exception& error) {
     std::cerr << "football_app: " << error.what() << "\n";

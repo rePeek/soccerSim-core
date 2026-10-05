@@ -27,6 +27,18 @@
 
 using std::string;
 
+GameEnv::~GameEnv() {
+  GameEnv* previous = GetGame();
+  if (context) {
+    // Legacy teardown uses GetContext(), so bind this environment until all
+    // context-owned resources have been destroyed.
+    SetGame(this);
+    quit_game();
+    context.reset();
+  }
+  SetGame(previous == this ? nullptr : previous);
+}
+
 void GameEnv::do_step(int count) {
   while (count--) {
     context->simulation->Step(controls_);
@@ -102,7 +114,7 @@ void GameEnv::start_game() {
   assert(context == nullptr);
   install_stacktrace();
   std::cout.precision(17);
-  context = new GameContext();
+  context = std::make_unique<GameContext>();
   ContextHolder c(this);
   // feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
   std::cout << std::unitbuf;
@@ -120,7 +132,7 @@ void GameEnv::start_game(MatchSetup setup) {
   assert(context == nullptr);
   install_stacktrace();
   std::cout.precision(17);
-  context = new GameContext();
+  context = std::make_unique<GameContext>();
   ContextHolder c(this);
   std::cout << std::unitbuf;
 

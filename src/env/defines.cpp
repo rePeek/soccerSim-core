@@ -28,7 +28,7 @@ EnvState::EnvState(GameEnv* game, const std::string& state,
       state(state),
       reference(reference),
       scenario_config(&game->scenario_config),
-      context(game->context) {
+      context(game->context.get()) {
 }
 
 void EnvState::process(ControllerInput*& value) {

@@ -4121,6 +4121,55 @@ void CheckRetainAnchor(GameEnv& env, ScenarioConfig& config) {
 }
 
 
+void CheckGameEnvLifecycle() {
+  Require(GetGame() == nullptr, "lifecycle: unexpected initial binding");
+  {
+    GameEnv unstarted;
+  }
+  Require(GetGame() == nullptr, "lifecycle: unstarted environment left a binding");
+
+  // Also cover initialization that has not reached run_game() yet.
+  {
+    GameEnv partial;
+    partial.context = std::make_unique<GameContext>();
+    SetGame(&partial);
+  }
+  Require(GetGame() == nullptr, "lifecycle: partial initialization left a binding");
+
+  {
+    GameEnv env;
+    env.start_game();
+    {
+      GameEnv unstarted;
+    }
+    Require(GetGame() == &env, "lifecycle: unstarted teardown changed active binding");
+
+    auto inactive = std::make_unique<GameEnv>();
+    inactive->start_game();
+    SetGame(&env);
+    inactive.reset();
+    Require(GetGame() == &env, "lifecycle: inactive teardown lost active binding");
+    Require(!env.Observe().players.empty(),
+            "lifecycle: inactive teardown damaged the active simulation");
+
+    // Existing callers may still shut down explicitly before destruction.
+    quit_game();
+    Require(!env.context->simulation && env.context->checkpointControllers.empty(),
+            "lifecycle: explicit shutdown did not release runtime resources");
+  }
+  Require(GetGame() == nullptr, "lifecycle: normal teardown left a dangling binding");
+
+  struct Unwind {};
+  try {
+    GameEnv env;
+    env.start_game(MakeDefaultMatchSetup());
+    throw Unwind{};
+  } catch (const Unwind&) {
+  }
+  Require(GetGame() == nullptr, "lifecycle: exception teardown left a dangling binding");
+}
+
+
 int main(int argc, char** argv) {
   if (!std::getenv("GFOOTBALL_DATA_DIR")) {
     std::cerr << "Set GFOOTBALL_DATA_DIR before running football_regression.\n";
@@ -4142,6 +4191,7 @@ int main(int argc, char** argv) {
     CheckLegacyLocomotionCommandAdapter();
     CheckPlayerActionVolume();
     CheckPlayerBodyCollider();
+    CheckGameEnvLifecycle();
     GameEnv env;
     env.start_game();
     ScenarioConfig config = MakeBuiltinAiConfig();
