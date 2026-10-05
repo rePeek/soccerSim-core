@@ -23,46 +23,7 @@
 
 #include "env/main.hpp"
 
-void Foul::ProcessState(EnvState *state) {
-  state->process(foulPlayer);
-  state->process(foulVictim);
-  state->process(foulType);
-  state->process(advantage);
-  state->process(foulTime);
-  if (state->getConfig()->reverse_team_processing) {
-    foulPosition.Mirror();
-  }
-  state->process(foulPosition);
-  if (state->getConfig()->reverse_team_processing) {
-    foulPosition.Mirror();
-  }
-  state->process(hasBeenProcessed);
-}
 
-void RefereeBuffer::ProcessState(EnvState *state) {
-  state->process(active);
-  state->process(desiredSetPiece);
-  if (state->getConfig()->reverse_team_processing) {
-    teamID = 1 - teamID;
-  }
-  state->process(teamID);
-  if (state->getConfig()->reverse_team_processing) {
-    teamID = 1 - teamID;
-  }
-  state->process(setpiece_team);
-  state->process(stopTime);
-  state->process(prepareTime);
-  state->process(startTime);
-  if (state->getConfig()->reverse_team_processing) {
-    restartPos.Mirror();
-  }
-  state->process(restartPos);
-  if (state->getConfig()->reverse_team_processing) {
-    restartPos.Mirror();
-  }
-  state->process(taker);
-  state->process(endPhase);
-}
 
 Referee::Referee(Match *match, bool animations) : match(match), animations(animations) {
   buffer.desiredSetPiece = e_GameMode_KickOff;
@@ -413,17 +374,6 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
   }
 }
 
-void Referee::ProcessState(EnvState *state) {
-  buffer.ProcessState(state);
-  state->process(afterSetPieceRelaxTime_ms);
-  int size = offsidePlayers.size();
-  state->process(size);
-  offsidePlayers.resize(size);
-  for (auto &i : offsidePlayers) {
-    state->process(i);
-  }
-  foul.ProcessState(state);
-}
 
 bool Referee::CheckFoul() {
 

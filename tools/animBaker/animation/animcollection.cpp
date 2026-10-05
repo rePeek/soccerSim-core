@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include <algorithm>
+#include <list>
 #include "support/diagnostics/log.hpp"
 #include "animation/animcollection.hpp"
 
@@ -814,31 +815,7 @@ int AnimCollection::GetQuadrantID(Animation *animation, const Vector3 &movement,
   return quadrantID;
 }
 
-// Legacy checkpoint serialization is intentionally kept outside the shared
-// Quadrant value type used by baked runtime selection.
-void ProcessQuadrantState(EnvState* state, Quadrant& quadrant) {
-  state->process(quadrant.id);
-  state->process(quadrant.position);
-  state->process(quadrant.velocity);
-  state->process(quadrant.angle);
-}
 
-void AnimCollection::ProcessState(EnvState *state) {
-  int size = animations.size();
-  state->process(size);
-  animations.resize(size);
-  for (auto &a : animations) {
-    a->ProcessState(state);
-  }
-  size = quadrants.size();
-  state->process(size);
-  quadrants.resize(size);
-  for (auto& q : quadrants) {
-    ProcessQuadrantState(state, q);
-  }
-  state->process(maxIncomingBallDirectionDeviation);
-  state->process(maxOutgoingBallDirectionDeviation);
-}
 
 // adds touches around main touch
 int AddExtraTouches(Animation *animation,

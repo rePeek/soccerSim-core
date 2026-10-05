@@ -18,8 +18,8 @@
 #ifndef _HPP_GAMEDEFINES
 #define _HPP_GAMEDEFINES
 
-#include "env/defines.hpp"
 #include "animation/types.hpp"
+#include "model/football_types.hpp"
 #include "model/pitch.hpp"
 
 #include "foundation/math/vector3.hpp"
@@ -103,16 +103,6 @@ struct TouchInfo {
   float           desiredPower = 0;
   Player          *targetPlayer = 0; // null == do not use
   Player          *forcedTargetPlayer = 0; // null == do not use
-  void ProcessState(EnvState* state) {
-    state->process(inputDirection);
-    state->process(inputPower);
-    state->process(autoDirectionBias);
-    state->process(autoPowerBias);
-    state->process(desiredDirection);
-    state->process(desiredPower);
-    state->process(targetPlayer);
-    state->process(forcedTargetPlayer);
-  }
 };
 
 enum e_StrictMovement {
@@ -175,27 +165,6 @@ struct PlayerCommand {
   int            specialVar2;
 
   int            modifier;
-  void ProcessState(EnvState* state) {
-    state->process(desiredFunctionType);
-    state->process(useDesiredMovement);
-    state->process(desiredDirection);
-    state->process(strictMovement);
-    state->process(desiredVelocityFloat);
-    state->process(useDesiredLookAt);
-    state->process(desiredLookAt);
-    state->process(useTouchInfo);
-    touchInfo.ProcessState(state);
-    state->process(onlyDeflectAnimsThatPickupBall);
-    state->process(useTripType);
-    state->process(tripType);
-    state->process(useDesiredTripDirection);
-    state->process(desiredTripDirection);
-    state->process(useSpecialVar1);
-    state->process(specialVar1);
-    state->process(useSpecialVar2);
-    state->process(specialVar2);
-    state->process(modifier);
-  }
 };
 
 typedef std::vector<PlayerCommand> PlayerCommandQueue;
@@ -216,8 +185,7 @@ inline constexpr float goalHalfWidth = football::model::MakeLegacyPitch().goal_h
 
 const float FORMATION_Y_SCALE = -2.36f;
 
-// Legacy role-adapted runtime/checkpoint representation. Initial domain
-// declarations live in model/formation.hpp and are converted by env/.
+// Legacy role-adapted runtime representation. Initial domain declarations
 struct FormationEntry {
   FormationEntry() { }
   // Constructor accepts environment coordinates.
@@ -240,13 +208,6 @@ struct FormationEntry {
                    position.coords[1] / FORMATION_Y_SCALE,
                    position.coords[2]);
   }
-  void ProcessState(EnvState* state) {
-    state->process(role);
-    state->process(position);
-    state->process(start_position);
-    state->process(lazy);
-    state->process(controllable);
-  }
   Vector3 position; // adapted to player role (combination of databasePosition and hardcoded role position)
   Vector3 start_position;
   e_PlayerRole role = e_PlayerRole_GK;
@@ -262,14 +223,6 @@ struct PlayerImage {
   Player *player;
   e_Velocity velocity = e_Velocity_Idle;
   e_PlayerRole role;
-  void ProcessState(EnvState* state) {
-    state->process(position);
-    state->process(directionVec);
-    state->process(movement);
-    state->process(player);
-    state->process(velocity);
-    state->process(role);
-  }
   void Mirror() {
     position.Mirror();
     directionVec.Mirror();

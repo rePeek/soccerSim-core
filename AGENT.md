@@ -127,20 +127,19 @@ src/
 │       ├── controller/  icontroller, playercontroller（私有方向量化）, humancontroller,
 │       │                elizacontroller, refereecontroller, strategies/offtheball/*
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
-├── controller/      legacy input 迁移尾巴：ControllerSet 已无人读取，只剩 GameContext 写入
+├── controller/      协议无关控制输入接口（controller_input/external_controller）
 ├── state/           对外运行时值快照（依赖 model 身份类型与 foundation 数学）
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
 │   ├── game_env, main, rng（全局 RNG 入口，owner 是 GameContext）
 │   ├── model_adapter  episode 坐标转换与有效初始阵型；不构造 runtime 对象
-│   └── defines        EnvState / Position / SharedInfo
 ├── data/            legacy 资料导入与 runtime 兼容层
 │   ├── player_profile  无 GameContext/RNG 的资料解析与年龄/能力计算
 │   ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
 │   ├── model_adapter  模型/初始阵型 → legacy TeamCreationData / FormationEntry
 │   ├── playerdata      持有 model::Player 的兼容 facade；无独立 stats/cache
 │   └── matchdata, teamdata  runtime 组装与序列化
-└── ai/              ai_keyboard, ihidevice.hpp
+└── ai/              player/player_ai.hpp（决策算法边界，尚未接线）
 ```
 
 ### 分层与边界守卫
@@ -161,14 +160,12 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 
 尚未清理的上半段（不要在此基础上新增反向边）：
 
-- `sim/**` 与 `data/**` 仍 include `env/main.hpp`、`env/defines.hpp`。
-- `env` 的 `GameContext` 仍同时持有 `SimulationRng` 状态与 checkpoint
-  序列化，是历史遗留；长期应拆出 `SimulationState`。
+- `sim/**` 与 `data/**` 仍 include `env/main.hpp`（全局 RNG 入口与 GetContext）。
 - 全局 RNG 入口（`boostrandom`/`randomseed`/`random_non_determ`）声明在
   `env/rng.hpp`，因为它们需要选择 context 持有的 generator；算法本体
   （`Rng`/`SimulationRng`/`PresentationRng`）在 `foundation/math/rng.hpp`。
-  确定性的 `SimulationRng` 状态属于 simulation checkpoint，只有 simulation
-  代码可以抽取；多抽一次就会改变之后所有随机序列。
+  确定性的 `SimulationRng` 状态只有 simulation 代码可以抽取；多抽一次就会
+  改变之后所有随机序列。
 
 机械守卫（CTest，改坏边界会直接失败）：
 
@@ -207,10 +204,9 @@ main() [src/app/app.cpp]
 ```
 
 - `GameEnv` is the stable public API; `Match`/`Player`/`Humanoid` are internals.
-- `ContextHolder` is private to `env/game_env.cpp`; the undefined `config()` and
-  `getObservations()` declarations have been removed. `Position` methods live in
-  `env/defines.cpp`. Stack-trace installation and console formatting belong to
-  application/tool entry points, never to `GameEnv::start_game()`.
+  `getObservations()` declarations have been removed. Stack-trace installation and
+  console formatting belong to application/tool entry points, never to
+  `GameEnv::start_game()`.
 - Static composition uses `football::model::Team`, `Player`, `Formation` and
   `Pitch` (`src/model/`). `GameEnv(home, away, pitch)` requires explicit descriptions
   and retains them across reset/restart. There is no default `GameEnv()`, public
@@ -231,12 +227,13 @@ main() [src/app/app.cpp]
   `Match::UpdateControllerSetup` and `Match::controller_assignments_` are deleted.
   Players read `PlayerControlSet` first (`PlayerBase::RequestCommand`); otherwise the
   per-player `ElizaController` created by `Player` decides.
-- `GameContext::controllerSet` and `controllerSet.Add()` in `run_game()` are now
-  write-only legacy state: no reader remains. With no controller assignments,
-  `Team::AddHumanGamers` is unreachable, so `externalController` is always null and
-  the human-input path is dormant. The unreachable checkpoint cluster (`EnvState`,
-  every `ProcessState`, `checkpointControllers`, `AIControlledKeyboard` registry)
-  is the next removal; do not add new readers to any of it.
+- The checkpoint serialization layer is deleted completely: `EnvState`, every
+  `ProcessState`/`ProcessStateBase`, `ScenarioConfig::ProcessState`, the
+  `GameContext` controller registry and `AIControlledKeyboard` are gone, together
+  with `env/defines.*` and `ai/ai_keyboard.*`. No byte-blob save/load remains;
+  `GameEnv` never exposed it and regression uses reset/replay instead. If durable
+  save/load is ever needed, add an explicit state value object, not per-class
+  `memcpy` hooks.
 - `model::Player` owns its static identity, appearance and all 22 base abilities.
   `PlayerStat` and `PlayerAttributes` live together in `src/model/player.hpp`.
   `PlayerDatabaseId` is provenance, not a request to reload values at startup; it
@@ -262,12 +259,12 @@ main() [src/app/app.cpp]
   `physics_steps_per_frame`, batching helper or observation scaling on its API.
   Callers batch explicitly with a loop. `observe()` returns raw `WorldState` values.
   The CLI `--steps=N` now means N simulation ticks, not N legacy 100 ms frames.
-- `Simulation::GetState` / `Match::GetState` are still internal unscaled legacy
-  projections; they are not exposed through `GameEnv`. `ScenarioConfig`, `EnvState`
-  and `GetContext` still have simulation-internal users and are a separate migration.
-  The internal `animations` flag affects referee restart timing, not just rendering;
-  its existing false/default behavior is preserved. No `GameConfig` or ambient
-  cadence wrapper remains. Fixture paths belong to tests.
+- `ScenarioConfig` and `GetContext` still have simulation-internal users and are a
+  separate migration. `X_FIELD_SCALE`/`Y_FIELD_SCALE` now live in
+  `env/model_adapter.cpp`; `sim/gamedefines.hpp` owns `FORMATION_Y_SCALE`.
+  The internal `animations` flag affects referee restart timing, not just
+  rendering; its existing false/default behavior is preserved. No `GameConfig`
+  or ambient cadence wrapper remains. Fixture paths belong to tests.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
   (`GameContext::rng`). Never introduce unordered-container iteration order or
   hidden global mutable state into simulation logic.

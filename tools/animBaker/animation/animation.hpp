@@ -20,8 +20,8 @@
 
 #include <algorithm>
 #include <memory>
+#include "foundation/math/vector3.hpp"
 #include "support/diagnostics/log.hpp"
-#include "env/defines.hpp"
 #include <iostream>
 
 #include <unordered_map>
@@ -163,10 +163,6 @@ struct ImportNode;
   struct BiasedOffset {
     Quaternion orientation;
     float bias = 0.0f; // 0 .. 1
-    void ProcessState(EnvState* state) {
-      state->process(orientation);
-      state->process(bias);
-    }
   };
 
   struct BiasedOffsets {
@@ -183,11 +179,6 @@ struct ImportNode;
     inline BiasedOffset& operator[](BodyPart part) {
       return elements[part];
     }
-    void ProcessState(EnvState* state) {
-      for (auto& el : elements) {
-        el.ProcessState(state);
-      }
-    }
   private:
     BiasedOffset elements[body_part_max];
   };
@@ -199,12 +190,6 @@ struct ImportNode;
     Quaternion orientation;
     int timeDiff_ms = 0;
     BodyPart nodeName;
-    void ProcessState(EnvState* state) {
-      state->process(position);
-      state->process(orientation);
-      state->process(timeDiff_ms);
-      state->process(nodeName);
-    }
   };
 
   typedef std::vector<MovementHistoryEntry> MovementHistory;
@@ -362,7 +347,6 @@ struct ImportNode;
         return nodeAnimations;
       }
       mutable float order_float = 0;
-      void ProcessState(EnvState* state);
 
     protected:
       std::vector<NodeAnimation*> nodeAnimations;

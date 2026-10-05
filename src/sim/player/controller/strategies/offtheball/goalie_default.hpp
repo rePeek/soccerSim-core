@@ -18,7 +18,6 @@
 #ifndef _HPP_STRATEGY_GOALIE_DEFAULT
 #define _HPP_STRATEGY_GOALIE_DEFAULT
 
-#include "env/defines.hpp"
 
 class ElizaController;
 class MentalImage;
@@ -31,7 +30,6 @@ class GoalieDefaultStrategy {
     void RequestInput(ElizaController *controller, const MentalImage *mentalImage, blunted::Vector3 &direction, float &velocity);
     void CalculateIfBallIsBoundForGoal(ElizaController *controller, const MentalImage *mentalImage);
     bool IsBallBoundForGoal() const { return ballBoundForGoal; }
-    void ProcessState(EnvState* state);
 
   protected:
     bool ballBoundForGoal = false;

@@ -61,32 +61,6 @@ void MentalImage::Mirror(bool team_0, bool team_1, bool ball) {
 
 int MentalImage::GetTimeStampNeg_ms() const { return match->GetActualTime_ms() - timeStamp_ms; }
 
-void MentalImage::ProcessState(EnvState* state, Match* match) {
-  this->match = match;
-  state->process(timeStamp_ms);
-  state->process(maxDistanceDeviation);
-  state->process(maxMovementDeviation);
-  int size = players.size();
-  state->process(size);
-  players.resize(size);
-  for (auto& p : players) {
-    p.ProcessState(state);
-  }
-  size = ballPredictions.size();
-  state->process(size);
-  ballPredictions.resize(size);
-  for (auto& b : ballPredictions) {
-    if (state->getConfig()->reverse_team_processing &&
-        !ballPredictions_mirrored) {
-      b.Mirror();
-    }
-    state->process(b);
-    if (state->getConfig()->reverse_team_processing &&
-        !ballPredictions_mirrored) {
-      b.Mirror();
-    }
-  }
-}
 
 PlayerImage MentalImage::GetPlayerImage(PlayerBase* p) const {
   for (auto& player : players) {

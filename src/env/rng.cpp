@@ -30,9 +30,6 @@ namespace blunted {
   }
 
   real boostrandom(real min, real max) {
-    // Diagnostic counter: presentation code drawing from the deterministic
-    // RNG shows up here.
-    GetContext().rng_draw_count++;
     return GetContext().rng.Uniform(min, max);
   }
 

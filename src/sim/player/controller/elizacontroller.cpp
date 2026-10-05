@@ -754,12 +754,6 @@ void ElizaController::Reset() {
   lastDesiredVelocity = 0;
 }
 
-void ElizaController::ProcessState(EnvState *state) {
-  ProcessPlayerController(state);
-  goalieStrategy.ProcessState(state);
-  state->process(lastDesiredDirection);
-  state->process(lastDesiredVelocity);
-}
 
 void ElizaController::GetOnTheBallCommands(
     std::vector<PlayerCommand> &commandQueue, Vector3 &rawInputDirection,

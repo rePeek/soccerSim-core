@@ -18,9 +18,10 @@
 #ifndef _HPP_FOOTBALL_ONTHEPITCH_BALL
 #define _HPP_FOOTBALL_ONTHEPITCH_BALL
 
+#include <list>
+
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
-#include "env/defines.hpp"
 #include "sim/gamedefines.hpp"
 
 using namespace blunted;
@@ -67,7 +68,6 @@ class Ball {
     Quaternion GetOrientation() const { return orientationBuffer; }
 
     void ResetSituation(const Vector3 &focusPos);
-    void ProcessState(EnvState *state);
   private:
     Vector3 momentum;
     Quaternion rotation_ms;

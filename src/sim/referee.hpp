@@ -20,13 +20,14 @@
 
 #include <set>
 
-#include "env/defines.hpp"
 #include "sim/gamedefines.hpp"
 
 
 using namespace blunted;
 
 class Match;
+class Player;
+class Team;
 
 struct RefereeBuffer {
   // Referee has pending action to execute.
@@ -40,7 +41,6 @@ struct RefereeBuffer {
   Vector3 restartPos;
   Player *taker;
   bool endPhase = false;
-  void ProcessState(EnvState* state);
 };
 
 struct Foul {
@@ -51,7 +51,6 @@ struct Foul {
   unsigned long foulTime = 0;
   Vector3 foulPosition;
   bool hasBeenProcessed = false;
-  void ProcessState(EnvState* state);
 };
 
 class Referee {
@@ -74,7 +73,6 @@ class Referee {
 
     Player *GetCurrentFoulPlayer() { return foul.foulPlayer; }
     int GetCurrentFoulType() { return foul.foulType; }
-    void ProcessState(EnvState* state);
 
   protected:
     Match *match;

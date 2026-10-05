@@ -18,7 +18,6 @@
 
 #include <string>
 
-#include "ai/ai_keyboard.hpp"
 #include "support/diagnostics/log.hpp"
 #include "foundation/math/scalar.hpp"
 #include "support/text/string_utils.hpp"
@@ -57,46 +56,10 @@ void randomize(unsigned int seed) {
 
 void run_game() {
   randomize(0);
-  for (int x = 0; x < 2 * kPlayersPerTeam; ++x) {
-    const e_PlayerColor color =
-        e_PlayerColor(x % (e_PlayerColor_Default + 1));
-    auto* controller = new AIControlledKeyboard(color);
-    GetContext().checkpointControllers.push_back(controller);
-    GetContext().controllerSet.Add(*controller);
-  }
-  // sequences
-
   GetContext().simulation = std::make_unique<Simulation>();
 }
   // fire!
 
 void quit_game() {
   GetContext().simulation.reset();
-
-  for (AIControlledKeyboard* controller : GetContext().checkpointControllers) {
-    delete controller;
-  }
-  GetContext().checkpointControllers.clear();
-
-
-
-}
-
-
-void GameContext::ProcessState(EnvState* state) {
-  for (int x = 0; x < sizeof(rng); x++) {
-    state->process(((char*) &rng)[x]);
-  }
-  if (state->Load()) {
-    EnvState reader(game, "");
-    GetScenarioConfig().ProcessStateConstant(&reader);
-    if (reader.GetState() != state->GetState().substr(state->getpos(),
-        reader.GetState().length())) {
-      Log(e_FatalError, "football", "set_state",
-          "Current environment scenario != scenario in the state.");
-    }
-  }
-  GetScenarioConfig().ProcessStateConstant(state);
-  GetScenarioConfig().ProcessState(state);
-  state->process(step);
 }

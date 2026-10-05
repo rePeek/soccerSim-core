@@ -45,7 +45,6 @@ class PlayerController : public IController {
     Vector3 GetDefendPosition(Player *opp, float distance = 0.0f);
 
     virtual void Reset();
-    void ProcessPlayerController(EnvState *state);
 
   protected:
     float OppBetweenBallAndMeDot();

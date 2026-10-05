@@ -31,8 +31,7 @@ class BakedAnimationSelector {
                              DataSet& data_set);
 
   // Deterministic quadrant table (velocity + angle) mirroring the legacy
-  // AnimCollection constructor. Position is included for parity but the
-  // runtime selection only reads velocity/angle.
+  // AnimCollection constructor. Only velocity and angle are read.
   static Quadrant GetQuadrant(int id);
 };
 

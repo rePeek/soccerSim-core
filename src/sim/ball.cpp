@@ -538,21 +538,3 @@ void Ball::ResetSituation(const Vector3 &focusPos) {
   valid_predictions = 0;
   orientationBuffer = QUATERNION_IDENTITY;
 }
-
-void Ball::ProcessState(EnvState *state) {
-  state->process(momentum);
-  state->process(rotation_ms);
-  for (int x = 0; x < sizeof(predictions) / sizeof(predictions[0]); x++) {
-    state->process(predictions[x]);
-  }
-  state->process(valid_predictions);
-  state->process(orientPrediction);
-  int size = ballPosHistory.size();
-  state->process(size);
-  ballPosHistory.resize(size);
-  for (auto &i : ballPosHistory) {
-    state->process(i);
-  }
-  state->process(positionBuffer);
-  state->process(orientationBuffer);
-}

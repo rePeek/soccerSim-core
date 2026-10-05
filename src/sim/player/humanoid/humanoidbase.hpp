@@ -105,8 +105,8 @@ int &LegacyOnlyDecisionMovementSelectionMaterialChanges();
 int &LegacyOnlyDecisionMovementSelections();
 int &LegacyOnlyDecisionNonMovementSelections();
 int &LegacyOnlyDecisionNoSelection();
-// 4f-a2: whether two commands would drive SelectAnim identically. The field
-// list is PlayerCommand::ProcessState(); floats and vectors compare bit-exact.
+// 4f-a2: whether two commands would drive SelectAnim identically. Floats and
+// vectors compare bit-exact.
 bool PlayerCommandsDecisionEqual(const PlayerCommand &a, const PlayerCommand &b);
 // 4f-a2: can the animation requeue consume the last simulation-owned decision
 // queue instead of querying? Counted only on legacy-caused queries, and split
@@ -271,10 +271,6 @@ struct RotationSmuggle {
   }
   radian begin;
   radian end;
-  void ProcessState(EnvState* state) {
-    state->process(begin);
-    state->process(end);
-  }
 };
 
 struct Anim {
@@ -297,34 +293,6 @@ struct Anim {
   Vector3 positionOffset;
   PlayerCommand originatingCommand;
   std::vector<Vector3> positions;
-  void ProcessState(EnvState* state) {
-    // Preserve the historical [id][bakedId] wire layout until the
-    // simulation-state schema receives an explicit versioned migration.
-    AnimationId legacy_id = animationId;
-    state->process(legacy_id);
-    state->process(animationId);
-    if (state->Load()) {
-      assert(legacy_id == animationId);
-    }
-    state->process(frameNum);
-    state->process(functionType);
-    state->process(originatingInterrupt);
-    state->process(actionSmuggle);
-    state->process(actionSmuggleOffset);
-    state->process(actionSmuggleSustain);
-    state->process(actionSmuggleSustainOffset);
-    state->process(movementSmuggle);
-    state->process(movementSmuggleOffset);
-    rotationSmuggle.ProcessState(state);
-    state->process(rotationSmuggleOffset);
-    state->process(touchFrame);
-    state->process(touchPos);
-    state->process(incomingMovement);
-    state->process(outgoingMovement);
-    state->process(positionOffset);
-    originatingCommand.ProcessState(state);
-    state->process(positions);
-  }
 };
 
 struct SpatialState {
@@ -361,27 +329,6 @@ struct SpatialState {
     positionOffsetMovement.Mirror();
   }
 
-  void ProcessState(EnvState* state) {
-    state->process(position);
-    state->process(angle);
-    state->process(directionVec);
-    state->process(enumVelocity);
-    state->process(floatVelocity);
-    state->process(actualMovement);
-    state->process(physicsMovement);
-    state->process(animMovement);
-    state->process(movement);
-    state->process(actionSmuggleMovement);
-    state->process(movementSmuggleMovement);
-    state->process(positionOffsetMovement);
-    state->process(bodyAngle);
-    state->process(bodyDirectionVec);
-    state->process(relBodyAngleNonquantized);
-    state->process(relBodyAngle);
-    state->process(relBodyDirectionVec);
-    state->process(relBodyDirectionVecNonquantized);
-    state->process(foot);
-  }
 };
 
 class HumanoidBase {
@@ -430,7 +377,6 @@ class HumanoidBase {
     float &OrderScratch(int id) const;
 
     virtual void ResetSituation(const Vector3 &focusPos);
-    void ProcessState(EnvState* state);
 
   protected:
     bool _HighOrBouncyBall() const;

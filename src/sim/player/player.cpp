@@ -420,23 +420,6 @@ float Player::GetStat(football::model::PlayerStat name) const {
   return playerData->GetStat(name) * multiplier;
 }
 
-void Player::ProcessState(EnvState *state) {
-  ProcessStateBase(state);
-  state->process(manMarking);
-  dynamicFormationEntry.ProcessState(state);
-  state->process(hasPossession);
-  state->process(hasBestPossession);
-  state->process(hasUniquePossession);
-  state->process(possessionDuration_ms);
-  state->process(timeNeededToGetToBall_ms);
-  state->process(timeNeededToGetToBall_optimistic_ms);
-  state->process(timeNeededToGetToBall_previous_ms);
-  state->process(triggerControlledBallCollision);
-  tacticalSituation.ProcessState(state);
-  state->process(desiredTimeToBall_ms);
-  state->process(cards);
-  state->process(cardEffectiveTime_ms);
-}
 
 void Player::ResetSituation(const Vector3 &focusPos) {
   PlayerBase::ResetSituation(focusPos);

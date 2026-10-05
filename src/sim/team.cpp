@@ -502,21 +502,3 @@ Player *Team::GetGoalie() {
 
   return 0;
 }
-
-void Team::ProcessState(EnvState *state) {
-  state->process(hasPossession);
-  state->process(timeNeededToGetToBall_ms);
-  state->process(designatedTeamPossessionPlayer);
-  state->process(teamPossessionAmount);
-  state->process(fadingTeamPossessionAmount);
-  teamController->ProcessState(state);
-  int size = humanGamers.size();
-  state->process(size);
-  humanGamers.resize(size);
-  for (auto &g : humanGamers) {
-    g->ProcessState(state);
-  }
-  state->process(switchPriority);
-  state->process(lastTouchPlayer);
-  state->process(mainSelectedPlayer);
-}

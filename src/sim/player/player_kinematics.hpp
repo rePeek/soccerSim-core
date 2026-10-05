@@ -14,7 +14,8 @@
 #ifndef _HPP_PLAYER_KINEMATICS
 #define _HPP_PLAYER_KINEMATICS
 
-#include "env/defines.hpp"
+#include "foundation/math/vector3.hpp"
+
 
 // Explicit movement state for a player. During the initial shadow phase it is
 // synchronized from Humanoid; PlayerKinematics will later produce it directly
@@ -37,13 +38,6 @@ struct PlayerKinematicState {
     velocity.Mirror();
   }
 
-  void ProcessState(EnvState *state) {
-    state->process(position);
-    state->process(velocity);
-    state->process(facing);
-    state->process(bodyFacing);
-    state->process(speed);
-  }
 };
 
 // Inputs are intentionally independent from PlayerCommand so that action

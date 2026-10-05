@@ -18,6 +18,7 @@
 #ifndef _HPP_TEAM
 #define _HPP_TEAM
 
+#include <list>
 #include <memory>
 #include "sim/player/player.hpp"
 #include "data/teamdata.hpp"
@@ -123,7 +124,6 @@ class Team {
 
     void UpdatePossessionStats();
     void UpdateSwitch();
-    void ProcessState(EnvState* state);
 
     Player *GetGoalie();
 

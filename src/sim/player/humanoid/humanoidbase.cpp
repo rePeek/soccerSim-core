@@ -188,10 +188,8 @@ bool DecisionCommandVectorBitsEqual(const Vector3 &a, const Vector3 &b) {
 
 }  // namespace
 
-// Field-for-field comparison of everything PlayerCommand::ProcessState()
-// writes, which is the exact set a replayed SelectAnim would read. Floats and
-// vectors compare bit-exact; the source of truth is ProcessState() itself, so a
-// new serialized field has to be added here too.
+// Field-for-field comparison of the fields a replayed SelectAnim would read.
+// Floats and vectors compare bit-exact, so a new field has to be added here too.
 bool PlayerCommandsDecisionEqual(const PlayerCommand &a, const PlayerCommand &b) {
   if (a.desiredFunctionType != b.desiredFunctionType) return false;
   if (a.useDesiredMovement != b.useDesiredMovement) return false;
@@ -2295,23 +2293,4 @@ radian HumanoidBase::ForceIntoPreferredDirectionAngle(radian angle) const {
     }
   }
   return bestValue;
-}
-
-void HumanoidBase::ProcessState(EnvState *state) {
-  currentAnim.ProcessState(state);
-  state->process(previousAnim_frameNum);
-  state->process(previousAnim_functionType);
-  state->process(startPos);
-  state->process(startAngle);
-  state->process(nextStartPos);
-  state->process(nextStartAngle);
-  spatialState.ProcessState(state);
-  state->process(previousPosition2D);
-  state->process(interruptAnim);
-  state->process(reQueueDelayFrames);
-  state->process(tripType);
-  state->process(tripDirection);
-  state->process(decayingPositionOffset);
-  state->process(decayingDifficultyFactor);
-  state->process(mentalImageTime);
 }

@@ -5,7 +5,6 @@
 #ifndef _HPP_LOCOMOTION_INTENT_SCHEDULER
 #define _HPP_LOCOMOTION_INTENT_SCHEDULER
 
-#include "env/defines.hpp"
 
 // H3e4f-c2: the simulation decides when the controller is asked for a new
 // locomotion intent, instead of inheriting the animation lifecycle's requeue
@@ -35,9 +34,6 @@ struct LocomotionIntentScheduler {
   // c2b: once this clock decides when the controller is queried it is gameplay
   // state, so it must survive save/load. refreshes stays telemetry and is
   // deliberately not serialized.
-  void ProcessState(EnvState *state) {
-    state->process(nextRefreshTime_ms);
-  }
 };
 
 #endif

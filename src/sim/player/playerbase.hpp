@@ -58,14 +58,6 @@ struct PlayerDecisionQueueState {
   PlayerCommandQueue commands;
   bool initialized = false;
   unsigned long long generation = 0;
-  void ProcessState(EnvState *state) {
-    int size = static_cast<int>(commands.size());
-    state->process(size);
-    if (state->Load()) commands.resize(size);
-    for (PlayerCommand &command : commands) command.ProcessState(state);
-    state->process(initialized);
-    state->process(generation);
-  }
 };
 // H3e4f-g0b-decision-intent: the serialized Player Decision Clock locomotion
 // state. Since the execution authority flip this is the sole command source for
@@ -85,14 +77,6 @@ struct PlayerDecisionLocomotionState {
   // epoch.
   bool wasEligibleLastTick = false;
   bool continuityStarted = false;
-  void ProcessState(EnvState *state) {
-    command.ProcessState(state);
-    state->process(initialized);
-    state->process(continuityEpoch);
-    state->process(publishedEpoch);
-    state->process(wasEligibleLastTick);
-    state->process(continuityStarted);
-  }
 };
 int &DecisionLocomotionIntentPresentTicks();
 int &DecisionLocomotionIntentMissingTicks();
@@ -396,7 +380,6 @@ class PlayerBase {
 
     virtual void ResetSituation(const Vector3 &focusPos);
 
-    void ProcessStateBase(EnvState* state);
 
   protected:
     void SynchronizeKinematicState();

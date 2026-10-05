@@ -27,6 +27,8 @@ with a loop. `football_app --steps=100` therefore advances 100 ticks, not 100
 legacy observation frames. Configure commands through `game.controls()`.
 
 `GameEnv` does not expose runtime containers, episode configuration, GRF
-observations or checkpoint serialization. The GRF compatibility adapter has been
-deleted, not moved to test support. Regression now uses the core API and raw
-`WorldState` snapshots; animation branches use deterministic reset/replay.
+observations or checkpoint serialization. The GRF compatibility adapter and the
+binary checkpoint layer have both been deleted, not moved to test support.
+Regression uses the core API and raw `WorldState` snapshots; animation branches
+use deterministic reset/replay. A future save/load feature should serialize an
+explicit state value object rather than per-class byte hooks.

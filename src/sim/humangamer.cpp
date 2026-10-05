@@ -48,13 +48,3 @@ void HumanGamer::SetSelectedPlayer(Player *player) {
     selectedPlayer = 0;
   }
 }
-
-void HumanGamer::ProcessState(EnvState *state) {
-  state->process(selectedPlayer);
-  state->process(team);
-  state->setValidate(false);
-  state->process(hid);
-  state->setValidate(true);
-  controller.PreProcess(team->GetMatch(), hid);
-  controller.ProcessState(state);
-}

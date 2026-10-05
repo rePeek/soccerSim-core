@@ -18,7 +18,7 @@
 #include "animation/types.hpp"
 
 // Quantized outgoing movement (velocity plus angle). Kept as a pure value type
-// so baked runtime selection has no dependency on EnvState serialization.
+// so baked runtime selection stays independent of the simulation runtime.
 struct Quadrant {
   int id = 0;
   blunted::Vector3 position;

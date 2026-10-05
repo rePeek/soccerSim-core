@@ -33,15 +33,3 @@ void MatchData::AddPossessionTime(int teamID, unsigned long time) {
   if (teamID == 0) possession60seconds = std::max(possession60seconds - (0.001f * time), -60.0f);
   else if (teamID == 1) possession60seconds = std::min(possession60seconds + (0.001f * time), 60.0f);
 }
-
-void MatchData::ProcessState(EnvState* state, int first_team) {
-  state->process(goalCount[first_team]);
-  state->process(goalCount[1 - first_team]);
-  if (first_team == 1) {
-    possession60seconds = -possession60seconds;
-  }
-  state->process(possession60seconds);
-  if (first_team == 1) {
-    possession60seconds = -possession60seconds;
-  }
-}

@@ -8,7 +8,11 @@
 #ifndef _HPP_PLAYER_ACTION
 #define _HPP_PLAYER_ACTION
 
-#include "env/defines.hpp"
+#include "animation/types.hpp"
+#include "foundation/math/vector3.hpp"
+
+using namespace blunted;
+
 
 // Explicit action timing consumed by gameplay, match rules and collision logic.
 // PlayerActionExecutor is the authoritative producer: Humanoid only supplies
@@ -50,16 +54,6 @@ struct PlayerActionState {
            !retains_ball;
   }
 
-  void ProcessState(EnvState *state) {
-    state->process(type);
-    state->process(frame);
-    state->process(frameCount);
-    state->process(elapsedTime_ms);
-    state->process(durationTime_ms);
-    state->process(contactTime_ms);
-    state->process(contactFrame);
-    state->process(contactPosition);
-  }
 };
 
 #endif

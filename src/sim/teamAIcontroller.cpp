@@ -31,37 +31,6 @@
 #include "env/main.hpp"
 #include "env/rng.hpp"
 
-namespace {
-
-// EnvState serialization belongs to the simulation owner, not Properties.
-void ProcessPropertiesState(EnvState* state, blunted::Properties& properties) {
-  if (state->Load()) {
-    int size = 0;
-    state->process(size);
-    blunted::Properties restored;
-    while (size--) {
-      std::string key;
-      std::string value;
-      state->process(key);
-      state->process(value);
-      restored.Set(key, value);
-    }
-    properties = restored;
-    return;
-  }
-
-  const blunted::map_Properties* values = properties.GetProperties();
-  int size = static_cast<int>(values->size());
-  state->process(size);
-  for (const auto& value : *values) {
-    std::string key = value.first;
-    std::string data = value.second;
-    state->process(key);
-    state->process(data);
-  }
-}
-
-}  // namespace
 
 bool ReverseSortTacticalOpponentInfo(const TacticalOpponentInfo &a,
                                      const TacticalOpponentInfo &b) {
@@ -1244,36 +1213,4 @@ void TeamAIController::Reset() {
   fadingTeamPossessionAmount = 1.0f;
   timeNeededToGetToBall = 100;
   oppTimeNeededToGetToBall = 100;
-}
-
-void TeamAIController::ProcessState(EnvState *state) {
-  state->process(taker);
-  state->process(setPieceType);
-  ProcessPropertiesState(state, baseTeamTactics);
-  ProcessPropertiesState(state, liveTeamTactics);
-  state->process(offensivenessBias);
-  state->process(teamHasPossession);
-  state->process(teamHasUniquePossession);
-  state->process(oppTeamHasPossession);
-  state->process(oppTeamHasUniquePossession);
-  state->process(teamHasBestPossession);
-  state->process(teamPossessionAmount);
-  state->process(fadingTeamPossessionAmount);
-  state->process(timeNeededToGetToBall);
-  state->process(oppTimeNeededToGetToBall);
-  state->process(depth);
-  state->process(width);
-  state->process(offsideTrapX);
-  state->process(endApplyAttackingRun_ms);
-  state->process(attackingRunPlayer);
-  state->process(endApplyTeamPressure_ms);
-  state->process(teamPressurePlayer);
-  state->process(endApplyKeeperRush_ms);
-  state->process(forwardSupportPlayer);
-  int size = tacticalOpponentInfo.size();
-  state->process(size);
-  tacticalOpponentInfo.resize(size);
-  for (auto &a : tacticalOpponentInfo) {
-    a.ProcessState(state);
-  }
 }

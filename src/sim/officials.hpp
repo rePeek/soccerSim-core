@@ -18,7 +18,7 @@
 #ifndef _HPP_OFFICIALS
 #define _HPP_OFFICIALS
 
-#include "env/defines.hpp"
+#include <vector>
 
 class Match;
 class PlayerBase;
@@ -37,7 +37,6 @@ class Officials {
 
     void Process();
 
-    void ProcessState(EnvState* state);
 
   protected:
     Match *match;

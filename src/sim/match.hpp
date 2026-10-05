@@ -115,9 +115,6 @@ class Match {
 
 
     // Legacy projection with raw motion, independent of environment cadence.
-    void GetTeamState(SharedInfo *state, int team_id);
-    void GetState(SharedInfo* state);
-    void ProcessState(EnvState* state);
     // Advances one authoritative simulation tick.
     bool Step(const PlayerControlSet& controls);
     // Legacy direct-match callers have no control source.

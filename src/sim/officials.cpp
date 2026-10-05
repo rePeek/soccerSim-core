@@ -69,12 +69,3 @@ void Officials::Process() {
   linesmen[0]->Process();
   linesmen[1]->Process();
 }
-
-
-void Officials::ProcessState(EnvState *state) {
-  referee->ProcessStateBase(state);
-  state->setValidate(false);
-  linesmen[0]->ProcessStateBase(state);
-  linesmen[1]->ProcessStateBase(state);
-  state->setValidate(true);
-}

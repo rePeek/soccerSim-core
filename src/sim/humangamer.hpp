@@ -18,7 +18,6 @@
 #ifndef _HPP_HUMANGAMER
 #define _HPP_HUMANGAMER
 
-#include "env/defines.hpp"
 
 
 #include "sim/player/controller/humancontroller.hpp"
@@ -43,7 +42,6 @@ class HumanGamer {
     void SetSelectedPlayer(Player* player);
     ControllerInput *GetHIDevice() { return hid; }
     HumanController* GetHumanController() { return &controller; }
-    void ProcessState(EnvState *state);
 
   protected:
     Team *team = nullptr;

@@ -32,12 +32,6 @@ struct TacticalPlayerSituation {
   float toGoalSpaceRating = 0.0f;
   float spaceRating = 0.0f;
   float forwardRating = 0.0f;
-  void ProcessState(EnvState* state) {
-    state->process(forwardSpaceRating);
-    state->process(toGoalSpaceRating);
-    state->process(spaceRating);
-    state->process(forwardRating);
-  }
 };
 
 class Player : public PlayerBase {
@@ -131,7 +125,6 @@ class Player : public PlayerBase {
 
     virtual void ResetSituation(const Vector3 &focusPos);
 
-    void ProcessState(EnvState* state);
   protected:
     void _CalculateTacticalSituation();
 

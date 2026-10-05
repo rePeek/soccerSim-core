@@ -48,7 +48,6 @@ class ElizaController : public PlayerController {
                                           bool makeRun = false);
 
     virtual void Reset();
-    virtual void ProcessState(EnvState* state);
 
   protected:
     void GetOnTheBallCommands(std::vector<PlayerCommand> &commandQueue, Vector3 &rawInputDirection, float &rawInputVelocity);

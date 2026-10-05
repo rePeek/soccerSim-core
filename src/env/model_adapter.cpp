@@ -8,6 +8,11 @@
 #include "sim/gamedefines.hpp"
 #include "support/diagnostics/assert.hpp"
 
+// Legacy episode coordinates are expressed in public pitch units and are
+// converted to runtime units exactly as the retired GRF observation layer did.
+#define X_FIELD_SCALE 54.4
+#define Y_FIELD_SCALE -83.6
+
 ScenarioConfig ToRuntimeScenario(const ScenarioConfig& scenario,
                                  const football::model::Team& home,
                                  const football::model::Team& away) {

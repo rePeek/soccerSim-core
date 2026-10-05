@@ -40,15 +40,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
   match_->Step(controls);
 }
 
-void Simulation::ProcessState(EnvState* state) {
-  assert(match_);
-  match_->ProcessState(state);
-}
 
-void Simulation::GetState(SharedInfo* state) {
-  assert(match_);
-  match_->GetState(state);
-}
 
 bool Simulation::IsInPlay() const {
   return match_ && match_->IsInPlay();

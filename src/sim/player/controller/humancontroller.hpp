@@ -45,17 +45,6 @@ class HumanController : public PlayerController {
       this->hid = hid;
    }
 
-    void ProcessState(EnvState* state) {
-      ProcessPlayerController(state);
-      state->ProcessControllerState(hid);
-      state->process(actionMode);
-      state->process(actionButton);
-      state->process(actionBufferTime_ms);
-      state->process(gauge_ms);
-      state->process(previousDirection);
-      state->process(steadyDirection);
-      state->process(lastSteadyDirectionSnapshotTime_ms);
-    }
     virtual int GetReactionTime_ms();
 
     ControllerInput *GetHIDevice() { return hid; }

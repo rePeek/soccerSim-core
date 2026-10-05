@@ -66,8 +66,7 @@ target_link_libraries(football_sim PUBLIC football_data football_control footbal
 # --- engine object layer + the shared library -------------------------------
 add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
-  src/env/game_env.cpp src/env/game_env.hpp
-  src/ai/ai_keyboard.cpp src/ai/ai_keyboard.hpp)
+  src/env/game_env.cpp src/env/game_env.hpp)
 target_link_libraries(football_engine PRIVATE football_controller football_model)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)

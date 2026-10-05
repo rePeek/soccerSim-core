@@ -14,8 +14,6 @@ endif()
 
 add_library(football_controller STATIC
   controller_input.hpp
-  controller_id.hpp
-  controller_set.hpp
   external_controller.hpp
   grf/action.hpp
   grf/grf_action_controller.cpp

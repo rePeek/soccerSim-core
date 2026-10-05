@@ -3,7 +3,6 @@
 #ifndef _HPP_PLAYER_DECISION_SCHEDULER
 #define _HPP_PLAYER_DECISION_SCHEDULER
 
-#include "env/defines.hpp"
 
 // Simulation-owned clock for asking a player controller for its complete
 // PlayerCommandQueue. Locomotion has a separate execution/publication clock.
@@ -21,10 +20,6 @@ struct PlayerDecisionScheduler {
   }
 
   // Both the last refresh and initialization state are gameplay state.
-  void ProcessState(EnvState *state) {
-    state->process(lastRefreshTime_ms);
-    state->process(initialized);
-  }
 };
 
 // Initial policy migrates the old world-context timing shape, but no longer

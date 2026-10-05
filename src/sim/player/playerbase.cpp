@@ -695,37 +695,3 @@ void PlayerBase::ResetSituation(const Vector3 &focusPos) {
   if (GetController()) GetController()->Reset();
   resetSituationAuditContext = kResetSituationUnspecified;
 }
-
-void PlayerBase::ProcessStateBase(EnvState *state) {
-  state->process(isActive);
-  humanoid->ProcessState(state);
-  kinematicState.ProcessState(state);
-  // 4f-b1: the unconsumed kinematic locomotion shadow was removed. This
-  // intentionally changes the save-state layout, not gameplay behavior.
-  groundCollider.ProcessState(state);
-  // A restored Humanoid spatial state, kinematic mirror and collider must
-  // agree before any subsequent tick or reader can observe either.
-  CheckSimulationKinematicOracle();
-  actionState.ProcessState(state);
-  // The continuity epoch decides whether a repair queries the controller, so it
-  // is gameplay state and must survive save/load exactly. Its tracking booleans
-  // belong to the same transition; the audit generation is deliberately excluded,
-  // because telemetry must not change this contract.
-  decisionLocomotionState.ProcessState(state);
-  // c2b: the refresh clock decides when the controller is queried, so it is
-  // gameplay state and must survive save/load exactly.
-  locomotionIntentScheduler.ProcessState(state);
-  playerDecisionQueue.ProcessState(state);
-  playerDecisionScheduler.ProcessState(state);
-  // After saving or loading the action state, require it to agree with the
-  // Humanoid motion cursor before a subsequent tick can observe either.
-  CheckSimulationActionOracle();
-  if (IsActive()) {
-    controller->ProcessState(state);
-  }
-  state->process(externalController);
-  state->process(lastTouchTime_ms);
-  state->process(lastTouchType);
-  state->process(fatigueFactorInv);
-  state->process(positionHistoryPerSecond);
-}

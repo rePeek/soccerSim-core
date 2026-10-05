@@ -8,7 +8,10 @@
 #ifndef _HPP_PLAYER_GROUND_COLLIDER
 #define _HPP_PLAYER_GROUND_COLLIDER
 
-#include "env/defines.hpp"
+#include "foundation/math/vector3.hpp"
+
+using namespace blunted;
+
 
 // A presentation-independent horizontal body volume for ordinary player
 // contests. Action-specific volumes (slides, saves, and touches) remain in
@@ -25,10 +28,6 @@ struct PlayerGroundCollider {
 
   void Mirror() { center.Mirror(); }
 
-  void ProcessState(EnvState *state) {
-    state->process(center);
-    state->process(radius);
-  }
 };
 
 #endif

@@ -18,7 +18,6 @@
 #ifndef _HPP_MATCHDATA
 #define _HPP_MATCHDATA
 
-#include "env/defines.hpp"
 
 #include "sim/gamedefines.hpp"
 
@@ -39,7 +38,6 @@ class MatchData {
     }  // REMEMBER THESE ARE IRL INGAME SECONDS (because, I guess the tactics
        // should be based on irl possession time instead of gametime? not sure
        // yet, think about this)
-    void ProcessState(EnvState* state, int first_team);
    protected:
     TeamData teamData[2];
 

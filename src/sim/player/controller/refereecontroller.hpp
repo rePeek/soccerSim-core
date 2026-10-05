@@ -34,8 +34,6 @@ class RefereeController : public IController {
 
     virtual void RequestCommand(PlayerCommandQueue &commandQueue);
     virtual void Process();
-    virtual void ProcessState(EnvState* state) {
-    }
     virtual Vector3 GetDirection();
     virtual float GetFloatVelocity();
 

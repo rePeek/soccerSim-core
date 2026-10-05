@@ -22,7 +22,6 @@
 #include "state/world_state.hpp"
 
 class GameContext;
-class EnvState;
 struct ScenarioConfig;
 
 // Owns an explicitly declared match. One step advances one simulation tick.
@@ -57,7 +56,6 @@ class GameEnv {
   void init_legacy();
 
   // Transitional bridges, not a public runtime access API.
-  friend class EnvState;
   friend GameContext& GetContext();
   friend ScenarioConfig& GetScenarioConfig();
 };

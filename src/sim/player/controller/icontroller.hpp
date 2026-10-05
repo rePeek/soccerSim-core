@@ -34,7 +34,6 @@ class IController {
     virtual void RequestCommand(PlayerCommandQueue &commandQueue) = 0;
     virtual void Process() { };
     virtual Vector3 GetDirection() = 0;
-    virtual void ProcessState(EnvState* state) = 0;
     virtual float GetFloatVelocity() = 0;
     virtual void SetPlayer(PlayerBase *player);
 

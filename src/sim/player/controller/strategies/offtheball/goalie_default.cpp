@@ -288,8 +288,3 @@ void GoalieDefaultStrategy::CalculateIfBallIsBoundForGoal(
     }
   }
 }
-
-void GoalieDefaultStrategy::ProcessState(EnvState *state) {
-  state->process(ballBoundForGoal);
-  state->process(ballBoundForGoal_ycoord);
-}

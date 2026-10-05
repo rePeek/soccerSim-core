@@ -18,7 +18,6 @@
 #ifndef _HPP_AISUPPORT_MENTALIMAGE
 #define _HPP_AISUPPORT_MENTALIMAGE
 
-#include "env/defines.hpp"
 
 #include "foundation/math/vector3.hpp"
 
@@ -39,7 +38,6 @@ class MentalImage {
   void UpdateBallPredictions();
   Vector3 GetBallPrediction(int time_ms) const;
   int GetTimeStampNeg_ms() const;
-  void ProcessState(EnvState* state, Match* match);
 
   std::vector<PlayerImage> players;
   std::vector<Vector3> ballPredictions;

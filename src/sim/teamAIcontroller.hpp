@@ -28,10 +28,6 @@ class Team;
 struct TacticalOpponentInfo {
   Player *player;
   float dangerFactor = 0.0f;
-  void ProcessState(EnvState* state) {
-    state->process(player);
-    state->process(dangerFactor);
-  }
 };
 
 class TeamAIController {
@@ -72,7 +68,6 @@ class TeamAIController {
     const std::vector<TacticalOpponentInfo> &GetTacticalOpponentInfo() { return tacticalOpponentInfo; }
 
     void Reset();
-    void ProcessState(EnvState* state);
 
   protected:
 

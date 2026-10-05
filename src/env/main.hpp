@@ -20,11 +20,9 @@
 
 class GameEnv;
 GameEnv* GetGame();
-class AIControlledKeyboard;
 
 
 #include "sim/simulation.hpp"
-#include "controller/controller_set.hpp"
 #include "sim/gamedefines.hpp"
 #include "env/rng.hpp"
 #include "animation/library.hpp"
@@ -72,42 +70,7 @@ struct ScenarioConfig {
     }
     return leftDistance < rightDistance;
   }
-  void ProcessStateConstant(EnvState* state) {
-    cache_computed = false;
-    state->process(ball_position);
-    int size = left_team.size();
-    state->process(size);
-    left_team.resize(size);
-    size = right_team.size();
-    state->process(size);
-    right_team.resize(size);
-    state->process(left_agents);
-    state->process(right_agents);
-    state->process(use_magnet);
-    state->process(offsides);
-    state->process(left_team_difficulty);
-    state->process(right_team_difficulty);
-    state->process(deterministic);
-    state->process(end_episode_on_score);
-    state->process(end_episode_on_possession_change);
-    state->process(end_episode_on_out_of_play);
-    state->process(game_duration);
-    state->process(second_half);
-    state->process(control_all_players);
-  }
 
-  void ProcessState(EnvState* state) {
-    cache_computed = false;
-    state->process(real_time);
-    state->process(game_engine_random_seed);
-    state->process(reverse_team_processing);
-    for (auto& p : left_team) {
-      p.ProcessState(state);
-    }
-    for (auto& p : right_team) {
-      p.ProcessState(state);
-    }
-  }
   // Start ball position.
   Vector3 ball_position;
   // Initial configuration of left team.
@@ -183,18 +146,9 @@ class GameContext {
  public:
   GameContext() { }
   std::unique_ptr<Simulation> simulation;
-  // Retained solely so legacy checkpoint bytes remain readable during the
-  // state-codec migration. They are not exposed as an input API.
-  std::vector<AIControlledKeyboard*> checkpointControllers;
-
-  ControllerSet controllerSet;
-
-  // Simulation RNG. Its state is checkpointed, so draw order is observable.
+  // Simulation RNG. Draw order is observable simulation state.
   SimulationRng rng;
 
-  // Diagnostic counter: how many times the deterministic simulation RNG has
-  // been drawn. Presentation code drawing from it shows up here.
-  long rng_draw_count = 0;
 
   // Two random number generators are needed. One (deterministic when running
   // in deterministic mode) to be used in places which generate deterministic
@@ -206,7 +160,6 @@ class GameContext {
   int stablePlayerCount = 0;
   std::shared_ptr<AnimationLibrary> bakedAnims;
   int step = 0;
-  void ProcessState(EnvState* state);
 };
 
 

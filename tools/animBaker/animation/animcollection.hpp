@@ -64,7 +64,6 @@ class AnimCollection {
 
     int GetQuadrantID(Animation *animation, const Vector3 &movement, radian angle) const;
 
-    void ProcessState(EnvState* state);
 
   protected:
 
