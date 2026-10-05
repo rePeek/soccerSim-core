@@ -24,7 +24,6 @@ GameEnv* GetGame();
 
 #include "sim/simulation.hpp"
 #include "sim/gamedefines.hpp"
-#include "env/rng.hpp"
 #include "support/config/properties.hpp"
 #include <memory>
 
@@ -47,12 +46,8 @@ class GameContext {
  public:
   GameContext() { }
   std::unique_ptr<Simulation> simulation;
-  // Presentation-only RNG. It must never affect simulation state; its
-  // remaining users are audited before it is removed or given an owner.
-  PresentationRng rng_non_deterministic;
   int stablePlayerCount = 0;
 };
-
 
 void SetGame(GameEnv* c);
 GameContext& GetContext();
@@ -60,7 +55,6 @@ GameContext& GetContext();
 
 
 void run_game();
-void randomize(unsigned int seed);
 void quit_game();
 int main(int argc, char** argv);
 

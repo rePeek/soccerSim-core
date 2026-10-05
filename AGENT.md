@@ -131,7 +131,7 @@ src/
 ├── state/           对外运行时值快照（依赖 model 身份类型与 foundation 数学）
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
-│   ├── game_env, main, rng（全局 RNG 入口，owner 还是 GameContext）
+│   ├── game_env, main（环境绑定与生命周期；已无 RNG 入口）
 ├── data/            legacy 资料导入与 runtime 兼容层
 │   ├── player_profile  无 GameContext/RNG 的资料解析与年龄/能力计算
 │   ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
@@ -272,16 +272,15 @@ main() [src/app/app.cpp]
   now draws through the `Match`/`PlayerData` it already has, so `boostrandom()` is
   deleted. Preserve that seed window: reseeding before `MatchData` would change
   every downstream draw.
-- `GetContext()` is now used only for `simulation` (env lifecycle), the
-  presentation RNG and `stablePlayerCount`. The presentation entry points
-  (`PresentationRng`, `randomseed`, `random_non_determ`) have **zero** callers and
-  are the next pure deletion. The legacy runtime ordinal should become the model
+- `GetContext()` is now used only for `simulation` (env lifecycle) and the legacy
+  `stablePlayerCount`. The presentation RNG channel (`env/rng.*`, `PresentationRng`,
+  `randomseed`, `random_non_determ`, `randomize()` and its unused C `rand()`) had
+  zero callers and is deleted. The legacy runtime ordinal should become the model
   `PlayerId` plus a match-local index rather than move to a new owner. The
   internal `animations` flag affects referee restart timing, not just rendering;
   its false/default behavior is preserved. Fixture paths belong to tests.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
-  (`GameContext::rng`). Never introduce unordered-container iteration order or
-  hidden global mutable state into simulation logic.
+  (`Simulation::rng_`). Never introduce unordered-container iteration order or
 
 ## Conventions and gotchas
 

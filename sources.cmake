@@ -58,14 +58,12 @@ set(CORE_HEADERS
    src/sim/gamedefines.hpp
    src/sim/rng.hpp
    src/env/main.hpp
-   src/env/rng.hpp
 )
 
 
 set(CORE_SOURCES
    src/env/main.cpp
    src/sim/gamedefines.cpp
-   src/env/rng.cpp
 )
 
 

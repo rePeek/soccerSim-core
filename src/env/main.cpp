@@ -16,21 +16,14 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 
-#include <string>
-
 #include "support/diagnostics/log.hpp"
 #include "foundation/math/scalar.hpp"
 #include "support/text/string_utils.hpp"
 #include "support/io/file.hpp"
 #include "env/main.hpp"
 #include "env/game_env.hpp"
-#include "env/rng.hpp"
 #include "sim/match.hpp"
 
-using std::string;
-
-
-using namespace blunted;
 
 thread_local GameEnv* game;
 
@@ -43,17 +36,9 @@ GameContext& GetContext() {
 void SetGame(GameEnv* c) { game = c; }
 
 
-void randomize(unsigned int seed) {
-  srand(seed);
-  rand();  // Discard the first value before using the C RNG.
-  randomseed(seed); // for the boost random
-}
-
 void run_game() {
-  randomize(0);
   GetContext().simulation = std::make_unique<Simulation>();
 }
-  // fire!
 
 void quit_game() {
   GetContext().simulation.reset();
