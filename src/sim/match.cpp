@@ -25,7 +25,6 @@
 #include "foundation/geometry/triangle.hpp"
 #include "support/diagnostics/assert.hpp"
 #include "support/diagnostics/log.hpp"
-#include "env/main.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "support/io/file.hpp"
 #include "sim/player/player_action_volume.hpp"
@@ -56,7 +55,6 @@ Match::Match(std::unique_ptr<MatchData> match_data,
       matchDurationFactor(options.match_duration * 0.2f + 0.05f),
       options_(options),
       _useMagnet(options.use_magnet) {
-  GetContext().stablePlayerCount = 0;
 
 
   actualTime_ms = 0;
@@ -84,8 +82,11 @@ Match::Match(std::unique_ptr<MatchData> match_data,
                            : options.left_team_difficulty);
   teams[first_team]->SetOpponent(teams[second_team]);
   teams[second_team]->SetOpponent(teams[first_team]);
-  teams[first_team]->InitPlayers();
-  teams[second_team]->InitPlayers();
+  // Execution indices follow the historical actor-construction order, even
+  // when team processing is reversed. No allocator or ambient counter exists.
+  teams[first_team]->InitPlayers(0);
+  teams[second_team]->InitPlayers(static_cast<PlayerIndex>(
+      matchData->GetTeamData(first_team).GetPlayerNum()));
 
   std::vector<Player*> activePlayers;
   teams[first_team]->GetActivePlayers(activePlayers);
@@ -206,7 +207,7 @@ bool Match::Step(const PlayerControlSet& controls) {
     for (Player* player : players) {
       player->ClearControl();
       if (const PlayerControl* control =
-              controls.Get(static_cast<football::model::PlayerId>(player->GetStableID()))) {
+              controls.Get(player->GetID())) {
         player->SetControl(*control);
       }
     }

@@ -18,6 +18,7 @@
 #ifndef _HPP_HUMANOIDBASE
 #define _HPP_HUMANOIDBASE
 
+#include "model/player.hpp"
 #include "foundation/math/vector3.hpp"
 
 #include "sim/gamedefines.hpp"
@@ -197,7 +198,7 @@ struct MovementAnimationPerturbation {
   bool enabled = false;
   bool require_frame_count_difference = false;
   bool applied = false;
-  int player_id = -1;
+  football::model::PlayerId player_id = football::model::kInvalidPlayerId;
   int time_ms = -1;
   int original_anim_id = -1;
   int alternative_anim_id = -1;

@@ -3,12 +3,19 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 
-#include "model/ids.hpp"
-
 namespace football::model {
+
+// Caller-provided identity, independent of roster order and match indexing.
+using PlayerId = std::uint32_t;
+inline constexpr PlayerId kInvalidPlayerId = std::numeric_limits<PlayerId>::max();
+
+// Legacy GRF database profile key: import provenance, not player identity.
+using PlayerDatabaseId = int;
 
 // Stable ordering of the legacy ability items. These describe base abilities,
 // not current fatigue, actions or other mutable match state.
@@ -72,6 +79,7 @@ struct PlayerAppearance {
 // Complete static player description. Database identity is provenance only:
 // the runtime consumes these values rather than reloading them from the key.
 struct Player {
+  PlayerId id = kInvalidPlayerId;
   PlayerDatabaseId database_id = 0;
   std::string first_name;
   std::string last_name;

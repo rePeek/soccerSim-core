@@ -93,6 +93,12 @@ target_link_libraries(football_game_env_test PRIVATE ${OUTPUT_LIB_NAME} football
 football_configure_target(football_game_env_test)
 add_test(NAME football_game_env_test COMMAND football_game_env_test)
 
+add_executable(football_player_identity_test tools/player_identity_test.cpp)
+# Runs Simulation directly: numbering no longer needs environment bindings.
+target_link_libraries(football_player_identity_test PRIVATE ${OUTPUT_LIB_NAME} football_data)
+football_configure_target(football_player_identity_test)
+add_test(NAME football_player_identity_test COMMAND football_player_identity_test)
+
 add_executable(football_control_test tools/player_control_set_test.cpp)
 target_link_libraries(football_control_test PRIVATE football_control)
 football_configure_target(football_control_test)

@@ -16,7 +16,6 @@
 # into whichever target includes it.
 set(MODEL_HEADERS
    src/model/football_types.hpp
-   src/model/ids.hpp
    src/model/player.hpp
    src/model/team.hpp
    src/model/formation.hpp

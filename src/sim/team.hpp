@@ -20,6 +20,7 @@
 
 #include <list>
 #include <memory>
+#include "model/team.hpp"
 #include "sim/player/player.hpp"
 #include "data/teamdata.hpp"
 #include "sim/teamAIcontroller.hpp"
@@ -43,11 +44,15 @@ class Team {
 
     void Exit();
 
-    void InitPlayers();
+    void InitPlayers(PlayerIndex first_index);
 
     Match *GetMatch() { return match; }
     TeamAIController *GetController() { return teamController; }
 
+    football::model::TeamSide GetTeamSide() const {
+      return static_cast<football::model::TeamSide>(id);
+    }
+    // Legacy rule-engine slot (home=0, away=1), not persistent team identity.
     int GetID() const { return id; }
     inline signed int GetDynamicSide() {
       return side;

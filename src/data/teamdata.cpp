@@ -19,7 +19,6 @@
 #include <algorithm>
 #include <cctype>
 #include "data/teamdata.hpp"
-#include "data/default_teams.hpp"
 
 #include <cctype>
 
@@ -265,14 +264,13 @@ TeamData::TeamData(const TeamCreationData& data, blunted::Rng& rng) {
 
   tree = loader.Load(factoryTacticsString);
   // load players
-  const bool left_team = teamDatabaseID == kHomeTeamDatabaseId;
-  const std::vector<football::model::Player> roster =
-      data.players.empty()
-          ? (left_team ? football::data::MakeDefaultHomeTeam()
-                       : football::data::MakeDefaultAwayTeam()).players
-          : data.players;
-  for (const football::model::Player& player : roster) {
+  for (const football::model::Player& player : data.players) {
     playerData.push_back(new PlayerData(rng, player));
+  }
+  // Preserve all historical profile draws, but release profiles omitted by
+  // the effective formation rather than leaking them during vector shrink.
+  for (std::size_t i = player_count; i < playerData.size(); ++i) {
+    delete playerData[i];
   }
   playerData.resize(player_count);
 }

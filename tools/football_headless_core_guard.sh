@@ -29,10 +29,21 @@ fi
 # Rules must not regain on-pitch referee/linesman actors or animation-driven
 # restart timing. Referee itself is the football rules engine and stays.
 # Player is concrete: do not restore the retired shared player/official base.
+# Model identity must not fall back to the old ambient allocation ordinal.
 if grep -R -n -E \
     --include='*.cpp' --include='*.hpp' --include='*.h' \
-    '\b(Officials|PlayerOfficial|RefereeController|GetOfficials|GetOfficialPlayers|AlterSetPiecePrepareTime|PlayerBase)\b|playerbase\.(hpp|cpp)' \
+    '\b(Officials|PlayerOfficial|RefereeController|GetOfficials|GetOfficialPlayers|AlterSetPiecePrepareTime|PlayerBase|stablePlayerCount|GetStableID)\b|playerbase\.(hpp|cpp)|model/ids\.hpp' \
     "$source_dir"; then
-  echo "headless-core guard: retired actor abstraction or timing hook in $source_dir" >&2
+  echo "headless-core guard: retired abstraction, numbering or timing hook in $source_dir" >&2
+  exit 1
+fi
+
+# Simulation/data no longer use environment bindings for options, animation,
+# RNG or numbering. Only env lifecycle and internal tool diagnostics may bind.
+if grep -R -n -E \
+    --include='*.cpp' --include='*.hpp' --include='*.h' \
+    '^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"]env/|\b(GetContext|GetGame|SetGame)\b' \
+    "$source_dir/sim" "$source_dir/data"; then
+  echo "headless-core guard: ambient environment dependency in simulation/data" >&2
   exit 1
 fi

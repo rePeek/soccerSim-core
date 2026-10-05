@@ -14,8 +14,8 @@ WorldState BuildWorldState(const Match& match) {
     for (Player* player : players) {
       const PlayerKinematicState& state = player->GetKinematicState();
       world.players.push_back(WorldPlayerState{
-          static_cast<football::model::PlayerId>(player->GetStableID()),
-          static_cast<football::model::TeamId>(team_id), state.position, state.velocity,
+          player->GetID(), player->GetTeam()->GetTeamSide(),
+          state.position, state.velocity,
           state.facing, player->IsActive(), player->HasPossession()});
     }
   }

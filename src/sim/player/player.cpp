@@ -20,7 +20,6 @@
 #include <cmath>
 #include <cstring>
 
-#include "env/main.hpp"
 #include "foundation/geometry/triangle.hpp"
 #include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
@@ -247,7 +246,7 @@ const char *LocomotionReentryCategoryName(int category) {
 namespace {
 
 // Execute every 10 ms; refresh the intercept belief every 100 ms, staggered
-// by the unchanged runtime ordinal. Between refreshes the estimate is retained.
+// by the dense match-local index. Between refreshes the estimate is retained.
 constexpr int kReachabilityRefreshTicks = 10;
 // Preserve the measured 500 ms exact-rollout horizon; beyond it, the same
 // analytic capability approximation applies. This is not another physics model.
@@ -266,10 +265,10 @@ bool FloatBitsEqual(float a, float b) {
 
 }  // namespace
 
-Player::Player(Team *team, PlayerData *playerData)
+Player::Player(Team *team, PlayerData *playerData, PlayerIndex index)
     : match(team->GetMatch()),
       playerData(playerData),
-      stable_id(GetContext().stablePlayerCount++),
+      index_(index),
       team(team) {
   lastTouchTime_ms = 0;
   lastTouchType = e_TouchType_None;
@@ -673,7 +672,7 @@ void Player::Process() {
         positionHistoryPerSecond.push_back(GetPosition());
       }
       if (hasPossession) possessionDuration_ms += 10; else possessionDuration_ms = 0;
-      if ((match->GetActualTime_ms() + GetStableID() * 10) % 100 == 0) {
+      if ((match->GetActualTime_ms() + GetIndex() * 10) % 100 == 0) {
         _CalculateTacticalSituation();
       }
     }
@@ -812,7 +811,7 @@ void Player::UpdatePossessionStats() {
     ++PlayerReachabilityEligibleTicks();
     const int reachability_tick = static_cast<int>(match->GetActualTime_ms() / 10);
     const bool scheduled_refresh =
-        (reachability_tick + GetStableID()) % kReachabilityRefreshTicks == 0;
+        (reachability_tick + GetIndex()) % kReachabilityRefreshTicks == 0;
     // First eligible tick after an action must not reuse an old action estimate.
     const bool entering_pure_locomotion = GetSimulationActionState().elapsedTime_ms == 0;
     if (scheduled_refresh || entering_pure_locomotion) {

@@ -52,7 +52,7 @@ void RequireSameWorld(const WorldState& a, const WorldState& b) {
   for (std::size_t i = 0; i < a.players.size(); ++i) {
     const auto& x = a.players[i];
     const auto& y = b.players[i];
-    Require(x.id == y.id && x.team == y.team && x.active == y.active &&
+    Require(x.id == y.id && x.side == y.side && x.active == y.active &&
                 x.has_possession == y.has_possession &&
                 SameVector(x.position, y.position) &&
                 SameVector(x.velocity, y.velocity) && SameVector(x.facing, y.facing),
@@ -104,11 +104,36 @@ void CheckCoreAPI() {
   Require(game.observe().tick == 101, "inactive teardown damaged live game");
 }
 
+void CheckDeclaredIdentity() {
+  namespace model = football::model;
+  auto home = football::data::MakeDefaultHomeTeam();
+  auto away = football::data::MakeDefaultAwayTeam();
+  home.players[0].id = model::kInvalidPlayerId - 1;
+  away.players[0].id = 0;
+  GameEnv game{home, away, model::MakeLegacyPitch()};
+  home.players[0].id = 100;  // Environment keeps its own descriptions.
+  game.start_game();
+  const WorldState initial = game.observe();
+  Require(initial.players[0].id == model::kInvalidPlayerId - 1 &&
+              initial.players[0].side == model::TeamSide::Home &&
+              initial.players[11].id == 0 &&
+              initial.players[11].side == model::TeamSide::Away,
+          "GameEnv replaced declared identities/sides with ordinal IDs");
+  game.controls().Set(initial.players[11].id, PlayerControl{});
+  game.step();
+  game.reset_game();
+  RequireSameWorld(game.observe(), initial);
+  game.stop_game();
+  game.start_game();
+  RequireSameWorld(game.observe(), initial);
+}
+
 }  // namespace
 
 int main() {
   try {
     CheckCoreAPI();
+    CheckDeclaredIdentity();
     std::cout << "football_game_env_test: PASS\n";
     return 0;
   } catch (const std::exception& error) {

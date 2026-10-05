@@ -87,6 +87,11 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 - `football_game_env_test` — core API checks (`tools/game_env_test.cpp`): no default
   constructor or legacy surface, one-tick stepping, reset/restart determinism,
   retained observations and independently stepped live environments.
+- `football_player_identity_test` — direct Simulation checks with no environment
+  binding (`tools/player_identity_test.cpp`): sparse/full-width IDs, model-ID
+  controls, index-independent numerical/RNG replay, reversed construction,
+  unequal rosters, reorder/side changes, send-offs and indices 0..255; invalid
+  or duplicate IDs/missing profiles/overflow fail before RNG consumption.
 - `football_smoke` — core `GameEnv` headless run (`tools/football_smoke.cpp`);
   optional positional arg is the simulation tick count (default 1000).
 - `football_headless_core_guard` — shell test (`tools/football_headless_core_guard.sh`)
@@ -106,9 +111,8 @@ restructure, reconfigure from scratch with `rm -rf build/<preset>`.
 ```
 src/
 ├── model/           静态领域描述（football::model；只依赖 STL 与自身）
-│   ├── ids.hpp        比赛内 PlayerId/TeamId 与独立的 PlayerDatabaseId
-│   ├── player         PlayerStat / PlayerAttributes、姓名、年龄、身高与外观
-│   ├── team           静态球队组成；不解析 DB、不生成默认资料
+│   ├── player         PlayerId（外部 identity）、legacy PlayerDatabaseId、能力与外观
+│   ├── team           静态球队组成与 TeamSide（Home/Away，无 TeamId）；不解析 DB
 │   ├── formation      公开坐标下的初始阵型描述，不含 checkpoint/runtime 状态
 │   ├── pitch          唯一场地几何值类型（当前保持 legacy 110 × 72 尺寸）
 │   └── football_types e_PlayerRole/e_GameMode/e_PlayerColor/kPlayersPerTeam
@@ -126,7 +130,7 @@ src/
 │   ├── simulation, match, match_options（仅规则参数）, team, ball, referee（规则）, humangamer, teamAIcontroller
 │   ├── ai_support/     AIfunctions, mentalimage
 │   └── player/
-│       ├── player（具体 runtime，无 PlayerBase）, player_locomotion, *_collider,
+│       ├── player（具体 runtime；PlayerIndex 稠密索引，无 PlayerBase）, player_locomotion, *_collider,
 │       │   player_action*, *_scheduler, player_kinematics, player_body_facing
 │       ├── controller/  icontroller, playercontroller（私有方向量化）, humancontroller,
 │       │                elizacontroller, strategies/offtheball/*
@@ -139,7 +143,7 @@ src/
 ├── data/            legacy 资料导入与 runtime 兼容层
 │   ├── player_profile  无 GameContext/RNG 的资料解析与年龄/能力计算
 │   ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
-│   ├── model_adapter  模型/初始阵型 → legacy TeamCreationData / FormationEntry
+│   ├── model_adapter  模型/初始阵型 → TeamCreationData / FormationEntry；先解析空 roster 默认
 │   ├── playerdata      持有 model::Player 的兼容 facade；无独立 stats/cache
 │   └── matchdata, teamdata  runtime 组装与序列化
 └── ai/              player/player_ai.hpp（决策算法边界，尚未接线）
@@ -163,8 +167,8 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
 
 尚未清理的上半段（不要在此基础上新增反向边）：
 
-- `sim/**` 与 `data/**` 只剩 `match.cpp`/`player.cpp` 还 include
-  `env/main.hpp`，而且只为 legacy 的 `stablePlayerCount`（下一步）。
+- `sim/**` 与 `data/**` 不再 include `env/**` 或调用环境全局入口。
+  `GameContext` 只余 env 生命周期的 Simulation 所有权，下一步删除。
 - `env/rng.*` 已删除；确定性的 `SimulationRng` 由 `Simulation` 持有，算法本体在
   `foundation/math/rng.hpp`。没有全局 RNG 入口；正常重构不得额外抽取随机数。
 
@@ -176,7 +180,8 @@ model (叶) ← foundation ← animation ← data ← sim ← engine ← game
   `GetContext`/`EnvState`/`boostrandom`/`randomseed`/`random_non_determ`。
 - `runtime_animation_boundary_guard`：禁止 runtime 依赖离线 `.anim` 管线。
 - `football_headless_core_guard`：禁止 graphics/Boost、裁判 humanoid actors、
-  已删除的 PlayerBase 抽象与动画驱动的重开球 timing hook 回流。
+  已删除的 PlayerBase、ambient numbering、model/ids.hpp 与动画重开球 timing hook
+  回流；同时禁止 sim/data include env 或调用 GetContext/GetGame/SetGame。
 - `legacy_validation_guard`：禁止已经删除的逐语句 validation 宏/函数回流。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
@@ -197,7 +202,7 @@ files are inputs to the regression baseline.
 main() [src/app/app.cpp]
   → GameEnv(home, away, pitch) [src/env/game_env.*]
       start_game / reset_game / stop_game / step / controls / observe→WorldState
-      → private GameContext (Simulation owner + legacy stablePlayerCount)
+      → private GameContext (only transitional Simulation ownership)
       → Simulation [src/sim/simulation.*] builds MatchData and owns match lifecycle
           → Match [src/sim/match.*]::Step()         per-tick loop (10ms steps)
               → Ball::Process()                  physics + prediction buffer
@@ -236,10 +241,33 @@ main() [src/app/app.cpp]
   `ai/ai_keyboard.*`. No byte-blob save/load remains; `GameEnv` never exposed it
   and regression uses reset/replay instead. If durable save/load is ever needed,
   add an explicit state value object, not per-class `memcpy` hooks.
-- `model::Player` owns its static identity, appearance and all 22 base abilities.
-  `PlayerStat` and `PlayerAttributes` live together in `src/model/player.hpp`.
-  `PlayerDatabaseId` is provenance, not a request to reload values at startup; it
-  remains distinct from match-local `PlayerId`. Fatigue and actions stay runtime.
+- `model::Player::id` is the caller-provided external identity. `PlayerId` and
+  `kInvalidPlayerId` live beside Player in `model/player.hpp`, not a horizontal
+  IDs module. `PlayerDatabaseId` is retained there as a legacy GRF import key;
+  profile loading never derives a PlayerId from it. Abilities/appearance have
+  the same authoritative model ownership. Fatigue/actions remain runtime.
+- `model/ids.hpp`, `TeamId` and `kInvalidTeamId` are deleted. `model/team.hpp`
+  defines `TeamSide::Home/Away`: a match role that never flips on a pitch mirror
+  or change of ends, not stable club identity. `WorldPlayerState::side` and
+  `TacticalBoard::side` use it. Legacy rule-engine Team::GetID remains an integer
+  slot (0/1); no model::Team::id or replacement generic IDs header is introduced.
+- Dense `PlayerIndex` lives next to runtime Player in `sim/player/player.hpp`.
+  `Player::GetIndex` is fixed for the match, including inactive/sent-off actors;
+  indices follow the original first-team/second-team construction and roster
+  order. Match passes team offsets, Team passes offset + roster slot, with no
+  allocation counter. Scheduling and controller-player sorting read the index;
+  controls, raw snapshots and animation diagnostics read `Player::GetID`,
+  directly from the owned model. Never use an ID as a scheduling phase/index.
+- The data adapter resolves legacy empty-roster defaults before `Simulation`
+  validates all model IDs for uniqueness across both rosters and rejects the
+  invalid sentinel. Missing formation profiles or >256 effective actors fail
+  with std::invalid_argument, before profile RNG draws/reseeding/actors. Explicit
+  IDs are never generated or remapped by simulation. Default team factories
+  provide disjoint IDs 0..10 / 11..21 (unrelated to their identical DB rosters).
+  TeamData still consumes every declared profile draw before formation shrink,
+  but deletes omitted profiles rather than leaking them. No golden regeneration:
+  default identity values, index order, arithmetic and RNG remain identical.
+  Custom identity/control semantics intentionally now honor caller descriptions.
 - `football::data::LoadLegacyPlayerProfile` (`data/player_profile.*`) resolves old
   profiles without a game context or RNG, preserving legacy decimal round-tripping
   at the import boundary. Explicit model attributes are consumed without rounding.
@@ -277,13 +305,13 @@ main() [src/app/app.cpp]
   now draws through the `Match`/`PlayerData` it already has, so `boostrandom()` is
   deleted. Preserve that seed window: reseeding before `MatchData` would change
   every downstream draw.
-- `GetContext()` is now used only for `simulation` (env lifecycle) and the legacy
-  `stablePlayerCount`. The presentation RNG channel (`env/rng.*`, `PresentationRng`,
-  `randomseed`, `random_non_determ`, `randomize()` and its unused C `rand()`) had
-  no simulation consumers and is deleted. The legacy runtime ordinal should become the model
-  `PlayerId` plus a match-local index rather than move to a new owner. The
-  internal `animations` flag affects referee restart timing, not just rendering;
-  its false/default behavior is preserved. Fixture paths belong to tests.
+- `GetContext()` is now used only for env lifecycle and internal diagnostic
+  tools. `stablePlayerCount`, `stable_id` and `GetStableID` are deleted, not
+  relocated. Simulation/data have no ambient environment dependency. The dead
+  presentation RNG channel (`env/rng.*`, `PresentationRng`, `randomseed`,
+  `random_non_determ`, `randomize()` and C `rand()`) remains deleted.
+  The internal `animations` flag affects referee restart timing, not just
+  rendering; its false/default behavior is preserved. Fixture paths are test-only.
 - Determinism: the `boost` RNG was replaced with bit-identical `std::mt19937`
   (`Simulation::rng_`). Never introduce unordered-container iteration order or
   hidden global mutable state into simulation logic.
@@ -317,10 +345,10 @@ main() [src/app/app.cpp]
   per active player (zero for inactive), exactly the old base-destructor window;
   do not invoke roster callbacks while `Team::Exit` is deleting the roster.
   This change preserves all post-official-removal goldens without regeneration.
-- Next: model `PlayerId` / dense match-local `PlayerIndex`, then eliminate
-  `stablePlayerCount`/`GameContext`. The player flattening was deliberately done
-  first at the maintainer's request. Do not flatten the Humanoid hierarchy in
-  the same change.
+- Next: eliminate GameContext/GetContext bindings and let GameEnv directly own
+  Simulation. Identity/index separation and player flattening are complete;
+  the Humanoid hierarchy remains untouched. Do not fold its flattening into
+  the environment ownership change.
 
 ## Conventions and gotchas
 

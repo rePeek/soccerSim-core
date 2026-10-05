@@ -4,7 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "model/ids.hpp"
+#include "model/player.hpp"
+#include "model/team.hpp"
 #include "foundation/math/vector3.hpp"
 
 // Coarse role assignment owned by persistent team-control state. It is
@@ -29,7 +30,7 @@ struct PlayerDirective {
 // Persistent team-control state. Coach AI mutates this board; player AI reads
 // it when producing frame-local PlayerControl values.
 struct TacticalBoard {
-  football::model::TeamId team = football::model::kInvalidTeamId;
+  football::model::TeamSide side = football::model::TeamSide::Home;
   float width = 0.0f;
   float depth = 0.0f;
   std::vector<PlayerDirective> players;

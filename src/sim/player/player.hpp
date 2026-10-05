@@ -18,6 +18,7 @@
 #ifndef _HPP_PLAYER
 #define _HPP_PLAYER
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include "model/player.hpp"
@@ -156,17 +157,21 @@ struct TacticalPlayerSituation {
 class Team;
 class ElizaController;
 
+// Dense, match-local execution index (0..255), not a model identity.
+using PlayerIndex = std::uint8_t;
+
 // Concrete football-player runtime; no shared official-actor base remains.
 class Player final {
 
   friend class HumanoidBase;
 
   public:
-    Player(Team *team, PlayerData *playerData);
+    Player(Team *team, PlayerData *playerData, PlayerIndex index);
     ~Player();
     void Mirror();
 
-    inline int GetStableID() const { return stable_id; }
+    football::model::PlayerId GetID() const { return playerData->GetModel().id; }
+    PlayerIndex GetIndex() const { return index_; }
     inline const PlayerData* GetPlayerData() { return playerData; }
 
     inline bool IsActive() { return isActive; }
@@ -442,7 +447,7 @@ class Player final {
     Match *match;
 
     const PlayerData* const playerData;
-    const int stable_id = 0;
+    const PlayerIndex index_;
 
     std::unique_ptr<Humanoid> humanoid;
     PlayerKinematicState kinematicState;

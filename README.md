@@ -26,6 +26,16 @@ One `step()` calls the simulation once: a 10 ms tick (100 Hz). Batch explicitly
 with a loop. `football_app --steps=100` therefore advances 100 ticks, not 100
 legacy observation frames. Configure commands through `game.controls()`.
 
+Custom player descriptions must provide a valid `model::Player::id`, unique
+across both rosters. `PlayerId` lives in `model/player.hpp`; `database_id` is only
+legacy profile provenance and never supplies identity. Controls and observations
+use those IDs unchanged. Default team factories supply disjoint IDs 0–10 and
+11–21. Invalid/duplicate IDs are rejected at startup before simulation RNG draws.
+
+`WorldPlayerState::side` is `model::TeamSide::Home` or `Away`, not a stable club
+ID. Runtime `PlayerIndex` is a separate dense, match-local execution index; it
+never appears in the public snapshot or serves as a control key.
+
 `GameEnv` does not expose runtime containers, episode configuration, GRF
 observations or checkpoint serialization. The GRF compatibility adapter, the
 binary checkpoint layer and the `ScenarioConfig` episode input have all been

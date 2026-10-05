@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
+#include <set>
+#include <stdexcept>
 #include <vector>
 
 #include "animation/library.hpp"
@@ -11,6 +14,7 @@
 
 #include "sim/match.hpp"
 #include "sim/match_world_state.hpp"
+#include "sim/player/player.hpp"
 
 namespace {
 
@@ -50,6 +54,34 @@ bool DynamicPlayerSelection(const std::vector<FormationEntry>& left,
            (controllable_right == kRightAgents || kRightAgents == 0));
 }
 
+// Validate the effective descriptions before profile draws, reseeding or
+// actor construction. Caller identities are never generated or renumbered.
+void ValidatePlayers(const TeamCreationData& home, const TeamCreationData& away) {
+  const auto player_count = [](const TeamCreationData& team) -> std::size_t {
+    return team.formation.empty() ? kPlayersPerTeam : team.formation.size();
+  };
+  const std::size_t home_count = player_count(home);
+  const std::size_t away_count = player_count(away);
+  constexpr std::size_t capacity = std::numeric_limits<PlayerIndex>::max() + 1u;
+  if (home_count > capacity || away_count > capacity - home_count) {
+    throw std::invalid_argument("match roster exceeds PlayerIndex capacity");
+  }
+  if (home_count > home.players.size() || away_count > away.players.size()) {
+    throw std::invalid_argument("formation has no corresponding player profile");
+  }
+  std::set<football::model::PlayerId> identities;
+  for (const TeamCreationData* team : {&home, &away}) {
+    for (const football::model::Player& player : team->players) {
+      if (player.id == football::model::kInvalidPlayerId) {
+        throw std::invalid_argument("match player requires an explicit PlayerId");
+      }
+      if (!identities.insert(player.id).second) {
+        throw std::invalid_argument("duplicate PlayerId across match rosters");
+      }
+    }
+  }
+}
+
 }  // namespace
 
 Simulation::Simulation() {
@@ -71,9 +103,12 @@ void Simulation::Init(
   // ambient episode override any more.
   const std::vector<FormationEntry> left = ToLegacyFormation(home.formation);
   const std::vector<FormationEntry> right = ToLegacyFormation(away.formation);
-  auto match_data = std::make_unique<MatchData>(
-      ToTeamCreationData(home, kHomeTeamDatabaseId, left),
-      ToTeamCreationData(away, kAwayTeamDatabaseId, right), rng_);
+  const TeamCreationData home_data =
+      ToTeamCreationData(home, kHomeTeamDatabaseId, left);
+  const TeamCreationData away_data =
+      ToTeamCreationData(away, kAwayTeamDatabaseId, right);
+  ValidatePlayers(home_data, away_data);
+  auto match_data = std::make_unique<MatchData>(home_data, away_data, rng_);
 
   // Derived once here, so the referee and team selection never read ambient
   // configuration during a tick.

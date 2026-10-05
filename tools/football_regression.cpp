@@ -90,7 +90,7 @@ uint64_t HashWorld(const WorldState& world) {
   hash = HashValue(hash, static_cast<uint32_t>(world.players.size()));
   for (const WorldPlayerState& player : world.players) {
     hash = HashValue(hash, player.id);
-    hash = HashValue(hash, player.team);
+    hash = HashValue(hash, player.side);
     hash = vector_hash(hash, player.position);
     hash = vector_hash(hash, player.velocity);
     hash = vector_hash(hash, player.facing);
@@ -1065,9 +1065,8 @@ void CheckRefereeRules(GameEnv& game) {
         game.reset_game();
         Advance(game, 201);  // Leave the initial kickoff, into open play.
         Match* match = GetContext().simulation->match();
-        Require(match->IsInPlay() && !match->IsInSetPiece() &&
-                    GetContext().stablePlayerCount == 22,
-                "only football players should allocate runtime ordinals");
+        Require(match->IsInPlay() && !match->IsInSetPiece(),
+                "referee fixture should be in open play");
         std::vector<Player*> home, away;
         match->GetTeam(0)->GetActivePlayers(home);
         match->GetTeam(1)->GetActivePlayers(away);

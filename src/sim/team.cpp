@@ -60,11 +60,12 @@ void Team::Exit() {
 
 }
 
-void Team::InitPlayers() {
+void Team::InitPlayers(PlayerIndex first_index) {
   // load all players in the team, even the players who sit on the bench. aww.
   for (int i = 0; i < (signed int)teamData->GetPlayerNum(); i++) {
     PlayerData *playerData = teamData->GetPlayerData(i);
-    Player *player = new Player(this, playerData);
+    Player *player = new Player(this, playerData,
+                                static_cast<PlayerIndex>(first_index + i));
     players.push_back(player);
 
     if (i < playerNum) {
@@ -122,10 +123,9 @@ void Team::AddHumanGamers(const std::vector<ControllerInput*>& controllers) {
   if (!result.empty()) {
     mainSelectedPlayer = result[0];
   }
-  // Sort players by the ID to provide identity mapping of controller-player
-  // when controlling all players on the team.
+  // Keep controller-player mapping in roster/execution order, not ID order.
   std::sort(result.begin(), result.end(), [](Player* a, Player* b) {
-        return a->GetStableID() < b->GetStableID();
+        return a->GetIndex() < b->GetIndex();
     });
   for (unsigned int i = 0; i < result.size(); i++) {
     humanGamers[i]->SetSelectedPlayer(result[i]);

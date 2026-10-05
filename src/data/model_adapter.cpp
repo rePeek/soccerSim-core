@@ -1,5 +1,7 @@
 #include "data/model_adapter.hpp"
 
+#include "data/default_teams.hpp"
+
 std::vector<FormationEntry> ToLegacyFormation(
     const football::model::Formation& formation) {
   std::vector<FormationEntry> result;
@@ -17,7 +19,13 @@ TeamCreationData ToTeamCreationData(
   TeamCreationData data;
   data.database_id = database_id;
   data.name = team.name;
-  data.players = team.players;
+  // Resolve legacy empty-roster defaults here, before runtime identity
+  // validation and before PlayerData consumes any RNG. No ID allocation.
+  data.players = team.players.empty()
+      ? (database_id == kHomeTeamDatabaseId
+             ? football::data::MakeDefaultHomeTeam()
+             : football::data::MakeDefaultAwayTeam()).players
+      : team.players;
   data.formation = initial_formation;
   return data;
 }

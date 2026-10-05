@@ -1410,7 +1410,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
        GetBakedClip(dataSet.front()).frame_count !=
            GetBakedClip(withoutFootSort.front()).frame_count)) {
     perturbation.applied = true;
-    perturbation.player_id = CastPlayer()->GetStableID();
+    perturbation.player_id = CastPlayer()->GetID();
     perturbation.time_ms = static_cast<int>(match->GetActualTime_ms());
     perturbation.original_anim_id = dataSet.front();
     perturbation.alternative_anim_id = withoutFootSort.front();

@@ -46,7 +46,6 @@ class GameContext {
  public:
   GameContext() { }
   std::unique_ptr<Simulation> simulation;
-  int stablePlayerCount = 0;
 };
 
 void SetGame(GameEnv* c);

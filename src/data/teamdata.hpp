@@ -31,8 +31,8 @@
 constexpr int kHomeTeamDatabaseId = 3;
 constexpr int kAwayTeamDatabaseId = 8;
 
-// Static inputs for creating one team. An empty `players` selects the
-// legacy hardcoded roster; an empty `name` keeps the database name.
+// Effective inputs for creating one team. The data adapter resolves empty
+// model rosters before validation; an empty `name` keeps the database name.
 struct TeamCreationData {
   int database_id = kHomeTeamDatabaseId;
   std::vector<FormationEntry> formation;
