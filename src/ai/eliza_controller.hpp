@@ -19,10 +19,10 @@
 #define _HPP_FOOTBALL_ONTHEPITCH_ELIZACONTROLLER
 
 #include "sim/player/controller/playercontroller.hpp"
-#include "sim/player/controller/strategies/offtheball/default_def.hpp"
-#include "sim/player/controller/strategies/offtheball/default_mid.hpp"
-#include "sim/player/controller/strategies/offtheball/default_off.hpp"
-#include "sim/player/controller/strategies/offtheball/goalie_default.hpp"
+#include "ai/strategies/offtheball/default_def.hpp"
+#include "ai/strategies/offtheball/default_mid.hpp"
+#include "ai/strategies/offtheball/default_off.hpp"
+#include "ai/strategies/offtheball/goalie_default.hpp"
 #include "sim/gamedefines.hpp"
 
 struct Prerequisites;

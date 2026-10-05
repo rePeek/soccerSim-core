@@ -16,7 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/match.hpp"
-#include "sim/player/controller/legacy_player_decision_factory.hpp"
+#include "sim/legacy_player_decision_factory.hpp"
 #include "sim/legacy_team_decision_factory.hpp"
 #include "sim/animation/library.hpp"
 

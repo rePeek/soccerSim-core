@@ -13,6 +13,8 @@
 #include "sim/match.hpp"
 #include "sim/player/player.hpp"
 #include "sim/simulation.hpp"
+#include "ai/eliza_decision_factory.hpp"
+#include "ai/team_ai_decision_factory.hpp"
 
 namespace model = football::model;
 static_assert(std::is_same_v<model::PlayerId, std::uint32_t>);
@@ -32,6 +34,12 @@ static_assert(!HasSchedulingDetail<WorldPlayerState>);
 static_assert(!HasSchedulingDetail<Player>);
 
 namespace {
+
+// The composition root for these diagnostics: pick the default decision
+// implementations, exactly like src/env/game_env.cpp does for the library.
+LegacyDecisionFactories TestDecisionFactories() {
+  return {CreateDefaultElizaDecisionFactory(), CreateDefaultTeamAIDecisionFactory()};
+}
 
 void Require(bool condition, const char* message) {
   if (!condition) throw std::runtime_error(message);
@@ -118,7 +126,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   away.players[0].id = 0;  // Zero is a valid identity, not a scheduler phase.
   MatchOptions options;
   options.reverse_team_processing = reverse;
-  Simulation reference, renamed;  // Independent runtimes, no environment binding.
+  Simulation reference{TestDecisionFactories()}, renamed{TestDecisionFactories()};  // Independent runtimes, no environment binding.
   reference.Init(default_home, default_away, model::MakeLegacyPitch(), options, false);
   renamed.Init(home, away, model::MakeLegacyPitch(), options, false);
   CheckIdentity(renamed, home, away);
@@ -188,7 +196,7 @@ void CheckRosterComposition() {
   for (bool reverse : {false, true}) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
-    Simulation simulation;
+    Simulation simulation{TestDecisionFactories()};
     simulation.Init(home, away, model::MakeLegacyPitch(), options, false);
     CheckIdentity(simulation, home, away);
     simulation.Stop();
@@ -198,7 +206,7 @@ void CheckRosterComposition() {
   }
 
   // Home/away is a match role, not identity of the team/profile database.
-  Simulation swapped;
+  Simulation swapped{TestDecisionFactories()};
   swapped.Init(away, home, model::MakeLegacyPitch(), MatchOptions{}, false);
   CheckIdentity(swapped, away, home);
 
@@ -215,7 +223,7 @@ void CheckRosterComposition() {
   for (bool reverse : {false, true}) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
-    Simulation large;
+    Simulation large{TestDecisionFactories()};
     large.Init(home, away, model::MakeLegacyPitch(), options, false);
     CheckIdentity(large, home, away);
     Require(large.Observe().players.size() == 260, "phase storage limited roster size");
@@ -232,7 +240,7 @@ void CheckValidationAndDefaults() {
           "default identity is conflated with database provenance");
   Require(football::app::fixtures::LoadLegacyPlayerProfile(398, true).id == model::kInvalidPlayerId,
           "profile loader invented a player identity from provenance");
-  Simulation reference;
+  Simulation reference{TestDecisionFactories()};
   reference.Init(home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
   CheckIdentity(reference, home, away);
   auto& rng = reference.match()->rng();
@@ -339,7 +347,7 @@ void CheckHistoricalScheduling() {
     }
     MatchOptions options;
     options.reverse_team_processing = test.reverse;
-    Simulation simulation;
+    Simulation simulation{TestDecisionFactories()};
     simulation.Init(home, away, model::MakeLegacyPitch(), options, false);
     for (int tick = 0; tick < 300; ++tick) simulation.Step(PlayerControlSet{});
     Require(CaptureScheduleState(simulation) == test.before_send_off,
@@ -373,7 +381,7 @@ void CheckControllerRosterOrder() {
         away.players[i].id = 2000000000u - static_cast<model::PlayerId>(i);
       }
       std::array<QuietInput, 4> inputs;  // Outlive all HumanGamer readers.
-      Simulation simulation;
+      Simulation simulation{TestDecisionFactories()};
       MatchOptions options;
       options.reverse_team_processing = reverse;
       simulation.Init(home, away, model::MakeLegacyPitch(), options, false);

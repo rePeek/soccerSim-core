@@ -17,7 +17,7 @@
 
 
 #include "foundation/geometry/line.hpp"
-#include "sim/player/controller/elizacontroller.hpp"
+#include "ai/eliza_controller.hpp"
 
 #include <cmath>
 
@@ -26,7 +26,7 @@
 
 #include "sim/player/humanoid/humanoid_utils.hpp"
 
-#include "sim/player/controller/strategies/strategy.hpp"
+#include "ai/strategies/strategy.hpp"
 
 ElizaController::ElizaController(Match *match, bool lazyPlayer)
     : PlayerController(match), lazyPlayer(lazyPlayer) {

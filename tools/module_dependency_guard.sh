@@ -31,7 +31,8 @@ control:football_control
 controller:football_controller
 support:football_support
 sim:football_sim
-env:football_engine'
+env:football_engine
+ai:football_ai'
 
 # target -> the include prefix it provides
 provides='football_foundation:foundation
@@ -43,6 +44,7 @@ football_support:support
 football_animation:sim/animation
 football_sim:sim
 football_engine:env
+football_ai:ai
 football_app_support:app'
 
 value_of() {

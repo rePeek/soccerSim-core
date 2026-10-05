@@ -78,17 +78,10 @@ set(GAME_HEADERS
    src/sim/player/player_action_executor.hpp
    src/sim/player/player_action_volume.hpp
    src/sim/player/player.hpp
-   src/sim/player/controller/legacy_player_decision.hpp
-   src/sim/player/controller/legacy_player_decision_factory.hpp
-   src/sim/player/controller/eliza_decision_factory.hpp
-   src/sim/player/controller/elizacontroller.hpp
+   src/sim/legacy_player_decision.hpp
+   src/sim/legacy_player_decision_factory.hpp
    src/sim/player/controller/humancontroller.hpp
    src/sim/player/controller/playercontroller.hpp
-   src/sim/player/controller/strategies/strategy.hpp
-   src/sim/player/controller/strategies/offtheball/default_off.hpp
-   src/sim/player/controller/strategies/offtheball/default_def.hpp
-   src/sim/player/controller/strategies/offtheball/default_mid.hpp
-   src/sim/player/controller/strategies/offtheball/goalie_default.hpp
    src/sim/referee.hpp
    src/sim/ball.hpp
    src/sim/team.hpp
@@ -101,8 +94,7 @@ set(GAME_HEADERS
    src/sim/ai_support/mentalimage.hpp
    src/sim/legacy_team_decision.hpp
    src/sim/legacy_team_decision_factory.hpp
-   src/sim/team_ai_decision_factory.hpp
-   src/sim/teamAIcontroller.hpp
+   src/sim/legacy_decision_factories.hpp
 )
 
 
@@ -115,14 +107,7 @@ set(GAME_SOURCES
    src/sim/player/player_locomotion.cpp
    src/sim/player/controller/playercontroller.cpp
    src/sim/player/controller/humancontroller.cpp
-   src/sim/player/controller/legacy_player_decision.cpp
-   src/sim/player/controller/eliza_decision_factory.cpp
-   src/sim/player/controller/elizacontroller.cpp
-   src/sim/player/controller/strategies/strategy.cpp
-   src/sim/player/controller/strategies/offtheball/default_mid.cpp
-   src/sim/player/controller/strategies/offtheball/default_off.cpp
-   src/sim/player/controller/strategies/offtheball/default_def.cpp
-   src/sim/player/controller/strategies/offtheball/goalie_default.cpp
+   src/sim/legacy_player_decision.cpp
    src/sim/humangamer.cpp
    src/sim/ball.cpp
    src/sim/match.cpp
@@ -133,12 +118,34 @@ set(GAME_SOURCES
    src/sim/ai_support/mentalimage.cpp
    src/sim/ai_support/AIfunctions.cpp
    src/sim/team.cpp
-   src/sim/teamAIcontroller.cpp
-   src/sim/team_ai_decision_factory.cpp
 )
 
 
 list(APPEND GAME_HEADERS src/sim/formation.hpp)
+
+set(AI_HEADERS
+   src/ai/eliza_controller.hpp
+   src/ai/eliza_decision_factory.hpp
+   src/ai/team_ai_controller.hpp
+   src/ai/team_ai_decision_factory.hpp
+   src/ai/strategies/strategy.hpp
+   src/ai/strategies/offtheball/default_off.hpp
+   src/ai/strategies/offtheball/default_def.hpp
+   src/ai/strategies/offtheball/default_mid.hpp
+   src/ai/strategies/offtheball/goalie_default.hpp
+)
+
+set(AI_SOURCES
+   src/ai/eliza_controller.cpp
+   src/ai/eliza_decision_factory.cpp
+   src/ai/team_ai_controller.cpp
+   src/ai/team_ai_decision_factory.cpp
+   src/ai/strategies/strategy.cpp
+   src/ai/strategies/offtheball/default_mid.cpp
+   src/ai/strategies/offtheball/default_off.cpp
+   src/ai/strategies/offtheball/default_def.cpp
+   src/ai/strategies/offtheball/goalie_default.cpp
+)
 
 # Executable-side code. It builds model descriptions from legacy data, so it may
 # use support (XML/text) but is never linked into the core shared library.

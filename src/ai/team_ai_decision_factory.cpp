@@ -1,8 +1,8 @@
-#include "sim/team_ai_decision_factory.hpp"
+#include "ai/team_ai_decision_factory.hpp"
 
 #include <memory>
 
-#include "sim/teamAIcontroller.hpp"
+#include "ai/team_ai_controller.hpp"
 
 namespace {
 
@@ -15,7 +15,8 @@ class TeamAiDecisionFactory final : public LegacyTeamDecisionFactory {
 
 }  // namespace
 
-std::shared_ptr<const LegacyTeamDecisionFactory> MakeTeamAiDecisionFactory() {
+std::shared_ptr<const LegacyTeamDecisionFactory>
+CreateDefaultTeamAIDecisionFactory() {
   static const std::shared_ptr<const TeamAiDecisionFactory> factory =
       std::make_shared<const TeamAiDecisionFactory>();
   return factory;

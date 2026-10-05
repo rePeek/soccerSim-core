@@ -15,12 +15,12 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "sim/player/controller/strategies/offtheball/goalie_default.hpp"
+#include "ai/strategies/offtheball/goalie_default.hpp"
 
 #include "foundation/geometry/line.hpp"
 #include "foundation/geometry/triangle.hpp"
 
-#include "sim/player/controller/strategies/strategy.hpp"
+#include "ai/strategies/strategy.hpp"
 
 void GoalieDefaultStrategy::RequestInput(ElizaController *controller,
                                          const MentalImage *mentalImage,

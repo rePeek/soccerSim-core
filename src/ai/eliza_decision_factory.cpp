@@ -1,8 +1,8 @@
-#include "sim/player/controller/eliza_decision_factory.hpp"
+#include "ai/eliza_decision_factory.hpp"
 
 #include <memory>
 
-#include "sim/player/controller/elizacontroller.hpp"
+#include "ai/eliza_controller.hpp"
 
 namespace {
 
@@ -17,7 +17,7 @@ class ElizaPlayerDecisionFactory final : public LegacyPlayerDecisionFactory {
 }  // namespace
 
 std::shared_ptr<const LegacyPlayerDecisionFactory>
-MakeElizaPlayerDecisionFactory() {
+CreateDefaultElizaDecisionFactory() {
   static const std::shared_ptr<const ElizaPlayerDecisionFactory> factory =
       std::make_shared<const ElizaPlayerDecisionFactory>();
   return factory;

@@ -12,6 +12,8 @@
 
 #include "env/game_env.hpp"
 #include "sim/simulation.hpp"
+#include "ai/eliza_decision_factory.hpp"
+#include "ai/team_ai_decision_factory.hpp"
 #include "sim/match.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
@@ -29,6 +31,12 @@
 #include "support/diagnostics/backtrace.hpp"
 
 namespace {
+
+// The composition root for these diagnostics: pick the default decision
+// implementations, exactly like src/env/game_env.cpp does for the library.
+LegacyDecisionFactories TestDecisionFactories() {
+  return {CreateDefaultElizaDecisionFactory(), CreateDefaultTeamAIDecisionFactory()};
+}
 
 constexpr float kFloatTolerance = 1e-5f;
 
@@ -1258,7 +1266,7 @@ void CheckResetDeterminism(Simulation& simulation) {
           "direct Simulation stop is not idempotent");
   // Keep another library alive while rebuilding the stopped match. This also
   // catches a library accidentally released by Stop and reused by the allocator.
-  Simulation independent;
+  Simulation independent{TestDecisionFactories()};
   InitDefaultMatch(independent);
   Require(&independent.match()->GetAnimationLibrary() != animations,
           "independent Simulation inherited a released or ambient library");
@@ -1299,7 +1307,7 @@ void CheckModelComposition() {
                                      0.8123456f);
   const model::PlayerAttributes attributes = home.players.front().attributes;
   const model::Team declared_home = home;
-  Simulation simulation;
+  Simulation simulation{TestDecisionFactories()};
   simulation.Init(home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
   home.name = "Changed after initialization";
   home.players.front().attributes.fill(0.1f);
@@ -1402,7 +1410,7 @@ int main(int argc, char** argv) {
     CheckPlayerActionVolume();
     CheckPlayerBodyCollider();
     CheckModelComposition();
-    Simulation simulation;
+    Simulation simulation{TestDecisionFactories()};
     InitDefaultMatch(simulation);
     const std::string mode = argc > 1 ? argv[1] : "";
     if (mode == "--animation-ab" || mode == "--animation-ab-lifecycle") {

@@ -6,6 +6,7 @@
 #include "control/player_control_set.hpp"
 #include "model/team.hpp"
 #include "model/pitch.hpp"
+#include "sim/legacy_decision_factories.hpp"
 #include "sim/match_options.hpp"
 #include "sim/rng.hpp"
 #include "observation/world_state.hpp"
@@ -16,12 +17,13 @@
 // PlayerControlSet, and the RNG reaches actors through Match.
 class Match;
 class AnimationLibrary;
-class LegacyPlayerDecisionFactory;
-class LegacyTeamDecisionFactory;
 class Simulation {
  public:
   // Seeds the pre-match RNG state, exactly as the legacy startup did.
-  Simulation();
+  //
+  // The decision implementations are chosen by the composition root and
+  // forwarded unchanged: Simulation owns them but never picks a default.
+  explicit Simulation(LegacyDecisionFactories decisions);
   ~Simulation();
 
   void Init(const football::model::Team& home,
@@ -42,11 +44,7 @@ class Simulation {
   blunted::SimulationRng rng_;
   std::unique_ptr<Match> match_;
   std::shared_ptr<AnimationLibrary> animations_;
-  // TRANSITIONAL (A mode): constructing the default decision factory here is a
-  // convenience. It moves to the composition root once the decision code lives
-  // outside simulation.
-  std::shared_ptr<const LegacyPlayerDecisionFactory> player_decision_factory_;
-  std::shared_ptr<const LegacyTeamDecisionFactory> team_decision_factory_;
+  const LegacyDecisionFactories decisions_;
 };
 
 #endif  // FOOTBALL_SIM_SIMULATION_HPP

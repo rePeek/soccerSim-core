@@ -16,7 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include <algorithm>
-#include "sim/teamAIcontroller.hpp"
+#include "ai/team_ai_controller.hpp"
 
 #include "foundation/geometry/line.hpp"
 #include <cmath>

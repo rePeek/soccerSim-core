@@ -15,17 +15,23 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "sim/player/controller/legacy_player_decision.hpp"
+#ifndef _HPP_STRATEGY
+#define _HPP_STRATEGY
 
-#include <cmath>
+#include "sim/gamedefines.hpp"
 
-#include "sim/match.hpp"
+#include "sim/ai_support/AIfunctions.hpp"
+#include "sim/ai_support/mentalimage.hpp"
+
+#include "ai/eliza_controller.hpp"
+
 #include "sim/player/player.hpp"
+#include "sim/team.hpp"
+#include "sim/match.hpp"
 
-void LegacyPlayerDecision::SetPlayer(Player *player) {
-  this->player = player;
-}
+using namespace blunted;
 
-int LegacyPlayerDecision::GetReactionTime_ms() {
-  return int(std::round(80.0f - player->GetStat(football::model::PlayerStat::physical_reaction) * 40.0f));
-}
+class Strategy {
+};
+
+#endif

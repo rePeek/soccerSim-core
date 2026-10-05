@@ -24,7 +24,7 @@
 #include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/team.hpp"
-#include "sim/player/controller/legacy_player_decision.hpp"
+#include "sim/legacy_player_decision.hpp"
 #include "sim/ai_support/AIfunctions.hpp"
 #include "sim/player/player_action_executor.hpp"
 #include "sim/player/player_locomotion.hpp"

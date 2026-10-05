@@ -15,49 +15,42 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "sim/player/controller/strategies/offtheball/default_off.hpp"
+#include "ai/strategies/strategy.hpp"
+#include "ai/strategies/offtheball/default_def.hpp"
 #include <cmath>
-#include "sim/player/controller/strategies/strategy.hpp"
 
-
-void DefaultOffenseStrategy::RequestInput(ElizaController *controller,
+void DefaultDefenseStrategy::RequestInput(ElizaController *controller,
                                           const MentalImage *mentalImage,
                                           Vector3 &direction, float &velocity) {
 
   bool offensiveComponents = true;
   bool defensiveComponents = true;
   bool laziness = true;
-
   Vector3 desiredPosition_static = controller->GetTeam()->GetController()->GetAdaptedFormationPosition(static_cast<Player*>(controller->GetPlayer()), false);
   Vector3 desiredPosition_dynamic = controller->GetTeam()->GetController()->GetAdaptedFormationPosition(static_cast<Player*>(controller->GetPlayer()), true);
   float actionDistance = NormalizedClamp(controller->GetPlayer()->GetPosition().GetDistance(controller->GetMatch()->GetDesignatedPossessionPlayer()->GetPosition()), 15.0f, 20.0f);
-  float staticPositionBias = curve(0.8f * actionDistance, 1.0f); // lower values = swap position with other players' formation positions more easily
+  float staticPositionBias = curve(1.0f * actionDistance, 1.0f); // lower values = swap position with other players' formation positions more easily
   Vector3 desiredPosition = desiredPosition_static * staticPositionBias + desiredPosition_dynamic * (1.0f - staticPositionBias);
 
   if (offensiveComponents) {
     // support position
-    float attackBias = NormalizedClamp((controller->GetFadingTeamPossessionAmount() - 0.5f) * 1.0f, 0.1f, 0.6f);
-    bool makeRun = false;
-    if (attackBias > 0.7f) {
-      if (controller->GetTeam()->GetController()->GetEndApplyAttackingRun_ms() >
-              controller->GetMatch()->GetActualTime_ms() &&
-          controller->GetTeam()->GetController()->GetAttackingRunPlayer() ==
-              controller->GetPlayer()) {
-        makeRun = true;
-      }
-    }
-    Vector3 supportPosition = controller->GetSupportPosition_ForceField(mentalImage, desiredPosition, makeRun);
+    float attackBias = NormalizedClamp((controller->GetFadingTeamPossessionAmount() - 0.5f) * 1.0f, 0.2f, 0.9f);
+    Vector3 supportPosition = controller->GetSupportPosition_ForceField(mentalImage, desiredPosition);
     desiredPosition = desiredPosition * (1.0f - attackBias) + supportPosition * attackBias;
   }
 
   if (defensiveComponents) {
+
     float mindset = AI_GetMindSet(static_cast<Player*>(controller->GetPlayer())->GetDynamicFormationEntry().role);
     controller->AddDefensiveComponent(
         desiredPosition,
         std::pow(
-            clamp(1.3f - mindset - controller->GetFadingTeamPossessionAmount(),
+            clamp(1.9f - mindset - controller->GetFadingTeamPossessionAmount(),
                   0.0f, 1.0f),
             0.7f));
+
+    // offside trap (used to be applied before AddDefensiveComponent)
+    controller->GetTeam()->GetController()->ApplyOffsideTrap(desiredPosition);
   }
 
   direction = (desiredPosition - controller->GetPlayer()->GetPosition()).GetNormalized(controller->GetPlayer()->GetDirectionVec());

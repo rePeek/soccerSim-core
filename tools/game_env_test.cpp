@@ -7,6 +7,8 @@
 #include "app/fixtures/default_teams.hpp"
 #include "env/game_env.hpp"
 #include "sim/simulation.hpp"
+#include "ai/eliza_decision_factory.hpp"
+#include "ai/team_ai_decision_factory.hpp"
 
 static_assert(!std::is_default_constructible_v<GameEnv>);
 static_assert(!std::is_copy_constructible_v<GameEnv>);
@@ -37,6 +39,12 @@ template<class T> concept HasRuntimeAccess =
 static_assert(!HasRuntimeAccess<GameEnv>);
 
 namespace {
+
+// The composition root for these diagnostics: pick the default decision
+// implementations, exactly like src/env/game_env.cpp does for the library.
+LegacyDecisionFactories TestDecisionFactories() {
+  return {CreateDefaultElizaDecisionFactory(), CreateDefaultTeamAIDecisionFactory()};
+}
 
 void Require(bool condition, const char* message) {
   if (!condition) throw std::runtime_error(message);
@@ -193,7 +201,7 @@ void CheckDeclaredComposition() {
   home.players[1].attributes.fill(0.1f);
   home.players[1].height = 1.5f;
   game.start_game();
-  auto reference = std::make_unique<Simulation>();
+  auto reference = std::make_unique<Simulation>(TestDecisionFactories());
   reference->Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
   for (int repeat = 0; repeat < 3; ++repeat) {
     RequireSameWorld(game.observe(), reference->Observe());
@@ -209,7 +217,7 @@ void CheckDeclaredComposition() {
     } else if (repeat == 1) {
       game.stop_game();
       game.start_game();
-      reference = std::make_unique<Simulation>();
+      reference = std::make_unique<Simulation>(TestDecisionFactories());
       reference->Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
     }
   }

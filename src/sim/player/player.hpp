@@ -139,7 +139,7 @@ int &LocomotionReentryMeasurementEpoch();
 void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
 #include "model/player.hpp"
-#include "sim/player/controller/legacy_player_decision.hpp"
+#include "sim/legacy_player_decision.hpp"
 #include "sim/humangamer.hpp"
 
 

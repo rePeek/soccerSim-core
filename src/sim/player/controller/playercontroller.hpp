@@ -18,7 +18,7 @@
 #ifndef _HPP_FOOTBALL_ONTHEPITCH_PLAYERCONTROLLER
 #define _HPP_FOOTBALL_ONTHEPITCH_PLAYERCONTROLLER
 
-#include "sim/player/controller/legacy_player_decision.hpp"
+#include "sim/legacy_player_decision.hpp"
 
 class PlayerController : public LegacyPlayerDecision {
 

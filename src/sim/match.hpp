@@ -31,7 +31,7 @@
 #include "sim/animation/library.hpp"
 #include "sim/animation/types.hpp"
 #include "control/player_control_set.hpp"
-#include "sim/player/controller/legacy_player_decision.hpp"
+#include "sim/legacy_player_decision.hpp"
 
 class LegacyPlayerDecisionFactory;
 class LegacyTeamDecisionFactory;

@@ -74,17 +74,25 @@ add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
 target_link_libraries(football_sim PUBLIC football_animation football_support
   football_model football_observation football_control football_controller)
 
-# --- engine object layer + the shared library -------------------------------
+# The decision implementations. ai -> sim only: football_sim must never link
+# football_ai, or the domain dependency would point the wrong way.
+add_library(football_ai STATIC ${AI_SOURCES} ${AI_HEADERS})
+target_link_libraries(football_ai PUBLIC football_sim)
+football_configure_target(football_ai)
+
+# env is the composition root: game_env.cpp names the default ai factories and
+# the engine object layer therefore links football_ai. Keep the dependency in
+# that single translation unit; game_env.hpp exposes no AI type.
 add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
   src/env/game_env.cpp src/env/game_env.hpp)
 target_link_libraries(football_engine PRIVATE football_controller football_model
-  football_sim football_observation football_support football_control)
+  football_sim football_observation football_support football_control football_ai)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
 target_link_libraries(${OUTPUT_LIB_NAME}
   PUBLIC football_observation football_control
-  PRIVATE football_sim football_controller)
+  PRIVATE football_sim football_controller football_ai)
 
 if(FOOTBALL_BUILD_APP)
   add_executable(football_app ${APP_MAIN_SOURCES})
@@ -94,7 +102,7 @@ endif()
 
 foreach(tgt IN ITEMS
     football_animation_objects
-    football_animation football_sim
+    football_animation football_sim football_ai
     football_engine ${OUTPUT_LIB_NAME})
   football_configure_target(${tgt})
 endforeach()
@@ -214,7 +222,7 @@ set(_module_dependency_report "")
 foreach(_module_target IN ITEMS
     football_foundation football_model football_observation football_control
     football_controller football_support football_animation football_sim
-    football_engine football_app_support)
+    football_ai football_engine football_app_support)
   football_link_closure(${_module_target} _closure)
   string(REPLACE ";" " " _closure_text "${_closure}")
   string(APPEND _module_dependency_report

@@ -20,6 +20,14 @@
 #include "sim/simulation.hpp"
 #include "support/diagnostics/assert.hpp"
 
+// COMPOSITION ROOT. This is the only translation unit that names the default
+// decision implementations, so env -> ai -> sim and sim never depends on ai.
+// Switching to the B layout (AI supplied by the caller) means moving these two
+// calls to the executable and giving GameEnv an extra constructor; Simulation
+// itself does not change.
+#include "ai/eliza_decision_factory.hpp"
+#include "ai/team_ai_decision_factory.hpp"
+
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
                  football::model::Pitch pitch)
     : home_team_(std::move(home)),
@@ -38,7 +46,8 @@ void GameEnv::stop_game() {
 void GameEnv::start_game() {
   CHECK(!simulation_);
   // Publish only an initialized runtime; a rejected description leaves us stopped.
-  auto simulation = std::make_unique<Simulation>();
+  auto simulation = std::make_unique<Simulation>(LegacyDecisionFactories{
+      CreateDefaultElizaDecisionFactory(), CreateDefaultTeamAIDecisionFactory()});
   init_match(*simulation);
   simulation_ = std::move(simulation);
 }
