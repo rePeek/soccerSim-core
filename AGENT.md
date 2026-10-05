@@ -146,14 +146,18 @@ src/
 ├── control/         PlayerControl / TacticalBoard 等协议无关控制契约
 ├── env/             对外环境层
 │   └── game_env        直接持有 Simulation；无 context/ambient binding/lifecycle wrapper
-├── data/            legacy 资料导入与 runtime 兼容层
-│   ├── player_profile  无环境/RNG 的资料解析与年龄/能力计算
-│   ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
-│   ├── model_adapter  模型/初始阵型 → TeamCreationData / FormationEntry；先解析空 roster 默认
-│   ├── playerdata      持有 model::Player 的兼容 facade；无独立 stats/cache
-│   └── matchdata, teamdata  runtime 组装与序列化
-└── ai/              player/player_ai.hpp（决策算法边界，尚未接线）
+└── data/            legacy 资料导入与 runtime 兼容层
+    ├── player_profile  无环境/RNG 的资料解析与年龄/能力计算
+    ├── default_teams   football::data 默认队伍工厂，返回完整 model::Team
+    ├── model_adapter  模型/初始阵型 → TeamCreationData / FormationEntry；先解析空 roster 默认
+    ├── playerdata      持有 model::Player 的兼容 facade；无独立 stats/cache
+    └── matchdata, teamdata  runtime 组装与序列化
 ```
+
+The unused `src/ai/player/player_ai.hpp` interface and `src/ai/` directory are
+deleted. Active AI remains in `sim/teamAIcontroller.*`, `sim/ai_support/` and
+`sim/player/controller/`. External decision code can consume `WorldState` and
+supply `PlayerControlSet` directly; no speculative AI base interface is required.
 
 ### 分层与边界守卫
 
