@@ -23,12 +23,14 @@ target_sources(football_sim PRIVATE
   player/player_control_builder.cpp
   player/player_locomotion.cpp
   ball.cpp match.cpp match_world_state.cpp formation.cpp simulation.cpp referee.cpp
+  pitch_frame.cpp
   ai_support/mentalimage.cpp
   query/player_query.cpp query/reachability.cpp
   rules/offside.cpp rules/restart_placement.cpp
   player/kick_targeting.cpp team.cpp
 
   gamedefines.hpp formation.hpp ball.hpp match.hpp match_world_state.hpp
+  pitch_frame.hpp
   referee.hpp team.hpp value_history.hpp
   ai_support/mentalimage.hpp
   query/player_query.hpp query/reachability.hpp

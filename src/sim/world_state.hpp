@@ -32,6 +32,8 @@ struct WorldTeamState {
 };
 
 // Value-only observation in one pitch frame (home defends negative x).
+// Ball and player positions/directions share this frame in both halves and both
+// processing orders. Change of ends never flips the observed defending directions.
 // No actor pointers, animation/command queues, mutable runtime or AI objects.
 struct WorldState {
   std::uint64_t tick = 0;

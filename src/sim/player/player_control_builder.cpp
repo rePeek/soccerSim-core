@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "sim/match.hpp"
+#include "sim/pitch_frame.hpp"
 #include "sim/team.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/kick_targeting.hpp"
@@ -30,12 +31,10 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   // Value controls use home pitch coordinates; convert at consumption, after
   // Match has selected the actor's processing frame. Never mutate caller data.
   PlayerControl control = input;
-  const int static_side = player.GetTeamID() == 0 ? -1 : 1;
-  if (player.GetTeam()->GetDynamicSide() != static_side) {
-    control.move_direction.Mirror();
-    if (control.look_at) control.look_at->Mirror();
-    if (control.target_position) control.target_position->Mirror();
-  }
+  const auto runtime_frame = FromHomePitchFrame(*player.GetTeam());
+  control.move_direction = runtime_frame.Direction(control.move_direction);
+  if (control.look_at) control.look_at = runtime_frame.Position(*control.look_at);
+  if (control.target_position) control.target_position = runtime_frame.Position(*control.target_position);
   PlayerCommand movement;
   movement.desiredFunctionType = e_FunctionType_Movement;
   movement.useDesiredMovement = true;

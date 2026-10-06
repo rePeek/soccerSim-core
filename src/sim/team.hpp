@@ -58,7 +58,7 @@ class Team {
     // Legacy rule-engine slot (home=0, away=1), not persistent team identity.
     int GetID() const { return id; }
     // Per-tick processing-frame direction (mirror counter), not persistent.
-    inline signed int GetDynamicSide() {
+    inline signed int GetDynamicSide() const {
       return side;
     }
     // Persistent direction this team defends; flips only on a change of ends.

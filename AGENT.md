@@ -68,6 +68,7 @@ src/
 │   ├── match_options.hpp / match_phase.hpp / match_result.hpp rule/result values
 │   ├── simulation.*  owns Match, deterministic RNG and baked animation library
 │   ├── match*, team, ball, referee, formation, gamedefines, rng
+│   ├── pitch_frame.* shared runtime ↔ canonical home-pitch adapters (sim-private)
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries and reachability
 │   ├── rules/        offside and restart placement
@@ -106,6 +107,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
 ├── sim_control_boundary_test.cpp controls/frames/reset/replay
 ├── sim_match_lifecycle_test.cpp phases/clocks/end changes/result/freeze
+├── pitch_frame_test.cpp     half/order geometry, nonzero ball/velocity and control round trips
 ├── restart_placement_test.cpp + restart_placement_fixture.hpp
 ├── anim_baking_test.cpp      two independent bakes, byte equality, field/selection verification
 ├── legacy_animation_import_test.cpp parser semantics, codecs and catchable failures
@@ -184,6 +186,9 @@ anim_baking → legacy_anim + animation/foundation
   No policy or external action protocol is involved in this replay test.
   Restart placement covers 72 original-source cases: 6 restart types × 2 processing
   orders × 2 taker sides × 3 roster shapes (11/11, 3/2, 1/1).
+  Pitch-frame regressions cover both halves × both processing orders, repeated
+  physical end changes, exact player/ball distance preservation, input immutability
+  and DefaultAI chasing the real ball instead of its ghost mirror.
 - `football_anim_baking_test`: independent source loads/bakes produce identical
   bytes, artifact round-trip/field/selection checks and failure cases. CTest also
   invokes the real baker's --check, --verify, --verify-selection flags.
@@ -232,6 +237,14 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   between-tick frame. Static physical sides flip, while WorldState keeps the home
   frame and TeamSide remains Home/Away. The same physical goal credits the opposite
   team in the second half. First-half numerics remain unchanged.
+- `pitch_frame.*` owns the runtime/home-pitch conversion for both observation and
+  control execution. Team transforms derive from current dynamic side versus fixed
+  Home=-1/Away=+1; the between-tick ball uses the first processing roster's frame.
+  Never infer orientation from MatchPhase: SecondHalf is published before the
+  pending physical change of ends. Ball position AND velocity must share the same
+  home-pitch frame as player positions; defending_direction does not flip.
+  Fixing the missing ball transform intentionally changes second-half AI matches,
+  not first-half numerical goldens, clock policy, physics or animation resources.
 - WorldState is an owning projection, not authoritative storage or a history cache.
   Its opaque ObservationEpoch owns only a fresh empty lifetime marker; equality,
   no actor data/counter/RNG/clock/address-number ID. Physical hashes exclude epoch.

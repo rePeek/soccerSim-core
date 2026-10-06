@@ -54,7 +54,8 @@ add_test(NAME football_default_ai_test COMMAND football_default_ai_test)
 set_tests_properties(football_default_ai_test PROPERTIES LABELS ai)
 
 add_executable(football_sim_control_boundary_test
-  sim_control_boundary_test.cpp sim_match_lifecycle_test.cpp restart_placement_test.cpp)
+  sim_control_boundary_test.cpp sim_match_lifecycle_test.cpp restart_placement_test.cpp
+  pitch_frame_test.cpp)
 target_link_libraries(football_sim_control_boundary_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_control_boundary_test)
