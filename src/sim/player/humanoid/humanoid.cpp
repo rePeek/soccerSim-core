@@ -119,7 +119,7 @@ void Humanoid::Process() {
   CastPlayer()->NoteLocomotionReentryTick(
       CastPlayer()->IsEligibleForProceduralLocomotion(),
       CastPlayer()->IsLocomotionIntentRefreshDue(
-          static_cast<int>(match->GetActualTime_ms())),
+          match->GetTimelineTick()),
       static_cast<int>(match->GetActualTime_ms()));
   // The legacy gate-versus-compatibility-source measurement lived here. Execution
   // authority is now the decision intent, so comparing the animation command
@@ -132,14 +132,15 @@ void Humanoid::Process() {
 
   // 4f-a3a: the complete decision queue has its own simulation clock. Its
   // cadence depends on world context, never on animation requeue opportunities.
-  const int decision_now_ms = static_cast<int>(match->GetActualTime_ms());
+  const auto decision_now = match->GetTimelineTick();
+  const int decision_now_ms = static_cast<int>(football::sim::ToMilliseconds(decision_now));
   const float decision_distance_to_ball =
       (match->GetBall()->Predict(0).Get2D() - tickStartState.position).GetLength();
   const bool designated_possession_player =
       match->GetDesignatedPossessionPlayer() == player;
   const bool designated_team_possession_player =
       team->GetDesignatedTeamPossessionPlayer() == player;
-  const int player_decision_cadence_ms = PlayerDecisionCadenceForContext_ms(
+  const auto player_decision_cadence = PlayerDecisionCadenceForContext(
       designated_possession_player, designated_team_possession_player,
       decision_distance_to_ball);
   const bool continuity_repair_due =
@@ -147,12 +148,12 @@ void Humanoid::Process() {
       CastPlayer()->DecisionLocomotionEpochIsStale();
   const bool player_decision_due =
       CastPlayer()->IsPlayerDecisionRefreshDue(
-          decision_now_ms, player_decision_cadence_ms);
+          decision_now, player_decision_cadence);
   if (continuity_repair_due || player_decision_due) {
     PlayerCommandQueue player_decision_commands;
     CastPlayer()->RequestCommand(player_decision_commands);
     CastPlayer()->PublishPlayerDecisionQueue(
-        player_decision_commands, decision_now_ms);
+        player_decision_commands, decision_now);
     CastPlayer()->ObserveSimulationDecisionQueue(
         player_decision_commands, decision_now_ms);
     bool has_movement = false;
@@ -196,7 +197,7 @@ void Humanoid::Process() {
   ProjectMovementState(tickStartState);
 
   currentAnim.frameNum++;
-  CastPlayer()->StepSimulationAction(10);
+  CastPlayer()->StepSimulationAction(football::sim::TickSpan{1});
   const PlayerActionState &action =
       CastPlayer()->GetSimulationActionState();
   previousAnim_frameNum++;
@@ -278,10 +279,10 @@ void Humanoid::Process() {
             TouchPending())) &&
         /* now done later on, else we can't requeue to pass/shot during
         trap/ballcontrol (action.type == e_FunctionType_Trap &&
-        TouchPending() && allowTrapReQueue && action.frame <=
+        TouchPending() && allowTrapReQueue && action.Frame() <=
         maxTrapReQueueFrame) || (action.type ==
         e_FunctionType_BallControl && TouchPending() && allowBallControlReQueue
-        && action.frame <= maxBallControlReQueueFrame) ) &&
+        && action.Frame() <= maxBallControlReQueueFrame) ) &&
         */
         GetCurrentBakedClip().metadata.incoming_special_state.empty() &&
         GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
@@ -497,14 +498,14 @@ void Humanoid::Process() {
   // ---------------------- / EXPERIMENTAL ------------------------------------------------
 
   if (action.HasScheduledContact() &&
-      action.frame == action.contactFrame) {
+      action.Frame() == action.ContactFrame()) {
     ContactAuthorityAudit *contact_audit =
         ContactAuthorityAuditEnabled() && IsTrackedScheduledContact(action.type)
         ? &ContactAuthorityFor(action.type) : nullptr;
     bool contact_impulse_generated = false;
     if (contact_audit) ++contact_audit->at_contact_frame;
     if (contact_audit) {
-      contact_audit->observed_elapsed_ms.push_back(action.elapsedTime_ms);
+      contact_audit->observed_elapsed_ms.push_back(static_cast<int>(football::sim::ToMilliseconds(action.elapsed)));
       if (currentAnim.positionOffset.GetLength() > 0.0f)
         ++contact_audit->contact_position_offset_nonzero;
       if (!currentAnim.positions.empty())
@@ -513,7 +514,7 @@ void Humanoid::Process() {
 
     Vector3 desiredBallPosition;
     for (const auto& t : GetCurrentBakedClip().touches) {
-      if (t.frame == action.contactFrame) desiredBallPosition = t.position;
+      if (t.frame == action.ContactFrame()) desiredBallPosition = t.position;
     }
     float desiredBallHeight = desiredBallPosition.coords[2];
     if (contact_audit)
@@ -788,10 +789,10 @@ void Humanoid::Process() {
 
   if (match->GetBallRetainer() == player) {
     if (((!action.HasScheduledContact() ||
-          action.frame >= action.contactFrame) &&
+          action.Frame() >= action.ContactFrame()) &&
          GetCurrentBakedClip().metadata.outgoing_retain_state != "") ||
         (action.HasScheduledContact() &&
-         action.frame < action.contactFrame &&
+         action.Frame() < action.ContactFrame() &&
          GetCurrentBakedClip().metadata.incoming_retain_state != "") ||
         (GetCurrentBakedClip().metadata.incoming_retain_state != "" &&
          GetCurrentBakedClip().metadata.outgoing_retain_state != "")) {
@@ -1042,27 +1043,27 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
         (CastPlayer()->HasPossession() || focusDistance > 12.0f)) return false;
     if (action.type == e_FunctionType_Movement &&
         command.desiredFunctionType == e_FunctionType_Movement &&
-        action.frame + minRemainingMovementReQueueFrames >
-            action.frameCount - 1) return false;
+        action.Frame() + minRemainingMovementReQueueFrames >
+            action.FrameCount() - 1) return false;
     if (action.type == e_FunctionType_Movement &&
         command.desiredFunctionType == e_FunctionType_Movement &&
         (!allowMovementReQueue || reQueueDelayFrames > 0)) return false;
     if (action.type == e_FunctionType_BallControl &&
         command.desiredFunctionType == e_FunctionType_BallControl &&
         (!allowBallControlReQueue ||
-         action.frame > maxBallControlReQueueFrame ||
+         action.Frame() > maxBallControlReQueueFrame ||
          reQueueDelayFrames > 0)) return false;
     if (action.type == e_FunctionType_BallControl &&
         command.desiredFunctionType == e_FunctionType_Trap) return false;
     if (action.type == e_FunctionType_Trap &&
         command.desiredFunctionType == e_FunctionType_Trap &&
         (!allowTrapReQueue ||
-         action.frame + minRemainingTrapReQueueFrames > action.contactFrame ||
+         action.Frame() + minRemainingTrapReQueueFrames > action.ContactFrame() ||
          reQueueDelayFrames > 0)) return false;
     if (action.type == e_FunctionType_Trap &&
         command.desiredFunctionType == e_FunctionType_BallControl &&
         (!allowTrapReQueue ||
-         action.frame + minRemainingTrapReQueueFrames > action.contactFrame ||
+         action.Frame() + minRemainingTrapReQueueFrames > action.ContactFrame() ||
          reQueueDelayFrames > 0)) return false;
 
     // too similar to what we are already trying to accomplish
@@ -1110,7 +1111,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     }
   }
 
-  if (localInterruptAnim != e_InterruptAnim_ReQueue || action.frame > 12)
+  if (localInterruptAnim != e_InterruptAnim_ReQueue || action.Frame() > 12)
     CalculateFactualSpatialState();
 
   assert(command.desiredLookAt.coords[2] == 0.0f);
@@ -1527,7 +1528,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     currentAnim.positionOffset = Vector3(0);
     currentAnim.originatingCommand = command;
     RecordMovementCommandAcceptance(material_candidate, action.type,
-                                    action.elapsedTime_ms, localInterruptAnim,
+                                    static_cast<int>(football::sim::ToMilliseconds(action.elapsed)), localInterruptAnim,
                                     command, static_cast<int>(GetCurrentBakedClip().frame_count));
     currentAnim.movementSmuggle = CalculateMovementSmuggle(command.desiredDirection, command.desiredVelocityFloat);
     currentAnim.movementSmuggleOffset = Vector3(0);
@@ -1538,8 +1539,8 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
         scheduled.HasScheduledContact()) {
       ContactAuthorityAudit &audit = ContactAuthorityFor(scheduled.type);
       ++audit.scheduled;
-      audit.contact_frames.push_back(scheduled.contactFrame);
-      audit.delays_ms.push_back(scheduled.contactTime_ms);
+      audit.contact_frames.push_back(scheduled.ContactFrame());
+      audit.delays_ms.push_back(static_cast<int>(football::sim::ToMilliseconds(*scheduled.contact)));
       if (command.modifier & e_PlayerCommandModifier_KnockOn) ++audit.knock_on;
       if (command.touchInfo.targetPlayer) ++audit.command_target;
       if (command.touchInfo.forcedTargetPlayer) ++audit.forced_target;

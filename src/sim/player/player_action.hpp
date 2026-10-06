@@ -1,59 +1,45 @@
-//
-//  player_action.hpp
-//  football
-//
-//  Copyright 2026
-//
+// Copyright 2026
+#ifndef FOOTBALL_SIM_PLAYER_ACTION_HPP
+#define FOOTBALL_SIM_PLAYER_ACTION_HPP
 
-#ifndef _HPP_PLAYER_ACTION
-#define _HPP_PLAYER_ACTION
+#include <optional>
 
 #include "sim/animation/types.hpp"
 #include "foundation/math/vector3.hpp"
+#include "sim/tick.hpp"
 
 using namespace blunted;
 
-
-// Explicit action timing consumed by gameplay, match rules and collision logic.
-// PlayerActionExecutor is the authoritative producer: Humanoid only supplies
-// the definition of a newly selected action. Gameplay, referee, collision,
-// possession and the Humanoid lifecycle gates all read this state.
+// The elapsed tick cursor is action time authority, independent of timeline
+// fast-forwards. A baked animation frame is one tick; frame accessors are index
+// projections, never additional timing state.
 struct PlayerActionState {
   e_FunctionType type = e_FunctionType_None;
-  int frame = 0;
-  int frameCount = 0;
-  int elapsedTime_ms = 0;
-  int durationTime_ms = 0;
-  int contactTime_ms = -1;
-  int contactFrame = -1;
+  football::sim::TickSpan elapsed{};
+  football::sim::TickSpan duration{};
+  std::optional<football::sim::TickSpan> contact;
   Vector3 contactPosition = Vector3(0);
 
-  bool HasScheduledContact() const { return contactTime_ms != -1; }
-  bool IsContactPending() const {
-    return HasScheduledContact() && elapsedTime_ms < contactTime_ms;
-  }
-  bool IsContactDue() const {
-    return HasScheduledContact() && elapsedTime_ms >= contactTime_ms;
-  }
+  int Frame() const { return static_cast<int>(elapsed.value); }
+  int FrameCount() const { return static_cast<int>(duration.value); }
+  int ContactFrame() const { return contact ? static_cast<int>(contact->value) : -1; }
+
+  bool HasScheduledContact() const { return contact.has_value(); }
+  bool IsContactPending() const { return contact && elapsed < *contact; }
+  bool IsContactDue() const { return contact && elapsed >= *contact; }
   bool IsComplete() const {
-    return durationTime_ms > 0 && elapsedTime_ms >= durationTime_ms;
+    return duration.value > 0 && elapsed >= duration;
   }
   bool IsAtLastFrame() const {
-    return frameCount > 0 && frame >= frameCount - 1;
+    return duration.value > 0 &&
+           elapsed >= duration - football::sim::TickSpan{1};
   }
 
-  // The H3e locomotion authority boundary. Procedural locomotion may only
-  // replace animation root motion for ordinary running with no ball
-  // interaction. Every other case (contact scheduled on this action, the
-  // actor retaining the ball, or any non-Movement action such as Shot, Pass,
-  // Trap, BallControl, Sliding, Deflect, Trip and Special) must keep the
-  // legacy animation motion, because the animation root path also drives the
-  // touch vector and impulse algorithms.
+  // Procedural locomotion replaces root motion only for ordinary running.
+  // Contact actions, retained ball and non-Movement actions keep baked motion.
   bool IsPureLocomotion(bool retains_ball) const {
-    return type == e_FunctionType_Movement && !HasScheduledContact() &&
-           !retains_ball;
+    return type == e_FunctionType_Movement && !HasScheduledContact() && !retains_ball;
   }
-
 };
 
 #endif

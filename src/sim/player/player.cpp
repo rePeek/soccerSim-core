@@ -328,8 +328,7 @@ bool Player::NoteLocomotionIntentCadence(bool legacy_opportunity) {
   decisionMovementSelection = false;
   const float distance_to_ball =
       (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
-  const int now_ms = static_cast<int>(match->GetActualTime_ms());
-  const bool due = locomotionIntentScheduler.Due(now_ms);
+  const bool due = locomotionIntentScheduler.Due(match->GetTimelineTick());
   locomotionIntentDueThisTick = false;
   if (due) {
     ++PlayerLocomotionIntentDueTicks();
@@ -351,11 +350,11 @@ bool Player::NoteLocomotionIntentCadence(bool legacy_opportunity) {
 }
 
 void Player::PublishPlayerDecisionQueue(
-    const PlayerCommandQueue &commands, int now_ms) {
+    const PlayerCommandQueue &commands, football::sim::Tick now) {
   playerDecisionQueue.commands = commands;
   playerDecisionQueue.initialized = true;
   ++playerDecisionQueue.generation;
-  playerDecisionScheduler.Commit(now_ms);
+  playerDecisionScheduler.Commit(now);
 }
 
 void Player::CommitLocomotionIntentRefresh() {
@@ -364,8 +363,8 @@ void Player::CommitLocomotionIntentRefresh() {
       (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
   ++PlayerLocomotionIntentConsumedTicks();
   locomotionIntentScheduler.Schedule(
-      static_cast<int>(match->GetActualTime_ms()),
-      LocomotionIntentScheduler::CadenceForDistance_ms(
+      match->GetTimelineTick(),
+      LocomotionIntentScheduler::CadenceForDistance(
           distance_to_ball, match->GetBallRetainer() == this));
 }
 
@@ -374,8 +373,7 @@ void Player::CommitLocomotionIntentRefresh() {
 // the conflation under measurement: the scheduler is due, but the execution gate
 // blocks the refresh.
 bool Player::LocomotionIntentRefreshHeldIneligible() const {
-  return locomotionIntentScheduler.Due(
-             static_cast<int>(match->GetActualTime_ms())) &&
+  return locomotionIntentScheduler.Due(match->GetTimelineTick()) &&
          !IsEligibleForProceduralLocomotion();
 }
 
@@ -395,7 +393,7 @@ void Player::NoteControllerQuery(bool had_movement_candidate) {
   const int now_ms = static_cast<int>(match->GetActualTime_ms());
   ++tr_query_gen;
   tr_last_query_ms = now_ms;
-  tr_last_query_due = locomotionIntentScheduler.Due(now_ms) ? 1 : 0;
+  tr_last_query_due = locomotionIntentScheduler.Due(match->GetTimelineTick()) ? 1 : 0;
   tr_last_query_eligible = IsEligibleForProceduralLocomotion() ? 1 : 0;
   tr_last_query_action = static_cast<int>(actionState.type);
   tr_last_query_retains = match->GetBallRetainer() == this ? 1 : 0;
@@ -491,14 +489,11 @@ bool Player::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue) {
 PlayerActionState Player::CaptureLegacyActionState() const {
   PlayerActionState legacy;
   legacy.type = humanoid->GetCurrentFunctionType();
-  legacy.frame = humanoid->GetFrameNum();
-  legacy.frameCount = humanoid->GetFrameCount();
-  legacy.elapsedTime_ms = legacy.frame * 10;
-  legacy.durationTime_ms = legacy.frameCount * 10;
+  legacy.elapsed = {static_cast<std::uint64_t>(humanoid->GetFrameNum())};
+  legacy.duration = {static_cast<std::uint64_t>(humanoid->GetFrameCount())};
   const Anim *anim = humanoid->GetCurrentAnim();
-  legacy.contactFrame = anim->touchFrame;
-  legacy.contactTime_ms =
-      anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
+  if (anim->touchFrame >= 0)
+    legacy.contact = football::sim::TickSpan{static_cast<std::uint64_t>(anim->touchFrame)};
   legacy.contactPosition = anim->touchPos;
   return legacy;
 }
@@ -512,17 +507,11 @@ void Player::CheckSimulationActionOracle() const {
   std::string mismatch;
   if (actionState.type != legacy.type) {
     mismatch = "type";
-  } else if (actionState.frame != legacy.frame) {
+  } else if (actionState.elapsed != legacy.elapsed) {
     mismatch = "frame";
-  } else if (actionState.frameCount != legacy.frameCount) {
+  } else if (actionState.duration != legacy.duration) {
     mismatch = "frame count";
-  } else if (actionState.elapsedTime_ms != legacy.elapsedTime_ms) {
-    mismatch = "elapsed time";
-  } else if (actionState.durationTime_ms != legacy.durationTime_ms) {
-    mismatch = "duration";
-  } else if (actionState.contactTime_ms != legacy.contactTime_ms) {
-    mismatch = "contact time";
-  } else if (actionState.contactFrame != legacy.contactFrame) {
+  } else if (actionState.contact != legacy.contact) {
     mismatch = "contact frame";
   } else if (!contactPositionMatches) {
     mismatch = "contact position bits";
@@ -535,24 +524,24 @@ void Player::BeginSimulationAction() {
   const Anim *anim = humanoid->GetCurrentAnim();
   PlayerActionDefinition definition;
   definition.type = humanoid->GetCurrentFunctionType();
-  definition.durationTime_ms = humanoid->GetFrameCount() * 10;
-  definition.contactTime_ms = anim->touchFrame == -1 ? -1 : anim->touchFrame * 10;
+  definition.duration = {static_cast<std::uint64_t>(humanoid->GetFrameCount())};
+  if (anim->touchFrame >= 0)
+    definition.contact = football::sim::TickSpan{static_cast<std::uint64_t>(anim->touchFrame)};
   definition.contactPosition = anim->touchPos;
-  PlayerActionExecutor::Begin(actionState, definition);
   PlayerActionExecutor::Begin(actionState, definition);
 
   // ResetPosition can deliberately start an idle animation at a non-zero
   // legacy frame. Establish that initial cursor once; normal ticks never
   // derive executor time from Humanoid.
-  const int initialElapsedTime_ms = humanoid->GetFrameNum() * 10;
-  if (initialElapsedTime_ms > 0) {
-    PlayerActionExecutor::Step(actionState, initialElapsedTime_ms);
+  const football::sim::TickSpan initial_elapsed{static_cast<std::uint64_t>(humanoid->GetFrameNum())};
+  if (initial_elapsed.value > 0) {
+    PlayerActionExecutor::Step(actionState, initial_elapsed);
   }
   CheckSimulationActionOracle();
 }
 
-void Player::StepSimulationAction(int elapsedTime_ms) {
-  PlayerActionExecutor::Step(actionState, elapsedTime_ms);
+void Player::StepSimulationAction(football::sim::TickSpan elapsed) {
+  PlayerActionExecutor::Step(actionState, elapsed);
   CheckSimulationActionOracle();
 }
 
@@ -754,11 +743,11 @@ void Player::UpdatePossessionStats() {
     // estimate between refreshes. Do not fall back to the legacy heuristic on
     // those nine intermediate ticks (P1c); that would change the AI's model.
     ++PlayerReachabilityEligibleTicks();
-    const int reachability_tick = static_cast<int>(match->GetActualTime_ms() / 10);
+    const auto reachability_tick = match->GetTimelineTick().value;
     const bool scheduled_refresh =
         (reachability_tick + schedule_phase_) % kReachabilityRefreshTicks == 0;
     // First eligible tick after an action must not reuse an old action estimate.
-    const bool entering_pure_locomotion = GetSimulationActionState().elapsedTime_ms == 0;
+    const bool entering_pure_locomotion = GetSimulationActionState().elapsed.value == 0;
     if (scheduled_refresh || entering_pure_locomotion) {
       ++PlayerReachabilityRefreshes();
       PlayerLocomotionParameters locomotion_parameters;

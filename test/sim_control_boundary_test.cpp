@@ -89,7 +89,7 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
     auto *anim = const_cast<Anim *>(humanoid->GetCurrentAnim());
     anim->frameNum = humanoid->GetFrameCount() - 2;
     player->BeginSimulationAction();
-    player->PublishPlayerDecisionQueue({}, static_cast<int>(runtime.match()->GetActualTime_ms()));
+    player->PublishPlayerDecisionQueue({}, runtime.match()->GetTimelineTick());
     REQUIRE_THROWS_AS(humanoid->Process(), std::runtime_error);
   }
 
@@ -97,11 +97,11 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
     // No animation opportunity: the base path publishes its due movement axis
     // and warns that no animation was selected. Keep its debug oracles intact.
     for (int tick = 0; tick < 24 && !player->IsLocomotionIntentRefreshDue(
-            static_cast<int>(runtime.match()->GetActualTime_ms())); ++tick) {
+            runtime.match()->GetTimelineTick()); ++tick) {
       runtime.simulation.Step(PlayerControlSet{});
     }
     REQUIRE(player->IsLocomotionIntentRefreshDue(
-        static_cast<int>(runtime.match()->GetActualTime_ms())));
+        runtime.match()->GetTimelineTick()));
     auto *anim = const_cast<Anim *>(humanoid->GetCurrentAnim());
     anim->frameNum = 0;
     player->BeginSimulationAction();

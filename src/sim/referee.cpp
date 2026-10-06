@@ -362,9 +362,9 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
             8.0) {
       float severity = 1.0;
       if (tripperAction.HasScheduledContact()) {
-        severity = std::pow(clamp(fabs(tripperAction.contactFrame -
-                                       tripperAction.frame) /
-                                      tripperAction.contactFrame,
+        severity = std::pow(clamp(fabs(tripperAction.ContactFrame() -
+                                       tripperAction.Frame()) /
+                                      tripperAction.ContactFrame(),
                                   0.0, 1.0),
                             0.7) *
                    0.5;

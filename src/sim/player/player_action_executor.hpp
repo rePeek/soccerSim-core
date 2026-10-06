@@ -1,23 +1,17 @@
-//
-//  player_action_executor.hpp
-//  football
-//
-//  Copyright 2026
-//
-
-#ifndef _HPP_PLAYER_ACTION_EXECUTOR
-#define _HPP_PLAYER_ACTION_EXECUTOR
+// Copyright 2026
+#ifndef FOOTBALL_SIM_PLAYER_ACTION_EXECUTOR_HPP
+#define FOOTBALL_SIM_PLAYER_ACTION_EXECUTOR_HPP
 
 #include <algorithm>
+#include <cassert>
+#include <limits>
+
 #include "sim/player/player_action.hpp"
 
-// A simulation-owned action schedule. Humanoid animation metadata is still
-// adapted into PlayerActionState during the transition, but new actions can be
-// created with this definition without an Animation or Scene3D object.
 struct PlayerActionDefinition {
   e_FunctionType type = e_FunctionType_None;
-  int durationTime_ms = 0;
-  int contactTime_ms = -1;
+  football::sim::TickSpan duration{};
+  std::optional<football::sim::TickSpan> contact;
   Vector3 contactPosition = Vector3(0);
 };
 
@@ -28,43 +22,29 @@ struct PlayerActionStepResult {
 
 class PlayerActionExecutor {
  public:
-  static void Begin(PlayerActionState &state,
-                    const PlayerActionDefinition &definition) {
-    assert(definition.durationTime_ms > 0);
-    assert(definition.durationTime_ms % 10 == 0);
-    assert(definition.contactTime_ms == -1 ||
-           (definition.contactTime_ms >= 0 &&
-            definition.contactTime_ms <= definition.durationTime_ms &&
-            definition.contactTime_ms % 10 == 0));
-
+  static void Begin(PlayerActionState& state,
+                    const PlayerActionDefinition& definition) {
+    assert(definition.duration.value > 0);
+    assert(definition.duration.value <= static_cast<std::uint64_t>(std::numeric_limits<int>::max()));
+    assert(!definition.contact || *definition.contact <= definition.duration);
     state.type = definition.type;
-    state.frame = 0;
-    state.frameCount = definition.durationTime_ms / 10;
-    state.elapsedTime_ms = 0;
-    state.durationTime_ms = definition.durationTime_ms;
-    state.contactTime_ms = definition.contactTime_ms;
-    state.contactFrame = definition.contactTime_ms == -1
-                             ? -1
-                             : definition.contactTime_ms / 10;
+    state.elapsed = {};
+    state.duration = definition.duration;
+    state.contact = definition.contact;
     state.contactPosition = definition.contactPosition;
   }
 
-  static PlayerActionStepResult Step(PlayerActionState &state, int dt_ms) {
-    assert(dt_ms > 0);
-    assert(dt_ms % 10 == 0);
-    assert(state.durationTime_ms > 0);
-
-    const int previousElapsedTime_ms = state.elapsedTime_ms;
-    state.elapsedTime_ms =
-        std::min(state.elapsedTime_ms + dt_ms, state.durationTime_ms);
-    state.frame = state.elapsedTime_ms / 10;
-
+  static PlayerActionStepResult Step(PlayerActionState& state,
+                                    football::sim::TickSpan delta) {
+    assert(delta.value > 0);
+    assert(state.duration.value > 0 && state.elapsed <= state.duration);
+    const auto previous = state.elapsed;
+    // Bound before adding: a large advance must saturate, not wrap the cursor.
+    state.elapsed += std::min(delta, state.duration - state.elapsed);
     PlayerActionStepResult result;
-    result.contactTriggered = state.HasScheduledContact() &&
-                              previousElapsedTime_ms < state.contactTime_ms &&
-                              state.elapsedTime_ms >= state.contactTime_ms;
-    result.completed = previousElapsedTime_ms < state.durationTime_ms &&
-                       state.elapsedTime_ms >= state.durationTime_ms;
+    result.contactTriggered = state.contact && previous < *state.contact &&
+                              state.elapsed >= *state.contact;
+    result.completed = previous < state.duration && state.elapsed >= state.duration;
     return result;
   }
 };

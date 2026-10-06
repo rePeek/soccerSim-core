@@ -26,6 +26,12 @@ No configurable physics dt, wall-clock pacing, or foundation time module.
   longer contains the 1900 ms skip. Preparation/whistle accept crossed deadlines
   and are one-shot via prepared taker/play state. Normal old execution and digest
   encodings are retained; crossed-deadline recovery has dedicated regressions.
+- **T3a:** Player action elapsed/duration/optional contact use `TickSpan`, with
+  animation indices projected from the sole cursor. Completion/contact crossings
+  are one-shot; large advances saturate before addition. Decision and locomotion
+  refresh schedulers use strong ticks and context-dependent local cadences.
+  Tests cover crossed cadences, changed context, zero-contact entry, resets and
+  overflow. Regression, identity and autonomous app outputs remain identical.
 
 These stages leave the legacy football clock, scale, fatigue, action progression,
 normal restart schedule and RNG windows unchanged. They do **not** yet implement the
@@ -47,11 +53,10 @@ Existing lifecycle tests still cover a 1 ms half and 1 ms scaled clock progress.
    not a fixed preparation delay. Separate positioning/ball placement, taker and
    legal-opponent readiness, permission to execute, and actual scheduled contact.
    Referee is the first time-policy owner to be rebuilt.
-2. **Player/action/schedulers:** replace aligned cadences and timestamps; make
-   elapsed action ticks the sole frame authority and eliminate duplicate
-   millisecond/frame state. Preserve completion/contact crossing and float math.
-   Digest serialization must project old wire values while proving equivalence;
-   do not regenerate goldens to conceal a unit-only change.
+2. **Remaining Player timestamps and perception:** migrate touch/card/possession
+   and grid-based history/prediction. Diagnostic output may project old wire units;
+   gameplay must not retain duplicate clocks. Action cursor/scheduler migration is
+   complete, without changing normal contact/completion behavior.
 3. **Perception/reachability/prediction:** change grid-based history/prediction APIs
    to tick horizons. Inventory off-grid callers first. Continuous kinematic
    arrival estimates are not deadlines; their precision and ordering must not be

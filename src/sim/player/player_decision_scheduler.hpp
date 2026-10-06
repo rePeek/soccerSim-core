@@ -1,38 +1,44 @@
 // Copyright 2026
-// Licensed under the Apache License, Version 2.0 (the "License");
-#ifndef _HPP_PLAYER_DECISION_SCHEDULER
-#define _HPP_PLAYER_DECISION_SCHEDULER
+#ifndef FOOTBALL_SIM_PLAYER_DECISION_SCHEDULER_HPP
+#define FOOTBALL_SIM_PLAYER_DECISION_SCHEDULER_HPP
 
+#include "sim/tick.hpp"
 
-// Simulation-owned clock for translating supplied controls to a complete
-// PlayerCommandQueue. Locomotion has a separate execution/publication clock.
+namespace football::sim::player_timing {
+inline constexpr TickSpan kOwnerNear{2};
+inline constexpr TickSpan kOwner{3};
+inline constexpr TickSpan kTeamOwner{4};
+inline constexpr TickSpan kNearBall{5};
+inline constexpr TickSpan kApproachingBall{8};
+inline constexpr TickSpan kIdle{24};
+inline constexpr TickSpan kTacticalRefresh{10};
+inline constexpr auto kPositionHistory = Seconds(1);
+}  // namespace football::sim::player_timing
+
+// Context-dependent policy cadence, not the definition of simulation time.
 struct PlayerDecisionScheduler {
-  int lastRefreshTime_ms = 0;
+  football::sim::Tick last_refresh_tick{};
   bool initialized = false;
 
-  bool Due(int now_ms, int current_cadence_ms) const {
-    return !initialized || now_ms - lastRefreshTime_ms >= current_cadence_ms;
+  bool Due(football::sim::Tick now, football::sim::TickSpan cadence) const {
+    return !initialized || (now >= last_refresh_tick && now - last_refresh_tick >= cadence);
   }
-
-  void Commit(int now_ms) {
-    lastRefreshTime_ms = now_ms;
+  void Commit(football::sim::Tick now) {
+    last_refresh_tick = now;
     initialized = true;
   }
-
-  // Both the last refresh and initialization state are gameplay state.
 };
 
-// Initial policy migrates the old world-context timing shape, but no longer
-// depends on animation opportunities or animation/action lifecycle state.
-inline int PlayerDecisionCadenceForContext_ms(bool designated_possession_player,
-                                              bool designated_team_possession_player,
-                                              float distance_to_ball) {
-  if (designated_possession_player && distance_to_ball < 3.0f) return 20;
-  if (designated_possession_player) return 30;
-  if (designated_team_possession_player) return 40;
-  if (distance_to_ball < 5.0f) return 50;
-  if (distance_to_ball < 10.0f) return 80;
-  return 240;
+inline football::sim::TickSpan PlayerDecisionCadenceForContext(
+    bool designated_possession_player, bool designated_team_possession_player,
+    float distance_to_ball) {
+  using namespace football::sim::player_timing;
+  if (designated_possession_player && distance_to_ball < 3.0f) return kOwnerNear;
+  if (designated_possession_player) return kOwner;
+  if (designated_team_possession_player) return kTeamOwner;
+  if (distance_to_ball < 5.0f) return kNearBall;
+  if (distance_to_ball < 10.0f) return kApproachingBall;
+  return kIdle;
 }
 
 #endif

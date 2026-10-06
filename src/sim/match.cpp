@@ -725,8 +725,8 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     Player *victim = tackle == 1 ? p2 : p1;
 
     if (tacklerVolume.Intersects(victim->GetGroundCollider())) {
-      if (tacklerAction.frame > 10 &&
-          tacklerAction.frame < tacklerAction.frameCount - 6) {
+      if (tacklerAction.Frame() > 10 &&
+          tacklerAction.Frame() < tacklerAction.FrameCount() - 6) {
         Vector3 tripVec = victim->GetKinematicState().facing;
         int tripType = 3;  // sliding
         if (tacklerAction.type == e_FunctionType_Interfere)
@@ -780,7 +780,7 @@ void Match::CheckBallCollisions() {
 
       bool directionChangedUnexpectedly = false;
       if (onlyWhenDirectionChangedUnexpectedly) {
-        float unexpectedDistance = (GetMentalImage(players[i]->GetReactionTime_ms() + action.elapsedTime_ms)->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // history from when the action began
+        float unexpectedDistance = (GetMentalImage(players[i]->GetReactionTime_ms() + static_cast<int>(football::sim::ToMilliseconds(action.elapsed)))->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // history from when the action began
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
 

@@ -1,39 +1,28 @@
 // Copyright 2026
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
+#ifndef FOOTBALL_SIM_LOCOMOTION_INTENT_SCHEDULER_HPP
+#define FOOTBALL_SIM_LOCOMOTION_INTENT_SCHEDULER_HPP
 
-#ifndef _HPP_LOCOMOTION_INTENT_SCHEDULER
-#define _HPP_LOCOMOTION_INTENT_SCHEDULER
+#include "sim/player/player_decision_scheduler.hpp"
 
-
-// H3e4f-c2: the simulation decides when the controller is asked for a new
-// locomotion intent, instead of inheriting the animation lifecycle's requeue
-// opportunities (measured mean 236.7 ms, p50/p90 240 ms, max 760 ms).
-//
-// The initial cadence shape is deliberately inherited from the measured legacy
-// behaviour rather than invented: the point of this step is to move ownership of
-// the schedule, not to retune it. Distances are metres to the ball.
+// Separate execution/publication cadence. Reuse the existing policy intervals
+// without tying refreshes to animation opportunities or a configurable dt.
 struct LocomotionIntentScheduler {
-  int nextRefreshTime_ms = 0;
-  int refreshes = 0;
+  football::sim::Tick next_refresh_tick{};
+  int refreshes = 0; // Telemetry count, not a duration or serialized clock.
 
-  static int CadenceForDistance_ms(float distance_to_ball, bool has_possession) {
-    if (has_possession) return 20;
-    if (distance_to_ball < 5.0f) return 50;
-    if (distance_to_ball < 10.0f) return 80;
-    return 240;
+  static football::sim::TickSpan CadenceForDistance(float distance_to_ball,
+                                                   bool has_possession) {
+    using namespace football::sim::player_timing;
+    if (has_possession) return kOwnerNear;
+    if (distance_to_ball < 5.0f) return kNearBall;
+    if (distance_to_ball < 10.0f) return kApproachingBall;
+    return kIdle;
   }
-
-  bool Due(int now_ms) const { return now_ms >= nextRefreshTime_ms; }
-
-  void Schedule(int now_ms, int cadence_ms) {
-    nextRefreshTime_ms = now_ms + cadence_ms;
+  bool Due(football::sim::Tick now) const { return now >= next_refresh_tick; }
+  void Schedule(football::sim::Tick now, football::sim::TickSpan cadence) {
+    next_refresh_tick = now + cadence;
     ++refreshes;
   }
-
-  // c2b: once this clock decides when the controller is queried it is gameplay
-  // state, so it must survive save/load. refreshes stays telemetry and is
-  // deliberately not serialized.
 };
 
 #endif

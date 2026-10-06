@@ -611,7 +611,7 @@ void HumanoidBase::Process() {
   ProjectMovementState(tickStartState);
 
   currentAnim.frameNum++;
-  player->StepSimulationAction(10);
+  player->StepSimulationAction(football::sim::TickSpan{1});
   const PlayerActionState &action = player->GetSimulationActionState();
   previousAnim_frameNum++;
 
@@ -1070,7 +1070,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
   const bool material_candidate =
       RecordSchedulerQuery(currentAnim.originatingCommand, command);
 
-  if (localInterruptAnim != e_InterruptAnim_ReQueue || action.frame > 12)
+  if (localInterruptAnim != e_InterruptAnim_ReQueue || action.Frame() > 12)
     CalculateFactualSpatialState();
 
   // CREATE A CRUDE SET OF POTENTIAL ANIMATIONS
@@ -1228,7 +1228,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     currentAnim.positionOffset = 0.0;
     currentAnim.originatingCommand = command;
     RecordMovementCommandAcceptance(material_candidate, action.type,
-                                    action.elapsedTime_ms, localInterruptAnim,
+                                    static_cast<int>(football::sim::ToMilliseconds(action.elapsed)), localInterruptAnim,
                                     command, static_cast<int>(GetCurrentBakedClip().frame_count));
     player->BeginSimulationAction();
 

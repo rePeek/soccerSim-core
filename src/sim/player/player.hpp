@@ -179,8 +179,8 @@ class Player final {
     }
     // H3e4f-g0b-reentry-audit: which locomotion entry this tick is, and whether
     // the decision intent behind it was refreshed since locomotion was left.
-    bool IsLocomotionIntentRefreshDue(int now_ms) const {
-      return locomotionIntentScheduler.Due(now_ms);
+    bool IsLocomotionIntentRefreshDue(football::sim::Tick now) const {
+      return locomotionIntentScheduler.Due(now);
     }
     void NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
                                    int now_ms);
@@ -307,11 +307,12 @@ class Player final {
     // decision would be if animation-owned queries had never existed.
     void ObserveSimulationDecisionQueue(const PlayerCommandQueue &commands,
                                         int now_ms);
-    bool IsPlayerDecisionRefreshDue(int now_ms, int cadence_ms) const {
-      return playerDecisionScheduler.Due(now_ms, cadence_ms);
+    bool IsPlayerDecisionRefreshDue(football::sim::Tick now,
+                                    football::sim::TickSpan cadence) const {
+      return playerDecisionScheduler.Due(now, cadence);
     }
     void PublishPlayerDecisionQueue(const PlayerCommandQueue &commands,
-                                    int now_ms);
+                                    football::sim::Tick now);
     bool HasSimulationDecisionQueue() const {
       return simulationDecisionQueue.initialized;
     }
@@ -336,7 +337,7 @@ class Player final {
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
     void BeginSimulationAction();
-    void StepSimulationAction(int elapsedTime_ms);
+    void StepSimulationAction(football::sim::TickSpan elapsed);
     // Validates the authoritative schedule against Humanoid's temporary
     // legacy projection. It is intentionally a fatal invariant in all builds.
     void CheckSimulationActionOracle() const;
@@ -392,8 +393,8 @@ class Player final {
     bool TouchPending() const { return GetSimulationActionState().IsContactPending(); }
     bool TouchAnim() const { return GetSimulationActionState().HasScheduledContact(); }
     Vector3 GetTouchPos() const { return GetSimulationActionState().contactPosition; }
-    int GetTouchFrame() const { return GetSimulationActionState().contactFrame; }
-    int GetCurrentFrame() const { return GetSimulationActionState().frame; }
+    int GetTouchFrame() const { return GetSimulationActionState().ContactFrame(); }
+    int GetCurrentFrame() const { return GetSimulationActionState().Frame(); }
     void SelectRetainAnim() { humanoid->SelectRetainAnim(); }
     FormationEntry GetFormationEntry();
     void SetDynamicFormationEntry(FormationEntry entry) { dynamicFormationEntry = entry; }

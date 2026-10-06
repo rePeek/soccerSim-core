@@ -64,8 +64,8 @@ inline PlayerActionVolume BuildTackleVolume(
       action.type != e_FunctionType_Interfere) {
     return volume;
   }
-  if (action.frame <= parameters.contactWindowStartFrame ||
-      action.frame >= parameters.contactWindowEndFrame) {
+  if (action.Frame() <= parameters.contactWindowStartFrame ||
+      action.Frame() >= parameters.contactWindowEndFrame) {
     return volume;
   }
 

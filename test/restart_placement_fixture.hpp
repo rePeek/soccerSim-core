@@ -71,8 +71,10 @@ inline std::uint64_t RestartFingerprint(std::uint64_t hash, Match &match,
       vector(player->GetPosition()); vector(player->GetMovement());
       vector(player->GetDirectionVec()); vector(player->GetBodyDirectionVec());
       const auto &action = player->GetSimulationActionState();
-      value(action.type); value(action.frame); value(action.frameCount);
-      value(action.elapsedTime_ms); value(action.durationTime_ms); value(action.contactFrame);
+      value(action.type); value(action.Frame()); value(action.FrameCount());
+      value(static_cast<int>(football::sim::ToMilliseconds(action.elapsed)));
+      value(static_cast<int>(football::sim::ToMilliseconds(action.duration)));
+      value(action.ContactFrame());
       vector(action.contactPosition);
     }
   }

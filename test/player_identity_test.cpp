@@ -66,10 +66,8 @@ void CheckSamePhysics(Simulation& a, Simulation& b) {
     for (std::size_t i = 0; i < left.size(); ++i) {
       const auto& p = left[i]->GetSimulationActionState();
       const auto& q = right[i]->GetSimulationActionState();
-      Require(p.type == q.type && p.frame == q.frame && p.frameCount == q.frameCount &&
-                  p.elapsedTime_ms == q.elapsedTime_ms &&
-                  p.durationTime_ms == q.durationTime_ms &&
-                  p.contactTime_ms == q.contactTime_ms &&
+      Require(p.type == q.type && p.elapsed == q.elapsed && p.duration == q.duration &&
+                  p.contact == q.contact &&
                   SameVector(p.contactPosition, q.contactPosition) &&
                   left[i]->GetTimeNeededToGetToBall_ms() ==
                       right[i]->GetTimeNeededToGetToBall_ms() &&
@@ -299,10 +297,10 @@ std::uint64_t CaptureScheduleState(Simulation& simulation) {
     for (Player* p : simulation.match()->GetTeam(side)->GetAllPlayers()) {
       const auto& action = p->GetSimulationActionState();
       value(action.type);
-      value(action.frame);
-      value(action.frameCount);
-      value(action.elapsedTime_ms);
-      value(action.contactTime_ms);
+      value(action.Frame());
+      value(action.FrameCount());
+      value(static_cast<int>(football::sim::ToMilliseconds(action.elapsed)));
+      value(action.contact ? static_cast<int>(football::sim::ToMilliseconds(*action.contact)) : -1);
       value(p->GetTimeNeededToGetToBall_ms());
       value(p->GetTimeNeededToGetToBall_previous_ms());
       value(p->GetFatigueFactorInv());

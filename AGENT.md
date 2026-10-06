@@ -234,7 +234,12 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   from dead-ball/clock-scale semantics; preserve float arithmetic and numerical goldens.
   Match stores only `Tick now_` for its timeline; normal steps call
   `AdvanceTime(TickSpan{1})`, and WorldState reads it directly. Remaining `_ms`
-  timeline accessors are temporary exact adapters, not duplicate state. The legacy
+  timeline accessors are temporary exact adapters, not duplicate state.
+  Actions store only elapsed/duration/optional contact `TickSpan`; animation frame
+  readers are projections, not duplicate clocks. Decision and locomotion schedulers
+  use Tick deadlines and owner-local TickSpan cadences. Their tests are in
+  `test/player_action_tick_test.cpp`; old diagnostic digests project milliseconds.
+  The legacy
   scaled football clock remains millisecond-based until its semantic migration:
   it supports sub-tick progress. See tools/time-model-migration.md before removing
   scale, rounding arrival estimates, or replacing the old restart preparation tail.

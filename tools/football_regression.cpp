@@ -43,18 +43,20 @@ void Require(bool condition, const std::string& message) {
 }
 
 void CheckPlayerDecisionScheduler() {
+  using football::sim::Tick;
+  using football::sim::TickSpan;
   PlayerDecisionScheduler scheduler;
-  Require(scheduler.Due(0, 240),
+  Require(scheduler.Due(Tick{}, TickSpan{24}),
           "player decision scheduler: first decision must be immediately due");
-  scheduler.Commit(0);
-  Require(!scheduler.Due(20, 240),
+  scheduler.Commit(Tick{});
+  Require(!scheduler.Due(Tick{2}, TickSpan{24}),
           "player decision scheduler: slow current context fired too early");
-  Require(scheduler.Due(20, 20),
+  Require(scheduler.Due(Tick{2}, TickSpan{2}),
           "player decision scheduler: faster current context remained blocked by old cadence");
-  scheduler.Commit(20);
-  Require(!scheduler.Due(30, 20),
+  scheduler.Commit(Tick{2});
+  Require(!scheduler.Due(Tick{3}, TickSpan{2}),
           "player decision scheduler: elapsed time below current cadence fired early");
-  Require(scheduler.Due(40, 20),
+  Require(scheduler.Due(Tick{4}, TickSpan{2}),
           "player decision scheduler: current cadence was not due at elapsed threshold");
 }
 
@@ -621,18 +623,18 @@ void CheckPlayerGroundCollider() {
 void CheckPlayerActionExecutor() {
   PlayerActionDefinition definition;
   definition.type = e_FunctionType_Shot;
-  definition.durationTime_ms = 300;
-  definition.contactTime_ms = 120;
+  definition.duration = football::sim::TickSpan{30};
+  definition.contact = football::sim::TickSpan{12};
   definition.contactPosition = Vector3(1.0f, -2.0f, 0.5f);
 
   PlayerActionState state;
   PlayerActionExecutor::Begin(state, definition);
   Require(state.type == e_FunctionType_Shot, "action executor type");
-  Require(state.frame == 0 && state.frameCount == 30,
+  Require(state.Frame() == 0 && state.FrameCount() == 30,
           "action executor initial frames");
-  Require(state.elapsedTime_ms == 0 && state.durationTime_ms == 300,
+  Require(state.elapsed.value == 0 && state.duration.value == 30,
           "action executor initial timing");
-  Require(state.contactFrame == 12 && state.contactTime_ms == 120,
+  Require(state.ContactFrame() == 12 && state.contact == football::sim::TickSpan{12},
           "action executor contact timing");
   RequireNear(state.contactPosition.coords[0], 1.0f,
               "action executor contact position x");
@@ -641,24 +643,24 @@ void CheckPlayerActionExecutor() {
           "action executor initial phase");
 
   const PlayerActionStepResult beforeContact =
-      PlayerActionExecutor::Step(state, 100);
-  Require(state.elapsedTime_ms == 100 && state.frame == 10 &&
+      PlayerActionExecutor::Step(state, football::sim::TickSpan{10});
+  Require(state.elapsed.value == 10 && state.Frame() == 10 &&
               state.IsContactPending(),
           "action executor pre-contact phase");
   Require(!beforeContact.contactTriggered && !beforeContact.completed,
           "action executor should not emit an early event");
 
   const PlayerActionStepResult atContact =
-      PlayerActionExecutor::Step(state, 20);
-  Require(state.elapsedTime_ms == 120 && state.frame == 12 &&
+      PlayerActionExecutor::Step(state, football::sim::TickSpan{2});
+  Require(state.elapsed.value == 12 && state.Frame() == 12 &&
               !state.IsContactPending() && state.IsContactDue(),
           "action executor contact phase");
   Require(atContact.contactTriggered && !atContact.completed,
           "action executor should emit one contact event");
 
   const PlayerActionStepResult atCompletion =
-      PlayerActionExecutor::Step(state, 500);
-  Require(state.elapsedTime_ms == 300 && state.frame == 30 &&
+      PlayerActionExecutor::Step(state, football::sim::TickSpan{50});
+  Require(state.elapsed.value == 30 && state.Frame() == 30 &&
               state.IsComplete(),
           "action executor completion phase");
   Require(!atCompletion.contactTriggered && atCompletion.completed,
@@ -678,8 +680,7 @@ void CheckPureLocomotionBoundary() {
           "pure locomotion: retaining the ball must stay animation-driven");
 
   PlayerActionState contact = movement;
-  contact.contactTime_ms = 120;
-  contact.contactFrame = 12;
+  contact.contact = football::sim::TickSpan{12};
   Require(!contact.IsPureLocomotion(false),
           "pure locomotion: a scheduled contact must stay animation-driven");
 
@@ -781,21 +782,21 @@ void CheckPlayerActionVolume() {
 
   // Non-reaching actions never produce a volume.
   action.type = e_FunctionType_Movement;
-  action.frame = 10;
+  action.elapsed = football::sim::TickSpan{10};
   Require(!BuildTackleVolume(action, kinematics, parameters).active,
           "movement should not have a tackle volume");
 
   // Outside the contact window the volume is inactive too.
   action.type = e_FunctionType_Sliding;
-  action.frame = 5;
+  action.elapsed = football::sim::TickSpan{5};
   Require(!BuildTackleVolume(action, kinematics, parameters).active,
           "slide before the contact window should be inactive");
-  action.frame = 28;
+  action.elapsed = football::sim::TickSpan{28};
   Require(!BuildTackleVolume(action, kinematics, parameters).active,
           "slide after the contact window should be inactive");
 
   // Inside the window a slide reaches forward along facing.
-  action.frame = 12;
+  action.elapsed = football::sim::TickSpan{12};
   const PlayerActionVolume slide =
       BuildTackleVolume(action, kinematics, parameters);
   Require(slide.active, "slide inside the contact window should be active");
@@ -925,10 +926,10 @@ std::string CaptureSimulationDigest(Simulation& simulation) {
     AppendDigestFloat(out, ground.radius);
     const PlayerActionState& action = actor->GetSimulationActionState();
     AppendDigestInt(out, static_cast<int>(action.type));
-    AppendDigestInt(out, action.frame);
-    AppendDigestInt(out, action.frameCount);
-    AppendDigestInt(out, action.elapsedTime_ms);
-    AppendDigestInt(out, action.contactTime_ms);
+    AppendDigestInt(out, action.Frame());
+    AppendDigestInt(out, action.FrameCount());
+    AppendDigestInt(out, football::sim::ToMilliseconds(action.elapsed));
+    AppendDigestInt(out, action.contact ? static_cast<std::int64_t>(football::sim::ToMilliseconds(*action.contact)) : -1);
     AppendDigestFloat(out, action.contactPosition.coords[0]);
     AppendDigestFloat(out, action.contactPosition.coords[1]);
   }
