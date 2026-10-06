@@ -27,11 +27,11 @@ add_subdirectory(src/model)
 add_subdirectory(src/sim)
 add_subdirectory(src/ai)
 
-add_library(game SHARED src/gameenv.cpp)
+add_library(game SHARED src/env.cpp)
 add_library(football::game ALIAS game)
 target_sources(game PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/src
-  FILES src/gameenv.hpp)
+  FILES src/env.hpp)
 target_link_libraries(game
   PUBLIC football::model football::sim_contracts football::ai_contracts
   PRIVATE football::ai BqLog

@@ -2,10 +2,10 @@
 #include <stdexcept>
 
 #include "app/fixtures/default_teams.hpp"
-#include "gameenv.hpp"
+#include "env.hpp"
 
 #ifdef FOOTBALL_AI_DEFAULT_AI_HPP
-#error "gameenv public header must not expose the concrete policy implementation"
+#error "env public header must not expose the concrete policy implementation"
 #endif
 
 namespace {

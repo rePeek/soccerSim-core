@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_GAMEENV_HPP
-#define FOOTBALL_GAMEENV_HPP
+#ifndef FOOTBALL_ENV_HPP
+#define FOOTBALL_ENV_HPP
 
 #include <memory>
 
@@ -49,4 +49,4 @@ class GameEnv {
   std::unique_ptr<football::ai::DefaultAI> ai_;
 };
 
-#endif  // FOOTBALL_GAMEENV_HPP
+#endif  // FOOTBALL_ENV_HPP

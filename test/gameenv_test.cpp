@@ -4,7 +4,7 @@
 #include <type_traits>
 
 #include "app/fixtures/default_teams.hpp"
-#include "gameenv.hpp"
+#include "env.hpp"
 #include "default_ai_fixture.hpp"
 
 static_assert(!std::is_default_constructible_v<GameEnv>);

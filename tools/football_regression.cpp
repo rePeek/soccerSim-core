@@ -10,7 +10,7 @@
 #include <string>
 #include <type_traits>
 
-#include "gameenv.hpp"
+#include "env.hpp"
 #include "sim/simulation.hpp"
 #include "../test/default_ai_fixture.hpp"
 #include "sim/match.hpp"

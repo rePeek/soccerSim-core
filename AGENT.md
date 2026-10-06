@@ -82,8 +82,8 @@ src/
 ├── app/              executable-side code, never in core
 │   ├── app.cpp / args.* parse → GameEnv → complete match → write Result
 │   └── fixtures/     typed sample rosters/profiles → model; local six-decimal quantization
-├── gameenv.hpp       public autonomous match façade; values + opaque private owners
-└── gameenv.cpp       sole product composition implementation for AI + sim
+├── env.hpp           public autonomous match façade; values + opaque private owners
+└── env.cpp           sole product composition implementation for AI + sim
 
 cmake/
 ├── CPM.cmake
@@ -116,13 +116,13 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 
 Each module explicitly declares its sources, public `FILE_SET HEADERS`, aliases
 and link edges in its own `CMakeLists.txt`. No source globbing or `sources.cmake`.
-Root CMake directly builds `game` from `src/gameenv.cpp`, publishes `gameenv.hpp`,
+Root CMake directly builds `game` from `src/env.cpp`, publishes `env.hpp`,
 and provides `football::game`. There is no env directory, env target or intermediate
 engine object target. Runtime whole-archive packaging preserves existing exported
 symbols (including the currently unused GetRoleFromString).
 
 ```text
-app → game (gameenv.cpp) → ai + sim
+app → game (env.cpp) → ai + sim
 ai → ai_contracts + sim_contracts → model/foundation
 sim → sim_contracts + animation → model/foundation (PRIVATE BqLog)
 app_support (args/fixtures) → model/foundation
@@ -134,7 +134,7 @@ anim_baking → legacy_anim + animation/foundation
 - `football_ai_contracts` owns AIConfig and TacticalBoard declarations; it depends
   on model/foundation, not concrete policy. `football_ai` owns policy implementations.
 - Game's PUBLIC usage requirements are model + sim_contracts + ai_contracts.
-  Concrete sim/AI are PRIVATE. `gameenv.hpp` never includes default_ai.hpp.
+  Concrete sim/AI are PRIVATE. `env.hpp` never includes default_ai.hpp.
 - GameEnv::Start creates/reconfigures the single process logger `football` before
   constructing Simulation/AI; Stop destroys AI then Simulation and flushes it.
   BqLog is PRIVATE to game/sim, never in public value contracts or policy.

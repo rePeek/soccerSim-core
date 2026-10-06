@@ -9,7 +9,7 @@ Declare both teams, pitch, match rules and startup AI configuration explicitly:
 
 ```cpp
 #include "app/fixtures/default_teams.hpp" // executable-only sample inputs
-#include "gameenv.hpp"
+#include "env.hpp"
 
 GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
              football::app::fixtures::MakeDefaultAwayTeam(),
@@ -121,8 +121,8 @@ an explicit value state contract, not per-class memory hooks.
 ## Build and tests
 
 Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,
-dependencies and `football::` aliases. `game` directly compiles `src/gameenv.cpp`;
-`src/gameenv.hpp` is the public match façade. Its implementation is the sole product
+dependencies and `football::` aliases. `game` directly compiles `src/env.cpp`;
+`src/env.hpp` is the public match façade. Its implementation is the sole product
 composition root for sim + AI:
 
 ```text
