@@ -1,13 +1,16 @@
 #ifndef FOOTBALL_APP_ARGS_HPP
 #define FOOTBALL_APP_ARGS_HPP
 
+#include <cstdint>
+#include <optional>
+
 namespace football::app {
 
-// Parses the CLI arguments of football_app. `--steps=N` sets the number of
-// simulation ticks to run and defaults to 0 when the flag is absent; a later
-// occurrence overrides an earlier one. Throws std::runtime_error on anything
-// that is not a non-negative `--steps=` integer.
-int ParseSteps(int argc, char** argv);
+// Application parsing only. Unspecified duration uses sim's regulation default.
+struct AppOptions {
+  std::optional<std::uint64_t> half_duration_ms;
+};
+AppOptions ParseArgs(int argc, char** argv);
 
 }  // namespace football::app
 

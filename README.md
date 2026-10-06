@@ -1,167 +1,149 @@
 # Gameplay Football
-This is a heavily modified version of
-https://github.com/BazkieBumpercar/GameplayFootball repository.
 
-## Core API
+A heavily modified headless fork of
+https://github.com/BazkieBumpercar/GameplayFootball.
 
-Declare both teams and the pitch explicitly; `GameEnv` has no default constructor.
-The example below uses the CLI's sample inputs, which live in `src/app/fixtures/`
-and are linked only into executables, never into the core shared library.
+## Autonomous match runner
+
+Declare both teams, pitch, match rules and startup AI configuration explicitly:
 
 ```cpp
-#include "app/fixtures/default_teams.hpp"
+#include "app/fixtures/default_teams.hpp" // executable-only sample inputs
 #include "env/game_env.hpp"
 
-int main() {
-  GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
-               football::app::fixtures::MakeDefaultAwayTeam(),
-               football::model::MakeLegacyPitch()};
-  game.start_game();
-  for (int tick = 0; tick < 100; ++tick) game.step();
-  const WorldState world = game.observe(); // owning, unscaled home-pitch values
-  game.reset_game();                       // same teams and pitch
-  game.stop_game();
-}
+GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
+             football::app::fixtures::MakeDefaultAwayTeam(),
+             football::model::MakeLegacyPitch(),
+             MatchOptions{}, football::ai::AIConfig{}};
+game.Start();
+while (!game.Finished()) game.Step();
+const MatchResult result = game.Result();
+// Serialize/write result in the application, not GameEnv.
 ```
 
-One `step()` calls the simulation once: a 10 ms tick (100 Hz). Batch explicitly
-with a loop. `football_app --steps=100` therefore advances 100 ticks, not 100
-legacy observation frames. Configure commands through `game.controls()`.
+`GameEnv` owns one Simulation and one opaque policy. Its running step is only:
 
-Default AI remains shipped in `libgame.so`, but runs outside simulation:
-`WorldState + TacticalBoard → DefaultAI → PlayerControlSet → Simulation`.
-Explicit controls override default decisions; simulation has no input ownership or Human path.
-Simulation itself has no decision objects/factories and no implicit AI fallback.
-AI links only the header-only `football_sim_contracts` target, never actor/runtime
-code. Simulation owns its input/output headers: `sim/player_control.hpp`,
-`sim/player_control_set.hpp`, `sim/world_state.hpp` and `sim/observation_epoch.hpp`.
-Exact-header guards prevent AI from including other `sim/` headers. Snapshots include ball
-motion, play/restart/retention state and both team states; controls and observations
-use a common home pitch frame.
-
-`DefaultAI(home, away, pitch)` builds its persistent tactical boards directly from
-static `model::Team` declarations, with no simulation bootstrap. Edit them through
-`game.tactics(TeamSide::Home)`; width/depth are pitch fractions (defaults 0.75/0.55).
-Player AI derives local targets without rewriting the base plan. Simulation
-reset/stop/start preserves tactical configuration.
-Run/pressure/rush requests live separately in `ai::TeamRequests`, not in the board
-or `WorldState`. Use `game.request_attacking_run(side, runner)`,
-`game.request_team_pressure(side, excluded_player)` and `game.request_keeper_rush(side)`.
-`GameEnv` keeps its concrete policy private, including the implementation header.
-Requests bind to `WorldState::simulation_epoch` as well as tick/reset sequence:
-a new Match can never reactivate an old request, even without `ResetRequests()`.
-The opaque, owning epoch is equality-only, retains no actors, and uses no global
-counter/RNG/clock. Copies preserve it; separate matches deliberately differ even
-when physical payloads are identical. It is not a persistent serialization ID.
-Synthetic observations must bind a fresh `ObservationEpoch::New()` per logical
-match before issuing requests. Epoch identity is not hashed in physical goldens.
-Start/reset/stop also clears requests eagerly, never the persistent tactics.
-
-### GRF / human input
-
-Only seven top-level source modules remain: foundation, support, model, sim, ai,
-env and app. The retired controller/control/observation/data layers are deleted.
-`src/app/input/grf/` owns wire actions, sticky state and selected IDs. Its
-`football_app_input` archive links only sim value contracts, not AI or actors.
-Input emits `PlayerControlSet` and frame-local `TeamDecisionRequest` values.
-Only composition routes requests to the env façade or whichever policy it owns.
-Switch selection uses initial model keeper roles, never mutable AI planned roles.
-
-```cpp
-#include "app/input/grf/input.hpp"
-
-// home/away/pitch are the same static descriptions supplied to GameEnv.
-GameEnv game(home, away, pitch);
-football::app::grf::Input input(home, football::model::TeamSide::Home);
-game.start_game();
-input.Apply(football::app::grf::Action::Right);
-for (int tick = 0; tick < 100; ++tick) {
-  football::app::grf::TeamDecisionRequest requests;
-  input.Update(game.observe(), game.controls(), requests);
-  if (requests.attacking_run) game.request_attacking_run(requests.side);
-  if (requests.team_pressure)
-    game.request_team_pressure(requests.side, requests.pressure_excluded_player);
-  if (requests.keeper_rush) game.request_keeper_rush(requests.side);
-  game.step();  // AI defaults, then explicit input overrides, then one sim tick
-}
+```text
+Simulation::Observe → AI::Update → PlayerControlSet → Simulation::Step
 ```
 
-Wire numbers 0–32 are retained. Movement/modifiers/pressure/rush are sticky;
-kicks/sliding/switch are one-shot requests with default kick power 0.6, not the old
-Human animation planner/gauge. Requests remain subject to sim cadence/legality,
-not proof of execution. BuiltinAI relinquishes overrides. Reset input
-state explicitly when starting a new session. Multiple input slots reserve IDs
-in the application, never in simulation. Record/replay the resulting
-`PlayerControlSet` frames without any input or AI objects.
+It does not implement football rules, tactical reasoning, coach scheduling,
+configuration parsing, output serialization or rendering. `DefaultAI` currently
+serves as the total match-policy entry point; no CoachAI/GNN/LLM scheduler is
+introduced in this stage. A future MatchAI may orchestrate those privately.
 
-The old Eliza strategy was intentionally replaced, not wrapped. Current policy
-goldens differ; historical values are recorded in
-[`test/baselines/pre_value_ai.md`](test/baselines/pre_value_ai.md). Rules, restart
-placement/RNG order, actor reset lifetimes and animation mechanics are separately
-verified.
+The public API is `Start`, `Step`, `Finished`, `Result`, `Observe`, `Stop`.
+There are no live `controls()`, `tactics()` or `request_*()` channels, and no
+reset/legacy lowercase API. One Step makes one simulation call (10 ms nominal);
+no batching or implicit observation history is retained. After full time Step
+is a no-op, including AI; a stopped Step/Observe throws `std::logic_error`.
 
-`GameEnv` directly owns its `Simulation`; there is no active-environment global
-or context binding. Reset retains the runtime RNG and animation cache; stop
-releases the runtime, and restart constructs it afresh. Controls clear on
-start/reset/stop. Rejected startup leaves the environment stopped.
+Start requires a stopped runner; duplicate Start throws. Startup validates and
+initializes local owners before publishing them. Stop is idempotent and releases
+both owners; Stop followed by Start recreates the original declarations/config.
+No runtime or concrete-policy accessor is exposed, and runners are non-copyable
+and non-movable. Caller changes to constructor inputs cannot mutate a match.
 
-The core accepts already-constructed domain objects. It does not know default
-teams, legacy database ids, profile files or where data lives: `src/data/` is
-deleted. `src/app/fixtures/default_teams.*` and
-`src/app/fixtures/legacy_player_profile.*` translate legacy defaults/profiles into
-`model::Team`/`model::Player` for the CLI and tests only.
+### Phases, clocks and final results
 
-Every description must provide a valid `model::Player::id`, unique across both
-rosters, and a roster not smaller than its effective formation. There is no
-implicit default roster, so an empty `model::Team` is rejected. `PlayerId` lives
-in `model/player.hpp`; `database_id` is only legacy profile provenance and never
-supplies identity. Controls and observations use those IDs unchanged. The sample
-factories supply disjoint IDs 0–10 and 11–21. Invalid/duplicate IDs and empty
-rosters are rejected at startup before simulation RNG draws.
+Referee/sim owns `MatchPhase::{PreMatch, FirstHalf, SecondHalf, Finished}` and
+completion. SecondHalf includes its kickoff preparation; the football clock
+pauses during stoppages. WorldState projects `phase` and `match_time_ms` for
+telemetry and future coach decisions, but is never authoritative storage.
 
-`WorldPlayerState::side` is `model::TeamSide::Home` or `Away`, not a stable club
-ID. There is no second runtime player identity: `Player::GetID()` reads the
-owned model ID directly. Roster order comes from containers; a private repeating
-`schedule_phase_` only staggers calculations, never keys controls or snapshots.
+`MatchOptions::half_duration_ms` defaults to 45 minutes: two regulation halves,
+no added time, extra time or penalty shootout in this stage. `match_duration`
+retains the legacy compressed-clock scale (`factor = value * 0.2 + 0.05`), not
+a tick budget. Sim rejects invalid/non-advancing scales and invalid/overflowing
+period durations before RNG/profile draws. Clock increments are scaled/truncated
+per step, accumulated as integers and clipped to period boundaries. The referee
+whistles even if a restart is pending; the terminal match cannot advance clocks,
+actions, scores or RNG again.
 
-`GameEnv` does not expose runtime containers, episode configuration, GRF
-observations or checkpoint serialization. The GRF environment adapter (distinct
-from the app action decoder), binary checkpoint layer and ScenarioConfig episode
-input remain deleted. Match rules are the MatchOptions defaults,
-snapshotted by `Match`. Internal regression diagnostics own/pass `Simulation`
-explicitly, while public `GameEnv` checks use only raw `WorldState` snapshots;
-animation branches use deterministic reset/replay. No environment runtime
-accessor or diagnostic compatibility shim remains. A future save/load feature
-should serialize an explicit state value object rather than per-class byte hooks.
+`MatchResult` belongs to sim and contains `home_score`, `away_score`,
+`MatchOutcome::{HomeWin, AwayWin, Draw}` and `duration_ticks`. Outcome is derived
+from authoritative stable home/away scores; env forwards it without recomputing.
+Result is available only after full time. Before then, before Start or after Stop,
+Result throws `std::logic_error`: stopping is not a completed football match.
+Copy the owning result before stopping. Retained results/snapshots survive teardown.
 
-The headless core retains `Referee` as the football rules engine (fouls, cards,
-offside and restarts), not as a moving actor. Referee/linesman humanoids are
-removed; card restart deadlines are fixed rules time, never animation duration.
+`duration_ticks` counts actually executed simulation steps (including the terminal
+referee transition), not subsequent no-op calls. Existing `WorldState::tick` is
+compressed elapsed simulation time divided by 10 ms; restart fast-forwards can
+make it differ from the executed-step count. `match_time_ms` is the separately
+scaled football clock, not either of those elapsed/count values.
 
-## Build ownership
+`Observe()` is secondary replay/trace/debug telemetry. It returns an owning,
+unscaled home-frame WorldState with ball motion, team scores/directions, player
+kinematics, play/restart/retention, reset sequence and an opaque Match epoch.
+There is no authoritative-state replacement or hidden per-tick snapshot history.
 
-Each `src/<module>/CMakeLists.txt` maintains explicit sources, exported
-`FILE_SET HEADERS`, dependencies and `football::` aliases. Root CMake only
-sets shared build policy and composes targets; there is no `sources.cmake` or
-source globbing. Sim owns contracts and runtime; `query/rules/player` stay
-internal, while `sim/animation` remains an independent baker-consumable archive.
-`tools/animBaker/CMakeLists.txt` owns offline sources, and `tools/CMakeLists.txt`
-owns diagnostics. They are enabled only with testing. CLI/tool binary paths
-remain unchanged.
+### AI intent and direct interactive/replay composition
 
-Input and fixture archives remain available as explicit targets when CLI/tests
-are disabled, but are excluded from the default core-only build. Architecture
-reports use real target link, source and header-set properties in every build
-mode. Guards reject foreign sources as well as forbidden dependency edges.
+AI owns persistent desired/planned TacticalBoards and short-lived requests,
+never actual simulation state. `AIConfig::initial_tactics` optionally supplies
+startup boards by side; otherwise DefaultAI bootstraps them from static models.
+These values are copied, not exposed as a live env mutation channel. DefaultAI
+currently reads its base boards without rewriting them during Update.
 
-## Tests
+Interactive/test/network/replay consumers explicitly compose `Simulation`, their
+policy and optional `app/input/grf::Input` outside the headless runner. Input emits
+PlayerControlSet overrides and frame-local TeamDecisionRequest values; the
+composition root routes requests to its own policy and merges controls before
+Simulation::Step. Direct DefaultAI tactics/Request* APIs remain for those paths,
+not as GameEnv proxies. GRF wire 0–32, sticky modifiers and one-shot actions remain
+value-only; input selection is not sim authority. Requests are intentions, not
+facts that a kick/press/save was executed.
 
-`ctest --preset release` runs the core regression/diagnostic executables plus the
-Catch2 suites in `test/`: value-only AI/requests and GRF input, controls/snapshots/rules,
-exact restart/computation baselines, plain control-tape replay, fixtures, CLI and
-binary output. Architecture guards have negative tests too.
-Catch2 is pulled in by
-[CPM](https://github.com/cpm-cmake/CPM.cmake) (`cmake/CPM.cmake`) and cached in
-`.cache/CPM`; nothing in `test/`, `src/app/` or Catch2 is linked into the core
-shared library. Configure with `-DBUILD_TESTING=OFF` for a network-free,
-dependency-free build, and `-DFOOTBALL_BUILD_APP=OFF` to skip the CLI as well.
+Requests bind to owning, equality-only `WorldState::simulation_epoch`, tick and
+reset sequence. New Matches cannot reactivate old requests. The epoch retains
+no actors and uses no counter/RNG/clock; it is an in-process identity, not a
+serialization ID. Synthetic logical matches must bind fresh epochs explicitly.
+Physical regression hashes exclude epoch identity.
+
+## Static declarations and simulation boundaries
+
+Model owns explicit team rosters, pitch, formation, abilities/appearance and
+PlayerIds. IDs must be valid and unique across both rosters; empty rosters or
+formations without profiles fail before RNG draws. Legacy database IDs are only
+import provenance, never identity. Sample factories supply IDs 0–10 and 11–21
+and live only in app fixtures, never core. Supported pitch geometry remains the
+legacy 110 × 72 metres.
+
+Simulation consumes values regardless of AI/human/network/replay origin, with
+idle fallback for missing controls and execution-side legality. It has no policy
+fallback or input ownership. Referee is the rules engine, not a moving actor.
+Animation mechanics use the baked asset, never runtime XML/legacy importers.
+There is no active-environment global, ScenarioConfig, GRF environment adapter,
+controller hierarchy or byte-blob checkpoint API. Durable save/load would require
+an explicit value state contract, not per-class memory hooks.
+
+## Build and tests
+
+Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,
+dependencies and `football::` aliases. Root CMake composes them; no `sources.cmake`
+or source globbing. query/rules/player stay sim internals; sim/animation is an
+independent archive also consumed by the offline baker. AI and input link only
+value contracts, never sim actors. Module link/source/header ownership guards
+check real target properties and have negative tests.
+
+```sh
+nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j 4 && ctest --preset release --output-on-failure'
+build/release/football_app                         # one complete regulation match
+build/release/football_app --half-duration-ms=1800 # complete short regulation match
+```
+
+`--steps` is retired; app always loops until sim completion and prints MatchResult,
+not a partial observation. Parsing/writing belongs to app. CLI/tool executable
+paths remain at the build root. `football_smoke [ticks]` is a secondary bounded
+telemetry diagnostic, not the headless application's match interface.
+
+Catch2 is fetched via CPM only with BUILD_TESTING enabled and cached in `.cache/CPM`.
+`-DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF` is a network-free core-only build;
+input/fixture archives remain explicit EXCLUDE_FROM_ALL targets. Neither app nor
+Catch2/offline baker code is linked into core. Tests cover rule/clock completion,
+results/lifecycle/restart, independent owners, AI-only and input-only value paths,
+control-tape/RNG replay, baselines and architecture guards. Motion/actions/RNG
+checkpoint goldens are unchanged; adding phase/time changes only World hash schema
+at those checkpoints (see `test/baselines/pre_match_runner.md`). Historical strategy
+and input schema hashes remain in the other files under `test/baselines/`.

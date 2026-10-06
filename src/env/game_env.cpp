@@ -1,94 +1,54 @@
-// Copyright 2019 Google LLC & Bastiaan Konings
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-#undef NDEBUG
-
 #include "env/game_env.hpp"
 
+#include <stdexcept>
 #include <utility>
 
-#include "sim/simulation.hpp"
 #include "ai/default_ai.hpp"
-#include "support/diagnostics/assert.hpp"
+#include "sim/simulation.hpp"
 
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
-                 football::model::Pitch pitch)
-    : home_team_(std::move(home)),
-      away_team_(std::move(away)),
-      pitch_(std::move(pitch)),
-      ai_(std::make_unique<football::ai::DefaultAI>(home_team_, away_team_, pitch_)) {}
+                 football::model::Pitch pitch, MatchOptions match_options,
+                 football::ai::AIConfig ai_config)
+    : home_team_(std::move(home)), away_team_(std::move(away)),
+      pitch_(std::move(pitch)), match_options_(match_options),
+      ai_config_(std::move(ai_config)) {}
 
-GameEnv::~GameEnv() {
-  stop_game();
-}
+GameEnv::~GameEnv() { Stop(); }
 
-void GameEnv::stop_game() {
-  simulation_.reset();
-  controls_.Clear();
-  ai_->ResetRequests();
-}
-
-void GameEnv::start_game() {
-  CHECK(!simulation_);
-  // Publish only an initialized runtime; a rejected description leaves us stopped.
+void GameEnv::Start() {
+  if (simulation_) throw std::logic_error("match runner already started");
   auto simulation = std::make_unique<Simulation>();
-  init_match(*simulation);
+  simulation->Init(home_team_, away_team_, pitch_, match_options_, false);
+  auto ai = std::make_unique<football::ai::DefaultAI>(
+      home_team_, away_team_, pitch_, ai_config_);
   simulation_ = std::move(simulation);
+  ai_ = std::move(ai);
 }
 
-void GameEnv::reset_game() {
-  CHECK(simulation_);
-  simulation_->Stop();
-  init_match(*simulation_);
-}
-
-void GameEnv::step() {
-  CHECK(simulation_);
+void GameEnv::Step() {
+  if (!simulation_) throw std::logic_error("match runner is stopped");
+  if (simulation_->Finished()) return;
   const WorldState world = simulation_->Observe();
-  PlayerControlSet combined;
-  ai_->Update(world, combined);
-  // Explicit controls override default decisions; no defaults are stored in
-  // controls(); simulation knows nothing about the sources of these values.
-  for (const auto &control : controls_.controls()) combined.Set(control.player, control);
-  simulation_->Step(combined);
+  PlayerControlSet controls;
+  ai_->Update(world, controls);
+  simulation_->Step(controls);
 }
 
-WorldState GameEnv::observe() const {
-  CHECK(simulation_);
+bool GameEnv::Finished() const {
+  return simulation_ && simulation_->Finished();
+}
+
+MatchResult GameEnv::Result() const {
+  if (!simulation_) throw std::logic_error("match runner has no final result");
+  return simulation_->Result();
+}
+
+WorldState GameEnv::Observe() const {
+  if (!simulation_) throw std::logic_error("match runner is stopped");
   return simulation_->Observe();
 }
 
-void GameEnv::init_match(Simulation& simulation) {
-  controls_.Clear();
-  ai_->ResetRequests();
-  // The legacy episode defaults are now the only possible match options.
-  simulation.Init(home_team_, away_team_, pitch_, MatchOptions{}, false);
-}
-
-football::ai::TacticalBoard& GameEnv::tactics(football::model::TeamSide side) {
-  return ai_->tactics(side);
-}
-const football::ai::TacticalBoard& GameEnv::tactics(football::model::TeamSide side) const {
-  return std::as_const(*ai_).tactics(side);
-}
-bool GameEnv::request_attacking_run(football::model::TeamSide side,
-                                   std::optional<football::model::PlayerId> runner) {
-  return simulation_ && ai_->RequestAttackingRun(side, observe(), runner);
-}
-bool GameEnv::request_team_pressure(football::model::TeamSide side,
-                                    std::optional<football::model::PlayerId> excluded) {
-  return simulation_ && ai_->RequestTeamPressure(side, observe(), excluded);
-}
-bool GameEnv::request_keeper_rush(football::model::TeamSide side) {
-  return simulation_ && ai_->RequestKeeperRush(side, observe());
+void GameEnv::Stop() {
+  ai_.reset();
+  simulation_.reset();
 }

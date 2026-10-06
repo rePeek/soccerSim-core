@@ -53,30 +53,43 @@ Referee::Referee(Match *match, bool animations) : match(match), animations(anima
 Referee::~Referee() {}
 
 void Referee::Process() {
+  if (match->Finished()) return;
+  const auto phase = match->GetMatchPhase();
+  const auto half = match->options().half_duration_ms;
+  // Period authority is independent of restart eligibility. A pending set piece
+  // must not keep a match alive after the regulation clock reaches full time.
+  if (phase == MatchPhase::SecondHalf && match->GetMatchTime_ms() >= half * 2) {
+    match->StopPlay();
+    match->StopSetPiece();
+    buffer.active = false;
+    buffer.taker = nullptr;
+    buffer.endPhase = false;
+    match->SetMatchPhase(MatchPhase::Finished);
+    return;
+  }
+  if (phase == MatchPhase::FirstHalf && match->GetMatchTime_ms() >= half) {
+    match->StopPlay();
+    match->StopSetPiece();
+    buffer.desiredSetPiece = e_GameMode_KickOff;
+    buffer.stopTime = match->GetActualTime_ms();
+    buffer.prepareTime = buffer.stopTime + 100;
+    buffer.startTime = buffer.prepareTime + 200;
+    buffer.restartPos = match->options().ball_position;
+    buffer.active = true;
+    buffer.endPhase = true;
+    buffer.teamID = match->options().left_team_owns_ball ? 1 : 0;
+    buffer.setpiece_team = match->GetTeam(buffer.teamID);
+    buffer.taker = nullptr;
+    foul.foulPlayer = nullptr;
+    foul.foulType = 0;
+    foul.advantage = false;
+    foul.foulTime = 0;
+    foul.hasBeenProcessed = true;
+    match->SetMatchPhase(MatchPhase::SecondHalf);
+    return;
+  }
   if (match->IsInPlay() && !match->IsInSetPiece()) {
-
     Vector3 ballPos = match->GetBall()->Predict(0);
-    // Single step maps to 1800 units.
-    if (match->GetMatchTime_ms() >= 1800 * match->options().second_half &&
-        match->GetMatchPhase() == e_MatchPhase_1stHalf) {
-      match->StopPlay();
-      buffer.desiredSetPiece = e_GameMode_KickOff;
-      buffer.stopTime = match->GetActualTime_ms();
-      buffer.prepareTime = buffer.stopTime + 100;
-      buffer.startTime = buffer.prepareTime + 200;
-      buffer.restartPos = match->options().ball_position;
-      buffer.active = true;
-      buffer.endPhase = true;
-      buffer.teamID = match->options().left_team_owns_ball ? 1 : 0;
-      buffer.setpiece_team = match->GetTeam(buffer.teamID);
-      buffer.taker = 0;
-      foul.foulPlayer = 0;
-      foul.foulType = 0;
-      foul.advantage = false;
-      foul.foulTime = 0;
-      foul.hasBeenProcessed = true;
-      match->SetMatchPhase(e_MatchPhase_2ndHalf);
-    }
 
     // We process corner setup in not mirrored setup.
     if (match->options().reverse_team_processing) {
@@ -179,8 +192,8 @@ void Referee::Process() {
 
       if (buffer.prepareTime == match->GetActualTime_ms()) {
         if (buffer.endPhase == true) {
-          if (match->GetMatchPhase() == e_MatchPhase_PreMatch) {
-            match->SetMatchPhase(e_MatchPhase_1stHalf);
+          if (match->GetMatchPhase() == MatchPhase::PreMatch) {
+            match->SetMatchPhase(MatchPhase::FirstHalf);
           }
           buffer.endPhase = false;
         }
@@ -209,8 +222,8 @@ void Referee::Process() {
       foul.foulPlayer = 0;
       foul.foulType = 0;
 
-      if (match->GetMatchPhase() == e_MatchPhase_PreMatch) {
-        match->SetMatchPhase(e_MatchPhase_1stHalf);
+      if (match->GetMatchPhase() == MatchPhase::PreMatch) {
+        match->SetMatchPhase(MatchPhase::FirstHalf);
       }
     }
   }

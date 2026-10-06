@@ -17,18 +17,18 @@ int main(int argc, char** argv) {
 
   GameEnv env{football::app::fixtures::MakeDefaultHomeTeam(),
               football::app::fixtures::MakeDefaultAwayTeam(),
-              football::model::MakeLegacyPitch()};
-  env.start_game();
-  for (int tick = 0; tick < ticks; ++tick) {
-    env.step();
+              football::model::MakeLegacyPitch(), {}, {}};
+  env.Start();
+  for (int tick = 0; tick < ticks && !env.Finished(); ++tick) {
+    env.Step();
     if (tick == 0 || (tick + 1) % 100 == 0 || tick + 1 == ticks) {
-      const WorldState world = env.observe();
+      const WorldState world = env.Observe();
       std::cout << "tick=" << world.tick << " players=" << world.players.size()
                 << " ball=(" << world.ball_position.coords[0] << ", "
                 << world.ball_position.coords[1] << ", "
                 << world.ball_position.coords[2] << ")\n";
     }
   }
-  env.stop_game();
+  env.Stop();
   return 0;
 }

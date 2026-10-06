@@ -88,6 +88,8 @@ uint64_t HashValue(uint64_t hash, const T& value) {
 uint64_t HashWorld(const WorldState& world) {
   uint64_t hash = HashValue(UINT64_C(1469598103934665603), world.tick);
   hash = HashValue(hash, world.reset_sequence);
+  hash = HashValue(hash, world.phase);
+  hash = HashValue(hash, world.match_time_ms);
   const auto vector_hash = [](uint64_t hash, const Vector3& value) {
     return HashBytes(hash, value.coords, sizeof(value.coords));
   };
@@ -1220,22 +1222,24 @@ struct GoldenSnapshot {
 
 // Value-policy/home-frame baseline. This intentionally replaces Eliza/RNG
 // trajectories; the previous golden pairs are archived in test/baselines/.
-// Input cleanup removes ownership/request fields and adds the actual reset
-// sequence to HashWorld. Simulation digest goldens (motion/actions/RNG) are unchanged.
+// Runner contract adds authoritative phase/football time to HashWorld only.
+// Motion/actions/RNG simulation digest goldens remain unchanged; old World hashes
+// are recorded in test/baselines/pre_match_runner.md.
 constexpr GoldenSnapshot golden[] = {
-    {1, UINT64_C(5371189051509720323), UINT64_C(350760935552669674)},
-    {100, UINT64_C(1291515177572478404), UINT64_C(13725550824419574755)},
-    {500, UINT64_C(1650659871221397832), UINT64_C(7040189435179413637)},
-    {1000, UINT64_C(1772856281264394018), UINT64_C(10968404906479542722)},
+    {1, UINT64_C(181739816817067074), UINT64_C(350760935552669674)},
+    {100, UINT64_C(2189927517799612813), UINT64_C(13725550824419574755)},
+    {500, UINT64_C(1266667866899682051), UINT64_C(7040189435179413637)},
+    {1000, UINT64_C(6003776441005663363), UINT64_C(10968404906479542722)},
 };
 
 void CheckGoldenSnapshots(Simulation& simulation, GameEnv& game, bool print_baseline) {
   InitDefaultMatch(simulation);
-  game.reset_game();
+  game.Stop();
+  game.Start();
   int completed = 0;
   for (const GoldenSnapshot& expected : golden) {
     Advance(simulation, expected.ticks - completed);
-    for (; completed < expected.ticks; ++completed) game.step();
+    for (; completed < expected.ticks; ++completed) game.Step();
     const WorldState world = simulation.Observe();
     const std::string digest = CaptureSimulationDigest(simulation);
     const uint64_t world_hash = HashWorld(world);
@@ -1246,7 +1250,7 @@ void CheckGoldenSnapshots(Simulation& simulation, GameEnv& game, bool print_base
             "one step no longer means one simulation tick");
     // Public API coverage stays public: compare a separately owned environment,
     // never inspect its internals or install a compatible diagnostic accessor.
-    Require(HashWorld(game.observe()) == world_hash,
+    Require(HashWorld(game.Observe()) == world_hash,
             "GameEnv diverged from direct Simulation at tick " + std::to_string(completed));
     if (print_baseline) {
       std::cout << "    {" << completed << ", UINT64_C(" << world_hash
@@ -1438,8 +1442,8 @@ int main(int argc, char** argv) {
       Require(mode.empty() || mode == "--print-baseline", "unknown regression mode");
       GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
                    football::app::fixtures::MakeDefaultAwayTeam(),
-                   football::model::MakeLegacyPitch()};
-      game.start_game();
+                   football::model::MakeLegacyPitch(), {}, {}};
+      game.Start();
       CheckGoldenSnapshots(simulation, game, mode == "--print-baseline");
       if (mode == "--print-baseline") return 0;
       CheckResetDeterminism(simulation);

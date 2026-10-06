@@ -217,12 +217,14 @@ TEST_CASE("explicit controls are the sole command source and absence is idle", "
   REQUIRE(queue[0].desiredVelocityFloat == 0.f);
 }
 
-TEST_CASE("GRF environment input and plain control replay execute the same simulation", "[sim][input][replay]") {
+TEST_CASE("direct input policy composition and plain control replay execute the same simulation", "[sim][input][replay]") {
   const auto home = football::app::fixtures::MakeDefaultHomeTeam();
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   const auto pitch = football::model::MakeLegacyPitch();
-  GameEnv environment(home, away, pitch);
-  environment.start_game();
+  Simulation interactive;
+  interactive.Init(home, away, pitch, MatchOptions{}, false);
+  football::ai::DefaultAI policy(home, away, pitch);
+  PlayerControlSet overrides;
   Simulation replay;
   replay.Init(home, away, pitch, MatchOptions{}, false);
   football::app::grf::Input input(home, football::model::TeamSide::Home);
@@ -254,27 +256,28 @@ TEST_CASE("GRF environment input and plain control replay execute the same simul
     if (tick == 270) input.Apply(Action::ReleasePressure);
     if (tick == 280) input.Apply(Action::BuiltinAI);
     if (tick == 300) input.Apply(Action::Left);
-    const auto world = environment.observe();
-    input.Update(world, environment.controls(), requests);
+    const auto world = interactive.Observe();
+    input.Update(world, overrides, requests);
     if (requests.attacking_run) {
-      REQUIRE(environment.request_attacking_run(requests.side) ==
+      REQUIRE(policy.RequestAttackingRun(requests.side, world) ==
               compiler.RequestAttackingRun(requests.side, world));
     }
     if (requests.team_pressure) {
-      REQUIRE(environment.request_team_pressure(requests.side, requests.pressure_excluded_player) ==
+      REQUIRE(policy.RequestTeamPressure(requests.side, world, requests.pressure_excluded_player) ==
               compiler.RequestTeamPressure(requests.side, world, requests.pressure_excluded_player));
     }
     if (requests.keeper_rush) {
-      REQUIRE(environment.request_keeper_rush(requests.side) ==
+      REQUIRE(policy.RequestKeeperRush(requests.side, world) ==
               compiler.RequestKeeperRush(requests.side, world));
     }
     PlayerControlSet compiled;
     compiler.Update(world, compiled);
-    for (const auto &control : environment.controls().controls()) compiled.Set(control.player, control);
+    for (const auto &control : overrides.controls()) compiled.Set(control.player, control);
     tape.push_back(compiled);
-    environment.step();
+    football::test::StepDefaultAI(interactive, policy, overrides);
     replay.Step(compiled);
-    same_world(environment.observe(), replay.Observe());
+    same_world(interactive.Observe(), replay.Observe());
+    REQUIRE(interactive.match()->rng().engine() == replay.match()->rng().engine());
   }
   const auto expected = replay.Observe();
   const auto rng = replay.match()->rng().engine();

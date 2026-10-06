@@ -21,6 +21,7 @@
 #include "foundation/geometry/line.hpp"
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 #include "foundation/geometry/triangle.hpp"
 #include "support/diagnostics/assert.hpp"
@@ -100,7 +101,7 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
   lastTouchTeamID = -1;
   lastGoalScorer = 0;
   bestPossessionTeam = 0;
-  SetMatchPhase(e_MatchPhase_PreMatch);
+  SetMatchPhase(MatchPhase::PreMatch);
 
   // Football rules, independent of any referee/linesman humanoid actors.
   referee_ = std::make_unique<Referee>(this, animations);
@@ -181,10 +182,18 @@ void Match::ResetSituation(const Vector3 &focusPos) {
   teams[second_team]->ResetSituation(focusPos);
 }
 
-void Match::SetMatchPhase(e_MatchPhase newMatchPhase) {
+void Match::SetMatchPhase(MatchPhase newMatchPhase) {
   matchPhase = newMatchPhase;
+  if (Finished()) return;
   teams[first_team]->RelaxFatigue(1.0f);
   teams[second_team]->RelaxFatigue(1.0f);
+}
+
+MatchResult Match::Result() const {
+  if (!Finished()) throw std::logic_error("match result requires full time");
+  const auto outcome = score_[0] > score_[1] ? MatchOutcome::HomeWin
+      : score_[0] < score_[1] ? MatchOutcome::AwayWin : MatchOutcome::Draw;
+  return {score_[0], score_[1], outcome, duration_ticks_};
 }
 
 Team *Match::GetBestPossessionTeam() {
@@ -197,6 +206,8 @@ Team *Match::GetBestPossessionTeam() {
 // THE SPICE
 
 bool Match::Step(const PlayerControlSet& controls) {
+  if (Finished()) return false;
+  ++duration_ticks_;
   bool reverse = options_.reverse_team_processing;
 
   for (int team_id = 0; team_id < 2; ++team_id) {
@@ -220,6 +231,8 @@ bool Match::Step(const PlayerControlSet& controls) {
   referee_->Process();
   Vector3 previousBallPos = ball->Predict(0);
   Mirror(reverse, !reverse, reverse);
+  // Restore the processing frame even on the referee's terminal transition.
+  if (Finished()) return false;
   if (!IsInPlay() && referee_->GetBuffer().prepareTime + 10 < GetActualTime_ms()) {
     // Do not do simulation when game is on hold to save CPU.
     BumpActualTime_ms(10);
@@ -843,7 +856,13 @@ void Match::CheckBallCollisions() {
 
 void Match::BumpActualTime_ms(unsigned long time) {
   if (IsInPlay()) {
-    matchTime_ms += time * (1.0f / matchDurationFactor);
+    // Truncate each scaled increment as before, then accumulate in integer time.
+    // Avoid float re-rounding of the accumulated clock (and eventual stagnation).
+    const auto increment = static_cast<std::uint64_t>(time * (1.0f / matchDurationFactor));
+    const auto limit = options_.half_duration_ms * (matchPhase == MatchPhase::SecondHalf ? 2 : 1);
+    // Clip at the period boundary, so even a half shorter than one scaled tick
+    // gets its own kickoff/playing period instead of consuming the next half.
+    matchTime_ms += std::min(increment, limit - std::min(matchTime_ms, limit));
   }
   actualTime_ms += time;
   if (IsGoalScored()) goalScoredTimer += time; else goalScoredTimer = 0;

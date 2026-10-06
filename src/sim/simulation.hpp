@@ -9,6 +9,7 @@
 #include "sim/match_options.hpp"
 #include "sim/rng.hpp"
 #include "sim/world_state.hpp"
+#include "sim/match_result.hpp"
 
 class Match;
 class AnimationLibrary;
@@ -28,6 +29,9 @@ class Simulation {
   void Step(const PlayerControlSet& controls);
   bool IsInPlay() const;
   WorldState Observe() const;
+  bool Finished() const;
+  // Final only; throws std::logic_error before full time or without a match.
+  MatchResult Result() const;
 
   Match* match() { return match_.get(); }
   const Match* match() const { return match_.get(); }

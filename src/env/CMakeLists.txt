@@ -7,5 +7,5 @@ target_sources(football_engine
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
     FILES game_env.hpp)
 target_link_libraries(football_engine PRIVATE
-  football::sim football::ai football::model football::support)
+  football::sim football::ai football::model)
 football_configure_target(football_engine)

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <limits>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -100,7 +101,15 @@ void Simulation::Init(
     const football::model::Team& home, const football::model::Team& away,
     const football::model::Pitch& pitch, MatchOptions options,
     bool init_animation) {
-  assert(!match_);
+  if (match_) throw std::logic_error("simulation already initialized");
+  // Reject non-advancing/non-finite clocks before any appearance/RNG draws.
+  const float factor = options.match_duration * 0.2f + 0.05f;
+  if (!std::isfinite(options.match_duration) || options.match_duration < 0.0f ||
+      !std::isfinite(factor) || 10.0f * (1.0f / factor) < 1.0f ||
+      options.half_duration_ms == 0 ||
+      options.half_duration_ms > (std::numeric_limits<std::uint64_t>::max() - 200) / 2) {
+    throw std::invalid_argument("invalid regulation duration or match clock scale");
+  }
   ValidatePlayers(home, away);
   const std::vector<FormationEntry> left = ToLegacyFormation(home.formation);
   const std::vector<FormationEntry> right = ToLegacyFormation(away.formation);
@@ -133,7 +142,7 @@ void Simulation::EnsureAnimationLibrary() {
 }
 
 void Simulation::Step(const PlayerControlSet& controls) {
-  assert(match_);
+  if (!match_) throw std::logic_error("simulation has no match");
   match_->Step(controls);
 }
 
@@ -144,8 +153,17 @@ bool Simulation::IsInPlay() const {
 }
 
 WorldState Simulation::Observe() const {
-  assert(match_);
+  if (!match_) throw std::logic_error("simulation has no match");
   return BuildWorldState(*match_);
+}
+
+bool Simulation::Finished() const {
+  return match_ && match_->Finished();
+}
+
+MatchResult Simulation::Result() const {
+  if (!match_) throw std::logic_error("simulation has no final result");
+  return match_->Result();
 }
 
 bool Simulation::Stop() {

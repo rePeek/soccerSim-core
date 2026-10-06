@@ -7,8 +7,8 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 mkdir -p "$work/src/sim" "$work/src/ai" "$work/src/app/input"
 cp "$report" "$work/deps"
-for header in world_state.hpp player_control.hpp player_control_set.hpp observation_epoch.hpp; do
-  printf '#include "model/player.hpp"\n' > "$work/src/sim/$header"
+for header in $(sed -n 's/^football_sim_contracts_headers: //p' "$report"); do
+  printf '#include "model/player.hpp"\n' > "$work/src/$header"
 done
 printf '#include "sim/world_state.hpp"\n#include <sim/player_control_set.hpp>\n#include "sim/player_control.hpp"\n' > "$work/src/ai/policy.cpp"
 printf '#include "sim/query/player_query.hpp"\n' > "$work/src/sim/query.cpp"
@@ -122,6 +122,10 @@ printf 'DefaultAI& default_ai();\n' > "$work/src/env/game_env.hpp"
 reject 'concrete policy exposed in env public API'
 printf '#include "ai/default_ai.hpp"\n' > "$work/src/env/game_env.hpp"
 reject 'concrete policy exposed in env public API'
+for method in controls tactics request_attacking_run request_team_pressure request_keeper_rush start_game reset_game stop_game step observe; do
+  printf 'void %s();\n' "$method" > "$work/src/env/game_env.hpp"
+  reject 'interactive lifecycle/control API exposed in env'
+done
 rm "$work/src/env/game_env.hpp"
 for symbol in HumanController HumanGamer PlayerController ControllerInput ExternalController TeamTacticalState attacking_run_remaining_ms externally_controlled; do
   printf 'struct %s {};\n' "$symbol" > "$work/src/sim/query.cpp"

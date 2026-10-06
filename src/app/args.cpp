@@ -1,36 +1,28 @@
 #include "app/args.hpp"
 
-#include <exception>
+#include <charconv>
 #include <stdexcept>
-#include <string>
 #include <string_view>
 
 namespace football::app {
 
-int ParseSteps(int argc, char** argv) {
-  int steps = 0;
+AppOptions ParseArgs(int argc, char** argv) {
+  AppOptions options;
   for (int index = 1; index < argc; ++index) {
     const std::string_view argument(argv[index]);
-    constexpr std::string_view prefix = "--steps=";
+    constexpr std::string_view prefix = "--half-duration-ms=";
     if (!argument.starts_with(prefix)) {
-      throw std::runtime_error("usage: football_app [--steps=N]");
+      throw std::runtime_error("usage: football_app [--half-duration-ms=N]");
     }
-    const std::string value(argument.substr(prefix.size()));
-    std::size_t consumed = 0;
-    int parsed = 0;
-    try {
-      parsed = std::stoi(value, &consumed);
-    } catch (const std::exception&) {
-      // Report empty and out-of-range counts like any other malformed value
-      // instead of leaking the std::stoi exception to the caller.
-      throw std::runtime_error("--steps must be a non-negative integer");
+    const auto value = argument.substr(prefix.size());
+    std::uint64_t parsed = 0;
+    const auto result = std::from_chars(value.data(), value.data() + value.size(), parsed);
+    if (result.ec != std::errc{} || result.ptr != value.data() + value.size() || parsed == 0) {
+      throw std::runtime_error("--half-duration-ms must be a positive integer");
     }
-    if (consumed != value.size() || parsed < 0) {
-      throw std::runtime_error("--steps must be a non-negative integer");
-    }
-    steps = parsed;
+    options.half_duration_ms = parsed;
   }
-  return steps;
+  return options;
 }
 
 }  // namespace football::app

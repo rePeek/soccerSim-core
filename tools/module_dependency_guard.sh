@@ -148,6 +148,12 @@ if [ -f "$source_dir/env/game_env.hpp" ] &&
   status=1
 fi
 
+if [ -f "$source_dir/env/game_env.hpp" ] &&
+   grep -qE '(controls|tactics|request_attacking_run|request_team_pressure|request_keeper_rush|start_game|reset_game|stop_game|step|observe)[[:space:]]*\(' "$source_dir/env/game_env.hpp"; then
+  echo 'module dependency guard: interactive lifecycle/control API exposed in env' >&2
+  status=1
+fi
+
 check_includes() {
   label=$1
   target=$2

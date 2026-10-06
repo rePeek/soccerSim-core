@@ -17,31 +17,22 @@ football_configure_target(football_app_test)
 catch_discover_tests(football_app_test
   PROPERTIES LABELS app)
 
-# The real binary stays covered too: argument handling and the printed
-# observation are exactly what a caller scripts against.
+# The real CLI always runs to the referee's final whistle; no external tick budget.
 if(TARGET football_app)
   add_test(NAME football_app_cli_default COMMAND football_app)
   set_tests_properties(football_app_cli_default PROPERTIES
-    PASS_REGULAR_EXPRESSION "tick=0 players=22")
-
-  add_test(NAME football_app_cli_steps COMMAND football_app --steps=10)
-  set_tests_properties(football_app_cli_steps PROPERTIES
-    PASS_REGULAR_EXPRESSION "tick=10 players=22")
-
-  add_test(NAME football_app_cli_rejects_bad_count
-    COMMAND football_app --steps=abc)
-  set_tests_properties(football_app_cli_rejects_bad_count PROPERTIES
-    WILL_FAIL TRUE)
-
-  add_test(NAME football_app_cli_rejects_negative
-    COMMAND football_app --steps=-5)
-  set_tests_properties(football_app_cli_rejects_negative PROPERTIES
-    WILL_FAIL TRUE)
-
-  add_test(NAME football_app_cli_rejects_unknown_flag
-    COMMAND football_app --fps=60)
-  set_tests_properties(football_app_cli_rejects_unknown_flag PROPERTIES
-    WILL_FAIL TRUE)
+    PASS_REGULAR_EXPRESSION "home_score=[0-9]+ away_score=[0-9]+ outcome=.* duration_ticks=[1-9][0-9]*"
+    TIMEOUT 180)
+  add_test(NAME football_app_cli_short_match COMMAND football_app --half-duration-ms=1800)
+  set_tests_properties(football_app_cli_short_match PROPERTIES
+    PASS_REGULAR_EXPRESSION "home_score=0 away_score=0 outcome=draw duration_ticks=[1-9][0-9]*")
+  foreach(value IN ITEMS abc -5 0 18446744073709551615)
+    add_test(NAME football_app_cli_rejects_duration_${value}
+      COMMAND football_app --half-duration-ms=${value})
+    set_tests_properties(football_app_cli_rejects_duration_${value} PROPERTIES WILL_FAIL TRUE)
+  endforeach()
+  add_test(NAME football_app_cli_rejects_tick_budget COMMAND football_app --steps=10)
+  set_tests_properties(football_app_cli_rejects_tick_budget PROPERTIES WILL_FAIL TRUE)
 endif()
 
 
@@ -71,7 +62,7 @@ football_configure_target(football_default_ai_test)
 catch_discover_tests(football_default_ai_test PROPERTIES LABELS ai)
 
 add_executable(football_sim_control_boundary_test
-  sim_control_boundary_test.cpp restart_placement_test.cpp)
+  sim_control_boundary_test.cpp sim_match_lifecycle_test.cpp restart_placement_test.cpp)
 target_link_libraries(football_sim_control_boundary_test PRIVATE
   ${OUTPUT_LIB_NAME} football_app_support football_app_input Catch2::Catch2WithMain)
 football_configure_target(football_sim_control_boundary_test)

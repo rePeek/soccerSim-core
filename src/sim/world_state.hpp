@@ -11,6 +11,7 @@
 #include "model/pitch.hpp"
 #include "foundation/math/vector3.hpp"
 #include "sim/observation_epoch.hpp"
+#include "sim/match_phase.hpp"
 
 struct WorldPlayerState {
   football::model::PlayerId id = football::model::kInvalidPlayerId;
@@ -34,6 +35,9 @@ struct WorldTeamState {
 // No actor pointers, animation/command queues, mutable runtime or AI objects.
 struct WorldState {
   std::uint64_t tick = 0;
+  MatchPhase phase = MatchPhase::PreMatch;
+  // Scaled football clock, paused during stoppages, not elapsed/observation time.
+  std::uint64_t match_time_ms = 0;
   blunted::Vector3 ball_position = blunted::Vector3(0);
   std::vector<WorldPlayerState> players;
   blunted::Vector3 ball_velocity = blunted::Vector3(0);

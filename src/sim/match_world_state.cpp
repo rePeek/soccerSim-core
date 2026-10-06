@@ -7,6 +7,8 @@
 WorldState BuildWorldState(const Match& match) {
   WorldState world;
   world.tick = match.GetActualTime_ms() / 10;
+  world.phase = match.GetMatchPhase();
+  world.match_time_ms = match.GetMatchTime_ms();
   world.reset_sequence = match.GetResetSequence();
   world.simulation_epoch = match.GetObservationEpoch();
   world.ball_position = match.GetBall()->Predict(0);

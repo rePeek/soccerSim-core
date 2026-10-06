@@ -4,6 +4,7 @@
 #include <array>
 #include <utility>
 
+#include "ai/ai_config.hpp"
 #include "ai/tactical_board.hpp"
 #include "ai/team_requests.hpp"
 #include "sim/player_control_set.hpp"
@@ -22,9 +23,15 @@ class DefaultAI {
     boards_[1].side = model::TeamSide::Away;
   }
   DefaultAI(const model::Team &home, const model::Team &away,
-            const model::Pitch &pitch = model::MakeLegacyPitch())
-      : boards_{MakeTacticalBoard(home, model::TeamSide::Home, pitch),
-                MakeTacticalBoard(away, model::TeamSide::Away, pitch)} {}
+            const model::Pitch &pitch = model::MakeLegacyPitch(),
+            const AIConfig &config = {})
+      : boards_{config.initial_tactics[0]
+                    ? *config.initial_tactics[0] : MakeTacticalBoard(home, model::TeamSide::Home, pitch),
+                config.initial_tactics[1]
+                    ? *config.initial_tactics[1] : MakeTacticalBoard(away, model::TeamSide::Away, pitch)} {
+    boards_[0].side = model::TeamSide::Home;
+    boards_[1].side = model::TeamSide::Away;
+  }
 
   TacticalBoard &tactics(model::TeamSide side) {
     return boards_.at(static_cast<unsigned>(side));

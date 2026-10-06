@@ -31,6 +31,8 @@
 #include "sim/animation/types.hpp"
 #include "sim/player_control_set.hpp"
 #include "sim/observation_epoch.hpp"
+#include "sim/match_phase.hpp"
+#include "sim/match_result.hpp"
 
 
 #include <cstdint>
@@ -78,8 +80,10 @@ class Match {
     std::uint64_t GetResetSequence() const { return reset_sequence_; }
     const ObservationEpoch& GetObservationEpoch() const { return observation_epoch_; }
 
-    void SetMatchPhase(e_MatchPhase newMatchPhase);
-    e_MatchPhase GetMatchPhase() const { return matchPhase; }
+    void SetMatchPhase(MatchPhase newMatchPhase);
+    MatchPhase GetMatchPhase() const { return matchPhase; }
+    bool Finished() const { return matchPhase == MatchPhase::Finished; }
+    MatchResult Result() const;
 
     void StartPlay() { inPlay = true; }
     void StopPlay() { inPlay = false; }
@@ -121,7 +125,7 @@ class Match {
 
     float GetAveragePossessionSide(int time_ms) const { return possessionSideHistory.GetAverage(time_ms); }
 
-    unsigned long GetMatchTime_ms() const { return matchTime_ms; }
+    std::uint64_t GetMatchTime_ms() const { return matchTime_ms; }
     unsigned long GetActualTime_ms() const { return actualTime_ms; }
     void BumpActualTime_ms(unsigned long time);
 
@@ -172,14 +176,15 @@ class Match {
 
     std::vector<MentalImage> mentalImages; // [index] == index * 10 ms ago ([0] == now)
 
-    unsigned long matchTime_ms = 0;
+    std::uint64_t matchTime_ms = 0;
     unsigned long actualTime_ms = 0;
+    std::uint64_t duration_ticks_ = 0;
     // Actual world discontinuities; not a policy/request timer.
     std::uint64_t reset_sequence_ = 0;
     const ObservationEpoch observation_epoch_ = ObservationEpoch::New();
     unsigned long goalScoredTimer = 0;
 
-    e_MatchPhase matchPhase = e_MatchPhase_PreMatch; // 0 - first half; 1 - second half; 2 - 1st extra time; 3 - 2nd extra time; 4 - penalties
+    MatchPhase matchPhase = MatchPhase::PreMatch;
     bool inPlay = false;
     bool inSetPiece = false; // Whether game is in special mode (corner etc...)
     bool goalScored = false; // true after goal scored, false again after next match state change

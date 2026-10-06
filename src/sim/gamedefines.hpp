@@ -79,11 +79,6 @@ enum e_TouchType {
   e_TouchType_SIZE
 };
 
-enum e_MatchPhase {
-  e_MatchPhase_PreMatch,
-  e_MatchPhase_1stHalf,
-  e_MatchPhase_2ndHalf,
-};
 
 enum e_PlayerCommandModifier {
   e_PlayerCommandModifier_None = 0,
