@@ -66,6 +66,7 @@ src/
 │   ├── world_state.hpp / observation_epoch.hpp owning output and match identity
 │   ├── player_control*.hpp executable control values
 │   ├── match_options.hpp / match_phase.hpp / match_result.hpp rule/result values
+│   ├── tick.hpp / tick_boundary.hpp strong 100 Hz time values and exact boundary conversions
 │   ├── simulation.*  owns Match, deterministic RNG and baked animation library
 │   ├── match*, team, ball, referee, formation, gamedefines, rng
 │   ├── pitch_frame.* shared runtime ↔ canonical home-pitch adapters (sim-private)
@@ -105,6 +106,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── app_*_test.cpp            args, fixtures and CLI composition
 ├── default_ai_test.cpp + default_ai_fixture.hpp
 ├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
+├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
 ├── sim_control_boundary_test.cpp controls/frames/reset/replay
 ├── sim_match_lifecycle_test.cpp phases/clocks/end changes/result/freeze
 ├── pitch_frame_test.cpp     half/order geometry, nonzero ball/velocity and control round trips
@@ -221,6 +223,13 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   AI; stopped Step/Observe throw logic_error. Finished is false while stopped.
   Result throws before full time or after Stop; stopping never invents completion.
   Observe/Result return owning values that can survive teardown.
+- `football::sim::Tick` is an absolute timeline instant; `TickSpan` is a duration.
+  `sim/tick.hpp` owns the fixed 100 Hz quantum and float seconds derived from it,
+  not foundation or runtime configuration. No absolute-time + absolute-time API.
+  Boundary conversions live in `tick_boundary.hpp`; non-grid milliseconds are
+  rejected, never silently rounded. Existing millisecond runtime APIs remain
+  transitional until their individual owners migrate. Keep unit migration separate
+  from dead-ball/clock-scale semantics; preserve float arithmetic and numerical goldens.
 - Referee owns period transitions; Match owns phase, football clock, score and
   executed-step count. MatchPhase is PreMatch/FirstHalf/SecondHalf/Finished;
   second-half kickoff preparation is inside SecondHalf. Defaults are two 45-minute
