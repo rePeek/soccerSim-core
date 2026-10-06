@@ -14,8 +14,8 @@ target_link_libraries(football_app_test PRIVATE
 target_link_libraries(football_app_test PRIVATE Catch2::Catch2WithMain)
 football_configure_target(football_app_test)
 
-catch_discover_tests(football_app_test
-  PROPERTIES LABELS app)
+add_test(NAME football_app_test COMMAND football_app_test)
+set_tests_properties(football_app_test PROPERTIES LABELS app)
 
 # The real CLI always runs to the referee's final whistle; no external tick budget.
 if(TARGET football_app)
@@ -42,21 +42,24 @@ add_executable(football_sim_computation_test sim_computation_test.cpp)
 target_link_libraries(football_sim_computation_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_computation_test)
-catch_discover_tests(football_sim_computation_test PROPERTIES LABELS sim)
+add_test(NAME football_sim_computation_test COMMAND football_sim_computation_test)
+set_tests_properties(football_sim_computation_test PROPERTIES LABELS sim)
 
 # This target proves that policy compiles/links without sim or libgame.
 add_executable(football_default_ai_test default_ai_test.cpp)
 target_link_libraries(football_default_ai_test PRIVATE
   football_ai Catch2::Catch2WithMain)
 football_configure_target(football_default_ai_test)
-catch_discover_tests(football_default_ai_test PROPERTIES LABELS ai)
+add_test(NAME football_default_ai_test COMMAND football_default_ai_test)
+set_tests_properties(football_default_ai_test PROPERTIES LABELS ai)
 
 add_executable(football_sim_control_boundary_test
   sim_control_boundary_test.cpp sim_match_lifecycle_test.cpp restart_placement_test.cpp)
 target_link_libraries(football_sim_control_boundary_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_control_boundary_test)
-catch_discover_tests(football_sim_control_boundary_test PROPERTIES LABELS sim)
+add_test(NAME football_sim_control_boundary_test COMMAND football_sim_control_boundary_test)
+set_tests_properties(football_sim_control_boundary_test PROPERTIES LABELS sim)
 
 # C++ boundary/integration suites (formerly mixed into tools/).
 add_executable(football_gameenv_test gameenv_test.cpp)
@@ -93,7 +96,8 @@ target_link_libraries(football_anim_baking_test PRIVATE football_anim_baking Cat
 target_compile_definitions(football_anim_baking_test PRIVATE
   FOOTBALL_TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/data")
 football_configure_target(football_anim_baking_test)
-catch_discover_tests(football_anim_baking_test PROPERTIES LABELS animation TIMEOUT 180)
+add_test(NAME football_anim_baking_test COMMAND football_anim_baking_test)
+set_tests_properties(football_anim_baking_test PROPERTIES LABELS animation TIMEOUT 180)
 
 # Exercise actual CLI flags against a fresh artifact, without shell wrappers.
 set(_baker_cli_artifact "${CMAKE_CURRENT_BINARY_DIR}/baker-cli.simanim")
@@ -117,4 +121,5 @@ add_executable(football_legacy_animation_import_test legacy_animation_import_tes
 target_link_libraries(football_legacy_animation_import_test PRIVATE
   football_legacy_anim Catch2::Catch2WithMain)
 football_configure_target(football_legacy_animation_import_test)
-catch_discover_tests(football_legacy_animation_import_test PROPERTIES LABELS animation)
+add_test(NAME football_legacy_animation_import_test COMMAND football_legacy_animation_import_test)
+set_tests_properties(football_legacy_animation_import_test PROPERTIES LABELS animation)

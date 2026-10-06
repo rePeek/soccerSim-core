@@ -22,8 +22,6 @@ CPMAddPackage(NAME BqLog
   # Release_2.5.0, pinned to the release commit for reproducible builds.
   GIT_TAG 89af0fe488d3ba1e3760fb889751311032da0a8d
   SOURCE_SUBDIR src
-  # Quiet internal info/debug chatter, not named logs or Debug assertions.
-  PATCHES "${PROJECT_SOURCE_DIR}/cmake/patches/bqlog-quiet-startup.patch"
   OPTIONS
     "TARGET_PLATFORM ${_football_bq_platform}"
     "BUILD_LIB_TYPE static_lib"

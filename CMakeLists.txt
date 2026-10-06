@@ -46,8 +46,6 @@ add_subdirectory(src/app)
 if(BUILD_TESTING)
   CPMAddPackage(NAME Catch2 GITHUB_REPOSITORY catchorg/Catch2 GIT_TAG v3.7.1
     OPTIONS "CATCH_BUILD_TESTING OFF")
-  list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
-  include(Catch)
   add_subdirectory(tools/animBaker)
   add_subdirectory(tools)
   add_subdirectory(test)

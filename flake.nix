@@ -18,7 +18,6 @@
               pkgs.gcc
               pkgs.gnumake
               pkgs.ninja
-              pkgs.patch # CPM's narrow BqLog verbosity patch
             ];
 
             shellHook = ''

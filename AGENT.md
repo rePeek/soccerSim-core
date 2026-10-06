@@ -34,6 +34,10 @@ build/release/football_app --half-duration-ms=1800
 
 BqLog 2.5.0 (pinned commit) is fetched by `cmake/CPM.cmake` in every build mode;
 Catch2 v3.7.1 is fetched only with `BUILD_TESTING=ON`. Both use `.cache/CPM`.
+CTest registers whole test executables with add_test; Catch2 runs every case and
+reports case-level failures. No stdout-based discovery, build-time test execution,
+output filtering or third-party patch is needed. To select a Catch2 case, invoke
+its executable directly, e.g. build/release/football_sim_control_boundary_test '[failure]'.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
@@ -81,8 +85,7 @@ src/
 
 cmake/
 ├── CPM.cmake
-├── bqlog.cmake            private third-party diagnostics build
-└── patches/               pinned BqLog internal verbosity adjustment
+└── bqlog.cmake            private third-party diagnostics build
 
 tools/
 ├── football_regression.cpp developer regression/animation A/B diagnostic
@@ -133,9 +136,9 @@ anim_baking → legacy_anim + animation/foundation
 - GameEnv::Start creates/reconfigures the single process logger `football` before
   constructing Simulation/AI; Stop destroys AI then Simulation and flushes it.
   BqLog is PRIVATE to game/sim, never in public value contracts or policy.
-  Warning sites tolerate a missing logger for direct Simulation users. Upstream
-  Debug assertions stay enabled; cmake/patches/bqlog-quiet-startup.patch suppresses
-  internal info/debug chatter, not warnings/errors or named log appenders.
+  Warning sites tolerate a missing logger for direct Simulation users. BqLog
+  uses unpatched upstream sources and keeps its normal Debug assertions/output;
+  no forced NDEBUG or BQ_TOOLS/BQ_UNIT_TEST workaround.
   Runtime warnings use BqLog; resource/environment failures throw runtime_error,
   runtime contract failures throw logic_error, and debug-only oracles/invariants
   use <cassert>. No product signal handlers/backtraces or deliberate crash logging.
