@@ -11,6 +11,10 @@ fi
 
 library=$1
 source_dir=$2
+if [ ! -f "$library" ] || [ ! -d "$source_dir" ]; then
+  echo 'headless-core guard: expected LIBGAME file and SOURCE_DIR directory' >&2
+  exit 2
+fi
 forbidden_needed='Shared library: \[(lib(SDL2|EGL|GLX|OpenGL|GL\.so|X11)[^]]*)\]'
 forbidden_include='^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"][^">]*(SDL|EGL|GLX|OpenGL|GL/|systems/graphics|scene/scene2d|scene/scene3d|utils/gui2|menu/)[^">]*[">]'
 
@@ -58,18 +62,17 @@ if [ -e "$source_dir/env/main.hpp" ] || [ -e "$source_dir/env/main.cpp" ]; then
   exit 1
 fi
 
-# The core may not know where data comes from: fixtures/importer code lives in
-# src/app/fixtures and is linked only into executables. No core module may
-# include it, reference its symbols, or regain the retired src/data layer.
+# Input state and fixture/importer code are executable-side, not core state.
+# src/app archives may not leak through includes or shared-library symbols.
+# No core module may regain the retired src/data layer either.
 forbidden_fixture_include='^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"](app|data)/'
 forbidden_fixture_symbol='\b(MakeDefaultHomeTeam|MakeDefaultAwayTeam|LoadLegacyPlayerProfile|football::app)\b'
 if grep -R -n -E \
     --include='*.cpp' --include='*.hpp' --include='*.h' \
     "$forbidden_fixture_include|$forbidden_fixture_symbol" \
     "$source_dir/model" "$source_dir/foundation" \
-    "$source_dir/sim" "$source_dir/env" "$source_dir/observation" "$source_dir/ai" \
-    "$source_dir/control" "$source_dir/controller" "$source_dir/support"; then
-  echo "headless-core guard: app fixture/importer leaked into core" >&2
+    "$source_dir/sim" "$source_dir/env" "$source_dir/ai" "$source_dir/support"; then
+  echo "headless-core guard: app fixture/input/importer leaked into core" >&2
   exit 1
 fi
 if [ -e "$source_dir/data" ]; then
@@ -77,7 +80,7 @@ if [ -e "$source_dir/data" ]; then
   exit 1
 fi
 if nm -C "$library" | grep -E "$forbidden_fixture_symbol"; then
-  echo "headless-core guard: app fixture/importer symbol in $library" >&2
+  echo "headless-core guard: app fixture/input/importer symbol in $library" >&2
   exit 1
 fi
 

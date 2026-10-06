@@ -51,8 +51,7 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
       second_team(options.reverse_team_processing ? 0 : 1),
       possessionSideHistory(6000),
       matchDurationFactor(options.match_duration * 0.2f + 0.05f),
-      options_(options),
-      _useMagnet(options.use_magnet) {
+      options_(options) {
 
 
   actualTime_ms = 0;
@@ -160,6 +159,7 @@ void Match::UpdateLatestMentalImageBallPredictions() {
 }
 
 void Match::ResetSituation(const Vector3 &focusPos) {
+  ++reset_sequence_;
   SetBallRetainer(0);
   SetGoalScored(false);
   mentalImages.clear();
@@ -236,10 +236,6 @@ bool Match::Step(const PlayerControlSet& controls) {
       mentalImages.pop_back();
     }
   }
-
-  // obvious
-  teams[first_team]->UpdateSwitch();
-  teams[second_team]->UpdateSwitch();
 
   Mirror(first_team == 1, first_team == 0, first_team == 1);
   teams[first_team]->Process();

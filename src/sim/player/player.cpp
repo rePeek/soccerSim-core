@@ -289,7 +289,6 @@ Player::~Player() {
     SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
     ResetRuntimeState(GetPosition());
     isActive = false;
-    externalController = nullptr;
   }
 }
 
@@ -618,19 +617,14 @@ void Player::SetNextResetSituationAuditContext(int context) {
 void Player::Deactivate() {
   SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateFirst);
   ResetSituation(GetPosition());
-  if (ExternalController()) {
-    team->DeselectPlayer(this);
-  }
   // Preserve both historical resets, including their RNG draws and epochs.
   SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
   ResetSituation(GetPosition());
   isActive = false;
-  externalController = nullptr;
   GetTeam()->UpdateDesignatedTeamPossessionPlayer();
 }
 
 int Player::GetReactionTime_ms() {
-  if (ExternalControllerActive()) return ExternalController()->GetReactionTime_ms();
   int reaction = int(std::round(80.f - GetStat(football::model::PlayerStat::physical_reaction) * 40.f));
   reaction += (1.f - team->GetAiDifficulty()) * 100;
   return reaction;
@@ -638,14 +632,12 @@ int Player::GetReactionTime_ms() {
 
 float Player::GetControlSpeed() {
   if (control_) return control_->desired_speed;
-  return ExternalControllerActive() ? ExternalController()->GetFloatVelocity() : 0.f;
+  return 0.f;
 }
 
 void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
   if (control_) {
     commandQueue = BuildPlayerCommands(*control_, *this);
-  } else if (ExternalControllerActive()) {
-    externalController->GetHumanController()->RequestCommand(commandQueue);
   } else {
     // No implicit policy in sim: absent control is an idle movement intent.
     PlayerControl idle;
@@ -657,28 +649,9 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
   }
 }
 
-void Player::SetExternalController(HumanGamer *externalController) {
-  this->externalController = externalController;
-  if (this->externalController) {
-    this->externalController->GetHumanController()->Reset();
-    this->externalController->GetHumanController()->SetPlayer(this);
-  } else {
-    tactical_image_time_ms_ = 0;
-  }
-}
-
-HumanController *Player::ExternalController() {
-  return externalController ? externalController->GetHumanController() : nullptr;
-}
-
-bool Player::ExternalControllerActive() {
-  return externalController && !externalController->GetHumanController()->Disabled();
-}
-
 void Player::Process() {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
-    if (ExternalControllerActive()) externalController->GetHumanController()->Process();
     tactical_image_time_ms_ = GetReactionTime_ms();
     if (match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental)
       tactical_image_time_ms_ = 0;
@@ -755,7 +728,6 @@ void Player::ResetRuntimeState(const Vector3 &focusPos) {
     SynchronizeKinematicState();
     BeginSimulationAction();
   }
-  if (ExternalControllerActive()) ExternalController()->Reset();
   tactical_image_time_ms_ = 0;
   resetSituationAuditContext = kResetSituationUnspecified;
 }
@@ -937,7 +909,7 @@ void Player::UpdatePossessionStats() {
 }
 
 float Player::GetClosestOpponentDistance() const {
-  Player *opp = football::sim::query::GetClosestPlayer(match->GetTeam(abs(team->GetID() - 1)), GetPosition(), false);
+  Player *opp = football::sim::query::GetClosestPlayer(match->GetTeam(abs(team->GetID() - 1)), GetPosition());
   return opp->GetPosition().GetDistance(GetPosition());
 }
 
@@ -972,7 +944,6 @@ void Player::ResetSituation(const Vector3 &focusPos) {
   timeNeededToGetToBall_ms = 1000;
   timeNeededToGetToBall_optimistic_ms = 1000;
   SetDesiredTimeToBall_ms(0);
-  manMarking = 0;
   triggerControlledBallCollision = false;
   tacticalSituation.forwardSpaceRating = 0;
   tacticalSituation.toGoalSpaceRating = 0;
@@ -980,8 +951,7 @@ void Player::ResetSituation(const Vector3 &focusPos) {
 }
 
 void Player::_CalculateTacticalSituation() {
-  const MentalImage *mentalImage = ExternalControllerActive()
-      ? ExternalController()->GetMentalImage() : match->GetMentalImage(tactical_image_time_ms_);
+  const MentalImage *mentalImage = match->GetMentalImage(tactical_image_time_ms_);
   assert(mentalImage);
   assert(IsActive());
   float time_sec = 0.5f;

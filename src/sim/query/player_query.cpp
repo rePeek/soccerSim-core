@@ -29,7 +29,6 @@ namespace football::sim::query {
 float CalculateFreeSpace(Match *match, const MentalImage *mentalImage,
                             int teamID, const Vector3 &focusPos,
                             float safeDistance, float futureTime_sec) {
-  //void football::sim::query::GetClosestPlayers(Team *team, const Vector3 &position, bool onlyAIControlled, std::vector<Player*> &result, unsigned int playerCount)
 
 
   assert(mentalImage);
@@ -79,124 +78,31 @@ bool HasPossession(Ball *ball, Player *player) {
   if (distanceOK && movementOK) return true; else return false;
 }
 
-Player *GetClosestPlayer(Team *team, const Vector3 &position,
-                            bool onlyAIControlled, Player *except,
-                            bool onlySelectable) {
-  const std::vector<Player*> &players = team->GetAllPlayers();
-
+Player *GetClosestPlayer(Team *team, const Vector3 &position, Player *except) {
   float closestDistance = 10000;
-  Player *closestPlayer = 0;
-
-  for (auto p : players) {
-    if (p->IsActive() && p != except) {
-      float distance = (p->GetPosition() - position).GetLength();
-      if (distance < closestDistance) {
-        if ((!onlyAIControlled || !p->ExternalControllerActive()) &&
-            (!onlySelectable || p->GetFormationEntry().controllable)) {
-          closestDistance = distance;
-          closestPlayer = p;
-        }
-      }
+  Player *closestPlayer = nullptr;
+  for (Player *player : team->GetAllPlayers()) {
+    if (!player->IsActive() || player == except) continue;
+    const float distance = (player->GetPosition() - position).GetLength();
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestPlayer = player;
     }
   }
-
   return closestPlayer;
 }
 
 void GetClosestPlayers(Team *team, const Vector3 &position,
-                          bool onlyAIControlled, std::vector<Player *> &result,
-                          unsigned int playerCount, bool onlySelectable) {
-  const std::vector<Player*> &players = team->GetAllPlayers();
-  std::multimap<float, Player*> tmpResult;
-
-  //printf("total players: %i\n", players.size());
-
-  for (unsigned int i = 0; i < players.size(); i++) {
-    if (players[i]->IsActive()) {
-      float distance = (players[i]->GetPosition() - position).GetLength();
-        if ((!onlyAIControlled || !players[i]->ExternalControllerActive()) &&
-            (!onlySelectable || players[i]->GetFormationEntry().controllable)) {
-        tmpResult.insert(std::pair<float, Player*>(distance, players[i]));
-      }
-    }
+                       std::vector<Player *> &result, unsigned int playerCount) {
+  // Equivalent keys preserve insertion/roster order, never PlayerId order.
+  std::multimap<float, Player *> sorted;
+  for (Player *player : team->GetAllPlayers()) {
+    if (player->IsActive())
+      sorted.emplace((player->GetPosition() - position).GetLength(), player);
   }
-
-  //printf("tmp players: %i\n", tmpResult.size());
-
-  std::map<float, Player*>::iterator iter = tmpResult.begin();
-  for (unsigned int i = 0; i < playerCount && iter != tmpResult.end(); i++) {
+  auto iter = sorted.begin();
+  for (unsigned int i = 0; i < playerCount && iter != sorted.end(); ++i, ++iter)
     result.push_back(iter->second);
-    iter++;
-  }
-
-  //printf("result: %i\n", result.size());
-}
-
-Player *GetBestSwitchTargetPlayer(Match *match, Team *team,
-                                     const Vector3 &desiredMovement) {
-
-  // find most interesting position on pitch
-
-  Vector3 actionPosition = match->GetDesignatedPossessionPlayer()->GetPosition() * 0.5f +
-                           match->GetBall()->Predict(100).Get2D() * 0.5f;
-
-  Vector3 defensePosition = (actionPosition * Vector3(1.0f, 0.8f, 0.0f)) +
-                            Vector3(team->GetDynamicSide() * 4.0f, 0.0f, 0.0f);
-  Vector3 offensePosition = (actionPosition * Vector3(1.0f, 0.8f, 0.0f)) +
-                            Vector3(-team->GetDynamicSide() * 8.0f, 0.0f, 0.0f);
-
-  // experiment: also take team possession player into account, try to pick one near
-  defensePosition = defensePosition * 0.8f + team->GetDesignatedTeamPossessionPlayer()->GetPosition() * 0.2f;
-
-  float offenseBias = team->GetFadingTeamPossessionAmount() - 0.5f;
-  offenseBias = offenseBias * 0.2f + clamp(team->GetTeamPossessionAmount() - 0.5f, 0.0f, 1.0f) * 0.8f; // more direct, more urgent
-  offenseBias = clamp((offenseBias - 0.5f) * 2.0 + 0.5f, 0.0f, 1.0f); // make more binary
-  offenseBias =
-      clamp(std::pow(offenseBias, 1.5f), 0.0f, 1.0f);  // tend towards defensive
-
-  Vector3 resultingPosition = defensePosition * (1.0f - offenseBias) + offensePosition * offenseBias;
-
-  assert(offenseBias >= 0.0f && offenseBias <= 1.0f);
-
-  // get sorted list of closest players
-
-  std::vector<Player*> teamPlayers;
-  football::sim::query::GetClosestPlayers(team, resultingPosition, true, teamPlayers, 8);
-  std::vector<Player*>::iterator iter = teamPlayers.begin();
-  while (iter != teamPlayers.end()) {
-    if ((*iter)->GetFormationEntry().role == e_PlayerRole_GK) {
-      iter = teamPlayers.erase(iter);
-    } else {
-      iter++;
-    }
-  }
-
-  if (teamPlayers.size() == 0) return 0;
-
-
-  // in case of defending, we ideally need someone who is closer to our goal than the opponent
-
-  int bestPlayerIndex = 0; // closest player - sorted first in teamplayers array
-  float tooLateDistance = 1.0f;
-
-  Player *designated = match->GetDesignatedPossessionPlayer();
-  if (designated->GetTeam() != team) {
-    Player *opp = designated;
-    Vector3 goalPos = Vector3(team->GetDynamicSide() * pitchHalfW, 0.0f, 0.0f);
-    float oppGoalDist = (goalPos - (opp->GetPosition() + opp->GetMovement() * 0.5f)).GetLength();
-    for (unsigned int i = 0; i < teamPlayers.size(); i++) {
-      float mateGoalDist = (goalPos - (teamPlayers[i]->GetPosition() + teamPlayers[i]->GetMovement() * 0.5f)).GetLength();
-      if (mateGoalDist < oppGoalDist + tooLateDistance +
-                             clamp(oppGoalDist * 0.1f, 0.0f, 3.0f)) {
-          // doesn't matter much when opp is still far away from
-                        // goal
-        bestPlayerIndex = i;
-        break;
-      }
-    }
-  }
-
-  return teamPlayers.at(bestPlayerIndex);
 }
 
 }  // namespace football::sim::query

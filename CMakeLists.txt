@@ -31,7 +31,6 @@ target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE football_foundation football_model)
 
 add_subdirectory(src/support)
-add_subdirectory(src/controller)
 
 # --- object libraries: one translation unit at a time -----------------------
 # The simulation's runtime animation subsystem (src/sim/animation). It depends
@@ -56,7 +55,6 @@ endif()
 #   foundation <- sim/animation <- sim <- engine <- game
 #         ^                            ^
 #         ├── model/sim_contracts ──────┘
-#         └── controller (temporary legacy input)
 #
 #   sim_contracts is a value-only target above model/foundation, shared with AI.
 #   app fixtures/importers -> model/support (executable-only; no core edge)
@@ -64,7 +62,6 @@ endif()
 # The runtime animation archive below depends directly on foundation only;
 # source importers use support for XML, files, text, and configuration.
 # Passive player controls cross the sim boundary; AI owns tactical intent.
-# Controller remains the legacy input path, not a future simulation boundary.
 # Declaring the edges here keeps archive order correct instead of relying on
 # a hand-maintained link line.
 
@@ -79,25 +76,31 @@ football_configure_target(football_app_support)
 
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
 target_link_libraries(football_sim PUBLIC football_animation football_support
-  football_model football_sim_contracts football_controller)
+  football_model football_sim_contracts)
 
 # Value policy links only read/control contracts, never the actor runtime.
 add_library(football_ai STATIC ${AI_SOURCES} ${AI_HEADERS})
 target_link_libraries(football_ai PUBLIC football_sim_contracts)
 football_configure_target(football_ai)
 
+# Frontend input owns protocol/selection state and uses only value-policy APIs.
+add_library(football_app_input STATIC EXCLUDE_FROM_ALL
+  ${APP_INPUT_SOURCES} ${APP_INPUT_HEADERS})
+target_link_libraries(football_app_input PUBLIC football_ai)
+football_configure_target(football_app_input)
+
 # env composes observe -> default AI -> merged controls -> sim in one TU.
 # The environment owns a persistent DefaultAI and exposes its tactical values.
 add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
   src/env/game_env.cpp src/env/game_env.hpp)
-target_link_libraries(football_engine PRIVATE football_controller football_model
+target_link_libraries(football_engine PRIVATE football_model
   football_sim football_sim_contracts football_support football_ai)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
 target_link_libraries(${OUTPUT_LIB_NAME}
   PUBLIC football_sim_contracts football_ai
-  PRIVATE football_sim football_controller)
+  PRIVATE football_sim)
 
 if(FOOTBALL_BUILD_APP)
   add_executable(football_app ${APP_MAIN_SOURCES})
@@ -231,8 +234,8 @@ string(REPLACE ";" " " _contract_headers_text "${_contract_headers}")
 set(_module_dependency_report "football_sim_contracts_headers: ${_contract_headers_text}\n")
 foreach(_module_target IN ITEMS
     football_foundation football_model football_sim_contracts
-    football_controller football_support football_animation football_sim
-    football_ai football_engine football_app_support)
+    football_support football_animation football_sim
+    football_ai football_engine football_app_support football_app_input)
   football_link_closure(${_module_target} _closure)
   string(REPLACE ";" " " _closure_text "${_closure}")
   string(APPEND _module_dependency_report
@@ -265,7 +268,4 @@ add_test(NAME legacy_validation_guard
   COMMAND ${CMAKE_SOURCE_DIR}/tools/legacy_validation_guard.sh
     ${CMAKE_SOURCE_DIR})
 
-add_test(NAME controller_boundary_guard
-  COMMAND ${CMAKE_SOURCE_DIR}/tools/controller_boundary_guard.sh
-    ${CMAKE_SOURCE_DIR}/src)
 endif()  # BUILD_TESTING

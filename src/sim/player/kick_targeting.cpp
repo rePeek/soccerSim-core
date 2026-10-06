@@ -48,15 +48,7 @@ void GetPass(Player *player, e_FunctionType passType,
                 Vector3 &resultingDirection, float &resultingPower,
                 Player *&targetPlayer, Player *forcedTargetPlayer) {
 
-  // cheat for digital input
-
-  bool fullAutoDirection = false;
-  bool fullAutoPower = false;
-  if (player->ExternalControllerActive()) {
-    fullAutoDirection = true;
-    fullAutoPower = true;
-  }
-
+  // Assistance is specified by the executable request, never its input source.
   float adaptedAutoDirectionBias = autoDirectionBias;
   float adaptedAutoPowerBias = autoPowerBias;
 
@@ -80,8 +72,6 @@ void GetPass(Player *player, e_FunctionType passType,
     resultingDirection = player->GetDirectionVec();
     resultingPower = 1.0f;
     targetPlayer = player;
-    fullAutoDirection = false;
-    fullAutoPower = false;
     adaptedAutoDirectionBias = 0.0f;
     adaptedAutoPowerBias = 0.0f;
   }
@@ -138,7 +128,7 @@ void GetPass(Player *player, e_FunctionType passType,
   Vector3 autoTargetRel = autoTarget - playerPos;
   Vector3 manualTargetRel = manualTarget - playerPos;
 
-  if (forcedTargetPlayer || (fullAutoDirection && fullAutoPower)) {
+  if (forcedTargetPlayer) {
     adaptedAutoDirectionBias = 1.0;
     adaptedAutoPowerBias = 1.0;
   } else {
@@ -155,19 +145,11 @@ void GetPass(Player *player, e_FunctionType passType,
                                         0.0f, 12.0f),
                  0.5f);
 
-    if (fullAutoDirection) {
-      adaptedAutoDirectionBias = 1.0f;
-    } else {
-      adaptedAutoDirectionBias *= distanceFactor;
-      adaptedAutoDirectionBias =
-          std::pow(adaptedAutoDirectionBias, 1.0f - proximityBonus * 0.9f);
-    }
-    if (fullAutoPower) {
-      adaptedAutoPowerBias = 1.0f;
-    } else {
-      adaptedAutoPowerBias *= distanceFactor;
-      adaptedAutoPowerBias = clamp(adaptedAutoPowerBias * (1.0 + proximityBonus), 0.0f, 1.0f);
-    }
+    adaptedAutoDirectionBias *= distanceFactor;
+    adaptedAutoDirectionBias =
+        std::pow(adaptedAutoDirectionBias, 1.0f - proximityBonus * 0.9f);
+    adaptedAutoPowerBias *= distanceFactor;
+    adaptedAutoPowerBias = clamp(adaptedAutoPowerBias * (1.0 + proximityBonus), 0.0f, 1.0f);
     //printf("adaptedAutoPowerBias: %f\n", adaptedAutoPowerBias);
   }
 

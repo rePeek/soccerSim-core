@@ -67,7 +67,6 @@ set(CORE_SOURCES
 
 
 set(GAME_HEADERS
-   src/sim/humangamer.hpp
    src/sim/player/humanoid/humanoidbase.hpp
    src/sim/player/humanoid/humanoid.hpp
    src/sim/player/humanoid/humanoid_utils.hpp
@@ -80,8 +79,6 @@ set(GAME_HEADERS
    src/sim/player/player_action_executor.hpp
    src/sim/player/player_action_volume.hpp
    src/sim/player/player.hpp
-   src/sim/player/controller/humancontroller.hpp
-   src/sim/player/controller/playercontroller.hpp
    src/sim/referee.hpp
    src/sim/ball.hpp
    src/sim/team.hpp
@@ -93,10 +90,8 @@ set(GAME_HEADERS
    src/sim/query/player_query.hpp
    src/sim/query/reachability.hpp
    src/sim/rules/offside.hpp
-   src/sim/player/ball_approach.hpp
    src/sim/player/kick_targeting.hpp
    src/sim/ai_support/mentalimage.hpp
-   src/sim/team_tactical_state.hpp
    src/sim/rules/restart_placement.hpp
 )
 
@@ -108,9 +103,6 @@ set(GAME_SOURCES
    src/sim/player/player.cpp
    src/sim/player/player_control_builder.cpp
    src/sim/player/player_locomotion.cpp
-   src/sim/player/controller/playercontroller.cpp
-   src/sim/player/controller/humancontroller.cpp
-   src/sim/humangamer.cpp
    src/sim/ball.cpp
    src/sim/match.cpp
    src/sim/match_world_state.cpp
@@ -122,7 +114,6 @@ set(GAME_SOURCES
    src/sim/query/reachability.cpp
    src/sim/rules/offside.cpp
    src/sim/rules/restart_placement.cpp
-   src/sim/player/ball_approach.cpp
    src/sim/player/kick_targeting.cpp
    src/sim/team.cpp
 )
@@ -130,7 +121,7 @@ set(GAME_SOURCES
 
 list(APPEND GAME_HEADERS src/sim/formation.hpp)
 
-set(AI_HEADERS src/ai/default_ai.hpp src/ai/tactical_board.hpp)
+set(AI_HEADERS src/ai/default_ai.hpp src/ai/tactical_board.hpp src/ai/team_requests.hpp)
 set(AI_SOURCES src/ai/default_ai.cpp src/ai/tactical_board.cpp)
 
 # Executable-side code. It builds model descriptions from legacy data, so it may
@@ -146,6 +137,9 @@ set(APP_SUPPORT_SOURCES
    src/app/fixtures/legacy_player_profile.cpp
    src/app/fixtures/default_teams.cpp
 )
+
+set(APP_INPUT_HEADERS src/app/input/grf/action.hpp src/app/input/grf/input.hpp)
+set(APP_INPUT_SOURCES src/app/input/grf/input.cpp)
 
 set(APP_MAIN_SOURCES
    src/app/app.cpp

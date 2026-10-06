@@ -23,7 +23,6 @@
 #include "sim/referee.hpp"
 #include "sim/value_history.hpp"
 
-#include "controller/controller_input.hpp"
 #include "sim/match_options.hpp"
 #include "sim/rng.hpp"
 #include "model/pitch.hpp"
@@ -33,6 +32,7 @@
 #include "sim/player_control_set.hpp"
 
 
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 
@@ -74,6 +74,7 @@ class Match {
     void UpdateLatestMentalImageBallPredictions();
 
     void ResetSituation(const Vector3 &focusPos);
+    std::uint64_t GetResetSequence() const { return reset_sequence_; }
 
     void SetMatchPhase(e_MatchPhase newMatchPhase);
     e_MatchPhase GetMatchPhase() const { return matchPhase; }
@@ -134,7 +135,6 @@ class Match {
 
 
     float GetMatchDurationFactor() const { return matchDurationFactor; }
-    bool GetUseMagnet() const { return _useMagnet; }
 
     const std::vector<Vector3> &GetAnimPositionCache(AnimationId animation_id) const;
 
@@ -172,6 +172,8 @@ class Match {
 
     unsigned long matchTime_ms = 0;
     unsigned long actualTime_ms = 0;
+    // Actual world discontinuities; not a policy/request timer.
+    std::uint64_t reset_sequence_ = 0;
     unsigned long goalScoredTimer = 0;
 
     e_MatchPhase matchPhase = e_MatchPhase_PreMatch; // 0 - first half; 1 - second half; 2 - 1st extra time; 3 - 2nd extra time; 4 - penalties
@@ -199,12 +201,8 @@ class Match {
 
     const float matchDurationFactor = 0.0f;
 
-    // Snapshot of the initialization options, including the values the referee
-    // and team selection used to read from the ambient scenario singleton.
+    // Snapshot of initialization-time football rules.
     const MatchOptions options_;
-    // Whether to use magnet logic (that automatically pushes active player
-    // towards the ball).
-    const bool _useMagnet;
 };
 
 #endif

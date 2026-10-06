@@ -205,7 +205,7 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                     // supporting players
                     if (isTakerTeam) {
                       std::vector<Player *> result;
-                      football::sim::query::GetClosestPlayers(team, Vector3(0), false, result, 2);
+                      football::sim::query::GetClosestPlayers(team, Vector3(0), result, 2);
                       for (unsigned int i = 0; i < result.size(); i++) {
                         result[i]->ResetPosition(
                             Vector3(0, i * 1.4 * team->GetDynamicSide(), 0),
@@ -396,7 +396,7 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                     std::vector<Player *> result;
                     football::sim::query::GetClosestPlayers(team,
                                          match->GetBall()->Predict(0).Get2D(),
-                                         false, result, 3);
+                                         result, 3);
                     for (unsigned int i = 0; i < result.size(); i++) {
                       Vector3 toGoal =
                           (Vector3(team->GetDynamicSide() * pitchHalfW, 0, 0) -
@@ -511,7 +511,7 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                 auto ball_pos = match->GetBall()->Predict(0).Get2D();
                 std::vector<Player *> players;
                 football::sim::query::GetClosestPlayers(team, match->GetBall()->Predict(0).Get2D(),
-                                     false, players, 2);
+                                     players, 2);
                 taker = players[0];
                 if (setPiece == e_GameMode_KickOff) {
                   // Do nothing

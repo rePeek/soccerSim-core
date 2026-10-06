@@ -19,13 +19,8 @@
 #define _HPP_TEAM
 
 #include <cstdint>
-#include <list>
-#include <memory>
 #include "model/team.hpp"
 #include "sim/player/player.hpp"
-#include "support/config/properties.hpp"
-#include "sim/team_tactical_state.hpp"
-#include "sim/humangamer.hpp"
 
 class Match;
 
@@ -49,13 +44,8 @@ class Team {
     void InitPlayers(std::uint8_t first_schedule_phase);
 
     Match *GetMatch() { return match; }
-    const TeamTacticalState &GetTacticalState() const { return tactical_state_; }
     Player *GetPieceTaker();
     e_GameMode GetSetPieceType();
-    float GetOffsideTrapX();
-    void ApplyAttackingRun(Player *manual_player = nullptr);
-    void ApplyTeamPressure();
-    void ApplyKeeperRush();
 
     football::model::TeamSide GetTeamSide() const {
       return static_cast<football::model::TeamSide>(id);
@@ -69,7 +59,6 @@ class Team {
       return id == 0 ? -1 : 1;
     }
     const football::model::Team& GetModel() const { return model_; }
-    const Properties& GetTactics() const { return tactics_; }
 
     FormationEntry GetFormationEntry(void* player);
     void SetFormationEntry(Player* player, FormationEntry entry);
@@ -80,26 +69,6 @@ class Team {
     }
     void GetActivePlayers(std::vector<Player *> &activePlayers);
     int GetActivePlayersCount() const;
-    Player *MainSelectedPlayer() { return mainSelectedPlayer; }
-
-    unsigned int GetHumanGamerCount() {
-      int count = 0;
-      for (auto& g: humanGamers) {
-        if (!g->GetHumanController()->Disabled()) {
-          count++;
-        }
-      }
-      return count;
-    }
-    void GetHumanControllers(std::vector<HumanGamer*>& v) {
-      for (auto& g: humanGamers) {
-        v.push_back(g.get());
-      }
-    }
-    void AddHumanGamers(const std::vector<ControllerInput*>& controllers);
-    void DeleteHumanGamers();
-    e_PlayerColor GetPlayerColor(Player* player);
-    int HumanControlledToBallDistance();
 
     bool HasPossession() const;
     bool HasUniquePossession() const;
@@ -124,11 +93,12 @@ class Team {
 
     void ResetSituation(const Vector3 &focusPos);
 
-    void HumanGamersSelectAnyone();
     void SetOpponent(Team* opponent) { this->opponent = opponent; }
     Team* Opponent() { return opponent; }
-    void SelectPlayer(Player *player);
-    void DeselectPlayer(Player *player);
+    // Contact/reachability metadata, not input selection or ownership.
+    void SetDesignatedTeamPossessionPlayer(Player *player) {
+      designatedTeamPossessionPlayer = player;
+    }
 
     void RelaxFatigue(float howMuch);
 
@@ -137,7 +107,6 @@ class Team {
     void Hide2D();
 
     void UpdatePossessionStats();
-    void UpdateSwitch();
 
     Player *GetGoalie();
 
@@ -147,7 +116,6 @@ class Team {
     Team *opponent = 0;
     const football::model::Team model_;
     std::vector<FormationEntry> formation_;
-    Properties tactics_;
     const float aiDifficulty;
 
     bool hasPossession = false;
@@ -157,17 +125,10 @@ class Team {
     float teamPossessionAmount = 0.0f;
     float fadingTeamPossessionAmount = 0.0f;
 
-    TeamTacticalState tactical_state_;
 
     std::vector<Player*> players;
 
-    std::vector<std::unique_ptr<HumanGamer>> humanGamers;
-
-    // humanGamers index whose turn it is
-    // begin() == due next
-    std::list<int> switchPriority;
     Player *lastTouchPlayer = nullptr;
-    Player *mainSelectedPlayer = nullptr;
 
     int side = -1;
     bool mirrored = false;

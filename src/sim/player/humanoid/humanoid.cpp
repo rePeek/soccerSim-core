@@ -607,7 +607,6 @@ void Humanoid::Process() {
         float ballPower = currentAnim.originatingCommand.touchInfo.desiredPower;
         Player *targetPlayer = currentAnim.originatingCommand.touchInfo.targetPlayer;
         Vector3 inputDirection = currentAnim.originatingCommand.touchInfo.inputDirection;
-        if (CastPlayer()->ExternalControllerActive()) inputDirection = CastPlayer()->ExternalController()->GetDirection();
 
         // refine/change target, if new target is close enough to old target
 
@@ -640,7 +639,7 @@ void Humanoid::Process() {
         }  // else: just stick to original
 
         if (targetPlayer) {
-          team->SelectPlayer(targetPlayer);
+          team->SetDesignatedTeamPossessionPlayer(targetPlayer);
 
         }
         float zcurve = 0.0f;
@@ -683,7 +682,6 @@ void Humanoid::Process() {
         // alter direction, if needed
         Vector3 ballDirection = currentAnim.originatingCommand.touchInfo.desiredDirection;
         Vector3 inputDirection = currentAnim.originatingCommand.touchInfo.inputDirection;
-        if (CastPlayer()->ExternalControllerActive()) inputDirection = CastPlayer()->ExternalController()->GetDirection();
         Vector3 ballDirectionAltered = football::sim::mechanics::GetShotDirection(CastPlayer(), inputDirection, currentAnim.originatingCommand.touchInfo.autoDirectionBias);
 
         float maxDeviationAngle = 0.1f * pi;

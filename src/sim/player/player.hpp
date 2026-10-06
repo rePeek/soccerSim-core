@@ -138,12 +138,8 @@ int &DecisionPublicationCauseCount(int cause);
 int &LocomotionReentryMeasurementEpoch();
 void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
-#include "model/player.hpp"
-#include "sim/humangamer.hpp"
-
 
 class Match;
-class HumanController;
 class HumanoidBase;
 
 struct TacticalPlayerSituation {
@@ -350,9 +346,6 @@ class Player final {
     void RequestCommand(PlayerCommandQueue &commandQueue);
     int GetReactionTime_ms();
     float GetControlSpeed();
-    void SetExternalController(HumanGamer *externalController);
-    HumanController *ExternalController();
-    bool ExternalControllerActive();
     void SetControl(const PlayerControl& control) { control_ = control; }
     void ClearControl() { control_.reset(); }
 
@@ -405,8 +398,6 @@ class Player final {
     FormationEntry GetFormationEntry();
     void SetDynamicFormationEntry(FormationEntry entry) { dynamicFormationEntry = entry; }
     FormationEntry GetDynamicFormationEntry() { return dynamicFormationEntry; }
-    void SetManMarking(Player* player) { manMarking = player; }
-    Player* GetManMarking() { return manMarking; }
     bool HasPossession() const;
     bool HasBestPossession() const;
     bool HasUniquePossession() const;
@@ -498,7 +489,6 @@ class Player final {
     int tr_last_query_had_candidate = 0;
     int resetSituationAuditContext = kResetSituationUnspecified;
     int tactical_image_time_ms_ = 0;
-    HumanGamer *externalController = 0;
     std::optional<PlayerControl> control_;
 
     bool isActive = false;
@@ -511,7 +501,6 @@ class Player final {
     std::vector<Vector3> positionHistoryPerSecond; // resets too (on ResetSituation() calls)
 
     Team *team = nullptr;
-    Player* manMarking = 0;
     FormationEntry dynamicFormationEntry;
     bool hasPossession = false;
     bool hasBestPossession = false;

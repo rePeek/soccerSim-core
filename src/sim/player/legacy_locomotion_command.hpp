@@ -16,10 +16,9 @@
 // -owned locomotion model.
 //
 // This is deliberately NOT part of PlayerLocomotion. PlayerLocomotion is the
-// new simulation physics; this adapter carries the semantics of the old
-// animation-driven controller, which the AI still speaks. Keeping them apart
-// means the deadband below can simply be deleted once PlayerIntent replaces
-// PlayerCommand.
+// simulation physics; this adapter carries the old animation-command semantics.
+// Value controls are translated to PlayerCommand inside sim, never by AI/input.
+// Keep the numerical deadband independent of the producer of those controls.
 //
 // The one piece of legacy semantics that matters is the idle deadband. The
 // legacy controller fed the continuous desired speed through

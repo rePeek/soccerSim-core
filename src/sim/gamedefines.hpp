@@ -170,7 +170,7 @@ typedef std::vector<PlayerCommand> PlayerCommandQueue;
 
 e_PlayerRole GetRoleFromString(const std::string &roleString);
 
-// Transitional aliases for legacy AI and controller code. Pitch is the single
+// Transitional aliases for runtime animation/mechanics. Pitch is the single
 // source of geometry; new match code should query its owned Pitch instead.
 inline constexpr float pitchHalfW = football::model::MakeLegacyPitch().half_length();
 inline constexpr float pitchHalfH = football::model::MakeLegacyPitch().half_width();

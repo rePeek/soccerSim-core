@@ -34,6 +34,7 @@ GameEnv::~GameEnv() {
 void GameEnv::stop_game() {
   simulation_.reset();
   controls_.Clear();
+  ai_.ResetRequests();
 }
 
 void GameEnv::start_game() {
@@ -56,7 +57,7 @@ void GameEnv::step() {
   PlayerControlSet combined;
   ai_.Update(world, combined);
   // Explicit controls override default decisions; no defaults are stored in
-  // controls(), and human-owned actors are omitted by the value policy.
+  // controls(); simulation knows nothing about the sources of these values.
   for (const auto &control : controls_.controls()) combined.Set(control.player, control);
   simulation_->Step(combined);
 }
@@ -68,6 +69,7 @@ WorldState GameEnv::observe() const {
 
 void GameEnv::init_match(Simulation& simulation) {
   controls_.Clear();
+  ai_.ResetRequests();
   // The legacy episode defaults are now the only possible match options.
   simulation.Init(home_team_, away_team_, pitch_, MatchOptions{}, false);
 }

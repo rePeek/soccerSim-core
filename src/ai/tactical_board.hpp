@@ -30,7 +30,7 @@ struct PlayerDirective {
 };
 
 // Persistent AI-owned configuration. External coaches/UI may edit these values.
-// Actual restarts and timed run/pressure/rush requests belong to WorldState.
+// Actual restarts belong to sim/WorldState; transient requests to AI TeamRequests.
 struct TacticalBoard {
   football::model::TeamSide side = football::model::TeamSide::Home;
   // Desired dimensions as fractions of pitch width/length, not metres.

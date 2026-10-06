@@ -55,24 +55,6 @@ bool LeftTeamOwnsBall(const std::vector<FormationEntry>& left,
   return leftDistance < rightDistance;
 }
 
-// Mirrors the retired ScenarioConfig::DynamicPlayerSelection() with the legacy
-// agent defaults: one controllable left agent and none on the right.
-bool DynamicPlayerSelection(const std::vector<FormationEntry>& left,
-                            const std::vector<FormationEntry>& right) {
-  constexpr int kLeftAgents = 1;
-  constexpr int kRightAgents = 0;
-  int controllable_left = 0;
-  int controllable_right = 0;
-  for (const FormationEntry& entry : left) {
-    if (entry.controllable) ++controllable_left;
-  }
-  for (const FormationEntry& entry : right) {
-    if (entry.controllable) ++controllable_right;
-  }
-  return !((controllable_left == kLeftAgents || kLeftAgents == 0) &&
-           (controllable_right == kRightAgents || kRightAgents == 0));
-}
-
 // Validate the effective descriptions before profile draws, reseeding or
 // actor construction. Caller identities are never generated or renumbered.
 void ValidatePlayers(const football::model::Team& home, const football::model::Team& away) {
@@ -126,11 +108,9 @@ void Simulation::Init(
   ResolveAppearance(home_model, rng_);
   ResolveAppearance(away_model, rng_);
 
-  // Derived once here, so the referee and team selection never read ambient
-  // configuration during a tick.
+  // Derive the kickoff rule once; input selection is not simulation state.
   options.left_team_owns_ball =
       LeftTeamOwnsBall(left, right, options.ball_position);
-  options.dynamic_player_selection = DynamicPlayerSelection(left, right);
 
   // Apply the episode seed after the appearance draws, before constructing
   // actors. Moving those draws across this boundary changes simulation RNG.

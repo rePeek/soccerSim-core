@@ -84,6 +84,7 @@ uint64_t HashValue(uint64_t hash, const T& value) {
 
 uint64_t HashWorld(const WorldState& world) {
   uint64_t hash = HashValue(UINT64_C(1469598103934665603), world.tick);
+  hash = HashValue(hash, world.reset_sequence);
   const auto vector_hash = [](uint64_t hash, const Vector3& value) {
     return HashBytes(hash, value.coords, sizeof(value.coords));
   };
@@ -112,14 +113,8 @@ uint64_t HashWorld(const WorldState& world) {
     hash = vector_hash(hash, player.facing);
     hash = HashValue(hash, player.active);
     hash = HashValue(hash, player.has_possession);
-    hash = HashValue(hash, player.externally_controlled);
     hash = HashValue(hash, player.lazy);
     hash = HashValue(hash, player.max_speed);
-    hash = HashValue(hash, player.attacking_run_remaining_ms);
-    hash = HashValue(hash, player.pressure_remaining_ms);
-    hash = HashValue(hash, player.keeper_rush_remaining_ms);
-    hash = HashValue(hash, player.marking_target.has_value());
-    if (player.marking_target) hash = HashValue(hash, *player.marking_target);
   }
   return hash;
 }
@@ -1045,7 +1040,7 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   (void)expected();
   const auto epoch = player->GetDecisionLocomotionContinuityEpoch();
   player->Deactivate();
-  Require(!player->IsActive() && player->ExternalController() == nullptr &&
+  Require(!player->IsActive() &&
               player->GetDecisionLocomotionContinuityEpoch() == epoch + 2 &&
               rng.engine() == expected.engine() &&
               match->GetTeam(1)->GetActivePlayersCount() == 10,
@@ -1222,13 +1217,13 @@ struct GoldenSnapshot {
 
 // Value-policy/home-frame baseline. This intentionally replaces Eliza/RNG
 // trajectories; the previous golden pairs are archived in test/baselines/.
-// AI ownership migration adds request fields to HashWorld only; simulation
-// digest goldens (including motion, actions and RNG) remain unchanged.
+// Input cleanup removes ownership/request fields and adds the actual reset
+// sequence to HashWorld. Simulation digest goldens (motion/actions/RNG) are unchanged.
 constexpr GoldenSnapshot golden[] = {
-    {1, UINT64_C(16938073673177634806), UINT64_C(350760935552669674)},
-    {100, UINT64_C(15465377132528825825), UINT64_C(13725550824419574755)},
-    {500, UINT64_C(14448294930850262157), UINT64_C(7040189435179413637)},
-    {1000, UINT64_C(480541022030217475), UINT64_C(10968404906479542722)},
+    {1, UINT64_C(5371189051509720323), UINT64_C(350760935552669674)},
+    {100, UINT64_C(1291515177572478404), UINT64_C(13725550824419574755)},
+    {500, UINT64_C(1650659871221397832), UINT64_C(7040189435179413637)},
+    {1000, UINT64_C(1772856281264394018), UINT64_C(10968404906479542722)},
 };
 
 void CheckGoldenSnapshots(Simulation& simulation, GameEnv& game, bool print_baseline) {

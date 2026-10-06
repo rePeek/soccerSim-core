@@ -4,7 +4,7 @@
 #define _HPP_PLAYER_DECISION_SCHEDULER
 
 
-// Simulation-owned clock for asking a player controller for its complete
+// Simulation-owned clock for translating supplied controls to a complete
 // PlayerCommandQueue. Locomotion has a separate execution/publication clock.
 struct PlayerDecisionScheduler {
   int lastRefreshTime_ms = 0;

@@ -30,7 +30,7 @@ legacy observation frames. Configure commands through `game.controls()`.
 
 Default AI remains shipped in `libgame.so`, but runs outside simulation:
 `WorldState + TacticalBoard → DefaultAI → PlayerControlSet → Simulation`.
-Explicit controls override default decisions; active Human input stays in sim.
+Explicit controls override default decisions; simulation has no input ownership or Human path.
 Simulation itself has no decision objects/factories and no implicit AI fallback.
 AI links only the header-only `football_sim_contracts` target, never actor/runtime
 code. Simulation owns its input/output headers: `sim/player_control.hpp`,
@@ -44,6 +44,38 @@ static `model::Team` declarations, with no simulation bootstrap. Edit them throu
 `game.tactics(TeamSide::Home)`; width/depth are pitch fractions (defaults 0.75/0.55).
 Player AI derives local targets without rewriting the base plan. Simulation
 reset/stop/start preserves tactical configuration.
+Run/pressure/rush requests live separately in `ai::TeamRequests`, not in the board
+or `WorldState`. They expire on observed ticks or actual world reset sequences.
+Start/reset/stop clears these short-lived requests, never the persistent tactics.
+
+### GRF / human input
+
+Only seven top-level source modules remain: foundation, support, model, sim, ai,
+env and app. The retired controller/control/observation/data layers are deleted.
+`src/app/input/grf/` owns wire actions, sticky state and selected IDs. Link the
+value-only `football_app_input` archive alongside the core; it never links actors.
+
+```cpp
+#include "app/input/grf/input.hpp"
+
+// home/away/pitch are the same static descriptions supplied to GameEnv.
+GameEnv game(home, away, pitch);
+football::app::grf::Input input(home, football::model::TeamSide::Home);
+game.start_game();
+input.Apply(football::app::grf::Action::Right);
+for (int tick = 0; tick < 100; ++tick) {
+  input.Update(game.observe(), game.default_ai(), game.controls());
+  game.step();  // AI defaults, then explicit input overrides, then one sim tick
+}
+```
+
+Wire numbers 0–32 are retained. Movement/modifiers/pressure/rush are sticky;
+kicks/sliding/switch are one-shot requests with default kick power 0.6, not the old
+Human animation planner/gauge. Requests remain subject to sim cadence/legality,
+not proof of execution. BuiltinAI relinquishes overrides. Reset input
+state explicitly when starting a new session. Multiple input slots reserve IDs
+in the application, never in simulation. Record/replay the resulting
+`PlayerControlSet` frames without any input or AI objects.
 
 The old Eliza strategy was intentionally replaced, not wrapped. Current policy
 goldens differ; historical values are recorded in
@@ -76,9 +108,9 @@ owned model ID directly. Roster order comes from containers; a private repeating
 `schedule_phase_` only staggers calculations, never keys controls or snapshots.
 
 `GameEnv` does not expose runtime containers, episode configuration, GRF
-observations or checkpoint serialization. The GRF compatibility adapter, the
-binary checkpoint layer and the `ScenarioConfig` episode input have all been
-deleted, not moved to test support. Match rules are the `MatchOptions` defaults,
+observations or checkpoint serialization. The GRF environment adapter (distinct
+from the app action decoder), binary checkpoint layer and ScenarioConfig episode
+input remain deleted. Match rules are the MatchOptions defaults,
 snapshotted by `Match`. Internal regression diagnostics own/pass `Simulation`
 explicitly, while public `GameEnv` checks use only raw `WorldState` snapshots;
 animation branches use deterministic reset/replay. No environment runtime
@@ -92,9 +124,9 @@ removed; card restart deadlines are fixed rules time, never animation duration.
 ## Tests
 
 `ctest --preset release` runs the core regression/diagnostic executables plus the
-Catch2 suites in `test/`: value-only AI, controls/observations/rules, exact restart
-and computation baselines, executable argument parsing/importers/fixtures, CLI
-composition and binary output. Architecture guards have negative tests too.
+Catch2 suites in `test/`: value-only AI/requests and GRF input, controls/snapshots/rules,
+exact restart/computation baselines, plain control-tape replay, fixtures, CLI and
+binary output. Architecture guards have negative tests too.
 Catch2 is pulled in by
 [CPM](https://github.com/cpm-cmake/CPM.cmake) (`cmake/CPM.cmake`) and cached in
 `.cache/CPM`; nothing in `test/`, `src/app/` or Catch2 is linked into the core

@@ -15,21 +15,21 @@ fi
 
 modules='model:football_model
 foundation:football_foundation
-controller:football_controller
 support:football_support
 sim:football_sim
 env:football_engine
-ai:football_ai'
+ai:football_ai
+app/input:football_app_input'
 provides='football_foundation:foundation
 football_model:model
 football_sim_contracts:sim-contracts
-football_controller:controller
 football_support:support
 football_animation:sim/animation
 football_sim:sim
 football_engine:env
 football_ai:ai
-football_app_support:app'
+football_app_support:app
+football_app_input:app'
 value_of() {
   printf '%s\n' "$1" | sed -n "s/^$2://p"
 }
@@ -52,24 +52,43 @@ classify() {
 }
 
 status=0
-for retired in control observation; do
+for retired in control observation controller data sim/player/controller; do
   if [ -e "$source_dir/$retired" ]; then
     echo "module dependency guard: retired src/$retired directory" >&2
     status=1
   fi
 done
-sim_closure=$(closure_of football_sim)
-case " $sim_closure " in
-  *' football_ai '*)
-    echo 'module dependency guard: forbidden football_sim -> football_ai link' >&2
-    status=1 ;;
-esac
-ai_closure=$(closure_of football_ai)
-for target in football_sim football_animation football_engine football_controller football_support football_app_support; do
-  case " $ai_closure " in
-    *" $target "*)
-      echo "module dependency guard: forbidden football_ai -> $target link" >&2
-      status=1 ;;
+for dir in "$source_dir"/*; do
+  [ ! -d "$dir" ] && continue
+  case "${dir##*/}" in
+    foundation|support|model|sim|ai|env|app) ;;
+    *) echo "module dependency guard: unsupported top-level module ${dir##*/}" >&2; status=1 ;;
+  esac
+done
+for core in football_foundation football_model football_support football_animation football_sim football_ai football_engine; do
+  for target in $(closure_of "$core"); do
+    case "$target" in
+      football_app_input|football_app_support|football_controller)
+        echo "module dependency guard: forbidden $core -> $target link" >&2; status=1 ;;
+    esac
+  done
+done
+for target in $(closure_of football_sim); do
+  case "$target" in
+    football_sim|football_animation|football_support|football_foundation|football_model|football_sim_contracts) ;;
+    *) echo "module dependency guard: forbidden football_sim -> $target link" >&2; status=1 ;;
+  esac
+done
+for target in $(closure_of football_app_input); do
+  case "$target" in
+    football_app_input|football_ai|football_sim_contracts|football_foundation|football_model) ;;
+    *) echo "module dependency guard: forbidden football_app_input -> $target link" >&2; status=1 ;;
+  esac
+done
+for target in $(closure_of football_ai); do
+  case "$target" in
+    football_ai|football_sim_contracts|football_foundation|football_model) ;;
+    *) echo "module dependency guard: forbidden football_ai -> $target link" >&2; status=1 ;;
   esac
 done
 # A convenient transitive edge must not turn passive contracts into runtime.
@@ -100,10 +119,20 @@ if [ -e "$source_dir/sim/ai_support/AIfunctions.hpp" ] ||
   echo 'module dependency guard: obsolete AIfunctions/AI_ API in sim' >&2
   status=1
 fi
-if grep -RqE 'TacticalBoard|PlayerDirective|PlannedPlayerRole|ObserveTactics' \
+if grep -RqE 'TacticalBoard|PlayerDirective|PlannedPlayerRole|ObserveTactics|TeamRequests|TimedPlayerIntent|marking_target' \
     --include='*.cpp' --include='*.hpp' --include='*.h' "$source_dir/sim"; then
   echo 'module dependency guard: tactical intent leaked into simulation contracts' >&2
   status=1
+fi
+
+for file in humangamer.cpp humangamer.hpp team_tactical_state.hpp; do
+  if [ -e "$source_dir/sim/$file" ]; then
+    echo "module dependency guard: retired sim/$file file" >&2; status=1
+  fi
+done
+if grep -RqiE 'HumanController|HumanGamer|PlayerController|ControllerInput|ExternalController|TeamTacticalState|ApplyAttackingRun|ApplyTeamPressure|ApplyKeeperRush|externally_controlled|attacking_run_remaining_ms|pressure_remaining_ms|keeper_rush_remaining_ms' \
+    --include='*.cpp' --include='*.hpp' --include='*.h' "$source_dir"; then
+  echo 'module dependency guard: retired input/tactical authority in core' >&2; status=1
 fi
 
 check_includes() {
@@ -125,6 +154,11 @@ check_includes() {
       --include='*.cpp' --include='*.hpp' --include='*.h' "$@" 2>/dev/null \
     | sed -E 's/#[[:space:]]*include[[:space:]]*["<](.*)[">]/\1/' | sort -u)
   for header in $used; do
+    case "$header" in
+      ../*|./*|/*|*/../*|*/./*)
+        echo "module dependency guard: $label non-canonical include $header" >&2
+        status=1; continue ;;
+    esac
     prefix=$(classify "$header")
     case " $allowed " in
       *" $prefix "*) ;;

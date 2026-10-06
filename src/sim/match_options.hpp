@@ -10,7 +10,6 @@ struct MatchOptions {
   // Scales how fast match time advances; preserves the legacy duration factor.
   float match_duration = 0.027f;
   bool reverse_team_processing = false;
-  bool use_magnet = true;
   float left_team_difficulty = 1.0f;
   float right_team_difficulty = 0.6f;
   unsigned int game_engine_random_seed = 42;
@@ -22,7 +21,6 @@ struct MatchOptions {
   blunted::Vector3 ball_position = blunted::Vector3(0.0f, -0.0f, 0.0f);
   // Derived once from the effective initial formations at initialization.
   bool left_team_owns_ball = false;
-  bool dynamic_player_selection = true;
 };
 
 #endif  // FOOTBALL_SIM_MATCH_OPTIONS_HPP

@@ -30,10 +30,6 @@ Team::Team(int id, Match *match, const football::model::Team& model,
     : id(id), match(match), model_(model), formation_(BuildFormation(model)),
       aiDifficulty(aiDifficulty) {
   assert(id == 0 || id == 1);
-  // Retain the legacy six-decimal Properties conversion for live AI numerics.
-  for (const auto& [key, value] : model_.tactics) tactics_.Set(key, value);
-
-
   timeNeededToGetToBall_ms = 100;
   hasPossession = false;
 
@@ -54,12 +50,10 @@ void Team::Mirror() {
 void Team::Exit() {
   Hide2D();
 
-  humanGamers.clear();
   for (unsigned int i = 0; i < players.size(); i++) {
     delete players[i];
   }
 
-  tactical_state_ = {};
 
 }
 
@@ -114,55 +108,9 @@ int Team::GetActivePlayersCount() const {
   return count;
 }
 
-void Team::AddHumanGamers(const std::vector<ControllerInput*>& controllers) {
-  for (auto controller : controllers) {
-    humanGamers.push_back(std::make_unique<HumanGamer>(this, controller));
-    switchPriority.push_back(humanGamers.size() - 1);
-  }
-  UpdateDesignatedTeamPossessionPlayer();
-  std::vector<Player*> result;
-  football::sim::query::GetClosestPlayers(this, match->GetBall()->Predict(0).Get2D(), true, result, controllers.size(), true);
-  if (!result.empty()) {
-    mainSelectedPlayer = result[0];
-  }
-  // Bind the closest subset in the container's original roster order. Neither
-  // external IDs nor repeating scheduler phases describe controller order.
-  std::size_t controller_slot = 0;
-  for (Player* player : players) {
-    if (std::find(result.begin(), result.end(), player) != result.end()) {
-      humanGamers[controller_slot++]->SetSelectedPlayer(player);
-    }
-  }
-}
-
 void Team::UpdateDesignatedTeamPossessionPlayer() {
   designatedTeamPossessionPlayer =
-      football::sim::query::GetClosestPlayer(this, match->GetBall()->Predict(0).Get2D(), false);
-}
-
-void Team::DeleteHumanGamers() {
-  humanGamers.clear();
-  switchPriority.clear();
-}
-
-e_PlayerColor Team::GetPlayerColor(Player *player) {
-  if (player->ExternalController()) {
-    return static_cast<e_PlayerColor>(
-        player->ExternalController()->GetHIDevice()->GetPlayerColorIndex());
-  }
-  return e_PlayerColor_Default;
-}
-
-int Team::HumanControlledToBallDistance() {
-  int timeToBall = 10000;
-  for (auto& human : humanGamers) {
-    if (human->GetSelectedPlayer() && !human->GetHIDevice()->Disabled()) {
-      timeToBall =
-          std::min(timeToBall,
-                   human->GetSelectedPlayer()->GetTimeNeededToGetToBall_ms());
-    }
-  }
-  return timeToBall;
+      football::sim::query::GetClosestPlayer(this, match->GetBall()->Predict(0).Get2D());
 }
 
 bool Team::HasPossession() const { return hasPossession; }
@@ -226,57 +174,8 @@ void Team::ResetSituation(const Vector3 &focusPos) {
     }
   }
 
-  tactical_state_ = {};
 }
 
-void Team::HumanGamersSelectAnyone() {
-  // make sure all human gamers have a player selected
-  if (match->IsInPlay()) {
-    if (mainSelectedPlayer == nullptr) {
-      mainSelectedPlayer = football::sim::query::GetClosestPlayer(
-          this, match->GetBall()->Predict(0).Get2D(), true, 0, true);
-    }
-    for (unsigned int i = 0; i < humanGamers.size(); i++) {
-      if (!humanGamers[i]->GetSelectedPlayer()) {
-        Player *player = football::sim::query::GetClosestPlayer(
-            this, match->GetBall()->Predict(0).Get2D(), true, 0, true);
-        if (player) {
-          humanGamers[i]->SetSelectedPlayer(player);
-        }
-      }
-    }
-  }
-}
-
-void Team::SelectPlayer(Player *player) {
-  if (player->GetFormationEntry().controllable) {
-    mainSelectedPlayer = player;
-    if (!player->ExternalController() && !humanGamers.empty()) {
-        // already selected
-      humanGamers.at(*switchPriority.begin())->SetSelectedPlayer(player);
-      switchPriority.push_back(*switchPriority.begin());
-      switchPriority.pop_front();
-    }
-  }
-  designatedTeamPossessionPlayer = player;
-}
-
-void Team::DeselectPlayer(Player *player) {
-  for (unsigned int i = 0; i < humanGamers.size(); i++) {
-    Player* selectedPlayer = humanGamers[i]->GetSelectedPlayer();
-    if (selectedPlayer == player) {
-      Player *somePlayer =
-          football::sim::query::GetClosestPlayer(this, player->GetPosition(), true, player, true);
-      if (somePlayer) {
-        mainSelectedPlayer = somePlayer;
-        humanGamers[i]->SetSelectedPlayer(somePlayer);
-      } else {
-        mainSelectedPlayer = nullptr;
-        humanGamers[i]->SetSelectedPlayer(0);
-      }
-    }
-  }
-}
 
 void Team::RelaxFatigue(float howMuch) {
   for (unsigned int i = 0; i < players.size(); i++) {
@@ -309,73 +208,9 @@ void Team::Process() {
     }
   }
 
-  HumanGamersSelectAnyone();
-  // Pressure owns its temporary Human marking assistance; without the old
-  // periodic AI marking pass it must not leak beyond the request deadline.
-  if (tactical_state_.pressure_player &&
-      tactical_state_.pressure_until_ms <= match->GetActualTime_ms()) {
-    tactical_state_.pressure_player->SetManMarking(nullptr);
-    tactical_state_.pressure_player = nullptr;
-  }
-
   for (unsigned int i = 0; i < players.size(); i++) {
     if (players[i]->IsActive()) {
       players[i]->Process();
-    }
-  }
-
-  if (match->IsInPlay()) {
-    for (unsigned int i = 0; i < humanGamers.size(); i++) {
-      // switch button
-      Player *selectedPlayer = humanGamers[i]->GetSelectedPlayer();
-      if (humanGamers[i]->GetHIDevice()->GetButton(e_ButtonFunction_Switch) &&
-          !humanGamers[i]->GetHIDevice()->GetPreviousButtonState(
-              e_ButtonFunction_Switch) &&
-              // don't switch if we are both best AND designated possession
-              // player. unless opponent team has ball.
-              (!(selectedPlayer == GetBestPossessionPlayer() &&
-                  selectedPlayer == designatedTeamPossessionPlayer) ||
-                  GetTeamPossessionAmount() < 1.0f) &&
-                  !selectedPlayer->HasUniquePossession()) {
-        Player *targetPlayer = 0;
-
-        if (!designatedTeamPossessionPlayer->ExternalController() &&
-            match->GetBestPossessionTeam() == this) {
-          targetPlayer = designatedTeamPossessionPlayer;
-        } else if (!GetBestPossessionPlayer()->ExternalController() &&
-            match->GetBestPossessionTeam() == this) {
-          targetPlayer = GetBestPossessionPlayer();
-        } else {
-          targetPlayer = football::sim::query::GetBestSwitchTargetPlayer(
-              match, this, humanGamers[i]->GetHIDevice()->GetDirection());
-          if (targetPlayer)
-            if (targetPlayer->ExternalController()) targetPlayer = 0;
-        }
-        if (targetPlayer == GetGoalie()) {
-          // can not be goalie in current version, at least not during
-          // play, unless being directly passed to by teammate
-          targetPlayer = 0;
-        }
-        if (targetPlayer && targetPlayer->GetFormationEntry().controllable) {
-          mainSelectedPlayer = targetPlayer;
-          humanGamers[i]->SetSelectedPlayer(targetPlayer);
-        }
-      }
-    }
-
-  } else {
-    // make sure all human gamers don't have a player selected.
-    // Don't do this for the very first step, as otherwise agent gets no player
-    // controlled in the observations returned by reset().
-    if (match->GetActualTime_ms() >= 2000) {
-      if (match->options().dynamic_player_selection) {
-        for (unsigned int i = 0; i < humanGamers.size(); i++) {
-          if (humanGamers[i]->GetSelectedPlayer()) {
-            humanGamers[i]->SetSelectedPlayer(0);
-          }
-        }
-      }
-      mainSelectedPlayer = nullptr;
     }
   }
 
@@ -394,16 +229,11 @@ void Team::Process() {
     if (bestPlayer->HasPossession()) timeRating *= 0.5f;
     if (designatedTeamPossessionPlayer->HasPossession()) timeRating /= 0.5f;
 
-    if (bestPlayer->ExternalControllerActive()) timeRating *= 0.8f;
-    if (designatedTeamPossessionPlayer->ExternalControllerActive())
-      timeRating /= 0.8f;
-
     // current player can get to the ball before the closest opponent: less
     // need to switch
     // if (GetID() == 0) printf("opptime: %i, designated time: %i\n",
     // oppTime_ms, designatedPlayerTime_ms);
-    if (!bestPlayer->ExternalControllerActive() &&
-        designatedPlayerTime_ms < oppTime_ms - 100) {
+    if (designatedPlayerTime_ms < oppTime_ms - 100) {
       timeRating += 0.2f;
       timeRating *= 1.2f;
     }
@@ -450,43 +280,6 @@ void Team::UpdatePossessionStats() {
   }
 }
 
-void Team::UpdateSwitch() {
-  // lose turn on ball possession
-
-  if (match->IsInPlay() && humanGamers.size() > 1) {
-    int myTurn = *switchPriority.begin();
-    if (humanGamers.at(myTurn)->GetSelectedPlayer() ==
-        match->GetDesignatedPossessionPlayer()) {
-      switchPriority.pop_front();
-      switchPriority.push_back(myTurn);
-    }
-  }
-
-  // autoswitch on proximity
-
-  if (match->IsInPlay() && !humanGamers.empty()) {
-    if (!designatedTeamPossessionPlayer->ExternalControllerActive() &&
-        3 * designatedTeamPossessionPlayer->GetTimeNeededToGetToBall_ms() <
-            HumanControlledToBallDistance() &&
-        designatedTeamPossessionPlayer->GetFormationEntry().role !=
-            e_PlayerRole_GK) {
-      SelectPlayer(designatedTeamPossessionPlayer);
-    }
-  }
-
-  // team player in possession is not human selected
-
-  if (match->IsInPlay() && !humanGamers.empty()) {
-    if (!designatedTeamPossessionPlayer->ExternalControllerActive() &&
-        (designatedTeamPossessionPlayer->HasUniquePossession() ||
-         match->IsInSetPiece())) {
-      if (designatedTeamPossessionPlayer->GetFormationEntry().role !=
-          e_PlayerRole_GK) {
-        SelectPlayer(designatedTeamPossessionPlayer);
-      }
-    }
-  }
-}
 
 Player *Team::GetGoalie() {
   for (unsigned int i = 0; i < players.size(); i++) {
@@ -507,31 +300,4 @@ Player *Team::GetPieceTaker() {
 e_GameMode Team::GetSetPieceType() {
   const auto &restart = match->GetReferee()->GetBuffer();
   return restart.active ? restart.desiredSetPiece : e_GameMode_Normal;
-}
-
-float Team::GetOffsideTrapX() {
-  return football::sim::rules::GetOffsideLine(match, match->GetMentalImage(0), id);
-}
-
-void Team::ApplyAttackingRun(Player *manual_player) {
-  Player *possession = GetDesignatedTeamPossessionPlayer();
-  tactical_state_.attacking_run_until_ms = match->GetActualTime_ms() + 4000;
-  tactical_state_.attacking_runner = manual_player ? manual_player :
-      football::sim::query::GetClosestPlayer(this, possession->GetPosition() +
-          Vector3(-GetDynamicSide() * 26.f, 0, 0), true, possession);
-}
-
-void Team::ApplyTeamPressure() {
-  if (tactical_state_.pressure_player)
-    tactical_state_.pressure_player->SetManMarking(nullptr);
-  tactical_state_.pressure_until_ms = match->GetActualTime_ms() + 500;
-  Player *opponent = Opponent()->GetBestPossessionPlayer();
-  tactical_state_.pressure_player = football::sim::query::GetClosestPlayer(
-      this, opponent->GetPosition() + opponent->GetMovement() * 0.24f +
-      Vector3(GetDynamicSide(), 0, 0), true, GetGoalie());
-  if (tactical_state_.pressure_player) tactical_state_.pressure_player->SetManMarking(opponent);
-}
-
-void Team::ApplyKeeperRush() {
-  tactical_state_.keeper_rush_until_ms = match->GetActualTime_ms() + 300;
 }

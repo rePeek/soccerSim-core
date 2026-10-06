@@ -362,61 +362,6 @@ void CheckHistoricalScheduling(bool print_baseline) {
   }
 }
 
-class QuietInput final : public ControllerInput {
- public:
-  bool GetButton(e_ButtonFunction) override { return false; }
-  bool GetPreviousButtonState(e_ButtonFunction) override { return false; }
-  blunted::Vector3 GetDirection() override { return blunted::Vector3(0); }
-  blunted::Vector3 GetOriginalDirection() override { return blunted::Vector3(0); }
-  bool Disabled() const override { return false; }
-  void ResetNotSticky() override {}
-  void Mirror(float) override {}
-  int GetPlayerColorIndex() const override { return 0; }
-};
-
-void CheckControllerRosterOrder() {
-  for (bool reverse : {false, true}) {
-    for (int side : {0, 1}) {
-      auto home = football::app::fixtures::MakeDefaultHomeTeam();
-      auto away = football::app::fixtures::MakeDefaultAwayTeam();
-      for (std::size_t i = 0; i < home.players.size(); ++i) {
-        home.players[i].id = 4000000000u - static_cast<model::PlayerId>(i);
-        away.players[i].id = 2000000000u - static_cast<model::PlayerId>(i);
-      }
-      std::array<QuietInput, 4> inputs;  // Outlive all HumanGamer readers.
-      Simulation simulation;
-      MatchOptions options;
-      options.reverse_team_processing = reverse;
-      simulation.Init(home, away, model::MakeLegacyPitch(), options, false);
-      Team* team = simulation.match()->GetTeam(side);
-      const auto& roster = team->GetAllPlayers();
-      for (std::size_t i = 0; i < roster.size(); ++i) {
-        auto entry = roster[i]->GetFormationEntry();
-        entry.controllable = i == 0 || i == 1 || i == 10;
-        team->SetFormationEntry(roster[i], entry);
-        roster[i]->ResetPosition(blunted::Vector3(20.0f + i, 0, 0),
-                                 blunted::Vector3(0));
-      }
-      const auto ball = simulation.match()->GetBall()->Predict(0).Get2D();
-      roster[10]->ResetPosition(ball + blunted::Vector3(0.1f, 0, 0), ball);
-      roster[1]->ResetPosition(ball + blunted::Vector3(0.2f, 0, 0), ball);
-      roster[0]->ResetPosition(ball + blunted::Vector3(0.3f, 0, 0), ball);
-      team->AddHumanGamers({&inputs[0], &inputs[1], &inputs[2], &inputs[3]});
-      std::vector<HumanGamer*> controllers;
-      team->GetHumanControllers(controllers);
-      // Slots 0 and 10 share a phase, IDs run backwards, and closest order is
-      // 10,1,0. Only roster order can produce the required mapping 0,1,10.
-      Require(controllers.size() == 4 &&
-                  controllers[0]->GetSelectedPlayer() == roster[0] &&
-                  controllers[1]->GetSelectedPlayer() == roster[1] &&
-                  controllers[2]->GetSelectedPlayer() == roster[10] &&
-                  controllers[3]->GetSelectedPlayer() == nullptr &&
-                  team->MainSelectedPlayer() == roster[10],
-              "controller binding used IDs/phases/distance instead of roster order");
-    }
-  }
-}
-
 }  // namespace
 
 int main(int argc, char **argv) {
@@ -424,7 +369,6 @@ int main(int argc, char **argv) {
     CheckValidationAndDefaults();
     CheckRosterComposition();
     CheckHistoricalScheduling(argc == 2 && std::string(argv[1]) == "--print-baseline");
-    CheckControllerRosterOrder();
     CheckIdentityDoesNotDriveSimulation(false);
     CheckIdentityDoesNotDriveSimulation(true);
     std::cout << "football_player_identity_test: PASS\n";

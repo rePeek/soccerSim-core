@@ -5,13 +5,14 @@
 #include <utility>
 
 #include "ai/tactical_board.hpp"
+#include "ai/team_requests.hpp"
 #include "sim/player_control_set.hpp"
 #include "sim/world_state.hpp"
 
 namespace football::ai {
 
-// Owns persistent tactical intent, not actors, simulation timers or RNG.
-// Update replaces frame-local output and leaves the boards unchanged.
+// Owns persistent tactics and explicit transient decision requests, never actors/RNG.
+// Update replaces frame-local output without mutating either kind of intent.
 class DefaultAI {
  public:
   DefaultAI() { boards_[1].side = model::TeamSide::Away; }
@@ -33,8 +34,21 @@ class DefaultAI {
   }
   void Update(const WorldState &world, PlayerControlSet &output) const;
 
+  // Requests use only snapshots/IDs. False means no eligible target was found.
+  bool RequestAttackingRun(model::TeamSide side, const WorldState &world,
+                           std::optional<model::PlayerId> runner = std::nullopt);
+  bool RequestTeamPressure(model::TeamSide side, const WorldState &world,
+                           std::optional<model::PlayerId> excluded = std::nullopt);
+  bool RequestKeeperRush(model::TeamSide side, const WorldState &world);
+  const TeamRequests &requests(model::TeamSide side) const {
+    return requests_.at(static_cast<unsigned>(side));
+  }
+  // On a new match/reset, clear transient requests but preserve tactical boards.
+  void ResetRequests() { requests_ = {}; }
+
  private:
   std::array<TacticalBoard, 2> boards_;
+  std::array<TeamRequests, 2> requests_{};
 };
 
 }  // namespace football::ai

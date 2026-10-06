@@ -1,4 +1,4 @@
-// Football-domain value types shared by simulation, environment and data.
+// Football-domain value types shared by static models, simulation and environment.
 // This header intentionally has no foundation dependency.
 #ifndef _HPP_MODEL_FOOTBALL_TYPES
 #define _HPP_MODEL_FOOTBALL_TYPES
@@ -26,15 +26,6 @@ enum e_GameMode {
   e_GameMode_Corner,
   e_GameMode_ThrowIn,
   e_GameMode_Penalty,
-};
-
-enum e_PlayerColor {
-  e_PlayerColor_Blue,
-  e_PlayerColor_Green,
-  e_PlayerColor_Red,
-  e_PlayerColor_Yellow,
-  e_PlayerColor_Purple,
-  e_PlayerColor_Default,
 };
 
 #endif

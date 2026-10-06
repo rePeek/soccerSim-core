@@ -7,6 +7,7 @@
 WorldState BuildWorldState(const Match& match) {
   WorldState world;
   world.tick = match.GetActualTime_ms() / 10;
+  world.reset_sequence = match.GetResetSequence();
   world.ball_position = match.GetBall()->Predict(0);
   world.ball_velocity = match.GetBall()->GetMovement();
   world.pitch = match.pitch();
@@ -24,11 +25,6 @@ WorldState BuildWorldState(const Match& match) {
   if (reversed) { world.ball_position.Mirror(); world.ball_velocity.Mirror(); }
   for (int team_id = 0; team_id < 2; ++team_id) {
     world.teams[team_id].score = match.GetScore(team_id);
-    const auto &requests = match.GetTeam(team_id)->GetTacticalState();
-    const auto now = match.GetActualTime_ms();
-    const auto remaining = [now](unsigned long deadline) -> std::uint64_t {
-      return deadline > now ? deadline - now : 0;
-    };
     std::vector<Player*> players;
     match.GetTeam(team_id)->GetAllPlayers(players);
     for (Player* player : players) {
@@ -40,22 +36,8 @@ WorldState BuildWorldState(const Match& match) {
       if (player->GetTeam()->GetDynamicSide() != static_side) {
         observed.position.Mirror(); observed.velocity.Mirror(); observed.facing.Mirror();
       }
-      observed.externally_controlled = player->ExternalControllerActive();
       observed.lazy = player->GetFormationEntry().lazy;
       observed.max_speed = player->GetMaxVelocity();
-      if (observed.active) {
-        if (requests.attacking_runner == player)
-          observed.attacking_run_remaining_ms = remaining(requests.attacking_run_until_ms);
-        if (requests.pressure_player == player) {
-          observed.pressure_remaining_ms = remaining(requests.pressure_until_ms);
-          if (observed.pressure_remaining_ms > 0) {
-            if (Player *mark = player->GetManMarking(); mark && mark->IsActive())
-              observed.marking_target = mark->GetID();
-          }
-        }
-        if (player->GetFormationEntry().role == e_PlayerRole_GK)
-          observed.keeper_rush_remaining_ms = remaining(requests.keeper_rush_until_ms);
-      }
       world.players.push_back(observed);
     }
   }

@@ -107,3 +107,28 @@ TEST_CASE("environment exposes persistent AI intent independently of sim lifecyc
   REQUIRE(environment.tactics(model::TeamSide::Away).width == 0.75f);
   REQUIRE(peer.tactics(model::TeamSide::Home).width == 0.75f);
 }
+
+TEST_CASE("environment lifecycle clears transient requests but retains planned tactics", "[env][ai]") {
+  GameEnv environment = MakeDefaultEnvironment();
+  auto &policy = environment.default_ai();
+  environment.tactics(model::TeamSide::Home).width = 0.9f;
+  environment.start_game();
+  for (int tick = 0; tick < 300; ++tick) environment.step();
+  REQUIRE(policy.RequestAttackingRun(model::TeamSide::Home, environment.observe(), 7));
+  REQUIRE(policy.RequestTeamPressure(model::TeamSide::Home, environment.observe()));
+  REQUIRE(policy.RequestKeeperRush(model::TeamSide::Home, environment.observe()));
+  const auto retained = policy.requests(model::TeamSide::Home);
+  environment.reset_game();
+  REQUIRE(&policy == &environment.default_ai());
+  REQUIRE_FALSE(policy.requests(model::TeamSide::Home).attacking_run.player.has_value());
+  REQUIRE_FALSE(policy.requests(model::TeamSide::Home).pressure.player.has_value());
+  REQUIRE_FALSE(policy.requests(model::TeamSide::Home).keeper_rush.player.has_value());
+  REQUIRE(environment.tactics(model::TeamSide::Home).width == 0.9f);
+  REQUIRE(retained.attacking_run.player == 7);
+  for (int tick = 0; tick < 300; ++tick) environment.step();
+  REQUIRE(policy.RequestAttackingRun(model::TeamSide::Home, environment.observe(), 7));
+  environment.stop_game();
+  REQUIRE_FALSE(policy.requests(model::TeamSide::Home).attacking_run.player.has_value());
+  environment.start_game();
+  REQUIRE(environment.tactics(model::TeamSide::Home).width == 0.9f);
+}

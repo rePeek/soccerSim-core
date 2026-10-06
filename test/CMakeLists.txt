@@ -68,6 +68,12 @@ catch_discover_tests(football_default_ai_test PROPERTIES LABELS ai)
 add_executable(football_sim_control_boundary_test
   sim_control_boundary_test.cpp restart_placement_test.cpp)
 target_link_libraries(football_sim_control_boundary_test PRIVATE
-  ${OUTPUT_LIB_NAME} football_app_support Catch2::Catch2WithMain)
+  ${OUTPUT_LIB_NAME} football_app_support football_app_input Catch2::Catch2WithMain)
 football_configure_target(football_sim_control_boundary_test)
 catch_discover_tests(football_sim_control_boundary_test PROPERTIES LABELS sim)
+
+# Input and selection operate entirely on values, independently of sim/libgame.
+add_executable(football_app_input_test app_input_test.cpp)
+target_link_libraries(football_app_input_test PRIVATE football_app_input Catch2::Catch2WithMain)
+football_configure_target(football_app_input_test)
+catch_discover_tests(football_app_input_test PROPERTIES LABELS app)

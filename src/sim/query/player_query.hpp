@@ -34,13 +34,9 @@ bool HasPossession(Ball *ball, Player *player);
 
 // Equal distances retain roster order; GetClosestPlayers appends to result.
 Player *GetClosestPlayer(Team *team, const blunted::Vector3 &position,
-                         bool onlyAIControlled, Player *except = 0,
-                         bool onlySelectable = false);
+                         Player *except = nullptr);
 void GetClosestPlayers(Team *team, const blunted::Vector3 &position,
-                       bool onlyAIControlled, std::vector<Player*> &result,
-                       unsigned int playerCount = 3, bool onlySelectable = false);
-Player *GetBestSwitchTargetPlayer(Match *match, Team *team,
-                                 const blunted::Vector3 &desiredMovement);
+                       std::vector<Player*> &result, unsigned int playerCount = 3);
 
 }  // namespace football::sim::query
 

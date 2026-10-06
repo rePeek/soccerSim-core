@@ -19,14 +19,8 @@ struct WorldPlayerState {
   blunted::Vector3 facing = blunted::Vector3(1, 0, 0);
   bool active = false;
   bool has_possession = false;
-  bool externally_controlled = false;
   bool lazy = false;
   float max_speed = 0.0f;
-  // Actual human/team requests, bounded by simulation deadlines. Never AI intent.
-  std::uint64_t attacking_run_remaining_ms = 0;
-  std::uint64_t pressure_remaining_ms = 0;
-  std::uint64_t keeper_rush_remaining_ms = 0;
-  std::optional<football::model::PlayerId> marking_target;
 };
 
 struct WorldTeamState {
@@ -51,6 +45,8 @@ struct WorldState {
   e_GameMode restart = e_GameMode_Normal;
   std::optional<football::model::PlayerId> restart_taker;
   std::optional<football::model::PlayerId> ball_retainer;
+  // Match-owned count of ResetSituation discontinuities; resets with a new match.
+  std::uint64_t reset_sequence = 0;
 };
 
 #endif  // FOOTBALL_SIM_WORLD_STATE_HPP

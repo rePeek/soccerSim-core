@@ -7,6 +7,8 @@
 
 #include "default_ai_fixture.hpp"
 #include "app/fixtures/default_teams.hpp"
+#include "app/input/grf/input.hpp"
+#include "env/game_env.hpp"
 #include "sim/match.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/team.hpp"
@@ -129,47 +131,6 @@ TEST_CASE("observations are owned values in a common home pitch frame", "[sim][o
   }
 }
 
-TEST_CASE("team owns tactical request deadlines and reset lifetimes", "[sim][tactics]") {
-  Runtime runtime;
-  Team *team = runtime.match()->GetTeam(0);
-  Player *runner = team->GetAllPlayers()[2];
-  team->ApplyAttackingRun(runner);
-  team->ApplyTeamPressure();
-  team->ApplyKeeperRush();
-  auto world = runtime.simulation.Observe();
-  const auto retained = world;
-  REQUIRE(Actor(world, runner->GetID()).attacking_run_remaining_ms == 4000);
-  REQUIRE(Actor(world, team->GetGoalie()->GetID()).keeper_rush_remaining_ms == 300);
-  REQUIRE(std::count_if(world.players.begin(), world.players.end(),
-      [](const auto &player) { return player.pressure_remaining_ms == 500; }) == 1);
-  REQUIRE(std::count_if(world.players.begin(), world.players.end(),
-      [](const auto &player) { return player.marking_target.has_value(); }) == 1);
-  runtime.match()->BumpActualTime_ms(500);
-  world = runtime.simulation.Observe();
-  REQUIRE(Actor(world, runner->GetID()).attacking_run_remaining_ms == 3500);
-  REQUIRE(Actor(world, team->GetGoalie()->GetID()).keeper_rush_remaining_ms == 0);
-  REQUIRE(std::none_of(world.players.begin(), world.players.end(),
-      [](const auto &player) { return player.pressure_remaining_ms > 0 || player.marking_target; }));
-  REQUIRE(Actor(retained, runner->GetID()).attacking_run_remaining_ms == 4000);
-  team->Process();
-  REQUIRE(std::none_of(team->GetAllPlayers().begin(), team->GetAllPlayers().end(),
-      [](Player *player) { return player->GetManMarking() != nullptr; }));
-  runtime.match()->BumpActualTime_ms(3500);
-  world = runtime.simulation.Observe();
-  REQUIRE(Actor(world, runner->GetID()).attacking_run_remaining_ms == 0);
-  team->ApplyAttackingRun(runner);
-  team->ApplyTeamPressure();
-  team->ApplyKeeperRush();
-  runner->SendOff();
-  world = runtime.simulation.Observe();
-  REQUIRE(Actor(world, runner->GetID()).attacking_run_remaining_ms == 0);
-  team->ResetSituation(Vector3(0));
-  world = runtime.simulation.Observe();
-  REQUIRE(std::none_of(world.players.begin(), world.players.end(),
-      [](const auto &player) { return player.attacking_run_remaining_ms > 0 ||
-          player.pressure_remaining_ms > 0 || player.keeper_rush_remaining_ms > 0 ||
-          player.marking_target; }));
-}
 
 TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]") {
   Runtime runtime;
@@ -234,54 +195,91 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
   }
 }
 
-namespace {
-class HumanInput final : public ControllerInput {
- public:
-  bool disabled = false;
-  bool GetButton(e_ButtonFunction) override { return false; }
-  bool GetPreviousButtonState(e_ButtonFunction) override { return false; }
-  Vector3 GetDirection() override { return Vector3(0, 1, 0); }
-  Vector3 GetOriginalDirection() override { return GetDirection(); }
-  bool Disabled() const override { return disabled; }
-  void ResetNotSticky() override {}
-  void Mirror(float) override {}
-  int GetPlayerColorIndex() const override { return 0; }
-};
-}  // namespace
-
-TEST_CASE("human input stays in sim while explicit controls override it", "[sim][control]") {
-  HumanInput input;  // Outlives every HumanGamer/Player.
+TEST_CASE("explicit controls are the sole command source and absence is idle", "[sim][control]") {
   Runtime runtime;
-  Team *team = runtime.match()->GetTeam(0);
-  team->AddHumanGamers({&input});
-  std::vector<HumanGamer *> gamers;
-  team->GetHumanControllers(gamers);
-  REQUIRE(gamers.size() == 1);
-  for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(runtime.simulation, runtime.policy);
-  Player *selected = gamers[0]->GetSelectedPlayer();
-  REQUIRE(selected != nullptr);
-  REQUIRE(selected->ExternalControllerActive());
-  PlayerControlSet decisions;
-  const auto world = runtime.simulation.Observe();
-  runtime.policy.Update(world, decisions);
-  REQUIRE(decisions.Get(selected->GetID()) == nullptr);
+  Player *player = runtime.match()->GetTeam(0)->GetAllPlayers()[1];
   PlayerControl control;
   control.move_direction = Vector3(1, 0, 0);
   control.desired_speed = 1.234f;
-  PlayerControlSet overrides;
-  overrides.Set(selected->GetID(), control);
-  football::test::StepDefaultAI(runtime.simulation, runtime.policy, overrides);
+  PlayerControlSet controls;
+  controls.Set(player->GetID(), control);
+  runtime.simulation.Step(controls);
   PlayerCommandQueue queue;
-  selected->RequestCommand(queue);
+  player->RequestCommand(queue);
   REQUIRE(queue.size() == 1);
   REQUIRE(queue[0].desiredVelocityFloat == control.desired_speed);
   REQUIRE(Same(queue[0].desiredDirection, control.move_direction));
-  selected->ClearControl();
-  queue.clear();
-  selected->RequestCommand(queue);
-  REQUIRE_FALSE(queue.empty());
-  REQUIRE(queue.back().desiredFunctionType == e_FunctionType_Movement);
-  input.disabled = true;
-  runtime.policy.Update(runtime.simulation.Observe(), decisions);
-  REQUIRE(decisions.Get(selected->GetID()) != nullptr);
+  // Inputs are owned values; an empty next tick does not retain the old command.
+  runtime.simulation.Step(PlayerControlSet{});
+  player->RequestCommand(queue);
+  REQUIRE(queue.size() == 1);
+  REQUIRE(queue[0].desiredVelocityFloat == 0.f);
+}
+
+TEST_CASE("GRF environment input and plain control replay execute the same simulation", "[sim][input][replay]") {
+  const auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  const auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  const auto pitch = football::model::MakeLegacyPitch();
+  GameEnv environment(home, away, pitch);
+  environment.start_game();
+  Simulation replay;
+  replay.Init(home, away, pitch, MatchOptions{}, false);
+  football::app::grf::Input input(home, football::model::TeamSide::Home);
+  using Action = football::app::grf::Action;
+  const auto same_world = [](const WorldState &a, const WorldState &b) {
+    REQUIRE(a.tick == b.tick);
+    REQUIRE(a.reset_sequence == b.reset_sequence);
+    REQUIRE(Same(a.ball_position, b.ball_position));
+    REQUIRE(Same(a.ball_velocity, b.ball_velocity));
+    REQUIRE(a.restart_taker == b.restart_taker);
+    REQUIRE(a.players.size() == b.players.size());
+    for (std::size_t i = 0; i < a.players.size(); ++i) {
+      REQUIRE(a.players[i].id == b.players[i].id);
+      REQUIRE(Same(a.players[i].position, b.players[i].position));
+      REQUIRE(Same(a.players[i].velocity, b.players[i].velocity));
+      REQUIRE(Same(a.players[i].facing, b.players[i].facing));
+    }
+  };
+  std::vector<PlayerControlSet> tape;
+  for (int tick = 0; tick < 400; ++tick) {
+    if (tick == 0) input.Apply(Action::Right);
+    if (tick == 100) input.Apply(Action::Sprint);
+    if (tick == 220) input.Apply(Action::Shot);
+    if (tick == 230) input.Apply(Action::Pressure);
+    if (tick == 240) input.Apply(Action::TeamPressure);
+    if (tick == 250) input.Apply(Action::KeeperRush);
+    if (tick == 270) input.Apply(Action::ReleasePressure);
+    if (tick == 280) input.Apply(Action::BuiltinAI);
+    if (tick == 300) input.Apply(Action::Left);
+    const auto world = environment.observe();
+    input.Update(world, environment.default_ai(), environment.controls());
+    PlayerControlSet compiled;
+    environment.default_ai().Update(world, compiled);
+    for (const auto &control : environment.controls().controls()) compiled.Set(control.player, control);
+    tape.push_back(compiled);
+    environment.step();
+    replay.Step(compiled);
+    same_world(environment.observe(), replay.Observe());
+  }
+  const auto expected = replay.Observe();
+  const auto rng = replay.match()->rng().engine();
+  replay.Stop();
+  replay.Init(home, away, pitch, MatchOptions{}, false);
+  for (const auto &frame : tape) replay.Step(frame);
+  same_world(expected, replay.Observe());
+  REQUIRE(replay.match()->rng().engine() == rng);
+}
+
+TEST_CASE("world discontinuities invalidate AI requests without storing them in sim", "[sim][boundary]") {
+  Runtime runtime;
+  for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(runtime.simulation, runtime.policy);
+  const auto before = runtime.simulation.Observe();
+  REQUIRE(runtime.policy.RequestAttackingRun(football::model::TeamSide::Home, before, 7));
+  runtime.match()->ResetSituation(Vector3(0));
+  const auto after = runtime.simulation.Observe();
+  REQUIRE(after.tick == before.tick);
+  REQUIRE(after.reset_sequence == before.reset_sequence + 1);
+  REQUIRE_FALSE(runtime.policy.requests(football::model::TeamSide::Home).attacking_run.Active(
+      after.tick, after.reset_sequence));
+  REQUIRE(before.reset_sequence + 1 == runtime.match()->GetResetSequence());
 }

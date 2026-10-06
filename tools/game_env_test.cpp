@@ -55,7 +55,8 @@ bool SameVector(const blunted::Vector3& a, const blunted::Vector3& b) {
 }
 
 void RequireSameWorld(const WorldState& a, const WorldState& b) {
-  Require(a.tick == b.tick && SameVector(a.ball_position, b.ball_position) &&
+  Require(a.tick == b.tick && a.reset_sequence == b.reset_sequence &&
+              SameVector(a.ball_position, b.ball_position) &&
               SameVector(a.ball_velocity, b.ball_velocity) &&
               a.in_play == b.in_play && a.in_set_piece == b.in_set_piece &&
               a.restart == b.restart && a.restart_taker == b.restart_taker &&
@@ -66,12 +67,7 @@ void RequireSameWorld(const WorldState& a, const WorldState& b) {
     const auto& y = b.players[i];
     Require(x.id == y.id && x.side == y.side && x.active == y.active &&
                 x.has_possession == y.has_possession &&
-                x.externally_controlled == y.externally_controlled && x.lazy == y.lazy &&
-                x.max_speed == y.max_speed &&
-                x.attacking_run_remaining_ms == y.attacking_run_remaining_ms &&
-                x.pressure_remaining_ms == y.pressure_remaining_ms &&
-                x.keeper_rush_remaining_ms == y.keeper_rush_remaining_ms &&
-                x.marking_target == y.marking_target &&
+                x.lazy == y.lazy && x.max_speed == y.max_speed &&
                 SameVector(x.position, y.position) &&
                 SameVector(x.velocity, y.velocity) && SameVector(x.facing, y.facing),
             "player snapshot mismatch");

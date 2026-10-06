@@ -43,6 +43,9 @@ class GameEnv {
   void step();
   WorldState observe() const;
   PlayerControlSet& controls() { return controls_; }
+  // Value-policy access for app-side transient requests; never exposes sim actors.
+  football::ai::DefaultAI& default_ai() { return ai_; }
+  const football::ai::DefaultAI& default_ai() const { return ai_; }
   // Persistent AI configuration, independent of simulation lifecycle.
   football::ai::TacticalBoard& tactics(football::model::TeamSide side) {
     return ai_.tactics(side);
