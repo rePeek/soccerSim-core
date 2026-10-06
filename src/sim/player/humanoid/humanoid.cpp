@@ -17,9 +17,9 @@
 
 #include <algorithm>
 #include <functional>
-#include "support/text/string_utils.hpp"
-#include "support/diagnostics/backtrace.hpp"
-#include "support/diagnostics/log.hpp"
+#include <bq_log/bq_log.h>
+#include <cassert>
+#include <stdexcept>
 #include "sim/player/humanoid/humanoid.hpp"
 
 #include <cmath>
@@ -323,8 +323,8 @@ void Humanoid::Process() {
     } else {
       if (!CastPlayer()->HasPlayerDecisionQueue()) {
         ++PlayerDecisionClockQueueConsumersMissing();
-        Log(e_FatalError, "Humanoid", "Process",
-            "Player Decision queue is missing before animation selection");
+        assert(false &&
+               "Player Decision queue missing before animation selection");
       }
       commandQueue = CastPlayer()->GetPlayerDecisionQueue();
       uses_player_decision_queue = true;
@@ -363,18 +363,21 @@ void Humanoid::Process() {
     }
 
     if (interruptAnim == e_InterruptAnim_Switch && !found) {
-      Log(e_Warning, "Humanoid", "Process", "RED ALERT! NO APPLICABLE ANIM FOUND! NOOOO!");
-      Log(e_Warning, "Humanoid", "Process", "currentanimtype: " + int_to_str(GetCurrentBakedClip().metadata.action_type));
-      for (unsigned int i = 0; i < commandQueue.size(); i++) {
-        Log(e_Warning, "Humanoid", "Process", "desiredanimtype:" + int_to_str(commandQueue[i].desiredFunctionType));
-        Log(e_Warning, "Humanoid", "Process", "desired velo: " + real_to_str(commandQueue[i].desiredVelocityFloat));
-        Log(e_Warning, "Humanoid", "Process", "desired direction: " + real_to_str(commandQueue[i].desiredDirection.coords[0]) + ", " + real_to_str(commandQueue[i].desiredDirection.coords[1]) + ", " + real_to_str(commandQueue[i].desiredDirection.coords[2]));
+      const auto logger = bq::log::get_log_by_name("football");
+      logger.warning("Humanoid::Process: no applicable animation; current type {}",
+                     GetCurrentBakedClip().metadata.action_type);
+      for (const auto& command : commandQueue) {
+        logger.warning("desired type {}, velocity {}, direction ({}, {}, {})",
+                       command.desiredFunctionType, command.desiredVelocityFloat,
+                       command.desiredDirection.coords[0],
+                       command.desiredDirection.coords[1],
+                       command.desiredDirection.coords[2]);
       }
-      Log(e_Warning, "Humanoid", "Process", "current velo: " + real_to_str(spatialState.floatVelocity));
-      Log(e_Warning, "Humanoid", "Process", "current body angle: abs: " + real_to_str(spatialState.bodyAngle) + ", rel: " + real_to_str(spatialState.relBodyAngle));
-      Log(e_Warning, "Humanoid", "Process", "special state: " + GetCurrentBakedClip().metadata.outgoing_special_state);
-      print_stacktrace();
-      exit(1);
+      logger.warning("current velocity {}, body angle {}, relative angle {}, state {}",
+                     spatialState.floatVelocity, static_cast<float>(spatialState.bodyAngle),
+                     static_cast<float>(spatialState.relBodyAngle),
+                     GetCurrentBakedClip().metadata.outgoing_special_state);
+      throw std::runtime_error("Humanoid::Process: no applicable animation");
     }
 
 
@@ -420,8 +423,8 @@ void Humanoid::Process() {
   if (simulation_due && !movement_published_this_tick) {
     if (!CastPlayer()->HasPlayerDecisionQueue()) {
       ++PlayerDecisionClockQueueConsumersMissing();
-      Log(e_FatalError, "Humanoid", "Process",
-          "Player Decision queue is missing before locomotion publication");
+      assert(false &&
+             "Player Decision queue missing before locomotion publication");
     }
     CastPlayer()->NoteDecisionMovementSelection(
         decision_queue_selection_movement);
@@ -439,9 +442,7 @@ void Humanoid::Process() {
 
   interruptAnim = e_InterruptAnim_None;
 
-  if (startPos.coords[2] != 0.f) {
-    Log(e_FatalError, "Humanoid", "Process", "BWAAAAAH FLYING PLAYERS!! height: " + real_to_str(startPos.coords[2]));
-  }
+  assert(startPos.coords[2] == 0.f && "player position must have zero height");
 
   float ballDistanceNow = (match->GetBall()->Predict(0).Get2D() - spatialState.position).GetLength();
   float ballDistanceFuture = (match->GetBall()->Predict(200).Get2D() - (spatialState.position + spatialState.movement * 0.2f)).GetLength();
@@ -803,9 +804,8 @@ void Humanoid::Process() {
       if (!ParseRetainAnchorKind(retainState, anchor)) {
         // Fail fast: a silent fallback would place the retained ball
         // somewhere plausible but wrong.
-        Log(e_FatalError, "Humanoid", "Process",
-            "unknown retain state: " + retainState);
-        exit(1);
+        throw std::runtime_error("Humanoid::Process: unknown retain state: " +
+                                 retainState);
       }
       match->GetBall()->Touch(Vector3(0));
       match->GetBall()->SetRotation(0, 0, 0, 1.0);

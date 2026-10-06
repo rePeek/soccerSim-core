@@ -151,7 +151,10 @@ endfunction()
 function(football_validate_architecture)
   set(_base football_model football_foundation)
   set(_values ${_base} football_sim_contracts)
-  set(_runtime ${_values} football_animation football_support football_sim)
+  # Admit BqLog's platform libraries without treating third-party sources as
+  # football modules. Diagnostics remain outside every value/policy contract.
+  football_link_closure(BqLog _diagnostics)
+  set(_runtime ${_values} football_animation football_support football_sim ${_diagnostics})
   set(_policy ${_values} football_ai_contracts football_ai)
   set(_offline football_legacy_anim football_animation football_support football_foundation)
 

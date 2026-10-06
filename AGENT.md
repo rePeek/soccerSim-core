@@ -32,8 +32,9 @@ build/release/football_app
 build/release/football_app --half-duration-ms=1800
 ```
 
-Catch2 v3.7.1 is fetched by `cmake/CPM.cmake` only with `BUILD_TESTING=ON`, cached
-under `.cache/CPM`. Core-only configuration requires no network:
+BqLog 2.5.0 (pinned commit) is fetched by `cmake/CPM.cmake` in every build mode;
+Catch2 v3.7.1 is fetched only with `BUILD_TESTING=ON`. Both use `.cache/CPM`.
+Core-only configuration needs network on the first dependency fetch:
 
 ```sh
 cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF
@@ -81,6 +82,7 @@ src/
 
 cmake/
 ├── CPM.cmake
+├── bqlog.cmake            private third-party diagnostics build
 └── module_dependencies.cmake configure-time dependency/source ownership validation
 
 tools/
@@ -127,6 +129,12 @@ anim_baking → legacy_anim + animation + support/foundation
   on model/foundation, not concrete policy. `football_ai` owns policy implementations.
 - Game's PUBLIC usage requirements are model + sim_contracts + ai_contracts.
   Concrete sim/AI are PRIVATE. `gameenv.hpp` never includes default_ai.hpp.
+- GameEnv::Start creates/reconfigures the single process logger `football` before
+  constructing Simulation/AI; Stop destroys AI then Simulation and flushes it.
+  BqLog is PRIVATE to game/sim, never in public value contracts or policy.
+  Runtime warnings use BqLog, operational failures throw, debug invariants use
+  <cassert>. No product signal handlers/backtraces or deliberate crash logging.
+  Remaining support utilities are temporary app/offline consumers pending removal.
 - `football_animation` is an independent archive. The offline baker can load and
   verify baked assets without linking Simulation or GameEnv.
 - `football_legacy_anim` is an offline object target. `football_anim_baking` is a

@@ -18,10 +18,10 @@
 #include "sim/player/player.hpp"
 
 #include <cmath>
+#include <cassert>
 #include <cstring>
 
 #include "foundation/geometry/triangle.hpp"
-#include "support/diagnostics/log.hpp"
 #include "sim/match.hpp"
 #include "sim/team.hpp"
 #include "sim/query/player_query.hpp"
@@ -97,18 +97,13 @@ void ResetLocomotionReentryAudits() {
 }
 
 void Player::CheckDecisionLocomotionIntentOracle() const {
-  // Producer contract for the executed intent. The executability half lives in
-  // HasExecutableDecisionLocomotionIntent(); this half stays fatal so a Direct
-  // publication that is not a Movement intent can never silently execute.
+  // Debug producer invariant; executability is checked separately.
   const PlayerCommand &command = decisionLocomotionState.command;
-  if (!decisionLocomotionState.initialized || !command.useDesiredMovement ||
-      command.desiredFunctionType != e_FunctionType_Movement ||
-      decisionLocomotionState.publishedEpoch !=
-          decisionLocomotionState.continuityEpoch) {
-    Log(e_FatalError, "Player", "CheckDecisionLocomotionIntentOracle",
-        "the executed locomotion intent is not a current-epoch Direct Movement "
-        "intent");
-  }
+  assert(decisionLocomotionState.initialized && command.useDesiredMovement &&
+         command.desiredFunctionType == e_FunctionType_Movement &&
+         decisionLocomotionState.publishedEpoch ==
+             decisionLocomotionState.continuityEpoch &&
+         "executed locomotion intent must be a current-epoch Movement intent");
 }
 
 void Player::AdvanceLocomotionContinuity(bool eligible) {
@@ -305,31 +300,8 @@ bool Player::IsKinematicMirrorConsistent() const {
 }
 
 void Player::CheckSimulationKinematicOracle() const {
-  const Vector3 &position = humanoid->GetPosition();
-  const Vector3 &movement = humanoid->GetMovement();
-  const Vector3 &direction = humanoid->GetDirectionVec();
-  const Vector3 &bodyDirection = humanoid->GetBodyDirectionVec();
-
-  std::string mismatch;
-  if (!Vector3BitsEqual(kinematicState.position, position)) {
-    mismatch = "position";
-  } else if (!Vector3BitsEqual(kinematicState.velocity, movement)) {
-    mismatch = "velocity";
-  } else if (!Vector3BitsEqual(kinematicState.facing, direction)) {
-    mismatch = "facing";
-  } else if (!Vector3BitsEqual(kinematicState.bodyFacing, bodyDirection)) {
-    mismatch = "body facing";
-  } else if (!FloatBitsEqual(kinematicState.speed,
-                             kinematicState.velocity.GetLength())) {
-    mismatch = "speed";
-  } else if (!Vector3BitsEqual(groundCollider.center, position.Get2D())) {
-    mismatch = "collider center";
-  }
-  if (!mismatch.empty()) {
-    Log(e_FatalError, "Player", "CheckSimulationKinematicOracle",
-        "the gameplay kinematic mirror diverged from the Humanoid spatial "
-        "state: " + mismatch);
-  }
+  assert(IsKinematicMirrorConsistent() &&
+         "gameplay kinematic mirror diverged from Humanoid spatial state");
 }
 
 void Player::Mirror() {
@@ -456,11 +428,9 @@ void Player::ObserveSimulationDecisionQueue(
 // decision locomotion state and the publication telemetry, and never touches the
 // compatibility movement command slot.
 void Player::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
-  if (command.desiredFunctionType != e_FunctionType_Movement ||
-      !command.useDesiredMovement) {
-    Log(e_FatalError, "Player", "PublishDecisionLocomotionIntent",
-        "the Player Decision Clock published a non-Movement intent");
-  }
+  assert(command.desiredFunctionType == e_FunctionType_Movement &&
+         command.useDesiredMovement &&
+         "Player Decision Clock published a non-Movement intent");
   // 4f-a1: whether this publication materially rewrites the decision already in
   // force. Only animation-owned (legacy-only) publications are counted, so the
   // number answers how often a requeue actually moved the decision clock.
@@ -557,15 +527,8 @@ void Player::CheckSimulationActionOracle() const {
   } else if (!contactPositionMatches) {
     mismatch = "contact position bits";
   }
-  if (!mismatch.empty()) {
-    Log(e_FatalError, "Player", "CheckSimulationActionOracle",
-        "authoritative action state diverged from legacy oracle: " + mismatch +
-            " (simulation frame=" + std::to_string(actionState.frame) +
-            ", legacy frame=" + std::to_string(legacy.frame) +
-            ", simulation elapsed=" +
-            std::to_string(actionState.elapsedTime_ms) +
-            ", legacy elapsed=" + std::to_string(legacy.elapsedTime_ms) + ")");
-  }
+  assert(mismatch.empty() &&
+         "authoritative action state diverged from legacy oracle");
 }
 
 void Player::BeginSimulationAction() {

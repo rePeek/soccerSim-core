@@ -17,6 +17,11 @@ function(football_configure_target tgt)
   endif()
 endfunction()
 
+set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
+  CACHE PATH "CPM dependency source cache")
+include(cmake/CPM.cmake)
+include(cmake/bqlog.cmake)
+
 add_subdirectory(src/foundation)
 add_subdirectory(src/model)
 add_subdirectory(src/support)
@@ -30,7 +35,7 @@ target_sources(game PUBLIC FILE_SET HEADERS
   FILES src/gameenv.hpp)
 target_link_libraries(game
   PUBLIC football::model football::sim_contracts football::ai_contracts
-  PRIVATE football::ai
+  PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim>")
 football_configure_target(game)
@@ -40,9 +45,6 @@ football_configure_target(game)
 add_subdirectory(src/app)
 
 if(BUILD_TESTING)
-  set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
-    CACHE PATH "CPM dependency source cache")
-  include(cmake/CPM.cmake)
   CPMAddPackage(NAME Catch2 GITHUB_REPOSITORY catchorg/Catch2 GIT_TAG v3.7.1
     OPTIONS "CATCH_BUILD_TESTING OFF")
   list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")

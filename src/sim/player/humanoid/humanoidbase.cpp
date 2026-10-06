@@ -17,9 +17,9 @@
 
 #include <algorithm>
 #include <functional>
-#include "support/text/string_utils.hpp"
-#include "support/diagnostics/log.hpp"
-#include <algorithm>
+#include <bq_log/bq_log.h>
+#include <cassert>
+#include <stdexcept>
 #include <iostream>
 #include <unordered_map>
 #include <cmath>
@@ -466,9 +466,8 @@ ContactAuthorityAudit &ContactAuthorityFor(e_FunctionType type) {
     case e_FunctionType_Trap: return records[4];
     case e_FunctionType_BallControl: return records[5];
     default:
-      Log(e_FatalError, "ContactAuthorityAudit", "ContactAuthorityFor",
-          "untracked scheduled contact type");
-      return records[0];
+      throw std::logic_error(
+          "ContactAuthorityFor: untracked scheduled contact type");
   }
 }
 
@@ -740,10 +739,11 @@ void HumanoidBase::Process() {
       }
     }
     if (interruptAnim != e_InterruptAnim_ReQueue && !found) {
-      printf("RED ALERT! NO APPLICABLE ANIM FOUND FOR HUMANOIDBASE! NOOOO!\n");
-      printf("currentanimtype: %i\n", GetCurrentBakedClip().metadata.action_type);
-      for (unsigned int i = 0; i < commandQueue.size(); i++) {
-        printf("desiredanimtype: %i\n", commandQueue[i].desiredFunctionType);
+      const auto logger = bq::log::get_log_by_name("football");
+      logger.warning("HumanoidBase::Process: no applicable animation; current type {}",
+                     GetCurrentBakedClip().metadata.action_type);
+      for (const auto& command : commandQueue) {
+        logger.warning("desired animation type {}", command.desiredFunctionType);
       }
     }
 
@@ -768,10 +768,7 @@ void HumanoidBase::Process() {
 
   interruptAnim = e_InterruptAnim_None;
 
-  if (startPos.coords[2] != 0.f) {
-    // the z coordinate not being 0 denotes something went horribly wrong :P
-    Log(e_FatalError, "HumanoidBase", "Process", "BWAAAAAH FLYING PLAYERS!! height: " + real_to_str(startPos.coords[2]));
-  }
+  assert(startPos.coords[2] == 0.f && "player position must have zero height");
 
   // movement/rotation smuggle
 

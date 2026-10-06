@@ -2,9 +2,32 @@
 
 #include <stdexcept>
 #include <utility>
+#include <bq_log/bq_log.h>
 
 #include "ai/default_ai.hpp"
 #include "sim/simulation.hpp"
+
+namespace {
+
+void InitLogging() {
+  const auto logger = bq::log::create_log("football", R"(
+    appenders_config.console.type=console
+    appenders_config.console.levels=[warning,error,fatal]
+    log.thread_mode=async
+    log.buffer_size=65536
+    log.reliable_level=normal
+  )");
+  if (!logger.is_valid()) {
+    throw std::runtime_error("Unable to initialize football logger");
+  }
+}
+
+void FlushLogging() {
+  auto logger = bq::log::get_log_by_name("football");
+  if (logger.is_valid()) logger.force_flush();
+}
+
+}  // namespace
 
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
                  football::model::Pitch pitch, MatchOptions match_options,
@@ -17,12 +40,18 @@ GameEnv::~GameEnv() { Stop(); }
 
 void GameEnv::Start() {
   if (simulation_) throw std::logic_error("match runner already started");
-  auto simulation = std::make_unique<Simulation>();
-  simulation->Init(home_team_, away_team_, pitch_, match_options_, false);
-  auto ai = std::make_unique<football::ai::DefaultAI>(
-      home_team_, away_team_, pitch_, ai_config_);
-  simulation_ = std::move(simulation);
-  ai_ = std::move(ai);
+  InitLogging();
+  try {
+    auto simulation = std::make_unique<Simulation>();
+    simulation->Init(home_team_, away_team_, pitch_, match_options_, false);
+    auto ai = std::make_unique<football::ai::DefaultAI>(
+        home_team_, away_team_, pitch_, ai_config_);
+    simulation_ = std::move(simulation);
+    ai_ = std::move(ai);
+  } catch (...) {
+    FlushLogging();
+    throw;
+  }
 }
 
 void GameEnv::Step() {
@@ -51,4 +80,5 @@ WorldState GameEnv::Observe() const {
 void GameEnv::Stop() {
   ai_.reset();
   simulation_.reset();
+  FlushLogging();
 }

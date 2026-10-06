@@ -1415,7 +1415,6 @@ void CheckMovementAnimationPerturbation(Simulation& simulation, bool frame_count
 }  // namespace
 
 int main(int argc, char** argv) {
-  install_stacktrace();
   std::cout.precision(17);
   std::cout << std::unitbuf;
   try {

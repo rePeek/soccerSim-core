@@ -10,7 +10,6 @@
 
 #include "sim/animation/library.hpp"
 
-#include "support/diagnostics/log.hpp"
 
 
 #include "sim/match.hpp"
@@ -132,13 +131,14 @@ void Simulation::Init(
 
 void Simulation::EnsureAnimationLibrary() {
   if (animations_) return;
-  animations_ = std::make_shared<AnimationLibrary>();
-  // Deliberately not assert()/CHECK(): both compile to ((void)0) under NDEBUG,
-  // which would silently skip the load and leave an empty library behind.
-  if (!animations_->Load(GFOOTBALL_BAKED_ANIM_PATH)) {
-    Log(blunted::e_FatalError, "Simulation", "Init",
-        "cannot load baked animations");
+  // Never put resource loading inside assert(): Release must load and reject
+  // invalid resources too. Publish only a successfully loaded library.
+  auto animations = std::make_shared<AnimationLibrary>();
+  if (!animations->Load(GFOOTBALL_BAKED_ANIM_PATH)) {
+    throw std::runtime_error("Simulation: cannot load baked animations: "
+                             GFOOTBALL_BAKED_ANIM_PATH);
   }
+  animations_ = std::move(animations);
 }
 
 void Simulation::Step(const PlayerControlSet& controls) {

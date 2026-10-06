@@ -5,7 +5,6 @@
 #include "app/args.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "gameenv.hpp"
-#include "support/diagnostics/backtrace.hpp"
 
 namespace {
 const char* OutcomeName(MatchOutcome outcome) {
@@ -19,7 +18,6 @@ const char* OutcomeName(MatchOutcome outcome) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  install_stacktrace();
   try {
     const auto config = football::app::ParseArgs(argc, argv);
     MatchOptions match_options;

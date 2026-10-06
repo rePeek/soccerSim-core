@@ -24,9 +24,7 @@
 #include <stdexcept>
 
 #include "foundation/geometry/triangle.hpp"
-#include "support/diagnostics/assert.hpp"
-#include "support/diagnostics/log.hpp"
-#include "support/io/file.hpp"
+#include <cassert>
 #include "sim/player/player_action_volume.hpp"
 #include "sim/player/player_body_collider.hpp"
 
