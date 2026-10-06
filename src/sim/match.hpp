@@ -51,8 +51,7 @@ class Match {
           const football::model::Pitch& pitch,
           const MatchOptions& options,
           SimulationRng& rng,
-          std::shared_ptr<const AnimationLibrary> animations,
-          bool init_animation);
+          std::shared_ptr<const AnimationLibrary> animation_library);
     virtual ~Match();
 
 

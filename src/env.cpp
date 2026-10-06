@@ -43,7 +43,7 @@ void GameEnv::Start() {
   InitLogging();
   try {
     auto simulation = std::make_unique<Simulation>();
-    simulation->Init(home_team_, away_team_, pitch_, match_options_, false);
+    simulation->Init(home_team_, away_team_, pitch_, match_options_);
     auto ai = std::make_unique<football::ai::DefaultAI>(
         home_team_, away_team_, pitch_, ai_config_);
     simulation_ = std::move(simulation);

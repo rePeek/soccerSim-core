@@ -57,7 +57,7 @@ struct Foul {
 class Referee {
 
   public:
-    Referee(Match *match, bool animations);
+    explicit Referee(Match *match);
     virtual ~Referee();
 
     void Process();
@@ -88,7 +88,6 @@ class Referee {
     std::vector<Player*> offsidePlayers;
 
     Foul foul;
-    const bool animations;
 };
 
 #endif

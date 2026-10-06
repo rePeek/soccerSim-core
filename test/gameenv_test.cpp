@@ -102,7 +102,7 @@ void Composition() {
     game.Start();
     Simulation reference;
     MatchOptions expected; expected.game_engine_random_seed = 123; expected.reverse_team_processing = true;
-    reference.Init(declared, away, model::MakeLegacyPitch(), expected, false);
+    reference.Init(declared, away, model::MakeLegacyPitch(), expected);
     football::ai::DefaultAI policy(declared, away, model::MakeLegacyPitch(), initial_config);
     for (int tick = 0; tick < 600; ++tick) {
       SameWorld(game.Observe(), reference.Observe());

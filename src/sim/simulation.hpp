@@ -23,8 +23,7 @@ class Simulation {
 
   void Init(const football::model::Team& home,
             const football::model::Team& away,
-            const football::model::Pitch& pitch, MatchOptions options,
-            bool init_animation);
+            const football::model::Pitch& pitch, MatchOptions options);
   bool Stop();
   void Step(const PlayerControlSet& controls);
   bool IsInPlay() const;

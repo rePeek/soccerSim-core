@@ -41,8 +41,7 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
              const football::model::Pitch& pitch,
              const MatchOptions& options,
              SimulationRng& rng,
-             std::shared_ptr<const AnimationLibrary> animation_library,
-             bool animations)
+             std::shared_ptr<const AnimationLibrary> animation_library)
     : pitch_(pitch),
       animations_(std::move(animation_library)),
       rng_(rng),
@@ -102,7 +101,7 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
   SetMatchPhase(MatchPhase::PreMatch);
 
   // Football rules, independent of any referee/linesman humanoid actors.
-  referee_ = std::make_unique<Referee>(this, animations);
+  referee_ = std::make_unique<Referee>(this);
 
 
 

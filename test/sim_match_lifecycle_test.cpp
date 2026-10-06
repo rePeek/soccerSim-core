@@ -14,7 +14,7 @@ namespace {
 void Init(Simulation& simulation, MatchOptions options = {}) {
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::MakeLegacyPitch(), options, false);
+      football::model::MakeLegacyPitch(), options);
 }
 std::uint64_t Finish(Simulation& simulation) {
   std::uint64_t steps = 0;

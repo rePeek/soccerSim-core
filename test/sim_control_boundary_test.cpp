@@ -25,7 +25,7 @@ struct Runtime {
     options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                     football::app::fixtures::MakeDefaultAwayTeam(),
-                    football::model::MakeLegacyPitch(), options, false);
+                    football::model::MakeLegacyPitch(), options);
     policy = football::test::MakeDefaultAI(simulation);
   }
   Match *match() { return simulation.match(); }
@@ -202,6 +202,7 @@ TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]")
 TEST_CASE("rules prepare and release restarts through value controls without AI objects", "[sim][rules]") {
   for (e_GameMode mode : {e_GameMode_Corner, e_GameMode_GoalKick, e_GameMode_ThrowIn}) {
     Runtime runtime;
+    CAPTURE(mode);
     for (int tick = 0; tick < 300; ++tick) runtime.simulation.Step(PlayerControlSet{});
     Match *match = runtime.match();
     REQUIRE(match->IsInPlay());
@@ -211,9 +212,18 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
         match->GetTeam(last_team)->GetAllPlayers()[1], e_TouchType_Accidental);
     match->GetBall()->ResetSituation(mode == e_GameMode_ThrowIn
         ? Vector3(10, 37, 0) : Vector3(56, 10, 0));
+    const unsigned long stopped = match->GetActualTime_ms();
+    const auto football_time = match->GetMatchTime_ms();
+    const auto rng_before = match->rng().engine();
     Referee *rules = match->GetReferee();
     rules->Process();
     const auto scheduled = rules->GetBuffer();
+    REQUIRE(scheduled.stopTime == stopped);
+    REQUIRE(scheduled.prepareTime == stopped + 2000);
+    REQUIRE(scheduled.startTime == scheduled.prepareTime + 2000);
+    REQUIRE(match->GetActualTime_ms() == stopped + 1900);
+    REQUIRE(match->GetMatchTime_ms() == football_time);
+    REQUIRE(match->rng().engine() == rng_before);
     REQUIRE(scheduled.active);
     REQUIRE(scheduled.desiredSetPiece == mode);
     REQUIRE_FALSE(match->IsInPlay());
@@ -314,7 +324,7 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
     MatchOptions options;
     options.reverse_team_processing = reverse;
     Simulation source;
-    source.Init(home, away, pitch, options, false);
+    source.Init(home, away, pitch, options);
     const auto initial = source.Observe();
     const auto initial_rng = source.match()->rng().engine();
     std::vector<PlayerControlSet> tape;
@@ -361,7 +371,7 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
     Simulation replay;
     for (int run = 0; run < 2; ++run) {
       CAPTURE(run);
-      replay.Init(home, away, pitch, options, false);
+      replay.Init(home, away, pitch, options);
       same_world(initial, replay.Observe());
       REQUIRE(replay.match()->rng().engine() == initial_rng);
       for (std::size_t tick = 0; tick < tape.size(); ++tick) {
@@ -395,7 +405,7 @@ TEST_CASE("old requests never revive across new Matches or independent Simulatio
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   const auto pitch = football::model::MakeLegacyPitch();
   auto simulation = std::make_unique<Simulation>();
-  simulation->Init(home, away, pitch, MatchOptions{}, false);
+  simulation->Init(home, away, pitch, MatchOptions{});
   football::ai::DefaultAI policy(home, away, pitch);
   for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(*simulation, policy);
   const auto old_world = simulation->Observe();
@@ -423,7 +433,7 @@ TEST_CASE("old requests never revive across new Matches or independent Simulatio
   };
   // Deliberately never call policy.ResetRequests(), even at re-init.
   simulation->Stop();
-  simulation->Init(home, away, pitch, MatchOptions{}, false);
+  simulation->Init(home, away, pitch, MatchOptions{});
   const auto new_epoch = simulation->Observe().simulation_epoch;
   check(simulation->Observe());
   for (int tick = 0; tick <= 701; ++tick) {
@@ -438,7 +448,7 @@ TEST_CASE("old requests never revive across new Matches or independent Simulatio
   }
   simulation.reset();  // Destroy the entire old engine, keeping only values/AI.
   Simulation independent;
-  independent.Init(home, away, pitch, MatchOptions{}, false);
+  independent.Init(home, away, pitch, MatchOptions{});
   REQUIRE(independent.Observe().simulation_epoch != new_epoch);
   for (int tick = 0; tick <= 400; ++tick) {
     check(independent.Observe());

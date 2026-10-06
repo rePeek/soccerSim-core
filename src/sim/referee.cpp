@@ -29,7 +29,7 @@ namespace {
 constexpr unsigned long kCardRestartDelayMs = 10000;
 }  // namespace
 
-Referee::Referee(Match *match, bool animations) : match(match), animations(animations) {
+Referee::Referee(Match *match) : match(match) {
   buffer.desiredSetPiece = e_GameMode_KickOff;
   buffer.teamID = match->FirstTeam();
   buffer.setpiece_team = match->GetTeam(match->FirstTeam());
@@ -123,12 +123,10 @@ void Referee::Process() {
         if (match->IsGoalScored()) {
           buffer.desiredSetPiece = e_GameMode_KickOff;
           buffer.stopTime = match->GetActualTime_ms();
-          // Number of ms for replay.
+          // Retain the headless post-goal preparation deadline and clock skip.
           buffer.prepareTime = match->GetActualTime_ms() + 500;
-          if (!animations) {
-            match->BumpActualTime_ms(400);
-          }
-          // Number of ms for kickoff.
+          match->BumpActualTime_ms(400);
+          // Delay from preparation until the kickoff whistle.
           buffer.startTime = buffer.prepareTime + 500;
           buffer.restartPos = Vector3(0, 0, 0);
           buffer.teamID = match->FirstTeam();
@@ -138,9 +136,7 @@ void Referee::Process() {
           buffer.desiredSetPiece = e_GameMode_Corner;
           buffer.stopTime = match->GetActualTime_ms();
           buffer.prepareTime = match->GetActualTime_ms() + 2000;
-          if (!animations) {
-            match->BumpActualTime_ms(1900);
-          }
+          match->BumpActualTime_ms(1900);
           buffer.startTime = buffer.prepareTime + 2000;
           float y = ballPos.coords[1];
           if (y > 0) y = pitchHalfH; else
@@ -151,9 +147,7 @@ void Referee::Process() {
           buffer.desiredSetPiece = e_GameMode_GoalKick;
           buffer.stopTime = match->GetActualTime_ms();
           buffer.prepareTime = match->GetActualTime_ms() + 2000;
-          if (!animations) {
-            match->BumpActualTime_ms(1900);
-          }
+          match->BumpActualTime_ms(1900);
           buffer.startTime = buffer.prepareTime + 2000;
           buffer.restartPos = Vector3(pitchHalfW * 0.92 * -lastSide, 0, 0);
           buffer.teamID = 1 - lastTouchTeam->GetID();
@@ -177,9 +171,7 @@ void Referee::Process() {
           buffer.desiredSetPiece = e_GameMode_ThrowIn;
           buffer.stopTime = match->GetActualTime_ms();
           buffer.prepareTime = match->GetActualTime_ms() + 2000;
-          if (!animations) {
-            match->BumpActualTime_ms(1900);
-          }
+          match->BumpActualTime_ms(1900);
           buffer.startTime = buffer.prepareTime + 2000;
           buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -pitchHalfW + 0.6f, pitchHalfW - 0.6f);
           if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = pitchHalfH;
@@ -284,9 +276,7 @@ void Referee::BallTouched() {
           buffer.desiredSetPiece = e_GameMode_FreeKick;
           buffer.stopTime = match->GetActualTime_ms();
           buffer.prepareTime = match->GetActualTime_ms() + 2000;
-          if (!animations) {
-            match->BumpActualTime_ms(1900);
-          }
+          match->BumpActualTime_ms(1900);
           buffer.startTime = buffer.prepareTime + 2000;
           buffer.restartPos = ballOwner->GetPitchPosition();
           buffer.teamID = 1 - lastTouchTeamID;
@@ -429,16 +419,11 @@ bool Referee::CheckFoul() {
     buffer.desiredSetPiece = penalty ? e_GameMode_Penalty : e_GameMode_FreeKick;
     buffer.stopTime = match->GetActualTime_ms();
     buffer.prepareTime = buffer.stopTime + 2000;
-    if (!animations) {
-      match->BumpActualTime_ms(1900);
-    }
+    match->BumpActualTime_ms(1900);
     if (foul.foulType >= 2) {
       buffer.prepareTime += kCardRestartDelayMs;
-      // Retain the legacy compressed-clock policy. This flag controls waiting
-      // time only; there is no official actor/animation to extend the deadline.
-      if (!animations) {
-        match->BumpActualTime_ms(kCardRestartDelayMs);
-      }
+      // Skip the card wait without changing its rule-owned preparation deadline.
+      match->BumpActualTime_ms(kCardRestartDelayMs);
     }
     buffer.startTime = buffer.prepareTime + 2000;
     buffer.restartPos = penalty

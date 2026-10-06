@@ -98,8 +98,7 @@ Simulation::~Simulation() {
 
 void Simulation::Init(
     const football::model::Team& home, const football::model::Team& away,
-    const football::model::Pitch& pitch, MatchOptions options,
-    bool init_animation) {
+    const football::model::Pitch& pitch, MatchOptions options) {
   if (match_) throw std::logic_error("simulation already initialized");
   // Reject non-advancing/non-finite clocks before any appearance/RNG draws.
   const float factor = options.match_duration * 0.2f + 0.05f;
@@ -126,7 +125,7 @@ void Simulation::Init(
 
   EnsureAnimationLibrary();
   match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
-                                  animations_, init_animation);
+                                  animations_);
 }
 
 void Simulation::EnsureAnimationLibrary() {

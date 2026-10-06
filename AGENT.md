@@ -293,8 +293,12 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   private phases, destruction order and appearance/reseed windows stay unchanged.
 - Officials are rules, not animated actors. Referee is unique_ptr-owned by Match;
   no PlayerOfficial, official profiles or animation-driven restart timing remains.
-  Card restart budget is 10000 ms + 2000 ms prepare + 2000 ms whistle. With animations
-  false, the legacy compressed-clock skip includes 1900 ms + card budget.
+  Card restart budget is 10000 ms + 2000 ms prepare + 2000 ms whistle. Headless
+  restart preparation always fast-forwards the former inactive waits: 400 ms
+  after a goal, 1900 ms for corner/goal-kick/throw-in/free-kick/penalty preparation,
+  plus the card budget when applicable. Initial/half-time kickoff deadlines stay
+  unchanged. There is no animation/waiting-mode switch; baked animation resources
+  remain mandatory for player motion/actions/contact.
   Official removal intentionally changed RNG/goldens; current baselines include it.
 - No ambient environment/context/RNG, ScenarioConfig, controller hierarchy, retired
   GRF binding or memory-hook checkpoints. Durable saves would need explicit values.
