@@ -58,6 +58,11 @@ add_test(NAME module_dependency_guard_negative_test
     ${PROJECT_SOURCE_DIR}/tools/module_dependency_guard.sh
     ${PROJECT_BINARY_DIR}/module_dependencies.txt)
 
+add_test(NAME module_source_ownership_guard_negative_test
+  COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/module_source_ownership_guard_test.sh
+    ${PROJECT_SOURCE_DIR}/tools/module_source_ownership_guard.sh
+    ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/module_dependencies.txt)
+
 # This target proves that policy compiles/links without sim or libgame.
 add_executable(football_default_ai_test default_ai_test.cpp)
 target_link_libraries(football_default_ai_test PRIVATE

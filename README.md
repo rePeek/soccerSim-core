@@ -138,6 +138,22 @@ The headless core retains `Referee` as the football rules engine (fouls, cards,
 offside and restarts), not as a moving actor. Referee/linesman humanoids are
 removed; card restart deadlines are fixed rules time, never animation duration.
 
+## Build ownership
+
+Each `src/<module>/CMakeLists.txt` maintains explicit sources, exported
+`FILE_SET HEADERS`, dependencies and `football::` aliases. Root CMake only
+sets shared build policy and composes targets; there is no `sources.cmake` or
+source globbing. Sim owns contracts and runtime; `query/rules/player` stay
+internal, while `sim/animation` remains an independent baker-consumable archive.
+`tools/animBaker/CMakeLists.txt` owns offline sources, and `tools/CMakeLists.txt`
+owns diagnostics. They are enabled only with testing. CLI/tool binary paths
+remain unchanged.
+
+Input and fixture archives remain available as explicit targets when CLI/tests
+are disabled, but are excluded from the default core-only build. Architecture
+reports use real target link, source and header-set properties in every build
+mode. Guards reject foreign sources as well as forbidden dependency edges.
+
 ## Tests
 
 `ctest --preset release` runs the core regression/diagnostic executables plus the

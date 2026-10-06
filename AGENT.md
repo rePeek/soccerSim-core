@@ -133,16 +133,24 @@ inputs (`src/app/`); the core shared library never links them either way.
 
 ### Adding/removing source files
 
-- `src/foundation/**` is owned by `src/foundation/CMakeLists.txt`; register new
-  foundation files there. The root project consumes it with
-  `add_subdirectory(src/foundation)`.
-- Other `src/**/*.cpp`/`.hpp` files must be registered in `sources.cmake`
-  (`GAME_*` for runtime, `AI_*` for policy, `APP_INPUT_*` for value-only input,
-  `APP_SUPPORT_*`/`APP_MAIN_SOURCES` for executable fixtures/CLI).
-- Executable-side C++ sources live in `src/app/`: `football_app_support` owns fixtures
-  and args; `football_app_input` owns protocol/input state and links only sim contracts.
-  Both are `EXCLUDE_FROM_ALL` archives, never linked into the core shared library.
-  Unit tests live in `test/` and are registered in `test/CMakeLists.txt` with Catch2.
+- Every module owns explicit sources, public `FILE_SET HEADERS`, link dependencies
+  and aliases in its own `src/<module>/CMakeLists.txt`. Register new files there;
+  do not restore `sources.cmake` or use `file(GLOB ...)` for build sources.
+- `src/sim/CMakeLists.txt` owns value-only `football::sim_contracts` and the sim
+  runtime. `query/rules/player` are internal organization, not library targets.
+  `src/sim/animation/CMakeLists.txt` owns `football::animation`, an independent
+  archive also consumed by the baker. `gamedefines.cpp` belongs to sim, not env.
+- Root CMake supplies common build policy and composes modules into `football::game`
+  (`libgame.so`). Whole-archive runtime packaging preserves existing exported
+  symbols, including the currently unused `GetRoleFromString`; no parser deletion
+  or runtime behavior change is part of this build migration.
+- `src/app/CMakeLists.txt` owns CLI, fixtures/args (`football::app_support`) and
+  value-only input (`football::app_input`). Both archives are `EXCLUDE_FROM_ALL`,
+  available even with CLI/tests disabled, and never linked into core.
+- `tools/CMakeLists.txt` owns diagnostics/guard registrations;
+  `tools/animBaker/CMakeLists.txt` owns offline importer/baker targets. Both are
+  composed only under `BUILD_TESTING`. CLI/tool executables retain build-root paths.
+- Unit tests live in `test/` and are registered in `test/CMakeLists.txt` with Catch2.
 
 ## Source layout (current branch)
 
@@ -195,11 +203,12 @@ src/
         └── default_teams
 ```
 
-Repository-root extras (tests only; never part of the core library):
+Repository-root build helpers and test-only extras (never linked into core):
 
 ```text
 cmake/
-└── CPM.cmake        vendored CPM bootstrap; Catch2 is fetched through it
+├── CPM.cmake        vendored CPM bootstrap; Catch2 is fetched through it
+└── module_dependencies.cmake  actual target link/source/header metadata (all build modes)
 
 test/                 Catch2 suites and architecture guard negative tests
 ├── app_args_test     CLI argument parsing
@@ -213,7 +222,8 @@ test/                 Catch2 suites and architecture guard negative tests
 ├── default_ai_fixture   诊断自己的 observe → AI → controls → step 组合根
 ├── baselines/pre_value_ai.md  替换默认策略前的历史黄金值
 ├── baselines/pre_input_migration.md  删除输入 ownership/请求字段前的 World schema hash
-└── module_dependency_guard_test.sh reverse-edge/obsolete API rejection
+├── module_dependency_guard_test.sh reverse-edge/obsolete API rejection
+└── module_source_ownership_guard_test.sh foreign/duplicate/missing source ownership rejection
 ```
 
 
@@ -230,7 +240,7 @@ include `support`, and nothing in core may include `app/` or reference its symbo
 
 ### 分层与边界守卫
 
-已实现的下半段（能在 `CMakeLists.txt` 的 static library 边上看到）：
+已实现的依赖边定义在各模块的 `CMakeLists.txt` 中；根文件只做组合：
 
 ```text
 runtime:  model/foundation (叶) → sim/animation → sim → engine/env → game
@@ -244,8 +254,8 @@ input:    app/input → football_sim_contracts（无 AI edge；组合根负责�
 `sim/observation_epoch.hpp`，仅依赖 model/foundation；sim/AI/input 共同使用它。
 已删除 `src/control/`、
 `src/observation/` 与旧 target，无 forwarding header/兼容 alias，也不创建 sim/api。
-CMake 导出该 target 的真实 INTERFACE_SOURCES，守卫按精确路径区分这些契约和
-其余 sim/ runtime headers，并检查契约内部不能反向 include/link runtime。
+CMake 从该 target 的真实 `FILE_SET HEADERS` (`HEADER_SET`) 导出成员，守卫按
+精确路径区分这些契约和其余 sim/ runtime headers，并检查契约内部不能反向 include/link runtime。
 
 `football_app_support` (fixtures/args) and `football_app_input` (protocol/selection)
 are `EXCLUDE_FROM_ALL` archives above core; neither is linked by a core target.
@@ -259,6 +269,13 @@ them true: CMake exports each module target's real transitive closure into
 `module_dependencies.txt` and the guard fails when a module includes a prefix its
 target does not declare. "Declared but unused" edges are not reported (the
 compiler cannot see them either); removing one stays a review item.
+
+`cmake/module_dependencies.cmake` 递归发现 `src/` 下的实际 targets，归一化
+namespaced aliases、static PRIVATE `LINK_ONLY` 与 packaging `LINK_LIBRARY` 边；
+不认识的 generator expression 显式拒绝，而非静默漏掉依赖。报告也从真实
+`SOURCES` / `INTERFACE_SOURCES` / header sets 导出归属；`module_source_ownership_guard`
+拒绝外模块 `.cpp`/headers、重复归属、缺失文件、未知实现 targets 和非规范路径，
+防止绕开干净 link graph 直接编入 actor/policy 实现。报告在 tests/app 关闭时仍生成。
 
 - `model` 只能 include STL 与自身；`model_boundary_guard` 防止 runtime/IO 依赖回流。
   `football_model` / `football::model` 接口库替代原 `football_domain`；不再存在
