@@ -55,10 +55,8 @@ Vector3 FormationTarget(const WorldState &world, const TacticalBoard &board,
     return Vector3(defend * (world.pitch.half_length() - 2.f),
                    std::clamp(world.ball_position.coords[1] * 0.2f, -3.f, 3.f), 0);
   Vector3 position = *directive->formation_position;
-  const float width = board.width > 0.f ? board.width : world.pitch.width() * 0.75f;
-  const float depth = board.depth > 0.f ? board.depth : world.pitch.length() * 0.55f;
-  position.coords[0] *= depth / (world.pitch.length() * 0.55f);
-  position.coords[1] *= width / (world.pitch.width() * 0.75f);
+  position.coords[0] *= board.depth / 0.55f;
+  position.coords[1] *= board.width / 0.75f;
   const auto marking = player.pressure_remaining_ms > 0 && player.marking_target
       ? player.marking_target : directive->marking_target;
   if (marking) {

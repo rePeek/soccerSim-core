@@ -1,11 +1,11 @@
-#ifndef FOOTBALL_CONTROL_PLAYER_CONTROL_SET_HPP
-#define FOOTBALL_CONTROL_PLAYER_CONTROL_SET_HPP
+#ifndef FOOTBALL_SIM_PLAYER_CONTROL_SET_HPP
+#define FOOTBALL_SIM_PLAYER_CONTROL_SET_HPP
 
 #include <span>
 #include <vector>
 #include <utility>
 
-#include "control/player_control.hpp"
+#include "sim/player_control.hpp"
 
 class PlayerControlSet {
  public:
@@ -34,4 +34,4 @@ class PlayerControlSet {
   std::vector<PlayerControl> controls_;
 };
 
-#endif  // FOOTBALL_CONTROL_PLAYER_CONTROL_SET_HPP
+#endif  // FOOTBALL_SIM_PLAYER_CONTROL_SET_HPP

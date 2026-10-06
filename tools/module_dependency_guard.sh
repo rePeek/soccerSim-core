@@ -1,44 +1,28 @@
 #!/usr/bin/env sh
-# Declared CMake edges are documentation only: every target compiles with
-# -I src, because headers cross-reference module/... paths, so an undeclared
-# include still builds. This guard enforces the dangerous direction - a module
-# may only include project prefixes covered by its own target's transitive
-# link closure, as exported by CMake into module_dependencies.txt.
-#
-# "Declared but unused" edges are deliberately not reported here; the compiler
-# cannot see them either, so dropping one stays a review item.
+# Enforce real CMake link closures, with exact header membership for sim's
+# value-only contracts. Sharing a sim/ directory must not expose actor runtime.
 set -eu
-
 if [ "$#" -ne 2 ]; then
   echo "usage: $0 SOURCE_DIR MODULE_DEPENDENCIES_FILE" >&2
   exit 2
 fi
-
 source_dir=$1
 deps_file=$2
-
 if [ ! -f "$deps_file" ]; then
   echo "module dependency guard: missing $deps_file (reconfigure)" >&2
   exit 2
 fi
 
-# module directory -> the target that compiles it. src/app is out of scope:
-# it is executable-only and may use any core module.
 modules='model:football_model
 foundation:football_foundation
-observation:football_observation
-control:football_control
 controller:football_controller
 support:football_support
 sim:football_sim
 env:football_engine
 ai:football_ai'
-
-# target -> the include prefix it provides
 provides='football_foundation:foundation
 football_model:model
-football_observation:observation
-football_control:control
+football_sim_contracts:sim-contracts
 football_controller:controller
 football_support:support
 football_animation:sim/animation
@@ -46,30 +30,55 @@ football_sim:sim
 football_engine:env
 football_ai:ai
 football_app_support:app'
-
 value_of() {
-  # value_of <multiline table> <key>
   printf '%s\n' "$1" | sed -n "s/^$2://p"
+}
+closure_of() {
+  sed -n "s/^$1: //p" "$deps_file"
+}
+contract_headers=$(closure_of football_sim_contracts_headers)
+if [ -z "$contract_headers" ]; then
+  echo 'module dependency guard: missing sim contract header membership (reconfigure)' >&2
+  exit 2
+fi
+classify() {
+  case " $contract_headers " in
+    *" $1 "*) echo sim-contracts; return ;;
+  esac
+  case "$1" in
+    sim/animation/*) echo sim/animation ;;
+    *) echo "${1%%/*}" ;;
+  esac
 }
 
 status=0
-# No declaration may legalize sim -> ai (including indirect link edges).
-sim_closure=$(sed -n 's/^football_sim: //p' "$deps_file")
+for retired in control observation; do
+  if [ -e "$source_dir/$retired" ]; then
+    echo "module dependency guard: retired src/$retired directory" >&2
+    status=1
+  fi
+done
+sim_closure=$(closure_of football_sim)
 case " $sim_closure " in
   *' football_ai '*)
     echo 'module dependency guard: forbidden football_sim -> football_ai link' >&2
-    status=1
-    ;;
+    status=1 ;;
 esac
-
-# Value AI may not regain access to actors, even by declaring a transitive edge.
-ai_closure=$(sed -n 's/^football_ai: //p' "$deps_file")
+ai_closure=$(closure_of football_ai)
 for target in football_sim football_animation football_engine football_controller football_support football_app_support; do
   case " $ai_closure " in
     *" $target "*)
       echo "module dependency guard: forbidden football_ai -> $target link" >&2
-      status=1
-      ;;
+      status=1 ;;
+  esac
+done
+# A convenient transitive edge must not turn passive contracts into runtime.
+for target in $(closure_of football_sim_contracts); do
+  case "$target" in
+    football_sim_contracts|football_foundation|football_model) ;;
+    *)
+      echo "module dependency guard: forbidden football_sim_contracts -> $target link" >&2
+      status=1 ;;
   esac
 done
 
@@ -84,63 +93,61 @@ for file in legacy_player_decision.cpp legacy_player_decision.hpp legacy_player_
     status=1
   fi
 done
-
-# Do not recreate the old ownership bucket or its misleading API names.
-if [ -d "$source_dir/sim" ]; then
-  if [ -e "$source_dir/sim/ai_support/AIfunctions.hpp" ] ||
-     [ -e "$source_dir/sim/ai_support/AIfunctions.cpp" ] ||
-     grep -RqE 'AIfunctions|(^|[^[:alnum:]_])AI_[[:alnum:]_]+' \
-       --include='*.cpp' --include='*.hpp' --include='*.h' "$source_dir/sim"; then
-    echo 'module dependency guard: obsolete AIfunctions/AI_ API in sim' >&2
-    status=1
-  fi
+if [ -e "$source_dir/sim/ai_support/AIfunctions.hpp" ] ||
+   [ -e "$source_dir/sim/ai_support/AIfunctions.cpp" ] ||
+   grep -RqE 'AIfunctions|(^|[^[:alnum:]_])AI_[[:alnum:]_]+' \
+     --include='*.cpp' --include='*.hpp' --include='*.h' "$source_dir/sim"; then
+  echo 'module dependency guard: obsolete AIfunctions/AI_ API in sim' >&2
+  status=1
 fi
-# Tactical intent belongs exclusively to AI, never sim or its snapshots/controls.
-if [ -e "$source_dir/control/tactical_board.hpp" ] ||
-   grep -RqE 'TacticalBoard|PlayerDirective|PlannedPlayerRole|ObserveTactics' \
-     --include='*.cpp' --include='*.hpp' --include='*.h' \
-     "$source_dir/sim" "$source_dir/observation" "$source_dir/control"; then
+if grep -RqE 'TacticalBoard|PlayerDirective|PlannedPlayerRole|ObserveTactics' \
+    --include='*.cpp' --include='*.hpp' --include='*.h' "$source_dir/sim"; then
   echo 'module dependency guard: tactical intent leaked into simulation contracts' >&2
   status=1
 fi
 
-for entry in $modules; do
-  module=${entry%%:*}
-  target=${entry#*:}
-  [ -d "$source_dir/$module" ] || continue
-
-  closure=$(sed -n "s/^$target: //p" "$deps_file")
+check_includes() {
+  label=$1
+  target=$2
+  shift 2
+  closure=$(closure_of "$target")
   if [ -z "$closure" ]; then
     echo "module dependency guard: $target missing from $deps_file" >&2
     exit 1
   fi
-
-  # Own prefix plus every prefix provided by a target in the closure.
   allowed=$(value_of "$provides" "$target")
   for dependency in $closure; do
     prefix=$(value_of "$provides" "$dependency")
-    [ -n "$prefix" ] && allowed="$allowed $prefix"
+    [ -z "$prefix" ] || allowed="$allowed $prefix"
   done
-
-  # Project prefixes actually included anywhere under this module. The awk
-  # split resolves sim/animation before the broader sim root.
   used=$(grep -Rh -o -E \
-      '#[[:space:]]*include[[:space:]]*["<](foundation|model|observation|control|controller|support|sim|env|app|ai)/[^">]*[">]' \
-      --include='*.cpp' --include='*.hpp' --include='*.h' \
-      "$source_dir/$module" 2>/dev/null \
-    | sed -E 's/#[[:space:]]*include[[:space:]]*["<](.*)[">]/\1/' \
-    | awk -F/ '{ print ($1 == "sim" && $2 == "animation") ? "sim/animation" : $1 }' \
-    | sort -u)
-
-  for prefix in $used; do
+      '#[[:space:]]*include[[:space:]]*("[^"]*"|<(foundation|model|control|observation|controller|support|sim|env|app|ai)/[^>]*>)' \
+      --include='*.cpp' --include='*.hpp' --include='*.h' "$@" 2>/dev/null \
+    | sed -E 's/#[[:space:]]*include[[:space:]]*["<](.*)[">]/\1/' | sort -u)
+  for header in $used; do
+    prefix=$(classify "$header")
     case " $allowed " in
       *" $prefix "*) ;;
       *)
-        echo "module dependency guard: src/$module includes $prefix/ but $target does not declare it" >&2
-        status=1
-        ;;
+        echo "module dependency guard: $label includes $header but $target does not declare it" >&2
+        status=1 ;;
     esac
   done
+}
+for header in $contract_headers; do
+  case "$header" in
+    sim/*.hpp) ;;
+    *) echo "module dependency guard: invalid contract header $header" >&2; exit 1 ;;
+  esac
+  if [ ! -f "$source_dir/$header" ]; then
+    echo "module dependency guard: missing contract header $header" >&2
+    exit 1
+  fi
+  check_includes "sim contract $header" football_sim_contracts "$source_dir/$header"
 done
-
+for entry in $modules; do
+  module=${entry%%:*}
+  target=${entry#*:}
+  [ ! -d "$source_dir/$module" ] || check_includes "src/$module" "$target" "$source_dir/$module"
+done
 exit "$status"

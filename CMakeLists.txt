@@ -21,8 +21,15 @@ endfunction()
 # add_subdirectory(path/to/src/foundation).
 add_subdirectory(src/foundation)
 add_subdirectory(src/model)
-add_subdirectory(src/observation)
-add_subdirectory(src/control)
+
+# Sim owns the input/output headers, but this target exposes no actor runtime.
+add_library(football_sim_contracts INTERFACE)
+add_library(football::sim_contracts ALIAS football_sim_contracts)
+target_sources(football_sim_contracts INTERFACE ${SIM_CONTRACT_HEADERS})
+target_include_directories(football_sim_contracts INTERFACE ${PROJECT_SOURCE_DIR}/src)
+target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
+target_link_libraries(football_sim_contracts INTERFACE football_foundation football_model)
+
 add_subdirectory(src/support)
 add_subdirectory(src/controller)
 
@@ -48,10 +55,10 @@ endif()
 #
 #   foundation <- sim/animation <- sim <- engine <- game
 #         ^                            ^
-#         ├── model/control ────────────┘
+#         ├── model/sim_contracts ──────┘
 #         └── controller (temporary legacy input)
 #
-#   observation is a read-only contract leaf above model/foundation.
+#   sim_contracts is a value-only target above model/foundation, shared with AI.
 #   app fixtures/importers -> model/support (executable-only; no core edge)
 #
 # The runtime animation archive below depends directly on foundation only;
@@ -72,24 +79,24 @@ football_configure_target(football_app_support)
 
 add_library(football_sim STATIC ${GAME_SOURCES} ${GAME_HEADERS})
 target_link_libraries(football_sim PUBLIC football_animation football_support
-  football_model football_observation football_control football_controller)
+  football_model football_sim_contracts football_controller)
 
 # Value policy links only read/control contracts, never the actor runtime.
 add_library(football_ai STATIC ${AI_SOURCES} ${AI_HEADERS})
-target_link_libraries(football_ai PUBLIC football_observation football_control)
+target_link_libraries(football_ai PUBLIC football_sim_contracts)
 football_configure_target(football_ai)
 
 # env composes observe -> default AI -> merged controls -> sim in one TU.
 # The environment owns a persistent DefaultAI and exposes its tactical values.
 add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
-  src/env/game_env.cpp src/env/game_env.hpp src/env/default_ai_setup.hpp)
+  src/env/game_env.cpp src/env/game_env.hpp)
 target_link_libraries(football_engine PRIVATE football_controller football_model
-  football_sim football_observation football_support football_control football_ai)
+  football_sim football_sim_contracts football_support football_ai)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
 target_link_libraries(${OUTPUT_LIB_NAME}
-  PUBLIC football_observation football_control football_ai
+  PUBLIC football_sim_contracts football_ai
   PRIVATE football_sim football_controller)
 
 if(FOOTBALL_BUILD_APP)
@@ -139,10 +146,10 @@ target_link_libraries(football_player_identity_test PRIVATE ${OUTPUT_LIB_NAME} f
 football_configure_target(football_player_identity_test)
 add_test(NAME football_player_identity_test COMMAND football_player_identity_test)
 
-add_executable(football_control_test tools/player_control_set_test.cpp)
-target_link_libraries(football_control_test PRIVATE football_control)
-football_configure_target(football_control_test)
-add_test(NAME football_control_test COMMAND football_control_test)
+add_executable(football_sim_contracts_test tools/sim_contracts_test.cpp)
+target_link_libraries(football_sim_contracts_test PRIVATE football_sim_contracts)
+football_configure_target(football_sim_contracts_test)
+add_test(NAME football_sim_contracts_test COMMAND football_sim_contracts_test)
 
 add_executable(football_model_test tools/model_test.cpp)
 target_link_libraries(football_model_test PRIVATE football::model)
@@ -216,9 +223,14 @@ function(football_link_closure tgt out_var)
   set(${out_var} ${_closure} PARENT_SCOPE)
 endfunction()
 
-set(_module_dependency_report "")
+# Export the actual contract header membership as well as link closures. The
+# guard distinguishes these exact paths from all other sim/ actor headers.
+get_target_property(_contract_headers football_sim_contracts INTERFACE_SOURCES)
+list(TRANSFORM _contract_headers REPLACE "^${PROJECT_SOURCE_DIR}/src/" "")
+string(REPLACE ";" " " _contract_headers_text "${_contract_headers}")
+set(_module_dependency_report "football_sim_contracts_headers: ${_contract_headers_text}\n")
 foreach(_module_target IN ITEMS
-    football_foundation football_model football_observation football_control
+    football_foundation football_model football_sim_contracts
     football_controller football_support football_animation football_sim
     football_ai football_engine football_app_support)
   football_link_closure(${_module_target} _closure)

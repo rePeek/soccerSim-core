@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_CONTROL_PLAYER_CONTROL_HPP
-#define FOOTBALL_CONTROL_PLAYER_CONTROL_HPP
+#ifndef FOOTBALL_SIM_PLAYER_CONTROL_HPP
+#define FOOTBALL_SIM_PLAYER_CONTROL_HPP
 
 #include <optional>
 
@@ -20,8 +20,8 @@ enum class ControlAction {
   Save,
 };
 
-// Persistent control target for one player. It remains active until replaced
-// or cleared; simulation translates it into its existing command queue.
+// Executable request for one simulation tick, independent of its input source.
+// A caller may retain/resubmit it; simulation translates it into commands.
 struct PlayerControl {
   football::model::PlayerId player = football::model::kInvalidPlayerId;
   blunted::Vector3 move_direction = blunted::Vector3(0);
@@ -33,4 +33,4 @@ struct PlayerControl {
   float power = 0.0f;
 };
 
-#endif  // FOOTBALL_CONTROL_PLAYER_CONTROL_HPP
+#endif  // FOOTBALL_SIM_PLAYER_CONTROL_HPP

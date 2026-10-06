@@ -5,8 +5,8 @@
 #include <utility>
 
 #include "ai/tactical_board.hpp"
-#include "control/player_control_set.hpp"
-#include "observation/world_state.hpp"
+#include "sim/player_control_set.hpp"
+#include "sim/world_state.hpp"
 
 namespace football::ai {
 
@@ -20,6 +20,10 @@ class DefaultAI {
     boards_[0].side = model::TeamSide::Home;
     boards_[1].side = model::TeamSide::Away;
   }
+  DefaultAI(const model::Team &home, const model::Team &away,
+            const model::Pitch &pitch = model::MakeLegacyPitch())
+      : boards_{MakeTacticalBoard(home, model::TeamSide::Home, pitch),
+                MakeTacticalBoard(away, model::TeamSide::Away, pitch)} {}
 
   TacticalBoard &tactics(model::TeamSide side) {
     return boards_.at(static_cast<unsigned>(side));

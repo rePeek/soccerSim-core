@@ -30,7 +30,7 @@
 #include "sim/ai_support/mentalimage.hpp"
 #include "sim/animation/library.hpp"
 #include "sim/animation/types.hpp"
-#include "control/player_control_set.hpp"
+#include "sim/player_control_set.hpp"
 
 
 #include <fstream>

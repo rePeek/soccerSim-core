@@ -18,7 +18,7 @@
 namespace model = football::model;
 static_assert(std::is_same_v<model::PlayerId, std::uint32_t>);
 static_assert(std::is_same_v<decltype(WorldPlayerState::side), model::TeamSide>);
-static_assert(std::is_same_v<decltype(TacticalBoard::side), model::TeamSide>);
+static_assert(std::is_same_v<decltype(football::ai::TacticalBoard::side), model::TeamSide>);
 
 template<class T> concept HasRuntimeIndex =
     requires { &T::GetIndex; } || requires { &T::index; };

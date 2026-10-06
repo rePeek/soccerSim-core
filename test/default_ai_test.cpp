@@ -6,6 +6,9 @@
 
 #include "ai/default_ai.hpp"
 
+using football::ai::PlayerDirective;
+using football::ai::PlannedPlayerRole;
+
 namespace {
 using blunted::Vector3;
 using football::model::TeamSide;
@@ -109,8 +112,8 @@ TEST_CASE("persistent tactical intent does not accumulate positioning or hidden 
   const WorldState retained = world;
   auto policy = Shape(world);
   auto &board = policy.tactics(TeamSide::Home);
-  board.width = 20.f;
-  board.depth = 30.f;
+  board.width = 0.8f;
+  board.depth = 0.6f;
   board.players[0].marking_target = 9;
   PlayerControlSet expected;
   policy.Update(world, expected);
@@ -122,10 +125,10 @@ TEST_CASE("persistent tactical intent does not accumulate positioning or hidden 
   }
   REQUIRE(Same(world.ball_position, retained.ball_position));
   REQUIRE(Same(*board.players[0].formation_position, Vector3(-20, 0, 0)));
-  REQUIRE(board.width == 20.f);
-  REQUIRE(board.depth == 30.f);
+  REQUIRE(board.width == 0.8f);
+  REQUIRE(board.depth == 0.6f);
   REQUIRE(board.players[0].marking_target == 9);
-  REQUIRE(policy.tactics(TeamSide::Away).width == 0.f);
+  REQUIRE(policy.tactics(TeamSide::Away).width == 0.75f);
   world.players.clear();
   REQUIRE(retained.players.size() == 2);
   policy.Update(world, expected);
@@ -201,8 +204,8 @@ TEST_CASE("external tactical edits persist and change decisions without rewritin
   board.players[1].formation_position = Vector3(-20, 10, 0);
   PlayerControlSet before, after;
   policy.Update(world, before);
-  board.width = 20.f;
-  board.depth = 30.f;
+  board.width = 20.f / world.pitch.width();
+  board.depth = 30.f / world.pitch.length();
   policy.Update(world, after);
   REQUIRE_FALSE(Same(before.Get(2)->move_direction, after.Get(2)->move_direction));
   board.players[1].marking_target = 3;
@@ -224,14 +227,96 @@ TEST_CASE("external tactical edits persist and change decisions without rewritin
 
 TEST_CASE("AI instances copies and side boards own independent tactical values", "[ai]") {
   DefaultAI original;
-  original.tactics(TeamSide::Home).width = 42.f;
+  original.tactics(TeamSide::Home).width = 0.9f;
   original.tactics(TeamSide::Home).players.push_back(PlayerDirective{});
   auto copy = original;
   copy.tactics(TeamSide::Home).players[0].role = PlannedPlayerRole::Forward;
-  copy.tactics(TeamSide::Home).width = 20.f;
-  REQUIRE(original.tactics(TeamSide::Home).width == 42.f);
+  copy.tactics(TeamSide::Home).width = 0.6f;
+  REQUIRE(original.tactics(TeamSide::Home).width == 0.9f);
   REQUIRE(original.tactics(TeamSide::Home).players[0].role == PlannedPlayerRole::Unspecified);
   REQUIRE(original.tactics(TeamSide::Away).side == TeamSide::Away);
   REQUIRE(original.tactics(TeamSide::Away).players.empty());
   REQUIRE(DefaultAI{}.tactics(TeamSide::Home).players.empty());
+}
+
+TEST_CASE("AI bootstraps independent tactical boards directly from static models", "[ai]") {
+  namespace model = football::model;
+  model::Team home, away;
+  home.players.resize(3);
+  home.players[0].id = 4000000000u;
+  home.players[1].id = 17;
+  home.players[2].id = 42;
+  home.tactical_formation = {{{-1.f, 0.f}, e_PlayerRole_GK},
+                            {{-0.8f, 0.8f}, e_PlayerRole_LB},
+                            {{1.f, 0.f}, e_PlayerRole_CF}};
+  away = home;
+  for (auto &player : away.players) player.id -= 1;
+  DefaultAI policy(home, away);
+  const auto &board = policy.tactics(TeamSide::Home);
+  const auto &opponent = policy.tactics(TeamSide::Away);
+  REQUIRE(board.side == TeamSide::Home);
+  REQUIRE(opponent.side == TeamSide::Away);
+  REQUIRE(board.width == 0.75f);
+  REQUIRE(board.depth == 0.55f);
+  REQUIRE(board.players.size() == 3);
+  REQUIRE(board.players[0].player == 4000000000u);
+  REQUIRE(board.players[1].player == 17);
+  REQUIRE(board.players[0].role == PlannedPlayerRole::Goalkeeper);
+  REQUIRE(board.players[1].role == PlannedPlayerRole::Defender);
+  REQUIRE(board.players[2].role == PlannedPlayerRole::Forward);
+  REQUIRE(board.players[0].formation_position->coords[0] < 0.f);
+  for (std::size_t i = 0; i < board.players.size(); ++i) {
+    REQUIRE(board.players[i].formation_position->coords[0] ==
+            -opponent.players[i].formation_position->coords[0]);
+    REQUIRE(board.players[i].formation_position->coords[1] ==
+            -opponent.players[i].formation_position->coords[1]);
+    REQUIRE_FALSE(board.players[i].marking_target.has_value());
+  }
+  const auto anchor = board.players[1].formation_position;
+  home.players[1].id = 99;
+  home.tactical_formation[1].position = {1.f, 0.f};
+  REQUIRE(board.players[1].player == 17);
+  REQUIRE(board.players[1].formation_position == anchor);
+  REQUIRE(DefaultAI(model::Team{}, model::Team{}).tactics(TeamSide::Home).players.empty());
+}
+
+TEST_CASE("AI bootstrap respects formation precedence and never invents roster profiles", "[ai]") {
+  namespace model = football::model;
+  model::Team team;
+  team.players.resize(3);
+  for (unsigned i = 0; i < 3; ++i) team.players[i].id = i + 1;
+  team.tactical_formation = {{{1.f, 0.f}, e_PlayerRole_CF},
+                            {{-1.f, 0.f}, e_PlayerRole_GK}};
+  team.formation = {{{-0.2f, 0.1f}, e_PlayerRole_CM}};
+  auto board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::MakeLegacyPitch());
+  REQUIRE(board.players.size() == 1);
+  REQUIRE(board.players[0].role == PlannedPlayerRole::Midfielder);
+  REQUIRE(board.players[0].formation_position->coords[0] > 0.f);
+  team.tactical_formation.clear();
+  board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::MakeLegacyPitch());
+  REQUIRE(board.players[0].formation_position->coords[0] < 0.f);
+  REQUIRE(board.players[0].formation_position->coords[1] < 0.f);
+  team.formation.clear();
+  board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::MakeLegacyPitch());
+  REQUIRE(board.players.size() == team.players.size());
+  team.tactical_formation.resize(5); // Invalid sim input may still be inspected before startup.
+  board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::MakeLegacyPitch());
+  REQUIRE(board.players.size() == 3);
+  REQUIRE(board.players[2].player == 3);
+}
+
+TEST_CASE("AI initial desired shape deterministically spaces coincident outfield anchors", "[ai]") {
+  namespace model = football::model;
+  model::Team team;
+  team.players.resize(2);
+  team.players[0].id = 1;
+  team.players[1].id = 2;
+  team.tactical_formation = {{{0.f, 0.f}, e_PlayerRole_CF}, {{0.f, 0.f}, e_PlayerRole_CF}};
+  const auto pitch = model::MakeLegacyPitch();
+  auto first = football::ai::MakeTacticalBoard(team, TeamSide::Home, pitch);
+  auto second = football::ai::MakeTacticalBoard(team, TeamSide::Home, pitch);
+  REQUIRE(first.players[0].formation_position->coords[1] > 0.f);
+  REQUIRE(first.players[1].formation_position->coords[1] < 0.f);
+  for (unsigned i = 0; i < 2; ++i)
+    REQUIRE(Same(*first.players[i].formation_position, *second.players[i].formation_position));
 }

@@ -3,12 +3,12 @@
 
 #include <memory>
 
-#include "control/player_control_set.hpp"
+#include "sim/player_control_set.hpp"
 #include "model/team.hpp"
 #include "model/pitch.hpp"
 #include "sim/match_options.hpp"
 #include "sim/rng.hpp"
-#include "observation/world_state.hpp"
+#include "sim/world_state.hpp"
 
 class Match;
 class AnimationLibrary;

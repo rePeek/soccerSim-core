@@ -32,9 +32,18 @@ Default AI remains shipped in `libgame.so`, but runs outside simulation:
 `WorldState + TacticalBoard → DefaultAI → PlayerControlSet → Simulation`.
 Explicit controls override default decisions; active Human input stays in sim.
 Simulation itself has no decision objects/factories and no implicit AI fallback.
-AI links only observation/control contracts, never actor/runtime code. Snapshots
-include ball motion, play/restart/retention state and both team states; controls
-and observations use a common home pitch frame.
+AI links only the header-only `football_sim_contracts` target, never actor/runtime
+code. Simulation owns its input/output headers: `sim/player_control.hpp`,
+`sim/player_control_set.hpp`, and `sim/world_state.hpp`. Exact-header dependency
+guards prevent AI from including other `sim/` headers. Snapshots include ball
+motion, play/restart/retention state and both team states; controls and observations
+use a common home pitch frame.
+
+`DefaultAI(home, away, pitch)` builds its persistent tactical boards directly from
+static `model::Team` declarations, with no simulation bootstrap. Edit them through
+`game.tactics(TeamSide::Home)`; width/depth are pitch fractions (defaults 0.75/0.55).
+Player AI derives local targets without rewriting the base plan. Simulation
+reset/stop/start preserves tactical configuration.
 
 The old Eliza strategy was intentionally replaced, not wrapped. Current policy
 goldens differ; historical values are recorded in

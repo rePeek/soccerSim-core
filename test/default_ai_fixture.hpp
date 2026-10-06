@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_TEST_DEFAULT_AI_FIXTURE_HPP
 #define FOOTBALL_TEST_DEFAULT_AI_FIXTURE_HPP
 
-#include "env/default_ai_setup.hpp"
+#include "ai/default_ai.hpp"
 #include "sim/match.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team.hpp"
@@ -12,8 +12,8 @@ template<class T> concept HasDecisionObject = requires(T &actor) { actor.GetCont
 // Diagnostic composition owns its policy explicitly, just like GameEnv.
 inline ai::DefaultAI MakeDefaultAI(const Simulation &simulation) {
   const auto &match = *simulation.match();
-  return env::MakeDefaultAI(match.GetTeam(0)->GetModel(), match.GetTeam(1)->GetModel(),
-                            match.pitch());
+  return ai::DefaultAI(match.GetTeam(0)->GetModel(), match.GetTeam(1)->GetModel(),
+                       match.pitch());
 }
 
 inline void StepDefaultAI(Simulation &simulation, const ai::DefaultAI &policy,

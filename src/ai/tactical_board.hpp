@@ -6,7 +6,10 @@
 
 #include "model/player.hpp"
 #include "model/team.hpp"
+#include "model/pitch.hpp"
 #include "foundation/math/vector3.hpp"
+
+namespace football::ai {
 
 // Planned roles are AI intent, separate from runtime formation/animation enums.
 enum class PlannedPlayerRole {
@@ -30,11 +33,16 @@ struct PlayerDirective {
 // Actual restarts and timed run/pressure/rush requests belong to WorldState.
 struct TacticalBoard {
   football::model::TeamSide side = football::model::TeamSide::Home;
-  // Desired shape dimensions in metres; zero selects the policy's pitch-based
-  // default (75% width / 55% length). Reading does not resolve/write defaults.
-  float width = 0.0f;
-  float depth = 0.0f;
+  // Desired dimensions as fractions of pitch width/length, not metres.
+  float width = 0.75f;
+  float depth = 0.55f;
   std::vector<PlayerDirective> players;
 };
+
+// Bootstrap desired shape from static declarations, without observing sim.
+TacticalBoard MakeTacticalBoard(const model::Team &team, model::TeamSide side,
+                               const model::Pitch &pitch);
+
+}  // namespace football::ai
 
 #endif  // FOOTBALL_AI_TACTICAL_BOARD_HPP

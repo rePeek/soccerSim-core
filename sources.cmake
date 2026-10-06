@@ -22,10 +22,12 @@ set(MODEL_HEADERS
    src/model/pitch.hpp
 )
 
-
-
-
-
+# Value-only Simulation inputs/outputs; also used by policy-only consumers.
+set(SIM_CONTRACT_HEADERS
+   src/sim/player_control.hpp
+   src/sim/player_control_set.hpp
+   src/sim/world_state.hpp
+)
 
 set(ANIMATION_HEADERS
    src/sim/animation/types.hpp
@@ -129,7 +131,7 @@ set(GAME_SOURCES
 list(APPEND GAME_HEADERS src/sim/formation.hpp)
 
 set(AI_HEADERS src/ai/default_ai.hpp src/ai/tactical_board.hpp)
-set(AI_SOURCES src/ai/default_ai.cpp)
+set(AI_SOURCES src/ai/default_ai.cpp src/ai/tactical_board.cpp)
 
 # Executable-side code. It builds model descriptions from legacy data, so it may
 # use support (XML/text) but is never linked into the core shared library.

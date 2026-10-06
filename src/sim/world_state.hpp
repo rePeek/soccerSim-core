@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_OBSERVATION_WORLD_STATE_HPP
-#define FOOTBALL_OBSERVATION_WORLD_STATE_HPP
+#ifndef FOOTBALL_SIM_WORLD_STATE_HPP
+#define FOOTBALL_SIM_WORLD_STATE_HPP
 
 #include <array>
 #include <cstdint>
@@ -53,4 +53,4 @@ struct WorldState {
   std::optional<football::model::PlayerId> ball_retainer;
 };
 
-#endif  // FOOTBALL_OBSERVATION_WORLD_STATE_HPP
+#endif  // FOOTBALL_SIM_WORLD_STATE_HPP

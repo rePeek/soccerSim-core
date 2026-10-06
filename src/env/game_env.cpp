@@ -20,14 +20,12 @@
 #include "sim/simulation.hpp"
 #include "support/diagnostics/assert.hpp"
 
-#include "env/default_ai_setup.hpp"
-
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
                  football::model::Pitch pitch)
     : home_team_(std::move(home)),
       away_team_(std::move(away)),
       pitch_(std::move(pitch)),
-      ai_(football::env::MakeDefaultAI(home_team_, away_team_, pitch_)) {}
+      ai_(home_team_, away_team_, pitch_) {}
 
 GameEnv::~GameEnv() {
   stop_game();
