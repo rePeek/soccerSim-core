@@ -6,12 +6,21 @@
 #include <vector>
 
 #include "app/input/grf/action.hpp"
-#include "ai/default_ai.hpp"
 #include "model/team.hpp"
 #include "sim/player_control_set.hpp"
 #include "sim/world_state.hpp"
 
 namespace football::app::grf {
+
+// Frame-local values. Composition routes these to any policy or env façade.
+// No target selection, timers, callback or concrete policy ownership here.
+struct TeamDecisionRequest {
+  model::TeamSide side = model::TeamSide::Home;
+  bool attacking_run = false;
+  bool team_pressure = false;
+  bool keeper_rush = false;
+  std::optional<model::PlayerId> pressure_excluded_player;
+};
 
 // Initial closest subset is bound in roster order, not ID/distance/phase order.
 // Returned identities can be assigned to multiple frontend input slots.
@@ -33,17 +42,18 @@ class Input {
   bool Select(const WorldState &world, model::PlayerId player);
   void Reset();
 
-  // Replaces only the human output. Team requests go to AI; callers then compute
-  // AI controls and merge this output last before Simulation::Step.
-  // Reserved IDs belong to earlier input slots, never to simulation ownership.
-  void Update(const WorldState &world, ai::DefaultAI &policy,
-              PlayerControlSet &output,
+  // Replaces both outputs; composition routes requests, computes policy controls,
+  // then merges explicit input last. Reserved IDs are app-side slot ownership.
+  void Update(const WorldState &world, PlayerControlSet &output,
+              TeamDecisionRequest &requests,
               std::span<const model::PlayerId> reserved = {});
 
  private:
   bool Eligible(const WorldPlayerState &player) const;
   model::TeamSide side_;
   std::vector<model::PlayerId> eligible_;
+  // Input switching uses initial model roles, not editable AI planned roles.
+  std::vector<model::PlayerId> keepers_;
   std::optional<model::PlayerId> selected_;
   blunted::Vector3 direction_ = blunted::Vector3(0);
   std::optional<ControlAction> pending_action_;

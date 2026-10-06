@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "model/player.hpp"
+#include "sim/observation_epoch.hpp"
 
 namespace football::ai {
 
@@ -16,9 +17,12 @@ struct TimedPlayerIntent {
   std::uint64_t issued_tick = 0;
   std::uint64_t duration_ticks = 0;
   std::uint64_t reset_sequence = 0;
+  ObservationEpoch simulation_epoch;
 
-  bool Active(std::uint64_t tick, std::uint64_t sequence) const {
-    return player && sequence == reset_sequence && tick >= issued_tick &&
+  bool Active(std::uint64_t tick, std::uint64_t sequence,
+              const ObservationEpoch &epoch) const {
+    return player && simulation_epoch.valid() && simulation_epoch == epoch &&
+           sequence == reset_sequence && tick >= issued_tick &&
            tick - issued_tick < duration_ticks;
   }
 };

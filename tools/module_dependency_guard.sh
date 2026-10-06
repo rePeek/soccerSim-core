@@ -81,7 +81,7 @@ for target in $(closure_of football_sim); do
 done
 for target in $(closure_of football_app_input); do
   case "$target" in
-    football_app_input|football_ai|football_sim_contracts|football_foundation|football_model) ;;
+    football_app_input|football_sim_contracts|football_foundation|football_model) ;;
     *) echo "module dependency guard: forbidden football_app_input -> $target link" >&2; status=1 ;;
   esac
 done
@@ -133,6 +133,19 @@ done
 if grep -RqiE 'HumanController|HumanGamer|PlayerController|ControllerInput|ExternalController|TeamTacticalState|ApplyAttackingRun|ApplyTeamPressure|ApplyKeeperRush|externally_controlled|attacking_run_remaining_ms|pressure_remaining_ms|keeper_rush_remaining_ms' \
     --include='*.cpp' --include='*.hpp' --include='*.h' "$source_dir"; then
   echo 'module dependency guard: retired input/tactical authority in core' >&2; status=1
+fi
+
+if [ -d "$source_dir/app/input" ] &&
+   grep -RqE 'DefaultAI|TacticalBoard|TeamRequests|TimedPlayerIntent|RequestAttackingRun|RequestTeamPressure|RequestKeeperRush' \
+     --include='*.cpp' --include='*.hpp' --include='*.h' "$source_dir/app/input"; then
+  echo 'module dependency guard: concrete policy in value-only input' >&2
+  status=1
+fi
+
+if [ -f "$source_dir/env/game_env.hpp" ] &&
+   grep -qE 'default_ai\(|#[[:space:]]*include.*ai/default_ai.hpp' "$source_dir/env/game_env.hpp"; then
+  echo 'module dependency guard: concrete policy exposed in env public API' >&2
+  status=1
 fi
 
 check_includes() {

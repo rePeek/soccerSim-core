@@ -82,6 +82,9 @@ uint64_t HashValue(uint64_t hash, const T& value) {
   return HashBytes(hash, &value, sizeof(value));
 }
 
+// Deterministic physical/rule payload, not Match lifetime identity.
+// simulation_epoch intentionally differs across otherwise identical matches;
+// its equality/copy/non-revival semantics are asserted separately.
 uint64_t HashWorld(const WorldState& world) {
   uint64_t hash = HashValue(UINT64_C(1469598103934665603), world.tick);
   hash = HashValue(hash, world.reset_sequence);

@@ -27,6 +27,7 @@ set(SIM_CONTRACT_HEADERS
    src/sim/player_control.hpp
    src/sim/player_control_set.hpp
    src/sim/world_state.hpp
+   src/sim/observation_epoch.hpp
 )
 
 set(ANIMATION_HEADERS

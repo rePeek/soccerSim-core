@@ -61,7 +61,8 @@ bool TeamHasBall(const WorldState &world, TeamSide side) {
 bool Requested(const TimedPlayerIntent &intent, const WorldState &world,
                const WorldPlayerState &player) {
   if (!world.in_play || world.in_set_piece || !player.active ||
-      intent.player != player.id || !intent.Active(world.tick, world.reset_sequence)) return false;
+      intent.player != player.id ||
+      !intent.Active(world.tick, world.reset_sequence, world.simulation_epoch)) return false;
   if (intent.marking_target) {
     const auto *opponent = Find(world, *intent.marking_target);
     if (!opponent || !opponent->active || opponent->side == player.side) return false;
@@ -105,7 +106,7 @@ bool DefaultAI::RequestAttackingRun(TeamSide side, const WorldState &world,
                                     std::optional<PlayerId> runner) {
   auto &intent = requests_.at(static_cast<unsigned>(side)).attacking_run;
   intent = {};
-  if (!world.in_play || world.in_set_piece) return false;
+  if (!world.simulation_epoch.valid() || !world.in_play || world.in_set_piece) return false;
   const WorldPlayerState *target = runner ? Find(world, *runner) : nullptr;
   if (!runner) {
     const auto *owner = BallOwner(world, side, boards_);
@@ -117,7 +118,7 @@ bool DefaultAI::RequestAttackingRun(TeamSide side, const WorldState &world,
   const auto *directive = target ? Directive(boards_, side, target->id) : nullptr;
   if (!target || !target->active || target->lazy || target->side != side ||
       (directive && directive->role == PlannedPlayerRole::Goalkeeper)) return false;
-  intent = {target->id, std::nullopt, world.tick, 400, world.reset_sequence};
+  intent = {target->id, std::nullopt, world.tick, 400, world.reset_sequence, world.simulation_epoch};
   return true;
 }
 
@@ -125,7 +126,7 @@ bool DefaultAI::RequestTeamPressure(TeamSide side, const WorldState &world,
                                     std::optional<PlayerId> excluded) {
   auto &intent = requests_.at(static_cast<unsigned>(side)).pressure;
   intent = {};
-  if (!world.in_play || world.in_set_piece) return false;
+  if (!world.simulation_epoch.valid() || !world.in_play || world.in_set_piece) return false;
   const auto other = side == TeamSide::Home ? TeamSide::Away : TeamSide::Home;
   const auto *opponent = BallOwner(world, other, boards_);
   if (!opponent) return false;
@@ -133,19 +134,19 @@ bool DefaultAI::RequestTeamPressure(TeamSide side, const WorldState &world,
   const auto *target = Closest(world, side, opponent->position + opponent->velocity * 0.24f +
                                Vector3(defend, 0, 0), true, boards_, excluded);
   if (!target) return false;
-  intent = {target->id, opponent->id, world.tick, 50, world.reset_sequence};
+  intent = {target->id, opponent->id, world.tick, 50, world.reset_sequence, world.simulation_epoch};
   return true;
 }
 
 bool DefaultAI::RequestKeeperRush(TeamSide side, const WorldState &world) {
   auto &intent = requests_.at(static_cast<unsigned>(side)).keeper_rush;
   intent = {};
-  if (!world.in_play || world.in_set_piece) return false;
+  if (!world.simulation_epoch.valid() || !world.in_play || world.in_set_piece) return false;
   for (const auto &player : world.players) {
     const auto *directive = Directive(boards_, side, player.id);
     if (player.active && !player.lazy && player.side == side && directive &&
         directive->role == PlannedPlayerRole::Goalkeeper) {
-      intent = {player.id, std::nullopt, world.tick, 30, world.reset_sequence};
+      intent = {player.id, std::nullopt, world.tick, 30, world.reset_sequence, world.simulation_epoch};
       return true;
     }
   }

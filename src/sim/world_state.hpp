@@ -10,6 +10,7 @@
 #include "model/team.hpp"
 #include "model/pitch.hpp"
 #include "foundation/math/vector3.hpp"
+#include "sim/observation_epoch.hpp"
 
 struct WorldPlayerState {
   football::model::PlayerId id = football::model::kInvalidPlayerId;
@@ -47,6 +48,8 @@ struct WorldState {
   std::optional<football::model::PlayerId> ball_retainer;
   // Match-owned count of ResetSituation discontinuities; resets with a new match.
   std::uint64_t reset_sequence = 0;
+  // Fresh per Match, including reset/re-init and independently constructed engines.
+  ObservationEpoch simulation_epoch;
 };
 
 #endif  // FOOTBALL_SIM_WORLD_STATE_HPP

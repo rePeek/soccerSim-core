@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "sim/simulation.hpp"
+#include "ai/default_ai.hpp"
 #include "support/diagnostics/assert.hpp"
 
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
@@ -25,7 +26,7 @@ GameEnv::GameEnv(football::model::Team home, football::model::Team away,
     : home_team_(std::move(home)),
       away_team_(std::move(away)),
       pitch_(std::move(pitch)),
-      ai_(home_team_, away_team_, pitch_) {}
+      ai_(std::make_unique<football::ai::DefaultAI>(home_team_, away_team_, pitch_)) {}
 
 GameEnv::~GameEnv() {
   stop_game();
@@ -34,7 +35,7 @@ GameEnv::~GameEnv() {
 void GameEnv::stop_game() {
   simulation_.reset();
   controls_.Clear();
-  ai_.ResetRequests();
+  ai_->ResetRequests();
 }
 
 void GameEnv::start_game() {
@@ -55,7 +56,7 @@ void GameEnv::step() {
   CHECK(simulation_);
   const WorldState world = simulation_->Observe();
   PlayerControlSet combined;
-  ai_.Update(world, combined);
+  ai_->Update(world, combined);
   // Explicit controls override default decisions; no defaults are stored in
   // controls(); simulation knows nothing about the sources of these values.
   for (const auto &control : controls_.controls()) combined.Set(control.player, control);
@@ -69,7 +70,25 @@ WorldState GameEnv::observe() const {
 
 void GameEnv::init_match(Simulation& simulation) {
   controls_.Clear();
-  ai_.ResetRequests();
+  ai_->ResetRequests();
   // The legacy episode defaults are now the only possible match options.
   simulation.Init(home_team_, away_team_, pitch_, MatchOptions{}, false);
+}
+
+football::ai::TacticalBoard& GameEnv::tactics(football::model::TeamSide side) {
+  return ai_->tactics(side);
+}
+const football::ai::TacticalBoard& GameEnv::tactics(football::model::TeamSide side) const {
+  return std::as_const(*ai_).tactics(side);
+}
+bool GameEnv::request_attacking_run(football::model::TeamSide side,
+                                   std::optional<football::model::PlayerId> runner) {
+  return simulation_ && ai_->RequestAttackingRun(side, observe(), runner);
+}
+bool GameEnv::request_team_pressure(football::model::TeamSide side,
+                                    std::optional<football::model::PlayerId> excluded) {
+  return simulation_ && ai_->RequestTeamPressure(side, observe(), excluded);
+}
+bool GameEnv::request_keeper_rush(football::model::TeamSide side) {
+  return simulation_ && ai_->RequestKeeperRush(side, observe());
 }

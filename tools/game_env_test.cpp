@@ -36,6 +36,8 @@ template<class T> concept HasRuntimeAccess =
     requires(T& env) { env.GetSimulation(); } || requires(T& env) { env.match(); } ||
     requires { &T::GetContext; };
 static_assert(!HasRuntimeAccess<GameEnv>);
+template<class T> concept HasConcretePolicyAccess = requires(T& env) { env.default_ai(); };
+static_assert(!HasConcretePolicyAccess<GameEnv>);
 
 namespace {
 

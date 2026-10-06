@@ -195,6 +195,7 @@ TEST_CASE("value AI reads restart authority only from WorldState", "[ai]") {
 TEST_CASE("external tactical edits persist and change decisions without rewriting anchors", "[ai]") {
   WorldState world;
   world.in_play = true;
+  world.simulation_epoch = ObservationEpoch::New();
   world.players = {Actor(1, TeamSide::Home, Vector3(-1, 0, 0)),
                    Actor(2, TeamSide::Home, Vector3(-10, 0, 0)),
                    Actor(3, TeamSide::Away, Vector3(10, 6, 0))};
@@ -323,6 +324,7 @@ TEST_CASE("AI initial desired shape deterministically spaces coincident outfield
 TEST_CASE("transient team requests use observed ticks without changing tactical plans", "[ai][requests]") {
   WorldState world;
   world.in_play = true; world.tick = 100;
+  world.simulation_epoch = ObservationEpoch::New();
   world.players = {Actor(9, TeamSide::Home, Vector3(-50, 0, 0)),
                    Actor(8, TeamSide::Home, Vector3(-1, 0, 0)),
                    Actor(7, TeamSide::Home, Vector3(-10, 10, 0)),
@@ -344,13 +346,13 @@ TEST_CASE("transient team requests use observed ticks without changing tactical 
   REQUIRE_FALSE(Same(baseline.Get(7)->move_direction, requested.Get(7)->move_direction));
   REQUIRE_FALSE(Same(baseline.Get(9)->move_direction, requested.Get(9)->move_direction));
   const auto retained_requests = policy.requests(TeamSide::Home);
-  REQUIRE(retained_requests.attacking_run.Active(499, world.reset_sequence));
-  REQUIRE_FALSE(retained_requests.attacking_run.Active(500, world.reset_sequence));
-  REQUIRE(retained_requests.pressure.Active(149, world.reset_sequence));
-  REQUIRE_FALSE(retained_requests.pressure.Active(150, world.reset_sequence));
-  REQUIRE(retained_requests.keeper_rush.Active(129, world.reset_sequence));
-  REQUIRE_FALSE(retained_requests.keeper_rush.Active(130, world.reset_sequence));
-  REQUIRE_FALSE(retained_requests.attacking_run.Active(99, world.reset_sequence));
+  REQUIRE(retained_requests.attacking_run.Active(499, world.reset_sequence, world.simulation_epoch));
+  REQUIRE_FALSE(retained_requests.attacking_run.Active(500, world.reset_sequence, world.simulation_epoch));
+  REQUIRE(retained_requests.pressure.Active(149, world.reset_sequence, world.simulation_epoch));
+  REQUIRE_FALSE(retained_requests.pressure.Active(150, world.reset_sequence, world.simulation_epoch));
+  REQUIRE(retained_requests.keeper_rush.Active(129, world.reset_sequence, world.simulation_epoch));
+  REQUIRE_FALSE(retained_requests.keeper_rush.Active(130, world.reset_sequence, world.simulation_epoch));
+  REQUIRE_FALSE(retained_requests.attacking_run.Active(99, world.reset_sequence, world.simulation_epoch));
   world.tick = 500;
   policy.Update(world, requested); quiet.Update(world, baseline);
   for (const auto &control : requested.controls()) SameDecision(control, *baseline.Get(control.player));
@@ -364,6 +366,7 @@ TEST_CASE("transient team requests use observed ticks without changing tactical 
 
 TEST_CASE("team requests reject wrong sides missing profiles and suppress inactive targets", "[ai][requests]") {
   WorldState world; world.in_play = true; world.tick = 50;
+  world.simulation_epoch = ObservationEpoch::New();
   world.players = {Actor(9, TeamSide::Home, Vector3(-50, 0, 0)),
                    Actor(8, TeamSide::Home, Vector3(-1, 0, 0)),
                    Actor(7, TeamSide::Home, Vector3(-10, 10, 0)),
@@ -406,6 +409,7 @@ TEST_CASE("team requests reject wrong sides missing profiles and suppress inacti
 
 TEST_CASE("request replacement copying replay and stopped play have explicit lifetimes", "[ai][requests]") {
   WorldState world; world.in_play = true; world.tick = 20;
+  world.simulation_epoch = ObservationEpoch::New();
   world.players = {Actor(1, TeamSide::Home, Vector3(-1, 0, 0)),
                    Actor(2, TeamSide::Home, Vector3(-10, 10, 0))};
   auto policy = Shape(world);
@@ -430,4 +434,41 @@ TEST_CASE("request replacement copying replay and stopped play have explicit lif
   policy.ResetRequests(); world.tick = 0; world.in_play = true;
   auto fresh = Shape(world); fresh.Update(world, b); policy.Update(world, a);
   for (const auto &control : a.controls()) SameDecision(control, *b.Get(control.player));
+}
+
+TEST_CASE("request validity uses owning epoch values not clock rollback heuristics", "[ai][requests]") {
+  WorldState world; world.in_play = true; world.tick = 100;
+  world.players = {Actor(9, TeamSide::Home, Vector3(-50, 0, 0)),
+                   Actor(8, TeamSide::Home, Vector3(-1, 0, 0)),
+                   Actor(7, TeamSide::Home, Vector3(-10, 10, 0)),
+                   Actor(100, TeamSide::Away, Vector3(10, 0, 0))};
+  auto policy = Shape(world);
+  policy.tactics(TeamSide::Home).players[0].role = PlannedPlayerRole::Goalkeeper;
+  // Unbound synthetic snapshots cannot issue durable transient requests.
+  REQUIRE_FALSE(policy.RequestAttackingRun(TeamSide::Home, world, 7));
+  REQUIRE_FALSE(policy.RequestTeamPressure(TeamSide::Home, world));
+  REQUIRE_FALSE(policy.RequestKeeperRush(TeamSide::Home, world));
+  world.simulation_epoch = ObservationEpoch::New();
+  REQUIRE(policy.RequestAttackingRun(TeamSide::Home, world, 7));
+  REQUIRE(policy.RequestTeamPressure(TeamSide::Home, world, 8));
+  REQUIRE(policy.RequestKeeperRush(TeamSide::Home, world));
+  const auto old_world = world;
+  const auto retained = policy.requests(TeamSide::Home);
+  auto copy = policy;
+  world.simulation_epoch = ObservationEpoch::New(); // Same tick/reset count, different Match.
+  auto quiet = policy; quiet.ResetRequests();
+  PlayerControlSet a, b;
+  for (std::uint64_t tick = 100; tick <= 501; ++tick) {
+    world.tick = tick;
+    REQUIRE_FALSE(retained.attacking_run.Active(tick, world.reset_sequence, world.simulation_epoch));
+    REQUIRE_FALSE(retained.pressure.Active(tick, world.reset_sequence, world.simulation_epoch));
+    REQUIRE_FALSE(retained.keeper_rush.Active(tick, world.reset_sequence, world.simulation_epoch));
+    quiet.Update(world, b); copy.Update(world, a);
+    for (const auto &control : a.controls()) SameDecision(control, *b.Get(control.player));
+  }
+  // Retained old snapshots/policies remain usable for deliberate replay.
+  REQUIRE(retained.attacking_run.Active(old_world.tick, old_world.reset_sequence, old_world.simulation_epoch));
+  policy.Update(old_world, a); copy.Update(old_world, b);
+  for (const auto &control : a.controls()) SameDecision(control, *b.Get(control.player));
+  REQUIRE(policy.requests(TeamSide::Home).attacking_run.simulation_epoch == old_world.simulation_epoch);
 }

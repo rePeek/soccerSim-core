@@ -34,8 +34,8 @@ Explicit controls override default decisions; simulation has no input ownership 
 Simulation itself has no decision objects/factories and no implicit AI fallback.
 AI links only the header-only `football_sim_contracts` target, never actor/runtime
 code. Simulation owns its input/output headers: `sim/player_control.hpp`,
-`sim/player_control_set.hpp`, and `sim/world_state.hpp`. Exact-header dependency
-guards prevent AI from including other `sim/` headers. Snapshots include ball
+`sim/player_control_set.hpp`, `sim/world_state.hpp` and `sim/observation_epoch.hpp`.
+Exact-header guards prevent AI from including other `sim/` headers. Snapshots include ball
 motion, play/restart/retention state and both team states; controls and observations
 use a common home pitch frame.
 
@@ -45,15 +45,27 @@ static `model::Team` declarations, with no simulation bootstrap. Edit them throu
 Player AI derives local targets without rewriting the base plan. Simulation
 reset/stop/start preserves tactical configuration.
 Run/pressure/rush requests live separately in `ai::TeamRequests`, not in the board
-or `WorldState`. They expire on observed ticks or actual world reset sequences.
-Start/reset/stop clears these short-lived requests, never the persistent tactics.
+or `WorldState`. Use `game.request_attacking_run(side, runner)`,
+`game.request_team_pressure(side, excluded_player)` and `game.request_keeper_rush(side)`.
+`GameEnv` keeps its concrete policy private, including the implementation header.
+Requests bind to `WorldState::simulation_epoch` as well as tick/reset sequence:
+a new Match can never reactivate an old request, even without `ResetRequests()`.
+The opaque, owning epoch is equality-only, retains no actors, and uses no global
+counter/RNG/clock. Copies preserve it; separate matches deliberately differ even
+when physical payloads are identical. It is not a persistent serialization ID.
+Synthetic observations must bind a fresh `ObservationEpoch::New()` per logical
+match before issuing requests. Epoch identity is not hashed in physical goldens.
+Start/reset/stop also clears requests eagerly, never the persistent tactics.
 
 ### GRF / human input
 
 Only seven top-level source modules remain: foundation, support, model, sim, ai,
 env and app. The retired controller/control/observation/data layers are deleted.
-`src/app/input/grf/` owns wire actions, sticky state and selected IDs. Link the
-value-only `football_app_input` archive alongside the core; it never links actors.
+`src/app/input/grf/` owns wire actions, sticky state and selected IDs. Its
+`football_app_input` archive links only sim value contracts, not AI or actors.
+Input emits `PlayerControlSet` and frame-local `TeamDecisionRequest` values.
+Only composition routes requests to the env façade or whichever policy it owns.
+Switch selection uses initial model keeper roles, never mutable AI planned roles.
 
 ```cpp
 #include "app/input/grf/input.hpp"
@@ -64,7 +76,12 @@ football::app::grf::Input input(home, football::model::TeamSide::Home);
 game.start_game();
 input.Apply(football::app::grf::Action::Right);
 for (int tick = 0; tick < 100; ++tick) {
-  input.Update(game.observe(), game.default_ai(), game.controls());
+  football::app::grf::TeamDecisionRequest requests;
+  input.Update(game.observe(), game.controls(), requests);
+  if (requests.attacking_run) game.request_attacking_run(requests.side);
+  if (requests.team_pressure)
+    game.request_team_pressure(requests.side, requests.pressure_excluded_player);
+  if (requests.keeper_rush) game.request_keeper_rush(requests.side);
   game.step();  // AI defaults, then explicit input overrides, then one sim tick
 }
 ```

@@ -7,12 +7,12 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 mkdir -p "$work/src/sim" "$work/src/ai" "$work/src/app/input"
 cp "$report" "$work/deps"
-for header in world_state.hpp player_control.hpp player_control_set.hpp; do
+for header in world_state.hpp player_control.hpp player_control_set.hpp observation_epoch.hpp; do
   printf '#include "model/player.hpp"\n' > "$work/src/sim/$header"
 done
 printf '#include "sim/world_state.hpp"\n#include <sim/player_control_set.hpp>\n#include "sim/player_control.hpp"\n' > "$work/src/ai/policy.cpp"
 printf '#include "sim/query/player_query.hpp"\n' > "$work/src/sim/query.cpp"
-printf '#include "sim/world_state.hpp"\n#include "ai/default_ai.hpp"\n' > "$work/src/app/input/input.cpp"
+printf '#include "sim/world_state.hpp"\n' > "$work/src/app/input/input.cpp"
 sh "$guard" "$work/src" "$work/deps"
 
 reject() {
@@ -101,7 +101,7 @@ done
 printf '#include "observation/world_state.hpp"\n' > "$work/src/ai/policy.cpp"
 reject 'src/ai includes observation/'
 printf '#include "sim/world_state.hpp"\n' > "$work/src/ai/policy.cpp"
-for target in football_sim football_animation football_engine football_support football_app_support; do
+for target in football_ai football_sim football_animation football_engine football_support football_app_support; do
   sed "s/^football_app_input: .*/& $target/" "$report" > "$work/deps"
   reject "forbidden football_app_input -> $target link"
 done
@@ -109,6 +109,20 @@ cp "$report" "$work/deps"
 printf '#include "sim/match.hpp"\n' > "$work/src/app/input/input.cpp"
 reject 'src/app/input includes sim/match.hpp'
 printf '#include "sim/world_state.hpp"\n' > "$work/src/app/input/input.cpp"
+for header in ai/default_ai.hpp ai/tactical_board.hpp ai/team_requests.hpp; do
+  printf '#include "%s"\n' "$header" > "$work/src/app/input/input.cpp"
+  reject "src/app/input includes $header"
+done
+printf '#include "sim/world_state.hpp"\n' > "$work/src/app/input/input.cpp"
+printf 'class DefaultAI;\n' > "$work/src/app/input/input.cpp"
+reject 'concrete policy in value-only input'
+printf '#include "sim/world_state.hpp"\n' > "$work/src/app/input/input.cpp"
+mkdir -p "$work/src/env"
+printf 'DefaultAI& default_ai();\n' > "$work/src/env/game_env.hpp"
+reject 'concrete policy exposed in env public API'
+printf '#include "ai/default_ai.hpp"\n' > "$work/src/env/game_env.hpp"
+reject 'concrete policy exposed in env public API'
+rm "$work/src/env/game_env.hpp"
 for symbol in HumanController HumanGamer PlayerController ControllerInput ExternalController TeamTacticalState attacking_run_remaining_ms externally_controlled; do
   printf 'struct %s {};\n' "$symbol" > "$work/src/sim/query.cpp"
   reject 'retired input/tactical authority in core'

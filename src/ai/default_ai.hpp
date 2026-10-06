@@ -34,7 +34,7 @@ class DefaultAI {
   }
   void Update(const WorldState &world, PlayerControlSet &output) const;
 
-  // Requests use only snapshots/IDs. False means no eligible target was found.
+  // Bound epoch + snapshots/IDs only. False means no valid context/eligible target.
   bool RequestAttackingRun(model::TeamSide side, const WorldState &world,
                            std::optional<model::PlayerId> runner = std::nullopt);
   bool RequestTeamPressure(model::TeamSide side, const WorldState &world,
@@ -43,7 +43,7 @@ class DefaultAI {
   const TeamRequests &requests(model::TeamSide side) const {
     return requests_.at(static_cast<unsigned>(side));
   }
-  // On a new match/reset, clear transient requests but preserve tactical boards.
+  // Optional eager cleanup, not a lifecycle safety requirement. Keeps the boards.
   void ResetRequests() { requests_ = {}; }
 
  private:

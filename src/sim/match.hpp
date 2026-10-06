@@ -30,6 +30,7 @@
 #include "sim/animation/library.hpp"
 #include "sim/animation/types.hpp"
 #include "sim/player_control_set.hpp"
+#include "sim/observation_epoch.hpp"
 
 
 #include <cstdint>
@@ -75,6 +76,7 @@ class Match {
 
     void ResetSituation(const Vector3 &focusPos);
     std::uint64_t GetResetSequence() const { return reset_sequence_; }
+    const ObservationEpoch& GetObservationEpoch() const { return observation_epoch_; }
 
     void SetMatchPhase(e_MatchPhase newMatchPhase);
     e_MatchPhase GetMatchPhase() const { return matchPhase; }
@@ -174,6 +176,7 @@ class Match {
     unsigned long actualTime_ms = 0;
     // Actual world discontinuities; not a policy/request timer.
     std::uint64_t reset_sequence_ = 0;
+    const ObservationEpoch observation_epoch_ = ObservationEpoch::New();
     unsigned long goalScoredTimer = 0;
 
     e_MatchPhase matchPhase = e_MatchPhase_PreMatch; // 0 - first half; 1 - second half; 2 - 1st extra time; 3 - 2nd extra time; 4 - penalties

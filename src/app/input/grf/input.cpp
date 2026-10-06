@@ -19,11 +19,6 @@ const WorldPlayerState *Find(const WorldState &world, PlayerId id) {
   for (const auto &player : world.players) if (player.id == id) return &player;
   return nullptr;
 }
-bool Keeper(const ai::TacticalBoard &board, PlayerId id) {
-  for (const auto &player : board.players)
-    if (player.player == id) return player.role == ai::PlannedPlayerRole::Goalkeeper;
-  return false;
-}
 }  // namespace
 
 std::vector<PlayerId> SelectInitialPlayers(const WorldState &world, model::TeamSide side,
@@ -47,9 +42,14 @@ std::vector<PlayerId> SelectInitialPlayers(const WorldState &world, model::TeamS
 Input::Input(const model::Team &team, model::TeamSide side) : side_(side) {
   const auto size = !team.formation.empty() ? team.formation.size()
       : !team.tactical_formation.empty() ? team.tactical_formation.size() : team.players.size();
-  for (std::size_t i = 0; i < std::min(size, team.players.size()); ++i)
+  for (std::size_t i = 0; i < std::min(size, team.players.size()); ++i) {
     if (team.formation.empty() || team.formation[i].controllable)
       eligible_.push_back(team.players[i].id);
+    const auto role = i < team.tactical_formation.size() ? team.tactical_formation[i].role
+        : i < team.formation.size() ? team.formation[i].role
+        : i == 0 ? e_PlayerRole_GK : e_PlayerRole_CM;
+    if (role == e_PlayerRole_GK) keepers_.push_back(team.players[i].id);
+  }
 }
 
 bool Input::Eligible(const WorldPlayerState &player) const {
@@ -131,9 +131,10 @@ bool Input::IsStickyActionActive(Action action) const {
   }
 }
 
-void Input::Update(const WorldState &world, ai::DefaultAI &policy, PlayerControlSet &output,
-                   std::span<const PlayerId> reserved) {
+void Input::Update(const WorldState &world, PlayerControlSet &output,
+                   TeamDecisionRequest &requests, std::span<const PlayerId> reserved) {
   output.Clear();
+  requests = {.side = side_};
   const auto action = pending_action_;
   const bool switching = switch_pending_;
   pending_action_.reset();
@@ -148,7 +149,7 @@ void Input::Update(const WorldState &world, ai::DefaultAI &policy, PlayerControl
     float distance = std::numeric_limits<float>::max();
     for (const auto &player : world.players) {
       if (!available(player) || (switching && (selected_ == player.id ||
-          Keeper(policy.tactics(side_), player.id)))) continue;
+          Contains(keepers_, player.id)))) continue;
       const float candidate = (player.position - world.ball_position.Get2D()).GetSquaredLength();
       if (candidate < distance) { distance = candidate; best = &player; }
     }
@@ -165,14 +166,17 @@ void Input::Update(const WorldState &world, ai::DefaultAI &policy, PlayerControl
   selected_ = player->id;
   if (switching && world.in_play && !world.in_set_piece) {
     if (player->has_possession || world.ball_retainer == player->id) {
-      policy.RequestAttackingRun(side_, world);
+      requests.attacking_run = true;
     } else if (const auto *next = closest(true)) {
       player = next;
       selected_ = next->id;
     }
   }
-  if (team_pressure_) policy.RequestTeamPressure(side_, world, player->id);
-  if (keeper_rush_) policy.RequestKeeperRush(side_, world);
+  if (world.in_play && !world.in_set_piece) {
+    requests.team_pressure = team_pressure_;
+    if (team_pressure_) requests.pressure_excluded_player = player->id;
+    requests.keeper_rush = keeper_rush_;
+  }
 
   PlayerControl control;
   control.player = player->id;

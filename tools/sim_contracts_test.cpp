@@ -23,6 +23,8 @@ int main() {
 
   const auto retained_controls = controls;
   WorldState world;
+  if (world.simulation_epoch.valid()) return EXIT_FAILURE;
+  world.simulation_epoch = ObservationEpoch::New();
   world.players.push_back(WorldPlayerState{});
   world.players[0].id = 9;
   const auto retained_world = world;
@@ -30,6 +32,10 @@ int main() {
   world.players.clear();
   if (retained_world.players.size() != 1 || retained_world.players[0].id != 9 ||
       retained_controls.Get(9)->desired_speed != 1.f) return EXIT_FAILURE;
+  if (!retained_world.simulation_epoch.valid() ||
+      retained_world.simulation_epoch != world.simulation_epoch) return EXIT_FAILURE;
+  world.simulation_epoch = ObservationEpoch::New();
+  if (retained_world.simulation_epoch == world.simulation_epoch) return EXIT_FAILURE;
 
   controls.Clear();
   return controls.Get(9) == nullptr ? EXIT_SUCCESS : EXIT_FAILURE;

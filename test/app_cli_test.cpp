@@ -7,6 +7,10 @@
 #include "env/game_env.hpp"
 #include "model/pitch.hpp"
 
+#ifdef FOOTBALL_AI_DEFAULT_AI_HPP
+#error "env public header must not expose the concrete policy implementation"
+#endif
+
 using football::ai::PlannedPlayerRole;
 
 namespace {
@@ -108,27 +112,38 @@ TEST_CASE("environment exposes persistent AI intent independently of sim lifecyc
   REQUIRE(peer.tactics(model::TeamSide::Home).width == 0.75f);
 }
 
-TEST_CASE("environment lifecycle clears transient requests but retains planned tactics", "[env][ai]") {
+TEST_CASE("environment façade routes requests without exposing its policy", "[env][ai]") {
   GameEnv environment = MakeDefaultEnvironment();
-  auto &policy = environment.default_ai();
-  environment.tactics(model::TeamSide::Home).width = 0.9f;
+  REQUIRE_FALSE(environment.request_attacking_run(model::TeamSide::Home, 7));
+  REQUIRE_FALSE(environment.request_team_pressure(model::TeamSide::Home));
+  REQUIRE_FALSE(environment.request_keeper_rush(model::TeamSide::Home));
+  auto &board = environment.tactics(model::TeamSide::Home);
+  board.width = 0.9f;
   environment.start_game();
   for (int tick = 0; tick < 300; ++tick) environment.step();
-  REQUIRE(policy.RequestAttackingRun(model::TeamSide::Home, environment.observe(), 7));
-  REQUIRE(policy.RequestTeamPressure(model::TeamSide::Home, environment.observe()));
-  REQUIRE(policy.RequestKeeperRush(model::TeamSide::Home, environment.observe()));
-  const auto retained = policy.requests(model::TeamSide::Home);
+  REQUIRE(environment.request_attacking_run(model::TeamSide::Home, 7));
+  REQUIRE(environment.request_team_pressure(model::TeamSide::Home));
+  REQUIRE(environment.request_keeper_rush(model::TeamSide::Home));
+  REQUIRE_FALSE(environment.request_attacking_run(model::TeamSide::Home, 123456));
+  REQUIRE(environment.request_attacking_run(model::TeamSide::Home, 7));
   environment.reset_game();
-  REQUIRE(&policy == &environment.default_ai());
-  REQUIRE_FALSE(policy.requests(model::TeamSide::Home).attacking_run.player.has_value());
-  REQUIRE_FALSE(policy.requests(model::TeamSide::Home).pressure.player.has_value());
-  REQUIRE_FALSE(policy.requests(model::TeamSide::Home).keeper_rush.player.has_value());
-  REQUIRE(environment.tactics(model::TeamSide::Home).width == 0.9f);
-  REQUIRE(retained.attacking_run.player == 7);
+  const auto reset_world = environment.observe();
+  REQUIRE(&board == &environment.tactics(model::TeamSide::Home));
+  REQUIRE(board.width == 0.9f);
   for (int tick = 0; tick < 300; ++tick) environment.step();
-  REQUIRE(policy.RequestAttackingRun(model::TeamSide::Home, environment.observe(), 7));
+  const auto after_reset = environment.observe();
+  REQUIRE(environment.request_attacking_run(model::TeamSide::Home, 7));
   environment.stop_game();
-  REQUIRE_FALSE(policy.requests(model::TeamSide::Home).attacking_run.player.has_value());
+  REQUIRE_FALSE(environment.request_keeper_rush(model::TeamSide::Home));
   environment.start_game();
-  REQUIRE(environment.tactics(model::TeamSide::Home).width == 0.9f);
+  REQUIRE(environment.observe().simulation_epoch != reset_world.simulation_epoch);
+  for (int tick = 0; tick < 300; ++tick) environment.step();
+  const auto restarted = environment.observe();
+  REQUIRE(restarted.simulation_epoch != after_reset.simulation_epoch);
+  REQUIRE(after_reset.tick == restarted.tick);
+  for (std::size_t i = 0; i < restarted.players.size(); ++i) {
+    REQUIRE(after_reset.players[i].position == restarted.players[i].position);
+    REQUIRE(after_reset.players[i].velocity == restarted.players[i].velocity);
+  }
+  REQUIRE(board.width == 0.9f);
 }

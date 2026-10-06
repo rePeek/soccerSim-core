@@ -1,3 +1,4 @@
+#include <memory>
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -225,6 +226,8 @@ TEST_CASE("GRF environment input and plain control replay execute the same simul
   Simulation replay;
   replay.Init(home, away, pitch, MatchOptions{}, false);
   football::app::grf::Input input(home, football::model::TeamSide::Home);
+  football::ai::DefaultAI compiler(home, away, pitch);
+  football::app::grf::TeamDecisionRequest requests;
   using Action = football::app::grf::Action;
   const auto same_world = [](const WorldState &a, const WorldState &b) {
     REQUIRE(a.tick == b.tick);
@@ -252,9 +255,21 @@ TEST_CASE("GRF environment input and plain control replay execute the same simul
     if (tick == 280) input.Apply(Action::BuiltinAI);
     if (tick == 300) input.Apply(Action::Left);
     const auto world = environment.observe();
-    input.Update(world, environment.default_ai(), environment.controls());
+    input.Update(world, environment.controls(), requests);
+    if (requests.attacking_run) {
+      REQUIRE(environment.request_attacking_run(requests.side) ==
+              compiler.RequestAttackingRun(requests.side, world));
+    }
+    if (requests.team_pressure) {
+      REQUIRE(environment.request_team_pressure(requests.side, requests.pressure_excluded_player) ==
+              compiler.RequestTeamPressure(requests.side, world, requests.pressure_excluded_player));
+    }
+    if (requests.keeper_rush) {
+      REQUIRE(environment.request_keeper_rush(requests.side) ==
+              compiler.RequestKeeperRush(requests.side, world));
+    }
     PlayerControlSet compiled;
-    environment.default_ai().Update(world, compiled);
+    compiler.Update(world, compiled);
     for (const auto &control : environment.controls().controls()) compiled.Set(control.player, control);
     tape.push_back(compiled);
     environment.step();
@@ -280,6 +295,66 @@ TEST_CASE("world discontinuities invalidate AI requests without storing them in 
   REQUIRE(after.tick == before.tick);
   REQUIRE(after.reset_sequence == before.reset_sequence + 1);
   REQUIRE_FALSE(runtime.policy.requests(football::model::TeamSide::Home).attacking_run.Active(
-      after.tick, after.reset_sequence));
+      after.tick, after.reset_sequence, after.simulation_epoch));
   REQUIRE(before.reset_sequence + 1 == runtime.match()->GetResetSequence());
+}
+
+TEST_CASE("old requests never revive across new Matches or independent Simulations", "[sim][ai][lifecycle]") {
+  using football::model::TeamSide;
+  const auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  const auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  const auto pitch = football::model::MakeLegacyPitch();
+  auto simulation = std::make_unique<Simulation>();
+  simulation->Init(home, away, pitch, MatchOptions{}, false);
+  football::ai::DefaultAI policy(home, away, pitch);
+  for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(*simulation, policy);
+  const auto old_world = simulation->Observe();
+  REQUIRE(policy.RequestAttackingRun(TeamSide::Home, old_world, 7));
+  REQUIRE(policy.RequestTeamPressure(TeamSide::Home, old_world));
+  REQUIRE(policy.RequestKeeperRush(TeamSide::Home, old_world));
+  const auto retained = policy.requests(TeamSide::Home);
+  auto quiet = policy; quiet.ResetRequests();
+  const auto check = [&](const WorldState &world) {
+    REQUIRE(world.simulation_epoch.valid());
+    REQUIRE(world.simulation_epoch != old_world.simulation_epoch);
+    REQUIRE_FALSE(retained.attacking_run.Active(world.tick, world.reset_sequence, world.simulation_epoch));
+    REQUIRE_FALSE(retained.pressure.Active(world.tick, world.reset_sequence, world.simulation_epoch));
+    REQUIRE_FALSE(retained.keeper_rush.Active(world.tick, world.reset_sequence, world.simulation_epoch));
+    PlayerControlSet a, b;
+    policy.Update(world, a); quiet.Update(world, b);
+    REQUIRE(a.controls().size() == b.controls().size());
+    for (const auto &control : a.controls()) {
+      const auto *expected = b.Get(control.player);
+      REQUIRE(expected != nullptr);
+      REQUIRE(Same(control.move_direction, expected->move_direction));
+      REQUIRE(control.desired_speed == expected->desired_speed);
+      REQUIRE(control.action == expected->action);
+    }
+  };
+  // Deliberately never call policy.ResetRequests(), even at re-init.
+  simulation->Stop();
+  simulation->Init(home, away, pitch, MatchOptions{}, false);
+  const auto new_epoch = simulation->Observe().simulation_epoch;
+  check(simulation->Observe());
+  for (int tick = 0; tick <= 701; ++tick) {
+    const auto world = simulation->Observe();
+    REQUIRE(world.simulation_epoch == new_epoch);
+    check(world);
+    if (tick == 300) {
+      REQUIRE(world.tick == old_world.tick);
+      REQUIRE(world.reset_sequence == old_world.reset_sequence);
+    }
+    football::test::StepDefaultAI(*simulation, quiet);
+  }
+  simulation.reset();  // Destroy the entire old engine, keeping only values/AI.
+  Simulation independent;
+  independent.Init(home, away, pitch, MatchOptions{}, false);
+  REQUIRE(independent.Observe().simulation_epoch != new_epoch);
+  for (int tick = 0; tick <= 400; ++tick) {
+    check(independent.Observe());
+    football::test::StepDefaultAI(independent, quiet);
+  }
+  REQUIRE(old_world.simulation_epoch == retained.attacking_run.simulation_epoch);
+  REQUIRE(retained.attacking_run.Active(old_world.tick, old_world.reset_sequence, old_world.simulation_epoch));
+  REQUIRE(policy.requests(TeamSide::Home).attacking_run.player == 7);
 }

@@ -83,10 +83,10 @@ add_library(football_ai STATIC ${AI_SOURCES} ${AI_HEADERS})
 target_link_libraries(football_ai PUBLIC football_sim_contracts)
 football_configure_target(football_ai)
 
-# Frontend input owns protocol/selection state and uses only value-policy APIs.
+# Frontend input emits only values; composition owns policy request routing.
 add_library(football_app_input STATIC EXCLUDE_FROM_ALL
   ${APP_INPUT_SOURCES} ${APP_INPUT_HEADERS})
-target_link_libraries(football_app_input PUBLIC football_ai)
+target_link_libraries(football_app_input PUBLIC football_sim_contracts)
 football_configure_target(football_app_input)
 
 # env composes observe -> default AI -> merged controls -> sim in one TU.

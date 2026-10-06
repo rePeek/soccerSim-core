@@ -105,20 +105,22 @@ inputs (`src/app/`); the core shared library never links them either way.
   unequal rosters, reorder/side changes, send-offs, and rosters beyond 256 entries;
   policy-versioned tactical/reachability/RNG fingerprints (`--print-baseline`). Invalid
   or duplicate IDs/missing profiles/empty rosters fail before RNG consumption.
-- `football_default_ai_test` — fourteen value-policy cases; links only ai/contracts/Catch2,
+- `football_default_ai_test` — fifteen value-policy cases; links only ai/contracts/Catch2,
   not sim or game. Persistent/model-only bootstrap, formation precedence, ties, eligibility,
   external edits, restart/retention and transient request expiry/reset/copy/replay checks.
 - `football_sim_contracts_test` — standalone input/output value checks
   (`tools/sim_contracts_test.cpp`), linked only to `football_sim_contracts`.
 - `football_app_input_test` — value-only GRF protocol/sticky state, one-shot actions,
-  app selection/reserved slots, full-width IDs, restart authority and AI request routing.
-  Links only app_input/ai/contracts/Catch2, not actor runtime or game.
+  app selection/reserved slots, full-width IDs, restart authority and request value outputs.
+  Links only app_input/contracts/Catch2, not AI, actor runtime or game.
 - `football_sim_control_boundary_test` — AI-free execution, frame/ID translation,
   snapshots, idle fallback, hands legality, actual restarts, world reset sequence,
   GameEnv GRF composition and actor-free control-tape/RNG replay. Original-source
   placement/RNG baselines still cover 72 cases. See CTest for the complete count.
-  本轮迁移最终验证：Release 与 Debug 各 77 项测试通过；BUILD_TESTING=OFF、
-  FOOTBALL_BUILD_APP=OFF 的纯核心构建及其 shared-library 边界检查通过。
+  后续 façade/input/epoch 收尾验证见 CTest；跨新 Match/独立 Simulation 的旧请求不复活
+  测试故意不调用 ResetRequests，并覆盖相同与超过签发时钟的观察。
+  此轮收尾：Release/Debug 各 79 项通过；app/tests-disabled core + shared-library 守卫通过。
+  新的 input-values-only 构建仅 --target football_app_input，完全不编译 AI/sim runtime。
 - `football_smoke` — core `GameEnv` headless run (`tools/football_smoke.cpp`);
   optional positional arg is the simulation tick count (default 1000).
 - `football_headless_core_guard` — shell test (`tools/football_headless_core_guard.sh`)
@@ -138,7 +140,7 @@ inputs (`src/app/`); the core shared library never links them either way.
   (`GAME_*` for runtime, `AI_*` for policy, `APP_INPUT_*` for value-only input,
   `APP_SUPPORT_*`/`APP_MAIN_SOURCES` for executable fixtures/CLI).
 - Executable-side C++ sources live in `src/app/`: `football_app_support` owns fixtures
-  and args; `football_app_input` owns protocol/input state and links only AI/contracts.
+  and args; `football_app_input` owns protocol/input state and links only sim contracts.
   Both are `EXCLUDE_FROM_ALL` archives, never linked into the core shared library.
   Unit tests live in `test/` and are registered in `test/CMakeLists.txt` with Catch2.
 
@@ -151,7 +153,7 @@ src/
 │   ├── team           静态球队组成、typed tactics 与 TeamSide；无 TeamId/DB/隐式默认
 │   ├── formation      公开坐标下的初始阵型 + 归一化比例的 typed TacticalFormation
 │   ├── pitch          唯一场地几何值类型（当前保持 legacy 110 × 72 尺寸）
-│   └── football_types e_PlayerRole/e_GameMode/e_PlayerColor/kPlayersPerTeam
+│   └── football_types e_PlayerRole/e_GameMode/kPlayersPerTeam（未使用的输入 color enum 已删）
 ├── foundation/      通用基础，依赖 DAG 的最底层（原 blunted base）
 │   ├── math/           vector3, matrix3/4, quaternion, bluntmath, rng（纯算法）
 │   ├── geometry/       line, triangle（aabb/plane/trianglemeshutils 已删）
@@ -162,6 +164,7 @@ src/
 │   └── io/file + xml_loader, text/string_utils + value_codec
 ├── sim/             仿真核心（原 onthepitch）
 │   ├── world_state.hpp value snapshot 输出（非 runtime authoritative storage）
+│   ├── observation_epoch.hpp owning/equality-only Match 生命周期标记（无 actor/global/RNG）
 │   ├── player_control.hpp / player_control_set.hpp 唯一目标执行输入契约
 │   ├── animation/      runtime 动画子系统（只依赖 foundation；见下方 archive 说明）
 │   │                   运行时只读（baked schema + 选择器）：clip, library,
@@ -179,14 +182,14 @@ src/
 │       └── humanoid/    humanoid, humanoidbase, humanoid_utils
 ├── ai/              值决策层（football_ai，只链接 football_sim_contracts，不链接 sim runtime）
 │   ├── tactical_board.* AI-owned persistent desired/planned values + model-only bootstrap
-│   ├── team_requests   短期 run/pressure/rush 意图（IDs + observed tick/reset sequence）
+│   ├── team_requests   短期意图（IDs + observed tick/reset sequence/observation epoch）
 │   └── default_ai      model 初始化 boards；读取 values + 自有意图，输出 PlayerControlSet
 ├── env/             对外生命周期/组合 façade（允许依赖 sim 与 ai）
-│   └── game_env        持有 Simulation + DefaultAI；tactics/default_ai/controls values API
+│   └── game_env        私有 Simulation + opaque DefaultAI；tactics/request_*/controls façade
 └── app/             可执行文件侧，不进入 core .so
     ├── app.cpp / args  CLI 入口与 `--steps=N` 解析
-    ├── input/grf/      action wire enum + Input（sticky/buttons/selection → values）
-    │                   football_app_input；无 sim actor、controller interface 或 callback
+    ├── input/grf/      wire enum + Input → controls + TeamDecisionRequest（frame-local values）
+    │                   football_app_input 只链接 sim contracts；无具体 AI/runtime/callback
     └── fixtures/      football_app_support；legacy 默认队伍/球员资料 → model
         ├── legacy_player_profile
         └── default_teams
@@ -233,19 +236,20 @@ include `support`, and nothing in core may include `app/` or reference its symbo
 runtime:  model/foundation (叶) → sim/animation → sim → engine/env → game
 policy:   model/foundation → football_sim_contracts → ai → engine/env → game
 exec:     app fixtures/importers → model + support（仅 executable，不进 .so）
-input:    app/input → ai + football_sim_contracts（仅 executable，不进 .so）
+input:    app/input → football_sim_contracts（无 AI edge；组合根负责请求路由）
 ```
 
 `football_sim_contracts` 是 header-only CMake target，不是源码模块/目录。它拥有
-`sim/world_state.hpp`、`sim/player_control.hpp`、`sim/player_control_set.hpp`，仅依赖
-model/foundation；sim runtime 与 AI 共同链接它。已删除 `src/control/`、
+`sim/world_state.hpp`、`sim/player_control.hpp`、`sim/player_control_set.hpp` 与
+`sim/observation_epoch.hpp`，仅依赖 model/foundation；sim/AI/input 共同使用它。
+已删除 `src/control/`、
 `src/observation/` 与旧 target，无 forwarding header/兼容 alias，也不创建 sim/api。
 CMake 导出该 target 的真实 INTERFACE_SOURCES，守卫按精确路径区分这些契约和
 其余 sim/ runtime headers，并检查契约内部不能反向 include/link runtime。
 
 `football_app_support` (fixtures/args) and `football_app_input` (protocol/selection)
 are `EXCLUDE_FROM_ALL` archives above core; neither is linked by a core target.
-The input archive is additionally constrained to AI/contracts, never sim actors.
+The input archive is constrained to sim contracts, never AI or sim actors.
 Catch2 is fetched under BUILD_TESTING only and is not a core dependency.
 
 Every target compiles with `-I src` (headers cross-reference `module/...`), so a
@@ -296,13 +300,23 @@ policy、query、rules、mechanics 的语义归属拆分。旧端口不是终局
   新 restart 的 pending 阶段清空旧 taker，直到 prepare 才发布本次 taker。
 - 最终审计后删除 `TeamTacticalState`：run（400 ticks）、pressure（50 ticks）、
   keeper rush（30 ticks）是决策请求，不是物理事实，移入 AI 的独立 TeamRequests。
-  AI 只持有 IDs、issued tick、duration 和 issuance reset_sequence，无 actor pointers。
+  AI 只持有 IDs、issued tick、duration、issuance reset_sequence 与 epoch，无 actor pointers。
   Request* 方法从 WorldState 选人，Update 只读请求与 board，生成执行 controls。
   过期、失活、目标消失、停止比赛或 rule ResetSituation 不会执行旧请求；替换请求
   不遗留 marking。GameEnv start/reset/stop 清空请求，但始终保留 TacticalBoard。
   WorldState 不再发布请求、marking 或 externally_controlled，不复制输入 ownership。
 - Match 的 reset_sequence 是实际 ResetSituation discontinuity counter，WorldState
   只投影它；AI 用它校验短期请求，不需要 sim 保存任何策略计时或回调。
+- `WorldState::simulation_epoch` 是 `sim/observation_epoch.hpp` 的 opaque owning value。
+  每个 Match 创建一次 fresh immutable empty marker；复制共享身份，不保存任何 actor/
+  simulation data，只有 valid/equality 能力。没有全局计数、墙钟、RNG 或地址数字 ID。
+  Requests 保留签发 epoch，allocator 无法在旧 marker 存活时复用身份；新 Match 和
+  独立 Simulation 不会别名。即使 tick/reset_sequence 相同或先前没有观察到时钟回退，
+  旧请求也绝不执行。Update 仍 const、无隐藏 observation cache；ResetRequests 只是
+  主动清理，不再是正确性前置条件。未绑定 synthetic observations 拒绝签发请求；
+  fixtures 显式每个 logical match 创建 epoch，再在其 snapshots 中复制。
+  Epoch 是 in-process lifetime identity，不是 durable serialization key。不同 matches 的
+  payload 确定性不变，但 identity 故意不同；物理 World hash 不纳入 epoch，单独测试它。
 - 六种 restart × 两种 processing order × 两个 taker team × 三种 roster
   （11/11、3/2、1/1）共 72 case，与独立编译的 7dd3c63 原 PrepareSetPiece +
   formation policy 逐 case 比较浮点/动作/retain/taker/RNG，完全一致。捕获结果
@@ -336,7 +350,7 @@ policy、query、rules、mechanics 的语义归属拆分。旧端口不是终局
   `football_sim` 不含 AI，AI target 也不含 sim/support/controller/animation/engine。
 - WorldState 是 owning projection、不是 simulation storage：ball position/velocity、
   pitch、双方 score/defending direction、play/set-piece、restart type/taker、retainer、
-  player kinematics/possession/active/lazy/max speed 与实际 reset_sequence。没有请求/输入
+  player kinematics/possession/active/lazy/max speed、reset_sequence 与 owning epoch。没有请求/输入
   来源字段。controls 和 snapshots 使用 home pitch frame；Builder 在消费时转换 processing
   frame，按模型 ID 解析活跃队友。传射方向/力度/抛物线仍在 sim mechanics，物理执行
   不区分 Human/AI/network/replay。动作带机械 movement fallback；非法 hands save/
@@ -346,11 +360,14 @@ policy、query、rules、mechanics 的语义归属拆分。旧端口不是终局
   被换名搬去 app。没有 reader 的 ball_approach 也删除；kick_targeting 仍是执行 mechanics。
   pass contact 的 designated possession metadata 保留，不再具有 input selection side effect。
 - `app/input/grf::Input` 只读取 snapshots/static model，持有 selected ID、方向和 sticky
-  modifiers。0–32 wire numbers 保留；kicks/sliding/switch 明确一次性事件，power 默认 0.6，
-  不再执行 legacy Human gauge/animation buffer。switch 持球时请求 AI run，其他情况选最近
-  的合格非门将；team pressure/rush 请求 AI，而不是从 input 直接操纵其他 actors。
-  builtin AI 停止输出 overrides；多个输入槽通过 reserved IDs 在组合层排除重复选择。
-  GameEnv::default_ai() 只透传值策略，便于 input 请求路由；不开放 simulation runtime。
+  modifiers。0–32 wire numbers 保留；kicks/sliding/switch 明确一次性请求，power 默认 0.6，
+  无 legacy planner/gauge。Input 只输出 controls + TeamDecisionRequest（side/flags/pressure
+  excluded ID），不接收具体 policy、战术板或 callback。Switch 排除 initial model keeper，
+  不再读取 AI planned roles。BuiltinAI 输出空 overrides/requests；每帧替换两份输出，
+  reserved IDs 只在 app 组合多个槽。组合根把 request values 路由给任意 AI 或 env façade。
+- `GameEnv::default_ai()` 删除；game_env.hpp 只 include 战术值，forward-declare 私有
+  DefaultAI unique_ptr。tactics/request_attacking_run/request_team_pressure/request_keeper_rush
+  是稳定的 public API。具体算法可替换而不改变 public header 或 input；stopped 请求返回 false。
 - 本次输入收尾保留 simulation digest/轨迹/动作/RNG 黄金值。World hash 只因删掉旧请求/
   ownership 字段、加入 reset_sequence 而更新；旧 schema 值存入 pre_input_migration.md。
   Humanoid/HumanoidBase 不 flatten，动画 cache、10 ms step、private phases、reset/destruction
@@ -385,8 +402,9 @@ direction/power 算法仍活跃；执行辅助与策略意图分开，不重建 
   独立检查 contracts 只依赖 model/foundation，禁止直接/传递 runtime include/link。
   继续禁止 sim → ai/app、旧决定接口/AIfunctions、TacticalBoard/TeamRequests 泄漏进 sim。
   只允许七个顶层目录，拒绝 retired control/observation/controller/data 和 Human 文件/API。
-  app/input 的 include/link 同样按 AI/contracts 白名单守卫，不能偷用 sim actors。
-  正/负例覆盖 contract/runtime 路径、相对 include、闭包泄漏、旧目录/请求字段。
+  app/input 的 include/link 只允许 sim contracts，禁止整个 AI/runtime；拒绝 env public
+  header include default_ai.hpp 或恢复 default_ai()。正/负例覆盖具体耦合、contract/runtime
+  路径、相对 include、闭包泄漏、旧目录/请求字段。
   tools/ 与其他 app 代码可作为组合根使用 core；无反向依赖。
 
 `tools/animBaker/` holds the offline source-animation pipeline: the baker
@@ -613,7 +631,7 @@ env 只接 lifecycle/组合；app 处理数据、协议、UI/input 适配。
 2. **完成**：PlayerControl* / WorldState → sim 根目录；football_sim_contracts 保留
    value-only 机器边界，删除 control/observation 目录和旧 targets。
 3. **完成**：GRF action 直接适配 PlayerControlSet，selection/switch → app/input/grf；
-   输入 archive 只链接 AI/contracts，env 或直接 Simulation 都通过 value controls 组合。
+   输入 archive 只链接 sim contracts；请求值经组合根路由到私有策略或高层 env API。
 4. **完成**：删除顶层 controller/、sim/player/controller/、HumanController/HumanGamer；
    AI/human/network/replay/test 统一到 Simulation::Step(PlayerControlSet)。
 5. **完成**：审计并删除 TeamTacticalState。restart 权威留 referee/sim；run/pressure/rush

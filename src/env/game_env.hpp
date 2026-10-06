@@ -15,14 +15,16 @@
 #define FOOTBALL_ENV_GAME_ENV_HPP
 
 #include <memory>
+#include <optional>
 
-#include "ai/default_ai.hpp"
+#include "ai/tactical_board.hpp"
 #include "model/pitch.hpp"
 #include "model/team.hpp"
 #include "sim/player_control_set.hpp"
 #include "sim/world_state.hpp"
 
 class Simulation;
+namespace football::ai { class DefaultAI; }
 
 // Owns an explicitly declared match. One step advances one simulation tick.
 class GameEnv {
@@ -43,22 +45,21 @@ class GameEnv {
   void step();
   WorldState observe() const;
   PlayerControlSet& controls() { return controls_; }
-  // Value-policy access for app-side transient requests; never exposes sim actors.
-  football::ai::DefaultAI& default_ai() { return ai_; }
-  const football::ai::DefaultAI& default_ai() const { return ai_; }
+  // High-level intent only; the concrete decision implementation stays private.
+  bool request_attacking_run(football::model::TeamSide side,
+                            std::optional<football::model::PlayerId> runner = std::nullopt);
+  bool request_team_pressure(football::model::TeamSide side,
+                             std::optional<football::model::PlayerId> excluded = std::nullopt);
+  bool request_keeper_rush(football::model::TeamSide side);
   // Persistent AI configuration, independent of simulation lifecycle.
-  football::ai::TacticalBoard& tactics(football::model::TeamSide side) {
-    return ai_.tactics(side);
-  }
-  const football::ai::TacticalBoard& tactics(football::model::TeamSide side) const {
-    return ai_.tactics(side);
-  }
+  football::ai::TacticalBoard& tactics(football::model::TeamSide side);
+  const football::ai::TacticalBoard& tactics(football::model::TeamSide side) const;
 
  private:
   football::model::Team home_team_;
   football::model::Team away_team_;
   football::model::Pitch pitch_;
-  football::ai::DefaultAI ai_;
+  std::unique_ptr<football::ai::DefaultAI> ai_;
   std::unique_ptr<Simulation> simulation_;
   PlayerControlSet controls_;
 

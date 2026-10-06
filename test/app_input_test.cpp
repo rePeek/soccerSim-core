@@ -12,7 +12,7 @@ using football::model::PlayerId;
 using football::model::TeamSide;
 using football::app::grf::Action;
 using football::app::grf::Input;
-using football::ai::DefaultAI;
+using football::app::grf::TeamDecisionRequest;
 
 struct Fixture {
   football::model::Team home, away;
@@ -36,14 +36,13 @@ struct Fixture {
     opponent.position = Vector3(10, 0, 0); opponent.max_speed = 8.f;
     world.players.push_back(opponent);
   }
-  DefaultAI Policy() const { return DefaultAI(home, away, world.pitch); }
 };
 }  // namespace
 
 TEST_CASE("GRF wire numbers are bounded and sticky movement emits values", "[app][input]") {
   Fixture fixture;
   Input input(fixture.home, TeamSide::Home);
-  auto policy = fixture.Policy();
+  TeamDecisionRequest requests;
   PlayerControlSet controls;
   for (int action = 0; action <= 32; ++action) {
     input.Reset();
@@ -55,7 +54,7 @@ TEST_CASE("GRF wire numbers are bounded and sticky movement emits values", "[app
   input.Reset();
   REQUIRE(input.Apply(Action::TopRight));
   REQUIRE(input.IsStickyActionActive(Action::TopRight));
-  input.Update(fixture.world, policy, controls);
+  input.Update(fixture.world, controls, requests);
   REQUIRE(input.selected() == 8);
   REQUIRE(controls.controls().size() == 1);
   REQUIRE(controls.Get(8)->move_direction.coords[0] > 0.7f);
@@ -63,16 +62,16 @@ TEST_CASE("GRF wire numbers are bounded and sticky movement emits values", "[app
   REQUIRE(controls.Get(8)->desired_speed == 5.f);
   input.Apply(Action::Sprint);
   input.Apply(Action::Idle);  // Idle does not release sticky state.
-  input.Update(fixture.world, policy, controls);
+  input.Update(fixture.world, controls, requests);
   REQUIRE(controls.Get(8)->desired_speed == 8.f);
   input.Apply(Action::ReleaseSprint);
   input.Apply(Action::Dribble);
-  input.Update(fixture.world, policy, controls);
+  input.Update(fixture.world, controls, requests);
   REQUIRE(controls.Get(8)->desired_speed == 3.5f);
   REQUIRE(controls.Get(8)->action == ControlAction::Dribble);
   input.Apply(Action::ReleaseDribble);
   input.Apply(Action::ReleaseDirection);
-  input.Update(fixture.world, policy, controls);
+  input.Update(fixture.world, controls, requests);
   REQUIRE(controls.Get(8)->desired_speed == 0.f);
   REQUIRE_FALSE(input.IsStickyActionActive(Action::TopRight));
 }
@@ -80,7 +79,7 @@ TEST_CASE("GRF wire numbers are bounded and sticky movement emits values", "[app
 TEST_CASE("GRF kicks and tackles are one-shot executable actions", "[app][input]") {
   Fixture fixture;
   Input input(fixture.home, TeamSide::Home);
-  auto policy = fixture.Policy();
+  TeamDecisionRequest requests;
   PlayerControlSet controls;
   const std::array actions{Action::LongPass, Action::HighPass, Action::ShortPass, Action::Shot, Action::Sliding};
   const std::array expected{ControlAction::LongPass, ControlAction::HighPass, ControlAction::ShortPass,
@@ -89,13 +88,13 @@ TEST_CASE("GRF kicks and tackles are one-shot executable actions", "[app][input]
                             Action::ReleaseShot, Action::ReleaseSliding};
   for (std::size_t i = 0; i < actions.size(); ++i) {
     input.Apply(actions[i]);
-    input.Update(fixture.world, policy, controls);
+    input.Update(fixture.world, controls, requests);
     REQUIRE(controls.Get(8)->action == expected[i]);
     REQUIRE(controls.Get(8)->power == 0.6f);
-    input.Update(fixture.world, policy, controls);
+    input.Update(fixture.world, controls, requests);
     REQUIRE(controls.Get(8)->action == ControlAction::None);
     input.Apply(actions[i]); input.Apply(releases[i]);
-    input.Update(fixture.world, policy, controls);
+    input.Update(fixture.world, controls, requests);
     REQUIRE(controls.Get(8)->action == ControlAction::None);
   }
 }
@@ -103,27 +102,30 @@ TEST_CASE("GRF kicks and tackles are one-shot executable actions", "[app][input]
 TEST_CASE("input selection switch deactivation and reserved slots stay outside sim", "[app][input]") {
   Fixture fixture;
   Input first(fixture.home, TeamSide::Home), second(fixture.home, TeamSide::Home);
-  auto policy = fixture.Policy();
+  TeamDecisionRequest requests;
   PlayerControlSet controls;
-  first.Update(fixture.world, policy, controls);
+  first.Update(fixture.world, controls, requests);
   REQUIRE(first.selected() == 8);
   const std::array<PlayerId, 1> reserved{8};
-  second.Update(fixture.world, policy, controls, reserved);
+  second.Update(fixture.world, controls, requests, reserved);
   REQUIRE(second.selected() == 7);
+  fixture.world.players[0].position = Vector3(0.1f, 0, 0); // Do not switch to the model keeper.
   first.Apply(Action::Switch);
-  first.Update(fixture.world, policy, controls);
+  first.Update(fixture.world, controls, requests);
   REQUIRE(first.selected() == 7);
-  first.Update(fixture.world, policy, controls);
-  REQUIRE(first.selected() == 7);  // A held wire event does not repeat the switch.
+  first.Update(fixture.world, controls, requests);
+  REQUIRE(first.selected() == 7);
+  fixture.world.players[0].position = Vector3(-50, 0, 0);
   fixture.world.players[2].active = false;
-  first.Update(fixture.world, policy, controls);
+  first.Update(fixture.world, controls, requests);
   REQUIRE(first.selected() == 8);
   REQUIRE_FALSE(first.Select(fixture.world, 100));
   REQUIRE_FALSE(first.Select(fixture.world, 7));
   fixture.world.players[0].active = fixture.world.players[1].active = false;
-  first.Update(fixture.world, policy, controls);
+  first.Update(fixture.world, controls, requests);
   REQUIRE_FALSE(first.selected().has_value());
   REQUIRE(controls.controls().empty());
+  REQUIRE_FALSE(requests.team_pressure);
 }
 
 TEST_CASE("closest initial subset binds roster order with full width descending identities", "[app][input]") {
@@ -152,54 +154,68 @@ TEST_CASE("closest initial subset binds roster order with full width descending 
 TEST_CASE("GRF reads restart authority and emits no stopped actions", "[app][input]") {
   Fixture fixture;
   Input input(fixture.home, TeamSide::Home);
-  auto policy = fixture.Policy();
+  TeamDecisionRequest requests;
   PlayerControlSet controls;
   fixture.world.in_set_piece = true;
   fixture.world.restart_taker = 7;
   input.Apply(Action::Shot);
-  input.Update(fixture.world, policy, controls);
+  input.Apply(Action::TeamPressure);
+  input.Apply(Action::KeeperRush);
+  input.Update(fixture.world, controls, requests);
   REQUIRE(input.selected() == 7);
   REQUIRE(controls.Get(7)->action == ControlAction::Shoot);
+  REQUIRE_FALSE(requests.team_pressure);
+  REQUIRE_FALSE(requests.keeper_rush);
   fixture.world.in_play = false;
   input.Apply(Action::Shot);
-  input.Update(fixture.world, policy, controls);
+  input.Update(fixture.world, controls, requests);
   REQUIRE(controls.Get(7)->action == ControlAction::None);
   REQUIRE(controls.Get(7)->desired_speed == 0.f);
   REQUIRE(fixture.world.restart_taker == 7);
   fixture.world.in_play = true;
   fixture.world.restart_taker = 100;
   input.Apply(Action::Shot);
-  input.Update(fixture.world, policy, controls);
+  input.Update(fixture.world, controls, requests);
   REQUIRE(controls.Get(7)->action == ControlAction::None);
 }
 
-TEST_CASE("GRF team requests are AI intent and builtin AI relinquishes overrides", "[app][input]") {
+TEST_CASE("GRF emits team request values without any policy and clears every output frame", "[app][input]") {
   Fixture fixture;
   Input input(fixture.home, TeamSide::Home);
-  auto policy = fixture.Policy();
-  PlayerControlSet human, combined;
+  TeamDecisionRequest requests;
+  PlayerControlSet human;
   fixture.world.players[1].has_possession = true;
   input.Apply(Action::Switch);
   input.Apply(Action::TeamPressure);
   input.Apply(Action::KeeperRush);
-  input.Update(fixture.world, policy, human);
+  input.Update(fixture.world, human, requests);
   REQUIRE(input.selected() == 8);
-  REQUIRE(policy.requests(TeamSide::Home).attacking_run.player == 7);
-  REQUIRE(policy.requests(TeamSide::Home).pressure.player == 7);
-  REQUIRE(policy.requests(TeamSide::Home).keeper_rush.player == 9);
-  policy.Update(fixture.world, combined);
-  for (const auto &control : human.controls()) combined.Set(control.player, control);
-  REQUIRE(combined.Get(8)->desired_speed == 0.f);  // Explicit input wins.
-  const auto copied_output = combined;
+  REQUIRE(requests.side == TeamSide::Home);
+  REQUIRE(requests.attacking_run);
+  REQUIRE(requests.team_pressure);
+  REQUIRE(requests.pressure_excluded_player == 8);
+  REQUIRE(requests.keeper_rush);
+  REQUIRE(human.Get(8)->desired_speed == 0.f);
+  const auto retained = requests;
+  input.Update(fixture.world, human, requests);
+  REQUIRE_FALSE(requests.attacking_run);  // Switch is one-shot, pressure/rush sticky.
+  REQUIRE(requests.team_pressure);
+  input.Apply(Action::ReleaseTeamPressure);
+  input.Apply(Action::ReleaseKeeperRush);
+  input.Update(fixture.world, human, requests);
+  REQUIRE_FALSE(requests.team_pressure);
+  REQUIRE_FALSE(requests.keeper_rush);
+  REQUIRE_FALSE(requests.pressure_excluded_player.has_value());
   input.Apply(Action::BuiltinAI);
-  input.Update(fixture.world, policy, human);
+  input.Update(fixture.world, human, requests);
   REQUIRE(human.controls().empty());
-  policy.Update(fixture.world, combined);
-  REQUIRE(combined.Get(8)->desired_speed > 0.f);
-  REQUIRE(copied_output.Get(8)->desired_speed == 0.f);
-  input.Reset(); policy.ResetRequests();
+  REQUIRE_FALSE(requests.attacking_run);
+  REQUIRE_FALSE(requests.team_pressure);
+  REQUIRE_FALSE(requests.keeper_rush);
+  REQUIRE(retained.attacking_run);
+  REQUIRE(retained.pressure_excluded_player == 8);
+  input.Reset();
   REQUIRE_FALSE(input.selected().has_value());
-  REQUIRE_FALSE(policy.requests(TeamSide::Home).pressure.player.has_value());
 }
 
 TEST_CASE("input instances copies sides and reset do not share state", "[app][input]") {
@@ -215,4 +231,10 @@ TEST_CASE("input instances copies sides and reset do not share state", "[app][in
   Input away(fixture.away, TeamSide::Away);
   REQUIRE(away.Select(fixture.world, 100));
   REQUIRE_FALSE(away.Select(fixture.world, 7));
+  PlayerControlSet controls;
+  TeamDecisionRequest requests;
+  away.Apply(Action::TeamPressure);
+  away.Update(fixture.world, controls, requests);
+  REQUIRE(requests.side == TeamSide::Away);
+  REQUIRE(requests.pressure_excluded_player == 100);
 }
