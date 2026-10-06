@@ -76,7 +76,7 @@ src/
 │   └── default_ai.*  WorldState + boards/requests → PlayerControlSet
 ├── app/              executable-side code, never in core
 │   ├── app.cpp / args.* parse → GameEnv → complete match → write Result
-│   └── fixtures/     legacy sample roster/profile import → model
+│   └── fixtures/     typed sample rosters/profiles → model; local six-decimal quantization
 ├── gameenv.hpp       public autonomous match façade; values + opaque private owners
 └── gameenv.cpp       sole product composition implementation for AI + sim
 
@@ -119,7 +119,7 @@ symbols (including the currently unused GetRoleFromString).
 app → game (gameenv.cpp) → ai + sim
 ai → ai_contracts + sim_contracts → model/foundation
 sim → sim_contracts + animation + support → model/foundation
-app_support (args/fixtures) → model + support
+app_support (args/fixtures) → model/foundation
 anim_baking → legacy_anim + animation + support/foundation
 ```
 
@@ -134,7 +134,7 @@ anim_baking → legacy_anim + animation + support/foundation
   BqLog is PRIVATE to game/sim, never in public value contracts or policy.
   Runtime warnings use BqLog, operational failures throw, debug invariants use
   <cassert>. No product signal handlers/backtraces or deliberate crash logging.
-  Remaining support utilities are temporary app/offline consumers pending removal.
+  Remaining support utilities are temporary offline consumers pending removal.
 - `football_animation` is an independent archive. The offline baker can load and
   verify baked assets without linking Simulation or GameEnv.
 - `football_legacy_anim` is an offline object target. `football_anim_baking` is a

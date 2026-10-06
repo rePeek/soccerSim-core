@@ -5,8 +5,8 @@
 
 namespace football::app::fixtures {
 
-// App-side legacy import, not simulation startup. Unknown keys retain neutral
-// defaults and unspecified skin colour; provenance never supplies identity.
+// Typed sample fixture retaining the historical profile values and quantization.
+// Unknown keys retain neutral defaults; provenance never supplies identity.
 model::Player LoadLegacyPlayerProfile(model::PlayerDatabaseId database_id,
                                      bool left_team);
 

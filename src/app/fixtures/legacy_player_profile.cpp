@@ -11,519 +11,132 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// written by bastiaan konings schuiling 2008 - 2015
-// this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
-// i do not offer support, so don't ask. to be used for inspiration :)
-
 #include "app/fixtures/legacy_player_profile.hpp"
 #include "foundation/math/scalar.hpp"
-#include "support/diagnostics/log.hpp"
-#include "support/io/xml_loader.hpp"
-#include "support/text/string_utils.hpp"
 
+#include <array>
 #include <cassert>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 
 namespace football::app::fixtures {
 namespace {
 
-using namespace blunted;
+struct Name {
+  const char* first;
+  const char* last;
+};
+struct Profile {
+  model::PlayerDatabaseId database_id;
+  Name home_name;
+  Name away_name;
+  float base_stat;
+  int age;
+  int skin_color;
+  const char* hair_style;
+  const char* hair_color;
+  float height;
+  // Stable model::PlayerStat ordering, not strings or XML at runtime.
+  std::array<float, model::kPlayerStatCount> stats;
+};
+static_assert(model::kPlayerStatCount == 22);
 
-// Age adjustment is legacy profile-import policy, not a runtime utility.
+constexpr Profile kProfiles[] = {
+    {398, {"Ada", "Lovelace"}, {"Lisa", "Meitner"},
+     0.661913f, 22, 1, "long02", "blonde", 1.87f,
+     {0.650000f, 0.850000f, 0.550000f, 0.450000f, 0.550000f, 0.650000f, 0.650000f,
+      0.250000f, 0.250000f, 0.350000f, 0.250000f, 0.650000f, 0.750000f, 0.250000f,
+      0.350000f, 0.250000f, 0.550000f, 0.550000f, 0.550000f, 0.950000f, 0.150000f, 0.550000f}},
+    {11, {"Alan", "Turing"}, {"Albert", "Einstein"},
+     0.619111f, 25, 2, "short02", "black", 1.7f,
+     {0.569697f, 0.536364f, 0.536364f, 0.536364f, 0.469697f, 0.536364f, 0.569697f,
+      0.536364f, 0.536364f, 0.503030f, 0.469697f, 0.569697f, 0.536364f, 0.469697f,
+      0.436364f, 0.303030f, 0.469697f, 0.469697f, 0.469697f, 0.536364f, 0.436364f, 0.503030f}},
+    {254, {"Katherine", "Johnson"}, {"Dorothy", "Vaughaun"},
+     0.64269f, 30, 4, "long02", "black", 1.74f,
+     {0.713636f, 0.613636f, 0.463636f, 0.463636f, 0.463636f, 0.463636f, 0.563636f,
+      0.713636f, 0.663636f, 0.463636f, 0.313636f, 0.563636f, 0.563636f, 0.513636f,
+      0.313636f, 0.213636f, 0.463636f, 0.463636f, 0.463636f, 0.663636f, 0.313636f, 0.563636f}},
+    {320, {"Leonardo", "da Vinci"}, {"Archimedinho", "Archimedinho"},
+     0.625396f, 27, 1, "medium01", "black", 1.93f,
+     {0.736364f, 0.686364f, 0.486364f, 0.486364f, 0.486364f, 0.436364f, 0.636364f,
+      0.786364f, 0.786364f, 0.386364f, 0.236364f, 0.436364f, 0.436364f, 0.586364f,
+      0.236364f, 0.186364f, 0.486364f, 0.486364f, 0.486364f, 0.786364f, 0.236364f, 0.486364f}},
+    {103, {"Isaac", "Newton"}, {"Stefan", "Banach"},
+     0.60786f, 31, 1, "short01", "black", 1.72f,
+     {0.562121f, 0.528788f, 0.528788f, 0.528788f, 0.462121f, 0.495455f, 0.528788f,
+      0.595455f, 0.562121f, 0.528788f, 0.428788f, 0.628788f, 0.595455f, 0.462121f,
+      0.362121f, 0.262121f, 0.462121f, 0.462121f, 0.462121f, 0.595455f, 0.362121f, 0.595455f}},
+    {188, {"David", "Blackwell"}, {"Benjamin", "Banneker"},
+     0.68319f, 30, 4, "long02", "black", 1.71f,
+     {0.386364f, 0.486364f, 0.586364f, 0.586364f, 0.486364f, 0.686364f, 0.686364f,
+      0.186364f, 0.186364f, 0.586364f, 0.686364f, 0.586364f, 0.486364f, 0.386364f,
+      0.686364f, 0.486364f, 0.486364f, 0.486364f, 0.486364f, 0.286364f, 0.686364f, 0.386364f}},
+    {74, {"Anita", "Borg"}, {"Jane", "Goodall"},
+     0.645507f, 26, 3, "long02", "black", 1.89f,
+     {0.663636f, 0.563636f, 0.463636f, 0.463636f, 0.463636f, 0.463636f, 0.563636f,
+      0.663636f, 0.563636f, 0.463636f, 0.363636f, 0.663636f, 0.663636f, 0.463636f,
+      0.363636f, 0.263636f, 0.463636f, 0.463636f, 0.463636f, 0.563636f, 0.363636f, 0.563636f}},
+    {332, {"Leonhard", "Euler"}, {"Nicolaus", "Copernicus"},
+     0.63531f, 26, 1, "long01", "blonde", 1.84f,
+     {0.525000f, 0.525000f, 0.525000f, 0.525000f, 0.475000f, 0.575000f, 0.625000f,
+      0.425000f, 0.375000f, 0.525000f, 0.525000f, 0.625000f, 0.575000f, 0.425000f,
+      0.525000f, 0.375000f, 0.475000f, 0.475000f, 0.475000f, 0.425000f, 0.525000f, 0.475000f}},
+    {290, {"Pythagoras", "Pythagoras"}, {"Richard", "Feynman"},
+     0.716847f, 22, 1, "medium01", "black", 1.74f,
+     {0.381818f, 0.481818f, 0.631818f, 0.631818f, 0.481818f, 0.681818f, 0.681818f,
+      0.181818f, 0.131818f, 0.531818f, 0.731818f, 0.581818f, 0.531818f, 0.381818f,
+      0.681818f, 0.431818f, 0.481818f, 0.481818f, 0.481818f, 0.256818f, 0.706818f, 0.431818f}},
+    {391, {"Marie", "Curie"}, {"Rosalind", "Franklin"},
+     0.693097f, 27, 2, "long02", "black", 1.81f,
+     {0.381818f, 0.481818f, 0.631818f, 0.631818f, 0.481818f, 0.681818f, 0.681818f,
+      0.181818f, 0.131818f, 0.531818f, 0.731818f, 0.581818f, 0.531818f, 0.381818f,
+      0.681818f, 0.431818f, 0.481818f, 0.481818f, 0.481818f, 0.256818f, 0.706818f, 0.431818f}},
+    {264, {"Louise", "Nixon Sutton"}, {"Melba", "Roy Mouton"},
+     0.718346f, 27, 3, "short02", "black", 1.69f,
+     {0.381818f, 0.481818f, 0.631818f, 0.631818f, 0.481818f, 0.681818f, 0.681818f,
+      0.181818f, 0.131818f, 0.531818f, 0.731818f, 0.581818f, 0.531818f, 0.381818f,
+      0.681818f, 0.431818f, 0.481818f, 0.481818f, 0.481818f, 0.256818f, 0.706818f, 0.431818f}},
+};
+
+// Preserve both the legacy age formula and the %f -> atof quantization. This
+// sample-data policy is intentionally local to fixtures, not a text utility.
 float CalculateLegacyStat(float baseStat, float profileStat, float age) {
+  using namespace blunted;
   float idealAge = 27;
   float ageFactor = curve(1.0f - NormalizedClamp(fabs(age - idealAge), 0, 13) * 0.5f,
                           1.0f) * 2.0f - 1.0f;
   assert(ageFactor >= 0.0f && ageFactor <= 1.0f);
   float agedBaseStat = baseStat * (ageFactor * 0.5f + 0.5f) * 1.2f;
-  return clamp(profileStat * 2.0f * agedBaseStat, 0.01f, 1.0f);
-}
-
-model::PlayerStat PlayerStatFromString(const std::string& name) {
-  using enum model::PlayerStat;
-  if (name == "physical_balance") return physical_balance;
-  if (name == "physical_reaction") return physical_reaction;
-  if (name == "physical_acceleration") return physical_acceleration;
-  if (name == "physical_velocity") return physical_velocity;
-  if (name == "physical_stamina") return physical_stamina;
-  if (name == "physical_agility") return physical_agility;
-  if (name == "physical_shotpower") return physical_shotpower;
-  if (name == "technical_standingtackle") return technical_standingtackle;
-  if (name == "technical_slidingtackle") return technical_slidingtackle;
-  if (name == "technical_ballcontrol") return technical_ballcontrol;
-  if (name == "technical_dribble") return technical_dribble;
-  if (name == "technical_shortpass") return technical_shortpass;
-  if (name == "technical_highpass") return technical_highpass;
-  if (name == "technical_header") return technical_header;
-  if (name == "technical_shot") return technical_shot;
-  if (name == "technical_volley") return technical_volley;
-  if (name == "mental_calmness") return mental_calmness;
-  if (name == "mental_workrate") return mental_workrate;
-  if (name == "mental_resilience") return mental_resilience;
-  if (name == "mental_defensivepositioning") return mental_defensivepositioning;
-  if (name == "mental_offensivepositioning") return mental_offensivepositioning;
-  if (name == "mental_vision") return mental_vision;
-  if (name == "player_stat_max") return player_stat_max;
-  Log(e_FatalError, "PlayerStatFromString", "", name);
-  return player_stat_max;
+  const float value = clamp(profileStat * 2.0f * agedBaseStat, 0.01f, 1.0f);
+  char buffer[32];
+  std::snprintf(buffer, sizeof(buffer), "%f", value);
+  return static_cast<float>(std::atof(buffer));
 }
 
 }  // namespace
 
-model::Player LoadLegacyPlayerProfile(model::PlayerDatabaseId playerDatabaseID,
+model::Player LoadLegacyPlayerProfile(model::PlayerDatabaseId database_id,
                                      bool left_team) {
   model::Player player;
-  player.database_id = playerDatabaseID;
-  auto& firstName = player.first_name;
-  auto& lastName = player.last_name;
-  auto& skinColor = player.appearance.skin_color;
-  auto& hairStyle = player.appearance.hair_style;
-  auto& hairColor = player.appearance.hair_color;
-  auto& height = player.height;
-  auto& age = player.age;
-  std::string profileString;
-  float baseStat = 0.0f;
-
-  switch (playerDatabaseID) {
-    case 398:
-      if (left_team) {
-        firstName = "Ada";
-        lastName = "Lovelace";
-      } else {
-        firstName = "Lisa";
-        lastName = "Meitner";
-      }
-      baseStat = 0.661913;
-      profileString =
-          "<physical_balance>0.650000</"
-          "physical_balance><physical_reaction>0.850000</"
-          "physical_reaction><physical_acceleration>0.550000</"
-          "physical_acceleration><physical_velocity>0.450000</"
-          "physical_velocity><physical_stamina>0.550000</"
-          "physical_stamina><physical_agility>0.650000</"
-          "physical_agility><physical_shotpower>0.650000</"
-          "physical_shotpower><technical_standingtackle>0.250000</"
-          "technical_standingtackle><technical_slidingtackle>0.250000</"
-          "technical_slidingtackle><technical_ballcontrol>0.350000</"
-          "technical_ballcontrol><technical_dribble>0.250000</"
-          "technical_dribble><technical_shortpass>0.650000</"
-          "technical_shortpass><technical_highpass>0.750000</"
-          "technical_highpass><technical_header>0.250000</"
-          "technical_header><technical_shot>0.350000</"
-          "technical_shot><technical_volley>0.250000</"
-          "technical_volley><mental_calmness>0.550000</"
-          "mental_calmness><mental_workrate>0.550000</"
-          "mental_workrate><mental_resilience>0.550000</"
-          "mental_resilience><mental_defensivepositioning>0.950000</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.150000</"
-          "mental_offensivepositioning><mental_vision>0.550000</mental_vision>";
-      age = 22;
-      skinColor = 1;
-      hairStyle = "long02";
-      hairColor = "blonde";
-      height = 1.87;
-      break;
-    case 11:
-      if (left_team) {
-        firstName = "Alan";
-        lastName = "Turing";
-      } else {
-        firstName = "Albert";
-        lastName = "Einstein";
-      }
-      baseStat = 0.619111;
-      profileString =
-          "<physical_balance>0.569697</"
-          "physical_balance><physical_reaction>0.536364</"
-          "physical_reaction><physical_acceleration>0.536364</"
-          "physical_acceleration><physical_velocity>0.536364</"
-          "physical_velocity><physical_stamina>0.469697</"
-          "physical_stamina><physical_agility>0.536364</"
-          "physical_agility><physical_shotpower>0.569697</"
-          "physical_shotpower><technical_standingtackle>0.536364</"
-          "technical_standingtackle><technical_slidingtackle>0.536364</"
-          "technical_slidingtackle><technical_ballcontrol>0.503030</"
-          "technical_ballcontrol><technical_dribble>0.469697</"
-          "technical_dribble><technical_shortpass>0.569697</"
-          "technical_shortpass><technical_highpass>0.536364</"
-          "technical_highpass><technical_header>0.469697</"
-          "technical_header><technical_shot>0.436364</"
-          "technical_shot><technical_volley>0.303030</"
-          "technical_volley><mental_calmness>0.469697</"
-          "mental_calmness><mental_workrate>0.469697</"
-          "mental_workrate><mental_resilience>0.469697</"
-          "mental_resilience><mental_defensivepositioning>0.536364</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.436364</"
-          "mental_offensivepositioning><mental_vision>0.503030</mental_vision>";
-      age = 25;
-      skinColor = 2;
-      hairStyle = "short02";
-      hairColor = "black";
-      height = 1.7;
-      break;
-    case 254:
-      if (left_team) {
-        firstName = "Katherine";
-        lastName = "Johnson";
-      } else {
-        firstName = "Dorothy";
-        lastName = "Vaughaun";
-      }
-      baseStat = 0.64269;
-      profileString =
-          "<physical_balance>0.713636</"
-          "physical_balance><physical_reaction>0.613636</"
-          "physical_reaction><physical_acceleration>0.463636</"
-          "physical_acceleration><physical_velocity>0.463636</"
-          "physical_velocity><physical_stamina>0.463636</"
-          "physical_stamina><physical_agility>0.463636</"
-          "physical_agility><physical_shotpower>0.563636</"
-          "physical_shotpower><technical_standingtackle>0.713636</"
-          "technical_standingtackle><technical_slidingtackle>0.663636</"
-          "technical_slidingtackle><technical_ballcontrol>0.463636</"
-          "technical_ballcontrol><technical_dribble>0.313636</"
-          "technical_dribble><technical_shortpass>0.563636</"
-          "technical_shortpass><technical_highpass>0.563636</"
-          "technical_highpass><technical_header>0.513636</"
-          "technical_header><technical_shot>0.313636</"
-          "technical_shot><technical_volley>0.213636</"
-          "technical_volley><mental_calmness>0.463636</"
-          "mental_calmness><mental_workrate>0.463636</"
-          "mental_workrate><mental_resilience>0.463636</"
-          "mental_resilience><mental_defensivepositioning>0.663636</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.313636</"
-          "mental_offensivepositioning><mental_vision>0.563636</mental_vision>";
-      age = 30;
-      skinColor = 4;
-      hairStyle = "long02";
-      hairColor = "black";
-      height = 1.74;
-      break;
-    case 320:
-      if (left_team) {
-        firstName = "Leonardo";
-        lastName = "da Vinci";
-      } else {
-        firstName = "Archimedinho";
-        lastName = "Archimedinho";
-      }
-      baseStat = 0.625396;
-      profileString =
-          "<physical_balance>0.736364</"
-          "physical_balance><physical_reaction>0.686364</"
-          "physical_reaction><physical_acceleration>0.486364</"
-          "physical_acceleration><physical_velocity>0.486364</"
-          "physical_velocity><physical_stamina>0.486364</"
-          "physical_stamina><physical_agility>0.436364</"
-          "physical_agility><physical_shotpower>0.636364</"
-          "physical_shotpower><technical_standingtackle>0.786364</"
-          "technical_standingtackle><technical_slidingtackle>0.786364</"
-          "technical_slidingtackle><technical_ballcontrol>0.386364</"
-          "technical_ballcontrol><technical_dribble>0.236364</"
-          "technical_dribble><technical_shortpass>0.436364</"
-          "technical_shortpass><technical_highpass>0.436364</"
-          "technical_highpass><technical_header>0.586364</"
-          "technical_header><technical_shot>0.236364</"
-          "technical_shot><technical_volley>0.186364</"
-          "technical_volley><mental_calmness>0.486364</"
-          "mental_calmness><mental_workrate>0.486364</"
-          "mental_workrate><mental_resilience>0.486364</"
-          "mental_resilience><mental_defensivepositioning>0.786364</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.236364</"
-          "mental_offensivepositioning><mental_vision>0.486364</mental_vision>";
-      age = 27;
-      skinColor = 1;
-      hairStyle = "medium01";
-      hairColor = "black";
-      height = 1.93;
-      break;
-    case 103:
-      if (left_team) {
-        firstName = "Isaac";
-        lastName = "Newton";
-      } else {
-        firstName = "Stefan";
-        lastName = "Banach";
-      }
-      baseStat = 0.60786;
-      profileString =
-          "<physical_balance>0.562121</"
-          "physical_balance><physical_reaction>0.528788</"
-          "physical_reaction><physical_acceleration>0.528788</"
-          "physical_acceleration><physical_velocity>0.528788</"
-          "physical_velocity><physical_stamina>0.462121</"
-          "physical_stamina><physical_agility>0.495455</"
-          "physical_agility><physical_shotpower>0.528788</"
-          "physical_shotpower><technical_standingtackle>0.595455</"
-          "technical_standingtackle><technical_slidingtackle>0.562121</"
-          "technical_slidingtackle><technical_ballcontrol>0.528788</"
-          "technical_ballcontrol><technical_dribble>0.428788</"
-          "technical_dribble><technical_shortpass>0.628788</"
-          "technical_shortpass><technical_highpass>0.595455</"
-          "technical_highpass><technical_header>0.462121</"
-          "technical_header><technical_shot>0.362121</"
-          "technical_shot><technical_volley>0.262121</"
-          "technical_volley><mental_calmness>0.462121</"
-          "mental_calmness><mental_workrate>0.462121</"
-          "mental_workrate><mental_resilience>0.462121</"
-          "mental_resilience><mental_defensivepositioning>0.595455</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.362121</"
-          "mental_offensivepositioning><mental_vision>0.595455</mental_vision>";
-      age = 31;
-      skinColor = 1;
-      hairStyle = "short01";
-      hairColor = "black";
-      height = 1.72;
-      break;
-    case 188:
-      if (left_team) {
-        firstName = "David";
-        lastName = "Blackwell";
-      } else {
-        firstName = "Benjamin";
-        lastName = "Banneker";
-      }
-      baseStat = 0.68319;
-      profileString =
-          "<physical_balance>0.386364</"
-          "physical_balance><physical_reaction>0.486364</"
-          "physical_reaction><physical_acceleration>0.586364</"
-          "physical_acceleration><physical_velocity>0.586364</"
-          "physical_velocity><physical_stamina>0.486364</"
-          "physical_stamina><physical_agility>0.686364</"
-          "physical_agility><physical_shotpower>0.686364</"
-          "physical_shotpower><technical_standingtackle>0.186364</"
-          "technical_standingtackle><technical_slidingtackle>0.186364</"
-          "technical_slidingtackle><technical_ballcontrol>0.586364</"
-          "technical_ballcontrol><technical_dribble>0.686364</"
-          "technical_dribble><technical_shortpass>0.586364</"
-          "technical_shortpass><technical_highpass>0.486364</"
-          "technical_highpass><technical_header>0.386364</"
-          "technical_header><technical_shot>0.686364</"
-          "technical_shot><technical_volley>0.486364</"
-          "technical_volley><mental_calmness>0.486364</"
-          "mental_calmness><mental_workrate>0.486364</"
-          "mental_workrate><mental_resilience>0.486364</"
-          "mental_resilience><mental_defensivepositioning>0.286364</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.686364</"
-          "mental_offensivepositioning><mental_vision>0.386364</mental_vision>";
-      age = 30;
-      skinColor = 4;
-      hairStyle = "long02";
-      hairColor = "black";
-      height = 1.71;
-      break;
-    case 74:
-      if (left_team) {
-        firstName = "Anita";
-        lastName = "Borg";
-      } else {
-        firstName = "Jane";
-        lastName = "Goodall";
-      }
-      baseStat = 0.645507;
-      profileString =
-          "<physical_balance>0.663636</"
-          "physical_balance><physical_reaction>0.563636</"
-          "physical_reaction><physical_acceleration>0.463636</"
-          "physical_acceleration><physical_velocity>0.463636</"
-          "physical_velocity><physical_stamina>0.463636</"
-          "physical_stamina><physical_agility>0.463636</"
-          "physical_agility><physical_shotpower>0.563636</"
-          "physical_shotpower><technical_standingtackle>0.663636</"
-          "technical_standingtackle><technical_slidingtackle>0.563636</"
-          "technical_slidingtackle><technical_ballcontrol>0.463636</"
-          "technical_ballcontrol><technical_dribble>0.363636</"
-          "technical_dribble><technical_shortpass>0.663636</"
-          "technical_shortpass><technical_highpass>0.663636</"
-          "technical_highpass><technical_header>0.463636</"
-          "technical_header><technical_shot>0.363636</"
-          "technical_shot><technical_volley>0.263636</"
-          "technical_volley><mental_calmness>0.463636</"
-          "mental_calmness><mental_workrate>0.463636</"
-          "mental_workrate><mental_resilience>0.463636</"
-          "mental_resilience><mental_defensivepositioning>0.563636</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.363636</"
-          "mental_offensivepositioning><mental_vision>0.563636</mental_vision>";
-      age = 26;
-      skinColor = 3;
-      hairStyle = "long02";
-      hairColor = "black";
-      height = 1.89;
-      break;
-    case 332:
-      if (left_team) {
-        firstName = "Leonhard";
-        lastName = "Euler";
-      } else {
-        firstName = "Nicolaus";
-        lastName = "Copernicus";
-      }
-      baseStat = 0.63531;
-      profileString =
-          "<physical_balance>0.525000</"
-          "physical_balance><physical_reaction>0.525000</"
-          "physical_reaction><physical_acceleration>0.525000</"
-          "physical_acceleration><physical_velocity>0.525000</"
-          "physical_velocity><physical_stamina>0.475000</"
-          "physical_stamina><physical_agility>0.575000</"
-          "physical_agility><physical_shotpower>0.625000</"
-          "physical_shotpower><technical_standingtackle>0.425000</"
-          "technical_standingtackle><technical_slidingtackle>0.375000</"
-          "technical_slidingtackle><technical_ballcontrol>0.525000</"
-          "technical_ballcontrol><technical_dribble>0.525000</"
-          "technical_dribble><technical_shortpass>0.625000</"
-          "technical_shortpass><technical_highpass>0.575000</"
-          "technical_highpass><technical_header>0.425000</"
-          "technical_header><technical_shot>0.525000</"
-          "technical_shot><technical_volley>0.375000</"
-          "technical_volley><mental_calmness>0.475000</"
-          "mental_calmness><mental_workrate>0.475000</"
-          "mental_workrate><mental_resilience>0.475000</"
-          "mental_resilience><mental_defensivepositioning>0.425000</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.525000</"
-          "mental_offensivepositioning><mental_vision>0.475000</mental_vision>";
-      age = 26;
-      skinColor = 1;
-      hairStyle = "long01";
-      hairColor = "blonde";
-      height = 1.84;
-      break;
-    case 290:
-      if (left_team) {
-        firstName = "Pythagoras";
-        lastName = "Pythagoras";
-      } else {
-        firstName = "Richard";
-        lastName = "Feynman";
-      }
-      baseStat = 0.716847;
-      profileString =
-          "<physical_balance>0.381818</"
-          "physical_balance><physical_reaction>0.481818</"
-          "physical_reaction><physical_acceleration>0.631818</"
-          "physical_acceleration><physical_velocity>0.631818</"
-          "physical_velocity><physical_stamina>0.481818</"
-          "physical_stamina><physical_agility>0.681818</"
-          "physical_agility><physical_shotpower>0.681818</"
-          "physical_shotpower><technical_standingtackle>0.181818</"
-          "technical_standingtackle><technical_slidingtackle>0.131818</"
-          "technical_slidingtackle><technical_ballcontrol>0.531818</"
-          "technical_ballcontrol><technical_dribble>0.731818</"
-          "technical_dribble><technical_shortpass>0.581818</"
-          "technical_shortpass><technical_highpass>0.531818</"
-          "technical_highpass><technical_header>0.381818</"
-          "technical_header><technical_shot>0.681818</"
-          "technical_shot><technical_volley>0.431818</"
-          "technical_volley><mental_calmness>0.481818</"
-          "mental_calmness><mental_workrate>0.481818</"
-          "mental_workrate><mental_resilience>0.481818</"
-          "mental_resilience><mental_defensivepositioning>0.256818</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.706818</"
-          "mental_offensivepositioning><mental_vision>0.431818</mental_vision>";
-      age = 22;
-      skinColor = 1;
-      hairStyle = "medium01";
-      hairColor = "black";
-      height = 1.74;
-      break;
-    case 391:
-      if (left_team) {
-        firstName = "Marie";
-        lastName = "Curie";
-      } else {
-        firstName = "Rosalind";
-        lastName = "Franklin";
-      }
-      baseStat = 0.693097;
-      profileString =
-          "<physical_balance>0.381818</"
-          "physical_balance><physical_reaction>0.481818</"
-          "physical_reaction><physical_acceleration>0.631818</"
-          "physical_acceleration><physical_velocity>0.631818</"
-          "physical_velocity><physical_stamina>0.481818</"
-          "physical_stamina><physical_agility>0.681818</"
-          "physical_agility><physical_shotpower>0.681818</"
-          "physical_shotpower><technical_standingtackle>0.181818</"
-          "technical_standingtackle><technical_slidingtackle>0.131818</"
-          "technical_slidingtackle><technical_ballcontrol>0.531818</"
-          "technical_ballcontrol><technical_dribble>0.731818</"
-          "technical_dribble><technical_shortpass>0.581818</"
-          "technical_shortpass><technical_highpass>0.531818</"
-          "technical_highpass><technical_header>0.381818</"
-          "technical_header><technical_shot>0.681818</"
-          "technical_shot><technical_volley>0.431818</"
-          "technical_volley><mental_calmness>0.481818</"
-          "mental_calmness><mental_workrate>0.481818</"
-          "mental_workrate><mental_resilience>0.481818</"
-          "mental_resilience><mental_defensivepositioning>0.256818</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.706818</"
-          "mental_offensivepositioning><mental_vision>0.431818</mental_vision>";
-      age = 27;
-      skinColor = 2;
-      hairStyle = "long02";
-      hairColor = "black";
-      height = 1.81;
-      break;
-    case 264:
-      if (left_team) {
-        firstName = "Louise";
-        lastName = "Nixon Sutton";
-      } else {
-        firstName = "Melba";
-        lastName = "Roy Mouton";
-      }
-      baseStat = 0.718346;
-      profileString =
-          "<physical_balance>0.381818</"
-          "physical_balance><physical_reaction>0.481818</"
-          "physical_reaction><physical_acceleration>0.631818</"
-          "physical_acceleration><physical_velocity>0.631818</"
-          "physical_velocity><physical_stamina>0.481818</"
-          "physical_stamina><physical_agility>0.681818</"
-          "physical_agility><physical_shotpower>0.681818</"
-          "physical_shotpower><technical_standingtackle>0.181818</"
-          "technical_standingtackle><technical_slidingtackle>0.131818</"
-          "technical_slidingtackle><technical_ballcontrol>0.531818</"
-          "technical_ballcontrol><technical_dribble>0.731818</"
-          "technical_dribble><technical_shortpass>0.581818</"
-          "technical_shortpass><technical_highpass>0.531818</"
-          "technical_highpass><technical_header>0.381818</"
-          "technical_header><technical_shot>0.681818</"
-          "technical_shot><technical_volley>0.431818</"
-          "technical_volley><mental_calmness>0.481818</"
-          "mental_calmness><mental_workrate>0.481818</"
-          "mental_workrate><mental_resilience>0.481818</"
-          "mental_resilience><mental_defensivepositioning>0.256818</"
-          "mental_defensivepositioning><mental_offensivepositioning>0.706818</"
-          "mental_offensivepositioning><mental_vision>0.431818</mental_vision>";
-      age = 27;
-      skinColor = 3;
-      hairStyle = "short02";
-      hairColor = "black";
-      height = 1.69;
-      break;
-  }
-
-  // get average stat for current age
-
-  XMLLoader loader;
-  XMLTree tree = loader.Load(profileString);
-
-  //printf("player: %s, %s (age %i)\n", lastName.c_str(), firstName.c_str(), age);
-  map_XMLTree::const_iterator iter = tree.children.begin();
-  while (iter != tree.children.end()) {
-    float profileStat = atof((*iter).second.value.c_str()); // profile value
-
-    float value = CalculateLegacyStat(baseStat, profileStat, age);
-    //printf("base: %f; profile: %f; result: %f\n", baseStat, profileStat, value);
-
-    // Keep legacy decimal round-tripping at the loader boundary. Model values
-    // themselves are ordinary floats and do not perform formatting or I/O.
-    player.attributes.set(PlayerStatFromString((*iter).first),
-                          std::atof(real_to_str(value).c_str()));
-    iter++;
+  player.database_id = database_id;
+  for (const Profile& profile : kProfiles) {
+    if (profile.database_id != database_id) continue;
+    const Name name = left_team ? profile.home_name : profile.away_name;
+    player.first_name = name.first;
+    player.last_name = name.last;
+    player.age = profile.age;
+    player.height = profile.height;
+    player.appearance.skin_color = profile.skin_color;
+    player.appearance.hair_style = profile.hair_style;
+    player.appearance.hair_color = profile.hair_color;
+    for (std::size_t i = 0; i < profile.stats.size(); ++i) {
+      player.attributes.set(static_cast<model::PlayerStat>(i),
+                            CalculateLegacyStat(profile.base_stat,
+                                                profile.stats[i], profile.age));
+    }
+    break;
   }
   return player;
 }

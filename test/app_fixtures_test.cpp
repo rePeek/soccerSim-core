@@ -1,5 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <bit>
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <iterator>
 #include <optional>
@@ -8,7 +11,6 @@
 #include "app/fixtures/default_teams.hpp"
 #include "app/fixtures/legacy_player_profile.hpp"
 #include "model/player.hpp"
-#include "support/text/string_utils.hpp"
 
 namespace {
 
@@ -121,8 +123,32 @@ TEST_CASE("imported abilities keep the legacy six-decimal round trip",
         fixtures::LoadLegacyPlayerProfile(expected.database_id, true);
     INFO("database id " << expected.database_id);
     for (float ability : player.attributes.values()) {
-      CHECK(ability == static_cast<float>(std::atof(
-                            blunted::real_to_str(ability).c_str())));
+      char buffer[32];
+      std::snprintf(buffer, sizeof(buffer), "%f", ability);
+      CHECK(ability == static_cast<float>(std::atof(buffer)));
+    }
+  }
+}
+
+TEST_CASE("typed fixtures retain every pre-XML-removal ability bit",
+          "[app][fixtures]") {
+  // FNV over each ordered IEEE float word, captured from the old XML loader
+  // before its removal. This is independent of the age/quantization formula.
+  constexpr std::uint64_t expected[] = {
+      0x68215c3267d2d5b0ull, 0x263350ebf2fff7b6ull, 0x8c6e988f899a39a0ull,
+      0xab68f2b229ce6a17ull, 0x10837d0a9f3ac34bull, 0xedc8e174356f5d27ull,
+      0xc88e71cf4552e3fbull, 0x698704474847c455ull, 0x849dfa6f3ac4e097ull,
+      0x1a85a322e177b032ull, 0x1419898bef81efd9ull};
+  STATIC_REQUIRE(std::size(expected) == std::size(kLegacyRoster));
+  for (std::size_t i = 0; i < std::size(kLegacyRoster); ++i) {
+    for (bool home : {true, false}) {
+      const auto player = fixtures::LoadLegacyPlayerProfile(kLegacyRoster[i], home);
+      INFO("database id " << kLegacyRoster[i] << " home " << home);
+      std::uint64_t hash = 14695981039346656037ull;
+      for (float value : player.attributes.values()) {
+        hash = (hash ^ std::bit_cast<std::uint32_t>(value)) * 1099511628211ull;
+      }
+      CHECK(hash == expected[i]);
     }
   }
 }
