@@ -37,6 +37,14 @@ No configurable physics dt, wall-clock pacing, or foundation time module.
   unused possession-duration accumulator/API. Touch-time readers in Humanoid
   remain exact temporary projections pending its calculation migration.
   Card-effect regression covers both processing orders and the exact due tick.
+- **T4a:** Ball prediction generation iterates TickSpan and uses `kTickSeconds`.
+  Ball owns horizon/cache policy in `ball_timing.hpp`; native Ball/MentalImage
+  horizon APIs accept TickSpan, and MentalImage stores only a Tick capture time.
+  Sampling adapters temporarily retain previous/negative-horizon behavior while
+  calculation callers migrate. Saturating sample indices are overflow-safe.
+  Removed unused Ball/Player history-mean readers and their write-only histories.
+  Extrapolation/rotation arithmetic order and quaternion rate encoding remain
+  unchanged; this stage is not a rotation physics/model rewrite.
 
 These stages leave the legacy football clock, scale, fatigue, action progression,
 normal restart schedule and RNG windows unchanged. They do **not** yet implement the
@@ -58,10 +66,10 @@ Existing lifecycle tests still cover a 1 ms half and 1 ms scaled clock progress.
    not a fixed preparation delay. Separate positioning/ball placement, taker and
    legal-opponent readiness, permission to execute, and actual scheduled contact.
    Referee is the first time-policy owner to be rebuilt.
-2. **Remaining Player timestamps and perception:** migrate touch/card/possession
-   and grid-based history/prediction. Diagnostic output may project old wire units;
-   gameplay must not retain duplicate clocks. Action cursor/scheduler migration is
-   complete, without changing normal contact/completion behavior.
+2. **Remaining Player/Humanoid calculations:** migrate remaining time readers
+   and grid-based query horizons. Diagnostic output may project old wire units;
+   gameplay must not retain duplicate clocks. Action cursor/scheduler/touch/card
+   storage is migrated. Unused possession duration and mean histories are removed.
 3. **Perception/reachability/prediction:** change grid-based history/prediction APIs
    to tick horizons. Inventory off-grid callers first. Continuous kinematic
    arrival estimates are not deadlines; their precision and ordering must not be

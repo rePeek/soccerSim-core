@@ -241,6 +241,12 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   `test/player_action_tick_test.cpp`; old diagnostic digests project milliseconds.
   Player touch/card-effect timestamps are Tick; unused possession-duration storage
   is removed. Humanoid touch-time readers temporarily project milliseconds.
+  Ball prediction horizons/cache durations live in sim-private `ball_timing.hpp`;
+  prediction generation iterates TickSpan samples with seconds from the quantum.
+  MentalImage stores a Tick capture instant and derives TickSpan age. Transitional
+  calculation sampling adapters retain legacy horizon quantization; coverage is
+  in `test/prediction_tick_test.cpp`. Unused Ball/Player mean-history APIs and
+  their write-only history storage are deleted, not replaced.
   The legacy scaled football clock remains millisecond-based until its semantic migration:
   it supports sub-tick progress. See tools/time-model-migration.md before removing
   scale, rounding arrival estimates, or replacing the old restart preparation tail.

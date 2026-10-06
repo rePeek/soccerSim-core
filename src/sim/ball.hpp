@@ -18,11 +18,12 @@
 #ifndef _HPP_FOOTBALL_ONTHEPITCH_BALL
 #define _HPP_FOOTBALL_ONTHEPITCH_BALL
 
-#include <list>
+#include <algorithm>
 
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
 #include "sim/gamedefines.hpp"
+#include "sim/ball_timing.hpp"
 
 using namespace blunted;
 
@@ -45,12 +46,15 @@ class Ball {
 
     void Mirror();
 
-    inline Vector3 Predict(int predictTime_ms) const {
-      int index = predictTime_ms;
-      if (index >= ballPredictionSize_ms) index = ballPredictionSize_ms - 10;
-      index = index / 10;
-      if (index < 0) index = 0;
-      return predictions[index];
+    Vector3 Predict(football::sim::TickSpan horizon) const {
+      const auto last = football::sim::ball_timing::kPredictionHorizon - football::sim::TickSpan{1};
+      return predictions[std::min(horizon, last).value];
+    }
+    // Temporary calculation adapter: retain the old explicit sampling policy
+    // (negative -> zero; positive sub-tick -> previous sample). Not a deadline.
+    Vector3 Predict(int predictTime_ms) const {
+      return Predict(football::sim::TickSpan{static_cast<std::uint64_t>(
+          std::max(predictTime_ms, 0)) / football::sim::kMillisecondsPerTick});
     }
 
     void GetPredictionArray(std::vector<Vector3> &target);
@@ -60,9 +64,7 @@ class Ball {
     void SetPosition(const Vector3 &target);
     void SetMomentum(const Vector3 &target);
     void SetRotation(real x, real y, real z, float bias = 1.0);     // radians per second for each axis
-    BallSpatialInfo CalculatePrediction();  // returns momentum in 10ms
-
-    Vector3 GetAveragePosition(unsigned int duration_ms) const;
+    BallSpatialInfo CalculatePrediction();  // returns momentum at the next tick
 
     void Process();
     Quaternion GetOrientation() const { return orientationBuffer; }
@@ -72,11 +74,11 @@ class Ball {
     Vector3 momentum;
     Quaternion rotation_ms;
 
-    Vector3 predictions[ballPredictionSize_ms / 10 + cachedPredictions + 1];
+    Vector3 predictions[football::sim::ball_timing::kPredictionHorizon.value +
+                        football::sim::ball_timing::kPredictionCache.value + 1];
     int valid_predictions = 0;
     Quaternion orientPrediction;
 
-    std::list<Vector3> ballPosHistory;
 
     Vector3 positionBuffer;
     Quaternion orientationBuffer;

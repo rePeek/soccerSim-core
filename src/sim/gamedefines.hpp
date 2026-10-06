@@ -21,6 +21,8 @@
 #include "sim/animation/types.hpp"
 #include "model/football_types.hpp"
 #include "model/pitch.hpp"
+#include "sim/ball_timing.hpp"
+#include "sim/tick_boundary.hpp"
 
 #include "foundation/math/vector3.hpp"
 
@@ -52,9 +54,10 @@ const float _default_Shot_AutoDirection = 0.2f;
 
 const float distanceToVelocityMultiplier = 2.6f; // for example: when we need to travel 4 meters, we need to go at velo 4 * distanceToVelocityMultiplier
 
-const unsigned int ballPredictionSize_ms = 3000;
-const unsigned int cachedPredictions = 100;
-const unsigned int ballHistorySize = 401;
+// Temporary millisecond projections for calculation callers migrating next.
+const unsigned int ballPredictionSize_ms = football::sim::ToMilliseconds(
+    football::sim::ball_timing::kPredictionHorizon);
+const unsigned int cachedPredictions = football::sim::ball_timing::kPredictionCache.value;
 
 const float ballDistanceOptimizeThreshold = 10.0f;
 

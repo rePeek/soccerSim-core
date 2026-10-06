@@ -608,9 +608,6 @@ void Player::Process() {
     if (match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental)
       tactical_image_time_ms_ = 0;
     if (match->IsInPlay()) {
-      if (match->GetTimelineTick().value % football::sim::player_timing::kPositionHistory.value == 0) {
-        positionHistoryPerSecond.push_back(GetPosition());
-      }
       if ((match->GetTimelineTick().value + schedule_phase_) %
           football::sim::player_timing::kTacticalRefresh.value == 0) {
         _CalculateTacticalSituation();
@@ -658,7 +655,6 @@ float Player::GetLastTouchBias(int decay_ms, unsigned long time_ms) {
 }
 
 void Player::ResetRuntimeState(const Vector3 &focusPos) {
-  positionHistoryPerSecond.clear();
   last_touch_tick_ = {};
   lastTouchType = e_TouchType_None;
   if (IsActive()) {
@@ -716,23 +712,6 @@ bool Player::HasUniquePossession() const { return hasUniquePossession; }
 bool Player::AllowLastDitch(bool includingPossessionAmount) const {
   if (includingPossessionAmount && team->GetTeamPossessionAmount() < 1.0f) return true;
   return (GetTimeNeededToGetToBall_optimistic_ms() * 1.7f + 800 < GetTimeNeededToGetToBall_ms());
-}
-
-float Player::GetAverageVelocity(float timePeriod_sec) {
-  assert((int)timePeriod_sec > 0);
-  unsigned int logSize = positionHistoryPerSecond.size();
-  if (logSize == 0) return 0;
-  Vector3 prevPos;
-  float totalDistance = 0;
-  unsigned int count = 0;
-  while (count <= (unsigned int)timePeriod_sec) {
-    Vector3 pos = positionHistoryPerSecond.at(logSize - 1 - count);
-    if (count > 0) totalDistance += (pos - prevPos).GetLength();
-    count++;
-    if (logSize - count == 0) break;
-    prevPos = pos;
-  }
-  return totalDistance / timePeriod_sec;
 }
 
 void Player::UpdatePossessionStats() {

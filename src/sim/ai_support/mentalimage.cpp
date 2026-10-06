@@ -20,8 +20,7 @@
 #include "sim/match.hpp"
 
 MentalImage::MentalImage(Match* match)
-    : timeStamp_ms(match->GetActualTime_ms()), match(match) {
-  timeStamp_ms = match->GetActualTime_ms();
+    : captured_tick(match->GetTimelineTick()), match(match) {
   std::vector<Player*> allPlayers;
   match->GetTeam(match->FirstTeam())->GetActivePlayers(allPlayers);
   match->GetTeam(match->SecondTeam())->GetActivePlayers(allPlayers);
@@ -58,14 +57,17 @@ void MentalImage::Mirror(bool team_0, bool team_1, bool ball) {
   }
 }
 
-int MentalImage::GetTimeStampNeg_ms() const { return match->GetActualTime_ms() - timeStamp_ms; }
+football::sim::TickSpan MentalImage::GetAge() const {
+  return match->GetTimelineTick() - captured_tick;
+}
 
 
 PlayerImage MentalImage::GetPlayerImage(Player* p) const {
   for (auto& player : players) {
     if (player.player == p) {
       PlayerImage newImage = player;
-      Vector3 extrapolation = player.movement * GetTimeStampNeg_ms() * 0.001f;
+      // Preserve multiplication order while replacing timestamp authority.
+      Vector3 extrapolation = player.movement * football::sim::ToMilliseconds(GetAge()) * 0.001f;
       newImage.position = player.position + extrapolation;
       newImage.position = newImage.position.EnforceMaximumDeviation(newImage.player->GetPosition(), maxDistanceDeviation);
       newImage.movement = newImage.movement.EnforceMaximumDeviation(newImage.player->GetMovement(), maxMovementDeviation);
@@ -82,7 +84,7 @@ std::vector<PlayerImagePosition> MentalImage::GetTeamPlayerImages(int teamID) co
   result.reserve(11);
   for (auto& player : players) {
     if (player.player->IsActive() && player.player->GetTeamID() == teamID) {
-      Vector3 extrapolation = player.movement * GetTimeStampNeg_ms() * 0.001f;
+      Vector3 extrapolation = player.movement * football::sim::ToMilliseconds(GetAge()) * 0.001f;
       Vector3 position = player.position + extrapolation;
       position = position.EnforceMaximumDeviation(player.player->GetPosition(), maxDistanceDeviation);
       Vector3 movement = player.movement.EnforceMaximumDeviation(player.player->GetMovement(), maxMovementDeviation); // new
@@ -97,14 +99,28 @@ void MentalImage::UpdateBallPredictions() {
 }
 
 Vector3 MentalImage::GetBallPrediction(int time_ms) const {
+  // Preserve the old sampling adapter, including a horizon into the past.
+  // This signed calculation input is not a simulation timestamp/deadline.
+  if (time_ms < 0) {
+    const auto backward_ms = static_cast<std::uint64_t>(-static_cast<std::int64_t>(time_ms));
+    const auto age_ms = football::sim::ToMilliseconds(GetAge());
+    const auto combined_ms = age_ms > backward_ms ? age_ms - backward_ms : 0;
+    const auto index = std::min(combined_ms / football::sim::kMillisecondsPerTick,
+        football::sim::ball_timing::kPredictionHorizon.value - 1);
+    return ballPredictions[index].EnforceMaximumDeviation(
+        match->GetBall()->Predict(football::sim::TickSpan{}), maxDistanceDeviation);
+  }
+  return GetBallPrediction(football::sim::TickSpan{
+      static_cast<std::uint64_t>(time_ms) / football::sim::kMillisecondsPerTick});
+}
 
-  int index = time_ms + match->GetActualTime_ms() - timeStamp_ms;
-  if (index >= ballPredictionSize_ms) index = ballPredictionSize_ms - 10;
-  index = index / 10;
-  if (index < 0) index = 0;
-
-  Vector3 mentalResult = ballPredictions[index];
-  Vector3 realResult = match->GetBall()->Predict(time_ms);
+Vector3 MentalImage::GetBallPrediction(football::sim::TickSpan horizon) const {
+  const auto last = football::sim::ball_timing::kPredictionHorizon - football::sim::TickSpan{1};
+  // Clamp before adding, including arbitrary long manual timeline advances.
+  const auto age = std::min(GetAge(), last);
+  const auto index = std::min(horizon, last - age) + age;
+  Vector3 mentalResult = ballPredictions[index.value];
+  Vector3 realResult = match->GetBall()->Predict(horizon);
 
   // let there be a maximum difference between the two. why?
   // when a ball gets a wholly new movement, this prediction is obviously far off reality, while some variables are not,

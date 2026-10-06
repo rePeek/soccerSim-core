@@ -40,15 +40,12 @@ void Ball::Mirror() {
   for (auto &a : predictions) {
     a.Mirror();
   }
-  for (auto &a : ballPosHistory) {
-    a.Mirror();
-  }
   positionBuffer.Mirror();
 }
 
 void Ball::GetPredictionArray(std::vector<Vector3> &target) {
-  target.resize(ballPredictionSize_ms / 10);
-  for (int x = 0; x < ballPredictionSize_ms / 10; x++) {
+  target.resize(football::sim::ball_timing::kPredictionHorizon.value);
+  for (std::size_t x = 0; x < target.size(); x++) {
     target[x] = predictions[x];
   }
 }
@@ -83,7 +80,6 @@ void Ball::SetPosition(const Vector3 &target) {
   positionBuffer.Set(target);
   momentum.Set(0);
   SetRotation(0, 0, 0, 1.0);
-  ballPosHistory.clear();
 }
 
 void Ball::SetMomentum(const Vector3 &target) {
@@ -128,20 +124,21 @@ BallSpatialInfo Ball::CalculatePrediction() {
   constexpr bool groundRotationEffects_enabled = true;
   constexpr bool swerve_enabled = true;
 
-  constexpr float timeStep = 0.01f;//0.001f; // seconds
+  constexpr float timeStep = football::sim::kTickSeconds;
 
   bool firstTime = true;
   bool use_cache = false;
 
 
-  for (unsigned int predictTime_ms = int(timeStep * 1000.0f);
-       predictTime_ms < ballPredictionSize_ms + cachedPredictions * 10;
-       predictTime_ms += int(timeStep * 1000.0f)) {
+  using football::sim::TickSpan;
+  const auto horizon = football::sim::ball_timing::kPredictionHorizon +
+                       football::sim::ball_timing::kPredictionCache;
+  for (TickSpan ahead{1}; ahead < horizon; ahead += TickSpan{1}) {
     // Originally game was recomputing ball's prediction for 300 steps into the
     // future, which was expensive. Now we cache 100 additional steps and if
     // the ball was not touched etc. we just shift predictions by one.
     if (use_cache) {
-      predictions[predictTime_ms / 10] = predictions[predictTime_ms / 10 + 1];
+      predictions[ahead.value] = predictions[ahead.value + 1];
       continue;
     }
 
@@ -301,7 +298,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
     // netting
 
-    if (predictTime_ms <= 10 && netting_enabled) {
+    if (ahead <= TickSpan{1} && netting_enabled) {
 
       bool ballIsInGoal = match->IsBallInGoal();
       signed int inGoal = ballIsInGoal ? 1 : -1;
@@ -468,7 +465,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
       momentumPredict += swerve * timeStep;
     }
 
-    // predict next ms
+    // predict next tick
 
     nextPos += momentumPredict * timeStep;
 
@@ -480,7 +477,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
     nextOrientation = rotationPredictTimeStepped * nextOrientation;
 
-    if (predictTime_ms == 10) {
+    if (ahead == TickSpan{1}) {
       newMomentum = momentumPredict;
       newRotation_ms = rotationPredict_ms;
       orientPrediction = nextOrientation;
@@ -491,7 +488,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
         valid_predictions = cachedPredictions;
       }
     }
-    predictions[predictTime_ms / 10] = nextPos;
+    predictions[ahead.value] = nextPos;
 
     firstTime = false;
   }
@@ -499,41 +496,25 @@ BallSpatialInfo Ball::CalculatePrediction() {
   return BallSpatialInfo(newMomentum, newRotation_ms);
 }
 
-Vector3 Ball::GetAveragePosition(unsigned int duration_ms) const {
-  std::list<Vector3>::const_reverse_iterator iter = ballPosHistory.rbegin();
-  unsigned int total = 0;
-  Vector3 averageVec;
-  while (iter != ballPosHistory.rend()) {
-    averageVec += *iter;
-    total++;
-    if (total * 10 > duration_ms) break;
-    iter++;
-  }
-  if (total > 0) averageVec /= total; else averageVec = Predict(0);
-  return averageVec;
-}
 
 void Ball::Process() {
   BallSpatialInfo spatialInfo = CalculatePrediction();
   momentum = spatialInfo.momentum;
   rotation_ms = spatialInfo.rotation_ms;
 
-  positionBuffer = Predict(10);
+  positionBuffer = Predict(football::sim::TickSpan{1});
   orientationBuffer = orientPrediction;
 
-  ballPosHistory.push_back(positionBuffer);
-  if (ballPosHistory.size() > ballHistorySize) ballPosHistory.pop_front();
 }
 
 
 void Ball::ResetSituation(const Vector3 &focusPos) {
   momentum = Vector3(0);
   rotation_ms = QUATERNION_IDENTITY;
-  for (unsigned int i = 0; i < ballPredictionSize_ms / 10; i++) {
+  for (unsigned int i = 0; i < football::sim::ball_timing::kPredictionHorizon.value; i++) {
     predictions[i] = Vector3(focusPos + Vector3(0, 0, 0.11));
   }
   orientPrediction = QUATERNION_IDENTITY;
-  ballPosHistory.clear();
   positionBuffer = Vector3(focusPos + Vector3(0, 0, 0.11));
   valid_predictions = 0;
   orientationBuffer = QUATERNION_IDENTITY;

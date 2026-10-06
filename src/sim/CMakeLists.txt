@@ -29,7 +29,7 @@ target_sources(football_sim PRIVATE
   rules/offside.cpp rules/restart_placement.cpp
   player/kick_targeting.cpp team.cpp
 
-  gamedefines.hpp formation.hpp ball.hpp match.hpp match_world_state.hpp
+  gamedefines.hpp formation.hpp ball.hpp ball_timing.hpp match.hpp match_world_state.hpp
   pitch_frame.hpp
   referee.hpp team.hpp value_history.hpp
   ai_support/mentalimage.hpp

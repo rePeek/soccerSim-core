@@ -22,6 +22,7 @@
 #include "foundation/math/vector3.hpp"
 
 #include "sim/gamedefines.hpp"
+#include "sim/tick.hpp"
 
 using namespace blunted;
 
@@ -36,12 +37,14 @@ class MentalImage {
   PlayerImage GetPlayerImage(Player* player) const;
   std::vector<PlayerImagePosition> GetTeamPlayerImages(int teamID) const;
   void UpdateBallPredictions();
+  Vector3 GetBallPrediction(football::sim::TickSpan horizon) const;
+  // Transitional horizon adapter for not-yet-migrated calculation callers.
   Vector3 GetBallPrediction(int time_ms) const;
-  int GetTimeStampNeg_ms() const;
+  football::sim::TickSpan GetAge() const;
 
   std::vector<PlayerImage> players;
   std::vector<Vector3> ballPredictions;
-  unsigned int timeStamp_ms = 0;
+  football::sim::Tick captured_tick{};
   float maxDistanceDeviation = 2.5f;
   float maxMovementDeviation = walkVelocity;
   bool ballPredictions_mirrored = false;

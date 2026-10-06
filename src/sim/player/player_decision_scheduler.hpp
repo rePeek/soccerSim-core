@@ -12,7 +12,6 @@ inline constexpr TickSpan kNearBall{5};
 inline constexpr TickSpan kApproachingBall{8};
 inline constexpr TickSpan kIdle{24};
 inline constexpr TickSpan kTacticalRefresh{10};
-inline constexpr auto kPositionHistory = Seconds(1);
 }  // namespace football::sim::player_timing
 
 // Context-dependent policy cadence, not the definition of simulation time.

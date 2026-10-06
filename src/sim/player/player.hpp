@@ -414,7 +414,6 @@ class Player final {
     void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
     bool IsControlledBallCollisionTriggered() { return triggerControlledBallCollision; }
     void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
-    float GetAverageVelocity(float timePeriod_sec);
     void UpdatePossessionStats();
     float GetClosestOpponentDistance() const;
     const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
@@ -500,8 +499,6 @@ class Player final {
     e_TouchType lastTouchType;
 
     float fatigueFactorInv = 0.0f;
-
-    std::vector<Vector3> positionHistoryPerSecond; // resets too (on ResetSituation() calls)
 
     Team *team = nullptr;
     FormationEntry dynamicFormationEntry;
