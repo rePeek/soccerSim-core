@@ -4,7 +4,7 @@ add_library(football::sim_contracts ALIAS football_sim_contracts)
 target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
   FILES player_control.hpp player_control_set.hpp world_state.hpp observation_epoch.hpp
-    match_phase.hpp match_result.hpp)
+    match_options.hpp match_phase.hpp match_result.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
   football::foundation football::model)
@@ -44,7 +44,7 @@ target_sources(football_sim PRIVATE
   player/kick_targeting.hpp)
 target_sources(football_sim PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES simulation.hpp match_options.hpp rng.hpp)
+  FILES simulation.hpp rng.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::support football::model)

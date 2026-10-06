@@ -9,7 +9,7 @@
 #include "default_ai_fixture.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "app/input/grf/input.hpp"
-#include "env/game_env.hpp"
+#include "gameenv.hpp"
 #include "sim/match.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/team.hpp"

@@ -4,8 +4,8 @@
 #include <type_traits>
 
 #include "app/fixtures/default_teams.hpp"
-#include "env/game_env.hpp"
-#include "../test/default_ai_fixture.hpp"
+#include "gameenv.hpp"
+#include "default_ai_fixture.hpp"
 
 static_assert(!std::is_default_constructible_v<GameEnv>);
 static_assert(!std::is_copy_constructible_v<GameEnv>);
@@ -148,8 +148,8 @@ void RejectedStartup() {
 int main() {
   try {
     CoreAPI(); Composition(); FinalResult(); RejectedStartup();
-    std::cout << "football_game_env_test: PASS\n"; return 0;
+    std::cout << "football_gameenv_test: PASS\n"; return 0;
   } catch (const std::exception& error) {
-    std::cerr << "football_game_env_test: FAIL: " << error.what() << '\n'; return 1;
+    std::cerr << "football_gameenv_test: FAIL: " << error.what() << '\n'; return 1;
   }
 }

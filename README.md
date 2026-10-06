@@ -9,7 +9,7 @@ Declare both teams, pitch, match rules and startup AI configuration explicitly:
 
 ```cpp
 #include "app/fixtures/default_teams.hpp" // executable-only sample inputs
-#include "env/game_env.hpp"
+#include "gameenv.hpp"
 
 GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
              football::app::fixtures::MakeDefaultAwayTeam(),
@@ -123,11 +123,21 @@ an explicit value state contract, not per-class memory hooks.
 ## Build and tests
 
 Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,
-dependencies and `football::` aliases. Root CMake composes them; no `sources.cmake`
-or source globbing. query/rules/player stay sim internals; sim/animation is an
-independent archive also consumed by the offline baker. AI and input link only
-value contracts, never sim actors. Module link/source/header ownership guards
-check real target properties and have negative tests.
+dependencies and `football::` aliases. `game` directly compiles `src/gameenv.cpp`;
+`src/gameenv.hpp` is the public match façade. Its implementation is the sole product
+composition root for sim + AI:
+
+```text
+football_app → football::game → ai + sim → model/foundation
+```
+
+Root CMake exposes model, sim contracts and AI startup contracts as PUBLIC usage
+requirements; concrete sim/AI implementations stay PRIVATE. query/rules/player
+stay sim internals; sim/animation is an independent archive also consumed by the
+offline baker. AI and input link only value contracts, never sim actors.
+`cmake/module_dependencies.cmake` validates actual dependency closures and source/
+header ownership at configure time, including core-only builds. There are no
+shell architecture guards or generated dependency reports.
 
 ```sh
 nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j 4 && ctest --preset release --output-on-failure'
@@ -137,15 +147,18 @@ build/release/football_app --half-duration-ms=1800 # complete short regulation m
 
 `--steps` is retired; app always loops until sim completion and prints MatchResult,
 not a partial observation. Parsing/writing belongs to app. CLI/tool executable
-paths remain at the build root. `football_smoke [ticks]` is a secondary bounded
-telemetry diagnostic, not the headless application's match interface.
+paths remain at the build root. CTest runs the real app for short and full-match
+black-box coverage; a separate smoke executable is unnecessary.
 
 Catch2 is fetched via CPM only with BUILD_TESTING enabled and cached in `.cache/CPM`.
 `-DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF` is a network-free core-only build;
 input/fixture archives remain explicit EXCLUDE_FROM_ALL targets. Neither app nor
 Catch2/offline baker code is linked into core. Tests cover rule/clock completion,
 results/lifecycle/restart, independent owners, AI-only and input-only value paths,
-control-tape/RNG replay, baselines and architecture guards. Motion/actions/RNG
-checkpoint goldens are unchanged; adding phase/time changes only World hash schema
+control-tape/RNG replay and baselines. Test-only programs live under `test/`;
+`tools/` contains the regression diagnostic and offline animation baker. The baker
+shares callable bake/check/verify operations with Catch2 tests, which compare
+two independent bakes byte-for-byte and verify fields/selection against source.
+Motion/actions/RNG checkpoint goldens are unchanged; adding phase/time changes only World hash schema
 at those checkpoints (see `test/baselines/pre_match_runner.md`). Historical strategy
 and input schema hashes remain in the other files under `test/baselines/`.

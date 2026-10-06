@@ -4,7 +4,7 @@
 
 #include "app/args.hpp"
 #include "app/fixtures/default_teams.hpp"
-#include "env/game_env.hpp"
+#include "gameenv.hpp"
 #include "support/diagnostics/backtrace.hpp"
 
 namespace {

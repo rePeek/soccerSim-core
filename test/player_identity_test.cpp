@@ -13,7 +13,7 @@
 #include "sim/match.hpp"
 #include "sim/player/player.hpp"
 #include "sim/simulation.hpp"
-#include "../test/default_ai_fixture.hpp"
+#include "default_ai_fixture.hpp"
 
 namespace model = football::model;
 static_assert(std::is_same_v<model::PlayerId, std::uint32_t>);

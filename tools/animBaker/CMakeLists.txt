@@ -9,13 +9,15 @@ target_link_libraries(football_legacy_anim PUBLIC football::support football::fo
 target_include_directories(football_legacy_anim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 football_configure_target(football_legacy_anim)
 
+add_library(football_anim_baking STATIC anim_baker.cpp)
+target_sources(football_anim_baking PUBLIC FILE_SET HEADERS
+  BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+  FILES anim_baker.hpp)
+target_link_libraries(football_anim_baking
+  PUBLIC football::animation
+  PRIVATE football_legacy_anim football::foundation football::support)
+football_configure_target(football_anim_baking)
+
 add_executable(football_anim_baker anim_baker_main.cpp)
-target_link_libraries(football_anim_baker PRIVATE
-  football_legacy_anim football::animation football::foundation football::support)
+target_link_libraries(football_anim_baker PRIVATE football_anim_baking)
 football_configure_target(football_anim_baker)
-add_test(NAME football_anim_baker_standalone_guard
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/anim_baker_standalone_guard.sh
-    ${CMAKE_CURRENT_SOURCE_DIR}/anim_baker_main.cpp)
-add_test(NAME football_anim_bake_determinism
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/anim_bake_determinism.sh
-    $<TARGET_FILE:football_anim_baker> ${PROJECT_SOURCE_DIR}/data)

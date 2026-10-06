@@ -8,7 +8,7 @@ add_executable(football_app_test
   app_fixtures_test.cpp
   app_cli_test.cpp)
 target_link_libraries(football_app_test PRIVATE
-  football_app_support ${OUTPUT_LIB_NAME})
+  football::app_support football::game)
 # Keep the Catch2 target out of the archive-order chain: it is an interface
 # target for the test executable only.
 target_link_libraries(football_app_test PRIVATE Catch2::Catch2WithMain)
@@ -40,19 +40,9 @@ endif()
 # remain test inputs and never become a runtime dependency.
 add_executable(football_sim_computation_test sim_computation_test.cpp)
 target_link_libraries(football_sim_computation_test PRIVATE
-  ${OUTPUT_LIB_NAME} football_app_support Catch2::Catch2WithMain)
+  football::game football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_computation_test)
 catch_discover_tests(football_sim_computation_test PROPERTIES LABELS sim)
-
-add_test(NAME module_dependency_guard_negative_test
-  COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/module_dependency_guard_test.sh
-    ${PROJECT_SOURCE_DIR}/tools/module_dependency_guard.sh
-    ${PROJECT_BINARY_DIR}/module_dependencies.txt)
-
-add_test(NAME module_source_ownership_guard_negative_test
-  COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/module_source_ownership_guard_test.sh
-    ${PROJECT_SOURCE_DIR}/tools/module_source_ownership_guard.sh
-    ${PROJECT_SOURCE_DIR}/src ${PROJECT_BINARY_DIR}/module_dependencies.txt)
 
 # This target proves that policy compiles/links without sim or libgame.
 add_executable(football_default_ai_test default_ai_test.cpp)
@@ -64,7 +54,7 @@ catch_discover_tests(football_default_ai_test PROPERTIES LABELS ai)
 add_executable(football_sim_control_boundary_test
   sim_control_boundary_test.cpp sim_match_lifecycle_test.cpp restart_placement_test.cpp)
 target_link_libraries(football_sim_control_boundary_test PRIVATE
-  ${OUTPUT_LIB_NAME} football_app_support football_app_input Catch2::Catch2WithMain)
+  football::game football::app_support football::app_input Catch2::Catch2WithMain)
 football_configure_target(football_sim_control_boundary_test)
 catch_discover_tests(football_sim_control_boundary_test PROPERTIES LABELS sim)
 
@@ -73,3 +63,53 @@ add_executable(football_app_input_test app_input_test.cpp)
 target_link_libraries(football_app_input_test PRIVATE football_app_input Catch2::Catch2WithMain)
 football_configure_target(football_app_input_test)
 catch_discover_tests(football_app_input_test PROPERTIES LABELS app)
+
+# C++ boundary/integration suites (formerly mixed into tools/).
+add_executable(football_gameenv_test gameenv_test.cpp)
+target_link_libraries(football_gameenv_test PRIVATE football::game football::app_support)
+football_configure_target(football_gameenv_test)
+add_test(NAME football_gameenv_test COMMAND football_gameenv_test)
+set_tests_properties(football_gameenv_test PROPERTIES LABELS integration)
+
+add_executable(football_player_identity_test player_identity_test.cpp)
+target_link_libraries(football_player_identity_test PRIVATE football::game football::app_support)
+football_configure_target(football_player_identity_test)
+add_test(NAME football_player_identity_test COMMAND football_player_identity_test)
+
+add_executable(football_sim_contracts_test sim_contracts_test.cpp)
+target_link_libraries(football_sim_contracts_test PRIVATE football::sim_contracts)
+football_configure_target(football_sim_contracts_test)
+add_test(NAME football_sim_contracts_test COMMAND football_sim_contracts_test)
+
+add_executable(football_model_test model_test.cpp)
+target_link_libraries(football_model_test PRIVATE football::model)
+football_configure_target(football_model_test)
+add_test(NAME football_model_test COMMAND football_model_test)
+set_tests_properties(football_model_test football_player_identity_test football_sim_contracts_test
+  PROPERTIES LABELS unit)
+
+add_test(NAME football_regression COMMAND football_regression)
+add_test(NAME football_animation_ab COMMAND football_regression --animation-ab)
+add_test(NAME football_animation_ab_lifecycle COMMAND football_regression --animation-ab-lifecycle)
+set_tests_properties(football_regression football_animation_ab football_animation_ab_lifecycle
+  PROPERTIES LABELS regression ENVIRONMENT "GFOOTBALL_DATA_DIR=${PROJECT_SOURCE_DIR}/data")
+
+add_executable(football_anim_baking_test anim_baking_test.cpp)
+target_link_libraries(football_anim_baking_test PRIVATE football_anim_baking Catch2::Catch2WithMain)
+target_compile_definitions(football_anim_baking_test PRIVATE
+  FOOTBALL_TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/data")
+football_configure_target(football_anim_baking_test)
+catch_discover_tests(football_anim_baking_test PROPERTIES LABELS animation TIMEOUT 180)
+
+# Exercise actual CLI flags against a fresh artifact, without shell wrappers.
+set(_baker_cli_artifact "${CMAKE_CURRENT_BINARY_DIR}/baker-cli.simanim")
+add_test(NAME football_anim_baker_bake COMMAND football_anim_baker
+  --input ${PROJECT_SOURCE_DIR}/data --out ${_baker_cli_artifact})
+set_tests_properties(football_anim_baker_bake PROPERTIES
+  FIXTURES_SETUP anim_baker_cli_artifact LABELS animation TIMEOUT 180)
+foreach(operation IN ITEMS check verify verify-selection)
+  add_test(NAME football_anim_baker_${operation} COMMAND football_anim_baker
+    --input ${PROJECT_SOURCE_DIR}/data --${operation} ${_baker_cli_artifact})
+  set_tests_properties(football_anim_baker_${operation} PROPERTIES
+    FIXTURES_REQUIRED anim_baker_cli_artifact LABELS animation TIMEOUT 180)
+endforeach()
