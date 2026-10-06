@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "sim/gamedefines.hpp"
+#include "sim/tick.hpp"
 
 
 using namespace blunted;
@@ -35,9 +36,9 @@ struct RefereeBuffer {
   e_GameMode desiredSetPiece;
   signed int teamID = 0;
   Team* setpiece_team = 0;
-  unsigned long stopTime = 0;
-  unsigned long prepareTime = 0;
-  unsigned long startTime = 0;
+  football::sim::Tick stop_tick{};
+  football::sim::Tick prepare_tick{};
+  football::sim::Tick start_tick{};
   Vector3 restartPos;
   Player *taker;
   bool endPhase = false;
@@ -48,7 +49,7 @@ struct Foul {
   Player *foulVictim = 0;
   int foulType = 0; // 0: nothing, 1: foul, 2: yellow, 3: red
   bool advantage = false;
-  unsigned long foulTime = 0;
+  football::sim::Tick foul_tick{};
   Vector3 foulPosition;
   bool hasBeenProcessed = false;
 };
@@ -82,7 +83,8 @@ class Referee {
 
     RefereeBuffer buffer;
 
-    int afterSetPieceRelaxTime_ms = 0; // throw-ins cause immediate new throw-ins, because ball is still outside the lines at the moment of throwing ;)
+    // Ignore the ball outside the line just after a throw-in is taken.
+    football::sim::TickSpan post_restart_relax_{};
 
     // Players on offside position at the time of the last ball touch.
     std::vector<Player*> offsidePlayers;

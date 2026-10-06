@@ -959,9 +959,10 @@ std::string CaptureSimulationDigest(Simulation& simulation) {
 
   const RefereeBuffer& buffer = match->GetReferee()->GetBuffer();
   AppendDigestInt(out, buffer.active ? 1 : 0);
-  AppendDigestInt(out, buffer.stopTime);
-  AppendDigestInt(out, buffer.prepareTime);
-  AppendDigestInt(out, buffer.startTime);
+  // Preserve the existing external digest encoding while migrating core units.
+  AppendDigestInt(out, football::sim::ToMilliseconds(buffer.stop_tick));
+  AppendDigestInt(out, football::sim::ToMilliseconds(buffer.prepare_tick));
+  AppendDigestInt(out, football::sim::ToMilliseconds(buffer.start_tick));
   AppendDigestInt(out, static_cast<int>(buffer.desiredSetPiece));
   AppendDigestInt(out, match->GetReferee()->GetCurrentFoulType());
   AppendDigestFloat(out, buffer.restartPos.coords[0]);
@@ -1084,7 +1085,7 @@ class RefereeFixture : public Referee {
     foul.foulPlayer = offender;
     foul.foulVictim = victim;
     foul.foulType = type;
-    foul.foulTime = match->GetActualTime_ms();
+    foul.foul_tick = match->GetTimelineTick();
     foul.foulPosition = position;
     foul.advantage = advantage;
   }
@@ -1113,44 +1114,44 @@ void CheckRefereeRules(Simulation& simulation) {
       // Even advantage must be stopped for a penalty.
       rules.RecordFoul(offender, victim, foul_type, position, penalty);
       const auto rng_before = match->rng().engine();
-      const unsigned long stopped = match->GetActualTime_ms();
+      const auto stopped = match->GetTimelineTick();
       Require(rules.CheckFoul(), "unprocessed foul did not stop play");
       const RefereeBuffer scheduled = rules.GetBuffer();
-      const unsigned long card_delay = foul_type >= 2 ? 10000 : 0;
-      const unsigned long effective_time = match->GetActualTime_ms() + 6000;
+      const auto card_delay = foul_type >= 2 ? football::sim::Seconds(10) : football::sim::TickSpan{};
+      const auto effective_time = match->GetTimelineTick() + football::sim::Seconds(6);
       Require(!match->IsInPlay() && scheduled.active &&
                   scheduled.desiredSetPiece == (penalty ? e_GameMode_Penalty
                                                         : e_GameMode_FreeKick) &&
                   scheduled.teamID == victim->GetTeam()->GetID() &&
-                  scheduled.stopTime == stopped &&
-                  scheduled.prepareTime == stopped + 2000 + card_delay &&
-                  scheduled.startTime == scheduled.prepareTime + 2000 &&
-                  match->GetActualTime_ms() == stopped + 1900 + card_delay &&
+                  scheduled.stop_tick == stopped &&
+                  scheduled.prepare_tick == stopped + football::sim::Seconds(2) + card_delay &&
+                  scheduled.start_tick == scheduled.prepare_tick + football::sim::Seconds(2) &&
+                  match->GetTimelineTick() == scheduled.prepare_tick - football::sim::TickSpan{10} &&
                   offender->HasCards() == (foul_type >= 2) &&
                   match->rng().engine() == rng_before,
               "rule restart/card budget changed or consumed RNG");
       Require(!rules.CheckFoul() &&
-                  rules.GetBuffer().prepareTime == scheduled.prepareTime &&
-                  rules.GetBuffer().startTime == scheduled.startTime,
+                  rules.GetBuffer().prepare_tick == scheduled.prepare_tick &&
+                  rules.GetBuffer().start_tick == scheduled.start_tick,
               "foul was processed twice or its deadline changed");
 
       // Advancing the rule clock alone cannot extend the card deadline.
       // No official animation/controller participates in this loop.
-      while (match->GetActualTime_ms() < scheduled.prepareTime) {
+      while (match->GetTimelineTick() < scheduled.prepare_tick) {
         rules.Process();
-        Require(rules.GetBuffer().prepareTime == scheduled.prepareTime &&
-                    rules.GetBuffer().startTime == scheduled.startTime &&
+        Require(rules.GetBuffer().prepare_tick == scheduled.prepare_tick &&
+                    rules.GetBuffer().start_tick == scheduled.start_tick &&
                     rules.GetBuffer().taker == nullptr && !match->IsInPlay(),
                 "restart prepared early or waited for an actor");
-        match->BumpActualTime_ms(10);
+        match->AdvanceTime(football::sim::TickSpan{1});
       }
       rules.Process();
       Require(rules.GetBuffer().taker != nullptr && !match->IsInPlay(),
               "restart not prepared at its rule deadline");
-      match->BumpActualTime_ms(scheduled.startTime - match->GetActualTime_ms() - 10);
+      match->AdvanceTime((scheduled.start_tick - match->GetTimelineTick()) - football::sim::TickSpan{1});
       rules.Process();
       Require(!match->IsInPlay(), "restart whistle was early");
-      match->BumpActualTime_ms(10);
+      match->AdvanceTime(football::sim::TickSpan{1});
       rules.Process();
       Require(match->IsInPlay() && match->IsInSetPiece(),
               "restart whistle needs an official actor");
@@ -1158,10 +1159,10 @@ void CheckRefereeRules(Simulation& simulation) {
       // Card state remains gameplay: a red or second yellow sends off a
       // football player, whereas one yellow leaves the player active.
       const auto policy = football::test::MakeDefaultAI(simulation);
-      if (match->GetActualTime_ms() < effective_time) {
+      if (match->GetTimelineTick() < effective_time) {
         football::test::StepDefaultAI(simulation, policy);
         Require(offender->IsActive(), "card took effect before its deadline");
-        match->BumpActualTime_ms(effective_time - match->GetActualTime_ms());
+        match->AdvanceTime(effective_time - match->GetTimelineTick());
       }
       football::test::StepDefaultAI(simulation, policy);
       const bool send_off = scenario == 3 || scenario == 4;
@@ -1182,7 +1183,7 @@ void CheckRefereeRules(Simulation& simulation) {
     advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), true);
     Require(!advantage.CheckFoul() && match->IsInPlay(),
             "advantage should not immediately stop open play");
-    match->BumpActualTime_ms(3010);
+    match->AdvanceTime(football::sim::TickSpan{301});
     Require(!advantage.CheckFoul() && advantage.GetCurrentFoulType() == 0 &&
                 match->IsInPlay(), "expired advantage was not cancelled");
   }
@@ -1203,13 +1204,13 @@ void CheckRefereeRules(Simulation& simulation) {
   match->GetBall()->ResetSituation(Vector3(0));
   match->GetTeam(0)->SetLastTouchPlayer(home.at(1));
   Require(match->IsInPlay(), "offside flagged the passer instead of reception");
-  const unsigned long offside_stopped = match->GetActualTime_ms();
+  const auto offside_stopped = match->GetTimelineTick();
   match->GetTeam(0)->SetLastTouchPlayer(home.at(2));
   Require(!match->IsInPlay() && match->GetReferee()->GetBuffer().active &&
               match->GetReferee()->GetBuffer().desiredSetPiece == e_GameMode_FreeKick &&
               match->GetReferee()->GetBuffer().teamID == 1 &&
-              match->GetReferee()->GetBuffer().prepareTime == offside_stopped + 2000 &&
-              match->GetActualTime_ms() == offside_stopped + 1900,
+              match->GetReferee()->GetBuffer().prepare_tick == offside_stopped + football::sim::Seconds(2) &&
+              match->GetTimelineTick() == match->GetReferee()->GetBuffer().prepare_tick - football::sim::TickSpan{10},
           "offside detection or headless restart timing changed");
 }
 

@@ -133,6 +133,8 @@ class Match {
     std::uint64_t GetMatchTime_ms() const { return matchTime_ms; }
     football::sim::Tick GetTimelineTick() const { return now_; }
     void AdvanceTime(football::sim::TickSpan delta);
+    // Scheduler-owned fast-forward; retain the existing simulated tail for now.
+    void AdvanceToRestartPreparation(football::sim::Tick preparation_tick);
     // Temporary adapters for owners not yet migrated. No millisecond timeline storage.
     unsigned long GetActualTime_ms() const {
       return static_cast<unsigned long>(football::sim::ToMilliseconds(now_));

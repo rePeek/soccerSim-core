@@ -280,6 +280,11 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   correctness precondition. Unbound synthetic observations cannot issue requests.
 - RefereeBuffer is sole restart type/taker/prepare/start authority. sim/rules owns
   restart placement/taker/retain mechanics. No duplicate AI restart authority.
+  Stop/prepare/start/foul are `Tick`; relaxation is `TickSpan`. Due checks accept
+  crossed deadlines and prepare/whistle are one-shot via taker/play state.
+  Match owns preparation fast-forwarding, retaining the old ten-tick simulated
+  tail during unit migration. This is temporary scheduling policy, not football
+  readiness; later replace it with Pending/Ready/Taken and minimum/timeout bounds.
 - Diagnostics/tests may compose Simulation and explicit PlayerControlSet sequences
   outside GameEnv. Equal declarations + equal control tapes must replay identical
   WorldState payloads and RNG states; epoch identities intentionally differ.
@@ -323,10 +328,10 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   private phases, destruction order and appearance/reseed windows stay unchanged.
 - Officials are rules, not animated actors. Referee is unique_ptr-owned by Match;
   no PlayerOfficial, official profiles or animation-driven restart timing remains.
-  Card restart budget is 10000 ms + 2000 ms prepare + 2000 ms whistle. Headless
-  restart preparation always fast-forwards the former inactive waits: 400 ms
-  after a goal, 1900 ms for corner/goal-kick/throw-in/free-kick/penalty preparation,
-  plus the card budget when applicable. Initial/half-time kickoff deadlines stay
+  Legacy card budget is 1000 ticks + 200 preparation + 200 whistle ticks.
+  Referee schedules deadlines; Match fast-forwards to preparation minus its
+  existing ten-tick simulated tail (40 skipped ticks after a goal, 190 for ordinary
+  restarts, plus the card budget). Initial/half-time kickoff deadlines remain
   unchanged. There is no animation/waiting-mode switch; baked animation resources
   remain mandatory for player motion/actions/contact.
   Official removal intentionally changed RNG/goldens; current baselines include it.

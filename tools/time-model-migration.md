@@ -20,9 +20,15 @@ No configurable physics dt, wall-clock pacing, or foundation time module.
   not a second stored clock. The latter accepts only exact tick-grid durations;
   every existing runtime call is grid-aligned. Arbitrary fractional-tick manual
   timeline bumps are no longer permitted.
+- **T2:** Referee stop/prepare/start/foul timestamps and post-restart relaxation
+  are tick values. Event intervals are local to Referee. Match owns preparation
+  fast-forwarding to a deadline minus the existing simulated tail; Referee no
+  longer contains the 1900 ms skip. Preparation/whistle accept crossed deadlines
+  and are one-shot via prepared taker/play state. Normal old execution and digest
+  encodings are retained; crossed-deadline recovery has dedicated regressions.
 
 These stages leave the legacy football clock, scale, fatigue, action progression,
-restart scheduling and RNG windows unchanged. They do **not** yet implement the
+normal restart schedule and RNG windows unchanged. They do **not** yet implement the
 end-state rule that all simulation APIs/state use ticks. Football time can still
 have sub-tick increments; its millisecond storage is intentionally transitional.
 The temporary conversion in `AdvanceTime` preserves the exact previous float
@@ -35,11 +41,12 @@ Existing lifecycle tests still cover a 1 ms half and 1 ms scaled clock progress.
 
 ## Remaining stages and semantic boundaries
 
-1. **Referee deadlines:** move stop/prepare/start/foul/card/relaxation times to
-   `Tick`/`TickSpan`, with owner-local timing policy, not a global TimingConfig.
-   Add one-shot state for crossed deadlines. Check exact-boundary and jumped-over
-   behavior separately. Keep the old executed-step schedule in the unit-only
-   commit; new scheduler fast-forward behavior belongs in a policy commit.
+1. **Referee restart model (semantic, after unit migration):** replace the temporary
+   fixed event schedule with Pending/Ready/Taken state and readiness conditions.
+   A per-restart policy supplies minimum elapsed time and a maximum-time fallback,
+   not a fixed preparation delay. Separate positioning/ball placement, taker and
+   legal-opponent readiness, permission to execute, and actual scheduled contact.
+   Referee is the first time-policy owner to be rebuilt.
 2. **Player/action/schedulers:** replace aligned cadences and timestamps; make
    elapsed action ticks the sole frame authority and eliminate duplicate
    millisecond/frame state. Preserve completion/contact crossing and float math.
@@ -56,10 +63,19 @@ Existing lifecycle tests still cover a 1 ms half and 1 ms scaled clock progress.
    the old duration scale/fatigue compensation in this semantic stage, not as an
    allegedly digest-preserving rename. Boundary inputs must have an explicit
    policy for non-grid half durations.
-5. **Restart scheduling/calibration:** rules schedule owner-local deadlines;
-   Match owns fast-forward or simulated waiting. Add realistic restart timings
-   separately, then measure multiple seeds (effective time, cleaned distance,
-   pass contacts, shot contacts and goals, by half).
+5. **Restart scheduling/calibration:** Match owns fast-forward or simulated waiting;
+   Referee supplies conditions and earliest/timeout boundaries. Never skip an
+   interval in which actor readiness must evolve. Calibrate readiness/minimum/
+   timeout policies separately, then measure multiple seeds (effective time,
+   cleaned distance, pass contacts, shot contacts and goals, by half).
+
+Time representation does not explain why a duration exists. Keep three categories
+separate: the immutable tick quantum; owner-local football/behavior policy; and
+legacy scheduling tricks, which are removed rather than renamed. The restart
+model must avoid a circular readiness test: current `PrepareSetPiece` places the
+ball and teleports actors. Those effects must be separated before readiness can
+be evaluated as a precondition. The 300-tick throw-in minimum suggested during
+design is illustrative, not a selected production calibration.
 
 ### Why three proposed changes cannot be unit-only
 

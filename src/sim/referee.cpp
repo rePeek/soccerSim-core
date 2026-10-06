@@ -24,18 +24,32 @@
 #include "sim/rules/restart_placement.hpp"
 
 namespace {
-// Fixed rules budget for issuing a card, independent of actor position,
-// clip selection and animation duration. Keep the existing 10-second budget.
-constexpr unsigned long kCardRestartDelayMs = 10000;
+using football::sim::Tick;
+using football::sim::TickSpan;
+using football::sim::Seconds;
+// Unit-only migration of the existing policy. These legacy event intervals are
+// not the final readiness-driven restart model.
+constexpr auto kCardAdministration = Seconds(10);
+constexpr auto kRestartPreparation = Seconds(2);
+constexpr auto kRestartWhistle = Seconds(2);
+constexpr TickSpan kGoalPreparation{50};
+constexpr TickSpan kGoalWhistle{50};
+constexpr TickSpan kHalfPreparation{10};
+constexpr TickSpan kHalfWhistle{20};
+constexpr TickSpan kPostRestartRelax{40};
+constexpr TickSpan kTouchGrace{60};
+constexpr TickSpan kAdvantageRecheck{60};
+constexpr auto kAdvantageExpiry = Seconds(3);
+constexpr auto kCardEffectDelay = Seconds(6);
 }  // namespace
 
 Referee::Referee(Match *match) : match(match) {
   buffer.desiredSetPiece = e_GameMode_KickOff;
   buffer.teamID = match->FirstTeam();
   buffer.setpiece_team = match->GetTeam(match->FirstTeam());
-  buffer.stopTime = 0;
-  buffer.prepareTime = 0;
-  buffer.startTime = 2000;
+  buffer.stop_tick = {};
+  buffer.prepare_tick = {};
+  buffer.start_tick = Tick{} + kRestartWhistle;
     buffer.restartPos = match->options().ball_position;
   buffer.taker = 0;
   buffer.endPhase = true;
@@ -44,10 +58,10 @@ Referee::Referee(Match *match) : match(match) {
   foul.foulPlayer = 0;
   foul.foulType = 0;
   foul.advantage = false;
-  foul.foulTime = 0;
+  foul.foul_tick = {};
   foul.hasBeenProcessed = true;
 
-  afterSetPieceRelaxTime_ms = 0;
+  post_restart_relax_ = {};
 }
 
 Referee::~Referee() {}
@@ -80,12 +94,12 @@ void Referee::Process() {
     foul.foulPlayer = nullptr;
     foul.foulType = 0;
     foul.advantage = false;
-    foul.foulTime = 0;
+    foul.foul_tick = {};
     foul.hasBeenProcessed = true;
     buffer.desiredSetPiece = e_GameMode_KickOff;
-    buffer.stopTime = match->GetActualTime_ms();
-    buffer.prepareTime = buffer.stopTime + 100;
-    buffer.startTime = buffer.prepareTime + 200;
+    buffer.stop_tick = match->GetTimelineTick();
+    buffer.prepare_tick = buffer.stop_tick + kHalfPreparation;
+    buffer.start_tick = buffer.prepare_tick + kHalfWhistle;
     buffer.restartPos = match->options().ball_position;
     buffer.active = true;
     buffer.endPhase = true;
@@ -122,22 +136,20 @@ void Referee::Process() {
 
         if (match->IsGoalScored()) {
           buffer.desiredSetPiece = e_GameMode_KickOff;
-          buffer.stopTime = match->GetActualTime_ms();
-          // Retain the headless post-goal preparation deadline and clock skip.
-          buffer.prepareTime = match->GetActualTime_ms() + 500;
-          match->BumpActualTime_ms(400);
-          // Delay from preparation until the kickoff whistle.
-          buffer.startTime = buffer.prepareTime + 500;
+          buffer.stop_tick = match->GetTimelineTick();
+          buffer.prepare_tick = buffer.stop_tick + kGoalPreparation;
+          match->AdvanceToRestartPreparation(buffer.prepare_tick);
+          buffer.start_tick = buffer.prepare_tick + kGoalWhistle;
           buffer.restartPos = Vector3(0, 0, 0);
           buffer.teamID = match->FirstTeam();
           buffer.setpiece_team = match->GetLastGoalTeam()->Opponent();
         } else if ((ballPos.coords[0] > 0 && lastSide > 0) ||
                    (ballPos.coords[0] < 0 && lastSide < 0)) {
           buffer.desiredSetPiece = e_GameMode_Corner;
-          buffer.stopTime = match->GetActualTime_ms();
-          buffer.prepareTime = match->GetActualTime_ms() + 2000;
-          match->BumpActualTime_ms(1900);
-          buffer.startTime = buffer.prepareTime + 2000;
+          buffer.stop_tick = match->GetTimelineTick();
+          buffer.prepare_tick = buffer.stop_tick + kRestartPreparation;
+          match->AdvanceToRestartPreparation(buffer.prepare_tick);
+          buffer.start_tick = buffer.prepare_tick + kRestartWhistle;
           float y = ballPos.coords[1];
           if (y > 0) y = pitchHalfH; else
                      y = -pitchHalfH;
@@ -145,10 +157,10 @@ void Referee::Process() {
           buffer.teamID = 1 - lastTouchTeam->GetID();
         } else {
           buffer.desiredSetPiece = e_GameMode_GoalKick;
-          buffer.stopTime = match->GetActualTime_ms();
-          buffer.prepareTime = match->GetActualTime_ms() + 2000;
-          match->BumpActualTime_ms(1900);
-          buffer.startTime = buffer.prepareTime + 2000;
+          buffer.stop_tick = match->GetTimelineTick();
+          buffer.prepare_tick = buffer.stop_tick + kRestartPreparation;
+          match->AdvanceToRestartPreparation(buffer.prepare_tick);
+          buffer.start_tick = buffer.prepare_tick + kRestartWhistle;
           buffer.restartPos = Vector3(pitchHalfW * 0.92 * -lastSide, 0, 0);
           buffer.teamID = 1 - lastTouchTeam->GetID();
         }
@@ -160,7 +172,7 @@ void Referee::Process() {
 
     // over sideline
 
-    if (afterSetPieceRelaxTime_ms == 0) {
+    if (post_restart_relax_ == TickSpan{}) {
       if (fabs(ballPos.coords[1]) > pitchHalfH + lineHalfW + 0.11) {
         foul.advantage = false;
         if (!CheckFoul()) {
@@ -169,10 +181,10 @@ void Referee::Process() {
           if (lastTouchTeam == 0) lastTouchTeam = match->GetTeam(0);
           buffer.teamID = 1 - lastTouchTeam->GetID();
           buffer.desiredSetPiece = e_GameMode_ThrowIn;
-          buffer.stopTime = match->GetActualTime_ms();
-          buffer.prepareTime = match->GetActualTime_ms() + 2000;
-          match->BumpActualTime_ms(1900);
-          buffer.startTime = buffer.prepareTime + 2000;
+          buffer.stop_tick = match->GetTimelineTick();
+          buffer.prepare_tick = buffer.stop_tick + kRestartPreparation;
+          match->AdvanceToRestartPreparation(buffer.prepare_tick);
+          buffer.start_tick = buffer.prepare_tick + kRestartWhistle;
           buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -pitchHalfW + 0.6f, pitchHalfW - 0.6f);
           if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = pitchHalfH;
           if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -pitchHalfH;
@@ -189,7 +201,7 @@ void Referee::Process() {
 
     if (!match->IsInPlay() && !match->IsInSetPiece() && buffer.active == true) {
 
-      if (buffer.prepareTime == match->GetActualTime_ms()) {
+      if (buffer.taker == nullptr && match->GetTimelineTick() >= buffer.prepare_tick) {
         if (buffer.endPhase == true) {
           if (match->GetMatchPhase() == MatchPhase::PreMatch) {
             match->SetMatchPhase(MatchPhase::FirstHalf);
@@ -202,7 +214,7 @@ void Referee::Process() {
         PrepareSetPiece(buffer.desiredSetPiece);
       }
 
-      if (buffer.startTime == match->GetActualTime_ms()) {
+      if (buffer.taker != nullptr && match->GetTimelineTick() >= buffer.start_tick) {
         // blow whistle and wait for set piece taker to touch the ball
         match->StartPlay();
         match->StartSetPiece();
@@ -217,7 +229,7 @@ void Referee::Process() {
          !buffer.taker->GetSimulationActionState().IsContactPending())) {
       buffer.active = false;
       match->StopSetPiece();
-      afterSetPieceRelaxTime_ms = 400;
+      post_restart_relax_ = kPostRestartRelax;
       foul.foulPlayer = 0;
       foul.foulType = 0;
 
@@ -227,7 +239,8 @@ void Referee::Process() {
     }
   }
 
-  if (afterSetPieceRelaxTime_ms > 0) afterSetPieceRelaxTime_ms -= 10;
+  if (post_restart_relax_ > TickSpan{})
+    post_restart_relax_ = post_restart_relax_ - TickSpan{1};
 }
 
 void Referee::PrepareSetPiece(e_GameMode setPiece) {
@@ -274,10 +287,10 @@ void Referee::BallTouched() {
           // uooooga uooooga offside!
           match->StopPlay();
           buffer.desiredSetPiece = e_GameMode_FreeKick;
-          buffer.stopTime = match->GetActualTime_ms();
-          buffer.prepareTime = match->GetActualTime_ms() + 2000;
-          match->BumpActualTime_ms(1900);
-          buffer.startTime = buffer.prepareTime + 2000;
+          buffer.stop_tick = match->GetTimelineTick();
+          buffer.prepare_tick = buffer.stop_tick + kRestartPreparation;
+          match->AdvanceToRestartPreparation(buffer.prepare_tick);
+          buffer.start_tick = buffer.prepare_tick + kRestartWhistle;
           buffer.restartPos = ballOwner->GetPitchPosition();
           buffer.teamID = 1 - lastTouchTeamID;
           buffer.active = true;
@@ -330,7 +343,7 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
       foul.advantage = true;
       foul.foulPlayer = tripper;
       foul.foulVictim = tripee;
-      foul.foulTime = match->GetActualTime_ms();
+      foul.foul_tick = match->GetTimelineTick();
       foul.foulPosition = tripee->GetPitchPosition();
       foul.hasBeenProcessed = false;
     }
@@ -339,7 +352,10 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
              (tripper != foul.foulPlayer || foul.foulType == 0)) {
       // sliding tackle
 
-    if (match->GetActualTime_ms() - tripper->GetLastTouchTime_ms() > 600 &&
+    // Temporary boundary to the not-yet-migrated Player touch timestamp.
+    const Tick last_touch{football::sim::TickSpanFromMillisecondsExact(
+        tripper->GetLastTouchTime_ms()).value};
+    if (match->GetTimelineTick() - last_touch > kTouchGrace &&
         tripperAction.type == e_FunctionType_Sliding &&
         tripper->GetTeam()->GetID() != tripee->GetTeam()->GetID() &&
         (match->GetBall()->Predict(0) - tripee->GetPosition()).GetLength() <
@@ -363,12 +379,11 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
 
       if (severity > 1.0) {
         // uooooga uooooga foul!
-        //printf("sliding! %lu ms ago\n", match->GetActualTime_ms() - tripper->GetLastTouchTime_ms());
         foul.foulType = 1;
         foul.advantage = false;
         foul.foulPlayer = tripper;
         foul.foulVictim = tripee;
-        foul.foulTime = match->GetActualTime_ms();
+        foul.foul_tick = match->GetTimelineTick();
         foul.foulPosition = tripee->GetPitchPosition();
         foul.hasBeenProcessed = false;
         if (severity > 1.4) foul.foulType = 2;
@@ -396,8 +411,8 @@ bool Referee::CheckFoul() {
     if (penalty) {
       foul.advantage = false;
     } else {
-      if (match->GetActualTime_ms() - 600 > foul.foulTime) {
-        if (match->GetActualTime_ms() - 3000 > foul.foulTime) {
+      if (match->GetTimelineTick() > foul.foul_tick + kAdvantageRecheck) {
+        if (match->GetTimelineTick() > foul.foul_tick + kAdvantageExpiry) {
           // cancel foul, advantage took long enough
 
           foul.foulPlayer = 0;
@@ -417,15 +432,11 @@ bool Referee::CheckFoul() {
 
     match->StopPlay();
     buffer.desiredSetPiece = penalty ? e_GameMode_Penalty : e_GameMode_FreeKick;
-    buffer.stopTime = match->GetActualTime_ms();
-    buffer.prepareTime = buffer.stopTime + 2000;
-    match->BumpActualTime_ms(1900);
-    if (foul.foulType >= 2) {
-      buffer.prepareTime += kCardRestartDelayMs;
-      // Skip the card wait without changing its rule-owned preparation deadline.
-      match->BumpActualTime_ms(kCardRestartDelayMs);
-    }
-    buffer.startTime = buffer.prepareTime + 2000;
+    buffer.stop_tick = match->GetTimelineTick();
+    buffer.prepare_tick = buffer.stop_tick + kRestartPreparation;
+    if (foul.foulType >= 2) buffer.prepare_tick += kCardAdministration;
+    match->AdvanceToRestartPreparation(buffer.prepare_tick);
+    buffer.start_tick = buffer.prepare_tick + kRestartWhistle;
     buffer.restartPos = penalty
         ? Vector3((pitchHalfW - 11.0) * foul.foulPlayer->GetTeam()->GetStaticSide(),
                   0, 0)
@@ -434,10 +445,12 @@ bool Referee::CheckFoul() {
     buffer.active = true;
     buffer.taker = nullptr;
     if (foul.foulType == 2) {
-      foul.foulPlayer->GiveYellowCard(match->GetActualTime_ms() + 6000); // need to find out proper moment
+      foul.foulPlayer->GiveYellowCard(football::sim::ToMilliseconds(
+          match->GetTimelineTick() + kCardEffectDelay)); // Player migrates separately.
     }
     if (foul.foulType == 3) {
-      foul.foulPlayer->GiveRedCard(match->GetActualTime_ms() + 6000); // need to find out proper moment
+      foul.foulPlayer->GiveRedCard(football::sim::ToMilliseconds(
+          match->GetTimelineTick() + kCardEffectDelay));
     }
 
     foul.hasBeenProcessed = true;

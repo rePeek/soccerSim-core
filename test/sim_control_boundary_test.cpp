@@ -212,16 +212,16 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
         match->GetTeam(last_team)->GetAllPlayers()[1], e_TouchType_Accidental);
     match->GetBall()->ResetSituation(mode == e_GameMode_ThrowIn
         ? Vector3(10, 37, 0) : Vector3(56, 10, 0));
-    const unsigned long stopped = match->GetActualTime_ms();
+    const auto stopped = match->GetTimelineTick();
     const auto football_time = match->GetMatchTime_ms();
     const auto rng_before = match->rng().engine();
     Referee *rules = match->GetReferee();
     rules->Process();
     const auto scheduled = rules->GetBuffer();
-    REQUIRE(scheduled.stopTime == stopped);
-    REQUIRE(scheduled.prepareTime == stopped + 2000);
-    REQUIRE(scheduled.startTime == scheduled.prepareTime + 2000);
-    REQUIRE(match->GetActualTime_ms() == stopped + 1900);
+    REQUIRE(scheduled.stop_tick == stopped);
+    REQUIRE(scheduled.prepare_tick == stopped + football::sim::Seconds(2));
+    REQUIRE(scheduled.start_tick == scheduled.prepare_tick + football::sim::Seconds(2));
+    REQUIRE(match->GetTimelineTick() == scheduled.prepare_tick - football::sim::TickSpan{10});
     REQUIRE(match->GetMatchTime_ms() == football_time);
     REQUIRE(match->rng().engine() == rng_before);
     REQUIRE(scheduled.active);
@@ -231,7 +231,7 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE_FALSE(runtime.simulation.Observe().restart_taker.has_value());
     REQUIRE(match->GetTeam(0)->GetPieceTaker() == nullptr);
     REQUIRE(match->GetTeam(1)->GetPieceTaker() == nullptr);
-    while (match->GetActualTime_ms() <= scheduled.prepareTime)
+    while (match->GetTimelineTick() <= scheduled.prepare_tick)
       runtime.simulation.Step(PlayerControlSet{});
     const auto world = runtime.simulation.Observe();
     REQUIRE(world.restart == mode);
@@ -239,8 +239,8 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE(rules->GetBuffer().taker != nullptr);
     REQUIRE(match->GetTeam(scheduled.teamID)->GetPieceTaker() == rules->GetBuffer().taker);
     REQUIRE(match->GetTeam(1 - scheduled.teamID)->GetPieceTaker() == nullptr);
-    REQUIRE(rules->GetBuffer().startTime == scheduled.startTime);
-    while (match->GetActualTime_ms() <= scheduled.startTime)
+    REQUIRE(rules->GetBuffer().start_tick == scheduled.start_tick);
+    while (match->GetTimelineTick() <= scheduled.start_tick)
       runtime.simulation.Step(PlayerControlSet{});
     REQUIRE(match->IsInPlay());
     for (int tick = 0; tick < 800 && match->IsInSetPiece(); ++tick)

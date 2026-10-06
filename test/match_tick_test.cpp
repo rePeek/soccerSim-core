@@ -111,7 +111,7 @@ TEST_CASE("Tick timeline preserves restart skip and the simulated preparation ta
     // The historical skip is 190 ticks, followed by this Step's one tick. Do not
     // jump to the 200-tick deadline during a behavior-preserving unit migration.
     REQUIRE(match->GetTimelineTick() == before + TickSpan{191});
-    REQUIRE(match->GetReferee()->GetBuffer().prepareTime == ToMilliseconds(before + Seconds(2)));
+    REQUIRE(match->GetReferee()->GetBuffer().prepare_tick == before + Seconds(2));
     REQUIRE(match->GetMatchTime_ms() == football_clock);
     REQUIRE(match->GetResetSequence() == resets);
     for (int i = 0; i < 9; ++i) simulation.Step({});
@@ -122,6 +122,43 @@ TEST_CASE("Tick timeline preserves restart skip and the simulated preparation ta
     REQUIRE(match->GetResetSequence() == resets + 1);
     REQUIRE(match->GetReferee()->GetBuffer().taker != nullptr);
     REQUIRE(match->GetMatchTime_ms() == football_clock);
+  }
+}
+
+TEST_CASE("Referee deadlines fire once when a timeline jump crosses them",
+          "[sim][tick][referee]") {
+  for (const bool reverse : {false, true}) {
+    MatchOptions options;
+    options.reverse_team_processing = reverse;
+    options.half_duration_ms = 18000;
+    Simulation simulation;
+    Init(simulation, options);
+    while (!simulation.IsInPlay()) simulation.Step({});
+    for (int i = 0; i < 40; ++i) simulation.Step({});
+    Match* match = simulation.match();
+    match->GetBall()->ResetSituation(blunted::Vector3(10.f, 40.f, 0.f));
+    simulation.Step({});
+    Referee* rules = match->GetReferee();
+    const auto scheduled = rules->GetBuffer();
+    const auto resets = match->GetResetSequence();
+    REQUIRE(scheduled.taker == nullptr);
+    match->AdvanceTime((scheduled.prepare_tick - match->GetTimelineTick()) + TickSpan{3});
+    rules->Process();
+    REQUIRE(rules->GetBuffer().taker != nullptr);
+    REQUIRE(match->GetResetSequence() == resets + 1);
+    REQUIRE_FALSE(match->IsInPlay());
+    auto rng = match->rng().engine();
+    rules->Process();
+    REQUIRE(match->GetResetSequence() == resets + 1);
+    REQUIRE(match->rng().engine() == rng);
+    match->AdvanceTime((scheduled.start_tick - match->GetTimelineTick()) + TickSpan{3});
+    rules->Process();
+    REQUIRE(match->IsInPlay());
+    REQUIRE(match->IsInSetPiece());
+    rng = match->rng().engine();
+    rules->Process();
+    REQUIRE(match->GetResetSequence() == resets + 1);
+    REQUIRE(match->rng().engine() == rng);
   }
 }
 }  // namespace
