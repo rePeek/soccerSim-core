@@ -9,9 +9,11 @@ originally forked from GameplayFootball / Google Research Football / blunted2.
 Remote: `git@github.com:rePeek/soccerSim-core.git`. License: Apache-2.0; the blunted
 foundation boilerplate is public domain.
 
-- Work from the checked-out `feat/anim-base` branch and files on disk. `main` is
-  frozen and contains an abandoned, unrelated architecture refactor.
-  The ignored `REFACTOR_PLAN.md` describes that work, not this branch's roadmap.
+- `main` is the primary development branch, promoted from `feat/anim-base`. Treat
+  the checked-out files and this history as the source of truth.
+- The former `main` history is preserved on `archive/main-before-anim-base`; it
+  contains the abandoned, unrelated architecture refactor and is not developed.
+  The ignored `REFACTOR_PLAN.md` describes that archived work, not this branch's roadmap.
 - Do not create `src/core/` or `src/legacy/`.
 - Structural changes must update this file's layout and target/path references.
 - Finish changes with a local git commit. Never push; the maintainer does that.
