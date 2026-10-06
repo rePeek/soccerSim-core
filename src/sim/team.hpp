@@ -30,11 +30,16 @@ class Team {
     Team(int id, Match *match, const football::model::Team& model,
          float aiDifficulty);
     void Mirror();
+    // Half-time change of ends: this team attacks the opposite goal from now on.
+    // Mirrors its actors like Mirror() but leaves the canonical between-tick frame
+    // (mirrored == false), so CheckCanonicalFrame still holds afterwards.
+    void SwitchEnds();
     bool isMirrored() {
       return mirrored;
     }
+    // True while the team is in its own canonical (attacking) orientation.
     bool onOriginalSide() {
-      return id == 0 ? (side == -1) : (side == 1);
+      return side == static_side_;
     }
 
     virtual ~Team();
@@ -52,11 +57,13 @@ class Team {
     }
     // Legacy rule-engine slot (home=0, away=1), not persistent team identity.
     int GetID() const { return id; }
+    // Per-tick processing-frame direction (mirror counter), not persistent.
     inline signed int GetDynamicSide() {
       return side;
     }
-    inline signed int GetStaticSide() {
-      return id == 0 ? -1 : 1;
+    // Persistent direction this team defends; flips only on a change of ends.
+    inline signed int GetStaticSide() const {
+      return static_side_;
     }
     const football::model::Team& GetModel() const { return model_; }
 
@@ -131,6 +138,8 @@ class Team {
     Player *lastTouchPlayer = nullptr;
 
     int side = -1;
+    // id==0 ? -1 : 1 initially; flipped once per change of ends.
+    int static_side_;
     bool mirrored = false;
 };
 

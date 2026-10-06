@@ -62,6 +62,10 @@ class Referee {
 
     void Process();
 
+    // True once the current period's regulation football clock has elapsed;
+    // the next Process() halts play at that boundary. Rules fact only.
+    bool PeriodElapsed() const;
+
     void PrepareSetPiece(e_GameMode setPiece);
 
     const RefereeBuffer &GetBuffer() { return buffer; };

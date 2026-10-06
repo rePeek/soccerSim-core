@@ -118,9 +118,11 @@ inputs (`src/app/`); the core shared library never links them either way.
   direct Input + DefaultAI + Simulation composition and control-tape/RNG replay.
   Original-source placement/RNG baselines cover 72 cases. `sim_match_lifecycle_test.cpp`
   adds real phases/paused football clock, both regulation periods (including sub-tick
-  halves), full-time priority, actual goals/outcomes, terminal freeze and invalid rules.
+  halves), full-time priority, actual goals/outcomes, half-time change of ends
+  (physical swap vs canonical observation frame, and the same goal crediting the
+  opposite team per half), terminal freeze and invalid rules.
   Old-request non-revival intentionally omits ResetRequests across new Matches.
-  Autonomous-runner stage: Release/Debug each 88 tests pass; input-only stays AI/runtime-free.
+  Autonomous-runner stage: Release/Debug each 90 tests pass; input-only stays AI/runtime-free.
 - `football_smoke` — secondary bounded `GameEnv` telemetry (`tools/football_smoke.cpp`);
   optional positional arg limits diagnostic steps (default 1000), not headless app duration.
 - `football_headless_core_guard` — shell test (`tools/football_headless_core_guard.sh`)
@@ -315,8 +317,18 @@ namespaced aliases、static PRIVATE `LINK_ONLY` 与 packaging `LINK_LIBRARY` 边
   finite non-negative/non-stalling scale and positive non-overflowing half_duration_ms
   before RNG draws. Scaled increments retain per-step truncation but accumulate as uint64,
   clipping at the period boundary, rather than re-rounding accumulated float time.
-- Whistles take priority over pending restarts. Match freezes after full time: subsequent
-  Step calls do not change clocks, players, actions, scores, RNG or Result.
+- Whistles take priority over pending restarts. The current period's clock is checked
+  before this tick's ball contact (`Referee::PeriodElapsed()` gates
+  `CheckBallCollisions`), while ordinary-tick referee ordering is unchanged. Match
+  freezes after full time: subsequent Step calls do not change clocks, players,
+  actions, ball state, scores, RNG or Result.
+- Half time changes ends. The referee requests it; Match applies it once at the next
+  tick's canonical between-tick frame, before the second-half kickoff reset. Each
+  `Team::GetStaticSide()` flips and all actors, the ball and mental images are mirrored,
+  but `mirrored`/`ball_mirrored` stay false and WorldState keeps its canonical home
+  frame (home players at -x, defending_direction -1/+1 in both halves). So the same
+  physical goal credits the opposite team after half time. First-half motion/RNG
+  goldens are therefore unchanged; second-half play is intentionally mirrored.
 - `MatchResult` is sim-owned final scores/outcome/duration_ticks, derived from stable
   home/away score slots. Available only at Finished; Stop never manufactures a result.
   duration_ticks counts actually executed Step calls including the terminal transition;

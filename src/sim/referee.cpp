@@ -52,24 +52,36 @@ Referee::Referee(Match *match, bool animations) : match(match), animations(anima
 
 Referee::~Referee() {}
 
+bool Referee::PeriodElapsed() const {
+  const auto limit = match->GetMatchPhase() == MatchPhase::FirstHalf ? 1u
+      : match->GetMatchPhase() == MatchPhase::SecondHalf ? 2u : 0u;
+  return limit != 0 &&
+         match->GetMatchTime_ms() >=
+             match->options().half_duration_ms * limit;
+}
+
 void Referee::Process() {
   if (match->Finished()) return;
-  const auto phase = match->GetMatchPhase();
-  const auto half = match->options().half_duration_ms;
   // Period authority is independent of restart eligibility. A pending set piece
   // must not keep a match alive after the regulation clock reaches full time.
-  if (phase == MatchPhase::SecondHalf && match->GetMatchTime_ms() >= half * 2) {
+  if (PeriodElapsed()) {
     match->StopPlay();
     match->StopSetPiece();
     buffer.active = false;
     buffer.taker = nullptr;
     buffer.endPhase = false;
-    match->SetMatchPhase(MatchPhase::Finished);
-    return;
-  }
-  if (phase == MatchPhase::FirstHalf && match->GetMatchTime_ms() >= half) {
-    match->StopPlay();
-    match->StopSetPiece();
+    if (match->GetMatchPhase() == MatchPhase::SecondHalf) {
+      match->SetMatchPhase(MatchPhase::Finished);
+      return;
+    }
+    // Half time: abandon any pending foul, then schedule the second-half kickoff
+    // and change ends at the next tick's canonical frame, before the kickoff reset
+    // repositions the actors.
+    foul.foulPlayer = nullptr;
+    foul.foulType = 0;
+    foul.advantage = false;
+    foul.foulTime = 0;
+    foul.hasBeenProcessed = true;
     buffer.desiredSetPiece = e_GameMode_KickOff;
     buffer.stopTime = match->GetActualTime_ms();
     buffer.prepareTime = buffer.stopTime + 100;
@@ -79,13 +91,8 @@ void Referee::Process() {
     buffer.endPhase = true;
     buffer.teamID = match->options().left_team_owns_ball ? 1 : 0;
     buffer.setpiece_team = match->GetTeam(buffer.teamID);
-    buffer.taker = nullptr;
-    foul.foulPlayer = nullptr;
-    foul.foulType = 0;
-    foul.advantage = false;
-    foul.foulTime = 0;
-    foul.hasBeenProcessed = true;
     match->SetMatchPhase(MatchPhase::SecondHalf);
+    match->RequestChangeOfEnds();
     return;
   }
   if (match->IsInPlay() && !match->IsInSetPiece()) {

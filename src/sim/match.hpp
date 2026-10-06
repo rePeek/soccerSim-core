@@ -80,6 +80,10 @@ class Match {
     std::uint64_t GetResetSequence() const { return reset_sequence_; }
     const ObservationEpoch& GetObservationEpoch() const { return observation_epoch_; }
 
+    // Half-time change of ends requested by the referee; applied at the start of
+    // the next Step, where the canonical between-tick frame is guaranteed.
+    void RequestChangeOfEnds() { pending_change_of_ends_ = true; }
+
     void SetMatchPhase(MatchPhase newMatchPhase);
     MatchPhase GetMatchPhase() const { return matchPhase; }
     bool Finished() const { return matchPhase == MatchPhase::Finished; }
@@ -151,6 +155,8 @@ class Match {
 
   private:
     bool CheckForGoal(signed int side, const Vector3& previousBallPos);
+    // Mirrors both teams, the ball and mental images onto the other half.
+    void SwitchEnds();
 
     void CalculateBestPossessionTeamID();
     void CheckHumanoidCollisions();
@@ -181,6 +187,7 @@ class Match {
     std::uint64_t duration_ticks_ = 0;
     // Actual world discontinuities; not a policy/request timer.
     std::uint64_t reset_sequence_ = 0;
+    bool pending_change_of_ends_ = false;
     const ObservationEpoch observation_epoch_ = ObservationEpoch::New();
     unsigned long goalScoredTimer = 0;
 

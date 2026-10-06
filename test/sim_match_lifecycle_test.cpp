@@ -5,8 +5,10 @@
 #include <stdexcept>
 
 #include "app/fixtures/default_teams.hpp"
+#include "default_ai_fixture.hpp"
 #include "sim/match.hpp"
 #include "sim/simulation.hpp"
+#include "sim/team.hpp"
 
 namespace {
 void Init(Simulation& simulation, MatchOptions options = {}) {
@@ -98,8 +100,13 @@ TEST_CASE("full time takes priority over pending restarts", "[sim][lifecycle]") 
   match->StartSetPiece();
   match->BumpActualTime_ms(1000);  // Advance football time through sim authority, not a fake snapshot.
   const auto resets = match->GetResetSequence();
+  const auto before = simulation.Observe();
   simulation.Step({});
+  const auto after = simulation.Observe();
   REQUIRE(simulation.Finished());
+  // The terminal whistle precedes any ball contact, so this tick is frozen too.
+  REQUIRE(after.ball_position == before.ball_position);
+  REQUIRE(after.ball_velocity == before.ball_velocity);
   REQUIRE_FALSE(match->IsInSetPiece());
   REQUIRE_FALSE(match->GetReferee()->GetBuffer().active);
   REQUIRE(match->GetResetSequence() == resets);
@@ -177,4 +184,77 @@ TEST_CASE("result counts executed steps rather than compressed restart time", "[
   while (!simulation.Finished()) { simulation.Step({}); REQUIRE(++steps < 2000); }
   REQUIRE(simulation.Result().duration_ticks == steps);
   REQUIRE(simulation.Observe().tick > steps);
+}
+
+TEST_CASE("half time changes ends but keeps observations in the canonical home frame", "[sim][lifecycle]") {
+  const auto observed_x = [](const Simulation& simulation, int team) {
+    return simulation.Observe().players[team == 0 ? 0 : 11].position.coords[0];
+  };
+  const auto keeper_pitch_x = [](Simulation& simulation, int team) {
+    return simulation.match()->GetTeam(team)->GetAllPlayers()[0]->GetPitchPosition().coords[0];
+  };
+  MatchOptions options; options.half_duration_ms = 1800;
+  Simulation simulation; Init(simulation, options);
+  const auto policy = football::test::MakeDefaultAI(simulation);
+  while (!simulation.IsInPlay()) football::test::StepDefaultAI(simulation, policy);
+
+  REQUIRE(simulation.Observe().phase == MatchPhase::FirstHalf);
+  REQUIRE(simulation.match()->GetTeam(0)->GetStaticSide() == -1);
+  REQUIRE(simulation.match()->GetTeam(1)->GetStaticSide() == 1);
+  REQUIRE(keeper_pitch_x(simulation, 0) < 0.f);
+  REQUIRE(keeper_pitch_x(simulation, 1) > 0.f);
+  REQUIRE(observed_x(simulation, 0) < 0.f);
+  REQUIRE(observed_x(simulation, 1) > 0.f);
+  REQUIRE(simulation.Observe().teams[0].defending_direction == -1);
+  REQUIRE(simulation.Observe().teams[1].defending_direction == 1);
+
+  while (!simulation.Finished() &&
+         !(simulation.Observe().phase == MatchPhase::SecondHalf && simulation.IsInPlay())) {
+    football::test::StepDefaultAI(simulation, policy);
+  }
+  REQUIRE(simulation.Observe().phase == MatchPhase::SecondHalf);
+  // Persistent attacking directions are opposite to the first half...
+  REQUIRE(simulation.match()->GetTeam(0)->GetStaticSide() == 1);
+  REQUIRE(simulation.match()->GetTeam(1)->GetStaticSide() == -1);
+  // ...and the actors are physically at the other ends (this is a real swap)...
+  REQUIRE(keeper_pitch_x(simulation, 0) > 0.f);
+  REQUIRE(keeper_pitch_x(simulation, 1) < 0.f);
+  // ...while the observation keeps its canonical home-frame convention.
+  REQUIRE(observed_x(simulation, 0) < 0.f);
+  REQUIRE(observed_x(simulation, 1) > 0.f);
+  REQUIRE(simulation.Observe().teams[0].defending_direction == -1);
+  REQUIRE(simulation.Observe().teams[1].defending_direction == 1);
+  // A change of ends must not leak a temporary processing frame.
+  REQUIRE_FALSE(simulation.match()->isBallMirrored());
+  REQUIRE_FALSE(simulation.match()->GetTeam(0)->isMirrored());
+  REQUIRE_FALSE(simulation.match()->GetTeam(1)->isMirrored());
+}
+
+TEST_CASE("the same physical goal credits opposite teams in the two halves", "[sim][lifecycle]") {
+  const auto credited = [](MatchPhase wanted, float direction) {
+    MatchOptions options; options.half_duration_ms = 1800;
+    Simulation simulation; Init(simulation, options);
+    const auto policy = football::test::MakeDefaultAI(simulation);
+    for (int attempt = 0; attempt < 100000 && !simulation.Finished(); ++attempt) {
+      if (simulation.Observe().phase == wanted && simulation.IsInPlay()) break;
+      football::test::StepDefaultAI(simulation, policy);
+    }
+    REQUIRE(simulation.Observe().phase == wanted);
+    Match* match = simulation.match();
+    const int before[2] = {match->GetScore(0), match->GetScore(1)};
+    match->GetBall()->ResetSituation(blunted::Vector3(direction * 54.9f, 0.f, 0.5f));
+    match->GetBall()->Touch(blunted::Vector3(direction * 30.f, 0.f, 0.f));
+    for (int step = 0; step < 12; ++step) {
+      simulation.Step({});
+      if (match->GetScore(0) != before[0]) return 0;
+      if (match->GetScore(1) != before[1]) return 1;
+    }
+    return -1;
+  };
+  // First half: the +x goal belongs to home, the -x goal to away.
+  REQUIRE(credited(MatchPhase::FirstHalf, 1.f) == 0);
+  REQUIRE(credited(MatchPhase::FirstHalf, -1.f) == 1);
+  // Second half: after the change of ends the same goals credit the other team.
+  REQUIRE(credited(MatchPhase::SecondHalf, 1.f) == 1);
+  REQUIRE(credited(MatchPhase::SecondHalf, -1.f) == 0);
 }

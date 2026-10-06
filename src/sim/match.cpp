@@ -182,6 +182,17 @@ void Match::ResetSituation(const Vector3 &focusPos) {
   teams[second_team]->ResetSituation(focusPos);
 }
 
+void Match::SwitchEnds() {
+  // A permanent change of ends keeps the canonical between-tick frame: only the
+  // stored actors, ball and memories move, and mirrored/ball_mirrored stay false.
+  teams[first_team]->SwitchEnds();
+  teams[second_team]->SwitchEnds();
+  ball->Mirror();
+  for (auto &i : mentalImages) {
+    i.Mirror(true, true, true);
+  }
+}
+
 void Match::SetMatchPhase(MatchPhase newMatchPhase) {
   matchPhase = newMatchPhase;
   if (Finished()) return;
@@ -207,6 +218,10 @@ Team *Match::GetBestPossessionTeam() {
 
 bool Match::Step(const PlayerControlSet& controls) {
   if (Finished()) return false;
+  if (pending_change_of_ends_) {
+    SwitchEnds();
+    pending_change_of_ends_ = false;
+  }
   ++duration_ticks_;
   bool reverse = options_.reverse_team_processing;
 
@@ -224,7 +239,9 @@ bool Match::Step(const PlayerControlSet& controls) {
 
 
   Mirror(reverse, !reverse, reverse);
-  if (IsInPlay()) {
+  // A clock that already elapsed must whistle before this tick can still collide
+  // the ball. The referee stays the single period authority.
+  if (IsInPlay() && !referee_->PeriodElapsed()) {
     CheckBallCollisions();
   }
 

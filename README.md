@@ -52,13 +52,15 @@ pauses during stoppages. WorldState projects `phase` and `match_time_ms` for
 telemetry and future coach decisions, but is never authoritative storage.
 
 `MatchOptions::half_duration_ms` defaults to 45 minutes: two regulation halves,
-no added time, extra time or penalty shootout in this stage. `match_duration`
+no added time, extra time or penalty shootout in this stage. Half time changes ends:
+the referee requests it, the simulation applies it once at the next canonical
+between-tick frame, and each team then attacks the opposite goal. `match_duration`
 retains the legacy compressed-clock scale (`factor = value * 0.2 + 0.05`), not
 a tick budget. Sim rejects invalid/non-advancing scales and invalid/overflowing
 period durations before RNG/profile draws. Clock increments are scaled/truncated
 per step, accumulated as integers and clipped to period boundaries. The referee
-whistles even if a restart is pending; the terminal match cannot advance clocks,
-actions, scores or RNG again.
+whistles even if a restart is pending and before that boundary tick's ball contact;
+the terminal match cannot advance clocks, players, ball state, actions, scores or RNG.
 
 `MatchResult` belongs to sim and contains `home_score`, `away_score`,
 `MatchOutcome::{HomeWin, AwayWin, Draw}` and `duration_ticks`. Outcome is derived

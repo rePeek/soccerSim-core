@@ -17,3 +17,8 @@ World.tick retains the compressed elapsed clock including restart skips;
 MatchResult.duration_ticks counts actual executed Step calls, including the
 referee's terminal transition, and excludes calls after completion.
 Epoch identity remains outside deterministic physical hashes.
+
+Half time then changes ends (each team attacks the opposite goal, all actors and the
+ball are mirrored onto the other half, and `Team::GetStaticSide()` flips). That only
+affects second-half play, so these first-half checkpoints (ticks 1..1000) are
+unaffected; the default regulation halves are 45 minutes each.

@@ -28,7 +28,7 @@
 Team::Team(int id, Match *match, const football::model::Team& model,
            float aiDifficulty)
     : id(id), match(match), model_(model), formation_(BuildFormation(model)),
-      aiDifficulty(aiDifficulty) {
+      aiDifficulty(aiDifficulty), static_side_(id == 0 ? -1 : 1) {
   assert(id == 0 || id == 1);
   timeNeededToGetToBall_ms = 100;
   hasPossession = false;
@@ -42,6 +42,14 @@ Team::~Team() {}
 void Team::Mirror() {
   side *= -1;
   mirrored = !mirrored;
+  for (auto &p : players) {
+    p->Mirror();
+  }
+}
+
+void Team::SwitchEnds() {
+  static_side_ = -static_side_;
+  side = -side;
   for (auto &p : players) {
     p->Mirror();
   }
