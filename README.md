@@ -133,9 +133,6 @@ Root CMake exposes model, sim contracts and AI startup contracts as PUBLIC usage
 requirements; concrete sim/AI implementations stay PRIVATE. query/rules/player
 stay sim internals; sim/animation is an independent archive also consumed by the
 offline baker. AI links only value contracts, never sim actors.
-`cmake/module_dependencies.cmake` validates actual dependency closures and source/
-header ownership at configure time, including core-only builds. There are no
-shell architecture guards or generated dependency reports.
 
 ```sh
 nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j 4 && ctest --preset release --output-on-failure'

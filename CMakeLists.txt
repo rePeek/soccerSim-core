@@ -52,6 +52,3 @@ if(BUILD_TESTING)
   add_subdirectory(tools)
   add_subdirectory(test)
 endif()
-
-include(cmake/module_dependencies.cmake)
-football_validate_architecture()

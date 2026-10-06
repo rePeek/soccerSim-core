@@ -81,8 +81,7 @@ src/
 
 cmake/
 ├── CPM.cmake
-├── bqlog.cmake            private third-party diagnostics build
-└── module_dependencies.cmake configure-time dependency/source ownership validation
+└── bqlog.cmake            private third-party diagnostics build
 
 tools/
 ├── football_regression.cpp developer regression/animation A/B diagnostic
@@ -145,14 +144,10 @@ anim_baking → legacy_anim + animation/foundation
 - `tools/CMakeLists.txt` owns real developer tools. `test/CMakeLists.txt` registers
   C++ tests, regression runs, real app short/full matches and baker CLI checks.
   Tools are currently built under BUILD_TESTING, never linked into core.
-- `cmake/module_dependencies.cmake` checks actual transitive target dependencies
-  (canonical aliases, LINK_ONLY, WHOLE_ARCHIVE) and SOURCES/header sets at configure
-  time in all build modes. Targets cannot compile foreign or duplicate sources;
-  new module targets require an explicit architecture policy. Baker dependencies
-  are also validated whenever its targets exist. No shell grep/negative/binary guards
-  or generated dependency report remains.
-- All targets use `src` as an include root. Target graph validation does not inspect
-  textual includes; reviewers must keep include boundaries consistent with the DAG.
+- Source ownership and dependency boundaries are maintained directly in each
+  module's CMakeLists and reviewed alongside C++ includes. There is no centralized
+  architecture validator or separate dependency allow-list.
+- All targets use `src` as an include root; keep includes consistent with module boundaries.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   model/foundation must not depend on upper layers. sim must never depend on AI.
 - model and foundation retain standalone CMake support.
