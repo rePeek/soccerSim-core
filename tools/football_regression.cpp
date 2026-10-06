@@ -1107,7 +1107,7 @@ void CheckRefereeRules(Simulation& simulation) {
       Player* offender = home.at(1);
       Player* victim = away.at(1);
       const int foul_type = scenario == 4 ? 2 : scenario;
-      if (scenario == 4) offender->GiveYellowCard(0);
+      if (scenario == 4) offender->GiveYellowCard(football::sim::Tick{});
       const Vector3 position = penalty
           ? Vector3(-45.0f * victim->GetTeam()->GetStaticSide(), 0, 0)
           : Vector3(0, 0, 0);

@@ -32,6 +32,11 @@ No configurable physics dt, wall-clock pacing, or foundation time module.
   refresh schedulers use strong ticks and context-dependent local cadences.
   Tests cover crossed cadences, changed context, zero-contact entry, resets and
   overflow. Regression, identity and autonomous app outputs remain identical.
+- **T3b:** Player last-touch/card-effect storage and Referee/Team writers use
+  `Tick`; history/tactical refresh cadences use owner-local ticks. Removed the
+  unused possession-duration accumulator/API. Touch-time readers in Humanoid
+  remain exact temporary projections pending its calculation migration.
+  Card-effect regression covers both processing orders and the exact due tick.
 
 These stages leave the legacy football clock, scale, fatigue, action progression,
 normal restart schedule and RNG windows unchanged. They do **not** yet implement the

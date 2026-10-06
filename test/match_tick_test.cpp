@@ -161,4 +161,32 @@ TEST_CASE("Referee deadlines fire once when a timeline jump crosses them",
     REQUIRE(match->rng().engine() == rng);
   }
 }
+
+TEST_CASE("Player touch and card effect timestamps use the timeline tick", "[sim][tick][player]") {
+  for (bool reverse : {false, true}) {
+    MatchOptions options;
+    options.reverse_team_processing = reverse;
+    Simulation simulation;
+    Init(simulation, options);
+    while (!simulation.IsInPlay()) simulation.Step({});
+    Match* match = simulation.match();
+    auto* player = match->GetTeam(0)->GetAllPlayers()[1];
+    const auto now = match->GetTimelineTick();
+    match->GetTeam(0)->SetLastTouchPlayer(player, e_TouchType_Intentional_Kicked);
+    REQUIRE(player->GetLastTouchTick() == now);
+    REQUIRE(player->GetLastTouchTime_ms() == ToMilliseconds(now));
+    const auto effective = now + TickSpan{5};
+    player->GiveRedCard(effective);
+    for (int i = 0; i < 5; ++i) {
+      REQUIRE(player->IsActive());
+      simulation.Step({});
+    }
+    REQUIRE(match->GetTimelineTick() == effective);
+    REQUIRE(player->IsActive()); // Effect is checked at the start of Player::Process.
+    simulation.Step({});
+    REQUIRE_FALSE(player->IsActive());
+    REQUIRE(match->GetTeam(0)->GetActivePlayersCount() == 10);
+  }
+}
+
 }  // namespace

@@ -265,7 +265,7 @@ Player::Player(Team *team, const football::model::Player& model, std::uint8_t sc
       model_(model),
       schedule_phase_(schedule_phase % 10),
       team(team) {
-  lastTouchTime_ms = 0;
+  last_touch_tick_ = {};
   lastTouchType = e_TouchType_None;
   fatigueFactorInv = 1.0;
   SetDesiredTimeToBall_ms(0);
@@ -274,7 +274,7 @@ Player::Player(Team *team, const football::model::Player& model, std::uint8_t sc
   tacticalSituation.toGoalSpaceRating = 0;
   tacticalSituation.spaceRating = 0;
   cards = 0;
-  cardEffectiveTime_ms = 0;
+  card_effective_tick_ = {};
 }
 
 Player::~Player() {
@@ -608,11 +608,11 @@ void Player::Process() {
     if (match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental)
       tactical_image_time_ms_ = 0;
     if (match->IsInPlay()) {
-      if (match->GetActualTime_ms() % 1000 == 0) {
+      if (match->GetTimelineTick().value % football::sim::player_timing::kPositionHistory.value == 0) {
         positionHistoryPerSecond.push_back(GetPosition());
       }
-      if (hasPossession) possessionDuration_ms += 10; else possessionDuration_ms = 0;
-      if ((match->GetActualTime_ms() + schedule_phase_ * 10) % 100 == 0) {
+      if ((match->GetTimelineTick().value + schedule_phase_) %
+          football::sim::player_timing::kTacticalRefresh.value == 0) {
         _CalculateTacticalSituation();
       }
     }
@@ -627,7 +627,7 @@ void Player::Process() {
       fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
     }
     // Don't send off the last player on the team.
-    if (cards > 1 && cardEffectiveTime_ms <= match->GetActualTime_ms() &&
+    if (cards > 1 && card_effective_tick_ <= match->GetTimelineTick() &&
         GetTeam()->GetActivePlayersCount() > 1) {
       SendOff();
     }
@@ -659,7 +659,7 @@ float Player::GetLastTouchBias(int decay_ms, unsigned long time_ms) {
 
 void Player::ResetRuntimeState(const Vector3 &focusPos) {
   positionHistoryPerSecond.clear();
-  lastTouchTime_ms = 0;
+  last_touch_tick_ = {};
   lastTouchType = e_TouchType_None;
   if (IsActive()) {
     // The reset itself is the discontinuity, so it anchors the generation that
@@ -892,7 +892,6 @@ void Player::ResetSituation(const Vector3 &focusPos) {
   hasPossession = false;
   hasBestPossession = false;
   hasUniquePossession = false;
-  possessionDuration_ms = 0;
   timeNeededToGetToBall_ms = 1000;
   timeNeededToGetToBall_optimistic_ms = 1000;
   SetDesiredTimeToBall_ms(0);

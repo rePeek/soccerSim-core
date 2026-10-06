@@ -352,10 +352,7 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
              (tripper != foul.foulPlayer || foul.foulType == 0)) {
       // sliding tackle
 
-    // Temporary boundary to the not-yet-migrated Player touch timestamp.
-    const Tick last_touch{football::sim::TickSpanFromMillisecondsExact(
-        tripper->GetLastTouchTime_ms()).value};
-    if (match->GetTimelineTick() - last_touch > kTouchGrace &&
+    if (match->GetTimelineTick() - tripper->GetLastTouchTick() > kTouchGrace &&
         tripperAction.type == e_FunctionType_Sliding &&
         tripper->GetTeam()->GetID() != tripee->GetTeam()->GetID() &&
         (match->GetBall()->Predict(0) - tripee->GetPosition()).GetLength() <
@@ -445,12 +442,10 @@ bool Referee::CheckFoul() {
     buffer.active = true;
     buffer.taker = nullptr;
     if (foul.foulType == 2) {
-      foul.foulPlayer->GiveYellowCard(football::sim::ToMilliseconds(
-          match->GetTimelineTick() + kCardEffectDelay)); // Player migrates separately.
+      foul.foulPlayer->GiveYellowCard(match->GetTimelineTick() + kCardEffectDelay);
     }
     if (foul.foulType == 3) {
-      foul.foulPlayer->GiveRedCard(football::sim::ToMilliseconds(
-          match->GetTimelineTick() + kCardEffectDelay));
+      foul.foulPlayer->GiveRedCard(match->GetTimelineTick() + kCardEffectDelay);
     }
 
     foul.hasBeenProcessed = true;

@@ -239,8 +239,9 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   readers are projections, not duplicate clocks. Decision and locomotion schedulers
   use Tick deadlines and owner-local TickSpan cadences. Their tests are in
   `test/player_action_tick_test.cpp`; old diagnostic digests project milliseconds.
-  The legacy
-  scaled football clock remains millisecond-based until its semantic migration:
+  Player touch/card-effect timestamps are Tick; unused possession-duration storage
+  is removed. Humanoid touch-time readers temporarily project milliseconds.
+  The legacy scaled football clock remains millisecond-based until its semantic migration:
   it supports sub-tick progress. See tools/time-model-migration.md before removing
   scale, rounding arrival estimates, or replacing the old restart preparation tail.
 - Referee owns period transitions; Match owns phase, football clock, score and

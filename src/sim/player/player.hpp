@@ -29,6 +29,7 @@
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
 #include "sim/player_control.hpp"
+#include "sim/tick_boundary.hpp"
 
 // Caller scope for the remaining ResetSituation instrumentation. This is
 // observation only; Deactivate's double reset is deliberately not changed here.
@@ -371,8 +372,10 @@ class Player final {
     const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
     Match *GetMatch() const { return match; }
 
-    void SetLastTouchTime_ms(unsigned long touchTime_ms) { this->lastTouchTime_ms = touchTime_ms; }
-    unsigned long GetLastTouchTime_ms() { return lastTouchTime_ms; }
+    void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
+    football::sim::Tick GetLastTouchTick() const { return last_touch_tick_; }
+    // Temporary adapter for Humanoid's not-yet-migrated calculations.
+    unsigned long GetLastTouchTime_ms() const { return football::sim::ToMilliseconds(last_touch_tick_); }
     void SetLastTouchType(e_TouchType touchType) { this->lastTouchType = touchType; }
     e_TouchType GetLastTouchType() { return lastTouchType; }
     float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0);
@@ -402,7 +405,6 @@ class Player final {
     bool HasPossession() const;
     bool HasBestPossession() const;
     bool HasUniquePossession() const;
-    int GetPossessionDuration_ms() const { return possessionDuration_ms; }
     int GetTimeNeededToGetToBall_ms() const { return timeNeededToGetToBall_ms; }
     int GetTimeNeededToGetToBall_optimistic_ms() const { return timeNeededToGetToBall_optimistic_ms; }
     int GetTimeNeededToGetToBall_previous_ms() const { return timeNeededToGetToBall_previous_ms; }
@@ -418,8 +420,8 @@ class Player final {
     const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
     void Put2D(bool mirror);
     void Hide2D();
-    void GiveYellowCard(unsigned long giveTime_ms) { cards++; cardEffectiveTime_ms = giveTime_ms; }
-    void GiveRedCard(unsigned long giveTime_ms) { cards += 3; cardEffectiveTime_ms = giveTime_ms; }
+    void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
+    void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
     bool HasCards() { return cards > 0; }
     void SendOff();
     float GetStaminaStat() const;
@@ -494,7 +496,7 @@ class Player final {
 
     bool isActive = false;
 
-    unsigned long lastTouchTime_ms = 0;
+    football::sim::Tick last_touch_tick_{};
     e_TouchType lastTouchType;
 
     float fatigueFactorInv = 0.0f;
@@ -506,7 +508,6 @@ class Player final {
     bool hasPossession = false;
     bool hasBestPossession = false;
     bool hasUniquePossession = false;
-    int possessionDuration_ms = 0;
     unsigned int timeNeededToGetToBall_ms = 1000;
     unsigned int timeNeededToGetToBall_optimistic_ms = 1000;
     unsigned int timeNeededToGetToBall_previous_ms = 1000;
@@ -514,7 +515,7 @@ class Player final {
     TacticalPlayerSituation tacticalSituation;
     int desiredTimeToBall_ms = 0;
     int cards = 0; // 1: yellow; 2: second yellow; >=3: red
-    unsigned long cardEffectiveTime_ms = 0;
+    football::sim::Tick card_effective_tick_{};
 
 };
 
