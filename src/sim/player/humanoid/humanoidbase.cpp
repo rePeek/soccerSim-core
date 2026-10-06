@@ -592,6 +592,10 @@ void HumanoidBase::Mirror() {
 }
 
 void HumanoidBase::Process() {
+  // Reject invalid runtime state before the spatial/action debug oracles run.
+  if (startPos.coords[2] != 0.f) {
+    throw std::logic_error("HumanoidBase::Process: player position must have zero height");
+  }
 
   decayingPositionOffset *= 0.95f;
   if (decayingPositionOffset.GetLength() < 0.005) decayingPositionOffset.Set(0);
@@ -740,10 +744,12 @@ void HumanoidBase::Process() {
     }
     if (interruptAnim != e_InterruptAnim_ReQueue && !found) {
       const auto logger = bq::log::get_log_by_name("football");
-      logger.warning("HumanoidBase::Process: no applicable animation; current type {}",
-                     GetCurrentBakedClip().metadata.action_type);
-      for (const auto& command : commandQueue) {
-        logger.warning("desired animation type {}", command.desiredFunctionType);
+      if (logger.is_valid()) {
+        logger.warning("HumanoidBase::Process: no applicable animation; current type {}",
+                       GetCurrentBakedClip().metadata.action_type);
+        for (const auto& command : commandQueue) {
+          logger.warning("desired animation type {}", command.desiredFunctionType);
+        }
       }
     }
 
@@ -767,8 +773,6 @@ void HumanoidBase::Process() {
   reQueueDelayFrames = clamp(reQueueDelayFrames - 1, 0, 10000);
 
   interruptAnim = e_InterruptAnim_None;
-
-  assert(startPos.coords[2] == 0.f && "player position must have zero height");
 
   // movement/rotation smuggle
 

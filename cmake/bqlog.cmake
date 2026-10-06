@@ -9,6 +9,8 @@ elseif(APPLE)
   set(_football_bq_platform mac)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(_football_bq_platform linux)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+  set(_football_bq_platform ohos)
 elseif(UNIX)
   set(_football_bq_platform unix)
 else()
@@ -20,6 +22,8 @@ CPMAddPackage(NAME BqLog
   # Release_2.5.0, pinned to the release commit for reproducible builds.
   GIT_TAG 89af0fe488d3ba1e3760fb889751311032da0a8d
   SOURCE_SUBDIR src
+  # Quiet internal info/debug chatter, not named logs or Debug assertions.
+  PATCHES "${PROJECT_SOURCE_DIR}/cmake/patches/bqlog-quiet-startup.patch"
   OPTIONS
     "TARGET_PLATFORM ${_football_bq_platform}"
     "BUILD_LIB_TYPE static_lib"
@@ -33,9 +37,6 @@ target_include_directories(BqLog SYSTEM INTERFACE "${BqLog_SOURCE_DIR}/include")
 set_target_properties(BqLog PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/_deps/bqlog-lib")
-# Disable upstream's startup/debug chatter even in our Debug preset. This is
-# private to BqLog: simulator assertions remain enabled in Debug.
-target_compile_definitions(BqLog PRIVATE NDEBUG)
 # Nix's fortify preprocessor warning at -O0 must not become upstream's -Werror.
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(BqLog PRIVATE -Wno-error=cpp)

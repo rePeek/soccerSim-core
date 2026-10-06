@@ -87,6 +87,10 @@ bool _PassFiddlingEnabled() {
 }
 
 void Humanoid::Process() {
+  // Reject invalid runtime state before the spatial/action debug oracles run.
+  if (startPos.coords[2] != 0.f) {
+    throw std::logic_error("Humanoid::Process: player position must have zero height");
+  }
   CastPlayer()->NoteProcessedPlayerTick();
   auto currentMentalImage = match->GetMentalImage(mentalImageTime);
   // this might be the solution to long-term imbalance
@@ -323,8 +327,8 @@ void Humanoid::Process() {
     } else {
       if (!CastPlayer()->HasPlayerDecisionQueue()) {
         ++PlayerDecisionClockQueueConsumersMissing();
-        assert(false &&
-               "Player Decision queue missing before animation selection");
+        throw std::logic_error(
+            "Player Decision queue missing before animation selection");
       }
       commandQueue = CastPlayer()->GetPlayerDecisionQueue();
       uses_player_decision_queue = true;
@@ -364,19 +368,21 @@ void Humanoid::Process() {
 
     if (interruptAnim == e_InterruptAnim_Switch && !found) {
       const auto logger = bq::log::get_log_by_name("football");
-      logger.warning("Humanoid::Process: no applicable animation; current type {}",
-                     GetCurrentBakedClip().metadata.action_type);
-      for (const auto& command : commandQueue) {
-        logger.warning("desired type {}, velocity {}, direction ({}, {}, {})",
-                       command.desiredFunctionType, command.desiredVelocityFloat,
-                       command.desiredDirection.coords[0],
-                       command.desiredDirection.coords[1],
-                       command.desiredDirection.coords[2]);
+      if (logger.is_valid()) {
+        logger.warning("Humanoid::Process: no applicable animation; current type {}",
+                       GetCurrentBakedClip().metadata.action_type);
+        for (const auto& command : commandQueue) {
+          logger.warning("desired type {}, velocity {}, direction ({}, {}, {})",
+                         command.desiredFunctionType, command.desiredVelocityFloat,
+                         command.desiredDirection.coords[0],
+                         command.desiredDirection.coords[1],
+                         command.desiredDirection.coords[2]);
+        }
+        logger.warning("current velocity {}, body angle {}, relative angle {}, state {}",
+                       spatialState.floatVelocity, static_cast<float>(spatialState.bodyAngle),
+                       static_cast<float>(spatialState.relBodyAngle),
+                       GetCurrentBakedClip().metadata.outgoing_special_state);
       }
-      logger.warning("current velocity {}, body angle {}, relative angle {}, state {}",
-                     spatialState.floatVelocity, static_cast<float>(spatialState.bodyAngle),
-                     static_cast<float>(spatialState.relBodyAngle),
-                     GetCurrentBakedClip().metadata.outgoing_special_state);
       throw std::runtime_error("Humanoid::Process: no applicable animation");
     }
 
@@ -423,8 +429,8 @@ void Humanoid::Process() {
   if (simulation_due && !movement_published_this_tick) {
     if (!CastPlayer()->HasPlayerDecisionQueue()) {
       ++PlayerDecisionClockQueueConsumersMissing();
-      assert(false &&
-             "Player Decision queue missing before locomotion publication");
+      throw std::logic_error(
+          "Player Decision queue missing before locomotion publication");
     }
     CastPlayer()->NoteDecisionMovementSelection(
         decision_queue_selection_movement);
@@ -441,8 +447,6 @@ void Humanoid::Process() {
   reQueueDelayFrames = std::max(reQueueDelayFrames - 1, 0);
 
   interruptAnim = e_InterruptAnim_None;
-
-  assert(startPos.coords[2] == 0.f && "player position must have zero height");
 
   float ballDistanceNow = (match->GetBall()->Predict(0).Get2D() - spatialState.position).GetLength();
   float ballDistanceFuture = (match->GetBall()->Predict(200).Get2D() - (spatialState.position + spatialState.movement * 0.2f)).GetLength();

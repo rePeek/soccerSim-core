@@ -81,7 +81,8 @@ src/
 
 cmake/
 ├── CPM.cmake
-└── bqlog.cmake            private third-party diagnostics build
+├── bqlog.cmake            private third-party diagnostics build
+└── patches/               pinned BqLog internal verbosity adjustment
 
 tools/
 ├── football_regression.cpp developer regression/animation A/B diagnostic
@@ -132,8 +133,12 @@ anim_baking → legacy_anim + animation/foundation
 - GameEnv::Start creates/reconfigures the single process logger `football` before
   constructing Simulation/AI; Stop destroys AI then Simulation and flushes it.
   BqLog is PRIVATE to game/sim, never in public value contracts or policy.
-  Runtime warnings use BqLog, operational failures throw, debug invariants use
-  <cassert>. No product signal handlers/backtraces or deliberate crash logging.
+  Warning sites tolerate a missing logger for direct Simulation users. Upstream
+  Debug assertions stay enabled; cmake/patches/bqlog-quiet-startup.patch suppresses
+  internal info/debug chatter, not warnings/errors or named log appenders.
+  Runtime warnings use BqLog; resource/environment failures throw runtime_error,
+  runtime contract failures throw logic_error, and debug-only oracles/invariants
+  use <cassert>. No product signal handlers/backtraces or deliberate crash logging.
   Current product scope is one process/one match: no logger registry, batch or
   new general infrastructure/utils module. There is no src/support or support target;
   file I/O uses the STL at its call sites, Properties and custom diagnostics are removed.

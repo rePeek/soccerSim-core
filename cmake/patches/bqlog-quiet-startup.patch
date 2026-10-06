@@ -1,0 +1,16 @@
+diff --git a/src/bq_common/utils/util.cpp b/src/bq_common/utils/util.cpp
+--- a/src/bq_common/utils/util.cpp
++++ b/src/bq_common/utils/util.cpp
+@@ -357,5 +357,12 @@
+     void util::log_device_console(bq::log_level level, const char* format, ...)
+     {
++#if !defined(BQ_TOOLS) && !defined(BQ_UNIT_TEST)
++        // Keep internal startup chatter out of application stdout/test discovery.
++        // Named log appenders use log_device_console_plain_text, not this path.
++        if (level < bq::log_level::warning) {
++            return;
++        }
++#endif
+ #if defined(BQ_TOOLS) || defined(BQ_UNIT_TEST)
+         if (level < log_device_min_level) {
+             return;

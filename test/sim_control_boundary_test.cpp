@@ -4,12 +4,14 @@
 #include <cstring>
 #include <type_traits>
 #include <vector>
+#include <stdexcept>
 
 #include <catch2/catch_test_macros.hpp>
 
 #include "default_ai_fixture.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/match.hpp"
+#include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/team.hpp"
 
@@ -57,6 +59,55 @@ TEST_CASE("simulation has no implicit AI command source", "[sim][boundary]") {
       REQUIRE(queue[0].desiredFunctionType == e_FunctionType_Movement);
       REQUIRE(queue[0].desiredVelocityFloat == 0.f);
     }
+  }
+}
+
+TEST_CASE("humanoid starting height is a catchable runtime contract", "[sim][failure]") {
+  for (float height : {-1.f, 1.f}) {
+    Runtime runtime;
+    for (int tick = 0; tick < 300; ++tick) runtime.simulation.Step(PlayerControlSet{});
+    Player *player = runtime.match()->GetTeam(0)->GetAllPlayers()[1];
+    player->ResetPosition(Vector3(0, 0, height), Vector3(0, -1, 0));
+    REQUIRE_THROWS_AS(player->CastHumanoid()->Process(), std::logic_error);
+    REQUIRE_THROWS_AS(player->CastHumanoid()->HumanoidBase::Process(), std::logic_error);
+    player->ResetPosition(Vector3(0), Vector3(0, -1, 0));
+    REQUIRE_NOTHROW(player->CastHumanoid()->Process());
+  }
+}
+
+TEST_CASE("direct simulation warning paths do not require logger startup", "[sim][failure]") {
+  // This suite never calls GameEnv::Start; logging bootstrap is not a sim duty.
+  Runtime runtime;
+  for (int tick = 0; tick < 300; ++tick) runtime.simulation.Step(PlayerControlSet{});
+  Player *player = runtime.match()->GetTeam(0)->GetAllPlayers()[1];
+  Humanoid *humanoid = player->CastHumanoid();
+  REQUIRE(humanoid->GetFrameCount() > 2);
+
+  SECTION("animation exhaustion still reports a resource failure") {
+    // Expire the real animation with an initialized but empty decision queue,
+    // so selection fails without the decision clock refreshing it first.
+    auto *anim = const_cast<Anim *>(humanoid->GetCurrentAnim());
+    anim->frameNum = humanoid->GetFrameCount() - 2;
+    player->BeginSimulationAction();
+    player->PublishPlayerDecisionQueue({}, static_cast<int>(runtime.match()->GetActualTime_ms()));
+    REQUIRE_THROWS_AS(humanoid->Process(), std::runtime_error);
+  }
+
+  SECTION("base cadence warning can continue without a named logger") {
+    // No animation opportunity: the base path publishes its due movement axis
+    // and warns that no animation was selected. Keep its debug oracles intact.
+    for (int tick = 0; tick < 24 && !player->IsLocomotionIntentRefreshDue(
+            static_cast<int>(runtime.match()->GetActualTime_ms())); ++tick) {
+      runtime.simulation.Step(PlayerControlSet{});
+    }
+    REQUIRE(player->IsLocomotionIntentRefreshDue(
+        static_cast<int>(runtime.match()->GetActualTime_ms())));
+    auto *anim = const_cast<Anim *>(humanoid->GetCurrentAnim());
+    anim->frameNum = 0;
+    player->BeginSimulationAction();
+    const int commits = HumanoidBasePathRefreshCommits();
+    REQUIRE_NOTHROW(humanoid->HumanoidBase::Process());
+    REQUIRE(HumanoidBasePathRefreshCommits() == commits + 1);
   }
 }
 
