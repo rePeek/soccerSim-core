@@ -21,8 +21,7 @@
 // job. What the file format actually carries here is names, transforms and
 // local modes, so that is what is produced now.
 
-#include "support/config/properties.hpp"
-#include "support/io/xml_loader.hpp"
+#include "import/legacy_xml.hpp"
 #include "animation/import_hierarchy.hpp"
 
 namespace blunted {

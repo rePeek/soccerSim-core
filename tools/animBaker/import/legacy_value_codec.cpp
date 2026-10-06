@@ -1,11 +1,11 @@
-#include "support/text/value_codec.hpp"
+#include "import/legacy_value_codec.hpp"
 
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
 
-#include "support/text/string_utils.hpp"
+#include "import/legacy_text.hpp"
 
 namespace blunted {
 
@@ -18,7 +18,6 @@ std::string GetStringFromVector(const Vector3& vec) {
 
 Vector3 GetVectorFromString(const std::string& value) {
   if (value.empty()) {
-    std::printf("vectorfromstring warning, no value\n");
     return Vector3(0.0f);
   }
   std::vector<std::string> tokens;

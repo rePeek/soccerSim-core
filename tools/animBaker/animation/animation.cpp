@@ -19,8 +19,10 @@
 #include "animation/import_hierarchy.hpp"
 
 #include "support/io/file.hpp"
-#include "support/text/string_utils.hpp"
-#include "support/text/value_codec.hpp"
+#include "import/legacy_text.hpp"
+#include "import/legacy_value_codec.hpp"
+#include <fstream>
+#include <stdexcept>
 
 #include <stdio.h>
 

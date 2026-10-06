@@ -295,7 +295,10 @@ BakedAnimationSelector. Simulation loads/shares the library with Match/Humanoid;
 there is no ambient animation owner. Offline `.anim`/XML/object parsing lives under
 `tools/animBaker/`, never libgame.so. Two include roots are distinct:
 `sim/animation/...` is runtime, `animation/...` is offline tooling. Their filenames
-are disjoint. Shared XML loading belongs to support, not runtime animation.
+are disjoint. The original XML parser, codecs and necessary token/decimal helpers
+are owned by `tools/animBaker/import/legacy_*`, compiled only into the offline
+`football_legacy_anim` target. Keep parser semantics, including multimap ordering,
+duplicate tags and whitespace removal; do not replace it with a new XML library.
 
 Active movement work is animation root motion → explicit procedural kinematics:
 player_kinematics, player_locomotion, player_body_facing and decision/locomotion

@@ -4,7 +4,8 @@ add_library(football_legacy_anim OBJECT
   animation/animcollection.cpp
   animation/import_hierarchy.cpp
   animation/import_loader.cpp
-  animation/extensions/footballanimationextension.cpp)
+  animation/extensions/footballanimationextension.cpp
+  import/legacy_xml.cpp import/legacy_value_codec.cpp import/legacy_text.cpp)
 target_link_libraries(football_legacy_anim PUBLIC football::support football::foundation)
 target_include_directories(football_legacy_anim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 football_configure_target(football_legacy_anim)

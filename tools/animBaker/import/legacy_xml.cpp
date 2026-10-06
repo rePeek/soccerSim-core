@@ -11,13 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "support/io/xml_loader.hpp"
+#include "import/legacy_xml.hpp"
 
 #include <algorithm>
 #include <cctype>
 
-#include "support/diagnostics/log.hpp"
-#include "support/io/file.hpp"
+#include <fstream>
+#include <iterator>
+#include <stdexcept>
 
 namespace blunted {
 
@@ -26,7 +27,11 @@ XMLLoader::XMLLoader() {}
 XMLLoader::~XMLLoader() {}
 
 XMLTree XMLLoader::LoadFile(const std::string& filename) {
-  const std::string source = file_to_string(filename);
+  std::ifstream file(filename);
+  if (!file) throw std::runtime_error("Cannot open XML source: " + filename);
+  const std::string source((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
+  if (file.bad()) throw std::runtime_error("Cannot read XML source: " + filename);
 
   XMLTree tree;
   BuildTree(tree, source);
@@ -76,8 +81,8 @@ void XMLLoader::BuildTree(XMLTree& tree, const std::string& source) {
         index_end = index_nexttag_open;
       }
       if (index_end == std::string::npos) {
-        Log(e_FatalError, "XMLLoader", "BuildTree",
-            "No closing tag found for <" + tag + ">");
+        throw std::runtime_error("XMLLoader::BuildTree: no closing tag for <" +
+                                 tag + ">");
       }
     }
 

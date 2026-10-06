@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef FOOTBALL_SUPPORT_IO_XML_LOADER_HPP
-#define FOOTBALL_SUPPORT_IO_XML_LOADER_HPP
+#ifndef FOOTBALL_ANIMBAKER_IMPORT_LEGACY_XML_HPP
+#define FOOTBALL_ANIMBAKER_IMPORT_LEGACY_XML_HPP
 
 #include <map>
 #include <string>
@@ -28,7 +28,7 @@ struct XMLTree {
   map_XMLTree children;
 };
 
-// Small XML reader shared by runtime data and offline importers.
+// Legacy parser semantics for offline .anim/object import only.
 class XMLLoader {
  public:
   XMLLoader();
@@ -43,4 +43,4 @@ class XMLLoader {
 
 }  // namespace blunted
 
-#endif  // FOOTBALL_SUPPORT_IO_XML_LOADER_HPP
+#endif  // FOOTBALL_ANIMBAKER_IMPORT_LEGACY_XML_HPP

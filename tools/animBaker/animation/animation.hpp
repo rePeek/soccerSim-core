@@ -21,14 +21,14 @@
 #include <algorithm>
 #include <memory>
 #include "foundation/math/vector3.hpp"
-#include "support/diagnostics/log.hpp"
+#include <stdexcept>
 #include <iostream>
 
 #include <unordered_map>
 
 #include "animation/extensions/animationextension.hpp"
 
-#include "support/io/xml_loader.hpp"
+#include "import/legacy_xml.hpp"
 #include "sim/animation/types.hpp"
 
 namespace blunted {
@@ -116,7 +116,7 @@ struct ImportNode;
       case body_part_max:
         return "body_part_max";
       default:
-        Log(e_FatalError, "", "", "Body part not known");
+        throw std::runtime_error("Body part not known");
     }
     return "";
   }
@@ -150,8 +150,7 @@ struct ImportNode;
       return body;
     if (part == "player")
       return player;
-    Log(e_FatalError, "", "", "Body part not known: '" + part + "'");
-    return body_part_max;
+    throw std::runtime_error("Body part not known: '" + part + "'");
   }
 
   struct NodeAnimation {

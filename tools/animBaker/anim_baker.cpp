@@ -33,7 +33,7 @@
 #include "animation/extensions/footballanimationextension.hpp"
 #include "sim/animation/baked_selector.hpp"
 #include "foundation/math/vector3.hpp"
-#include "support/text/value_codec.hpp"
+#include "import/legacy_value_codec.hpp"
 
 using namespace blunted;
 

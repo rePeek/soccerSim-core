@@ -1,13 +1,8 @@
-#include "support/text/string_utils.hpp"
+#include "import/legacy_text.hpp"
 
 #include <cstdio>
 
 namespace blunted {
-
-std::string stringchomp(std::string input, char chomp) {
-  const std::string::size_type first = input.find_first_not_of(chomp);
-  return first == std::string::npos ? "" : input.substr(first);
-}
 
 void tokenize(const std::string& str, std::vector<std::string>& tokens,
               const std::string& delimiters) {

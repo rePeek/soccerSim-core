@@ -107,3 +107,9 @@ foreach(operation IN ITEMS check verify verify-selection)
   set_tests_properties(football_anim_baker_${operation} PROPERTIES
     FIXTURES_REQUIRED anim_baker_cli_artifact LABELS animation TIMEOUT 180)
 endforeach()
+
+add_executable(football_legacy_animation_import_test legacy_animation_import_test.cpp)
+target_link_libraries(football_legacy_animation_import_test PRIVATE
+  football_legacy_anim Catch2::Catch2WithMain)
+football_configure_target(football_legacy_animation_import_test)
+catch_discover_tests(football_legacy_animation_import_test PROPERTIES LABELS animation)

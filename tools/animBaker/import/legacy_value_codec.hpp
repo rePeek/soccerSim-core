@@ -1,7 +1,6 @@
-#ifndef FOOTBALL_SUPPORT_TEXT_VALUE_CODEC_HPP
-#define FOOTBALL_SUPPORT_TEXT_VALUE_CODEC_HPP
+#ifndef FOOTBALL_ANIMBAKER_IMPORT_LEGACY_VALUE_CODEC_HPP
+#define FOOTBALL_ANIMBAKER_IMPORT_LEGACY_VALUE_CODEC_HPP
 
-#include "support/text/value_codec.hpp"
 #include <string>
 
 #include "foundation/math/quaternion.hpp"
@@ -15,4 +14,4 @@ Quaternion GetQuaternionFromString(const std::string& value);
 
 }  // namespace blunted
 
-#endif  // FOOTBALL_SUPPORT_TEXT_VALUE_CODEC_HPP
+#endif  // FOOTBALL_ANIMBAKER_IMPORT_LEGACY_VALUE_CODEC_HPP

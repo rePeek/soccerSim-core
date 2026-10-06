@@ -25,8 +25,10 @@
 #include "animation/extensions/footballanimationextension.hpp"
 
 #include "support/io/file.hpp"
-#include "support/text/string_utils.hpp"
-#include "support/text/value_codec.hpp"
+#include "import/legacy_text.hpp"
+#include "import/legacy_value_codec.hpp"
+#include <filesystem>
+#include <stdexcept>
 
 void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap) {
   nodeMap[BodyPartFromString(targetNode->GetName())] = targetNode;
