@@ -33,6 +33,8 @@
 #include "sim/observation_epoch.hpp"
 #include "sim/match_phase.hpp"
 #include "sim/match_result.hpp"
+#include "sim/tick.hpp"
+#include "sim/tick_boundary.hpp"
 
 
 #include <cstdint>
@@ -129,7 +131,12 @@ class Match {
     float GetAveragePossessionSide(int time_ms) const { return possessionSideHistory.GetAverage(time_ms); }
 
     std::uint64_t GetMatchTime_ms() const { return matchTime_ms; }
-    unsigned long GetActualTime_ms() const { return actualTime_ms; }
+    football::sim::Tick GetTimelineTick() const { return now_; }
+    void AdvanceTime(football::sim::TickSpan delta);
+    // Temporary adapters for owners not yet migrated. No millisecond timeline storage.
+    unsigned long GetActualTime_ms() const {
+      return static_cast<unsigned long>(football::sim::ToMilliseconds(now_));
+    }
     void BumpActualTime_ms(unsigned long time);
 
 
@@ -182,13 +189,12 @@ class Match {
     std::vector<MentalImage> mentalImages; // [index] == index * 10 ms ago ([0] == now)
 
     std::uint64_t matchTime_ms = 0;
-    unsigned long actualTime_ms = 0;
+    football::sim::Tick now_{};
     std::uint64_t duration_ticks_ = 0;
     // Actual world discontinuities; not a policy/request timer.
     std::uint64_t reset_sequence_ = 0;
     bool pending_change_of_ends_ = false;
     const ObservationEpoch observation_epoch_ = ObservationEpoch::New();
-    unsigned long goalScoredTimer = 0;
 
     MatchPhase matchPhase = MatchPhase::PreMatch;
     bool inPlay = false;
@@ -206,7 +212,7 @@ class Match {
     ValueHistory<float> possessionSideHistory;
 
 
-    unsigned int lastBodyBallCollisionTime_ms = 0;
+    football::sim::Tick last_body_ball_collision_tick_{};
 
 
     std::unique_ptr<Referee> referee_;

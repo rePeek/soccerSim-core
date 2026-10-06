@@ -52,8 +52,6 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
       options_(options) {
 
 
-  actualTime_ms = 0;
-  goalScoredTimer = 0;
 
 
   ball = new Ball(this);
@@ -105,7 +103,6 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
 
 
 
-  lastBodyBallCollisionTime_ms = 0;
 
 }
 
@@ -172,7 +169,7 @@ void Match::ResetSituation(const Vector3 &focusPos) {
 
   possessionSideHistory.Clear();
 
-  lastBodyBallCollisionTime_ms = 0;
+  last_body_ball_collision_tick_ = {};
 
   ball->ResetSituation(focusPos);
   teams[first_team]->ResetSituation(focusPos);
@@ -249,7 +246,7 @@ bool Match::Step(const PlayerControlSet& controls) {
   if (Finished()) return false;
   if (!IsInPlay() && referee_->GetBuffer().prepareTime + 10 < GetActualTime_ms()) {
     // Do not do simulation when game is on hold to save CPU.
-    BumpActualTime_ms(10);
+    AdvanceTime(football::sim::TickSpan{1});
     return false;
   }
   Mirror(false, false, reverse);
@@ -257,7 +254,8 @@ bool Match::Step(const PlayerControlSet& controls) {
   Mirror(false, false, reverse);
 
   // create mental images for the AI to use
-  if (mentalImages.empty() || GetActualTime_ms() % 100 == 0) {
+  constexpr football::sim::TickSpan kMentalImageCadence{10};
+  if (mentalImages.empty() || now_.value % kMentalImageCadence.value == 0) {
     mentalImages.insert(mentalImages.begin(), MentalImage(this));
     if (mentalImages.size() > 3) {
       mentalImages.pop_back();
@@ -298,7 +296,7 @@ bool Match::Step(const PlayerControlSet& controls) {
   Mirror(reverse, !reverse, reverse);
   CheckHumanoidCollisions();
 
-  BumpActualTime_ms(10);
+  AdvanceTime(football::sim::TickSpan{1});
 
   // check for goals
   bool first_team_goal = false;
@@ -744,8 +742,8 @@ void Match::CheckBallCollisions() {
 
 
 
-  //printf("%i - %i hihi\n", actualTime_ms, lastBodyBallCollisionTime_ms + 150);
-  if (actualTime_ms <= lastBodyBallCollisionTime_ms + 150) return;
+  constexpr football::sim::TickSpan kBodyBallCollisionCooldown{15};
+  if (now_ <= last_body_ball_collision_tick_ + kBodyBallCollisionCooldown) return;
 
   std::vector<Player*> players;
   GetTeam(first_team)->GetActivePlayers(players);
@@ -862,13 +860,22 @@ void Match::CheckBallCollisions() {
     ball->Touch(resultVector);
     ball->SetRotation(rng_.Uniform(-30, 30), rng_.Uniform(-30, 30),
                       rng_.Uniform(-30, 30), 0.5f * bias);
-    lastBodyBallCollisionTime_ms = actualTime_ms;
+    last_body_ball_collision_tick_ = now_;
   }
 }
 
 
 
 void Match::BumpActualTime_ms(unsigned long time) {
+  AdvanceTime(football::sim::TickSpanFromMillisecondsExact(time));
+}
+
+void Match::AdvanceTime(football::sim::TickSpan delta) {
+  const auto next_tick = now_ + delta;
+  // Compatibility with the still-scaled, possibly sub-tick football clock and
+  // possession accumulator. Preserve their float evaluation order in this stage.
+  // This conversion disappears when those owners migrate; it is not a second timeline.
+  const auto time = football::sim::ToMilliseconds(delta);
   if (IsInPlay()) {
     // Truncate each scaled increment as before, then accumulate in integer time.
     // Avoid float re-rounding of the accumulated clock (and eventual stagnation).
@@ -878,8 +885,7 @@ void Match::BumpActualTime_ms(unsigned long time) {
     // gets its own kickoff/playing period instead of consuming the next half.
     matchTime_ms += std::min(increment, limit - std::min(matchTime_ms, limit));
   }
-  actualTime_ms += time;
-  if (IsGoalScored()) goalScoredTimer += time; else goalScoredTimer = 0;
+  now_ = next_tick;
 
   if (IsInPlay() && !IsInSetPiece()) {
     if (teams[0] == designatedPossessionPlayer->GetTeam()) {

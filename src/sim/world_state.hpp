@@ -36,6 +36,8 @@ struct WorldTeamState {
 // processing orders. Change of ends never flips the observed defending directions.
 // No actor pointers, animation/command queues, mutable runtime or AI objects.
 struct WorldState {
+  // Absolute simulation timeline tick, including restart fast-forwards; not
+  // the number of executed Steps and not the scaled football clock.
   std::uint64_t tick = 0;
   MatchPhase phase = MatchPhase::PreMatch;
   // Scaled football clock, paused during stoppages, not elapsed/observation time.

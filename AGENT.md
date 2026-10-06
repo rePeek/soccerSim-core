@@ -96,7 +96,8 @@ tools/
 ├── animBaker/              offline importers and callable bake/check/verify library + CLI
 │   └── import/legacy_*     offline-only XML, value codecs and required text helpers
 ├── 4f-b-pure-locomotion-animation-read-audit.md
-└── 5a1-contact-authority.md
+├── 5a1-contact-authority.md
+└── time-model-migration.md  completed tick stages and explicit semantic boundaries
 
 test/                        C++/Catch2 unit and integration tests, no shell guards
 ├── gameenv_test.cpp          public façade lifecycle and composition equivalence
@@ -110,6 +111,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── sim_control_boundary_test.cpp controls/frames/reset/replay
 ├── sim_match_lifecycle_test.cpp phases/clocks/end changes/result/freeze
 ├── pitch_frame_test.cpp     half/order geometry, nonzero ball/velocity and control round trips
+├── match_tick_test.cpp      timeline authority, restart tail, freeze and invalid boundaries
 ├── restart_placement_test.cpp + restart_placement_fixture.hpp
 ├── anim_baking_test.cpp      two independent bakes, byte equality, field/selection verification
 ├── legacy_animation_import_test.cpp parser semantics, codecs and catchable failures
@@ -230,6 +232,12 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   rejected, never silently rounded. Existing millisecond runtime APIs remain
   transitional until their individual owners migrate. Keep unit migration separate
   from dead-ball/clock-scale semantics; preserve float arithmetic and numerical goldens.
+  Match stores only `Tick now_` for its timeline; normal steps call
+  `AdvanceTime(TickSpan{1})`, and WorldState reads it directly. Remaining `_ms`
+  timeline accessors are temporary exact adapters, not duplicate state. The legacy
+  scaled football clock remains millisecond-based until its semantic migration:
+  it supports sub-tick progress. See tools/time-model-migration.md before removing
+  scale, rounding arrival estimates, or replacing the old restart preparation tail.
 - Referee owns period transitions; Match owns phase, football clock, score and
   executed-step count. MatchPhase is PreMatch/FirstHalf/SecondHalf/Finished;
   second-half kickoff preparation is inside SecondHalf. Defaults are two 45-minute
@@ -240,8 +248,8 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   period boundaries. Whistles win over pending restarts and that tick's ball contact.
 - Terminal Match freezes clocks, actors, actions, ball, scores, RNG and Result.
   duration_ticks counts executed Steps including the terminal transition; World.tick
-  is compressed elapsed-time units including restart skips. Football match_time_ms
-  is separately paused/scaled; never conflate these three measures.
+  is the simulation timeline including restart skips. Football match_time_ms is
+  separately paused/scaled; never conflate these three measures.
 - Half time mirrors both teams/ball/mental images once at the next canonical
   between-tick frame. Static physical sides flip, while WorldState keeps the home
   frame and TeamSide remains Home/Away. The same physical goal credits the opposite
