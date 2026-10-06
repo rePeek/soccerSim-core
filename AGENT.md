@@ -37,8 +37,8 @@ under `.cache/CPM`. Core-only configuration requires no network:
 cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF
 ```
 
-The app input/fixture archives remain explicit `EXCLUDE_FROM_ALL` targets even
-when CLI/tests are disabled. Neither is linked into the shared library.
+The app args/fixture archive remains an explicit `EXCLUDE_FROM_ALL` target even
+when CLI/tests are disabled. It is never linked into the shared library.
 CTest sets `GFOOTBALL_DATA_DIR=$PWD/data` for regression's offline import fixtures.
 Runtime does not use that variable: it reads the configured baked animation asset.
 
@@ -73,8 +73,7 @@ src/
 │   └── default_ai.*  WorldState + boards/requests → PlayerControlSet
 ├── app/              executable-side code, never in core
 │   ├── app.cpp / args.* parse → GameEnv → complete match → write Result
-│   ├── fixtures/     legacy sample roster/profile import → model
-│   └── input/grf/    wire actions/sticky state/selection → value controls/requests
+│   └── fixtures/     legacy sample roster/profile import → model
 ├── gameenv.hpp       public autonomous match façade; values + opaque private owners
 └── gameenv.cpp       sole product composition implementation for AI + sim
 
@@ -93,7 +92,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── player_identity_test.cpp  identity-independent runtime/RNG replay
 ├── sim_contracts_test.cpp    standalone input/output values
 ├── model_test.cpp            standalone STL domain checks
-├── app_*_test.cpp            args, fixtures, CLI composition and input values
+├── app_*_test.cpp            args, fixtures and CLI composition
 ├── default_ai_test.cpp + default_ai_fixture.hpp
 ├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
 ├── sim_control_boundary_test.cpp controls/frames/reset/replay
@@ -116,7 +115,6 @@ symbols (including the currently unused GetRoleFromString).
 app → game (gameenv.cpp) → ai + sim
 ai → ai_contracts + sim_contracts → model/foundation
 sim → sim_contracts + animation + support → model/foundation
-app_input → sim_contracts
 app_support (args/fixtures) → model + support
 anim_baking → legacy_anim + animation + support/foundation
 ```
@@ -144,7 +142,6 @@ anim_baking → legacy_anim + animation + support/foundation
   textual includes; reviewers must keep include boundaries consistent with the DAG.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   model/foundation must not depend on upper layers. sim must never depend on AI.
-  Input remains value-only, never concrete policy or runtime actors.
 - model and foundation retain standalone CMake support.
 
 ## Test targets
@@ -162,9 +159,11 @@ anim_baking → legacy_anim + animation + support/foundation
   rosters, side changes/send-offs and >256 entries; identity-independent numerical,
   policy, scheduling and RNG fingerprints. Supports `--print-baseline`.
 - `football_model_test` and `football_sim_contracts_test` link only their value
-  targets; `football_default_ai_test` links only policy/contracts/Catch2;
-  `football_app_input_test` links only input/contracts/Catch2, no AI/game/runtime.
+  targets; `football_default_ai_test` links only policy/contracts/Catch2.
 - `football_sim_control_boundary_test` includes lifecycle and restart tests.
+  Direct PlayerControlSet tapes cover every WorldState payload field and RNG state
+  at all 400 frames, both processing orders, independent replay and Stop/Init replay.
+  No policy or external action protocol is involved in this replay test.
   Restart placement covers 72 original-source cases: 6 restart types × 2 processing
   orders × 2 taker sides × 3 roster shapes (11/11, 3/2, 1/1).
 - `football_anim_baking_test`: independent source loads/bakes produce identical
@@ -228,12 +227,16 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   correctness precondition. Unbound synthetic observations cannot issue requests.
 - RefereeBuffer is sole restart type/taker/prepare/start authority. sim/rules owns
   restart placement/taker/retain mechanics. No duplicate AI restart authority.
-- Direct interactive/network/replay/test consumers own Simulation + policy + input
-  explicitly outside GameEnv. Input emits controls/TeamDecisionRequest values; that
-  consumer routes requests and merges overrides, not the autonomous façade.
-- GRF wire actions 0–32, sticky modifiers and selection are executable-side values.
-  Kicks/sliding/switch are one-shot requests, default power 0.6; no old planner/gauge.
-  Selection excludes the declared model keeper, not an AI-planned role.
+- Diagnostics/tests may compose Simulation and explicit PlayerControlSet sequences
+  outside GameEnv. Equal declarations + equal control tapes must replay identical
+  WorldState payloads and RNG states; epoch identities intentionally differ.
+- The GRF action protocol, player selection/sticky state, TeamDecisionRequest and
+  app input target are removed. The app only configures and runs an autonomous match.
+- DefaultAI::RequestAttackingRun/RequestTeamPressure/RequestKeeperRush and their
+  transient intent/lifecycle tests remain unchanged for a separate ownership audit.
+  They are not app-facing input APIs and are never exposed through GameEnv. Decide
+  whether they become AI-internal intent or a future coach mechanism separately;
+  do not retain them merely for a retired compatibility client.
 - Simulation has no decisions/input ownership. Empty controls mean idle movement;
   control execution translates frames, resolves active model IDs and rejects illegal
   hands saves/inactive recipients. Mechanics remain in sim, not policy.
@@ -295,6 +298,6 @@ keep regression output exact.
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::model, football::ai,
-football::app::grf, blunted. Legacy sim/value classes remain global. Never duplicate
+football::app, blunted. Legacy sim/value classes remain global. Never duplicate
 an authoritative field as a cache without need. Preserve Mirror/reverse processing
 symmetry. Model must not include simulation or orchestration headers.

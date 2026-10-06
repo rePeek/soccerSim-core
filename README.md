@@ -80,7 +80,7 @@ unscaled home-frame WorldState with ball motion, team scores/directions, player
 kinematics, play/restart/retention, reset sequence and an opaque Match epoch.
 There is no authoritative-state replacement or hidden per-tick snapshot history.
 
-### AI intent and direct interactive/replay composition
+### AI intent and simulation replay
 
 AI owns persistent desired/planned TacticalBoards and short-lived requests,
 never actual simulation state. `AIConfig::initial_tactics` optionally supplies
@@ -88,14 +88,12 @@ startup boards by side; otherwise DefaultAI bootstraps them from static models.
 These values are copied, not exposed as a live env mutation channel. DefaultAI
 currently reads its base boards without rewriting them during Update.
 
-Interactive/test/network/replay consumers explicitly compose `Simulation`, their
-policy and optional `app/input/grf::Input` outside the headless runner. Input emits
-PlayerControlSet overrides and frame-local TeamDecisionRequest values; the
-composition root routes requests to its own policy and merges controls before
-Simulation::Step. Direct DefaultAI tactics/Request* APIs remain for those paths,
-not as GameEnv proxies. GRF wire 0–32, sticky modifiers and one-shot actions remain
-value-only; input selection is not sim authority. Requests are intentions, not
-facts that a kick/press/save was executed.
+The app has no external action protocol, player selection or human input path.
+GRF actions/sticky state and their adapter are removed. Diagnostics/tests replay
+explicit PlayerControlSet tapes directly through Simulation: equal initial
+declarations and controls produce identical trajectories and RNG states, without AI.
+DefaultAI's transient Request* APIs and their lifecycle tests remain unchanged
+pending a separate AI-ownership audit; neither app nor GameEnv exposes them.
 
 Requests bind to owning, equality-only `WorldState::simulation_epoch`, tick and
 reset sequence. New Matches cannot reactivate old requests. The epoch retains
@@ -112,9 +110,9 @@ import provenance, never identity. Sample factories supply IDs 0–10 and 11–2
 and live only in app fixtures, never core. Supported pitch geometry remains the
 legacy 110 × 72 metres.
 
-Simulation consumes values regardless of AI/human/network/replay origin, with
-idle fallback for missing controls and execution-side legality. It has no policy
-fallback or input ownership. Referee is the rules engine, not a moving actor.
+Simulation consumes explicit PlayerControlSet values, with idle fallback for
+missing controls and execution-side legality. It has no policy fallback or input
+ownership. Referee is the rules engine, not a moving actor.
 Animation mechanics use the baked asset, never runtime XML/legacy importers.
 There is no active-environment global, ScenarioConfig, GRF environment adapter,
 controller hierarchy or byte-blob checkpoint API. Durable save/load would require
@@ -134,7 +132,7 @@ football_app → football::game → ai + sim → model/foundation
 Root CMake exposes model, sim contracts and AI startup contracts as PUBLIC usage
 requirements; concrete sim/AI implementations stay PRIVATE. query/rules/player
 stay sim internals; sim/animation is an independent archive also consumed by the
-offline baker. AI and input link only value contracts, never sim actors.
+offline baker. AI links only value contracts, never sim actors.
 `cmake/module_dependencies.cmake` validates actual dependency closures and source/
 header ownership at configure time, including core-only builds. There are no
 shell architecture guards or generated dependency reports.
@@ -152,9 +150,9 @@ black-box coverage; a separate smoke executable is unnecessary.
 
 Catch2 is fetched via CPM only with BUILD_TESTING enabled and cached in `.cache/CPM`.
 `-DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF` is a network-free core-only build;
-input/fixture archives remain explicit EXCLUDE_FROM_ALL targets. Neither app nor
-Catch2/offline baker code is linked into core. Tests cover rule/clock completion,
-results/lifecycle/restart, independent owners, AI-only and input-only value paths,
+the args/fixture archive remains an explicit EXCLUDE_FROM_ALL target. Neither app
+nor Catch2/offline baker code is linked into core. Tests cover rule/clock completion,
+results/lifecycle/restart, independent owners and AI-only value paths,
 control-tape/RNG replay and baselines. Test-only programs live under `test/`;
 `tools/` contains the regression diagnostic and offline animation baker. The baker
 shares callable bake/check/verify operations with Catch2 tests, which compare

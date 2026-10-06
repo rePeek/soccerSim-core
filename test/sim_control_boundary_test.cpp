@@ -3,13 +3,12 @@
 #include <array>
 #include <cstring>
 #include <type_traits>
+#include <vector>
 
 #include <catch2/catch_test_macros.hpp>
 
 #include "default_ai_fixture.hpp"
 #include "app/fixtures/default_teams.hpp"
-#include "app/input/grf/input.hpp"
-#include "gameenv.hpp"
 #include "sim/match.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/team.hpp"
@@ -217,75 +216,112 @@ TEST_CASE("explicit controls are the sole command source and absence is idle", "
   REQUIRE(queue[0].desiredVelocityFloat == 0.f);
 }
 
-TEST_CASE("direct input policy composition and plain control replay execute the same simulation", "[sim][input][replay]") {
+TEST_CASE("plain control tapes replay every WorldState and RNG state without AI", "[sim][control][replay]") {
   const auto home = football::app::fixtures::MakeDefaultHomeTeam();
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   const auto pitch = football::model::MakeLegacyPitch();
-  Simulation interactive;
-  interactive.Init(home, away, pitch, MatchOptions{}, false);
-  football::ai::DefaultAI policy(home, away, pitch);
-  PlayerControlSet overrides;
-  Simulation replay;
-  replay.Init(home, away, pitch, MatchOptions{}, false);
-  football::app::grf::Input input(home, football::model::TeamSide::Home);
-  football::ai::DefaultAI compiler(home, away, pitch);
-  football::app::grf::TeamDecisionRequest requests;
-  using Action = football::app::grf::Action;
   const auto same_world = [](const WorldState &a, const WorldState &b) {
+    // Epochs identify owners, not deterministic payload: independent matches differ.
+    REQUIRE(a.simulation_epoch.valid());
+    REQUIRE(b.simulation_epoch.valid());
+    REQUIRE(a.simulation_epoch != b.simulation_epoch);
     REQUIRE(a.tick == b.tick);
+    REQUIRE(a.phase == b.phase);
+    REQUIRE(a.match_time_ms == b.match_time_ms);
     REQUIRE(a.reset_sequence == b.reset_sequence);
+    REQUIRE(a.pitch == b.pitch);
+    REQUIRE(a.in_play == b.in_play);
+    REQUIRE(a.in_set_piece == b.in_set_piece);
+    REQUIRE(a.restart == b.restart);
+    REQUIRE(a.restart_taker == b.restart_taker);
+    REQUIRE(a.ball_retainer == b.ball_retainer);
     REQUIRE(Same(a.ball_position, b.ball_position));
     REQUIRE(Same(a.ball_velocity, b.ball_velocity));
-    REQUIRE(a.restart_taker == b.restart_taker);
+    for (std::size_t side = 0; side < a.teams.size(); ++side) {
+      REQUIRE(a.teams[side].side == b.teams[side].side);
+      REQUIRE(a.teams[side].defending_direction == b.teams[side].defending_direction);
+      REQUIRE(a.teams[side].score == b.teams[side].score);
+    }
     REQUIRE(a.players.size() == b.players.size());
     for (std::size_t i = 0; i < a.players.size(); ++i) {
-      REQUIRE(a.players[i].id == b.players[i].id);
-      REQUIRE(Same(a.players[i].position, b.players[i].position));
-      REQUIRE(Same(a.players[i].velocity, b.players[i].velocity));
-      REQUIRE(Same(a.players[i].facing, b.players[i].facing));
+      const auto &x = a.players[i];
+      const auto &y = b.players[i];
+      REQUIRE(x.id == y.id);
+      REQUIRE(x.side == y.side);
+      REQUIRE(x.active == y.active);
+      REQUIRE(x.has_possession == y.has_possession);
+      REQUIRE(x.lazy == y.lazy);
+      REQUIRE(x.max_speed == y.max_speed);
+      REQUIRE(Same(x.position, y.position));
+      REQUIRE(Same(x.velocity, y.velocity));
+      REQUIRE(Same(x.facing, y.facing));
     }
   };
-  std::vector<PlayerControlSet> tape;
-  for (int tick = 0; tick < 400; ++tick) {
-    if (tick == 0) input.Apply(Action::Right);
-    if (tick == 100) input.Apply(Action::Sprint);
-    if (tick == 220) input.Apply(Action::Shot);
-    if (tick == 230) input.Apply(Action::Pressure);
-    if (tick == 240) input.Apply(Action::TeamPressure);
-    if (tick == 250) input.Apply(Action::KeeperRush);
-    if (tick == 270) input.Apply(Action::ReleasePressure);
-    if (tick == 280) input.Apply(Action::BuiltinAI);
-    if (tick == 300) input.Apply(Action::Left);
-    const auto world = interactive.Observe();
-    input.Update(world, overrides, requests);
-    if (requests.attacking_run) {
-      REQUIRE(policy.RequestAttackingRun(requests.side, world) ==
-              compiler.RequestAttackingRun(requests.side, world));
+
+  for (bool reverse : {false, true}) {
+    CAPTURE(reverse);
+    MatchOptions options;
+    options.reverse_team_processing = reverse;
+    Simulation source;
+    source.Init(home, away, pitch, options, false);
+    const auto initial = source.Observe();
+    const auto initial_rng = source.match()->rng().engine();
+    std::vector<PlayerControlSet> tape;
+    std::vector<WorldState> trajectory;
+    std::vector<blunted::BaseGenerator> rng_states;
+    for (int tick = 0; tick < 400; ++tick) {
+      PlayerControlSet controls;
+      // Empty frames exercise idle fallback instead of retaining old controls.
+      if (tick < 280 || tick >= 300) {
+        PlayerControl home_control;
+        home_control.move_direction = tick < 100 ? Vector3(1, 0, 0)
+            : tick < 200 ? Vector3(1, 1, 0).GetNormalized() : Vector3(-1, 0, 0);
+        home_control.desired_speed = tick < 200 ? 5.0f : 2.5f;
+        home_control.look_at = Vector3(30, 4, 0);
+        if (tick == 220) {
+          home_control.action = ControlAction::Shoot;
+          home_control.target_position = Vector3(55, 0, 0);
+          home_control.power = 0.6f;
+        }
+        if (tick == 320) {
+          home_control.action = ControlAction::ShortPass;
+          home_control.target_player = home.players[2].id;
+          home_control.power = 0.4f;
+        }
+        controls.Set(home.players[1].id, home_control);
+
+        PlayerControl away_control;
+        away_control.move_direction = Vector3(0, -1, 0);
+        away_control.desired_speed = 3.0f;
+        if (tick == 240) away_control.action = ControlAction::Tackle;
+        controls.Set(away.players[1].id, away_control);
+      }
+      tape.push_back(controls);
+      source.Step(controls);
+      trajectory.push_back(source.Observe());
+      rng_states.push_back(source.match()->rng().engine());
     }
-    if (requests.team_pressure) {
-      REQUIRE(policy.RequestTeamPressure(requests.side, world, requests.pressure_excluded_player) ==
-              compiler.RequestTeamPressure(requests.side, world, requests.pressure_excluded_player));
+    REQUIRE(tape.size() == 400);
+    REQUIRE(tape[280].controls().empty());
+    REQUIRE_FALSE(Same(Actor(initial, home.players[1].id).position,
+                       Actor(trajectory.back(), home.players[1].id).position));
+    source.Stop(); // Tape/snapshots remain usable without the recording owner.
+
+    Simulation replay;
+    for (int run = 0; run < 2; ++run) {
+      CAPTURE(run);
+      replay.Init(home, away, pitch, options, false);
+      same_world(initial, replay.Observe());
+      REQUIRE(replay.match()->rng().engine() == initial_rng);
+      for (std::size_t tick = 0; tick < tape.size(); ++tick) {
+        CAPTURE(tick);
+        replay.Step(tape[tick]);
+        same_world(trajectory[tick], replay.Observe());
+        REQUIRE(replay.match()->rng().engine() == rng_states[tick]);
+      }
+      replay.Stop();
     }
-    if (requests.keeper_rush) {
-      REQUIRE(policy.RequestKeeperRush(requests.side, world) ==
-              compiler.RequestKeeperRush(requests.side, world));
-    }
-    PlayerControlSet compiled;
-    compiler.Update(world, compiled);
-    for (const auto &control : overrides.controls()) compiled.Set(control.player, control);
-    tape.push_back(compiled);
-    football::test::StepDefaultAI(interactive, policy, overrides);
-    replay.Step(compiled);
-    same_world(interactive.Observe(), replay.Observe());
-    REQUIRE(interactive.match()->rng().engine() == replay.match()->rng().engine());
   }
-  const auto expected = replay.Observe();
-  const auto rng = replay.match()->rng().engine();
-  replay.Stop();
-  replay.Init(home, away, pitch, MatchOptions{}, false);
-  for (const auto &frame : tape) replay.Step(frame);
-  same_world(expected, replay.Observe());
-  REQUIRE(replay.match()->rng().engine() == rng);
 }
 
 TEST_CASE("world discontinuities invalidate AI requests without storing them in sim", "[sim][boundary]") {

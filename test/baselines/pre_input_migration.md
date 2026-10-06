@@ -19,3 +19,7 @@ mechanics. The app GRF decoder preserves action wire numbers, but deliberately
 uses one-shot kicks/sliding/switch and explicit power instead of the removed
 Human animation planner/gauge. That input-policy change is not a claim of
 bit-exact compatibility with the old Human path.
+
+Historical note: the app GRF decoder described above was subsequently retired
+entirely. Simulation replay now uses explicit PlayerControlSet tapes; the historical
+hashes and numerical baselines in this table remain unchanged.

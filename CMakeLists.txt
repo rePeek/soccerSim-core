@@ -35,8 +35,8 @@ target_link_libraries(game
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim>")
 football_configure_target(game)
 
-# Input/fixture archives are EXCLUDE_FROM_ALL, but remain available to tests and
-# explicit consumers even when CLI and testing are both disabled.
+# Executable-side args/fixtures stay EXCLUDE_FROM_ALL but are available to tests
+# and explicit consumers even when CLI and testing are both disabled.
 add_subdirectory(src/app)
 
 if(BUILD_TESTING)
