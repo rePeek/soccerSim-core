@@ -41,6 +41,8 @@ TEST_CASE("legacy import operational failures are catchable exceptions",
   CHECK_THROWS_AS(loader.LoadFile("missing-legacy-import-source.xml"), std::runtime_error);
   CHECK_THROWS_AS(BodyPartFromString("not_a_body_part"), std::runtime_error);
   CHECK_THROWS_AS(BodyPartString(static_cast<BodyPart>(-1)), std::runtime_error);
+  Animation animation;
+  CHECK_THROWS_AS(animation.Load("missing-legacy-import-source.anim"), std::runtime_error);
 }
 
 TEST_CASE("legacy tokenization appends nonempty delimiter-separated fields",

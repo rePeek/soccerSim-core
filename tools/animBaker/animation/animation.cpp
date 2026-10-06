@@ -18,7 +18,7 @@
 #include "animation/animation.hpp"
 #include "animation/import_hierarchy.hpp"
 
-#include "support/io/file.hpp"
+#include <cassert>
 #include "import/legacy_text.hpp"
 #include "import/legacy_value_codec.hpp"
 #include <fstream>
@@ -947,8 +947,11 @@ void Animation::DirtyCache() {
   void Animation::Load(const std::string &filename) {
     name = filename;
 
+    std::ifstream source(filename);
+    if (!source) throw std::runtime_error("Cannot open animation source: " + filename);
     std::vector<std::string> file;
-    file_to_vector(filename, file);
+    for (std::string line; std::getline(source, line);) file.push_back(std::move(line));
+    if (source.bad()) throw std::runtime_error("Cannot read animation source: " + filename);
 
     std::vector < std::vector<std::string> > tokenizedFile;
     int lastLine = 0;

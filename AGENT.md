@@ -50,7 +50,6 @@ Runtime does not use that variable: it reads the configured baked animation asse
 ```text
 src/
 ├── foundation/       general math, geometry, Hungarian algorithm; STL/self only
-├── support/          config, diagnostics, file/XML, strings/codecs; foundation only
 ├── model/            STL-only static football descriptions
 │   ├── player.hpp    PlayerId, legacy PlayerDatabaseId, abilities and appearance
 │   ├── team.hpp      rosters, typed tactics, TeamSide (Home/Away, not club identity)
@@ -88,6 +87,7 @@ cmake/
 tools/
 ├── football_regression.cpp developer regression/animation A/B diagnostic
 ├── animBaker/              offline importers and callable bake/check/verify library + CLI
+│   └── import/legacy_*     offline-only XML, value codecs and required text helpers
 ├── 4f-b-pure-locomotion-animation-read-audit.md
 └── 5a1-contact-authority.md
 
@@ -103,6 +103,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── sim_match_lifecycle_test.cpp phases/clocks/end changes/result/freeze
 ├── restart_placement_test.cpp + restart_placement_fixture.hpp
 ├── anim_baking_test.cpp      two independent bakes, byte equality, field/selection verification
+├── legacy_animation_import_test.cpp parser semantics, codecs and catchable failures
 └── baselines/               historical policy/input/phase schema goldens
 ```
 
@@ -118,9 +119,9 @@ symbols (including the currently unused GetRoleFromString).
 ```text
 app → game (gameenv.cpp) → ai + sim
 ai → ai_contracts + sim_contracts → model/foundation
-sim → sim_contracts + animation + support → model/foundation
+sim → sim_contracts + animation → model/foundation (PRIVATE BqLog)
 app_support (args/fixtures) → model/foundation
-anim_baking → legacy_anim + animation + support/foundation
+anim_baking → legacy_anim + animation/foundation
 ```
 
 - `football_sim_contracts` is header-only and owns the exact value headers listed
@@ -134,7 +135,9 @@ anim_baking → legacy_anim + animation + support/foundation
   BqLog is PRIVATE to game/sim, never in public value contracts or policy.
   Runtime warnings use BqLog, operational failures throw, debug invariants use
   <cassert>. No product signal handlers/backtraces or deliberate crash logging.
-  Remaining support utilities are temporary offline consumers pending removal.
+  Current product scope is one process/one match: no logger registry, batch or
+  new general infrastructure/utils module. There is no src/support or support target;
+  file I/O uses the STL at its call sites, Properties and custom diagnostics are removed.
 - `football_animation` is an independent archive. The offline baker can load and
   verify baked assets without linking Simulation or GameEnv.
 - `football_legacy_anim` is an offline object target. `football_anim_baking` is a
@@ -179,6 +182,11 @@ anim_baking → legacy_anim + animation + support/foundation
 - `football_anim_baking_test`: independent source loads/bakes produce identical
   bytes, artifact round-trip/field/selection checks and failure cases. CTest also
   invokes the real baker's --check, --verify, --verify-selection flags.
+- `football_legacy_animation_import_test`: original XML recursion, duplicate/tag
+  ordering and whitespace semantics; token appending, codecs, body-part/XML/file
+  failures throw instead of terminating the process. Links only offline/foundation.
+- Fixture tests preserve both sides' abilities bit-for-bit against fingerprints
+  captured before replacing XML; six-decimal quantization is fixture-local.
 - The actual `football_app` supplies black-box short/full match coverage. There is
   no separate smoke executable and no shell architecture-test tier.
 
@@ -197,8 +205,8 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
 
 - Start requires stopped state and initializes local owners before publishing
   either. Failure remains stopped. Stop is idempotent and releases both; Start
-  recreates the original declarations/config. Stack traces, parsing, formatting
-  and serialization belong to executable entry points, not GameEnv.
+  recreates the original declarations/config and reuses the named process logger.
+  Parsing, formatting and serialization belong to app, not GameEnv.
 - One Step means one 10 ms simulation step. After full time it is a no-op including
   AI; stopped Step/Observe throw logic_error. Finished is false while stopped.
   Result throws before full time or after Stop; stopping never invents completion.

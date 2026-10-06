@@ -148,10 +148,17 @@ not a partial observation. Parsing/writing belongs to app. CLI/tool executable
 paths remain at the build root. CTest runs the real app for short and full-match
 black-box coverage; a separate smoke executable is unnecessary.
 
-Catch2 is fetched via CPM only with BUILD_TESTING enabled and cached in `.cache/CPM`.
-`-DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF` is a network-free core-only build;
-the args/fixture archive remains an explicit EXCLUDE_FROM_ALL target. Neither app
-nor Catch2/offline baker code is linked into core. Tests cover rule/clock completion,
+BqLog 2.5.0 is fetched via CPM at a pinned commit in all build modes; Catch2 is
+fetched only with BUILD_TESTING enabled. Both are cached in `.cache/CPM`.
+`-DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF` builds core only (first BqLog fetch
+needs network); the args/fixture archive remains EXCLUDE_FROM_ALL. BqLog is PRIVATE
+to game/sim. GameEnv starts the single `football` logger and flushes after teardown;
+warnings log, operational failures throw, and debug invariants use `<cassert>`.
+There is no `src/support/`: app profiles are typed fixtures retaining six-decimal
+quantization, and legacy XML/codecs/text helpers live only in `tools/animBaker/import/`.
+File I/O uses the standard library; custom diagnostics/backtraces and Properties
+are removed. Neither app nor Catch2/offline baker code is linked into core.
+Tests cover rule/clock completion,
 results/lifecycle/restart, independent owners and AI-only value paths,
 control-tape/RNG replay and baselines. Test-only programs live under `test/`;
 `tools/` contains the regression diagnostic and offline animation baker. The baker

@@ -5,8 +5,10 @@ add_library(football_legacy_anim OBJECT
   animation/import_hierarchy.cpp
   animation/import_loader.cpp
   animation/extensions/footballanimationextension.cpp
-  import/legacy_xml.cpp import/legacy_value_codec.cpp import/legacy_text.cpp)
-target_link_libraries(football_legacy_anim PUBLIC football::support football::foundation)
+  import/legacy_xml.cpp import/legacy_xml.hpp
+  import/legacy_value_codec.cpp import/legacy_value_codec.hpp
+  import/legacy_text.cpp import/legacy_text.hpp)
+target_link_libraries(football_legacy_anim PUBLIC football::foundation)
 target_include_directories(football_legacy_anim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 football_configure_target(football_legacy_anim)
 
@@ -16,7 +18,7 @@ target_sources(football_anim_baking PUBLIC FILE_SET HEADERS
   FILES anim_baker.hpp)
 target_link_libraries(football_anim_baking
   PUBLIC football::animation
-  PRIVATE football_legacy_anim football::foundation football::support)
+  PRIVATE football_legacy_anim football::foundation)
 football_configure_target(football_anim_baking)
 
 add_executable(football_anim_baker anim_baker_main.cpp)

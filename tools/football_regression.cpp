@@ -26,7 +26,6 @@
 #include "animation/import_hierarchy.hpp"
 #include "animation/import_loader.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
-#include "support/diagnostics/backtrace.hpp"
 
 namespace {
 

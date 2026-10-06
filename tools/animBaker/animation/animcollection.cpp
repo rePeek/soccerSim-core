@@ -17,14 +17,13 @@
 
 #include <algorithm>
 #include <list>
-#include "support/diagnostics/log.hpp"
+#include <cassert>
 #include "animation/animcollection.hpp"
 
 #include <cmath>
 
 #include "animation/extensions/footballanimationextension.hpp"
 
-#include "support/io/file.hpp"
 #include "import/legacy_text.hpp"
 #include "import/legacy_value_codec.hpp"
 #include <filesystem>
@@ -377,9 +376,20 @@ void AnimCollection::Load(const AnimationSourcePaths& paths) {
 
   // auto generated anims
 
-  std::vector<std::string> files;
-  GetFiles(paths.template_dir, "anim", files);
-  sort(files.begin(), files.end());
+  const auto FindAnimations = [](const std::string& directory) {
+    std::vector<std::string> files;
+    // The former traversal followed directory symlinks. Sorting retains the
+    // import/generation order regardless of filesystem enumeration order.
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(
+             directory, std::filesystem::directory_options::follow_directory_symlink)) {
+      if (!entry.is_directory() && entry.path().extension() == ".anim") {
+        files.push_back(entry.path().string());
+      }
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+  };
+  std::vector<std::string> files = FindAnimations(paths.template_dir);
 
   std::vector<Animation*> templates;
   for (unsigned int i = 0; i < files.size(); i++) {
@@ -412,9 +422,7 @@ void AnimCollection::Load(const AnimationSourcePaths& paths) {
 
   // load all other animations
 
-  files.clear();
-  GetFiles(paths.animation_dir, "anim", files);
-  sort(files.begin(), files.end());
+  files = FindAnimations(paths.animation_dir);
 
   bool omitLuxuryAnims = true;
 
@@ -710,7 +718,9 @@ void AnimCollection::CrudeSelection(DataSet &dataSet,
     if (query.byIncomingBallDirection == true) {
       Vector3 animBallDirection = GetVectorFromString(animations[i]->GetVariable("incomingballdirection"));
       if (animBallDirection.GetLength() < 0.1f) {
-        Log(e_FatalError, "AnimCollection", "Crudeselection", "Anim " + animations[i]->GetName() + " missing incoming ball direction");
+        throw std::runtime_error("AnimCollection::CrudeSelection: animation " +
+                                 animations[i]->GetName() +
+                                 " missing incoming ball direction");
       }
       if (animBallDirection.GetLength() != 0.0f &&
           query.incomingBallDirection.GetLength() != 0.0f) {

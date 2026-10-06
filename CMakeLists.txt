@@ -24,7 +24,6 @@ include(cmake/bqlog.cmake)
 
 add_subdirectory(src/foundation)
 add_subdirectory(src/model)
-add_subdirectory(src/support)
 add_subdirectory(src/sim)
 add_subdirectory(src/ai)
 

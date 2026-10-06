@@ -107,6 +107,11 @@ foreach(operation IN ITEMS check verify verify-selection)
   set_tests_properties(football_anim_baker_${operation} PROPERTIES
     FIXTURES_REQUIRED anim_baker_cli_artifact LABELS animation TIMEOUT 180)
 endforeach()
+add_test(NAME football_anim_baker_rejects_missing_source COMMAND football_anim_baker
+  --input ${CMAKE_CURRENT_BINARY_DIR}/missing-import-source
+  --out ${CMAKE_CURRENT_BINARY_DIR}/must-not-be-baked.simanim)
+set_tests_properties(football_anim_baker_rejects_missing_source PROPERTIES
+  WILL_FAIL TRUE LABELS animation)
 
 add_executable(football_legacy_animation_import_test legacy_animation_import_test.cpp)
 target_link_libraries(football_legacy_animation_import_test PRIVATE

@@ -1,3 +1,4 @@
+#include <exception>
 #include <iostream>
 #include <string>
 
@@ -28,14 +29,19 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  using namespace football::tools;
-  int status = 0;
-  if (!out_path.empty() || !check_path.empty()) {
-    const auto clips = BakeAnimations(input_dir);
-    if (!out_path.empty()) status |= WriteAnimations(out_path, clips);
-    if (!check_path.empty()) status |= CheckAnimations(check_path, clips);
+  try {
+    using namespace football::tools;
+    int status = 0;
+    if (!out_path.empty() || !check_path.empty()) {
+      const auto clips = BakeAnimations(input_dir);
+      if (!out_path.empty()) status |= WriteAnimations(out_path, clips);
+      if (!check_path.empty()) status |= CheckAnimations(check_path, clips);
+    }
+    if (!verify_path.empty()) status |= VerifyAnimations(input_dir, verify_path);
+    if (!verify_selection_path.empty()) status |= VerifyAnimationSelection(input_dir, verify_selection_path);
+    return status;
+  } catch (const std::exception& error) {
+    std::cerr << "anim_baker: " << error.what() << '\n';
+    return 1;
   }
-  if (!verify_path.empty()) status |= VerifyAnimations(input_dir, verify_path);
-  if (!verify_selection_path.empty()) status |= VerifyAnimationSelection(input_dir, verify_selection_path);
-  return status;
 }

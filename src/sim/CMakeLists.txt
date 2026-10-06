@@ -47,5 +47,5 @@ target_sources(football_sim PUBLIC FILE_SET HEADERS
   FILES simulation.hpp rng.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
-  PRIVATE football::animation football::support football::model BqLog)
+  PRIVATE football::animation football::model BqLog)
 football_configure_target(football_sim)

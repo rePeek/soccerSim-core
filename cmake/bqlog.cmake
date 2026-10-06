@@ -27,13 +27,14 @@ CPMAddPackage(NAME BqLog
     "JAVA_SUPPORT OFF" "NODE_API_SUPPORT OFF" "PYTHON_SUPPORT OFF" "GO_SUPPORT OFF")
 
 # Upstream uses directory-local include paths and writes archives into its checkout.
-# Export only public headers and keep build artifacts isolated per build directory.
+# Export only public headers; isolate archives per build directory. Upstream's
+# post-build header copy remains in its CPM checkout.
 target_include_directories(BqLog SYSTEM INTERFACE "${BqLog_SOURCE_DIR}/include")
 set_target_properties(BqLog PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/_deps/bqlog-lib")
 # Disable upstream's startup/debug chatter even in our Debug preset. This is
- # private to BqLog: simulator assertions remain enabled in Debug.
+# private to BqLog: simulator assertions remain enabled in Debug.
 target_compile_definitions(BqLog PRIVATE NDEBUG)
 # Nix's fortify preprocessor warning at -O0 must not become upstream's -Werror.
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
