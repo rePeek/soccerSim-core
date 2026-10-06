@@ -25,7 +25,6 @@
 #include "sim/player/player.hpp"
 #include "support/config/properties.hpp"
 #include "sim/team_tactical_state.hpp"
-#include "control/tactical_board.hpp"
 #include "sim/humangamer.hpp"
 
 class Match;
@@ -50,7 +49,7 @@ class Team {
     void InitPlayers(std::uint8_t first_schedule_phase);
 
     Match *GetMatch() { return match; }
-    TacticalBoard ObserveTactics() const;
+    const TeamTacticalState &GetTacticalState() const { return tactical_state_; }
     Player *GetPieceTaker();
     e_GameMode GetSetPieceType();
     float GetOffsideTrapX();

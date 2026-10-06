@@ -1,25 +1,36 @@
 #ifndef FOOTBALL_AI_DEFAULT_AI_HPP
 #define FOOTBALL_AI_DEFAULT_AI_HPP
 
-#include <span>
+#include <array>
+#include <utility>
 
+#include "ai/tactical_board.hpp"
 #include "control/player_control_set.hpp"
-#include "control/tactical_board.hpp"
 #include "observation/world_state.hpp"
 
 namespace football::ai {
 
-// A value-only coach. Tactical results belong to the caller's board, not to
-// actors, the referee, or a controller cached inside Simulation.
-void UpdateTactics(const WorldState &world, std::span<TacticalBoard> boards);
-
-// Stateless player policy. Reset/replay require no hidden RNG or actor cache.
-// Replaces output each tick; absent/inactive/human-owned actors produce no AI
-// command. The composition root applies explicit caller overrides afterwards.
+// Owns persistent tactical intent, not actors, simulation timers or RNG.
+// Update replaces frame-local output and leaves the boards unchanged.
 class DefaultAI {
  public:
-  void Update(const WorldState &world, std::span<const TacticalBoard> boards,
-              PlayerControlSet &output) const;
+  DefaultAI() { boards_[1].side = model::TeamSide::Away; }
+  explicit DefaultAI(std::array<TacticalBoard, 2> boards)
+      : boards_(std::move(boards)) {
+    boards_[0].side = model::TeamSide::Home;
+    boards_[1].side = model::TeamSide::Away;
+  }
+
+  TacticalBoard &tactics(model::TeamSide side) {
+    return boards_.at(static_cast<unsigned>(side));
+  }
+  const TacticalBoard &tactics(model::TeamSide side) const {
+    return boards_.at(static_cast<unsigned>(side));
+  }
+  void Update(const WorldState &world, PlayerControlSet &output) const;
+
+ private:
+  std::array<TacticalBoard, 2> boards_;
 };
 
 }  // namespace football::ai

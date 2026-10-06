@@ -1,11 +1,9 @@
 #ifndef FOOTBALL_SIM_SIMULATION_HPP
 #define FOOTBALL_SIM_SIMULATION_HPP
 
-#include <array>
 #include <memory>
 
 #include "control/player_control_set.hpp"
-#include "control/tactical_board.hpp"
 #include "model/team.hpp"
 #include "model/pitch.hpp"
 #include "sim/match_options.hpp"
@@ -30,7 +28,6 @@ class Simulation {
   void Step(const PlayerControlSet& controls);
   bool IsInPlay() const;
   WorldState Observe() const;
-  std::array<TacticalBoard, 2> ObserveTactics() const;
 
   Match* match() { return match_.get(); }
   const Match* match() const { return match_.get(); }

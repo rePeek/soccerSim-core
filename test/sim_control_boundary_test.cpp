@@ -15,12 +15,14 @@ namespace {
 using blunted::Vector3;
 struct Runtime {
   Simulation simulation;
+  football::ai::DefaultAI policy;
   explicit Runtime(bool reverse = false) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                     football::app::fixtures::MakeDefaultAwayTeam(),
                     football::model::MakeLegacyPitch(), options, false);
+    policy = football::test::MakeDefaultAI(simulation);
   }
   Match *match() { return simulation.match(); }
 };
@@ -29,10 +31,10 @@ bool Same(const Vector3 &a, const Vector3 &b) {
   return std::memcmp(a.coords, b.coords, sizeof(a.coords)) == 0;
 }
 
-const PlayerDirective &Directive(const TacticalBoard &board, football::model::PlayerId id) {
-  auto found = std::find_if(board.players.begin(), board.players.end(),
-      [id](const auto &entry) { return entry.player == id; });
-  REQUIRE(found != board.players.end());
+const WorldPlayerState &Actor(const WorldState &world, football::model::PlayerId id) {
+  auto found = std::find_if(world.players.begin(), world.players.end(),
+      [id](const auto &entry) { return entry.id == id; });
+  REQUIRE(found != world.players.end());
   return *found;
 }
 }  // namespace
@@ -115,7 +117,7 @@ TEST_CASE("observations are owned values in a common home pitch frame", "[sim][o
     REQUIRE(initial.pitch == runtime.match()->pitch());
     const auto taker = *initial.restart_taker;
     REQUIRE(runtime.match()->GetReferee()->GetBuffer().taker->GetID() == taker);
-    for (int tick = 0; tick < 210; ++tick) football::test::StepDefaultAI(runtime.simulation);
+    for (int tick = 0; tick < 210; ++tick) football::test::StepDefaultAI(runtime.simulation, runtime.policy);
     const auto world = runtime.simulation.Observe();
     REQUIRE(world.in_play);
     REQUIRE_FALSE(world.in_set_piece);
@@ -134,34 +136,39 @@ TEST_CASE("team owns tactical request deadlines and reset lifetimes", "[sim][tac
   team->ApplyAttackingRun(runner);
   team->ApplyTeamPressure();
   team->ApplyKeeperRush();
-  auto board = team->ObserveTactics();
-  REQUIRE(Directive(board, runner->GetID()).attacking_run);
-  REQUIRE(Directive(board, team->GetGoalie()->GetID()).attacking_run);
-  REQUIRE(std::count_if(board.players.begin(), board.players.end(),
-      [](const auto &directive) { return directive.press; }) == 1);
-  REQUIRE(std::count_if(board.players.begin(), board.players.end(),
-      [](const auto &directive) { return directive.marking_target.has_value(); }) == 1);
+  auto world = runtime.simulation.Observe();
+  const auto retained = world;
+  REQUIRE(Actor(world, runner->GetID()).attacking_run_remaining_ms == 4000);
+  REQUIRE(Actor(world, team->GetGoalie()->GetID()).keeper_rush_remaining_ms == 300);
+  REQUIRE(std::count_if(world.players.begin(), world.players.end(),
+      [](const auto &player) { return player.pressure_remaining_ms == 500; }) == 1);
+  REQUIRE(std::count_if(world.players.begin(), world.players.end(),
+      [](const auto &player) { return player.marking_target.has_value(); }) == 1);
   runtime.match()->BumpActualTime_ms(500);
-  board = team->ObserveTactics();
-  REQUIRE(Directive(board, runner->GetID()).attacking_run);
-  REQUIRE_FALSE(Directive(board, team->GetGoalie()->GetID()).attacking_run);
-  REQUIRE(std::none_of(board.players.begin(), board.players.end(),
-      [](const auto &directive) { return directive.press; }));
-  REQUIRE(std::none_of(board.players.begin(), board.players.end(),
-      [](const auto &directive) { return directive.marking_target.has_value(); }));
+  world = runtime.simulation.Observe();
+  REQUIRE(Actor(world, runner->GetID()).attacking_run_remaining_ms == 3500);
+  REQUIRE(Actor(world, team->GetGoalie()->GetID()).keeper_rush_remaining_ms == 0);
+  REQUIRE(std::none_of(world.players.begin(), world.players.end(),
+      [](const auto &player) { return player.pressure_remaining_ms > 0 || player.marking_target; }));
+  REQUIRE(Actor(retained, runner->GetID()).attacking_run_remaining_ms == 4000);
   team->Process();
   REQUIRE(std::none_of(team->GetAllPlayers().begin(), team->GetAllPlayers().end(),
       [](Player *player) { return player->GetManMarking() != nullptr; }));
   runtime.match()->BumpActualTime_ms(3500);
-  board = team->ObserveTactics();
-  REQUIRE_FALSE(Directive(board, runner->GetID()).attacking_run);
+  world = runtime.simulation.Observe();
+  REQUIRE(Actor(world, runner->GetID()).attacking_run_remaining_ms == 0);
   team->ApplyAttackingRun(runner);
   team->ApplyTeamPressure();
   team->ApplyKeeperRush();
+  runner->SendOff();
+  world = runtime.simulation.Observe();
+  REQUIRE(Actor(world, runner->GetID()).attacking_run_remaining_ms == 0);
   team->ResetSituation(Vector3(0));
-  board = team->ObserveTactics();
-  REQUIRE(std::none_of(board.players.begin(), board.players.end(),
-      [](const auto &directive) { return directive.attacking_run || directive.press; }));
+  world = runtime.simulation.Observe();
+  REQUIRE(std::none_of(world.players.begin(), world.players.end(),
+      [](const auto &player) { return player.attacking_run_remaining_ms > 0 ||
+          player.pressure_remaining_ms > 0 || player.keeper_rush_remaining_ms > 0 ||
+          player.marking_target; }));
 }
 
 TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]") {
@@ -215,7 +222,7 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
       runtime.simulation.Step(PlayerControlSet{});
     REQUIRE(match->IsInPlay());
     for (int tick = 0; tick < 800 && match->IsInSetPiece(); ++tick)
-      football::test::StepDefaultAI(runtime.simulation);
+      football::test::StepDefaultAI(runtime.simulation, runtime.policy);
     Player *taker = rules->GetBuffer().taker;
     CAPTURE(mode, taker->GetPosition().coords[0], taker->GetPosition().coords[1],
             taker->GetCurrentFunctionType(), match->GetBall()->Predict(0).coords[0],
@@ -250,21 +257,20 @@ TEST_CASE("human input stays in sim while explicit controls override it", "[sim]
   std::vector<HumanGamer *> gamers;
   team->GetHumanControllers(gamers);
   REQUIRE(gamers.size() == 1);
-  for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(runtime.simulation);
+  for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(runtime.simulation, runtime.policy);
   Player *selected = gamers[0]->GetSelectedPlayer();
   REQUIRE(selected != nullptr);
   REQUIRE(selected->ExternalControllerActive());
-  auto boards = runtime.simulation.ObserveTactics();
   PlayerControlSet decisions;
   const auto world = runtime.simulation.Observe();
-  football::ai::DefaultAI{}.Update(world, boards, decisions);
+  runtime.policy.Update(world, decisions);
   REQUIRE(decisions.Get(selected->GetID()) == nullptr);
   PlayerControl control;
   control.move_direction = Vector3(1, 0, 0);
   control.desired_speed = 1.234f;
   PlayerControlSet overrides;
   overrides.Set(selected->GetID(), control);
-  football::test::StepDefaultAI(runtime.simulation, overrides);
+  football::test::StepDefaultAI(runtime.simulation, runtime.policy, overrides);
   PlayerCommandQueue queue;
   selected->RequestCommand(queue);
   REQUIRE(queue.size() == 1);
@@ -276,6 +282,6 @@ TEST_CASE("human input stays in sim while explicit controls override it", "[sim]
   REQUIRE_FALSE(queue.empty());
   REQUIRE(queue.back().desiredFunctionType == e_FunctionType_Movement);
   input.disabled = true;
-  football::ai::DefaultAI{}.Update(runtime.simulation.Observe(), boards, decisions);
+  runtime.policy.Update(runtime.simulation.Observe(), decisions);
   REQUIRE(decisions.Get(selected->GetID()) != nullptr);
 }

@@ -66,6 +66,12 @@ void RequireSameWorld(const WorldState& a, const WorldState& b) {
     const auto& y = b.players[i];
     Require(x.id == y.id && x.side == y.side && x.active == y.active &&
                 x.has_possession == y.has_possession &&
+                x.externally_controlled == y.externally_controlled && x.lazy == y.lazy &&
+                x.max_speed == y.max_speed &&
+                x.attacking_run_remaining_ms == y.attacking_run_remaining_ms &&
+                x.pressure_remaining_ms == y.pressure_remaining_ms &&
+                x.keeper_rush_remaining_ms == y.keeper_rush_remaining_ms &&
+                x.marking_target == y.marking_target &&
                 SameVector(x.position, y.position) &&
                 SameVector(x.velocity, y.velocity) && SameVector(x.facing, y.facing),
             "player snapshot mismatch");
@@ -200,11 +206,12 @@ void CheckDeclaredComposition() {
   game.start_game();
   auto reference = std::make_unique<Simulation>();
   reference->Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{}, false);
+  auto policy = football::test::MakeDefaultAI(*reference);
   for (int repeat = 0; repeat < 3; ++repeat) {
     RequireSameWorld(game.observe(), reference->Observe());
     for (int tick = 0; tick < 600; ++tick) {
       game.step();
-      football::test::StepDefaultAI(*reference);
+      football::test::StepDefaultAI(*reference, policy);
       RequireSameWorld(game.observe(), reference->Observe());
     }
     if (repeat == 0) {

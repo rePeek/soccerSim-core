@@ -77,3 +77,31 @@ TEST_CASE("the CLI composition is reproducible across restarts", "[app][cli]") {
 
   environment.stop_game();
 }
+
+TEST_CASE("environment exposes persistent AI intent independently of sim lifecycle", "[env][ai]") {
+  GameEnv environment = MakeDefaultEnvironment();
+  GameEnv peer = MakeDefaultEnvironment();
+  auto &board = environment.tactics(model::TeamSide::Home);
+  REQUIRE(board.players.size() == 11);
+  board.width = 42.f;
+  board.depth = 30.f;
+  board.players[7].role = PlannedPlayerRole::Forward;
+  board.players[7].marking_target = 12;
+  const auto anchor = board.players[7].formation_position;
+  environment.start_game();
+  for (int tick = 0; tick < 300; ++tick) environment.step();
+  environment.reset_game();
+  environment.step();
+  environment.stop_game();
+  environment.start_game();
+  environment.step();
+  REQUIRE(&environment.tactics(model::TeamSide::Home) == &board);
+  const GameEnv &read_only = environment;
+  REQUIRE(read_only.tactics(model::TeamSide::Home).width == 42.f);
+  REQUIRE(board.depth == 30.f);
+  REQUIRE(board.players[7].role == PlannedPlayerRole::Forward);
+  REQUIRE(board.players[7].marking_target == 12);
+  REQUIRE(board.players[7].formation_position == anchor);
+  REQUIRE(environment.tactics(model::TeamSide::Away).width == 0.f);
+  REQUIRE(peer.tactics(model::TeamSide::Home).width == 0.f);
+}

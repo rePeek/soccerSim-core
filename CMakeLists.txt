@@ -55,9 +55,9 @@ endif()
 #   app fixtures/importers -> model/support (executable-only; no core edge)
 #
 # The runtime animation archive below depends directly on foundation only;
-# source importers use support for XML, files, text, and configuration. Control
-# owns the new decision domain. Controller remains only while the legacy input
-# path is removed; it is not a future simulation boundary.
+# source importers use support for XML, files, text, and configuration.
+# Passive player controls cross the sim boundary; AI owns tactical intent.
+# Controller remains the legacy input path, not a future simulation boundary.
 # Declaring the edges here keeps archive order correct instead of relying on
 # a hand-maintained link line.
 
@@ -80,17 +80,17 @@ target_link_libraries(football_ai PUBLIC football_observation football_control)
 football_configure_target(football_ai)
 
 # env composes observe -> default AI -> merged controls -> sim in one TU.
-# The library still ships default AI; game_env.hpp exposes no AI type.
+# The environment owns a persistent DefaultAI and exposes its tactical values.
 add_library(football_engine OBJECT
   ${CORE_SOURCES} ${CORE_HEADERS}
-  src/env/game_env.cpp src/env/game_env.hpp)
+  src/env/game_env.cpp src/env/game_env.hpp src/env/default_ai_setup.hpp)
 target_link_libraries(football_engine PRIVATE football_controller football_model
   football_sim football_observation football_support football_control football_ai)
 
 add_library(${OUTPUT_LIB_NAME} SHARED $<TARGET_OBJECTS:football_engine>)
 target_link_libraries(${OUTPUT_LIB_NAME}
-  PUBLIC football_observation football_control
-  PRIVATE football_sim football_controller football_ai)
+  PUBLIC football_observation football_control football_ai
+  PRIVATE football_sim football_controller)
 
 if(FOOTBALL_BUILD_APP)
   add_executable(football_app ${APP_MAIN_SOURCES})

@@ -95,6 +95,15 @@ if [ -d "$source_dir/sim" ]; then
     status=1
   fi
 fi
+# Tactical intent belongs exclusively to AI, never sim or its snapshots/controls.
+if [ -e "$source_dir/control/tactical_board.hpp" ] ||
+   grep -RqE 'TacticalBoard|PlayerDirective|PlannedPlayerRole|ObserveTactics' \
+     --include='*.cpp' --include='*.hpp' --include='*.h' \
+     "$source_dir/sim" "$source_dir/observation" "$source_dir/control"; then
+  echo 'module dependency guard: tactical intent leaked into simulation contracts' >&2
+  status=1
+fi
+
 for entry in $modules; do
   module=${entry%%:*}
   target=${entry#*:}

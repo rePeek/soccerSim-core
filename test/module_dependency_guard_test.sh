@@ -5,7 +5,7 @@ guard=$1
 report=$2
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT HUP INT TERM
-mkdir -p "$work/src/sim" "$work/src/ai"
+mkdir -p "$work/src/sim" "$work/src/ai" "$work/src/observation" "$work/src/control"
 cp "$report" "$work/deps"
 printf '#include "observation/world_state.hpp"\n' > "$work/src/ai/policy.cpp"
 printf '#include "sim/query/player_query.hpp"\n' > "$work/src/sim/query.cpp"
@@ -59,4 +59,14 @@ mkdir -p "$work/src/sim/ai_support"
 touch "$work/src/sim/ai_support/AIfunctions.hpp"
 reject 'obsolete AIfunctions/AI_ API in sim'
 rm "$work/src/sim/ai_support/AIfunctions.hpp"
+
+printf 'TacticalBoard ObserveTactics();\n' > "$work/src/sim/query.cpp"
+reject 'tactical intent leaked into simulation contracts'
+printf '#include "sim/query/player_query.hpp"\n' > "$work/src/sim/query.cpp"
+printf 'struct PlayerDirective {};\n' > "$work/src/observation/world_state.hpp"
+reject 'tactical intent leaked into simulation contracts'
+rm "$work/src/observation/world_state.hpp"
+touch "$work/src/control/tactical_board.hpp"
+reject 'tactical intent leaked into simulation contracts'
+rm "$work/src/control/tactical_board.hpp"
 sh "$guard" "$work/src" "$work/deps"

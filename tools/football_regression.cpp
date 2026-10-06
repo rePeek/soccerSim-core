@@ -115,6 +115,11 @@ uint64_t HashWorld(const WorldState& world) {
     hash = HashValue(hash, player.externally_controlled);
     hash = HashValue(hash, player.lazy);
     hash = HashValue(hash, player.max_speed);
+    hash = HashValue(hash, player.attacking_run_remaining_ms);
+    hash = HashValue(hash, player.pressure_remaining_ms);
+    hash = HashValue(hash, player.keeper_rush_remaining_ms);
+    hash = HashValue(hash, player.marking_target.has_value());
+    if (player.marking_target) hash = HashValue(hash, *player.marking_target);
   }
   return hash;
 }
@@ -980,7 +985,8 @@ void InitDefaultMatch(Simulation& simulation) {
 }
 
 void Advance(Simulation& simulation, int ticks) {
-  for (int tick = 0; tick < ticks; ++tick) football::test::StepDefaultAI(simulation);
+  const auto policy = football::test::MakeDefaultAI(simulation);
+  for (int tick = 0; tick < ticks; ++tick) football::test::StepDefaultAI(simulation, policy);
 }
 
 void CheckCanonicalFrame(Simulation& simulation) {
@@ -1154,12 +1160,13 @@ void CheckRefereeRules(Simulation& simulation) {
 
         // Card state remains gameplay: a red or second yellow sends off a
         // football player, whereas one yellow leaves the player active.
+        const auto policy = football::test::MakeDefaultAI(simulation);
         if (match->GetActualTime_ms() < effective_time) {
-          football::test::StepDefaultAI(simulation);
+          football::test::StepDefaultAI(simulation, policy);
           Require(offender->IsActive(), "card took effect before its deadline");
           match->BumpActualTime_ms(effective_time - match->GetActualTime_ms());
         }
-        football::test::StepDefaultAI(simulation);
+        football::test::StepDefaultAI(simulation, policy);
         const bool send_off = scenario == 3 || scenario == 4;
         Require(offender->IsActive() == !send_off &&
                     match->GetTeam(0)->GetActivePlayersCount() == (send_off ? 10 : 11),
@@ -1215,11 +1222,13 @@ struct GoldenSnapshot {
 
 // Value-policy/home-frame baseline. This intentionally replaces Eliza/RNG
 // trajectories; the previous golden pairs are archived in test/baselines/.
+// AI ownership migration adds request fields to HashWorld only; simulation
+// digest goldens (including motion, actions and RNG) remain unchanged.
 constexpr GoldenSnapshot golden[] = {
-    {1, UINT64_C(6014326779720797982), UINT64_C(350760935552669674)},
-    {100, UINT64_C(8142532795858949093), UINT64_C(13725550824419574755)},
-    {500, UINT64_C(8459122586597459059), UINT64_C(7040189435179413637)},
-    {1000, UINT64_C(11000853123468269599), UINT64_C(10968404906479542722)},
+    {1, UINT64_C(16938073673177634806), UINT64_C(350760935552669674)},
+    {100, UINT64_C(15465377132528825825), UINT64_C(13725550824419574755)},
+    {500, UINT64_C(14448294930850262157), UINT64_C(7040189435179413637)},
+    {1000, UINT64_C(480541022030217475), UINT64_C(10968404906479542722)},
 };
 
 void CheckGoldenSnapshots(Simulation& simulation, GameEnv& game, bool print_baseline) {
@@ -1348,12 +1357,13 @@ void CheckMovementAnimationPerturbation(Simulation& simulation, bool frame_count
     hook = MovementAnimationPerturbation{};
     InitDefaultMatch(simulation);
     Advance(simulation, 600);
+    const auto policy = football::test::MakeDefaultAI(simulation);
     hook.require_frame_count_difference = frame_count;
     std::vector<Tick> ticks;
     for (int tick = 0; tick < 4000; ++tick) {
       hook.enabled = perturb && tick >= 10;
       const int queries_before = PlayerDecisionClockQueries();
-      football::test::StepDefaultAI(simulation);
+      football::test::StepDefaultAI(simulation, policy);
       CheckCanonicalFrame(simulation);
       ticks.push_back({CaptureSimulationDigest(simulation),
                        static_cast<int>(simulation.match()->GetActualTime_ms()),

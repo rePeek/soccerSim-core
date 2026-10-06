@@ -1,20 +1,26 @@
 #ifndef FOOTBALL_TEST_DEFAULT_AI_FIXTURE_HPP
 #define FOOTBALL_TEST_DEFAULT_AI_FIXTURE_HPP
 
-#include "ai/default_ai.hpp"
+#include "env/default_ai_setup.hpp"
+#include "sim/match.hpp"
 #include "sim/simulation.hpp"
+#include "sim/team.hpp"
 
 namespace football::test {
 template<class T> concept HasDecisionObject = requires(T &actor) { actor.GetController(); };
 
-// Diagnostic composition, explicitly outside Simulation. Production composition
-// is GameEnv::step; tests independently replay that same value contract.
-inline void StepDefaultAI(Simulation &simulation, const PlayerControlSet &overrides = {}) {
+// Diagnostic composition owns its policy explicitly, just like GameEnv.
+inline ai::DefaultAI MakeDefaultAI(const Simulation &simulation) {
+  const auto &match = *simulation.match();
+  return env::MakeDefaultAI(match.GetTeam(0)->GetModel(), match.GetTeam(1)->GetModel(),
+                            match.pitch());
+}
+
+inline void StepDefaultAI(Simulation &simulation, const ai::DefaultAI &policy,
+                          const PlayerControlSet &overrides = {}) {
   const WorldState world = simulation.Observe();
-  auto boards = simulation.ObserveTactics();
-  ai::UpdateTactics(world, boards);
   PlayerControlSet controls;
-  ai::DefaultAI{}.Update(world, boards, controls);
+  policy.Update(world, controls);
   for (const auto &control : overrides.controls()) controls.Set(control.player, control);
   simulation.Step(controls);
 }

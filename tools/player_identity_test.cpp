@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "control/tactical_board.hpp"
+#include "ai/tactical_board.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "app/fixtures/legacy_player_profile.hpp"
 #include "sim/match.hpp"
@@ -124,6 +124,8 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   reference.Init(default_home, default_away, model::MakeLegacyPitch(), options, false);
   renamed.Init(home, away, model::MakeLegacyPitch(), options, false);
   CheckIdentity(renamed, home, away);
+  const auto reference_ai = football::test::MakeDefaultAI(reference);
+  const auto renamed_ai = football::test::MakeDefaultAI(renamed);
 
   PlayerControl move;
   move.move_direction = blunted::Vector3(0, 1, 0);
@@ -138,8 +140,8 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   renamed_controls.Set(1, wrong);
   const WorldState initial = renamed.Observe();
   for (int tick = 0; tick < 600; ++tick) {
-    football::test::StepDefaultAI(reference, reference_controls);
-    football::test::StepDefaultAI(renamed, renamed_controls);
+    football::test::StepDefaultAI(reference, reference_ai, reference_controls);
+    football::test::StepDefaultAI(renamed, renamed_ai, renamed_controls);
     CheckSamePhysics(reference, renamed);
   }
   std::vector<Player*> players;
@@ -160,8 +162,8 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   CheckIdentity(renamed, home, away);
   CheckSamePhysics(reference, renamed);
   for (int tick = 0; tick < 200; ++tick) {
-    football::test::StepDefaultAI(reference, reference_controls);
-    football::test::StepDefaultAI(renamed, renamed_controls);
+    football::test::StepDefaultAI(reference, reference_ai, reference_controls);
+    football::test::StepDefaultAI(renamed, renamed_ai, renamed_controls);
     CheckSamePhysics(reference, renamed);
   }
 
@@ -170,7 +172,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   CheckIdentity(renamed, home, away);
   Require(renamed.Observe().players[0].id == initial.players[0].id,
           "reset reassigned model identity");
-  for (int tick = 0; tick < 600; ++tick) football::test::StepDefaultAI(renamed, renamed_controls);
+  for (int tick = 0; tick < 600; ++tick) football::test::StepDefaultAI(renamed, renamed_ai, renamed_controls);
   const WorldState replay = renamed.Observe();
   for (std::size_t i = 0; i < replay.players.size(); ++i) {
     Require(replay.players[i].id == replay_target.players[i].id &&
@@ -221,7 +223,8 @@ void CheckRosterComposition() {
     large.Init(home, away, model::MakeLegacyPitch(), options, false);
     CheckIdentity(large, home, away);
     Require(large.Observe().players.size() == 260, "phase storage limited roster size");
-    for (int tick = 0; tick < 350; ++tick) football::test::StepDefaultAI(large);
+    const auto policy = football::test::MakeDefaultAI(large);
+    for (int tick = 0; tick < 350; ++tick) football::test::StepDefaultAI(large, policy);
     CheckIdentity(large, home, away);
   }
 }
@@ -343,10 +346,11 @@ void CheckHistoricalScheduling(bool print_baseline) {
     options.reverse_team_processing = test.reverse;
     Simulation simulation;
     simulation.Init(home, away, model::MakeLegacyPitch(), options, false);
-    for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation);
+    const auto policy = football::test::MakeDefaultAI(simulation);
+    for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto before = CaptureScheduleState(simulation);
     simulation.match()->GetTeam(0)->GetAllPlayers().at(1)->SendOff();
-    for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation);
+    for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto after = CaptureScheduleState(simulation);
     if (print_baseline) {
       std::cout << "    {" << test.unequal << ", " << test.reverse << ", UINT64_C("

@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "ai/default_ai.hpp"
 #include "control/player_control_set.hpp"
 #include "model/pitch.hpp"
 #include "model/team.hpp"
@@ -42,11 +43,15 @@ class GameEnv {
   void step();
   WorldState observe() const;
   PlayerControlSet& controls() { return controls_; }
+  // Persistent AI configuration, independent of simulation lifecycle.
+  TacticalBoard& tactics(football::model::TeamSide side) { return ai_.tactics(side); }
+  const TacticalBoard& tactics(football::model::TeamSide side) const { return ai_.tactics(side); }
 
  private:
   football::model::Team home_team_;
   football::model::Team away_team_;
   football::model::Pitch pitch_;
+  football::ai::DefaultAI ai_;
   std::unique_ptr<Simulation> simulation_;
   PlayerControlSet controls_;
 

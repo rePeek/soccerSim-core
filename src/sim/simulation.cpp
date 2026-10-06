@@ -168,12 +168,6 @@ WorldState Simulation::Observe() const {
   return BuildWorldState(*match_);
 }
 
-std::array<TacticalBoard, 2> Simulation::ObserveTactics() const {
-  assert(match_);
-  return {match_->GetTeam(0)->ObserveTactics(), match_->GetTeam(1)->ObserveTactics()};
-}
-
-
 bool Simulation::Stop() {
   if (!match_) return false;
   match_->Exit();

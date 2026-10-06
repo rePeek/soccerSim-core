@@ -20,14 +20,14 @@
 #include "sim/simulation.hpp"
 #include "support/diagnostics/assert.hpp"
 
-// Default AI remains in this library, but decisions are composed outside sim.
-#include "ai/default_ai.hpp"
+#include "env/default_ai_setup.hpp"
 
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
                  football::model::Pitch pitch)
     : home_team_(std::move(home)),
       away_team_(std::move(away)),
-      pitch_(std::move(pitch)) {}
+      pitch_(std::move(pitch)),
+      ai_(football::env::MakeDefaultAI(home_team_, away_team_, pitch_)) {}
 
 GameEnv::~GameEnv() {
   stop_game();
@@ -54,11 +54,9 @@ void GameEnv::reset_game() {
 
 void GameEnv::step() {
   CHECK(simulation_);
-  auto boards = simulation_->ObserveTactics();
   const WorldState world = simulation_->Observe();
-  football::ai::UpdateTactics(world, boards);
   PlayerControlSet combined;
-  football::ai::DefaultAI{}.Update(world, boards, combined);
+  ai_.Update(world, combined);
   // Explicit controls override default decisions; no defaults are stored in
   // controls(), and human-owned actors are omitted by the value policy.
   for (const auto &control : controls_.controls()) combined.Set(control.player, control);

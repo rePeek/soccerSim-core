@@ -128,7 +128,7 @@ set(GAME_SOURCES
 
 list(APPEND GAME_HEADERS src/sim/formation.hpp)
 
-set(AI_HEADERS src/ai/default_ai.hpp)
+set(AI_HEADERS src/ai/default_ai.hpp src/ai/tactical_board.hpp)
 set(AI_SOURCES src/ai/default_ai.cpp)
 
 # Executable-side code. It builds model descriptions from legacy data, so it may

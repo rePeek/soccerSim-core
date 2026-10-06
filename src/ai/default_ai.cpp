@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <span>
 
 namespace football::ai {
 namespace {
@@ -15,10 +16,11 @@ const WorldPlayerState *Find(const WorldState &world, PlayerId id) {
   return nullptr;
 }
 
-const PlayerDirective *Directive(std::span<const TacticalBoard> boards, PlayerId id) {
-  for (const auto &board : boards)
-    for (const auto &directive : board.players)
-      if (directive.player == id) return &directive;
+const PlayerDirective *Directive(std::span<const TacticalBoard> boards,
+                                 TeamSide side, PlayerId id) {
+  const auto &board = boards[static_cast<unsigned>(side)];
+  for (const auto &directive : board.players)
+    if (directive.player == id) return &directive;
   return nullptr;
 }
 
@@ -29,7 +31,7 @@ const WorldPlayerState *Closest(const WorldState &world, TeamSide side,
   const WorldPlayerState *best = nullptr;
   float distance = std::numeric_limits<float>::max();
   for (const auto &player : world.players) {
-    const auto *directive = Directive(boards, player.id);
+    const auto *directive = Directive(boards, player.side, player.id);
     if (!player.active || player.side != side || player.lazy ||
         (exclude_keeper && directive && directive->role == PlannedPlayerRole::Goalkeeper)) continue;
     const float candidate = (player.position - position).GetSquaredLength();
@@ -43,52 +45,42 @@ bool TeamHasBall(const WorldState &world, TeamSide side) {
     if (player.active && player.side == side && player.has_possession) return true;
   return false;
 }
+
+// Compute this tick's target from immutable intent and actual match state.
+Vector3 FormationTarget(const WorldState &world, const TacticalBoard &board,
+                        const PlayerDirective *directive, const WorldPlayerState &player) {
+  if (!directive || !directive->formation_position) return player.position;
+  const int defend = world.teams[static_cast<unsigned>(player.side)].defending_direction;
+  if (directive->role == PlannedPlayerRole::Goalkeeper)
+    return Vector3(defend * (world.pitch.half_length() - 2.f),
+                   std::clamp(world.ball_position.coords[1] * 0.2f, -3.f, 3.f), 0);
+  Vector3 position = *directive->formation_position;
+  const float width = board.width > 0.f ? board.width : world.pitch.width() * 0.75f;
+  const float depth = board.depth > 0.f ? board.depth : world.pitch.length() * 0.55f;
+  position.coords[0] *= depth / (world.pitch.length() * 0.55f);
+  position.coords[1] *= width / (world.pitch.width() * 0.75f);
+  const auto marking = player.pressure_remaining_ms > 0 && player.marking_target
+      ? player.marking_target : directive->marking_target;
+  if (marking) {
+    const auto *opponent = Find(world, *marking);
+    if (opponent && opponent->active && opponent->side != player.side)
+      position = opponent->position + Vector3(defend * 2.f, 0, 0);
+  }
+  const float attack = static_cast<float>(-defend);
+  position.coords[0] += world.ball_position.coords[0] * 0.2f +
+                        attack * (TeamHasBall(world, player.side) ? 8.f : -3.f);
+  position.coords[1] += world.ball_position.coords[1] * 0.15f;
+  if (player.attacking_run_remaining_ms > 0) position.coords[0] += attack * 15.f;
+  position.coords[0] = std::clamp(position.coords[0], -world.pitch.half_length() + 2.f,
+                                 world.pitch.half_length() - 2.f);
+  position.coords[1] = std::clamp(position.coords[1], -world.pitch.half_width() + 2.f,
+                                 world.pitch.half_width() - 2.f);
+  return position;
+}
 }  // namespace
 
-void UpdateTactics(const WorldState &world, std::span<TacticalBoard> boards) {
-  for (auto &board : boards) {
-    const auto &team = world.teams[static_cast<unsigned>(board.side)];
-    const float attack = static_cast<float>(-team.defending_direction);
-    const bool possession = TeamHasBall(world, board.side);
-    // Static role shape from sim is an input. This tick's positioning result is
-    // a caller-owned board; no timers or authoritative set-piece state in AI.
-    if (board.width <= 0.f) board.width = world.pitch.width() * 0.75f;
-    if (board.depth <= 0.f) board.depth = world.pitch.length() * 0.55f;
-    board.set_piece_taker.reset();
-    if (world.restart_taker) {
-      const auto *taker = Find(world, *world.restart_taker);
-      if (taker && taker->side == board.side) board.set_piece_taker = taker->id;
-    }
-    for (auto &directive : board.players) {
-      const auto *player = Find(world, directive.player);
-      if (!player || !player->active || !directive.formation_position) continue;
-      Vector3 &position = *directive.formation_position;
-      if (directive.role == PlannedPlayerRole::Goalkeeper) {
-        position = Vector3(team.defending_direction * (world.pitch.half_length() - 2.f),
-                           std::clamp(world.ball_position.coords[1] * 0.2f, -3.f, 3.f), 0);
-      } else {
-        position.coords[0] *= board.depth / (world.pitch.length() * 0.55f);
-        position.coords[1] *= board.width / (world.pitch.width() * 0.75f);
-        if (directive.marking_target) {
-          const auto *opponent = Find(world, *directive.marking_target);
-          if (opponent && opponent->active && opponent->side != player->side)
-            position = opponent->position + Vector3(team.defending_direction * 2.f, 0, 0);
-        }
-        position.coords[0] += world.ball_position.coords[0] * 0.2f +
-                              attack * (possession ? 8.f : -3.f);
-        position.coords[1] += world.ball_position.coords[1] * 0.15f;
-        if (directive.attacking_run) position.coords[0] += attack * 15.f;
-        position.coords[0] = std::clamp(position.coords[0], -world.pitch.half_length() + 2.f,
-                                       world.pitch.half_length() - 2.f);
-        position.coords[1] = std::clamp(position.coords[1], -world.pitch.half_width() + 2.f,
-                                       world.pitch.half_width() - 2.f);
-      }
-    }
-  }
-}
-
-void DefaultAI::Update(const WorldState &world, std::span<const TacticalBoard> boards,
-                       PlayerControlSet &output) const {
+void DefaultAI::Update(const WorldState &world, PlayerControlSet &output) const {
+  const std::span<const TacticalBoard> boards = boards_;
   output.Clear();
   const Vector3 ball = world.ball_position.Get2D();
   const Vector3 intercept = ball + world.ball_velocity.Get2D() * 0.18f;
@@ -97,12 +89,11 @@ void DefaultAI::Update(const WorldState &world, std::span<const TacticalBoard> b
     PlayerControl control;
     control.player = player.id;
     control.look_at = ball;
-    const auto *directive = Directive(boards, player.id);
+    const auto *directive = Directive(boards, player.side, player.id);
     const bool keeper = directive && directive->role == PlannedPlayerRole::Goalkeeper;
     const int defend = world.teams[static_cast<unsigned>(player.side)].defending_direction;
     const Vector3 goal(-defend * world.pitch.half_length(), 0, 0);
-    Vector3 target = directive && directive->formation_position
-        ? *directive->formation_position : player.position;
+    Vector3 target = FormationTarget(world, tactics(player.side), directive, player);
 
     if (!world.in_play || player.lazy ||
         (world.in_set_piece && world.restart_taker != player.id)) {
@@ -111,9 +102,9 @@ void DefaultAI::Update(const WorldState &world, std::span<const TacticalBoard> b
       continue;
     }
     const auto *chaser = Closest(world, player.side, intercept, true, boards);
-    if ((chaser && chaser->id == player.id) || (directive && directive->press)) target = intercept;
+    if ((chaser && chaser->id == player.id) || player.pressure_remaining_ms > 0) target = intercept;
     if (keeper && (ball.coords[0] * defend > world.pitch.half_length() - 16.f ||
-                  (directive && directive->attacking_run))) target = intercept;
+                   player.keeper_rush_remaining_ms > 0)) target = intercept;
 
     const bool owns_ball = player.has_possession || world.ball_retainer == player.id;
     const bool restart_taker = world.in_set_piece && world.restart_taker == player.id;

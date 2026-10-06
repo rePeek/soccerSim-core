@@ -535,38 +535,3 @@ void Team::ApplyTeamPressure() {
 void Team::ApplyKeeperRush() {
   tactical_state_.keeper_rush_until_ms = match->GetActualTime_ms() + 300;
 }
-
-TacticalBoard Team::ObserveTactics() const {
-  TacticalBoard board;
-  board.side = GetTeamSide();
-  const int defend = id == 0 ? -1 : 1;
-  const auto now = match->GetActualTime_ms();
-  const auto &restart = match->GetReferee()->GetBuffer();
-  if (restart.active && restart.teamID == id && restart.taker)
-    board.set_piece_taker = restart.taker->GetID();
-  for (std::size_t i = 0; i < players.size(); ++i) {
-    const auto &formation = formation_[i];
-    PlayerDirective directive;
-    directive.player = players[i]->GetID();
-    switch (formation.role) {
-      case e_PlayerRole_GK: directive.role = PlannedPlayerRole::Goalkeeper; break;
-      case e_PlayerRole_CB: case e_PlayerRole_LB: case e_PlayerRole_RB:
-        directive.role = PlannedPlayerRole::Defender; break;
-      case e_PlayerRole_CF: directive.role = PlannedPlayerRole::Forward; break;
-      default: directive.role = PlannedPlayerRole::Midfielder; break;
-    }
-    directive.formation_position = formation.position *
-        Vector3(-defend * match->pitch().half_length() * 0.6f,
-                -defend * match->pitch().half_width() * 0.6f, 0);
-    directive.attacking_run = (tactical_state_.attacking_run_until_ms > now &&
-        tactical_state_.attacking_runner == players[i]) ||
-        (formation.role == e_PlayerRole_GK && tactical_state_.keeper_rush_until_ms > now);
-    directive.press = tactical_state_.pressure_until_ms > now &&
-                      tactical_state_.pressure_player == players[i];
-    if (directive.press) {
-      if (Player *mark = players[i]->GetManMarking()) directive.marking_target = mark->GetID();
-    }
-    board.players.push_back(directive);
-  }
-  return board;
-}
