@@ -53,7 +53,9 @@ Runtime does not use that variable: it reads the configured baked animation asse
 
 ```text
 src/
-├── foundation/       general math, geometry, Hungarian algorithm; STL/self only
+├── foundation/       general math and geometry; STL/self only
+│   ├── math/         vectors, matrices, quaternion, scalar and RNG
+│   └── geometry/     line and triangle
 ├── model/            STL-only static football descriptions
 │   ├── player.hpp    PlayerId, legacy PlayerDatabaseId, abilities and appearance
 │   ├── team.hpp      rosters, typed tactics, TeamSide (Home/Away, not club identity)
