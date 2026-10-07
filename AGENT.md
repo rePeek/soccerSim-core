@@ -462,9 +462,11 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   Ball/retaining-ball inputs. Player has no Match member/include/lookup:
   reset provenance consumes Tick, deactivation consumes Ball/Tick, and send-off
   consumes Ball/Tick/RNG. Team::Exit performs the former destructor reset before
-  each deletion in the original roster order. Player constructors borrow Pitch
-  and AnimationLibrary explicitly. Humanoid/HumanoidBase still depend on Match;
-  their physics/authorization/RNG reads are the remaining actor migration work.
+  each deletion in the original roster order. Player constructors borrow Pitch,
+  AnimationLibrary and the Simulation-owned live RNG explicitly; Humanoid/Base
+  receive the same library and stream at construction. Resets and action draws
+  never retrieve RNG through Match, and no stream is copied or reseeded here.
+  Humanoid/HumanoidBase physics/authorization/time reads still depend on Match.
   Ball prediction horizons/cache durations live in sim-private `ball/ball_timing.hpp`;
   prediction generation iterates TickSpan samples with seconds from the quantum.
   MentalImage stores a Tick capture instant and derives TickSpan age. Transitional

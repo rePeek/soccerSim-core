@@ -541,8 +541,8 @@ const radian preferredDirectionAngles[] = {
     -0.999 * pi
 };
 
-HumanoidBase::HumanoidBase(Player *player, Match *match, const AnimationLibrary& animations)
-    : match(match), animations_(animations),
+HumanoidBase::HumanoidBase(Player *player, Match *match, const AnimationLibrary& animations, SimulationRng& rng)
+    : match(match), animations_(animations), rng_(rng),
       player(player) {
   interruptAnim = e_InterruptAnim_None;
   reQueueDelayFrames = 0;
@@ -870,7 +870,7 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   currentAnim.positions.clear();
   currentAnim.positions = GetBakedClip(currentAnim.animationId).root_positions;
   currentAnim.frameNum =
-      match->rng().Uniform(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
+      rng_.Uniform(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
   currentAnim.touchFrame = -1;
   currentAnim.originatingInterrupt = e_InterruptAnim_None;
   currentAnim.actionSmuggle = Vector3(0);

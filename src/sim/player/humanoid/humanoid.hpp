@@ -28,7 +28,7 @@ class Team;
 class Humanoid : public HumanoidBase {
 
   public:
-    Humanoid(Player *player, const AnimationLibrary& animations);
+    Humanoid(Player *player, const AnimationLibrary& animations, SimulationRng& rng);
     virtual ~Humanoid();
 
     Player *CastPlayer() const;

@@ -78,8 +78,8 @@ constexpr bool allowBallControlReQueue = true;
 constexpr bool allowTrapReQueue = true;
 constexpr bool allowPreTouchRotationSmuggle = false;
 
-Humanoid::Humanoid(Player *player, const AnimationLibrary& animations)
-    : HumanoidBase(player, player->GetTeam()->GetMatch(), animations) {
+Humanoid::Humanoid(Player *player, const AnimationLibrary& animations, SimulationRng& rng)
+    : HumanoidBase(player, player->GetTeam()->GetMatch(), animations, rng) {
   team = CastPlayer()->GetTeam();
 }
 
@@ -490,7 +490,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
 
     radian xRot = 0;
     radian yRot = 0;
-    Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), match->rng(), GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+    Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), rng_, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
     if (currentAnim.originatingCommand.modifier &
         e_PlayerCommandModifier_KnockOn) {
       touchVec *= 1.35f;//1.2f;
@@ -582,7 +582,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
         //printf("trap!\n");
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), match->rng(), GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), rng_, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
         if (currentAnim.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           touchVec *= 1.35f;
@@ -719,7 +719,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
         radian xRot = 0;
         radian yRot = 0;
         radian zRot = 0;
-        Vector3 touchVec = GetShotVector(match->GetBall(), CastPlayer(), GetCurrentBakedClip(), match->rng(), currentAnim, spatialState, decayingPositionOffset, xRot, yRot, zRot);
+        Vector3 touchVec = GetShotVector(match->GetBall(), CastPlayer(), GetCurrentBakedClip(), rng_, currentAnim, spatialState, decayingPositionOffset, xRot, yRot, zRot);
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
@@ -734,13 +734,13 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
       else if (currentAnim.functionType == e_FunctionType_Interfere) {
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), match->rng(), GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), rng_, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
         touchVec =
             touchVec * 0.5f +
             (match->GetBall()->Predict(0).Get2D() - spatialState.position)
                     .GetNormalized() *
                 4.0f +
-            Vector3(0, 0, match->rng().Uniform(0.5f, 1.5f));  // was 1 .. 6
+            Vector3(0, 0, rng_.Uniform(0.5f, 1.5f));  // was 1 .. 6
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
@@ -777,7 +777,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
           Vector3 touchVec =
               (-currentBallMovement * 0.1f + playerMovement * 2.0f +
                Vector3(-team->GetDynamicSide(), 0, 0) * 4.0f +
-               Vector3(0, match->rng().Uniform(-1, 1), 0))
+               Vector3(0, rng_.Uniform(-1, 1), 0))
                   .GetNormalized(0) *
               (currentBallMovement.GetLength() * 0.3f +
                playerMovement.GetLength() * 2.5f);
@@ -2177,7 +2177,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
   float distanceFactor = 0.0f;
   float heightFactor = 0.0f;
   float ballMovementFactor = 0.0f;
-  GetDifficultyFactors(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), match->rng(), spatialState, decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
+  GetDifficultyFactors(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), rng_, spatialState, decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // difficult balls may go into a more random orientation, or, if the anim has a default outgoing direction, it may converge towards that (since it is the easiest direction for that anim)
   radian randomRotation = 0.0f;
@@ -2189,7 +2189,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
     resultTouch = resultTouch * (1.0f - bias) + nativeTouch * bias;
   } else {
     radian rotation =
-        match->rng().Uniform(-0.5f * pi, 0.5f * pi) * std::min((real) randomRotation, 0.5f);
+        rng_.Uniform(-0.5f * pi, 0.5f * pi) * std::min((real) randomRotation, 0.5f);
     resultTouch.Rotate2D(rotation);
   }
 
@@ -2203,7 +2203,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
   resultTouch = resultTouch * (1.0f - ballMovementFactor) +
                 match->GetBall()->GetMovement() * ballMovementFactor;
 
-  resultTouch.coords[2] += difficultyFactor * 5.0f * match->rng().Uniform(0.2f, 1.0f);
+  resultTouch.coords[2] += difficultyFactor * 5.0f * rng_.Uniform(0.2f, 1.0f);
 
   return resultTouch;
 }

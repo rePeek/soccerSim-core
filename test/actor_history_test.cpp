@@ -91,6 +91,7 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
 
 
 static_assert(!std::is_constructible_v<Humanoid, Player*>);
+static_assert(!std::is_constructible_v<Humanoid, Player*, const AnimationLibrary&>);
 static_assert(!std::is_constructible_v<HumanoidBase, Player*, Match*>);
 static_assert(!std::is_constructible_v<Player, Team*, const football::model::Player&, std::uint8_t>);
 
@@ -104,12 +105,22 @@ TEST_CASE("Humanoid baked clips come from its injected library, not the runtime 
   REQUIRE(independent.Load(std::filesystem::path(__FILE__).parent_path().parent_path() /
       "assets/runtime/animations.simanim"));
   auto* actor = match.GetTeam(0)->GetAllPlayers()[1];
-  Humanoid humanoid(actor, independent);
+  SimulationRng supplied_rng;
+  supplied_rng.Seed(99);
+  auto expected_rng = supplied_rng;
+  const auto ambient_rng = match.rng().engine();
+  Humanoid humanoid(actor, independent, supplied_rng);
   const auto id = humanoid.GetCurrentAnim()->animationId;
   REQUIRE(&humanoid.GetBakedClip(id) == &independent.Get(static_cast<std::uint32_t>(id)));
   REQUIRE(&humanoid.GetBakedClip(id) != &match.GetAnimationLibrary().Get(static_cast<std::uint32_t>(id)));
   REQUIRE(&actor->CastHumanoid()->GetBakedClip(id) ==
           &match.GetAnimationLibrary().Get(static_cast<std::uint32_t>(id)));
+  (void)expected_rng.Uniform(0, static_cast<int>(humanoid.GetBakedClip(id).frame_count) - 2);
+  REQUIRE(supplied_rng.engine() == expected_rng.engine());
+  humanoid.ResetSituation(actor->GetPosition());
+  (void)expected_rng.Uniform(0, static_cast<int>(humanoid.GetBakedClip(humanoid.GetCurrentAnim()->animationId).frame_count) - 2);
+  REQUIRE(supplied_rng.engine() == expected_rng.engine());
+  REQUIRE(match.rng().engine() == ambient_rng);
 }
 
 TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",

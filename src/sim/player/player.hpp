@@ -154,7 +154,7 @@ class Player final {
 
   public:
     Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
-           const AnimationLibrary& animations, const football::model::Pitch& pitch);
+           const AnimationLibrary& animations, const football::model::Pitch& pitch, SimulationRng& rng);
     ~Player();
     // Explicit teardown reset before deletion; no hidden clock/RNG destructor path.
     void Exit(football::sim::Tick now);
@@ -412,6 +412,7 @@ class Player final {
     void SetNextResetSituationAuditContext(int context);
     const AnimationLibrary& animations_;
     const football::model::Pitch& pitch_;
+    SimulationRng& rng_;
 
     // Team owns an immutable description for the entire actor lifetime.
     const football::model::Player& model_;

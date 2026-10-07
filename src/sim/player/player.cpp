@@ -262,8 +262,8 @@ bool FloatBitsEqual(float a, float b) {
 }  // namespace
 
 Player::Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
-               const AnimationLibrary& animations, const football::model::Pitch& pitch)
-    : animations_(animations), pitch_(pitch),
+               const AnimationLibrary& animations, const football::model::Pitch& pitch, SimulationRng& rng)
+    : animations_(animations), pitch_(pitch), rng_(rng),
       model_(model),
       schedule_phase_(schedule_phase % 10),
       team(team) {
@@ -679,7 +679,7 @@ Vector3 Player::GetPitchPosition() {
 void Player::Activate() {
   assert(!isActive);
   isActive = true;
-  humanoid.reset(new Humanoid(this, animations_));
+  humanoid.reset(new Humanoid(this, animations_, rng_));
   CastHumanoid()->ResetPosition(
       GetFormationEntry().position * 25 *
           Vector3(-team->GetDynamicSide(), -team->GetDynamicSide(), 0),
