@@ -78,7 +78,7 @@ class Match {
     void ResetSituation(const Vector3 &focusPos);
     std::uint64_t GetResetSequence() const { return reset_sequence_; }
 
-    // Half-time change of ends requested by the referee; applied at the start of
+    // Half-time change of ends scheduled by Simulation; applied at the start of
     // the next Step, where the canonical between-tick frame is guaranteed.
     void RequestChangeOfEnds() { pending_change_of_ends_ = true; }
 

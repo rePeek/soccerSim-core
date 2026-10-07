@@ -20,7 +20,6 @@
 
 #include "sim/match/match.hpp"
 #include "sim/rules/offside.hpp"
-#include "sim/rules/period.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/rules/restart_placement.hpp"
 #include "sim/observation/pitch_frame.hpp"
@@ -76,43 +75,33 @@ Referee::Referee(Match *match) : match(match) {
 
 Referee::~Referee() {}
 
+void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
+                            const Vector3& kickoff_position, Team& kickoff_team) {
+  buffer.active = false;
+  buffer.taker = nullptr;
+  buffer.endPhase = false;
+  buffer.restart.reset();
+  if (ended_phase == MatchPhase::SecondHalf) return;
+
+  // Half time: abandon the pending foul and prepare the next kickoff.
+  foul.foulPlayer = nullptr;
+  foul.foulType = 0;
+  foul.advantage = false;
+  foul.foul_tick = {};
+  foul.hasBeenProcessed = true;
+  buffer.desiredSetPiece = e_GameMode_KickOff;
+  buffer.stop_tick = now;
+  buffer.prepare_tick = buffer.stop_tick + kHalfPreparation;
+  buffer.start_tick = buffer.prepare_tick + kHalfWhistle;
+  buffer.restartPos = kickoff_position;
+  buffer.active = true;
+  buffer.endPhase = true;
+  buffer.teamID = kickoff_team.GetID();
+  buffer.setpiece_team = &kickoff_team;
+}
+
 void Referee::Process() {
   if (match->Finished()) return;
-  // Period authority is independent of restart eligibility. A pending set piece
-  // must not keep a match alive after the regulation clock reaches full time.
-  if (football::sim::rules::PeriodElapsed(
-      match->IsHalfUnderway(), match->GetMatchPhase(),
-      match->GetRegulationTime(), match->options().half_duration)) {
-    match->EndHalf();
-    buffer.active = false;
-    buffer.taker = nullptr;
-    buffer.endPhase = false;
-    buffer.restart.reset();
-    if (match->GetMatchPhase() == MatchPhase::SecondHalf) {
-      match->SetMatchPhase(MatchPhase::Finished);
-      return;
-    }
-    // Half time: abandon any pending foul, then schedule the second-half kickoff
-    // and change ends at the next tick's canonical frame, before the kickoff reset
-    // repositions the actors.
-    foul.foulPlayer = nullptr;
-    foul.foulType = 0;
-    foul.advantage = false;
-    foul.foul_tick = {};
-    foul.hasBeenProcessed = true;
-    buffer.desiredSetPiece = e_GameMode_KickOff;
-    buffer.stop_tick = match->GetTimelineTick();
-    buffer.prepare_tick = buffer.stop_tick + kHalfPreparation;
-    buffer.start_tick = buffer.prepare_tick + kHalfWhistle;
-    buffer.restartPos = match->options().ball_position;
-    buffer.active = true;
-    buffer.endPhase = true;
-    buffer.teamID = match->options().left_team_owns_ball ? 1 : 0;
-    buffer.setpiece_team = match->GetTeam(buffer.teamID);
-    match->SetMatchPhase(MatchPhase::SecondHalf);
-    match->RequestChangeOfEnds();
-    return;
-  }
   if (buffer.active && buffer.restart) {
     ProcessRestart();
     if (post_restart_relax_ > TickSpan{}) post_restart_relax_ = post_restart_relax_ - TickSpan{1};

@@ -23,6 +23,7 @@
 
 #include "model/football_types.hpp"
 #include "sim/time/tick.hpp"
+#include "sim/match/match_phase.hpp"
 #include "sim/rules/restart_readiness.hpp"
 
 
@@ -78,6 +79,10 @@ class Referee {
   public:
     explicit Referee(Match *match);
     virtual ~Referee();
+
+    // Mutates only referee facts; lifecycle consequences belong to Simulation.
+    void OnPeriodEnded(MatchPhase ended_phase, football::sim::Tick now,
+                       const Vector3& kickoff_position, Team& kickoff_team);
 
     void Process();
 

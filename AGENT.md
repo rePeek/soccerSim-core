@@ -113,6 +113,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── player_contact_test.cpp   explicit contact inputs, in-place pair order and no RNG/ball mutation
 ├── goal_test.cpp             standalone goal geometry, segment bounds and legacy side-net veto
 ├── period_test.cpp           standalone explicit regulation boundary and ceremony/phase gates
+├── referee_state_test.cpp    explicit period operation changes only referee-owned facts
 ├── possession_test.cpp       arrival ranking, ties, hysteresis and retainer override
 ├── mental_image_history_test.cpp sole history, newest refresh, mirrors/reset/lifetime isolation
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
@@ -340,12 +341,16 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   pass; no golden, policy, physics or asset change accompanies these extractions.
 
 - rules/period owns pure PeriodElapsed(half_underway, phase, regulation, duration).
-  Simulation uses it before passive contacts; Referee::Process supplies explicit facts
-  at its original whistle boundary. Referee's no-argument PeriodElapsed is deleted,
-  not retained as a wrapper. Duration validity remains initialization/Clock authority.
-  Only SecondHalf doubles the threshold; no phase-policy repair or clock mutation.
-  Referee still owns period consequences and temporarily reads Match in Process,
-  foul/offside/out-of-play/restart composition. Do not replace that with a rules context.
+  Simulation evaluates it before passive contacts and at the original whistle boundary.
+  Referee's no-argument PeriodElapsed is deleted, not retained as a wrapper. Duration
+  validity remains initialization/Clock authority; only SecondHalf doubles the threshold.
+  Simulation::EndPeriod preserves EndHalf → Referee::OnPeriodEnded → SetMatchPhase
+  → pending end change. OnPeriodEnded takes phase/tick/kickoff spot/team explicitly,
+  mutates only referee facts and never reads Match. Final time retains the legacy foul
+  facts; half time clears the pending foul and schedules kickoff at +10/+30 ticks.
+  Physical sides/history still change at the next Step entry, not phase publication.
+  Referee temporarily reads Match in ordinary Process, foul/offside/out-of-play/restart
+  composition; opening phase publication is still transitional. No rules context.
   MentalImage decoupling, clock/end-change orchestration and period extraction each
   preserve regression fingerprints and all twelve diagnostic records byte-for-byte.
   Latest Release 34/34, Debug 33/33 (excluding full-match CLI), standalone period
@@ -400,7 +405,7 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   their write-only history storage are deleted, not replaced.
   Clock scale removal is a separate S2 semantic stage, not a unit-only rename.
   See tools/time-model-migration.md before rounding continuous arrival estimates.
-- Referee owns period transitions; Match owns phase/score and a MatchClock containing
+- Simulation owns period-end lifecycle; Match owns phase/score and a MatchClock containing
   executed-step count, Tick timeline, TickSpan regulation and TickSpan ball-in-play.
   MatchPhase is PreMatch/FirstHalf/SecondHalf/Finished; second-half ceremony is
   inside SecondHalf. MatchOptions::half_duration defaults to Minutes(45).

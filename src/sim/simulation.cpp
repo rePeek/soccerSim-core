@@ -188,7 +188,13 @@ void Simulation::Step(const PlayerControlSet& controls) {
   }
 
   // ProcessReferee: before this tick's ball/player movement, in the contact frame.
-  match.GetReferee()->Process();
+  if (football::sim::rules::PeriodElapsed(
+          match.IsHalfUnderway(), match.GetMatchPhase(),
+          match.GetRegulationTime(), match.options().half_duration)) {
+    EndPeriod(match);
+  } else {
+    match.GetReferee()->Process();
+  }
   Vector3 previousBallPos = match.ball->Predict(0);
   match.Mirror(reverse, !reverse, false);
   // Restore the processing frame even on the referee's terminal transition.
@@ -284,6 +290,21 @@ bool Simulation::IsInPlay() const {
 WorldState Simulation::Observe() const {
   if (!match_) throw std::logic_error("simulation has no match");
   return BuildWorldState(*match_);
+}
+
+void Simulation::EndPeriod(Match& match) {
+  // Keep the old publication order: stop clocks/play, referee facts, phase,
+  // pending end change. The physical change remains at the next Step's entry.
+  match.EndHalf();
+  match.GetReferee()->OnPeriodEnded(match.GetMatchPhase(), match.GetTimelineTick(),
+      match.options().ball_position,
+      *match.GetTeam(match.options().left_team_owns_ball ? 1 : 0));
+  if (match.GetMatchPhase() == MatchPhase::SecondHalf) {
+    match.SetMatchPhase(MatchPhase::Finished);
+    return;
+  }
+  match.SetMatchPhase(MatchPhase::SecondHalf);
+  match.RequestChangeOfEnds();
 }
 
 void Simulation::ApplyChangeOfEnds(Match& match) {

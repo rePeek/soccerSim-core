@@ -180,6 +180,8 @@ TEST_CASE("period whistles win over pending dead balls and half-time stops regul
                                    match->GetRegulationTime(), options.half_duration));
       REQUIRE(match->GetBallInPlayTime() == in_play);
       REQUIRE(match->rng().engine() == rng);
+      const auto whistle_tick = match->GetTimelineTick();
+      const int home_side = match->GetTeam(0)->GetStaticSide();
       simulation.Step({});
       REQUIRE_FALSE(simulation.Observe().half_underway);
       REQUIRE_FALSE(rules::PeriodElapsed(match->IsHalfUnderway(), match->GetMatchPhase(),
@@ -188,8 +190,22 @@ TEST_CASE("period whistles win over pending dead balls and half-time stops regul
       REQUIRE_FALSE(match->GetReferee()->RestartNeedsSimulation());
       REQUIRE(match->GetResetSequence() == resets);
       REQUIRE(simulation.Observe().ball_position == position);
+      REQUIRE(match->rng().engine() == rng);
+      REQUIRE(match->GetTeam(0)->GetStaticSide() == home_side);
+      REQUIRE_FALSE(match->isBallMirrored());
+      REQUIRE_FALSE(match->GetTeam(0)->isMirrored());
+      REQUIRE_FALSE(match->GetTeam(1)->isMirrored());
+      REQUIRE(match->GetTimelineTick() == whistle_tick + TickSpan{half == 1 ? 1u : 0u});
       if (half == 1) {
         REQUIRE(simulation.Observe().phase == MatchPhase::SecondHalf);
+        const auto& kickoff = match->GetReferee()->GetBuffer();
+        REQUIRE(kickoff.stop_tick == whistle_tick);
+        REQUIRE(kickoff.prepare_tick == whistle_tick + TickSpan{10});
+        REQUIRE(kickoff.start_tick == whistle_tick + TickSpan{30});
+        REQUIRE(kickoff.teamID == (match->options().left_team_owns_ball ? 1 : 0));
+        REQUIRE(kickoff.taker == nullptr);
+        REQUIRE(kickoff.active);
+        REQUIRE(kickoff.endPhase);
         const auto before = simulation.Observe();
         for (int tick = 0; tick < 60; ++tick) {
           simulation.Step({});
@@ -197,6 +213,7 @@ TEST_CASE("period whistles win over pending dead balls and half-time stops regul
           REQUIRE(simulation.Observe().ball_in_play_time == before.ball_in_play_time);
         }
         REQUIRE(simulation.Observe().in_set_piece); // Authorized, not actually taken.
+        REQUIRE(match->GetTeam(0)->GetStaticSide() == -home_side);
       }
     }
     REQUIRE(simulation.Finished());

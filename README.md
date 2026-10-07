@@ -179,15 +179,16 @@ ticks. It takes phase explicitly, atomically clips advances to the current perio
 and returns admitted ticks. Simulation explicitly advances Clock, updates the Match-owned
 recent possession window, then evaluates goals. Match::AdvanceTime/SwitchEnds are removed;
 Simulation::ApplyChangeOfEnds preserves roster → roster → Ball → history order at tick entry.
-Simulation::AdvanceTime is diagnostic-only (no physics/rules/execution count). Referee keeps
-period decisions; Simulation keeps tick counting/ordering. Match now has no tick entry
+Simulation::AdvanceTime is diagnostic-only (no physics/rules/execution count). Simulation
+owns period lifecycle and tick counting/ordering. Match now has no tick entry
 or collision/goal/selection algorithm, but actor ownership and touch/reset/mirror
 bridges remain. It is not yet ready to be renamed `MatchState` or removed.
 
 `rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration
-facts. Simulation's pre-contact gate and Referee's whistle boundary use the same predicate;
-the no-argument Referee query is removed. A standalone value-only test proves this boundary.
-Other Referee → Match dependencies and period/restart consequences remain transitional.
+facts. Simulation evaluates the pre-contact gate and original whistle boundary; EndPeriod
+preserves EndHalf → referee-state mutation → phase publication → pending end change.
+Referee::OnPeriodEnded takes explicit tick/phase/kickoff inputs and changes only its own
+facts. Other Referee → Match dependencies and restart consequences remain transitional.
 
 ## Build and tests
 

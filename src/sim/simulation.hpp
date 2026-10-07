@@ -49,6 +49,7 @@ class Simulation {
  private:
   void EnsureAnimationLibrary();
   void CaptureMentalImage(Match& match);
+  void EndPeriod(Match& match);
   void ApplyChangeOfEnds(Match& match);
   void UpdateRecentPossession(Match& match, football::sim::TickSpan admitted);
 
