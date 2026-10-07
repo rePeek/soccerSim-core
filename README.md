@@ -161,9 +161,11 @@ are removed. Neither app nor Catch2/offline baker code is linked into core.
 Tests cover rule/clock completion,
 results/lifecycle/restart, independent owners and AI-only value paths,
 control-tape/RNG replay and baselines. Test-only programs live under `test/`;
-`tools/` contains the regression diagnostic and offline animation baker. The baker
-shares callable bake/check/verify operations with Catch2 tests, which compare
-two independent bakes byte-for-byte and verify fields/selection against source.
-Motion/actions/RNG checkpoint goldens are unchanged; adding phase/time changes only World hash schema
-at those checkpoints (see `test/baselines/pre_match_runner.md`). Historical strategy
-and input schema hashes remain in the other files under `test/baselines/`.
+`tools/` contains read-only regression/restart diagnostics and the offline baker.
+The baker shares callable bake/check/verify operations with Catch2 tests, which
+compare independent bakes byte-for-byte and verify fields/selection against source.
+Semantic-stage motion/action/RNG changes and prior hashes are archived under
+`test/baselines/`; the three-clock/scale-removal evidence is in `pre_three_clocks.md`.
+Restart CSV definitions, multi-seed results and rerun commands are documented in
+[`tools/restart-metrics.md`](tools/restart-metrics.md). These measurements do not
+change restart bounds or claim football realism.

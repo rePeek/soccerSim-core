@@ -94,6 +94,12 @@ add_test(NAME football_animation_ab_lifecycle COMMAND football_regression --anim
 set_tests_properties(football_regression football_animation_ab football_animation_ab_lifecycle
   PROPERTIES LABELS regression ENVIRONMENT "GFOOTBALL_DATA_DIR=${PROJECT_SOURCE_DIR}/data")
 
+foreach(reverse IN ITEMS 0 1)
+  add_test(NAME football_restart_metrics_${reverse}
+    COMMAND football_restart_metrics 42 500 ${reverse})
+  set_tests_properties(football_restart_metrics_${reverse} PROPERTIES LABELS "sim;diagnostic")
+endforeach()
+
 add_executable(football_anim_baking_test anim_baking_test.cpp)
 target_link_libraries(football_anim_baking_test PRIVATE football_anim_baking Catch2::Catch2WithMain)
 target_compile_definitions(football_anim_baking_test PRIVATE

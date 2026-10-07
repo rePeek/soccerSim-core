@@ -204,3 +204,18 @@ If 24 Hz replay is later implemented, use integer phase accumulation on the
   overflow atomicity, precision and terminal freeze. Native movement tests verify
   exact unscaled per-metre fatigue and exclusion of ceremonial warmup.
 - Baked SHA256 remains the S1 value; all old rows are archived before replacement.
+
+## Post-S2 restart measurement (no policy change)
+
+tools/football_restart_metrics.cpp adds read-only event/clock diagnostics, not
+runtime instrumentation or a scheduler. Native short runs cover both orders and
+period-censored waits; completed-wait distributions exclude censoring. Independent
+ordinary-event wait sums must equal regulation minus ball-in-play ticks per half.
+
+Initial full normal-order seeds 42/43/44 produce 148/131/135 ordinary restarts and
+76:45.57 / 78:36.58 / 78:10.08 effective time. None use timeout repair. Default
+teams are asymmetric; this is measurement, not symmetric-team realism calibration.
+Definitions, by-half/mode results and rerun commands: tools/restart-metrics.md.
+All restart bounds, AI/physics coefficients and animation timing remain unchanged.
+Remaining work is richer restart behavior and distributional calibration, alongside
+the previously listed continuous reachability/Player calculation audits.

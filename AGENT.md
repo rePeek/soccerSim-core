@@ -209,6 +209,11 @@ anim_baking → legacy_anim + animation/foundation
   captured before replacing XML; six-decimal quantization is fixture-local.
 - The actual `football_app` supplies black-box short/full match coverage. There is
   no separate smoke executable and no shell architecture-test tier.
+- `tools/football_restart_metrics.cpp` is a read-only native composition diagnostic:
+  separate ordinary/ceremonial restart waits, period-censoring, timeout repair and
+  regulation/effective ticks by half. It observes rule facts, never supplies timing
+  policy or mutates actors/RNG. Short native runs in both processing orders check
+  clock/call invariants; metric definitions/reruns live in tools/restart-metrics.md.
 
 ## Autonomous runner and runtime authority
 
