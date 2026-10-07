@@ -75,7 +75,7 @@ src/
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
 │   ├── rules/        Referee, offside, ceremonial placement and restart readiness
-│   └── player/       Player, public controls, internal commands, locomotion/mechanics
+│   └── player/       Player, controls, commands, locomotion and player_contact mechanics
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
 ├── ai/               value-only decisions; never links sim runtime
 │   ├── ai_config.hpp startup values; no live channel
@@ -110,6 +110,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── default_ai_test.cpp + default_ai_fixture.hpp
 ├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
 ├── ball_player_contact_test.cpp standalone Ball, contact cooldown/order and explicit history inputs
+├── player_contact_test.cpp   explicit contact inputs, in-place pair order and no RNG/ball mutation
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
 ├── player_observation_tick_test.cpp publication/reset stamps, re-entry ages and history sampling
 ├── reachability_tick_test.cpp grid candidate rollouts, split horizons and continuous precision
@@ -255,8 +256,8 @@ Simulation::Step → controls + ball_player_contact → Match-owned state
   roster possession refresh; caller then sets rotation. Keep both original prediction
   recalculations and the existing sample-zero publication timing unchanged.
 - Match::Step/Process are removed; only friend Simulation can enter StepRemainingTick.
-  Its referee, ball/player processing, history capture, possession/player collision,
-  clock and goal phases remain to be extracted without changing their order. This
+  Its referee, ball/player processing, history capture, possession, clock and goal
+  composition remain to be extracted without changing their order. This
   is not a completed state-only Match or Player/Team/Referee dependency migration.
   Simulation::match() remains a transitional test/diagnostic escape hatch.
 - Contact extraction retains cooldown's strict >15-tick boundary and the original
@@ -265,6 +266,15 @@ Simulation::Step → controls + ball_player_contact → Match-owned state
   and explicit time/history sampling. Before/after regression --print-baseline and
   restart diagnostics for seeds 42/43/44 × both orders × default/symmetric fixtures
   (30000 ticks per half) are byte-identical. No golden, physics or policy change.
+- player/player_contact owns the former humanoid-pair collision algorithm and private
+  bounce accumulators. Inputs are an ordered active-player span, const Ball and the
+  designated possession player, never Match/Simulation. The tail supplies first then
+  second roster in the common contact frame after possession, before AdvanceTime.
+  Pair offsets remain immediate; movement sharing is accumulated/applied afterward.
+  Referee& is an explicit transitional dependency: TripMe → TripNotice executes inline
+  before any later pair/offset. Do not buffer notices; rules inspect live positions.
+  Player contact extraction preserves the same regression fingerprints and twelve
+  seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
 
 - Start requires stopped state and initializes local owners before publishing
   either. Failure remains stopped. Stop is idempotent and releases both; Start

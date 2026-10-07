@@ -40,11 +40,6 @@
 #include <fstream>
 #include <iostream>
 
-struct PlayerBounce {
-  Player *opp;
-  float force = 0.0f;
-};
-
 class Match {
 
   public:
@@ -171,8 +166,6 @@ class Match {
     void SwitchEnds();
 
     void CalculateBestPossessionTeamID();
-    void CheckHumanoidCollisions();
-    void CheckHumanoidCollision(Player *p1, Player *p2, std::vector<PlayerBounce> &p1Bounce, std::vector<PlayerBounce> &p2Bounce);
 
 
     int score_[2] = {0, 0};

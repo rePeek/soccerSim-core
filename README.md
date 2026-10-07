@@ -148,6 +148,10 @@ Runtime authority migration is incremental. `Simulation::Step()` now dispatches
 controls and invokes `ball/ball_player_contact.*`, applying its impulse, random
 rotation and cooldown at the original point in the tick. The resolver receives
 explicit domain inputs, not a Match/Simulation service locator.
+`player/player_contact.*` owns ordered player-pair separation, movement sharing and
+tackle/trip mechanics. The transitional tail passes players, Ball, possession
+designation and Referee explicitly; notices remain synchronous after each trip.
+No pair sorting, position snapshotting or deferred foul-event queue is introduced.
 
 `Ball` owns only physics/predictions and a copied Pitch; netting receives the current
 `BallEnvironment` rule fact on each call. Touch-dependent history/possession refresh
