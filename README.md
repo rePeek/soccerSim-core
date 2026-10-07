@@ -162,9 +162,10 @@ is composed by `ball/ball_touch_application.*::ApplyBallTouch` with explicit Bal
 environment, impulse, history and processing-ordered teams. Match::TouchBall is removed;
 physics → newest history → first/second possession refresh remains synchronous, before
 rotation. Simulation::TouchBall is a transitional diagnostic escape. Actor/body touches
-publish through the write-only `BallTouchSink` (`ball/ball_touch_event.hpp`) implemented
-by `MatchTouchSink`; `Team::SetLastTouchPlayer` no longer exists, so the old implicit
-Team → Match → Referee chain is gone. Notification remains synchronous. `Simulation::Step()`
+publish through the write-only `BallTouchSink` (`event/ball_touch_sink.hpp`). Simulation
+assembles current facts; `event/ball_touch_dispatcher.*` writes touch bookkeeping and
+TouchState values, then notifies rules synchronously. MatchTouchSink and
+Match::SetLastTouchTeamID are deleted. `Simulation::Step()`
 composes all legacy phases explicitly;
 `Match::StepRemainingTick` is removed. `team/possession.*` evaluates best-team and
 designated-player selection without publishing state. Simulation applies the selection

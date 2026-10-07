@@ -33,6 +33,8 @@
 #include "sim/match/match_result.hpp"
 #include "sim/time/tick.hpp"
 #include "sim/time/tick_boundary.hpp"
+#include "sim/event/touch_state.hpp"
+namespace football::sim::testing { class SimulationAccess; }
 
 
 #include <chrono>
@@ -105,13 +107,11 @@ class Match {
     }
     bool IsGoalScored() const { return goalScored; }
     Team* GetLastGoalTeam() const { return lastGoalTeam; }
-    void SetLastTouchTeamID(int id, e_TouchType touchType,
-                            football::sim::rules::RuleCommandSink& commands);
-    int GetLastTouchTeamID(e_TouchType touchType) const { return lastTouchTeamIDs[touchType]; }
-    int GetLastTouchTeamID() const { return lastTouchTeamID; }
+    int GetLastTouchTeamID(e_TouchType touchType) const { return touches_.last_team_by_type[touchType]; }
+    int GetLastTouchTeamID() const { return touches_.last_team; }
     Team *GetLastTouchTeam() {
-      if (lastTouchTeamID != -1)
-        return teams[lastTouchTeamID];
+      if (touches_.last_team != -1)
+        return teams[touches_.last_team];
       else
         return teams[first_team];
     }
@@ -148,6 +148,7 @@ class Match {
 
   private:
     friend class Simulation;
+    friend class football::sim::testing::SimulationAccess;
 
 
     int score_[2] = {0, 0};
@@ -179,8 +180,7 @@ class Match {
     bool ballIsInGoal = false;
     Team* lastGoalTeam = 0;
     Player *lastGoalScorer;
-    int lastTouchTeamIDs[e_TouchType_SIZE];
-    int lastTouchTeamID = 0;
+    football::sim::event::TouchState touches_;
     Team* bestPossessionTeam = 0;
     Player *designatedPossessionPlayer;
     Player *ballRetainer;

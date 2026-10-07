@@ -82,10 +82,6 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
   // match params
 
   lastGoalTeam = 0;
-  for (unsigned int i = 0; i < e_TouchType_SIZE; i++) {
-    lastTouchTeamIDs[i] = -1;
-  }
-  lastTouchTeamID = -1;
   lastGoalScorer = 0;
   bestPossessionTeam = 0;
   SetMatchPhase(MatchPhase::PreMatch);
@@ -115,30 +111,6 @@ void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
   teams[teamID]->GetActivePlayers(players);
 }
 
-void Match::SetLastTouchTeamID(int id, e_TouchType touchType,
-                              football::sim::rules::RuleCommandSink& commands) {
-  lastTouchTeamIDs[touchType] = id;
-  lastTouchTeamID = id;
-  // Publish explicit facts synchronously; the referee reads no Match state.
-  football::sim::rules::BallTouchFacts facts;
-  facts.now = GetTimelineTick();
-  facts.touch_player = GetLastTouchPlayer();
-  facts.touch_team_id = id;
-  facts.touch_team = id == -1 ? nullptr : teams[id];
-  facts.defending_team = id == -1 ? nullptr : teams[1 - id];
-  facts.in_play = IsInPlay();
-  facts.in_set_piece = IsInSetPiece();
-  facts.offsides_enabled = options_.offsides;
-  facts.ball = ball;
-  facts.stadium_to_home = PitchFrameTransform(teams[0]->GetStaticSide() != -1);
-  std::vector<Player*> active_players;
-  if (facts.offsides_enabled) {
-    teams[first_team]->GetActivePlayers(active_players);
-    teams[second_team]->GetActivePlayers(active_players);
-    facts.all_active_players = active_players;
-  }
-  referee_->BallTouched(facts, commands);
-}
 
 
 

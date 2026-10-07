@@ -155,7 +155,7 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     ProcessRules(simulation);
     REQUIRE(match.rng().engine() == rng);
     // A notification without a scheduled release cannot invent RestartTaken.
-    MatchTouchSink touch_sink(match, SimulationAccess::CommandsOf(simulation));
+    auto& touch_sink = SimulationAccess::EventsOf(simulation);
     touch_sink.OnBallTouched({match.GetTimelineTick(), state.plan.taker, state.plan.team, e_TouchType_Intentional_Nonkicked});
     REQUIRE(match.GetReferee()->GetBuffer().restart->phase == RestartPhase::Ready);
     simulation.AdvanceTime(Seconds(1));
@@ -227,7 +227,7 @@ TEST_CASE("ordinary ball-out plans retain the right sideline and team in all run
         Match& match = *simulation.match();
         if (switched) { match.RequestChangeOfEnds(); simulation.Step({}); }
         const int last_team = mode == e_GameMode_Corner ? 1 : 0;
-    MatchTouchSink touch_sink(match, SimulationAccess::CommandsOf(simulation));
+    auto& touch_sink = SimulationAccess::EventsOf(simulation);
     touch_sink.OnBallTouched({match.GetTimelineTick(), match.GetTeam(last_team)->GetAllPlayers()[1],
         match.GetTeam(last_team), e_TouchType_Accidental});
         const Vector3 out = mode == e_GameMode_ThrowIn ? Vector3(10, 40, 0) : Vector3(56, 10, 0);

@@ -7,6 +7,7 @@
 #include "sim/rules/ball_touch_facts.hpp"
 #include "sim/testing/simulation_access.hpp"
 #include "rule_command_fixture.hpp"
+#include "sim/event/ball_touch_dispatcher.hpp"
 using football::sim::testing::SimulationAccess;
 
 namespace {
@@ -294,7 +295,7 @@ TEST_CASE("the explicit touch sink is the only publication path for actor touche
   auto* other = match.GetTeam(1)->GetAllPlayers()[1];
   const auto rng = match.rng().engine();
   const auto now = Tick{77};
-  MatchTouchSink sink(match, SimulationAccess::CommandsOf(simulation));
+  auto& sink = SimulationAccess::EventsOf(simulation);
   sink.OnBallTouched({now, player, team, e_TouchType_Intentional_Nonkicked});
   REQUIRE(team->GetLastTouchPlayer() == player);
   REQUIRE(player->GetLastTouchTick() == now);
@@ -481,5 +482,40 @@ TEST_CASE("Simulation uniquely owns independent rules across Init and Stop", "[s
     REQUIRE_THROWS_AS(SimulationAccess::CommandsOf(simulation), std::logic_error);
     REQUIRE_FALSE(simulation.Stop());
   }
+}
+
+template<class T> concept HasImplicitCompetitionTouchSetter = requires(T& owner) {
+  owner.SetLastTouchTeamID(0);
+};
+static_assert(!HasImplicitCompetitionTouchSetter<Match>);
+
+TEST_CASE("event dispatcher writes only supplied touch state and notifies rules synchronously",
+          "[sim][touchsink][event]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  auto* team = match.GetTeam(0);
+  auto* player = team->GetAllPlayers()[1];
+  auto& referee = SimulationAccess::RulesOf(simulation);
+  football::sim::event::TouchState supplied;
+  football::sim::rules::BallTouchFacts facts;
+  facts.now = Tick{9};
+  facts.ball = match.GetBall();
+  football::test::RuleCommandProbe commands;
+  const auto rng = match.rng().engine();
+  football::sim::event::DispatchBallTouch(
+      {Tick{77}, player, team, e_TouchType_Intentional_Nonkicked}, supplied, facts, referee, commands);
+  REQUIRE(supplied.last_team == 0);
+  REQUIRE(supplied.last_team_by_type[e_TouchType_Intentional_Nonkicked] == 0);
+  REQUIRE(supplied.last_team_by_type[e_TouchType_Intentional_Kicked] == -1);
+  REQUIRE(SimulationAccess::TouchesOf(simulation).last_team == -1);
+  REQUIRE(player->GetLastTouchTick() == Tick{77});
+  REQUIRE(team->GetLastTouchPlayer() == player);
+  REQUIRE(commands.calls.empty());
+  REQUIRE(match.rng().engine() == rng);
+  supplied.Reset();
+  REQUIRE(supplied.last_team == -1);
+  for (int team_id : supplied.last_team_by_type) REQUIRE(team_id == -1);
 }
 }  // namespace

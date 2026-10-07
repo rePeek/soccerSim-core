@@ -11,6 +11,14 @@ namespace football::sim::testing {
 // Product execution remains Init/Step/Observe/Finished/Result/Stop.
 class SimulationAccess {
  public:
+  static BallTouchSink& EventsOf(Simulation& simulation) {
+    if (!simulation.touch_sink_) throw std::logic_error("simulation has no match");
+    return *simulation.touch_sink_;
+  }
+  static event::TouchState& TouchesOf(Simulation& simulation) {
+    if (!simulation.match_) throw std::logic_error("simulation has no match");
+    return simulation.match_->touches_;
+  }
   static Referee& RulesOf(Simulation& simulation) {
     if (!simulation.referee_) throw std::logic_error("simulation has no match");
     return *simulation.referee_;

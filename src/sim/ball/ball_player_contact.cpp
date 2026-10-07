@@ -17,7 +17,7 @@
 
 #include "sim/ball/ball.hpp"
 #include "sim/ball/ball_touch.hpp"
-#include "sim/ball/ball_touch_event.hpp"
+#include "sim/event/ball_touch_sink.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player.hpp"

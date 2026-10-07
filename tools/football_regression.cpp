@@ -14,7 +14,7 @@
 #include "sim/simulation.hpp"
 #include "../test/default_ai_fixture.hpp"
 #include "sim/match/match.hpp"
-#include "sim/match/match_touch_sink.hpp"
+#include "sim/event/ball_touch_sink.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_kinematics.hpp"
@@ -1170,7 +1170,7 @@ void CheckRefereeRules(Simulation& simulation) {
   home.at(1)->ResetPosition(Vector3(0, 0, 0), Vector3(0));
   home.at(2)->ResetPosition(Vector3(-45.0f * side, 0, 0), Vector3(0));
   match->GetBall()->ResetSituation(Vector3(0));
-  football::sim::MatchTouchSink touch_sink(*match, SimulationAccess::CommandsOf(simulation));
+  auto& touch_sink = SimulationAccess::EventsOf(simulation);
   touch_sink.OnBallTouched({match->GetTimelineTick(), home.at(1), match->GetTeam(0), e_TouchType_Intentional_Kicked});
   Require(match->IsInPlay(), "offside flagged the passer instead of reception");
   const auto offside_stopped = match->GetTimelineTick();

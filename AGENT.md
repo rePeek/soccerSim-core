@@ -65,10 +65,11 @@ src/
 ├── sim/              domain-organized rules, physics, execution and observation
 │   ├── simulation.*  owns Match, Referee, RNG, MentalImage history and baked library
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
-│   ├── match/        Match, MatchClock, options, phase, result, pitch aliases, touch sink
+│   ├── match/        Match, MatchClock, options, phase, result and pitch aliases
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
-│   ├── ball/         standalone Ball physics/environment, touch kinds/prediction timing,
-│   │                 write-only touch event/sink and ball_player_contact interaction
+│   ├── ball/         standalone Ball physics/environment, prediction timing, touch kinds
+│   │                 and ball_player_contact interaction
+│   ├── event/        touch event, write-only sink, value TouchState and synchronous dispatcher
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 and MentalImage/player-image history + nearest-slot sampling
 │   ├── random/       simulation-owned RNG authority alias; algorithm in foundation
@@ -263,9 +264,11 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   and control dispatch. ball/ball_player_contact resolves passive body contacts from
   explicit players/teams, touch facts, history and Tick values; it does not accept
   Match/Simulation or draw RNG. Per-volume contacts publish touch facts through
-  ball/ball_touch_event.hpp's write-only BallTouchSink and the MatchTouchSink runtime
-  composition; Team::SetLastTouchPlayer is removed, so actors never reach Match for
-  touch notification. Publication stays synchronous inside the tick. Never freeze touch
+  event/ball_touch_sink.hpp's write-only BallTouchSink. Simulation assembles rule facts
+  per notification; event/ball_touch_dispatcher applies team/player bookkeeping →
+  TouchState values → Referee::BallTouched synchronously. MatchTouchSink files and
+  Match::SetLastTouchTeamID are deleted. Team's latest-player record remains transitional.
+  Publication stays synchronous inside the tick. Never freeze touch
   biases before the sweep: later actors must see earlier touches in the same tick.
 - Ball owns a copied model::Pitch, never Match/Simulation, Team, Player or RNG.
   Every prediction-mutating operation receives BallEnvironment (the current netting
@@ -276,8 +279,8 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   Keep both original prediction recalculations and sample-zero publication timing unchanged.
 - Match::Step/Process/StepRemainingTick are removed. Simulation::Step now spells out
   the legacy phase order and all frame/terminal/ceremonial boundaries directly.
-  Match still holds competition state, actors and transitional touch/history sampling
-  composition; this is not a completed Player/Team/Referee dependency migration.
+  Match still holds competition state, actors and touch values; it no longer composes
+  touch/history notifications. Player/Team upward dependencies are not yet removed.
   Simulation::match() remains a transitional test/diagnostic escape hatch.
 - Contact extraction retains cooldown's strict >15-tick boundary and the original
   three RNG argument-expression draws after touch-dependent refresh, before cooldown
@@ -387,8 +390,8 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   BallTouched consumes those facts and still owns the offside-player decision list.
 - rules/ball_touch_facts.hpp defines BallTouchFacts: now, touch player/team id, touch/
   defending Team pointers, in_play/in_set_piece/offsides flags, const Ball and the ordered
-  all-active span. Match::SetLastTouchTeamID assembles them from competition facts and calls
-  Referee::BallTouched(facts, commands) synchronously; Referee derives defending active
+  all-active span. Simulation assembles them from current competition facts; the event
+  dispatcher calls Referee::BallTouched(facts, commands) synchronously. Referee derives defending active
   count/candidates from the span. Restart release/offside/foul consequences use the
   same synchronous write-only rule port and explicit stadium frame.
   MentalImage decoupling, clock/end-change orchestration and period extraction each
@@ -399,8 +402,8 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
 Match has no tick entry or collision/goal/selection algorithm. Referee is fully
 Match-independent and uniquely owned by Simulation. Match's referee access is a
 transitional non-owning actor borrow, not a rule service locator or a second owner.
-Match retains competition/clock and actor ownership, touch publication composition
-and the possession window. Next: event-owned touch bookkeeping, actor dependencies,
+Match retains competition/clock and actor ownership, TouchState values and the
+possession window. Next: team touch-record migration and actor dependencies,
 then ownership flip, internal testing access migration and deletion of sim/match/.
 Never rename it to a runtime-pointer MatchState or copy it into a RuntimeContext.
 

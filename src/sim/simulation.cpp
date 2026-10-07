@@ -15,7 +15,7 @@
 
 
 #include "sim/match/match.hpp"
-#include "sim/match/match_touch_sink.hpp"
+#include "sim/event/ball_touch_dispatcher.hpp"
 #include "sim/observation/world_state_builder.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player_contact.hpp"
@@ -120,6 +120,35 @@ football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
       PitchFrameTransform(match.GetTeam(0)->GetStaticSide() != -1)};
 }
 
+class Simulation::TouchEvents final : public football::sim::BallTouchSink {
+ public:
+  explicit TouchEvents(Simulation& simulation) : simulation_(simulation) {}
+  void OnBallTouched(const football::sim::BallTouchEvent& event) override {
+    simulation_.PublishBallTouch(event);
+  }
+ private:
+  Simulation& simulation_;
+};
+
+void Simulation::PublishBallTouch(const football::sim::BallTouchEvent& event) {
+  Match& match = *match_;
+  football::sim::rules::BallTouchFacts facts;
+  facts.now = match.GetTimelineTick();
+  facts.defending_team = match.GetTeam(1 - event.team->GetID());
+  facts.in_play = match.IsInPlay();
+  facts.in_set_piece = match.IsInSetPiece();
+  facts.offsides_enabled = match.options().offsides;
+  facts.ball = match.GetBall();
+  facts.stadium_to_home = PitchFrameTransform(match.GetTeam(0)->GetStaticSide() != -1);
+  std::vector<Player*> active;
+  if (facts.offsides_enabled) {
+    match.GetTeam(match.FirstTeam())->GetActivePlayers(active);
+    match.GetTeam(match.SecondTeam())->GetActivePlayers(active);
+    facts.all_active_players = active;
+  }
+  football::sim::event::DispatchBallTouch(event, match.touches_, facts, *referee_, *rule_commands_);
+}
+
 Simulation::Simulation() {
   // The pre-match profile draws historically ran on an RNG freshly seeded with
   // 0, before the episode seed was applied in Init(). Keep that exact window.
@@ -160,7 +189,7 @@ void Simulation::Init(
   referee_ = std::make_unique<Referee>(*match_->teams[match_->first_team], options.ball_position);
   match_->referee_ = referee_.get();
   rule_commands_ = std::make_unique<RuleCommands>(*this);
-  touch_sink_ = std::make_unique<football::sim::MatchTouchSink>(*match_, *rule_commands_);
+  touch_sink_ = std::make_unique<TouchEvents>(*this);
 }
 
 void Simulation::EnsureAnimationLibrary() {
@@ -206,7 +235,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
     match.GetTeam(match.FirstTeam())->GetActivePlayers(players);
     match.GetTeam(match.SecondTeam())->GetActivePlayers(players);
     const football::sim::BallPlayerContactInputs inputs{
-        match.teams, match.FirstTeam(), match.lastTouchTeamID, mental_images_,
+        match.teams, match.FirstTeam(), match.touches_.last_team, mental_images_,
         match.GetTimelineTick(), match.last_body_ball_collision_tick_, &*touch_sink_};
     const auto contact = football::sim::ResolveBallPlayerContacts(
         *match.GetBall(), players, inputs);
@@ -356,10 +385,7 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   mental_images_.clear();
   match.goalScored = false;
   match.ballIsInGoal = false;
-  for (unsigned int i = 0; i < e_TouchType_SIZE; i++) {
-    match.lastTouchTeamIDs[i] = -1;
-  }
-  match.lastTouchTeamID = -1;
+  match.touches_.Reset();
   match.lastGoalScorer = 0;
   match.bestPossessionTeam = 0;
   match.last_body_ball_collision_tick_ = {};

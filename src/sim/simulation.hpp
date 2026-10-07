@@ -13,7 +13,7 @@
 #include "sim/observation/world_state.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/match/match_result.hpp"
-#include "sim/match/match_touch_sink.hpp"
+#include "sim/event/ball_touch_sink.hpp"
 #include "sim/rules/referee_tick_facts.hpp"
 #include "sim/rules/rule_command_sink.hpp"
 
@@ -59,6 +59,8 @@ class Simulation {
  private:
   friend class football::sim::testing::SimulationAccess;
   class RuleCommands;
+  class TouchEvents;
+  void PublishBallTouch(const football::sim::BallTouchEvent& event);
   football::sim::rules::RefereeTickFacts RefereeFacts() const;
   void EnsureAnimationLibrary();
   void CaptureMentalImage(Match& match);
@@ -73,7 +75,7 @@ class Simulation {
   std::unique_ptr<Referee> referee_;
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;
   // Runtime touch publication; keeps the write-only sink out of actors.
-  std::unique_ptr<football::sim::MatchTouchSink> touch_sink_;
+  std::unique_ptr<football::sim::BallTouchSink> touch_sink_;
   std::shared_ptr<AnimationLibrary> animations_;
 };
 
