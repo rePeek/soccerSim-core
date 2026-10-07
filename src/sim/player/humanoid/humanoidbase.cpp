@@ -550,7 +550,6 @@ HumanoidBase::HumanoidBase(Player *player, Match *match)
   assert(match);
 
   ResetPosition(Vector3(0), Vector3(0));
-  mentalImageTime = 0;
 }
 
 HumanoidBase::~HumanoidBase() {}
@@ -931,7 +930,7 @@ void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {
 }
 
 void HumanoidBase::ResetSituation(const Vector3 &focusPos) {
-  mentalImageTime = 0;
+  mentalImageTime = std::chrono::milliseconds{0};
   ResetPosition(spatialState.position, focusPos);
 }
 

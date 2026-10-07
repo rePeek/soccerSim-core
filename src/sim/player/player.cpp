@@ -866,7 +866,7 @@ void Player::_CalculateTacticalSituation() {
   // the history sampler, not stored Player state, owns nearest-capture rounding.
   const bool own_touch = match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental;
   const MentalImage *mentalImage = own_touch ? match->GetMentalImage(football::sim::TickSpan{})
-                                           : match->GetMentalImage(GetReactionTime_ms());
+                                          : match->GetMentalImage(std::chrono::milliseconds{GetReactionTime_ms()});
   assert(mentalImage);
   assert(IsActive());
   float time_sec = 0.5f;

@@ -450,3 +450,14 @@ formula retains its off-grid millisecond precision, using only a bounded relativ
 age projection. It never converts the absolute timeline into milliseconds. Old
 diagnostic wire units are projected at output-only call sites. The unused possession-
 side history/accessor and its sole ValueHistory implementation are deleted.
+
+### Typed reaction sampling after T4e
+
+Match history sampling accepts TickSpan for grid ages or std::chrono::milliseconds
+for signed continuous reaction estimates; the untyped int overload is removed.
+Chrono durations here are calculation values, never simulation instants, physics dt,
+schedulers or clock accumulators. Humanoid's mentalImageTime is a typed reaction
+delay with intentional previous-delay/current-delay stages, not a redundant timestamp.
+Keep its ordering; only Match rounds to capture slots. Sampling clamps before integer
+narrowing and handles the full signed duration range. Physical/RNG rows and complete
+seed 42/43/44 restart records remain unchanged after T4c–T4e in all tested modes.

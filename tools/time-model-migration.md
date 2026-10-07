@@ -293,3 +293,34 @@ Both-order tests pin off-grid decay formulas, zero/negative decay, explicit zero
 rewinds, huge instants and absence of the retired APIs. Release's 28 non-default
 CTest registrations pass, including regression and identity. Full/multi-mode and
 full-seed verification is repeated together with the next typed reaction-history step.
+
+## T4e: typed continuous reaction-history sampling
+
+Match's raw-int history overload is replaced by std::chrono::milliseconds alongside
+the native TickSpan history API. This is a signed, continuous calculation-duration
+type, not a new timeline or configurable quantum. Humanoid's historical mentalImageTime
+field is now a typed reaction delay. Its prior-delay requeue sample and current-delay
+action selection retain their exact order; reset clears the delay. An unnecessary
+constructor assignment of the already-zero delay is removed. No reaction estimate
+is integer-tick-quantized, and no second authoritative clock is introduced.
+
+Nearest capture retains the former float-to-double ratio and rounding, but clamps
+before narrowing to a slot. Empty history still throws. Both-order tests sweep all
+old integer sampling boundaries and signed 64-bit extrema; compile-time checks enforce
+the cache duration type and removal of the untyped history API.
+
+### T4d–T4e final verification
+
+Release / Debug / true NDEBUG each pass 29/29 complete CTest registrations, including
+full 90-minute default matches. Core-only builds pass. Each mode's four core and four
+identity numerical/RNG rows are identical to T4b. Full seeds 42/43/44 raw restart, half,
+distribution and match records are byte-identical; baked SHA256 is unchanged.
+No golden, asset, reaction formula, locomotion parameter or restart policy changed.
+
+Remaining raw millisecond calculations are not hidden timeline storage: continuous
+arrival/ranking/desired-arrival estimates, ability-derived reaction/decay durations,
+signed prediction sampling and local SI/animation arithmetic preserve legacy precision
+and expression order. Diagnostic millisecond vectors are output-only. Further changes
+to those numerical models require a separately justified precision/behavior decision.
+Richer restarts, retrieval, coordinated defence/keeper utility and independently evidenced
+animation timing remain unfinished realism work; these unit stages do not calibrate them.

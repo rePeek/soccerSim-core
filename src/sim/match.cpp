@@ -152,13 +152,14 @@ MentalImage *Match::GetMentalImage(football::sim::TickSpan history) {
   return &mentalImages[index];
 }
 
-MentalImage *Match::GetMentalImage(int history_ms) {
-  // Preserve signed, sub-tick and float rounding at this calculation boundary.
-  // This selects a capture slot; it does not round reaction/reachability state.
+MentalImage *Match::GetMentalImage(std::chrono::milliseconds history) {
+  if (mentalImages.empty()) throw std::logic_error("mental-image history is empty");
+  // Keep the old float -> double ratio and half-up nearest-capture rounding.
+  // Clamp before narrowing: signed continuous delays may exceed int capacity.
   const double capture_ms = static_cast<double>(football::sim::ToMilliseconds(kMentalImageCadence));
-  const int slot = std::max(0, int(round((float)history_ms / capture_ms)));
-  return GetMentalImage(football::sim::TickSpan{
-      static_cast<std::uint64_t>(slot) * kMentalImageCadence.value});
+  const double slot = std::round(static_cast<float>(history.count()) / capture_ms);
+  const auto index = static_cast<std::size_t>(std::clamp(slot, 0.0, static_cast<double>(mentalImages.size() - 1)));
+  return &mentalImages[index];
 }
 
 void Match::UpdateLatestMentalImageBallPredictions() {
@@ -787,7 +788,8 @@ void Match::CheckBallCollisions() {
 
       bool directionChangedUnexpectedly = false;
       if (onlyWhenDirectionChangedUnexpectedly) {
-        float unexpectedDistance = (GetMentalImage(players[i]->GetReactionTime_ms() + static_cast<int>(football::sim::ToMilliseconds(action.elapsed)))->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // history from when the action began
+        const auto history = std::chrono::milliseconds{players[i]->GetReactionTime_ms() + static_cast<int>(football::sim::ToMilliseconds(action.elapsed))};
+        float unexpectedDistance = (GetMentalImage(history)->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // history from when the action began
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
 

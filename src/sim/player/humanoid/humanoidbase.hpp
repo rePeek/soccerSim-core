@@ -29,6 +29,7 @@
 #include "sim/player/player_kinematics.hpp"
 
 #include "sim/ai_support/mentalimage.hpp"
+#include <chrono>
 
 using namespace blunted;
 
@@ -492,8 +493,10 @@ class HumanoidBase {
     mutable float predicate_idle = 0.0f;
     mutable std::vector<float> orderScratch_;
 
-    // Should be dynamically retrieved from match, don't cache.
-    int mentalImageTime = 0;
+    // Reaction-history delay, not a timeline instant or a grid deadline.
+    // Requeue observes the previous delay; action selection uses this tick's delay.
+    // Keep sub-tick precision until Match's nearest-capture sampling boundary.
+    std::chrono::milliseconds mentalImageTime{0};
 
 };
 

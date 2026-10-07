@@ -36,6 +36,7 @@
 #include "sim/tick_boundary.hpp"
 
 
+#include <chrono>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -75,8 +76,8 @@ class Match {
 
     // Nearest capture slot (half-up), clamped to available history.
     MentalImage* GetMentalImage(football::sim::TickSpan history);
-    // Calculation sampling adapter, not an exact-grid deadline conversion.
-    MentalImage* GetMentalImage(int history_ms);
+    // Continuous reaction-delay sampling: retain sub-tick precision until sampling.
+    MentalImage* GetMentalImage(std::chrono::milliseconds history);
     void UpdateLatestMentalImageBallPredictions();
 
     void ResetSituation(const Vector3 &focusPos);

@@ -97,31 +97,34 @@ TEST_CASE("Player publication and reset stamps distinguish absent from tick zero
 }
 
 TEST_CASE("Mental history tick sampling preserves nearest-capture reaction boundaries", "[sim][tick][perception]") {
+  using std::chrono::milliseconds;
   for (bool reverse : {false, true}) {
     Simulation simulation; Init(simulation, reverse);
     auto& match = *simulation.match();
     REQUIRE_THROWS_AS(match.GetMentalImage(TickSpan{}), std::logic_error);
-    REQUIRE_THROWS_AS(match.GetMentalImage(0), std::logic_error);
+    REQUIRE_THROWS_AS(match.GetMentalImage(milliseconds{0}), std::logic_error);
     football::test::TakeKickOff(simulation);
     const auto rng = match.rng().engine();
     const auto captured = match.GetMentalImage(TickSpan{})->captured_tick;
     for (std::uint64_t ticks = 0; ticks < 400; ++ticks) {
       const auto slot = std::min<std::uint64_t>((ticks + 5) / 10, 2);
       REQUIRE(match.GetMentalImage(TickSpan{ticks})->captured_tick == captured - TickSpan{slot * 10});
-      REQUIRE(match.GetMentalImage(TickSpan{ticks}) == match.GetMentalImage(static_cast<int>(ticks * 10)));
+      REQUIRE(match.GetMentalImage(TickSpan{ticks}) == match.GetMentalImage(milliseconds{ticks * 10}));
     }
     // Sub-tick reaction estimates must not acquire new ties or new snapshots.
     // Only the existing 100 ms capture-slot sampling is rounded here.
     for (int ms = -200; ms <= 400; ++ms) {
       const auto slot = std::clamp(int(std::round(float(ms) / 100.0)), 0, 2);
-      REQUIRE(match.GetMentalImage(ms)->captured_tick == captured - TickSpan{std::uint64_t(slot * 10)});
+      REQUIRE(match.GetMentalImage(milliseconds{ms})->captured_tick == captured - TickSpan{std::uint64_t(slot * 10)});
     }
-    REQUIRE(match.GetMentalImage(49) == match.GetMentalImage(TickSpan{}));
-    REQUIRE(match.GetMentalImage(50) == match.GetMentalImage(TickSpan{10}));
-    REQUIRE(match.GetMentalImage(149) == match.GetMentalImage(TickSpan{10}));
-    REQUIRE(match.GetMentalImage(150) == match.GetMentalImage(TickSpan{20}));
-    REQUIRE(match.GetMentalImage(std::numeric_limits<int>::min()) == match.GetMentalImage(TickSpan{}));
-    REQUIRE(match.GetMentalImage(std::numeric_limits<int>::max()) == match.GetMentalImage(TickSpan{20}));
+    REQUIRE(match.GetMentalImage(milliseconds{49}) == match.GetMentalImage(TickSpan{}));
+    REQUIRE(match.GetMentalImage(milliseconds{50}) == match.GetMentalImage(TickSpan{10}));
+    REQUIRE(match.GetMentalImage(milliseconds{149}) == match.GetMentalImage(TickSpan{10}));
+    REQUIRE(match.GetMentalImage(milliseconds{150}) == match.GetMentalImage(TickSpan{20}));
+    REQUIRE(match.GetMentalImage(milliseconds{std::numeric_limits<int>::min()}) == match.GetMentalImage(TickSpan{}));
+    REQUIRE(match.GetMentalImage(milliseconds{std::numeric_limits<int>::max()}) == match.GetMentalImage(TickSpan{20}));
+    REQUIRE(match.GetMentalImage(milliseconds::min()) == match.GetMentalImage(TickSpan{}));
+    REQUIRE(match.GetMentalImage(milliseconds::max()) == match.GetMentalImage(TickSpan{20}));
     REQUIRE(match.GetMentalImage(TickSpan{std::numeric_limits<std::uint64_t>::max()}) ==
             match.GetMentalImage(TickSpan{20}));
     REQUIRE(match.rng().engine() == rng);
@@ -131,6 +134,11 @@ TEST_CASE("Mental history tick sampling preserves nearest-capture reaction bound
     REQUIRE(match.GetMentalImage(TickSpan{100}) == match.GetMentalImage(TickSpan{}));
   }
 }
+
+struct HumanoidHistoryTypeProbe : HumanoidBase { using HumanoidBase::mentalImageTime; };
+static_assert(std::is_same_v<decltype(HumanoidHistoryTypeProbe::mentalImageTime), std::chrono::milliseconds>);
+template<class T> concept HasUntypedHistory = requires(T& owner) { owner.GetMentalImage(0); };
+static_assert(!HasUntypedHistory<Match>);
 
 template<class T> concept HasMillisecondTimeline = requires(T& owner) { owner.GetActualTime_ms(); };
 template<class T> concept HasMillisecondAdvance = requires(T& owner) { owner.BumpActualTime_ms(10); };
