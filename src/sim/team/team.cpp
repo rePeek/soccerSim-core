@@ -158,11 +158,10 @@ void Team::SetFadingTeamPossessionAmount(float value) {
   fadingTeamPossessionAmount = clamp(value, 0.5, 1.5);
 }
 
-void Team::SetLastTouchPlayer(Player *player, e_TouchType touchType) {
+void Team::NoteLastTouchPlayer(Player *player, football::sim::Tick now, e_TouchType touchType) {
   lastTouchPlayer = player;
-  player->SetLastTouchTick(match->GetTimelineTick());
+  player->SetLastTouchTick(now);
   player->SetLastTouchType(touchType);
-  match->SetLastTouchTeamID(GetID(), touchType);
 }
 
 void Team::ResetSituation(const Vector3 &focusPos) {
@@ -192,7 +191,7 @@ void Team::RelaxFatigue(float howMuch) {
   }
 }
 
-void Team::Process(std::span<MentalImage> history) {
+void Team::Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) {
   teamPossessionAmount = (float)(match->GetTeam(abs(GetID() - 1))
       ->GetTimeNeededToGetToBall_ms() +
       1500) /
@@ -217,7 +216,7 @@ void Team::Process(std::span<MentalImage> history) {
 
   for (unsigned int i = 0; i < players.size(); i++) {
     if (players[i]->IsActive()) {
-      players[i]->Process(history);
+      players[i]->Process(history, touch_sink);
     }
   }
 

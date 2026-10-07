@@ -184,7 +184,8 @@ TEST_CASE("Player touch and card effect timestamps use the timeline tick", "[sim
     Match* match = simulation.match();
     auto* player = match->GetTeam(0)->GetAllPlayers()[1];
     const auto now = match->GetTimelineTick();
-    match->GetTeam(0)->SetLastTouchPlayer(player, e_TouchType_Intentional_Kicked);
+    MatchTouchSink touch_sink(*match);
+    touch_sink.OnBallTouched({now, player, match->GetTeam(0), e_TouchType_Intentional_Kicked});
     REQUIRE(player->GetLastTouchTick() == now);
     const auto effective = now + TickSpan{5};
     player->GiveRedCard(effective);

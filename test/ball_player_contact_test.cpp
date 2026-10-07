@@ -11,6 +11,7 @@
 #include "sim/ball/ball.hpp"
 #include "sim/ball/ball_player_contact.hpp"
 #include "sim/match/match.hpp"
+#include "sim/match/match_touch_sink.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
@@ -32,6 +33,8 @@ struct ContactFixture {
   std::array<Team*, 2> teams;
   Player* home;
   Player* away;
+  // Owns the write-only publication port for the fixture's direct contact calls.
+  std::unique_ptr<MatchTouchSink> touch_sink;
 
   explicit ContactFixture(bool reverse) {
     MatchOptions options;
@@ -40,6 +43,7 @@ struct ContactFixture {
         football::app::fixtures::MakeDefaultAwayTeam(),
         football::model::MakeLegacyPitch(), options);
     auto& match = *simulation.match();
+    touch_sink = std::make_unique<MatchTouchSink>(match);
     teams = {match.GetTeam(0), match.GetTeam(1)};
     // Native kickoff placement initializes the Movement action publication.
     for (int i = 0; i < 40; ++i) simulation.Step({});
@@ -53,7 +57,9 @@ struct ContactFixture {
     home->ResetPosition(Vector3(0), Vector3(1, 0, 0));
     away->ResetPosition(Vector3(0), Vector3(1, 0, 0));
     simulation.AdvanceTime(Seconds(1));
-    teams[1]->SetLastTouchPlayer(teams[1]->GetAllPlayers()[2]);
+    MatchTouchSink touch_sink(match);
+    touch_sink.OnBallTouched({match.GetTimelineTick(), teams[1]->GetAllPlayers()[2], teams[1],
+        e_TouchType_Intentional_Kicked});
     match.GetBall()->SetPosition(Vector3(0.05f, 0, 1.0f), match.GetBallEnvironment());
     match.GetBall()->SetMomentum(Vector3(-8, 0, 0), match.GetBallEnvironment());
   }
@@ -61,7 +67,7 @@ struct ContactFixture {
   BallPlayerContactInputs Inputs(Tick last_collision = {}) {
     auto& match = *simulation.match();
     return {teams, match.FirstTeam(), match.GetLastTouchTeamID(), {},
-            match.GetTimelineTick(), last_collision};
+            match.GetTimelineTick(), last_collision, &*touch_sink};
   }
 };
 

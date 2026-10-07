@@ -13,6 +13,7 @@
 #include "sim/observation/world_state.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/match/match_result.hpp"
+#include "sim/match/match_touch_sink.hpp"
 
 class Match;
 class AnimationLibrary;
@@ -62,6 +63,8 @@ class Simulation {
   // Constructed before Match and kept alive until its borrowed references are gone.
   std::vector<MentalImage> mental_images_;
   std::unique_ptr<Match> match_;
+  // Runtime touch publication; keeps the write-only sink out of actors.
+  std::unique_ptr<football::sim::MatchTouchSink> touch_sink_;
   std::shared_ptr<AnimationLibrary> animations_;
 };
 

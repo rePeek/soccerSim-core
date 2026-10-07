@@ -2,6 +2,7 @@
 
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
+#include "sim/match/match_touch_sink.hpp"
 
 TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warmup", "[sim][clock][fatigue]") {
   for (bool half_underway : {false, true}) {
@@ -25,6 +26,7 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
     std::vector<MentalImage> history{*simulation.GetMentalImage(football::sim::TickSpan{}),
         *simulation.GetMentalImage(football::sim::TickSpan{10}),
         *simulation.GetMentalImage(football::sim::TickSpan{20})};
+    football::sim::MatchTouchSink touch_sink(*simulation.match());
     // Exercise this owner's native motion/update, without collisions or rule resets
     // contaminating the distance. No implicit policy, scale override or fake contact.
     for (int tick = 0; tick < 100; ++tick) {
@@ -32,7 +34,7 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
       const float fatigue = actor.GetFatigueFactorInv();
       const float stamina = actor.GetStaminaStat();
       actor.SetControl(move);
-      actor.Process(history);
+      actor.Process(history, touch_sink);
       REQUIRE(actor.GetSimulationActionState().IsPureLocomotion(false));
       const float distance = (actor.GetPosition() - before).GetLength();
       metres += distance;

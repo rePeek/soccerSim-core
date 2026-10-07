@@ -65,10 +65,10 @@ src/
 ├── sim/              domain-organized rules, physics, execution and observation
 │   ├── simulation.*  owns Match, RNG, MentalImage history and baked library
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
-│   ├── match/        Match, MatchClock, options, phase, result and pitch aliases
+│   ├── match/        Match, MatchClock, options, phase, result, pitch aliases, touch sink
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
-│   ├── ball/         standalone Ball physics/environment, touch kinds/prediction timing
-│   │                 and ball_player_contact cross-domain interaction
+│   ├── ball/         standalone Ball physics/environment, touch kinds/prediction timing,
+│   │                 write-only touch event/sink and ball_player_contact interaction
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 and MentalImage/player-image history + nearest-slot sampling
 │   ├── random/       simulation-owned RNG authority alias; algorithm in foundation
@@ -261,9 +261,11 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
 - Simulation owns tick sequencing, pending end-change application, execution accounting
   and control dispatch. ball/ball_player_contact resolves passive body contacts from
   explicit players/teams, touch facts, history and Tick values; it does not accept
-  Match/Simulation or draw RNG. Per-volume Team::SetLastTouchPlayer still bridges
-  to legacy referee notifications synchronously. Never freeze touch biases before
-  the sweep: later actors must see earlier touches in the same tick.
+  Match/Simulation or draw RNG. Per-volume contacts publish touch facts through
+  ball/ball_touch_event.hpp's write-only BallTouchSink and the MatchTouchSink runtime
+  composition; Team::SetLastTouchPlayer is removed, so actors never reach Match for
+  touch notification. Publication stays synchronous inside the tick. Never freeze touch
+  biases before the sweep: later actors must see earlier touches in the same tick.
 - Ball owns a copied model::Pitch, never Match/Simulation, Team, Player or RNG.
   Every prediction-mutating operation receives BallEnvironment (the current netting
   rule fact), not a stored duplicate of match goal state. Ball::Touch is physics only.

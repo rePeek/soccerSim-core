@@ -34,6 +34,7 @@
 #include "sim/match/match.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/ball/ball_touch_application.hpp"
+#include "sim/ball/ball_touch_event.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
 
@@ -89,7 +90,7 @@ bool _PassFiddlingEnabled() {
   return true;
 }
 
-void Humanoid::Process(std::span<MentalImage> history) {
+void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) {
   // Reject invalid runtime state before the spatial/action debug oracles run.
   if (startPos.coords[2] != 0.f) {
     throw std::logic_error("Humanoid::Process: player position must have zero height");
@@ -102,6 +103,10 @@ void Humanoid::Process(std::span<MentalImage> history) {
   decayingDifficultyFactor = clamp(decayingDifficultyFactor - 0.002f, 0.0f, 1.0f);
 
   assert(match);
+  // Tick-local publication: actors never reach Match for touch notification.
+  const auto notify_touch = [&](e_TouchType type) {
+    touch_sink.OnBallTouched({match->GetTimelineTick(), CastPlayer(), team, type});
+  };
 
   bool instaDoorheb = false;
   if (match->GetLastTouchTeamID() == team->GetID()) instaDoorheb = true;
@@ -493,7 +498,7 @@ void Humanoid::Process(std::span<MentalImage> history) {
     football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
         *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
     match->GetBall()->SetRotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias), match->GetBallEnvironment()); // 0.9
-    team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));//, e_TouchType_Accidental);
+    notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart)); //, e_TouchType_Accidental
   }
   // ---------------------- / EXPERIMENTAL ------------------------------------------------
 
@@ -585,7 +590,7 @@ void Humanoid::Process(std::span<MentalImage> history) {
         record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
 
-        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
+        notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
       else if (currentAnim.functionType == e_FunctionType_BallControl) {
@@ -604,7 +609,7 @@ void Humanoid::Process(std::span<MentalImage> history) {
         record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias), match->GetBallEnvironment()); // 1.0
 
-        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
+        notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
       else if (currentAnim.functionType == e_FunctionType_ShortPass ||
@@ -683,7 +688,7 @@ void Humanoid::Process(std::span<MentalImage> history) {
         radian yRot = touchVec.GetNormalized(0).coords[0] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
         match->GetBall()->SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
 
-        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
+        notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
       else if (currentAnim.functionType == e_FunctionType_Shot) {
@@ -714,7 +719,7 @@ void Humanoid::Process(std::span<MentalImage> history) {
             *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
         record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
-        team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
+        notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
       else if (currentAnim.functionType == e_FunctionType_Interfere) {
@@ -734,7 +739,7 @@ void Humanoid::Process(std::span<MentalImage> history) {
             *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
         // Legacy three-argument call: the third value is z rotation; bias was 1.0.
         match->GetBall()->SetRotation(xRot, yRot, 0.3f * (1.0f - bumpyRideBias), 1.0f, match->GetBallEnvironment());
-        team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental); // it's not truly accidental, but the resulting direction somewhat is, so goalies may fetch these balls
+        notify_touch(e_TouchType_Accidental); // it's not truly accidental, but the resulting direction somewhat is, so goalies may fetch these balls
       }
 
       else if (currentAnim.functionType == e_FunctionType_Deflect) {
@@ -773,7 +778,7 @@ void Humanoid::Process(std::span<MentalImage> history) {
               *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
           match->GetBall()->SetRotation(0, 0, 0, 0.2f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
         }
-        team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental);
+        notify_touch(e_TouchType_Accidental);
       }
 
       else if (currentAnim.functionType == e_FunctionType_Sliding) {
@@ -786,7 +791,7 @@ void Humanoid::Process(std::span<MentalImage> history) {
         football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
             *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
 
-        team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental);
+        notify_touch(e_TouchType_Accidental);
       }
     }
     if (contact_audit && !contact_impulse_generated) {
@@ -825,7 +830,7 @@ void Humanoid::Process(std::span<MentalImage> history) {
       match->GetBall()->SetRotation(0, 0, 0, 1.0, match->GetBallEnvironment());
       match->GetBall()->SetPosition(ComputeRetainAnchor(
           spatialState.position, spatialState.bodyDirectionVec, anchor), match->GetBallEnvironment());
-      team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Intentional_Nonkicked);
+      notify_touch(e_TouchType_Intentional_Nonkicked);
     } else {
       // no longer retaining
       match->SetBallRetainer(0);

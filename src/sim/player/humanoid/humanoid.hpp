@@ -33,7 +33,7 @@ class Humanoid : public HumanoidBase {
 
     Player *CastPlayer() const;
 
-    void Process(std::span<MentalImage> history) override;
+    void Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) override;
 
 
     bool TouchPending() { return (currentAnim.frameNum < currentAnim.touchFrame) ? true : false; }

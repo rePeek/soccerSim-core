@@ -5,6 +5,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
 #include "sim/observation/mentalimage.hpp"
+#include "sim/match/match_touch_sink.hpp"
 #include "sim/query/player_query.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
@@ -31,7 +32,8 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     REQUIRE(match.IsInPlay());
     REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
     const auto rng = match.rng().engine();
-    REQUIRE_THROWS_AS(actor->Process({}), std::logic_error); // No fallback to Match history.
+    MatchTouchSink touch_sink(match);
+    REQUIRE_THROWS_AS(actor->Process({}, touch_sink), std::logic_error); // No fallback to Match history.
     REQUIRE(match.rng().engine() == rng);
 
     std::vector<Player*> players;
@@ -50,7 +52,7 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     const auto owned_forward = query::CalculateFreeSpace(&match, simulation.GetMentalImage(TickSpan{}),
         actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
     REQUIRE(forward != owned_forward);
-    actor->Process(supplied);
+    actor->Process(supplied, touch_sink);
     REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == forward);
     REQUIRE(actor->GetTacticalSituation().spaceRating == space);
     REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
@@ -69,12 +71,13 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
     const auto rng = match.rng().engine();
     auto* actor = match.GetTeam(match.FirstTeam())->GetAllPlayers()[0];
     const auto position = actor->GetPosition();
-    REQUIRE_THROWS_AS(actor->CastHumanoid()->Process({}), std::logic_error);
+    MatchTouchSink touch_sink(match);
+    REQUIRE_THROWS_AS(actor->CastHumanoid()->Process({}, touch_sink), std::logic_error);
     REQUIRE(actor->GetPosition() == position);
     REQUIRE(match.rng().engine() == rng);
     std::vector<MentalImage> supplied;
     supplied.emplace_back(match.GetTimelineTick(), std::span<Player* const>{}, *match.GetBall());
-    REQUIRE_NOTHROW(actor->Process(supplied)); // Ball-only caller-owned sample; no stored borrow.
+    REQUIRE_NOTHROW(actor->Process(supplied, touch_sink)); // Ball-only caller-owned sample; no stored borrow.
     REQUIRE(supplied[0].players.empty());
     REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
   }

@@ -17,6 +17,7 @@
 
 #include "sim/ball/ball.hpp"
 #include "sim/ball/ball_touch.hpp"
+#include "sim/ball/ball_touch_event.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player.hpp"
@@ -92,7 +93,8 @@ BallPlayerContactResult ResolveBallPlayerContacts(
                     (ball.Predict(0) - volume->center).GetNormalized(Vector3(0)) * movementBias +
                     players[i]->GetMovement() * (1.0f - movementBias);
                 bounceCount++;
-                players[i]->GetTeam()->SetLastTouchPlayer(players[i], e_TouchType_Accidental);
+                inputs.touch_sink->OnBallTouched(
+                    {inputs.now, players[i], players[i]->GetTeam(), e_TouchType_Accidental});
                 last_touch_team = teamID;
                 // Keep per-volume accumulation and touch/rule notification order.
                 bias += (1.0f -

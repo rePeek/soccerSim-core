@@ -276,6 +276,34 @@ template<class T> concept HasImplicitTripNotice = requires(T& owner, Player* act
 };
 static_assert(!HasImplicitTripNotice<Referee>);
 
+template<class T> concept HasImplicitTouchSetter = requires(T& team, Player* player) {
+  team.SetLastTouchPlayer(player, e_TouchType_Accidental);
+};
+static_assert(!HasImplicitTouchSetter<Team>);
+
+TEST_CASE("the explicit touch sink is the only publication path for actor touches",
+          "[sim][touchsink]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  auto* team = match.GetTeam(0);
+  auto* player = team->GetAllPlayers()[1];
+  auto* other = match.GetTeam(1)->GetAllPlayers()[1];
+  const auto rng = match.rng().engine();
+  const auto now = Tick{77};
+  MatchTouchSink sink(match);
+  sink.OnBallTouched({now, player, team, e_TouchType_Intentional_Nonkicked});
+  REQUIRE(team->GetLastTouchPlayer() == player);
+  REQUIRE(player->GetLastTouchTick() == now);
+  REQUIRE(player->GetLastTouchType() == e_TouchType_Intentional_Nonkicked);
+  REQUIRE(other->GetLastTouchTick() == Tick{});
+  REQUIRE(match.GetLastTouchTeamID() == team->GetID());
+  REQUIRE(match.GetLastTouchTeamID(e_TouchType_Intentional_Nonkicked) == team->GetID());
+  REQUIRE(match.rng().engine() == rng); // Publication is not a policy or RNG event.
+}
+
+
 TEST_CASE("touch notices consume explicit facts instead of Match state",
           "[sim][referee][offside]") {
   Simulation simulation;

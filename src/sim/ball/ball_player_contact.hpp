@@ -14,6 +14,8 @@ class MentalImage;
 
 namespace football::sim {
 
+class BallTouchSink;
+
 // Borrowed, tick-local dependencies; neither Match nor Simulation is a service
 // locator for the resolver. All actors/ball/history must share one physical frame.
 struct BallPlayerContactInputs {
@@ -24,6 +26,8 @@ struct BallPlayerContactInputs {
   std::span<const MentalImage> history;
   Tick now;
   Tick last_body_collision;
+  // Write-only touch port; never queried for world state.
+  BallTouchSink* touch_sink = nullptr;
 };
 
 struct BallPlayerContactResult {
@@ -32,9 +36,10 @@ struct BallPlayerContactResult {
 };
 
 // Preserves supplied player order and per-volume accidental-touch notifications.
-// Mutates player flags and Team touch records through their existing APIs; these
-// legacy actor/rule bridges are not yet decoupled. Ball impulse, dependent refresh,
-// random rotation and cooldown publication belong to the calling runtime phase.
+// Mutates player flags and publishes team/player touch facts through the explicit
+// write-only sink; actors/Team expose no Match or Simulation lookup. Ball impulse,
+// dependent refresh, random rotation and cooldown publication belong to the
+// calling runtime phase.
 BallPlayerContactResult ResolveBallPlayerContacts(
     const Ball& ball, std::span<Player* const> players,
     const BallPlayerContactInputs& inputs);

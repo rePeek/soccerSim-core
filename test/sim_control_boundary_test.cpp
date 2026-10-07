@@ -11,6 +11,7 @@
 #include "default_ai_fixture.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/match/match.hpp"
+#include "sim/match/match_touch_sink.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/player/player_motion_constants.hpp"
@@ -71,11 +72,12 @@ TEST_CASE("humanoid starting height is a catchable runtime contract", "[sim][fai
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{10}),
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{20})};
     Player *player = runtime.match()->GetTeam(0)->GetAllPlayers()[1];
+    football::sim::MatchTouchSink touch_sink(*runtime.match());
     player->ResetPosition(Vector3(0, 0, height), Vector3(0, -1, 0));
-    REQUIRE_THROWS_AS(player->CastHumanoid()->Process(history), std::logic_error);
-    REQUIRE_THROWS_AS(player->CastHumanoid()->HumanoidBase::Process(history), std::logic_error);
+    REQUIRE_THROWS_AS(player->CastHumanoid()->Process(history, touch_sink), std::logic_error);
+    REQUIRE_THROWS_AS(player->CastHumanoid()->HumanoidBase::Process(history, touch_sink), std::logic_error);
     player->ResetPosition(Vector3(0), Vector3(0, -1, 0));
-    REQUIRE_NOTHROW(player->CastHumanoid()->Process(history));
+    REQUIRE_NOTHROW(player->CastHumanoid()->Process(history, touch_sink));
   }
 }
 
@@ -97,7 +99,8 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
     std::vector<MentalImage> history{*runtime.simulation.GetMentalImage(football::sim::TickSpan{}),
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{10}),
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{20})};
-    REQUIRE_THROWS_AS(humanoid->Process(history), std::runtime_error);
+    football::sim::MatchTouchSink touch_sink(*runtime.match());
+    REQUIRE_THROWS_AS(humanoid->Process(history, touch_sink), std::runtime_error);
   }
 
   SECTION("base cadence warning can continue without a named logger") {
@@ -113,7 +116,8 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
     anim->frameNum = 0;
     player->BeginSimulationAction();
     const int commits = HumanoidBasePathRefreshCommits();
-    REQUIRE_NOTHROW(humanoid->HumanoidBase::Process({})); // No selection/history sample on this cadence-only path.
+    football::sim::MatchTouchSink touch_sink(*runtime.match());
+    REQUIRE_NOTHROW(humanoid->HumanoidBase::Process({}, touch_sink)); // No selection/history sample on this cadence-only path.
     REQUIRE(HumanoidBasePathRefreshCommits() == commits + 1);
   }
 }
@@ -204,7 +208,9 @@ TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]")
   runtime.match()->GetBall()->ResetSituation(Vector3(0));
   REQUIRE(BuildPlayerCommands(save, *keeper)[0].desiredFunctionType == e_FunctionType_Movement);
   runtime.match()->GetBall()->ResetSituation(Vector3(-52, 0, 0));
-  team->SetLastTouchPlayer(team->GetAllPlayers()[1], e_TouchType_Intentional_Kicked);
+  football::sim::MatchTouchSink touch_sink(*runtime.match());
+  touch_sink.OnBallTouched({runtime.match()->GetTimelineTick(), team->GetAllPlayers()[1], team,
+      e_TouchType_Intentional_Kicked});
   REQUIRE(BuildPlayerCommands(save, *keeper)[0].desiredFunctionType == e_FunctionType_Movement);
 }
 
@@ -218,8 +224,9 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE(match->IsInPlay());
     REQUIRE_FALSE(match->IsInSetPiece());
     const int last_team = mode == e_GameMode_Corner ? 1 : 0;
-    match->GetTeam(last_team)->SetLastTouchPlayer(
-        match->GetTeam(last_team)->GetAllPlayers()[1], e_TouchType_Accidental);
+    football::sim::MatchTouchSink touch_sink(*match);
+    touch_sink.OnBallTouched({match->GetTimelineTick(), match->GetTeam(last_team)->GetAllPlayers()[1],
+        match->GetTeam(last_team), e_TouchType_Accidental});
     match->GetBall()->ResetSituation(mode == e_GameMode_ThrowIn
         ? Vector3(10, 37, 0) : Vector3(56, 10, 0));
     const auto stopped = match->GetTimelineTick();

@@ -586,7 +586,7 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
   }
 }
 
-void Player::Process(std::span<MentalImage> history) {
+void Player::Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
     if (match->IsInPlay()) {
@@ -597,7 +597,7 @@ void Player::Process(std::span<MentalImage> history) {
       }
     }
     Vector3 posBefore = CastHumanoid()->GetPosition();
-    CastHumanoid()->Process(history);
+    CastHumanoid()->Process(history, touch_sink);
     SynchronizeKinematicState();
     CheckSimulationActionOracle();
     // Real distance during an underway half, including dead-ball positioning.

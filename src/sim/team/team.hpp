@@ -24,6 +24,8 @@
 #include "sim/player/player.hpp"
 
 class Match;
+namespace football::sim { class BallTouchSink; }
+
 class MentalImage;
 
 class Team {
@@ -91,8 +93,8 @@ class Team {
     float GetFadingTeamPossessionAmount() const;
     void SetFadingTeamPossessionAmount(float value);
 
-    void SetLastTouchPlayer(
-        Player *player, e_TouchType touchType = e_TouchType_Intentional_Kicked);
+    // Team-local touch facts only; publication belongs to the explicit sink.
+    void NoteLastTouchPlayer(Player *player, football::sim::Tick now, e_TouchType touchType);
     Player *GetLastTouchPlayer() const { return lastTouchPlayer; }
     float GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at = std::nullopt) {
       return lastTouchPlayer
@@ -111,7 +113,7 @@ class Team {
 
     void RelaxFatigue(float howMuch);
 
-    void Process(std::span<MentalImage> history);
+    void Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink);
     void Put2D(bool mirror);
     void Hide2D();
 

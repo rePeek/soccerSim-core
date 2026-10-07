@@ -15,6 +15,7 @@
 
 
 #include "sim/match/match.hpp"
+#include "sim/match/match_touch_sink.hpp"
 #include "sim/observation/world_state_builder.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player_contact.hpp"
@@ -130,6 +131,7 @@ void Simulation::Init(
   EnsureAnimationLibrary();
   match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
                                   animations_);
+  touch_sink_ = std::make_unique<football::sim::MatchTouchSink>(*match_);
 }
 
 void Simulation::EnsureAnimationLibrary() {
@@ -176,7 +178,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
     match.GetTeam(match.SecondTeam())->GetActivePlayers(players);
     const football::sim::BallPlayerContactInputs inputs{
         match.teams, match.FirstTeam(), match.lastTouchTeamID, mental_images_,
-        match.GetTimelineTick(), match.last_body_ball_collision_tick_};
+        match.GetTimelineTick(), match.last_body_ball_collision_tick_, &*touch_sink_};
     const auto contact = football::sim::ResolveBallPlayerContacts(
         *match.GetBall(), players, inputs);
     if (contact.impulse) {
@@ -219,9 +221,9 @@ void Simulation::Step(const PlayerControlSet& controls) {
 
   // StepPlayers, each in its own execution frame.
   Mirror(match.first_team == 1, match.first_team == 0, false);
-  match.teams[match.first_team]->Process(mental_images_);
+  match.teams[match.first_team]->Process(mental_images_, *touch_sink_);
   Mirror(true, true, true);
-  match.teams[match.second_team]->Process(mental_images_);
+  match.teams[match.second_team]->Process(mental_images_, *touch_sink_);
   Mirror(match.first_team == 0, match.first_team == 1, true);
 
   // UpdatePossession: retain both per-roster refreshes before arbitration.
@@ -417,6 +419,7 @@ bool Simulation::Stop() {
   if (!match_) return false;
   match_->Exit();
   mental_images_.clear();
+  touch_sink_.reset();
   match_.reset();
   return true;
 }

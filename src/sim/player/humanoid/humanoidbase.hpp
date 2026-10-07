@@ -27,10 +27,12 @@
 #include "sim/animation/clip.hpp"
 
 #include "sim/player/player_kinematics.hpp"
-
 #include "sim/observation/mentalimage.hpp"
+
 #include <chrono>
 #include <span>
+
+namespace football::sim { class BallTouchSink; }
 
 using namespace blunted;
 
@@ -343,7 +345,8 @@ class HumanoidBase {
     virtual ~HumanoidBase();
     void Mirror();
 
-    virtual void Process(std::span<MentalImage> history);
+    // Tick-local borrows: observation history and the write-only touch port.
+    virtual void Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink);
 
     inline int GetFrameNum() { return currentAnim.frameNum; }
     inline int GetFrameCount() { return static_cast<int>(GetCurrentBakedClip().frame_count); }
