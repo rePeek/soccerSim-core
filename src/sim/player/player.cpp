@@ -631,7 +631,8 @@ float Player::GetVelocityMultiplier() const {
 }
 
 float Player::GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at) {
-  const auto time = at.value_or(match->GetTimelineTick());
+  // Explicit evaluation time must not eagerly consult the owner as value_or would.
+  const auto time = at ? *at : match->GetTimelineTick();
   if (decay_ms <= 0 || time < last_touch_tick_) return 0.0f;
   const auto age = time - last_touch_tick_;
   // Saturate before projection: absolute millisecond capacity is irrelevant.

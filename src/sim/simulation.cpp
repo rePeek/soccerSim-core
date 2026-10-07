@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "sim/animation/library.hpp"
+#include "sim/ball/ball_player_contact.hpp"
 
 
 
@@ -139,7 +140,49 @@ void Simulation::EnsureAnimationLibrary() {
 
 void Simulation::Step(const PlayerControlSet& controls) {
   if (!match_) throw std::logic_error("simulation has no match");
-  match_->Step(controls);
+  Match& match = *match_;
+  if (match.Finished()) return;
+  if (match.pending_change_of_ends_) {
+    match.SwitchEnds();
+    match.pending_change_of_ends_ = false;
+  }
+  ++match.duration_ticks_;
+
+  // Frame-local controls are runtime input, not a Match algorithm.
+  for (int team_id = 0; team_id < 2; ++team_id) {
+    for (Player* player : match.GetTeam(team_id)->GetAllPlayers()) {
+      player->ClearControl();
+      if (const PlayerControl* control = controls.Get(player->GetID())) {
+        player->SetControl(*control);
+      }
+    }
+  }
+
+  const bool reverse = match.options().reverse_team_processing;
+  // Ball already shares the first roster's frame; turn only the other roster.
+  match.Mirror(reverse, !reverse, false);
+  // Period whistles still win over pending contacts, before any RNG draw.
+  if (match.IsBallInPlay() && !match.GetReferee()->PeriodElapsed()) {
+    std::vector<Player*> players;
+    match.GetTeam(match.FirstTeam())->GetActivePlayers(players);
+    match.GetTeam(match.SecondTeam())->GetActivePlayers(players);
+    const football::sim::BallPlayerContactInputs inputs{
+        match.teams, match.FirstTeam(), match.lastTouchTeamID, match.mentalImages,
+        match.GetTimelineTick(), match.last_body_ball_collision_tick_};
+    const auto contact = football::sim::ResolveBallPlayerContacts(
+        *match.GetBall(), players, inputs);
+    if (contact.impulse) {
+      match.TouchBall(*contact.impulse);
+      // Preserve the three argument-expression RNG draws and refresh-before-spin.
+      match.GetBall()->SetRotation(rng_.Uniform(-30, 30), rng_.Uniform(-30, 30),
+          rng_.Uniform(-30, 30), contact.rotation_bias, match.GetBallEnvironment());
+      match.last_body_ball_collision_tick_ = match.GetTimelineTick();
+    }
+  }
+
+  // The tail restores the frame even on a terminal/ceremonial early return.
+  // Extract its remaining mechanics/rules phases separately, without reordering.
+  match.StepRemainingTick();
 }
 
 

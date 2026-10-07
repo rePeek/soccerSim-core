@@ -488,8 +488,8 @@ void Humanoid::Process() {
     float bumpyRideBias = 0.0f;
     touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-    match->GetBall()->Touch(touchVec);
-    match->GetBall()->SetRotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias)); // 0.9
+    match->TouchBall(touchVec);
+    match->GetBall()->SetRotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias), match->GetBallEnvironment()); // 0.9
     team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));//, e_TouchType_Accidental);
   }
   // ---------------------- / EXPERIMENTAL ------------------------------------------------
@@ -577,9 +577,9 @@ void Humanoid::Process() {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->GetBall()->Touch(touchVec);
+        match->TouchBall(touchVec);
         record_contact_impulse(touchVec);
-        match->GetBall()->SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias));
+        match->GetBall()->SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
 
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -595,9 +595,9 @@ void Humanoid::Process() {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->GetBall()->Touch(touchVec);
+        match->TouchBall(touchVec);
         record_contact_impulse(touchVec);
-        match->GetBall()->SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias)); // 1.0
+        match->GetBall()->SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias), match->GetBallEnvironment()); // 1.0
 
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -669,13 +669,13 @@ void Humanoid::Process() {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->GetBall()->Touch(touchVec);
+        match->TouchBall(touchVec);
         record_contact_impulse(touchVec);
         float forwardness = 3.5f;
         if (currentAnim.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
         radian xRot = touchVec.GetNormalized(0).coords[1] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
         radian yRot = touchVec.GetNormalized(0).coords[0] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
-        match->GetBall()->SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias));
+        match->GetBall()->SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
 
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -704,9 +704,9 @@ void Humanoid::Process() {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->GetBall()->Touch(touchVec);
+        match->TouchBall(touchVec);
         record_contact_impulse(touchVec);
-        match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias));
+        match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
@@ -723,8 +723,9 @@ void Humanoid::Process() {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->GetBall()->Touch(touchVec);
-        match->GetBall()->SetRotation(xRot, yRot, 0.3f * (1.0f - bumpyRideBias));
+        match->TouchBall(touchVec);
+        // Legacy three-argument call: the third value is z rotation; bias was 1.0.
+        match->GetBall()->SetRotation(xRot, yRot, 0.3f * (1.0f - bumpyRideBias), 1.0f, match->GetBallEnvironment());
         team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental); // it's not truly accidental, but the resulting direction somewhat is, so goalies may fetch these balls
       }
 
@@ -760,8 +761,8 @@ void Humanoid::Process() {
 
           touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-          match->GetBall()->Touch(touchVec);
-          match->GetBall()->SetRotation(0, 0, 0, 0.2f * (1.0f - bumpyRideBias));
+          match->TouchBall(touchVec);
+          match->GetBall()->SetRotation(0, 0, 0, 0.2f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
         }
         team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental);
       }
@@ -773,7 +774,7 @@ void Humanoid::Process() {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->GetBall()->Touch(touchVec);
+        match->TouchBall(touchVec);
 
         team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental);
       }
@@ -809,10 +810,10 @@ void Humanoid::Process() {
         throw std::runtime_error("Humanoid::Process: unknown retain state: " +
                                  retainState);
       }
-      match->GetBall()->Touch(Vector3(0));
-      match->GetBall()->SetRotation(0, 0, 0, 1.0);
+      match->TouchBall(Vector3(0));
+      match->GetBall()->SetRotation(0, 0, 0, 1.0, match->GetBallEnvironment());
       match->GetBall()->SetPosition(ComputeRetainAnchor(
-          spatialState.position, spatialState.bodyDirectionVec, anchor));
+          spatialState.position, spatialState.bodyDirectionVec, anchor), match->GetBallEnvironment());
       team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Intentional_Nonkicked);
     } else {
       // no longer retaining

@@ -67,9 +67,10 @@ src/
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
 │   ├── match/        Match, options, phase, result and legacy pitch geometry aliases
 │   ├── team/         runtime Team, formation entries and role/spacing adaptation
-│   ├── ball/         Ball physics, touch kinds and owner-local prediction timing
+│   ├── ball/         standalone Ball physics/environment, touch kinds/prediction timing
+│   │                 and ball_player_contact cross-domain interaction
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
-│   │                 and sim-private MentalImage/player-image execution history
+│   │                 and MentalImage/player-image history + nearest-slot sampling
 │   ├── random/       simulation-owned RNG authority alias; algorithm in foundation
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
@@ -108,6 +109,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── app_*_test.cpp            args, fixtures and CLI composition
 ├── default_ai_test.cpp + default_ai_fixture.hpp
 ├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
+├── ball_player_contact_test.cpp standalone Ball, contact cooldown/order and explicit history inputs
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
 ├── player_observation_tick_test.cpp publication/reset stamps, re-entry ages and history sampling
 ├── reachability_tick_test.cpp grid candidate rollouts, split horizons and continuous precision
@@ -129,7 +131,7 @@ Each module explicitly declares its sources, public `FILE_SET HEADERS`, aliases
 and link edges in its own `CMakeLists.txt`. No source globbing or `sources.cmake`.
 Root CMake directly builds `game` from `src/env.cpp`, publishes `env.hpp`,
 and provides `football::game`. There is no env directory, env target or intermediate
-engine object target. Runtime whole-archive packaging preserves existing exported
+engine object target. Runtime whole-archive packaging retains unreferenced runtime
 symbols (including the currently unused GetRoleFromString).
 
 ```text
@@ -236,8 +238,33 @@ reset, runtime accessor or live control/tactics/request API.
 app main → GameEnv::Start
          → until Finished: Observe → DefaultAI::Update → controls → Simulation::Step
          → Result (application serializes it)
-Simulation → Match → Ball / Team / Player / Humanoid / Referee
+Simulation::Step → controls + ball_player_contact → Match-owned state
+                 → private Match::StepRemainingTick (transitional legacy phases)
 ```
+
+- Simulation owns the tick entry, pending end-change boundary, executed-step count
+  and control dispatch. ball/ball_player_contact resolves passive body contacts from
+  explicit players/teams, touch facts, history and Tick values; it does not accept
+  Match/Simulation or draw RNG. Per-volume Team::SetLastTouchPlayer still bridges
+  to legacy referee notifications synchronously. Never freeze touch biases before
+  the sweep: later actors must see earlier touches in the same tick.
+- Ball owns a copied model::Pitch, never Match/Simulation, Team, Player or RNG.
+  Every prediction-mutating operation receives BallEnvironment (the current netting
+  rule fact), not a stored duplicate of match goal state. Ball::Touch is physics only.
+  Transitional Match::TouchBall composes Touch → latest history refresh → first/second
+  roster possession refresh; caller then sets rotation. Keep both original prediction
+  recalculations and the existing sample-zero publication timing unchanged.
+- Match::Step/Process are removed; only friend Simulation can enter StepRemainingTick.
+  Its referee, ball/player processing, history capture, possession/player collision,
+  clock and goal phases remain to be extracted without changing their order. This
+  is not a completed state-only Match or Player/Team/Referee dependency migration.
+  Simulation::match() remains a transitional test/diagnostic escape hatch.
+- Contact extraction retains cooldown's strict >15-tick boundary and the original
+  three RNG argument-expression draws after touch-dependent refresh, before cooldown
+  publication. Tests cover standalone Ball/netting, contact feedback/controlled gates
+  and explicit time/history sampling. Before/after regression --print-baseline and
+  restart diagnostics for seeds 42/43/44 × both orders × default/symmetric fixtures
+  (30000 ticks per half) are byte-identical. No golden, physics or policy change.
 
 - Start requires stopped state and initializes local owners before publishing
   either. Failure remains stopped. Stop is idempotent and releases both; Start

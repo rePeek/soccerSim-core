@@ -19,8 +19,6 @@
 
 #include <cmath>
 
-#include "sim/match/match.hpp"
-
 constexpr float bounce = 0.62f;  // 1 = full bounce, 0 = no bounce
 constexpr float linearBounce = 0.06f;  // bigger = more brake force
 constexpr float drag = 0.015f;  // bigger = more
@@ -29,8 +27,8 @@ constexpr float linearFriction = 1.6f;  // bigger = more, arbitrary scale;
 constexpr float gravity = -9.81f;
 constexpr float grassHeight = 0.025f;
 
-Ball::Ball(Match *match) : match(match) {
-  CalculatePrediction();
+Ball::Ball(const football::model::Pitch& pitch) : pitch_(pitch) {
+  CalculatePrediction({});
 }
 
 Ball::~Ball() {}
@@ -43,51 +41,48 @@ void Ball::Mirror() {
   positionBuffer.Mirror();
 }
 
-void Ball::GetPredictionArray(std::vector<Vector3> &target) {
+void Ball::GetPredictionArray(std::vector<Vector3> &target) const {
   target.resize(football::sim::ball_timing::kPredictionHorizon.value);
   for (std::size_t x = 0; x < target.size(); x++) {
     target[x] = predictions[x];
   }
 }
 
-Vector3 Ball::GetMovement() {
+Vector3 Ball::GetMovement() const {
   // meters / sec
   return momentum;
 }
 
-Vector3 Ball::GetRotation() {
+Vector3 Ball::GetRotation() const {
   real x, y, z;
   rotation_ms.GetAngles(x, y, z);
   return Vector3(x, y, z);
 }
 
-void Ball::Touch(const Vector3 &target) {
+void Ball::Touch(const Vector3 &target, football::sim::BallEnvironment environment) {
   valid_predictions = 0;
   if (positionBuffer.coords[2] < 0.11f) positionBuffer.coords[2] = 0.11f;
 
-  SetMomentum(target);
+  SetMomentum(target, environment);
 
-  // recalculate prediction
-  CalculatePrediction();
-  match->UpdateLatestMentalImageBallPredictions();
-
-  match->GetTeam(match->FirstTeam())->UpdatePossessionStats();
-  match->GetTeam(match->SecondTeam())->UpdatePossessionStats();
+  // Preserve both historical recalculations; no cross-domain notifications here.
+  CalculatePrediction(environment);
 }
 
-void Ball::SetPosition(const Vector3 &target) {
+void Ball::SetPosition(const Vector3 &target, football::sim::BallEnvironment environment) {
   valid_predictions = 0;
   positionBuffer.Set(target);
   momentum.Set(0);
-  SetRotation(0, 0, 0, 1.0);
+  SetRotation(0, 0, 0, 1.0, environment);
 }
 
-void Ball::SetMomentum(const Vector3 &target) {
+void Ball::SetMomentum(const Vector3 &target, football::sim::BallEnvironment environment) {
   momentum.Set(target);
-  CalculatePrediction();
+  CalculatePrediction(environment);
 }
 
-void Ball::SetRotation(real x, real y, real z, float bias) {
+void Ball::SetRotation(real x, real y, real z, float bias,
+                       football::sim::BallEnvironment environment) {
     // radians per second for each axis
   Quaternion rotX;
   rotX.SetAngleAxis(clamp(x * 0.001f, -pi * 0.49f, pi * 0.49f), Vector3(-1, 0, 0));
@@ -99,10 +94,14 @@ void Ball::SetRotation(real x, real y, real z, float bias) {
   Quaternion tmpRotation_ms = rotX * rotY * rotZ;
   rotation_ms = rotation_ms.GetSlerped(bias, tmpRotation_ms);
 
-  CalculatePrediction();
+  CalculatePrediction(environment);
 }
 
-BallSpatialInfo Ball::CalculatePrediction() {
+BallSpatialInfo Ball::CalculatePrediction(football::sim::BallEnvironment environment) {
+  const float pitchHalfW = pitch_.half_length();
+  const float goalHalfWidth = pitch_.goal_half_width();
+  const float goalHeight = pitch_.goal_height();
+  const float goalDepth = pitch_.goal_depth();
 
   Vector3 newMomentum;
   Quaternion newRotation_ms;
@@ -255,7 +254,6 @@ BallSpatialInfo Ball::CalculatePrediction() {
           } else {
             // 'upper' side of pitch
             normal = (nextPos.Get2D() - Vector3(pitchHalfW, goalHalfWidth, 0)).GetNormalized(Vector3(-1, 0, 0));
-            //match->SetDebugPilon(Vector3(55, 3.8, 0) + normal * 5);
             float nextPosZ = nextPos.coords[2];
             nextPos = Vector3(pitchHalfW, goalHalfWidth, 0) + normal * (postRadius + ballRadius);
             nextPos.coords[2] = nextPosZ;
@@ -300,7 +298,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
     if (ahead <= TickSpan{1} && netting_enabled) {
 
-      bool ballIsInGoal = match->IsBallInGoal();
+      bool ballIsInGoal = environment.ball_in_goal;
       signed int inGoal = ballIsInGoal ? 1 : -1;
 
       bool behindBackline = std::fabs(nextPos.coords[0]) > pitchHalfW + 0.11f;
@@ -497,8 +495,8 @@ BallSpatialInfo Ball::CalculatePrediction() {
 }
 
 
-void Ball::Process() {
-  BallSpatialInfo spatialInfo = CalculatePrediction();
+void Ball::Process(football::sim::BallEnvironment environment) {
+  BallSpatialInfo spatialInfo = CalculatePrediction(environment);
   momentum = spatialInfo.momentum;
   rotation_ms = spatialInfo.rotation_ms;
 

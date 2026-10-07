@@ -124,7 +124,7 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     ProcessRules(match);
     REQUIRE_FALSE(match.IsInPlay());
     SetBallHome(match, state.plan.ball_position);
-    match.GetBall()->Touch(Vector3(1, 0, 0));
+    match.TouchBall(Vector3(1, 0, 0));
     ProcessRules(match);
     REQUIRE_FALSE(match.IsInPlay());
     SetBallHome(match, state.plan.ball_position);

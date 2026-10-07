@@ -115,12 +115,17 @@ Vector3 MentalImage::GetBallPrediction(int time_ms) const {
 }
 
 Vector3 MentalImage::GetBallPrediction(football::sim::TickSpan horizon) const {
+  return GetBallPrediction(horizon, match->GetTimelineTick(), *match->GetBall());
+}
+
+Vector3 MentalImage::GetBallPrediction(football::sim::TickSpan horizon,
+                                      football::sim::Tick now, const Ball& ball) const {
   const auto last = football::sim::ball_timing::kPredictionHorizon - football::sim::TickSpan{1};
   // Clamp before adding, including arbitrary long manual timeline advances.
-  const auto age = std::min(GetAge(), last);
+  const auto age = std::min(now - captured_tick, last);
   const auto index = std::min(horizon, last - age) + age;
   Vector3 mentalResult = ballPredictions[index.value];
-  Vector3 realResult = match->GetBall()->Predict(horizon);
+  Vector3 realResult = ball.Predict(horizon);
 
   // let there be a maximum difference between the two. why?
   // when a ball gets a wholly new movement, this prediction is obviously far off reality, while some variables are not,

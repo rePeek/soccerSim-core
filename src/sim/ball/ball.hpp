@@ -24,10 +24,10 @@
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
 #include "sim/ball/ball_timing.hpp"
+#include "sim/ball/ball_environment.hpp"
+#include "model/pitch.hpp"
 
 using namespace blunted;
-
-class Match;
 
 struct BallSpatialInfo {
   BallSpatialInfo(const Vector3 &momentum, const Quaternion &rotation_ms) {
@@ -41,7 +41,7 @@ struct BallSpatialInfo {
 class Ball {
 
   public:
-    Ball(Match *match);
+    explicit Ball(const football::model::Pitch& pitch);
     virtual ~Ball();
 
     void Mirror();
@@ -57,16 +57,19 @@ class Ball {
           std::max(predictTime_ms, 0)) / football::sim::kMillisecondsPerTick});
     }
 
-    void GetPredictionArray(std::vector<Vector3> &target);
-    Vector3 GetMovement();
-    Vector3 GetRotation();
-    void Touch(const Vector3 &target);
-    void SetPosition(const Vector3 &target);
-    void SetMomentum(const Vector3 &target);
-    void SetRotation(real x, real y, real z, float bias = 1.0);     // radians per second for each axis
-    BallSpatialInfo CalculatePrediction();  // returns momentum at the next tick
+    void GetPredictionArray(std::vector<Vector3> &target) const;
+    Vector3 GetMovement() const;
+    Vector3 GetRotation() const;
+    // Physics only: callers own touch accounting, observation and possession refresh.
+    void Touch(const Vector3 &target, football::sim::BallEnvironment environment);
+    void SetPosition(const Vector3 &target, football::sim::BallEnvironment environment);
+    void SetMomentum(const Vector3 &target, football::sim::BallEnvironment environment);
+    // Radians per second for each axis.
+    void SetRotation(real x, real y, real z, float bias,
+                     football::sim::BallEnvironment environment);
+    BallSpatialInfo CalculatePrediction(football::sim::BallEnvironment environment);
 
-    void Process();
+    void Process(football::sim::BallEnvironment environment);
     Quaternion GetOrientation() const { return orientationBuffer; }
 
     void ResetSituation(const Vector3 &focusPos);
@@ -83,7 +86,7 @@ class Ball {
     Vector3 positionBuffer;
     Quaternion orientationBuffer;
 
-    Match *match;
+    const football::model::Pitch pitch_;
 
 
 };

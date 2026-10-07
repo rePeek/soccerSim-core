@@ -28,6 +28,7 @@ using namespace blunted;
 
 class Match;
 class Player;
+class Ball;
 
 class MentalImage {
  public:
@@ -38,6 +39,9 @@ class MentalImage {
   std::vector<PlayerImagePosition> GetTeamPlayerImages(int teamID) const;
   void UpdateBallPredictions();
   Vector3 GetBallPrediction(football::sim::TickSpan horizon) const;
+  // Explicit dependencies for domain computations; does not consult Match.
+  Vector3 GetBallPrediction(football::sim::TickSpan horizon,
+                           football::sim::Tick now, const Ball& ball) const;
   // Transitional horizon adapter for not-yet-migrated calculation callers.
   Vector3 GetBallPrediction(int time_ms) const;
   football::sim::TickSpan GetAge() const;

@@ -48,8 +48,8 @@ void SetPhysicalBall(Match& match, Vector3 position, Vector3 velocity) {
     position.Mirror();
     velocity.Mirror();
   }
-  match.GetBall()->SetPosition(position);
-  match.GetBall()->SetMomentum(velocity);
+  match.GetBall()->SetPosition(position, match.GetBallEnvironment());
+  match.GetBall()->SetMomentum(velocity, match.GetBallEnvironment());
 }
 
 Vector3 PhysicalBall(const Match& match) {

@@ -144,6 +144,19 @@ For example, AI includes `sim/observation/world_state.hpp` and
 projection, never mutable world authority. CMake exports define library/API
 boundaries; there is no `contracts/` directory or legacy include-path shim.
 
+Runtime authority migration is incremental. `Simulation::Step()` now dispatches
+controls and invokes `ball/ball_player_contact.*`, applying its impulse, random
+rotation and cooldown at the original point in the tick. The resolver receives
+explicit domain inputs, not a Match/Simulation service locator.
+
+`Ball` owns only physics/predictions and a copied Pitch; netting receives the current
+`BallEnvironment` rule fact on each call. Touch-dependent history/possession refresh
+is composed externally by a transitional `Match::TouchBall` bridge, preserving
+refresh-before-rotation timing. Player/Team touch accounting still notifies legacy
+rules synchronously. The remaining tick phases are private `Match::StepRemainingTick`,
+callable only by Simulation; Match is not yet a state-only container.
+`Simulation::match()` remains a temporary test/diagnostic escape hatch.
+
 ## Build and tests
 
 Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,

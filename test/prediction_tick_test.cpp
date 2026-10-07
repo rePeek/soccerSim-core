@@ -21,8 +21,8 @@ TEST_CASE("Ball samples and mental-image ages use ticks without changing quantiz
                     football::model::MakeLegacyPitch(), options);
     Match* match = simulation.match();
     Ball* ball = match->GetBall();
-    ball->SetPosition(blunted::Vector3(0, 0, 10));
-    ball->SetMomentum(blunted::Vector3(8, 1, 3));
+    ball->SetPosition(blunted::Vector3(0, 0, 10), match->GetBallEnvironment());
+    ball->SetMomentum(blunted::Vector3(8, 1, 3), match->GetBallEnvironment());
     MentalImage image(match);
     REQUIRE(image.captured_tick == match->GetTimelineTick());
     REQUIRE(image.GetAge() == TickSpan{});

@@ -26,12 +26,9 @@
 #include "foundation/geometry/triangle.hpp"
 #include <cassert>
 #include "sim/player/player_action_volume.hpp"
-#include "sim/player/player_body_collider.hpp"
+#include "sim/observation/mentalimage_sampling.hpp"
 
-namespace {
-// Match owns both history capture and nearest-slot sampling cadence.
-constexpr football::sim::TickSpan kMentalImageCadence{10};
-}
+using football::sim::observation::kMentalImageCadence;
 
 
 
@@ -57,7 +54,7 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
 
 
 
-  ball = new Ball(this);
+  ball = new Ball(pitch_);
 
   // The baked animation library is owned by the simulation and shared with
   // every match it creates; the runtime reads only that baked artifact.
@@ -145,25 +142,23 @@ void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
 }
 
 MentalImage *Match::GetMentalImage(football::sim::TickSpan history) {
-  if (mentalImages.empty()) throw std::logic_error("mental-image history is empty");
-  const auto cadence = kMentalImageCadence.value;
-  auto index = std::min<std::uint64_t>(history.value / cadence, mentalImages.size() - 1);
-  if (history.value % cadence >= cadence / 2 && index < mentalImages.size() - 1) ++index;
-  return &mentalImages[index];
+  return &mentalImages[football::sim::observation::MentalImageSampleIndex(mentalImages.size(), history)];
 }
 
 MentalImage *Match::GetMentalImage(std::chrono::milliseconds history) {
-  if (mentalImages.empty()) throw std::logic_error("mental-image history is empty");
-  // Keep the old float -> double ratio and half-up nearest-capture rounding.
-  // Clamp before narrowing: signed continuous delays may exceed int capacity.
-  const double capture_ms = static_cast<double>(football::sim::ToMilliseconds(kMentalImageCadence));
-  const double slot = std::round(static_cast<float>(history.count()) / capture_ms);
-  const auto index = static_cast<std::size_t>(std::clamp(slot, 0.0, static_cast<double>(mentalImages.size() - 1)));
-  return &mentalImages[index];
+  return &mentalImages[football::sim::observation::MentalImageSampleIndex(mentalImages.size(), history)];
 }
 
 void Match::UpdateLatestMentalImageBallPredictions() {
   if (!mentalImages.empty()) mentalImages[0].UpdateBallPredictions();
+}
+
+void Match::TouchBall(const Vector3& impulse) {
+  // Keep the legacy ordering, including pre-rotation observer/possession refresh.
+  ball->Touch(impulse, GetBallEnvironment());
+  UpdateLatestMentalImageBallPredictions();
+  teams[first_team]->UpdatePossessionStats();
+  teams[second_team]->UpdatePossessionStats();
 }
 
 void Match::ResetSituation(const Vector3 &focusPos) {
@@ -228,39 +223,9 @@ Team *Match::GetBestPossessionTeam() {
 
 
 
-// THE SPICE
-
-bool Match::Step(const PlayerControlSet& controls) {
-  if (Finished()) return false;
-  if (pending_change_of_ends_) {
-    SwitchEnds();
-    pending_change_of_ends_ = false;
-  }
-  ++duration_ticks_;
+// Transitional remainder, not a second public tick entry point.
+bool Match::StepRemainingTick() {
   bool reverse = options_.reverse_team_processing;
-
-  for (int team_id = 0; team_id < 2; ++team_id) {
-    std::vector<Player*> players;
-    teams[team_id]->GetAllPlayers(players);
-    for (Player* player : players) {
-      player->ClearControl();
-      if (const PlayerControl* control =
-              controls.Get(player->GetID())) {
-        player->SetControl(*control);
-      }
-    }
-  }
-
-
-  // The stored ball already shares the first roster's frame. Mirror only the
-  // other roster to make referee/collision geometry common to all actors.
-  Mirror(reverse, !reverse, false);
-  // A clock that already elapsed must whistle before this tick can still collide
-  // the ball. The referee stays the single period authority.
-  if (IsBallInPlay() && !referee_->PeriodElapsed()) {
-    CheckBallCollisions();
-  }
-
   referee_->Process();
   Vector3 previousBallPos = ball->Predict(0);
   Mirror(reverse, !reverse, false);
@@ -274,7 +239,7 @@ bool Match::Step(const PlayerControlSet& controls) {
     return false;
   }
   Mirror(false, false, reverse);
-  ball->Process();
+  ball->Process(GetBallEnvironment());
   Mirror(false, false, reverse);
 
   // create mental images for the AI to use
@@ -747,135 +712,6 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
     }
   }
 }
-
-void Match::CheckBallCollisions() {
-
-
-
-  constexpr football::sim::TickSpan kBodyBallCollisionCooldown{15};
-  if (now_ <= last_body_ball_collision_tick_ + kBodyBallCollisionCooldown) return;
-
-  std::vector<Player*> players;
-  GetTeam(first_team)->GetActivePlayers(players);
-  GetTeam(second_team)->GetActivePlayers(players);
-
-  Vector3 bounceVec;
-  float bias = 0.0;
-  int bounceCount = 0; // this shit is shit, average properly in combination with bias or something like that
-
-  //printf("lasttouchbias: %f, isnul?: %s\n", GetLastTouchBias(200), GetLastTouchBias(200) == 0.0f ? "true" : "false");
-  for (int i = 0; i < (signed int)players.size(); i++) {
-    const PlayerActionState &action = players[i]->GetSimulationActionState();
-
-    bool biggestRatio = false;
-    int teamID = players[i]->GetTeam()->GetID();
-
-    int touchTimeThreshold_ms = 200;//700;
-    float oppLastTouchBias = GetTeam(abs(teamID - 1))->GetLastTouchBias(touchTimeThreshold_ms);
-    float lastTouchBias = players[i]->GetLastTouchBias(touchTimeThreshold_ms);
-    float oppLastTouchBiasLong = GetTeam(abs(teamID - 1))->GetLastTouchBias(1600);
-
-    if (lastTouchBias <= 0.01f &&
-        oppLastTouchBias > 0.01f /* && ballTowardsPlayer*/) {
-        // cannot collide if opp didn't recently touch ball (we
-                      // would be able to predict ball by then), or if player
-                      // itself already did (to overcome the 'perpetuum
-                      // collision' problem, and to allow for 'controlled ball
-                      // collisions' in humanoid class)
-
-      bool collisionAnim = false;
-      if (action.type == e_FunctionType_Movement || action.type == e_FunctionType_Trip || action.type == e_FunctionType_Sliding || action.type == e_FunctionType_Interfere || action.type == e_FunctionType_Deflect) collisionAnim = true;
-      bool onlyWhenDirectionChangedUnexpectedly = false;
-      if (action.type == e_FunctionType_Interfere || action.type == e_FunctionType_Deflect) onlyWhenDirectionChangedUnexpectedly = true;
-
-      bool directionChangedUnexpectedly = false;
-      if (onlyWhenDirectionChangedUnexpectedly) {
-        const auto history = std::chrono::milliseconds{players[i]->GetReactionTime_ms() + static_cast<int>(football::sim::ToMilliseconds(action.elapsed))};
-        float unexpectedDistance = (GetMentalImage(history)->GetBallPrediction(1000) - GetBall()->Predict(1000)).GetLength(); // history from when the action began
-        if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
-      }
-
-
-      if (collisionAnim && !players[i]->HasUniquePossession() &&
-          (onlyWhenDirectionChangedUnexpectedly ==
-           directionChangedUnexpectedly)) {
-
-        float boundingBoxSizeOffset = -0.1f; // fake a big AABB for more blocking fun, or a small one for less bouncy bounce
-        if (!players[i]->HasPossession()) boundingBoxSizeOffset += 0.03f; else
-                                          boundingBoxSizeOffset -= 0.03f;
-
-        if (action.type == e_FunctionType_Sliding ||
-            action.type == e_FunctionType_Interfere) {
-          boundingBoxSizeOffset += 0.1f;
-        }
-        if (action.type == e_FunctionType_Deflect) {
-          boundingBoxSizeOffset += 0.2f;
-        }
-
-        if (((players[i]->GetPosition() + Vector3(0, 0, 0.8f)) -
-             ball->Predict(0))
-                .GetLength() < 2.5f) {
-            // premature optimization is the root of all evil :D
-          const PlayerBodyCollider body =
-              BuildBodyCollider(players[i]->GetKinematicState());
-          for (const BodyVolume *volume : body.GetVolumes()) {
-            float ballRadius = 0.11f + boundingBoxSizeOffset;
-            if (volume->IntersectsSphere(ball->Predict(0), ballRadius)) {
-              if (players[i] == players[i]
-                                    ->GetTeam()
-                                    ->GetDesignatedTeamPossessionPlayer() &&
-                  GetLastTouchBias(200) < 0.01f) {
-                players[i]->TriggerControlledBallCollision();
-              } else {
-                float movementBias = oppLastTouchBias * 0.8f + 0.2f;
-                bounceVec +=
-                    (ball->Predict(0) - volume->center)
-                        .GetNormalized(Vector3(0)) *
-                        movementBias +
-                    players[i]->GetMovement() * (1.0f - movementBias);
-                bounceCount++;
-                players[i]->GetTeam()->SetLastTouchPlayer(
-                    players[i], e_TouchType_Accidental);
-                // Centrality of the hit, relative to the volume radius. The
-                // legacy code normalised by the AABB half diagonal, which
-                // inflates the scale for elongated parts; the primitive radius
-                // is the more meaningful body extent.
-                bias += (1.0f -
-                         clamp(((ball->Predict(0) - volume->center).GetLength() -
-                                ballRadius) /
-                                   volume->radius,
-                               0.0f, 1.0f)) *
-                            0.9f +
-                        0.1f;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (bias > 0.0f) {
-    bounceVec /= (bounceCount * 1.0f);
-    bounceVec.coords[2] *= 0.6f;
-    bounceVec.Normalize();
-    Vector3 currentMovement = ball->GetMovement();
-    Vector3 fullCollisionVec = (bounceVec * 6.0f) + (bounceVec * currentMovement.GetLength() * 0.6f) + (currentMovement * -0.2f);
-    bias = clamp(bias, 0.0f, 1.0f);
-    bias = bias * 0.5f + 0.5f;
-    Vector3 resultVector = fullCollisionVec * bias + currentMovement * (1.0f - bias);
-    if (resultVector.GetLength() > currentMovement.GetLength()) resultVector = resultVector.GetNormalized(0) * currentMovement.GetLength();
-    //resultVector = resultVector.GetNormalized(0) * (currentMovement.GetLength() * 0.7f + resultVector.GetLength() * 0.3f); // EXPERIMENT!
-    resultVector *= 0.7f;
-
-    ball->Touch(resultVector);
-    ball->SetRotation(rng_.Uniform(-30, 30), rng_.Uniform(-30, 30),
-                      rng_.Uniform(-30, 30), 0.5f * bias);
-    last_body_ball_collision_tick_ = now_;
-  }
-}
-
-
 
 void Match::AdvanceTime(football::sim::TickSpan delta) {
   using football::sim::TickSpan;

@@ -29,7 +29,6 @@
 #include "sim/observation/mentalimage.hpp"
 #include "sim/animation/library.hpp"
 #include "sim/animation/types.hpp"
-#include "sim/player/player_control_set.hpp"
 #include "sim/match/match_phase.hpp"
 #include "sim/match/match_result.hpp"
 #include "sim/time/tick.hpp"
@@ -136,6 +135,9 @@ class Match {
     }
     float GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at = std::nullopt) { if (GetLastTouchTeam()) return GetLastTouchTeam()->GetLastTouchBias(decay_ms, at); else return 0; }
     bool IsBallInGoal() const { return ballIsInGoal; }
+    football::sim::BallEnvironment GetBallEnvironment() const { return {ballIsInGoal}; }
+    // Transitional touch composition: physics first, then synchronous dependents.
+    void TouchBall(const Vector3& impulse);
 
     Team* GetBestPossessionTeam();
 
@@ -152,17 +154,6 @@ class Match {
     void AdvanceTime(football::sim::TickSpan delta);
 
 
-    // Legacy projection with raw motion, independent of environment cadence.
-    // Advances one authoritative simulation tick.
-    bool Step(const PlayerControlSet& controls);
-    // Legacy direct-match callers have no control source.
-    bool Process() { return Step(PlayerControlSet{}); }
-
-
-
-
-
-
     const std::vector<Vector3> &GetAnimPositionCache(AnimationId animation_id) const;
 
 
@@ -171,6 +162,10 @@ class Match {
     bool isBallMirrored() { return ball_mirrored; }
 
   private:
+    friend class Simulation;
+    // Remaining legacy phases; entered in the common first-roster contact frame.
+    // Only Simulation may execute this tail, until each domain phase is extracted.
+    bool StepRemainingTick();
     bool CheckForGoal(signed int side, const Vector3& previousBallPos);
     // Mirrors both teams, the ball and mental images onto the other half.
     void SwitchEnds();
@@ -178,7 +173,6 @@ class Match {
     void CalculateBestPossessionTeamID();
     void CheckHumanoidCollisions();
     void CheckHumanoidCollision(Player *p1, Player *p2, std::vector<PlayerBounce> &p1Bounce, std::vector<PlayerBounce> &p2Bounce);
-    void CheckBallCollisions();
 
 
     int score_[2] = {0, 0};
