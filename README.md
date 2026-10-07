@@ -204,17 +204,20 @@ recent possession window, then evaluates goals. Match::AdvanceTime/SwitchEnds ar
 Simulation::ApplyChangeOfEnds preserves roster → roster → Ball → history order at tick entry.
 Simulation::AdvanceTime is diagnostic-only (no physics/rules/execution count). Simulation
 owns period lifecycle and tick counting/ordering. Match now has no tick entry
-or collision/goal/selection algorithm, but actor ownership and touch/history sampling
-bridges remain. It is not yet ready to be renamed `MatchState` or removed.
+or collision/goal/selection algorithm. Actor ownership, competition/clock/touch values
+and possession state remain; the touch/history notification bridges are removed.
+Player/Humanoid constructors receive the immutable AnimationLibrary explicitly; clip
+lookups, selectors and root-position reads no longer retrieve it through Match.
+Actor tick-state dependencies and humanoid utility inputs remain to be migrated.
 
 `rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration
 facts. Simulation evaluates the pre-contact gate and original whistle boundary; EndPeriod
 preserves EndHalf → referee-state mutation → phase publication → pending end change.
 Referee::OnPeriodEnded takes explicit tick/phase/kickoff inputs and changes only its own
-facts. Other Referee → Match dependencies and restart consequences remain transitional.
+facts. All Referee → Match dependencies are removed; consequences use the write-only rule port.
 TripNotice independently updates foul facts from explicit tick/Ball position and live actors.
 Contacts still invoke it immediately after TripMe; advantage/card/restart consequences
-remain in the legacy Referee composition. No RulesContext or deferred notices are added.
+stay synchronous. No RulesContext or deferred notices are added.
 
 ## Build and tests
 

@@ -77,8 +77,8 @@ constexpr bool allowBallControlReQueue = true;
 constexpr bool allowTrapReQueue = true;
 constexpr bool allowPreTouchRotationSmuggle = false;
 
-Humanoid::Humanoid(Player *player)
-    : HumanoidBase(player, player->GetTeam()->GetMatch()) {
+Humanoid::Humanoid(Player *player, const AnimationLibrary& animations)
+    : HumanoidBase(player, player->GetTeam()->GetMatch(), animations) {
   team = CastPlayer()->GetTeam();
 }
 
@@ -966,7 +966,7 @@ void Humanoid::SelectRetainAnim() {
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
-      match->GetAnimationLibrary().Clips(), query, dataSet);
+      animations_.Clips(), query, dataSet);
 
   assert(dataSet.size() != 0);
 
@@ -1242,7 +1242,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
-      match->GetAnimationLibrary().Clips(), query, dataSet);
+      animations_.Clips(), query, dataSet);
   if (dataSet.size() == 0) {
     if (command.desiredFunctionType == e_FunctionType_Movement) {
       dataSet.push_back(GetIdleMovementAnimID()); // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
@@ -1415,7 +1415,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
       std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
     }
     if (!dataSet.empty() && !withoutFootSort.empty()) {
-      RecordFootCounterfactual(match, *dataSet.begin(), *withoutFootSort.begin());
+      RecordFootCounterfactual(animations_, *dataSet.begin(), *withoutFootSort.begin());
     }
   }
   MovementAnimationPerturbation &perturbation =

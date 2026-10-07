@@ -64,11 +64,11 @@ void Team::Exit() {
 
 }
 
-void Team::InitPlayers(std::uint8_t first_schedule_phase) {
+void Team::InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations) {
   // Roster traversal supplies order; phases repeat every ten players.
   std::uint8_t schedule_phase = first_schedule_phase;
   for (std::size_t i = 0; i < formation_.size(); ++i) {
-    Player *player = new Player(this, model_.players[i], schedule_phase);
+    Player *player = new Player(this, model_.players[i], schedule_phase, animations);
     schedule_phase = (schedule_phase + 1) % 10;
     players.push_back(player);
 

@@ -134,6 +134,7 @@ class Match;
 class MentalImage;
 namespace football::sim { class BallTouchSink; }
 class HumanoidBase;
+class AnimationLibrary;
 
 struct TacticalPlayerSituation {
   float forwardSpaceRating = 0.0f;
@@ -150,7 +151,8 @@ class Player final {
   friend class HumanoidBase;
 
   public:
-    Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase);
+    Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
+           const AnimationLibrary& animations);
     ~Player();
     void Mirror();
 
@@ -407,6 +409,7 @@ class Player final {
     PlayerActionState CaptureLegacyActionState() const;
     void SetNextResetSituationAuditContext(int context);
     Match *match;
+    const AnimationLibrary& animations_;
 
     // Team owns an immutable description for the entire actor lifetime.
     const football::model::Player& model_;

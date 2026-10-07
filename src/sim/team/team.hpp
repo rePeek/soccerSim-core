@@ -24,6 +24,7 @@
 #include "sim/player/player.hpp"
 
 class Match;
+class AnimationLibrary;
 namespace football::sim { class BallTouchSink; }
 
 class MentalImage;
@@ -50,7 +51,7 @@ class Team {
 
     void Exit();
 
-    void InitPlayers(std::uint8_t first_schedule_phase);
+    void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations);
 
     Match *GetMatch() { return match; }
     Player *GetPieceTaker();

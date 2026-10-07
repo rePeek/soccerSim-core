@@ -1,4 +1,7 @@
 #include <vector>
+#include <filesystem>
+#include <type_traits>
+#include "sim/animation/library.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -85,4 +88,26 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
   }
 }
 
+
+static_assert(!std::is_constructible_v<Humanoid, Player*>);
+static_assert(!std::is_constructible_v<HumanoidBase, Player*, Match*>);
+static_assert(!std::is_constructible_v<Player, Team*, const football::model::Player&, std::uint8_t>);
+
+TEST_CASE("Humanoid baked clips come from its injected library, not the runtime owner",
+          "[sim][animation][dependency]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  AnimationLibrary independent;
+  REQUIRE(independent.Load(std::filesystem::path(__FILE__).parent_path().parent_path() /
+      "assets/runtime/animations.simanim"));
+  auto* actor = match.GetTeam(0)->GetAllPlayers()[1];
+  Humanoid humanoid(actor, independent);
+  const auto id = humanoid.GetCurrentAnim()->animationId;
+  REQUIRE(&humanoid.GetBakedClip(id) == &independent.Get(static_cast<std::uint32_t>(id)));
+  REQUIRE(&humanoid.GetBakedClip(id) != &match.GetAnimationLibrary().Get(static_cast<std::uint32_t>(id)));
+  REQUIRE(&actor->CastHumanoid()->GetBakedClip(id) ==
+          &match.GetAnimationLibrary().Get(static_cast<std::uint32_t>(id)));
+}
 }  // namespace

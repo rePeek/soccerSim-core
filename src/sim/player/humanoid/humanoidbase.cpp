@@ -482,13 +482,13 @@ int &HumanoidFootOutgoingAngleBucketDiff() { static int value = 0; return value;
 int &HumanoidFootSpecialStateDiff() { static int value = 0; return value; }
 int &HumanoidFootLifecycleChanged() { static int value = 0; return value; }
 
-void RecordFootCounterfactual(Match* match, int with_foot_head,
+void RecordFootCounterfactual(const AnimationLibrary& animations, int with_foot_head,
                               int without_foot_head) {
   ++HumanoidFootCounterfactualSelections();
   if (with_foot_head == without_foot_head) return;
   ++HumanoidFootWinnerChanged();
-  const AnimationClip &cw = match->GetAnimationLibrary().Get(static_cast<uint32_t>(with_foot_head));
-  const AnimationClip &co = match->GetAnimationLibrary().Get(static_cast<uint32_t>(without_foot_head));
+  const AnimationClip &cw = animations.Get(static_cast<uint32_t>(with_foot_head));
+  const AnimationClip &co = animations.Get(static_cast<uint32_t>(without_foot_head));
   bool lifecycle_changed = false;
   if (cw.frame_count != co.frame_count) {
     ++HumanoidFootFrameCountDiff();
@@ -540,8 +540,8 @@ const radian preferredDirectionAngles[] = {
     -0.999 * pi
 };
 
-HumanoidBase::HumanoidBase(Player *player, Match *match)
-    : match(match),
+HumanoidBase::HumanoidBase(Player *player, Match *match, const AnimationLibrary& animations)
+    : match(match), animations_(animations),
       player(player) {
   interruptAnim = e_InterruptAnim_None;
   reQueueDelayFrames = 0;
@@ -556,7 +556,7 @@ HumanoidBase::HumanoidBase(Player *player, Match *match)
 HumanoidBase::~HumanoidBase() {}
 
 const AnimationClip &HumanoidBase::GetBakedClip(AnimationId id) const {
-  return match->GetAnimationLibrary().Get(static_cast<uint32_t>(id));
+  return animations_.Get(static_cast<uint32_t>(id));
 }
 
 const AnimationClip &HumanoidBase::GetCurrentBakedClip() const {
@@ -808,7 +808,7 @@ int HumanoidBase::GetIdleMovementAnimID() {
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
-      match->GetAnimationLibrary().Clips(), query, dataSet);
+      animations_.Clips(), query, dataSet);
 
   SetIdlePredicate(1);
   std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
@@ -865,7 +865,7 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   const AnimationId idleAnimID = GetIdleMovementAnimID();
   currentAnim.animationId = idleAnimID;
   currentAnim.positions.clear();
-  currentAnim.positions = match->GetAnimPositionCache(currentAnim.animationId);
+  currentAnim.positions = GetBakedClip(currentAnim.animationId).root_positions;
   currentAnim.frameNum =
       match->rng().Uniform(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
   currentAnim.touchFrame = -1;
@@ -1105,7 +1105,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
-      match->GetAnimationLibrary().Clips(), query, dataSet);
+      animations_.Clips(), query, dataSet);
   if (dataSet.size() == 0) {
     if (command.desiredFunctionType == e_FunctionType_Movement) {
       dataSet.push_back(GetIdleMovementAnimID()); // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
@@ -1304,7 +1304,7 @@ void HumanoidBase::CalculateSpatialState() {
     // this way, action cheating is being omitted from the current movement, making for better requeues. however, keep in mind that
     // movementoffsets, from bumping into other players, for example, will also be ignored this way.
     const std::vector<Vector3> &origPositionCache =
-        match->GetAnimPositionCache(currentAnim.animationId);
+        GetBakedClip(currentAnim.animationId).root_positions;
     spatialState.animMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum, 1).GetRotated2D(startAngle);
   }
   spatialState.movement = spatialState.physicsMovement; // PICK DEFAULT

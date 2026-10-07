@@ -582,8 +582,14 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
 ## Animation and ongoing work
 
 Runtime reads only `assets/runtime/animations.simanim`, via AnimationLibrary and
-BakedAnimationSelector. Simulation loads/shares the library with Match/Humanoid;
-there is no ambient animation owner. Offline `.anim`/XML/object parsing lives under
+BakedAnimationSelector. Simulation loads/shares the library; Player, Humanoid and
+HumanoidBase receive a const AnimationLibrary& at construction. Team::InitPlayers
+forwards the library only during creation, without storing an animation service.
+Actor clip lookup/selection/root positions and foot counterfactual diagnostics use
+the injected library, not Match. Player retains it for activation/reactivation; its
+lifetime remains Simulation-owned. Humanoid utilities still need their separate
+algorithm-parameter migration. There is no ambient animation owner or hidden load.
+Offline `.anim`/XML/object parsing lives under
 `tools/animBaker/`, never libgame.so. Two include roots are distinct:
 `sim/animation/...` is runtime, `animation/...` is offline tooling. Their filenames
 are disjoint. The original XML parser, codecs and necessary token/decimal helpers

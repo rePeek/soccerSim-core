@@ -37,6 +37,7 @@ namespace football::sim { class BallTouchSink; }
 using namespace blunted;
 
 class Match;
+class AnimationLibrary;
 
 // Library-side H3e4b diagnostics; shared with regression, never simulation state.
 int &HumanoidProceduralMovementTicks();
@@ -196,7 +197,7 @@ int &HumanoidFootOutgoingAngleBitsDiff();
 int &HumanoidFootOutgoingAngleBucketDiff();
 int &HumanoidFootSpecialStateDiff();
 int &HumanoidFootLifecycleChanged();
-void RecordFootCounterfactual(Match* match, int with_foot_head,
+void RecordFootCounterfactual(const AnimationLibrary& animations, int with_foot_head,
                               int without_foot_head);
 // 4f-c diagnostic A/B hook. Transient and disabled in normal gameplay; a
 // restored branch can choose the alternative Movement foot order exactly once.
@@ -341,7 +342,7 @@ struct SpatialState {
 class HumanoidBase {
 
   public:
-    HumanoidBase(Player *player, Match *match);
+    HumanoidBase(Player *player, Match *match, const AnimationLibrary& animations);
     virtual ~HumanoidBase();
     void Mirror();
 
@@ -456,6 +457,7 @@ class HumanoidBase {
     radian ForceIntoPreferredDirectionAngle(radian angle) const;
 
     Match *match;
+    const AnimationLibrary& animations_;
     Player *player;
     // Shared between all players, no need to snapshot.
     // Seems to contain current animation context.
