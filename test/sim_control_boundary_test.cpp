@@ -10,10 +10,11 @@
 
 #include "default_ai_fixture.hpp"
 #include "app/fixtures/default_teams.hpp"
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_control_builder.hpp"
-#include "sim/team.hpp"
+#include "sim/player/player_motion_constants.hpp"
+#include "sim/team/team.hpp"
 
 namespace {
 using blunted::Vector3;

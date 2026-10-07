@@ -30,8 +30,9 @@
 #include "sim/player/player_retain_anchor.hpp"
 
 #include "sim/player/player.hpp"
-#include "sim/team.hpp"
-#include "sim/match.hpp"
+#include "sim/team/team.hpp"
+#include "sim/match/match.hpp"
+#include "sim/player/player_motion_constants.hpp"
 
 
 #include "sim/player/kick_targeting.hpp"

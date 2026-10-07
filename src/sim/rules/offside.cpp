@@ -16,9 +16,9 @@
 
 #include <cmath>
 
-#include "sim/ai_support/mentalimage.hpp"
-#include "sim/match.hpp"
-#include "sim/team.hpp"
+#include "sim/observation/mentalimage.hpp"
+#include "sim/match/match.hpp"
+#include "sim/team/team.hpp"
 
 namespace football::sim::rules {
 

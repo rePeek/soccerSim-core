@@ -22,8 +22,9 @@
 #include <cstring>
 
 #include "foundation/geometry/triangle.hpp"
-#include "sim/match.hpp"
-#include "sim/team.hpp"
+#include "sim/match/match.hpp"
+#include "sim/team/team.hpp"
+#include "sim/player/player_motion_constants.hpp"
 #include "sim/query/player_query.hpp"
 #include "sim/query/reachability.hpp"
 #include "sim/player/player_action_executor.hpp"

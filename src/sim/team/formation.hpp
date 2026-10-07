@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "model/team.hpp"
-#include "sim/gamedefines.hpp"
+#include "sim/team/formation_entry.hpp"
 
 // Role adaptation and personal-space normalization are simulation algorithms,
 // not database lookup. All shape/initial-position values come from the caller.

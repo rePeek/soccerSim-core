@@ -18,11 +18,11 @@
 #include <cassert>
 #include <map>
 
-#include "sim/ai_support/mentalimage.hpp"
-#include "sim/match.hpp"
-#include "sim/team.hpp"
+#include "sim/observation/mentalimage.hpp"
+#include "sim/match/match.hpp"
+#include "sim/team/team.hpp"
 #include "sim/player/player.hpp"
-#include "sim/ball.hpp"
+#include "sim/ball/ball.hpp"
 
 namespace football::sim::query {
 

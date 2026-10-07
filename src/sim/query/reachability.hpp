@@ -15,9 +15,12 @@
 #ifndef FOOTBALL_SIM_QUERY_REACHABILITY_HPP
 #define FOOTBALL_SIM_QUERY_REACHABILITY_HPP
 
-#include "sim/gamedefines.hpp"
-#include "sim/tick.hpp"
+#include "foundation/math/vector3.hpp"
+#include "sim/animation/types.hpp"
+#include "sim/time/tick.hpp"
 #include <optional>
+
+using blunted::Vector3;
 
 namespace football::sim::query {
 

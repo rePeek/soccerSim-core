@@ -5,10 +5,10 @@
 #include <limits>
 #include <stdexcept>
 
-#include "sim/match.hpp"
-#include "sim/pitch_frame.hpp"
+#include "sim/match/match.hpp"
+#include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
-#include "sim/team.hpp"
+#include "sim/team/team.hpp"
 
 namespace {
 using blunted::Vector3;

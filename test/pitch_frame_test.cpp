@@ -7,11 +7,11 @@
 
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
-#include "sim/match.hpp"
-#include "sim/pitch_frame.hpp"
+#include "sim/match/match.hpp"
+#include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/simulation.hpp"
-#include "sim/team.hpp"
+#include "sim/team/team.hpp"
 
 namespace {
 using blunted::Vector3;

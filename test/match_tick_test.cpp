@@ -4,10 +4,10 @@
 
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 #include "sim/simulation.hpp"
-#include "sim/tick.hpp"
-#include "sim/tick_boundary.hpp"
+#include "sim/time/tick.hpp"
+#include "sim/time/tick_boundary.hpp"
 
 namespace {
 using namespace football::sim;

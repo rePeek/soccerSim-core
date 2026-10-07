@@ -18,21 +18,22 @@
 #ifndef _HPP_MATCH
 #define _HPP_MATCH
 
-#include "sim/team.hpp"
-#include "sim/ball.hpp"
-#include "sim/referee.hpp"
+#include "sim/team/team.hpp"
+#include "sim/ball/ball.hpp"
+#include "sim/rules/referee.hpp"
 
-#include "sim/match_options.hpp"
-#include "sim/rng.hpp"
+#include "sim/match/match_options.hpp"
+#include "sim/match/pitch_geometry.hpp"
+#include "sim/random/rng.hpp"
 #include "model/pitch.hpp"
-#include "sim/ai_support/mentalimage.hpp"
+#include "sim/observation/mentalimage.hpp"
 #include "sim/animation/library.hpp"
 #include "sim/animation/types.hpp"
-#include "sim/player_control_set.hpp"
-#include "sim/match_phase.hpp"
-#include "sim/match_result.hpp"
-#include "sim/tick.hpp"
-#include "sim/tick_boundary.hpp"
+#include "sim/player/player_control_set.hpp"
+#include "sim/match/match_phase.hpp"
+#include "sim/match/match_result.hpp"
+#include "sim/time/tick.hpp"
+#include "sim/time/tick_boundary.hpp"
 
 
 #include <chrono>

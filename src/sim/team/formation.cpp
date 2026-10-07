@@ -1,5 +1,5 @@
 // Role adaptation/spacing arithmetic retained from the former TeamData.
-#include "sim/formation.hpp"
+#include "sim/team/formation.hpp"
 
 namespace {
 

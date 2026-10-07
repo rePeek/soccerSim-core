@@ -32,7 +32,8 @@
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_locomotion.hpp"
 #include "sim/player/player_body_facing.hpp"
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
+#include "sim/player/player_motion_constants.hpp"
 
 
 

@@ -6,9 +6,9 @@
 #include "ai/ai_config.hpp"
 #include "model/pitch.hpp"
 #include "model/team.hpp"
-#include "sim/match_options.hpp"
-#include "sim/match_result.hpp"
-#include "sim/world_state.hpp"
+#include "sim/match/match_options.hpp"
+#include "sim/match/match_result.hpp"
+#include "sim/observation/world_state.hpp"
 
 class Simulation;
 namespace football::ai { class DefaultAI; }

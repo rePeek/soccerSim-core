@@ -15,14 +15,14 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "sim/referee.hpp"
+#include "sim/rules/referee.hpp"
 #include <cmath>
 
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 #include "sim/rules/offside.hpp"
-#include "sim/ai_support/mentalimage.hpp"
+#include "sim/observation/mentalimage.hpp"
 #include "sim/rules/restart_placement.hpp"
-#include "sim/pitch_frame.hpp"
+#include "sim/observation/pitch_frame.hpp"
 
 namespace {
 using football::sim::Tick;

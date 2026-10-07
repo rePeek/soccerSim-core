@@ -15,14 +15,14 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef _HPP_AISUPPORT_MENTALIMAGE
-#define _HPP_AISUPPORT_MENTALIMAGE
+#ifndef FOOTBALL_SIM_OBSERVATION_MENTALIMAGE_HPP
+#define FOOTBALL_SIM_OBSERVATION_MENTALIMAGE_HPP
 
 
 #include "foundation/math/vector3.hpp"
 
-#include "sim/gamedefines.hpp"
-#include "sim/tick.hpp"
+#include "sim/observation/player_image.hpp"
+#include "sim/time/tick.hpp"
 
 using namespace blunted;
 

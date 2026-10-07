@@ -15,11 +15,11 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "sim/ball.hpp"
+#include "sim/ball/ball.hpp"
 
 #include <cmath>
 
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 
 constexpr float bounce = 0.62f;  // 1 = full bounce, 0 = no bounce
 constexpr float linearBounce = 0.06f;  // bigger = more brake force

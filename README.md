@@ -117,6 +117,33 @@ There is no active-environment global, ScenarioConfig, GRF environment adapter,
 controller hierarchy or byte-blob checkpoint API. Durable save/load would require
 an explicit value state contract, not per-class memory hooks.
 
+### Simulation domains
+
+`src/sim/` keeps only `simulation.hpp` / `simulation.cpp` at the top level
+(besides CMake). Concepts live with their football domain, irrespective of
+whether they are exported:
+
+```text
+sim/
+├── simulation.hpp / simulation.cpp
+├── time/         Tick, TickSpan and boundary conversions (no actor timing policy)
+├── player/       Player, PlayerControl/Set, execution commands and mechanics
+├── ball/         Ball physics, touches and prediction timing
+├── match/        Match, MatchOptions, MatchPhase and MatchResult
+├── team/         runtime Team and formation adaptation
+├── observation/  WorldState, world_state_builder, pitch_frame and execution history
+├── rules/        Referee, offside and restarts
+├── animation/    baked clips, library and selection
+├── query/        reachability and player queries
+└── random/       simulation RNG authority (algorithm remains in foundation)
+```
+
+For example, AI includes `sim/observation/world_state.hpp` and
+`sim/player/player_control_set.hpp`; apps use `sim/simulation.hpp` and
+`sim/match/match_options.hpp`. WorldState remains an owning observation
+projection, never mutable world authority. CMake exports define library/API
+boundaries; there is no `contracts/` directory or legacy include-path shim.
+
 ## Build and tests
 
 Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,
@@ -129,8 +156,9 @@ football_app → football::game → ai + sim → model/foundation
 ```
 
 Root CMake exposes model, sim contracts and AI startup contracts as PUBLIC usage
-requirements; concrete sim/AI implementations stay PRIVATE. query/rules/player
-stay sim internals; sim/animation is an independent archive also consumed by the
+requirements; concrete sim/AI implementations stay PRIVATE. The header-only
+`football_sim_contracts` build target exports selected domain value headers, not
+entire directories. sim/animation is an independent archive also consumed by the
 offline baker. AI links only value contracts, never sim actors.
 
 ```sh

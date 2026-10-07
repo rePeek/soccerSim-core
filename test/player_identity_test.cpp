@@ -10,7 +10,7 @@
 #include "ai/tactical_board.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "app/fixtures/legacy_player_profile.hpp"
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 #include "sim/player/player.hpp"
 #include "sim/simulation.hpp"
 #include "default_ai_fixture.hpp"

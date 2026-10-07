@@ -6,6 +6,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "env.hpp"
 #include "default_ai_fixture.hpp"
+#include "sim/player/player_motion_constants.hpp"
 
 static_assert(!std::is_default_constructible_v<GameEnv>);
 static_assert(!std::is_copy_constructible_v<GameEnv>);

@@ -21,8 +21,8 @@
 #include <vector>
 #include <optional>
 
-#include "sim/gamedefines.hpp"
-#include "sim/tick.hpp"
+#include "model/football_types.hpp"
+#include "sim/time/tick.hpp"
 #include "sim/rules/restart_readiness.hpp"
 
 

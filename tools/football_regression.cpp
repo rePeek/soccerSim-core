@@ -13,7 +13,7 @@
 #include "env.hpp"
 #include "sim/simulation.hpp"
 #include "../test/default_ai_fixture.hpp"
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_kinematics.hpp"

@@ -7,8 +7,8 @@ No configurable physics dt, wall-clock pacing, or foundation time module.
 
 ## Completed stages
 
-- **T0:** `sim/tick.hpp` defines strong time values, checked arithmetic,
-  `Seconds`/`Minutes`, and `kTickSeconds`. `tick_boundary.hpp` contains exact
+- **T0:** `sim/time/tick.hpp` defines strong time values, checked arithmetic,
+  `Seconds`/`Minutes`, and `kTickSeconds`. `sim/time/tick_boundary.hpp` contains exact
   millisecond conversion, rejecting off-grid input rather than rounding it.
   These STL-only headers are sim value contracts, not actor-runtime exports.
 - **T1:** `Match::now_` is the only timeline storage, in ticks.

@@ -15,7 +15,10 @@
 #ifndef FOOTBALL_SIM_PLAYER_KICK_TARGETING_HPP
 #define FOOTBALL_SIM_PLAYER_KICK_TARGETING_HPP
 
-#include "sim/gamedefines.hpp"
+#include "foundation/math/vector3.hpp"
+#include "sim/animation/types.hpp"
+
+using blunted::Vector3;
 
 class Player;
 

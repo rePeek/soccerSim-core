@@ -17,7 +17,8 @@
 #include <cmath>
 #include <cassert>
 
-#include "sim/team.hpp"
+#include "sim/team/team.hpp"
+#include "sim/match/pitch_geometry.hpp"
 #include "sim/player/player.hpp"
 
 namespace football::sim::mechanics {

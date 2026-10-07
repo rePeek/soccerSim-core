@@ -19,11 +19,11 @@
 #define _HPP_FOOTBALL_ONTHEPITCH_BALL
 
 #include <algorithm>
+#include <vector>
 
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
-#include "sim/gamedefines.hpp"
-#include "sim/ball_timing.hpp"
+#include "sim/ball/ball_timing.hpp"
 
 using namespace blunted;
 

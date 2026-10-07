@@ -1,12 +1,12 @@
 #include <cstdlib>
 #include <type_traits>
 
-#include "sim/player_control.hpp"
-#include "sim/player_control_set.hpp"
-#include "sim/world_state.hpp"
-#include "sim/tick.hpp"
-#include "sim/tick_boundary.hpp"
-#include "sim/match_options.hpp"
+#include "sim/player/player_control.hpp"
+#include "sim/player/player_control_set.hpp"
+#include "sim/observation/world_state.hpp"
+#include "sim/time/tick.hpp"
+#include "sim/time/tick_boundary.hpp"
+#include "sim/match/match_options.hpp"
 
 static_assert(football::sim::Minutes(45).value == 270000);
 static_assert((football::sim::Tick{17} + football::sim::Seconds(2)).value == 217);

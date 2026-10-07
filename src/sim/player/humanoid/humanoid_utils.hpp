@@ -18,9 +18,9 @@
 #ifndef _HPP_HUMANOID_UTILS
 #define _HPP_HUMANOID_UTILS
 
-#include "sim/gamedefines.hpp"
+#include "sim/ball/ball_touch.hpp"
 
-#include "sim/ball.hpp"
+#include "sim/ball/ball.hpp"
 
 #include "foundation/math/vector3.hpp"
 

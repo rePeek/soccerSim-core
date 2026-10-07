@@ -6,10 +6,10 @@
 #include <sstream>
 
 #include "app/fixtures/default_teams.hpp"
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 #include "sim/rules/restart_placement.hpp"
 #include "sim/simulation.hpp"
-#include "sim/team.hpp"
+#include "sim/team/team.hpp"
 
 namespace football::test {
 struct RestartCase {

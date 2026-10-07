@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "foundation/math/vector3.hpp"
-#include "sim/tick.hpp"
+#include "sim/time/tick.hpp"
 
 // Match-level simulation options only. Teams, pitch and runtime objects are
 // passed separately; this is not a composition container. Every value is

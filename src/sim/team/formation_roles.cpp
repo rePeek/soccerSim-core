@@ -16,12 +16,7 @@
 // should generally not be used for anything important. i do not offer support,
 // so don't ask. to be used for inspiration :)
 
-#include "sim/gamedefines.hpp"
-
-#include <cmath>
-
-
-
+#include "sim/team/formation_entry.hpp"
 
 e_PlayerRole GetRoleFromString(const std::string &roleString) {
   if (roleString.compare("GK") == 0) return e_PlayerRole_GK;

@@ -18,8 +18,6 @@
 #ifndef _HPP_HUMANOID
 #define _HPP_HUMANOID
 
-#include "sim/gamedefines.hpp"
-
 #include "sim/player/humanoid/humanoidbase.hpp"
 
 using namespace blunted;

@@ -4,9 +4,9 @@
 #include <stdexcept>
 
 #include "ai/default_ai.hpp"
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 #include "sim/simulation.hpp"
-#include "sim/team.hpp"
+#include "sim/team/team.hpp"
 
 namespace football::test {
 template<class T> concept HasDecisionObject = requires(T &actor) { actor.GetController(); };

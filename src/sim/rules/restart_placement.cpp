@@ -14,8 +14,8 @@
 
 #include "sim/rules/restart_placement.hpp"
 #include "sim/query/player_query.hpp"
-#include "sim/match.hpp"
-#include "sim/team.hpp"
+#include "sim/match/match.hpp"
+#include "sim/team/team.hpp"
 #include "sim/player/player.hpp"
 #include <cmath>
 

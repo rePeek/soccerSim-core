@@ -62,19 +62,19 @@ src/
 │   ├── formation.hpp initial formation + normalized TacticalFormation declarations
 │   ├── pitch.hpp     sole pitch geometry type (legacy 110 × 72 metres)
 │   └── football_types.hpp roles/game modes/player count
-├── sim/              rules, physics, execution and owning value contracts
-│   ├── world_state.hpp owning output values (no actor/lifetime-marker handles)
-│   ├── player_control*.hpp executable control values
-│   ├── match_options.hpp / match_phase.hpp / match_result.hpp rule/result values
-│   ├── tick.hpp / tick_boundary.hpp strong 100 Hz time values and exact boundary conversions
-│   ├── simulation.*  owns Match, deterministic RNG and baked animation library
-│   ├── match*, team, ball, referee, formation, gamedefines, rng
-│   ├── pitch_frame.* shared runtime ↔ canonical home-pitch adapters (sim-private)
+├── sim/              domain-organized rules, physics, execution and observation
+│   ├── simulation.*  sole top-level concept; owns Match, RNG and baked library
+│   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
+│   ├── match/        Match, options, phase, result and legacy pitch geometry aliases
+│   ├── team/         runtime Team, formation entries and role/spacing adaptation
+│   ├── ball/         Ball physics, touch kinds and owner-local prediction timing
+│   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
+│   │                 and sim-private MentalImage/player-image execution history
+│   ├── random/       simulation-owned RNG authority alias; algorithm in foundation
 │   ├── animation/    baked schema/library/selector; depends only on foundation
-│   ├── query/        player queries and reachability
-│   ├── rules/        offside, ceremonial placement and ordinary restart readiness
-│   ├── ai_support/   mentalimage: execution history, not decision policy
-│   └── player/       concrete Player, controls, locomotion, mechanics and scheduling
+│   ├── query/        player queries, reachability and force-field representation
+│   ├── rules/        Referee, offside, ceremonial placement and restart readiness
+│   └── player/       Player, public controls, internal commands, locomotion/mechanics
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
 ├── ai/               value-only decisions; never links sim runtime
 │   ├── ai_config.hpp startup values; no live channel
@@ -140,8 +140,12 @@ app_support (args/fixtures) → model/foundation
 anim_baking → legacy_anim + animation/foundation
 ```
 
-- `football_sim_contracts` is header-only and owns the exact value headers listed
-  above (including MatchOptions); sharing the sim directory does not expose actors.
+- `football_sim_contracts` is a header-only build/export target, not a directory
+  or a contract domain. It explicitly exports PlayerControl/PlayerControlSet,
+  WorldState, MatchOptions/MatchPhase/MatchResult and the two time headers.
+  Public values live with their domain; directory placement never exports actors.
+  The former gamedefines umbrella is split among player, ball, team, match,
+  observation and query. No compatibility headers or common/types layer remains.
 - `football_ai_contracts` owns AIConfig and TacticalBoard declarations; it depends
   on model/foundation, not concrete policy. `football_ai` owns policy implementations.
 - Game's PUBLIC usage requirements are model + sim_contracts + ai_contracts.
@@ -244,10 +248,10 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   Result throws before full time or after Stop; stopping never invents completion.
   Observe/Result return owning values that can survive teardown.
 - `football::sim::Tick` is an absolute timeline instant; `TickSpan` is a duration.
-  `sim/tick.hpp` owns the fixed 100 Hz quantum and float seconds derived from it,
+  `sim/time/tick.hpp` owns the fixed 100 Hz quantum and float seconds derived from it,
   not foundation or runtime configuration. No absolute-time + absolute-time API.
-  Boundary conversions live in `tick_boundary.hpp`; non-grid milliseconds are
-  rejected, never silently rounded. Absolute millisecond timeline/touch adapters
+  Boundary conversions live in `sim/time/tick_boundary.hpp`; non-grid milliseconds
+  are rejected, never silently rounded. Absolute millisecond timeline/touch adapters
   are deleted; remaining milliseconds are continuous estimates, signed sampling,
   SI/animation formula boundaries or output projections, not second clocks.
   Keep unit migration separate from policy; preserve float arithmetic and goldens.
@@ -261,7 +265,7 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   and overflow-safe reduced-remainder staggering, retaining both roster schedules.
   Player touch/card-effect timestamps are Tick; unused possession-duration storage
   is removed. Touch-decay reads optional Tick instants and bounds only relative ages.
-  Ball prediction horizons/cache durations live in sim-private `ball_timing.hpp`;
+  Ball prediction horizons/cache durations live in sim-private `ball/ball_timing.hpp`;
   prediction generation iterates TickSpan samples with seconds from the quantum.
   MentalImage stores a Tick capture instant and derives TickSpan age. Transitional
   calculation sampling adapters retain legacy horizon quantization; coverage is
@@ -292,7 +296,7 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   between-tick frame. Static physical sides flip, while WorldState keeps the home
   frame and TeamSide remains Home/Away. The same physical goal credits the opposite
   team in the second half. First-half numerics remain unchanged.
-- `pitch_frame.*` owns the runtime/home-pitch conversion for both observation and
+- `observation/pitch_frame.*` owns runtime/home-pitch conversion for observation and
   control execution. Team transforms derive from current dynamic side versus fixed
   Home=-1/Away=+1; the between-tick ball uses the first processing roster's frame.
   Never infer orientation from MatchPhase: SecondHalf is published before the

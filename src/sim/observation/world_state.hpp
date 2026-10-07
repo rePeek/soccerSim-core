@@ -10,8 +10,8 @@
 #include "model/team.hpp"
 #include "model/pitch.hpp"
 #include "foundation/math/vector3.hpp"
-#include "sim/match_phase.hpp"
-#include "sim/tick.hpp"
+#include "sim/match/match_phase.hpp"
+#include "sim/time/tick.hpp"
 
 struct WorldPlayerState {
   football::model::PlayerId id = football::model::kInvalidPlayerId;

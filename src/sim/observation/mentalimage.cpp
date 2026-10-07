@@ -15,9 +15,9 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "sim/ai_support/mentalimage.hpp"
+#include "sim/observation/mentalimage.hpp"
 
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 
 MentalImage::MentalImage(Match* match)
     : captured_tick(match->GetTimelineTick()), match(match) {

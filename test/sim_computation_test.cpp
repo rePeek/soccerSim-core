@@ -4,16 +4,16 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/fixtures/default_teams.hpp"
-#include "sim/ai_support/mentalimage.hpp"
-#include "sim/ball.hpp"
-#include "sim/match.hpp"
+#include "sim/observation/mentalimage.hpp"
+#include "sim/ball/ball.hpp"
+#include "sim/match/match.hpp"
 #include "sim/player/kick_targeting.hpp"
 #include "sim/player/player.hpp"
 #include "sim/query/player_query.hpp"
 #include "sim/query/reachability.hpp"
 #include "sim/rules/offside.hpp"
 #include "sim/simulation.hpp"
-#include "sim/team.hpp"
+#include "sim/team/team.hpp"
 
 namespace {
 

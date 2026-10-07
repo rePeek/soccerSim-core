@@ -1,9 +1,9 @@
-#include "sim/match_world_state.hpp"
+#include "sim/observation/world_state_builder.hpp"
 
-#include "sim/match.hpp"
-#include "sim/pitch_frame.hpp"
+#include "sim/match/match.hpp"
+#include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
-#include "sim/team.hpp"
+#include "sim/team/team.hpp"
 
 WorldState BuildWorldState(const Match& match) {
   WorldState world;

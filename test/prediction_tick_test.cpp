@@ -3,8 +3,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/fixtures/default_teams.hpp"
-#include "sim/ai_support/mentalimage.hpp"
-#include "sim/match.hpp"
+#include "sim/observation/mentalimage.hpp"
+#include "sim/match/match.hpp"
 #include "sim/simulation.hpp"
 
 namespace {

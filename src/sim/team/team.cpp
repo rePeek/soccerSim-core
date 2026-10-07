@@ -17,12 +17,11 @@
 // so don't ask. to be used for inspiration :)
 
 #include <algorithm>
-#include "sim/team.hpp"
+#include "sim/team/team.hpp"
 
-#include "sim/gamedefines.hpp"
 #include "sim/query/player_query.hpp"
-#include "sim/match.hpp"
-#include "sim/formation.hpp"
+#include "sim/match/match.hpp"
+#include "sim/team/formation.hpp"
 #include "sim/rules/offside.hpp"
 
 Team::Team(int id, Match *match, const football::model::Team& model,

@@ -1,43 +1,45 @@
-# Exact value-only exports. Sharing sim/ does not expose actor runtime to AI.
+# Exact value-only exports; domain placement does not expose actor runtime to AI.
 add_library(football_sim_contracts INTERFACE)
 add_library(football::sim_contracts ALIAS football_sim_contracts)
 target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES player_control.hpp player_control_set.hpp world_state.hpp
-    match_options.hpp match_phase.hpp match_result.hpp tick.hpp tick_boundary.hpp)
+  FILES player/player_control.hpp player/player_control_set.hpp
+    observation/world_state.hpp
+    match/match_options.hpp match/match_phase.hpp match/match_result.hpp
+    time/tick.hpp time/tick_boundary.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
   football::foundation football::model)
 
 add_subdirectory(animation)
 
-# query/rules/player remain internal organization, not dependency units.
+# Domain directories organize concepts, not public/private dependency units.
 add_library(football_sim STATIC)
 add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
-  gamedefines.cpp
+  simulation.cpp
+  match/match.cpp match/pitch_geometry.hpp
+  team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
+  team/formation_roles.cpp team/formation_entry.hpp
+  ball/ball.cpp ball/ball.hpp ball/ball_timing.hpp ball/ball_touch.hpp
+  observation/world_state_builder.cpp observation/world_state_builder.hpp
+  observation/pitch_frame.cpp observation/pitch_frame.hpp
+  observation/mentalimage.cpp observation/mentalimage.hpp observation/player_image.hpp
+  query/player_query.cpp query/reachability.cpp
+  query/player_query.hpp query/reachability.hpp query/force_spot.hpp
+  rules/referee.cpp rules/referee.hpp
+  rules/offside.cpp rules/restart_placement.cpp rules/restart_readiness.cpp
+  rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp
+  player/player.cpp player/player_control_builder.cpp player/player_locomotion.cpp
+  player/kick_targeting.cpp
   player/humanoid/humanoid_utils.cpp
   player/humanoid/humanoidbase.cpp
   player/humanoid/humanoid.cpp
-  player/player.cpp
-  player/player_control_builder.cpp
-  player/player_locomotion.cpp
-  ball.cpp match.cpp match_world_state.cpp formation.cpp simulation.cpp referee.cpp
-  pitch_frame.cpp
-  ai_support/mentalimage.cpp
-  query/player_query.cpp query/reachability.cpp
-  rules/offside.cpp rules/restart_placement.cpp rules/restart_readiness.cpp
-  player/kick_targeting.cpp team.cpp
-
-  gamedefines.hpp formation.hpp ball.hpp ball_timing.hpp match.hpp match_world_state.hpp
-  pitch_frame.hpp
-  referee.hpp team.hpp
-  ai_support/mentalimage.hpp
-  query/player_query.hpp query/reachability.hpp
-  rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp
+  match/match.hpp
   player/humanoid/humanoidbase.hpp player/humanoid/humanoid.hpp
   player/humanoid/humanoid_utils.hpp
   player/player.hpp player/player_control_builder.hpp player/player_kinematics.hpp
+  player/player_command.hpp player/player_motion_constants.hpp
   player/player_retain_anchor.hpp player/player_ground_collider.hpp
   player/player_body_collider.hpp player/player_body_facing.hpp
   player/player_action.hpp player/player_action_executor.hpp player/player_action_volume.hpp
@@ -46,7 +48,7 @@ target_sources(football_sim PRIVATE
   player/kick_targeting.hpp)
 target_sources(football_sim PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES simulation.hpp rng.hpp)
+  FILES simulation.hpp random/rng.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::model BqLog)

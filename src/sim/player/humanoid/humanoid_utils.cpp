@@ -19,7 +19,8 @@
 #include <cmath>
 
 
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
+#include "sim/player/player_motion_constants.hpp"
 
 #include "sim/player/humanoid/humanoid.hpp"
 

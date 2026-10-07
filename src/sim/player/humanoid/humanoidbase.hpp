@@ -21,14 +21,14 @@
 #include "model/player.hpp"
 #include "foundation/math/vector3.hpp"
 
-#include "sim/gamedefines.hpp"
+#include "sim/player/player_command.hpp"
 
 #include "sim/animation/selection_query.hpp"
 #include "sim/animation/clip.hpp"
 
 #include "sim/player/player_kinematics.hpp"
 
-#include "sim/ai_support/mentalimage.hpp"
+#include "sim/observation/mentalimage.hpp"
 #include <chrono>
 
 using namespace blunted;

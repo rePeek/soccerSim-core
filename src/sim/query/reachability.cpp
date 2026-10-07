@@ -13,11 +13,12 @@
 
 
 #include "sim/query/reachability.hpp"
-#include "sim/tick_boundary.hpp"
+#include "sim/time/tick_boundary.hpp"
 
 #include <cmath>
 
 namespace football::sim::query {
+using blunted::clamp;
 
 TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
                                           const Vector3 &playerMovement,

@@ -4,8 +4,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "sim/tick.hpp"
-#include "sim/tick_boundary.hpp"
+#include "sim/time/tick.hpp"
+#include "sim/time/tick_boundary.hpp"
 
 namespace {
 using namespace football::sim;

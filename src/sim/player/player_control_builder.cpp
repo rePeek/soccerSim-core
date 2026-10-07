@@ -3,9 +3,9 @@
 #include <algorithm>
 #include <cmath>
 
-#include "sim/match.hpp"
-#include "sim/pitch_frame.hpp"
-#include "sim/team.hpp"
+#include "sim/match/match.hpp"
+#include "sim/observation/pitch_frame.hpp"
+#include "sim/team/team.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/kick_targeting.hpp"
 

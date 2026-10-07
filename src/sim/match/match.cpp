@@ -15,7 +15,7 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 #include "sim/animation/library.hpp"
 
 #include "foundation/geometry/line.hpp"

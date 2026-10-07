@@ -13,7 +13,7 @@
 
 #include "ai/default_ai.hpp"
 #include "app/fixtures/default_teams.hpp"
-#include "sim/match.hpp"
+#include "sim/match/match.hpp"
 #include "sim/simulation.hpp"
 
 namespace {

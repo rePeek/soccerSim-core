@@ -12,8 +12,8 @@
 
 
 
-#include "sim/match.hpp"
-#include "sim/match_world_state.hpp"
+#include "sim/match/match.hpp"
+#include "sim/observation/world_state_builder.hpp"
 
 namespace {
 

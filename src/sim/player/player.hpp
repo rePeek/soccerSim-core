@@ -28,8 +28,10 @@
 #include "sim/player/player_action.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
-#include "sim/player_control.hpp"
-#include "sim/tick_boundary.hpp"
+#include "sim/player/player_control.hpp"
+#include "sim/team/formation_entry.hpp"
+#include "sim/ball/ball_touch.hpp"
+#include "sim/time/tick_boundary.hpp"
 
 // Caller scope for the remaining ResetSituation instrumentation. This is
 // observation only; Deactivate's double reset is deliberately not changed here.
