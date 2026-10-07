@@ -54,8 +54,6 @@ class Team {
     void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations);
 
     Match *GetMatch() { return match; }
-    Player *GetPieceTaker();
-    e_GameMode GetSetPieceType();
 
     football::model::TeamSide GetTeamSide() const {
       return static_cast<football::model::TeamSide>(id);
@@ -83,16 +81,21 @@ class Team {
     int GetActivePlayersCount() const;
 
     bool HasPossession() const;
-    bool HasUniquePossession() const;
     int GetTimeNeededToGetToBall_ms() const;
     Player *GetDesignatedTeamPossessionPlayer() {
       return designatedTeamPossessionPlayer;
     }
-    void UpdateDesignatedTeamPossessionPlayer();
     Player *GetBestPossessionPlayer();
     float GetTeamPossessionAmount() const;
     float GetFadingTeamPossessionAmount() const;
     void SetFadingTeamPossessionAmount(float value);
+    // Data publication only; tick/refresh algorithms live in player/possession.
+    void SetPossessionAmounts(float amount, float fading) {
+      teamPossessionAmount = amount; fadingTeamPossessionAmount = fading;
+    }
+    void SetPossessionEstimate(bool has, int arrival_ms) {
+      hasPossession = has; timeNeededToGetToBall_ms = arrival_ms;
+    }
 
 
     void ResetSituation(const Vector3 &focusPos);
@@ -106,11 +109,9 @@ class Team {
 
     void RelaxFatigue(float howMuch);
 
-    void Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink);
     void Put2D(bool mirror);
     void Hide2D();
 
-    void UpdatePossessionStats();
 
     Player *GetGoalie();
 

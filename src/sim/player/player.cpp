@@ -33,6 +33,7 @@
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_control_builder.hpp"
+#include "sim/player/possession.hpp"
 
 int &SimulationOnlyGateMismatchForResetContext(int context) {
   static int records[kResetSituationCallContextCount] = {};
@@ -559,7 +560,7 @@ void Player::Deactivate() {
   SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
   ResetSituation(GetPosition());
   isActive = false;
-  GetTeam()->UpdateDesignatedTeamPossessionPlayer();
+  football::sim::player::RefreshDesignatedTeamPossessionPlayer(*team, *match->GetBall());
 }
 
 int Player::GetReactionTime_ms() {
@@ -698,16 +699,16 @@ bool Player::AllowLastDitch(bool includingPossessionAmount) const {
   return (GetTimeNeededToGetToBall_optimistic_ms() * 1.7f + 800 < GetTimeNeededToGetToBall_ms());
 }
 
-void Player::UpdatePossessionStats() {
+void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer) {
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
   const e_FunctionType action_type = GetCurrentFunctionType();
-  if (IsEligibleForProceduralLocomotion()) {
+  if (actionState.IsPureLocomotion(retainer == this)) {
     // H3e1c-3c: solve on the staggered 100 ms cadence, retaining the capability
     // estimate between refreshes. Do not fall back to the legacy heuristic on
     // those nine intermediate ticks (P1c); that would change the AI's model.
     ++PlayerReachabilityEligibleTicks();
     const bool scheduled_refresh = football::sim::player_timing::StaggeredRefreshDue(
-        match->GetTimelineTick(), kReachabilityRefresh,
+        now, kReachabilityRefresh,
         football::sim::TickSpan{schedule_phase_});
     // First eligible tick after an action must not reuse an old action estimate.
     const bool entering_pure_locomotion = GetSimulationActionState().elapsed.value == 0;
@@ -721,7 +722,7 @@ void Player::UpdatePossessionStats() {
       const PlayerLocomotionReach reach =
           PlayerLocomotion::EstimateEarliestInterceptHybrid(
               GetKinematicState(),
-              [this](football::sim::TickSpan horizon) { return match->GetBall()->Predict(horizon); },
+              [&ball](football::sim::TickSpan horizon) { return ball.Predict(horizon); },
               locomotion_parameters, GetMaxVelocity(),
               football::sim::ball_timing::kPredictionHorizon,
               kReachabilityExactHorizon,
@@ -742,7 +743,7 @@ void Player::UpdatePossessionStats() {
     timeNeededToGetToBall_ms = std::max(
         ballPredictionSize_ms,
         (unsigned int)(std::round(
-            (match->GetBall()->Predict(ballPredictionSize_ms - 10).Get2D() -
+            (ball.Predict(ballPredictionSize_ms - 10).Get2D() -
              (GetPosition() + GetMovement() * 0.2f)).GetLength() /
             (GetMaxVelocity() * 0.75f) * 1000)));
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
@@ -761,9 +762,9 @@ void Player::UpdatePossessionStats() {
     const bool precise = team->GetDesignatedTeamPossessionPlayer() == this;
     for (auto candidate = start; candidate < football::sim::ball_timing::kPredictionHorizon; candidate += step) {
       const auto ms = static_cast<unsigned int>(ToMilliseconds(candidate));
-      if (match->GetBall()->Predict(candidate).coords[2] < 1.5f) {
+      if (ball.Predict(candidate).coords[2] < 1.5f) {
         const auto result = football::sim::query::GetTimeNeededForDistance_ms(
-            GetPosition(), GetMovement(), match->GetBall()->Predict(candidate).Get2D(),
+            GetPosition(), GetMovement(), ball.Predict(candidate).Get2D(),
             GetMaxVelocity(), precise, candidate);
         if (result.optimistic_ms <= ms && ms < timeNeededToGetToBall_optimistic_ms) {
           timeNeededToGetToBall_optimistic_ms = ms;
@@ -780,7 +781,7 @@ void Player::UpdatePossessionStats() {
         }
       }
       if (!refine) {
-        const float balldist = (GetPosition() - match->GetBall()->Predict(candidate).Get2D()).GetLength() + 0.2f;
+        const float balldist = (GetPosition() - ball.Predict(candidate).Get2D()).GetLength() + 0.2f;
         const float maxBallVelo = 50;
         const unsigned int timeToGo_ms = int(std::round((balldist / maxBallVelo) * 1000.0f));
         // Preserve the historical adaptive grid search (round first, then floor).
@@ -795,7 +796,7 @@ void Player::UpdatePossessionStats() {
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   }
   if (timeNeededToGetToBall_ms < defaultTouchOffset_ms) {
-    timeNeededToGetToBall_ms = NormalizedClamp(((GetPosition() + GetMovement() * (defaultTouchOffset_ms * 0.001)) - match->GetBall()->Predict(defaultTouchOffset_ms).Get2D()).GetLength(), 0.0f, 0.6f) * defaultTouchOffset_ms;
+    timeNeededToGetToBall_ms = NormalizedClamp(((GetPosition() + GetMovement() * (defaultTouchOffset_ms * 0.001)) - ball.Predict(defaultTouchOffset_ms).Get2D()).GetLength(), 0.0f, 0.6f) * defaultTouchOffset_ms;
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   }
   if ((action_type == e_FunctionType_ShortPass ||
@@ -804,18 +805,18 @@ void Player::UpdatePossessionStats() {
        action_type == e_FunctionType_Shot) && !TouchPending()) {
     hasPossession = false;
   } else {
-    hasPossession = football::sim::query::HasPossession(match->GetBall(), this);
+    hasPossession = football::sim::query::HasPossession(&ball, this);
   }
-  this->hasBestPossession = hasPossession && match->GetTeam(abs(team->GetID() - 1))->GetTimeNeededToGetToBall_ms() > this->GetTimeNeededToGetToBall_ms();
-  this->hasUniquePossession = hasPossession && !match->GetTeam(abs(team->GetID() - 1))->HasPossession();
-  if (match->GetBallRetainer() == this) {
+  this->hasBestPossession = hasPossession && opponent.GetTimeNeededToGetToBall_ms() > this->GetTimeNeededToGetToBall_ms();
+  this->hasUniquePossession = hasPossession && !opponent.HasPossession();
+  if (retainer == this) {
     timeNeededToGetToBall_ms = 1;
     timeNeededToGetToBall_optimistic_ms = 1;
     SetDesiredTimeToBall_ms(timeNeededToGetToBall_ms);
     hasPossession = true;
     hasBestPossession = true;
     hasUniquePossession = true;
-  } else if (match->GetBallRetainer() != 0) {
+  } else if (retainer != 0) {
     hasPossession = false;
     hasBestPossession = false;
     hasUniquePossession = false;

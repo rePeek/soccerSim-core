@@ -391,7 +391,7 @@ class Player final {
     void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
     bool IsControlledBallCollisionTriggered() { return triggerControlledBallCollision; }
     void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
-    void UpdatePossessionStats();
+    void UpdatePossessionStats(Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer);
     float GetClosestOpponentDistance(Team& opponent) const;
     const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
     void Put2D(bool mirror);

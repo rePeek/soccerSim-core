@@ -77,7 +77,7 @@ src/
 │   ├── query/        player queries, reachability and force-field representation
 │   ├── rules/        Referee, goal geometry, period boundary, offside and restarts
 │   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
-│   └── player/       Player, controls, commands, locomotion and player_contact mechanics
+│   └── player/       Player, controls, commands, locomotion, roster possession and contacts
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
 ├── ai/               value-only decisions; never links sim runtime
 │   ├── ai_config.hpp startup values; no live channel
@@ -332,11 +332,19 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   time comparison, tie fallback, unsigned +10 float ratio and strict <0.85 hysteresis.
   Simulation publishes bestPossessionTeam then designatedPossessionPlayer at the old
   phase boundary. Both selection fields and the distinct physical ballRetainer fact
-  remain Match-owned; Team/Player possession refresh algorithms are not moved.
+  remain Match-owned. Player::UpdatePossessionStats consumes Ball, opponent, now and
+  the physical retainer explicitly. player/possession owns roster aggregation and the
+  pre/post-player possession phases. Simulation iterates each active roster in order;
+  Team::Process/UpdatePossessionStats/UpdateDesignatedTeamPossessionPlayer are deleted.
+  Team only publishes its resulting data; no Team context/services are introduced.
+  Unused Team::HasUniquePossession and restart query wrappers are deleted; restart
+  facts are read from rules directly. Team's Match pointer remains for construction
+  until Player/Humanoid lifetime dependencies are removed. ApplyBallTouch supplies
+  now/retainer to first then second possession refresh before spin/notification.
 - Simulation owns std::vector<MentalImage> and CaptureMentalImage scheduling. Capture
   remains after Ball processing, before players, empty-or-ten-tick, newest-first with
-  three slots. H4-A1/A2: StepPlayers passes a tick-local span through Team → Player
-  → Humanoid, including SelectAnim/NeedTouch/GetBestCheatableAnimID/MovementSmuggle.
+  three slots. StepPlayers passes a tick-local span directly through Player → Humanoid,
+  including SelectAnim/NeedTouch/GetBestCheatableAnimID/MovementSmuggle.
   No actor stores the span or samples through Match. Preserve the initial previous-delay
   sample before updating mentalImageTime, live deviation clamps, signed millisecond
   sampling, staggered cadence and all conditional sample points. H4-B moved touch composition

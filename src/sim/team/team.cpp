@@ -19,10 +19,7 @@
 #include <algorithm>
 #include "sim/team/team.hpp"
 
-#include "sim/query/player_query.hpp"
-#include "sim/match/match.hpp"
 #include "sim/team/formation.hpp"
-#include "sim/rules/offside.hpp"
 
 Team::Team(int id, Match *match, const football::model::Team& model,
            float aiDifficulty)
@@ -115,16 +112,8 @@ int Team::GetActivePlayersCount() const {
   return count;
 }
 
-void Team::UpdateDesignatedTeamPossessionPlayer() {
-  designatedTeamPossessionPlayer =
-      football::sim::query::GetClosestPlayer(this, match->GetBall()->Predict(0).Get2D());
-}
-
 bool Team::HasPossession() const { return hasPossession; }
 
-bool Team::HasUniquePossession() const {
-  return HasPossession() && !match->GetTeam(1 - id)->HasPossession();
-}
 
 int Team::GetTimeNeededToGetToBall_ms() const {
   return timeNeededToGetToBall_ms;
@@ -185,64 +174,6 @@ void Team::RelaxFatigue(float howMuch) {
   }
 }
 
-void Team::Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) {
-  teamPossessionAmount = (float)(match->GetTeam(abs(GetID() - 1))
-      ->GetTimeNeededToGetToBall_ms() +
-      1500) /
-      (float)(GetTimeNeededToGetToBall_ms() + 1500);
-  float tmpFadingTeamPossessionAmount =
-      fadingTeamPossessionAmount * 0.995f +
-      clamp(teamPossessionAmount, 0.5f, 1.5f) * 0.005f;
-  fadingTeamPossessionAmount +=
-      clamp(tmpFadingTeamPossessionAmount - fadingTeamPossessionAmount,
-            -0.005f, 0.005f);  // maximum change per 10ms
-
-  if (!match->IsInPlay() || match->IsInSetPiece() ||
-      match->GetBallRetainer() != 0) {
-    if (match->GetBallRetainer() != 0) {
-      fadingTeamPossessionAmount = teamPossessionAmount =
-          (match->GetBallRetainer()->GetTeam() == this) ? 1.5f : 0.5f;
-    } else {
-      fadingTeamPossessionAmount = teamPossessionAmount =
-          (match->GetBestPossessionTeam() == this) ? 1.5f : 0.5f;
-    }
-  }
-
-  for (unsigned int i = 0; i < players.size(); i++) {
-    if (players[i]->IsActive()) {
-      players[i]->Process(history, touch_sink);
-    }
-  }
-
-  int designatedPlayerTime_ms =
-      designatedTeamPossessionPlayer->GetTimeNeededToGetToBall_ms();
-  Player *bestPlayer = GetBestPossessionPlayer();
-  int oppTime_ms =
-      match->GetTeam(abs(GetID() - 1))->GetTimeNeededToGetToBall_ms();
-  if (designatedTeamPossessionPlayer != bestPlayer) {
-    // switch only if other player is somewhat better, to overcome
-    // possession-chaos
-    int bestPlayerTime_ms = bestPlayer->GetTimeNeededToGetToBall_ms();
-    float timeRating = (float)(bestPlayerTime_ms + 500) /
-        (float)(designatedPlayerTime_ms + 500);
-
-    if (bestPlayer->HasPossession()) timeRating *= 0.5f;
-    if (designatedTeamPossessionPlayer->HasPossession()) timeRating /= 0.5f;
-
-    // current player can get to the ball before the closest opponent: less
-    // need to switch
-    // if (GetID() == 0) printf("opptime: %i, designated time: %i\n",
-    // oppTime_ms, designatedPlayerTime_ms);
-    if (designatedPlayerTime_ms < oppTime_ms - 100) {
-      timeRating += 0.2f;
-      timeRating *= 1.2f;
-    }
-
-    if (timeRating < 0.8f) {
-      designatedTeamPossessionPlayer = bestPlayer;
-    }
-  }
-}
 
 void Team::Put2D(bool mirror) {
   for (unsigned int i = 0; i < players.size(); i++) {
@@ -260,25 +191,6 @@ void Team::Hide2D() {
   }
 }
 
-void Team::UpdatePossessionStats() {
-  for (unsigned int i = 0; i < players.size(); i++) {
-    if (players[i]->IsActive()) {
-      players[i]->UpdatePossessionStats();
-    }
-  }
-
-  // possession?
-
-  hasPossession = false;
-  timeNeededToGetToBall_ms = 100000;
-  for (int i = 0; i < (signed int)players.size(); i++) {
-    if (players[i]->IsActive()) {
-      if (players[i]->HasPossession()) hasPossession = true;
-      if (players[i]->GetTimeNeededToGetToBall_ms() < timeNeededToGetToBall_ms)
-        timeNeededToGetToBall_ms = players[i]->GetTimeNeededToGetToBall_ms();
-    }
-  }
-}
 
 
 Player *Team::GetGoalie() {
@@ -290,14 +202,4 @@ Player *Team::GetGoalie() {
   }
 
   return 0;
-}
-
-Player *Team::GetPieceTaker() {
-  const auto &restart = match->GetReferee()->GetBuffer();
-  return restart.active && restart.teamID == id ? restart.taker : nullptr;
-}
-
-e_GameMode Team::GetSetPieceType() {
-  const auto &restart = match->GetReferee()->GetBuffer();
-  return restart.active ? restart.desiredSetPiece : e_GameMode_Normal;
 }

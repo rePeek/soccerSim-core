@@ -45,6 +45,7 @@ target_sources(football_sim PRIVATE
   rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp
   player/player.cpp player/player_control_builder.cpp player/player_locomotion.cpp
   player/player_contact.cpp player/player_contact.hpp
+  player/possession.cpp player/possession.hpp
   player/kick_targeting.cpp
   player/humanoid/humanoid_utils.cpp
   player/humanoid/humanoidbase.cpp

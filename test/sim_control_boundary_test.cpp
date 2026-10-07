@@ -250,15 +250,13 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE_FALSE(match->IsInPlay());
     REQUIRE(scheduled.taker == nullptr);
     REQUIRE_FALSE(runtime.simulation.Observe().restart_taker.has_value());
-    REQUIRE(match->GetTeam(0)->GetPieceTaker() == nullptr);
-    REQUIRE(match->GetTeam(1)->GetPieceTaker() == nullptr);
     runtime.simulation.Step(PlayerControlSet{});
     const auto world = runtime.simulation.Observe();
     REQUIRE(world.restart == mode);
     REQUIRE(world.restart_taker.has_value());
     REQUIRE(rules->GetBuffer().taker != nullptr);
-    REQUIRE(match->GetTeam(scheduled.teamID)->GetPieceTaker() == rules->GetBuffer().taker);
-    REQUIRE(match->GetTeam(1 - scheduled.teamID)->GetPieceTaker() == nullptr);
+    REQUIRE(rules->GetBuffer().taker->GetTeamID() == scheduled.teamID);
+    REQUIRE(*world.restart_taker == rules->GetBuffer().taker->GetID());
     REQUIRE_FALSE(match->IsInPlay());
     // No positioning controls: repair legal placement only at the maximum.
     runtime.simulation.AdvanceTime(scheduled.restart->timeout_tick - match->GetTimelineTick());
@@ -273,8 +271,6 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
             match->GetBall()->Predict(0).coords[1]);
     REQUIRE_FALSE(match->IsInSetPiece());
     REQUIRE_FALSE(rules->GetBuffer().active);
-    REQUIRE(match->GetTeam(0)->GetSetPieceType() == e_GameMode_Normal);
-    REQUIRE(match->GetTeam(1)->GetPieceTaker() == nullptr);
   }
 }
 

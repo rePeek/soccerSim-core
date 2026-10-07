@@ -19,6 +19,7 @@
 #include "sim/observation/world_state_builder.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player_contact.hpp"
+#include "sim/player/possession.hpp"
 #include "sim/rules/goal.hpp"
 #include "sim/rules/period.hpp"
 #include "sim/team/possession.hpp"
@@ -241,7 +242,8 @@ void Simulation::Step(const PlayerControlSet& controls) {
         *match.GetBall(), players, inputs);
     if (contact.impulse) {
       football::sim::ApplyBallTouch(*match.ball, match.GetBallEnvironment(), *contact.impulse,
-          mental_images_, *match.teams[match.first_team], *match.teams[match.second_team]);
+          mental_images_, *match.teams[match.first_team], *match.teams[match.second_team],
+          match.GetTimelineTick(), match.ballRetainer);
       // Preserve the three argument-expression RNG draws and refresh-before-spin.
       match.GetBall()->SetRotation(rng_.Uniform(-30, 30), rng_.Uniform(-30, 30),
           rng_.Uniform(-30, 30), contact.rotation_bias, match.GetBallEnvironment());
@@ -277,18 +279,30 @@ void Simulation::Step(const PlayerControlSet& controls) {
   // CaptureHistory: preserve the pre-player-processing capture and sample-zero timing.
   CaptureMentalImage(match);
 
-  // StepPlayers, each in its own execution frame.
+  // StepPlayers: team estimates bracket roster-ordered actor execution.
+  const auto step_team = [&](int id) {
+    Team& team = *match.teams[id];
+    Team& opponent = *match.teams[1 - id];
+    football::sim::player::PrepareTeamPossession(team, opponent, match.IsInPlay(),
+        match.IsInSetPiece(), match.ballRetainer, match.bestPossessionTeam);
+    for (Player* actor : team.GetAllPlayers()) {
+      if (actor->IsActive()) actor->Process(mental_images_, *touch_sink_);
+    }
+    football::sim::player::FinishTeamPossession(team, opponent);
+  };
   Mirror(match.first_team == 1, match.first_team == 0, false);
-  match.teams[match.first_team]->Process(mental_images_, *touch_sink_);
+  step_team(match.first_team);
   Mirror(true, true, true);
-  match.teams[match.second_team]->Process(mental_images_, *touch_sink_);
+  step_team(match.second_team);
   Mirror(match.first_team == 0, match.first_team == 1, true);
 
   // UpdatePossession: retain both per-roster refreshes before arbitration.
   Mirror(match.first_team == 1, match.first_team == 0, false);
-  match.teams[match.first_team]->UpdatePossessionStats();
+  football::sim::player::RefreshTeamPossession(*match.teams[match.first_team],
+      *match.teams[match.second_team], *match.ball, match.GetTimelineTick(), match.ballRetainer);
   Mirror(true, true, true);
-  match.teams[match.second_team]->UpdatePossessionStats();
+  football::sim::player::RefreshTeamPossession(*match.teams[match.second_team],
+      *match.teams[match.first_team], *match.ball, match.GetTimelineTick(), match.ballRetainer);
   Mirror(match.first_team == 0, match.first_team == 1, true);
 
   const auto possession = football::sim::EvaluatePossession(
@@ -360,7 +374,8 @@ void Simulation::TouchBall(const Vector3& impulse) {
   if (!match_) throw std::logic_error("simulation has no match");
   Match& match = *match_;
   football::sim::ApplyBallTouch(*match.ball, match.GetBallEnvironment(), impulse,
-      mental_images_, *match.teams[match.first_team], *match.teams[match.second_team]);
+      mental_images_, *match.teams[match.first_team], *match.teams[match.second_team],
+      match.GetTimelineTick(), match.ballRetainer);
 }
 
 void Simulation::Mirror(bool team_0, bool team_1, bool ball) {

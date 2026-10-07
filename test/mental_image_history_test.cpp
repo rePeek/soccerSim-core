@@ -188,7 +188,8 @@ TEST_CASE("ball touch refreshes only the explicit history and does not publish a
     const auto last_team = match.GetLastTouchTeamID();
     const auto* last_player = match.GetLastTouchPlayer();
     ApplyBallTouch(*match.GetBall(), match.GetBallEnvironment(), Vector3(7, 2, 1), history,
-        *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam()));
+        *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam()),
+        match.GetTimelineTick(), match.GetBallRetainer());
     std::vector<Vector3> predictions; match.GetBall()->GetPredictionArray(predictions);
     REQUIRE(history[0].ballPredictions == predictions);
     REQUIRE(history[0].ballPredictions != owned);
@@ -200,7 +201,8 @@ TEST_CASE("ball touch refreshes only the explicit history and does not publish a
     REQUIRE(match.GetLastTouchTeamID() == last_team);
     REQUIRE(match.GetLastTouchPlayer() == last_player);
     REQUIRE_NOTHROW(ApplyBallTouch(*match.GetBall(), match.GetBallEnvironment(), Vector3(0), {},
-        *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam())));
+        *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam()),
+        match.GetTimelineTick(), match.GetBallRetainer()));
   }
 }
 

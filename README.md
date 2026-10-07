@@ -172,6 +172,10 @@ hidden inside Team or Match. `Simulation::Step()` composes all legacy phases exp
 `Match::StepRemainingTick` is removed. `team/possession.*` evaluates best-team and
 designated-player selection without publishing state. Simulation applies the selection
 after roster refreshes; the separate physical `ballRetainer` fact remains Match-owned.
+`player/possession.*` owns roster refresh and pre/post-player possession phases.
+Simulation iterates active players directly; Team::Process/UpdatePossessionStats and
+its unused restart/unique-possession wrappers are deleted. Player refresh consumes
+explicit Ball, opponent, tick and physical retainer; no Team runtime context is added.
 Match still owns runtime objects and competition facts; its history bridge is removed.
 `Simulation::match()` remains a temporary test/diagnostic escape hatch.
 
@@ -193,7 +197,7 @@ original order; no layout, prediction sampling or RNG policy changes.
 MentalImage has no Match pointer or implicit clock/Ball reads:
 capture takes tick, ordered player span and Ball; sampling takes explicit now/Ball.
 Legacy Player deviation clamps and signed horizon quantization remain unchanged.
-StepPlayers explicitly lends history through Team → Player → Humanoid and its animation/touch
+StepPlayers explicitly lends history through Player → Humanoid and its animation/touch
 prediction functions. No actor stores the span or samples through Match; Simulation diagnostic
 sampling is the only remaining history reader.
 

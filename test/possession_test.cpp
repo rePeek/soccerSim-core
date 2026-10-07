@@ -4,6 +4,7 @@
 #include "sim/match/match.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team/possession.hpp"
+#include "sim/player/possession.hpp"
 
 namespace {
 using football::sim::EvaluatePossession;
@@ -86,7 +87,8 @@ TEST_CASE("possession hysteresis preserves unsigned add, float ratio and strict 
     candidate->ResetPosition(Vector3(distance, 0, 0), Vector3(0));
     // Observe a complete refresh cadence; initialization may start mid-animation.
     for (int tick = 0; tick < 10; ++tick) {
-      candidate->UpdatePossessionStats();
+      candidate->UpdatePossessionStats(*match.GetBall(), *match.GetTeam(0),
+          match.GetTimelineTick(), match.GetBallRetainer());
       simulation.AdvanceTime(football::sim::TickSpan{1});
     }
     const unsigned int old_time = current->GetTimeNeededToGetToBall_ms();
@@ -107,3 +109,41 @@ TEST_CASE("possession hysteresis preserves unsigned add, float ratio and strict 
 }
 
 }  // namespace
+
+template<class T> concept HasTeamTick = requires(T& team) { &T::Process; };
+template<class T> concept HasTeamRefresh = requires(T& team) { team.UpdatePossessionStats(); };
+template<class T> concept HasTeamRestartQuery = requires(T& team) { team.GetPieceTaker(); } ||
+    requires(T& team) { team.GetSetPieceType(); };
+static_assert(!HasTeamTick<Team>);
+static_assert(!HasTeamRefresh<Team>);
+static_assert(!HasTeamRestartQuery<Team>);
+
+TEST_CASE("Roster possession phases consume supplied opponent and physical retainer facts",
+          "[sim][possession][dependency]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  auto& team = *match.GetTeam(0);
+  ArrivalTeam opponent(1);
+  opponent.Arrival(200);
+  const auto rng = match.rng().engine();
+  const float amount = float(200 + 1500) / float(team.GetTimeNeededToGetToBall_ms() + 1500);
+  const float expected = 1.f + blunted::clamp(
+      1.f * 0.995f + blunted::clamp(amount, 0.5f, 1.5f) * 0.005f - 1.f, -0.005f, 0.005f);
+  football::sim::player::PrepareTeamPossession(team, opponent, true, false, nullptr, nullptr);
+  REQUIRE(team.GetTeamPossessionAmount() == amount);
+  REQUIRE(team.GetFadingTeamPossessionAmount() == expected);
+  auto* retainer = match.GetTeam(1)->GetAllPlayers()[1];
+  football::sim::player::PrepareTeamPossession(team, opponent, true, false, retainer, &team);
+  REQUIRE(team.GetTeamPossessionAmount() == 0.5f);
+  REQUIRE(team.GetFadingTeamPossessionAmount() == 0.5f);
+  Ball supplied(match.pitch());
+  football::sim::player::RefreshTeamPossession(team, opponent, supplied, football::sim::Tick{123},
+      team.GetAllPlayers()[1]);
+  REQUIRE(team.HasPossession());
+  REQUIRE(team.GetTimeNeededToGetToBall_ms() == 1);
+  REQUIRE(team.GetAllPlayers()[1]->HasUniquePossession());
+  REQUIRE(match.GetBallRetainer() == nullptr);
+  REQUIRE(match.rng().engine() == rng);
+}
