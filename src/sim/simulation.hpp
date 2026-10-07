@@ -32,6 +32,8 @@ class Simulation {
   // Final only; throws std::logic_error before full time or without a match.
   MatchResult Result() const;
 
+  // TODO: test/diagnostic escape hatch; remove from the public Simulation API.
+  // Transitional access to authoritative actors, not a general integration API.
   Match* match() { return match_.get(); }
   const Match* match() const { return match_.get(); }
 
