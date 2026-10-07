@@ -39,7 +39,7 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
     const auto rng = match.rng().engine();
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
-    REQUIRE_THROWS_AS(actor->Process({}, touch_sink), std::logic_error); // No fallback to Match history.
+    REQUIRE_THROWS_AS(actor->Process(SimulationAccess::PlayerTickOf(simulation), {}, touch_sink), std::logic_error); // No fallback to Match history.
     REQUIRE(match.rng().engine() == rng);
 
     std::vector<Player*> players;
@@ -58,7 +58,7 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     const auto owned_forward = query::CalculateFreeSpace(match.GetTimelineTick(), simulation.GetMentalImage(TickSpan{}),
         actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
     REQUIRE(forward != owned_forward);
-    actor->Process(supplied, touch_sink);
+    actor->Process(SimulationAccess::PlayerTickOf(simulation), supplied, touch_sink);
     REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == forward);
     REQUIRE(actor->GetTacticalSituation().spaceRating == space);
     REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
@@ -83,7 +83,7 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
     REQUIRE(match.rng().engine() == rng);
     std::vector<MentalImage> supplied;
     supplied.emplace_back(match.GetTimelineTick(), std::span<Player* const>{}, *match.GetBall());
-    REQUIRE_NOTHROW(actor->Process(supplied, touch_sink)); // Ball-only caller-owned sample; no stored borrow.
+    REQUIRE_NOTHROW(actor->Process(SimulationAccess::PlayerTickOf(simulation), supplied, touch_sink)); // Ball-only caller-owned sample; no stored borrow.
     REQUIRE(supplied[0].players.empty());
     REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
   }
@@ -155,5 +155,55 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
   REQUIRE(distance > 0.0f);
   REQUIRE(height > 0.0f);
   REQUIRE(match.rng().engine() == ambient_rng);
+}
+
+template<class T> concept HasImplicitActorFacts = requires(T& actor, std::span<MentalImage> history, BallTouchSink& events) {
+  actor.Process(history, events);
+};
+static_assert(!HasImplicitActorFacts<Player>);
+
+TEST_CASE("Player tactical refresh honors supplied tick and authorization",
+          "[sim][player][dependency]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  simulation.Step({});
+  auto& match = *simulation.match();
+  auto* actor = match.GetTeam(match.FirstTeam())->GetAllPlayers()[0];
+  REQUIRE_FALSE(match.IsInPlay());
+  REQUIRE(match.GetTimelineTick() == Tick{1});
+  std::vector<Player*> players;
+  match.GetTeam(0)->GetActivePlayers(players);
+  match.GetTeam(1)->GetActivePlayers(players);
+  std::vector<MentalImage> history;
+  history.emplace_back(Tick{10}, players, *match.GetBall());
+  history[0].maxDistanceDeviation = 1000.f;
+  for (auto& image : history[0].players) image.position = Vector3(100, 100, 0);
+  bool underway = false;
+  const PlayerTickContext tick{Tick{10}, true, underway, nullptr};
+  const auto position = actor->GetPosition();
+  const auto focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
+  const float expected = query::CalculateFreeSpace(tick.now, &history[0], actor->GetTeamID(), focus, 5.0f, 0.5f);
+  REQUIRE(expected == 1.f);
+  REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == 0.f);
+  actor->Process(tick, history, SimulationAccess::EventsOf(simulation));
+  REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == expected);
+  REQUIRE(match.GetTimelineTick() == Tick{1});
+  REQUIRE_FALSE(match.IsInPlay());
+}
+
+TEST_CASE("Player's half-underway input remains live across synchronous clock commands",
+          "[sim][player][clock]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto tick = SimulationAccess::PlayerTickOf(simulation);
+  REQUIRE_FALSE(tick.half_underway);
+  simulation.match()->SetMatchPhase(MatchPhase::FirstHalf);
+  simulation.match()->StartPlay();
+  simulation.match()->StartBallInPlay();
+  REQUIRE(tick.half_underway);
+  simulation.match()->EndHalf();
+  REQUIRE_FALSE(tick.half_underway);
 }
 }  // namespace

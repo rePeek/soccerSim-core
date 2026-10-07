@@ -62,7 +62,7 @@ TEST_CASE("Player publication and reset stamps distinguish absent from tick zero
     command.desiredFunctionType = e_FunctionType_Movement;
     command.useDesiredMovement = true;
     const auto rng = match.rng().engine();
-    actor.PublishDecisionLocomotionIntent(command);
+    actor.PublishDecisionLocomotionIntent(command, match.GetTimelineTick(), match.GetBallRetainer() == &actor);
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{});
     REQUIRE(match.rng().engine() == rng);
     actor.ResetSituation(actor.GetPosition());
@@ -73,7 +73,7 @@ TEST_CASE("Player publication and reset stamps distinguish absent from tick zero
     // Beyond the former signed-int millisecond range, without invoking physics.
     const TickSpan large{UINT64_C(1) << 32};
     simulation.AdvanceTime(large);
-    actor.PublishDecisionLocomotionIntent(command);
+    actor.PublishDecisionLocomotionIntent(command, match.GetTimelineTick(), match.GetBallRetainer() == &actor);
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{large.value});
     REQUIRE_FALSE(actor.DecisionLocomotionEpochIsStale());
     simulation.AdvanceTime(TickSpan{3});
@@ -178,5 +178,29 @@ TEST_CASE("Touch decay uses relative ticks without quantizing ability-dependent 
     REQUIRE(actor.GetLastTouchBias(503, Tick{std::numeric_limits<std::uint64_t>::max()}) == 0.f);
     REQUIRE(match.rng().engine() == rng);
   }
+}
+
+template<class T> concept HasImplicitLocomotionEligibility = requires(T& actor) { actor.IsEligibleForProceduralLocomotion(); };
+template<class T> concept HasImplicitIntentRefresh = requires(T& actor) { actor.CommitLocomotionIntentRefresh(); };
+static_assert(!HasImplicitLocomotionEligibility<Player>);
+static_assert(!HasImplicitIntentRefresh<Player>);
+
+TEST_CASE("Decision publications consume supplied time and retention facts", "[sim][player][dependency]") {
+  Simulation simulation; Init(simulation, false);
+  auto& match = *simulation.match();
+  auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
+  PlayerCommand command;
+  command.desiredFunctionType = e_FunctionType_Movement;
+  command.useDesiredMovement = true;
+  const auto rng = match.rng().engine();
+  actor.PublishDecisionLocomotionIntent(command, Tick{123}, false);
+  REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{123});
+  REQUIRE(actor.IsEligibleForProceduralLocomotion(false));
+  REQUIRE_FALSE(actor.IsEligibleForProceduralLocomotion(true));
+  actor.CommitLocomotionIntentRefresh(*match.GetBall(), Tick{123}, false);
+  REQUIRE_FALSE(actor.IsLocomotionIntentRefreshDue(Tick{123}));
+  REQUIRE(match.GetTimelineTick() == Tick{});
+  REQUIRE(match.GetBallRetainer() == nullptr);
+  REQUIRE(match.rng().engine() == rng);
 }
 } // namespace

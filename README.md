@@ -219,6 +219,9 @@ Player touch decay requires an explicit Tick (no implicit-now overload), and pla
 free-space queries take Tick/MentalImage directly with no Match dependency.
 Command construction borrows explicit authorization/hands-legality inputs for one call;
 BuildPlayerCommands no longer includes Match, and Player::GetMatch is deleted.
+Player tick/tactical processing consumes stack-local PlayerTickContext; fatigue observes
+the live half-underway gate after contact, not a pre-tick snapshot. Locomotion/decision
+helpers take explicit time, Ball and retention inputs without querying Match.
 
 `rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration
 facts. Simulation evaluates the pre-contact gate and original whistle boundary; EndPeriod

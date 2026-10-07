@@ -33,6 +33,7 @@
 #include "sim/team/formation_entry.hpp"
 #include "sim/ball/ball_touch.hpp"
 #include "sim/time/tick_boundary.hpp"
+#include "sim/player/player_tick_context.hpp"
 
 // Caller scope for the remaining ResetSituation instrumentation. This is
 // observation only; Deactivate's double reset is deliberately not changed here.
@@ -260,7 +261,7 @@ class Player final {
     // H3e authority boundary: true only when this actor may leave the legacy
     // animation root-motion path and use the simulation-owned procedural
     // movement model instead. See PlayerActionState::IsPureLocomotion().
-    bool IsEligibleForProceduralLocomotion() const;
+    bool IsEligibleForProceduralLocomotion(bool retaining_ball) const;
     std::optional<football::sim::Tick> GetLastDecisionLocomotionPublicationTick() const {
       return last_locomotion_publication_tick_;
     }
@@ -282,18 +283,17 @@ class Player final {
     // H3e4f-c2a: observation only. The simulation keeps its own locomotion
     // intent cadence in parallel with the animation requeue lifecycle, so the
     // two schedules can be compared before either one takes over.
-    void ObserveLocomotionIntentCadence(bool legacy_opportunity);
     // c2b-2: returns whether the simulation must refresh the intent now. A due
     // tick during a non-locomotion action is held overdue rather than consumed,
     // so the refresh happens as soon as the actor is eligible again.
-    bool NoteLocomotionIntentCadence(bool legacy_opportunity);
+    bool NoteLocomotionIntentCadence(bool legacy_opportunity, football::sim::Tick now, bool retaining_ball);
     // Called only once the controller was actually queried for this refresh.
-    void CommitLocomotionIntentRefresh();
-    void NoteControllerQuery(bool had_movement_candidate);
+    void CommitLocomotionIntentRefresh(const Ball& ball, football::sim::Tick now, bool retaining_ball);
+    void NoteControllerQuery(bool had_movement_candidate, football::sim::Tick now, bool retaining_ball);
     // c2a: the Player Decision Clock's only publication entry point. It owns the
     // decision locomotion state and the publication telemetry, and never touches the
     // compatibility movement command slot.
-    void PublishDecisionLocomotionIntent(const PlayerCommand &command);
+    void PublishDecisionLocomotionIntent(const PlayerCommand &command, football::sim::Tick now, bool retaining_ball);
     // 4f-a1: whether the animation selection on this tick picked a Movement clip,
     // so a legacy-only publication can be cross-tabulated with the selection.
     void NoteDecisionMovementSelection(bool movement_selected);
@@ -311,8 +311,8 @@ class Player final {
     unsigned long long GetPlayerDecisionGeneration() const {
       return playerDecisionQueue.generation;
     }
-    bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue);
-    bool LocomotionIntentRefreshHeldIneligible() const;
+    bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, football::sim::Tick now, bool retaining_ball);
+    bool LocomotionIntentRefreshHeldIneligible(football::sim::Tick now, bool retaining_ball) const;
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
     void BeginSimulationAction();
@@ -341,7 +341,7 @@ class Player final {
     float GetDecayingPositionOffsetLength() { return humanoid->GetDecayingPositionOffsetLength(); }
 
     // Tick-local borrows; no history owner or persistent world port.
-    void Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink);
+    void Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink);
 
 
     float GetStat(football::model::PlayerStat name) const;
@@ -404,7 +404,7 @@ class Player final {
 
   private:
     void ResetRuntimeState(const Vector3 &focusPos);
-    void _CalculateTacticalSituation(std::span<MentalImage> history);
+    void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history);
     void SynchronizeKinematicState();
     PlayerActionState CaptureLegacyActionState() const;
     void SetNextResetSituationAuditContext(int context);

@@ -121,6 +121,13 @@ football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
       PitchFrameTransform(match.GetTeam(0)->GetStaticSide() != -1)};
 }
 
+football::sim::PlayerTickContext Simulation::PlayerTickFacts() const {
+  if (!match_) throw std::logic_error("simulation has no match");
+  auto& match = *match_;
+  return {match.GetTimelineTick(), match.IsInPlay(), match.clock_.IsHalfUnderway(),
+          match.GetLastTouchPlayer()};
+}
+
 class Simulation::TouchEvents final : public football::sim::BallTouchSink {
  public:
   explicit TouchEvents(Simulation& simulation) : simulation_(simulation) {}
@@ -286,7 +293,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
     football::sim::player::PrepareTeamPossession(team, opponent, match.IsInPlay(),
         match.IsInSetPiece(), match.ballRetainer, match.bestPossessionTeam);
     for (Player* actor : team.GetAllPlayers()) {
-      if (actor->IsActive()) actor->Process(mental_images_, *touch_sink_);
+      if (actor->IsActive()) actor->Process(PlayerTickFacts(), mental_images_, *touch_sink_);
     }
     football::sim::player::FinishTeamPossession(team, opponent);
   };

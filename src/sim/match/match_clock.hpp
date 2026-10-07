@@ -18,7 +18,8 @@ class MatchClock {
   TickSpan RegulationTime() const { return regulation_elapsed_; }
   TickSpan BallInPlayTime() const { return ball_in_play_elapsed_; }
   std::uint64_t ExecutedTicks() const { return duration_ticks_; }
-  bool IsHalfUnderway() const { return regulation_running_; }
+  // Call-local consumers may borrow this gate across accepted-contact commands.
+  const bool& IsHalfUnderway() const { return regulation_running_; }
   bool IsBallInPlay() const { return ball_in_play_; }
 
   // BeginHalf means the accepted opening contact, not publication of First/SecondHalf.

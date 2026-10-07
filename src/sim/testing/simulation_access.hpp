@@ -12,6 +12,9 @@ namespace football::sim::testing {
 // Product execution remains Init/Step/Observe/Finished/Result/Stop.
 class SimulationAccess {
  public:
+  static PlayerTickContext PlayerTickOf(const Simulation& simulation) {
+    return simulation.PlayerTickFacts();
+  }
   static PlayerCommandInputs CommandInputsOf(Simulation& simulation) {
     if (!simulation.match_) throw std::logic_error("simulation has no match");
     auto& match = *simulation.match_;

@@ -77,7 +77,7 @@ src/
 │   ├── query/        player queries, reachability and force-field representation
 │   ├── rules/        Referee, goal geometry, period boundary, offside and restarts
 │   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
-│   └── player/       Player, controls, commands, locomotion, roster possession and contacts
+│   └── player/       Player, tick-local inputs, controls, locomotion, possession and contacts
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
 ├── ai/               value-only decisions; never links sim runtime
 │   ├── ai_config.hpp startup values; no live channel
@@ -454,6 +454,13 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   and overflow-safe reduced-remainder staggering, retaining both roster schedules.
   Player touch/card-effect timestamps are Tick; unused possession-duration storage
   is removed. Touch-decay requires an explicit Tick and bounds only relative ages.
+  Player::Process consumes a stack-local PlayerTickContext (now, authorization,
+  last-touch identity and a live half-underway gate). Simulation assembles it for
+  EACH actor; no stored context/span/port. Fatigue reads the borrowed clock gate
+  after Humanoid execution so accepted opening contact remains synchronous.
+  Locomotion eligibility, scheduling and decision publications take explicit now/
+  Ball/retaining-ball inputs. None of these Player operations queries Match;
+  remaining Player Match reads are reset provenance, deactivation and send-off RNG.
   Ball prediction horizons/cache durations live in sim-private `ball/ball_timing.hpp`;
   prediction generation iterates TickSpan samples with seconds from the quantum.
   MentalImage stores a Tick capture instant and derives TickSpan age. Transitional

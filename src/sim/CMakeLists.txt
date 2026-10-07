@@ -55,6 +55,7 @@ target_sources(football_sim PRIVATE
   player/humanoid/humanoid_utils.hpp
   player/player.hpp player/player_control_builder.hpp player/player_kinematics.hpp
   player/player_command.hpp player/player_motion_constants.hpp
+  player/player_tick_context.hpp
   player/player_retain_anchor.hpp player/player_ground_collider.hpp
   player/player_body_collider.hpp player/player_body_facing.hpp
   player/player_action.hpp player/player_action_executor.hpp player/player_action_volume.hpp

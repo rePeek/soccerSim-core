@@ -326,11 +326,9 @@ void Player::SynchronizeKinematicState() {
   CheckSimulationKinematicOracle();
 }
 
-bool Player::NoteLocomotionIntentCadence(bool legacy_opportunity) {
+bool Player::NoteLocomotionIntentCadence(bool legacy_opportunity, football::sim::Tick now, bool retaining_ball) {
   decisionMovementSelection = false;
-  const float distance_to_ball =
-      (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
-  const bool due = locomotionIntentScheduler.Due(match->GetTimelineTick());
+  const bool due = locomotionIntentScheduler.Due(now);
   locomotionIntentDueThisTick = false;
   if (due) {
     ++PlayerLocomotionIntentDueTicks();
@@ -338,7 +336,7 @@ bool Player::NoteLocomotionIntentCadence(bool legacy_opportunity) {
     // controller there would hand locomotion an intent that is already hundreds
     // of milliseconds old by the time the action ends. The clock simply stays
     // overdue so the refresh happens on the first eligible tick.
-    if (!IsEligibleForProceduralLocomotion()) {
+    if (!IsEligibleForProceduralLocomotion(retaining_ball)) {
       ++PlayerLocomotionIntentDueIneligibleTicks();
     } else {
       locomotionIntentDueThisTick = true;
@@ -359,24 +357,24 @@ void Player::PublishPlayerDecisionQueue(
   playerDecisionScheduler.Commit(now);
 }
 
-void Player::CommitLocomotionIntentRefresh() {
+void Player::CommitLocomotionIntentRefresh(const Ball& ball, football::sim::Tick now, bool retaining_ball) {
   ++HumanoidIntentRefreshCommits();
   const float distance_to_ball =
-      (match->GetBall()->Predict(0).Get2D() - kinematicState.position).GetLength();
+      (ball.Predict(0).Get2D() - kinematicState.position).GetLength();
   ++PlayerLocomotionIntentConsumedTicks();
   locomotionIntentScheduler.Schedule(
-      match->GetTimelineTick(),
+      now,
       LocomotionIntentScheduler::CadenceForDistance(
-          distance_to_ball, match->GetBallRetainer() == this));
+          distance_to_ball, retaining_ball));
 }
 
 
 // 4b': intent refresh is held back purely because execution is not pure. This is
 // the conflation under measurement: the scheduler is due, but the execution gate
 // blocks the refresh.
-bool Player::LocomotionIntentRefreshHeldIneligible() const {
-  return locomotionIntentScheduler.Due(match->GetTimelineTick()) &&
-         !IsEligibleForProceduralLocomotion();
+bool Player::LocomotionIntentRefreshHeldIneligible(football::sim::Tick now, bool retaining_ball) const {
+  return locomotionIntentScheduler.Due(now) &&
+         !IsEligibleForProceduralLocomotion(retaining_ball);
 }
 
 static int t4opp_queries = 0, t4opp_with_candidate = 0;
@@ -391,9 +389,9 @@ void DumpQueryOpportunities() {
          t4opp_nocand_other);
   fflush(stdout);
 }
-void Player::NoteControllerQuery(bool had_movement_candidate) {
-  const bool due = locomotionIntentScheduler.Due(match->GetTimelineTick());
-  const bool eligible = IsEligibleForProceduralLocomotion();
+void Player::NoteControllerQuery(bool had_movement_candidate, football::sim::Tick now, bool retaining_ball) {
+  const bool due = locomotionIntentScheduler.Due(now);
+  const bool eligible = IsEligibleForProceduralLocomotion(retaining_ball);
   ++t4opp_queries;
   if (had_movement_candidate) {
     ++t4opp_with_candidate;
@@ -413,7 +411,7 @@ void Player::NoteDecisionMovementSelection(bool movement_selected) {
 // c2a: the Player Decision Clock's single publication entry point. It owns the
 // decision locomotion state and the publication telemetry, and never touches the
 // compatibility movement command slot.
-void Player::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
+void Player::PublishDecisionLocomotionIntent(const PlayerCommand &command, football::sim::Tick now, bool retaining_ball) {
   assert(command.desiredFunctionType == e_FunctionType_Movement &&
          command.useDesiredMovement &&
          "Player Decision Clock published a non-Movement intent");
@@ -425,14 +423,14 @@ void Player::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
       decisionLocomotionState.initialized &&
       MovementCommandDiffersMaterially(decisionLocomotionState.command, command);
   ++PlayerMovementCommandDirectAdoptions();
-  last_locomotion_publication_tick_ = match->GetTimelineTick();
+  last_locomotion_publication_tick_ = now;
   // Cause split without changing the player path: a publication on a tick where
   // the simulation cadence was not due can only have come from the animation
   // lifecycle's query opportunity.
   lastPublicationViaSimulationCadence = pendingPublicationCause == 0;
   ++DecisionPublicationCauseCount(pendingPublicationCause);
   pendingPublicationCause = 0;
-  lastPublicationWhileIneligible = !IsEligibleForProceduralLocomotion();
+  lastPublicationWhileIneligible = !IsEligibleForProceduralLocomotion(retaining_ball);
   if (lastPublicationViaSimulationCadence) {
     ++DecisionPublicationViaSimulationCadence();
   } else {
@@ -461,11 +459,11 @@ void Player::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
 // Single place that turns a controller queue into a published locomotion intent.
 // Returns true only when a Movement candidate with useDesiredMovement was
 // published, so callers commit the scheduler refresh only on a real publication.
-bool Player::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue) {
+bool Player::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, football::sim::Tick now, bool retaining_ball) {
   for (const PlayerCommand &candidate : queue) {
     if (candidate.desiredFunctionType == e_FunctionType_Movement &&
         candidate.useDesiredMovement) {
-      PublishDecisionLocomotionIntent(candidate);
+      PublishDecisionLocomotionIntent(candidate, now, retaining_ball);
       return true;
     }
   }
@@ -532,8 +530,8 @@ void Player::StepSimulationAction(football::sim::TickSpan elapsed) {
   CheckSimulationActionOracle();
 }
 
-bool Player::IsEligibleForProceduralLocomotion() const {
-  return actionState.IsPureLocomotion(match->GetBallRetainer() == this);
+bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {
+  return actionState.IsPureLocomotion(retaining_ball);
 }
 
 
@@ -588,14 +586,14 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue, const PlayerComman
   }
 }
 
-void Player::Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) {
+void Player::Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
-    if (match->IsInPlay()) {
+    if (tick.play_authorized) {
       if (football::sim::player_timing::StaggeredRefreshDue(
-          match->GetTimelineTick(), football::sim::player_timing::kTacticalRefresh,
+          tick.now, football::sim::player_timing::kTacticalRefresh,
           football::sim::TickSpan{schedule_phase_})) {
-        _CalculateTacticalSituation(history);
+        _CalculateTacticalSituation(tick, history);
       }
     }
     Vector3 posBefore = CastHumanoid()->GetPosition();
@@ -603,14 +601,14 @@ void Player::Process(std::span<MentalImage> history, football::sim::BallTouchSin
     SynchronizeKinematicState();
     CheckSimulationActionOracle();
     // Real distance during an underway half, including dead-ball positioning.
-    if (match->IsHalfUnderway()) {
+    if (tick.half_underway) {
       Vector3 posAfter = CastHumanoid()->GetPosition();
       float distance = (posAfter - posBefore).GetLength();
       fatigueFactorInv -= distance * 0.00003f * (2.0f - GetStaminaStat());
       fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
     }
     // Don't send off the last player on the team.
-    if (cards > 1 && card_effective_tick_ <= match->GetTimelineTick() &&
+    if (cards > 1 && card_effective_tick_ <= tick.now &&
         GetTeam()->GetActivePlayersCount() > 1) {
       SendOff();
     }
@@ -864,10 +862,10 @@ void Player::ResetSituation(const Vector3 &focusPos) {
   tacticalSituation.spaceRating = 0;
 }
 
-void Player::_CalculateTacticalSituation(std::span<MentalImage> history) {
+void Player::_CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history) {
   // Sample only when needed. Reaction estimates keep their sub-tick precision;
   // the history sampler, not stored Player state, owns nearest-capture rounding.
-  const bool own_touch = match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental;
+  const bool own_touch = tick.last_touch_player == this && lastTouchType != e_TouchType_Accidental;
   const MentalImage *mentalImage = own_touch
       ? football::sim::observation::SampleMentalImage(history, football::sim::TickSpan{})
       : football::sim::observation::SampleMentalImage(history, std::chrono::milliseconds{GetReactionTime_ms()});
@@ -875,10 +873,10 @@ void Player::_CalculateTacticalSituation(std::span<MentalImage> history) {
   assert(IsActive());
   float time_sec = 0.5f;
   Vector3 checkPos = GetPosition() + Vector3(-team->GetDynamicSide(), 0, 0) * sprintVelocity * time_sec;
-  tacticalSituation.forwardSpaceRating = football::sim::query::CalculateFreeSpace(match->GetTimelineTick(), mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
+  tacticalSituation.forwardSpaceRating = football::sim::query::CalculateFreeSpace(tick.now, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
   time_sec = 0.1f;
   checkPos = GetPosition() + GetMovement() * time_sec;
-  tacticalSituation.spaceRating = football::sim::query::CalculateFreeSpace(match->GetTimelineTick(), mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
+  tacticalSituation.spaceRating = football::sim::query::CalculateFreeSpace(tick.now, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
   tacticalSituation.forwardRating =
       1.0f - clamp((Vector3(pitchHalfW * -team->GetDynamicSide(), 0, 0) - GetPosition()).GetLength() /
                        (pitchHalfW * 2.0f), 0.0f, 1.0f);

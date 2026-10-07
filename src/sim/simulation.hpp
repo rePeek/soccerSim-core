@@ -16,6 +16,7 @@
 #include "sim/event/ball_touch_sink.hpp"
 #include "sim/rules/referee_tick_facts.hpp"
 #include "sim/rules/rule_command_sink.hpp"
+#include "sim/player/player_tick_context.hpp"
 
 class Match;
 class AnimationLibrary;
@@ -62,6 +63,7 @@ class Simulation {
   class TouchEvents;
   void PublishBallTouch(const football::sim::BallTouchEvent& event);
   football::sim::rules::RefereeTickFacts RefereeFacts() const;
+  football::sim::PlayerTickContext PlayerTickFacts() const;
   void EnsureAnimationLibrary();
   void CaptureMentalImage(Match& match);
   void EndPeriod(Match& match);

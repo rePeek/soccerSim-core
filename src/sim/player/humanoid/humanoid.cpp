@@ -122,11 +122,11 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
   // Gameplay continuity advances before the audit observes this tick, so the
   // epoch is decided by eligibility rather than by telemetry bookkeeping.
   CastPlayer()->AdvanceLocomotionContinuity(
-      CastPlayer()->IsEligibleForProceduralLocomotion());
+      CastPlayer()->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player));
   // re-entry audit must see every real player tick, eligible or not, because
   // leaving locomotion is what arms the next re-entry classification.
   CastPlayer()->NoteLocomotionReentryTick(
-      CastPlayer()->IsEligibleForProceduralLocomotion(),
+      CastPlayer()->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player),
       CastPlayer()->IsLocomotionIntentRefreshDue(
           match->GetTimelineTick()),
       match->GetTimelineTick());
@@ -153,7 +153,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
       designated_possession_player, designated_team_possession_player,
       decision_distance_to_ball);
   const bool continuity_repair_due =
-      CastPlayer()->IsEligibleForProceduralLocomotion() &&
+      CastPlayer()->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player) &&
       CastPlayer()->DecisionLocomotionEpochIsStale();
   const bool player_decision_due =
       CastPlayer()->IsPlayerDecisionRefreshDue(
@@ -169,7 +169,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
     for (const PlayerCommand &command : player_decision_commands)
       has_movement |= command.desiredFunctionType == e_FunctionType_Movement &&
                       command.useDesiredMovement;
-    CastPlayer()->NoteControllerQuery(has_movement);
+    CastPlayer()->NoteControllerQuery(has_movement, decision_now, match->GetBallRetainer() == player);
     RecordPlayerDecisionQuery(
         CastPlayer(), player_decision_commands, decision_now_ms,
         continuity_repair_due ? PlayerDecisionQueryCause::ContinuityRepair
@@ -188,9 +188,9 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
     CastPlayer()->NoteDecisionPublicationCause(2);
     if (CastPlayer()->HasPlayerDecisionQueue() &&
         CastPlayer()->PublishMovementIntentFromQueue(
-            CastPlayer()->GetPlayerDecisionQueue())) {
+            CastPlayer()->GetPlayerDecisionQueue(), decision_now, match->GetBallRetainer() == player)) {
       movement_published_this_tick = true;
-      CastPlayer()->CommitLocomotionIntentRefresh();
+      CastPlayer()->CommitLocomotionIntentRefresh(*match->GetBall(), decision_now, match->GetBallRetainer() == player);
       ++ContinuityRepairPublications();
     } else {
       ++ContinuityRepairCandidatesMissing();
@@ -307,7 +307,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
 
   const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
   const bool simulation_due =
-      CastPlayer()->NoteLocomotionIntentCadence(legacy_opportunity);
+      CastPlayer()->NoteLocomotionIntentCadence(legacy_opportunity, decision_now, match->GetBallRetainer() == player);
   // Tag the cause of any publication on this path, so a legacy-driven query is
   // not credited to the simulation cadence in the audit.
   const bool legacy_only = legacy_opportunity && !simulation_due;
@@ -443,10 +443,10 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
     CastPlayer()->NoteDecisionMovementSelection(
         decision_queue_selection_movement);
     if (CastPlayer()->PublishMovementIntentFromQueue(
-            CastPlayer()->GetPlayerDecisionQueue())) {
+            CastPlayer()->GetPlayerDecisionQueue(), decision_now, match->GetBallRetainer() == player)) {
       movement_published_this_tick = true;
       ++PlayerPathDirectPublications();
-      CastPlayer()->CommitLocomotionIntentRefresh();
+      CastPlayer()->CommitLocomotionIntentRefresh(*match->GetBall(), decision_now, match->GetBallRetainer() == player);
       ++PlayerPathRefreshCommits();
     } else {
       ++PlayerPathCandidatesMissing();
@@ -1435,7 +1435,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
   if (perturbation.enabled && !perturbation.applied && foot_counterfactual &&
       localInterruptAnim == e_InterruptAnim_Switch &&
       action.type == e_FunctionType_Movement &&
-      CastPlayer()->IsEligibleForProceduralLocomotion() &&
+      CastPlayer()->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player) &&
       !dataSet.empty() && !withoutFootSort.empty() &&
       dataSet.front() != withoutFootSort.front() &&
       (!perturbation.require_frame_count_difference ||

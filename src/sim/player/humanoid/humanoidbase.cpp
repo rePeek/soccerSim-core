@@ -642,7 +642,7 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
   // and a legacy animation opportunity rather than the sum.
   const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
   const bool simulation_due =
-      player->NoteLocomotionIntentCadence(legacy_opportunity);
+      player->NoteLocomotionIntentCadence(legacy_opportunity, match->GetTimelineTick(), match->GetBallRetainer() == player);
   if (legacy_opportunity || simulation_due) {
 
     PlayerCommandQueue commandQueue;
@@ -667,7 +667,7 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
           if (trq_c.desiredFunctionType == e_FunctionType_Movement &&
               trq_c.useDesiredMovement) { trq_has = true; break; }
         }
-        player->NoteControllerQuery(trq_has);
+        player->NoteControllerQuery(trq_has, match->GetTimelineTick(), match->GetBallRetainer() == player);
       }
     };
     const bool trip_local_queue =
@@ -687,7 +687,7 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
     }
 
     if (legacy_opportunity) {
-    if (legacy_opportunity && player->LocomotionIntentRefreshHeldIneligible()) {
+    if (legacy_opportunity && player->LocomotionIntentRefreshHeldIneligible(match->GetTimelineTick(), match->GetBallRetainer() == player)) {
       bool held_has_candidate = false;
       for (const PlayerCommand &candidate : commandQueue) {
         if (candidate.desiredFunctionType == e_FunctionType_Movement &&
@@ -737,9 +737,9 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
     // already run, so no legacy action-selection write can follow it and become
     // the final writer; the controller's Movement candidate is the last write.
     if (controller_queried) {
-      if (player->PublishMovementIntentFromQueue(controllerQueue)) {
+      if (player->PublishMovementIntentFromQueue(controllerQueue, match->GetTimelineTick(), match->GetBallRetainer() == player)) {
         ++HumanoidIntentRefreshes();
-        player->CommitLocomotionIntentRefresh();
+        player->CommitLocomotionIntentRefresh(*match->GetBall(), match->GetTimelineTick(), match->GetBallRetainer() == player);
         ++HumanoidBasePathRefreshCommits();
       } else {
         ++HumanoidIntentCandidatesMissing();
@@ -1266,7 +1266,7 @@ bool HumanoidBase::UsesProceduralLocomotion() const {
   // Execution authority is the Player Decision Clock's current-epoch intent, not
   // the animation command. Executability is the gate; the producer contract is a
   // separate fatal oracle.
-  return player && player->IsEligibleForProceduralLocomotion() &&
+  return player && player->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player) &&
          player->HasExecutableDecisionLocomotionIntent();
 }
 
