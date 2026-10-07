@@ -132,7 +132,7 @@ sim/
 ├── match/        Match, MatchOptions, MatchPhase and MatchResult
 ├── team/         runtime Team and formation adaptation
 ├── observation/  WorldState, world_state_builder, pitch_frame and execution history
-├── rules/        Referee, offside and restarts
+├── rules/        Referee, goal geometry, offside and restarts
 ├── animation/    baked clips, library and selection
 ├── query/        reachability and player queries
 └── random/       simulation RNG authority (algorithm remains in foundation)
@@ -152,6 +152,9 @@ explicit domain inputs, not a Match/Simulation service locator.
 tackle/trip mechanics. The transitional tail passes players, Ball, possession
 designation and Referee explicitly; notices remain synchronous after each trip.
 No pair sorting, position snapshotting or deferred foul-event queue is introduced.
+`rules/goal.*` provides a pure swept-segment predicate from Pitch and positions.
+The caller keeps the legacy prediction gate and AdvanceTime → both goal checks →
+score/scorer application order; geometry reads no Match, Ball, player or clock.
 
 `Ball` owns only physics/predictions and a copied Pitch; netting receives the current
 `BallEnvironment` rule fact on each call. Touch-dependent history/possession refresh

@@ -290,9 +290,10 @@ TEST_CASE("half time changes ends but keeps observations in the canonical home f
   REQUIRE_FALSE(simulation.match()->GetTeam(1)->isMirrored());
 }
 
-TEST_CASE("the same physical goal credits opposite teams in the two halves", "[sim][lifecycle]") {
-  const auto credited = [](MatchPhase wanted, float direction) {
+TEST_CASE("the same physical goal credits opposite teams after advancing clocks", "[sim][lifecycle][goal]") {
+  const auto credited = [](MatchPhase wanted, float direction, bool reverse) {
     MatchOptions options; options.half_duration = TickSpan{180};
+    options.reverse_team_processing = reverse;
     Simulation simulation; Init(simulation, options);
     const auto policy = football::test::MakeDefaultAI(simulation);
     for (int attempt = 0; attempt < 3000 && !simulation.Finished(); ++attempt) {
@@ -303,17 +304,32 @@ TEST_CASE("the same physical goal credits opposite teams in the two halves", "[s
     REQUIRE(simulation.Observe().ball_in_play);
     Match* match = simulation.match();
     const int before[2] = {match->GetScore(0), match->GetScore(1)};
-    match->GetBall()->ResetSituation(blunted::Vector3(direction * 54.9f, 0.f, 0.5f));
-    match->TouchBall(blunted::Vector3(direction * 30.f, 0.f, 0.f));
+    const float execution_direction = reverse ? -direction : direction;
+    match->GetBall()->ResetSituation(blunted::Vector3(execution_direction * 54.9f, 0.f, 0.5f));
+    match->TouchBall(blunted::Vector3(execution_direction * 30.f, 0.f, 0.f));
     for (int step = 0; step < 12; ++step) {
+      const auto timeline = match->GetTimelineTick();
+      const auto regulation = match->GetRegulationTime();
+      const auto effective = match->GetBallInPlayTime();
       simulation.Step({});
-      if (match->GetScore(0) != before[0]) return 0;
-      if (match->GetScore(1) != before[1]) return 1;
+      for (int team : {0, 1}) {
+        if (match->GetScore(team) == before[team]) continue;
+        REQUIRE(match->GetTimelineTick() == timeline + TickSpan{1});
+        REQUIRE(match->GetRegulationTime() == regulation + TickSpan{1});
+        REQUIRE(match->GetBallInPlayTime() == effective + TickSpan{1});
+        REQUIRE(match->GetLastGoalTeam() == match->GetTeam(team));
+        REQUIRE(match->IsBallInGoal());
+        REQUIRE(match->IsGoalScored());
+        REQUIRE_FALSE(match->IsBallInPlay());
+        return team;
+      }
     }
     return -1;
   };
-  REQUIRE(credited(MatchPhase::FirstHalf, 1.f) == 0);
-  REQUIRE(credited(MatchPhase::FirstHalf, -1.f) == 1);
-  REQUIRE(credited(MatchPhase::SecondHalf, 1.f) == 1);
-  REQUIRE(credited(MatchPhase::SecondHalf, -1.f) == 0);
+  for (bool reverse : {false, true}) {
+    REQUIRE(credited(MatchPhase::FirstHalf, 1.f, reverse) == 0);
+    REQUIRE(credited(MatchPhase::FirstHalf, -1.f, reverse) == 1);
+    REQUIRE(credited(MatchPhase::SecondHalf, 1.f, reverse) == 1);
+    REQUIRE(credited(MatchPhase::SecondHalf, -1.f, reverse) == 0);
+  }
 }

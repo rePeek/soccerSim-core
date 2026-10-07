@@ -18,12 +18,11 @@
 #include "sim/match/match.hpp"
 #include "sim/animation/library.hpp"
 
-#include "foundation/geometry/line.hpp"
+#include "sim/rules/goal.hpp"
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
-#include "foundation/geometry/triangle.hpp"
 #include <cassert>
 #include "sim/player/player_contact.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
@@ -294,10 +293,14 @@ bool Match::StepRemainingTick() {
   bool first_team_goal = false;
   bool second_team_goal = false;
   if (IsBallInPlay()) {
-    first_team_goal =
-        CheckForGoal(teams[first_team]->GetDynamicSide(), previousBallPos);
-    second_team_goal =
-        CheckForGoal(teams[second_team]->GetDynamicSide(), previousBallPos);
+    // Retain the per-side legacy lookahead gate; geometry itself needs no Ball.
+    const auto crossed_goal = [&](int side) {
+      if (fabs(ball->Predict(10).coords[0]) < pitch_.half_length() - 1.0) return false;
+      return football::sim::CrossedGoalLine(
+          pitch_, side, previousBallPos, ball->Predict(0));
+    };
+    first_team_goal = crossed_goal(teams[first_team]->GetDynamicSide());
+    second_team_goal = crossed_goal(teams[second_team]->GetDynamicSide());
   }
   bool goal = first_team_goal | second_team_goal;
   ballIsInGoal |= goal;
@@ -325,44 +328,6 @@ bool Match::StepRemainingTick() {
     }
   }
   return true;
-}
-
-bool Match::CheckForGoal(signed int side, const Vector3 &previousBallPos) {
-  if (fabs(ball->Predict(10).coords[0]) < pitch_.half_length() - 1.0) return false;
-
-  Line line;
-  line.SetVertex(0, previousBallPos);
-  line.SetVertex(1, ball->Predict(0));
-
-  const float goal_x =
-      (pitch_.half_length() + pitch_.line_half_width() + 0.11f) * side;
-  const float half_goal_width = pitch_.goal_half_width();
-  const float goal_height = pitch_.goal_height();
-  Triangle goal1;
-  goal1.SetVertex(0, Vector3(goal_x, half_goal_width, 0));
-  goal1.SetVertex(1, Vector3(goal_x, -half_goal_width, 0));
-  goal1.SetVertex(2, Vector3(goal_x, half_goal_width, goal_height));
-  goal1.SetNormals(Vector3(-side, 0, 0));
-  Triangle goal2;
-  goal2.SetVertex(0, Vector3(goal_x, -half_goal_width, 0));
-  goal2.SetVertex(1, Vector3(goal_x, -half_goal_width, goal_height));
-  goal2.SetVertex(2, Vector3(goal_x, half_goal_width, goal_height));
-  goal2.SetNormals(Vector3(-side, 0, 0));
-
-  Vector3 intersectVec;
-  bool intersect1 = goal1.IntersectsLine(line, intersectVec);
-  bool intersect2 = goal2.IntersectsLine(line, intersectVec);
-  // extra check: ball could have gone 'in' via the side netting, if line begin
-  // == inside pitch, but outside of post, and line end == in goal. disallow!
-  if (fabs(previousBallPos.coords[1]) > 3.7 &&
-      fabs(previousBallPos.coords[0]) >
-          pitch_.half_length() - pitch_.line_half_width() - 0.11) {
-    return false;
-  }
-  if (intersect1 || intersect2) {
-    return true;
-  }
-  return false;
 }
 
 void Match::CalculateBestPossessionTeamID() {

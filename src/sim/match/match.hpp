@@ -161,7 +161,6 @@ class Match {
     // Remaining legacy phases; entered in the common first-roster contact frame.
     // Only Simulation may execute this tail, until each domain phase is extracted.
     bool StepRemainingTick();
-    bool CheckForGoal(signed int side, const Vector3& previousBallPos);
     // Mirrors both teams, the ball and mental images onto the other half.
     void SwitchEnds();
 

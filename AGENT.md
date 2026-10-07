@@ -74,7 +74,7 @@ src/
 │   ├── random/       simulation-owned RNG authority alias; algorithm in foundation
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
-│   ├── rules/        Referee, offside, ceremonial placement and restart readiness
+│   ├── rules/        Referee, goal geometry, offside, placement and restart readiness
 │   └── player/       Player, controls, commands, locomotion and player_contact mechanics
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
 ├── ai/               value-only decisions; never links sim runtime
@@ -111,6 +111,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
 ├── ball_player_contact_test.cpp standalone Ball, contact cooldown/order and explicit history inputs
 ├── player_contact_test.cpp   explicit contact inputs, in-place pair order and no RNG/ball mutation
+├── goal_test.cpp             standalone goal geometry, segment bounds and legacy side-net veto
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
 ├── player_observation_tick_test.cpp publication/reset stamps, re-entry ages and history sampling
 ├── reachability_tick_test.cpp grid candidate rollouts, split horizons and continuous precision
@@ -199,6 +200,9 @@ anim_baking → legacy_anim + animation/foundation
   policy, scheduling and RNG fingerprints. Supports `--print-baseline`.
 - `football_model_test` and `football_sim_contracts_test` link only their value
   targets; `football_default_ai_test` links only policy/contracts/Catch2.
+- `football_goal_test` builds rules/goal.cpp with only model/foundation/Catch2, proving
+  goal geometry has no Match/Ball/runtime dependency. Lifecycle tests retain score,
+  half/order attribution and period-whistle coverage through real Simulation steps.
 - `football_sim_control_boundary_test` includes lifecycle and restart tests.
   Direct PlayerControlSet tapes cover every WorldState payload field and RNG state
   at all 400 frames, both processing orders, independent replay and Stop/Init replay.
@@ -275,6 +279,25 @@ Simulation::Step → controls + ball_player_contact → Match-owned state
   before any later pair/offset. Do not buffer notices; rules inspect live positions.
   Player contact extraction preserves the same regression fingerprints and twelve
   seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
+- rules/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
+  the original triangles, strict segment endpoints, bidirectional intersection and
+  legacy side-net literals. The tail retains the Ball prediction lookahead gate per
+  side, live-ball gate and goal application: AdvanceTime → first/second goal checks
+  → netting fact → frame restoration → score/scorer/own-goal facts. No score or
+  player state is read or written by the geometric predicate; no semantics repair
+  or new goal event pipeline accompanies this extraction.
+  Goal extraction also keeps regression --print-baseline and all twelve diagnostics
+  byte-identical; Release 32/32, Debug 31/31 (excluding full-match CLI) and core-only
+  builds pass. No regression baselines or baked assets are changed.
+
+Current phase order (the private tail still composes phases after ball contact):
+```text
+ApplyControls → ResolveBallPlayerContacts → ProcessReferee → StepBall
+→ CaptureHistory → StepPlayers → UpdatePossession → ResolvePlayerContacts
+→ AdvanceClock → EvaluateGoal → ApplyGoalFacts
+```
+Terminal-referee and ceremony early returns keep their existing frame restoration
+and clock behavior; this sequence is not permission to reorder legacy phases.
 
 - Start requires stopped state and initializes local owners before publishing
   either. Failure remains stopped. Stop is idempotent and releases both; Start

@@ -48,6 +48,14 @@ football_configure_target(football_sim_computation_test)
 add_test(NAME football_sim_computation_test COMMAND football_sim_computation_test)
 set_tests_properties(football_sim_computation_test PROPERTIES LABELS sim)
 
+# Pure goal geometry must compile/link without Match, Ball, sim or libgame.
+add_executable(football_goal_test goal_test.cpp ../src/sim/rules/goal.cpp)
+target_link_libraries(football_goal_test PRIVATE
+  football::foundation football::model Catch2::Catch2WithMain)
+football_configure_target(football_goal_test)
+add_test(NAME football_goal_test COMMAND football_goal_test)
+set_tests_properties(football_goal_test PROPERTIES LABELS sim)
+
 # This target proves that policy compiles/links without sim or libgame.
 add_executable(football_default_ai_test default_ai_test.cpp)
 target_link_libraries(football_default_ai_test PRIVATE
