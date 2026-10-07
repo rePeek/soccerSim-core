@@ -10,6 +10,8 @@
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
 
+#include <type_traits>
+
 namespace {
 using namespace football::sim;
 using blunted::Vector3;
@@ -111,6 +113,60 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
     REQUIRE(simulation.GetMentalImage(TickSpan{}) == simulation.match()->GetMentalImage(TickSpan{}));
     REQUIRE(other.GetMentalImage(TickSpan{})->ballPredictions == other_predictions);
   }
+}
+
+static_assert(!std::is_constructible_v<MentalImage, Match*>);
+
+TEST_CASE("mental images capture explicit ordered inputs and sample with explicit time and Ball",
+          "[sim][history][snapshot]") {
+  Simulation simulation;
+  Init(simulation, true);
+  auto& match = *simulation.match();
+  const auto rng = match.rng().engine();
+  auto* first = match.GetTeam(match.FirstTeam())->GetAllPlayers()[1];
+  auto* second = match.GetTeam(match.SecondTeam())->GetAllPlayers()[2];
+  std::array<Player*, 2> inputs{second, first};
+  Ball ball(football::model::MakeLegacyPitch());
+  ball.ResetSituation(Vector3(8, 3, 0));
+  MentalImage image(Tick{100}, inputs, ball);
+  REQUIRE(image.captured_tick == Tick{100});
+  REQUIRE(image.GetAge(Tick{117}) == TickSpan{17});
+  REQUIRE(image.players.size() == 2);
+  REQUIRE(image.players[0].player == second);
+  REQUIRE(image.players[1].player == first);
+  const auto captured_players = image.players;
+  const auto captured_predictions = image.ballPredictions;
+  second->OffsetPosition(Vector3(1, 2, 0));
+  const auto sampled = image.GetPlayerImage(second, Tick{117});
+  const auto& captured = captured_players[0];
+  auto expected = captured.position + captured.movement * ToMilliseconds(TickSpan{17}) * 0.001f;
+  expected = expected.EnforceMaximumDeviation(second->GetPosition(), image.maxDistanceDeviation);
+  REQUIRE(sampled.position == expected);
+  REQUIRE(image.players[0].position == captured.position);
+  REQUIRE(image.ballPredictions == captured_predictions);
+  const auto team_images = image.GetTeamPlayerImages(second->GetTeamID(), Tick{117});
+  REQUIRE(team_images.size() == 1);
+  REQUIRE(team_images[0].position == sampled.position);
+  Ball other_ball(football::model::MakeLegacyPitch());
+  other_ball.ResetSituation(Vector3(-25, -4, 0));
+  REQUIRE(image.GetBallPrediction(TickSpan{}, Tick{117}, other_ball) ==
+          captured_predictions[17].EnforceMaximumDeviation(other_ball.Predict(TickSpan{}),
+                                                           image.maxDistanceDeviation));
+  image.UpdateBallPredictions(other_ball);
+  std::vector<Vector3> expected_predictions;
+  other_ball.GetPredictionArray(expected_predictions);
+  REQUIRE(image.ballPredictions == expected_predictions);
+  REQUIRE(image.captured_tick == Tick{100});
+  REQUIRE(image.players[0].position == captured.position);
+  REQUIRE(match.rng().engine() == rng);
+
+  // A Ball-only snapshot needs no live runtime owner, even after teardown.
+  MentalImage detached(Tick{5}, {}, ball);
+  simulation.Stop();
+  REQUIRE(detached.GetAge(Tick{22}) == TickSpan{17});
+  REQUIRE(detached.GetBallPrediction(0, Tick{22}, ball) ==
+          detached.ballPredictions[17].EnforceMaximumDeviation(ball.Predict(0),
+                                                              detached.maxDistanceDeviation));
 }
 
 }  // namespace

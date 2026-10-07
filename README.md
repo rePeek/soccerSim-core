@@ -170,7 +170,9 @@ Match is not yet a state-only container; touch/reset/history bridges remain.
 Simulation directly owns the three-slot MentalImage history and capture cadence.
 Observation sampling/newest-ball refresh take explicit spans; Match borrows this same
 history only for transitional actor/touch/reset/mirror composition, never via a
-Simulation pointer. `MentalImage::Match*` remains for a separate dependency extraction.
+Simulation pointer. MentalImage has no Match pointer or implicit clock/Ball reads:
+capture takes tick, ordered player span and Ball; sampling takes explicit now/Ball.
+Legacy Player deviation clamps and signed horizon quantization remain unchanged.
 
 `match/match_clock.*` defines MatchClock: timeline/regulation/effective clocks, run flags and executed
 ticks. It takes phase explicitly, atomically clips advances to the current period,

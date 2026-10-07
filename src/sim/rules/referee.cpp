@@ -293,7 +293,10 @@ void Referee::BallTouched() {
        (buffer.active == true && buffer.desiredSetPiece != e_GameMode_ThrowIn &&
         buffer.desiredSetPiece != e_GameMode_Corner))) {
     // check for offside players at moment of touch
-    MentalImage mentalImage(match);
+    std::vector<Player*> snapshot_players;
+    match->GetTeam(match->FirstTeam())->GetActivePlayers(snapshot_players);
+    match->GetTeam(match->SecondTeam())->GetActivePlayers(snapshot_players);
+    MentalImage mentalImage(match->GetTimelineTick(), snapshot_players, *match->GetBall());
     float offside = football::sim::rules::GetOffsideLine(match, &mentalImage, 1 - lastTouchTeamID);
     std::vector<Player*> players;
     Team *team = match->GetTeam(lastTouchTeamID);

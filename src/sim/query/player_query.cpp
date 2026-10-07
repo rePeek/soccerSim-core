@@ -35,7 +35,7 @@ float CalculateFreeSpace(Match *match, const MentalImage *mentalImage,
 
   float currentSituation = 0.0f;
 
-  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(std::abs(teamID - 1));
+  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(std::abs(teamID - 1), match->GetTimelineTick());
 
   // player position predictions
   for (int i = 0; i < (signed int)opponentPlayerImages.size(); i++) {

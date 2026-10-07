@@ -309,8 +309,12 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   live in observation/mentalimage_sampling and take explicit spans/Ball. Match's former
   UpdateLatestMentalImageBallPredictions method is removed. Simulation diagnostic sampling
   and the actor bridge see the same objects, not duplicate histories. Stop clears history
-  at the old teardown point and its storage outlives Match. MentalImage::Match* removal
-  is a later separate extraction; no ObservationManager or asynchronous feedback is added.
+  at the old teardown point and its storage outlives Match. MentalImage has no Match
+  member/include/constructor or implicit world-clock/Ball reads. Capture takes tick,
+  ordered player span and const Ball; age/player sampling takes now, predictions take
+  now/Ball and newest refresh takes Ball. Keep live Player deviation clamps and signed
+  horizon quantization: replacing those policies with frozen-only sampling is separate.
+  No ObservationManager or asynchronous feedback is added.
 - MatchClock owns the six former clock/counter fields and immutable half-duration
   configuration. Advance(delta, phase) receives competition phase explicitly, checks
   all arithmetic before publication, clips regulation/effective time to this half and

@@ -284,7 +284,11 @@ WorldState Simulation::Observe() const {
 void Simulation::CaptureMentalImage(Match& match) {
   if (mental_images_.empty() ||
       match.GetTimelineTick().value % football::sim::observation::kMentalImageCadence.value == 0) {
-    mental_images_.insert(mental_images_.begin(), MentalImage(&match));
+    std::vector<Player*> players;
+    match.GetTeam(match.FirstTeam())->GetActivePlayers(players);
+    match.GetTeam(match.SecondTeam())->GetActivePlayers(players);
+    mental_images_.insert(mental_images_.begin(),
+                          MentalImage(match.GetTimelineTick(), players, *match.GetBall()));
     if (mental_images_.size() > 3) {
       mental_images_.pop_back();
     }

@@ -33,6 +33,8 @@
 
 using namespace blunted;
 
+class Match;
+
 // Library-side H3e4b diagnostics; shared with regression, never simulation state.
 int &HumanoidProceduralMovementTicks();
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();

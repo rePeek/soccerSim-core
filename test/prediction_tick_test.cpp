@@ -23,18 +23,19 @@ TEST_CASE("Ball samples and mental-image ages use ticks without changing quantiz
     Ball* ball = match->GetBall();
     ball->SetPosition(blunted::Vector3(0, 0, 10), match->GetBallEnvironment());
     ball->SetMomentum(blunted::Vector3(8, 1, 3), match->GetBallEnvironment());
-    MentalImage image(match);
+    MentalImage image(match->GetTimelineTick(), {}, *ball);
     REQUIRE(image.captured_tick == match->GetTimelineTick());
-    REQUIRE(image.GetAge() == TickSpan{});
+    REQUIRE(image.GetAge(match->GetTimelineTick()) == TickSpan{});
     REQUIRE(image.ballPredictions.size() == ball_timing::kPredictionHorizon.value);
     for (std::uint64_t ticks = 0; ticks < 400; ++ticks) {
       REQUIRE(ball->Predict(TickSpan{ticks}) == ball->Predict(static_cast<int>(ticks * 10)));
       REQUIRE(ball->Predict(TickSpan{ticks}) == ball->Predict(static_cast<int>(ticks * 10 + 9)));
-      REQUIRE(image.GetBallPrediction(TickSpan{ticks}) == image.GetBallPrediction(static_cast<int>(ticks * 10)));
+      REQUIRE(image.GetBallPrediction(TickSpan{ticks}, match->GetTimelineTick(), *ball) ==
+              image.GetBallPrediction(static_cast<int>(ticks * 10), match->GetTimelineTick(), *ball));
     }
     const auto rng = match->rng().engine();
     match->AdvanceTime(TickSpan{17});
-    REQUIRE(image.GetAge() == TickSpan{17});
+    REQUIRE(image.GetAge(match->GetTimelineTick()) == TickSpan{17});
     REQUIRE(match->rng().engine() == rng);
     REQUIRE(ball->Predict(-1) == ball->Predict(TickSpan{}));
     REQUIRE(ball->Predict(std::numeric_limits<int>::min()) == ball->Predict(TickSpan{}));
@@ -42,15 +43,16 @@ TEST_CASE("Ball samples and mental-image ages use ticks without changing quantiz
       const int old_index = std::clamp(ms + 170, 0, 2990) / 10;
       const auto expected = image.ballPredictions[old_index].EnforceMaximumDeviation(
           ball->Predict(ms), image.maxDistanceDeviation);
-      REQUIRE(image.GetBallPrediction(ms) == expected);
+      REQUIRE(image.GetBallPrediction(ms, match->GetTimelineTick(), *ball) == expected);
     }
     const auto last = ball_timing::kPredictionHorizon - TickSpan{1};
     const TickSpan huge{std::numeric_limits<std::uint64_t>::max()};
     REQUIRE(ball->Predict(huge) == ball->Predict(last));
-    REQUIRE(image.GetBallPrediction(huge) == image.GetBallPrediction(last));
+    REQUIRE(image.GetBallPrediction(huge, match->GetTimelineTick(), *ball) ==
+            image.GetBallPrediction(last, match->GetTimelineTick(), *ball));
     match->AdvanceTime(Seconds(5));
-    REQUIRE(image.GetAge() == TickSpan{517});
-    REQUIRE(image.GetBallPrediction(TickSpan{}) == image.ballPredictions.back().EnforceMaximumDeviation(
+    REQUIRE(image.GetAge(match->GetTimelineTick()) == TickSpan{517});
+    REQUIRE(image.GetBallPrediction(TickSpan{}, match->GetTimelineTick(), *ball) == image.ballPredictions.back().EnforceMaximumDeviation(
         ball->Predict(TickSpan{}), image.maxDistanceDeviation));
   }
 }

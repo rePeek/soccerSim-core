@@ -99,18 +99,21 @@ TEST_CASE("offside geometry follows second defender ball and halfway line", "[si
     players[1]->ResetPosition(Vector3(30 * side, 0, 0), Vector3(0));
     match->GetBall()->SetPosition(Vector3(0, 0, 0.11f), match->GetBallEnvironment());
     match->GetBall()->CalculatePrediction(match->GetBallEnvironment());
-    MentalImage image(match);
+    std::vector<Player*> snapshot_players;
+    match->GetTeam(match->FirstTeam())->GetActivePlayers(snapshot_players);
+    match->GetTeam(match->SecondTeam())->GetActivePlayers(snapshot_players);
+    MentalImage image(match->GetTimelineTick(), snapshot_players, *match->GetBall());
     CHECK(football::sim::rules::GetOffsideLine(match, &image, teamID) == 30 * side);
 
     match->GetBall()->SetPosition(Vector3(35 * side, 0, 0.11f), match->GetBallEnvironment());
     match->GetBall()->CalculatePrediction(match->GetBallEnvironment());
-    MentalImage ballAhead(match);
+    MentalImage ballAhead(match->GetTimelineTick(), snapshot_players, *match->GetBall());
     CHECK(football::sim::rules::GetOffsideLine(match, &ballAhead, teamID) == 35 * side);
 
     for (Player *player : players) player->ResetPosition(Vector3(-10 * side, 0, 0), Vector3(0));
     match->GetBall()->SetPosition(Vector3(-5 * side, 0, 0.11f), match->GetBallEnvironment());
     match->GetBall()->CalculatePrediction(match->GetBallEnvironment());
-    MentalImage otherHalf(match);
+    MentalImage otherHalf(match->GetTimelineTick(), snapshot_players, *match->GetBall());
     CHECK(football::sim::rules::GetOffsideLine(match, &otherHalf, teamID) == 0.f);
   }
 }

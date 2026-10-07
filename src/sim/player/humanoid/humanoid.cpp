@@ -266,7 +266,7 @@ void Humanoid::Process() {
 
   if (mayReQueue) {
 
-    float ballDistance = (currentMentalImage->GetBallPrediction(500).Get2D() - spatialState.position).GetLength();
+    float ballDistance = (currentMentalImage->GetBallPrediction(500, match->GetTimelineTick(), *match->GetBall()).Get2D() - spatialState.position).GetLength();
     if (((action.type == e_FunctionType_Movement &&
             !CastPlayer()->HasPossession() && ballDistance < 16.0f) ||
            (action.type == e_FunctionType_Movement &&
@@ -996,21 +996,21 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
       command.desiredFunctionType != e_FunctionType_Trip &&
       command.desiredFunctionType != e_FunctionType_Special &&
       command.desiredFunctionType != e_FunctionType_Sliding) {
-    if ((currentMentalImage->GetBallPrediction(200).Get2D() -
+    if ((currentMentalImage->GetBallPrediction(200, match->GetTimelineTick(), *match->GetBall()).Get2D() -
          spatialState.position)
             .GetLength() > ballDistanceOptimizeThreshold) {
       return false;
     }
-    if ((currentMentalImage->GetBallPrediction(defaultTouchOffset_ms).Get2D() -
+    if ((currentMentalImage->GetBallPrediction(defaultTouchOffset_ms, match->GetTimelineTick(), *match->GetBall()).Get2D() -
          spatialState.position)
                 .GetLength() > 2.0f &&
         //    match->GetBall()->GetMovement().GetNormalized(0).GetDotProduct(player->GetMovement().GetNormalizedMax(1.0f))
         //    < 0) { // ball and player going the other way
-        (currentMentalImage->GetBallPrediction(defaultTouchOffset_ms).Get2D() -
+        (currentMentalImage->GetBallPrediction(defaultTouchOffset_ms, match->GetTimelineTick(), *match->GetBall()).Get2D() -
          (spatialState.position +
           spatialState.movement * defaultTouchOffset_ms * 0.001))
                 .GetLength() >
-            (currentMentalImage->GetBallPrediction(0).Get2D() -
+            (currentMentalImage->GetBallPrediction(0, match->GetTimelineTick(), *match->GetBall()).Get2D() -
              (spatialState.position))
                 .GetLength()) {
         // ball moving away from player
@@ -1025,7 +1025,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
       command.desiredFunctionType != e_FunctionType_Sliding &&
       command.desiredFunctionType != e_FunctionType_Deflect &&
       match->GetBallRetainer() != player) {
-    if ((currentMentalImage->GetBallPrediction(1000) - match->GetBall()->Predict(1000)).GetLength() > 2.0f) return false;
+    if ((currentMentalImage->GetBallPrediction(1000, match->GetTimelineTick(), *match->GetBall()) - match->GetBall()->Predict(1000)).GetLength() > 2.0f) return false;
   }
 
   // /optimizations
@@ -1200,7 +1200,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
       command.desiredFunctionType == e_FunctionType_Interfere ||
       command.desiredFunctionType == e_FunctionType_Deflect) {
     query.byIncomingBallDirection = true;
-    query.incomingBallDirection = (currentMentalImage->GetBallPrediction(180) - currentMentalImage->GetBallPrediction(120)).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
+    query.incomingBallDirection = (currentMentalImage->GetBallPrediction(180, match->GetTimelineTick(), *match->GetBall()) - currentMentalImage->GetBallPrediction(120, match->GetTimelineTick(), *match->GetBall())).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
   }
 
   if (CastPlayer()->AllowLastDitch()) {
@@ -1577,7 +1577,7 @@ bool Humanoid::NeedTouch(int animID, const PlayerCommand &command) {
   animMovement.Normalize(spatialState.directionVec);
   animMovement *= spatialState.movement.GetLength() * 0.8f + animVelo * 0.2f;
   auto currentMentalImage = match->GetMentalImage(mentalImageTime);
-  Vector3 ballMovement = (currentMentalImage->GetBallPrediction(250).Get2D() - currentMentalImage->GetBallPrediction(240).Get2D()) * 100;
+  Vector3 ballMovement = (currentMentalImage->GetBallPrediction(250, match->GetTimelineTick(), *match->GetBall()).Get2D() - currentMentalImage->GetBallPrediction(240, match->GetTimelineTick(), *match->GetBall()).Get2D()) * 100;
 
   if (std::fabs(clip.metadata.outgoing_angle) > 0.125f * pi) return true;
 
@@ -1806,8 +1806,8 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
 
       Vector3 ballPos, ballMovement;
       auto mentalImage = match->GetMentalImage(mentalImageTime);
-      ballPos = mentalImage->GetBallPrediction(animTouchFrame * 10);
-      ballMovement = (mentalImage->GetBallPrediction(animTouchFrame * 10 + 10) - mentalImage->GetBallPrediction(animTouchFrame * 10)) * 100.0f;
+      ballPos = mentalImage->GetBallPrediction(animTouchFrame * 10, match->GetTimelineTick(), *match->GetBall());
+      ballMovement = (mentalImage->GetBallPrediction(animTouchFrame * 10 + 10, match->GetTimelineTick(), *match->GetBall()) - mentalImage->GetBallPrediction(animTouchFrame * 10, match->GetTimelineTick(), *match->GetBall())) * 100.0f;
       ballPos = (ballPos - spatialState.position).GetRotated2D(-spatialState.angle);
       ballMovement = ballMovement.GetRotated2D(-spatialState.angle);
 
@@ -1956,7 +1956,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
 
   if (found) {
     auto currentMentalImage = match->GetMentalImage(mentalImageTime);
-    touchPos_ret = currentMentalImage->GetBallPrediction(animTouchFrame_ret * 10);
+    touchPos_ret = currentMentalImage->GetBallPrediction(animTouchFrame_ret * 10, match->GetTimelineTick(), *match->GetBall());
 
     fullActionSmuggle_ret = bestActionSmuggleVec2D.GetRotated2D(spatialState.angle);
     actionSmuggle_ret = fullActionSmuggle_ret;
@@ -2062,7 +2062,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(const Vector3 &desiredDirection,
   Vector3 predictedPos;
   radian predictedAngle;
   CalculatePredictedSituation(predictedPos, predictedAngle);
-  Vector3 ballPos = match->GetMentalImage(mentalImageTime)->GetBallPrediction(futureTime_ms);
+  Vector3 ballPos = match->GetMentalImage(mentalImageTime)->GetBallPrediction(futureTime_ms, match->GetTimelineTick(), *match->GetBall());
   float ballHeight = ballPos.coords[2];
   Vector3 ffo = GetFrontOfFootOffsetRel(predictedOutgoingMovement.GetLength(), GetCurrentBakedClip().metadata.outgoing_body_angle, ballHeight).GetRotated2D(predictedAngle);
   Vector3 desiredBallPos = predictedPos + ffo;
@@ -2073,8 +2073,8 @@ Vector3 Humanoid::CalculateMovementSmuggle(const Vector3 &desiredDirection,
     // now calculate the shortest line between that line and that point. now move over that line from the point towards the line somewhat
 
     Line ballMovementLine;
-    ballMovementLine.SetVertex(0, match->GetMentalImage(mentalImageTime)->GetBallPrediction(0).Get2D());
-    ballMovementLine.SetVertex(1, match->GetMentalImage(mentalImageTime)->GetBallPrediction(futureTime_ms).Get2D());
+    ballMovementLine.SetVertex(0, match->GetMentalImage(mentalImageTime)->GetBallPrediction(0, match->GetTimelineTick(), *match->GetBall()).Get2D());
+    ballMovementLine.SetVertex(1, match->GetMentalImage(mentalImageTime)->GetBallPrediction(futureTime_ms, match->GetTimelineTick(), *match->GetBall()).Get2D());
     if (ballMovementLine.GetLength() < 0.5f) return Vector3(0); // ball is slow or very close
 
     float u = ballMovementLine.GetClosestToPoint(desiredBallPos);

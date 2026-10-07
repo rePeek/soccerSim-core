@@ -26,7 +26,7 @@ float GetOffsideLine(Match *match, const MentalImage *mentalImage,
                         int teamID, unsigned int futureSim_ms) {
   signed int side = match->GetTeam(teamID)->GetDynamicSide();
 
-  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(teamID);
+  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(teamID, match->GetTimelineTick());
 
   int dudDeepestOpponent = 0;
   Vector3 deepestOpponentPosition;
@@ -52,8 +52,8 @@ float GetOffsideLine(Match *match, const MentalImage *mentalImage,
   }
 
   float offsideLine = deepestOpponentPosition.coords[0];
-  if (mentalImage->GetBallPrediction(0).coords[0] * side > offsideLine * side) {
-    offsideLine = mentalImage->GetBallPrediction(0).coords[0];
+  if (mentalImage->GetBallPrediction(0, match->GetTimelineTick(), *match->GetBall()).coords[0] * side > offsideLine * side) {
+    offsideLine = mentalImage->GetBallPrediction(0, match->GetTimelineTick(), *match->GetBall()).coords[0];
   }
   if (offsideLine * side < 0) offsideLine = 0;
   offsideLine = clamp(offsideLine, -pitchHalfW, pitchHalfW);

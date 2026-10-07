@@ -39,7 +39,7 @@ MentalImage* SampleMentalImage(std::span<MentalImage> images,
 
 void RefreshLatestMentalImageBallPredictions(std::span<MentalImage> images,
                                             const Ball& ball) {
-  if (!images.empty()) ball.GetPredictionArray(images.front().ballPredictions);
+  if (!images.empty()) images.front().UpdateBallPredictions(ball);
 }
 
 }  // namespace football::sim::observation

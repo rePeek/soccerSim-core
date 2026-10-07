@@ -19,6 +19,9 @@
 #define FOOTBALL_SIM_OBSERVATION_MENTALIMAGE_HPP
 
 
+#include <span>
+#include <vector>
+
 #include "foundation/math/vector3.hpp"
 
 #include "sim/observation/player_image.hpp"
@@ -26,25 +29,24 @@
 
 using namespace blunted;
 
-class Match;
 class Player;
 class Ball;
 
 class MentalImage {
  public:
-  MentalImage() { }
-  MentalImage(Match *match);
+  MentalImage() = default;
+  MentalImage(football::sim::Tick captured_tick,
+              std::span<Player* const> players, const Ball& ball);
   void Mirror(bool team_0, bool team_1, bool ball);
-  PlayerImage GetPlayerImage(Player* player) const;
-  std::vector<PlayerImagePosition> GetTeamPlayerImages(int teamID) const;
-  void UpdateBallPredictions();
-  Vector3 GetBallPrediction(football::sim::TickSpan horizon) const;
-  // Explicit dependencies for domain computations; does not consult Match.
+  PlayerImage GetPlayerImage(Player* player, football::sim::Tick now) const;
+  std::vector<PlayerImagePosition> GetTeamPlayerImages(
+      int teamID, football::sim::Tick now) const;
+  void UpdateBallPredictions(const Ball& ball);
   Vector3 GetBallPrediction(football::sim::TickSpan horizon,
                            football::sim::Tick now, const Ball& ball) const;
   // Transitional horizon adapter for not-yet-migrated calculation callers.
-  Vector3 GetBallPrediction(int time_ms) const;
-  football::sim::TickSpan GetAge() const;
+  Vector3 GetBallPrediction(int time_ms, football::sim::Tick now, const Ball& ball) const;
+  football::sim::TickSpan GetAge(football::sim::Tick now) const;
 
   std::vector<PlayerImage> players;
   std::vector<Vector3> ballPredictions;
@@ -52,8 +54,6 @@ class MentalImage {
   float maxDistanceDeviation = 2.5f;
   float maxMovementDeviation = walkVelocity;
   bool ballPredictions_mirrored = false;
- private:
-  Match *match = nullptr;
 };
 
 #endif
