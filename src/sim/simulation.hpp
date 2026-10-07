@@ -48,6 +48,8 @@ class Simulation {
   // Runtime composition, also transitional test/diagnostic escapes.
   void Mirror(bool team_0, bool team_1, bool ball);
   void ResetSituation(const blunted::Vector3& focus_position);
+  // Transitional diagnostic impulse; synchronous physics/history/possession only.
+  void TouchBall(const blunted::Vector3& impulse);
 
  private:
   void EnsureAnimationLibrary();

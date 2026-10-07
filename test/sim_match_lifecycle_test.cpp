@@ -229,7 +229,7 @@ TEST_CASE("final outcomes derive from real goals and stable home away scores", "
     auto* match = simulation.match();
     const float direction = home_win ? 1.f : -1.f;
     match->GetBall()->ResetSituation(blunted::Vector3(direction * 54.9f, 0.f, 0.5f));
-    match->TouchBall(blunted::Vector3(direction * 30.f, 0.f, 0.f));
+    simulation.TouchBall(blunted::Vector3(direction * 30.f, 0.f, 0.f));
     for (int step = 0; step < 5 && simulation.Observe().teams[home_win ? 0 : 1].score == 0; ++step)
       simulation.Step({});
     REQUIRE(simulation.Observe().teams[home_win ? 0 : 1].score == 1);
@@ -330,7 +330,7 @@ TEST_CASE("the same physical goal credits opposite teams after advancing clocks"
     const int before[2] = {match->GetScore(0), match->GetScore(1)};
     const float execution_direction = reverse ? -direction : direction;
     match->GetBall()->ResetSituation(blunted::Vector3(execution_direction * 54.9f, 0.f, 0.5f));
-    match->TouchBall(blunted::Vector3(execution_direction * 30.f, 0.f, 0.f));
+    simulation.TouchBall(blunted::Vector3(execution_direction * 30.f, 0.f, 0.f));
     for (int step = 0; step < 12; ++step) {
       const auto timeline = match->GetTimelineTick();
       const auto regulation = match->GetRegulationTime();

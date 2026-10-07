@@ -267,9 +267,10 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
 - Ball owns a copied model::Pitch, never Match/Simulation, Team, Player or RNG.
   Every prediction-mutating operation receives BallEnvironment (the current netting
   rule fact), not a stored duplicate of match goal state. Ball::Touch is physics only.
-  Transitional Match::TouchBall composes Touch → latest history refresh → first/second
-  roster possession refresh; caller then sets rotation. Keep both original prediction
-  recalculations and the existing sample-zero publication timing unchanged.
+  ball/ball_touch_application.*::ApplyBallTouch composes Touch → newest history refresh →
+  first/second processing-roster possession refresh from explicit inputs; callers then set
+  rotation. Match::TouchBall is removed; Simulation::TouchBall is a diagnostic escape.
+  Keep both original prediction recalculations and sample-zero publication timing unchanged.
 - Match::Step/Process/StepRemainingTick are removed. Simulation::Step now spells out
   the legacy phase order and all frame/terminal/ceremonial boundaries directly.
   Match still holds competition state, actors and transitional touch/history sampling
@@ -319,8 +320,8 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   → Humanoid, including SelectAnim/NeedTouch/GetBestCheatableAnimID/MovementSmuggle.
   No actor stores the span or samples through Match. Preserve the initial previous-delay
   sample before updating mentalImageTime, live deviation clamps, signed millisecond
-  sampling, staggered cadence and all conditional sample points. Match still borrows
-  the vector only for TouchBall refresh and transitional diagnostics until H4-B/A3.
+  sampling, staggered cadence and all conditional sample points. H4-B also moved touch
+  composition out of Match; the borrowed vector now serves diagnostics until H4-A3.
   Match::Mirror and ResetSituation are removed: Simulation mirrors teams → Ball → images
   and resets competition facts → clears history → resets Ball → both processing rosters
   at the old mutation points. Referee::Process receives a narrow synchronous reset action,

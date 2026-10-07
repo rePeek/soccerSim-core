@@ -130,8 +130,6 @@ class Match {
     float GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at = std::nullopt) { if (GetLastTouchTeam()) return GetLastTouchTeam()->GetLastTouchBias(decay_ms, at); else return 0; }
     bool IsBallInGoal() const { return ballIsInGoal; }
     football::sim::BallEnvironment GetBallEnvironment() const { return {ballIsInGoal}; }
-    // Transitional touch composition: physics first, then synchronous dependents.
-    void TouchBall(const Vector3& impulse);
 
     Team* GetBestPossessionTeam();
 

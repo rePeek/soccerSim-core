@@ -129,14 +129,6 @@ MentalImage *Match::GetMentalImage(std::chrono::milliseconds history) {
   return football::sim::observation::SampleMentalImage(borrowed_mental_images_, history);
 }
 
-void Match::TouchBall(const Vector3& impulse) {
-  // Keep the legacy ordering, including pre-rotation observer/possession refresh.
-  ball->Touch(impulse, GetBallEnvironment());
-  football::sim::observation::RefreshLatestMentalImageBallPredictions(
-      borrowed_mental_images_, *ball);
-  teams[first_team]->UpdatePossessionStats();
-  teams[second_team]->UpdatePossessionStats();
-}
 
 
 

@@ -7,6 +7,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
 #include "sim/ball/ball.hpp"
+#include "sim/ball/ball_touch_application.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
 
@@ -64,7 +65,7 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
     }
     const auto oldest_predictions = simulation.GetMentalImage(TickSpan{20})->ballPredictions;
     const auto latest_capture = simulation.GetMentalImage(TickSpan{})->captured_tick;
-    match.TouchBall(Vector3(7, 2, 1));
+    simulation.TouchBall(Vector3(7, 2, 1));
     std::vector<Vector3> ball_predictions;
     match.GetBall()->GetPredictionArray(ball_predictions);
     REQUIRE(simulation.GetMentalImage(TickSpan{})->ballPredictions == ball_predictions);
@@ -120,6 +121,8 @@ template<class T> concept HasHistoryMirror = requires(T& owner) { owner.Mirror(t
 template<class T> concept HasHistoryReset = requires(T& owner) { owner.ResetSituation(Vector3(0)); };
 static_assert(!HasHistoryMirror<Match>);
 static_assert(!HasHistoryReset<Match>);
+template<class T> concept HasMatchTouch = requires(T& owner) { owner.TouchBall(Vector3(0)); };
+static_assert(!HasMatchTouch<Match>);
 
 TEST_CASE("mental images capture explicit ordered inputs and sample with explicit time and Ball",
           "[sim][history][snapshot]") {
@@ -173,14 +176,46 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
                                                               detached.maxDistanceDeviation));
 }
 
+TEST_CASE("ball touch refreshes only the explicit history and does not publish a rule touch", "[sim][history][touch]") {
+  for (bool reverse : {false, true}) {
+    Simulation simulation; Init(simulation, reverse);
+    auto& match = *simulation.match();
+    std::array<MentalImage, 2> history{*simulation.GetMentalImage(TickSpan{}),
+        *simulation.GetMentalImage(TickSpan{10})};
+    const auto oldest = history[1].ballPredictions;
+    const auto captured = history[0].captured_tick;
+    const auto owned = simulation.GetMentalImage(TickSpan{})->ballPredictions;
+    const auto rng = match.rng().engine();
+    const auto now = match.GetTimelineTick();
+    const auto last_team = match.GetLastTouchTeamID();
+    const auto* last_player = match.GetLastTouchPlayer();
+    ApplyBallTouch(*match.GetBall(), match.GetBallEnvironment(), Vector3(7, 2, 1), history,
+        *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam()));
+    std::vector<Vector3> predictions; match.GetBall()->GetPredictionArray(predictions);
+    REQUIRE(history[0].ballPredictions == predictions);
+    REQUIRE(history[0].ballPredictions != owned);
+    REQUIRE(history[0].captured_tick == captured);
+    REQUIRE(history[1].ballPredictions == oldest);
+    REQUIRE(simulation.GetMentalImage(TickSpan{})->ballPredictions == owned);
+    REQUIRE(match.rng().engine() == rng);
+    REQUIRE(match.GetTimelineTick() == now);
+    REQUIRE(match.GetLastTouchTeamID() == last_team);
+    REQUIRE(match.GetLastTouchPlayer() == last_player);
+    REQUIRE_NOTHROW(ApplyBallTouch(*match.GetBall(), match.GetBallEnvironment(), Vector3(0), {},
+        *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam())));
+  }
+}
+
 TEST_CASE("Simulation mirror and reset reject stopped owners", "[sim][history]") {
   Simulation simulation;
   REQUIRE_THROWS_AS(simulation.Mirror(true, false, true), std::logic_error);
   REQUIRE_THROWS_AS(simulation.ResetSituation(Vector3(0)), std::logic_error);
+  REQUIRE_THROWS_AS(simulation.TouchBall(Vector3(0)), std::logic_error);
   Init(simulation, false);
   simulation.Stop();
   REQUIRE_THROWS_AS(simulation.Mirror(true, false, true), std::logic_error);
   REQUIRE_THROWS_AS(simulation.ResetSituation(Vector3(0)), std::logic_error);
+  REQUIRE_THROWS_AS(simulation.TouchBall(Vector3(0)), std::logic_error);
 }
 
 }  // namespace

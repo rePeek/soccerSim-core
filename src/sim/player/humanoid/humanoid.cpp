@@ -33,6 +33,7 @@
 #include "sim/team/team.hpp"
 #include "sim/match/match.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
+#include "sim/ball/ball_touch_application.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
 
@@ -489,7 +490,8 @@ void Humanoid::Process(std::span<MentalImage> history) {
     float bumpyRideBias = 0.0f;
     touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-    match->TouchBall(touchVec);
+    football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
+        *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
     match->GetBall()->SetRotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias), match->GetBallEnvironment()); // 0.9
     team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));//, e_TouchType_Accidental);
   }
@@ -578,7 +580,8 @@ void Humanoid::Process(std::span<MentalImage> history) {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->TouchBall(touchVec);
+        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
+            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
         record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
 
@@ -596,7 +599,8 @@ void Humanoid::Process(std::span<MentalImage> history) {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->TouchBall(touchVec);
+        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
+            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
         record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias), match->GetBallEnvironment()); // 1.0
 
@@ -670,7 +674,8 @@ void Humanoid::Process(std::span<MentalImage> history) {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->TouchBall(touchVec);
+        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
+            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
         record_contact_impulse(touchVec);
         float forwardness = 3.5f;
         if (currentAnim.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
@@ -705,7 +710,8 @@ void Humanoid::Process(std::span<MentalImage> history) {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->TouchBall(touchVec);
+        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
+            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
         record_contact_impulse(touchVec);
         match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
@@ -724,7 +730,8 @@ void Humanoid::Process(std::span<MentalImage> history) {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->TouchBall(touchVec);
+        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
+            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
         // Legacy three-argument call: the third value is z rotation; bias was 1.0.
         match->GetBall()->SetRotation(xRot, yRot, 0.3f * (1.0f - bumpyRideBias), 1.0f, match->GetBallEnvironment());
         team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental); // it's not truly accidental, but the resulting direction somewhat is, so goalies may fetch these balls
@@ -762,7 +769,8 @@ void Humanoid::Process(std::span<MentalImage> history) {
 
           touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-          match->TouchBall(touchVec);
+          football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
+              *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
           match->GetBall()->SetRotation(0, 0, 0, 0.2f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
         }
         team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental);
@@ -775,7 +783,8 @@ void Humanoid::Process(std::span<MentalImage> history) {
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        match->TouchBall(touchVec);
+        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
+            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
 
         team->SetLastTouchPlayer(CastPlayer(), e_TouchType_Accidental);
       }
@@ -811,7 +820,8 @@ void Humanoid::Process(std::span<MentalImage> history) {
         throw std::runtime_error("Humanoid::Process: unknown retain state: " +
                                  retainState);
       }
-      match->TouchBall(Vector3(0));
+      football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), Vector3(0), history,
+          *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()));
       match->GetBall()->SetRotation(0, 0, 0, 1.0, match->GetBallEnvironment());
       match->GetBall()->SetPosition(ComputeRetainAnchor(
           spatialState.position, spatialState.bodyDirectionVec, anchor), match->GetBallEnvironment());

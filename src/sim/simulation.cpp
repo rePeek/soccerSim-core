@@ -10,6 +10,7 @@
 
 #include "sim/animation/library.hpp"
 #include "sim/ball/ball_player_contact.hpp"
+#include "sim/ball/ball_touch_application.hpp"
 
 
 
@@ -179,7 +180,8 @@ void Simulation::Step(const PlayerControlSet& controls) {
     const auto contact = football::sim::ResolveBallPlayerContacts(
         *match.GetBall(), players, inputs);
     if (contact.impulse) {
-      match.TouchBall(*contact.impulse);
+      football::sim::ApplyBallTouch(*match.ball, match.GetBallEnvironment(), *contact.impulse,
+          mental_images_, *match.teams[match.first_team], *match.teams[match.second_team]);
       // Preserve the three argument-expression RNG draws and refresh-before-spin.
       match.GetBall()->SetRotation(rng_.Uniform(-30, 30), rng_.Uniform(-30, 30),
           rng_.Uniform(-30, 30), contact.rotation_bias, match.GetBallEnvironment());
@@ -291,6 +293,13 @@ bool Simulation::IsInPlay() const {
 WorldState Simulation::Observe() const {
   if (!match_) throw std::logic_error("simulation has no match");
   return BuildWorldState(*match_);
+}
+
+void Simulation::TouchBall(const Vector3& impulse) {
+  if (!match_) throw std::logic_error("simulation has no match");
+  Match& match = *match_;
+  football::sim::ApplyBallTouch(*match.ball, match.GetBallEnvironment(), impulse,
+      mental_images_, *match.teams[match.first_team], *match.teams[match.second_team]);
 }
 
 void Simulation::Mirror(bool team_0, bool team_1, bool ball) {

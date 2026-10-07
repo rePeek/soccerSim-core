@@ -158,8 +158,10 @@ score/scorer application order; geometry reads no Match, Ball, player or clock.
 
 `Ball` owns only physics/predictions and a copied Pitch; netting receives the current
 `BallEnvironment` rule fact on each call. Touch-dependent history/possession refresh
-is composed externally by a transitional `Match::TouchBall` bridge, preserving
-refresh-before-rotation timing. Player/Team touch accounting still notifies legacy
+is composed by `ball/ball_touch_application.*::ApplyBallTouch` with explicit Ball,
+environment, impulse, history and processing-ordered teams. Match::TouchBall is removed;
+physics → newest history → first/second possession refresh remains synchronous, before
+rotation. Simulation::TouchBall is a transitional diagnostic escape. Touch accounting notifies
 rules synchronously. `Simulation::Step()` now composes all legacy phases explicitly;
 `Match::StepRemainingTick` is removed. `team/possession.*` evaluates best-team and
 designated-player selection without publishing state. Simulation applies the selection
@@ -168,8 +170,8 @@ Match is not yet a state-only container; touch/history-sampling bridges remain.
 `Simulation::match()` remains a temporary test/diagnostic escape hatch.
 
 Simulation directly owns the three-slot MentalImage history and capture cadence.
-Observation sampling/newest-ball refresh take explicit spans; Match still borrows the same
-history only for actor sampling/touch refresh. Mirror/reset composition lives in Simulation;
+Observation sampling/newest-ball refresh take explicit spans. Match still borrows the same
+history only for diagnostics until H4-A3. Mirror/reset composition lives in Simulation;
 Match::Mirror/ResetSituation are removed. Referee receives a per-call synchronous reset action
 at the original setup point, never stores it, and gains no Simulation pointer/context.
 MentalImage has no Match pointer or implicit clock/Ball reads:
@@ -177,7 +179,7 @@ capture takes tick, ordered player span and Ball; sampling takes explicit now/Ba
 Legacy Player deviation clamps and signed horizon quantization remain unchanged.
 StepPlayers explicitly lends history through Team → Player → Humanoid and its animation/
 touch prediction functions. No actor stores the span or samples through Match; only the
-touch-refresh/diagnostic bridge remains pending H4-B/A3.
+diagnostic bridge remains pending H4-A3.
 
 `match/match_clock.*` defines MatchClock: timeline/regulation/effective clocks, run flags and executed
 ticks. It takes phase explicitly, atomically clips advances to the current period,
