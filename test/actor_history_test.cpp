@@ -52,10 +52,10 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     for (auto& image : supplied[0].players) image.position = actor->GetPosition();
     const auto position = actor->GetPosition();
     const auto forward_focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
-    const auto forward = query::CalculateFreeSpace(&match, &supplied[0], actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
-    const auto space = query::CalculateFreeSpace(&match, &supplied[0], actor->GetTeamID(),
+    const auto forward = query::CalculateFreeSpace(match.GetTimelineTick(), &supplied[0], actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
+    const auto space = query::CalculateFreeSpace(match.GetTimelineTick(), &supplied[0], actor->GetTeamID(),
         position + actor->GetMovement() * 0.1f, 5.0f, 0.1f);
-    const auto owned_forward = query::CalculateFreeSpace(&match, simulation.GetMentalImage(TickSpan{}),
+    const auto owned_forward = query::CalculateFreeSpace(match.GetTimelineTick(), simulation.GetMentalImage(TickSpan{}),
         actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
     REQUIRE(forward != owned_forward);
     actor->Process(supplied, touch_sink);

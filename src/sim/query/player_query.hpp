@@ -18,7 +18,7 @@
 #include <vector>
 #include "foundation/math/vector3.hpp"
 
-class Match;
+#include "sim/time/tick.hpp"
 class Team;
 class Player;
 class Ball;
@@ -27,7 +27,7 @@ class MentalImage;
 namespace football::sim::query {
 
 // Estimates and selections over the runtime world; no tactical decision owner.
-float CalculateFreeSpace(Match *match, const MentalImage *mentalImage,
+float CalculateFreeSpace(Tick now, const MentalImage *mentalImage,
                          int teamID, const blunted::Vector3 &focusPos,
                          float safeDistance = 8.0, float futureTime_sec = 0.3);
 bool HasPossession(Ball *ball, Player *player);

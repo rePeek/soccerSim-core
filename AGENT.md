@@ -445,7 +445,7 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   Humanoid requeue/tactical phase cadences use the same tick-local policy values
   and overflow-safe reduced-remainder staggering, retaining both roster schedules.
   Player touch/card-effect timestamps are Tick; unused possession-duration storage
-  is removed. Touch-decay reads optional Tick instants and bounds only relative ages.
+  is removed. Touch-decay requires an explicit Tick and bounds only relative ages.
   Ball prediction horizons/cache durations live in sim-private `ball/ball_timing.hpp`;
   prediction generation iterates TickSpan samples with seconds from the quantum.
   MentalImage stores a Tick capture instant and derives TickSpan age. Transitional
@@ -622,7 +622,7 @@ re-entry age sums/maxima use TickSpan. The unused decision-queue shadow, stale
 millisecond accessors and write-only per-query trace fields are deleted; the sole
 PlayerDecisionQueue and continuity/oracle contracts remain. Tactical image delay
 is computed only at the sampling call, not cached as Player state. Simulation's native
-history API and Match's borrowed actor bridge use TickSpan and nearest-capture half-up
+history API and explicit tick-local actor spans use TickSpan and nearest-capture half-up
 sampling; the ten-tick cadence and signed millisecond adapter preserve legacy
 reaction rounding. Empty history is an explicit logic_error, not an invalid pointer.
 Continuous reachability/reaction estimates and Humanoid SI/animation arithmetic
@@ -645,8 +645,8 @@ candidate rollouts live in test/reachability_tick_test.cpp. T4c changes no polic
 ### Native timeline callers after T4d
 
 GetActualTime_ms, BumpActualTime_ms and GetLastTouchTime_ms are deleted, not kept as
-compatibility APIs. Touch-decay readers accept an optional Tick evaluation instant;
-absence means now and explicit Tick zero remains zero. The ability-dependent decay
+compatibility APIs. Touch-decay readers require an explicit Tick evaluation instant;
+there is no implicit-now overload. The ability-dependent decay
 formula retains its off-grid millisecond precision, using only a bounded relative
 age projection. It never converts the absolute timeline into milliseconds. Old
 diagnostic wire units are projected at output-only call sites. The unused possession-

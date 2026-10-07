@@ -455,7 +455,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
 
   float ballDistanceNow = (match->GetBall()->Predict(0).Get2D() - spatialState.position).GetLength();
   float ballDistanceFuture = (match->GetBall()->Predict(200).Get2D() - (spatialState.position + spatialState.movement * 0.2f)).GetLength();
-  float lastTouchBias = CastPlayer()->GetLastTouchBias(1500);
+  float lastTouchBias = CastPlayer()->GetLastTouchBias(1500, match->GetTimelineTick());
   float oppLastTouchBias = football::sim::event::TeamTouchBias(match->touches(),
       *match->GetTeam(std::abs(team->GetID() - 1)), 240, match->GetTimelineTick());
 
@@ -755,7 +755,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
         if (lastTouchPlayer) {
           reactionDifficulty =
               std::pow(lastTouchPlayer->GetLastTouchBias(
-                           1200 - player->GetStat(football::model::PlayerStat::physical_reaction) * 400),
+                           1200 - player->GetStat(football::model::PlayerStat::physical_reaction) * 400, match->GetTimelineTick()),
                        0.6f);
         }
         if ((1.0f - veloDifficulty) * (1.0f - reactionDifficulty) < 0.3f) canRetain = false; // too hard!

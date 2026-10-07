@@ -1792,7 +1792,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
             0.0f, 1.0f),
       0.7f);
 
-  float powerFactor = 1.0f - clamp(std::pow(player->GetLastTouchBias(1000), 0.8f) * (0.8f - stat_dribble * 0.3f), 0.0f, 0.4f);
+  float powerFactor = 1.0f - clamp(std::pow(player->GetLastTouchBias(1000, match->GetTimelineTick()), 0.8f) * (0.8f - stat_dribble * 0.3f), 0.0f, 0.4f);
   powerFactor *= 1.0f - clamp(decayingPositionOffset.GetLength() * (10.0f - player->GetStat(football::model::PlayerStat::physical_balance) * 5.0f) - 0.1f, 0.0f, 0.3f);
 
   Vector3 temporalMovement = adaptedCurrentMovement;

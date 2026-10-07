@@ -632,9 +632,7 @@ float Player::GetVelocityMultiplier() const {
   return 0.9f + model_.attributes.get(football::model::PlayerStat::physical_velocity) * 0.1f;
 }
 
-float Player::GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at) {
-  // Explicit evaluation time must not eagerly consult the owner as value_or would.
-  const auto time = at ? *at : match->GetTimelineTick();
+float Player::GetLastTouchBias(int decay_ms, football::sim::Tick time) {
   if (decay_ms <= 0 || time < last_touch_tick_) return 0.0f;
   const auto age = time - last_touch_tick_;
   // Saturate before projection: absolute millisecond capacity is irrelevant.
@@ -876,10 +874,10 @@ void Player::_CalculateTacticalSituation(std::span<MentalImage> history) {
   assert(IsActive());
   float time_sec = 0.5f;
   Vector3 checkPos = GetPosition() + Vector3(-team->GetDynamicSide(), 0, 0) * sprintVelocity * time_sec;
-  tacticalSituation.forwardSpaceRating = football::sim::query::CalculateFreeSpace(match, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
+  tacticalSituation.forwardSpaceRating = football::sim::query::CalculateFreeSpace(match->GetTimelineTick(), mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
   time_sec = 0.1f;
   checkPos = GetPosition() + GetMovement() * time_sec;
-  tacticalSituation.spaceRating = football::sim::query::CalculateFreeSpace(match, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
+  tacticalSituation.spaceRating = football::sim::query::CalculateFreeSpace(match->GetTimelineTick(), mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
   tacticalSituation.forwardRating =
       1.0f - clamp((Vector3(pitchHalfW * -team->GetDynamicSide(), 0, 0) - GetPosition()).GetLength() /
                        (pitchHalfW * 2.0f), 0.0f, 1.0f);

@@ -148,6 +148,8 @@ template<class T> concept HasMillisecondTouch = requires(T& owner) { owner.GetLa
 static_assert(!HasMillisecondTimeline<Match>);
 static_assert(!HasMillisecondAdvance<Match>);
 static_assert(!HasMillisecondTouch<Player>);
+template<class T> concept HasImplicitTouchBias = requires(T& actor) { actor.GetLastTouchBias(503); };
+static_assert(!HasImplicitTouchBias<Player>);
 
 TEST_CASE("Touch decay uses relative ticks without quantizing ability-dependent decay", "[sim][tick][player]") {
   for (bool reverse : {false, true}) {
@@ -165,14 +167,14 @@ TEST_CASE("Touch decay uses relative ticks without quantizing ability-dependent 
     }
     actor.SetLastTouchTick(Tick{});
     simulation.AdvanceTime(TickSpan{23});
-    REQUIRE(actor.GetLastTouchBias(503) == actor.GetLastTouchBias(503, Tick{23}));
+    REQUIRE(actor.GetLastTouchBias(503, match.GetTimelineTick()) == actor.GetLastTouchBias(503, Tick{23}));
     REQUIRE(actor.GetLastTouchBias(503, Tick{}) == 1.f); // Explicit zero is not omitted.
     actor.SetLastTouchTick(Tick{30});
     REQUIRE(actor.GetLastTouchBias(503, Tick{}) == 0.f); // Rewound observation.
     const TickSpan large{UINT64_C(1) << 63};
     simulation.AdvanceTime(large);
     actor.SetLastTouchTick(match.GetTimelineTick() - TickSpan{7});
-    REQUIRE(actor.GetLastTouchBias(503) == 1.f - 70.f / 503.f);
+    REQUIRE(actor.GetLastTouchBias(503, match.GetTimelineTick()) == 1.f - 70.f / 503.f);
     REQUIRE(actor.GetLastTouchBias(503, Tick{std::numeric_limits<std::uint64_t>::max()}) == 0.f);
     REQUIRE(match.rng().engine() == rng);
   }

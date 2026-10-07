@@ -19,14 +19,14 @@
 #include <map>
 
 #include "sim/observation/mentalimage.hpp"
-#include "sim/match/match.hpp"
+#include "sim/player/player_motion_constants.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player.hpp"
 #include "sim/ball/ball.hpp"
 
 namespace football::sim::query {
 
-float CalculateFreeSpace(Match *match, const MentalImage *mentalImage,
+float CalculateFreeSpace(Tick now, const MentalImage *mentalImage,
                             int teamID, const Vector3 &focusPos,
                             float safeDistance, float futureTime_sec) {
 
@@ -35,7 +35,7 @@ float CalculateFreeSpace(Match *match, const MentalImage *mentalImage,
 
   float currentSituation = 0.0f;
 
-  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(std::abs(teamID - 1), match->GetTimelineTick());
+  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(std::abs(teamID - 1), now);
 
   // player position predictions
   for (int i = 0; i < (signed int)opponentPlayerImages.size(); i++) {

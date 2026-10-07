@@ -355,7 +355,7 @@ class Player final {
     void SetLastTouchType(e_TouchType touchType) { this->lastTouchType = touchType; }
     e_TouchType GetLastTouchType() { return lastTouchType; }
     // The ability-dependent decay is a continuous estimate, not a grid deadline.
-    float GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at = std::nullopt);
+    float GetLastTouchBias(int decay_ms, football::sim::Tick at);
 
 
     float GetFatigueFactorInv() const { return fatigueFactorInv; }
