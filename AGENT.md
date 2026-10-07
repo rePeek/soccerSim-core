@@ -111,6 +111,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
 ├── player_observation_tick_test.cpp publication/reset stamps, re-entry ages and history sampling
+├── reachability_tick_test.cpp grid candidate rollouts, split horizons and continuous precision
 ├── sim_control_boundary_test.cpp controls/frames/reset/replay
 ├── sim_match_lifecycle_test.cpp phases/clocks/end changes/result/freeze
 ├── pitch_frame_test.cpp     half/order geometry, nonzero ball/velocity and control round trips
@@ -426,3 +427,16 @@ reaction rounding. Empty history is an explicit logic_error, not an invalid poin
 Continuous reachability/reaction estimates and Humanoid SI/animation arithmetic
 are not integer-grid deadlines; their remaining calculation migrations are separate.
 T4b must preserve existing physical/RNG goldens and full-match restart metrics.
+
+### Reachability search time after T4c
+
+Locomotion prediction/arrival/intercept rollouts take TickSpan horizons and pass
+TickSpan to target queries. Their discrete results are optional TickSpan (absent
+is not tick zero). Hybrid exact horizon must not exceed the total horizon; equal
+horizons perform no extra analytic candidate. Endpoint checks precede increments
+so maximum spans cannot wrap. Analytic arrival estimates and mixed Player possession
+rankings retain millisecond precision; horizon comparison never floors the estimate
+or multiplies a huge duration into milliseconds. The legacy action reachability
+search also owns a TickSpan cursor/optional horizon; its adaptive round-then-floor
+grid and strict crossed-limit behavior remain unchanged. Independent Step-based
+candidate rollouts live in test/reachability_tick_test.cpp. T4c changes no policy.

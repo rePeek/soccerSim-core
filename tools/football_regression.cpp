@@ -384,7 +384,7 @@ void CheckProceduralLocomotionPrediction() {
 
   // Predict() must be bit-identical to calling Step() in a loop.
   const PlayerKinematicState predicted =
-      PlayerLocomotion::Predict(state, input, parameters, 100);
+      PlayerLocomotion::Predict(state, input, parameters, football::sim::TickSpan{10});
   PlayerKinematicState manual = state;
   for (int step = 0; step < 10; ++step) {
     PlayerLocomotion::Step(manual, input, parameters, 0.01f);
@@ -397,31 +397,24 @@ void CheckProceduralLocomotionPrediction() {
 
   // Reachability follows the same model.
   const Vector3 reachable(5.0f, 0.0f, 0.0f);
-  const int eta =
-      PlayerLocomotion::EstimateArrival(state, reachable, parameters, 7.5f,
-                                        2000, 0.9f, 0.9f).usual_ms;
-  Require(eta > 0, "procedural prediction: a reachable target needs an ETA");
-  const PlayerKinematicState at_eta = PlayerLocomotion::Predict(
-      state, input, parameters, eta);
+  using football::sim::TickSpan;
+  const auto eta = PlayerLocomotion::EstimateArrival(
+      state, reachable, parameters, 7.5f, TickSpan{200}, 0.9f, 0.9f).usual;
+  Require(eta && eta->value > 0, "procedural prediction: a reachable target needs an ETA");
+  const PlayerKinematicState at_eta = PlayerLocomotion::Predict(state, input, parameters, *eta);
   Require(at_eta.position.GetDistance(reachable) <= 0.9f + 0.2f,
           "procedural prediction: the ETA must actually arrive");
 
-  // A standstill cannot reach anything, and asking to try must not loop.
-  Require(PlayerLocomotion::EstimateArrival(state, reachable, parameters,
-                                            0.0f, 2000, 0.9f, 0.9f)
-              .usual_ms == -1,
+  Require(!PlayerLocomotion::EstimateArrival(state, reachable, parameters,
+                                            0.0f, TickSpan{200}, 0.9f, 0.9f).usual,
           "procedural prediction: no speed means no reachability");
-  // A target beyond the horizon is reported unreachable, not guessed.
-  Require(PlayerLocomotion::EstimateArrival(
-              state, Vector3(5000.0f, 0.0f, 0.0f), parameters, 7.5f, 500,
-              0.9f, 0.9f)
-              .usual_ms == -1,
+  Require(!PlayerLocomotion::EstimateArrival(
+              state, Vector3(5000.0f, 0.0f, 0.0f), parameters, 7.5f, TickSpan{50},
+              0.9f, 0.9f).usual,
           "procedural prediction: beyond the horizon means unreachable");
-  // A target already within reach is immediate.
   Require(PlayerLocomotion::EstimateArrival(
-              state, Vector3(0.2f, 0.0f, 0.0f), parameters, 7.5f, 2000,
-              0.9f, 0.9f)
-              .usual_ms == 0,
+              state, Vector3(0.2f, 0.0f, 0.0f), parameters, 7.5f, TickSpan{200},
+              0.9f, 0.9f).usual == TickSpan{},
           "procedural prediction: an in-reach target is immediate");
 }
 
@@ -429,102 +422,66 @@ void CheckProceduralLocomotionPrediction() {
 // ball", not "how long to reach this fixed point", so the intercept estimator
 // is the quantity that actually has to agree with execution.
 void CheckProceduralInterceptPrediction() {
+  using football::sim::TickSpan;
+  using football::sim::ToMilliseconds;
   PlayerLocomotionParameters parameters;
   parameters.maxSpeed = 7.5f;
   const float usual_radius = 0.28f;
   const float optimistic_radius = 0.9f;
-  const int horizon_ms = 2000;
-
+  const TickSpan horizon{200};
   PlayerKinematicState state;
   state.facing = Vector3(1.0f, 0.0f, 0.0f);
-
   const Vector3 stationary(4.0f, 0.0f, 0.0f);
-  const PlayerLocomotionReach stationary_reach =
-      PlayerLocomotion::EstimateEarliestInterceptExact(
-          state, [&stationary](int) { return stationary; }, parameters,
-          7.5f, horizon_ms, usual_radius, optimistic_radius);
-  Require(stationary_reach.optimistic_ms > 0 &&
-              stationary_reach.usual_ms >= stationary_reach.optimistic_ms,
+  const auto stationary_reach = PlayerLocomotion::EstimateEarliestInterceptExact(
+      state, [&stationary](TickSpan) { return stationary; }, parameters,
+      7.5f, horizon, usual_radius, optimistic_radius);
+  Require(stationary_reach.optimistic && stationary_reach.optimistic->value > 0 &&
+              stationary_reach.usual >= stationary_reach.optimistic,
           "procedural intercept: a reachable ball needs a dual estimate");
-
-  // A ball drifting away is caught later than a stationary one.
-  const PlayerLocomotionReach drifting_reach =
-      PlayerLocomotion::EstimateEarliestInterceptExact(
-          state,
-          [&stationary](int elapsed_ms) {
-            return stationary +
-                   Vector3(2.0f, 0.0f, 0.0f) * (elapsed_ms * 0.001f);
-          },
-          parameters, 7.5f, horizon_ms, usual_radius, optimistic_radius);
-  Require(drifting_reach.optimistic_ms > stationary_reach.optimistic_ms ||
-              drifting_reach.optimistic_ms < 0,
+  const auto drifting_reach = PlayerLocomotion::EstimateEarliestInterceptExact(
+      state, [&stationary](TickSpan elapsed) {
+        return stationary + Vector3(2.0f, 0.0f, 0.0f) * (ToMilliseconds(elapsed) * 0.001f);
+      }, parameters, 7.5f, horizon, usual_radius, optimistic_radius);
+  Require(!drifting_reach.optimistic || drifting_reach.optimistic > stationary_reach.optimistic,
           "procedural intercept: a moving ball must not be easier");
-
-  // A ball that outruns the actor is unreachable rather than optimistically
-  // estimated.
-  const PlayerLocomotionReach outrun_reach =
-      PlayerLocomotion::EstimateEarliestInterceptExact(
-          state,
-          [&stationary](int elapsed_ms) {
-            return stationary +
-                   Vector3(30.0f, 0.0f, 0.0f) * (elapsed_ms * 0.001f);
-          },
-          parameters, 7.5f, horizon_ms, usual_radius, optimistic_radius);
-  Require(outrun_reach.usual_ms == -1 && outrun_reach.optimistic_ms == -1,
-          "procedural intercept: a ball the actor cannot outrun is "
-          "unreachable");
-
-  // No speed means no intercept.
-  Require(PlayerLocomotion::EstimateEarliestInterceptExact(
-              state, [&stationary](int) { return stationary; }, parameters,
-              0.0f, horizon_ms, usual_radius, optimistic_radius)
-              .usual_ms == -1,
+  const auto outrun_reach = PlayerLocomotion::EstimateEarliestInterceptExact(
+      state, [&stationary](TickSpan elapsed) {
+        return stationary + Vector3(30.0f, 0.0f, 0.0f) * (ToMilliseconds(elapsed) * 0.001f);
+      }, parameters, 7.5f, horizon, usual_radius, optimistic_radius);
+  Require(!outrun_reach.usual && !outrun_reach.optimistic,
+          "procedural intercept: a ball the actor cannot outrun is unreachable");
+  Require(!PlayerLocomotion::EstimateEarliestInterceptExact(
+              state, [&stationary](TickSpan) { return stationary; }, parameters,
+              0.0f, horizon, usual_radius, optimistic_radius).usual,
           "procedural intercept: no speed means no intercept");
-
-  // The defining case: the ball crosses in front of the actor, so chasing its
-  // current position is not the same as intercepting it. The estimator must
-  // find the lead point, and must not be worse than pure pursuit.
-  const auto crossing_ball = [](int elapsed_ms) {
-    return Vector3(3.0f, 2.0f + 2.0f * (elapsed_ms * 0.001f), 0.0f);
+  const auto crossing_ball = [](TickSpan elapsed) {
+    return Vector3(3.0f, 2.0f + 2.0f * (ToMilliseconds(elapsed) * 0.001f), 0.0f);
   };
-  const PlayerLocomotionReach lead_reach =
-      PlayerLocomotion::EstimateEarliestInterceptExact(
-          state, crossing_ball, parameters, 7.5f, horizon_ms, usual_radius,
-          optimistic_radius);
-  Require(lead_reach.optimistic_ms > 0 &&
-              lead_reach.optimistic_ms < horizon_ms,
+  const auto lead_reach = PlayerLocomotion::EstimateEarliestInterceptExact(
+      state, crossing_ball, parameters, 7.5f, horizon, usual_radius, optimistic_radius);
+  Require(lead_reach.optimistic && lead_reach.optimistic->value > 0 &&
+              *lead_reach.optimistic < horizon,
           "procedural intercept: the lead point must be reachable");
-
-  // The lead point the estimator chose is genuinely reachable: aiming at that
-  // fixed point from the same start arrives inside the intercept time.
-  const Vector3 lead_point = crossing_ball(lead_reach.optimistic_ms);
-  const PlayerLocomotionReach lead_arrival = PlayerLocomotion::EstimateArrival(
-      state, lead_point, parameters, 7.5f, lead_reach.optimistic_ms,
-      usual_radius, optimistic_radius);
-  Require(lead_arrival.optimistic_ms >= 0,
+  const Vector3 lead_point = crossing_ball(*lead_reach.optimistic);
+  const auto lead_arrival = PlayerLocomotion::EstimateArrival(
+      state, lead_point, parameters, 7.5f, *lead_reach.optimistic, usual_radius, optimistic_radius);
+  Require(lead_arrival.optimistic.has_value(),
           "procedural intercept: the chosen lead point must be reachable");
-
-  // Pure pursuit, kept here only as the comparison that documents why the
-  // pursuit formulation was replaced.
-  int pursuit_ms = -1;
-  {
-    PlayerKinematicState pursuit = state;
-    for (int elapsed = 0; elapsed <= horizon_ms; elapsed += 10) {
-      const Vector3 ball = crossing_ball(elapsed).Get2D();
-      if ((ball - pursuit.position).GetLength() <= optimistic_radius) {
-        pursuit_ms = elapsed;
-        break;
-      }
-      PlayerLocomotionInput input;
-      input.desiredVelocity =
-          (ball - pursuit.position).GetNormalized(pursuit.facing) * 7.5f;
-      input.idleFacing = pursuit.facing;
-      PlayerLocomotion::Step(pursuit, input, parameters, 0.01f);
+  std::optional<TickSpan> pursuit_time;
+  PlayerKinematicState pursuit = state;
+  for (TickSpan elapsed{}; elapsed <= horizon; elapsed += TickSpan{1}) {
+    const Vector3 ball = crossing_ball(elapsed).Get2D();
+    if ((ball - pursuit.position).GetLength() <= optimistic_radius) {
+      pursuit_time = elapsed;
+      break;
     }
+    PlayerLocomotionInput input;
+    input.desiredVelocity = (ball - pursuit.position).GetNormalized(pursuit.facing) * 7.5f;
+    input.idleFacing = pursuit.facing;
+    PlayerLocomotion::Step(pursuit, input, parameters, football::sim::kTickSeconds);
   }
-  Require(pursuit_ms < 0 || lead_reach.optimistic_ms <= pursuit_ms,
-          "procedural intercept: the lead point must not be worse than pure "
-          "pursuit");
+  Require(!pursuit_time || lead_reach.optimistic <= pursuit_time,
+          "procedural intercept: the lead point must not be worse than pure pursuit");
 }
 void CheckPlayerKinematicMirror() {
   PlayerKinematicState state;

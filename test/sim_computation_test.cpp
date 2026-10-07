@@ -56,7 +56,7 @@ TEST_CASE("reachability retains legacy near and far estimates", "[sim][query]") 
     CHECK(result.optimistic_ms == sample.optimistic);
   }
   const auto bounded = football::sim::query::GetTimeNeededForDistance_ms(
-      Vector3(0), Vector3(0), Vector3(10, 0, 0), 8.f, true, 100);
+      Vector3(0), Vector3(0), Vector3(10, 0, 0), 8.f, true, football::sim::TickSpan{10});
   CHECK(bounded.usual_ms == 1667);
   CHECK(bounded.optimistic_ms == 110);
 }

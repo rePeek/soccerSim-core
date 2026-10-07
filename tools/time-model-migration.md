@@ -247,3 +247,32 @@ the previously listed continuous reachability/Player calculation audits.
 - Remaining work includes Humanoid reaction-history state/calculation adapters and
   grid search horizons. Continuous reachability/arrival estimates remain deliberately
   precise, not silently reclassified as tick-grid deadlines.
+
+## T4c: native reachability grid horizons
+
+- Locomotion prediction and exact/hybrid intercept searches use TickSpan horizons,
+  cursors and target callbacks. Discrete dual estimates are optional TickSpan,
+  replacing signed -1 millisecond sentinels. Player projects these into its mixed
+  continuous possession estimates only at the calculation boundary.
+- Analytic/steady arrival outputs retain off-grid integer milliseconds. Comparing
+  against a native horizon uses a ceiling quotient, not truncation or an overflowing
+  horizon-to-milliseconds conversion. Float formulas and candidate order are unchanged.
+- The non-locomotion heuristic takes an optional TickSpan limit (absence is unbounded),
+  iterates native ticks and retains local millisecond formula projections. Player's
+  adaptive candidate grid preserves round-then-floor steps and its refinement rewind.
+- Invalid hybrid splits (exact > total) throw before target/solver work. Equal splits
+  do not scan beyond the horizon. Endpoint checks avoid duration wrap.
+- Independent brute-force Step rollouts cover 432 state/target/horizon combinations;
+  tests cover zero/absent results, callback endpoints, invalid splits, maximum spans,
+  continuous precision and the historical strict > heuristic horizon crossing.
+
+### T4c verification
+
+Release / Debug / true NDEBUG each pass all 29 CTest registrations, including full
+default matches; core-only builds pass. All four core and four identity numerical/RNG
+rows match pre-T4c in each mode. Complete seeds 42/43/44 raw restart records are byte-
+identical to T4b. Baked asset SHA256 is unchanged. No policy, golden or asset edits.
+Humanoid's reaction-history cache is not redundant: Process first samples the previous
+delay for its requeue test, then publishes the current reaction delay for action selection.
+Removing it or quantizing the reaction before nearest-capture sampling would change
+trajectories; its remaining typed calculation migration must preserve both stages.

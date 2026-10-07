@@ -12,6 +12,8 @@
 
 #include <cassert>
 #include "sim/player/player_kinematics.hpp"
+#include "sim/tick_boundary.hpp"
+#include <optional>
 
 // This header is used from its own translation unit as well, so it cannot rely
 // on another header having opened the blunted namespace.
@@ -69,8 +71,8 @@ constexpr float kLocomotionUsualReachRadius = 0.28f;
 constexpr float kLocomotionOptimisticReachRadius = 0.9f;
 
 struct PlayerLocomotionReach {
-  int usual_ms = -1;
-  int optimistic_ms = -1;
+  std::optional<football::sim::TickSpan> usual;
+  std::optional<football::sim::TickSpan> optimistic;
 };
 
 // Diagnostics only, never simulation state and never serialized. They are
@@ -175,17 +177,17 @@ class PlayerLocomotion {
   static PlayerKinematicState Predict(PlayerKinematicState state,
                                       const PlayerLocomotionInput &input,
                                       const PlayerLocomotionParameters &parameters,
-                                      int time_ms) {
-    for (int elapsed = 0; elapsed < time_ms; elapsed += 10) {
-      Step(state, input, parameters, 0.01f);
+                                      football::sim::TickSpan horizon) {
+    for (football::sim::TickSpan elapsed{}; elapsed < horizon; elapsed += football::sim::TickSpan{1}) {
+      Step(state, input, parameters, football::sim::kTickSeconds);
     }
     return state;
   }
   // How long until this actor is inside each reach radius if it commits to
   // desired_speed and re-aims at the fixed target every tick. The two radii
   // mirror the legacy AI's usual (0.28, can actually touch the ball) and
-  // optimistic (0.90) distances so the dual estimate stays available. A
-  // negative value means the radius was not reached inside horizon_ms.
+  // optimistic (0.90) distances so the dual estimate stays available. An absent
+  // value means the radius was not reached inside the tick horizon.
   //
   // This is a capability estimate, not a prediction of the command the
   // controller will actually emit: it answers "if this actor chases as hard as
@@ -193,28 +195,21 @@ class PlayerLocomotion {
   static PlayerLocomotionReach EstimateArrival(
       const PlayerKinematicState &start, const Vector3 &target,
       const PlayerLocomotionParameters &parameters, float desired_speed,
-      int horizon_ms, float usual_radius, float optimistic_radius) {
+      football::sim::TickSpan horizon, float usual_radius, float optimistic_radius) {
     PlayerLocomotionReach reach;
     if (desired_speed <= 0.0f) return reach;
     PlayerKinematicState state = start;
-    for (int elapsed = 0; elapsed <= horizon_ms; elapsed += 10) {
-      const float distance =
-          (target.Get2D() - state.position).GetLength();
-      if (reach.optimistic_ms < 0 && distance <= optimistic_radius) {
-        reach.optimistic_ms = elapsed;
-      }
-      if (reach.usual_ms < 0 && distance <= usual_radius) {
-        reach.usual_ms = elapsed;
-      }
-      // The optimistic radius is the looser one, so it is always satisfied
-      // first and the usual radius ends the rollout.
-      if (reach.usual_ms >= 0 || elapsed == horizon_ms) break;
+    for (football::sim::TickSpan elapsed{};; elapsed += football::sim::TickSpan{1}) {
+      const float distance = (target.Get2D() - state.position).GetLength();
+      if (!reach.optimistic && distance <= optimistic_radius) reach.optimistic = elapsed;
+      if (!reach.usual && distance <= usual_radius) reach.usual = elapsed;
+      // Test the endpoint before incrementing, including the largest TickSpan.
+      if (reach.usual || elapsed == horizon) break;
       PlayerLocomotionInput input;
       input.desiredVelocity =
-          (target.Get2D() - state.position).GetNormalized(state.facing) *
-          desired_speed;
+          (target.Get2D() - state.position).GetNormalized(state.facing) * desired_speed;
       input.idleFacing = state.facing;
-      Step(state, input, parameters, 0.01f);
+      Step(state, input, parameters, football::sim::kTickSeconds);
     }
     return reach;
   }
@@ -232,7 +227,7 @@ class PlayerLocomotion {
   static PlayerLocomotionReach EstimateEarliestInterceptExact(
       const PlayerKinematicState &start, TargetAtTime target_at,
       const PlayerLocomotionParameters &parameters, float desired_speed,
-      int horizon_ms, float usual_radius, float optimistic_radius) {
+      football::sim::TickSpan horizon, float usual_radius, float optimistic_radius) {
     ++PlayerLocomotionInterceptSolverCalls();
     PlayerLocomotionReach intercept;
     if (desired_speed <= 0.0f) return intercept;
@@ -244,35 +239,30 @@ class PlayerLocomotion {
     // either radius, so skipping it cannot change the answer. This is much
     // tighter than a linear desired_speed * t bound because it accounts for the
     // acceleration ramp, which is what makes the solver O(N^2) otherwise.
-    const float dt = 0.01f;
+    const float dt = football::sim::kTickSeconds;
     const float speed_ceiling =
         std::max(start.velocity.GetLength(),
                  std::min(desired_speed, parameters.maxSpeed));
     float bound_speed = start.velocity.GetLength();
     float bound_distance = 0.0f;
-    for (int intercept_ms = 0; intercept_ms <= horizon_ms;
-         intercept_ms += 10) {
-      const Vector3 intercept_point = target_at(intercept_ms).Get2D();
-      // A hair of slack keeps the bound conservative under rounding, which only
-      // ever weakens the pruning and never prunes a reachable candidate.
-      if (intercept_ms > 0 &&
+    for (football::sim::TickSpan candidate{};; candidate += football::sim::TickSpan{1}) {
+      const Vector3 intercept_point = target_at(candidate).Get2D();
+      // A hair of slack keeps the bound conservative under rounding.
+      if (candidate.value > 0 &&
           (intercept_point - start.position).GetLength() >
               bound_distance + optimistic_radius + 1e-3f) {
         bound_speed = std::min(speed_ceiling,
                                bound_speed + parameters.acceleration * dt);
         bound_distance += bound_speed * dt;
+        if (candidate == horizon) break;
         continue;
       }
       const PlayerLocomotionReach arrival =
           EstimateArrival(start, intercept_point, parameters, desired_speed,
-                          intercept_ms, usual_radius, optimistic_radius);
-      if (intercept.optimistic_ms < 0 && arrival.optimistic_ms >= 0) {
-        intercept.optimistic_ms = intercept_ms;
-      }
-      if (intercept.usual_ms < 0 && arrival.usual_ms >= 0) {
-        intercept.usual_ms = intercept_ms;
-      }
-      if (intercept.usual_ms >= 0) break;
+                          candidate, usual_radius, optimistic_radius);
+      if (!intercept.optimistic && arrival.optimistic) intercept.optimistic = candidate;
+      if (!intercept.usual && arrival.usual) intercept.usual = candidate;
+      if (intercept.usual || candidate == horizon) break;
       bound_speed = std::min(speed_ceiling,
                              bound_speed + parameters.acceleration * dt);
       bound_distance += bound_speed * dt;
@@ -289,7 +279,7 @@ class PlayerLocomotion {
   static int EstimateInterceptAnalytic(const PlayerKinematicState &start,
                                        const Vector3 &ball_position,
                                        const Vector3 &ball_velocity,
-                                       float speed, int horizon_ms,
+                                       float speed, football::sim::TickSpan horizon,
                                        float radius) {
     if (speed <= 0.0f) return -1;
     const Vector3 offset = ball_position.Get2D() - start.position;
@@ -319,7 +309,7 @@ class PlayerLocomotion {
     if (intercept_sec < 0.0f) return -1;
     const int intercept_ms =
         static_cast<int>(std::ceil(intercept_sec * 1000.0f));
-    return intercept_ms <= horizon_ms ? intercept_ms : -1;
+    return EstimateFitsHorizon(intercept_ms, horizon) ? intercept_ms : -1;
   }
   // Long-horizon capability estimate derived from THIS model's own steady state
   // rather than from a generic constant-speed solve. It decomposes the motion
@@ -338,7 +328,7 @@ class PlayerLocomotion {
   static int EstimateSteadyReachTime(const PlayerKinematicState &start,
                                      const Vector3 &target,
                                      const PlayerLocomotionParameters &parameters,
-                                     float desired_speed, int horizon_ms,
+                                     float desired_speed, football::sim::TickSpan horizon,
                                      float radius) {
     if (desired_speed <= 0.0f) return -1;
     const float cruise = std::min(desired_speed, parameters.maxSpeed);
@@ -416,9 +406,9 @@ class PlayerLocomotion {
         turn_seconds + recover_seconds + remaining / cruise;
     const int total_ms =
         static_cast<int>(std::ceil(total_seconds * 1000.0f));
-    return total_ms <= horizon_ms ? total_ms : -1;
+    return EstimateFitsHorizon(total_ms, horizon) ? total_ms : -1;
   }
-  // Hybrid: exact candidate-time reachability inside exact_horizon_ms, analytic
+  // Hybrid: exact candidate-time reachability inside exact_horizon, analytic
   // beyond it. Near-horizon planning therefore keeps the execution physics
   // exactly, and only the far horizon is approximated. Measurement-only until
   // its bias against the exact solver has been measured.
@@ -443,40 +433,41 @@ class PlayerLocomotion {
   static PlayerLocomotionReach EstimateEarliestInterceptHybrid(
       const PlayerKinematicState &start, TargetAtTime target_at,
       const PlayerLocomotionParameters &parameters, float desired_speed,
-      int horizon_ms, int exact_horizon_ms, float usual_radius,
+      football::sim::TickSpan horizon, football::sim::TickSpan exact_horizon, float usual_radius,
       float optimistic_radius, bool steady_state = false) {
+    if (exact_horizon > horizon) throw std::invalid_argument("exact reach horizon exceeds total horizon");
     PlayerLocomotionReach reach = EstimateEarliestInterceptExact(
-        start, target_at, parameters, desired_speed, exact_horizon_ms,
+        start, target_at, parameters, desired_speed, exact_horizon,
         usual_radius, optimistic_radius);
-    if (reach.usual_ms >= 0) return reach;
+    if (reach.usual || exact_horizon == horizon) return reach;
     const float speed = std::min(desired_speed, parameters.maxSpeed);
-    for (int intercept_ms = exact_horizon_ms + 10;
-         intercept_ms <= horizon_ms; intercept_ms += 10) {
-      const Vector3 candidate_point = target_at(intercept_ms).Get2D();
-      if (reach.optimistic_ms < 0) {
-        const int arrival =
-            steady_state
-                ? EstimateSteadyReachTime(start, candidate_point, parameters,
-                                          speed, intercept_ms,
-                                          optimistic_radius)
-                : EstimateInterceptAnalytic(start, candidate_point,
-                                            Vector3(0), speed, intercept_ms,
-                                            optimistic_radius);
-        if (arrival >= 0) reach.optimistic_ms = intercept_ms;
+    for (auto candidate = exact_horizon + football::sim::TickSpan{1};;
+         candidate += football::sim::TickSpan{1}) {
+      const Vector3 candidate_point = target_at(candidate).Get2D();
+      if (!reach.optimistic) {
+        const int arrival = steady_state
+            ? EstimateSteadyReachTime(start, candidate_point, parameters, speed, candidate, optimistic_radius)
+            : EstimateInterceptAnalytic(start, candidate_point, Vector3(0), speed, candidate, optimistic_radius);
+        if (arrival >= 0) reach.optimistic = candidate;
       }
-      if (reach.usual_ms < 0) {
-        const int arrival =
-            steady_state
-                ? EstimateSteadyReachTime(start, candidate_point, parameters,
-                                          speed, intercept_ms, usual_radius)
-                : EstimateInterceptAnalytic(start, candidate_point, Vector3(0),
-                                            speed, intercept_ms, usual_radius);
-        if (arrival >= 0) reach.usual_ms = intercept_ms;
+      if (!reach.usual) {
+        const int arrival = steady_state
+            ? EstimateSteadyReachTime(start, candidate_point, parameters, speed, candidate, usual_radius)
+            : EstimateInterceptAnalytic(start, candidate_point, Vector3(0), speed, candidate, usual_radius);
+        if (arrival >= 0) reach.usual = candidate;
       }
-      // The usual radius is the stricter one, so it ends the scan.
-      if (reach.usual_ms >= 0) break;
+      if (reach.usual || candidate == horizon) break;
     }
     return reach;
+  }
+
+ private:
+  // Continuous estimates keep their millisecond precision. Compare against the
+  // grid horizon without multiplying a potentially huge span into milliseconds.
+  static bool EstimateFitsHorizon(int estimate_ms, football::sim::TickSpan horizon) {
+    return estimate_ms >= 0 &&
+        (static_cast<std::uint64_t>(estimate_ms) + football::sim::kMillisecondsPerTick - 1) /
+            football::sim::kMillisecondsPerTick <= horizon.value;
   }
 };
 #endif

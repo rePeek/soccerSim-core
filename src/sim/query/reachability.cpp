@@ -13,6 +13,7 @@
 
 
 #include "sim/query/reachability.hpp"
+#include "sim/tick_boundary.hpp"
 
 #include <cmath>
 
@@ -22,7 +23,7 @@ TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
                                           const Vector3 &playerMovement,
                                           const Vector3 &targetPos,
                                           float maxVelocity, bool precise,
-                                          unsigned int maxTime_ms) {
+                                          std::optional<TickSpan> horizon) {
 
   TimeNeeded result;
 
@@ -55,9 +56,10 @@ TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
     currentPos += (targetPos - playerPos).GetNormalized(0) * ffo;
   }
 
-  unsigned int currentTime_ms = 0;
-  const unsigned int timeStep_ms = 10;
-  const unsigned int changeTime_ms = 700;
+  TickSpan elapsed{};
+  unsigned int currentTime_ms = 0; // Local formula projection, never a search clock.
+  constexpr unsigned int timeStep_ms = ToMilliseconds(TickSpan{1});
+  constexpr unsigned int changeTime_ms = ToMilliseconds(TickSpan{70});
   float radius_usual = 0.28f; // starting distance from our base position where we can reach balls (effectively: leg extension length)
   float radius_optimistic = 0.9f;
   float resultingRadius_usual = radius_usual; // initial value > 0 because we don't want division by zero
@@ -66,17 +68,8 @@ TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
   float adaptedMaxVelocity = maxVelocity * 0.94f; // don't use full maxvelocity, since the last part of that velo is very hard to attain (due to exponential air resistance)
 
   while (true) {
-      // =]
-
-    // too unstable! timeStep_ms = clamp(int(std::round(previousDistance * 30)) - 20, 10, 40); // variable timestep may not be 100% correct, so don't overdo it
-    // round to 10s
-    //timeStep_ms = int(std::floor(timeStep_ms / 10.0f)) * 10;
-
+    currentTime_ms = static_cast<unsigned int>(ToMilliseconds(elapsed));
     float bias = clamp((float)currentTime_ms / (float)changeTime_ms, 0.0f, 1.0f);
-    //bias = std::pow(bias, 1.7f); // higher exp == slower
-    //bias = 0.1f + std::pow(bias, 0.8f) * 0.9f; // higher exp == slower
-    //bias = 0.01f + std::pow(bias, 1.0f) * 0.99f; // higher exp == slower
-    //bias = 0.1f + bias * 0.9f;
 
     if (bias >= 1.0f) {
 
@@ -109,13 +102,13 @@ TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
       float targetDistance = (targetPos - currentPos).GetSquaredLength();
       //if (currentTime_ms > 1000 && currentTime_ms % 100 == 0) printf("currentTime_ms: %i, targetDistance: %f, currentMovementLength: %f, bias: %f, radius: %f, changeTime_ms: %i\n", currentTime_ms, targetDistance, currentMovement.GetLength(), bias, radius, changeTime_ms);
       if ((targetDistance < radius_optimistic * radius_optimistic ||
-           (maxTime_ms != -1 && currentTime_ms > (unsigned int)maxTime_ms)) &&
+           (horizon && elapsed > *horizon)) &&
           !foundOptimisticTime) {
         result.optimistic_ms = currentTime_ms;
         foundOptimisticTime = true;
       }
       if (targetDistance < radius_usual * radius_usual ||
-          (maxTime_ms != -1 && currentTime_ms > (unsigned int)maxTime_ms)) {
+          (horizon && elapsed > *horizon)) {
         //currentTime_ms += int(std::round(((targetPos - currentPos).GetLength() / radius) * 40.0));
         resultingRadius_usual = radius_usual;
         result.usual_ms = currentTime_ms;
@@ -123,10 +116,10 @@ TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
       }
     }
 
-    currentTime_ms += timeStep_ms;
+    elapsed += TickSpan{1};
   }
 
-  if (maxTime_ms != -1 && currentTime_ms > (unsigned int)maxTime_ms) {
+  if (horizon && elapsed > *horizon) {
     result.usual_ms = std::max(defaultOptimizedTime_ms, (currentTime_ms + 100) * 2);
     if (!foundOptimisticTime) result.optimistic_ms = result.usual_ms;
     return result;

@@ -16,6 +16,8 @@
 #define FOOTBALL_SIM_QUERY_REACHABILITY_HPP
 
 #include "sim/gamedefines.hpp"
+#include "sim/tick.hpp"
+#include <optional>
 
 namespace football::sim::query {
 
@@ -28,11 +30,12 @@ struct TimeNeeded {
   unsigned int optimistic_ms = 0;
 };
 
-// Kinematic reachability estimate, including the legacy 10 ms horizon search.
+// The search horizon is discrete; the estimates (including close-range ranking)
+// retain millisecond precision and are not grid deadlines. No horizon is unbounded.
 TimeNeeded GetTimeNeededForDistance_ms(
     const Vector3 &playerPos, const Vector3 &playerMovement,
     const Vector3 &targetPos, float maxVelocity = sprintVelocity,
-    bool precise = false, unsigned int maxTime_ms = -1);
+    bool precise = false, std::optional<TickSpan> horizon = std::nullopt);
 
 }  // namespace football::sim::query
 
