@@ -332,7 +332,8 @@ void CheckHistoricalScheduling(bool print_baseline) {
       {false, false, UINT64_C(16144338831632478706), UINT64_C(11101384966440775508)},
       {false, true, UINT64_C(1278980483242646393), UINT64_C(2155356947635217068)},
       {true, false, UINT64_C(5415142161785239299), UINT64_C(12038476573473573858)},
-      {true, true, UINT64_C(8110407433742795352), UINT64_C(14851915034266500703)},
+      // Reverse execution correction: causal archive in pre_first_roster_frame.md.
+      {true, true, UINT64_C(16362423676506032975), UINT64_C(10000127481615488157)},
   };
   for (const Case& test : cases) {
     auto home = football::app::fixtures::MakeDefaultHomeTeam();

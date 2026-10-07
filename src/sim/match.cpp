@@ -252,7 +252,9 @@ bool Match::Step(const PlayerControlSet& controls) {
   }
 
 
-  Mirror(reverse, !reverse, reverse);
+  // The stored ball already shares the first roster's frame. Mirror only the
+  // other roster to make referee/collision geometry common to all actors.
+  Mirror(reverse, !reverse, false);
   // A clock that already elapsed must whistle before this tick can still collide
   // the ball. The referee stays the single period authority.
   if (IsBallInPlay() && !referee_->PeriodElapsed()) {
@@ -261,7 +263,7 @@ bool Match::Step(const PlayerControlSet& controls) {
 
   referee_->Process();
   Vector3 previousBallPos = ball->Predict(0);
-  Mirror(reverse, !reverse, reverse);
+  Mirror(reverse, !reverse, false);
   // Restore the processing frame even on the referee's terminal transition.
   if (Finished()) return false;
   if (!IsInPlay() && !referee_->RestartNeedsSimulation() &&
@@ -283,17 +285,17 @@ bool Match::Step(const PlayerControlSet& controls) {
     }
   }
 
-  Mirror(first_team == 1, first_team == 0, first_team == 1);
+  Mirror(first_team == 1, first_team == 0, false);
   teams[first_team]->Process();
   Mirror(true, true, true);
   teams[second_team]->Process();
-  Mirror(first_team == 0, first_team == 1, first_team == 0);
+  Mirror(first_team == 0, first_team == 1, true);
 
-  Mirror(first_team == 1, first_team == 0, first_team == 1);
+  Mirror(first_team == 1, first_team == 0, false);
   teams[first_team]->UpdatePossessionStats();
   Mirror(true, true, true);
   teams[second_team]->UpdatePossessionStats();
-  Mirror(first_team == 0, first_team == 1, first_team == 0);
+  Mirror(first_team == 0, first_team == 1, true);
 
   CalculateBestPossessionTeamID();
 
@@ -314,7 +316,7 @@ bool Match::Step(const PlayerControlSet& controls) {
     designatedPossessionPlayer = GetBallRetainer();
   }
 
-  Mirror(reverse, !reverse, reverse);
+  Mirror(reverse, !reverse, false);
   CheckHumanoidCollisions();
 
   AdvanceTime(football::sim::TickSpan{1});
@@ -330,7 +332,7 @@ bool Match::Step(const PlayerControlSet& controls) {
   }
   bool goal = first_team_goal | second_team_goal;
   ballIsInGoal |= goal;
-  Mirror(reverse, !reverse, reverse);
+  Mirror(reverse, !reverse, false);
   if (IsBallInPlay()) {
     if (goal) {
       int team = first_team_goal ? second_team : first_team;

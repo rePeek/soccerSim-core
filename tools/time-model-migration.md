@@ -336,3 +336,20 @@ The native actor-processing ball mirror is inconsistent with the first-roster st
 frame under reverse processing. Details/commands/historical table are preserved in
 tools/restart-metrics.md. All three modes pass 31/31, illustrating why real multi-order
 measurement is necessary beyond short contract tests. No production policy changed.
+
+## Spatial correctness follow-up, separate from time representation
+
+Reverse stagnation is corrected by respecting first-roster ball storage during
+referee/collision/actor/possession execution; the referee-only reverse ball adapter
+is deleted. Normal processing remains numerically/RNG identical (all three complete
+default raw records and four core rows), while the unequal/reverse identity row
+changes intentionally; old/new causal evidence is archived in
+test/baselines/pre_first_roster_frame.md. The previous initial +0 reverse centre
+bits now reflect rotation (-0); no float normalization was added.
+
+Both-order/two-half nonzero-ball reachability and10000-regulation-tick native contact
+replay cases pass inside the existing boundary suite. All three build modes pass
+31/31, core-only builds; six symmetric full replays are byte-identical, all three
+original normal full records unchanged. Corrected reverse effective time is77–79min
+instead of near90min; excessive scores persist, so no realism claim or bounds tuning
+is justified. See tools/restart-metrics.md for the complete before/after matrices.

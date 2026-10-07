@@ -123,7 +123,7 @@ void Referee::Process() {
     return;
   }
   if (match->IsInPlay() && !match->IsInSetPiece()) {
-    const auto home_ball = RefereeBallPitchFrame(*match).Position(match->GetBall()->Predict(TickSpan{}));
+    const auto home_ball = ToHomePitchFrame(*match).Position(match->GetBall()->Predict(TickSpan{}));
     // Legacy foul/side data uses stadium coordinates, including switched ends.
     Vector3 ballPos = PitchFrameTransform(match->GetTeam(0)->GetStaticSide() != -1).Position(home_ball);
 
@@ -483,7 +483,7 @@ void Referee::ProcessRestart() {
       buffer.restartPos.coords[0] = clamp(buffer.restartPos.coords[0], -0.95f * pitchHalfW, 0.95f * pitchHalfW);
       buffer.restartPos.coords[1] = clamp(buffer.restartPos.coords[1], -0.95f * pitchHalfH, 0.95f * pitchHalfH);
     }
-    match->ResetSituation(RefereeBallPitchFrame(*match).Position(buffer.restartPos));
+    match->ResetSituation(ToHomePitchFrame(*match).Position(buffer.restartPos));
     state.plan = PlanRestart(*match, buffer.desiredSetPiece, *buffer.setpiece_team);
     for (const auto& actor : state.plan.players) {
       const auto frame = FromHomePitchFrame(*actor.player->GetTeam());
@@ -499,11 +499,11 @@ void Referee::ProcessRestart() {
   if (match->GetTimelineTick() < state.earliest_restart_tick) return;
   if (!state.used_timeout_placement && match->GetTimelineTick() >= state.timeout_tick) {
     PlaceRestartPlayersAtTimeout(state.plan);
-    const auto frame = RefereeBallPitchFrame(*match);
+    const auto frame = ToHomePitchFrame(*match);
     match->GetBall()->ResetSituation(frame.Position(state.plan.ball_position));
     state.used_timeout_placement = true;
   }
-  const auto ball_position = RefereeBallPitchFrame(*match).Position(
+  const auto ball_position = ToHomePitchFrame(*match).Position(
       match->GetBall()->Predict(TickSpan{}));
   if (!RestartPlayersReady(state.plan) ||
       std::fabs(ball_position.coords[2] - 0.11f) > 0.03f ||

@@ -470,3 +470,15 @@ before Init; no runtime intervention is involved. Short CTests cover both orders
 The pre-fix full matrix exposed reversed execution chasing a ghost ball despite correct
 observation projection. See tools/restart-metrics.md; those reverse samples must not be
 treated as calibration evidence. Frame correctness must precede behavior tuning.
+
+### First-roster execution frame correction
+
+Between ticks the ball shares the first processing roster's frame, including
+reverse processing. Referee/collision/first actor scopes turn only the OTHER roster;
+the second-actor all-actor turn is restored with an unconditional ball turn at exit.
+Possession rollout uses the same geometry. Referee no longer owns a special ball
+compensation adapter. See test/baselines/pre_first_roster_frame.md for intentional
+reverse-row change and causal pre-fix failure. Native reachability covers nonzero
+ball positions in both halves/orders; long two-half tests pin actual open-play
+kicks and exact replay, not desired scores. Full matrix/replays and unchanged normal
+records are in tools/restart-metrics.md. Realism/behavior calibration is not complete.

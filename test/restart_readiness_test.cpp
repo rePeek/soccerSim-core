@@ -23,9 +23,9 @@ void Init(Simulation& simulation, bool reverse) {
 }
 void ProcessRules(Match& match) {
   const bool reverse = match.options().reverse_team_processing;
-  match.Mirror(reverse, !reverse, reverse);
+  match.Mirror(reverse, !reverse, false);
   match.GetReferee()->Process();
-  match.Mirror(reverse, !reverse, reverse);
+  match.Mirror(reverse, !reverse, false);
 }
 void SetBallHome(Match& match, Vector3 position) {
   // Between ticks the ball shares the first processing roster's frame.
@@ -57,8 +57,8 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
               mode == e_GameMode_GoalKick ? Vector3(side * 50, 0, 0) :
               mode == e_GameMode_Corner ? Vector3(-side * 55, 36, 0) :
               mode == e_GameMode_Penalty ? Vector3(-side * 44, 0, 0) : Vector3(0);
-          match.Mirror(reverse, !reverse, reverse);
-          match.ResetSituation(RefereeBallPitchFrame(match).Position(focus));
+          match.Mirror(reverse, !reverse, false);
+          match.ResetSituation(ToHomePitchFrame(match).Position(focus));
           const auto rng = match.rng().engine();
           const auto before = simulation.Observe();
           const auto plan = PlanRestart(match, mode, *match.GetTeam(taking_team));
@@ -77,7 +77,7 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
           }
           PlaceRestartPlayersAtTimeout(plan);
           REQUIRE(RestartPlayersReady(plan));
-          match.Mirror(reverse, !reverse, reverse);
+          match.Mirror(reverse, !reverse, false);
           REQUIRE(RestartPlayersReady(plan)); // Predicate is not tied to a transient mirror.
           for (const auto& target : plan.players) {
             const auto observed = ToHomePitchFrame(*target.player->GetTeam()).Position(target.player->GetPosition());

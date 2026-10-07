@@ -5,7 +5,6 @@
 
 #include "foundation/math/vector3.hpp"
 #include "model/football_types.hpp"
-#include "sim/pitch_frame.hpp"
 
 class Match;
 class Player;
@@ -25,9 +24,6 @@ struct RestartPlan {
   std::vector<RestartPlayerTarget> players;
 };
 
-// Only inside Match's referee mirror scope: its ball mirror differs from
-// the first roster mirror under reversed processing. Rotation is its own inverse.
-PitchFrameTransform RefereeBallPitchFrame(const Match& match);
 // Planning requires the referee mirror scope, with the ball already placed.
 RestartPlan PlanRestart(Match& match, e_GameMode mode, Team& team);
 bool RestartPlayersReady(const RestartPlan& plan);

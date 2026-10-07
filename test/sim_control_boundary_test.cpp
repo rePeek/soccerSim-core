@@ -178,7 +178,9 @@ TEST_CASE("observations are owned values in a common home pitch frame", "[sim][o
     REQUIRE_FALSE(world.restart_taker.has_value());
     REQUIRE(initial.tick == 1);
     REQUIRE(initial.restart_taker == taker);
-    REQUIRE(Same(initial.ball_position, Vector3(0, 0, 0.11f)));
+    // Correct reverse execution retains rotated signed zero; geometry and value
+    // ownership are independent of the old accidental +0 bit pattern.
+    REQUIRE(initial.ball_position == Vector3(0, 0, 0.11f));
   }
 }
 

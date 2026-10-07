@@ -85,18 +85,11 @@ bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3&
 }
 }  // namespace
 
-PitchFrameTransform RefereeBallPitchFrame(const Match& match) {
-  const bool reverse = match.options().reverse_team_processing;
-  const auto* first = match.GetTeam(reverse ? 1 : 0);
-  const int home_pitch_side = reverse ? 1 : -1;
-  return PitchFrameTransform((first->GetDynamicSide() != home_pitch_side) != reverse);
-}
-
 RestartPlan PlanRestart(Match& match, e_GameMode mode, Team& team) {
   RestartPlan plan;
   plan.mode = mode;
   plan.team = &team;
-  plan.ball_position = RefereeBallPitchFrame(match).Position(
+  plan.ball_position = ToHomePitchFrame(match).Position(
       match.GetBall()->Predict(football::sim::TickSpan{})).Get2D();
   float nearest = std::numeric_limits<float>::max();
   std::vector<Player*> active;

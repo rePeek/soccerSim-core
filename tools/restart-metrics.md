@@ -155,3 +155,42 @@ output matches T4e byte-for-byte. Release/Debug/NDEBUG each pass 31/31 registrat
 including new short symmetric/order cases; that coverage did not detect this long-
 run semantic problem. The execution frame must be corrected and causally tested
 before using reverse samples for calibration. Bounds/assets/AI remain unchanged.
+
+## Corrected execution frames (intentional spatial semantics)
+
+The ball is now left in its first-roster frame while the other roster is mirrored
+for referee/collisions and first-actor execution. After the shared all-actor turn,
+the exit always restores the ball. Possession rollout uses identical scopes.
+The special referee reverse compensation helper is removed; the fixed-home adapter
+is shared with observation. No AI/restart/physics coefficients changed.
+Historical fingerprints and the pre-fix causal failure are archived in
+`test/baselines/pre_first_roster_frame.md`. Native reachability now passes at a
+nonzero stationary ball for both actors/orders/halves; two 5000-tick halves each
+produce accepted open-play kicks, with exact event/clock/score/RNG replay.
+
+Corrected symmetric full matrix (same command/inputs as above):
+
+| Seed | Order | Score | Ordinary events | Effective | Censored | Timeout |
+|---:|---|---:|---:|---:|---:|---:|
+| 42 | Normal | 17–21 | 126 | 79:14.25 | 1 | 0 |
+| 43 | Normal | 29–13 | 140 | 78:03.32 | 1 | 0 |
+| 44 | Normal | 18–19 | 142 | 78:07.17 | 1 | 0 |
+| 42 | Reverse | 26–12 | 130 | 78:52.30 | 0 | 0 |
+| 43 | Reverse | 40–16 | 139 | 77:17.18 | 1 | 0 |
+| 44 | Reverse | 31–13 | 134 | 78:08.10 | 0 | 0 |
+
+Corrected original-fixture reverse seeds42/43/44: scores45–13/37–12/43–9,
+ordinary138/134/145, effective77:03.54/77:46.34/76:56.44; no timeout/censor.
+All event waits reconcile with half dead-time, every match has540000 regulation
+ticks. All six symmetric full replays are byte-identical; **all three original
+normal full records remain byte-identical to T4e**. Release/Debug/true NDEBUG
+pass31/31 each, including the new causal/long replay cases inside the existing
+boundary executable; core-only builds, three-mode fingerprints agree, baked asset
+hash remains33ab837652da93a795e4886738ca09b92e4b6376c99a2500202572e0a7885b86.
+
+This resolves reverse stagnation, not football realism. Scores are excessive in
+both orders and the three-seed reverse home advantage warrants broader behavior
+analysis; exact trajectory equality between processing orders is not a contract.
+Restart bounds remain provisional. Effective times here must not be forced toward
+a desired observed league number by lengthening minima. Shot/pass/save definitions
+and independent running/animation evidence remain prerequisites to calibration.

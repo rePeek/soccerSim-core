@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cstring>
+#include <array>
+#include <tuple>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -239,5 +241,82 @@ TEST_CASE("second half AI chases the real nonzero ball rather than its ghost mir
     const auto& observed = Actor(world, nearby.GetID());
     REQUIRE(controls.Get(nearby.GetID())->move_direction ==
         (intercept - observed.position).Get2D().GetNormalized(observed.facing));
+  }
+}
+
+TEST_CASE("native reachability targets the nearby real ball in either actor-processing frame",
+          "[sim][pitch-frame][reachability]") {
+  for (bool reverse : {false, true}) {
+    Simulation simulation;
+    Init(simulation, reverse);
+    for (auto phase : {MatchPhase::FirstHalf, MatchPhase::SecondHalf}) {
+      ReachHalf(simulation, phase);
+      Match& match = *simulation.match();
+      // Clear previous action/perception state, but preserve accepted live play.
+      match.ResetSituation(Vector3(0));
+      for (int team = 0; team < 2; ++team) {
+        for (Player* player : match.GetTeam(team)->GetAllPlayers())
+          SetPhysicalPlayer(*player, Vector3(0.f, team == 0 ? 25.f : -25.f, 0.f));
+        SetPhysicalPlayer(*match.GetTeam(team)->GetAllPlayers()[1],
+            Vector3(23.75f, team == 0 ? 7.f : 6.25f, 0.f));
+      }
+      SetPhysicalBall(match, Vector3(23.f, 7.f, 0.11f), Vector3(0));
+      for (int step = 0; step < 10; ++step) simulation.Step({}); // All native refresh phases.
+      const auto world = simulation.Observe();
+      for (int team = 0; team < 2; ++team) {
+        const auto* nearby = match.GetTeam(team)->GetAllPlayers()[1];
+        CAPTURE(reverse, phase, team, nearby->GetTimeNeededToGetToBall_ms());
+        REQUIRE((Actor(world, nearby->GetID()).position - world.ball_position).GetLength() < 1.2f);
+        // The native procedural reach search must not exhaust its 3-second
+        // horizon on the ghost mirror 49 m away. No AI score target is involved.
+        REQUIRE(nearby->GetTimeNeededToGetToBall_ms() <
+            football::sim::ToMilliseconds(football::sim::ball_timing::kPredictionHorizon));
+      }
+    }
+  }
+}
+
+TEST_CASE("both processing orders execute native open-play contacts in both halves and replay",
+          "[sim][pitch-frame][replay]") {
+  using namespace football::sim;
+  for (bool reverse : {false, true}) {
+    const auto run = [reverse] {
+      Simulation simulation;
+      Init(simulation, reverse, TickSpan{5000});
+      const auto policy = football::test::MakeDefaultAI(simulation);
+      std::vector<Tick> touches(simulation.Observe().players.size());
+      std::vector<std::tuple<MatchPhase, football::model::PlayerId, Tick>> contacts;
+      std::array<unsigned, 2> per_half{};
+      unsigned steps = 0;
+      while (!simulation.Finished()) {
+        const auto before = simulation.Observe();
+        football::test::StepDefaultAI(simulation, policy);
+        REQUIRE(++steps < 14000);
+        std::size_t index = 0;
+        for (int team = 0; team < 2; ++team) {
+          for (auto* player : simulation.match()->GetTeam(team)->GetAllPlayers()) {
+            const auto touch = player->GetLastTouchTick();
+            if (before.ball_in_play && !before.in_set_piece && touch != touches[index] &&
+                player->GetLastTouchType() == e_TouchType_Intentional_Kicked) {
+              contacts.emplace_back(before.phase, player->GetID(), touch);
+              ++per_half[before.phase == MatchPhase::FirstHalf ? 0 : 1];
+            }
+            touches[index++] = touch;
+          }
+        }
+      }
+      CAPTURE(reverse, per_half[0], per_half[1]);
+      // Progress is accepted native contact away from restarts, not a score or
+      // desired effective-time target. The old reverse frame produces none.
+      REQUIRE(per_half[0] > 0);
+      REQUIRE(per_half[1] > 0);
+      const auto world = simulation.Observe();
+      REQUIRE(world.regulation_time == TickSpan{10000});
+      REQUIRE(world.ball_in_play_time <= world.regulation_time);
+      return std::make_tuple(contacts, world.tick, world.ball_in_play_time,
+          world.teams[0].score, world.teams[1].score, simulation.match()->rng().engine());
+    };
+    const auto first = run();
+    REQUIRE(run() == first);
   }
 }
