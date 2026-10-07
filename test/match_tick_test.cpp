@@ -58,9 +58,9 @@ TEST_CASE("Advancing timeline ticks does not execute physics or consume RNG",
   Match* match = simulation.match();
   const auto before = simulation.Observe();
   const auto rng = match->rng().engine();
-  match->AdvanceTime(Seconds(2));
+  simulation.AdvanceTime(Seconds(2));
   REQUIRE(match->GetTimelineTick() == Tick{200});
-  match->AdvanceTime(Seconds(1));
+  simulation.AdvanceTime(Seconds(1));
   REQUIRE(match->GetTimelineTick() == Tick{300});
   const auto after = simulation.Observe();
   REQUIRE(after.tick == 300);
@@ -77,7 +77,7 @@ TEST_CASE("Advancing timeline ticks does not execute physics or consume RNG",
     REQUIRE(after.players[i].facing == before.players[i].facing);
   }
   REQUIRE(match->rng().engine() == rng);
-  REQUIRE_THROWS_AS(match->AdvanceTime(TickSpan{std::numeric_limits<std::uint64_t>::max()}),
+  REQUIRE_THROWS_AS(simulation.AdvanceTime(TickSpan{std::numeric_limits<std::uint64_t>::max()}),
                     std::overflow_error);
   REQUIRE(match->GetTimelineTick() == Tick{300});
   REQUIRE(simulation.Observe().regulation_time == before.regulation_time);
@@ -151,7 +151,7 @@ TEST_CASE("Restart setup and timeout fire once across timeline jumps",
     const auto scheduled = rules->GetBuffer();
     const auto resets = match->GetResetSequence();
     REQUIRE(scheduled.taker == nullptr);
-    match->AdvanceTime(Seconds(3));
+    simulation.AdvanceTime(Seconds(3));
     process_rules();
     REQUIRE(rules->GetBuffer().taker != nullptr);
     REQUIRE(match->GetResetSequence() == resets + 1);
@@ -161,7 +161,7 @@ TEST_CASE("Restart setup and timeout fire once across timeline jumps",
     REQUIRE(match->GetResetSequence() == resets + 1);
     REQUIRE(match->rng().engine() == rng);
     const auto timeout = scheduled.restart->timeout_tick;
-    match->AdvanceTime((timeout - match->GetTimelineTick()) + TickSpan{3});
+    simulation.AdvanceTime((timeout - match->GetTimelineTick()) + TickSpan{3});
     process_rules();
     REQUIRE(match->IsInPlay());
     REQUIRE(match->IsInSetPiece());
@@ -197,6 +197,63 @@ TEST_CASE("Player touch and card effect timestamps use the timeline tick", "[sim
     simulation.Step({});
     REQUIRE_FALSE(player->IsActive());
     REQUIRE(match->GetTeam(0)->GetActivePlayersCount() == 10);
+  }
+}
+
+template<class T> concept HasClockComposition = requires(T& owner) { owner.AdvanceTime(TickSpan{1}); };
+static_assert(!HasClockComposition<Match>);
+
+TEST_CASE("diagnostic clock advancement rejects a stopped Simulation", "[sim][tick]") {
+  Simulation simulation;
+  REQUIRE_THROWS_AS(simulation.AdvanceTime(TickSpan{1}), std::logic_error);
+  Init(simulation);
+  simulation.Stop();
+  REQUIRE_THROWS_AS(simulation.AdvanceTime(TickSpan{1}), std::logic_error);
+}
+
+TEST_CASE("Simulation updates the recent possession window only after admitted open-play ticks",
+          "[sim][tick][possession]") {
+  for (bool reverse : {false, true}) {
+    MatchOptions options;
+    options.reverse_team_processing = reverse;
+    options.half_duration = Seconds(100);
+    Simulation simulation;
+    Init(simulation, options);
+    const auto policy = football::test::MakeDefaultAI(simulation);
+    for (int attempts = 0; !simulation.Observe().ball_in_play; ++attempts) {
+      REQUIRE(attempts < 1000);
+      football::test::StepDefaultAI(simulation, policy);
+    }
+    auto& match = *simulation.match();
+    REQUIRE(match.IsInSetPiece());
+    REQUIRE(match.GetPossessionFactor_60seconds() == 0.f);
+    simulation.AdvanceTime(Seconds(2));
+    REQUIRE(match.GetPossessionFactor_60seconds() == 0.f);
+    simulation.Step({}); // Referee releases Taken before this tick's window update.
+    REQUIRE_FALSE(match.IsInSetPiece());
+    const bool home = match.GetDesignatedPossessionPlayer()->GetTeam() == match.GetTeam(0);
+    REQUIRE(match.GetPossessionFactor_60seconds() == (home ? -0.01f : 0.01f) / 60.f);
+    const auto rng = match.rng().engine();
+    const auto ball = match.GetBall()->Predict(TickSpan{});
+    simulation.AdvanceTime(Seconds(61));
+    const float saturated = home ? -1.f : 1.f;
+    REQUIRE(match.GetPossessionFactor_60seconds() == saturated);
+    REQUIRE(match.GetBall()->Predict(TickSpan{}) == ball);
+    REQUIRE(match.rng().engine() == rng);
+    REQUIRE_THROWS_AS(simulation.AdvanceTime(TickSpan{std::numeric_limits<std::uint64_t>::max()}),
+                      std::overflow_error);
+    REQUIRE(match.GetPossessionFactor_60seconds() == saturated);
+    match.StopPlay();
+    const auto effective = match.GetBallInPlayTime();
+    simulation.AdvanceTime(Seconds(100)); // Regulation clips; dead balls do not update the window.
+    REQUIRE(match.GetRegulationTime() == options.half_duration);
+    REQUIRE(match.GetBallInPlayTime() == effective);
+    REQUIRE(match.GetPossessionFactor_60seconds() == saturated);
+    match.StartPlay();
+    match.StartBallInPlay();
+    simulation.AdvanceTime(Seconds(1)); // No admitted ticks remain in this period.
+    REQUIRE(match.GetPossessionFactor_60seconds() == saturated);
+    REQUIRE(match.rng().engine() == rng);
   }
 }
 

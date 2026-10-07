@@ -92,7 +92,7 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
 
     // Permanent end changes must transform the owned history too, not just actors.
     if (match.GetTimelineTick().value % observation::kMentalImageCadence.value == 0)
-      match.AdvanceTime(TickSpan{1});
+      simulation.AdvanceTime(TickSpan{1});
     match.RequestChangeOfEnds();
     simulation.Step({});
     REQUIRE(simulation.GetMentalImage(TickSpan{20})->captured_tick == oldest.captured_tick);

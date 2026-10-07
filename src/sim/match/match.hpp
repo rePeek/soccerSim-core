@@ -147,7 +147,6 @@ class Match {
     football::sim::TickSpan GetRegulationTime() const { return clock_.RegulationTime(); }
     football::sim::TickSpan GetBallInPlayTime() const { return clock_.BallInPlayTime(); }
     football::sim::Tick GetTimelineTick() const { return clock_.now(); }
-    void AdvanceTime(football::sim::TickSpan delta);
 
 
     const std::vector<Vector3> &GetAnimPositionCache(AnimationId animation_id) const;
@@ -159,8 +158,6 @@ class Match {
 
   private:
     friend class Simulation;
-    // Mirrors both teams, the ball and mental images onto the other half.
-    void SwitchEnds();
 
 
     int score_[2] = {0, 0};

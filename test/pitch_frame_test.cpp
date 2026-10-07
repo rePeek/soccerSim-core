@@ -99,7 +99,7 @@ TEST_CASE("a physical change of ends preserves canonical ball and player geometr
     REQUIRE(Same(before.ball_velocity, Vector3(8.f, -2.f, 1.f)));
     const auto rng = match.rng().engine();
 
-    // Exercise the spatial operations used by Match::SwitchEnds without an
+    // Exercise the spatial operations used by Simulation::ApplyChangeOfEnds without an
     // intervening physics tick or kickoff reset. Deliberately do not change the
     // phase enum: orientation must come from runtime sides, not SecondHalf.
     for (int change = 0; change < 2; ++change) {

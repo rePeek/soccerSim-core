@@ -87,7 +87,7 @@ TEST_CASE("possession hysteresis preserves unsigned add, float ratio and strict 
     // Observe a complete refresh cadence; initialization may start mid-animation.
     for (int tick = 0; tick < 10; ++tick) {
       candidate->UpdatePossessionStats();
-      match.AdvanceTime(football::sim::TickSpan{1});
+      simulation.AdvanceTime(football::sim::TickSpan{1});
     }
     const unsigned int old_time = current->GetTimeNeededToGetToBall_ms();
     const unsigned int new_time = candidate->GetTimeNeededToGetToBall_ms();

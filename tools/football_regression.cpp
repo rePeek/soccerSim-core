@@ -1106,7 +1106,7 @@ void CheckRefereeRules(Simulation& simulation) {
       const auto reset_count = match->GetResetSequence();
       process_rules();
       Require(match->GetResetSequence() == reset_count, "restart setup repeated");
-      match->AdvanceTime(scheduled.restart->timeout_tick - match->GetTimelineTick());
+      simulation.AdvanceTime(scheduled.restart->timeout_tick - match->GetTimelineTick());
       process_rules();
       Require(match->IsInPlay() && match->IsInSetPiece() &&
                   rules.GetBuffer().restart->used_timeout_placement,
@@ -1118,7 +1118,7 @@ void CheckRefereeRules(Simulation& simulation) {
       if (match->GetTimelineTick() < effective_time) {
         football::test::StepDefaultAI(simulation, policy);
         Require(offender->IsActive(), "card took effect before its deadline");
-        match->AdvanceTime(effective_time - match->GetTimelineTick());
+        simulation.AdvanceTime(effective_time - match->GetTimelineTick());
       }
       football::test::StepDefaultAI(simulation, policy);
       const bool send_off = scenario == 3 || scenario == 4;
@@ -1139,7 +1139,7 @@ void CheckRefereeRules(Simulation& simulation) {
     advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), true);
     Require(!advantage.CheckFoul() && match->IsInPlay(),
             "advantage should not immediately stop open play");
-    match->AdvanceTime(football::sim::TickSpan{301});
+    simulation.AdvanceTime(football::sim::TickSpan{301});
     Require(!advantage.CheckFoul() && advantage.GetCurrentFoulType() == 0 &&
                 match->IsInPlay(), "expired advantage was not cancelled");
   }

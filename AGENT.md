@@ -278,7 +278,7 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
 - player/player_contact owns the former humanoid-pair collision algorithm and private
   bounce accumulators. Inputs are an ordered active-player span, const Ball and the
   designated possession player, never Match/Simulation. Simulation supplies first then
-  second roster in the common contact frame after possession, before AdvanceTime.
+  second roster in the common contact frame after possession, before clock advancement.
   Pair offsets remain immediate; movement sharing is accumulated/applied afterward.
   Referee& is an explicit transitional dependency: TripMe → TripNotice executes inline
   before any later pair/offset. Do not buffer notices; rules inspect live positions.
@@ -304,7 +304,7 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
 - Simulation owns std::vector<MentalImage> and CaptureMentalImage scheduling. Capture
   remains after Ball processing, before players, empty-or-ten-tick, newest-first with
   three slots. Match borrows the vector explicitly for still-transitional actor sampling,
-  synchronous TouchBall refresh, reset clearing and mirror/end-change composition; it
+  synchronous TouchBall refresh, reset clearing and temporary frame mirrors; it
   owns no history and never points upward to Simulation. Sampling/refresh functions
   live in observation/mentalimage_sampling and take explicit spans/Ball. Match's former
   UpdateLatestMentalImageBallPredictions method is removed. Simulation diagnostic sampling
@@ -322,9 +322,14 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   lives in Clock. BeginHalf is the accepted opening contact, not phase publication;
   later accepted restarts are idempotent, ordinary dead balls stop only effective time,
   EndHalf stops both. Simulation counts entry before a possible terminal whistle.
-  Match keeps forwarding reads/run gates and composes the admitted-tick possession
-  window update afterward with unchanged float arithmetic. Clock ownership stays in
-  Match for now; neither that nor ballRetainer is folded into derived selection state.
+  Match keeps forwarding reads/run gates. Simulation advances Clock then updates the
+  Match-owned recent possession window with unchanged float arithmetic, before goals.
+  Match::AdvanceTime and SwitchEnds are removed. Simulation::ApplyChangeOfEnds keeps
+  first roster SwitchEnds → second roster SwitchEnds → Ball Mirror → image mirrors,
+  at entry before counting/controls, without changing transient mirror flags.
+  Simulation::AdvanceTime is a transitional diagnostic clock-only entry (no rules,
+  actors or executed-step count); product execution remains Step-only. Clock ownership
+  stays in Match for now; neither that nor ballRetainer is derived selection state.
   Each of possession/history/clock extraction preserves regression --print-baseline
   and all twelve seed/order/fixture diagnostic records byte-for-byte. Final Release
   33/33, Debug 32/32 (excluding full-match CLI), standalone Clock and core-only builds
@@ -340,7 +345,7 @@ Current phase order (composed directly by Simulation):
 ```text
 ApplyControls → ResolveBallPlayerContacts → ProcessReferee → StepBall
 → CaptureHistory → StepPlayers → UpdatePossession → ResolvePlayerContacts
-→ AdvanceClock → EvaluateGoal → ApplyGoalFacts
+→ AdvanceClock → UpdateRecentPossession → EvaluateGoal → ApplyGoalFacts
 ```
 Terminal-referee and ceremony early returns keep their existing frame restoration
 and clock behavior; this sequence is not permission to reorder legacy phases.
@@ -361,8 +366,8 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   are deleted; remaining milliseconds are continuous estimates, signed sampling,
   SI/animation formula boundaries or output projections, not second clocks.
   Keep unit migration separate from policy; preserve float arithmetic and goldens.
-  MatchClock stores the sole Tick now_; normal steps call AdvanceTime(TickSpan{1}) and
-  WorldState publishes the tick value directly.
+  MatchClock stores the sole Tick now_; Simulation advances it by TickSpan{1} each
+  normal step, and WorldState publishes the tick value directly.
   Actions store only elapsed/duration/optional contact `TickSpan`; animation frame
   readers are projections, not duplicate clocks. Decision and locomotion schedulers
   use Tick deadlines and owner-local TickSpan cadences. Their tests are in

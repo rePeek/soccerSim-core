@@ -175,16 +175,6 @@ void Match::ResetSituation(const Vector3 &focusPos) {
   teams[second_team]->ResetSituation(focusPos);
 }
 
-void Match::SwitchEnds() {
-  // A permanent change of ends keeps the canonical between-tick frame: only the
-  // stored actors, ball and memories move, and mirrored/ball_mirrored stay false.
-  teams[first_team]->SwitchEnds();
-  teams[second_team]->SwitchEnds();
-  ball->Mirror();
-  for (auto &i : borrowed_mental_images_) {
-    i.Mirror(true, true, true);
-  }
-}
 
 void Match::SetMatchPhase(MatchPhase newMatchPhase) {
   matchPhase = newMatchPhase;
@@ -210,22 +200,4 @@ MatchResult Match::Result() const {
 
 Team *Match::GetBestPossessionTeam() {
   return bestPossessionTeam;
-}
-
-
-
-
-void Match::AdvanceTime(football::sim::TickSpan delta) {
-  if (Finished()) return;
-  const auto admitted = clock_.Advance(delta, matchPhase);
-
-  if (IsBallInPlay() && !IsInSetPiece()) {
-    // Continuous possession window in SI seconds, derived from admitted ticks.
-    const float seconds = football::sim::ToSeconds(admitted);
-    if (teams[0] == designatedPossessionPlayer->GetTeam()) {
-      possession60seconds_ = std::max(possession60seconds_ - seconds, -60.0f);
-    } else {
-      possession60seconds_ = std::min(possession60seconds_ + seconds, 60.0f);
-    }
-  }
 }

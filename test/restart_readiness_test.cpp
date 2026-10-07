@@ -116,10 +116,10 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     shot.action = ControlAction::Shoot;
     REQUIRE(BuildPlayerCommands(shot, *state.plan.taker).size() == 1);
     REQUIRE(BuildPlayerCommands(shot, *state.plan.taker)[0].desiredFunctionType == e_FunctionType_Movement);
-    match.AdvanceTime((state.earliest_restart_tick - match.GetTimelineTick()) - TickSpan{1});
+    simulation.AdvanceTime((state.earliest_restart_tick - match.GetTimelineTick()) - TickSpan{1});
     ProcessRules(match);
     REQUIRE_FALSE(match.IsInPlay());
-    match.AdvanceTime(TickSpan{1});
+    simulation.AdvanceTime(TickSpan{1});
     SetBallHome(match, state.plan.ball_position + Vector3(0.1f, 0, 0));
     ProcessRules(match);
     REQUIRE_FALSE(match.IsInPlay());
@@ -150,7 +150,7 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     // A notification without a scheduled release cannot invent RestartTaken.
     state.plan.team->SetLastTouchPlayer(state.plan.taker, e_TouchType_Intentional_Nonkicked);
     REQUIRE(match.GetReferee()->GetBuffer().restart->phase == RestartPhase::Ready);
-    match.AdvanceTime(Seconds(1));
+    simulation.AdvanceTime(Seconds(1));
     ProcessRules(match);
     REQUIRE(match.IsInSetPiece());
     const auto policy = football::test::MakeDefaultAI(simulation);

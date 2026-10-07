@@ -72,11 +72,11 @@ TEST_CASE("Player publication and reset stamps distinguish absent from tick zero
 
     // Beyond the former signed-int millisecond range, without invoking physics.
     const TickSpan large{UINT64_C(1) << 32};
-    match.AdvanceTime(large);
+    simulation.AdvanceTime(large);
     actor.PublishDecisionLocomotionIntent(command);
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{large.value});
     REQUIRE_FALSE(actor.DecisionLocomotionEpochIsStale());
-    match.AdvanceTime(TickSpan{3});
+    simulation.AdvanceTime(TickSpan{3});
     actor.ResetSituation(actor.GetPosition());
     REQUIRE(actor.GetLastResetSituationTick() == Tick{large.value + 3});
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{large.value});
@@ -162,13 +162,13 @@ TEST_CASE("Touch decay uses relative ticks without quantizing ability-dependent 
       }
     }
     actor.SetLastTouchTick(Tick{});
-    match.AdvanceTime(TickSpan{23});
+    simulation.AdvanceTime(TickSpan{23});
     REQUIRE(actor.GetLastTouchBias(503) == actor.GetLastTouchBias(503, Tick{23}));
     REQUIRE(actor.GetLastTouchBias(503, Tick{}) == 1.f); // Explicit zero is not omitted.
     actor.SetLastTouchTick(Tick{30});
     REQUIRE(actor.GetLastTouchBias(503, Tick{}) == 0.f); // Rewound observation.
     const TickSpan large{UINT64_C(1) << 63};
-    match.AdvanceTime(large);
+    simulation.AdvanceTime(large);
     actor.SetLastTouchTick(match.GetTimelineTick() - TickSpan{7});
     REQUIRE(actor.GetLastTouchBias(503) == 1.f - 70.f / 503.f);
     REQUIRE(actor.GetLastTouchBias(503, Tick{std::numeric_limits<std::uint64_t>::max()}) == 0.f);

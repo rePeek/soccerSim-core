@@ -147,7 +147,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
   Match& match = *match_;
   if (match.Finished()) return;
   if (match.pending_change_of_ends_) {
-    match.SwitchEnds();
+    ApplyChangeOfEnds(match);
     match.pending_change_of_ends_ = false;
   }
   match.clock_.CountExecutedStep(match.GetMatchPhase());
@@ -194,7 +194,8 @@ void Simulation::Step(const PlayerControlSet& controls) {
       (match.GetTimelineTick() < match.GetReferee()->GetBuffer().prepare_tick ||
        match.GetReferee()->GetBuffer().prepare_tick + football::sim::TickSpan{1} < match.GetTimelineTick())) {
     // Ceremonies execute only their placement tail; both clocks stay stopped.
-    match.AdvanceTime(football::sim::TickSpan{1});
+    const auto admitted = match.clock_.Advance(football::sim::TickSpan{1}, match.matchPhase);
+    UpdateRecentPossession(match, admitted);
     return;
   }
   // StepBall.
@@ -233,8 +234,9 @@ void Simulation::Step(const PlayerControlSet& controls) {
   football::sim::ResolvePlayerContacts(
       {players, *match.ball, match.designatedPossessionPlayer}, *match.referee_);
 
-  // AdvanceClock precedes goal detection and all goal consequences.
-  match.AdvanceTime(football::sim::TickSpan{1});
+  // AdvanceClock → recent possession window → goal detection/consequences.
+  const auto admitted = match.clock_.Advance(football::sim::TickSpan{1}, match.matchPhase);
+  UpdateRecentPossession(match, admitted);
 
   bool first_team_goal = false;
   bool second_team_goal = false;
@@ -279,6 +281,36 @@ bool Simulation::IsInPlay() const {
 WorldState Simulation::Observe() const {
   if (!match_) throw std::logic_error("simulation has no match");
   return BuildWorldState(*match_);
+}
+
+void Simulation::ApplyChangeOfEnds(Match& match) {
+  // Permanent end change: preserve processing-roster order and canonical flags.
+  match.teams[match.first_team]->SwitchEnds();
+  match.teams[match.second_team]->SwitchEnds();
+  match.ball->Mirror();
+  for (auto& image : mental_images_) {
+    image.Mirror(true, true, true);
+  }
+}
+
+void Simulation::UpdateRecentPossession(Match& match, football::sim::TickSpan admitted) {
+  if (match.IsBallInPlay() && !match.IsInSetPiece()) {
+    // Continuous possession window in SI seconds, derived from admitted ticks.
+    const float seconds = football::sim::ToSeconds(admitted);
+    if (match.teams[0] == match.designatedPossessionPlayer->GetTeam()) {
+      match.possession60seconds_ = std::max(match.possession60seconds_ - seconds, -60.0f);
+    } else {
+      match.possession60seconds_ = std::min(match.possession60seconds_ + seconds, 60.0f);
+    }
+  }
+}
+
+void Simulation::AdvanceTime(football::sim::TickSpan delta) {
+  if (!match_) throw std::logic_error("simulation has no match");
+  Match& match = *match_;
+  if (match.Finished()) return;
+  const auto admitted = match.clock_.Advance(delta, match.matchPhase);
+  UpdateRecentPossession(match, admitted);
 }
 
 void Simulation::CaptureMentalImage(Match& match) {

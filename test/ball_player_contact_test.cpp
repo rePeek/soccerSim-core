@@ -52,7 +52,7 @@ struct ContactFixture {
     }
     home->ResetPosition(Vector3(0), Vector3(1, 0, 0));
     away->ResetPosition(Vector3(0), Vector3(1, 0, 0));
-    match.AdvanceTime(Seconds(1));
+    simulation.AdvanceTime(Seconds(1));
     teams[1]->SetLastTouchPlayer(teams[1]->GetAllPlayers()[2]);
     match.GetBall()->SetPosition(Vector3(0.05f, 0, 1.0f), match.GetBallEnvironment());
     match.GetBall()->SetMomentum(Vector3(-8, 0, 0), match.GetBallEnvironment());
@@ -109,7 +109,7 @@ TEST_CASE("body contacts preserve the cooldown boundary and ordered touch feedba
     REQUIRE_FALSE(blocked.impulse);
     REQUIRE(fixture.home->GetLastTouchType() != e_TouchType_Accidental);
 
-    match.AdvanceTime(TickSpan{1});
+    fixture.simulation.AdvanceTime(TickSpan{1});
     const auto result = ResolveBallPlayerContacts(*match.GetBall(), players,
                                                   fixture.Inputs(last_collision));
     REQUIRE(result.impulse);

@@ -36,7 +36,7 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
       const float expected = half_underway
           ? fatigue - distance * 0.00003f * (2.f - stamina) : fatigue;
       REQUIRE(actor.GetFatigueFactorInv() == expected);
-      match.AdvanceTime(football::sim::TickSpan{1});
+      simulation.AdvanceTime(football::sim::TickSpan{1});
     }
     REQUIRE(metres > 1.f);
     if (half_underway) REQUIRE(actor.GetFatigueFactorInv() < initial_fatigue);

@@ -246,7 +246,7 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE(match->GetTeam(1 - scheduled.teamID)->GetPieceTaker() == nullptr);
     REQUIRE_FALSE(match->IsInPlay());
     // No positioning controls: repair legal placement only at the maximum.
-    match->AdvanceTime(scheduled.restart->timeout_tick - match->GetTimelineTick());
+    runtime.simulation.AdvanceTime(scheduled.restart->timeout_tick - match->GetTimelineTick());
     runtime.simulation.Step(PlayerControlSet{});
     REQUIRE(rules->GetBuffer().restart->used_timeout_placement);
     REQUIRE(match->IsInPlay());

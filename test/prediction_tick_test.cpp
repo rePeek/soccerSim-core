@@ -34,7 +34,7 @@ TEST_CASE("Ball samples and mental-image ages use ticks without changing quantiz
               image.GetBallPrediction(static_cast<int>(ticks * 10), match->GetTimelineTick(), *ball));
     }
     const auto rng = match->rng().engine();
-    match->AdvanceTime(TickSpan{17});
+    simulation.AdvanceTime(TickSpan{17});
     REQUIRE(image.GetAge(match->GetTimelineTick()) == TickSpan{17});
     REQUIRE(match->rng().engine() == rng);
     REQUIRE(ball->Predict(-1) == ball->Predict(TickSpan{}));
@@ -50,7 +50,7 @@ TEST_CASE("Ball samples and mental-image ages use ticks without changing quantiz
     REQUIRE(ball->Predict(huge) == ball->Predict(last));
     REQUIRE(image.GetBallPrediction(huge, match->GetTimelineTick(), *ball) ==
             image.GetBallPrediction(last, match->GetTimelineTick(), *ball));
-    match->AdvanceTime(Seconds(5));
+    simulation.AdvanceTime(Seconds(5));
     REQUIRE(image.GetAge(match->GetTimelineTick()) == TickSpan{517});
     REQUIRE(image.GetBallPrediction(TickSpan{}, match->GetTimelineTick(), *ball) == image.ballPredictions.back().EnforceMaximumDeviation(
         ball->Predict(TickSpan{}), image.maxDistanceDeviation));

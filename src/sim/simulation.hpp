@@ -43,10 +43,14 @@ class Simulation {
   // Transitional test/diagnostic sampling; pointers expire on capture/reset/Stop.
   MentalImage* GetMentalImage(football::sim::TickSpan history);
   MentalImage* GetMentalImage(std::chrono::milliseconds history);
+  // Transitional test/diagnostic clock-only advance: no actors, rules or Step count.
+  void AdvanceTime(football::sim::TickSpan delta);
 
  private:
   void EnsureAnimationLibrary();
   void CaptureMentalImage(Match& match);
+  void ApplyChangeOfEnds(Match& match);
+  void UpdateRecentPossession(Match& match, football::sim::TickSpan admitted);
 
   blunted::SimulationRng rng_;
   // Constructed before Match and kept alive until its borrowed references are gone.

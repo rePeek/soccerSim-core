@@ -88,7 +88,7 @@ TEST_CASE("three clocks distinguish half running, authorization and actual ball 
     REQUIRE(result.outcome == MatchOutcome::Draw);
     const auto rng = simulation.match()->rng().engine();
     for (int tick = 0; tick < 20; ++tick) simulation.Step({});
-    simulation.match()->AdvanceTime(Seconds(1)); // Direct authority is frozen too.
+    simulation.AdvanceTime(Seconds(1)); // Direct authority is frozen too.
     REQUIRE(simulation.Result() == result);
     REQUIRE(simulation.match()->rng().engine() == rng);
     REQUIRE(simulation.Observe().tick == world.tick);
@@ -171,7 +171,7 @@ TEST_CASE("period whistles win over pending dead balls and half-time stops regul
       const auto rng = match->rng().engine();
       const auto in_play = match->GetBallInPlayTime();
       const auto position = simulation.Observe().ball_position;
-      match->AdvanceTime(Seconds(100));
+      simulation.AdvanceTime(Seconds(100));
       REQUIRE(match->GetRegulationTime() == (half == 1 ? Seconds(10) : Seconds(20)));
       REQUIRE(match->GetBallInPlayTime() == in_play);
       REQUIRE(match->rng().engine() == rng);
@@ -241,17 +241,17 @@ TEST_CASE("native clocks retain integer precision and advance atomically", "[sim
   MatchOptions options; options.half_duration = TickSpan{UINT64_C(1) << 40};
   Simulation simulation; Init(simulation, options); StartHalf(simulation);
   auto* match = simulation.match();
-  match->AdvanceTime(TickSpan{UINT64_C(1) << 25});
+  simulation.AdvanceTime(TickSpan{UINT64_C(1) << 25});
   const auto before = simulation.Observe();
   const auto rng = match->rng().engine();
-  match->AdvanceTime(TickSpan{1});
+  simulation.AdvanceTime(TickSpan{1});
   REQUIRE(simulation.Observe().regulation_time == before.regulation_time + TickSpan{1});
   REQUIRE(simulation.Observe().ball_in_play_time == before.ball_in_play_time + TickSpan{1});
   REQUIRE(simulation.Observe().tick == before.tick + 1);
   REQUIRE(simulation.Observe().ball_position == before.ball_position);
   REQUIRE(match->rng().engine() == rng);
   const auto stable = simulation.Observe();
-  REQUIRE_THROWS_AS(match->AdvanceTime(TickSpan{std::numeric_limits<std::uint64_t>::max()}),
+  REQUIRE_THROWS_AS(simulation.AdvanceTime(TickSpan{std::numeric_limits<std::uint64_t>::max()}),
                     std::overflow_error);
   REQUIRE(simulation.Observe().tick == stable.tick);
   REQUIRE(simulation.Observe().regulation_time == stable.regulation_time);
