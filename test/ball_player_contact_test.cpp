@@ -69,7 +69,7 @@ struct ContactFixture {
   BallPlayerContactInputs Inputs(Tick last_collision = {}) {
     auto& match = *simulation.match();
     return {teams, match.FirstTeam(), match.GetLastTouchTeamID(), {},
-            match.GetTimelineTick(), last_collision, &*touch_sink};
+            match.GetTimelineTick(), last_collision, &*touch_sink, match.touches()};
   }
 };
 
@@ -144,7 +144,9 @@ TEST_CASE("controlled body contacts request a player action without a random bou
   fixture.teams[0]->SetDesignatedTeamPossessionPlayer(fixture.home);
   // The opponent has a fresh team touch, while the global latest-team record
   // refers to Home's stale touch. Preserve this legacy controlled-contact gate.
-  SimulationAccess::TouchesOf(fixture.simulation).Record(0, e_TouchType_Intentional_Kicked);
+  auto& touches = SimulationAccess::TouchesOf(fixture.simulation);
+  touches.last_team = 0;
+  touches.last_team_by_type[e_TouchType_Intentional_Kicked] = 0;
   fixture.home->ResetControlledBallCollisionTrigger();
   const auto rng = match.rng().engine();
   std::array<Player*, 1> players{fixture.home};

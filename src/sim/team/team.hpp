@@ -74,7 +74,7 @@ class Team {
     FormationEntry GetFormationEntry(void* player);
     void SetFormationEntry(Player* player, FormationEntry entry);
     float GetAiDifficulty() const { return aiDifficulty; }
-    const std::vector<Player *> &GetAllPlayers() { return players; }
+    const std::vector<Player *> &GetAllPlayers() const { return players; }
     void GetAllPlayers(std::vector<Player*> &allPlayers) {
       allPlayers.insert(allPlayers.end(), players.begin(), players.end());
     }
@@ -93,14 +93,6 @@ class Team {
     float GetFadingTeamPossessionAmount() const;
     void SetFadingTeamPossessionAmount(float value);
 
-    // Team-local touch facts only; publication belongs to the explicit sink.
-    void NoteLastTouchPlayer(Player *player, football::sim::Tick now, e_TouchType touchType);
-    Player *GetLastTouchPlayer() const { return lastTouchPlayer; }
-    float GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at = std::nullopt) {
-      return lastTouchPlayer
-                 ? lastTouchPlayer->GetLastTouchBias(decay_ms, at)
-                 : 0;
-    }
 
     void ResetSituation(const Vector3 &focusPos);
 
@@ -139,7 +131,6 @@ class Team {
 
     std::vector<Player*> players;
 
-    Player *lastTouchPlayer = nullptr;
 
     int side = -1;
     // id==0 ? -1 : 1 initially; flipped once per change of ends.

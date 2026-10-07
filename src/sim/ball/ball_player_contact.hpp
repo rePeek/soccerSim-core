@@ -6,6 +6,7 @@
 
 #include "foundation/math/vector3.hpp"
 #include "sim/time/tick.hpp"
+#include "sim/event/touch_state.hpp"
 
 class Ball;
 class Player;
@@ -28,6 +29,7 @@ struct BallPlayerContactInputs {
   Tick last_body_collision;
   // Write-only touch port; never queried for world state.
   BallTouchSink* touch_sink = nullptr;
+  const event::TouchState& touches;
 };
 
 struct BallPlayerContactResult {

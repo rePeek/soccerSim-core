@@ -24,6 +24,7 @@
 #include "sim/player/player_body_collider.hpp"
 #include "sim/team/team.hpp"
 #include "sim/time/tick_boundary.hpp"
+#include "sim/event/touch_query.hpp"
 
 namespace football::sim {
 
@@ -43,7 +44,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
     int teamID = players[i]->GetTeam()->GetID();
 
     int touchTimeThreshold_ms = 200;
-    float oppLastTouchBias = inputs.teams[abs(teamID - 1)]->GetLastTouchBias(touchTimeThreshold_ms, inputs.now);
+    float oppLastTouchBias = event::TeamTouchBias(inputs.touches, *inputs.teams[abs(teamID - 1)], touchTimeThreshold_ms, inputs.now);
     float lastTouchBias = players[i]->GetLastTouchBias(touchTimeThreshold_ms, inputs.now);
 
     if (lastTouchBias <= 0.01f && oppLastTouchBias > 0.01f) {
@@ -85,7 +86,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
               const int latest_team = last_touch_team != -1
                   ? last_touch_team : inputs.fallback_last_touch_team;
               if (players[i] == players[i]->GetTeam()->GetDesignatedTeamPossessionPlayer() &&
-                  inputs.teams[latest_team]->GetLastTouchBias(200, inputs.now) < 0.01f) {
+                  event::TeamTouchBias(inputs.touches, *inputs.teams[latest_team], 200, inputs.now) < 0.01f) {
                 players[i]->TriggerControlledBallCollision();
               } else {
                 float movementBias = oppLastTouchBias * 0.8f + 0.2f;

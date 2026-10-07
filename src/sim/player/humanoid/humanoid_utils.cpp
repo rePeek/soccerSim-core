@@ -185,7 +185,8 @@ void GetDifficultyFactors(Match *match, Player *player,
 
   // make intercepting passes harder
   if (match->GetLastTouchTeamID() != player->GetTeam()->GetID()) {
-    Player *lastTouchPlayer = match->GetTeam(std::abs(player->GetTeam()->GetID() - 1))->GetLastTouchPlayer();
+    Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(match->touches(),
+        *match->GetTeam(std::abs(player->GetTeam()->GetID() - 1)));
     if (lastTouchPlayer) {
       float lastTouchBiasPenalty =
           std::pow(lastTouchPlayer->GetLastTouchBias(

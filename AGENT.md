@@ -265,9 +265,13 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   explicit players/teams, touch facts, history and Tick values; it does not accept
   Match/Simulation or draw RNG. Per-volume contacts publish touch facts through
   event/ball_touch_sink.hpp's write-only BallTouchSink. Simulation assembles rule facts
-  per notification; event/ball_touch_dispatcher applies team/player bookkeeping →
-  TouchState values → Referee::BallTouched synchronously. MatchTouchSink files and
-  Match::SetLastTouchTeamID are deleted. Team's latest-player record remains transitional.
+  per notification; event/ball_touch_dispatcher writes Player touch tick/type and
+  TouchState team/type/full-width PlayerId records, then Referee::BallTouched inline.
+  MatchTouchSink and Match::SetLastTouchTeamID are deleted. Team's touch pointer,
+  NoteLastTouchPlayer and touch queries are also deleted. event/touch_query resolves
+  identities from explicit rosters (including inactive/sent-off actors), with explicit
+  evaluation ticks for decay. Contact sweeps borrow the live TouchState so earlier
+  publications remain visible; snapshots or fixed pre-sweep biases would change behavior.
   Publication stays synchronous inside the tick. Never freeze touch
   biases before the sweep: later actors must see earlier touches in the same tick.
 - Ball owns a copied model::Pitch, never Match/Simulation, Team, Player or RNG.
@@ -403,8 +407,8 @@ Match has no tick entry or collision/goal/selection algorithm. Referee is fully
 Match-independent and uniquely owned by Simulation. Match's referee access is a
 transitional non-owning actor borrow, not a rule service locator or a second owner.
 Match retains competition/clock and actor ownership, TouchState values and the
-possession window. Next: team touch-record migration and actor dependencies,
-then ownership flip, internal testing access migration and deletion of sim/match/.
+possession window. Next: actor dependencies (including the remaining read-only Match
+touch accessors), then ownership flip, testing access migration and Match deletion.
 Never rename it to a runtime-pointer MatchState or copy it into a RuntimeContext.
 
 Current phase order (composed directly by Simulation):

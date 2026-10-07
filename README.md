@@ -165,8 +165,10 @@ rotation. Simulation::TouchBall is a transitional diagnostic escape. Actor/body 
 publish through the write-only `BallTouchSink` (`event/ball_touch_sink.hpp`). Simulation
 assembles current facts; `event/ball_touch_dispatcher.*` writes touch bookkeeping and
 TouchState values, then notifies rules synchronously. MatchTouchSink and
-Match::SetLastTouchTeamID are deleted. `Simulation::Step()`
-composes all legacy phases explicitly;
+Match::SetLastTouchTeamID are deleted. Team's latest-touch pointer/accounting/query APIs
+are removed too: TouchState stores full-width PlayerIds by roster; explicit queries
+retain sent-off actor lookup and live timestamp decay. No touch/RNG notification is
+hidden inside Team or Match. `Simulation::Step()` composes all legacy phases explicitly;
 `Match::StepRemainingTick` is removed. `team/possession.*` evaluates best-team and
 designated-player selection without publishing state. Simulation applies the selection
 after roster refreshes; the separate physical `ballRetainer` fact remains Match-owned.

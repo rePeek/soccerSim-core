@@ -21,6 +21,7 @@ target_sources(football_sim PRIVATE
   match/match.cpp match/pitch_geometry.hpp
   event/ball_touch.hpp event/ball_touch_sink.hpp event/touch_state.hpp
   event/ball_touch_dispatcher.cpp event/ball_touch_dispatcher.hpp
+  event/touch_query.cpp event/touch_query.hpp
   match/match_clock.cpp match/match_clock.hpp
   team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
   team/formation_roles.cpp team/formation_entry.hpp

@@ -158,11 +158,6 @@ void Team::SetFadingTeamPossessionAmount(float value) {
   fadingTeamPossessionAmount = clamp(value, 0.5, 1.5);
 }
 
-void Team::NoteLastTouchPlayer(Player *player, football::sim::Tick now, e_TouchType touchType) {
-  lastTouchPlayer = player;
-  player->SetLastTouchTick(now);
-  player->SetLastTouchType(touchType);
-}
 
 void Team::ResetSituation(const Vector3 &focusPos) {
   timeNeededToGetToBall_ms = 100;
@@ -170,7 +165,6 @@ void Team::ResetSituation(const Vector3 &focusPos) {
 
   teamPossessionAmount = 1.0f;
   fadingTeamPossessionAmount = 1.0f;
-  lastTouchPlayer = 0;
 
   designatedTeamPossessionPlayer = players.at(0);
 

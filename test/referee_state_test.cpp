@@ -297,7 +297,7 @@ TEST_CASE("the explicit touch sink is the only publication path for actor touche
   const auto now = Tick{77};
   auto& sink = SimulationAccess::EventsOf(simulation);
   sink.OnBallTouched({now, player, team, e_TouchType_Intentional_Nonkicked});
-  REQUIRE(team->GetLastTouchPlayer() == player);
+  REQUIRE(football::sim::event::LastTouchPlayer(match.touches(), *team) == player);
   REQUIRE(player->GetLastTouchTick() == now);
   REQUIRE(player->GetLastTouchType() == e_TouchType_Intentional_Nonkicked);
   REQUIRE(other->GetLastTouchTick() == Tick{});
@@ -511,11 +511,49 @@ TEST_CASE("event dispatcher writes only supplied touch state and notifies rules 
   REQUIRE(supplied.last_team_by_type[e_TouchType_Intentional_Kicked] == -1);
   REQUIRE(SimulationAccess::TouchesOf(simulation).last_team == -1);
   REQUIRE(player->GetLastTouchTick() == Tick{77});
-  REQUIRE(team->GetLastTouchPlayer() == player);
+  REQUIRE(football::sim::event::LastTouchPlayer(supplied, *team) == player);
+  REQUIRE(football::sim::event::LastTouchPlayer(match.touches(), *team) == nullptr);
   REQUIRE(commands.calls.empty());
   REQUIRE(match.rng().engine() == rng);
   supplied.Reset();
   REQUIRE(supplied.last_team == -1);
   for (int team_id : supplied.last_team_by_type) REQUIRE(team_id == -1);
+}
+
+template<class T> concept HasTeamTouchRecord = requires(T& team) { team.GetLastTouchPlayer(); };
+static_assert(!HasTeamTouchRecord<Team>);
+
+TEST_CASE("event touch identities survive send-offs and reset without team bookkeeping",
+          "[sim][touchsink][event][identity]") {
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  home.players[1].id = 0xf0001234u;
+  away.players[1].id = 0xe0005678u;
+  Simulation simulation;
+  simulation.Init(home, away, football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  auto* home_actor = match.GetTeam(0)->GetAllPlayers()[1];
+  auto* away_actor = match.GetTeam(1)->GetAllPlayers()[1];
+  auto& events = SimulationAccess::EventsOf(simulation);
+  const auto rng = match.rng().engine();
+  events.OnBallTouched({Tick{17}, home_actor, match.GetTeam(0), e_TouchType_Intentional_Kicked});
+  events.OnBallTouched({Tick{19}, away_actor, match.GetTeam(1), e_TouchType_Accidental});
+  const auto& touches = match.touches();
+  REQUIRE(touches.last_player_by_team[0] == home.players[1].id);
+  REQUIRE(touches.last_player_by_team[1] == away.players[1].id);
+  REQUIRE(touches.last_team == 1);
+  REQUIRE(touches.last_team_by_type[e_TouchType_Intentional_Kicked] == 0);
+  REQUIRE(touches.last_team_by_type[e_TouchType_Accidental] == 1);
+  REQUIRE(football::sim::event::TeamTouchBias(touches, *match.GetTeam(0), 503, Tick{23}) ==
+          home_actor->GetLastTouchBias(503, Tick{23}));
+  REQUIRE(match.rng().engine() == rng);
+  away_actor->SendOff();
+  REQUIRE_FALSE(away_actor->IsActive());
+  REQUIRE(football::sim::event::LastTouchPlayer(touches, *match.GetTeam(1)) == away_actor);
+  simulation.ResetSituation(Vector3(0));
+  REQUIRE(touches.last_team == -1);
+  for (auto id : touches.last_player_by_team) REQUIRE(id == football::model::kInvalidPlayerId);
+  REQUIRE(football::sim::event::LastTouchPlayer(touches, *match.GetTeam(0)) == nullptr);
+  REQUIRE(football::sim::event::TeamTouchBias(touches, *match.GetTeam(1), 503, Tick{23}) == 0.f);
 }
 }  // namespace

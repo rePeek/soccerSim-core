@@ -236,7 +236,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
     match.GetTeam(match.SecondTeam())->GetActivePlayers(players);
     const football::sim::BallPlayerContactInputs inputs{
         match.teams, match.FirstTeam(), match.touches_.last_team, mental_images_,
-        match.GetTimelineTick(), match.last_body_ball_collision_tick_, &*touch_sink_};
+        match.GetTimelineTick(), match.last_body_ball_collision_tick_, &*touch_sink_, match.touches_};
     const auto contact = football::sim::ResolveBallPlayerContacts(
         *match.GetBall(), players, inputs);
     if (contact.impulse) {
@@ -336,9 +336,10 @@ void Simulation::Step(const PlayerControlSet& controls) {
       bool ownGoal = true;
       if (match.GetLastTouchTeamID(e_TouchType_Intentional_Kicked) == match.GetLastGoalTeam()->GetID() || match.GetLastTouchTeamID(e_TouchType_Intentional_Nonkicked) == match.GetLastGoalTeam()->GetID()) ownGoal = false;
       if (!ownGoal) {
-        match.lastGoalScorer = match.GetLastGoalTeam()->GetLastTouchPlayer();
+        match.lastGoalScorer = football::sim::event::LastTouchPlayer(match.touches_, *match.GetLastGoalTeam());
       } else {
-        match.lastGoalScorer = match.teams[abs(match.GetLastGoalTeam()->GetID() - 1)]->GetLastTouchPlayer();
+        match.lastGoalScorer = football::sim::event::LastTouchPlayer(
+            match.touches_, *match.teams[abs(match.GetLastGoalTeam()->GetID() - 1)]);
       }
     }
   }

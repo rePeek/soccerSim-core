@@ -456,7 +456,8 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
   float ballDistanceNow = (match->GetBall()->Predict(0).Get2D() - spatialState.position).GetLength();
   float ballDistanceFuture = (match->GetBall()->Predict(200).Get2D() - (spatialState.position + spatialState.movement * 0.2f)).GetLength();
   float lastTouchBias = CastPlayer()->GetLastTouchBias(1500);
-  float oppLastTouchBias = match->GetTeam(std::abs(team->GetID() - 1))->GetLastTouchBias(240);
+  float oppLastTouchBias = football::sim::event::TeamTouchBias(match->touches(),
+      *match->GetTeam(std::abs(team->GetID() - 1)), 240, match->GetTimelineTick());
 
   if (CastPlayer() == match->GetDesignatedPossessionPlayer() &&
       ((lastTouchBias <= 0.01f && oppLastTouchBias <= 0.01f &&
@@ -749,7 +750,8 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
 
         float veloDifficulty = NormalizedClamp((match->GetBall()->GetMovement() - spatialState.movement).GetLength(), 0.0f, 40.0f);
         float reactionDifficulty = 0.0f;
-        Player *lastTouchPlayer = match->GetTeam(std::abs(team->GetID() - 1))->GetLastTouchPlayer();
+        Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(match->touches(),
+            *match->GetTeam(std::abs(team->GetID() - 1)));
         if (lastTouchPlayer) {
           reactionDifficulty =
               std::pow(lastTouchPlayer->GetLastTouchBias(

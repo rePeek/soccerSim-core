@@ -33,7 +33,7 @@
 #include "sim/match/match_result.hpp"
 #include "sim/time/tick.hpp"
 #include "sim/time/tick_boundary.hpp"
-#include "sim/event/touch_state.hpp"
+#include "sim/event/touch_query.hpp"
 namespace football::sim::testing { class SimulationAccess; }
 
 
@@ -109,6 +109,7 @@ class Match {
     Team* GetLastGoalTeam() const { return lastGoalTeam; }
     int GetLastTouchTeamID(e_TouchType touchType) const { return touches_.last_team_by_type[touchType]; }
     int GetLastTouchTeamID() const { return touches_.last_team; }
+    const football::sim::event::TouchState& touches() const { return touches_; }
     Team *GetLastTouchTeam() {
       if (touches_.last_team != -1)
         return teams[touches_.last_team];
@@ -116,12 +117,8 @@ class Match {
         return teams[first_team];
     }
     Player *GetLastTouchPlayer() {
-      if (GetLastTouchTeam())
-        return GetLastTouchTeam()->GetLastTouchPlayer();
-      else
-        return 0;
+      return football::sim::event::LastTouchPlayer(touches_, *GetLastTouchTeam());
     }
-    float GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at = std::nullopt) { if (GetLastTouchTeam()) return GetLastTouchTeam()->GetLastTouchBias(decay_ms, at); else return 0; }
     bool IsBallInGoal() const { return ballIsInGoal; }
     football::sim::BallEnvironment GetBallEnvironment() const { return {ballIsInGoal}; }
 
