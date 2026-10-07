@@ -209,6 +209,7 @@ TEST_CASE("Player's half-underway input remains live across synchronous clock co
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
   auto tick = SimulationAccess::PlayerTickOf(simulation);
+  REQUIRE(&tick.half_underway == &SimulationAccess::ClockOf(simulation).IsHalfUnderway());
   REQUIRE_FALSE(tick.half_underway);
   simulation.match()->SetMatchPhase(MatchPhase::FirstHalf);
   simulation.match()->StartPlay();

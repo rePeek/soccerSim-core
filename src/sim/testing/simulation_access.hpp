@@ -15,6 +15,10 @@ class SimulationAccess {
   static PlayerTickContext PlayerTickOf(const Simulation& simulation) {
     return simulation.PlayerTickFacts();
   }
+  static MatchClock& ClockOf(Simulation& simulation) {
+    if (!simulation.match_ || !simulation.clock_) throw std::logic_error("simulation has no match");
+    return *simulation.clock_;
+  }
   static void SendOff(Simulation& simulation, Player& actor) {
     const auto tick = PlayerTickOf(simulation);
     actor.SendOff(tick.ball, tick.now, tick.rng);

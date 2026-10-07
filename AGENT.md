@@ -477,8 +477,9 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   their write-only history storage are deleted, not replaced.
   Clock scale removal is a separate S2 semantic stage, not a unit-only rename.
   See tools/time-model-migration.md before rounding continuous arrival estimates.
-- Simulation owns period-end lifecycle; Match owns phase/score and a MatchClock containing
-  executed-step count, Tick timeline, TickSpan regulation and TickSpan ball-in-play.
+- Simulation owns period-end lifecycle and MatchClock's lifetime/value. Match owns
+  phase/score and only borrows the clock for transitional projections/commands.
+  Clock contains executed-step count, Tick timeline, regulation and ball-in-play.
   MatchPhase is PreMatch/FirstHalf/SecondHalf/Finished; second-half ceremony is
   inside SecondHalf. MatchOptions::half_duration defaults to Minutes(45).
   Native duration must be positive and two halves must fit uint64 before RNG draws.

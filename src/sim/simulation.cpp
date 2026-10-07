@@ -192,8 +192,9 @@ void Simulation::Init(
   rng_.Seed(options.game_engine_random_seed);
 
   EnsureAnimationLibrary();
+  clock_.emplace(options.half_duration);
   match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
-                                  animations_);
+                                  animations_, *clock_);
   referee_ = std::make_unique<Referee>(*match_->teams[match_->first_team], options.ball_position);
   match_->referee_ = referee_.get();
   rule_commands_ = std::make_unique<RuleCommands>(*this);
@@ -501,5 +502,6 @@ bool Simulation::Stop() {
   touch_sink_.reset();
   rule_commands_.reset();
   match_.reset();
+  clock_.reset();
   return true;
 }

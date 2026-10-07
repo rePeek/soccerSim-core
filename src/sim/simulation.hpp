@@ -13,6 +13,8 @@
 #include "sim/observation/world_state.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/match/match_result.hpp"
+#include "sim/match/match_clock.hpp"
+#include <optional>
 #include "sim/event/ball_touch_sink.hpp"
 #include "sim/rules/referee_tick_facts.hpp"
 #include "sim/rules/rule_command_sink.hpp"
@@ -73,6 +75,7 @@ class Simulation {
   blunted::SimulationRng rng_;
   // Constructed before Match and kept alive until its borrowed references are gone.
   std::vector<MentalImage> mental_images_;
+  std::optional<football::sim::MatchClock> clock_;
   std::unique_ptr<Match> match_;
   std::unique_ptr<Referee> referee_;
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;

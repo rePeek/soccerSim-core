@@ -49,7 +49,8 @@ class Match {
           const football::model::Pitch& pitch,
           const MatchOptions& options,
           SimulationRng& rng,
-          std::shared_ptr<const AnimationLibrary> animation_library);
+          std::shared_ptr<const AnimationLibrary> animation_library,
+          football::sim::MatchClock& clock);
     virtual ~Match();
 
 
@@ -164,7 +165,8 @@ class Match {
     Ball *ball = nullptr;
 
 
-    football::sim::MatchClock clock_;
+    // Transitional clock projection/commands; lifetime owned by Simulation.
+    football::sim::MatchClock& clock_;
     // Actual world discontinuities; not a policy/request timer.
     std::uint64_t reset_sequence_ = 0;
     bool pending_change_of_ends_ = false;

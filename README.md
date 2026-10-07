@@ -47,7 +47,7 @@ and non-movable. Caller changes to constructor inputs cannot mutate a match.
 ### Phases, clocks and final results
 
 Referee/sim owns `MatchPhase::{PreMatch, FirstHalf, SecondHalf, Finished}` and
-completion. SecondHalf includes its kickoff ceremony. Match owns three clocks:
+completion. SecondHalf includes its kickoff ceremony. Simulation owns three clocks:
 - `WorldState::tick`: monotonic simulation timeline, one tick = 10 ms.
 - `regulation_time` (`TickSpan`): runs after the half's actual kickoff, including
   ordinary dead balls; stops at half time and full time.
@@ -202,13 +202,14 @@ prediction functions. No actor stores the span or samples through Match; Simulat
 sampling is the only remaining history reader.
 
 `match/match_clock.*` defines MatchClock: timeline/regulation/effective clocks, run flags and executed
-ticks. It takes phase explicitly, atomically clips advances to the current period,
+ticks. Simulation owns its lifetime; Match only borrows it for transitional projections.
+It takes phase explicitly, atomically clips advances to the current period,
 and returns admitted ticks. Simulation explicitly advances Clock, updates the Match-owned
 recent possession window, then evaluates goals. Match::AdvanceTime/SwitchEnds are removed;
 Simulation::ApplyChangeOfEnds preserves roster → roster → Ball → history order at tick entry.
 Simulation::AdvanceTime is diagnostic-only (no physics/rules/execution count). Simulation
 owns period lifecycle and tick counting/ordering. Match now has no tick entry
-or collision/goal/selection algorithm. Actor ownership, competition/clock/touch values
+or collision/goal/selection algorithm. Actor ownership, competition/touch values
 and possession state remain; the touch/history notification bridges are removed.
 Player/Humanoid constructors receive the immutable AnimationLibrary explicitly; clip
 lookups, selectors and root-position reads no longer retrieve it through Match.

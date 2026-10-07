@@ -30,13 +30,14 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
              const football::model::Pitch& pitch,
              const MatchOptions& options,
              SimulationRng& rng,
-             std::shared_ptr<const AnimationLibrary> animation_library)
+             std::shared_ptr<const AnimationLibrary> animation_library,
+             football::sim::MatchClock& clock)
     : pitch_(pitch),
       animations_(std::move(animation_library)),
       rng_(rng),
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
-      clock_(options.half_duration),
+      clock_(clock),
       options_(options) {
 
 
