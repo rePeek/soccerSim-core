@@ -12,6 +12,7 @@
 #include "sim/query/player_query.hpp"
 #include "sim/query/reachability.hpp"
 #include "sim/rules/offside.hpp"
+#include "sim/player/player_motion_constants.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team/team.hpp"
 
@@ -103,18 +104,32 @@ TEST_CASE("offside geometry follows second defender ball and halfway line", "[si
     match->GetTeam(match->FirstTeam())->GetActivePlayers(snapshot_players);
     match->GetTeam(match->SecondTeam())->GetActivePlayers(snapshot_players);
     MentalImage image(match->GetTimelineTick(), snapshot_players, *match->GetBall());
-    CHECK(football::sim::rules::GetOffsideLine(match, &image, teamID) == 30 * side);
+    CHECK(football::sim::rules::GetOffsideLine(image, match->GetTimelineTick(),
+        *match->GetBall(), teamID, side) == 30 * side);
 
     match->GetBall()->SetPosition(Vector3(35 * side, 0, 0.11f), match->GetBallEnvironment());
     match->GetBall()->CalculatePrediction(match->GetBallEnvironment());
     MentalImage ballAhead(match->GetTimelineTick(), snapshot_players, *match->GetBall());
-    CHECK(football::sim::rules::GetOffsideLine(match, &ballAhead, teamID) == 35 * side);
+    CHECK(football::sim::rules::GetOffsideLine(ballAhead, match->GetTimelineTick(),
+        *match->GetBall(), teamID, side) == 35 * side);
 
     for (Player *player : players) player->ResetPosition(Vector3(-10 * side, 0, 0), Vector3(0));
     match->GetBall()->SetPosition(Vector3(-5 * side, 0, 0.11f), match->GetBallEnvironment());
     match->GetBall()->CalculatePrediction(match->GetBallEnvironment());
     MentalImage otherHalf(match->GetTimelineTick(), snapshot_players, *match->GetBall());
-    CHECK(football::sim::rules::GetOffsideLine(match, &otherHalf, teamID) == 0.f);
+    CHECK(football::sim::rules::GetOffsideLine(otherHalf, match->GetTimelineTick(),
+        *match->GetBall(), teamID, side) == 0.f);
+
+    // The supplied movement is clamped to the live movement deviation, then the
+    // caller's horizon extrapolates it; the predicate reads only explicit facts.
+    players[0]->ResetPosition(Vector3(40 * side, 0, 0), Vector3(0));
+    players[1]->ResetPosition(Vector3(30 * side, 0, 0), Vector3(0));
+    MentalImage static_image(match->GetTimelineTick(), snapshot_players, *match->GetBall());
+    for (auto& entry : static_image.players) {
+      if (entry.player->GetTeamID() == teamID) entry.movement = Vector3(10 * side, 0, 0);
+    }
+    CHECK(football::sim::rules::GetOffsideLine(static_image, match->GetTimelineTick(),
+        *match->GetBall(), teamID, side, 1000) == (30 + walkVelocity) * side);
   }
 }
 

@@ -368,6 +368,11 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   Physical sides/history still change at the next Step entry, not phase publication.
   Referee temporarily reads Match in ordinary Process, foul/offside/out-of-play/restart
   composition; opening phase publication is still transitional. No rules context.
+- rules/offside owns pure GetOffsideLine(mentalImage, now, ball, defending_team_id,
+  defending_side, futureSim_ms). Defending id/side, sampling instant and Ball are explicit;
+  it no longer reads Match/Team. Preserve the second-deepest defender scan, the same
+  in-place copy mutation, ball-ahead override, halfway zeroing and pitch clamp. Referee::
+  BallTouched still supplies those facts and still owns the offside-player decision list.
   MentalImage decoupling, clock/end-change orchestration and period extraction each
   preserve regression fingerprints and all twelve diagnostic records byte-for-byte.
   Latest Release 34/34, Debug 33/33 (excluding full-match CLI), standalone period

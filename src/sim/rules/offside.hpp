@@ -15,14 +15,19 @@
 #ifndef FOOTBALL_SIM_RULES_OFFSIDE_HPP
 #define FOOTBALL_SIM_RULES_OFFSIDE_HPP
 
-class Match;
+#include "sim/time/tick.hpp"
+
+class Ball;
 class MentalImage;
 
 namespace football::sim::rules {
 
-// teamID identifies the defending team. Uses the second-deepest defender,
-// ball and halfway line; prediction and geometry retain legacy semantics.
-float GetOffsideLine(Match *match, const MentalImage *mentalImage, int teamID,
+// Pure offside geometry from explicit observation facts: the defending team's id
+// and dynamic side, the sampling instant and the current Ball. Uses the
+// second-deepest defender, ball and halfway line; prediction and geometry retain
+// legacy semantics. No Match, Team or simulation-state access.
+float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,
+                     const Ball& ball, int defending_team_id, int defending_side,
                      unsigned int futureSim_ms = 0);
 
 }  // namespace football::sim::rules

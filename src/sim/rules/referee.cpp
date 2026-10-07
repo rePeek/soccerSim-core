@@ -282,7 +282,9 @@ void Referee::BallTouched() {
     match->GetTeam(match->FirstTeam())->GetActivePlayers(snapshot_players);
     match->GetTeam(match->SecondTeam())->GetActivePlayers(snapshot_players);
     MentalImage mentalImage(match->GetTimelineTick(), snapshot_players, *match->GetBall());
-    float offside = football::sim::rules::GetOffsideLine(match, &mentalImage, 1 - lastTouchTeamID);
+    float offside = football::sim::rules::GetOffsideLine(
+        mentalImage, match->GetTimelineTick(), *match->GetBall(), 1 - lastTouchTeamID,
+        match->GetTeam(1 - lastTouchTeamID)->GetDynamicSide());
     std::vector<Player*> players;
     Team *team = match->GetTeam(lastTouchTeamID);
     team->GetActivePlayers(players);

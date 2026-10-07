@@ -16,17 +16,18 @@
 
 #include <cmath>
 
+#include "foundation/math/scalar.hpp"
+#include "sim/match/pitch_geometry.hpp"
 #include "sim/observation/mentalimage.hpp"
-#include "sim/match/match.hpp"
-#include "sim/team/team.hpp"
 
 namespace football::sim::rules {
 
-float GetOffsideLine(Match *match, const MentalImage *mentalImage,
-                        int teamID, unsigned int futureSim_ms) {
-  signed int side = match->GetTeam(teamID)->GetDynamicSide();
+float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,
+                     const Ball& ball, int defending_team_id, int defending_side,
+                     unsigned int futureSim_ms) {
+  signed int side = defending_side;
 
-  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(teamID, match->GetTimelineTick());
+  auto opponentPlayerImages = mentalImage.GetTeamPlayerImages(defending_team_id, now);
 
   int dudDeepestOpponent = 0;
   Vector3 deepestOpponentPosition;
@@ -52,8 +53,8 @@ float GetOffsideLine(Match *match, const MentalImage *mentalImage,
   }
 
   float offsideLine = deepestOpponentPosition.coords[0];
-  if (mentalImage->GetBallPrediction(0, match->GetTimelineTick(), *match->GetBall()).coords[0] * side > offsideLine * side) {
-    offsideLine = mentalImage->GetBallPrediction(0, match->GetTimelineTick(), *match->GetBall()).coords[0];
+  if (mentalImage.GetBallPrediction(0, now, ball).coords[0] * side > offsideLine * side) {
+    offsideLine = mentalImage.GetBallPrediction(0, now, ball).coords[0];
   }
   if (offsideLine * side < 0) offsideLine = 0;
   offsideLine = clamp(offsideLine, -pitchHalfW, pitchHalfW);
