@@ -1,10 +1,12 @@
 # Read-only native restart measurements
 
-`football_restart_metrics [seed [half_ticks [reverse_0_or_1]]]` composes explicit
-DefaultAI + Simulation from the app fixtures. Defaults: seed 42, two 45-minute
-halves, normal processing order. It observes native Referee and clock facts; no
-interposition, policy override, RNG draw, actor placement or fast-forward is added.
-This is a diagnostic program, not an analytics scheduler or runtime history API.
+`football_restart_metrics [seed [half_ticks [reverse_0_or_1 [symmetric_0_or_1]]]]`
+composes explicit DefaultAI + Simulation from the app fixtures. Defaults: seed 42,
+two 45-minute halves, normal processing, original asymmetric fixtures/difficulty.
+The optional symmetric input copies the complete home roster/formation/tactics to
+away, preserving distinct away IDs, with both declared difficulties 1.0. No runtime
+interposition, new RNG draw, actor placement or fast-forward is added. This is a
+diagnostic program, not an analytics scheduler or runtime history API.
 
 ```sh
 nix develop --command cmake --build --preset release -j 4
@@ -111,3 +113,45 @@ are 633 ticks; second-half waits are 442 ticks in these three full runs.
 - Each full seed was repeated: raw outputs are byte-identical. Per-half ordinary
   wait sums exactly reconcile with the independently accumulated dead-ball clocks.
 - Native diagnostic output is retained and baked assets remain unchanged.
+
+## Symmetric/order matrix: pre-processing-frame correction
+
+Measured at runtime `85e4bdf`, without production changes. The optional symmetric
+input is declared before Init; it changes diagnostic match inputs, not runtime
+coefficients or restart timing policy. Only symmetric runs print an additional
+`setup,seed,reverse,symmetric_home_copy,home_difficulty,away_difficulty` descriptor;
+original-input records remain unchanged. Do not pool runs from different setups.
+
+```sh
+for seed in 42 43 44; do
+  for reverse in 0 1; do
+    build/release/football_restart_metrics "$seed" 270000 "$reverse" 1 \
+      > "/tmp/football-matrix-symmetric-$seed-$reverse.txt" 2>&1
+  done
+  build/release/football_restart_metrics "$seed" 270000 1 \
+    > "/tmp/football-matrix-default-$seed-1.txt" 2>&1
+done
+```
+
+| Symmetric seed | Order | Score | Ordinary events | Effective | Censored | Timeout |
+|---:|---|---:|---:|---:|---:|---:|
+| 42 | Normal | 17–21 | 126 | 79:14.25 | 1 | 0 |
+| 43 | Normal | 29–13 | 140 | 78:03.32 | 1 | 0 |
+| 44 | Normal | 18–19 | 142 | 78:07.17 | 1 | 0 |
+| 42 | Reverse | 0–0 | 2 | 89:55.18 | 0 | 0 |
+| 43 | Reverse | 0–0 | 2 | 89:55.18 | 0 | 0 |
+| 44 | Reverse | 0–0 | 2 | 89:55.05 | 0 | 0 |
+
+All three original-fixture reverse runs also finish 0–0 with two ordinary throw-ins
+and the same effective times. Every half still has 270000 regulation ticks, and every
+event-wait sum reconciles. This is **an execution-frame anomaly, not a realism or
+restart calibration distribution**. A read-only 10000-step native probe finds actors
+0.77/0.87 m from the observed ball yet reporting no possession and 3000 ms reachability.
+The first actor-processing mirror flips the ball away from its first-roster frame
+under reverse processing. Observation projection alone cannot repair execution.
+
+All six symmetric full runs repeat byte-identically. The default normal seed42 raw
+output matches T4e byte-for-byte. Release/Debug/NDEBUG each pass 31/31 registrations,
+including new short symmetric/order cases; that coverage did not detect this long-
+run semantic problem. The execution frame must be corrected and causally tested
+before using reverse samples for calibration. Bounds/assets/AI remain unchanged.

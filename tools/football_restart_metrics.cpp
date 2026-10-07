@@ -53,14 +53,27 @@ void PrintDistribution(const char* name, std::vector<std::uint64_t> values) {
             << ',' << values[(values.size() - 1) * 9 / 10] << ',' << values.back();
 }
 
-void Run(unsigned seed, TickSpan half_duration, bool reverse) {
+void Run(unsigned seed, TickSpan half_duration, bool reverse, bool symmetric) {
   const auto home = football::app::fixtures::MakeDefaultHomeTeam();
-  const auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  if (symmetric) {
+    // Equal descriptions, not just equal difficulty: preserve only distinct IDs.
+    const auto away_ids = away.players;
+    if (home.players.size() != away_ids.size())
+      throw std::logic_error("symmetric diagnostic needs equal roster sizes");
+    away = home;
+    away.name = "Symmetric away fixture";
+    for (std::size_t i = 0; i < away.players.size(); ++i) away.players[i].id = away_ids[i].id;
+  }
   const auto pitch = football::model::MakeLegacyPitch();
   MatchOptions options;
   options.game_engine_random_seed = seed;
   options.half_duration = half_duration;
   options.reverse_team_processing = reverse;
+  if (symmetric) {
+    options.left_team_difficulty = options.right_team_difficulty = 1.0f;
+    std::cout << "setup," << seed << ',' << reverse << ",symmetric_home_copy,1,1\n";
+  }
   Simulation simulation;
   simulation.Init(home, away, pitch, options);
   const football::ai::DefaultAI policy(home, away, pitch);
@@ -157,13 +170,15 @@ void Run(unsigned seed, TickSpan half_duration, bool reverse) {
 
 int main(int argc, char** argv) {
   try {
-    if (argc > 4) throw std::invalid_argument("usage: football_restart_metrics [seed [half_ticks [reverse_0_or_1]]]");
+    if (argc > 5) throw std::invalid_argument("usage: football_restart_metrics [seed [half_ticks [reverse_0_or_1 [symmetric_0_or_1]]]]");
     const auto seed = argc > 1 ? Parse(argv[1]) : 42;
     if (seed > UINT32_MAX) throw std::invalid_argument("seed exceeds uint32");
     const auto half = argc > 2 ? TickSpan{Parse(argv[2])} : football::sim::Minutes(45);
     const auto reverse = argc > 3 ? Parse(argv[3]) : 0;
     if (reverse > 1) throw std::invalid_argument("reverse must be 0 or 1");
-    Run(static_cast<unsigned>(seed), half, reverse != 0);
+    const auto symmetric = argc > 4 ? Parse(argv[4]) : 0;
+    if (symmetric > 1) throw std::invalid_argument("symmetric must be 0 or 1");
+    Run(static_cast<unsigned>(seed), half, reverse != 0, symmetric != 0);
     return 0;
   } catch (const std::exception& error) {
     std::cerr << "football_restart_metrics: " << error.what() << '\n';

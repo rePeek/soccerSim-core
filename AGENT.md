@@ -461,3 +461,12 @@ delay with intentional previous-delay/current-delay stages, not a redundant time
 Keep its ordering; only Match rounds to capture slots. Sampling clamps before integer
 narrowing and handles the full signed duration range. Physical/RNG rows and complete
 seed 42/43/44 restart records remain unchanged after T4c–T4e in all tested modes.
+
+### Restart diagnostic matrix
+
+football_restart_metrics accepts an optional symmetric-input flag after seed/half/order.
+It copies complete home declarations to away with distinct IDs and equal difficulty
+before Init; no runtime intervention is involved. Short CTests cover both orders.
+The pre-fix full matrix exposed reversed execution chasing a ghost ball despite correct
+observation projection. See tools/restart-metrics.md; those reverse samples must not be
+treated as calibration evidence. Frame correctness must precede behavior tuning.

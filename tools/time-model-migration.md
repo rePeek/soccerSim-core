@@ -324,3 +324,15 @@ and expression order. Diagnostic millisecond vectors are output-only. Further ch
 to those numerical models require a separately justified precision/behavior decision.
 Richer restarts, retrieval, coordinated defence/keeper utility and independently evidenced
 animation timing remain unfinished realism work; these unit stages do not calibrate them.
+
+## Extended measurement: symmetric inputs and both orders
+
+The restart diagnostic now accepts a fourth optional symmetric 0/1 input flag.
+Six full symmetric runs (42/43/44 × both orders) repeat identically; three original-
+fixture reverse runs were also measured. Normal symmetric scores remain very high,
+while reverse execution stalls at 0–0/two throw-ins/~89:55 effective. Clock accounting
+still reconciles, so this is not a clock bug or credible calibration distribution.
+The native actor-processing ball mirror is inconsistent with the first-roster storage
+frame under reverse processing. Details/commands/historical table are preserved in
+tools/restart-metrics.md. All three modes pass 31/31, illustrating why real multi-order
+measurement is necessary beyond short contract tests. No production policy changed.
