@@ -208,7 +208,9 @@ or collision/goal/selection algorithm. Actor ownership, competition/clock/touch 
 and possession state remain; the touch/history notification bridges are removed.
 Player/Humanoid constructors receive the immutable AnimationLibrary explicitly; clip
 lookups, selectors and root-position reads no longer retrieve it through Match.
-Actor tick-state dependencies and humanoid utility inputs remain to be migrated.
+Humanoid utilities consume explicit Ball, live touch state, opponent roster, tick, RNG
+and baked clip inputs; they have no Match parameter/include or indirect Player::GetMatch
+lookup. Match::GetAnimPositionCache is deleted. Actor tick-state dependencies remain.
 
 `rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration
 facts. Simulation evaluates the pre-contact gate and original whistle boundary; EndPeriod

@@ -25,11 +25,6 @@
 
 
 
-const std::vector<Vector3> &Match::GetAnimPositionCache(
-    AnimationId animation_id) const {
-  return animations_->Get(static_cast<uint32_t>(animation_id))
-      .root_positions;
-}
 
 Match::Match(const football::model::Team& home, const football::model::Team& away,
              const football::model::Pitch& pitch,

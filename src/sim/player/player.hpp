@@ -392,7 +392,7 @@ class Player final {
     bool IsControlledBallCollisionTriggered() { return triggerControlledBallCollision; }
     void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
     void UpdatePossessionStats();
-    float GetClosestOpponentDistance() const;
+    float GetClosestOpponentDistance(Team& opponent) const;
     const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
     void Put2D(bool mirror);
     void Hide2D();

@@ -19,7 +19,8 @@
 #include <cmath>
 
 
-#include "sim/match/match.hpp"
+#include "sim/event/touch_query.hpp"
+#include "sim/team/team.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
 #include "sim/player/humanoid/humanoid.hpp"
@@ -28,12 +29,6 @@
 #include "sim/animation/types.hpp"
 #include "sim/player/player.hpp"
 
-namespace {
-const AnimationClip &GetBakedClipFor(Match *match, const Anim &anim) {
-  return match->GetAnimationLibrary().Get(
-      static_cast<uint32_t>(anim.animationId));
-}
-}  // namespace
 
 e_TouchType GetTouchTypeForBodyPart(const std::string &bodypartname) {
   if (bodypartname.find("foot") != std::string::npos ||
@@ -146,12 +141,13 @@ float StretchSprintTo(const float &inputVelocity, float inputSpaceMaxVelocity,
   return walkSprintSwitch + resultSprintage;
 }
 
-void GetDifficultyFactors(Match *match, Player *player,
+void GetDifficultyFactors(Ball *ball, Player *player,
+                          const football::sim::event::TouchState& touches, Team& opponent,
+                          football::sim::Tick now, SimulationRng& rng,
                           const SpatialState &spatialState,
                           const Vector3 &positionOffset, float &distanceFactor,
                           float &heightFactor, float &ballMovementFactor) {
 
-  Ball *ball = match->GetBall();
 
   distanceFactor = 0.0f; // how far ball bounces off feet
   heightFactor = 0.0f; // how high ball bounces off feet
@@ -184,13 +180,12 @@ void GetDifficultyFactors(Match *match, Player *player,
   heightFactor += fartherAwayPenalty;
 
   // make intercepting passes harder
-  if (match->GetLastTouchTeamID() != player->GetTeam()->GetID()) {
-    Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(match->touches(),
-        *match->GetTeam(std::abs(player->GetTeam()->GetID() - 1)));
+  if (touches.last_team != player->GetTeam()->GetID()) {
+    Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(touches, opponent);
     if (lastTouchPlayer) {
       float lastTouchBiasPenalty =
           std::pow(lastTouchPlayer->GetLastTouchBias(
-                       1000 - player->GetStat(football::model::PlayerStat::physical_reaction) * 500),
+                       1000 - player->GetStat(football::model::PlayerStat::physical_reaction) * 500, now),
                    0.6f) *
           5.0f;
       distanceFactor += lastTouchBiasPenalty;
@@ -202,7 +197,7 @@ void GetDifficultyFactors(Match *match, Player *player,
 
   float skillPenaltyMultiplier =
       (1.0f - player->GetStat(football::model::PlayerStat::technical_ballcontrol) * 0.5f) *
-      match->rng().Uniform(0.5f, 1.0f);
+      rng.Uniform(0.5f, 1.0f);
   distanceFactor *= skillPenaltyMultiplier;
   heightFactor *= skillPenaltyMultiplier;
   ballMovementFactor *= skillPenaltyMultiplier;
@@ -211,7 +206,7 @@ void GetDifficultyFactors(Match *match, Player *player,
   ballMovementFactor = clamp(ballMovementFactor, 0.0f, 1.0f);
 }
 
-Vector3 GetBallControlVector(Ball *ball, Player *player,
+Vector3 GetBallControlVector(Ball *ball, Player *player, Team& opponent, const AnimationClip& clip,
                              const Vector3 &nextStartPos, radian nextStartAngle,
                              radian nextBodyAngle,
                              const Vector3 &outgoingMovement,
@@ -226,7 +221,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
     physicsBias = 0.9f;
   }
 
-  if (FloatToEnumVelocity(GetBakedClipFor(player->GetMatch(), currentAnim).metadata.outgoing_velocity) == e_Velocity_Idle) physicsBias = 1.0f;
+  if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) == e_Velocity_Idle) physicsBias = 1.0f;
 
   float explosivenessFactor = 0.6f;
   float maximumOverdrive_mps = 1.0f * explosivenessFactor;
@@ -237,7 +232,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   float dotFactor = clamp(std::min(dotFactor1, dotFactor2), 0.0f, 1.0f);  // clamp for numerical problems, don't want negative values out of this.
   maximumOverdrive_mps *= dotFactor;
 
-  if (FloatToEnumVelocity(GetBakedClipFor(player->GetMatch(), currentAnim).metadata.outgoing_velocity) == e_Velocity_Idle) maximumOverdrive_mps = 0.0f;
+  if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) == e_Velocity_Idle) maximumOverdrive_mps = 0.0f;
 
   float originatingBias = 0.7f;
 
@@ -260,8 +255,8 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   float physicsVelocity = physicsMovement.GetLength();
 
   Vector3 FFOsrc = GetFrontOfFootOffsetRel(physicsVelocity, nextBodyAngle - spatialState.angle, ball->Predict(0).coords[2]);
-  float annoyanceVeloFactor = curve(NormalizedClamp(GetBakedClipFor(player->GetMatch(), currentAnim).metadata.outgoing_velocity, idleVelocity, sprintVelocity), 0.7f); // do not apply effect to low velo's; makes it too chaotic
-  float opponentAnnoyanceFactor = (1.0f - NormalizedClamp(player->GetClosestOpponentDistance(), 0.5f, 1.5f)) * (1.0f - (player->GetStat(football::model::PlayerStat::mental_calmness) * 0.5f + player->GetStat(football::model::PlayerStat::physical_balance) * 0.3f)) * annoyanceVeloFactor;
+  float annoyanceVeloFactor = curve(NormalizedClamp(clip.metadata.outgoing_velocity, idleVelocity, sprintVelocity), 0.7f); // do not apply effect to low velo's; makes it too chaotic
+  float opponentAnnoyanceFactor = (1.0f - NormalizedClamp(player->GetClosestOpponentDistance(opponent), 0.5f, 1.5f)) * (1.0f - (player->GetStat(football::model::PlayerStat::mental_calmness) * 0.5f + player->GetStat(football::model::PlayerStat::physical_balance) * 0.3f)) * annoyanceVeloFactor;
   Vector3 FFO = Vector3(0, -1, 0).GetRotated2D(nextBodyAngle) * (FFOsrc.GetLength() + ffoOffset + opponentAnnoyanceFactor * 3.0f); // positionOffset is already in ffoOffset (though only for trap atm)
   float heightFFOOffset = NormalizedClamp(ball->Predict(0).coords[2], 0.5f, 1.0f) * 0.5f; // bounce high balls off body - else they keep colliding inside body and stuff like that
   FFO += FFOsrc * heightFFOOffset * 0.5f +
@@ -297,7 +292,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   Vector3 plannedBallPos = physicsPlannedBallPos * physicsBias + desiredPlannedBallPos * (1.0f - physicsBias);
   Vector3 toPlannedBall = plannedBallPos - ball->Predict(0).Get2D();
 
-  float timeToGo = ((static_cast<int>(GetBakedClipFor(player->GetMatch(), currentAnim).frame_count) - 1 - frameNum) * 10) * 0.001f;
+  float timeToGo = ((static_cast<int>(clip.frame_count) - 1 - frameNum) * 10) * 0.001f;
   timeToGo += physicsDelayTime * physicsBias + desiredDelayTime * (1.0f - physicsBias);
   timeToGo += defaultTouchOffset_ms * 0.001f;//0.08f; // time into next anim where we want to hit the ball
 
@@ -341,22 +336,24 @@ Vector3 GetBallControlVector(Ball *ball, Player *player,
   return touchVec;
 }
 
-Vector3 GetTrapVector(Match *match, Player *player, const Vector3 &nextStartPos,
+Vector3 GetTrapVector(Ball *ball, Player *player,
+                      const football::sim::event::TouchState& touches, Team& opponent,
+                      football::sim::Tick now, SimulationRng& rng, const AnimationClip& clip,
+                      const Vector3 &nextStartPos,
                       radian nextStartAngle, radian nextBodyAngle,
                       const Vector3 &outgoingMovement, const Anim &currentAnim,
                       int frameNum, const SpatialState &spatialState,
                       const Vector3 &positionOffset, radian &xRot,
                       radian &yRot) {
 
-  Ball *ball = match->GetBall();
 
   float distanceFactor = 0.0f; // how far ball bounces off feet
   float heightFactor = 0.0f; // how high ball bounces off feet
   float ballMovementFactor = 0.0f; // how much of the current ball movement is maintained
-  GetDifficultyFactors(match, player, spatialState, positionOffset, distanceFactor, heightFactor, ballMovementFactor);
+  GetDifficultyFactors(ball, player, touches, opponent, now, rng, spatialState, positionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // base vector to start with
-  Vector3 ballControl = GetBallControlVector(ball, player, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, positionOffset, xRot, yRot, distanceFactor);
+  Vector3 ballControl = GetBallControlVector(ball, player, opponent, clip, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, positionOffset, xRot, yRot, distanceFactor);
 
   ballControl.coords[2] += ball->GetMovement().coords[2] * heightFactor * 1.0f +
                            heightFactor * 4.0f;
@@ -365,17 +362,11 @@ Vector3 GetTrapVector(Match *match, Player *player, const Vector3 &nextStartPos,
          ball->GetMovement() * ballMovementFactor;
 }
 
-Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
-                      radian nextStartAngle, radian nextBodyAngle,
-                      const Vector3 &outgoingMovement, const Anim &currentAnim,
-                      int frameNum, const SpatialState &spatialState,
-                      const Vector3 &positionOffset, radian &xRot, radian &yRot,
-                      radian &zRot, float autoDirectionBias) {
+Vector3 GetShotVector(Ball *ball, Player *player, const AnimationClip& clip, SimulationRng& rng,
+                      const Anim &currentAnim, const SpatialState &spatialState,
+                      const Vector3 &positionOffset, radian &xRot, radian &yRot, radian &zRot) {
 
-  Ball *ball = match->GetBall();
-
-  const std::vector<Vector3> &origPositionCache =
-      match->GetAnimPositionCache(currentAnim.animationId);
+  const std::vector<Vector3> &origPositionCache = clip.root_positions;
   Vector3 touchMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum).GetRotated2D(spatialState.angle); // spatialState.movement isn't reliable because of smuggles and such
   //SetRedDebugPilon(player->GetPosition() + touchMovement);
   Vector3 touchDirection = touchMovement.GetNormalized(spatialState.directionVec);
@@ -420,7 +411,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
        std::pow(currentAnim.originatingCommand.touchInfo.desiredPower, 0.5f) *
            0.3f);
 
-  float animMaxPowerFactor = GetBakedClipFor(match, currentAnim).metadata.touch_max_power_factor;
+  float animMaxPowerFactor = clip.metadata.touch_max_power_factor;
   if (animMaxPowerFactor == 0.0f) animMaxPowerFactor = 1.0f;
 
   float power = clamp(powerFactor * adaptedDesiredPower, 0.0f, (32.0f + player->GetStat(football::model::PlayerStat::physical_shotpower) * 13.0f) * (0.2f + animMaxPowerFactor * 0.8f));
@@ -472,7 +463,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
   // random dir
   worstCaseDirection =
       worstCaseDirection +
-      (Vector3(match->rng().Uniform(-1, 1), match->rng().Uniform(-1, 1), match->rng().Uniform(-1, 1)) *
+      (Vector3(rng.Uniform(-1, 1), rng.Uniform(-1, 1), rng.Uniform(-1, 1)) *
        0.5f * difficultyFactor);
   worstCaseDirection.Normalize();
 
@@ -485,7 +476,7 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
 
   // actual result
 
-  float worstCaseFactor = match->rng().Uniform(0.0f, 1.0f);
+  float worstCaseFactor = rng.Uniform(0.0f, 1.0f);
   worstCaseFactor =
       std::pow(worstCaseFactor, player->GetStat(football::model::PlayerStat::technical_shot) * 0.7f);
 
@@ -501,10 +492,10 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
   // forward/backward 'curve'
   xRot = -currentAnim.originatingCommand.touchInfo.desiredDirection.coords[1] *
              20.0f +
-         (match->rng().Uniform(-20, 20) * randomCurveFactor);
+         (rng.Uniform(-20, 20) * randomCurveFactor);
   yRot = -currentAnim.originatingCommand.touchInfo.desiredDirection.coords[0] *
              20.0f +
-         (match->rng().Uniform(-20, 20) * randomCurveFactor);
+         (rng.Uniform(-20, 20) * randomCurveFactor);
 
   // lateral curve
   radian bodyTouchAngle = spatialState.bodyDirectionVec.GetAngle2D(shot) / pi;
@@ -513,9 +504,8 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
   //printf("bodyTouchAngle: %f\n", bodyTouchAngle);
   radian amount = bodyTouchAngle * 0.25f;
   shot.Rotate2D(amount * (0.4f + 0.6f * NormalizedClamp(shot.GetLength(), 0.0f, 70.0f)));
-  zRot = amount * -420 + (match->rng().Uniform(-20, 20) * plannedCurveFactor);
+  zRot = amount * -420 + (rng.Uniform(-20, 20) * plannedCurveFactor);
 
-  //SetRedDebugPilon(match->GetBall()->Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
 
   return shot;
 }

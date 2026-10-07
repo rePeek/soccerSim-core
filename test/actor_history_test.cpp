@@ -12,6 +12,7 @@
 #include "sim/query/player_query.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/testing/simulation_access.hpp"
+#include "sim/player/humanoid/humanoid_utils.hpp"
 using football::sim::testing::SimulationAccess;
 
 namespace {
@@ -109,5 +110,50 @@ TEST_CASE("Humanoid baked clips come from its injected library, not the runtime 
   REQUIRE(&humanoid.GetBakedClip(id) != &match.GetAnimationLibrary().Get(static_cast<std::uint32_t>(id)));
   REQUIRE(&actor->CastHumanoid()->GetBakedClip(id) ==
           &match.GetAnimationLibrary().Get(static_cast<std::uint32_t>(id)));
+}
+
+TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
+          "[sim][humanoid][dependency]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  auto* actor = match.GetTeam(0)->GetAllPlayers()[1];
+  auto& opponent = *match.GetTeam(1);
+  auto* toucher = opponent.GetAllPlayers()[1];
+  const auto ambient_rng = match.rng().engine();
+  Ball supplied(football::model::MakeLegacyPitch());
+  SpatialState spatial;
+  spatial.position = Vector3(0);
+  spatial.directionVec = Vector3(0, -1, 0);
+  supplied.SetPosition(Vector3(0, -0.2f, 0.11f), {});
+  event::TouchState touches;
+  touches.Record(1, toucher->GetID(), e_TouchType_Intentional_Kicked);
+  toucher->SetLastTouchTick(Tick{100});
+  SimulationRng rng;
+  rng.Seed(92);
+  const auto before = rng.engine();
+  float distance, height, movement;
+  GetDifficultyFactors(&supplied, actor, touches, opponent, Tick{100}, rng, spatial,
+      Vector3(0), distance, height, movement);
+  REQUIRE(distance > 0.0f);
+  REQUIRE(height > 0.0f);
+  rng.engine() = before;
+  GetDifficultyFactors(&supplied, actor, touches, opponent, Tick{300}, rng, spatial,
+      Vector3(0), distance, height, movement);
+  REQUIRE(distance == 0.0f);
+  REQUIRE(height == 0.0f);
+  REQUIRE(movement == 0.0f);
+  auto expected = rng;
+  expected.engine() = before;
+  (void)expected.Uniform(0.5f, 1.0f);
+  REQUIRE(rng.engine() == expected.engine());
+  supplied.SetPosition(Vector3(4, 0, 2), {});
+  rng.engine() = before;
+  GetDifficultyFactors(&supplied, actor, touches, opponent, Tick{300}, rng, spatial,
+      Vector3(0), distance, height, movement);
+  REQUIRE(distance > 0.0f);
+  REQUIRE(height > 0.0f);
+  REQUIRE(match.rng().engine() == ambient_rng);
 }
 }  // namespace

@@ -587,8 +587,11 @@ HumanoidBase receive a const AnimationLibrary& at construction. Team::InitPlayer
 forwards the library only during creation, without storing an animation service.
 Actor clip lookup/selection/root positions and foot counterfactual diagnostics use
 the injected library, not Match. Player retains it for activation/reactivation; its
-lifetime remains Simulation-owned. Humanoid utilities still need their separate
-algorithm-parameter migration. There is no ambient animation owner or hidden load.
+lifetime remains Simulation-owned. Humanoid utilities consume explicit Ball, live
+TouchState/opponent roster, evaluation tick, RNG and baked AnimationClip parameters.
+They neither include Match nor retrieve it through Player; Match::GetAnimPositionCache
+and the private implicit clip lookup are deleted. Shot inputs omit unused arguments.
+There is no ambient animation owner or hidden load.
 Offline `.anim`/XML/object parsing lives under
 `tools/animBaker/`, never libgame.so. Two include roots are distinct:
 `sim/animation/...` is runtime, `animation/...` is offline tooling. Their filenames

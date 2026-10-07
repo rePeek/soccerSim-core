@@ -824,8 +824,8 @@ void Player::UpdatePossessionStats() {
   }
 }
 
-float Player::GetClosestOpponentDistance() const {
-  Player *opp = football::sim::query::GetClosestPlayer(match->GetTeam(abs(team->GetID() - 1)), GetPosition());
+float Player::GetClosestOpponentDistance(Team& opponent) const {
+  Player *opp = football::sim::query::GetClosestPlayer(&opponent, GetPosition());
   return opp->GetPosition().GetDistance(GetPosition());
 }
 

@@ -487,7 +487,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
 
     radian xRot = 0;
     radian yRot = 0;
-    Vector3 touchVec = GetTrapVector(match, CastPlayer(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+    Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), match->rng(), GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
     if (currentAnim.originatingCommand.modifier &
         e_PlayerCommandModifier_KnockOn) {
       touchVec *= 1.35f;//1.2f;
@@ -578,7 +578,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
         //printf("trap!\n");
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(match, CastPlayer(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), match->rng(), GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
         if (currentAnim.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           touchVec *= 1.35f;
@@ -597,7 +597,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
       else if (currentAnim.functionType == e_FunctionType_BallControl) {
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetBallControlVector(match->GetBall(), CastPlayer(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetBallControlVector(match->GetBall(), CastPlayer(), *match->GetTeam(1 - team->GetID()), GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
         if (currentAnim.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           touchVec *= 1.35f;
@@ -712,7 +712,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
         radian xRot = 0;
         radian yRot = 0;
         radian zRot = 0;
-        Vector3 touchVec = GetShotVector(match, CastPlayer(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot, zRot, currentAnim.originatingCommand.touchInfo.autoDirectionBias);
+        Vector3 touchVec = GetShotVector(match->GetBall(), CastPlayer(), GetCurrentBakedClip(), match->rng(), currentAnim, spatialState, decayingPositionOffset, xRot, yRot, zRot);
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
@@ -726,7 +726,7 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
       else if (currentAnim.functionType == e_FunctionType_Interfere) {
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(match, CastPlayer(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), match->rng(), GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
         touchVec =
             touchVec * 0.5f +
             (match->GetBall()->Predict(0).Get2D() - spatialState.position)
@@ -2046,7 +2046,7 @@ signed int Humanoid::GetBestCheatableAnimID(std::span<MentalImage> history, cons
       }
 
       // less chaos in micro battles
-      actionSmuggle_ret *= 0.7f + 0.3f * NormalizedClamp(CastPlayer()->GetClosestOpponentDistance(), 0.6f, 1.2f);
+      actionSmuggle_ret *= 0.7f + 0.3f * NormalizedClamp(CastPlayer()->GetClosestOpponentDistance(*match->GetTeam(1 - team->GetID())), 0.6f, 1.2f);
     }
 
     assert(actionSmuggle_ret.coords[2] == 0.0f);
@@ -2165,7 +2165,7 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
   float distanceFactor = 0.0f;
   float heightFactor = 0.0f;
   float ballMovementFactor = 0.0f;
-  GetDifficultyFactors(match, CastPlayer(), spatialState, decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
+  GetDifficultyFactors(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), match->GetTimelineTick(), match->rng(), spatialState, decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // difficult balls may go into a more random orientation, or, if the anim has a default outgoing direction, it may converge towards that (since it is the easiest direction for that anim)
   radian randomRotation = 0.0f;

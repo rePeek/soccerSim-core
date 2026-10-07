@@ -136,7 +136,6 @@ class Match {
     football::sim::Tick GetTimelineTick() const { return clock_.now(); }
 
 
-    const std::vector<Vector3> &GetAnimPositionCache(AnimationId animation_id) const;
 
 
     int FirstTeam() { return first_team; }
