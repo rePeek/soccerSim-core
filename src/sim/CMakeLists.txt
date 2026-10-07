@@ -39,6 +39,8 @@ target_sources(football_sim PRIVATE
   rules/period.cpp rules/period.hpp
   rules/offside.cpp rules/restart_placement.cpp rules/restart_readiness.cpp
   rules/ball_touch_facts.hpp
+  rules/referee_tick_facts.hpp rules/rule_command_sink.hpp
+  testing/simulation_access.hpp
   rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp
   player/player.cpp player/player_control_builder.cpp player/player_locomotion.cpp
   player/player_contact.cpp player/player_contact.hpp

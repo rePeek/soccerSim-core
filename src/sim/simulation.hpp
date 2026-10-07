@@ -14,9 +14,12 @@
 #include "sim/observation/mentalimage.hpp"
 #include "sim/match/match_result.hpp"
 #include "sim/match/match_touch_sink.hpp"
+#include "sim/rules/referee_tick_facts.hpp"
+#include "sim/rules/rule_command_sink.hpp"
 
 class Match;
 class AnimationLibrary;
+namespace football::sim::testing { class SimulationAccess; }
 
 // Simulation knows controls, rules, runtime history and execution, not AI
 // objects or factories. Composition owns all decisions outside this boundary.
@@ -53,6 +56,9 @@ class Simulation {
   void TouchBall(const blunted::Vector3& impulse);
 
  private:
+  friend class football::sim::testing::SimulationAccess;
+  class RuleCommands;
+  football::sim::rules::RefereeTickFacts RefereeFacts() const;
   void EnsureAnimationLibrary();
   void CaptureMentalImage(Match& match);
   void EndPeriod(Match& match);
@@ -63,6 +69,7 @@ class Simulation {
   // Constructed before Match and kept alive until its borrowed references are gone.
   std::vector<MentalImage> mental_images_;
   std::unique_ptr<Match> match_;
+  std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;
   // Runtime touch publication; keeps the write-only sink out of actors.
   std::unique_ptr<football::sim::MatchTouchSink> touch_sink_;
   std::shared_ptr<AnimationLibrary> animations_;

@@ -8,6 +8,8 @@
 #include "sim/match/match_touch_sink.hpp"
 #include "sim/query/player_query.hpp"
 #include "sim/player/player_motion_constants.hpp"
+#include "sim/testing/simulation_access.hpp"
+using football::sim::testing::SimulationAccess;
 
 namespace {
 using namespace football::sim;
@@ -32,7 +34,7 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     REQUIRE(match.IsInPlay());
     REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
     const auto rng = match.rng().engine();
-    MatchTouchSink touch_sink(match);
+    MatchTouchSink touch_sink(match, SimulationAccess::CommandsOf(simulation));
     REQUIRE_THROWS_AS(actor->Process({}, touch_sink), std::logic_error); // No fallback to Match history.
     REQUIRE(match.rng().engine() == rng);
 
@@ -71,7 +73,7 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
     const auto rng = match.rng().engine();
     auto* actor = match.GetTeam(match.FirstTeam())->GetAllPlayers()[0];
     const auto position = actor->GetPosition();
-    MatchTouchSink touch_sink(match);
+    MatchTouchSink touch_sink(match, SimulationAccess::CommandsOf(simulation));
     REQUIRE_THROWS_AS(actor->CastHumanoid()->Process({}, touch_sink), std::logic_error);
     REQUIRE(actor->GetPosition() == position);
     REQUIRE(match.rng().engine() == rng);

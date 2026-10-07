@@ -75,6 +75,7 @@ src/
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
 │   ├── rules/        Referee, goal geometry, period boundary, offside and restarts
+│   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
 │   └── player/       Player, controls, commands, locomotion and player_contact mechanics
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
 ├── ai/               value-only decisions; never links sim runtime
@@ -295,13 +296,17 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   position, sampled after TripMe in the same physical frame. It still reads live actors,
   keeps foul facts in Referee and has no implicit-clock wrapper. Preserve strict >60
   touch grace, standing 2D/sliding 3D radii, double literals, severity arithmetic, immediate
-  publication and duplicate-tackler gates. CheckFoul(now) also takes the evaluation instant
-  explicitly and uses it for the strict recheck/expiry windows and card deadlines; its foul
-  facts, penalty geometry and possession reads stay referee/actor-local. ScheduleRestart
-  takes explicit RestartSchedule facts (tick, setpiece Team*, PitchFrameTransform) and
-  only mutates referee state; MakeRestartSchedule remains a transitional one-line fact
-  assembly. StopPlay/StartBallInPlay consequences and restart placement still read Match;
-  this does not parameterize all of Referee or add a RulesContext.
+  publication and duplicate-tackler gates. CheckFoul(now, stadium_to_home, commands)
+  takes the evaluation instant/frame explicitly, using them for strict recheck/expiry,
+  card deadlines and restart scheduling. ScheduleRestart takes tick, setpiece Team*
+  and PitchFrameTransform; MakeRestartSchedule and all Referee Match reads are gone.
+  Referee::Process consumes call-local RefereeTickFacts plus immutable options and an
+  explicit RNG. RuleCommandSink is synchronous and write-only; Simulation implements
+  Stop/StartPlay, set-piece gates, accepted ball contact, reset and phase consequences.
+  A local authorization value tracks this call's stop commands, preventing a later
+  sideline check from overwriting a goal-line restart. Ball/actors are live borrows
+  so reset/timeout readiness samples the updated Ball at the original points.
+  No stored facts/commands/config/RNG, RuntimeContext or Simulation pointer in Referee.
   Player contact extraction preserves the same regression fingerprints and twelve
   seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
 - rules/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
@@ -333,12 +338,12 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   The history is Simulation-only, reached by actors through the explicit tick-local span.
   Match::Mirror and ResetSituation are removed: Simulation mirrors teams → Ball → images
   and resets competition facts → clears history → resets Ball → both processing rosters
-  at the old mutation points. Referee::Process receives a narrow synchronous reset action,
-  forwards it to ordinary/ceremonial preparation, and never stores it. There is no
+  at the old mutation points. Referee invokes RuleCommandSink::ResetSituation inline
+  during ordinary/ceremonial preparation and never stores the port. There is no
   delayed reset, replacement context or Simulation pointer in Referee. Sampling/refresh functions
   live in observation/mentalimage_sampling and take explicit spans/Ball. Simulation diagnostic
   sampling is the only remaining history query and sees the same objects actors sample.
-  at the old teardown point and its storage outlives Match. MentalImage has no Match
+  History clears at the old teardown point and its storage outlives Match. MentalImage has no Match
   member/include/constructor or implicit world-clock/Ball reads. Capture takes tick,
   ordered player span and const Ball; age/player sampling takes now, predictions take
   now/Ball and newest refresh takes Ball. Keep live Player deviation clamps and signed
@@ -373,8 +378,8 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   mutates only referee facts and never reads Match. Final time retains the legacy foul
   facts; half time clears the pending foul and schedules kickoff at +10/+30 ticks.
   Physical sides/history still change at the next Step entry, not phase publication.
-  Referee temporarily reads Match in ordinary Process, foul/offside/out-of-play/restart
-  composition; opening phase publication is still transitional. No rules context.
+  Referee has no Match pointer/include/constructor dependency. Its initialization takes
+  only kickoff Team/position; phase publication executes through the write-only port.
 - rules/offside owns pure GetOffsideLine(mentalImage, now, ball, defending_team_id,
   defending_side, futureSim_ms). Defending id/side, sampling instant and Ball are explicit;
   it no longer reads Match/Team. Preserve the second-deepest defender scan, the same
@@ -383,20 +388,20 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
 - rules/ball_touch_facts.hpp defines BallTouchFacts: now, touch player/team id, touch/
   defending Team pointers, in_play/in_set_piece/offsides flags, const Ball and the ordered
   all-active span. Match::SetLastTouchTeamID assembles them from competition facts and calls
-  Referee::BallTouched(facts) synchronously; Referee reads no Match state there and derives
-  defending active count/candidates from the span. Restart release still calls the
-  consequence API (StartBallInPlay) and offside still calls StopPlay/ScheduleRestart,
-  both of which remain Match-reading consequence composition for later cuts.
+  Referee::BallTouched(facts, commands) synchronously; Referee derives defending active
+  count/candidates from the span. Restart release/offside/foul consequences use the
+  same synchronous write-only rule port and explicit stadium frame.
   MentalImage decoupling, clock/end-change orchestration and period extraction each
   preserve regression fingerprints and all twelve diagnostic records byte-for-byte.
   Latest Release 34/34, Debug 33/33 (excluding full-match CLI), standalone period
   and core-only builds pass; no golden, physics, policy or baked asset changed.
 
-After these three cuts, Match has no tick entry or collision/goal/selection algorithm.
-It still combines competition facts/clock, actor/referee ownership and transitional
-touch/history-sampling bridges plus the possession window. Do not rename it to
-MatchState yet: actor/rule upward dependencies and runtime composition must be removed
-before deciding which remaining state is worth retaining separately.
+Match has no tick entry or collision/goal/selection algorithm. Referee is fully
+Match-independent, while its ownership still awaits a mechanical flip to Simulation.
+Match retains competition/clock and actor ownership, touch publication composition
+and the possession window. Next: event-owned touch bookkeeping, actor dependencies,
+then ownership flip, internal testing access migration and deletion of sim/match/.
+Never rename it to a runtime-pointer MatchState or copy it into a RuntimeContext.
 
 Current phase order (composed directly by Simulation):
 ```text

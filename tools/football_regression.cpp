@@ -27,6 +27,8 @@
 #include "animation/import_hierarchy.hpp"
 #include "animation/import_loader.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
+#include "sim/testing/simulation_access.hpp"
+using football::sim::testing::SimulationAccess;
 
 namespace {
 
@@ -1035,9 +1037,10 @@ static_assert(!HasAnimationRestartHook<Referee>);
 // particular tackle clip or exposing a production foul-injection API.
 class RefereeFixture : public Referee {
  public:
-  using Referee::Referee;
+  explicit RefereeFixture(Match* match)
+      : Referee(*match->GetTeam(match->FirstTeam()), match->options().ball_position) {}
   void RecordFoul(Player* offender, Player* victim, int type,
-                  const Vector3& position, bool advantage = false) {
+                  const Vector3& position, football::sim::Tick now, bool advantage = false) {
     buffer.active = false;
     buffer.endPhase = false;
     buffer.setpiece_team = victim->GetTeam();
@@ -1045,7 +1048,7 @@ class RefereeFixture : public Referee {
     foul.foulPlayer = offender;
     foul.foulVictim = victim;
     foul.foulType = type;
-    foul.foul_tick = match->GetTimelineTick();
+    foul.foul_tick = now;
     foul.foulPosition = position;
     foul.advantage = advantage;
   }
@@ -1072,10 +1075,12 @@ void CheckRefereeRules(Simulation& simulation) {
           : Vector3(0, 0, 0);
       RefereeFixture rules(match);
       // Even advantage must be stopped for a penalty.
-      rules.RecordFoul(offender, victim, foul_type, position, penalty);
+      rules.RecordFoul(offender, victim, foul_type, position, match->GetTimelineTick(), penalty);
       const auto rng_before = match->rng().engine();
       const auto stopped = match->GetTimelineTick();
-      Require(rules.CheckFoul(match->GetTimelineTick()), "unprocessed foul did not stop play");
+      Require(rules.CheckFoul(match->GetTimelineTick(),
+          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
+          SimulationAccess::CommandsOf(simulation)), "unprocessed foul did not stop play");
       const RefereeBuffer scheduled = rules.GetBuffer();
       const auto card_delay = foul_type >= 2 ? football::sim::Seconds(10) : football::sim::TickSpan{};
       const auto effective_time = match->GetTimelineTick() + football::sim::Seconds(6);
@@ -1092,14 +1097,16 @@ void CheckRefereeRules(Simulation& simulation) {
                   offender->HasCards() == (foul_type >= 2) &&
                   match->rng().engine() == rng_before,
               "rule restart/card budget changed or consumed RNG");
-      Require(!rules.CheckFoul(match->GetTimelineTick()) &&
+      Require(!rules.CheckFoul(match->GetTimelineTick(),
+          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
+          SimulationAccess::CommandsOf(simulation)) &&
                   rules.GetBuffer().restart->earliest_restart_tick == scheduled.restart->earliest_restart_tick &&
                   rules.GetBuffer().restart->timeout_tick == scheduled.restart->timeout_tick,
               "foul was processed twice or its deadline changed");
 
       const auto process_rules = [&] {
         simulation.Mirror(false, true, false);
-        rules.Process([&](const Vector3& focus) { simulation.ResetSituation(focus); });
+        SimulationAccess::ProcessRules(simulation, rules);
         simulation.Mirror(false, true, false);
       };
       process_rules();
@@ -1137,11 +1144,15 @@ void CheckRefereeRules(Simulation& simulation) {
     match->GetTeam(0)->GetActivePlayers(home);
     match->GetTeam(1)->GetActivePlayers(away);
     RefereeFixture advantage(match);
-    advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), true);
-    Require(!advantage.CheckFoul(match->GetTimelineTick()) && match->IsInPlay(),
+    advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), match->GetTimelineTick(), true);
+    Require(!advantage.CheckFoul(match->GetTimelineTick(),
+        SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
+        SimulationAccess::CommandsOf(simulation)) && match->IsInPlay(),
             "advantage should not immediately stop open play");
     simulation.AdvanceTime(football::sim::TickSpan{301});
-    Require(!advantage.CheckFoul(match->GetTimelineTick()) && advantage.GetCurrentFoulType() == 0 &&
+    Require(!advantage.CheckFoul(match->GetTimelineTick(),
+        SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
+        SimulationAccess::CommandsOf(simulation)) && advantage.GetCurrentFoulType() == 0 &&
                 match->IsInPlay(), "expired advantage was not cancelled");
   }
 
@@ -1159,7 +1170,7 @@ void CheckRefereeRules(Simulation& simulation) {
   home.at(1)->ResetPosition(Vector3(0, 0, 0), Vector3(0));
   home.at(2)->ResetPosition(Vector3(-45.0f * side, 0, 0), Vector3(0));
   match->GetBall()->ResetSituation(Vector3(0));
-  football::sim::MatchTouchSink touch_sink(*match);
+  football::sim::MatchTouchSink touch_sink(*match, SimulationAccess::CommandsOf(simulation));
   touch_sink.OnBallTouched({match->GetTimelineTick(), home.at(1), match->GetTeam(0), e_TouchType_Intentional_Kicked});
   Require(match->IsInPlay(), "offside flagged the passer instead of reception");
   const auto offside_stopped = match->GetTimelineTick();

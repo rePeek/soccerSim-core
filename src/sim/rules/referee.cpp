@@ -19,7 +19,10 @@
 #include <cmath>
 #include <algorithm>
 
-#include "sim/match/match.hpp"
+#include "sim/ball/ball.hpp"
+#include "sim/player/player.hpp"
+#include "sim/team/team.hpp"
+#include "sim/match/pitch_geometry.hpp"
 #include "sim/rules/offside.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/rules/restart_placement.hpp"
@@ -29,6 +32,8 @@ namespace {
 using football::sim::Tick;
 using football::sim::TickSpan;
 using football::sim::Seconds;
+using football::sim::rules::RefereeTickFacts;
+using football::sim::rules::RuleCommandSink;
 // Opening/half-time ceremonies retain their old schedule in this stage.
 constexpr auto kCardAdministration = Seconds(10);
 constexpr auto kRestartWhistle = Seconds(2);
@@ -53,14 +58,14 @@ constexpr auto kAdvantageExpiry = Seconds(3);
 constexpr auto kCardEffectDelay = Seconds(6);
 }  // namespace
 
-Referee::Referee(Match *match) : match(match) {
+Referee::Referee(Team& kickoff_team, const Vector3& kickoff_position) {
   buffer.desiredSetPiece = e_GameMode_KickOff;
-  buffer.teamID = match->FirstTeam();
-  buffer.setpiece_team = match->GetTeam(match->FirstTeam());
+  buffer.teamID = kickoff_team.GetID();
+  buffer.setpiece_team = &kickoff_team;
   buffer.stop_tick = {};
   buffer.prepare_tick = {};
   buffer.start_tick = Tick{} + kRestartWhistle;
-  buffer.restartPos = match->options().ball_position;
+  buffer.restartPos = kickoff_position;
   buffer.taker = 0;
   buffer.endPhase = true;
   buffer.active = true;
@@ -101,39 +106,49 @@ void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
   buffer.setpiece_team = &kickoff_team;
 }
 
-void Referee::Process(const std::function<void(const Vector3&)>& reset_situation) {
-  if (match->Finished()) return;
+void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options,
+                      SimulationRng& rng, RuleCommandSink& commands) {
+  if (facts.phase == MatchPhase::Finished) return;
+  const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
+  // Track this operation's own stop consequences; do not query a runtime owner.
+  bool play_authorized = facts.play_authorized;
+  const auto check_foul = [&] {
+    const bool stopped = CheckFoul(facts.now, facts.stadium_to_home, commands);
+    if (stopped) play_authorized = false;
+    return stopped;
+  };
   if (buffer.active && buffer.restart) {
-    ProcessRestart(reset_situation);
+    ProcessRestart(facts, options, rng, commands);
     if (post_restart_relax_ > TickSpan{}) post_restart_relax_ = post_restart_relax_ - TickSpan{1};
     return;
   }
-  if (match->IsInPlay() && !match->IsInSetPiece()) {
-    const auto home_ball = ToHomePitchFrame(*match).Position(match->GetBall()->Predict(TickSpan{}));
+  if (play_authorized && !facts.set_piece_active) {
+    const auto home_ball = facts.ball_to_home.Position(facts.ball.Predict(TickSpan{}));
     // Legacy foul/side data uses stadium coordinates, including switched ends.
-    Vector3 ballPos = PitchFrameTransform(match->GetTeam(0)->GetStaticSide() != -1).Position(home_ball);
+    Vector3 ballPos = facts.stadium_to_home.Position(home_ball);
 
     // goal kick / corner
 
     if (fabs(ballPos.coords[0]) > pitchHalfW + lineHalfW + 0.11 ||
-        match->IsGoalScored()) {
+        facts.goal_scored) {
 
       foul.advantage = false;
       bool isFoul = false;
-      if (!match->IsGoalScored()) isFoul = CheckFoul(match->GetTimelineTick()); else foul.foulType = 0;
+      if (!facts.goal_scored) isFoul = check_foul(); else foul.foulType = 0;
       if (isFoul == false) {
 
-        match->StopPlay();
+        commands.StopPlay();
+        play_authorized = false;
 
         // corner, goal kick or kick off?
-        Team *lastTouchTeam = match->GetLastTouchTeam();
-        if (lastTouchTeam == 0) lastTouchTeam = match->GetTeam(match->options().reverse_team_processing ? 1 : 0);
+        Team *lastTouchTeam = facts.last_touch_team;
+        if (lastTouchTeam == 0) lastTouchTeam = team(options.reverse_team_processing ? 1 : 0);
         signed int lastSide = lastTouchTeam->GetStaticSide();
 
-        if (match->IsGoalScored()) {
+        if (facts.goal_scored) {
           buffer.desiredSetPiece = e_GameMode_KickOff;
           buffer.restartPos = Vector3(0, 0, 0);
-          buffer.teamID = match->GetLastGoalTeam()->Opponent()->GetID();
+          buffer.teamID = facts.last_goal_team->Opponent()->GetID();
         } else if ((ballPos.coords[0] > 0 && lastSide > 0) ||
                    (ballPos.coords[0] < 0 && lastSide < 0)) {
           buffer.desiredSetPiece = e_GameMode_Corner;
@@ -148,53 +163,54 @@ void Referee::Process(const std::function<void(const Vector3&)>& reset_situation
           buffer.teamID = 1 - lastTouchTeam->GetID();
         }
 
-        ScheduleRestart(MakeRestartSchedule(match->GetTimelineTick()));
+        ScheduleRestart({facts.now, team(buffer.teamID), facts.stadium_to_home});
       }
     }
 
     // over sideline
 
-    if (match->IsInPlay() && post_restart_relax_ == TickSpan{}) {
+    if (play_authorized && post_restart_relax_ == TickSpan{}) {
       if (fabs(ballPos.coords[1]) > pitchHalfH + lineHalfW + 0.11) {
         foul.advantage = false;
-        if (!CheckFoul(match->GetTimelineTick())) {
-          match->StopPlay();
-          Team *lastTouchTeam = match->GetLastTouchTeam();
-          if (lastTouchTeam == 0) lastTouchTeam = match->GetTeam(0);
+        if (!check_foul()) {
+          commands.StopPlay();
+          play_authorized = false;
+          Team *lastTouchTeam = facts.last_touch_team;
+          if (lastTouchTeam == 0) lastTouchTeam = &facts.home;
           buffer.teamID = 1 - lastTouchTeam->GetID();
           buffer.desiredSetPiece = e_GameMode_ThrowIn;
           buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -pitchHalfW + 0.6f, pitchHalfW - 0.6f);
           if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = pitchHalfH;
           if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -pitchHalfH;
           buffer.restartPos.coords[2] = 0;
-          ScheduleRestart(MakeRestartSchedule(match->GetTimelineTick()));
+          ScheduleRestart({facts.now, team(buffer.teamID), facts.stadium_to_home});
         }
       }
     }
 
-    CheckFoul(match->GetTimelineTick());
+    check_foul();
 
   } else {  // not in play, maybe something needs to happen?
 
-    if (!match->IsInPlay() && !match->IsInSetPiece() && buffer.active == true) {
+    if (!play_authorized && !facts.set_piece_active && buffer.active == true) {
 
-      if (buffer.taker == nullptr && match->GetTimelineTick() >= buffer.prepare_tick) {
+      if (buffer.taker == nullptr && facts.now >= buffer.prepare_tick) {
         if (buffer.endPhase == true) {
-          if (match->GetMatchPhase() == MatchPhase::PreMatch) {
-            match->SetMatchPhase(MatchPhase::FirstHalf);
+          if (facts.phase == MatchPhase::PreMatch) {
+            commands.SetPhase(MatchPhase::FirstHalf);
           }
           buffer.endPhase = false;
         }
 
         // Deterministic reseed before positioning players for every restart.
-        match->rng().Seed(match->options().game_engine_random_seed);
-        PrepareCeremonialKickOff(reset_situation);
+        rng.Seed(options.game_engine_random_seed);
+        PrepareCeremonialKickOff(facts, options, rng, commands);
       }
 
-      if (buffer.taker != nullptr && match->GetTimelineTick() >= buffer.start_tick) {
+      if (buffer.taker != nullptr && facts.now >= buffer.start_tick) {
         // blow whistle and wait for set piece taker to touch the ball
-        match->StartPlay();
-        match->StartSetPiece();
+        commands.StartPlay();
+        commands.StartSetPiece();
         // Keep ceremonial schedule/placement, but never fabricate a kickoff.
         // Authorization and accepted contact share the ordinary release states.
         RestartState ready;
@@ -213,23 +229,23 @@ void Referee::Process(const std::function<void(const Vector3&)>& reset_situation
     post_restart_relax_ = post_restart_relax_ - TickSpan{1};
 }
 
-void Referee::PrepareCeremonialKickOff(const std::function<void(const Vector3&)>& reset_situation) {
+void Referee::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
+                                     const MatchOptions& options, SimulationRng& rng,
+                                     RuleCommandSink& commands) {
   // Opening/half-time placement is intentionally separate from ordinary readiness.
-  reset_situation(match->options().reverse_team_processing
-                            ? -buffer.restartPos : buffer.restartPos);
-  Player *first_taker = PositionRestartPlayers(match->GetTeam(match->FirstTeam()),
-      e_GameMode_KickOff, match->GetTeam(match->SecondTeam()),
-      buffer.setpiece_team->GetID(), buffer.teamID, *match->GetBall(),
-      match->GetRegulationTime(), match->options(), match->rng());
-  Player *second_taker = PositionRestartPlayers(match->GetTeam(match->SecondTeam()),
-      e_GameMode_KickOff, match->GetTeam(match->FirstTeam()),
-      buffer.setpiece_team->GetID(), buffer.teamID, *match->GetBall(),
-      match->GetRegulationTime(), match->options(), match->rng());
-  buffer.taker = buffer.teamID == match->FirstTeam() ? first_taker : second_taker;
+  commands.ResetSituation(options.reverse_team_processing ? -buffer.restartPos : buffer.restartPos);
+  Team* first = facts.first_team == 0 ? &facts.home : &facts.away;
+  Team* second = facts.first_team == 0 ? &facts.away : &facts.home;
+  Player *first_taker = PositionRestartPlayers(first, e_GameMode_KickOff, second,
+      buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng);
+  Player *second_taker = PositionRestartPlayers(second, e_GameMode_KickOff, first,
+      buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng);
+  buffer.taker = buffer.teamID == facts.first_team ? first_taker : second_taker;
   offsidePlayers.clear();
 }
 
-void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts) {
+void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts,
+                          RuleCommandSink& commands) {
   if (buffer.active && buffer.restart && buffer.restart->phase == RestartPhase::Ready &&
       facts.touch_player == buffer.taker) {
     const auto& action = buffer.taker->GetSimulationActionState();
@@ -242,7 +258,7 @@ void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts) {
     if (action.contact && action.elapsed == *action.contact && kick &&
         facts.ball->GetMovement().GetLength() > 0.1f) {
       buffer.restart->phase = RestartPhase::Taken;
-      match->StartBallInPlay();
+      commands.StartBallInPlay();
     }
   }
 
@@ -267,13 +283,13 @@ void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts) {
     for (auto p : offsidePlayers) {
       if (p == ballOwner) {
         foul.advantage = false;
-        if (!CheckFoul(match->GetTimelineTick())) {
+        if (!CheckFoul(facts.now, facts.stadium_to_home, commands)) {
           // uooooga uooooga offside!
-          match->StopPlay();
+          commands.StopPlay();
           buffer.desiredSetPiece = e_GameMode_FreeKick;
           buffer.restartPos = ballOwner->GetPitchPosition();
           buffer.teamID = defending_team_id;
-          ScheduleRestart(MakeRestartSchedule(match->GetTimelineTick()));
+          ScheduleRestart({facts.now, facts.defending_team, facts.stadium_to_home});
           break; // Setup clears offside state on the next rule tick, not during this iteration.
         }
       }
@@ -373,7 +389,8 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
 }
 
 
-bool Referee::CheckFoul(football::sim::Tick now) {
+bool Referee::CheckFoul(Tick now, PitchFrameTransform stadium_to_home,
+                        RuleCommandSink& commands) {
 
   bool penalty = false;
   if (foul.foulType != 0) {
@@ -407,14 +424,15 @@ bool Referee::CheckFoul(football::sim::Tick now) {
 
   if (foul.foulType != 0 && foul.advantage == false && !foul.hasBeenProcessed) {
 
-    match->StopPlay();
+    commands.StopPlay();
     buffer.desiredSetPiece = penalty ? e_GameMode_Penalty : e_GameMode_FreeKick;
     buffer.restartPos = penalty
         ? Vector3((pitchHalfW - 11.0) * foul.foulPlayer->GetTeam()->GetStaticSide(),
                   0, 0)
         : foul.foulPosition;
     buffer.teamID = foul.foulVictim->GetTeam()->GetID();
-    ScheduleRestart(MakeRestartSchedule(now), foul.foulType >= 2 ? kCardAdministration : TickSpan{});
+    ScheduleRestart({now, foul.foulVictim->GetTeam(), stadium_to_home},
+        foul.foulType >= 2 ? kCardAdministration : TickSpan{});
     if (foul.foulType == 2) {
       foul.foulPlayer->GiveYellowCard(now + kCardEffectDelay);
     }
@@ -428,12 +446,6 @@ bool Referee::CheckFoul(football::sim::Tick now) {
   }
 
   return false;
-}
-
-::RestartSchedule Referee::MakeRestartSchedule(football::sim::Tick now) const {
-  // Transitional fact assembly; ScheduleRestart itself reads no Match state.
-  return {now, match->GetTeam(buffer.teamID),
-          PitchFrameTransform(match->GetTeam(0)->GetStaticSide() != -1)};
 }
 
 void Referee::ScheduleRestart(const RestartSchedule& schedule, TickSpan administration) {
@@ -465,12 +477,13 @@ std::optional<Vector3> Referee::GetRestartTarget(const Player* player) const {
   return std::nullopt;
 }
 
-void Referee::ProcessRestart(const std::function<void(const Vector3&)>& reset_situation) {
+void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& options,
+                             SimulationRng& rng, RuleCommandSink& commands) {
   auto& state = *buffer.restart;
   if (state.phase == RestartPhase::Taken) {
     state.phase = RestartPhase::InPlay;
     buffer.active = false;
-    match->StopSetPiece();
+    commands.StopSetPiece();
     post_restart_relax_ = kPostRestartRelax;
     foul.foulPlayer = nullptr;
     foul.foulType = 0;
@@ -478,17 +491,17 @@ void Referee::ProcessRestart(const std::function<void(const Vector3&)>& reset_si
   }
   if (state.phase != RestartPhase::Pending) return;
   if (!state.setup_done) {
-    match->rng().Seed(match->options().game_engine_random_seed);
+    rng.Seed(options.game_engine_random_seed);
     if (buffer.desiredSetPiece == e_GameMode_FreeKick) {
       buffer.restartPos.coords[0] = clamp(buffer.restartPos.coords[0], -0.95f * pitchHalfW, 0.95f * pitchHalfW);
       buffer.restartPos.coords[1] = clamp(buffer.restartPos.coords[1], -0.95f * pitchHalfH, 0.95f * pitchHalfH);
     }
-    reset_situation(ToHomePitchFrame(*match).Position(buffer.restartPos));
+    commands.ResetSituation(facts.ball_to_home.Position(buffer.restartPos));
     std::vector<Player*> active;
-    match->GetTeam(0)->GetActivePlayers(active);
-    match->GetTeam(1)->GetActivePlayers(active);
-    state.plan = PlanRestart(match->pitch(), ToHomePitchFrame(*match).Position(
-        match->GetBall()->Predict(TickSpan{})), active, buffer.desiredSetPiece, *buffer.setpiece_team);
+    facts.home.GetActivePlayers(active);
+    facts.away.GetActivePlayers(active);
+    state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
+        facts.ball.Predict(TickSpan{})), active, buffer.desiredSetPiece, *buffer.setpiece_team);
     for (const auto& actor : state.plan.players) {
       const auto frame = FromHomePitchFrame(*actor.player->GetTeam());
       actor.player->ResetPosition(actor.player->GetPosition(), frame.Position(state.plan.ball_position));
@@ -498,28 +511,26 @@ void Referee::ProcessRestart(const std::function<void(const Vector3&)>& reset_si
   }
   if (!buffer.taker || !buffer.taker->IsActive()) {
     std::vector<Player*> active;
-    match->GetTeam(0)->GetActivePlayers(active);
-    match->GetTeam(1)->GetActivePlayers(active);
-    state.plan = PlanRestart(match->pitch(), ToHomePitchFrame(*match).Position(
-        match->GetBall()->Predict(TickSpan{})), active, buffer.desiredSetPiece, *buffer.setpiece_team);
+    facts.home.GetActivePlayers(active);
+    facts.away.GetActivePlayers(active);
+    state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
+        facts.ball.Predict(TickSpan{})), active, buffer.desiredSetPiece, *buffer.setpiece_team);
     buffer.taker = state.plan.taker;
   }
-  if (match->GetTimelineTick() < state.earliest_restart_tick) return;
-  if (!state.used_timeout_placement && match->GetTimelineTick() >= state.timeout_tick) {
+  if (facts.now < state.earliest_restart_tick) return;
+  if (!state.used_timeout_placement && facts.now >= state.timeout_tick) {
     PlaceRestartPlayersAtTimeout(state.plan);
-    const auto frame = ToHomePitchFrame(*match);
-    match->GetBall()->ResetSituation(frame.Position(state.plan.ball_position));
+    commands.ResetBall(facts.ball_to_home.Position(state.plan.ball_position));
     state.used_timeout_placement = true;
   }
-  const auto ball_position = ToHomePitchFrame(*match).Position(
-      match->GetBall()->Predict(TickSpan{}));
-  if (!RestartPlayersReady(state.plan, match->pitch()) ||
+  const auto ball_position = facts.ball_to_home.Position(facts.ball.Predict(TickSpan{}));
+  if (!RestartPlayersReady(state.plan, facts.pitch) ||
       std::fabs(ball_position.coords[2] - 0.11f) > 0.03f ||
       (ball_position.Get2D() - state.plan.ball_position).GetLength() > 0.05f ||
-      match->GetBall()->GetMovement().GetLength() > 0.5f) return;
+      facts.ball.GetMovement().GetLength() > 0.5f) return;
   state.phase = RestartPhase::Ready;
-  buffer.start_tick = match->GetTimelineTick(); // Fact: authorization instant, not a preset delay.
+  buffer.start_tick = facts.now; // Fact: authorization instant, not a preset delay.
   if (buffer.desiredSetPiece == e_GameMode_ThrowIn) buffer.taker->SelectRetainAnim();
-  match->StartPlay();
-  match->StartSetPiece();
+  commands.StartPlay();
+  commands.StartSetPiece();
 }

@@ -3,6 +3,8 @@
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
 #include "sim/match/match_touch_sink.hpp"
+#include "sim/testing/simulation_access.hpp"
+using football::sim::testing::SimulationAccess;
 
 TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warmup", "[sim][clock][fatigue]") {
   for (bool half_underway : {false, true}) {
@@ -26,7 +28,7 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
     std::vector<MentalImage> history{*simulation.GetMentalImage(football::sim::TickSpan{}),
         *simulation.GetMentalImage(football::sim::TickSpan{10}),
         *simulation.GetMentalImage(football::sim::TickSpan{20})};
-    football::sim::MatchTouchSink touch_sink(*simulation.match());
+    football::sim::MatchTouchSink touch_sink(*simulation.match(), SimulationAccess::CommandsOf(simulation));
     // Exercise this owner's native motion/update, without collisions or rule resets
     // contaminating the distance. No implicit policy, scale override or fake contact.
     for (int tick = 0; tick < 100; ++tick) {

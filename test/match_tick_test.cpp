@@ -8,6 +8,8 @@
 #include "sim/simulation.hpp"
 #include "sim/time/tick.hpp"
 #include "sim/time/tick_boundary.hpp"
+#include "sim/testing/simulation_access.hpp"
+using football::sim::testing::SimulationAccess;
 
 namespace {
 using namespace football::sim;
@@ -145,7 +147,7 @@ TEST_CASE("Restart setup and timeout fire once across timeline jumps",
     Referee* rules = match->GetReferee();
     const auto process_rules = [&] {
       simulation.Mirror(reverse, !reverse, reverse);
-      rules->Process([&](const blunted::Vector3& focus) { simulation.ResetSituation(focus); });
+      SimulationAccess::ProcessRules(simulation, *rules);
       simulation.Mirror(reverse, !reverse, reverse);
     };
     const auto scheduled = rules->GetBuffer();
@@ -184,7 +186,7 @@ TEST_CASE("Player touch and card effect timestamps use the timeline tick", "[sim
     Match* match = simulation.match();
     auto* player = match->GetTeam(0)->GetAllPlayers()[1];
     const auto now = match->GetTimelineTick();
-    MatchTouchSink touch_sink(*match);
+    MatchTouchSink touch_sink(*match, SimulationAccess::CommandsOf(simulation));
     touch_sink.OnBallTouched({now, player, match->GetTeam(0), e_TouchType_Intentional_Kicked});
     REQUIRE(player->GetLastTouchTick() == now);
     const auto effective = now + TickSpan{5};

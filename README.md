@@ -175,8 +175,12 @@ Match still owns runtime objects and competition facts; its history bridge is re
 Simulation directly owns the three-slot MentalImage history and capture cadence. Observation
 sampling/newest-ball refresh take explicit spans; Match has no history member, query or
 constructor parameter at all. Mirror/reset composition lives in Simulation;
-Match::Mirror/ResetSituation are removed. Referee receives a per-call synchronous reset action
-at the original setup point, never stores it, and gains no Simulation pointer/context.
+Match::Mirror/ResetSituation are removed. Referee has no Match pointer or include:
+construction takes kickoff Team/position; Process takes call-local RefereeTickFacts,
+immutable options, explicit RNG and a synchronous, write-only RuleCommandSink.
+Simulation applies reset/play/phase consequences inline. Live Ball/actor borrows allow
+readiness checks after resets without stale position snapshots or reordered RNG.
+Internal `testing::SimulationAccess` supports rule diagnostics, not product APIs.
 Restart placement receives Ball, regulation, immutable options and RNG explicitly; readiness
 planning receives Pitch, the home-frame ball position and the ordered active-player span.
 Neither algorithm retrieves Match from Team/Player. Placement still resets actors in the

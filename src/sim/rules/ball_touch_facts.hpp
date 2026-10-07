@@ -18,6 +18,7 @@
 #include <span>
 
 #include "sim/time/tick.hpp"
+#include "sim/observation/pitch_frame.hpp"
 
 class Ball;
 class Player;
@@ -40,6 +41,7 @@ struct BallTouchFacts {
   bool offsides_enabled = false;
   const Ball* ball = nullptr;
   std::span<Player* const> all_active_players;
+  PitchFrameTransform stadium_to_home{false};
 };
 
 }  // namespace football::sim::rules

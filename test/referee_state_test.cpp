@@ -5,16 +5,19 @@
 #include "sim/match/match.hpp"
 #include "sim/simulation.hpp"
 #include "sim/rules/ball_touch_facts.hpp"
+#include "sim/testing/simulation_access.hpp"
+#include "rule_command_fixture.hpp"
+using football::sim::testing::SimulationAccess;
 
 namespace {
 using namespace football::sim;
 using blunted::Vector3;
 
 struct RefereeStateFixture : Referee {
-  using Referee::Referee;
+  explicit RefereeStateFixture(Match* match)
+      : Referee(*match->GetTeam(match->FirstTeam()), match->options().ball_position) {}
   using Referee::buffer;
   using Referee::foul;
-  using Referee::match;
   using Referee::offsidePlayers;
   using Referee::post_restart_relax_;
 };
@@ -113,7 +116,8 @@ TEST_CASE("Referee invokes the explicit reset action synchronously once before r
     const auto now = match.GetTimelineTick();
     int calls = 0;
     simulation.Mirror(reverse, !reverse, false);
-    referee.Process([&](const Vector3& focus) {
+    football::test::RuleCommandProbe commands(&SimulationAccess::CommandsOf(simulation));
+    commands.reset = [&](const Vector3& focus) {
       REQUIRE(++calls == 1);
       REQUIRE_FALSE(referee.GetBuffer().restart->setup_done);
       REQUIRE(referee.GetBuffer().taker == nullptr);
@@ -123,14 +127,16 @@ TEST_CASE("Referee invokes the explicit reset action synchronously once before r
       REQUIRE(match.GetResetSequence() == sequence + 1);
       REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
       REQUIRE(match.GetTimelineTick() == now);
-    });
+    };
+    referee.Process(SimulationAccess::RefereeFactsOf(simulation), match.options(), match.rng(), commands);
     REQUIRE(calls == 1);
     REQUIRE(referee.GetBuffer().restart->setup_done);
     REQUIRE(referee.GetBuffer().taker != nullptr);
     REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
     const auto rng = match.rng().engine();
     // This fresh per-call action must not be called again on the same pending restart.
-    referee.Process([](const Vector3&) { FAIL("restart reset was repeated"); });
+    commands.reset = [](const Vector3&) { FAIL("restart reset was repeated"); };
+    referee.Process(SimulationAccess::RefereeFactsOf(simulation), match.options(), match.rng(), commands);
     REQUIRE(match.GetResetSequence() == sequence + 1);
     REQUIRE(match.rng().engine() == rng);
     simulation.Mirror(reverse, !reverse, false);
@@ -168,12 +174,10 @@ TEST_CASE("standing trip notices use explicit Ball and tick facts without a Matc
     const auto rng = match.rng().engine();
     const auto ball = match.GetBall()->Predict(0);
     const auto sequence = match.GetResetSequence();
-    // Null the transitional pointer only after construction: this whole operation
-    // must work from its explicit facts and actor reads, not the runtime owner.
+    // Referee has no runtime-owner dependency; only explicit inputs and live actors.
     for (int scenario = 0; scenario < 7; ++scenario) {
       CAPTURE(reverse, scenario);
       RefereeStateFixture referee(&match);
-      referee.match = nullptr;
       referee.buffer.active = false;
       Vector3 ball_position(3, 4, 100); // Standing distance retains the old 2D projection.
       if (scenario == 1) ball_position.coords[0] += 2; // Strict distance <2.
@@ -222,7 +226,6 @@ TEST_CASE("sliding trip notices preserve strict grace, 3D radius, severity and d
   for (int scenario = 0; scenario < 9; ++scenario) {
     CAPTURE(scenario);
     RefereeStateFixture referee(&match);
-    referee.match = nullptr;
     referee.buffer.active = false;
     action.state.type = scenario == 3 ? e_FunctionType_Interfere : e_FunctionType_Sliding;
     action.state.contact.reset();
@@ -258,7 +261,6 @@ TEST_CASE("sliding trip notices preserve strict grace, 3D radius, severity and d
     REQUIRE(match.rng().engine() == rng);
   }
   RefereeStateFixture referee(&match);
-  referee.match = nullptr;
   referee.buffer.active = false;
   const auto rng = match.rng().engine();
   referee.TripNotice(victim, tackler, 1, Tick{161}, Vector3(3, 4, 0));
@@ -292,7 +294,7 @@ TEST_CASE("the explicit touch sink is the only publication path for actor touche
   auto* other = match.GetTeam(1)->GetAllPlayers()[1];
   const auto rng = match.rng().engine();
   const auto now = Tick{77};
-  MatchTouchSink sink(match);
+  MatchTouchSink sink(match, SimulationAccess::CommandsOf(simulation));
   sink.OnBallTouched({now, player, team, e_TouchType_Intentional_Nonkicked});
   REQUIRE(team->GetLastTouchPlayer() == player);
   REQUIRE(player->GetLastTouchTick() == now);
@@ -317,13 +319,14 @@ TEST_CASE("touch notices consume explicit facts instead of Match state",
 
   SECTION("disabled offsides keeps prior facts and never dereferences Match") {
     RefereeStateFixture referee(&match);
-    referee.match = nullptr;
+    football::test::RuleCommandProbe commands;
     referee.buffer.active = false;
     referee.offsidePlayers = {touch_player};
     rules::BallTouchFacts facts;
     facts.now = Tick{5};
     facts.ball = match.GetBall();
-    referee.BallTouched(facts);
+    referee.BallTouched(facts, commands);
+    REQUIRE(commands.calls.empty());
     REQUIRE(referee.offsidePlayers == std::vector<Player*>{touch_player});
   }
 
@@ -344,7 +347,9 @@ TEST_CASE("touch notices consume explicit facts instead of Match state",
     facts.offsides_enabled = true;
     facts.ball = match.GetBall();
     facts.all_active_players = active_players;
-    referee.BallTouched(facts);
+    football::test::RuleCommandProbe commands(&SimulationAccess::CommandsOf(simulation));
+    referee.BallTouched(facts, commands);
+    REQUIRE(commands.calls == std::vector<std::string>{"stop"});
     REQUIRE(referee.buffer.active);
     REQUIRE(referee.buffer.desiredSetPiece == e_GameMode_FreeKick);
     REQUIRE(referee.buffer.teamID == 1);
@@ -369,7 +374,7 @@ TEST_CASE("foul evaluation timing comes from the supplied instant, not Match",
   auto* victim = match.GetTeam(1)->GetAllPlayers()[1];
   victim->GetTeam()->SetFadingTeamPossessionAmount(1.2f);
   RefereeStateFixture referee(&match);
-  referee.match = nullptr; // Any Match read in this path would crash.
+  football::test::RuleCommandProbe commands;
   referee.buffer.active = false;
   referee.foul.foulPlayer = offender;
   referee.foul.foulVictim = victim;
@@ -377,16 +382,82 @@ TEST_CASE("foul evaluation timing comes from the supplied instant, not Match",
   referee.foul.advantage = true;
   referee.foul.foul_tick = Tick{100};
   referee.foul.hasBeenProcessed = false;
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100}));
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck)); // Strictly greater starts the recheck.
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck + TickSpan{1}));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100}, PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck, PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck + TickSpan{1}, PitchFrameTransform(false), commands));
   REQUIRE(referee.foul.advantage); // Kept while the victim side still has possession.
   REQUIRE(referee.foul.foulType == 1);
   REQUIRE(referee.foul.foulPlayer == offender); // Expires only past the advantage window.
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry));
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry + TickSpan{1}));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry, PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry + TickSpan{1}, PitchFrameTransform(false), commands));
+  REQUIRE(commands.calls.empty());
   REQUIRE(referee.foul.foulType == 0);
   REQUIRE(referee.foul.foulPlayer == nullptr);
 }
 
+
+static_assert(!std::is_constructible_v<Referee, Match*>);
+static_assert(std::is_constructible_v<Referee, Team&, const Vector3&>);
+template<class T> concept HasImplicitRuleTick = requires(T& referee) {
+  referee.Process([](const Vector3&) {});
+};
+static_assert(!HasImplicitRuleTick<Referee>);
+
+TEST_CASE("referee facts and write-only consequences do not fall back to runtime state",
+          "[sim][referee][commands]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  RefereeStateFixture referee(&match);
+  referee.buffer.active = false;
+  football::test::RuleCommandProbe commands;
+  auto facts = SimulationAccess::RefereeFactsOf(simulation);
+  facts.phase = MatchPhase::FirstHalf;
+  facts.now = Tick{9001};
+  facts.play_authorized = true; // Match is still unauthorized PreMatch.
+  facts.set_piece_active = false;
+  match.GetBall()->ResetSituation(Vector3(56, 40, 0)); // Beyond BOTH lines.
+  const auto rng = match.rng().engine();
+  referee.Process(facts, match.options(), match.rng(), commands);
+  REQUIRE(commands.calls == std::vector<std::string>{"stop"});
+  REQUIRE(referee.buffer.desiredSetPiece == e_GameMode_GoalKick); // Stop prevents throw-in overwrite.
+  REQUIRE(referee.buffer.stop_tick == facts.now);
+  REQUIRE(referee.buffer.teamID == 1);
+  REQUIRE(referee.buffer.restart);
+  REQUIRE(referee.buffer.restart->earliest_restart_tick == facts.now + Seconds(3));
+  REQUIRE(match.GetMatchPhase() == MatchPhase::PreMatch);
+  REQUIRE(match.GetTimelineTick() == Tick{});
+  REQUIRE(match.rng().engine() == rng);
+}
+
+TEST_CASE("foul commands schedule and card from supplied tick and stadium frame",
+          "[sim][referee][commands][foul]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  RefereeStateFixture referee(&match);
+  referee.buffer.active = false;
+  referee.foul.foulPlayer = match.GetTeam(0)->GetAllPlayers()[1];
+  referee.foul.foulVictim = match.GetTeam(1)->GetAllPlayers()[1];
+  referee.foul.foulType = 2;
+  referee.foul.foulPosition = Vector3(12, 6, 0);
+  referee.foul.advantage = false;
+  referee.foul.hasBeenProcessed = false;
+  football::test::RuleCommandProbe commands;
+  const auto rng = match.rng().engine();
+  REQUIRE(referee.CheckFoul(Tick{8001}, PitchFrameTransform(true), commands));
+  REQUIRE(commands.calls == std::vector<std::string>{"stop"});
+  REQUIRE(referee.buffer.setpiece_team == match.GetTeam(1));
+  REQUIRE(referee.buffer.restartPos == Vector3(-12, -6, 0));
+  REQUIRE(referee.buffer.stop_tick == Tick{8001});
+  REQUIRE(referee.buffer.restart->earliest_restart_tick == Tick{9001});
+  REQUIRE(referee.buffer.restart->timeout_tick == Tick{12001});
+  REQUIRE(referee.foul.foulPlayer->HasCards());
+  REQUIRE_FALSE(referee.CheckFoul(Tick{9001}, PitchFrameTransform(false), commands));
+  REQUIRE(commands.calls.size() == 1);
+  REQUIRE(match.GetTimelineTick() == Tick{});
+  REQUIRE(match.rng().engine() == rng);
+}
 }  // namespace

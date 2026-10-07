@@ -15,6 +15,8 @@
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
+#include "sim/testing/simulation_access.hpp"
+using football::sim::testing::SimulationAccess;
 
 namespace {
 using namespace football::sim;
@@ -43,7 +45,7 @@ struct ContactFixture {
         football::app::fixtures::MakeDefaultAwayTeam(),
         football::model::MakeLegacyPitch(), options);
     auto& match = *simulation.match();
-    touch_sink = std::make_unique<MatchTouchSink>(match);
+    touch_sink = std::make_unique<MatchTouchSink>(match, SimulationAccess::CommandsOf(simulation));
     teams = {match.GetTeam(0), match.GetTeam(1)};
     // Native kickoff placement initializes the Movement action publication.
     for (int i = 0; i < 40; ++i) simulation.Step({});
@@ -57,7 +59,7 @@ struct ContactFixture {
     home->ResetPosition(Vector3(0), Vector3(1, 0, 0));
     away->ResetPosition(Vector3(0), Vector3(1, 0, 0));
     simulation.AdvanceTime(Seconds(1));
-    MatchTouchSink touch_sink(match);
+    MatchTouchSink touch_sink(match, SimulationAccess::CommandsOf(simulation));
     touch_sink.OnBallTouched({match.GetTimelineTick(), teams[1]->GetAllPlayers()[2], teams[1],
         e_TouchType_Intentional_Kicked});
     match.GetBall()->SetPosition(Vector3(0.05f, 0, 1.0f), match.GetBallEnvironment());
@@ -142,7 +144,7 @@ TEST_CASE("controlled body contacts request a player action without a random bou
   fixture.teams[0]->SetDesignatedTeamPossessionPlayer(fixture.home);
   // The opponent has a fresh team touch, while the global latest-team record
   // refers to Home's stale touch. Preserve this legacy controlled-contact gate.
-  match.SetLastTouchTeamID(0);
+  match.SetLastTouchTeamID(0, e_TouchType_Intentional_Kicked, SimulationAccess::CommandsOf(fixture.simulation));
   fixture.home->ResetControlledBallCollisionTrigger();
   const auto rng = match.rng().engine();
   std::array<Player*, 1> players{fixture.home};

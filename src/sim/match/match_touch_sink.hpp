@@ -2,6 +2,7 @@
 #define FOOTBALL_SIM_MATCH_MATCH_TOUCH_SINK_HPP
 
 #include "sim/ball/ball_touch_event.hpp"
+#include "sim/rules/rule_command_sink.hpp"
 
 class Match;
 
@@ -13,11 +14,13 @@ namespace football::sim {
 // actors.
 class MatchTouchSink final : public BallTouchSink {
  public:
-  explicit MatchTouchSink(Match& match) : match_(match) {}
+  MatchTouchSink(Match& match, rules::RuleCommandSink& commands)
+      : match_(match), commands_(commands) {}
   void OnBallTouched(const BallTouchEvent& event) override;
 
  private:
   Match& match_;
+  rules::RuleCommandSink& commands_;
 };
 
 }  // namespace football::sim

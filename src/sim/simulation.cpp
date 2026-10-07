@@ -94,6 +94,32 @@ void ValidatePlayers(const football::model::Team& home, const football::model::T
 
 }  // namespace
 
+// Only the composition root translates write-only rule commands to runtime state.
+class Simulation::RuleCommands final : public football::sim::rules::RuleCommandSink {
+ public:
+  explicit RuleCommands(Simulation& simulation) : simulation_(simulation) {}
+  void StopPlay() override { simulation_.match_->StopPlay(); }
+  void StartPlay() override { simulation_.match_->StartPlay(); }
+  void StartSetPiece() override { simulation_.match_->StartSetPiece(); }
+  void StopSetPiece() override { simulation_.match_->StopSetPiece(); }
+  void StartBallInPlay() override { simulation_.match_->StartBallInPlay(); }
+  void ResetSituation(const Vector3& position) override { simulation_.ResetSituation(position); }
+  void ResetBall(const Vector3& position) override { simulation_.match_->GetBall()->ResetSituation(position); }
+  void SetPhase(MatchPhase phase) override { simulation_.match_->SetMatchPhase(phase); }
+ private:
+  Simulation& simulation_;
+};
+
+football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
+  if (!match_) throw std::logic_error("simulation has no match");
+  auto& match = *match_;
+  return {match.GetTimelineTick(), match.GetMatchPhase(), match.IsInPlay(),
+      match.IsInSetPiece(), match.IsGoalScored(), *match.GetBall(), match.pitch(),
+      match.GetRegulationTime(), *match.GetTeam(0), *match.GetTeam(1), match.FirstTeam(),
+      match.GetLastTouchTeam(), match.GetLastGoalTeam(), ToHomePitchFrame(match),
+      PitchFrameTransform(match.GetTeam(0)->GetStaticSide() != -1)};
+}
+
 Simulation::Simulation() {
   // The pre-match profile draws historically ran on an RNG freshly seeded with
   // 0, before the episode seed was applied in Init(). Keep that exact window.
@@ -131,7 +157,8 @@ void Simulation::Init(
   EnsureAnimationLibrary();
   match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
                                   animations_);
-  touch_sink_ = std::make_unique<football::sim::MatchTouchSink>(*match_);
+  rule_commands_ = std::make_unique<RuleCommands>(*this);
+  touch_sink_ = std::make_unique<football::sim::MatchTouchSink>(*match_, *rule_commands_);
 }
 
 void Simulation::EnsureAnimationLibrary() {
@@ -197,7 +224,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
           match.GetRegulationTime(), match.options().half_duration)) {
     EndPeriod(match);
   } else {
-    match.GetReferee()->Process([this](const Vector3& focus) { ResetSituation(focus); });
+    match.GetReferee()->Process(RefereeFacts(), match.options(), rng_, *rule_commands_);
   }
   Vector3 previousBallPos = match.ball->Predict(0);
   Mirror(reverse, !reverse, false);
@@ -420,6 +447,7 @@ bool Simulation::Stop() {
   match_->Exit();
   mental_images_.clear();
   touch_sink_.reset();
+  rule_commands_.reset();
   match_.reset();
   return true;
 }

@@ -18,7 +18,6 @@
 #ifndef _HPP_REFEREE
 #define _HPP_REFEREE
 
-#include <functional>
 #include <vector>
 #include <optional>
 
@@ -28,11 +27,14 @@
 #include "sim/rules/restart_readiness.hpp"
 #include "sim/rules/ball_touch_facts.hpp"
 #include "sim/observation/pitch_frame.hpp"
+#include "sim/rules/referee_tick_facts.hpp"
+#include "sim/rules/rule_command_sink.hpp"
+#include "sim/match/match_options.hpp"
+#include "sim/random/rng.hpp"
 
 
 using namespace blunted;
 
-class Match;
 class Player;
 class Team;
 
@@ -86,35 +88,37 @@ struct Foul {
 class Referee {
 
   public:
-    explicit Referee(Match *match);
+    Referee(Team& kickoff_team, const Vector3& kickoff_position);
     virtual ~Referee();
 
     // Mutates only referee facts; lifecycle consequences belong to Simulation.
     void OnPeriodEnded(MatchPhase ended_phase, football::sim::Tick now,
                        const Vector3& kickoff_position, Team& kickoff_team);
 
-    // Narrow synchronous action at the native reset boundary; never stored.
-    void Process(const std::function<void(const Vector3&)>& reset_situation);
+    // Tick-local facts and synchronous write-only consequences; never stored.
+    void Process(const football::sim::rules::RefereeTickFacts& facts,
+                 const MatchOptions& options, SimulationRng& rng,
+                 football::sim::rules::RuleCommandSink& commands);
 
     const RefereeBuffer &GetBuffer() { return buffer; };
     bool RestartNeedsSimulation() const;
     std::optional<Vector3> GetRestartTarget(const Player* player) const;
 
     // Consumes explicit competition/observation facts; never reads Match.
-    void BallTouched(const football::sim::rules::BallTouchFacts& facts);
+    void BallTouched(const football::sim::rules::BallTouchFacts& facts,
+                     football::sim::rules::RuleCommandSink& commands);
     // Synchronous foul-state operation: explicit clock/Ball facts, live actor reads.
     // Types: 1 = little standing trip, 2 = standing fall, 3 = sliding tackle.
     void TripNotice(Player *tripee, Player *tripper, int tackleType,
                     football::sim::Tick now, const Vector3& ball_position);
     // Foul facts carry their own timestamps; the caller supplies the evaluation instant.
-    bool CheckFoul(football::sim::Tick now);
+    bool CheckFoul(football::sim::Tick now, PitchFrameTransform stadium_to_home,
+                   football::sim::rules::RuleCommandSink& commands);
 
     Player *GetCurrentFoulPlayer() { return foul.foulPlayer; }
     int GetCurrentFoulType() { return foul.foulType; }
 
   protected:
-    Match *match;
-
     RefereeBuffer buffer;
 
     // Ignore the ball outside the line just after a throw-in is taken.
@@ -126,11 +130,14 @@ class Referee {
     Foul foul;
 
   private:
-    RestartSchedule MakeRestartSchedule(football::sim::Tick now) const;
     void ScheduleRestart(const RestartSchedule& schedule,
                          football::sim::TickSpan administration = {});
-    void ProcessRestart(const std::function<void(const Vector3&)>& reset_situation);
-    void PrepareCeremonialKickOff(const std::function<void(const Vector3&)>& reset_situation);
+    void ProcessRestart(const football::sim::rules::RefereeTickFacts& facts,
+                        const MatchOptions& options, SimulationRng& rng,
+                        football::sim::rules::RuleCommandSink& commands);
+    void PrepareCeremonialKickOff(const football::sim::rules::RefereeTickFacts& facts,
+                                 const MatchOptions& options, SimulationRng& rng,
+                                 football::sim::rules::RuleCommandSink& commands);
 };
 
 #endif
