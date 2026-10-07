@@ -57,6 +57,14 @@ football_configure_target(football_goal_test)
 add_test(NAME football_goal_test COMMAND football_goal_test)
 set_tests_properties(football_goal_test PROPERTIES LABELS sim)
 
+# Clock invariants need only match/time values, never concrete actors or sim runtime.
+add_executable(football_match_clock_test match_clock_test.cpp ../src/sim/match/match_clock.cpp)
+target_link_libraries(football_match_clock_test PRIVATE
+  football::sim_contracts Catch2::Catch2WithMain)
+football_configure_target(football_match_clock_test)
+add_test(NAME football_match_clock_test COMMAND football_match_clock_test)
+set_tests_properties(football_match_clock_test PROPERTIES LABELS sim)
+
 # This target proves that policy compiles/links without sim or libgame.
 add_executable(football_default_ai_test default_ai_test.cpp)
 target_link_libraries(football_default_ai_test PRIVATE

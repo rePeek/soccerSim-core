@@ -150,7 +150,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
     match.SwitchEnds();
     match.pending_change_of_ends_ = false;
   }
-  ++match.duration_ticks_;
+  match.clock_.CountExecutedStep(match.GetMatchPhase());
 
   // Frame-local controls are runtime input, not a Match algorithm.
   for (int team_id = 0; team_id < 2; ++team_id) {
@@ -191,8 +191,8 @@ void Simulation::Step(const PlayerControlSet& controls) {
   // Restore the processing frame even on the referee's terminal transition.
   if (match.Finished()) return;
   if (!match.IsInPlay() && !match.GetReferee()->RestartNeedsSimulation() &&
-      (match.now_ < match.GetReferee()->GetBuffer().prepare_tick ||
-       match.GetReferee()->GetBuffer().prepare_tick + football::sim::TickSpan{1} < match.now_)) {
+      (match.GetTimelineTick() < match.GetReferee()->GetBuffer().prepare_tick ||
+       match.GetReferee()->GetBuffer().prepare_tick + football::sim::TickSpan{1} < match.GetTimelineTick())) {
     // Ceremonies execute only their placement tail; both clocks stay stopped.
     match.AdvanceTime(football::sim::TickSpan{1});
     return;

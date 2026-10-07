@@ -19,7 +19,6 @@
 #include "sim/animation/library.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <stdexcept>
 
 #include "sim/observation/mentalimage_sampling.hpp"
@@ -45,6 +44,7 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
       borrowed_mental_images_(mental_images),
+      clock_(options.half_duration),
       options_(options) {
 
 
@@ -197,15 +197,15 @@ void Match::StartBallInPlay() {
   if (!IsInPlay() || (matchPhase != MatchPhase::FirstHalf &&
                       matchPhase != MatchPhase::SecondHalf))
     throw std::logic_error("ball cannot enter play outside an authorized half");
-  regulation_running_ = true;
-  ball_in_play_ = true;
+  clock_.BeginHalf();
+  clock_.StartBallInPlay();
 }
 
 MatchResult Match::Result() const {
   if (!Finished()) throw std::logic_error("match result requires full time");
   const auto outcome = score_[0] > score_[1] ? MatchOutcome::HomeWin
       : score_[0] < score_[1] ? MatchOutcome::AwayWin : MatchOutcome::Draw;
-  return {score_[0], score_[1], outcome, duration_ticks_};
+  return {score_[0], score_[1], outcome, clock_.ExecutedTicks()};
 }
 
 Team *Match::GetBestPossessionTeam() {
@@ -216,25 +216,10 @@ Team *Match::GetBestPossessionTeam() {
 
 
 void Match::AdvanceTime(football::sim::TickSpan delta) {
-  using football::sim::TickSpan;
   if (Finished()) return;
-  // Check all arithmetic before publishing any clock. Manual advances do not
-  // execute rules/physics, so they clip at the current period, not the next half.
-  const auto next_tick = now_ + delta;
-  TickSpan admitted{};
-  if (regulation_running_) {
-    const auto half = options_.half_duration;
-    const auto limit = matchPhase == MatchPhase::SecondHalf ? half + half : half;
-    admitted = TickSpan{std::min(delta.value,
-        (limit - std::min(regulation_elapsed_, limit)).value)};
-  }
-  const auto next_regulation = regulation_elapsed_ + admitted;
-  const auto next_in_play = ball_in_play_elapsed_ + (ball_in_play_ ? admitted : TickSpan{});
-  now_ = next_tick;
-  regulation_elapsed_ = next_regulation;
-  ball_in_play_elapsed_ = next_in_play;
+  const auto admitted = clock_.Advance(delta, matchPhase);
 
-  if (ball_in_play_ && !IsInSetPiece()) {
+  if (IsBallInPlay() && !IsInSetPiece()) {
     // Continuous possession window in SI seconds, derived from admitted ticks.
     const float seconds = football::sim::ToSeconds(admitted);
     if (teams[0] == designatedPossessionPlayer->GetTeam()) {

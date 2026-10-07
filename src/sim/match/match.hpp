@@ -23,6 +23,7 @@
 #include "sim/rules/referee.hpp"
 
 #include "sim/match/match_options.hpp"
+#include "sim/match/match_clock.hpp"
 #include "sim/match/pitch_geometry.hpp"
 #include "sim/random/rng.hpp"
 #include "model/pitch.hpp"
@@ -88,16 +89,16 @@ class Match {
 
     // Authorization lets a Ready taker execute; it does not make the ball live.
     void StartPlay() { inPlay = true; }
-    void StopPlay() { inPlay = false; ball_in_play_ = false; }
+    void StopPlay() { inPlay = false; clock_.StopBallInPlay(); }
     bool IsInPlay() const { return inPlay; }
     // Referee marks the actual accepted restart contact, including both half kickoffs.
     void StartBallInPlay();
-    void EndHalf() { StopPlay(); StopSetPiece(); regulation_running_ = false; }
-    bool IsHalfUnderway() const { return regulation_running_; }
-    bool IsBallInPlay() const { return ball_in_play_; }
+    void EndHalf() { StopPlay(); StopSetPiece(); clock_.EndHalf(); }
+    bool IsHalfUnderway() const { return clock_.IsHalfUnderway(); }
+    bool IsBallInPlay() const { return clock_.IsBallInPlay(); }
     bool MayTouchBall(const Player& actor) const {
       const auto& restart = referee_->GetBuffer();
-      return ball_in_play_ || (inPlay && inSetPiece && restart.active &&
+      return IsBallInPlay() || (inPlay && inSetPiece && restart.active &&
                               restart.taker == &actor);
     }
 
@@ -107,7 +108,7 @@ class Match {
     Referee *GetReferee() const { return referee_.get(); }
 
     void SetGoalScored(bool onOff) {
-      if (onOff) ball_in_play_ = false;
+      if (onOff) clock_.StopBallInPlay();
       else ballIsInGoal = false;
       goalScored = onOff;
     }
@@ -143,9 +144,9 @@ class Match {
     }
 
 
-    football::sim::TickSpan GetRegulationTime() const { return regulation_elapsed_; }
-    football::sim::TickSpan GetBallInPlayTime() const { return ball_in_play_elapsed_; }
-    football::sim::Tick GetTimelineTick() const { return now_; }
+    football::sim::TickSpan GetRegulationTime() const { return clock_.RegulationTime(); }
+    football::sim::TickSpan GetBallInPlayTime() const { return clock_.BallInPlayTime(); }
+    football::sim::Tick GetTimelineTick() const { return clock_.now(); }
     void AdvanceTime(football::sim::TickSpan delta);
 
 
@@ -182,12 +183,7 @@ class Match {
     // or owner here, and no upward Match → Simulation pointer/service locator.
     std::vector<MentalImage>& borrowed_mental_images_;
 
-    football::sim::TickSpan regulation_elapsed_{};
-    football::sim::TickSpan ball_in_play_elapsed_{};
-    bool regulation_running_ = false;
-    bool ball_in_play_ = false;
-    football::sim::Tick now_{};
-    std::uint64_t duration_ticks_ = 0;
+    football::sim::MatchClock clock_;
     // Actual world discontinuities; not a policy/request timer.
     std::uint64_t reset_sequence_ = 0;
     bool pending_change_of_ends_ = false;

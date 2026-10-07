@@ -129,7 +129,7 @@ sim/
 ├── time/         Tick, TickSpan and boundary conversions (no actor timing policy)
 ├── player/       Player, PlayerControl/Set, execution commands and mechanics
 ├── ball/         Ball physics, touches and prediction timing
-├── match/        Match, MatchOptions, MatchPhase and MatchResult
+├── match/        Match, MatchClock, MatchOptions, MatchPhase and MatchResult
 ├── team/         runtime Team, formation adaptation and possession arbitration
 ├── observation/  WorldState, world_state_builder, pitch_frame and execution history
 ├── rules/        Referee, goal geometry, offside and restarts
@@ -171,6 +171,13 @@ Simulation directly owns the three-slot MentalImage history and capture cadence.
 Observation sampling/newest-ball refresh take explicit spans; Match borrows this same
 history only for transitional actor/touch/reset/mirror composition, never via a
 Simulation pointer. `MentalImage::Match*` remains for a separate dependency extraction.
+
+`match/match_clock.*` defines MatchClock: timeline/regulation/effective clocks, run flags and executed
+ticks. It takes phase explicitly, atomically clips advances to the current period,
+and returns admitted ticks for the unchanged possession-window update. Referee keeps
+period decisions; Simulation keeps tick counting/ordering. Match now has no tick entry
+or collision/goal/selection algorithm, but actor ownership and touch/reset/mirror
+bridges remain. It is not yet ready to be renamed `MatchState` or removed.
 
 ## Build and tests
 

@@ -65,7 +65,7 @@ src/
 ├── sim/              domain-organized rules, physics, execution and observation
 │   ├── simulation.*  owns Match, RNG, MentalImage history and baked library
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
-│   ├── match/        Match, options, phase, result and legacy pitch geometry aliases
+│   ├── match/        Match, MatchClock, options, phase, result and pitch aliases
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
 │   ├── ball/         standalone Ball physics/environment, touch kinds/prediction timing
 │   │                 and ball_player_contact cross-domain interaction
@@ -121,6 +121,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── sim_match_lifecycle_test.cpp phases/clocks/end changes/result/freeze
 ├── pitch_frame_test.cpp     half/order geometry, nonzero ball/velocity and control round trips
 ├── match_tick_test.cpp      timeline authority, restart bounds, freeze and invalid boundaries
+├── match_clock_test.cpp      standalone clock clipping, run gates, execution counts and atomicity
 ├── match_fatigue_test.cpp   real-distance fatigue, excluding ceremonies
 ├── restart_placement_test.cpp + restart_placement_fixture.hpp
 ├── restart_readiness_test.cpp geometry, actor waiting, authorization/contact and frame contracts
@@ -205,6 +206,9 @@ anim_baking → legacy_anim + animation/foundation
 - `football_goal_test` builds rules/goal.cpp with only model/foundation/Catch2, proving
   goal geometry has no Match/Ball/runtime dependency. Lifecycle tests retain score,
   half/order attribution and period-whistle coverage through real Simulation steps.
+- `football_match_clock_test` builds match/match_clock.cpp with value contracts/Catch2
+  only. It checks both-period clipping, ceremonies/dead balls, exact large tick spans,
+  atomic overflow rejection, terminal freeze and separate executed-step accounting.
 - `football_sim_control_boundary_test` includes lifecycle and restart tests.
   Direct PlayerControlSet tapes cover every WorldState payload field and RNG state
   at all 400 frames, both processing orders, independent replay and Stop/Init replay.
@@ -248,7 +252,7 @@ app main → GameEnv::Start
 Simulation::Step → explicit domain phases → Match-owned competition/actor state
 ```
 
-- Simulation owns the tick entry, pending end-change boundary, executed-step count
+- Simulation owns tick sequencing, pending end-change application, execution accounting
   and control dispatch. ball/ball_player_contact resolves passive body contacts from
   explicit players/teams, touch facts, history and Tick values; it does not accept
   Match/Simulation or draw RNG. Per-volume Team::SetLastTouchPlayer still bridges
@@ -307,6 +311,26 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   and the actor bridge see the same objects, not duplicate histories. Stop clears history
   at the old teardown point and its storage outlives Match. MentalImage::Match* removal
   is a later separate extraction; no ObservationManager or asynchronous feedback is added.
+- MatchClock owns the six former clock/counter fields and immutable half-duration
+  configuration. Advance(delta, phase) receives competition phase explicitly, checks
+  all arithmetic before publication, clips regulation/effective time to this half and
+  returns admitted ticks. No duplicate phase, referee, actor, possession window or RNG
+  lives in Clock. BeginHalf is the accepted opening contact, not phase publication;
+  later accepted restarts are idempotent, ordinary dead balls stop only effective time,
+  EndHalf stops both. Simulation counts entry before a possible terminal whistle.
+  Match keeps forwarding reads/run gates and composes the admitted-tick possession
+  window update afterward with unchanged float arithmetic. Clock ownership stays in
+  Match for now; neither that nor ballRetainer is folded into derived selection state.
+  Each of possession/history/clock extraction preserves regression --print-baseline
+  and all twelve seed/order/fixture diagnostic records byte-for-byte. Final Release
+  33/33, Debug 32/32 (excluding full-match CLI), standalone Clock and core-only builds
+  pass; no golden, policy, physics or asset change accompanies these extractions.
+
+After these three cuts, Match has no tick entry or collision/goal/selection algorithm.
+It still combines competition facts/clock, actor/referee ownership and transitional
+touch/reset/mirror/history bridges plus the possession window. Do not rename it to
+MatchState yet: actor/rule upward dependencies and runtime composition must be removed
+before deciding which remaining state is worth retaining separately.
 
 Current phase order (composed directly by Simulation):
 ```text
@@ -333,7 +357,7 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   are deleted; remaining milliseconds are continuous estimates, signed sampling,
   SI/animation formula boundaries or output projections, not second clocks.
   Keep unit migration separate from policy; preserve float arithmetic and goldens.
-  Match stores only Tick now_; normal steps call AdvanceTime(TickSpan{1}) and
+  MatchClock stores the sole Tick now_; normal steps call AdvanceTime(TickSpan{1}) and
   WorldState publishes the tick value directly.
   Actions store only elapsed/duration/optional contact `TickSpan`; animation frame
   readers are projections, not duplicate clocks. Decision and locomotion schedulers
@@ -351,8 +375,8 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   their write-only history storage are deleted, not replaced.
   Clock scale removal is a separate S2 semantic stage, not a unit-only rename.
   See tools/time-model-migration.md before rounding continuous arrival estimates.
-- Referee owns period transitions; Match owns phase, score, executed-step count
-  and three clocks: Tick timeline, TickSpan regulation and TickSpan ball-in-play.
+- Referee owns period transitions; Match owns phase/score and a MatchClock containing
+  executed-step count, Tick timeline, TickSpan regulation and TickSpan ball-in-play.
   MatchPhase is PreMatch/FirstHalf/SecondHalf/Finished; second-half ceremony is
   inside SecondHalf. MatchOptions::half_duration defaults to Minutes(45).
   Native duration must be positive and two halves must fit uint64 before RNG draws.

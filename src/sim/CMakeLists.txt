@@ -19,6 +19,7 @@ add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
   simulation.cpp
   match/match.cpp match/pitch_geometry.hpp
+  match/match_clock.cpp match/match_clock.hpp
   team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
   team/formation_roles.cpp team/formation_entry.hpp
   team/possession.cpp team/possession.hpp
