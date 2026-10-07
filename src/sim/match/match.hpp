@@ -96,7 +96,7 @@ class Match {
     void StartSetPiece() { inSetPiece = true; }
     void StopSetPiece() { inSetPiece = false; }
     bool IsInSetPiece() const { return inSetPiece; }
-    Referee *GetReferee() const { return referee_.get(); }
+    Referee *GetReferee() const { return referee_; }
 
     void SetGoalScored(bool onOff) {
       if (onOff) clock_.StopBallInPlay();
@@ -190,7 +190,8 @@ class Match {
     football::sim::Tick last_body_ball_collision_tick_{};
 
 
-    std::unique_ptr<Referee> referee_;
+    // Transitional non-owning rule access for actors; owned by Simulation.
+    Referee* referee_ = nullptr;
 
 
 

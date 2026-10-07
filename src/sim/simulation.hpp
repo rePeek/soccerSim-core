@@ -19,6 +19,7 @@
 
 class Match;
 class AnimationLibrary;
+class Referee;
 namespace football::sim::testing { class SimulationAccess; }
 
 // Simulation knows controls, rules, runtime history and execution, not AI
@@ -69,6 +70,7 @@ class Simulation {
   // Constructed before Match and kept alive until its borrowed references are gone.
   std::vector<MentalImage> mental_images_;
   std::unique_ptr<Match> match_;
+  std::unique_ptr<Referee> referee_;
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;
   // Runtime touch publication; keeps the write-only sink out of actors.
   std::unique_ptr<football::sim::MatchTouchSink> touch_sink_;

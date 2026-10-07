@@ -90,8 +90,6 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
   bestPossessionTeam = 0;
   SetMatchPhase(MatchPhase::PreMatch);
 
-  // Football rules, independent of any referee/linesman humanoid actors.
-  referee_ = std::make_unique<Referee>(*teams[first_team], options.ball_position);
 
 
 
@@ -108,7 +106,6 @@ void Match::Exit() {
   delete teams[first_team];
   delete teams[second_team];
   delete ball;
-  referee_.reset();
 
 
 }

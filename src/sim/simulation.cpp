@@ -157,6 +157,8 @@ void Simulation::Init(
   EnsureAnimationLibrary();
   match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
                                   animations_);
+  referee_ = std::make_unique<Referee>(*match_->teams[match_->first_team], options.ball_position);
+  match_->referee_ = referee_.get();
   rule_commands_ = std::make_unique<RuleCommands>(*this);
   touch_sink_ = std::make_unique<football::sim::MatchTouchSink>(*match_, *rule_commands_);
 }
@@ -445,6 +447,7 @@ MatchResult Simulation::Result() const {
 bool Simulation::Stop() {
   if (!match_) return false;
   match_->Exit();
+  referee_.reset();
   mental_images_.clear();
   touch_sink_.reset();
   rule_commands_.reset();

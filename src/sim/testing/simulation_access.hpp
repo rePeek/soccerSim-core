@@ -11,6 +11,10 @@ namespace football::sim::testing {
 // Product execution remains Init/Step/Observe/Finished/Result/Stop.
 class SimulationAccess {
  public:
+  static Referee& RulesOf(Simulation& simulation) {
+    if (!simulation.referee_) throw std::logic_error("simulation has no match");
+    return *simulation.referee_;
+  }
   static rules::RuleCommandSink& CommandsOf(Simulation& simulation) {
     if (!simulation.rule_commands_) throw std::logic_error("simulation has no match");
     return *simulation.rule_commands_;

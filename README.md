@@ -178,6 +178,8 @@ constructor parameter at all. Mirror/reset composition lives in Simulation;
 Match::Mirror/ResetSituation are removed. Referee has no Match pointer or include:
 construction takes kickoff Team/position; Process takes call-local RefereeTickFacts,
 immutable options, explicit RNG and a synchronous, write-only RuleCommandSink.
+Referee is uniquely owned by Simulation; Match temporarily forwards actor access via
+a non-owning borrow. Teardown retains teams → Ball → Referee destruction order.
 Simulation applies reset/play/phase consequences inline. Live Ball/actor borrows allow
 readiness checks after resets without stale position snapshots or reordered RNG.
 Internal `testing::SimulationAccess` supports rule diagnostics, not product APIs.

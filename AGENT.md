@@ -63,7 +63,7 @@ src/
 │   ├── pitch.hpp     sole pitch geometry type (legacy 110 × 72 metres)
 │   └── football_types.hpp roles/game modes/player count
 ├── sim/              domain-organized rules, physics, execution and observation
-│   ├── simulation.*  owns Match, RNG, MentalImage history and baked library
+│   ├── simulation.*  owns Match, Referee, RNG, MentalImage history and baked library
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
 │   ├── match/        Match, MatchClock, options, phase, result, pitch aliases, touch sink
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
@@ -397,7 +397,8 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   and core-only builds pass; no golden, physics, policy or baked asset changed.
 
 Match has no tick entry or collision/goal/selection algorithm. Referee is fully
-Match-independent, while its ownership still awaits a mechanical flip to Simulation.
+Match-independent and uniquely owned by Simulation. Match's referee access is a
+transitional non-owning actor borrow, not a rule service locator or a second owner.
 Match retains competition/clock and actor ownership, touch publication composition
 and the possession window. Next: event-owned touch bookkeeping, actor dependencies,
 then ownership flip, internal testing access migration and deletion of sim/match/.
@@ -555,9 +556,9 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   and RNG alongside the two teams/taker ids; all original prediction queries and
   ResetPosition/RNG ordering remain. PlanRestart takes Pitch, home-frame ball position
   and home-then-away active-player span. RestartPlayersReady receives Pitch directly;
-  neither legality helper follows Player::GetMatch(). Referee call-site assembly is
-  transitional until its own dependency migration.
-- Officials are rules, not animated actors. Referee is unique_ptr-owned by Match;
+  neither legality helper follows Player::GetMatch(). Referee assembles planning inputs
+  from its explicit tick facts, after reset, not through a runtime-owner query.
+- Officials are rules, not animated actors. Referee is unique_ptr-owned by Simulation;
   no PlayerOfficial, official profiles or animation-driven restart timing remains.
   Card administration adds 1000 ticks to ordinary restart minimum/maximum bounds;
   player card effect remains due 600 ticks after the foul. No skips implement either.

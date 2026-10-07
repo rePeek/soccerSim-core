@@ -460,4 +460,26 @@ TEST_CASE("foul commands schedule and card from supplied tick and stadium frame"
   REQUIRE(match.GetTimelineTick() == Tick{});
   REQUIRE(match.rng().engine() == rng);
 }
+
+TEST_CASE("Simulation uniquely owns independent rules across Init and Stop", "[sim][referee][owner]") {
+  Simulation simulation;
+  REQUIRE_THROWS_AS(SimulationAccess::RulesOf(simulation), std::logic_error);
+  REQUIRE_THROWS_AS(SimulationAccess::CommandsOf(simulation), std::logic_error);
+  for (bool reverse : {false, true}) {
+    MatchOptions options; options.reverse_team_processing = reverse;
+    simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+        football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), options);
+    auto& rules = SimulationAccess::RulesOf(simulation);
+    REQUIRE(&rules == simulation.match()->GetReferee());
+    REQUIRE(rules.GetBuffer().setpiece_team == simulation.match()->GetTeam(reverse ? 1 : 0));
+    REQUIRE(rules.GetBuffer().teamID == (reverse ? 1 : 0));
+    REQUIRE(rules.GetBuffer().endPhase);
+    REQUIRE_FALSE(rules.GetBuffer().restart);
+    simulation.Step({});
+    REQUIRE(simulation.Stop());
+    REQUIRE_THROWS_AS(SimulationAccess::RulesOf(simulation), std::logic_error);
+    REQUIRE_THROWS_AS(SimulationAccess::CommandsOf(simulation), std::logic_error);
+    REQUIRE_FALSE(simulation.Stop());
+  }
+}
 }  // namespace
