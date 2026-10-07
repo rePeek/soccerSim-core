@@ -348,7 +348,7 @@ class HumanoidBase {
     void Mirror();
 
     // Tick-local borrows: observation history and the write-only touch port.
-    virtual void Process(std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink);
+    virtual void Process(football::sim::Tick now, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink);
 
     inline int GetFrameNum() { return currentAnim.frameNum; }
     inline int GetFrameCount() { return static_cast<int>(GetCurrentBakedClip().frame_count); }
@@ -392,7 +392,7 @@ class HumanoidBase {
     bool _HighOrBouncyBall() const;
     void _KeepBestDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0, int allowedVelocitySteps = 0, int forcedQuadrantID = -1); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
     void _KeepBestBodyDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
-    virtual bool SelectAnim(const PlayerCommand &command, std::span<MentalImage> history, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false); // returns false on no applicable anim found
+    virtual bool SelectAnim(football::sim::Tick now, const PlayerCommand &command, std::span<MentalImage> history, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false); // returns false on no applicable anim found
     void CalculatePredictedSituation(Vector3 &predictedPos, radian &predictedAngle);
     Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
 
@@ -445,7 +445,7 @@ class HumanoidBase {
     bool CompareIdleVariable(int animIndex1, int animIndex2) const;
     bool ComparePriorityVariable(int animIndex1, int animIndex2) const;
 
-    Vector3 CalculatePhysicsVector(int animID, bool useDesiredMovement,
+    Vector3 CalculatePhysicsVector(football::sim::Tick now, int animID, bool useDesiredMovement,
                                   const Vector3 &desiredMovement,
                                   bool useDesiredBodyDirection,
                                   const Vector3 &desiredBodyDirectionRel,

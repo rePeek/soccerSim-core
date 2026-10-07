@@ -78,7 +78,7 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
     auto* actor = match.GetTeam(match.FirstTeam())->GetAllPlayers()[0];
     const auto position = actor->GetPosition();
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
-    REQUIRE_THROWS_AS(actor->CastHumanoid()->Process({}, touch_sink), std::logic_error);
+    REQUIRE_THROWS_AS(actor->CastHumanoid()->Process(match.GetTimelineTick(), {}, touch_sink), std::logic_error);
     REQUIRE(actor->GetPosition() == position);
     REQUIRE(match.rng().engine() == rng);
     std::vector<MentalImage> supplied;
@@ -216,5 +216,26 @@ TEST_CASE("Player's half-underway input remains live across synchronous clock co
   REQUIRE(tick.half_underway);
   simulation.match()->EndHalf();
   REQUIRE_FALSE(tick.half_underway);
+}
+
+static_assert(!HasImplicitActorFacts<Humanoid>);
+static_assert(!HasImplicitActorFacts<HumanoidBase>);
+
+TEST_CASE("Humanoid scheduling and publication consume the supplied tick",
+          "[sim][player][dependency]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
+  std::vector<Player*> players;
+  match.GetTeam(0)->GetActivePlayers(players);
+  match.GetTeam(1)->GetActivePlayers(players);
+  std::vector<MentalImage> history;
+  history.emplace_back(Tick{123}, players, *match.GetBall());
+  actor.CastHumanoid()->Process(Tick{123}, history, SimulationAccess::EventsOf(simulation));
+  REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{123});
+  REQUIRE(actor.HasDecisionLocomotionIntent());
+  REQUIRE(match.GetTimelineTick() == Tick{});
 }
 }  // namespace

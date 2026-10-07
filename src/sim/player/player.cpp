@@ -599,7 +599,7 @@ void Player::Process(const football::sim::PlayerTickContext& tick, std::span<Men
       }
     }
     Vector3 posBefore = CastHumanoid()->GetPosition();
-    CastHumanoid()->Process(history, touch_sink);
+    CastHumanoid()->Process(tick.now, history, touch_sink);
     SynchronizeKinematicState();
     CheckSimulationActionOracle();
     // Real distance during an underway half, including dead-ball positioning.

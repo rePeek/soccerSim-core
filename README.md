@@ -226,7 +226,8 @@ Player has no Match pointer/include/lookup; lifecycle methods receive Tick/Ball/
 as needed. Team teardown explicitly preserves the former destructor reset order.
 Player constructors borrow Pitch, AnimationLibrary and the Simulation-owned RNG stream.
 Humanoid/Base receive that same live stream explicitly; reset/action draws no longer
-retrieve RNG through Match. Their physics/authorization/time dependencies remain.
+retrieve RNG through Match. Humanoid/Base tick, animation-selection, touch-prediction
+and physics-vector calls require explicit time; physics/authorization dependencies remain.
 
 `rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration
 facts. Simulation evaluates the pre-contact gate and original whistle boundary; EndPeriod

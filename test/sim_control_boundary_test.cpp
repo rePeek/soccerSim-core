@@ -76,10 +76,10 @@ TEST_CASE("humanoid starting height is a catchable runtime contract", "[sim][fai
     Player *player = runtime.match()->GetTeam(0)->GetAllPlayers()[1];
     auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
     player->ResetPosition(Vector3(0, 0, height), Vector3(0, -1, 0));
-    REQUIRE_THROWS_AS(player->CastHumanoid()->Process(history, touch_sink), std::logic_error);
-    REQUIRE_THROWS_AS(player->CastHumanoid()->HumanoidBase::Process(history, touch_sink), std::logic_error);
+    REQUIRE_THROWS_AS(player->CastHumanoid()->Process(runtime.match()->GetTimelineTick(), history, touch_sink), std::logic_error);
+    REQUIRE_THROWS_AS(player->CastHumanoid()->HumanoidBase::Process(runtime.match()->GetTimelineTick(), history, touch_sink), std::logic_error);
     player->ResetPosition(Vector3(0), Vector3(0, -1, 0));
-    REQUIRE_NOTHROW(player->CastHumanoid()->Process(history, touch_sink));
+    REQUIRE_NOTHROW(player->CastHumanoid()->Process(runtime.match()->GetTimelineTick(), history, touch_sink));
   }
 }
 
@@ -102,7 +102,7 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{10}),
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{20})};
     auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
-    REQUIRE_THROWS_AS(humanoid->Process(history, touch_sink), std::runtime_error);
+    REQUIRE_THROWS_AS(humanoid->Process(runtime.match()->GetTimelineTick(), history, touch_sink), std::runtime_error);
   }
 
   SECTION("base cadence warning can continue without a named logger") {
@@ -119,7 +119,7 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
     player->BeginSimulationAction();
     const int commits = HumanoidBasePathRefreshCommits();
     auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
-    REQUIRE_NOTHROW(humanoid->HumanoidBase::Process({}, touch_sink)); // No selection/history sample on this cadence-only path.
+    REQUIRE_NOTHROW(humanoid->HumanoidBase::Process(runtime.match()->GetTimelineTick(), {}, touch_sink)); // No selection/history sample on this cadence-only path.
     REQUIRE(HumanoidBasePathRefreshCommits() == commits + 1);
   }
 }

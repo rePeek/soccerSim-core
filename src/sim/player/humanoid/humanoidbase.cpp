@@ -592,7 +592,7 @@ void HumanoidBase::Mirror() {
   predicate_RelDesiredBallDirection.Mirror();
 }
 
-void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTouchSink& /*touch_sink*/) {
+void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> history, football::sim::BallTouchSink& /*touch_sink*/) {
   // Reject invalid runtime state before the spatial/action debug oracles run.
   if (startPos.coords[2] != 0.f) {
     throw std::logic_error("HumanoidBase::Process: player position must have zero height");
@@ -642,7 +642,7 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
   // and a legacy animation opportunity rather than the sum.
   const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
   const bool simulation_due =
-      player->NoteLocomotionIntentCadence(legacy_opportunity, match->GetTimelineTick(), match->GetBallRetainer() == player);
+      player->NoteLocomotionIntentCadence(legacy_opportunity, now, match->GetBallRetainer() == player);
   if (legacy_opportunity || simulation_due) {
 
     PlayerCommandQueue commandQueue;
@@ -667,7 +667,7 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
           if (trq_c.desiredFunctionType == e_FunctionType_Movement &&
               trq_c.useDesiredMovement) { trq_has = true; break; }
         }
-        player->NoteControllerQuery(trq_has, match->GetTimelineTick(), match->GetBallRetainer() == player);
+        player->NoteControllerQuery(trq_has, now, match->GetBallRetainer() == player);
       }
     };
     const bool trip_local_queue =
@@ -687,7 +687,7 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
     }
 
     if (legacy_opportunity) {
-    if (legacy_opportunity && player->LocomotionIntentRefreshHeldIneligible(match->GetTimelineTick(), match->GetBallRetainer() == player)) {
+    if (legacy_opportunity && player->LocomotionIntentRefreshHeldIneligible(now, match->GetBallRetainer() == player)) {
       bool held_has_candidate = false;
       for (const PlayerCommand &candidate : commandQueue) {
         if (candidate.desiredFunctionType == e_FunctionType_Movement &&
@@ -723,7 +723,7 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
 
         const PlayerCommand &command = commandQueue[i];
 
-        found = SelectAnim(command, history, interruptAnim);
+        found = SelectAnim(now, command, history, interruptAnim);
         if (found) break;
       }
     }
@@ -737,9 +737,9 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
     // already run, so no legacy action-selection write can follow it and become
     // the final writer; the controller's Movement candidate is the last write.
     if (controller_queried) {
-      if (player->PublishMovementIntentFromQueue(controllerQueue, match->GetTimelineTick(), match->GetBallRetainer() == player)) {
+      if (player->PublishMovementIntentFromQueue(controllerQueue, now, match->GetBallRetainer() == player)) {
         ++HumanoidIntentRefreshes();
-        player->CommitLocomotionIntentRefresh(*match->GetBall(), match->GetTimelineTick(), match->GetBallRetainer() == player);
+        player->CommitLocomotionIntentRefresh(*match->GetBall(), now, match->GetBallRetainer() == player);
         ++HumanoidBasePathRefreshCommits();
       } else {
         ++HumanoidIntentCandidatesMissing();
@@ -1064,7 +1064,7 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
   }
 }
 
-bool HumanoidBase::SelectAnim(const PlayerCommand &command,
+bool HumanoidBase::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
                               std::span<MentalImage> history,
                               e_InterruptAnim localInterruptAnim,
                               bool preferPassAndShot) {
@@ -1178,7 +1178,7 @@ bool HumanoidBase::SelectAnim(const PlayerCommand &command,
     assert(desiredMovement.coords[2] == 0.0f);
     Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);
     if (command.useDesiredLookAt) desiredBodyDirectionRel = ((command.desiredLookAt - spatialState.position).Get2D().GetRotated2D(-spatialState.angle) - GetBakedClip(selectedAnimID).metadata.translation).GetNormalized(Vector3(0, -1, 0));
-    Vector3 physicsVector = CalculatePhysicsVector(selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
+    Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
   }
 
   // check if we really want to requeue - only requeue movement to movement, for example, when we want to go a different direction
@@ -1725,7 +1725,7 @@ bool HumanoidBase::ComparePriorityVariable(int animIndex1, int animIndex2) const
          std::fabs(GetBakedClip(animIndex2).metadata.priority);
 }
 
-Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement, const Vector3 &desiredMovement, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, radian &rotationOffset_ret) const {
+Vector3 HumanoidBase::CalculatePhysicsVector(football::sim::Tick now, int animID, bool useDesiredMovement, const Vector3 &desiredMovement, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, radian &rotationOffset_ret) const {
 
   positions_ret.clear();
 
@@ -1795,7 +1795,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(int animID, bool useDesiredMovement
             0.0f, 1.0f),
       0.7f);
 
-  float powerFactor = 1.0f - clamp(std::pow(player->GetLastTouchBias(1000, match->GetTimelineTick()), 0.8f) * (0.8f - stat_dribble * 0.3f), 0.0f, 0.4f);
+  float powerFactor = 1.0f - clamp(std::pow(player->GetLastTouchBias(1000, now), 0.8f) * (0.8f - stat_dribble * 0.3f), 0.0f, 0.4f);
   powerFactor *= 1.0f - clamp(decayingPositionOffset.GetLength() * (10.0f - player->GetStat(football::model::PlayerStat::physical_balance) * 5.0f) - 0.1f, 0.0f, 0.3f);
 
   Vector3 temporalMovement = adaptedCurrentMovement;

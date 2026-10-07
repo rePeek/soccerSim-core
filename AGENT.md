@@ -466,7 +466,9 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   AnimationLibrary and the Simulation-owned live RNG explicitly; Humanoid/Base
   receive the same library and stream at construction. Resets and action draws
   never retrieve RNG through Match, and no stream is copied or reseeded here.
-  Humanoid/HumanoidBase physics/authorization/time reads still depend on Match.
+  Humanoid/Base Process, animation selection, touch prediction, movement-smuggle
+  and physics-vector helpers require an explicit evaluation Tick and never read
+  a clock through Match. Their remaining Match reads are physics/authorization.
   Ball prediction horizons/cache durations live in sim-private `ball/ball_timing.hpp`;
   prediction generation iterates TickSpan samples with seconds from the quantum.
   MentalImage stores a Tick capture instant and derives TickSpan age. Transitional
