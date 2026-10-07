@@ -545,6 +545,13 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   entries with no Humanoid but keeps active/sent-off mirror behavior.
 - Humanoid/HumanoidBase flattening is separate work. Animation cache, 10 ms step,
   private phases, destruction order and appearance/reseed windows stay unchanged.
+- Restart placement and readiness algorithms no longer accept/retrieve Match.
+  PositionRestartPlayers takes the explicit Ball, regulation span, immutable options
+  and RNG alongside the two teams/taker ids; all original prediction queries and
+  ResetPosition/RNG ordering remain. PlanRestart takes Pitch, home-frame ball position
+  and home-then-away active-player span. RestartPlayersReady receives Pitch directly;
+  neither legality helper follows Player::GetMatch(). Referee call-site assembly is
+  transitional until its own dependency migration.
 - Officials are rules, not animated actors. Referee is unique_ptr-owned by Match;
   no PlayerOfficial, official profiles or animation-driven restart timing remains.
   Card administration adds 1000 ticks to ordinary restart minimum/maximum bounds;

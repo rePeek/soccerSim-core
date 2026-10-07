@@ -1,12 +1,13 @@
 #ifndef FOOTBALL_SIM_RULES_RESTART_READINESS_HPP
 #define FOOTBALL_SIM_RULES_RESTART_READINESS_HPP
 
+#include <span>
 #include <vector>
 
 #include "foundation/math/vector3.hpp"
 #include "model/football_types.hpp"
+#include "model/pitch.hpp"
 
-class Match;
 class Player;
 class Team;
 
@@ -24,9 +25,12 @@ struct RestartPlan {
   std::vector<RestartPlayerTarget> players;
 };
 
-// Planning requires the referee mirror scope, with the ball already placed.
-RestartPlan PlanRestart(Match& match, e_GameMode mode, Team& team);
-bool RestartPlayersReady(const RestartPlan& plan);
+// Explicit home-frame ball position and home-then-away active roster order.
+RestartPlan PlanRestart(const football::model::Pitch& pitch,
+                        const blunted::Vector3& home_ball_position,
+                        std::span<Player* const> active_players,
+                        e_GameMode mode, Team& team);
+bool RestartPlayersReady(const RestartPlan& plan, const football::model::Pitch& pitch);
 // Deterministic rule fallback for actors that fail to get ready by the timeout.
 // This repairs positions, never invents a ball contact or an AI decision.
 void PlaceRestartPlayersAtTimeout(const RestartPlan& plan);

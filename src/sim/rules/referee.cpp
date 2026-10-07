@@ -219,10 +219,12 @@ void Referee::PrepareCeremonialKickOff(const std::function<void(const Vector3&)>
                             ? -buffer.restartPos : buffer.restartPos);
   Player *first_taker = PositionRestartPlayers(match->GetTeam(match->FirstTeam()),
       e_GameMode_KickOff, match->GetTeam(match->SecondTeam()),
-      buffer.setpiece_team->GetID(), buffer.teamID);
+      buffer.setpiece_team->GetID(), buffer.teamID, *match->GetBall(),
+      match->GetRegulationTime(), match->options(), match->rng());
   Player *second_taker = PositionRestartPlayers(match->GetTeam(match->SecondTeam()),
       e_GameMode_KickOff, match->GetTeam(match->FirstTeam()),
-      buffer.setpiece_team->GetID(), buffer.teamID);
+      buffer.setpiece_team->GetID(), buffer.teamID, *match->GetBall(),
+      match->GetRegulationTime(), match->options(), match->rng());
   buffer.taker = buffer.teamID == match->FirstTeam() ? first_taker : second_taker;
   offsidePlayers.clear();
 }
@@ -482,7 +484,11 @@ void Referee::ProcessRestart(const std::function<void(const Vector3&)>& reset_si
       buffer.restartPos.coords[1] = clamp(buffer.restartPos.coords[1], -0.95f * pitchHalfH, 0.95f * pitchHalfH);
     }
     reset_situation(ToHomePitchFrame(*match).Position(buffer.restartPos));
-    state.plan = PlanRestart(*match, buffer.desiredSetPiece, *buffer.setpiece_team);
+    std::vector<Player*> active;
+    match->GetTeam(0)->GetActivePlayers(active);
+    match->GetTeam(1)->GetActivePlayers(active);
+    state.plan = PlanRestart(match->pitch(), ToHomePitchFrame(*match).Position(
+        match->GetBall()->Predict(TickSpan{})), active, buffer.desiredSetPiece, *buffer.setpiece_team);
     for (const auto& actor : state.plan.players) {
       const auto frame = FromHomePitchFrame(*actor.player->GetTeam());
       actor.player->ResetPosition(actor.player->GetPosition(), frame.Position(state.plan.ball_position));
@@ -491,7 +497,11 @@ void Referee::ProcessRestart(const std::function<void(const Vector3&)>& reset_si
     state.setup_done = true;
   }
   if (!buffer.taker || !buffer.taker->IsActive()) {
-    state.plan = PlanRestart(*match, buffer.desiredSetPiece, *buffer.setpiece_team);
+    std::vector<Player*> active;
+    match->GetTeam(0)->GetActivePlayers(active);
+    match->GetTeam(1)->GetActivePlayers(active);
+    state.plan = PlanRestart(match->pitch(), ToHomePitchFrame(*match).Position(
+        match->GetBall()->Predict(TickSpan{})), active, buffer.desiredSetPiece, *buffer.setpiece_team);
     buffer.taker = state.plan.taker;
   }
   if (match->GetTimelineTick() < state.earliest_restart_tick) return;
@@ -503,7 +513,7 @@ void Referee::ProcessRestart(const std::function<void(const Vector3&)>& reset_si
   }
   const auto ball_position = ToHomePitchFrame(*match).Position(
       match->GetBall()->Predict(TickSpan{}));
-  if (!RestartPlayersReady(state.plan) ||
+  if (!RestartPlayersReady(state.plan, match->pitch()) ||
       std::fabs(ball_position.coords[2] - 0.11f) > 0.03f ||
       (ball_position.Get2D() - state.plan.ball_position).GetLength() > 0.05f ||
       match->GetBall()->GetMovement().GetLength() > 0.5f) return;

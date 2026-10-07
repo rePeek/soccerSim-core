@@ -5,7 +5,6 @@
 #include <limits>
 #include <stdexcept>
 
-#include "sim/match/match.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
 #include "sim/team/team.hpp"
@@ -28,8 +27,8 @@ float OpponentDistance(e_GameMode mode) {
 bool Goalkeeper(const Player& player) {
   return player.GetTeam()->GetGoalie() == &player;
 }
-Vector3 LegalTarget(const RestartPlan& plan, Player& player, Vector3 target) {
-  const auto& pitch = player.GetMatch()->pitch();
+Vector3 LegalTarget(const RestartPlan& plan, Player& player, Vector3 target,
+                    const football::model::Pitch& pitch) {
   const float half_x = pitch.half_length();
   const float half_y = pitch.half_width();
   target.coords[0] = std::clamp(target.coords[0], -half_x + 0.2f, half_x - 0.2f);
@@ -64,9 +63,9 @@ Vector3 LegalTarget(const RestartPlan& plan, Player& player, Vector3 target) {
   target.coords[2] = 0;
   return target;
 }
-bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3& position) {
+bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3& position,
+                   const football::model::Pitch& pitch) {
   const bool opponent = player.GetTeam() != plan.team;
-  const auto& pitch = player.GetMatch()->pitch();
   if (plan.mode == e_GameMode_KickOff && position.coords[0] * Side(*player.GetTeam()) < -0.01f)
     return false;
   if (plan.mode == e_GameMode_Penalty && opponent && Goalkeeper(player))
@@ -85,15 +84,16 @@ bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3&
 }
 }  // namespace
 
-RestartPlan PlanRestart(Match& match, e_GameMode mode, Team& team) {
+RestartPlan PlanRestart(const football::model::Pitch& pitch,
+                        const Vector3& home_ball_position,
+                        std::span<Player* const> active_players,
+                        e_GameMode mode, Team& team) {
   RestartPlan plan;
   plan.mode = mode;
   plan.team = &team;
-  plan.ball_position = ToHomePitchFrame(match).Position(
-      match.GetBall()->Predict(football::sim::TickSpan{})).Get2D();
+  plan.ball_position = home_ball_position.Get2D();
   float nearest = std::numeric_limits<float>::max();
-  std::vector<Player*> active;
-  for (int side : {0, 1}) match.GetTeam(side)->GetActivePlayers(active);
+  std::vector<Player*> active(active_players.begin(), active_players.end());
   for (auto* player : active) {
     if (player->GetTeam() != &team) continue;
     const float distance = (Position(*player) - plan.ball_position).GetSquaredLength();
@@ -115,11 +115,11 @@ RestartPlan PlanRestart(Match& match, e_GameMode mode, Team& team) {
     } else {
       if (mode == e_GameMode_KickOff)
         target = player->GetFormationEntry().start_position *
-                 Vector3(-Side(*player->GetTeam()) * match.pitch().half_length(),
-                         -Side(*player->GetTeam()) * match.pitch().half_width(), 0);
-      target = LegalTarget(plan, *player, target);
+                 Vector3(-Side(*player->GetTeam()) * pitch.half_length(),
+                         -Side(*player->GetTeam()) * pitch.half_width(), 0);
+      target = LegalTarget(plan, *player, target, pitch);
       const auto available = [&](const Vector3& candidate) {
-        return LegalPosition(plan, *player, candidate) &&
+        return LegalPosition(plan, *player, candidate, pitch) &&
             std::none_of(plan.players.begin(), plan.players.end(), [&](const auto& other) {
               return (candidate - other.position).GetLength() < 1.5f;
             });
@@ -132,7 +132,7 @@ RestartPlan PlanRestart(Match& match, e_GameMode mode, Team& team) {
         for (int x = -ring; x <= ring && !found; ++x) {
           for (int y = -ring; y <= ring; ++y) {
             if (std::abs(x) != ring && std::abs(y) != ring) continue;
-            const auto candidate = LegalTarget(plan, *player, origin + Vector3(x * 1.5f, y * 1.5f, 0));
+            const auto candidate = LegalTarget(plan, *player, origin + Vector3(x * 1.5f, y * 1.5f, 0), pitch);
             if (available(candidate)) { target = candidate; found = true; break; }
           }
         }
@@ -144,14 +144,14 @@ RestartPlan PlanRestart(Match& match, e_GameMode mode, Team& team) {
   return plan;
 }
 
-bool RestartPlayersReady(const RestartPlan& plan) {
+bool RestartPlayersReady(const RestartPlan& plan, const football::model::Pitch& pitch) {
   if (!plan.taker || !plan.taker->IsActive()) return false;
   for (const auto& target : plan.players) {
     if (!target.player->IsActive()) continue;
     const auto position = Position(*target.player);
     if ((position - target.position).GetLength() > kTargetTolerance ||
         target.player->GetMovement().GetLength() > 0.8f) return false;
-    if (target.player != plan.taker && !LegalPosition(plan, *target.player, position)) return false;
+    if (target.player != plan.taker && !LegalPosition(plan, *target.player, position, pitch)) return false;
   }
   return true;
 }

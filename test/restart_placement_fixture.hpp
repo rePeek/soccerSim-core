@@ -50,7 +50,8 @@ inline std::array<Player *, 2> PositionRestart(Match &match, const RestartCase &
   std::array<Player *, 2> takers{};
   for (int side : {match.FirstTeam(), match.SecondTeam()})
     takers[side] = PositionRestartPlayers(match.GetTeam(side), test.mode,
-        match.GetTeam(1 - side), test.taking_team, test.taking_team);
+        match.GetTeam(1 - side), test.taking_team, test.taking_team,
+        *match.GetBall(), match.GetRegulationTime(), match.options(), match.rng());
   return takers;
 }
 

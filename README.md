@@ -165,10 +165,11 @@ rotation. Simulation::TouchBall is a transitional diagnostic escape. Actor/body 
 publish through the write-only `BallTouchSink` (`ball/ball_touch_event.hpp`) implemented
 by `MatchTouchSink`; `Team::SetLastTouchPlayer` no longer exists, so the old implicit
 Team → Match → Referee chain is gone. Notification remains synchronous. `Simulation::Step()`
+composes all legacy phases explicitly;
 `Match::StepRemainingTick` is removed. `team/possession.*` evaluates best-team and
 designated-player selection without publishing state. Simulation applies the selection
 after roster refreshes; the separate physical `ballRetainer` fact remains Match-owned.
-Match is not yet a state-only container; touch/history-sampling bridges remain.
+Match still owns runtime objects and competition facts; its history bridge is removed.
 `Simulation::match()` remains a temporary test/diagnostic escape hatch.
 
 Simulation directly owns the three-slot MentalImage history and capture cadence. Observation
@@ -176,6 +177,10 @@ sampling/newest-ball refresh take explicit spans; Match has no history member, q
 constructor parameter at all. Mirror/reset composition lives in Simulation;
 Match::Mirror/ResetSituation are removed. Referee receives a per-call synchronous reset action
 at the original setup point, never stores it, and gains no Simulation pointer/context.
+Restart placement receives Ball, regulation, immutable options and RNG explicitly; readiness
+planning receives Pitch, the home-frame ball position and the ordered active-player span.
+Neither algorithm retrieves Match from Team/Player. Placement still resets actors in the
+original order; no layout, prediction sampling or RNG policy changes.
 MentalImage has no Match pointer or implicit clock/Ball reads:
 capture takes tick, ordered player span and Ball; sampling takes explicit now/Ball.
 Legacy Player deviation clamps and signed horizon quantization remain unchanged.

@@ -62,8 +62,12 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
           simulation.ResetSituation(ToHomePitchFrame(match).Position(focus));
           const auto rng = match.rng().engine();
           const auto before = simulation.Observe();
-          const auto plan = PlanRestart(match, mode, *match.GetTeam(taking_team));
-          const auto again = PlanRestart(match, mode, *match.GetTeam(taking_team));
+          std::vector<Player*> active;
+          match.GetTeam(0)->GetActivePlayers(active);
+          match.GetTeam(1)->GetActivePlayers(active);
+          const auto ball = ToHomePitchFrame(match).Position(match.GetBall()->Predict(TickSpan{}));
+          const auto plan = PlanRestart(match.pitch(), ball, active, mode, *match.GetTeam(taking_team));
+          const auto again = PlanRestart(match.pitch(), ball, active, mode, *match.GetTeam(taking_team));
           REQUIRE(match.rng().engine() == rng);
           REQUIRE(plan.taker != nullptr);
           REQUIRE(plan.taker->GetTeam()->GetID() == taking_team);
@@ -77,9 +81,9 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
             REQUIRE(plan.players[i].position == again.players[i].position);
           }
           PlaceRestartPlayersAtTimeout(plan);
-          REQUIRE(RestartPlayersReady(plan));
+          REQUIRE(RestartPlayersReady(plan, match.pitch()));
           simulation.Mirror(reverse, !reverse, false);
-          REQUIRE(RestartPlayersReady(plan)); // Predicate is not tied to a transient mirror.
+          REQUIRE(RestartPlayersReady(plan, match.pitch())); // Predicate is not tied to a transient mirror.
           for (const auto& target : plan.players) {
             const auto observed = ToHomePitchFrame(*target.player->GetTeam()).Position(target.player->GetPosition());
             REQUIRE(observed.GetDistance(target.position) < 0.001f);
@@ -95,7 +99,7 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
           auto target = plan.players.front().position;
           for (const auto& entry : plan.players) if (entry.player == taker) target = entry.position;
           taker->ResetPosition(frame.Position(target + Vector3(1, 0, 0)), frame.Position(focus));
-          REQUIRE_FALSE(RestartPlayersReady(plan));
+          REQUIRE_FALSE(RestartPlayersReady(plan, match.pitch()));
         }
       }
     }
@@ -112,7 +116,7 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     const auto state = *match.GetReferee()->GetBuffer().restart;
     const auto resets = match.GetResetSequence();
     PlaceRestartPlayersAtTimeout(state.plan); // Test arranges early readiness, not a rule timeout.
-    REQUIRE(RestartPlayersReady(state.plan));
+    REQUIRE(RestartPlayersReady(state.plan, match.pitch()));
     PlayerControl shot;
     shot.action = ControlAction::Shoot;
     REQUIRE(BuildPlayerCommands(shot, *state.plan.taker).size() == 1);
@@ -136,7 +140,7 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     REQUIRE_FALSE(match.IsInPlay());
     PlaceRestartPlayersAtTimeout(state.plan);
     ProcessRules(simulation);
-    CAPTURE(reverse, RestartPlayersReady(state.plan), simulation.Observe().ball_position.coords[0],
+    CAPTURE(reverse, RestartPlayersReady(state.plan, match.pitch()), simulation.Observe().ball_position.coords[0],
             simulation.Observe().ball_position.coords[1], simulation.Observe().ball_position.coords[2],
             match.GetBall()->GetMovement().GetLength(), match.GetTimelineTick().value, state.earliest_restart_tick.value);
     REQUIRE(match.IsInPlay());
@@ -303,5 +307,25 @@ TEST_CASE("pending restart targets, taker replacement and RNG replay as owning v
     }
     REQUIRE(replaced);
   }
+}
+
+TEST_CASE("restart planning consumes the supplied ball and roster, not runtime lookups",
+          "[sim][restart][inputs]") {
+  Simulation simulation;
+  Init(simulation, false);
+  auto& match = *simulation.match();
+  std::vector<Player*> players;
+  match.GetTeam(0)->GetActivePlayers(players); // Deliberately omit the opponent roster.
+  const auto before = match.GetBall()->Predict(TickSpan{});
+  const auto rng = match.rng().engine();
+  const Vector3 supplied(12, 6, 0);
+  const auto plan = PlanRestart(match.pitch(), supplied, players, e_GameMode_FreeKick,
+                                *match.GetTeam(0));
+  REQUIRE(plan.ball_position == supplied);
+  REQUIRE(plan.players.size() == players.size());
+  REQUIRE(plan.taker != nullptr);
+  for (const auto& target : plan.players) REQUIRE(target.player->GetTeamID() == 0);
+  REQUIRE(match.GetBall()->Predict(TickSpan{}) == before);
+  REQUIRE(match.rng().engine() == rng);
 }
 } // namespace
