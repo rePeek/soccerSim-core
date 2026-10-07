@@ -297,9 +297,11 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   touch grace, standing 2D/sliding 3D radii, double literals, severity arithmetic, immediate
   publication and duplicate-tackler gates. CheckFoul(now) also takes the evaluation instant
   explicitly and uses it for the strict recheck/expiry windows and card deadlines; its foul
-  facts, penalty geometry and possession reads stay referee/actor-local. Restart scheduling
-  and StopPlay consequences still read Match; this does not parameterize all of Referee or
-  add a RulesContext.
+  facts, penalty geometry and possession reads stay referee/actor-local. ScheduleRestart
+  takes explicit RestartSchedule facts (tick, setpiece Team*, PitchFrameTransform) and
+  only mutates referee state; MakeRestartSchedule remains a transitional one-line fact
+  assembly. StopPlay/StartBallInPlay consequences and restart placement still read Match;
+  this does not parameterize all of Referee or add a RulesContext.
   Player contact extraction preserves the same regression fingerprints and twelve
   seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
 - rules/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving

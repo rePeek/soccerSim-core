@@ -148,7 +148,7 @@ void Referee::Process(const std::function<void(const Vector3&)>& reset_situation
           buffer.teamID = 1 - lastTouchTeam->GetID();
         }
 
-        ScheduleRestart();
+        ScheduleRestart(MakeRestartSchedule(match->GetTimelineTick()));
       }
     }
 
@@ -167,7 +167,7 @@ void Referee::Process(const std::function<void(const Vector3&)>& reset_situation
           if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = pitchHalfH;
           if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -pitchHalfH;
           buffer.restartPos.coords[2] = 0;
-          ScheduleRestart();
+          ScheduleRestart(MakeRestartSchedule(match->GetTimelineTick()));
         }
       }
     }
@@ -271,7 +271,7 @@ void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts) {
           buffer.desiredSetPiece = e_GameMode_FreeKick;
           buffer.restartPos = ballOwner->GetPitchPosition();
           buffer.teamID = defending_team_id;
-          ScheduleRestart();
+          ScheduleRestart(MakeRestartSchedule(match->GetTimelineTick()));
           break; // Setup clears offside state on the next rule tick, not during this iteration.
         }
       }
@@ -412,7 +412,7 @@ bool Referee::CheckFoul(football::sim::Tick now) {
                   0, 0)
         : foul.foulPosition;
     buffer.teamID = foul.foulVictim->GetTeam()->GetID();
-    ScheduleRestart(foul.foulType >= 2 ? kCardAdministration : TickSpan{});
+    ScheduleRestart(MakeRestartSchedule(now), foul.foulType >= 2 ? kCardAdministration : TickSpan{});
     if (foul.foulType == 2) {
       foul.foulPlayer->GiveYellowCard(now + kCardEffectDelay);
     }
@@ -428,18 +428,24 @@ bool Referee::CheckFoul(football::sim::Tick now) {
   return false;
 }
 
-void Referee::ScheduleRestart(TickSpan administration) {
+::RestartSchedule Referee::MakeRestartSchedule(football::sim::Tick now) const {
+  // Transitional fact assembly; ScheduleRestart itself reads no Match state.
+  return {now, match->GetTeam(buffer.teamID),
+          PitchFrameTransform(match->GetTeam(0)->GetStaticSide() != -1)};
+}
+
+void Referee::ScheduleRestart(const RestartSchedule& schedule, TickSpan administration) {
   const auto policy = PolicyFor(buffer.desiredSetPiece);
   RestartState state;
-  state.entered_tick = match->GetTimelineTick();
+  state.entered_tick = schedule.now;
   state.earliest_restart_tick = state.entered_tick + policy.minimum_delay + administration;
   state.timeout_tick = state.entered_tick + policy.maximum_delay + administration;
   // Ordinary plans store only the fixed home-pitch target, never a stale runtime frame.
-  buffer.restartPos = PitchFrameTransform(match->GetTeam(0)->GetStaticSide() != -1).Position(buffer.restartPos);
+  buffer.restartPos = schedule.frame.Position(buffer.restartPos);
   buffer.stop_tick = state.entered_tick;
   buffer.prepare_tick = {}; // Ceremonial deadlines are not used for ordinary restarts.
   buffer.start_tick = {};
-  buffer.setpiece_team = match->GetTeam(buffer.teamID);
+  buffer.setpiece_team = schedule.setpiece_team;
   buffer.taker = nullptr;
   buffer.endPhase = false;
   buffer.active = true;

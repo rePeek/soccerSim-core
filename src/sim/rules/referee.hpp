@@ -27,6 +27,7 @@
 #include "sim/match/match_phase.hpp"
 #include "sim/rules/restart_readiness.hpp"
 #include "sim/rules/ball_touch_facts.hpp"
+#include "sim/observation/pitch_frame.hpp"
 
 
 using namespace blunted;
@@ -38,6 +39,12 @@ class Team;
 struct RestartPolicy {
   football::sim::TickSpan minimum_delay;
   football::sim::TickSpan maximum_delay;
+};
+// Explicit restart-scheduling facts; the referee state machine reads no Match here.
+struct RestartSchedule {
+  football::sim::Tick now{};
+  Team* setpiece_team = nullptr;
+  PitchFrameTransform frame{false};
 };
 enum class RestartPhase { Pending, Ready, Taken, InPlay };
 struct RestartState {
@@ -119,7 +126,9 @@ class Referee {
     Foul foul;
 
   private:
-    void ScheduleRestart(football::sim::TickSpan administration = {});
+    RestartSchedule MakeRestartSchedule(football::sim::Tick now) const;
+    void ScheduleRestart(const RestartSchedule& schedule,
+                         football::sim::TickSpan administration = {});
     void ProcessRestart(const std::function<void(const Vector3&)>& reset_situation);
     void PrepareCeremonialKickOff(const std::function<void(const Vector3&)>& reset_situation);
 };
