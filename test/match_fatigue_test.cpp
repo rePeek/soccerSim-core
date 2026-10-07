@@ -10,6 +10,7 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
         football::app::fixtures::MakeDefaultAwayTeam(),
         football::model::MakeLegacyPitch(), MatchOptions{});
     if (half_underway) football::test::TakeKickOff(simulation);
+    else simulation.Step({}); // Establish the native history before directly processing an actor.
     auto& match = *simulation.match();
     match.StopPlay(); // Dead ball, not EndHalf: ordinary stoppages still belong to the half.
     REQUIRE(match.IsHalfUnderway() == half_underway);

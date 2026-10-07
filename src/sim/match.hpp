@@ -74,6 +74,9 @@ class Match {
     SimulationRng& rng() { return rng_; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
 
+    // Nearest capture slot (half-up), clamped to available history.
+    MentalImage* GetMentalImage(football::sim::TickSpan history);
+    // Calculation sampling adapter, not an exact-grid deadline conversion.
     MentalImage* GetMentalImage(int history_ms);
     void UpdateLatestMentalImageBallPredictions();
 

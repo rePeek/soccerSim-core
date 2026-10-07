@@ -45,16 +45,6 @@ const char *ResetSituationCallContextName(int context);
 int &SimulationOnlyGateMismatchForResetContext(int context);
 void DumpQueryOpportunities();
 
-// 4f-a2 diagnostic shadow, retained for queue-equivalence telemetry. 4f-a3a
-// introduces the separate serialized PlayerDecisionQueueState below; this shadow
-// is never consumed by gameplay and remains transient.
-struct SimulationDecisionQueueShadow {
-  PlayerCommandQueue commands;
-  bool initialized = false;
-  unsigned long long generation = 0;
-  int updated_ms = -1;
-};
-
 // 4f-a3a: serialized gameplay authority for the complete controller decision.
 struct PlayerDecisionQueueState {
   PlayerCommandQueue commands;
@@ -83,9 +73,6 @@ struct PlayerDecisionLocomotionState {
 int &DecisionLocomotionIntentPresentTicks();
 int &DecisionLocomotionIntentMissingTicks();
 int &DecisionLocomotionIntentMissingForSource(int source);
-long &DecisionLocomotionIntentAgeSum_ms();
-int &DecisionLocomotionIntentAgeCount();
-int &DecisionLocomotionIntentAgeMax_ms();
 // H3e4f-g0b-oracle-source-policy: which source contract each locomotion
 // consumption is checked against, so removing a fatal comparison can be told
 // apart from deleting the check.
@@ -103,9 +90,9 @@ struct LocomotionReentryAudit {
   int generation_unchanged = 0;
   int scheduler_due = 0;
   int scheduler_not_due = 0;
-  long decision_age_sum_ms = 0;
+  football::sim::TickSpan decision_age_sum{};
   int decision_age_count = 0;
-  int decision_age_max_ms = -1;
+  std::optional<football::sim::TickSpan> decision_age_max;
   // Shadow of the epoch rule: this epoch has no publication yet, so a decision
   // would be required before this locomotion state could be executed.
   int would_require_fresh = 0;
@@ -184,7 +171,7 @@ class Player final {
       return locomotionIntentScheduler.Due(now);
     }
     void NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
-                                   int now_ms);
+                                   football::sim::Tick now);
     // Gameplay continuity transition: advances the epoch when the actor stops
     // being eligible for procedural locomotion. Called once per player tick.
     void AdvanceLocomotionContinuity(bool eligible);
@@ -266,12 +253,11 @@ class Player final {
     // animation root-motion path and use the simulation-owned procedural
     // movement model instead. See PlayerActionState::IsPureLocomotion().
     bool IsEligibleForProceduralLocomotion() const;
-    int GetLastDirectMovementIntentPublication_ms() const {
-      return lastDirectMovementIntentPublication_ms;
+    std::optional<football::sim::Tick> GetLastDecisionLocomotionPublicationTick() const {
+      return last_locomotion_publication_tick_;
     }
-    int GetLastResetSituation_ms() const { return lastResetSituation_ms; }
-    int GetLastResetSituationAuditContext() const {
-      return lastResetSituationAuditContext;
+    std::optional<football::sim::Tick> GetLastResetSituationTick() const {
+      return last_reset_tick_;
     }
     void NoteProcessedPlayerTick() { hasProcessedPlayerTick = true; }
     const PlayerKinematicState &GetKinematicState() const {
@@ -303,28 +289,12 @@ class Player final {
     // 4f-a1: whether the animation selection on this tick picked a Movement clip,
     // so a legacy-only publication can be cross-tabulated with the selection.
     void NoteDecisionMovementSelection(bool movement_selected);
-    // 4f-a2: update the shadow from a simulation-owned controller query. A
-    // legacy-only query must never call this: the shadow answers what the last
-    // decision would be if animation-owned queries had never existed.
-    void ObserveSimulationDecisionQueue(const PlayerCommandQueue &commands,
-                                        int now_ms);
     bool IsPlayerDecisionRefreshDue(football::sim::Tick now,
                                     football::sim::TickSpan cadence) const {
       return playerDecisionScheduler.Due(now, cadence);
     }
     void PublishPlayerDecisionQueue(const PlayerCommandQueue &commands,
                                     football::sim::Tick now);
-    bool HasSimulationDecisionQueue() const {
-      return simulationDecisionQueue.initialized;
-    }
-    const PlayerCommandQueue &GetSimulationDecisionQueue() const {
-      return simulationDecisionQueue.commands;
-    }
-    int GetSimulationDecisionQueueAge_ms(int now_ms) const {
-      return simulationDecisionQueue.updated_ms < 0
-          ? -1
-          : now_ms - simulationDecisionQueue.updated_ms;
-    }
     // 4f-a3a: independent Player Decision Clock and its serialized latest queue.
     bool HasPlayerDecisionQueue() const { return playerDecisionQueue.initialized; }
     const PlayerCommandQueue &GetPlayerDecisionQueue() const {
@@ -450,20 +420,15 @@ class Player final {
     int pendingPublicationCause = 0;
     // 4f-a1: transient, per-tick animation selection outcome. Never serialized.
     bool decisionMovementSelection = false;
-    // 4f-a2: transient simulation-owned decision queue shadow. Not serialized.
-    SimulationDecisionQueueShadow simulationDecisionQueue;
     PlayerDecisionScheduler playerDecisionScheduler;
     PlayerDecisionQueueState playerDecisionQueue;
     // Audit generation: bumped on every Direct publication for re-entry freshness
     // measurement. Deliberately transient so telemetry cannot change the save-state
     // contract; the gameplay epochs above are serialized instead.
     unsigned long long decisionLocomotionAuditGeneration = 0;
-    int lastDirectMovementIntentPublication_ms = -1;
-    int lastResetSituation_ms = -1;
+    std::optional<football::sim::Tick> last_locomotion_publication_tick_;
+    std::optional<football::sim::Tick> last_reset_tick_;
     bool hasProcessedPlayerTick = false;
-    int lastResetSituationAuditContext =
-        kResetSituationInitialBeforeFirstPlayerTick;
-    int tr_query_gen = 0;
     // Decision-owned locomotion intent shadow. Measurement only for now: it is
     // written only by a DirectMovementIntent publication.
     PlayerDecisionLocomotionState decisionLocomotionState;
@@ -483,14 +448,7 @@ class Player final {
     int GetDecisionLocomotionIntentGeneration() const {
       return static_cast<int>(decisionLocomotionAuditGeneration);
     }
-    int tr_last_query_ms = -1;
-    int tr_last_query_due = 0;
-    int tr_last_query_eligible = 0;
-    int tr_last_query_action = 0;
-    int tr_last_query_retains = 0;
-    int tr_last_query_had_candidate = 0;
     int resetSituationAuditContext = kResetSituationUnspecified;
-    int tactical_image_time_ms_ = 0;
     std::optional<PlayerControl> control_;
 
     bool isActive = false;

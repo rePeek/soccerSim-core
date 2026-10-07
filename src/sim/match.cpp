@@ -28,6 +28,11 @@
 #include "sim/player/player_action_volume.hpp"
 #include "sim/player/player_body_collider.hpp"
 
+namespace {
+// Match owns both history capture and nearest-slot sampling cadence.
+constexpr football::sim::TickSpan kMentalImageCadence{10};
+}
+
 
 
 
@@ -140,11 +145,21 @@ void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
   teams[teamID]->GetActivePlayers(players);
 }
 
-MentalImage *Match::GetMentalImage(int history_ms) {
-  int index = int(round((float)history_ms / 100.0));
-  if (index >= (signed int)mentalImages.size()) index = mentalImages.size() - 1;
-  if (index < 0) index = 0;
+MentalImage *Match::GetMentalImage(football::sim::TickSpan history) {
+  if (mentalImages.empty()) throw std::logic_error("mental-image history is empty");
+  const auto cadence = kMentalImageCadence.value;
+  auto index = std::min<std::uint64_t>(history.value / cadence, mentalImages.size() - 1);
+  if (history.value % cadence >= cadence / 2 && index < mentalImages.size() - 1) ++index;
   return &mentalImages[index];
+}
+
+MentalImage *Match::GetMentalImage(int history_ms) {
+  // Preserve signed, sub-tick and float rounding at this calculation boundary.
+  // This selects a capture slot; it does not round reaction/reachability state.
+  const double capture_ms = static_cast<double>(football::sim::ToMilliseconds(kMentalImageCadence));
+  const int slot = std::max(0, int(round((float)history_ms / capture_ms)));
+  return GetMentalImage(football::sim::TickSpan{
+      static_cast<std::uint64_t>(slot) * kMentalImageCadence.value});
 }
 
 void Match::UpdateLatestMentalImageBallPredictions() {
@@ -262,7 +277,6 @@ bool Match::Step(const PlayerControlSet& controls) {
   Mirror(false, false, reverse);
 
   // create mental images for the AI to use
-  constexpr football::sim::TickSpan kMentalImageCadence{10};
   if (mentalImages.empty() || now_.value % kMentalImageCadence.value == 0) {
     mentalImages.insert(mentalImages.begin(), MentalImage(this));
     if (mentalImages.size() > 3) {

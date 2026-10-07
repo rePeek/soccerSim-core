@@ -120,7 +120,7 @@ void Humanoid::Process() {
       CastPlayer()->IsEligibleForProceduralLocomotion(),
       CastPlayer()->IsLocomotionIntentRefreshDue(
           match->GetTimelineTick()),
-      static_cast<int>(match->GetActualTime_ms()));
+      match->GetTimelineTick());
   // The legacy gate-versus-compatibility-source measurement lived here. Execution
   // authority is now the decision intent, so comparing the animation command
   // against the decision clock measures two compatibility slots and says nothing
@@ -154,8 +154,6 @@ void Humanoid::Process() {
     CastPlayer()->RequestCommand(player_decision_commands);
     CastPlayer()->PublishPlayerDecisionQueue(
         player_decision_commands, decision_now);
-    CastPlayer()->ObserveSimulationDecisionQueue(
-        player_decision_commands, decision_now_ms);
     bool has_movement = false;
     for (const PlayerCommand &command : player_decision_commands)
       has_movement |= command.desiredFunctionType == e_FunctionType_Movement &&

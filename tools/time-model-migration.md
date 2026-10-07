@@ -50,6 +50,15 @@ No configurable physics dt, wall-clock pacing, or foundation time module.
   Removed unused Ball/Player history-mean readers and their write-only histories.
   Extrapolation/rotation arithmetic order and quaternion rate encoding remain
   unchanged; this stage is not a rotation physics/model rewrite.
+- **T4b:** Player reset/publication provenance uses optional Tick and re-entry ages
+  use TickSpan, without signed-int millisecond wrap. Removed the unused decision
+  queue shadow/duplicate command copies and write-only per-query trace fields.
+  Tactical reaction delay is sampled locally, not stored. Match provides native
+  TickSpan nearest-capture history sampling; its signed millisecond adapter keeps
+  the legacy float rounding, including sub-tick reactions. Capture/sample cadence
+  is shared locally; reachability refresh uses overflow-safe tick staggering.
+  Empty history now throws logic_error instead of returning an invalid pointer.
+  New coverage: test/player_observation_tick_test.cpp; no football-policy tuning.
 
 The unit-only stages T0–T4a left the then-legacy football clock, scale, fatigue,
 action progression, restart schedule and RNG windows unchanged. They did not
@@ -219,3 +228,22 @@ Definitions, by-half/mode results and rerun commands: tools/restart-metrics.md.
 All restart bounds, AI/physics coefficients and animation timing remain unchanged.
 Remaining work is richer restart behavior and distributional calibration, alongside
 the previously listed continuous reachability/Player calculation audits.
+
+## T4b verification
+
+- Release / Debug / true NDEBUG: 29/29 complete CTest registrations each, including
+  full default matches. Core-only builds pass. No baseline row was changed.
+- test/player_observation_tick_test.cpp covers absence versus tick zero, publication
+  and reset beyond signed-int millisecond capacity, same-tick epoch invalidation,
+  negative/re-entry ages, empty history, all nearest-capture boundaries, huge horizons
+  and both processing orders. Four frozen off-grid reachability examples preserve
+  1/703/1551/3556 ms and explicitly show the new ties integer-tick flooring would create.
+- Full normal-order seeds 42/43/44: every raw restart/half/distribution/match record
+  is byte-identical to the pre-T4b diagnostic outputs, including second-half play.
+- Baked assets and four core/four identity numerical/RNG rows remain unchanged.
+- The direct-actor fatigue fixture now executes one native warmup step to establish
+  perception history; previously it formed a pointer into empty history. No phantom
+  snapshot/cache or compatibility fallback was introduced to hide that misuse.
+- Remaining work includes Humanoid reaction-history state/calculation adapters and
+  grid search horizons. Continuous reachability/arrival estimates remain deliberately
+  precise, not silently reclassified as tick-grid deadlines.

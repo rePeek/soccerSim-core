@@ -93,6 +93,8 @@ cmake/
 
 tools/
 ├── football_regression.cpp developer regression/animation A/B diagnostic
+├── football_restart_metrics.cpp read-only restart/clock composition diagnostic
+├── restart-metrics.md       definitions, measurements and reproducible reruns
 ├── animBaker/              offline importers and callable bake/check/verify library + CLI
 │   └── import/legacy_*     offline-only XML, value codecs and required text helpers
 ├── 4f-b-pure-locomotion-animation-read-audit.md
@@ -108,10 +110,12 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── default_ai_test.cpp + default_ai_fixture.hpp
 ├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
+├── player_observation_tick_test.cpp publication/reset stamps, re-entry ages and history sampling
 ├── sim_control_boundary_test.cpp controls/frames/reset/replay
 ├── sim_match_lifecycle_test.cpp phases/clocks/end changes/result/freeze
 ├── pitch_frame_test.cpp     half/order geometry, nonzero ball/velocity and control round trips
 ├── match_tick_test.cpp      timeline authority, restart bounds, freeze and invalid boundaries
+├── match_fatigue_test.cpp   real-distance fatigue, excluding ceremonies
 ├── restart_placement_test.cpp + restart_placement_fixture.hpp
 ├── restart_readiness_test.cpp geometry, actor waiting, authorization/contact and frame contracts
 ├── anim_baking_test.cpp      two independent bakes, byte equality, field/selection verification
@@ -408,3 +412,17 @@ C++23, extensions off, PIC on. Namespaces: football::model, football::ai,
 football::app, blunted. Legacy sim/value classes remain global. Never duplicate
 an authoritative field as a cache without need. Preserve Mirror/reverse processing
 symmetry. Model must not include simulation or orchestration headers.
+
+### Player observation time after T4b
+
+Player publication/reset provenance uses optional Tick (unset is not tick zero);
+re-entry age sums/maxima use TickSpan. The unused decision-queue shadow, stale
+millisecond accessors and write-only per-query trace fields are deleted; the sole
+PlayerDecisionQueue and continuity/oracle contracts remain. Tactical image delay
+is computed only at the sampling call, not cached as Player state. Match's native
+history API uses TickSpan and nearest-capture half-up sampling with a shared owner-
+local ten-tick cadence; the signed millisecond sampling adapter preserves legacy
+reaction rounding. Empty history is an explicit logic_error, not an invalid pointer.
+Continuous reachability/reaction estimates and Humanoid SI/animation arithmetic
+are not integer-grid deadlines; their remaining calculation migrations are separate.
+T4b must preserve existing physical/RNG goldens and full-match restart metrics.

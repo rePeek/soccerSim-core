@@ -56,9 +56,6 @@ int &DecisionLocomotionIntentMissingForSource(int source) {
   static int records[5] = {};
   return records[source];
 }
-long &DecisionLocomotionIntentAgeSum_ms() { static long value = 0; return value; }
-int &DecisionLocomotionIntentAgeCount() { static int value = 0; return value; }
-int &DecisionLocomotionIntentAgeMax_ms() { static int value = -1; return value; }
 int &ActionCoupledLegacyMismatch() { static int value = 0; return value; }
 int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
   static int records[5] = {};
@@ -121,7 +118,7 @@ void Player::AdvanceLocomotionContinuity(bool eligible) {
 }
 
 void Player::NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
-                                          int now_ms) {
+                                          football::sim::Tick now) {
   // Measurement epoch: telemetry is transient and not serialized, so state
   // restore can rewind the match clock behind it. Scope the audit to the epoch
   // instead of letting earlier scenarios pollute it.
@@ -169,7 +166,8 @@ void Player::NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
   if (decisionLocomotionState.publishedEpoch !=
       decisionLocomotionState.continuityEpoch) {
     ++audit.would_require_fresh;
-    if (lastResetSituation_ms > lastDirectMovementIntentPublication_ms) {
+    if (last_reset_tick_ && (!last_locomotion_publication_tick_ ||
+        *last_reset_tick_ > *last_locomotion_publication_tick_)) {
       ++audit.stale_after_reset;
     } else if (category == 2 && locomotionExitRecorded) {
       // a3b2 no longer lets animation opportunities publish the missing axis.
@@ -200,15 +198,15 @@ void Player::NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
       ++audit.generation_unchanged;
     }
   }
-  if (lastDirectMovementIntentPublication_ms >= 0) {
-    const int age_ms = now_ms - lastDirectMovementIntentPublication_ms;
-    if (age_ms < 0) {
+  if (last_locomotion_publication_tick_) {
+    if (now < *last_locomotion_publication_tick_) {
       // A restorable clock cannot precede a publication in normal forward play.
       ++LocomotionNegativeDecisionAgeSamples();
     } else {
-      audit.decision_age_sum_ms += age_ms;
+      const auto age = now - *last_locomotion_publication_tick_;
+      audit.decision_age_sum += age;
       ++audit.decision_age_count;
-      if (age_ms > audit.decision_age_max_ms) audit.decision_age_max_ms = age_ms;
+      if (!audit.decision_age_max || age > *audit.decision_age_max) audit.decision_age_max = age;
     }
   }
   wasPureLocomotionLastTick = true;
@@ -242,7 +240,7 @@ namespace {
 
 // Execute every 10 ms; refresh the intercept belief every 100 ms, staggered
 // by the dense match-local index. Between refreshes the estimate is retained.
-constexpr int kReachabilityRefreshTicks = 10;
+constexpr football::sim::TickSpan kReachabilityRefresh{10};
 // Preserve the measured 500 ms exact-rollout horizon; beyond it, the same
 // analytic capability approximation applies. This is not another physics model.
 constexpr int kReachabilityExactHorizon_ms = 500;
@@ -390,36 +388,22 @@ void DumpQueryOpportunities() {
   fflush(stdout);
 }
 void Player::NoteControllerQuery(bool had_movement_candidate) {
-  const int now_ms = static_cast<int>(match->GetActualTime_ms());
-  ++tr_query_gen;
-  tr_last_query_ms = now_ms;
-  tr_last_query_due = locomotionIntentScheduler.Due(match->GetTimelineTick()) ? 1 : 0;
-  tr_last_query_eligible = IsEligibleForProceduralLocomotion() ? 1 : 0;
-  tr_last_query_action = static_cast<int>(actionState.type);
-  tr_last_query_retains = match->GetBallRetainer() == this ? 1 : 0;
-  tr_last_query_had_candidate = had_movement_candidate ? 1 : 0;
+  const bool due = locomotionIntentScheduler.Due(match->GetTimelineTick());
+  const bool eligible = IsEligibleForProceduralLocomotion();
   ++t4opp_queries;
   if (had_movement_candidate) {
     ++t4opp_with_candidate;
-    if (!tr_last_query_due) ++t4opp_cand_not_due;
-    else if (!tr_last_query_eligible) ++t4opp_cand_due_ineligible;
+    if (!due) ++t4opp_cand_not_due;
+    else if (!eligible) ++t4opp_cand_due_ineligible;
     else ++t4opp_cand_due_eligible;
   } else {
-    if (!tr_last_query_due) ++t4opp_nocand_not_due;
+    if (!due) ++t4opp_nocand_not_due;
     else ++t4opp_nocand_other;
   }
 }
 
 void Player::NoteDecisionMovementSelection(bool movement_selected) {
   decisionMovementSelection = movement_selected;
-}
-
-void Player::ObserveSimulationDecisionQueue(
-    const PlayerCommandQueue &commands, int now_ms) {
-  simulationDecisionQueue.commands = commands;
-  simulationDecisionQueue.initialized = true;
-  ++simulationDecisionQueue.generation;
-  simulationDecisionQueue.updated_ms = now_ms;
 }
 
 // c2a: the Player Decision Clock's single publication entry point. It owns the
@@ -437,8 +421,7 @@ void Player::PublishDecisionLocomotionIntent(const PlayerCommand &command) {
       decisionLocomotionState.initialized &&
       MovementCommandDiffersMaterially(decisionLocomotionState.command, command);
   ++PlayerMovementCommandDirectAdoptions();
-  lastDirectMovementIntentPublication_ms =
-      static_cast<int>(match->GetActualTime_ms());
+  last_locomotion_publication_tick_ = match->GetTimelineTick();
   // Cause split without changing the player path: a publication on a tick where
   // the simulation cadence was not due can only have come from the animation
   // lifecycle's query opportunity.
@@ -604,9 +587,6 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
 void Player::Process() {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
-    tactical_image_time_ms_ = GetReactionTime_ms();
-    if (match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental)
-      tactical_image_time_ms_ = 0;
     if (match->IsInPlay()) {
       if (football::sim::player_timing::StaggeredRefreshDue(
           match->GetTimelineTick(), football::sim::player_timing::kTacticalRefresh,
@@ -664,7 +644,7 @@ void Player::ResetRuntimeState(const Vector3 &focusPos) {
     // a later reset re-entry compares against.
     resetDecisionGeneration = decisionLocomotionAuditGeneration;
     resetGenerationAnchorValid = true;
-    lastResetSituation_ms = static_cast<int>(match->GetActualTime_ms());
+    last_reset_tick_ = match->GetTimelineTick();
     resetSinceLastPlayerTick = true;
     // A reset is also a continuity break, so any earlier intent is invalid.
     ++decisionLocomotionState.continuityEpoch;
@@ -673,12 +653,10 @@ void Player::ResetRuntimeState(const Vector3 &focusPos) {
           ? kResetSituationRuntime
           : kResetSituationInitialBeforeFirstPlayerTick;
     }
-    lastResetSituationAuditContext = resetSituationAuditContext;
     humanoid->ResetSituation(focusPos);
     SynchronizeKinematicState();
     BeginSimulationAction();
   }
-  tactical_image_time_ms_ = 0;
   resetSituationAuditContext = kResetSituationUnspecified;
 }
 
@@ -724,9 +702,9 @@ void Player::UpdatePossessionStats() {
     // estimate between refreshes. Do not fall back to the legacy heuristic on
     // those nine intermediate ticks (P1c); that would change the AI's model.
     ++PlayerReachabilityEligibleTicks();
-    const auto reachability_tick = match->GetTimelineTick().value;
-    const bool scheduled_refresh =
-        (reachability_tick + schedule_phase_) % kReachabilityRefreshTicks == 0;
+    const bool scheduled_refresh = football::sim::player_timing::StaggeredRefreshDue(
+        match->GetTimelineTick(), kReachabilityRefresh,
+        football::sim::TickSpan{schedule_phase_});
     // First eligible tick after an action must not reuse an old action estimate.
     const bool entering_pure_locomotion = GetSimulationActionState().elapsed.value == 0;
     if (scheduled_refresh || entering_pure_locomotion) {
@@ -883,7 +861,11 @@ void Player::ResetSituation(const Vector3 &focusPos) {
 }
 
 void Player::_CalculateTacticalSituation() {
-  const MentalImage *mentalImage = match->GetMentalImage(tactical_image_time_ms_);
+  // Sample only when needed. Reaction estimates keep their sub-tick precision;
+  // the history sampler, not stored Player state, owns nearest-capture rounding.
+  const bool own_touch = match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental;
+  const MentalImage *mentalImage = own_touch ? match->GetMentalImage(football::sim::TickSpan{})
+                                           : match->GetMentalImage(GetReactionTime_ms());
   assert(mentalImage);
   assert(IsActive());
   float time_sec = 0.5f;
