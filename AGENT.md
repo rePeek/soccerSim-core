@@ -66,7 +66,7 @@ src/
 │   ├── simulation.*  sole top-level concept; owns Match, RNG and baked library
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
 │   ├── match/        Match, options, phase, result and legacy pitch geometry aliases
-│   ├── team/         runtime Team, formation entries and role/spacing adaptation
+│   ├── team/         runtime Team, formation adaptation and possession arbitration
 │   ├── ball/         standalone Ball physics/environment, touch kinds/prediction timing
 │   │                 and ball_player_contact cross-domain interaction
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
@@ -112,6 +112,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── ball_player_contact_test.cpp standalone Ball, contact cooldown/order and explicit history inputs
 ├── player_contact_test.cpp   explicit contact inputs, in-place pair order and no RNG/ball mutation
 ├── goal_test.cpp             standalone goal geometry, segment bounds and legacy side-net veto
+├── possession_test.cpp       arrival ranking, ties, hysteresis and retainer override
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
 ├── player_observation_tick_test.cpp publication/reset stamps, re-entry ages and history sampling
 ├── reachability_tick_test.cpp grid candidate rollouts, split horizons and continuous precision
@@ -243,8 +244,7 @@ reset, runtime accessor or live control/tactics/request API.
 app main → GameEnv::Start
          → until Finished: Observe → DefaultAI::Update → controls → Simulation::Step
          → Result (application serializes it)
-Simulation::Step → controls + ball_player_contact → Match-owned state
-                 → private Match::StepRemainingTick (transitional legacy phases)
+Simulation::Step → explicit domain phases → Match-owned competition/actor state
 ```
 
 - Simulation owns the tick entry, pending end-change boundary, executed-step count
@@ -259,10 +259,10 @@ Simulation::Step → controls + ball_player_contact → Match-owned state
   Transitional Match::TouchBall composes Touch → latest history refresh → first/second
   roster possession refresh; caller then sets rotation. Keep both original prediction
   recalculations and the existing sample-zero publication timing unchanged.
-- Match::Step/Process are removed; only friend Simulation can enter StepRemainingTick.
-  Its referee, ball/player processing, history capture, possession, clock and goal
-  composition remain to be extracted without changing their order. This
-  is not a completed state-only Match or Player/Team/Referee dependency migration.
+- Match::Step/Process/StepRemainingTick are removed. Simulation::Step now spells out
+  the legacy phase order and all frame/terminal/ceremonial boundaries directly.
+  Match still holds competition state, actors and transitional touch/reset/history
+  composition; this is not a completed Player/Team/Referee dependency migration.
   Simulation::match() remains a transitional test/diagnostic escape hatch.
 - Contact extraction retains cooldown's strict >15-tick boundary and the original
   three RNG argument-expression draws after touch-dependent refresh, before cooldown
@@ -272,7 +272,7 @@ Simulation::Step → controls + ball_player_contact → Match-owned state
   (30000 ticks per half) are byte-identical. No golden, physics or policy change.
 - player/player_contact owns the former humanoid-pair collision algorithm and private
   bounce accumulators. Inputs are an ordered active-player span, const Ball and the
-  designated possession player, never Match/Simulation. The tail supplies first then
+  designated possession player, never Match/Simulation. Simulation supplies first then
   second roster in the common contact frame after possession, before AdvanceTime.
   Pair offsets remain immediate; movement sharing is accumulated/applied afterward.
   Referee& is an explicit transitional dependency: TripMe → TripNotice executes inline
@@ -281,7 +281,7 @@ Simulation::Step → controls + ball_player_contact → Match-owned state
   seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
 - rules/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
   the original triangles, strict segment endpoints, bidirectional intersection and
-  legacy side-net literals. The tail retains the Ball prediction lookahead gate per
+  legacy side-net literals. Simulation retains the Ball prediction lookahead gate per
   side, live-ball gate and goal application: AdvanceTime → first/second goal checks
   → netting fact → frame restoration → score/scorer/own-goal facts. No score or
   player state is read or written by the geometric predicate; no semantics repair
@@ -290,7 +290,14 @@ Simulation::Step → controls + ball_player_contact → Match-owned state
   byte-identical; Release 32/32, Debug 31/31 (excluding full-match CLI) and core-only
   builds pass. No regression baselines or baked assets are changed.
 
-Current phase order (the private tail still composes phases after ball contact):
+- team/possession owns read-only best-team/designated-player arbitration over already
+  refreshed teams in processing order. It returns pointers, preserving the signed team
+  time comparison, tie fallback, unsigned +10 float ratio and strict <0.85 hysteresis.
+  Simulation publishes bestPossessionTeam then designatedPossessionPlayer at the old
+  phase boundary. Both selection fields and the distinct physical ballRetainer fact
+  remain Match-owned; Team/Player possession refresh algorithms are not moved.
+
+Current phase order (composed directly by Simulation):
 ```text
 ApplyControls → ResolveBallPlayerContacts → ProcessReferee → StepBall
 → CaptureHistory → StepPlayers → UpdatePossession → ResolvePlayerContacts

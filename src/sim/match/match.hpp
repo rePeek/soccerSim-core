@@ -158,13 +158,8 @@ class Match {
 
   private:
     friend class Simulation;
-    // Remaining legacy phases; entered in the common first-roster contact frame.
-    // Only Simulation may execute this tail, until each domain phase is extracted.
-    bool StepRemainingTick();
     // Mirrors both teams, the ball and mental images onto the other half.
     void SwitchEnds();
-
-    void CalculateBestPossessionTeamID();
 
 
     int score_[2] = {0, 0};

@@ -15,6 +15,10 @@
 
 #include "sim/match/match.hpp"
 #include "sim/observation/world_state_builder.hpp"
+#include "sim/observation/mentalimage_sampling.hpp"
+#include "sim/player/player_contact.hpp"
+#include "sim/rules/goal.hpp"
+#include "sim/team/possession.hpp"
 
 namespace {
 
@@ -180,9 +184,96 @@ void Simulation::Step(const PlayerControlSet& controls) {
     }
   }
 
-  // The tail restores the frame even on a terminal/ceremonial early return.
-  // Extract its remaining mechanics/rules phases separately, without reordering.
-  match.StepRemainingTick();
+  // ProcessReferee: before this tick's ball/player movement, in the contact frame.
+  match.GetReferee()->Process();
+  Vector3 previousBallPos = match.ball->Predict(0);
+  match.Mirror(reverse, !reverse, false);
+  // Restore the processing frame even on the referee's terminal transition.
+  if (match.Finished()) return;
+  if (!match.IsInPlay() && !match.GetReferee()->RestartNeedsSimulation() &&
+      (match.now_ < match.GetReferee()->GetBuffer().prepare_tick ||
+       match.GetReferee()->GetBuffer().prepare_tick + football::sim::TickSpan{1} < match.now_)) {
+    // Ceremonies execute only their placement tail; both clocks stay stopped.
+    match.AdvanceTime(football::sim::TickSpan{1});
+    return;
+  }
+  // StepBall.
+  match.Mirror(false, false, reverse);
+  match.ball->Process(match.GetBallEnvironment());
+  match.Mirror(false, false, reverse);
+
+  // CaptureHistory: preserve the pre-player-processing capture and sample-zero timing.
+  if (match.mentalImages.empty() ||
+      match.now_.value % football::sim::observation::kMentalImageCadence.value == 0) {
+    match.mentalImages.insert(match.mentalImages.begin(), MentalImage(&match));
+    if (match.mentalImages.size() > 3) {
+      match.mentalImages.pop_back();
+    }
+  }
+
+  // StepPlayers, each in its own execution frame.
+  match.Mirror(match.first_team == 1, match.first_team == 0, false);
+  match.teams[match.first_team]->Process();
+  match.Mirror(true, true, true);
+  match.teams[match.second_team]->Process();
+  match.Mirror(match.first_team == 0, match.first_team == 1, true);
+
+  // UpdatePossession: retain both per-roster refreshes before arbitration.
+  match.Mirror(match.first_team == 1, match.first_team == 0, false);
+  match.teams[match.first_team]->UpdatePossessionStats();
+  match.Mirror(true, true, true);
+  match.teams[match.second_team]->UpdatePossessionStats();
+  match.Mirror(match.first_team == 0, match.first_team == 1, true);
+
+  const auto possession = football::sim::EvaluatePossession(
+      *match.teams[match.first_team], *match.teams[match.second_team],
+      match.designatedPossessionPlayer, match.ballRetainer);
+  match.bestPossessionTeam = possession.best_team;
+  match.designatedPossessionPlayer = possession.designated_player;
+
+  // ResolvePlayerContacts: live pair mutations, then movement sharing.
+  match.Mirror(reverse, !reverse, false);
+  std::vector<Player*> players;
+  match.GetTeam(match.first_team)->GetActivePlayers(players);
+  match.GetTeam(match.second_team)->GetActivePlayers(players);
+  football::sim::ResolvePlayerContacts(
+      {players, *match.ball, match.designatedPossessionPlayer}, *match.referee_);
+
+  // AdvanceClock precedes goal detection and all goal consequences.
+  match.AdvanceTime(football::sim::TickSpan{1});
+
+  bool first_team_goal = false;
+  bool second_team_goal = false;
+  if (match.IsBallInPlay()) {
+    // Retain the per-side legacy lookahead gate; geometry itself needs no Ball.
+    const auto crossed_goal = [&](int side) {
+      if (fabs(match.ball->Predict(10).coords[0]) < match.pitch_.half_length() - 1.0) return false;
+      return football::sim::CrossedGoalLine(
+          match.pitch_, side, previousBallPos, match.ball->Predict(0));
+    };
+    first_team_goal = crossed_goal(match.teams[match.first_team]->GetDynamicSide());
+    second_team_goal = crossed_goal(match.teams[match.second_team]->GetDynamicSide());
+  }
+  bool goal = first_team_goal | second_team_goal;
+  match.ballIsInGoal |= goal;
+  match.Mirror(reverse, !reverse, false);
+  if (match.IsBallInPlay()) {
+    if (goal) {
+      int team = first_team_goal ? match.second_team : match.first_team;
+      ++match.score_[match.teams[team]->GetID()];
+      match.SetGoalScored(true);
+      match.lastGoalTeam = match.teams[team];
+    }
+    if (first_team_goal || second_team_goal) {
+      bool ownGoal = true;
+      if (match.GetLastTouchTeamID(e_TouchType_Intentional_Kicked) == match.GetLastGoalTeam()->GetID() || match.GetLastTouchTeamID(e_TouchType_Intentional_Nonkicked) == match.GetLastGoalTeam()->GetID()) ownGoal = false;
+      if (!ownGoal) {
+        match.lastGoalScorer = match.GetLastGoalTeam()->GetLastTouchPlayer();
+      } else {
+        match.lastGoalScorer = match.teams[abs(match.GetLastGoalTeam()->GetID() - 1)]->GetLastTouchPlayer();
+      }
+    }
+  }
 }
 
 

@@ -130,7 +130,7 @@ sim/
 ├── player/       Player, PlayerControl/Set, execution commands and mechanics
 ├── ball/         Ball physics, touches and prediction timing
 ├── match/        Match, MatchOptions, MatchPhase and MatchResult
-├── team/         runtime Team and formation adaptation
+├── team/         runtime Team, formation adaptation and possession arbitration
 ├── observation/  WorldState, world_state_builder, pitch_frame and execution history
 ├── rules/        Referee, goal geometry, offside and restarts
 ├── animation/    baked clips, library and selection
@@ -149,7 +149,7 @@ controls and invokes `ball/ball_player_contact.*`, applying its impulse, random
 rotation and cooldown at the original point in the tick. The resolver receives
 explicit domain inputs, not a Match/Simulation service locator.
 `player/player_contact.*` owns ordered player-pair separation, movement sharing and
-tackle/trip mechanics. The transitional tail passes players, Ball, possession
+tackle/trip mechanics. Simulation passes players, Ball, possession
 designation and Referee explicitly; notices remain synchronous after each trip.
 No pair sorting, position snapshotting or deferred foul-event queue is introduced.
 `rules/goal.*` provides a pure swept-segment predicate from Pitch and positions.
@@ -160,8 +160,11 @@ score/scorer application order; geometry reads no Match, Ball, player or clock.
 `BallEnvironment` rule fact on each call. Touch-dependent history/possession refresh
 is composed externally by a transitional `Match::TouchBall` bridge, preserving
 refresh-before-rotation timing. Player/Team touch accounting still notifies legacy
-rules synchronously. The remaining tick phases are private `Match::StepRemainingTick`,
-callable only by Simulation; Match is not yet a state-only container.
+rules synchronously. `Simulation::Step()` now composes all legacy phases explicitly;
+`Match::StepRemainingTick` is removed. `team/possession.*` evaluates best-team and
+designated-player selection without publishing state. Simulation applies the selection
+after roster refreshes; the separate physical `ballRetainer` fact remains Match-owned.
+Match is not yet a state-only container; touch/reset/history bridges remain.
 `Simulation::match()` remains a temporary test/diagnostic escape hatch.
 
 ## Build and tests

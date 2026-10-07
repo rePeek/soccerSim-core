@@ -21,6 +21,7 @@ target_sources(football_sim PRIVATE
   match/match.cpp match/pitch_geometry.hpp
   team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
   team/formation_roles.cpp team/formation_entry.hpp
+  team/possession.cpp team/possession.hpp
   ball/ball.cpp ball/ball.hpp ball/ball_timing.hpp ball/ball_touch.hpp
   ball/ball_environment.hpp ball/ball_player_contact.cpp ball/ball_player_contact.hpp
   observation/world_state_builder.cpp observation/world_state_builder.hpp

@@ -18,16 +18,11 @@
 #include "sim/match/match.hpp"
 #include "sim/animation/library.hpp"
 
-#include "sim/rules/goal.hpp"
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
-#include <cassert>
-#include "sim/player/player_contact.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
-
-using football::sim::observation::kMentalImageCadence;
 
 
 
@@ -221,132 +216,6 @@ Team *Match::GetBestPossessionTeam() {
 
 
 
-
-// Transitional remainder, not a second public tick entry point.
-bool Match::StepRemainingTick() {
-  bool reverse = options_.reverse_team_processing;
-  referee_->Process();
-  Vector3 previousBallPos = ball->Predict(0);
-  Mirror(reverse, !reverse, false);
-  // Restore the processing frame even on the referee's terminal transition.
-  if (Finished()) return false;
-  if (!IsInPlay() && !referee_->RestartNeedsSimulation() &&
-      (now_ < referee_->GetBuffer().prepare_tick ||
-       referee_->GetBuffer().prepare_tick + football::sim::TickSpan{1} < now_)) {
-    // Ceremonies execute only their placement tail; both clocks stay stopped.
-    AdvanceTime(football::sim::TickSpan{1});
-    return false;
-  }
-  Mirror(false, false, reverse);
-  ball->Process(GetBallEnvironment());
-  Mirror(false, false, reverse);
-
-  // create mental images for the AI to use
-  if (mentalImages.empty() || now_.value % kMentalImageCadence.value == 0) {
-    mentalImages.insert(mentalImages.begin(), MentalImage(this));
-    if (mentalImages.size() > 3) {
-      mentalImages.pop_back();
-    }
-  }
-
-  Mirror(first_team == 1, first_team == 0, false);
-  teams[first_team]->Process();
-  Mirror(true, true, true);
-  teams[second_team]->Process();
-  Mirror(first_team == 0, first_team == 1, true);
-
-  Mirror(first_team == 1, first_team == 0, false);
-  teams[first_team]->UpdatePossessionStats();
-  Mirror(true, true, true);
-  teams[second_team]->UpdatePossessionStats();
-  Mirror(first_team == 0, first_team == 1, true);
-
-  CalculateBestPossessionTeamID();
-
-  if (GetBallRetainer() == 0) {
-    if (GetBestPossessionTeam()) {
-      Player *candidate = GetBestPossessionTeam()->GetDesignatedTeamPossessionPlayer();
-      if (candidate != GetDesignatedPossessionPlayer()) {
-        unsigned int designatedTime = GetDesignatedPossessionPlayer()->GetTimeNeededToGetToBall_ms();
-        unsigned int candidateTime = candidate->GetTimeNeededToGetToBall_ms();
-        float timeRating = (float)(candidateTime + 10) / (float)(designatedTime + 10);
-        if (timeRating < 0.85f) designatedPossessionPlayer = candidate;
-      }
-    } else {
-      // just stick with current team
-      designatedPossessionPlayer = GetDesignatedPossessionPlayer()->GetTeam()->GetDesignatedTeamPossessionPlayer();
-    }
-  } else {
-    designatedPossessionPlayer = GetBallRetainer();
-  }
-
-  Mirror(reverse, !reverse, false);
-  std::vector<Player*> players;
-  GetTeam(first_team)->GetActivePlayers(players);
-  GetTeam(second_team)->GetActivePlayers(players);
-  football::sim::ResolvePlayerContacts(
-      {players, *ball, designatedPossessionPlayer}, *referee_);
-
-  AdvanceTime(football::sim::TickSpan{1});
-
-  // check for goals
-  bool first_team_goal = false;
-  bool second_team_goal = false;
-  if (IsBallInPlay()) {
-    // Retain the per-side legacy lookahead gate; geometry itself needs no Ball.
-    const auto crossed_goal = [&](int side) {
-      if (fabs(ball->Predict(10).coords[0]) < pitch_.half_length() - 1.0) return false;
-      return football::sim::CrossedGoalLine(
-          pitch_, side, previousBallPos, ball->Predict(0));
-    };
-    first_team_goal = crossed_goal(teams[first_team]->GetDynamicSide());
-    second_team_goal = crossed_goal(teams[second_team]->GetDynamicSide());
-  }
-  bool goal = first_team_goal | second_team_goal;
-  ballIsInGoal |= goal;
-  Mirror(reverse, !reverse, false);
-  if (IsBallInPlay()) {
-    if (goal) {
-      int team = first_team_goal ? second_team : first_team;
-      ++score_[teams[team]->GetID()];
-      SetGoalScored(true);
-      lastGoalTeam = teams[team];
-    }
-    if (first_team_goal || second_team_goal) {
-
-      // find out who scored
-      bool ownGoal = true;
-      if (GetLastTouchTeamID(e_TouchType_Intentional_Kicked) == GetLastGoalTeam()->GetID() || GetLastTouchTeamID(e_TouchType_Intentional_Nonkicked) == GetLastGoalTeam()->GetID()) ownGoal = false;
-
-      if (!ownGoal) {
-        lastGoalScorer = GetLastGoalTeam()->GetLastTouchPlayer();
-      }
-
-      else {  // own goal
-        lastGoalScorer = teams[abs(GetLastGoalTeam()->GetID() - 1)]->GetLastTouchPlayer();
-      }
-    }
-  }
-  return true;
-}
-
-void Match::CalculateBestPossessionTeamID() {
-  if (GetBallRetainer() != 0) {
-    bestPossessionTeam = GetBallRetainer()->GetTeam();
-  } else {
-    int bestTime_ms[2] = { 100000, 100000 };
-    bestTime_ms[0] = teams[first_team]->GetTimeNeededToGetToBall_ms();
-    bestTime_ms[1] = teams[second_team]->GetTimeNeededToGetToBall_ms();
-    if (bestTime_ms[0] < bestTime_ms[1])
-      bestPossessionTeam = teams[first_team];
-    else if (bestTime_ms[0] > bestTime_ms[1])
-      bestPossessionTeam = teams[second_team];
-    else {
-      assert(bestTime_ms[0] == bestTime_ms[1]);
-      bestPossessionTeam = 0;
-    }
-  }
-}
 
 void Match::AdvanceTime(football::sim::TickSpan delta) {
   using football::sim::TickSpan;

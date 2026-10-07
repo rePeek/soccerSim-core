@@ -41,7 +41,8 @@ endif()
 # remain test inputs and never become a runtime dependency.
 add_executable(football_sim_computation_test sim_computation_test.cpp tick_test.cpp
   player_action_tick_test.cpp prediction_tick_test.cpp player_observation_tick_test.cpp
-  reachability_tick_test.cpp ball_player_contact_test.cpp player_contact_test.cpp)
+  reachability_tick_test.cpp ball_player_contact_test.cpp player_contact_test.cpp
+  possession_test.cpp)
 target_link_libraries(football_sim_computation_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_computation_test)
