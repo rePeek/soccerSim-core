@@ -440,3 +440,13 @@ or multiplies a huge duration into milliseconds. The legacy action reachability
 search also owns a TickSpan cursor/optional horizon; its adaptive round-then-floor
 grid and strict crossed-limit behavior remain unchanged. Independent Step-based
 candidate rollouts live in test/reachability_tick_test.cpp. T4c changes no policy.
+
+### Native timeline callers after T4d
+
+GetActualTime_ms, BumpActualTime_ms and GetLastTouchTime_ms are deleted, not kept as
+compatibility APIs. Touch-decay readers accept an optional Tick evaluation instant;
+absence means now and explicit Tick zero remains zero. The ability-dependent decay
+formula retains its off-grid millisecond precision, using only a bounded relative
+age projection. It never converts the absolute timeline into milliseconds. Old
+diagnostic wire units are projected at output-only call sites. The unused possession-
+side history/accessor and its sole ValueHistory implementation are deleted.

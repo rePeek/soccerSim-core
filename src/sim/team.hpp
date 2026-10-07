@@ -92,9 +92,9 @@ class Team {
     void SetLastTouchPlayer(
         Player *player, e_TouchType touchType = e_TouchType_Intentional_Kicked);
     Player *GetLastTouchPlayer() const { return lastTouchPlayer; }
-    float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0) {
+    float GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at = std::nullopt) {
       return lastTouchPlayer
-                 ? lastTouchPlayer->GetLastTouchBias(decay_ms, time_ms)
+                 ? lastTouchPlayer->GetLastTouchBias(decay_ms, at)
                  : 0;
     }
 

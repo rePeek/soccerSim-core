@@ -629,11 +629,13 @@ float Player::GetVelocityMultiplier() const {
   return 0.9f + model_.attributes.get(football::model::PlayerStat::physical_velocity) * 0.1f;
 }
 
-float Player::GetLastTouchBias(int decay_ms, unsigned long time_ms) {
-  unsigned long adaptedTime_ms = time_ms;
-  if (time_ms == 0) adaptedTime_ms = match->GetActualTime_ms();
-  if (decay_ms > 0) return 1.0f - clamp((adaptedTime_ms - GetLastTouchTime_ms()) / (float)decay_ms, 0.0f, 1.0f);
-  return 0.0f;
+float Player::GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at) {
+  const auto time = at.value_or(match->GetTimelineTick());
+  if (decay_ms <= 0 || time < last_touch_tick_) return 0.0f;
+  const auto age = time - last_touch_tick_;
+  // Saturate before projection: absolute millisecond capacity is irrelevant.
+  if (age.value > static_cast<unsigned int>(decay_ms) / football::sim::kMillisecondsPerTick) return 0.0f;
+  return 1.0f - clamp(football::sim::ToMilliseconds(age) / (float)decay_ms, 0.0f, 1.0f);
 }
 
 void Player::ResetRuntimeState(const Vector3 &focusPos) {

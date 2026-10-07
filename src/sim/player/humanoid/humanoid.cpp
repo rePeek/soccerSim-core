@@ -1410,7 +1410,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
            GetBakedClip(withoutFootSort.front()).frame_count)) {
     perturbation.applied = true;
     perturbation.player_id = CastPlayer()->GetID();
-    perturbation.time_ms = static_cast<int>(match->GetActualTime_ms());
+    perturbation.time_ms = static_cast<int>(football::sim::ToMilliseconds(match->GetTimelineTick()));
     perturbation.original_anim_id = dataSet.front();
     perturbation.alternative_anim_id = withoutFootSort.front();
     // Only reorder the single branch's local candidate set. SelectAnim runs
@@ -1924,7 +1924,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
           FFO.Rotate2D(FixAngle(touchMovement.GetNormalized(Vector3(0, -1, 0)).GetAngle2D()));
         }
         // just touched ball
-        float lastTouchBias = curve(player->GetLastTouchBias(600, match->GetActualTime_ms() + animTouchFrame * 10), 1.0f);
+        float lastTouchBias = curve(player->GetLastTouchBias(600, match->GetTimelineTick() + football::sim::TickSpan{static_cast<std::uint64_t>(animTouchFrame)}), 1.0f);
         if (lastTouchBias > 0.0f) {
           float factor = 1.0f - lastTouchBias * 0.97f * (1.0f - player->GetStat(football::model::PlayerStat::technical_ballcontrol) * 0.1f);
           radiusFactor *= factor;

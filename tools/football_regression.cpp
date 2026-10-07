@@ -1327,7 +1327,7 @@ void CheckMovementAnimationPerturbation(Simulation& simulation, bool frame_count
       football::test::StepDefaultAI(simulation, policy);
       CheckCanonicalFrame(simulation);
       ticks.push_back({CaptureSimulationDigest(simulation),
-                       static_cast<int>(simulation.match()->GetActualTime_ms()),
+                       static_cast<int>(football::sim::ToMilliseconds(simulation.match()->GetTimelineTick())),
                        PlayerDecisionClockQueries() - queries_before, hook.applied});
     }
     hook.enabled = false;

@@ -52,7 +52,6 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
       rng_(rng),
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
-      possessionSideHistory(6000),
       options_(options) {
 
 
@@ -180,7 +179,6 @@ void Match::ResetSituation(const Vector3 &focusPos) {
   lastGoalScorer = 0;
   bestPossessionTeam = 0;
 
-  possessionSideHistory.Clear();
 
   last_body_ball_collision_tick_ = {};
 
@@ -354,19 +352,6 @@ bool Match::Step(const PlayerControlSet& controls) {
       }
     }
   }
-  // average possession side
-
-   if (IsBallInPlay()) {
-     if (GetBestPossessionTeam()) {
-       float sideValue = 0;
-       sideValue += (GetTeam(0)->GetFadingTeamPossessionAmount() - 0.5f) *
-           GetTeam(0)->GetDynamicSide();
-       sideValue += (GetTeam(1)->GetFadingTeamPossessionAmount() - 0.5f) *
-           GetTeam(1)->GetDynamicSide();
-       possessionSideHistory.Insert(sideValue);
-     }
-   }
-
   return true;
 }
 
@@ -887,10 +872,6 @@ void Match::CheckBallCollisions() {
 }
 
 
-
-void Match::BumpActualTime_ms(unsigned long time) {
-  AdvanceTime(football::sim::TickSpanFromMillisecondsExact(time));
-}
 
 void Match::AdvanceTime(football::sim::TickSpan delta) {
   using football::sim::TickSpan;

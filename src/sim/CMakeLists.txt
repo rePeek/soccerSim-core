@@ -31,7 +31,7 @@ target_sources(football_sim PRIVATE
 
   gamedefines.hpp formation.hpp ball.hpp ball_timing.hpp match.hpp match_world_state.hpp
   pitch_frame.hpp
-  referee.hpp team.hpp value_history.hpp
+  referee.hpp team.hpp
   ai_support/mentalimage.hpp
   query/player_query.hpp query/reachability.hpp
   rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp

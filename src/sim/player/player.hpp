@@ -344,11 +344,10 @@ class Player final {
 
     void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
     football::sim::Tick GetLastTouchTick() const { return last_touch_tick_; }
-    // Temporary adapter for Humanoid's not-yet-migrated calculations.
-    unsigned long GetLastTouchTime_ms() const { return football::sim::ToMilliseconds(last_touch_tick_); }
     void SetLastTouchType(e_TouchType touchType) { this->lastTouchType = touchType; }
     e_TouchType GetLastTouchType() { return lastTouchType; }
-    float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0);
+    // The ability-dependent decay is a continuous estimate, not a grid deadline.
+    float GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at = std::nullopt);
 
 
     float GetFatigueFactorInv() const { return fatigueFactorInv; }

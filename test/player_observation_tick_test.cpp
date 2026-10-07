@@ -131,4 +131,40 @@ TEST_CASE("Mental history tick sampling preserves nearest-capture reaction bound
     REQUIRE(match.GetMentalImage(TickSpan{100}) == match.GetMentalImage(TickSpan{}));
   }
 }
+
+template<class T> concept HasMillisecondTimeline = requires(T& owner) { owner.GetActualTime_ms(); };
+template<class T> concept HasMillisecondAdvance = requires(T& owner) { owner.BumpActualTime_ms(10); };
+template<class T> concept HasMillisecondTouch = requires(T& owner) { owner.GetLastTouchTime_ms(); };
+static_assert(!HasMillisecondTimeline<Match>);
+static_assert(!HasMillisecondAdvance<Match>);
+static_assert(!HasMillisecondTouch<Player>);
+
+TEST_CASE("Touch decay uses relative ticks without quantizing ability-dependent decay", "[sim][tick][player]") {
+  for (bool reverse : {false, true}) {
+    Simulation simulation; Init(simulation, reverse);
+    auto& match = *simulation.match();
+    auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
+    const auto rng = match.rng().engine();
+    actor.SetLastTouchTick(Tick{17});
+    for (int decay_ms : {0, -1, 200, 240, 503, 707, 1000, 1199, 1500}) {
+      for (std::uint64_t age = 0; age <= 200; ++age) {
+        const float expected = decay_ms > 0
+            ? 1.f - blunted::clamp(ToMilliseconds(TickSpan{age}) / float(decay_ms), 0.f, 1.f) : 0.f;
+        REQUIRE(actor.GetLastTouchBias(decay_ms, Tick{17 + age}) == expected);
+      }
+    }
+    actor.SetLastTouchTick(Tick{});
+    match.AdvanceTime(TickSpan{23});
+    REQUIRE(actor.GetLastTouchBias(503) == actor.GetLastTouchBias(503, Tick{23}));
+    REQUIRE(actor.GetLastTouchBias(503, Tick{}) == 1.f); // Explicit zero is not omitted.
+    actor.SetLastTouchTick(Tick{30});
+    REQUIRE(actor.GetLastTouchBias(503, Tick{}) == 0.f); // Rewound observation.
+    const TickSpan large{UINT64_C(1) << 63};
+    match.AdvanceTime(large);
+    actor.SetLastTouchTick(match.GetTimelineTick() - TickSpan{7});
+    REQUIRE(actor.GetLastTouchBias(503) == 1.f - 70.f / 503.f);
+    REQUIRE(actor.GetLastTouchBias(503, Tick{std::numeric_limits<std::uint64_t>::max()}) == 0.f);
+    REQUIRE(match.rng().engine() == rng);
+  }
+}
 } // namespace

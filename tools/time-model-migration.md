@@ -276,3 +276,20 @@ Humanoid's reaction-history cache is not redundant: Process first samples the pr
 delay for its requeue test, then publishes the current reaction delay for action selection.
 Removing it or quantizing the reaction before nearest-capture sampling would change
 trajectories; its remaining typed calculation migration must preserve both stages.
+
+## T4d: retire absolute millisecond caller adapters
+
+Match's GetActualTime_ms/BumpActualTime_ms and Player's GetLastTouchTime_ms are
+removed. Touch-decay evaluation uses optional Tick instants and relative age; omitted
+is now, explicit zero is zero, and rewound observations return no recent-touch bias.
+Positive ability-dependent decay estimates retain their original integer-millisecond
+precision and float evaluation order. Saturation precedes bounded relative projection,
+so huge absolute timelines do not overflow. Future animation contact uses Tick + Span.
+Diagnostic output projects milliseconds only where the old diagnostic format needs it.
+
+Removed the unused possession-side history, getter, writes and the now-unused
+sim/value_history.hpp implementation, without a replacement history abstraction.
+Both-order tests pin off-grid decay formulas, zero/negative decay, explicit zero,
+rewinds, huge instants and absence of the retired APIs. Release's 28 non-default
+CTest registrations pass, including regression and identity. Full/multi-mode and
+full-seed verification is repeated together with the next typed reaction-history step.

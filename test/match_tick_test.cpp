@@ -36,7 +36,6 @@ TEST_CASE("Match snapshots read the authoritative tick timeline and freeze at fu
       const Tick now = simulation.match()->GetTimelineTick();
       REQUIRE(now >= before);
       REQUIRE(simulation.Observe().tick == now.value);
-      REQUIRE(simulation.match()->GetActualTime_ms() == ToMilliseconds(now));
     }
     REQUIRE(simulation.Observe().regulation_time == TickSpan{2});
     REQUIRE(simulation.Result().duration_ticks == steps);
@@ -61,9 +60,8 @@ TEST_CASE("Advancing timeline ticks does not execute physics or consume RNG",
   const auto rng = match->rng().engine();
   match->AdvanceTime(Seconds(2));
   REQUIRE(match->GetTimelineTick() == Tick{200});
-  match->BumpActualTime_ms(1000);  // Temporary caller adapter uses the same storage.
+  match->AdvanceTime(Seconds(1));
   REQUIRE(match->GetTimelineTick() == Tick{300});
-  REQUIRE(match->GetActualTime_ms() == 3000);
   const auto after = simulation.Observe();
   REQUIRE(after.tick == 300);
   REQUIRE(after.regulation_time == before.regulation_time);
@@ -79,7 +77,6 @@ TEST_CASE("Advancing timeline ticks does not execute physics or consume RNG",
     REQUIRE(after.players[i].facing == before.players[i].facing);
   }
   REQUIRE(match->rng().engine() == rng);
-  REQUIRE_THROWS_AS(match->BumpActualTime_ms(11), std::invalid_argument);
   REQUIRE_THROWS_AS(match->AdvanceTime(TickSpan{std::numeric_limits<std::uint64_t>::max()}),
                     std::overflow_error);
   REQUIRE(match->GetTimelineTick() == Tick{300});
@@ -189,7 +186,6 @@ TEST_CASE("Player touch and card effect timestamps use the timeline tick", "[sim
     const auto now = match->GetTimelineTick();
     match->GetTeam(0)->SetLastTouchPlayer(player, e_TouchType_Intentional_Kicked);
     REQUIRE(player->GetLastTouchTick() == now);
-    REQUIRE(player->GetLastTouchTime_ms() == ToMilliseconds(now));
     const auto effective = now + TickSpan{5};
     player->GiveRedCard(effective);
     for (int i = 0; i < 5; ++i) {

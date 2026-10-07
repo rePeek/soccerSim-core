@@ -21,7 +21,6 @@
 #include "sim/team.hpp"
 #include "sim/ball.hpp"
 #include "sim/referee.hpp"
-#include "sim/value_history.hpp"
 
 #include "sim/match_options.hpp"
 #include "sim/rng.hpp"
@@ -135,7 +134,7 @@ class Match {
       else
         return 0;
     }
-    float GetLastTouchBias(int decay_ms, unsigned long time_ms = 0) { if (GetLastTouchTeam()) return GetLastTouchTeam()->GetLastTouchBias(decay_ms, time_ms); else return 0; }
+    float GetLastTouchBias(int decay_ms, std::optional<football::sim::Tick> at = std::nullopt) { if (GetLastTouchTeam()) return GetLastTouchTeam()->GetLastTouchBias(decay_ms, at); else return 0; }
     bool IsBallInGoal() const { return ballIsInGoal; }
 
     Team* GetBestPossessionTeam();
@@ -146,17 +145,11 @@ class Match {
       ballRetainer = retainer;
     }
 
-    float GetAveragePossessionSide(int time_ms) const { return possessionSideHistory.GetAverage(time_ms); }
 
     football::sim::TickSpan GetRegulationTime() const { return regulation_elapsed_; }
     football::sim::TickSpan GetBallInPlayTime() const { return ball_in_play_elapsed_; }
     football::sim::Tick GetTimelineTick() const { return now_; }
     void AdvanceTime(football::sim::TickSpan delta);
-    // Temporary adapters for owners not yet migrated. No millisecond timeline storage.
-    unsigned long GetActualTime_ms() const {
-      return static_cast<unsigned long>(football::sim::ToMilliseconds(now_));
-    }
-    void BumpActualTime_ms(unsigned long time);
 
 
     // Legacy projection with raw motion, independent of environment cadence.
@@ -230,7 +223,6 @@ class Match {
     Player *designatedPossessionPlayer;
     Player *ballRetainer;
 
-    ValueHistory<float> possessionSideHistory;
 
 
     football::sim::Tick last_body_ball_collision_tick_{};
