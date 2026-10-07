@@ -1075,7 +1075,7 @@ void CheckRefereeRules(Simulation& simulation) {
       rules.RecordFoul(offender, victim, foul_type, position, penalty);
       const auto rng_before = match->rng().engine();
       const auto stopped = match->GetTimelineTick();
-      Require(rules.CheckFoul(), "unprocessed foul did not stop play");
+      Require(rules.CheckFoul(match->GetTimelineTick()), "unprocessed foul did not stop play");
       const RefereeBuffer scheduled = rules.GetBuffer();
       const auto card_delay = foul_type >= 2 ? football::sim::Seconds(10) : football::sim::TickSpan{};
       const auto effective_time = match->GetTimelineTick() + football::sim::Seconds(6);
@@ -1092,7 +1092,7 @@ void CheckRefereeRules(Simulation& simulation) {
                   offender->HasCards() == (foul_type >= 2) &&
                   match->rng().engine() == rng_before,
               "rule restart/card budget changed or consumed RNG");
-      Require(!rules.CheckFoul() &&
+      Require(!rules.CheckFoul(match->GetTimelineTick()) &&
                   rules.GetBuffer().restart->earliest_restart_tick == scheduled.restart->earliest_restart_tick &&
                   rules.GetBuffer().restart->timeout_tick == scheduled.restart->timeout_tick,
               "foul was processed twice or its deadline changed");
@@ -1138,10 +1138,10 @@ void CheckRefereeRules(Simulation& simulation) {
     match->GetTeam(1)->GetActivePlayers(away);
     RefereeFixture advantage(match);
     advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), true);
-    Require(!advantage.CheckFoul() && match->IsInPlay(),
+    Require(!advantage.CheckFoul(match->GetTimelineTick()) && match->IsInPlay(),
             "advantage should not immediately stop open play");
     simulation.AdvanceTime(football::sim::TickSpan{301});
-    Require(!advantage.CheckFoul() && advantage.GetCurrentFoulType() == 0 &&
+    Require(!advantage.CheckFoul(match->GetTimelineTick()) && advantage.GetCurrentFoulType() == 0 &&
                 match->IsInPlay(), "expired advantage was not cancelled");
   }
 

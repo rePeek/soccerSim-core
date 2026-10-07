@@ -120,7 +120,7 @@ void Referee::Process(const std::function<void(const Vector3&)>& reset_situation
 
       foul.advantage = false;
       bool isFoul = false;
-      if (!match->IsGoalScored()) isFoul = CheckFoul(); else foul.foulType = 0;
+      if (!match->IsGoalScored()) isFoul = CheckFoul(match->GetTimelineTick()); else foul.foulType = 0;
       if (isFoul == false) {
 
         match->StopPlay();
@@ -157,7 +157,7 @@ void Referee::Process(const std::function<void(const Vector3&)>& reset_situation
     if (match->IsInPlay() && post_restart_relax_ == TickSpan{}) {
       if (fabs(ballPos.coords[1]) > pitchHalfH + lineHalfW + 0.11) {
         foul.advantage = false;
-        if (!CheckFoul()) {
+        if (!CheckFoul(match->GetTimelineTick())) {
           match->StopPlay();
           Team *lastTouchTeam = match->GetLastTouchTeam();
           if (lastTouchTeam == 0) lastTouchTeam = match->GetTeam(0);
@@ -172,7 +172,7 @@ void Referee::Process(const std::function<void(const Vector3&)>& reset_situation
       }
     }
 
-    CheckFoul();
+    CheckFoul(match->GetTimelineTick());
 
   } else {  // not in play, maybe something needs to happen?
 
@@ -265,7 +265,7 @@ void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts) {
     for (auto p : offsidePlayers) {
       if (p == ballOwner) {
         foul.advantage = false;
-        if (!CheckFoul()) {
+        if (!CheckFoul(match->GetTimelineTick())) {
           // uooooga uooooga offside!
           match->StopPlay();
           buffer.desiredSetPiece = e_GameMode_FreeKick;
@@ -371,7 +371,7 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
 }
 
 
-bool Referee::CheckFoul() {
+bool Referee::CheckFoul(football::sim::Tick now) {
 
   bool penalty = false;
   if (foul.foulType != 0) {
@@ -386,8 +386,8 @@ bool Referee::CheckFoul() {
     if (penalty) {
       foul.advantage = false;
     } else {
-      if (match->GetTimelineTick() > foul.foul_tick + kAdvantageRecheck) {
-        if (match->GetTimelineTick() > foul.foul_tick + kAdvantageExpiry) {
+      if (now > foul.foul_tick + kAdvantageRecheck) {
+        if (now > foul.foul_tick + kAdvantageExpiry) {
           // cancel foul, advantage took long enough
 
           foul.foulPlayer = 0;
@@ -414,10 +414,10 @@ bool Referee::CheckFoul() {
     buffer.teamID = foul.foulVictim->GetTeam()->GetID();
     ScheduleRestart(foul.foulType >= 2 ? kCardAdministration : TickSpan{});
     if (foul.foulType == 2) {
-      foul.foulPlayer->GiveYellowCard(match->GetTimelineTick() + kCardEffectDelay);
+      foul.foulPlayer->GiveYellowCard(now + kCardEffectDelay);
     }
     if (foul.foulType == 3) {
-      foul.foulPlayer->GiveRedCard(match->GetTimelineTick() + kCardEffectDelay);
+      foul.foulPlayer->GiveRedCard(now + kCardEffectDelay);
     }
 
     foul.hasBeenProcessed = true;

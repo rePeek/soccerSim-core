@@ -99,7 +99,8 @@ class Referee {
     // Types: 1 = little standing trip, 2 = standing fall, 3 = sliding tackle.
     void TripNotice(Player *tripee, Player *tripper, int tackleType,
                     football::sim::Tick now, const Vector3& ball_position);
-    bool CheckFoul();
+    // Foul facts carry their own timestamps; the caller supplies the evaluation instant.
+    bool CheckFoul(football::sim::Tick now);
 
     Player *GetCurrentFoulPlayer() { return foul.foulPlayer; }
     int GetCurrentFoulType() { return foul.foulType; }

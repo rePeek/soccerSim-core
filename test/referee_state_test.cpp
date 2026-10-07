@@ -354,5 +354,39 @@ TEST_CASE("touch notices consume explicit facts instead of Match state",
   }
 }
 
+template<class T> concept HasImplicitFoulCheck = requires(T& referee) { referee.CheckFoul(); };
+static_assert(!HasImplicitFoulCheck<Referee>);
+
+TEST_CASE("foul evaluation timing comes from the supplied instant, not Match",
+          "[sim][referee][foul]") {
+  static constexpr TickSpan kRecheck{60};
+  static constexpr TickSpan kExpiry{300};
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  auto* offender = match.GetTeam(0)->GetAllPlayers()[1];
+  auto* victim = match.GetTeam(1)->GetAllPlayers()[1];
+  victim->GetTeam()->SetFadingTeamPossessionAmount(1.2f);
+  RefereeStateFixture referee(&match);
+  referee.match = nullptr; // Any Match read in this path would crash.
+  referee.buffer.active = false;
+  referee.foul.foulPlayer = offender;
+  referee.foul.foulVictim = victim;
+  referee.foul.foulType = 1;
+  referee.foul.advantage = true;
+  referee.foul.foul_tick = Tick{100};
+  referee.foul.hasBeenProcessed = false;
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100}));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck)); // Strictly greater starts the recheck.
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck + TickSpan{1}));
+  REQUIRE(referee.foul.advantage); // Kept while the victim side still has possession.
+  REQUIRE(referee.foul.foulType == 1);
+  REQUIRE(referee.foul.foulPlayer == offender); // Expires only past the advantage window.
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry + TickSpan{1}));
+  REQUIRE(referee.foul.foulType == 0);
+  REQUIRE(referee.foul.foulPlayer == nullptr);
+}
 
 }  // namespace
