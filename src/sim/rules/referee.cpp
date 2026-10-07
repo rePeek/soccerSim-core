@@ -100,10 +100,10 @@ void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
   buffer.setpiece_team = &kickoff_team;
 }
 
-void Referee::Process() {
+void Referee::Process(const std::function<void(const Vector3&)>& reset_situation) {
   if (match->Finished()) return;
   if (buffer.active && buffer.restart) {
-    ProcessRestart();
+    ProcessRestart(reset_situation);
     if (post_restart_relax_ > TickSpan{}) post_restart_relax_ = post_restart_relax_ - TickSpan{1};
     return;
   }
@@ -187,7 +187,7 @@ void Referee::Process() {
 
         // Deterministic reseed before positioning players for every restart.
         match->rng().Seed(match->options().game_engine_random_seed);
-        PrepareCeremonialKickOff();
+        PrepareCeremonialKickOff(reset_situation);
       }
 
       if (buffer.taker != nullptr && match->GetTimelineTick() >= buffer.start_tick) {
@@ -212,9 +212,9 @@ void Referee::Process() {
     post_restart_relax_ = post_restart_relax_ - TickSpan{1};
 }
 
-void Referee::PrepareCeremonialKickOff() {
+void Referee::PrepareCeremonialKickOff(const std::function<void(const Vector3&)>& reset_situation) {
   // Opening/half-time placement is intentionally separate from ordinary readiness.
-  match->ResetSituation(match->options().reverse_team_processing
+  reset_situation(match->options().reverse_team_processing
                             ? -buffer.restartPos : buffer.restartPos);
   Player *first_taker = PositionRestartPlayers(match->GetTeam(match->FirstTeam()),
       e_GameMode_KickOff, match->GetTeam(match->SecondTeam()),
@@ -453,7 +453,7 @@ std::optional<Vector3> Referee::GetRestartTarget(const Player* player) const {
   return std::nullopt;
 }
 
-void Referee::ProcessRestart() {
+void Referee::ProcessRestart(const std::function<void(const Vector3&)>& reset_situation) {
   auto& state = *buffer.restart;
   if (state.phase == RestartPhase::Taken) {
     state.phase = RestartPhase::InPlay;
@@ -471,7 +471,7 @@ void Referee::ProcessRestart() {
       buffer.restartPos.coords[0] = clamp(buffer.restartPos.coords[0], -0.95f * pitchHalfW, 0.95f * pitchHalfW);
       buffer.restartPos.coords[1] = clamp(buffer.restartPos.coords[1], -0.95f * pitchHalfH, 0.95f * pitchHalfH);
     }
-    match->ResetSituation(ToHomePitchFrame(*match).Position(buffer.restartPos));
+    reset_situation(ToHomePitchFrame(*match).Position(buffer.restartPos));
     state.plan = PlanRestart(*match, buffer.desiredSetPiece, *buffer.setpiece_team);
     for (const auto& actor : state.plan.players) {
       const auto frame = FromHomePitchFrame(*actor.player->GetTeam());

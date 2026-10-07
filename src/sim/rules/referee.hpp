@@ -18,6 +18,7 @@
 #ifndef _HPP_REFEREE
 #define _HPP_REFEREE
 
+#include <functional>
 #include <vector>
 #include <optional>
 
@@ -84,7 +85,8 @@ class Referee {
     void OnPeriodEnded(MatchPhase ended_phase, football::sim::Tick now,
                        const Vector3& kickoff_position, Team& kickoff_team);
 
-    void Process();
+    // Narrow synchronous action at the native reset boundary; never stored.
+    void Process(const std::function<void(const Vector3&)>& reset_situation);
 
     const RefereeBuffer &GetBuffer() { return buffer; };
     bool RestartNeedsSimulation() const;
@@ -112,8 +114,8 @@ class Referee {
 
   private:
     void ScheduleRestart(football::sim::TickSpan administration = {});
-    void ProcessRestart();
-    void PrepareCeremonialKickOff();
+    void ProcessRestart(const std::function<void(const Vector3&)>& reset_situation);
+    void PrepareCeremonialKickOff(const std::function<void(const Vector3&)>& reset_situation);
 };
 
 #endif

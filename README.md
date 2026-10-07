@@ -164,13 +164,15 @@ rules synchronously. `Simulation::Step()` now composes all legacy phases explici
 `Match::StepRemainingTick` is removed. `team/possession.*` evaluates best-team and
 designated-player selection without publishing state. Simulation applies the selection
 after roster refreshes; the separate physical `ballRetainer` fact remains Match-owned.
-Match is not yet a state-only container; touch/reset/history bridges remain.
+Match is not yet a state-only container; touch/history-sampling bridges remain.
 `Simulation::match()` remains a temporary test/diagnostic escape hatch.
 
 Simulation directly owns the three-slot MentalImage history and capture cadence.
-Observation sampling/newest-ball refresh take explicit spans; Match borrows this same
-history only for transitional actor/touch/reset/mirror composition, never via a
-Simulation pointer. MentalImage has no Match pointer or implicit clock/Ball reads:
+Observation sampling/newest-ball refresh take explicit spans; Match still borrows the same
+history only for actor sampling/touch refresh. Mirror/reset composition lives in Simulation;
+Match::Mirror/ResetSituation are removed. Referee receives a per-call synchronous reset action
+at the original setup point, never stores it, and gains no Simulation pointer/context.
+MentalImage has no Match pointer or implicit clock/Ball reads:
 capture takes tick, ordered player span and Ball; sampling takes explicit now/Ball.
 Legacy Player deviation clamps and signed horizon quantization remain unchanged.
 
@@ -181,7 +183,7 @@ recent possession window, then evaluates goals. Match::AdvanceTime/SwitchEnds ar
 Simulation::ApplyChangeOfEnds preserves roster → roster → Ball → history order at tick entry.
 Simulation::AdvanceTime is diagnostic-only (no physics/rules/execution count). Simulation
 owns period lifecycle and tick counting/ordering. Match now has no tick entry
-or collision/goal/selection algorithm, but actor ownership and touch/reset/mirror
+or collision/goal/selection algorithm, but actor ownership and touch/history sampling
 bridges remain. It is not yet ready to be renamed `MatchState` or removed.
 
 `rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration

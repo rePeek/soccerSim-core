@@ -128,7 +128,7 @@ TEST_CASE("Mental history tick sampling preserves nearest-capture reaction bound
     REQUIRE(match.GetMentalImage(TickSpan{std::numeric_limits<std::uint64_t>::max()}) ==
             match.GetMentalImage(TickSpan{20}));
     REQUIRE(match.rng().engine() == rng);
-    match.ResetSituation(blunted::Vector3(0));
+    simulation.ResetSituation(blunted::Vector3(0));
     REQUIRE_THROWS_AS(match.GetMentalImage(TickSpan{}), std::logic_error);
     simulation.Step({});
     REQUIRE(match.GetMentalImage(TickSpan{100}) == match.GetMentalImage(TickSpan{}));

@@ -104,21 +104,6 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
 Match::~Match() {}
 
 
-void Match::Mirror(bool team_0, bool team_1, bool ball) {
-  if (team_0) {
-    teams[0]->Mirror();
-  }
-  if (team_1) {
-    teams[1]->Mirror();
-  }
-  if (ball) {
-    ball_mirrored = !ball_mirrored;
-    this->ball->Mirror();
-  }
-  for (auto &i : borrowed_mental_images_) {
-    i.Mirror(team_0, team_1, ball);
-  }
-}
 
 void Match::Exit() {
   teams[first_team]->Exit();
@@ -153,27 +138,6 @@ void Match::TouchBall(const Vector3& impulse) {
   teams[second_team]->UpdatePossessionStats();
 }
 
-void Match::ResetSituation(const Vector3 &focusPos) {
-  ++reset_sequence_;
-  SetBallRetainer(0);
-  SetGoalScored(false);
-  borrowed_mental_images_.clear();
-  goalScored = false;
-  ballIsInGoal = false;
-  for (unsigned int i = 0; i < e_TouchType_SIZE; i++) {
-    lastTouchTeamIDs[i] = -1;
-  }
-  lastTouchTeamID = -1;
-  lastGoalScorer = 0;
-  bestPossessionTeam = 0;
-
-
-  last_body_ball_collision_tick_ = {};
-
-  ball->ResetSituation(focusPos);
-  teams[first_team]->ResetSituation(focusPos);
-  teams[second_team]->ResetSituation(focusPos);
-}
 
 
 void Match::SetMatchPhase(MatchPhase newMatchPhase) {

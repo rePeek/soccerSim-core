@@ -253,7 +253,7 @@ TEST_CASE("native reachability targets the nearby real ball in either actor-proc
       ReachHalf(simulation, phase);
       Match& match = *simulation.match();
       // Clear previous action/perception state, but preserve accepted live play.
-      match.ResetSituation(Vector3(0));
+      simulation.ResetSituation(Vector3(0));
       for (int team = 0; team < 2; ++team) {
         for (Player* player : match.GetTeam(team)->GetAllPlayers())
           SetPhysicalPlayer(*player, Vector3(0.f, team == 0 ? 25.f : -25.f, 0.f));

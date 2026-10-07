@@ -73,7 +73,7 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
 
     const auto oldest = *simulation.GetMentalImage(TickSpan{20});
     const auto rng = match.rng().engine();
-    match.Mirror(true, false, true);
+    simulation.Mirror(true, false, true);
     auto* mirrored = simulation.GetMentalImage(TickSpan{20});
     REQUIRE(mirrored->ballPredictions_mirrored != oldest.ballPredictions_mirrored);
     for (std::size_t i = 0; i < oldest.ballPredictions.size(); ++i) {
@@ -86,7 +86,7 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
       REQUIRE(mirrored->players[i].position == expected.position);
       REQUIRE(mirrored->players[i].movement == expected.movement);
     }
-    match.Mirror(true, false, true);
+    simulation.Mirror(true, false, true);
     REQUIRE(simulation.GetMentalImage(TickSpan{20})->ballPredictions == oldest.ballPredictions);
     REQUIRE(match.rng().engine() == rng);
 
@@ -100,7 +100,7 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
     for (auto& position : flipped) position.Mirror();
     REQUIRE(simulation.GetMentalImage(TickSpan{20})->ballPredictions == flipped);
 
-    match.ResetSituation(Vector3(0));
+    simulation.ResetSituation(Vector3(0));
     REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
     REQUIRE_THROWS_AS(match.GetMentalImage(TickSpan{}), std::logic_error);
     simulation.Step({});
@@ -116,6 +116,10 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
 }
 
 static_assert(!std::is_constructible_v<MentalImage, Match*>);
+template<class T> concept HasHistoryMirror = requires(T& owner) { owner.Mirror(true, true, true); };
+template<class T> concept HasHistoryReset = requires(T& owner) { owner.ResetSituation(Vector3(0)); };
+static_assert(!HasHistoryMirror<Match>);
+static_assert(!HasHistoryReset<Match>);
 
 TEST_CASE("mental images capture explicit ordered inputs and sample with explicit time and Ball",
           "[sim][history][snapshot]") {
@@ -167,6 +171,16 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
   REQUIRE(detached.GetBallPrediction(0, Tick{22}, ball) ==
           detached.ballPredictions[17].EnforceMaximumDeviation(ball.Predict(0),
                                                               detached.maxDistanceDeviation));
+}
+
+TEST_CASE("Simulation mirror and reset reject stopped owners", "[sim][history]") {
+  Simulation simulation;
+  REQUIRE_THROWS_AS(simulation.Mirror(true, false, true), std::logic_error);
+  REQUIRE_THROWS_AS(simulation.ResetSituation(Vector3(0)), std::logic_error);
+  Init(simulation, false);
+  simulation.Stop();
+  REQUIRE_THROWS_AS(simulation.Mirror(true, false, true), std::logic_error);
+  REQUIRE_THROWS_AS(simulation.ResetSituation(Vector3(0)), std::logic_error);
 }
 
 }  // namespace

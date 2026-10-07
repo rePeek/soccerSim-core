@@ -271,7 +271,7 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   recalculations and the existing sample-zero publication timing unchanged.
 - Match::Step/Process/StepRemainingTick are removed. Simulation::Step now spells out
   the legacy phase order and all frame/terminal/ceremonial boundaries directly.
-  Match still holds competition state, actors and transitional touch/reset/history
+  Match still holds competition state, actors and transitional touch/history sampling
   composition; this is not a completed Player/Team/Referee dependency migration.
   Simulation::match() remains a transitional test/diagnostic escape hatch.
 - Contact extraction retains cooldown's strict >15-tick boundary and the original
@@ -308,9 +308,13 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   remain Match-owned; Team/Player possession refresh algorithms are not moved.
 - Simulation owns std::vector<MentalImage> and CaptureMentalImage scheduling. Capture
   remains after Ball processing, before players, empty-or-ten-tick, newest-first with
-  three slots. Match borrows the vector explicitly for still-transitional actor sampling,
-  synchronous TouchBall refresh, reset clearing and temporary frame mirrors; it
-  owns no history and never points upward to Simulation. Sampling/refresh functions
+  three slots. Match still borrows the vector only for transitional actor sampling and
+  synchronous TouchBall refresh; it owns no history and never points upward to Simulation.
+  Match::Mirror and ResetSituation are removed: Simulation mirrors teams → Ball → images
+  and resets competition facts → clears history → resets Ball → both processing rosters
+  at the old mutation points. Referee::Process receives a narrow synchronous reset action,
+  forwards it to ordinary/ceremonial preparation, and never stores it. There is no
+  delayed reset, replacement context or Simulation pointer in Referee. Sampling/refresh functions
   live in observation/mentalimage_sampling and take explicit spans/Ball. Match's former
   UpdateLatestMentalImageBallPredictions method is removed. Simulation diagnostic sampling
   and the actor bridge see the same objects, not duplicate histories. Stop clears history
@@ -358,7 +362,7 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
 
 After these three cuts, Match has no tick entry or collision/goal/selection algorithm.
 It still combines competition facts/clock, actor/referee ownership and transitional
-touch/reset/mirror/history bridges plus the possession window. Do not rename it to
+touch/history-sampling bridges plus the possession window. Do not rename it to
 MatchState yet: actor/rule upward dependencies and runtime composition must be removed
 before deciding which remaining state is worth retaining separately.
 

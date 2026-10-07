@@ -1097,9 +1097,9 @@ void CheckRefereeRules(Simulation& simulation) {
               "foul was processed twice or its deadline changed");
 
       const auto process_rules = [&] {
-        match->Mirror(false, true, false);
-        rules.Process();
-        match->Mirror(false, true, false);
+        simulation.Mirror(false, true, false);
+        rules.Process([&](const Vector3& focus) { simulation.ResetSituation(focus); });
+        simulation.Mirror(false, true, false);
       };
       process_rules();
       Require(rules.GetBuffer().taker != nullptr, "restart taker was not selected during setup");

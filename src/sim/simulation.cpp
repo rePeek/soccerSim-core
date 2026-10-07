@@ -165,7 +165,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
 
   const bool reverse = match.options().reverse_team_processing;
   // Ball already shares the first roster's frame; turn only the other roster.
-  match.Mirror(reverse, !reverse, false);
+  Mirror(reverse, !reverse, false);
   // Period whistles still win over pending contacts, before any RNG draw.
   if (match.IsBallInPlay() && !football::sim::rules::PeriodElapsed(
           match.IsHalfUnderway(), match.GetMatchPhase(),
@@ -193,10 +193,10 @@ void Simulation::Step(const PlayerControlSet& controls) {
           match.GetRegulationTime(), match.options().half_duration)) {
     EndPeriod(match);
   } else {
-    match.GetReferee()->Process();
+    match.GetReferee()->Process([this](const Vector3& focus) { ResetSituation(focus); });
   }
   Vector3 previousBallPos = match.ball->Predict(0);
-  match.Mirror(reverse, !reverse, false);
+  Mirror(reverse, !reverse, false);
   // Restore the processing frame even on the referee's terminal transition.
   if (match.Finished()) return;
   if (!match.IsInPlay() && !match.GetReferee()->RestartNeedsSimulation() &&
@@ -208,26 +208,26 @@ void Simulation::Step(const PlayerControlSet& controls) {
     return;
   }
   // StepBall.
-  match.Mirror(false, false, reverse);
+  Mirror(false, false, reverse);
   match.ball->Process(match.GetBallEnvironment());
-  match.Mirror(false, false, reverse);
+  Mirror(false, false, reverse);
 
   // CaptureHistory: preserve the pre-player-processing capture and sample-zero timing.
   CaptureMentalImage(match);
 
   // StepPlayers, each in its own execution frame.
-  match.Mirror(match.first_team == 1, match.first_team == 0, false);
+  Mirror(match.first_team == 1, match.first_team == 0, false);
   match.teams[match.first_team]->Process();
-  match.Mirror(true, true, true);
+  Mirror(true, true, true);
   match.teams[match.second_team]->Process();
-  match.Mirror(match.first_team == 0, match.first_team == 1, true);
+  Mirror(match.first_team == 0, match.first_team == 1, true);
 
   // UpdatePossession: retain both per-roster refreshes before arbitration.
-  match.Mirror(match.first_team == 1, match.first_team == 0, false);
+  Mirror(match.first_team == 1, match.first_team == 0, false);
   match.teams[match.first_team]->UpdatePossessionStats();
-  match.Mirror(true, true, true);
+  Mirror(true, true, true);
   match.teams[match.second_team]->UpdatePossessionStats();
-  match.Mirror(match.first_team == 0, match.first_team == 1, true);
+  Mirror(match.first_team == 0, match.first_team == 1, true);
 
   const auto possession = football::sim::EvaluatePossession(
       *match.teams[match.first_team], *match.teams[match.second_team],
@@ -236,7 +236,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
   match.designatedPossessionPlayer = possession.designated_player;
 
   // ResolvePlayerContacts: live pair mutations, then movement sharing.
-  match.Mirror(reverse, !reverse, false);
+  Mirror(reverse, !reverse, false);
   std::vector<Player*> players;
   match.GetTeam(match.first_team)->GetActivePlayers(players);
   match.GetTeam(match.second_team)->GetActivePlayers(players);
@@ -261,7 +261,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
   }
   bool goal = first_team_goal | second_team_goal;
   match.ballIsInGoal |= goal;
-  match.Mirror(reverse, !reverse, false);
+  Mirror(reverse, !reverse, false);
   if (match.IsBallInPlay()) {
     if (goal) {
       int team = first_team_goal ? match.second_team : match.first_team;
@@ -290,6 +290,41 @@ bool Simulation::IsInPlay() const {
 WorldState Simulation::Observe() const {
   if (!match_) throw std::logic_error("simulation has no match");
   return BuildWorldState(*match_);
+}
+
+void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
+  if (!match_) throw std::logic_error("simulation has no match");
+  Match& match = *match_;
+  if (team_0) match.teams[0]->Mirror();
+  if (team_1) match.teams[1]->Mirror();
+  if (ball) {
+    match.ball_mirrored = !match.ball_mirrored;
+    match.ball->Mirror();
+  }
+  for (auto& image : mental_images_) {
+    image.Mirror(team_0, team_1, ball);
+  }
+}
+
+void Simulation::ResetSituation(const Vector3& focus_position) {
+  if (!match_) throw std::logic_error("simulation has no match");
+  Match& match = *match_;
+  ++match.reset_sequence_;
+  match.SetBallRetainer(0);
+  match.SetGoalScored(false);
+  mental_images_.clear();
+  match.goalScored = false;
+  match.ballIsInGoal = false;
+  for (unsigned int i = 0; i < e_TouchType_SIZE; i++) {
+    match.lastTouchTeamIDs[i] = -1;
+  }
+  match.lastTouchTeamID = -1;
+  match.lastGoalScorer = 0;
+  match.bestPossessionTeam = 0;
+  match.last_body_ball_collision_tick_ = {};
+  match.ball->ResetSituation(focus_position);
+  match.teams[match.first_team]->ResetSituation(focus_position);
+  match.teams[match.second_team]->ResetSituation(focus_position);
 }
 
 void Simulation::EndPeriod(Match& match) {

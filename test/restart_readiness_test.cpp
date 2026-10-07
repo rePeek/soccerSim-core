@@ -21,11 +21,12 @@ void Init(Simulation& simulation, bool reverse) {
   football::test::TakeKickOff(simulation);
   for (int i = 0; i < 40; ++i) simulation.Step({});
 }
-void ProcessRules(Match& match) {
+void ProcessRules(Simulation& simulation) {
+  auto& match = *simulation.match();
   const bool reverse = match.options().reverse_team_processing;
-  match.Mirror(reverse, !reverse, false);
-  match.GetReferee()->Process();
-  match.Mirror(reverse, !reverse, false);
+  simulation.Mirror(reverse, !reverse, false);
+  match.GetReferee()->Process([&](const Vector3& focus) { simulation.ResetSituation(focus); });
+  simulation.Mirror(reverse, !reverse, false);
 }
 void SetBallHome(Match& match, Vector3 position) {
   // Between ticks the ball shares the first processing roster's frame.
@@ -57,8 +58,8 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
               mode == e_GameMode_GoalKick ? Vector3(side * 50, 0, 0) :
               mode == e_GameMode_Corner ? Vector3(-side * 55, 36, 0) :
               mode == e_GameMode_Penalty ? Vector3(-side * 44, 0, 0) : Vector3(0);
-          match.Mirror(reverse, !reverse, false);
-          match.ResetSituation(ToHomePitchFrame(match).Position(focus));
+          simulation.Mirror(reverse, !reverse, false);
+          simulation.ResetSituation(ToHomePitchFrame(match).Position(focus));
           const auto rng = match.rng().engine();
           const auto before = simulation.Observe();
           const auto plan = PlanRestart(match, mode, *match.GetTeam(taking_team));
@@ -77,7 +78,7 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
           }
           PlaceRestartPlayersAtTimeout(plan);
           REQUIRE(RestartPlayersReady(plan));
-          match.Mirror(reverse, !reverse, false);
+          simulation.Mirror(reverse, !reverse, false);
           REQUIRE(RestartPlayersReady(plan)); // Predicate is not tied to a transient mirror.
           for (const auto& target : plan.players) {
             const auto observed = ToHomePitchFrame(*target.player->GetTeam()).Position(target.player->GetPosition());
@@ -117,24 +118,24 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     REQUIRE(BuildPlayerCommands(shot, *state.plan.taker).size() == 1);
     REQUIRE(BuildPlayerCommands(shot, *state.plan.taker)[0].desiredFunctionType == e_FunctionType_Movement);
     simulation.AdvanceTime((state.earliest_restart_tick - match.GetTimelineTick()) - TickSpan{1});
-    ProcessRules(match);
+    ProcessRules(simulation);
     REQUIRE_FALSE(match.IsInPlay());
     simulation.AdvanceTime(TickSpan{1});
     SetBallHome(match, state.plan.ball_position + Vector3(0.1f, 0, 0));
-    ProcessRules(match);
+    ProcessRules(simulation);
     REQUIRE_FALSE(match.IsInPlay());
     SetBallHome(match, state.plan.ball_position);
     match.TouchBall(Vector3(1, 0, 0));
-    ProcessRules(match);
+    ProcessRules(simulation);
     REQUIRE_FALSE(match.IsInPlay());
     SetBallHome(match, state.plan.ball_position);
     auto* opponent = match.GetTeam(1 - state.plan.team->GetID())->GetAllPlayers()[1];
     const auto frame = FromHomePitchFrame(*opponent->GetTeam());
     opponent->ResetPosition(frame.Position(state.plan.ball_position), frame.Position(state.plan.ball_position));
-    ProcessRules(match);
+    ProcessRules(simulation);
     REQUIRE_FALSE(match.IsInPlay());
     PlaceRestartPlayersAtTimeout(state.plan);
-    ProcessRules(match);
+    ProcessRules(simulation);
     CAPTURE(reverse, RestartPlayersReady(state.plan), simulation.Observe().ball_position.coords[0],
             simulation.Observe().ball_position.coords[1], simulation.Observe().ball_position.coords[2],
             match.GetBall()->GetMovement().GetLength(), match.GetTimelineTick().value, state.earliest_restart_tick.value);
@@ -145,13 +146,13 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     REQUIRE_FALSE(match.GetReferee()->GetBuffer().restart->used_timeout_placement);
     REQUIRE(match.GetResetSequence() == resets);
     const auto rng = match.rng().engine();
-    ProcessRules(match);
+    ProcessRules(simulation);
     REQUIRE(match.rng().engine() == rng);
     // A notification without a scheduled release cannot invent RestartTaken.
     state.plan.team->SetLastTouchPlayer(state.plan.taker, e_TouchType_Intentional_Nonkicked);
     REQUIRE(match.GetReferee()->GetBuffer().restart->phase == RestartPhase::Ready);
     simulation.AdvanceTime(Seconds(1));
-    ProcessRules(match);
+    ProcessRules(simulation);
     REQUIRE(match.IsInSetPiece());
     const auto policy = football::test::MakeDefaultAI(simulation);
     int steps = 0;

@@ -54,7 +54,6 @@ class Match {
 
 
     void Exit();
-    void Mirror(bool team_0, bool team_1, bool ball);
 
     int GetScore(int teamID) const { return score_[teamID]; }
     float GetPossessionFactor_60seconds() const { return possession60seconds_ / 60.0f; }
@@ -75,7 +74,6 @@ class Match {
     // Continuous reaction-delay sampling: retain sub-tick precision until sampling.
     MentalImage* GetMentalImage(std::chrono::milliseconds history);
 
-    void ResetSituation(const Vector3 &focusPos);
     std::uint64_t GetResetSequence() const { return reset_sequence_; }
 
     // Half-time change of ends scheduled by Simulation; applied at the start of
@@ -176,7 +174,7 @@ class Match {
 
     Ball *ball = nullptr;
 
-    // Borrowed only until actor/reset/touch dependencies are migrated. No scheduler
+    // Borrowed only until actor sampling/touch dependencies are migrated. No scheduler
     // or owner here, and no upward Match → Simulation pointer/service locator.
     std::vector<MentalImage>& borrowed_mental_images_;
 

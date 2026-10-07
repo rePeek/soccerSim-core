@@ -45,6 +45,9 @@ class Simulation {
   MentalImage* GetMentalImage(std::chrono::milliseconds history);
   // Transitional test/diagnostic clock-only advance: no actors, rules or Step count.
   void AdvanceTime(football::sim::TickSpan delta);
+  // Runtime composition, also transitional test/diagnostic escapes.
+  void Mirror(bool team_0, bool team_1, bool ball);
+  void ResetSituation(const blunted::Vector3& focus_position);
 
  private:
   void EnsureAnimationLibrary();

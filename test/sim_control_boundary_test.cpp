@@ -220,7 +220,7 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     const auto football_time = match->GetRegulationTime();
     const auto rng_before = match->rng().engine();
     Referee *rules = match->GetReferee();
-    rules->Process();
+    rules->Process([&](const Vector3& focus) { runtime.simulation.ResetSituation(focus); });
     const auto scheduled = rules->GetBuffer();
     REQUIRE(scheduled.stop_tick == stopped);
     REQUIRE(scheduled.restart.has_value());
@@ -398,7 +398,7 @@ TEST_CASE("world discontinuities publish native reset provenance", "[sim][bounda
   Runtime runtime;
   football::test::TakeKickOff(runtime.simulation);
   const auto before = runtime.simulation.Observe();
-  runtime.match()->ResetSituation(Vector3(0));
+  runtime.simulation.ResetSituation(Vector3(0));
   const auto after = runtime.simulation.Observe();
   REQUIRE(after.tick == before.tick);
   REQUIRE(after.reset_sequence == before.reset_sequence + 1);

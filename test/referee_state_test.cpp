@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/fixtures/default_teams.hpp"
+#include "default_ai_fixture.hpp"
 #include "sim/match/match.hpp"
 #include "sim/simulation.hpp"
 
@@ -89,4 +90,51 @@ TEST_CASE("period end updates only referee facts from explicit inputs", "[sim][r
     REQUIRE(match.GetTeam(1)->GetStaticSide() == 1);
   }
 }
+
+TEST_CASE("Referee invokes the explicit reset action synchronously once before restart planning",
+          "[sim][referee][reset][history]") {
+  for (bool reverse : {false, true}) {
+    Simulation simulation;
+    MatchOptions options; options.reverse_team_processing = reverse;
+    simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+        football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), options);
+    football::test::TakeKickOff(simulation);
+    for (int tick = 0; tick < 40; ++tick) simulation.Step({});
+    auto& match = *simulation.match();
+    auto& referee = *match.GetReferee();
+    match.GetBall()->ResetSituation(Vector3(10, 40, 0));
+    simulation.Step({}); // Out-of-play classification, no setup/reset yet.
+    REQUIRE(referee.GetBuffer().restart);
+    REQUIRE_FALSE(referee.GetBuffer().restart->setup_done);
+    REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
+    const auto sequence = match.GetResetSequence();
+    const auto now = match.GetTimelineTick();
+    int calls = 0;
+    simulation.Mirror(reverse, !reverse, false);
+    referee.Process([&](const Vector3& focus) {
+      REQUIRE(++calls == 1);
+      REQUIRE_FALSE(referee.GetBuffer().restart->setup_done);
+      REQUIRE(referee.GetBuffer().taker == nullptr);
+      REQUIRE(match.GetResetSequence() == sequence);
+      REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
+      simulation.ResetSituation(focus);
+      REQUIRE(match.GetResetSequence() == sequence + 1);
+      REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
+      REQUIRE(match.GetTimelineTick() == now);
+    });
+    REQUIRE(calls == 1);
+    REQUIRE(referee.GetBuffer().restart->setup_done);
+    REQUIRE(referee.GetBuffer().taker != nullptr);
+    REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
+    const auto rng = match.rng().engine();
+    // This fresh per-call action must not be called again on the same pending restart.
+    referee.Process([](const Vector3&) { FAIL("restart reset was repeated"); });
+    REQUIRE(match.GetResetSequence() == sequence + 1);
+    REQUIRE(match.rng().engine() == rng);
+    simulation.Mirror(reverse, !reverse, false);
+    simulation.Step({});
+    REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
+  }
+}
+
 }  // namespace

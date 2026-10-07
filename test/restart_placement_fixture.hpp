@@ -33,7 +33,7 @@ inline void SetupRestart(Simulation &simulation, const RestartCase &test) {
   simulation.Stop();
   simulation.Init(home, away, model::MakeLegacyPitch(), options);
   Match *match = simulation.match();
-  match->Mirror(test.reverse, !test.reverse, test.reverse);
+  simulation.Mirror(test.reverse, !test.reverse, test.reverse);
   blunted::Vector3 focus(0);
   switch (test.mode) {
     case e_GameMode_Corner: focus = blunted::Vector3(55, 36, 0); break;
@@ -43,7 +43,7 @@ inline void SetupRestart(Simulation &simulation, const RestartCase &test) {
     case e_GameMode_Penalty: focus = blunted::Vector3(44, 0, 0); break;
     default: break;
   }
-  match->ResetSituation(test.reverse ? -focus : focus);
+  simulation.ResetSituation(test.reverse ? -focus : focus);
 }
 
 inline std::array<Player *, 2> PositionRestart(Match &match, const RestartCase &test) {

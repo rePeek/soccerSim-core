@@ -144,9 +144,9 @@ TEST_CASE("Restart setup and timeout fire once across timeline jumps",
     simulation.Step({});
     Referee* rules = match->GetReferee();
     const auto process_rules = [&] {
-      match->Mirror(reverse, !reverse, reverse);
-      rules->Process();
-      match->Mirror(reverse, !reverse, reverse);
+      simulation.Mirror(reverse, !reverse, reverse);
+      rules->Process([&](const blunted::Vector3& focus) { simulation.ResetSituation(focus); });
+      simulation.Mirror(reverse, !reverse, reverse);
     };
     const auto scheduled = rules->GetBuffer();
     const auto resets = match->GetResetSequence();
