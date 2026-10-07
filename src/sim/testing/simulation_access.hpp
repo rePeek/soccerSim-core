@@ -15,6 +15,14 @@ class SimulationAccess {
   static PlayerTickContext PlayerTickOf(const Simulation& simulation) {
     return simulation.PlayerTickFacts();
   }
+  static void SendOff(Simulation& simulation, Player& actor) {
+    const auto tick = PlayerTickOf(simulation);
+    actor.SendOff(tick.ball, tick.now, tick.rng);
+  }
+  static void Deactivate(Simulation& simulation, Player& actor) {
+    const auto tick = PlayerTickOf(simulation);
+    actor.Deactivate(tick.ball, tick.now);
+  }
   static PlayerCommandInputs CommandInputsOf(Simulation& simulation) {
     if (!simulation.match_) throw std::logic_error("simulation has no match");
     auto& match = *simulation.match_;

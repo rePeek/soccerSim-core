@@ -180,7 +180,7 @@ TEST_CASE("Player tactical refresh honors supplied tick and authorization",
   history[0].maxDistanceDeviation = 1000.f;
   for (auto& image : history[0].players) image.position = Vector3(100, 100, 0);
   bool underway = false;
-  const PlayerTickContext tick{Tick{10}, true, underway, nullptr};
+  const PlayerTickContext tick{Tick{10}, true, underway, nullptr, *match.GetBall(), match.rng()};
   const auto position = actor->GetPosition();
   const auto focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
   const float expected = query::CalculateFreeSpace(tick.now, &history[0], actor->GetTeamID(), focus, 5.0f, 0.5f);

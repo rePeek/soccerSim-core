@@ -49,9 +49,9 @@ class Team {
 
     virtual ~Team();
 
-    void Exit();
+    void Exit(football::sim::Tick now);
 
-    void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations);
+    void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch);
 
     Match *GetMatch() { return match; }
 
@@ -98,7 +98,7 @@ class Team {
     }
 
 
-    void ResetSituation(const Vector3 &focusPos);
+    void ResetSituation(const Vector3 &focusPos, football::sim::Tick now);
 
     void SetOpponent(Team* opponent) { this->opponent = opponent; }
     Team* Opponent() { return opponent; }

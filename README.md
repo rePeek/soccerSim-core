@@ -222,6 +222,9 @@ BuildPlayerCommands no longer includes Match, and Player::GetMatch is deleted.
 Player tick/tactical processing consumes stack-local PlayerTickContext; fatigue observes
 the live half-underway gate after contact, not a pre-tick snapshot. Locomotion/decision
 helpers take explicit time, Ball and retention inputs without querying Match.
+Player has no Match pointer/include/lookup; lifecycle methods receive Tick/Ball/RNG
+as needed. Team teardown explicitly preserves the former destructor reset order.
+Player constructors borrow Pitch and AnimationLibrary. Humanoid dependencies remain.
 
 `rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration
 facts. Simulation evaluates the pre-contact gate and original whistle boundary; EndPeriod

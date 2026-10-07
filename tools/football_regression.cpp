@@ -1006,7 +1006,7 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   (void)expected();
   (void)expected();
   const auto epoch = player->GetDecisionLocomotionContinuityEpoch();
-  player->Deactivate();
+  SimulationAccess::Deactivate(simulation, *player);
   Require(!player->IsActive() &&
               player->GetDecisionLocomotionContinuityEpoch() == epoch + 2 &&
               rng.engine() == expected.engine() &&

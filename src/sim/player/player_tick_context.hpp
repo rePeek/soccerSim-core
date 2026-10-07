@@ -2,8 +2,10 @@
 #define FOOTBALL_SIM_PLAYER_TICK_CONTEXT_HPP
 
 #include "sim/time/tick.hpp"
+#include "sim/random/rng.hpp"
 
 class Player;
+class Ball;
 
 namespace football::sim {
 // Stack-local input for a single Player call. Never retained by an actor.
@@ -14,6 +16,8 @@ struct PlayerTickContext {
   bool play_authorized;
   const bool& half_underway;
   const Player* last_touch_player;
+  const Ball& ball;
+  blunted::SimulationRng& rng;
 };
 } // namespace football::sim
 

@@ -22,7 +22,7 @@
 #include <cstring>
 
 #include "foundation/geometry/triangle.hpp"
-#include "sim/match/match.hpp"
+#include "sim/ball/ball.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player_motion_constants.hpp"
@@ -262,8 +262,8 @@ bool FloatBitsEqual(float a, float b) {
 }  // namespace
 
 Player::Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
-               const AnimationLibrary& animations)
-    : match(team->GetMatch()), animations_(animations),
+               const AnimationLibrary& animations, const football::model::Pitch& pitch)
+    : animations_(animations), pitch_(pitch),
       model_(model),
       schedule_phase_(schedule_phase % 10),
       team(team) {
@@ -279,12 +279,14 @@ Player::Player(Team *team, const football::model::Player& model, std::uint8_t sc
   card_effective_tick_ = {};
 }
 
-Player::~Player() {
+Player::~Player() = default;
+
+void Player::Exit(football::sim::Tick now) {
   if (isActive) {
     // Preserve the former base destructor's reset/RNG window without invoking
     // roster callbacks: Team::Exit may already have deleted other players.
     SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
-    ResetRuntimeState(GetPosition());
+    ResetRuntimeState(GetPosition(), now);
     isActive = false;
   }
 }
@@ -551,14 +553,14 @@ void Player::SetNextResetSituationAuditContext(int context) {
   resetSituationAuditContext = context;
 }
 
-void Player::Deactivate() {
+void Player::Deactivate(const Ball& ball, football::sim::Tick now) {
   SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateFirst);
-  ResetSituation(GetPosition());
+  ResetSituation(GetPosition(), now);
   // Preserve both historical resets, including their RNG draws and epochs.
   SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
-  ResetSituation(GetPosition());
+  ResetSituation(GetPosition(), now);
   isActive = false;
-  football::sim::player::RefreshDesignatedTeamPossessionPlayer(*team, *match->GetBall());
+  football::sim::player::RefreshDesignatedTeamPossessionPlayer(*team, ball);
 }
 
 int Player::GetReactionTime_ms() {
@@ -610,7 +612,7 @@ void Player::Process(const football::sim::PlayerTickContext& tick, std::span<Men
     // Don't send off the last player on the team.
     if (cards > 1 && card_effective_tick_ <= tick.now &&
         GetTeam()->GetActivePlayersCount() > 1) {
-      SendOff();
+      SendOff(tick.ball, tick.now, tick.rng);
     }
   }
 }
@@ -639,7 +641,7 @@ float Player::GetLastTouchBias(int decay_ms, football::sim::Tick time) {
   return 1.0f - clamp(football::sim::ToMilliseconds(age) / (float)decay_ms, 0.0f, 1.0f);
 }
 
-void Player::ResetRuntimeState(const Vector3 &focusPos) {
+void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now) {
   last_touch_tick_ = {};
   lastTouchType = e_TouchType_None;
   if (IsActive()) {
@@ -647,7 +649,7 @@ void Player::ResetRuntimeState(const Vector3 &focusPos) {
     // a later reset re-entry compares against.
     resetDecisionGeneration = decisionLocomotionAuditGeneration;
     resetGenerationAnchorValid = true;
-    last_reset_tick_ = match->GetTimelineTick();
+    last_reset_tick_ = now;
     resetSinceLastPlayerTick = true;
     // A reset is also a continuity break, so any earlier intent is invalid.
     ++decisionLocomotionState.continuityEpoch;
@@ -829,10 +831,10 @@ float Player::GetClosestOpponentDistance(Team& opponent) const {
 void Player::Put2D(bool /*mirror*/) {}
 void Player::Hide2D() {}
 
-void Player::SendOff() {
+void Player::SendOff(const Ball& ball, football::sim::Tick now, SimulationRng& rng) {
   // Preserve the historical draw even though its message was removed.
-  (void)match->rng().Uniform(0, 3);
-  Deactivate();
+  (void)rng.Uniform(0, 3);
+  Deactivate(ball, now);
   if (GetFormationEntry().role == e_PlayerRole_GK) {
     FormationEntry entry = GetFormationEntry();
     std::vector<Player*> activePlayers;
@@ -848,8 +850,8 @@ float Player::GetStaminaStat() const {
   return model_.attributes.get(football::model::PlayerStat::physical_stamina);
 }
 
-void Player::ResetSituation(const Vector3 &focusPos) {
-  ResetRuntimeState(focusPos);
+void Player::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
+  ResetRuntimeState(focusPos, now);
   hasPossession = false;
   hasBestPossession = false;
   hasUniquePossession = false;
@@ -878,7 +880,7 @@ void Player::_CalculateTacticalSituation(const football::sim::PlayerTickContext&
   checkPos = GetPosition() + GetMovement() * time_sec;
   tacticalSituation.spaceRating = football::sim::query::CalculateFreeSpace(tick.now, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
   tacticalSituation.forwardRating =
-      1.0f - clamp((Vector3(pitchHalfW * -team->GetDynamicSide(), 0, 0) - GetPosition()).GetLength() /
-                       (pitchHalfW * 2.0f), 0.0f, 1.0f);
+      1.0f - clamp((Vector3(pitch_.half_length() * -team->GetDynamicSide(), 0, 0) - GetPosition()).GetLength() /
+                       (pitch_.half_length() * 2.0f), 0.0f, 1.0f);
   tacticalSituation.forwardRating = std::pow(tacticalSituation.forwardRating, 1.5f);
 }

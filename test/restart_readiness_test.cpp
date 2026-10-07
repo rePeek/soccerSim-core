@@ -263,7 +263,7 @@ TEST_CASE("pending restart targets, taker replacement and RNG replay as owning v
         REQUIRE(left.Observe().restart_pending);
         auto* old_left = left.match()->GetReferee()->GetBuffer().taker;
         auto* old_right = right.match()->GetReferee()->GetBuffer().taker;
-        old_left->SendOff(); old_right->SendOff();
+        SimulationAccess::SendOff(left, *old_left); SimulationAccess::SendOff(right, *old_right);
         football::test::StepDefaultAI(left, left_policy);
         football::test::StepDefaultAI(right, right_policy);
         REQUIRE(left.match()->GetReferee()->GetBuffer().taker != old_left);

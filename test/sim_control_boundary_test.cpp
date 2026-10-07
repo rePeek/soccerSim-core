@@ -159,7 +159,7 @@ TEST_CASE("control translation resolves identity and converts the pitch frame", 
                    (target - player->GetPosition()).GetNormalized(queue[1].desiredDirection)));
       REQUIRE(queue[0].touchInfo.desiredDirection.coords[2] > 0.f);
       REQUIRE(queue[0].touchInfo.desiredPower > 0.f);
-      players[2]->SendOff();
+      SimulationAccess::SendOff(runtime.simulation, *players[2]);
       queue = BuildPlayerCommands(control, *player, SimulationAccess::CommandInputsOf(runtime.simulation));
       REQUIRE(queue[0].touchInfo.forcedTargetPlayer == nullptr);
       control.target_player = player->GetID();

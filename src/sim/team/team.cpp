@@ -51,21 +51,22 @@ void Team::SwitchEnds() {
   }
 }
 
-void Team::Exit() {
+void Team::Exit(football::sim::Tick now) {
   Hide2D();
 
   for (unsigned int i = 0; i < players.size(); i++) {
+    players[i]->Exit(now);
     delete players[i];
   }
 
 
 }
 
-void Team::InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations) {
+void Team::InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch) {
   // Roster traversal supplies order; phases repeat every ten players.
   std::uint8_t schedule_phase = first_schedule_phase;
   for (std::size_t i = 0; i < formation_.size(); ++i) {
-    Player *player = new Player(this, model_.players[i], schedule_phase, animations);
+    Player *player = new Player(this, model_.players[i], schedule_phase, animations, pitch);
     schedule_phase = (schedule_phase + 1) % 10;
     players.push_back(player);
 
@@ -148,7 +149,7 @@ void Team::SetFadingTeamPossessionAmount(float value) {
 }
 
 
-void Team::ResetSituation(const Vector3 &focusPos) {
+void Team::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
   timeNeededToGetToBall_ms = 100;
   hasPossession = false;
 
@@ -159,7 +160,7 @@ void Team::ResetSituation(const Vector3 &focusPos) {
 
   for (unsigned int i = 0; i < players.size(); i++) {
     if (players[i]->IsActive()) {
-      players[i]->ResetSituation(focusPos);
+      players[i]->ResetSituation(focusPos, now);
     }
   }
 

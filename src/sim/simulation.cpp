@@ -125,7 +125,7 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts() const {
   if (!match_) throw std::logic_error("simulation has no match");
   auto& match = *match_;
   return {match.GetTimelineTick(), match.IsInPlay(), match.clock_.IsHalfUnderway(),
-          match.GetLastTouchPlayer()};
+          match.GetLastTouchPlayer(), *match.GetBall(), match.rng()};
 }
 
 class Simulation::TouchEvents final : public football::sim::BallTouchSink {
@@ -413,8 +413,8 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   match.bestPossessionTeam = 0;
   match.last_body_ball_collision_tick_ = {};
   match.ball->ResetSituation(focus_position);
-  match.teams[match.first_team]->ResetSituation(focus_position);
-  match.teams[match.second_team]->ResetSituation(focus_position);
+  match.teams[match.first_team]->ResetSituation(focus_position, match.GetTimelineTick());
+  match.teams[match.second_team]->ResetSituation(focus_position, match.GetTimelineTick());
 }
 
 void Simulation::EndPeriod(Match& match) {

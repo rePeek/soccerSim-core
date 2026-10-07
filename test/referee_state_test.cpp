@@ -547,7 +547,7 @@ TEST_CASE("event touch identities survive send-offs and reset without team bookk
   REQUIRE(football::sim::event::TeamTouchBias(touches, *match.GetTeam(0), 503, Tick{23}) ==
           home_actor->GetLastTouchBias(503, Tick{23}));
   REQUIRE(match.rng().engine() == rng);
-  away_actor->SendOff();
+  SimulationAccess::SendOff(simulation, *away_actor);
   REQUIRE_FALSE(away_actor->IsActive());
   REQUIRE(football::sim::event::LastTouchPlayer(touches, *match.GetTeam(1)) == away_actor);
   simulation.ResetSituation(Vector3(0));

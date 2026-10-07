@@ -64,9 +64,9 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
   teams[second_team]->SetOpponent(teams[first_team]);
   // Preserve the historical scheduling stagger across both rosters, including
   // reversed processing. Only a periodic phase is passed, not a creation ID.
-  teams[first_team]->InitPlayers(0, *animations_);
+  teams[first_team]->InitPlayers(0, *animations_, pitch_);
   teams[second_team]->InitPlayers(static_cast<std::uint8_t>(
-      teams[first_team]->GetAllPlayers().size() % 10), *animations_);
+      teams[first_team]->GetAllPlayers().size() % 10), *animations_, pitch_);
 
   std::vector<Player*> activePlayers;
   teams[first_team]->GetActivePlayers(activePlayers);
@@ -92,8 +92,8 @@ Match::~Match() {}
 
 
 void Match::Exit() {
-  teams[first_team]->Exit();
-  teams[second_team]->Exit();
+  teams[first_team]->Exit(GetTimelineTick());
+  teams[second_team]->Exit(GetTimelineTick());
   delete teams[first_team];
   delete teams[second_team];
   delete ball;

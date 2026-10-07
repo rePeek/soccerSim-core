@@ -65,7 +65,7 @@ TEST_CASE("Player publication and reset stamps distinguish absent from tick zero
     actor.PublishDecisionLocomotionIntent(command, match.GetTimelineTick(), match.GetBallRetainer() == &actor);
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{});
     REQUIRE(match.rng().engine() == rng);
-    actor.ResetSituation(actor.GetPosition());
+    actor.ResetSituation(actor.GetPosition(), match.GetTimelineTick());
     REQUIRE(actor.GetLastResetSituationTick() == Tick{});
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{});
     REQUIRE(actor.DecisionLocomotionEpochIsStale()); // Same-tick reset still breaks continuity.
@@ -77,7 +77,7 @@ TEST_CASE("Player publication and reset stamps distinguish absent from tick zero
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{large.value});
     REQUIRE_FALSE(actor.DecisionLocomotionEpochIsStale());
     simulation.AdvanceTime(TickSpan{3});
-    actor.ResetSituation(actor.GetPosition());
+    actor.ResetSituation(actor.GetPosition(), match.GetTimelineTick());
     REQUIRE(actor.GetLastResetSituationTick() == Tick{large.value + 3});
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{large.value});
     REQUIRE(actor.DecisionLocomotionEpochIsStale());
@@ -202,5 +202,23 @@ TEST_CASE("Decision publications consume supplied time and retention facts", "[s
   REQUIRE(match.GetTimelineTick() == Tick{});
   REQUIRE(match.GetBallRetainer() == nullptr);
   REQUIRE(match.rng().engine() == rng);
+}
+
+template<class T> concept HasImplicitDeactivation = requires(T& actor) { actor.Deactivate(); };
+template<class T> concept HasImplicitSendOff = requires(T& actor) { actor.SendOff(); };
+template<class T> concept HasImplicitResetTime = requires(T& actor) { actor.ResetSituation(Vector3(0)); };
+static_assert(!HasImplicitDeactivation<Player>);
+static_assert(!HasImplicitSendOff<Player>);
+static_assert(!HasImplicitResetTime<Player>);
+
+TEST_CASE("Player reset provenance consumes the supplied tick", "[sim][player][dependency]") {
+  Simulation simulation; Init(simulation, false);
+  auto& match = *simulation.match();
+  auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
+  const auto epoch = actor.GetDecisionLocomotionContinuityEpoch();
+  actor.ResetSituation(actor.GetPosition(), Tick{77});
+  REQUIRE(actor.GetLastResetSituationTick() == Tick{77});
+  REQUIRE(actor.GetDecisionLocomotionContinuityEpoch() == epoch + 1);
+  REQUIRE(match.GetTimelineTick() == Tick{});
 }
 } // namespace

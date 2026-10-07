@@ -23,6 +23,7 @@
 #include <optional>
 #include <span>
 #include "model/player.hpp"
+#include "model/pitch.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_ground_collider.hpp"
@@ -131,7 +132,6 @@ int &LocomotionReentryMeasurementEpoch();
 void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
 
-class Match;
 class MentalImage;
 namespace football::sim { class BallTouchSink; }
 class HumanoidBase;
@@ -154,8 +154,10 @@ class Player final {
 
   public:
     Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
-           const AnimationLibrary& animations);
+           const AnimationLibrary& animations, const football::model::Pitch& pitch);
     ~Player();
+    // Explicit teardown reset before deletion; no hidden clock/RNG destructor path.
+    void Exit(football::sim::Tick now);
     void Mirror();
 
     football::model::PlayerId GetID() const { return model_.id; }
@@ -166,7 +168,7 @@ class Player final {
     // get ready for some action
     void Activate();
     // go back to bench/take a shower
-    void Deactivate();
+    void Deactivate(const Ball& ball, football::sim::Tick now);
 
     void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos);
     void OffsetPosition(const Vector3 &offset);
@@ -364,7 +366,7 @@ class Player final {
       fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
     }
 
-    void ResetSituation(const Vector3 &focusPos);
+    void ResetSituation(const Vector3 &focusPos, football::sim::Tick now);
 
     Humanoid *CastHumanoid();
     int GetTeamID() const;
@@ -399,17 +401,17 @@ class Player final {
     void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
     void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
     bool HasCards() { return cards > 0; }
-    void SendOff();
+    void SendOff(const Ball& ball, football::sim::Tick now, SimulationRng& rng);
     float GetStaminaStat() const;
 
   private:
-    void ResetRuntimeState(const Vector3 &focusPos);
+    void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
     void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history);
     void SynchronizeKinematicState();
     PlayerActionState CaptureLegacyActionState() const;
     void SetNextResetSituationAuditContext(int context);
-    Match *match;
     const AnimationLibrary& animations_;
+    const football::model::Pitch& pitch_;
 
     // Team owns an immutable description for the entire actor lifetime.
     const football::model::Player& model_;

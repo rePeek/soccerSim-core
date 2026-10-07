@@ -80,7 +80,7 @@ TEST_CASE("player queries retain roster ties append and eligibility", "[sim][que
   CHECK(result[1] == players[0]);
   CHECK(result[2] == players[1]);
 
-  players[0]->Deactivate();
+  players[0]->Deactivate(*runtime.match()->GetBall(), runtime.match()->GetTimelineTick());
   CHECK(football::sim::query::GetClosestPlayer(team, Vector3(0)) == players[1]);
   result.clear();
   football::sim::query::GetClosestPlayers(team, Vector3(0), result, 1);

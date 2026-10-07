@@ -156,10 +156,10 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   // A send-off must not change other actors' scheduling or model identities.
   players.clear();
   reference.match()->GetTeam(0)->GetAllPlayers(players);
-  players[1]->SendOff();
+  SimulationAccess::SendOff(reference, *players[1]);
   players.clear();
   renamed.match()->GetTeam(0)->GetAllPlayers(players);
-  players[1]->SendOff();
+  SimulationAccess::SendOff(renamed, *players[1]);
   CheckIdentity(renamed, home, away);
   CheckSamePhysics(reference, renamed);
   for (int tick = 0; tick < 200; ++tick) {
@@ -356,7 +356,7 @@ void CheckHistoricalScheduling(bool print_baseline) {
     Require(simulation.Observe().ball_in_play_time <= simulation.Observe().regulation_time &&
                 simulation.Observe().regulation_time.value <= simulation.Observe().tick,
             "identity fixture broke the three-clock ordering");
-    simulation.match()->GetTeam(0)->GetAllPlayers().at(1)->SendOff();
+    SimulationAccess::SendOff(simulation, *simulation.match()->GetTeam(0)->GetAllPlayers().at(1));
     for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto after = CaptureScheduleState(simulation);
     if (print_baseline) {
