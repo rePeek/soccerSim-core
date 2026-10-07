@@ -105,7 +105,7 @@ class Match {
     }
     bool IsGoalScored() const { return goalScored; }
     Team* GetLastGoalTeam() const { return lastGoalTeam; }
-    void SetLastTouchTeamID(int id, e_TouchType touchType = e_TouchType_Intentional_Kicked) { lastTouchTeamIDs[touchType] = id; lastTouchTeamID = id; referee_->BallTouched(); }
+    void SetLastTouchTeamID(int id, e_TouchType touchType = e_TouchType_Intentional_Kicked);
     int GetLastTouchTeamID(e_TouchType touchType) const { return lastTouchTeamIDs[touchType]; }
     int GetLastTouchTeamID() const { return lastTouchTeamID; }
     Team *GetLastTouchTeam() {

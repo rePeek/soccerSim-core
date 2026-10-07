@@ -17,6 +17,7 @@
 
 #include "sim/rules/referee.hpp"
 #include <cmath>
+#include <algorithm>
 
 #include "sim/match/match.hpp"
 #include "sim/rules/offside.hpp"
@@ -226,9 +227,9 @@ void Referee::PrepareCeremonialKickOff(const std::function<void(const Vector3&)>
   offsidePlayers.clear();
 }
 
-void Referee::BallTouched() {
+void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts) {
   if (buffer.active && buffer.restart && buffer.restart->phase == RestartPhase::Ready &&
-      match->GetLastTouchPlayer() == buffer.taker) {
+      facts.touch_player == buffer.taker) {
     const auto& action = buffer.taker->GetSimulationActionState();
     // A release requires an actual accepted scheduled touch, not cursor expiry
     // or the throw-in retain anchor's repeated non-kicked contact notices.
@@ -237,24 +238,30 @@ void Referee::BallTouched() {
         (action.type == e_FunctionType_BallControl && buffer.desiredSetPiece != e_GameMode_ThrowIn &&
          buffer.taker->GetLastTouchType() == e_TouchType_Intentional_Kicked);
     if (action.contact && action.elapsed == *action.contact && kick &&
-        match->GetBall()->GetMovement().GetLength() > 0.1f) {
+        facts.ball->GetMovement().GetLength() > 0.1f) {
       buffer.restart->phase = RestartPhase::Taken;
       match->StartBallInPlay();
     }
   }
 
-  if (!match->options().offsides) {
+  if (!facts.offsides_enabled) {
     return;
   }
   // check for offside player receiving the ball
 
-  int lastTouchTeamID = match->GetLastTouchTeamID();
+  const int lastTouchTeamID = facts.touch_team_id;
   if (lastTouchTeamID == -1) return; // shouldn't happen really ;)
-  if (match->IsInPlay() && !match->IsInSetPiece() && buffer.active == false &&
-      match->GetTeam(1 - lastTouchTeamID)->GetActivePlayersCount() > 1) {
+  const int defending_team_id = 1 - lastTouchTeamID;
+  const auto active_count = [&](int team_id) {
+    return static_cast<int>(std::count_if(facts.all_active_players.begin(),
+        facts.all_active_players.end(),
+        [team_id](const Player* player) { return player->GetTeamID() == team_id; }));
+  };
+  if (facts.in_play && !facts.in_set_piece && buffer.active == false &&
+      active_count(defending_team_id) > 1) {
       // disable if only 1 player: that's debug mode with only
                     // keeper
-    auto ballOwner = match->GetLastTouchPlayer();
+    Player* ballOwner = facts.touch_player;
     for (auto p : offsidePlayers) {
       if (p == ballOwner) {
         foul.advantage = false;
@@ -263,7 +270,7 @@ void Referee::BallTouched() {
           match->StopPlay();
           buffer.desiredSetPiece = e_GameMode_FreeKick;
           buffer.restartPos = ballOwner->GetPitchPosition();
-          buffer.teamID = 1 - lastTouchTeamID;
+          buffer.teamID = defending_team_id;
           ScheduleRestart();
           break; // Setup clears offside state on the next rule tick, not during this iteration.
         }
@@ -273,25 +280,19 @@ void Referee::BallTouched() {
 
   offsidePlayers.clear();
 
-  if (match->IsInPlay() &&
+  if (facts.in_play &&
       (buffer.active == false ||
        (buffer.active == true && buffer.desiredSetPiece != e_GameMode_ThrowIn &&
         buffer.desiredSetPiece != e_GameMode_Corner))) {
     // check for offside players at moment of touch
-    std::vector<Player*> snapshot_players;
-    match->GetTeam(match->FirstTeam())->GetActivePlayers(snapshot_players);
-    match->GetTeam(match->SecondTeam())->GetActivePlayers(snapshot_players);
-    MentalImage mentalImage(match->GetTimelineTick(), snapshot_players, *match->GetBall());
-    float offside = football::sim::rules::GetOffsideLine(
-        mentalImage, match->GetTimelineTick(), *match->GetBall(), 1 - lastTouchTeamID,
-        match->GetTeam(1 - lastTouchTeamID)->GetDynamicSide());
-    std::vector<Player*> players;
-    Team *team = match->GetTeam(lastTouchTeamID);
-    team->GetActivePlayers(players);
-    for (auto player : players) {
-      if (player != team->GetLastTouchPlayer()) {
-        if (player->GetPosition().coords[0] * team->GetDynamicSide() <
-            offside * team->GetDynamicSide()) {
+    MentalImage mentalImage(facts.now, facts.all_active_players, *facts.ball);
+    float offside = football::sim::rules::GetOffsideLine(mentalImage, facts.now,
+        *facts.ball, defending_team_id, facts.defending_team->GetDynamicSide());
+    const signed int side = facts.touch_team->GetDynamicSide();
+    for (Player* player : facts.all_active_players) {
+      if (player->GetTeamID() != lastTouchTeamID) continue;
+      if (player != facts.touch_player) {
+        if (player->GetPosition().coords[0] * side < offside * side) {
           offsidePlayers.push_back(player);
         }
       }

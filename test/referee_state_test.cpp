@@ -4,6 +4,7 @@
 #include "default_ai_fixture.hpp"
 #include "sim/match/match.hpp"
 #include "sim/simulation.hpp"
+#include "sim/rules/ball_touch_facts.hpp"
 
 namespace {
 using namespace football::sim;
@@ -274,5 +275,56 @@ template<class T> concept HasImplicitTripNotice = requires(T& owner, Player* act
   owner.TripNotice(actor, actor, 3);
 };
 static_assert(!HasImplicitTripNotice<Referee>);
+
+TEST_CASE("touch notices consume explicit facts instead of Match state",
+          "[sim][referee][offside]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  auto* touch_player = match.GetTeam(0)->GetAllPlayers()[1];
+  std::vector<Player*> active_players;
+  match.GetTeam(0)->GetActivePlayers(active_players);
+  match.GetTeam(1)->GetActivePlayers(active_players);
+
+  SECTION("disabled offsides keeps prior facts and never dereferences Match") {
+    RefereeStateFixture referee(&match);
+    referee.match = nullptr;
+    referee.buffer.active = false;
+    referee.offsidePlayers = {touch_player};
+    rules::BallTouchFacts facts;
+    facts.now = Tick{5};
+    facts.ball = match.GetBall();
+    referee.BallTouched(facts);
+    REQUIRE(referee.offsidePlayers == std::vector<Player*>{touch_player});
+  }
+
+  SECTION("the supplied touch team decides the offside restart") {
+    RefereeStateFixture referee(&match);
+    referee.buffer.active = false;
+    referee.offsidePlayers = {touch_player};
+    const auto timeline = match.GetTimelineTick();
+    REQUIRE(match.GetLastTouchTeamID() == -1); // Match state deliberately disagrees.
+    rules::BallTouchFacts facts;
+    facts.now = timeline;
+    facts.touch_player = touch_player;
+    facts.touch_team_id = 0;
+    facts.touch_team = match.GetTeam(0);
+    facts.defending_team = match.GetTeam(1);
+    facts.in_play = true;
+    facts.in_set_piece = false;
+    facts.offsides_enabled = true;
+    facts.ball = match.GetBall();
+    facts.all_active_players = active_players;
+    referee.BallTouched(facts);
+    REQUIRE(referee.buffer.active);
+    REQUIRE(referee.buffer.desiredSetPiece == e_GameMode_FreeKick);
+    REQUIRE(referee.buffer.teamID == 1);
+    REQUIRE(referee.buffer.restartPos == touch_player->GetPitchPosition());
+    REQUIRE_FALSE(match.IsInPlay());
+    REQUIRE(match.GetLastTouchTeamID() == -1); // Still no Match touch publication.
+  }
+}
+
 
 }  // namespace

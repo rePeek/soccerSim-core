@@ -372,7 +372,14 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   defending_side, futureSim_ms). Defending id/side, sampling instant and Ball are explicit;
   it no longer reads Match/Team. Preserve the second-deepest defender scan, the same
   in-place copy mutation, ball-ahead override, halfway zeroing and pitch clamp. Referee::
-  BallTouched still supplies those facts and still owns the offside-player decision list.
+  BallTouched consumes those facts and still owns the offside-player decision list.
+- rules/ball_touch_facts.hpp defines BallTouchFacts: now, touch player/team id, touch/
+  defending Team pointers, in_play/in_set_piece/offsides flags, const Ball and the ordered
+  all-active span. Match::SetLastTouchTeamID assembles them from competition facts and calls
+  Referee::BallTouched(facts) synchronously; Referee reads no Match state there and derives
+  defending active count/candidates from the span. Restart release still calls the
+  consequence API (StartBallInPlay) and offside still calls StopPlay/ScheduleRestart,
+  both of which remain Match-reading consequence composition for later cuts.
   MentalImage decoupling, clock/end-change orchestration and period extraction each
   preserve regression fingerprints and all twelve diagnostic records byte-for-byte.
   Latest Release 34/34, Debug 33/33 (excluding full-match CLI), standalone period

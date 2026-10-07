@@ -26,6 +26,7 @@
 #include "sim/time/tick.hpp"
 #include "sim/match/match_phase.hpp"
 #include "sim/rules/restart_readiness.hpp"
+#include "sim/rules/ball_touch_facts.hpp"
 
 
 using namespace blunted;
@@ -92,7 +93,8 @@ class Referee {
     bool RestartNeedsSimulation() const;
     std::optional<Vector3> GetRestartTarget(const Player* player) const;
 
-    void BallTouched();
+    // Consumes explicit competition/observation facts; never reads Match.
+    void BallTouched(const football::sim::rules::BallTouchFacts& facts);
     // Synchronous foul-state operation: explicit clock/Ball facts, live actor reads.
     // Types: 1 = little standing trip, 2 = standing fall, 3 = sliding tackle.
     void TripNotice(Player *tripee, Player *tripper, int tackleType,
