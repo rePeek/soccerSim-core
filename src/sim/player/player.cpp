@@ -597,7 +597,7 @@ void Player::Process(std::span<MentalImage> history) {
       }
     }
     Vector3 posBefore = CastHumanoid()->GetPosition();
-    CastHumanoid()->Process();
+    CastHumanoid()->Process(history);
     SynchronizeKinematicState();
     CheckSimulationActionOracle();
     // Real distance during an underway half, including dead-ball positioning.

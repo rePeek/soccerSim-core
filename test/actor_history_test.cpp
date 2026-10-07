@@ -15,6 +15,8 @@ using blunted::Vector3;
 template<class T> concept HasImplicitTick = requires(T& actor) { actor.Process(); };
 static_assert(!HasImplicitTick<Team>);
 static_assert(!HasImplicitTick<Player>);
+static_assert(!HasImplicitTick<Humanoid>);
+static_assert(!HasImplicitTick<HumanoidBase>);
 
 TEST_CASE("Player tactical sampling consumes only the tick-local supplied history", "[sim][history][player]") {
   for (bool reverse : {false, true}) {
@@ -54,4 +56,28 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
   }
 }
+
+TEST_CASE("Humanoid consumes its tick-local span even when Match history is populated", "[sim][history][humanoid]") {
+  for (bool reverse : {false, true}) {
+    Simulation simulation;
+    MatchOptions options; options.reverse_team_processing = reverse;
+    simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+        football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), options);
+    simulation.Step({});
+    auto& match = *simulation.match();
+    REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
+    const auto rng = match.rng().engine();
+    auto* actor = match.GetTeam(match.FirstTeam())->GetAllPlayers()[0];
+    const auto position = actor->GetPosition();
+    REQUIRE_THROWS_AS(actor->CastHumanoid()->Process({}), std::logic_error);
+    REQUIRE(actor->GetPosition() == position);
+    REQUIRE(match.rng().engine() == rng);
+    std::vector<MentalImage> supplied;
+    supplied.emplace_back(match.GetTimelineTick(), std::span<Player* const>{}, *match.GetBall());
+    REQUIRE_NOTHROW(actor->Process(supplied)); // Ball-only caller-owned sample; no stored borrow.
+    REQUIRE(supplied[0].players.empty());
+    REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
+  }
+}
+
 }  // namespace

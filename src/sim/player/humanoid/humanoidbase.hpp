@@ -30,6 +30,7 @@
 
 #include "sim/observation/mentalimage.hpp"
 #include <chrono>
+#include <span>
 
 using namespace blunted;
 
@@ -342,7 +343,7 @@ class HumanoidBase {
     virtual ~HumanoidBase();
     void Mirror();
 
-    virtual void Process();
+    virtual void Process(std::span<MentalImage> history);
 
     inline int GetFrameNum() { return currentAnim.frameNum; }
     inline int GetFrameCount() { return static_cast<int>(GetCurrentBakedClip().frame_count); }
@@ -386,7 +387,7 @@ class HumanoidBase {
     bool _HighOrBouncyBall() const;
     void _KeepBestDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0, int allowedVelocitySteps = 0, int forcedQuadrantID = -1); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
     void _KeepBestBodyDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
-    virtual bool SelectAnim(const PlayerCommand &command, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false); // returns false on no applicable anim found
+    virtual bool SelectAnim(const PlayerCommand &command, std::span<MentalImage> history, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false); // returns false on no applicable anim found
     void CalculatePredictedSituation(Vector3 &predictedPos, radian &predictedAngle);
     Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
 

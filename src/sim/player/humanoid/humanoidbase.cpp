@@ -591,7 +591,7 @@ void HumanoidBase::Mirror() {
   predicate_RelDesiredBallDirection.Mirror();
 }
 
-void HumanoidBase::Process() {
+void HumanoidBase::Process(std::span<MentalImage> history) {
   // Reject invalid runtime state before the spatial/action debug oracles run.
   if (startPos.coords[2] != 0.f) {
     throw std::logic_error("HumanoidBase::Process: player position must have zero height");
@@ -720,7 +720,7 @@ void HumanoidBase::Process() {
 
         const PlayerCommand &command = commandQueue[i];
 
-        found = SelectAnim(command, interruptAnim);
+        found = SelectAnim(command, history, interruptAnim);
         if (found) break;
       }
     }
@@ -1062,6 +1062,7 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
 }
 
 bool HumanoidBase::SelectAnim(const PlayerCommand &command,
+                              std::span<MentalImage> history,
                               e_InterruptAnim localInterruptAnim,
                               bool preferPassAndShot) {
     // returns false on no applicable anim found

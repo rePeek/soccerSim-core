@@ -22,6 +22,9 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
     move.desired_speed = 7.f;
     const float initial_fatigue = actor.GetFatigueFactorInv();
     float metres = 0;
+    std::vector<MentalImage> history{*simulation.GetMentalImage(football::sim::TickSpan{}),
+        *simulation.GetMentalImage(football::sim::TickSpan{10}),
+        *simulation.GetMentalImage(football::sim::TickSpan{20})};
     // Exercise this owner's native motion/update, without collisions or rule resets
     // contaminating the distance. No implicit policy, scale override or fake contact.
     for (int tick = 0; tick < 100; ++tick) {
@@ -29,7 +32,7 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
       const float fatigue = actor.GetFatigueFactorInv();
       const float stamina = actor.GetStaminaStat();
       actor.SetControl(move);
-      actor.Process({}); // No tactical refresh while play is stopped.
+      actor.Process(history);
       REQUIRE(actor.GetSimulationActionState().IsPureLocomotion(false));
       const float distance = (actor.GetPosition() - before).GetLength();
       metres += distance;

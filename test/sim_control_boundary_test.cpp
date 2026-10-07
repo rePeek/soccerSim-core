@@ -67,12 +67,15 @@ TEST_CASE("humanoid starting height is a catchable runtime contract", "[sim][fai
   for (float height : {-1.f, 1.f}) {
     Runtime runtime;
     for (int tick = 0; tick < 300; ++tick) runtime.simulation.Step(PlayerControlSet{});
+    std::vector<MentalImage> history{*runtime.simulation.GetMentalImage(football::sim::TickSpan{}),
+        *runtime.simulation.GetMentalImage(football::sim::TickSpan{10}),
+        *runtime.simulation.GetMentalImage(football::sim::TickSpan{20})};
     Player *player = runtime.match()->GetTeam(0)->GetAllPlayers()[1];
     player->ResetPosition(Vector3(0, 0, height), Vector3(0, -1, 0));
-    REQUIRE_THROWS_AS(player->CastHumanoid()->Process(), std::logic_error);
-    REQUIRE_THROWS_AS(player->CastHumanoid()->HumanoidBase::Process(), std::logic_error);
+    REQUIRE_THROWS_AS(player->CastHumanoid()->Process(history), std::logic_error);
+    REQUIRE_THROWS_AS(player->CastHumanoid()->HumanoidBase::Process(history), std::logic_error);
     player->ResetPosition(Vector3(0), Vector3(0, -1, 0));
-    REQUIRE_NOTHROW(player->CastHumanoid()->Process());
+    REQUIRE_NOTHROW(player->CastHumanoid()->Process(history));
   }
 }
 
@@ -91,7 +94,10 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
     anim->frameNum = humanoid->GetFrameCount() - 2;
     player->BeginSimulationAction();
     player->PublishPlayerDecisionQueue({}, runtime.match()->GetTimelineTick());
-    REQUIRE_THROWS_AS(humanoid->Process(), std::runtime_error);
+    std::vector<MentalImage> history{*runtime.simulation.GetMentalImage(football::sim::TickSpan{}),
+        *runtime.simulation.GetMentalImage(football::sim::TickSpan{10}),
+        *runtime.simulation.GetMentalImage(football::sim::TickSpan{20})};
+    REQUIRE_THROWS_AS(humanoid->Process(history), std::runtime_error);
   }
 
   SECTION("base cadence warning can continue without a named logger") {
@@ -107,7 +113,7 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
     anim->frameNum = 0;
     player->BeginSimulationAction();
     const int commits = HumanoidBasePathRefreshCommits();
-    REQUIRE_NOTHROW(humanoid->HumanoidBase::Process());
+    REQUIRE_NOTHROW(humanoid->HumanoidBase::Process({})); // No selection/history sample on this cadence-only path.
     REQUIRE(HumanoidBasePathRefreshCommits() == commits + 1);
   }
 }

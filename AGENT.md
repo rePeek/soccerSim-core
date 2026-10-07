@@ -315,12 +315,12 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   remain Match-owned; Team/Player possession refresh algorithms are not moved.
 - Simulation owns std::vector<MentalImage> and CaptureMentalImage scheduling. Capture
   remains after Ball processing, before players, empty-or-ten-tick, newest-first with
-  three slots. Match still borrows the vector only for transitional actor sampling and
-  synchronous TouchBall refresh; it owns no history and never points upward to Simulation.
-  H4-A1: StepPlayers passes a tick-local span through Team::Process → Player::Process
-  to tactical sampling; no actor stores the span. Humanoid sampling/touch remains
-  on the borrowed Match bridge until the subsequent cuts. Preserve staggered cadence,
-  own-touch selection and signed millisecond sampling; do not capture another history.
+  three slots. H4-A1/A2: StepPlayers passes a tick-local span through Team → Player
+  → Humanoid, including SelectAnim/NeedTouch/GetBestCheatableAnimID/MovementSmuggle.
+  No actor stores the span or samples through Match. Preserve the initial previous-delay
+  sample before updating mentalImageTime, live deviation clamps, signed millisecond
+  sampling, staggered cadence and all conditional sample points. Match still borrows
+  the vector only for TouchBall refresh and transitional diagnostics until H4-B/A3.
   Match::Mirror and ResetSituation are removed: Simulation mirrors teams → Ball → images
   and resets competition facts → clears history → resets Ball → both processing rosters
   at the old mutation points. Referee::Process receives a narrow synchronous reset action,
