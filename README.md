@@ -213,6 +213,8 @@ and baked clip inputs; they have no Match parameter/include or indirect Player::
 lookup. Match::GetAnimPositionCache is deleted. Actor tick-state dependencies remain.
 Player touch decay requires an explicit Tick (no implicit-now overload), and player
 free-space queries take Tick/MentalImage directly with no Match dependency.
+Command construction borrows explicit authorization/hands-legality inputs for one call;
+BuildPlayerCommands no longer includes Match, and Player::GetMatch is deleted.
 
 `rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration
 facts. Simulation evaluates the pre-contact gate and original whistle boundary; EndPeriod

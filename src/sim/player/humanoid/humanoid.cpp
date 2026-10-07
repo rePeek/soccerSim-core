@@ -30,6 +30,7 @@
 #include "sim/player/player_retain_anchor.hpp"
 
 #include "sim/player/player.hpp"
+#include "sim/player/player_control_builder.hpp"
 #include "sim/team/team.hpp"
 #include "sim/match/match.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
@@ -159,7 +160,9 @@ void Humanoid::Process(std::span<MentalImage> history, football::sim::BallTouchS
           decision_now, player_decision_cadence);
   if (continuity_repair_due || player_decision_due) {
     PlayerCommandQueue player_decision_commands;
-    CastPlayer()->RequestCommand(player_decision_commands);
+    CastPlayer()->RequestCommand(player_decision_commands,
+        {*match->GetBall(), match->touches(), match->GetReferee()->GetBuffer(),
+         match->GetBallRetainer(), match->pitch()});
     CastPlayer()->PublishPlayerDecisionQueue(
         player_decision_commands, decision_now);
     bool has_movement = false;

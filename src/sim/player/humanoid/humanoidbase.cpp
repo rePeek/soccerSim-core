@@ -29,6 +29,7 @@
 #include "sim/player/humanoid/humanoid_utils.hpp"
 
 #include "sim/player/player.hpp"
+#include "sim/player/player_control_builder.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_locomotion.hpp"
 #include "sim/player/player_body_facing.hpp"
@@ -653,7 +654,9 @@ void HumanoidBase::Process(std::span<MentalImage> history, football::sim::BallTo
     bool controller_queried = false;
     const auto EnsureControllerQuery = [&]() {
       if (controller_queried) return;
-      player->RequestCommand(controllerQueue);
+      player->RequestCommand(controllerQueue,
+          {*match->GetBall(), match->touches(), match->GetReferee()->GetBuffer(),
+           match->GetBallRetainer(), match->pitch()});
       controller_queried = true;
       for (const PlayerCommand &controller_command : controllerQueue) {
         commandQueue.push_back(controller_command);

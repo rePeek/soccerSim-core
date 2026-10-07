@@ -3,7 +3,10 @@
 #include <algorithm>
 #include <cmath>
 
-#include "sim/match/match.hpp"
+#include "sim/ball/ball.hpp"
+#include "sim/event/touch_query.hpp"
+#include "sim/rules/referee.hpp"
+#include "model/pitch.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player.hpp"
@@ -27,9 +30,9 @@ e_FunctionType ToFunctionType(ControlAction action) {
 }  // namespace
 
 PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
-                                       Player& player) {
+                                       Player& player, const PlayerCommandInputs& inputs) {
   // Value controls use home pitch coordinates; convert at consumption, after
-  // Match has selected the actor's processing frame. Never mutate caller data.
+  // Simulation selects the actor's processing frame. Never mutate caller data.
   PlayerControl control = input;
   const auto runtime_frame = FromHomePitchFrame(*player.GetTeam());
   control.move_direction = runtime_frame.Direction(control.move_direction);
@@ -44,7 +47,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     movement.useDesiredLookAt = true;
     movement.desiredLookAt = control.look_at->Get2D();
   }
-  const auto& restart = player.GetMatch()->GetReferee()->GetBuffer();
+  const auto& restart = inputs.restart;
   if (restart.active && restart.restart) {
     if (restart.restart->phase == RestartPhase::Pending) return {movement};
     if (restart.taker != &player) {
@@ -95,15 +98,14 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   }
   if (control.action == ControlAction::Save) {
     // Hands legality belongs to execution/rules, not a cooperative policy.
-    Match *match = player.GetMatch();
     Team *team = player.GetTeam();
-    const Vector3 ball = match->GetBall()->Predict(160);
-    const bool backpass = match->GetLastTouchTeamID() == team->GetID() &&
-        match->GetLastTouchPlayer() != &player &&
-        match->GetLastTouchTeamID(e_TouchType_Intentional_Kicked) == team->GetID();
-    if (team->GetGoalie() != &player || match->GetBallRetainer() || backpass ||
+    const Vector3 ball = inputs.ball.Predict(160);
+    const bool backpass = inputs.touches.last_team == team->GetID() &&
+        football::sim::event::LastTouchPlayer(inputs.touches, *team) != &player &&
+        inputs.touches.last_team_by_type[e_TouchType_Intentional_Kicked] == team->GetID();
+    if (team->GetGoalie() != &player || inputs.retainer || backpass ||
         std::fabs(ball.coords[1]) > 20.05f ||
-        ball.coords[0] * -team->GetDynamicSide() > -pitchHalfW + 16.4f)
+        ball.coords[0] * -team->GetDynamicSide() > -inputs.pitch.half_length() + 16.4f)
       return {movement};
     command.useDesiredMovement = false;
     command.useDesiredLookAt = false;

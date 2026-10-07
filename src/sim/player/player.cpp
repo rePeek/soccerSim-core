@@ -573,9 +573,9 @@ float Player::GetControlSpeed() {
   return 0.f;
 }
 
-void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
+void Player::RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs) {
   if (control_) {
-    commandQueue = BuildPlayerCommands(*control_, *this);
+    commandQueue = BuildPlayerCommands(*control_, *this, inputs);
   } else {
     // No implicit policy in sim: absent control is an idle movement intent.
     PlayerControl idle;
@@ -583,7 +583,7 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
     idle.move_direction = GetDirectionVec();
     if (team->GetDynamicSide() != (GetTeamID() == 0 ? -1 : 1))
       idle.move_direction.Mirror();
-    commandQueue = BuildPlayerCommands(idle, *this);
+    commandQueue = BuildPlayerCommands(idle, *this, inputs);
   }
 }
 

@@ -12,6 +12,8 @@
 #include "sim/player/player_control_builder.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team/team.hpp"
+#include "sim/testing/simulation_access.hpp"
+using football::sim::testing::SimulationAccess;
 
 namespace {
 using blunted::Vector3;
@@ -184,7 +186,7 @@ TEST_CASE("canonical controls round trip through each actor runtime frame",
         auto look_at = *control.look_at;
         auto target = *control.target_position;
         if (mirror) { direction.Mirror(); look_at.Mirror(); target.Mirror(); }
-        const auto queue = BuildPlayerCommands(control, player);
+        const auto queue = BuildPlayerCommands(control, player, SimulationAccess::CommandInputsOf(simulation));
         REQUIRE(queue.size() == 2);
         REQUIRE(queue[0].desiredFunctionType == e_FunctionType_Shot);
         REQUIRE(queue[1].desiredDirection == direction.Get2D().GetNormalized(player.GetDirectionVec()));

@@ -530,6 +530,10 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
 - Simulation has no decisions/input ownership. Empty controls mean idle movement;
   control execution translates frames, resolves active model IDs and rejects illegal
   hands saves/inactive recipients. Mechanics remain in sim, not policy.
+  BuildPlayerCommands/RequestCommand consume call-local PlayerCommandInputs containing
+  only Ball, TouchState, restart facts, retainer and Pitch for authorization/hands gates.
+  No command builder includes Match or retrieves it through Player; Player::GetMatch
+  is deleted. Inputs are never retained, and save/backpass checks keep short-circuit order.
 - Default policy replacement was intentionally semantic, not bit-exact Eliza
   migration. Historical goldens live in test/baselines/pre_value_ai.md. Do not
   reconstruct actor-calling decision ports or insert dummy RNG draws to match them.

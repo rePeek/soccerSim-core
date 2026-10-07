@@ -992,7 +992,7 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   control.power = 0.6f;
   player->SetControl(control);
   PlayerCommandQueue commands;
-  player->RequestCommand(commands);
+  player->RequestCommand(commands, SimulationAccess::CommandInputsOf(simulation));
   player->ClearControl();
   Require(commands.size() == 2 &&
               commands.front().desiredFunctionType == e_FunctionType_Shot &&

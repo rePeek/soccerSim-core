@@ -135,6 +135,7 @@ class MentalImage;
 namespace football::sim { class BallTouchSink; }
 class HumanoidBase;
 class AnimationLibrary;
+struct PlayerCommandInputs;
 
 struct TacticalPlayerSituation {
   float forwardSpaceRating = 0.0f;
@@ -322,7 +323,7 @@ class Player final {
 
     void TripMe(const Vector3 &tripVector, int tripType) { humanoid->TripMe(tripVector, tripType); }
 
-    void RequestCommand(PlayerCommandQueue &commandQueue);
+    void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
     int GetReactionTime_ms();
     float GetControlSpeed();
     void SetControl(const PlayerControl& control) { control_ = control; }
@@ -348,7 +349,6 @@ class Player final {
     float GetMaxVelocity() const;
 
     const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
-    Match *GetMatch() const { return match; }
 
     void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
     football::sim::Tick GetLastTouchTick() const { return last_touch_tick_; }

@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include "sim/simulation.hpp"
 #include "sim/match/match.hpp"
+#include "sim/player/player_control_builder.hpp"
 
 namespace football::sim::testing {
 
@@ -11,6 +12,12 @@ namespace football::sim::testing {
 // Product execution remains Init/Step/Observe/Finished/Result/Stop.
 class SimulationAccess {
  public:
+  static PlayerCommandInputs CommandInputsOf(Simulation& simulation) {
+    if (!simulation.match_) throw std::logic_error("simulation has no match");
+    auto& match = *simulation.match_;
+    return {*match.GetBall(), match.touches(), RulesOf(simulation).GetBuffer(),
+            match.GetBallRetainer(), match.pitch()};
+  }
   static BallTouchSink& EventsOf(Simulation& simulation) {
     if (!simulation.touch_sink_) throw std::logic_error("simulation has no match");
     return *simulation.touch_sink_;

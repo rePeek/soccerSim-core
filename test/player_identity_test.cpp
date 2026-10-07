@@ -14,6 +14,8 @@
 #include "sim/player/player.hpp"
 #include "sim/simulation.hpp"
 #include "default_ai_fixture.hpp"
+#include "sim/testing/simulation_access.hpp"
+using football::sim::testing::SimulationAccess;
 
 namespace model = football::model;
 static_assert(std::is_same_v<model::PlayerId, std::uint32_t>);
@@ -146,7 +148,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   std::vector<Player*> players;
   renamed.match()->GetTeam(1)->GetAllPlayers(players);
   PlayerCommandQueue commands;
-  players[0]->RequestCommand(commands);
+  players[0]->RequestCommand(commands, SimulationAccess::CommandInputsOf(renamed));
   Require(commands.size() == 1 && commands[0].desiredVelocityFloat == move.desired_speed,
           "controls did not bind by model identity");
   const WorldState replay_target = renamed.Observe();

@@ -121,8 +121,8 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     REQUIRE(RestartPlayersReady(state.plan, match.pitch()));
     PlayerControl shot;
     shot.action = ControlAction::Shoot;
-    REQUIRE(BuildPlayerCommands(shot, *state.plan.taker).size() == 1);
-    REQUIRE(BuildPlayerCommands(shot, *state.plan.taker)[0].desiredFunctionType == e_FunctionType_Movement);
+    REQUIRE(BuildPlayerCommands(shot, *state.plan.taker, SimulationAccess::CommandInputsOf(simulation)).size() == 1);
+    REQUIRE(BuildPlayerCommands(shot, *state.plan.taker, SimulationAccess::CommandInputsOf(simulation))[0].desiredFunctionType == e_FunctionType_Movement);
     simulation.AdvanceTime((state.earliest_restart_tick - match.GetTimelineTick()) - TickSpan{1});
     ProcessRules(simulation);
     REQUIRE_FALSE(match.IsInPlay());
