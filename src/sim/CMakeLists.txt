@@ -33,6 +33,7 @@ target_sources(football_sim PRIVATE
   query/player_query.hpp query/reachability.hpp query/force_spot.hpp
   rules/referee.cpp rules/referee.hpp
   rules/goal.cpp rules/goal.hpp
+  rules/period.cpp rules/period.hpp
   rules/offside.cpp rules/restart_placement.cpp rules/restart_readiness.cpp
   rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp
   player/player.cpp player/player_control_builder.cpp player/player_locomotion.cpp

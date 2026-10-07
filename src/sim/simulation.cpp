@@ -18,6 +18,7 @@
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player_contact.hpp"
 #include "sim/rules/goal.hpp"
+#include "sim/rules/period.hpp"
 #include "sim/team/possession.hpp"
 
 namespace {
@@ -166,7 +167,9 @@ void Simulation::Step(const PlayerControlSet& controls) {
   // Ball already shares the first roster's frame; turn only the other roster.
   match.Mirror(reverse, !reverse, false);
   // Period whistles still win over pending contacts, before any RNG draw.
-  if (match.IsBallInPlay() && !match.GetReferee()->PeriodElapsed()) {
+  if (match.IsBallInPlay() && !football::sim::rules::PeriodElapsed(
+          match.IsHalfUnderway(), match.GetMatchPhase(),
+          match.GetRegulationTime(), match.options().half_duration)) {
     std::vector<Player*> players;
     match.GetTeam(match.FirstTeam())->GetActivePlayers(players);
     match.GetTeam(match.SecondTeam())->GetActivePlayers(players);

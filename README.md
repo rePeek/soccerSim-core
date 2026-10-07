@@ -184,6 +184,11 @@ period decisions; Simulation keeps tick counting/ordering. Match now has no tick
 or collision/goal/selection algorithm, but actor ownership and touch/reset/mirror
 bridges remain. It is not yet ready to be renamed `MatchState` or removed.
 
+`rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration
+facts. Simulation's pre-contact gate and Referee's whistle boundary use the same predicate;
+the no-argument Referee query is removed. A standalone value-only test proves this boundary.
+Other Referee → Match dependencies and period/restart consequences remain transitional.
+
 ## Build and tests
 
 Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,

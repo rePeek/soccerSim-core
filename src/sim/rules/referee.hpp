@@ -81,10 +81,6 @@ class Referee {
 
     void Process();
 
-    // True once the current period's regulation football clock has elapsed;
-    // the next Process() halts play at that boundary. Rules fact only.
-    bool PeriodElapsed() const;
-
     const RefereeBuffer &GetBuffer() { return buffer; };
     bool RestartNeedsSimulation() const;
     std::optional<Vector3> GetRestartTarget(const Player* player) const;

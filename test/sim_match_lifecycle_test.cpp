@@ -6,11 +6,14 @@
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
 #include "sim/match/match.hpp"
+#include "sim/rules/period.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team/team.hpp"
 
 namespace {
 using namespace football::sim;
+template<class T> concept HasImplicitPeriodQuery = requires(const T& owner) { owner.PeriodElapsed(); };
+static_assert(!HasImplicitPeriodQuery<Referee>);
 void Init(Simulation& simulation, MatchOptions options = {}) {
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
@@ -173,10 +176,14 @@ TEST_CASE("period whistles win over pending dead balls and half-time stops regul
       const auto position = simulation.Observe().ball_position;
       simulation.AdvanceTime(Seconds(100));
       REQUIRE(match->GetRegulationTime() == (half == 1 ? Seconds(10) : Seconds(20)));
+      REQUIRE(rules::PeriodElapsed(match->IsHalfUnderway(), match->GetMatchPhase(),
+                                   match->GetRegulationTime(), options.half_duration));
       REQUIRE(match->GetBallInPlayTime() == in_play);
       REQUIRE(match->rng().engine() == rng);
       simulation.Step({});
       REQUIRE_FALSE(simulation.Observe().half_underway);
+      REQUIRE_FALSE(rules::PeriodElapsed(match->IsHalfUnderway(), match->GetMatchPhase(),
+                                         match->GetRegulationTime(), options.half_duration));
       REQUIRE_FALSE(simulation.Observe().ball_in_play);
       REQUIRE_FALSE(match->GetReferee()->RestartNeedsSimulation());
       REQUIRE(match->GetResetSequence() == resets);

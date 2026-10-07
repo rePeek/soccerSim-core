@@ -65,6 +65,14 @@ football_configure_target(football_match_clock_test)
 add_test(NAME football_match_clock_test COMMAND football_match_clock_test)
 set_tests_properties(football_match_clock_test PROPERTIES LABELS sim)
 
+# Pure period decisions read only explicit match/time values.
+add_executable(football_period_test period_test.cpp ../src/sim/rules/period.cpp)
+target_link_libraries(football_period_test PRIVATE
+  football::sim_contracts Catch2::Catch2WithMain)
+football_configure_target(football_period_test)
+add_test(NAME football_period_test COMMAND football_period_test)
+set_tests_properties(football_period_test PROPERTIES LABELS sim)
+
 # This target proves that policy compiles/links without sim or libgame.
 add_executable(football_default_ai_test default_ai_test.cpp)
 target_link_libraries(football_default_ai_test PRIVATE

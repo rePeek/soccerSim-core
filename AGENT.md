@@ -74,7 +74,7 @@ src/
 │   ├── random/       simulation-owned RNG authority alias; algorithm in foundation
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
-│   ├── rules/        Referee, goal geometry, offside, placement and restart readiness
+│   ├── rules/        Referee, goal geometry, period boundary, offside and restarts
 │   └── player/       Player, controls, commands, locomotion and player_contact mechanics
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
 ├── ai/               value-only decisions; never links sim runtime
@@ -112,6 +112,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── ball_player_contact_test.cpp standalone Ball, contact cooldown/order and explicit history inputs
 ├── player_contact_test.cpp   explicit contact inputs, in-place pair order and no RNG/ball mutation
 ├── goal_test.cpp             standalone goal geometry, segment bounds and legacy side-net veto
+├── period_test.cpp           standalone explicit regulation boundary and ceremony/phase gates
 ├── possession_test.cpp       arrival ranking, ties, hysteresis and retainer override
 ├── mental_image_history_test.cpp sole history, newest refresh, mirrors/reset/lifetime isolation
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
@@ -203,6 +204,9 @@ anim_baking → legacy_anim + animation/foundation
   policy, scheduling and RNG fingerprints. Supports `--print-baseline`.
 - `football_model_test` and `football_sim_contracts_test` link only their value
   targets; `football_default_ai_test` links only policy/contracts/Catch2.
+- `football_period_test` builds rules/period.cpp with value contracts/Catch2 only,
+  proving PeriodElapsed has no Referee/Match/runtime dependency. It checks inclusive
+  period boundaries, cumulative second-half limits, ceremony gates and maximum spans.
 - `football_goal_test` builds rules/goal.cpp with only model/foundation/Catch2, proving
   goal geometry has no Match/Ball/runtime dependency. Lifecycle tests retain score,
   half/order attribution and period-whistle coverage through real Simulation steps.
@@ -334,6 +338,18 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   and all twelve seed/order/fixture diagnostic records byte-for-byte. Final Release
   33/33, Debug 32/32 (excluding full-match CLI), standalone Clock and core-only builds
   pass; no golden, policy, physics or asset change accompanies these extractions.
+
+- rules/period owns pure PeriodElapsed(half_underway, phase, regulation, duration).
+  Simulation uses it before passive contacts; Referee::Process supplies explicit facts
+  at its original whistle boundary. Referee's no-argument PeriodElapsed is deleted,
+  not retained as a wrapper. Duration validity remains initialization/Clock authority.
+  Only SecondHalf doubles the threshold; no phase-policy repair or clock mutation.
+  Referee still owns period consequences and temporarily reads Match in Process,
+  foul/offside/out-of-play/restart composition. Do not replace that with a rules context.
+  MentalImage decoupling, clock/end-change orchestration and period extraction each
+  preserve regression fingerprints and all twelve diagnostic records byte-for-byte.
+  Latest Release 34/34, Debug 33/33 (excluding full-match CLI), standalone period
+  and core-only builds pass; no golden, physics, policy or baked asset changed.
 
 After these three cuts, Match has no tick entry or collision/goal/selection algorithm.
 It still combines competition facts/clock, actor/referee ownership and transitional

@@ -20,6 +20,7 @@
 
 #include "sim/match/match.hpp"
 #include "sim/rules/offside.hpp"
+#include "sim/rules/period.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/rules/restart_placement.hpp"
 #include "sim/observation/pitch_frame.hpp"
@@ -75,18 +76,13 @@ Referee::Referee(Match *match) : match(match) {
 
 Referee::~Referee() {}
 
-bool Referee::PeriodElapsed() const {
-  if (!match->IsHalfUnderway()) return false;
-  const auto half = match->options().half_duration;
-  const auto limit = match->GetMatchPhase() == MatchPhase::SecondHalf ? half + half : half;
-  return match->GetRegulationTime() >= limit;
-}
-
 void Referee::Process() {
   if (match->Finished()) return;
   // Period authority is independent of restart eligibility. A pending set piece
   // must not keep a match alive after the regulation clock reaches full time.
-  if (PeriodElapsed()) {
+  if (football::sim::rules::PeriodElapsed(
+      match->IsHalfUnderway(), match->GetMatchPhase(),
+      match->GetRegulationTime(), match->options().half_duration)) {
     match->EndHalf();
     buffer.active = false;
     buffer.taker = nullptr;
