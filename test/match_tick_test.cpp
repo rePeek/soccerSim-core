@@ -84,8 +84,8 @@ TEST_CASE("Advancing timeline ticks does not execute physics or consume RNG",
   REQUIRE(match->rng().engine() == rng);
 }
 
-TEST_CASE("Tick timeline preserves restart skip and the simulated preparation tail",
-          "[sim][tick]") {
+TEST_CASE("Tick timeline executes ordinary restart positioning without a skip",
+          "[sim][tick][restart]") {
   for (const bool reverse : {false, true}) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
@@ -108,25 +108,27 @@ TEST_CASE("Tick timeline preserves restart skip and the simulated preparation ta
     const auto resets = match->GetResetSequence();
     simulation.Step({});
     REQUIRE(simulation.Observe().restart == e_GameMode_ThrowIn);
-    // The historical skip is 190 ticks, followed by this Step's one tick. Do not
-    // jump to the 200-tick deadline during a behavior-preserving unit migration.
-    REQUIRE(match->GetTimelineTick() == before + TickSpan{191});
-    REQUIRE(match->GetReferee()->GetBuffer().prepare_tick == before + Seconds(2));
+    REQUIRE(match->GetTimelineTick() == before + TickSpan{1});
+    const auto scheduled = match->GetReferee()->GetBuffer();
+    REQUIRE(scheduled.restart.has_value());
+    REQUIRE(scheduled.restart->entered_tick == before);
+    REQUIRE(scheduled.restart->earliest_restart_tick == before + Seconds(2));
     REQUIRE(match->GetMatchTime_ms() == football_clock);
     REQUIRE(match->GetResetSequence() == resets);
-    for (int i = 0; i < 9; ++i) simulation.Step({});
-    REQUIRE(match->GetTimelineTick() == before + Seconds(2));
-    REQUIRE(match->GetResetSequence() == resets);
     simulation.Step({});
-    REQUIRE(match->GetTimelineTick() == before + TickSpan{201});
+    REQUIRE(match->GetTimelineTick() == before + TickSpan{2});
     REQUIRE(match->GetResetSequence() == resets + 1);
     REQUIRE(match->GetReferee()->GetBuffer().taker != nullptr);
     REQUIRE(match->GetMatchTime_ms() == football_clock);
+    REQUIRE(simulation.Observe().restart_pending);
+    for (int i = 0; i < 210; ++i) simulation.Step({});
+    REQUIRE_FALSE(match->IsInPlay()); // A minimum is not automatic permission.
+    REQUIRE(match->GetResetSequence() == resets + 1);
   }
 }
 
-TEST_CASE("Referee deadlines fire once when a timeline jump crosses them",
-          "[sim][tick][referee]") {
+TEST_CASE("Restart setup and timeout fire once across timeline jumps",
+          "[sim][tick][referee][restart]") {
   for (const bool reverse : {false, true}) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
@@ -139,24 +141,32 @@ TEST_CASE("Referee deadlines fire once when a timeline jump crosses them",
     match->GetBall()->ResetSituation(blunted::Vector3(10.f, 40.f, 0.f));
     simulation.Step({});
     Referee* rules = match->GetReferee();
+    const auto process_rules = [&] {
+      match->Mirror(reverse, !reverse, reverse);
+      rules->Process();
+      match->Mirror(reverse, !reverse, reverse);
+    };
     const auto scheduled = rules->GetBuffer();
     const auto resets = match->GetResetSequence();
     REQUIRE(scheduled.taker == nullptr);
-    match->AdvanceTime((scheduled.prepare_tick - match->GetTimelineTick()) + TickSpan{3});
-    rules->Process();
+    match->AdvanceTime(Seconds(3));
+    process_rules();
     REQUIRE(rules->GetBuffer().taker != nullptr);
     REQUIRE(match->GetResetSequence() == resets + 1);
     REQUIRE_FALSE(match->IsInPlay());
     auto rng = match->rng().engine();
-    rules->Process();
+    process_rules();
     REQUIRE(match->GetResetSequence() == resets + 1);
     REQUIRE(match->rng().engine() == rng);
-    match->AdvanceTime((scheduled.start_tick - match->GetTimelineTick()) + TickSpan{3});
-    rules->Process();
+    const auto timeout = scheduled.restart->timeout_tick;
+    match->AdvanceTime((timeout - match->GetTimelineTick()) + TickSpan{3});
+    process_rules();
     REQUIRE(match->IsInPlay());
     REQUIRE(match->IsInSetPiece());
+    REQUIRE(rules->GetBuffer().restart->used_timeout_placement);
+    REQUIRE(rules->GetBuffer().restart->phase == RestartPhase::Ready);
     rng = match->rng().engine();
-    rules->Process();
+    process_rules();
     REQUIRE(match->GetResetSequence() == resets + 1);
     REQUIRE(match->rng().engine() == rng);
   }

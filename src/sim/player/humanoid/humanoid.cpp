@@ -474,7 +474,7 @@ void Humanoid::Process() {
   // ------------------------ EXPERIMENTAL ------------------------------------------------
   bool controlledBallCollision = CastPlayer()->IsControlledBallCollisionTriggered();
   if (controlledBallCollision) CastPlayer()->ResetControlledBallCollisionTrigger();
-  if (controlledBallCollision && !action.HasScheduledContact()) {
+  if (match->IsInPlay() && controlledBallCollision && !action.HasScheduledContact()) {
     Vector3 currentBallVec = match->GetBall()->GetMovement();
     radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + currentAnim.rotationSmuggle.end;
 
@@ -495,7 +495,7 @@ void Humanoid::Process() {
   }
   // ---------------------- / EXPERIMENTAL ------------------------------------------------
 
-  if (action.HasScheduledContact() &&
+  if (match->IsInPlay() && action.HasScheduledContact() &&
       action.Frame() == action.ContactFrame()) {
     ContactAuthorityAudit *contact_audit =
         ContactAuthorityAuditEnabled() && IsTrackedScheduledContact(action.type)

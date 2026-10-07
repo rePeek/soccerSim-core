@@ -44,12 +44,15 @@ void SameWorld(const WorldState& a, const WorldState& b) {
       a.reset_sequence == b.reset_sequence && Same(a.ball_position, b.ball_position) &&
       Same(a.ball_velocity, b.ball_velocity) && a.in_play == b.in_play &&
       a.in_set_piece == b.in_set_piece && a.restart == b.restart &&
+      a.restart_pending == b.restart_pending &&
       a.restart_taker == b.restart_taker && a.ball_retainer == b.ball_retainer &&
       a.players.size() == b.players.size(), "world mismatch");
   for (int side = 0; side < 2; ++side)
     Require(a.teams[side].score == b.teams[side].score, "score mismatch");
   for (std::size_t i = 0; i < a.players.size(); ++i) {
     const auto& x = a.players[i]; const auto& y = b.players[i];
+    Require(x.restart_target.has_value() == y.restart_target.has_value() &&
+        (!x.restart_target || Same(*x.restart_target, *y.restart_target)), "restart target mismatch");
     Require(x.id == y.id && x.side == y.side && x.active == y.active &&
         x.has_possession == y.has_possession && x.lazy == y.lazy && x.max_speed == y.max_speed &&
         Same(x.position, y.position) && Same(x.velocity, y.velocity) && Same(x.facing, y.facing),

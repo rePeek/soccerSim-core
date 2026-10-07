@@ -1477,9 +1477,15 @@ void HumanoidBase::ProjectMovementState(
   player->CheckDecisionLocomotionIntentOracle();
   const PlayerCommand &command = player->GetDecisionLocomotionIntent();
   // H3e4f-b: locomotion reads the simulation-owned copy, not the legacy anim.
-  const PlayerLocomotionInput input = BuildLegacyLocomotionInput(
-      command, tickStartState,
-      player->GetMaxVelocity(), tickStartState.bodyFacing);
+  PlayerLocomotionInput input = BuildLegacyLocomotionInput(
+      command, tickStartState, player->GetMaxVelocity(), tickStartState.bodyFacing);
+  if (match->GetReferee()->RestartNeedsSimulation()) {
+    // The legacy idle-speed deadband stops approach ~0.7 m from a target.
+    // Pending legal positioning needs continuous low speeds; live-play semantics
+    // and the shared locomotion physics primitive are otherwise unchanged.
+    input.desiredVelocity = command.desiredDirection.Get2D().GetNormalized(tickStartState.facing) *
+        clamp(command.desiredVelocityFloat, 0.f, player->GetMaxVelocity());
+  }
   PlayerLocomotionParameters parameters;
   parameters.maxSpeed = player->GetMaxVelocity();
   PlayerKinematicState next = tickStartState;

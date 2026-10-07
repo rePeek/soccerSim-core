@@ -219,9 +219,11 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     rules->Process();
     const auto scheduled = rules->GetBuffer();
     REQUIRE(scheduled.stop_tick == stopped);
-    REQUIRE(scheduled.prepare_tick == stopped + football::sim::Seconds(2));
-    REQUIRE(scheduled.start_tick == scheduled.prepare_tick + football::sim::Seconds(2));
-    REQUIRE(match->GetTimelineTick() == scheduled.prepare_tick - football::sim::TickSpan{10});
+    REQUIRE(scheduled.restart.has_value());
+    REQUIRE(scheduled.restart->phase == RestartPhase::Pending);
+    REQUIRE(scheduled.restart->earliest_restart_tick >= stopped);
+    REQUIRE(scheduled.restart->timeout_tick > scheduled.restart->earliest_restart_tick);
+    REQUIRE(match->GetTimelineTick() == stopped);
     REQUIRE(match->GetMatchTime_ms() == football_time);
     REQUIRE(match->rng().engine() == rng_before);
     REQUIRE(scheduled.active);
@@ -231,17 +233,18 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE_FALSE(runtime.simulation.Observe().restart_taker.has_value());
     REQUIRE(match->GetTeam(0)->GetPieceTaker() == nullptr);
     REQUIRE(match->GetTeam(1)->GetPieceTaker() == nullptr);
-    while (match->GetTimelineTick() <= scheduled.prepare_tick)
-      runtime.simulation.Step(PlayerControlSet{});
+    runtime.simulation.Step(PlayerControlSet{});
     const auto world = runtime.simulation.Observe();
     REQUIRE(world.restart == mode);
     REQUIRE(world.restart_taker.has_value());
     REQUIRE(rules->GetBuffer().taker != nullptr);
     REQUIRE(match->GetTeam(scheduled.teamID)->GetPieceTaker() == rules->GetBuffer().taker);
     REQUIRE(match->GetTeam(1 - scheduled.teamID)->GetPieceTaker() == nullptr);
-    REQUIRE(rules->GetBuffer().start_tick == scheduled.start_tick);
-    while (match->GetTimelineTick() <= scheduled.start_tick)
-      runtime.simulation.Step(PlayerControlSet{});
+    REQUIRE_FALSE(match->IsInPlay());
+    // No positioning controls: repair legal placement only at the maximum.
+    match->AdvanceTime(scheduled.restart->timeout_tick - match->GetTimelineTick());
+    runtime.simulation.Step(PlayerControlSet{});
+    REQUIRE(rules->GetBuffer().restart->used_timeout_placement);
     REQUIRE(match->IsInPlay());
     for (int tick = 0; tick < 800 && match->IsInSetPiece(); ++tick)
       football::test::StepDefaultAI(runtime.simulation, runtime.policy);
@@ -296,6 +299,7 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
     REQUIRE(a.restart == b.restart);
     REQUIRE(a.restart_taker == b.restart_taker);
     REQUIRE(a.ball_retainer == b.ball_retainer);
+    REQUIRE(a.restart_pending == b.restart_pending);
     REQUIRE(Same(a.ball_position, b.ball_position));
     REQUIRE(Same(a.ball_velocity, b.ball_velocity));
     for (std::size_t side = 0; side < a.teams.size(); ++side) {
@@ -313,6 +317,8 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
       REQUIRE(x.has_possession == y.has_possession);
       REQUIRE(x.lazy == y.lazy);
       REQUIRE(x.max_speed == y.max_speed);
+      REQUIRE(x.restart_target.has_value() == y.restart_target.has_value());
+      if (x.restart_target) REQUIRE(Same(*x.restart_target, *y.restart_target));
       REQUIRE(Same(x.position, y.position));
       REQUIRE(Same(x.velocity, y.velocity));
       REQUIRE(Same(x.facing, y.facing));

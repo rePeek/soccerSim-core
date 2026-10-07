@@ -22,6 +22,7 @@ WorldState BuildWorldState(const Match& match) {
   if (restart.active) {
     world.restart = restart.desiredSetPiece;
     if (restart.taker) world.restart_taker = restart.taker->GetID();
+    world.restart_pending = match.GetReferee()->RestartNeedsSimulation();
   }
   if (Player *retainer = match.GetBallRetainer()) world.ball_retainer = retainer->GetID();
   for (int team_id = 0; team_id < 2; ++team_id) {
@@ -36,6 +37,7 @@ WorldState BuildWorldState(const Match& match) {
           player_frame.Direction(state.facing), player->IsActive(), player->HasPossession()};
       observed.lazy = player->GetFormationEntry().lazy;
       observed.max_speed = player->GetMaxVelocity();
+      observed.restart_target = match.GetReferee()->GetRestartTarget(player);
       world.players.push_back(observed);
     }
   }

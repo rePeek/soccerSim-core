@@ -19,7 +19,7 @@ void Init(Simulation& simulation, MatchOptions options = {}) {
 std::uint64_t Finish(Simulation& simulation) {
   std::uint64_t steps = 0;
   while (!simulation.Finished()) {
-    simulation.Step({}); REQUIRE(++steps < 2000);
+    simulation.Step({}); REQUIRE(++steps < 10000);
   }
   return steps;
 }
@@ -167,23 +167,23 @@ TEST_CASE("football clock keeps integer progress beyond float precision", "[sim]
   REQUIRE(simulation.Observe().match_time_ms == clock + 1);
 }
 
-TEST_CASE("result counts executed steps rather than compressed restart time", "[sim][lifecycle]") {
+TEST_CASE("result and timeline both count executed ordinary restart steps", "[sim][lifecycle]") {
   MatchOptions options; options.half_duration_ms = 18000;
   Simulation simulation; Init(simulation, options);
   std::uint64_t steps = 0;
   while (!simulation.IsInPlay()) { simulation.Step({}); ++steps; }
-  // Push the ball over the touchline; the referee fast-forwards the clock while
-  // the restart is prepared, so elapsed tick time outruns executed Step calls.
+  // Ordinary dead-ball positioning is executed, not compressed into a skip.
   const auto resets = simulation.Observe().reset_sequence;
   simulation.match()->GetBall()->ResetSituation(blunted::Vector3(10.f, 40.f, 0.f));
   for (int attempt = 0; attempt < 200 && simulation.Observe().reset_sequence == resets; ++attempt) {
     simulation.Step({}); REQUIRE(++steps < 3000);
   }
   REQUIRE(simulation.Observe().reset_sequence > resets);
-  REQUIRE(simulation.Observe().tick > steps);
-  while (!simulation.Finished()) { simulation.Step({}); REQUIRE(++steps < 2000); }
+  REQUIRE(simulation.Observe().tick == steps);
+  while (!simulation.Finished()) { simulation.Step({}); REQUIRE(++steps < 10000); }
   REQUIRE(simulation.Result().duration_ticks == steps);
-  REQUIRE(simulation.Observe().tick > steps);
+  // The final whistle call freezes physics/timeline but is one executed Step.
+  REQUIRE(simulation.Observe().tick + 1 == steps);
 }
 
 TEST_CASE("half time changes ends but keeps observations in the canonical home frame", "[sim][lifecycle]") {

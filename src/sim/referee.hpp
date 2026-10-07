@@ -19,9 +19,11 @@
 #define _HPP_REFEREE
 
 #include <vector>
+#include <optional>
 
 #include "sim/gamedefines.hpp"
 #include "sim/tick.hpp"
+#include "sim/rules/restart_readiness.hpp"
 
 
 using namespace blunted;
@@ -29,6 +31,21 @@ using namespace blunted;
 class Match;
 class Player;
 class Team;
+
+struct RestartPolicy {
+  football::sim::TickSpan minimum_delay;
+  football::sim::TickSpan maximum_delay;
+};
+enum class RestartPhase { Pending, Ready, Taken, InPlay };
+struct RestartState {
+  football::sim::Tick entered_tick{};
+  football::sim::Tick earliest_restart_tick{};
+  football::sim::Tick timeout_tick{};
+  RestartPhase phase = RestartPhase::Pending;
+  bool setup_done = false;
+  bool used_timeout_placement = false;
+  RestartPlan plan;
+};
 
 struct RefereeBuffer {
   // Referee has pending action to execute.
@@ -40,8 +57,9 @@ struct RefereeBuffer {
   football::sim::Tick prepare_tick{};
   football::sim::Tick start_tick{};
   Vector3 restartPos;
-  Player *taker;
+  Player *taker = nullptr;
   bool endPhase = false;
+  std::optional<RestartState> restart;
 };
 
 struct Foul {
@@ -67,9 +85,9 @@ class Referee {
     // the next Process() halts play at that boundary. Rules fact only.
     bool PeriodElapsed() const;
 
-    void PrepareSetPiece(e_GameMode setPiece);
-
     const RefereeBuffer &GetBuffer() { return buffer; };
+    bool RestartNeedsSimulation() const;
+    std::optional<Vector3> GetRestartTarget(const Player* player) const;
 
     void BallTouched();
     void TripNotice(Player *tripee, Player *tripper, int tackleType); // 1 == standing tackle resulting in little trip, 2 == standing tackle resulting in fall, 3 == sliding tackle
@@ -90,6 +108,11 @@ class Referee {
     std::vector<Player*> offsidePlayers;
 
     Foul foul;
+
+  private:
+    void ScheduleRestart(football::sim::TickSpan administration = {});
+    void ProcessRestart();
+    void PrepareCeremonialKickOff();
 };
 
 #endif

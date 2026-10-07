@@ -44,6 +44,14 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     movement.useDesiredLookAt = true;
     movement.desiredLookAt = control.look_at->Get2D();
   }
+  const auto& restart = player.GetMatch()->GetReferee()->GetBuffer();
+  if (restart.active && restart.restart) {
+    if (restart.restart->phase == RestartPhase::Pending) return {movement};
+    if (restart.taker != &player) {
+      movement.desiredVelocityFloat = 0.f;
+      return {movement};
+    }
+  }
   if (control.action == ControlAction::None) return {movement};
 
   PlayerCommand command = movement;

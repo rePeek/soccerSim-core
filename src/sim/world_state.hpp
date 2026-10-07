@@ -23,6 +23,8 @@ struct WorldPlayerState {
   bool has_possession = false;
   bool lazy = false;
   float max_speed = 0.0f;
+  // Rule-assigned positioning during a pending restart, in the same pitch frame.
+  std::optional<blunted::Vector3> restart_target;
 };
 
 struct WorldTeamState {
@@ -36,8 +38,8 @@ struct WorldTeamState {
 // processing orders. Change of ends never flips the observed defending directions.
 // No actor pointers, animation/command queues, mutable runtime or AI objects.
 struct WorldState {
-  // Absolute simulation timeline tick, including restart fast-forwards; not
-  // the number of executed Steps and not the scaled football clock.
+  // Absolute simulation timeline tick, not the scaled football clock.
+  // Ordinary restarts execute positioning steps; direct caller advances are possible.
   std::uint64_t tick = 0;
   MatchPhase phase = MatchPhase::PreMatch;
   // Scaled football clock, paused during stoppages, not elapsed/observation time.
@@ -53,6 +55,7 @@ struct WorldState {
   bool in_set_piece = false;
   e_GameMode restart = e_GameMode_Normal;
   std::optional<football::model::PlayerId> restart_taker;
+  bool restart_pending = false;
   std::optional<football::model::PlayerId> ball_retainer;
   // Match-owned count of ResetSituation discontinuities; resets with a new match.
   std::uint64_t reset_sequence = 0;

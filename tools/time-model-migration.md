@@ -51,26 +51,63 @@ No configurable physics dt, wall-clock pacing, or foundation time module.
   Extrapolation/rotation arithmetic order and quaternion rate encoding remain
   unchanged; this stage is not a rotation physics/model rewrite.
 
-These stages leave the legacy football clock, scale, fatigue, action progression,
-normal restart schedule and RNG windows unchanged. They do **not** yet implement the
+The unit-only stages T0–T4a left the legacy football clock, scale, fatigue, action
+progression, restart schedule and RNG windows unchanged. They did not implement the
 end-state rule that all simulation APIs/state use ticks. Football time can still
 have sub-tick increments; its millisecond storage is intentionally transitional.
 The temporary conversion in `AdvanceTime` preserves the exact previous float
 expression order for that clock and the possession accumulator.
 
-T1 tests cover both processing orders, direct clock advances without physics/RNG,
-restart jumps versus executed steps, the normal preparation tail after a jump,
-terminal freeze/reinitialization, and atomic rejection of invalid durations.
+Current timeline tests cover both processing orders, direct advances without
+physics/RNG, executed pending positioning, minimum/timeout crossing, terminal
+freeze/reinitialization and atomic rejection of invalid durations. The former
+preparation-tail assertions were deliberately replaced during S1, not during T1.
 Existing lifecycle tests still cover a 1 ms half and 1 ms scaled clock progress.
+
+## S1: ordinary restart semantics (not a unit-only migration)
+
+Ordinary outs, fouls/offside and post-goal kickoffs now use ball-out event →
+Pending → Ready → Taken → InPlay. Referee owns entered/earliest/timeout ticks.
+Preparation resets ball/action state once at current actor positions, then plans
+taker/legal targets without moving actors or consuming RNG. AI receives only
+value targets/pending status. Match executes positioning/physics every pending
+tick: the 190-tick preparation skip and ten-tick tail API are deleted.
+
+Readiness checks stopped actors near their targets, taker presence, ball position,
+height and low movement, opposition separation, kickoff halves, goal-kick area
+and penalty keeper/area constraints. A deterministic grid prevents clipped targets
+from overlapping. Pending locomotion permits sub-idle speeds: the old idle deadband
+otherwise stops the taker about 0.7 m short of a 0.35 m readiness target. Live-play
+deadband and the physics primitive remain unchanged. Pending controls cannot touch
+the ball. Authorization is separate from an actual accepted scheduled taker touch;
+action cursor expiry and repeated throw-in retain anchoring cannot release play.
+
+Referee's ball mirror is not always the first roster's mirror under reverse
+processing. The restart-local RefereeBallPitchFrame adapter handles that scope;
+plans/observations remain in the fixed home-pitch frame through changes of ends.
+
+Initial engineering minimum/maximum bounds, in ticks: free kick 0/3000, throw-in
+200/2000, goal kick 300/3000, corner 500/3000, penalty 200/3000, post-goal kickoff
+500/3000. Card administration adds 1000 to both bounds; card effects still occur
+after 600. A free kick has no mandatory extra delay when already legally ready.
+These are **provisional bounds, not measured realism calibration**. At timeout,
+legal ball/actor placement is repaired once; no touch or AI command is fabricated.
+Opening and half-time ceremonial kickoffs retain their old schedule/placement via
+private PrepareCeremonialKickOff, not the ordinary readiness path.
+
+Core's four numerical/RNG golden pairs and baked assets remain unchanged. Only
+the normal-order 3/2-roster identity policy fingerprint changes: its first ordinary
+free kick occurs at executed step 207 (entered tick 206). Historical values and
+the deliberate policy delta are archived in test/baselines/pre_condition_restarts.md.
+The default autonomous result intentionally changes from 2–1 / 31041 steps to
+1–2 / 34097 steps; do not confuse this with a unit conversion regression.
 
 ## Remaining stages and semantic boundaries
 
-1. **Referee restart model (semantic, after unit migration):** replace the temporary
-   fixed event schedule with Pending/Ready/Taken state and readiness conditions.
-   A per-restart policy supplies minimum elapsed time and a maximum-time fallback,
-   not a fixed preparation delay. Separate positioning/ball placement, taker and
-   legal-opponent readiness, permission to execute, and actual scheduled contact.
-   Referee is the first time-policy owner to be rebuilt.
+1. **Restart completeness/calibration:** calibrate bounds and actor positioning;
+   model richer quick-versus-ceremonial free-kick/wall/card interactions and ball
+   retrieval. Opening/half-time ceremonies remain separate. S1 is the bounded
+   readiness foundation, not a complete IFAB implementation or a realism result.
 2. **Remaining Player/Humanoid calculations:** migrate remaining time readers
    and grid-based query horizons. Diagnostic output may project old wire units;
    gameplay must not retain duplicate clocks. Action cursor/scheduler/touch/card
@@ -94,11 +131,10 @@ Existing lifecycle tests still cover a 1 ms half and 1 ms scaled clock progress.
 
 Time representation does not explain why a duration exists. Keep three categories
 separate: the immutable tick quantum; owner-local football/behavior policy; and
-legacy scheduling tricks, which are removed rather than renamed. The restart
-model must avoid a circular readiness test: current `PrepareSetPiece` places the
-ball and teleports actors. Those effects must be separated before readiness can
-be evaluated as a precondition. The 300-tick throw-in minimum suggested during
-design is illustrative, not a selected production calibration.
+legacy scheduling tricks, which are removed rather than renamed. S1 avoids
+circular readiness: ordinary reset/ball placement does not teleport actors; only
+the explicit timeout fallback repairs their positions. The 300-tick throw-in
+minimum suggested during design is illustrative, not a calibration requirement.
 
 ### Why three proposed changes cannot be unit-only
 
@@ -110,13 +146,25 @@ design is illustrative, not a selected production calibration.
   per physical tick; the test explicitly asserts this. Deleting the scale also
   changes the default match's executed duration and distance-weighted fatigue.
   Pure integer regulation ticks cannot preserve all old configurations.
-- A preparation deadline 200 ticks away currently skips 190 ticks, then performs
-  the remaining normal ticks before preparation. Jumping straight to the deadline
-  removes executed steps, including action/physics/RNG opportunities, and changes
-  `MatchResult::duration_ticks`. T1 locks this old schedule down so its later
-  replacement is an intentional, bisectable semantic change.
+- Before S1, a preparation deadline 200 ticks away skipped 190 ticks, then
+  performed a ten-tick tail. Altering that schedule changes executed physics,
+  action/RNG opportunities and MatchResult::duration_ticks. T1 first preserved
+  it; S1 deliberately replaces it with executed readiness waiting in a separate
+  semantic commit. No direct-deadline jump masquerades as unit migration.
 
 There is currently **no** replay, GNN, Coach or analytics scheduler implementation
 in `src`. Do not create unused infrastructure for them during this migration.
 If 24 Hz replay is later implemented, use integer phase accumulation on the
 100 Hz grid, not a four-tick/25 Hz approximation.
+
+## S1 verification
+
+- Release, Debug and true NDEBUG: 25/25 CTest executables in each mode.
+- Core-only build passes; policy still links without concrete simulation actors.
+- `[restart]`: 395578 assertions in seven cases, including 48 pure-plan geometry
+  combinations, native ball-out frame checks and 800-step value/RNG replay with
+  a sent-off taker replaced under both processing orders.
+- Core golden pairs unchanged; all four regression and all four identity rows
+  match across the three build modes. Full default result also matches across modes.
+- Baked animation SHA256 unchanged:
+  `33ab837652da93a795e4886738ca09b92e4b6376c99a2500202572e0a7885b86`.

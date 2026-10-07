@@ -170,7 +170,15 @@ void DefaultAI::Update(const WorldState &world, PlayerControlSet &output) const 
     const auto &requests = this->requests(player.side);
     Vector3 target = FormationTarget(world, tactics(player.side), directive, player, requests);
 
-    if (!world.in_play || player.lazy ||
+    if (world.restart_pending) {
+      const Vector3 delta = (player.restart_target.value_or(player.position) - player.position).Get2D();
+      control.move_direction = delta.GetNormalized(player.facing);
+      control.desired_speed = std::min(player.max_speed, delta.GetLength() * 2.f);
+      control.look_at = world.ball_position;
+      output.Set(player.id, control);
+      continue; // Position legally without requesting any ball contact.
+    }
+    if (!world.in_play || (player.lazy && !(world.in_set_piece && world.restart_taker == player.id)) ||
         (world.in_set_piece && world.restart_taker != player.id)) {
       control.move_direction = player.facing;
       output.Set(player.id, control);

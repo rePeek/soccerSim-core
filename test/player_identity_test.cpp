@@ -328,7 +328,9 @@ void CheckHistoricalScheduling(bool print_baseline) {
   constexpr Case cases[] = {
       {false, false, UINT64_C(13711565807151734712), UINT64_C(17201809211116718618)},
       {false, true, UINT64_C(16717170963448916555), UINT64_C(13813028668665107254)},
-      {true, false, UINT64_C(1658563135750430224), UINT64_C(10374616427843446362)},
+      // S1: first ordinary free kick at step 207 now executes readiness waiting.
+      // The old policy row is archived in baselines/pre_condition_restarts.md.
+      {true, false, UINT64_C(7907520300668161649), UINT64_C(12681165719454811576)},
       {true, true, UINT64_C(13287372985434084791), UINT64_C(12082599955711407290)},
   };
   for (const Case& test : cases) {
@@ -347,6 +349,14 @@ void CheckHistoricalScheduling(bool print_baseline) {
     const auto policy = football::test::MakeDefaultAI(simulation);
     for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto before = CaptureScheduleState(simulation);
+    if (test.unequal && !test.reverse) {
+      const auto& restart = simulation.match()->GetReferee()->GetBuffer();
+      Require(simulation.Observe().restart_pending && restart.restart &&
+                  restart.desiredSetPiece == e_GameMode_FreeKick &&
+                  restart.restart->entered_tick == football::sim::Tick{206} &&
+                  simulation.Observe().tick == 300,
+              "condition-restart fixture no longer exercises the documented policy delta");
+    }
     simulation.match()->GetTeam(0)->GetAllPlayers().at(1)->SendOff();
     for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto after = CaptureScheduleState(simulation);

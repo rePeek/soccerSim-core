@@ -26,7 +26,7 @@ target_sources(football_sim PRIVATE
   pitch_frame.cpp
   ai_support/mentalimage.cpp
   query/player_query.cpp query/reachability.cpp
-  rules/offside.cpp rules/restart_placement.cpp
+  rules/offside.cpp rules/restart_placement.cpp rules/restart_readiness.cpp
   player/kick_targeting.cpp team.cpp
 
   gamedefines.hpp formation.hpp ball.hpp ball_timing.hpp match.hpp match_world_state.hpp
@@ -34,7 +34,7 @@ target_sources(football_sim PRIVATE
   referee.hpp team.hpp value_history.hpp
   ai_support/mentalimage.hpp
   query/player_query.hpp query/reachability.hpp
-  rules/offside.hpp rules/restart_placement.hpp
+  rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp
   player/humanoid/humanoidbase.hpp player/humanoid/humanoid.hpp
   player/humanoid/humanoid_utils.hpp
   player/player.hpp player/player_control_builder.hpp player/player_kinematics.hpp

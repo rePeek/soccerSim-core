@@ -72,7 +72,7 @@ src/
 │   ├── pitch_frame.* shared runtime ↔ canonical home-pitch adapters (sim-private)
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries and reachability
-│   ├── rules/        offside and restart placement
+│   ├── rules/        offside, ceremonial placement and ordinary restart readiness
 │   ├── ai_support/   mentalimage: execution history, not decision policy
 │   └── player/       concrete Player, controls, locomotion, mechanics and scheduling
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
@@ -111,8 +111,9 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── sim_control_boundary_test.cpp controls/frames/reset/replay
 ├── sim_match_lifecycle_test.cpp phases/clocks/end changes/result/freeze
 ├── pitch_frame_test.cpp     half/order geometry, nonzero ball/velocity and control round trips
-├── match_tick_test.cpp      timeline authority, restart tail, freeze and invalid boundaries
+├── match_tick_test.cpp      timeline authority, restart bounds, freeze and invalid boundaries
 ├── restart_placement_test.cpp + restart_placement_fixture.hpp
+├── restart_readiness_test.cpp geometry, actor waiting, authorization/contact and frame contracts
 ├── anim_baking_test.cpp      two independent bakes, byte equality, field/selection verification
 ├── legacy_animation_import_test.cpp parser semantics, codecs and catchable failures
 └── baselines/               historical policy/input/phase schema goldens
@@ -193,6 +194,11 @@ anim_baking → legacy_anim + animation/foundation
   Pitch-frame regressions cover both halves × both processing orders, repeated
   physical end changes, exact player/ball distance preservation, input immutability
   and DefaultAI chasing the real ball instead of its ghost mirror.
+  Readiness plans cover 48 mode/order/taker/end-change combinations, plus native
+  ball-out classification/placement, minimum/timeout crossing, non-repeated reset/RNG,
+  actual scheduled release and different actor-dependent waiting times.
+  An additional 800-step value/RNG replay under both orders covers pending targets
+  and replacement of a sent-off taker.
 - `football_anim_baking_test`: independent source loads/bakes produce identical
   bytes, artifact round-trip/field/selection checks and failure cases. CTest also
   invokes the real baker's --check, --verify, --verify-selection flags.
@@ -251,7 +257,7 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   their write-only history storage are deleted, not replaced.
   The legacy scaled football clock remains millisecond-based until its semantic migration:
   it supports sub-tick progress. See tools/time-model-migration.md before removing
-  scale, rounding arrival estimates, or replacing the old restart preparation tail.
+  scale or rounding arrival estimates. Ordinary restart skips are removed in S1.
 - Referee owns period transitions; Match owns phase, football clock, score and
   executed-step count. MatchPhase is PreMatch/FirstHalf/SecondHalf/Finished;
   second-half kickoff preparation is inside SecondHalf. Defaults are two 45-minute
@@ -262,8 +268,9 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   period boundaries. Whistles win over pending restarts and that tick's ball contact.
 - Terminal Match freezes clocks, actors, actions, ball, scores, RNG and Result.
   duration_ticks counts executed Steps including the terminal transition; World.tick
-  is the simulation timeline including restart skips. Football match_time_ms is
-  separately paused/scaled; never conflate these three measures.
+  is the monotonic simulation timeline. Ordinary dead balls execute every positioning
+  tick, without skips; the terminal whistle call does not advance the timeline.
+  Football match_time_ms is still separately paused/scaled.
 - Half time mirrors both teams/ball/mental images once at the next canonical
   between-tick frame. Static physical sides flip, while WorldState keeps the home
   frame and TeamSide remains Home/Away. The same physical goal credits the opposite
@@ -292,13 +299,22 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
 - Requests bind player IDs to issuance tick/reset_sequence/epoch. New Matches or
   rule resets cannot revive old intent; explicit ResetRequests is cleanup, not a
   correctness precondition. Unbound synthetic observations cannot issue requests.
-- RefereeBuffer is sole restart type/taker/prepare/start authority. sim/rules owns
-  restart placement/taker/retain mechanics. No duplicate AI restart authority.
-  Stop/prepare/start/foul are `Tick`; relaxation is `TickSpan`. Due checks accept
-  crossed deadlines and prepare/whistle are one-shot via taker/play state.
-  Match owns preparation fast-forwarding, retaining the old ten-tick simulated
-  tail during unit migration. This is temporary scheduling policy, not football
-  readiness; later replace it with Pending/Ready/Taken and minimum/timeout bounds.
+- RefereeBuffer owns restart facts. Ordinary restarts use Pending → Ready → Taken
+  → InPlay with entered/earliest/timeout Tick boundaries and local min/max policy.
+  Ball/action reset and taker/target planning occur once, without actor teleportation;
+  actors move under controls while pending. Readiness checks ball placement/movement,
+  taker approach, legal opposition distance/areas and stopped actor positioning.
+  `rules/restart_readiness.*` owns pure home-frame plans and geometric predicates.
+  DefaultAI receives only restart_pending/per-player target values in WorldState;
+  pending commands cannot request contacts. Sub-idle movement stays continuous
+  during pending positioning; the legacy live-play deadband is unchanged.
+  Maximum delay repairs legal positions once, never invents a contact. Actual
+  scheduled taker contact releases the set piece; cursor expiry/retain anchoring does not.
+  No preparation fast-forward/tail API remains. Opening/half-time ceremonies alone
+  retain old prepare/start Tick deadlines, through private PrepareCeremonialKickOff.
+  Bounds are provisional engineering policy, not realism calibration. Remaining
+  football clocks, richer quick-free-kick/wall administration and calibration are
+  explicitly tracked in tools/time-model-migration.md.
 - Diagnostics/tests may compose Simulation and explicit PlayerControlSet sequences
   outside GameEnv. Equal declarations + equal control tapes must replay identical
   WorldState payloads and RNG states; epoch identities intentionally differ.
@@ -342,12 +358,12 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   private phases, destruction order and appearance/reseed windows stay unchanged.
 - Officials are rules, not animated actors. Referee is unique_ptr-owned by Match;
   no PlayerOfficial, official profiles or animation-driven restart timing remains.
-  Legacy card budget is 1000 ticks + 200 preparation + 200 whistle ticks.
-  Referee schedules deadlines; Match fast-forwards to preparation minus its
-  existing ten-tick simulated tail (40 skipped ticks after a goal, 190 for ordinary
-  restarts, plus the card budget). Initial/half-time kickoff deadlines remain
-  unchanged. There is no animation/waiting-mode switch; baked animation resources
-  remain mandatory for player motion/actions/contact.
+  Card administration adds 1000 ticks to ordinary restart minimum/maximum bounds;
+  player card effect remains due 600 ticks after the foul. No skips implement either.
+  Initial/half-time ceremonial kickoff deadlines remain unchanged. There is no
+  animation/waiting-mode switch; baked animation resources remain mandatory for
+  player motion/actions/contact. Historical pre-readiness policy fingerprints are
+  archived in test/baselines/pre_condition_restarts.md.
   Official removal intentionally changed RNG/goldens; current baselines include it.
 - No ambient environment/context/RNG, ScenarioConfig, controller hierarchy, retired
   GRF binding or memory-hook checkpoints. Durable saves would need explicit values.

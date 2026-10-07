@@ -244,8 +244,9 @@ bool Match::Step(const PlayerControlSet& controls) {
   Mirror(reverse, !reverse, reverse);
   // Restore the processing frame even on the referee's terminal transition.
   if (Finished()) return false;
-  if (!IsInPlay() && referee_->GetBuffer().prepare_tick + football::sim::TickSpan{1} < now_) {
-    // Do not do simulation when game is on hold to save CPU.
+  if (!IsInPlay() && !referee_->RestartNeedsSimulation() &&
+      referee_->GetBuffer().prepare_tick + football::sim::TickSpan{1} < now_) {
+    // Only the unchanged opening/half-time ceremony can hold actors still.
     AdvanceTime(football::sim::TickSpan{1});
     return false;
   }
@@ -894,12 +895,4 @@ void Match::AdvanceTime(football::sim::TickSpan delta) {
       possession60seconds_ = std::min(possession60seconds_ + (0.001f * time), 60.0f);
     }
   }
-}
-
-void Match::AdvanceToRestartPreparation(football::sim::Tick preparation_tick) {
-  // Unit-only migration: the legacy scheduler executes the last ten ticks
-  // before preparation. Readiness-driven waiting replaces this policy later.
-  constexpr football::sim::TickSpan kSimulatedPreparationTail{10};
-  if (preparation_tick > now_ + kSimulatedPreparationTail)
-    AdvanceTime((preparation_tick - now_) - kSimulatedPreparationTail);
 }

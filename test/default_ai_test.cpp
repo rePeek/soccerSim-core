@@ -192,6 +192,25 @@ TEST_CASE("value AI reads restart authority only from WorldState", "[ai]") {
   REQUIRE(controls.Get(20)->action == ControlAction::None);
 }
 
+TEST_CASE("pending restart AI positions actors without requesting a contact", "[ai][restart]") {
+  WorldState world;
+  world.restart_pending = true;
+  world.players = {Actor(10, TeamSide::Home, Vector3(0)),
+                   Actor(20, TeamSide::Away, Vector3(1, 0, 0))};
+  world.players[0].restart_target = Vector3(5, 0, 0);
+  world.players[0].lazy = true; // Rule positioning still has to be legal.
+  auto policy = Shape(world);
+  PlayerControlSet controls;
+  policy.Update(world, controls);
+  REQUIRE(controls.Get(10)->action == ControlAction::None);
+  REQUIRE(controls.Get(10)->desired_speed > 0.f);
+  REQUIRE(controls.Get(10)->move_direction.coords[0] > 0.f);
+  REQUIRE(controls.Get(20)->desired_speed == 0.f);
+  world.players[0].position = *world.players[0].restart_target;
+  policy.Update(world, controls);
+  REQUIRE(controls.Get(10)->desired_speed == 0.f);
+}
+
 TEST_CASE("external tactical edits persist and change decisions without rewriting anchors", "[ai]") {
   WorldState world;
   world.in_play = true;
