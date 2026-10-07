@@ -37,12 +37,14 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
              const football::model::Pitch& pitch,
              const MatchOptions& options,
              SimulationRng& rng,
-             std::shared_ptr<const AnimationLibrary> animation_library)
+             std::shared_ptr<const AnimationLibrary> animation_library,
+             std::vector<MentalImage>& mental_images)
     : pitch_(pitch),
       animations_(std::move(animation_library)),
       rng_(rng),
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
+      borrowed_mental_images_(mental_images),
       options_(options) {
 
 
@@ -113,7 +115,7 @@ void Match::Mirror(bool team_0, bool team_1, bool ball) {
     ball_mirrored = !ball_mirrored;
     this->ball->Mirror();
   }
-  for (auto &i : mentalImages) {
+  for (auto &i : borrowed_mental_images_) {
     i.Mirror(team_0, team_1, ball);
   }
 }
@@ -125,7 +127,6 @@ void Match::Exit() {
   delete teams[second_team];
   delete ball;
   referee_.reset();
-  mentalImages.clear();
 
 
 }
@@ -136,21 +137,18 @@ void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
 }
 
 MentalImage *Match::GetMentalImage(football::sim::TickSpan history) {
-  return &mentalImages[football::sim::observation::MentalImageSampleIndex(mentalImages.size(), history)];
+  return football::sim::observation::SampleMentalImage(borrowed_mental_images_, history);
 }
 
 MentalImage *Match::GetMentalImage(std::chrono::milliseconds history) {
-  return &mentalImages[football::sim::observation::MentalImageSampleIndex(mentalImages.size(), history)];
-}
-
-void Match::UpdateLatestMentalImageBallPredictions() {
-  if (!mentalImages.empty()) mentalImages[0].UpdateBallPredictions();
+  return football::sim::observation::SampleMentalImage(borrowed_mental_images_, history);
 }
 
 void Match::TouchBall(const Vector3& impulse) {
   // Keep the legacy ordering, including pre-rotation observer/possession refresh.
   ball->Touch(impulse, GetBallEnvironment());
-  UpdateLatestMentalImageBallPredictions();
+  football::sim::observation::RefreshLatestMentalImageBallPredictions(
+      borrowed_mental_images_, *ball);
   teams[first_team]->UpdatePossessionStats();
   teams[second_team]->UpdatePossessionStats();
 }
@@ -159,7 +157,7 @@ void Match::ResetSituation(const Vector3 &focusPos) {
   ++reset_sequence_;
   SetBallRetainer(0);
   SetGoalScored(false);
-  mentalImages.clear();
+  borrowed_mental_images_.clear();
   goalScored = false;
   ballIsInGoal = false;
   for (unsigned int i = 0; i < e_TouchType_SIZE; i++) {
@@ -183,7 +181,7 @@ void Match::SwitchEnds() {
   teams[first_team]->SwitchEnds();
   teams[second_team]->SwitchEnds();
   ball->Mirror();
-  for (auto &i : mentalImages) {
+  for (auto &i : borrowed_mental_images_) {
     i.Mirror(true, true, true);
   }
 }

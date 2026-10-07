@@ -167,6 +167,11 @@ after roster refreshes; the separate physical `ballRetainer` fact remains Match-
 Match is not yet a state-only container; touch/reset/history bridges remain.
 `Simulation::match()` remains a temporary test/diagnostic escape hatch.
 
+Simulation directly owns the three-slot MentalImage history and capture cadence.
+Observation sampling/newest-ball refresh take explicit spans; Match borrows this same
+history only for transitional actor/touch/reset/mirror composition, never via a
+Simulation pointer. `MentalImage::Match*` remains for a separate dependency extraction.
+
 ## Build and tests
 
 Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,

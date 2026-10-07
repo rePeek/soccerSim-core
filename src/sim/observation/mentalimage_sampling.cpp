@@ -5,6 +5,8 @@
 #include <stdexcept>
 
 #include "sim/time/tick_boundary.hpp"
+#include "sim/ball/ball.hpp"
+#include "sim/observation/mentalimage.hpp"
 
 namespace football::sim::observation {
 
@@ -24,6 +26,20 @@ std::size_t MentalImageSampleIndex(std::size_t size,
   const double capture_ms = static_cast<double>(ToMilliseconds(kMentalImageCadence));
   const double slot = std::round(static_cast<float>(age.count()) / capture_ms);
   return static_cast<std::size_t>(std::clamp(slot, 0.0, static_cast<double>(size - 1)));
+}
+
+MentalImage* SampleMentalImage(std::span<MentalImage> images, TickSpan age) {
+  return &images[MentalImageSampleIndex(images.size(), age)];
+}
+
+MentalImage* SampleMentalImage(std::span<MentalImage> images,
+                              std::chrono::milliseconds age) {
+  return &images[MentalImageSampleIndex(images.size(), age)];
+}
+
+void RefreshLatestMentalImageBallPredictions(std::span<MentalImage> images,
+                                            const Ball& ball) {
+  if (!images.empty()) ball.GetPredictionArray(images.front().ballPredictions);
 }
 
 }  // namespace football::sim::observation

@@ -3,8 +3,12 @@
 
 #include <chrono>
 #include <cstddef>
+#include <span>
 
 #include "sim/time/tick.hpp"
+
+class Ball;
+class MentalImage;
 
 namespace football::sim::observation {
 
@@ -15,6 +19,13 @@ inline constexpr TickSpan kMentalImageCadence{10};
 std::size_t MentalImageSampleIndex(std::size_t size, TickSpan age);
 std::size_t MentalImageSampleIndex(std::size_t size,
                                   std::chrono::milliseconds age);
+
+MentalImage* SampleMentalImage(std::span<MentalImage> images, TickSpan age);
+MentalImage* SampleMentalImage(std::span<MentalImage> images,
+                              std::chrono::milliseconds age);
+// Synchronous touch feedback: only the newest capture's ball predictions refresh.
+void RefreshLatestMentalImageBallPredictions(std::span<MentalImage> images,
+                                            const Ball& ball);
 
 }  // namespace football::sim::observation
 

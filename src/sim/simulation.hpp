@@ -1,7 +1,9 @@
 #ifndef FOOTBALL_SIM_SIMULATION_HPP
 #define FOOTBALL_SIM_SIMULATION_HPP
 
+#include <chrono>
 #include <memory>
+#include <vector>
 
 #include "sim/player/player_control_set.hpp"
 #include "model/team.hpp"
@@ -9,6 +11,7 @@
 #include "sim/match/match_options.hpp"
 #include "sim/random/rng.hpp"
 #include "sim/observation/world_state.hpp"
+#include "sim/observation/mentalimage.hpp"
 #include "sim/match/match_result.hpp"
 
 class Match;
@@ -37,10 +40,17 @@ class Simulation {
   Match* match() { return match_.get(); }
   const Match* match() const { return match_.get(); }
 
+  // Transitional test/diagnostic sampling; pointers expire on capture/reset/Stop.
+  MentalImage* GetMentalImage(football::sim::TickSpan history);
+  MentalImage* GetMentalImage(std::chrono::milliseconds history);
+
  private:
   void EnsureAnimationLibrary();
+  void CaptureMentalImage(Match& match);
 
   blunted::SimulationRng rng_;
+  // Constructed before Match and kept alive until its borrowed references are gone.
+  std::vector<MentalImage> mental_images_;
   std::unique_ptr<Match> match_;
   std::shared_ptr<AnimationLibrary> animations_;
 };

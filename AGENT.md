@@ -63,7 +63,7 @@ src/
 │   ├── pitch.hpp     sole pitch geometry type (legacy 110 × 72 metres)
 │   └── football_types.hpp roles/game modes/player count
 ├── sim/              domain-organized rules, physics, execution and observation
-│   ├── simulation.*  sole top-level concept; owns Match, RNG and baked library
+│   ├── simulation.*  owns Match, RNG, MentalImage history and baked library
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
 │   ├── match/        Match, options, phase, result and legacy pitch geometry aliases
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
@@ -113,6 +113,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── player_contact_test.cpp   explicit contact inputs, in-place pair order and no RNG/ball mutation
 ├── goal_test.cpp             standalone goal geometry, segment bounds and legacy side-net veto
 ├── possession_test.cpp       arrival ranking, ties, hysteresis and retainer override
+├── mental_image_history_test.cpp sole history, newest refresh, mirrors/reset/lifetime isolation
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
 ├── player_observation_tick_test.cpp publication/reset stamps, re-entry ages and history sampling
 ├── reachability_tick_test.cpp grid candidate rollouts, split horizons and continuous precision
@@ -296,6 +297,16 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   Simulation publishes bestPossessionTeam then designatedPossessionPlayer at the old
   phase boundary. Both selection fields and the distinct physical ballRetainer fact
   remain Match-owned; Team/Player possession refresh algorithms are not moved.
+- Simulation owns std::vector<MentalImage> and CaptureMentalImage scheduling. Capture
+  remains after Ball processing, before players, empty-or-ten-tick, newest-first with
+  three slots. Match borrows the vector explicitly for still-transitional actor sampling,
+  synchronous TouchBall refresh, reset clearing and mirror/end-change composition; it
+  owns no history and never points upward to Simulation. Sampling/refresh functions
+  live in observation/mentalimage_sampling and take explicit spans/Ball. Match's former
+  UpdateLatestMentalImageBallPredictions method is removed. Simulation diagnostic sampling
+  and the actor bridge see the same objects, not duplicate histories. Stop clears history
+  at the old teardown point and its storage outlives Match. MentalImage::Match* removal
+  is a later separate extraction; no ObservationManager or asynchronous feedback is added.
 
 Current phase order (composed directly by Simulation):
 ```text
@@ -491,9 +502,9 @@ Player publication/reset provenance uses optional Tick (unset is not tick zero);
 re-entry age sums/maxima use TickSpan. The unused decision-queue shadow, stale
 millisecond accessors and write-only per-query trace fields are deleted; the sole
 PlayerDecisionQueue and continuity/oracle contracts remain. Tactical image delay
-is computed only at the sampling call, not cached as Player state. Match's native
-history API uses TickSpan and nearest-capture half-up sampling with a shared owner-
-local ten-tick cadence; the signed millisecond sampling adapter preserves legacy
+is computed only at the sampling call, not cached as Player state. Simulation's native
+history API and Match's borrowed actor bridge use TickSpan and nearest-capture half-up
+sampling; the ten-tick cadence and signed millisecond adapter preserve legacy
 reaction rounding. Empty history is an explicit logic_error, not an invalid pointer.
 Continuous reachability/reaction estimates and Humanoid SI/animation arithmetic
 are not integer-grid deadlines; their remaining calculation migrations are separate.
@@ -524,12 +535,12 @@ side history/accessor and its sole ValueHistory implementation are deleted.
 
 ### Typed reaction sampling after T4e
 
-Match history sampling accepts TickSpan for grid ages or std::chrono::milliseconds
+History sampling accepts TickSpan for grid ages or std::chrono::milliseconds
 for signed continuous reaction estimates; the untyped int overload is removed.
 Chrono durations here are calculation values, never simulation instants, physics dt,
 schedulers or clock accumulators. Humanoid's mentalImageTime is a typed reaction
 delay with intentional previous-delay/current-delay stages, not a redundant timestamp.
-Keep its ordering; only Match rounds to capture slots. Sampling clamps before integer
+Keep its ordering; observation/mentalimage_sampling rounds to capture slots. It clamps before integer
 narrowing and handles the full signed duration range. Physical/RNG rows and complete
 seed 42/43/44 restart records remain unchanged after T4c–T4e in all tested modes.
 

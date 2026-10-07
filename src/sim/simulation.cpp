@@ -127,7 +127,7 @@ void Simulation::Init(
 
   EnsureAnimationLibrary();
   match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
-                                  animations_);
+                                  animations_, mental_images_);
 }
 
 void Simulation::EnsureAnimationLibrary() {
@@ -171,7 +171,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
     match.GetTeam(match.FirstTeam())->GetActivePlayers(players);
     match.GetTeam(match.SecondTeam())->GetActivePlayers(players);
     const football::sim::BallPlayerContactInputs inputs{
-        match.teams, match.FirstTeam(), match.lastTouchTeamID, match.mentalImages,
+        match.teams, match.FirstTeam(), match.lastTouchTeamID, mental_images_,
         match.GetTimelineTick(), match.last_body_ball_collision_tick_};
     const auto contact = football::sim::ResolveBallPlayerContacts(
         *match.GetBall(), players, inputs);
@@ -203,13 +203,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
   match.Mirror(false, false, reverse);
 
   // CaptureHistory: preserve the pre-player-processing capture and sample-zero timing.
-  if (match.mentalImages.empty() ||
-      match.now_.value % football::sim::observation::kMentalImageCadence.value == 0) {
-    match.mentalImages.insert(match.mentalImages.begin(), MentalImage(&match));
-    if (match.mentalImages.size() > 3) {
-      match.mentalImages.pop_back();
-    }
-  }
+  CaptureMentalImage(match);
 
   // StepPlayers, each in its own execution frame.
   match.Mirror(match.first_team == 1, match.first_team == 0, false);
@@ -287,6 +281,24 @@ WorldState Simulation::Observe() const {
   return BuildWorldState(*match_);
 }
 
+void Simulation::CaptureMentalImage(Match& match) {
+  if (mental_images_.empty() ||
+      match.GetTimelineTick().value % football::sim::observation::kMentalImageCadence.value == 0) {
+    mental_images_.insert(mental_images_.begin(), MentalImage(&match));
+    if (mental_images_.size() > 3) {
+      mental_images_.pop_back();
+    }
+  }
+}
+
+MentalImage* Simulation::GetMentalImage(football::sim::TickSpan history) {
+  return football::sim::observation::SampleMentalImage(mental_images_, history);
+}
+
+MentalImage* Simulation::GetMentalImage(std::chrono::milliseconds history) {
+  return football::sim::observation::SampleMentalImage(mental_images_, history);
+}
+
 bool Simulation::Finished() const {
   return match_ && match_->Finished();
 }
@@ -299,6 +311,7 @@ MatchResult Simulation::Result() const {
 bool Simulation::Stop() {
   if (!match_) return false;
   match_->Exit();
+  mental_images_.clear();
   match_.reset();
   return true;
 }
