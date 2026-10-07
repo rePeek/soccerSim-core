@@ -191,6 +191,9 @@ facts. Simulation evaluates the pre-contact gate and original whistle boundary; 
 preserves EndHalf → referee-state mutation → phase publication → pending end change.
 Referee::OnPeriodEnded takes explicit tick/phase/kickoff inputs and changes only its own
 facts. Other Referee → Match dependencies and restart consequences remain transitional.
+TripNotice independently updates foul facts from explicit tick/Ball position and live actors.
+Contacts still invoke it immediately after TripMe; advantage/card/restart consequences
+remain in the legacy Referee composition. No RulesContext or deferred notices are added.
 
 ## Build and tests
 

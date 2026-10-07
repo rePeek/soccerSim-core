@@ -241,7 +241,8 @@ void Simulation::Step(const PlayerControlSet& controls) {
   match.GetTeam(match.first_team)->GetActivePlayers(players);
   match.GetTeam(match.second_team)->GetActivePlayers(players);
   football::sim::ResolvePlayerContacts(
-      {players, *match.ball, match.designatedPossessionPlayer}, *match.referee_);
+      {match.GetTimelineTick(), players, *match.ball, match.designatedPossessionPlayer},
+      *match.referee_);
 
   // AdvanceClock → recent possession window → goal detection/consequences.
   const auto admitted = match.clock_.Advance(football::sim::TickSpan{1}, match.matchPhase);

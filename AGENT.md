@@ -281,12 +281,18 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   restart diagnostics for seeds 42/43/44 × both orders × default/symmetric fixtures
   (30000 ticks per half) are byte-identical. No golden, physics or policy change.
 - player/player_contact owns the former humanoid-pair collision algorithm and private
-  bounce accumulators. Inputs are an ordered active-player span, const Ball and the
+  bounce accumulators. Inputs are Tick, ordered active-player span, const Ball and the
   designated possession player, never Match/Simulation. Simulation supplies first then
   second roster in the common contact frame after possession, before clock advancement.
   Pair offsets remain immediate; movement sharing is accumulated/applied afterward.
   Referee& is an explicit transitional dependency: TripMe → TripNotice executes inline
   before any later pair/offset. Do not buffer notices; rules inspect live positions.
+  TripNotice is now a Match-independent foul-state operation with explicit now/Ball
+  position, sampled after TripMe in the same physical frame. It still reads live actors,
+  keeps foul facts in Referee and has no implicit-clock wrapper. Preserve strict >60
+  touch grace, standing 2D/sliding 3D radii, double literals, severity arithmetic, immediate
+  publication and duplicate-tackler gates. CheckFoul/advantage/card/restart composition
+  still read Match; this does not parameterize all of Referee or add a RulesContext.
   Player contact extraction preserves the same regression fingerprints and twelve
   seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
 - rules/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving

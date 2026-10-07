@@ -270,7 +270,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (p1sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           p1->TripMe((p1->GetKinematicState().velocity * 0.1f + p2->GetKinematicState().velocity * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec), tripType);
-          referee.TripNotice(p1, p2, tripType);
+          referee.TripNotice(p1, p2, tripType, inputs.now, inputs.ball.Predict(0));
         }
       }
       if (p2sensitivity > trip0threshold) {
@@ -279,7 +279,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (p2sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           p2->TripMe((p2->GetKinematicState().velocity * 0.1f + p1->GetKinematicState().velocity * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec), tripType);
-          referee.TripNotice(p2, p1, tripType);
+          referee.TripNotice(p2, p1, tripType, inputs.now, inputs.ball.Predict(0));
         }
       }
 
@@ -317,7 +317,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (tacklerAction.type == e_FunctionType_Interfere)
           tripType = 1;  // was 2
         victim->TripMe(tripVec, tripType);
-        referee.TripNotice(victim, tackler, tripType);
+        referee.TripNotice(victim, tackler, tripType, inputs.now, inputs.ball.Predict(0));
       }
     }
   }

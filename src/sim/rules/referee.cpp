@@ -297,7 +297,8 @@ void Referee::BallTouched() {
   }
 }
 
-void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
+void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
+                         Tick now, const Vector3& ball_position) {
 
   if (buffer.active) return;
 
@@ -309,7 +310,7 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
     if (tripee->GetTeam()->GetFadingTeamPossessionAmount() > 1.1 &&
         (tripperAction.type == e_FunctionType_Interfere ||
          tripperAction.type == e_FunctionType_Sliding) &&
-        (tripee->GetPosition() - match->GetBall()->Predict(0).Get2D())
+        (tripee->GetPosition() - ball_position.Get2D())
                 .GetLength() < 2.0 &&
         tripper->GetTeam()->GetID() != tripee->GetTeam()->GetID()) {
       // uooooga uooooga foul!
@@ -317,7 +318,7 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
       foul.advantage = true;
       foul.foulPlayer = tripper;
       foul.foulVictim = tripee;
-      foul.foul_tick = match->GetTimelineTick();
+      foul.foul_tick = now;
       foul.foulPosition = tripee->GetPitchPosition();
       foul.hasBeenProcessed = false;
     }
@@ -326,10 +327,10 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
              (tripper != foul.foulPlayer || foul.foulType == 0)) {
       // sliding tackle
 
-    if (match->GetTimelineTick() - tripper->GetLastTouchTick() > kTouchGrace &&
+    if (now - tripper->GetLastTouchTick() > kTouchGrace &&
         tripperAction.type == e_FunctionType_Sliding &&
         tripper->GetTeam()->GetID() != tripee->GetTeam()->GetID() &&
-        (match->GetBall()->Predict(0) - tripee->GetPosition()).GetLength() <
+        (ball_position - tripee->GetPosition()).GetLength() <
             8.0) {
       float severity = 1.0;
       if (tripperAction.HasScheduledContact()) {
@@ -340,7 +341,7 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
                             0.7) *
                    0.5;
         severity += NormalizedClamp(
-            (match->GetBall()->Predict(0) - tripperAction.contactPosition)
+            (ball_position - tripperAction.contactPosition)
                 .GetLength(),
             0.0, 2.0) *
             0.5;
@@ -354,7 +355,7 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType) {
         foul.advantage = false;
         foul.foulPlayer = tripper;
         foul.foulVictim = tripee;
-        foul.foul_tick = match->GetTimelineTick();
+        foul.foul_tick = now;
         foul.foulPosition = tripee->GetPitchPosition();
         foul.hasBeenProcessed = false;
         if (severity > 1.4) foul.foulType = 2;

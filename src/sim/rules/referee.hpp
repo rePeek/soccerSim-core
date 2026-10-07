@@ -93,7 +93,10 @@ class Referee {
     std::optional<Vector3> GetRestartTarget(const Player* player) const;
 
     void BallTouched();
-    void TripNotice(Player *tripee, Player *tripper, int tackleType); // 1 == standing tackle resulting in little trip, 2 == standing tackle resulting in fall, 3 == sliding tackle
+    // Synchronous foul-state operation: explicit clock/Ball facts, live actor reads.
+    // Types: 1 = little standing trip, 2 = standing fall, 3 = sliding tackle.
+    void TripNotice(Player *tripee, Player *tripper, int tackleType,
+                    football::sim::Tick now, const Vector3& ball_position);
     bool CheckFoul();
 
     Player *GetCurrentFoulPlayer() { return foul.foulPlayer; }

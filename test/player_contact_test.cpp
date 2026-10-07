@@ -52,8 +52,8 @@ TEST_CASE("player contacts accept empty and single-player spans without side eff
   PlayerContactFixture fixture(false);
   const auto before = fixture.Positions();
   const auto rng = fixture.simulation.match()->rng().engine();
-  ResolvePlayerContacts({{}, fixture.ball, nullptr}, fixture.referee());
-  ResolvePlayerContacts({std::span<Player* const>(fixture.players.data(), 1),
+  ResolvePlayerContacts({Tick{19}, {}, fixture.ball, nullptr}, fixture.referee());
+  ResolvePlayerContacts({Tick{19}, std::span<Player* const>(fixture.players.data(), 1),
                          fixture.ball, fixture.players[0]}, fixture.referee());
   REQUIRE(fixture.Positions() == before);
   REQUIRE(fixture.simulation.match()->rng().engine() == rng);
@@ -67,7 +67,7 @@ TEST_CASE("player contacts mutate pairs in caller order before the next pair",
     const auto rng = fixture.simulation.match()->rng().engine();
     std::vector<Vector3> predictions;
     fixture.ball.GetPredictionArray(predictions);
-    ResolvePlayerContacts({fixture.players, fixture.ball, nullptr}, fixture.referee());
+    ResolvePlayerContacts({Tick{19}, fixture.players, fixture.ball, nullptr}, fixture.referee());
     const auto sweep = fixture.Positions();
     REQUIRE(sweep != before);
     REQUIRE(fixture.simulation.match()->rng().engine() == rng);
@@ -81,7 +81,7 @@ TEST_CASE("player contacts mutate pairs in caller order before the next pair",
     for (std::size_t i = 0; i < 2; ++i) {
       for (std::size_t j = i + 1; j < 3; ++j) {
         const std::array<Player*, 2> pair{fixture.players[i], fixture.players[j]};
-        ResolvePlayerContacts({pair, fixture.ball, nullptr}, fixture.referee());
+        ResolvePlayerContacts({Tick{19}, pair, fixture.ball, nullptr}, fixture.referee());
       }
     }
     REQUIRE(fixture.Positions() == sweep);
@@ -89,7 +89,7 @@ TEST_CASE("player contacts mutate pairs in caller order before the next pair",
     fixture.Reset();
     const std::array<Player*, 3> reversed{
         fixture.players[2], fixture.players[1], fixture.players[0]};
-    ResolvePlayerContacts({reversed, fixture.ball, nullptr}, fixture.referee());
+    ResolvePlayerContacts({Tick{19}, reversed, fixture.ball, nullptr}, fixture.referee());
     REQUIRE(fixture.Positions() != sweep); // No sorting or frozen-position batch.
   }
 }
@@ -98,10 +98,10 @@ TEST_CASE("player contacts use the explicit possession designation and Ball",
           "[sim][player][contact]") {
   PlayerContactFixture fixture(false);
   const std::array<Player*, 2> pair{fixture.players[0], fixture.players[1]};
-  ResolvePlayerContacts({pair, fixture.ball, pair[0]}, fixture.referee());
+  ResolvePlayerContacts({Tick{19}, pair, fixture.ball, pair[0]}, fixture.referee());
   const auto first_designated = fixture.Positions();
   fixture.Reset();
-  ResolvePlayerContacts({pair, fixture.ball, pair[1]}, fixture.referee());
+  ResolvePlayerContacts({Tick{19}, pair, fixture.ball, pair[1]}, fixture.referee());
   REQUIRE(fixture.Positions() != first_designated);
   REQUIRE(fixture.simulation.match()->GetDesignatedPossessionPlayer() != pair[0]);
   REQUIRE(fixture.simulation.match()->GetDesignatedPossessionPlayer() != pair[1]);

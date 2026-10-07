@@ -13,6 +13,7 @@ struct RefereeStateFixture : Referee {
   using Referee::Referee;
   using Referee::buffer;
   using Referee::foul;
+  using Referee::match;
   using Referee::offsidePlayers;
   using Referee::post_restart_relax_;
 };
@@ -136,5 +137,142 @@ TEST_CASE("Referee invokes the explicit reset action synchronously once before r
     REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
   }
 }
+
+// These rule-only fixtures never execute actors with the synthetic action. Restore
+// the authoritative action before teardown; do not add a production test setter.
+struct ScopedRuleAction {
+  PlayerActionState& state;
+  PlayerActionState original;
+  explicit ScopedRuleAction(Player& player)
+      : state(const_cast<PlayerActionState&>(player.GetSimulationActionState())), original(state) {}
+  ~ScopedRuleAction() { state = original; }
+};
+
+TEST_CASE("standing trip notices use explicit Ball and tick facts without a Match read",
+          "[sim][referee][foul]") {
+  for (bool reverse : {false, true}) {
+    Simulation simulation;
+    MatchOptions options; options.reverse_team_processing = reverse;
+    simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+        football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), options);
+    auto& match = *simulation.match();
+    auto* victim = match.GetTeam(match.FirstTeam())->GetAllPlayers()[1];
+    auto* tackler = match.GetTeam(match.SecondTeam())->GetAllPlayers()[1];
+    victim->ResetPosition(Vector3(3, 4, 0), Vector3(4, 4, 0));
+    tackler->ResetPosition(Vector3(2, 4, 0), Vector3(4, 4, 0));
+    victim->GetTeam()->SetFadingTeamPossessionAmount(1.2f);
+    tackler->GetTeam()->SetFadingTeamPossessionAmount(1.2f);
+    ScopedRuleAction action(*tackler);
+    action.state.type = e_FunctionType_Interfere;
+    const auto rng = match.rng().engine();
+    const auto ball = match.GetBall()->Predict(0);
+    const auto sequence = match.GetResetSequence();
+    // Null the transitional pointer only after construction: this whole operation
+    // must work from its explicit facts and actor reads, not the runtime owner.
+    for (int scenario = 0; scenario < 7; ++scenario) {
+      CAPTURE(reverse, scenario);
+      RefereeStateFixture referee(&match);
+      referee.match = nullptr;
+      referee.buffer.active = false;
+      Vector3 ball_position(3, 4, 100); // Standing distance retains the old 2D projection.
+      if (scenario == 1) ball_position.coords[0] += 2; // Strict distance <2.
+      // The legacy >1.1 uses a double literal: float 1.1f is slightly ABOVE it.
+      if (scenario == 2) victim->GetTeam()->SetFadingTeamPossessionAmount(0x1.199998p0f);
+      else victim->GetTeam()->SetFadingTeamPossessionAmount(scenario == 6 ? 1.1f : 1.2f);
+      action.state.type = scenario == 3 ? e_FunctionType_Movement : e_FunctionType_Interfere;
+      referee.buffer.active = scenario == 4;
+      referee.TripNotice(scenario == 5 ? tackler : victim, tackler, 2, Tick{9001}, ball_position);
+      if (scenario == 0 || scenario == 6) {
+        REQUIRE(referee.foul.foulType == 1);
+        REQUIRE(referee.foul.advantage);
+        REQUIRE(referee.foul.foulPlayer == tackler);
+        REQUIRE(referee.foul.foulVictim == victim);
+        REQUIRE(referee.foul.foul_tick == Tick{9001});
+        REQUIRE(referee.foul.foulPosition == victim->GetPitchPosition());
+        REQUIRE_FALSE(referee.foul.hasBeenProcessed);
+      } else {
+        REQUIRE(referee.foul.foulType == 0);
+        REQUIRE(referee.foul.foul_tick == Tick{});
+        REQUIRE(referee.foul.hasBeenProcessed);
+      }
+    }
+    REQUIRE(match.GetTimelineTick() == Tick{});
+    REQUIRE(match.GetResetSequence() == sequence);
+    REQUIRE(match.rng().engine() == rng);
+    REQUIRE(match.GetBall()->Predict(0) == ball);
+  }
+}
+
+TEST_CASE("sliding trip notices preserve strict grace, 3D radius, severity and duplicate gates",
+          "[sim][referee][foul]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+  auto& match = *simulation.match();
+  auto* victim = match.GetTeam(0)->GetAllPlayers()[1];
+  auto* tackler = match.GetTeam(1)->GetAllPlayers()[1];
+  victim->ResetPosition(Vector3(3, 4, 0), Vector3(4, 4, 0));
+  tackler->ResetPosition(Vector3(2, 4, 0), Vector3(4, 4, 0));
+  tackler->SetLastTouchTick(Tick{100});
+  ScopedRuleAction action(*tackler);
+  action.state.type = e_FunctionType_Sliding;
+  action.state.contact.reset();
+  const auto live_ball = match.GetBall()->Predict(0);
+  for (int scenario = 0; scenario < 9; ++scenario) {
+    CAPTURE(scenario);
+    RefereeStateFixture referee(&match);
+    referee.match = nullptr;
+    referee.buffer.active = false;
+    action.state.type = scenario == 3 ? e_FunctionType_Interfere : e_FunctionType_Sliding;
+    action.state.contact.reset();
+    Vector3 ball_position(3, 4, 0);
+    Tick now{161}; // Last touch +60 is excluded, +61 is eligible.
+    if (scenario == 1) now = Tick{160};
+    if (scenario == 2) ball_position.coords[2] = 8; // Strict full-3D radius <8.
+    if (scenario >= 5) {
+      action.state.contact = TickSpan{10};
+      action.state.elapsed = TickSpan{scenario == 5 ? 10u : 5u};
+      action.state.contactPosition = Vector3(3, 4, 0);
+    }
+    if (scenario == 7) ball_position.coords[1] += 2;
+    if (scenario == 8) victim->ResetPosition(Vector3(3, 4, 0), Vector3(2, 4, 0));
+    const auto rng = match.rng().engine(); // Fixture ResetPosition itself consumes RNG.
+    referee.TripNotice(scenario == 4 ? tackler : victim, tackler, 3, now, ball_position);
+    const int expected = scenario == 0 || scenario == 7 ? 2 : scenario == 6 ? 1 : 0;
+    REQUIRE(referee.foul.foulType == expected);
+    if (expected) {
+      REQUIRE_FALSE(referee.foul.advantage);
+      REQUIRE_FALSE(referee.foul.hasBeenProcessed);
+      REQUIRE(referee.foul.foulPlayer == tackler);
+      REQUIRE(referee.foul.foulVictim == victim);
+      REQUIRE(referee.foul.foul_tick == now);
+      REQUIRE(referee.foul.foulPosition == victim->GetPitchPosition());
+      referee.TripNotice(victim, tackler, 3, Tick{9002}, Vector3(3, 4, 0));
+      REQUIRE(referee.foul.foulType == expected);
+      REQUIRE(referee.foul.foul_tick == now); // Same tackler cannot replace the pending foul.
+    } else {
+      REQUIRE(referee.foul.foul_tick == Tick{});
+      REQUIRE(referee.foul.hasBeenProcessed);
+    }
+    REQUIRE(match.rng().engine() == rng);
+  }
+  RefereeStateFixture referee(&match);
+  referee.match = nullptr;
+  referee.buffer.active = false;
+  const auto rng = match.rng().engine();
+  referee.TripNotice(victim, tackler, 1, Tick{161}, Vector3(3, 4, 0));
+  REQUIRE(referee.foul.foulType == 0); // Little standing trips are still ignored.
+  referee.buffer.active = true;
+  referee.TripNotice(nullptr, nullptr, 3, Tick{161}, Vector3(0)); // Gate precedes actor reads.
+  REQUIRE(referee.foul.foulType == 0);
+  REQUIRE(match.GetTimelineTick() == Tick{});
+  REQUIRE(match.rng().engine() == rng);
+  REQUIRE(match.GetBall()->Predict(0) == live_ball);
+}
+
+template<class T> concept HasImplicitTripNotice = requires(T& owner, Player* actor) {
+  owner.TripNotice(actor, actor, 3);
+};
+static_assert(!HasImplicitTripNotice<Referee>);
 
 }  // namespace

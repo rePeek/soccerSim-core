@@ -2,6 +2,7 @@
 #define FOOTBALL_SIM_PLAYER_CONTACT_HPP
 
 #include <span>
+#include "sim/time/tick.hpp"
 
 class Ball;
 class Player;
@@ -10,6 +11,7 @@ class Referee;
 namespace football::sim {
 
 struct PlayerContactInputs {
+  Tick now;
   // Active players in processing-roster order, sharing the ball's physical frame.
   std::span<Player* const> players;
   const Ball& ball;
