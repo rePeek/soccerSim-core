@@ -29,7 +29,6 @@
 #include "sim/animation/library.hpp"
 #include "sim/animation/types.hpp"
 #include "sim/player_control_set.hpp"
-#include "sim/observation_epoch.hpp"
 #include "sim/match_phase.hpp"
 #include "sim/match_result.hpp"
 #include "sim/tick.hpp"
@@ -82,7 +81,6 @@ class Match {
 
     void ResetSituation(const Vector3 &focusPos);
     std::uint64_t GetResetSequence() const { return reset_sequence_; }
-    const ObservationEpoch& GetObservationEpoch() const { return observation_epoch_; }
 
     // Half-time change of ends requested by the referee; applied at the start of
     // the next Step, where the canonical between-tick frame is guaranteed.
@@ -209,7 +207,6 @@ class Match {
     // Actual world discontinuities; not a policy/request timer.
     std::uint64_t reset_sequence_ = 0;
     bool pending_change_of_ends_ = false;
-    const ObservationEpoch observation_epoch_ = ObservationEpoch::New();
 
     MatchPhase matchPhase = MatchPhase::PreMatch;
     bool inPlay = false;

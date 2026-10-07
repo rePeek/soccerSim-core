@@ -100,7 +100,6 @@ TEST_CASE("three clocks distinguish half running, authorization and actual ball 
     REQUIRE(initial.phase == MatchPhase::PreMatch);
     REQUIRE(initial.regulation_time == TickSpan{});
     Init(simulation, options);
-    REQUIRE(simulation.Observe().simulation_epoch != initial.simulation_epoch);
     REQUIRE(Finish(simulation) == steps);
     REQUIRE(simulation.Result() == result);
   }

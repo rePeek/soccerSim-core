@@ -63,7 +63,7 @@ src/
 │   ├── pitch.hpp     sole pitch geometry type (legacy 110 × 72 metres)
 │   └── football_types.hpp roles/game modes/player count
 ├── sim/              rules, physics, execution and owning value contracts
-│   ├── world_state.hpp / observation_epoch.hpp owning output and match identity
+│   ├── world_state.hpp owning output values (no actor/lifetime-marker handles)
 │   ├── player_control*.hpp executable control values
 │   ├── match_options.hpp / match_phase.hpp / match_result.hpp rule/result values
 │   ├── tick.hpp / tick_boundary.hpp strong 100 Hz time values and exact boundary conversions
@@ -79,8 +79,7 @@ src/
 ├── ai/               value-only decisions; never links sim runtime
 │   ├── ai_config.hpp startup values; no live channel
 │   ├── tactical_board.* persistent desired/planned values + model-only bootstrap
-│   ├── team_requests.hpp short-lived intent bound to observed tick/reset/epoch
-│   └── default_ai.*  WorldState + boards/requests → PlayerControlSet
+│   └── default_ai.*  WorldState + persistent tactical boards → PlayerControlSet
 ├── app/              executable-side code, never in core
 │   ├── app.cpp / args.* parse → GameEnv → complete match → write Result
 │   └── fixtures/     typed sample rosters/profiles → model; local six-decimal quantization
@@ -173,6 +172,9 @@ anim_baking → legacy_anim + animation/foundation
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   model/foundation must not depend on upper layers. sim must never depend on AI.
 - model and foundation retain standalone CMake support.
+- `GFOOTBALL_BAKED_ANIM_PATH` belongs only to football_sim PRIVATE compile definitions.
+  The shared target helper owns include roots/C++23/PIC/output, not resource lookup.
+  No public contract, foundation/model, AI, app or baker inherits the runtime path.
 
 ## Test targets
 
@@ -245,12 +247,12 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   `sim/tick.hpp` owns the fixed 100 Hz quantum and float seconds derived from it,
   not foundation or runtime configuration. No absolute-time + absolute-time API.
   Boundary conversions live in `tick_boundary.hpp`; non-grid milliseconds are
-  rejected, never silently rounded. Existing millisecond runtime APIs remain
-  transitional until their individual owners migrate. Keep unit migration separate
-  from dead-ball/clock-scale semantics; preserve float arithmetic and numerical goldens.
-  Match stores only `Tick now_` for its timeline; normal steps call
-  `AdvanceTime(TickSpan{1})`, and WorldState reads it directly. Remaining `_ms`
-  timeline accessors are temporary exact adapters, not duplicate state.
+  rejected, never silently rounded. Absolute millisecond timeline/touch adapters
+  are deleted; remaining milliseconds are continuous estimates, signed sampling,
+  SI/animation formula boundaries or output projections, not second clocks.
+  Keep unit migration separate from policy; preserve float arithmetic and goldens.
+  Match stores only Tick now_; normal steps call AdvanceTime(TickSpan{1}) and
+  WorldState publishes the tick value directly.
   Actions store only elapsed/duration/optional contact `TickSpan`; animation frame
   readers are projections, not duplicate clocks. Decision and locomotion schedulers
   use Tick deadlines and owner-local TickSpan cadences. Their tests are in
@@ -258,7 +260,7 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   Humanoid requeue/tactical phase cadences use the same tick-local policy values
   and overflow-safe reduced-remainder staggering, retaining both roster schedules.
   Player touch/card-effect timestamps are Tick; unused possession-duration storage
-  is removed. Humanoid touch-time readers temporarily project milliseconds.
+  is removed. Touch-decay reads optional Tick instants and bounds only relative ages.
   Ball prediction horizons/cache durations live in sim-private `ball_timing.hpp`;
   prediction generation iterates TickSpan samples with seconds from the quantum.
   MentalImage stores a Tick capture instant and derives TickSpan age. Transitional
@@ -299,21 +301,18 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   Fixing the missing ball transform intentionally changes second-half AI matches,
   not first-half numerical goldens, clock policy, physics or animation resources.
 - WorldState is an owning projection, not authoritative storage or a history cache.
-  Its opaque ObservationEpoch owns only a fresh empty lifetime marker; equality,
-  no actor data/counter/RNG/clock/address-number ID. Physical hashes exclude epoch.
+  The unused request-only ObservationEpoch marker and Match ownership state are
+  deleted. Native Player action/publication continuity epochs remain owner-local.
 
 ## Policy and execution boundaries
 
-- DefaultAI owns TacticalBoards and TeamRequests; no actor pointers, callbacks,
+- DefaultAI owns only TacticalBoards; no actor pointers, transient request channel,
   hidden observation caches or RNG. Model-only MakeTacticalBoard initializes base
   roles/anchors/spacing. Update reads values and emits frame-local controls.
   AIConfig may copy initial boards by side; no mutable GameEnv board exists.
 - TacticalBoard is desired/planned intent, never restart/score/current state.
   Width/depth are pitch fractions (defaults 0.75/0.55); anchors are home-frame metres.
   Update computes transient targets without rewriting boards.
-- Requests bind player IDs to issuance tick/reset_sequence/epoch. New Matches or
-  rule resets cannot revive old intent; explicit ResetRequests is cleanup, not a
-  correctness precondition. Unbound synthetic observations cannot issue requests.
 - RefereeBuffer owns restart facts. Ordinary restarts use Pending → Ready → Taken
   → InPlay with entered/earliest/timeout Tick boundaries and local min/max policy.
   Ball/action reset and taker/target planning occur once, without actor teleportation;
@@ -334,14 +333,15 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   in tools/time-model-migration.md.
 - Diagnostics/tests may compose Simulation and explicit PlayerControlSet sequences
   outside GameEnv. Equal declarations + equal control tapes must replay identical
-  WorldState payloads and RNG states; epoch identities intentionally differ.
+  complete WorldState payloads and RNG states, including Stop/Init replay.
 - The GRF action protocol, player selection/sticky state, TeamDecisionRequest and
   app input target are removed. The app only configures and runs an autonomous match.
-- DefaultAI::RequestAttackingRun/RequestTeamPressure/RequestKeeperRush and their
-  transient intent/lifecycle tests remain unchanged for a separate ownership audit.
-  They are not app-facing input APIs and are never exposed through GameEnv. Decide
-  whether they become AI-internal intent or a future coach mechanism separately;
-  do not retain them merely for a retired compatibility client.
+- The RequestAttackingRun/RequestTeamPressure/RequestKeeperRush/ResetRequests APIs,
+  TeamRequests/TimedPlayerIntent and their request-only lifetime identity are deleted.
+  Their only callers were retired input-style tests, not app, GameEnv or autonomous
+  policy. No AI-internal replacement or speculative Coach system was introduced.
+  Persistent tactics/marking directives, stateless retained-world replay and native
+  reset provenance tests remain; default trajectories/RNG are unchanged.
 - Simulation has no decisions/input ownership. Empty controls mean idle movement;
   control execution translates frames, resolves active model IDs and rejects illegal
   hands saves/inactive recipients. Mechanics remain in sim, not policy.

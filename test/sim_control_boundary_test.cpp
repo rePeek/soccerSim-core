@@ -288,10 +288,6 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   const auto pitch = football::model::MakeLegacyPitch();
   const auto same_world = [](const WorldState &a, const WorldState &b) {
-    // Epochs identify owners, not deterministic payload: independent matches differ.
-    REQUIRE(a.simulation_epoch.valid());
-    REQUIRE(b.simulation_epoch.valid());
-    REQUIRE(a.simulation_epoch != b.simulation_epoch);
     REQUIRE(a.tick == b.tick);
     REQUIRE(a.phase == b.phase);
     REQUIRE(a.regulation_time == b.regulation_time);
@@ -397,43 +393,31 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
   }
 }
 
-TEST_CASE("world discontinuities invalidate AI requests without storing them in sim", "[sim][boundary]") {
+TEST_CASE("world discontinuities publish native reset provenance", "[sim][boundary]") {
   Runtime runtime;
   football::test::TakeKickOff(runtime.simulation);
   const auto before = runtime.simulation.Observe();
-  REQUIRE(runtime.policy.RequestAttackingRun(football::model::TeamSide::Home, before, 7));
   runtime.match()->ResetSituation(Vector3(0));
   const auto after = runtime.simulation.Observe();
   REQUIRE(after.tick == before.tick);
   REQUIRE(after.reset_sequence == before.reset_sequence + 1);
-  REQUIRE_FALSE(runtime.policy.requests(football::model::TeamSide::Home).attacking_run.Active(
-      after.tick, after.reset_sequence, after.simulation_epoch));
   REQUIRE(before.reset_sequence + 1 == runtime.match()->GetResetSequence());
 }
 
-TEST_CASE("old requests never revive across new Matches or independent Simulations", "[sim][ai][lifecycle]") {
-  using football::model::TeamSide;
+TEST_CASE("retained policy and world values survive new Matches and owner destruction",
+          "[sim][ai][lifecycle][replay]") {
   const auto home = football::app::fixtures::MakeDefaultHomeTeam();
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   const auto pitch = football::model::MakeLegacyPitch();
   auto simulation = std::make_unique<Simulation>();
   simulation->Init(home, away, pitch, MatchOptions{});
-  football::ai::DefaultAI policy(home, away, pitch);
+  const football::ai::DefaultAI policy(home, away, pitch);
+  const football::ai::DefaultAI fresh(home, away, pitch);
   football::test::TakeKickOff(*simulation);
   const auto old_world = simulation->Observe();
-  REQUIRE(policy.RequestAttackingRun(TeamSide::Home, old_world, 7));
-  REQUIRE(policy.RequestTeamPressure(TeamSide::Home, old_world));
-  REQUIRE(policy.RequestKeeperRush(TeamSide::Home, old_world));
-  const auto retained = policy.requests(TeamSide::Home);
-  auto quiet = policy; quiet.ResetRequests();
-  const auto check = [&](const WorldState &world) {
-    REQUIRE(world.simulation_epoch.valid());
-    REQUIRE(world.simulation_epoch != old_world.simulation_epoch);
-    REQUIRE_FALSE(retained.attacking_run.Active(world.tick, world.reset_sequence, world.simulation_epoch));
-    REQUIRE_FALSE(retained.pressure.Active(world.tick, world.reset_sequence, world.simulation_epoch));
-    REQUIRE_FALSE(retained.keeper_rush.Active(world.tick, world.reset_sequence, world.simulation_epoch));
-    PlayerControlSet a, b;
-    policy.Update(world, a); quiet.Update(world, b);
+  PlayerControlSet retained;
+  policy.Update(old_world, retained);
+  const auto same = [](const PlayerControlSet& a, const PlayerControlSet& b) {
     REQUIRE(a.controls().size() == b.controls().size());
     for (const auto &control : a.controls()) {
       const auto *expected = b.Get(control.player);
@@ -441,32 +425,36 @@ TEST_CASE("old requests never revive across new Matches or independent Simulatio
       REQUIRE(Same(control.move_direction, expected->move_direction));
       REQUIRE(control.desired_speed == expected->desired_speed);
       REQUIRE(control.action == expected->action);
+      REQUIRE(control.power == expected->power);
+      REQUIRE(control.target_player == expected->target_player);
+      REQUIRE(control.look_at == expected->look_at);
+      REQUIRE(control.target_position == expected->target_position);
     }
   };
-  // Deliberately never call policy.ResetRequests(), even at re-init.
+  const auto check = [&](const WorldState &world) {
+    PlayerControlSet a, b;
+    policy.Update(world, a); fresh.Update(world, b);
+    same(a, b);
+  };
   simulation->Stop();
   simulation->Init(home, away, pitch, MatchOptions{});
-  const auto new_epoch = simulation->Observe().simulation_epoch;
-  check(simulation->Observe());
   for (std::uint64_t tick = 0; tick <= old_world.tick + 401; ++tick) {
     const auto world = simulation->Observe();
-    REQUIRE(world.simulation_epoch == new_epoch);
     check(world);
     if (tick == old_world.tick) {
       REQUIRE(world.tick == old_world.tick);
       REQUIRE(world.reset_sequence == old_world.reset_sequence);
     }
-    football::test::StepDefaultAI(*simulation, quiet);
+    football::test::StepDefaultAI(*simulation, fresh);
   }
-  simulation.reset();  // Destroy the entire old engine, keeping only values/AI.
+  simulation.reset();
   Simulation independent;
   independent.Init(home, away, pitch, MatchOptions{});
-  REQUIRE(independent.Observe().simulation_epoch != new_epoch);
   for (std::uint64_t tick = 0; tick <= old_world.tick + 100; ++tick) {
     check(independent.Observe());
-    football::test::StepDefaultAI(independent, quiet);
+    football::test::StepDefaultAI(independent, fresh);
   }
-  REQUIRE(old_world.simulation_epoch == retained.attacking_run.simulation_epoch);
-  REQUIRE(retained.attacking_run.Active(old_world.tick, old_world.reset_sequence, old_world.simulation_epoch));
-  REQUIRE(policy.requests(TeamSide::Home).attacking_run.player == 7);
+  PlayerControlSet replay;
+  policy.Update(old_world, replay);
+  same(replay, retained);
 }

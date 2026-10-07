@@ -353,3 +353,23 @@ replay cases pass inside the existing boundary suite. All three build modes pass
 original normal full records unchanged. Corrected reverse effective time is77–79min
 instead of near90min; excessive scores persist, so no realism claim or bounds tuning
 is justified. See tools/restart-metrics.md for the complete before/after matrices.
+
+## Completed deferred ownership audit
+
+RequestAttackingRun/RequestTeamPressure/RequestKeeperRush/ResetRequests had no
+autonomous app/GameEnv/policy callers; only tests emulated the retired input client.
+The interfaces, TeamRequests/TimedPlayerIntent, helper selection code and request
+overrides were deleted, without relocating them into AI or inventing a Coach.
+ObservationEpoch was exclusively their lifetime-safety mechanism; its shared marker,
+Match allocation/getter and WorldState field/header are also deleted. This is distinct
+from live Player continuity epochs/publication provenance, which remain necessary.
+Persistent tactics/marking directives and full native reset/replay tests remain.
+Default execution formerly checked empty requests (always false); removing those
+branches preserves arithmetic, roster tie order and RNG. No golden update is needed.
+
+The baked animation path macro moved from the global helper's PUBLIC requirements
+to football_sim PRIVATE definitions. No new config/path module, injection interface
+or environment fallback was added. AIConfig/MatchOptions/model remain startup-owned
+values passed by app through GameEnv; timing policies remain local to their owners.
+Private resource ownership does not establish independent authoring-rate or real-
+subject evidence; that calibration prerequisite remains unavailable.

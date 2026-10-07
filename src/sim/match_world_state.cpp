@@ -14,7 +14,6 @@ WorldState BuildWorldState(const Match& match) {
   world.half_underway = match.IsHalfUnderway();
   world.ball_in_play = match.IsBallInPlay();
   world.reset_sequence = match.GetResetSequence();
-  world.simulation_epoch = match.GetObservationEpoch();
   const auto ball_frame = ToHomePitchFrame(match);
   world.ball_position = ball_frame.Position(match.GetBall()->Predict(0));
   world.ball_velocity = ball_frame.Direction(match.GetBall()->GetMovement());

@@ -7,8 +7,6 @@ option(FOOTBALL_BUILD_APP "Build the CLI executable and its sample inputs" ON)
 function(football_configure_target tgt)
   target_include_directories(${tgt} PUBLIC ${PROJECT_SOURCE_DIR}/src)
   target_compile_features(${tgt} PUBLIC cxx_std_23)
-  target_compile_definitions(${tgt} PUBLIC
-    GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")
   set_target_properties(${tgt} PROPERTIES POSITION_INDEPENDENT_CODE ON)
   get_target_property(_type ${tgt} TYPE)
   if(_type STREQUAL "EXECUTABLE")

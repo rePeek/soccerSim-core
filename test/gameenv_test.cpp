@@ -77,7 +77,6 @@ void CoreAPI() {
   game.Stop(); Require(!game.Finished(), "Stop fabricated full time");
   LogicError([&] { game.Result(); });
   game.Start(); SameWorld(game.Observe(), initial);
-  Require(game.Observe().simulation_epoch != initial.simulation_epoch, "restart reused epoch");
   for (int tick = 0; tick < 100; ++tick) game.Step();
   SameWorld(game.Observe(), advanced);
   auto peer = MakeGame(); peer.Start();

@@ -80,12 +80,12 @@ neither throughput nor wall-clock pacing changes any football clock.
 
 `Observe()` is secondary replay/trace/debug telemetry. It returns an owning,
 unscaled home-frame WorldState with ball motion, team scores/directions, player
-kinematics, play/restart/retention, reset sequence and an opaque Match epoch.
+kinematics, play/restart/retention and reset sequence.
 There is no authoritative-state replacement or hidden per-tick snapshot history.
 
 ### AI intent and simulation replay
 
-AI owns persistent desired/planned TacticalBoards and short-lived requests,
+AI owns persistent desired/planned TacticalBoards, without transient input requests,
 never actual simulation state. `AIConfig::initial_tactics` optionally supplies
 startup boards by side; otherwise DefaultAI bootstraps them from static models.
 These values are copied, not exposed as a live env mutation channel. DefaultAI
@@ -95,14 +95,10 @@ The app has no external action protocol, player selection or human input path.
 GRF actions/sticky state and their adapter are removed. Diagnostics/tests replay
 explicit PlayerControlSet tapes directly through Simulation: equal initial
 declarations and controls produce identical trajectories and RNG states, without AI.
-DefaultAI's transient Request* APIs and their lifecycle tests remain unchanged
-pending a separate AI-ownership audit; neither app nor GameEnv exposes them.
-
-Requests bind to owning, equality-only `WorldState::simulation_epoch`, tick and
-reset sequence. New Matches cannot reactivate old requests. The epoch retains
-no actors and uses no counter/RNG/clock; it is an in-process identity, not a
-serialization ID. Synthetic logical matches must bind fresh epochs explicitly.
-Physical regression hashes exclude epoch identity.
+DefaultAI's unused Request* channel, associated timers and sole Match lifetime marker
+were removed after auditing real callers. No compatibility or future Coach mechanism
+replaces them. Retained worlds/policies and Stop/Init replay remain value-only.
+The baked animation path is sim-private, not a public build requirement.
 
 ## Static declarations and simulation boundaries
 

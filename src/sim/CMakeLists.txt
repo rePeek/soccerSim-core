@@ -3,7 +3,7 @@ add_library(football_sim_contracts INTERFACE)
 add_library(football::sim_contracts ALIAS football_sim_contracts)
 target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES player_control.hpp player_control_set.hpp world_state.hpp observation_epoch.hpp
+  FILES player_control.hpp player_control_set.hpp world_state.hpp
     match_options.hpp match_phase.hpp match_result.hpp tick.hpp tick_boundary.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
@@ -51,3 +51,6 @@ target_link_libraries(football_sim
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::model BqLog)
 football_configure_target(football_sim)
+# Resource lookup belongs to runtime loading, never public value/policy contracts.
+target_compile_definitions(football_sim PRIVATE
+  GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")

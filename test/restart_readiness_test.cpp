@@ -265,7 +265,6 @@ TEST_CASE("pending restart targets, taker replacement and RNG replay as owning v
         football::test::StepDefaultAI(right, right_policy);
       }
       const auto a = left.Observe(), b = right.Observe();
-      REQUIRE(a.simulation_epoch != b.simulation_epoch);
       REQUIRE(a.tick == b.tick);
       REQUIRE(a.phase == b.phase);
       REQUIRE(a.regulation_time == b.regulation_time);
