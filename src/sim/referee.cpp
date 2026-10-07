@@ -76,11 +76,10 @@ Referee::Referee(Match *match) : match(match) {
 Referee::~Referee() {}
 
 bool Referee::PeriodElapsed() const {
-  const auto limit = match->GetMatchPhase() == MatchPhase::FirstHalf ? 1u
-      : match->GetMatchPhase() == MatchPhase::SecondHalf ? 2u : 0u;
-  return limit != 0 &&
-         match->GetMatchTime_ms() >=
-             match->options().half_duration_ms * limit;
+  if (!match->IsHalfUnderway()) return false;
+  const auto half = match->options().half_duration;
+  const auto limit = match->GetMatchPhase() == MatchPhase::SecondHalf ? half + half : half;
+  return match->GetRegulationTime() >= limit;
 }
 
 void Referee::Process() {
@@ -88,8 +87,7 @@ void Referee::Process() {
   // Period authority is independent of restart eligibility. A pending set piece
   // must not keep a match alive after the regulation clock reaches full time.
   if (PeriodElapsed()) {
-    match->StopPlay();
-    match->StopSetPiece();
+    match->EndHalf();
     buffer.active = false;
     buffer.taker = nullptr;
     buffer.endPhase = false;
@@ -211,26 +209,19 @@ void Referee::Process() {
         // blow whistle and wait for set piece taker to touch the ball
         match->StartPlay();
         match->StartSetPiece();
+        // Keep ceremonial schedule/placement, but never fabricate a kickoff.
+        // Authorization and accepted contact share the ordinary release states.
+        RestartState ready;
+        ready.entered_tick = buffer.stop_tick;
+        ready.earliest_restart_tick = buffer.start_tick;
+        ready.timeout_tick = buffer.start_tick;
+        ready.phase = RestartPhase::Ready;
+        ready.setup_done = true;
+        buffer.restart = std::move(ready);
       }
     }
   }
 
-  if (match->IsInSetPiece()) {
-    // check if set piece has been taken
-    if (buffer.desiredSetPiece == e_GameMode_KickOff ||
-        (buffer.taker->GetSimulationActionState().HasScheduledContact() &&
-         !buffer.taker->GetSimulationActionState().IsContactPending())) {
-      buffer.active = false;
-      match->StopSetPiece();
-      post_restart_relax_ = kPostRestartRelax;
-      foul.foulPlayer = 0;
-      foul.foulType = 0;
-
-      if (match->GetMatchPhase() == MatchPhase::PreMatch) {
-        match->SetMatchPhase(MatchPhase::FirstHalf);
-      }
-    }
-  }
 
   if (post_restart_relax_ > TickSpan{})
     post_restart_relax_ = post_restart_relax_ - TickSpan{1};
@@ -261,8 +252,10 @@ void Referee::BallTouched() {
         (action.type == e_FunctionType_BallControl && buffer.desiredSetPiece != e_GameMode_ThrowIn &&
          buffer.taker->GetLastTouchType() == e_TouchType_Intentional_Kicked);
     if (action.contact && action.elapsed == *action.contact && kick &&
-        match->GetBall()->GetMovement().GetLength() > 0.1f)
+        match->GetBall()->GetMovement().GetLength() > 0.1f) {
       buffer.restart->phase = RestartPhase::Taken;
+      match->StartBallInPlay();
+    }
   }
 
   if (!match->options().offsides) {

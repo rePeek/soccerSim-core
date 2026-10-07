@@ -5,6 +5,7 @@
 #include "app/args.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "env.hpp"
+#include "sim/tick_boundary.hpp"
 
 namespace {
 const char* OutcomeName(MatchOutcome outcome) {
@@ -21,7 +22,9 @@ int main(int argc, char** argv) {
   try {
     const auto config = football::app::ParseArgs(argc, argv);
     MatchOptions match_options;
-    if (config.half_duration_ms) match_options.half_duration_ms = *config.half_duration_ms;
+    if (config.half_duration_ms)
+      match_options.half_duration =
+          football::sim::TickSpanFromMillisecondsExact(*config.half_duration_ms);
     GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
                  football::app::fixtures::MakeDefaultAwayTeam(),
                  football::model::MakeLegacyPitch(), match_options, {}};

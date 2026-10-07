@@ -12,6 +12,7 @@
 #include "foundation/math/vector3.hpp"
 #include "sim/observation_epoch.hpp"
 #include "sim/match_phase.hpp"
+#include "sim/tick.hpp"
 
 struct WorldPlayerState {
   football::model::PlayerId id = football::model::kInvalidPlayerId;
@@ -38,12 +39,14 @@ struct WorldTeamState {
 // processing orders. Change of ends never flips the observed defending directions.
 // No actor pointers, animation/command queues, mutable runtime or AI objects.
 struct WorldState {
-  // Absolute simulation timeline tick, not the scaled football clock.
-  // Ordinary restarts execute positioning steps; direct caller advances are possible.
+  // Absolute simulation timeline. Ordinary dead balls execute every positioning tick.
   std::uint64_t tick = 0;
   MatchPhase phase = MatchPhase::PreMatch;
-  // Scaled football clock, paused during stoppages, not elapsed/observation time.
-  std::uint64_t match_time_ms = 0;
+  // Running half includes ordinary dead balls; half-time/opening ceremonies do not.
+  football::sim::TickSpan regulation_time{};
+  football::sim::TickSpan ball_in_play_time{};
+  bool half_underway = false;
+  bool ball_in_play = false;
   blunted::Vector3 ball_position = blunted::Vector3(0);
   std::vector<WorldPlayerState> players;
   blunted::Vector3 ball_velocity = blunted::Vector3(0);
@@ -51,6 +54,8 @@ struct WorldState {
   std::array<WorldTeamState, 2> teams{{
       {football::model::TeamSide::Home, -1, 0},
       {football::model::TeamSide::Away, 1, 0}}};
+  // Execution authorization, including a Ready taker before actual restart contact.
+  // Use ball_in_play / ball_in_play_time for effective-time measurements.
   bool in_play = false;
   bool in_set_piece = false;
   e_GameMode restart = e_GameMode_Normal;

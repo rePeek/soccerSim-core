@@ -137,7 +137,8 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   wrong.power = 0.987f;
   renamed_controls.Set(1, wrong);
   const WorldState initial = renamed.Observe();
-  for (int tick = 0; tick < 600; ++tick) {
+  // Past the real kickoff, so Ready non-taker freezing is not mistaken for bad ID binding.
+  for (int tick = 0; tick < 800; ++tick) {
     football::test::StepDefaultAI(reference, reference_ai, reference_controls);
     football::test::StepDefaultAI(renamed, renamed_ai, renamed_controls);
     CheckSamePhysics(reference, renamed);
@@ -170,7 +171,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   CheckIdentity(renamed, home, away);
   Require(renamed.Observe().players[0].id == initial.players[0].id,
           "reset reassigned model identity");
-  for (int tick = 0; tick < 600; ++tick) football::test::StepDefaultAI(renamed, renamed_ai, renamed_controls);
+  for (int tick = 0; tick < 800; ++tick) football::test::StepDefaultAI(renamed, renamed_ai, renamed_controls);
   const WorldState replay = renamed.Observe();
   for (std::size_t i = 0; i < replay.players.size(); ++i) {
     Require(replay.players[i].id == replay_target.players[i].id &&
@@ -326,12 +327,12 @@ void CheckHistoricalScheduling(bool print_baseline) {
     std::uint64_t after_send_off;
   };
   constexpr Case cases[] = {
-      {false, false, UINT64_C(13711565807151734712), UINT64_C(17201809211116718618)},
-      {false, true, UINT64_C(16717170963448916555), UINT64_C(13813028668665107254)},
-      // S1: first ordinary free kick at step 207 now executes readiness waiting.
-      // The old policy row is archived in baselines/pre_condition_restarts.md.
-      {true, false, UINT64_C(7907520300668161649), UINT64_C(12681165719454811576)},
-      {true, true, UINT64_C(13287372985434084791), UINT64_C(12082599955711407290)},
+      // Pre-S2 policy rows and the former step-207 free kick are archived in
+      // baselines/pre_three_clocks.md; both half kickoffs now require real contact.
+      {false, false, UINT64_C(16144338831632478706), UINT64_C(11101384966440775508)},
+      {false, true, UINT64_C(1278980483242646393), UINT64_C(2155356947635217068)},
+      {true, false, UINT64_C(5415142161785239299), UINT64_C(12038476573473573858)},
+      {true, true, UINT64_C(8110407433742795352), UINT64_C(14851915034266500703)},
   };
   for (const Case& test : cases) {
     auto home = football::app::fixtures::MakeDefaultHomeTeam();
@@ -349,14 +350,9 @@ void CheckHistoricalScheduling(bool print_baseline) {
     const auto policy = football::test::MakeDefaultAI(simulation);
     for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto before = CaptureScheduleState(simulation);
-    if (test.unequal && !test.reverse) {
-      const auto& restart = simulation.match()->GetReferee()->GetBuffer();
-      Require(simulation.Observe().restart_pending && restart.restart &&
-                  restart.desiredSetPiece == e_GameMode_FreeKick &&
-                  restart.restart->entered_tick == football::sim::Tick{206} &&
-                  simulation.Observe().tick == 300,
-              "condition-restart fixture no longer exercises the documented policy delta");
-    }
+    Require(simulation.Observe().ball_in_play_time <= simulation.Observe().regulation_time &&
+                simulation.Observe().regulation_time.value <= simulation.Observe().tick,
+            "identity fixture broke the three-clock ordering");
     simulation.match()->GetTeam(0)->GetAllPlayers().at(1)->SendOff();
     for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto after = CaptureScheduleState(simulation);

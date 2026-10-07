@@ -618,10 +618,11 @@ void Player::Process() {
     CastHumanoid()->Process();
     SynchronizeKinematicState();
     CheckSimulationActionOracle();
-    if (match->IsInPlay()) {
+    // Real distance during an underway half, including dead-ball positioning.
+    if (match->IsHalfUnderway()) {
       Vector3 posAfter = CastHumanoid()->GetPosition();
       float distance = (posAfter - posBefore).GetLength();
-      fatigueFactorInv -= distance * 0.00003f * (2.0f - GetStaminaStat()) * (1.0f / match->GetMatchDurationFactor());
+      fatigueFactorInv -= distance * 0.00003f * (2.0f - GetStaminaStat());
       fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
     }
     // Don't send off the last player on the team.

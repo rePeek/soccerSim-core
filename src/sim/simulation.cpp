@@ -100,13 +100,10 @@ void Simulation::Init(
     const football::model::Team& home, const football::model::Team& away,
     const football::model::Pitch& pitch, MatchOptions options) {
   if (match_) throw std::logic_error("simulation already initialized");
-  // Reject non-advancing/non-finite clocks before any appearance/RNG draws.
-  const float factor = options.match_duration * 0.2f + 0.05f;
-  if (!std::isfinite(options.match_duration) || options.match_duration < 0.0f ||
-      !std::isfinite(factor) || 10.0f * (1.0f / factor) < 1.0f ||
-      options.half_duration_ms == 0 ||
-      options.half_duration_ms > (std::numeric_limits<std::uint64_t>::max() - 200) / 2) {
-    throw std::invalid_argument("invalid regulation duration or match clock scale");
+  // Native duration and full-match capacity are checked before any RNG draws.
+  if (options.half_duration == football::sim::TickSpan{} ||
+      options.half_duration.value > std::numeric_limits<std::uint64_t>::max() / 2) {
+    throw std::invalid_argument("invalid regulation duration");
   }
   ValidatePlayers(home, away);
   const std::vector<FormationEntry> left = ToLegacyFormation(home.formation);

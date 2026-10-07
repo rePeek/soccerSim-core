@@ -48,7 +48,6 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
       possessionSideHistory(6000),
-      matchDurationFactor(options.match_duration * 0.2f + 0.05f),
       options_(options) {
 
 
@@ -88,7 +87,6 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
 
   // match params
 
-  matchTime_ms = 0;
   lastGoalTeam = 0;
   for (unsigned int i = 0; i < e_TouchType_SIZE; i++) {
     lastTouchTeamIDs[i] = -1;
@@ -189,9 +187,17 @@ void Match::SwitchEnds() {
 
 void Match::SetMatchPhase(MatchPhase newMatchPhase) {
   matchPhase = newMatchPhase;
-  if (Finished()) return;
+  if (Finished()) { EndHalf(); return; }
   teams[first_team]->RelaxFatigue(1.0f);
   teams[second_team]->RelaxFatigue(1.0f);
+}
+
+void Match::StartBallInPlay() {
+  if (!IsInPlay() || (matchPhase != MatchPhase::FirstHalf &&
+                      matchPhase != MatchPhase::SecondHalf))
+    throw std::logic_error("ball cannot enter play outside an authorized half");
+  regulation_running_ = true;
+  ball_in_play_ = true;
 }
 
 MatchResult Match::Result() const {
@@ -235,7 +241,7 @@ bool Match::Step(const PlayerControlSet& controls) {
   Mirror(reverse, !reverse, reverse);
   // A clock that already elapsed must whistle before this tick can still collide
   // the ball. The referee stays the single period authority.
-  if (IsInPlay() && !referee_->PeriodElapsed()) {
+  if (IsBallInPlay() && !referee_->PeriodElapsed()) {
     CheckBallCollisions();
   }
 
@@ -245,8 +251,9 @@ bool Match::Step(const PlayerControlSet& controls) {
   // Restore the processing frame even on the referee's terminal transition.
   if (Finished()) return false;
   if (!IsInPlay() && !referee_->RestartNeedsSimulation() &&
-      referee_->GetBuffer().prepare_tick + football::sim::TickSpan{1} < now_) {
-    // Only the unchanged opening/half-time ceremony can hold actors still.
+      (now_ < referee_->GetBuffer().prepare_tick ||
+       referee_->GetBuffer().prepare_tick + football::sim::TickSpan{1} < now_)) {
+    // Ceremonies execute only their placement tail; both clocks stay stopped.
     AdvanceTime(football::sim::TickSpan{1});
     return false;
   }
@@ -302,7 +309,7 @@ bool Match::Step(const PlayerControlSet& controls) {
   // check for goals
   bool first_team_goal = false;
   bool second_team_goal = false;
-  if (IsInPlay()) {
+  if (IsBallInPlay()) {
     first_team_goal =
         CheckForGoal(teams[first_team]->GetDynamicSide(), previousBallPos);
     second_team_goal =
@@ -311,11 +318,11 @@ bool Match::Step(const PlayerControlSet& controls) {
   bool goal = first_team_goal | second_team_goal;
   ballIsInGoal |= goal;
   Mirror(reverse, !reverse, reverse);
-  if (IsInPlay()) {
+  if (IsBallInPlay()) {
     if (goal) {
       int team = first_team_goal ? second_team : first_team;
       ++score_[teams[team]->GetID()];
-      goalScored = true;
+      SetGoalScored(true);
       lastGoalTeam = teams[team];
     }
     if (first_team_goal || second_team_goal) {
@@ -335,7 +342,7 @@ bool Match::Step(const PlayerControlSet& controls) {
   }
   // average possession side
 
-   if (IsInPlay()) {
+   if (IsBallInPlay()) {
      if (GetBestPossessionTeam()) {
        float sideValue = 0;
        sideValue += (GetTeam(0)->GetFadingTeamPossessionAmount() - 0.5f) *
@@ -872,27 +879,31 @@ void Match::BumpActualTime_ms(unsigned long time) {
 }
 
 void Match::AdvanceTime(football::sim::TickSpan delta) {
+  using football::sim::TickSpan;
+  if (Finished()) return;
+  // Check all arithmetic before publishing any clock. Manual advances do not
+  // execute rules/physics, so they clip at the current period, not the next half.
   const auto next_tick = now_ + delta;
-  // Compatibility with the still-scaled, possibly sub-tick football clock and
-  // possession accumulator. Preserve their float evaluation order in this stage.
-  // This conversion disappears when those owners migrate; it is not a second timeline.
-  const auto time = football::sim::ToMilliseconds(delta);
-  if (IsInPlay()) {
-    // Truncate each scaled increment as before, then accumulate in integer time.
-    // Avoid float re-rounding of the accumulated clock (and eventual stagnation).
-    const auto increment = static_cast<std::uint64_t>(time * (1.0f / matchDurationFactor));
-    const auto limit = options_.half_duration_ms * (matchPhase == MatchPhase::SecondHalf ? 2 : 1);
-    // Clip at the period boundary, so even a half shorter than one scaled tick
-    // gets its own kickoff/playing period instead of consuming the next half.
-    matchTime_ms += std::min(increment, limit - std::min(matchTime_ms, limit));
+  TickSpan admitted{};
+  if (regulation_running_) {
+    const auto half = options_.half_duration;
+    const auto limit = matchPhase == MatchPhase::SecondHalf ? half + half : half;
+    admitted = TickSpan{std::min(delta.value,
+        (limit - std::min(regulation_elapsed_, limit)).value)};
   }
+  const auto next_regulation = regulation_elapsed_ + admitted;
+  const auto next_in_play = ball_in_play_elapsed_ + (ball_in_play_ ? admitted : TickSpan{});
   now_ = next_tick;
+  regulation_elapsed_ = next_regulation;
+  ball_in_play_elapsed_ = next_in_play;
 
-  if (IsInPlay() && !IsInSetPiece()) {
+  if (ball_in_play_ && !IsInSetPiece()) {
+    // Continuous possession window in SI seconds, derived from admitted ticks.
+    const float seconds = football::sim::ToSeconds(admitted);
     if (teams[0] == designatedPossessionPlayer->GetTeam()) {
-      possession60seconds_ = std::max(possession60seconds_ - (0.001f * time), -60.0f);
+      possession60seconds_ = std::max(possession60seconds_ - seconds, -60.0f);
     } else {
-      possession60seconds_ = std::min(possession60seconds_ + (0.001f * time), 60.0f);
+      possession60seconds_ = std::min(possession60seconds_ + seconds, 60.0f);
     }
   }
 }

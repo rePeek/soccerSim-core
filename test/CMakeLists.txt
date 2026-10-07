@@ -22,11 +22,12 @@ if(TARGET football_app)
   add_test(NAME football_app_cli_default COMMAND football_app)
   set_tests_properties(football_app_cli_default PROPERTIES
     PASS_REGULAR_EXPRESSION "home_score=[0-9]+ away_score=[0-9]+ outcome=.* duration_ticks=[1-9][0-9]*"
-    TIMEOUT 180)
+    # Two real 45-minute halves at 100 Hz, also with native Debug assertions.
+    TIMEOUT 900)
   add_test(NAME football_app_cli_short_match COMMAND football_app --half-duration-ms=1800)
   set_tests_properties(football_app_cli_short_match PROPERTIES
     PASS_REGULAR_EXPRESSION "home_score=0 away_score=0 outcome=draw duration_ticks=[1-9][0-9]*")
-  foreach(value IN ITEMS abc -5 0 18446744073709551615)
+  foreach(value IN ITEMS abc -5 0 1 11 18446744073709551615)
     add_test(NAME football_app_cli_rejects_duration_${value}
       COMMAND football_app --half-duration-ms=${value})
     set_tests_properties(football_app_cli_rejects_duration_${value} PROPERTIES WILL_FAIL TRUE)
@@ -56,7 +57,7 @@ set_tests_properties(football_default_ai_test PROPERTIES LABELS ai)
 
 add_executable(football_sim_control_boundary_test
   sim_control_boundary_test.cpp sim_match_lifecycle_test.cpp restart_placement_test.cpp
-  pitch_frame_test.cpp match_tick_test.cpp restart_readiness_test.cpp)
+  pitch_frame_test.cpp match_tick_test.cpp restart_readiness_test.cpp match_fatigue_test.cpp)
 target_link_libraries(football_sim_control_boundary_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_control_boundary_test)

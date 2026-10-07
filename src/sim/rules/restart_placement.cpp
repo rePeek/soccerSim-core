@@ -485,7 +485,7 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
               if (setPiece == e_GameMode_KickOff) {
                 auto formation_players = team->GetAllPlayers();
                 auto players_to_position = team->GetAllPlayers();
-                if (match->GetMatchTime_ms() > 0 &&
+                if (match->GetRegulationTime() > football::sim::TickSpan{} &&
                     other_team->GetAllPlayers().size() ==
                         team->GetAllPlayers().size() &&
                     (match->options().left_team_owns_ball ^

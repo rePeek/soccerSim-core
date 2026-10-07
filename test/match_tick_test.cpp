@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/fixtures/default_teams.hpp"
+#include "default_ai_fixture.hpp"
 #include "sim/match.hpp"
 #include "sim/simulation.hpp"
 #include "sim/tick.hpp"
@@ -22,21 +23,22 @@ TEST_CASE("Match snapshots read the authoritative tick timeline and freeze at fu
   for (const bool reverse : {false, true}) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
-    options.half_duration_ms = 1;  // Legacy football clock can still be sub-tick.
+    options.half_duration = TickSpan{1};
     Simulation simulation;
     Init(simulation, options);
     REQUIRE(simulation.match()->GetTimelineTick() == Tick{});
+    const auto policy = football::test::MakeDefaultAI(simulation);
     std::uint64_t steps = 0;
     while (!simulation.Finished()) {
       const Tick before = simulation.match()->GetTimelineTick();
-      simulation.Step({});
-      REQUIRE(++steps < 1000);
+      football::test::StepDefaultAI(simulation, policy);
+      REQUIRE(++steps < 3000);
       const Tick now = simulation.match()->GetTimelineTick();
       REQUIRE(now >= before);
       REQUIRE(simulation.Observe().tick == now.value);
       REQUIRE(simulation.match()->GetActualTime_ms() == ToMilliseconds(now));
     }
-    REQUIRE(simulation.Observe().match_time_ms == 2);
+    REQUIRE(simulation.Observe().regulation_time == TickSpan{2});
     REQUIRE(simulation.Result().duration_ticks == steps);
     const Tick finished = simulation.match()->GetTimelineTick();
     const auto rng = simulation.match()->rng().engine();
@@ -64,7 +66,8 @@ TEST_CASE("Advancing timeline ticks does not execute physics or consume RNG",
   REQUIRE(match->GetActualTime_ms() == 3000);
   const auto after = simulation.Observe();
   REQUIRE(after.tick == 300);
-  REQUIRE(after.match_time_ms == before.match_time_ms);
+  REQUIRE(after.regulation_time == before.regulation_time);
+  REQUIRE(after.ball_in_play_time == before.ball_in_play_time);
   REQUIRE(after.phase == before.phase);
   REQUIRE(after.reset_sequence == before.reset_sequence);
   REQUIRE(after.ball_position == before.ball_position);
@@ -80,7 +83,8 @@ TEST_CASE("Advancing timeline ticks does not execute physics or consume RNG",
   REQUIRE_THROWS_AS(match->AdvanceTime(TickSpan{std::numeric_limits<std::uint64_t>::max()}),
                     std::overflow_error);
   REQUIRE(match->GetTimelineTick() == Tick{300});
-  REQUIRE(simulation.Observe().match_time_ms == before.match_time_ms);
+  REQUIRE(simulation.Observe().regulation_time == before.regulation_time);
+  REQUIRE(simulation.Observe().ball_in_play_time == before.ball_in_play_time);
   REQUIRE(match->rng().engine() == rng);
 }
 
@@ -89,14 +93,10 @@ TEST_CASE("Tick timeline executes ordinary restart positioning without a skip",
   for (const bool reverse : {false, true}) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
-    options.half_duration_ms = 18000;
+    options.half_duration = Seconds(18);
     Simulation simulation;
     Init(simulation, options);
-    int startup = 0;
-    while (!simulation.IsInPlay()) {
-      simulation.Step({});
-      REQUIRE(++startup < 1000);
-    }
+    football::test::TakeKickOff(simulation);
     // Let the original post-kickoff relaxation expire before forcing a throw-in.
     for (int i = 0; i < 40; ++i) simulation.Step({});
     Match* match = simulation.match();
@@ -104,7 +104,8 @@ TEST_CASE("Tick timeline executes ordinary restart positioning without a skip",
     REQUIRE_FALSE(match->IsInSetPiece());
     match->GetBall()->ResetSituation(blunted::Vector3(10.f, 40.f, 0.f));
     const Tick before = match->GetTimelineTick();
-    const auto football_clock = match->GetMatchTime_ms();
+    const auto football_clock = match->GetRegulationTime();
+    const auto in_play_clock = match->GetBallInPlayTime();
     const auto resets = match->GetResetSequence();
     simulation.Step({});
     REQUIRE(simulation.Observe().restart == e_GameMode_ThrowIn);
@@ -113,17 +114,21 @@ TEST_CASE("Tick timeline executes ordinary restart positioning without a skip",
     REQUIRE(scheduled.restart.has_value());
     REQUIRE(scheduled.restart->entered_tick == before);
     REQUIRE(scheduled.restart->earliest_restart_tick == before + Seconds(2));
-    REQUIRE(match->GetMatchTime_ms() == football_clock);
+    REQUIRE(match->GetRegulationTime() == football_clock + TickSpan{1});
+    REQUIRE(match->GetBallInPlayTime() == in_play_clock);
     REQUIRE(match->GetResetSequence() == resets);
     simulation.Step({});
     REQUIRE(match->GetTimelineTick() == before + TickSpan{2});
     REQUIRE(match->GetResetSequence() == resets + 1);
     REQUIRE(match->GetReferee()->GetBuffer().taker != nullptr);
-    REQUIRE(match->GetMatchTime_ms() == football_clock);
+    REQUIRE(match->GetRegulationTime() == football_clock + TickSpan{2});
+    REQUIRE(match->GetBallInPlayTime() == in_play_clock);
     REQUIRE(simulation.Observe().restart_pending);
     for (int i = 0; i < 210; ++i) simulation.Step({});
     REQUIRE_FALSE(match->IsInPlay()); // A minimum is not automatic permission.
     REQUIRE(match->GetResetSequence() == resets + 1);
+    REQUIRE(match->GetRegulationTime() == football_clock + TickSpan{212});
+    REQUIRE(match->GetBallInPlayTime() == in_play_clock);
   }
 }
 
@@ -132,10 +137,10 @@ TEST_CASE("Restart setup and timeout fire once across timeline jumps",
   for (const bool reverse : {false, true}) {
     MatchOptions options;
     options.reverse_team_processing = reverse;
-    options.half_duration_ms = 18000;
+    options.half_duration = Minutes(3);
     Simulation simulation;
     Init(simulation, options);
-    while (!simulation.IsInPlay()) simulation.Step({});
+    football::test::TakeKickOff(simulation);
     for (int i = 0; i < 40; ++i) simulation.Step({});
     Match* match = simulation.match();
     match->GetBall()->ResetSituation(blunted::Vector3(10.f, 40.f, 0.f));

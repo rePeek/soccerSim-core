@@ -51,18 +51,17 @@ No configurable physics dt, wall-clock pacing, or foundation time module.
   Extrapolation/rotation arithmetic order and quaternion rate encoding remain
   unchanged; this stage is not a rotation physics/model rewrite.
 
-The unit-only stages T0–T4a left the legacy football clock, scale, fatigue, action
-progression, restart schedule and RNG windows unchanged. They did not implement the
-end-state rule that all simulation APIs/state use ticks. Football time can still
-have sub-tick increments; its millisecond storage is intentionally transitional.
-The temporary conversion in `AdvanceTime` preserves the exact previous float
-expression order for that clock and the possession accumulator.
+The unit-only stages T0–T4a left the then-legacy football clock, scale, fatigue,
+action progression, restart schedule and RNG windows unchanged. They did not
+implement the end-state rule that all simulation APIs/state use ticks. At that
+stage, temporary AdvanceTime conversion preserved scaled sub-tick clock progress
+and float expression order. S2 deliberately retires that compatibility policy.
 
 Current timeline tests cover both processing orders, direct advances without
 physics/RNG, executed pending positioning, minimum/timeout crossing, terminal
 freeze/reinitialization and atomic rejection of invalid durations. The former
 preparation-tail assertions were deliberately replaced during S1, not during T1.
-Existing lifecycle tests still cover a 1 ms half and 1 ms scaled clock progress.
+S2 retires 1 ms halves/scaled increments: the minimum native half is one tick.
 
 ## S1: ordinary restart semantics (not a unit-only migration)
 
@@ -102,6 +101,35 @@ the deliberate policy delta are archived in test/baselines/pre_condition_restart
 The default autonomous result intentionally changes from 2–1 / 31041 steps to
 1–2 / 34097 steps; do not confuse this with a unit conversion regression.
 
+## S2: three clocks and unscaled football time (semantic change)
+
+Match now owns a Tick timeline and TickSpan regulation/ball-in-play accumulators.
+Each half begins on its actual accepted kickoff. Ordinary dead balls continue
+regulation but not ball-in-play. EndHalf stops both through the ceremony. The
+old StartPlay/in_play flag authorizes execution; it is not an effective-time fact.
+Both ceremonial kickoffs retain their placement/deadlines but now enter Ready
+and need actual scheduled taker contact to become Taken. Only the authorized
+taker can execute contacts before the ball is live; body collisions/goals require
+actual live play. Empty controls cannot take a kickoff or advance either clock.
+
+MatchOptions::half_duration is native TickSpan (Minutes(45) by default). CLI
+--half-duration-ms is a positive exact 10 ms-grid boundary. Native validation
+rejects zero/full-match overflow before RNG draws, without millisecond capacity
+limits. AdvanceTime checks before publication, clips football clocks at the current
+period, derives possession seconds from admitted ticks and freezes after full time.
+The referee whistles independently of Pending/Ready/Taken at the period boundary.
+
+Removed match_duration, matchDurationFactor, authoritative match milliseconds and
+the inverse-scale fatigue compensation. Fatigue uses real distance during an
+underway half, including dead-ball positioning; ceremonies do not consume it.
+Physical integration, SI formulas, animation rates, reachability precision and
+restart min/max bounds are unchanged. This does not establish realism.
+
+All pre-stage fingerprints and causal evidence are archived in
+test/baselines/pre_three_clocks.md. World digest fields necessarily change; the
+unchanged motion/action/RNG encoding exposes intentional trajectory changes.
+Request/identity fixtures now wait for real contact rather than elapsed whistles.
+
 ## Remaining stages and semantic boundaries
 
 1. **Restart completeness/calibration:** calibrate bounds and actor positioning;
@@ -117,17 +145,13 @@ The default autonomous result intentionally changes from 2–1 / 31041 steps to
    arrival estimates are not deadlines; their precision and ordering must not be
    silently lost by forcing them into integer `TickSpan`. Any rounding policy
    needs explicit tests and a separate behavioral decision.
-4. **Clock policy:** introduce timeline/regulation/ball-in-play clocks and explicit
-   half-running state. Include ordinary dead balls in regulation, exclude the
-   half-time interval, and define added-time/half-time phases separately. Remove
-   the old duration scale/fatigue compensation in this semantic stage, not as an
-   allegedly digest-preserving rename. Boundary inputs must have an explicit
-   policy for non-grid half durations.
-5. **Restart scheduling/calibration:** Match owns fast-forward or simulated waiting;
-   Referee supplies conditions and earliest/timeout boundaries. Never skip an
-   interval in which actor readiness must evolve. Calibrate readiness/minimum/
-   timeout policies separately, then measure multiple seeds (effective time,
-   cleaned distance, pass contacts, shot contacts and goals, by half).
+4. **Future period policy:** added time, extra time, shootouts and explicit richer
+   half-time ceremonies are separate football-rule decisions; S2 implements only
+   two bounded regulation halves, not full IFAB timing.
+5. **Multi-seed restart measurement/calibration:** count restarts by mode/half,
+   Pending/Ready/taken waits and effective-time distributions before tuning bounds.
+   Also measure cleaned distance, pass contacts, shot contacts and goals by half.
+   Never prescribe a single fixed effective duration or skip evolving readiness.
 
 Time representation does not explain why a duration exists. Keep three categories
 separate: the immutable tick quantum; owner-local football/behavior policy; and
@@ -142,10 +166,10 @@ minimum suggested during design is illustrative, not a calibration requirement.
   including the close-range tie-breaking proxy. `Match`/`Team`/`Player` compare
   these to select possession candidates. Tick truncation creates new ties and
   can change decisions/RNG trajectories. Reaction delays also need a caller audit.
-- `match_duration=49.75` gives a legacy factor of 10 and **1 ms** of football time
-  per physical tick; the test explicitly asserts this. Deleting the scale also
-  changes the default match's executed duration and distance-weighted fatigue.
-  Pure integer regulation ticks cannot preserve all old configurations.
+- Historically match_duration=49.75 gave a factor of 10 and 1 ms of football
+  time per physical tick. S2 intentionally retires that test/configuration and
+  changes default duration/distance-weighted fatigue. Pure integer regulation
+  ticks cannot preserve every old scaled configuration.
 - Before S1, a preparation deadline 200 ticks away skipped 190 ticks, then
   performed a ten-tick tail. Altering that schedule changes executed physics,
   action/RNG opportunities and MatchResult::duration_ticks. T1 first preserved
@@ -168,3 +192,15 @@ If 24 Hz replay is later implemented, use integer phase accumulation on the
   match across the three build modes. Full default result also matches across modes.
 - Baked animation SHA256 unchanged:
   `33ab837652da93a795e4886738ca09b92e4b6376c99a2500202572e0a7885b86`.
+
+## S2 verification
+
+- Release, Debug and true NDEBUG: 27/27 CTest registrations each, including full
+  90-minute default matches. Short/full results and all core/identity rows agree.
+- Core-only build passes. Native NDEBUG flags and unpatched BqLog are retained.
+- Default: 27–26 / home_win / 541076 calls; 180-tick halves: 0–0 / 1436 calls.
+  These are policy-stage results, not realism calibration or unit-only equality.
+- Lifecycle tests cover both orders, actual kickoff, dead-ball/half-time boundaries,
+  overflow atomicity, precision and terminal freeze. Native movement tests verify
+  exact unscaled per-metre fatigue and exclusion of ceremonial warmup.
+- Baked SHA256 remains the S1 value; all old rows are archived before replacement.

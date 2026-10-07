@@ -14,20 +14,23 @@
 namespace {
 using blunted::Vector3;
 
-void Init(Simulation& simulation, bool reverse, std::uint64_t half_duration_ms = 1800) {
+void Init(Simulation& simulation, bool reverse,
+          football::sim::TickSpan half_duration = football::sim::TickSpan{180}) {
   MatchOptions options;
   options.reverse_team_processing = reverse;
-  options.half_duration_ms = half_duration_ms;
+  options.half_duration = half_duration;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
       football::model::MakeLegacyPitch(), options);
 }
 
 void ReachHalf(Simulation& simulation, MatchPhase phase) {
-  for (int step = 0; step < 1000; ++step) {
-    if (simulation.Observe().phase == phase && simulation.IsInPlay()) return;
+  const auto policy = football::test::MakeDefaultAI(simulation);
+  for (int step = 0; step < 3000; ++step) {
+    if (simulation.Observe().phase == phase && simulation.Observe().ball_in_play &&
+        !simulation.Observe().in_set_piece) return;
     REQUIRE_FALSE(simulation.Finished());
-    simulation.Step({});
+    football::test::StepDefaultAI(simulation, policy);
   }
   FAIL("requested playing half was not reached");
 }
@@ -75,7 +78,7 @@ TEST_CASE("a physical change of ends preserves canonical ball and player geometr
           "[sim][pitch-frame]") {
   for (bool reverse : {false, true}) {
     Simulation simulation;
-    Init(simulation, reverse, 180000);
+    Init(simulation, reverse, football::sim::Minutes(3));
     ReachHalf(simulation, MatchPhase::FirstHalf);
     Match& match = *simulation.match();
     SetPhysicalPlayer(*match.GetTeam(0)->GetAllPlayers()[1], Vector3(-30.f, 9.f, 0.f));

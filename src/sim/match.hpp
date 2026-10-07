@@ -90,16 +90,31 @@ class Match {
     bool Finished() const { return matchPhase == MatchPhase::Finished; }
     MatchResult Result() const;
 
+    // Authorization lets a Ready taker execute; it does not make the ball live.
     void StartPlay() { inPlay = true; }
-    void StopPlay() { inPlay = false; }
+    void StopPlay() { inPlay = false; ball_in_play_ = false; }
     bool IsInPlay() const { return inPlay; }
+    // Referee marks the actual accepted restart contact, including both half kickoffs.
+    void StartBallInPlay();
+    void EndHalf() { StopPlay(); StopSetPiece(); regulation_running_ = false; }
+    bool IsHalfUnderway() const { return regulation_running_; }
+    bool IsBallInPlay() const { return ball_in_play_; }
+    bool MayTouchBall(const Player& actor) const {
+      const auto& restart = referee_->GetBuffer();
+      return ball_in_play_ || (inPlay && inSetPiece && restart.active &&
+                              restart.taker == &actor);
+    }
 
     void StartSetPiece() { inSetPiece = true; }
     void StopSetPiece() { inSetPiece = false; }
     bool IsInSetPiece() const { return inSetPiece; }
     Referee *GetReferee() const { return referee_.get(); }
 
-    void SetGoalScored(bool onOff) { if (onOff == false) ballIsInGoal = false; goalScored = onOff; }
+    void SetGoalScored(bool onOff) {
+      if (onOff) ball_in_play_ = false;
+      else ballIsInGoal = false;
+      goalScored = onOff;
+    }
     bool IsGoalScored() const { return goalScored; }
     Team* GetLastGoalTeam() const { return lastGoalTeam; }
     void SetLastTouchTeamID(int id, e_TouchType touchType = e_TouchType_Intentional_Kicked) { lastTouchTeamIDs[touchType] = id; lastTouchTeamID = id; referee_->BallTouched(); }
@@ -130,7 +145,8 @@ class Match {
 
     float GetAveragePossessionSide(int time_ms) const { return possessionSideHistory.GetAverage(time_ms); }
 
-    std::uint64_t GetMatchTime_ms() const { return matchTime_ms; }
+    football::sim::TickSpan GetRegulationTime() const { return regulation_elapsed_; }
+    football::sim::TickSpan GetBallInPlayTime() const { return ball_in_play_elapsed_; }
     football::sim::Tick GetTimelineTick() const { return now_; }
     void AdvanceTime(football::sim::TickSpan delta);
     // Temporary adapters for owners not yet migrated. No millisecond timeline storage.
@@ -150,7 +166,6 @@ class Match {
 
 
 
-    float GetMatchDurationFactor() const { return matchDurationFactor; }
 
     const std::vector<Vector3> &GetAnimPositionCache(AnimationId animation_id) const;
 
@@ -188,7 +203,10 @@ class Match {
 
     std::vector<MentalImage> mentalImages; // [index] == index * 10 ms ago ([0] == now)
 
-    std::uint64_t matchTime_ms = 0;
+    football::sim::TickSpan regulation_elapsed_{};
+    football::sim::TickSpan ball_in_play_elapsed_{};
+    bool regulation_running_ = false;
+    bool ball_in_play_ = false;
     football::sim::Tick now_{};
     std::uint64_t duration_ticks_ = 0;
     // Actual world discontinuities; not a policy/request timer.
@@ -219,7 +237,6 @@ class Match {
 
 
 
-    const float matchDurationFactor = 0.0f;
 
     // Snapshot of initialization-time football rules.
     const MatchOptions options_;

@@ -35,10 +35,10 @@ TEST_CASE("the CLI composition reports declared identities", "[app][cli]") {
   }
 }
 TEST_CASE("the CLI runner ends autonomously with a final result", "[app][cli]") {
-  MatchOptions options; options.half_duration_ms = 1800;
+  MatchOptions options; options.half_duration = football::sim::TickSpan{180};
   auto game = MakeGame(options); game.Start();
   std::uint64_t steps = 0;
-  while (!game.Finished()) { game.Step(); REQUIRE(++steps < 1000); }
+  while (!game.Finished()) { game.Step(); REQUIRE(++steps < 3000); }
   const auto result = game.Result();
   REQUIRE(result.duration_ticks == steps);
   REQUIRE(game.Observe().phase == MatchPhase::Finished);

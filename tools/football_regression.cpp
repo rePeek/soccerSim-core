@@ -90,7 +90,10 @@ uint64_t HashWorld(const WorldState& world) {
   uint64_t hash = HashValue(UINT64_C(1469598103934665603), world.tick);
   hash = HashValue(hash, world.reset_sequence);
   hash = HashValue(hash, world.phase);
-  hash = HashValue(hash, world.match_time_ms);
+  hash = HashValue(hash, world.regulation_time.value);
+  hash = HashValue(hash, world.ball_in_play_time.value);
+  hash = HashValue(hash, world.half_underway);
+  hash = HashValue(hash, world.ball_in_play);
   const auto vector_hash = [](uint64_t hash, const Vector3& value) {
     return HashBytes(hash, value.coords, sizeof(value.coords));
   };
@@ -1008,7 +1011,7 @@ static_assert(!std::is_abstract_v<Player>);
 
 void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   InitDefaultMatch(simulation);
-  Advance(simulation, 201);
+  football::test::TakeKickOff(simulation);
   Match* match = simulation.match();
   std::vector<Player*> players;
   match->GetTeam(1)->GetActivePlayers(players);
@@ -1097,7 +1100,7 @@ void CheckRefereeRules(Simulation& simulation) {
   for (bool penalty : {false, true}) {
     for (int scenario : {1, 2, 3, 4}) {
       InitDefaultMatch(simulation);
-      Advance(simulation, 201);  // Leave the initial kickoff, into open play.
+      football::test::TakeKickOff(simulation);
       Match* match = simulation.match();
       Require(match->IsInPlay() && !match->IsInSetPiece(),
               "referee fixture should be in open play");
@@ -1172,7 +1175,7 @@ void CheckRefereeRules(Simulation& simulation) {
 
   {
     InitDefaultMatch(simulation);
-    Advance(simulation, 201);
+    football::test::TakeKickOff(simulation);
     Match* match = simulation.match();
     std::vector<Player*> home, away;
     match->GetTeam(0)->GetActivePlayers(home);
@@ -1189,7 +1192,7 @@ void CheckRefereeRules(Simulation& simulation) {
   // Real Match-owned rule engine, no fixture: record an offside pass and
   // reception. Neither positioning nor detection requires a linesman.
   InitDefaultMatch(simulation);
-  Advance(simulation, 201);
+  football::test::TakeKickOff(simulation);
   Match* match = simulation.match();
   std::vector<Player*> home, away;
   match->GetTeam(0)->GetActivePlayers(home);
@@ -1221,14 +1224,14 @@ struct GoldenSnapshot {
 
 // Value-policy/home-frame baseline. This intentionally replaces Eliza/RNG
 // trajectories; the previous golden pairs are archived in test/baselines/.
-// Runner contract adds authoritative phase/football time to HashWorld only.
-// Motion/actions/RNG simulation digest goldens remain unchanged; old World hashes
-// are recorded in test/baselines/pre_match_runner.md.
+// S2 changes clock policy, kickoff release and fatigue; World hashes include all
+// three-clock facts. Old rows/causal evidence live in baselines/pre_three_clocks.md.
+// Motion/action/RNG digest encoding is unchanged to expose actual trajectory deltas.
 constexpr GoldenSnapshot golden[] = {
-    {1, UINT64_C(181739816817067074), UINT64_C(350760935552669674)},
-    {100, UINT64_C(2189927517799612813), UINT64_C(13725550824419574755)},
-    {500, UINT64_C(1266667866899682051), UINT64_C(7040189435179413637)},
-    {1000, UINT64_C(6003776441005663363), UINT64_C(10968404906479542722)},
+    {1, UINT64_C(10332355978522980402), UINT64_C(350760935552669674)},
+    {100, UINT64_C(6566733075672102469), UINT64_C(13725550824419574755)},
+    {500, UINT64_C(3072497800688270887), UINT64_C(12665720491277525189)},
+    {1000, UINT64_C(15732669318329480461), UINT64_C(9316031574527648864)},
 };
 
 void CheckGoldenSnapshots(Simulation& simulation, GameEnv& game, bool print_baseline) {

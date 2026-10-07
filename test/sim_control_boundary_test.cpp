@@ -170,7 +170,7 @@ TEST_CASE("observations are owned values in a common home pitch frame", "[sim][o
     REQUIRE(initial.pitch == runtime.match()->pitch());
     const auto taker = *initial.restart_taker;
     REQUIRE(runtime.match()->GetReferee()->GetBuffer().taker->GetID() == taker);
-    for (int tick = 0; tick < 210; ++tick) football::test::StepDefaultAI(runtime.simulation, runtime.policy);
+    football::test::TakeKickOff(runtime.simulation);
     const auto world = runtime.simulation.Observe();
     REQUIRE(world.in_play);
     REQUIRE_FALSE(world.in_set_piece);
@@ -203,7 +203,8 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
   for (e_GameMode mode : {e_GameMode_Corner, e_GameMode_GoalKick, e_GameMode_ThrowIn}) {
     Runtime runtime;
     CAPTURE(mode);
-    for (int tick = 0; tick < 300; ++tick) runtime.simulation.Step(PlayerControlSet{});
+    football::test::TakeKickOff(runtime.simulation);
+    for (int tick = 0; tick < 40; ++tick) runtime.simulation.Step({});
     Match *match = runtime.match();
     REQUIRE(match->IsInPlay());
     REQUIRE_FALSE(match->IsInSetPiece());
@@ -213,7 +214,7 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     match->GetBall()->ResetSituation(mode == e_GameMode_ThrowIn
         ? Vector3(10, 37, 0) : Vector3(56, 10, 0));
     const auto stopped = match->GetTimelineTick();
-    const auto football_time = match->GetMatchTime_ms();
+    const auto football_time = match->GetRegulationTime();
     const auto rng_before = match->rng().engine();
     Referee *rules = match->GetReferee();
     rules->Process();
@@ -224,7 +225,7 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE(scheduled.restart->earliest_restart_tick >= stopped);
     REQUIRE(scheduled.restart->timeout_tick > scheduled.restart->earliest_restart_tick);
     REQUIRE(match->GetTimelineTick() == stopped);
-    REQUIRE(match->GetMatchTime_ms() == football_time);
+    REQUIRE(match->GetRegulationTime() == football_time);
     REQUIRE(match->rng().engine() == rng_before);
     REQUIRE(scheduled.active);
     REQUIRE(scheduled.desiredSetPiece == mode);
@@ -291,7 +292,10 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
     REQUIRE(a.simulation_epoch != b.simulation_epoch);
     REQUIRE(a.tick == b.tick);
     REQUIRE(a.phase == b.phase);
-    REQUIRE(a.match_time_ms == b.match_time_ms);
+    REQUIRE(a.regulation_time == b.regulation_time);
+    REQUIRE(a.ball_in_play_time == b.ball_in_play_time);
+    REQUIRE(a.half_underway == b.half_underway);
+    REQUIRE(a.ball_in_play == b.ball_in_play);
     REQUIRE(a.reset_sequence == b.reset_sequence);
     REQUIRE(a.pitch == b.pitch);
     REQUIRE(a.in_play == b.in_play);
@@ -393,7 +397,7 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
 
 TEST_CASE("world discontinuities invalidate AI requests without storing them in sim", "[sim][boundary]") {
   Runtime runtime;
-  for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(runtime.simulation, runtime.policy);
+  football::test::TakeKickOff(runtime.simulation);
   const auto before = runtime.simulation.Observe();
   REQUIRE(runtime.policy.RequestAttackingRun(football::model::TeamSide::Home, before, 7));
   runtime.match()->ResetSituation(Vector3(0));
@@ -413,7 +417,7 @@ TEST_CASE("old requests never revive across new Matches or independent Simulatio
   auto simulation = std::make_unique<Simulation>();
   simulation->Init(home, away, pitch, MatchOptions{});
   football::ai::DefaultAI policy(home, away, pitch);
-  for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(*simulation, policy);
+  football::test::TakeKickOff(*simulation);
   const auto old_world = simulation->Observe();
   REQUIRE(policy.RequestAttackingRun(TeamSide::Home, old_world, 7));
   REQUIRE(policy.RequestTeamPressure(TeamSide::Home, old_world));
@@ -442,11 +446,11 @@ TEST_CASE("old requests never revive across new Matches or independent Simulatio
   simulation->Init(home, away, pitch, MatchOptions{});
   const auto new_epoch = simulation->Observe().simulation_epoch;
   check(simulation->Observe());
-  for (int tick = 0; tick <= 701; ++tick) {
+  for (std::uint64_t tick = 0; tick <= old_world.tick + 401; ++tick) {
     const auto world = simulation->Observe();
     REQUIRE(world.simulation_epoch == new_epoch);
     check(world);
-    if (tick == 300) {
+    if (tick == old_world.tick) {
       REQUIRE(world.tick == old_world.tick);
       REQUIRE(world.reset_sequence == old_world.reset_sequence);
     }
@@ -456,7 +460,7 @@ TEST_CASE("old requests never revive across new Matches or independent Simulatio
   Simulation independent;
   independent.Init(home, away, pitch, MatchOptions{});
   REQUIRE(independent.Observe().simulation_epoch != new_epoch);
-  for (int tick = 0; tick <= 400; ++tick) {
+  for (std::uint64_t tick = 0; tick <= old_world.tick + 100; ++tick) {
     check(independent.Observe());
     football::test::StepDefaultAI(independent, quiet);
   }

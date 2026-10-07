@@ -9,7 +9,10 @@ WorldState BuildWorldState(const Match& match) {
   WorldState world;
   world.tick = match.GetTimelineTick().value;
   world.phase = match.GetMatchPhase();
-  world.match_time_ms = match.GetMatchTime_ms();
+  world.regulation_time = match.GetRegulationTime();
+  world.ball_in_play_time = match.GetBallInPlayTime();
+  world.half_underway = match.IsHalfUnderway();
+  world.ball_in_play = match.IsBallInPlay();
   world.reset_sequence = match.GetResetSequence();
   world.simulation_epoch = match.GetObservationEpoch();
   const auto ball_frame = ToHomePitchFrame(match);

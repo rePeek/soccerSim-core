@@ -14,11 +14,12 @@ using blunted::Vector3;
 void Init(Simulation& simulation, bool reverse) {
   MatchOptions options;
   options.reverse_team_processing = reverse;
-  options.half_duration_ms = 180000;
+  options.half_duration = Minutes(3);
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
       football::model::MakeLegacyPitch(), options);
-  for (int i = 0; i < 241; ++i) simulation.Step({});
+  football::test::TakeKickOff(simulation);
+  for (int i = 0; i < 40; ++i) simulation.Step({});
 }
 void ProcessRules(Match& match) {
   const bool reverse = match.options().reverse_team_processing;
@@ -267,7 +268,10 @@ TEST_CASE("pending restart targets, taker replacement and RNG replay as owning v
       REQUIRE(a.simulation_epoch != b.simulation_epoch);
       REQUIRE(a.tick == b.tick);
       REQUIRE(a.phase == b.phase);
-      REQUIRE(a.match_time_ms == b.match_time_ms);
+      REQUIRE(a.regulation_time == b.regulation_time);
+      REQUIRE(a.ball_in_play_time == b.ball_in_play_time);
+      REQUIRE(a.half_underway == b.half_underway);
+      REQUIRE(a.ball_in_play == b.ball_in_play);
       REQUIRE(a.reset_sequence == b.reset_sequence);
       REQUIRE(a.in_play == b.in_play);
       REQUIRE(a.in_set_piece == b.in_set_piece);

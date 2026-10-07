@@ -47,20 +47,24 @@ and non-movable. Caller changes to constructor inputs cannot mutate a match.
 ### Phases, clocks and final results
 
 Referee/sim owns `MatchPhase::{PreMatch, FirstHalf, SecondHalf, Finished}` and
-completion. SecondHalf includes its kickoff preparation; the football clock
-pauses during stoppages. WorldState projects `phase` and `match_time_ms` for
-telemetry and future coach decisions, but is never authoritative storage.
+completion. SecondHalf includes its kickoff ceremony. Match owns three clocks:
+- `WorldState::tick`: monotonic simulation timeline, one tick = 10 ms.
+- `regulation_time` (`TickSpan`): runs after the half's actual kickoff, including
+  ordinary dead balls; stops at half time and full time.
+- `ball_in_play_time` (`TickSpan`): accumulates only actual live-ball ticks,
+  excluding all dead balls and ceremonies.
 
-`MatchOptions::half_duration_ms` defaults to 45 minutes: two regulation halves,
-no added time, extra time or penalty shootout in this stage. Half time changes ends:
-the referee requests it, the simulation applies it once at the next canonical
-between-tick frame, and each team then attacks the opposite goal. `match_duration`
-retains the legacy compressed-clock scale (`factor = value * 0.2 + 0.05`), not
-a tick budget. Sim rejects invalid/non-advancing scales and invalid/overflowing
-period durations before RNG/profile draws. Clock increments are scaled/truncated
-per step, accumulated as integers and clipped to period boundaries. The referee
-whistles even if a restart is pending and before that boundary tick's ball contact;
-the terminal match cannot advance clocks, players, ball state, actions, scores or RNG.
+`half_underway` and `ball_in_play` project these rule facts. `in_play` is execution
+authorization: a Ready taker can act before actual contact makes the ball live.
+Snapshots are observations, never authoritative storage.
+
+`MatchOptions::half_duration` is `TickSpan`, defaulting to `Minutes(45)`: two halves,
+no duration scale, added time, extra time or penalty shootout in this stage. CLI
+milliseconds are converted exactly on the 10 ms grid; positive off-grid inputs
+are rejected. Sim validates native durations/full-match capacity before RNG draws.
+Half time changes ends once at the next canonical between-tick frame. Each
+half requires its own real kickoff. The referee whistles at the period boundary
+even with a pending restart, before further contacts; terminal state is frozen.
 
 `MatchResult` belongs to sim and contains `home_score`, `away_score`,
 `MatchOutcome::{HomeWin, AwayWin, Draw}` and `duration_ticks`. Outcome is derived
@@ -69,11 +73,10 @@ Result is available only after full time. Before then, before Start or after Sto
 Result throws `std::logic_error`: stopping is not a completed football match.
 Copy the owning result before stopping. Retained results/snapshots survive teardown.
 
-`duration_ticks` counts actually executed simulation steps (including the terminal
-referee transition), not subsequent no-op calls. Existing `WorldState::tick` is
-compressed elapsed simulation time divided by 10 ms; restart fast-forwards can
-make it differ from the executed-step count. `match_time_ms` is the separately
-scaled football clock, not either of those elapsed/count values.
+`duration_ticks` counts executed simulation calls, including the terminal referee
+transition, not subsequent no-op calls. The terminal whistle does not advance
+the timeline. Ordinary dead-ball positioning executes every tick without skips;
+neither throughput nor wall-clock pacing changes any football clock.
 
 `Observe()` is secondary replay/trace/debug telemetry. It returns an owning,
 unscaled home-frame WorldState with ball motion, team scores/directions, player

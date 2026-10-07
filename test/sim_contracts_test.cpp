@@ -1,16 +1,22 @@
 #include <cstdlib>
+#include <type_traits>
 
 #include "sim/player_control.hpp"
 #include "sim/player_control_set.hpp"
 #include "sim/world_state.hpp"
 #include "sim/tick.hpp"
 #include "sim/tick_boundary.hpp"
+#include "sim/match_options.hpp"
 
 static_assert(football::sim::Minutes(45).value == 270000);
 static_assert((football::sim::Tick{17} + football::sim::Seconds(2)).value == 217);
 static_assert(football::sim::ToMilliseconds(football::sim::Tick{17}) == 170);
+static_assert(std::is_same_v<decltype(MatchOptions::half_duration), football::sim::TickSpan>);
+static_assert(std::is_same_v<decltype(WorldState::regulation_time), football::sim::TickSpan>);
+static_assert(std::is_same_v<decltype(WorldState::ball_in_play_time), football::sim::TickSpan>);
 
 int main() {
+  if (MatchOptions{}.half_duration != football::sim::Minutes(45)) return EXIT_FAILURE;
   PlayerControlSet controls;
   PlayerControl control;
   control.desired_speed = 0.75f;

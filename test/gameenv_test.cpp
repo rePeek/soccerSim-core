@@ -40,7 +40,9 @@ bool Same(const blunted::Vector3& a, const blunted::Vector3& b) {
   return std::memcmp(a.coords, b.coords, sizeof(a.coords)) == 0;
 }
 void SameWorld(const WorldState& a, const WorldState& b) {
-  Require(a.tick == b.tick && a.phase == b.phase && a.match_time_ms == b.match_time_ms &&
+  Require(a.tick == b.tick && a.phase == b.phase && a.regulation_time == b.regulation_time &&
+      a.ball_in_play_time == b.ball_in_play_time && a.half_underway == b.half_underway &&
+      a.ball_in_play == b.ball_in_play &&
       a.reset_sequence == b.reset_sequence && Same(a.ball_position, b.ball_position) &&
       Same(a.ball_velocity, b.ball_velocity) && a.in_play == b.in_play &&
       a.in_set_piece == b.in_set_piece && a.restart == b.restart &&
@@ -67,7 +69,7 @@ void CoreAPI() {
   game.Stop(); game.Stop(); game.Start();
   LogicError([&] { game.Start(); }); LogicError([&] { game.Result(); });
   const auto initial = game.Observe();
-  Require(initial.phase == MatchPhase::PreMatch && initial.match_time_ms == 0 &&
+  Require(initial.phase == MatchPhase::PreMatch && initial.regulation_time == football::sim::TickSpan{} &&
           initial.tick == 0 && initial.players.size() == 22, "invalid initial observation");
   for (int tick = 0; tick < 100; ++tick) game.Step();
   const auto advanced = game.Observe();
@@ -115,18 +117,19 @@ void Composition() {
   }
 }
 void FinalResult() {
-  MatchOptions options; options.half_duration_ms = 1800;
+  MatchOptions options; options.half_duration = football::sim::TickSpan{180};
   auto game = MakeGame(options); game.Start();
   std::uint64_t steps = 0;
   bool first = false, second = false;
   while (!game.Finished()) {
     const auto world = game.Observe();
     first |= world.phase == MatchPhase::FirstHalf; second |= world.phase == MatchPhase::SecondHalf;
-    game.Step(); Require(++steps < 1000, "short match failed to finish");
+    game.Step(); Require(++steps < 3000, "short match failed to finish");
   }
   const auto world = game.Observe(); const auto result = game.Result();
   Require(first && second && world.phase == MatchPhase::Finished && !world.in_play &&
-      !world.in_set_piece && world.match_time_ms >= 3600 && result.duration_ticks == steps &&
+      !world.in_set_piece && world.regulation_time == football::sim::TickSpan{360} &&
+      !world.half_underway && !world.ball_in_play && result.duration_ticks == steps &&
       result.home_score == world.teams[0].score && result.away_score == world.teams[1].score,
       "result was not authoritative regulation completion");
   for (int tick = 0; tick < 20; ++tick) game.Step();

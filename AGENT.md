@@ -255,22 +255,27 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   calculation sampling adapters retain legacy horizon quantization; coverage is
   in `test/prediction_tick_test.cpp`. Unused Ball/Player mean-history APIs and
   their write-only history storage are deleted, not replaced.
-  The legacy scaled football clock remains millisecond-based until its semantic migration:
-  it supports sub-tick progress. See tools/time-model-migration.md before removing
-  scale or rounding arrival estimates. Ordinary restart skips are removed in S1.
-- Referee owns period transitions; Match owns phase, football clock, score and
-  executed-step count. MatchPhase is PreMatch/FirstHalf/SecondHalf/Finished;
-  second-half kickoff preparation is inside SecondHalf. Defaults are two 45-minute
-  halves, no added/extra time or penalties. CLI has no tick budget/--steps.
-- `match_duration` preserves legacy factor `value * 0.2 + 0.05`. Validate finite,
-  non-negative, non-stalling scale and positive/non-overflowing half duration before
-  RNG draws. Per-step scaled increments truncate, accumulate as uint64 and clip at
-  period boundaries. Whistles win over pending restarts and that tick's ball contact.
+  Clock scale removal is a separate S2 semantic stage, not a unit-only rename.
+  See tools/time-model-migration.md before rounding continuous arrival estimates.
+- Referee owns period transitions; Match owns phase, score, executed-step count
+  and three clocks: Tick timeline, TickSpan regulation and TickSpan ball-in-play.
+  MatchPhase is PreMatch/FirstHalf/SecondHalf/Finished; second-half ceremony is
+  inside SecondHalf. MatchOptions::half_duration defaults to Minutes(45).
+  Native duration must be positive and two halves must fit uint64 before RNG draws.
+  CLI milliseconds are converted exactly on the 10 ms grid; off-grid input fails.
+  No duration scale, added/extra time, penalties or CLI tick budget/--steps.
+- Regulation starts from each half's accepted kickoff and includes ordinary dead
+  balls. Ball-in-play accumulates only after accepted actual restart contact.
+  StartPlay/World.in_play authorize a Ready taker; they are not effective time.
+  half_underway/ball_in_play expose separate facts. EndHalf stops both clocks.
+  Direct AdvanceTime clips football clocks at the current period; whistles win
+  over pending restarts and further ball contacts. Fatigue uses real metres during
+  an underway half, including dead-ball positioning, without scale compensation.
 - Terminal Match freezes clocks, actors, actions, ball, scores, RNG and Result.
   duration_ticks counts executed Steps including the terminal transition; World.tick
   is the monotonic simulation timeline. Ordinary dead balls execute every positioning
   tick, without skips; the terminal whistle call does not advance the timeline.
-  Football match_time_ms is still separately paused/scaled.
+  Clock observations use native TickSpan; no authoritative match millisecond clock.
 - Half time mirrors both teams/ball/mental images once at the next canonical
   between-tick frame. Static physical sides flip, while WorldState keeps the home
   frame and TeamSide remains Home/Away. The same physical goal credits the opposite
@@ -310,11 +315,13 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   during pending positioning; the legacy live-play deadband is unchanged.
   Maximum delay repairs legal positions once, never invents a contact. Actual
   scheduled taker contact releases the set piece; cursor expiry/retain anchoring does not.
-  No preparation fast-forward/tail API remains. Opening/half-time ceremonies alone
-  retain old prepare/start Tick deadlines, through private PrepareCeremonialKickOff.
-  Bounds are provisional engineering policy, not realism calibration. Remaining
-  football clocks, richer quick-free-kick/wall administration and calibration are
-  explicitly tracked in tools/time-model-migration.md.
+  Only the authorized taker may execute native contacts before the ball is live.
+  No preparation fast-forward/tail API remains. Opening/half-time ceremonies
+  retain prepare/start deadlines/placement through private PrepareCeremonialKickOff,
+  but share Ready/Taken release: neither a whistle nor a timer fabricates contact.
+  Bounds are provisional engineering policy, not realism calibration. Richer
+  quick-free-kick/wall administration and calibration remain explicitly tracked
+  in tools/time-model-migration.md.
 - Diagnostics/tests may compose Simulation and explicit PlayerControlSet sequences
   outside GameEnv. Equal declarations + equal control tapes must replay identical
   WorldState payloads and RNG states; epoch identities intentionally differ.
