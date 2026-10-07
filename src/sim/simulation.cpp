@@ -217,9 +217,9 @@ void Simulation::Step(const PlayerControlSet& controls) {
 
   // StepPlayers, each in its own execution frame.
   Mirror(match.first_team == 1, match.first_team == 0, false);
-  match.teams[match.first_team]->Process();
+  match.teams[match.first_team]->Process(mental_images_);
   Mirror(true, true, true);
-  match.teams[match.second_team]->Process();
+  match.teams[match.second_team]->Process(mental_images_);
   Mirror(match.first_team == 0, match.first_team == 1, true);
 
   // UpdatePossession: retain both per-roster refreshes before arbitration.

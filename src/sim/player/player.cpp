@@ -23,6 +23,7 @@
 
 #include "foundation/geometry/triangle.hpp"
 #include "sim/match/match.hpp"
+#include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/query/player_query.hpp"
@@ -585,14 +586,14 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue) {
   }
 }
 
-void Player::Process() {
+void Player::Process(std::span<MentalImage> history) {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
     if (match->IsInPlay()) {
       if (football::sim::player_timing::StaggeredRefreshDue(
           match->GetTimelineTick(), football::sim::player_timing::kTacticalRefresh,
           football::sim::TickSpan{schedule_phase_})) {
-        _CalculateTacticalSituation();
+        _CalculateTacticalSituation(history);
       }
     }
     Vector3 posBefore = CastHumanoid()->GetPosition();
@@ -863,12 +864,13 @@ void Player::ResetSituation(const Vector3 &focusPos) {
   tacticalSituation.spaceRating = 0;
 }
 
-void Player::_CalculateTacticalSituation() {
+void Player::_CalculateTacticalSituation(std::span<MentalImage> history) {
   // Sample only when needed. Reaction estimates keep their sub-tick precision;
   // the history sampler, not stored Player state, owns nearest-capture rounding.
   const bool own_touch = match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental;
-  const MentalImage *mentalImage = own_touch ? match->GetMentalImage(football::sim::TickSpan{})
-                                          : match->GetMentalImage(std::chrono::milliseconds{GetReactionTime_ms()});
+  const MentalImage *mentalImage = own_touch
+      ? football::sim::observation::SampleMentalImage(history, football::sim::TickSpan{})
+      : football::sim::observation::SampleMentalImage(history, std::chrono::milliseconds{GetReactionTime_ms()});
   assert(mentalImage);
   assert(IsActive());
   float time_sec = 0.5f;

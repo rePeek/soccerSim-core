@@ -175,6 +175,8 @@ at the original setup point, never stores it, and gains no Simulation pointer/co
 MentalImage has no Match pointer or implicit clock/Ball reads:
 capture takes tick, ordered player span and Ball; sampling takes explicit now/Ball.
 Legacy Player deviation clamps and signed horizon quantization remain unchanged.
+StepPlayers explicitly lends history through Team/Player processing for tactical sampling;
+the remaining Humanoid/touch bridge is transitional. Actors do not store the span.
 
 `match/match_clock.*` defines MatchClock: timeline/regulation/effective clocks, run flags and executed
 ticks. It takes phase explicitly, atomically clips advances to the current period,

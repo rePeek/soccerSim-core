@@ -29,7 +29,7 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
       const float fatigue = actor.GetFatigueFactorInv();
       const float stamina = actor.GetStaminaStat();
       actor.SetControl(move);
-      actor.Process();
+      actor.Process({}); // No tactical refresh while play is stopped.
       REQUIRE(actor.GetSimulationActionState().IsPureLocomotion(false));
       const float distance = (actor.GetPosition() - before).GetLength();
       metres += distance;

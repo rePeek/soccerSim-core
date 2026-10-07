@@ -116,6 +116,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── referee_state_test.cpp    explicit period operation changes only referee-owned facts
 ├── possession_test.cpp       arrival ranking, ties, hysteresis and retainer override
 ├── mental_image_history_test.cpp sole history, newest refresh, mirrors/reset/lifetime isolation
+├── actor_history_test.cpp    tick-local actor history inputs, no implicit query/fallback
 ├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
 ├── player_observation_tick_test.cpp publication/reset stamps, re-entry ages and history sampling
 ├── reachability_tick_test.cpp grid candidate rollouts, split horizons and continuous precision
@@ -316,6 +317,10 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   remains after Ball processing, before players, empty-or-ten-tick, newest-first with
   three slots. Match still borrows the vector only for transitional actor sampling and
   synchronous TouchBall refresh; it owns no history and never points upward to Simulation.
+  H4-A1: StepPlayers passes a tick-local span through Team::Process → Player::Process
+  to tactical sampling; no actor stores the span. Humanoid sampling/touch remains
+  on the borrowed Match bridge until the subsequent cuts. Preserve staggered cadence,
+  own-touch selection and signed millisecond sampling; do not capture another history.
   Match::Mirror and ResetSituation are removed: Simulation mirrors teams → Ball → images
   and resets competition facts → clears history → resets Ball → both processing rosters
   at the old mutation points. Referee::Process receives a narrow synchronous reset action,

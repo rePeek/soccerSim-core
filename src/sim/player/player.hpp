@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include "model/player.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_kinematics.hpp"
@@ -130,6 +131,7 @@ void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
 
 class Match;
+class MentalImage;
 class HumanoidBase;
 
 struct TacticalPlayerSituation {
@@ -334,7 +336,8 @@ class Player final {
 
     float GetDecayingPositionOffsetLength() { return humanoid->GetDecayingPositionOffsetLength(); }
 
-    void Process();
+    // Tick-local borrow; no history owner or persistent observation port.
+    void Process(std::span<MentalImage> history);
 
 
     float GetStat(football::model::PlayerStat name) const;
@@ -398,7 +401,7 @@ class Player final {
 
   private:
     void ResetRuntimeState(const Vector3 &focusPos);
-    void _CalculateTacticalSituation();
+    void _CalculateTacticalSituation(std::span<MentalImage> history);
     void SynchronizeKinematicState();
     PlayerActionState CaptureLegacyActionState() const;
     void SetNextResetSituationAuditContext(int context);

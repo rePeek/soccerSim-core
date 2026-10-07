@@ -192,7 +192,7 @@ void Team::RelaxFatigue(float howMuch) {
   }
 }
 
-void Team::Process() {
+void Team::Process(std::span<MentalImage> history) {
   teamPossessionAmount = (float)(match->GetTeam(abs(GetID() - 1))
       ->GetTimeNeededToGetToBall_ms() +
       1500) /
@@ -217,7 +217,7 @@ void Team::Process() {
 
   for (unsigned int i = 0; i < players.size(); i++) {
     if (players[i]->IsActive()) {
-      players[i]->Process();
+      players[i]->Process(history);
     }
   }
 

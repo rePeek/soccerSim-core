@@ -19,10 +19,12 @@
 #define _HPP_TEAM
 
 #include <cstdint>
+#include <span>
 #include "model/team.hpp"
 #include "sim/player/player.hpp"
 
 class Match;
+class MentalImage;
 
 class Team {
 
@@ -109,7 +111,7 @@ class Team {
 
     void RelaxFatigue(float howMuch);
 
-    void Process();
+    void Process(std::span<MentalImage> history);
     void Put2D(bool mirror);
     void Hide2D();
 
