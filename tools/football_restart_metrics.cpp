@@ -4,6 +4,7 @@
 #include <charconv>
 #include <cstdint>
 #include <iostream>
+#include <iomanip>
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -39,6 +40,12 @@ struct Event {
 struct Samples {
   unsigned count = 0, censored = 0, timeouts = 0;
   std::vector<std::uint64_t> preparation, ready, total;
+};
+// Definition-precise behaviour totals, one row per played half. Contact counts
+// are accepted intentional kicks, not completed passes or official shots on target.
+struct HalfMetrics {
+  std::array<double, 2> open_metres{};
+  std::array<unsigned, 2> touches{}, shot_contacts{}, pass_contacts{}, goals{};
 };
 using Key = std::pair<int, int>; // Half and native game-mode value.
 
@@ -80,6 +87,12 @@ void Run(unsigned seed, TickSpan half_duration, bool reverse, bool symmetric) {
   std::optional<Event> current;
   std::map<Key, Samples> ordinary, ceremonies;
   std::array<TickSpan, 2> regulation{}, effective{}, event_dead_time{};
+  std::array<HalfMetrics, 2> metrics{};
+  const auto roster = [&](int side) -> const std::vector<Player*>& {
+    return simulation.match()->GetTeam(side)->GetAllPlayers();
+  };
+  const auto roster_size = roster(0).size() + roster(1).size();
+  std::vector<Tick> previous_touch(roster_size);
   std::uint64_t calls = 0;
 
   const auto record = [&](const Event& event, Tick end) {
@@ -116,6 +129,33 @@ void Run(unsigned seed, TickSpan half_duration, bool reverse, bool symmetric) {
       throw std::logic_error("clock increment contract violated");
     regulation[half - 1] += admitted;
     effective[half - 1] += live;
+    auto& metrics_half = metrics[half - 1];
+    std::size_t index = 0;
+    for (int side = 0; side < 2; ++side) {
+      for (auto* player : roster(side)) {
+        const auto tick = player->GetLastTouchTick();
+        if (tick != previous_touch[index]) {
+          previous_touch[index] = tick;
+          // Live play only: restart/kickoff contacts are not open-play events.
+          if (before.ball_in_play && player->GetLastTouchType() == e_TouchType_Intentional_Kicked) {
+            ++metrics_half.touches[side];
+            const auto action = player->GetCurrentFunctionType();
+            if (action == e_FunctionType_Shot) ++metrics_half.shot_contacts[side];
+            if (action == e_FunctionType_ShortPass || action == e_FunctionType_LongPass ||
+                action == e_FunctionType_HighPass) ++metrics_half.pass_contacts[side];
+          }
+        }
+        ++index;
+      }
+    }
+    if (before.ball_in_play)
+      for (std::size_t i = 0; i < before.players.size(); ++i)
+        metrics_half.open_metres[static_cast<unsigned>(before.players[i].side)] +=
+            (after.players[i].position - before.players[i].position).GetLength();
+    for (int side = 0; side < 2; ++side) {
+      const auto delta = after.teams[side].score - before.teams[side].score;
+      if (delta > 0) metrics_half.goals[side] += static_cast<unsigned>(delta);
+    }
     const auto& buffer = simulation.match()->GetReferee()->GetBuffer();
     const bool active = buffer.active && buffer.restart.has_value();
     if (current && (!active || current->entered != buffer.restart->entered_tick)) {
@@ -147,21 +187,29 @@ void Run(unsigned seed, TickSpan half_duration, bool reverse, bool symmetric) {
       effective[0] + effective[1] != world.ball_in_play_time ||
       calls != result.duration_ticks || world.tick + 1 != calls)
     throw std::logic_error("final clock/call totals disagree");
-  for (int half = 1; half <= 2; ++half)
-    std::cout << "half," << seed << ',' << reverse << ',' << half << ','
-              << regulation[half - 1].value << ',' << effective[half - 1].value << ','
-              << (regulation[half - 1] - effective[half - 1]).value << '\n';
-  for (bool ceremony : {false, true}) {
-    for (const auto& [key, sample] : ceremony ? ceremonies : ordinary) {
-      std::cout << "distribution," << seed << ',' << reverse << ',' << key.first << ','
-                << ceremony << ',' << key.second << ',' << sample.count << ','
-                << sample.censored << ',' << sample.timeouts;
-      PrintDistribution("prepare", sample.preparation);
-      PrintDistribution("ready", sample.ready);
-      PrintDistribution("total", sample.total);
-      std::cout << '\n';
-    }
+  for (int half = 0; half < 2; ++half)
+    for (int side = 0; side < 2; ++side)
+      if (metrics[half].shot_contacts[side] + metrics[half].pass_contacts[side] >
+          metrics[half].touches[side])
+        throw std::logic_error("classified contacts exceed accepted kicked touches");
+  for (int side = 0; side < 2; ++side) {
+    const unsigned total = metrics[0].goals[side] + metrics[1].goals[side];
+    const int expected = side == 0 ? result.home_score : result.away_score;
+    if (total != static_cast<unsigned>(expected))
+      throw std::logic_error("half goal totals disagree with the final score");
   }
+  std::cout << std::fixed;
+  for (int half = 1; half <= 2; ++half) {
+    const auto& value = metrics[half - 1];
+    std::cout << "metrics," << seed << ',' << reverse << ',' << half << ',';
+    std::cout << std::setprecision(1) << value.open_metres[0] << ',' << value.open_metres[1];
+    for (int side = 0; side < 2; ++side)
+      std::cout << ',' << value.touches[side] << ',' << value.shot_contacts[side] << ','
+                << value.pass_contacts[side];
+    for (int side = 0; side < 2; ++side) std::cout << ',' << value.goals[side];
+    std::cout << '\n';
+  }
+  std::cout << std::defaultfloat;
   std::cout << "match," << seed << ',' << reverse << ',' << result.home_score << ','
             << result.away_score << ',' << result.duration_ticks << ',' << world.tick << ','
             << world.regulation_time.value << ',' << world.ball_in_play_time.value << '\n';

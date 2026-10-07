@@ -120,7 +120,8 @@ Measured at runtime `85e4bdf`, without production changes. The optional symmetri
 input is declared before Init; it changes diagnostic match inputs, not runtime
 coefficients or restart timing policy. Only symmetric runs print an additional
 `setup,seed,reverse,symmetric_home_copy,home_difficulty,away_difficulty` descriptor;
-original-input records remain unchanged. Do not pool runs from different setups.
+do not pool runs from different setups. Behaviour `metrics` rows were added later;
+see the definitions section below.
 
 ```sh
 for seed in 42 43 44; do
@@ -194,3 +195,66 @@ analysis; exact trajectory equality between processing orders is not a contract.
 Restart bounds remain provisional. Effective times here must not be forced toward
 a desired observed league number by lengthening minima. Shot/pass/save definitions
 and independent running/animation evidence remain prerequisites to calibration.
+Restart bounds remain provisional. Effective times here must not be forced toward
+a desired observed league number by lengthening minima. Shot/pass/save definitions
+and independent running/animation evidence remain prerequisites to calibration.
+
+## Behaviour metrics with explicit definitions
+
+Added after the frame correction, in the same read-only program. Output gained one
+`metrics` row per played half; `setup`/`restart`/`half`/`distribution`/`match` records
+and all internal contract checks are unchanged. Native `Player`/`Match` values are
+only read, with no interposition, RNG draw or actor/ball mutation.
+
+```text
+metrics,seed,reverse,half,home_open_metres,away_open_metres,
+  home_touches,home_shot_contacts,home_pass_contacts,
+  away_touches,away_shot_contacts,away_pass_contacts,home_goals,away_goals
+```
+
+- `open_metres`: sum of that side's per-tick player displacement while the ball was
+  already live at the start of the step. Effective open play only: restart/ceremonial
+  positioning and the half-time reflection are excluded, so this is running distance
+  during live play, not total locomotion. Team totals, not per-player means.
+- `touches`: accepted intentional kicked contacts made during live open play.
+  Kickoff/restart ceremonies and accidental contacts are excluded.
+- `shot_contacts`/`pass_contacts`: subsets of `touches` classified by the acting
+  player's accepted kick action (Shot vs Short/Long/High pass).
+- `goals`: score delta attributed to that half. Sums must equal the final score;
+  shot/pass contacts must not exceed `touches`. Both are checked before printing.
+
+Metric distinctions remain mandatory: pass contacts are not completed passes (no
+reception/target check); shot contacts are not official shots-on-target or goals;
+open metres are not per-player load or an animation-rate measure.
+
+### Corrected full corpus (Release, 45-minute halves)
+
+Default fixtures (`reverse 0 = normal processing order`):
+
+| Seed | Order | Score | Open km H/A | Touches H/A | Shot contacts H/A | Pass contacts H/A |
+|---:|---|---:|---|---:|---|---|
+| 42 | Normal | 27–26 | 128.7 / 129.8 | 813 / 771 | 68 / 48 | 546 / 504 |
+| 43 | Normal | 29–11 | 132.3 / 129.8 | 895 / 736 | 77 / 32 | 581 / 517 |
+| 44 | Normal | 29–16 | 131.0 / 129.0 | 824 / 763 | 72 / 45 | 565 / 538 |
+| 42 | Reverse | 45–13 | 131.9 / 126.6 | 957 / 703 | 102 / 29 | 546 / 506 |
+| 43 | Reverse | 37–12 | 130.4 / 125.6 | 864 / 758 | 85 / 47 | 542 / 537 |
+| 44 | Reverse | 43–9 | 129.1 / 126.0 | 914 / 732 | 98 / 43 | 553 / 496 |
+
+Symmetric inputs (`symmetric 1`, equal declarations and difficulty):
+
+| Seed | Order | Score | Open km H/A | Touches H/A | Shot contacts H/A | Pass contacts H/A |
+|---:|---|---:|---|---:|---|---|
+| 42 | Normal | 17–21 | 134.2 / 129.5 | 858 / 815 | 62 / 50 | 593 / 551 |
+| 43 | Normal | 29–13 | 132.9 / 127.2 | 862 / 758 | 69 / 42 | 568 / 540 |
+| 44 | Normal | 18–19 | 130.0 / 128.0 | 860 / 798 | 76 / 50 | 551 / 549 |
+| 42 | Reverse | 26–12 | 133.0 / 126.2 | 854 / 815 | 76 / 53 | 571 / 557 |
+| 43 | Reverse | 40–16 | 132.5 / 126.6 | 899 / 764 | 94 / 36 | 562 / 535 |
+| 44 | Reverse | 31–13 | 130.7 / 127.3 | 839 / 748 | 76 / 42 | 562 / 539 |
+
+All 12 runs repeat byte-identically and satisfy the goal/contact invariants. Each
+side's open-play total is ~126–134 km per match (~11.5–12.2 km per player), in the
+same order as real league load. Pass contacts ~500–650 per side are plausible in
+count only; shot contacts ~30–100 and goals 9–45 are far above real football, so
+finishing/goalkeeping/defensive policy — not the clock — is the dominant source of
+excessive scores. These are measurement baselines, not a calibration target: do not
+tune restart minima or AI coefficients from them without a separate justified change.

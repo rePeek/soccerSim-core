@@ -464,9 +464,16 @@ seed 42/43/44 restart records remain unchanged after T4c–T4e in all tested mod
 
 ### Restart diagnostic matrix
 
+### Restart diagnostic matrix
+
 football_restart_metrics accepts an optional symmetric-input flag after seed/half/order.
 It copies complete home declarations to away with distinct IDs and equal difficulty
 before Init; no runtime intervention is involved. Short CTests cover both orders.
+It also prints one definition-precise `metrics` row per half: open-play running
+metres per side and accepted kicked touches split into shot/pass contacts, plus
+per-half goals. Pass contacts are not completed passes and shot contacts are not
+official shots-on-target; no reception or keeper-utility check exists yet. Counts and
+goal totals are validated against the final match facts before printing.
 The pre-fix full matrix exposed reversed execution chasing a ghost ball despite correct
 observation projection. See tools/restart-metrics.md; those reverse samples must not be
 treated as calibration evidence. Frame correctness must precede behavior tuning.

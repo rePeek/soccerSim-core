@@ -373,3 +373,20 @@ or environment fallback was added. AIConfig/MatchOptions/model remain startup-ow
 values passed by app through GameEnv; timing policies remain local to their owners.
 Private resource ownership does not establish independent authoring-rate or real-
 subject evidence; that calibration prerequisite remains unavailable.
+
+## Behaviour measurement baselines (no policy change)
+
+The read-only diagnostic now also emits one `metrics` row per played half: per-side
+open-play running metres and accepted intentional kicked touches classified into
+shot/pass contacts, plus per-half goals. Definitions are explicit and validated
+(contacts never exceed touches; per-half goals sum to the final score). It reads
+native Player/Match values only, draws no RNG and mutates nothing. Pass contacts are
+not completed passes and shot contacts are not official shots-on-target.
+
+All 12 corrected default/symmetric x order runs repeat byte-identically. Open-play
+load is ~126-134 km per side per match (~11.5-12.2 km per player). Pass-contact
+counts (~500-650 per side) are plausible in magnitude; shot contacts (~30-100) and
+goals (9-45) remain far above real football. The dominant source of excessive scores
+is therefore finishing/keeper/defensive policy, not the clock or execution frame.
+Full tables and field definitions are in tools/restart-metrics.md. These numbers are
+measurement baselines, not calibration targets, and no bounds/AI were tuned.
