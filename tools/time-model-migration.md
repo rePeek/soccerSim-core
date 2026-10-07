@@ -37,6 +37,11 @@ No configurable physics dt, wall-clock pacing, or foundation time module.
   unused possession-duration accumulator/API. Touch-time readers in Humanoid
   remain exact temporary projections pending its calculation migration.
   Card-effect regression covers both processing orders and the exact due tick.
+- **T3c:** Humanoid animation requeue and Player tactical staggered cadences
+  consume ticks directly. A reduced-remainder helper avoids offset overflow;
+  exhaustive old/new cadence tests include both roster phases and maximum Tick.
+  Humanoid's recent-touch grace reads Tick directly. Numerical/RNG baselines
+  are unchanged; this does not replace requeue opportunities with a new policy.
 - **T4a:** Ball prediction generation iterates TickSpan and uses `kTickSeconds`.
   Ball owns horizon/cache policy in `ball_timing.hpp`; native Ball/MentalImage
   horizon APIs accept TickSpan, and MentalImage stores only a Tick capture time.

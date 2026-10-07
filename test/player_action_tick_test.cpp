@@ -107,4 +107,23 @@ TEST_CASE("Decision and locomotion schedulers use crossed tick cadences", "[sim]
   REQUIRE(locomotion.refreshes == 1);
 }
 
+TEST_CASE("Staggered tick refreshes preserve both roster phase schedules", "[sim][tick][scheduler]") {
+  using football::sim::Tick;
+  using football::sim::player_timing::StaggeredRefreshDue;
+  for (std::uint64_t cadence : {2, 3, 4, 5, 8, 10, 24}) {
+    for (std::uint64_t phase = 0; phase < 10; ++phase) {
+      for (std::uint64_t tick = 0; tick < 200; ++tick) {
+        const bool previous = ((tick * 10 + phase * 10) % (cadence * 10)) == 0;
+        REQUIRE(StaggeredRefreshDue(Tick{tick}, TickSpan{cadence}, TickSpan{phase}) == previous);
+      }
+      const auto max = std::numeric_limits<std::uint64_t>::max();
+      const auto remainder = max % cadence;
+      const auto offset = phase % cadence;
+      REQUIRE(StaggeredRefreshDue(Tick{max}, TickSpan{cadence}, TickSpan{phase}) ==
+              ((remainder + offset) % cadence == 0));
+    }
+  }
+  REQUIRE_THROWS_AS(StaggeredRefreshDue(Tick{}, TickSpan{}), std::invalid_argument);
+}
+
 }  // namespace

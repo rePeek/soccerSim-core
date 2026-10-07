@@ -608,8 +608,9 @@ void Player::Process() {
     if (match->GetLastTouchPlayer() == this && lastTouchType != e_TouchType_Accidental)
       tactical_image_time_ms_ = 0;
     if (match->IsInPlay()) {
-      if ((match->GetTimelineTick().value + schedule_phase_) %
-          football::sim::player_timing::kTacticalRefresh.value == 0) {
+      if (football::sim::player_timing::StaggeredRefreshDue(
+          match->GetTimelineTick(), football::sim::player_timing::kTacticalRefresh,
+          football::sim::TickSpan{schedule_phase_})) {
         _CalculateTacticalSituation();
       }
     }

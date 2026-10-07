@@ -240,26 +240,24 @@ void Humanoid::Process() {
     float actionDistance = ((spatialState.position + spatialState.movement * 0.1f) - match->GetBall()->Predict(100).Get2D()).GetLength();
 
     int team_id = team->GetID() == match->SecondTeam() ? 1 : 0;
+    using namespace football::sim::player_timing;
+    const auto now = match->GetTimelineTick();
+    const auto phase = static_cast<std::uint64_t>(team_id);
     if (match->GetDesignatedPossessionPlayer() == player &&
         actionDistance < 3.0f) {
-      frameNumPredicate = ((match->GetActualTime_ms() + team_id * 10) % 20) ==
-                          0;  // .. 1 .. 2 .. 1 .. 2 ..
+      frameNumPredicate = StaggeredRefreshDue(now, kOwnerNear, football::sim::TickSpan{phase});
 
     } else if (match->GetDesignatedPossessionPlayer() == player) {
-      frameNumPredicate = ((match->GetActualTime_ms() + team_id * 10) % 30) ==
-                          0;  // .. 1 .. 2 .. x .. 1 .. 2 .. x ..
+      frameNumPredicate = StaggeredRefreshDue(now, kOwner, football::sim::TickSpan{phase});
 
     } else if (team->GetDesignatedTeamPossessionPlayer() == player) {
-      frameNumPredicate = ((match->GetActualTime_ms() + team_id * 20) % 40) ==
-                          0;  // .. 1 .. x .. 2 .. x .. 1 .. x .. 2 ..
+      frameNumPredicate = StaggeredRefreshDue(now, kTeamOwner, football::sim::TickSpan{phase * 2});
 
     } else if (actionDistance < 5.0f) {
-      frameNumPredicate = ((match->GetActualTime_ms() + team_id * 20) % 50) ==
-                          0;  // .. 1 .. x .. 2 .. x .. x ..
+      frameNumPredicate = StaggeredRefreshDue(now, kNearBall, football::sim::TickSpan{phase * 2});
 
     } else if (actionDistance < 10.0f) {
-      frameNumPredicate = ((match->GetActualTime_ms() + team_id * 40) % 80) ==
-                          0;  // .. 1 .. x .. x .. x .. 2 .. x .. x .. x ..
+      frameNumPredicate = StaggeredRefreshDue(now, kApproachingBall, football::sim::TickSpan{phase * 4});
     }
 
     if (!frameNumPredicate) mayReQueue = false;
@@ -1101,8 +1099,8 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     // don't requeue movement to ballcontrol halfway movement anims, unless there's a serious change of movement desired
     if (action.type == e_FunctionType_Movement &&
         command.desiredFunctionType == e_FunctionType_BallControl &&
-        (match->GetActualTime_ms() - CastPlayer()->GetLastTouchTime_ms() <
-             600 &&
+        (match->GetTimelineTick() - CastPlayer()->GetLastTouchTick() <
+             football::sim::TickSpan{60} &&
          CastPlayer()->GetLastTouchType() == e_TouchType_Intentional_Kicked) &&
         CastPlayer()->HasPossession()) {
         // && !CastPlayer()->AllowLastDitch()) {

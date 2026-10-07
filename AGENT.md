@@ -239,6 +239,8 @@ Simulation → Match → Ball / Team / Player / Humanoid / Referee
   readers are projections, not duplicate clocks. Decision and locomotion schedulers
   use Tick deadlines and owner-local TickSpan cadences. Their tests are in
   `test/player_action_tick_test.cpp`; old diagnostic digests project milliseconds.
+  Humanoid requeue/tactical phase cadences use the same tick-local policy values
+  and overflow-safe reduced-remainder staggering, retaining both roster schedules.
   Player touch/card-effect timestamps are Tick; unused possession-duration storage
   is removed. Humanoid touch-time readers temporarily project milliseconds.
   Ball prediction horizons/cache durations live in sim-private `ball_timing.hpp`;

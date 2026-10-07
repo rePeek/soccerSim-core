@@ -12,6 +12,15 @@ inline constexpr TickSpan kNearBall{5};
 inline constexpr TickSpan kApproachingBall{8};
 inline constexpr TickSpan kIdle{24};
 inline constexpr TickSpan kTacticalRefresh{10};
+
+// Staggered owner-local work. Reduce before adding so phase offsets cannot
+// overflow even at the largest representable timeline instant.
+inline constexpr bool StaggeredRefreshDue(Tick now, TickSpan cadence, TickSpan phase = {}) {
+  if (cadence.value == 0) throw std::invalid_argument("zero player refresh cadence");
+  const auto remainder = now.value % cadence.value;
+  const auto offset = phase.value % cadence.value;
+  return offset == 0 ? remainder == 0 : remainder == cadence.value - offset;
+}
 }  // namespace football::sim::player_timing
 
 // Context-dependent policy cadence, not the definition of simulation time.
