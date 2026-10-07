@@ -169,17 +169,17 @@ after roster refreshes; the separate physical `ballRetainer` fact remains Match-
 Match is not yet a state-only container; touch/history-sampling bridges remain.
 `Simulation::match()` remains a temporary test/diagnostic escape hatch.
 
-Simulation directly owns the three-slot MentalImage history and capture cadence.
-Observation sampling/newest-ball refresh take explicit spans. Match still borrows the same
-history only for diagnostics until H4-A3. Mirror/reset composition lives in Simulation;
+Simulation directly owns the three-slot MentalImage history and capture cadence. Observation
+sampling/newest-ball refresh take explicit spans; Match has no history member, query or
+constructor parameter at all. Mirror/reset composition lives in Simulation;
 Match::Mirror/ResetSituation are removed. Referee receives a per-call synchronous reset action
 at the original setup point, never stores it, and gains no Simulation pointer/context.
 MentalImage has no Match pointer or implicit clock/Ball reads:
 capture takes tick, ordered player span and Ball; sampling takes explicit now/Ball.
 Legacy Player deviation clamps and signed horizon quantization remain unchanged.
-StepPlayers explicitly lends history through Team → Player → Humanoid and its animation/
-touch prediction functions. No actor stores the span or samples through Match; only the
-diagnostic bridge remains pending H4-A3.
+StepPlayers explicitly lends history through Team → Player → Humanoid and its animation/touch
+prediction functions. No actor stores the span or samples through Match; Simulation diagnostic
+sampling is the only remaining history reader.
 
 `match/match_clock.*` defines MatchClock: timeline/regulation/effective clocks, run flags and executed
 ticks. It takes phase explicitly, atomically clips advances to the current period,

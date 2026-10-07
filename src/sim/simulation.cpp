@@ -129,7 +129,7 @@ void Simulation::Init(
 
   EnsureAnimationLibrary();
   match_ = std::make_unique<Match>(home_model, away_model, pitch, options, rng_,
-                                  animations_, mental_images_);
+                                  animations_);
 }
 
 void Simulation::EnsureAnimationLibrary() {

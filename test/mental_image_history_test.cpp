@@ -60,9 +60,6 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
     Match& match = *simulation.match();
     const auto other_capture = other.GetMentalImage(TickSpan{})->captured_tick;
     const auto other_predictions = other.GetMentalImage(TickSpan{})->ballPredictions;
-    for (TickSpan age : {TickSpan{}, TickSpan{10}, TickSpan{20}}) {
-      REQUIRE(simulation.GetMentalImage(age) == match.GetMentalImage(age));
-    }
     const auto oldest_predictions = simulation.GetMentalImage(TickSpan{20})->ballPredictions;
     const auto latest_capture = simulation.GetMentalImage(TickSpan{})->captured_tick;
     simulation.TouchBall(Vector3(7, 2, 1));
@@ -103,7 +100,6 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
 
     simulation.ResetSituation(Vector3(0));
     REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
-    REQUIRE_THROWS_AS(match.GetMentalImage(TickSpan{}), std::logic_error);
     simulation.Step({});
     REQUIRE(simulation.GetMentalImage(TickSpan{20}) == simulation.GetMentalImage(TickSpan{}));
     REQUIRE(other.GetMentalImage(TickSpan{})->captured_tick == other_capture);
@@ -111,7 +107,7 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
     simulation.Stop();
     REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
     Init(simulation, reverse);
-    REQUIRE(simulation.GetMentalImage(TickSpan{}) == simulation.match()->GetMentalImage(TickSpan{}));
+    REQUIRE(simulation.GetMentalImage(TickSpan{}) != nullptr);
     REQUIRE(other.GetMentalImage(TickSpan{})->ballPredictions == other_predictions);
   }
 }
@@ -123,6 +119,8 @@ static_assert(!HasHistoryMirror<Match>);
 static_assert(!HasHistoryReset<Match>);
 template<class T> concept HasMatchTouch = requires(T& owner) { owner.TouchBall(Vector3(0)); };
 static_assert(!HasMatchTouch<Match>);
+template<class T> concept HasMatchHistory = requires(T& owner) { owner.GetMentalImage(TickSpan{}); };
+static_assert(!HasMatchHistory<Match>);
 
 TEST_CASE("mental images capture explicit ordered inputs and sample with explicit time and Ball",
           "[sim][history][snapshot]") {

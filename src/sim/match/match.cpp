@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include "sim/observation/mentalimage_sampling.hpp"
 
 
 
@@ -36,14 +35,12 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
              const football::model::Pitch& pitch,
              const MatchOptions& options,
              SimulationRng& rng,
-             std::shared_ptr<const AnimationLibrary> animation_library,
-             std::vector<MentalImage>& mental_images)
+             std::shared_ptr<const AnimationLibrary> animation_library)
     : pitch_(pitch),
       animations_(std::move(animation_library)),
       rng_(rng),
       first_team(options.reverse_team_processing ? 1 : 0),
       second_team(options.reverse_team_processing ? 0 : 1),
-      borrowed_mental_images_(mental_images),
       clock_(options.half_duration),
       options_(options) {
 
@@ -121,13 +118,6 @@ void Match::GetActiveTeamPlayers(int teamID, std::vector<Player *> &players) {
   teams[teamID]->GetActivePlayers(players);
 }
 
-MentalImage *Match::GetMentalImage(football::sim::TickSpan history) {
-  return football::sim::observation::SampleMentalImage(borrowed_mental_images_, history);
-}
-
-MentalImage *Match::GetMentalImage(std::chrono::milliseconds history) {
-  return football::sim::observation::SampleMentalImage(borrowed_mental_images_, history);
-}
 
 
 

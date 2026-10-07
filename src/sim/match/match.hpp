@@ -27,7 +27,6 @@
 #include "sim/match/pitch_geometry.hpp"
 #include "sim/random/rng.hpp"
 #include "model/pitch.hpp"
-#include "sim/observation/mentalimage.hpp"
 #include "sim/animation/library.hpp"
 #include "sim/animation/types.hpp"
 #include "sim/match/match_phase.hpp"
@@ -48,8 +47,7 @@ class Match {
           const football::model::Pitch& pitch,
           const MatchOptions& options,
           SimulationRng& rng,
-          std::shared_ptr<const AnimationLibrary> animation_library,
-          std::vector<MentalImage>& mental_images);
+          std::shared_ptr<const AnimationLibrary> animation_library);
     virtual ~Match();
 
 
@@ -68,11 +66,6 @@ class Match {
     // actor in this match.
     SimulationRng& rng() { return rng_; }
     void GetActiveTeamPlayers(int teamID, std::vector<Player*> &players);
-
-    // Transitional actor sampling bridge over Simulation-owned, borrowed history.
-    MentalImage* GetMentalImage(football::sim::TickSpan history);
-    // Continuous reaction-delay sampling: retain sub-tick precision until sampling.
-    MentalImage* GetMentalImage(std::chrono::milliseconds history);
 
     std::uint64_t GetResetSequence() const { return reset_sequence_; }
 
@@ -172,9 +165,6 @@ class Match {
 
     Ball *ball = nullptr;
 
-    // Borrowed only until actor sampling/touch dependencies are migrated. No scheduler
-    // or owner here, and no upward Match → Simulation pointer/service locator.
-    std::vector<MentalImage>& borrowed_mental_images_;
 
     football::sim::MatchClock clock_;
     // Actual world discontinuities; not a policy/request timer.

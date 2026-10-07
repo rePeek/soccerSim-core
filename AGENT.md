@@ -320,16 +320,17 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   → Humanoid, including SelectAnim/NeedTouch/GetBestCheatableAnimID/MovementSmuggle.
   No actor stores the span or samples through Match. Preserve the initial previous-delay
   sample before updating mentalImageTime, live deviation clamps, signed millisecond
-  sampling, staggered cadence and all conditional sample points. H4-B also moved touch
-  composition out of Match; the borrowed vector now serves diagnostics until H4-A3.
+  sampling, staggered cadence and all conditional sample points. H4-B moved touch composition
+  out of Match. H4-A3 deleted Match::GetMentalImage, its borrowed vector member and the
+  constructor history parameter; Match (and match.hpp) no longer knows MentalImage at all.
+  The history is Simulation-only, reached by actors through the explicit tick-local span.
   Match::Mirror and ResetSituation are removed: Simulation mirrors teams → Ball → images
   and resets competition facts → clears history → resets Ball → both processing rosters
   at the old mutation points. Referee::Process receives a narrow synchronous reset action,
   forwards it to ordinary/ceremonial preparation, and never stores it. There is no
   delayed reset, replacement context or Simulation pointer in Referee. Sampling/refresh functions
-  live in observation/mentalimage_sampling and take explicit spans/Ball. Match's former
-  UpdateLatestMentalImageBallPredictions method is removed. Simulation diagnostic sampling
-  and the actor bridge see the same objects, not duplicate histories. Stop clears history
+  live in observation/mentalimage_sampling and take explicit spans/Ball. Simulation diagnostic
+  sampling is the only remaining history query and sees the same objects actors sample.
   at the old teardown point and its storage outlives Match. MentalImage has no Match
   member/include/constructor or implicit world-clock/Ball reads. Capture takes tick,
   ordered player span and const Ball; age/player sampling takes now, predictions take
