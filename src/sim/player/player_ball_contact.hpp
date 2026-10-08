@@ -8,7 +8,7 @@
 #include "sim/time/tick.hpp"
 #include "sim/event/touch_state.hpp"
 
-class Ball;
+namespace football::ball { class Ball; }
 class Player;
 class Team;
 class MentalImage;
@@ -39,11 +39,11 @@ struct BallPlayerContactResult {
 
 // Preserves supplied player order and per-volume accidental-touch notifications.
 // Mutates player flags and publishes team/player touch facts through the explicit
-// write-only sink; actors/Team expose no Match or Simulation lookup. Ball impulse,
+// write-only sink; actors/Team expose no Match or Simulation lookup. football::ball::Ball impulse,
 // dependent refresh, random rotation and cooldown publication belong to the
 // calling runtime phase.
 BallPlayerContactResult ResolveBallPlayerContacts(
-    const Ball& ball, std::span<Player* const> players,
+    const football::ball::Ball& ball, std::span<Player* const> players,
     const BallPlayerContactInputs& inputs);
 
 }  // namespace football::sim

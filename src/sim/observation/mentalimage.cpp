@@ -20,6 +20,8 @@
 #include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
 
+using football::ball::Ball;
+
 MentalImage::MentalImage(football::sim::Tick captured_tick,
                          std::span<Player* const> allPlayers, const Ball& ball)
     : captured_tick(captured_tick) {

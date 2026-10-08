@@ -20,6 +20,8 @@
 #include "sim/pitch_geometry.hpp"
 #include "sim/observation/mentalimage.hpp"
 
+using football::ball::Ball;
+
 namespace football::sim::rules {
 
 float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,

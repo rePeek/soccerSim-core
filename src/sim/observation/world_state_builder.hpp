@@ -3,7 +3,7 @@
 
 #include "sim/observation/world_state.hpp"
 
-class Ball;
+namespace football::ball { class Ball; }
 class Player;
 class Team;
 class Referee;
@@ -19,7 +19,7 @@ struct WorldStateSource {
   const bool& half_underway;
   const bool& ball_in_play;
   std::uint64_t reset_sequence;
-  const Ball& ball;
+  const football::ball::Ball& ball;
   const football::model::Pitch& pitch;
   bool in_play;
   bool in_set_piece;

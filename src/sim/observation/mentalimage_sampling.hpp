@@ -7,7 +7,7 @@
 
 #include "sim/time/tick.hpp"
 
-class Ball;
+namespace football::ball { class Ball; }
 class MentalImage;
 
 namespace football::sim::observation {
@@ -25,7 +25,7 @@ MentalImage* SampleMentalImage(std::span<MentalImage> images,
                               std::chrono::milliseconds age);
 // Synchronous touch feedback: only the newest capture's ball predictions refresh.
 void RefreshLatestMentalImageBallPredictions(std::span<MentalImage> images,
-                                            const Ball& ball);
+                                            const football::ball::Ball& ball);
 
 }  // namespace football::sim::observation
 

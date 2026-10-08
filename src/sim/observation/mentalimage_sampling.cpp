@@ -8,6 +8,8 @@
 #include "football/ball/ball.hpp"
 #include "sim/observation/mentalimage.hpp"
 
+using football::ball::Ball;
+
 namespace football::sim::observation {
 
 std::size_t MentalImageSampleIndex(std::size_t size, TickSpan age) {

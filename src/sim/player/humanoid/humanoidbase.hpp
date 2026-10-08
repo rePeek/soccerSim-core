@@ -213,7 +213,7 @@ struct MovementAnimationPerturbation {
 };
 MovementAnimationPerturbation &MovementAnimationPerturbationAudit();
 // 5a1: transient observation, never used to decide contact or serialized.
-// A Ball::Touch request is not proof that Ball physics adopted that impulse.
+// A football::ball::Ball::Touch request is not proof that football::ball::Ball physics adopted that impulse.
 struct ContactAuthorityAudit {
   int scheduled = 0;
   int at_contact_frame = 0;
@@ -390,7 +390,7 @@ class HumanoidBase {
     virtual void ResetSituation(const Vector3 &focusPos);
 
   protected:
-    bool _HighOrBouncyBall(const Ball& ball) const;
+    bool _HighOrBouncyBall(const football::ball::Ball& ball) const;
     void _KeepBestDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0, int allowedVelocitySteps = 0, int forcedQuadrantID = -1); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
     void _KeepBestBodyDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
     virtual bool SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick,

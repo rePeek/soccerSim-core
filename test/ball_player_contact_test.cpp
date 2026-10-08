@@ -15,6 +15,8 @@
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
 #include "sim/testing/simulation_access.hpp"
+
+using football::ball::Ball;
 using football::sim::testing::SimulationAccess;
 
 namespace {

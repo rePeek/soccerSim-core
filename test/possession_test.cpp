@@ -6,6 +6,8 @@
 #include "sim/team/possession.hpp"
 #include "sim/player/possession.hpp"
 
+using football::ball::Ball;
+
 namespace {
 using football::sim::testing::SimulationAccess;
 using football::sim::EvaluatePossession;

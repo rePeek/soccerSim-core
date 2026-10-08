@@ -16,6 +16,8 @@
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/team/team.hpp"
 #include "sim/testing/simulation_access.hpp"
+
+using football::ball::Ball;
 using football::sim::testing::SimulationAccess;
 
 namespace {

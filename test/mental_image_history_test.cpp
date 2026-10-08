@@ -14,6 +14,8 @@
 
 #include <type_traits>
 
+using football::ball::Ball;
+
 namespace {
 using namespace football::sim;
 using football::sim::testing::SimulationAccess;

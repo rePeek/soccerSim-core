@@ -70,11 +70,11 @@ class SimulationAccess {
 
   // Runtime facts; the transitional Match facade is gone, so diagnostics name
   // the exact state they read.
-  static Ball* BallOf(Simulation& s) {
+  static football::ball::Ball* BallOf(Simulation& s) {
     if (!s.ball_) throw std::logic_error("simulation has no match");
     return s.ball_.get();
   }
-  static const Ball* BallOf(const Simulation& s) { return s.ball_.get(); }
+  static const football::ball::Ball* BallOf(const Simulation& s) { return s.ball_.get(); }
   static Team* TeamOf(Simulation& s, int team_id) { return s.teams_[team_id].get(); }
   static const Team* TeamOf(const Simulation& s, int team_id) {
     return s.teams_[team_id].get();

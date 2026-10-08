@@ -21,7 +21,7 @@
 #include "sim/time/tick.hpp"
 class Team;
 class Player;
-class Ball;
+namespace football::ball { class Ball; }
 class MentalImage;
 
 namespace football::sim::query {
@@ -30,7 +30,7 @@ namespace football::sim::query {
 float CalculateFreeSpace(Tick now, const MentalImage *mentalImage,
                          int teamID, const blunted::Vector3 &focusPos,
                          float safeDistance = 8.0, float futureTime_sec = 0.3);
-bool HasPossession(Ball *ball, Player *player);
+bool HasPossession(football::ball::Ball *ball, Player *player);
 
 // Equal distances retain roster order; GetClosestPlayers appends to result.
 Player *GetClosestPlayer(Team *team, const blunted::Vector3 &position,

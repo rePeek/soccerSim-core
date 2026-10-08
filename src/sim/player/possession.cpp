@@ -5,6 +5,8 @@
 #include "sim/query/player_query.hpp"
 #include "sim/team/team.hpp"
 
+using football::ball::Ball;
+
 namespace football::sim::player {
 void PrepareTeamPossession(Team& team, const Team& opponent, bool play_authorized,
                           bool set_piece_active, const Player* retainer,

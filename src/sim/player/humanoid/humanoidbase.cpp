@@ -41,6 +41,8 @@
 #include "sim/animation/baked_selector.hpp"
 #include "sim/animation/library.hpp"
 
+using football::ball::Ball;
+
 
 using std::placeholders::_1;
 using std::placeholders::_2;

@@ -7,7 +7,7 @@
 #include "sim/event/touch_state.hpp"
 
 class Player;
-class Ball;
+namespace football::ball { class Ball; }
 class Team;
 struct RefereeBuffer;
 namespace football::model { class Pitch; }
@@ -25,7 +25,7 @@ struct PlayerTickContext {
   const bool& ball_in_play;
   const bool& half_underway;
 
-  Ball& ball;
+  football::ball::Ball& ball;
   football::ball::BallEnvironment ball_environment;
 
   Player* ball_retainer;

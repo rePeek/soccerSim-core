@@ -13,6 +13,8 @@
 #include "sim/time/tick_boundary.hpp"
 #include "sim/event/touch_query.hpp"
 
+using football::ball::Ball;
+
 namespace football::sim {
 
 BallPlayerContactResult ResolveBallPlayerContacts(

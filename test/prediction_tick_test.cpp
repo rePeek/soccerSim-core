@@ -7,6 +7,8 @@
 #include "sim/observation/mentalimage.hpp"
 #include "sim/simulation.hpp"
 
+using football::ball::Ball;
+
 namespace {
 using namespace football::sim;
 using football::sim::testing::SimulationAccess;

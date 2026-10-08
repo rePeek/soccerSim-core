@@ -5,6 +5,8 @@
 #include "sim/team/team.hpp"
 #include "sim/player/possession.hpp"
 
+using football::ball::Ball;
+
 namespace football::sim {
 void ApplyBallTouch(Ball& ball, football::ball::BallEnvironment environment,
                     const blunted::Vector3& impulse,

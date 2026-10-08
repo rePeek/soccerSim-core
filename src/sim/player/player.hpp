@@ -168,7 +168,7 @@ class Player final {
     // get ready for some action
     void Activate();
     // go back to bench/take a shower
-    void Deactivate(const Ball& ball, football::sim::Tick now);
+    void Deactivate(const football::ball::Ball& ball, football::sim::Tick now);
 
     void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos);
     void OffsetPosition(const Vector3 &offset);
@@ -290,7 +290,7 @@ class Player final {
     // so the refresh happens as soon as the actor is eligible again.
     bool NoteLocomotionIntentCadence(bool legacy_opportunity, football::sim::Tick now, bool retaining_ball);
     // Called only once the controller was actually queried for this refresh.
-    void CommitLocomotionIntentRefresh(const Ball& ball, football::sim::Tick now, bool retaining_ball);
+    void CommitLocomotionIntentRefresh(const football::ball::Ball& ball, football::sim::Tick now, bool retaining_ball);
     void NoteControllerQuery(bool had_movement_candidate, football::sim::Tick now, bool retaining_ball);
     // c2a: the Player Decision Clock's only publication entry point. It owns the
     // decision locomotion state and the publication telemetry, and never touches the
@@ -393,13 +393,13 @@ class Player final {
     void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
     bool IsControlledBallCollisionTriggered() { return triggerControlledBallCollision; }
     void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
-    void UpdatePossessionStats(Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer);
+    void UpdatePossessionStats(football::ball::Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer);
     float GetClosestOpponentDistance(Team& opponent) const;
     const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
     void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
     void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
     bool HasCards() { return cards > 0; }
-    void SendOff(const Ball& ball, football::sim::Tick now, blunted::Rng& rng);
+    void SendOff(const football::ball::Ball& ball, football::sim::Tick now, blunted::Rng& rng);
     float GetStaminaStat() const;
 
   private:

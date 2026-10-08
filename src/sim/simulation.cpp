@@ -26,6 +26,8 @@
 #include "sim/team/possession.hpp"
 #include "sim/team/team.hpp"
 
+using football::ball::Ball;
+
 namespace {
 // Resolve only unspecified runtime appearance, never import or invent profiles.
 // Preserve the historical home-then-away draw for every declared profile, even

@@ -17,17 +17,17 @@
 
 #include "sim/time/tick.hpp"
 
-class Ball;
+namespace football::ball { class Ball; }
 class MentalImage;
 
 namespace football::sim::rules {
 
 // Pure offside geometry from explicit observation facts: the defending team's id
-// and dynamic side, the sampling instant and the current Ball. Uses the
+// and dynamic side, the sampling instant and the current football::ball::Ball. Uses the
 // second-deepest defender, ball and halfway line; prediction and geometry retain
 // legacy semantics. No Match, Team or simulation-state access.
 float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,
-                     const Ball& ball, int defending_team_id, int defending_side,
+                     const football::ball::Ball& ball, int defending_team_id, int defending_side,
                      unsigned int futureSim_ms = 0);
 
 }  // namespace football::sim::rules

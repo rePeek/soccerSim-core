@@ -26,7 +26,7 @@
 #include "sim/player/player_runtime_sink.hpp"
 
 class Player;
-class Ball;
+namespace football::ball { class Ball; }
 class Team;
 class Referee;
 class AnimationLibrary;
@@ -105,7 +105,7 @@ class Simulation {
   football::sim::TickSpan GetBallInPlayTime() const { return clock_->BallInPlayTime(); }
   const bool& IsHalfUnderway() const { return clock_->IsHalfUnderway(); }
   const bool& IsBallInPlay() const { return clock_->IsBallInPlay(); }
-  Ball* GetBall() const { return ball_.get(); }
+  football::ball::Ball* GetBall() const { return ball_.get(); }
   Team* GetTeam(int team_id) const { return teams_[team_id].get(); }
   const football::model::Pitch& pitch() const { return pitch_; }
   const AnimationLibrary& GetAnimationLibrary() const { return *animations_; }
@@ -146,7 +146,7 @@ class Simulation {
   football::model::Pitch pitch_;
   std::shared_ptr<AnimationLibrary> animations_;
 
-  std::unique_ptr<Ball> ball_;
+  std::unique_ptr<football::ball::Ball> ball_;
   std::array<std::unique_ptr<Team>, 2> teams_;
   std::unique_ptr<Referee> referee_;
 

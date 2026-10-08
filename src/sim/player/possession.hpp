@@ -3,7 +3,7 @@
 
 #include "sim/time/tick.hpp"
 
-class Ball;
+namespace football::ball { class Ball; }
 class Player;
 class Team;
 
@@ -15,9 +15,9 @@ void PrepareTeamPossession(Team& team, const Team& opponent, bool play_authorize
                           const Team* best_possession_team);
 void FinishTeamPossession(Team& team, const Team& opponent);
 // Refresh actors first, then aggregate this roster. Invoke first/second in order.
-void RefreshTeamPossession(Team& team, const Team& opponent, Ball& ball,
+void RefreshTeamPossession(Team& team, const Team& opponent, football::ball::Ball& ball,
                           Tick now, const Player* retainer);
-void RefreshDesignatedTeamPossessionPlayer(Team& team, const Ball& ball);
+void RefreshDesignatedTeamPossessionPlayer(Team& team, const football::ball::Ball& ball);
 } // namespace football::sim::player
 
 #endif

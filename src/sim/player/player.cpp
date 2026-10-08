@@ -35,6 +35,8 @@
 #include "sim/player/player_control_builder.hpp"
 #include "sim/player/possession.hpp"
 
+using football::ball::Ball;
+
 int &SimulationOnlyGateMismatchForResetContext(int context) {
   static int records[kResetSituationCallContextCount] = {};
   return records[context];

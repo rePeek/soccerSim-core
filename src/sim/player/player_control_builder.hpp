@@ -5,7 +5,7 @@
 #include "sim/player/player_command.hpp"
 
 class Player;
-class Ball;
+namespace football::ball { class Ball; }
 struct RefereeBuffer;
 namespace football::model { struct Pitch; }
 namespace football::sim::event { struct TouchState; }
@@ -13,7 +13,7 @@ namespace football::sim::event { struct TouchState; }
 // Only the inputs consumed by command authorization/keeper-hands legality.
 // Borrowed for one construction call, never retained by Player.
 struct PlayerCommandInputs {
-  const Ball& ball;
+  const football::ball::Ball& ball;
   const football::sim::event::TouchState& touches;
   const RefereeBuffer& restart;
   const Player* retainer;

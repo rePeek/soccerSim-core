@@ -6,7 +6,7 @@
 #include "foundation/math/rng.hpp"
 #include "sim/time/tick.hpp"
 
-class Ball;
+namespace football::ball { class Ball; }
 
 class Player;
 class Team;
@@ -16,7 +16,7 @@ namespace football::sim::rules { class RuleCommandSink; }
 // owns the returned taker; AI cannot change restart authority or deadlines.
 Player *PositionRestartPlayers(Team *team, e_GameMode set_piece, Team *other_team,
                               int kickoff_taker_team_id, int taker_team_id,
-                              const Ball& ball, football::sim::TickSpan regulation,
+                              const football::ball::Ball& ball, football::sim::TickSpan regulation,
                               const MatchOptions& options, blunted::Rng& rng,
                               football::sim::rules::RuleCommandSink& commands);
 

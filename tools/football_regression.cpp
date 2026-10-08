@@ -27,6 +27,8 @@
 #include "animation/import_loader.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
 #include "sim/testing/simulation_access.hpp"
+
+using football::ball::Ball;
 using football::sim::testing::SimulationAccess;
 
 namespace {

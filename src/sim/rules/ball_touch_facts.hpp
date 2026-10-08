@@ -20,7 +20,7 @@
 #include "sim/time/tick.hpp"
 #include "sim/observation/pitch_frame.hpp"
 
-class Ball;
+namespace football::ball { class Ball; }
 class Player;
 class Team;
 
@@ -39,7 +39,7 @@ struct BallTouchFacts {
   bool in_play = false;
   bool in_set_piece = false;
   bool offsides_enabled = false;
-  const Ball* ball = nullptr;
+  const football::ball::Ball* ball = nullptr;
   std::span<Player* const> all_active_players;
   PitchFrameTransform stadium_to_home{false};
 };

@@ -8,18 +8,15 @@
 #include "ball_prediction.hpp"
 #include "foundation/math/scalar.hpp"
 
+using namespace blunted;
+
+namespace football::ball {
+
 namespace {
 
-namespace detail = football::ball::detail;
-
-using football::ball::BallConfig;
-using football::ball::BallEnvironment;
-using football::ball::BallState;
-using football::ball::detail::PhysicsState;
-
 // Default physical frame: at rest at the origin, no spin, identity orientation.
-PhysicsState InitialState() {
-  return PhysicsState{Vector3(0), Vector3(0), Quaternion(), Quaternion()};
+detail::PhysicsState InitialState() {
+  return detail::PhysicsState{Vector3(0), Vector3(0), Quaternion(), Quaternion()};
 }
 
 }  // namespace
@@ -40,7 +37,7 @@ Ball::Ball(const football::model::Pitch& pitch) : Ball(BallConfig{}, pitch) {}
 
 Ball::~Ball() = default;
 
-void Ball::Commit(const PhysicsState& state) {
+void Ball::Commit(const detail::PhysicsState& state) {
   *state_ = state;
 }
 
@@ -102,7 +99,7 @@ void Ball::Step(football::sim::TickSpan dt, const BallEnvironment& environment) 
 
 BallState Ball::Predict(football::sim::TickSpan ahead,
                         const BallEnvironment& environment) const {
-  PhysicsState state = *state_;
+  detail::PhysicsState state = *state_;
   for (football::sim::TickSpan i{0}; i < ahead; i += football::sim::TickSpan{1}) {
     state = detail::Advance(state, config_, pitch_, environment,
                             /*first_step=*/ i == football::sim::TickSpan{0});
@@ -223,3 +220,5 @@ void Ball::ResetSituation(const Vector3& focusPos) {
   state_->orientation = QUATERNION_IDENTITY;
   pending_force_ = Vector3(0);
 }
+
+}  // namespace football::ball

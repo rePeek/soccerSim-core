@@ -21,6 +21,8 @@
 #include "sim/player/player.hpp"
 #include <cmath>
 
+using football::ball::Ball;
+
 namespace {
 // Coordinate deformation for rule-owned restart layouts only. It no longer
 // invokes an AI policy during authoritative reset/placement.

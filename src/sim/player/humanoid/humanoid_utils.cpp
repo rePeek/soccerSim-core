@@ -29,6 +29,8 @@
 #include "sim/animation/types.hpp"
 #include "sim/player/player.hpp"
 
+using football::ball::Ball;
+
 
 e_TouchType GetTouchTypeForBodyPart(const std::string &bodypartname) {
   if (bodypartname.find("foot") != std::string::npos ||

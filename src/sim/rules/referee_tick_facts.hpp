@@ -6,12 +6,12 @@
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/time/tick.hpp"
 
-class Ball;
+namespace football::ball { class Ball; }
 class Team;
 
 namespace football::sim::rules {
 
-// Borrowed for one referee call only. Ball/actors remain live across synchronous
+// Borrowed for one referee call only. football::ball::Ball/actors remain live across synchronous
 // reset commands; copying their position before a reset would change readiness.
 // Configuration and RNG are separate explicit Process arguments.
 struct RefereeTickFacts {
@@ -20,7 +20,7 @@ struct RefereeTickFacts {
   bool play_authorized;
   bool set_piece_active;
   bool goal_scored;
-  const Ball& ball;
+  const football::ball::Ball& ball;
   const football::model::Pitch& pitch;
   TickSpan regulation;
   Team& home;

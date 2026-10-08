@@ -4,7 +4,7 @@
 #include <span>
 #include "sim/time/tick.hpp"
 
-class Ball;
+namespace football::ball { class Ball; }
 class Player;
 class Referee;
 
@@ -14,7 +14,7 @@ struct PlayerContactInputs {
   Tick now;
   // Active players in processing-roster order, sharing the ball's physical frame.
   std::span<Player* const> players;
-  const Ball& ball;
+  const football::ball::Ball& ball;
   Player* designated_possession_player;
   Player* ball_retainer;
 };

@@ -8,6 +8,8 @@
 #include "rule_command_fixture.hpp"
 #include "sim/event/ball_touch_dispatcher.hpp"
 #include "sim/event/touch_query.hpp"
+
+using football::ball::Ball;
 using football::sim::testing::SimulationAccess;
 
 namespace {

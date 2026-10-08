@@ -30,22 +30,22 @@
 using namespace blunted;
 
 class Player;
-class Ball;
+namespace football::ball { class Ball; }
 
 class MentalImage {
  public:
   MentalImage() = default;
   MentalImage(football::sim::Tick captured_tick,
-              std::span<Player* const> players, const Ball& ball);
+              std::span<Player* const> players, const football::ball::Ball& ball);
   void Mirror(bool team_0, bool team_1, bool ball);
   PlayerImage GetPlayerImage(Player* player, football::sim::Tick now) const;
   std::vector<PlayerImagePosition> GetTeamPlayerImages(
       int teamID, football::sim::Tick now) const;
-  void UpdateBallPredictions(const Ball& ball);
+  void UpdateBallPredictions(const football::ball::Ball& ball);
   Vector3 GetBallPrediction(football::sim::TickSpan horizon,
-                           football::sim::Tick now, const Ball& ball) const;
+                           football::sim::Tick now, const football::ball::Ball& ball) const;
   // Transitional horizon adapter for not-yet-migrated calculation callers.
-  Vector3 GetBallPrediction(int time_ms, football::sim::Tick now, const Ball& ball) const;
+  Vector3 GetBallPrediction(int time_ms, football::sim::Tick now, const football::ball::Ball& ball) const;
   football::sim::TickSpan GetAge(football::sim::Tick now) const;
 
   std::vector<PlayerImage> players;

@@ -24,6 +24,8 @@
 #include "sim/player/player.hpp"
 #include "football/ball/ball.hpp"
 
+using football::ball::Ball;
+
 namespace football::sim::query {
 
 float CalculateFreeSpace(Tick now, const MentalImage *mentalImage,
