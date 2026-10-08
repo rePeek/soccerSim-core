@@ -38,7 +38,7 @@ Team::~Team() {}
 void Team::Mirror() {
   side *= -1;
   mirrored = !mirrored;
-  for (auto &p : players) {
+  for (Player* p : player_views_) {
     p->Mirror();
   }
 }
@@ -46,38 +46,40 @@ void Team::Mirror() {
 void Team::SwitchEnds() {
   static_side_ = -static_side_;
   side = -side;
-  for (auto &p : players) {
+  for (Player* p : player_views_) {
     p->Mirror();
   }
 }
 
 void Team::Exit(football::sim::Tick now) {
-  for (unsigned int i = 0; i < players.size(); i++) {
-    players[i]->Exit(now);
-    delete players[i];
+  for (Player* player : player_views_) {
+    player->Exit(now);
   }
+  players_.clear();
+  player_views_.clear();
 }
 
 void Team::InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch, SimulationRng& rng) {
   // Roster traversal supplies order; phases repeat every ten players.
   std::uint8_t schedule_phase = first_schedule_phase;
   for (std::size_t i = 0; i < formation_.size(); ++i) {
-    Player *player = new Player(this, model_.players[i], schedule_phase, animations, pitch, rng);
+    auto player = std::make_unique<Player>(this, model_.players[i], schedule_phase, animations, pitch, rng);
     schedule_phase = (schedule_phase + 1) % 10;
-    players.push_back(player);
+    player_views_.push_back(player.get());
+    players_.push_back(std::move(player));
 
     if (i < playerNum) {
       // activate playerCount players (the starting eleven, usually)
-      player->Activate();
+      player_views_.back()->Activate();
     }
   }
 
-  designatedTeamPossessionPlayer = players.at(0);
+  designatedTeamPossessionPlayer = player_views_.at(0);
 }
 
 FormationEntry Team::GetFormationEntry(void *player) {
-  for (int i = 0; i < (signed int)players.size(); i++) {
-    if (players[i] == player) {
+  for (int i = 0; i < (signed int)player_views_.size(); i++) {
+    if (player_views_[i] == player) {
       return formation_.at(i);
     }
   }
@@ -88,22 +90,22 @@ FormationEntry Team::GetFormationEntry(void *player) {
 }
 
 void Team::SetFormationEntry(Player *player, FormationEntry entry) {
-  for (int i = 0; i < (signed int)players.size(); i++) {
-    if (players[i] == player) {
+  for (int i = 0; i < (signed int)player_views_.size(); i++) {
+    if (player_views_[i] == player) {
       formation_.at(i) = entry;
     }
   }
 }
 
 void Team::GetActivePlayers(std::vector<Player *> &activePlayers) {
-  for (auto player : players) {
+  for (Player* player : player_views_) {
     if (player->IsActive()) activePlayers.push_back(player);
   }
 }
 
 int Team::GetActivePlayersCount() const {
   int count = 0;
-  for (auto player : players) {
+  for (Player* player : player_views_) {
     if (player->IsActive()) count++;
   }
   return count;
@@ -119,7 +121,7 @@ int Team::GetTimeNeededToGetToBall_ms() const {
 Player *Team::GetBestPossessionPlayer() {
   int bestTime_ms = 10000000;
   Player *bestPlayer = 0;
-  for (auto p : players) {
+  for (Player* p : player_views_) {
     if (p->IsActive()) {
       int time_ms = p->GetTimeNeededToGetToBall_ms();
       if (time_ms < bestTime_ms) {
@@ -152,11 +154,11 @@ void Team::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
   teamPossessionAmount = 1.0f;
   fadingTeamPossessionAmount = 1.0f;
 
-  designatedTeamPossessionPlayer = players.at(0);
+  designatedTeamPossessionPlayer = player_views_.at(0);
 
-  for (unsigned int i = 0; i < players.size(); i++) {
-    if (players[i]->IsActive()) {
-      players[i]->ResetSituation(focusPos, now);
+  for (unsigned int i = 0; i < player_views_.size(); i++) {
+    if (player_views_[i]->IsActive()) {
+      player_views_[i]->ResetSituation(focusPos, now);
     }
   }
 
@@ -164,9 +166,9 @@ void Team::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
 
 
 void Team::RelaxFatigue(float howMuch) {
-  for (unsigned int i = 0; i < players.size(); i++) {
-    if (players[i]->IsActive()) {
-      players[i]->RelaxFatigue(howMuch);
+  for (unsigned int i = 0; i < player_views_.size(); i++) {
+    if (player_views_[i]->IsActive()) {
+      player_views_[i]->RelaxFatigue(howMuch);
     }
   }
 }
@@ -175,10 +177,10 @@ void Team::RelaxFatigue(float howMuch) {
 
 
 Player *Team::GetGoalie() {
-  for (unsigned int i = 0; i < players.size(); i++) {
-    if (players[i]->IsActive()) {
-      if (players[i]->GetFormationEntry().role == e_PlayerRole_GK)
-        return players[i];
+  for (unsigned int i = 0; i < player_views_.size(); i++) {
+    if (player_views_[i]->IsActive()) {
+      if (player_views_[i]->GetFormationEntry().role == e_PlayerRole_GK)
+        return player_views_[i];
     }
   }
 

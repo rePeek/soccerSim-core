@@ -19,6 +19,7 @@
 #define _HPP_TEAM
 
 #include <cstdint>
+#include <memory>
 #include <span>
 #include "model/team.hpp"
 #include "sim/player/player.hpp"
@@ -72,9 +73,9 @@ class Team {
     FormationEntry GetFormationEntry(void* player);
     void SetFormationEntry(Player* player, FormationEntry entry);
     float GetAiDifficulty() const { return aiDifficulty; }
-    const std::vector<Player *> &GetAllPlayers() const { return players; }
+    const std::vector<Player *> &GetAllPlayers() const { return player_views_; }
     void GetAllPlayers(std::vector<Player*> &allPlayers) {
-      allPlayers.insert(allPlayers.end(), players.begin(), players.end());
+      allPlayers.insert(allPlayers.end(), player_views_.begin(), player_views_.end());
     }
     void GetActivePlayers(std::vector<Player *> &activePlayers);
     int GetActivePlayersCount() const;
@@ -127,7 +128,9 @@ class Team {
     float fadingTeamPossessionAmount = 0.0f;
 
 
-    std::vector<Player*> players;
+    // Ownership; raw views below are stable for the whole team lifetime.
+    std::vector<std::unique_ptr<Player>> players_;
+    std::vector<Player*> player_views_;
 
 
     int side = -1;
