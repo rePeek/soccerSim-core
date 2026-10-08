@@ -8,8 +8,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/fixtures/default_teams.hpp"
-#include "sim/ball/ball.hpp"
-#include "sim/ball/ball_player_contact.hpp"
+#include "football/ball/ball.hpp"
+#include "sim/player/player_ball_contact.hpp"
 #include "sim/event/ball_touch_sink.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
@@ -71,7 +71,7 @@ struct ContactFixture {
 TEST_CASE("Ball physics runs without a Match and takes netting facts per call",
           "[sim][ball][contact]") {
   Ball ball(football::model::MakeLegacyPitch());
-  const BallEnvironment outside_goal{};
+  const football::ball::BallEnvironment outside_goal{};
   ball.SetPosition(Vector3(0, 0, 0), outside_goal);
   ball.Touch(Vector3(8, 1, 3), outside_goal);
   REQUIRE(ball.Predict(0).coords[2] == 0.11f);
@@ -86,7 +86,7 @@ TEST_CASE("Ball physics runs without a Match and takes netting facts per call",
   ball.SetPosition(Vector3(58.5f, 0, 1.0f), outside_goal);
   ball.Touch(Vector3(3, 0, 0), outside_goal);
   const auto outside = ball.CalculatePrediction(outside_goal);
-  const auto inside = ball.CalculatePrediction(BallEnvironment{true});
+  const auto inside = ball.CalculatePrediction(football::ball::BallEnvironment{true});
   REQUIRE(inside.momentum != outside.momentum);
   // No latched rule fact in Ball: subsequent calls use only their argument.
   REQUIRE(ball.CalculatePrediction(outside_goal).momentum == outside.momentum);

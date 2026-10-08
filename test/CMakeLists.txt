@@ -108,6 +108,18 @@ target_link_libraries(football_sim_contracts_test PRIVATE football::sim_contract
 football_configure_target(football_sim_contracts_test)
 add_test(NAME football_sim_contracts_test COMMAND football_sim_contracts_test)
 
+# Ball is an independent module: these tests link only football::ball (plus
+# foundation/model geometry), never Simulation/Player/Team/Referee.
+add_executable(football_ball_test
+  ../src/sim/ball/tests/ball_state_test.cpp
+  ../src/sim/ball/tests/ball_physics_test.cpp
+  ../src/sim/ball/tests/ball_contact_test.cpp
+  ../src/sim/ball/tests/ball_prediction_test.cpp)
+target_link_libraries(football_ball_test PRIVATE football::ball Catch2::Catch2WithMain)
+football_configure_target(football_ball_test)
+add_test(NAME football_ball_test COMMAND football_ball_test)
+set_tests_properties(football_ball_test PROPERTIES LABELS "sim;ball")
+
 add_executable(football_model_test model_test.cpp)
 target_link_libraries(football_model_test PRIVATE football::model)
 football_configure_target(football_model_test)

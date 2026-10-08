@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_SIM_BALL_BALL_PLAYER_CONTACT_HPP
-#define FOOTBALL_SIM_BALL_BALL_PLAYER_CONTACT_HPP
+#ifndef FOOTBALL_SIM_PLAYER_PLAYER_BALL_CONTACT_HPP
+#define FOOTBALL_SIM_PLAYER_PLAYER_BALL_CONTACT_HPP
 
 #include <optional>
 #include <span>
@@ -48,4 +48,4 @@ BallPlayerContactResult ResolveBallPlayerContacts(
 
 }  // namespace football::sim
 
-#endif  // FOOTBALL_SIM_BALL_BALL_PLAYER_CONTACT_HPP
+#endif  // FOOTBALL_SIM_PLAYER_PLAYER_BALL_CONTACT_HPP

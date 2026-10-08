@@ -34,7 +34,7 @@
 #include "sim/team/team.hpp"
 
 #include "sim/observation/mentalimage_sampling.hpp"
-#include "sim/ball/ball_touch_application.hpp"
+#include "sim/ball_touch_application.hpp"
 #include "sim/event/ball_touch_sink.hpp"
 #include "sim/player/player_runtime_sink.hpp"
 #include "sim/player/player_motion_constants.hpp"

@@ -6,7 +6,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
 #include "sim/observation/mentalimage.hpp"
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/player/kick_targeting.hpp"
 #include "sim/player/player.hpp"
 #include "sim/query/player_query.hpp"

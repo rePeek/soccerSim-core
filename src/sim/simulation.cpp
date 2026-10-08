@@ -9,9 +9,9 @@
 #include <vector>
 
 #include "sim/animation/library.hpp"
-#include "sim/ball/ball.hpp"
-#include "sim/ball/ball_player_contact.hpp"
-#include "sim/ball/ball_touch_application.hpp"
+#include "football/ball/ball.hpp"
+#include "sim/player/player_ball_contact.hpp"
+#include "sim/ball_touch_application.hpp"
 #include "sim/event/ball_touch_dispatcher.hpp"
 #include "sim/event/touch_query.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"

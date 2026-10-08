@@ -22,7 +22,7 @@
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player.hpp"
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 
 namespace football::sim::query {
 

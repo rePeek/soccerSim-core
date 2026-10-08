@@ -12,6 +12,7 @@ target_link_libraries(football_sim_contracts INTERFACE
   football::foundation football::model)
 
 add_subdirectory(animation)
+add_subdirectory(ball)
 
 # Domain directories organize concepts, not public/private dependency units.
 add_library(football_sim STATIC)
@@ -26,9 +27,8 @@ target_sources(football_sim PRIVATE
   team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
   team/formation_roles.cpp team/formation_entry.hpp
   team/possession.cpp team/possession.hpp
-  ball/ball.cpp ball/ball.hpp ball/ball_timing.hpp ball/ball_touch.hpp
-  ball/ball_environment.hpp ball/ball_player_contact.cpp ball/ball_player_contact.hpp
-  ball/ball_touch_application.cpp ball/ball_touch_application.hpp
+  event/touch_type.hpp
+  ball_touch_application.cpp ball_touch_application.hpp
   observation/world_state_builder.cpp observation/world_state_builder.hpp
   observation/pitch_frame.cpp observation/pitch_frame.hpp
   observation/mentalimage.cpp observation/mentalimage.hpp observation/player_image.hpp
@@ -45,6 +45,7 @@ target_sources(football_sim PRIVATE
   rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp
   player/player.cpp player/player_control_builder.cpp player/player_locomotion.cpp
   player/player_contact.cpp player/player_contact.hpp
+  player/player_ball_contact.cpp player/player_ball_contact.hpp
   player/possession.cpp player/possession.hpp
   player/kick_targeting.cpp
   player/humanoid/humanoid_utils.cpp
@@ -66,7 +67,7 @@ target_sources(football_sim PUBLIC FILE_SET HEADERS
   FILES simulation.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
-  PRIVATE football::animation football::model BqLog)
+  PRIVATE football::animation football::model football::ball BqLog)
 football_configure_target(football_sim)
 # Resource lookup belongs to runtime loading, never public value/policy contracts.
 target_compile_definitions(football_sim PRIVATE

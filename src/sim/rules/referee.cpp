@@ -19,7 +19,7 @@
 #include <cmath>
 #include <algorithm>
 
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
 #include "sim/team/team.hpp"
 #include "sim/pitch_geometry.hpp"

@@ -7,7 +7,7 @@
 
 #include "sim/simulation.hpp"
 #include "sim/animation/library.hpp"
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/player_control_builder.hpp"
@@ -92,7 +92,7 @@ class SimulationAccess {
   static bool IsInSetPieceOf(Simulation& s) { return s.set_piece_active_; }
   static bool IsBallInPlayOf(Simulation& s) { return s.clock_->IsBallInPlay(); }
   static bool IsHalfUnderwayOf(Simulation& s) { return s.clock_->IsHalfUnderway(); }
-  static football::sim::BallEnvironment BallEnvironmentOf(Simulation& s) {
+  static football::ball::BallEnvironment BallEnvironmentOf(Simulation& s) {
     return {s.ball_in_goal_};
   }
   static int ScoreOf(Simulation& s, int team_id) { return s.score_[team_id]; }

@@ -1,6 +1,6 @@
 #include "sim/observation/world_state_builder.hpp"
 
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
 #include "sim/rules/referee.hpp"

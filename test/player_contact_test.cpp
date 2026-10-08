@@ -5,7 +5,7 @@
 
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/player/player_contact.hpp"
 #include "sim/simulation.hpp"
 

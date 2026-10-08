@@ -17,7 +17,7 @@
 
 #include "sim/observation/mentalimage.hpp"
 
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
 
 MentalImage::MentalImage(football::sim::Tick captured_tick,

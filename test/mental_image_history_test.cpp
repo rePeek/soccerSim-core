@@ -7,8 +7,8 @@
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
 #include "default_ai_fixture.hpp"
-#include "sim/ball/ball.hpp"
-#include "sim/ball/ball_touch_application.hpp"
+#include "football/ball/ball.hpp"
+#include "sim/ball_touch_application.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
 

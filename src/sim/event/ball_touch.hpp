@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_EVENT_BALL_TOUCH_HPP
 #define FOOTBALL_SIM_EVENT_BALL_TOUCH_HPP
 
-#include "sim/ball/ball_touch.hpp"
+#include "sim/event/touch_type.hpp"
 #include "sim/time/tick.hpp"
 
 class Player;

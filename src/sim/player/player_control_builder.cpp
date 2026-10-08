@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/event/touch_query.hpp"
 #include "sim/rules/referee.hpp"
 #include "model/pitch.hpp"

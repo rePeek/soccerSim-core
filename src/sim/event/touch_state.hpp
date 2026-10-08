@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_EVENT_TOUCH_STATE_HPP
 
 #include <array>
-#include "sim/ball/ball_touch.hpp"
+#include "sim/event/touch_type.hpp"
 #include "model/player.hpp"
 
 namespace football::sim::event {

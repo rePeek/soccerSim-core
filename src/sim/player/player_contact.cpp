@@ -18,7 +18,7 @@
 #include <cmath>
 #include <vector>
 
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/player_action_volume.hpp"
 #include "sim/player/player_motion_constants.hpp"

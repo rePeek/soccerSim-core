@@ -32,7 +32,7 @@
 #include "sim/player/player_decision_scheduler.hpp"
 #include "sim/player/player_control.hpp"
 #include "sim/team/formation_entry.hpp"
-#include "sim/ball/ball_touch.hpp"
+#include "sim/event/touch_type.hpp"
 #include "sim/time/tick_boundary.hpp"
 #include "sim/player/player_tick_context.hpp"
 

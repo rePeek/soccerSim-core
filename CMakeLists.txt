@@ -31,7 +31,7 @@ target_sources(game PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/src
   FILES src/env.hpp)
 target_link_libraries(game
-  PUBLIC football::model football::sim_contracts football::ai_contracts
+  PUBLIC football::model football::sim_contracts football::ai_contracts football::ball
   PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim>")

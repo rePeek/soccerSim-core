@@ -1,23 +1,10 @@
-// Copyright 2019 Google LLC & Bastiaan Konings
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-#include "sim/ball/ball_player_contact.hpp"
+#include "sim/player/player_ball_contact.hpp"
 
 #include <cmath>
 
-#include "sim/ball/ball.hpp"
-#include "sim/ball/ball_touch.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/event/ball_touch_sink.hpp"
+#include "sim/event/touch_type.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player.hpp"

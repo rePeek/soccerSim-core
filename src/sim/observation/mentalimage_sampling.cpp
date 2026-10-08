@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 #include "sim/time/tick_boundary.hpp"
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/observation/mentalimage.hpp"
 
 namespace football::sim::observation {

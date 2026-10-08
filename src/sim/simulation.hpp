@@ -19,7 +19,7 @@
 #include "sim/rules/clock.hpp"
 #include "sim/event/ball_touch_sink.hpp"
 #include "sim/event/touch_state.hpp"
-#include "sim/ball/ball_environment.hpp"
+#include "football/ball/ball_environment.hpp"
 #include "sim/rules/referee_tick_facts.hpp"
 #include "sim/rules/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
@@ -135,7 +135,7 @@ class Simulation {
   Team* GetLastTouchTeam() const;
   Player* GetLastTouchPlayer() const;
   void GetActiveTeamPlayers(int team_id, std::vector<Player*>& players);
-  football::sim::BallEnvironment GetBallEnvironment() const { return {ball_in_goal_}; }
+  football::ball::BallEnvironment GetBallEnvironment() const { return {ball_in_goal_}; }
 
   blunted::Rng rng_;
   // Constructed before the actors and kept alive until their borrows are gone.

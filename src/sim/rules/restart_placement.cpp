@@ -15,7 +15,7 @@
 #include "sim/rules/restart_placement.hpp"
 #include "sim/rules/rule_command_sink.hpp"
 #include "sim/query/player_query.hpp"
-#include "sim/ball/ball.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/pitch_geometry.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player.hpp"
