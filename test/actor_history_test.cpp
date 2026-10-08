@@ -32,36 +32,35 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
         football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), options);
     football::test::TakeKickOff(simulation);
-    auto& match = *simulation.match();
-    auto* actor = match.GetTeam(match.FirstTeam())->GetAllPlayers()[0]; // Tactical phase zero.
-    simulation.AdvanceTime(TickSpan{(10 - match.GetTimelineTick().value % 10) % 10});
-    REQUIRE(match.IsInPlay());
+    auto* actor = SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[0]; // Tactical phase zero.
+    simulation.AdvanceTime(TickSpan{(10 - SimulationAccess::NowOf(simulation).value % 10) % 10});
+    REQUIRE(SimulationAccess::IsInPlayOf(simulation));
     REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
-    const auto rng = match.rng().engine();
+    const auto rng = SimulationAccess::RngOf(simulation).engine();
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
     REQUIRE_THROWS_AS(actor->Process(SimulationAccess::PlayerTickOf(simulation, *actor), {}, touch_sink, SimulationAccess::RuntimeOf(simulation)), std::logic_error); // No fallback to Match history.
-    REQUIRE(match.rng().engine() == rng);
+    REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
 
     std::vector<Player*> players;
-    match.GetTeam(match.FirstTeam())->GetActivePlayers(players);
-    match.GetTeam(match.SecondTeam())->GetActivePlayers(players);
+    SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetActivePlayers(players);
+    SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetActivePlayers(players);
     std::vector<MentalImage> supplied;
-    supplied.emplace_back(match.GetTimelineTick(), players, *match.GetBall());
+    supplied.emplace_back(SimulationAccess::NowOf(simulation), players, *SimulationAccess::BallOf(simulation));
     // Distinct caller-owned observation facts; never mutate live opponent positions.
     supplied[0].maxDistanceDeviation = 1000.0f;
     for (auto& image : supplied[0].players) image.position = actor->GetPosition();
     const auto position = actor->GetPosition();
     const auto forward_focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
-    const auto forward = query::CalculateFreeSpace(match.GetTimelineTick(), &supplied[0], actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
-    const auto space = query::CalculateFreeSpace(match.GetTimelineTick(), &supplied[0], actor->GetTeamID(),
+    const auto forward = query::CalculateFreeSpace(SimulationAccess::NowOf(simulation), &supplied[0], actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
+    const auto space = query::CalculateFreeSpace(SimulationAccess::NowOf(simulation), &supplied[0], actor->GetTeamID(),
         position + actor->GetMovement() * 0.1f, 5.0f, 0.1f);
-    const auto owned_forward = query::CalculateFreeSpace(match.GetTimelineTick(), simulation.GetMentalImage(TickSpan{}),
+    const auto owned_forward = query::CalculateFreeSpace(SimulationAccess::NowOf(simulation), simulation.GetMentalImage(TickSpan{}),
         actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
     REQUIRE(forward != owned_forward);
     actor->Process(SimulationAccess::PlayerTickOf(simulation, *actor), supplied, touch_sink, SimulationAccess::RuntimeOf(simulation));
     REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == forward);
     REQUIRE(actor->GetTacticalSituation().spaceRating == space);
-    REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
+    REQUIRE(supplied[0].captured_tick == SimulationAccess::NowOf(simulation));
   }
 }
 
@@ -72,20 +71,19 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
         football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), options);
     simulation.Step({});
-    auto& match = *simulation.match();
     REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
-    const auto rng = match.rng().engine();
-    auto* actor = match.GetTeam(match.FirstTeam())->GetAllPlayers()[0];
+    const auto rng = SimulationAccess::RngOf(simulation).engine();
+    auto* actor = SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[0];
     const auto position = actor->GetPosition();
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
-    REQUIRE_THROWS_AS(actor->CastHumanoid()->Process(match.GetTimelineTick(), SimulationAccess::PlayerTickOf(simulation, *actor), {}, touch_sink, SimulationAccess::RuntimeOf(simulation)), std::logic_error);
+    REQUIRE_THROWS_AS(actor->CastHumanoid()->Process(SimulationAccess::NowOf(simulation), SimulationAccess::PlayerTickOf(simulation, *actor), {}, touch_sink, SimulationAccess::RuntimeOf(simulation)), std::logic_error);
     REQUIRE(actor->GetPosition() == position);
-    REQUIRE(match.rng().engine() == rng);
+    REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
     std::vector<MentalImage> supplied;
-    supplied.emplace_back(match.GetTimelineTick(), std::span<Player* const>{}, *match.GetBall());
+    supplied.emplace_back(SimulationAccess::NowOf(simulation), std::span<Player* const>{}, *SimulationAccess::BallOf(simulation));
     REQUIRE_NOTHROW(actor->Process(SimulationAccess::PlayerTickOf(simulation, *actor), supplied, touch_sink, SimulationAccess::RuntimeOf(simulation))); // Ball-only caller-owned sample; no stored borrow.
     REQUIRE(supplied[0].players.empty());
-    REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
+    REQUIRE(supplied[0].captured_tick == SimulationAccess::NowOf(simulation));
   }
 }
 
@@ -101,27 +99,26 @@ TEST_CASE("Humanoid baked clips come from its injected library, not the runtime 
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
-  auto& match = *simulation.match();
   AnimationLibrary independent;
   REQUIRE(independent.Load(std::filesystem::path(__FILE__).parent_path().parent_path() /
       "assets/runtime/animations.simanim"));
-  auto* actor = match.GetTeam(0)->GetAllPlayers()[1];
+  auto* actor = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   SimulationRng supplied_rng;
   supplied_rng.Seed(99);
   auto expected_rng = supplied_rng;
-  const auto ambient_rng = match.rng().engine();
+  const auto ambient_rng = SimulationAccess::RngOf(simulation).engine();
   Humanoid humanoid(actor, independent, supplied_rng);
   const auto id = humanoid.GetCurrentAnim()->animationId;
   REQUIRE(&humanoid.GetBakedClip(id) == &independent.Get(static_cast<std::uint32_t>(id)));
-  REQUIRE(&humanoid.GetBakedClip(id) != &match.GetAnimationLibrary().Get(static_cast<std::uint32_t>(id)));
+  REQUIRE(&humanoid.GetBakedClip(id) != &SimulationAccess::AnimationLibraryOf(simulation).Get(static_cast<std::uint32_t>(id)));
   REQUIRE(&actor->CastHumanoid()->GetBakedClip(id) ==
-          &match.GetAnimationLibrary().Get(static_cast<std::uint32_t>(id)));
+          &SimulationAccess::AnimationLibraryOf(simulation).Get(static_cast<std::uint32_t>(id)));
   (void)expected_rng.Uniform(0, static_cast<int>(humanoid.GetBakedClip(id).frame_count) - 2);
   REQUIRE(supplied_rng.engine() == expected_rng.engine());
   humanoid.ResetSituation(actor->GetPosition());
   (void)expected_rng.Uniform(0, static_cast<int>(humanoid.GetBakedClip(humanoid.GetCurrentAnim()->animationId).frame_count) - 2);
   REQUIRE(supplied_rng.engine() == expected_rng.engine());
-  REQUIRE(match.rng().engine() == ambient_rng);
+  REQUIRE(SimulationAccess::RngOf(simulation).engine() == ambient_rng);
 }
 
 TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
@@ -129,11 +126,10 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
-  auto& match = *simulation.match();
-  auto* actor = match.GetTeam(0)->GetAllPlayers()[1];
-  auto& opponent = *match.GetTeam(1);
+  auto* actor = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
+  auto& opponent = *SimulationAccess::TeamOf(simulation, 1);
   auto* toucher = opponent.GetAllPlayers()[1];
-  const auto ambient_rng = match.rng().engine();
+  const auto ambient_rng = SimulationAccess::RngOf(simulation).engine();
   Ball supplied(football::model::MakeLegacyPitch());
   SpatialState spatial;
   spatial.position = Vector3(0);
@@ -166,7 +162,7 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
       Vector3(0), distance, height, movement);
   REQUIRE(distance > 0.0f);
   REQUIRE(height > 0.0f);
-  REQUIRE(match.rng().engine() == ambient_rng);
+  REQUIRE(SimulationAccess::RngOf(simulation).engine() == ambient_rng);
 }
 
 template<class T> concept HasImplicitActorFacts = requires(T& actor, std::span<MentalImage> history, BallTouchSink& events) {
@@ -180,24 +176,23 @@ TEST_CASE("Player tactical refresh honors supplied tick and authorization",
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
   simulation.Step({});
-  auto& match = *simulation.match();
-  auto* actor = match.GetTeam(match.FirstTeam())->GetAllPlayers()[0];
-  REQUIRE_FALSE(match.IsInPlay());
-  REQUIRE(match.GetTimelineTick() == Tick{1});
+  auto* actor = SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[0];
+  REQUIRE_FALSE(SimulationAccess::IsInPlayOf(simulation));
+  REQUIRE(SimulationAccess::NowOf(simulation) == Tick{1});
   std::vector<Player*> players;
-  match.GetTeam(0)->GetActivePlayers(players);
-  match.GetTeam(1)->GetActivePlayers(players);
+  SimulationAccess::TeamOf(simulation, 0)->GetActivePlayers(players);
+  SimulationAccess::TeamOf(simulation, 1)->GetActivePlayers(players);
   std::vector<MentalImage> history;
-  history.emplace_back(Tick{10}, players, *match.GetBall());
+  history.emplace_back(Tick{10}, players, *SimulationAccess::BallOf(simulation));
   history[0].maxDistanceDeviation = 1000.f;
   for (auto& image : history[0].players) image.position = Vector3(100, 100, 0);
   bool underway = false;
   const PlayerTickContext tick{
-      Tick{10}, true, false, false, underway, *match.GetBall(), match.GetBallEnvironment(),
-      nullptr, nullptr, nullptr, match.touches(), match.GetReferee()->GetBuffer(),
-      match.pitch(), *match.GetTeam(0), *match.GetTeam(1),
-      *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam()), 0, false,
-      match.rng()};
+      Tick{10}, true, false, false, underway, *SimulationAccess::BallOf(simulation), SimulationAccess::BallEnvironmentOf(simulation),
+      nullptr, nullptr, nullptr, SimulationAccess::TouchesOf(simulation), SimulationAccess::RefereeOf(simulation)->GetBuffer(),
+      SimulationAccess::PitchOf(simulation), *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1),
+      *SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)), *SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation)), 0, false,
+      SimulationAccess::RngOf(simulation)};
   const auto position = actor->GetPosition();
   const auto focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
   const float expected = query::CalculateFreeSpace(tick.now, &history[0], actor->GetTeamID(), focus, 5.0f, 0.5f);
@@ -205,8 +200,8 @@ TEST_CASE("Player tactical refresh honors supplied tick and authorization",
   REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == 0.f);
   actor->Process(tick, history, SimulationAccess::EventsOf(simulation), SimulationAccess::RuntimeOf(simulation));
   REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == expected);
-  REQUIRE(match.GetTimelineTick() == Tick{1});
-  REQUIRE_FALSE(match.IsInPlay());
+  REQUIRE(SimulationAccess::NowOf(simulation) == Tick{1});
+  REQUIRE_FALSE(SimulationAccess::IsInPlayOf(simulation));
 }
 
 TEST_CASE("Player's half-underway input remains live across synchronous clock commands",
@@ -214,15 +209,15 @@ TEST_CASE("Player's half-underway input remains live across synchronous clock co
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
-  auto& first_actor = *simulation.match()->GetTeam(0)->GetAllPlayers()[0];
+  auto& first_actor = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[0];
   auto tick = SimulationAccess::PlayerTickOf(simulation, first_actor);
   REQUIRE(&tick.half_underway == &SimulationAccess::ClockOf(simulation).IsHalfUnderway());
   REQUIRE_FALSE(tick.half_underway);
-  simulation.match()->SetMatchPhase(MatchPhase::FirstHalf);
-  simulation.match()->StartPlay();
-  simulation.match()->StartBallInPlay();
+  SimulationAccess::SetPhase(simulation, MatchPhase::FirstHalf);
+  SimulationAccess::StartPlay(simulation);
+  SimulationAccess::StartBallInPlay(simulation);
   REQUIRE(tick.half_underway);
-  simulation.match()->EndHalf();
+  SimulationAccess::EndHalf(simulation);
   REQUIRE_FALSE(tick.half_underway);
 }
 
@@ -234,16 +229,15 @@ TEST_CASE("Humanoid scheduling and publication consume the supplied tick",
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
-  auto& match = *simulation.match();
-  auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
+  auto& actor = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   std::vector<Player*> players;
-  match.GetTeam(0)->GetActivePlayers(players);
-  match.GetTeam(1)->GetActivePlayers(players);
+  SimulationAccess::TeamOf(simulation, 0)->GetActivePlayers(players);
+  SimulationAccess::TeamOf(simulation, 1)->GetActivePlayers(players);
   std::vector<MentalImage> history;
-  history.emplace_back(Tick{123}, players, *match.GetBall());
+  history.emplace_back(Tick{123}, players, *SimulationAccess::BallOf(simulation));
   actor.CastHumanoid()->Process(Tick{123}, SimulationAccess::PlayerTickOf(simulation, actor), history, SimulationAccess::EventsOf(simulation), SimulationAccess::RuntimeOf(simulation));
   REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{123});
   REQUIRE(actor.HasDecisionLocomotionIntent());
-  REQUIRE(match.GetTimelineTick() == Tick{});
+  REQUIRE(SimulationAccess::NowOf(simulation) == Tick{});
 }
 }  // namespace

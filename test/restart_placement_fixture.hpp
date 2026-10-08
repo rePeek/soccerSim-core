@@ -6,12 +6,13 @@
 #include <sstream>
 
 #include "app/fixtures/default_teams.hpp"
-#include "sim/match/match.hpp"
+#include "sim/testing/simulation_access.hpp"
 #include "sim/rules/restart_placement.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team/team.hpp"
 
 namespace football::test {
+using football::sim::testing::SimulationAccess;
 struct RestartCase {
   int roster;
   bool reverse;
@@ -32,7 +33,6 @@ inline void SetupRestart(Simulation &simulation, const RestartCase &test) {
   options.reverse_team_processing = test.reverse;
   simulation.Stop();
   simulation.Init(home, away, model::MakeLegacyPitch(), options);
-  Match *match = simulation.match();
   simulation.Mirror(test.reverse, !test.reverse, test.reverse);
   blunted::Vector3 focus(0);
   switch (test.mode) {
@@ -46,30 +46,30 @@ inline void SetupRestart(Simulation &simulation, const RestartCase &test) {
   simulation.ResetSituation(test.reverse ? -focus : focus);
 }
 
-inline std::array<Player *, 2> PositionRestart(Match &match, const RestartCase &test) {
+inline std::array<Player *, 2> PositionRestart(Simulation &simulation, const RestartCase &test) {
   struct RetainSink final : football::sim::rules::RuleCommandSink {
-    Match& match;
-    explicit RetainSink(Match& m) : match(m) {}
+    Simulation& simulation;
+    explicit RetainSink(Simulation& s) : simulation(s) {}
     void StopPlay() override {}
     void StartPlay() override {}
     void StartSetPiece() override {}
     void StopSetPiece() override {}
     void StartBallInPlay() override {}
-    void SetBallRetainer(Player* retainer) override { match.SetBallRetainer(retainer); }
+    void SetBallRetainer(Player* retainer) override { SimulationAccess::SetBallRetainer(simulation, retainer); }
     void ResetSituation(const blunted::Vector3&) override {}
     void ResetBall(const blunted::Vector3&) override {}
     void SetPhase(MatchPhase) override {}
-  } commands(match);
+  } commands(simulation);
   std::array<Player *, 2> takers{};
-  for (int side : {match.FirstTeam(), match.SecondTeam()})
-    takers[side] = PositionRestartPlayers(match.GetTeam(side), test.mode,
-        match.GetTeam(1 - side), test.taking_team, test.taking_team,
-        *match.GetBall(), match.GetRegulationTime(), match.options(), match.rng(), commands);
+  for (int side : {SimulationAccess::FirstTeamOf(simulation), SimulationAccess::SecondTeamOf(simulation)})
+    takers[side] = PositionRestartPlayers(SimulationAccess::TeamOf(simulation, side), test.mode,
+        SimulationAccess::TeamOf(simulation, 1 - side), test.taking_team, test.taking_team,
+        *SimulationAccess::BallOf(simulation), SimulationAccess::RegulationTimeOf(simulation), SimulationAccess::OptionsOf(simulation), SimulationAccess::RngOf(simulation), commands);
   return takers;
 }
 
 // Field-wise exact float/action/RNG fingerprint, never struct padding/pointers.
-inline std::uint64_t RestartFingerprint(std::uint64_t hash, Match &match,
+inline std::uint64_t RestartFingerprint(std::uint64_t hash, Simulation &simulation,
                                        std::array<Player *, 2> takers) {
   const auto bytes = [&](const void *source, std::size_t size) {
     const auto *p = static_cast<const unsigned char *>(source);
@@ -77,11 +77,11 @@ inline std::uint64_t RestartFingerprint(std::uint64_t hash, Match &match,
   };
   const auto value = [&](const auto &v) { bytes(&v, sizeof(v)); };
   const auto vector = [&](const blunted::Vector3 &v) { bytes(v.coords, sizeof(v.coords)); };
-  vector(match.GetBall()->Predict(0));
+  vector(SimulationAccess::BallOf(simulation)->Predict(0));
   for (int side = 0; side < 2; ++side) {
     const auto taker = takers[side] ? takers[side]->GetID() : model::kInvalidPlayerId;
     value(taker);
-    for (Player *player : match.GetTeam(side)->GetAllPlayers()) {
+    for (Player *player : SimulationAccess::TeamOf(simulation, side)->GetAllPlayers()) {
       vector(player->GetPosition()); vector(player->GetMovement());
       vector(player->GetDirectionVec()); vector(player->GetBodyDirectionVec());
       const auto &action = player->GetSimulationActionState();
@@ -92,10 +92,10 @@ inline std::uint64_t RestartFingerprint(std::uint64_t hash, Match &match,
       vector(action.contactPosition);
     }
   }
-  const auto retainer = match.GetBallRetainer() ? match.GetBallRetainer()->GetID() : model::kInvalidPlayerId;
+  const auto retainer = SimulationAccess::BallRetainerOf(simulation) ? SimulationAccess::BallRetainerOf(simulation)->GetID() : model::kInvalidPlayerId;
   value(retainer);
   std::ostringstream rng;
-  rng << match.rng().engine();
+  rng << SimulationAccess::RngOf(simulation).engine();
   const std::string state = rng.str();
   bytes(state.data(), state.size());
   return hash;

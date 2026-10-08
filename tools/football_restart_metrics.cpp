@@ -12,13 +12,14 @@
 #include <vector>
 
 #include "ai/default_ai.hpp"
+#include "sim/testing/simulation_access.hpp"
 #include "app/fixtures/default_teams.hpp"
-#include "sim/match/match.hpp"
 #include "sim/simulation.hpp"
 
 namespace {
 using football::sim::Tick;
 using football::sim::TickSpan;
+using football::sim::testing::SimulationAccess;
 
 std::uint64_t Parse(std::string_view text) {
   std::uint64_t value = 0;
@@ -89,7 +90,7 @@ void Run(unsigned seed, TickSpan half_duration, bool reverse, bool symmetric) {
   std::array<TickSpan, 2> regulation{}, effective{}, event_dead_time{};
   std::array<HalfMetrics, 2> metrics{};
   const auto roster = [&](int side) -> const std::vector<Player*>& {
-    return simulation.match()->GetTeam(side)->GetAllPlayers();
+    return SimulationAccess::TeamOf(simulation, side)->GetAllPlayers();
   };
   const auto roster_size = roster(0).size() + roster(1).size();
   std::vector<Tick> previous_touch(roster_size);
@@ -156,7 +157,7 @@ void Run(unsigned seed, TickSpan half_duration, bool reverse, bool symmetric) {
       const auto delta = after.teams[side].score - before.teams[side].score;
       if (delta > 0) metrics_half.goals[side] += static_cast<unsigned>(delta);
     }
-    const auto& buffer = simulation.match()->GetReferee()->GetBuffer();
+    const auto& buffer = SimulationAccess::RefereeOf(simulation)->GetBuffer();
     const bool active = buffer.active && buffer.restart.has_value();
     if (current && (!active || current->entered != buffer.restart->entered_tick)) {
       if (!current->contact) record(*current, Tick{before.tick}); // Period-censored, never a completed wait.

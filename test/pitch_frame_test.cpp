@@ -7,7 +7,6 @@
 
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
-#include "sim/match/match.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/simulation.hpp"
@@ -45,18 +44,18 @@ bool Same(const Vector3& a, const Vector3& b) {
 
 // Independent physical-pitch setup: undo ONLY the legacy processing mirror.
 // Do not use the policy transform being tested to generate expected values.
-void SetPhysicalBall(Match& match, Vector3 position, Vector3 velocity) {
-  if (match.options().reverse_team_processing) {
+void SetPhysicalBall(Simulation& simulation, Vector3 position, Vector3 velocity) {
+  if (SimulationAccess::OptionsOf(simulation).reverse_team_processing) {
     position.Mirror();
     velocity.Mirror();
   }
-  match.GetBall()->SetPosition(position, match.GetBallEnvironment());
-  match.GetBall()->SetMomentum(velocity, match.GetBallEnvironment());
+  SimulationAccess::BallOf(simulation)->SetPosition(position, SimulationAccess::BallEnvironmentOf(simulation));
+  SimulationAccess::BallOf(simulation)->SetMomentum(velocity, SimulationAccess::BallEnvironmentOf(simulation));
 }
 
-Vector3 PhysicalBall(const Match& match) {
-  auto position = match.GetBall()->Predict(0);
-  if (match.options().reverse_team_processing) position.Mirror();
+Vector3 PhysicalBall(Simulation& simulation) {
+  auto position = SimulationAccess::BallOf(simulation)->Predict(0);
+  if (SimulationAccess::OptionsOf(simulation).reverse_team_processing) position.Mirror();
   return position;
 }
 
@@ -84,30 +83,29 @@ TEST_CASE("a physical change of ends preserves canonical ball and player geometr
     Simulation simulation;
     Init(simulation, reverse, football::sim::Minutes(3));
     ReachHalf(simulation, MatchPhase::FirstHalf);
-    Match& match = *simulation.match();
-    SetPhysicalPlayer(*match.GetTeam(0)->GetAllPlayers()[1], Vector3(-30.f, 9.f, 0.f));
-    SetPhysicalPlayer(*match.GetTeam(1)->GetAllPlayers()[1], Vector3(27.f, 6.f, 0.f));
-    Player& runner = *match.GetTeam(0)->GetAllPlayers()[1];
+    SetPhysicalPlayer(*SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1], Vector3(-30.f, 9.f, 0.f));
+    SetPhysicalPlayer(*SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1], Vector3(27.f, 6.f, 0.f));
+    Player& runner = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
     PlayerControl control;
     control.move_direction = Vector3(3.f, 4.f, 0.f);
     control.desired_speed = 3.5f;
     PlayerControlSet controls;
     controls.Set(runner.GetID(), control);
     for (int step = 0; step < 30; ++step) simulation.Step(controls);
-    SetPhysicalBall(match, Vector3(23.f, 7.f, 0.4f), Vector3(8.f, -2.f, 1.f));
+    SetPhysicalBall(simulation, Vector3(23.f, 7.f, 0.4f), Vector3(8.f, -2.f, 1.f));
     const auto before = simulation.Observe();
     REQUIRE(Actor(before, runner.GetID()).velocity.GetLength() > 0.f);
     REQUIRE(Same(before.ball_position, Vector3(23.f, 7.f, 0.4f)));
     REQUIRE(Same(before.ball_velocity, Vector3(8.f, -2.f, 1.f)));
-    const auto rng = match.rng().engine();
+    const auto rng = SimulationAccess::RngOf(simulation).engine();
 
     // Exercise the spatial operations used by Simulation::ApplyChangeOfEnds without an
     // intervening physics tick or kickoff reset. Deliberately do not change the
     // phase enum: orientation must come from runtime sides, not SecondHalf.
     for (int change = 0; change < 2; ++change) {
-      match.GetTeam(0)->SwitchEnds();
-      match.GetTeam(1)->SwitchEnds();
-      match.GetBall()->Mirror();
+      SimulationAccess::TeamOf(simulation, 0)->SwitchEnds();
+      SimulationAccess::TeamOf(simulation, 1)->SwitchEnds();
+      SimulationAccess::BallOf(simulation)->Mirror();
       const auto after = simulation.Observe();
       REQUIRE(after.phase == before.phase);
       REQUIRE(Same(after.ball_position, before.ball_position));
@@ -119,7 +117,7 @@ TEST_CASE("a physical change of ends preserves canonical ball and player geometr
         REQUIRE(Same(observed.position, player.position));
         REQUIRE(Same(observed.velocity, player.velocity));
       }
-      REQUIRE(match.rng().engine() == rng);
+      REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
     }
   }
 }
@@ -131,10 +129,9 @@ TEST_CASE("player ball distance survives projection in both halves and processin
     Init(simulation, reverse);
     for (auto phase : {MatchPhase::FirstHalf, MatchPhase::SecondHalf}) {
       ReachHalf(simulation, phase);
-      Match& match = *simulation.match();
       const Vector3 physical_ball(23.f, 7.f, 0.4f);
       const Vector3 physical_velocity(8.f, -2.f, 1.f);
-      SetPhysicalBall(match, physical_ball, physical_velocity);
+      SetPhysicalBall(simulation, physical_ball, physical_velocity);
       const auto world = simulation.Observe();
       const bool changed_ends = phase == MatchPhase::SecondHalf;
       auto expected_ball = physical_ball;
@@ -149,13 +146,13 @@ TEST_CASE("player ball distance survives projection in both halves and processin
       REQUIRE(world.teams[0].defending_direction == -1);
       REQUIRE(world.teams[1].defending_direction == 1);
       for (int team = 0; team < 2; ++team) {
-        for (Player* player : match.GetTeam(team)->GetAllPlayers()) {
+        for (Player* player : SimulationAccess::TeamOf(simulation, team)->GetAllPlayers()) {
           const auto physical_position = player->GetPitchPosition();
           auto expected_position = physical_position;
           if (changed_ends) expected_position.Mirror();
           const auto& observed = Actor(world, player->GetID());
           REQUIRE(Same(observed.position, expected_position));
-          REQUIRE((physical_position - PhysicalBall(match)).GetLength() ==
+          REQUIRE((physical_position - PhysicalBall(simulation)).GetLength() ==
                   (observed.position - world.ball_position).GetLength());
         }
       }
@@ -171,7 +168,7 @@ TEST_CASE("canonical controls round trip through each actor runtime frame",
     for (auto phase : {MatchPhase::FirstHalf, MatchPhase::SecondHalf}) {
       ReachHalf(simulation, phase);
       for (int team = 0; team < 2; ++team) {
-        Player& player = *simulation.match()->GetTeam(team)->GetAllPlayers()[1];
+        Player& player = *SimulationAccess::TeamOf(simulation, team)->GetAllPlayers()[1];
         PlayerControl control;
         control.player = player.GetID();
         control.move_direction = Vector3(3.f, 4.f, 0.f);
@@ -215,16 +212,15 @@ TEST_CASE("second half AI chases the real nonzero ball rather than its ghost mir
     Simulation simulation;
     Init(simulation, reverse);
     ReachHalf(simulation, MatchPhase::SecondHalf);
-    Match& match = *simulation.match();
     for (int team = 0; team < 2; ++team) {
-      for (Player* player : match.GetTeam(team)->GetAllPlayers())
+      for (Player* player : SimulationAccess::TeamOf(simulation, team)->GetAllPlayers())
         SetPhysicalPlayer(*player, Vector3(0.f, team == 0 ? 30.f : -30.f, 0.f));
     }
-    Player& nearby = *match.GetTeam(0)->GetAllPlayers()[1];
-    Player& ghost_nearby = *match.GetTeam(0)->GetAllPlayers()[2];
+    Player& nearby = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
+    Player& ghost_nearby = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[2];
     SetPhysicalPlayer(nearby, Vector3(24.f, 7.f, 0.f));
     SetPhysicalPlayer(ghost_nearby, Vector3(-22.f, -7.f, 0.f));
-    SetPhysicalBall(match, Vector3(23.f, 7.f, 0.4f), Vector3(8.f, -2.f, 1.f));
+    SetPhysicalBall(simulation, Vector3(23.f, 7.f, 0.4f), Vector3(8.f, -2.f, 1.f));
     auto world = simulation.Observe();
     // Isolate spatial chasing from stale pre-positioning possession metadata.
     for (auto& player : world.players) player.has_possession = false;
@@ -253,20 +249,19 @@ TEST_CASE("native reachability targets the nearby real ball in either actor-proc
     Init(simulation, reverse);
     for (auto phase : {MatchPhase::FirstHalf, MatchPhase::SecondHalf}) {
       ReachHalf(simulation, phase);
-      Match& match = *simulation.match();
       // Clear previous action/perception state, but preserve accepted live play.
       simulation.ResetSituation(Vector3(0));
       for (int team = 0; team < 2; ++team) {
-        for (Player* player : match.GetTeam(team)->GetAllPlayers())
+        for (Player* player : SimulationAccess::TeamOf(simulation, team)->GetAllPlayers())
           SetPhysicalPlayer(*player, Vector3(0.f, team == 0 ? 25.f : -25.f, 0.f));
-        SetPhysicalPlayer(*match.GetTeam(team)->GetAllPlayers()[1],
+        SetPhysicalPlayer(*SimulationAccess::TeamOf(simulation, team)->GetAllPlayers()[1],
             Vector3(23.75f, team == 0 ? 7.f : 6.25f, 0.f));
       }
-      SetPhysicalBall(match, Vector3(23.f, 7.f, 0.11f), Vector3(0));
+      SetPhysicalBall(simulation, Vector3(23.f, 7.f, 0.11f), Vector3(0));
       for (int step = 0; step < 10; ++step) simulation.Step({}); // All native refresh phases.
       const auto world = simulation.Observe();
       for (int team = 0; team < 2; ++team) {
-        const auto* nearby = match.GetTeam(team)->GetAllPlayers()[1];
+        const auto* nearby = SimulationAccess::TeamOf(simulation, team)->GetAllPlayers()[1];
         CAPTURE(reverse, phase, team, nearby->GetTimeNeededToGetToBall_ms());
         REQUIRE((Actor(world, nearby->GetID()).position - world.ball_position).GetLength() < 1.2f);
         // The native procedural reach search must not exhaust its 3-second
@@ -296,7 +291,7 @@ TEST_CASE("both processing orders execute native open-play contacts in both halv
         REQUIRE(++steps < 14000);
         std::size_t index = 0;
         for (int team = 0; team < 2; ++team) {
-          for (auto* player : simulation.match()->GetTeam(team)->GetAllPlayers()) {
+          for (auto* player : SimulationAccess::TeamOf(simulation, team)->GetAllPlayers()) {
             const auto touch = player->GetLastTouchTick();
             if (before.ball_in_play && !before.in_set_piece && touch != touches[index] &&
                 player->GetLastTouchType() == e_TouchType_Intentional_Kicked) {
@@ -316,7 +311,7 @@ TEST_CASE("both processing orders execute native open-play contacts in both halv
       REQUIRE(world.regulation_time == TickSpan{10000});
       REQUIRE(world.ball_in_play_time <= world.regulation_time);
       return std::make_tuple(contacts, world.tick, world.ball_in_play_time,
-          world.teams[0].score, world.teams[1].score, simulation.match()->rng().engine());
+          world.teams[0].score, world.teams[1].score, SimulationAccess::RngOf(simulation).engine());
     };
     const auto first = run();
     REQUIRE(run() == first);

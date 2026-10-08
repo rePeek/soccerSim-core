@@ -10,7 +10,6 @@
 
 #include "default_ai_fixture.hpp"
 #include "app/fixtures/default_teams.hpp"
-#include "sim/match/match.hpp"
 #include "sim/event/ball_touch_sink.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_control_builder.hpp"
@@ -32,7 +31,7 @@ struct Runtime {
                     football::model::MakeLegacyPitch(), options);
     policy = football::test::MakeDefaultAI(simulation);
   }
-  Match *match() { return simulation.match(); }
+
 };
 
 bool Same(const Vector3 &a, const Vector3 &b) {
@@ -56,7 +55,7 @@ TEST_CASE("simulation has no implicit AI command source", "[sim][boundary]") {
   for (int tick = 0; tick < 300; ++tick) runtime.simulation.Step(PlayerControlSet{});
   REQUIRE(runtime.simulation.Observe().tick == 300);
   for (int side = 0; side < 2; ++side) {
-    for (Player *player : runtime.match()->GetTeam(side)->GetAllPlayers()) {
+    for (Player *player : SimulationAccess::TeamOf(runtime.simulation, side)->GetAllPlayers()) {
       PlayerCommandQueue queue;
       player->RequestCommand(queue, SimulationAccess::CommandInputsOf(runtime.simulation));
       REQUIRE(queue.size() == 1);
@@ -73,13 +72,13 @@ TEST_CASE("humanoid starting height is a catchable runtime contract", "[sim][fai
     std::vector<MentalImage> history{*runtime.simulation.GetMentalImage(football::sim::TickSpan{}),
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{10}),
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{20})};
-    Player *player = runtime.match()->GetTeam(0)->GetAllPlayers()[1];
+    Player *player = SimulationAccess::TeamOf(runtime.simulation, 0)->GetAllPlayers()[1];
     auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
     player->ResetPosition(Vector3(0, 0, height), Vector3(0, -1, 0));
-    REQUIRE_THROWS_AS(player->CastHumanoid()->Process(runtime.match()->GetTimelineTick(), SimulationAccess::PlayerTickOf(runtime.simulation, *player), history, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation)), std::logic_error);
-    REQUIRE_THROWS_AS(player->CastHumanoid()->HumanoidBase::Process(runtime.match()->GetTimelineTick(), SimulationAccess::PlayerTickOf(runtime.simulation, *player), history, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation)), std::logic_error);
+    REQUIRE_THROWS_AS(player->CastHumanoid()->Process(SimulationAccess::NowOf(runtime.simulation), SimulationAccess::PlayerTickOf(runtime.simulation, *player), history, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation)), std::logic_error);
+    REQUIRE_THROWS_AS(player->CastHumanoid()->HumanoidBase::Process(SimulationAccess::NowOf(runtime.simulation), SimulationAccess::PlayerTickOf(runtime.simulation, *player), history, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation)), std::logic_error);
     player->ResetPosition(Vector3(0), Vector3(0, -1, 0));
-    REQUIRE_NOTHROW(player->CastHumanoid()->Process(runtime.match()->GetTimelineTick(), SimulationAccess::PlayerTickOf(runtime.simulation, *player), history, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation)));
+    REQUIRE_NOTHROW(player->CastHumanoid()->Process(SimulationAccess::NowOf(runtime.simulation), SimulationAccess::PlayerTickOf(runtime.simulation, *player), history, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation)));
   }
 }
 
@@ -87,7 +86,7 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
   // This suite never calls GameEnv::Start; logging bootstrap is not a sim duty.
   Runtime runtime;
   for (int tick = 0; tick < 300; ++tick) runtime.simulation.Step(PlayerControlSet{});
-  Player *player = runtime.match()->GetTeam(0)->GetAllPlayers()[1];
+  Player *player = SimulationAccess::TeamOf(runtime.simulation, 0)->GetAllPlayers()[1];
   Humanoid *humanoid = player->CastHumanoid();
   REQUIRE(humanoid->GetFrameCount() > 2);
 
@@ -97,29 +96,29 @@ TEST_CASE("direct simulation warning paths do not require logger startup", "[sim
     auto *anim = const_cast<Anim *>(humanoid->GetCurrentAnim());
     anim->frameNum = humanoid->GetFrameCount() - 2;
     player->BeginSimulationAction();
-    player->PublishPlayerDecisionQueue({}, runtime.match()->GetTimelineTick());
+    player->PublishPlayerDecisionQueue({}, SimulationAccess::NowOf(runtime.simulation));
     std::vector<MentalImage> history{*runtime.simulation.GetMentalImage(football::sim::TickSpan{}),
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{10}),
         *runtime.simulation.GetMentalImage(football::sim::TickSpan{20})};
     auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
-    REQUIRE_THROWS_AS(humanoid->Process(runtime.match()->GetTimelineTick(), SimulationAccess::PlayerTickOf(runtime.simulation, *player), history, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation)), std::runtime_error);
+    REQUIRE_THROWS_AS(humanoid->Process(SimulationAccess::NowOf(runtime.simulation), SimulationAccess::PlayerTickOf(runtime.simulation, *player), history, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation)), std::runtime_error);
   }
 
   SECTION("base cadence warning can continue without a named logger") {
     // No animation opportunity: the base path publishes its due movement axis
     // and warns that no animation was selected. Keep its debug oracles intact.
     for (int tick = 0; tick < 24 && !player->IsLocomotionIntentRefreshDue(
-            runtime.match()->GetTimelineTick()); ++tick) {
+            SimulationAccess::NowOf(runtime.simulation)); ++tick) {
       runtime.simulation.Step(PlayerControlSet{});
     }
     REQUIRE(player->IsLocomotionIntentRefreshDue(
-        runtime.match()->GetTimelineTick()));
+        SimulationAccess::NowOf(runtime.simulation)));
     auto *anim = const_cast<Anim *>(humanoid->GetCurrentAnim());
     anim->frameNum = 0;
     player->BeginSimulationAction();
     const int commits = HumanoidBasePathRefreshCommits();
     auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
-    REQUIRE_NOTHROW(humanoid->HumanoidBase::Process(runtime.match()->GetTimelineTick(), SimulationAccess::PlayerTickOf(runtime.simulation, *player), {}, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation))); // No selection/history sample on this cadence-only path.
+    REQUIRE_NOTHROW(humanoid->HumanoidBase::Process(SimulationAccess::NowOf(runtime.simulation), SimulationAccess::PlayerTickOf(runtime.simulation, *player), {}, touch_sink, SimulationAccess::RuntimeOf(runtime.simulation))); // No selection/history sample on this cadence-only path.
     REQUIRE(HumanoidBasePathRefreshCommits() == commits + 1);
   }
 }
@@ -129,7 +128,7 @@ TEST_CASE("control translation resolves identity and converts the pitch frame", 
     Runtime runtime(reverse);
     runtime.simulation.Step(PlayerControlSet{});
     for (int side = 0; side < 2; ++side) {
-      const auto &players = runtime.match()->GetTeam(side)->GetAllPlayers();
+      const auto &players = SimulationAccess::TeamOf(runtime.simulation, side)->GetAllPlayers();
       Player *player = players[1];
       PlayerControl control;
       control.player = player->GetID();
@@ -180,9 +179,9 @@ TEST_CASE("observations are owned values in a common home pitch frame", "[sim][o
     REQUIRE(initial.players[11].position.coords[0] > 40.f);
     REQUIRE(initial.restart == e_GameMode_KickOff);
     REQUIRE(initial.restart_taker.has_value());
-    REQUIRE(initial.pitch == runtime.match()->pitch());
+    REQUIRE(initial.pitch == SimulationAccess::PitchOf(runtime.simulation));
     const auto taker = *initial.restart_taker;
-    REQUIRE(runtime.match()->GetReferee()->GetBuffer().taker->GetID() == taker);
+    REQUIRE(SimulationAccess::RefereeOf(runtime.simulation)->GetBuffer().taker->GetID() == taker);
     football::test::TakeKickOff(runtime.simulation);
     const auto world = runtime.simulation.Observe();
     REQUIRE(world.in_play);
@@ -200,18 +199,18 @@ TEST_CASE("observations are owned values in a common home pitch frame", "[sim][o
 
 TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]") {
   Runtime runtime;
-  Team *team = runtime.match()->GetTeam(0);
+  Team *team = SimulationAccess::TeamOf(runtime.simulation, 0);
   Player *keeper = team->GetGoalie();
   PlayerControl save;
   save.action = ControlAction::Save;
-  runtime.match()->GetBall()->ResetSituation(Vector3(-52, 0, 0));
+  SimulationAccess::BallOf(runtime.simulation)->ResetSituation(Vector3(-52, 0, 0));
   REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Deflect);
   REQUIRE(BuildPlayerCommands(save, *team->GetAllPlayers()[1], SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
-  runtime.match()->GetBall()->ResetSituation(Vector3(0));
+  SimulationAccess::BallOf(runtime.simulation)->ResetSituation(Vector3(0));
   REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
-  runtime.match()->GetBall()->ResetSituation(Vector3(-52, 0, 0));
+  SimulationAccess::BallOf(runtime.simulation)->ResetSituation(Vector3(-52, 0, 0));
   auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
-  touch_sink.OnBallTouched({runtime.match()->GetTimelineTick(), team->GetAllPlayers()[1], team,
+  touch_sink.OnBallTouched({SimulationAccess::NowOf(runtime.simulation), team->GetAllPlayers()[1], team,
       e_TouchType_Intentional_Kicked});
   REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
 }
@@ -222,19 +221,18 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     CAPTURE(mode);
     football::test::TakeKickOff(runtime.simulation);
     for (int tick = 0; tick < 40; ++tick) runtime.simulation.Step({});
-    Match *match = runtime.match();
-    REQUIRE(match->IsInPlay());
-    REQUIRE_FALSE(match->IsInSetPiece());
+    REQUIRE(SimulationAccess::IsInPlayOf(runtime.simulation));
+    REQUIRE_FALSE(SimulationAccess::IsInSetPieceOf(runtime.simulation));
     const int last_team = mode == e_GameMode_Corner ? 1 : 0;
     auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
-    touch_sink.OnBallTouched({match->GetTimelineTick(), match->GetTeam(last_team)->GetAllPlayers()[1],
-        match->GetTeam(last_team), e_TouchType_Accidental});
-    match->GetBall()->ResetSituation(mode == e_GameMode_ThrowIn
+    touch_sink.OnBallTouched({SimulationAccess::NowOf(runtime.simulation), SimulationAccess::TeamOf(runtime.simulation, last_team)->GetAllPlayers()[1],
+        SimulationAccess::TeamOf(runtime.simulation, last_team), e_TouchType_Accidental});
+    SimulationAccess::BallOf(runtime.simulation)->ResetSituation(mode == e_GameMode_ThrowIn
         ? Vector3(10, 37, 0) : Vector3(56, 10, 0));
-    const auto stopped = match->GetTimelineTick();
-    const auto football_time = match->GetRegulationTime();
-    const auto rng_before = match->rng().engine();
-    Referee *rules = match->GetReferee();
+    const auto stopped = SimulationAccess::NowOf(runtime.simulation);
+    const auto football_time = SimulationAccess::RegulationTimeOf(runtime.simulation);
+    const auto rng_before = SimulationAccess::RngOf(runtime.simulation).engine();
+    Referee *rules = SimulationAccess::RefereeOf(runtime.simulation);
     SimulationAccess::ProcessRules(runtime.simulation, *rules);
     const auto scheduled = rules->GetBuffer();
     REQUIRE(scheduled.stop_tick == stopped);
@@ -242,12 +240,12 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE(scheduled.restart->phase == RestartPhase::Pending);
     REQUIRE(scheduled.restart->earliest_restart_tick >= stopped);
     REQUIRE(scheduled.restart->timeout_tick > scheduled.restart->earliest_restart_tick);
-    REQUIRE(match->GetTimelineTick() == stopped);
-    REQUIRE(match->GetRegulationTime() == football_time);
-    REQUIRE(match->rng().engine() == rng_before);
+    REQUIRE(SimulationAccess::NowOf(runtime.simulation) == stopped);
+    REQUIRE(SimulationAccess::RegulationTimeOf(runtime.simulation) == football_time);
+    REQUIRE(SimulationAccess::RngOf(runtime.simulation).engine() == rng_before);
     REQUIRE(scheduled.active);
     REQUIRE(scheduled.desiredSetPiece == mode);
-    REQUIRE_FALSE(match->IsInPlay());
+    REQUIRE_FALSE(SimulationAccess::IsInPlayOf(runtime.simulation));
     REQUIRE(scheduled.taker == nullptr);
     REQUIRE_FALSE(runtime.simulation.Observe().restart_taker.has_value());
     runtime.simulation.Step(PlayerControlSet{});
@@ -257,26 +255,26 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE(rules->GetBuffer().taker != nullptr);
     REQUIRE(rules->GetBuffer().taker->GetTeamID() == scheduled.teamID);
     REQUIRE(*world.restart_taker == rules->GetBuffer().taker->GetID());
-    REQUIRE_FALSE(match->IsInPlay());
+    REQUIRE_FALSE(SimulationAccess::IsInPlayOf(runtime.simulation));
     // No positioning controls: repair legal placement only at the maximum.
-    runtime.simulation.AdvanceTime(scheduled.restart->timeout_tick - match->GetTimelineTick());
+    runtime.simulation.AdvanceTime(scheduled.restart->timeout_tick - SimulationAccess::NowOf(runtime.simulation));
     runtime.simulation.Step(PlayerControlSet{});
     REQUIRE(rules->GetBuffer().restart->used_timeout_placement);
-    REQUIRE(match->IsInPlay());
-    for (int tick = 0; tick < 800 && match->IsInSetPiece(); ++tick)
+    REQUIRE(SimulationAccess::IsInPlayOf(runtime.simulation));
+    for (int tick = 0; tick < 800 && SimulationAccess::IsInSetPieceOf(runtime.simulation); ++tick)
       football::test::StepDefaultAI(runtime.simulation, runtime.policy);
     Player *taker = rules->GetBuffer().taker;
     CAPTURE(mode, taker->GetPosition().coords[0], taker->GetPosition().coords[1],
-            taker->GetCurrentFunctionType(), match->GetBall()->Predict(0).coords[0],
-            match->GetBall()->Predict(0).coords[1]);
-    REQUIRE_FALSE(match->IsInSetPiece());
+            taker->GetCurrentFunctionType(), SimulationAccess::BallOf(runtime.simulation)->Predict(0).coords[0],
+            SimulationAccess::BallOf(runtime.simulation)->Predict(0).coords[1]);
+    REQUIRE_FALSE(SimulationAccess::IsInSetPieceOf(runtime.simulation));
     REQUIRE_FALSE(rules->GetBuffer().active);
   }
 }
 
 TEST_CASE("explicit controls are the sole command source and absence is idle", "[sim][control]") {
   Runtime runtime;
-  Player *player = runtime.match()->GetTeam(0)->GetAllPlayers()[1];
+  Player *player = SimulationAccess::TeamOf(runtime.simulation, 0)->GetAllPlayers()[1];
   PlayerControl control;
   control.move_direction = Vector3(1, 0, 0);
   control.desired_speed = 1.234f;
@@ -346,7 +344,7 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
     Simulation source;
     source.Init(home, away, pitch, options);
     const auto initial = source.Observe();
-    const auto initial_rng = source.match()->rng().engine();
+    const auto initial_rng = SimulationAccess::RngOf(source).engine();
     std::vector<PlayerControlSet> tape;
     std::vector<WorldState> trajectory;
     std::vector<blunted::BaseGenerator> rng_states;
@@ -380,7 +378,7 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
       tape.push_back(controls);
       source.Step(controls);
       trajectory.push_back(source.Observe());
-      rng_states.push_back(source.match()->rng().engine());
+      rng_states.push_back(SimulationAccess::RngOf(source).engine());
     }
     REQUIRE(tape.size() == 400);
     REQUIRE(tape[280].controls().empty());
@@ -393,12 +391,12 @@ TEST_CASE("plain control tapes replay every WorldState and RNG state without AI"
       CAPTURE(run);
       replay.Init(home, away, pitch, options);
       same_world(initial, replay.Observe());
-      REQUIRE(replay.match()->rng().engine() == initial_rng);
+      REQUIRE(SimulationAccess::RngOf(replay).engine() == initial_rng);
       for (std::size_t tick = 0; tick < tape.size(); ++tick) {
         CAPTURE(tick);
         replay.Step(tape[tick]);
         same_world(trajectory[tick], replay.Observe());
-        REQUIRE(replay.match()->rng().engine() == rng_states[tick]);
+        REQUIRE(SimulationAccess::RngOf(replay).engine() == rng_states[tick]);
       }
       replay.Stop();
     }
@@ -413,7 +411,7 @@ TEST_CASE("world discontinuities publish native reset provenance", "[sim][bounda
   const auto after = runtime.simulation.Observe();
   REQUIRE(after.tick == before.tick);
   REQUIRE(after.reset_sequence == before.reset_sequence + 1);
-  REQUIRE(before.reset_sequence + 1 == runtime.match()->GetResetSequence());
+  REQUIRE(before.reset_sequence + 1 == SimulationAccess::ResetSequenceOf(runtime.simulation));
 }
 
 TEST_CASE("retained policy and world values survive new Matches and owner destruction",
@@ -477,16 +475,15 @@ static_assert(!HasMatchQuery<Player>);
 TEST_CASE("Command authorization consumes supplied restart, ball and touch facts",
           "[sim][control][dependency]") {
   Runtime runtime;
-  auto& match = *runtime.match();
-  auto& team = *match.GetTeam(0);
+  auto& team = *SimulationAccess::TeamOf(runtime.simulation, 0);
   auto& keeper = *team.GetGoalie();
-  Ball ball(match.pitch());
+  Ball ball(SimulationAccess::PitchOf(runtime.simulation));
   ball.ResetSituation(Vector3(-52, 0, 0));
   football::sim::event::TouchState touches;
-  RefereeBuffer restart = match.GetReferee()->GetBuffer();
+  RefereeBuffer restart = SimulationAccess::RefereeOf(runtime.simulation)->GetBuffer();
   restart.active = false;
-  const PlayerCommandInputs inputs{ball, touches, restart, nullptr, match.pitch()};
-  const auto rng = match.rng().engine();
+  const PlayerCommandInputs inputs{ball, touches, restart, nullptr, SimulationAccess::PitchOf(runtime.simulation)};
+  const auto rng = SimulationAccess::RngOf(runtime.simulation).engine();
   PlayerControl save; save.action = ControlAction::Save;
   REQUIRE(BuildPlayerCommands(save, keeper, inputs)[0].desiredFunctionType == e_FunctionType_Deflect);
   // Ambient ball at midfield and its unrelated restart do not authorize this save.
@@ -503,5 +500,5 @@ TEST_CASE("Command authorization consumes supplied restart, ball and touch facts
   restart.restart->phase = RestartPhase::Pending;
   REQUIRE(BuildPlayerCommands(shot, keeper, inputs).size() == 1);
   REQUIRE(BuildPlayerCommands(shot, keeper, inputs)[0].desiredFunctionType == e_FunctionType_Movement);
-  REQUIRE(match.rng().engine() == rng);
+  REQUIRE(SimulationAccess::RngOf(runtime.simulation).engine() == rng);
 }

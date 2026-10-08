@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "restart_placement_fixture.hpp"
+#include "sim/testing/simulation_access.hpp"
 
 TEST_CASE("restart placement retains pre-extraction floats selection and RNG", "[sim][rules]") {
   using namespace football::test;
@@ -18,10 +19,10 @@ TEST_CASE("restart placement retains pre-extraction floats selection and RNG", "
       for (auto mode : restart_modes) {
         RestartCase test{roster, reverse, taking_team, mode};
         SetupRestart(simulation, test);
-        const auto takers = PositionRestart(*simulation.match(), test);
+        const auto takers = PositionRestart(simulation, test);
         REQUIRE(takers[taking_team] != nullptr);
         REQUIRE(takers[1 - taking_team] == nullptr);
-        hash = RestartFingerprint(hash, *simulation.match(), takers);
+        hash = RestartFingerprint(hash, simulation, takers);
       }
     CAPTURE(roster);
     CHECK(hash == expected[roster]);

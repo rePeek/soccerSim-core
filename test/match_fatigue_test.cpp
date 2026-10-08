@@ -14,11 +14,10 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
         football::model::MakeLegacyPitch(), MatchOptions{});
     if (half_underway) football::test::TakeKickOff(simulation);
     else simulation.Step({}); // Establish the native history before directly processing an actor.
-    auto& match = *simulation.match();
-    match.StopPlay(); // Dead ball, not EndHalf: ordinary stoppages still belong to the half.
-    REQUIRE(match.IsHalfUnderway() == half_underway);
-    REQUIRE_FALSE(match.IsBallInPlay());
-    auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
+    SimulationAccess::StopPlay(simulation); // Dead ball, not EndHalf: ordinary stoppages still belong to the half.
+    REQUIRE(SimulationAccess::IsHalfUnderwayOf(simulation) == half_underway);
+    REQUIRE_FALSE(SimulationAccess::IsBallInPlayOf(simulation));
+    auto& actor = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
     actor.ResetPosition(blunted::Vector3(-20, -28, 0), blunted::Vector3(-10, -28, 0));
     PlayerControl move;
     move.move_direction = blunted::Vector3(1, 0, 0);

@@ -8,11 +8,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/fixtures/default_teams.hpp"
+#include "sim/testing/simulation_access.hpp"
 #include "default_ai_fixture.hpp"
 #include "sim/query/reachability.hpp"
 
 namespace {
 using namespace football::sim;
+using football::sim::testing::SimulationAccess;
 
 TEST_CASE("Continuous reachability estimates retain sub-tick ranking precision", "[sim][tick][reachability]") {
   struct Case { float metres; unsigned usual_ms; unsigned optimistic_ms; };
@@ -54,18 +56,17 @@ static_assert(std::is_same_v<decltype(LocomotionReentryAudit::decision_age_max),
 TEST_CASE("Player publication and reset stamps distinguish absent from tick zero", "[sim][tick][player]") {
   for (bool reverse : {false, true}) {
     Simulation simulation; Init(simulation, reverse);
-    auto& match = *simulation.match();
-    auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
+    auto& actor = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
     REQUIRE_FALSE(actor.GetLastDecisionLocomotionPublicationTick());
     REQUIRE_FALSE(actor.GetLastResetSituationTick());
     PlayerCommand command;
     command.desiredFunctionType = e_FunctionType_Movement;
     command.useDesiredMovement = true;
-    const auto rng = match.rng().engine();
-    actor.PublishDecisionLocomotionIntent(command, match.GetTimelineTick(), match.GetBallRetainer() == &actor);
+    const auto rng = SimulationAccess::RngOf(simulation).engine();
+    actor.PublishDecisionLocomotionIntent(command, SimulationAccess::NowOf(simulation), SimulationAccess::BallRetainerOf(simulation) == &actor);
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{});
-    REQUIRE(match.rng().engine() == rng);
-    actor.ResetSituation(actor.GetPosition(), match.GetTimelineTick());
+    REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
+    actor.ResetSituation(actor.GetPosition(), SimulationAccess::NowOf(simulation));
     REQUIRE(actor.GetLastResetSituationTick() == Tick{});
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{});
     REQUIRE(actor.DecisionLocomotionEpochIsStale()); // Same-tick reset still breaks continuity.
@@ -73,18 +74,18 @@ TEST_CASE("Player publication and reset stamps distinguish absent from tick zero
     // Beyond the former signed-int millisecond range, without invoking physics.
     const TickSpan large{UINT64_C(1) << 32};
     simulation.AdvanceTime(large);
-    actor.PublishDecisionLocomotionIntent(command, match.GetTimelineTick(), match.GetBallRetainer() == &actor);
+    actor.PublishDecisionLocomotionIntent(command, SimulationAccess::NowOf(simulation), SimulationAccess::BallRetainerOf(simulation) == &actor);
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{large.value});
     REQUIRE_FALSE(actor.DecisionLocomotionEpochIsStale());
     simulation.AdvanceTime(TickSpan{3});
-    actor.ResetSituation(actor.GetPosition(), match.GetTimelineTick());
+    actor.ResetSituation(actor.GetPosition(), SimulationAccess::NowOf(simulation));
     REQUIRE(actor.GetLastResetSituationTick() == Tick{large.value + 3});
     REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{large.value});
     REQUIRE(actor.DecisionLocomotionEpochIsStale());
 
     ResetLocomotionReentryAudits();
-    actor.NoteLocomotionReentryTick(true, false, match.GetTimelineTick()); // Epoch entry.
-    actor.NoteLocomotionReentryTick(true, false, match.GetTimelineTick());
+    actor.NoteLocomotionReentryTick(true, false, SimulationAccess::NowOf(simulation)); // Epoch entry.
+    actor.NoteLocomotionReentryTick(true, false, SimulationAccess::NowOf(simulation));
     const auto& audit = LocomotionReentryAuditFor(1);
     REQUIRE(audit.stale_after_reset == 1);
     REQUIRE(audit.decision_age_sum == TickSpan{3});
@@ -100,11 +101,10 @@ TEST_CASE("Mental history tick sampling preserves nearest-capture reaction bound
   using std::chrono::milliseconds;
   for (bool reverse : {false, true}) {
     Simulation simulation; Init(simulation, reverse);
-    auto& match = *simulation.match();
     REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
     REQUIRE_THROWS_AS(simulation.GetMentalImage(milliseconds{0}), std::logic_error);
     football::test::TakeKickOff(simulation);
-    const auto rng = match.rng().engine();
+    const auto rng = SimulationAccess::RngOf(simulation).engine();
     const auto captured = simulation.GetMentalImage(TickSpan{})->captured_tick;
     for (std::uint64_t ticks = 0; ticks < 400; ++ticks) {
       const auto slot = std::min<std::uint64_t>((ticks + 5) / 10, 2);
@@ -127,7 +127,7 @@ TEST_CASE("Mental history tick sampling preserves nearest-capture reaction bound
     REQUIRE(simulation.GetMentalImage(milliseconds::max()) == simulation.GetMentalImage(TickSpan{20}));
     REQUIRE(simulation.GetMentalImage(TickSpan{std::numeric_limits<std::uint64_t>::max()}) ==
             simulation.GetMentalImage(TickSpan{20}));
-    REQUIRE(match.rng().engine() == rng);
+    REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
     simulation.ResetSituation(blunted::Vector3(0));
     REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
     simulation.Step({});
@@ -138,15 +138,11 @@ TEST_CASE("Mental history tick sampling preserves nearest-capture reaction bound
 struct HumanoidHistoryTypeProbe : HumanoidBase { using HumanoidBase::mentalImageTime; };
 static_assert(std::is_same_v<decltype(HumanoidHistoryTypeProbe::mentalImageTime), std::chrono::milliseconds>);
 template<class T> concept HasUntypedHistory = requires(T& owner) { owner.GetMentalImage(0); };
-static_assert(!HasUntypedHistory<Match>);
 template<class T> concept HasMatchHistory = requires(T& owner) { owner.GetMentalImage(TickSpan{}); };
-static_assert(!HasMatchHistory<Match>);
 
 template<class T> concept HasMillisecondTimeline = requires(T& owner) { owner.GetActualTime_ms(); };
 template<class T> concept HasMillisecondAdvance = requires(T& owner) { owner.BumpActualTime_ms(10); };
 template<class T> concept HasMillisecondTouch = requires(T& owner) { owner.GetLastTouchTime_ms(); };
-static_assert(!HasMillisecondTimeline<Match>);
-static_assert(!HasMillisecondAdvance<Match>);
 static_assert(!HasMillisecondTouch<Player>);
 template<class T> concept HasImplicitTouchBias = requires(T& actor) { actor.GetLastTouchBias(503); };
 static_assert(!HasImplicitTouchBias<Player>);
@@ -154,9 +150,8 @@ static_assert(!HasImplicitTouchBias<Player>);
 TEST_CASE("Touch decay uses relative ticks without quantizing ability-dependent decay", "[sim][tick][player]") {
   for (bool reverse : {false, true}) {
     Simulation simulation; Init(simulation, reverse);
-    auto& match = *simulation.match();
-    auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
-    const auto rng = match.rng().engine();
+    auto& actor = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
+    const auto rng = SimulationAccess::RngOf(simulation).engine();
     actor.SetLastTouchTick(Tick{17});
     for (int decay_ms : {0, -1, 200, 240, 503, 707, 1000, 1199, 1500}) {
       for (std::uint64_t age = 0; age <= 200; ++age) {
@@ -167,16 +162,16 @@ TEST_CASE("Touch decay uses relative ticks without quantizing ability-dependent 
     }
     actor.SetLastTouchTick(Tick{});
     simulation.AdvanceTime(TickSpan{23});
-    REQUIRE(actor.GetLastTouchBias(503, match.GetTimelineTick()) == actor.GetLastTouchBias(503, Tick{23}));
+    REQUIRE(actor.GetLastTouchBias(503, SimulationAccess::NowOf(simulation)) == actor.GetLastTouchBias(503, Tick{23}));
     REQUIRE(actor.GetLastTouchBias(503, Tick{}) == 1.f); // Explicit zero is not omitted.
     actor.SetLastTouchTick(Tick{30});
     REQUIRE(actor.GetLastTouchBias(503, Tick{}) == 0.f); // Rewound observation.
     const TickSpan large{UINT64_C(1) << 63};
     simulation.AdvanceTime(large);
-    actor.SetLastTouchTick(match.GetTimelineTick() - TickSpan{7});
-    REQUIRE(actor.GetLastTouchBias(503, match.GetTimelineTick()) == 1.f - 70.f / 503.f);
+    actor.SetLastTouchTick(SimulationAccess::NowOf(simulation) - TickSpan{7});
+    REQUIRE(actor.GetLastTouchBias(503, SimulationAccess::NowOf(simulation)) == 1.f - 70.f / 503.f);
     REQUIRE(actor.GetLastTouchBias(503, Tick{std::numeric_limits<std::uint64_t>::max()}) == 0.f);
-    REQUIRE(match.rng().engine() == rng);
+    REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
   }
 }
 
@@ -187,21 +182,20 @@ static_assert(!HasImplicitIntentRefresh<Player>);
 
 TEST_CASE("Decision publications consume supplied time and retention facts", "[sim][player][dependency]") {
   Simulation simulation; Init(simulation, false);
-  auto& match = *simulation.match();
-  auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
+  auto& actor = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   PlayerCommand command;
   command.desiredFunctionType = e_FunctionType_Movement;
   command.useDesiredMovement = true;
-  const auto rng = match.rng().engine();
+  const auto rng = SimulationAccess::RngOf(simulation).engine();
   actor.PublishDecisionLocomotionIntent(command, Tick{123}, false);
   REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{123});
   REQUIRE(actor.IsEligibleForProceduralLocomotion(false));
   REQUIRE_FALSE(actor.IsEligibleForProceduralLocomotion(true));
-  actor.CommitLocomotionIntentRefresh(*match.GetBall(), Tick{123}, false);
+  actor.CommitLocomotionIntentRefresh(*SimulationAccess::BallOf(simulation), Tick{123}, false);
   REQUIRE_FALSE(actor.IsLocomotionIntentRefreshDue(Tick{123}));
-  REQUIRE(match.GetTimelineTick() == Tick{});
-  REQUIRE(match.GetBallRetainer() == nullptr);
-  REQUIRE(match.rng().engine() == rng);
+  REQUIRE(SimulationAccess::NowOf(simulation) == Tick{});
+  REQUIRE(SimulationAccess::BallRetainerOf(simulation) == nullptr);
+  REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
 }
 
 template<class T> concept HasImplicitDeactivation = requires(T& actor) { actor.Deactivate(); };
@@ -213,12 +207,11 @@ static_assert(!HasImplicitResetTime<Player>);
 
 TEST_CASE("Player reset provenance consumes the supplied tick", "[sim][player][dependency]") {
   Simulation simulation; Init(simulation, false);
-  auto& match = *simulation.match();
-  auto& actor = *match.GetTeam(0)->GetAllPlayers()[1];
+  auto& actor = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   const auto epoch = actor.GetDecisionLocomotionContinuityEpoch();
   actor.ResetSituation(actor.GetPosition(), Tick{77});
   REQUIRE(actor.GetLastResetSituationTick() == Tick{77});
   REQUIRE(actor.GetDecisionLocomotionContinuityEpoch() == epoch + 1);
-  REQUIRE(match.GetTimelineTick() == Tick{});
+  REQUIRE(SimulationAccess::NowOf(simulation) == Tick{});
 }
 } // namespace

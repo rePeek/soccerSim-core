@@ -10,7 +10,6 @@
 #include "ai/tactical_board.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "app/fixtures/legacy_player_profile.hpp"
-#include "sim/match/match.hpp"
 #include "sim/player/player.hpp"
 #include "sim/simulation.hpp"
 #include "default_ai_fixture.hpp"
@@ -59,12 +58,12 @@ void CheckSamePhysics(Simulation& a, Simulation& b) {
                 SameVector(p.velocity, q.velocity) && SameVector(p.facing, q.facing),
             "identity changed player physics");
   }
-  Require(a.match()->rng().engine() == b.match()->rng().engine(),
+  Require(SimulationAccess::RngOf(a).engine() == SimulationAccess::RngOf(b).engine(),
           "identity changed RNG order");
   for (int side = 0; side < 2; ++side) {
     std::vector<Player*> left, right;
-    a.match()->GetTeam(side)->GetAllPlayers(left);
-    b.match()->GetTeam(side)->GetAllPlayers(right);
+    SimulationAccess::TeamOf(a, side)->GetAllPlayers(left);
+    SimulationAccess::TeamOf(b, side)->GetAllPlayers(right);
     for (std::size_t i = 0; i < left.size(); ++i) {
       const auto& p = left[i]->GetSimulationActionState();
       const auto& q = right[i]->GetSimulationActionState();
@@ -89,10 +88,9 @@ void CheckIdentity(Simulation& simulation, const model::Team& home,
                    const model::Team& away) {
   const WorldState world = simulation.Observe();
   std::size_t cursor = 0;
-  Match* match = simulation.match();
   for (int side = 0; side < 2; ++side) {
     std::vector<Player*> players;
-    match->GetTeam(side)->GetAllPlayers(players);
+    SimulationAccess::TeamOf(simulation, side)->GetAllPlayers(players);
     const model::Team& description = side == 0 ? home : away;
     const auto team_side = side == 0 ? model::TeamSide::Home : model::TeamSide::Away;
     for (std::size_t i = 0; i < players.size(); ++i) {
@@ -146,7 +144,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
     CheckSamePhysics(reference, renamed);
   }
   std::vector<Player*> players;
-  renamed.match()->GetTeam(1)->GetAllPlayers(players);
+  SimulationAccess::TeamOf(renamed, 1)->GetAllPlayers(players);
   PlayerCommandQueue commands;
   players[0]->RequestCommand(commands, SimulationAccess::CommandInputsOf(renamed));
   Require(commands.size() == 1 && commands[0].desiredVelocityFloat == move.desired_speed,
@@ -155,10 +153,10 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
 
   // A send-off must not change other actors' scheduling or model identities.
   players.clear();
-  reference.match()->GetTeam(0)->GetAllPlayers(players);
+  SimulationAccess::TeamOf(reference, 0)->GetAllPlayers(players);
   SimulationAccess::SendOff(reference, *players[1]);
   players.clear();
-  renamed.match()->GetTeam(0)->GetAllPlayers(players);
+  SimulationAccess::TeamOf(renamed, 0)->GetAllPlayers(players);
   SimulationAccess::SendOff(renamed, *players[1]);
   CheckIdentity(renamed, home, away);
   CheckSamePhysics(reference, renamed);
@@ -241,7 +239,7 @@ void CheckValidationAndDefaults() {
   Simulation reference;
   reference.Init(home, away, model::MakeLegacyPitch(), MatchOptions{});
   CheckIdentity(reference, home, away);
-  auto& rng = reference.match()->rng();
+  auto& rng = SimulationAccess::RngOf(reference);
   reference.Stop();
   const auto rng_before = rng.engine();
   const auto reject = [&](const model::Team& h, const model::Team& a) {
@@ -251,7 +249,7 @@ void CheckValidationAndDefaults() {
     } catch (const std::invalid_argument&) {
       rejected = true;
     }
-    Require(rejected && reference.match() == nullptr && rng.engine() == rng_before,
+    Require(rejected && !SimulationAccess::IsInitializedOf(reference) && rng.engine() == rng_before,
             "invalid identity/formation input was accepted or consumed RNG");
   };
   auto invalid = home;
@@ -297,7 +295,7 @@ std::uint64_t CaptureScheduleState(Simulation& simulation) {
     value(p.has_possession);
   }
   for (int side = 0; side < 2; ++side) {
-    for (Player* p : simulation.match()->GetTeam(side)->GetAllPlayers()) {
+    for (Player* p : SimulationAccess::TeamOf(simulation, side)->GetAllPlayers()) {
       const auto& action = p->GetSimulationActionState();
       value(action.type);
       value(action.Frame());
@@ -315,7 +313,7 @@ std::uint64_t CaptureScheduleState(Simulation& simulation) {
     }
   }
   std::ostringstream rng;
-  rng << simulation.match()->rng().engine();
+  rng << SimulationAccess::RngOf(simulation).engine();
   const auto state = rng.str();
   bytes(state.data(), state.size());
   return hash;
@@ -356,7 +354,7 @@ void CheckHistoricalScheduling(bool print_baseline) {
     Require(simulation.Observe().ball_in_play_time <= simulation.Observe().regulation_time &&
                 simulation.Observe().regulation_time.value <= simulation.Observe().tick,
             "identity fixture broke the three-clock ordering");
-    SimulationAccess::SendOff(simulation, *simulation.match()->GetTeam(0)->GetAllPlayers().at(1));
+    SimulationAccess::SendOff(simulation, *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers().at(1));
     for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto after = CaptureScheduleState(simulation);
     if (print_baseline) {

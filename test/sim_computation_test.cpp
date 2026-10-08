@@ -4,9 +4,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/fixtures/default_teams.hpp"
+#include "sim/testing/simulation_access.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/ball/ball.hpp"
-#include "sim/match/match.hpp"
 #include "sim/player/kick_targeting.hpp"
 #include "sim/player/player.hpp"
 #include "sim/query/player_query.hpp"
@@ -18,6 +18,8 @@
 
 namespace {
 
+using football::sim::testing::SimulationAccess;
+
 // Computations require no decision implementation or factory.
 struct Runtime {
   Simulation simulation;
@@ -27,7 +29,7 @@ struct Runtime {
                     football::app::fixtures::MakeDefaultAwayTeam(),
                     football::model::MakeLegacyPitch(), MatchOptions{});
   }
-  Match *match() { return simulation.match(); }
+
 };
 
 }  // namespace
@@ -64,7 +66,7 @@ TEST_CASE("reachability retains legacy near and far estimates", "[sim][query]") 
 
 TEST_CASE("player queries retain roster ties append and eligibility", "[sim][query]") {
   Runtime runtime;
-  Team *team = runtime.match()->GetTeam(0);
+  Team *team = SimulationAccess::TeamOf(runtime.simulation, 0);
   const auto &players = team->GetAllPlayers();
   REQUIRE(players.size() >= 3);
   for (Player *player : players) player->ResetPosition(Vector3(20, 0, 0), Vector3(0));
@@ -80,7 +82,7 @@ TEST_CASE("player queries retain roster ties append and eligibility", "[sim][que
   CHECK(result[1] == players[0]);
   CHECK(result[2] == players[1]);
 
-  players[0]->Deactivate(*runtime.match()->GetBall(), runtime.match()->GetTimelineTick());
+  players[0]->Deactivate(*SimulationAccess::BallOf(runtime.simulation), SimulationAccess::NowOf(runtime.simulation));
   CHECK(football::sim::query::GetClosestPlayer(team, Vector3(0)) == players[1]);
   result.clear();
   football::sim::query::GetClosestPlayers(team, Vector3(0), result, 1);
@@ -90,52 +92,51 @@ TEST_CASE("player queries retain roster ties append and eligibility", "[sim][que
 
 TEST_CASE("offside geometry follows second defender ball and halfway line", "[sim][rules]") {
   Runtime runtime;
-  Match *match = runtime.match();
   for (int teamID : {0, 1}) {
-    Team *team = match->GetTeam(teamID);
+    Team *team = SimulationAccess::TeamOf(runtime.simulation, teamID);
     const int side = team->GetDynamicSide();
     const auto &players = team->GetAllPlayers();
     for (Player *player : players) player->ResetPosition(Vector3(0), Vector3(0));
     players[0]->ResetPosition(Vector3(40 * side, 0, 0), Vector3(0));
     players[1]->ResetPosition(Vector3(30 * side, 0, 0), Vector3(0));
-    match->GetBall()->SetPosition(Vector3(0, 0, 0.11f), match->GetBallEnvironment());
-    match->GetBall()->CalculatePrediction(match->GetBallEnvironment());
+    SimulationAccess::BallOf(runtime.simulation)->SetPosition(Vector3(0, 0, 0.11f), SimulationAccess::BallEnvironmentOf(runtime.simulation));
+    SimulationAccess::BallOf(runtime.simulation)->CalculatePrediction(SimulationAccess::BallEnvironmentOf(runtime.simulation));
     std::vector<Player*> snapshot_players;
-    match->GetTeam(match->FirstTeam())->GetActivePlayers(snapshot_players);
-    match->GetTeam(match->SecondTeam())->GetActivePlayers(snapshot_players);
-    MentalImage image(match->GetTimelineTick(), snapshot_players, *match->GetBall());
-    CHECK(football::sim::rules::GetOffsideLine(image, match->GetTimelineTick(),
-        *match->GetBall(), teamID, side) == 30 * side);
+    SimulationAccess::TeamOf(runtime.simulation, SimulationAccess::FirstTeamOf(runtime.simulation))->GetActivePlayers(snapshot_players);
+    SimulationAccess::TeamOf(runtime.simulation, SimulationAccess::SecondTeamOf(runtime.simulation))->GetActivePlayers(snapshot_players);
+    MentalImage image(SimulationAccess::NowOf(runtime.simulation), snapshot_players, *SimulationAccess::BallOf(runtime.simulation));
+    CHECK(football::sim::rules::GetOffsideLine(image, SimulationAccess::NowOf(runtime.simulation),
+        *SimulationAccess::BallOf(runtime.simulation), teamID, side) == 30 * side);
 
-    match->GetBall()->SetPosition(Vector3(35 * side, 0, 0.11f), match->GetBallEnvironment());
-    match->GetBall()->CalculatePrediction(match->GetBallEnvironment());
-    MentalImage ballAhead(match->GetTimelineTick(), snapshot_players, *match->GetBall());
-    CHECK(football::sim::rules::GetOffsideLine(ballAhead, match->GetTimelineTick(),
-        *match->GetBall(), teamID, side) == 35 * side);
+    SimulationAccess::BallOf(runtime.simulation)->SetPosition(Vector3(35 * side, 0, 0.11f), SimulationAccess::BallEnvironmentOf(runtime.simulation));
+    SimulationAccess::BallOf(runtime.simulation)->CalculatePrediction(SimulationAccess::BallEnvironmentOf(runtime.simulation));
+    MentalImage ballAhead(SimulationAccess::NowOf(runtime.simulation), snapshot_players, *SimulationAccess::BallOf(runtime.simulation));
+    CHECK(football::sim::rules::GetOffsideLine(ballAhead, SimulationAccess::NowOf(runtime.simulation),
+        *SimulationAccess::BallOf(runtime.simulation), teamID, side) == 35 * side);
 
     for (Player *player : players) player->ResetPosition(Vector3(-10 * side, 0, 0), Vector3(0));
-    match->GetBall()->SetPosition(Vector3(-5 * side, 0, 0.11f), match->GetBallEnvironment());
-    match->GetBall()->CalculatePrediction(match->GetBallEnvironment());
-    MentalImage otherHalf(match->GetTimelineTick(), snapshot_players, *match->GetBall());
-    CHECK(football::sim::rules::GetOffsideLine(otherHalf, match->GetTimelineTick(),
-        *match->GetBall(), teamID, side) == 0.f);
+    SimulationAccess::BallOf(runtime.simulation)->SetPosition(Vector3(-5 * side, 0, 0.11f), SimulationAccess::BallEnvironmentOf(runtime.simulation));
+    SimulationAccess::BallOf(runtime.simulation)->CalculatePrediction(SimulationAccess::BallEnvironmentOf(runtime.simulation));
+    MentalImage otherHalf(SimulationAccess::NowOf(runtime.simulation), snapshot_players, *SimulationAccess::BallOf(runtime.simulation));
+    CHECK(football::sim::rules::GetOffsideLine(otherHalf, SimulationAccess::NowOf(runtime.simulation),
+        *SimulationAccess::BallOf(runtime.simulation), teamID, side) == 0.f);
 
     // The supplied movement is clamped to the live movement deviation, then the
     // caller's horizon extrapolates it; the predicate reads only explicit facts.
     players[0]->ResetPosition(Vector3(40 * side, 0, 0), Vector3(0));
     players[1]->ResetPosition(Vector3(30 * side, 0, 0), Vector3(0));
-    MentalImage static_image(match->GetTimelineTick(), snapshot_players, *match->GetBall());
+    MentalImage static_image(SimulationAccess::NowOf(runtime.simulation), snapshot_players, *SimulationAccess::BallOf(runtime.simulation));
     for (auto& entry : static_image.players) {
       if (entry.player->GetTeamID() == teamID) entry.movement = Vector3(10 * side, 0, 0);
     }
-    CHECK(football::sim::rules::GetOffsideLine(static_image, match->GetTimelineTick(),
-        *match->GetBall(), teamID, side, 1000) == (30 + walkVelocity) * side);
+    CHECK(football::sim::rules::GetOffsideLine(static_image, SimulationAccess::NowOf(runtime.simulation),
+        *SimulationAccess::BallOf(runtime.simulation), teamID, side, 1000) == (30 + walkVelocity) * side);
   }
 }
 
 TEST_CASE("kick targeting preserves forced recipients and manual shot direction", "[sim][mechanics]") {
   Runtime runtime;
-  const auto &players = runtime.match()->GetTeam(0)->GetAllPlayers();
+  const auto &players = SimulationAccess::TeamOf(runtime.simulation, 0)->GetAllPlayers();
   Player *kicker = players[1];
   Player *recipient = players[2];
   kicker->ResetPosition(Vector3(0), Vector3(10, 0, 0));

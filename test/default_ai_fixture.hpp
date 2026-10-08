@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 #include "ai/default_ai.hpp"
-#include "sim/match/match.hpp"
+#include "sim/testing/simulation_access.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team/team.hpp"
 
@@ -13,9 +13,10 @@ template<class T> concept HasDecisionObject = requires(T &actor) { actor.GetCont
 
 // Diagnostic composition owns its policy explicitly, just like GameEnv.
 inline ai::DefaultAI MakeDefaultAI(const Simulation &simulation) {
-  const auto &match = *simulation.match();
-  return ai::DefaultAI(match.GetTeam(0)->GetModel(), match.GetTeam(1)->GetModel(),
-                       match.pitch());
+  using football::sim::testing::SimulationAccess;
+  return ai::DefaultAI(SimulationAccess::TeamOf(simulation, 0)->GetModel(),
+                       SimulationAccess::TeamOf(simulation, 1)->GetModel(),
+                       SimulationAccess::PitchOf(simulation));
 }
 
 inline void StepDefaultAI(Simulation &simulation, const ai::DefaultAI &policy,

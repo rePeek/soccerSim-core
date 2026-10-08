@@ -4,13 +4,14 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/fixtures/default_teams.hpp"
+#include "sim/testing/simulation_access.hpp"
 #include "sim/ball/ball.hpp"
-#include "sim/match/match.hpp"
 #include "sim/player/player_contact.hpp"
 #include "sim/simulation.hpp"
 
 namespace {
 using namespace football::sim;
+using football::sim::testing::SimulationAccess;
 using blunted::Vector3;
 
 struct PlayerContactFixture {
@@ -24,10 +25,9 @@ struct PlayerContactFixture {
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
         football::app::fixtures::MakeDefaultAwayTeam(),
         football::model::MakeLegacyPitch(), options);
-    Match& match = *simulation.match();
-    players = {match.GetTeam(match.FirstTeam())->GetAllPlayers()[1],
-               match.GetTeam(match.SecondTeam())->GetAllPlayers()[1],
-               match.GetTeam(match.FirstTeam())->GetAllPlayers()[2]};
+    players = {SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[1],
+               SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetAllPlayers()[1],
+               SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[2]};
     ball.ResetSituation(Vector3(20, 20, 0));
     Reset();
   }
@@ -40,7 +40,7 @@ struct PlayerContactFixture {
     }
   }
 
-  Referee& referee() { return *simulation.match()->GetReferee(); }
+  Referee& referee() { return *SimulationAccess::RefereeOf(simulation); }
 
   std::array<Vector3, 3> Positions() const {
     return {players[0]->GetPosition(), players[1]->GetPosition(), players[2]->GetPosition()};
@@ -51,12 +51,12 @@ TEST_CASE("player contacts accept empty and single-player spans without side eff
           "[sim][player][contact]") {
   PlayerContactFixture fixture(false);
   const auto before = fixture.Positions();
-  const auto rng = fixture.simulation.match()->rng().engine();
+  const auto rng = SimulationAccess::RngOf(fixture.simulation).engine();
   ResolvePlayerContacts({Tick{19}, {}, fixture.ball, nullptr}, fixture.referee());
   ResolvePlayerContacts({Tick{19}, std::span<Player* const>(fixture.players.data(), 1),
                          fixture.ball, fixture.players[0]}, fixture.referee());
   REQUIRE(fixture.Positions() == before);
-  REQUIRE(fixture.simulation.match()->rng().engine() == rng);
+  REQUIRE(SimulationAccess::RngOf(fixture.simulation).engine() == rng);
 }
 
 TEST_CASE("player contacts mutate pairs in caller order before the next pair",
@@ -64,13 +64,13 @@ TEST_CASE("player contacts mutate pairs in caller order before the next pair",
   for (bool reverse : {false, true}) {
     PlayerContactFixture fixture(reverse);
     const auto before = fixture.Positions();
-    const auto rng = fixture.simulation.match()->rng().engine();
+    const auto rng = SimulationAccess::RngOf(fixture.simulation).engine();
     std::vector<Vector3> predictions;
     fixture.ball.GetPredictionArray(predictions);
     ResolvePlayerContacts({Tick{19}, fixture.players, fixture.ball, nullptr}, fixture.referee());
     const auto sweep = fixture.Positions();
     REQUIRE(sweep != before);
-    REQUIRE(fixture.simulation.match()->rng().engine() == rng);
+    REQUIRE(SimulationAccess::RngOf(fixture.simulation).engine() == rng);
     std::vector<Vector3> after;
     fixture.ball.GetPredictionArray(after);
     REQUIRE(after == predictions);
@@ -103,8 +103,8 @@ TEST_CASE("player contacts use the explicit possession designation and Ball",
   fixture.Reset();
   ResolvePlayerContacts({Tick{19}, pair, fixture.ball, pair[1]}, fixture.referee());
   REQUIRE(fixture.Positions() != first_designated);
-  REQUIRE(fixture.simulation.match()->GetDesignatedPossessionPlayer() != pair[0]);
-  REQUIRE(fixture.simulation.match()->GetDesignatedPossessionPlayer() != pair[1]);
+  REQUIRE(SimulationAccess::DesignatedPlayerOf(fixture.simulation) != pair[0]);
+  REQUIRE(SimulationAccess::DesignatedPlayerOf(fixture.simulation) != pair[1]);
 }
 
 }  // namespace

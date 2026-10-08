@@ -13,7 +13,6 @@
 #include "env.hpp"
 #include "sim/simulation.hpp"
 #include "../test/default_ai_fixture.hpp"
-#include "sim/match/match.hpp"
 #include "sim/event/ball_touch_sink.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
@@ -867,11 +866,9 @@ void AppendDigestInt(std::string& out, const T& value) {
 // a draw count: equal draw counts do not imply an equal stream.
 std::string CaptureSimulationDigest(Simulation& simulation) {
   std::string out;
-  Match* match = simulation.match();
-
   std::vector<Player*> players;
-  match->GetActiveTeamPlayers(match->FirstTeam(), players);
-  match->GetActiveTeamPlayers(match->SecondTeam(), players);
+  SimulationAccess::ActiveTeamPlayersOf(simulation, SimulationAccess::FirstTeamOf(simulation), players);
+  SimulationAccess::ActiveTeamPlayersOf(simulation, SimulationAccess::SecondTeamOf(simulation), players);
   AppendDigestInt(out, players.size());
   for (const Player* actor : players) {
     const PlayerKinematicState& kinematics = actor->GetKinematicState();
@@ -895,7 +892,7 @@ std::string CaptureSimulationDigest(Simulation& simulation) {
     AppendDigestFloat(out, action.contactPosition.coords[1]);
   }
 
-  Ball* ball = match->GetBall();
+  Ball* ball = SimulationAccess::BallOf(simulation);
   const Vector3 ballPos = ball->Predict(0);
   const Vector3 ballMomentum = ball->GetMovement();
   const Vector3 ballRotation = ball->GetRotation();
@@ -909,30 +906,30 @@ std::string CaptureSimulationDigest(Simulation& simulation) {
   AppendDigestFloat(out, ballRotation.coords[1]);
   AppendDigestFloat(out, ballRotation.coords[2]);
 
-  AppendDigestInt(out, match->GetScore(0));
-  AppendDigestInt(out, match->GetScore(1));
-  AppendDigestInt(out, static_cast<int>(match->GetMatchPhase()));
-  AppendDigestInt(out, match->IsInPlay() ? 1 : 0);
-  AppendDigestInt(out, match->IsInSetPiece() ? 1 : 0);
-  AppendDigestInt(out, match->GetLastTouchTeamID());
-  AppendDigestInt(out, match->GetLastTouchPlayer() == nullptr ? -1 : 1);
-  AppendDigestInt(out, match->GetDesignatedPossessionPlayer() == nullptr ? -1 : 1);
-  AppendDigestInt(out, match->GetBallRetainer() == nullptr ? -1 : 1);
+  AppendDigestInt(out, SimulationAccess::ScoreOf(simulation, 0));
+  AppendDigestInt(out, SimulationAccess::ScoreOf(simulation, 1));
+  AppendDigestInt(out, static_cast<int>(SimulationAccess::PhaseOf(simulation)));
+  AppendDigestInt(out, SimulationAccess::IsInPlayOf(simulation) ? 1 : 0);
+  AppendDigestInt(out, SimulationAccess::IsInSetPieceOf(simulation) ? 1 : 0);
+  AppendDigestInt(out, SimulationAccess::LastTouchTeamIDOf(simulation));
+  AppendDigestInt(out, SimulationAccess::LastTouchPlayerOf(simulation) == nullptr ? -1 : 1);
+  AppendDigestInt(out, SimulationAccess::DesignatedPlayerOf(simulation) == nullptr ? -1 : 1);
+  AppendDigestInt(out, SimulationAccess::BallRetainerOf(simulation) == nullptr ? -1 : 1);
 
-  const RefereeBuffer& buffer = match->GetReferee()->GetBuffer();
+  const RefereeBuffer& buffer = SimulationAccess::RefereeOf(simulation)->GetBuffer();
   AppendDigestInt(out, buffer.active ? 1 : 0);
   // Preserve the existing external digest encoding while migrating core units.
   AppendDigestInt(out, football::sim::ToMilliseconds(buffer.stop_tick));
   AppendDigestInt(out, football::sim::ToMilliseconds(buffer.prepare_tick));
   AppendDigestInt(out, football::sim::ToMilliseconds(buffer.start_tick));
   AppendDigestInt(out, static_cast<int>(buffer.desiredSetPiece));
-  AppendDigestInt(out, match->GetReferee()->GetCurrentFoulType());
+  AppendDigestInt(out, SimulationAccess::RefereeOf(simulation)->GetCurrentFoulType());
   AppendDigestFloat(out, buffer.restartPos.coords[0]);
   AppendDigestFloat(out, buffer.restartPos.coords[1]);
 
   // Compare the actual deterministic RNG state, not a draw-count surrogate.
   std::ostringstream rngState;
-  rngState << match->rng().engine();
+  rngState << SimulationAccess::RngOf(simulation).engine();
   out += rngState.str();
 
   return out;
@@ -952,13 +949,12 @@ void Advance(Simulation& simulation, int ticks) {
 }
 
 void CheckCanonicalFrame(Simulation& simulation) {
-  Match* match = simulation.match();
-  Require(!match->isBallMirrored() && !match->GetTeam(0)->isMirrored() &&
-              !match->GetTeam(1)->isMirrored(),
+  Require(!SimulationAccess::IsBallMirroredOf(simulation) && !SimulationAccess::TeamOf(simulation, 0)->isMirrored() &&
+              !SimulationAccess::TeamOf(simulation, 1)->isMirrored(),
           "simulation tick leaked a mirrored frame");
   for (int team_id = 0; team_id < 2; ++team_id) {
     std::vector<Player*> players;
-    match->GetTeam(team_id)->GetActivePlayers(players);
+    SimulationAccess::TeamOf(simulation, team_id)->GetActivePlayers(players);
     for (Player* player : players) player->CheckSimulationActionOracle();
   }
 }
@@ -970,9 +966,8 @@ static_assert(!std::is_abstract_v<Player>);
 void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   InitDefaultMatch(simulation);
   football::test::TakeKickOff(simulation);
-  Match* match = simulation.match();
   std::vector<Player*> players;
-  match->GetTeam(1)->GetActivePlayers(players);
+  SimulationAccess::TeamOf(simulation, 1)->GetActivePlayers(players);
   Player* player = players.at(1);
   player->RelaxFatigue(-0.25f);
   const auto stat = football::model::PlayerStat::physical_reaction;
@@ -1001,7 +996,7 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
               commands.front().touchInfo.inputPower == control.power,
           "flattening changed explicit-control command authority");
 
-  blunted::SimulationRng& rng = match->rng();
+  blunted::SimulationRng& rng = SimulationAccess::RngOf(simulation);
   blunted::SimulationRng expected = rng;
   (void)expected();
   (void)expected();
@@ -1010,15 +1005,15 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   Require(!player->IsActive() &&
               player->GetDecisionLocomotionContinuityEpoch() == epoch + 2 &&
               rng.engine() == expected.engine() &&
-              match->GetTeam(1)->GetActivePlayersCount() == 10,
+              SimulationAccess::TeamOf(simulation, 1)->GetActivePlayersCount() == 10,
           "flattening changed deactivation's double reset or RNG order");
 
   // Simulation owns RNG after Stop; compare the teardown draws without
   // retaining any deleted player/Match pointer. Active players reset once,
   // inactive players not at all. Roster callbacks during deletion are unsafe.
   std::vector<Player*> remaining;
-  match->GetActiveTeamPlayers(0, remaining);
-  match->GetActiveTeamPlayers(1, remaining);
+  SimulationAccess::ActiveTeamPlayersOf(simulation, 0, remaining);
+  SimulationAccess::ActiveTeamPlayersOf(simulation, 1, remaining);
   expected = rng;
   for (std::size_t i = 0; i < remaining.size(); ++i) (void)expected();
   Require(simulation.Stop() && rng.engine() == expected.engine(),
@@ -1030,15 +1025,15 @@ template <class T> concept HasOfficialActors =
     requires { &T::GetOfficials; } || requires { &T::GetOfficialPlayers; };
 template <class T> concept HasAnimationRestartHook =
     requires { &T::AlterSetPiecePrepareTime; };
-static_assert(!HasOfficialActors<Match>);
+
 static_assert(!HasAnimationRestartHook<Referee>);
 
 // Test-only rule inputs: exercise CheckFoul/Process without relying on a
 // particular tackle clip or exposing a production foul-injection API.
 class RefereeFixture : public Referee {
  public:
-  explicit RefereeFixture(Match* match)
-      : Referee(*match->GetTeam(match->FirstTeam()), match->options().ball_position) {}
+  explicit RefereeFixture(Simulation& simulation)
+      : Referee(*SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)), SimulationAccess::OptionsOf(simulation).ball_position) {}
   void RecordFoul(Player* offender, Player* victim, int type,
                   const Vector3& position, football::sim::Tick now, bool advantage = false) {
     buffer.active = false;
@@ -1060,12 +1055,11 @@ void CheckRefereeRules(Simulation& simulation) {
     for (int scenario : {1, 2, 3, 4}) {
       InitDefaultMatch(simulation);
       football::test::TakeKickOff(simulation);
-      Match* match = simulation.match();
-      Require(match->IsInPlay() && !match->IsInSetPiece(),
+      Require(SimulationAccess::IsInPlayOf(simulation) && !SimulationAccess::IsInSetPieceOf(simulation),
               "referee fixture should be in open play");
       std::vector<Player*> home, away;
-      match->GetTeam(0)->GetActivePlayers(home);
-      match->GetTeam(1)->GetActivePlayers(away);
+      SimulationAccess::TeamOf(simulation, 0)->GetActivePlayers(home);
+      SimulationAccess::TeamOf(simulation, 1)->GetActivePlayers(away);
       Player* offender = home.at(1);
       Player* victim = away.at(1);
       const int foul_type = scenario == 4 ? 2 : scenario;
@@ -1073,18 +1067,18 @@ void CheckRefereeRules(Simulation& simulation) {
       const Vector3 position = penalty
           ? Vector3(-45.0f * victim->GetTeam()->GetStaticSide(), 0, 0)
           : Vector3(0, 0, 0);
-      RefereeFixture rules(match);
+      RefereeFixture rules(simulation);
       // Even advantage must be stopped for a penalty.
-      rules.RecordFoul(offender, victim, foul_type, position, match->GetTimelineTick(), penalty);
-      const auto rng_before = match->rng().engine();
-      const auto stopped = match->GetTimelineTick();
-      Require(rules.CheckFoul(match->GetTimelineTick(),
+      rules.RecordFoul(offender, victim, foul_type, position, SimulationAccess::NowOf(simulation), penalty);
+      const auto rng_before = SimulationAccess::RngOf(simulation).engine();
+      const auto stopped = SimulationAccess::NowOf(simulation);
+      Require(rules.CheckFoul(SimulationAccess::NowOf(simulation),
           SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
           SimulationAccess::CommandsOf(simulation)), "unprocessed foul did not stop play");
       const RefereeBuffer scheduled = rules.GetBuffer();
       const auto card_delay = foul_type >= 2 ? football::sim::Seconds(10) : football::sim::TickSpan{};
-      const auto effective_time = match->GetTimelineTick() + football::sim::Seconds(6);
-      Require(!match->IsInPlay() && scheduled.active &&
+      const auto effective_time = SimulationAccess::NowOf(simulation) + football::sim::Seconds(6);
+      Require(!SimulationAccess::IsInPlayOf(simulation) && scheduled.active &&
                   scheduled.desiredSetPiece == (penalty ? e_GameMode_Penalty
                                                         : e_GameMode_FreeKick) &&
                   scheduled.teamID == victim->GetTeam()->GetID() &&
@@ -1093,11 +1087,11 @@ void CheckRefereeRules(Simulation& simulation) {
                   scheduled.restart->earliest_restart_tick == stopped + card_delay +
                       (penalty ? football::sim::Seconds(2) : football::sim::TickSpan{}) &&
                   scheduled.restart->timeout_tick == stopped + card_delay + football::sim::Seconds(30) &&
-                  match->GetTimelineTick() == stopped &&
+                  SimulationAccess::NowOf(simulation) == stopped &&
                   offender->HasCards() == (foul_type >= 2) &&
-                  match->rng().engine() == rng_before,
+                  SimulationAccess::RngOf(simulation).engine() == rng_before,
               "rule restart/card budget changed or consumed RNG");
-      Require(!rules.CheckFoul(match->GetTimelineTick(),
+      Require(!rules.CheckFoul(SimulationAccess::NowOf(simulation),
           SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
           SimulationAccess::CommandsOf(simulation)) &&
                   rules.GetBuffer().restart->earliest_restart_tick == scheduled.restart->earliest_restart_tick &&
@@ -1111,27 +1105,27 @@ void CheckRefereeRules(Simulation& simulation) {
       };
       process_rules();
       Require(rules.GetBuffer().taker != nullptr, "restart taker was not selected during setup");
-      const auto reset_count = match->GetResetSequence();
+      const auto reset_count = SimulationAccess::ResetSequenceOf(simulation);
       process_rules();
-      Require(match->GetResetSequence() == reset_count, "restart setup repeated");
-      simulation.AdvanceTime(scheduled.restart->timeout_tick - match->GetTimelineTick());
+      Require(SimulationAccess::ResetSequenceOf(simulation) == reset_count, "restart setup repeated");
+      simulation.AdvanceTime(scheduled.restart->timeout_tick - SimulationAccess::NowOf(simulation));
       process_rules();
-      Require(match->IsInPlay() && match->IsInSetPiece() &&
+      Require(SimulationAccess::IsInPlayOf(simulation) && SimulationAccess::IsInSetPieceOf(simulation) &&
                   rules.GetBuffer().restart->used_timeout_placement,
               "restart timeout did not recover legal placement");
 
       // Card state remains gameplay: a red or second yellow sends off a
       // football player, whereas one yellow leaves the player active.
       const auto policy = football::test::MakeDefaultAI(simulation);
-      if (match->GetTimelineTick() < effective_time) {
+      if (SimulationAccess::NowOf(simulation) < effective_time) {
         football::test::StepDefaultAI(simulation, policy);
         Require(offender->IsActive(), "card took effect before its deadline");
-        simulation.AdvanceTime(effective_time - match->GetTimelineTick());
+        simulation.AdvanceTime(effective_time - SimulationAccess::NowOf(simulation));
       }
       football::test::StepDefaultAI(simulation, policy);
       const bool send_off = scenario == 3 || scenario == 4;
       Require(offender->IsActive() == !send_off &&
-                  match->GetTeam(0)->GetActivePlayersCount() == (send_off ? 10 : 11),
+                  SimulationAccess::TeamOf(simulation, 0)->GetActivePlayersCount() == (send_off ? 10 : 11),
               "disciplinary state lost red/second-yellow send-off semantics");
     }
   }
@@ -1139,48 +1133,46 @@ void CheckRefereeRules(Simulation& simulation) {
   {
     InitDefaultMatch(simulation);
     football::test::TakeKickOff(simulation);
-    Match* match = simulation.match();
     std::vector<Player*> home, away;
-    match->GetTeam(0)->GetActivePlayers(home);
-    match->GetTeam(1)->GetActivePlayers(away);
-    RefereeFixture advantage(match);
-    advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), match->GetTimelineTick(), true);
-    Require(!advantage.CheckFoul(match->GetTimelineTick(),
+    SimulationAccess::TeamOf(simulation, 0)->GetActivePlayers(home);
+    SimulationAccess::TeamOf(simulation, 1)->GetActivePlayers(away);
+    RefereeFixture advantage(simulation);
+    advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), SimulationAccess::NowOf(simulation), true);
+    Require(!advantage.CheckFoul(SimulationAccess::NowOf(simulation),
         SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
-        SimulationAccess::CommandsOf(simulation)) && match->IsInPlay(),
+        SimulationAccess::CommandsOf(simulation)) && SimulationAccess::IsInPlayOf(simulation),
             "advantage should not immediately stop open play");
     simulation.AdvanceTime(football::sim::TickSpan{301});
-    Require(!advantage.CheckFoul(match->GetTimelineTick(),
+    Require(!advantage.CheckFoul(SimulationAccess::NowOf(simulation),
         SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
         SimulationAccess::CommandsOf(simulation)) && advantage.GetCurrentFoulType() == 0 &&
-                match->IsInPlay(), "expired advantage was not cancelled");
+                SimulationAccess::IsInPlayOf(simulation), "expired advantage was not cancelled");
   }
 
   // Real Match-owned rule engine, no fixture: record an offside pass and
   // reception. Neither positioning nor detection requires a linesman.
   InitDefaultMatch(simulation);
   football::test::TakeKickOff(simulation);
-  Match* match = simulation.match();
   std::vector<Player*> home, away;
-  match->GetTeam(0)->GetActivePlayers(home);
-  match->GetTeam(1)->GetActivePlayers(away);
-  const int side = match->GetTeam(0)->GetDynamicSide();
+  SimulationAccess::TeamOf(simulation, 0)->GetActivePlayers(home);
+  SimulationAccess::TeamOf(simulation, 1)->GetActivePlayers(away);
+  const int side = SimulationAccess::TeamOf(simulation, 0)->GetDynamicSide();
   for (Player* defender : away)
     defender->ResetPosition(Vector3(-10.0f * side, 0, 0), Vector3(0));
   home.at(1)->ResetPosition(Vector3(0, 0, 0), Vector3(0));
   home.at(2)->ResetPosition(Vector3(-45.0f * side, 0, 0), Vector3(0));
-  match->GetBall()->ResetSituation(Vector3(0));
+  SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(0));
   auto& touch_sink = SimulationAccess::EventsOf(simulation);
-  touch_sink.OnBallTouched({match->GetTimelineTick(), home.at(1), match->GetTeam(0), e_TouchType_Intentional_Kicked});
-  Require(match->IsInPlay(), "offside flagged the passer instead of reception");
-  const auto offside_stopped = match->GetTimelineTick();
-  touch_sink.OnBallTouched({match->GetTimelineTick(), home.at(2), match->GetTeam(0), e_TouchType_Intentional_Kicked});
-  Require(!match->IsInPlay() && match->GetReferee()->GetBuffer().active &&
-              match->GetReferee()->GetBuffer().desiredSetPiece == e_GameMode_FreeKick &&
-              match->GetReferee()->GetBuffer().teamID == 1 &&
-              match->GetReferee()->GetBuffer().restart.has_value() &&
-              match->GetReferee()->GetBuffer().restart->earliest_restart_tick == offside_stopped &&
-              match->GetTimelineTick() == offside_stopped,
+  touch_sink.OnBallTouched({SimulationAccess::NowOf(simulation), home.at(1), SimulationAccess::TeamOf(simulation, 0), e_TouchType_Intentional_Kicked});
+  Require(SimulationAccess::IsInPlayOf(simulation), "offside flagged the passer instead of reception");
+  const auto offside_stopped = SimulationAccess::NowOf(simulation);
+  touch_sink.OnBallTouched({SimulationAccess::NowOf(simulation), home.at(2), SimulationAccess::TeamOf(simulation, 0), e_TouchType_Intentional_Kicked});
+  Require(!SimulationAccess::IsInPlayOf(simulation) && SimulationAccess::RefereeOf(simulation)->GetBuffer().active &&
+              SimulationAccess::RefereeOf(simulation)->GetBuffer().desiredSetPiece == e_GameMode_FreeKick &&
+              SimulationAccess::RefereeOf(simulation)->GetBuffer().teamID == 1 &&
+              SimulationAccess::RefereeOf(simulation)->GetBuffer().restart.has_value() &&
+              SimulationAccess::RefereeOf(simulation)->GetBuffer().restart->earliest_restart_tick == offside_stopped &&
+              SimulationAccess::NowOf(simulation) == offside_stopped,
           "offside detection or headless restart timing changed");
 }
 
@@ -1235,7 +1227,7 @@ void CheckGoldenSnapshots(Simulation& simulation, GameEnv& game, bool print_base
 
 void CheckResetDeterminism(Simulation& simulation) {
   InitDefaultMatch(simulation);
-  const AnimationLibrary* animations = &simulation.match()->GetAnimationLibrary();
+  const AnimationLibrary* animations = &SimulationAccess::AnimationLibraryOf(simulation);
   const uint64_t initial = HashWorld(simulation.Observe());
   const std::string initial_digest = CaptureSimulationDigest(simulation);
   Advance(simulation, 1000);
@@ -1243,7 +1235,7 @@ void CheckResetDeterminism(Simulation& simulation) {
   const std::string advanced_digest = CaptureSimulationDigest(simulation);
   for (int repeat = 0; repeat < 2; ++repeat) {
     InitDefaultMatch(simulation);
-    Require(&simulation.match()->GetAnimationLibrary() == animations,
+    Require(&SimulationAccess::AnimationLibraryOf(simulation) == animations,
             "reset replaced the Simulation-owned animation library");
     Require(HashWorld(simulation.Observe()) == initial &&
                 CaptureSimulationDigest(simulation) == initial_digest,
@@ -1253,17 +1245,17 @@ void CheckResetDeterminism(Simulation& simulation) {
                 CaptureSimulationDigest(simulation) == advanced_digest,
             "reset/replay changed authoritative state or RNG");
   }
-  Require(simulation.Stop() && simulation.match() == nullptr &&
+  Require(simulation.Stop() && !SimulationAccess::IsInitializedOf(simulation) &&
               !simulation.IsInPlay() && !simulation.Stop(),
           "direct Simulation stop is not idempotent");
   // Keep another library alive while rebuilding the stopped match. This also
   // catches a library accidentally released by Stop and reused by the allocator.
   Simulation independent;
   InitDefaultMatch(independent);
-  Require(&independent.match()->GetAnimationLibrary() != animations,
+  Require(&SimulationAccess::AnimationLibraryOf(independent) != animations,
           "independent Simulation inherited a released or ambient library");
   InitDefaultMatch(simulation);
-  Require(&simulation.match()->GetAnimationLibrary() == animations &&
+  Require(&SimulationAccess::AnimationLibraryOf(simulation) == animations &&
               HashWorld(simulation.Observe()) == initial &&
               CaptureSimulationDigest(simulation) == initial_digest,
           "Stop/Init lost the cached library, initial state or RNG replay");
@@ -1304,11 +1296,10 @@ void CheckModelComposition() {
   home.name = "Changed after initialization";
   home.players.front().attributes.fill(0.1f);
   for (int repeat = 0; repeat < 2; ++repeat) {
-    Match* match = simulation.match();
-    const football::model::Team& team = match->GetTeam(0)->GetModel();
+    const football::model::Team& team = SimulationAccess::TeamOf(simulation, 0)->GetModel();
     Require(team.name == "Static Home" &&
                 team.players.at(0).attributes == attributes &&
-                match->pitch() == model::MakeLegacyPitch(),
+                SimulationAccess::PitchOf(simulation) == model::MakeLegacyPitch(),
             "core lost owned team, ability or pitch descriptions");
     simulation.Stop();
     simulation.Init(declared_home, away, model::MakeLegacyPitch(), MatchOptions{});
@@ -1338,7 +1329,7 @@ void CheckMovementAnimationPerturbation(Simulation& simulation, bool frame_count
       football::test::StepDefaultAI(simulation, policy);
       CheckCanonicalFrame(simulation);
       ticks.push_back({CaptureSimulationDigest(simulation),
-                       static_cast<int>(football::sim::ToMilliseconds(simulation.match()->GetTimelineTick())),
+                       static_cast<int>(football::sim::ToMilliseconds(SimulationAccess::NowOf(simulation))),
                        PlayerDecisionClockQueries() - queries_before, hook.applied});
     }
     hook.enabled = false;

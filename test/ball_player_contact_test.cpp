@@ -10,7 +10,6 @@
 #include "app/fixtures/default_teams.hpp"
 #include "sim/ball/ball.hpp"
 #include "sim/ball/ball_player_contact.hpp"
-#include "sim/match/match.hpp"
 #include "sim/event/ball_touch_sink.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
@@ -23,12 +22,10 @@ using namespace football::sim;
 using blunted::Vector3;
 
 static_assert(std::is_constructible_v<Ball, const football::model::Pitch&>);
-static_assert(!std::is_constructible_v<Ball, Match*>);
 
 template<class T>
 concept HasPublicTickEntry = requires(T& value) { value.Step(PlayerControlSet{}); } ||
                             requires(T& value) { value.Process(); };
-static_assert(!HasPublicTickEntry<Match>);
 
 struct ContactFixture {
   Simulation simulation;
@@ -44,9 +41,8 @@ struct ContactFixture {
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
         football::app::fixtures::MakeDefaultAwayTeam(),
         football::model::MakeLegacyPitch(), options);
-    auto& match = *simulation.match();
     touch_sink = &SimulationAccess::EventsOf(simulation);
-    teams = {match.GetTeam(0), match.GetTeam(1)};
+    teams = {SimulationAccess::TeamOf(simulation, 0), SimulationAccess::TeamOf(simulation, 1)};
     // Native kickoff placement initializes the Movement action publication.
     for (int i = 0; i < 40; ++i) simulation.Step({});
     home = teams[0]->GetAllPlayers()[1];
@@ -60,16 +56,15 @@ struct ContactFixture {
     away->ResetPosition(Vector3(0), Vector3(1, 0, 0));
     simulation.AdvanceTime(Seconds(1));
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
-    touch_sink.OnBallTouched({match.GetTimelineTick(), teams[1]->GetAllPlayers()[2], teams[1],
+    touch_sink.OnBallTouched({SimulationAccess::NowOf(simulation), teams[1]->GetAllPlayers()[2], teams[1],
         e_TouchType_Intentional_Kicked});
-    match.GetBall()->SetPosition(Vector3(0.05f, 0, 1.0f), match.GetBallEnvironment());
-    match.GetBall()->SetMomentum(Vector3(-8, 0, 0), match.GetBallEnvironment());
+    SimulationAccess::BallOf(simulation)->SetPosition(Vector3(0.05f, 0, 1.0f), SimulationAccess::BallEnvironmentOf(simulation));
+    SimulationAccess::BallOf(simulation)->SetMomentum(Vector3(-8, 0, 0), SimulationAccess::BallEnvironmentOf(simulation));
   }
 
   BallPlayerContactInputs Inputs(Tick last_collision = {}) {
-    auto& match = *simulation.match();
-    return {teams, match.FirstTeam(), match.GetLastTouchTeamID(), {},
-            match.GetTimelineTick(), last_collision, &*touch_sink, match.touches()};
+    return {teams, SimulationAccess::FirstTeamOf(simulation), SimulationAccess::LastTouchTeamIDOf(simulation), {},
+            SimulationAccess::NowOf(simulation), last_collision, &*touch_sink, SimulationAccess::TouchesOf(simulation)};
   }
 };
 
@@ -101,38 +96,37 @@ TEST_CASE("body contacts preserve the cooldown boundary and ordered touch feedba
           "[sim][ball][contact]") {
   for (bool reverse : {false, true}) {
     ContactFixture fixture(reverse);
-    auto& match = *fixture.simulation.match();
     std::array<Player*, 2> players{fixture.home, fixture.away};
     REQUIRE(fixture.home->GetSimulationActionState().type == e_FunctionType_Movement);
     REQUIRE(fixture.away->GetSimulationActionState().type == e_FunctionType_Movement);
     REQUIRE_FALSE(fixture.home->HasUniquePossession());
     REQUIRE_FALSE(fixture.away->HasUniquePossession());
-    const auto rng = match.rng().engine();
-    const auto velocity = match.GetBall()->GetMovement();
+    const auto rng = SimulationAccess::RngOf(fixture.simulation).engine();
+    const auto velocity = SimulationAccess::BallOf(fixture.simulation)->GetMovement();
     std::vector<Vector3> predictions;
-    match.GetBall()->GetPredictionArray(predictions);
-    const auto last_collision = match.GetTimelineTick() - TickSpan{15};
-    const auto blocked = ResolveBallPlayerContacts(*match.GetBall(), players,
+    SimulationAccess::BallOf(fixture.simulation)->GetPredictionArray(predictions);
+    const auto last_collision = SimulationAccess::NowOf(fixture.simulation) - TickSpan{15};
+    const auto blocked = ResolveBallPlayerContacts(*SimulationAccess::BallOf(fixture.simulation), players,
                                                    fixture.Inputs(last_collision));
     REQUIRE_FALSE(blocked.impulse);
     REQUIRE(fixture.home->GetLastTouchType() != e_TouchType_Accidental);
 
     fixture.simulation.AdvanceTime(TickSpan{1});
-    const auto result = ResolveBallPlayerContacts(*match.GetBall(), players,
+    const auto result = ResolveBallPlayerContacts(*SimulationAccess::BallOf(fixture.simulation), players,
                                                   fixture.Inputs(last_collision));
     REQUIRE(result.impulse);
     REQUIRE(result.rotation_bias > 0.0f);
     REQUIRE(result.impulse->GetLength() <= velocity.GetLength());
-    REQUIRE(fixture.home->GetLastTouchTick() == match.GetTimelineTick());
+    REQUIRE(fixture.home->GetLastTouchTick() == SimulationAccess::NowOf(fixture.simulation));
     // Away becomes eligible only after Home publishes its accidental touch.
-    REQUIRE(fixture.away->GetLastTouchTick() == match.GetTimelineTick());
+    REQUIRE(fixture.away->GetLastTouchTick() == SimulationAccess::NowOf(fixture.simulation));
     REQUIRE(fixture.home->GetLastTouchType() == e_TouchType_Accidental);
     REQUIRE(fixture.away->GetLastTouchType() == e_TouchType_Accidental);
-    REQUIRE(match.GetLastTouchTeamID() == 1);
-    REQUIRE(match.rng().engine() == rng);
-    REQUIRE(match.GetBall()->GetMovement() == velocity);
+    REQUIRE(SimulationAccess::LastTouchTeamIDOf(fixture.simulation) == 1);
+    REQUIRE(SimulationAccess::RngOf(fixture.simulation).engine() == rng);
+    REQUIRE(SimulationAccess::BallOf(fixture.simulation)->GetMovement() == velocity);
     std::vector<Vector3> after;
-    match.GetBall()->GetPredictionArray(after);
+    SimulationAccess::BallOf(fixture.simulation)->GetPredictionArray(after);
     REQUIRE(after == predictions); // Runtime, not the resolver, applies the impulse.
   }
 }
@@ -140,7 +134,6 @@ TEST_CASE("body contacts preserve the cooldown boundary and ordered touch feedba
 TEST_CASE("controlled body contacts request a player action without a random bounce",
           "[sim][ball][contact]") {
   ContactFixture fixture(false);
-  auto& match = *fixture.simulation.match();
   fixture.teams[0]->SetDesignatedTeamPossessionPlayer(fixture.home);
   // The opponent has a fresh team touch, while the global latest-team record
   // refers to Home's stale touch. Preserve this legacy controlled-contact gate.
@@ -148,13 +141,13 @@ TEST_CASE("controlled body contacts request a player action without a random bou
   touches.last_team = 0;
   touches.last_team_by_type[e_TouchType_Intentional_Kicked] = 0;
   fixture.home->ResetControlledBallCollisionTrigger();
-  const auto rng = match.rng().engine();
+  const auto rng = SimulationAccess::RngOf(fixture.simulation).engine();
   std::array<Player*, 1> players{fixture.home};
-  const auto result = ResolveBallPlayerContacts(*match.GetBall(), players, fixture.Inputs());
+  const auto result = ResolveBallPlayerContacts(*SimulationAccess::BallOf(fixture.simulation), players, fixture.Inputs());
   REQUIRE_FALSE(result.impulse);
   REQUIRE(fixture.home->IsControlledBallCollisionTriggered());
   REQUIRE(fixture.home->GetLastTouchType() != e_TouchType_Accidental);
-  REQUIRE(match.rng().engine() == rng);
+  REQUIRE(SimulationAccess::RngOf(fixture.simulation).engine() == rng);
 }
 
 TEST_CASE("contact history sampling and prediction accept explicit time and Ball",

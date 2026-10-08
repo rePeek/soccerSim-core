@@ -1,8 +1,11 @@
 #ifndef FOOTBALL_SIM_SIMULATION_HPP
 #define FOOTBALL_SIM_SIMULATION_HPP
 
+#include <array>
 #include <chrono>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "sim/player/player_control_set.hpp"
@@ -14,21 +17,24 @@
 #include "sim/observation/mentalimage.hpp"
 #include "sim/match/match_result.hpp"
 #include "sim/match/match_clock.hpp"
-#include <optional>
 #include "sim/event/ball_touch_sink.hpp"
+#include "sim/event/touch_state.hpp"
+#include "sim/ball/ball_environment.hpp"
 #include "sim/rules/referee_tick_facts.hpp"
 #include "sim/rules/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
 #include "sim/player/player_runtime_sink.hpp"
 
-class Match;
 class Player;
-class AnimationLibrary;
+class Ball;
+class Team;
 class Referee;
+class AnimationLibrary;
 namespace football::sim::testing { class SimulationAccess; }
 
-// Simulation knows controls, rules, runtime history and execution, not AI
-// objects or factories. Composition owns all decisions outside this boundary.
+// Simulation owns the whole match composition: clock/phase/score, ball, rosters,
+// referee, touch/possession state, RNG/history/config. Step() is the only
+// orchestration point. Actors never hold a Simulation pointer.
 class Simulation {
  public:
   Simulation();
@@ -45,11 +51,7 @@ class Simulation {
   // Final only; throws std::logic_error before full time or without a match.
   MatchResult Result() const;
 
-  // TODO: test/diagnostic escape hatch; remove from the public Simulation API.
-  // Transitional access to authoritative actors, not a general integration API.
-  Match* match() { return match_.get(); }
-  const Match* match() const { return match_.get(); }
-
+  // TODO: test/diagnostic escape hatch; not a general integration API.
   // Transitional test/diagnostic sampling; pointers expire on capture/reset/Stop.
   MentalImage* GetMentalImage(football::sim::TickSpan history);
   MentalImage* GetMentalImage(std::chrono::milliseconds history);
@@ -65,27 +67,115 @@ class Simulation {
   friend class football::sim::testing::SimulationAccess;
   class RuleCommands;
   class TouchEvents;
+
   void PublishBallTouch(const football::sim::BallTouchEvent& event);
   football::sim::rules::RefereeTickFacts RefereeFacts() const;
-  football::sim::PlayerTickContext PlayerTickFacts(const Player& actor) const;
+  football::sim::PlayerTickContext PlayerTickFacts(const Player& actor);
   void EnsureAnimationLibrary();
-  void CaptureMentalImage(Match& match);
-  void EndPeriod(Match& match);
-  void ApplyChangeOfEnds(Match& match);
-  void UpdateRecentPossession(Match& match, football::sim::TickSpan admitted);
+  void CaptureMentalImage();
+  void EndPeriod();
+  void ApplyChangeOfEnds();
+  void UpdateRecentPossession(football::sim::TickSpan admitted);
+
+  // Lifecycle mutations, published through the write-only rule/player ports.
+  void SetMatchPhase(MatchPhase newPhase);
+  void StartPlay() { play_authorized_ = true; }
+  void StopPlay() {
+    play_authorized_ = false;
+    clock_->StopBallInPlay();
+  }
+  void StartSetPiece() { set_piece_active_ = true; }
+  void StopSetPiece() { set_piece_active_ = false; }
+  void StartBallInPlay();
+  void EndHalf() {
+    StopPlay();
+    StopSetPiece();
+    clock_->EndHalf();
+  }
+  void SetBallRetainer(Player* retainer) { ball_retainer_ = retainer; }
+  void SetGoalScored(bool onOff) {
+    if (onOff) clock_->StopBallInPlay();
+    else ball_in_goal_ = false;
+    goal_scored_ = onOff;
+  }
+
+  // Read-only runtime facts used by the composition root and diagnostics.
+  football::sim::Tick GetTimelineTick() const { return clock_->now(); }
+  football::sim::TickSpan GetRegulationTime() const { return clock_->RegulationTime(); }
+  football::sim::TickSpan GetBallInPlayTime() const { return clock_->BallInPlayTime(); }
+  const bool& IsHalfUnderway() const { return clock_->IsHalfUnderway(); }
+  const bool& IsBallInPlay() const { return clock_->IsBallInPlay(); }
+  Ball* GetBall() const { return ball_.get(); }
+  Team* GetTeam(int team_id) const { return teams_[team_id].get(); }
+  const football::model::Pitch& pitch() const { return pitch_; }
+  const AnimationLibrary& GetAnimationLibrary() const { return *animations_; }
+  const MatchOptions& options() const { return options_; }
+  blunted::SimulationRng& rng() { return rng_; }
+  bool IsInSetPiece() const { return set_piece_active_; }
+  MatchPhase GetMatchPhase() const { return phase_; }
+  Referee* GetReferee() const { return referee_.get(); }
+  int GetScore(int team_id) const { return score_[team_id]; }
+  float GetPossessionFactor_60seconds() const { return possession_60_seconds_ / 60.0f; }
+  std::uint64_t GetResetSequence() const { return reset_sequence_; }
+  int FirstTeam() const { return first_team_; }
+  int SecondTeam() const { return second_team_; }
+  bool isBallMirrored() const { return ball_mirrored_; }
+  bool IsGoalScored() const { return goal_scored_; }
+  bool IsBallInGoal() const { return ball_in_goal_; }
+  Team* GetLastGoalTeam() const { return last_goal_team_; }
+  Player* GetLastGoalScorer() const { return last_goal_scorer_; }
+  Player* GetDesignatedPossessionPlayer() const { return designated_possession_player_; }
+  Player* GetBallRetainer() const { return ball_retainer_; }
+  Team* GetBestPossessionTeam() const { return best_possession_team_; }
+  const football::sim::event::TouchState& touches() const { return touches_; }
+  int GetLastTouchTeamID() const { return touches_.last_team; }
+  int GetLastTouchTeamID(e_TouchType touch_type) const {
+    return touches_.last_team_by_type[touch_type];
+  }
+  Team* GetLastTouchTeam() const;
+  Player* GetLastTouchPlayer() const;
+  void GetActiveTeamPlayers(int team_id, std::vector<Player*>& players);
+  football::sim::BallEnvironment GetBallEnvironment() const { return {ball_in_goal_}; }
 
   blunted::SimulationRng rng_;
-  // Constructed before Match and kept alive until its borrowed references are gone.
+  // Constructed before the actors and kept alive until their borrows are gone.
   std::vector<MentalImage> mental_images_;
   std::optional<football::sim::MatchClock> clock_;
-  std::unique_ptr<Match> match_;
+
+  MatchOptions options_;
+  football::model::Pitch pitch_;
+  std::shared_ptr<AnimationLibrary> animations_;
+
+  std::unique_ptr<Ball> ball_;
+  std::array<std::unique_ptr<Team>, 2> teams_;
   std::unique_ptr<Referee> referee_;
+
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;
   // Borrowed from rule_commands_; the concrete sink implements both ports.
   football::sim::PlayerRuntimeSink* player_runtime_sink_ = nullptr;
   // Runtime touch publication; keeps the write-only sink out of actors.
   std::unique_ptr<football::sim::BallTouchSink> touch_sink_;
-  std::shared_ptr<AnimationLibrary> animations_;
+
+  // Competition / play / goal / touch state.
+  football::sim::event::TouchState touches_;
+  int score_[2] = {0, 0};
+  float possession_60_seconds_ = 0.0f;
+  MatchPhase phase_ = MatchPhase::PreMatch;
+  bool play_authorized_ = false;
+  bool set_piece_active_ = false;
+  bool goal_scored_ = false;
+  bool ball_in_goal_ = false;
+  Team* last_goal_team_ = nullptr;
+  Player* last_goal_scorer_ = nullptr;
+  Player* ball_retainer_ = nullptr;
+  Player* designated_possession_player_ = nullptr;
+  Team* best_possession_team_ = nullptr;
+  std::uint64_t reset_sequence_ = 0;
+  bool pending_change_of_ends_ = false;
+  football::sim::Tick last_body_ball_collision_tick_{};
+  int first_team_ = 0;
+  int second_team_ = 1;
+  bool ball_mirrored_ = false;
 };
 
 #endif  // FOOTBALL_SIM_SIMULATION_HPP

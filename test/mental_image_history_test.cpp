@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "app/fixtures/default_teams.hpp"
+#include "sim/testing/simulation_access.hpp"
 #include "default_ai_fixture.hpp"
 #include "sim/ball/ball.hpp"
 #include "sim/ball/ball_touch_application.hpp"
@@ -15,6 +16,7 @@
 
 namespace {
 using namespace football::sim;
+using football::sim::testing::SimulationAccess;
 using blunted::Vector3;
 
 TEST_CASE("history sampling and newest-ball refresh use explicit borrowed images",
@@ -57,20 +59,19 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
     REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
     Init(simulation, reverse);
     Init(other, reverse);
-    Match& match = *simulation.match();
     const auto other_capture = other.GetMentalImage(TickSpan{})->captured_tick;
     const auto other_predictions = other.GetMentalImage(TickSpan{})->ballPredictions;
     const auto oldest_predictions = simulation.GetMentalImage(TickSpan{20})->ballPredictions;
     const auto latest_capture = simulation.GetMentalImage(TickSpan{})->captured_tick;
     simulation.TouchBall(Vector3(7, 2, 1));
     std::vector<Vector3> ball_predictions;
-    match.GetBall()->GetPredictionArray(ball_predictions);
+    SimulationAccess::BallOf(simulation)->GetPredictionArray(ball_predictions);
     REQUIRE(simulation.GetMentalImage(TickSpan{})->ballPredictions == ball_predictions);
     REQUIRE(simulation.GetMentalImage(TickSpan{})->captured_tick == latest_capture);
     REQUIRE(simulation.GetMentalImage(TickSpan{20})->ballPredictions == oldest_predictions);
 
     const auto oldest = *simulation.GetMentalImage(TickSpan{20});
-    const auto rng = match.rng().engine();
+    const auto rng = SimulationAccess::RngOf(simulation).engine();
     simulation.Mirror(true, false, true);
     auto* mirrored = simulation.GetMentalImage(TickSpan{20});
     REQUIRE(mirrored->ballPredictions_mirrored != oldest.ballPredictions_mirrored);
@@ -86,12 +87,12 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
     }
     simulation.Mirror(true, false, true);
     REQUIRE(simulation.GetMentalImage(TickSpan{20})->ballPredictions == oldest.ballPredictions);
-    REQUIRE(match.rng().engine() == rng);
+    REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
 
     // Permanent end changes must transform the owned history too, not just actors.
-    if (match.GetTimelineTick().value % observation::kMentalImageCadence.value == 0)
+    if (SimulationAccess::NowOf(simulation).value % observation::kMentalImageCadence.value == 0)
       simulation.AdvanceTime(TickSpan{1});
-    match.RequestChangeOfEnds();
+    SimulationAccess::RequestChangeOfEnds(simulation);
     simulation.Step({});
     REQUIRE(simulation.GetMentalImage(TickSpan{20})->captured_tick == oldest.captured_tick);
     auto flipped = oldest.ballPredictions;
@@ -112,24 +113,18 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
   }
 }
 
-static_assert(!std::is_constructible_v<MentalImage, Match*>);
 template<class T> concept HasHistoryMirror = requires(T& owner) { owner.Mirror(true, true, true); };
 template<class T> concept HasHistoryReset = requires(T& owner) { owner.ResetSituation(Vector3(0)); };
-static_assert(!HasHistoryMirror<Match>);
-static_assert(!HasHistoryReset<Match>);
 template<class T> concept HasMatchTouch = requires(T& owner) { owner.TouchBall(Vector3(0)); };
-static_assert(!HasMatchTouch<Match>);
 template<class T> concept HasMatchHistory = requires(T& owner) { owner.GetMentalImage(TickSpan{}); };
-static_assert(!HasMatchHistory<Match>);
 
 TEST_CASE("mental images capture explicit ordered inputs and sample with explicit time and Ball",
           "[sim][history][snapshot]") {
   Simulation simulation;
   Init(simulation, true);
-  auto& match = *simulation.match();
-  const auto rng = match.rng().engine();
-  auto* first = match.GetTeam(match.FirstTeam())->GetAllPlayers()[1];
-  auto* second = match.GetTeam(match.SecondTeam())->GetAllPlayers()[2];
+  const auto rng = SimulationAccess::RngOf(simulation).engine();
+  auto* first = SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[1];
+  auto* second = SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetAllPlayers()[2];
   std::array<Player*, 2> inputs{second, first};
   Ball ball(football::model::MakeLegacyPitch());
   ball.ResetSituation(Vector3(8, 3, 0));
@@ -163,7 +158,7 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
   REQUIRE(image.ballPredictions == expected_predictions);
   REQUIRE(image.captured_tick == Tick{100});
   REQUIRE(image.players[0].position == captured.position);
-  REQUIRE(match.rng().engine() == rng);
+  REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
 
   // A Ball-only snapshot needs no live runtime owner, even after teardown.
   MentalImage detached(Tick{5}, {}, ball);
@@ -177,32 +172,31 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
 TEST_CASE("ball touch refreshes only the explicit history and does not publish a rule touch", "[sim][history][touch]") {
   for (bool reverse : {false, true}) {
     Simulation simulation; Init(simulation, reverse);
-    auto& match = *simulation.match();
     std::array<MentalImage, 2> history{*simulation.GetMentalImage(TickSpan{}),
         *simulation.GetMentalImage(TickSpan{10})};
     const auto oldest = history[1].ballPredictions;
     const auto captured = history[0].captured_tick;
     const auto owned = simulation.GetMentalImage(TickSpan{})->ballPredictions;
-    const auto rng = match.rng().engine();
-    const auto now = match.GetTimelineTick();
-    const auto last_team = match.GetLastTouchTeamID();
-    const auto* last_player = match.GetLastTouchPlayer();
-    ApplyBallTouch(*match.GetBall(), match.GetBallEnvironment(), Vector3(7, 2, 1), history,
-        *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam()),
-        match.GetTimelineTick(), match.GetBallRetainer());
-    std::vector<Vector3> predictions; match.GetBall()->GetPredictionArray(predictions);
+    const auto rng = SimulationAccess::RngOf(simulation).engine();
+    const auto now = SimulationAccess::NowOf(simulation);
+    const auto last_team = SimulationAccess::LastTouchTeamIDOf(simulation);
+    const auto* last_player = SimulationAccess::LastTouchPlayerOf(simulation);
+    ApplyBallTouch(*SimulationAccess::BallOf(simulation), SimulationAccess::BallEnvironmentOf(simulation), Vector3(7, 2, 1), history,
+        *SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)), *SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation)),
+        SimulationAccess::NowOf(simulation), SimulationAccess::BallRetainerOf(simulation));
+    std::vector<Vector3> predictions; SimulationAccess::BallOf(simulation)->GetPredictionArray(predictions);
     REQUIRE(history[0].ballPredictions == predictions);
     REQUIRE(history[0].ballPredictions != owned);
     REQUIRE(history[0].captured_tick == captured);
     REQUIRE(history[1].ballPredictions == oldest);
     REQUIRE(simulation.GetMentalImage(TickSpan{})->ballPredictions == owned);
-    REQUIRE(match.rng().engine() == rng);
-    REQUIRE(match.GetTimelineTick() == now);
-    REQUIRE(match.GetLastTouchTeamID() == last_team);
-    REQUIRE(match.GetLastTouchPlayer() == last_player);
-    REQUIRE_NOTHROW(ApplyBallTouch(*match.GetBall(), match.GetBallEnvironment(), Vector3(0), {},
-        *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam()),
-        match.GetTimelineTick(), match.GetBallRetainer()));
+    REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
+    REQUIRE(SimulationAccess::NowOf(simulation) == now);
+    REQUIRE(SimulationAccess::LastTouchTeamIDOf(simulation) == last_team);
+    REQUIRE(SimulationAccess::LastTouchPlayerOf(simulation) == last_player);
+    REQUIRE_NOTHROW(ApplyBallTouch(*SimulationAccess::BallOf(simulation), SimulationAccess::BallEnvironmentOf(simulation), Vector3(0), {},
+        *SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)), *SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation)),
+        SimulationAccess::NowOf(simulation), SimulationAccess::BallRetainerOf(simulation)));
   }
 }
 

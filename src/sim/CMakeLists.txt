@@ -18,7 +18,7 @@ add_library(football_sim STATIC)
 add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
   simulation.cpp
-  match/match.cpp match/pitch_geometry.hpp
+  match/pitch_geometry.hpp
   event/ball_touch.hpp event/ball_touch_sink.hpp event/touch_state.hpp
   event/ball_touch_dispatcher.cpp event/ball_touch_dispatcher.hpp
   event/touch_query.cpp event/touch_query.hpp
@@ -50,7 +50,6 @@ target_sources(football_sim PRIVATE
   player/humanoid/humanoid_utils.cpp
   player/humanoid/humanoidbase.cpp
   player/humanoid/humanoid.cpp
-  match/match.hpp
   player/humanoid/humanoidbase.hpp player/humanoid/humanoid.hpp
   player/humanoid/humanoid_utils.hpp
   player/player.hpp player/player_control_builder.hpp player/player_kinematics.hpp
