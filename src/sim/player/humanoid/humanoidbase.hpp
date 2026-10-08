@@ -29,7 +29,7 @@
 
 #include "sim/player/player_kinematics.hpp"
 #include "sim/observation/mentalimage.hpp"
-#include "sim/random/rng.hpp"
+#include "foundation/math/rng.hpp"
 
 #include <chrono>
 #include <span>
@@ -342,7 +342,7 @@ struct SpatialState {
 class HumanoidBase {
 
   public:
-    HumanoidBase(Player *player, const AnimationLibrary& animations, SimulationRng& rng);
+    HumanoidBase(Player *player, const AnimationLibrary& animations, blunted::Rng& rng);
     virtual ~HumanoidBase();
     void Mirror();
 
@@ -463,7 +463,7 @@ class HumanoidBase {
     radian ForceIntoPreferredDirectionAngle(radian angle) const;
 
     const AnimationLibrary& animations_;
-    SimulationRng& rng_;
+    blunted::Rng& rng_;
     Player *player;
     // Shared between all players, no need to snapshot.
     // Seems to contain current animation context.

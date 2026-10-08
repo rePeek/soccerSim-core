@@ -107,7 +107,7 @@ void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
 }
 
 void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options,
-                      SimulationRng& rng, RuleCommandSink& commands) {
+                      blunted::Rng& rng, RuleCommandSink& commands) {
   if (facts.phase == MatchPhase::Finished) return;
   const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
   // Track this operation's own stop consequences; do not query a runtime owner.
@@ -230,7 +230,7 @@ void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options
 }
 
 void Referee::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
-                                     const MatchOptions& options, SimulationRng& rng,
+                                     const MatchOptions& options, blunted::Rng& rng,
                                      RuleCommandSink& commands) {
   // Opening/half-time placement is intentionally separate from ordinary readiness.
   commands.ResetSituation(options.reverse_team_processing ? -buffer.restartPos : buffer.restartPos);
@@ -478,7 +478,7 @@ std::optional<Vector3> Referee::GetRestartTarget(const Player* player) const {
 }
 
 void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& options,
-                             SimulationRng& rng, RuleCommandSink& commands) {
+                             blunted::Rng& rng, RuleCommandSink& commands) {
   auto& state = *buffer.restart;
   if (state.phase == RestartPhase::Taken) {
     state.phase = RestartPhase::InPlay;

@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_PLAYER_TICK_CONTEXT_HPP
 
 #include "sim/time/tick.hpp"
-#include "sim/random/rng.hpp"
+#include "foundation/math/rng.hpp"
 #include "sim/ball/ball_environment.hpp"
 #include "sim/event/touch_state.hpp"
 
@@ -45,7 +45,7 @@ struct PlayerTickContext {
 
   bool restart_needs_simulation;
 
-  blunted::SimulationRng& rng;
+  blunted::Rng& rng;
 };
 } // namespace football::sim
 

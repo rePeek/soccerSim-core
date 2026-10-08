@@ -63,7 +63,7 @@ target_sources(football_sim PRIVATE
   player/kick_targeting.hpp)
 target_sources(football_sim PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES simulation.hpp random/rng.hpp)
+  FILES simulation.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::model BqLog)

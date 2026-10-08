@@ -148,7 +148,7 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                                        int kickoffTakerTeamId,
                                        int takerTeamID, const Ball& ball,
                                        football::sim::TickSpan regulation,
-                                       const MatchOptions& options, SimulationRng& rng,
+                                       const MatchOptions& options, blunted::Rng& rng,
                                        football::sim::rules::RuleCommandSink& commands) {
   Player *taker = nullptr;
 

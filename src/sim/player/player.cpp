@@ -262,7 +262,7 @@ bool FloatBitsEqual(float a, float b) {
 }  // namespace
 
 Player::Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
-               const AnimationLibrary& animations, const football::model::Pitch& pitch, SimulationRng& rng)
+               const AnimationLibrary& animations, const football::model::Pitch& pitch, blunted::Rng& rng)
     : animations_(animations), pitch_(pitch), rng_(rng),
       model_(model),
       schedule_phase_(schedule_phase % 10),
@@ -830,7 +830,7 @@ float Player::GetClosestOpponentDistance(Team& opponent) const {
 
 
 
-void Player::SendOff(const Ball& ball, football::sim::Tick now, SimulationRng& rng) {
+void Player::SendOff(const Ball& ball, football::sim::Tick now, blunted::Rng& rng) {
   // Preserve the historical draw even though its message was removed.
   (void)rng.Uniform(0, 3);
   Deactivate(ball, now);

@@ -79,7 +79,7 @@ class SimulationAccess {
   static const Team* TeamOf(const Simulation& s, int team_id) {
     return s.teams_[team_id].get();
   }
-  static blunted::SimulationRng& RngOf(Simulation& s) { return s.rng_; }
+  static blunted::Rng& RngOf(Simulation& s) { return s.rng_; }
   static football::sim::Tick NowOf(Simulation& s) { return s.clock_->now(); }
   static football::sim::TickSpan RegulationTimeOf(Simulation& s) {
     return s.clock_->RegulationTime();

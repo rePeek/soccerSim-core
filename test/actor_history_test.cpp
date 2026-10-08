@@ -103,7 +103,7 @@ TEST_CASE("Humanoid baked clips come from its injected library, not the runtime 
   REQUIRE(independent.Load(std::filesystem::path(__FILE__).parent_path().parent_path() /
       "assets/runtime/animations.simanim"));
   auto* actor = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
-  SimulationRng supplied_rng;
+  blunted::Rng supplied_rng;
   supplied_rng.Seed(99);
   auto expected_rng = supplied_rng;
   const auto ambient_rng = SimulationAccess::RngOf(simulation).engine();
@@ -138,7 +138,7 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
   event::TouchState touches;
   touches.Record(1, toucher->GetID(), e_TouchType_Intentional_Kicked);
   toucher->SetLastTouchTick(Tick{100});
-  SimulationRng rng;
+  blunted::Rng rng;
   rng.Seed(92);
   const auto before = rng.engine();
   float distance, height, movement;

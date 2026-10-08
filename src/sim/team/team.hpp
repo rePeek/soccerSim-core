@@ -51,7 +51,7 @@ class Team {
 
     void Exit(football::sim::Tick now);
 
-    void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch, SimulationRng& rng);
+    void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch, blunted::Rng& rng);
 
 
 

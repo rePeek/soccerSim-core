@@ -73,7 +73,6 @@ src/
 │   ├── event/        touch event, write-only sink, value TouchState and synchronous dispatcher
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 and MentalImage/player-image history + nearest-slot sampling
-│   ├── random/       simulation-owned RNG authority alias; algorithm in foundation
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
 │   ├── rules/        Referee, clock/phase/result values, goal, period, offside and restarts

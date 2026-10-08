@@ -59,7 +59,7 @@ void Team::Exit(football::sim::Tick now) {
   player_views_.clear();
 }
 
-void Team::InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch, SimulationRng& rng) {
+void Team::InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch, blunted::Rng& rng) {
   // Roster traversal supplies order; phases repeat every ten players.
   std::uint8_t schedule_phase = first_schedule_phase;
   for (std::size_t i = 0; i < formation_.size(); ++i) {

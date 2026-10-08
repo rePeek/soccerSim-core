@@ -30,7 +30,7 @@
 #include "sim/rules/referee_tick_facts.hpp"
 #include "sim/rules/rule_command_sink.hpp"
 #include "sim/simulation_config.hpp"
-#include "sim/random/rng.hpp"
+#include "foundation/math/rng.hpp"
 
 
 using namespace blunted;
@@ -97,7 +97,7 @@ class Referee {
 
     // Tick-local facts and synchronous write-only consequences; never stored.
     void Process(const football::sim::rules::RefereeTickFacts& facts,
-                 const MatchOptions& options, SimulationRng& rng,
+                 const MatchOptions& options, blunted::Rng& rng,
                  football::sim::rules::RuleCommandSink& commands);
 
     const RefereeBuffer &GetBuffer() { return buffer; };
@@ -133,10 +133,10 @@ class Referee {
     void ScheduleRestart(const RestartSchedule& schedule,
                          football::sim::TickSpan administration = {});
     void ProcessRestart(const football::sim::rules::RefereeTickFacts& facts,
-                        const MatchOptions& options, SimulationRng& rng,
+                        const MatchOptions& options, blunted::Rng& rng,
                         football::sim::rules::RuleCommandSink& commands);
     void PrepareCeremonialKickOff(const football::sim::rules::RefereeTickFacts& facts,
-                                 const MatchOptions& options, SimulationRng& rng,
+                                 const MatchOptions& options, blunted::Rng& rng,
                                  football::sim::rules::RuleCommandSink& commands);
 };
 

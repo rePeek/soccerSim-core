@@ -996,8 +996,8 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
               commands.front().touchInfo.inputPower == control.power,
           "flattening changed explicit-control command authority");
 
-  blunted::SimulationRng& rng = SimulationAccess::RngOf(simulation);
-  blunted::SimulationRng expected = rng;
+  blunted::Rng& rng = SimulationAccess::RngOf(simulation);
+  blunted::Rng expected = rng;
   (void)expected();
   (void)expected();
   const auto epoch = player->GetDecisionLocomotionContinuityEpoch();

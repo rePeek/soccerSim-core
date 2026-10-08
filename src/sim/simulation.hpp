@@ -12,7 +12,7 @@
 #include "model/team.hpp"
 #include "model/pitch.hpp"
 #include "sim/simulation_config.hpp"
-#include "sim/random/rng.hpp"
+#include "foundation/math/rng.hpp"
 #include "sim/observation/world_state.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/rules/result.hpp"
@@ -110,7 +110,7 @@ class Simulation {
   const football::model::Pitch& pitch() const { return pitch_; }
   const AnimationLibrary& GetAnimationLibrary() const { return *animations_; }
   const MatchOptions& options() const { return options_; }
-  blunted::SimulationRng& rng() { return rng_; }
+  blunted::Rng& rng() { return rng_; }
   bool IsInSetPiece() const { return set_piece_active_; }
   MatchPhase GetMatchPhase() const { return phase_; }
   Referee* GetReferee() const { return referee_.get(); }
@@ -137,7 +137,7 @@ class Simulation {
   void GetActiveTeamPlayers(int team_id, std::vector<Player*>& players);
   football::sim::BallEnvironment GetBallEnvironment() const { return {ball_in_goal_}; }
 
-  blunted::SimulationRng rng_;
+  blunted::Rng rng_;
   // Constructed before the actors and kept alive until their borrows are gone.
   std::vector<MentalImage> mental_images_;
   std::optional<football::sim::MatchClock> clock_;

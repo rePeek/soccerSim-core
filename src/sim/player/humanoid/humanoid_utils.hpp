@@ -23,7 +23,7 @@
 #include "sim/ball/ball.hpp"
 
 #include "foundation/math/vector3.hpp"
-#include "sim/random/rng.hpp"
+#include "foundation/math/rng.hpp"
 
 using namespace blunted;
 
@@ -42,9 +42,9 @@ Vector3 CalculateMovementAtFrame(const std::vector<Vector3> &positions, unsigned
 Vector3 GetFrontOfFootOffsetRel(float velocity, radian bodyAngleRel, float height);
 bool NeedDefendingMovement(int mySide, const Vector3 &position, const Vector3 &target);
 float StretchSprintTo(const float &inputVelocity, float inputSpaceMaxVelocity, float targetMaxVelocity);
-void GetDifficultyFactors(Ball *ball, Player *player, const football::sim::event::TouchState& touches, Team& opponent, football::sim::Tick now, SimulationRng& rng, const SpatialState &spatialState, const Vector3 &positionOffset, float &distanceFactor, float &heightFactor, float &ballMovementFactor);
+void GetDifficultyFactors(Ball *ball, Player *player, const football::sim::event::TouchState& touches, Team& opponent, football::sim::Tick now, blunted::Rng& rng, const SpatialState &spatialState, const Vector3 &positionOffset, float &distanceFactor, float &heightFactor, float &ballMovementFactor);
 Vector3 GetBallControlVector(Ball *ball, Player *player, Team& opponent, const AnimationClip& clip, const Vector3 &nextStartPos, radian nextStartAngle, radian nextBodyAngle, const Vector3 &outgoingMovement, const Anim &currentAnim, int frameNum, const SpatialState &spatialState, const Vector3 &positionOffset, radian &xRot, radian &yRot, float ffoOffset = 0.0f);
-Vector3 GetTrapVector(Ball *ball, Player *player, const football::sim::event::TouchState& touches, Team& opponent, football::sim::Tick now, SimulationRng& rng, const AnimationClip& clip, const Vector3 &nextStartPos, radian nextStartAngle, radian nextBodyAngle, const Vector3 &outgoingMovement, const Anim &currentAnim, int frameNum, const SpatialState &spatialState, const Vector3 &positionOffset, radian &xRot, radian &yRot);
-Vector3 GetShotVector(Ball *ball, Player *player, const AnimationClip& clip, SimulationRng& rng, const Anim &currentAnim, const SpatialState &spatialState, const Vector3 &positionOffset, radian &xRot, radian &yRot, radian &zRot);
+Vector3 GetTrapVector(Ball *ball, Player *player, const football::sim::event::TouchState& touches, Team& opponent, football::sim::Tick now, blunted::Rng& rng, const AnimationClip& clip, const Vector3 &nextStartPos, radian nextStartAngle, radian nextBodyAngle, const Vector3 &outgoingMovement, const Anim &currentAnim, int frameNum, const SpatialState &spatialState, const Vector3 &positionOffset, radian &xRot, radian &yRot);
+Vector3 GetShotVector(Ball *ball, Player *player, const AnimationClip& clip, blunted::Rng& rng, const Anim &currentAnim, const SpatialState &spatialState, const Vector3 &positionOffset, radian &xRot, radian &yRot, radian &zRot);
 
 #endif

@@ -3,7 +3,7 @@
 
 #include "model/football_types.hpp"
 #include "sim/simulation_config.hpp"
-#include "sim/random/rng.hpp"
+#include "foundation/math/rng.hpp"
 #include "sim/time/tick.hpp"
 
 class Ball;
@@ -17,7 +17,7 @@ namespace football::sim::rules { class RuleCommandSink; }
 Player *PositionRestartPlayers(Team *team, e_GameMode set_piece, Team *other_team,
                               int kickoff_taker_team_id, int taker_team_id,
                               const Ball& ball, football::sim::TickSpan regulation,
-                              const MatchOptions& options, blunted::SimulationRng& rng,
+                              const MatchOptions& options, blunted::Rng& rng,
                               football::sim::rules::RuleCommandSink& commands);
 
 #endif

@@ -542,7 +542,7 @@ const radian preferredDirectionAngles[] = {
     -0.999 * pi
 };
 
-HumanoidBase::HumanoidBase(Player *player, const AnimationLibrary& animations, SimulationRng& rng)
+HumanoidBase::HumanoidBase(Player *player, const AnimationLibrary& animations, blunted::Rng& rng)
     : animations_(animations), rng_(rng),
       player(player) {
   interruptAnim = e_InterruptAnim_None;
