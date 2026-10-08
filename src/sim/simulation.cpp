@@ -119,7 +119,8 @@ football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
   return {match.GetTimelineTick(), match.GetMatchPhase(), match.IsInPlay(),
       match.IsInSetPiece(), match.IsGoalScored(), *match.GetBall(), match.pitch(),
       match.GetRegulationTime(), *match.GetTeam(0), *match.GetTeam(1), match.FirstTeam(),
-      match.GetLastTouchTeam(), match.GetLastGoalTeam(), ToHomePitchFrame(match),
+      match.GetLastTouchTeam(), match.GetLastGoalTeam(),
+      ToHomePitchFrame(*match.GetTeam(match.options().reverse_team_processing ? 1 : 0)),
       PitchFrameTransform(match.GetTeam(0)->GetStaticSide() != -1)};
 }
 
@@ -391,7 +392,14 @@ bool Simulation::IsInPlay() const {
 
 WorldState Simulation::Observe() const {
   if (!match_) throw std::logic_error("simulation has no match");
-  return BuildWorldState(*match_);
+  auto& match = *match_;
+  const int first_team = match.options().reverse_team_processing ? 1 : 0;
+  return BuildWorldState({match.GetTimelineTick(), match.GetMatchPhase(),
+      match.GetRegulationTime(), match.GetBallInPlayTime(), match.clock_.IsHalfUnderway(),
+      match.IsBallInPlay(), match.GetResetSequence(), *match.GetBall(), match.pitch(),
+      match.IsInPlay(), match.IsInSetPiece(), *match.GetReferee(), match.GetBallRetainer(),
+      match.GetScore(0), match.GetScore(1), *match.GetTeam(0), *match.GetTeam(1),
+      first_team});
 }
 
 void Simulation::TouchBall(const Vector3& impulse) {

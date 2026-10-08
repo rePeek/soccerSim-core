@@ -61,13 +61,13 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
               mode == e_GameMode_Corner ? Vector3(-side * 55, 36, 0) :
               mode == e_GameMode_Penalty ? Vector3(-side * 44, 0, 0) : Vector3(0);
           simulation.Mirror(reverse, !reverse, false);
-          simulation.ResetSituation(ToHomePitchFrame(match).Position(focus));
+          simulation.ResetSituation(ToHomePitchFrame(*match.GetTeam(reverse ? 1 : 0)).Position(focus));
           const auto rng = match.rng().engine();
           const auto before = simulation.Observe();
           std::vector<Player*> active;
           match.GetTeam(0)->GetActivePlayers(active);
           match.GetTeam(1)->GetActivePlayers(active);
-          const auto ball = ToHomePitchFrame(match).Position(match.GetBall()->Predict(TickSpan{}));
+          const auto ball = ToHomePitchFrame(*match.GetTeam(reverse ? 1 : 0)).Position(match.GetBall()->Predict(TickSpan{}));
           const auto plan = PlanRestart(match.pitch(), ball, active, mode, *match.GetTeam(taking_team));
           const auto again = PlanRestart(match.pitch(), ball, active, mode, *match.GetTeam(taking_team));
           REQUIRE(match.rng().engine() == rng);

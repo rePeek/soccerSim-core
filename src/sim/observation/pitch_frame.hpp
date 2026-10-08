@@ -3,7 +3,6 @@
 
 #include "foundation/math/vector3.hpp"
 
-class Match;
 class Team;
 
 // Runtime-to-policy rotation around the pitch centre. Position and direction
@@ -29,8 +28,8 @@ class PitchFrameTransform {
 
 // An actor's current processing frame -> fixed policy frame (Home defends -X).
 PitchFrameTransform ToHomePitchFrame(const Team& team);
-// Between ticks, the ball shares the first processing roster's runtime frame.
-PitchFrameTransform ToHomePitchFrame(const Match& match);
+// The between-tick ball frame is derived from the first processing roster by
+// the composition root; this header only exposes the per-team frame.
 // Fixed policy controls -> the actor's current processing frame.
 PitchFrameTransform FromHomePitchFrame(const Team& team);
 
