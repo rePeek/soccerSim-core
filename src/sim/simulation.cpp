@@ -165,11 +165,7 @@ void Simulation::PublishBallTouch(const football::sim::BallTouchEvent& event) {
   football::sim::event::DispatchBallTouch(event, touches_, facts, *referee_, *rule_commands_);
 }
 
-Simulation::Simulation() {
-  // The pre-match profile draws historically ran on an RNG freshly seeded with
-  // 0, before the episode seed was applied in Init(). Keep that exact window.
-  rng_.Seed(0);
-}
+Simulation::Simulation() {}
 
 Simulation::~Simulation() {
   Stop();
@@ -188,8 +184,12 @@ void Simulation::Init(
   const std::vector<FormationEntry> left = ToLegacyFormation(home.formation);
   const std::vector<FormationEntry> right = ToLegacyFormation(away.formation);
   football::model::Team home_model = home, away_model = away;
-  ResolveAppearance(home_model, rng_);
-  ResolveAppearance(away_model, rng_);
+  // Appearance is not competition physics: isolate its seed-0 stream so a
+  // second Init never depends on the previous match's residual RNG state.
+  blunted::Rng appearance_rng;
+  appearance_rng.Seed(0);
+  ResolveAppearance(home_model, appearance_rng);
+  ResolveAppearance(away_model, appearance_rng);
 
   // Derive the kickoff rule once; input selection is not simulation state.
   options.left_team_owns_ball =
