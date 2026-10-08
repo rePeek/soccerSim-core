@@ -828,8 +828,7 @@ float Player::GetClosestOpponentDistance(Team& opponent) const {
   return opp->GetPosition().GetDistance(GetPosition());
 }
 
-void Player::Put2D(bool /*mirror*/) {}
-void Player::Hide2D() {}
+
 
 void Player::SendOff(const Ball& ball, football::sim::Tick now, SimulationRng& rng) {
   // Preserve the historical draw even though its message was removed.

@@ -396,8 +396,6 @@ class Player final {
     void UpdatePossessionStats(Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer);
     float GetClosestOpponentDistance(Team& opponent) const;
     const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
-    void Put2D(bool mirror);
-    void Hide2D();
     void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
     void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
     bool HasCards() { return cards > 0; }

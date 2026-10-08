@@ -24,7 +24,6 @@
 #include "sim/player/player.hpp"
 
 class AnimationLibrary;
-class AnimationLibrary;
 namespace football::sim { class BallTouchSink; }
 
 class MentalImage;
@@ -109,8 +108,6 @@ class Team {
 
     void RelaxFatigue(float howMuch);
 
-    void Put2D(bool mirror);
-    void Hide2D();
 
 
     Player *GetGoalie();

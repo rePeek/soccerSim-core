@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_SIM_MATCH_OPTIONS_HPP
-#define FOOTBALL_SIM_MATCH_OPTIONS_HPP
+#ifndef FOOTBALL_SIM_SIMULATION_CONFIG_HPP
+#define FOOTBALL_SIM_SIMULATION_CONFIG_HPP
 
 #include <cstdint>
 
@@ -25,4 +25,4 @@ struct MatchOptions {
   bool left_team_owns_ball = false;
 };
 
-#endif  // FOOTBALL_SIM_MATCH_OPTIONS_HPP
+#endif  // FOOTBALL_SIM_SIMULATION_CONFIG_HPP

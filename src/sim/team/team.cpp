@@ -52,14 +52,10 @@ void Team::SwitchEnds() {
 }
 
 void Team::Exit(football::sim::Tick now) {
-  Hide2D();
-
   for (unsigned int i = 0; i < players.size(); i++) {
     players[i]->Exit(now);
     delete players[i];
   }
-
-
 }
 
 void Team::InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch, SimulationRng& rng) {
@@ -175,22 +171,6 @@ void Team::RelaxFatigue(float howMuch) {
   }
 }
 
-
-void Team::Put2D(bool mirror) {
-  for (unsigned int i = 0; i < players.size(); i++) {
-    if (players[i]->IsActive()) {
-      players[i]->Put2D(mirror);
-    }
-  }
-}
-
-void Team::Hide2D() {
-  for (unsigned int i = 0; i < players.size(); i++) {
-    if (players[i]->IsActive()) {
-      players[i]->Hide2D();
-    }
-  }
-}
 
 
 
