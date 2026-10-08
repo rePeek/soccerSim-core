@@ -91,7 +91,7 @@ bool _PassFiddlingEnabled() {
   return true;
 }
 
-void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) {
+void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) {
   // Reject invalid runtime state before the spatial/action debug oracles run.
   if (startPos.coords[2] != 0.f) {
     throw std::logic_error("Humanoid::Process: player position must have zero height");
@@ -104,13 +104,14 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
   decayingDifficultyFactor = clamp(decayingDifficultyFactor - 0.002f, 0.0f, 1.0f);
 
   assert(match);
+  Player* ball_retainer = tick.ball_retainer;
   // Tick-local publication: actors never reach Match for touch notification.
   const auto notify_touch = [&](e_TouchType type) {
     touch_sink.OnBallTouched({now, CastPlayer(), team, type});
   };
 
   bool instaDoorheb = false;
-  if (match->GetLastTouchTeamID() == team->GetID()) instaDoorheb = true;
+  if (tick.touches.last_team == team->GetID()) instaDoorheb = true;
   mentalImageTime = std::chrono::milliseconds{instaDoorheb ? 0 : CastPlayer()->GetReactionTime_ms()};
 
   // The authoritative movement state at tick start. Captured before
@@ -122,11 +123,11 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
   // Gameplay continuity advances before the audit observes this tick, so the
   // epoch is decided by eligibility rather than by telemetry bookkeeping.
   CastPlayer()->AdvanceLocomotionContinuity(
-      CastPlayer()->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player));
+      CastPlayer()->IsEligibleForProceduralLocomotion(ball_retainer == player));
   // re-entry audit must see every real player tick, eligible or not, because
   // leaving locomotion is what arms the next re-entry classification.
   CastPlayer()->NoteLocomotionReentryTick(
-      CastPlayer()->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player),
+      CastPlayer()->IsEligibleForProceduralLocomotion(ball_retainer == player),
       CastPlayer()->IsLocomotionIntentRefreshDue(
           now),
       now);
@@ -144,16 +145,16 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
   const auto decision_now = now;
   const int decision_now_ms = static_cast<int>(football::sim::ToMilliseconds(decision_now));
   const float decision_distance_to_ball =
-      (match->GetBall()->Predict(0).Get2D() - tickStartState.position).GetLength();
+      (tick.ball.Predict(0).Get2D() - tickStartState.position).GetLength();
   const bool designated_possession_player =
-      match->GetDesignatedPossessionPlayer() == player;
+      tick.designated_possession_player == player;
   const bool designated_team_possession_player =
       team->GetDesignatedTeamPossessionPlayer() == player;
   const auto player_decision_cadence = PlayerDecisionCadenceForContext(
       designated_possession_player, designated_team_possession_player,
       decision_distance_to_ball);
   const bool continuity_repair_due =
-      CastPlayer()->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player) &&
+      CastPlayer()->IsEligibleForProceduralLocomotion(ball_retainer == player) &&
       CastPlayer()->DecisionLocomotionEpochIsStale();
   const bool player_decision_due =
       CastPlayer()->IsPlayerDecisionRefreshDue(
@@ -161,15 +162,15 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
   if (continuity_repair_due || player_decision_due) {
     PlayerCommandQueue player_decision_commands;
     CastPlayer()->RequestCommand(player_decision_commands,
-        {*match->GetBall(), match->touches(), match->GetReferee()->GetBuffer(),
-         match->GetBallRetainer(), match->pitch()});
+        {tick.ball, tick.touches, tick.restart,
+         ball_retainer, tick.pitch});
     CastPlayer()->PublishPlayerDecisionQueue(
         player_decision_commands, decision_now);
     bool has_movement = false;
     for (const PlayerCommand &command : player_decision_commands)
       has_movement |= command.desiredFunctionType == e_FunctionType_Movement &&
                       command.useDesiredMovement;
-    CastPlayer()->NoteControllerQuery(has_movement, decision_now, match->GetBallRetainer() == player);
+    CastPlayer()->NoteControllerQuery(has_movement, decision_now, ball_retainer == player);
     RecordPlayerDecisionQuery(
         CastPlayer(), player_decision_commands, decision_now_ms,
         continuity_repair_due ? PlayerDecisionQueryCause::ContinuityRepair
@@ -188,9 +189,9 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
     CastPlayer()->NoteDecisionPublicationCause(2);
     if (CastPlayer()->HasPlayerDecisionQueue() &&
         CastPlayer()->PublishMovementIntentFromQueue(
-            CastPlayer()->GetPlayerDecisionQueue(), decision_now, match->GetBallRetainer() == player)) {
+            CastPlayer()->GetPlayerDecisionQueue(), decision_now, ball_retainer == player)) {
       movement_published_this_tick = true;
-      CastPlayer()->CommitLocomotionIntentRefresh(*match->GetBall(), decision_now, match->GetBallRetainer() == player);
+      CastPlayer()->CommitLocomotionIntentRefresh(tick.ball, decision_now, ball_retainer == player);
       ++ContinuityRepairPublications();
     } else {
       ++ContinuityRepairCandidatesMissing();
@@ -198,12 +199,12 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
     CastPlayer()->NoteDecisionPublicationCause(0);
   }
 
-  CalculateSpatialState();
+  CalculateSpatialState(ball_retainer);
   spatialState.positionOffsetMovement = Vector3(0);
   // H3e1c-3c: pure locomotion ticks are produced by the simulation; every
   // other tick keeps the legacy root motion. Either way the legacy movement
   // fields end up as a projection of the authoritative kinematic state.
-  ProjectMovementState(tickStartState);
+  ProjectMovementState(tickStartState, ball_retainer, tick.restart_needs_simulation);
 
   currentAnim.frameNum++;
   CastPlayer()->StepSimulationAction(football::sim::TickSpan{1});
@@ -213,6 +214,8 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
   assert(team);
   int teamID = team->GetID();
+  Team& first_roster = tick.first_processing_team;
+  Team& second_roster = tick.second_processing_team;
 
   /*
 
@@ -246,16 +249,16 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
   if (mayReQueue) {
     bool frameNumPredicate = false;
-    float actionDistance = ((spatialState.position + spatialState.movement * 0.1f) - match->GetBall()->Predict(100).Get2D()).GetLength();
+    float actionDistance = ((spatialState.position + spatialState.movement * 0.1f) - tick.ball.Predict(100).Get2D()).GetLength();
 
-    int team_id = team->GetID() == match->SecondTeam() ? 1 : 0;
+    int team_id = tick.processing_slot;
     using namespace football::sim::player_timing;
     const auto phase = static_cast<std::uint64_t>(team_id);
-    if (match->GetDesignatedPossessionPlayer() == player &&
+    if (tick.designated_possession_player == player &&
         actionDistance < 3.0f) {
       frameNumPredicate = StaggeredRefreshDue(now, kOwnerNear, football::sim::TickSpan{phase});
 
-    } else if (match->GetDesignatedPossessionPlayer() == player) {
+    } else if (tick.designated_possession_player == player) {
       frameNumPredicate = StaggeredRefreshDue(now, kOwner, football::sim::TickSpan{phase});
 
     } else if (team->GetDesignatedTeamPossessionPlayer() == player) {
@@ -275,7 +278,7 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
   if (mayReQueue) {
 
-    float ballDistance = (currentMentalImage->GetBallPrediction(500, now, *match->GetBall()).Get2D() - spatialState.position).GetLength();
+    float ballDistance = (currentMentalImage->GetBallPrediction(500, now, tick.ball).Get2D() - spatialState.position).GetLength();
     if (((action.type == e_FunctionType_Movement &&
             !CastPlayer()->HasPossession() && ballDistance < 16.0f) ||
            (action.type == e_FunctionType_Movement &&
@@ -306,7 +309,7 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
   const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
   const bool simulation_due =
-      CastPlayer()->NoteLocomotionIntentCadence(legacy_opportunity, decision_now, match->GetBallRetainer() == player);
+      CastPlayer()->NoteLocomotionIntentCadence(legacy_opportunity, decision_now, ball_retainer == player);
   // Tag the cause of any publication on this path, so a legacy-driven query is
   // not credited to the simulation cadence in the audit.
   const bool legacy_only = legacy_opportunity && !simulation_due;
@@ -359,7 +362,7 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
           command.desiredFunctionType == e_FunctionType_Shot) {
         preferPassAndShot = true;
       }
-      found = SelectAnim(now, command, history, interruptAnim, preferPassAndShot);
+      found = SelectAnim(now, tick, command, history, interruptAnim, preferPassAndShot);
       if (found) {
         if (provenance == PlayerPathSelectionCommandProvenance::LocalTrip) {
           ++PlayerPathLocalTripSelected();
@@ -442,10 +445,10 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
     CastPlayer()->NoteDecisionMovementSelection(
         decision_queue_selection_movement);
     if (CastPlayer()->PublishMovementIntentFromQueue(
-            CastPlayer()->GetPlayerDecisionQueue(), decision_now, match->GetBallRetainer() == player)) {
+            CastPlayer()->GetPlayerDecisionQueue(), decision_now, ball_retainer == player)) {
       movement_published_this_tick = true;
       ++PlayerPathDirectPublications();
-      CastPlayer()->CommitLocomotionIntentRefresh(*match->GetBall(), decision_now, match->GetBallRetainer() == player);
+      CastPlayer()->CommitLocomotionIntentRefresh(tick.ball, decision_now, ball_retainer == player);
       ++PlayerPathRefreshCommits();
     } else {
       ++PlayerPathCandidatesMissing();
@@ -455,13 +458,13 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
   interruptAnim = e_InterruptAnim_None;
 
-  float ballDistanceNow = (match->GetBall()->Predict(0).Get2D() - spatialState.position).GetLength();
-  float ballDistanceFuture = (match->GetBall()->Predict(200).Get2D() - (spatialState.position + spatialState.movement * 0.2f)).GetLength();
+  float ballDistanceNow = (tick.ball.Predict(0).Get2D() - spatialState.position).GetLength();
+  float ballDistanceFuture = (tick.ball.Predict(200).Get2D() - (spatialState.position + spatialState.movement * 0.2f)).GetLength();
   float lastTouchBias = CastPlayer()->GetLastTouchBias(1500, now);
-  float oppLastTouchBias = football::sim::event::TeamTouchBias(match->touches(),
-      *match->GetTeam(std::abs(team->GetID() - 1)), 240, now);
+  float oppLastTouchBias = football::sim::event::TeamTouchBias(tick.touches,
+      tick.opponent_team, 240, now);
 
-  if (CastPlayer() == match->GetDesignatedPossessionPlayer() &&
+  if (CastPlayer() == tick.designated_possession_player &&
       ((lastTouchBias <= 0.01f && oppLastTouchBias <= 0.01f &&
         action.type == e_FunctionType_Movement &&
         ballDistanceNow < 0.6f && ballDistanceFuture > 0.65f &&
@@ -474,7 +477,7 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
         ballDistanceNow < 0.4f)
 
        ) &&
-      match->GetBall()->Predict(0).coords[2] < 1.6f) {
+      tick.ball.Predict(0).coords[2] < 1.6f) {
 
     CastPlayer()->TriggerControlledBallCollision();
     //SetGreenDebugPilon(spatialState.position);
@@ -483,13 +486,16 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
   // ------------------------ EXPERIMENTAL ------------------------------------------------
   bool controlledBallCollision = CastPlayer()->IsControlledBallCollisionTriggered();
   if (controlledBallCollision) CastPlayer()->ResetControlledBallCollisionTrigger();
-  if (match->MayTouchBall(*player) && controlledBallCollision && !action.HasScheduledContact()) {
-    Vector3 currentBallVec = match->GetBall()->GetMovement();
+  const bool may_touch = tick.ball_in_play ||
+      (tick.play_authorized && tick.set_piece_active && tick.restart.active &&
+       tick.restart.taker == player);
+  if (may_touch && controlledBallCollision && !action.HasScheduledContact()) {
+    Vector3 currentBallVec = tick.ball.GetMovement();
     radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + currentAnim.rotationSmuggle.end;
 
     radian xRot = 0;
     radian yRot = 0;
-    Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), now, rng_, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+    Vector3 touchVec = GetTrapVector(&tick.ball, CastPlayer(), tick.touches, tick.opponent_team, now, rng_, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
     if (currentAnim.originatingCommand.modifier &
         e_PlayerCommandModifier_KnockOn) {
       touchVec *= 1.35f;//1.2f;
@@ -498,15 +504,15 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
     float bumpyRideBias = 0.0f;
     touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-    football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
-        *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()),
-        now, match->GetBallRetainer());
-    match->GetBall()->SetRotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias), match->GetBallEnvironment()); // 0.9
+    football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
+        first_roster, second_roster,
+        now, ball_retainer);
+    tick.ball.SetRotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias), tick.ball_environment); // 0.9
     notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart)); //, e_TouchType_Accidental
   }
   // ---------------------- / EXPERIMENTAL ------------------------------------------------
 
-  if (match->MayTouchBall(*player) && action.HasScheduledContact() &&
+  if (may_touch && action.HasScheduledContact() &&
       action.Frame() == action.ContactFrame()) {
     ContactAuthorityAudit *contact_audit =
         ContactAuthorityAuditEnabled() && IsTrackedScheduledContact(action.type)
@@ -531,7 +537,7 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
     float touchableDistance = 0.4f;
 
-    float fullBallDistance = (match->GetBall()->Predict(0) - (currentAnim.touchPos + currentAnim.positionOffset)).GetLength();
+    float fullBallDistance = (tick.ball.Predict(0) - (currentAnim.touchPos + currentAnim.positionOffset)).GetLength();
 
     if (!GetCurrentBakedClip().metadata.incoming_retain_state.empty()) {
       fullBallDistance = 0.0f;
@@ -542,13 +548,13 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
     bumpyRideBias = clamp(bumpyRideBias - 0.001f, 0.0f, 1.0f);
     bumpyRideBias = curve(bumpyRideBias, 1.0f);
     bumpyRideBias = curve(bumpyRideBias, 0.5f);
-    Vector3 currentBallVec = match->GetBall()->GetMovement();
+    Vector3 currentBallVec = tick.ball.GetMovement();
     bool contact_reachable = false;
     if (contact_audit) {
       contact_audit->full_ball_distances.push_back(fullBallDistance);
       contact_audit->bumpy_ride_biases.push_back(bumpyRideBias);
       const float height_gap = std::fabs(
-          desiredBallHeight - match->GetBall()->Predict(0).coords[2]);
+          desiredBallHeight - tick.ball.Predict(0).coords[2]);
       if (!GetCurrentBakedClip().metadata.incoming_retain_state.empty())
         ++contact_audit->incoming_retain_override;
       if (!(fullBallDistance < touchableDistance)) {
@@ -570,7 +576,7 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
     };
 
     if (fullBallDistance < touchableDistance &&
-        std::fabs(desiredBallHeight - match->GetBall()->Predict(0).coords[2]) <
+        std::fabs(desiredBallHeight - tick.ball.Predict(0).coords[2]) <
             1.0f) {
 
       radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + currentAnim.rotationSmuggle.end;
@@ -581,7 +587,7 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
         //printf("trap!\n");
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), now, rng_, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetTrapVector(&tick.ball, CastPlayer(), tick.touches, tick.opponent_team, now, rng_, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
         if (currentAnim.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           touchVec *= 1.35f;
@@ -589,11 +595,11 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
-            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()),
-            now, match->GetBallRetainer());
+        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
+            first_roster, second_roster,
+            now, ball_retainer);
         record_contact_impulse(touchVec);
-        match->GetBall()->SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
+        tick.ball.SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), tick.ball_environment);
 
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -601,7 +607,7 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
       else if (currentAnim.functionType == e_FunctionType_BallControl) {
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetBallControlVector(match->GetBall(), CastPlayer(), *match->GetTeam(1 - team->GetID()), GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetBallControlVector(&tick.ball, CastPlayer(), tick.opponent_team, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
         if (currentAnim.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           touchVec *= 1.35f;
@@ -609,11 +615,11 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
-            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()),
-            now, match->GetBallRetainer());
+        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
+            first_roster, second_roster,
+            now, ball_retainer);
         record_contact_impulse(touchVec);
-        match->GetBall()->SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias), match->GetBallEnvironment()); // 1.0
+        tick.ball.SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias), tick.ball_environment); // 1.0
 
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -666,9 +672,9 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
         if (_PassFiddlingEnabled()) {
           if (contact_audit) ++contact_audit->pass_fiddling;
-          //SetGreenDebugPilon(match->GetBall()->Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
+          //SetGreenDebugPilon(tick.ball.Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
 
-          touchVec = GetBestPossibleTouch(now, touchVec, currentAnim.functionType);
+          touchVec = GetBestPossibleTouch(now, tick, touchVec, currentAnim.functionType);
 
           // add a little curve for aesthetics & realism
           radian bodyTouchAngle = spatialState.bodyDirectionVec.GetAngle2D(touchVec) / pi;
@@ -680,20 +686,20 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
           touchVec.Rotate2D(amount * (0.4f + 0.6f * NormalizedClamp(touchVec.GetLength(), 0.0f, 70.0f)));
           zcurve = amount * -340;//-600;
 
-          //SetRedDebugPilon(match->GetBall()->Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
+          //SetRedDebugPilon(tick.ball.Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
         }
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
-            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()),
-            now, match->GetBallRetainer());
+        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
+            first_roster, second_roster,
+            now, ball_retainer);
         record_contact_impulse(touchVec);
         float forwardness = 3.5f;
         if (currentAnim.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
         radian xRot = touchVec.GetNormalized(0).coords[1] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
         radian yRot = touchVec.GetNormalized(0).coords[0] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
-        match->GetBall()->SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
+        tick.ball.SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias), tick.ball_environment);
 
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -718,48 +724,48 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
         radian xRot = 0;
         radian yRot = 0;
         radian zRot = 0;
-        Vector3 touchVec = GetShotVector(match->GetBall(), CastPlayer(), GetCurrentBakedClip(), rng_, currentAnim, spatialState, decayingPositionOffset, xRot, yRot, zRot);
+        Vector3 touchVec = GetShotVector(&tick.ball, CastPlayer(), GetCurrentBakedClip(), rng_, currentAnim, spatialState, decayingPositionOffset, xRot, yRot, zRot);
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
-            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()),
-            now, match->GetBallRetainer());
+        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
+            first_roster, second_roster,
+            now, ball_retainer);
         record_contact_impulse(touchVec);
-        match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
+        tick.ball.SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), tick.ball_environment);
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
       else if (currentAnim.functionType == e_FunctionType_Interfere) {
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), now, rng_, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetTrapVector(&tick.ball, CastPlayer(), tick.touches, tick.opponent_team, now, rng_, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
         touchVec =
             touchVec * 0.5f +
-            (match->GetBall()->Predict(0).Get2D() - spatialState.position)
+            (tick.ball.Predict(0).Get2D() - spatialState.position)
                     .GetNormalized() *
                 4.0f +
             Vector3(0, 0, rng_.Uniform(0.5f, 1.5f));  // was 1 .. 6
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
-            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()),
-            now, match->GetBallRetainer());
+        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
+            first_roster, second_roster,
+            now, ball_retainer);
         // Legacy three-argument call: the third value is z rotation; bias was 1.0.
-        match->GetBall()->SetRotation(xRot, yRot, 0.3f * (1.0f - bumpyRideBias), 1.0f, match->GetBallEnvironment());
+        tick.ball.SetRotation(xRot, yRot, 0.3f * (1.0f - bumpyRideBias), 1.0f, tick.ball_environment);
         notify_touch(e_TouchType_Accidental); // it's not truly accidental, but the resulting direction somewhat is, so goalies may fetch these balls
       }
 
       else if (currentAnim.functionType == e_FunctionType_Deflect) {
         bool canRetain = true; // can we grab hold of the ball?
         if (GetCurrentBakedClip().metadata.outgoing_retain_state.compare("") == 0) canRetain = false; // not the right anim, hopeless!
-        if (match->GetBallRetainer() != 0) canRetain = false; // somebody is already holding the ball :( (dafuq, this should not happen, right?)
+        if (ball_retainer != 0) canRetain = false; // somebody is already holding the ball :( (dafuq, this should not happen, right?)
 
-        float veloDifficulty = NormalizedClamp((match->GetBall()->GetMovement() - spatialState.movement).GetLength(), 0.0f, 40.0f);
+        float veloDifficulty = NormalizedClamp((tick.ball.GetMovement() - spatialState.movement).GetLength(), 0.0f, 40.0f);
         float reactionDifficulty = 0.0f;
-        Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(match->touches(),
-            *match->GetTeam(std::abs(team->GetID() - 1)));
+        Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(tick.touches,
+            tick.opponent_team);
         if (lastTouchPlayer) {
           reactionDifficulty =
               std::pow(lastTouchPlayer->GetLastTouchBias(
@@ -770,8 +776,9 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
         if (canRetain) {
           match->SetBallRetainer(CastPlayer());
+          ball_retainer = CastPlayer();
         } else {
-          Vector3 currentBallMovement = match->GetBall()->GetMovement().Get2D();
+          Vector3 currentBallMovement = tick.ball.GetMovement().Get2D();
           Vector3 playerMovement = spatialState.movement;
           Vector3 touchVec =
               (-currentBallMovement * 0.1f + playerMovement * 2.0f +
@@ -784,24 +791,24 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
           touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-          football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
-              *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()),
-              now, match->GetBallRetainer());
-          match->GetBall()->SetRotation(0, 0, 0, 0.2f * (1.0f - bumpyRideBias), match->GetBallEnvironment());
+          football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
+              first_roster, second_roster,
+              now, ball_retainer);
+          tick.ball.SetRotation(0, 0, 0, 0.2f * (1.0f - bumpyRideBias), tick.ball_environment);
         }
         notify_touch(e_TouchType_Accidental);
       }
 
       else if (currentAnim.functionType == e_FunctionType_Sliding) {
         Vector3 touchVec = GetCurrentBakedClip().metadata.outgoing_ball_direction.GetRotated2D(spatialState.angle);
-        touchVec = touchVec * 6.0f + match->GetBall()->GetMovement() * -0.28f;
+        touchVec = touchVec * 6.0f + tick.ball.GetMovement() * -0.28f;
         touchVec += Vector3(0, 0, 6);
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), touchVec, history,
-            *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()),
-            now, match->GetBallRetainer());
+        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
+            first_roster, second_roster,
+            now, ball_retainer);
 
         notify_touch(e_TouchType_Accidental);
       }
@@ -812,7 +819,7 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
     }
   }
 
-  if (match->GetBallRetainer() == player) {
+  if (ball_retainer == player) {
     if (((!action.HasScheduledContact() ||
           action.Frame() >= action.ContactFrame()) &&
          GetCurrentBakedClip().metadata.outgoing_retain_state != "") ||
@@ -837,16 +844,17 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
         throw std::runtime_error("Humanoid::Process: unknown retain state: " +
                                  retainState);
       }
-      football::sim::ApplyBallTouch(*match->GetBall(), match->GetBallEnvironment(), Vector3(0), history,
-          *match->GetTeam(match->FirstTeam()), *match->GetTeam(match->SecondTeam()),
-          now, match->GetBallRetainer());
-      match->GetBall()->SetRotation(0, 0, 0, 1.0, match->GetBallEnvironment());
-      match->GetBall()->SetPosition(ComputeRetainAnchor(
-          spatialState.position, spatialState.bodyDirectionVec, anchor), match->GetBallEnvironment());
+      football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, Vector3(0), history,
+          first_roster, second_roster,
+          now, ball_retainer);
+      tick.ball.SetRotation(0, 0, 0, 1.0, tick.ball_environment);
+      tick.ball.SetPosition(ComputeRetainAnchor(
+          spatialState.position, spatialState.bodyDirectionVec, anchor), tick.ball_environment);
       notify_touch(e_TouchType_Intentional_Nonkicked);
     } else {
       // no longer retaining
       match->SetBallRetainer(0);
+      ball_retainer = nullptr;
     }
   }
 
@@ -928,28 +936,28 @@ void Humanoid::Process(football::sim::Tick now, std::span<MentalImage> history, 
 
   // ballretainer should not get out of 16 meter box
 
-  if (match->GetBallRetainer() == player &&
+  if (ball_retainer == player &&
       CastPlayer()->GetFormationEntry().role == e_PlayerRole_GK &&
-      (match->IsInSetPiece() == false && match->IsInPlay() == true)) {
-    if (match->GetBall()->Predict(0).coords[1] > 20.05f) {
-      OffsetPosition(Vector3(0, clamp(20.05f - match->GetBall()->Predict(0).coords[1], -0.5f, 0.5f), 0) * 0.3f);
+      (tick.set_piece_active == false && tick.play_authorized == true)) {
+    if (tick.ball.Predict(0).coords[1] > 20.05f) {
+      OffsetPosition(Vector3(0, clamp(20.05f - tick.ball.Predict(0).coords[1], -0.5f, 0.5f), 0) * 0.3f);
     }
-    if (match->GetBall()->Predict(0).coords[1] < -20.05f) {
-      OffsetPosition(Vector3(0, clamp(-20.05f - match->GetBall()->Predict(0).coords[1], -0.5f, 0.5f), 0) * 0.3f);
+    if (tick.ball.Predict(0).coords[1] < -20.05f) {
+      OffsetPosition(Vector3(0, clamp(-20.05f - tick.ball.Predict(0).coords[1], -0.5f, 0.5f), 0) * 0.3f);
     }
-    if (match->GetBall()->Predict(0).coords[0] * -team->GetDynamicSide() >
+    if (tick.ball.Predict(0).coords[0] * -team->GetDynamicSide() >
         -pitchHalfW + 16.4f) {
       OffsetPosition(Vector3(clamp((-pitchHalfW + 16.4f) -
-                                       match->GetBall()->Predict(0).coords[0] *
+                                       tick.ball.Predict(0).coords[0] *
                                            -team->GetDynamicSide(),
                                    -0.5f, 0.5f),
                              0, 0) *
                      -team->GetDynamicSide() * 0.3f);
     }
-    if (match->GetBall()->Predict(0).coords[0] * -team->GetDynamicSide() <
+    if (tick.ball.Predict(0).coords[0] * -team->GetDynamicSide() <
         -pitchHalfW + 0.1f) {
       OffsetPosition(Vector3(clamp((-pitchHalfW + 0.1f) -
-                                       match->GetBall()->Predict(0).coords[0] *
+                                       tick.ball.Predict(0).coords[0] *
                                            -team->GetDynamicSide(),
                                    -0.5f, 0.5f),
                              0, 0) *
@@ -1009,7 +1017,7 @@ void Humanoid::ResetSituation(const Vector3 &focusPos) {
   //printf("humanoid reset\n");
 }
 
-bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
+bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick, const PlayerCommand &command,
                           std::span<MentalImage> history,
                           e_InterruptAnim localInterruptAnim,
                           bool preferPassAndShot) {
@@ -1026,21 +1034,21 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
       command.desiredFunctionType != e_FunctionType_Trip &&
       command.desiredFunctionType != e_FunctionType_Special &&
       command.desiredFunctionType != e_FunctionType_Sliding) {
-    if ((currentMentalImage->GetBallPrediction(200, now, *match->GetBall()).Get2D() -
+    if ((currentMentalImage->GetBallPrediction(200, now, tick.ball).Get2D() -
          spatialState.position)
             .GetLength() > ballDistanceOptimizeThreshold) {
       return false;
     }
-    if ((currentMentalImage->GetBallPrediction(defaultTouchOffset_ms, now, *match->GetBall()).Get2D() -
+    if ((currentMentalImage->GetBallPrediction(defaultTouchOffset_ms, now, tick.ball).Get2D() -
          spatialState.position)
                 .GetLength() > 2.0f &&
-        //    match->GetBall()->GetMovement().GetNormalized(0).GetDotProduct(player->GetMovement().GetNormalizedMax(1.0f))
+        //    tick.ball.GetMovement().GetNormalized(0).GetDotProduct(player->GetMovement().GetNormalizedMax(1.0f))
         //    < 0) { // ball and player going the other way
-        (currentMentalImage->GetBallPrediction(defaultTouchOffset_ms, now, *match->GetBall()).Get2D() -
+        (currentMentalImage->GetBallPrediction(defaultTouchOffset_ms, now, tick.ball).Get2D() -
          (spatialState.position +
           spatialState.movement * defaultTouchOffset_ms * 0.001))
                 .GetLength() >
-            (currentMentalImage->GetBallPrediction(0, now, *match->GetBall()).Get2D() -
+            (currentMentalImage->GetBallPrediction(0, now, tick.ball).Get2D() -
              (spatialState.position))
                 .GetLength()) {
         // ball moving away from player
@@ -1054,15 +1062,15 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
       command.desiredFunctionType != e_FunctionType_Special &&
       command.desiredFunctionType != e_FunctionType_Sliding &&
       command.desiredFunctionType != e_FunctionType_Deflect &&
-      match->GetBallRetainer() != player) {
-    if ((currentMentalImage->GetBallPrediction(1000, now, *match->GetBall()) - match->GetBall()->Predict(1000)).GetLength() > 2.0f) return false;
+      tick.ball_retainer != player) {
+    if ((currentMentalImage->GetBallPrediction(1000, now, tick.ball) - tick.ball.Predict(1000)).GetLength() > 2.0f) return false;
   }
 
   // /optimizations
 
   if (localInterruptAnim == e_InterruptAnim_ReQueue) {
 
-    float focusDistance = (match->GetDesignatedPossessionPlayer()->GetPosition() - spatialState.position).GetLength();
+    float focusDistance = (tick.designated_possession_player->GetPosition() - spatialState.position).GetLength();
 
     if (action.type != e_FunctionType_Movement &&
         command.desiredFunctionType == e_FunctionType_Movement) return false;
@@ -1215,7 +1223,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
   query.bySide = false;
   if (command.useDesiredLookAt &&
       GetCurrentBakedClip().metadata.outgoing_special_state.empty() &&
-      match->GetBallRetainer() != CastPlayer()) {
+      tick.ball_retainer != CastPlayer()) {
     Vector3 playerLookAtVec = (command.desiredLookAt - spatialState.position).GetNormalized(spatialState.directionVec);
     query.lookAtVecRel = playerLookAtVec.GetRotated2D(-spatialState.angle);
     query.bySide = true;
@@ -1230,7 +1238,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
       command.desiredFunctionType == e_FunctionType_Interfere ||
       command.desiredFunctionType == e_FunctionType_Deflect) {
     query.byIncomingBallDirection = true;
-    query.incomingBallDirection = (currentMentalImage->GetBallPrediction(180, now, *match->GetBall()) - currentMentalImage->GetBallPrediction(120, now, *match->GetBall())).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
+    query.incomingBallDirection = (currentMentalImage->GetBallPrediction(180, now, tick.ball) - currentMentalImage->GetBallPrediction(120, now, tick.ball)).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
   }
 
   if (CastPlayer()->AllowLastDitch()) {
@@ -1245,7 +1253,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
   }
 
   query.properties.incoming_special_state = GetCurrentBakedClip().metadata.outgoing_special_state;
-  if (match->GetBallRetainer() == player) query.properties.incoming_retain_state = GetCurrentBakedClip().metadata.outgoing_retain_state;
+  if (tick.ball_retainer == player) query.properties.incoming_retain_state = GetCurrentBakedClip().metadata.outgoing_retain_state;
   if (command.useSpecialVar1) query.properties.special_var1 = command.specialVar1;
   if (command.useSpecialVar2) query.properties.special_var2 = command.specialVar2;
 
@@ -1309,7 +1317,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
       }*/
 
       bool strict = true;
-      if (CastPlayer()->AllowLastDitch(false) || _HighOrBouncyBall()) strict = false;
+      if (CastPlayer()->AllowLastDitch(false) || _HighOrBouncyBall(tick.ball)) strict = false;
       float allowedBaseAngle = 0.3f * pi;
       int allowedVelocitySteps = 2;
       int bestBallControlQuadrantID = -1;
@@ -1317,7 +1325,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
       if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedBaseAngle);
 
       // when too unlike command's desired movement, just don't go for it (and hope for another ballcontrol/trap anim to save us later on)
-      if (!_HighOrBouncyBall() && query.allowLastDitchAnims == false) {
+      if (!_HighOrBouncyBall(tick.ball) && query.allowLastDitchAnims == false) {
         assert(!dataSet.empty());
         Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
         const AnimationClip &bestWeGot = GetBakedClip(*dataSet.begin());
@@ -1365,9 +1373,9 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
   std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::ComparePriorityVariable, this, _1, _2));
 
   int desiredIdleLevel = 0;
-  if (!match->IsInPlay()) desiredIdleLevel = 2;
-  if (match->IsInSetPiece()) desiredIdleLevel = 1;
-  else if ((match->GetBall()->Predict(200) - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
+  if (!tick.play_authorized) desiredIdleLevel = 2;
+  if (tick.set_piece_active) desiredIdleLevel = 1;
+  else if ((tick.ball.Predict(200) - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
   SetIdlePredicate(desiredIdleLevel);
   std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
 
@@ -1434,7 +1442,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
   if (perturbation.enabled && !perturbation.applied && foot_counterfactual &&
       localInterruptAnim == e_InterruptAnim_Switch &&
       action.type == e_FunctionType_Movement &&
-      CastPlayer()->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player) &&
+      CastPlayer()->IsEligibleForProceduralLocomotion(tick.ball_retainer == player) &&
       !dataSet.empty() && !withoutFootSort.empty() &&
       dataSet.front() != withoutFootSort.front() &&
       (!perturbation.require_frame_count_difference ||
@@ -1476,21 +1484,21 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
     assert(desiredMovement.coords[2] == 0.0f);
     Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
   } else if (command.desiredFunctionType == e_FunctionType_BallControl) {
-    if (NeedTouch(now, *dataSet.begin(), command, history)) {
-      selectedAnimID = GetBestCheatableAnimID(now, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim, preferPassAndShot);
+    if (NeedTouch(now, tick, *dataSet.begin(), command, history)) {
+      selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim, preferPassAndShot);
     }
   } else if (command.desiredFunctionType == e_FunctionType_Trap ||
              command.desiredFunctionType == e_FunctionType_Interfere ||
              command.desiredFunctionType == e_FunctionType_Deflect) {
-    selectedAnimID = GetBestCheatableAnimID(now, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim, preferPassAndShot);
+    selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim, preferPassAndShot);
   } else if (command.desiredFunctionType == e_FunctionType_ShortPass ||
              command.desiredFunctionType == e_FunctionType_LongPass ||
              command.desiredFunctionType == e_FunctionType_HighPass ||
              command.desiredFunctionType == e_FunctionType_Shot) {
 
-    selectedAnimID = GetBestCheatableAnimID(now, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim);
+    selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim);
   } else if (command.desiredFunctionType == e_FunctionType_Sliding) {
-    selectedAnimID = GetBestCheatableAnimID(now, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim);
+    selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim);
     if (selectedAnimID == -1) {
       if (dataSet.size() > 0) {
         selectedAnimID = *dataSet.begin();
@@ -1558,7 +1566,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
     RecordMovementCommandAcceptance(material_candidate, action.type,
                                     static_cast<int>(football::sim::ToMilliseconds(action.elapsed)), localInterruptAnim,
                                     command, static_cast<int>(GetCurrentBakedClip().frame_count));
-    currentAnim.movementSmuggle = CalculateMovementSmuggle(now, command.desiredDirection, command.desiredVelocityFloat, history);
+    currentAnim.movementSmuggle = CalculateMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, history);
     currentAnim.movementSmuggleOffset = Vector3(0);
     CastPlayer()->BeginSimulationAction();
     const PlayerActionState &scheduled = CastPlayer()->GetSimulationActionState();
@@ -1591,7 +1599,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
   return false;
 }
 
-bool Humanoid::NeedTouch(football::sim::Tick now, int animID, const PlayerCommand &command, std::span<MentalImage> history) {
+bool Humanoid::NeedTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick, int animID, const PlayerCommand &command, std::span<MentalImage> history) {
 
   // when idle (and desiredvelo is idle as well), don't want to touch the ball every frame
 
@@ -1599,7 +1607,7 @@ bool Humanoid::NeedTouch(football::sim::Tick now, int animID, const PlayerComman
 
   if (FloatToEnumVelocity(clip.metadata.outgoing_velocity != e_Velocity_Idle)) return true;
   if (command.desiredVelocityFloat > idleDribbleSwitch) return true;
-  if (std::fabs(match->GetBall()->GetMovement().GetLength()) > 2.0f) return true;
+  if (std::fabs(tick.ball.GetMovement().GetLength()) > 2.0f) return true;
 
   Vector3 animMovement = clip.metadata.outgoing_movement.GetRotated2D(spatialState.angle) * 0.3f + spatialState.movement * 0.7f;
 
@@ -1607,7 +1615,7 @@ bool Humanoid::NeedTouch(football::sim::Tick now, int animID, const PlayerComman
   animMovement.Normalize(spatialState.directionVec);
   animMovement *= spatialState.movement.GetLength() * 0.8f + animVelo * 0.2f;
   auto currentMentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
-  Vector3 ballMovement = (currentMentalImage->GetBallPrediction(250, now, *match->GetBall()).Get2D() - currentMentalImage->GetBallPrediction(240, now, *match->GetBall()).Get2D()) * 100;
+  Vector3 ballMovement = (currentMentalImage->GetBallPrediction(250, now, tick.ball).Get2D() - currentMentalImage->GetBallPrediction(240, now, tick.ball).Get2D()) * 100;
 
   if (std::fabs(clip.metadata.outgoing_angle) > 0.125f * pi) return true;
 
@@ -1743,10 +1751,10 @@ float Humanoid::GetBodyBallDistanceAdvantage(int animID, e_FunctionType function
   return result;
 }
 
-signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, int &animTouchFrame_ret, float &radiusOffset_ret, Vector3 &touchPos_ret, Vector3 &fullActionSmuggle_ret, Vector3 &actionSmuggle_ret, radian &rotationSmuggle_ret, e_InterruptAnim localInterruptAnim, bool preferPassAndShot) const {
+signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, int &animTouchFrame_ret, float &radiusOffset_ret, Vector3 &touchPos_ret, Vector3 &fullActionSmuggle_ret, Vector3 &actionSmuggle_ret, radian &rotationSmuggle_ret, e_InterruptAnim localInterruptAnim, bool preferPassAndShot) const {
 
   // never allow touchanims when someone else is holding the ball in his/her hands
-  if (match->GetBallRetainer() != 0 && match->GetBallRetainer() != player) return -1;
+  if (tick.ball_retainer != 0 && tick.ball_retainer != player) return -1;
 
   Vector3 incomingMovement = spatialState.movement.GetRotated2D(-spatialState.angle);
 
@@ -1822,8 +1830,8 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<M
       animTouchFrame = clip.touches[touchIDs[touchNum]].frame;
 
       // out of bounds?
-      if (match->GetBallRetainer() != player) {
-        Vector3 absBallPos = match->GetBall()->Predict(animTouchFrame * 10);
+      if (tick.ball_retainer != player) {
+        Vector3 absBallPos = tick.ball.Predict(animTouchFrame * 10);
         if (std::fabs(absBallPos.coords[0]) > pitchHalfW + lineHalfW + 0.11f ||
             std::fabs(absBallPos.coords[1]) > pitchHalfH + lineHalfW + 0.11f) {
           touchNum++;
@@ -1836,8 +1844,8 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<M
 
       Vector3 ballPos, ballMovement;
       auto mentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
-      ballPos = mentalImage->GetBallPrediction(animTouchFrame * 10, now, *match->GetBall());
-      ballMovement = (mentalImage->GetBallPrediction(animTouchFrame * 10 + 10, now, *match->GetBall()) - mentalImage->GetBallPrediction(animTouchFrame * 10, now, *match->GetBall())) * 100.0f;
+      ballPos = mentalImage->GetBallPrediction(animTouchFrame * 10, now, tick.ball);
+      ballMovement = (mentalImage->GetBallPrediction(animTouchFrame * 10 + 10, now, tick.ball) - mentalImage->GetBallPrediction(animTouchFrame * 10, now, tick.ball)) * 100.0f;
       ballPos = (ballPos - spatialState.position).GetRotated2D(-spatialState.angle);
       ballMovement = ballMovement.GetRotated2D(-spatialState.angle);
 
@@ -1879,7 +1887,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<M
       if (ballPos.coords[2] > 1.8f && ballPos.coords[2] > animBallPos.coords[2] + 0.12f) ballDistanceZ *= 2.0f;
       if (ballPos.coords[2] > 2.6f && ballPos.coords[2] > animBallPos.coords[2] + 0.08f) ballDistanceZ *= 20.0f;
       if (functionType == e_FunctionType_Deflect) ballDistanceZ *= 0.8f;
-      if (match->GetBallRetainer() == player) ballDistanceZ = 0.0f;
+      if (tick.ball_retainer == player) ballDistanceZ = 0.0f;
 
       if (ballPos.coords[2] < 0.5f && isBase) ballDistanceZ = std::max(ballDistanceZ - 0.15f, 0.0f); // low balls should be doable with ground level anims, doesn't look that bad :P
 
@@ -1891,7 +1899,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<M
 
         /* todo: check if this is a possibility in some form
               // add this to desired cheatvec to get more of a flowing feeling to it
-              Vector3 flowVector = spatialState.movement - match->GetBall()->GetMovement().Get2D();// - anims->GetAnim(*iter)->GetOutgoingMovement().GetRotated2D(spatialState.angle) * 2.0;
+              Vector3 flowVector = spatialState.movement - tick.ball.GetMovement().Get2D();// - anims->GetAnim(*iter)->GetOutgoingMovement().GetRotated2D(spatialState.angle) * 2.0;
               flowVector.Rotate2D(-spatialState.angle);
               actionSmuggleVec2D += (flowVector).GetNormalized(0) * 0.3f;
         */
@@ -1969,7 +1977,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<M
         float bodyBallDistanceAdvantage = GetBodyBallDistanceAdvantage(*iter, functionType, animTouchMovement, touchMovement, incomingMovement, adaptedOutgoingMovement, predictedAngle, bodyPos, FFO, animBallPos.Get2D(), ballPos.Get2D(), ballMovement.Get2D(), touchFramedRadiusFactor, radiusCheatOffset, 1.0f, debug);
 
         if (bodyBallDistanceAdvantage >= 1.0f ||
-            match->GetBallRetainer() == player) {
+            tick.ball_retainer == player) {
           found = true;
 
           bestAnimID = (signed int)*iter;
@@ -1986,7 +1994,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<M
 
   if (found) {
     auto currentMentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
-    touchPos_ret = currentMentalImage->GetBallPrediction(animTouchFrame_ret * 10, now, *match->GetBall());
+    touchPos_ret = currentMentalImage->GetBallPrediction(animTouchFrame_ret * 10, now, tick.ball);
 
     fullActionSmuggle_ret = bestActionSmuggleVec2D.GetRotated2D(spatialState.angle);
     actionSmuggle_ret = fullActionSmuggle_ret;
@@ -2027,7 +2035,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<M
       smuggleDistance = smuggleDistanceMPS * (animTouchFrame_ret / 100.0f);
 */
 
-      if (match->GetBallRetainer() == player) smuggleDistance = 0.0f;
+      if (tick.ball_retainer == player) smuggleDistance = 0.0f;
       actionSmuggle_ret = actionSmuggle_ret.GetNormalized(0) * smuggleDistance;
 
       // lose forward-facing part of smuggle
@@ -2057,7 +2065,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<M
       }
 
       // less chaos in micro battles
-      actionSmuggle_ret *= 0.7f + 0.3f * NormalizedClamp(CastPlayer()->GetClosestOpponentDistance(*match->GetTeam(1 - team->GetID())), 0.6f, 1.2f);
+      actionSmuggle_ret *= 0.7f + 0.3f * NormalizedClamp(CastPlayer()->GetClosestOpponentDistance(tick.opponent_team), 0.6f, 1.2f);
     }
 
     assert(actionSmuggle_ret.coords[2] == 0.0f);
@@ -2068,14 +2076,14 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, std::span<M
   return bestAnimID;
 }
 
-Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const Vector3 &desiredDirection,
+Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick, const Vector3 &desiredDirection,
                                            float desiredVelocityFloat, std::span<MentalImage> history) {
 
   if (!enableMovementSmuggle) return Vector3(0);
 
-  if (team->GetDesignatedTeamPossessionPlayer() != player || match->GetDesignatedPossessionPlayer() != player ||
+  if (team->GetDesignatedTeamPossessionPlayer() != player || tick.designated_possession_player != player ||
       currentAnim.touchFrame != -1 || (currentAnim.functionType == e_FunctionType_Trip && GetCurrentBakedClip().metadata.trip_type != 1) || GetCurrentBakedClip().metadata.incoming_special_state.compare("") != 0 || GetCurrentBakedClip().metadata.outgoing_special_state.compare("") != 0 ||
-      !match->IsInPlay() || match->IsInSetPiece() || match->GetBallRetainer() != 0) return Vector3(0);
+      !tick.play_authorized || tick.set_piece_active || tick.ball_retainer != 0) return Vector3(0);
 
   Vector3 toDesired;
 
@@ -2092,7 +2100,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const Vector
   Vector3 predictedPos;
   radian predictedAngle;
   CalculatePredictedSituation(predictedPos, predictedAngle);
-  Vector3 ballPos = football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(futureTime_ms, now, *match->GetBall());
+  Vector3 ballPos = football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(futureTime_ms, now, tick.ball);
   float ballHeight = ballPos.coords[2];
   Vector3 ffo = GetFrontOfFootOffsetRel(predictedOutgoingMovement.GetLength(), GetCurrentBakedClip().metadata.outgoing_body_angle, ballHeight).GetRotated2D(predictedAngle);
   Vector3 desiredBallPos = predictedPos + ffo;
@@ -2103,8 +2111,8 @@ Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const Vector
     // now calculate the shortest line between that line and that point. now move over that line from the point towards the line somewhat
 
     Line ballMovementLine;
-    ballMovementLine.SetVertex(0, football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(0, now, *match->GetBall()).Get2D());
-    ballMovementLine.SetVertex(1, football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(futureTime_ms, now, *match->GetBall()).Get2D());
+    ballMovementLine.SetVertex(0, football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(0, now, tick.ball).Get2D());
+    ballMovementLine.SetVertex(1, football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(futureTime_ms, now, tick.ball).Get2D());
     if (ballMovementLine.GetLength() < 0.5f) return Vector3(0); // ball is slow or very close
 
     float u = ballMovementLine.GetClosestToPoint(desiredBallPos);
@@ -2139,7 +2147,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const Vector
   return toDesired;
 }
 
-Vector3 Humanoid::GetBestPossibleTouch(football::sim::Tick now, const Vector3 &desiredTouch,
+Vector3 Humanoid::GetBestPossibleTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick, const Vector3 &desiredTouch,
                                        e_FunctionType functionType) {
   constexpr float maxPowerShortPass = 30.0f;
   constexpr float maxPowerHighPass  = 42.0f;
@@ -2157,7 +2165,7 @@ Vector3 Humanoid::GetBestPossibleTouch(football::sim::Tick now, const Vector3 &d
   // clamp to maximum possible power (from anim vars)
 
   float maxPower = maxPowerBase * maxPowerFactor * (1.0f - clamp(decayingPositionOffset.GetLength() * 2.5f, 0.0f, 0.25f));
-  maxPower += match->GetBall()->GetMovement().GetLength() * 0.5f; // can use some of current ballmomentum
+  maxPower += tick.ball.GetMovement().GetLength() * 0.5f; // can use some of current ballmomentum
   if (resultTouch.GetLength() > maxPower) {
     float missingPower = resultTouch.GetLength() - maxPower;
     resultTouch = resultTouch.GetNormalized(0) * maxPower;
@@ -2176,7 +2184,7 @@ Vector3 Humanoid::GetBestPossibleTouch(football::sim::Tick now, const Vector3 &d
   float distanceFactor = 0.0f;
   float heightFactor = 0.0f;
   float ballMovementFactor = 0.0f;
-  GetDifficultyFactors(match->GetBall(), CastPlayer(), match->touches(), *match->GetTeam(1 - team->GetID()), now, rng_, spatialState, decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
+  GetDifficultyFactors(&tick.ball, CastPlayer(), tick.touches, tick.opponent_team, now, rng_, spatialState, decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // difficult balls may go into a more random orientation, or, if the anim has a default outgoing direction, it may converge towards that (since it is the easiest direction for that anim)
   radian randomRotation = 0.0f;
@@ -2196,11 +2204,11 @@ Vector3 Humanoid::GetBestPossibleTouch(football::sim::Tick now, const Vector3 &d
   resultTouch *= 1.0f - distanceFactor * 0.3f;
   resultTouch.coords[2] += distanceFactor * 1.5f; // try to correct (add power) by playing higher ball (== less ground friction)
 
-  resultTouch.coords[2] += match->GetBall()->GetMovement().coords[2] * heightFactor * 0.5f +
+  resultTouch.coords[2] += tick.ball.GetMovement().coords[2] * heightFactor * 0.5f +
                            heightFactor * 1.0f;
 
   resultTouch = resultTouch * (1.0f - ballMovementFactor) +
-                match->GetBall()->GetMovement() * ballMovementFactor;
+                tick.ball.GetMovement() * ballMovementFactor;
 
   resultTouch.coords[2] += difficultyFactor * 5.0f * rng_.Uniform(0.2f, 1.0f);
 

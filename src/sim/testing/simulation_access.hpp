@@ -12,19 +12,19 @@ namespace football::sim::testing {
 // Product execution remains Init/Step/Observe/Finished/Result/Stop.
 class SimulationAccess {
  public:
-  static PlayerTickContext PlayerTickOf(const Simulation& simulation) {
-    return simulation.PlayerTickFacts();
+  static PlayerTickContext PlayerTickOf(Simulation& simulation, Player& actor) {
+    return simulation.PlayerTickFacts(actor);
   }
   static MatchClock& ClockOf(Simulation& simulation) {
     if (!simulation.match_ || !simulation.clock_) throw std::logic_error("simulation has no match");
     return *simulation.clock_;
   }
   static void SendOff(Simulation& simulation, Player& actor) {
-    const auto tick = PlayerTickOf(simulation);
+    const auto tick = PlayerTickOf(simulation, actor);
     actor.SendOff(tick.ball, tick.now, tick.rng);
   }
   static void Deactivate(Simulation& simulation, Player& actor) {
-    const auto tick = PlayerTickOf(simulation);
+    const auto tick = PlayerTickOf(simulation, actor);
     actor.Deactivate(tick.ball, tick.now);
   }
   static PlayerCommandInputs CommandInputsOf(Simulation& simulation) {

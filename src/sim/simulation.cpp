@@ -121,11 +121,22 @@ football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
       PitchFrameTransform(match.GetTeam(0)->GetStaticSide() != -1)};
 }
 
-football::sim::PlayerTickContext Simulation::PlayerTickFacts() const {
+football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor) const {
   if (!match_) throw std::logic_error("simulation has no match");
   auto& match = *match_;
-  return {match.GetTimelineTick(), match.IsInPlay(), match.clock_.IsHalfUnderway(),
-          match.GetLastTouchPlayer(), *match.GetBall(), match.rng()};
+  Team& own = *match.GetTeam(actor.GetTeamID());
+  Team& opponent = *match.GetTeam(1 - actor.GetTeamID());
+  Team& first = *match.GetTeam(match.FirstTeam());
+  Team& second = *match.GetTeam(match.SecondTeam());
+  const int processing_slot = actor.GetTeamID() == match.SecondTeam() ? 1 : 0;
+  return {match.GetTimelineTick(), match.IsInPlay(), match.IsInSetPiece(),
+          match.IsBallInPlay(), match.clock_.IsHalfUnderway(),
+          *match.GetBall(), match.GetBallEnvironment(),
+          match.GetBallRetainer(), match.GetDesignatedPossessionPlayer(),
+          match.GetLastTouchPlayer(), match.touches(),
+          match.GetReferee()->GetBuffer(), match.pitch(), own, opponent, first, second,
+          processing_slot, match.GetReferee()->RestartNeedsSimulation(),
+          match.rng()};
 }
 
 class Simulation::TouchEvents final : public football::sim::BallTouchSink {
@@ -294,7 +305,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
     football::sim::player::PrepareTeamPossession(team, opponent, match.IsInPlay(),
         match.IsInSetPiece(), match.ballRetainer, match.bestPossessionTeam);
     for (Player* actor : team.GetAllPlayers()) {
-      if (actor->IsActive()) actor->Process(PlayerTickFacts(), mental_images_, *touch_sink_);
+      if (actor->IsActive()) actor->Process(PlayerTickFacts(*actor), mental_images_, *touch_sink_);
     }
     football::sim::player::FinishTeamPossession(team, opponent);
   };
@@ -325,7 +336,8 @@ void Simulation::Step(const PlayerControlSet& controls) {
   match.GetTeam(match.first_team)->GetActivePlayers(players);
   match.GetTeam(match.second_team)->GetActivePlayers(players);
   football::sim::ResolvePlayerContacts(
-      {match.GetTimelineTick(), players, *match.ball, match.designatedPossessionPlayer},
+      {match.GetTimelineTick(), players, *match.ball, match.designatedPossessionPlayer,
+       match.ballRetainer},
       *match.referee_);
 
   // AdvanceClock → recent possession window → goal detection/consequences.

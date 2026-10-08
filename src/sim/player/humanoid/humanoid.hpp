@@ -33,7 +33,8 @@ class Humanoid : public HumanoidBase {
 
     Player *CastPlayer() const;
 
-    void Process(football::sim::Tick now, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) override;
+    void Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
+                 std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) override;
 
 
     bool TouchPending() { return (currentAnim.frameNum < currentAnim.touchFrame) ? true : false; }
@@ -47,8 +48,11 @@ class Humanoid : public HumanoidBase {
     virtual void ResetSituation(const Vector3 &focusPos);
 
   protected:
-    bool SelectAnim(football::sim::Tick now, const PlayerCommand &command, std::span<MentalImage> history, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) override;
-    bool NeedTouch(football::sim::Tick now, int animID, const PlayerCommand &command, std::span<MentalImage> history);
+    bool SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
+                    const PlayerCommand &command, std::span<MentalImage> history,
+                    e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) override;
+    bool NeedTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick, int animID,
+                   const PlayerCommand &command, std::span<MentalImage> history);
     float GetBodyBallDistanceAdvantage(
         int animID, e_FunctionType functionType,
         const Vector3 &animTouchMovement, const Vector3 &touchMovement,
@@ -59,9 +63,12 @@ class Humanoid : public HumanoidBase {
         const Vector3 &actualBallPos2D, const Vector3 &ballMovement2D,
         float radiusFactor, float radiusCheatDistance, float decayPow,
         bool debug = false) const;
-    signed int GetBestCheatableAnimID(football::sim::Tick now, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, int &animTouchFrame_ret, float &radiusOffset_ret, Vector3 &touchPos_ret, Vector3 &fullActionSmuggle_ret, Vector3 &actionSmuggle_ret, radian &rotationSmuggle_ret, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) const;
-    Vector3 CalculateMovementSmuggle(football::sim::Tick now, const Vector3 &desiredDirection, float desiredVelocityFloat, std::span<MentalImage> history);
-    Vector3 GetBestPossibleTouch(football::sim::Tick now, const Vector3 &desiredTouch, e_FunctionType functionType);
+    signed int GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, int &animTouchFrame_ret, float &radiusOffset_ret, Vector3 &touchPos_ret, Vector3 &fullActionSmuggle_ret, Vector3 &actionSmuggle_ret, radian &rotationSmuggle_ret, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) const;
+    Vector3 CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
+                                     const Vector3 &desiredDirection, float desiredVelocityFloat,
+                                     std::span<MentalImage> history);
+    Vector3 GetBestPossibleTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
+                                 const Vector3 &desiredTouch, e_FunctionType functionType);
 
     Team *team;
 };

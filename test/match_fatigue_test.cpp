@@ -36,7 +36,7 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
       const float fatigue = actor.GetFatigueFactorInv();
       const float stamina = actor.GetStaminaStat();
       actor.SetControl(move);
-      actor.Process(SimulationAccess::PlayerTickOf(simulation), history, touch_sink);
+      actor.Process(SimulationAccess::PlayerTickOf(simulation, actor), history, touch_sink);
       REQUIRE(actor.GetSimulationActionState().IsPureLocomotion(false));
       const float distance = (actor.GetPosition() - before).GetLength();
       metres += distance;

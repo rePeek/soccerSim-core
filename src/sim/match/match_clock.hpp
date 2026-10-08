@@ -20,7 +20,7 @@ class MatchClock {
   std::uint64_t ExecutedTicks() const { return duration_ticks_; }
   // Call-local consumers may borrow this gate across accepted-contact commands.
   const bool& IsHalfUnderway() const { return regulation_running_; }
-  bool IsBallInPlay() const { return ball_in_play_; }
+  const bool& IsBallInPlay() const { return ball_in_play_; }
 
   // BeginHalf means the accepted opening contact, not publication of First/SecondHalf.
   // It is idempotent across later accepted restarts; accumulated clocks never reset.

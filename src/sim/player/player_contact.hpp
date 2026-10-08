@@ -16,6 +16,7 @@ struct PlayerContactInputs {
   std::span<Player* const> players;
   const Ball& ball;
   Player* designated_possession_player;
+  Player* ball_retainer;
 };
 
 // Mutates players in pair order, then applies accumulated movement sharing.

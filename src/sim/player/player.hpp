@@ -323,7 +323,7 @@ class Player final {
     // legacy projection. It is intentionally a fatal invariant in all builds.
     void CheckSimulationActionOracle() const;
 
-    void TripMe(const Vector3 &tripVector, int tripType) { humanoid->TripMe(tripVector, tripType); }
+    void TripMe(const Vector3 &tripVector, int tripType, const Player* ball_retainer) { humanoid->TripMe(tripVector, tripType, ball_retainer); }
 
     void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
     int GetReactionTime_ms();

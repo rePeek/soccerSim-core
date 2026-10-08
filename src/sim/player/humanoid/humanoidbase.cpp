@@ -592,7 +592,7 @@ void HumanoidBase::Mirror() {
   predicate_RelDesiredBallDirection.Mirror();
 }
 
-void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> history, football::sim::BallTouchSink& /*touch_sink*/) {
+void HumanoidBase::Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& /*touch_sink*/) {
   // Reject invalid runtime state before the spatial/action debug oracles run.
   if (startPos.coords[2] != 0.f) {
     throw std::logic_error("HumanoidBase::Process: player position must have zero height");
@@ -607,9 +607,9 @@ void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> histo
   // See Humanoid::Process: the tick-start movement state is authoritative.
   const PlayerKinematicState tickStartState = player->GetKinematicState();
 
-  CalculateSpatialState();
+  CalculateSpatialState(tick.ball_retainer);
   spatialState.positionOffsetMovement = Vector3(0);
-  ProjectMovementState(tickStartState);
+  ProjectMovementState(tickStartState, tick.ball_retainer, tick.restart_needs_simulation);
 
   currentAnim.frameNum++;
   player->StepSimulationAction(football::sim::TickSpan{1});
@@ -642,7 +642,7 @@ void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> histo
   // and a legacy animation opportunity rather than the sum.
   const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
   const bool simulation_due =
-      player->NoteLocomotionIntentCadence(legacy_opportunity, now, match->GetBallRetainer() == player);
+      player->NoteLocomotionIntentCadence(legacy_opportunity, now, tick.ball_retainer == player);
   if (legacy_opportunity || simulation_due) {
 
     PlayerCommandQueue commandQueue;
@@ -655,8 +655,8 @@ void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> histo
     const auto EnsureControllerQuery = [&]() {
       if (controller_queried) return;
       player->RequestCommand(controllerQueue,
-          {*match->GetBall(), match->touches(), match->GetReferee()->GetBuffer(),
-           match->GetBallRetainer(), match->pitch()});
+          {tick.ball, tick.touches, tick.restart,
+           tick.ball_retainer, tick.pitch});
       controller_queried = true;
       for (const PlayerCommand &controller_command : controllerQueue) {
         commandQueue.push_back(controller_command);
@@ -667,7 +667,7 @@ void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> histo
           if (trq_c.desiredFunctionType == e_FunctionType_Movement &&
               trq_c.useDesiredMovement) { trq_has = true; break; }
         }
-        player->NoteControllerQuery(trq_has, now, match->GetBallRetainer() == player);
+        player->NoteControllerQuery(trq_has, now, tick.ball_retainer == player);
       }
     };
     const bool trip_local_queue =
@@ -687,7 +687,7 @@ void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> histo
     }
 
     if (legacy_opportunity) {
-    if (legacy_opportunity && player->LocomotionIntentRefreshHeldIneligible(now, match->GetBallRetainer() == player)) {
+    if (legacy_opportunity && player->LocomotionIntentRefreshHeldIneligible(now, tick.ball_retainer == player)) {
       bool held_has_candidate = false;
       for (const PlayerCommand &candidate : commandQueue) {
         if (candidate.desiredFunctionType == e_FunctionType_Movement &&
@@ -697,7 +697,7 @@ void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> histo
         }
       }
       const e_FunctionType held_type = player->GetCurrentFunctionType();
-      const bool held_retains = match->GetBallRetainer() == player;
+      const bool held_retains = tick.ball_retainer == player;
       if (held_type == e_FunctionType_Movement && held_retains) {
         ++HeldDueMovementRetainsTicks();
         if (held_has_candidate) ++HeldDueMovementRetainsCandidate();
@@ -723,7 +723,7 @@ void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> histo
 
         const PlayerCommand &command = commandQueue[i];
 
-        found = SelectAnim(now, command, history, interruptAnim);
+        found = SelectAnim(now, tick, command, history, interruptAnim);
         if (found) break;
       }
     }
@@ -737,9 +737,9 @@ void HumanoidBase::Process(football::sim::Tick now, std::span<MentalImage> histo
     // already run, so no legacy action-selection write can follow it and become
     // the final writer; the controller's Movement candidate is the last write.
     if (controller_queried) {
-      if (player->PublishMovementIntentFromQueue(controllerQueue, now, match->GetBallRetainer() == player)) {
+      if (player->PublishMovementIntentFromQueue(controllerQueue, now, tick.ball_retainer == player)) {
         ++HumanoidIntentRefreshes();
-        player->CommitLocomotionIntentRefresh(*match->GetBall(), now, match->GetBallRetainer() == player);
+        player->CommitLocomotionIntentRefresh(tick.ball, now, tick.ball_retainer == player);
         ++HumanoidBasePathRefreshCommits();
       } else {
         ++HumanoidIntentCandidatesMissing();
@@ -916,8 +916,8 @@ void HumanoidBase::OffsetPosition(const Vector3 &offset) {
   if (player) player->SynchronizeKinematicState();
 }
 
-void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType) {
-  if (match->GetBallRetainer() == player) return;
+void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType, const Player *ball_retainer) {
+  if (ball_retainer == player) return;
   const PlayerActionState &action = player->GetSimulationActionState();
   if (GetCurrentBakedClip().metadata.incoming_special_state.empty() &&
       GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
@@ -938,10 +938,10 @@ void HumanoidBase::ResetSituation(const Vector3 &focusPos) {
   ResetPosition(spatialState.position, focusPos);
 }
 
-bool HumanoidBase::_HighOrBouncyBall() const {
-  float ballHeight1 = match->GetBall()->Predict(10).coords[2];
-  float ballHeight2 = match->GetBall()->Predict(defaultTouchOffset_ms).coords[2];
-  float ballBounce = std::fabs(match->GetBall()->GetMovement().coords[2]);
+bool HumanoidBase::_HighOrBouncyBall(const Ball& ball) const {
+  float ballHeight1 = ball.Predict(10).coords[2];
+  float ballHeight2 = ball.Predict(defaultTouchOffset_ms).coords[2];
+  float ballBounce = std::fabs(ball.GetMovement().coords[2]);
   bool highBall = false;
   if (ballHeight1 > 0.3f || ballHeight2 > 0.3f) {
     highBall = true;
@@ -1064,7 +1064,7 @@ void HumanoidBase::_KeepBestBodyDirectionAnims(DataSet &dataSet,
   }
 }
 
-bool HumanoidBase::SelectAnim(football::sim::Tick now, const PlayerCommand &command,
+bool HumanoidBase::SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick, const PlayerCommand &command,
                               std::span<MentalImage> history,
                               e_InterruptAnim localInterruptAnim,
                               bool preferPassAndShot) {
@@ -1100,7 +1100,7 @@ bool HumanoidBase::SelectAnim(football::sim::Tick now, const PlayerCommand &comm
     query.tripType = command.tripType;
   }
   query.properties.incoming_special_state = GetCurrentBakedClip().metadata.outgoing_special_state;
-  if (match->GetBallRetainer() == player) query.properties.incoming_retain_state = GetCurrentBakedClip().metadata.outgoing_retain_state;
+  if (tick.ball_retainer == player) query.properties.incoming_retain_state = GetCurrentBakedClip().metadata.outgoing_retain_state;
   if (command.useSpecialVar1) query.properties.special_var1 = command.specialVar1;
   if (command.useSpecialVar2) query.properties.special_var2 = command.specialVar2;
 
@@ -1262,17 +1262,17 @@ Vector3 HumanoidBase::CalculateOutgoingMovement(const std::vector<Vector3> &posi
   return (positions.at(positions.size() - 1) - positions.at(positions.size() - 2)) * 100.0f;
 }
 
-bool HumanoidBase::UsesProceduralLocomotion() const {
+bool HumanoidBase::UsesProceduralLocomotion(const Player* ball_retainer) const {
   // Execution authority is the Player Decision Clock's current-epoch intent, not
   // the animation command. Executability is the gate; the producer contract is a
   // separate fatal oracle.
-  return player && player->IsEligibleForProceduralLocomotion(match->GetBallRetainer() == player) &&
+  return player && player->IsEligibleForProceduralLocomotion(ball_retainer == player) &&
          player->HasExecutableDecisionLocomotionIntent();
 }
 
 
-void HumanoidBase::CalculateSpatialState() {
-  if (UsesProceduralLocomotion()) {
+void HumanoidBase::CalculateSpatialState(const Player* ball_retainer) {
+  if (UsesProceduralLocomotion(ball_retainer)) {
     // H3e4d2: root-motion and body-pose producers are dead on this path. Foot
     // remains animation-owned gait/selection state until its separate audit.
     if (currentAnim.frameNum > 12) {
@@ -1315,7 +1315,7 @@ void HumanoidBase::CalculateSpatialState() {
   spatialState.floatVelocity = spatialState.movement.GetLength();
   spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
   spatialState.position = position;
-  if (!UsesProceduralLocomotion()) {
+  if (!UsesProceduralLocomotion(ball_retainer)) {
     ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
   Vector3 bodyPosition;
   Quaternion bodyOrientation;
@@ -1409,10 +1409,10 @@ void HumanoidBase::CalculateFactualSpatialState() {
 }
 
 void HumanoidBase::ApplySimulationMovementState(
-    const PlayerKinematicState &state) {
+    const PlayerKinematicState &state, const Player* ball_retainer) {
   spatialState.position = state.position;
   spatialState.movement = state.velocity;
-  if (UsesProceduralLocomotion()) {
+  if (UsesProceduralLocomotion(ball_retainer)) {
     // H3e4d1: these serialized legacy aliases have no pure-locomotion producer.
     // Project the authoritative velocity rather than retaining animation history.
     spatialState.actualMovement = state.velocity;
@@ -1455,13 +1455,14 @@ void HumanoidBase::ApplySimulationBodyState(
 
 
 void HumanoidBase::ProjectMovementState(
-    const PlayerKinematicState &tickStartState) {
+    const PlayerKinematicState &tickStartState, const Player* ball_retainer,
+    bool restart_needs_simulation) {
   if (!player) return;
-  if (!UsesProceduralLocomotion()) {
+  if (!UsesProceduralLocomotion(ball_retainer)) {
     // Non-locomotion ticks keep the legacy animation root motion. Projecting
     // it keeps the Humanoid movement fields a single projection of the
     // simulation kinematic state.
-    ApplySimulationMovementState(player->GetKinematicState());
+    ApplySimulationMovementState(player->GetKinematicState(), ball_retainer);
     return;
   }
 
@@ -1483,7 +1484,7 @@ void HumanoidBase::ProjectMovementState(
   // H3e4f-b: locomotion reads the simulation-owned copy, not the legacy anim.
   PlayerLocomotionInput input = BuildLegacyLocomotionInput(
       command, tickStartState, player->GetMaxVelocity(), tickStartState.bodyFacing);
-  if (match->GetReferee()->RestartNeedsSimulation()) {
+  if (restart_needs_simulation) {
     // The legacy idle-speed deadband stops approach ~0.7 m from a target.
     // Pending legal positioning needs continuous low speeds; live-play semantics
     // and the shared locomotion physics primitive are otherwise unchanged.
@@ -1502,7 +1503,7 @@ void HumanoidBase::ProjectMovementState(
   }
   PlayerBodyFacingParameters bodyParameters;
   PlayerBodyFacing::Step(next, bodyInput, bodyParameters, 0.01f);
-  ApplySimulationMovementState(next);
+  ApplySimulationMovementState(next, ball_retainer);
 }
 
 void HumanoidBase::AddTripCommandToQueue(PlayerCommandQueue &commandQueue,

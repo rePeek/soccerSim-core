@@ -21,6 +21,7 @@
 #include "sim/player/player_tick_context.hpp"
 
 class Match;
+class Player;
 class AnimationLibrary;
 class Referee;
 namespace football::sim::testing { class SimulationAccess; }
@@ -65,7 +66,7 @@ class Simulation {
   class TouchEvents;
   void PublishBallTouch(const football::sim::BallTouchEvent& event);
   football::sim::rules::RefereeTickFacts RefereeFacts() const;
-  football::sim::PlayerTickContext PlayerTickFacts() const;
+  football::sim::PlayerTickContext PlayerTickFacts(const Player& actor) const;
   void EnsureAnimationLibrary();
   void CaptureMentalImage(Match& match);
   void EndPeriod(Match& match);

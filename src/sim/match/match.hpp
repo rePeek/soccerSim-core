@@ -84,12 +84,12 @@ class Match {
     // Authorization lets a Ready taker execute; it does not make the ball live.
     void StartPlay() { inPlay = true; }
     void StopPlay() { inPlay = false; clock_.StopBallInPlay(); }
-    bool IsInPlay() const { return inPlay; }
+    const bool& IsInPlay() const { return inPlay; }
     // Referee marks the actual accepted restart contact, including both half kickoffs.
     void StartBallInPlay();
     void EndHalf() { StopPlay(); StopSetPiece(); clock_.EndHalf(); }
     bool IsHalfUnderway() const { return clock_.IsHalfUnderway(); }
-    bool IsBallInPlay() const { return clock_.IsBallInPlay(); }
+    const bool& IsBallInPlay() const { return clock_.IsBallInPlay(); }
     bool MayTouchBall(const Player& actor) const {
       const auto& restart = referee_->GetBuffer();
       return IsBallInPlay() || (inPlay && inSetPiece && restart.active &&
@@ -98,7 +98,7 @@ class Match {
 
     void StartSetPiece() { inSetPiece = true; }
     void StopSetPiece() { inSetPiece = false; }
-    bool IsInSetPiece() const { return inSetPiece; }
+    const bool& IsInSetPiece() const { return inSetPiece; }
     Referee *GetReferee() const { return referee_; }
 
     void SetGoalScored(bool onOff) {

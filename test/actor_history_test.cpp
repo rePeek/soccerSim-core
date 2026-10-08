@@ -39,7 +39,7 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
     const auto rng = match.rng().engine();
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
-    REQUIRE_THROWS_AS(actor->Process(SimulationAccess::PlayerTickOf(simulation), {}, touch_sink), std::logic_error); // No fallback to Match history.
+    REQUIRE_THROWS_AS(actor->Process(SimulationAccess::PlayerTickOf(simulation, *actor), {}, touch_sink), std::logic_error); // No fallback to Match history.
     REQUIRE(match.rng().engine() == rng);
 
     std::vector<Player*> players;
@@ -58,7 +58,7 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     const auto owned_forward = query::CalculateFreeSpace(match.GetTimelineTick(), simulation.GetMentalImage(TickSpan{}),
         actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
     REQUIRE(forward != owned_forward);
-    actor->Process(SimulationAccess::PlayerTickOf(simulation), supplied, touch_sink);
+    actor->Process(SimulationAccess::PlayerTickOf(simulation, *actor), supplied, touch_sink);
     REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == forward);
     REQUIRE(actor->GetTacticalSituation().spaceRating == space);
     REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
@@ -78,12 +78,12 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
     auto* actor = match.GetTeam(match.FirstTeam())->GetAllPlayers()[0];
     const auto position = actor->GetPosition();
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
-    REQUIRE_THROWS_AS(actor->CastHumanoid()->Process(match.GetTimelineTick(), {}, touch_sink), std::logic_error);
+    REQUIRE_THROWS_AS(actor->CastHumanoid()->Process(match.GetTimelineTick(), SimulationAccess::PlayerTickOf(simulation, *actor), {}, touch_sink), std::logic_error);
     REQUIRE(actor->GetPosition() == position);
     REQUIRE(match.rng().engine() == rng);
     std::vector<MentalImage> supplied;
     supplied.emplace_back(match.GetTimelineTick(), std::span<Player* const>{}, *match.GetBall());
-    REQUIRE_NOTHROW(actor->Process(SimulationAccess::PlayerTickOf(simulation), supplied, touch_sink)); // Ball-only caller-owned sample; no stored borrow.
+    REQUIRE_NOTHROW(actor->Process(SimulationAccess::PlayerTickOf(simulation, *actor), supplied, touch_sink)); // Ball-only caller-owned sample; no stored borrow.
     REQUIRE(supplied[0].players.empty());
     REQUIRE(supplied[0].captured_tick == match.GetTimelineTick());
   }
@@ -191,7 +191,12 @@ TEST_CASE("Player tactical refresh honors supplied tick and authorization",
   history[0].maxDistanceDeviation = 1000.f;
   for (auto& image : history[0].players) image.position = Vector3(100, 100, 0);
   bool underway = false;
-  const PlayerTickContext tick{Tick{10}, true, underway, nullptr, *match.GetBall(), match.rng()};
+  const PlayerTickContext tick{
+      Tick{10}, true, false, false, underway, *match.GetBall(), match.GetBallEnvironment(),
+      nullptr, nullptr, nullptr, match.touches(), match.GetReferee()->GetBuffer(),
+      match.pitch(), *match.GetTeam(0), *match.GetTeam(1),
+      *match.GetTeam(match.FirstTeam()), *match.GetTeam(match.SecondTeam()), 0, false,
+      match.rng()};
   const auto position = actor->GetPosition();
   const auto focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
   const float expected = query::CalculateFreeSpace(tick.now, &history[0], actor->GetTeamID(), focus, 5.0f, 0.5f);
@@ -208,7 +213,8 @@ TEST_CASE("Player's half-underway input remains live across synchronous clock co
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
-  auto tick = SimulationAccess::PlayerTickOf(simulation);
+  auto& first_actor = *simulation.match()->GetTeam(0)->GetAllPlayers()[0];
+  auto tick = SimulationAccess::PlayerTickOf(simulation, first_actor);
   REQUIRE(&tick.half_underway == &SimulationAccess::ClockOf(simulation).IsHalfUnderway());
   REQUIRE_FALSE(tick.half_underway);
   simulation.match()->SetMatchPhase(MatchPhase::FirstHalf);
@@ -234,7 +240,7 @@ TEST_CASE("Humanoid scheduling and publication consume the supplied tick",
   match.GetTeam(1)->GetActivePlayers(players);
   std::vector<MentalImage> history;
   history.emplace_back(Tick{123}, players, *match.GetBall());
-  actor.CastHumanoid()->Process(Tick{123}, history, SimulationAccess::EventsOf(simulation));
+  actor.CastHumanoid()->Process(Tick{123}, SimulationAccess::PlayerTickOf(simulation, actor), history, SimulationAccess::EventsOf(simulation));
   REQUIRE(actor.GetLastDecisionLocomotionPublicationTick() == Tick{123});
   REQUIRE(actor.HasDecisionLocomotionIntent());
   REQUIRE(match.GetTimelineTick() == Tick{});

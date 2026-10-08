@@ -22,6 +22,7 @@
 #include "foundation/math/vector3.hpp"
 
 #include "sim/player/player_command.hpp"
+#include "sim/player/player_tick_context.hpp"
 
 #include "sim/animation/selection_query.hpp"
 #include "sim/animation/clip.hpp"
@@ -348,7 +349,8 @@ class HumanoidBase {
     void Mirror();
 
     // Tick-local borrows: observation history and the write-only touch port.
-    virtual void Process(football::sim::Tick now, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink);
+    virtual void Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
+                        std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink);
 
     inline int GetFrameNum() { return currentAnim.frameNum; }
     inline int GetFrameCount() { return static_cast<int>(GetCurrentBakedClip().frame_count); }
@@ -371,7 +373,7 @@ class HumanoidBase {
     int GetIdleMovementAnimID();
     void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos);
     void OffsetPosition(const Vector3 &offset);
-    void TripMe(const Vector3 &tripVector, int tripType);
+    void TripMe(const Vector3 &tripVector, int tripType, const Player *ball_retainer);
 
     virtual float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
     virtual float GetDecayingDifficultyFactor() const { return decayingDifficultyFactor; }
@@ -389,14 +391,16 @@ class HumanoidBase {
     virtual void ResetSituation(const Vector3 &focusPos);
 
   protected:
-    bool _HighOrBouncyBall() const;
+    bool _HighOrBouncyBall(const Ball& ball) const;
     void _KeepBestDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0, int allowedVelocitySteps = 0, int forcedQuadrantID = -1); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
     void _KeepBestBodyDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
-    virtual bool SelectAnim(football::sim::Tick now, const PlayerCommand &command, std::span<MentalImage> history, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false); // returns false on no applicable anim found
+    virtual bool SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
+                            const PlayerCommand &command, std::span<MentalImage> history,
+                            e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false);
     void CalculatePredictedSituation(Vector3 &predictedPos, radian &predictedAngle);
     Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
 
-    void CalculateSpatialState(); // realtime properties, based on 'physics'
+    void CalculateSpatialState(const Player* ball_retainer); // realtime properties, based on 'physics'
     void CalculateFactualSpatialState(); // realtime properties, based on anim. usable at last frame of anim. more riggid than above function
     // Reverse projection used by the locomotion authority flip: the simulation
     // movement state is the source and the legacy Humanoid movement fields
@@ -405,7 +409,7 @@ class HumanoidBase {
     // Animation-owned bookkeeping (actualMovement, physicsMovement,
     // animMovement, the smuggle movements and the foot) is deliberately left
     // alone until H3e4 takes it over.
-    void ApplySimulationMovementState(const PlayerKinematicState &state);
+    void ApplySimulationMovementState(const PlayerKinematicState &state, const Player* ball_retainer);
     // One-way body-orientation compatibility projection. Continuous fields are
     // derived exactly from state.bodyFacing; quantized relBody* exists only for
     // legacy animation selection and never feeds bodyFacing back.
@@ -416,8 +420,10 @@ class HumanoidBase {
     // tick-start state is passed in so the procedural model integrates from
     // the world state in force, and so an action selection later in the same
     // tick cannot change what this tick's locomotion was.
-    void ProjectMovementState(const PlayerKinematicState &tickStartState);
-    bool UsesProceduralLocomotion() const;
+    void ProjectMovementState(const PlayerKinematicState &tickStartState,
+                             const Player* ball_retainer,
+                             bool restart_needs_simulation);
+    bool UsesProceduralLocomotion(const Player* ball_retainer) const;
 
     void AddTripCommandToQueue(PlayerCommandQueue &commandQueue, const Vector3 &tripVector, int tripType);
     PlayerCommand GetTripCommand(const Vector3 &tripVector, int tripType);
