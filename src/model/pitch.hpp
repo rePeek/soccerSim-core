@@ -1,14 +1,39 @@
 #ifndef FOOTBALL_MODEL_PITCH_HPP
 #define FOOTBALL_MODEL_PITCH_HPP
 
+#include <cmath>
+#include <stdexcept>
+
 namespace football::model {
 
-// Read-only pitch geometry in metres: x is length, y is width, and the centre
-// spot is the origin. This version deliberately exposes only legacy geometry;
-// arbitrary dimensions also require migrating AI and coordinate assumptions.
+// Read-only pitch description in metres: x is length, y is width, and the
+// centre spot is the origin. Geometry and ground-surface parameters are fixed
+// at construction; the match must not mutate them at runtime.
+//
+// Ground parameters keep the legacy empirical values, not standard Coulomb
+// coefficients, so migration to Pitch preserves the historical simulation
+// behaviour exactly.
 class Pitch {
  public:
   constexpr Pitch() = default;
+
+  // Core geometry and ground physics are constructor-required; remaining
+  // dimensions keep their legacy defaults. Invalid (non-finite or
+  // non-positive geometry / negative friction) values are rejected here so
+  // every consumer shares one validated description.
+  Pitch(float length, float width, float friction, float linear_friction)
+      : length_(length),
+        width_(width),
+        friction_(friction),
+        linear_friction_(linear_friction) {
+    if (!std::isfinite(length) || !std::isfinite(width) ||
+        !std::isfinite(friction) || !std::isfinite(linear_friction) ||
+        length <= 0.0f || width <= 0.0f ||
+        friction < 0.0f || linear_friction < 0.0f) {
+      throw std::invalid_argument(
+          "football::model::Pitch: invalid geometry or ground parameters");
+    }
+  }
 
   constexpr float length() const { return length_; }
   constexpr float width() const { return width_; }
@@ -20,6 +45,10 @@ class Pitch {
   constexpr float goal_half_width() const { return goal_width_ * 0.5f; }
   constexpr float goal_height() const { return goal_height_; }
   constexpr float goal_depth() const { return goal_depth_; }
+
+  constexpr float friction() const { return friction_; }
+  constexpr float linear_friction() const { return linear_friction_; }
+  constexpr float grass_height() const { return grass_height_; }
 
   // Ground-plane bounds only. Ball radius, line crossing and restart decisions
   // belong to the runtime simulation and referee, not this domain description.
@@ -33,6 +62,9 @@ class Pitch {
  private:
   float length_ = 110.0f;
   float width_ = 72.0f;
+  float friction_ = 0.04f;
+  float linear_friction_ = 1.6f;
+  float grass_height_ = 0.025f;
   float full_length_ = 120.0f;
   float full_width_ = 80.0f;
   float line_width_ = 0.12f;

@@ -11,13 +11,11 @@ namespace football::ball::detail {
 
 namespace {
 // Legacy empirical coefficients. Kept as literals on purpose: the cohesion
-// phase must reproduce the historical kernel exactly, so no textbook physics
-// is introduced here. BallConfig carries the externally meaningful subset
-// (radius/restitution/drag/friction); these remain private tuning constants.
+// phase must reproduce the historical kernel exactly. Ground-surface values
+// now come from football::model::Pitch; BallConfig carries the ball's own
+// radius/restitution/drag; the rest remain private tuning constants.
 constexpr float kLinearBounce = 0.06f;
-constexpr float kLinearFriction = 1.6f;
 constexpr float kGravity = -9.81f;
-constexpr float kGrassHeight = 0.025f;
 }  // namespace
 
 PhysicsState Advance(const PhysicsState& current,
@@ -50,7 +48,7 @@ PhysicsState Advance(const PhysicsState& current,
   if (drag_enabled) momentumPredict = momentumPredict.GetNormalized(0) * momentumVeloDragged;
 
   float ballBottom = nextPos.coords[2] - config.radius;
-  float grassInfluenceBias = clamp(1.0f - (ballBottom / kGrassHeight), 0.0f, 1.0f);
+  float grassInfluenceBias = clamp(1.0f - (ballBottom / pitch.grass_height()), 0.0f, 1.0f);
   grassInfluenceBias = std::pow(grassInfluenceBias, 0.7f);
 
   // bounce
@@ -64,15 +62,15 @@ PhysicsState Advance(const PhysicsState& current,
   }
 
   // ground friction
-  if (nextPos.coords[2] < config.radius + kGrassHeight && groundFriction_enabled) {
-    float adaptedFriction = (config.friction * grassInfluenceBias);
+  if (nextPos.coords[2] < config.radius + pitch.grass_height() && groundFriction_enabled) {
+    float adaptedFriction = (pitch.friction() * grassInfluenceBias);
 
     Vector3 xy = momentumPredict.Get2D();
     float velo = xy.GetLength();
 
     float newVelo = velo - adaptedFriction * std::pow(velo, 2.0f) * timeStep;
 
-    newVelo = clamp(newVelo - (kLinearFriction * grassInfluenceBias * timeStep), 0.0f, 100000.0f);
+    newVelo = clamp(newVelo - (pitch.linear_friction() * grassInfluenceBias * timeStep), 0.0f, 100000.0f);
 
     xy.Normalize(Vector3(0));
     xy *= newVelo;
@@ -91,7 +89,7 @@ PhysicsState Advance(const PhysicsState& current,
   }
 
   // calculate rotation
-  if (nextPos.coords[2] < config.radius + kGrassHeight &&
+  if (nextPos.coords[2] < config.radius + pitch.grass_height() &&
       groundRotationEffects_enabled) {
     // ground friction induced rotation
     radian xR, yR;

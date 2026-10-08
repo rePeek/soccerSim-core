@@ -15,7 +15,6 @@ struct BallConfig {
   float radius = 0.11f;
 
   float restitution = 0.62f;
-  float friction = 0.04f;
   float drag = 0.015f;
 };
 

@@ -1,6 +1,7 @@
+#include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <stdexcept>
-#include <type_traits>
 
 #include "model/formation.hpp"
 #include "model/pitch.hpp"
@@ -53,6 +54,32 @@ int main() {
   }
   for (float ability : copy.players.front().attributes.values()) {
     if (ability != 0.6f) return EXIT_FAILURE;
+  }
+
+  // Pitch constructor validates geometry and ground physics.
+  if (pitch.friction() != 0.04f || pitch.linear_friction() != 1.6f ||
+      pitch.grass_height() != 0.025f) {
+    return EXIT_FAILURE;
+  }
+  model::Pitch custom(105.0f, 68.0f, 0.05f, 1.8f);
+  if (custom.length() != 105.0f || custom.width() != 68.0f ||
+      custom.friction() != 0.05f || custom.linear_friction() != 1.8f) {
+    return EXIT_FAILURE;
+  }
+  try {
+    model::Pitch bad(0.0f, 68.0f, 0.04f, 1.6f);
+    return EXIT_FAILURE;
+  } catch (const std::invalid_argument&) {
+  }
+  try {
+    model::Pitch bad(105.0f, 68.0f, -1.0f, 1.6f);
+    return EXIT_FAILURE;
+  } catch (const std::invalid_argument&) {
+  }
+  try {
+    model::Pitch bad(std::numeric_limits<float>::quiet_NaN(), 68.0f, 0.04f, 1.6f);
+    return EXIT_FAILURE;
+  } catch (const std::invalid_argument&) {
   }
 
   try {
