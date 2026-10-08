@@ -5,7 +5,8 @@ option(FOOTBALL_BUILD_APP "Build the CLI executable and its sample inputs" ON)
 
 # Shared build policy only; each module owns its sources, exports and link edges.
 function(football_configure_target tgt)
-  target_include_directories(${tgt} PUBLIC ${PROJECT_SOURCE_DIR}/src)
+  # Include paths are owned by each target's declared dependencies (FILE_SET
+  # HEADERS / INTERFACE include dirs), never injected globally here.
   target_compile_features(${tgt} PUBLIC cxx_std_23)
   set_target_properties(${tgt} PROPERTIES POSITION_INDEPENDENT_CODE ON)
   get_target_property(_type ${tgt} TYPE)
