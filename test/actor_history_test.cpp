@@ -92,7 +92,8 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
 
 static_assert(!std::is_constructible_v<Humanoid, Player*>);
 static_assert(!std::is_constructible_v<Humanoid, Player*, const AnimationLibrary&>);
-static_assert(!std::is_constructible_v<HumanoidBase, Player*, Match*>);
+static_assert(!std::is_constructible_v<HumanoidBase, Player*>);
+static_assert(!std::is_constructible_v<HumanoidBase, Player*, const AnimationLibrary&>);
 static_assert(!std::is_constructible_v<Player, Team*, const football::model::Player&, std::uint8_t>);
 
 TEST_CASE("Humanoid baked clips come from its injected library, not the runtime owner",

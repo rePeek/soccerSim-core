@@ -21,9 +21,9 @@
 
 #include "sim/team/formation.hpp"
 
-Team::Team(int id, Match *match, const football::model::Team& model,
+Team::Team(int id, const football::model::Team& model,
            float aiDifficulty)
-    : id(id), match(match), model_(model), formation_(BuildFormation(model)),
+    : id(id), model_(model), formation_(BuildFormation(model)),
       aiDifficulty(aiDifficulty), static_side_(id == 0 ? -1 : 1) {
   assert(id == 0 || id == 1);
   timeNeededToGetToBall_ms = 100;

@@ -38,7 +38,6 @@ namespace football::sim { class BallTouchSink; class PlayerRuntimeSink; }
 
 using namespace blunted;
 
-class Match;
 class AnimationLibrary;
 
 // Library-side H3e4b diagnostics; shared with regression, never simulation state.
@@ -257,7 +256,6 @@ bool RecordSchedulerQuery(const PlayerCommand &in_force,
                           const PlayerCommand &candidate);
 
 class Player;
-class Match;
 
 enum e_InterruptAnim {
   e_InterruptAnim_None,
@@ -344,7 +342,7 @@ struct SpatialState {
 class HumanoidBase {
 
   public:
-    HumanoidBase(Player *player, Match *match, const AnimationLibrary& animations, SimulationRng& rng);
+    HumanoidBase(Player *player, const AnimationLibrary& animations, SimulationRng& rng);
     virtual ~HumanoidBase();
     void Mirror();
 
@@ -464,7 +462,6 @@ class HumanoidBase {
     Vector3 ForceIntoPreferredDirectionVec(const Vector3 &src) const;
     radian ForceIntoPreferredDirectionAngle(radian angle) const;
 
-    Match *match;
     const AnimationLibrary& animations_;
     SimulationRng& rng_;
     Player *player;

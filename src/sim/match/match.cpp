@@ -54,11 +54,11 @@ Match::Match(const football::model::Team& home, const football::model::Team& awa
 
   const football::model::Team* descriptions[] = {&home, &away};
   teams[first_team] =
-      new Team(first_team, this, *descriptions[first_team],
+      new Team(first_team, *descriptions[first_team],
                first_team ? options.right_team_difficulty
                           : options.left_team_difficulty);
   teams[second_team] =
-      new Team(second_team, this, *descriptions[second_team],
+      new Team(second_team, *descriptions[second_team],
                second_team ? options.right_team_difficulty
                            : options.left_team_difficulty);
   teams[first_team]->SetOpponent(teams[second_team]);

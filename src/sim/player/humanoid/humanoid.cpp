@@ -32,7 +32,7 @@
 #include "sim/player/player.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/team/team.hpp"
-#include "sim/match/match.hpp"
+
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/ball/ball_touch_application.hpp"
 #include "sim/event/ball_touch_sink.hpp"
@@ -43,6 +43,10 @@
 #include "sim/player/kick_targeting.hpp"
 
 #include "sim/animation/baked_selector.hpp"
+#include "sim/animation/library.hpp"
+#include "sim/event/touch_query.hpp"
+#include "sim/rules/referee.hpp"
+#include "sim/match/pitch_geometry.hpp"
 
 
 using std::placeholders::_1;
@@ -80,7 +84,7 @@ constexpr bool allowTrapReQueue = true;
 constexpr bool allowPreTouchRotationSmuggle = false;
 
 Humanoid::Humanoid(Player *player, const AnimationLibrary& animations, SimulationRng& rng)
-    : HumanoidBase(player, player->GetTeam()->GetMatch(), animations, rng) {
+    : HumanoidBase(player, animations, rng) {
   team = CastPlayer()->GetTeam();
 }
 
@@ -104,7 +108,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   if (decayingPositionOffset.GetLength() < 0.005) decayingPositionOffset.Set(0);
   decayingDifficultyFactor = clamp(decayingDifficultyFactor - 0.002f, 0.0f, 1.0f);
 
-  assert(match);
+
   Player* ball_retainer = tick.ball_retainer;
   // Tick-local publication: actors never reach Match for touch notification.
   const auto notify_touch = [&](e_TouchType type) {

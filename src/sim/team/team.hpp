@@ -23,7 +23,7 @@
 #include "model/team.hpp"
 #include "sim/player/player.hpp"
 
-class Match;
+class AnimationLibrary;
 class AnimationLibrary;
 namespace football::sim { class BallTouchSink; }
 
@@ -32,7 +32,7 @@ class MentalImage;
 class Team {
 
   public:
-    Team(int id, Match *match, const football::model::Team& model,
+    Team(int id, const football::model::Team& model,
          float aiDifficulty);
     void Mirror();
     // Half-time change of ends: this team attacks the opposite goal from now on.
@@ -53,7 +53,7 @@ class Team {
 
     void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch, SimulationRng& rng);
 
-    Match *GetMatch() { return match; }
+
 
     football::model::TeamSide GetTeamSide() const {
       return static_cast<football::model::TeamSide>(id);
@@ -117,7 +117,6 @@ class Team {
 
   protected:
     const int id;
-    Match *match;
     Team *opponent = 0;
     const football::model::Team model_;
     std::vector<FormationEntry> formation_;

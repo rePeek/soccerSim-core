@@ -33,12 +33,13 @@
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_locomotion.hpp"
 #include "sim/player/player_body_facing.hpp"
-#include "sim/match/match.hpp"
+
 #include "sim/player/player_motion_constants.hpp"
 
 
 
 #include "sim/animation/baked_selector.hpp"
+#include "sim/animation/library.hpp"
 
 
 using std::placeholders::_1;
@@ -541,15 +542,13 @@ const radian preferredDirectionAngles[] = {
     -0.999 * pi
 };
 
-HumanoidBase::HumanoidBase(Player *player, Match *match, const AnimationLibrary& animations, SimulationRng& rng)
-    : match(match), animations_(animations), rng_(rng),
+HumanoidBase::HumanoidBase(Player *player, const AnimationLibrary& animations, SimulationRng& rng)
+    : animations_(animations), rng_(rng),
       player(player) {
   interruptAnim = e_InterruptAnim_None;
   reQueueDelayFrames = 0;
   decayingPositionOffset = Vector3(0);
   decayingDifficultyFactor = 0.0f;
-
-  assert(match);
 
   ResetPosition(Vector3(0), Vector3(0));
 }
@@ -602,7 +601,7 @@ void HumanoidBase::Process(football::sim::Tick now, const football::sim::PlayerT
   if (decayingPositionOffset.GetLength() < 0.005) decayingPositionOffset.Set(0);
   decayingDifficultyFactor = clamp(decayingDifficultyFactor - 0.002f, 0.0f, 1.0f);
 
-  assert(match);
+
 
   // See Humanoid::Process: the tick-start movement state is authoritative.
   const PlayerKinematicState tickStartState = player->GetKinematicState();

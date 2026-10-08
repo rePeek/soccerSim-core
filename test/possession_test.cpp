@@ -13,7 +13,7 @@ using blunted::Vector3;
 // Test-only team arrival inputs, not a production state-injection API.
 struct ArrivalTeam : Team {
   explicit ArrivalTeam(int side)
-      : Team(side, nullptr, football::app::fixtures::MakeDefaultHomeTeam(), 1.0f) {}
+      : Team(side, football::app::fixtures::MakeDefaultHomeTeam(), 1.0f) {}
   void Arrival(int milliseconds) { timeNeededToGetToBall_ms = milliseconds; }
 };
 
