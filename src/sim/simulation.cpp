@@ -227,34 +227,47 @@ void Simulation::Init(
   first_team_ = options.reverse_team_processing ? 1 : 0;
   second_team_ = options.reverse_team_processing ? 0 : 1;
 
-  ball_ = std::make_unique<Ball>(pitch_);
+  // Build the whole composition locally, then publish it only on full success.
+  auto ball = std::make_unique<Ball>(pitch_);
   const football::model::Team* descriptions[] = {&home_model, &away_model};
-  teams_[first_team_] = std::make_unique<Team>(first_team_, *descriptions[first_team_],
-      first_team_ ? options.right_team_difficulty : options.left_team_difficulty);
-  teams_[second_team_] = std::make_unique<Team>(second_team_, *descriptions[second_team_],
-      second_team_ ? options.right_team_difficulty : options.left_team_difficulty);
-  teams_[first_team_]->SetOpponent(teams_[second_team_].get());
-  teams_[second_team_]->SetOpponent(teams_[first_team_].get());
+  std::array<std::unique_ptr<Team>, 2> teams;
+  teams[first_team_] =
+      std::make_unique<Team>(first_team_, *descriptions[first_team_],
+          first_team_ ? options.right_team_difficulty : options.left_team_difficulty);
+  teams[second_team_] =
+      std::make_unique<Team>(second_team_, *descriptions[second_team_],
+          second_team_ ? options.right_team_difficulty : options.left_team_difficulty);
+  teams[first_team_]->SetOpponent(teams[second_team_].get());
+  teams[second_team_]->SetOpponent(teams[first_team_].get());
   // Preserve the historical scheduling stagger across both rosters, including
   // reversed processing. Only a periodic phase is passed, not a creation ID.
-  teams_[first_team_]->InitPlayers(0, *animations_, pitch_, rng_);
-  teams_[second_team_]->InitPlayers(static_cast<std::uint8_t>(
-      teams_[first_team_]->GetAllPlayers().size() % 10), *animations_, pitch_, rng_);
+  teams[first_team_]->InitPlayers(0, *animations_, pitch_, rng_);
+  teams[second_team_]->InitPlayers(static_cast<std::uint8_t>(
+      teams[first_team_]->GetAllPlayers().size() % 10), *animations_, pitch_, rng_);
 
   std::vector<Player*> active_players;
-  teams_[first_team_]->GetActivePlayers(active_players);
-  designated_possession_player_ = active_players.at(0);
+  teams[first_team_]->GetActivePlayers(active_players);
+  Player* designated = active_players.at(0);
+
+  auto referee = std::make_unique<Referee>(*teams[first_team_], options.ball_position);
+  auto commands = std::make_unique<RuleCommands>(*this);
+  auto touch = std::make_unique<TouchEvents>(*this);
+
+  // Commit. Pointer/reference borrows stay valid: the heap objects do not move
+  // when their owning unique_ptrs are transferred.
+  ball_ = std::move(ball);
+  teams_ = std::move(teams);
+  referee_ = std::move(referee);
+  player_runtime_sink_ = commands.get();
+  rule_commands_ = std::move(commands);
+  touch_sink_ = std::move(touch);
+
+  designated_possession_player_ = designated;
   ball_retainer_ = nullptr;
   last_goal_team_ = nullptr;
   last_goal_scorer_ = nullptr;
   best_possession_team_ = nullptr;
   SetMatchPhase(MatchPhase::PreMatch);
-
-  referee_ = std::make_unique<Referee>(*teams_[first_team_], options.ball_position);
-  auto commands = std::make_unique<RuleCommands>(*this);
-  player_runtime_sink_ = commands.get();
-  rule_commands_ = std::move(commands);
-  touch_sink_ = std::make_unique<TouchEvents>(*this);
 }
 
 void Simulation::EnsureAnimationLibrary() {
@@ -584,6 +597,13 @@ bool Simulation::Stop() {
   if (!ball_) return false;
   teams_[first_team_]->Exit(GetTimelineTick());
   teams_[second_team_]->Exit(GetTimelineTick());
+  // Clear every actor borrow before their owners go away: an uninitialized
+  // Simulation must hold no dangling pointers.
+  last_goal_team_ = nullptr;
+  last_goal_scorer_ = nullptr;
+  ball_retainer_ = nullptr;
+  designated_possession_player_ = nullptr;
+  best_possession_team_ = nullptr;
   referee_.reset();
   mental_images_.clear();
   touch_sink_.reset();
