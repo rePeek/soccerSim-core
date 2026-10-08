@@ -509,7 +509,7 @@ class HumanoidBase {
 
     // Reaction-history delay, not a timeline instant or a grid deadline.
     // Requeue observes the previous delay; action selection uses this tick's delay.
-    // Keep sub-tick precision until Match's nearest-capture sampling boundary.
+    // Keep sub-tick precision until the observation history nearest-capture sampling boundary.
     std::chrono::milliseconds mentalImageTime{0};
 
 };

@@ -93,7 +93,7 @@ TacticalBoard MakeTacticalBoard(const model::Team &team, model::TeamSide side,
   board.side = side;
   const auto shape = InitialShape(team);
   const int defend = side == model::TeamSide::Home ? -1 : 1;
-  // Match descriptions are validated by Simulation at startup. AI can be
+  // Team descriptions are validated by Simulation at startup. AI can be
   // constructed before that, and never invents identities for missing profiles.
   for (std::size_t i = 0; i < std::min(shape.size(), team.players.size()); ++i) {
     PlayerDirective directive;

@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_RULES_RESTART_PLACEMENT_HPP
 
 #include "model/football_types.hpp"
-#include "sim/match/match_options.hpp"
+#include "sim/simulation_config.hpp"
 #include "sim/random/rng.hpp"
 #include "sim/time/tick.hpp"
 

@@ -17,7 +17,7 @@
 #include <cmath>
 
 #include "foundation/math/scalar.hpp"
-#include "sim/match/pitch_geometry.hpp"
+#include "sim/pitch_geometry.hpp"
 #include "sim/observation/mentalimage.hpp"
 
 namespace football::sim::rules {

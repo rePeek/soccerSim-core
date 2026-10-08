@@ -22,7 +22,7 @@
 #include "sim/ball/ball.hpp"
 #include "sim/player/player.hpp"
 #include "sim/team/team.hpp"
-#include "sim/match/pitch_geometry.hpp"
+#include "sim/pitch_geometry.hpp"
 #include "sim/rules/offside.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/rules/restart_placement.hpp"

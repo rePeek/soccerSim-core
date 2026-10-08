@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_RULES_PERIOD_HPP
 #define FOOTBALL_SIM_RULES_PERIOD_HPP
 
-#include "sim/match/match_phase.hpp"
+#include "sim/rules/phase.hpp"
 #include "sim/time/tick.hpp"
 
 namespace football::sim::rules {

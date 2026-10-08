@@ -6,7 +6,7 @@
 #include "sim/observation/world_state.hpp"
 #include "sim/time/tick.hpp"
 #include "sim/time/tick_boundary.hpp"
-#include "sim/match/match_options.hpp"
+#include "sim/simulation_config.hpp"
 
 static_assert(football::sim::Minutes(45).value == 270000);
 static_assert((football::sim::Tick{17} + football::sim::Seconds(2)).value == 217);

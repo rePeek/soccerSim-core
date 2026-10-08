@@ -10,7 +10,7 @@
 #include "model/team.hpp"
 #include "model/pitch.hpp"
 #include "foundation/math/vector3.hpp"
-#include "sim/match/match_phase.hpp"
+#include "sim/rules/phase.hpp"
 #include "sim/time/tick.hpp"
 
 struct WorldPlayerState {
@@ -61,7 +61,7 @@ struct WorldState {
   std::optional<football::model::PlayerId> restart_taker;
   bool restart_pending = false;
   std::optional<football::model::PlayerId> ball_retainer;
-  // Match-owned count of ResetSituation discontinuities; resets with a new match.
+  // Simulation-owned count of ResetSituation discontinuities; resets with a new match.
   std::uint64_t reset_sequence = 0;
 };
 

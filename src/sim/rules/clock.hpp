@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "sim/match/match_phase.hpp"
+#include "sim/rules/phase.hpp"
 #include "sim/time/tick.hpp"
 
 namespace football::sim {

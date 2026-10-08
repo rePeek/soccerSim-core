@@ -23,13 +23,13 @@
 
 #include "model/football_types.hpp"
 #include "sim/time/tick.hpp"
-#include "sim/match/match_phase.hpp"
+#include "sim/rules/phase.hpp"
 #include "sim/rules/restart_readiness.hpp"
 #include "sim/rules/ball_touch_facts.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/rules/referee_tick_facts.hpp"
 #include "sim/rules/rule_command_sink.hpp"
-#include "sim/match/match_options.hpp"
+#include "sim/simulation_config.hpp"
 #include "sim/random/rng.hpp"
 
 

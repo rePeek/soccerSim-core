@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_RULES_RULE_COMMAND_SINK_HPP
 
 #include "foundation/math/vector3.hpp"
-#include "sim/match/match_phase.hpp"
+#include "sim/rules/phase.hpp"
 
 class Player;
 

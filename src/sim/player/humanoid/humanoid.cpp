@@ -46,7 +46,7 @@
 #include "sim/animation/library.hpp"
 #include "sim/event/touch_query.hpp"
 #include "sim/rules/referee.hpp"
-#include "sim/match/pitch_geometry.hpp"
+#include "sim/pitch_geometry.hpp"
 
 
 using std::placeholders::_1;
@@ -110,7 +110,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
 
   Player* ball_retainer = tick.ball_retainer;
-  // Tick-local publication: actors never reach Match for touch notification.
+  // Tick-local publication: actors never reach the runtime owner for touch notification.
   const auto notify_touch = [&](e_TouchType type) {
     touch_sink.OnBallTouched({now, CastPlayer(), team, type});
   };

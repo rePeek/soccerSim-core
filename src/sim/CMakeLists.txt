@@ -5,7 +5,7 @@ target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
   FILES player/player_control.hpp player/player_control_set.hpp
     observation/world_state.hpp
-    match/match_options.hpp match/match_phase.hpp match/match_result.hpp
+    simulation_config.hpp rules/phase.hpp rules/result.hpp
     time/tick.hpp time/tick_boundary.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
@@ -18,11 +18,11 @@ add_library(football_sim STATIC)
 add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
   simulation.cpp
-  match/pitch_geometry.hpp
+  pitch_geometry.hpp
   event/ball_touch.hpp event/ball_touch_sink.hpp event/touch_state.hpp
   event/ball_touch_dispatcher.cpp event/ball_touch_dispatcher.hpp
   event/touch_query.cpp event/touch_query.hpp
-  match/match_clock.cpp match/match_clock.hpp
+  rules/clock.cpp rules/clock.hpp
   team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
   team/formation_roles.cpp team/formation_entry.hpp
   team/possession.cpp team/possession.hpp

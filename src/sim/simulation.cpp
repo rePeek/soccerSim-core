@@ -200,7 +200,7 @@ void Simulation::Init(
   rng_.Seed(options.game_engine_random_seed);
 
   // A fresh composition starts from a clean competition state, exactly as the
-  // former Match constructor did. Re-Init after Stop must not inherit results.
+  // former composition constructor did. Re-Init after Stop must not inherit results.
   score_[0] = 0; score_[1] = 0;
   possession_60_seconds_ = 0.0f;
   phase_ = MatchPhase::PreMatch;
