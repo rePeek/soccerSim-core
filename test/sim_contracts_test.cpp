@@ -4,8 +4,8 @@
 #include "sim/player/player_control.hpp"
 #include "sim/player/player_control_set.hpp"
 #include "sim/observation/world_state.hpp"
-#include "sim/time/tick.hpp"
-#include "sim/time/tick_boundary.hpp"
+#include "foundation/time/tick.hpp"
+#include "foundation/time/tick_boundary.hpp"
 #include "sim/simulation_config.hpp"
 
 static_assert(football::sim::Minutes(45).value == 270000);

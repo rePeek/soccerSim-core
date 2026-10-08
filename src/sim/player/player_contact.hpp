@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_PLAYER_CONTACT_HPP
 
 #include <span>
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

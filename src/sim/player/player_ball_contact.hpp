@@ -5,7 +5,7 @@
 #include <span>
 
 #include "foundation/math/vector3.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 #include "sim/event/touch_state.hpp"
 
 namespace football::ball { class Ball; }

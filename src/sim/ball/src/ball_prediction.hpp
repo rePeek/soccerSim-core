@@ -14,7 +14,7 @@
 #include "foundation/math/vector3.hpp"
 #include "ball_physics.hpp"
 #include "model/pitch.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::ball::detail {
 

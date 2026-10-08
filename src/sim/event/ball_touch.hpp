@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_EVENT_BALL_TOUCH_HPP
 
 #include "sim/event/touch_type.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 class Player;
 class Team;

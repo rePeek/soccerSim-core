@@ -6,7 +6,7 @@
 
 #include "sim/animation/types.hpp"
 #include "foundation/math/vector3.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 using namespace blunted;
 

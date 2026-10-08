@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include "foundation/math/scalar.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 
 using namespace blunted;

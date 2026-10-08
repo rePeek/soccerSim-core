@@ -25,7 +25,7 @@
 #include "foundation/math/vector3.hpp"
 
 #include "sim/observation/player_image.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 using namespace blunted;
 

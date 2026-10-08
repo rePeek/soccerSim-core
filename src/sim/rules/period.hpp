@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_RULES_PERIOD_HPP
 
 #include "sim/rules/phase.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::sim::rules {
 

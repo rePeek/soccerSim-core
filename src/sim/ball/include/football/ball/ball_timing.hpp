@@ -5,7 +5,7 @@
 // MentalImage/Player still size their prediction vectors against the legacy
 // horizon; after those consumers converge on Ball's stable Predict() API this
 // header should become a private ball implementation detail.
-#include "sim/time/tick_boundary.hpp"
+#include "foundation/time/tick_boundary.hpp"
 
 namespace football::sim::ball_timing {
 // Ball prediction policy, not simulation quantum or a runtime-configurable dt.

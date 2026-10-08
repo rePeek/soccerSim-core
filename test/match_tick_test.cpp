@@ -5,8 +5,8 @@
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
 #include "sim/simulation.hpp"
-#include "sim/time/tick.hpp"
-#include "sim/time/tick_boundary.hpp"
+#include "foundation/time/tick.hpp"
+#include "foundation/time/tick_boundary.hpp"
 #include "sim/testing/simulation_access.hpp"
 using football::sim::testing::SimulationAccess;
 

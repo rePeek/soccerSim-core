@@ -18,7 +18,7 @@
 #include <vector>
 #include "foundation/math/vector3.hpp"
 
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 class Team;
 class Player;
 namespace football::ball { class Ball; }

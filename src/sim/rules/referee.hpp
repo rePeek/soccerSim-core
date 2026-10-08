@@ -22,7 +22,7 @@
 #include <optional>
 
 #include "model/football_types.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 #include "sim/rules/phase.hpp"
 #include "sim/rules/restart_readiness.hpp"
 #include "sim/rules/ball_touch_facts.hpp"

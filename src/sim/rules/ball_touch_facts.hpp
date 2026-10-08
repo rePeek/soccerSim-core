@@ -17,7 +17,7 @@
 
 #include <span>
 
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 #include "sim/observation/pitch_frame.hpp"
 
 namespace football::ball { class Ball; }

@@ -4,7 +4,7 @@
 #include "model/pitch.hpp"
 #include "sim/rules/phase.hpp"
 #include "sim/observation/pitch_frame.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
 class Team;

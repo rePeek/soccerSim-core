@@ -15,7 +15,7 @@
 #ifndef FOOTBALL_SIM_RULES_OFFSIDE_HPP
 #define FOOTBALL_SIM_RULES_OFFSIDE_HPP
 
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
 class MentalImage;

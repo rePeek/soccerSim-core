@@ -5,8 +5,7 @@ target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
   FILES player/player_control.hpp player/player_control_set.hpp
     observation/world_state.hpp
-    simulation_config.hpp rules/phase.hpp rules/result.hpp
-    time/tick.hpp time/tick_boundary.hpp)
+    simulation_config.hpp rules/phase.hpp rules/result.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
   football::foundation football::model)

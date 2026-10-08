@@ -17,7 +17,7 @@
 
 #include "foundation/math/vector3.hpp"
 #include "sim/animation/types.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 #include <optional>
 
 using blunted::Vector3;

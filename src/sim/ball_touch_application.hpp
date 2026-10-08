@@ -4,7 +4,7 @@
 #include <span>
 #include "foundation/math/vector3.hpp"
 #include "football/ball/ball_environment.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
 class MentalImage;

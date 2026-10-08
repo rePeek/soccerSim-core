@@ -13,7 +13,7 @@
 
 
 #include "sim/query/reachability.hpp"
-#include "sim/time/tick_boundary.hpp"
+#include "foundation/time/tick_boundary.hpp"
 
 #include <cmath>
 

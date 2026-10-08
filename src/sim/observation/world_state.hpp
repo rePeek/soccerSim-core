@@ -11,7 +11,7 @@
 #include "model/pitch.hpp"
 #include "foundation/math/vector3.hpp"
 #include "sim/rules/phase.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 struct WorldPlayerState {
   football::model::PlayerId id = football::model::kInvalidPlayerId;

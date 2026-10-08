@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "sim/rules/phase.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::sim {
 

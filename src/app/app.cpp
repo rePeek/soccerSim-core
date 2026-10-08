@@ -5,7 +5,7 @@
 #include "app/args.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "env.hpp"
-#include "sim/time/tick_boundary.hpp"
+#include "foundation/time/tick_boundary.hpp"
 
 namespace {
 const char* OutcomeName(MatchOutcome outcome) {

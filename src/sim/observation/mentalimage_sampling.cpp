@@ -4,7 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 
-#include "sim/time/tick_boundary.hpp"
+#include "foundation/time/tick_boundary.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/observation/mentalimage.hpp"
 

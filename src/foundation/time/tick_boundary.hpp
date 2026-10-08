@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_TICK_BOUNDARY_HPP
 #define FOOTBALL_SIM_TICK_BOUNDARY_HPP
 
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::sim {
 

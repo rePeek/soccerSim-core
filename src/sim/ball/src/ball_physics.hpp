@@ -10,7 +10,7 @@
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
 #include "model/pitch.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::ball::detail {
 

@@ -20,7 +20,8 @@ target_sources(football_foundation
     FILES
       geometry/line.hpp geometry/triangle.hpp
       math/matrix3.hpp math/matrix4.hpp math/quaternion.hpp math/rng.hpp
-      math/scalar.hpp math/vector3.hpp)
+      math/scalar.hpp math/vector3.hpp
+      time/tick.hpp time/tick_boundary.hpp)
 target_compile_features(football_foundation PUBLIC cxx_std_23)
 
 # The library is linked into libgame.so in the parent project. Keep this local

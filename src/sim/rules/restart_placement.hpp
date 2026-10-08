@@ -4,7 +4,7 @@
 #include "model/football_types.hpp"
 #include "sim/simulation_config.hpp"
 #include "foundation/math/rng.hpp"
-#include "sim/time/tick.hpp"
+#include "foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
 
