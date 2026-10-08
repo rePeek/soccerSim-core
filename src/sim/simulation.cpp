@@ -22,21 +22,11 @@
 #include "sim/rules/goal.hpp"
 #include "sim/rules/period.hpp"
 #include "sim/rules/referee.hpp"
+#include "sim/team/formation.hpp"
 #include "sim/team/possession.hpp"
 #include "sim/team/team.hpp"
 
 namespace {
-
-std::vector<FormationEntry> ToLegacyFormation(const football::model::Formation& model) {
-  std::vector<FormationEntry> result;
-  result.reserve(model.size());
-  for (const auto& entry : model) {
-    result.emplace_back(entry.position.x, entry.position.y, entry.role,
-                        entry.lazy, entry.controllable);
-  }
-  return result;
-}
-
 // Resolve only unspecified runtime appearance, never import or invent profiles.
 // Preserve the historical home-then-away draw for every declared profile, even
 // profiles omitted by a smaller formation and profiles with explicit appearance.
@@ -181,8 +171,6 @@ void Simulation::Init(
     throw std::invalid_argument("invalid regulation duration");
   }
   ValidatePlayers(home, away);
-  const std::vector<FormationEntry> left = ToLegacyFormation(home.formation);
-  const std::vector<FormationEntry> right = ToLegacyFormation(away.formation);
   football::model::Team home_model = home, away_model = away;
   // Appearance is not competition physics: isolate its seed-0 stream so a
   // second Init never depends on the previous match's residual RNG state.
@@ -191,9 +179,12 @@ void Simulation::Init(
   ResolveAppearance(home_model, appearance_rng);
   ResolveAppearance(away_model, appearance_rng);
 
-  // Derive the kickoff rule once; input selection is not simulation state.
-  options.left_team_owns_ball =
-      LeftTeamOwnsBall(left, right, options.ball_position);
+  // Effective formation: the same fallback BuildFormation uses (formation ->
+  // tactical_formation -> players.size()), so kickoff possession agrees with the
+  // rosters that are actually built.
+  const std::vector<FormationEntry> left = BuildFormation(home_model);
+  const std::vector<FormationEntry> right = BuildFormation(away_model);
+  options.left_team_owns_ball = LeftTeamOwnsBall(left, right, options.ball_position);
 
   // Apply the episode seed after the appearance draws, before constructing
   // actors. Moving those draws across this boundary changes simulation RNG.
