@@ -63,9 +63,10 @@ src/
 │   ├── pitch.hpp     sole pitch geometry type (legacy 110 × 72 metres)
 │   └── football_types.hpp roles/game modes/player count
 ├── sim/              domain-organized rules, physics, execution and observation
-│   ├── simulation.*  owns Match, Referee, RNG, MentalImage history and baked library
+│   ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
-│   ├── match/        Match, MatchClock, options, phase, result and pitch aliases
+│   ├── simulation_config.hpp match-level options value
+│   ├── pitch_geometry.hpp    legacy global pitch constants awaiting model::Pitch
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
 │   ├── ball/         standalone Ball physics/environment, prediction timing, touch kinds
 │   │                 and ball_player_contact interaction
@@ -75,7 +76,7 @@ src/
 │   ├── random/       simulation-owned RNG authority alias; algorithm in foundation
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
-│   ├── rules/        Referee, goal geometry, period boundary, offside and restarts
+│   ├── rules/        Referee, clock/phase/result values, goal, period, offside and restarts
 │   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
 │   └── player/       Player, tick-local inputs, controls, locomotion, possession and contacts
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
@@ -214,7 +215,7 @@ anim_baking → legacy_anim + animation/foundation
 - `football_goal_test` builds rules/goal.cpp with only model/foundation/Catch2, proving
   goal geometry has no Match/Ball/runtime dependency. Lifecycle tests retain score,
   half/order attribution and period-whistle coverage through real Simulation steps.
-- `football_match_clock_test` builds match/match_clock.cpp with value contracts/Catch2
+- `football_match_clock_test` builds rules/clock.cpp with value contracts/Catch2
   only. It checks both-period clipping, ceremonies/dead balls, exact large tick spans,
   atomic overflow rejection, terminal freeze and separate executed-step accounting.
 - `football_sim_control_boundary_test` includes lifecycle and restart tests.
@@ -257,7 +258,7 @@ reset, runtime accessor or live control/tactics/request API.
 app main → GameEnv::Start
          → until Finished: Observe → DefaultAI::Update → controls → Simulation::Step
          → Result (application serializes it)
-Simulation::Step → explicit domain phases → Match-owned competition/actor state
+Simulation::Step → explicit domain phases → Simulation-owned competition/actor state
 ```
 
 - Simulation owns tick sequencing, pending end-change application, execution accounting
@@ -283,9 +284,9 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   Keep both original prediction recalculations and sample-zero publication timing unchanged.
 - Match::Step/Process/StepRemainingTick are removed. Simulation::Step now spells out
   the legacy phase order and all frame/terminal/ceremonial boundaries directly.
-  Match still holds competition state, actors and touch values; it no longer composes
-  touch/history notifications. Player/Team upward dependencies are not yet removed.
-  Simulation::match() remains a transitional test/diagnostic escape hatch.
+  Simulation owns competition state, actors and touch values; the former Match
+  value object is deleted, Player/Team upward dependencies are removed, and
+  diagnostics use SimulationAccess instead.
 - Contact extraction retains cooldown's strict >15-tick boundary and the original
   three RNG argument-expression draws after touch-dependent refresh, before cooldown
   publication. Tests cover standalone Ball/netting, contact feedback/controlled gates
@@ -332,13 +333,13 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   time comparison, tie fallback, unsigned +10 float ratio and strict <0.85 hysteresis.
   Simulation publishes bestPossessionTeam then designatedPossessionPlayer at the old
   phase boundary. Both selection fields and the distinct physical ballRetainer fact
-  remain Match-owned. Player::UpdatePossessionStats consumes Ball, opponent, now and
+  remain Simulation-owned. Player::UpdatePossessionStats consumes Ball, opponent, now and
   the physical retainer explicitly. player/possession owns roster aggregation and the
   pre/post-player possession phases. Simulation iterates each active roster in order;
   Team::Process/UpdatePossessionStats/UpdateDesignatedTeamPossessionPlayer are deleted.
   Team only publishes its resulting data; no Team context/services are introduced.
   Unused Team::HasUniquePossession and restart query wrappers are deleted; restart
-  facts are read from rules directly. Team's Match pointer remains for construction
+  facts are read from rules directly. Team has no Match pointer at all;
   until Player/Humanoid lifetime dependencies are removed. ApplyBallTouch supplies
   now/retainer to first then second possession refresh before spin/notification.
 - Simulation owns std::vector<MentalImage> and CaptureMentalImage scheduling. Capture
@@ -358,7 +359,7 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   delayed reset, replacement context or Simulation pointer in Referee. Sampling/refresh functions
   live in observation/mentalimage_sampling and take explicit spans/Ball. Simulation diagnostic
   sampling is the only remaining history query and sees the same objects actors sample.
-  History clears at the old teardown point and its storage outlives Match. MentalImage has no Match
+  History clears at the old teardown point and its storage outlives the composition. MentalImage has no Match
   member/include/constructor or implicit world-clock/Ball reads. Capture takes tick,
   ordered player span and const Ball; age/player sampling takes now, predictions take
   now/Ball and newest refresh takes Ball. Keep live Player deviation clamps and signed
@@ -372,7 +373,7 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   later accepted restarts are idempotent, ordinary dead balls stop only effective time,
   EndHalf stops both. Simulation counts entry before a possible terminal whistle.
   Match keeps forwarding reads/run gates. Simulation advances Clock then updates the
-  Match-owned recent possession window with unchanged float arithmetic, before goals.
+  Simulation-owned recent possession window with unchanged float arithmetic, before goals.
   Match::AdvanceTime and SwitchEnds are removed. Simulation::ApplyChangeOfEnds keeps
   first roster SwitchEnds → second roster SwitchEnds → Ball Mirror → image mirrors,
   at entry before counting/controls, without changing transient mirror flags.
@@ -411,13 +412,12 @@ Simulation::Step → explicit domain phases → Match-owned competition/actor st
   Latest Release 34/34, Debug 33/33 (excluding full-match CLI), standalone period
   and core-only builds pass; no golden, physics, policy or baked asset changed.
 
-Match has no tick entry or collision/goal/selection algorithm. Referee is fully
-Match-independent and uniquely owned by Simulation. Match's referee access is a
-transitional non-owning actor borrow, not a rule service locator or a second owner.
-Match retains competition/clock and actor ownership, TouchState values and the
-possession window. Next: actor dependencies (including the remaining read-only Match
-touch accessors), then ownership flip, testing access migration and Match deletion.
-Never rename it to a runtime-pointer MatchState or copy it into a RuntimeContext.
+Match is deleted. The composition root Simulation owns competition/clock, actor
+ownership, TouchState values and the possession window; match.hpp/match.cpp and
+Simulation::match() no longer exist, and diagnostics use SimulationAccess.
+Remaining sim/match value types moved to rules/clock, rules/phase, rules/result,
+simulation_config.hpp and pitch_geometry.hpp. Never reintroduce a runtime-pointer
+MatchState or a RuntimeContext for actors.
 
 Current phase order (composed directly by Simulation):
 ```text
@@ -477,7 +477,7 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   their write-only history storage are deleted, not replaced.
   Clock scale removal is a separate S2 semantic stage, not a unit-only rename.
   See tools/time-model-migration.md before rounding continuous arrival estimates.
-- Simulation owns period-end lifecycle and MatchClock's lifetime/value. Match owns
+- Simulation owns period-end lifecycle and MatchClock value/lifetime. Simulation owns
   phase/score and only borrows the clock for transitional projections/commands.
   Clock contains executed-step count, Tick timeline, regulation and ball-in-play.
   MatchPhase is PreMatch/FirstHalf/SecondHalf/Finished; second-half ceremony is
@@ -568,7 +568,7 @@ and clock behavior; this sequence is not permission to reorder legacy phases.
   is import provenance only. No ID remapping/allocator, PlayerIndex, generic IDs
   module, TeamId or ambient actor numbering. Roster positions are local indices.
 - Player holds a reference to the model::Player owned by Team; Team copies the
-  model::Team and derives runtime FormationEntries. Match owns score/possession.
+  model::Team and derives runtime FormationEntries. Simulation owns score/possession.
   Sample factories live in app/fixtures, never model or core.
 - Reject invalid/duplicate IDs, empty rosters, formation/profile mismatch and invalid
   time rules before consuming RNG. Init seeds to 0, draws one Uniform(1,4) per
