@@ -51,7 +51,11 @@ class Ball {
   BallState state() const;
 
   // ---- Stable external physical input ----
-  // Continuous force accumulated for the next Step interval.
+  // Force accumulated for the next Step interval. It is applied as one
+  // velocity change dv = (F / mass) * ToSeconds(dt) before that Step
+  // integrates, i.e. it models a constant force across the whole interval.
+  // Applying the same force per single tick is NOT equivalent: the caller
+  // re-applies it for every Step it wants it to act over.
   void ApplyForce(const blunted::Vector3& force);
   // Instantaneous linear impulse: dv = J / mass. Refreshes the transitional
   // prediction cache so a following legacy Predict() cannot observe stale data.

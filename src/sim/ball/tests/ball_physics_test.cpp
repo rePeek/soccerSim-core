@@ -85,4 +85,27 @@ TEST_CASE("Step(0) is a no-op that keeps an accumulated force",
   REQUIRE(deferred.state().velocity == immediate.state().velocity);
 }
 
+TEST_CASE("ApplyForce acts across the whole next Step interval",
+          "[sim][ball][physics]") {
+  const auto initial = StateAt(Vector3(0.0f, 0.0f, 5.0f), Vector3(0.0f, 0.0f, 0.0f));
+  const Vector3 force(10.0f, 0.0f, 0.0f);
+  const auto dt = football::sim::TickSpan{4};
+  const float seconds = football::sim::ToSeconds(dt);
+
+  Ball force_driven(kPitch);
+  force_driven.Reset(initial);
+  force_driven.ApplyForce(force);
+  force_driven.Step(dt, BallEnvironment{});
+
+  // A constant force over dt is equivalent to one impulse of F * dt applied
+  // before a Step of the same duration.
+  Ball impulse_driven(kPitch);
+  impulse_driven.Reset(initial);
+  impulse_driven.ApplyImpulse(force * seconds);
+  impulse_driven.Step(dt, BallEnvironment{});
+
+  REQUIRE(force_driven.state().position == impulse_driven.state().position);
+  REQUIRE(force_driven.state().velocity == impulse_driven.state().velocity);
+}
+
 }  // namespace
