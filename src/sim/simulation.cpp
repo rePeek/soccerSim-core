@@ -339,7 +339,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
   }
   // StepBall.
   Mirror(false, false, reverse);
-  ball_->Process(GetBallEnvironment());
+  ball_->Step(football::sim::TickSpan{1}, GetBallEnvironment());
   Mirror(false, false, reverse);
 
   // CaptureHistory: preserve the pre-player-processing capture and sample-zero timing.

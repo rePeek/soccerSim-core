@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 #include "ball_physics.hpp"
 #include "ball_prediction.hpp"
@@ -16,17 +17,22 @@ using football::ball::BallEnvironment;
 using football::ball::BallState;
 using football::ball::detail::PhysicsState;
 
+// Default physical frame: at rest at the origin, no spin, identity orientation.
+PhysicsState InitialState() {
+  return PhysicsState{Vector3(0), Vector3(0), Quaternion(), Quaternion()};
+}
+
 }  // namespace
 
 Ball::Ball(const BallConfig& config, const football::model::Pitch& pitch)
     : config_(config),
-      momentum_(Vector3(0)),
-      rotation_ms_(Quaternion()),
-      position_(Vector3(0)),
-      orientation_(Quaternion()),
       pitch_(pitch),
+      state_(std::make_unique<detail::PhysicsState>(InitialState())),
       prediction_cache_(std::make_unique<detail::BallPredictionCache>()),
       pending_force_(Vector3(0)) {
+  if (!(config_.mass > 0.0f) || !(config_.radius > 0.0f)) {
+    throw std::invalid_argument("football::ball: mass and radius must be positive");
+  }
   RefreshPredictions(BallEnvironment{});
 }
 
@@ -34,30 +40,23 @@ Ball::Ball(const football::model::Pitch& pitch) : Ball(BallConfig{}, pitch) {}
 
 Ball::~Ball() = default;
 
-PhysicsState Ball::Snapshot() const {
-  return PhysicsState{position_, momentum_, rotation_ms_, orientation_};
-}
-
 void Ball::Commit(const PhysicsState& state) {
-  position_ = state.position;
-  momentum_ = state.momentum;
-  rotation_ms_ = state.rotation_ms;
-  orientation_ = state.orientation;
+  *state_ = state;
 }
 
 void Ball::RefreshPredictions(const BallEnvironment& environment) {
   detail::PredictionResult ignored;
-  prediction_cache_->Compute(Snapshot(), config_, pitch_, environment, ignored);
+  prediction_cache_->Compute(*state_, config_, pitch_, environment, ignored);
 }
 
 BallState Ball::state() const {
   BallState result;
-  result.position = position_;
-  result.velocity = momentum_;
+  result.position = state_->position;
+  result.velocity = state_->momentum;
   real x, y, z;
-  rotation_ms_.GetAngles(x, y, z);
+  state_->rotation_ms.GetAngles(x, y, z);
   result.angular_velocity = Vector3(x * 1000.0f, y * 1000.0f, z * 1000.0f);
-  result.orientation = orientation_;
+  result.orientation = state_->orientation;
   return result;
 }
 
@@ -66,8 +65,11 @@ void Ball::ApplyForce(const Vector3& force) {
 }
 
 void Ball::ApplyImpulse(const Vector3& impulse) {
-  momentum_ += impulse / config_.mass;
+  state_->momentum += impulse / config_.mass;
+  // Rebuild, not only invalidate: the transitional cache-backed Predict()
+  // reads the array directly, so it must not observe the pre-impulse path.
   prediction_cache_->Invalidate();
+  RefreshPredictions(BallEnvironment{});
 }
 
 void Ball::ApplyImpulseAtPoint(const Vector3& impulse, const Vector3& world_point) {
@@ -78,25 +80,29 @@ void Ball::ApplyImpulseAtPoint(const Vector3& impulse, const Vector3& world_poin
   (void)world_point;
 }
 
+void Ball::AdvanceOneTick(const BallEnvironment& environment) {
+  detail::PredictionResult result;
+  prediction_cache_->Compute(*state_, config_, pitch_, environment, result);
+  Commit(result.step_one);
+}
+
 void Ball::Step(football::sim::TickSpan dt, const BallEnvironment& environment) {
+  // Zero ticks must not silently drop an accumulated force.
+  if (dt == football::sim::TickSpan{0}) return;
+
   if (pending_force_ != Vector3(0)) {
-    const float seconds = football::sim::ToSeconds(dt);
-    momentum_ += (pending_force_ / config_.mass) * seconds;
+    state_->momentum += (pending_force_ / config_.mass) * football::sim::ToSeconds(dt);
     pending_force_ = Vector3(0);
   }
 
-  PhysicsState state = Snapshot();
   for (football::sim::TickSpan i{0}; i < dt; i += football::sim::TickSpan{1}) {
-    state = detail::Advance(state, config_, pitch_, environment,
-                            /*first_step=*/ i == football::sim::TickSpan{0});
+    AdvanceOneTick(environment);
   }
-  Commit(state);
-  RefreshPredictions(environment);
 }
 
 BallState Ball::Predict(football::sim::TickSpan ahead,
                         const BallEnvironment& environment) const {
-  PhysicsState state = Snapshot();
+  PhysicsState state = *state_;
   for (football::sim::TickSpan i{0}; i < ahead; i += football::sim::TickSpan{1}) {
     state = detail::Advance(state, config_, pitch_, environment,
                             /*first_step=*/ i == football::sim::TickSpan{0});
@@ -113,22 +119,22 @@ BallState Ball::Predict(football::sim::TickSpan ahead,
 }
 
 void Ball::Reset(const BallState& state) {
-  position_ = state.position;
-  momentum_ = state.velocity;
+  state_->position = state.position;
+  state_->momentum = state.velocity;
   Quaternion rotation;
   rotation.SetAngles(state.angular_velocity.coords[0] * 0.001f,
                      state.angular_velocity.coords[1] * 0.001f,
                      state.angular_velocity.coords[2] * 0.001f);
-  rotation_ms_ = rotation;
-  orientation_ = state.orientation;
+  state_->rotation_ms = rotation;
+  state_->orientation = state.orientation;
   pending_force_ = Vector3(0);
   RefreshPredictions(BallEnvironment{});
 }
 
 void Ball::Mirror() {
-  momentum_.Mirror();
+  state_->momentum.Mirror();
   prediction_cache_->Mirror();
-  position_.Mirror();
+  state_->position.Mirror();
 }
 
 Vector3 Ball::Predict(football::sim::TickSpan horizon) const {
@@ -145,18 +151,24 @@ void Ball::GetPredictionArray(std::vector<Vector3>& target) const {
 }
 
 Vector3 Ball::GetMovement() const {
-  return momentum_;
+  return state_->momentum;
 }
 
 Vector3 Ball::GetRotation() const {
   real x, y, z;
-  rotation_ms_.GetAngles(x, y, z);
+  state_->rotation_ms.GetAngles(x, y, z);
   return Vector3(x, y, z);
+}
+
+Quaternion Ball::GetOrientation() const {
+  return state_->orientation;
 }
 
 void Ball::Touch(const Vector3& target, const BallEnvironment& environment) {
   prediction_cache_->Invalidate();
-  if (position_.coords[2] < config_.radius) position_.coords[2] = config_.radius;
+  if (state_->position.coords[2] < config_.radius) {
+    state_->position.coords[2] = config_.radius;
+  }
 
   SetMomentum(target, environment);
 
@@ -166,13 +178,13 @@ void Ball::Touch(const Vector3& target, const BallEnvironment& environment) {
 
 void Ball::SetPosition(const Vector3& target, const BallEnvironment& environment) {
   prediction_cache_->Invalidate();
-  position_.Set(target);
-  momentum_.Set(0);
+  state_->position.Set(target);
+  state_->momentum.Set(0);
   SetRotation(0, 0, 0, 1.0, environment);
 }
 
 void Ball::SetMomentum(const Vector3& target, const BallEnvironment& environment) {
-  momentum_.Set(target);
+  state_->momentum.Set(target);
   CalculatePrediction(environment);
 }
 
@@ -187,28 +199,27 @@ void Ball::SetRotation(real x, real y, real z, float bias,
   rotZ.SetAngleAxis(clamp(z * 0.001f, -pi * 0.49f, pi * 0.49f), Vector3(0, 0, 1));
 
   Quaternion tmpRotation_ms = rotX * rotY * rotZ;
-  rotation_ms_ = rotation_ms_.GetSlerped(bias, tmpRotation_ms);
+  state_->rotation_ms = state_->rotation_ms.GetSlerped(bias, tmpRotation_ms);
 
   CalculatePrediction(environment);
 }
 
 BallSpatialInfo Ball::CalculatePrediction(const BallEnvironment& environment) {
   detail::PredictionResult result;
-  prediction_cache_->Compute(Snapshot(), config_, pitch_, environment, result);
+  prediction_cache_->Compute(*state_, config_, pitch_, environment, result);
   return BallSpatialInfo(result.step_one.momentum, result.step_one.rotation_ms);
 }
 
 void Ball::Process(const BallEnvironment& environment) {
-  detail::PredictionResult result;
-  prediction_cache_->Compute(Snapshot(), config_, pitch_, environment, result);
-  Commit(result.step_one);
+  // Single real-motion path: Process is exactly one Step tick.
+  Step(football::sim::TickSpan{1}, environment);
 }
 
 void Ball::ResetSituation(const Vector3& focusPos) {
-  momentum_ = Vector3(0);
-  rotation_ms_ = QUATERNION_IDENTITY;
+  state_->momentum = Vector3(0);
+  state_->rotation_ms = QUATERNION_IDENTITY;
   prediction_cache_->Reset(focusPos + Vector3(0, 0, 0.11));
-  position_ = Vector3(focusPos + Vector3(0, 0, 0.11));
-  orientation_ = QUATERNION_IDENTITY;
+  state_->position = Vector3(focusPos + Vector3(0, 0, 0.11));
+  state_->orientation = QUATERNION_IDENTITY;
   pending_force_ = Vector3(0);
 }

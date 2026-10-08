@@ -65,4 +65,24 @@ TEST_CASE("the physics kernel is deterministic", "[sim][ball][physics]") {
   REQUIRE(a.state().angular_velocity == b.state().angular_velocity);
 }
 
+TEST_CASE("Step(0) is a no-op that keeps an accumulated force",
+          "[sim][ball][physics]") {
+  const auto initial = StateAt(Vector3(0.0f, 0.0f, 5.0f), Vector3(0.0f, 0.0f, 0.0f));
+  const Vector3 force(10.0f, 0.0f, 0.0f);
+
+  Ball deferred(kPitch);
+  deferred.Reset(initial);
+  deferred.ApplyForce(force);
+  deferred.Step(football::sim::TickSpan{0}, BallEnvironment{});
+  REQUIRE(deferred.state().velocity == initial.velocity);
+  deferred.Step(football::sim::TickSpan{1}, BallEnvironment{});
+
+  Ball immediate(kPitch);
+  immediate.Reset(initial);
+  immediate.ApplyForce(force);
+  immediate.Step(football::sim::TickSpan{1}, BallEnvironment{});
+
+  REQUIRE(deferred.state().velocity == immediate.state().velocity);
+}
+
 }  // namespace

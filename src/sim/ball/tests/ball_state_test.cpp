@@ -1,3 +1,5 @@
+#include <cmath>
+#include <stdexcept>
 #include <type_traits>
 
 #include <catch2/catch_test_macros.hpp>
@@ -56,6 +58,20 @@ TEST_CASE("Mirror reflects momentum and position only", "[sim][ball][state]") {
   const auto state = ball.state();
   REQUIRE(state.position == Vector3(-1.0f, -2.0f, 0.5f));
   REQUIRE(state.velocity == Vector3(-3.0f, 1.0f, 0.0f));
+}
+
+TEST_CASE("invalid physical config is rejected", "[sim][ball][state]") {
+  BallConfig bad_mass;
+  bad_mass.mass = 0.0f;
+  REQUIRE_THROWS_AS(Ball(bad_mass, kPitch), std::invalid_argument);
+
+  BallConfig bad_radius;
+  bad_radius.radius = -1.0f;
+  REQUIRE_THROWS_AS(Ball(bad_radius, kPitch), std::invalid_argument);
+
+  BallConfig nan_mass;
+  nan_mass.mass = std::nanf("");
+  REQUIRE_THROWS_AS(Ball(nan_mass, kPitch), std::invalid_argument);
 }
 
 }  // namespace
