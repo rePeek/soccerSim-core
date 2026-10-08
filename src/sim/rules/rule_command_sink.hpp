@@ -4,6 +4,8 @@
 #include "foundation/math/vector3.hpp"
 #include "sim/match/match_phase.hpp"
 
+class Player;
+
 namespace football::sim::rules {
 
 // Synchronous, write-only runtime consequences. No queries, retained tick inputs,
@@ -16,6 +18,8 @@ class RuleCommandSink {
   virtual void StartSetPiece() = 0;
   virtual void StopSetPiece() = 0;
   virtual void StartBallInPlay() = 0;
+  // Rule-driven retain (throw-in taker holds the ball).
+  virtual void SetBallRetainer(Player* retainer) = 0;
   virtual void ResetSituation(const blunted::Vector3& position) = 0;
   virtual void ResetBall(const blunted::Vector3& position) = 0;
   virtual void SetPhase(MatchPhase phase) = 0;

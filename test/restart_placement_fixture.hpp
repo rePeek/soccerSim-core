@@ -47,11 +47,24 @@ inline void SetupRestart(Simulation &simulation, const RestartCase &test) {
 }
 
 inline std::array<Player *, 2> PositionRestart(Match &match, const RestartCase &test) {
+  struct RetainSink final : football::sim::rules::RuleCommandSink {
+    Match& match;
+    explicit RetainSink(Match& m) : match(m) {}
+    void StopPlay() override {}
+    void StartPlay() override {}
+    void StartSetPiece() override {}
+    void StopSetPiece() override {}
+    void StartBallInPlay() override {}
+    void SetBallRetainer(Player* retainer) override { match.SetBallRetainer(retainer); }
+    void ResetSituation(const blunted::Vector3&) override {}
+    void ResetBall(const blunted::Vector3&) override {}
+    void SetPhase(MatchPhase) override {}
+  } commands(match);
   std::array<Player *, 2> takers{};
   for (int side : {match.FirstTeam(), match.SecondTeam()})
     takers[side] = PositionRestartPlayers(match.GetTeam(side), test.mode,
         match.GetTeam(1 - side), test.taking_team, test.taking_team,
-        *match.GetBall(), match.GetRegulationTime(), match.options(), match.rng());
+        *match.GetBall(), match.GetRegulationTime(), match.options(), match.rng(), commands);
   return takers;
 }
 

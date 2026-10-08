@@ -592,7 +592,7 @@ void HumanoidBase::Mirror() {
   predicate_RelDesiredBallDirection.Mirror();
 }
 
-void HumanoidBase::Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& /*touch_sink*/) {
+void HumanoidBase::Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& /*touch_sink*/, football::sim::PlayerRuntimeSink& /*runtime_sink*/) {
   // Reject invalid runtime state before the spatial/action debug oracles run.
   if (startPos.coords[2] != 0.f) {
     throw std::logic_error("HumanoidBase::Process: player position must have zero height");

@@ -36,6 +36,7 @@
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/ball/ball_touch_application.hpp"
 #include "sim/event/ball_touch_sink.hpp"
+#include "sim/player/player_runtime_sink.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
 
@@ -91,7 +92,7 @@ bool _PassFiddlingEnabled() {
   return true;
 }
 
-void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink) {
+void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
   // Reject invalid runtime state before the spatial/action debug oracles run.
   if (startPos.coords[2] != 0.f) {
     throw std::logic_error("Humanoid::Process: player position must have zero height");
@@ -775,7 +776,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         if ((1.0f - veloDifficulty) * (1.0f - reactionDifficulty) < 0.3f) canRetain = false; // too hard!
 
         if (canRetain) {
-          match->SetBallRetainer(CastPlayer());
+          runtime_sink.SetBallRetainer(CastPlayer());
           ball_retainer = CastPlayer();
         } else {
           Vector3 currentBallMovement = tick.ball.GetMovement().Get2D();
@@ -853,7 +854,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       notify_touch(e_TouchType_Intentional_Nonkicked);
     } else {
       // no longer retaining
-      match->SetBallRetainer(0);
+      runtime_sink.SetBallRetainer(nullptr);
       ball_retainer = nullptr;
     }
   }
@@ -1009,7 +1010,7 @@ void Humanoid::SelectRetainAnim() {
   currentAnim.functionType = e_FunctionType_Movement;
   CastPlayer()->BeginSimulationAction();
 
-  match->SetBallRetainer(CastPlayer());
+
 }
 
 void Humanoid::ResetSituation(const Vector3 &focusPos) {

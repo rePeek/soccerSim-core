@@ -96,7 +96,8 @@ void ValidatePlayers(const football::model::Team& home, const football::model::T
 }  // namespace
 
 // Only the composition root translates write-only rule commands to runtime state.
-class Simulation::RuleCommands final : public football::sim::rules::RuleCommandSink {
+class Simulation::RuleCommands final : public football::sim::rules::RuleCommandSink,
+                                       public football::sim::PlayerRuntimeSink {
  public:
   explicit RuleCommands(Simulation& simulation) : simulation_(simulation) {}
   void StopPlay() override { simulation_.match_->StopPlay(); }
@@ -104,6 +105,7 @@ class Simulation::RuleCommands final : public football::sim::rules::RuleCommandS
   void StartSetPiece() override { simulation_.match_->StartSetPiece(); }
   void StopSetPiece() override { simulation_.match_->StopSetPiece(); }
   void StartBallInPlay() override { simulation_.match_->StartBallInPlay(); }
+  void SetBallRetainer(Player* retainer) override { simulation_.match_->SetBallRetainer(retainer); }
   void ResetSituation(const Vector3& position) override { simulation_.ResetSituation(position); }
   void ResetBall(const Vector3& position) override { simulation_.match_->GetBall()->ResetSituation(position); }
   void SetPhase(MatchPhase phase) override { simulation_.match_->SetMatchPhase(phase); }
@@ -208,7 +210,9 @@ void Simulation::Init(
                                   animations_, *clock_);
   referee_ = std::make_unique<Referee>(*match_->teams[match_->first_team], options.ball_position);
   match_->referee_ = referee_.get();
-  rule_commands_ = std::make_unique<RuleCommands>(*this);
+  auto commands = std::make_unique<RuleCommands>(*this);
+  player_runtime_sink_ = commands.get();
+  rule_commands_ = std::move(commands);
   touch_sink_ = std::make_unique<TouchEvents>(*this);
 }
 
@@ -305,7 +309,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
     football::sim::player::PrepareTeamPossession(team, opponent, match.IsInPlay(),
         match.IsInSetPiece(), match.ballRetainer, match.bestPossessionTeam);
     for (Player* actor : team.GetAllPlayers()) {
-      if (actor->IsActive()) actor->Process(PlayerTickFacts(*actor), mental_images_, *touch_sink_);
+      if (actor->IsActive()) actor->Process(PlayerTickFacts(*actor), mental_images_, *touch_sink_, *player_runtime_sink_);
     }
     football::sim::player::FinishTeamPossession(team, opponent);
   };
@@ -512,6 +516,7 @@ bool Simulation::Stop() {
   referee_.reset();
   mental_images_.clear();
   touch_sink_.reset();
+  player_runtime_sink_ = nullptr;
   rule_commands_.reset();
   match_.reset();
   clock_.reset();

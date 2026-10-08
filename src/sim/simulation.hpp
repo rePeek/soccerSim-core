@@ -19,6 +19,7 @@
 #include "sim/rules/referee_tick_facts.hpp"
 #include "sim/rules/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
+#include "sim/player/player_runtime_sink.hpp"
 
 class Match;
 class Player;
@@ -80,6 +81,8 @@ class Simulation {
   std::unique_ptr<Match> match_;
   std::unique_ptr<Referee> referee_;
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;
+  // Borrowed from rule_commands_; the concrete sink implements both ports.
+  football::sim::PlayerRuntimeSink* player_runtime_sink_ = nullptr;
   // Runtime touch publication; keeps the write-only sink out of actors.
   std::unique_ptr<football::sim::BallTouchSink> touch_sink_;
   std::shared_ptr<AnimationLibrary> animations_;

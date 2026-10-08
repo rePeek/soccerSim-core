@@ -49,6 +49,10 @@ class SimulationAccess {
     if (!simulation.rule_commands_) throw std::logic_error("simulation has no match");
     return *simulation.rule_commands_;
   }
+  static PlayerRuntimeSink& RuntimeOf(Simulation& simulation) {
+    if (!simulation.player_runtime_sink_) throw std::logic_error("simulation has no match");
+    return *simulation.player_runtime_sink_;
+  }
   static rules::RefereeTickFacts RefereeFactsOf(const Simulation& simulation) {
     return simulation.RefereeFacts();
   }

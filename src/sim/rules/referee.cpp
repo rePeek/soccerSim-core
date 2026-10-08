@@ -237,9 +237,9 @@ void Referee::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
   Team* first = facts.first_team == 0 ? &facts.home : &facts.away;
   Team* second = facts.first_team == 0 ? &facts.away : &facts.home;
   Player *first_taker = PositionRestartPlayers(first, e_GameMode_KickOff, second,
-      buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng);
+      buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng, commands);
   Player *second_taker = PositionRestartPlayers(second, e_GameMode_KickOff, first,
-      buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng);
+      buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng, commands);
   buffer.taker = buffer.teamID == facts.first_team ? first_taker : second_taker;
   offsidePlayers.clear();
 }
@@ -530,7 +530,10 @@ void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& 
       facts.ball.GetMovement().GetLength() > 0.5f) return;
   state.phase = RestartPhase::Ready;
   buffer.start_tick = facts.now; // Fact: authorization instant, not a preset delay.
-  if (buffer.desiredSetPiece == e_GameMode_ThrowIn) buffer.taker->SelectRetainAnim();
+  if (buffer.desiredSetPiece == e_GameMode_ThrowIn) {
+    buffer.taker->SelectRetainAnim();
+    commands.SetBallRetainer(buffer.taker);
+  }
   commands.StartPlay();
   commands.StartSetPiece();
 }

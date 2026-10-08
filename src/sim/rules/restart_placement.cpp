@@ -13,6 +13,7 @@
 
 
 #include "sim/rules/restart_placement.hpp"
+#include "sim/rules/rule_command_sink.hpp"
 #include "sim/query/player_query.hpp"
 #include "sim/ball/ball.hpp"
 #include "sim/match/pitch_geometry.hpp"
@@ -147,7 +148,8 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                                        int kickoffTakerTeamId,
                                        int takerTeamID, const Ball& ball,
                                        football::sim::TickSpan regulation,
-                                       const MatchOptions& options, SimulationRng& rng) {
+                                       const MatchOptions& options, SimulationRng& rng,
+                                       football::sim::rules::RuleCommandSink& commands) {
   Player *taker = nullptr;
 
   if (takerTeamID == -1) assert(setPiece == e_GameMode_Normal);
@@ -537,6 +539,7 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                 }
                 if (setPiece == e_GameMode_ThrowIn) {
                   taker->SelectRetainAnim();
+                  commands.SetBallRetainer(taker);
                 }
                 if (setPiece == e_GameMode_Penalty) {
                   taker->ResetPosition(

@@ -19,6 +19,9 @@ struct RuleCommandProbe final : football::sim::rules::RuleCommandSink {
   void StartSetPiece() override { calls.emplace_back("setpiece"); if (delegate) delegate->StartSetPiece(); }
   void StopSetPiece() override { calls.emplace_back("end-setpiece"); if (delegate) delegate->StopSetPiece(); }
   void StartBallInPlay() override { calls.emplace_back("ball-live"); if (delegate) delegate->StartBallInPlay(); }
+  void SetBallRetainer(Player* retainer) override {
+    calls.emplace_back("retain"); if (delegate) delegate->SetBallRetainer(retainer);
+  }
   void ResetSituation(const blunted::Vector3& position) override {
     calls.emplace_back("reset");
     if (reset) reset(position); else if (delegate) delegate->ResetSituation(position);
