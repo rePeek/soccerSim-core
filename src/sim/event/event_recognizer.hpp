@@ -7,6 +7,8 @@
 #include "sim/event/event.hpp"
 #include "sim/event/event_transition.hpp"
 #include "sim/fact/simulation_fact.hpp"
+#include "sim/event/event_trajectory.hpp"
+#include "sim/observation/snapshot_history.hpp"
 
 namespace football::sim::event {
 
@@ -16,6 +18,8 @@ namespace football::sim::event {
 struct EventView {
   bool in_play = false;
   bool in_set_piece = false;
+  // Present only during an executing Simulation step, not diagnostic facts.
+  std::optional<std::uint64_t> snapshot_step;
 };
 
 // Recognizes cross-tick football behaviors from the immutable fact stream. It
@@ -26,23 +30,43 @@ class EventRecognizer {
  public:
   void Consume(const StampedFact& fact, const EventView& view);
   void Advance(Tick now, const EventView& view);
-  void OnGoalConfirmed(Tick now, model::TeamSide team);
+  void OnGoalConfirmed(Tick now, model::TeamSide team,
+                       std::optional<std::uint64_t> snapshot_step = std::nullopt);
   void Reset();
 
   const std::vector<EventTransition>& transitions() const { return transitions_; }
   bool HasActivePass() const { return pending_pass_.has_value(); }
   bool HasActiveShot() const { return pending_shot_.has_value(); }
 
+  // Call after the whole step has committed its Snapshot, never inside a fact
+  // callback. Analyses use only retained history and do not change transitions.
+  void PublishTrajectories(const observation::SnapshotHistory& history);
+  const std::vector<EventTrajectory>& trajectories() const { return trajectories_; }
+
  private:
   EventId NextId() { return next_id_++; }
-  void ResolvePass(EventStatus status, std::optional<model::PlayerId> receiver, Tick now);
-  void ResolveShot(EventStatus status, bool goal, Tick now);
-  void CancelActive(Tick now);
+  void ResolvePass(EventStatus status, std::optional<model::PlayerId> receiver, Tick now,
+                   std::optional<std::uint64_t> snapshot_step);
+  void ResolveShot(EventStatus status, bool goal, Tick now,
+                   std::optional<std::uint64_t> snapshot_step);
+  void CancelActive(Tick now, std::optional<std::uint64_t> snapshot_step);
+  struct MotionWindow {
+    EventId id;
+    std::uint64_t first_step, last_step, generation;
+    TrajectoryKind kind;
+    model::PlayerId actor;
+    model::TeamSide team;
+  };
+  void FinishTrajectory(std::optional<MotionWindow>& pending,
+                        std::optional<std::uint64_t> last_step);
 
   EventId next_id_ = 1;
   std::optional<PassEvent> pending_pass_;
   std::optional<ShotEvent> pending_shot_;
   std::vector<EventTransition> transitions_;
+  std::optional<MotionWindow> pass_motion_, shot_motion_;
+  std::vector<MotionWindow> finished_motion_;
+  std::vector<EventTrajectory> trajectories_;
 };
 
 }  // namespace football::sim::event

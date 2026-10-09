@@ -26,6 +26,44 @@ contact facts, rule decisions, AI policy or RNG draws.
 - All live history access stays on the simulation thread and in memory. Borrowed
   pointers expire on overwrite/Clear/Reset/Stop; background code needs copies.
 
+## Live historical consumers
+
+SnapshotHistory::ForEachStep visits retained executed-step ranges synchronously
+without copying or allocating, in chronological order across ring wrap. It returns
+the actual visited count; overwritten/missing steps are never fabricated. Moves
+leave the source queryably empty; Reset initializes it for reuse.
+
+EventRecognizer keeps existing contact-fact start/resolve/timeout/goal semantics.
+During real Step execution, EventView carries an optional executing sample step.
+Resolved actions queue observation windows; only after CaptureSnapshot commits the
+whole step does PublishTrajectories query the same history and publish owning
+EventTrajectory values. They include event identity, generation, requested step
+range, sample count, first/last ball positions, path length and peak speed.
+Missing retention, generation mismatch, step gaps and timeline jumps mark analysis
+incomplete; distance never crosses these discontinuities. Diagnostic facts outside
+Step have no executing sample annotation and never pretend to have motion evidence.
+These whole-step summaries are not precise contact positions or referee verdicts.
+
+GameEnv::CopySnapshotWindow returns an owning oldest-to-newest memory window and
+leaves output unchanged when insufficient samples are retained. EventTrajectories
+returns owning summaries published at the latest step. Stopped telemetry calls throw.
+
+GraphBuilder::BuildLatest(history, metadata, count) uses that same in-memory window;
+an insufficient window returns nullopt, not a disk fallback. Build(window, metadata)
+also accepts offline archive ranges as values. Nodes preserve a ball slot followed
+by fixed player slots for every frame, with physical/animation features and inactive
+masks. Directed spatial edges connect active nodes within a configurable radius
+(default 15 m); forward temporal edges connect the same active slot only across
+consecutive executed steps AND consecutive timeline ticks in one generation.
+No edge crosses reset, missing-step/tick or duplicate-tick boundaries. Nodes/edges
+and stamps are owning values. Invalid/duplicate IDs, count mismatches, non-finite
+vectors/radius and out-of-order windows fail explicitly. This is a data interface
+for future Temporal GNN consumers, not a trained model or new AI policy.
+
+Referee continues to judge exact immutable contact evidence. Historical geometry
+can query Simulation::Snapshots() by exact tick/generation; it cannot trigger
+archive I/O. No animation/resource/rules cache is duplicated in Snapshot.
+
 ## Recording a match
 
 ```sh

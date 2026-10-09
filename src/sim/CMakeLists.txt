@@ -21,6 +21,7 @@ target_sources(football_sim PRIVATE
   event/touch_state.hpp event/touch_type.hpp
   event/event.hpp event/event_transition.hpp
   event/event_recognizer.cpp event/event_recognizer.hpp
+  event/event_trajectory.hpp
   fact/simulation_fact.hpp fact/tick_fact_buffer.hpp fact/simulation_fact_sink.hpp
   referee/ruling.hpp event/match_event.hpp event/event_log.hpp
   event/touch_query.cpp event/touch_query.hpp
@@ -35,6 +36,7 @@ target_sources(football_sim PRIVATE
   observation/mentalimage.cpp observation/mentalimage.hpp observation/player_image.hpp
   observation/mentalimage_sampling.cpp observation/mentalimage_sampling.hpp
   observation/snapshot_history.cpp
+  observation/temporal_graph.cpp
   query/player_query.cpp query/reachability.cpp
   query/player_query.hpp query/reachability.hpp query/force_spot.hpp
   referee/referee.cpp referee/referee.hpp
@@ -66,7 +68,8 @@ target_sources(football_sim PRIVATE
   player/kick_targeting.hpp)
 target_sources(football_sim PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES simulation.hpp observation/snapshot.hpp observation/snapshot_history.hpp)
+  FILES simulation.hpp observation/snapshot.hpp observation/snapshot_history.hpp
+    observation/temporal_graph.hpp event/event_trajectory.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::model football::ball BqLog)

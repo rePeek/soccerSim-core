@@ -64,6 +64,10 @@ class Simulation {
   // Single-threaded, read-only history. No disk access or runtime mutation.
   const football::sim::observation::SnapshotHistory& Snapshots() const { return snapshot_history_; }
   const football::sim::observation::SnapshotMetadata& SnapshotMetadata() const { return snapshot_metadata_; }
+  // Whole-step summaries published with the latest Snapshot, not contact facts.
+  const std::vector<football::sim::event::EventTrajectory>& EventTrajectories() const {
+    return recognizer_.trajectories();
+  }
 
   // TODO: test/diagnostic escape hatch; not a general integration API.
   // Transitional test/diagnostic sampling; pointers expire on capture/reset/Stop.
@@ -178,6 +182,8 @@ class Simulation {
   football::sim::observation::Snapshot snapshot_scratch_;
   // Fixed home-then-away actor slots, including inactive/bench entries.
   std::vector<Player*> snapshot_players_;
+  // Transient annotation only while StepImpl executes; absent for diagnostics.
+  std::optional<std::uint64_t> snapshot_step_;
 
   MatchOptions options_;
   football::model::Pitch pitch_;

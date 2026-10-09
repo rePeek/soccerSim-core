@@ -72,9 +72,10 @@ src/
 │   │                 and ball_player_contact interaction
 │   ├── fact/         immutable SimulationFact values, ordered tick buffer, single sink
 │   ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState
+│   │                 and whole-step EventTrajectory (additive historical analysis)
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 MentalImage/player-image history + nearest-slot sampling,
-│   │                 and value-only Snapshot + preallocated SnapshotHistory
+│   │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
 │   ├── referee/      Referee state, facts/views/commands, goal, period, offside and restarts
@@ -114,6 +115,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── sim_contracts_test.cpp    standalone input/output values
 ├── snapshot_history_test.cpp standalone ring/query/reset and zero-allocation writes
 ├── snapshot_capture_test.cpp Step/Init/terminal/reset/frame and inactive actor coverage
+├── snapshot_consumers_test.cpp standalone temporal graph and Event trajectory windows
 ├── snapshot_archive_test.cpp standalone format/queue/corruption/recovery/error coverage
 ├── snapshot_archive_integration_test.cpp owning GameEnv samples, byte replay and CLI readback
 ├── model_test.cpp            standalone STL domain checks
@@ -831,3 +833,36 @@ CLI --snapshot=PATH opts into complete-session recording (including step zero);
 --snapshot-capacity=N controls only RAM retention. Close precedes successful Result
 output. Normal closed-session metadata is not a full-match checkpoint or proof
 of a referee terminal whistle. Explicit Flush is stream flush, not power-loss fsync.
+
+### Snapshot consumers — Stage 4
+
+SnapshotHistory::ForEachStep is a no-copy/no-allocation synchronous ordered range
+visit with exact executed-step bounds; missing samples are omitted. Custom moves
+leave the source empty/queryable rather than retaining stale size/index counters.
+GameEnv::CopySnapshotWindow provides owning memory windows and never reads disk;
+EventTrajectories returns owning summaries published with the latest committed step.
+
+EventRecognizer optionally annotates action windows with executing step/generation.
+Simulation supplies the annotation only inside StepImpl, clears it even on failure,
+and calls PublishTrajectories only after CaptureSnapshot. Resolved pass/shot windows
+produce additive EventTrajectory values (positions, path length, peak speed, sample
+count and completeness). Missing history, resets and gaps cannot invent movement.
+No contact classification, timeout, goal/ruling/EventLog, physics or RNG policy
+changes; diagnostic facts outside Step do not claim snapshot evidence. Referee
+continues using immutable contact evidence, never post-step samples as exact touches.
+
+observation/temporal_graph.* implements value-only GraphBuilder over owning windows
+or the same in-memory history. Active radius-based directed spatial edges and
+same-slot forward temporal edges preserve PlayerIds/animation fields. Inactive slots
+stay masked; no temporal edge spans reset, skipped steps/ticks or duplicate ticks.
+There is no existing GNN framework/model in this repository: this stage supplies
+its graph-data boundary, not a trainer, scheduler or policy replacement. MentalImage
+and DefaultAI remain unchanged. football_snapshot_consumers_test compiles with
+value dependencies only (no sim runtime, actors, AI or disk). Native two-half tests
+compare different retention capacities step-by-step with identical physics/RNG.
+
+Final Snapshot validation: Release 41/41 (including the full regulation CLI),
+Debug 40/40 (excluding full-match CLI), focused ASan+UBSan+leak checks 3/3,
+and core-only builds pass. The shared core exports no SnapshotArchive symbols.
+Existing regression goldens/assets are unchanged; each implementation stage
+is committed locally, with no push.

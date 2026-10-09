@@ -89,6 +89,17 @@ football::sim::observation::SnapshotMetadata GameEnv::SnapshotMetadata() const {
   return simulation_->SnapshotMetadata();
 }
 
+bool GameEnv::CopySnapshotWindow(std::size_t count,
+    std::vector<football::sim::observation::SnapshotRecord>& output) const {
+  if (!simulation_) throw std::logic_error("match runner is stopped");
+  return simulation_->Snapshots().CopyLatest(count, output);
+}
+
+std::vector<football::sim::event::EventTrajectory> GameEnv::EventTrajectories() const {
+  if (!simulation_) throw std::logic_error("match runner is stopped");
+  return simulation_->EventTrajectories();
+}
+
 void GameEnv::Stop() {
   ai_.reset();
   simulation_.reset();

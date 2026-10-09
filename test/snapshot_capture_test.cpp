@@ -165,3 +165,55 @@ TEST_CASE("invalid snapshot capacity is rejected before startup or RNG draws", "
   REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
   REQUIRE_FALSE(simulation.Finished());
 }
+
+TEST_CASE("native Event trajectories and history retention cannot perturb physics or RNG", "[sim][snapshot][event]") {
+  for (bool reverse : {false, true}) {
+    Simulation short_history, long_history;
+    MatchOptions options;
+    options.half_duration = TickSpan{5000};
+    options.reverse_team_processing = reverse;
+    options.snapshot_capacity = 8;
+    const auto home = football::app::fixtures::MakeDefaultHomeTeam();
+    const auto away = football::app::fixtures::MakeDefaultAwayTeam();
+    short_history.Init(home, away, {}, options);
+    options.snapshot_capacity = 512;
+    long_history.Init(home, away, {}, options);
+    const auto policy = football::test::MakeDefaultAI(short_history);
+    std::uint64_t steps = 0, summaries = 0;
+    while (!short_history.Finished()) {
+      PlayerControlSet controls;
+      policy.Update(short_history.Observe(), controls);
+      short_history.Step(controls);
+      long_history.Step(controls);
+      REQUIRE(++steps < 14000);
+      REQUIRE(short_history.Finished() == long_history.Finished());
+      const auto* short_sample = short_history.Snapshots().Latest();
+      const auto* long_sample = long_history.Snapshots().Latest();
+      REQUIRE(short_sample->stamp.step_index == long_sample->stamp.step_index);
+      REQUIRE(short_sample->stamp.timeline_tick == long_sample->stamp.timeline_tick);
+      REQUIRE(short_sample->snapshot.ball.position == long_sample->snapshot.ball.position);
+      REQUIRE(short_sample->snapshot.ball.velocity == long_sample->snapshot.ball.velocity);
+      REQUIRE(short_sample->snapshot.ball.angular_velocity == long_sample->snapshot.ball.angular_velocity);
+      REQUIRE(SimulationAccess::RngOf(short_history).engine() == SimulationAccess::RngOf(long_history).engine());
+      REQUIRE(short_history.EventTrajectories().size() == long_history.EventTrajectories().size());
+      for (const auto& summary : long_history.EventTrajectories()) {
+        ++summaries;
+        REQUIRE(summary.first_step <= summary.last_step);
+        REQUIRE(summary.last_step == steps);
+        REQUIRE(summary.sample_count <= 512);
+        REQUIRE(summary.ball_path_length >= 0);
+      }
+      if (steps % 100 == 0) {
+        for (std::size_t i = 0; i < short_sample->snapshot.players.size(); ++i) {
+          REQUIRE(short_sample->snapshot.players[i].position == long_sample->snapshot.players[i].position);
+          REQUIRE(short_sample->snapshot.players[i].velocity == long_sample->snapshot.players[i].velocity);
+          REQUIRE(short_sample->snapshot.players[i].animation_id == long_sample->snapshot.players[i].animation_id);
+          REQUIRE(short_sample->snapshot.players[i].frame == long_sample->snapshot.players[i].frame);
+        }
+      }
+    }
+    CAPTURE(reverse, summaries);
+    REQUIRE(summaries > 0);
+    REQUIRE(short_history.Result() == long_history.Result());
+  }
+}

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 
 #include "sim/observation/snapshot.hpp"
@@ -15,6 +16,11 @@ inline constexpr std::size_t kSnapshotCapacity = 60000;
 class SnapshotHistory {
  public:
   explicit SnapshotHistory(std::size_t capacity = kSnapshotCapacity);
+  SnapshotHistory(const SnapshotHistory&) = default;
+  SnapshotHistory& operator=(const SnapshotHistory&) = default;
+  // Moves invalidate borrows; the source becomes empty and can be Reset again.
+  SnapshotHistory(SnapshotHistory&& other) noexcept;
+  SnapshotHistory& operator=(SnapshotHistory&& other) noexcept;
 
   // Start a new match. Preallocate every player slot; recording before Reset
   // throws. Repeating Reset with the same player count reuses all allocations.
@@ -38,6 +44,27 @@ class SnapshotHistory {
   // false without changing output; zero count succeeds and empties output.
   // Only this explicit copy API may allocate during a query.
   bool CopyLatest(std::size_t count, std::vector<SnapshotRecord>& output) const;
+
+  // No-copy, synchronous visit of retained executed steps, inclusive, ordered.
+  // Missing/overwritten steps are omitted; returns the number actually visited.
+  // The visitor must not mutate this history or retain record borrows.
+  template <class Visitor>
+  std::size_t ForEachStep(std::uint64_t first_step, std::uint64_t last_step,
+                          Visitor&& visitor) const {
+    if (last_step < first_step) throw std::invalid_argument("snapshot reversed step range");
+    std::size_t first = 0, last = size_;
+    while (first < last) {
+      const auto middle = first + (last - first) / 2;
+      if (At(middle).stamp.step_index < first_step) first = middle + 1;
+      else last = middle;
+    }
+    std::size_t visited = 0;
+    for (; first < size_ && At(first).stamp.step_index <= last_step; ++first) {
+      visitor(At(first));
+      ++visited;
+    }
+    return visited;
+  }
 
   // Invalidate all records, retaining preallocated slots and player topology.
   void Clear() noexcept;

@@ -77,6 +77,15 @@ football_configure_target(football_snapshot_history_test)
 add_test(NAME football_snapshot_history_test COMMAND football_snapshot_history_test)
 set_tests_properties(football_snapshot_history_test PROPERTIES LABELS "sim;unit;snapshot")
 
+# Historical consumers also compile from values alone, without Simulation/AI/disk.
+add_executable(football_snapshot_consumers_test snapshot_consumers_test.cpp
+  ../src/sim/observation/snapshot_history.cpp ../src/sim/observation/temporal_graph.cpp
+  ../src/sim/event/event_recognizer.cpp)
+target_link_libraries(football_snapshot_consumers_test PRIVATE football::sim_contracts Catch2::Catch2WithMain)
+football_configure_target(football_snapshot_consumers_test)
+add_test(NAME football_snapshot_consumers_test COMMAND football_snapshot_consumers_test)
+set_tests_properties(football_snapshot_consumers_test PROPERTIES LABELS "sim;unit;snapshot")
+
 # The format/queue suite links recording only, proving it has no runtime actors.
 add_executable(football_snapshot_archive_test snapshot_archive_test.cpp)
 target_link_libraries(football_snapshot_archive_test PRIVATE football::recording Catch2::Catch2WithMain)

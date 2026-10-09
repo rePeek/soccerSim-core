@@ -10,6 +10,20 @@ SnapshotHistory::SnapshotHistory(std::size_t capacity) : capacity_(capacity) {
   if (capacity == 0) throw std::invalid_argument("snapshot capacity must be positive");
 }
 
+SnapshotHistory::SnapshotHistory(SnapshotHistory&& other) noexcept
+    : frames_(std::move(other.frames_)), capacity_(other.capacity_),
+      size_(std::exchange(other.size_, 0)), write_index_(std::exchange(other.write_index_, 0)) {}
+
+SnapshotHistory& SnapshotHistory::operator=(SnapshotHistory&& other) noexcept {
+  if (this != &other) {
+    frames_ = std::move(other.frames_);
+    capacity_ = other.capacity_;
+    size_ = std::exchange(other.size_, 0);
+    write_index_ = std::exchange(other.write_index_, 0);
+  }
+  return *this;
+}
+
 void SnapshotHistory::Reset(std::size_t player_count) {
   if (frames_.empty() || frames_.front().snapshot.players.size() != player_count) {
     // Build before publishing so allocation failure preserves the old history.

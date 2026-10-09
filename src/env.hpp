@@ -1,7 +1,9 @@
 #ifndef FOOTBALL_ENV_HPP
 #define FOOTBALL_ENV_HPP
 
+#include <cstddef>
 #include <memory>
+#include <vector>
 
 #include "ai/ai_config.hpp"
 #include "model/pitch.hpp"
@@ -11,6 +13,7 @@
 #include "sim/runtime/result.hpp"
 #include "sim/observation/world_state.hpp"
 #include "sim/observation/snapshot.hpp"
+#include "sim/event/event_trajectory.hpp"
 
 class Simulation;
 namespace football::ai { class DefaultAI; }
@@ -43,6 +46,11 @@ class GameEnv {
   // Reuses output's player allocation across calls, suitable for app recording.
   void CopyLatestSnapshot(football::sim::observation::SnapshotRecord& output) const;
   football::sim::observation::SnapshotMetadata SnapshotMetadata() const;
+  // Retained oldest-to-newest window for graph consumers. False means missing
+  // RAM history; never falls back to disk. Output is unchanged on false.
+  bool CopySnapshotWindow(std::size_t count,
+      std::vector<football::sim::observation::SnapshotRecord>& output) const;
+  std::vector<football::sim::event::EventTrajectory> EventTrajectories() const;
   // Idempotent; releases AI and simulation. Start again uses initial declarations.
   void Stop();
 

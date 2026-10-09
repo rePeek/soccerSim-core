@@ -200,7 +200,7 @@ void Simulation::FlushFacts() {
     // Recognize behavior first, then let the referee judge the same fact. Both
     // read the same immutable record and the same admitted instant.
     recognizer_.Consume(*stamped,
-        football::sim::event::EventView{tick.play_authorized, tick.set_piece_active});
+        football::sim::event::EventView{tick.play_authorized, tick.set_piece_active, snapshot_step_});
     CommitEventTransitions(stamped->tick);
     referee_->Consume(*stamped, view, *rule_commands_, ruling_sink_.get());
   }
@@ -208,7 +208,7 @@ void Simulation::FlushFacts() {
 }
 
 void Simulation::ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling) {
-  recognizer_.OnGoalConfirmed(GetTimelineTick(), ruling.team);
+  recognizer_.OnGoalConfirmed(GetTimelineTick(), ruling.team, snapshot_step_);
   CommitEventTransitions(GetTimelineTick());
   const int team = static_cast<int>(ruling.team);
   ++score_[team];
@@ -364,6 +364,7 @@ void Simulation::Init(
   recognizer_.Reset();
   event_log_.Clear();
   flushing_facts_ = false;
+  snapshot_step_.reset();
   options_ = options;
   pitch_ = pitch;
   ball_config_ = ball_config;
@@ -450,8 +451,15 @@ void Simulation::EnsureAnimationLibrary() {
 void Simulation::Step(const PlayerControlSet& controls) {
   if (!ball_) throw std::logic_error("simulation has no match");
   if (Finished()) return;
-  StepImpl(controls);
+  try {
+    StepImpl(controls);
+  } catch (...) {
+    snapshot_step_.reset();
+    throw;
+  }
+  snapshot_step_.reset();
   CaptureSnapshot();
+  recognizer_.PublishTrajectories(snapshot_history_);
 }
 
 void Simulation::StepImpl(const PlayerControlSet& controls) {
@@ -460,6 +468,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     pending_change_of_ends_ = false;
   }
   clock_->CountExecutedStep(phase_);
+  snapshot_step_ = clock_->ExecutedTicks();
   facts_.BeginTick(GetTimelineTick(), reset_sequence_);
   pending_rulings_.clear();
 
@@ -572,7 +581,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   UpdateRecentPossession(admitted);
   // Time out unresolved behavior before a possible goal confirms a shot.
   recognizer_.Advance(GetTimelineTick(),
-      football::sim::event::EventView{play_authorized_, set_piece_active_});
+      football::sim::event::EventView{play_authorized_, set_piece_active_, snapshot_step_});
   CommitEventTransitions(GetTimelineTick());
 
   bool first_team_goal = false;
@@ -836,6 +845,7 @@ bool Simulation::Stop() {
   snapshot_scratch_ = {};
   // Stop releases memory; Finished keeps the complete retained window alive.
   snapshot_history_ = football::sim::observation::SnapshotHistory{};
+  snapshot_step_.reset();
   fact_sink_.reset();
   ruling_sink_.reset();
   player_runtime_sink_ = nullptr;

@@ -1,3 +1,4 @@
+#include <utility>
 #include <cstdlib>
 #include <deque>
 #include <limits>
@@ -312,6 +313,54 @@ TEST_CASE("preallocated history records beyond the default capacity without allo
   REQUIRE(queries_ok);
   REQUIRE(history.Size() == 1);
   REQUIRE(history.Capacity() == kSnapshotCapacity);
+}
+
+TEST_CASE("step range iteration is chronological no-copy and allocation-free across ring wrap", "[snapshot]") {
+  SnapshotHistory history(4);
+  history.Reset(1);
+  const auto snapshot = MakeSnapshot(1);
+  for (std::uint64_t step = 0; step < 10; ++step) history.Record({step * 3, Tick{step}, 0}, snapshot);
+  std::vector<std::uint64_t> steps;
+  const auto visited = history.ForEachStep(19, 25, [&](const auto& record) {
+    steps.push_back(record.stamp.step_index);
+    REQUIRE(&record == history.FindStep(record.stamp.step_index));
+  });
+  REQUIRE(visited == 2);
+  REQUIRE(steps == std::vector<std::uint64_t>{21, 24});
+  REQUIRE(history.ForEachStep(0, 17, [](const auto&) {}) == 0);
+  REQUIRE_THROWS_AS(history.ForEachStep(5, 4, [](const auto&) {}), std::invalid_argument);
+  std::size_t allocations, count;
+  {
+    CountAllocations counter;
+    count = history.ForEachStep(0, std::numeric_limits<std::uint64_t>::max(), [](const auto&) {});
+    allocations = counter.count;
+  }
+  REQUIRE(allocations == 0);
+  REQUIRE(count == 4);
+  history.Clear();
+  REQUIRE(history.ForEachStep(0, 100, [](const auto&) {}) == 0);
+}
+
+TEST_CASE("copied histories own their records and moved histories leave a queryable empty source", "[snapshot]") {
+  SnapshotHistory source(2);
+  source.Reset(1);
+  const auto snapshot = MakeSnapshot(1);
+  source.Record({3, Tick{10}, 0}, snapshot);
+  auto copy = source;
+  SnapshotHistory moved(std::move(source));
+  REQUIRE(source.Empty());
+  REQUIRE(source.Latest() == nullptr);
+  REQUIRE(source.FindStep(3) == nullptr);
+  REQUIRE(moved.FindStep(3) != nullptr);
+  moved.Clear();
+  REQUIRE(copy.FindStep(3) != nullptr);
+  source.Reset(1);
+  source.Record({}, snapshot);
+  moved = std::move(source);
+  REQUIRE(source.Empty());
+  REQUIRE(source.Latest() == nullptr);
+  REQUIRE(moved.FindStep(0) != nullptr);
+  REQUIRE(moved.Capacity() == 2);
 }
 
 }  // namespace

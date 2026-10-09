@@ -13,7 +13,7 @@ Declare both teams, pitch, match rules and startup AI configuration explicitly:
 
 GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
              football::app::fixtures::MakeDefaultAwayTeam(),
-             football::model::MakeLegacyPitch(),
+             football::model::Pitch{}, football::model::BallConfig{},
              MatchOptions{}, football::ai::AIConfig{}};
 game.Start();
 while (!game.Finished()) game.Step();
@@ -33,9 +33,11 @@ serves as the total match-policy entry point; no CoachAI/GNN/LLM scheduler is
 introduced in this stage. A future MatchAI may orchestrate those privately.
 
 The public API is `Start`, `Step`, `Finished`, `Result`, `Observe`, `Stop`.
+Read-only telemetry also provides `CopyLatestSnapshot`, `CopySnapshotWindow`,
+`SnapshotMetadata` and `EventTrajectories`, all as owning values/copies.
 There are no live `controls()`, `tactics()` or `request_*()` channels, and no
 reset/legacy lowercase API. One Step makes one simulation call (10 ms nominal);
-no batching or implicit observation history is retained. After full time Step
+no batching occurs. Simulation retains explicit read-only Snapshot history. After full time Step
 is a no-op, including AI; a stopped Step/Observe throws `std::logic_error`.
 
 Start requires a stopped runner; duplicate Start throws. Startup validates and
@@ -81,7 +83,30 @@ neither throughput nor wall-clock pacing changes any football clock.
 `Observe()` is secondary replay/trace/debug telemetry. It returns an owning,
 unscaled home-frame WorldState with ball motion, team scores/directions, player
 kinematics, play/restart/retention and reset sequence.
-There is no authoritative-state replacement or hidden per-tick snapshot history.
+WorldState is not authoritative storage; explicit Snapshot history is described below.
+
+### Snapshot history, recording and temporal data
+
+Simulation captures authoritative Ball/Player physics and animation after each
+executed 10 ms Step (plus initial step zero). The configurable preallocated ring
+defaults to 60,000 frames: ten minutes at 100 Hz. Slots keep stable PlayerIds, and
+stamps distinguish executed steps, timeline ticks and reset generations.
+Snapshot does not replace WorldState, MentalImage, contact facts or checkpoints.
+
+```sh
+build/release/football_app --snapshot=match.snap
+build/release/football_app --half-duration-ms=1800 --snapshot-capacity=100 --snapshot=short.snap
+```
+
+The app-only archive uses a bounded background queue, checksummed binary chunks
+and an offline range index; explicit recovery returns only valid chunk prefixes.
+Live consumers never read disk. EventRecognizer adds whole-step trajectory
+summaries without changing contact-based recognition or rulings; GraphBuilder
+builds owning spatial/temporal graph inputs from the same samples. No GNN model,
+training framework or AI policy replacement is introduced.
+
+API examples, lifecycle/query semantics and the exact versioned file layout are
+documented in [tools/snapshot-system.md](tools/snapshot-system.md).
 
 ### AI intent and simulation replay
 

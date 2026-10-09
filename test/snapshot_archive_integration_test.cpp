@@ -22,6 +22,9 @@ TEST_CASE("GameEnv archives exactly the committed samples beyond memory retentio
   SnapshotRecord sample;
   REQUIRE_THROWS_AS(game.CopyLatestSnapshot(sample), std::logic_error);
   REQUIRE_THROWS_AS(game.SnapshotMetadata(), std::logic_error);
+  std::vector<SnapshotRecord> window;
+  REQUIRE_THROWS_AS(game.CopySnapshotWindow(1, window), std::logic_error);
+  REQUIRE_THROWS_AS(game.EventTrajectories(), std::logic_error);
   const auto path = std::filesystem::temp_directory_path() /
       ("soccer-snapshot-integration-" + std::to_string(
           std::chrono::steady_clock::now().time_since_epoch().count()) + ".snap");
@@ -39,12 +42,18 @@ TEST_CASE("GameEnv archives exactly the committed samples beyond memory retentio
     std::vector<SnapshotRecord> expected;
     game.CopyLatestSnapshot(sample);
     REQUIRE(sample.stamp.step_index == 0);
+    REQUIRE(game.EventTrajectories().empty());
+    REQUIRE(game.CopySnapshotWindow(1, window));
+    REQUIRE(window.front().stamp.step_index == 0);
     archive.Append(sample);
     expected.push_back(sample);
     while (!game.Finished()) {
       game.Step();
       game.CopyLatestSnapshot(sample);
       REQUIRE(sample.stamp.step_index == expected.size());
+      REQUIRE_FALSE(game.CopySnapshotWindow(2, window));
+      REQUIRE(game.CopySnapshotWindow(1, window));
+      REQUIRE(window.front().stamp.step_index == sample.stamp.step_index);
       archive.Append(sample);
       expected.push_back(sample);
       REQUIRE(expected.size() < 3000);
@@ -57,6 +66,8 @@ TEST_CASE("GameEnv archives exactly the committed samples beyond memory retentio
     REQUIRE(sample.stamp.step_index == result.duration_ticks);
     game.Stop();
     REQUIRE_THROWS_AS(game.CopyLatestSnapshot(sample), std::logic_error);
+    REQUIRE_THROWS_AS(game.CopySnapshotWindow(1, window), std::logic_error);
+    REQUIRE_THROWS_AS(game.EventTrajectories(), std::logic_error);
     REQUIRE(metadata.player_ids.size() == 22); // Owning metadata survives Stop.
     SnapshotArchiveReader reader;
     reader.Open(path, metadata.animation_library_hash);
