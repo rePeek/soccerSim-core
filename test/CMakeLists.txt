@@ -67,6 +67,16 @@ football_configure_target(football_match_clock_test)
 add_test(NAME football_match_clock_test COMMAND football_match_clock_test)
 set_tests_properties(football_match_clock_test PROPERTIES LABELS sim)
 
+# Snapshot storage is tested independently of actors, Simulation and libgame.
+# Its test-local allocation counter must not interpose on other runtime suites.
+add_executable(football_snapshot_history_test snapshot_history_test.cpp
+  ../src/sim/observation/snapshot_history.cpp)
+target_link_libraries(football_snapshot_history_test PRIVATE
+  football::sim_contracts Catch2::Catch2WithMain)
+football_configure_target(football_snapshot_history_test)
+add_test(NAME football_snapshot_history_test COMMAND football_snapshot_history_test)
+set_tests_properties(football_snapshot_history_test PROPERTIES LABELS "sim;unit;snapshot")
+
 # Pure period decisions read only explicit match/time values.
 add_executable(football_period_test period_test.cpp ../src/sim/referee/period.cpp)
 target_link_libraries(football_period_test PRIVATE

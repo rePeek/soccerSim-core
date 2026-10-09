@@ -73,7 +73,8 @@ src/
 │   ├── fact/         immutable SimulationFact values, ordered tick buffer, single sink
 │   ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
-│   │                 and MentalImage/player-image history + nearest-slot sampling
+│   │                 MentalImage/player-image history + nearest-slot sampling,
+│   │                 and value-only Snapshot + preallocated SnapshotHistory
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
 │   ├── referee/      Referee state, facts/views/commands, goal, period, offside and restarts
@@ -109,6 +110,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── gameenv_test.cpp          public façade lifecycle and composition equivalence
 ├── player_identity_test.cpp  identity-independent runtime/RNG replay
 ├── sim_contracts_test.cpp    standalone input/output values
+├── snapshot_history_test.cpp standalone ring/query/reset and zero-allocation writes
 ├── model_test.cpp            standalone STL domain checks
 ├── app_*_test.cpp            args, fixtures and CLI composition
 ├── default_ai_test.cpp + default_ai_fixture.hpp
@@ -762,3 +764,26 @@ reverse-row change and causal pre-fix failure. Native reachability covers nonzer
 ball positions in both halves/orders; long two-half tests pin actual open-play
 kicks and exact replay, not desired scores. Full matrix/replays and unchanged normal
 records are in tools/restart-metrics.md. Realism/behavior calibration is not complete.
+
+### Snapshot history — Stage 1
+
+`sim/observation/snapshot.hpp` defines dynamic Ball/Player values, fixed match-wide
+PlayerId slot metadata, and separate step/timeline/reset-generation stamps.
+`snapshot_history.*` is owned by football_sim and exported through its HEADERS,
+not the AI-facing sim_contracts target. The standalone
+`football_snapshot_history_test` compiles storage with value dependencies only.
+
+SnapshotHistory defaults to 60,000 samples (ten minutes at 100 Hz). Reset must
+preallocate each slot before Record; successful writes allocate nothing. Slots
+are never compacted when inactive. Steps strictly increase; timeline ticks and
+reset generations are nondecreasing, allowing duplicate ticks and jumps without
+inventing missing samples. FindStep and latest-exact Find(tick, generation) use
+binary search in chronological ring order. CopyLatest returns owning records in
+oldest-to-newest order; insufficient history leaves its output unchanged.
+Clear invalidates queries but retains all storage. Borrowed record pointers must
+not cross slot overwrite, Clear, Reset, teardown or asynchronous consumers.
+
+This stage does not change Simulation execution, MentalImage, Event, Referee or
+AI. Simulation sampling in the fixed WorldState pitch frame is the next stage;
+disk archive/queues and temporal consumers are separate later stages. Snapshot
+is a read-only record, never a WorldState replacement or restart checkpoint.

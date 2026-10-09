@@ -34,6 +34,7 @@ target_sources(football_sim PRIVATE
   observation/pitch_frame.cpp observation/pitch_frame.hpp
   observation/mentalimage.cpp observation/mentalimage.hpp observation/player_image.hpp
   observation/mentalimage_sampling.cpp observation/mentalimage_sampling.hpp
+  observation/snapshot_history.cpp
   query/player_query.cpp query/reachability.cpp
   query/player_query.hpp query/reachability.hpp query/force_spot.hpp
   referee/referee.cpp referee/referee.hpp
@@ -65,7 +66,7 @@ target_sources(football_sim PRIVATE
   player/kick_targeting.hpp)
 target_sources(football_sim PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES simulation.hpp)
+  FILES simulation.hpp observation/snapshot.hpp observation/snapshot_history.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::model football::ball BqLog)
