@@ -17,12 +17,12 @@ constexpr float kPostAbsorbInv = 0.8f;
 
 void ResolveWoodwork(Vector3& nextPos, Vector3& momentumPredict,
                      const football::model::Pitch& pitch,
-                     const football::ball::BallConfig& config) {
+                     const football::model::BallConfig& config) {
   const float pitchHalfW = pitch.half_length();
   const float goalHalfWidth = pitch.goal_half_width();
   const float goalHeight = pitch.goal_height();
 
-  const float ballRadius = config.radius;
+  const float ballRadius = config.radius();
 
   // posts
   if (nextPos.coords[2] < goalHeight + ballRadius + kPostRadius &&
@@ -94,13 +94,13 @@ void ResolveWoodwork(Vector3& nextPos, Vector3& momentumPredict,
 
 void ResolveNetting(Vector3& nextPos, Vector3& momentumPredict,
                     const football::model::Pitch& pitch,
-                    const football::ball::BallConfig& config,
+                    const football::model::BallConfig& config,
                     const football::ball::BallEnvironment& environment) {
   const float pitchHalfW = pitch.half_length();
   const float goalHalfWidth = pitch.goal_half_width();
   const float goalHeight = pitch.goal_height();
   const float goalDepth = pitch.goal_depth();
-  const float ballRadius = config.radius;
+  const float ballRadius = config.radius();
   const float timeStep = football::sim::kTickSeconds;
 
   float netAbsorbInv = 0.95f;

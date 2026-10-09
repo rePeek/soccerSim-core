@@ -19,7 +19,7 @@ constexpr float kGravity = -9.81f;
 }  // namespace
 
 PhysicsState Advance(const PhysicsState& current,
-                     const football::ball::BallConfig& config,
+                     const football::model::BallConfig& config,
                      const football::model::Pitch& pitch,
                      const football::ball::BallEnvironment& environment,
                      bool first_step) {
@@ -44,25 +44,25 @@ PhysicsState Advance(const PhysicsState& current,
   // air resistance
   float momentumVelo = momentumPredict.GetLength();
   float momentumVeloDragged =
-      momentumVelo - config.drag * std::pow(momentumVelo, 2.0f) * timeStep;
+      momentumVelo - config.drag() * std::pow(momentumVelo, 2.0f) * timeStep;
   if (drag_enabled) momentumPredict = momentumPredict.GetNormalized(0) * momentumVeloDragged;
 
-  float ballBottom = nextPos.coords[2] - config.radius;
+  float ballBottom = nextPos.coords[2] - config.radius();
   float grassInfluenceBias = clamp(1.0f - (ballBottom / pitch.grass_height()), 0.0f, 1.0f);
   grassInfluenceBias = std::pow(grassInfluenceBias, 0.7f);
 
   // bounce
-  if (nextPos.coords[2] < config.radius) {
+  if (nextPos.coords[2] < config.radius()) {
     if (momentumPredict.coords[2] < 0.0f) {
       frictionFactor = NormalizedClamp(-momentumPredict.coords[2] - 0.5f, 0.0f, 12.0f);
-      momentumPredict.coords[2] = -momentumPredict.coords[2] * config.restitution;
+      momentumPredict.coords[2] = -momentumPredict.coords[2] * config.restitution();
       momentumPredict.coords[2] = std::max(momentumPredict.coords[2] - kLinearBounce, 0.0f);
     }
-    nextPos.coords[2] = config.radius;
+    nextPos.coords[2] = config.radius();
   }
 
   // ground friction
-  if (nextPos.coords[2] < config.radius + pitch.grass_height() && groundFriction_enabled) {
+  if (nextPos.coords[2] < config.radius() + pitch.grass_height() && groundFriction_enabled) {
     float adaptedFriction = (pitch.quadratic_resistance() * grassInfluenceBias);
 
     Vector3 xy = momentumPredict.Get2D();
@@ -89,12 +89,12 @@ PhysicsState Advance(const PhysicsState& current,
   }
 
   // calculate rotation
-  if (nextPos.coords[2] < config.radius + pitch.grass_height() &&
+  if (nextPos.coords[2] < config.radius() + pitch.grass_height() &&
       groundRotationEffects_enabled) {
     // ground friction induced rotation
     radian xR, yR;
 
-    const float radius = config.radius;
+    const float radius = config.radius();
     xR = momentumPredict.coords[1] / radius;
     yR = momentumPredict.coords[0] / radius;
 

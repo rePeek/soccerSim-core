@@ -12,7 +12,7 @@ namespace {
 GameEnv MakeGame(MatchOptions options = {}) {
   return {football::app::fixtures::MakeDefaultHomeTeam(),
           football::app::fixtures::MakeDefaultAwayTeam(),
-          football::model::Pitch{}, options, {}};
+          football::model::Pitch{}, football::model::BallConfig{}, options, {}};
 }
 }
 TEST_CASE("the CLI composition starts and exposes secondary owning telemetry", "[app][cli]") {

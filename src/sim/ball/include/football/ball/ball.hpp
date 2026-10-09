@@ -14,12 +14,12 @@
 #include <memory>
 #include <vector>
 
-#include "football/ball/ball_config.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/ball/ball_timing.hpp"
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
+#include "model/ball_config.hpp"
 #include "model/pitch.hpp"
 
 namespace football::ball {
@@ -42,7 +42,7 @@ struct PhysicsState;
 
 class Ball {
  public:
-  explicit Ball(const BallConfig& config,
+  explicit Ball(const football::model::BallConfig& config,
                 const football::model::Pitch& pitch);
   explicit Ball(const football::model::Pitch& pitch);
   ~Ball();
@@ -125,7 +125,7 @@ class Ball {
   void AdvanceOneTick(const BallEnvironment& environment);
   void RefreshPredictions(const BallEnvironment& environment);
 
-  BallConfig config_;
+  football::model::BallConfig config_;
   const football::model::Pitch pitch_;
   // Single authoritative internal state (public BallState is a projection).
   // It stays a private detail type because the legacy kernel needs the full

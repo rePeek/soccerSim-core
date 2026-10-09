@@ -9,7 +9,7 @@
 namespace {
 
 using football::ball::Ball;
-using football::ball::BallConfig;
+using football::model::BallConfig;
 using football::ball::BallState;
 using blunted::Vector3;
 
@@ -61,17 +61,9 @@ TEST_CASE("Mirror reflects momentum and position only", "[sim][ball][state]") {
 }
 
 TEST_CASE("invalid physical config is rejected", "[sim][ball][state]") {
-  BallConfig bad_mass;
-  bad_mass.mass = 0.0f;
-  REQUIRE_THROWS_AS(Ball(bad_mass, kPitch), std::invalid_argument);
-
-  BallConfig bad_radius;
-  bad_radius.radius = -1.0f;
-  REQUIRE_THROWS_AS(Ball(bad_radius, kPitch), std::invalid_argument);
-
-  BallConfig nan_mass;
-  nan_mass.mass = std::nanf("");
-  REQUIRE_THROWS_AS(Ball(nan_mass, kPitch), std::invalid_argument);
+  REQUIRE_THROWS_AS(football::model::BallConfig(0.0f, 0.11f, 0.62f, 0.015f), std::invalid_argument);
+  REQUIRE_THROWS_AS(football::model::BallConfig(0.43f, -1.0f, 0.62f, 0.015f), std::invalid_argument);
+  REQUIRE_THROWS_AS(football::model::BallConfig(std::nanf(""), 0.11f, 0.62f, 0.015f), std::invalid_argument);
 }
 
 }  // namespace

@@ -5,6 +5,7 @@
 
 #include "ai/ai_config.hpp"
 #include "model/pitch.hpp"
+#include "model/ball_config.hpp"
 #include "model/team.hpp"
 #include "sim/simulation_config.hpp"
 #include "sim/rules/result.hpp"
@@ -18,7 +19,8 @@ namespace football::ai { class DefaultAI; }
 class GameEnv {
  public:
   GameEnv(football::model::Team home, football::model::Team away,
-          football::model::Pitch pitch, MatchOptions match_options,
+          football::model::Pitch pitch, football::model::BallConfig ball_config,
+          MatchOptions match_options,
           football::ai::AIConfig ai_config);
   ~GameEnv();
   GameEnv(const GameEnv&) = delete;
@@ -43,6 +45,7 @@ class GameEnv {
   const football::model::Team home_team_;
   const football::model::Team away_team_;
   const football::model::Pitch pitch_;
+  const football::model::BallConfig ball_config_;
   const MatchOptions match_options_;
   const football::ai::AIConfig ai_config_;
   std::unique_ptr<Simulation> simulation_;

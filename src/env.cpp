@@ -30,10 +30,12 @@ void FlushLogging() {
 }  // namespace
 
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
-                 football::model::Pitch pitch, MatchOptions match_options,
+                 football::model::Pitch pitch, football::model::BallConfig ball_config,
+                 MatchOptions match_options,
                  football::ai::AIConfig ai_config)
     : home_team_(std::move(home)), away_team_(std::move(away)),
-      pitch_(std::move(pitch)), match_options_(match_options),
+      pitch_(std::move(pitch)), ball_config_(std::move(ball_config)),
+      match_options_(match_options),
       ai_config_(std::move(ai_config)) {}
 
 GameEnv::~GameEnv() { Stop(); }
@@ -43,7 +45,7 @@ void GameEnv::Start() {
   InitLogging();
   try {
     auto simulation = std::make_unique<Simulation>();
-    simulation->Init(home_team_, away_team_, pitch_, match_options_);
+    simulation->Init(home_team_, away_team_, pitch_, match_options_, ball_config_);
     auto ai = std::make_unique<football::ai::DefaultAI>(
         home_team_, away_team_, pitch_, ai_config_);
     simulation_ = std::move(simulation);

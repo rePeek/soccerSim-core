@@ -21,19 +21,18 @@ detail::PhysicsState InitialState() {
 
 }  // namespace
 
-Ball::Ball(const BallConfig& config, const football::model::Pitch& pitch)
+Ball::Ball(const football::model::BallConfig& config,
+    const football::model::Pitch& pitch)
     : config_(config),
       pitch_(pitch),
       state_(std::make_unique<detail::PhysicsState>(InitialState())),
       prediction_cache_(std::make_unique<detail::BallPredictionCache>()),
       pending_force_(Vector3(0)) {
-  if (!(config_.mass > 0.0f) || !(config_.radius > 0.0f)) {
-    throw std::invalid_argument("football::ball: mass and radius must be positive");
-  }
   RefreshPredictions(BallEnvironment{});
 }
 
-Ball::Ball(const football::model::Pitch& pitch) : Ball(BallConfig{}, pitch) {}
+Ball::Ball(const football::model::Pitch& pitch)
+    : Ball(football::model::BallConfig{}, pitch) {}
 
 Ball::~Ball() = default;
 
@@ -62,7 +61,7 @@ void Ball::ApplyForce(const Vector3& force) {
 }
 
 void Ball::ApplyImpulse(const Vector3& impulse) {
-  state_->momentum += impulse / config_.mass;
+  state_->momentum += impulse / config_.mass();
   // Rebuild, not only invalidate: the transitional cache-backed Predict()
   // reads the array directly, so it must not observe the pre-impulse path.
   prediction_cache_->Invalidate();
@@ -88,7 +87,7 @@ void Ball::Step(football::sim::TickSpan dt, const BallEnvironment& environment) 
   if (dt == football::sim::TickSpan{0}) return;
 
   if (pending_force_ != Vector3(0)) {
-    state_->momentum += (pending_force_ / config_.mass) * football::sim::ToSeconds(dt);
+    state_->momentum += (pending_force_ / config_.mass()) * football::sim::ToSeconds(dt);
     pending_force_ = Vector3(0);
   }
 
@@ -163,8 +162,8 @@ Quaternion Ball::GetOrientation() const {
 
 void Ball::Touch(const Vector3& target, const BallEnvironment& environment) {
   prediction_cache_->Invalidate();
-  if (state_->position.coords[2] < config_.radius) {
-    state_->position.coords[2] = config_.radius;
+  if (state_->position.coords[2] < config_.radius()) {
+    state_->position.coords[2] = config_.radius();
   }
 
   SetMomentum(target, environment);

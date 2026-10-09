@@ -27,7 +27,7 @@ void BallPredictionCache::Reset(const Vector3& focus_position) {
 }
 
 void BallPredictionCache::Compute(
-    const PhysicsState& initial, const football::ball::BallConfig& config,
+    const PhysicsState& initial, const football::model::BallConfig& config,
     const football::model::Pitch& pitch,
     const football::ball::BallEnvironment& environment,
     PredictionResult& result) {

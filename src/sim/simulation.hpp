@@ -11,6 +11,7 @@
 #include "sim/player/player_control_set.hpp"
 #include "model/team.hpp"
 #include "model/pitch.hpp"
+#include "model/ball_config.hpp"
 #include "sim/simulation_config.hpp"
 #include "foundation/math/rng.hpp"
 #include "sim/observation/world_state.hpp"
@@ -42,7 +43,8 @@ class Simulation {
 
   void Init(const football::model::Team& home,
             const football::model::Team& away,
-            const football::model::Pitch& pitch, MatchOptions options);
+            const football::model::Pitch& pitch, MatchOptions options,
+            const football::model::BallConfig& ball_config = football::model::BallConfig{});
   bool Stop();
   void Step(const PlayerControlSet& controls);
   bool IsInPlay() const;
@@ -144,6 +146,7 @@ class Simulation {
 
   MatchOptions options_;
   football::model::Pitch pitch_;
+  football::model::BallConfig ball_config_;
   std::shared_ptr<AnimationLibrary> animations_;
 
   std::unique_ptr<football::ball::Ball> ball_;

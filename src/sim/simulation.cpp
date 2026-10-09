@@ -165,7 +165,8 @@ Simulation::~Simulation() {
 
 void Simulation::Init(
     const football::model::Team& home, const football::model::Team& away,
-    const football::model::Pitch& pitch, MatchOptions options) {
+    const football::model::Pitch& pitch, MatchOptions options,
+    const football::model::BallConfig& ball_config) {
   if (ball_) throw std::logic_error("simulation already initialized");
   // Native duration and full-match capacity are checked before any RNG draws.
   if (options.half_duration == football::sim::TickSpan{} ||
@@ -217,11 +218,12 @@ void Simulation::Init(
   clock_.emplace(options.half_duration);
   options_ = options;
   pitch_ = pitch;
+  ball_config_ = ball_config;
   first_team_ = options.reverse_team_processing ? 1 : 0;
   second_team_ = options.reverse_team_processing ? 0 : 1;
 
   // Build the whole composition locally, then publish it only on full success.
-  auto ball = std::make_unique<Ball>(pitch_);
+  auto ball = std::make_unique<Ball>(ball_config_, pitch_);
   const football::model::Team* descriptions[] = {&home_model, &away_model};
   std::array<std::unique_ptr<Team>, 2> teams;
   teams[first_team_] =

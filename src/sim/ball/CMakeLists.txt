@@ -28,7 +28,6 @@ target_sources(football_ball
     FILES
       include/football/ball/ball.hpp
       include/football/ball/ball_state.hpp
-      include/football/ball/ball_config.hpp
       include/football/ball/ball_environment.hpp
       include/football/ball/ball_timing.hpp
 )
