@@ -82,6 +82,11 @@ int main() {
     return EXIT_FAILURE;
   } catch (const std::invalid_argument&) {
   }
+  try {
+    model::Pitch bad(105.0f, 68.0f, 0.04f, 1.6f, 0.0f);
+    return EXIT_FAILURE;
+  } catch (const std::invalid_argument&) {
+  }
 
   try {
     player.attributes.set(model::PlayerStat::player_stat_max, 0.5f);

@@ -33,7 +33,7 @@ class Pitch {
         !std::isfinite(grass_height) ||
         length <= 0.0f || width <= 0.0f ||
         quadratic_resistance < 0.0f || ground_deceleration < 0.0f ||
-        grass_height < 0.0f) {
+        grass_height <= 0.0f) {
       throw std::invalid_argument(
           "football::model::Pitch: invalid geometry or ground parameters");
     }
