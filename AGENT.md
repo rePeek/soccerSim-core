@@ -420,12 +420,46 @@ MatchState or a RuntimeContext for actors.
 
 Current phase order (composed directly by Simulation):
 ```text
-ApplyControls → ResolveBallPlayerContacts → ProcessReferee → StepBall
-→ CaptureHistory → StepPlayers → UpdatePossession → ResolvePlayerContacts
-→ AdvanceClock → UpdateRecentPossession → EvaluateGoal → ApplyGoalFacts
+ApplyControls → ResolveBallPlayerContacts (BallTouchFact → FlushFacts)
+→ ProcessReferee (Advance → EmitBoundaryFacts → FlushFacts → CheckPendingFoul)
+→ StepBall → CaptureHistory → StepPlayers → UpdatePossession
+→ ResolvePlayerContacts (PlayerTripFact → FlushFacts) → AdvanceClock
+→ UpdateRecentPossession → EvaluateGoal (GoalMouthCrossed facts)
+→ ApplyPendingRulings (AwardGoalRuling) → scorer/own-goal facts
 ```
 Terminal-referee and ceremony early returns keep their existing frame restoration
 and clock behavior; this sequence is not permission to reorder legacy phases.
+Terminal-referee and ceremony early returns keep their existing frame restoration
+and clock behavior; this sequence is not permission to reorder legacy phases.
+
+SimulationFact pipeline: physics and actors publish immutable facts, the referee
+consumes them and decides, and Simulation applies the verdicts.
+```text
+Entity state → Simulation tick → SimulationFact → RefereeState → Ruling
+             → Simulation → new state → MatchEvent
+```
+- event/simulation_fact.hpp owns BallTouchFact, PlayerTripFact and BallBoundaryFact
+  (TouchlineOutside/GoalLineOutside/GoalMouthCrossed) plus StampedFact identity
+  (tick, reset generation, sequence). Facts carry PlayerId/TeamSide and world values,
+  never live actor pointers; a consumer resolves them through RefereeView.
+- event/tick_fact_buffer.hpp owns one ordered per-tick stream with BeginTick/Emit/
+  PopPending. There are no per-kind queues; PopPending returns by value so consuming
+  cannot invalidate references. BeginTick reuses storage and drops the previous tick.
+- event/player_trip_sink.hpp is the write-only physical-consequence port. player/
+  player_contact reports TripMe through it and no longer includes Referee.
+- Referee keeps its public Process/TripNotice/BallTouched/CheckFoul entry points for
+  direct tests, but production goes through Advance (time/restart/ceremony state),
+  EmitBoundaryFacts (pure out-of-line geometry into the caller's buffer) and Consume
+  (one fact at a time). Goal-mouth facts submit AwardGoalRuling through RulingSink.
+  Simulation is the only ruling executor and records confirmed GoalScoredEvent in
+  the owned EventLog.
+- Goal-line priority is preserved by emitting at most one out-of-play fact per
+  instant (goal-line else touchline), reproducing the legacy local authorization
+  without storing it on the referee.
+- Emission flushes immediately in this stage so trip/touch consequences stay
+  synchronous at the legacy points and goldens are unchanged; a flushing guard
+  forbids recursive drains. Facts are stamped with the live timeline tick, so
+  diagnostic publications outside Step keep the legacy now.
 
 - Start requires stopped state and initializes local owners before publishing
   either. Failure remains stopped. Stop is idempotent and releases both; Start

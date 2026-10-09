@@ -25,6 +25,13 @@
 #include "sim/rules/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
 #include "sim/player/player_runtime_sink.hpp"
+#include "sim/event/simulation_fact.hpp"
+#include "sim/event/tick_fact_buffer.hpp"
+#include "sim/event/referee_ruling.hpp"
+#include "sim/event/match_event.hpp"
+#include "sim/event/event_log.hpp"
+#include "sim/event/player_trip_sink.hpp"
+#include "sim/rules/referee_view.hpp"
 
 class Player;
 namespace football::ball { class Ball; }
@@ -69,8 +76,18 @@ class Simulation {
   friend class football::sim::testing::SimulationAccess;
   class RuleCommands;
   class TouchEvents;
+  class TripEvents;
+  class RulingEvents;
 
   void PublishBallTouch(const football::sim::BallTouchEvent& event);
+  // Fact plumbing: emit into the tick buffer, then immediately consume, so the
+  // legacy synchronous rule-command order is preserved while the boundary
+  // between physics and rules becomes one immutable fact stream.
+  void EmitFact(football::sim::event::SimulationFact fact);
+  void FlushFacts();
+  void ApplyPendingRulings();
+  void ProcessReferee();
+  void AdvanceReferee(const football::sim::rules::RefereeView& view);
   football::sim::rules::RefereeTickFacts RefereeFacts() const;
   football::sim::PlayerTickContext PlayerTickFacts(const Player& actor);
   void EnsureAnimationLibrary();
@@ -158,6 +175,12 @@ class Simulation {
   football::sim::PlayerRuntimeSink* player_runtime_sink_ = nullptr;
   // Runtime touch publication; keeps the write-only sink out of actors.
   std::unique_ptr<football::sim::BallTouchSink> touch_sink_;
+  std::unique_ptr<TripEvents> trip_sink_;
+  std::unique_ptr<RulingEvents> ruling_sink_;
+  football::sim::event::TickFactBuffer facts_;
+  std::vector<football::sim::event::RefereeRuling> pending_rulings_;
+  football::sim::event::EventLog event_log_;
+  bool flushing_facts_ = false;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

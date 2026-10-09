@@ -28,8 +28,13 @@
 #include "sim/rules/ball_touch_facts.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/rules/referee_tick_facts.hpp"
+#include "sim/rules/referee_view.hpp"
 #include "sim/rules/rule_command_sink.hpp"
 #include "sim/simulation_config.hpp"
+#include "sim/event/simulation_fact.hpp"
+#include "sim/event/tick_fact_buffer.hpp"
+#include "sim/event/referee_ruling.hpp"
+#include "sim/event/player_trip_sink.hpp"
 #include "foundation/math/rng.hpp"
 
 
@@ -85,7 +90,9 @@ struct Foul {
 };
 
 // Football rules only: no on-pitch official actor or animation is required.
-class Referee {
+// The referee owns rule state and consumes immutable facts; it never executes
+// ruling consequences itself (Simulation owns the write-only rule port).
+class Referee : public football::sim::PlayerTripSink {
 
   public:
     Referee(Team& kickoff_team, const Vector3& kickoff_position);
@@ -99,6 +106,37 @@ class Referee {
     void Process(const football::sim::rules::RefereeTickFacts& facts,
                  const MatchOptions& options, blunted::Rng& rng,
                  football::sim::rules::RuleCommandSink& commands);
+
+    // Time-only state advance for one instant: pending restart administration,
+    // opening/half-time ceremonies and the post-restart grace countdown. No
+    // ball/line facts are produced or consumed here.
+    void Advance(const football::sim::rules::RefereeView& view,
+                 const MatchOptions& options, blunted::Rng& rng,
+                 football::sim::rules::RuleCommandSink& commands);
+
+    // Pure out-of-play geometry for the current instant, appended to the
+    // caller's tick buffer. Simulation calls this at the referee's legacy phase
+    // boundary; the referee does not own the buffer.
+    void EmitBoundaryFacts(const football::sim::rules::RefereeView& view,
+                           football::sim::event::TickFactBuffer& facts) const;
+
+    // Consumes one immutable fact at its own instant. Touch/interaction facts
+    // use the synchronous write-only rule port; goal verdicts are submitted to
+    // `rulings` for Simulation to apply at an explicit boundary.
+    void Consume(const football::sim::event::StampedFact& fact,
+                 const football::sim::rules::RefereeView& view,
+                 football::sim::rules::RuleCommandSink& commands,
+                 football::sim::event::RulingSink* rulings);
+
+    // Pending-foul time advance for the current instant (advantage/expiry).
+    void CheckPendingFoul(const football::sim::rules::RefereeView& view,
+                          football::sim::rules::RuleCommandSink& commands);
+
+    // Physical consequence port: a contact made an actor fall. This reports the
+    // event, it does not classify a foul.
+    void OnPlayerTripped(Player* victim, Player* offender, int trip_type,
+                         football::sim::Tick now,
+                         const Vector3& ball_position) override;
 
     const RefereeBuffer &GetBuffer() { return buffer; };
     bool RestartNeedsSimulation() const;
@@ -139,6 +177,22 @@ class Referee {
     void PrepareCeremonialKickOff(const football::sim::rules::RefereeTickFacts& facts,
                                  const MatchOptions& options, blunted::Rng& rng,
                                  football::sim::rules::RuleCommandSink& commands);
+
+    void ConsumeBallTouch(football::sim::Tick now,
+                          const football::sim::event::BallTouchFact& fact,
+                          const football::sim::rules::RefereeView& view,
+                          football::sim::rules::RuleCommandSink& commands);
+    void ConsumePlayerTrip(football::sim::Tick now,
+                           const football::sim::event::PlayerTripFact& fact,
+                           const football::sim::rules::RefereeView& view,
+                           football::sim::rules::RuleCommandSink& commands);
+    void ConsumeBoundary(football::sim::Tick now,
+                         const football::sim::event::BallBoundaryFact& fact,
+                         const football::sim::rules::RefereeView& view,
+                         football::sim::rules::RuleCommandSink& commands,
+                         football::sim::event::RulingSink* rulings);
+    Player* FindPlayer(const football::sim::rules::RefereeTickFacts& facts,
+                       football::model::PlayerId id) const;
 };
 
 #endif

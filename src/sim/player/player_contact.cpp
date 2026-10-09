@@ -22,7 +22,7 @@
 #include "sim/player/player.hpp"
 #include "sim/player/player_action_volume.hpp"
 #include "sim/player/player_motion_constants.hpp"
-#include "sim/rules/referee.hpp"
+#include "sim/event/player_trip_sink.hpp"
 #include "sim/team/team.hpp"
 
 namespace football::sim {
@@ -36,7 +36,7 @@ struct PlayerBounce {
 void ResolvePlayerPair(Player *p1, Player *p2,
                        std::vector<PlayerBounce> &p1Bounce,
                        std::vector<PlayerBounce> &p2Bounce,
-                       const PlayerContactInputs& inputs, Referee& referee) {
+                       const PlayerContactInputs& inputs, PlayerTripSink& trips) {
   constexpr float distanceFactor = 0.72f;
   constexpr float bouncePlayerRadius = 0.5f * distanceFactor;
   constexpr float similarPlayerRadius = 0.8f * distanceFactor;
@@ -270,7 +270,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (p1sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           p1->TripMe((p1->GetKinematicState().velocity * 0.1f + p2->GetKinematicState().velocity * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec), tripType, inputs.ball_retainer);
-          referee.TripNotice(p1, p2, tripType, inputs.now, inputs.ball.Predict(0));
+          trips.OnPlayerTripped(p1, p2, tripType, inputs.now, inputs.ball.Predict(0));
         }
       }
       if (p2sensitivity > trip0threshold) {
@@ -279,7 +279,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (p2sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           p2->TripMe((p2->GetKinematicState().velocity * 0.1f + p1->GetKinematicState().velocity * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec), tripType, inputs.ball_retainer);
-          referee.TripNotice(p2, p1, tripType, inputs.now, inputs.ball.Predict(0));
+          trips.OnPlayerTripped(p2, p1, tripType, inputs.now, inputs.ball.Predict(0));
         }
       }
 
@@ -317,7 +317,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (tacklerAction.type == e_FunctionType_Interfere)
           tripType = 1;  // was 2
         victim->TripMe(tripVec, tripType, inputs.ball_retainer);
-        referee.TripNotice(victim, tackler, tripType, inputs.now, inputs.ball.Predict(0));
+        trips.OnPlayerTripped(victim, tackler, tripType, inputs.now, inputs.ball.Predict(0));
       }
     }
   }
@@ -325,7 +325,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
 
 }  // namespace
 
-void ResolvePlayerContacts(const PlayerContactInputs& inputs, Referee& referee) {
+void ResolvePlayerContacts(const PlayerContactInputs& inputs, PlayerTripSink& trips) {
   const auto players = inputs.players;
   // Avoid unsigned underflow for an empty explicit span; normal rosters are nonempty.
   if (players.size() < 2) return;
@@ -339,7 +339,7 @@ void ResolvePlayerContacts(const PlayerContactInputs& inputs, Referee& referee) 
   // check each combination of humanoids once
   for (unsigned int i1 = 0; i1 < players.size() - 1; i1++) {
     for (unsigned int i2 = i1 + 1; i2 < players.size(); i2++) {
-      ResolvePlayerPair(players[i1], players[i2], playerBounces.at(i1), playerBounces.at(i2), inputs, referee);
+      ResolvePlayerPair(players[i1], players[i2], playerBounces.at(i1), playerBounces.at(i2), inputs, trips);
     }
   }
 

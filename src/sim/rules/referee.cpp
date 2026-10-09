@@ -17,6 +17,7 @@
 
 #include "sim/rules/referee.hpp"
 #include <cmath>
+#include <type_traits>
 #include <algorithm>
 
 #include "football/ball/ball.hpp"
@@ -105,45 +106,175 @@ void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
   buffer.setpiece_team = &kickoff_team;
 }
 
-void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options,
-                      blunted::Rng& rng, RuleCommandSink& commands) {
+void Referee::Advance(const football::sim::rules::RefereeView& view,
+                      const MatchOptions& options, blunted::Rng& rng,
+                      RuleCommandSink& commands) {
+  const RefereeTickFacts& facts = view.tick;
   if (facts.phase == MatchPhase::Finished) return;
-  const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
-  // Track this operation's own stop consequences; do not query a runtime owner.
-  bool play_authorized = facts.play_authorized;
-  const auto check_foul = [&] {
-    const bool stopped = CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, commands);
-    if (stopped) play_authorized = false;
-    return stopped;
-  };
   if (buffer.active && buffer.restart) {
     ProcessRestart(facts, options, rng, commands);
     if (post_restart_relax_ > TickSpan{}) post_restart_relax_ = post_restart_relax_ - TickSpan{1};
     return;
   }
-  if (play_authorized && !facts.set_piece_active) {
-    const auto home_ball = facts.ball_to_home.Position(facts.ball.Predict(TickSpan{}));
-    // Legacy foul/side data uses stadium coordinates, including switched ends.
-    Vector3 ballPos = facts.stadium_to_home.Position(home_ball);
+  if (!(facts.play_authorized && !facts.set_piece_active)) {
+    // not in play, maybe something needs to happen?
+    if (!facts.play_authorized && !facts.set_piece_active && buffer.active == true) {
+      if (buffer.taker == nullptr && facts.now >= buffer.prepare_tick) {
+        if (buffer.endPhase == true) {
+          if (facts.phase == MatchPhase::PreMatch) {
+            commands.SetPhase(MatchPhase::FirstHalf);
+          }
+          buffer.endPhase = false;
+        }
+        // Deterministic reseed before positioning players for every restart.
+        rng.Seed(options.game_engine_random_seed);
+        PrepareCeremonialKickOff(facts, options, rng, commands);
+      }
+      if (buffer.taker != nullptr && facts.now >= buffer.start_tick) {
+        // blow whistle and wait for set piece taker to touch the ball
+        commands.StartPlay();
+        commands.StartSetPiece();
+        // Keep ceremonial schedule/placement, but never fabricate a kickoff.
+        // Authorization and accepted contact share the ordinary release states.
+        RestartState ready;
+        ready.entered_tick = buffer.stop_tick;
+        ready.earliest_restart_tick = buffer.start_tick;
+        ready.timeout_tick = buffer.start_tick;
+        ready.phase = RestartPhase::Ready;
+        ready.setup_done = true;
+        buffer.restart = std::move(ready);
+      }
+    }
+  }
+  if (post_restart_relax_ > TickSpan{})
+    post_restart_relax_ = post_restart_relax_ - TickSpan{1};
+}
 
-    // goal kick / corner
+// Compatibility orchestrator: the split stages in the legacy order. Kept for
+// direct referee tests and any caller that does not own a tick fact buffer.
+void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options,
+                      blunted::Rng& rng, RuleCommandSink& commands) {
+  if (facts.phase == MatchPhase::Finished) return;
+  const football::sim::rules::RefereeView view{facts};
+  const bool was_restart = buffer.active && buffer.restart.has_value();
+  Advance(view, options, rng, commands);
+  if (was_restart) return;
+  if (facts.play_authorized && !facts.set_piece_active) {
+    football::sim::event::TickFactBuffer local;
+    local.BeginTick(facts.now);
+    EmitBoundaryFacts(view, local);
+    while (auto stamped = local.PopPending()) {
+      Consume(*stamped, view, commands, nullptr);
+    }
+    CheckPendingFoul(view, commands);
+  }
+}
 
-    if (fabs(ballPos.coords[0]) > facts.pitch.half_length() + facts.pitch.line_half_width() + 0.11 ||
-        facts.goal_scored) {
+void Referee::EmitBoundaryFacts(const football::sim::rules::RefereeView& view,
+                                football::sim::event::TickFactBuffer& facts) const {
+  const RefereeTickFacts& tick = view.tick;
+  if (tick.phase == MatchPhase::Finished) return;
+  if (!(tick.play_authorized && !tick.set_piece_active)) return;
+  const auto home_ball = tick.ball_to_home.Position(tick.ball.Predict(TickSpan{}));
+  // Legacy foul/side data uses stadium coordinates, including switched ends.
+  const Vector3 ballPos = tick.stadium_to_home.Position(home_ball);
+  // Goal-line priority: when it applies, the legacy local authorization was set
+  // false and the sideline branch could not run. Emitting only one out-of-play
+  // fact per instant reproduces that without stored authorization state.
+  if (fabs(ballPos.coords[0]) > tick.pitch.half_length() + tick.pitch.line_half_width() + 0.11 ||
+      tick.goal_scored) {
+    facts.Emit(football::sim::event::BallBoundaryFact{
+        football::sim::event::BoundaryKind::GoalLineOutside, 0, ballPos, ballPos});
+  } else if (fabs(ballPos.coords[1]) > tick.pitch.half_width() + tick.pitch.line_half_width() + 0.11) {
+    facts.Emit(football::sim::event::BallBoundaryFact{
+        football::sim::event::BoundaryKind::TouchlineOutside, 0, ballPos, ballPos});
+  }
+}
 
+void Referee::CheckPendingFoul(const football::sim::rules::RefereeView& view,
+                               RuleCommandSink& commands) {
+  CheckFoul(view.tick.now, view.tick.pitch, view.tick.stadium_to_home, commands);
+}
+
+void Referee::Consume(const football::sim::event::StampedFact& fact,
+                      const football::sim::rules::RefereeView& view,
+                      RuleCommandSink& commands,
+                      football::sim::event::RulingSink* rulings) {
+  std::visit(
+      [&](const auto& value) {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, football::sim::event::BallTouchFact>) {
+          ConsumeBallTouch(fact.tick, value, view, commands);
+        } else if constexpr (std::is_same_v<T, football::sim::event::PlayerTripFact>) {
+          ConsumePlayerTrip(fact.tick, value, view, commands);
+        } else if constexpr (std::is_same_v<T, football::sim::event::BallBoundaryFact>) {
+          ConsumeBoundary(fact.tick, value, view, commands, rulings);
+        }
+      },
+      fact.fact);
+}
+
+void Referee::OnPlayerTripped(Player* victim, Player* offender, int trip_type,
+                              Tick now, const Vector3& ball_position) {
+  TripNotice(victim, offender, trip_type, now, ball_position);
+}
+
+void Referee::ConsumeBallTouch(Tick now,
+                               const football::sim::event::BallTouchFact& fact,
+                               const football::sim::rules::RefereeView& view,
+                               RuleCommandSink& commands) {
+  Player* player = FindPlayer(view.tick, fact.player);
+  if (player == nullptr) return;
+  Team* team = player->GetTeam();
+  football::sim::rules::BallTouchFacts facts;
+  facts.now = now;
+  facts.touch_player = player;
+  facts.touch_team_id = team->GetID();
+  facts.touch_team = team;
+  facts.defending_team = team->Opponent();
+  facts.in_play = view.tick.play_authorized;
+  facts.in_set_piece = view.tick.set_piece_active;
+  facts.offsides_enabled = view.offsides_enabled;
+  facts.ball = &view.tick.ball;
+  facts.pitch = &view.tick.pitch;
+  facts.all_active_players = view.all_active_players;
+  facts.stadium_to_home = view.tick.stadium_to_home;
+  BallTouched(facts, commands);
+}
+
+void Referee::ConsumePlayerTrip(Tick now,
+                                const football::sim::event::PlayerTripFact& fact,
+                                const football::sim::rules::RefereeView& view,
+                                RuleCommandSink& commands) {
+  (void)commands;
+  Player* victim = FindPlayer(view.tick, fact.victim);
+  Player* offender = FindPlayer(view.tick, fact.offender);
+  TripNotice(victim, offender, fact.trip_type, now, fact.ball_position);
+}
+
+void Referee::ConsumeBoundary(Tick now,
+                              const football::sim::event::BallBoundaryFact& fact,
+                              const football::sim::rules::RefereeView& view,
+                              RuleCommandSink& commands,
+                              football::sim::event::RulingSink* rulings) {
+  const RefereeTickFacts& facts = view.tick;
+  const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
+  const Vector3 ballPos = fact.current_position;
+  switch (fact.kind) {
+    case football::sim::event::BoundaryKind::GoalLineOutside: {
       foul.advantage = false;
       bool isFoul = false;
-      if (!facts.goal_scored) isFoul = check_foul(); else foul.foulType = 0;
+      if (!facts.goal_scored) {
+        isFoul = CheckFoul(now, facts.pitch, facts.stadium_to_home, commands);
+      } else {
+        foul.foulType = 0;
+      }
       if (isFoul == false) {
-
         commands.StopPlay();
-        play_authorized = false;
-
         // corner, goal kick or kick off?
-        Team *lastTouchTeam = facts.last_touch_team;
-        if (lastTouchTeam == 0) lastTouchTeam = team(options.reverse_team_processing ? 1 : 0);
+        Team* lastTouchTeam = facts.last_touch_team;
+        if (lastTouchTeam == 0) lastTouchTeam = team(facts.first_team);
         signed int lastSide = lastTouchTeam->GetStaticSide();
-
         if (facts.goal_scored) {
           buffer.desiredSetPiece = e_GameMode_KickOff;
           buffer.restartPos = Vector3(0, 0, 0);
@@ -161,71 +292,50 @@ void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options
           buffer.restartPos = Vector3(facts.pitch.half_length() * 0.92 * -lastSide, 0, 0);
           buffer.teamID = 1 - lastTouchTeam->GetID();
         }
-
-        ScheduleRestart({facts.now, team(buffer.teamID), facts.stadium_to_home});
+        ScheduleRestart({now, team(buffer.teamID), facts.stadium_to_home});
       }
+      break;
     }
-
-    // over sideline
-
-    if (play_authorized && post_restart_relax_ == TickSpan{}) {
-      if (fabs(ballPos.coords[1]) > facts.pitch.half_width() + facts.pitch.line_half_width() + 0.11) {
-        foul.advantage = false;
-        if (!check_foul()) {
-          commands.StopPlay();
-          play_authorized = false;
-          Team *lastTouchTeam = facts.last_touch_team;
-          if (lastTouchTeam == 0) lastTouchTeam = &facts.home;
-          buffer.teamID = 1 - lastTouchTeam->GetID();
-          buffer.desiredSetPiece = e_GameMode_ThrowIn;
-          buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -facts.pitch.half_length() + 0.6f, facts.pitch.half_length() - 0.6f);
-          if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = facts.pitch.half_width();
-          if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -facts.pitch.half_width();
-          buffer.restartPos.coords[2] = 0;
-          ScheduleRestart({facts.now, team(buffer.teamID), facts.stadium_to_home});
-        }
+    case football::sim::event::BoundaryKind::TouchlineOutside: {
+      if (post_restart_relax_ != TickSpan{}) break;
+      foul.advantage = false;
+      if (!CheckFoul(now, facts.pitch, facts.stadium_to_home, commands)) {
+        commands.StopPlay();
+        Team* lastTouchTeam = facts.last_touch_team;
+        if (lastTouchTeam == 0) lastTouchTeam = &facts.home;
+        buffer.teamID = 1 - lastTouchTeam->GetID();
+        buffer.desiredSetPiece = e_GameMode_ThrowIn;
+        buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -facts.pitch.half_length() + 0.6f, facts.pitch.half_length() - 0.6f);
+        if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = facts.pitch.half_width();
+        if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -facts.pitch.half_width();
+        buffer.restartPos.coords[2] = 0;
+        ScheduleRestart({now, team(buffer.teamID), facts.stadium_to_home});
       }
+      break;
     }
-
-    check_foul();
-
-  } else {  // not in play, maybe something needs to happen?
-
-    if (!play_authorized && !facts.set_piece_active && buffer.active == true) {
-
-      if (buffer.taker == nullptr && facts.now >= buffer.prepare_tick) {
-        if (buffer.endPhase == true) {
-          if (facts.phase == MatchPhase::PreMatch) {
-            commands.SetPhase(MatchPhase::FirstHalf);
-          }
-          buffer.endPhase = false;
-        }
-
-        // Deterministic reseed before positioning players for every restart.
-        rng.Seed(options.game_engine_random_seed);
-        PrepareCeremonialKickOff(facts, options, rng, commands);
+    case football::sim::event::BoundaryKind::GoalMouthCrossed: {
+      // The opponent of the side whose goal mouth was crossed scores.
+      Team* scorer_team = nullptr;
+      if (facts.home.GetDynamicSide() == -fact.side) scorer_team = &facts.home;
+      else if (facts.away.GetDynamicSide() == -fact.side) scorer_team = &facts.away;
+      if (scorer_team != nullptr && rulings != nullptr) {
+        rulings->Submit(football::sim::event::AwardGoalRuling{
+            scorer_team->GetTeamSide(), std::nullopt});
       }
-
-      if (buffer.taker != nullptr && facts.now >= buffer.start_tick) {
-        // blow whistle and wait for set piece taker to touch the ball
-        commands.StartPlay();
-        commands.StartSetPiece();
-        // Keep ceremonial schedule/placement, but never fabricate a kickoff.
-        // Authorization and accepted contact share the ordinary release states.
-        RestartState ready;
-        ready.entered_tick = buffer.stop_tick;
-        ready.earliest_restart_tick = buffer.start_tick;
-        ready.timeout_tick = buffer.start_tick;
-        ready.phase = RestartPhase::Ready;
-        ready.setup_done = true;
-        buffer.restart = std::move(ready);
-      }
+      break;
     }
   }
+}
 
-
-  if (post_restart_relax_ > TickSpan{})
-    post_restart_relax_ = post_restart_relax_ - TickSpan{1};
+Player* Referee::FindPlayer(const RefereeTickFacts& facts,
+                           football::model::PlayerId id) const {
+  for (Player* player : facts.home.GetAllPlayers()) {
+    if (player->GetID() == id) return player;
+  }
+  for (Player* player : facts.away.GetAllPlayers()) {
+    if (player->GetID() == id) return player;
+  }
+  return nullptr;
 }
 
 void Referee::PrepareCeremonialKickOff(const RefereeTickFacts& facts,

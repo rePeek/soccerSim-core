@@ -19,6 +19,9 @@ add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
   simulation.cpp
   event/ball_touch.hpp event/ball_touch_sink.hpp event/touch_state.hpp
+  event/simulation_fact.hpp event/tick_fact_buffer.hpp
+  event/referee_ruling.hpp event/match_event.hpp event/event_log.hpp
+  event/player_trip_sink.hpp
   event/ball_touch_dispatcher.cpp event/ball_touch_dispatcher.hpp
   event/touch_query.cpp event/touch_query.hpp
   rules/clock.cpp rules/clock.hpp
@@ -38,7 +41,7 @@ target_sources(football_sim PRIVATE
   rules/period.cpp rules/period.hpp
   rules/offside.cpp rules/restart_placement.cpp rules/restart_readiness.cpp
   rules/ball_touch_facts.hpp
-  rules/referee_tick_facts.hpp rules/rule_command_sink.hpp
+  rules/referee_tick_facts.hpp rules/rule_command_sink.hpp rules/referee_view.hpp
   testing/simulation_access.hpp
   rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp
   player/player.cpp player/player_control_builder.cpp player/player_locomotion.cpp
