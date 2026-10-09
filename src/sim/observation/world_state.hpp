@@ -10,7 +10,7 @@
 #include "model/team.hpp"
 #include "model/pitch.hpp"
 #include "foundation/math/vector3.hpp"
-#include "sim/rules/phase.hpp"
+#include "sim/runtime/phase.hpp"
 #include "foundation/time/tick.hpp"
 
 struct WorldPlayerState {

@@ -4,7 +4,7 @@
 #include "default_ai_fixture.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player_control_builder.hpp"
-#include "sim/rules/restart_readiness.hpp"
+#include "sim/referee/restart_readiness.hpp"
 #include "sim/testing/simulation_access.hpp"
 using football::sim::testing::SimulationAccess;
 

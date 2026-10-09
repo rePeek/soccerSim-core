@@ -3,8 +3,8 @@
 
 #include "sim/event/ball_touch.hpp"
 #include "sim/event/touch_state.hpp"
-#include "sim/rules/ball_touch_facts.hpp"
-#include "sim/rules/rule_command_sink.hpp"
+#include "sim/referee/ball_touch_facts.hpp"
+#include "sim/referee/rule_command_sink.hpp"
 
 class Referee;
 

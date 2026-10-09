@@ -51,7 +51,7 @@ add_test(NAME football_sim_computation_test COMMAND football_sim_computation_tes
 set_tests_properties(football_sim_computation_test PROPERTIES LABELS sim)
 
 # Pure goal geometry must compile/link without Match, Ball, sim or libgame.
-add_executable(football_goal_test goal_test.cpp ../src/sim/rules/goal.cpp)
+add_executable(football_goal_test goal_test.cpp ../src/sim/referee/goal.cpp)
 target_link_libraries(football_goal_test PRIVATE
   football::foundation football::model Catch2::Catch2WithMain)
 football_configure_target(football_goal_test)
@@ -59,7 +59,7 @@ add_test(NAME football_goal_test COMMAND football_goal_test)
 set_tests_properties(football_goal_test PROPERTIES LABELS sim)
 
 # Clock invariants need only match/time values, never concrete actors or sim runtime.
-add_executable(football_match_clock_test match_clock_test.cpp ../src/sim/rules/clock.cpp)
+add_executable(football_match_clock_test match_clock_test.cpp ../src/sim/runtime/clock.cpp)
 target_link_libraries(football_match_clock_test PRIVATE
   football::sim_contracts Catch2::Catch2WithMain)
 football_configure_target(football_match_clock_test)
@@ -67,7 +67,7 @@ add_test(NAME football_match_clock_test COMMAND football_match_clock_test)
 set_tests_properties(football_match_clock_test PROPERTIES LABELS sim)
 
 # Pure period decisions read only explicit match/time values.
-add_executable(football_period_test period_test.cpp ../src/sim/rules/period.cpp)
+add_executable(football_period_test period_test.cpp ../src/sim/referee/period.cpp)
 target_link_libraries(football_period_test PRIVATE
   football::sim_contracts Catch2::Catch2WithMain)
 football_configure_target(football_period_test)

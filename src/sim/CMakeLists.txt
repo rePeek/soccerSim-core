@@ -5,7 +5,7 @@ target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
   FILES player/player_control.hpp player/player_control_set.hpp
     observation/world_state.hpp
-    simulation_config.hpp rules/phase.hpp rules/result.hpp)
+  simulation_config.hpp runtime/phase.hpp runtime/result.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
   football::foundation football::model)
@@ -24,7 +24,7 @@ target_sources(football_sim PRIVATE
   event/player_trip_sink.hpp
   event/ball_touch_dispatcher.cpp event/ball_touch_dispatcher.hpp
   event/touch_query.cpp event/touch_query.hpp
-  rules/clock.cpp rules/clock.hpp
+  runtime/clock.cpp runtime/clock.hpp
   team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
   team/formation_roles.cpp team/formation_entry.hpp
   team/possession.cpp team/possession.hpp
@@ -36,14 +36,14 @@ target_sources(football_sim PRIVATE
   observation/mentalimage_sampling.cpp observation/mentalimage_sampling.hpp
   query/player_query.cpp query/reachability.cpp
   query/player_query.hpp query/reachability.hpp query/force_spot.hpp
-  rules/referee.cpp rules/referee.hpp
-  rules/goal.cpp rules/goal.hpp
-  rules/period.cpp rules/period.hpp
-  rules/offside.cpp rules/restart_placement.cpp rules/restart_readiness.cpp
-  rules/ball_touch_facts.hpp
-  rules/referee_tick_facts.hpp rules/rule_command_sink.hpp rules/referee_view.hpp
+  referee/referee.cpp referee/referee.hpp
+  referee/goal.cpp referee/goal.hpp
+  referee/period.cpp referee/period.hpp
+  referee/offside.cpp referee/restart_placement.cpp referee/restart_readiness.cpp
+  referee/ball_touch_facts.hpp
+  referee/referee_tick_facts.hpp referee/rule_command_sink.hpp referee/referee_view.hpp
   testing/simulation_access.hpp
-  rules/offside.hpp rules/restart_placement.hpp rules/restart_readiness.hpp
+  referee/offside.hpp referee/restart_placement.hpp referee/restart_readiness.hpp
   player/player.cpp player/player_control_builder.cpp player/player_locomotion.cpp
   player/player_contact.cpp player/player_contact.hpp
   player/player_ball_contact.cpp player/player_ball_contact.hpp

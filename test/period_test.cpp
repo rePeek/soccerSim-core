@@ -2,7 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "sim/rules/period.hpp"
+#include "sim/referee/period.hpp"
 
 namespace {
 using namespace football::sim;

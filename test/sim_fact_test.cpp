@@ -10,7 +10,7 @@
 #include "sim/event/referee_ruling.hpp"
 #include "sim/event/simulation_fact.hpp"
 #include "sim/event/tick_fact_buffer.hpp"
-#include "sim/rules/referee_view.hpp"
+#include "sim/referee/referee_view.hpp"
 #include "sim/simulation.hpp"
 #include "sim/testing/simulation_access.hpp"
 

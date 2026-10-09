@@ -3,7 +3,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
 #include "sim/simulation.hpp"
-#include "sim/rules/ball_touch_facts.hpp"
+#include "sim/referee/ball_touch_facts.hpp"
 #include "sim/testing/simulation_access.hpp"
 #include "rule_command_fixture.hpp"
 #include "sim/event/ball_touch_dispatcher.hpp"

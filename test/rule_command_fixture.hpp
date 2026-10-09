@@ -4,7 +4,7 @@
 #include <functional>
 #include <string>
 #include <vector>
-#include "sim/rules/rule_command_sink.hpp"
+#include "sim/referee/rule_command_sink.hpp"
 
 namespace football::test {
 // Test-only command recorder/decorator; no runtime query interface.

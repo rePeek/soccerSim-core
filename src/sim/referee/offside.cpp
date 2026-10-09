@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-#include "sim/rules/offside.hpp"
+#include "sim/referee/offside.hpp"
 
 #include <cmath>
 

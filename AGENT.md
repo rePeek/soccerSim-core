@@ -70,12 +70,14 @@ src/
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
 │   ├── ball/         standalone Ball physics/environment, prediction timing, touch kinds
 │   │                 and ball_player_contact interaction
-│   ├── event/        touch event, write-only sink, value TouchState and synchronous dispatcher
+│   ├── event/        immutable SimulationFact stream, rulings/match events, touch
+│   │                 event/sink, value TouchState and synchronous dispatcher
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 and MentalImage/player-image history + nearest-slot sampling
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
-│   ├── rules/        Referee, clock/phase/result values, goal, period, offside and restarts
+│   ├── referee/      Referee state, facts/views/commands, goal, period, offside and restarts
+│   ├── runtime/      MatchClock, MatchPhase and MatchResult value/time types
 │   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
 │   └── player/       Player, tick-local inputs, controls, locomotion, possession and contacts
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
@@ -208,13 +210,13 @@ anim_baking → legacy_anim + animation/foundation
   policy, scheduling and RNG fingerprints. Supports `--print-baseline`.
 - `football_model_test` and `football_sim_contracts_test` link only their value
   targets; `football_default_ai_test` links only policy/contracts/Catch2.
-- `football_period_test` builds rules/period.cpp with value contracts/Catch2 only,
+- `football_period_test` builds referee/period.cpp with value contracts/Catch2 only,
   proving PeriodElapsed has no Referee/Match/runtime dependency. It checks inclusive
   period boundaries, cumulative second-half limits, ceremony gates and maximum spans.
-- `football_goal_test` builds rules/goal.cpp with only model/foundation/Catch2, proving
+- `football_goal_test` builds referee/goal.cpp with only model/foundation/Catch2, proving
   goal geometry has no Match/Ball/runtime dependency. Lifecycle tests retain score,
   half/order attribution and period-whistle coverage through real Simulation steps.
-- `football_match_clock_test` builds rules/clock.cpp with value contracts/Catch2
+- `football_match_clock_test` builds runtime/clock.cpp with value contracts/Catch2
   only. It checks both-period clipping, ceremonies/dead balls, exact large tick spans,
   atomic overflow rejection, terminal freeze and separate executed-step accounting.
 - `football_sim_control_boundary_test` includes lifecycle and restart tests.
@@ -316,7 +318,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   No stored facts/commands/config/RNG, RuntimeContext or Simulation pointer in Referee.
   Player contact extraction preserves the same regression fingerprints and twelve
   seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
-- rules/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
+- referee/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
   the original triangles, strict segment endpoints, bidirectional intersection and
   legacy side-net literals. Simulation retains the Ball prediction lookahead gate per
   side, live-ball gate and goal application: AdvanceTime → first/second goal checks
@@ -384,7 +386,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   33/33, Debug 32/32 (excluding full-match CLI), standalone Clock and core-only builds
   pass; no golden, policy, physics or asset change accompanies these extractions.
 
-- rules/period owns pure PeriodElapsed(half_underway, phase, regulation, duration).
+- referee/period owns pure PeriodElapsed(half_underway, phase, regulation, duration).
   Simulation evaluates it before passive contacts and at the original whistle boundary.
   Referee's no-argument PeriodElapsed is deleted, not retained as a wrapper. Duration
   validity remains initialization/Clock authority; only SecondHalf doubles the threshold.
@@ -395,12 +397,12 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   Physical sides/history still change at the next Step entry, not phase publication.
   Referee has no Match pointer/include/constructor dependency. Its initialization takes
   only kickoff Team/position; phase publication executes through the write-only port.
-- rules/offside owns pure GetOffsideLine(mentalImage, now, ball, defending_team_id,
+- referee/offside owns pure GetOffsideLine(mentalImage, now, ball, defending_team_id,
   defending_side, futureSim_ms). Defending id/side, sampling instant and Ball are explicit;
   it no longer reads Match/Team. Preserve the second-deepest defender scan, the same
   in-place copy mutation, ball-ahead override, halfway zeroing and pitch clamp. Referee::
   BallTouched consumes those facts and still owns the offside-player decision list.
-- rules/ball_touch_facts.hpp defines BallTouchFacts: now, touch player/team id, touch/
+- referee/ball_touch_facts.hpp defines BallTouchFacts: now, touch player/team id, touch/
   defending Team pointers, in_play/in_set_piece/offsides flags, const Ball and the ordered
   all-active span. Simulation assembles them from current competition facts; the event
   dispatcher calls Referee::BallTouched(facts, commands) synchronously. Referee derives defending active
@@ -414,7 +416,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
 Match is deleted. The composition root Simulation owns competition/clock, actor
 ownership, TouchState values and the possession window; match.hpp/match.cpp and
 Simulation::match() no longer exist, and diagnostics use SimulationAccess.
-Remaining sim/match value types moved to rules/clock, rules/phase, rules/result,
+Remaining sim/match value types moved to runtime/clock, runtime/phase, runtime/result,
 simulation_config.hpp and pitch_geometry.hpp. Never reintroduce a runtime-pointer
 MatchState or a RuntimeContext for actors.
 
@@ -560,7 +562,7 @@ Entity state → Simulation tick → SimulationFact → RefereeState → Ruling
   Ball/action reset and taker/target planning occur once, without actor teleportation;
   actors move under controls while pending. Readiness checks ball placement/movement,
   taker approach, legal opposition distance/areas and stopped actor positioning.
-  `rules/restart_readiness.*` owns pure home-frame plans and geometric predicates.
+  `referee/restart_readiness.*` owns pure home-frame plans and geometric predicates.
   DefaultAI receives only restart_pending/per-player target values in WorldState;
   pending commands cannot request contacts. Sub-idle movement stays continuous
   during pending positioning; the legacy live-play deadband is unchanged.

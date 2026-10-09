@@ -7,7 +7,7 @@
 
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
-#include "sim/rules/restart_placement.hpp"
+#include "sim/referee/restart_placement.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team/team.hpp"
 

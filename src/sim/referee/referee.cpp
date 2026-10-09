@@ -15,7 +15,7 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "sim/rules/referee.hpp"
+#include "sim/referee/referee.hpp"
 #include <cmath>
 #include <type_traits>
 #include <algorithm>
@@ -23,9 +23,9 @@
 #include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
 #include "sim/team/team.hpp"
-#include "sim/rules/offside.hpp"
+#include "sim/referee/offside.hpp"
 #include "sim/observation/mentalimage.hpp"
-#include "sim/rules/restart_placement.hpp"
+#include "sim/referee/restart_placement.hpp"
 #include "sim/observation/pitch_frame.hpp"
 
 namespace {

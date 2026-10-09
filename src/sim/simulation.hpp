@@ -16,13 +16,13 @@
 #include "foundation/math/rng.hpp"
 #include "sim/observation/world_state.hpp"
 #include "sim/observation/mentalimage.hpp"
-#include "sim/rules/result.hpp"
-#include "sim/rules/clock.hpp"
+#include "sim/runtime/result.hpp"
+#include "sim/runtime/clock.hpp"
 #include "sim/event/ball_touch_sink.hpp"
 #include "sim/event/touch_state.hpp"
 #include "football/ball/ball_environment.hpp"
-#include "sim/rules/referee_tick_facts.hpp"
-#include "sim/rules/rule_command_sink.hpp"
+#include "sim/referee/referee_tick_facts.hpp"
+#include "sim/referee/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
 #include "sim/player/player_runtime_sink.hpp"
 #include "sim/event/simulation_fact.hpp"
@@ -31,7 +31,7 @@
 #include "sim/event/match_event.hpp"
 #include "sim/event/event_log.hpp"
 #include "sim/event/player_trip_sink.hpp"
-#include "sim/rules/referee_view.hpp"
+#include "sim/referee/referee_view.hpp"
 
 class Player;
 namespace football::ball { class Ball; }

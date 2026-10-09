@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "sim/rules/goal.hpp"
+#include "sim/referee/goal.hpp"
 
 #include <cmath>
 

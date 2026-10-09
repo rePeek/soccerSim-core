@@ -7,7 +7,7 @@
 #include "model/football_types.hpp"
 #include "model/player.hpp"
 #include "model/team.hpp"
-#include "sim/rules/phase.hpp"
+#include "sim/runtime/phase.hpp"
 
 namespace football::sim::event {
 

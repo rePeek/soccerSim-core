@@ -11,7 +11,7 @@
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/player_control_builder.hpp"
-#include "sim/rules/referee.hpp"
+#include "sim/referee/referee.hpp"
 #include "sim/team/team.hpp"
 
 namespace football::sim::testing {

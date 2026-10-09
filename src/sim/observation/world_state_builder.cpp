@@ -3,7 +3,7 @@
 #include "football/ball/ball.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
-#include "sim/rules/referee.hpp"
+#include "sim/referee/referee.hpp"
 #include "sim/team/team.hpp"
 
 WorldState BuildWorldState(const WorldStateSource& s) {

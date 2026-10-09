@@ -1,4 +1,4 @@
-#include "sim/rules/clock.hpp"
+#include "sim/runtime/clock.hpp"
 
 #include <algorithm>
 #include <limits>

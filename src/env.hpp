@@ -8,7 +8,7 @@
 #include "model/ball_config.hpp"
 #include "model/team.hpp"
 #include "sim/simulation_config.hpp"
-#include "sim/rules/result.hpp"
+#include "sim/runtime/result.hpp"
 #include "sim/observation/world_state.hpp"
 
 class Simulation;

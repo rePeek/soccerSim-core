@@ -1,4 +1,4 @@
-#include "sim/rules/restart_readiness.hpp"
+#include "sim/referee/restart_readiness.hpp"
 
 #include <algorithm>
 #include <cmath>

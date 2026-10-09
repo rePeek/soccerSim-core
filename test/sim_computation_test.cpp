@@ -11,7 +11,7 @@
 #include "sim/player/player.hpp"
 #include "sim/query/player_query.hpp"
 #include "sim/query/reachability.hpp"
-#include "sim/rules/offside.hpp"
+#include "sim/referee/offside.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team/team.hpp"

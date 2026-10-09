@@ -6,7 +6,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
 #include "default_ai_fixture.hpp"
-#include "sim/rules/period.hpp"
+#include "sim/referee/period.hpp"
 #include "sim/simulation.hpp"
 #include "sim/team/team.hpp"
 

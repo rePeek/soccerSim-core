@@ -3,7 +3,7 @@
 
 #include <span>
 
-#include "sim/rules/referee_tick_facts.hpp"
+#include "sim/referee/referee_tick_facts.hpp"
 
 class Player;
 

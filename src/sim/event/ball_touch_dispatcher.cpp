@@ -1,7 +1,7 @@
 #include "sim/event/ball_touch_dispatcher.hpp"
 
 #include "sim/player/player.hpp"
-#include "sim/rules/referee.hpp"
+#include "sim/referee/referee.hpp"
 #include "sim/team/team.hpp"
 
 namespace football::sim::event {

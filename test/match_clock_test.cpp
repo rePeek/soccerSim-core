@@ -5,7 +5,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "sim/rules/clock.hpp"
+#include "sim/runtime/clock.hpp"
 
 namespace {
 using namespace football::sim;
