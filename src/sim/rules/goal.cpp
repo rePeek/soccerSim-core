@@ -49,7 +49,7 @@ bool CrossedGoalLine(const football::model::Pitch& pitch, int side,
   bool intersect2 = goal2.IntersectsLine(line, intersectVec);
   // extra check: ball could have gone 'in' via the side netting, if line begin
   // == inside pitch, but outside of post, and line end == in goal. disallow!
-  if (fabs(previous.coords[1]) > 3.7 &&
+  if (fabs(previous.coords[1]) > half_goal_width &&
       fabs(previous.coords[0]) >
           pitch.half_length() - pitch.line_half_width() - 0.11) {
     return false;

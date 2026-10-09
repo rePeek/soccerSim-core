@@ -46,7 +46,6 @@
 #include "sim/animation/library.hpp"
 #include "sim/event/touch_query.hpp"
 #include "sim/rules/referee.hpp"
-#include "sim/pitch_geometry.hpp"
 
 
 using std::placeholders::_1;

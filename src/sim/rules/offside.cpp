@@ -17,7 +17,6 @@
 #include <cmath>
 
 #include "foundation/math/scalar.hpp"
-#include "sim/pitch_geometry.hpp"
 #include "sim/observation/mentalimage.hpp"
 
 using football::ball::Ball;
@@ -25,6 +24,7 @@ using football::ball::Ball;
 namespace football::sim::rules {
 
 float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,
+                     const football::model::Pitch& pitch,
                      const Ball& ball, int defending_team_id, int defending_side,
                      unsigned int futureSim_ms) {
   signed int side = defending_side;
@@ -59,7 +59,7 @@ float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,
     offsideLine = mentalImage.GetBallPrediction(0, now, ball).coords[0];
   }
   if (offsideLine * side < 0) offsideLine = 0;
-  offsideLine = clamp(offsideLine, -pitchHalfW, pitchHalfW);
+  offsideLine = clamp(offsideLine, -pitch.half_length(), pitch.half_length());
 
   return offsideLine;
 }

@@ -18,7 +18,6 @@ add_library(football_sim STATIC)
 add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
   simulation.cpp
-  pitch_geometry.hpp
   event/ball_touch.hpp event/ball_touch_sink.hpp event/touch_state.hpp
   event/ball_touch_dispatcher.cpp event/ball_touch_dispatcher.hpp
   event/touch_query.cpp event/touch_query.hpp

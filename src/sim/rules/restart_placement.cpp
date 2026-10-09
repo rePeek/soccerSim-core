@@ -16,7 +16,6 @@
 #include "sim/rules/rule_command_sink.hpp"
 #include "sim/query/player_query.hpp"
 #include "football/ball/ball.hpp"
-#include "sim/pitch_geometry.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player.hpp"
 #include <cmath>
@@ -458,9 +457,9 @@ Player *PositionRestartPlayers(const football::model::Pitch& pitch, Team *team,
                     signed int penaltySide =
                         (ball.Predict(0).coords[0] < 0) ? -1 : 1;
                     if (basePos.coords[0] * penaltySide >
-                        pitch.half_length() - 16.5 - 0.5)
+                        pitch.half_length() - pitch.penalty_area_depth() - 0.5)
                       basePos.coords[0] =
-                          (pitch.half_length() - 16.5 - 0.5) * penaltySide;
+                          (pitch.half_length() - pitch.penalty_area_depth() - 0.5) * penaltySide;
 
                     // outside penalty arc as well
                     if ((basePos - ball.Predict(0).Get2D())

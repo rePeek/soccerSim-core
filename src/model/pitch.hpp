@@ -39,8 +39,6 @@ class Pitch {
   constexpr float width() const { return width_; }
   constexpr float half_length() const { return length_ * 0.5f; }
   constexpr float half_width() const { return width_ * 0.5f; }
-  constexpr float full_half_length() const { return full_length_ * 0.5f; }
-  constexpr float full_half_width() const { return full_width_ * 0.5f; }
   constexpr float line_half_width() const { return line_width_ * 0.5f; }
   constexpr float goal_half_width() const { return goal_width_ * 0.5f; }
   constexpr float goal_height() const { return goal_height_; }
@@ -49,6 +47,9 @@ class Pitch {
   constexpr float friction() const { return friction_; }
   constexpr float linear_friction() const { return linear_friction_; }
   constexpr float grass_height() const { return grass_height_; }
+  // Penalty-area geometry used by the referee and restart placement.
+  constexpr float penalty_area_depth() const { return penalty_area_depth_; }
+  constexpr float penalty_mark_distance() const { return penalty_mark_distance_; }
 
   // Ground-plane bounds only. Ball radius, line crossing and restart decisions
   // belong to the runtime simulation and referee, not this domain description.
@@ -65,12 +66,12 @@ class Pitch {
   float friction_ = 0.04f;
   float linear_friction_ = 1.6f;
   float grass_height_ = 0.025f;
-  float full_length_ = 120.0f;
-  float full_width_ = 80.0f;
   float line_width_ = 0.12f;
   float goal_width_ = 7.4f;
   float goal_height_ = 2.5f;
   float goal_depth_ = 2.55f;
+  float penalty_area_depth_ = 16.5f;
+  float penalty_mark_distance_ = 11.0f;
 };
 
 constexpr Pitch MakeLegacyPitch() { return Pitch{}; }

@@ -106,12 +106,14 @@ TEST_CASE("offside geometry follows second defender ball and halfway line", "[si
     SimulationAccess::TeamOf(runtime.simulation, SimulationAccess::SecondTeamOf(runtime.simulation))->GetActivePlayers(snapshot_players);
     MentalImage image(SimulationAccess::NowOf(runtime.simulation), snapshot_players, *SimulationAccess::BallOf(runtime.simulation));
     CHECK(football::sim::rules::GetOffsideLine(image, SimulationAccess::NowOf(runtime.simulation),
+        SimulationAccess::PitchOf(runtime.simulation),
         *SimulationAccess::BallOf(runtime.simulation), teamID, side) == 30 * side);
 
     SimulationAccess::BallOf(runtime.simulation)->SetPosition(Vector3(35 * side, 0, 0.11f), SimulationAccess::BallEnvironmentOf(runtime.simulation));
     SimulationAccess::BallOf(runtime.simulation)->CalculatePrediction(SimulationAccess::BallEnvironmentOf(runtime.simulation));
     MentalImage ballAhead(SimulationAccess::NowOf(runtime.simulation), snapshot_players, *SimulationAccess::BallOf(runtime.simulation));
     CHECK(football::sim::rules::GetOffsideLine(ballAhead, SimulationAccess::NowOf(runtime.simulation),
+        SimulationAccess::PitchOf(runtime.simulation),
         *SimulationAccess::BallOf(runtime.simulation), teamID, side) == 35 * side);
 
     for (Player *player : players) player->ResetPosition(Vector3(-10 * side, 0, 0), Vector3(0));
@@ -119,6 +121,7 @@ TEST_CASE("offside geometry follows second defender ball and halfway line", "[si
     SimulationAccess::BallOf(runtime.simulation)->CalculatePrediction(SimulationAccess::BallEnvironmentOf(runtime.simulation));
     MentalImage otherHalf(SimulationAccess::NowOf(runtime.simulation), snapshot_players, *SimulationAccess::BallOf(runtime.simulation));
     CHECK(football::sim::rules::GetOffsideLine(otherHalf, SimulationAccess::NowOf(runtime.simulation),
+        SimulationAccess::PitchOf(runtime.simulation),
         *SimulationAccess::BallOf(runtime.simulation), teamID, side) == 0.f);
 
     // The supplied movement is clamped to the live movement deviation, then the
@@ -130,6 +133,7 @@ TEST_CASE("offside geometry follows second defender ball and halfway line", "[si
       if (entry.player->GetTeamID() == teamID) entry.movement = Vector3(10 * side, 0, 0);
     }
     CHECK(football::sim::rules::GetOffsideLine(static_image, SimulationAccess::NowOf(runtime.simulation),
+        SimulationAccess::PitchOf(runtime.simulation),
         *SimulationAccess::BallOf(runtime.simulation), teamID, side, 1000) == (30 + walkVelocity) * side);
   }
 }

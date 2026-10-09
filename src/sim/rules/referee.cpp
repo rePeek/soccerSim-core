@@ -303,7 +303,7 @@ void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts,
         buffer.desiredSetPiece != e_GameMode_Corner))) {
     // check for offside players at moment of touch
     MentalImage mentalImage(facts.now, facts.all_active_players, *facts.ball);
-    float offside = football::sim::rules::GetOffsideLine(mentalImage, facts.now,
+    float offside = football::sim::rules::GetOffsideLine(mentalImage, facts.now, *facts.pitch,
         *facts.ball, defending_team_id, facts.defending_team->GetDynamicSide());
     const signed int side = facts.touch_team->GetDynamicSide();
     for (Player* player : facts.all_active_players) {
@@ -394,10 +394,10 @@ bool Referee::CheckFoul(Tick now, const football::model::Pitch& pitch,
 
   bool penalty = false;
   if (foul.foulType != 0) {
-    if (fabs(foul.foulPosition.coords[1]) < 20.15 - pitch.line_half_width() &&
+    if (fabs(foul.foulPosition.coords[1]) < 20.15f - pitch.line_half_width() &&
         foul.foulPosition.coords[0] *
                 -foul.foulVictim->GetTeam()->GetStaticSide() >
-            pitch.half_length() - 16.5 + pitch.line_half_width())
+            pitch.half_length() - pitch.penalty_area_depth() + pitch.line_half_width())
       penalty = true;
   }
 
@@ -427,7 +427,7 @@ bool Referee::CheckFoul(Tick now, const football::model::Pitch& pitch,
     commands.StopPlay();
     buffer.desiredSetPiece = penalty ? e_GameMode_Penalty : e_GameMode_FreeKick;
     buffer.restartPos = penalty
-        ? Vector3((pitch.half_length() - 11.0) * foul.foulPlayer->GetTeam()->GetStaticSide(),
+        ? Vector3((pitch.half_length() - pitch.penalty_mark_distance()) * foul.foulPlayer->GetTeam()->GetStaticSide(),
                   0, 0)
         : foul.foulPosition;
     buffer.teamID = foul.foulVictim->GetTeam()->GetID();
