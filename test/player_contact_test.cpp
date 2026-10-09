@@ -18,7 +18,7 @@ using blunted::Vector3;
 
 struct PlayerContactFixture {
   Simulation simulation;
-  Ball ball{football::model::MakeLegacyPitch()};
+  Ball ball{football::model::Pitch{}};
   std::array<Player*, 3> players;
 
   explicit PlayerContactFixture(bool reverse) {
@@ -26,7 +26,7 @@ struct PlayerContactFixture {
     options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
         football::app::fixtures::MakeDefaultAwayTeam(),
-        football::model::MakeLegacyPitch(), options);
+        football::model::Pitch{}, options);
     players = {SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[1],
                SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetAllPlayers()[1],
                SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[2]};

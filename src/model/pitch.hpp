@@ -78,7 +78,6 @@ class Pitch {
   float penalty_mark_distance_ = 11.0f;
 };
 
-constexpr Pitch MakeLegacyPitch() { return Pitch{}; }
 
 }  // namespace football::model
 

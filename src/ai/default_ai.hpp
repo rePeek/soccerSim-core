@@ -22,7 +22,7 @@ class DefaultAI {
     boards_[1].side = model::TeamSide::Away;
   }
   DefaultAI(const model::Team &home, const model::Team &away,
-            const model::Pitch &pitch = model::MakeLegacyPitch(),
+            const model::Pitch &pitch = model::Pitch{},
             const AIConfig &config = {})
       : boards_{config.initial_tactics[0]
                     ? *config.initial_tactics[0] : MakeTacticalBoard(home, model::TeamSide::Home, pitch),

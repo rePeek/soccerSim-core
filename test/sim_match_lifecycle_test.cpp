@@ -18,7 +18,7 @@ static_assert(!HasImplicitPeriodQuery<Referee>);
 void Init(Simulation& simulation, MatchOptions options = {}) {
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::MakeLegacyPitch(), options);
+      football::model::Pitch{}, options);
 }
 void StartHalf(Simulation& simulation) {
   const auto policy = football::test::MakeDefaultAI(simulation);

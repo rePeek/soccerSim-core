@@ -27,7 +27,7 @@ struct Runtime {
   Runtime() {
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                     football::app::fixtures::MakeDefaultAwayTeam(),
-                    football::model::MakeLegacyPitch(), MatchOptions{});
+                    football::model::Pitch{}, MatchOptions{});
   }
 
 };

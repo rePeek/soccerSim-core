@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
           football::sim::TickSpanFromMillisecondsExact(*config.half_duration_ms);
     GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
                  football::app::fixtures::MakeDefaultAwayTeam(),
-                 football::model::MakeLegacyPitch(), match_options, {}};
+                 football::model::Pitch{}, match_options, {}};
     game.Start();
     while (!game.Finished()) game.Step();
     const MatchResult result = game.Result();

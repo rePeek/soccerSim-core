@@ -16,7 +16,7 @@ using namespace football::sim;
 void Init(Simulation& simulation, MatchOptions options = {}) {
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                   football::app::fixtures::MakeDefaultAwayTeam(),
-                  football::model::MakeLegacyPitch(), options);
+                  football::model::Pitch{}, options);
 }
 
 TEST_CASE("Match snapshots read the authoritative tick timeline and freeze at full time",

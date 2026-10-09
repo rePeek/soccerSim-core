@@ -32,7 +32,7 @@ TEST_CASE("history sampling and newest-ball refresh use explicit borrowed images
   REQUIRE(observation::SampleMentalImage(images, std::chrono::milliseconds{150}) == &images[2]);
   const auto older = images[1].ballPredictions;
   const auto oldest = images[2].ballPredictions;
-  Ball ball(football::model::MakeLegacyPitch());
+  Ball ball(football::model::Pitch{});
   ball.ResetSituation(Vector3(4, 5, 0));
   std::vector<Vector3> predictions;
   ball.GetPredictionArray(predictions);
@@ -50,7 +50,7 @@ void Init(Simulation& simulation, bool reverse) {
   options.reverse_team_processing = reverse;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::MakeLegacyPitch(), options);
+      football::model::Pitch{}, options);
   football::test::TakeKickOff(simulation);
 }
 
@@ -128,7 +128,7 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
   auto* first = SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[1];
   auto* second = SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetAllPlayers()[2];
   std::array<Player*, 2> inputs{second, first};
-  Ball ball(football::model::MakeLegacyPitch());
+  Ball ball(football::model::Pitch{});
   ball.ResetSituation(Vector3(8, 3, 0));
   MentalImage image(Tick{100}, inputs, ball);
   REQUIRE(image.captured_tick == Tick{100});
@@ -149,7 +149,7 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
   const auto team_images = image.GetTeamPlayerImages(second->GetTeamID(), Tick{117});
   REQUIRE(team_images.size() == 1);
   REQUIRE(team_images[0].position == sampled.position);
-  Ball other_ball(football::model::MakeLegacyPitch());
+  Ball other_ball(football::model::Pitch{});
   other_ball.ResetSituation(Vector3(-25, -4, 0));
   REQUIRE(image.GetBallPrediction(TickSpan{}, Tick{117}, other_ball) ==
           captured_predictions[17].EnforceMaximumDeviation(other_ball.Predict(TickSpan{}),

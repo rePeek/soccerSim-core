@@ -18,7 +18,7 @@ void Init(Simulation& simulation, bool reverse) {
   options.half_duration = Minutes(3);
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::MakeLegacyPitch(), options);
+      football::model::Pitch{}, options);
   football::test::TakeKickOff(simulation);
   for (int i = 0; i < 40; ++i) simulation.Step({});
 }

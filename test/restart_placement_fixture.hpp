@@ -32,7 +32,7 @@ inline void SetupRestart(Simulation &simulation, const RestartCase &test) {
   MatchOptions options;
   options.reverse_team_processing = test.reverse;
   simulation.Stop();
-  simulation.Init(home, away, model::MakeLegacyPitch(), options);
+  simulation.Init(home, away, model::Pitch{}, options);
   simulation.Mirror(test.reverse, !test.reverse, test.reverse);
   blunted::Vector3 focus(0);
   switch (test.mode) {

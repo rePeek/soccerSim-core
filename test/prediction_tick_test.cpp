@@ -21,7 +21,7 @@ TEST_CASE("Ball samples and mental-image ages use ticks without changing quantiz
     Simulation simulation;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                     football::app::fixtures::MakeDefaultAwayTeam(),
-                    football::model::MakeLegacyPitch(), options);
+                    football::model::Pitch{}, options);
     Ball* ball = SimulationAccess::BallOf(simulation);
     ball->SetPosition(blunted::Vector3(0, 0, 10), SimulationAccess::BallEnvironmentOf(simulation));
     ball->SetMomentum(blunted::Vector3(8, 1, 3), SimulationAccess::BallEnvironmentOf(simulation));

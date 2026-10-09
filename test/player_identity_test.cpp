@@ -119,8 +119,8 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   MatchOptions options;
   options.reverse_team_processing = reverse;
   Simulation reference, renamed;  // Independent runtimes, no decision owners.
-  reference.Init(default_home, default_away, model::MakeLegacyPitch(), options);
-  renamed.Init(home, away, model::MakeLegacyPitch(), options);
+  reference.Init(default_home, default_away, model::Pitch{}, options);
+  renamed.Init(home, away, model::Pitch{}, options);
   CheckIdentity(renamed, home, away);
   const auto reference_ai = football::test::MakeDefaultAI(reference);
   const auto renamed_ai = football::test::MakeDefaultAI(renamed);
@@ -167,7 +167,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   }
 
   renamed.Stop();
-  renamed.Init(home, away, model::MakeLegacyPitch(), options);
+  renamed.Init(home, away, model::Pitch{}, options);
   CheckIdentity(renamed, home, away);
   Require(renamed.Observe().players[0].id == initial.players[0].id,
           "reset reassigned model identity");
@@ -192,17 +192,17 @@ void CheckRosterComposition() {
     MatchOptions options;
     options.reverse_team_processing = reverse;
     Simulation simulation;
-    simulation.Init(home, away, model::MakeLegacyPitch(), options);
+    simulation.Init(home, away, model::Pitch{}, options);
     CheckIdentity(simulation, home, away);
     simulation.Stop();
     std::swap(home.players[0], home.players[2]);
-    simulation.Init(home, away, model::MakeLegacyPitch(), options);
+    simulation.Init(home, away, model::Pitch{}, options);
     CheckIdentity(simulation, home, away);  // Identity follows the model, not slot.
   }
 
   // Home/away is a match role, not identity of the team/profile database.
   Simulation swapped;
-  swapped.Init(away, home, model::MakeLegacyPitch(), MatchOptions{});
+  swapped.Init(away, home, model::Pitch{}, MatchOptions{});
   CheckIdentity(swapped, away, home);
 
   // Scheduler phases repeat; their byte storage is not a roster-size limit.
@@ -219,7 +219,7 @@ void CheckRosterComposition() {
     MatchOptions options;
     options.reverse_team_processing = reverse;
     Simulation large;
-    large.Init(home, away, model::MakeLegacyPitch(), options);
+    large.Init(home, away, model::Pitch{}, options);
     CheckIdentity(large, home, away);
     Require(large.Observe().players.size() == 260, "phase storage limited roster size");
     const auto policy = football::test::MakeDefaultAI(large);
@@ -237,7 +237,7 @@ void CheckValidationAndDefaults() {
   Require(football::app::fixtures::LoadLegacyPlayerProfile(398, true).id == model::kInvalidPlayerId,
           "profile loader invented a player identity from provenance");
   Simulation reference;
-  reference.Init(home, away, model::MakeLegacyPitch(), MatchOptions{});
+  reference.Init(home, away, model::Pitch{}, MatchOptions{});
   CheckIdentity(reference, home, away);
   auto& rng = SimulationAccess::RngOf(reference);
   reference.Stop();
@@ -245,7 +245,7 @@ void CheckValidationAndDefaults() {
   const auto reject = [&](const model::Team& h, const model::Team& a) {
     bool rejected = false;
     try {
-      reference.Init(h, a, model::MakeLegacyPitch(), MatchOptions{});
+      reference.Init(h, a, model::Pitch{}, MatchOptions{});
     } catch (const std::invalid_argument&) {
       rejected = true;
     }
@@ -268,7 +268,7 @@ void CheckValidationAndDefaults() {
   invalid = home;
   invalid.formation.resize(257);
   reject(invalid, away);
-  reference.Init(home, away, model::MakeLegacyPitch(), MatchOptions{});
+  reference.Init(home, away, model::Pitch{}, MatchOptions{});
   CheckIdentity(reference, home, away);  // A failed Init remains reusable.
 }
 
@@ -347,7 +347,7 @@ void CheckHistoricalScheduling(bool print_baseline) {
     MatchOptions options;
     options.reverse_team_processing = test.reverse;
     Simulation simulation;
-    simulation.Init(home, away, model::MakeLegacyPitch(), options);
+    simulation.Init(home, away, model::Pitch{}, options);
     const auto policy = football::test::MakeDefaultAI(simulation);
     for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto before = CaptureScheduleState(simulation);

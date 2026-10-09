@@ -39,7 +39,7 @@ void Init(Simulation& simulation, bool reverse) {
   MatchOptions options;
   options.reverse_team_processing = reverse;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), options);
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
 }
 
 template<class T> concept HasUnusedQueueShadow = requires(T& actor) {

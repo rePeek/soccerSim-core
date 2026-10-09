@@ -25,7 +25,7 @@ TEST_CASE("possession selects the fastest team or the current team's candidate o
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::MakeLegacyPitch(), {});
+      football::model::Pitch{}, {});
   auto* current = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto* home_candidate = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[2];
   auto* away_candidate = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[2];
@@ -60,7 +60,7 @@ TEST_CASE("physical retention overrides selection without changing the retention
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::MakeLegacyPitch(), {});
+      football::model::Pitch{}, {});
   auto* retainer = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
   ArrivalTeam first(0), second(1); // No designated players: retainer must bypass reads.
   first.Arrival(0); second.Arrival(100000);
@@ -75,7 +75,7 @@ TEST_CASE("possession hysteresis preserves unsigned add, float ratio and strict 
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::MakeLegacyPitch(), {});
+      football::model::Pitch{}, {});
   auto* current = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto* candidate = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
   ArrivalTeam first(0), second(1);
@@ -122,7 +122,7 @@ TEST_CASE("Roster possession phases consume supplied opponent and physical retai
           "[sim][possession][dependency]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
   auto& team = *SimulationAccess::TeamOf(simulation, 0);
   ArrivalTeam opponent(1);
   opponent.Arrival(200);

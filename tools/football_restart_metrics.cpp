@@ -73,7 +73,7 @@ void Run(unsigned seed, TickSpan half_duration, bool reverse, bool symmetric) {
     away.name = "Symmetric away fixture";
     for (std::size_t i = 0; i < away.players.size(); ++i) away.players[i].id = away_ids[i].id;
   }
-  const auto pitch = football::model::MakeLegacyPitch();
+  const auto pitch = football::model::Pitch{};
   MatchOptions options;
   options.game_engine_random_seed = seed;
   options.half_duration = half_duration;

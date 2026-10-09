@@ -10,7 +10,7 @@ using football::ball::BallEnvironment;
 using football::ball::BallState;
 using blunted::Vector3;
 
-const football::model::Pitch kPitch = football::model::MakeLegacyPitch();
+const football::model::Pitch kPitch = football::model::Pitch{};
 
 BallState StateAt(const Vector3& position, const Vector3& velocity) {
   BallState state;

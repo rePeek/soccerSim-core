@@ -42,7 +42,7 @@ struct ContactFixture {
     options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
         football::app::fixtures::MakeDefaultAwayTeam(),
-        football::model::MakeLegacyPitch(), options);
+        football::model::Pitch{}, options);
     touch_sink = &SimulationAccess::EventsOf(simulation);
     teams = {SimulationAccess::TeamOf(simulation, 0), SimulationAccess::TeamOf(simulation, 1)};
     // Native kickoff placement initializes the Movement action publication.
@@ -72,7 +72,7 @@ struct ContactFixture {
 
 TEST_CASE("Ball physics runs without a Match and takes netting facts per call",
           "[sim][ball][contact]") {
-  Ball ball(football::model::MakeLegacyPitch());
+  Ball ball(football::model::Pitch{});
   const football::ball::BallEnvironment outside_goal{};
   ball.SetPosition(Vector3(0, 0, 0), outside_goal);
   ball.Touch(Vector3(8, 1, 3), outside_goal);
@@ -164,7 +164,7 @@ TEST_CASE("contact history sampling and prediction accept explicit time and Ball
   REQUIRE(MentalImageSampleIndex(3, std::chrono::milliseconds::max()) == 2);
   REQUIRE_THROWS_AS(MentalImageSampleIndex(0, TickSpan{}), std::logic_error);
 
-  Ball ball(football::model::MakeLegacyPitch());
+  Ball ball(football::model::Pitch{});
   ball.ResetSituation(Vector3(0));
   MentalImage image; // No Match attached.
   image.captured_tick = Tick{5};

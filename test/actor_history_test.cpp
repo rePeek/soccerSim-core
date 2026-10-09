@@ -32,7 +32,7 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     Simulation simulation;
     MatchOptions options; options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-        football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), options);
+        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
     football::test::TakeKickOff(simulation);
     auto* actor = SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[0]; // Tactical phase zero.
     simulation.AdvanceTime(TickSpan{(10 - SimulationAccess::NowOf(simulation).value % 10) % 10});
@@ -71,7 +71,7 @@ TEST_CASE("Humanoid consumes its tick-local span even when Match history is popu
     Simulation simulation;
     MatchOptions options; options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-        football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), options);
+        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
     simulation.Step({});
     REQUIRE_NOTHROW(simulation.GetMentalImage(TickSpan{}));
     const auto rng = SimulationAccess::RngOf(simulation).engine();
@@ -100,7 +100,7 @@ TEST_CASE("Humanoid baked clips come from its injected library, not the runtime 
           "[sim][animation][dependency]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
   AnimationLibrary independent;
   REQUIRE(independent.Load(std::filesystem::path(__FILE__).parent_path().parent_path() /
       "assets/runtime/animations.simanim"));
@@ -127,12 +127,12 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
           "[sim][humanoid][dependency]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
   auto* actor = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto& opponent = *SimulationAccess::TeamOf(simulation, 1);
   auto* toucher = opponent.GetAllPlayers()[1];
   const auto ambient_rng = SimulationAccess::RngOf(simulation).engine();
-  Ball supplied(football::model::MakeLegacyPitch());
+  Ball supplied(football::model::Pitch{});
   SpatialState spatial;
   spatial.position = Vector3(0);
   spatial.directionVec = Vector3(0, -1, 0);
@@ -176,7 +176,7 @@ TEST_CASE("Player tactical refresh honors supplied tick and authorization",
           "[sim][player][dependency]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
   simulation.Step({});
   auto* actor = SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[0];
   REQUIRE_FALSE(SimulationAccess::IsInPlayOf(simulation));
@@ -210,7 +210,7 @@ TEST_CASE("Player's half-underway input remains live across synchronous clock co
           "[sim][player][clock]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
   auto& first_actor = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[0];
   auto tick = SimulationAccess::PlayerTickOf(simulation, first_actor);
   REQUIRE(&tick.half_underway == &SimulationAccess::ClockOf(simulation).IsHalfUnderway());
@@ -230,7 +230,7 @@ TEST_CASE("Humanoid scheduling and publication consume the supplied tick",
           "[sim][player][dependency]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::MakeLegacyPitch(), {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
   auto& actor = *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   std::vector<Player*> players;
   SimulationAccess::TeamOf(simulation, 0)->GetActivePlayers(players);

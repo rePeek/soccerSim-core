@@ -5,7 +5,7 @@
 namespace {
 using blunted::Vector3;
 using football::sim::CrossedGoalLine;
-const auto pitch = football::model::MakeLegacyPitch();
+const auto pitch = football::model::Pitch{};
 
 float GoalX(int side) {
   return (pitch.half_length() + pitch.line_half_width() + 0.11f) * side;

@@ -299,19 +299,19 @@ TEST_CASE("AI bootstrap respects formation precedence and never invents roster p
   team.tactical_formation = {{{1.f, 0.f}, e_PlayerRole_CF},
                             {{-1.f, 0.f}, e_PlayerRole_GK}};
   team.formation = {{{-0.2f, 0.1f}, e_PlayerRole_CM}};
-  auto board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::MakeLegacyPitch());
+  auto board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::Pitch{});
   REQUIRE(board.players.size() == 1);
   REQUIRE(board.players[0].role == PlannedPlayerRole::Midfielder);
   REQUIRE(board.players[0].formation_position->coords[0] > 0.f);
   team.tactical_formation.clear();
-  board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::MakeLegacyPitch());
+  board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::Pitch{});
   REQUIRE(board.players[0].formation_position->coords[0] < 0.f);
   REQUIRE(board.players[0].formation_position->coords[1] < 0.f);
   team.formation.clear();
-  board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::MakeLegacyPitch());
+  board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::Pitch{});
   REQUIRE(board.players.size() == team.players.size());
   team.tactical_formation.resize(5); // Invalid sim input may still be inspected before startup.
-  board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::MakeLegacyPitch());
+  board = football::ai::MakeTacticalBoard(team, TeamSide::Home, model::Pitch{});
   REQUIRE(board.players.size() == 3);
   REQUIRE(board.players[2].player == 3);
 }
@@ -323,7 +323,7 @@ TEST_CASE("AI initial desired shape deterministically spaces coincident outfield
   team.players[0].id = 1;
   team.players[1].id = 2;
   team.tactical_formation = {{{0.f, 0.f}, e_PlayerRole_CF}, {{0.f, 0.f}, e_PlayerRole_CF}};
-  const auto pitch = model::MakeLegacyPitch();
+  const auto pitch = model::Pitch{};
   auto first = football::ai::MakeTacticalBoard(team, TeamSide::Home, pitch);
   auto second = football::ai::MakeTacticalBoard(team, TeamSide::Home, pitch);
   REQUIRE(first.players[0].formation_position->coords[1] > 0.f);

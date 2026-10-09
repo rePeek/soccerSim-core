@@ -30,7 +30,7 @@ struct Runtime {
     options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                     football::app::fixtures::MakeDefaultAwayTeam(),
-                    football::model::MakeLegacyPitch(), options);
+                    football::model::Pitch{}, options);
     policy = football::test::MakeDefaultAI(simulation);
   }
 
@@ -298,7 +298,7 @@ TEST_CASE("explicit controls are the sole command source and absence is idle", "
 TEST_CASE("plain control tapes replay every WorldState and RNG state without AI", "[sim][control][replay]") {
   const auto home = football::app::fixtures::MakeDefaultHomeTeam();
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
-  const auto pitch = football::model::MakeLegacyPitch();
+  const auto pitch = football::model::Pitch{};
   const auto same_world = [](const WorldState &a, const WorldState &b) {
     REQUIRE(a.tick == b.tick);
     REQUIRE(a.phase == b.phase);
@@ -420,7 +420,7 @@ TEST_CASE("retained policy and world values survive new Matches and owner destru
           "[sim][ai][lifecycle][replay]") {
   const auto home = football::app::fixtures::MakeDefaultHomeTeam();
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
-  const auto pitch = football::model::MakeLegacyPitch();
+  const auto pitch = football::model::Pitch{};
   auto simulation = std::make_unique<Simulation>();
   simulation->Init(home, away, pitch, MatchOptions{});
   const football::ai::DefaultAI policy(home, away, pitch);

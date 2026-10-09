@@ -24,7 +24,7 @@ void Init(Simulation& simulation, bool reverse,
   options.half_duration = half_duration;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::MakeLegacyPitch(), options);
+      football::model::Pitch{}, options);
 }
 
 void ReachHalf(Simulation& simulation, MatchPhase phase) {

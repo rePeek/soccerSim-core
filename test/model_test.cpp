@@ -14,7 +14,7 @@ int main() {
   static_assert(model::TeamSide::Home != model::TeamSide::Away);
   static_assert(std::is_same_v<std::underlying_type_t<model::TeamSide>, std::uint8_t>);
   static_assert(model::kPlayerStatCount == 22);
-  constexpr model::Pitch pitch = model::MakeLegacyPitch();
+  constexpr model::Pitch pitch = model::Pitch{};
   static_assert(pitch.length() == 105.0f && pitch.width() == 68.0f);
   static_assert(pitch.contains(52.5f, 34.0f));
   static_assert(pitch.contains(-52.5f, -34.0f));
