@@ -314,6 +314,8 @@ void Simulation::Init(
       options.half_duration.value > std::numeric_limits<std::uint64_t>::max() / 2) {
     throw std::invalid_argument("invalid regulation duration");
   }
+  if (options.snapshot_capacity == 0)
+    throw std::invalid_argument("snapshot capacity must be positive");
   ValidatePlayers(home, away);
   football::model::Team home_model = home, away_model = away;
   // Appearance is not competition physics: isolate its seed-0 stream so a
@@ -395,6 +397,21 @@ void Simulation::Init(
   auto facts = std::make_unique<FactEvents>(*this);
   auto rulings = std::make_unique<RulingEvents>(*this);
 
+  std::vector<Player*> snapshot_players;
+  football::sim::observation::SnapshotMetadata metadata;
+  metadata.pitch = pitch_;
+  metadata.animation_library_hash = animations_->ContentHash();
+  for (const auto& team : teams) {
+    for (Player* player : team->GetAllPlayers()) {
+      snapshot_players.push_back(player);
+      metadata.player_ids.push_back(player->GetID());
+    }
+  }
+  football::sim::observation::Snapshot scratch;
+  scratch.players.resize(snapshot_players.size());
+  football::sim::observation::SnapshotHistory history(options.snapshot_capacity);
+  history.Reset(snapshot_players.size());
+
   // Commit. Pointer/reference borrows stay valid: the heap objects do not move
   // when their owning unique_ptrs are transferred.
   ball_ = std::move(ball);
@@ -404,6 +421,10 @@ void Simulation::Init(
   rule_commands_ = std::move(commands);
   fact_sink_ = std::move(facts);
   ruling_sink_ = std::move(rulings);
+  snapshot_players_ = std::move(snapshot_players);
+  snapshot_metadata_ = std::move(metadata);
+  snapshot_scratch_ = std::move(scratch);
+  snapshot_history_ = std::move(history);
 
   designated_possession_player_ = designated;
   ball_retainer_ = nullptr;
@@ -411,6 +432,7 @@ void Simulation::Init(
   last_goal_scorer_ = nullptr;
   best_possession_team_ = nullptr;
   SetMatchPhase(MatchPhase::PreMatch);
+  CaptureSnapshot();
 }
 
 void Simulation::EnsureAnimationLibrary() {
@@ -428,6 +450,11 @@ void Simulation::EnsureAnimationLibrary() {
 void Simulation::Step(const PlayerControlSet& controls) {
   if (!ball_) throw std::logic_error("simulation has no match");
   if (Finished()) return;
+  StepImpl(controls);
+  CaptureSnapshot();
+}
+
+void Simulation::StepImpl(const PlayerControlSet& controls) {
   if (pending_change_of_ends_) {
     ApplyChangeOfEnds();
     pending_change_of_ends_ = false;
@@ -708,6 +735,41 @@ void Simulation::AdvanceTime(football::sim::TickSpan delta) {
   UpdateRecentPossession(admitted);
 }
 
+void Simulation::CaptureSnapshot() {
+  const auto state = ball_->state();
+  const auto ball_frame = ToHomePitchFrame(*teams_[first_team_]);
+  auto& ball = snapshot_scratch_.ball;
+  ball.position = ball_frame.Position(state.position);
+  ball.velocity = ball_frame.Direction(state.velocity);
+  // Frame conversion is a proper 180-degree rotation, not a reflection, so
+  // angular velocity (an axial vector) uses the same rotation as velocity.
+  ball.angular_velocity = ball_frame.Direction(state.angular_velocity);
+  for (std::size_t i = 0; i < snapshot_players_.size(); ++i) {
+    Player& player = *snapshot_players_[i];
+    auto& dst = snapshot_scratch_.players[i];
+    const auto& kinematic = player.GetKinematicState();
+    const auto frame = ToHomePitchFrame(*player.GetTeam());
+    dst.position = frame.Position(kinematic.position);
+    dst.velocity = frame.Direction(kinematic.velocity);
+    dst.facing = frame.Direction(kinematic.facing);
+    dst.body_facing = frame.Direction(kinematic.bodyFacing);
+    dst.active = player.IsActive();
+    dst.has_possession = player.HasPossession();
+    dst.animation_id = -1;
+    dst.frame = 0;
+    // Never dereference the missing humanoid of a never-active bench player.
+    if (dst.active) {
+      const auto* anim = player.GetCurrentAnim();
+      if (anim) {
+        dst.animation_id = anim->animationId;
+        dst.frame = static_cast<std::uint32_t>(player.GetCurrentFrame());
+      }
+    }
+  }
+  snapshot_history_.Record({clock_->ExecutedTicks(), GetTimelineTick(), reset_sequence_},
+                           snapshot_scratch_);
+}
+
 void Simulation::CaptureMentalImage() {
   if (mental_images_.empty() ||
       GetTimelineTick().value % football::sim::observation::kMentalImageCadence.value == 0) {
@@ -769,6 +831,11 @@ bool Simulation::Stop() {
   referee_.reset();
   recognizer_.Reset();
   mental_images_.clear();
+  snapshot_players_.clear();
+  snapshot_metadata_ = {};
+  snapshot_scratch_ = {};
+  // Stop releases memory; Finished keeps the complete retained window alive.
+  snapshot_history_ = football::sim::observation::SnapshotHistory{};
   fact_sink_.reset();
   ruling_sink_.reset();
   player_runtime_sink_ = nullptr;

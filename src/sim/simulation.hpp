@@ -16,6 +16,7 @@
 #include "foundation/math/rng.hpp"
 #include "sim/observation/world_state.hpp"
 #include "sim/observation/mentalimage.hpp"
+#include "sim/observation/snapshot_history.hpp"
 #include "sim/runtime/result.hpp"
 #include "sim/runtime/clock.hpp"
 #include "sim/fact/simulation_fact_sink.hpp"
@@ -60,6 +61,10 @@ class Simulation {
   // Final only; throws std::logic_error before full time or without a match.
   MatchResult Result() const;
 
+  // Single-threaded, read-only history. No disk access or runtime mutation.
+  const football::sim::observation::SnapshotHistory& Snapshots() const { return snapshot_history_; }
+  const football::sim::observation::SnapshotMetadata& SnapshotMetadata() const { return snapshot_metadata_; }
+
   // TODO: test/diagnostic escape hatch; not a general integration API.
   // Transitional test/diagnostic sampling; pointers expire on capture/reset/Stop.
   MentalImage* GetMentalImage(football::sim::TickSpan history);
@@ -98,6 +103,8 @@ class Simulation {
   football::sim::PlayerTickContext PlayerTickFacts(const Player& actor);
   void EnsureAnimationLibrary();
   void CaptureMentalImage();
+  void StepImpl(const PlayerControlSet& controls);
+  void CaptureSnapshot();
   void EndPeriod();
   void ApplyChangeOfEnds();
   void UpdateRecentPossession(football::sim::TickSpan admitted);
@@ -166,6 +173,11 @@ class Simulation {
   // Constructed before the actors and kept alive until their borrows are gone.
   std::vector<MentalImage> mental_images_;
   std::optional<football::sim::MatchClock> clock_;
+  football::sim::observation::SnapshotHistory snapshot_history_;
+  football::sim::observation::SnapshotMetadata snapshot_metadata_;
+  football::sim::observation::Snapshot snapshot_scratch_;
+  // Fixed home-then-away actor slots, including inactive/bench entries.
+  std::vector<Player*> snapshot_players_;
 
   MatchOptions options_;
   football::model::Pitch pitch_;

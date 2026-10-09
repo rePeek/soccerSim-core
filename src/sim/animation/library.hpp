@@ -30,9 +30,12 @@ class AnimationLibrary {
   const std::vector<AnimationClip>& Clips() const { return clips_; }
 
   std::size_t Size() const { return clips_.size(); }
+  // Stable resource provenance for offline snapshot pose lookup.
+  std::uint64_t ContentHash() const { return content_hash_; }
 
  private:
   std::vector<AnimationClip> clips_;
+  std::uint64_t content_hash_ = 0;
 };
 
 #endif

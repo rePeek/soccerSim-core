@@ -1,6 +1,7 @@
 #ifndef FOOTBALL_SIM_SIMULATION_CONFIG_HPP
 #define FOOTBALL_SIM_SIMULATION_CONFIG_HPP
 
+#include <cstddef>
 #include <cstdint>
 
 #include "foundation/math/vector3.hpp"
@@ -23,6 +24,9 @@ struct MatchOptions {
   blunted::Vector3 ball_position = blunted::Vector3(0.0f, -0.0f, 0.0f);
   // Derived once from the effective initial formations at initialization.
   bool left_team_owns_ball = false;
+  // Read-only history retention; 60,000 samples at 100 Hz = ten minutes.
+  // Must be positive. Changing this cannot affect simulation physics/RNG.
+  std::size_t snapshot_capacity = 60000;
 };
 
 #endif  // FOOTBALL_SIM_SIMULATION_CONFIG_HPP

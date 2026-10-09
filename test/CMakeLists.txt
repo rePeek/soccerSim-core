@@ -96,6 +96,7 @@ set_tests_properties(football_default_ai_test PROPERTIES LABELS ai)
 add_executable(football_sim_control_boundary_test
   sim_control_boundary_test.cpp sim_match_lifecycle_test.cpp restart_placement_test.cpp
   pitch_frame_test.cpp match_tick_test.cpp restart_readiness_test.cpp match_fatigue_test.cpp
+  snapshot_capture_test.cpp
   actor_history_test.cpp custom_pitch_test.cpp referee_process_fixture.hpp)
 target_link_libraries(football_sim_control_boundary_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)

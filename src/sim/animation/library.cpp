@@ -15,6 +15,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <array>
 
 bool AnimationLibrary::Load(const std::filesystem::path& path) {
   std::ifstream is(path, std::ios::binary);
@@ -22,6 +23,18 @@ bool AnimationLibrary::Load(const std::filesystem::path& path) {
     std::cerr << "AnimationLibrary: cannot open " << path << "\n";
     return false;
   }
+
+  std::uint64_t hash = UINT64_C(14695981039346656037);
+  std::array<char, 16384> bytes;
+  while (is.read(bytes.data(), bytes.size()) || is.gcount() != 0) {
+    for (std::streamsize i = 0; i < is.gcount(); ++i) {
+      hash ^= static_cast<unsigned char>(bytes[static_cast<std::size_t>(i)]);
+      hash *= UINT64_C(1099511628211);
+    }
+  }
+  if (!is.eof()) return false;
+  is.clear();
+  is.seekg(0);
 
   uint32_t clip_count = 0;
   if (!SimAnimReadHeader(is, clip_count)) {
@@ -34,5 +47,6 @@ bool AnimationLibrary::Load(const std::filesystem::path& path) {
   for (uint32_t i = 0; i < clip_count; ++i) {
     clips_.push_back(AnimationClip::Deserialize(is, i));
   }
+  content_hash_ = hash;
   return true;
 }

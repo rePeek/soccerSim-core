@@ -783,7 +783,25 @@ oldest-to-newest order; insufficient history leaves its output unchanged.
 Clear invalidates queries but retains all storage. Borrowed record pointers must
 not cross slot overwrite, Clear, Reset, teardown or asynchronous consumers.
 
-This stage does not change Simulation execution, MentalImage, Event, Referee or
-AI. Simulation sampling in the fixed WorldState pitch frame is the next stage;
-disk archive/queues and temporal consumers are separate later stages. Snapshot
-is a read-only record, never a WorldState replacement or restart checkpoint.
+### Snapshot capture — Stage 2
+
+Simulation::Step wraps the unchanged StepImpl phases and commits one Snapshot
+after every successfully executed step, including ceremonial and terminal early
+returns. Init preallocates history/scratch and stable home-then-away runtime actor
+slots before publishing owners, then records step zero. MatchOptions::snapshot_capacity
+configures retention (positive, default 60,000); it never changes execution/RNG.
+ResetSituation preserves history with new generation on the next sample; manual
+AdvanceTime creates no samples. Finished retains history; Stop releases it and all
+actor borrows. SnapshotMetadata owns pitch and FNV-1a-64 of loaded animation bytes.
+
+Capture uses Ball::state and Player kinematics/action projections, with the same
+ToHomePitchFrame rotation as WorldState, including ball angular velocity. Important:
+WorldState still reads the legacy Predict(0) position cache, which can lag the
+authoritative ball position; do not refresh it or change policy to force equality.
+Only created runtime actors have slots (current Team creates formation entries,
+not omitted bench profiles); inactive slots stay and do not dereference Humanoid.
+`test/snapshot_capture_test.cpp` covers both halves/orders, ceremonies, terminal
+duplicate ticks, sends-off, unequal rosters, jumps, resets and Stop/Init replay.
+Release 36/36 and Debug 35/35 (excluding full-match CLI) pass unchanged goldens.
+Disk archive and temporal consumers remain separate stages. Snapshot is a
+read-only record, never a WorldState replacement or restart checkpoint.
