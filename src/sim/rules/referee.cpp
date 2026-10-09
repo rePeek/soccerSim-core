@@ -235,9 +235,9 @@ void Referee::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
   commands.ResetSituation(options.reverse_team_processing ? -buffer.restartPos : buffer.restartPos);
   Team* first = facts.first_team == 0 ? &facts.home : &facts.away;
   Team* second = facts.first_team == 0 ? &facts.away : &facts.home;
-  Player *first_taker = PositionRestartPlayers(first, e_GameMode_KickOff, second,
+  Player *first_taker = PositionRestartPlayers(facts.pitch, first, e_GameMode_KickOff, second,
       buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng, commands);
-  Player *second_taker = PositionRestartPlayers(second, e_GameMode_KickOff, first,
+  Player *second_taker = PositionRestartPlayers(facts.pitch, second, e_GameMode_KickOff, first,
       buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng, commands);
   buffer.taker = buffer.teamID == facts.first_team ? first_taker : second_taker;
   offsidePlayers.clear();

@@ -62,7 +62,7 @@ inline std::array<Player *, 2> PositionRestart(Simulation &simulation, const Res
   } commands(simulation);
   std::array<Player *, 2> takers{};
   for (int side : {SimulationAccess::FirstTeamOf(simulation), SimulationAccess::SecondTeamOf(simulation)})
-    takers[side] = PositionRestartPlayers(SimulationAccess::TeamOf(simulation, side), test.mode,
+    takers[side] = PositionRestartPlayers(SimulationAccess::PitchOf(simulation), SimulationAccess::TeamOf(simulation, side), test.mode,
         SimulationAccess::TeamOf(simulation, 1 - side), test.taking_team, test.taking_team,
         *SimulationAccess::BallOf(simulation), SimulationAccess::RegulationTimeOf(simulation), SimulationAccess::OptionsOf(simulation), SimulationAccess::RngOf(simulation), commands);
   return takers;

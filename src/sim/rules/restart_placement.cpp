@@ -27,6 +27,7 @@ namespace {
 // Coordinate deformation for rule-owned restart layouts only. It no longer
 // invokes an AI policy during authoritative reset/placement.
 Vector3 AdaptRestartFormation(
+    const football::model::Pitch& pitch,
     Player *player, float backXBound, float frontXBound,
     float lowYBound, float highYBound, float xFocus, float xFocusStrength,
     float yFocus, float yFocusStrength, const Vector3 &microFocus,
@@ -76,7 +77,7 @@ Vector3 AdaptRestartFormation(
     float distance = clamp( std::fabs(yFocus - position.coords[1]) / std::fabs(highYBound - lowYBound) , 0.0f, 1.0f);
 
     float bias = 1.0f - distance;
-    bias *= 0.2f + 0.8f * std::fabs(yFocus) / pitchHalfH;
+    bias *= 0.2f + 0.8f * std::fabs(yFocus) / pitch.half_width();
     bias *= yFocusStrength;
 
     position.coords[1] = position.coords[1] * (1.0f - bias) + yFocus * bias;
@@ -146,7 +147,8 @@ Vector3 AdaptRestartFormation(
 
 }  // namespace
 
-Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team,
+Player *PositionRestartPlayers(const football::model::Pitch& pitch, Team *team,
+                                       e_GameMode setPiece, Team *other_team,
                                        int kickoffTakerTeamId,
                                        int takerTeamID, const Ball& ball,
                                        football::sim::TickSpan regulation,
@@ -168,7 +170,7 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
         focus.coords[1] = 0;
       }
       (*iter)->ResetPosition(
-          Vector3(pitchHalfW * team->GetDynamicSide() * 0.98, 0, 0), focus);
+          Vector3(pitch.half_length() * team->GetDynamicSide() * 0.98, 0, 0), focus);
       iter = players.erase(iter);
     } else {
       iter++;
@@ -186,15 +188,15 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                   for (unsigned int i = 0; i < players.size(); i++) {
                     Vector3 basePos =
                         players[i]->GetFormationEntry().position *
-                        Vector3(-team->GetDynamicSide() * pitchHalfW * 0.6,
-                                -team->GetDynamicSide() * pitchHalfH * 0.6, 0);
+                        Vector3(-team->GetDynamicSide() * pitch.half_length() * 0.6,
+                                -team->GetDynamicSide() * pitch.half_width() * 0.6, 0);
                     basePos.coords[1] +=
                         rng.Uniform(-2.0f,
                                     2.0f);  // to stop people from bumping into
                                             // each other and such
                     basePos.coords[0] *= 0.5;
                     basePos.coords[0] +=
-                        (pitchHalfW * 0.2) * team->GetDynamicSide();
+                        (pitch.half_length() * 0.2) * team->GetDynamicSide();
                     if (basePos.coords[0] * team->GetDynamicSide() < 0.5)
                       basePos.coords[0] =
                           0.5 * team->GetDynamicSide();  // not allowed to stand
@@ -224,15 +226,15 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                   for (unsigned int i = 0; i < players.size(); i++) {
                     float backXBound, frontXBound, lowYBound, highYBound;
                     if (isTakerTeam) {
-                      backXBound = team->GetDynamicSide() * pitchHalfW * 0.5;
-                      frontXBound = -team->GetDynamicSide() * pitchHalfW * 0.2;
+                      backXBound = team->GetDynamicSide() * pitch.half_length() * 0.5;
+                      frontXBound = -team->GetDynamicSide() * pitch.half_length() * 0.2;
                     } else {
-                      backXBound = team->GetDynamicSide() * pitchHalfW * 0.4;
-                      frontXBound = -team->GetDynamicSide() * pitchHalfW * 0.1;
+                      backXBound = team->GetDynamicSide() * pitch.half_length() * 0.4;
+                      frontXBound = -team->GetDynamicSide() * pitch.half_length() * 0.1;
                     }
-                    lowYBound = -pitchHalfH * 0.7;
-                    highYBound = pitchHalfH * 0.7;
-                    Vector3 basePos = AdaptRestartFormation(
+                    lowYBound = -pitch.half_width() * 0.7;
+                    highYBound = pitch.half_width() * 0.7;
+                    Vector3 basePos = AdaptRestartFormation(pitch, 
                         players[i], backXBound, frontXBound, lowYBound,
                         highYBound, 0, 0, 0, 0, 0, 0, 0, 0, false);
                     players[i]->ResetPosition(
@@ -247,8 +249,8 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                         midfieldFocus, midfieldFocusStrength;
                     Vector3 ballPos = ball.Predict(0).Get2D();
                     if (isTakerTeam) {
-                      backXBound = -team->GetDynamicSide() * pitchHalfW * 0.2;
-                      frontXBound = -team->GetDynamicSide() * pitchHalfW * 0.96;
+                      backXBound = -team->GetDynamicSide() * pitch.half_length() * 0.2;
+                      frontXBound = -team->GetDynamicSide() * pitch.half_length() * 0.96;
                       xFocus = frontXBound * 0.85;
                       xFocusStrength = 0.7f;
                       yFocus = ballPos.coords[1] * 0.1f;
@@ -256,8 +258,8 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                       midfieldFocus = 0.9f;
                       midfieldFocusStrength = 0.5f;
                     } else {
-                      backXBound = team->GetDynamicSide() * pitchHalfW * 0.98;
-                      frontXBound = team->GetDynamicSide() * pitchHalfW * 0.5;
+                      backXBound = team->GetDynamicSide() * pitch.half_length() * 0.98;
+                      frontXBound = team->GetDynamicSide() * pitch.half_length() * 0.5;
                       xFocus = backXBound * 0.94;
                       xFocusStrength = 0.8f;
                       yFocus = ballPos.coords[1] * 0.1f;
@@ -265,9 +267,9 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                       midfieldFocus = 0.1f;
                       midfieldFocusStrength = 0.7f;
                     }
-                    lowYBound = -pitchHalfH * 0.6;
-                    highYBound = pitchHalfH * 0.6;
-                    Vector3 basePos = AdaptRestartFormation(
+                    lowYBound = -pitch.half_width() * 0.6;
+                    highYBound = pitch.half_width() * 0.6;
+                    Vector3 basePos = AdaptRestartFormation(pitch, 
                         players[i], backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength,
@@ -287,33 +289,33 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                     if (isTakerTeam) {
                       backXBound =
                           clamp(ballPos.coords[0] + 30 * team->GetDynamicSide(),
-                                -pitchHalfW, pitchHalfW);
+                                -pitch.half_length(), pitch.half_length());
                       frontXBound = clamp(
                           ballPos.coords[0] + 20 * -team->GetDynamicSide(),
-                          -pitchHalfW, pitchHalfW);
+                          -pitch.half_length(), pitch.half_length());
                       xFocus =
                           clamp(ballPos.coords[0] + 4 * -team->GetDynamicSide(),
-                                -pitchHalfW, pitchHalfW);
+                                -pitch.half_length(), pitch.half_length());
                       xFocusStrength = 0.4;
                       yFocus = ballPos.coords[1] * 0.996;
                       yFocusStrength = 0.6;
                     } else {
                       backXBound =
                           clamp(ballPos.coords[0] + 30 * team->GetDynamicSide(),
-                                -pitchHalfW, pitchHalfW);
+                                -pitch.half_length(), pitch.half_length());
                       frontXBound = clamp(
                           ballPos.coords[0] + 15 * -team->GetDynamicSide(),
-                          -pitchHalfW, pitchHalfW);
+                          -pitch.half_length(), pitch.half_length());
                       xFocus =
                           clamp(ballPos.coords[0] + 16 * team->GetDynamicSide(),
-                                -pitchHalfW, pitchHalfW);
+                                -pitch.half_length(), pitch.half_length());
                       xFocusStrength = 0.2;
                       yFocus = ballPos.coords[1] * 0.95;
                       yFocusStrength = 0.5;
                     }
-                    lowYBound = -pitchHalfH * 0.75f + ballPos.coords[1] * 0.25f;
-                    highYBound = pitchHalfH * 0.75f + ballPos.coords[1] * 0.25f;
-                    Vector3 basePos = AdaptRestartFormation(
+                    lowYBound = -pitch.half_width() * 0.75f + ballPos.coords[1] * 0.25f;
+                    highYBound = pitch.half_width() * 0.75f + ballPos.coords[1] * 0.25f;
+                    Vector3 basePos = AdaptRestartFormation(pitch, 
                         players[i], backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength, ballPos, 0.7, 0, 0, false);
@@ -330,49 +332,49 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                     if (isTakerTeam) {
                       float xOffset =
                           clamp((ballPos.coords[0] * -team->GetDynamicSide()) /
-                                    pitchHalfW,
+                                    pitch.half_length(),
                                 -1.0, 1.0) *
                               0.5 +
                           0.5;  // 0 == close to our goal, 1 == far from our
                                 // goal
-                      backXBound = clamp(team->GetDynamicSide() * pitchHalfW *
+                      backXBound = clamp(team->GetDynamicSide() * pitch.half_length() *
                                              (0.7 - xOffset * 0.7),
-                                         -pitchHalfW, pitchHalfW);
-                      frontXBound = clamp(team->GetDynamicSide() * pitchHalfW *
+                                         -pitch.half_length(), pitch.half_length());
+                      frontXBound = clamp(team->GetDynamicSide() * pitch.half_length() *
                                               (-0.3 - xOffset * 0.7),
-                                          -pitchHalfW, pitchHalfW);
+                                          -pitch.half_length(), pitch.half_length());
                       // printf("fb: %f %f\n", backXBound, frontXBound);
                       xFocus = clamp(
                           ballPos.coords[0] + 10 * -team->GetDynamicSide(),
-                          -pitchHalfW, pitchHalfW);
+                          -pitch.half_length(), pitch.half_length());
                       xFocusStrength = 0.5 + xOffset * 0.2;
                       yFocus = ballPos.coords[1] * 0.4;
                       yFocusStrength = 0.6 + xOffset * 0.2;
                     } else {
                       float xOffset =
                           clamp((ballPos.coords[0] * -team->GetDynamicSide()) /
-                                    pitchHalfW,
+                                    pitch.half_length(),
                                 -1.0, 1.0) *
                               0.5 +
                           0.5;  // 0 == close to our goal, 1 == far from our
                                 // goal
                       // xOffset *= 40.0;
-                      backXBound = clamp(team->GetDynamicSide() * pitchHalfW *
+                      backXBound = clamp(team->GetDynamicSide() * pitch.half_length() *
                                              (1.0 - xOffset * 0.6),
-                                         -pitchHalfW, pitchHalfW);
-                      frontXBound = clamp(team->GetDynamicSide() * pitchHalfW *
+                                         -pitch.half_length(), pitch.half_length());
+                      frontXBound = clamp(team->GetDynamicSide() * pitch.half_length() *
                                               (0.5 - xOffset * 0.8),
-                                          -pitchHalfW, pitchHalfW);
+                                          -pitch.half_length(), pitch.half_length());
                       xFocus =
                           clamp(ballPos.coords[0] + 20 * team->GetDynamicSide(),
-                                -pitchHalfW, pitchHalfW);
+                                -pitch.half_length(), pitch.half_length());
                       xFocusStrength = 0.6 - xOffset * 0.4;
                       yFocus = ballPos.coords[1] * 0.2;
                       yFocusStrength = 0.8 - xOffset * 0.4;
                     }
-                    lowYBound = -pitchHalfH * 0.7;
-                    highYBound = pitchHalfH * 0.7;
-                    Vector3 basePos = AdaptRestartFormation(
+                    lowYBound = -pitch.half_width() * 0.7;
+                    highYBound = pitch.half_width() * 0.7;
+                    Vector3 basePos = AdaptRestartFormation(pitch, 
                         players[i], backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength, ballPos, 0.4, 0, 0, false);
@@ -396,7 +398,7 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                   // wall
                   if (!isTakerTeam &&
                       (ball.Predict(0).Get2D() -
-                       Vector3(team->GetDynamicSide() * pitchHalfW, 0, 0))
+                       Vector3(team->GetDynamicSide() * pitch.half_length(), 0, 0))
                               .GetLength() < 40.0) {
                     std::vector<Player *> result;
                     football::sim::query::GetClosestPlayers(team,
@@ -404,7 +406,7 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                                          result, 3);
                     for (unsigned int i = 0; i < result.size(); i++) {
                       Vector3 toGoal =
-                          (Vector3(team->GetDynamicSide() * pitchHalfW, 0, 0) -
+                          (Vector3(team->GetDynamicSide() * pitch.half_length(), 0, 0) -
                            ball.Predict(0).Get2D())
                               .GetNormalized(0);
                       toGoal += Vector3(0, 1.0 - i, 0) * 0.07;
@@ -425,10 +427,10 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                     if (isTakerTeam) {
                       backXBound =
                           clamp(ballPos.coords[0] + 50 * team->GetDynamicSide(),
-                                -pitchHalfW, pitchHalfW);
+                                -pitch.half_length(), pitch.half_length());
                       frontXBound = clamp(
                           ballPos.coords[0] + 10 * -team->GetDynamicSide(),
-                          -pitchHalfW, pitchHalfW);
+                          -pitch.half_length(), pitch.half_length());
                       xFocus = ballPos.coords[0];
                       xFocusStrength = 0.6;
                       yFocus = 0.0;
@@ -436,18 +438,18 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                     } else {
                       backXBound =
                           clamp(ballPos.coords[0] + 11 * team->GetDynamicSide(),
-                                -pitchHalfW, pitchHalfW);
+                                -pitch.half_length(), pitch.half_length());
                       frontXBound = clamp(
                           ballPos.coords[0] + 20 * -team->GetDynamicSide(),
-                          -pitchHalfW, pitchHalfW);
+                          -pitch.half_length(), pitch.half_length());
                       xFocus = ballPos.coords[0];
                       xFocusStrength = 1.0;
                       yFocus = 0.0;
                       yFocusStrength = 1.0;
                     }
-                    lowYBound = -pitchHalfH * 0.8;
-                    highYBound = pitchHalfH * 0.8;
-                    Vector3 basePos = AdaptRestartFormation(
+                    lowYBound = -pitch.half_width() * 0.8;
+                    highYBound = pitch.half_width() * 0.8;
+                    Vector3 basePos = AdaptRestartFormation(pitch, 
                         players[i], backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength, 0, 0, 0, 0, false);
@@ -456,9 +458,9 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                     signed int penaltySide =
                         (ball.Predict(0).coords[0] < 0) ? -1 : 1;
                     if (basePos.coords[0] * penaltySide >
-                        pitchHalfW - 16.5 - 0.5)
+                        pitch.half_length() - 16.5 - 0.5)
                       basePos.coords[0] =
-                          (pitchHalfW - 16.5 - 0.5) * penaltySide;
+                          (pitch.half_length() - 16.5 - 0.5) * penaltySide;
 
                     // outside penalty arc as well
                     if ((basePos - ball.Predict(0).Get2D())
@@ -478,8 +480,8 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                   for (unsigned int i = 0; i < players.size(); i++) {
                     Vector3 basePos =
                         players[i]->GetFormationEntry().position *
-                        Vector3(-team->GetDynamicSide() * pitchHalfW * 0.7,
-                                -team->GetDynamicSide() * pitchHalfH * 0.7, 0);
+                        Vector3(-team->GetDynamicSide() * pitch.half_length() * 0.7,
+                                -team->GetDynamicSide() * pitch.half_width() * 0.7, 0);
 
                     players[i]->ResetPosition(
                         basePos, ball.Predict(0).Get2D());
@@ -504,8 +506,8 @@ Player *PositionRestartPlayers(Team *team, e_GameMode setPiece, Team *other_team
                         formation_players[x]
                             ->GetFormationEntry()
                             .start_position *
-                        Vector3(-team->GetDynamicSide() * pitchHalfW,
-                                -team->GetDynamicSide() * pitchHalfH, 0);
+                        Vector3(-team->GetDynamicSide() * pitch.half_length(),
+                                -team->GetDynamicSide() * pitch.half_width(), 0);
                     players_to_position[x]->ResetPosition(
                         basePos, ball.Predict(0).Get2D());
                   }
