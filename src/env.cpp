@@ -79,6 +79,16 @@ WorldState GameEnv::Observe() const {
   return simulation_->Observe();
 }
 
+void GameEnv::CopyLatestSnapshot(football::sim::observation::SnapshotRecord& output) const {
+  if (!simulation_) throw std::logic_error("match runner is stopped");
+  output = *simulation_->Snapshots().Latest();
+}
+
+football::sim::observation::SnapshotMetadata GameEnv::SnapshotMetadata() const {
+  if (!simulation_) throw std::logic_error("match runner is stopped");
+  return simulation_->SnapshotMetadata();
+}
+
 void GameEnv::Stop() {
   ai_.reset();
   simulation_.reset();

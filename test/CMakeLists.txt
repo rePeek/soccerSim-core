@@ -77,6 +77,34 @@ football_configure_target(football_snapshot_history_test)
 add_test(NAME football_snapshot_history_test COMMAND football_snapshot_history_test)
 set_tests_properties(football_snapshot_history_test PROPERTIES LABELS "sim;unit;snapshot")
 
+# The format/queue suite links recording only, proving it has no runtime actors.
+add_executable(football_snapshot_archive_test snapshot_archive_test.cpp)
+target_link_libraries(football_snapshot_archive_test PRIVATE football::recording Catch2::Catch2WithMain)
+football_configure_target(football_snapshot_archive_test)
+add_test(NAME football_snapshot_archive_test COMMAND football_snapshot_archive_test)
+set_tests_properties(football_snapshot_archive_test PROPERTIES LABELS "app;unit;snapshot")
+
+add_executable(football_snapshot_archive_integration_test snapshot_archive_integration_test.cpp)
+target_link_libraries(football_snapshot_archive_integration_test PRIVATE
+  football::recording football::game football::app_support Catch2::Catch2WithMain)
+football_configure_target(football_snapshot_archive_integration_test)
+add_test(NAME football_snapshot_archive_integration_test COMMAND football_snapshot_archive_integration_test)
+set_tests_properties(football_snapshot_archive_integration_test PROPERTIES LABELS "app;integration;snapshot")
+if(TARGET football_app)
+  set(_snapshot_cli_artifact "${CMAKE_CURRENT_BINARY_DIR}/recorded-cli.snap")
+  target_compile_definitions(football_snapshot_archive_integration_test PRIVATE
+    FOOTBALL_TEST_CLI_SNAPSHOT_PATH="${_snapshot_cli_artifact}")
+  add_test(NAME football_app_cli_recorded_match COMMAND football_app
+    --half-duration-ms=1800 --snapshot-capacity=3 --snapshot=${_snapshot_cli_artifact})
+  set_tests_properties(football_app_cli_recorded_match PROPERTIES
+    FIXTURES_SETUP snapshot_cli_artifact LABELS "app;snapshot"
+    PASS_REGULAR_EXPRESSION "home_score=0 away_score=0 outcome=draw duration_ticks=[1-9][0-9]*")
+  add_test(NAME football_snapshot_archive_cli_readback
+    COMMAND football_snapshot_archive_integration_test "[.archive-cli]")
+  set_tests_properties(football_snapshot_archive_cli_readback PROPERTIES
+    FIXTURES_REQUIRED snapshot_cli_artifact LABELS "app;snapshot")
+endif()
+
 # Pure period decisions read only explicit match/time values.
 add_executable(football_period_test period_test.cpp ../src/sim/referee/period.cpp)
 target_link_libraries(football_period_test PRIVATE

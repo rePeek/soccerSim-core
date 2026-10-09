@@ -88,7 +88,8 @@ src/
 │   └── default_ai.*  WorldState + persistent tactical boards → PlayerControlSet
 ├── app/              executable-side code, never in core
 │   ├── app.cpp / args.* parse → GameEnv → complete match → write Result
-│   └── fixtures/     typed sample rosters/profiles → model; local six-decimal quantization
+│   ├── fixtures/     typed sample rosters/profiles → model; local six-decimal quantization
+│   └── recording/    SnapshotArchive async bounded writer + offline reader (football_recording)
 ├── env.hpp           public autonomous match façade; values + opaque private owners
 └── env.cpp           sole product composition implementation for AI + sim
 
@@ -100,6 +101,7 @@ tools/
 ├── football_regression.cpp developer regression/animation A/B diagnostic
 ├── football_restart_metrics.cpp read-only restart/clock composition diagnostic
 ├── restart-metrics.md       definitions, measurements and reproducible reruns
+├── snapshot-system.md       sampling semantics, archive API and binary format
 ├── animBaker/              offline importers and callable bake/check/verify library + CLI
 │   └── import/legacy_*     offline-only XML, value codecs and required text helpers
 ├── 4f-b-pure-locomotion-animation-read-audit.md
@@ -111,6 +113,9 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── player_identity_test.cpp  identity-independent runtime/RNG replay
 ├── sim_contracts_test.cpp    standalone input/output values
 ├── snapshot_history_test.cpp standalone ring/query/reset and zero-allocation writes
+├── snapshot_capture_test.cpp Step/Init/terminal/reset/frame and inactive actor coverage
+├── snapshot_archive_test.cpp standalone format/queue/corruption/recovery/error coverage
+├── snapshot_archive_integration_test.cpp owning GameEnv samples, byte replay and CLI readback
 ├── model_test.cpp            standalone STL domain checks
 ├── app_*_test.cpp            args, fixtures and CLI composition
 ├── default_ai_test.cpp + default_ai_fixture.hpp
@@ -805,3 +810,24 @@ duplicate ticks, sends-off, unequal rosters, jumps, resets and Stop/Init replay.
 Release 36/36 and Debug 35/35 (excluding full-match CLI) pass unchanged goldens.
 Disk archive and temporal consumers remain separate stages. Snapshot is a
 read-only record, never a WorldState replacement or restart checkpoint.
+
+### Snapshot archive — Stage 3
+
+app/recording/snapshot_archive.* is owned by the EXCLUDE_FROM_ALL
+football_recording target, linked only by app and archive tests, never by libgame.
+It uses Threads::Threads privately and model/value contracts publicly. Open/Append/
+Flush/Close are single-producer APIs; the worker owns disk/index/chunk state.
+Append copies into a bounded preallocated queue (default 1,000 frames). Block
+applies explicit backpressure; Fail aborts/reports overflow without a completion
+footer. Failures surface through Append/Flush/Close and Close always joins.
+The offline reader requires the versioned/checksummed header/index/footer by
+default. Explicit RecoverPrefix validates whole chunks and exposes only a valid
+chronological prefix, marked incomplete. It never supplies live runtime queries.
+See tools/snapshot-system.md for exact little-endian fields/CRC and safety limits.
+
+GameEnv::CopyLatestSnapshot reuses caller-owned storage; SnapshotMetadata returns
+an owning value. Neither exposes actors/history pointers or resamples Simulation.
+CLI --snapshot=PATH opts into complete-session recording (including step zero);
+--snapshot-capacity=N controls only RAM retention. Close precedes successful Result
+output. Normal closed-session metadata is not a full-match checkpoint or proof
+of a referee terminal whistle. Explicit Flush is stream flush, not power-loss fsync.

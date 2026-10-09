@@ -10,6 +10,7 @@
 #include "sim/simulation_config.hpp"
 #include "sim/runtime/result.hpp"
 #include "sim/observation/world_state.hpp"
+#include "sim/observation/snapshot.hpp"
 
 class Simulation;
 namespace football::ai { class DefaultAI; }
@@ -38,6 +39,10 @@ class GameEnv {
   MatchResult Result() const;
   // Secondary, owning telemetry/replay/debug value; throws while stopped.
   WorldState Observe() const;
+  // Owning copies of the already committed sample; no resampling or disk I/O.
+  // Reuses output's player allocation across calls, suitable for app recording.
+  void CopyLatestSnapshot(football::sim::observation::SnapshotRecord& output) const;
+  football::sim::observation::SnapshotMetadata SnapshotMetadata() const;
   // Idempotent; releases AI and simulation. Start again uses initial declarations.
   void Stop();
 

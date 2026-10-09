@@ -4,6 +4,7 @@
 
 #include "app/args.hpp"
 #include "app/fixtures/default_teams.hpp"
+#include "app/recording/snapshot_archive.hpp"
 #include "env.hpp"
 #include "foundation/time/tick_boundary.hpp"
 
@@ -25,12 +26,28 @@ int main(int argc, char** argv) {
     if (config.half_duration_ms)
       match_options.half_duration =
           football::sim::TickSpanFromMillisecondsExact(*config.half_duration_ms);
+    if (config.snapshot_capacity)
+      match_options.snapshot_capacity = static_cast<std::size_t>(*config.snapshot_capacity);
     GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
                  football::app::fixtures::MakeDefaultAwayTeam(),
                  football::model::Pitch{}, football::model::BallConfig{},
                  match_options, {}};
     game.Start();
-    while (!game.Finished()) game.Step();
+    football::app::recording::SnapshotArchive archive;
+    football::sim::observation::SnapshotRecord sample;
+    if (config.snapshot_path) {
+      archive.Open(*config.snapshot_path, game.SnapshotMetadata());
+      game.CopyLatestSnapshot(sample);
+      archive.Append(sample); // Initial step zero comes from the same history.
+    }
+    while (!game.Finished()) {
+      game.Step();
+      if (config.snapshot_path) {
+        game.CopyLatestSnapshot(sample);
+        archive.Append(sample);
+      }
+    }
+    if (config.snapshot_path) archive.Close();
     const MatchResult result = game.Result();
     std::cout << "home_score=" << result.home_score << " away_score=" << result.away_score
               << " outcome=" << OutcomeName(result.outcome)

@@ -39,3 +39,18 @@ TEST_CASE("malformed or non-positive regulation duration is rejected", "[app][ar
 TEST_CASE("overflowing regulation duration does not silently wrap", "[app][args]") {
   REQUIRE_THROWS_AS(Parse({"--half-duration-ms=18446744073709551616"}), std::runtime_error);
 }
+
+TEST_CASE("snapshot CLI opts into disk recording and configures memory retention", "[app][args]") {
+  REQUIRE_FALSE(Parse({}).snapshot_path);
+  REQUIRE_FALSE(Parse({}).snapshot_capacity);
+  const auto parsed = Parse({"--snapshot=match.snap", "--snapshot-capacity=7", "--half-duration-ms=1000"});
+  REQUIRE(parsed.snapshot_path == std::filesystem::path("match.snap"));
+  REQUIRE(parsed.snapshot_capacity == 7);
+  REQUIRE(parsed.half_duration_ms == 1000);
+  REQUIRE(Parse({"--snapshot=first.snap", "--snapshot=second.snap"}).snapshot_path ==
+          std::filesystem::path("second.snap"));
+  REQUIRE_THROWS_AS(Parse({"--snapshot="}), std::runtime_error);
+  REQUIRE_THROWS_AS(Parse({"--snapshot"}), std::runtime_error);
+  for (const auto* value : {"", "0", "-1", "abc", "12abc", "18446744073709551616"})
+    REQUIRE_THROWS_AS(Parse({std::string("--snapshot-capacity=") + value}), std::runtime_error);
+}
