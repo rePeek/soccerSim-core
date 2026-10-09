@@ -7,6 +7,7 @@
 #include "model/football_types.hpp"
 #include "model/player.hpp"
 #include "model/team.hpp"
+#include "sim/event/event.hpp"
 #include "sim/runtime/phase.hpp"
 
 namespace football::sim::event {
@@ -35,13 +36,29 @@ struct RestartAwardedEvent {
   blunted::Vector3 position;
 };
 
+struct PassCompletedEvent {
+  Tick tick{};
+  EventId id = kInvalidEventId;
+  model::TeamSide team = model::TeamSide::Home;
+  model::PlayerId passer = model::kInvalidPlayerId;
+  model::PlayerId receiver = model::kInvalidPlayerId;
+};
+
+struct ShotEndedEvent {
+  Tick tick{};
+  EventId id = kInvalidEventId;
+  model::TeamSide team = model::TeamSide::Home;
+  model::PlayerId shooter = model::kInvalidPlayerId;
+  bool goal = false;
+};
+
 struct PeriodEndedEvent {
   Tick tick{};
   MatchPhase phase = MatchPhase::PreMatch;
 };
 
-using MatchEvent =
-    std::variant<GoalScoredEvent, CardShownEvent, RestartAwardedEvent, PeriodEndedEvent>;
+using MatchEvent = std::variant<GoalScoredEvent, CardShownEvent, RestartAwardedEvent,
+    PeriodEndedEvent, PassCompletedEvent, ShotEndedEvent>;
 
 }  // namespace football::sim::event
 

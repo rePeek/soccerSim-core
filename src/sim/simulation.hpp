@@ -19,6 +19,7 @@
 #include "sim/runtime/result.hpp"
 #include "sim/runtime/clock.hpp"
 #include "sim/fact/simulation_fact_sink.hpp"
+#include "sim/event/event_recognizer.hpp"
 #include "sim/event/touch_state.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "sim/referee/referee_tick_facts.hpp"
@@ -90,6 +91,8 @@ class Simulation {
   void ApplyRestartRuling(const football::sim::event::AwardRestartRuling& ruling);
   void ApplyCardRuling(const football::sim::event::CardRuling& ruling);
   void ProcessReferee();
+  // Recognized behavior transitions -> confirmed MatchEvents.
+  void CommitEventTransitions(football::sim::Tick now);
   void AdvanceReferee(const football::sim::rules::RefereeView& view);
   football::sim::rules::RefereeTickFacts RefereeFacts() const;
   football::sim::PlayerTickContext PlayerTickFacts(const Player& actor);
@@ -181,6 +184,7 @@ class Simulation {
   std::unique_ptr<RulingEvents> ruling_sink_;
   football::sim::event::TickFactBuffer facts_;
   std::vector<football::sim::event::RefereeRuling> pending_rulings_;
+  football::sim::event::EventRecognizer recognizer_;
   football::sim::event::EventLog event_log_;
   bool flushing_facts_ = false;
 

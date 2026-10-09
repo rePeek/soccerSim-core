@@ -87,7 +87,8 @@ BallPlayerContactResult ResolveBallPlayerContacts(
                     football::sim::event::BallTouchFact{inputs.now,
                         players[i]->GetID(), players[i]->GetTeam()->GetTeamSide(),
                         e_TouchType_Accidental, ball.Predict(0),
-                        ball.GetMovement()});
+                        ball.GetMovement(),
+                        static_cast<int>(players[i]->GetSimulationActionState().type)});
                 last_touch_team = teamID;
                 // Keep per-volume accumulation and touch/rule notification order.
                 bias += (1.0f -

@@ -114,7 +114,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   const auto notify_touch = [&](e_TouchType type) {
     touch_sink.OnSimulationFact(football::sim::event::BallTouchFact{now,
         CastPlayer()->GetID(), team->GetTeamSide(), type, tick.ball.Predict(0),
-        tick.ball.GetMovement()});
+        tick.ball.GetMovement(),
+        static_cast<int>(CastPlayer()->GetSimulationActionState().type)});
   };
 
   bool instaDoorheb = false;

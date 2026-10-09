@@ -32,6 +32,9 @@ struct BallTouchFact {
   e_TouchType type = e_TouchType_None;
   blunted::Vector3 ball_position;
   blunted::Vector3 ball_velocity;
+  // Accepted action at the contact instant (e_FunctionType), for event
+  // recognition. Defaulted so diagnostics may omit it.
+  int action_type = 0;
 };
 
 // A contact that made an actor fall or lose their footing. This is a physical

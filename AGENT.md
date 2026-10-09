@@ -71,7 +71,7 @@ src/
 │   ├── ball/         standalone Ball physics/environment, prediction timing, touch kinds
 │   │                 and ball_player_contact interaction
 │   ├── fact/         immutable SimulationFact values, ordered tick buffer, single sink
-│   ├── event/        MatchEvent/EventLog and value TouchState/touch queries
+│   ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 and MentalImage/player-image history + nearest-slot sampling
 │   ├── animation/    baked schema/library/selector; depends only on foundation
@@ -464,6 +464,13 @@ Entity state → Simulation tick → SimulationFact → RefereeState → Ruling
   synchronous at the legacy points and goldens are unchanged; a flushing guard
   forbids recursive drains. Facts are stamped with the live timeline tick, so
   diagnostic publications outside Step keep the legacy now.
+- event/event.hpp + event_transition.hpp own recognized football behavior and its
+  immediate transitions. EventRecognizer opens a PassEvent/ShotEvent from an
+  accepted action carried on BallTouchFact, resolves it on the next touch, a
+  timeout or a confirmed goal, and draws no RNG or world state. Simulation runs the
+  recognizer on each fact before the referee and records PassCompleted/ShotEnded
+  MatchEvents; the referee still judges the same immutable fact, so recognition is
+  additive to the rules and cannot perturb physics or goldens.
 
 - Start requires stopped state and initializes local owners before publishing
   either. Failure remains stopped. Stop is idempotent and releases both; Start

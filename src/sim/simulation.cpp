@@ -197,12 +197,19 @@ void Simulation::FlushFacts() {
       teams_[second_team_]->GetActivePlayers(active);
     }
     const football::sim::rules::RefereeView view{tick, active, options_.offsides};
+    // Recognize behavior first, then let the referee judge the same fact. Both
+    // read the same immutable record and the same admitted instant.
+    recognizer_.Consume(*stamped,
+        football::sim::event::EventView{tick.play_authorized, tick.set_piece_active});
+    CommitEventTransitions(stamped->tick);
     referee_->Consume(*stamped, view, *rule_commands_, ruling_sink_.get());
   }
   flushing_facts_ = false;
 }
 
 void Simulation::ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling) {
+  recognizer_.OnGoalConfirmed(GetTimelineTick(), ruling.team);
+  CommitEventTransitions(GetTimelineTick());
   const int team = static_cast<int>(ruling.team);
   ++score_[team];
   SetGoalScored(true);
@@ -247,6 +254,25 @@ void Simulation::ApplyPendingRulings() {
         ruling);
   }
   pending_rulings_.clear();
+}
+
+void Simulation::CommitEventTransitions(football::sim::Tick now) {
+  for (const auto& transition : recognizer_.transitions()) {
+    std::visit(
+        [&](const auto& value) {
+          using T = std::decay_t<decltype(value)>;
+          if constexpr (std::is_same_v<T, football::sim::event::PassEnded>) {
+            if (value.status == football::sim::event::EventStatus::Completed) {
+              event_log_.Record(football::sim::event::PassCompletedEvent{
+                  now, value.id, value.team, value.passer, value.receiver});
+            }
+          } else if constexpr (std::is_same_v<T, football::sim::event::ShotEnded>) {
+            event_log_.Record(football::sim::event::ShotEndedEvent{
+                now, value.id, value.team, value.shooter, value.goal});
+          }
+        },
+        transition);
+  }
 }
 
 void Simulation::AdvanceReferee(const football::sim::rules::RefereeView& view) {
@@ -333,6 +359,7 @@ void Simulation::Init(
   clock_.emplace(options.half_duration);
   facts_.BeginTick(GetTimelineTick(), reset_sequence_);
   pending_rulings_.clear();
+  recognizer_.Reset();
   event_log_.Clear();
   flushing_facts_ = false;
   options_ = options;
@@ -516,6 +543,10 @@ void Simulation::Step(const PlayerControlSet& controls) {
   // AdvanceClock → recent possession window → goal detection/consequences.
   const auto admitted = clock_->Advance(football::sim::TickSpan{1}, phase_);
   UpdateRecentPossession(admitted);
+  // Time out unresolved behavior before a possible goal confirms a shot.
+  recognizer_.Advance(GetTimelineTick(),
+      football::sim::event::EventView{play_authorized_, set_piece_active_});
+  CommitEventTransitions(GetTimelineTick());
 
   bool first_team_goal = false;
   bool second_team_goal = false;
@@ -736,6 +767,7 @@ bool Simulation::Stop() {
   designated_possession_player_ = nullptr;
   best_possession_team_ = nullptr;
   referee_.reset();
+  recognizer_.Reset();
   mental_images_.clear();
   fact_sink_.reset();
   ruling_sink_.reset();
