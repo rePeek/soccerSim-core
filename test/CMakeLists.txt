@@ -43,7 +43,7 @@ add_executable(football_sim_computation_test sim_computation_test.cpp tick_test.
   player_action_tick_test.cpp prediction_tick_test.cpp player_observation_tick_test.cpp
   reachability_tick_test.cpp ball_player_contact_test.cpp player_contact_test.cpp
   possession_test.cpp mental_image_history_test.cpp referee_state_test.cpp
-  sim_fact_test.cpp rule_command_fixture.hpp)
+  sim_fact_test.cpp rule_command_fixture.hpp referee_process_fixture.hpp)
 target_link_libraries(football_sim_computation_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_computation_test)
@@ -85,7 +85,7 @@ set_tests_properties(football_default_ai_test PROPERTIES LABELS ai)
 add_executable(football_sim_control_boundary_test
   sim_control_boundary_test.cpp sim_match_lifecycle_test.cpp restart_placement_test.cpp
   pitch_frame_test.cpp match_tick_test.cpp restart_readiness_test.cpp match_fatigue_test.cpp
-  actor_history_test.cpp custom_pitch_test.cpp)
+  actor_history_test.cpp custom_pitch_test.cpp referee_process_fixture.hpp)
 target_link_libraries(football_sim_control_boundary_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_control_boundary_test)

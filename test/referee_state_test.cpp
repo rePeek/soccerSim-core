@@ -5,8 +5,8 @@
 #include "sim/simulation.hpp"
 #include "sim/referee/ball_touch_facts.hpp"
 #include "sim/testing/simulation_access.hpp"
+#include "referee_process_fixture.hpp"
 #include "rule_command_fixture.hpp"
-#include "sim/event/ball_touch_dispatcher.hpp"
 #include "sim/event/touch_query.hpp"
 
 using football::ball::Ball;
@@ -129,7 +129,7 @@ TEST_CASE("Referee invokes the explicit reset action synchronously once before r
       REQUIRE_THROWS_AS(simulation.GetMentalImage(TickSpan{}), std::logic_error);
       REQUIRE(SimulationAccess::NowOf(simulation) == now);
     };
-    referee.Process(SimulationAccess::RefereeFactsOf(simulation), SimulationAccess::OptionsOf(simulation), SimulationAccess::RngOf(simulation), commands);
+    football::test::ProcessReferee(referee, SimulationAccess::RefereeFactsOf(simulation), SimulationAccess::OptionsOf(simulation), SimulationAccess::RngOf(simulation), commands);
     REQUIRE(calls == 1);
     REQUIRE(referee.GetBuffer().restart->setup_done);
     REQUIRE(referee.GetBuffer().taker != nullptr);
@@ -137,7 +137,7 @@ TEST_CASE("Referee invokes the explicit reset action synchronously once before r
     const auto rng = SimulationAccess::RngOf(simulation).engine();
     // This fresh per-call action must not be called again on the same pending restart.
     commands.reset = [](const Vector3&) { FAIL("restart reset was repeated"); };
-    referee.Process(SimulationAccess::RefereeFactsOf(simulation), SimulationAccess::OptionsOf(simulation), SimulationAccess::RngOf(simulation), commands);
+    football::test::ProcessReferee(referee, SimulationAccess::RefereeFactsOf(simulation), SimulationAccess::OptionsOf(simulation), SimulationAccess::RngOf(simulation), commands);
     REQUIRE(SimulationAccess::ResetSequenceOf(simulation) == sequence + 1);
     REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
     simulation.Mirror(reverse, !reverse, false);
@@ -293,7 +293,10 @@ TEST_CASE("the explicit touch sink is the only publication path for actor touche
   const auto rng = SimulationAccess::RngOf(simulation).engine();
   const auto now = Tick{77};
   auto& sink = SimulationAccess::EventsOf(simulation);
-  sink.OnBallTouched({now, player, team, e_TouchType_Intentional_Nonkicked});
+  sink.OnSimulationFact(football::sim::event::BallTouchFact{now, player->GetID(),
+      team->GetTeamSide(), e_TouchType_Intentional_Nonkicked,
+      SimulationAccess::BallOf(simulation)->Predict(0),
+      SimulationAccess::BallOf(simulation)->GetMovement()});
   REQUIRE(football::sim::event::LastTouchPlayer(SimulationAccess::TouchesOf(simulation), *team) == player);
   REQUIRE(player->GetLastTouchTick() == now);
   REQUIRE(player->GetLastTouchType() == e_TouchType_Intentional_Nonkicked);
@@ -414,7 +417,7 @@ TEST_CASE("referee facts and write-only consequences do not fall back to runtime
   facts.set_piece_active = false;
   SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(56, 40, 0)); // Beyond BOTH lines.
   const auto rng = SimulationAccess::RngOf(simulation).engine();
-  referee.Process(facts, SimulationAccess::OptionsOf(simulation), SimulationAccess::RngOf(simulation), commands);
+  football::test::ProcessReferee(referee, facts, SimulationAccess::OptionsOf(simulation), SimulationAccess::RngOf(simulation), commands);
   REQUIRE(commands.calls == std::vector<std::string>{"stop"});
   REQUIRE(referee.buffer.desiredSetPiece == e_GameMode_GoalKick); // Stop prevents throw-in overwrite.
   REQUIRE(referee.buffer.stop_tick == facts.now);
@@ -481,34 +484,26 @@ template<class T> concept HasImplicitCompetitionTouchSetter = requires(T& owner)
   owner.SetLastTouchTeamID(0);
 };
 
-TEST_CASE("event dispatcher writes only supplied touch state and notifies rules synchronously",
+TEST_CASE("the fact sink records the touch and buffers an immutable fact",
           "[sim][touchsink][event]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
   auto* team = SimulationAccess::TeamOf(simulation, 0);
   auto* player = team->GetAllPlayers()[1];
-  auto& referee = SimulationAccess::RulesOf(simulation);
-  football::sim::event::TouchState supplied;
-  football::sim::rules::BallTouchFacts facts;
-  facts.now = Tick{9};
-  facts.ball = SimulationAccess::BallOf(simulation);
-  football::test::RuleCommandProbe commands;
+  auto& sink = SimulationAccess::EventsOf(simulation);
   const auto rng = SimulationAccess::RngOf(simulation).engine();
-  football::sim::event::DispatchBallTouch(
-      {Tick{77}, player, team, e_TouchType_Intentional_Nonkicked}, supplied, facts, referee, commands);
-  REQUIRE(supplied.last_team == 0);
-  REQUIRE(supplied.last_team_by_type[e_TouchType_Intentional_Nonkicked] == 0);
-  REQUIRE(supplied.last_team_by_type[e_TouchType_Intentional_Kicked] == -1);
-  REQUIRE(SimulationAccess::TouchesOf(simulation).last_team == -1);
+  sink.OnSimulationFact(football::sim::event::BallTouchFact{Tick{77}, player->GetID(),
+      team->GetTeamSide(), e_TouchType_Intentional_Nonkicked,
+      SimulationAccess::BallOf(simulation)->Predict(0),
+      SimulationAccess::BallOf(simulation)->GetMovement()});
+  const auto& touches = SimulationAccess::TouchesOf(simulation);
+  REQUIRE(touches.last_team == 0);
+  REQUIRE(touches.last_team_by_type[e_TouchType_Intentional_Nonkicked] == 0);
+  REQUIRE(touches.last_team_by_type[e_TouchType_Intentional_Kicked] == -1);
   REQUIRE(player->GetLastTouchTick() == Tick{77});
-  REQUIRE(football::sim::event::LastTouchPlayer(supplied, *team) == player);
-  REQUIRE(football::sim::event::LastTouchPlayer(SimulationAccess::TouchesOf(simulation), *team) == nullptr);
-  REQUIRE(commands.calls.empty());
+  REQUIRE(football::sim::event::LastTouchPlayer(touches, *team) == player);
   REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
-  supplied.Reset();
-  REQUIRE(supplied.last_team == -1);
-  for (int team_id : supplied.last_team_by_type) REQUIRE(team_id == -1);
 }
 
 template<class T> concept HasTeamTouchRecord = requires(T& team) { team.GetLastTouchPlayer(); };
@@ -526,8 +521,14 @@ TEST_CASE("event touch identities survive send-offs and reset without team bookk
   auto* away_actor = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
   auto& events = SimulationAccess::EventsOf(simulation);
   const auto rng = SimulationAccess::RngOf(simulation).engine();
-  events.OnBallTouched({Tick{17}, home_actor, SimulationAccess::TeamOf(simulation, 0), e_TouchType_Intentional_Kicked});
-  events.OnBallTouched({Tick{19}, away_actor, SimulationAccess::TeamOf(simulation, 1), e_TouchType_Accidental});
+  events.OnSimulationFact(football::sim::event::BallTouchFact{Tick{17}, home_actor->GetID(),
+      SimulationAccess::TeamOf(simulation, 0)->GetTeamSide(),
+      e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->Predict(0),
+      SimulationAccess::BallOf(simulation)->GetMovement()});
+  events.OnSimulationFact(football::sim::event::BallTouchFact{Tick{19}, away_actor->GetID(),
+      SimulationAccess::TeamOf(simulation, 1)->GetTeamSide(),
+      e_TouchType_Accidental, SimulationAccess::BallOf(simulation)->Predict(0),
+      SimulationAccess::BallOf(simulation)->GetMovement()});
   const auto& touches = SimulationAccess::TouchesOf(simulation);
   REQUIRE(touches.last_player_by_team[0] == home.players[1].id);
   REQUIRE(touches.last_player_by_team[1] == away.players[1].id);

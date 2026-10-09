@@ -40,9 +40,9 @@ class SimulationAccess {
     return {*simulation.ball_, simulation.touches_, RulesOf(simulation).GetBuffer(),
             simulation.ball_retainer_, simulation.pitch_};
   }
-  static BallTouchSink& EventsOf(Simulation& simulation) {
-    if (!simulation.touch_sink_) throw std::logic_error("simulation has no match");
-    return *simulation.touch_sink_;
+  static SimulationFactSink& EventsOf(Simulation& simulation) {
+    if (!simulation.fact_sink_) throw std::logic_error("simulation has no match");
+    return *simulation.fact_sink_;
   }
   static event::TouchState& TouchesOf(Simulation& simulation) {
     if (!simulation.ball_) throw std::logic_error("simulation has no match");
@@ -63,9 +63,25 @@ class SimulationAccess {
   static rules::RefereeTickFacts RefereeFactsOf(const Simulation& simulation) {
     return simulation.RefereeFacts();
   }
+  // Test-only orchestration of one referee instant using the same split stages
+  // as Simulation::ProcessReferee, without advancing the match.
   static void ProcessRules(Simulation& simulation, Referee& referee) {
-    referee.Process(RefereeFactsOf(simulation), simulation.options(),
-                    simulation.rng_, CommandsOf(simulation));
+    const auto facts = RefereeFactsOf(simulation);
+    if (facts.phase == MatchPhase::Finished) return;
+    const football::sim::rules::RefereeView view{facts};
+    const bool was_restart =
+        referee.GetBuffer().active && referee.GetBuffer().restart.has_value();
+    referee.Advance(view, simulation.options(), simulation.rng_, CommandsOf(simulation));
+    if (was_restart) return;
+    if (facts.play_authorized && !facts.set_piece_active) {
+      football::sim::event::TickFactBuffer buffer;
+      buffer.BeginTick(facts.now);
+      referee.EmitBoundaryFacts(view, buffer);
+      while (auto stamped = buffer.PopPending()) {
+        referee.Consume(*stamped, view, CommandsOf(simulation), nullptr);
+      }
+      referee.CheckPendingFoul(view, CommandsOf(simulation));
+    }
   }
 
   // Runtime facts; the transitional Match facade is gone, so diagnostics name

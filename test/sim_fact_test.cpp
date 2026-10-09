@@ -7,9 +7,9 @@
 #include "rule_command_fixture.hpp"
 #include "sim/event/event_log.hpp"
 #include "sim/event/match_event.hpp"
-#include "sim/event/referee_ruling.hpp"
-#include "sim/event/simulation_fact.hpp"
-#include "sim/event/tick_fact_buffer.hpp"
+#include "sim/referee/ruling.hpp"
+#include "sim/fact/simulation_fact.hpp"
+#include "sim/fact/tick_fact_buffer.hpp"
 #include "sim/referee/referee_view.hpp"
 #include "sim/simulation.hpp"
 #include "sim/testing/simulation_access.hpp"
@@ -111,7 +111,50 @@ TEST_CASE("referee turns a goal-mouth fact into an award ruling for the opponent
   REQUIRE(commands.calls.empty());  // A goal verdict is not a synchronous stop command.
 }
 
-TEST_CASE("player-trip facts reach the foul state through the write-only sink",
+TEST_CASE("referee classifies a trip from frozen fact evidence",
+          "[sim][event][referee]") {
+  Simulation simulation;
+  simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+  // A fresh referee with no pending restart so the trip gate is open.
+  struct ProbeReferee : Referee {
+    using Referee::Referee;
+    using Referee::buffer;
+  };
+  ProbeReferee referee(
+      *SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)),
+      SimulationAccess::OptionsOf(simulation).ball_position);
+  referee.buffer.active = false;
+  auto* victim = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
+  auto* offender = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
+  const auto tick = SimulationAccess::RefereeFactsOf(simulation);
+  std::vector<Player*> active;
+  const rules::RefereeView view{tick, active, false};
+
+  // A standing-contact fall is only a foul when the frozen evidence matches
+  // the legacy conditions: possession, action type, distance and opponent.
+  event::PlayerTripFact fact;
+  fact.victim = victim->GetID();
+  fact.offender = offender->GetID();
+  fact.victim_team_id = victim->GetTeam()->GetID();
+  fact.offender_team_id = offender->GetTeam()->GetID();
+  fact.trip_type = 2;
+  fact.victim_team_fading_possession = 1.2f;
+  fact.offender_action_type = static_cast<int>(e_FunctionType_Interfere);
+  fact.victim_position = victim->GetPosition();
+  fact.victim_pitch_position = victim->GetPitchPosition();
+  fact.ball_position = victim->GetPosition();
+
+  event::StampedFact stamped;
+  stamped.tick = tick.now;
+  stamped.fact = fact;
+  football::test::RuleCommandProbe commands;
+  referee.Consume(stamped, view, commands, nullptr);
+  REQUIRE(referee.GetCurrentFoulType() == 1);
+  REQUIRE(referee.GetCurrentFoulPlayer() == offender);
+}
+
+TEST_CASE("the TripNotice test adapter still reports falls without a foul",
           "[sim][event][referee]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
@@ -119,10 +162,8 @@ TEST_CASE("player-trip facts reach the foul state through the write-only sink",
   auto& referee = SimulationAccess::RulesOf(simulation);
   auto* victim = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto* offender = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
-
-  // The physical port only reports the fall; the referee still classifies it.
-  referee.OnPlayerTripped(victim, offender, 1, Tick{123}, Vector3(0));
-  REQUIRE(referee.GetCurrentFoulType() == 0);  // Types 1/2 never become fouls alone.
+  referee.TripNotice(victim, offender, 1, Tick{123}, Vector3(0));
+  REQUIRE(referee.GetCurrentFoulType() == 0);  // A little standing trip is not a foul.
 }
 
 }  // namespace

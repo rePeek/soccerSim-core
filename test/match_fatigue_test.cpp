@@ -2,7 +2,7 @@
 
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
-#include "sim/event/ball_touch_sink.hpp"
+#include "sim/fact/simulation_fact_sink.hpp"
 #include "sim/testing/simulation_access.hpp"
 using football::sim::testing::SimulationAccess;
 

@@ -13,7 +13,7 @@
 #include "env.hpp"
 #include "sim/simulation.hpp"
 #include "../test/default_ai_fixture.hpp"
-#include "sim/event/ball_touch_sink.hpp"
+#include "sim/fact/simulation_fact_sink.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_kinematics.hpp"
@@ -1169,10 +1169,18 @@ void CheckRefereeRules(Simulation& simulation) {
   home.at(2)->ResetPosition(Vector3(-45.0f * side, 0, 0), Vector3(0));
   SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(0));
   auto& touch_sink = SimulationAccess::EventsOf(simulation);
-  touch_sink.OnBallTouched({SimulationAccess::NowOf(simulation), home.at(1), SimulationAccess::TeamOf(simulation, 0), e_TouchType_Intentional_Kicked});
+  touch_sink.OnSimulationFact(football::sim::event::BallTouchFact{
+      SimulationAccess::NowOf(simulation), home.at(1)->GetID(),
+      SimulationAccess::TeamOf(simulation, 0)->GetTeamSide(),
+      e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->Predict(0),
+      SimulationAccess::BallOf(simulation)->GetMovement()});
   Require(SimulationAccess::IsInPlayOf(simulation), "offside flagged the passer instead of reception");
   const auto offside_stopped = SimulationAccess::NowOf(simulation);
-  touch_sink.OnBallTouched({SimulationAccess::NowOf(simulation), home.at(2), SimulationAccess::TeamOf(simulation, 0), e_TouchType_Intentional_Kicked});
+  touch_sink.OnSimulationFact(football::sim::event::BallTouchFact{
+      SimulationAccess::NowOf(simulation), home.at(2)->GetID(),
+      SimulationAccess::TeamOf(simulation, 0)->GetTeamSide(),
+      e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->Predict(0),
+      SimulationAccess::BallOf(simulation)->GetMovement()});
   Require(!SimulationAccess::IsInPlayOf(simulation) && SimulationAccess::RefereeOf(simulation)->GetBuffer().active &&
               SimulationAccess::RefereeOf(simulation)->GetBuffer().desiredSetPiece == e_GameMode_FreeKick &&
               SimulationAccess::RefereeOf(simulation)->GetBuffer().teamID == 1 &&

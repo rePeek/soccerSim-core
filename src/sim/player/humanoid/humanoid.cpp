@@ -21,6 +21,7 @@
 #include <cassert>
 #include <stdexcept>
 #include "sim/player/humanoid/humanoid.hpp"
+#include "sim/fact/simulation_fact_sink.hpp"
 
 #include <cmath>
 
@@ -35,7 +36,7 @@
 
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/ball_touch_application.hpp"
-#include "sim/event/ball_touch_sink.hpp"
+#include "sim/fact/simulation_fact_sink.hpp"
 #include "sim/player/player_runtime_sink.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
@@ -95,7 +96,7 @@ bool _PassFiddlingEnabled() {
   return true;
 }
 
-void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
+void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::SimulationFactSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
   // Reject invalid runtime state before the spatial/action debug oracles run.
   if (startPos.coords[2] != 0.f) {
     throw std::logic_error("Humanoid::Process: player position must have zero height");
@@ -111,7 +112,9 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   Player* ball_retainer = tick.ball_retainer;
   // Tick-local publication: actors never reach the runtime owner for touch notification.
   const auto notify_touch = [&](e_TouchType type) {
-    touch_sink.OnBallTouched({now, CastPlayer(), team, type});
+    touch_sink.OnSimulationFact(football::sim::event::BallTouchFact{now,
+        CastPlayer()->GetID(), team->GetTeamSide(), type, tick.ball.Predict(0),
+        tick.ball.GetMovement()});
   };
 
   bool instaDoorheb = false;

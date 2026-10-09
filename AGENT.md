@@ -70,8 +70,8 @@ src/
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
 │   ├── ball/         standalone Ball physics/environment, prediction timing, touch kinds
 │   │                 and ball_player_contact interaction
-│   ├── event/        immutable SimulationFact stream, rulings/match events, touch
-│   │                 event/sink, value TouchState and synchronous dispatcher
+│   ├── fact/         immutable SimulationFact values, ordered tick buffer, single sink
+│   ├── event/        MatchEvent/EventLog and value TouchState/touch queries
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 and MentalImage/player-image history + nearest-slot sampling
 │   ├── animation/    baked schema/library/selector; depends only on foundation
@@ -265,11 +265,12 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
 - Simulation owns tick sequencing, pending end-change application, execution accounting
   and control dispatch. ball/ball_player_contact resolves passive body contacts from
   explicit players/teams, touch facts, history and Tick values; it does not accept
-  Match/Simulation or draw RNG. Per-volume contacts publish touch facts through
-  event/ball_touch_sink.hpp's write-only BallTouchSink. Simulation assembles rule facts
-  per notification; event/ball_touch_dispatcher writes Player touch tick/type and
-  TouchState team/type/full-width PlayerId records, then Referee::BallTouched inline.
-  MatchTouchSink and Match::SetLastTouchTeamID are deleted. Team's touch pointer,
+  Match/Simulation or draw RNG. Per-volume body contacts and intentional touches
+  publish immutable facts through fact/simulation_fact_sink.hpp's write-only
+  SimulationFactSink. The Simulation-owned FactEvents sink writes Player touch
+  tick/type and TouchState team/type/full-width PlayerId records, then buffers and
+  immediately consumes the fact. MatchTouchSink and Match::SetLastTouchTeamID are
+  deleted. Team's touch pointer,
   NoteLastTouchPlayer and touch queries are also deleted. event/touch_query resolves
   identities from explicit rosters (including inactive/sent-off actors), with explicit
   evaluation ticks for decay. Contact sweeps borrow the live TouchState so earlier
@@ -299,18 +300,22 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   designated possession player, never Match/Simulation. Simulation supplies first then
   second roster in the common contact frame after possession, before clock advancement.
   Pair offsets remain immediate; movement sharing is accumulated/applied afterward.
-  Referee& is an explicit transitional dependency: TripMe → TripNotice executes inline
-  before any later pair/offset. Do not buffer notices; rules inspect live positions.
-  TripNotice is now a Match-independent foul-state operation with explicit now/Ball
-  position, sampled after TripMe in the same physical frame. It still reads live actors,
+  player/player_contact freezes the contact evidence into a PlayerTripFact (ids,
+  teams, positions, action geometry, last-touch tick, possession) and reports it
+  through the single SimulationFactSink: TripMe then the fact, before any later
+  pair/offset. Referee::Consume evaluates that evidence directly through the
+  private EvaluateTrip; TripNotice survives only as a direct-test adapter that
+  builds the same fact from live actors. Preserve strict >60
   keeps foul facts in Referee and has no implicit-clock wrapper. Preserve strict >60
   touch grace, standing 2D/sliding 3D radii, double literals, severity arithmetic, immediate
   publication and duplicate-tackler gates. CheckFoul(now, stadium_to_home, commands)
   takes the evaluation instant/frame explicitly, using them for strict recheck/expiry,
   card deadlines and restart scheduling. ScheduleRestart takes tick, setpiece Team*
   and PitchFrameTransform; MakeRestartSchedule and all Referee Match reads are gone.
-  Referee::Process consumes call-local RefereeTickFacts plus immutable options and an
-  explicit RNG. RuleCommandSink is synchronous and write-only; Simulation implements
+  The referee instant is split into Advance (time/restart/ceremony), EmitBoundaryFacts
+  (pure line geometry into the caller's fact buffer), Consume (one fact at a time)
+  and CheckPendingFoul. Referee has no Process compatibility entry point.
+  RuleCommandSink is synchronous and write-only; Simulation implements
   Stop/StartPlay, set-piece gates, accepted ball contact, reset and phase consequences.
   A local authorization value tracks this call's stop commands, preventing a later
   sideline check from overwriting a goal-line restart. Ball/actors are live borrows
@@ -431,8 +436,6 @@ ApplyControls → ResolveBallPlayerContacts (BallTouchFact → FlushFacts)
 ```
 Terminal-referee and ceremony early returns keep their existing frame restoration
 and clock behavior; this sequence is not permission to reorder legacy phases.
-Terminal-referee and ceremony early returns keep their existing frame restoration
-and clock behavior; this sequence is not permission to reorder legacy phases.
 
 SimulationFact pipeline: physics and actors publish immutable facts, the referee
 consumes them and decides, and Simulation applies the verdicts.
@@ -440,21 +443,20 @@ consumes them and decides, and Simulation applies the verdicts.
 Entity state → Simulation tick → SimulationFact → RefereeState → Ruling
              → Simulation → new state → MatchEvent
 ```
-- event/simulation_fact.hpp owns BallTouchFact, PlayerTripFact and BallBoundaryFact
+- fact/simulation_fact.hpp owns BallTouchFact, PlayerTripFact and BallBoundaryFact
   (TouchlineOutside/GoalLineOutside/GoalMouthCrossed) plus StampedFact identity
-  (tick, reset generation, sequence). Facts carry PlayerId/TeamSide and world values,
-  never live actor pointers; a consumer resolves them through RefereeView.
-- event/tick_fact_buffer.hpp owns one ordered per-tick stream with BeginTick/Emit/
+  (tick, reset generation, sequence). Facts carry PlayerId/TeamSide and frozen
+  evidence, never live actor pointers; a consumer resolves them through RefereeView.
+- fact/tick_fact_buffer.hpp owns one ordered per-tick stream with BeginTick/Emit/
   PopPending. There are no per-kind queues; PopPending returns by value so consuming
   cannot invalidate references. BeginTick reuses storage and drops the previous tick.
-- event/player_trip_sink.hpp is the write-only physical-consequence port. player/
-  player_contact reports TripMe through it and no longer includes Referee.
-- Referee keeps its public Process/TripNotice/BallTouched/CheckFoul entry points for
-  direct tests, but production goes through Advance (time/restart/ceremony state),
-  EmitBoundaryFacts (pure out-of-line geometry into the caller's buffer) and Consume
-  (one fact at a time). Goal-mouth facts submit AwardGoalRuling through RulingSink.
-  Simulation is the only ruling executor and records confirmed GoalScoredEvent in
-  the owned EventLog.
+- fact/simulation_fact_sink.hpp is the single write-only port. Players, humanoids and
+  player_contact report facts through it and no longer include Referee.
+- referee/ruling.hpp owns the domain verdicts. Referee production stages are
+  Advance/EmitBoundaryFacts/Consume/CheckPendingFoul; TripNotice and BallTouched stay
+  only as direct-test adapters. Simulation::ApplyPendingRulings visits every ruling
+  kind explicitly (goal, stop, restart, card) so none can be silently dropped, and
+  records confirmed MatchEvents in the owned EventLog.
 - Goal-line priority is preserved by emitting at most one out-of-play fact per
   instant (goal-line else touchline), reproducing the legacy local authorization
   without storing it on the referee.

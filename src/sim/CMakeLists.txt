@@ -18,11 +18,9 @@ add_library(football_sim STATIC)
 add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
   simulation.cpp
-  event/ball_touch.hpp event/ball_touch_sink.hpp event/touch_state.hpp
-  event/simulation_fact.hpp event/tick_fact_buffer.hpp
-  event/referee_ruling.hpp event/match_event.hpp event/event_log.hpp
-  event/player_trip_sink.hpp
-  event/ball_touch_dispatcher.cpp event/ball_touch_dispatcher.hpp
+  event/touch_state.hpp event/touch_type.hpp
+  fact/simulation_fact.hpp fact/tick_fact_buffer.hpp fact/simulation_fact_sink.hpp
+  referee/ruling.hpp event/match_event.hpp event/event_log.hpp
   event/touch_query.cpp event/touch_query.hpp
   runtime/clock.cpp runtime/clock.hpp
   team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
@@ -41,7 +39,7 @@ target_sources(football_sim PRIVATE
   referee/period.cpp referee/period.hpp
   referee/offside.cpp referee/restart_placement.cpp referee/restart_readiness.cpp
   referee/ball_touch_facts.hpp
-  referee/referee_tick_facts.hpp referee/rule_command_sink.hpp referee/referee_view.hpp
+  referee/referee_state.hpp referee/referee_tick_facts.hpp referee/rule_command_sink.hpp referee/referee_view.hpp
   testing/simulation_access.hpp
   referee/offside.hpp referee/restart_placement.hpp referee/restart_readiness.hpp
   player/player.cpp player/player_control_builder.cpp player/player_locomotion.cpp

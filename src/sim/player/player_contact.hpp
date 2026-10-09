@@ -3,7 +3,7 @@
 
 #include <span>
 #include "foundation/time/tick.hpp"
-#include "sim/event/player_trip_sink.hpp"
+#include "sim/fact/simulation_fact_sink.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
@@ -20,9 +20,9 @@ struct PlayerContactInputs {
 };
 
 // Mutates players in pair order, then applies accumulated movement sharing.
-// TripMe reports the physical fall through the write-only sink; rule verdicts
-// (fouls, cards, advantages) belong to the referee and are never decided here.
-void ResolvePlayerContacts(const PlayerContactInputs& inputs, PlayerTripSink& trips);
+// A fall is reported as an immutable PlayerTripFact through the single fact
+// sink; rule verdicts (fouls, cards, advantages) belong to the referee.
+void ResolvePlayerContacts(const PlayerContactInputs& inputs, SimulationFactSink& facts);
 
 }  // namespace football::sim
 

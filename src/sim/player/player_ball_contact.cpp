@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include "football/ball/ball.hpp"
-#include "sim/event/ball_touch_sink.hpp"
+#include "sim/fact/simulation_fact_sink.hpp"
 #include "sim/event/touch_type.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
@@ -83,8 +83,11 @@ BallPlayerContactResult ResolveBallPlayerContacts(
                     (ball.Predict(0) - volume->center).GetNormalized(Vector3(0)) * movementBias +
                     players[i]->GetMovement() * (1.0f - movementBias);
                 bounceCount++;
-                inputs.touch_sink->OnBallTouched(
-                    {inputs.now, players[i], players[i]->GetTeam(), e_TouchType_Accidental});
+                inputs.touch_sink->OnSimulationFact(
+                    football::sim::event::BallTouchFact{inputs.now,
+                        players[i]->GetID(), players[i]->GetTeam()->GetTeamSide(),
+                        e_TouchType_Accidental, ball.Predict(0),
+                        ball.GetMovement()});
                 last_touch_team = teamID;
                 // Keep per-volume accumulation and touch/rule notification order.
                 bias += (1.0f -

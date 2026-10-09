@@ -31,10 +31,9 @@
 #include "sim/referee/referee_view.hpp"
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/simulation_config.hpp"
-#include "sim/event/simulation_fact.hpp"
-#include "sim/event/tick_fact_buffer.hpp"
-#include "sim/event/referee_ruling.hpp"
-#include "sim/event/player_trip_sink.hpp"
+#include "sim/fact/simulation_fact.hpp"
+#include "sim/fact/tick_fact_buffer.hpp"
+#include "sim/referee/ruling.hpp"
 #include "foundation/math/rng.hpp"
 
 
@@ -43,56 +42,12 @@ using namespace blunted;
 class Player;
 class Team;
 
-struct RestartPolicy {
-  football::sim::TickSpan minimum_delay;
-  football::sim::TickSpan maximum_delay;
-};
-// Explicit restart-scheduling facts; the referee state machine reads no Match here.
-struct RestartSchedule {
-  football::sim::Tick now{};
-  Team* setpiece_team = nullptr;
-  PitchFrameTransform frame{false};
-};
-enum class RestartPhase { Pending, Ready, Taken, InPlay };
-struct RestartState {
-  football::sim::Tick entered_tick{};
-  football::sim::Tick earliest_restart_tick{};
-  football::sim::Tick timeout_tick{};
-  RestartPhase phase = RestartPhase::Pending;
-  bool setup_done = false;
-  bool used_timeout_placement = false;
-  RestartPlan plan;
-};
-
-struct RefereeBuffer {
-  // Referee has pending action to execute.
-  bool active = false;
-  e_GameMode desiredSetPiece;
-  signed int teamID = 0;
-  Team* setpiece_team = 0;
-  football::sim::Tick stop_tick{};
-  football::sim::Tick prepare_tick{};
-  football::sim::Tick start_tick{};
-  Vector3 restartPos;
-  Player *taker = nullptr;
-  bool endPhase = false;
-  std::optional<RestartState> restart;
-};
-
-struct Foul {
-  Player *foulPlayer = 0;
-  Player *foulVictim = 0;
-  int foulType = 0; // 0: nothing, 1: foul, 2: yellow, 3: red
-  bool advantage = false;
-  football::sim::Tick foul_tick{};
-  Vector3 foulPosition;
-  bool hasBeenProcessed = false;
-};
+#include "sim/referee/referee_state.hpp"
 
 // Football rules only: no on-pitch official actor or animation is required.
 // The referee owns rule state and consumes immutable facts; it never executes
 // ruling consequences itself (Simulation owns the write-only rule port).
-class Referee : public football::sim::PlayerTripSink {
+class Referee {
 
   public:
     Referee(Team& kickoff_team, const Vector3& kickoff_position);
@@ -102,10 +57,6 @@ class Referee : public football::sim::PlayerTripSink {
     void OnPeriodEnded(MatchPhase ended_phase, football::sim::Tick now,
                        const Vector3& kickoff_position, Team& kickoff_team);
 
-    // Tick-local facts and synchronous write-only consequences; never stored.
-    void Process(const football::sim::rules::RefereeTickFacts& facts,
-                 const MatchOptions& options, blunted::Rng& rng,
-                 football::sim::rules::RuleCommandSink& commands);
 
     // Time-only state advance for one instant: pending restart administration,
     // opening/half-time ceremonies and the post-restart grace countdown. No
@@ -132,11 +83,6 @@ class Referee : public football::sim::PlayerTripSink {
     void CheckPendingFoul(const football::sim::rules::RefereeView& view,
                           football::sim::rules::RuleCommandSink& commands);
 
-    // Physical consequence port: a contact made an actor fall. This reports the
-    // event, it does not classify a foul.
-    void OnPlayerTripped(Player* victim, Player* offender, int trip_type,
-                         football::sim::Tick now,
-                         const Vector3& ball_position) override;
 
     const RefereeBuffer &GetBuffer() { return buffer; };
     bool RestartNeedsSimulation() const;
@@ -177,6 +123,13 @@ class Referee : public football::sim::PlayerTripSink {
     void PrepareCeremonialKickOff(const football::sim::rules::RefereeTickFacts& facts,
                                  const MatchOptions& options, blunted::Rng& rng,
                                  football::sim::rules::RuleCommandSink& commands);
+    // Direct rule evaluation from an evidence bundle / immutable trip fact.
+    // Consume never forwards through the public BallTouched/TripNotice adapters.
+    void EvaluateBallTouch(const football::sim::rules::BallTouchFacts& facts,
+                           football::sim::rules::RuleCommandSink& commands);
+    void EvaluateTrip(Player* victim, Player* offender,
+                      const football::sim::event::PlayerTripFact& fact,
+                      football::sim::Tick now);
 
     void ConsumeBallTouch(football::sim::Tick now,
                           const football::sim::event::BallTouchFact& fact,

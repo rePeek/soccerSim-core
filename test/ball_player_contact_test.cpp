@@ -10,7 +10,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/player/player_ball_contact.hpp"
-#include "sim/event/ball_touch_sink.hpp"
+#include "sim/fact/simulation_fact_sink.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
@@ -35,7 +35,7 @@ struct ContactFixture {
   Player* home;
   Player* away;
   // Borrows the owner's write-only publication port for direct contact calls.
-  BallTouchSink* touch_sink = nullptr;
+  SimulationFactSink* touch_sink = nullptr;
 
   explicit ContactFixture(bool reverse) {
     MatchOptions options;
@@ -58,8 +58,11 @@ struct ContactFixture {
     away->ResetPosition(Vector3(0), Vector3(1, 0, 0));
     simulation.AdvanceTime(Seconds(1));
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
-    touch_sink.OnBallTouched({SimulationAccess::NowOf(simulation), teams[1]->GetAllPlayers()[2], teams[1],
-        e_TouchType_Intentional_Kicked});
+    touch_sink.OnSimulationFact(football::sim::event::BallTouchFact{
+        SimulationAccess::NowOf(simulation), teams[1]->GetAllPlayers()[2]->GetID(),
+        teams[1]->GetTeamSide(), e_TouchType_Intentional_Kicked,
+        SimulationAccess::BallOf(simulation)->Predict(0),
+        SimulationAccess::BallOf(simulation)->GetMovement()});
     SimulationAccess::BallOf(simulation)->SetPosition(Vector3(0.05f, 0, 1.0f), SimulationAccess::BallEnvironmentOf(simulation));
     SimulationAccess::BallOf(simulation)->SetMomentum(Vector3(-8, 0, 0), SimulationAccess::BallEnvironmentOf(simulation));
   }

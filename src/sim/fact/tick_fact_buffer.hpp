@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "foundation/time/tick.hpp"
-#include "sim/event/simulation_fact.hpp"
+#include "sim/fact/simulation_fact.hpp"
 
 namespace football::sim::event {
 

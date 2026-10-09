@@ -25,7 +25,6 @@
 #include "sim/player/player.hpp"
 
 class AnimationLibrary;
-namespace football::sim { class BallTouchSink; }
 
 class MentalImage;
 

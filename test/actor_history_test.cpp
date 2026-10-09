@@ -8,7 +8,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
 #include "sim/observation/mentalimage.hpp"
-#include "sim/event/ball_touch_sink.hpp"
+#include "sim/fact/simulation_fact_sink.hpp"
 #include "sim/query/player_query.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/testing/simulation_access.hpp"
@@ -167,7 +167,7 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
   REQUIRE(SimulationAccess::RngOf(simulation).engine() == ambient_rng);
 }
 
-template<class T> concept HasImplicitActorFacts = requires(T& actor, std::span<MentalImage> history, BallTouchSink& events) {
+template<class T> concept HasImplicitActorFacts = requires(T& actor, std::span<MentalImage> history, SimulationFactSink& events) {
   actor.Process(history, events);
 };
 static_assert(!HasImplicitActorFacts<Player>);

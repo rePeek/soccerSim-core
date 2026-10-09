@@ -590,7 +590,7 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue, const PlayerComman
   }
 }
 
-void Player::Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
+void Player::Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::SimulationFactSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
     if (tick.play_authorized) {

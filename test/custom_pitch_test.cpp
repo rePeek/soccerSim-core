@@ -4,6 +4,7 @@
 
 #include "app/fixtures/default_teams.hpp"
 #include "football/ball/ball.hpp"
+#include "referee_process_fixture.hpp"
 #include "rule_command_fixture.hpp"
 #include "sim/simulation.hpp"
 #include "sim/testing/simulation_access.hpp"
@@ -37,8 +38,8 @@ TEST_CASE("an injected pitch drives referee, observation and restart geometry",
   facts.set_piece_active = false;
   SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(50.5f, 0.0f, 0.0f));
   football::test::RuleCommandProbe commands;
-  SimulationAccess::RulesOf(simulation).Process(
-      facts, SimulationAccess::OptionsOf(simulation),
+  football::test::ProcessReferee(SimulationAccess::RulesOf(simulation), facts,
+      SimulationAccess::OptionsOf(simulation),
       SimulationAccess::RngOf(simulation), commands);
   REQUIRE(!commands.calls.empty());
   REQUIRE(commands.calls.front() == "stop");
@@ -56,8 +57,8 @@ TEST_CASE("referee uses the injected sideline for throw-ins", "[sim][custom-pitc
   facts.set_piece_active = false;
   SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(0.0f, 32.5f, 0.0f));
   football::test::RuleCommandProbe commands;
-  SimulationAccess::RulesOf(simulation).Process(
-      facts, SimulationAccess::OptionsOf(simulation),
+  football::test::ProcessReferee(SimulationAccess::RulesOf(simulation), facts,
+      SimulationAccess::OptionsOf(simulation),
       SimulationAccess::RngOf(simulation), commands);
   REQUIRE(!commands.calls.empty());
   REQUIRE(commands.calls.front() == "stop");

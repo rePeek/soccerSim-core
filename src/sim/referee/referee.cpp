@@ -56,6 +56,34 @@ constexpr TickSpan kTouchGrace{60};
 constexpr TickSpan kAdvantageRecheck{60};
 constexpr auto kAdvantageExpiry = Seconds(3);
 constexpr auto kCardEffectDelay = Seconds(6);
+
+// Compatibility evidence capture for the direct TripNotice test adapter.
+// Production captures the same fields in player/player_contact.cpp.
+football::sim::event::PlayerTripFact LiveTripFact(Player* tripee, Player* tripper,
+                                                  int tackleType,
+                                                  const Vector3& ball_position) {
+  const PlayerActionState& action = tripper->GetSimulationActionState();
+  football::sim::event::PlayerTripFact fact;
+  fact.victim = tripee->GetID();
+  fact.offender = tripper->GetID();
+  fact.victim_team_id = tripee->GetTeam()->GetID();
+  fact.offender_team_id = tripper->GetTeam()->GetID();
+  fact.trip_type = tackleType;
+  fact.victim_position = tripee->GetPosition();
+  fact.victim_pitch_position = tripee->GetPitchPosition();
+  fact.victim_direction = tripee->GetDirectionVec();
+  fact.offender_position = tripper->GetPosition();
+  fact.ball_position = ball_position;
+  fact.offender_action_type = static_cast<int>(action.type);
+  fact.offender_scheduled_contact = action.HasScheduledContact();
+  fact.offender_contact_frame = action.ContactFrame();
+  fact.offender_frame = action.Frame();
+  fact.offender_contact_position = action.contactPosition;
+  fact.offender_last_touch_tick = tripper->GetLastTouchTick();
+  fact.victim_team_fading_possession =
+      tripee->GetTeam()->GetFadingTeamPossessionAmount();
+  return fact;
+}
 }  // namespace
 
 Referee::Referee(Team& kickoff_team, const Vector3& kickoff_position) {
@@ -150,25 +178,6 @@ void Referee::Advance(const football::sim::rules::RefereeView& view,
     post_restart_relax_ = post_restart_relax_ - TickSpan{1};
 }
 
-// Compatibility orchestrator: the split stages in the legacy order. Kept for
-// direct referee tests and any caller that does not own a tick fact buffer.
-void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options,
-                      blunted::Rng& rng, RuleCommandSink& commands) {
-  if (facts.phase == MatchPhase::Finished) return;
-  const football::sim::rules::RefereeView view{facts};
-  const bool was_restart = buffer.active && buffer.restart.has_value();
-  Advance(view, options, rng, commands);
-  if (was_restart) return;
-  if (facts.play_authorized && !facts.set_piece_active) {
-    football::sim::event::TickFactBuffer local;
-    local.BeginTick(facts.now);
-    EmitBoundaryFacts(view, local);
-    while (auto stamped = local.PopPending()) {
-      Consume(*stamped, view, commands, nullptr);
-    }
-    CheckPendingFoul(view, commands);
-  }
-}
 
 void Referee::EmitBoundaryFacts(const football::sim::rules::RefereeView& view,
                                 football::sim::event::TickFactBuffer& facts) const {
@@ -214,10 +223,6 @@ void Referee::Consume(const football::sim::event::StampedFact& fact,
       fact.fact);
 }
 
-void Referee::OnPlayerTripped(Player* victim, Player* offender, int trip_type,
-                              Tick now, const Vector3& ball_position) {
-  TripNotice(victim, offender, trip_type, now, ball_position);
-}
 
 void Referee::ConsumeBallTouch(Tick now,
                                const football::sim::event::BallTouchFact& fact,
@@ -239,7 +244,7 @@ void Referee::ConsumeBallTouch(Tick now,
   facts.pitch = &view.tick.pitch;
   facts.all_active_players = view.all_active_players;
   facts.stadium_to_home = view.tick.stadium_to_home;
-  BallTouched(facts, commands);
+  EvaluateBallTouch(facts, commands);
 }
 
 void Referee::ConsumePlayerTrip(Tick now,
@@ -249,7 +254,7 @@ void Referee::ConsumePlayerTrip(Tick now,
   (void)commands;
   Player* victim = FindPlayer(view.tick, fact.victim);
   Player* offender = FindPlayer(view.tick, fact.offender);
-  TripNotice(victim, offender, fact.trip_type, now, fact.ball_position);
+  EvaluateTrip(victim, offender, fact, now);
 }
 
 void Referee::ConsumeBoundary(Tick now,
@@ -353,8 +358,14 @@ void Referee::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
   offsidePlayers.clear();
 }
 
+// Compatibility adapter for direct referee tests; production consumes facts.
 void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts,
                           RuleCommandSink& commands) {
+  EvaluateBallTouch(facts, commands);
+}
+
+void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& facts,
+                                RuleCommandSink& commands) {
   if (buffer.active && buffer.restart && buffer.restart->phase == RestartPhase::Ready &&
       facts.touch_player == buffer.taker) {
     const auto& action = buffer.taker->GetSimulationActionState();
@@ -427,57 +438,54 @@ void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts,
   }
 }
 
-void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
-                         Tick now, const Vector3& ball_position) {
-
+void Referee::EvaluateTrip(Player* tripee, Player* tripper,
+                           const football::sim::event::PlayerTripFact& fact,
+                           Tick now) {
   if (buffer.active) return;
 
-  const PlayerActionState &tripperAction =
-      tripper->GetSimulationActionState();
-
-  if (tackleType == 2) {
+  if (fact.trip_type == 2) {
       // standing tackle
-    if (tripee->GetTeam()->GetFadingTeamPossessionAmount() > 1.1 &&
-        (tripperAction.type == e_FunctionType_Interfere ||
-         tripperAction.type == e_FunctionType_Sliding) &&
-        (tripee->GetPosition() - ball_position.Get2D())
+    if (fact.victim_team_fading_possession > 1.1 &&
+        (fact.offender_action_type == static_cast<int>(e_FunctionType_Interfere) ||
+         fact.offender_action_type == static_cast<int>(e_FunctionType_Sliding)) &&
+        (fact.victim_position - fact.ball_position.Get2D())
                 .GetLength() < 2.0 &&
-        tripper->GetTeam()->GetID() != tripee->GetTeam()->GetID()) {
+        fact.offender_team_id != fact.victim_team_id) {
       // uooooga uooooga foul!
       foul.foulType = 1;
       foul.advantage = true;
       foul.foulPlayer = tripper;
       foul.foulVictim = tripee;
       foul.foul_tick = now;
-      foul.foulPosition = tripee->GetPitchPosition();
+      foul.foulPosition = fact.victim_pitch_position;
       foul.hasBeenProcessed = false;
     }
 
-  } else if (tackleType == 3 &&
+  } else if (fact.trip_type == 3 &&
              (tripper != foul.foulPlayer || foul.foulType == 0)) {
       // sliding tackle
 
-    if (now - tripper->GetLastTouchTick() > kTouchGrace &&
-        tripperAction.type == e_FunctionType_Sliding &&
-        tripper->GetTeam()->GetID() != tripee->GetTeam()->GetID() &&
-        (ball_position - tripee->GetPosition()).GetLength() <
+    if (now - fact.offender_last_touch_tick > kTouchGrace &&
+        fact.offender_action_type == static_cast<int>(e_FunctionType_Sliding) &&
+        fact.offender_team_id != fact.victim_team_id &&
+        (fact.ball_position - fact.victim_position).GetLength() <
             8.0) {
       float severity = 1.0;
-      if (tripperAction.HasScheduledContact()) {
-        severity = std::pow(clamp(fabs(tripperAction.ContactFrame() -
-                                       tripperAction.Frame()) /
-                                      tripperAction.ContactFrame(),
+      if (fact.offender_scheduled_contact) {
+        severity = std::pow(clamp(fabs(fact.offender_contact_frame -
+                                       fact.offender_frame) /
+                                      fact.offender_contact_frame,
                                   0.0, 1.0),
                             0.7) *
                    0.5;
         severity += NormalizedClamp(
-            (ball_position - tripperAction.contactPosition)
+            (fact.ball_position - fact.offender_contact_position)
                 .GetLength(),
             0.0, 2.0) *
             0.5;
       }
       // from behind?
-      severity += (tripee->GetPosition() - tripper->GetPosition()).GetNormalized(0).GetDotProduct(tripee->GetDirectionVec()) * 0.5 + 0.5;
+      severity += (fact.victim_position - fact.offender_position).GetNormalized(0).GetDotProduct(fact.victim_direction) * 0.5 + 0.5;
 
       if (severity > 1.0) {
         // uooooga uooooga foul!
@@ -486,7 +494,7 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
         foul.foulPlayer = tripper;
         foul.foulVictim = tripee;
         foul.foul_tick = now;
-        foul.foulPosition = tripee->GetPitchPosition();
+        foul.foulPosition = fact.victim_pitch_position;
         foul.hasBeenProcessed = false;
         if (severity > 1.4) foul.foulType = 2;
         if (severity > 2.0) {
@@ -495,6 +503,20 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
       }
     }
   }
+}
+
+// Compatibility adapter for direct referee tests; production consumes facts.
+void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
+                         Tick now, const Vector3& ball_position) {
+  if (buffer.active) return;  // Gate precedes actor reads, including null probes.
+  football::sim::event::PlayerTripFact fact;
+  if (tripee != nullptr && tripper != nullptr) {
+    fact = LiveTripFact(tripee, tripper, tackleType, ball_position);
+  } else {
+    fact.trip_type = tackleType;
+    fact.ball_position = ball_position;
+  }
+  EvaluateTrip(tripee, tripper, fact, now);
 }
 
 

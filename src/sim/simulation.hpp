@@ -18,19 +18,18 @@
 #include "sim/observation/mentalimage.hpp"
 #include "sim/runtime/result.hpp"
 #include "sim/runtime/clock.hpp"
-#include "sim/event/ball_touch_sink.hpp"
+#include "sim/fact/simulation_fact_sink.hpp"
 #include "sim/event/touch_state.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "sim/referee/referee_tick_facts.hpp"
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
 #include "sim/player/player_runtime_sink.hpp"
-#include "sim/event/simulation_fact.hpp"
-#include "sim/event/tick_fact_buffer.hpp"
-#include "sim/event/referee_ruling.hpp"
+#include "sim/fact/simulation_fact.hpp"
+#include "sim/fact/tick_fact_buffer.hpp"
+#include "sim/referee/ruling.hpp"
 #include "sim/event/match_event.hpp"
 #include "sim/event/event_log.hpp"
-#include "sim/event/player_trip_sink.hpp"
 #include "sim/referee/referee_view.hpp"
 
 class Player;
@@ -75,17 +74,21 @@ class Simulation {
  private:
   friend class football::sim::testing::SimulationAccess;
   class RuleCommands;
-  class TouchEvents;
-  class TripEvents;
+  class FactEvents;
   class RulingEvents;
 
-  void PublishBallTouch(const football::sim::BallTouchEvent& event);
-  // Fact plumbing: emit into the tick buffer, then immediately consume, so the
-  // legacy synchronous rule-command order is preserved while the boundary
-  // between physics and rules becomes one immutable fact stream.
+  // Single fact production path: every contact consequence is buffered, then
+  // consumed, so the legacy synchronous rule-command order is preserved while
+  // the boundary between physics and rules is one immutable fact stream.
+  Player* FindPlayerById(football::model::PlayerId id) const;
   void EmitFact(football::sim::event::SimulationFact fact);
   void FlushFacts();
   void ApplyPendingRulings();
+  // Exhaustive ruling execution: every defined verdict has an explicit handler,
+  // so a new ruling type cannot be silently dropped by the executor.
+  void ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling);
+  void ApplyRestartRuling(const football::sim::event::AwardRestartRuling& ruling);
+  void ApplyCardRuling(const football::sim::event::CardRuling& ruling);
   void ProcessReferee();
   void AdvanceReferee(const football::sim::rules::RefereeView& view);
   football::sim::rules::RefereeTickFacts RefereeFacts() const;
@@ -173,9 +176,8 @@ class Simulation {
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;
   // Borrowed from rule_commands_; the concrete sink implements both ports.
   football::sim::PlayerRuntimeSink* player_runtime_sink_ = nullptr;
-  // Runtime touch publication; keeps the write-only sink out of actors.
-  std::unique_ptr<football::sim::BallTouchSink> touch_sink_;
-  std::unique_ptr<TripEvents> trip_sink_;
+  // Single write-only fact sink for ball touches and player trips.
+  std::unique_ptr<football::sim::SimulationFactSink> fact_sink_;
   std::unique_ptr<RulingEvents> ruling_sink_;
   football::sim::event::TickFactBuffer facts_;
   std::vector<football::sim::event::RefereeRuling> pending_rulings_;

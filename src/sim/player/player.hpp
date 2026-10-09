@@ -133,7 +133,7 @@ void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
 
 class MentalImage;
-namespace football::sim { class BallTouchSink; class PlayerRuntimeSink; }
+namespace football::sim { class SimulationFactSink; class PlayerRuntimeSink; }
 class HumanoidBase;
 class AnimationLibrary;
 struct PlayerCommandInputs;
@@ -343,7 +343,7 @@ class Player final {
     float GetDecayingPositionOffsetLength() { return humanoid->GetDecayingPositionOffsetLength(); }
 
     // Tick-local borrows; no history owner or persistent world port.
-    void Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::BallTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
+    void Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::SimulationFactSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
 
 
     float GetStat(football::model::PlayerStat name) const;
