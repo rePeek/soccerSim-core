@@ -231,8 +231,8 @@ TEST_CASE("ordinary ball-out plans retain the right sideline and team in all run
         REQUIRE(simulation.Observe().restart == mode);
         simulation.Step({});
         const auto plan = SimulationAccess::RefereeOf(simulation)->GetBuffer().restart->plan;
-        const Vector3 expected = mode == e_GameMode_ThrowIn ? Vector3(10, 36, 0) :
-            mode == e_GameMode_Corner ? Vector3(55, 36, 0) : Vector3(50.6f, 0, 0);
+        const Vector3 expected = mode == e_GameMode_ThrowIn ? Vector3(10, 34, 0) :
+            mode == e_GameMode_Corner ? Vector3(52.5f, 34, 0) : Vector3(48.3f, 0, 0);
         REQUIRE(plan.ball_position.GetDistance(expected) < 0.001f);
         REQUIRE(plan.team->GetID() == 1 - last_team);
         REQUIRE(simulation.Observe().ball_position.Get2D().GetDistance(expected) < 0.001f);

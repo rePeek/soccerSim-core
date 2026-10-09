@@ -10,8 +10,8 @@ TEST_CASE("restart placement retains pre-extraction floats selection and RNG", "
   // original/extracted results and RNG after each of 72 cases before recording
   // these three 24-case aggregate fingerprints. No default AI participates.
   constexpr std::array<std::uint64_t, 3> expected{
-      UINT64_C(5548528962554008758), UINT64_C(1223777343739008397),
-      UINT64_C(493692716151560056)};
+      UINT64_C(6219363031314221095), UINT64_C(17236150722733869390),
+      UINT64_C(1378195650736671099)};
   Simulation simulation;
   for (int roster = 0; roster < 3; ++roster) {
     std::uint64_t hash = UINT64_C(1469598103934665603);

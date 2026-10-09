@@ -227,7 +227,7 @@ TEST_CASE("final outcomes derive from real goals and stable home away scores", "
     MatchOptions options; options.half_duration = TickSpan{180};
     Simulation simulation; Init(simulation, options); StartHalf(simulation);
     const float direction = home_win ? 1.f : -1.f;
-    SimulationAccess::BallOf(simulation)->ResetSituation(blunted::Vector3(direction * 54.9f, 0.f, 0.5f));
+    SimulationAccess::BallOf(simulation)->ResetSituation(blunted::Vector3(direction * 52.4f, 0.f, 0.5f));
     simulation.TouchBall(blunted::Vector3(direction * 30.f, 0.f, 0.f));
     for (int step = 0; step < 5 && simulation.Observe().teams[home_win ? 0 : 1].score == 0; ++step)
       simulation.Step({});
@@ -326,7 +326,7 @@ TEST_CASE("the same physical goal credits opposite teams after advancing clocks"
     REQUIRE(simulation.Observe().ball_in_play);
     const int before[2] = {SimulationAccess::ScoreOf(simulation, 0), SimulationAccess::ScoreOf(simulation, 1)};
     const float execution_direction = reverse ? -direction : direction;
-    SimulationAccess::BallOf(simulation)->ResetSituation(blunted::Vector3(execution_direction * 54.9f, 0.f, 0.5f));
+    SimulationAccess::BallOf(simulation)->ResetSituation(blunted::Vector3(execution_direction * 52.4f, 0.f, 0.5f));
     simulation.TouchBall(blunted::Vector3(execution_direction * 30.f, 0.f, 0.f));
     for (int step = 0; step < 12; ++step) {
       const auto timeline = SimulationAccess::NowOf(simulation);

@@ -1194,10 +1194,10 @@ struct GoldenSnapshot {
 // three-clock facts. Old rows/causal evidence live in baselines/pre_three_clocks.md.
 // Motion/action/RNG digest encoding is unchanged to expose actual trajectory deltas.
 constexpr GoldenSnapshot golden[] = {
-    {1, UINT64_C(10332355978522980402), UINT64_C(350760935552669674)},
-    {100, UINT64_C(6566733075672102469), UINT64_C(13725550824419574755)},
-    {500, UINT64_C(3072497800688270887), UINT64_C(12665720491277525189)},
-    {1000, UINT64_C(15732669318329480461), UINT64_C(9316031574527648864)},
+    {1, UINT64_C(11987532696418632056), UINT64_C(1505762067616586502)},
+    {100, UINT64_C(13327523693768135511), UINT64_C(7747224756341693667)},
+    {500, UINT64_C(11697882668714281260), UINT64_C(8345157889681776672)},
+    {1000, UINT64_C(5533131925908482264), UINT64_C(3403134995581670480)},
 };
 
 void CheckGoldenSnapshots(Simulation& simulation, GameEnv& game, bool print_baseline) {

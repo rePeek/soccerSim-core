@@ -15,11 +15,11 @@ int main() {
   static_assert(std::is_same_v<std::underlying_type_t<model::TeamSide>, std::uint8_t>);
   static_assert(model::kPlayerStatCount == 22);
   constexpr model::Pitch pitch = model::MakeLegacyPitch();
-  static_assert(pitch.length() == 110.0f && pitch.width() == 72.0f);
-  static_assert(pitch.contains(55.0f, 36.0f));
-  static_assert(pitch.contains(-55.0f, -36.0f));
-  static_assert(!pitch.contains(55.01f, 0.0f));
-  static_assert(!pitch.contains(0.0f, -36.01f));
+  static_assert(pitch.length() == 105.0f && pitch.width() == 68.0f);
+  static_assert(pitch.contains(52.5f, 34.0f));
+  static_assert(pitch.contains(-52.5f, -34.0f));
+  static_assert(!pitch.contains(52.51f, 0.0f));
+  static_assert(!pitch.contains(0.0f, -34.01f));
 
   constexpr auto attributes = [] {
     model::PlayerAttributes value;

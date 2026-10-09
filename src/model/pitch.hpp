@@ -65,14 +65,14 @@ class Pitch {
   bool operator==(const Pitch&) const = default;
 
  private:
-  float length_ = 110.0f;
-  float width_ = 72.0f;
+  float length_ = 105.0f;
+  float width_ = 68.0f;
   float quadratic_resistance_ = 0.04f;
   float ground_deceleration_ = 1.6f;
   float grass_height_ = 0.025f;
   float line_width_ = 0.12f;
-  float goal_width_ = 7.4f;
-  float goal_height_ = 2.5f;
+  float goal_width_ = 7.32f;
+  float goal_height_ = 2.44f;
   float goal_depth_ = 2.55f;
   float penalty_area_depth_ = 16.5f;
   float penalty_mark_distance_ = 11.0f;
