@@ -112,7 +112,8 @@ class Referee {
     void TripNotice(Player *tripee, Player *tripper, int tackleType,
                     football::sim::Tick now, const Vector3& ball_position);
     // Foul facts carry their own timestamps; the caller supplies the evaluation instant.
-    bool CheckFoul(football::sim::Tick now, PitchFrameTransform stadium_to_home,
+    bool CheckFoul(football::sim::Tick now, const football::model::Pitch& pitch,
+                   PitchFrameTransform stadium_to_home,
                    football::sim::rules::RuleCommandSink& commands);
 
     Player *GetCurrentFoulPlayer() { return foul.foulPlayer; }

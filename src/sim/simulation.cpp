@@ -147,7 +147,7 @@ void Simulation::PublishBallTouch(const football::sim::BallTouchEvent& event) {
   facts.in_set_piece = set_piece_active_;
   facts.offsides_enabled = options_.offsides;
   facts.ball = ball_.get();
-  facts.stadium_to_home = PitchFrameTransform(teams_[0]->GetStaticSide() != -1);
+  facts.pitch = &pitch_;
   std::vector<Player*> active;
   if (facts.offsides_enabled) {
     teams_[first_team_]->GetActivePlayers(active);

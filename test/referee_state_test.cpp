@@ -343,6 +343,7 @@ TEST_CASE("touch notices consume explicit facts instead of Match state",
     facts.in_set_piece = false;
     facts.offsides_enabled = true;
     facts.ball = SimulationAccess::BallOf(simulation);
+    facts.pitch = &SimulationAccess::PitchOf(simulation);
     facts.all_active_players = active_players;
     football::test::RuleCommandProbe commands(&SimulationAccess::CommandsOf(simulation));
     referee.BallTouched(facts, commands);
@@ -378,14 +379,14 @@ TEST_CASE("foul evaluation timing comes from the supplied instant, not Match",
   referee.foul.advantage = true;
   referee.foul.foul_tick = Tick{100};
   referee.foul.hasBeenProcessed = false;
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100}, PitchFrameTransform(false), commands));
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck, PitchFrameTransform(false), commands));
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck + TickSpan{1}, PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck + TickSpan{1}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
   REQUIRE(referee.foul.advantage); // Kept while the victim side still has possession.
   REQUIRE(referee.foul.foulType == 1);
   REQUIRE(referee.foul.foulPlayer == offender); // Expires only past the advantage window.
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry, PitchFrameTransform(false), commands));
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry + TickSpan{1}, PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry + TickSpan{1}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
   REQUIRE(commands.calls.empty());
   REQUIRE(referee.foul.foulType == 0);
   REQUIRE(referee.foul.foulPlayer == nullptr);
@@ -440,7 +441,7 @@ TEST_CASE("foul commands schedule and card from supplied tick and stadium frame"
   referee.foul.hasBeenProcessed = false;
   football::test::RuleCommandProbe commands;
   const auto rng = SimulationAccess::RngOf(simulation).engine();
-  REQUIRE(referee.CheckFoul(Tick{8001}, PitchFrameTransform(true), commands));
+  REQUIRE(referee.CheckFoul(Tick{8001}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(true), commands));
   REQUIRE(commands.calls == std::vector<std::string>{"stop"});
   REQUIRE(referee.buffer.setpiece_team == SimulationAccess::TeamOf(simulation, 1));
   REQUIRE(referee.buffer.restartPos == Vector3(-12, -6, 0));
@@ -448,7 +449,7 @@ TEST_CASE("foul commands schedule and card from supplied tick and stadium frame"
   REQUIRE(referee.buffer.restart->earliest_restart_tick == Tick{9001});
   REQUIRE(referee.buffer.restart->timeout_tick == Tick{12001});
   REQUIRE(referee.foul.foulPlayer->HasCards());
-  REQUIRE_FALSE(referee.CheckFoul(Tick{9001}, PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{9001}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
   REQUIRE(commands.calls.size() == 1);
   REQUIRE(SimulationAccess::NowOf(simulation) == Tick{});
   REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);

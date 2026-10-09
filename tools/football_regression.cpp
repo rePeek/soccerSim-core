@@ -1075,6 +1075,7 @@ void CheckRefereeRules(Simulation& simulation) {
       const auto rng_before = SimulationAccess::RngOf(simulation).engine();
       const auto stopped = SimulationAccess::NowOf(simulation);
       Require(rules.CheckFoul(SimulationAccess::NowOf(simulation),
+          SimulationAccess::PitchOf(simulation),
           SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
           SimulationAccess::CommandsOf(simulation)), "unprocessed foul did not stop play");
       const RefereeBuffer scheduled = rules.GetBuffer();
@@ -1094,6 +1095,7 @@ void CheckRefereeRules(Simulation& simulation) {
                   SimulationAccess::RngOf(simulation).engine() == rng_before,
               "rule restart/card budget changed or consumed RNG");
       Require(!rules.CheckFoul(SimulationAccess::NowOf(simulation),
+          SimulationAccess::PitchOf(simulation),
           SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
           SimulationAccess::CommandsOf(simulation)) &&
                   rules.GetBuffer().restart->earliest_restart_tick == scheduled.restart->earliest_restart_tick &&
@@ -1141,12 +1143,14 @@ void CheckRefereeRules(Simulation& simulation) {
     RefereeFixture advantage(simulation);
     advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), SimulationAccess::NowOf(simulation), true);
     Require(!advantage.CheckFoul(SimulationAccess::NowOf(simulation),
-        SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
+        SimulationAccess::PitchOf(simulation),
+          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
         SimulationAccess::CommandsOf(simulation)) && SimulationAccess::IsInPlayOf(simulation),
             "advantage should not immediately stop open play");
     simulation.AdvanceTime(football::sim::TickSpan{301});
     Require(!advantage.CheckFoul(SimulationAccess::NowOf(simulation),
-        SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
+        SimulationAccess::PitchOf(simulation),
+          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
         SimulationAccess::CommandsOf(simulation)) && advantage.GetCurrentFoulType() == 0 &&
                 SimulationAccess::IsInPlayOf(simulation), "expired advantage was not cancelled");
   }

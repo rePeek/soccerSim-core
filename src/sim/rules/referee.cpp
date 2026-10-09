@@ -22,7 +22,6 @@
 #include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
 #include "sim/team/team.hpp"
-#include "sim/pitch_geometry.hpp"
 #include "sim/rules/offside.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/rules/restart_placement.hpp"
@@ -113,7 +112,7 @@ void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options
   // Track this operation's own stop consequences; do not query a runtime owner.
   bool play_authorized = facts.play_authorized;
   const auto check_foul = [&] {
-    const bool stopped = CheckFoul(facts.now, facts.stadium_to_home, commands);
+    const bool stopped = CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, commands);
     if (stopped) play_authorized = false;
     return stopped;
   };
@@ -129,7 +128,7 @@ void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options
 
     // goal kick / corner
 
-    if (fabs(ballPos.coords[0]) > pitchHalfW + lineHalfW + 0.11 ||
+    if (fabs(ballPos.coords[0]) > facts.pitch.half_length() + facts.pitch.line_half_width() + 0.11 ||
         facts.goal_scored) {
 
       foul.advantage = false;
@@ -153,13 +152,13 @@ void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options
                    (ballPos.coords[0] < 0 && lastSide < 0)) {
           buffer.desiredSetPiece = e_GameMode_Corner;
           float y = ballPos.coords[1];
-          if (y > 0) y = pitchHalfH; else
-                     y = -pitchHalfH;
-          buffer.restartPos = Vector3(pitchHalfW * lastSide, y, 0);
+          if (y > 0) y = facts.pitch.half_width(); else
+                     y = -facts.pitch.half_width();
+          buffer.restartPos = Vector3(facts.pitch.half_length() * lastSide, y, 0);
           buffer.teamID = 1 - lastTouchTeam->GetID();
         } else {
           buffer.desiredSetPiece = e_GameMode_GoalKick;
-          buffer.restartPos = Vector3(pitchHalfW * 0.92 * -lastSide, 0, 0);
+          buffer.restartPos = Vector3(facts.pitch.half_length() * 0.92 * -lastSide, 0, 0);
           buffer.teamID = 1 - lastTouchTeam->GetID();
         }
 
@@ -170,7 +169,7 @@ void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options
     // over sideline
 
     if (play_authorized && post_restart_relax_ == TickSpan{}) {
-      if (fabs(ballPos.coords[1]) > pitchHalfH + lineHalfW + 0.11) {
+      if (fabs(ballPos.coords[1]) > facts.pitch.half_width() + facts.pitch.line_half_width() + 0.11) {
         foul.advantage = false;
         if (!check_foul()) {
           commands.StopPlay();
@@ -179,9 +178,9 @@ void Referee::Process(const RefereeTickFacts& facts, const MatchOptions& options
           if (lastTouchTeam == 0) lastTouchTeam = &facts.home;
           buffer.teamID = 1 - lastTouchTeam->GetID();
           buffer.desiredSetPiece = e_GameMode_ThrowIn;
-          buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -pitchHalfW + 0.6f, pitchHalfW - 0.6f);
-          if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = pitchHalfH;
-          if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -pitchHalfH;
+          buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -facts.pitch.half_length() + 0.6f, facts.pitch.half_length() - 0.6f);
+          if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = facts.pitch.half_width();
+          if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -facts.pitch.half_width();
           buffer.restartPos.coords[2] = 0;
           ScheduleRestart({facts.now, team(buffer.teamID), facts.stadium_to_home});
         }
@@ -283,7 +282,7 @@ void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts,
     for (auto p : offsidePlayers) {
       if (p == ballOwner) {
         foul.advantage = false;
-        if (!CheckFoul(facts.now, facts.stadium_to_home, commands)) {
+        if (!CheckFoul(facts.now, *facts.pitch, facts.stadium_to_home, commands)) {
           // uooooga uooooga offside!
           commands.StopPlay();
           buffer.desiredSetPiece = e_GameMode_FreeKick;
@@ -389,15 +388,16 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
 }
 
 
-bool Referee::CheckFoul(Tick now, PitchFrameTransform stadium_to_home,
+bool Referee::CheckFoul(Tick now, const football::model::Pitch& pitch,
+                        PitchFrameTransform stadium_to_home,
                         RuleCommandSink& commands) {
 
   bool penalty = false;
   if (foul.foulType != 0) {
-    if (fabs(foul.foulPosition.coords[1]) < 20.15 - lineHalfW &&
+    if (fabs(foul.foulPosition.coords[1]) < 20.15 - pitch.line_half_width() &&
         foul.foulPosition.coords[0] *
                 -foul.foulVictim->GetTeam()->GetStaticSide() >
-            pitchHalfW - 16.5 + lineHalfW)
+            pitch.half_length() - 16.5 + pitch.line_half_width())
       penalty = true;
   }
 
@@ -427,7 +427,7 @@ bool Referee::CheckFoul(Tick now, PitchFrameTransform stadium_to_home,
     commands.StopPlay();
     buffer.desiredSetPiece = penalty ? e_GameMode_Penalty : e_GameMode_FreeKick;
     buffer.restartPos = penalty
-        ? Vector3((pitchHalfW - 11.0) * foul.foulPlayer->GetTeam()->GetStaticSide(),
+        ? Vector3((pitch.half_length() - 11.0) * foul.foulPlayer->GetTeam()->GetStaticSide(),
                   0, 0)
         : foul.foulPosition;
     buffer.teamID = foul.foulVictim->GetTeam()->GetID();
@@ -493,8 +493,8 @@ void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& 
   if (!state.setup_done) {
     rng.Seed(options.game_engine_random_seed);
     if (buffer.desiredSetPiece == e_GameMode_FreeKick) {
-      buffer.restartPos.coords[0] = clamp(buffer.restartPos.coords[0], -0.95f * pitchHalfW, 0.95f * pitchHalfW);
-      buffer.restartPos.coords[1] = clamp(buffer.restartPos.coords[1], -0.95f * pitchHalfH, 0.95f * pitchHalfH);
+      buffer.restartPos.coords[0] = clamp(buffer.restartPos.coords[0], -0.95f * facts.pitch.half_length(), 0.95f * facts.pitch.half_length());
+      buffer.restartPos.coords[1] = clamp(buffer.restartPos.coords[1], -0.95f * facts.pitch.half_width(), 0.95f * facts.pitch.half_width());
     }
     commands.ResetSituation(facts.ball_to_home.Position(buffer.restartPos));
     std::vector<Player*> active;
