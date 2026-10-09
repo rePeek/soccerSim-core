@@ -21,15 +21,19 @@ class Pitch {
   // dimensions keep their legacy defaults. Invalid (non-finite or
   // non-positive geometry / negative friction) values are rejected here so
   // every consumer shares one validated description.
-  Pitch(float length, float width, float friction, float linear_friction)
+  Pitch(float length, float width, float quadratic_resistance,
+        float ground_deceleration, float grass_height)
       : length_(length),
         width_(width),
-        friction_(friction),
-        linear_friction_(linear_friction) {
+        quadratic_resistance_(quadratic_resistance),
+        ground_deceleration_(ground_deceleration),
+        grass_height_(grass_height) {
     if (!std::isfinite(length) || !std::isfinite(width) ||
-        !std::isfinite(friction) || !std::isfinite(linear_friction) ||
+        !std::isfinite(quadratic_resistance) || !std::isfinite(ground_deceleration) ||
+        !std::isfinite(grass_height) ||
         length <= 0.0f || width <= 0.0f ||
-        friction < 0.0f || linear_friction < 0.0f) {
+        quadratic_resistance < 0.0f || ground_deceleration < 0.0f ||
+        grass_height < 0.0f) {
       throw std::invalid_argument(
           "football::model::Pitch: invalid geometry or ground parameters");
     }
@@ -44,8 +48,8 @@ class Pitch {
   constexpr float goal_height() const { return goal_height_; }
   constexpr float goal_depth() const { return goal_depth_; }
 
-  constexpr float friction() const { return friction_; }
-  constexpr float linear_friction() const { return linear_friction_; }
+  constexpr float quadratic_resistance() const { return quadratic_resistance_; }
+  constexpr float ground_deceleration() const { return ground_deceleration_; }
   constexpr float grass_height() const { return grass_height_; }
   // Penalty-area geometry used by the referee and restart placement.
   constexpr float penalty_area_depth() const { return penalty_area_depth_; }
@@ -63,8 +67,8 @@ class Pitch {
  private:
   float length_ = 110.0f;
   float width_ = 72.0f;
-  float friction_ = 0.04f;
-  float linear_friction_ = 1.6f;
+  float quadratic_resistance_ = 0.04f;
+  float ground_deceleration_ = 1.6f;
   float grass_height_ = 0.025f;
   float line_width_ = 0.12f;
   float goal_width_ = 7.4f;

@@ -108,4 +108,23 @@ TEST_CASE("ApplyForce acts across the whole next Step interval",
   REQUIRE(force_driven.state().velocity == impulse_driven.state().velocity);
 }
 
+TEST_CASE("ground physics read the injected Pitch surface",
+          "[sim][ball][physics]") {
+  const auto on_ground = StateAt(Vector3(0.0f, 0.0f, 0.11f), Vector3(10.0f, 0.0f, 0.0f));
+  Ball base(kPitch);
+  Ball grippy(football::model::Pitch(110.0f, 72.0f, 0.20f, 0.0f, 0.025f));
+  base.Reset(on_ground);
+  grippy.Reset(on_ground);
+  REQUIRE(grippy.Predict(football::sim::TickSpan{1}, BallEnvironment{}).velocity.coords[0] <
+          base.Predict(football::sim::TickSpan{1}, BallEnvironment{}).velocity.coords[0]);
+
+  const auto above_ground = StateAt(Vector3(0.0f, 0.0f, 0.16f), Vector3(10.0f, 0.0f, 0.0f));
+  Ball short_grass(kPitch);
+  Ball tall_grass(football::model::Pitch(110.0f, 72.0f, 0.04f, 1.6f, 0.10f));
+  short_grass.Reset(above_ground);
+  tall_grass.Reset(above_ground);
+  REQUIRE(tall_grass.Predict(football::sim::TickSpan{1}, BallEnvironment{}).velocity.coords[0] <
+          short_grass.Predict(football::sim::TickSpan{1}, BallEnvironment{}).velocity.coords[0]);
+}
+
 }  // namespace

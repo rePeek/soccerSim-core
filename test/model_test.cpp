@@ -57,27 +57,28 @@ int main() {
   }
 
   // Pitch constructor validates geometry and ground physics.
-  if (pitch.friction() != 0.04f || pitch.linear_friction() != 1.6f ||
+  if (pitch.quadratic_resistance() != 0.04f || pitch.ground_deceleration() != 1.6f ||
       pitch.grass_height() != 0.025f) {
     return EXIT_FAILURE;
   }
-  model::Pitch custom(105.0f, 68.0f, 0.05f, 1.8f);
+  model::Pitch custom(105.0f, 68.0f, 0.05f, 1.8f, 0.02f);
   if (custom.length() != 105.0f || custom.width() != 68.0f ||
-      custom.friction() != 0.05f || custom.linear_friction() != 1.8f) {
+      custom.quadratic_resistance() != 0.05f || custom.ground_deceleration() != 1.8f ||
+      custom.grass_height() != 0.02f) {
     return EXIT_FAILURE;
   }
   try {
-    model::Pitch bad(0.0f, 68.0f, 0.04f, 1.6f);
-    return EXIT_FAILURE;
-  } catch (const std::invalid_argument&) {
-  }
-  try {
-    model::Pitch bad(105.0f, 68.0f, -1.0f, 1.6f);
+    model::Pitch bad(0.0f, 68.0f, 0.04f, 1.6f, 0.025f);
     return EXIT_FAILURE;
   } catch (const std::invalid_argument&) {
   }
   try {
-    model::Pitch bad(std::numeric_limits<float>::quiet_NaN(), 68.0f, 0.04f, 1.6f);
+    model::Pitch bad(105.0f, 68.0f, -1.0f, 1.6f, 0.025f);
+    return EXIT_FAILURE;
+  } catch (const std::invalid_argument&) {
+  }
+  try {
+    model::Pitch bad(std::numeric_limits<float>::quiet_NaN(), 68.0f, 0.04f, 1.6f, 0.025f);
     return EXIT_FAILURE;
   } catch (const std::invalid_argument&) {
   }

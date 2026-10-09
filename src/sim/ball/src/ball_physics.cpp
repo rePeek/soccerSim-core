@@ -63,14 +63,14 @@ PhysicsState Advance(const PhysicsState& current,
 
   // ground friction
   if (nextPos.coords[2] < config.radius + pitch.grass_height() && groundFriction_enabled) {
-    float adaptedFriction = (pitch.friction() * grassInfluenceBias);
+    float adaptedFriction = (pitch.quadratic_resistance() * grassInfluenceBias);
 
     Vector3 xy = momentumPredict.Get2D();
     float velo = xy.GetLength();
 
     float newVelo = velo - adaptedFriction * std::pow(velo, 2.0f) * timeStep;
 
-    newVelo = clamp(newVelo - (pitch.linear_friction() * grassInfluenceBias * timeStep), 0.0f, 100000.0f);
+    newVelo = clamp(newVelo - (pitch.ground_deceleration() * grassInfluenceBias * timeStep), 0.0f, 100000.0f);
 
     xy.Normalize(Vector3(0));
     xy *= newVelo;
