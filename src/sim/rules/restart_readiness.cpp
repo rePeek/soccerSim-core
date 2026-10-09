@@ -13,6 +13,10 @@ namespace {
 using blunted::Vector3;
 constexpr float kTargetTolerance = 0.35f;
 constexpr float kSeparationMargin = 0.5f;
+// Legacy penalty-box half-width literals; keep values until the standard
+// penalty-area geometry is adopted.
+constexpr float kPenaltyBoxHalfWidthLegacy = 20.15f;
+constexpr float kPenaltyApproachHalfWidthLegacy = 20.65f;
 
 int Side(const Team& team) { return team.GetID() == 0 ? -1 : 1; }
 Vector3 Position(const Player& player) {
@@ -41,11 +45,11 @@ Vector3 LegalTarget(const RestartPlan& plan, Player& player, Vector3 target,
   if (plan.mode == e_GameMode_Penalty) {
     const int penalty_side = plan.ball_position.coords[0] < 0 ? -1 : 1;
     target.coords[0] = penalty_side * std::min(target.coords[0] * penalty_side,
-        std::min(half_x - 17.0f, plan.ball_position.coords[0] * penalty_side - 9.65f));
+        std::min(half_x - pitch.penalty_area_depth() - kSeparationMargin, plan.ball_position.coords[0] * penalty_side - 9.65f));
   } else if (plan.mode == e_GameMode_GoalKick && opponent &&
-             target.coords[0] * Side(*plan.team) > half_x - 17.0f &&
-             std::fabs(target.coords[1]) < 20.65f) {
-    target.coords[0] = Side(*plan.team) * (half_x - 17.0f);
+             target.coords[0] * Side(*plan.team) > half_x - pitch.penalty_area_depth() - kSeparationMargin &&
+             std::fabs(target.coords[1]) < kPenaltyApproachHalfWidthLegacy) {
+    target.coords[0] = Side(*plan.team) * (half_x - pitch.penalty_area_depth() - kSeparationMargin);
   }
   const float minimum = opponent ? OpponentDistance(plan.mode) :
       plan.mode == e_GameMode_KickOff ? 1.5f : 0.0f;
@@ -73,13 +77,13 @@ bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3&
            std::fabs(position.coords[1]) <= pitch.goal_half_width();
   if (plan.mode == e_GameMode_Penalty) {
     const int side = plan.ball_position.coords[0] < 0 ? -1 : 1;
-    if (position.coords[0] * side > pitch.half_length() - 16.5f ||
+    if (position.coords[0] * side > pitch.half_length() - pitch.penalty_area_depth() ||
         position.coords[0] * side > plan.ball_position.coords[0] * side ||
         (position - plan.ball_position).GetLength() < 9.15f) return false;
   }
   if (plan.mode == e_GameMode_GoalKick && opponent &&
-      position.coords[0] * Side(*plan.team) > pitch.half_length() - 16.5f &&
-      std::fabs(position.coords[1]) < 20.15f) return false;
+      position.coords[0] * Side(*plan.team) > pitch.half_length() - pitch.penalty_area_depth() &&
+      std::fabs(position.coords[1]) < kPenaltyBoxHalfWidthLegacy) return false;
   return !opponent || (position - plan.ball_position).GetLength() >= OpponentDistance(plan.mode);
 }
 }  // namespace
