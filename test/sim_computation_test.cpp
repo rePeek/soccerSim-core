@@ -153,7 +153,7 @@ TEST_CASE("kick targeting preserves forced recipients and manual shot direction"
     CHECK(power > 0.f);
     CHECK(direction.coords[2] > 0.f);
   }
-  const auto shot = football::sim::mechanics::GetShotDirection(kicker, Vector3(0, 1, 0), 0.f);
+  const auto shot = football::sim::mechanics::GetShotDirection(kicker, SimulationAccess::PitchOf(runtime.simulation), Vector3(0, 1, 0), 0.f);
   CHECK(shot.coords[0] == 0.f);
   CHECK(shot.coords[1] == 1.f);
   CHECK(shot.coords[2] == 0.f);

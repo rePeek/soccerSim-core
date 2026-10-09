@@ -169,13 +169,14 @@ void GetPass(Player *player, e_FunctionType passType,
   CalculatePassDirectionAndPower(passType, resultingTargetRel, resultingDirection, resultingPower);
 }
 
-Vector3 GetShotDirection(Player *player, const Vector3 &inputDirection,
+Vector3 GetShotDirection(Player *player, const football::model::Pitch& pitch,
+                            const Vector3 &inputDirection,
                             float autoDirectionBias) {
 
   Vector3 manualDirection = inputDirection;
 
   Vector3 goalPos =
-      Vector3(player->GetTeam()->GetDynamicSide() * -pitchHalfW, 0, 0);
+      Vector3(player->GetTeam()->GetDynamicSide() * -pitch.half_length(), 0, 0);
   Vector3 toGoal = (goalPos - (player->GetPosition() + player->GetMovement() * 0.12f)).GetNormalized(0);
   // if inputDirection ~== toGoal, it is considered as aiming 'through the middle'. so, get the deviation from inputDirection to toGoal, and make 90 degrees the maximum
   radian relAngle = toGoal.GetAngle2D(inputDirection);
@@ -184,7 +185,7 @@ Vector3 GetShotDirection(Player *player, const Vector3 &inputDirection,
   sideFactor = std::pow(std::fabs(sideFactor), 0.7f) * signSide(sideFactor);
 
   goalPos.coords[1] =
-      sideFactor * goalHalfWidth * 0.9f * player->GetTeam()->GetDynamicSide();
+      sideFactor * pitch.goal_half_width() * 0.9f * player->GetTeam()->GetDynamicSide();
   Vector3 autoDirection = (goalPos - (player->GetPosition() + player->GetMovement() * 0.12f)).GetNormalized(0);
 
   return (manualDirection * (1.0f - autoDirectionBias) + autoDirection * autoDirectionBias).GetNormalized(inputDirection);

@@ -86,7 +86,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     }
     if (control.action == ControlAction::Shoot) {
       command.touchInfo.desiredDirection = football::sim::mechanics::GetShotDirection(
-          &player, command.touchInfo.inputDirection, command.touchInfo.autoDirectionBias);
+          &player, inputs.pitch, command.touchInfo.inputDirection, command.touchInfo.autoDirectionBias);
       command.touchInfo.desiredPower = control.power;
     } else {
       football::sim::mechanics::GetPass(&player, command.desiredFunctionType,

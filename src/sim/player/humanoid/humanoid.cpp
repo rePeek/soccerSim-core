@@ -714,7 +714,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         // alter direction, if needed
         Vector3 ballDirection = currentAnim.originatingCommand.touchInfo.desiredDirection;
         Vector3 inputDirection = currentAnim.originatingCommand.touchInfo.inputDirection;
-        Vector3 ballDirectionAltered = football::sim::mechanics::GetShotDirection(CastPlayer(), inputDirection, currentAnim.originatingCommand.touchInfo.autoDirectionBias);
+        Vector3 ballDirectionAltered = football::sim::mechanics::GetShotDirection(CastPlayer(), tick.pitch, inputDirection, currentAnim.originatingCommand.touchInfo.autoDirectionBias);
 
         float maxDeviationAngle = 0.1f * pi;
         radian angleDiff = ballDirectionAltered.Get2D().GetAngle2D(ballDirection.Get2D());
@@ -951,8 +951,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       OffsetPosition(Vector3(0, clamp(-20.05f - tick.ball.Predict(0).coords[1], -0.5f, 0.5f), 0) * 0.3f);
     }
     if (tick.ball.Predict(0).coords[0] * -team->GetDynamicSide() >
-        -pitchHalfW + 16.4f) {
-      OffsetPosition(Vector3(clamp((-pitchHalfW + 16.4f) -
+        -tick.pitch.half_length() + 16.4f) {
+      OffsetPosition(Vector3(clamp((-tick.pitch.half_length() + 16.4f) -
                                        tick.ball.Predict(0).coords[0] *
                                            -team->GetDynamicSide(),
                                    -0.5f, 0.5f),
@@ -960,8 +960,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
                      -team->GetDynamicSide() * 0.3f);
     }
     if (tick.ball.Predict(0).coords[0] * -team->GetDynamicSide() <
-        -pitchHalfW + 0.1f) {
-      OffsetPosition(Vector3(clamp((-pitchHalfW + 0.1f) -
+        -tick.pitch.half_length() + 0.1f) {
+      OffsetPosition(Vector3(clamp((-tick.pitch.half_length() + 0.1f) -
                                        tick.ball.Predict(0).coords[0] *
                                            -team->GetDynamicSide(),
                                    -0.5f, 0.5f),
@@ -1837,8 +1837,8 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
       // out of bounds?
       if (tick.ball_retainer != player) {
         Vector3 absBallPos = tick.ball.Predict(animTouchFrame * 10);
-        if (std::fabs(absBallPos.coords[0]) > pitchHalfW + lineHalfW + 0.11f ||
-            std::fabs(absBallPos.coords[1]) > pitchHalfH + lineHalfW + 0.11f) {
+        if (std::fabs(absBallPos.coords[0]) > tick.pitch.half_length() + tick.pitch.line_half_width() + 0.11f ||
+            std::fabs(absBallPos.coords[1]) > tick.pitch.half_width() + tick.pitch.line_half_width() + 0.11f) {
           touchNum++;
           continue;
         }
