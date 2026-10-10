@@ -377,3 +377,43 @@ TEST_CASE("active candidate arbitration is not gated on the diagnostic shadow",
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(simulation).candidate_ticks == 0);
   }
 }
+
+TEST_CASE("prepared tick commits the arbitrated impulse inside its sole Ball Step", "[prepared-tick][sim]") {
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  for (bool reverse : {false, true}) {
+    MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
+    Simulation a, b;
+    a.Init(home, away, football::model::Pitch{}, options);
+    b.Init(home, away, football::model::Pitch{}, options);
+    SimulationAccess::EnablePreparedTickProduction(a, true);
+    SimulationAccess::EnablePreparedTickProduction(b, true);
+    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    int active_steps = 0;
+    for (int step = 0; step < 4000; ++step) {
+      PlayerControlSet controls; policy.Update(a.Observe(), controls);
+      a.Step(controls); b.Step(controls);
+      REQUIRE(SimulationAccess::RngOf(a).engine() == SimulationAccess::RngOf(b).engine());
+      const auto& sa = a.Snapshots().Latest()->snapshot;
+      const auto& sb = b.Snapshots().Latest()->snapshot;
+      REQUIRE(sa.ball.position == sb.ball.position);
+      REQUIRE(sa.ball.velocity == sb.ball.velocity);
+      REQUIRE(sa.ball.angular_velocity == sb.ball.angular_velocity);
+      const auto& commit = SimulationAccess::CommittedBallTickOf(a);
+      if (commit) {
+        REQUIRE(commit->state.position == SimulationAccess::BallOf(a)->state().position);
+        REQUIRE(commit->state.velocity == SimulationAccess::BallOf(a)->state().velocity);
+        REQUIRE(commit->state.angular_velocity == SimulationAccess::BallOf(a)->state().angular_velocity);
+        if (commit->active_impulse) ++active_steps;
+      }
+      for (std::size_t i = 0; i < sa.players.size(); ++i) {
+        REQUIRE(sa.players[i].position == sb.players[i].position);
+        REQUIRE(sa.players[i].velocity == sb.players[i].velocity);
+        REQUIRE(sa.players[i].animation_id == sb.players[i].animation_id);
+        REQUIRE(sa.players[i].frame == sb.players[i].frame);
+      }
+    }
+    REQUIRE(active_steps > 0);
+    REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(a).latest.empty());
+  }
+}

@@ -112,6 +112,12 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
 
   Player* ball_retainer = tick.ball_retainer;
+  std::optional<Vector3> prepared_velocity;
+  std::optional<Vector3> prepared_anchor;
+  const auto set_rotation = [&](radian x, radian y, radian z, float bias,
+                                 const football::ball::BallEnvironment& environment) {
+    if (!tick.touch_preparation) tick.ball.SetRotation(x, y, z, bias, environment);
+  };
   // Tick-local publication: actors never reach the runtime owner for touch notification.
   std::optional<ActiveTouchObservation> active_observation;
   const auto begin_active_observation = [&](ActiveTouchOrigin origin) {
@@ -145,6 +151,10 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     active_observation.reset();
   };
   const auto apply_touch = [&](const Vector3& velocity) {
+    if (tick.touch_preparation) {
+      prepared_velocity = velocity;
+      return;
+    }
     if (active_observation) {
       active_observation->before = tick.ball.state();
       active_observation->stage = ActiveTouchStage::Executed;
@@ -153,6 +163,22 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         tick.first_processing_team, tick.second_processing_team, now, ball_retainer);
   };
   const auto notify_touch = [&](e_TouchType type) {
+    if (tick.touch_preparation) {
+      if (prepared_velocity) {
+        const auto& part = GetCurrentBakedClip().metadata.touch_bodypart;
+        const auto body_part = part.find("head") != std::string::npos ? PlayerBodyPart::Head :
+            (part.find("foot") != std::string::npos || part.find("lowerleg") != std::string::npos ?
+             PlayerBodyPart::LowerBody : PlayerBodyPart::UpperBody);
+        tick.touch_preparation->PrepareTouch({
+            {now, CastPlayer()->GetID(), team->GetTeamSide(), type, tick.ball.state().position,
+             *prepared_velocity, static_cast<int>(CastPlayer()->GetSimulationActionState().type)},
+            body_part, prepared_anchor.value_or(currentAnim.touchPos + currentAnim.positionOffset),
+            *prepared_velocity, prepared_anchor.has_value()});
+      }
+      prepared_velocity.reset();
+      prepared_anchor.reset();
+      return;
+    }
     if (active_observation) active_observation->accepted_type = type;
     flush_active_observation();
     touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{now,
@@ -167,6 +193,10 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   // ever silently dropped. Off by default; product code never enables it.
   const auto physical_touch = [&](e_FunctionType action_type,
                                   const Vector3& touchVec) -> bool {
+    if (tick.touch_preparation) {
+      apply_touch(touchVec);
+      return true;
+    }
     if (!tick.active_impulse_production) return false;
     const bool migrated = action_type == e_FunctionType_Shot ||
         action_type == e_FunctionType_ShortPass ||
@@ -596,7 +626,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
     apply_touch(touchVec);
-    tick.ball.SetRotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias), tick.ball_environment); // 0.9
+    set_rotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias), tick.ball_environment); // 0.9
     notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart)); //, e_TouchType_Accidental
   }
   // ---------------------- / EXPERIMENTAL ------------------------------------------------
@@ -712,7 +742,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         const bool physical = physical_touch(currentAnim.functionType, touchVec);
         if (!physical) {
           apply_touch(touchVec);
-          tick.ball.SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), tick.ball_environment);
+          set_rotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), tick.ball_environment);
         }
         record_contact_impulse(touchVec);
 
@@ -732,7 +762,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         apply_touch(touchVec);
         record_contact_impulse(touchVec);
-        tick.ball.SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias), tick.ball_environment); // 1.0
+        set_rotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias), tick.ball_environment); // 1.0
 
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -811,7 +841,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         if (currentAnim.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
         radian xRot = touchVec.GetNormalized(0).coords[1] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
         radian yRot = touchVec.GetNormalized(0).coords[0] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
-        if (!physical) tick.ball.SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias), tick.ball_environment);
+        if (!physical) set_rotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias), tick.ball_environment);
 
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -843,7 +873,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         const bool physical = physical_touch(currentAnim.functionType, touchVec);
         if (!physical) {
           apply_touch(touchVec);
-          tick.ball.SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), tick.ball_environment);
+          set_rotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), tick.ball_environment);
         }
         record_contact_impulse(touchVec);
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
@@ -864,7 +894,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         apply_touch(touchVec);
         // Legacy three-argument call: the third value is z rotation; bias was 1.0.
-        tick.ball.SetRotation(xRot, yRot, 0.3f * (1.0f - bumpyRideBias), 1.0f, tick.ball_environment);
+        set_rotation(xRot, yRot, 0.3f * (1.0f - bumpyRideBias), 1.0f, tick.ball_environment);
         notify_touch(e_TouchType_Accidental); // it's not truly accidental, but the resulting direction somewhat is, so goalies may fetch these balls
       }
 
@@ -907,7 +937,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
           touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
           apply_touch(touchVec);
-          tick.ball.SetRotation(0, 0, 0, 0.2f * (1.0f - bumpyRideBias), tick.ball_environment);
+          set_rotation(0, 0, 0, 0.2f * (1.0f - bumpyRideBias), tick.ball_environment);
         }
         notify_touch(e_TouchType_Accidental);
       }
@@ -959,9 +989,11 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       begin_active_observation(ActiveTouchOrigin::RetainAnchor);
       apply_touch(Vector3(0));
       if (active_observation) active_observation->stage = ActiveTouchStage::Constraint;
-      tick.ball.SetRotation(0, 0, 0, 1.0, tick.ball_environment);
-      tick.ball.SetPosition(ComputeRetainAnchor(
-          spatialState.position, spatialState.bodyDirectionVec, anchor), tick.ball_environment);
+      set_rotation(0, 0, 0, 1.0, tick.ball_environment);
+      const auto anchor_position = ComputeRetainAnchor(
+          spatialState.position, spatialState.bodyDirectionVec, anchor);
+      if (tick.touch_preparation) prepared_anchor = anchor_position;
+      else tick.ball.SetPosition(anchor_position, tick.ball_environment);
       notify_touch(e_TouchType_Intentional_Nonkicked);
     } else {
       // no longer retaining

@@ -227,3 +227,28 @@ TEST_CASE("active endpoint impulse changes velocity and spin without advancing p
     REQUIRE((mirrored_result.state.velocity - expected_velocity).GetLength() < 1e-6f);
   }
 }
+
+TEST_CASE("tick preview is read only and matches commit including forces and constraints", "[ball][tick-input]") {
+  Ball ball(football::model::Pitch{});
+  ball.Reset({{0, 0, .11f}, {20, 0, 0}, {0, 0, 2}, blunted::Quaternion{}});
+  const auto initial = ball.state();
+  const std::array body{MovingBody(100, .4f, -1)};
+  ball.ApplyForce({1, 2, 0});
+  BallTickInput input{body, {}};
+  const auto preview = ball.Predict(input);
+  SameState(ball.state(), initial);
+  SameState(ball.Predict(input).state, preview.state);
+  SameState(ball.Step(input).state, preview.state);
+  REQUIRE_FALSE(preview.contacts.empty());
+  input.endpoint_constraint = BallEndpointConstraint{{1, 2, .8f}, {0, 1, 0}};
+  const auto constrained = ball.Predict(input);
+  REQUIRE(constrained.state.position == Vector3(1, 2, .8f));
+  REQUIRE(constrained.state.velocity == Vector3(0, 1, 0));
+  REQUIRE(constrained.state.angular_velocity == Vector3(0));
+  SameState(ball.Step(input).state, constrained.state);
+  input.active_impulse = BallImpulse{{1, 0, 0}, {1, 2, .8f}};
+  const auto before_failure = ball.state();
+  REQUIRE_THROWS_AS(ball.Predict(input), std::invalid_argument);
+  REQUIRE_THROWS_AS(ball.Step(input), std::invalid_argument);
+  SameState(ball.state(), before_failure);
+}

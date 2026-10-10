@@ -111,8 +111,11 @@ void Ball::ApplyContactImpulse(const Vector3& impulse,
   RefreshPredictions(environment);
 }
 
-BallStepResult Ball::Step(const BallTickInput& input) {
-  // Reject ambiguous contact identity before consuming force or changing state.
+BallStepResult Ball::EvaluateTick(const BallTickInput& input,
+                                  std::vector<ColliderMotion>& scratch) const {
+  // Validation precedes all state/force consumption in both preview and commit.
+  if (input.active_impulse && input.endpoint_constraint)
+    throw std::invalid_argument("active impulse and endpoint constraint conflict");
   for (std::size_t i = 0; i < input.dynamic_colliders.size(); ++i) {
     const auto id = input.dynamic_colliders[i].id;
     if (id == 0 || std::any_of(colliders_.begin(), colliders_.end(),
@@ -125,10 +128,10 @@ BallStepResult Ball::Step(const BallTickInput& input) {
   }
   std::span<const ColliderMotion> world = colliders_;
   if (!input.dynamic_colliders.empty()) {
-    tick_colliders_.assign(colliders_.begin(), colliders_.end());
-    tick_colliders_.insert(tick_colliders_.end(), input.dynamic_colliders.begin(),
-                           input.dynamic_colliders.end());
-    world = tick_colliders_;
+    scratch.assign(colliders_.begin(), colliders_.end());
+    scratch.insert(scratch.end(), input.dynamic_colliders.begin(),
+                   input.dynamic_colliders.end());
+    world = scratch;
   }
   BallState initial = state_;
   if (pending_force_ != Vector3(0)) {
@@ -144,10 +147,25 @@ BallStepResult Ball::Step(const BallTickInput& input) {
         input.active_impulse->contact_point, config_);
     result.active_impulse = input.active_impulse;
   }
+  if (input.endpoint_constraint) {
+    result.state.position = input.endpoint_constraint->position;
+    result.state.velocity = input.endpoint_constraint->velocity;
+    result.state.angular_velocity = Vector3(0);
+  }
+  return result;
+}
+
+BallStepResult Ball::Predict(const BallTickInput& input) const {
+  std::vector<ColliderMotion> scratch;
+  return EvaluateTick(input, scratch);
+}
+
+BallStepResult Ball::Step(const BallTickInput& input) {
+  auto result = EvaluateTick(input, tick_colliders_);
   state_ = result.state;
   pending_force_ = Vector3(0);
   prediction_cache_->Invalidate();
-  RefreshPredictions(BallEnvironment{});
+  RefreshPredictions(input.environment);
   return result;
 }
 

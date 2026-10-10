@@ -29,9 +29,15 @@
 
 namespace football::ball {
 
+// An externally maintained kinematic constraint at the tick endpoint. This is
+// not an impact and carries no football identity; ownership belongs to Simulation.
+struct BallEndpointConstraint {
+  blunted::Vector3 position;
+  blunted::Vector3 velocity;
+};
+
 // Borrowed input for exactly one 10ms interval, in BallState's coordinate frame.
-// IDs must be nonzero, unique, and disjoint from pitch IDs 1--7. Shape motions
-// are translation-only. No Player/rules identities or active impulses (P5).
+// IDs must be nonzero, unique, and disjoint from pitch IDs 1--7.
 struct BallTickInput {
   std::span<const ColliderMotion> dynamic_colliders;
   BallEnvironment environment;
@@ -40,6 +46,8 @@ struct BallTickInput {
   // changes velocity and spin only; position is never advanced a second time
   // and no second Step is performed. Production currently supplies none.
   std::optional<BallImpulse> active_impulse;
+  // Mutually exclusive with active_impulse (e.g. constrained possession).
+  std::optional<BallEndpointConstraint> endpoint_constraint;
 };
 
 // Transitional projection shape for the legacy re-calculation adapter.
@@ -99,6 +107,9 @@ class Ball {
   // Read-only trajectory prediction sharing the same physics kernel as Step.
   BallState Predict(football::sim::TickSpan ahead,
                     const BallEnvironment& environment) const;
+  // Read-only preview of precisely the same tick input/kernel as Step, including
+  // dynamic CCD. Does not consume accumulated forces or modify any Ball state.
+  BallStepResult Predict(const BallTickInput& input) const;
 
   // ---- Stable lifecycle and coordinate frame ----
   // Explicit state replacement. Predictions are rebuilt with a neutral
@@ -138,6 +149,8 @@ class Ball {
   BallStepResult AdvanceState(const BallState& current,
                               std::span<const ColliderMotion> colliders,
                               const BallEnvironment& environment) const;
+  BallStepResult EvaluateTick(const BallTickInput& input,
+                              std::vector<ColliderMotion>& scratch) const;
   void RefreshPredictions(const BallEnvironment& environment);
 
   football::model::BallConfig config_;

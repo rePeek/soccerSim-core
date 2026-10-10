@@ -112,7 +112,7 @@ class Simulation {
   football::sim::rules::RefereeTickFacts RefereeFacts() const;
   football::sim::PlayerTickContext PlayerTickFacts(const Player& actor);
   void EnsureAnimationLibrary();
-  void CaptureMentalImage();
+  void CaptureMentalImage(const football::ball::Ball* view = nullptr);
   void StepImpl(const PlayerControlSet& controls);
   void CaptureSnapshot();
   void EndPeriod();
@@ -139,6 +139,9 @@ class Simulation {
   // production Ball integrates the predicted body colliders and the legacy
   // resolver is skipped, so exactly one authority changes the ball.
   void EnableBodyPhysicsProduction(bool enabled);
+  // Explicit timing-migration gate, independent of all diagnostic sinks.
+  void EnablePreparedTickProduction(bool enabled);
+  void RunPreparedPlayerTick();
 
   // Lifecycle mutations, published through the write-only rule/player ports.
   void SetMatchPhase(MatchPhase newPhase);
@@ -273,6 +276,9 @@ class Simulation {
   bool active_candidate_capture_ = false;
   bool active_touch_report_enabled_ = false;
   bool body_physics_production_ = false;
+  bool prepared_tick_production_ = false;
+  std::unique_ptr<football::ball::Ball> preparation_ball_;
+  std::optional<football::ball::BallStepResult> committed_ball_tick_;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

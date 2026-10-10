@@ -590,6 +590,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   snapshot_step_ = clock_->ExecutedTicks();
   pending_rulings_.clear();
   foul_assessments_.clear();
+  committed_ball_tick_.reset();
 
   // Frame-local controls are runtime input, not an orchestration algorithm.
   for (int team_id = 0; team_id < 2; ++team_id) {
@@ -611,7 +612,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   // P4d-2: with the passive authority switched to the unified Ball kernel the
   // legacy resolver is skipped entirely, so only one path can change the ball
   // and no impulse is applied twice.
-  if (!body_physics_production_ && IsBallInPlay() &&
+  if (!prepared_tick_production_ && !body_physics_production_ && IsBallInPlay() &&
       !football::sim::rules::PeriodElapsed(IsHalfUnderway(), phase_,
           GetRegulationTime(), options_.half_duration)) {
     std::vector<Player*> players;
@@ -657,6 +658,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     DiscardBodyCollisionShadow();
     return;
   }
+  if (prepared_tick_production_) {
+    RunPreparedPlayerTick();
+  } else {
   // StepBall. P4d-2 routes the predicted body colliders through the same single
   // authoritative Step; the legacy duration adapter stays for the default path.
   Mirror(false, false, reverse);
@@ -696,6 +700,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   Mirror(first_team_ == 0, first_team_ == 1, true);
   // P5d: exactly one real-candidate arbitration per tick, in the common frame.
   ArbitratePendingActiveTouches();
+  }
 
   // UpdatePossession: retain both per-roster refreshes before arbitration.
   Mirror(first_team_ == 1, first_team_ == 0, false);
@@ -829,6 +834,7 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   active_touch_shadow_report_.latest.clear();
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();
+  committed_ball_tick_.reset();
   pending_rulings_.clear();
   foul_assessments_.clear();
   ball_retainer_ = nullptr;
@@ -881,6 +887,7 @@ void Simulation::ApplyChangeOfEnds() {
   // A queued active impulse belongs to the old frame; never carry it across.
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();
+  committed_ball_tick_.reset();
   // Permanent end change: preserve processing-roster order and canonical flags.
   teams_[first_team_]->SwitchEnds();
   teams_[second_team_]->SwitchEnds();
@@ -944,14 +951,14 @@ void Simulation::CaptureSnapshot() {
                            snapshot_scratch_);
 }
 
-void Simulation::CaptureMentalImage() {
+void Simulation::CaptureMentalImage(const football::ball::Ball* view) {
   if (mental_images_.empty() ||
       GetTimelineTick().value % football::sim::observation::kMentalImageCadence.value == 0) {
     std::vector<Player*> players;
     teams_[first_team_]->GetActivePlayers(players);
     teams_[second_team_]->GetActivePlayers(players);
     mental_images_.insert(mental_images_.begin(),
-                          MentalImage(GetTimelineTick(), players, *ball_));
+                          MentalImage(GetTimelineTick(), players, view ? *view : *ball_));
     if (mental_images_.size() > 3) {
       mental_images_.pop_back();
     }

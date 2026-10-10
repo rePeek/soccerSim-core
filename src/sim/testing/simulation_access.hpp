@@ -86,6 +86,8 @@ class SimulationAccess {
     return s.ball_.get();
   }
   static const football::ball::Ball* BallOf(const Simulation& s) { return s.ball_.get(); }
+  static void EnablePreparedTickProduction(Simulation& s, bool enabled) { s.EnablePreparedTickProduction(enabled); }
+  static const auto& CommittedBallTickOf(const Simulation& s) { return s.committed_ball_tick_; }
   static Team* TeamOf(Simulation& s, int team_id) { return s.teams_[team_id].get(); }
   static const Team* TeamOf(const Simulation& s, int team_id) {
     return s.teams_[team_id].get();

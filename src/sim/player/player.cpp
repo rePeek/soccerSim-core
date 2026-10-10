@@ -591,6 +591,11 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue, const PlayerComman
 }
 
 void Player::Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
+  const float distance = PrepareTick(tick, history, touch_sink, runtime_sink);
+  CommitTick(tick, distance);
+}
+
+float Player::PrepareTick(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
     if (tick.play_authorized) {
@@ -604,18 +609,21 @@ void Player::Process(const football::sim::PlayerTickContext& tick, std::span<Men
     CastHumanoid()->Process(tick.now, tick, history, touch_sink, runtime_sink);
     SynchronizeKinematicState();
     CheckSimulationActionOracle();
-    // Real distance during an underway half, including dead-ball positioning.
-    if (tick.half_underway) {
-      Vector3 posAfter = CastHumanoid()->GetPosition();
-      float distance = (posAfter - posBefore).GetLength();
-      fatigueFactorInv -= distance * 0.00003f * (2.0f - GetStaminaStat());
-      fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
-    }
-    // Don't send off the last player on the team.
-    if (cards > 1 && card_effective_tick_ <= tick.now &&
-        GetTeam()->GetActivePlayersCount() > 1) {
-      SendOff(tick.ball, tick.now, tick.rng);
-    }
+    return (CastHumanoid()->GetPosition() - posBefore).GetLength();
+  }
+  return 0;
+}
+
+void Player::CommitTick(const football::sim::PlayerTickContext& tick, float distance) {
+  if (!isActive) return;
+  // Clock gate is sampled after authoritative touches (opening kick included).
+  if (tick.half_underway) {
+    fatigueFactorInv -= distance * 0.00003f * (2.0f - GetStaminaStat());
+    fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
+  }
+  if (cards > 1 && card_effective_tick_ <= tick.now &&
+      GetTeam()->GetActivePlayersCount() > 1) {
+    SendOff(tick.ball, tick.now, tick.rng);
   }
 }
 

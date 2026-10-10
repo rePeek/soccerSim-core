@@ -1029,3 +1029,19 @@ ghost-blocking tests are complete.
 authority (geometric contact, physical impact and accepted touch are separate in
 diagnostics only), and the legacy Ball compatibility API still has callers, so
 neither can be removed yet.
+
+### P5e prepared tick execution (experimental, default OFF)
+
+`simulation_prepared_tick.cpp` provides the genuine prepare/arbitrate/Step/commit
+path behind the independent internal `EnablePreparedTickProduction` gate.
+Player::PrepareTick advances animation/locomotion once; CommitTick applies fatigue
+and send-offs after accepted touch consequences. Humanoid proposals go through
+`player_touch_preparation.hpp`, not the Shadow observer. All actors read the
+same passive endpoint and prior authoritative touch history; proposals are not
+synchronously accepted. The endpoint view is checked for mutation after each actor.
+Ball::Predict(BallTickInput) previews the same kernel as Step without consuming
+forces. The final Step accepts at most one active impulse OR a kinematic endpoint
+constraint for retention, with notifications only after commit. Legacy fused
+execution and earlier experimental immediate switches remain default OFF; this
+is not P7 promotion. Baked pose, rule migration and full-match acceptance are
+still required. CTest wall time is NOT evidence of meeting a 10ms tick budget.

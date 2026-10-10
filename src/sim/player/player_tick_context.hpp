@@ -5,6 +5,7 @@
 #include "foundation/math/rng.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "sim/event/touch_state.hpp"
+#include "sim/player/player_touch_preparation.hpp"
 
 class Player;
 namespace football::ball { class Ball; }
@@ -52,6 +53,9 @@ struct PlayerTickContext {
   // migrated actions (Shot/ShortPass/LongPass/HighPass/Trap). Off by default so
   // the legacy Touch + SetRotation path stays byte-identical.
   bool active_impulse_production = false;
+  // Non-null only in the prepare phase. Ball is an immutable endpoint view:
+  // touches/rotation/retention are proposals, not immediate mutations/events.
+  PlayerTouchPreparationSink* touch_preparation = nullptr;
 };
 } // namespace football::sim
 

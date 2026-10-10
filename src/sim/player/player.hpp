@@ -344,6 +344,9 @@ class Player final {
 
     // Tick-local borrows; no history owner or persistent world port.
     void Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
+    // Advances motion/animation once and returns distance for post-touch fatigue.
+    float PrepareTick(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
+    void CommitTick(const football::sim::PlayerTickContext& tick, float distance);
 
 
     float GetStat(football::model::PlayerStat name) const;
