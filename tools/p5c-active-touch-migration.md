@@ -263,3 +263,28 @@ reorder (preview passive endpoint -> player preparation -> single
 `Ball::Step(active_impulse)` -> commit player/rule state) is the remaining
 piece, and it changes the capture/notification ordering, so it needs its own
 baseline transition.
+
+## P6a: minimal rule-touch record from the unified contact (implemented, measurement)
+
+`CompleteBodyPhysicsShadow` now maps each unified contact's collider through the
+Simulation-owned `ColliderId -> PlayerId/BodyPart` table and classifies it with
+`ClassifyTouchEvidence`, producing a `RuleTouchEvidenceReport`:
+
+- `contact_ticks == body_contacts + unmapped_contacts` - every contact is either
+  an owned body contact or a pitch collider (ground/posts), which can never be a
+  player rule touch;
+- `geometric_only + physical_only + physical_accepted == body_contacts` - the
+  three evidence kinds partition the mapped set;
+- `accepted_without_impact` - an accidental accepted touch with no mapped
+  physical cause.
+
+Native seed 42, 4000 steps, normal/reverse: contact ticks 216/112, body contacts
+215/112, unmapped 1/0, geometric-only 63/86, physical-only 152/26,
+**physical-accepted 0/0**, accepted-without-impact 1/1.
+
+That last line is the P6a gap stated numerically: the new CCD never yet produces
+a rule-accepted touch, and one accepted accidental touch per order still has no
+mapped physical cause. So the legacy `ResolveBallPlayerContacts` notification
+remains the rule authority, and P6a's remaining work is to decide, per contact,
+whether the physical impact *is* the rule touch (identity, time, last-toucher,
+offside, restart consequences) instead of assuming `normal_impulse > 0`.

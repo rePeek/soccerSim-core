@@ -1,5 +1,6 @@
 // Opt-in full static+dynamic physics comparison. No production writes.
 #include "sim/simulation.hpp"
+#include "sim/touch_evidence_classification.hpp"
 #include "football/ball/ball.hpp"
 #include <type_traits>
 #include "sim/player/player_body_pose_shadow.hpp"
@@ -219,6 +220,33 @@ void Simulation::CompleteBodyPhysicsShadow() {
     }
   }
   if (effective_body_impact && !matched) ++report.unmatched_impacts;
+  // P6a: separate geometric contact, physical impact and accepted rule touch,
+  // and prove every mapped contact carries an owner identity.
+  if (!tick.unified.contacts.empty()) {
+    const auto& contact = tick.unified.contacts.front();
+    const bool physical = contact.normal_impulse > 1e-6f;
+    ++report.rule_touch.contact_ticks;
+    const auto owner = body_collider_owners_.find(contact.collider);
+    if (owner == body_collider_owners_.end()) {
+      ++report.rule_touch.unmapped_contacts;
+    } else {
+      ++report.rule_touch.body_contacts;
+      switch (football::sim::ClassifyTouchEvidence({true, physical, physical && matched})) {
+        case football::sim::TouchEvidence::GeometricOverlapOnly:
+          ++report.rule_touch.geometric_only; break;
+        case football::sim::TouchEvidence::PhysicalImpactOnly:
+          ++report.rule_touch.physical_only; break;
+        case football::sim::TouchEvidence::PhysicalImpactAccepted:
+          ++report.rule_touch.physical_accepted; break;
+        default: break;
+      }
+    }
+  }
+  for (std::size_t i = body_shadow_touch_start_; i < recorded_touches_.size(); ++i) {
+    const auto& touch = recorded_touches_[i];
+    if (touch.type == e_TouchType_Accidental && !(effective_body_impact && tick.player &&
+        touch.player == *tick.player)) ++report.rule_touch.accepted_without_impact;
+  }
   if (effective_body_impact && tick.classification) {
     auto& c = *tick.classification;
     const auto slot = tick.unified.contacts.front().collider - kFirstDynamicBodyColliderId;

@@ -107,6 +107,13 @@ struct BodyPhysicsShadowTick {
   std::optional<football::ball::BallStepResult> posed; // provisional low-pose comparison only
 };
 
+// P6a: counts for the three separated evidence kinds over mapped body contacts.
+struct RuleTouchEvidenceReport {
+  std::uint64_t contact_ticks = 0, body_contacts = 0, unmapped_contacts = 0;
+  std::uint64_t geometric_only = 0, physical_only = 0, physical_accepted = 0;
+  std::uint64_t accepted_without_impact = 0;
+};
+
 struct BodyPhysicsShadowReport {
   std::uint64_t ticks = 0, static_first = 0, dynamic_first = 0;
   std::uint64_t effective_body_impacts = 0, zero_impulse_contacts = 0;
@@ -122,6 +129,10 @@ struct BodyPhysicsShadowReport {
   // vs actual production, which can already include legacy body bounce.
   BodyEndpointErrors position_delta, velocity_delta, spin_delta;
   BodyEndpointErrors production_position_delta, production_velocity_delta, production_spin_delta;
+  // P6a: the unified contact mapped to a player identity and classified as
+  // geometric contact, physical impact and accepted rule touch. Pitch colliders
+  // (ground, posts) are counted separately and can never be a player rule touch.
+  RuleTouchEvidenceReport rule_touch;
 };
 
 #endif

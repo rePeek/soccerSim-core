@@ -111,6 +111,13 @@ TEST_CASE("real action observation preserves snapshots touches rules RNG and end
     REQUIRE(arb.ticks_with_candidates > 0);
     REQUIRE(arb.active_wins + arb.passive_wins == arb.ticks_with_candidates);
     REQUIRE(arb.candidates >= arb.ticks_with_candidates);
+    // P6a: every unified contact is either a mapped body contact with an owner
+    // identity or a pitch collider, and the three evidence kinds partition the
+    // mapped set exactly.
+    const auto& rt = SimulationAccess::BodyPhysicsShadowReportOf(observed).rule_touch;
+    REQUIRE(rt.contact_ticks == rt.body_contacts + rt.unmapped_contacts);
+    REQUIRE(rt.geometric_only + rt.physical_only + rt.physical_accepted == rt.body_contacts);
+    REQUIRE(rt.body_contacts > 0);
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(control).latest.empty());
     SimulationAccess::EnableActiveTouchShadow(observed, false);
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(observed).latest.empty());

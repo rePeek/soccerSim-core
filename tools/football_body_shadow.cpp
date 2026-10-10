@@ -133,9 +133,18 @@ int main(int argc, char** argv) {
                   << ",multi=" << arb.multi_candidate_ticks << ",active_wins=" << arb.active_wins
                   << ",passive_wins=" << arb.passive_wins
                   << ",passive_same_part=" << arb.passive_same_part_wins
-                  << ",passive_other_player=" << arb.passive_other_player_wins; 
+                  << ",passive_other_player=" << arb.passive_other_player_wins;
         for (std::size_t action = 0; action < arb.winner_actions.size(); ++action)
-          if (arb.winner_actions[action]) std::cout << ",winner_" << kBodyActionNames[action] << '=' << arb.winner_actions[action];
+          if (arb.winner_actions[action])
+            std::cout << ",winner_" << kBodyActionNames[action] << '=' << arb.winner_actions[action];
+        std::cout << '\n';
+        const auto& rt = p.rule_touch;
+        std::cout << "rule-touch,reverse=" << reverse << ",contact_ticks=" << rt.contact_ticks
+                  << ",body_contacts=" << rt.body_contacts << ",unmapped=" << rt.unmapped_contacts
+                  << ",geometric_only=" << rt.geometric_only
+                  << ",physical_only=" << rt.physical_only
+                  << ",physical_accepted=" << rt.physical_accepted
+                  << ",accepted_without_impact=" << rt.accepted_without_impact << '\n';
         std::cout << '\n';
         for (std::size_t origin = 0; origin < active.origins.size(); ++origin)
           std::cout << ",origin_" << origin << '=' << active.origins[origin];
