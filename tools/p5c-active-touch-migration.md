@@ -334,3 +334,8 @@ Remaining for P5e-2: consume `pending_active_impulse_` in the single
 `Ball::Step` (which still needs the Humanoid prepare/commit split so the
 candidate exists before the Step) and delete the `ApplyContactImpulse` entry
 point from the normal path.
+
+Enabling the diagnostic observers also turns on candidate capture, because the
+observer *is* the candidate producer: `EnableActiveTouchShadow(true)` and the
+production switches all call `EnsureActiveTouchObserver()`, while
+`EnableActiveTouchShadow(false)` only stops reporting.

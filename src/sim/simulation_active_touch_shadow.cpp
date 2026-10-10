@@ -55,6 +55,8 @@ void Simulation::EnableActiveTouchShadow(bool enabled) {
     // The production candidate observer survives: the report is optional.
     return;
   }
+  active_candidate_capture_ = true;
+  tick_active_candidates_.reserve(snapshot_players_.size());
   EnsureActiveTouchObserver();
   active_touch_shadow_report_.latest.reserve(snapshot_players_.size() * 4);
 }
