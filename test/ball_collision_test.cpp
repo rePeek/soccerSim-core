@@ -152,3 +152,52 @@ TEST_CASE("first contact is deterministic and order independent",
   REQUIRE(third->collider == first->collider);
   REQUIRE(third->toi == first->toi);
 }
+TEST_CASE("advance ball integrates free motion without contacts", "[ball][collision][advance]") {
+  const BallState ball = BallAt(Vector3(0, 0, 0), Vector3(10, 0, 0));
+  std::vector<ColliderMotion> none;
+  const auto result = football::ball::AdvanceBall(ball, none, 0.1f, 0.11f, 0.5f);
+  REQUIRE(result.contacts.empty());
+  REQUIRE(result.state.velocity.coords[0] == 10.0f);
+  REQUIRE(std::fabs(result.state.position.coords[0] - 1.0f) < 1e-5f);
+}
+
+TEST_CASE("advance ball reflects off a plane", "[ball][collision][advance]") {
+  ColliderMotion ground;
+  ground.id = 1;
+  ground.start = Plane{Vector3(0, 0, 0), Vector3(0, 0, 1)};
+  ground.end = ground.start;
+  const std::vector<ColliderMotion> colliders{ground};
+  const BallState ball = BallAt(Vector3(0, 0, 1), Vector3(0, 0, -50));
+  const auto result = football::ball::AdvanceBall(ball, colliders, 0.05f, 0.11f, 0.5f);
+  REQUIRE(result.contacts.size() == 1);
+  REQUIRE(result.state.velocity.coords[2] > 0.0f);
+  REQUIRE(result.state.position.coords[2] > 0.11f - 1e-4f);
+}
+
+TEST_CASE("advance ball rests on the ground without oscillation", "[ball][collision][advance]") {
+  ColliderMotion ground;
+  ground.id = 2;
+  ground.start = Plane{Vector3(0, 0, 0), Vector3(0, 0, 1)};
+  ground.end = ground.start;
+  const std::vector<ColliderMotion> colliders{ground};
+  const BallState ball = BallAt(Vector3(0, 0, 0.10f), Vector3(0, 0, 0));
+  const auto result = football::ball::AdvanceBall(ball, colliders, 0.01f, 0.11f, 0.5f);
+  REQUIRE(result.contacts.size() == 1);
+  REQUIRE(std::fabs(result.state.velocity.coords[2]) < 1e-5f);
+  REQUIRE(std::fabs(result.state.position.coords[2] - 0.10f) < 1e-5f);
+}
+
+TEST_CASE("advance ball resolves two contacts in one tick", "[ball][collision][advance]") {
+  ColliderMotion right;
+  right.id = 1;
+  right.start = Plane{Vector3(1, 0, 0), Vector3(-1, 0, 0)};
+  right.end = right.start;
+  ColliderMotion left;
+  left.id = 2;
+  left.start = Plane{Vector3(-1, 0, 0), Vector3(1, 0, 0)};
+  left.end = left.start;
+  const std::vector<ColliderMotion> colliders{right, left};
+  const BallState ball = BallAt(Vector3(0, 0, 0), Vector3(100, 0, 0));
+  const auto result = football::ball::AdvanceBall(ball, colliders, 0.1f, 0.11f, 1.0f);
+  REQUIRE(result.contacts.size() >= 2);
+}

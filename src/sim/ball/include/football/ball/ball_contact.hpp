@@ -3,6 +3,7 @@
 
 #include <optional>
 #include <span>
+#include <vector>
 
 #include "football/ball/ball_state.hpp"
 #include "football/ball/collider.hpp"
@@ -27,11 +28,23 @@ std::optional<BallContact> SweepBall(const BallState& ball,
                                      const ColliderMotion& collider,
                                      float dt, float ball_radius);
 
-// Earliest contact across colliders; simultaneous hits are broken by ColliderId
-// (deterministic and independent of input order).
 std::optional<BallContact> FirstContact(const BallState& ball,
                                         std::span<const ColliderMotion> colliders,
                                         float dt, float ball_radius);
+
+// One step of free motion (constant velocity) with collision response and
+// remainder integration. Pure and deterministic; gravity/friction/spin remain
+// higher-level BallPhysics layers. Reflection uses the given restitution; a
+// TOI<=0 contact is treated as resting to avoid an infinite contact loop.
+struct BallStepResult {
+  BallState state;
+  std::vector<BallContact> contacts;
+};
+
+BallStepResult AdvanceBall(const BallState& initial,
+                           std::span<const ColliderMotion> colliders,
+                           float dt, float ball_radius, float restitution,
+                           std::size_t max_contacts = 8);
 
 }  // namespace football::ball
 

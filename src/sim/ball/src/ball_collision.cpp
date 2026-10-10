@@ -57,7 +57,7 @@ std::optional<BallContact> SweepPlane(const BallState& ball, float ball_radius,
   contact.collider = collider.id;
   contact.normal = n;
   contact.relative_velocity = ball.velocity;
-  if (d0 <= kEpsilon) {
+  if (d0 < -kEpsilon) {
     contact.toi = 0.0f;
     contact.point = ball.position;
     return contact;
@@ -84,7 +84,7 @@ std::optional<BallContact> SweepSphere(const BallState& ball, float ball_radius,
   contact.collider = collider.id;
   contact.relative_velocity = ball.velocity - col_disp * (1.0f / dt);
 
-  if (dist0 <= radius_sum + kEpsilon) {
+  if (dist0 < radius_sum - kEpsilon) {
     contact.toi = 0.0f;
     contact.point = ball.position;
     contact.normal = NormalizedSafe(r0, {0, 0, 1});
@@ -125,7 +125,7 @@ std::optional<BallContact> SweepCapsule(const BallState& ball, float ball_radius
   contact.collider = collider.id;
   contact.relative_velocity = ball.velocity - col_disp * (1.0f / dt);
 
-  if (dist0 <= radius_sum + kEpsilon) {
+  if (dist0 < radius_sum - kEpsilon) {
     contact.toi = 0.0f;
     contact.point = ball.position;
     contact.normal = NormalizedSafe(r0 - closest0, {0, 0, 1});
@@ -214,6 +214,49 @@ std::optional<BallContact> FirstContact(const BallState& ball,
     }
   }
   return best;
+}
+
+BallStepResult AdvanceBall(const BallState& initial,
+                           std::span<const ColliderMotion> colliders,
+                           float dt, float ball_radius, float restitution,
+                           std::size_t max_contacts) {
+  BallStepResult result;
+  result.state = initial;
+  float remaining = dt;
+  for (std::size_t i = 0; i < max_contacts && remaining > kEpsilon; ++i) {
+    const BallState probe = result.state;
+    const std::optional<BallContact> first =
+        FirstContact(probe, colliders, remaining, ball_radius);
+    if (!first.has_value()) {
+      result.state.position = result.state.position + result.state.velocity * remaining;
+      remaining = 0.0f;
+      break;
+    }
+    BallContact contact = *first;
+    result.contacts.push_back(contact);
+    if (contact.toi <= kEpsilon) {
+      // Resting or initially penetrating: remove normal velocity and stop to
+      // avoid a TOI=0 loop.
+      contact.normal = contact.normal.GetNormalized({0, 0, 1});
+      const float vn = result.state.velocity.GetDotProduct(contact.normal);
+      if (vn < 0.0f) {
+        result.state.velocity = result.state.velocity - contact.normal * vn;
+      }
+      remaining = 0.0f;
+      break;
+    }
+    // Advance to the contact instant and reflect the normal velocity.
+    result.state.position = result.state.position +
+        result.state.velocity * (contact.toi * remaining);
+    remaining *= (1.0f - contact.toi);
+    contact.normal = contact.normal.GetNormalized({0, 0, 1});
+    const float vn = result.state.velocity.GetDotProduct(contact.normal);
+    if (vn < 0.0f) {
+      result.state.velocity = result.state.velocity -
+          contact.normal * ((1.0f + restitution) * vn);
+    }
+  }
+  return result;
 }
 
 }  // namespace football::ball
