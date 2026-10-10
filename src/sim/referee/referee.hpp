@@ -33,7 +33,6 @@
 #include "sim/simulation_config.hpp"
 #include "sim/fact/simulation_fact.hpp"
 #include "sim/player/foul_assessment.hpp"
-#include "sim/fact/tick_fact_buffer.hpp"
 #include "sim/referee/ruling.hpp"
 #include "foundation/math/rng.hpp"
 
@@ -66,19 +65,20 @@ class Referee {
                  const MatchOptions& options, blunted::Rng& rng,
                  football::sim::rules::RuleCommandSink& commands);
 
-    // Pure out-of-play geometry for the current instant, appended to the
-    // caller's tick buffer. Simulation calls this at the referee's legacy phase
-    // boundary; the referee does not own the buffer.
-    void EmitBoundaryFacts(const football::sim::rules::RefereeView& view,
-                           football::sim::event::TickFactBuffer& facts) const;
+    // Classify this instant's out-of-play condition from the live ball and
+    // settle it exactly as the boundary fact used to. Simulation calls this at
+    // the referee's legacy phase boundary.
+    void EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
+                           football::sim::rules::RuleCommandSink& commands);
+    // The goal-mouth segment was crossed on `side`; submit the award ruling.
+    void GoalMouthCrossed(int side, const football::sim::rules::RefereeTickFacts& facts,
+                          football::sim::event::RulingSink* rulings);
 
-    // Consumes one immutable fact at its own instant. Touch/interaction facts
-    // use the synchronous write-only rule port; goal verdicts are submitted to
-    // `rulings` for Simulation to apply at an explicit boundary.
+    // Consumes one immutable ball fact at its own instant through the
+    // synchronous write-only rule port.
     void Consume(const football::sim::event::StampedFact& fact,
                  const football::sim::rules::RefereeView& view,
-                 football::sim::rules::RuleCommandSink& commands,
-                 football::sim::event::RulingSink* rulings);
+                 football::sim::rules::RuleCommandSink& commands);
 
     // Pending-foul time advance for the current instant (advantage/expiry).
     void CheckPendingFoul(const football::sim::rules::RefereeView& view,
@@ -138,11 +138,12 @@ class Referee {
                           const football::sim::event::BallTouchFact& fact,
                           const football::sim::rules::RefereeView& view,
                           football::sim::rules::RuleCommandSink& commands);
-    void ConsumeBoundary(football::sim::Tick now,
-                         const football::sim::event::BallBoundaryFact& fact,
-                         const football::sim::rules::RefereeView& view,
-                         football::sim::rules::RuleCommandSink& commands,
-                         football::sim::event::RulingSink* rulings);
+    void SettleGoalLine(const blunted::Vector3& ball_pos,
+                        const football::sim::rules::RefereeTickFacts& facts,
+                        football::sim::rules::RuleCommandSink& commands);
+    void SettleTouchline(const blunted::Vector3& ball_pos,
+                         const football::sim::rules::RefereeTickFacts& facts,
+                         football::sim::rules::RuleCommandSink& commands);
     Player* FindPlayer(const football::sim::rules::RefereeTickFacts& facts,
                        football::model::PlayerId id) const;
 };

@@ -31,7 +31,7 @@ TEST_CASE("tick fact buffer preserves emission order, identity and generation",
   REQUIRE(buffer.empty());
 
   REQUIRE(buffer.Emit(event::BallTouchFact{}) == 0);
-  REQUIRE(buffer.Emit(event::BallBoundaryFact{}) == 1);
+  REQUIRE(buffer.Emit(event::BallTouchFact{}) == 1);
   REQUIRE(buffer.Emit(event::BallTouchFact{}) == 2);
   REQUIRE(buffer.pending_count() == 3);
 
@@ -45,7 +45,7 @@ TEST_CASE("tick fact buffer preserves emission order, identity and generation",
   auto second = buffer.PopPending();
   REQUIRE(second.has_value());
   REQUIRE(second->sequence == 1);
-  REQUIRE(std::holds_alternative<event::BallBoundaryFact>(second->fact));
+  REQUIRE(std::holds_alternative<event::BallTouchFact>(second->fact));
 
   auto third = buffer.PopPending();
   REQUIRE(third.has_value());
@@ -61,7 +61,7 @@ TEST_CASE("tick fact buffer preserves emission order, identity and generation",
   buffer.BeginTick(Tick{6}, 8);
   REQUIRE(buffer.empty());
   REQUIRE_FALSE(buffer.HasPending());
-  REQUIRE(buffer.Emit(event::BallBoundaryFact{}) == 0);
+  REQUIRE(buffer.Emit(event::BallTouchFact{}) == 0);
   REQUIRE(buffer.tick() == Tick{6});
   REQUIRE(buffer.generation() == 8);
 }
@@ -83,7 +83,7 @@ struct RulingRecorder final : event::RulingSink {
   void Submit(const event::RefereeRuling& ruling) override { rulings.push_back(ruling); }
 };
 
-TEST_CASE("referee turns a goal-mouth fact into an award ruling for the opponent",
+TEST_CASE("referee turns a crossed goal mouth into an award ruling for the opponent",
           "[sim][event][referee]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
@@ -92,17 +92,11 @@ TEST_CASE("referee turns a goal-mouth fact into an award ruling for the opponent
   // Establish the canonical dynamic sides (home -1, away +1) without a full Step.
   SimulationAccess::TeamOf(simulation, 1)->Mirror();
   const auto tick = SimulationAccess::RefereeFactsOf(simulation);
-  std::vector<Player*> active;
-  const rules::RefereeView view{tick, active, false};
   football::test::RuleCommandProbe commands;
   RulingRecorder rulings;
 
-  event::StampedFact stamped;
-  stamped.tick = tick.now;
   // Crossing the home side's goal line credits the away side.
-  stamped.fact = event::BallBoundaryFact{
-      event::BoundaryKind::GoalMouthCrossed, tick.home.GetDynamicSide(), Vector3(0), Vector3(0)};
-  referee.Consume(stamped, view, commands, &rulings);
+  referee.GoalMouthCrossed(tick.home.GetDynamicSide(), tick, &rulings);
 
   REQUIRE(rulings.rulings.size() == 1);
   const auto* goal = std::get_if<event::AwardGoalRuling>(&rulings.rulings.front());

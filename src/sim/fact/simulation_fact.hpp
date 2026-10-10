@@ -39,24 +39,7 @@ struct BallTouchFact {
 
 
 
-// The two semantic families the current rules still distinguish. Touchline and
-// goal-line checks are state predicates (the ball is outside a line); the goal
-// mouth check is a trajectory crossing test. Keep them distinct while the
-// legacy out-of-play grace period and restart classification are preserved.
-enum class BoundaryKind {
-  TouchlineOutside,
-  GoalLineOutside,
-  GoalMouthCrossed,
-};
-
-struct BallBoundaryFact {
-  BoundaryKind kind = BoundaryKind::TouchlineOutside;
-  int side = 0;
-  blunted::Vector3 previous_position;
-  blunted::Vector3 current_position;
-};
-
-using SimulationFact = std::variant<BallTouchFact, BallBoundaryFact>;
+using SimulationFact = std::variant<BallTouchFact>;
 
 // Identity, instant and order of one fact. sequence is the deterministic order
 // within its tick; generation rejects facts produced before a situation reset.

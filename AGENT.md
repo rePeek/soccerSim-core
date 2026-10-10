@@ -322,9 +322,10 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   takes the evaluation instant/frame explicitly, using them for strict recheck/expiry,
   card deadlines and restart scheduling. ScheduleRestart takes tick, setpiece Team*
   and PitchFrameTransform; MakeRestartSchedule and all Referee Match reads are gone.
-  The referee instant is split into Advance (time/restart/ceremony), EmitBoundaryFacts
-  (pure line geometry into the caller's fact buffer), Consume (one fact at a time)
-  and CheckPendingFoul. Referee has no Process compatibility entry point.
+  The referee instant is split into Advance (time/restart/ceremony),
+  EvaluateOutOfPlay (direct live-ball line classification plus the goal-mouth
+  verdict via GoalMouthCrossed), Consume (ball touches) and CheckPendingFoul.
+  Referee has no Process compatibility entry point.
   RuleCommandSink is synchronous and write-only; Simulation implements
   Stop/StartPlay, set-piece gates, accepted ball contact, reset and phase consequences.
   A local authorization value tracks this call's stop commands, preventing a later
@@ -341,7 +342,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
 - referee/ball_rules.* owns pure ball-state predicates over observed positions
   (ClassifyBallOutOfPlay, CrossedGoalMouth). observation/player_slots.hpp owns the
   static PlayerId -> TeamSide table. These are the future replacements for
-  BallBoundaryFact; that fact stream is still authoritative and unchanged.
+  BallBoundaryFact; the referee now classifies out of play directly and that fact is gone.
 - referee/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
   the original triangles, strict segment endpoints, bidirectional intersection and
   legacy side-net literals. Simulation retains the Ball prediction lookahead gate per
@@ -447,10 +448,10 @@ MatchState or a RuntimeContext for actors.
 Current phase order (composed directly by Simulation):
 ```text
 ApplyControls → ResolveBallPlayerContacts (BallTouchFact → FlushFacts)
-→ ProcessReferee (Advance → EmitBoundaryFacts → FlushFacts → CheckPendingFoul)
+→ ProcessReferee (Advance → EvaluateOutOfPlay → CheckPendingFoul)
 → StepBall → CaptureHistory → StepPlayers → UpdatePossession
 → ResolvePlayerContacts (FoulAssessment → Referee::AssessFoul) → AdvanceClock
-→ UpdateRecentPossession → EvaluateGoal (GoalMouthCrossed facts)
+→ UpdateRecentPossession → EvaluateGoal (Referee::GoalMouthCrossed)
 → ApplyPendingRulings (AwardGoalRuling) → scorer/own-goal facts
 ```
 Terminal-referee and ceremony early returns keep their existing frame restoration
@@ -463,8 +464,7 @@ decides, and Simulation applies the verdicts.
 Entity state → Simulation tick → SimulationFact → RefereeState → Ruling
              → Simulation → new state → MatchEvent
 ```
-- fact/simulation_fact.hpp owns BallTouchFact and BallBoundaryFact
-  (TouchlineOutside/GoalLineOutside/GoalMouthCrossed) plus StampedFact identity
+- fact/simulation_fact.hpp owns only BallTouchFact plus StampedFact identity
   (tick, reset generation, sequence). Facts carry PlayerId/TeamSide and frozen
   evidence, never live actor pointers; a consumer resolves them through RefereeView.
 - fact/tick_fact_buffer.hpp owns one ordered per-tick stream with BeginTick/Emit/
@@ -474,13 +474,13 @@ Entity state → Simulation tick → SimulationFact → RefereeState → Ruling
   humanoids report touches through it and no longer include Referee; player_contact
   reports FoulAssessment instead.
 - referee/ruling.hpp owns the domain verdicts. Referee production stages are
-  Advance/EmitBoundaryFacts/Consume/CheckPendingFoul plus AssessFoul; TripNotice and BallTouched stay
+  Advance/EvaluateOutOfPlay/Consume/CheckPendingFoul plus AssessFoul/GoalMouthCrossed;
+  TripNotice and BallTouched stay
   only as direct-test adapters. Simulation::ApplyPendingRulings visits every ruling
   kind explicitly (goal, stop, restart, card) so none can be silently dropped, and
   records confirmed MatchEvents in the owned EventLog.
-- Goal-line priority is preserved by emitting at most one out-of-play fact per
-  instant (goal-line else touchline), reproducing the legacy local authorization
-  without storing it on the referee.
+- Goal-line priority is preserved by classifying at most one out-of-play
+  condition per instant (goal-line else touchline) directly from the live ball,
 - Emission flushes immediately in this stage so trip/touch consequences stay
   synchronous at the legacy points and goldens are unchanged; a flushing guard
   forbids recursive drains. Facts are stamped with the live timeline tick, so

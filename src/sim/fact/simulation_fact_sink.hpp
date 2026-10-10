@@ -7,10 +7,10 @@
 
 namespace football::sim {
 
-// The single write-only fact-production port for physics and actors. Producers
-// report immutable facts; the Simulation-owned buffer adds the tick, sequence
-// and reset generation. There is no separate touch/trip protocol: every contact
-// consequence travels through this one boundary.
+// The write-only fact-production port for ball touches. Producers report
+// immutable facts; the Simulation-owned buffer adds the tick, sequence and
+// reset generation. Fouls no longer travel through here: the player contact
+// solver reports FoulAssessment values directly.
 class SimulationFactSink {
  public:
   virtual ~SimulationFactSink() = default;

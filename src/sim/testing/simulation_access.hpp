@@ -74,12 +74,7 @@ class SimulationAccess {
     referee.Advance(view, simulation.options(), simulation.rng_, CommandsOf(simulation));
     if (was_restart) return;
     if (facts.play_authorized && !facts.set_piece_active) {
-      football::sim::event::TickFactBuffer buffer;
-      buffer.BeginTick(facts.now);
-      referee.EmitBoundaryFacts(view, buffer);
-      while (auto stamped = buffer.PopPending()) {
-        referee.Consume(*stamped, view, CommandsOf(simulation), nullptr);
-      }
+      referee.EvaluateOutOfPlay(view, CommandsOf(simulation));
       referee.CheckPendingFoul(view, CommandsOf(simulation));
     }
   }

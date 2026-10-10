@@ -202,7 +202,7 @@ void Simulation::FlushFacts() {
     recognizer_.Consume(*stamped,
         football::sim::event::EventView{tick.play_authorized, tick.set_piece_active, snapshot_step_});
     CommitEventTransitions(stamped->tick);
-    referee_->Consume(*stamped, view, *rule_commands_, ruling_sink_.get());
+    referee_->Consume(*stamped, view, *rule_commands_);
   }
   flushing_facts_ = false;
 }
@@ -292,8 +292,7 @@ void Simulation::ProcessReferee() {
   AdvanceReferee(view);
   if (was_restart) return;
   if (tick.play_authorized && !tick.set_piece_active) {
-    referee_->EmitBoundaryFacts(view, facts_);
-    FlushFacts();
+    referee_->EvaluateOutOfPlay(view, *rule_commands_);
     referee_->CheckPendingFoul(view, *rule_commands_);
   }
 }
@@ -611,17 +610,15 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   }
   bool goal = first_team_goal | second_team_goal;
   ball_in_goal_ |= goal;
-  // Emit goal-mouth facts in the detection frame; the referee maps the crossed
-  // side to the scoring opponent and submits an AwardGoalRuling.
+  // The referee maps each crossed goal-mouth side to the scoring opponent and
+  // submits an AwardGoalRuling; no goal-mouth fact travels through the buffer.
   if (first_team_goal) {
-    EmitFact(football::sim::event::BallBoundaryFact{
-        football::sim::event::BoundaryKind::GoalMouthCrossed,
-        teams_[first_team_]->GetDynamicSide(), previous_ball_pos, ball_->Predict(0)});
+    referee_->GoalMouthCrossed(teams_[first_team_]->GetDynamicSide(), RefereeFacts(),
+                               ruling_sink_.get());
   }
   if (second_team_goal) {
-    EmitFact(football::sim::event::BallBoundaryFact{
-        football::sim::event::BoundaryKind::GoalMouthCrossed,
-        teams_[second_team_]->GetDynamicSide(), previous_ball_pos, ball_->Predict(0)});
+    referee_->GoalMouthCrossed(teams_[second_team_]->GetDynamicSide(), RefereeFacts(),
+                               ruling_sink_.get());
   }
   Mirror(reverse, !reverse, false);
   if (IsBallInPlay()) {

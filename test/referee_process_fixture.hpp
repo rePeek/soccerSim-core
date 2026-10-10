@@ -1,7 +1,6 @@
 #ifndef FOOTBALL_TEST_REFEREE_PROCESS_FIXTURE_HPP
 #define FOOTBALL_TEST_REFEREE_PROCESS_FIXTURE_HPP
 
-#include "sim/fact/tick_fact_buffer.hpp"
 #include "sim/referee/referee.hpp"
 #include "sim/referee/referee_view.hpp"
 
@@ -21,12 +20,7 @@ inline void ProcessReferee(Referee& referee,
   referee.Advance(view, options, rng, commands);
   if (was_restart) return;
   if (facts.play_authorized && !facts.set_piece_active) {
-    football::sim::event::TickFactBuffer buffer;
-    buffer.BeginTick(facts.now);
-    referee.EmitBoundaryFacts(view, buffer);
-    while (auto stamped = buffer.PopPending()) {
-      referee.Consume(*stamped, view, commands, nullptr);
-    }
+    referee.EvaluateOutOfPlay(view, commands);
     referee.CheckPendingFoul(view, commands);
   }
 }

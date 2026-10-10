@@ -24,12 +24,15 @@
 #include "sim/player/player.hpp"
 #include "sim/team/team.hpp"
 #include "sim/referee/offside.hpp"
+#include "sim/referee/ball_rules.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/referee/restart_placement.hpp"
 #include "sim/observation/pitch_frame.hpp"
 
 namespace {
 using football::sim::Tick;
+using football::sim::BallOutOfPlay;
+using football::sim::ClassifyBallOutOfPlay;
 using football::sim::FoulAssessment;
 using football::sim::FoulKind;
 using football::sim::TickSpan;
@@ -197,24 +200,87 @@ void Referee::Advance(const football::sim::rules::RefereeView& view,
 }
 
 
-void Referee::EmitBoundaryFacts(const football::sim::rules::RefereeView& view,
-                                football::sim::event::TickFactBuffer& facts) const {
+void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
+                                RuleCommandSink& commands) {
   const RefereeTickFacts& tick = view.tick;
   if (tick.phase == MatchPhase::Finished) return;
   if (!(tick.play_authorized && !tick.set_piece_active)) return;
   const auto home_ball = tick.ball_to_home.Position(tick.ball.Predict(TickSpan{}));
   // Legacy foul/side data uses stadium coordinates, including switched ends.
   const Vector3 ballPos = tick.stadium_to_home.Position(home_ball);
-  // Goal-line priority: when it applies, the legacy local authorization was set
-  // false and the sideline branch could not run. Emitting only one out-of-play
-  // fact per instant reproduces that without stored authorization state.
-  if (fabs(ballPos.coords[0]) > tick.pitch.half_length() + tick.pitch.line_half_width() + 0.11 ||
-      tick.goal_scored) {
-    facts.Emit(football::sim::event::BallBoundaryFact{
-        football::sim::event::BoundaryKind::GoalLineOutside, 0, ballPos, ballPos});
-  } else if (fabs(ballPos.coords[1]) > tick.pitch.half_width() + tick.pitch.line_half_width() + 0.11) {
-    facts.Emit(football::sim::event::BallBoundaryFact{
-        football::sim::event::BoundaryKind::TouchlineOutside, 0, ballPos, ballPos});
+  // Goal-line priority: the legacy local authorization was cleared when the goal
+  // line applied, so the sideline branch could not run at the same instant.
+  const BallOutOfPlay out = ClassifyBallOutOfPlay(tick.pitch, ballPos);
+  if (out == BallOutOfPlay::GoalLine || tick.goal_scored) {
+    SettleGoalLine(ballPos, tick, commands);
+  } else if (out == BallOutOfPlay::Touchline) {
+    SettleTouchline(ballPos, tick, commands);
+  }
+}
+
+void Referee::SettleGoalLine(const Vector3& ballPos, const RefereeTickFacts& facts,
+                             RuleCommandSink& commands) {
+  const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
+  foul.advantage = false;
+  bool isFoul = false;
+  if (!facts.goal_scored) {
+    isFoul = CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, commands);
+  } else {
+    foul.foulType = 0;
+  }
+  if (isFoul) return;
+  commands.StopPlay();
+  // corner, goal kick or kick off?
+  Team* lastTouchTeam = facts.last_touch_team;
+  if (lastTouchTeam == 0) lastTouchTeam = team(facts.first_team);
+  signed int lastSide = lastTouchTeam->GetStaticSide();
+  if (facts.goal_scored) {
+    buffer.desiredSetPiece = e_GameMode_KickOff;
+    buffer.restartPos = Vector3(0, 0, 0);
+    buffer.teamID = facts.last_goal_team->Opponent()->GetID();
+  } else if ((ballPos.coords[0] > 0 && lastSide > 0) ||
+             (ballPos.coords[0] < 0 && lastSide < 0)) {
+    buffer.desiredSetPiece = e_GameMode_Corner;
+    float y = ballPos.coords[1];
+    if (y > 0) y = facts.pitch.half_width(); else
+               y = -facts.pitch.half_width();
+    buffer.restartPos = Vector3(facts.pitch.half_length() * lastSide, y, 0);
+    buffer.teamID = 1 - lastTouchTeam->GetID();
+  } else {
+    buffer.desiredSetPiece = e_GameMode_GoalKick;
+    buffer.restartPos = Vector3(facts.pitch.half_length() * 0.92 * -lastSide, 0, 0);
+    buffer.teamID = 1 - lastTouchTeam->GetID();
+  }
+  ScheduleRestart({facts.now, team(buffer.teamID), facts.stadium_to_home});
+}
+
+void Referee::SettleTouchline(const Vector3& ballPos, const RefereeTickFacts& facts,
+                              RuleCommandSink& commands) {
+  if (post_restart_relax_ != TickSpan{}) return;
+  const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
+  foul.advantage = false;
+  if (CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, commands)) return;
+  commands.StopPlay();
+  Team* lastTouchTeam = facts.last_touch_team;
+  if (lastTouchTeam == 0) lastTouchTeam = &facts.home;
+  buffer.teamID = 1 - lastTouchTeam->GetID();
+  buffer.desiredSetPiece = e_GameMode_ThrowIn;
+  buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -facts.pitch.half_length() + 0.6f, facts.pitch.half_length() - 0.6f);
+  if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = facts.pitch.half_width();
+  if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -facts.pitch.half_width();
+  buffer.restartPos.coords[2] = 0;
+  ScheduleRestart({facts.now, team(buffer.teamID), facts.stadium_to_home});
+}
+
+void Referee::GoalMouthCrossed(int side, const RefereeTickFacts& facts,
+                               football::sim::event::RulingSink* rulings) {
+  // The opponent of the side whose goal mouth was crossed scores.
+  Team* scorer_team = nullptr;
+  if (facts.home.GetDynamicSide() == -side) scorer_team = &facts.home;
+  else if (facts.away.GetDynamicSide() == -side) scorer_team = &facts.away;
+  if (scorer_team != nullptr && rulings != nullptr) {
+    rulings->Submit(football::sim::event::AwardGoalRuling{
+        scorer_team->GetTeamSide(), std::nullopt});
   }
 }
 
@@ -225,18 +291,9 @@ void Referee::CheckPendingFoul(const football::sim::rules::RefereeView& view,
 
 void Referee::Consume(const football::sim::event::StampedFact& fact,
                       const football::sim::rules::RefereeView& view,
-                      RuleCommandSink& commands,
-                      football::sim::event::RulingSink* rulings) {
-  std::visit(
-      [&](const auto& value) {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, football::sim::event::BallTouchFact>) {
-          ConsumeBallTouch(fact.tick, value, view, commands);
-        } else if constexpr (std::is_same_v<T, football::sim::event::BallBoundaryFact>) {
-          ConsumeBoundary(fact.tick, value, view, commands, rulings);
-        }
-      },
-      fact.fact);
+                      RuleCommandSink& commands) {
+  const auto* touch = std::get_if<football::sim::event::BallTouchFact>(&fact.fact);
+  if (touch != nullptr) ConsumeBallTouch(fact.tick, *touch, view, commands);
 }
 
 
@@ -263,80 +320,7 @@ void Referee::ConsumeBallTouch(Tick now,
   EvaluateBallTouch(facts, commands);
 }
 
-void Referee::ConsumeBoundary(Tick now,
-                              const football::sim::event::BallBoundaryFact& fact,
-                              const football::sim::rules::RefereeView& view,
-                              RuleCommandSink& commands,
-                              football::sim::event::RulingSink* rulings) {
-  const RefereeTickFacts& facts = view.tick;
-  const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
-  const Vector3 ballPos = fact.current_position;
-  switch (fact.kind) {
-    case football::sim::event::BoundaryKind::GoalLineOutside: {
-      foul.advantage = false;
-      bool isFoul = false;
-      if (!facts.goal_scored) {
-        isFoul = CheckFoul(now, facts.pitch, facts.stadium_to_home, commands);
-      } else {
-        foul.foulType = 0;
-      }
-      if (isFoul == false) {
-        commands.StopPlay();
-        // corner, goal kick or kick off?
-        Team* lastTouchTeam = facts.last_touch_team;
-        if (lastTouchTeam == 0) lastTouchTeam = team(facts.first_team);
-        signed int lastSide = lastTouchTeam->GetStaticSide();
-        if (facts.goal_scored) {
-          buffer.desiredSetPiece = e_GameMode_KickOff;
-          buffer.restartPos = Vector3(0, 0, 0);
-          buffer.teamID = facts.last_goal_team->Opponent()->GetID();
-        } else if ((ballPos.coords[0] > 0 && lastSide > 0) ||
-                   (ballPos.coords[0] < 0 && lastSide < 0)) {
-          buffer.desiredSetPiece = e_GameMode_Corner;
-          float y = ballPos.coords[1];
-          if (y > 0) y = facts.pitch.half_width(); else
-                     y = -facts.pitch.half_width();
-          buffer.restartPos = Vector3(facts.pitch.half_length() * lastSide, y, 0);
-          buffer.teamID = 1 - lastTouchTeam->GetID();
-        } else {
-          buffer.desiredSetPiece = e_GameMode_GoalKick;
-          buffer.restartPos = Vector3(facts.pitch.half_length() * 0.92 * -lastSide, 0, 0);
-          buffer.teamID = 1 - lastTouchTeam->GetID();
-        }
-        ScheduleRestart({now, team(buffer.teamID), facts.stadium_to_home});
-      }
-      break;
-    }
-    case football::sim::event::BoundaryKind::TouchlineOutside: {
-      if (post_restart_relax_ != TickSpan{}) break;
-      foul.advantage = false;
-      if (!CheckFoul(now, facts.pitch, facts.stadium_to_home, commands)) {
-        commands.StopPlay();
-        Team* lastTouchTeam = facts.last_touch_team;
-        if (lastTouchTeam == 0) lastTouchTeam = &facts.home;
-        buffer.teamID = 1 - lastTouchTeam->GetID();
-        buffer.desiredSetPiece = e_GameMode_ThrowIn;
-        buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -facts.pitch.half_length() + 0.6f, facts.pitch.half_length() - 0.6f);
-        if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = facts.pitch.half_width();
-        if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -facts.pitch.half_width();
-        buffer.restartPos.coords[2] = 0;
-        ScheduleRestart({now, team(buffer.teamID), facts.stadium_to_home});
-      }
-      break;
-    }
-    case football::sim::event::BoundaryKind::GoalMouthCrossed: {
-      // The opponent of the side whose goal mouth was crossed scores.
-      Team* scorer_team = nullptr;
-      if (facts.home.GetDynamicSide() == -fact.side) scorer_team = &facts.home;
-      else if (facts.away.GetDynamicSide() == -fact.side) scorer_team = &facts.away;
-      if (scorer_team != nullptr && rulings != nullptr) {
-        rulings->Submit(football::sim::event::AwardGoalRuling{
-            scorer_team->GetTeamSide(), std::nullopt});
-      }
-      break;
-    }
-  }
-}
+
 
 Player* Referee::FindPlayer(const RefereeTickFacts& facts,
                            football::model::PlayerId id) const {
