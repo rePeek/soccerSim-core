@@ -1061,3 +1061,18 @@ retain anchoring is not a repeated rule touch. Default legacy producers preserve
 their previous semantics. Native ON/ON prepared runs prove both actual accepted
 CCD contacts and same-Step active strikes exist in both processing orders; this
 does not replace complete-match/last-touch/restart acceptance.
+
+### Baked pose geometry (P4f foundation, NOT calibration acceptance)
+
+`player_baked_body_pose.hpp` evaluates local baked rotations through the explicit
+bind hierarchy from `data/media/objects/players/player.object`; no runtime asset
+parser or offline dependency is introduced. Only the baked root Z is applied:
+PlayerState already contains root XY. Non-root keyframe positions are ignored,
+matching offline Animation::Apply. The animation base angle is explicit, not
+inferred from already animated bodyFacing. Pose-derived torso/head and four leg
+capsules expose real Sliding/Trip shape phases. Tests cover hierarchy/root-motion
+deduplication, mirror transforms and every baked Sliding/Trip frame.
+These are NOT final production ColliderMotion inputs: the current CCD contract
+is translation-only, while posed capsules rotate/deform between frames. Feeding
+them directly would silently violate that contract. Technique/Magnus calibration,
+rotating-pose motion acceptance and P7 default/Golden/API removal remain pending.
