@@ -32,16 +32,17 @@
 // only on the player's position -- not on facing -- which also means it has no
 // mirroring semantics to get wrong.
 struct BodyVolume {
-  Vector3 center = Vector3(0);
+  blunted::Vector3 center = blunted::Vector3(0);
   float radius = 0.0f;
   float halfHeight = 0.0f;  // vertical half length; 0 means sphere
 
   // Vertical capsule (or sphere when halfHeight == 0) against a sphere.
-  bool IntersectsSphere(const Vector3 &sphereCenter, float sphereRadius) const {
-    const float clampedZ =
-        clamp(sphereCenter.coords[2] - center.coords[2], -halfHeight, halfHeight);
-    const Vector3 closest(center.coords[0], center.coords[1],
-                          center.coords[2] + clampedZ);
+  bool IntersectsSphere(const blunted::Vector3 &sphereCenter,
+                        float sphereRadius) const {
+    const float clampedZ = blunted::clamp(
+        sphereCenter.coords[2] - center.coords[2], -halfHeight, halfHeight);
+    const blunted::Vector3 closest(center.coords[0], center.coords[1],
+                                   center.coords[2] + clampedZ);
     return (sphereCenter - closest).GetLength() < radius + sphereRadius;
   }
 };
@@ -79,21 +80,22 @@ inline PlayerBodyCollider BuildBodyCollider(
     const PlayerBodyColliderParameters &parameters =
         PlayerBodyColliderParameters()) {
 
-  const Vector3 origin = kinematics.position.Get2D();
+  const blunted::Vector3 origin = kinematics.position.Get2D();
 
   PlayerBodyCollider collider;
 
   collider.upperBody.center =
-      origin + Vector3(0.0f, 0.0f, parameters.upperBodyCenterZ);
+      origin + blunted::Vector3(0.0f, 0.0f, parameters.upperBodyCenterZ);
   collider.upperBody.radius = parameters.upperBodyRadius;
   collider.upperBody.halfHeight = parameters.upperBodyHalfHeight;
 
   collider.lowerBody.center =
-      origin + Vector3(0.0f, 0.0f, parameters.lowerBodyCenterZ);
+      origin + blunted::Vector3(0.0f, 0.0f, parameters.lowerBodyCenterZ);
   collider.lowerBody.radius = parameters.lowerBodyRadius;
   collider.lowerBody.halfHeight = parameters.lowerBodyHalfHeight;
 
-  collider.head.center = origin + Vector3(0.0f, 0.0f, parameters.headCenterZ);
+  collider.head.center =
+      origin + blunted::Vector3(0.0f, 0.0f, parameters.headCenterZ);
   collider.head.radius = parameters.headRadius;
   collider.head.halfHeight = 0.0f;
 

@@ -393,6 +393,19 @@ void Simulation::Init(
       player_slots.team_sides.push_back(player->GetTeam()->GetTeamSide());
     }
   }
+  std::map<football::ball::ColliderId,
+           std::pair<football::model::PlayerId, PlayerBodyPart>>
+      body_collider_owners;
+  for (std::size_t slot = 0; slot < snapshot_players.size(); ++slot) {
+    const PlayerBodyColliderMotionIds ids =
+        PlayerBodyColliderIdsForSlot(static_cast<std::uint32_t>(slot));
+    for (std::size_t part = 0; part < kPlayerBodyPartCount; ++part) {
+      body_collider_owners.emplace(
+          ids.values[part],
+          std::make_pair(snapshot_players[slot]->GetID(),
+                         static_cast<PlayerBodyPart>(part)));
+    }
+  }
   football::sim::observation::Snapshot scratch;
   scratch.players.resize(snapshot_players.size());
   football::sim::observation::SnapshotHistory history(options.snapshot_capacity);
@@ -412,6 +425,7 @@ void Simulation::Init(
   player_slots_ = std::move(player_slots);
   snapshot_scratch_ = std::move(scratch);
   snapshot_history_ = std::move(history);
+  body_collider_owners_ = std::move(body_collider_owners);
 
   designated_possession_player_ = designated;
   ball_retainer_ = nullptr;
@@ -832,6 +846,7 @@ bool Simulation::Stop() {
   recognizer_.Reset();
   mental_images_.clear();
   snapshot_players_.clear();
+  body_collider_owners_.clear();
   snapshot_metadata_ = {};
   player_slots_ = {};
   snapshot_scratch_ = {};

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <map>
 #include <vector>
 
 #include "sim/player/player_control_set.hpp"
@@ -30,6 +31,7 @@
 #include "sim/player/player_tick_context.hpp"
 #include "sim/player/player_runtime_sink.hpp"
 #include "sim/player/foul_assessment.hpp"
+#include "sim/player/player_body_collider_motion.hpp"
 
 #include "sim/referee/ruling.hpp"
 #include "sim/event/match_event.hpp"
@@ -209,6 +211,13 @@ class Simulation {
   football::sim::event::EventLog event_log_;
   // Read-only diagnostic log of accepted touches; shadow analysis only.
   std::vector<football::sim::event::RecordedTouch> recorded_touches_;
+
+  // Stable dynamic-collider identity is Simulation-owned. Ball only sees an
+  // opaque ColliderId; P4d will consume this mapping when it translates a
+  // physical body impact into the existing touch/rules identity.
+  std::map<football::ball::ColliderId,
+           std::pair<football::model::PlayerId, PlayerBodyPart>>
+      body_collider_owners_;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;
