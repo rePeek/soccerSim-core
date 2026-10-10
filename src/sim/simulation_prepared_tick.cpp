@@ -129,6 +129,8 @@ void Simulation::RunPreparedPlayerTick() {
   // Keep the exact proposal provenance: one actor may submit multiple proposals.
   std::vector<std::pair<ActiveImpulseCandidate, const football::sim::PreparedPlayerTouch*>> provenance;
   provenance.reserve(ports.touches.size());
+  std::vector<std::pair<const football::sim::PreparedPlayerTouch*, ActiveTouchObservation>> diagnostics;
+  if (active_touch_report_enabled_) diagnostics.reserve(ports.touches.size());
   for (const auto& touch : ports.touches) {
     if (touch.retain_anchor) {
       if (!anchor || touch.fact.player < anchor->fact.player) anchor = &touch;
@@ -140,6 +142,39 @@ void Simulation::RunPreparedPlayerTick() {
     proposal.target_velocity = touch.target_velocity;
     proposal.config = ball_config_;
     const auto model = football::sim::player::ProposeActiveTouch(proposal);
+    if (active_touch_report_enabled_) {
+      ActiveTouchObservation observation;
+      observation.candidate.player = touch.fact.player;
+      observation.candidate.body_part = touch.part;
+      observation.candidate.action = static_cast<e_FunctionType>(touch.fact.action_type);
+      observation.candidate.target_velocity = touch.target_velocity;
+      observation.candidate.target_angular_velocity = model.response.angular_velocity;
+      observation.candidate.contact_point = model.contact_point;
+      observation.candidate.scheduled_tick = GetTimelineTick() + football::sim::TickSpan{1};
+      observation.candidate.reachable = model.reachable;
+      observation.candidate.reach_error = model.reach_error;
+      observation.before = passive.state;
+      observation.passive_endpoint = passive.state;
+      observation.raw_animation_point = touch.desired_ball_center;
+      observation.legacy_rule_tick = touch.fact.touched_at;
+      observation.animation_id = touch.animation_id;
+      observation.contact_frame = touch.contact_frame;
+      observation.elapsed = touch.frame;
+      observation.stage = model.reachable ? ActiveTouchStage::NoImpulse : ActiveTouchStage::Rejected;
+      if (model.reachable) observation.prepared_impulse = model.impulse;
+      else observation.rejection = model.rejection == football::sim::player::TouchRejection::Distance ?
+          ActiveTouchReject::Distance : model.rejection == football::sim::player::TouchRejection::Height ?
+          ActiveTouchReject::Height : ActiveTouchReject::Unsupported;
+      for (const auto& contact : passive.contacts) {
+        if (contact.normal_impulse <= 0) continue;
+        const auto owner = body_collider_owners_.find(contact.collider);
+        if (owner == body_collider_owners_.end()) continue;
+        observation.same_part_passive_impact = owner->second.first == touch.fact.player &&
+            owner->second.second == touch.part;
+        observation.other_player_passive_impact = owner->second.first != touch.fact.player;
+      }
+      diagnostics.emplace_back(&touch, std::move(observation));
+    }
     // A rejected proposal is not silently executed by the legacy path.
     if (!model.reachable) continue;
     ActiveImpulseCandidate candidate;
@@ -158,6 +193,17 @@ void Simulation::RunPreparedPlayerTick() {
   if (authority != ContactAuthority::ActiveTouch) winner.reset();
   if (anchor && !passive_impact) winner.reset();
   pending_active_impulse_ = winner;
+  const football::sim::PreparedPlayerTouch* selected_fact = nullptr;
+  if (winner) {
+    const auto selected = std::find_if(provenance.begin(), provenance.end(), [&](const auto& entry) {
+      const auto& c = entry.first;
+      return c.player == winner->player && c.body_part == winner->body_part &&
+          c.action == winner->action && c.impulse.impulse == winner->impulse.impulse &&
+          c.impulse.contact_point == winner->impulse.contact_point;
+    });
+    if (selected == provenance.end()) throw std::logic_error("arbitration winner has no touch provenance");
+    selected_fact = selected->second;
+  }
   if (winner) {
     input.active_impulse = winner->impulse;
     if (reverse) {
@@ -187,21 +233,25 @@ void Simulation::RunPreparedPlayerTick() {
   if (anchor && input.endpoint_constraint) ball_retainer_ = FindPlayerById(anchor->fact.player);
   PublishBodyRuleTouches(result, bodies);
   if (winner) {
-    const auto selected = std::find_if(provenance.begin(), provenance.end(), [&](const auto& entry) {
-      const auto& c = entry.first;
-      return c.player == winner->player && c.body_part == winner->body_part &&
-          c.action == winner->action && c.impulse.impulse == winner->impulse.impulse &&
-          c.impulse.contact_point == winner->impulse.contact_point;
-    });
-    if (selected == provenance.end()) throw std::logic_error("arbitration winner has no touch provenance");
-    const auto* fact = selected->second;
-    PublishRuleTouch({fact->fact, fact->part,
+    PublishRuleTouch({selected_fact->fact, selected_fact->part,
         football::sim::event::RuleTouchSource::PreparedAction, 0, 0, std::nullopt});
   } else if (anchor && input.endpoint_constraint && !ports.release) {
     // Anchoring is not a repeated new rule touch. Publish acquisition only.
     if (previous_retainer != ball_retainer_)
       PublishRuleTouch({anchor->fact, anchor->part,
           football::sim::event::RuleTouchSource::RetainAcquisition, 0, 0, std::nullopt});
+  }
+  // Read-only Shadow observes the cached real proposal, not a second action/model
+  // execution. Losing proposals cannot be presented as committed strikes.
+  for (auto& [source, observation] : diagnostics) {
+    observation.after = result.state;
+    if (source == selected_fact) {
+      observation.stage = ActiveTouchStage::Executed;
+      observation.accepted_type = source->fact.type;
+      observation.candidate.target_angular_velocity = result.state.angular_velocity;
+    }
+    active_touch_shadow_report_.Record(std::move(observation), snapshot_step_.value_or(0),
+                                      reset_sequence_, ball_config_);
   }
   football::sim::observation::RefreshLatestMentalImageBallPredictions(mental_images_, *ball_);
   Mirror(reverse, !reverse, false);

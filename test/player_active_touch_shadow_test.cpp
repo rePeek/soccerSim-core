@@ -470,3 +470,57 @@ TEST_CASE("prepared ON ON publishes reviewed CCD touch provenance through the re
     REQUIRE(strikes > 0);
   }
 }
+
+TEST_CASE("prepared Shadow observes actual Step proposals without affecting execution",
+          "[prepared-tick][active-shadow][sim]") {
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  for (bool reverse : {false, true}) {
+    MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
+    Simulation observed, plain;
+    observed.Init(home, away, football::model::Pitch{}, options);
+    plain.Init(home, away, football::model::Pitch{}, options);
+    for (auto* s : {&observed, &plain}) {
+      SimulationAccess::EnablePreparedTickProduction(*s, true);
+      SimulationAccess::EnableBodyPhysicsProduction(*s, true);
+    }
+    SimulationAccess::EnableActiveTouchShadow(observed, true);
+    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    int strikes = 0;
+    for (int step = 0; step < 2200; ++step) {
+      PlayerControlSet controls; policy.Update(plain.Observe(), controls);
+      observed.Step(controls); plain.Step(controls);
+      REQUIRE(SimulationAccess::RngOf(observed).engine() == SimulationAccess::RngOf(plain).engine());
+      const auto& a = observed.Snapshots().Latest()->snapshot;
+      const auto& b = plain.Snapshots().Latest()->snapshot;
+      REQUIRE(a.ball.position == b.ball.position);
+      REQUIRE(a.ball.velocity == b.ball.velocity);
+      REQUIRE(a.ball.angular_velocity == b.ball.angular_velocity);
+      for (std::size_t i = 0; i < a.players.size(); ++i) {
+        REQUIRE(a.players[i].position == b.players[i].position);
+        REQUIRE(a.players[i].frame == b.players[i].frame);
+      }
+      const auto& commit = SimulationAccess::CommittedBallTickOf(observed);
+      const auto& report = SimulationAccess::ActiveTouchShadowReportOf(observed);
+      int executed = 0;
+      if (report.step == observed.Snapshots().Latest()->stamp.step_index) {
+        for (const auto& detail : report.latest) {
+          if (!detail.impulse) continue;
+          ++executed;
+          REQUIRE(commit.has_value());
+          REQUIRE(commit->active_impulse.has_value());
+          REQUIRE(detail.observation.prepared_impulse.has_value());
+          REQUIRE(detail.observation.animation_id >= 0);
+          REQUIRE(detail.impulse->impulse == commit->active_impulse->impulse);
+          REQUIRE(detail.impulse->contact_point == commit->active_impulse->contact_point);
+          REQUIRE((detail.response.angular_velocity - commit->state.angular_velocity).GetLength() < 1e-4f);
+          REQUIRE_FALSE(detail.fallback_point);
+        }
+      }
+      REQUIRE(executed == (commit && commit->active_impulse ? 1 : 0));
+      strikes += executed;
+    }
+    REQUIRE(strikes > 0);
+    REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(observed).candidate_ticks > 0);
+  }
+}

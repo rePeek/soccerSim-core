@@ -1074,3 +1074,26 @@ These are NOT final production ColliderMotion inputs: the current CCD contract
 is translation-only, while posed capsules rotate/deform between frames. Feeding
 them directly would silently violate that contract. Technique/Magnus calibration,
 rotating-pose motion acceptance and P7 default/Golden/API removal remain pending.
+
+### Prepared pipeline Shadow observation
+
+When enabled, the active Shadow now observes the actual cached preparation
+model proposals, rejects and single committed winner. Animation/frame provenance
+is captured during Humanoid's one real pass. `prepared_impulse` identifies the
+actual model point/impulse; the old desired-center surface proxy is used only
+for legacy observations and is labelled as a diagnostic, not calibration.
+Losing proposals remain NoImpulse and are never counted as executed strikes.
+A both-order ON/ON replay test compares Shadow enabled/disabled physics, actor
+frames/positions and RNG, and requires each reported executed impulse and point
+to equal the same Tick's committed Step input. The diagnostic is optional and
+does not run another Player action, RNG draw or Ball Step.
+
+Acceptance evidence and explicit remaining blockers are recorded in
+`tools/unified-contact-acceptance.md`. P4f/P7 are not completed by these tests.
+
+The switches are diagnostic experiment controls, not interchangeable production
+engines: prepared active ON with body physics OFF previews static-only physics
+and skips the fused legacy passive resolver. Only ON/ON exercises unified active
+and player-body passive physics together. The four-switch replay is therefore
+not proof that each OFF fallback preserves the other switch's legacy semantics,
+nor permission to disable collisions for ON/ON acceptance.

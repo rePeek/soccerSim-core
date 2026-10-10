@@ -177,7 +177,9 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
             {now, CastPlayer()->GetID(), team->GetTeamSide(), type, tick.ball.state().position,
              *prepared_velocity, static_cast<int>(CastPlayer()->GetSimulationActionState().type)},
             body_part, prepared_anchor.value_or(currentAnim.touchPos + currentAnim.positionOffset),
-            *prepared_velocity, prepared_anchor.has_value()});
+            *prepared_velocity, prepared_anchor.has_value(), currentAnim.animationId,
+            CastPlayer()->GetSimulationActionState().ContactFrame(),
+            CastPlayer()->GetSimulationActionState().Frame()});
       }
       prepared_velocity.reset();
       prepared_anchor.reset();

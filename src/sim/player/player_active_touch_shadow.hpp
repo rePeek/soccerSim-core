@@ -38,6 +38,9 @@ struct ActiveTouchObservation {
   ActiveTouchReject rejection = ActiveTouchReject::None;
   football::ball::BallState before, after;
   std::optional<football::ball::BallState> passive_endpoint;
+  // Prepared execution supplies its real cached model impulse. Legacy observation
+  // leaves this empty and uses the explicitly provisional surface proxy below.
+  std::optional<football::ball::BallImpulse> prepared_impulse;
   bool same_part_passive_impact = false, other_player_passive_impact = false;
   blunted::Vector3 raw_animation_point = blunted::Vector3(0); // desired BALL CENTER, not surface
   blunted::Vector3 player_position = blunted::Vector3(0);
@@ -73,16 +76,21 @@ inline ActiveTouchComparison CompareActiveTouch(ActiveTouchObservation observati
   out.response = endpoint;
   if (observation.stage != ActiveTouchStage::Executed || !observation.candidate.reachable ||
       (observation.origin != ActiveTouchOrigin::Scheduled && observation.origin != ActiveTouchOrigin::Controlled)) return out;
-  auto radial = observation.raw_animation_point - endpoint.position;
-  out.raw_center_distance = radial.GetLength();
-  if (radial.GetLength() < 1e-5f) {
-    out.fallback_point = true;
-    radial = observation.player_position + blunted::Vector3(0, 0, .1f) - endpoint.position;
+  out.raw_center_distance = (observation.raw_animation_point - endpoint.position).GetLength();
+  if (observation.prepared_impulse) {
+    out.impulse = observation.prepared_impulse;
+  } else {
+    auto radial = observation.raw_animation_point - endpoint.position;
+    if (radial.GetLength() < 1e-5f) {
+      out.fallback_point = true;
+      radial = observation.player_position + blunted::Vector3(0, 0, .1f) - endpoint.position;
+    }
+    const auto proxy = endpoint.position + radial.GetNormalized({1, 0, 0}) * config.radius();
+    out.impulse = football::ball::BallImpulse{
+        (observation.candidate.target_velocity - endpoint.velocity) * config.mass(), proxy};
   }
-  const auto point = endpoint.position + radial.GetNormalized({1, 0, 0}) * config.radius();
+  const auto point = out.impulse->contact_point;
   out.observation.candidate.contact_point = point;
-  out.impulse = football::ball::BallImpulse{
-      (observation.candidate.target_velocity - endpoint.velocity) * config.mass(), point};
   out.response = football::ball::ApplyImpulseAtPoint(endpoint, out.impulse->impulse, point, config);
   out.velocity_error = (out.response.velocity - observation.candidate.target_velocity).GetLength();
   out.spin_error = (out.response.angular_velocity - observation.candidate.target_angular_velocity).GetLength();
@@ -96,20 +104,16 @@ struct ActiveTouchActionReport {
   std::uint64_t passive_endpoints = 0, same_part_conflicts = 0, other_player_conflicts = 0;
   double velocity_error_sum = 0, spin_error_sum = 0;
   float velocity_error_max = 0, spin_error_max = 0, surface_error_max = 0, spin_max = 0;
-  // P5c-2 calibration: flight deviation of the centre-strike physical response
-  // from the legacy post-touch state, sampled at 0.5 s / 1 s / 2 s. Largest
-  // deviation per action, in metres.
+  // Legacy observations compare the provisional surface-projection response,
+  // NOT the zero-offset ProposeActiveTouch model. Values at 0.5/1/2s are
+  // diagnostic deviations in metres, not calibration acceptance.
   std::uint64_t trajectory_samples = 0;
   float trajectory_deviation_50 = 0, trajectory_deviation_100 = 0,
         trajectory_deviation_200 = 0;
 };
-// P5d: the real per-tick arbitration result. Candidate collection happens in the
-// active-touch observer; Simulation arbitrates once per tick with the P5b/P4d-2
-// functions and the passive-impact facts, so the pure functions are exercised on
-// real production candidates instead of only in unit tests.
-// P5e: the single candidate factory shared by Simulation and the diagnostic
-// report. The impulse is the physical model's, so an arbitrated winner is exactly
-// what the one authoritative Step would receive.
+// Legacy observation factory for diagnostic arbitration. Prepared production
+// proposals are collected directly through PlayerTouchPreparationSink, before
+// physics, and never depend on this post-execution observer.
 inline std::optional<ActiveImpulseCandidate> MakeActiveImpulseCandidate(
     const ActiveTouchObservation& observation,
     const football::sim::player::TouchProposal& model,
@@ -140,12 +144,9 @@ struct ActiveTouchShadowReport {
   std::uint64_t duplicate_candidates = 0, contending_ticks = 0, dropped_details = 0;
   // P5c-1/2 reconciliation: the pure ProposeActiveTouch model is run on the
   // same captured inputs and its reach decision is compared with the legacy
-  // contact-frame reach gate. Disagreements are a scheduling/source mismatch,
-  // not a physics error.
+  // contact-frame reach gate. The cause of a disagreement needs separate evidence.
   std::uint64_t model_reach_checks = 0, model_reach_disagreements = 0;
-  // Largest |legacy reach_error - model reach_error| over disagreements; the
-  // standard position source (legacy Predict(0) cache vs endpoint state) is the
-  // expected cause, so this bounds how far apart the two sources are.
+  // Largest distance-error gap; zero does not explain another gate's mismatch.
   float model_reach_gap_max = 0.0f;
   // P5e: count of real reachable strikes observed. The candidate buffer itself
   // now lives in Simulation, not in this read-only report.
@@ -160,6 +161,7 @@ struct ActiveTouchShadowReport {
       latest.clear(); step = step_index; generation = reset_generation;
     }
     auto comparison = CompareActiveTouch(observation, config);
+    if (observation.prepared_impulse) ++candidate_ticks;
     if (observation.legacy_reach_evaluated) {
       football::sim::player::TouchProposalInput proposal;
       proposal.passive_endpoint = observation.passive_endpoint
@@ -213,8 +215,8 @@ struct ActiveTouchShadowReport {
       }
       if (prior == 1) ++contending_ticks;
       if (trajectory_ball) {
-        // P5c-2 calibration only: compare the physical centre-strike response
-        // with the legacy post-touch state using the same production kernel.
+        // Legacy surface-projection diagnostic, not a centre-strike calibration.
+        // Uses the same static production prediction kernel for both states.
         const auto deviation = [&](football::sim::TickSpan horizon) {
           trajectory_ball->Reset(observation.after);
           const auto legacy =

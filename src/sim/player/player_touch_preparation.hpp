@@ -15,6 +15,8 @@ struct PreparedPlayerTouch {
   blunted::Vector3 target_velocity;
   // Possession anchoring is a constraint, never an enormous strike impulse.
   bool retain_anchor = false;
+  // Provenance sampled during the one real Humanoid pass, not reconstructed later.
+  int animation_id = -1, contact_frame = -1, frame = 0;
 };
 class PlayerTouchPreparationSink {
  public:
