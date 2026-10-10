@@ -288,3 +288,14 @@ mapped physical cause. So the legacy `ResolveBallPlayerContacts` notification
 remains the rule authority, and P6a's remaining work is to decide, per contact,
 whether the physical impact *is* the rule touch (identity, time, last-toucher,
 offside, restart consequences) instead of assuming `normal_impulse > 0`.
+
+### Switch-combination regression (implemented)
+
+`all four production switch combinations stay consistent and deterministic`
+runs OFF/OFF, ON/OFF, OFF/ON and ON/ON in both processing orders for 1500 steps
+each, twice per combination. For every combination: identical replay reproduces
+RNG and the complete ball state, and the final ball state is finite/stable. For
+every combination with the passive authority on, the production ball equals the
+unified kernel result on every tick with evidence, including ON/ON - so enabling
+the active takeover later in the same tick does not disturb the passive state
+already committed by the single Step.

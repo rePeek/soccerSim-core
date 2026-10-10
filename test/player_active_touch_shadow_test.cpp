@@ -285,3 +285,64 @@ TEST_CASE("touch evidence keeps geometry impact and rule fact separate",
   REQUIRE(NeedsAuthoritativeRecord(TouchEvidence::PhysicalImpactOnly));
   REQUIRE(NeedsAuthoritativeRecord(TouchEvidence::PhysicalImpactAccepted));
 }
+
+TEST_CASE("all four production switch combinations stay consistent and deterministic",
+          "[active-shadow][p4d2][p5c][sim]") {
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  for (bool reverse : {false, true}) {
+    for (int mask = 0; mask < 4; ++mask) {
+      const bool active = (mask & 1) != 0;
+      const bool passive = (mask & 2) != 0;
+      MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
+      Simulation run, replay;
+      run.Init(home, away, football::model::Pitch{}, options);
+      replay.Init(home, away, football::model::Pitch{}, options);
+      if (active) {
+        SimulationAccess::EnableActiveImpulseProduction(run, true);
+        SimulationAccess::EnableActiveImpulseProduction(replay, true);
+      }
+      if (passive) {
+        SimulationAccess::EnableBodyPhysicsProduction(run, true);
+        SimulationAccess::EnableBodyPhysicsProduction(replay, true);
+      }
+      football::ai::DefaultAI policy_a(home, away, football::model::Pitch{});
+      football::ai::DefaultAI policy_b(home, away, football::model::Pitch{});
+      std::uint64_t evidence_ticks = 0;
+      for (int step = 0; step < 1500; ++step) {
+        PlayerControlSet ca, cb;
+        policy_a.Update(run.Observe(), ca);
+        policy_b.Update(replay.Observe(), cb);
+        run.Step(ca);
+        replay.Step(cb);
+        // Deterministic for every combination: an identical run reproduces it.
+        REQUIRE(SimulationAccess::RngOf(run).engine() == SimulationAccess::RngOf(replay).engine());
+        const auto& a = run.Snapshots().Latest()->snapshot;
+        const auto& b = replay.Snapshots().Latest()->snapshot;
+        REQUIRE(a.ball.position == b.ball.position);
+        REQUIRE(a.ball.velocity == b.ball.velocity);
+        REQUIRE(a.ball.angular_velocity == b.ball.angular_velocity);
+        // With the passive authority on, the production ball is exactly the
+        // unified kernel result, and enabling the active takeover later in the
+        // same tick must not disturb that.
+        if (passive) {
+          const auto& evidence = SimulationAccess::BodyPhysicsShadowLatestOf(run);
+          if (evidence) {
+            REQUIRE(evidence->production.position == evidence->unified.state.position);
+            REQUIRE(evidence->production.velocity == evidence->unified.state.velocity);
+            REQUIRE(evidence->production.angular_velocity ==
+                    evidence->unified.state.angular_velocity);
+            ++evidence_ticks;
+          }
+        }
+      }
+      if (passive) REQUIRE(evidence_ticks > 0);
+      // Numerically stable for every combination.
+      const auto& ball = run.Snapshots().Latest()->snapshot.ball;
+      REQUIRE(std::isfinite(ball.position.GetLength()));
+      REQUIRE(std::isfinite(ball.velocity.GetLength()));
+      REQUIRE(std::isfinite(ball.angular_velocity.GetLength()));
+      REQUIRE(ball.position.GetLength() < 200.0f);
+    }
+  }
+}
