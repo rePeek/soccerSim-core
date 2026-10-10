@@ -64,3 +64,23 @@ bodies. Independent Ball tests cover moving capsule, post/ground priority,
 order/ties, result-state equality, invalid-ID atomicity, empty input equality
 against static-only prediction and the duration adapter, plus net environments.
 Release focused Ball/Simulation/regression tests passed, Goldens unchanged.
+
+## P4c-2: response evidence and body material
+
+BallContact now reports normal_impulse (N*s) and position_corrected.
+SweepBall is only geometric evidence; AdvanceBallTick populates response fields.
+ResolveContactResponse returns state/normal/tangential impulses, with the existing
+ResolveContact wrapper retained. Surface arms use the current authoritative ball
+center after projection; the returned contact center is also synchronized.
+Tests pin tangential torque after deep overlap, zero spin for a pure normal
+impact, stale center immunity, separating overlap with zero impulse, and no
+next-tick separating surface hit. Sphere/capsule sweeps reject non-approaching
+outside/tangent exit roots. This is a bug repair, not a cooldown mechanism.
+Static production regression still passes; no Golden was rewritten.
+
+All three body parts receive explicit Player-owned material { restitution=.35,
+friction=.45 }, overridable at construction. Analytical tests pin velocity, spin,
+Coulomb cap and energy loss. These values are provisional engineering policy,
+not a claimed human-body realism calibration. Changing them only changes shadow
+or external dynamic inputs until production authority is explicitly switched.
+Release Ball/Simulation/regression tests pass.

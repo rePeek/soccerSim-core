@@ -19,9 +19,12 @@ namespace football::ball {
 struct BallContact {
   ColliderId collider = 0;
   float toi = 0.0f;
-  blunted::Vector3 point;
+  blunted::Vector3 point; // ball center at TOI; projected center after penetration repair
   blunted::Vector3 normal;
   blunted::Vector3 relative_velocity;
+  // Populated only by AdvanceBallTick/Step, not a raw SweepBall query.
+  float normal_impulse = 0.0f; // >0 identifies an impulse-bearing impact
+  bool position_corrected = false; // correction is not itself a new touch
 };
 
 // Pure swept-sphere CCD against one collider over one tick. Never mutates state

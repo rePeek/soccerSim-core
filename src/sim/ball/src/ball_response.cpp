@@ -21,12 +21,12 @@ BallState ApplyImpulseAtPoint(const BallState& ball, const blunted::Vector3& imp
   return next;
 }
 
-BallState ResolveContact(const BallState& ball, const BallContact& contact,
-                         const ContactMaterial& material,
-                         const blunted::Vector3& collider_velocity,
-                         const football::model::BallConfig& config) {
+BallContactResponse ResolveContactResponse(const BallState& ball, const BallContact& contact,
+                                            const ContactMaterial& material,
+                                            const blunted::Vector3& collider_velocity,
+                                            const football::model::BallConfig& config) {
   const blunted::Vector3 n = contact.normal.GetNormalized({0, 0, 1});
-  const blunted::Vector3 center = contact.point;
+  const blunted::Vector3 center = ball.position;
   const blunted::Vector3 surface_point = center - n * config.radius();
   const blunted::Vector3 r = surface_point - center;
 
@@ -38,7 +38,7 @@ BallState ResolveContact(const BallState& ball, const BallContact& contact,
 
   const blunted::Vector3 u = ball.velocity + omega_cross_r - collider_velocity;
   const float un = u.GetDotProduct(n);
-  if (un >= 0.0f) return ball;  // separating or resting: no new impulse
+  if (un >= 0.0f) return {ball};  // separating or resting: no new impulse
 
   const float mass = config.mass();
   const float jn = -mass * (1.0f + material.restitution) * un;
@@ -53,7 +53,14 @@ BallState ResolveContact(const BallState& ball, const BallContact& contact,
   const float mu_jn = material.friction * jn;
   if (jt_len > mu_jn) jt = jt * (mu_jn / jt_len);
 
-  return ApplyImpulseAtPoint(ball, n * jn + jt, surface_point, config);
+  return {ApplyImpulseAtPoint(ball, n * jn + jt, surface_point, config), jn, jt};
+}
+
+BallState ResolveContact(const BallState& ball, const BallContact& contact,
+                         const ContactMaterial& material,
+                         const blunted::Vector3& collider_velocity,
+                         const football::model::BallConfig& config) {
+  return ResolveContactResponse(ball, contact, material, collider_velocity, config).state;
 }
 
 }  // namespace football::ball

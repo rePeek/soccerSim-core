@@ -6,6 +6,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include "football/ball/ball_contact.hpp"
+#include "football/ball/ball_response.hpp"
 #include "sim/player/player_body_collision_shadow.hpp"
 
 namespace {
@@ -83,3 +84,34 @@ TEST_CASE("linear body prediction supplies relative-motion CCD sweeps",
 }
 
 }  // namespace
+
+TEST_CASE("body materials are explicit and oblique contact generates calibrated spin",
+          "[sim][player][body-collider][response]") {
+  std::array<football::ball::ColliderMotion, 3> motions;
+  BuildBodyColliderMotions({}, {}, PlayerBodyColliderIdsForSlot(0), motions);
+  for (const auto& c : motions) {
+    REQUIRE(c.material.restitution == .35f);
+    REQUIRE(c.material.friction == .45f);
+  }
+  const football::model::BallConfig config;
+  const football::ball::BallState ball{Vector3(.3f, 0, .6f), Vector3(-10, 4, 0),
+                                      Vector3(0), blunted::Quaternion{}};
+  football::ball::BallContact contact;
+  contact.normal = Vector3(1, 0, 0);
+  contact.point = ball.position;
+  const auto response = football::ball::ResolveContactResponse(
+      ball, contact, motions[1].material, Vector3(0), config);
+  REQUIRE(response.state.velocity.coords[0] == Catch::Approx(3.5f));
+  REQUIRE(response.state.velocity.coords[1] == Catch::Approx(2.4f));
+  REQUIRE(response.state.angular_velocity.coords[2] == Catch::Approx(21.81818f));
+  REQUIRE(response.tangential_impulse.GetLength() <= .45f * response.normal_impulse);
+  const float energy_before = .5f * config.mass() * ball.velocity.GetSquaredLength();
+  const float energy_after = .5f * config.mass() * response.state.velocity.GetSquaredLength() +
+      .5f * football::ball::BallInertia(config) * response.state.angular_velocity.GetSquaredLength();
+  REQUIRE(energy_after < energy_before);
+  BuildBodyColliderMotions({}, {}, PlayerBodyColliderIdsForSlot(0), motions, {}, {.1f, .2f});
+  for (const auto& c : motions) {
+    REQUIRE(c.material.restitution == .1f);
+    REQUIRE(c.material.friction == .2f);
+  }
+}

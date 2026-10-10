@@ -24,13 +24,24 @@ BallState ApplyImpulseAtPoint(const BallState& ball,
 
 // Passive contact response: normal impulse from restitution plus
 // Coulomb-capped tangential friction impulse from the contact-point relative
-// velocity, then ApplyImpulseAtPoint. `contact.point` is the ball CENTER at the
-// contact instant; the surface point is center - normal * radius.
+// velocity, then ApplyImpulseAtPoint. BallState.position is the authoritative
+// center at response time (possibly projected out of initial penetration).
 // `collider_velocity` is the collider contact velocity (zero for static).
 BallState ResolveContact(const BallState& ball, const BallContact& contact,
                          const ContactMaterial& material,
                          const blunted::Vector3& collider_velocity,
                          const football::model::BallConfig& config);
+
+// Explicit response diagnostics: a separating/resting contact has jn == 0.
+struct BallContactResponse {
+  BallState state;
+  float normal_impulse = 0.0f; // N*s, not a per-tick velocity change
+  blunted::Vector3 tangential_impulse{0};
+};
+BallContactResponse ResolveContactResponse(
+    const BallState& ball, const BallContact& contact,
+    const ContactMaterial& material, const blunted::Vector3& collider_velocity,
+    const football::model::BallConfig& config);
 
 }  // namespace football::ball
 

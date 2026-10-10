@@ -92,6 +92,9 @@ std::optional<BallContact> SweepSphere(const BallState& ball, float ball_radius,
     contact.normal = NormalizedSafe(r0, {0, 0, 1});
     return contact;
   }
+  // Outside/tangent and non-approaching: reject the quadratic exit root.
+  // Convex distance cannot later decrease along this straight relative sweep.
+  if (r0.GetDotProduct(rv) >= 0.0f) return std::nullopt;
 
   const float a = rv.GetDotProduct(rv);
   const float b = 2.0f * r0.GetDotProduct(rv);
@@ -133,6 +136,7 @@ std::optional<BallContact> SweepCapsule(const BallState& ball, float ball_radius
     contact.normal = NormalizedSafe(r0 - closest0, {0, 0, 1});
     return contact;
   }
+  if ((r0 - closest0).GetDotProduct(rv) >= 0.0f) return std::nullopt;
 
   float best = std::numeric_limits<float>::max();
   for (const blunted::Vector3& center : {seg_a, seg_b}) {
@@ -325,15 +329,21 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     }
   };
 
-  const auto resolve = [&](const BallContact& contact) {
+  const auto resolve = [&](BallContact contact) {
     const ContactMaterial* material = nullptr;
     for (const ColliderMotion& c : colliders) {
       if (c.id == contact.collider) { material = &c.material; break; }
     }
     const ContactMaterial m = material ? *material : ContactMaterial{0.5f, 0.0f};
+    const auto original_center = result.state.position;
     depenetrate(result.state, contact);
-    result.state = ResolveContact(result.state, contact, m,
-                                  collider_velocity_of(contact.collider), config);
+    contact.position_corrected = result.state.position != original_center;
+    // Response must use the repaired center, never a stale pre-projection arm.
+    contact.point = result.state.position;
+    const auto response = ResolveContactResponse(result.state, contact, m,
+                                                 collider_velocity_of(contact.collider), config);
+    result.state = response.state;
+    contact.normal_impulse = response.normal_impulse;
     result.contacts.push_back(contact);
   };
 

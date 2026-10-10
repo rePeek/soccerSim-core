@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include "football/ball/ball.hpp"
+#include "football/ball/ball_response.hpp"
 
 using namespace football::ball;
 using blunted::Vector3;
@@ -130,4 +131,49 @@ TEST_CASE("invalid contact identity cannot mutate state or consume pending force
     SameState(ball.Step(BallTickInput{{}, {}}).state,
               reference.Step(BallTickInput{{}, {}}).state);
   }
+}
+
+TEST_CASE("penetration repair uses a spherical surface arm and reports response impulses",
+          "[ball][tick-input][response]") {
+  const football::model::BallConfig config;
+  BallDynamics no_forces;
+  no_forces.gravity = no_forces.quadratic_resistance = 0;
+  no_forces.ground_deceleration = 0;
+  ColliderMotion c{1000, Sphere{{0, 0, 1}, .2f}, Sphere{{0, 0, 1}, .2f}, {.35f, .45f}};
+  BallState initial{{.1f, 0, 1}, {-5, 2, 0}, Vector3(0), blunted::Quaternion{}};
+  const auto result = AdvanceBallTick(initial, std::span{&c, 1}, .01f, config, no_forces);
+  REQUIRE(result.contacts.size() == 1);
+  const auto& hit = result.contacts.front();
+  REQUIRE(hit.toi == 0);
+  REQUIRE(hit.position_corrected);
+  REQUIRE(hit.point == result.state.position);
+  REQUIRE(hit.point.coords[0] == Catch::Approx(.31f));
+  REQUIRE(hit.normal_impulse == Catch::Approx(config.mass() * 1.35f * 5));
+  const float jt = -2 / (1 / config.mass() + config.radius() * config.radius() / BallInertia(config));
+  REQUIRE(result.state.angular_velocity.coords[2] == Catch::Approx(-config.radius() * jt / BallInertia(config)));
+
+  initial.velocity = {-5, 0, 0};
+  const auto normal = AdvanceBallTick(initial, std::span{&c, 1}, .01f, config, no_forces);
+  REQUIRE(normal.state.angular_velocity.GetLength() < 1e-6f);
+  // Projected/separating overlap is evidence but not an impulse-bearing hit.
+  initial.velocity = {5, 0, 0};
+  const auto separating = AdvanceBallTick(initial, std::span{&c, 1}, .01f, config, no_forces);
+  REQUIRE(separating.contacts.front().normal_impulse == 0);
+  REQUIRE(separating.contacts.front().position_corrected);
+  REQUIRE(separating.state.velocity == initial.velocity);
+  // Once separated and moving away, next tick has no body contact.
+  REQUIRE(AdvanceBallTick(separating.state, std::span{&c, 1}, .01f, config, no_forces).contacts.empty());
+}
+
+TEST_CASE("response ignores stale contact center and respects friction cap",
+          "[ball][tick-input][response]") {
+  const football::model::BallConfig config;
+  const BallState ball{{4, 5, 1}, {-10, 8, 0}, Vector3(0), blunted::Quaternion{}};
+  BallContact hit{1000, 0, Vector3(-20, 10, 0), Vector3(1, 0, 0), Vector3(0)};
+  const auto response = ResolveContactResponse(ball, hit, {.35f, .01f}, Vector3(0), config);
+  REQUIRE(response.normal_impulse == Catch::Approx(1.35f * 10 * config.mass()));
+  REQUIRE(response.tangential_impulse.GetLength() == Catch::Approx(.01f * response.normal_impulse));
+  REQUIRE(response.state.angular_velocity.coords[2] > 0);
+  hit.point = ball.position;
+  SameState(response.state, ResolveContact(ball, hit, {.35f, .01f}, Vector3(0), config));
 }

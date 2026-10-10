@@ -68,6 +68,10 @@ inline football::ball::Capsule BodyVolumeCapsule(const BodyVolume& volume) {
           volume.radius};
 }
 
+// Provisional coarse-body material, explicitly owned by Player geometry.
+// Analytical response tests pin restitution/friction; not a realism calibration.
+inline constexpr football::ball::ContactMaterial kPlayerBodyContactMaterial{0.35f, 0.45f};
+
 // Fills three motions in UpperBody, LowerBody, Head order. Callers establish
 // ids before this pure geometry conversion; geometry itself has no Player,
 // Team, animation, RNG, or Simulation dependency.
@@ -75,7 +79,8 @@ inline void BuildBodyColliderMotions(
     const PlayerKinematicState& start, const PlayerKinematicState& end,
     std::span<football::ball::ColliderMotion> output,
     const PlayerBodyColliderParameters& parameters =
-        PlayerBodyColliderParameters()) {
+        PlayerBodyColliderParameters(),
+    const football::ball::ContactMaterial& material = kPlayerBodyContactMaterial) {
   if (output.size() != kPlayerBodyPartCount) {
     throw std::invalid_argument("body collider motion output must contain three shapes");
   }
@@ -87,6 +92,7 @@ inline void BuildBodyColliderMotions(
   const std::array<const BodyVolume*, kPlayerBodyPartCount> ends =
       end_body.GetVolumes();
   for (std::size_t i = 0; i < kPlayerBodyPartCount; ++i) {
+    output[i].material = material;
     if (i == static_cast<std::size_t>(PlayerBodyPart::Head)) {
       output[i].start = football::ball::Sphere{starts[i]->center, starts[i]->radius};
       output[i].end = football::ball::Sphere{ends[i]->center, ends[i]->radius};
@@ -102,12 +108,13 @@ inline void BuildBodyColliderMotions(
     const PlayerBodyColliderMotionIds& ids,
     std::span<football::ball::ColliderMotion> output,
     const PlayerBodyColliderParameters& parameters =
-        PlayerBodyColliderParameters()) {
+        PlayerBodyColliderParameters(),
+    const football::ball::ContactMaterial& material = kPlayerBodyContactMaterial) {
   if (output.size() != kPlayerBodyPartCount) {
     throw std::invalid_argument("body collider motion output must contain three shapes");
   }
   for (std::size_t i = 0; i < kPlayerBodyPartCount; ++i) output[i].id = ids.values[i];
-  BuildBodyColliderMotions(start, end, output, parameters);
+  BuildBodyColliderMotions(start, end, output, parameters, material);
 }
 
 #endif  // _HPP_PLAYER_BODY_COLLIDER_MOTION
