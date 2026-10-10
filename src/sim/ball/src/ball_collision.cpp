@@ -259,4 +259,92 @@ BallStepResult AdvanceBall(const BallState& initial,
   return result;
 }
 
+BallStepResult AdvanceBallTick(const BallState& initial,
+                               std::span<const ColliderMotion> colliders,
+                               float dt, float ball_radius,
+                               const BallDynamics& dynamics) {
+  BallStepResult result;
+  result.state = initial;
+  const float eps = 1e-4f;
+
+  // Persistent ground contact: constrain normal, roll horizontally with
+  // rolling drag, never emit a new ground impact.
+  const float resting_z = ball_radius + dynamics.grass_height;
+  if (initial.position.coords[2] <= resting_z + eps && initial.velocity.coords[2] <= eps) {
+    blunted::Vector3 v = initial.velocity;
+    v.coords[2] = 0.0f;
+    const float speed = std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
+    if (speed > 0.0f) {
+      const float slowed = std::max(0.0f, speed - dynamics.ground_deceleration * dt);
+      const float scale = slowed / speed;
+      v.coords[0] *= scale;
+      v.coords[1] *= scale;
+    }
+    result.state.velocity = v;
+    result.state.position = initial.position + v * dt;
+    result.state.position.coords[2] = resting_z;
+    const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
+    result.state.angular_velocity = initial.angular_velocity * spin_scale;
+    return result;
+  }
+
+  // Airborne free-motion candidate.
+  const blunted::Vector3 gravity(0, 0, -dynamics.gravity);
+  const blunted::Vector3 v0 = initial.velocity;
+  const float speed = v0.GetLength();
+  blunted::Vector3 accel = gravity;
+  if (speed > 0.0f) accel = accel - v0 * (dynamics.quadratic_resistance * speed);
+  if (dynamics.magnus_coefficient != 0.0f) {
+    const blunted::Vector3& o = initial.angular_velocity;
+    accel = accel + blunted::Vector3(
+        o.coords[1] * v0.coords[2] - o.coords[2] * v0.coords[1],
+        o.coords[2] * v0.coords[0] - o.coords[0] * v0.coords[2],
+        o.coords[0] * v0.coords[1] - o.coords[1] * v0.coords[0]) *
+            dynamics.magnus_coefficient;
+  }
+  const blunted::Vector3 v1 = v0 + accel * dt;
+  const blunted::Vector3 vavg = v0 + accel * (0.5f * dt);
+  const blunted::Vector3 p1 = initial.position + vavg * dt;
+  const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
+  const blunted::Vector3 omega1 = initial.angular_velocity * spin_scale;
+
+  BallState probe = initial;
+  probe.velocity = vavg;
+  const std::optional<BallContact> first = FirstContact(probe, colliders, dt, ball_radius);
+  if (!first.has_value()) {
+    result.state.position = p1;
+    result.state.velocity = v1;
+    result.state.angular_velocity = omega1;
+    return result;
+  }
+
+  BallContact contact = *first;
+  contact.normal = contact.normal.GetNormalized({0, 0, 1});
+  const blunted::Vector3 vc = v0 + accel * (contact.toi * dt);
+  const blunted::Vector3 pc = initial.position + vavg * (contact.toi * dt);
+  result.state.position = pc;
+
+  const ContactMaterial* material = nullptr;
+  for (const ColliderMotion& c : colliders) {
+    if (c.id == contact.collider) { material = &c.material; break; }
+  }
+  const float restitution = material ? material->restitution : 0.5f;
+  const float friction = material ? material->friction : 0.0f;
+
+  blunted::Vector3 v_out = vc;
+  const float vn = vc.GetDotProduct(contact.normal);
+  if (vn < 0.0f) {
+    v_out = v_out - contact.normal * ((1.0f + restitution) * vn);
+  }
+  // Tangential contact friction (collision-instant only).
+  if (friction > 0.0f) {
+    const blunted::Vector3 tangent = vc - contact.normal * vn;
+    v_out = v_out - tangent * friction;
+  }
+  result.state.velocity = v_out;
+  result.state.angular_velocity = omega1;
+  result.contacts.push_back(contact);
+  return result;
+}
+
 }  // namespace football::ball

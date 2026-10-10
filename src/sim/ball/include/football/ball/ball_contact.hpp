@@ -46,6 +46,27 @@ BallStepResult AdvanceBall(const BallState& initial,
                            float dt, float ball_radius, float restitution,
                            std::size_t max_contacts = 8);
 
+// Continuous forces for the single-tick kernel. The exact legacy coefficient
+// extraction (Magnus, spin quaternion integration) is P3c; these leave the
+// explicit execution points, not yet the production numeric model.
+struct BallDynamics {
+  float gravity = 9.81f;
+  float quadratic_resistance = 0.04f;
+  float ground_deceleration = 1.6f;
+  float grass_height = 0.025f;
+  float spin_decay = 0.0f;
+  float magnus_coefficient = 0.0f;
+};
+
+// Tick-based model: one free-motion candidate, at most one new impact at the
+// earliest TOI (no remainder integration). Grounded is a persistent rolling
+// constraint (z = radius, vz = 0, horizontal roll + rolling drag), not a
+// per-tick ground impact. Response reads ColliderMotion::material.
+BallStepResult AdvanceBallTick(const BallState& initial,
+                               std::span<const ColliderMotion> colliders,
+                               float dt, float ball_radius,
+                               const BallDynamics& dynamics);
+
 }  // namespace football::ball
 
 #endif  // FOOTBALL_BALL_BALL_CONTACT_HPP
