@@ -27,6 +27,7 @@
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
 #include "sim/player/player_runtime_sink.hpp"
+#include "sim/player/foul_assessment.hpp"
 #include "sim/fact/simulation_fact.hpp"
 #include "sim/fact/tick_fact_buffer.hpp"
 #include "sim/referee/ruling.hpp"
@@ -202,6 +203,7 @@ class Simulation {
   std::unique_ptr<RulingEvents> ruling_sink_;
   football::sim::event::TickFactBuffer facts_;
   std::vector<football::sim::event::RefereeRuling> pending_rulings_;
+  std::vector<football::sim::FoulAssessment> foul_assessments_;
   football::sim::event::EventRecognizer recognizer_;
   football::sim::event::EventLog event_log_;
   bool flushing_facts_ = false;

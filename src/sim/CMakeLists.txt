@@ -69,7 +69,7 @@ target_sources(football_sim PRIVATE
 target_sources(football_sim PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
   FILES simulation.hpp observation/snapshot.hpp observation/snapshot_history.hpp
-    observation/temporal_graph.hpp event/event_trajectory.hpp)
+    observation/temporal_graph.hpp event/event_trajectory.hpp player/foul_assessment.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::model football::ball BqLog)

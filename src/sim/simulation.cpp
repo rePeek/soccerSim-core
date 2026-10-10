@@ -361,6 +361,7 @@ void Simulation::Init(
   clock_.emplace(options.half_duration);
   facts_.BeginTick(GetTimelineTick(), reset_sequence_);
   pending_rulings_.clear();
+  foul_assessments_.clear();
   recognizer_.Reset();
   event_log_.Clear();
   flushing_facts_ = false;
@@ -471,6 +472,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   snapshot_step_ = clock_->ExecutedTicks();
   facts_.BeginTick(GetTimelineTick(), reset_sequence_);
   pending_rulings_.clear();
+  foul_assessments_.clear();
 
   // Frame-local controls are runtime input, not an orchestration algorithm.
   for (int team_id = 0; team_id < 2; ++team_id) {
@@ -574,7 +576,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   teams_[second_team_]->GetActivePlayers(players);
   football::sim::ResolvePlayerContacts(
       {GetTimelineTick(), players, *ball_, designated_possession_player_, ball_retainer_},
-      *fact_sink_);
+      *fact_sink_, foul_assessments_);
 
   // AdvanceClock → recent possession window → goal detection/consequences.
   const auto admitted = clock_->Advance(football::sim::TickSpan{1}, phase_);
@@ -671,6 +673,7 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   ++reset_sequence_;
   facts_.BeginTick(GetTimelineTick(), reset_sequence_);
   pending_rulings_.clear();
+  foul_assessments_.clear();
   ball_retainer_ = nullptr;
   SetGoalScored(false);
   mental_images_.clear();

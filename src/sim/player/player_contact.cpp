@@ -64,7 +64,8 @@ football::sim::event::PlayerTripFact MakeTripFact(Player* victim, Player* offend
 void ResolvePlayerPair(Player *p1, Player *p2,
                        std::vector<PlayerBounce> &p1Bounce,
                        std::vector<PlayerBounce> &p2Bounce,
-                       const PlayerContactInputs& inputs, SimulationFactSink& facts) {
+                       const PlayerContactInputs& inputs, SimulationFactSink& facts,
+                       std::vector<FoulAssessment>* assessments) {
   constexpr float distanceFactor = 0.72f;
   constexpr float bouncePlayerRadius = 0.5f * distanceFactor;
   constexpr float similarPlayerRadius = 0.8f * distanceFactor;
@@ -288,6 +289,14 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       p1sensitivity /= 5.0f + balanceWeight + penetrationWeight;
       p2sensitivity /= 5.0f + balanceWeight + penetrationWeight;
 
+      // Independent of the physical fall, derive at most one foul suspicion
+      // from the same sensitivities. The referee owns what to do with it.
+      if (assessments != nullptr) {
+        if (auto assessment = AssessCollision(p1, p2, p1sensitivity, p2sensitivity)) {
+          assessments->push_back(*assessment);
+        }
+      }
+
       float trip0threshold = 0.38f;
       float trip1threshold = 0.48f;
       float trip2threshold = 0.58f;
@@ -353,7 +362,62 @@ void ResolvePlayerPair(Player *p1, Player *p2,
 
 }  // namespace
 
+std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
+                                              float first_sensitivity,
+                                              float second_sensitivity) {
+  if (first == nullptr || second == nullptr) return std::nullopt;
+  // A collision between teammates can never be a foul against an opponent.
+  if (first->GetTeamID() == second->GetTeamID()) return std::nullopt;
+
+  // The legacy fall sensitivity only becomes a foul-relevant fall (trip type
+  // 2) above this threshold; a lesser trip is a harmless stumble.
+  constexpr float kStandingFallThreshold = 0.58f;
+
+  const bool first_falls = first_sensitivity > kStandingFallThreshold;
+  const bool second_falls = second_sensitivity > kStandingFallThreshold;
+  if (!first_falls && !second_falls) return std::nullopt;
+
+  Player* victim = nullptr;
+  float victim_sensitivity = 0.0f;
+  if (first_falls && second_falls) {
+    // Both actors fall: attribute the collision to the harder fall, with a
+    // stable PlayerId tie-break so the verdict is deterministic.
+    if (first_sensitivity > second_sensitivity) {
+      victim = first;
+      victim_sensitivity = first_sensitivity;
+    } else if (second_sensitivity > first_sensitivity) {
+      victim = second;
+      victim_sensitivity = second_sensitivity;
+    } else if (first->GetID() < second->GetID()) {
+      victim = first;
+      victim_sensitivity = first_sensitivity;
+    } else {
+      victim = second;
+      victim_sensitivity = second_sensitivity;
+    }
+  } else if (first_falls) {
+    victim = first;
+    victim_sensitivity = first_sensitivity;
+  } else {
+    victim = second;
+    victim_sensitivity = second_sensitivity;
+  }
+
+  FoulAssessment assessment;
+  assessment.offender = (victim == first ? second : first)->GetID();
+  assessment.victim = victim->GetID();
+  assessment.score = NormalizedClamp(victim_sensitivity, kStandingFallThreshold, 1.0f);
+  assessment.position = victim->GetPitchPosition();
+  return assessment;
+}
+
 void ResolvePlayerContacts(const PlayerContactInputs& inputs, SimulationFactSink& facts) {
+  std::vector<FoulAssessment> discarded;
+  ResolvePlayerContacts(inputs, facts, discarded);
+}
+
+void ResolvePlayerContacts(const PlayerContactInputs& inputs, SimulationFactSink& facts,
+                           std::vector<FoulAssessment>& assessments) {
   const auto players = inputs.players;
   // Avoid unsigned underflow for an empty explicit span; normal rosters are nonempty.
   if (players.size() < 2) return;
@@ -367,7 +431,8 @@ void ResolvePlayerContacts(const PlayerContactInputs& inputs, SimulationFactSink
   // check each combination of humanoids once
   for (unsigned int i1 = 0; i1 < players.size() - 1; i1++) {
     for (unsigned int i2 = i1 + 1; i2 < players.size(); i2++) {
-      ResolvePlayerPair(players[i1], players[i2], playerBounces.at(i1), playerBounces.at(i2), inputs, facts);
+      ResolvePlayerPair(players[i1], players[i2], playerBounces.at(i1),
+                       playerBounces.at(i2), inputs, facts, &assessments);
     }
   }
 

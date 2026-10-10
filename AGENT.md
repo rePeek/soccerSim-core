@@ -332,6 +332,12 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   No stored facts/commands/config/RNG, RuntimeContext or Simulation pointer in Referee.
   Player contact extraction preserves the same regression fingerprints and twelve
   seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
+  player/player_contact.cpp additionally derives at most one FoulAssessment per
+  suspicious collision from those same fall sensitivities and reports it through a
+  transitional Simulation-owned vector; the referee does not consume it yet and the
+  immutable PlayerTripFact stream stays authoritative. FoulAssessment carries
+  PlayerId identities, a normalized [0, 1] score and the victim's pitch-frame contact
+  position; same-team contacts never produce an opponent foul.
 - referee/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
   the original triangles, strict segment endpoints, bidirectional intersection and
   legacy side-net literals. Simulation retains the Ball prediction lookahead gate per

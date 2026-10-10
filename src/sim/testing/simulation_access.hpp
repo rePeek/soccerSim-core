@@ -143,6 +143,9 @@ class SimulationAccess {
   }
   static Player* LastTouchPlayerOf(Simulation& s) { return s.GetLastTouchPlayer(); }
   static std::uint64_t ResetSequenceOf(Simulation& s) { return s.reset_sequence_; }
+  static const std::vector<FoulAssessment>& FoulAssessmentsOf(const Simulation& s) {
+    return s.foul_assessments_;
+  }
 
   // Test/diagnostic lifecycle escape hatches; product code uses Step().
   static void SetPhase(Simulation& s, MatchPhase phase) { s.SetMatchPhase(phase); }
