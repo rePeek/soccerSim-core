@@ -18,9 +18,10 @@ struct ActiveImpulseCandidate {
   PlayerBodyPart body_part = PlayerBodyPart::LowerBody;
   e_FunctionType action = e_FunctionType_None;
   football::ball::BallImpulse impulse;
-  // Relative approach speed along the contact normal at the contact instant.
-  // Larger means a more committed contact; used as the primary ordering key.
-  float closing_speed = 0.0f;
+  // Magnitude of the required velocity change (|J| / mass). This is NOT the
+  // relative closing speed along the contact normal; it measures how committed
+  // the strike is and is the primary ordering key.
+  float velocity_change_magnitude = 0.0f;
   // True when this tick's passive impact already belongs to the same
   // owner+part, so applying the active impulse too would double-resolve it.
   bool passive_same_part = false;
@@ -36,8 +37,8 @@ inline std::optional<ActiveImpulseCandidate> ArbitrateActiveImpulse(
   std::optional<ActiveImpulseCandidate> winner;
   for (const ActiveImpulseCandidate& candidate : candidates) {
     if (candidate.passive_same_part) continue;
-    if (!winner.has_value() || candidate.closing_speed > winner->closing_speed ||
-        (candidate.closing_speed == winner->closing_speed &&
+    if (!winner.has_value() || candidate.velocity_change_magnitude > winner->velocity_change_magnitude ||
+        (candidate.velocity_change_magnitude == winner->velocity_change_magnitude &&
          (candidate.player < winner->player ||
           (candidate.player == winner->player &&
            candidate.body_part < winner->body_part)))) {

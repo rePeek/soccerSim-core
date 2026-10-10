@@ -194,6 +194,8 @@ class SimulationAccess {
   static void EnableActiveImpulseProduction(Simulation& s, bool enabled) { s.EnableActiveImpulseProduction(enabled); }
   static void EnableBodyPhysicsProduction(Simulation& s, bool enabled) { s.EnableBodyPhysicsProduction(enabled); }
   static const auto& ActiveTouchShadowReportOf(const Simulation& s) { return s.active_touch_shadow_report_; }
+  static const auto& ActiveArbitrationOf(const Simulation& s) { return s.active_arbitration_; }
+  static const auto& PendingActiveImpulseOf(const Simulation& s) { return s.pending_active_impulse_; }
 
   // Test/diagnostic lifecycle escape hatches; product code uses Step().
   static void SetPhase(Simulation& s, MatchPhase phase) { s.SetMatchPhase(phase); }

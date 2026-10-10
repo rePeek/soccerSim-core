@@ -107,7 +107,7 @@ TEST_CASE("real action observation preserves snapshots touches rules RNG and end
     REQUIRE(report.model_reach_disagreements * 4 <= report.model_reach_checks);
     // P5d: every tick with a real candidate is decided exactly once by the
     // authority rule, using the tick's own passive evidence.
-    const auto& arb = report.arbitration;
+    const auto& arb = SimulationAccess::ActiveArbitrationOf(observed);
     REQUIRE(arb.ticks_with_candidates > 0);
     REQUIRE(arb.active_wins + arb.passive_wins == arb.ticks_with_candidates);
     REQUIRE(arb.candidates >= arb.ticks_with_candidates);
@@ -132,7 +132,7 @@ TEST_CASE("active impulse arbitration is unique, deterministic and passive-aware
     c.body_part = part;
     c.impulse.impulse = Vector3(speed, 0, 0);
     c.impulse.contact_point = Vector3(.11f, 0, 0);
-    c.closing_speed = speed;
+    c.velocity_change_magnitude = speed;
     c.passive_same_part = passive_same_part;
     return c;
   };
@@ -344,5 +344,36 @@ TEST_CASE("all four production switch combinations stay consistent and determini
       REQUIRE(std::isfinite(ball.angular_velocity.GetLength()));
       REQUIRE(ball.position.GetLength() < 200.0f);
     }
+  }
+}
+
+TEST_CASE("active candidate arbitration is not gated on the diagnostic shadow",
+          "[active-shadow][p5e][sim]") {
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  for (bool reverse : {false, true}) {
+    MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
+    Simulation simulation;
+    simulation.Init(home, away, football::model::Pitch{}, options);
+    // Only the production switch: no active-touch report, no body shadow report.
+    SimulationAccess::EnableActiveImpulseProduction(simulation, true);
+    REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(simulation).latest.empty());
+    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    for (int step = 0; step < 4000; ++step) {
+      PlayerControlSet controls;
+      policy.Update(simulation.Observe(), controls);
+      simulation.Step(controls);
+    }
+    // The arbitration ran on real candidates even though no report existed.
+    const auto& arb = SimulationAccess::ActiveArbitrationOf(simulation);
+    REQUIRE(arb.ticks_with_candidates > 0);
+    REQUIRE(arb.active_wins + arb.passive_wins == arb.ticks_with_candidates);
+    // The winner is stored as Simulation state, ready for the single Step.
+    const auto& winner = SimulationAccess::PendingActiveImpulseOf(simulation);
+    REQUIRE(winner.has_value());
+    REQUIRE(winner->velocity_change_magnitude > 0);
+    // The report stayed disabled the whole time.
+    REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(simulation).latest.empty());
+    REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(simulation).candidate_ticks == 0);
   }
 }

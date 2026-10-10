@@ -284,6 +284,9 @@ void Simulation::EnableBodyPhysicsProduction(bool enabled) {
   // The production path needs the same predicted collider list the P4b/P4d-1
   // shadow already builds. Both are read-only diagnostics, so this does not add
   // a second Ball step or a second actor Process.
+  active_candidate_capture_ = true;
+  tick_active_candidates_.reserve(snapshot_players_.size());
+  EnsureActiveTouchObserver();
   DiscardBodyCollisionShadow();
   body_shadow_enabled_ = true;
   body_physics_shadow_colliders_.reserve(snapshot_players_.size() * kPlayerBodyPartCount);

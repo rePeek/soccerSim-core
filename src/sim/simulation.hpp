@@ -125,11 +125,16 @@ class Simulation {
   void BeginBodyPhysicsShadow();
   void CompleteBodyPhysicsShadow();
   void EnableActiveTouchShadow(bool enabled);
-  // P5d: arbitrate this tick's real active-touch candidates exactly once.
+  // P5e: the real candidate observer exists whenever candidate capture is on;
+  // the diagnostic report is only an optional extra duty of that observer.
+  void EnsureActiveTouchObserver();
+  // P5e: this is the real per-tick arbitration input, independent of any shadow.
+  // Candidates arrive from actors; the winner becomes pending_active_impulse_.
+  void SubmitActiveTouchCandidate(const ActiveTouchObservation& observation);
   void ArbitratePendingActiveTouches();
   // P5c: opt-in production takeover of the contact-point spin model for the
   // migrated actions. Diagnostic/test entry point; product code never enables it.
-  void EnableActiveImpulseProduction(bool enabled) { active_impulse_production_ = enabled; }
+  void EnableActiveImpulseProduction(bool enabled);
   // P4d-2: opt-in authority switch for passive body collisions. When enabled the
   // production Ball integrates the predicted body colliders and the legacy
   // resolver is skipped, so exactly one authority changes the ball.
@@ -260,6 +265,13 @@ class Simulation {
   std::unique_ptr<ActiveTouchShadowSink> active_touch_shadow_sink_;
   ActiveTouchShadowReport active_touch_shadow_report_;
   bool active_impulse_production_ = false;
+  // P5e: real tick candidate buffer and the arbitrated winner. The winner is the
+  // value P5e-2 will submit through BallTickInput::active_impulse.
+  std::vector<ActiveImpulseCandidate> tick_active_candidates_;
+  std::optional<ActiveImpulseCandidate> pending_active_impulse_;
+  ActiveTouchArbitration active_arbitration_;
+  bool active_candidate_capture_ = false;
+  bool active_touch_report_enabled_ = false;
   bool body_physics_production_ = false;
 
   // Competition / play / goal / touch state.

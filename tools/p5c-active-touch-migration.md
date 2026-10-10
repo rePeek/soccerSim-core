@@ -299,3 +299,38 @@ every combination with the passive authority on, the production ball equals the
 unified kernel result on every tick with evidence, including ON/ON - so enabling
 the active takeover later in the same tick does not disturb the passive state
 already committed by the single Step.
+
+## P5e-1: the arbitration input is now real Simulation state (implemented)
+
+The tick candidate buffer and the arbitrated winner moved out of the diagnostic
+`ActiveTouchShadowReport` into Simulation:
+
+- `Simulation::tick_active_candidates_` is filled by
+  `SubmitActiveTouchCandidate`, which runs the P5c-2 model and the shared
+  `MakeActiveImpulseCandidate` factory. The observer that calls it is installed
+  by `EnsureActiveTouchObserver()` whenever **candidate capture** is enabled (the
+  active or passive production switch), not by the diagnostic flag.
+- `EnableActiveTouchShadow(false)` now only stops the report; the production
+  observer and candidate path survive. `ArbitratePendingActiveTouches` no longer
+  returns early on a missing shadow sink; it arbitrates the real buffer once per
+  tick and stores the winner in `Simulation::pending_active_impulse_`
+  (`ActiveTouchArbitration` counters live in Simulation too).
+- `pending_active_impulse_` is cleared on tick reset and at a permanent end
+  change, so a queued impulse never crosses frames.
+
+The candidate ordering key was renamed from the misleading `closing_speed`
+(which was `|J| / mass`, a velocity-change magnitude) to
+`velocity_change_magnitude`, with a comment stating that it is not a normal
+closing speed. The genuinely normal-based `closing_speed` in the body-contact
+diagnostics is unchanged.
+
+Evidence: `active candidate arbitration is not gated on the diagnostic shadow`
+enables only `EnableActiveImpulseProduction`, asserts the active-touch report
+stays empty for 4000 steps, and still observes real arbitration (candidate
+ticks > 0, active+passive wins == candidate ticks, a non-null
+`pending_active_impulse_` with a positive velocity-change magnitude).
+
+Remaining for P5e-2: consume `pending_active_impulse_` in the single
+`Ball::Step` (which still needs the Humanoid prepare/commit split so the
+candidate exists before the Step) and delete the `ApplyContactImpulse` entry
+point from the normal path.

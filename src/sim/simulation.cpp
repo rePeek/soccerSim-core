@@ -827,6 +827,8 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   body_impact_episodes_.Break();
   ++reset_sequence_;
   active_touch_shadow_report_.latest.clear();
+  pending_active_impulse_.reset();
+  tick_active_candidates_.clear();
   pending_rulings_.clear();
   foul_assessments_.clear();
   ball_retainer_ = nullptr;
@@ -876,6 +878,9 @@ void Simulation::EndPeriod() {
 void Simulation::ApplyChangeOfEnds() {
   body_geometry_episodes_.Break();
   body_impact_episodes_.Break();
+  // A queued active impulse belongs to the old frame; never carry it across.
+  pending_active_impulse_.reset();
+  tick_active_candidates_.clear();
   // Permanent end change: preserve processing-roster order and canonical flags.
   teams_[first_team_]->SwitchEnds();
   teams_[second_team_]->SwitchEnds();

@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
                   << ",model_reach_checks=" << active.model_reach_checks
                   << ",model_reach_disagreements=" << active.model_reach_disagreements
                   << ",model_reach_gap_max=" << active.model_reach_gap_max;
-        const auto& arb = active.arbitration;
+        const auto& arb = SimulationAccess::ActiveArbitrationOf(simulation);
         std::cout << "active-arbitration,reverse=" << reverse
                   << ",ticks=" << arb.ticks_with_candidates << ",candidates=" << arb.candidates
                   << ",multi=" << arb.multi_candidate_ticks << ",active_wins=" << arb.active_wins
