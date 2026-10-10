@@ -66,6 +66,7 @@ target_sources(football_sim PRIVATE
   player/player_retain_anchor.hpp player/player_ground_collider.hpp
   player/player_body_collider.hpp player/player_body_collider_motion.hpp
   player/player_body_collision_shadow.hpp player/player_body_facing.hpp
+  player/player_body_contact_diagnostics.hpp player/player_body_pose_shadow.hpp
   player/player_action.hpp player/player_action_executor.hpp player/player_action_volume.hpp
   player/player_locomotion.hpp player/player_decision_scheduler.hpp
   player/locomotion_intent_scheduler.hpp player/legacy_locomotion_command.hpp

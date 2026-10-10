@@ -240,6 +240,8 @@ class Simulation {
   std::vector<football::ball::ColliderMotion> body_physics_shadow_colliders_;
   std::optional<BodyPhysicsShadowTick> body_physics_shadow_tick_, body_physics_shadow_latest_;
   BodyPhysicsShadowReport body_physics_shadow_report_;
+  std::vector<BodyShadowCandidate> body_physics_shadow_candidates_;
+  BodyContactEpisodes body_geometry_episodes_, body_impact_episodes_;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

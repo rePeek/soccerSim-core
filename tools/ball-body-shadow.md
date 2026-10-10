@@ -146,3 +146,192 @@ halves CLI, 370.91s). Focused Debug Ball/allocation/Simulation CTest 3/3 passed.
 Core-only BUILD_TESTING=OFF / FOOTBALL_BUILD_APP=OFF configured and built.
 No assets or regression Goldens changed. Every migration stage is a separate
 local commit; nothing pushed.
+
+## P4d-1.2: classify body impact episodes and validate action poses
+
+Scope: diagnostics/tests only. Production BallTickInput, Ball::Step, BallState,
+legacy body solver, AcceptedTouchSink, Referee, RNG and Snapshot remain unchanged.
+No active impulse or production validity filter is introduced. Rerun with the
+same `football_body_shadow 4000 --full` command. The original upright kernel
+branch remains the reference, so 152/26 nonzero responses are still reproducible.
+
+### Definitions and attribution limits
+
+- GeometricContact: every body whose initial sphere-surface gap <= 1e-6m OR
+  whose straight initial-velocity SweepBall finds a contact in this interval.
+  The actual complete-kernel winner is also retained even if only gravity/drag
+  made its probe hit. Includes resting tangency, even when CCD correctly rejects
+  a separating exit root. Non-winning parts are counted, but these raw queries
+  are not an exhaustive enumeration of the accelerated probe's contacts.
+  Candidate counts mean within-tick contenders, not an assertion of simultaneous
+  TOI or multiple solved impacts.
+- PhysicalImpact: the earliest complete-world kernel body response has normal
+  impulse > 1e-6 N*s. Initial penetration and position_corrected are independent
+  diagnostics. An overlap projection is not itself a physical impact.
+- AcceptedTouch: only existing rule evidence from the real production path.
+  Accidental matches preserve multiplicity. Same-player intentional touches in
+  the interval are separately counted; these include legacy BallControl/retain
+  touches and do not prove an actual Shot/Pass release at the predicted window.
+
+Fixed collider slots track consecutive observed episodes. Same collider, next
+executed step, same generation, and no known separation at the new boundary
+continue an episode. Known positive initial gap starts a new one; absent shapes,
+step gaps, resets, disabling diagnostics and end changes cannot bridge it.
+Geometric episodes and consecutive nonzero-impact runs are separate counters.
+These observational runs still reset from production each tick: neither an
+episode nor a nonzero run is a certified count of independent real touches.
+State is bounded by match collider slots and lives only in Simulation diagnostics.
+
+Touch window is [elapsed, elapsed+1] crossing the scheduled action contact tick.
+Pending and past frames are distinguished; IsContactDue() is NOT interpreted as
+an indefinitely open window. Foot conflict means the winning lower-body collider
+plus Shot/Pass/Trap/BallControl in that boundary window; it is a warning, not an
+accepted active candidate. Header is not a lower-body foot action.
+
+Legacy flags are frozen BEFORE the live sweep: inclusive <=15 cooldown, own
+recent touch, no recent opponent touch, excluded action, unique possession,
+Interfere/Deflect unexpected-direction gate, unavailable history, play/period
+gate, old shrunken-radius cached-position geometry miss and controlled routing.
+Flags overlap and do not sum to a partition. The old solver mutates touch biases
+within its roster sweep, so these facts are not a counterfactual rerun verdict.
+No cooldown or possession flag suppresses a Ball response in this change.
+
+### Same native input generator, different native trajectories
+
+Seed 42, default teams, both orders, 4000 requested steps:
+
+| Order | All geometric candidate samples | Geometric episode starts / continued | Longest run ticks | Nonzero impact runs / continued | Initial penetration impacts | Started separated impacts |
+|---|---:|---:|---:|---:|---:|---:|
+| normal | 348 | 11 / 337 | 137 | 15 / 137 | 143 | 9 |
+| reverse | 208 | 5 / 203 | 92 | 3 / 23 | 25 | 1 |
+
+All penetration impacts in this tape also have position_corrected=true.
+The 348/208 samples include non-winning parts and therefore differ from the
+215/112 winning body contacts. Counts do NOT turn 152 responses into 15 touches.
+
+| Action | Normal player-ticks | Normal impacts (new geometric run / continued) | Reverse player-ticks | Reverse impacts (new geometric run / continued) |
+|---|---:|---:|---:|---:|
+| Movement | 82313 | 64 (1 / 63) | 82215 | 0 |
+| BallControl | 126 | 2 (1 / 1) | 37 | 0 |
+| ShortPass | 875 | 40 (5 / 35) | 703 | 12 (2 / 10) |
+| Shot | 36 | 22 (2 / 20) | 100 | 0 |
+| Deflect | 51 | 24 (1 / 23) | 84 | 14 (0 / 14) |
+| Trip | 221 | 0 | 461 | 0 |
+
+No sliding action occurs on this native tape. Fixed tests provide sliding
+coverage instead; native sliding realism is still unmeasured.
+
+Overlapping pre-sweep flags on the 152/26 nonzero responses:
+
+| Flag / observation | Normal | Reverse |
+|---|---:|---:|
+| Old global cooldown | 0 | 0 |
+| Recent own touch | 97 | 19 |
+| No recent opponent touch | 141 | 26 |
+| Unique possession | 105 | 21 |
+| Action excluded by old solver | 64 | 12 |
+| Unexpected-direction gate | 13 | 14 |
+| Old cached/shrunken geometry miss | 33 | 7 |
+| Controlled routing | 44 | 7 |
+| Multiple parts of winning player contend | 96 | 15 |
+| Multiple players contend | 0 | 0 |
+| Scheduled boundary window | 5 | 0 |
+| Pending scheduled contact | 60 | 7 |
+| Lower-body boundary foot conflict | 3 | 0 |
+| Same-player real intentional touch in interval | 97 | 14 |
+
+For example, normal Movement's 64 impacts mostly concern a nearly stationary
+ball: mean ball/player/CCD closing speed .3525/.2360/.1727 m/s. Its 57 unique-
+possession impacts also have recent-own-touch flags and actual intentional
+touches. Normal Deflect's 24 impacts have a stationary ball and all have unique
+possession/recent-own-touch; reverse Deflect's 14 have the same flags but much
+smaller mean closing speed (1.9539 vs .02621m/s). ShortPass/Shot scheduling
+occupancy and physical overlap differ between orders. This provides input-state
+and continuing-overlap explanations for a large portion of the count gap, NOT
+proof that all frame bugs are impossible. Frozen identical collider tapes below
+separate kernel order/rotation correctness from native input divergence.
+
+### Provisional low-action pose branch
+
+`player_body_pose_shadow.hpp` builds horizontal torso/leg capsules and a low
+head sphere for Sliding/Trip. All other actions keep the original upright
+geometry. Sliding legs extend along the explicitly supplied common-frame axis;
+Trip lies along that axis with legs behind. Torso z=.24/r=.20m, legs z=.16/r=.13m,
+head z=.25/r=.12m. These are labelled engineering proposals, not fitted skeleton
+poses. The pose/axis is frozen over one 10ms translational sweep. Simulation
+converts a copy of roster-local bodyFacing explicitly because legacy kinematic
+Mirror intentionally does not rotate it. No Humanoid is stepped to obtain a pose.
+
+A separate posed kernel runs only on intervals with Sliding/Trip. On this tape,
+normal has 151 such intervals, 64 changed first-collider identities, 38 added
+nonzero responses, zero removed, total proposed body responses 190; reverse has
+353 intervals, no changed first identities, total 26. A low posture can ADD low
+contacts as well as remove upright ghost blockers; matching old counts is not
+an objective. This tag-level proposal does not describe early fall, recovery,
+rolling or skeleton orientation. Pose transition validity/phase calibration is
+still required before it can become authoritative.
+
+### Fixed scenarios and continuous trajectories
+
+`test/player_body_contact_diagnostics_test.cpp` covers:
+
+- standing lower-body impact and running body approaching an incoming ball;
+- sliding forward-leg passage outside the upright volume, with a real impulse;
+- fallen player's former chest space letting a high ball pass, while low torso
+  space still collides (the critical upright-ghost regression);
+- fixed Shot/all Pass/Trap schedules with a reachable contact point and passive
+  lower-body overlap at the boundary; pending/boundary/past classification;
+- two contestants with tied lower-body TOIs, multi-part overlap, stable id winner
+  and a single response regardless of input ordering;
+- three 120-tick continuously integrated stationary-body tapes (standing/sliding/
+  fallen), with exactly one body impact, subsequent separation, finite spin and
+  lower final speed. Permuted and 180-degree rotated inputs replay equal position,
+  velocity, spin, contact source and TOI (tolerances 2e-5m and 1e-5 fraction);
+- separating deep overlap projection with zero impulse and no subsequent body
+  hit over 20 ticks; explicit mirrored pose-axis conversion and episode breaks.
+
+Integration tests retain full-shadow-vs-disabled 800-step A/B under both orders
+and end changes, exact Snapshot/actor/animation/possession/touch/RNG equality,
+owner/part mapping, and old cooldown's exact 15/16 boundary without suppressing
+shadow physics. Gravity-only head contact tests ensure every kernel impact
+remains classifiable even when raw straight-motion queries miss. The action
+scenarios use fixed action schedules, not real baked foot trajectories or an
+active-impulse implementation; those belong to P5a.
+
+**New production-switch blocker found by a moving-body continuous tape:**
+
+A lower capsule translates -1m/s, ball approaches at +20m/s. The first response
+reflects the ball to below -7m/s. For the next eleven ticks the capsule's end
+shape keeps re-entering the ball by about 1cm. AdvanceBallTick projects to the
+START shape at TOI=0, gives zero new impulse (correctly separating), but consumes
+the entire tick. Ball x follows the body's -.01m/tick surface despite its much
+faster outgoing velocity. No true free separation occurs. The test explicitly
+pins this existing failure; it does NOT pass a false 'not stuck' acceptance gate.
+
+A passing stationary tape cannot certify moving-body release. Neither a global
+cooldown nor dropping zero-impulse diagnostics repairs this. Resolving passive
+overlap-only progress versus the no-remainder impact policy needs a separate
+semantic review. Ball kernel and production outputs are deliberately unchanged
+in P4d-1.2; do not switch authority while this blocker remains.
+
+### Validation and next gate
+
+Release CTest 42/42 passed, including full regulation CLI (361.40s). Debug
+CTest 41/41 passed without full regulation CLI (598.96s). Regression and both
+animation A/B regression modes passed in both builds. Core-only build passed.
+Focused diagnostics tests passed 190068 assertions in 13 cases. No Golden/assets
+changed, no push.
+
+P5a may proceed ONLY as shadow candidate/evidence work: capture the existing
+action's target velocity and physical contact point once at the real accepted
+action frame; form J = mass*(target_velocity - passive_endpoint.velocity), then
+compare linear/angular response and old success/rejection reasons without RNG
+redraws or production writes. Simulation must distinguish a reachable accepted
+active candidate from merely a pending animation. The conflict observations
+above argue against suppressing all lower-body physics throughout an action.
+
+Before P4d-2/P5b, explicitly decide same-owner/part endpoint precedence, other-
+player passive priority, at-most-one active candidate arbitration, and separate
+position correction from a new impact. Keep Ball unaware of action/rule identity.
+Moving-overlap release and phase-valid low poses remain blocking; P5a is not
+permission to open the production switch.

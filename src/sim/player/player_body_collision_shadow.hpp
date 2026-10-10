@@ -10,6 +10,7 @@
 #include "model/player.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
+#include "sim/player/player_body_contact_diagnostics.hpp"
 #include "foundation/time/tick.hpp"
 
 // Read-only linear prediction. Never executes animation/locomotion or draws RNG.
@@ -26,6 +27,7 @@ struct PlayerBodyMotionPrediction {
   PlayerKinematicState end;
   std::array<football::ball::ColliderMotion, kPlayerBodyPartCount> colliders;
   e_FunctionType action = e_FunctionType_None;
+  PlayerActionState action_state; // frozen pre-sweep schedule, not a second executor
   std::optional<float> endpoint_error;
   bool turned = false;
 };
@@ -81,6 +83,14 @@ inline std::size_t BodyShadowActionCategory(e_FunctionType action) {
   return 3;
 }
 
+struct BodyShadowCandidate {
+  football::ball::ColliderId collider = 0;
+  football::model::PlayerId player = football::model::kInvalidPlayerId;
+  PlayerBodyPart part = PlayerBodyPart::UpperBody;
+  BodyImpactClassification classification;
+  bool swept = false;
+};
+
 // Opt-in full physics shadow. Stored only as transient/last-completed evidence,
 // never in Snapshot, BallState, rules or a production collision decision.
 struct BodyPhysicsShadowTick {
@@ -93,6 +103,8 @@ struct BodyPhysicsShadowTick {
   bool production_observed = false;
   std::optional<football::model::PlayerId> player;
   std::optional<PlayerBodyPart> part;
+  std::optional<BodyImpactClassification> classification;
+  std::optional<football::ball::BallStepResult> posed; // provisional low-pose comparison only
 };
 
 struct BodyPhysicsShadowReport {
@@ -100,6 +112,12 @@ struct BodyPhysicsShadowReport {
   std::uint64_t effective_body_impacts = 0, zero_impulse_contacts = 0;
   std::uint64_t dynamic_query_superseded = 0;
   std::uint64_t matched_touches = 0, missed_touches = 0, unmatched_impacts = 0;
+  std::uint64_t geometric_contacts = 0, geometric_episodes = 0, geometric_continued = 0;
+  std::uint64_t impact_episodes = 0, impact_continued = 0, longest_geometric_episode = 0;
+  std::array<BodyImpactGroup, kBodyActionCount> action_groups{};
+  std::array<std::uint64_t, kBodyActionCount> player_action_samples{};
+  std::uint64_t posed_intervals = 0, posed_body_impacts = 0, pose_changed_first = 0;
+  std::uint64_t upright_impacts_removed = 0, posed_impacts_added = 0;
   // Static-only vs unified from exactly the same initial state; and unified
   // vs actual production, which can already include legacy body bounce.
   BodyEndpointErrors position_delta, velocity_delta, spin_delta;

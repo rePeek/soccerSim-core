@@ -57,6 +57,13 @@ int main(int argc, char** argv) {
                       << ",part=" << (evidence->part ? std::to_string(static_cast<int>(*evidence->part)) : "NA")
                       << ",dv=" << evidence->unified.state.velocity - evidence->static_only.state.velocity
                       << ",dw=" << evidence->unified.state.angular_velocity - evidence->static_only.state.angular_velocity << '\n';
+            if (evidence->classification) {
+              const auto& c = *evidence->classification;
+              std::cout << "classification,action=" << kBodyActionNames[c.action]
+                        << ",window=" << static_cast<int>(c.window) << ",blocks=" << c.legacy_blocks
+                        << ",penetration=" << c.initial_penetration << ",continued=" << c.continued_geometry
+                        << ",episode_length=" << c.geometry_length << '\n';
+            }
           }
         }
       }
@@ -79,6 +86,32 @@ int main(int argc, char** argv) {
                   << ",effective_body=" << p.effective_body_impacts << ",zero_impulse=" << p.zero_impulse_contacts
                   << ",superseded=" << p.dynamic_query_superseded << ",matched=" << p.matched_touches
                   << ",missed=" << p.missed_touches << ",unmatched_impacts=" << p.unmatched_impacts << '\n';
+        std::cout << "episodes,reverse=" << reverse << ",geometry=" << p.geometric_contacts
+                  << ",starts=" << p.geometric_episodes << ",continued=" << p.geometric_continued
+                  << ",longest=" << p.longest_geometric_episode << ",impact_starts=" << p.impact_episodes
+                  << ",impact_continued=" << p.impact_continued << '\n';
+        for (std::size_t action = 0; action < kBodyActionCount; ++action) {
+          const auto& g = p.action_groups[action];
+          if (!p.player_action_samples[action]) continue;
+          std::cout << "impact-group,reverse=" << reverse << ",action=" << kBodyActionNames[action]
+                    << ",player_ticks=" << p.player_action_samples[action]
+                    << ",impacts=" << g.impacts << ",unmatched=" << g.unmatched
+                    << ",first=" << g.first << ",continued=" << g.continued
+                    << ",penetration=" << g.penetration << ",corrected=" << g.corrected
+                    << ",starts_separated=" << g.separated << ",window=" << g.boundary
+                    << ",pending=" << g.pending << ",foot_conflict=" << g.foot_conflicts
+                    << ",accepted_active_same_player=" << g.intervals_with_active_touch
+                    << ",multi_parts=" << g.multi_parts << ",multi_players=" << g.multi_players
+                    << ",mean_ball_mps=" << (g.impacts ? g.ball_speed_sum / g.impacts : 0)
+                    << ",mean_player_mps=" << (g.impacts ? g.player_speed_sum / g.impacts : 0)
+                    << ",mean_closing_mps=" << (g.impacts ? g.closing_speed_sum / g.impacts : 0);
+          for (std::size_t bit = 0; bit < kBodyLegacyBlockCount; ++bit)
+            std::cout << ',' << kBodyLegacyBlockNames[bit] << '=' << g.blocks[bit];
+          std::cout << '\n';
+        }
+        std::cout << "pose-proposal,reverse=" << reverse << ",intervals=" << p.posed_intervals
+                  << ",total_body_impacts=" << p.posed_body_impacts << ",changed_first=" << p.pose_changed_first
+                  << ",removed=" << p.upright_impacts_removed << ",added=" << p.posed_impacts_added << '\n';
         PrintDelta("unified_minus_static_position_m", p.position_delta);
         PrintDelta("unified_minus_static_velocity_mps", p.velocity_delta);
         PrintDelta("unified_minus_static_spin_radps", p.spin_delta);

@@ -917,3 +917,19 @@ interval; resets discard pending intervals. Tests cover both orders/end changes,
 post/ground priority and full-shadow vs disabled state/RNG replay. The standalone
 `football_ball_allocation_test` measures input-buffer reuse with no contacts.
 P4d switching and P5–P7 remain pending; current native tape has no sliding coverage.
+
+P4d-1.2 `player_body_contact_diagnostics.hpp` classifies pre-sweep action windows,
+legacy filtering facts and fixed-slot geometric/impact episodes. None is a rule
+touch or a production filter. `player_body_pose_shadow.hpp` proposes low Sliding/
+Trip shapes on a separately labelled full-kernel branch, keeping upright evidence
+for comparisons; it requires an explicit common-frame pose axis, not blindly
+mirrored PlayerKinematicState::bodyFacing. Fixed schedules/scenarios/continuous
+tapes live in test/player_body_contact_diagnostics_test.cpp. Native reports still
+show 152/26 upright nonzero responses, mostly continuing initial penetration.
+The moving-body continuous tape finds a zero-impulse projection freeze: no-
+remainder initial overlap prevents a separating ball from making progress. Its
+passing characterization test pins a known switch blocker, NOT readiness.
+See tools/ball-body-shadow.md for attribution, provisional pose limitations and
+the P5a shadow-only next gate. No production Ball API/kernel/authority changed.
+P4d-1.2 validation: Release 42/42, Debug 41/41 (without full regulation CLI),
+including existing regression/A-B modes, passed with no Golden/asset changes.

@@ -179,7 +179,8 @@ void Simulation::BeginBodyCollisionShadow() {
     auto prediction = PredictBodyColliderMotions(
         player->GetID(), player->GetKinematicState(), football::sim::TickSpan{1},
         PlayerBodyColliderIdsForSlot(static_cast<std::uint32_t>(slot)));
-    prediction.action = player->GetSimulationActionState().type;
+    prediction.action_state = player->GetSimulationActionState();
+    prediction.action = prediction.action_state.type;
     body_shadow_colliders_.insert(body_shadow_colliders_.end(),
                                   prediction.colliders.begin(),
                                   prediction.colliders.end());
@@ -267,6 +268,7 @@ void Simulation::DiscardBodyCollisionShadow() {
   body_shadow_action_phase_conflict_ = false;
   body_physics_shadow_tick_.reset();
   body_physics_shadow_colliders_.clear();
+  body_physics_shadow_candidates_.clear();
 }
 
 // Collects domain verdicts; Simulation applies them at an explicit boundary.
@@ -455,6 +457,8 @@ void Simulation::Init(
   body_shadow_report_ = {};
   body_physics_shadow_report_ = {};
   body_physics_shadow_latest_.reset();
+  body_geometry_episodes_.Break();
+  body_impact_episodes_.Break();
   recognizer_.Reset();
   event_log_.Clear();
   snapshot_step_.reset();
@@ -806,6 +810,8 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   if (!ball_) throw std::logic_error("simulation has no match");
   if (body_shadow_active_) ++body_shadow_report_.discarded_ticks;
   DiscardBodyCollisionShadow();
+  body_geometry_episodes_.Break();
+  body_impact_episodes_.Break();
   ++reset_sequence_;
   pending_rulings_.clear();
   foul_assessments_.clear();
@@ -854,6 +860,8 @@ void Simulation::EndPeriod() {
 }
 
 void Simulation::ApplyChangeOfEnds() {
+  body_geometry_episodes_.Break();
+  body_impact_episodes_.Break();
   // Permanent end change: preserve processing-roster order and canonical flags.
   teams_[first_team_]->SwitchEnds();
   teams_[second_team_]->SwitchEnds();

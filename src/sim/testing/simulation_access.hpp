@@ -153,6 +153,8 @@ class SimulationAccess {
   static void EnableBodyCollisionShadow(Simulation& s, bool enabled) {
     s.body_shadow_enabled_ = enabled;
     s.DiscardBodyCollisionShadow();
+    s.body_geometry_episodes_.Break();
+    s.body_impact_episodes_.Break();
   }
   static void BeginBodyCollisionShadow(Simulation& s) { s.BeginBodyCollisionShadow(); }
   static const auto& BodyShadowPredictionsOf(const Simulation& s) {
@@ -167,6 +169,10 @@ class SimulationAccess {
     if (enabled) {
       s.body_shadow_enabled_ = true;
       s.body_physics_shadow_colliders_.reserve(s.snapshot_players_.size() * kPlayerBodyPartCount);
+      const auto slots = s.snapshot_players_.size() * kPlayerBodyPartCount;
+      s.body_physics_shadow_candidates_.reserve(slots);
+      s.body_geometry_episodes_.Resize(slots);
+      s.body_impact_episodes_.Resize(slots);
       s.body_physics_shadow_ball_ = std::make_unique<football::ball::Ball>(s.ball_config_, s.pitch_);
     } else {
       s.body_physics_shadow_ball_.reset();
@@ -180,6 +186,9 @@ class SimulationAccess {
   }
   static const auto& BodyPhysicsShadowPendingOf(const Simulation& s) {
     return s.body_physics_shadow_tick_;
+  }
+  static const auto& BodyPhysicsShadowCandidatesOf(const Simulation& s) {
+    return s.body_physics_shadow_candidates_;
   }
 
   // Test/diagnostic lifecycle escape hatches; product code uses Step().
