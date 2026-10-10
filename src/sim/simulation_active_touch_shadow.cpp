@@ -43,5 +43,24 @@ void Simulation::EnableActiveTouchShadow(bool enabled) {
   if (!enabled) return;
   if (!ball_) throw std::logic_error("simulation has no match");
   active_touch_shadow_report_.latest.reserve(snapshot_players_.size() * 4);
+  active_touch_shadow_report_.tick_candidates.reserve(snapshot_players_.size());
   active_touch_shadow_sink_ = std::make_unique<ActiveTouchEvents>(*this);
+}
+
+void Simulation::ArbitratePendingActiveTouches() {
+  if (!active_touch_shadow_sink_) return;
+  bool passive_impact = false, same_part = false, owner_known = false;
+  if (body_physics_shadow_tick_ && !body_physics_shadow_tick_->unified.contacts.empty() &&
+      body_physics_shadow_tick_->unified.contacts.front().normal_impulse > 0) {
+    passive_impact = true;
+    if (body_physics_shadow_tick_->player) {
+      owner_known = true;
+      const auto& candidates = active_touch_shadow_report_.tick_candidates;
+      same_part = std::any_of(candidates.begin(), candidates.end(), [&](const auto& c) {
+        return c.player == *body_physics_shadow_tick_->player &&
+               c.body_part == *body_physics_shadow_tick_->part;
+      });
+    }
+  }
+  active_touch_shadow_report_.ArbitratePendingCandidates(passive_impact, same_part, owner_known);
 }

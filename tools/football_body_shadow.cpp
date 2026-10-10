@@ -127,6 +127,16 @@ int main(int argc, char** argv) {
                   << ",model_reach_checks=" << active.model_reach_checks
                   << ",model_reach_disagreements=" << active.model_reach_disagreements
                   << ",model_reach_gap_max=" << active.model_reach_gap_max;
+        const auto& arb = active.arbitration;
+        std::cout << "active-arbitration,reverse=" << reverse
+                  << ",ticks=" << arb.ticks_with_candidates << ",candidates=" << arb.candidates
+                  << ",multi=" << arb.multi_candidate_ticks << ",active_wins=" << arb.active_wins
+                  << ",passive_wins=" << arb.passive_wins
+                  << ",passive_same_part=" << arb.passive_same_part_wins
+                  << ",passive_other_player=" << arb.passive_other_player_wins; 
+        for (std::size_t action = 0; action < arb.winner_actions.size(); ++action)
+          if (arb.winner_actions[action]) std::cout << ",winner_" << kBodyActionNames[action] << '=' << arb.winner_actions[action];
+        std::cout << '\n';
         for (std::size_t origin = 0; origin < active.origins.size(); ++origin)
           std::cout << ",origin_" << origin << '=' << active.origins[origin];
         std::cout << '\n';

@@ -8,6 +8,7 @@
 #include "football/ball/ball_impulse.hpp"
 #include "model/player.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
+#include "sim/player/player_action.hpp"
 
 // P5b: deterministic arbitration of active endpoint impulses. Simulation owns
 // the candidate list and the passive-impact facts; this header only selects at
@@ -15,6 +16,7 @@
 struct ActiveImpulseCandidate {
   football::model::PlayerId player = football::model::kInvalidPlayerId;
   PlayerBodyPart body_part = PlayerBodyPart::LowerBody;
+  e_FunctionType action = e_FunctionType_None;
   football::ball::BallImpulse impulse;
   // Relative approach speed along the contact normal at the contact instant.
   // Larger means a more committed contact; used as the primary ordering key.

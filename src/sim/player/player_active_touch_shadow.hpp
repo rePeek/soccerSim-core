@@ -13,6 +13,7 @@
 #include "sim/event/touch_type.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/player/player_active_touch_model.hpp"
+#include "sim/player/player_active_impulse.hpp"
 #include "foundation/time/tick.hpp"
 
 // Diagnostic stages, NOT another football action enum.
@@ -102,6 +103,16 @@ struct ActiveTouchActionReport {
   float trajectory_deviation_50 = 0, trajectory_deviation_100 = 0,
         trajectory_deviation_200 = 0;
 };
+// P5d: the real per-tick arbitration result. Candidate collection happens in the
+// active-touch observer; Simulation arbitrates once per tick with the P5b/P4d-2
+// functions and the passive-impact facts, so the pure functions are exercised on
+// real production candidates instead of only in unit tests.
+struct ActiveTouchArbitration {
+  std::uint64_t ticks_with_candidates = 0, candidates = 0, multi_candidate_ticks = 0;
+  std::uint64_t active_wins = 0, passive_wins = 0;
+  std::uint64_t passive_same_part_wins = 0, passive_other_player_wins = 0;
+  std::array<std::uint64_t, e_FunctionType_Special + 1> winner_actions{};
+};
 struct ActiveTouchShadowReport {
   std::array<ActiveTouchActionReport, e_FunctionType_Special + 1> actions{};
   std::array<std::uint64_t, 5> origins{};
@@ -115,6 +126,10 @@ struct ActiveTouchShadowReport {
   // standard position source (legacy Predict(0) cache vs endpoint state) is the
   // expected cause, so this bounds how far apart the two sources are.
   float model_reach_gap_max = 0.0f;
+  // P5d: real per-tick candidate buffer and arbitration result. Bounded by the
+  // number of actors that can strike in one tick; cleared after each arbitrate.
+  std::vector<ActiveImpulseCandidate> tick_candidates;
+  ActiveTouchArbitration arbitration;
   // Only the last tick is retained. Aggregates do not grow with match length.
   std::vector<ActiveTouchComparison> latest;
   std::uint64_t step = 0, generation = 0;
@@ -140,6 +155,24 @@ struct ActiveTouchShadowReport {
         ++model_reach_disagreements;
         model_reach_gap_max = std::max(model_reach_gap_max,
             std::fabs(model.reach_error - observation.candidate.reach_error));
+      }
+      // P5d: a real, reachable strike becomes an arbitration candidate. The
+      // impulse is the physical model's, so the winner is exactly what the
+      // single Step would receive.
+      if (model.reachable && comparison.impulse &&
+          (observation.origin == ActiveTouchOrigin::Scheduled ||
+           observation.origin == ActiveTouchOrigin::Controlled) &&
+          observation.stage == ActiveTouchStage::Executed) {
+        ActiveImpulseCandidate candidate;
+        candidate.player = observation.candidate.player;
+        candidate.body_part = observation.candidate.body_part;
+        candidate.action = observation.candidate.action;
+        candidate.impulse = model.impulse;
+        candidate.closing_speed =
+            model.impulse.impulse.GetLength() / config.mass();
+        candidate.passive_same_part = observation.same_part_passive_impact;
+        if (tick_candidates.size() < tick_candidates.capacity())
+          tick_candidates.push_back(candidate);
       }
     }
     auto& a = actions.at(static_cast<std::size_t>(observation.candidate.action));
@@ -192,5 +225,30 @@ struct ActiveTouchShadowReport {
     if (latest.size() < latest.capacity()) latest.push_back(std::move(comparison));
     else ++dropped_details;
   }
+  // P5d: one arbitration per tick over the real candidates. `passive_impact` and
+  // `passive_same_part` come from the tick's unified passive evidence, so the
+  // authority decision uses the same facts production would.
+  void ArbitratePendingCandidates(bool passive_impact, bool passive_same_part,
+                                  bool passive_owner_known) {
+    if (tick_candidates.empty()) return;
+    auto& arb = arbitration;
+    ++arb.ticks_with_candidates;
+    arb.candidates += tick_candidates.size();
+    if (tick_candidates.size() > 1) ++arb.multi_candidate_ticks;
+    const auto winner = ArbitrateActiveImpulse(tick_candidates);
+    const bool active_valid = winner.has_value();
+    const bool same_part = passive_impact && passive_owner_known && passive_same_part;
+    const auto authority = DecideContactAuthority({passive_impact, same_part, active_valid});
+    if (authority == ContactAuthority::PassiveImpact) {
+      ++arb.passive_wins;
+      if (same_part) ++arb.passive_same_part_wins;
+      else ++arb.passive_other_player_wins;
+    } else if (authority == ContactAuthority::ActiveTouch && winner) {
+      ++arb.active_wins;
+      ++arb.winner_actions.at(static_cast<std::size_t>(winner->action));
+    }
+    tick_candidates.clear();
+  }
 };
+
 #endif

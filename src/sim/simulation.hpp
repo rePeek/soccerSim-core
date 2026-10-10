@@ -125,6 +125,8 @@ class Simulation {
   void BeginBodyPhysicsShadow();
   void CompleteBodyPhysicsShadow();
   void EnableActiveTouchShadow(bool enabled);
+  // P5d: arbitrate this tick's real active-touch candidates exactly once.
+  void ArbitratePendingActiveTouches();
   // P5c: opt-in production takeover of the contact-point spin model for the
   // migrated actions. Diagnostic/test entry point; product code never enables it.
   void EnableActiveImpulseProduction(bool enabled) { active_impulse_production_ = enabled; }

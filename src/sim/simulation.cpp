@@ -694,6 +694,8 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   Mirror(true, true, true);
   step_team(second_team_);
   Mirror(first_team_ == 0, first_team_ == 1, true);
+  // P5d: exactly one real-candidate arbitration per tick, in the common frame.
+  ArbitratePendingActiveTouches();
 
   // UpdatePossession: retain both per-roster refreshes before arbitration.
   Mirror(first_team_ == 1, first_team_ == 0, false);

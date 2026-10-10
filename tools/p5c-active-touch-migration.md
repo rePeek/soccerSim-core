@@ -239,3 +239,27 @@ rule-facing authority and the legacy `Touch`/`SetRotation`/`ApplyForce`/
 P4d-2 switches are off by default. Removing them requires flipping those defaults,
 which requires the technique and low-pose calibration plus an accepted baseline
 transition.
+
+## P5d: real per-tick arbitration wired into Simulation (implemented)
+
+The active-touch observer now builds `ActiveImpulseCandidate` values from the
+same captured inputs the P5c-2 model uses (physical impulse, closing speed from
+`|J|/mass`, same-part passive fact), and Simulation calls
+`ArbitratePendingActiveTouches()` exactly once per tick, in the common frame
+right after both rosters. It runs the real `ArbitrateActiveImpulse` and
+`DecideContactAuthority` with the tick's own unified passive evidence, so the
+P5b/P4d-2 functions are exercised on production candidates rather than only in
+unit tests.
+
+Native seed 42, 4000 steps: normal order 11 candidate ticks -> 8 active wins,
+3 passive wins (2 same owner+part, 1 other player); reverse 12 -> 12 active wins.
+The same-owner/part and other-player suppressions are therefore applied to real
+data.
+
+What is **not** yet done for P5d: the Humanoid prepare/commit split, so the
+winner is still not submitted through `BallTickInput::active_impulse`; the
+opt-in P5c-3 path still uses `ApplyContactImpulse` at the touch instant. The
+reorder (preview passive endpoint -> player preparation -> single
+`Ball::Step(active_impulse)` -> commit player/rule state) is the remaining
+piece, and it changes the capture/notification ordering, so it needs its own
+baseline transition.

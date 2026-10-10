@@ -105,6 +105,12 @@ TEST_CASE("real action observation preserves snapshots touches rules RNG and end
     REQUIRE(report.model_reach_checks > 0);
     REQUIRE(report.model_reach_gap_max == 0.0f);
     REQUIRE(report.model_reach_disagreements * 4 <= report.model_reach_checks);
+    // P5d: every tick with a real candidate is decided exactly once by the
+    // authority rule, using the tick's own passive evidence.
+    const auto& arb = report.arbitration;
+    REQUIRE(arb.ticks_with_candidates > 0);
+    REQUIRE(arb.active_wins + arb.passive_wins == arb.ticks_with_candidates);
+    REQUIRE(arb.candidates >= arb.ticks_with_candidates);
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(control).latest.empty());
     SimulationAccess::EnableActiveTouchShadow(observed, false);
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(observed).latest.empty());
