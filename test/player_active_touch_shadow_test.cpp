@@ -1,0 +1,102 @@
+#include <catch2/catch_test_macros.hpp>
+#include "ai/default_ai.hpp"
+#include "app/fixtures/default_teams.hpp"
+#include "sim/testing/simulation_access.hpp"
+using football::sim::testing::SimulationAccess;
+using blunted::Vector3;
+
+TEST_CASE("active shadow computes endpoint impulse without time or constraint integration", "[active-shadow]") {
+  football::model::BallConfig config;
+  ActiveTouchObservation o;
+  o.candidate.action = e_FunctionType_Shot;
+  o.candidate.reachable = true;
+  o.candidate.target_velocity = {20, 0, 3};
+  o.stage = ActiveTouchStage::Executed;
+  o.before = {{0, 0, 1}, {2, 0, 0}, Vector3(0), blunted::Quaternion{}};
+  o.passive_endpoint = football::ball::BallState{{.02f, 0, 1}, {-5, 0, 0}, {0, 1, 0}, blunted::Quaternion{}};
+  o.raw_animation_point = {.02f, -.1f, 1};
+  const auto response = CompareActiveTouch(o, config);
+  REQUIRE(response.impulse.has_value());
+  REQUIRE((response.impulse->impulse - Vector3(25, 0, 3) * config.mass()).GetLength() < 1e-6f);
+  REQUIRE(response.response.position == o.passive_endpoint->position);
+  REQUIRE(std::fabs(response.response.orientation.GetDotProduct(o.passive_endpoint->orientation) - 1) < 1e-6f);
+  REQUIRE(response.velocity_error < 1e-5f);
+  REQUIRE(response.surface_error < 1e-6f);
+  REQUIRE(response.response.angular_velocity.GetLength() > 0);
+  auto mirrored = o;
+  mirrored.before.position.Mirror(); mirrored.before.velocity.Mirror();
+  mirrored.passive_endpoint->position.Mirror(); mirrored.passive_endpoint->velocity.Mirror();
+  mirrored.passive_endpoint->angular_velocity.Mirror();
+  mirrored.candidate.target_velocity.Mirror(); mirrored.raw_animation_point.Mirror();
+  auto expected = response.response.angular_velocity; expected.Mirror();
+  REQUIRE((CompareActiveTouch(mirrored, config).response.angular_velocity - expected).GetLength() < 1e-5f);
+  for (auto stage : {ActiveTouchStage::Pending, ActiveTouchStage::Rejected, ActiveTouchStage::NoImpulse, ActiveTouchStage::Constraint}) {
+    o.stage = stage;
+    REQUIRE_FALSE(CompareActiveTouch(o, config).impulse.has_value());
+  }
+  o.stage = ActiveTouchStage::Executed;
+  o.origin = ActiveTouchOrigin::RetainAnchor;
+  REQUIRE_FALSE(CompareActiveTouch(o, config).impulse.has_value());
+  o.origin = ActiveTouchOrigin::Scheduled;
+  o.raw_animation_point = o.passive_endpoint->position;
+  REQUIRE(CompareActiveTouch(o, config).fallback_point);
+  ActiveTouchShadowReport report; report.latest.reserve(2);
+  report.Record(o, 1, 0, config); report.Record(o, 1, 0, config);
+  REQUIRE(report.duplicate_candidates == 1);
+  REQUIRE(report.contending_ticks == 1);
+  report.Record(o, 2, 1, config);
+  REQUIRE(report.latest.size() == 1);
+}
+
+TEST_CASE("real action observation preserves snapshots touches rules RNG and end-change replay", "[active-shadow][sim]") {
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  for (bool reverse : {false, true}) {
+    MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
+    Simulation observed, control;
+    observed.Init(home, away, football::model::Pitch{}, options);
+    control.Init(home, away, football::model::Pitch{}, options);
+    SimulationAccess::EnableBodyPhysicsShadow(observed, true);
+    SimulationAccess::EnableActiveTouchShadow(observed, true);
+    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    for (int step = 0; step < 1600; ++step) {
+      if (step == 800) {
+        SimulationAccess::RequestChangeOfEnds(observed);
+        SimulationAccess::RequestChangeOfEnds(control);
+      }
+      PlayerControlSet controls; policy.Update(observed.Observe(), controls);
+      observed.Step(controls); control.Step(controls);
+      REQUIRE(SimulationAccess::RngOf(observed).engine() == SimulationAccess::RngOf(control).engine());
+      const auto& a = observed.Snapshots().Latest()->snapshot;
+      const auto& b = control.Snapshots().Latest()->snapshot;
+      REQUIRE(a.ball.position == b.ball.position);
+      REQUIRE(a.ball.velocity == b.ball.velocity);
+      REQUIRE(a.ball.angular_velocity == b.ball.angular_velocity);
+      REQUIRE(a.players.size() == b.players.size());
+      for (std::size_t i = 0; i < a.players.size(); ++i) {
+        REQUIRE(a.players[i].position == b.players[i].position);
+        REQUIRE(a.players[i].velocity == b.players[i].velocity);
+        REQUIRE(a.players[i].frame == b.players[i].frame);
+        REQUIRE(a.players[i].animation_id == b.players[i].animation_id);
+        REQUIRE(a.players[i].has_possession == b.players[i].has_possession);
+      }
+      const auto& ta = SimulationAccess::RecordedTouchesOf(observed);
+      const auto& tb = SimulationAccess::RecordedTouchesOf(control);
+      REQUIRE(ta.size() == tb.size());
+      if (!ta.empty()) {
+        REQUIRE(ta.back().player == tb.back().player);
+        REQUIRE(ta.back().type == tb.back().type);
+        REQUIRE(ta.back().action_type == tb.back().action_type);
+      }
+      REQUIRE(observed.Observe().in_play == control.Observe().in_play);
+    }
+    const auto& report = SimulationAccess::ActiveTouchShadowReportOf(observed);
+    std::uint64_t frames = 0, executed = 0;
+    for (const auto& a : report.actions) { frames += a.frames; executed += a.executed; }
+    REQUIRE(frames > 0); REQUIRE(executed > 0);
+    REQUIRE(report.dropped_details == 0);
+    REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(control).latest.empty());
+    SimulationAccess::EnableActiveTouchShadow(observed, false);
+    REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(observed).latest.empty());
+  }
+}

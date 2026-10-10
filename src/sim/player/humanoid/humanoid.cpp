@@ -1,3 +1,4 @@
+#include "sim/player/player_active_touch_shadow.hpp"
 // Copyright 2019 Google LLC & Bastiaan Konings
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -111,7 +112,48 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
   Player* ball_retainer = tick.ball_retainer;
   // Tick-local publication: actors never reach the runtime owner for touch notification.
+  std::optional<ActiveTouchObservation> active_observation;
+  const auto begin_active_observation = [&](ActiveTouchOrigin origin) {
+    if (!tick.active_touch_shadow) return;
+    ActiveTouchObservation observation;
+    const auto& state = CastPlayer()->GetSimulationActionState();
+    observation.candidate.player = CastPlayer()->GetID();
+    observation.candidate.action = state.type;
+    const auto& part = GetCurrentBakedClip().metadata.touch_bodypart;
+    observation.candidate.body_part = part.find("head") != std::string::npos ? PlayerBodyPart::Head :
+        (part.find("foot") != std::string::npos || part.find("lowerleg") != std::string::npos ?
+         PlayerBodyPart::LowerBody : PlayerBodyPart::UpperBody);
+    observation.candidate.scheduled_tick = now + football::sim::TickSpan{1};
+    observation.legacy_rule_tick = now;
+    observation.animation_id = currentAnim.animationId;
+    observation.contact_frame = state.ContactFrame();
+    observation.elapsed = state.Frame();
+    observation.origin = origin;
+    observation.stage = ActiveTouchStage::NoImpulse;
+    observation.before = tick.ball.state();
+    observation.raw_animation_point = currentAnim.touchPos + currentAnim.positionOffset;
+    observation.player_position = spatialState.position;
+    active_observation = observation;
+  };
+  const auto flush_active_observation = [&] {
+    if (!active_observation) return;
+    active_observation->after = tick.ball.state();
+    active_observation->candidate.target_velocity = active_observation->after.velocity;
+    active_observation->candidate.target_angular_velocity = active_observation->after.angular_velocity;
+    tick.active_touch_shadow->Observe(*active_observation);
+    active_observation.reset();
+  };
+  const auto apply_touch = [&](const Vector3& velocity) {
+    if (active_observation) {
+      active_observation->before = tick.ball.state();
+      active_observation->stage = ActiveTouchStage::Executed;
+    }
+    football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, velocity, history,
+        tick.first_processing_team, tick.second_processing_team, now, ball_retainer);
+  };
   const auto notify_touch = [&](e_TouchType type) {
+    if (active_observation) active_observation->accepted_type = type;
+    flush_active_observation();
     touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{now,
         CastPlayer()->GetID(), team->GetTeamSide(), type, tick.ball.Predict(0),
         tick.ball.GetMovement(),
@@ -498,6 +540,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       (tick.play_authorized && tick.set_piece_active && tick.restart.active &&
        tick.restart.taker == player);
   if (may_touch && controlledBallCollision && !action.HasScheduledContact()) {
+    begin_active_observation(ActiveTouchOrigin::Controlled);
+    if (active_observation) active_observation->candidate.reachable = true;
     Vector3 currentBallVec = tick.ball.GetMovement();
     radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + currentAnim.rotationSmuggle.end;
 
@@ -512,14 +556,25 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     float bumpyRideBias = 0.0f;
     touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-    football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
-        first_roster, second_roster,
-        now, ball_retainer);
+    apply_touch(touchVec);
     tick.ball.SetRotation(xRot, yRot, 0, 0.2f * (1.0f - bumpyRideBias), tick.ball_environment); // 0.9
     notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart)); //, e_TouchType_Accidental
   }
   // ---------------------- / EXPERIMENTAL ------------------------------------------------
 
+  if (action.HasScheduledContact() && action.Frame() <= action.ContactFrame()) {
+    begin_active_observation(ActiveTouchOrigin::Scheduled);
+    if (active_observation) {
+      active_observation->candidate.scheduled_tick = now + football::sim::TickSpan{
+          static_cast<std::uint64_t>(action.ContactFrame() - action.Frame() + 1)};
+      active_observation->stage = action.Frame() < action.ContactFrame() ?
+          ActiveTouchStage::Pending : ActiveTouchStage::NoImpulse;
+      if (!may_touch && action.Frame() == action.ContactFrame()) {
+        active_observation->stage = ActiveTouchStage::Rejected;
+        active_observation->rejection = ActiveTouchReject::Authorization;
+      }
+    }
+  }
   if (may_touch && action.HasScheduledContact() &&
       action.Frame() == action.ContactFrame()) {
     ContactAuthorityAudit *contact_audit =
@@ -558,6 +613,17 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     bumpyRideBias = curve(bumpyRideBias, 0.5f);
     Vector3 currentBallVec = tick.ball.GetMovement();
     bool contact_reachable = false;
+    if (active_observation) {
+      active_observation->candidate.reach_error = fullBallDistance;
+      active_observation->incoming_retain_override = !GetCurrentBakedClip().metadata.incoming_retain_state.empty();
+      active_observation->candidate.reachable = fullBallDistance < touchableDistance &&
+          std::fabs(desiredBallHeight - tick.ball.Predict(0).coords[2]) < 1.0f;
+      if (!active_observation->candidate.reachable) {
+        active_observation->stage = ActiveTouchStage::Rejected;
+        active_observation->rejection = fullBallDistance < touchableDistance ?
+            ActiveTouchReject::Height : ActiveTouchReject::Distance;
+      }
+    }
     if (contact_audit) {
       contact_audit->full_ball_distances.push_back(fullBallDistance);
       contact_audit->bumpy_ride_biases.push_back(bumpyRideBias);
@@ -603,9 +669,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
-            first_roster, second_roster,
-            now, ball_retainer);
+        apply_touch(touchVec);
         record_contact_impulse(touchVec);
         tick.ball.SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), tick.ball_environment);
 
@@ -623,9 +687,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
-            first_roster, second_roster,
-            now, ball_retainer);
+        apply_touch(touchVec);
         record_contact_impulse(touchVec);
         tick.ball.SetRotation(xRot, yRot, 0, 0.6f * (1.0f - bumpyRideBias), tick.ball_environment); // 1.0
 
@@ -699,9 +761,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
-            first_roster, second_roster,
-            now, ball_retainer);
+        apply_touch(touchVec);
         record_contact_impulse(touchVec);
         float forwardness = 3.5f;
         if (currentAnim.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
@@ -736,9 +796,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
-            first_roster, second_roster,
-            now, ball_retainer);
+        apply_touch(touchVec);
         record_contact_impulse(touchVec);
         tick.ball.SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), tick.ball_environment);
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
@@ -757,9 +815,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
-            first_roster, second_roster,
-            now, ball_retainer);
+        apply_touch(touchVec);
         // Legacy three-argument call: the third value is z rotation; bias was 1.0.
         tick.ball.SetRotation(xRot, yRot, 0.3f * (1.0f - bumpyRideBias), 1.0f, tick.ball_environment);
         notify_touch(e_TouchType_Accidental); // it's not truly accidental, but the resulting direction somewhat is, so goalies may fetch these balls
@@ -783,6 +839,10 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         if ((1.0f - veloDifficulty) * (1.0f - reactionDifficulty) < 0.3f) canRetain = false; // too hard!
 
         if (canRetain) {
+          if (active_observation) {
+            active_observation->origin = ActiveTouchOrigin::RetainAcquire;
+            active_observation->stage = ActiveTouchStage::Constraint;
+          }
           runtime_sink.SetBallRetainer(CastPlayer());
           ball_retainer = CastPlayer();
         } else {
@@ -799,9 +859,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
           touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-          football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
-              first_roster, second_roster,
-              now, ball_retainer);
+          apply_touch(touchVec);
           tick.ball.SetRotation(0, 0, 0, 0.2f * (1.0f - bumpyRideBias), tick.ball_environment);
         }
         notify_touch(e_TouchType_Accidental);
@@ -814,9 +872,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, touchVec, history,
-            first_roster, second_roster,
-            now, ball_retainer);
+        apply_touch(touchVec);
 
         notify_touch(e_TouchType_Accidental);
       }
@@ -826,6 +882,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       if (contact_reachable) ++contact_audit->reachable_without_impulse;
     }
   }
+  flush_active_observation();
 
   if (ball_retainer == player) {
     if (((!action.HasScheduledContact() ||
@@ -852,15 +909,18 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         throw std::runtime_error("Humanoid::Process: unknown retain state: " +
                                  retainState);
       }
-      football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, Vector3(0), history,
-          first_roster, second_roster,
-          now, ball_retainer);
+      begin_active_observation(ActiveTouchOrigin::RetainAnchor);
+      apply_touch(Vector3(0));
+      if (active_observation) active_observation->stage = ActiveTouchStage::Constraint;
       tick.ball.SetRotation(0, 0, 0, 1.0, tick.ball_environment);
       tick.ball.SetPosition(ComputeRetainAnchor(
           spatialState.position, spatialState.bodyDirectionVec, anchor), tick.ball_environment);
       notify_touch(e_TouchType_Intentional_Nonkicked);
     } else {
       // no longer retaining
+      begin_active_observation(ActiveTouchOrigin::RetainRelease);
+      if (active_observation) active_observation->stage = ActiveTouchStage::Constraint;
+      flush_active_observation();
       runtime_sink.SetBallRetainer(nullptr);
       ball_retainer = nullptr;
     }

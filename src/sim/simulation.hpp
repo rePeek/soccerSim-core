@@ -32,6 +32,7 @@
 #include "sim/player/player_runtime_sink.hpp"
 #include "sim/player/foul_assessment.hpp"
 #include "sim/player/player_body_collision_shadow.hpp"
+#include "sim/player/player_active_touch_shadow.hpp"
 
 #include "sim/referee/ruling.hpp"
 #include "sim/event/match_event.hpp"
@@ -92,6 +93,7 @@ class Simulation {
   class RuleCommands;
   class TouchEvents;
   class RulingEvents;
+  class ActiveTouchEvents;
 
   // Synchronous accepted-touch dispatch: bookkeeping, recognition and the
   // referee consume happen at the exact legacy boundary and in legacy order.
@@ -122,6 +124,7 @@ class Simulation {
   void DiscardBodyCollisionShadow();
   void BeginBodyPhysicsShadow();
   void CompleteBodyPhysicsShadow();
+  void EnableActiveTouchShadow(bool enabled);
 
   // Lifecycle mutations, published through the write-only rule/player ports.
   void SetMatchPhase(MatchPhase newPhase);
@@ -242,6 +245,8 @@ class Simulation {
   BodyPhysicsShadowReport body_physics_shadow_report_;
   std::vector<BodyShadowCandidate> body_physics_shadow_candidates_;
   BodyContactEpisodes body_geometry_episodes_, body_impact_episodes_;
+  std::unique_ptr<ActiveTouchShadowSink> active_touch_shadow_sink_;
+  ActiveTouchShadowReport active_touch_shadow_report_;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

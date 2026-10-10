@@ -17,7 +17,8 @@ add_subdirectory(ball)
 add_library(football_sim STATIC)
 add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
-  simulation.cpp simulation_body_shadow.cpp
+  simulation.cpp simulation_body_shadow.cpp simulation_active_touch_shadow.cpp
+  player/player_active_touch_shadow.hpp
   event/touch_state.hpp event/touch_type.hpp
   event/touch_record.hpp
   event/event.hpp event/event_transition.hpp

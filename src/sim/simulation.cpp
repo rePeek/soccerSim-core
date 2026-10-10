@@ -126,7 +126,7 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
           clock_->IsHalfUnderway(), *ball_, GetBallEnvironment(), ball_retainer_,
           designated_possession_player_, GetLastTouchPlayer(), touches_,
           referee_->GetBuffer(), pitch_, own, opponent, first, second, processing_slot,
-          referee_->RestartNeedsSimulation(), rng_};
+          referee_->RestartNeedsSimulation(), rng_, active_touch_shadow_sink_.get()};
 }
 
 // The single write-only fact-production port. Touch bookkeeping stays synchronous
@@ -813,6 +813,7 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   body_geometry_episodes_.Break();
   body_impact_episodes_.Break();
   ++reset_sequence_;
+  active_touch_shadow_report_.latest.clear();
   pending_rulings_.clear();
   foul_assessments_.clear();
   ball_retainer_ = nullptr;
@@ -974,6 +975,7 @@ MatchResult Simulation::Result() const {
 
 bool Simulation::Stop() {
   if (!ball_) return false;
+  EnableActiveTouchShadow(false);
   teams_[first_team_]->Exit(GetTimelineTick());
   teams_[second_team_]->Exit(GetTimelineTick());
   // Clear every actor borrow before their owners go away: an uninitialized

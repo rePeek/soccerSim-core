@@ -37,7 +37,10 @@ int main(int argc, char** argv) {
       options.game_engine_random_seed = 42;
       Simulation simulation;
       simulation.Init(home, away, football::model::Pitch{}, options);
-      if (full) SimulationAccess::EnableBodyPhysicsShadow(simulation, true);
+      if (full) {
+        SimulationAccess::EnableBodyPhysicsShadow(simulation, true);
+        SimulationAccess::EnableActiveTouchShadow(simulation, true);
+      }
       int contact_samples = 0;
       football::ai::DefaultAI policy(home, away, football::model::Pitch{});
       PlayerControlSet controls;
@@ -118,6 +121,26 @@ int main(int argc, char** argv) {
         PrintDelta("unified_minus_production_position_m", p.production_position_delta);
         PrintDelta("unified_minus_production_velocity_mps", p.production_velocity_delta);
         PrintDelta("unified_minus_production_spin_radps", p.production_spin_delta);
+        const auto& active = SimulationAccess::ActiveTouchShadowReportOf(simulation);
+        std::cout << "active-shadow,reverse=" << reverse << ",contending_ticks=" << active.contending_ticks
+                  << ",duplicates=" << active.duplicate_candidates << ",dropped=" << active.dropped_details;
+        for (std::size_t origin = 0; origin < active.origins.size(); ++origin)
+          std::cout << ",origin_" << origin << '=' << active.origins[origin];
+        std::cout << '\n';
+        for (std::size_t action = 0; action < active.actions.size(); ++action) {
+          const auto& a = active.actions[action];
+          if (!a.pending_samples && !a.frames && !a.executed) continue;
+          std::cout << "active-action,reverse=" << reverse << ",action=" << kBodyActionNames[action]
+                    << ",pending=" << a.pending_samples << ",frames=" << a.frames << ",executed=" << a.executed
+                    << ",no_impulse=" << a.no_impulse << ",fallback=" << a.fallback_points
+                    << ",passive_endpoints=" << a.passive_endpoints << ",same_part=" << a.same_part_conflicts
+                    << ",other_player=" << a.other_player_conflicts << ",position_mutations=" << a.position_mutations
+                    << ",dv_max=" << a.velocity_error_max << ",dw_max=" << a.spin_error_max
+                    << ",surface_error_max=" << a.surface_error_max << ",spin_max=" << a.spin_max;
+          for (std::size_t reason = 0; reason < a.rejected.size(); ++reason)
+            std::cout << ",reject_" << reason << '=' << a.rejected[reason];
+          std::cout << '\n';
+        }
       }
     }
   } catch (const std::exception& error) {

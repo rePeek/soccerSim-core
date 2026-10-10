@@ -335,3 +335,59 @@ player passive priority, at-most-one active candidate arbitration, and separate
 position correction from a new impact. Keep Ball unaware of action/rule identity.
 Moving-overlap release and phase-valid low poses remain blocking; P5a is not
 permission to open the production switch.
+
+## P5a: read-only active-touch candidates (no authority switch)
+
+`player/player_active_touch_shadow.hpp` observes the *existing* action execution
+path; it never recomputes an action, draws RNG or writes production state.
+`football/ball/ball_impulse.hpp` is a pure physical value
+`BallImpulse{impulse, contact_point}` with no player/action/rule identity.
+
+At each real scheduled/controlled contact the Humanoid records, before and after
+`ApplyBallTouch`, the executed action, animation id, contact frame, elapsed
+frames, ball state, the baked desired ball center (`currentAnim.touchPos +
+positionOffset`) and the player position. Pending frames and authorization /
+distance / height rejections are recorded separately, so a pending animation is
+never reported as an accepted touch. `Simulation::ActiveTouchEvents` mirrors the
+second processing team into the pitch frame (state, target velocity and points)
+before `ActiveTouchShadowReport::Record`, exactly like the P4 body shadow.
+
+`CompareActiveTouch` starts from the predicted passive endpoint
+(`body_physics_shadow_tick_.unified.state` for the current step), derives the
+contact point by projecting the raw desired ball center onto the current ball
+surface and forms `J = mass * (target_velocity - passive_endpoint.velocity)`,
+then applies `ApplyImpulseAtPoint`. The report separates:
+
+- `passive_endpoints`: comparisons that had a same-step passive endpoint;
+- `same_part_conflicts` / `other_player_conflicts`: the endpoint's winning body
+  impact belongs to the same player+part as the candidate / to another player;
+- `fallback_points`: the raw desired center coincided with the ball center, so a
+  provisional `player_position + (0,0,.1)` proxy was used. This is reported, not
+  treated as proof of a posed foot contact.
+
+Native seed 42, normal/reverse (`football_body_shadow 4000 --full`): 604/457
+pending samples, 3/3 controlled, 1/1 retain acquire, 131/90 retain anchors,
+1/1 retain release. Executed actions: movement 2/3, ball_control 1/1, short_pass
+10/9, shot 0/2, trip 1/0. No duplicate candidate, no contending tick, no dropped
+detail. `same_part` was 2/0 (short pass) and `other_player` 1/0, i.e. a real
+same-part passive/active overlap exists on the native tape but is not yet
+arbitrated.
+
+**Measured semantic gap, not a candidate failure:** because the target velocity
+is the legacy post-touch velocity, the derived linear impulse reproduces it
+(`dv_max = 0`). The point impulse cannot reproduce the legacy *directly set*
+spin: `dw_max` reached 446/348 rad/s. Legacy `SetRotation` assigns angular
+velocity independently of the contact, so a single physical point impulse is
+inconsistent with it. P5b must define the outgoing spin as a physical
+consequence of the impulse, not as a copied legacy value.
+
+P5a is evidence only. `BallTickInput` still has no `active_impulse`, production
+passes no dynamic bodies and the acceptance blockers below remain open.
+
+Validation: focused `[active-shadow]` cases (2 cases, 380343 assertions) prove
+the endpoint impulse changes only velocity/spin about the contact point (position
+and orientation preserved), rejects non-executed/retained stages, is
+mirror-consistent, and that 1600 native steps under both processing orders with
+end-change replay keep RNG, ball state, player state, accepted touches and
+in-play facts identical to a shadow-free control. Regression `--print-baseline`
+is byte-identical and the baked asset hash is unchanged.

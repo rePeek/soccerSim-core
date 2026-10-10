@@ -30,6 +30,7 @@ target_sources(football_ball
     FILES
       include/football/ball/ball.hpp
       include/football/ball/ball_state.hpp
+      include/football/ball/ball_impulse.hpp
       include/football/ball/ball_environment.hpp
       include/football/ball/ball_timing.hpp
       include/football/ball/collider.hpp

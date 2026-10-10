@@ -933,3 +933,20 @@ See tools/ball-body-shadow.md for attribution, provisional pose limitations and
 the P5a shadow-only next gate. No production Ball API/kernel/authority changed.
 P4d-1.2 validation: Release 42/42, Debug 41/41 (without full regulation CLI),
 including existing regression/A-B modes, passed with no Golden/asset changes.
+
+P5a adds read-only active-touch candidates. `football/ball/ball_impulse.hpp`
+is a pure `BallImpulse{impulse, contact_point}` value. Humanoid observes the
+existing scheduled/controlled contact around `ApplyBallTouch` (action, animation
+id, contact/elapsed frames, pre/post ball state, baked desired ball center,
+player position) through a nullable `active_touch_shadow` sink on
+PlayerTickContext; pending frames and authorization/distance/height rejections
+are separate stages, so a pending animation is never an accepted touch.
+`sim/simulation_active_touch_shadow.cpp` mirrors the second processing team into
+the pitch frame and records against the predicted passive endpoint
+(`body_physics_shadow_tick_.unified.state`), reporting same-part/other-player
+passive conflicts, surface-projection fallback and the impulse response from
+`ApplyImpulseAtPoint`. It never recomputes an action, draws RNG or writes state.
+Native evidence shows the legacy direct spin (`SetRotation`) is not reproducible
+by a point impulse (`dw` up to ~446 rad/s), so P5b must derive outgoing spin
+physically. `BallTickInput` still has no active impulse and production still
+passes no dynamic bodies; the production switch stays closed.

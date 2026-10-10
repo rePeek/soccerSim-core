@@ -10,6 +10,7 @@ class Player;
 namespace football::ball { class Ball; }
 class Team;
 struct RefereeBuffer;
+class ActiveTouchShadowSink;
 namespace football::model { class Pitch; }
 
 namespace football::sim {
@@ -46,6 +47,7 @@ struct PlayerTickContext {
   bool restart_needs_simulation;
 
   blunted::Rng& rng;
+  ActiveTouchShadowSink* active_touch_shadow = nullptr; // optional read-only diagnostic
 };
 } // namespace football::sim
 
