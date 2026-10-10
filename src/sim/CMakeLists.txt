@@ -19,6 +19,7 @@ add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
   simulation.cpp simulation_body_shadow.cpp simulation_active_touch_shadow.cpp
   player/player_active_touch_shadow.hpp player/player_active_impulse.hpp
+  player/player_active_touch_model.hpp
   event/touch_state.hpp event/touch_type.hpp
   event/touch_record.hpp
   event/event.hpp event/event_transition.hpp
