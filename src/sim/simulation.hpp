@@ -25,6 +25,7 @@
 #include "sim/event/event_recognizer.hpp"
 #include "sim/event/touch_state.hpp"
 #include "sim/event/touch_record.hpp"
+#include "sim/event/rule_touch.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "sim/referee/referee_tick_facts.hpp"
 #include "sim/referee/rule_command_sink.hpp"
@@ -142,6 +143,9 @@ class Simulation {
   // Explicit timing-migration gate, independent of all diagnostic sinks.
   void EnablePreparedTickProduction(bool enabled);
   void RunPreparedPlayerTick();
+  void PublishRuleTouch(football::sim::event::RuleTouch touch);
+  void PublishBodyRuleTouches(const football::ball::BallStepResult& result,
+      std::span<const football::ball::ColliderMotion> bodies);
 
   // Lifecycle mutations, published through the write-only rule/player ports.
   void SetMatchPhase(MatchPhase newPhase);
@@ -279,6 +283,8 @@ class Simulation {
   bool prepared_tick_production_ = false;
   std::unique_ptr<football::ball::Ball> preparation_ball_;
   std::optional<football::ball::BallStepResult> committed_ball_tick_;
+  std::vector<football::sim::event::RuleTouch> rule_touches_; // latest committed tick
+  std::map<football::ball::ColliderId, bool> rule_contact_episodes_;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

@@ -417,3 +417,40 @@ TEST_CASE("prepared tick commits the arbitrated impulse inside its sole Ball Ste
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(a).latest.empty());
   }
 }
+
+TEST_CASE("prepared ON ON publishes reviewed CCD touch provenance through the referee sink", "[prepared-tick][rule-touch][sim]") {
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  for (bool reverse : {false, true}) {
+    MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
+    Simulation s; s.Init(home, away, football::model::Pitch{}, options);
+    SimulationAccess::EnableBodyPhysicsProduction(s, true);
+    SimulationAccess::EnablePreparedTickProduction(s, true);
+    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    int body_touches = 0, strikes = 0;
+    for (int step = 0; step < 4000; ++step) {
+      PlayerControlSet controls; policy.Update(s.Observe(), controls); s.Step(controls);
+      const auto& touches = SimulationAccess::RuleTouchesOf(s);
+      REQUIRE(touches.size() <= 1);
+      for (const auto& touch : touches) {
+        REQUIRE(touch.step == s.Snapshots().Latest()->stamp.step_index);
+        const auto& records = SimulationAccess::RecordedTouchesOf(s);
+        REQUIRE_FALSE(records.empty());
+        REQUIRE(records.back().player == touch.accepted.player);
+        REQUIRE(records.back().type == touch.accepted.type);
+        if (touch.source == football::sim::event::RuleTouchSource::BodyCCD) {
+          ++body_touches;
+          REQUIRE(touch.contact.has_value());
+          REQUIRE(touch.contact->normal_impulse > 0);
+          REQUIRE(touch.accepted.preserve_opponent_offside);
+          REQUIRE_FALSE(SimulationAccess::CommittedBallTickOf(s)->active_impulse.has_value());
+        } else if (touch.source == football::sim::event::RuleTouchSource::PreparedAction) {
+          ++strikes;
+          REQUIRE(SimulationAccess::CommittedBallTickOf(s)->active_impulse.has_value());
+        }
+      }
+    }
+    REQUIRE(body_touches > 0);
+    REQUIRE(strikes > 0);
+  }
+}

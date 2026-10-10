@@ -548,3 +548,32 @@ TEST_CASE("event touch identities survive send-offs and reset without team bookk
   REQUIRE(football::sim::event::TeamTouchBias(touches, *SimulationAccess::TeamOf(simulation, 1), 503, Tick{23}) == 0.f);
 }
 }  // namespace
+
+TEST_CASE("reviewed opposing CCD deflection preserves offside until the attacker touches", "[rule-touch][referee]") {
+  Simulation s;
+  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+  RefereeStateFixture referee(s);
+  referee.buffer.active = false; referee.buffer.restart.reset();
+  auto* attacker = SimulationAccess::TeamOf(s, 0)->GetAllPlayers()[2];
+  auto* defender = SimulationAccess::TeamOf(s, 1)->GetAllPlayers()[2];
+  referee.offsidePlayers = {attacker};
+  auto facts = SimulationAccess::RefereeFactsOf(s);
+  facts.play_authorized = true; facts.set_piece_active = false;
+  std::vector<Player*> players;
+  SimulationAccess::TeamOf(s, 0)->GetActivePlayers(players);
+  SimulationAccess::TeamOf(s, 1)->GetActivePlayers(players);
+  football::sim::rules::RefereeView view{facts, players, true};
+  football::test::RuleCommandProbe commands;
+  football::sim::event::AcceptedTouch deflection{football::sim::Tick{10}, defender->GetID(),
+      football::model::TeamSide::Away, e_TouchType_Accidental, {}, {}, 0, true};
+  referee.ConsumeBallTouch(football::sim::Tick{10}, deflection, view, commands);
+  REQUIRE(referee.offsidePlayers == std::vector<Player*>{attacker});
+  REQUIRE(commands.calls.empty());
+  deflection.player = attacker->GetID(); deflection.team = football::model::TeamSide::Home;
+  referee.ConsumeBallTouch(football::sim::Tick{11}, deflection, view, commands);
+  REQUIRE(referee.buffer.active);
+  REQUIRE(referee.buffer.desiredSetPiece == e_GameMode_FreeKick);
+  REQUIRE(referee.buffer.teamID == 1);
+  REQUIRE(std::count(commands.calls.begin(), commands.calls.end(), "stop") == 1);
+}

@@ -591,6 +591,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   pending_rulings_.clear();
   foul_assessments_.clear();
   committed_ball_tick_.reset();
+  rule_touches_.clear();
 
   // Frame-local controls are runtime input, not an orchestration algorithm.
   for (int team_id = 0; team_id < 2; ++team_id) {
@@ -835,6 +836,8 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();
   committed_ball_tick_.reset();
+  rule_touches_.clear();
+  for (auto& [id, active] : rule_contact_episodes_) active = false;
   pending_rulings_.clear();
   foul_assessments_.clear();
   ball_retainer_ = nullptr;
@@ -888,6 +891,8 @@ void Simulation::ApplyChangeOfEnds() {
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();
   committed_ball_tick_.reset();
+  rule_touches_.clear();
+  for (auto& [id, active] : rule_contact_episodes_) active = false;
   // Permanent end change: preserve processing-roster order and canonical flags.
   teams_[first_team_]->SwitchEnds();
   teams_[second_team_]->SwitchEnds();

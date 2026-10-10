@@ -313,6 +313,7 @@ void Referee::ConsumeBallTouch(Tick now,
   facts.pitch = &view.tick.pitch;
   facts.all_active_players = view.all_active_players;
   facts.stadium_to_home = view.tick.stadium_to_home;
+  facts.preserve_opponent_offside = fact.preserve_opponent_offside;
   EvaluateBallTouch(facts, commands);
 }
 
@@ -401,6 +402,14 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
       }
     }
   }
+
+  // A reviewed opponent deflection does not erase the earlier attacking
+  // team's offside positions. Touching by the flagged attacker is still judged
+  // above; a teammate's touch still creates a new offside reference.
+  if (facts.preserve_opponent_offside &&
+      std::any_of(offsidePlayers.begin(), offsidePlayers.end(), [&](const Player* p) {
+        return p->GetTeamID() != lastTouchTeamID;
+      })) return;
 
   offsidePlayers.clear();
 

@@ -1045,3 +1045,19 @@ constraint for retention, with notifications only after commit. Legacy fused
 execution and earlier experimental immediate switches remain default OFF; this
 is not P7 promotion. Baked pose, rule migration and full-match acceptance are
 still required. CTest wall time is NOT evidence of meeting a 10ms tick budget.
+
+### Reviewed rule touches on the prepared path (P6b experimental)
+
+`simulation_rule_touch.cpp` produces `event/RuleTouch` with Tick, player/part,
+source (prepared action / CCD / retain acquisition), step/generation and physical
+contact provenance. It publishes through the existing AcceptedTouchSink AFTER
+Ball commit. Mapped active-player approaching impacts are accidental touches only
+on the first accepted impact in a geometric episode. Corrections cannot arm
+suppression; geometric separation, resets and end changes re-arm it. This policy
+is experimental because the upright collider geometry is not final calibration.
+CCD opponent deflections preserve prior offside positions; the referee still
+judges an offside attacker receiving the ball. Acquisition is recorded once;
+retain anchoring is not a repeated rule touch. Default legacy producers preserve
+their previous semantics. Native ON/ON prepared runs prove both actual accepted
+CCD contacts and same-Step active strikes exist in both processing orders; this
+does not replace complete-match/last-touch/restart acceptance.

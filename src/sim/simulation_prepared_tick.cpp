@@ -60,6 +60,10 @@ void Simulation::EnablePreparedTickProduction(bool enabled) {
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();
   committed_ball_tick_.reset();
+  rule_touches_.clear();
+  rule_contact_episodes_.clear();
+  for (const auto& [id, owner] : body_collider_owners_)
+    rule_contact_episodes_.emplace(id, false);
 }
 
 void Simulation::RunPreparedPlayerTick() {
@@ -173,20 +177,19 @@ void Simulation::RunPreparedPlayerTick() {
   const auto* previous_retainer = ball_retainer_;
   if (ports.release) ball_retainer_ = nullptr;
   if (anchor && input.endpoint_constraint) ball_retainer_ = FindPlayerById(anchor->fact.player);
-  const auto publish = [&](football::sim::event::AcceptedTouch fact) {
-    fact.ball_position = ball_->state().position;
-    fact.ball_velocity = ball_->state().velocity;
-    touch_sink_->OnAcceptedTouch(fact);
-  };
+  PublishBodyRuleTouches(result, bodies);
   if (winner) {
     const auto fact = std::find_if(ports.touches.begin(), ports.touches.end(), [&](const auto& t) {
       return !t.retain_anchor && t.fact.player == winner->player && t.part == winner->body_part;
     });
     if (fact == ports.touches.end()) throw std::logic_error("arbitration winner has no touch provenance");
-    publish(fact->fact);
+    PublishRuleTouch({fact->fact, fact->part,
+        football::sim::event::RuleTouchSource::PreparedAction, 0, 0, std::nullopt});
   } else if (anchor && input.endpoint_constraint && !ports.release) {
     // Anchoring is not a repeated new rule touch. Publish acquisition only.
-    if (previous_retainer != ball_retainer_) publish(anchor->fact);
+    if (previous_retainer != ball_retainer_)
+      PublishRuleTouch({anchor->fact, anchor->part,
+          football::sim::event::RuleTouchSource::RetainAcquisition, 0, 0, std::nullopt});
   }
   football::sim::observation::RefreshLatestMentalImageBallPredictions(mental_images_, *ball_);
   Mirror(reverse, !reverse, false);
