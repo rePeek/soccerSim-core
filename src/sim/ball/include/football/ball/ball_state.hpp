@@ -25,6 +25,12 @@ struct BallState {
   blunted::Quaternion orientation;
 };
 
+// Kinematic endpoint constraint, not an impact. No football identity/rules.
+struct BallEndpointConstraint {
+  blunted::Vector3 position;
+  blunted::Vector3 velocity;
+};
+
 }  // namespace football::ball
 
 #endif  // FOOTBALL_BALL_BALL_STATE_HPP

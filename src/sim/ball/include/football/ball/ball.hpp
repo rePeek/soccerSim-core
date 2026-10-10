@@ -29,12 +29,6 @@
 
 namespace football::ball {
 
-// An externally maintained kinematic constraint at the tick endpoint. This is
-// not an impact and carries no football identity; ownership belongs to Simulation.
-struct BallEndpointConstraint {
-  blunted::Vector3 position;
-  blunted::Vector3 velocity;
-};
 
 // Borrowed input for exactly one 10ms interval, in BallState's coordinate frame.
 // IDs must be nonzero, unique, and disjoint from pitch IDs 1--7.
@@ -44,7 +38,7 @@ struct BallTickInput {
   // P5b: at most one active impulse, supplied by Simulation after arbitration
   // and applied at the tick endpoint (after passive motion and netting). It
   // changes velocity and spin only; position is never advanced a second time
-  // and no second Step is performed. Production currently supplies none.
+  // and no second Step is performed.
   std::optional<BallImpulse> active_impulse;
   // Mutually exclusive with active_impulse (e.g. constrained possession).
   std::optional<BallEndpointConstraint> endpoint_constraint;
@@ -89,13 +83,6 @@ class Ball {
   // unified point-impulse response (ApplyImpulseAtPoint in ball_response.hpp).
   void ApplyImpulseAtPoint(const blunted::Vector3& impulse,
                            const blunted::Vector3& world_point);
-  // P5c production contact-point touch: keeps the legacy resting-height clamp,
-  // applies the point impulse (velocity and spin together) and rebuilds
-  // predictions with the given environment. No absolute velocity or direct
-  // spin assignment is involved.
-  void ApplyContactImpulse(const blunted::Vector3& impulse,
-                           const blunted::Vector3& contact_point,
-                           const BallEnvironment& environment);
 
   // ---- Stable simulation ----
   // Exactly one tick, at most one passive impact, no remainder integration.

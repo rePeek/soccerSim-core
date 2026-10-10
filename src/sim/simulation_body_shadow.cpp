@@ -279,13 +279,13 @@ void Simulation::CompleteBodyPhysicsShadow() {
 
 void Simulation::EnableBodyPhysicsProduction(bool enabled) {
   body_physics_production_ = enabled;
+  active_candidate_capture_ = enabled || active_touch_report_enabled_;
   if (!enabled) return;
   if (!ball_) throw std::logic_error("simulation has no match");
   // The production path needs the same predicted collider list the P4b/P4d-1
   // shadow already builds. Both are read-only diagnostics, so this does not add
   // a second Ball step or a second actor Process.
-  active_candidate_capture_ = true;
-  tick_active_candidates_.reserve(snapshot_players_.size());
+  tick_active_candidates_.reserve(snapshot_players_.size() * 4);
   EnsureActiveTouchObserver();
   DiscardBodyCollisionShadow();
   body_shadow_enabled_ = true;

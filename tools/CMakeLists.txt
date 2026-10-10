@@ -12,3 +12,7 @@ football_configure_target(football_restart_metrics)
 add_executable(football_body_shadow football_body_shadow.cpp)
 target_link_libraries(football_body_shadow PRIVATE football::game football::ai football::app_support)
 football_configure_target(football_body_shadow)
+
+add_executable(football_unified_acceptance football_unified_acceptance.cpp)
+target_link_libraries(football_unified_acceptance PRIVATE football::game football::ai football::app_support)
+football_configure_target(football_unified_acceptance)

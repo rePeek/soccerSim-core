@@ -49,6 +49,7 @@ struct BallStepResult {
   // applied after passive motion and netting and never advances position, so
   // there is at most one active impulse per tick.
   std::optional<BallImpulse> active_impulse;
+  std::optional<BallEndpointConstraint> endpoint_constraint;
 };
 
 BallStepResult AdvanceBall(const BallState& initial,

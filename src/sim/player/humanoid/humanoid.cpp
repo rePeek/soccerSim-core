@@ -116,7 +116,10 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   std::optional<Vector3> prepared_anchor;
   const auto set_rotation = [&](radian x, radian y, radian z, float bias,
                                  const football::ball::BallEnvironment& environment) {
-    if (!tick.touch_preparation) tick.ball.SetRotation(x, y, z, bias, environment);
+    if (!tick.touch_preparation) {
+      if (!tick.legacy_ball) throw std::logic_error("missing legacy Ball mutation port");
+      tick.legacy_ball->SetRotation(x, y, z, bias, environment);
+    }
   };
   // Tick-local publication: actors never reach the runtime owner for touch notification.
   std::optional<ActiveTouchObservation> active_observation;
@@ -159,7 +162,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       active_observation->before = tick.ball.state();
       active_observation->stage = ActiveTouchStage::Executed;
     }
-    football::sim::ApplyBallTouch(tick.ball, tick.ball_environment, velocity, history,
+    if (!tick.legacy_ball) throw std::logic_error("missing legacy Ball mutation port");
+    football::sim::ApplyBallTouch(*tick.legacy_ball, tick.ball_environment, velocity, history,
         tick.first_processing_team, tick.second_processing_team, now, ball_retainer);
   };
   const auto notify_touch = [&](e_TouchType type) {
@@ -186,46 +190,11 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         tick.ball.GetMovement(),
         static_cast<int>(CastPlayer()->GetSimulationActionState().type)});
   };
-  // P5c opt-in production takeover. For the migrated strike actions the ball is
-  // changed by one physical point impulse (linear + spin from the contact point)
-  // instead of an absolute velocity assignment plus a direct spin write. Any
-  // other action, or a rejected proposal, keeps the legacy path so no action is
-  // ever silently dropped. Off by default; product code never enables it.
-  const auto physical_touch = [&](e_FunctionType action_type,
-                                  const Vector3& touchVec) -> bool {
-    if (tick.touch_preparation) {
-      apply_touch(touchVec);
-      return true;
-    }
-    if (!tick.active_impulse_production) return false;
-    const bool migrated = action_type == e_FunctionType_Shot ||
-        action_type == e_FunctionType_ShortPass ||
-        action_type == e_FunctionType_LongPass ||
-        action_type == e_FunctionType_HighPass ||
-        action_type == e_FunctionType_Trap;
-    if (!migrated) return false;
-    football::sim::player::TouchProposalInput proposal;
-    proposal.passive_endpoint = tick.ball.state();
-    proposal.desired_ball_center = currentAnim.touchPos + currentAnim.positionOffset;
-    proposal.target_velocity = touchVec;
-    proposal.config = tick.ball.config();
-    proposal.reach = 0.4f;
-    // Provisional technique table: engineering values, not realism calibration.
-    switch (action_type) {
-      case e_FunctionType_Shot: proposal.technique = {0.0f, 0.015f}; break;
-      case e_FunctionType_HighPass: proposal.technique = {0.03f, 0.010f}; break;
-      case e_FunctionType_LongPass: proposal.technique = {0.02f, 0.010f}; break;
-      default: proposal.technique = {0.01f, 0.005f}; break;
-    }
-    const auto result = football::sim::player::ProposeActiveTouch(proposal);
-    if (!result.reachable) return false;
-    if (active_observation) {
-      active_observation->before = tick.ball.state();
-      active_observation->stage = ActiveTouchStage::Executed;
-    }
-    football::sim::ApplyBallImpulse(tick.ball, tick.ball_environment,
-        result.impulse.impulse, result.impulse.contact_point, history,
-        tick.first_processing_team, tick.second_processing_team, now, ball_retainer);
+  // Prepared execution never commits physics here. The default fused path
+  // retains its legacy touch until the reviewed default/Golden transition.
+  const auto physical_touch = [&](e_FunctionType, const Vector3& touchVec) -> bool {
+    if (!tick.touch_preparation) return false;
+    apply_touch(touchVec);
     return true;
   };
 
@@ -993,7 +962,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       const auto anchor_position = ComputeRetainAnchor(
           spatialState.position, spatialState.bodyDirectionVec, anchor);
       if (tick.touch_preparation) prepared_anchor = anchor_position;
-      else tick.ball.SetPosition(anchor_position, tick.ball_environment);
+      else tick.legacy_ball->SetPosition(anchor_position, tick.ball_environment);
       notify_touch(e_TouchType_Intentional_Nonkicked);
     } else {
       // no longer retaining

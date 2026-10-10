@@ -143,7 +143,7 @@ float StretchSprintTo(const float &inputVelocity, float inputSpaceMaxVelocity,
   return walkSprintSwitch + resultSprintage;
 }
 
-void GetDifficultyFactors(Ball *ball, Player *player,
+void GetDifficultyFactors(const Ball *ball, Player *player,
                           const football::sim::event::TouchState& touches, Team& opponent,
                           football::sim::Tick now, blunted::Rng& rng,
                           const SpatialState &spatialState,
@@ -208,7 +208,7 @@ void GetDifficultyFactors(Ball *ball, Player *player,
   ballMovementFactor = clamp(ballMovementFactor, 0.0f, 1.0f);
 }
 
-Vector3 GetBallControlVector(Ball *ball, Player *player, Team& opponent, const AnimationClip& clip,
+Vector3 GetBallControlVector(const Ball *ball, Player *player, Team& opponent, const AnimationClip& clip,
                              const Vector3 &nextStartPos, radian nextStartAngle,
                              radian nextBodyAngle,
                              const Vector3 &outgoingMovement,
@@ -338,7 +338,7 @@ Vector3 GetBallControlVector(Ball *ball, Player *player, Team& opponent, const A
   return touchVec;
 }
 
-Vector3 GetTrapVector(Ball *ball, Player *player,
+Vector3 GetTrapVector(const Ball *ball, Player *player,
                       const football::sim::event::TouchState& touches, Team& opponent,
                       football::sim::Tick now, blunted::Rng& rng, const AnimationClip& clip,
                       const Vector3 &nextStartPos,
@@ -364,7 +364,7 @@ Vector3 GetTrapVector(Ball *ball, Player *player,
          ball->GetMovement() * ballMovementFactor;
 }
 
-Vector3 GetShotVector(Ball *ball, Player *player, const AnimationClip& clip, blunted::Rng& rng,
+Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& clip, blunted::Rng& rng,
                       const Anim &currentAnim, const SpatialState &spatialState,
                       const Vector3 &positionOffset, radian &xRot, radian &yRot, radian &zRot) {
 

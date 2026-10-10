@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "sim/simulation.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/player_active_touch_shadow.hpp"
@@ -23,11 +24,15 @@ class Simulation::ActiveTouchEvents final : public ActiveTouchShadowSink {
     if (passive && passive->step_index == owner_.snapshot_step_.value_or(0) &&
         passive->generation == owner_.reset_sequence_) {
       observation.passive_endpoint = passive->unified.state;
-      if (passive->player && !passive->unified.contacts.empty() &&
-          passive->unified.contacts.front().normal_impulse > 0) {
-        observation.same_part_passive_impact = *passive->player == observation.candidate.player &&
-            passive->part == observation.candidate.body_part;
-        observation.other_player_passive_impact = *passive->player != observation.candidate.player;
+      const auto impact = std::find_if(passive->unified.contacts.begin(), passive->unified.contacts.end(),
+          [](const auto& c) { return c.normal_impulse > 0; });
+      if (impact != passive->unified.contacts.end()) {
+        const auto owner = owner_.body_collider_owners_.find(impact->collider);
+        if (owner != owner_.body_collider_owners_.end()) {
+          observation.same_part_passive_impact = owner->second.first == observation.candidate.player &&
+              owner->second.second == observation.candidate.body_part;
+          observation.other_player_passive_impact = owner->second.first != observation.candidate.player;
+        }
       }
     }
     // P5e: the real candidate path is owned by Simulation and runs whether or not
@@ -51,12 +56,12 @@ void Simulation::EnsureActiveTouchObserver() {
 void Simulation::EnableActiveTouchShadow(bool enabled) {
   active_touch_report_enabled_ = enabled;
   active_touch_shadow_report_ = {};
+  active_candidate_capture_ = enabled || body_physics_production_;
   if (!enabled) {
-    // The production candidate observer survives: the report is optional.
+    if (!active_candidate_capture_) active_touch_shadow_sink_.reset();
     return;
   }
-  active_candidate_capture_ = true;
-  tick_active_candidates_.reserve(snapshot_players_.size());
+  tick_active_candidates_.reserve(snapshot_players_.size() * 4);
   EnsureActiveTouchObserver();
   active_touch_shadow_report_.latest.reserve(snapshot_players_.size() * 4);
 }
@@ -75,11 +80,12 @@ void Simulation::SubmitActiveTouchCandidate(const ActiveTouchObservation& observ
   const auto candidate =
       MakeActiveImpulseCandidate(observation, model, ball_config_.mass());
   if (!candidate) return;
-  if (tick_active_candidates_.size() < tick_active_candidates_.capacity())
-    tick_active_candidates_.push_back(*candidate);
+  // Never silently discard valid observations at an arbitrary capacity limit.
+  tick_active_candidates_.push_back(*candidate);
 }
 
 void Simulation::ArbitratePendingActiveTouches() {
+  pending_active_impulse_.reset();
   if (tick_active_candidates_.empty()) return;
   auto& arb = active_arbitration_;
   ++arb.ticks_with_candidates;
@@ -87,13 +93,18 @@ void Simulation::ArbitratePendingActiveTouches() {
   if (tick_active_candidates_.size() > 1) ++arb.multi_candidate_ticks;
   const auto winner = ArbitrateActiveImpulse(tick_active_candidates_);
   bool passive_impact = false, passive_same_part = false, owner_known = false;
-  if (body_physics_shadow_tick_ && !body_physics_shadow_tick_->unified.contacts.empty() &&
-      body_physics_shadow_tick_->unified.contacts.front().normal_impulse > 0) {
-    passive_impact = true;
-    if (body_physics_shadow_tick_->player) {
-      owner_known = true;
-      passive_same_part = winner && *body_physics_shadow_tick_->player == winner->player &&
-          *body_physics_shadow_tick_->part == winner->body_part;
+  if (body_physics_shadow_tick_ &&
+      body_physics_shadow_tick_->step_index == snapshot_step_.value_or(0) &&
+      body_physics_shadow_tick_->generation == reset_sequence_) {
+    const auto& contacts = body_physics_shadow_tick_->unified.contacts;
+    const auto impact = std::find_if(contacts.begin(), contacts.end(),
+        [](const auto& c) { return c.normal_impulse > 0; });
+    passive_impact = impact != contacts.end();
+    if (passive_impact) {
+      const auto owner = body_collider_owners_.find(impact->collider);
+      owner_known = owner != body_collider_owners_.end();
+      passive_same_part = owner_known && winner && owner->second.first == winner->player &&
+          owner->second.second == winner->body_part;
     }
   }
   const auto authority = DecideContactAuthority(
@@ -114,10 +125,5 @@ void Simulation::ArbitratePendingActiveTouches() {
 }
 
 void Simulation::EnableActiveImpulseProduction(bool enabled) {
-  active_impulse_production_ = enabled;
-  if (!enabled) return;
-  if (!ball_) throw std::logic_error("simulation has no match");
-  active_candidate_capture_ = true;
-  tick_active_candidates_.reserve(snapshot_players_.size());
-  EnsureActiveTouchObserver();
+  EnablePreparedTickProduction(enabled);
 }

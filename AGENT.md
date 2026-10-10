@@ -963,6 +963,8 @@ shape every tick. Production supplies no dynamic bodies, so pitch behavior and
 regression baselines are unchanged; the moving-body trajectory test now asserts
 real release instead of pinning the failure.
 
+### Historical intermediate stages (superseded by the current P5e notes below)
+
 P5b defines the endpoint-impulse contract and its arbitration, with the
 production switch still closed. `BallTickInput` carries an optional
 `BallImpulse active_impulse`, applied inside `Ball::Step` after passive motion
@@ -971,7 +973,7 @@ supplied point only, never advances position again, and never runs a second Step
 matching the tick-endpoint timing of the legacy touch. `player/
 player_active_impulse.hpp` holds a pure arbitration contract: drop candidates
 whose owner+part already produced this tick's passive impact, then choose the
-largest closing speed with lower PlayerId and lower body-part enum as stable
+largest velocity-change magnitude (`|J|/mass`) with lower PlayerId and lower body-part enum as stable
 tie-breakers, so at most one active impulse exists per tick and permutation
 cannot change the winner. Production constructs no active impulse and keeps
 using the legacy touch path; regression `--print-baseline` is byte-identical.
@@ -982,13 +984,11 @@ Process` dependency table (which stages draw RNG, which advance animation,
 where `ApplyBallTouch + SetRotation` take effect) and the plan: split
 `Humanoid::Process` into one prepare pass (motion/animation frame/touch vector)
 before the single authoritative `Ball::Step` and one commit pass after, never
-running a second Process or delaying by a tick. The endpoint-impulse timing is
-already equivalent, so only the *preparation* has to move earlier. The active
-shadow now also runs the pure model on captured inputs and compares its reach
-decision with the legacy contact-frame gate: the distance source agrees exactly
-on the native tape and the single residual difference per order is the height
-gate reading the legacy `Predict(0)` cache; unifying that source is the first
-P5c-1 task. `player/player_active_touch_model.hpp` is the accepted
+running a second Process or delaying by a tick. The Shadow also runs the pure
+model on captured inputs and compares reach gates. The native tape's distance
+gaps were zero, but the residual mismatch cause was not established; neither
+height-cache nor scheduling explanations should be claimed without evidence.
+`player/player_active_touch_model.hpp` is a provisional
 `(P, J) -> (Δv, Δω)` model: reach/height/surface gates before any projection,
 `J = mass*(target - endpoint_velocity)`, contact normal along `J` so a centre
 strike is torque-free, technique lateral/vertical offsets for side/top spin via
@@ -996,27 +996,20 @@ strike is torque-free, technique lateral/vertical offsets for side/top spin via
 requested spin cases, left/right mirror, moving versus static strikes and Magnus
 stability over 0.5/1/2 s. Production still uses the legacy touch path.
 
-P5c-3 adds the opt-in production contact-point takeover, default OFF.
-`Simulation::EnableActiveImpulseProduction` routes Shot/ShortPass/LongPass/
-HighPass/Trap through `ProposeActiveTouch` and a single physical point impulse:
-`ApplyBallImpulse` keeps the legacy refresh order but uses
-`Ball::ApplyContactImpulse` (resting-height clamp, `ApplyImpulseAtPoint`,
-prediction rebuild) instead of an absolute velocity assignment plus
-`SetRotation`. Rejected proposals fall back to the legacy path so no action is
-dropped, no RNG is drawn by the takeover and no player/action identity reaches
-Ball. Tests show ON and OFF agree in RNG, ball position/velocity, player state
-and recorded accepted touches up to the first migrated strike, where the derived
-spin differs; OFF stays byte-identical to the previous fingerprint. The technique
-table is provisional and uncalibrated, so the switch stays OFF until a documented
-baseline transition. `DecideContactAuthority` fixes the P4d-2 active/passive
-precedence: a real passive impact (nonzero impulse) wins for the same
-owner+part and for another player; a zero-impulse overlap never suppresses a
-valid strike.
+P5c-3 historically added an immediate opt-in `ApplyBallImpulse` /
+`Ball::ApplyContactImpulse` path. That path is now deleted, not an additional
+production authority. `EnableActiveImpulseProduction` selects the prepared
+tick path below. `DecideContactAuthority` gives genuine passive impacts priority
+over any active action; overlap-only correction does not suppress a strike.
+Production defaults remain OFF. Prepared strikes currently use zero-offset
+point impulses, not the historical provisional technique table or a final
+calibrated foot geometry.
 
 P4d-2 adds the opt-in passive body production switch (default OFF).
 `Simulation::EnableBodyPhysicsProduction` feeds the P4b/P4d-1 predicted upright
 collider list into the single authoritative `Ball::Step(BallTickInput)` and skips
-the legacy `ResolveBallPlayerContacts` block, so exactly one authority changes
+the legacy `ResolveBallPlayerContacts` block. With active preparation OFF,
+fused legacy active touches still mutate the Ball after Step. The passive-only
 the ball. The production collider list is kept separate from the low-pose
 proposal buffer so an uncalibrated sliding/trip proposal cannot leak into
 production. Tests assert, for 4000 steps in both processing orders, that the
@@ -1025,10 +1018,10 @@ contains real passive contacts. OFF remains byte-identical to the frozen
 fingerprint; the switch stays OFF until the low-pose calibration and
 ghost-blocking tests are complete.
 
-`P6`/`P7` are not started: the AcceptedTouchSink is still the rule-facing
-authority (geometric contact, physical impact and accepted touch are separate in
-diagnostics only), and the legacy Ball compatibility API still has callers, so
-neither can be removed yet.
+P6b now has experimental rule production on the prepared path (below), using
+AcceptedTouchSink as its submission port. P7 promotion remains blocked: legacy
+Ball compatibility APIs still have default callers, and pose/technique/rule
+acceptance and a reviewed new Golden are not complete.
 
 ### P5e prepared tick execution (experimental, default OFF)
 
@@ -1038,13 +1031,18 @@ Player::PrepareTick advances animation/locomotion once; CommitTick applies fatig
 and send-offs after accepted touch consequences. Humanoid proposals go through
 `player_touch_preparation.hpp`, not the Shadow observer. All actors read the
 same passive endpoint and prior authoritative touch history; proposals are not
-synchronously accepted. The endpoint view is checked for mutation after each actor.
+synchronously accepted. Actors get a const Ball reference and no mutable legacy
+Ball port; the passive endpoint view is also checked for mutation after each actor.
 Ball::Predict(BallTickInput) previews the same kernel as Step without consuming
 forces. The final Step accepts at most one active impulse OR a kinematic endpoint
 constraint for retention, with notifications only after commit. Legacy fused
-execution and earlier experimental immediate switches remain default OFF; this
-is not P7 promotion. Baked pose, rule migration and full-match acceptance are
-still required. CTest wall time is NOT evidence of meeting a 10ms tick budget.
+execution remains the default; the earlier immediate impulse API is removed.
+Current-Tick winner/buffer clear before all normal/ceremonial/terminal exits.
+The diagnostic observer is optional, generation-guarded and cannot silently
+discard candidates at a vector capacity limit. Actual committed endpoint
+evidence includes the applied impulse or endpoint constraint. This is not P7
+promotion. See `tools/p5c-active-touch-migration.md` for the timing change and
+remaining acceptance gates. CTest wall time is NOT a 10ms tick benchmark.
 
 ### Reviewed rule touches on the prepared path (P6b experimental)
 

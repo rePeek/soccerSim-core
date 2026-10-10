@@ -271,9 +271,7 @@ class Simulation {
   BodyContactEpisodes body_geometry_episodes_, body_impact_episodes_;
   std::unique_ptr<ActiveTouchShadowSink> active_touch_shadow_sink_;
   ActiveTouchShadowReport active_touch_shadow_report_;
-  bool active_impulse_production_ = false;
-  // P5e: real tick candidate buffer and the arbitrated winner. The winner is the
-  // value P5e-2 will submit through BallTickInput::active_impulse.
+  // Tick candidate buffer and arbitrated same-Tick endpoint impulse.
   std::vector<ActiveImpulseCandidate> tick_active_candidates_;
   std::optional<ActiveImpulseCandidate> pending_active_impulse_;
   ActiveTouchArbitration active_arbitration_;

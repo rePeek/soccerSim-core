@@ -126,8 +126,9 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
           clock_->IsHalfUnderway(), *ball_, GetBallEnvironment(), ball_retainer_,
           designated_possession_player_, GetLastTouchPlayer(), touches_,
           referee_->GetBuffer(), pitch_, own, opponent, first, second, processing_slot,
-          referee_->RestartNeedsSimulation(), rng_, active_touch_shadow_sink_.get(),
-          active_impulse_production_};
+          referee_->RestartNeedsSimulation(), rng_,
+          active_candidate_capture_ ? active_touch_shadow_sink_.get() : nullptr,
+          nullptr, ball_.get()};
 }
 
 // The single write-only fact-production port. Touch bookkeeping stays synchronous
@@ -592,6 +593,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   foul_assessments_.clear();
   committed_ball_tick_.reset();
   rule_touches_.clear();
+  // A winner is evidence for this executed Tick only, including early exits.
+  pending_active_impulse_.reset();
+  tick_active_candidates_.clear();
 
   // Frame-local controls are runtime input, not an orchestration algorithm.
   for (int team_id = 0; team_id < 2; ++team_id) {

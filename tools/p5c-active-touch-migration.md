@@ -300,42 +300,67 @@ unified kernel result on every tick with evidence, including ON/ON - so enabling
 the active takeover later in the same tick does not disturb the passive state
 already committed by the single Step.
 
-## P5e-1: the arbitration input is now real Simulation state (implemented)
+## Current P5e execution and remaining acceptance gates
 
-The tick candidate buffer and the arbitrated winner moved out of the diagnostic
-`ActiveTouchShadowReport` into Simulation:
+The older P5d/P5e-1 measurements above describe post-execution observations, not
+winner-authorized physical execution. They must not be read as completion of
+the prepare/contact/event split. The previous immediate `ApplyContactImpulse`
+API and `ApplyBallImpulse` adapter have now been removed.
 
-- `Simulation::tick_active_candidates_` is filled by
-  `SubmitActiveTouchCandidate`, which runs the P5c-2 model and the shared
-  `MakeActiveImpulseCandidate` factory. The observer that calls it is installed
-  by `EnsureActiveTouchObserver()` whenever **candidate capture** is enabled (the
-  active or passive production switch), not by the diagnostic flag.
-- `EnableActiveTouchShadow(false)` now only stops the report; the production
-  observer and candidate path survive. `ArbitratePendingActiveTouches` no longer
-  returns early on a missing shadow sink; it arbitrates the real buffer once per
-  tick and stores the winner in `Simulation::pending_active_impulse_`
-  (`ActiveTouchArbitration` counters live in Simulation too).
-- `pending_active_impulse_` is cleared on tick reset and at a permanent end
-  change, so a queued impulse never crosses frames.
+`EnableActiveImpulseProduction` now selects `EnablePreparedTickProduction`.
+The default is still OFF. `simulation_prepared_tick.cpp` performs:
 
-The candidate ordering key was renamed from the misleading `closing_speed`
-(which was `|J| / mass`, a velocity-change magnitude) to
-`velocity_change_magnitude`, with a comment stating that it is not a normal
-closing speed. The genuinely normal-based `closing_speed` in the body-contact
-diagnostics is unchanged.
+1. const same-kernel passive preview (does not consume force);
+2. one Player/Humanoid preparation pass against the passive endpoint and the
+   previous authoritative history, with a const Ball reference and no legacy
+   Ball mutation port;
+3. global arbitration, with any genuine passive impact taking precedence;
+4. the Tick's single authoritative `Ball::Step`, carrying at most one active
+   impulse or an exclusive retain constraint;
+5. publish only the winning proposal's exact provenance, then Player commit
+   (fatigue/send-off; no repeated animation or RNG draws).
 
-Evidence: `active candidate arbitration is not gated on the diagnostic shadow`
-enables only `EnableActiveImpulseProduction`, asserts the active-touch report
-stays empty for 4000 steps, and still observes real arbitration (candidate
-ticks > 0, active+passive wins == candidate ticks, a non-null
-`pending_active_impulse_` with a positive velocity-change magnitude).
+This intentionally replaces the legacy synchronous visibility among actors:
+later actors do not read earlier uncommitted proposals. Mental images are
+captured from the passive endpoint before preparation; newest ball predictions
+are refreshed after commit. Referee/events receive committed physical state.
+The Ball response contains the actually applied impulse/constraint. Shadow's
+production endpoint records the actual committed state, not a substituted
+passive-only state.
 
-Remaining for P5e-2: consume `pending_active_impulse_` in the single
-`Ball::Step` (which still needs the Humanoid prepare/commit split so the
-candidate exists before the Step) and delete the `ApplyContactImpulse` entry
-point from the normal path.
+The winner and candidate buffer clear at every executed Tick entry, including
+ceremonial/terminal exits, and on reset/end changes. Diagnostic passive evidence
+is step/generation guarded and searches for the genuine impact after any zero-
+impulse corrections. Diagnostic disable no longer leaves capture sticky; no
+valid observations are silently dropped at a vector-capacity boundary.
 
-Enabling the diagnostic observers also turns on candidate capture, because the
-observer *is* the candidate producer: `EnableActiveTouchShadow(true)` and the
-production switches all call `EnsureActiveTouchObserver()`, while
-`EnableActiveTouchShadow(false)` only stops reporting.
+`velocity_change_magnitude = |J| / mass` is the active ordering key, **not**
+normal closing speed. Report `candidate_ticks` counts observed eligible
+strikes, not distinct Ticks.
+
+The production-only test now asserts that the current winner exactly equals
+this Tick's applied Step impulse and that no winner persists on empty Ticks.
+The four-switch test checks actual commit against passive response plus the
+applied impulse/constraint. These are not full football-rule acceptance.
+
+P6b publishes source-tagged RuleTouch after physical commit through the existing
+AcceptedTouchSink. CCD touches require mapped active players, play authorization,
+a genuine approaching impact and geometric-episode deduplication. Opponent
+deflections preserve prior offside candidates; active strikes and retain
+acquisition retain separate source provenance.
+
+P4f only establishes Baked local-pose FK and anatomical geometry. These posed
+capsules are not production inputs: the current CCD contract is translation-only
+and cannot represent rotating/deforming adjacent poses. Prepared strikes still
+use the zero-offset model, not a final calibrated foot/technique model.
+
+Historical reach mismatches did not establish a height-cache cause. Historical
+trajectory values compare `CompareActiveTouch(...).response`, a desired-center
+surface projection, **not** the zero-offset `ProposeActiveTouch` response.
+Neither those values nor a tautological velocity error constitute calibration.
+
+`football_unified_acceptance [seconds|full] [reverse]` measures native ON/ON
+terminal-match replay and Step latency. Full uses real 45-minute halves. Hashes
+and impact counts are diagnostics, not reviewed new Golden or rule acceptance.
+P7 default promotion/Golden replacement and removal of still-used legacy
+Touch/SetRotation/duration adapters remain explicitly blocked by these gates.

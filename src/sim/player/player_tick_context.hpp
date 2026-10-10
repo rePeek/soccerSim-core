@@ -27,7 +27,7 @@ struct PlayerTickContext {
   const bool& ball_in_play;
   const bool& half_underway;
 
-  football::ball::Ball& ball;
+  const football::ball::Ball& ball;
   football::ball::BallEnvironment ball_environment;
 
   Player* ball_retainer;
@@ -49,13 +49,11 @@ struct PlayerTickContext {
 
   blunted::Rng& rng;
   ActiveTouchShadowSink* active_touch_shadow = nullptr; // optional read-only diagnostic
-  // P5c: opt-in production takeover of the contact-point spin model for the
-  // migrated actions (Shot/ShortPass/LongPass/HighPass/Trap). Off by default so
-  // the legacy Touch + SetRotation path stays byte-identical.
-  bool active_impulse_production = false;
   // Non-null only in the prepare phase. Ball is an immutable endpoint view:
   // touches/rotation/retention are proposals, not immediate mutations/events.
   PlayerTouchPreparationSink* touch_preparation = nullptr;
+  // Only the legacy fused branch gets a mutable port; preparation never does.
+  football::ball::Ball* legacy_ball = nullptr;
 };
 } // namespace football::sim
 

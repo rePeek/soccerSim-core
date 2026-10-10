@@ -99,17 +99,6 @@ void Ball::ApplyImpulseAtPoint(const Vector3& impulse,
   RefreshPredictions(BallEnvironment{});
 }
 
-void Ball::ApplyContactImpulse(const Vector3& impulse,
-                               const Vector3& contact_point,
-                               const BallEnvironment& environment) {
-  // Match the legacy resting-height clamp so ball position is unchanged.
-  if (state_.position.coords[2] < config_.radius()) {
-    state_.position.coords[2] = config_.radius();
-  }
-  state_ = football::ball::ApplyImpulseAtPoint(state_, impulse, contact_point, config_);
-  prediction_cache_->Invalidate();
-  RefreshPredictions(environment);
-}
 
 BallStepResult Ball::EvaluateTick(const BallTickInput& input,
                                   std::vector<ColliderMotion>& scratch) const {
@@ -151,6 +140,7 @@ BallStepResult Ball::EvaluateTick(const BallTickInput& input,
     result.state.position = input.endpoint_constraint->position;
     result.state.velocity = input.endpoint_constraint->velocity;
     result.state.angular_velocity = Vector3(0);
+    result.endpoint_constraint = input.endpoint_constraint;
   }
   return result;
 }

@@ -19,6 +19,10 @@ void MirrorResult(football::ball::BallStepResult& result) {
     result.active_impulse->impulse.Mirror();
     result.active_impulse->contact_point.Mirror();
   }
+  if (result.endpoint_constraint) {
+    result.endpoint_constraint->position.Mirror();
+    result.endpoint_constraint->velocity.Mirror();
+  }
 }
 bool SameState(const football::ball::BallState& a, const football::ball::BallState& b) {
   return a.position == b.position && a.velocity == b.velocity &&
@@ -100,7 +104,7 @@ void Simulation::RunPreparedPlayerTick() {
           base.ball_retainer, base.designated_possession_player, base.last_touch_player,
           base.touches, base.restart, base.pitch, base.own_team, base.opponent_team,
           base.first_processing_team, base.second_processing_team, base.processing_slot,
-          base.restart_needs_simulation, base.rng, nullptr, false, &ports};
+          base.restart_needs_simulation, base.rng, nullptr, &ports};
       const auto before = preparation_ball_->state();
       const auto distance = actor->PrepareTick(facts, mental_images_, ports, ports);
       if (!SameState(before, preparation_ball_->state()))
@@ -122,6 +126,9 @@ void Simulation::RunPreparedPlayerTick() {
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();
   const football::sim::PreparedPlayerTouch* anchor = nullptr;
+  // Keep the exact proposal provenance: one actor may submit multiple proposals.
+  std::vector<std::pair<ActiveImpulseCandidate, const football::sim::PreparedPlayerTouch*>> provenance;
+  provenance.reserve(ports.touches.size());
   for (const auto& touch : ports.touches) {
     if (touch.retain_anchor) {
       if (!anchor || touch.fact.player < anchor->fact.player) anchor = &touch;
@@ -142,6 +149,7 @@ void Simulation::RunPreparedPlayerTick() {
     candidate.impulse = model.impulse;
     candidate.velocity_change_magnitude = model.impulse.impulse.GetLength() / ball_config_.mass();
     tick_active_candidates_.push_back(candidate);
+    provenance.emplace_back(candidate, &touch);
   }
   const bool passive_impact = std::any_of(passive.contacts.begin(), passive.contacts.end(),
       [](const auto& contact) { return contact.normal_impulse > 0; });
@@ -167,8 +175,8 @@ void Simulation::RunPreparedPlayerTick() {
   if (reverse) MirrorResult(result);
   committed_ball_tick_ = result;
   if (body_physics_shadow_tick_) {
-    // Passive endpoint is compared separately from the accepted endpoint impulse.
-    body_physics_shadow_tick_->production = passive.state;
+    // This is the actual committed endpoint, including the accepted active input.
+    body_physics_shadow_tick_->production = result.state;
     body_physics_shadow_tick_->production_observed = true;
   }
 
@@ -179,10 +187,14 @@ void Simulation::RunPreparedPlayerTick() {
   if (anchor && input.endpoint_constraint) ball_retainer_ = FindPlayerById(anchor->fact.player);
   PublishBodyRuleTouches(result, bodies);
   if (winner) {
-    const auto fact = std::find_if(ports.touches.begin(), ports.touches.end(), [&](const auto& t) {
-      return !t.retain_anchor && t.fact.player == winner->player && t.part == winner->body_part;
+    const auto selected = std::find_if(provenance.begin(), provenance.end(), [&](const auto& entry) {
+      const auto& c = entry.first;
+      return c.player == winner->player && c.body_part == winner->body_part &&
+          c.action == winner->action && c.impulse.impulse == winner->impulse.impulse &&
+          c.impulse.contact_point == winner->impulse.contact_point;
     });
-    if (fact == ports.touches.end()) throw std::logic_error("arbitration winner has no touch provenance");
+    if (selected == provenance.end()) throw std::logic_error("arbitration winner has no touch provenance");
+    const auto* fact = selected->second;
     PublishRuleTouch({fact->fact, fact->part,
         football::sim::event::RuleTouchSource::PreparedAction, 0, 0, std::nullopt});
   } else if (anchor && input.endpoint_constraint && !ports.release) {

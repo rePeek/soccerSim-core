@@ -322,16 +322,26 @@ TEST_CASE("all four production switch combinations stay consistent and determini
         REQUIRE(a.ball.position == b.ball.position);
         REQUIRE(a.ball.velocity == b.ball.velocity);
         REQUIRE(a.ball.angular_velocity == b.ball.angular_velocity);
-        // With the passive authority on, the production ball is exactly the
-        // unified kernel result, and enabling the active takeover later in the
-        // same tick must not disturb that.
+        // A production endpoint is passive CCD plus this Tick's accepted input,
+        // not a diagnostic passive state substituted for the actual commit.
         if (passive) {
           const auto& evidence = SimulationAccess::BodyPhysicsShadowLatestOf(run);
           if (evidence) {
-            REQUIRE(evidence->production.position == evidence->unified.state.position);
-            REQUIRE(evidence->production.velocity == evidence->unified.state.velocity);
-            REQUIRE(evidence->production.angular_velocity ==
-                    evidence->unified.state.angular_velocity);
+            auto expected = evidence->unified.state;
+            const auto& commit = SimulationAccess::CommittedBallTickOf(run);
+            if (commit && commit->active_impulse)
+              expected = football::ball::ApplyImpulseAtPoint(expected,
+                  commit->active_impulse->impulse, commit->active_impulse->contact_point,
+                  SimulationAccess::BallOf(run)->config());
+            if (commit && commit->endpoint_constraint) {
+              REQUIRE_FALSE(commit->active_impulse.has_value());
+              expected.position = commit->endpoint_constraint->position;
+              expected.velocity = commit->endpoint_constraint->velocity;
+              expected.angular_velocity = Vector3(0);
+            }
+            REQUIRE(evidence->production.position == expected.position);
+            REQUIRE(evidence->production.velocity == expected.velocity);
+            REQUIRE(evidence->production.angular_velocity == expected.angular_velocity);
             ++evidence_ticks;
           }
         }
@@ -359,19 +369,25 @@ TEST_CASE("active candidate arbitration is not gated on the diagnostic shadow",
     SimulationAccess::EnableActiveImpulseProduction(simulation, true);
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(simulation).latest.empty());
     football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    int committed_strikes = 0;
     for (int step = 0; step < 4000; ++step) {
       PlayerControlSet controls;
       policy.Update(simulation.Observe(), controls);
       simulation.Step(controls);
+      const auto& commit = SimulationAccess::CommittedBallTickOf(simulation);
+      if (commit && commit->active_impulse) {
+        ++committed_strikes;
+        const auto& winner = SimulationAccess::PendingActiveImpulseOf(simulation);
+        REQUIRE(winner.has_value());
+        REQUIRE(winner->velocity_change_magnitude > 0);
+        REQUIRE(winner->impulse.impulse == commit->active_impulse->impulse);
+        REQUIRE(winner->impulse.contact_point == commit->active_impulse->contact_point);
+      } else {
+        REQUIRE_FALSE(SimulationAccess::PendingActiveImpulseOf(simulation).has_value());
+      }
     }
-    // The arbitration ran on real candidates even though no report existed.
-    const auto& arb = SimulationAccess::ActiveArbitrationOf(simulation);
-    REQUIRE(arb.ticks_with_candidates > 0);
-    REQUIRE(arb.active_wins + arb.passive_wins == arb.ticks_with_candidates);
-    // The winner is stored as Simulation state, ready for the single Step.
-    const auto& winner = SimulationAccess::PendingActiveImpulseOf(simulation);
-    REQUIRE(winner.has_value());
-    REQUIRE(winner->velocity_change_magnitude > 0);
+    // Unlike a retained statistical winner, these impulses entered this Tick's Step.
+    REQUIRE(committed_strikes > 0);
     // The report stayed disabled the whole time.
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(simulation).latest.empty());
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(simulation).candidate_ticks == 0);
