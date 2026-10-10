@@ -76,7 +76,8 @@ src/
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 MentalImage/player-image history + nearest-slot sampling,
 │   │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph,
-│   │                 static PlayerSlotTable identity -> TeamSide mapping
+│   │                 static PlayerSlotTable identity -> TeamSide mapping and a pure
+│   │                 shadow-only Snapshot touch inference
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
 │   ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
@@ -339,10 +340,18 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   foul. PlayerTripFact is deleted: Simulation resolves each assessment's identities
   and calls Referee::AssessFoul at the same instant and pair order the trip facts used
   to, so the referee judges the frozen contact instead of re-reading later actor state.
-- referee/ball_rules.* owns pure ball-state predicates over observed positions
-  (ClassifyBallOutOfPlay, CrossedGoalMouth). observation/player_slots.hpp owns the
-  static PlayerId -> TeamSide table. These are the future replacements for
-  BallBoundaryFact; the referee now classifies out of play directly and that fact is gone.
+  static PlayerId -> TeamSide table. The referee now classifies out of play
+  directly and BallBoundaryFact is gone.
+- observation/touch_inference.* owns a read-only, RNG-free Snapshot touch
+  candidate inference (TouchCandidate{PlayerId, confidence}, ordered by
+  confidence, several candidates per step allowed). It takes SnapshotRecord
+  pairs to refuse generation changes, non-consecutive steps and topology
+  mismatches, and gates on animation touch frames plus spatial ball
+  proximity; it is not wired into TouchState, actors, the referee or the
+  event recognizer. A shadow test against accepted last-touch ticks reports
+  the recoverable fraction (initially 12 of 61 touches; animation switches
+  inside a step are inherently lossy). Golden and regression fingerprints are
+  unchanged.
 - referee/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
   the original triangles, strict segment endpoints, bidirectional intersection and
   legacy side-net literals. Simulation retains the Ball prediction lookahead gate per
