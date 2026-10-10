@@ -22,7 +22,6 @@
 #include "sim/player/player.hpp"
 #include "sim/player/player_action_volume.hpp"
 #include "sim/player/player_motion_constants.hpp"
-#include "sim/fact/simulation_fact_sink.hpp"
 #include "sim/team/team.hpp"
 
 namespace football::sim {
@@ -33,20 +32,18 @@ struct PlayerBounce {
   float force = 0.0f;
 };
 
-// Freeze every rule-relevant input at the contact instant. The referee decides
-// from this evidence instead of re-reading later actor state.
-football::sim::event::PlayerTripFact MakeTripFact(Player* victim, Player* offender,
-                                                  int trip_type,
-                                                  const Vector3& ball_position) {
+// Freeze every rule-relevant contact input at the contact instant. The referee
+// decides from this evidence instead of re-reading later actor state.
+void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
+                         const Vector3& ball_position, Tick now) {
   const PlayerActionState& action = offender->GetSimulationActionState();
-  football::sim::event::PlayerTripFact fact;
-  fact.victim = victim->GetID();
   fact.offender = offender->GetID();
+  fact.victim = victim->GetID();
   fact.victim_team_id = victim->GetTeam()->GetID();
   fact.offender_team_id = offender->GetTeam()->GetID();
-  fact.trip_type = trip_type;
+  fact.contacted_at = now;
+  fact.position = victim->GetPitchPosition();
   fact.victim_position = victim->GetPosition();
-  fact.victim_pitch_position = victim->GetPitchPosition();
   fact.victim_direction = victim->GetDirectionVec();
   fact.offender_position = offender->GetPosition();
   fact.ball_position = ball_position;
@@ -58,13 +55,41 @@ football::sim::event::PlayerTripFact MakeTripFact(Player* victim, Player* offend
   fact.offender_last_touch_tick = offender->GetLastTouchTick();
   fact.victim_team_fading_possession =
       victim->GetTeam()->GetFadingTeamPossessionAmount();
+}
+
+// Legacy sliding severity, computed once from the frozen evidence. The
+// referee classifies the card from this value instead of re-deriving it.
+float SlidingChallengeSeverity(const FoulAssessment& fact) {
+  float severity = 1.0;
+  if (fact.offender_scheduled_contact) {
+    severity = std::pow(clamp(fabs(fact.offender_contact_frame - fact.offender_frame) /
+                                  fact.offender_contact_frame,
+                              0.0, 1.0),
+                    0.7) * 0.5;
+    severity += NormalizedClamp(
+        (fact.ball_position - fact.offender_contact_position).GetLength(), 0.0, 2.0) * 0.5;
+  }
+  severity += (fact.victim_position - fact.offender_position)
+                  .GetNormalized(0)
+                  .GetDotProduct(fact.victim_direction) * 0.5 + 0.5;
+  return severity;
+}
+
+FoulAssessment MakeSlidingAssessment(Player* victim, Player* tackler,
+                                     const Vector3& ball_position, Tick now) {
+  FoulAssessment fact;
+  fact.kind = FoulKind::SlidingTackle;
+  FillContactEvidence(fact, victim, tackler, ball_position, now);
+  fact.severity = SlidingChallengeSeverity(fact);
+  // Informational normalized score; the verdict uses the raw severity above.
+  fact.score = NormalizedClamp(fact.severity, 1.0f, 2.0f);
   return fact;
 }
 
 void ResolvePlayerPair(Player *p1, Player *p2,
                        std::vector<PlayerBounce> &p1Bounce,
                        std::vector<PlayerBounce> &p2Bounce,
-                       const PlayerContactInputs& inputs, SimulationFactSink& facts,
+                       const PlayerContactInputs& inputs,
                        std::vector<FoulAssessment>* assessments) {
   constexpr float distanceFactor = 0.72f;
   constexpr float bouncePlayerRadius = 0.5f * distanceFactor;
@@ -308,7 +333,6 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (p1sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           p1->TripMe((p1->GetKinematicState().velocity * 0.1f + p2->GetKinematicState().velocity * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec), tripType, inputs.ball_retainer);
-          facts.OnSimulationFact(MakeTripFact(p1, p2, tripType, inputs.ball.Predict(0)));
         }
       }
       if (p2sensitivity > trip0threshold) {
@@ -317,7 +341,6 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (p2sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
           p2->TripMe((p2->GetKinematicState().velocity * 0.1f + p1->GetKinematicState().velocity * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec), tripType, inputs.ball_retainer);
-          facts.OnSimulationFact(MakeTripFact(p2, p1, tripType, inputs.ball.Predict(0)));
         }
       }
 
@@ -355,7 +378,10 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (tacklerAction.type == e_FunctionType_Interfere)
           tripType = 1;  // was 2
         victim->TripMe(tripVec, tripType, inputs.ball_retainer);
-        facts.OnSimulationFact(MakeTripFact(victim, tackler, tripType, inputs.ball.Predict(0)));
+        if (tripType == 3 && assessments != nullptr) {
+          assessments->push_back(
+              MakeSlidingAssessment(victim, tackler, inputs.ball.Predict(0), inputs.now));
+        }
       }
     }
   }
@@ -407,38 +433,14 @@ std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
   }
   Player* offender = victim == first ? second : first;
 
-  // Freeze the same rule-relevant evidence the legacy PlayerTripFact carried.
-  const PlayerActionState& action = offender->GetSimulationActionState();
   FoulAssessment assessment;
   assessment.kind = FoulKind::StandingFall;
-  assessment.offender = offender->GetID();
-  assessment.victim = victim->GetID();
-  assessment.victim_team_id = victim->GetTeamID();
-  assessment.offender_team_id = offender->GetTeamID();
+  FillContactEvidence(assessment, victim, offender, ball.Predict(0), now);
   assessment.score = NormalizedClamp(victim_sensitivity, kStandingFallThreshold, 1.0f);
-  assessment.contacted_at = now;
-  assessment.position = victim->GetPitchPosition();
-  assessment.victim_position = victim->GetPosition();
-  assessment.victim_direction = victim->GetDirectionVec();
-  assessment.offender_position = offender->GetPosition();
-  assessment.ball_position = ball.Predict(0);
-  assessment.offender_action_type = static_cast<int>(action.type);
-  assessment.offender_scheduled_contact = action.HasScheduledContact();
-  assessment.offender_contact_frame = action.ContactFrame();
-  assessment.offender_frame = action.Frame();
-  assessment.offender_contact_position = action.contactPosition;
-  assessment.offender_last_touch_tick = offender->GetLastTouchTick();
-  assessment.victim_team_fading_possession =
-      victim->GetTeam()->GetFadingTeamPossessionAmount();
   return assessment;
 }
 
-void ResolvePlayerContacts(const PlayerContactInputs& inputs, SimulationFactSink& facts) {
-  std::vector<FoulAssessment> discarded;
-  ResolvePlayerContacts(inputs, facts, discarded);
-}
-
-void ResolvePlayerContacts(const PlayerContactInputs& inputs, SimulationFactSink& facts,
+void ResolvePlayerContacts(const PlayerContactInputs& inputs,
                            std::vector<FoulAssessment>& assessments) {
   const auto players = inputs.players;
   // Avoid unsigned underflow for an empty explicit span; normal rosters are nonempty.
@@ -454,7 +456,7 @@ void ResolvePlayerContacts(const PlayerContactInputs& inputs, SimulationFactSink
   for (unsigned int i1 = 0; i1 < players.size() - 1; i1++) {
     for (unsigned int i2 = i1 + 1; i2 < players.size(); i2++) {
       ResolvePlayerPair(players[i1], players[i2], playerBounces.at(i1),
-                       playerBounces.at(i2), inputs, facts, &assessments);
+                       playerBounces.at(i2), inputs, &assessments);
     }
   }
 

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "foundation/time/tick.hpp"
+#include "sim/player/foul_assessment.hpp"
 #include "sim/fact/simulation_fact_sink.hpp"
 #include "sim/player/foul_assessment.hpp"
 
@@ -36,15 +37,9 @@ std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
                                               Tick now);
 
 // Mutates players in pair order, then applies accumulated movement sharing.
-// A fall is reported as an immutable PlayerTripFact through the single fact
-// sink; rule verdicts (fouls, cards, advantages) belong to the referee.
-void ResolvePlayerContacts(const PlayerContactInputs& inputs, SimulationFactSink& facts);
-
-// Transitional overload used by Simulation: additionally collect one
-// FoulAssessment per suspicious collision for the current tick. The immutable
-// fact stream stays authoritative; the assessments are the future referee
-// input and nothing consumes them yet.
-void ResolvePlayerContacts(const PlayerContactInputs& inputs, SimulationFactSink& facts,
+// Physical falls are not foul verdicts; the solver only collects one
+// FoulAssessment per suspicious collision for the referee to settle.
+void ResolvePlayerContacts(const PlayerContactInputs& inputs,
                            std::vector<FoulAssessment>& assessments);
 
 }  // namespace football::sim

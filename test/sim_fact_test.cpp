@@ -31,8 +31,8 @@ TEST_CASE("tick fact buffer preserves emission order, identity and generation",
   REQUIRE(buffer.empty());
 
   REQUIRE(buffer.Emit(event::BallTouchFact{}) == 0);
-  REQUIRE(buffer.Emit(event::PlayerTripFact{}) == 1);
-  REQUIRE(buffer.Emit(event::BallBoundaryFact{}) == 2);
+  REQUIRE(buffer.Emit(event::BallBoundaryFact{}) == 1);
+  REQUIRE(buffer.Emit(event::BallTouchFact{}) == 2);
   REQUIRE(buffer.pending_count() == 3);
 
   auto first = buffer.PopPending();
@@ -45,12 +45,12 @@ TEST_CASE("tick fact buffer preserves emission order, identity and generation",
   auto second = buffer.PopPending();
   REQUIRE(second.has_value());
   REQUIRE(second->sequence == 1);
-  REQUIRE(std::holds_alternative<event::PlayerTripFact>(second->fact));
+  REQUIRE(std::holds_alternative<event::BallBoundaryFact>(second->fact));
 
   auto third = buffer.PopPending();
   REQUIRE(third.has_value());
   REQUIRE(third->sequence == 2);
-  REQUIRE(std::holds_alternative<event::BallBoundaryFact>(third->fact));
+  REQUIRE(std::holds_alternative<event::BallTouchFact>(third->fact));
 
   REQUIRE_FALSE(buffer.PopPending().has_value());
   REQUIRE_FALSE(buffer.HasPending());
@@ -111,7 +111,7 @@ TEST_CASE("referee turns a goal-mouth fact into an award ruling for the opponent
   REQUIRE(commands.calls.empty());  // A goal verdict is not a synchronous stop command.
 }
 
-TEST_CASE("referee classifies a trip from frozen fact evidence",
+TEST_CASE("referee classifies a foul from frozen assessment evidence",
           "[sim][event][referee]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
@@ -127,29 +127,22 @@ TEST_CASE("referee classifies a trip from frozen fact evidence",
   referee.buffer.active = false;
   auto* victim = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto* offender = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
-  const auto tick = SimulationAccess::RefereeFactsOf(simulation);
-  std::vector<Player*> active;
-  const rules::RefereeView view{tick, active, false};
 
   // A standing-contact fall is only a foul when the frozen evidence matches
   // the legacy conditions: possession, action type, distance and opponent.
-  event::PlayerTripFact fact;
+  football::sim::FoulAssessment fact;
+  fact.kind = football::sim::FoulKind::StandingFall;
   fact.victim = victim->GetID();
   fact.offender = offender->GetID();
   fact.victim_team_id = victim->GetTeam()->GetID();
   fact.offender_team_id = offender->GetTeam()->GetID();
-  fact.trip_type = 2;
   fact.victim_team_fading_possession = 1.2f;
   fact.offender_action_type = static_cast<int>(e_FunctionType_Interfere);
   fact.victim_position = victim->GetPosition();
-  fact.victim_pitch_position = victim->GetPitchPosition();
+  fact.position = victim->GetPitchPosition();
   fact.ball_position = victim->GetPosition();
 
-  event::StampedFact stamped;
-  stamped.tick = tick.now;
-  stamped.fact = fact;
-  football::test::RuleCommandProbe commands;
-  referee.Consume(stamped, view, commands, nullptr);
+  referee.AssessFoul(victim, offender, fact, Tick{42});
   REQUIRE(referee.GetCurrentFoulType() == 1);
   REQUIRE(referee.GetCurrentFoulPlayer() == offender);
 }

@@ -311,14 +311,13 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   designated possession player, never Match/Simulation. Simulation supplies first then
   second roster in the common contact frame after possession, before clock advancement.
   Pair offsets remain immediate; movement sharing is accumulated/applied afterward.
-  player/player_contact freezes the contact evidence into a PlayerTripFact (ids,
-  teams, positions, action geometry, last-touch tick, possession) and reports it
-  through the single SimulationFactSink: TripMe then the fact, before any later
-  pair/offset. Referee::Consume evaluates that evidence directly through the
-  private EvaluateTrip; TripNotice survives only as a direct-test adapter that
-  builds the same fact from live actors. Preserve strict >60
-  keeps foul facts in Referee and has no implicit-clock wrapper. Preserve strict >60
-  touch grace, standing 2D/sliding 3D radii, double literals, severity arithmetic, immediate
+  player/player_contact freezes one FoulAssessment per suspicious collision (ids,
+  teams, positions, action geometry, last-touch tick, possession) and reports it to
+  Simulation: TripMe then the assessment, before any later pair/offset. Physical
+  falls and foul verdicts are separate. Referee::AssessFoul evaluates that evidence;
+  TripNotice survives only as a direct-test adapter that builds the same assessment
+  from live actors and has no implicit-clock wrapper. Preserve strict >60 touch
+  grace, standing 2D/sliding 3D radii, double literals, severity arithmetic, immediate
   publication and duplicate-tackler gates. CheckFoul(now, stadium_to_home, commands)
   takes the evaluation instant/frame explicitly, using them for strict recheck/expiry,
   card deadlines and restart scheduling. ScheduleRestart takes tick, setpiece Team*
@@ -334,15 +333,15 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   No stored facts/commands/config/RNG, RuntimeContext or Simulation pointer in Referee.
   Player contact extraction preserves the same regression fingerprints and twelve
   seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
-  PlayerId identities, a normalized [0, 1] score and the victim's pitch-frame contact
-  position; same-team contacts never produce an opponent foul. Stage A.5 also freezes
-  the legacy trip evidence (action type/frame, positions, ball, last touch, fading
-  possession) into the assessment so a delayed referee pass can judge the contact
-  itself instead of re-reading later actor state.
+  PlayerId identities, a normalized [0, 1] score, a raw sliding severity and the
+  victim's pitch-frame contact position; same-team contacts never produce an opponent
+  foul. PlayerTripFact is deleted: Simulation resolves each assessment's identities
+  and calls Referee::AssessFoul at the same instant and pair order the trip facts used
+  to, so the referee judges the frozen contact instead of re-reading later actor state.
 - referee/ball_rules.* owns pure ball-state predicates over observed positions
   (ClassifyBallOutOfPlay, CrossedGoalMouth). observation/player_slots.hpp owns the
   static PlayerId -> TeamSide table. These are the future replacements for
-  BallBoundaryFact; the fact pipeline is still authoritative and unchanged.
+  BallBoundaryFact; that fact stream is still authoritative and unchanged.
 - referee/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
   the original triangles, strict segment endpoints, bidirectional intersection and
   legacy side-net literals. Simulation retains the Ball prediction lookahead gate per
@@ -450,30 +449,32 @@ Current phase order (composed directly by Simulation):
 ApplyControls → ResolveBallPlayerContacts (BallTouchFact → FlushFacts)
 → ProcessReferee (Advance → EmitBoundaryFacts → FlushFacts → CheckPendingFoul)
 → StepBall → CaptureHistory → StepPlayers → UpdatePossession
-→ ResolvePlayerContacts (PlayerTripFact → FlushFacts) → AdvanceClock
+→ ResolvePlayerContacts (FoulAssessment → Referee::AssessFoul) → AdvanceClock
 → UpdateRecentPossession → EvaluateGoal (GoalMouthCrossed facts)
 → ApplyPendingRulings (AwardGoalRuling) → scorer/own-goal facts
 ```
 Terminal-referee and ceremony early returns keep their existing frame restoration
 and clock behavior; this sequence is not permission to reorder legacy phases.
 
-SimulationFact pipeline: physics and actors publish immutable facts, the referee
-consumes them and decides, and Simulation applies the verdicts.
+SimulationFact pipeline: physics and actors publish immutable ball facts; the player
+contact solver publishes FoulAssessment values. The referee consumes both and
+decides, and Simulation applies the verdicts.
 ```text
 Entity state → Simulation tick → SimulationFact → RefereeState → Ruling
              → Simulation → new state → MatchEvent
 ```
-- fact/simulation_fact.hpp owns BallTouchFact, PlayerTripFact and BallBoundaryFact
+- fact/simulation_fact.hpp owns BallTouchFact and BallBoundaryFact
   (TouchlineOutside/GoalLineOutside/GoalMouthCrossed) plus StampedFact identity
   (tick, reset generation, sequence). Facts carry PlayerId/TeamSide and frozen
   evidence, never live actor pointers; a consumer resolves them through RefereeView.
 - fact/tick_fact_buffer.hpp owns one ordered per-tick stream with BeginTick/Emit/
   PopPending. There are no per-kind queues; PopPending returns by value so consuming
   cannot invalidate references. BeginTick reuses storage and drops the previous tick.
-- fact/simulation_fact_sink.hpp is the single write-only port. Players, humanoids and
-  player_contact report facts through it and no longer include Referee.
+- fact/simulation_fact_sink.hpp is the write-only port for ball facts. Players and
+  humanoids report touches through it and no longer include Referee; player_contact
+  reports FoulAssessment instead.
 - referee/ruling.hpp owns the domain verdicts. Referee production stages are
-  Advance/EmitBoundaryFacts/Consume/CheckPendingFoul; TripNotice and BallTouched stay
+  Advance/EmitBoundaryFacts/Consume/CheckPendingFoul plus AssessFoul; TripNotice and BallTouched stay
   only as direct-test adapters. Simulation::ApplyPendingRulings visits every ruling
   kind explicitly (goal, stop, restart, card) so none can be silently dropped, and
   records confirmed MatchEvents in the owned EventLog.

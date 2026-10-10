@@ -580,7 +580,14 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   teams_[second_team_]->GetActivePlayers(players);
   football::sim::ResolvePlayerContacts(
       {GetTimelineTick(), players, *ball_, designated_possession_player_, ball_retainer_},
-      *fact_sink_, foul_assessments_);
+      foul_assessments_);
+  // Foul verdicts now come from the contact solver's frozen assessments, at
+  // the same instant and in the same pair order the trip facts used to.
+  for (const football::sim::FoulAssessment& assessment : foul_assessments_) {
+    referee_->AssessFoul(FindPlayerById(assessment.victim),
+                         FindPlayerById(assessment.offender), assessment,
+                         GetTimelineTick());
+  }
 
   // AdvanceClock → recent possession window → goal detection/consequences.
   const auto admitted = clock_->Advance(football::sim::TickSpan{1}, phase_);

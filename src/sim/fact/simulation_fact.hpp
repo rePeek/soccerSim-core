@@ -37,28 +37,7 @@ struct BallTouchFact {
   int action_type = 0;
 };
 
-// A contact that made an actor fall or lose their footing. This is a physical
-// consequence, not a foul verdict: the referee decides that from the evidence
-// captured here. Action/geometry values are frozen at the contact instant.
-struct PlayerTripFact {
-  model::PlayerId victim = model::kInvalidPlayerId;
-  model::PlayerId offender = model::kInvalidPlayerId;
-  int victim_team_id = -1;
-  int offender_team_id = -1;
-  int trip_type = 0;
-  blunted::Vector3 victim_position;
-  blunted::Vector3 victim_pitch_position;
-  blunted::Vector3 victim_direction;
-  blunted::Vector3 offender_position;
-  blunted::Vector3 ball_position;
-  int offender_action_type = 0;  // e_FunctionType at the contact instant
-  bool offender_scheduled_contact = false;
-  int offender_contact_frame = -1;
-  int offender_frame = 0;
-  blunted::Vector3 offender_contact_position;
-  football::sim::Tick offender_last_touch_tick{};
-  float victim_team_fading_possession = 0.0f;
-};
+
 
 // The two semantic families the current rules still distinguish. Touchline and
 // goal-line checks are state predicates (the ball is outside a line); the goal
@@ -77,8 +56,7 @@ struct BallBoundaryFact {
   blunted::Vector3 current_position;
 };
 
-using SimulationFact =
-    std::variant<BallTouchFact, PlayerTripFact, BallBoundaryFact>;
+using SimulationFact = std::variant<BallTouchFact, BallBoundaryFact>;
 
 // Identity, instant and order of one fact. sequence is the deterministic order
 // within its tick; generation rejects facts produced before a situation reset.

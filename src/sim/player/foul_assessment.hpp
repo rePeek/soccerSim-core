@@ -31,6 +31,9 @@ struct FoulAssessment {
   int offender_team_id = -1;
   // Normalized suspicion in [0, 1]. Not a card severity and not a rule verdict.
   float score = 0.0f;
+  // Raw legacy sliding severity, frozen by the solver for the sliding kind.
+  // The referee derives the card from it exactly as it did from the fact.
+  float severity = 0.0f;
   Tick contacted_at{};
 
   // Foul location in the victim's pitch frame, so a later ruling can schedule

@@ -32,6 +32,7 @@
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/simulation_config.hpp"
 #include "sim/fact/simulation_fact.hpp"
+#include "sim/player/foul_assessment.hpp"
 #include "sim/fact/tick_fact_buffer.hpp"
 #include "sim/referee/ruling.hpp"
 #include "foundation/math/rng.hpp"
@@ -91,10 +92,17 @@ class Referee {
     // Consumes explicit competition/observation facts; never reads Match.
     void BallTouched(const football::sim::rules::BallTouchFacts& facts,
                      football::sim::rules::RuleCommandSink& commands);
-    // Synchronous foul-state operation: explicit clock/Ball facts, live actor reads.
-    // Types: 1 = little standing trip, 2 = standing fall, 3 = sliding tackle.
+    // Test-only adapter for the frozen standing/sliding challenge scenarios.
+    // Types: 1 = little standing trip (never a foul), 2 = standing fall,
+    // 3 = sliding tackle. Production feeds AssessFoul from the solver.
     void TripNotice(Player *tripee, Player *tripper, int tackleType,
                     football::sim::Tick now, const Vector3& ball_position);
+    // Judge one collision from its frozen evidence. Production resolves the
+    // assessment identities to live actors before calling this; the referee
+    // never reads collision math or later actor state here.
+    void AssessFoul(Player* victim, Player* offender,
+                    const football::sim::FoulAssessment& fact,
+                    football::sim::Tick now);
     // Foul facts carry their own timestamps; the caller supplies the evaluation instant.
     bool CheckFoul(football::sim::Tick now, const football::model::Pitch& pitch,
                    PitchFrameTransform stadium_to_home,
@@ -123,22 +131,13 @@ class Referee {
     void PrepareCeremonialKickOff(const football::sim::rules::RefereeTickFacts& facts,
                                  const MatchOptions& options, blunted::Rng& rng,
                                  football::sim::rules::RuleCommandSink& commands);
-    // Direct rule evaluation from an evidence bundle / immutable trip fact.
-    // Consume never forwards through the public BallTouched/TripNotice adapters.
     void EvaluateBallTouch(const football::sim::rules::BallTouchFacts& facts,
                            football::sim::rules::RuleCommandSink& commands);
-    void EvaluateTrip(Player* victim, Player* offender,
-                      const football::sim::event::PlayerTripFact& fact,
-                      football::sim::Tick now);
 
     void ConsumeBallTouch(football::sim::Tick now,
                           const football::sim::event::BallTouchFact& fact,
                           const football::sim::rules::RefereeView& view,
                           football::sim::rules::RuleCommandSink& commands);
-    void ConsumePlayerTrip(football::sim::Tick now,
-                           const football::sim::event::PlayerTripFact& fact,
-                           const football::sim::rules::RefereeView& view,
-                           football::sim::rules::RuleCommandSink& commands);
     void ConsumeBoundary(football::sim::Tick now,
                          const football::sim::event::BallBoundaryFact& fact,
                          const football::sim::rules::RefereeView& view,
