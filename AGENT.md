@@ -995,3 +995,20 @@ strike is torque-free, technique lateral/vertical offsets for side/top spin via
 `ApplyImpulseAtPoint`, and no angular-velocity assignment. Tests cover the
 requested spin cases, left/right mirror, moving versus static strikes and Magnus
 stability over 0.5/1/2 s. Production still uses the legacy touch path.
+
+P5c-3 adds the opt-in production contact-point takeover, default OFF.
+`Simulation::EnableActiveImpulseProduction` routes Shot/ShortPass/LongPass/
+HighPass/Trap through `ProposeActiveTouch` and a single physical point impulse:
+`ApplyBallImpulse` keeps the legacy refresh order but uses
+`Ball::ApplyContactImpulse` (resting-height clamp, `ApplyImpulseAtPoint`,
+prediction rebuild) instead of an absolute velocity assignment plus
+`SetRotation`. Rejected proposals fall back to the legacy path so no action is
+dropped, no RNG is drawn by the takeover and no player/action identity reaches
+Ball. Tests show ON and OFF agree in RNG, ball position/velocity, player state
+and recorded accepted touches up to the first migrated strike, where the derived
+spin differs; OFF stays byte-identical to the previous fingerprint. The technique
+table is provisional and uncalibrated, so the switch stays OFF until a documented
+baseline transition. `DecideContactAuthority` fixes the P4d-2 active/passive
+precedence: a real passive impact (nonzero impulse) wins for the same
+owner+part and for another player; a zero-impulse overlap never suppresses a
+valid strike.

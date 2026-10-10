@@ -45,4 +45,23 @@ inline std::optional<ActiveImpulseCandidate> ArbitrateActiveImpulse(
   return winner;
 }
 
+// P4d-2 prerequisite: who owns this tick's ball contact. A *real* passive body
+// impact (nonzero normal impulse) precedes an active strike, whether it is the
+// same owner+part (no double resolution) or another player (they got there
+// first). A zero-impulse overlap projection is NOT an impact and must never
+// suppress a valid active strike.
+enum class ContactAuthority { PassiveImpact, ActiveTouch, None };
+
+struct ContactAuthorityInput {
+  bool passive_impact_exists = false;   // earliest passive contact has normal_impulse > 0
+  bool passive_same_owner_part = false; // that impact belongs to the active candidate's owner+part
+  bool active_candidate_valid = false;
+};
+
+inline ContactAuthority DecideContactAuthority(const ContactAuthorityInput& input) {
+  if (input.passive_impact_exists) return ContactAuthority::PassiveImpact;
+  if (input.active_candidate_valid) return ContactAuthority::ActiveTouch;
+  return ContactAuthority::None;
+}
+
 #endif

@@ -126,7 +126,8 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
           clock_->IsHalfUnderway(), *ball_, GetBallEnvironment(), ball_retainer_,
           designated_possession_player_, GetLastTouchPlayer(), touches_,
           referee_->GetBuffer(), pitch_, own, opponent, first, second, processing_slot,
-          referee_->RestartNeedsSimulation(), rng_, active_touch_shadow_sink_.get()};
+          referee_->RestartNeedsSimulation(), rng_, active_touch_shadow_sink_.get(),
+          active_impulse_production_};
 }
 
 // The single write-only fact-production port. Touch bookkeeping stays synchronous

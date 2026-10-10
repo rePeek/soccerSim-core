@@ -66,6 +66,9 @@ class Ball {
 
   // ---- Stable state observation ----
   BallState state() const;
+  // Physics configuration actually in force (mass, radius, restitution).
+  // Read-only; never a live channel for mutating the ball.
+  const football::model::BallConfig& config() const { return config_; }
 
   // ---- Stable external physical input ----
   // Force accumulated for the next Step interval. It is applied as one
@@ -78,6 +81,13 @@ class Ball {
   // unified point-impulse response (ApplyImpulseAtPoint in ball_response.hpp).
   void ApplyImpulseAtPoint(const blunted::Vector3& impulse,
                            const blunted::Vector3& world_point);
+  // P5c production contact-point touch: keeps the legacy resting-height clamp,
+  // applies the point impulse (velocity and spin together) and rebuilds
+  // predictions with the given environment. No absolute velocity or direct
+  // spin assignment is involved.
+  void ApplyContactImpulse(const blunted::Vector3& impulse,
+                           const blunted::Vector3& contact_point,
+                           const BallEnvironment& environment);
 
   // ---- Stable simulation ----
   // Exactly one tick, at most one passive impact, no remainder integration.

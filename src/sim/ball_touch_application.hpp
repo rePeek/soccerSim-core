@@ -19,6 +19,15 @@ void ApplyBallTouch(football::ball::Ball& ball, football::ball::BallEnvironment 
                     const blunted::Vector3& impulse,
                     std::span<MentalImage> history, Team& first, Team& second,
                     Tick now, const Player* retainer);
+
+// P5c: same refresh order, but the linear and angular change comes from one
+// physical point impulse instead of an absolute velocity assignment plus a
+// direct spin write. Used by the opt-in contact-point production takeover.
+void ApplyBallImpulse(football::ball::Ball& ball, football::ball::BallEnvironment environment,
+                       const blunted::Vector3& impulse,
+                       const blunted::Vector3& contact_point,
+                       std::span<MentalImage> history, Team& first, Team& second,
+                       Tick now, const Player* retainer);
 }  // namespace football::sim
 
 #endif  // FOOTBALL_SIM_BALL_TOUCH_APPLICATION_HPP

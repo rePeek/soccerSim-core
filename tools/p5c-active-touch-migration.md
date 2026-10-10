@@ -150,3 +150,44 @@ It quantifies why the legacy `SetRotation` values cannot be carried over and why
 the technique offsets must be calibrated before the switch is enabled: an
 uncalibrated centre strike changes a 2 s pass trajectory by up to ~22 m. Actions
 whose legacy spin was near zero (shot reverse, ball_control) already agree.
+
+## P5c-3: production contact-point takeover (implemented, opt-in)
+
+`Simulation::EnableActiveImpulseProduction(true)` switches the four migrated
+strike actions (Shot, ShortPass, LongPass, HighPass, Trap) from
+`Ball::Touch + Ball::SetRotation` to one physical point impulse:
+
+- `ApplyBallImpulse` (ball_touch_application) keeps the legacy refresh order
+  (newest mental-image predictions, then both possession refreshes) but changes
+  the ball with `Ball::ApplyContactImpulse`: the legacy resting-height clamp,
+  then `ApplyImpulseAtPoint`, then prediction rebuild with the live environment.
+- `Humanoid` routes the migrated actions through the P5c-2 proposal with a
+  provisional technique table (Shot `{0, .015}`, HighPass `{.03, .010}`,
+  LongPass `{.02, .010}`, Trap/ShortPass `{.01, .005}`) and falls back to the
+  legacy path whenever the proposal is rejected, so no action is ever dropped.
+- No RNG is drawn by the takeover, no second `Humanoid::Process` runs, and no
+  action/rule/player identity reaches `Ball`.
+
+Verification (seed 42 fixtures, both processing orders, 4000 steps): the ON and
+OFF simulations stay identical in RNG, ball position (< 1e-6 m), ball velocity
+(< 1e-4 m/s), every player position/velocity/animation id/frame, and the
+recorded accepted touches (`player`, `type`, `action_type`) right up to the first
+migrated strike; at that strike the derived spin differs (the point impulse
+replaces the legacy direct spin). OFF remains byte-identical to the previous
+`--print-baseline` fingerprint.
+
+**Default is OFF.** The technique table is uncalibrated engineering values (the
+P5c-2 flight measurement shows an uncalibrated centre strike can move a 2 s pass
+by ~22 m), and per the migration discipline the accepted action types only become
+the default path after a documented baseline transition. Flipping the switch is
+one call; it must be accompanied by saved old baselines, an explained diff and
+re-calibrated technique values.
+
+### P4d-2 prerequisite: contact authority
+
+`DecideContactAuthority` fixes the active/passive precedence the passive switch
+needs: a real passive body impact (nonzero normal impulse) owns the contact,
+whether it is the same owner+part (no double resolution) or another player (they
+arrived first); a zero-impulse overlap projection is not an impact and never
+suppresses a valid active strike; otherwise the active strike owns it. Tests
+cover all four input combinations.

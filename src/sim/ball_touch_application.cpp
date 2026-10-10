@@ -17,4 +17,17 @@ void ApplyBallTouch(Ball& ball, football::ball::BallEnvironment environment,
   player::RefreshTeamPossession(first, second, ball, now, retainer);
   player::RefreshTeamPossession(second, first, ball, now, retainer);
 }
+
+void ApplyBallImpulse(Ball& ball, football::ball::BallEnvironment environment,
+                      const blunted::Vector3& impulse,
+                      const blunted::Vector3& contact_point,
+                      std::span<MentalImage> history, Team& first, Team& second,
+                      Tick now, const Player* retainer) {
+  // Same refresh order as ApplyBallTouch; the physical point impulse replaces the
+  // absolute velocity assignment plus the direct spin write.
+  ball.ApplyContactImpulse(impulse, contact_point, environment);
+  observation::RefreshLatestMentalImageBallPredictions(history, ball);
+  player::RefreshTeamPossession(first, second, ball, now, retainer);
+  player::RefreshTeamPossession(second, first, ball, now, retainer);
+}
 }  // namespace football::sim

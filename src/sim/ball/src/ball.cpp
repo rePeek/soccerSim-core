@@ -99,6 +99,18 @@ void Ball::ApplyImpulseAtPoint(const Vector3& impulse,
   RefreshPredictions(BallEnvironment{});
 }
 
+void Ball::ApplyContactImpulse(const Vector3& impulse,
+                               const Vector3& contact_point,
+                               const BallEnvironment& environment) {
+  // Match the legacy resting-height clamp so ball position is unchanged.
+  if (state_.position.coords[2] < config_.radius()) {
+    state_.position.coords[2] = config_.radius();
+  }
+  state_ = football::ball::ApplyImpulseAtPoint(state_, impulse, contact_point, config_);
+  prediction_cache_->Invalidate();
+  RefreshPredictions(environment);
+}
+
 BallStepResult Ball::Step(const BallTickInput& input) {
   // Reject ambiguous contact identity before consuming force or changing state.
   for (std::size_t i = 0; i < input.dynamic_colliders.size(); ++i) {

@@ -1,4 +1,5 @@
 #include "sim/player/player_active_touch_shadow.hpp"
+#include "sim/player/player_active_touch_model.hpp"
 // Copyright 2019 Google LLC & Bastiaan Konings
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -158,6 +159,44 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         CastPlayer()->GetID(), team->GetTeamSide(), type, tick.ball.Predict(0),
         tick.ball.GetMovement(),
         static_cast<int>(CastPlayer()->GetSimulationActionState().type)});
+  };
+  // P5c opt-in production takeover. For the migrated strike actions the ball is
+  // changed by one physical point impulse (linear + spin from the contact point)
+  // instead of an absolute velocity assignment plus a direct spin write. Any
+  // other action, or a rejected proposal, keeps the legacy path so no action is
+  // ever silently dropped. Off by default; product code never enables it.
+  const auto physical_touch = [&](e_FunctionType action_type,
+                                  const Vector3& touchVec) -> bool {
+    if (!tick.active_impulse_production) return false;
+    const bool migrated = action_type == e_FunctionType_Shot ||
+        action_type == e_FunctionType_ShortPass ||
+        action_type == e_FunctionType_LongPass ||
+        action_type == e_FunctionType_HighPass ||
+        action_type == e_FunctionType_Trap;
+    if (!migrated) return false;
+    football::sim::player::TouchProposalInput proposal;
+    proposal.passive_endpoint = tick.ball.state();
+    proposal.desired_ball_center = currentAnim.touchPos + currentAnim.positionOffset;
+    proposal.target_velocity = touchVec;
+    proposal.config = tick.ball.config();
+    proposal.reach = 0.4f;
+    // Provisional technique table: engineering values, not realism calibration.
+    switch (action_type) {
+      case e_FunctionType_Shot: proposal.technique = {0.0f, 0.015f}; break;
+      case e_FunctionType_HighPass: proposal.technique = {0.03f, 0.010f}; break;
+      case e_FunctionType_LongPass: proposal.technique = {0.02f, 0.010f}; break;
+      default: proposal.technique = {0.01f, 0.005f}; break;
+    }
+    const auto result = football::sim::player::ProposeActiveTouch(proposal);
+    if (!result.reachable) return false;
+    if (active_observation) {
+      active_observation->before = tick.ball.state();
+      active_observation->stage = ActiveTouchStage::Executed;
+    }
+    football::sim::ApplyBallImpulse(tick.ball, tick.ball_environment,
+        result.impulse.impulse, result.impulse.contact_point, history,
+        tick.first_processing_team, tick.second_processing_team, now, ball_retainer);
+    return true;
   };
 
   bool instaDoorheb = false;
@@ -670,9 +709,12 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        apply_touch(touchVec);
+        const bool physical = physical_touch(currentAnim.functionType, touchVec);
+        if (!physical) {
+          apply_touch(touchVec);
+          tick.ball.SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), tick.ball_environment);
+        }
         record_contact_impulse(touchVec);
-        tick.ball.SetRotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias), tick.ball_environment);
 
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -762,13 +804,14 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        apply_touch(touchVec);
+        const bool physical = physical_touch(currentAnim.functionType, touchVec);
+        if (!physical) apply_touch(touchVec);
         record_contact_impulse(touchVec);
         float forwardness = 3.5f;
         if (currentAnim.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
         radian xRot = touchVec.GetNormalized(0).coords[1] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
         radian yRot = touchVec.GetNormalized(0).coords[0] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
-        tick.ball.SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias), tick.ball_environment);
+        if (!physical) tick.ball.SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias), tick.ball_environment);
 
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
@@ -797,9 +840,12 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        apply_touch(touchVec);
+        const bool physical = physical_touch(currentAnim.functionType, touchVec);
+        if (!physical) {
+          apply_touch(touchVec);
+          tick.ball.SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), tick.ball_environment);
+        }
         record_contact_impulse(touchVec);
-        tick.ball.SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias), tick.ball_environment);
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 

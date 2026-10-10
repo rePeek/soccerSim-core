@@ -147,3 +147,69 @@ TEST_CASE("active impulse arbitration is unique, deterministic and passive-aware
   REQUIRE(winner.has_value());
   REQUIRE(winner->player == 2);
 }
+
+TEST_CASE("contact-point takeover preserves linear state and derives spin from the strike",
+          "[active-shadow][p5c][sim]") {
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  for (bool reverse : {false, true}) {
+    MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
+    Simulation legacy, physical;
+    legacy.Init(home, away, football::model::Pitch{}, options);
+    physical.Init(home, away, football::model::Pitch{}, options);
+    SimulationAccess::EnableActiveImpulseProduction(physical, true);
+    football::ai::DefaultAI policy_legacy(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy_physical(home, away, football::model::Pitch{});
+    bool observed_spin_change = false;
+    int observed_at = -1;
+    for (int step = 0; step < 4000 && !observed_spin_change; ++step) {
+      PlayerControlSet ca, cb;
+      policy_legacy.Update(legacy.Observe(), ca);
+      policy_physical.Update(physical.Observe(), cb);
+      legacy.Step(ca);
+      physical.Step(cb);
+      const auto& a = legacy.Snapshots().Latest()->snapshot;
+      const auto& b = physical.Snapshots().Latest()->snapshot;
+      // Everything except the derived spin must agree up to the takeover step.
+      REQUIRE(SimulationAccess::RngOf(legacy).engine() == SimulationAccess::RngOf(physical).engine());
+      REQUIRE((a.ball.position - b.ball.position).GetLength() < 1e-6f);
+      REQUIRE((a.ball.velocity - b.ball.velocity).GetLength() < 1e-4f);
+      REQUIRE(a.players.size() == b.players.size());
+      for (std::size_t i = 0; i < a.players.size(); ++i) {
+        REQUIRE(a.players[i].position == b.players[i].position);
+        REQUIRE(a.players[i].velocity == b.players[i].velocity);
+        REQUIRE(a.players[i].animation_id == b.players[i].animation_id);
+        REQUIRE(a.players[i].frame == b.players[i].frame);
+      }
+      const auto& ta = SimulationAccess::RecordedTouchesOf(legacy);
+      const auto& tb = SimulationAccess::RecordedTouchesOf(physical);
+      REQUIRE(ta.size() == tb.size());
+      if (!ta.empty()) {
+        REQUIRE(ta.back().player == tb.back().player);
+        REQUIRE(ta.back().type == tb.back().type);
+        REQUIRE(ta.back().action_type == tb.back().action_type);
+      }
+      if ((a.ball.angular_velocity - b.ball.angular_velocity).GetLength() > 1e-3f) {
+        observed_spin_change = true;
+        observed_at = step;
+      }
+    }
+    REQUIRE(observed_spin_change);
+    REQUIRE(observed_at >= 0);
+  }
+}
+
+TEST_CASE("contact authority separates real passive impacts from overlap projection",
+          "[active-shadow][p4d2]") {
+  // No passive impact: a valid active strike owns the contact.
+  REQUIRE(DecideContactAuthority({false, false, true}) == ContactAuthority::ActiveTouch);
+  REQUIRE(DecideContactAuthority({false, false, false}) == ContactAuthority::None);
+  // A real passive impact wins, both for the same owner+part and for another
+  // player, so a strike is never double-resolved.
+  REQUIRE(DecideContactAuthority({true, true, true}) == ContactAuthority::PassiveImpact);
+  REQUIRE(DecideContactAuthority({true, false, true}) == ContactAuthority::PassiveImpact);
+  // A pure zero-impulse overlap is not an impact (passive_impact_exists false),
+  // so it can never suppress a valid active strike.
+  REQUIRE(DecideContactAuthority({false, true, true}) == ContactAuthority::ActiveTouch);
+  REQUIRE(DecideContactAuthority({false, true, false}) == ContactAuthority::None);
+}

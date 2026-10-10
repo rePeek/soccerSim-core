@@ -48,6 +48,10 @@ struct PlayerTickContext {
 
   blunted::Rng& rng;
   ActiveTouchShadowSink* active_touch_shadow = nullptr; // optional read-only diagnostic
+  // P5c: opt-in production takeover of the contact-point spin model for the
+  // migrated actions (Shot/ShortPass/LongPass/HighPass/Trap). Off by default so
+  // the legacy Touch + SetRotation path stays byte-identical.
+  bool active_impulse_production = false;
 };
 } // namespace football::sim
 

@@ -125,6 +125,9 @@ class Simulation {
   void BeginBodyPhysicsShadow();
   void CompleteBodyPhysicsShadow();
   void EnableActiveTouchShadow(bool enabled);
+  // P5c: opt-in production takeover of the contact-point spin model for the
+  // migrated actions. Diagnostic/test entry point; product code never enables it.
+  void EnableActiveImpulseProduction(bool enabled) { active_impulse_production_ = enabled; }
 
   // Lifecycle mutations, published through the write-only rule/player ports.
   void SetMatchPhase(MatchPhase newPhase);
@@ -247,6 +250,7 @@ class Simulation {
   BodyContactEpisodes body_geometry_episodes_, body_impact_episodes_;
   std::unique_ptr<ActiveTouchShadowSink> active_touch_shadow_sink_;
   ActiveTouchShadowReport active_touch_shadow_report_;
+  bool active_impulse_production_ = false;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;
