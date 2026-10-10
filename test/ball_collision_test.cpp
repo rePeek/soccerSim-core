@@ -417,3 +417,19 @@ TEST_CASE("grounded rolling into a post still resolves the post impact",
   REQUIRE_FALSE(result.contacts.empty());
   REQUIRE(result.contacts[0].collider == 5);
 }
+
+TEST_CASE("spin-only tick advances orientation without moving the ball",
+          "[ball][collision][tick]") {
+  using football::ball::AdvanceBallTick;
+  using football::ball::BallDynamics;
+  BallState state = BallAt(Vector3(0, 0, 1), Vector3(0, 0, 0));
+  state.angular_velocity = Vector3(0, 0, 10);  // spin about +z
+  const football::model::Pitch pitch;
+  const football::model::BallConfig config;
+  std::vector<ColliderMotion> none;
+  BallDynamics dynamics;
+  dynamics.gravity = 0.0f;
+  const auto result = AdvanceBallTick(state, none, 0.1f, config, dynamics);
+  REQUIRE(result.state.position == state.position);
+  REQUIRE(result.state.orientation.elements[2] > 0.0f);
+}

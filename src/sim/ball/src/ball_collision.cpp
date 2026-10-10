@@ -271,6 +271,12 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   const float eps = 1e-4f;
   const float ball_radius = config.radius();
 
+  const auto integrate_orientation = [](const blunted::Quaternion& q,
+                                        const blunted::Vector3& omega, float dt) {
+    const blunted::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
+    return (q + omega_q * q * (0.5f * dt)).GetNormalized();
+  };
+
   const auto collider_velocity_of = [&](ColliderId id) -> blunted::Vector3 {
     for (const ColliderMotion& c : colliders) {
       if (c.id != id) continue;
@@ -304,7 +310,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
 
   // Persistent ground contact: rolling constraint, but still check other
   // (non-ground) colliders; the tangent ground plane produces no ground hit.
-  const float resting_z = ball_radius + dynamics.grass_height;
+  const float resting_z = ball_radius;  // grass scales rolling resistance, not support height
   if (initial.position.coords[2] <= resting_z + eps && initial.velocity.coords[2] <= eps) {
     blunted::Vector3 v = initial.velocity;
     v.coords[2] = 0.0f;
@@ -334,6 +340,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
       result.state.position = initial.position + v * dt;
       result.state.position.coords[2] = resting_z;
       result.state.angular_velocity = omega1;
+      result.state.orientation = integrate_orientation(initial.orientation, omega1, dt);
     }
     return result;
   }
@@ -365,6 +372,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     result.state.position = p1;
     result.state.velocity = v1;
     result.state.angular_velocity = omega1;
+    result.state.orientation = integrate_orientation(initial.orientation, omega1, dt);
     return result;
   }
 
@@ -373,6 +381,8 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   result.state.position = (*first).point;
   result.state.velocity = vc;
   result.state.angular_velocity = omega1;
+  result.state.orientation =
+      integrate_orientation(initial.orientation, initial.angular_velocity, (*first).toi * dt);
   resolve(*first);
   return result;
 }
