@@ -84,3 +84,65 @@ Coulomb cap and energy loss. These values are provisional engineering policy,
 not a claimed human-body realism calibration. Changing them only changes shadow
 or external dynamic inputs until production authority is explicitly switched.
 Release Ball/Simulation/regression tests pass.
+
+## P4d-1: opt-in complete-world shadow (no authority switch)
+
+`nix develop --command build/release/football_body_shadow 4000 --full` enables
+the full comparison. Default runs keep only P4b geometry diagnostics. Internal
+SimulationAccess enables one persistent diagnostic Ball, constructed with the
+same BallConfig/Pitch as production. Each interval resets that diagnostic owner
+to the same pre-legacy-contact BallState, runs static-only and static+dynamic
+Ball::Step, and retains only the last completed interval and aggregate errors.
+Both paths use the production kernel and netting correction, not a shadow-only
+physics clone. Ball/shape/contact copies are rotated into the normal pitch Step
+frame for reverse processing, then results return to the common first-roster
+frame. Static ids keep their real pitch association. Actual production state is
+sampled immediately after its Ball Step, before Player action impulses. Reset,
+terminal, ceremony and exception paths discard incomplete evidence.
+
+The reference production can have intervening legacy contacts/referee writes;
+its delta therefore diagnoses composition differences, not pure kernel error.
+Legacy accidental touches are compared by same completed tick/player with
+multiplicity, never treated as the physical truth. `normal_impulse > 1e-6 N*s`
+is the diagnostic impact gate; zero-impulse geometry is counted separately.
+Per-contact samples report source id, owner/part, TOI fraction, projected ball
+center, normal impulse, velocity and angular-velocity changes. Full Step results
+remain available through the internal diagnostic accessor.
+
+Seed 42, default teams, 4000 requested steps:
+
+| Order | Completed | Static first | Body first | Nonzero body responses | Zero-impulse contacts | Matched/missed legacy accidental | Unmatched responses |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| normal | 3801 | 1 | 215 | 152 | 63 | 0/1 | 152 |
+| reverse | 3800 | 0 | 112 | 26 | 86 | 0/1 | 26 |
+
+| Order | Unified−static position mean/max m | Velocity mean/max m/s | Spin mean/max rad/s |
+|---|---|---|---|
+| normal | .00875818/.311033 | .0952664/24.5854 | .322937/64.2508 |
+| reverse | .00497535/.278621 | .0173524/5.93124 | .0765318/31.8869 |
+
+Unified−production aggregates equal unified−static on this tape; this is not
+an assertion that old body physics is generally equivalent. No dynamic query
+was superseded by static geometry on this native sample. Constructed integration
+tests explicitly exercise post-first and ground-first-over-later-body cases
+under both orders, including physical pitch ids and owner mapping. A/B enables
+the full shadow on one side and disables all shadow on the other: 800 ticks per
+order plus end changes preserve Ball/actors/animation/possession/touches/RNG.
+
+Important: every shadow interval starts again from the real production ball.
+Repeated overlap/nonzero responses on consecutive intervals are NOT independent
+real-world touches or a continuously integrated alternative match. No sliding
+samples occurred; fallen-pose geometry and active-contact conflicts remain open.
+These discrepancies block production switching and must not be hidden by a
+cooldown, arbitrary tuning or Golden refresh. P4d authority and P5–P7 are pending.
+
+The standalone `football_ball_allocation_test` counts zero allocations over 100
+no-contact Step calls after warmup, for both 66 and 300 dynamic motions. It proves
+input-buffer reuse including larger rosters, not zero allocations on impacts
+(output contact vectors and prediction hits can allocate).
+
+Final validation: complete Release CTest 42/42 passed (including full 45-minute
+halves CLI, 370.91s). Focused Debug Ball/allocation/Simulation CTest 3/3 passed.
+Core-only BUILD_TESTING=OFF / FOOTBALL_BUILD_APP=OFF configured and built.
+No assets or regression Goldens changed. Every migration stage is a separate
+local commit; nothing pushed.

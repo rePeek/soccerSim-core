@@ -161,6 +161,26 @@ class SimulationAccess {
   static const auto& BodyColliderOwnersOf(const Simulation& s) {
     return s.body_collider_owners_;
   }
+  static void EnableBodyPhysicsShadow(Simulation& s, bool enabled) {
+    if (!s.ball_) throw std::logic_error("simulation has no match");
+    s.DiscardBodyCollisionShadow();
+    if (enabled) {
+      s.body_shadow_enabled_ = true;
+      s.body_physics_shadow_colliders_.reserve(s.snapshot_players_.size() * kPlayerBodyPartCount);
+      s.body_physics_shadow_ball_ = std::make_unique<football::ball::Ball>(s.ball_config_, s.pitch_);
+    } else {
+      s.body_physics_shadow_ball_.reset();
+    }
+  }
+  static const auto& BodyPhysicsShadowReportOf(const Simulation& s) {
+    return s.body_physics_shadow_report_;
+  }
+  static const auto& BodyPhysicsShadowLatestOf(const Simulation& s) {
+    return s.body_physics_shadow_latest_;
+  }
+  static const auto& BodyPhysicsShadowPendingOf(const Simulation& s) {
+    return s.body_physics_shadow_tick_;
+  }
 
   // Test/diagnostic lifecycle escape hatches; product code uses Step().
   static void SetPhase(Simulation& s, MatchPhase phase) { s.SetMatchPhase(phase); }

@@ -120,6 +120,8 @@ class Simulation {
   void MeasureBodyShadowEndpoint(const Player& player);
   void CompleteBodyCollisionShadow();
   void DiscardBodyCollisionShadow();
+  void BeginBodyPhysicsShadow();
+  void CompleteBodyPhysicsShadow();
 
   // Lifecycle mutations, published through the write-only rule/player ports.
   void SetMatchPhase(MatchPhase newPhase);
@@ -233,6 +235,11 @@ class Simulation {
   bool body_shadow_action_phase_conflict_ = false;
   bool body_shadow_enabled_ = true; // internal diagnostic A/B gate, never policy
   PlayerBodyCollisionShadowReport body_shadow_report_;
+  // Opt-in production-kernel shadow owner; no extra physics implementation.
+  std::unique_ptr<football::ball::Ball> body_physics_shadow_ball_;
+  std::vector<football::ball::ColliderMotion> body_physics_shadow_colliders_;
+  std::optional<BodyPhysicsShadowTick> body_physics_shadow_tick_, body_physics_shadow_latest_;
+  BodyPhysicsShadowReport body_physics_shadow_report_;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

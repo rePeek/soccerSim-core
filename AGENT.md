@@ -903,3 +903,17 @@ shadow replay/frame tests live in test/player_body_collider_motion_test.cpp and
 test/player_body_shadow_test.cpp. These inputs never reach production Ball yet.
 Use CTest or executables at build/release/, not old build/release/test/ binaries.
 No extra Player/Humanoid execution, RNG, touch/rules writes or Golden refresh.
+
+P4c Ball accepts borrowed dynamic colliders through BallTickInput and returns
+physical BallStepResult evidence; predictions remain static-only. Contacts expose
+normal impulse and overlap correction separately from rule touches. Body material
+is explicit and provisional (.35 restitution/.45 friction), not realism calibration.
+`sim/simulation_body_shadow.cpp` runs opt-in static-only/full-world production
+Ball kernels on one diagnostic owner. `football_body_shadow [steps] --full` reports
+sources/TOI/owners/impulses/state deltas against static and actual production.
+Default Simulation still supplies no dynamic bodies: production authority, action
+and referee ordering are unchanged. Completed shadow evidence is bounded to one
+interval; resets discard pending intervals. Tests cover both orders/end changes,
+post/ground priority and full-shadow vs disabled state/RNG replay. The standalone
+`football_ball_allocation_test` measures input-buffer reuse with no contacts.
+P4d switching and P5–P7 remain pending; current native tape has no sliding coverage.

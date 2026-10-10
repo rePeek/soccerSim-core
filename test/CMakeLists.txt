@@ -79,6 +79,12 @@ football_configure_target(football_snapshot_history_test)
 add_test(NAME football_snapshot_history_test COMMAND football_snapshot_history_test)
 set_tests_properties(football_snapshot_history_test PROPERTIES LABELS "sim;unit;snapshot")
 
+add_executable(football_ball_allocation_test ../src/sim/ball/tests/ball_allocation_test.cpp)
+target_link_libraries(football_ball_allocation_test PRIVATE football::ball Catch2::Catch2WithMain)
+football_configure_target(football_ball_allocation_test)
+add_test(NAME football_ball_allocation_test COMMAND football_ball_allocation_test)
+set_tests_properties(football_ball_allocation_test PROPERTIES LABELS "ball;unit")
+
 # Historical consumers also compile from values alone, without Simulation/AI/disk.
 add_executable(football_snapshot_consumers_test snapshot_consumers_test.cpp
   ../src/sim/observation/snapshot_history.cpp ../src/sim/observation/temporal_graph.cpp

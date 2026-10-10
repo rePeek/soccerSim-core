@@ -81,4 +81,29 @@ inline std::size_t BodyShadowActionCategory(e_FunctionType action) {
   return 3;
 }
 
+// Opt-in full physics shadow. Stored only as transient/last-completed evidence,
+// never in Snapshot, BallState, rules or a production collision decision.
+struct BodyPhysicsShadowTick {
+  std::uint64_t step_index = 0;
+  std::uint64_t generation = 0;
+  football::ball::BallState initial; // first-roster common contact frame
+  football::ball::BallStepResult static_only;
+  football::ball::BallStepResult unified;
+  football::ball::BallState production; // immediately after real Ball Step
+  bool production_observed = false;
+  std::optional<football::model::PlayerId> player;
+  std::optional<PlayerBodyPart> part;
+};
+
+struct BodyPhysicsShadowReport {
+  std::uint64_t ticks = 0, static_first = 0, dynamic_first = 0;
+  std::uint64_t effective_body_impacts = 0, zero_impulse_contacts = 0;
+  std::uint64_t dynamic_query_superseded = 0;
+  std::uint64_t matched_touches = 0, missed_touches = 0, unmatched_impacts = 0;
+  // Static-only vs unified from exactly the same initial state; and unified
+  // vs actual production, which can already include legacy body bounce.
+  BodyEndpointErrors position_delta, velocity_delta, spin_delta;
+  BodyEndpointErrors production_position_delta, production_velocity_delta, production_spin_delta;
+};
+
 #endif

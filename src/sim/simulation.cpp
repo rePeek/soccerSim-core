@@ -189,6 +189,7 @@ void Simulation::BeginBodyCollisionShadow() {
   body_shadow_contact_ = football::ball::FirstContact(
       ball_->state(), body_shadow_colliders_, football::sim::kTickSeconds,
       ball_config_.radius());
+  BeginBodyPhysicsShadow();
   if (!body_shadow_contact_) return;
 
   const auto owner = body_collider_owners_.find(body_shadow_contact_->collider);
@@ -254,6 +255,7 @@ void Simulation::CompleteBodyCollisionShadow() {
   if (shadow_player && !matching_touch) {
     ++body_shadow_report_.false_positive_contacts;
   }
+  CompleteBodyPhysicsShadow();
   DiscardBodyCollisionShadow();
 }
 
@@ -263,6 +265,8 @@ void Simulation::DiscardBodyCollisionShadow() {
   body_shadow_contact_.reset();
   body_shadow_active_ = false;
   body_shadow_action_phase_conflict_ = false;
+  body_physics_shadow_tick_.reset();
+  body_physics_shadow_colliders_.clear();
 }
 
 // Collects domain verdicts; Simulation applies them at an explicit boundary.
@@ -449,6 +453,8 @@ void Simulation::Init(
   recorded_touches_.clear();
   DiscardBodyCollisionShadow();
   body_shadow_report_ = {};
+  body_physics_shadow_report_ = {};
+  body_physics_shadow_latest_.reset();
   recognizer_.Reset();
   event_log_.Clear();
   snapshot_step_.reset();
@@ -646,6 +652,10 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   Mirror(false, false, reverse);
   ball_->Step(football::sim::TickSpan{1}, GetBallEnvironment());
   Mirror(false, false, reverse);
+  if (body_physics_shadow_tick_) {
+    body_physics_shadow_tick_->production = ball_->state();
+    body_physics_shadow_tick_->production_observed = true;
+  }
 
   // CaptureHistory: preserve the pre-player-processing capture and sample-zero timing.
   CaptureMentalImage();
@@ -970,6 +980,9 @@ bool Simulation::Stop() {
   mental_images_.clear();
   snapshot_players_.clear();
   body_collider_owners_.clear();
+  DiscardBodyCollisionShadow();
+  body_physics_shadow_ball_.reset();
+  body_physics_shadow_latest_.reset();
   snapshot_metadata_ = {};
   player_slots_ = {};
   snapshot_scratch_ = {};

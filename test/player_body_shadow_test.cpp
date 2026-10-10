@@ -19,6 +19,7 @@ TEST_CASE("body shadow preserves physics actors RNG and accepted facts under bot
     observed.Init(home, away, football::model::Pitch{}, options);
     control.Init(home, away, football::model::Pitch{}, options);
     SimulationAccess::EnableBodyCollisionShadow(control, false);
+    SimulationAccess::EnableBodyPhysicsShadow(observed, true);
     football::ai::DefaultAI policy(home, away, football::model::Pitch{});
     for (int step = 0; step < 800; ++step) {
       if (step == 400) {
@@ -59,6 +60,8 @@ TEST_CASE("body shadow preserves physics actors RNG and accepted facts under bot
             == report.endpoint_errors.samples);
     REQUIRE(report.matched_touches + report.missed_touches == report.accepted_accidental_touches);
     REQUIRE(SimulationAccess::BodyCollisionShadowReportOf(control).predicted_ticks == 0);
+    REQUIRE(SimulationAccess::BodyPhysicsShadowReportOf(observed).ticks == report.predicted_ticks);
+    REQUIRE(SimulationAccess::BodyPhysicsShadowLatestOf(observed)->production_observed);
   }
 }
 
@@ -91,5 +94,69 @@ TEST_CASE("fixed body slots and common collider coordinates survive end changes 
     }
     SimulationAccess::Deactivate(simulation, *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers().back());
     REQUIRE(SimulationAccess::BodyColliderOwnersOf(simulation) == owners);
+  }
+}
+
+TEST_CASE("full physics shadow shares pitch priority and maps moving-frame bodies",
+          "[sim][body-shadow][full-physics]") {
+  for (bool reverse : {false, true}) {
+    Simulation simulation;
+    MatchOptions options;
+    options.reverse_team_processing = reverse;
+    options.snapshot_capacity = 2;
+    simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+    SimulationAccess::EnableBodyPhysicsShadow(simulation, true);
+    simulation.Mirror(reverse, !reverse, false);
+    for (int side = 0; side < 2; ++side) {
+      for (auto* player : SimulationAccess::TeamOf(simulation, side)->GetAllPlayers())
+        player->ResetPosition(Vector3(30, 30, 0), Vector3(0));
+    }
+    auto* player = SimulationAccess::TeamOf(simulation, reverse ? 1 : 0)->GetAllPlayers()[1];
+    player->ResetPosition(Vector3(.7f, 0, 0), Vector3(0));
+    auto* ball = SimulationAccess::BallOf(simulation);
+    ball->Reset(football::ball::BallState{{0, 0, .6f}, {100, 0, 0}, Vector3(0), blunted::Quaternion{}});
+    const auto before = ball->state();
+    const auto rng = SimulationAccess::RngOf(simulation).engine();
+    SimulationAccess::BeginBodyCollisionShadow(simulation);
+    const auto& tick = *SimulationAccess::BodyPhysicsShadowPendingOf(simulation);
+    REQUIRE(tick.static_only.contacts.empty());
+    REQUIRE(tick.unified.contacts.size() == 1);
+    REQUIRE(tick.player == player->GetID());
+    REQUIRE(tick.part == PlayerBodyPart::LowerBody);
+    REQUIRE(tick.unified.state.velocity.coords[0] < 0);
+    REQUIRE(tick.unified.contacts.front().normal_impulse > 0);
+    REQUIRE(tick.unified.contacts.front().normal.coords[0] < 0);
+    REQUIRE(tick.unified.contacts.front().point.coords[0] > 0);
+    REQUIRE(ball->state().position == before.position);
+    REQUIRE(ball->state().velocity == before.velocity);
+    REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
+
+    const auto& pitch = SimulationAccess::PitchOf(simulation);
+    player->ResetPosition(Vector3(pitch.half_length() + .7f, pitch.goal_half_width(), 0), Vector3(0));
+    ball->Reset(football::ball::BallState{
+        {pitch.half_length() - .5f, pitch.goal_half_width(), 1},
+        {100, 0, 0}, Vector3(0), blunted::Quaternion{}});
+    SimulationAccess::BeginBodyCollisionShadow(simulation);
+    const auto& post = *SimulationAccess::BodyPhysicsShadowPendingOf(simulation);
+    REQUIRE_FALSE(post.player.has_value());
+    REQUIRE(post.unified.contacts.front().collider <= 7);
+    REQUIRE(post.static_only.state.velocity == post.unified.state.velocity);
+
+    player->ResetPosition(Vector3(.5f, 0, 0), Vector3(0));
+    ball->Reset(football::ball::BallState{{0, 0, .2f}, {50, 0, -50}, Vector3(0), blunted::Quaternion{}});
+    SimulationAccess::BeginBodyCollisionShadow(simulation);
+    const auto& ground = *SimulationAccess::BodyPhysicsShadowPendingOf(simulation);
+    REQUIRE(ground.unified.contacts.front().collider == 1);
+    REQUIRE_FALSE(ground.player.has_value());
+    for (const auto& prediction : SimulationAccess::BodyShadowPredictionsOf(simulation)) {
+      if (prediction.player != player->GetID()) continue;
+      const auto dynamic = football::ball::SweepBall(ball->state(), prediction.colliders[1], .01f, .11f);
+      REQUIRE(dynamic.has_value());
+      REQUIRE(dynamic->toi > ground.unified.contacts.front().toi);
+    }
+    simulation.ResetSituation(Vector3(0));
+    REQUIRE_FALSE(SimulationAccess::BodyPhysicsShadowPendingOf(simulation).has_value());
+    simulation.Mirror(reverse, !reverse, false);
   }
 }
