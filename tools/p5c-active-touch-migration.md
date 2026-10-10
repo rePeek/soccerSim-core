@@ -214,3 +214,28 @@ Remaining P4d-2 acceptance (not yet met, so the switch stays OFF): the low-pose
 Sliding/Trip volumes are still uncalibrated, and fixed-scenario plus real
 animation-phase ghost-blocking tests must be extended before the passive
 authority becomes the default.
+
+## P6: touch evidence classification (implemented, read-only)
+
+`touch_evidence_classification.hpp` fixes the P6 vocabulary as a pure value
+function so geometric contact, physical impact and the rule-facing AcceptedTouch
+are never collapsed into one boolean:
+
+- `GeometricOverlapOnly` - shapes overlap / sweep hit, no impulse, no rule fact;
+- `PhysicalImpactOnly` - nonzero normal impulse without an attributed rule fact;
+- `AcceptedTouchOnly` - rule fact without a recorded physical cause;
+- `PhysicalImpactAccepted` - the nonzero impulse that is the rule touch.
+
+`NeedsAuthoritativeRecord` marks the cases a Snapshot alone cannot disambiguate
+(any accepted touch, and any unexplained physical impact), which is the P6 rule
+for keeping a minimal authority record. Tests cover all combinations and prove a
+zero-impulse overlap can never be promoted to a rule touch.
+
+P6's rule-facing work (offside/corner/goal-kick/throw-in/last-toucher/shot/save
+ordering against the AcceptedTouch history) and P7 (removing the legacy Ball
+compatibility API) are **not done**: the AcceptedTouchSink is still the sole
+rule-facing authority and the legacy `Touch`/`SetRotation`/`ApplyForce`/
+`BallSpatialInfo`/duration-`Step` callers still exist because the P5c-3 and
+P4d-2 switches are off by default. Removing them requires flipping those defaults,
+which requires the technique and low-pose calibration plus an accepted baseline
+transition.

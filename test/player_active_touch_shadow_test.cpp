@@ -3,6 +3,7 @@
 #include "ai/default_ai.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/player/player_active_impulse.hpp"
+#include "sim/touch_evidence_classification.hpp"
 #include "sim/testing/simulation_access.hpp"
 using football::sim::testing::SimulationAccess;
 using blunted::Vector3;
@@ -251,4 +252,23 @@ TEST_CASE("passive body production switch applies exactly the unified kernel res
     // The frozen legacy simulation is untouched by the switch existing.
     REQUIRE(SimulationAccess::BodyPhysicsShadowLatestOf(legacy) == std::nullopt);
   }
+}
+
+TEST_CASE("touch evidence keeps geometry impact and rule fact separate",
+          "[active-shadow][p6]") {
+  using football::sim::ClassifyTouchEvidence;
+  using football::sim::NeedsAuthoritativeRecord;
+  using football::sim::TouchEvidence;
+  REQUIRE(ClassifyTouchEvidence({}) == TouchEvidence::None);
+  REQUIRE(ClassifyTouchEvidence({true, false, false}) == TouchEvidence::GeometricOverlapOnly);
+  REQUIRE(ClassifyTouchEvidence({true, true, false}) == TouchEvidence::PhysicalImpactOnly);
+  REQUIRE(ClassifyTouchEvidence({true, false, true}) == TouchEvidence::AcceptedTouchOnly);
+  REQUIRE(ClassifyTouchEvidence({true, true, true}) == TouchEvidence::PhysicalImpactAccepted);
+  // A zero-impulse projection must never be promoted to a rule touch.
+  REQUIRE(ClassifyTouchEvidence({true, false, false}) != TouchEvidence::AcceptedTouchOnly);
+  REQUIRE_FALSE(NeedsAuthoritativeRecord(TouchEvidence::None));
+  REQUIRE_FALSE(NeedsAuthoritativeRecord(TouchEvidence::GeometricOverlapOnly));
+  REQUIRE(NeedsAuthoritativeRecord(TouchEvidence::AcceptedTouchOnly));
+  REQUIRE(NeedsAuthoritativeRecord(TouchEvidence::PhysicalImpactOnly));
+  REQUIRE(NeedsAuthoritativeRecord(TouchEvidence::PhysicalImpactAccepted));
 }
