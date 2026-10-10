@@ -27,6 +27,14 @@
 
 namespace football::ball {
 
+// Borrowed input for exactly one 10ms interval, in BallState's coordinate frame.
+// IDs must be nonzero, unique, and disjoint from pitch IDs 1--7. Shape motions
+// are translation-only. No Player/rules identities or active impulses (P5).
+struct BallTickInput {
+  std::span<const ColliderMotion> dynamic_colliders;
+  BallEnvironment environment;
+};
+
 // Transitional projection shape for the legacy re-calculation adapter.
 struct BallSpatialInfo {
   BallSpatialInfo(const blunted::Vector3& velocity,
@@ -65,10 +73,11 @@ class Ball {
                            const blunted::Vector3& world_point);
 
   // ---- Stable simulation ----
-  // Advances `dt` fixed simulation ticks, each kTickSeconds long. dt == 0 is a
-  // no-op: it consumes no accumulated force and leaves predictions untouched.
-  // This is the single real-motion entry point; the transitional Process()
-  // forwards here.
+  // Exactly one tick, at most one passive impact, no remainder integration.
+  // Returns physical evidence only; overlap/resting contact is not a rule touch.
+  BallStepResult Step(const BallTickInput& input);
+  // Transitional static-only duration adapter. Zero ticks is a no-op; legacy
+  // accumulated-force semantics for multi-tick calls are retained until P7.
   void Step(football::sim::TickSpan dt, const BallEnvironment& environment);
   // Read-only trajectory prediction sharing the same physics kernel as Step.
   BallState Predict(football::sim::TickSpan ahead,
@@ -108,11 +117,10 @@ class Ball {
   void ResetSituation(const blunted::Vector3& focusPos);
 
  private:
-  // One authoritative tick: AdvanceBallTick over the static pitch world plus
-  // the transitional goal-netting correction. Never mutates the real state.
-  BallState AdvanceState(const BallState& current,
-                         const BallEnvironment& environment) const;
-  void AdvanceOneTick(const BallEnvironment& environment);
+  // Pure tick computation including the transitional flexible net correction.
+  BallStepResult AdvanceState(const BallState& current,
+                              std::span<const ColliderMotion> colliders,
+                              const BallEnvironment& environment) const;
   void RefreshPredictions(const BallEnvironment& environment);
 
   football::model::BallConfig config_;
@@ -122,6 +130,9 @@ class Ball {
   BallState state_;
   BallDynamics dynamics_;
   std::vector<ColliderMotion> colliders_;
+  // Reused merge scratch; 7 static + 22*3 body motions fit without growth.
+  // Larger rosters may grow it once. Prediction never consumes this buffer.
+  std::vector<ColliderMotion> tick_colliders_;
   std::unique_ptr<detail::BallPredictionCache> prediction_cache_;
   blunted::Vector3 pending_force_;
 };

@@ -56,6 +56,7 @@ Ball::Ball(const football::model::BallConfig& config,
       colliders_(BuildPitchColliders(pitch, config)),
       prediction_cache_(std::make_unique<detail::BallPredictionCache>()),
       pending_force_(Vector3(0)) {
+  tick_colliders_.reserve(73);
   RefreshPredictions(BallEnvironment{});
 }
 
@@ -71,20 +72,15 @@ void Ball::RefreshPredictions(const BallEnvironment& environment) {
                              environment);
 }
 
-BallState Ball::AdvanceState(const BallState& current,
-                             const BallEnvironment& environment) const {
+BallStepResult Ball::AdvanceState(const BallState& current,
+                                  std::span<const ColliderMotion> colliders,
+                                  const BallEnvironment& environment) const {
   BallStepResult result = AdvanceBallTick(
-      current, colliders_, football::sim::kTickSeconds, config_, dynamics_);
-  // Transitional goal-netting correction. The static pitch world owns the
-  // posts/crossbar; the netting stays a discrete correction until the goal
-  // frame is expressed as full collider geometry (P7).
+      current, colliders, football::sim::kTickSeconds, config_, dynamics_);
+  // Flexible netting stays a discrete correction, not a rigid collider.
   detail::ResolveNetting(result.state.position, result.state.velocity, pitch_,
                          config_, environment);
-  return result.state;
-}
-
-void Ball::AdvanceOneTick(const BallEnvironment& environment) {
-  state_ = AdvanceState(state_, environment);
+  return result;
 }
 
 void Ball::ApplyForce(const Vector3& force) { pending_force_ += force; }
@@ -103,9 +99,44 @@ void Ball::ApplyImpulseAtPoint(const Vector3& impulse,
   RefreshPredictions(BallEnvironment{});
 }
 
+BallStepResult Ball::Step(const BallTickInput& input) {
+  // Reject ambiguous contact identity before consuming force or changing state.
+  for (std::size_t i = 0; i < input.dynamic_colliders.size(); ++i) {
+    const auto id = input.dynamic_colliders[i].id;
+    if (id == 0 || std::any_of(colliders_.begin(), colliders_.end(),
+                             [id](const auto& c) { return c.id == id; }))
+      throw std::invalid_argument("dynamic collider id conflicts with pitch or is zero");
+    for (std::size_t j = 0; j < i; ++j) {
+      if (input.dynamic_colliders[j].id == id)
+        throw std::invalid_argument("duplicate dynamic collider id");
+    }
+  }
+  std::span<const ColliderMotion> world = colliders_;
+  if (!input.dynamic_colliders.empty()) {
+    tick_colliders_.assign(colliders_.begin(), colliders_.end());
+    tick_colliders_.insert(tick_colliders_.end(), input.dynamic_colliders.begin(),
+                           input.dynamic_colliders.end());
+    world = tick_colliders_;
+  }
+  BallState initial = state_;
+  if (pending_force_ != Vector3(0)) {
+    initial.velocity += (pending_force_ / config_.mass()) * football::sim::kTickSeconds;
+  }
+  BallStepResult result = AdvanceState(initial, world, input.environment);
+  state_ = result.state;
+  pending_force_ = Vector3(0);
+  prediction_cache_->Invalidate();
+  RefreshPredictions(BallEnvironment{});
+  return result;
+}
+
 void Ball::Step(football::sim::TickSpan dt, const BallEnvironment& environment) {
   // Zero ticks must not silently drop an accumulated force.
   if (dt == football::sim::TickSpan{0}) return;
+  if (dt == football::sim::TickSpan{1}) {
+    Step(BallTickInput{{}, environment});
+    return;
+  }
 
   if (pending_force_ != Vector3(0)) {
     state_.velocity +=
@@ -114,7 +145,7 @@ void Ball::Step(football::sim::TickSpan dt, const BallEnvironment& environment) 
   }
 
   for (football::sim::TickSpan i{0}; i < dt; i += football::sim::TickSpan{1}) {
-    AdvanceOneTick(environment);
+    state_ = AdvanceState(state_, colliders_, environment).state;
   }
 
   // The real state is authoritative; the cache is rebuilt, never read, by Step.
@@ -126,7 +157,7 @@ BallState Ball::Predict(football::sim::TickSpan ahead,
                         const BallEnvironment& environment) const {
   BallState predicted = state_;
   for (football::sim::TickSpan i{0}; i < ahead; i += football::sim::TickSpan{1}) {
-    predicted = AdvanceState(predicted, environment);
+    predicted = AdvanceState(predicted, colliders_, environment).state;
   }
   return predicted;
 }

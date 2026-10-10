@@ -47,3 +47,20 @@ A/B tests disable only diagnostic shadow on one identical Simulation and replay
 800 steps under both processing orders, including a physical end change. Ball,
 actor positions/velocities/animation frames, possession, accepted facts and RNG
 remain equal. No Golden or assets changed.
+
+## P4c-1: explicit dynamic input
+
+`BallTickInput { span<const ColliderMotion> dynamic_colliders; BallEnvironment
+environment; }` and `BallStepResult Ball::Step(const BallTickInput&)` advance
+exactly one 10ms tick. Static and dynamic bodies share AdvanceBallTick, followed
+by the existing flexible net correction. IDs must be unique/nonzero/disjoint
+from pitch IDs; invalid identity is rejected before state/force consumption.
+A Ball-owned merge buffer pre-reserves 73 motions, grows for larger rosters
+only as necessary, and retains capacity. Output contacts still use the existing
+BallStepResult vector (a hit can allocate); no temporary input vector per tick.
+Predictions and their legacy cache remain static-only and never borrow input.
+The duration Step/force adapters remain until P7; Simulation still passes no
+bodies. Independent Ball tests cover moving capsule, post/ground priority,
+order/ties, result-state equality, invalid-ID atomicity, empty input equality
+against static-only prediction and the duration adapter, plus net environments.
+Release focused Ball/Simulation/regression tests passed, Goldens unchanged.
