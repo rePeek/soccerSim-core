@@ -18,13 +18,31 @@ Native ON/ON now uses real current-Tick endpoint impulses, not a diagnostic reta
 
 ## Completed checks
 
-- Initial cleanup Release CTest: 42/42, 371.41 s. This duration is **not** a tick-latency measurement.
-- Focused preparation/rule/pose/active tests before the added prepared-Shadow case: 1,489,754 assertions / 14 cases.
+- Final Release CTest: 42/42, 380.11 s. This duration is **not** a tick-latency measurement.
+- Debug suite after immediate-API/const-view cleanup: 41/41 (excluding full regulation CLI), 741.01 s. After prepared-Shadow hardening, Release and Debug focused tests both pass 1,713,450 assertions / 15 cases.
+- Core-only build passes. Final default-OFF regression fingerprint is byte-identical to `/tmp/ball-7e71690-baseline.txt`; existing regression/A-B CTests pass.
 - New prepared-Shadow enabled/disabled ON/ON replay: 215,716 assertions / 1 case, both processing orders, 2,200 steps each. Every reported executed impulse/point equals the committed input; physics, actor frames/positions and RNG are unchanged by observation.
 - Baked pose test covers every Sliding/Trip frame, local hierarchy, root-motion ownership and mirror geometry. This is not production pose agreement.
 - Initial short terminal ON/ON runs (20 seconds per half, not regulation acceptance): normal 5,038 steps, 15 CCD rule touches / 15 active touches / 116 constraint ticks; reverse 5,039 steps, 1 / 7 / 0. Exact replay. Normal mean/p99/max Step 1555.07/2014.21/3312.91 us; reverse 2048.9/2708.4/3400.22 us. These are measurements of that run/environment, not guaranteed worst-case latency.
 
-Final Release/Debug/core, regression fingerprints and native regulation replay results are pending in this ledger until the processes finish. Do not interpret a launched run as passing.
+### Native 90-minute prototype replay (both completed)
+
+| Order | Executed steps | Snapshot/touch hash | CCD rule touches | Active rule touches | Constraint ticks | Mean / p99 / max Step (us) |
+|---|---:|---:|---:|---:|---:|---:|
+| normal | 541038 | 14748828304581481064 | 121 | 145 | 1136 | 1406 / 2128.02 / 5193.38 |
+| reverse | 541039 | 9589753637340935145 | 144 | 194 | 537 | 1979.96 / 3029.5 / 6905.78 |
+
+Each run used `half_ticks=270000` (45 minutes), reached Referee terminal state,
+and replayed exactly for the hashed projections/touch fields and final RNG.
+These runs were launched after const-view/immediate-API cleanup but before the
+subsequent lifecycle, exact-proposal-provenance and prepared-Shadow hardening.
+They verify that prototype, **not** an exact full-match regression hash for
+HEAD `6db34f9`. The final source additionally passes the suites listed above.
+Full-regulation rerun/review of the final calibrated implementation is still a
+promotion gate; these results must not be relabelled as a final new Golden.
+Latency is measured in this shared test environment and is not a worst-case
+real-time guarantee. Full logs: `/tmp/unified-full-normal.log` and
+`/tmp/unified-full-reverse.log`.
 
 ## Reproduce
 
