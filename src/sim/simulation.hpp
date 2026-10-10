@@ -23,6 +23,7 @@
 #include "sim/fact/simulation_fact_sink.hpp"
 #include "sim/event/event_recognizer.hpp"
 #include "sim/event/touch_state.hpp"
+#include "sim/event/touch_record.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "sim/referee/referee_tick_facts.hpp"
 #include "sim/referee/rule_command_sink.hpp"
@@ -210,6 +211,8 @@ class Simulation {
   std::vector<football::sim::FoulAssessment> foul_assessments_;
   football::sim::event::EventRecognizer recognizer_;
   football::sim::event::EventLog event_log_;
+  // Read-only diagnostic log of accepted touches; shadow analysis only.
+  std::vector<football::sim::event::RecordedTouch> recorded_touches_;
   bool flushing_facts_ = false;
 
   // Competition / play / goal / touch state.

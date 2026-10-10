@@ -348,10 +348,16 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   pairs to refuse generation changes, non-consecutive steps and topology
   mismatches, and gates on animation touch frames plus spatial ball
   proximity; it is not wired into TouchState, actors, the referee or the
-  event recognizer. A shadow test against accepted last-touch ticks reports
-  the recoverable fraction (initially 12 of 61 touches; animation switches
-  inside a step are inherently lossy). Golden and regression fingerprints are
-  unchanged.
+  event recognizer.
+- event/touch_record.hpp + Simulation::recorded_touches_ capture each accepted
+  BallTouchFact read-only (executed step, generation, player, touch type,
+  action type, with multiplicity preserved); SimulationAccess::RecordedTouchesOf
+  exposes it for shadow analysis. C.1.1 diagnoses every miss against this
+  ground truth: over 4000 DefaultAI steps there were 11 kicked / 28 nonkicked /
+  1 accidental accepted touches, inference matched 12 and missed 28 with 0
+  spurious; the dominant miss reason is "no baked touch crossing" (25)
+  rather than clip change (3) - nonkicked/accidental touches have no scheduled
+  touch frame. Golden and regression fingerprints remain byte-identical.
 - referee/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
   the original triangles, strict segment endpoints, bidirectional intersection and
   legacy side-net literals. Simulation retains the Ball prediction lookahead gate per

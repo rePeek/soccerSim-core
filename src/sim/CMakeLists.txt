@@ -19,6 +19,7 @@ add_library(football::sim ALIAS football_sim)
 target_sources(football_sim PRIVATE
   simulation.cpp
   event/touch_state.hpp event/touch_type.hpp
+  event/touch_record.hpp
   event/event.hpp event/event_transition.hpp
   event/event_recognizer.cpp event/event_recognizer.hpp
   event/event_trajectory.hpp

@@ -141,6 +141,11 @@ class SimulationAccess {
   static const std::vector<FoulAssessment>& FoulAssessmentsOf(const Simulation& s) {
     return s.foul_assessments_;
   }
+  // Accepted-touch log captured where BallTouchFact was produced; shadow only.
+  static const std::vector<football::sim::event::RecordedTouch>& RecordedTouchesOf(
+      const Simulation& s) {
+    return s.recorded_touches_;
+  }
 
   // Test/diagnostic lifecycle escape hatches; product code uses Step().
   static void SetPhase(Simulation& s, MatchPhase phase) { s.SetMatchPhase(phase); }

@@ -142,6 +142,9 @@ class Simulation::FactEvents final : public football::sim::SimulationFactSink {
         player->SetLastTouchType(touch->type);
       }
       simulation_.touches_.Record(static_cast<int>(touch->team), touch->player, touch->type);
+      simulation_.recorded_touches_.push_back(football::sim::event::RecordedTouch{
+          simulation_.snapshot_step_.value_or(0), simulation_.reset_sequence_,
+          touch->player, touch->type, touch->action_type});
     }
     simulation_.EmitFact(std::move(fact));
   }
@@ -361,6 +364,7 @@ void Simulation::Init(
   facts_.BeginTick(GetTimelineTick(), reset_sequence_);
   pending_rulings_.clear();
   foul_assessments_.clear();
+  recorded_touches_.clear();
   recognizer_.Reset();
   event_log_.Clear();
   flushing_facts_ = false;

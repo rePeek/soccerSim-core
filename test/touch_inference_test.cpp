@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <cstdint>
+#include <map>
 #include <optional>
+#include <sstream>
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
@@ -53,7 +55,6 @@ std::optional<TouchClip> FindTouchClip(const AnimationLibrary& animations) {
   return std::nullopt;
 }
 
-PlayerControlSet NoControls() { return {}; }
 
 }  // namespace
 
@@ -196,8 +197,39 @@ TEST_CASE("snapshot touch inference reports several candidates in one step",
   REQUIRE(candidates[1].player == metadata.player_ids[1]);
 }
 
-TEST_CASE("snapshot touch inference shadow-compares with accepted touches",
+namespace {
+
+// Mirrors the solver's crossing test for diagnosis; keep in sync with
+// touch_inference.cpp.
+bool TestCrossedTouchFrame(const football::sim::observation::PlayerSnapshot& previous,
+                           const football::sim::observation::PlayerSnapshot& current,
+                           const AnimationClip& clip) {
+  if (previous.animation_id != current.animation_id) return false;
+  const auto crossed = [&](int frame) {
+    return frame >= 0 && previous.frame < static_cast<std::uint32_t>(frame) &&
+           static_cast<std::uint32_t>(frame) <= current.frame;
+  };
+  if (crossed(clip.metadata.touch_frame)) return true;
+  for (const BakedTouch& touch : clip.touches) {
+    if (crossed(touch.frame)) return true;
+  }
+  return false;
+}
+
+const char* SourceName(e_TouchType type) {
+  switch (type) {
+    case e_TouchType_Intentional_Kicked: return "intentional kicked";
+    case e_TouchType_Intentional_Nonkicked: return "intentional nonkicked";
+    case e_TouchType_Accidental: return "accidental";
+    default: return "other";
+  }
+}
+
+}  // namespace
+
+TEST_CASE("snapshot touch inference miss attribution shadow",
           "[sim][observation][touch]") {
+  using football::sim::event::RecordedTouch;
   const auto home = football::app::fixtures::MakeDefaultHomeTeam();
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   Simulation simulation;
@@ -206,8 +238,26 @@ TEST_CASE("snapshot touch inference shadow-compares with accepted touches",
   const auto& animations = SimulationAccess::AnimationLibraryOf(simulation);
   const SnapshotMetadata& metadata = simulation.SnapshotMetadata();
 
-  std::size_t compared = 0, matched = 0, missed = 0, spurious = 0;
-  for (int step = 0; step < 4000; ++step) {
+  std::map<int, int> ground_truth;
+  std::map<int, int> matched_by_source;
+  std::map<int, int> missed_by_source;
+  for (int type : {static_cast<int>(e_TouchType_Intentional_Kicked),
+                   static_cast<int>(e_TouchType_Intentional_Nonkicked),
+                   static_cast<int>(e_TouchType_Accidental)}) {
+    ground_truth[type] = 0;
+    matched_by_source[type] = 0;
+    missed_by_source[type] = 0;
+  }
+  std::map<std::string, int> reasons;
+  for (const char* reason : {"snapshot discontinuity", "inactive slot",
+                             "clip changed", "frame rewound/reset",
+                             "spatial gate", "no baked touch crossing", "other"}) {
+    reasons[reason] = 0;
+  }
+  std::size_t matched = 0, missed = 0, spurious = 0;
+
+  int step = 0;
+  for (; step < 4000; ++step) {
     const auto* latest = simulation.Snapshots().Latest();
     REQUIRE(latest != nullptr);
     const SnapshotRecord previous = *latest;
@@ -218,36 +268,96 @@ TEST_CASE("snapshot touch inference shadow-compares with accepted touches",
 
     const auto* after = simulation.Snapshots().Latest();
     REQUIRE(after != nullptr);
+    const SnapshotRecord current = *after;
 
-    // Accepted touches of the step that produced `after`: the solver stamps a
-    // touch with the instant the step began, which is the previous snapshot.
-    std::vector<PlayerId> actual;
-    for (int team = 0; team < 2; ++team) {
-      for (Player* player : SimulationAccess::TeamOf(simulation, team)->GetAllPlayers()) {
-        if (player->IsActive() && player->GetLastTouchTick() == previous.stamp.timeline_tick) {
-          actual.push_back(player->GetID());
-        }
-      }
+    // Ground truth from the accepted BallTouchFact log, keyed by the executed
+    // step the snapshot records (never the possibly-repeating timeline tick).
+    std::vector<RecordedTouch> step_touches;
+    for (const RecordedTouch& touch : SimulationAccess::RecordedTouchesOf(simulation)) {
+      if (touch.step_index == current.stamp.step_index) step_touches.push_back(touch);
     }
 
     const std::vector<TouchCandidate> inferred =
-        InferTouches(previous, *after, metadata, animations);
-    ++compared;
-    for (const TouchCandidate& candidate : inferred) {
-      if (std::find(actual.begin(), actual.end(), candidate.player) != actual.end()) {
-        ++matched;
-      } else {
-        ++spurious;
+        InferTouches(previous, current, metadata, animations);
+
+    const bool discontinuity = previous.stamp.generation != current.stamp.generation ||
+        current.stamp.step_index != previous.stamp.step_index + 1 ||
+        previous.snapshot.players.size() != current.snapshot.players.size() ||
+        metadata.player_ids.size() != current.snapshot.players.size();
+
+    std::vector<bool> used(inferred.size(), false);
+    for (const RecordedTouch& touch : step_touches) {
+      ++ground_truth[static_cast<int>(touch.type)];
+      bool touch_matched = false;
+      for (std::size_t i = 0; i < inferred.size(); ++i) {
+        if (!used[i] && inferred[i].player == touch.player) {
+          used[i] = true;
+          touch_matched = true;
+          break;
+        }
       }
+      if (touch_matched) {
+        ++matched;
+        ++matched_by_source[static_cast<int>(touch.type)];
+        continue;
+      }
+      ++missed;
+      ++missed_by_source[static_cast<int>(touch.type)];
+
+      int slot = -1;
+      for (std::size_t i = 0; i < metadata.player_ids.size(); ++i) {
+        if (metadata.player_ids[i] == touch.player) { slot = static_cast<int>(i); break; }
+      }
+      if (slot < 0) { ++reasons["other"]; continue; }
+
+      const auto& prev = previous.snapshot.players[slot];
+      const auto& cur = current.snapshot.players[slot];
+      const bool inactive = !prev.active || !cur.active;
+      const bool clip_changed = !inactive && prev.animation_id != cur.animation_id;
+      const bool frame_rewound = !inactive && !clip_changed && cur.frame < prev.frame;
+      bool crossed = false;
+      if (!inactive && !clip_changed && prev.animation_id >= 0 &&
+          static_cast<std::size_t>(prev.animation_id) < animations.Size()) {
+        const AnimationClip& clip = animations.Get(static_cast<std::uint32_t>(prev.animation_id));
+        crossed = TestCrossedTouchFrame(prev, cur, clip);
+      }
+      const bool spatial = crossed &&
+          (current.snapshot.ball.position - cur.position).GetLength() > 3.0f;
+
+      if (discontinuity) { ++reasons["snapshot discontinuity"]; }
+      else if (inactive) { ++reasons["inactive slot"]; }
+      else if (clip_changed) { ++reasons["clip changed"]; }
+      else if (frame_rewound) { ++reasons["frame rewound/reset"]; }
+      else if (spatial) { ++reasons["spatial gate"]; }
+      else if (!crossed) { ++reasons["no baked touch crossing"]; }
+      else { ++reasons["other"]; }
     }
-    for (PlayerId id : actual) {
-      const bool found = std::any_of(inferred.begin(), inferred.end(),
-                                     [id](const TouchCandidate& c) { return c.player == id; });
-      if (!found) ++missed;
+    for (std::size_t i = 0; i < inferred.size(); ++i) {
+      if (!used[i]) ++spurious;
     }
   }
 
-  WARN("touch inference shadow: compared=" << compared << " matched=" << matched
-       << " missed=" << missed << " spurious=" << spurious);
-  REQUIRE(compared == 4000);
+  std::ostringstream report;
+  report << "Shadow: 4000 executed steps\n";
+  report << "Ground truth:\n";
+  for (const auto& [type, count] : ground_truth) {
+    report << "  " << SourceName(static_cast<e_TouchType>(type)) << ": " << count << "\n";
+  }
+  report << "Inference: matched=" << matched << " missed=" << missed
+         << " spurious=" << spurious << "\n";
+  report << "Matched by source:\n";
+  for (const auto& [type, count] : matched_by_source) {
+    report << "  " << SourceName(static_cast<e_TouchType>(type)) << ": " << count << "\n";
+  }
+  report << "Missed by source:\n";
+  for (const auto& [type, count] : missed_by_source) {
+    report << "  " << SourceName(static_cast<e_TouchType>(type)) << ": " << count << "\n";
+  }
+  report << "Miss diagnosis:\n";
+  for (const auto& [reason, count] : reasons) {
+    report << "  " << reason << ": " << count << "\n";
+  }
+  report << "window: previous+current only (no future frame)";
+  WARN(report.str());
+  REQUIRE(static_cast<std::size_t>(step) == 4000);
 }
