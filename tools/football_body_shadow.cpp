@@ -139,7 +139,11 @@ int main(int argc, char** argv) {
                     << ",passive_endpoints=" << a.passive_endpoints << ",same_part=" << a.same_part_conflicts
                     << ",other_player=" << a.other_player_conflicts << ",position_mutations=" << a.position_mutations
                     << ",dv_max=" << a.velocity_error_max << ",dw_max=" << a.spin_error_max
-                    << ",surface_error_max=" << a.surface_error_max << ",spin_max=" << a.spin_max;
+                    << ",surface_error_max=" << a.surface_error_max << ",spin_max=" << a.spin_max
+                    << ",trajectory_samples=" << a.trajectory_samples
+                    << ",traj_dev_50=" << a.trajectory_deviation_50
+                    << ",traj_dev_100=" << a.trajectory_deviation_100
+                    << ",traj_dev_200=" << a.trajectory_deviation_200;
           for (std::size_t reason = 0; reason < a.rejected.size(); ++reason)
             std::cout << ",reject_" << reason << '=' << a.rejected[reason];
           std::cout << '\n';

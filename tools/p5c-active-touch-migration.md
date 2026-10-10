@@ -127,3 +127,26 @@ bit-exact target.
   separate switch, with old-baseline reconciliation; then BallControl,
   Interfere, Deflect, Sliding, controlled collision and retain separately.
 - P4d-2, P6, P7 remain as previously described.
+
+### Flight-deviation calibration (implemented, shadow only)
+
+The active-touch shadow now measures how far the physical centre-strike response
+flies from the legacy post-touch state, using the production kernel
+(`Ball::Predict` with the same `BallEnvironment{}`), at 0.5 s / 1 s / 2 s.
+Largest deviation per action, seed 42, 4000 steps, metres:
+
+| action | order | samples | 0.5 s | 1 s | 2 s |
+|---|---|---|---|---|---|
+| movement | normal | 2 | 0.17 | 1.17 | 2.74 |
+| movement | reverse | 3 | 0.54 | 2.00 | 5.91 |
+| ball_control | normal | 1 | 0.00 | ~0 | ~0 |
+| short_pass | normal | 10 | 8.87 | 15.91 | 21.58 |
+| short_pass | reverse | 9 | 6.55 | 13.54 | 11.34 |
+| shot | reverse | 2 | 0.00 | 0.00 | 0.00 |
+
+A centre strike (zero technique offset) has no spin, so this difference is the
+flight effect of the legacy direct spin, not an error of the impulse response.
+It quantifies why the legacy `SetRotation` values cannot be carried over and why
+the technique offsets must be calibrated before the switch is enabled: an
+uncalibrated centre strike changes a 2 s pass trajectory by up to ~22 m. Actions
+whose legacy spin was near zero (shot reverse, ball_control) already agree.

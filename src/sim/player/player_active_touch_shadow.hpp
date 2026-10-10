@@ -11,7 +11,9 @@
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 #include "sim/event/touch_type.hpp"
+#include "football/ball/ball.hpp"
 #include "sim/player/player_active_touch_model.hpp"
+#include "foundation/time/tick.hpp"
 
 // Diagnostic stages, NOT another football action enum.
 enum class ActiveTouchOrigin { Scheduled, Controlled, RetainAcquire, RetainAnchor, RetainRelease };
@@ -93,6 +95,12 @@ struct ActiveTouchActionReport {
   std::uint64_t passive_endpoints = 0, same_part_conflicts = 0, other_player_conflicts = 0;
   double velocity_error_sum = 0, spin_error_sum = 0;
   float velocity_error_max = 0, spin_error_max = 0, surface_error_max = 0, spin_max = 0;
+  // P5c-2 calibration: flight deviation of the centre-strike physical response
+  // from the legacy post-touch state, sampled at 0.5 s / 1 s / 2 s. Largest
+  // deviation per action, in metres.
+  std::uint64_t trajectory_samples = 0;
+  float trajectory_deviation_50 = 0, trajectory_deviation_100 = 0,
+        trajectory_deviation_200 = 0;
 };
 struct ActiveTouchShadowReport {
   std::array<ActiveTouchActionReport, e_FunctionType_Special + 1> actions{};
@@ -111,7 +119,8 @@ struct ActiveTouchShadowReport {
   std::vector<ActiveTouchComparison> latest;
   std::uint64_t step = 0, generation = 0;
   void Record(ActiveTouchObservation observation, std::uint64_t step_index,
-              std::uint64_t reset_generation, const football::model::BallConfig& config) {
+              std::uint64_t reset_generation, const football::model::BallConfig& config,
+              football::ball::Ball* trajectory_ball = nullptr) {
     if (step != step_index || generation != reset_generation) {
       latest.clear(); step = step_index; generation = reset_generation;
     }
@@ -159,6 +168,26 @@ struct ActiveTouchShadowReport {
             item.observation.animation_id == observation.animation_id && item.observation.origin == observation.origin;
       }
       if (prior == 1) ++contending_ticks;
+      if (trajectory_ball) {
+        // P5c-2 calibration only: compare the physical centre-strike response
+        // with the legacy post-touch state using the same production kernel.
+        const auto deviation = [&](football::sim::TickSpan horizon) {
+          trajectory_ball->Reset(observation.after);
+          const auto legacy =
+              trajectory_ball->Predict(horizon, football::ball::BallEnvironment{});
+          trajectory_ball->Reset(comparison.response);
+          const auto physical =
+              trajectory_ball->Predict(horizon, football::ball::BallEnvironment{});
+          return (legacy.position - physical.position).GetLength();
+        };
+        ++a.trajectory_samples;
+        a.trajectory_deviation_50 =
+            std::max(a.trajectory_deviation_50, deviation(football::sim::TickSpan{50}));
+        a.trajectory_deviation_100 =
+            std::max(a.trajectory_deviation_100, deviation(football::sim::TickSpan{100}));
+        a.trajectory_deviation_200 =
+            std::max(a.trajectory_deviation_200, deviation(football::sim::TickSpan{200}));
+      }
     }
     if (latest.size() < latest.capacity()) latest.push_back(std::move(comparison));
     else ++dropped_details;

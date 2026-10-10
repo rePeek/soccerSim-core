@@ -31,7 +31,8 @@ class Simulation::ActiveTouchEvents final : public ActiveTouchShadowSink {
       }
     }
     owner_.active_touch_shadow_report_.Record(std::move(observation),
-        owner_.snapshot_step_.value_or(0), owner_.reset_sequence_, owner_.ball_config_);
+        owner_.snapshot_step_.value_or(0), owner_.reset_sequence_, owner_.ball_config_,
+        owner_.body_physics_shadow_ball_.get());
   }
  private:
   Simulation& owner_;
