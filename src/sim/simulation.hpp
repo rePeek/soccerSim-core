@@ -31,7 +31,7 @@
 #include "sim/player/player_tick_context.hpp"
 #include "sim/player/player_runtime_sink.hpp"
 #include "sim/player/foul_assessment.hpp"
-#include "sim/player/player_body_collider_motion.hpp"
+#include "sim/player/player_body_collision_shadow.hpp"
 
 #include "sim/referee/ruling.hpp"
 #include "sim/event/match_event.hpp"
@@ -116,6 +116,9 @@ class Simulation {
   void EndPeriod();
   void ApplyChangeOfEnds();
   void UpdateRecentPossession(football::sim::TickSpan admitted);
+  void BeginBodyCollisionShadow();
+  void CompleteBodyCollisionShadow();
+  void DiscardBodyCollisionShadow();
 
   // Lifecycle mutations, published through the write-only rule/player ports.
   void SetMatchPhase(MatchPhase newPhase);
@@ -218,6 +221,16 @@ class Simulation {
   std::map<football::ball::ColliderId,
            std::pair<football::model::PlayerId, PlayerBodyPart>>
       body_collider_owners_;
+
+  // P4b transient CCD input/evidence. It is deliberately outside BallState,
+  // Snapshot and AcceptedTouch: the existing body-contact path stays authoritative.
+  std::vector<PlayerBodyMotionPrediction> body_shadow_predictions_;
+  std::vector<football::ball::ColliderMotion> body_shadow_colliders_;
+  std::optional<football::ball::BallContact> body_shadow_contact_;
+  std::size_t body_shadow_touch_start_ = 0;
+  bool body_shadow_active_ = false;
+  bool body_shadow_action_phase_conflict_ = false;
+  PlayerBodyCollisionShadowReport body_shadow_report_;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

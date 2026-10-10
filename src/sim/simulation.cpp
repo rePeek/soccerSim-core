@@ -162,6 +162,108 @@ Player* Simulation::FindPlayerById(football::model::PlayerId id) const {
   return nullptr;
 }
 
+// P4b observes a simple linear body sweep before the legacy resolver runs.
+// It never steps an actor, writes a touch, or passes its colliders to Ball.
+
+void Simulation::BeginBodyCollisionShadow() {
+  body_shadow_predictions_.clear();
+  body_shadow_colliders_.clear();
+  body_shadow_contact_.reset();
+  body_shadow_touch_start_ = recorded_touches_.size();
+  body_shadow_active_ = true;
+  body_shadow_action_phase_conflict_ = false;
+
+  for (const auto& team : teams_) {
+    for (Player* player : team->GetAllPlayers()) {
+      if (!player->IsActive()) continue;
+
+      PlayerBodyColliderMotionIds ids{};
+      std::size_t id_count = 0;
+      for (const auto& [id, owner] : body_collider_owners_) {
+        if (owner.first != player->GetID()) continue;
+        ids.values[static_cast<std::size_t>(owner.second)] = id;
+        ++id_count;
+      }
+      if (id_count != kPlayerBodyPartCount) {
+        throw std::logic_error("active player has incomplete body collider mapping");
+      }
+
+      PlayerBodyMotionPrediction prediction = PredictBodyColliderMotions(
+          player->GetID(), player->GetKinematicState(),
+          football::sim::TickSpan{1}, ids);
+      body_shadow_colliders_.insert(body_shadow_colliders_.end(),
+                                    prediction.colliders.begin(),
+                                    prediction.colliders.end());
+      body_shadow_predictions_.push_back(std::move(prediction));
+    }
+  }
+
+  body_shadow_contact_ = football::ball::FirstContact(
+      ball_->state(), body_shadow_colliders_, football::sim::kTickSeconds,
+      ball_config_.radius());
+  if (!body_shadow_contact_) return;
+
+  const auto owner = body_collider_owners_.find(body_shadow_contact_->collider);
+  if (owner != body_collider_owners_.end() &&
+      owner->second.second == PlayerBodyPart::LowerBody) {
+    const Player* player = FindPlayerById(owner->second.first);
+    body_shadow_action_phase_conflict_ =
+        player != nullptr && player->TouchPending();
+  }
+}
+
+void Simulation::CompleteBodyCollisionShadow() {
+  if (!body_shadow_active_) return;
+
+  ++body_shadow_report_.predicted_ticks;
+  body_shadow_report_.predicted_players += body_shadow_predictions_.size();
+  if (body_shadow_contact_) ++body_shadow_report_.first_contacts;
+  if (body_shadow_action_phase_conflict_) {
+    ++body_shadow_report_.action_phase_conflicts;
+  }
+
+  for (const PlayerBodyMotionPrediction& prediction : body_shadow_predictions_) {
+    const Player* player = FindPlayerById(prediction.player);
+    if (player == nullptr) continue;
+    const float error = (player->GetKinematicState().position -
+                         prediction.end.position).GetLength();
+    body_shadow_report_.endpoint_error_sum += error;
+    body_shadow_report_.endpoint_error_max =
+        std::max(body_shadow_report_.endpoint_error_max, error);
+    ++body_shadow_report_.endpoint_error_bins[PlayerBodyEndpointErrorBin(error)];
+  }
+
+  std::optional<football::model::PlayerId> shadow_player;
+  if (body_shadow_contact_) {
+    const auto owner = body_collider_owners_.find(body_shadow_contact_->collider);
+    if (owner != body_collider_owners_.end()) shadow_player = owner->second.first;
+  }
+  bool matching_touch = false;
+  for (std::size_t i = body_shadow_touch_start_; i < recorded_touches_.size(); ++i) {
+    const auto& touch = recorded_touches_[i];
+    if (touch.type != e_TouchType_Accidental) continue;
+    ++body_shadow_report_.accepted_accidental_touches;
+    if (shadow_player && touch.player == *shadow_player) {
+      matching_touch = true;
+      ++body_shadow_report_.matched_touches;
+    } else {
+      ++body_shadow_report_.missed_touches;
+    }
+  }
+  if (shadow_player && !matching_touch) {
+    ++body_shadow_report_.false_positive_contacts;
+  }
+  DiscardBodyCollisionShadow();
+}
+
+void Simulation::DiscardBodyCollisionShadow() {
+  body_shadow_predictions_.clear();
+  body_shadow_colliders_.clear();
+  body_shadow_contact_.reset();
+  body_shadow_active_ = false;
+  body_shadow_action_phase_conflict_ = false;
+}
+
 // Collects domain verdicts; Simulation applies them at an explicit boundary.
 class Simulation::RulingEvents final : public football::sim::event::RulingSink {
  public:
@@ -344,6 +446,8 @@ void Simulation::Init(
   pending_rulings_.clear();
   foul_assessments_.clear();
   recorded_touches_.clear();
+  DiscardBodyCollisionShadow();
+  body_shadow_report_ = {};
   recognizer_.Reset();
   event_log_.Clear();
   snapshot_step_.reset();
@@ -410,6 +514,8 @@ void Simulation::Init(
   scratch.players.resize(snapshot_players.size());
   football::sim::observation::SnapshotHistory history(options.snapshot_capacity);
   history.Reset(snapshot_players.size());
+  body_shadow_predictions_.reserve(snapshot_players.size());
+  body_shadow_colliders_.reserve(snapshot_players.size() * kPlayerBodyPartCount);
 
   // Commit. Pointer/reference borrows stay valid: the heap objects do not move
   // when their owning unique_ptrs are transferred.
@@ -485,6 +591,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   const bool reverse = options_.reverse_team_processing;
   // Ball already shares the first roster's frame; turn only the other roster.
   Mirror(reverse, !reverse, false);
+  // P4b only: capture the common ball/player frame and run read-only dynamic
+  // CCD before the legacy resolver can change Ball or emit AcceptedTouch.
+  BeginBodyCollisionShadow();
   // Period whistles still win over pending contacts, before any RNG draw.
   if (IsBallInPlay() && !football::sim::rules::PeriodElapsed(
           IsHalfUnderway(), phase_, GetRegulationTime(), options_.half_duration)) {
@@ -518,13 +627,17 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   Vector3 previous_ball_pos = ball_->Predict(0);
   Mirror(reverse, !reverse, false);
   // Restore the processing frame even on the referee's terminal transition.
-  if (Finished()) return;
+  if (Finished()) {
+    DiscardBodyCollisionShadow();
+    return;
+  }
   if (!play_authorized_ && !referee_->RestartNeedsSimulation() &&
       (GetTimelineTick() < referee_->GetBuffer().prepare_tick ||
        referee_->GetBuffer().prepare_tick + football::sim::TickSpan{1} < GetTimelineTick())) {
     // Ceremonies execute only their placement tail; both clocks stay stopped.
     const auto admitted = clock_->Advance(football::sim::TickSpan{1}, phase_);
     UpdateRecentPossession(admitted);
+    DiscardBodyCollisionShadow();
     return;
   }
   // StepBall.
@@ -615,6 +728,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     referee_->GoalMouthCrossed(teams_[second_team_]->GetDynamicSide(), RefereeFacts(),
                                ruling_sink_.get());
   }
+  // Both rosters are still in the common frame used at Begin; compare only
+  // after their real Process calls, never by running animation a second time.
+  CompleteBodyCollisionShadow();
   Mirror(reverse, !reverse, false);
   if (IsBallInPlay()) {
     ApplyPendingRulings();

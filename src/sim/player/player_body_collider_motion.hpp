@@ -87,10 +87,13 @@ inline void BuildBodyColliderMotions(
   const std::array<const BodyVolume*, kPlayerBodyPartCount> ends =
       end_body.GetVolumes();
   for (std::size_t i = 0; i < kPlayerBodyPartCount; ++i) {
-    output[i].start = BodyVolumeCapsule(*starts[i]);
-    output[i].end = BodyVolumeCapsule(*ends[i]);
-    // The head's zero-height capsule is geometrically a sphere, while keeping
-    // one shape type lets CCD handle every passive body part identically.
+    if (i == static_cast<std::size_t>(PlayerBodyPart::Head)) {
+      output[i].start = football::ball::Sphere{starts[i]->center, starts[i]->radius};
+      output[i].end = football::ball::Sphere{ends[i]->center, ends[i]->radius};
+    } else {
+      output[i].start = BodyVolumeCapsule(*starts[i]);
+      output[i].end = BodyVolumeCapsule(*ends[i]);
+    }
   }
 }
 

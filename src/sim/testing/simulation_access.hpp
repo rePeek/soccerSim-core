@@ -146,6 +146,10 @@ class SimulationAccess {
       const Simulation& s) {
     return s.recorded_touches_;
   }
+  static const PlayerBodyCollisionShadowReport& BodyCollisionShadowReportOf(
+      const Simulation& s) {
+    return s.body_shadow_report_;
+  }
 
   // Test/diagnostic lifecycle escape hatches; product code uses Step().
   static void SetPhase(Simulation& s, MatchPhase phase) { s.SetMatchPhase(phase); }
