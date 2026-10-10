@@ -69,7 +69,8 @@ src/
 │   ├── pitch_geometry.hpp    legacy global pitch constants awaiting model::Pitch
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
 │   ├── ball/         standalone Ball physics/environment, prediction timing, touch kinds
-│   │                 and ball_player_contact interaction
+│   │                 and ball_player_contact interaction; unified collider geometry
+│   │                 (collider.hpp) and pure swept-sphere CCD (ball_contact.hpp, ball_collision.cpp)
 │   ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
 │   │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters

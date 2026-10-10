@@ -165,7 +165,8 @@ add_executable(football_ball_test
   ../src/sim/ball/tests/ball_state_test.cpp
   ../src/sim/ball/tests/ball_physics_test.cpp
   ../src/sim/ball/tests/ball_contact_test.cpp
-  ../src/sim/ball/tests/ball_prediction_test.cpp)
+  ../src/sim/ball/tests/ball_prediction_test.cpp
+  ball_collision_test.cpp)
 target_link_libraries(football_ball_test PRIVATE football::ball Catch2::Catch2WithMain)
 football_configure_target(football_ball_test)
 add_test(NAME football_ball_test COMMAND football_ball_test)

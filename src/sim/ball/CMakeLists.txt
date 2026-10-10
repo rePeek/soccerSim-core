@@ -19,6 +19,7 @@ target_sources(football_ball
     src/ball_physics.cpp
     src/ball_contact.cpp
     src/ball_prediction.cpp
+    src/ball_collision.cpp
 )
 
 target_sources(football_ball
@@ -30,6 +31,8 @@ target_sources(football_ball
       include/football/ball/ball_state.hpp
       include/football/ball/ball_environment.hpp
       include/football/ball/ball_timing.hpp
+      include/football/ball/collider.hpp
+      include/football/ball/ball_contact.hpp
 )
 
 target_include_directories(football_ball
