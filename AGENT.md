@@ -75,10 +75,12 @@ src/
 │   │                 and whole-step EventTrajectory (additive historical analysis)
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 MentalImage/player-image history + nearest-slot sampling,
-│   │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph
+│   │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph,
+│   │                 static PlayerSlotTable identity -> TeamSide mapping
 │   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
-│   ├── referee/      Referee state, facts/views/commands, goal, period, offside and restarts
+│   ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
+│   │                 rules and restarts
 │   ├── runtime/      MatchClock, MatchPhase and MatchResult value/time types
 │   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
 │   └── player/       Player, tick-local inputs, controls, locomotion, possession and contacts
@@ -332,12 +334,15 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   No stored facts/commands/config/RNG, RuntimeContext or Simulation pointer in Referee.
   Player contact extraction preserves the same regression fingerprints and twelve
   seed/order/fixture diagnostic records; goldens and legacy arithmetic are unchanged.
-  player/player_contact.cpp additionally derives at most one FoulAssessment per
-  suspicious collision from those same fall sensitivities and reports it through a
-  transitional Simulation-owned vector; the referee does not consume it yet and the
-  immutable PlayerTripFact stream stays authoritative. FoulAssessment carries
   PlayerId identities, a normalized [0, 1] score and the victim's pitch-frame contact
-  position; same-team contacts never produce an opponent foul.
+  position; same-team contacts never produce an opponent foul. Stage A.5 also freezes
+  the legacy trip evidence (action type/frame, positions, ball, last touch, fading
+  possession) into the assessment so a delayed referee pass can judge the contact
+  itself instead of re-reading later actor state.
+- referee/ball_rules.* owns pure ball-state predicates over observed positions
+  (ClassifyBallOutOfPlay, CrossedGoalMouth). observation/player_slots.hpp owns the
+  static PlayerId -> TeamSide table. These are the future replacements for
+  BallBoundaryFact; the fact pipeline is still authoritative and unchanged.
 - referee/goal owns pure CrossedGoalLine(Pitch, side, previous, current), preserving
   the original triangles, strict segment endpoints, bidirectional intersection and
   legacy side-net literals. Simulation retains the Ball prediction lookahead gate per

@@ -401,12 +401,15 @@ void Simulation::Init(
 
   std::vector<Player*> snapshot_players;
   football::sim::observation::SnapshotMetadata metadata;
+  football::sim::observation::PlayerSlotTable player_slots;
   metadata.pitch = pitch_;
   metadata.animation_library_hash = animations_->ContentHash();
   for (const auto& team : teams) {
     for (Player* player : team->GetAllPlayers()) {
       snapshot_players.push_back(player);
       metadata.player_ids.push_back(player->GetID());
+      player_slots.player_ids.push_back(player->GetID());
+      player_slots.team_sides.push_back(player->GetTeam()->GetTeamSide());
     }
   }
   football::sim::observation::Snapshot scratch;
@@ -425,6 +428,7 @@ void Simulation::Init(
   ruling_sink_ = std::move(rulings);
   snapshot_players_ = std::move(snapshot_players);
   snapshot_metadata_ = std::move(metadata);
+  player_slots_ = std::move(player_slots);
   snapshot_scratch_ = std::move(scratch);
   snapshot_history_ = std::move(history);
 
@@ -845,6 +849,7 @@ bool Simulation::Stop() {
   mental_images_.clear();
   snapshot_players_.clear();
   snapshot_metadata_ = {};
+  player_slots_ = {};
   snapshot_scratch_ = {};
   // Stop releases memory; Finished keeps the complete retained window alive.
   snapshot_history_ = football::sim::observation::SnapshotHistory{};

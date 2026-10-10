@@ -42,6 +42,7 @@ target_sources(football_sim PRIVATE
   referee/referee.cpp referee/referee.hpp
   referee/goal.cpp referee/goal.hpp
   referee/period.cpp referee/period.hpp
+  referee/ball_rules.cpp referee/ball_rules.hpp
   referee/offside.cpp referee/restart_placement.cpp referee/restart_readiness.cpp
   referee/ball_touch_facts.hpp
   referee/referee_state.hpp referee/referee_tick_facts.hpp referee/rule_command_sink.hpp referee/referee_view.hpp
@@ -69,7 +70,8 @@ target_sources(football_sim PRIVATE
 target_sources(football_sim PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
   FILES simulation.hpp observation/snapshot.hpp observation/snapshot_history.hpp
-    observation/temporal_graph.hpp event/event_trajectory.hpp player/foul_assessment.hpp)
+    observation/temporal_graph.hpp event/event_trajectory.hpp player/foul_assessment.hpp
+    observation/player_slots.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::model football::ball BqLog)

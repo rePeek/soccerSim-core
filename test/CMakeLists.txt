@@ -43,7 +43,7 @@ add_executable(football_sim_computation_test sim_computation_test.cpp tick_test.
   player_action_tick_test.cpp prediction_tick_test.cpp player_observation_tick_test.cpp
   reachability_tick_test.cpp ball_player_contact_test.cpp player_contact_test.cpp
   possession_test.cpp mental_image_history_test.cpp referee_state_test.cpp
-  sim_fact_test.cpp event_recognizer_test.cpp rule_command_fixture.hpp
+  sim_fact_test.cpp event_recognizer_test.cpp rule_query_test.cpp rule_command_fixture.hpp
   referee_process_fixture.hpp)
 target_link_libraries(football_sim_computation_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)

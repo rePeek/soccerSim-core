@@ -17,6 +17,7 @@
 #include "sim/observation/world_state.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/snapshot_history.hpp"
+#include "sim/observation/player_slots.hpp"
 #include "sim/runtime/result.hpp"
 #include "sim/runtime/clock.hpp"
 #include "sim/fact/simulation_fact_sink.hpp"
@@ -65,6 +66,8 @@ class Simulation {
   // Single-threaded, read-only history. No disk access or runtime mutation.
   const football::sim::observation::SnapshotHistory& Snapshots() const { return snapshot_history_; }
   const football::sim::observation::SnapshotMetadata& SnapshotMetadata() const { return snapshot_metadata_; }
+  // Static player -> TeamSide association, valid for the whole match.
+  const football::sim::observation::PlayerSlotTable& PlayerSlots() const { return player_slots_; }
   // Whole-step summaries published with the latest Snapshot, not contact facts.
   const std::vector<football::sim::event::EventTrajectory>& EventTrajectories() const {
     return recognizer_.trajectories();
@@ -180,6 +183,7 @@ class Simulation {
   std::optional<football::sim::MatchClock> clock_;
   football::sim::observation::SnapshotHistory snapshot_history_;
   football::sim::observation::SnapshotMetadata snapshot_metadata_;
+  football::sim::observation::PlayerSlotTable player_slots_;
   football::sim::observation::Snapshot snapshot_scratch_;
   // Fixed home-then-away actor slots, including inactive/bench entries.
   std::vector<Player*> snapshot_players_;
