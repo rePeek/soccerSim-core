@@ -975,3 +975,23 @@ largest closing speed with lower PlayerId and lower body-part enum as stable
 tie-breakers, so at most one active impulse exists per tick and permutation
 cannot change the winner. Production constructs no active impulse and keeps
 using the legacy touch path; regression `--print-baseline` is byte-identical.
+
+P5c-1/P5c-2 prepare the active-touch production migration and keep it off.
+`tools/p5c-active-touch-migration.md` records the exact `StepImpl`/`Humanoid::
+Process` dependency table (which stages draw RNG, which advance animation,
+where `ApplyBallTouch + SetRotation` take effect) and the plan: split
+`Humanoid::Process` into one prepare pass (motion/animation frame/touch vector)
+before the single authoritative `Ball::Step` and one commit pass after, never
+running a second Process or delaying by a tick. The endpoint-impulse timing is
+already equivalent, so only the *preparation* has to move earlier. The active
+shadow now also runs the pure model on captured inputs and compares its reach
+decision with the legacy contact-frame gate: the distance source agrees exactly
+on the native tape and the single residual difference per order is the height
+gate reading the legacy `Predict(0)` cache; unifying that source is the first
+P5c-1 task. `player/player_active_touch_model.hpp` is the accepted
+`(P, J) -> (Δv, Δω)` model: reach/height/surface gates before any projection,
+`J = mass*(target - endpoint_velocity)`, contact normal along `J` so a centre
+strike is torque-free, technique lateral/vertical offsets for side/top spin via
+`ApplyImpulseAtPoint`, and no angular-velocity assignment. Tests cover the
+requested spin cases, left/right mirror, moving versus static strikes and Magnus
+stability over 0.5/1/2 s. Production still uses the legacy touch path.
