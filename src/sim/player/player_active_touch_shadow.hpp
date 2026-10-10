@@ -11,6 +11,7 @@
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 #include "sim/event/touch_type.hpp"
+#include "sim/player/player_active_touch_model.hpp"
 
 // Diagnostic stages, NOT another football action enum.
 enum class ActiveTouchOrigin { Scheduled, Controlled, RetainAcquire, RetainAnchor, RetainRelease };
@@ -41,6 +42,10 @@ struct ActiveTouchObservation {
   int animation_id = -1, contact_frame = -1, elapsed = 0;
   e_TouchType accepted_type = e_TouchType_None;
   bool incoming_retain_override = false;
+  // Set only when the legacy contact frame actually evaluated reachability
+  // (may_touch was true), so the P5c model reconciliation is not confounded by
+  // authorization rejections or pending frames.
+  bool legacy_reach_evaluated = false;
 };
 class ActiveTouchShadowSink {
  public:
@@ -93,6 +98,15 @@ struct ActiveTouchShadowReport {
   std::array<ActiveTouchActionReport, e_FunctionType_Special + 1> actions{};
   std::array<std::uint64_t, 5> origins{};
   std::uint64_t duplicate_candidates = 0, contending_ticks = 0, dropped_details = 0;
+  // P5c-1/2 reconciliation: the pure ProposeActiveTouch model is run on the
+  // same captured inputs and its reach decision is compared with the legacy
+  // contact-frame reach gate. Disagreements are a scheduling/source mismatch,
+  // not a physics error.
+  std::uint64_t model_reach_checks = 0, model_reach_disagreements = 0;
+  // Largest |legacy reach_error - model reach_error| over disagreements; the
+  // standard position source (legacy Predict(0) cache vs endpoint state) is the
+  // expected cause, so this bounds how far apart the two sources are.
+  float model_reach_gap_max = 0.0f;
   // Only the last tick is retained. Aggregates do not grow with match length.
   std::vector<ActiveTouchComparison> latest;
   std::uint64_t step = 0, generation = 0;
@@ -102,6 +116,23 @@ struct ActiveTouchShadowReport {
       latest.clear(); step = step_index; generation = reset_generation;
     }
     auto comparison = CompareActiveTouch(observation, config);
+    if (observation.legacy_reach_evaluated) {
+      football::sim::player::TouchProposalInput proposal;
+      proposal.passive_endpoint = observation.passive_endpoint
+                                        ? *observation.passive_endpoint
+                                        : observation.before;
+      proposal.desired_ball_center = observation.raw_animation_point;
+      proposal.target_velocity = observation.candidate.target_velocity;
+      proposal.config = config;
+      proposal.reach = observation.incoming_retain_override ? 1.0f : 0.4f;
+      const auto model = football::sim::player::ProposeActiveTouch(proposal);
+      ++model_reach_checks;
+      if (model.reachable != observation.candidate.reachable) {
+        ++model_reach_disagreements;
+        model_reach_gap_max = std::max(model_reach_gap_max,
+            std::fabs(model.reach_error - observation.candidate.reach_error));
+      }
+    }
     auto& a = actions.at(static_cast<std::size_t>(observation.candidate.action));
     ++origins.at(static_cast<std::size_t>(observation.origin));
     if (observation.stage == ActiveTouchStage::Pending) ++a.pending_samples;

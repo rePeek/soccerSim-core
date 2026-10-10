@@ -614,6 +614,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     Vector3 currentBallVec = tick.ball.GetMovement();
     bool contact_reachable = false;
     if (active_observation) {
+      active_observation->legacy_reach_evaluated = true;
       active_observation->candidate.reach_error = fullBallDistance;
       active_observation->incoming_retain_override = !GetCurrentBakedClip().metadata.incoming_retain_state.empty();
       active_observation->candidate.reachable = fullBallDistance < touchableDistance &&

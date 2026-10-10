@@ -123,7 +123,10 @@ int main(int argc, char** argv) {
         PrintDelta("unified_minus_production_spin_radps", p.production_spin_delta);
         const auto& active = SimulationAccess::ActiveTouchShadowReportOf(simulation);
         std::cout << "active-shadow,reverse=" << reverse << ",contending_ticks=" << active.contending_ticks
-                  << ",duplicates=" << active.duplicate_candidates << ",dropped=" << active.dropped_details;
+                  << ",duplicates=" << active.duplicate_candidates << ",dropped=" << active.dropped_details
+                  << ",model_reach_checks=" << active.model_reach_checks
+                  << ",model_reach_disagreements=" << active.model_reach_disagreements
+                  << ",model_reach_gap_max=" << active.model_reach_gap_max;
         for (std::size_t origin = 0; origin < active.origins.size(); ++origin)
           std::cout << ",origin_" << origin << '=' << active.origins[origin];
         std::cout << '\n';
