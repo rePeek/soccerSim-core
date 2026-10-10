@@ -177,3 +177,53 @@ TEST_CASE("response ignores stale contact center and respects friction cap",
   hit.point = ball.position;
   SameState(response.state, ResolveContact(ball, hit, {.35f, .01f}, Vector3(0), config));
 }
+
+TEST_CASE("active endpoint impulse changes velocity and spin without advancing position",
+          "[ball][tick-input][active]") {
+  const football::model::Pitch pitch;
+  const football::model::BallConfig config;
+  const BallState initial{{0, 0, .11f}, {3, -1, 0}, Vector3(0), blunted::Quaternion{}};
+  for (bool on_ground : {true, false}) {
+    BallState start = initial;
+    if (!on_ground) start.position.coords[2] = 1.2f;
+    Ball plain(pitch), active(pitch);
+    plain.Reset(start);
+    active.Reset(start);
+    const auto baseline = plain.Step(BallTickInput{{}, {}});
+    REQUIRE_FALSE(baseline.active_impulse.has_value());
+    const Vector3 point = start.position + Vector3(.11f, 0, 0);
+    const Vector3 impulse{5, 0, 2};
+    const auto with_active = active.Step(BallTickInput{{}, {}, BallImpulse{impulse, point}});
+    REQUIRE(with_active.active_impulse.has_value());
+    // Position is the passive endpoint: the impulse never advances position.
+    REQUIRE(with_active.state.position == baseline.state.position);
+    REQUIRE(with_active.state.orientation.elements[0] == baseline.state.orientation.elements[0]);
+    // Linear change is exactly J / mass; spin appears because the point is offset.
+    REQUIRE((with_active.state.velocity - baseline.state.velocity - impulse / config.mass())
+                .GetLength() < 1e-6f);
+    REQUIRE(with_active.state.angular_velocity.coords[1] < 0);
+    // A second plain Step after the impulse reproduces the same physics from the
+    // new state: the impulse is state, not an out-of-band action.
+    Ball expected(pitch);
+    expected.Reset(with_active.state);
+    const auto replay = expected.Step(BallTickInput{{}, {}});
+    const auto repeated = active.Step(BallTickInput{{}, {}});
+    SameState(replay.state, repeated.state);
+    REQUIRE_FALSE(repeated.active_impulse.has_value());
+
+    // Mirror symmetry: mirrored input yields the mirrored impulse response.
+    BallState mirrored = start;
+    mirrored.position.Mirror();
+    mirrored.velocity.Mirror();
+    Ball mirrored_ball(pitch);
+    mirrored_ball.Reset(mirrored);
+    Vector3 mirrored_impulse = impulse, mirrored_point = point;
+    mirrored_impulse.Mirror();
+    mirrored_point.Mirror();
+    const auto mirrored_result =
+        mirrored_ball.Step(BallTickInput{{}, {}, BallImpulse{mirrored_impulse, mirrored_point}});
+    Vector3 expected_velocity = with_active.state.velocity;
+    expected_velocity.Mirror();
+    REQUIRE((mirrored_result.state.velocity - expected_velocity).GetLength() < 1e-6f);
+  }
+}

@@ -123,6 +123,15 @@ BallStepResult Ball::Step(const BallTickInput& input) {
     initial.velocity += (pending_force_ / config_.mass()) * football::sim::kTickSeconds;
   }
   BallStepResult result = AdvanceState(initial, world, input.environment);
+  // P5b: the active impulse belongs to the tick endpoint. It is applied after
+  // passive motion and netting, changes only velocity/spin about the given
+  // point, never advances position again and never runs a second Step.
+  if (input.active_impulse.has_value()) {
+    result.state = football::ball::ApplyImpulseAtPoint(
+        result.state, input.active_impulse->impulse,
+        input.active_impulse->contact_point, config_);
+    result.active_impulse = input.active_impulse;
+  }
   state_ = result.state;
   pending_force_ = Vector3(0);
   prediction_cache_->Invalidate();

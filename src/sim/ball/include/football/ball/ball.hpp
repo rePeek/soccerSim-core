@@ -12,9 +12,11 @@
 // no global `Ball` name and no `using namespace` in this public header.
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "football/ball/ball_contact.hpp"
+#include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/ball/ball_timing.hpp"
@@ -33,6 +35,11 @@ namespace football::ball {
 struct BallTickInput {
   std::span<const ColliderMotion> dynamic_colliders;
   BallEnvironment environment;
+  // P5b: at most one active impulse, supplied by Simulation after arbitration
+  // and applied at the tick endpoint (after passive motion and netting). It
+  // changes velocity and spin only; position is never advanced a second time
+  // and no second Step is performed. Production currently supplies none.
+  std::optional<BallImpulse> active_impulse;
 };
 
 // Transitional projection shape for the legacy re-calculation adapter.

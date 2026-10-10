@@ -401,3 +401,38 @@ mirror-consistent, and that 1600 native steps under both processing orders with
 end-change replay keep RNG, ball state, player state, accepted touches and
 in-play facts identical to a shadow-free control. Regression `--print-baseline`
 is byte-identical and the baked asset hash is unchanged.
+
+## P5b: endpoint-impulse contract and deterministic arbitration (switch closed)
+
+`BallTickInput` now carries an optional `BallImpulse active_impulse` and
+`BallStepResult` echoes the impulse actually applied. It is applied inside
+`Ball::Step` **after** passive motion and the netting correction, changes only
+velocity and spin about the supplied world point, never advances position again
+and never runs a second Step. This is the tick-endpoint timing the legacy
+`ApplyBallTouch + SetRotation` already had; the ordering is not fixed by
+reordering phases, because the impulse is a state change at the same point in the
+tick where the legacy touch happened, so it becomes the next tick's initial
+state exactly as before.
+
+`player/player_active_impulse.hpp` owns the stateless arbitration contract.
+Candidates are `{player, body_part, BallImpulse, closing_speed, passive_same_part}`.
+Candidates whose owner+part already produced this tick's passive impact are
+dropped (no double resolution); the remainder is ordered by larger closing speed,
+then lower `PlayerId`, then lower body-part enum. At most one candidate wins, and
+an empty result means no active impulse. The function is pure, so permuting the
+input cannot change the winner and mirror symmetry is preserved by the callers'
+existing frame conversion.
+
+Tests: `ball_tick_input_test.cpp` proves an active impulse leaves position and
+orientation equal to the passive endpoint, changes linear velocity by exactly
+`J/mass`, adds offset spin, replays as ordinary state on the next plain Step, and
+mirrors exactly. `player_active_touch_shadow_test.cpp` proves unique selection,
+order independence, tie-breakers, and passive same-part suppression.
+
+**Production switch deliberately stays closed.** Nothing constructs an
+`active_impulse` in production: `Simulation` still lets the Humanoid drive
+`ApplyBallTouch`/`SetRotation`, so the endpoint-impulse path is exercised only by
+direct tests. It will not be enabled until the body-pose calibration, same-part
+active/passive precedence and moving-body acceptance blockers are resolved, and
+the P4d-2 passive-body switch is decided. Regression `--print-baseline` remains
+byte-identical and Release CTest is 42/42.

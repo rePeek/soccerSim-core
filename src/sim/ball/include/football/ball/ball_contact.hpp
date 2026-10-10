@@ -5,6 +5,7 @@
 #include <span>
 #include <vector>
 
+#include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/ball/collider.hpp"
 
@@ -44,6 +45,10 @@ std::optional<BallContact> FirstContact(const BallState& ball,
 struct BallStepResult {
   BallState state;
   std::vector<BallContact> contacts;
+  // P5b: the active endpoint impulse actually applied this tick, if any. It is
+  // applied after passive motion and netting and never advances position, so
+  // there is at most one active impulse per tick.
+  std::optional<BallImpulse> active_impulse;
 };
 
 BallStepResult AdvanceBall(const BallState& initial,

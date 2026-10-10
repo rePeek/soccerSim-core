@@ -1,6 +1,8 @@
+#include <array>
 #include <catch2/catch_test_macros.hpp>
 #include "ai/default_ai.hpp"
 #include "app/fixtures/default_teams.hpp"
+#include "sim/player/player_active_impulse.hpp"
 #include "sim/testing/simulation_access.hpp"
 using football::sim::testing::SimulationAccess;
 using blunted::Vector3;
@@ -99,4 +101,42 @@ TEST_CASE("real action observation preserves snapshots touches rules RNG and end
     SimulationAccess::EnableActiveTouchShadow(observed, false);
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(observed).latest.empty());
   }
+}
+
+TEST_CASE("active impulse arbitration is unique, deterministic and passive-aware", "[active-shadow]") {
+  auto candidate = [](football::model::PlayerId player, PlayerBodyPart part, float speed,
+                      bool passive_same_part = false) {
+    ActiveImpulseCandidate c;
+    c.player = player;
+    c.body_part = part;
+    c.impulse.impulse = Vector3(speed, 0, 0);
+    c.impulse.contact_point = Vector3(.11f, 0, 0);
+    c.closing_speed = speed;
+    c.passive_same_part = passive_same_part;
+    return c;
+  };
+  REQUIRE_FALSE(ArbitrateActiveImpulse({}).has_value());
+  // Same owner+part as this tick's passive impact is never doubled.
+  const std::array single{candidate(7, PlayerBodyPart::LowerBody, 20.f, true)};
+  REQUIRE_FALSE(ArbitrateActiveImpulse(single).has_value());
+  // The faster contact wins irrespective of input order.
+  const std::array a{candidate(9, PlayerBodyPart::LowerBody, 5.f),
+                     candidate(4, PlayerBodyPart::UpperBody, 12.f)};
+  const std::array b{a[1], a[0]};
+  REQUIRE(ArbitrateActiveImpulse(a)->player == 4);
+  REQUIRE(ArbitrateActiveImpulse(b)->player == 4);
+  // Equal speeds fall back to the lower PlayerId, then the lower enum value
+  // (UpperBody = 0 before LowerBody = 1).
+  const std::array tie{candidate(8, PlayerBodyPart::UpperBody, 6.f),
+                       candidate(3, PlayerBodyPart::Head, 6.f)};
+  REQUIRE(ArbitrateActiveImpulse(tie)->player == 3);
+  const std::array parts{candidate(3, PlayerBodyPart::LowerBody, 6.f),
+                         candidate(3, PlayerBodyPart::UpperBody, 6.f)};
+  REQUIRE(ArbitrateActiveImpulse(parts)->body_part == PlayerBodyPart::UpperBody);
+  // A passive same-part suppression never revives a slower loser.
+  const std::array mixed{candidate(1, PlayerBodyPart::LowerBody, 30.f, true),
+                         candidate(2, PlayerBodyPart::UpperBody, 4.f)};
+  const auto winner = ArbitrateActiveImpulse(mixed);
+  REQUIRE(winner.has_value());
+  REQUIRE(winner->player == 2);
 }

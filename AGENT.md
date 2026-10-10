@@ -962,3 +962,16 @@ moving-body freeze where a separating ball was projected onto the moving START
 shape every tick. Production supplies no dynamic bodies, so pitch behavior and
 regression baselines are unchanged; the moving-body trajectory test now asserts
 real release instead of pinning the failure.
+
+P5b defines the endpoint-impulse contract and its arbitration, with the
+production switch still closed. `BallTickInput` carries an optional
+`BallImpulse active_impulse`, applied inside `Ball::Step` after passive motion
+and netting; `BallStepResult` echoes it. It changes velocity and spin about the
+supplied point only, never advances position again, and never runs a second Step,
+matching the tick-endpoint timing of the legacy touch. `player/
+player_active_impulse.hpp` holds a pure arbitration contract: drop candidates
+whose owner+part already produced this tick's passive impact, then choose the
+largest closing speed with lower PlayerId and lower body-part enum as stable
+tie-breakers, so at most one active impulse exists per tick and permutation
+cannot change the winner. Production constructs no active impulse and keeps
+using the legacy touch path; regression `--print-baseline` is byte-identical.
