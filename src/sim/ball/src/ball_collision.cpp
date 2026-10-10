@@ -1,4 +1,6 @@
 #include "football/ball/ball_contact.hpp"
+#include "football/ball/ball_response.hpp"
+#include "model/ball_config.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -261,14 +263,47 @@ BallStepResult AdvanceBall(const BallState& initial,
 
 BallStepResult AdvanceBallTick(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
-                               float dt, float ball_radius,
+                               float dt,
+                               const football::model::BallConfig& config,
                                const BallDynamics& dynamics) {
   BallStepResult result;
   result.state = initial;
   const float eps = 1e-4f;
+  const float ball_radius = config.radius();
 
-  // Persistent ground contact: constrain normal, roll horizontally with
-  // rolling drag, never emit a new ground impact.
+  const auto collider_velocity_of = [&](ColliderId id) -> blunted::Vector3 {
+    for (const ColliderMotion& c : colliders) {
+      if (c.id != id) continue;
+      return std::visit([&](const auto& s) -> blunted::Vector3 {
+        using T = std::decay_t<decltype(s)>;
+        if constexpr (std::is_same_v<T, Plane>) {
+          return {0, 0, 0};
+        } else if constexpr (std::is_same_v<T, Sphere>) {
+          const auto* e = std::get_if<Sphere>(&c.end);
+          return e ? (e->center - s.center) * (1.0f / dt) : blunted::Vector3{0, 0, 0};
+        } else if constexpr (std::is_same_v<T, Capsule>) {
+          const auto* e = std::get_if<Capsule>(&c.end);
+          return e ? (e->a - s.a) * (1.0f / dt) : blunted::Vector3{0, 0, 0};
+        }
+        return {0, 0, 0};
+      }, c.start);
+    }
+    return {0, 0, 0};
+  };
+
+  const auto resolve = [&](const BallContact& contact) {
+    const ContactMaterial* material = nullptr;
+    for (const ColliderMotion& c : colliders) {
+      if (c.id == contact.collider) { material = &c.material; break; }
+    }
+    const ContactMaterial m = material ? *material : ContactMaterial{0.5f, 0.0f};
+    result.state = ResolveContact(result.state, contact, m,
+                                  collider_velocity_of(contact.collider), config);
+    result.contacts.push_back(contact);
+  };
+
+  // Persistent ground contact: rolling constraint, but still check other
+  // (non-ground) colliders; the tangent ground plane produces no ground hit.
   const float resting_z = ball_radius + dynamics.grass_height;
   if (initial.position.coords[2] <= resting_z + eps && initial.velocity.coords[2] <= eps) {
     blunted::Vector3 v = initial.velocity;
@@ -280,11 +315,26 @@ BallStepResult AdvanceBallTick(const BallState& initial,
       v.coords[0] *= scale;
       v.coords[1] *= scale;
     }
-    result.state.velocity = v;
-    result.state.position = initial.position + v * dt;
-    result.state.position.coords[2] = resting_z;
     const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
-    result.state.angular_velocity = initial.angular_velocity * spin_scale;
+    const blunted::Vector3 omega1 = initial.angular_velocity * spin_scale;
+
+    // Sweep from the START of the tick so a post ahead is not skipped.
+    BallState probe = initial;
+    probe.velocity = v;
+    probe.position.coords[2] = resting_z;
+    probe.angular_velocity = omega1;
+    const std::optional<BallContact> hit = FirstContact(probe, colliders, dt, ball_radius);
+    if (hit.has_value()) {
+      result.state = probe;
+      result.state.position = hit->point;
+      result.state.velocity = v;
+      resolve(*hit);
+    } else {
+      result.state.velocity = v;
+      result.state.position = initial.position + v * dt;
+      result.state.position.coords[2] = resting_z;
+      result.state.angular_velocity = omega1;
+    }
     return result;
   }
 
@@ -318,32 +368,12 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     return result;
   }
 
-  BallContact contact = *first;
-  contact.normal = contact.normal.GetNormalized({0, 0, 1});
-  const blunted::Vector3 vc = v0 + accel * (contact.toi * dt);
-  const blunted::Vector3 pc = initial.position + vavg * (contact.toi * dt);
-  result.state.position = pc;
-
-  const ContactMaterial* material = nullptr;
-  for (const ColliderMotion& c : colliders) {
-    if (c.id == contact.collider) { material = &c.material; break; }
-  }
-  const float restitution = material ? material->restitution : 0.5f;
-  const float friction = material ? material->friction : 0.0f;
-
-  blunted::Vector3 v_out = vc;
-  const float vn = vc.GetDotProduct(contact.normal);
-  if (vn < 0.0f) {
-    v_out = v_out - contact.normal * ((1.0f + restitution) * vn);
-  }
-  // Tangential contact friction (collision-instant only).
-  if (friction > 0.0f) {
-    const blunted::Vector3 tangent = vc - contact.normal * vn;
-    v_out = v_out - tangent * friction;
-  }
-  result.state.velocity = v_out;
+  // Move to the contact instant and let ResolveContact also spin the ball.
+  const blunted::Vector3 vc = v0 + accel * (*first).toi * dt;
+  result.state.position = (*first).point;
+  result.state.velocity = vc;
   result.state.angular_velocity = omega1;
-  result.contacts.push_back(contact);
+  resolve(*first);
   return result;
 }
 

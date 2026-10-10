@@ -20,6 +20,7 @@ target_sources(football_ball
     src/ball_contact.cpp
     src/ball_prediction.cpp
     src/ball_collision.cpp
+    src/ball_response.cpp
     src/pitch_colliders.cpp
 )
 
@@ -35,6 +36,7 @@ target_sources(football_ball
       include/football/ball/collider.hpp
       include/football/ball/ball_contact.hpp
       include/football/ball/pitch_colliders.hpp
+      include/football/ball/ball_response.hpp
 )
 
 target_include_directories(football_ball

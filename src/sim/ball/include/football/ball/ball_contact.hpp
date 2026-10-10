@@ -8,6 +8,8 @@
 #include "football/ball/ball_state.hpp"
 #include "football/ball/collider.hpp"
 
+namespace football::model { class BallConfig; }
+
 namespace football::ball {
 
 // Result of one continuous collision detection query. `toi` is the first
@@ -64,7 +66,8 @@ struct BallDynamics {
 // per-tick ground impact. Response reads ColliderMotion::material.
 BallStepResult AdvanceBallTick(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
-                               float dt, float ball_radius,
+                               float dt,
+                               const football::model::BallConfig& config,
                                const BallDynamics& dynamics);
 
 }  // namespace football::ball

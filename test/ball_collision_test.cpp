@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/ball/ball_contact.hpp"
+#include "football/ball/ball_response.hpp"
 #include "football/ball/pitch_colliders.hpp"
 #include "model/ball_config.hpp"
 #include "model/pitch.hpp"
@@ -281,7 +282,7 @@ TEST_CASE("tick model keeps a grounded ball rolling without ground impacts",
   const auto world = BuildPitchColliders(pitch, ball);
 
   const BallState rolling = BallAt(Vector3(0, 0, ball.radius()), Vector3(5, 0, 0));
-  const auto result = AdvanceBallTick(rolling, world, 0.01f, ball.radius(), BallDynamics{});
+  const auto result = AdvanceBallTick(rolling, world, 0.01f, ball, BallDynamics{});
   REQUIRE(result.contacts.empty());
   REQUIRE(result.state.position.coords[0] > 0.0f);
   REQUIRE(result.state.velocity.coords[0] > 0.0f);
@@ -294,7 +295,8 @@ TEST_CASE("tick model falls under gravity without colliders", "[ball][collision]
   using football::ball::BallDynamics;
   std::vector<ColliderMotion> none;
   const BallState ball = BallAt(Vector3(0, 0, 1), Vector3(0, 0, 0));
-  const auto result = AdvanceBallTick(ball, none, 0.1f, 0.11f, BallDynamics{});
+  const football::model::BallConfig config;
+  const auto result = AdvanceBallTick(ball, none, 0.1f, config, BallDynamics{});
   REQUIRE(result.contacts.empty());
   REQUIRE(result.state.position.coords[2] < 1.0f);
   REQUIRE(result.state.velocity.coords[2] < 0.0f);
@@ -309,7 +311,7 @@ TEST_CASE("tick model bounces a fast landing once", "[ball][collision][tick]") {
   const auto world = BuildPitchColliders(pitch, ball);
 
   const BallState falling = BallAt(Vector3(0, 0, 1), Vector3(0, 0, -50));
-  const auto result = AdvanceBallTick(falling, world, 0.05f, ball.radius(), BallDynamics{});
+  const auto result = AdvanceBallTick(falling, world, 0.05f, ball, BallDynamics{});
   REQUIRE(result.contacts.size() == 1);
   REQUIRE(result.contacts[0].collider == 1);
   REQUIRE(result.state.velocity.coords[2] > 0.0f);
@@ -327,8 +329,91 @@ TEST_CASE("tick model resolves a post impact once at the contact point",
   const float x = pitch.half_length();
   const float y = pitch.goal_half_width();
   const BallState at_post = BallAt(Vector3(x - 1, y, 0.5f), Vector3(200, 0, 0));
-  const auto result = AdvanceBallTick(at_post, world, 0.01f, ball.radius(), BallDynamics{});
+  const auto result = AdvanceBallTick(at_post, world, 0.01f, ball, BallDynamics{});
   REQUIRE(result.contacts.size() == 1);
   REQUIRE(result.contacts[0].collider == 5);
   REQUIRE(result.state.position.coords[0] < x);
+}
+
+TEST_CASE("impulse at the ball center changes only linear velocity",
+          "[ball][response]") {
+  using football::ball::ApplyImpulseAtPoint;
+  const football::model::BallConfig ball;
+  BallState state;
+  const auto next = ApplyImpulseAtPoint(state, Vector3(1, 0, 0), Vector3(0, 0, 0), ball);
+  REQUIRE(std::fabs(next.velocity.coords[0] - 1.0f / ball.mass()) < 1e-6f);
+  REQUIRE(next.angular_velocity.coords[0] == 0.0f);
+  REQUIRE(next.angular_velocity.coords[1] == 0.0f);
+  REQUIRE(next.angular_velocity.coords[2] == 0.0f);
+}
+
+TEST_CASE("radial impulse produces no new spin while tangential does",
+          "[ball][response]") {
+  using football::ball::ApplyImpulseAtPoint;
+  const football::model::BallConfig ball;
+  BallState state;
+  const Vector3 radial_point(0, 0, -ball.radius());
+  const auto radial = ApplyImpulseAtPoint(state, Vector3(0, 0, 1), radial_point, ball);
+  REQUIRE(radial.angular_velocity.coords[0] == 0.0f);
+  REQUIRE(radial.angular_velocity.coords[1] == 0.0f);
+
+  const auto tangential = ApplyImpulseAtPoint(state, Vector3(0, 1, 0), radial_point, ball);
+  REQUIRE(tangential.angular_velocity.coords[0] > 0.0f);
+}
+
+TEST_CASE("friction contact turns oblique motion into spin", "[ball][response]") {
+  using football::ball::ResolveContact;
+  const football::model::BallConfig ball;
+  BallState state;
+  state.position = Vector3(0, 0, ball.radius());
+  state.velocity = Vector3(1, 0, -5);
+
+  football::ball::BallContact contact;
+  contact.collider = 1;
+  contact.toi = 0.9f;
+  contact.point = Vector3(0, 0, ball.radius());
+  contact.normal = Vector3(0, 0, 1);
+
+  const football::ball::ContactMaterial material{0.5f, 0.5f};
+  const auto after = ResolveContact(state, contact, material, Vector3(0, 0, 0), ball);
+  REQUIRE(after.angular_velocity.coords[1] > 0.0f);
+  REQUIRE((after.angular_velocity.coords[0] + after.angular_velocity.coords[2]) < 1e-6f);
+}
+
+TEST_CASE("separating contact applies no impulse and response is deterministic",
+          "[ball][response]") {
+  using football::ball::ResolveContact;
+  const football::model::BallConfig ball;
+  BallState state;
+  state.position = Vector3(0, 0, ball.radius());
+  state.velocity = Vector3(0, 0, 1);
+
+  football::ball::BallContact contact;
+  contact.collider = 2;
+  contact.point = Vector3(0, 0, ball.radius());
+  contact.normal = Vector3(0, 0, 1);
+
+  const football::ball::ContactMaterial material{0.5f, 0.5f};
+  const auto first = ResolveContact(state, contact, material, Vector3(0, 0, 0), ball);
+  const auto second = ResolveContact(state, contact, material, Vector3(0, 0, 0), ball);
+  REQUIRE(first.velocity == state.velocity);
+  REQUIRE(first.angular_velocity == state.angular_velocity);
+  REQUIRE(second.velocity == first.velocity);
+  REQUIRE(second.angular_velocity == first.angular_velocity);
+}
+
+TEST_CASE("grounded rolling into a post still resolves the post impact",
+          "[ball][collision][tick]") {
+  using football::ball::AdvanceBallTick;
+  using football::ball::BallDynamics;
+  using football::ball::BuildPitchColliders;
+  const football::model::Pitch pitch;
+  const football::model::BallConfig ball;
+  const auto world = BuildPitchColliders(pitch, ball);
+  const float x = pitch.half_length();
+  const float y = pitch.goal_half_width();
+  const BallState rolling = BallAt(Vector3(x - 0.5f, y, ball.radius()), Vector3(100, 0, 0));
+  const auto result = AdvanceBallTick(rolling, world, 0.01f, ball, BallDynamics{});
+  REQUIRE_FALSE(result.contacts.empty());
+  REQUIRE(result.contacts[0].collider == 5);
 }
