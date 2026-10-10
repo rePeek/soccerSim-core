@@ -5,6 +5,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/ball/ball_contact.hpp"
+#include "football/ball/pitch_colliders.hpp"
+#include "model/ball_config.hpp"
+#include "model/pitch.hpp"
 
 namespace {
 
@@ -200,4 +203,70 @@ TEST_CASE("advance ball resolves two contacts in one tick", "[ball][collision][a
   const BallState ball = BallAt(Vector3(0, 0, 0), Vector3(100, 0, 0));
   const auto result = football::ball::AdvanceBall(ball, colliders, 0.1f, 0.11f, 1.0f);
   REQUIRE(result.contacts.size() >= 2);
+}
+
+TEST_CASE("pitch colliders build a fixed deterministic static world",
+          "[ball][collision][pitch]") {
+  using football::ball::BuildPitchColliders;
+  const football::model::Pitch pitch;
+  const football::model::BallConfig ball;
+  const auto world = BuildPitchColliders(pitch, ball);
+  const auto again = BuildPitchColliders(pitch, ball);
+
+  REQUIRE(world.size() == 7);
+  REQUIRE(again.size() == 7);
+  for (std::size_t i = 0; i < world.size(); ++i) {
+    REQUIRE(world[i].id == i + 1);
+    REQUIRE(again[i].id == world[i].id);
+    REQUIRE(again[i].start.index() == world[i].start.index());
+  }
+
+  // Ground plane with +z normal.
+  const auto* ground = std::get_if<Plane>(&world[0].start);
+  REQUIRE(ground != nullptr);
+  REQUIRE(ground->normal.coords[2] > 0.0f);
+
+  // Posts are vertical capsules at the goal line; crossbars horizontal.
+  for (std::size_t i = 1; i < world.size(); ++i) {
+    REQUIRE(std::holds_alternative<Capsule>(world[i].start));
+  }
+  const auto& bar = std::get<Capsule>(world[6].start);
+  REQUIRE(bar.a.coords[2] == bar.b.coords[2]);
+  REQUIRE(bar.a.coords[2] == pitch.goal_height());
+}
+
+TEST_CASE("new kernel detects a post and crossbar hit", "[ball][collision][pitch]") {
+  using football::ball::BuildPitchColliders;
+  const football::model::Pitch pitch;
+  const football::model::BallConfig ball;
+  const auto world = BuildPitchColliders(pitch, ball);
+
+  // Right high post (id 5) at (+half_length, +goal_half_width).
+  const float x = pitch.half_length();
+  const float y = pitch.goal_half_width();
+  const BallState at_post = BallAt(Vector3(x - 1, y, 0.5f), Vector3(200, 0, 0));
+  const auto post_hit = SweepBall(at_post, world[4], 0.01f, ball.radius());
+  REQUIRE(post_hit.has_value());
+  REQUIRE(post_hit->collider == 5);
+
+  // Left crossbar (id 6) at (-half_length, z = goal_height).
+  const BallState at_bar = BallAt(Vector3(-x + 1, 0, pitch.goal_height() - 0.1f),
+                                  Vector3(-200, 0, 0));
+  const auto bar_hit = SweepBall(at_bar, world[5], 0.01f, ball.radius());
+  REQUIRE(bar_hit.has_value());
+  REQUIRE(bar_hit->collider == 6);
+}
+
+TEST_CASE("new kernel keeps a tangentially rolling ball moving",
+          "[ball][collision][pitch]") {
+  using football::ball::BuildPitchColliders;
+  const football::model::Pitch pitch;
+  const football::model::BallConfig ball;
+  const auto world = BuildPitchColliders(pitch, ball);
+
+  const BallState rolling = BallAt(Vector3(0, 0, ball.radius()), Vector3(5, 0, 0));
+  const auto result = football::ball::AdvanceBall(rolling, world, 0.01f, ball.radius(),
+                                                  ball.restitution());
+  REQUIRE(result.state.position.coords[0] > 0.0f);
+  REQUIRE(result.state.velocity.coords[0] == 5.0f);
 }
