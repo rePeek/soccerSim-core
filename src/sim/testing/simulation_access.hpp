@@ -192,6 +192,7 @@ class SimulationAccess {
   }
   static void EnableActiveTouchShadow(Simulation& s, bool enabled) { s.EnableActiveTouchShadow(enabled); }
   static void EnableActiveImpulseProduction(Simulation& s, bool enabled) { s.EnableActiveImpulseProduction(enabled); }
+  static void EnableBodyPhysicsProduction(Simulation& s, bool enabled) { s.EnableBodyPhysicsProduction(enabled); }
   static const auto& ActiveTouchShadowReportOf(const Simulation& s) { return s.active_touch_shadow_report_; }
 
   // Test/diagnostic lifecycle escape hatches; product code uses Step().

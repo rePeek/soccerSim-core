@@ -213,3 +213,42 @@ TEST_CASE("contact authority separates real passive impacts from overlap project
   REQUIRE(DecideContactAuthority({false, true, true}) == ContactAuthority::ActiveTouch);
   REQUIRE(DecideContactAuthority({false, true, false}) == ContactAuthority::None);
 }
+
+TEST_CASE("passive body production switch applies exactly the unified kernel result",
+          "[active-shadow][p4d2][sim]") {
+  auto home = football::app::fixtures::MakeDefaultHomeTeam();
+  auto away = football::app::fixtures::MakeDefaultAwayTeam();
+  for (bool reverse : {false, true}) {
+    MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
+    Simulation legacy, production;
+    legacy.Init(home, away, football::model::Pitch{}, options);
+    production.Init(home, away, football::model::Pitch{}, options);
+    SimulationAccess::EnableBodyPhysicsProduction(production, true);
+    football::ai::DefaultAI policy_legacy(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy_production(home, away, football::model::Pitch{});
+    std::uint64_t exact = 0, with_contact = 0;
+    for (int step = 0; step < 4000; ++step) {
+      PlayerControlSet ca, cb;
+      policy_legacy.Update(legacy.Observe(), ca);
+      policy_production.Update(production.Observe(), cb);
+      legacy.Step(ca);
+      production.Step(cb);
+      const auto& evidence = SimulationAccess::BodyPhysicsShadowLatestOf(production);
+      if (!evidence) continue;
+      REQUIRE(evidence->production_observed);
+      // The production ball must be exactly the unified kernel result: the new
+      // path is the only authority, so no legacy impulse can be added twice.
+      REQUIRE(evidence->production.position == evidence->unified.state.position);
+      REQUIRE(evidence->production.velocity == evidence->unified.state.velocity);
+      REQUIRE(evidence->production.angular_velocity == evidence->unified.state.angular_velocity);
+      ++exact;
+      if (!evidence->unified.contacts.empty()) ++with_contact;
+    }
+    REQUIRE(exact > 0);
+    // The native tape must actually exercise passive body contact for the check
+    // to be meaningful.
+    REQUIRE(with_contact > 0);
+    // The frozen legacy simulation is untouched by the switch existing.
+    REQUIRE(SimulationAccess::BodyPhysicsShadowLatestOf(legacy) == std::nullopt);
+  }
+}

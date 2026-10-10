@@ -608,8 +608,12 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   // CCD before the legacy resolver can change Ball or emit AcceptedTouch.
   BeginBodyCollisionShadow();
   // Period whistles still win over pending contacts, before any RNG draw.
-  if (IsBallInPlay() && !football::sim::rules::PeriodElapsed(
-          IsHalfUnderway(), phase_, GetRegulationTime(), options_.half_duration)) {
+  // P4d-2: with the passive authority switched to the unified Ball kernel the
+  // legacy resolver is skipped entirely, so only one path can change the ball
+  // and no impulse is applied twice.
+  if (!body_physics_production_ && IsBallInPlay() &&
+      !football::sim::rules::PeriodElapsed(IsHalfUnderway(), phase_,
+          GetRegulationTime(), options_.half_duration)) {
     std::vector<Player*> players;
     teams_[first_team_]->GetActivePlayers(players);
     teams_[second_team_]->GetActivePlayers(players);
@@ -653,9 +657,15 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     DiscardBodyCollisionShadow();
     return;
   }
-  // StepBall.
+  // StepBall. P4d-2 routes the predicted body colliders through the same single
+  // authoritative Step; the legacy duration adapter stays for the default path.
   Mirror(false, false, reverse);
-  ball_->Step(football::sim::TickSpan{1}, GetBallEnvironment());
+  if (body_physics_production_) {
+    ball_->Step(football::ball::BallTickInput{body_physics_production_colliders_,
+                                              GetBallEnvironment()});
+  } else {
+    ball_->Step(football::sim::TickSpan{1}, GetBallEnvironment());
+  }
   Mirror(false, false, reverse);
   if (body_physics_shadow_tick_) {
     body_physics_shadow_tick_->production = ball_->state();

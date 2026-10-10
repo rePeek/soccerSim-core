@@ -191,3 +191,26 @@ whether it is the same owner+part (no double resolution) or another player (they
 arrived first); a zero-impulse overlap projection is not an impact and never
 suppresses a valid active strike; otherwise the active strike owns it. Tests
 cover all four input combinations.
+
+## P4d-2: passive body production switch (implemented, opt-in)
+
+`Simulation::EnableBodyPhysicsProduction(true)` routes the predicted body
+colliders through the one authoritative `Ball::Step(BallTickInput)` and skips the
+legacy `ResolveBallPlayerContacts` block entirely, so exactly one authority can
+change the ball and no passive impulse is applied twice. The colliders fed to
+production are the same upright list the P4d-1 `unified` comparison used
+(`body_physics_production_colliders_`), which is now kept separate from the
+low-pose proposal buffer so a sliding/trip proposal can never leak into
+production.
+
+Verification (seed 42, both processing orders, 4000 steps): on every tick with
+shadow evidence the production ball state is **exactly equal** to the unified
+kernel result (position, velocity, angular velocity), and the native tape
+actually contains passive body contacts. The switch is OFF by default, so the
+default fingerprint is unchanged; the legacy resolver still owns the contact when
+the switch is off and is only skipped when it is on.
+
+Remaining P4d-2 acceptance (not yet met, so the switch stays OFF): the low-pose
+Sliding/Trip volumes are still uncalibrated, and fixed-scenario plus real
+animation-phase ghost-blocking tests must be extended before the passive
+authority becomes the default.

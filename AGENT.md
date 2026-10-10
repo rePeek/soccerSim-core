@@ -1012,3 +1012,20 @@ baseline transition. `DecideContactAuthority` fixes the P4d-2 active/passive
 precedence: a real passive impact (nonzero impulse) wins for the same
 owner+part and for another player; a zero-impulse overlap never suppresses a
 valid strike.
+
+P4d-2 adds the opt-in passive body production switch (default OFF).
+`Simulation::EnableBodyPhysicsProduction` feeds the P4b/P4d-1 predicted upright
+collider list into the single authoritative `Ball::Step(BallTickInput)` and skips
+the legacy `ResolveBallPlayerContacts` block, so exactly one authority changes
+the ball. The production collider list is kept separate from the low-pose
+proposal buffer so an uncalibrated sliding/trip proposal cannot leak into
+production. Tests assert, for 4000 steps in both processing orders, that the
+production ball state exactly equals the unified kernel result and that the tape
+contains real passive contacts. OFF remains byte-identical to the frozen
+fingerprint; the switch stays OFF until the low-pose calibration and
+ghost-blocking tests are complete.
+
+`P6`/`P7` are not started: the AcceptedTouchSink is still the rule-facing
+authority (geometric contact, physical impact and accepted touch are separate in
+diagnostics only), and the legacy Ball compatibility API still has callers, so
+neither can be removed yet.

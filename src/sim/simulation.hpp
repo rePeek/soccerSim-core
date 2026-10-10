@@ -128,6 +128,10 @@ class Simulation {
   // P5c: opt-in production takeover of the contact-point spin model for the
   // migrated actions. Diagnostic/test entry point; product code never enables it.
   void EnableActiveImpulseProduction(bool enabled) { active_impulse_production_ = enabled; }
+  // P4d-2: opt-in authority switch for passive body collisions. When enabled the
+  // production Ball integrates the predicted body colliders and the legacy
+  // resolver is skipped, so exactly one authority changes the ball.
+  void EnableBodyPhysicsProduction(bool enabled);
 
   // Lifecycle mutations, published through the write-only rule/player ports.
   void SetMatchPhase(MatchPhase newPhase);
@@ -244,13 +248,17 @@ class Simulation {
   // Opt-in production-kernel shadow owner; no extra physics implementation.
   std::unique_ptr<football::ball::Ball> body_physics_shadow_ball_;
   std::vector<football::ball::ColliderMotion> body_physics_shadow_colliders_;
+  // The exact list the unified comparison used (upright, before any low-pose
+  // proposal overwrites the shadow buffer). P4d-2 feeds this to production.
+  std::vector<football::ball::ColliderMotion> body_physics_production_colliders_;
+  std::vector<BodyShadowCandidate> body_physics_shadow_candidates_;
   std::optional<BodyPhysicsShadowTick> body_physics_shadow_tick_, body_physics_shadow_latest_;
   BodyPhysicsShadowReport body_physics_shadow_report_;
-  std::vector<BodyShadowCandidate> body_physics_shadow_candidates_;
   BodyContactEpisodes body_geometry_episodes_, body_impact_episodes_;
   std::unique_ptr<ActiveTouchShadowSink> active_touch_shadow_sink_;
   ActiveTouchShadowReport active_touch_shadow_report_;
   bool active_impulse_production_ = false;
+  bool body_physics_production_ = false;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

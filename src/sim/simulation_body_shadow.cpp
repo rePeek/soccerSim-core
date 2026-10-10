@@ -63,6 +63,7 @@ void Simulation::BeginBodyPhysicsShadow() {
     return result;
   };
   tick.static_only = compute({});
+  body_physics_production_colliders_ = body_physics_shadow_colliders_;
   tick.unified = compute(body_physics_shadow_colliders_);
   if (!tick.unified.contacts.empty()) {
     const auto owner = body_collider_owners_.find(tick.unified.contacts.front().collider);
@@ -246,4 +247,21 @@ void Simulation::CompleteBodyPhysicsShadow() {
   // Only the last completed interval is retained, bounded independently of match length.
   body_physics_shadow_latest_ = std::move(body_physics_shadow_tick_);
   body_physics_shadow_tick_.reset();
+}
+
+void Simulation::EnableBodyPhysicsProduction(bool enabled) {
+  body_physics_production_ = enabled;
+  if (!enabled) return;
+  if (!ball_) throw std::logic_error("simulation has no match");
+  // The production path needs the same predicted collider list the P4b/P4d-1
+  // shadow already builds. Both are read-only diagnostics, so this does not add
+  // a second Ball step or a second actor Process.
+  DiscardBodyCollisionShadow();
+  body_shadow_enabled_ = true;
+  body_physics_shadow_colliders_.reserve(snapshot_players_.size() * kPlayerBodyPartCount);
+  const auto slots = snapshot_players_.size() * kPlayerBodyPartCount;
+  body_physics_shadow_candidates_.reserve(slots);
+  body_geometry_episodes_.Resize(slots);
+  body_impact_episodes_.Resize(slots);
+  body_physics_shadow_ball_ = std::make_unique<football::ball::Ball>(ball_config_, pitch_);
 }
