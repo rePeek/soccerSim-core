@@ -436,3 +436,38 @@ direct tests. It will not be enabled until the body-pose calibration, same-part
 active/passive precedence and moving-body acceptance blockers are resolved, and
 the P4d-2 passive-body switch is decided. Regression `--print-baseline` remains
 byte-identical and Release CTest is 42/42.
+
+## Consolidated validation and remaining blockers (after P5b)
+
+Stages delivered in this run, each a separate local commit on `main`
+(author `rePeek <senxlin@gmail.com>`, nothing pushed):
+
+- P5a `dec2fd2` read-only active-touch candidates;
+- P4e `27588a3` overlap-only projection no longer consumes the tick;
+- P5b `869c59a` endpoint active impulse + deterministic arbitration (switch closed).
+
+Release CTest 42/42 including the full regulation CLI (360.21s). Debug build
+succeeded; focused Debug suites passed 570270 assertions in 11 cases plus 7354 in
+49 ball cases. Regression `--print-baseline` is byte-identical in Release and
+Debug; both animation A/B modes pass; the core-only build passes. The baked asset
+SHA256 is unchanged
+(`33ab837652da93a795e4886738ca09b92e4b6376c99a2500202572e0a7885b86`) and no
+Golden was refreshed. Native `football_body_shadow 4000 --full` metrics are
+unchanged from P4d-1.2 (215/112 winning contacts, 152/26 effective impacts,
+63/86 zero impulse), so P4e did not alter the existing tape.
+
+Still blocking a production authority switch, in order:
+
+1. **P4d-2 (passive body switch)** is not started. It needs same-owner/part and
+   other-player passive priority decided against the P5a conflict evidence, plus
+   the endpoint-impulse contract above.
+2. **Body pose calibration** is not done. Low Sliding/Trip volumes are a
+   separately labelled proposal; they add contacts rather than merely removing
+   upright ghosts, and no real skeleton/foot trajectory validates them.
+3. **P6/P7** (remove the legacy duration/force adapter and the legacy touch path)
+   are not started.
+4. Native seed-42 tape still has no sliding samples, so passive-body behaviour
+   under real sliding remains unmeasured.
+
+The production endpoint-impulse path is exercised only by direct tests; the
+Simulation still drives the legacy `ApplyBallTouch`/`SetRotation` path.
