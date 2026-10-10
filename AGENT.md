@@ -950,3 +950,15 @@ Native evidence shows the legacy direct spin (`SetRotation`) is not reproducible
 by a point impulse (`dw` up to ~446 rad/s), so P5b must derive outgoing spin
 physically. `BallTickInput` still has no active impulse and production still
 passes no dynamic bodies; the production switch stays closed.
+
+P4e separates position correction from impact in `AdvanceBallTick`. A contact
+with TOI zero whose relative normal velocity is separating or resting is an
+instantaneous projection reported with a zero normal impulse and
+`position_corrected`; it no longer consumes the tick, so the ball keeps its free
+motion and can still find one genuine impact in the same interval. Only an
+impulse-bearing contact ends the tick, so at most one new impact is reported per
+tick while corrections may repeat (bounded by `colliders + 2`). This removes the
+moving-body freeze where a separating ball was projected onto the moving START
+shape every tick. Production supplies no dynamic bodies, so pitch behavior and
+regression baselines are unchanged; the moving-body trajectory test now asserts
+real release instead of pinning the failure.

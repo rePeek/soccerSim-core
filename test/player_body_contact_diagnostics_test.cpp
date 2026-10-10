@@ -219,37 +219,43 @@ TEST_CASE("deep separating overlap projects once but does not invent a followup 
   }
 }
 
-TEST_CASE("moving-body tape characterizes separating projection freeze as a switch blocker", "[sim][body-trajectory]") {
+TEST_CASE("moving-body tape releases a separating ball instead of freezing on overlap", "[sim][body-trajectory]") {
   Ball ball{football::model::Pitch{}};
   ball.Reset(State({-.4f, 0, .6f}, {20, 0, 0}));
-  float outgoing = 0;
+  int impulses = 0;
+  float previous_x = ball.state().position.coords[0];
   for (int step = 0; step < 12; ++step) {
     PlayerKinematicState k; k.position = {-step * .01f, 0, 0}; k.velocity = {-1, 0, 0};
     const auto body = Body(e_FunctionType_Movement, k);
     const auto lower = std::span<const ColliderMotion>{body}.subspan(1, 1);
     const auto result = ball.Step(BallTickInput{lower, {}});
-    REQUIRE(result.contacts.size() == 1);
-    const auto& hit = result.contacts.front();
-    if (step == 0) {
-      REQUIRE(hit.normal_impulse > 0);
-      outgoing = result.state.velocity.coords[0];
-      REQUIRE(outgoing < -7);
-    } else {
-      // Current no-remainder semantics project to START geometry and consume
-      // the tick even when relative normal velocity is separating. The moving
-      // end shape then overlaps again. Do NOT hide this with a global cooldown.
-      REQUIRE(hit.normal_impulse == 0);
-      REQUIRE(hit.position_corrected);
-      REQUIRE(hit.toi == 0);
-      REQUIRE(std::fabs(result.state.velocity.coords[0] - outgoing) < 1e-5f);
-      REQUIRE(std::fabs(result.state.position.coords[0] - (-step * .01f - .3f)) < 1e-5f);
-      REQUIRE(BodyShadowGap(result.state.position, .11f, lower.front().end) < -.009f);
-      // Proper free separating motion would clear the END geometry.
-      REQUIRE(BodyShadowGap(result.state.position + result.state.velocity * .01f, .11f, lower.front().end) > .05f);
+    // Overlap projection must never count as a new impact, and one genuine
+    // impact per tick is the ceiling.
+    REQUIRE(result.contacts.size() <= 1);
+    for (const auto& hit : result.contacts) {
+      REQUIRE(hit.collider == body[1].id);
+      if (hit.normal_impulse > 0) ++impulses;
     }
+    if (step == 0) {
+      REQUIRE(result.contacts.size() == 1);
+      REQUIRE(result.contacts.front().normal_impulse > 0);
+    } else {
+      // P4e: the moving body no longer re-traps the ball. Any residual
+      // contact is a zero-impulse position correction, never a new impact, and
+      // the ball keeps its outgoing free motion every tick.
+      for (const auto& hit : result.contacts) {
+        REQUIRE(hit.normal_impulse == 0);
+        REQUIRE(hit.position_corrected);
+        REQUIRE(hit.toi == 0);
+      }
+      REQUIRE(result.state.velocity.coords[0] < -7);
+      REQUIRE(ball.state().position.coords[0] < previous_x - .05f);
+      REQUIRE(BodyShadowGap(result.state.position, .11f, lower.front().end) > .05f);
+    }
+    previous_x = ball.state().position.coords[0];
   }
-  // This is a passing characterization test of a KNOWN failure of physical
-  // separation, not a claim of production readiness. Kernel behavior unchanged.
+  REQUIRE(impulses == 1);
+  REQUIRE(ball.state().position.coords[0] < -1.0f);
 }
 
 TEST_CASE("low pose axes convert explicitly when legacy kinematic facing does not mirror", "[sim][body-poses]") {

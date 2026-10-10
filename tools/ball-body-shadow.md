@@ -298,21 +298,31 @@ remains classifiable even when raw straight-motion queries miss. The action
 scenarios use fixed action schedules, not real baked foot trajectories or an
 active-impulse implementation; those belong to P5a.
 
-**New production-switch blocker found by a moving-body continuous tape:**
+**P4e resolved the moving-body overlap freeze (production kernel).**
 
-A lower capsule translates -1m/s, ball approaches at +20m/s. The first response
-reflects the ball to below -7m/s. For the next eleven ticks the capsule's end
-shape keeps re-entering the ball by about 1cm. AdvanceBallTick projects to the
-START shape at TOI=0, gives zero new impulse (correctly separating), but consumes
-the entire tick. Ball x follows the body's -.01m/tick surface despite its much
-faster outgoing velocity. No true free separation occurs. The test explicitly
-pins this existing failure; it does NOT pass a false 'not stuck' acceptance gate.
+`AdvanceBallTick` now separates position correction from impact. A contact whose
+TOI is zero while the relative normal velocity is separating or resting is an
+instantaneous projection: it is reported with `normal_impulse == 0` and
+`position_corrected == true` and does **not** consume the interval. The ball
+keeps its free motion (gravity/drag/grass recomputed from the corrected cursor)
+and may still find one genuine impact later in the same tick. Only an
+impulse-bearing contact ends the tick, so there is at most one new impact per
+tick while corrections may repeat up to `colliders + 2` for termination.
 
-A passing stationary tape cannot certify moving-body release. Neither a global
-cooldown nor dropping zero-impulse diagnostics repairs this. Resolving passive
-overlap-only progress versus the no-remainder impact policy needs a separate
-semantic review. Ball kernel and production outputs are deliberately unchanged
-in P4d-1.2; do not switch authority while this blocker remains.
+The continuous tape (lower capsule at -1m/s, incoming ball +20m/s) previously
+froze: after the real impact the ball was projected to the START shape every
+tick with zero impulse and never advanced. Now the real impact on tick 0 is the
+only impulse; following ticks produce no new impulse, the ball keeps its
+outgoing velocity and clears the moving END shape by more than 5cm within one
+tick, advancing more than 5cm per tick. The rewritten test asserts this plus a
+ceiling of one contact per tick and no invented follow-up. The
+`deep separating overlap projects once but does not invent a followup impact`
+case still passes.
+
+Production note: production still supplies no dynamic bodies, so the pitch
+collider path is unchanged. Regression `--print-baseline` is byte-identical and
+the native `football_body_shadow 4000 --full` shadow metrics are unchanged
+(215/112 winning contacts, 152/26 effective impacts, 63/86 zero impulse).
 
 ### Validation and next gate
 

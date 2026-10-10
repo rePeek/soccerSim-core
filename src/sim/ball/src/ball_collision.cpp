@@ -347,6 +347,29 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     result.contacts.push_back(contact);
   };
 
+  // P4e: a contact that only projects the ball out of an existing overlap must
+  // not consume the whole interval. Position correction is instantaneous and
+  // does not count as an impact, so the ball keeps its free motion and can still
+  // find one genuine impact later in the same tick. At most one impulse
+  // producing contact is reported per tick; corrections may be several.
+  const auto separating = [](const BallContact& contact) {
+    return contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f;
+  };
+  const auto correction_only = [&](const BallContact& contact) {
+    return contact.toi <= eps && separating(contact);
+  };
+  // Position-only correction. Evidence stays in result.contacts with a zero
+  // normal impulse so overlap projection is never mistaken for a rule touch.
+  const auto project_out = [&](BallState& s, BallContact contact) {
+    const auto original_center = s.position;
+    depenetrate(s, contact);
+    contact.position_corrected = s.position != original_center;
+    contact.point = s.position;
+    contact.normal_impulse = 0.0f;
+    result.contacts.push_back(contact);
+  };
+  const std::size_t correction_cap = colliders.size() + 2;
+
   // Grass resistance applies in a thin zone above the ground; grass height
   // only widens the resistance zone, the support height is exactly the radius.
   const float resting_z = ball_radius;
@@ -355,19 +378,23 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   const bool in_grass_zone = initial.position.coords[2] <= grass_zone + eps;
   const bool not_descending = initial.velocity.coords[2] >= -eps;
 
-  blunted::Vector3 grass_v = initial.velocity;
-  if (in_grass_zone && not_descending) {
-    const float hs = std::sqrt(grass_v.coords[0] * grass_v.coords[0] +
-                               grass_v.coords[1] * grass_v.coords[1]);
+  const auto grass_drag = [&](const blunted::Vector3& velocity) {
+    blunted::Vector3 v = velocity;
+    const float hs =
+        std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
     if (hs > 0.0f) {
       const float resistance = dynamics.ground_deceleration +
                                dynamics.quadratic_ground_resistance * hs * hs;
       const float slowed = std::max(0.0f, hs - resistance * dt);
       const float scale = slowed / hs;
-      grass_v.coords[0] *= scale;
-      grass_v.coords[1] *= scale;
+      v.coords[0] *= scale;
+      v.coords[1] *= scale;
     }
-  }
+    return v;
+  };
+
+  blunted::Vector3 grass_v = initial.velocity;
+  if (in_grass_zone && not_descending) grass_v = grass_drag(initial.velocity);
 
   const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
   const blunted::Vector3 omega1 = initial.angular_velocity * spin_scale;
@@ -375,66 +402,94 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   // Persistent ground contact: rolling constraint, but still check other
   // (non-ground) colliders; the tangent ground plane produces no ground hit.
   if (on_ground && not_descending) {
-    blunted::Vector3 v = grass_v;
-    v.coords[2] = 0.0f;
-    BallState probe = initial;
-    probe.velocity = v;
-    probe.position.coords[2] = resting_z;
-    probe.angular_velocity = omega1;
-    const std::optional<BallContact> hit = FirstContact(probe, colliders, dt, ball_radius);
-    if (hit.has_value()) {
-      result.state = probe;
-      result.state.position = hit->point;
+    const blunted::Vector3 v{grass_v.coords[0], grass_v.coords[1], 0.0f};
+    BallState cursor = initial;
+    cursor.velocity = v;
+    cursor.position.coords[2] = resting_z;
+    cursor.angular_velocity = omega1;
+    const auto roll_free = [&] {
+      result.state = cursor;
       result.state.velocity = v;
-      resolve(*hit);
-    } else {
-      result.state.velocity = v;
-      result.state.position = initial.position + v * dt;
+      result.state.position = cursor.position + v * dt;
       result.state.position.coords[2] = resting_z;
       result.state.angular_velocity = omega1;
-      result.state.orientation = integrate_orientation(initial.orientation, omega1, dt);
+      result.state.orientation =
+          integrate_orientation(cursor.orientation, omega1, dt);
+    };
+    for (std::size_t guard = 0;; ++guard) {
+      const std::optional<BallContact> hit =
+          FirstContact(cursor, colliders, dt, ball_radius);
+      if (!hit.has_value()) {
+        roll_free();
+        return result;
+      }
+      if (!correction_only(*hit) || guard >= correction_cap) {
+        result.state = cursor;
+        result.state.position = hit->point;
+        result.state.velocity = v;
+        resolve(*hit);
+        return result;
+      }
+      project_out(cursor, *hit);
     }
-    return result;
   }
 
-  // Airborne free-motion candidate.
+  // Airborne free-motion candidate. The launch velocity is recomputed from the
+  // cursor so a corrected state still integrates its own drag and gravity.
   const blunted::Vector3 gravity(0, 0, -dynamics.gravity);
-  const blunted::Vector3 v0 = (in_grass_zone && not_descending) ? grass_v : initial.velocity;
-  const float speed = v0.GetLength();
-  blunted::Vector3 accel = gravity;
-  if (speed > 0.0f) accel = accel - v0 * (dynamics.quadratic_resistance * speed);
-  if (dynamics.magnus_coefficient != 0.0f) {
-    const blunted::Vector3& o = initial.angular_velocity;
-    accel = accel + blunted::Vector3(
-        o.coords[1] * v0.coords[2] - o.coords[2] * v0.coords[1],
-        o.coords[2] * v0.coords[0] - o.coords[0] * v0.coords[2],
-        o.coords[0] * v0.coords[1] - o.coords[1] * v0.coords[0]) *
-            dynamics.magnus_coefficient;
-  }
-  const blunted::Vector3 v1 = v0 + accel * dt;
-  const blunted::Vector3 vavg = v0 + accel * (0.5f * dt);
-  const blunted::Vector3 p1 = initial.position + vavg * dt;
+  const auto launch_velocity = [&](const BallState& s) {
+    if (s.position.coords[2] <= grass_zone + eps && s.velocity.coords[2] >= -eps)
+      return grass_drag(s.velocity);
+    return s.velocity;
+  };
+  const auto acceleration = [&](const blunted::Vector3& v0) {
+    const float speed = v0.GetLength();
+    blunted::Vector3 accel = gravity;
+    if (speed > 0.0f)
+      accel = accel - v0 * (dynamics.quadratic_resistance * speed);
+    if (dynamics.magnus_coefficient != 0.0f) {
+      const blunted::Vector3& o = initial.angular_velocity;
+      accel = accel + blunted::Vector3(
+          o.coords[1] * v0.coords[2] - o.coords[2] * v0.coords[1],
+          o.coords[2] * v0.coords[0] - o.coords[0] * v0.coords[2],
+          o.coords[0] * v0.coords[1] - o.coords[1] * v0.coords[0]) *
+              dynamics.magnus_coefficient;
+    }
+    return accel;
+  };
 
-  BallState probe = initial;
-  probe.velocity = vavg;
-  const std::optional<BallContact> first = FirstContact(probe, colliders, dt, ball_radius);
-  if (!first.has_value()) {
-    result.state.position = p1;
-    result.state.velocity = v1;
-    result.state.angular_velocity = omega1;
-    result.state.orientation = integrate_orientation(initial.orientation, omega1, dt);
-    return result;
+  BallState cursor = initial;
+  for (std::size_t guard = 0;; ++guard) {
+    const blunted::Vector3 v0 = launch_velocity(cursor);
+    const blunted::Vector3 accel = acceleration(v0);
+    const blunted::Vector3 vavg = v0 + accel * (0.5f * dt);
+    BallState probe = cursor;
+    probe.velocity = vavg;
+    const std::optional<BallContact> first =
+        FirstContact(probe, colliders, dt, ball_radius);
+    if (!first.has_value()) {
+      result.state = cursor;
+      result.state.position = cursor.position + vavg * dt;
+      result.state.velocity = v0 + accel * dt;
+      result.state.angular_velocity = omega1;
+      result.state.orientation =
+          integrate_orientation(cursor.orientation, omega1, dt);
+      return result;
+    }
+    if (!correction_only(*first) || guard >= correction_cap) {
+      // Move to the contact instant and let ResolveContact also spin the ball.
+      const blunted::Vector3 vc = v0 + accel * (first->toi * dt);
+      result.state = cursor;
+      result.state.position = first->point;
+      result.state.velocity = vc;
+      result.state.angular_velocity = omega1;
+      result.state.orientation = integrate_orientation(cursor.orientation,
+          cursor.angular_velocity, first->toi * dt);
+      resolve(*first);
+      return result;
+    }
+    project_out(cursor, *first);
   }
-
-  // Move to the contact instant and let ResolveContact also spin the ball.
-  const blunted::Vector3 vc = v0 + accel * (*first).toi * dt;
-  result.state.position = (*first).point;
-  result.state.velocity = vc;
-  result.state.angular_velocity = omega1;
-  result.state.orientation =
-      integrate_orientation(initial.orientation, initial.angular_velocity, (*first).toi * dt);
-  resolve(*first);
-  return result;
 }
 
 }  // namespace football::ball

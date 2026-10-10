@@ -64,8 +64,11 @@ struct BallDynamics {
   float magnus_coefficient = 0.0f;
 };
 
-// Tick-based model: one free-motion candidate, at most one new impact at the
-// earliest TOI (no remainder integration). Grounded is a persistent rolling
+// Tick-based model: one free-motion candidate and at most one impulse-bearing
+// impact at the earliest TOI. A contact that only projects the ball out of an
+// existing overlap is instantaneous: it is reported with a zero normal impulse
+// and does not consume the tick, so the ball keeps its free motion and may
+// still find one genuine impact (P4e). Grounded is a persistent rolling
 // constraint (z = radius, vz = 0, horizontal roll + rolling drag), not a
 // per-tick ground impact. Response reads ColliderMotion::material.
 BallStepResult AdvanceBallTick(const BallState& initial,
