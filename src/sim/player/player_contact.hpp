@@ -28,11 +28,12 @@ struct PlayerContactInputs {
 // assessment never re-runs collision math. At most one suspected offender is
 // returned; harmless contacts and same-team contacts return nullopt. Both
 // actors may still fall physically: the fall and the foul are independent.
-// The score is normalized to [0, 1] and `position` is the contact location in
-// the victim's pitch frame.
+// Every rule-relevant field is frozen here from the live contact instant.
 std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
                                               float first_sensitivity,
-                                              float second_sensitivity);
+                                              float second_sensitivity,
+                                              const football::ball::Ball& ball,
+                                              Tick now);
 
 // Mutates players in pair order, then applies accumulated movement sharing.
 // A fall is reported as an immutable PlayerTripFact through the single fact

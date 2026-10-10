@@ -292,7 +292,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       // Independent of the physical fall, derive at most one foul suspicion
       // from the same sensitivities. The referee owns what to do with it.
       if (assessments != nullptr) {
-        if (auto assessment = AssessCollision(p1, p2, p1sensitivity, p2sensitivity)) {
+        if (auto assessment = AssessCollision(p1, p2, p1sensitivity, p2sensitivity,
+                                             inputs.ball, inputs.now)) {
           assessments->push_back(*assessment);
         }
       }
@@ -364,7 +365,9 @@ void ResolvePlayerPair(Player *p1, Player *p2,
 
 std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
                                               float first_sensitivity,
-                                              float second_sensitivity) {
+                                              float second_sensitivity,
+                                              const football::ball::Ball& ball,
+                                              Tick now) {
   if (first == nullptr || second == nullptr) return std::nullopt;
   // A collision between teammates can never be a foul against an opponent.
   if (first->GetTeamID() == second->GetTeamID()) return std::nullopt;
@@ -402,12 +405,31 @@ std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
     victim = second;
     victim_sensitivity = second_sensitivity;
   }
+  Player* offender = victim == first ? second : first;
 
+  // Freeze the same rule-relevant evidence the legacy PlayerTripFact carried.
+  const PlayerActionState& action = offender->GetSimulationActionState();
   FoulAssessment assessment;
-  assessment.offender = (victim == first ? second : first)->GetID();
+  assessment.kind = FoulKind::StandingFall;
+  assessment.offender = offender->GetID();
   assessment.victim = victim->GetID();
+  assessment.victim_team_id = victim->GetTeamID();
+  assessment.offender_team_id = offender->GetTeamID();
   assessment.score = NormalizedClamp(victim_sensitivity, kStandingFallThreshold, 1.0f);
+  assessment.contacted_at = now;
   assessment.position = victim->GetPitchPosition();
+  assessment.victim_position = victim->GetPosition();
+  assessment.victim_direction = victim->GetDirectionVec();
+  assessment.offender_position = offender->GetPosition();
+  assessment.ball_position = ball.Predict(0);
+  assessment.offender_action_type = static_cast<int>(action.type);
+  assessment.offender_scheduled_contact = action.HasScheduledContact();
+  assessment.offender_contact_frame = action.ContactFrame();
+  assessment.offender_frame = action.Frame();
+  assessment.offender_contact_position = action.contactPosition;
+  assessment.offender_last_touch_tick = offender->GetLastTouchTick();
+  assessment.victim_team_fading_possession =
+      victim->GetTeam()->GetFadingTeamPossessionAmount();
   return assessment;
 }
 
