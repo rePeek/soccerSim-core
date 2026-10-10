@@ -166,36 +166,24 @@ Player* Simulation::FindPlayerById(football::model::PlayerId id) const {
 // It never steps an actor, writes a touch, or passes its colliders to Ball.
 
 void Simulation::BeginBodyCollisionShadow() {
-  body_shadow_predictions_.clear();
-  body_shadow_colliders_.clear();
-  body_shadow_contact_.reset();
+  DiscardBodyCollisionShadow();
+  if (!body_shadow_enabled_) return;
   body_shadow_touch_start_ = recorded_touches_.size();
   body_shadow_active_ = true;
-  body_shadow_action_phase_conflict_ = false;
 
-  for (const auto& team : teams_) {
-    for (Player* player : team->GetAllPlayers()) {
-      if (!player->IsActive()) continue;
-
-      PlayerBodyColliderMotionIds ids{};
-      std::size_t id_count = 0;
-      for (const auto& [id, owner] : body_collider_owners_) {
-        if (owner.first != player->GetID()) continue;
-        ids.values[static_cast<std::size_t>(owner.second)] = id;
-        ++id_count;
-      }
-      if (id_count != kPlayerBodyPartCount) {
-        throw std::logic_error("active player has incomplete body collider mapping");
-      }
-
-      PlayerBodyMotionPrediction prediction = PredictBodyColliderMotions(
-          player->GetID(), player->GetKinematicState(),
-          football::sim::TickSpan{1}, ids);
-      body_shadow_colliders_.insert(body_shadow_colliders_.end(),
-                                    prediction.colliders.begin(),
-                                    prediction.colliders.end());
-      body_shadow_predictions_.push_back(std::move(prediction));
-    }
+  // Fixed match slots, not active-roster order. Both teams currently share
+  // the first processing roster's frame with Ball.
+  for (std::size_t slot = 0; slot < snapshot_players_.size(); ++slot) {
+    Player* player = snapshot_players_[slot];
+    if (!player->IsActive()) continue;
+    auto prediction = PredictBodyColliderMotions(
+        player->GetID(), player->GetKinematicState(), football::sim::TickSpan{1},
+        PlayerBodyColliderIdsForSlot(static_cast<std::uint32_t>(slot)));
+    prediction.action = player->GetSimulationActionState().type;
+    body_shadow_colliders_.insert(body_shadow_colliders_.end(),
+                                  prediction.colliders.begin(),
+                                  prediction.colliders.end());
+    body_shadow_predictions_.push_back(std::move(prediction));
   }
 
   body_shadow_contact_ = football::ball::FirstContact(
@@ -212,6 +200,22 @@ void Simulation::BeginBodyCollisionShadow() {
   }
 }
 
+void Simulation::MeasureBodyShadowEndpoint(const Player& player) {
+  if (!body_shadow_active_) return;
+  for (auto& prediction : body_shadow_predictions_) {
+    if (prediction.player != player.GetID()) continue;
+    // Second roster executes in the opposite frame. Rotate only this copy,
+    // before pair offsets/other actors can contaminate the Process endpoint.
+    auto actual = player.GetKinematicState();
+    if (player.GetTeamID() == second_team_) actual.Mirror();
+    prediction.endpoint_error = (actual.position - prediction.end.position).GetLength();
+    prediction.turned = prediction.start.velocity.GetLength() > .5f &&
+        actual.velocity.GetLength() > .5f &&
+        std::fabs(actual.velocity.GetAngle2D(prediction.start.velocity)) > .05f;
+    break;
+  }
+}
+
 void Simulation::CompleteBodyCollisionShadow() {
   if (!body_shadow_active_) return;
 
@@ -222,15 +226,12 @@ void Simulation::CompleteBodyCollisionShadow() {
     ++body_shadow_report_.action_phase_conflicts;
   }
 
-  for (const PlayerBodyMotionPrediction& prediction : body_shadow_predictions_) {
-    const Player* player = FindPlayerById(prediction.player);
-    if (player == nullptr) continue;
-    const float error = (player->GetKinematicState().position -
-                         prediction.end.position).GetLength();
-    body_shadow_report_.endpoint_error_sum += error;
-    body_shadow_report_.endpoint_error_max =
-        std::max(body_shadow_report_.endpoint_error_max, error);
-    ++body_shadow_report_.endpoint_error_bins[PlayerBodyEndpointErrorBin(error)];
+  for (const auto& prediction : body_shadow_predictions_) {
+    if (!prediction.endpoint_error) continue;
+    const float error = *prediction.endpoint_error;
+    body_shadow_report_.endpoint_errors.Record(error);
+    body_shadow_report_.action_errors[BodyShadowActionCategory(prediction.action)].Record(error);
+    if (prediction.turned) body_shadow_report_.turning_errors.Record(error);
   }
 
   std::optional<football::model::PlayerId> shadow_player;
@@ -561,6 +562,7 @@ void Simulation::Step(const PlayerControlSet& controls) {
     StepImpl(controls);
   } catch (...) {
     snapshot_step_.reset();
+    DiscardBodyCollisionShadow();
     throw;
   }
   snapshot_step_.reset();
@@ -655,7 +657,10 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     football::sim::player::PrepareTeamPossession(team, opponent, play_authorized_,
         set_piece_active_, ball_retainer_, best_possession_team_);
     for (Player* actor : team.GetAllPlayers()) {
-      if (actor->IsActive()) actor->Process(PlayerTickFacts(*actor), mental_images_, *touch_sink_, *player_runtime_sink_);
+      if (actor->IsActive()) {
+        actor->Process(PlayerTickFacts(*actor), mental_images_, *touch_sink_, *player_runtime_sink_);
+        MeasureBodyShadowEndpoint(*actor);
+      }
     }
     football::sim::player::FinishTeamPossession(team, opponent);
   };
@@ -789,6 +794,8 @@ void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
 
 void Simulation::ResetSituation(const Vector3& focus_position) {
   if (!ball_) throw std::logic_error("simulation has no match");
+  if (body_shadow_active_) ++body_shadow_report_.discarded_ticks;
+  DiscardBodyCollisionShadow();
   ++reset_sequence_;
   pending_rulings_.clear();
   foul_assessments_.clear();

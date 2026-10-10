@@ -150,6 +150,17 @@ class SimulationAccess {
       const Simulation& s) {
     return s.body_shadow_report_;
   }
+  static void EnableBodyCollisionShadow(Simulation& s, bool enabled) {
+    s.body_shadow_enabled_ = enabled;
+    s.DiscardBodyCollisionShadow();
+  }
+  static void BeginBodyCollisionShadow(Simulation& s) { s.BeginBodyCollisionShadow(); }
+  static const auto& BodyShadowPredictionsOf(const Simulation& s) {
+    return s.body_shadow_predictions_;
+  }
+  static const auto& BodyColliderOwnersOf(const Simulation& s) {
+    return s.body_collider_owners_;
+  }
 
   // Test/diagnostic lifecycle escape hatches; product code uses Step().
   static void SetPhase(Simulation& s, MatchPhase phase) { s.SetMatchPhase(phase); }

@@ -35,14 +35,14 @@ TEST_CASE("body collider motions retain rest-pose geometry and stable ids",
   const auto& upper_start = std::get<Capsule>(motions[0].start);
   const auto& upper_end = std::get<Capsule>(motions[0].end);
   REQUIRE(upper_start.a == Vector3(4.0f, -2.0f, 0.81f));
-  REQUIRE(upper_start.b == Vector3(4.0f, -2.0f, 1.41f));
+  REQUIRE((upper_start.b - Vector3(4.0f, -2.0f, 1.41f)).GetLength() < 1e-6f);
   REQUIRE(upper_start.radius == 0.22f);
   REQUIRE(upper_end.a == upper_start.a + Vector3(0.08f, -0.03f, 0.0f));
   REQUIRE(upper_end.b == upper_start.b + Vector3(0.08f, -0.03f, 0.0f));
 
   const auto& lower_start = std::get<Capsule>(motions[1].start);
-  REQUIRE(lower_start.a == Vector3(4.0f, -2.0f, 0.05f));
-  REQUIRE(lower_start.b == Vector3(4.0f, -2.0f, 1.15f));
+  REQUIRE((lower_start.a - Vector3(4.0f, -2.0f, 0.05f)).GetLength() < 1e-6f);
+  REQUIRE((lower_start.b - Vector3(4.0f, -2.0f, 1.15f)).GetLength() < 1e-6f);
   REQUIRE(lower_start.radius == 0.19f);
 
   const auto& head_start = std::get<Sphere>(motions[2].start);

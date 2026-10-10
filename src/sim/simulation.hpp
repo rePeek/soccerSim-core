@@ -117,6 +117,7 @@ class Simulation {
   void ApplyChangeOfEnds();
   void UpdateRecentPossession(football::sim::TickSpan admitted);
   void BeginBodyCollisionShadow();
+  void MeasureBodyShadowEndpoint(const Player& player);
   void CompleteBodyCollisionShadow();
   void DiscardBodyCollisionShadow();
 
@@ -230,6 +231,7 @@ class Simulation {
   std::size_t body_shadow_touch_start_ = 0;
   bool body_shadow_active_ = false;
   bool body_shadow_action_phase_conflict_ = false;
+  bool body_shadow_enabled_ = true; // internal diagnostic A/B gate, never policy
   PlayerBodyCollisionShadowReport body_shadow_report_;
 
   // Competition / play / goal / touch state.

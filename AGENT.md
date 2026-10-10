@@ -890,3 +890,16 @@ Debug 40/40 (excluding full-match CLI), focused ASan+UBSan+leak checks 3/3,
 and core-only builds pass. The shared core exports no SnapshotArchive symbols.
 Existing regression goldens/assets are unchanged; each implementation stage
 is committed locally, with no push.
+
+### P4 body collision diagnostics
+
+`player/player_body_collider_motion.hpp` converts the existing torso/lower
+capsules and head sphere with stable dynamic ids from fixed match slots.
+`player/player_body_collision_shadow.hpp` holds pure linear prediction and
+read-only error/touch reports. Simulation owns id -> PlayerId/body-part mapping.
+`tools/football_body_shadow.cpp` (football_body_shadow target) measures native
+runs; definitions and reports are in tools/ball-body-shadow.md. Geometry and
+shadow replay/frame tests live in test/player_body_collider_motion_test.cpp and
+test/player_body_shadow_test.cpp. These inputs never reach production Ball yet.
+Use CTest or executables at build/release/, not old build/release/test/ binaries.
+No extra Player/Humanoid execution, RNG, touch/rules writes or Golden refresh.
