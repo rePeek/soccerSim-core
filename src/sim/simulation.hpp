@@ -20,7 +20,7 @@
 #include "sim/observation/player_slots.hpp"
 #include "sim/runtime/result.hpp"
 #include "sim/runtime/clock.hpp"
-#include "sim/fact/simulation_fact_sink.hpp"
+#include "sim/event/accepted_touch_sink.hpp"
 #include "sim/event/event_recognizer.hpp"
 #include "sim/event/touch_state.hpp"
 #include "sim/event/touch_record.hpp"
@@ -30,8 +30,7 @@
 #include "sim/player/player_tick_context.hpp"
 #include "sim/player/player_runtime_sink.hpp"
 #include "sim/player/foul_assessment.hpp"
-#include "sim/fact/simulation_fact.hpp"
-#include "sim/fact/tick_fact_buffer.hpp"
+
 #include "sim/referee/ruling.hpp"
 #include "sim/event/match_event.hpp"
 #include "sim/event/event_log.hpp"
@@ -89,15 +88,13 @@ class Simulation {
  private:
   friend class football::sim::testing::SimulationAccess;
   class RuleCommands;
-  class FactEvents;
+  class TouchEvents;
   class RulingEvents;
 
-  // Single fact production path: every contact consequence is buffered, then
-  // consumed, so the legacy synchronous rule-command order is preserved while
-  // the boundary between physics and rules is one immutable fact stream.
+  // Synchronous accepted-touch dispatch: bookkeeping, recognition and the
+  // referee consume happen at the exact legacy boundary and in legacy order.
   Player* FindPlayerById(football::model::PlayerId id) const;
-  void EmitFact(football::sim::event::SimulationFact fact);
-  void FlushFacts();
+  void DispatchTouch(const football::sim::event::AcceptedTouch& touch);
   void ApplyPendingRulings();
   // Exhaustive ruling execution: every defined verdict has an explicit handler,
   // so a new ruling type cannot be silently dropped by the executor.
@@ -203,17 +200,15 @@ class Simulation {
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;
   // Borrowed from rule_commands_; the concrete sink implements both ports.
   football::sim::PlayerRuntimeSink* player_runtime_sink_ = nullptr;
-  // Single write-only fact sink for ball touches and player trips.
-  std::unique_ptr<football::sim::SimulationFactSink> fact_sink_;
+  // Single synchronous accepted-touch sink.
+  std::unique_ptr<football::sim::AcceptedTouchSink> touch_sink_;
   std::unique_ptr<RulingEvents> ruling_sink_;
-  football::sim::event::TickFactBuffer facts_;
   std::vector<football::sim::event::RefereeRuling> pending_rulings_;
   std::vector<football::sim::FoulAssessment> foul_assessments_;
   football::sim::event::EventRecognizer recognizer_;
   football::sim::event::EventLog event_log_;
   // Read-only diagnostic log of accepted touches; shadow analysis only.
   std::vector<football::sim::event::RecordedTouch> recorded_touches_;
-  bool flushing_facts_ = false;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

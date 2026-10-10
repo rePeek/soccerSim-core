@@ -15,7 +15,7 @@ class MentalImage;
 
 namespace football::sim {
 
-class SimulationFactSink;
+class AcceptedTouchSink;
 
 // Borrowed, tick-local dependencies; neither Match nor Simulation is a service
 // locator for the resolver. All actors/ball/history must share one physical frame.
@@ -28,7 +28,7 @@ struct BallPlayerContactInputs {
   Tick now;
   Tick last_body_collision;
   // Write-only touch port; never queried for world state.
-  SimulationFactSink* touch_sink = nullptr;
+  AcceptedTouchSink* touch_sink = nullptr;
   const event::TouchState& touches;
 };
 

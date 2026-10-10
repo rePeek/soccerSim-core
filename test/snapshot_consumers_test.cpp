@@ -33,19 +33,15 @@ SnapshotRecord Frame(std::uint64_t step, Tick tick, std::uint64_t generation, st
   }
   return record;
 }
-event::StampedFact Touch(Tick tick, std::uint64_t generation, int action) {
-  event::StampedFact fact;
-  fact.tick = tick;
-  fact.generation = generation;
-  event::BallTouchFact touch;
+event::AcceptedTouch Touch(Tick tick, int action) {
+  event::AcceptedTouch touch;
   touch.touched_at = tick;
   touch.player = 7;
   touch.team = football::model::TeamSide::Home;
   touch.action_type = action;
   // Exact contact evidence intentionally differs from whole-step snapshots.
   touch.ball_position = {-100, 20, 0};
-  fact.fact = touch;
-  return fact;
+  return touch;
 }
 std::size_t Edges(const TemporalGraph& graph, TemporalEdgeKind kind) {
   return static_cast<std::size_t>(std::count_if(graph.edges.begin(), graph.edges.end(),
@@ -152,7 +148,7 @@ TEST_CASE("Event trajectory is published after resolution-step snapshot and cann
   SnapshotHistory history(10);
   history.Reset(0);
   event::EventRecognizer recognizer;
-  recognizer.Consume(Touch(Tick{10}, 7, e_FunctionType_ShortPass), {true, false, 1});
+  recognizer.Consume(Touch(Tick{10}, e_FunctionType_ShortPass), {true, false, 1, 7});
   REQUIRE(recognizer.HasActivePass());
   const auto id = std::get<event::PassStarted>(recognizer.transitions().front()).id;
   for (std::uint64_t step = 1; step < 4; ++step) {
@@ -161,7 +157,7 @@ TEST_CASE("Event trajectory is published after resolution-step snapshot and cann
     recognizer.PublishTrajectories(history);
     REQUIRE(recognizer.trajectories().empty());
   }
-  recognizer.Consume(Touch(Tick{13}, 7, e_FunctionType_BallControl), {true, false, 4});
+  recognizer.Consume(Touch(Tick{13}, e_FunctionType_BallControl), {true, false, 4, 7});
   const auto transition = std::get<event::PassEnded>(recognizer.transitions().front());
   REQUIRE(transition.status == event::EventStatus::Completed);
   REQUIRE(recognizer.trajectories().empty());
@@ -195,14 +191,14 @@ TEST_CASE("Event windows mark overwritten gaps and resets incomplete without inv
     SnapshotHistory history(scenario == 0 ? 2 : 10);
     history.Reset(0);
     event::EventRecognizer recognizer;
-    recognizer.Consume(Touch(Tick{10}, 7, e_FunctionType_ShortPass), {true, false, 1});
+    recognizer.Consume(Touch(Tick{10}, e_FunctionType_ShortPass), {true, false, 1, 7});
     for (std::uint64_t step = 1; step <= 4; ++step) {
       if (scenario == 1 && step == 2) continue;
       const auto frame = Frame(step, Tick{10 + step + (scenario == 2 && step > 1 ? 100 : 0)},
           scenario == 3 && step > 1 ? 8 : 7, 0);
       history.Record(frame.stamp, frame.snapshot);
     }
-    recognizer.Consume(Touch(Tick{13}, 7, e_FunctionType_BallControl), {true, false, 4});
+    recognizer.Consume(Touch(Tick{13}, e_FunctionType_BallControl), {true, false, 4, 7});
     recognizer.PublishTrajectories(history);
     REQUIRE(recognizer.trajectories().size() == 1);
     const auto& summary = recognizer.trajectories().front();
@@ -218,7 +214,7 @@ TEST_CASE("shot goals cancellations and diagnostic facts keep independent semant
   const auto frame = Frame(1, Tick{1}, 0, 0);
   history.Record(frame.stamp, frame.snapshot);
   event::EventRecognizer recognizer;
-  recognizer.Consume(Touch(Tick{}, 0, e_FunctionType_Shot), {true, false, 1});
+  recognizer.Consume(Touch(Tick{}, e_FunctionType_Shot), {true, false, 1, 0});
   recognizer.OnGoalConfirmed(Tick{1}, football::model::TeamSide::Home, 1);
   REQUIRE(std::get<event::ShotEnded>(recognizer.transitions().front()).goal);
   recognizer.PublishTrajectories(history);
@@ -227,13 +223,13 @@ TEST_CASE("shot goals cancellations and diagnostic facts keep independent semant
   REQUIRE(recognizer.trajectories().front().sample_count == 1);
   REQUIRE(recognizer.trajectories().front().ball_path_length == 0);
   recognizer.Reset();
-  recognizer.Consume(Touch(Tick{}, 0, e_FunctionType_ShortPass), {true, false, 1});
+  recognizer.Consume(Touch(Tick{}, e_FunctionType_ShortPass), {true, false, 1, 0});
   recognizer.Advance(Tick{1}, {false, false, 1});
   REQUIRE(std::get<event::PassEnded>(recognizer.transitions().front()).status == event::EventStatus::Cancelled);
   recognizer.PublishTrajectories(history);
   REQUIRE(recognizer.trajectories().size() == 1);
   recognizer.Reset();
-  recognizer.Consume(Touch(Tick{}, 0, e_FunctionType_Shot), {true, false}); // outside Step
+  recognizer.Consume(Touch(Tick{}, e_FunctionType_Shot), {true, false}); // outside Step
   recognizer.OnGoalConfirmed(Tick{1}, football::model::TeamSide::Home);
   recognizer.PublishTrajectories(history);
   REQUIRE(recognizer.trajectories().empty());

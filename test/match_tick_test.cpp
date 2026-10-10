@@ -182,7 +182,7 @@ TEST_CASE("Player touch and card effect timestamps use the timeline tick", "[sim
     auto* player = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
     const auto now = SimulationAccess::NowOf(simulation);
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
-    touch_sink.OnSimulationFact(football::sim::event::BallTouchFact{now, player->GetID(),
+    touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{now, player->GetID(),
         SimulationAccess::TeamOf(simulation, 0)->GetTeamSide(),
         e_TouchType_Intentional_Kicked,
         SimulationAccess::BallOf(simulation)->Predict(0),

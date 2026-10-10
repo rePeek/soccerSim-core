@@ -34,7 +34,7 @@ class Humanoid : public HumanoidBase {
     Player *CastPlayer() const;
 
     void Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
-                 std::span<MentalImage> history, football::sim::SimulationFactSink& touch_sink,
+                 std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink,
                  football::sim::PlayerRuntimeSink& runtime_sink) override;
 
 

@@ -70,9 +70,8 @@ src/
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
 │   ├── ball/         standalone Ball physics/environment, prediction timing, touch kinds
 │   │                 and ball_player_contact interaction
-│   ├── fact/         immutable SimulationFact values, ordered tick buffer, single sink
-│   ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState
-│   │                 and whole-step EventTrajectory (additive historical analysis)
+│   ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
+│   │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
 │   │                 MentalImage/player-image history + nearest-slot sampling,
 │   │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph,
@@ -278,15 +277,16 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   and control dispatch. ball/ball_player_contact resolves passive body contacts from
   explicit players/teams, touch facts, history and Tick values; it does not accept
   Match/Simulation or draw RNG. Per-volume body contacts and intentional touches
-  publish immutable facts through fact/simulation_fact_sink.hpp's write-only
-  SimulationFactSink. The Simulation-owned FactEvents sink writes Player touch
-  tick/type and TouchState team/type/full-width PlayerId records, then buffers and
-  immediately consumes the fact. MatchTouchSink and Match::SetLastTouchTeamID are
-  deleted. Team's touch pointer,
-  NoteLastTouchPlayer and touch queries are also deleted. event/touch_query resolves
-  identities from explicit rosters (including inactive/sent-off actors), with explicit
-  evaluation ticks for decay. Contact sweeps borrow the live TouchState so earlier
-  publications remain visible; snapshots or fixed pre-sweep biases would change behavior.
+  publish one AcceptedTouch through event/accepted_touch_sink.hpp's write-only
+  AcceptedTouchSink. The Simulation-owned TouchEvents sink writes Player touch
+  tick/type and TouchState team/type/full-width PlayerId records, records the
+  diagnostic AcceptedTouch log and immediately dispatches to the event recognizer
+  and referee in the same call. MatchTouchSink and Match::SetLastTouchTeamID are
+  deleted. Team's touch pointer, NoteLastTouchPlayer and touch queries are also
+  deleted. event/touch_query resolves identities from explicit rosters (including
+  inactive/sent-off actors), with explicit evaluation ticks for decay. Contact
+  sweeps borrow the live TouchState so earlier publications remain visible;
+  snapshots or fixed pre-sweep biases would change behavior.
   Publication stays synchronous inside the tick. Never freeze touch
   biases before the sweep: later actors must see earlier touches in the same tick.
 - Ball owns a copied model::Pitch, never Match/Simulation, Team, Player or RNG.
@@ -350,7 +350,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   proximity; it is not wired into TouchState, actors, the referee or the
   event recognizer.
 - event/touch_record.hpp + Simulation::recorded_touches_ capture each accepted
-  BallTouchFact read-only (executed step, generation, player, touch type,
+  AcceptedTouch read-only (executed step, generation, player, touch type,
   action type, with multiplicity preserved); SimulationAccess::RecordedTouchesOf
   exposes it for shadow analysis. C.1.1 diagnoses every miss against this
   ground truth: over 4000 DefaultAI steps there were 11 kicked / 28 nonkicked /
@@ -462,7 +462,7 @@ MatchState or a RuntimeContext for actors.
 
 Current phase order (composed directly by Simulation):
 ```text
-ApplyControls → ResolveBallPlayerContacts (BallTouchFact → FlushFacts)
+ApplyControls → ResolveBallPlayerContacts (AcceptedTouch → bookkeeping → recognizer → referee)
 → ProcessReferee (Advance → EvaluateOutOfPlay → CheckPendingFoul)
 → StepBall → CaptureHistory → StepPlayers → UpdatePossession
 → ResolvePlayerContacts (FoulAssessment → Referee::AssessFoul) → AdvanceClock
@@ -472,22 +472,18 @@ ApplyControls → ResolveBallPlayerContacts (BallTouchFact → FlushFacts)
 Terminal-referee and ceremony early returns keep their existing frame restoration
 and clock behavior; this sequence is not permission to reorder legacy phases.
 
-SimulationFact pipeline: physics and actors publish immutable ball facts; the player
-contact solver publishes FoulAssessment values. The referee consumes both and
-decides, and Simulation applies the verdicts.
+Accepted-touch path: physics and actors publish one AcceptedTouch per accepted
+contact; the player contact solver publishes FoulAssessment values. The referee
+consumes both and decides, and Simulation applies the verdicts.
 ```text
-Entity state → Simulation tick → SimulationFact → RefereeState → Ruling
-             → Simulation → new state → MatchEvent
+Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeState
+             → Ruling → Simulation → new state → MatchEvent
 ```
-- fact/simulation_fact.hpp owns only BallTouchFact plus StampedFact identity
-  (tick, reset generation, sequence). Facts carry PlayerId/TeamSide and frozen
-  evidence, never live actor pointers; a consumer resolves them through RefereeView.
-- fact/tick_fact_buffer.hpp owns one ordered per-tick stream with BeginTick/Emit/
-  PopPending. There are no per-kind queues; PopPending returns by value so consuming
-  cannot invalidate references. BeginTick reuses storage and drops the previous tick.
-- fact/simulation_fact_sink.hpp is the write-only port for ball facts. Players and
-  humanoids report touches through it and no longer include Referee; player_contact
-  reports FoulAssessment instead.
+- event/accepted_touch.hpp + event/accepted_touch_sink.hpp own the transitional
+  AcceptedTouch value (touched_at, player, team, touch type, ball pos/vel, action
+  type) and its write-only AcceptedTouchSink::OnAcceptedTouch callback. There is no
+  SimulationFact/StampedFact/TickFactBuffer machinery; player_contact reports
+  FoulAssessment instead.
 - referee/ruling.hpp owns the domain verdicts. Referee production stages are
   Advance/EvaluateOutOfPlay/Consume/CheckPendingFoul plus AssessFoul/GoalMouthCrossed;
   TripNotice and BallTouched stay
@@ -496,13 +492,12 @@ Entity state → Simulation tick → SimulationFact → RefereeState → Ruling
   records confirmed MatchEvents in the owned EventLog.
 - Goal-line priority is preserved by classifying at most one out-of-play
   condition per instant (goal-line else touchline) directly from the live ball,
-- Emission flushes immediately in this stage so trip/touch consequences stay
-  synchronous at the legacy points and goldens are unchanged; a flushing guard
-  forbids recursive drains. Facts are stamped with the live timeline tick, so
-  diagnostic publications outside Step keep the legacy now.
+- The accepted-touch callback keeps the legacy synchronous order inside the tick;
+  there is no buffering/flush guard. Touch bookkeeping, event recognition,
+  transition commit and referee consumption all happen in the producer's call.
 - event/event.hpp + event_transition.hpp own recognized football behavior and its
   immediate transitions. EventRecognizer opens a PassEvent/ShotEvent from an
-  accepted action carried on BallTouchFact, resolves it on the next touch, a
+  accepted action carried on AcceptedTouch, resolves it on the next touch, a
   timeout or a confirmed goal, and draws no RNG or world state. Simulation runs the
   recognizer on each fact before the referee and records PassCompleted/ShotEnded
   MatchEvents; the referee still judges the same immutable fact, so recognition is

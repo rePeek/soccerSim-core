@@ -270,7 +270,7 @@ TEST_CASE("snapshot touch inference miss attribution shadow",
     REQUIRE(after != nullptr);
     const SnapshotRecord current = *after;
 
-    // Ground truth from the accepted BallTouchFact log, keyed by the executed
+    // Ground truth from the accepted AcceptedTouch log, keyed by the executed
     // step the snapshot records (never the possibly-repeating timeline tick).
     std::vector<RecordedTouch> step_touches;
     for (const RecordedTouch& touch : SimulationAccess::RecordedTouchesOf(simulation)) {

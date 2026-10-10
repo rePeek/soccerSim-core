@@ -7,8 +7,6 @@
 
 #include "foundation/time/tick.hpp"
 #include "sim/player/foul_assessment.hpp"
-#include "sim/fact/simulation_fact_sink.hpp"
-#include "sim/player/foul_assessment.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

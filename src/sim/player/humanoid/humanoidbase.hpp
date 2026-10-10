@@ -34,7 +34,7 @@
 #include <chrono>
 #include <span>
 
-namespace football::sim { class SimulationFactSink; class PlayerRuntimeSink; }
+namespace football::sim { class AcceptedTouchSink; class PlayerRuntimeSink; }
 
 using namespace blunted;
 
@@ -348,7 +348,7 @@ class HumanoidBase {
 
     // Tick-local borrows: observation history and the write-only touch port.
     virtual void Process(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
-                        std::span<MentalImage> history, football::sim::SimulationFactSink& touch_sink,
+                        std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink,
                         football::sim::PlayerRuntimeSink& runtime_sink);
 
     inline int GetFrameNum() { return currentAnim.frameNum; }

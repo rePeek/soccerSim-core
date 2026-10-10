@@ -10,7 +10,7 @@
 
 #include "default_ai_fixture.hpp"
 #include "app/fixtures/default_teams.hpp"
-#include "sim/fact/simulation_fact_sink.hpp"
+#include "sim/event/accepted_touch_sink.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/player/player_motion_constants.hpp"
@@ -212,7 +212,7 @@ TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]")
   REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
   SimulationAccess::BallOf(runtime.simulation)->ResetSituation(Vector3(-52, 0, 0));
   auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
-  touch_sink.OnSimulationFact(football::sim::event::BallTouchFact{
+  touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
       SimulationAccess::NowOf(runtime.simulation), team->GetAllPlayers()[1]->GetID(),
       team->GetTeamSide(), e_TouchType_Intentional_Kicked,
       SimulationAccess::BallOf(runtime.simulation)->Predict(0),
@@ -230,7 +230,7 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
     REQUIRE_FALSE(SimulationAccess::IsInSetPieceOf(runtime.simulation));
     const int last_team = mode == e_GameMode_Corner ? 1 : 0;
     auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
-    touch_sink.OnSimulationFact(football::sim::event::BallTouchFact{
+    touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
         SimulationAccess::NowOf(runtime.simulation),
         SimulationAccess::TeamOf(runtime.simulation, last_team)->GetAllPlayers()[1]->GetID(),
         SimulationAccess::TeamOf(runtime.simulation, last_team)->GetTeamSide(),

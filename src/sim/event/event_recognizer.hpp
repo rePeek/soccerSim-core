@@ -6,7 +6,7 @@
 
 #include "sim/event/event.hpp"
 #include "sim/event/event_transition.hpp"
-#include "sim/fact/simulation_fact.hpp"
+#include "sim/event/accepted_touch.hpp"
 #include "sim/event/event_trajectory.hpp"
 #include "sim/observation/snapshot_history.hpp"
 
@@ -20,6 +20,8 @@ struct EventView {
   bool in_set_piece = false;
   // Present only during an executing Simulation step, not diagnostic facts.
   std::optional<std::uint64_t> snapshot_step;
+  // Reset generation at the accepted-touch instant, for trajectory windows.
+  std::uint64_t generation = 0;
 };
 
 // Recognizes cross-tick football behaviors from the immutable fact stream. It
@@ -28,7 +30,7 @@ struct EventView {
 // actor state, so recognition cannot perturb physics or the match.
 class EventRecognizer {
  public:
-  void Consume(const StampedFact& fact, const EventView& view);
+  void Consume(const AcceptedTouch& touch, const EventView& view);
   void Advance(Tick now, const EventView& view);
   void OnGoalConfirmed(Tick now, model::TeamSide team,
                        std::optional<std::uint64_t> snapshot_step = std::nullopt);

@@ -31,7 +31,7 @@
 #include "sim/referee/referee_view.hpp"
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/simulation_config.hpp"
-#include "sim/fact/simulation_fact.hpp"
+#include "sim/event/accepted_touch.hpp"
 #include "sim/player/foul_assessment.hpp"
 #include "sim/referee/ruling.hpp"
 #include "foundation/math/rng.hpp"
@@ -74,13 +74,8 @@ class Referee {
     void GoalMouthCrossed(int side, const football::sim::rules::RefereeTickFacts& facts,
                           football::sim::event::RulingSink* rulings);
 
-    // Consumes one immutable ball fact at its own instant through the
-    // synchronous write-only rule port.
-    void Consume(const football::sim::event::StampedFact& fact,
-                 const football::sim::rules::RefereeView& view,
-                 football::sim::rules::RuleCommandSink& commands);
-
     // Pending-foul time advance for the current instant (advantage/expiry).
+
     void CheckPendingFoul(const football::sim::rules::RefereeView& view,
                           football::sim::rules::RuleCommandSink& commands);
 
@@ -107,6 +102,11 @@ class Referee {
     bool CheckFoul(football::sim::Tick now, const football::model::Pitch& pitch,
                    PitchFrameTransform stadium_to_home,
                    football::sim::rules::RuleCommandSink& commands);
+    // Synchronous accepted-touch consumption (restart release / offside).
+    void ConsumeBallTouch(football::sim::Tick now,
+                          const football::sim::event::AcceptedTouch& fact,
+                          const football::sim::rules::RefereeView& view,
+                          football::sim::rules::RuleCommandSink& commands);
 
     Player *GetCurrentFoulPlayer() { return foul.foulPlayer; }
     int GetCurrentFoulType() { return foul.foulType; }
@@ -134,10 +134,6 @@ class Referee {
     void EvaluateBallTouch(const football::sim::rules::BallTouchFacts& facts,
                            football::sim::rules::RuleCommandSink& commands);
 
-    void ConsumeBallTouch(football::sim::Tick now,
-                          const football::sim::event::BallTouchFact& fact,
-                          const football::sim::rules::RefereeView& view,
-                          football::sim::rules::RuleCommandSink& commands);
     void SettleGoalLine(const blunted::Vector3& ball_pos,
                         const football::sim::rules::RefereeTickFacts& facts,
                         football::sim::rules::RuleCommandSink& commands);

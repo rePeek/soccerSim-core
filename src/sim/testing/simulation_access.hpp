@@ -40,9 +40,9 @@ class SimulationAccess {
     return {*simulation.ball_, simulation.touches_, RulesOf(simulation).GetBuffer(),
             simulation.ball_retainer_, simulation.pitch_};
   }
-  static SimulationFactSink& EventsOf(Simulation& simulation) {
-    if (!simulation.fact_sink_) throw std::logic_error("simulation has no match");
-    return *simulation.fact_sink_;
+  static AcceptedTouchSink& EventsOf(Simulation& simulation) {
+    if (!simulation.touch_sink_) throw std::logic_error("simulation has no match");
+    return *simulation.touch_sink_;
   }
   static event::TouchState& TouchesOf(Simulation& simulation) {
     if (!simulation.ball_) throw std::logic_error("simulation has no match");
@@ -141,7 +141,7 @@ class SimulationAccess {
   static const std::vector<FoulAssessment>& FoulAssessmentsOf(const Simulation& s) {
     return s.foul_assessments_;
   }
-  // Accepted-touch log captured where BallTouchFact was produced; shadow only.
+  // Accepted-touch log captured where AcceptedTouch was produced; shadow only.
   static const std::vector<football::sim::event::RecordedTouch>& RecordedTouchesOf(
       const Simulation& s) {
     return s.recorded_touches_;

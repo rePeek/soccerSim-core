@@ -131,22 +131,22 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
 
 // The single write-only fact-production port. Touch bookkeeping stays synchronous
 // so later actors observe earlier touches; every fact then enters the tick buffer.
-class Simulation::FactEvents final : public football::sim::SimulationFactSink {
+// The single synchronous accepted-touch port. Touch bookkeeping stays in the
+// legacy order so later actors observe earlier touches.
+class Simulation::TouchEvents final : public football::sim::AcceptedTouchSink {
  public:
-  explicit FactEvents(Simulation& simulation) : simulation_(simulation) {}
-  void OnSimulationFact(football::sim::event::SimulationFact fact) override {
-    if (auto* touch = std::get_if<football::sim::event::BallTouchFact>(&fact)) {
-      Player* player = simulation_.FindPlayerById(touch->player);
-      if (player != nullptr) {
-        player->SetLastTouchTick(touch->touched_at);
-        player->SetLastTouchType(touch->type);
-      }
-      simulation_.touches_.Record(static_cast<int>(touch->team), touch->player, touch->type);
-      simulation_.recorded_touches_.push_back(football::sim::event::RecordedTouch{
-          simulation_.snapshot_step_.value_or(0), simulation_.reset_sequence_,
-          touch->player, touch->type, touch->action_type});
+  explicit TouchEvents(Simulation& simulation) : simulation_(simulation) {}
+  void OnAcceptedTouch(const football::sim::event::AcceptedTouch& touch) override {
+    Player* player = simulation_.FindPlayerById(touch.player);
+    if (player != nullptr) {
+      player->SetLastTouchTick(touch.touched_at);
+      player->SetLastTouchType(touch.type);
     }
-    simulation_.EmitFact(std::move(fact));
+    simulation_.touches_.Record(static_cast<int>(touch.team), touch.player, touch.type);
+    simulation_.recorded_touches_.push_back(football::sim::event::RecordedTouch{
+        simulation_.snapshot_step_.value_or(0), simulation_.reset_sequence_,
+        touch.player, touch.type, touch.action_type});
+    simulation_.DispatchTouch(touch);
   }
  private:
   Simulation& simulation_;
@@ -174,40 +174,20 @@ class Simulation::RulingEvents final : public football::sim::event::RulingSink {
 };
 
 
-void Simulation::EmitFact(football::sim::event::SimulationFact fact) {
-  // Facts are stamped with the live timeline instant, not a possibly stale
-  // buffer tick: diagnostic publications happen outside Step as well.
-  if (!flushing_facts_ &&
-      (facts_.tick() != GetTimelineTick() || facts_.generation() != reset_sequence_)) {
-    facts_.BeginTick(GetTimelineTick(), reset_sequence_);
+void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch) {
+  const auto tick = RefereeFacts();
+  std::vector<Player*> active;
+  if (options_.offsides) {
+    teams_[first_team_]->GetActivePlayers(active);
+    teams_[second_team_]->GetActivePlayers(active);
   }
-  facts_.Emit(std::move(fact));
-  // Immediate-consumption stage: preserve the legacy synchronous rule order
-  // while the communication boundary becomes one immutable fact stream.
-  if (!flushing_facts_) FlushFacts();
-}
-
-void Simulation::FlushFacts() {
-  // No recursive drain: a fact produced while consuming is appended and handled
-  // by this outer loop.
-  if (flushing_facts_) return;
-  flushing_facts_ = true;
-  while (auto stamped = facts_.PopPending()) {
-    const auto tick = RefereeFacts();
-    std::vector<Player*> active;
-    if (options_.offsides) {
-      teams_[first_team_]->GetActivePlayers(active);
-      teams_[second_team_]->GetActivePlayers(active);
-    }
-    const football::sim::rules::RefereeView view{tick, active, options_.offsides};
-    // Recognize behavior first, then let the referee judge the same fact. Both
-    // read the same immutable record and the same admitted instant.
-    recognizer_.Consume(*stamped,
-        football::sim::event::EventView{tick.play_authorized, tick.set_piece_active, snapshot_step_});
-    CommitEventTransitions(stamped->tick);
-    referee_->Consume(*stamped, view, *rule_commands_);
-  }
-  flushing_facts_ = false;
+  const football::sim::rules::RefereeView view{tick, active, options_.offsides};
+  // Recognize behavior first, then let the referee judge the same touch. Both
+  // read the same immutable record and the same admitted instant.
+  recognizer_.Consume(touch,
+      football::sim::event::EventView{tick.play_authorized, tick.set_piece_active, snapshot_step_, reset_sequence_});
+  CommitEventTransitions(touch.touched_at);
+  referee_->ConsumeBallTouch(touch.touched_at, touch, view, *rule_commands_);
 }
 
 void Simulation::ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling) {
@@ -361,13 +341,11 @@ void Simulation::Init(
 
   EnsureAnimationLibrary();
   clock_.emplace(options.half_duration);
-  facts_.BeginTick(GetTimelineTick(), reset_sequence_);
   pending_rulings_.clear();
   foul_assessments_.clear();
   recorded_touches_.clear();
   recognizer_.Reset();
   event_log_.Clear();
-  flushing_facts_ = false;
   snapshot_step_.reset();
   options_ = options;
   pitch_ = pitch;
@@ -399,7 +377,7 @@ void Simulation::Init(
 
   auto referee = std::make_unique<Referee>(*teams[first_team_], options.ball_position);
   auto commands = std::make_unique<RuleCommands>(*this);
-  auto facts = std::make_unique<FactEvents>(*this);
+  auto touches = std::make_unique<TouchEvents>(*this);
   auto rulings = std::make_unique<RulingEvents>(*this);
 
   std::vector<Player*> snapshot_players;
@@ -427,7 +405,7 @@ void Simulation::Init(
   referee_ = std::move(referee);
   player_runtime_sink_ = commands.get();
   rule_commands_ = std::move(commands);
-  fact_sink_ = std::move(facts);
+  touch_sink_ = std::move(touches);
   ruling_sink_ = std::move(rulings);
   snapshot_players_ = std::move(snapshot_players);
   snapshot_metadata_ = std::move(metadata);
@@ -477,7 +455,6 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   }
   clock_->CountExecutedStep(phase_);
   snapshot_step_ = clock_->ExecutedTicks();
-  facts_.BeginTick(GetTimelineTick(), reset_sequence_);
   pending_rulings_.clear();
   foul_assessments_.clear();
 
@@ -503,7 +480,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     Team* roster_ptrs[2] = {teams_[0].get(), teams_[1].get()};
     const football::sim::BallPlayerContactInputs inputs{
         roster_ptrs, first_team_, touches_.last_team, mental_images_,
-        GetTimelineTick(), last_body_ball_collision_tick_, &*fact_sink_, touches_};
+        GetTimelineTick(), last_body_ball_collision_tick_, &*touch_sink_, touches_};
     const auto contact = football::sim::ResolveBallPlayerContacts(
         *ball_, players, inputs);
     if (contact.impulse) {
@@ -551,7 +528,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     football::sim::player::PrepareTeamPossession(team, opponent, play_authorized_,
         set_piece_active_, ball_retainer_, best_possession_team_);
     for (Player* actor : team.GetAllPlayers()) {
-      if (actor->IsActive()) actor->Process(PlayerTickFacts(*actor), mental_images_, *fact_sink_, *player_runtime_sink_);
+      if (actor->IsActive()) actor->Process(PlayerTickFacts(*actor), mental_images_, *touch_sink_, *player_runtime_sink_);
     }
     football::sim::player::FinishTeamPossession(team, opponent);
   };
@@ -597,7 +574,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   UpdateRecentPossession(admitted);
   // Time out unresolved behavior before a possible goal confirms a shot.
   recognizer_.Advance(GetTimelineTick(),
-      football::sim::event::EventView{play_authorized_, set_piece_active_, snapshot_step_});
+      football::sim::event::EventView{play_authorized_, set_piece_active_, snapshot_step_, reset_sequence_});
   CommitEventTransitions(GetTimelineTick());
 
   bool first_team_goal = false;
@@ -683,7 +660,6 @@ void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
 void Simulation::ResetSituation(const Vector3& focus_position) {
   if (!ball_) throw std::logic_error("simulation has no match");
   ++reset_sequence_;
-  facts_.BeginTick(GetTimelineTick(), reset_sequence_);
   pending_rulings_.clear();
   foul_assessments_.clear();
   ball_retainer_ = nullptr;
@@ -862,7 +838,7 @@ bool Simulation::Stop() {
   // Stop releases memory; Finished keeps the complete retained window alive.
   snapshot_history_ = football::sim::observation::SnapshotHistory{};
   snapshot_step_.reset();
-  fact_sink_.reset();
+  touch_sink_.reset();
   ruling_sink_.reset();
   player_runtime_sink_ = nullptr;
   rule_commands_.reset();

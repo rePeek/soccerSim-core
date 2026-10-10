@@ -289,16 +289,12 @@ void Referee::CheckPendingFoul(const football::sim::rules::RefereeView& view,
   CheckFoul(view.tick.now, view.tick.pitch, view.tick.stadium_to_home, commands);
 }
 
-void Referee::Consume(const football::sim::event::StampedFact& fact,
-                      const football::sim::rules::RefereeView& view,
-                      RuleCommandSink& commands) {
-  const auto* touch = std::get_if<football::sim::event::BallTouchFact>(&fact.fact);
-  if (touch != nullptr) ConsumeBallTouch(fact.tick, *touch, view, commands);
-}
+
+
 
 
 void Referee::ConsumeBallTouch(Tick now,
-                               const football::sim::event::BallTouchFact& fact,
+                               const football::sim::event::AcceptedTouch& fact,
                                const football::sim::rules::RefereeView& view,
                                RuleCommandSink& commands) {
   Player* player = FindPlayer(view.tick, fact.player);

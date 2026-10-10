@@ -12,18 +12,15 @@ using football::sim::Tick;
 
 namespace event = football::sim::event;
 
-event::StampedFact Touch(Tick tick, football::model::PlayerId player,
+event::AcceptedTouch Touch(Tick tick, football::model::PlayerId player,
                          football::model::TeamSide team, int action) {
-  event::StampedFact stamped;
-  stamped.tick = tick;
-  event::BallTouchFact fact;
+  event::AcceptedTouch fact;
   fact.touched_at = tick;
   fact.player = player;
   fact.team = team;
   fact.type = e_TouchType_Intentional_Kicked;
   fact.action_type = action;
-  stamped.fact = fact;
-  return stamped;
+  return fact;
 }
 
 const event::EventView kLive{true, false};

@@ -10,7 +10,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/player/player_ball_contact.hpp"
-#include "sim/fact/simulation_fact_sink.hpp"
+#include "sim/event/accepted_touch_sink.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
@@ -35,7 +35,7 @@ struct ContactFixture {
   Player* home;
   Player* away;
   // Borrows the owner's write-only publication port for direct contact calls.
-  SimulationFactSink* touch_sink = nullptr;
+  AcceptedTouchSink* touch_sink = nullptr;
 
   explicit ContactFixture(bool reverse) {
     MatchOptions options;
@@ -58,7 +58,7 @@ struct ContactFixture {
     away->ResetPosition(Vector3(0), Vector3(1, 0, 0));
     simulation.AdvanceTime(Seconds(1));
     auto& touch_sink = SimulationAccess::EventsOf(simulation);
-    touch_sink.OnSimulationFact(football::sim::event::BallTouchFact{
+    touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
         SimulationAccess::NowOf(simulation), teams[1]->GetAllPlayers()[2]->GetID(),
         teams[1]->GetTeamSide(), e_TouchType_Intentional_Kicked,
         SimulationAccess::BallOf(simulation)->Predict(0),

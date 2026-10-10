@@ -8,8 +8,6 @@
 #include "sim/event/event_log.hpp"
 #include "sim/event/match_event.hpp"
 #include "sim/referee/ruling.hpp"
-#include "sim/fact/simulation_fact.hpp"
-#include "sim/fact/tick_fact_buffer.hpp"
 #include "sim/referee/referee_view.hpp"
 #include "sim/simulation.hpp"
 #include "sim/testing/simulation_access.hpp"
@@ -23,48 +21,6 @@ using blunted::Vector3;
 namespace event = football::sim::event;
 namespace rules = football::sim::rules;
 
-TEST_CASE("tick fact buffer preserves emission order, identity and generation",
-          "[sim][event][fact]") {
-  event::TickFactBuffer buffer;
-  buffer.BeginTick(Tick{5}, 7);
-  REQUIRE_FALSE(buffer.HasPending());
-  REQUIRE(buffer.empty());
-
-  REQUIRE(buffer.Emit(event::BallTouchFact{}) == 0);
-  REQUIRE(buffer.Emit(event::BallTouchFact{}) == 1);
-  REQUIRE(buffer.Emit(event::BallTouchFact{}) == 2);
-  REQUIRE(buffer.pending_count() == 3);
-
-  auto first = buffer.PopPending();
-  REQUIRE(first.has_value());
-  REQUIRE(first->tick == Tick{5});
-  REQUIRE(first->generation == 7);
-  REQUIRE(first->sequence == 0);
-  REQUIRE(std::holds_alternative<event::BallTouchFact>(first->fact));
-
-  auto second = buffer.PopPending();
-  REQUIRE(second.has_value());
-  REQUIRE(second->sequence == 1);
-  REQUIRE(std::holds_alternative<event::BallTouchFact>(second->fact));
-
-  auto third = buffer.PopPending();
-  REQUIRE(third.has_value());
-  REQUIRE(third->sequence == 2);
-  REQUIRE(std::holds_alternative<event::BallTouchFact>(third->fact));
-
-  REQUIRE_FALSE(buffer.PopPending().has_value());
-  REQUIRE_FALSE(buffer.HasPending());
-  REQUIRE(buffer.pending_count() == 0);
-  REQUIRE_FALSE(buffer.empty());  // Storage is reused until the next BeginTick.
-
-  // A new tick drops the previous stream and restarts the sequence.
-  buffer.BeginTick(Tick{6}, 8);
-  REQUIRE(buffer.empty());
-  REQUIRE_FALSE(buffer.HasPending());
-  REQUIRE(buffer.Emit(event::BallTouchFact{}) == 0);
-  REQUIRE(buffer.tick() == Tick{6});
-  REQUIRE(buffer.generation() == 8);
-}
 
 TEST_CASE("event log stores only confirmed match history", "[sim][event][log]") {
   event::EventLog log;

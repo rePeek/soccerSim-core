@@ -66,47 +66,45 @@ void EventRecognizer::CancelActive(Tick now, std::optional<std::uint64_t> snapsh
   ResolveShot(EventStatus::Cancelled, false, now, snapshot_step);
 }
 
-void EventRecognizer::Consume(const StampedFact& fact, const EventView& view) {
+void EventRecognizer::Consume(const AcceptedTouch& touch, const EventView& view) {
   transitions_.clear();
-  const auto* touch = std::get_if<BallTouchFact>(&fact.fact);
-  if (touch == nullptr) return;
   if (!view.in_play || view.in_set_piece) return;
 
   // Resolve an open behavior with this touch before opening a new one, so a
   // teammate's reception completes the pass and can start its own action.
   if (pending_pass_) {
-    if (touch->team == pending_pass_->team) {
-      ResolvePass(EventStatus::Completed, touch->player, fact.tick, view.snapshot_step);
+    if (touch.team == pending_pass_->team) {
+      ResolvePass(EventStatus::Completed, touch.player, touch.touched_at, view.snapshot_step);
     } else {
-      ResolvePass(EventStatus::Failed, std::nullopt, fact.tick, view.snapshot_step);
+      ResolvePass(EventStatus::Failed, std::nullopt, touch.touched_at, view.snapshot_step);
     }
   }
   if (pending_shot_) {
-    ResolveShot(EventStatus::Failed, false, fact.tick, view.snapshot_step);
+    ResolveShot(EventStatus::Failed, false, touch.touched_at, view.snapshot_step);
   }
 
-  if (IsPassAction(touch->action_type)) {
+  if (IsPassAction(touch.action_type)) {
     PassEvent event;
     event.id = NextId();
-    event.passer = touch->player;
-    event.team = touch->team;
-    event.started_at = fact.tick;
+    event.passer = touch.player;
+    event.team = touch.team;
+    event.started_at = touch.touched_at;
     pending_pass_ = event;
     if (view.snapshot_step)
-      pass_motion_ = MotionWindow{event.id, *view.snapshot_step, *view.snapshot_step, fact.generation,
+      pass_motion_ = MotionWindow{event.id, *view.snapshot_step, *view.snapshot_step, view.generation,
                                   TrajectoryKind::Pass, event.passer, event.team};
-    transitions_.push_back(PassStarted{event.id, event.passer, event.team, fact.tick});
-  } else if (IsShotAction(touch->action_type)) {
+    transitions_.push_back(PassStarted{event.id, event.passer, event.team, touch.touched_at});
+  } else if (IsShotAction(touch.action_type)) {
     ShotEvent event;
     event.id = NextId();
-    event.shooter = touch->player;
-    event.team = touch->team;
-    event.started_at = fact.tick;
+    event.shooter = touch.player;
+    event.team = touch.team;
+    event.started_at = touch.touched_at;
     pending_shot_ = event;
     if (view.snapshot_step)
-      shot_motion_ = MotionWindow{event.id, *view.snapshot_step, *view.snapshot_step, fact.generation,
+      shot_motion_ = MotionWindow{event.id, *view.snapshot_step, *view.snapshot_step, view.generation,
                                   TrajectoryKind::Shot, event.shooter, event.team};
-    transitions_.push_back(ShotStarted{event.id, event.shooter, event.team, fact.tick});
+    transitions_.push_back(ShotStarted{event.id, event.shooter, event.team, touch.touched_at});
   }
 }
 

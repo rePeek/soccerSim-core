@@ -293,7 +293,7 @@ TEST_CASE("the explicit touch sink is the only publication path for actor touche
   const auto rng = SimulationAccess::RngOf(simulation).engine();
   const auto now = Tick{77};
   auto& sink = SimulationAccess::EventsOf(simulation);
-  sink.OnSimulationFact(football::sim::event::BallTouchFact{now, player->GetID(),
+  sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{now, player->GetID(),
       team->GetTeamSide(), e_TouchType_Intentional_Nonkicked,
       SimulationAccess::BallOf(simulation)->Predict(0),
       SimulationAccess::BallOf(simulation)->GetMovement()});
@@ -493,7 +493,7 @@ TEST_CASE("the fact sink records the touch and buffers an immutable fact",
   auto* player = team->GetAllPlayers()[1];
   auto& sink = SimulationAccess::EventsOf(simulation);
   const auto rng = SimulationAccess::RngOf(simulation).engine();
-  sink.OnSimulationFact(football::sim::event::BallTouchFact{Tick{77}, player->GetID(),
+  sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{Tick{77}, player->GetID(),
       team->GetTeamSide(), e_TouchType_Intentional_Nonkicked,
       SimulationAccess::BallOf(simulation)->Predict(0),
       SimulationAccess::BallOf(simulation)->GetMovement()});
@@ -521,11 +521,11 @@ TEST_CASE("event touch identities survive send-offs and reset without team bookk
   auto* away_actor = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
   auto& events = SimulationAccess::EventsOf(simulation);
   const auto rng = SimulationAccess::RngOf(simulation).engine();
-  events.OnSimulationFact(football::sim::event::BallTouchFact{Tick{17}, home_actor->GetID(),
+  events.OnAcceptedTouch(football::sim::event::AcceptedTouch{Tick{17}, home_actor->GetID(),
       SimulationAccess::TeamOf(simulation, 0)->GetTeamSide(),
       e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->Predict(0),
       SimulationAccess::BallOf(simulation)->GetMovement()});
-  events.OnSimulationFact(football::sim::event::BallTouchFact{Tick{19}, away_actor->GetID(),
+  events.OnAcceptedTouch(football::sim::event::AcceptedTouch{Tick{19}, away_actor->GetID(),
       SimulationAccess::TeamOf(simulation, 1)->GetTeamSide(),
       e_TouchType_Accidental, SimulationAccess::BallOf(simulation)->Predict(0),
       SimulationAccess::BallOf(simulation)->GetMovement()});
