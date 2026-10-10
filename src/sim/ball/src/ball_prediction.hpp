@@ -1,29 +1,25 @@
 #ifndef FOOTBALL_BALL_BALL_PREDICTION_HPP
 #define FOOTBALL_BALL_BALL_PREDICTION_HPP
 
-// Private to football::ball. Owns the legacy prediction array and its
-// shift-by-one cache optimization. Consumers see predictions only through
-// Ball::Predict / Ball::GetPredictionArray.
+// Private to football::ball. Owns the legacy position-prediction array and its
+// shift-by-one cache optimization. The cache is strictly read-only: it never
+// feeds the authoritative BallState (see Ball::Step).
 
+#include <span>
 #include <vector>
 
-#include "model/ball_config.hpp"
+#include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_environment.hpp"
+#include "football/ball/ball_state.hpp"
 #include "football/ball/ball_timing.hpp"
+#include "football/ball/collider.hpp"
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
-#include "ball_physics.hpp"
-#include "model/pitch.hpp"
 #include "foundation/time/tick.hpp"
+#include "model/ball_config.hpp"
+#include "model/pitch.hpp"
 
 namespace football::ball::detail {
-
-// PhysicsState is defined by ball_physics.hpp; PredictionResult stores it by value.
-
-struct PredictionResult {
-  // Physical state advanced by the first prediction tick.
-  PhysicsState step_one;
-};
 
 class BallPredictionCache {
  public:
@@ -31,16 +27,18 @@ class BallPredictionCache {
 
   void Invalidate();
   void Mirror();
-  // Fills only the legacy kPredictionHorizon samples, exactly like the old
+  // Fills the legacy kPredictionHorizon samples, exactly like the old
   // ResetSituation body.
   void Reset(const blunted::Vector3& focus_position);
 
-  // Recomputes the full horizon from `initial` and returns the step-one state.
-  void Compute(const PhysicsState& initial,
+  // Recomputes the full horizon from `initial`. Pure read of `initial`; never
+  // writes the authoritative state.
+  void Compute(const BallState& initial,
                const football::model::BallConfig& config,
                const football::model::Pitch& pitch,
-               const football::ball::BallEnvironment& environment,
-               PredictionResult& result);
+               std::span<const ColliderMotion> colliders,
+               const BallDynamics& dynamics,
+               const football::ball::BallEnvironment& environment);
 
   blunted::Vector3 Sample(football::sim::TickSpan horizon) const;
   void CopyTo(std::vector<blunted::Vector3>& target) const;

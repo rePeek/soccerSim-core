@@ -297,34 +297,76 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     return {0, 0, 0};
   };
 
+  // Resting contact that starts already penetrating must be projected back to
+  // the surface before the impulse is applied; otherwise a ball below grass
+  // level would keep bouncing in place without ever being separated.
+  const auto depenetrate = [&](BallState& s, const BallContact& contact) {
+    if (contact.toi > eps) return;
+    for (const ColliderMotion& c : colliders) {
+      if (c.id != contact.collider) continue;
+      const blunted::Vector3 surface = std::visit(
+          [&](const auto& shape) -> blunted::Vector3 {
+            using T = std::decay_t<decltype(shape)>;
+            if constexpr (std::is_same_v<T, Plane>) {
+              return s.position -
+                     contact.normal *
+                         (s.position - shape.point).GetDotProduct(shape.normal);
+            } else if constexpr (std::is_same_v<T, Sphere>) {
+              return shape.center + contact.normal * shape.radius;
+            } else {
+              const blunted::Vector3 closest = ClosestPointOnSegment(
+                  s.position - shape.a, {0, 0, 0}, shape.b - shape.a);
+              return shape.a + closest + contact.normal * shape.radius;
+            }
+          },
+          c.start);
+      s.position = surface + contact.normal * ball_radius;
+      break;
+    }
+  };
+
   const auto resolve = [&](const BallContact& contact) {
     const ContactMaterial* material = nullptr;
     for (const ColliderMotion& c : colliders) {
       if (c.id == contact.collider) { material = &c.material; break; }
     }
     const ContactMaterial m = material ? *material : ContactMaterial{0.5f, 0.0f};
+    depenetrate(result.state, contact);
     result.state = ResolveContact(result.state, contact, m,
                                   collider_velocity_of(contact.collider), config);
     result.contacts.push_back(contact);
   };
 
+  // Grass resistance applies in a thin zone above the ground; grass height
+  // only widens the resistance zone, the support height is exactly the radius.
+  const float resting_z = ball_radius;
+  const float grass_zone = resting_z + dynamics.grass_height;
+  const bool on_ground = initial.position.coords[2] <= resting_z + eps;
+  const bool in_grass_zone = initial.position.coords[2] <= grass_zone + eps;
+  const bool not_descending = initial.velocity.coords[2] >= -eps;
+
+  blunted::Vector3 grass_v = initial.velocity;
+  if (in_grass_zone && not_descending) {
+    const float hs = std::sqrt(grass_v.coords[0] * grass_v.coords[0] +
+                               grass_v.coords[1] * grass_v.coords[1]);
+    if (hs > 0.0f) {
+      const float resistance = dynamics.ground_deceleration +
+                               dynamics.quadratic_ground_resistance * hs * hs;
+      const float slowed = std::max(0.0f, hs - resistance * dt);
+      const float scale = slowed / hs;
+      grass_v.coords[0] *= scale;
+      grass_v.coords[1] *= scale;
+    }
+  }
+
+  const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
+  const blunted::Vector3 omega1 = initial.angular_velocity * spin_scale;
+
   // Persistent ground contact: rolling constraint, but still check other
   // (non-ground) colliders; the tangent ground plane produces no ground hit.
-  const float resting_z = ball_radius;  // grass scales rolling resistance, not support height
-  if (initial.position.coords[2] <= resting_z + eps && initial.velocity.coords[2] <= eps) {
-    blunted::Vector3 v = initial.velocity;
+  if (on_ground && not_descending) {
+    blunted::Vector3 v = grass_v;
     v.coords[2] = 0.0f;
-    const float speed = std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
-    if (speed > 0.0f) {
-      const float slowed = std::max(0.0f, speed - dynamics.ground_deceleration * dt);
-      const float scale = slowed / speed;
-      v.coords[0] *= scale;
-      v.coords[1] *= scale;
-    }
-    const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
-    const blunted::Vector3 omega1 = initial.angular_velocity * spin_scale;
-
-    // Sweep from the START of the tick so a post ahead is not skipped.
     BallState probe = initial;
     probe.velocity = v;
     probe.position.coords[2] = resting_z;
@@ -347,7 +389,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
 
   // Airborne free-motion candidate.
   const blunted::Vector3 gravity(0, 0, -dynamics.gravity);
-  const blunted::Vector3 v0 = initial.velocity;
+  const blunted::Vector3 v0 = (in_grass_zone && not_descending) ? grass_v : initial.velocity;
   const float speed = v0.GetLength();
   blunted::Vector3 accel = gravity;
   if (speed > 0.0f) accel = accel - v0 * (dynamics.quadratic_resistance * speed);
@@ -362,8 +404,6 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   const blunted::Vector3 v1 = v0 + accel * dt;
   const blunted::Vector3 vavg = v0 + accel * (0.5f * dt);
   const blunted::Vector3 p1 = initial.position + vavg * dt;
-  const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
-  const blunted::Vector3 omega1 = initial.angular_velocity * spin_scale;
 
   BallState probe = initial;
   probe.velocity = vavg;

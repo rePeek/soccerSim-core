@@ -90,11 +90,11 @@ TEST_CASE("Ball physics runs without a Match and takes netting facts per call",
 
   ball.SetPosition(Vector3(58.5f, 0, 1.0f), outside_goal);
   ball.Touch(Vector3(3, 0, 0), outside_goal);
-  const auto outside = ball.CalculatePrediction(outside_goal);
-  const auto inside = ball.CalculatePrediction(football::ball::BallEnvironment{true});
-  REQUIRE(inside.momentum != outside.momentum);
+  const auto outside = ball.Predict(TickSpan{1}, football::ball::BallEnvironment{});
+  const auto inside = ball.Predict(TickSpan{1}, football::ball::BallEnvironment{true});
+  REQUIRE(inside.velocity != outside.velocity);
   // No latched rule fact in Ball: subsequent calls use only their argument.
-  REQUIRE(ball.CalculatePrediction(outside_goal).momentum == outside.momentum);
+  REQUIRE(ball.Predict(TickSpan{1}, outside_goal).velocity == outside.velocity);
 }
 
 TEST_CASE("body contacts preserve the cooldown boundary and ordered touch feedback",

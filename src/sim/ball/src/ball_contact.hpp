@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_BALL_BALL_CONTACT_HPP
-#define FOOTBALL_BALL_BALL_CONTACT_HPP
+#ifndef FOOTBALL_BALL_DETAIL_BALL_CONTACT_HPP
+#define FOOTBALL_BALL_DETAIL_BALL_CONTACT_HPP
 
 // Private to football::ball. Owns the discrete goal-geometry contact
 // calculations (posts, crossbar, side/rear/top netting). The surrounding free
@@ -27,4 +27,4 @@ void ResolveNetting(blunted::Vector3& position, blunted::Vector3& momentum,
 
 }  // namespace football::ball::detail
 
-#endif  // FOOTBALL_BALL_BALL_CONTACT_HPP
+#endif  // FOOTBALL_BALL_DETAIL_BALL_CONTACT_HPP

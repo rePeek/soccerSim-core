@@ -10,7 +10,7 @@ using football::ball::BallState;
 using blunted::Vector3;
 
 const football::model::Pitch kPitch = football::model::Pitch{};
-constexpr float kPostRadius = 0.07f;
+constexpr float kPostRadius = 0.06f;
 
 BallState BehindGoalState() {
   BallState state;

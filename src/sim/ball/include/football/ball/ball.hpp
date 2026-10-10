@@ -14,9 +14,12 @@
 #include <memory>
 #include <vector>
 
+#include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/ball/ball_timing.hpp"
+#include "football/ball/collider.hpp"
+#include "football/ball/pitch_colliders.hpp"
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
 #include "model/ball_config.hpp"
@@ -24,20 +27,19 @@
 
 namespace football::ball {
 
+// Transitional projection shape for the legacy re-calculation adapter.
 struct BallSpatialInfo {
-  // Transitional result shape for the legacy re-calculation adapter.
-  BallSpatialInfo(const blunted::Vector3& momentum,
+  BallSpatialInfo(const blunted::Vector3& velocity,
                   const blunted::Quaternion& rotation_ms) {
-    this->momentum = momentum;
+    this->momentum = velocity;
     this->rotation_ms = rotation_ms;
   }
-  blunted::Vector3 momentum;
-  blunted::Quaternion rotation_ms;
+  blunted::Vector3 momentum;      // actually velocity (m/s)
+  blunted::Quaternion rotation_ms;  // legacy per-millisecond rotation quaternion
 };
 
 namespace detail {
 class BallPredictionCache;
-struct PhysicsState;
 }  // namespace detail
 
 class Ball {
@@ -54,17 +56,11 @@ class Ball {
   // Force accumulated for the next Step interval. It is applied as one
   // velocity change dv = (F / mass) * ToSeconds(dt) before that Step
   // integrates, i.e. it models a constant force across the whole interval.
-  // Applying the same force per single tick is NOT equivalent: the caller
-  // re-applies it for every Step it wants it to act over.
   void ApplyForce(const blunted::Vector3& force);
-  // Instantaneous linear impulse: dv = J / mass. Refreshes the transitional
-  // prediction cache so a following legacy Predict() cannot observe stale data.
-  // The cache refresh assumes a neutral environment; goal-aware prediction must
-  // use Predict(ahead, environment).
+  // Instantaneous linear impulse: dv = J / mass.
   void ApplyImpulse(const blunted::Vector3& impulse);
-  // Transitional contact-point impulse. Phase 1 applies only the linear part;
-  // the angular coupling (dw = I^-1 (r x J)) is deliberately deferred to the
-  // physics-upgrade phase, so this is NOT yet a complete contact contract.
+  // Contact-point impulse: linear and angular velocity change through the
+  // unified point-impulse response (ApplyImpulseAtPoint in ball_response.hpp).
   void ApplyImpulseAtPoint(const blunted::Vector3& impulse,
                            const blunted::Vector3& world_point);
 
@@ -73,10 +69,8 @@ class Ball {
   // no-op: it consumes no accumulated force and leaves predictions untouched.
   // This is the single real-motion entry point; the transitional Process()
   // forwards here.
-  void Step(football::sim::TickSpan dt,
-            const BallEnvironment& environment);
+  void Step(football::sim::TickSpan dt, const BallEnvironment& environment);
   // Read-only trajectory prediction sharing the same physics kernel as Step.
-  // It never mutates the real state and does not use the legacy cache.
   BallState Predict(football::sim::TickSpan ahead,
                     const BallEnvironment& environment) const;
 
@@ -84,16 +78,13 @@ class Ball {
   // Explicit state replacement. Predictions are rebuilt with a neutral
   // environment; use Predict(ahead, environment) when goal geometry matters.
   void Reset(const BallState& state);
-  // Legacy coordinate mirror: flips position, momentum and the prediction
-  // cache. Angular velocity and orientation are intentionally not mirrored,
-  // matching the historical implementation, so this is not a full physical
-  // state mirror yet.
+  // Coordinate mirror: flips position, velocity, angular velocity and
+  // orientation, then rebuilds the prediction cache. This is a full physical
+  // state mirror (180 degree rotation about z), unlike the legacy
+  // position/momentum-only mirror.
   void Mirror();
 
   // ---- Transitional compatibility API (do not use in new code) ----
-  // Legacy position-only prediction and re-calculation adapter. These carry
-  // the historical cache semantics and are removed once consumers converge on
-  // Predict()/Step()/state()/Reset().
   blunted::Vector3 Predict(football::sim::TickSpan horizon) const;
   blunted::Vector3 Predict(int predictTime_ms) const;
   void GetPredictionArray(std::vector<blunted::Vector3>& target) const;
@@ -101,16 +92,14 @@ class Ball {
   blunted::Vector3 GetRotation() const;
   blunted::Quaternion GetOrientation() const;
 
-  // Absolute-velocity touch / state mutation, not a physical impulse. Keep the
-  // legacy semantics exactly through the cohesion phase; new callers must use
-  // ApplyImpulse/ApplyImpulseAtPoint/Reset.
+  // Absolute-velocity touch / state mutation, not a physical impulse.
   void Touch(const blunted::Vector3& target,
              const BallEnvironment& environment);
   void SetPosition(const blunted::Vector3& target,
                    const BallEnvironment& environment);
   void SetMomentum(const blunted::Vector3& target,
                    const BallEnvironment& environment);
-  // Radians per second for each axis (legacy per-millisecond storage).
+  // Radians per second for each axis.
   void SetRotation(blunted::real x, blunted::real y, blunted::real z, float bias,
                    const BallEnvironment& environment);
   BallSpatialInfo CalculatePrediction(const BallEnvironment& environment);
@@ -119,20 +108,20 @@ class Ball {
   void ResetSituation(const blunted::Vector3& focusPos);
 
  private:
-  void Commit(const detail::PhysicsState& state);
-  // One legacy-quantum tick: publishes the cache from the pre-tick state, then
-  // commits the first predicted state. Shared by Step() and Process().
+  // One authoritative tick: AdvanceBallTick over the static pitch world plus
+  // the transitional goal-netting correction. Never mutates the real state.
+  BallState AdvanceState(const BallState& current,
+                         const BallEnvironment& environment) const;
   void AdvanceOneTick(const BallEnvironment& environment);
   void RefreshPredictions(const BallEnvironment& environment);
 
   football::model::BallConfig config_;
   const football::model::Pitch pitch_;
-  // Single authoritative internal state (public BallState is a projection).
-  // It stays a private detail type because the legacy kernel needs the full
-  // per-millisecond rotation quaternion, which a 3-DOF rad/s angular velocity
-  // cannot represent losslessly. Unifying the two is part of the deferred
-  // physics upgrade.
-  std::unique_ptr<detail::PhysicsState> state_;
+  // Single authoritative internal state (the public BallState projection is a
+  // straight copy, not a lossy conversion).
+  BallState state_;
+  BallDynamics dynamics_;
+  std::vector<ColliderMotion> colliders_;
   std::unique_ptr<detail::BallPredictionCache> prediction_cache_;
   blunted::Vector3 pending_force_;
 };

@@ -16,7 +16,6 @@ add_library(football::ball ALIAS football_ball)
 target_sources(football_ball
   PRIVATE
     src/ball.cpp
-    src/ball_physics.cpp
     src/ball_contact.cpp
     src/ball_prediction.cpp
     src/ball_collision.cpp

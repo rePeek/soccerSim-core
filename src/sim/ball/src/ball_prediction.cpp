@@ -1,16 +1,15 @@
+#include "ball_contact.hpp"
 #include "ball_prediction.hpp"
 
 #include <algorithm>
 
-#include "ball_physics.hpp"
+#include "football/ball/ball_contact.hpp"
 
 using namespace blunted;
 
 namespace football::ball::detail {
 
-void BallPredictionCache::Invalidate() {
-  valid_predictions_ = 0;
-}
+void BallPredictionCache::Invalidate() { valid_predictions_ = 0; }
 
 void BallPredictionCache::Mirror() {
   for (auto& prediction : predictions_) {
@@ -27,53 +26,26 @@ void BallPredictionCache::Reset(const Vector3& focus_position) {
 }
 
 void BallPredictionCache::Compute(
-    const PhysicsState& initial, const football::model::BallConfig& config,
+    const BallState& initial, const football::model::BallConfig& config,
     const football::model::Pitch& pitch,
-    const football::ball::BallEnvironment& environment,
-    PredictionResult& result) {
+    std::span<const ColliderMotion> colliders, const BallDynamics& dynamics,
+    const football::ball::BallEnvironment& environment) {
   using football::sim::TickSpan;
 
-  Vector3 nextPos = initial.position;
-  Quaternion nextOrientation = initial.orientation;
-  Vector3 momentumPredict = initial.momentum;
-  Quaternion rotationPredict_ms = initial.rotation_ms;
-
-  predictions_[0] = nextPos;
-
-  bool use_cache = false;
+  BallState current = initial;
+  predictions_[0] = current.position;
 
   const auto horizon = football::sim::ball_timing::kPredictionHorizon +
                        football::sim::ball_timing::kPredictionCache;
   for (TickSpan ahead{1}; ahead < horizon; ahead += TickSpan{1}) {
-    // Originally the game recomputed the ball's prediction 300 steps into the
-    // future. Keep the legacy shift-by-one cache: when the freshly computed
-    // first sample equals the previous second sample, shift the remaining
-    // samples down instead of re-integrating them.
-    if (use_cache) {
-      predictions_[ahead.value] = predictions_[ahead.value + 1];
-      continue;
-    }
-
-    PhysicsState advanced = Advance(
-        PhysicsState{nextPos, momentumPredict, rotationPredict_ms, nextOrientation},
-        config, pitch, environment, /*first_step=*/ ahead == TickSpan{1});
-
-    momentumPredict = advanced.momentum;
-    nextPos = advanced.position;
-    rotationPredict_ms = advanced.rotation_ms;
-    nextOrientation = advanced.orientation;
-
-    if (ahead == TickSpan{1}) {
-      result.step_one = PhysicsState{nextPos, momentumPredict, rotationPredict_ms, nextOrientation};
-      if (valid_predictions_ > 0 && predictions_[2] == nextPos) {
-        valid_predictions_--;
-        use_cache = true;
-      } else {
-        valid_predictions_ = football::sim::ball_timing::kPredictionCache.value;
-      }
-    }
-    predictions_[ahead.value] = nextPos;
+    BallStepResult result = AdvanceBallTick(
+        current, colliders, football::sim::kTickSeconds, config, dynamics);
+    ResolveNetting(result.state.position, result.state.velocity, pitch, config,
+                   environment);
+    current = result.state;
+    predictions_[ahead.value] = current.position;
   }
+  valid_predictions_ = football::sim::ball_timing::kPredictionCache.value;
 }
 
 Vector3 BallPredictionCache::Sample(football::sim::TickSpan horizon) const {

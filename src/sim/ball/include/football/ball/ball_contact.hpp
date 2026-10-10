@@ -53,8 +53,9 @@ BallStepResult AdvanceBall(const BallState& initial,
 // explicit execution points, not yet the production numeric model.
 struct BallDynamics {
   float gravity = 9.81f;
-  float quadratic_resistance = 0.04f;
-  float ground_deceleration = 1.6f;
+  float quadratic_resistance = 0.04f;          // air drag, mapped from BallConfig::drag()
+  float ground_deceleration = 1.6f;            // base rolling deceleration
+  float quadratic_ground_resistance = 0.0f;    // speed-dependent ground resistance
   float grass_height = 0.025f;
   float spin_decay = 0.0f;
   float magnus_coefficient = 0.0f;

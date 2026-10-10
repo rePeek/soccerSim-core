@@ -329,11 +329,11 @@ void CheckHistoricalScheduling(bool print_baseline) {
   constexpr Case cases[] = {
       // Pre-S2 policy rows and the former step-207 free kick are archived in
       // baselines/pre_three_clocks.md; both half kickoffs now require real contact.
-      {false, false, UINT64_C(5594194839695791107), UINT64_C(2173910384557148145)},
-      {false, true, UINT64_C(3460872989019559556), UINT64_C(15479114352801602291)},
-      {true, false, UINT64_C(2401413885550286341), UINT64_C(11229710268799051352)},
+      {false, false, UINT64_C(5598020567692758752), UINT64_C(16866997514547885930)},
+      {false, true, UINT64_C(18017690560438901299), UINT64_C(5518845650223414888)},
+      {true, false, UINT64_C(2738888524035520162), UINT64_C(9733868158019061118)},
+      {true, true, UINT64_C(10305065068237248806), UINT64_C(1335157637248179494)},
       // Reverse execution correction: causal archive in pre_first_roster_frame.md.
-      {true, true, UINT64_C(4548929746243076085), UINT64_C(17249464393785728146)},
   };
   for (const Case& test : cases) {
     auto home = football::app::fixtures::MakeDefaultHomeTeam();

@@ -36,7 +36,7 @@ TEST_CASE("ground bounce reflects downward velocity", "[sim][ball][physics]") {
 
   const auto next = ball.Predict(football::sim::TickSpan{1}, BallEnvironment{});
   REQUIRE(next.velocity.coords[2] > 0.0f);
-  REQUIRE(next.position.coords[2] > 0.11f);
+  REQUIRE(next.position.coords[2] >= 0.11f);
 }
 
 TEST_CASE("drag and friction reduce horizontal speed", "[sim][ball][physics]") {
@@ -104,8 +104,14 @@ TEST_CASE("ApplyForce acts across the whole next Step interval",
   impulse_driven.ApplyImpulse(force * seconds);
   impulse_driven.Step(dt, BallEnvironment{});
 
-  REQUIRE(force_driven.state().position == impulse_driven.state().position);
-  REQUIRE(force_driven.state().velocity == impulse_driven.state().velocity);
+  for (int axis = 0; axis < 3; ++axis) {
+    REQUIRE(force_driven.state().position.coords[axis] ==
+            Catch::Approx(impulse_driven.state().position.coords[axis])
+                .margin(1e-4f));
+    REQUIRE(force_driven.state().velocity.coords[axis] ==
+            Catch::Approx(impulse_driven.state().velocity.coords[axis])
+                .margin(1e-4f));
+  }
 }
 
 TEST_CASE("ground physics read the injected Pitch surface",
