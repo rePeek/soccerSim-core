@@ -41,9 +41,15 @@ struct Collider {
   ContactMaterial material;
 };
 
-// One collider's motion over a single tick. `start` and `end` are the shapes at
-// t and t+1; static colliders set end == start. This stage assumes linear
-// translation only (no rotation of the collider itself).
+// One tick, t in [0,1]. Sphere center, capsule endpoints and radii interpolate
+// LINEARLY between start/end. Different endpoint displacements rotate/stretch
+// the capsule axis; this is not quaternion interpolation or an inferred rigid
+// angular trajectory. Split the input tape if an animation needs an arc.
+// Surface transport is minimal-twist: blend endpoint velocities at the closest
+// axis parameter, plus omega x (radius*normal) with omega=d x d_dot / |d|^2,
+// and radius_dot*normal. No axial spin is inferable from an axis; it is zero.
+// At a collapsed axis omega is zero. Primitive kind must stay fixed. Planes
+// remain static. A static sphere/capsule has end == start.
 struct ColliderMotion {
   ColliderId id = 0;
   ColliderShape start;

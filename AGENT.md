@@ -1070,10 +1070,10 @@ matching offline Animation::Apply. The animation base angle is explicit, not
 inferred from already animated bodyFacing. Pose-derived torso/head and four leg
 capsules expose real Sliding/Trip shape phases. Tests cover hierarchy/root-motion
 deduplication, mirror transforms and every baked Sliding/Trip frame.
-These are NOT final production ColliderMotion inputs: the current CCD contract
-is translation-only, while posed capsules rotate/deform between frames. Feeding
-them directly would silently violate that contract. Technique/Magnus calibration,
-rotating-pose motion acceptance and P7 default/Golden/API removal remain pending.
+These are NOT yet final production ColliderMotion inputs. P4f-1 now supports
+endpoint-linear rotating/stretching capsules and local surface velocity (below).
+Actual actor-pose/action-switch continuity, technique/Magnus calibration, rule
+acceptance and P7 default/Golden/API removal remain pending.
 
 ### Prepared pipeline Shadow observation
 
@@ -1097,3 +1097,30 @@ and skips the fused legacy passive resolver. Only ON/ON exercises unified active
 and player-body passive physics together. The four-switch replay is therefore
 not proof that each OFF fallback preserves the other switch's legacy semantics,
 nor permission to disable collisions for ON/ON acceptance.
+
+### P4f-1 — endpoint-linear capsule CCD and anatomical IDs
+
+Maintainer review of `e4298fb` accepted BallState/core physics and P5e's execution
+boundary. Do not re-split Humanoid or redesign Ball's member API. Current roadmap
+is P4f → P6c → P7; retain AcceptedTouchSink as the rule submission port.
+
+`ball/src/ball_deforming_capsule.{hpp,cpp}` privately extends SweepBall for unequal
+capsule endpoint displacements and changing radii. A conservative swept AABB,
+quartic interior equation, cap quadratics and deterministic derivative-root
+partition/bisection find the first incoming finite-feature contact without a
+temporal sampling grid. Endpoint/radius interpolation is explicitly LINEAR,
+not rigid SLERP or an inferred full rotation. Material velocity uses endpoint
+blending plus minimal-twist angular surface transport and radius dilation.
+`BallContact::surface_velocity` is consumed by the existing impulse/friction
+response and mirrored by both Simulation result adapters. No extra normal
+Step, actor execution, RNG draw or direct spin assignment is introduced.
+
+Six Baked segment identities occupy the separate `0xc0000000` band; the coarse
+three-part band is constrained below it without changing normal existing IDs.
+`BuildBakedBodyColliderMotions` takes both actual geometry endpoints and a fixed
+roster slot, with anatomical part mapping independent of physical identity.
+Tests cover thin fast mid-Tick contacts, degeneracy, exit/separating rejection,
+local velocity/response, deterministic ordering/frame transforms, an independent
+distance oracle, zero-allocation queries, ID boundaries and every real adjacent
+Sliding/Trip pose pair. This is not P4f-2 provider/clip-switch calibration or
+production admission. Definitions/validation: `tools/p4f1-capsule-ccd.md`.

@@ -26,6 +26,9 @@ struct BallContact {
   // Populated only by AdvanceBallTick/Step, not a raw SweepBall query.
   float normal_impulse = 0.0f; // >0 identifies an impulse-bearing impact
   bool position_corrected = false; // correction is not itself a new touch
+  // Surface velocity at TOI, including minimal-twist capsule rotation/stretch
+  // and radial dilation (see ColliderMotion). Not one endpoint's velocity.
+  blunted::Vector3 surface_velocity = blunted::Vector3(0);
 };
 
 // Pure swept-sphere CCD against one collider over one tick. Never mutates state

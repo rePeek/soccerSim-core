@@ -50,12 +50,22 @@ inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
   return out;
 }
 
-// Six anatomical capsules/sphere, not a fixed low-action proxy. Kept as a
-// geometry proposal until rotation-changing CCD tapes and trajectory calibration
-// are accepted; do not feed rotating capsules into translation-only CCD silently.
+// Fixed anatomical segments, distinct physical identities even when several
+// segments map to the same rule-facing PlayerBodyPart. Slots are Simulation's
+// permanent roster slots, never traversal order or PlayerId.
+enum class BakedBodySegment : std::uint8_t { Torso, Head, LeftThigh, LeftShin, RightThigh, RightShin };
+inline constexpr std::size_t kBakedBodySegmentCount = 6;
+inline football::ball::ColliderId BakedBodyColliderId(std::uint32_t slot, BakedBodySegment segment) {
+  const auto index = static_cast<std::uint8_t>(segment);
+  const std::uint64_t id = std::uint64_t(kFirstBakedBodyColliderId) +
+      std::uint64_t(slot)*kBakedBodySegmentCount + index;
+  if (index >= kBakedBodySegmentCount || id > std::numeric_limits<football::ball::ColliderId>::max())
+    throw std::out_of_range("baked body collider exceeds reserved id range or segment count");
+  return static_cast<football::ball::ColliderId>(id);
+}
 struct BakedPlayerBodyCollider {
-  std::array<football::ball::ColliderShape, 6> shapes;
-  std::array<PlayerBodyPart, 6> parts{
+  std::array<football::ball::ColliderShape, kBakedBodySegmentCount> shapes;
+  std::array<PlayerBodyPart, kBakedBodySegmentCount> parts{
       PlayerBodyPart::UpperBody, PlayerBodyPart::Head,
       PlayerBodyPart::LowerBody, PlayerBodyPart::LowerBody,
       PlayerBodyPart::LowerBody, PlayerBodyPart::LowerBody};
@@ -71,4 +81,18 @@ inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
            Capsule{j[right_thigh], j[right_knee], .10f * scale},
            Capsule{j[right_knee], j[right_ankle], .09f * scale}}};
 }
+
+// Both actual pose endpoints are supplied by the caller. Physics uses the
+// endpoint/radius-linear contract, not an inferred rigid SLERP between poses.
+// Production admission still requires P4f-2 continuity and P4f-3 calibration.
+inline std::array<football::ball::ColliderMotion, kBakedBodySegmentCount> BuildBakedBodyColliderMotions(
+    const BakedPlayerBodyCollider& start, const BakedPlayerBodyCollider& end, std::uint32_t fixed_slot,
+    football::ball::ContactMaterial material = kPlayerBodyContactMaterial) {
+  std::array<football::ball::ColliderMotion, kBakedBodySegmentCount> out;
+  for (std::size_t i = 0; i < out.size(); ++i)
+    out[i] = {BakedBodyColliderId(fixed_slot, static_cast<BakedBodySegment>(i)),
+              start.shapes[i], end.shapes[i], material};
+  return out;
+}
+
 #endif

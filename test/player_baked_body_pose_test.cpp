@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <limits>
+#include <vector>
 #include <catch2/catch_test_macros.hpp>
 #include "sim/player/player_baked_body_pose.hpp"
 #include "sim/testing/simulation_access.hpp"
@@ -62,4 +65,82 @@ TEST_CASE("real baked Sliding and Trip produce posed anatomy rather than fixed l
   REQUIRE(trip_frames > 0);
   REQUIRE(min_head < 1.0f);
   REQUIRE(max_head - min_head > .5f);
+}
+
+TEST_CASE("six anatomical segments have disjoint fixed-slot physics identities", "[baked-pose][deforming-ccd]") {
+  using namespace football::ball;
+  PoseFrame pose{};
+  for (auto& q : pose.orientations) q = blunted::Quaternion{};
+  for (auto& p : pose.positions) p = Vector3(0);
+  PlayerKinematicState state; state.position = {2,3,0};
+  const auto body = BuildBodyCollider(pose,state,.3f);
+  std::vector<ColliderId> ids;
+  for (std::uint32_t slot = 0; slot < 100; ++slot) {
+    const auto coarse = PlayerBodyColliderIdsForSlot(slot);
+    const auto motions = BuildBakedBodyColliderMotions(body,body,slot);
+    REQUIRE(motions.size() == 6);
+    for (std::size_t i = 0; i < motions.size(); ++i) {
+      const auto id = motions[i].id;
+      REQUIRE(id >= kFirstBakedBodyColliderId);
+      for (auto old : coarse.values) REQUIRE(id != old);
+      REQUIRE(id == BakedBodyColliderId(slot,static_cast<BakedBodySegment>(i)));
+      REQUIRE(std::find(ids.begin(),ids.end(),id) == ids.end());
+      ids.push_back(id);
+      REQUIRE(body.parts[i] == (i == 0 ? PlayerBodyPart::UpperBody :
+          i == 1 ? PlayerBodyPart::Head : PlayerBodyPart::LowerBody));
+    }
+  }
+  // Reversed traversal and coordinate reflection never allocate new identities.
+  for (std::uint32_t slot = 100; slot-- > 0;) {
+    auto reflected = state; reflected.position.Mirror();
+    const auto mirror = BuildBodyCollider(pose,reflected,.3f+blunted::pi);
+    const auto motions = BuildBakedBodyColliderMotions(mirror,mirror,slot);
+    for (std::size_t i = 0; i < motions.size(); ++i) REQUIRE(motions[i].id == ids[slot*6+i]);
+  }
+  const auto max_slot = std::uint32_t((std::uint64_t(UINT32_MAX)-kFirstBakedBodyColliderId-5)/6);
+  REQUIRE_NOTHROW(BuildBakedBodyColliderMotions(body,body,max_slot));
+  REQUIRE_THROWS_AS(BuildBakedBodyColliderMotions(body,body,max_slot+1),std::out_of_range);
+  REQUIRE_THROWS_AS(BakedBodyColliderId(0,static_cast<BakedBodySegment>(6)),std::out_of_range);
+  REQUIRE_THROWS_AS(PlayerBodyColliderId(0,static_cast<PlayerBodyPart>(3)),std::out_of_range);
+  REQUIRE_THROWS_AS(PlayerBodyColliderIdsForSlot(UINT32_MAX),std::out_of_range);
+  REQUIRE_THROWS_AS(BakedBodyColliderId(UINT32_MAX,BakedBodySegment::Torso),std::out_of_range);
+}
+
+TEST_CASE("real adjacent baked pose frames produce six endpoint motion tapes", "[baked-pose][deforming-ccd]") {
+  using namespace football::ball;
+  Simulation s; MatchOptions options; options.snapshot_capacity = 1;
+  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+         football::app::fixtures::MakeDefaultAwayTeam(),football::model::Pitch{},options);
+  const auto& library = SimulationAccess::AnimationLibraryOf(s);
+  std::size_t intervals = 0;
+  PlayerKinematicState start, end; start.position = {5,2,0}; end.position = {5.02f,2.01f,0};
+  for (const auto& clip : library.Clips()) {
+    if (clip.metadata.action_type != e_FunctionType_Sliding && clip.metadata.action_type != e_FunctionType_Trip) continue;
+    for (std::size_t frame = 1; frame < clip.poses.size(); ++frame) {
+      ++intervals;
+      const auto a = BuildBodyCollider(clip.poses[frame-1],start,.3f);
+      const auto b = BuildBodyCollider(clip.poses[frame],end,.31f);
+      const auto motions = BuildBakedBodyColliderMotions(a,b,17);
+      for (std::size_t segment = 0; segment < motions.size(); ++segment) {
+        REQUIRE(motions[segment].id == BakedBodyColliderId(17,static_cast<BakedBodySegment>(segment)));
+        REQUIRE(motions[segment].start.index() == a.shapes[segment].index());
+        std::visit([&](const auto& begin) {
+          using T = std::decay_t<decltype(begin)>;
+          const auto& finish = std::get<T>(motions[segment].end);
+          const auto& actual_start = std::get<T>(a.shapes[segment]);
+          const auto& actual_end = std::get<T>(b.shapes[segment]);
+          if constexpr (std::is_same_v<T,Capsule>) {
+            REQUIRE(begin.a == actual_start.a); REQUIRE(begin.b == actual_start.b);
+            REQUIRE(finish.a == actual_end.a); REQUIRE(finish.b == actual_end.b);
+          } else if constexpr (std::is_same_v<T,Sphere>) {
+            REQUIRE(begin.center == actual_start.center); REQUIRE(finish.center == actual_end.center);
+          }
+          if constexpr (!std::is_same_v<T,Plane>) {
+            REQUIRE(begin.radius == actual_start.radius); REQUIRE(finish.radius == actual_end.radius);
+          }
+        },motions[segment].start);
+      }
+    }
+  }
+  REQUIRE(intervals > 100);
 }

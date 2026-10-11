@@ -36,6 +36,7 @@ void MirrorResult(football::ball::BallStepResult& result) {
     contact.point.Mirror();
     contact.normal.Mirror();
     contact.relative_velocity.Mirror();
+    contact.surface_velocity.Mirror();
   }
 }
 }

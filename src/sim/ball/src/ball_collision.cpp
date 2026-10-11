@@ -1,6 +1,7 @@
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_response.hpp"
 #include "model/ball_config.hpp"
+#include "ball_deforming_capsule.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -35,7 +36,7 @@ blunted::Vector3 ClosestPointOnSegment(const blunted::Vector3& p,
                                        const blunted::Vector3& b) {
   const blunted::Vector3 ab = b - a;
   const float len2 = ab.GetDotProduct(ab);
-  if (len2 < kEpsilon) return a;
+  if (len2 == 0.0f) return a;
   float t = (p - a).GetDotProduct(ab) / len2;
   t = blunted::clamp(t, 0.0f, 1.0f);
   return a + ab * t;
@@ -85,6 +86,7 @@ std::optional<BallContact> SweepSphere(const BallState& ball, float ball_radius,
   BallContact contact;
   contact.collider = collider.id;
   contact.relative_velocity = ball.velocity - col_disp * (1.0f / dt);
+  contact.surface_velocity = col_disp * (1.0f / dt);
 
   if (dist0 < radius_sum - kEpsilon) {
     contact.toi = 0.0f;
@@ -129,6 +131,7 @@ std::optional<BallContact> SweepCapsule(const BallState& ball, float ball_radius
   BallContact contact;
   contact.collider = collider.id;
   contact.relative_velocity = ball.velocity - col_disp * (1.0f / dt);
+  contact.surface_velocity = col_disp * (1.0f / dt);
 
   if (dist0 < radius_sum - kEpsilon) {
     contact.toi = 0.0f;
@@ -195,10 +198,16 @@ std::optional<BallContact> SweepBall(const BallState& ball, const ColliderMotion
         } else if constexpr (std::is_same_v<T, Sphere>) {
           const auto* end = std::get_if<Sphere>(&collider.end);
           if (end == nullptr) return std::nullopt;
+          if (start_shape.radius != end->radius)
+            return detail::SweepDeformingCapsule(ball, ball_radius, collider,
+                Capsule{start_shape.center, start_shape.center, start_shape.radius},
+                Capsule{end->center, end->center, end->radius}, dt);
           return SweepSphere(ball, ball_radius, collider, start_shape, *end, dt);
         } else if constexpr (std::is_same_v<T, Capsule>) {
           const auto* end = std::get_if<Capsule>(&collider.end);
           if (end == nullptr) return std::nullopt;
+          if (end->a - start_shape.a != end->b - start_shape.b || start_shape.radius != end->radius)
+            return detail::SweepDeformingCapsule(ball, ball_radius, collider, start_shape, *end, dt);
           return SweepCapsule(ball, ball_radius, collider, start_shape, *end, dt);
         }
         return std::nullopt;
@@ -281,25 +290,6 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     return (q + omega_q * q * (0.5f * dt)).GetNormalized();
   };
 
-  const auto collider_velocity_of = [&](ColliderId id) -> blunted::Vector3 {
-    for (const ColliderMotion& c : colliders) {
-      if (c.id != id) continue;
-      return std::visit([&](const auto& s) -> blunted::Vector3 {
-        using T = std::decay_t<decltype(s)>;
-        if constexpr (std::is_same_v<T, Plane>) {
-          return {0, 0, 0};
-        } else if constexpr (std::is_same_v<T, Sphere>) {
-          const auto* e = std::get_if<Sphere>(&c.end);
-          return e ? (e->center - s.center) * (1.0f / dt) : blunted::Vector3{0, 0, 0};
-        } else if constexpr (std::is_same_v<T, Capsule>) {
-          const auto* e = std::get_if<Capsule>(&c.end);
-          return e ? (e->a - s.a) * (1.0f / dt) : blunted::Vector3{0, 0, 0};
-        }
-        return {0, 0, 0};
-      }, c.start);
-    }
-    return {0, 0, 0};
-  };
 
   // Resting contact that starts already penetrating must be projected back to
   // the surface before the impulse is applied; otherwise a ball below grass
@@ -316,11 +306,19 @@ BallStepResult AdvanceBallTick(const BallState& initial,
                      contact.normal *
                          (s.position - shape.point).GetDotProduct(shape.normal);
             } else if constexpr (std::is_same_v<T, Sphere>) {
-              return shape.center + contact.normal * shape.radius;
+              const auto* end = std::get_if<Sphere>(&c.end);
+              const auto center = end ? shape.center + (end->center-shape.center)*contact.toi : shape.center;
+              const float radius = end ? shape.radius + (end->radius-shape.radius)*contact.toi : shape.radius;
+              return center + contact.normal * radius;
             } else {
-              const blunted::Vector3 closest = ClosestPointOnSegment(
-                  s.position - shape.a, {0, 0, 0}, shape.b - shape.a);
-              return shape.a + closest + contact.normal * shape.radius;
+              // Even a very early nonzero TOI must use the pose at that time,
+              // never project a rotating/stretching capsule onto its START pose.
+              const auto* end = std::get_if<Capsule>(&c.end);
+              const auto a = end ? shape.a + (end->a-shape.a)*contact.toi : shape.a;
+              const auto b = end ? shape.b + (end->b-shape.b)*contact.toi : shape.b;
+              const float radius = end ? shape.radius + (end->radius-shape.radius)*contact.toi : shape.radius;
+              const auto closest = ClosestPointOnSegment(s.position-a, {0,0,0}, b-a);
+              return a + closest + contact.normal * radius;
             }
           },
           c.start);
@@ -341,7 +339,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     // Response must use the repaired center, never a stale pre-projection arm.
     contact.point = result.state.position;
     const auto response = ResolveContactResponse(result.state, contact, m,
-                                                 collider_velocity_of(contact.collider), config);
+                                                 contact.surface_velocity, config);
     result.state = response.state;
     contact.normal_impulse = response.normal_impulse;
     result.contacts.push_back(contact);

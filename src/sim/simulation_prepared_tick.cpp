@@ -14,6 +14,7 @@ void MirrorResult(football::ball::BallStepResult& result) {
   result.state.orientation = (blunted::Quaternion(0, 0, 1, 0) * result.state.orientation).GetNormalized();
   for (auto& c : result.contacts) {
     c.point.Mirror(); c.normal.Mirror(); c.relative_velocity.Mirror();
+    c.surface_velocity.Mirror();
   }
   if (result.active_impulse) {
     result.active_impulse->impulse.Mirror();

@@ -19,6 +19,7 @@ target_sources(football_ball
     src/ball_contact.cpp
     src/ball_prediction.cpp
     src/ball_collision.cpp
+    src/ball_deforming_capsule.cpp
     src/ball_response.cpp
     src/pitch_colliders.cpp
 )

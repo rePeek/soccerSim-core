@@ -58,7 +58,7 @@ nix develop --command build/release/football_unified_acceptance full reverse
 
 ## Unmet acceptance gates
 
-1. **P4f production pose motion:** Ball CCD assumes linearly translating capsules. Baked capsules rotate/deform; feeding them into that kernel would be incorrect. A swept endpoint/rotation contract and actual adjacent-Tick pose tapes are required before production use.
+1. **P4f production pose motion:** P4f-1 now supports endpoint/radius-linear rotating/deforming capsule CCD, local surface velocity and six disjoint anatomical IDs; see `p4f1-capsule-ccd.md`. Actual actor pose-provider/clip-switch continuity, interpolation error, owner/episode registration and calibrated production admission remain P4f-2/P4f-3 gates.
 2. **P4f technique calibration:** prepared strikes currently use zero-offset point impulses. Actual foot/surface geometry, Player precision/power/foot mapping, spin maxima/direction, incoming-spin traps/return passes, reach/rejection rates and 0.5/1/2-second flight still need calibrated evidence. `J/m` target-velocity agreement is tautological.
 3. **Football-rule acceptance:** the rule path is connected and scoped tests pass, but complete ON/ON ownership/order, continuous-contact episodes, offside, exits, goal/saves/restart attribution and possession need review with final posed geometry. A replay hash alone cannot accept these semantics.
 4. **P7 promotion:** no reviewed new Golden. Do not flip defaults or remove the still-used legacy Touch/SetRotation/duration callers before the above gates. The newly introduced immediate point-impulse API was removed; that is only API convergence, not all Legacy removal.

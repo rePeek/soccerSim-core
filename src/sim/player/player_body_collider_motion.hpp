@@ -29,6 +29,7 @@ enum class PlayerBodyPart : std::uint8_t {
 inline constexpr std::size_t kPlayerBodyPartCount = 3;
 inline constexpr football::ball::ColliderId kFirstDynamicBodyColliderId =
     0x80000000u;
+inline constexpr football::ball::ColliderId kFirstBakedBodyColliderId = 0xc0000000u;
 
 // Dynamic ids occupy a range disjoint from the pitch's 1--7 ids. The slot is
 // a Simulation-owned fixed match slot, never a roster traversal position or a
@@ -41,8 +42,8 @@ inline football::ball::ColliderId PlayerBodyColliderId(
       static_cast<std::uint64_t>(kFirstDynamicBodyColliderId) +
       static_cast<std::uint64_t>(player_slot) * kParts +
       static_cast<std::uint8_t>(part);
-  if (id > std::numeric_limits<football::ball::ColliderId>::max()) {
-    throw std::out_of_range("player body collider slot exceeds dynamic id range");
+  if (static_cast<std::uint8_t>(part) >= kPlayerBodyPartCount || id >= kFirstBakedBodyColliderId) {
+    throw std::out_of_range("coarse body collider exceeds its reserved id range or part count");
   }
   return static_cast<football::ball::ColliderId>(id);
 }

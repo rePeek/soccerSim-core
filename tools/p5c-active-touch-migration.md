@@ -349,10 +349,11 @@ a genuine approaching impact and geometric-episode deduplication. Opponent
 deflections preserve prior offside candidates; active strikes and retain
 acquisition retain separate source provenance.
 
-P4f only establishes Baked local-pose FK and anatomical geometry. These posed
-capsules are not production inputs: the current CCD contract is translation-only
-and cannot represent rotating/deforming adjacent poses. Prepared strikes still
-use the zero-offset model, not a final calibrated foot/technique model.
+P4f establishes Baked local-pose FK and anatomical geometry. P4f-1 now adds
+endpoint/radius-linear rotating/deforming capsule CCD, material-point surface
+velocity and six distinct anatomical IDs (`p4f1-capsule-ccd.md`). Posed inputs
+still await actor-provider/clip-switch continuity and production calibration.
+Prepared strikes use the zero-offset model, not a final calibrated foot/technique.
 
 Historical reach mismatches did not establish a height-cache cause. Historical
 trajectory values compare `CompareActiveTouch(...).response`, a desired-center

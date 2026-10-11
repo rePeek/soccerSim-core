@@ -67,3 +67,21 @@ TEST_CASE("dynamic collider merge reuses capacity without per-tick input allocat
   // This proves no input merge allocations. Contact-result vectors and static
   // prediction hits are intentionally outside this no-contact measured scope.
 }
+
+TEST_CASE("deforming CCD root isolation allocates nothing for hits and finite-feature misses", "[ball][allocation][deforming-ccd]") {
+  using namespace football::ball;
+  const ColliderMotion c{42,Capsule{{-1,0,1},{1,0,1},.03f},
+      Capsule{{0,-1,1},{0,1,1},.03f},{.35f,.45f}};
+  const BallState hit{{.35f,.35f,1},blunted::Vector3(0),blunted::Vector3(0),blunted::Quaternion{}};
+  const BallState miss{{.9f,.9f,1},blunted::Vector3(0),blunted::Vector3(0),blunted::Quaternion{}};
+  std::size_t allocations = 0, hits = 0, misses = 0;
+  {
+    CountAllocations measured;
+    for (int i = 0; i < 1000; ++i) {
+      hits += SweepBall(hit,c,.01f,.11f).has_value();
+      misses += !SweepBall(miss,c,.01f,.11f).has_value();
+    }
+    allocations = measured.count;
+  }
+  REQUIRE(hits == 1000); REQUIRE(misses == 1000); REQUIRE(allocations == 0);
+}
