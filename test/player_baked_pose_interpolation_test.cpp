@@ -71,3 +71,37 @@ TEST_CASE("dense adjacent pose sampling measures linear primitive versus local q
   std::cout<<"pose_interpolation intervals="<<intervals<<" movement="<<movement<<" sliding="<<sliding<<" trip="<<trip
       <<" raw_max_m="<<raw_error<<" realized_max_m="<<realized_error<<" worst="<<worst<<" frame="<<worst_frame<<'\n';
 }
+TEST_CASE("movement smoothing catch-up is separated from honest raw gait", "[baked-pose][pose-motion]") {
+  Simulation s; MatchOptions options; options.snapshot_capacity=1;
+  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),football::app::fixtures::MakeDefaultAwayTeam(),football::model::Pitch{},options);
+  const AnimationClip* clip=nullptr;
+  for(const auto& c:SimulationAccess::AnimationLibraryOf(s).Clips()) if(c.id==1147) { clip=&c; break; }
+  REQUIRE(clip!=nullptr);
+  REQUIRE(StringToFunctionType(static_cast<e_DefString>(clip->metadata.action_type))==e_FunctionType_Movement);
+  // 1. The raw clip's own adjacent-frame ankle displacement is a genuine sprint
+  //    gait swing, not a teleport. Frames 7->8 are the running-gait peak.
+  auto RawWorld=[&](int frame) {
+    PlayerBakedPoseSample sample; sample.pose=clip->poses[frame]; sample.state.position={0,0,0};
+    return EvaluateBakedBodyPose(sample.pose,sample.state,sample.base_angle,sample.scale);
+  };
+  const auto r7=RawWorld(7), r8=RawWorld(8);
+  const float raw_ankle=(r8.joints[right_ankle]-r7.joints[right_ankle]).GetLength();
+  REQUIRE(raw_ankle<0.08f);
+  // 2. A fresh-start realization converges to the raw pose within the entry
+  //    window, so the realized frame 7->8 step equals the honest gait and does
+  //    not fabricate a faster surface speed. The runtime's larger realized peak
+  //    (0.215 m/Tick) therefore requires a clip-switch history, not the raw
+  //    clip data: see tools/p4f2-runtime-body-provider.md.
+  std::optional<PlayerBakedPoseSample> realized;
+  for(int frame=0;frame<=8;++frame) {
+    PlayerBakedPoseSample target; target.pose=clip->poses[frame]; target.state.position={0,0,0};
+    target.base_angle=.3f; target.sampled_frame=frame; target.requested_frame=frame;
+    realized=realized ? RealizeBakedPose(*realized,target) : WorldBakedPose(target);
+  }
+  const auto z7=EvaluateBakedBodyPose(realized->pose,realized->state,0,realized->scale);
+  PlayerBakedPoseSample target8; target8.pose=clip->poses[8]; target8.state.position={0,0,0};
+  target8.base_angle=.3f; target8.sampled_frame=8; target8.requested_frame=8;
+  const auto realized8=RealizeBakedPose(*realized,target8);
+  const auto z8=EvaluateBakedBodyPose(realized8.pose,realized8.state,0,realized8.scale);
+  REQUIRE((z8.joints[right_ankle]-z7.joints[right_ankle]).GetLength()<0.08f);
+}

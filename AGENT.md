@@ -1165,9 +1165,20 @@ across 1,016 Movement, 12 Sliding and 38 Trip clips; maximum primitive endpoint
 deviation versus local-quaternion interpolation is 8.856 mm raw / 14.069 mm
 realized. This is a measured error, not yet a production admission threshold.
 The 0.215 m realized native maximum is same Movement clip 1147, frame 7->8,
-not a clip switch. Entry smoothing catch-up needs assessment against original
-local animation motion before claiming that speed is realistic. Prior asset
-Trip/Movement evidence based on direct e_FunctionType comparisons is superseded.
+NOT a clip switch frame. Root translation, base yaw and skeletal local motion
+were separated: the raw clip 1147 frame 7->8 ankle moves only ~0.044-0.075 m
+(4.4-7.5 m/s honest sprint gait), while the realized peak is ~0.215 m
+(~21.5 m/s). The realized pose is the result of entry-smoothing catch-up after
+the preceding clip switch (clip 1156 -> 1147, with a base-angle/rotation-
+smuggle reset): the reduced entry rate holds the realized pose behind the raw
+target and the inherited 7.5*pi rad/s per-joint rate limit then releases it as
+a bounded, transient surface-speed spike. The entry slerp bias toward the
+previous realized pose was removed (one lag source); the rate ramp and window
+remain as validated (a 16-frame window measurably worsens the peak). This is a
+diagnosed bound, not an approved production tolerance; a full action-aware rate
+redesign is deferred because it would also tighten legitimate kick headroom.
+Prior asset Trip/Movement evidence based on direct e_FunctionType comparisons
+is superseded.
 
 ### P4f-2b additional contact regions (experimental checkpoint)
 

@@ -4,9 +4,14 @@
 #include "foundation/time/tick_boundary.hpp"
 
 // Animation realization, NOT a collision filter. Both observable skeleton and
-// physical primitives must use this returned pose. The policy follows the
-// original Animation::Apply simple smoothing branch: blend at clip entry,
-// bound joint rotation, and blend/bound vertical root displacement at entry.
+// physical primitives must use this returned pose. The policy is adapted from the
+// original Animation::Apply simple smoothing branch, but does NOT slerp joint
+// rotation toward the previous realized pose during clip entry: that blend makes
+// a moving target perpetually lag and then releases the accumulated lag at the
+// end of the entry window as a non-physical surface-speed spike (e.g. a sprint
+// ankle swinging 0.215 m in one Tick where the raw gait moves only ~0.04 m).
+// Entry smoothing is instead the bounded rotation-rate ramp below, so the
+// realized pose never jumps faster than the per-joint rotational limit.
 // Root XY remains Player-owned. No controller/action/RNG execution occurs here.
 inline PlayerBakedPoseSample WorldBakedPose(PlayerBakedPoseSample target) {
   blunted::Quaternion base; base.SetAngleAxis(target.base_angle,{0,0,1});
@@ -29,7 +34,9 @@ inline PlayerBakedPoseSample RealizeBakedPose(const PlayerBakedPoseSample& previ
     auto desired=next.pose.orientations[joint];
     const auto& current=old.pose.orientations[joint];
     desired.MakeSameNeighborhood(current);
-    desired=desired.GetSlerped(bias,current).GetNormalized();
+    // No slerp toward `current` here: the rate limit below is the smoothing.
+    // Blending toward the previous pose would accumulate entry lag and release
+    // it when `begin` reaches zero (frame 8), fabricating unreal limb speed.
     const float dot=desired.MakeSameNeighborhood(current);
     const float angle=2*std::acos(blunted::clamp(dot,-1.f,1.f));
     float rate=7.5f*blunted::pi;

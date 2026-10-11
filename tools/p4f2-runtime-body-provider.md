@@ -126,3 +126,30 @@ both passed (180.73 s / 921.77 s). The initial Debug command timed out at its
 and cached immutable endpoint geometry without removing any dense samples.
 These focused executable runs include existing prepared/rule/pose tests, but
 are not final full-suite/full-regulation ON/ON acceptance.
+
+## P4f-2c motion decomposition (Movement smoothing catch-up)
+
+The 0.215 m/Tick realized joint-displacement peak from the runtime replay was
+decomposed into root translation, base yaw and skeletal local motion:
+
+- Root translation at the worst tick (sprint ~6.2 m/s) is ~0.065 m/Tick and is
+  already the Player-owned world position, not a fabricated surface speed.
+- Base yaw changes only ~0.005 rad/Tick at the peak; it is not the lever arm.
+- Raw clip 1147 (`movement/sprint/000_idlelevel1.anim_mirror`) frames 7->8
+  moves the ankle only ~0.044-0.075 m locally (4.4-7.5 m/s honest sprint gait).
+
+The realized peak is therefore entry-smoothing catch-up after the preceding
+clip switch (clip 1156 -> 1147 with a base-angle/rotation-smuggle reset): the
+realized pose lags the raw target during the entry window and the inherited
+7.5*pi rad/s per-joint rotation rate then releases that lag as a bounded,
+transient ~21.5 m/s ankle surface speed. Confirmed by the previous clip's
+rotation-smuggle offset decaying from 0.076 rad to 0.036 rad over frames 0..8
+while `startAngle` stays ~constant.
+
+The entry slerp bias toward the previous realized pose was removed (a redundant
+second lag source); the rate ramp and 8-frame window remain as validated.
+A 16-frame window and a full-rate clip-switch tick were both measured and made
+the peak worse, so neither was adopted. This is a diagnosed bound, not an
+approved production tolerance; a full action-aware rate redesign is deferred
+because it would also tighten legitimate kick headroom.
+
