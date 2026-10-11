@@ -1,4 +1,7 @@
-# Offline .anim/XML pipeline, never a runtime/shared-library dependency.
+# Offline .anim/XML pipeline. Self-contained: the baker links only its own
+# offline objects plus football::foundation. The animation format is
+# header-only (football::animation, an INTERFACE target), so no runtime
+# archive (sim/ball/pitch/game/animation) is linked into the baker.
 add_library(football_legacy_anim OBJECT
   animation/animation.cpp
   animation/animcollection.cpp
@@ -17,6 +20,7 @@ target_sources(football_anim_baking PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
   FILES anim_baker.hpp)
 target_link_libraries(football_anim_baking
+  # Header-only format + selector; no archive.
   PUBLIC football::animation
   PRIVATE football_legacy_anim football::foundation)
 football_configure_target(football_anim_baking)

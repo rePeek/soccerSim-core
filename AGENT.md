@@ -245,10 +245,14 @@ anim_baking → legacy_anim + animation/foundation
   Current product scope is one process/one match: no logger registry, batch or
   new general infrastructure/utils module. There is no src/support or support target;
   file I/O uses the STL at its call sites, Properties and custom diagnostics are removed.
-- `football_animation` is an independent archive. The offline baker can load and
-  verify baked assets without linking Simulation or GameEnv.
+- `football_animation` is a header-only INTERFACE target (format types,
+  serialization, the library reader, and selection) depending only on
+  foundation. The runtime and the offline baker share one definition, so the
+  baker links no runtime archive.
 - `football_legacy_anim` is an offline object target. `football_anim_baking` is a
-  callable offline library; `football_anim_baker` is its CLI.
+  callable offline library; `football_anim_baker` is its CLI. The baker is
+  self-contained: it links only its own offline objects and foundation, never
+  sim/ball/pitch/game/animation archives.
 - `tools/CMakeLists.txt` owns real developer tools. `test/CMakeLists.txt` registers
   C++ tests, regression runs, real app short/full matches and baker CLI checks.
   Tools are currently built under BUILD_TESTING, never linked into core.
