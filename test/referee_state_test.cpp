@@ -577,3 +577,35 @@ TEST_CASE("reviewed opposing CCD deflection preserves offside until the attacker
   REQUIRE(referee.buffer.teamID == 1);
   REQUIRE(std::count(commands.calls.begin(), commands.calls.end(), "stop") == 1);
 }
+
+TEST_CASE("deliberate defender play clears the offside candidate, deflection preserves it", "[rule-touch][referee]") {
+  Simulation s;
+  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),
+      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+  RefereeStateFixture referee(s);
+  referee.buffer.active = false; referee.buffer.restart.reset();
+  auto* attacker = SimulationAccess::TeamOf(s, 0)->GetAllPlayers()[2];
+  auto* defender = SimulationAccess::TeamOf(s, 1)->GetAllPlayers()[2];
+  auto facts = SimulationAccess::RefereeFactsOf(s);
+  facts.play_authorized = true; facts.set_piece_active = false;
+  std::vector<Player*> players;
+  SimulationAccess::TeamOf(s, 0)->GetActivePlayers(players);
+  SimulationAccess::TeamOf(s, 1)->GetActivePlayers(players);
+  football::sim::rules::RefereeView view{facts, players, true};
+  football::test::RuleCommandProbe commands;
+
+  // A reviewed passive deflection (preserve=true) keeps the flagged attacker.
+  referee.offsidePlayers = {attacker};
+  football::sim::event::AcceptedTouch deflection{football::sim::Tick{10}, defender->GetID(),
+      football::model::TeamSide::Away, e_TouchType_Accidental, {}, {}, 0, true};
+  referee.ConsumeBallTouch(football::sim::Tick{10}, deflection, view, commands);
+  REQUIRE(referee.offsidePlayers == std::vector<Player*>{attacker});
+
+  // A deliberate defender touch (preserve=false, intentional) becomes the new
+  // offside reference and clears the old candidate.
+  football::sim::event::AcceptedTouch deliberate{football::sim::Tick{11}, defender->GetID(),
+      football::model::TeamSide::Away, e_TouchType_Intentional_Kicked, {}, {}, 0, false};
+  referee.ConsumeBallTouch(football::sim::Tick{11}, deliberate, view, commands);
+  REQUIRE(std::find(referee.offsidePlayers.begin(), referee.offsidePlayers.end(), attacker) ==
+          referee.offsidePlayers.end());
+}
