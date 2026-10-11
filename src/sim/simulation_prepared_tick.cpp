@@ -60,6 +60,7 @@ struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
 void Simulation::EnablePreparedTickProduction(bool enabled) {
   if (!ball_) throw std::logic_error("simulation has no match");
   prepared_tick_production_ = enabled;
+  if (!enabled && baked_body_production_) EnableBakedBodyProduction(false);
   if (enabled && !preparation_ball_)
     preparation_ball_ = std::make_unique<football::ball::Ball>(ball_config_, pitch_);
   pending_active_impulse_.reset();
@@ -74,12 +75,14 @@ void Simulation::EnablePreparedTickProduction(bool enabled) {
 void Simulation::RunPreparedPlayerTick() {
   using namespace football::ball;
   const bool reverse = options_.reverse_team_processing;
-  const auto bodies = body_physics_production_ ?
-      std::span<const ColliderMotion>{body_physics_production_colliders_} :
+  BeginBakedBodyTick();
+  auto bodies = body_physics_production_ ?
+      std::span<const ColliderMotion>{baked_body_production_ ? baked_body_colliders_ : body_physics_production_colliders_} :
       std::span<const ColliderMotion>{};
   BallTickInput input{bodies, GetBallEnvironment()};
-  // Predict is const and does not consume force. Only the final Step below
-  // commits physical state, using the identical initial state and collider tape.
+  // Const actor forecast: no force consumption or actor/action/RNG advance.
+  // Baked mode later refreshes the passive preview against actual prepared
+  // geometry; the normal physical write remains the single final Step.
   Mirror(false, false, reverse);
   auto passive = ball_->Predict(input);
   Mirror(false, false, reverse);
@@ -123,6 +126,15 @@ void Simulation::RunPreparedPlayerTick() {
   prepare_team(second_team_);
   Mirror(first_team_ == 0, first_team_ == 1, true);
   preparation_ball_->Mirror();
+  if (baked_body_production_) {
+    CompleteBakedBodyPreparation();
+    bodies = std::span<const ColliderMotion>{baked_body_colliders_};
+    input.dynamic_colliders = bodies;
+    Mirror(false, false, reverse);
+    passive = ball_->Predict(input);
+    Mirror(false, false, reverse);
+    if (reverse) MirrorResult(passive);
+  }
 
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();

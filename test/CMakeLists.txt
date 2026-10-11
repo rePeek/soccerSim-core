@@ -46,6 +46,10 @@ add_executable(football_sim_computation_test sim_computation_test.cpp tick_test.
   player_body_contact_diagnostics_test.cpp player_active_touch_shadow_test.cpp
   player_active_touch_model_test.cpp
   player_baked_body_pose_test.cpp
+  player_baked_pose_runtime_test.cpp
+  player_baked_pose_realization_test.cpp
+  player_baked_mesh_envelope_test.cpp
+  player_baked_body_pipeline_test.cpp
   possession_test.cpp mental_image_history_test.cpp referee_state_test.cpp
   sim_fact_test.cpp event_recognizer_test.cpp rule_query_test.cpp
   touch_inference_test.cpp rule_command_fixture.hpp
@@ -53,6 +57,8 @@ add_executable(football_sim_computation_test sim_computation_test.cpp tick_test.
 target_link_libraries(football_sim_computation_test PRIVATE
   football::game football::ai football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_computation_test)
+target_compile_definitions(football_sim_computation_test PRIVATE
+  FOOTBALL_TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/data")
 add_test(NAME football_sim_computation_test COMMAND football_sim_computation_test)
 set_tests_properties(football_sim_computation_test PROPERTIES LABELS sim)
 

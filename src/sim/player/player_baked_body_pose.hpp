@@ -70,16 +70,25 @@ struct BakedPlayerBodyCollider {
       PlayerBodyPart::LowerBody, PlayerBodyPart::LowerBody,
       PlayerBodyPart::LowerBody, PlayerBodyPart::LowerBody};
 };
+// Read-only offline envelope calibration against the shipped local ASE vertices:
+// head (222 vertices), upperleg (207), lowerleg (224). No runtime mesh loading.
+// These cover those named meshes, not arms/boots; active boot/hand geometry is
+// a separate P4f-3 gate, not a claim that six primitives cover the whole avatar.
+inline const blunted::Vector3 kBakedHeadCenter{.0003f,-.0121f,.1212f};
+inline constexpr float kBakedHeadRadius=.172f;
+inline constexpr float kBakedThighRadius=.106f;
+inline constexpr float kBakedShinRadius=.102f;
 inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
     const PlayerKinematicState& state, float animation_base_angle, float scale = 1.0f) {
   using namespace football::ball;
   const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, scale);
   const auto& j = world.joints;
-  return {{Capsule{j[body], j[neck], .20f * scale}, Sphere{j[neck], .11f * scale},
-           Capsule{j[left_thigh], j[left_knee], .10f * scale},
-           Capsule{j[left_knee], j[left_ankle], .09f * scale},
-           Capsule{j[right_thigh], j[right_knee], .10f * scale},
-           Capsule{j[right_knee], j[right_ankle], .09f * scale}}};
+  return {{Capsule{j[body], j[neck], .20f * scale},
+           Sphere{j[neck]+world.orientations[neck]*(kBakedHeadCenter*scale),kBakedHeadRadius*scale},
+           Capsule{j[left_thigh], j[left_knee], kBakedThighRadius * scale},
+           Capsule{j[left_knee], j[left_ankle], kBakedShinRadius * scale},
+           Capsule{j[right_thigh], j[right_knee], kBakedThighRadius * scale},
+           Capsule{j[right_knee], j[right_ankle], kBakedShinRadius * scale}}};
 }
 
 // Both actual pose endpoints are supplied by the caller. Physics uses the

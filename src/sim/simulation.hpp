@@ -34,6 +34,7 @@
 #include "sim/player/foul_assessment.hpp"
 #include "sim/player/player_body_collision_shadow.hpp"
 #include "sim/player/player_active_touch_shadow.hpp"
+#include "sim/player/player_baked_pose_sample.hpp"
 
 #include "sim/referee/ruling.hpp"
 #include "sim/event/match_event.hpp"
@@ -72,6 +73,13 @@ class Simulation {
   const football::sim::observation::SnapshotMetadata& SnapshotMetadata() const { return snapshot_metadata_; }
   // Static player -> TeamSide association, valid for the whole match.
   const football::sim::observation::PlayerSlotTable& PlayerSlots() const { return player_slots_; }
+  // Realized skeletal pose at physical commitment, in the common actor frame.
+  // Same FK source as the six CCD primitives; slots match SnapshotMetadata.
+  // Empty after placement/reset until the next realization. Borrow expires on Step.
+  std::span<const std::optional<PlayerBakedPoseSample>> CommittedBakedPoses() const {
+    if (!baked_body_production_ || baked_pose_generation_ != reset_sequence_) return {};
+    return baked_body_poses_;
+  }
   // Whole-step summaries published with the latest Snapshot, not contact facts.
   const std::vector<football::sim::event::EventTrajectory>& EventTrajectories() const {
     return recognizer_.trajectories();
@@ -143,6 +151,10 @@ class Simulation {
   // Explicit timing-migration gate, independent of all diagnostic sinks.
   void EnablePreparedTickProduction(bool enabled);
   void RunPreparedPlayerTick();
+  void EnableBakedBodyProduction(bool enabled);
+  void BeginBakedBodyTick();
+  void CompleteBakedBodyPreparation();
+  void BuildBakedBodyTape(std::span<const std::optional<PlayerBakedPoseSample>> endpoints);
   void PublishRuleTouch(football::sim::event::RuleTouch touch);
   void PublishBodyRuleTouches(const football::ball::BallStepResult& result,
       std::span<const football::ball::ColliderMotion> bodies);
@@ -283,6 +295,10 @@ class Simulation {
   std::optional<football::ball::BallStepResult> committed_ball_tick_;
   std::vector<football::sim::event::RuleTouch> rule_touches_; // latest committed tick
   std::map<football::ball::ColliderId, bool> rule_contact_episodes_;
+  bool baked_body_production_ = false; // P4f-2 experiment; defaults stay OFF
+  std::optional<std::uint64_t> baked_pose_generation_;
+  std::vector<std::optional<PlayerBakedPoseSample>> baked_body_poses_, baked_body_starts_, baked_body_forecasts_;
+  std::vector<football::ball::ColliderMotion> baked_body_colliders_;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

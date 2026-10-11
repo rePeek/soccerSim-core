@@ -354,6 +354,10 @@ class Player final {
     float GetMaxVelocity() const;
 
     const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
+    PlayerBakedPoseSample GetBakedPoseSample(float scale) const {
+      if (!humanoid) throw std::logic_error("inactive player has no baked pose source");
+      return humanoid->SampleBakedPose(kinematicState,scale);
+    }
 
     void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
     football::sim::Tick GetLastTouchTick() const { return last_touch_tick_; }

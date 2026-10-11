@@ -280,6 +280,7 @@ void Simulation::CompleteBodyPhysicsShadow() {
 
 void Simulation::EnableBodyPhysicsProduction(bool enabled) {
   body_physics_production_ = enabled;
+  if (!enabled && baked_body_production_) EnableBakedBodyProduction(false);
   active_candidate_capture_ = enabled || active_touch_report_enabled_;
   if (!enabled) return;
   if (!ball_) throw std::logic_error("simulation has no match");

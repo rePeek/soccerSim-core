@@ -1,0 +1,29 @@
+#ifndef FOOTBALL_PLAYER_BAKED_POSE_SAMPLE_HPP
+#define FOOTBALL_PLAYER_BAKED_POSE_SAMPLE_HPP
+#include "sim/player/player_baked_body_pose.hpp"
+
+// Read-only sample of the current runtime animation slot, not a forecast and
+// not another Humanoid execution. The requested frame is retained so a caller
+// cannot silently mistake end-of-clip clamping for animation continuity.
+struct PlayerBakedPoseSample {
+  PoseFrame pose;
+  PlayerKinematicState state;
+  AnimationId animation_id = 0;
+  int requested_frame = 0;
+  int sampled_frame = 0;
+  float base_angle = 0;
+  float scale = 1;
+  e_FunctionType action = e_FunctionType_None;
+  bool frame_clamped = false;
+  BakedPlayerBodyCollider Geometry() const {
+    return BuildBodyCollider(pose,state,base_angle,scale);
+  }
+  void Mirror() {
+    state.Mirror();
+    // PlayerKinematicState::Mirror deliberately does not rotate facing fields;
+    // FK takes the animation base explicitly, so only that angle is transformed.
+    blunted::radian angle = base_angle;
+    angle.Mirror(); base_angle = angle;
+  }
+};
+#endif

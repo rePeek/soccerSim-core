@@ -1124,3 +1124,33 @@ local velocity/response, deterministic ordering/frame transforms, an independent
 distance oracle, zero-allocation queries, ID boundaries and every real adjacent
 Sliding/Trip pose pair. This is not P4f-2 provider/clip-switch calibration or
 production admission. Definitions/validation: `tools/p4f1-capsule-ccd.md`.
+
+### P4f-2 runtime provider experiment (not production acceptance)
+
+`player_baked_pose_sample.hpp` observes actual runtime clip/frame/base yaw/scale
+without executing actors or RNG. `player_baked_pose_realization.hpp` declares
+shared skeletal entry blending/rotation and root-Z smoothing, adapted from the
+offline simple Animation::Apply branch. Raw targets are not continuous poses.
+`simulation_baked_body.cpp` builds a separately owned six-ID tape from realized
+adjacent physical poses; coarse Shadow buffers cannot overwrite it. The internal
+Baked gate requires prepared+body ON, defaults OFF, and is invalidated by Stop
+or prerequisite disable. Reset/end changes reseed rather than sweep placements.
+
+The first-roster pose source is exposed through CommittedBakedPoses at physical
+commitment, not post-rule placement. Actors read a shared const forecast; actual
+single-pass preparation endpoints refresh const arbitration evidence before the
+one Step. No action/RNG repetition or extra normal Step is added. Rule episodes
+group adjacent leg surfaces while retaining distinct physical provenance.
+
+Named head/thigh/shin mesh envelopes are calibrated offline and tested against
+immutable vertices, without runtime Mesh dependency. Torso, boots, hands, running
+gait and sub-Tick render interpolation remain further gates. The shipped library
+has no Movement/None-tagged clips; initial reference coverage must not be called
+a running-gait proof. Non-injected 24-second provider replay had zero body impacts;
+a separately labelled constructed head strike verifies six-ID CCD RuleTouch.
+
+Tests: player_baked_pose_runtime_test.cpp, player_baked_pose_realization_test.cpp,
+player_baked_mesh_envelope_test.cpp and player_baked_body_pipeline_test.cpp.
+Contract and evidence: tools/p4f2-runtime-body-provider.md. P4f-2 acceptance,
+P4f-3 technique calibration, P6c semantic/full-match acceptance and P7 reviewed
+Golden/default/Legacy removal are not complete. Assets/Golden remain unchanged.

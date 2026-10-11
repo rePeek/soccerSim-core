@@ -3,6 +3,16 @@
 #include "sim/team/team.hpp"
 #include "sim/player/player_body_pose_shadow.hpp"
 #include <algorithm>
+namespace {
+football::ball::ColliderId BodyEpisodeKey(football::ball::ColliderId id) {
+  if(id<kFirstBakedBodyColliderId) return id;
+  const auto offset=id-kFirstBakedBodyColliderId;
+  const auto segment=offset%kBakedBodySegmentCount;
+  const auto part=segment==0 ? PlayerBodyPart::UpperBody :
+      segment==1 ? PlayerBodyPart::Head : PlayerBodyPart::LowerBody;
+  return PlayerBodyColliderId(offset/kBakedBodySegmentCount,part);
+}
+}
 
 void Simulation::PublishRuleTouch(football::sim::event::RuleTouch touch) {
   // A RuleTouch contains reviewed provenance, not an inferred Snapshot delta.
@@ -26,27 +36,31 @@ void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& re
     const auto owner = body_collider_owners_.find(contact.collider);
     if (owner == body_collider_owners_.end()) continue;
     auto* player = FindPlayerById(owner->second.first);
-    if (!player || !player->IsActive() || rule_contact_episodes_.at(contact.collider)) continue;
+    const auto episode_key=BodyEpisodeKey(contact.collider);
+    if (!player || !player->IsActive() || rule_contact_episodes_.at(episode_key)) continue;
     football::sim::event::AcceptedTouch accepted{
         GetTimelineTick(), player->GetID(), player->GetTeam()->GetTeamSide(),
         e_TouchType_Accidental, result.state.position, result.state.velocity,
         static_cast<int>(player->GetSimulationActionState().type), true};
     PublishRuleTouch({accepted, owner->second.second,
         football::sim::event::RuleTouchSource::BodyCCD, 0, 0, contact});
-    rule_contact_episodes_.at(contact.collider) = true;
+    rule_contact_episodes_.at(episode_key) = true;
   }
   // Re-arm only after geometric separation, not after a timer or a zero impulse.
   // Collider tapes are in pitch physics coordinates; result is in first-roster
   // coordinates. No identity remapping occurs when ends/processing order change.
   auto center = result.state.position;
   if (options_.reverse_team_processing) center.Mirror();
-  for (const auto& collider : bodies) {
-    auto episode = rule_contact_episodes_.find(collider.id);
-    if (episode == rule_contact_episodes_.end()) continue;
-    const bool reported = std::any_of(result.contacts.begin(), result.contacts.end(),
-        [&](const auto& c) { return c.collider == collider.id; });
-    // Geometry alone cannot arm suppression before the first physical touch.
-    episode->second = episode->second &&
-        (reported || BodyShadowGap(center, ball_config_.radius(), collider.end) <= 0);
+  // Four leg primitives remain physically distinct, but continuation transfers
+  // across adjacent lower-body surfaces without another rule touch. Re-arm only
+  // when the whole semantic group has separated, never leaf-by-leaf or by time.
+  for (auto& [key, accepted] : rule_contact_episodes_) {
+    if(!accepted) continue;
+    accepted=std::any_of(bodies.begin(),bodies.end(),[&](const auto& collider) {
+      if(BodyEpisodeKey(collider.id)!=key) return false;
+      const bool reported=std::any_of(result.contacts.begin(),result.contacts.end(),
+          [&](const auto& c) { return BodyEpisodeKey(c.collider)==key; });
+      return reported || BodyShadowGap(center,ball_config_.radius(),collider.end)<=0;
+    });
   }
 }

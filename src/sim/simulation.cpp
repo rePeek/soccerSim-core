@@ -1010,6 +1010,7 @@ MatchResult Simulation::Result() const {
 bool Simulation::Stop() {
   if (!ball_) return false;
   EnableActiveTouchShadow(false);
+  EnableBakedBodyProduction(false);
   teams_[first_team_]->Exit(GetTimelineTick());
   teams_[second_team_]->Exit(GetTimelineTick());
   // Clear every actor borrow before their owners go away: an uninitialized

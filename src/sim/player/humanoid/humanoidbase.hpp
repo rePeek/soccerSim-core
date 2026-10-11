@@ -26,6 +26,7 @@
 
 #include "sim/animation/selection_query.hpp"
 #include "sim/animation/clip.hpp"
+#include "sim/player/player_baked_pose_sample.hpp"
 
 #include "sim/player/player_kinematics.hpp"
 #include "sim/observation/mentalimage.hpp"
@@ -383,6 +384,20 @@ class HumanoidBase {
     // these resolve through the stable AnimationId into the read-only library.
     const AnimationClip &GetBakedClip(AnimationId id) const;
     const AnimationClip &GetCurrentBakedClip() const;
+    PlayerBakedPoseSample SampleBakedPose(const PlayerKinematicState& state, float scale) const {
+      const auto& clip = GetCurrentBakedClip();
+      if (clip.poses.empty() || currentAnim.frameNum < 0)
+        throw std::logic_error("missing runtime baked pose frame");
+      const auto frame = std::min(std::size_t(currentAnim.frameNum),clip.poses.size()-1);
+      PlayerBakedPoseSample sample;
+      sample.pose = clip.poses[frame]; sample.state = state;
+      sample.animation_id = currentAnim.animationId;
+      sample.requested_frame = currentAnim.frameNum; sample.sampled_frame = int(frame);
+      sample.frame_clamped = sample.requested_frame != sample.sampled_frame;
+      sample.base_angle = startAngle + currentAnim.rotationSmuggleOffset;
+      sample.scale = scale; sample.action = currentAnim.functionType;
+      return sample;
+    }
     // Per-animation scratch for the selection sort predicates (replaces the
     // legacy mutable Animation::order_float field).
     float &OrderScratch(int id) const;

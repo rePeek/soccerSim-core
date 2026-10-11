@@ -53,7 +53,9 @@ TEST_CASE("real baked Sliding and Trip produce posed anatomy rather than fixed l
       const auto& lower_leg = std::get<football::ball::Capsule>(shapes.shapes[3]);
       REQUIRE(lower_leg.a == world.joints[left_knee]);
       REQUIRE(lower_leg.b == world.joints[left_ankle]);
-      REQUIRE(std::get<football::ball::Sphere>(shapes.shapes[1]).center == world.joints[neck]);
+      const auto& head_shape=std::get<football::ball::Sphere>(shapes.shapes[1]);
+      REQUIRE(head_shape.center == world.joints[neck]+world.orientations[neck]*kBakedHeadCenter);
+      REQUIRE(head_shape.radius == kBakedHeadRadius);
       for (const auto& joint : world.joints) {
         REQUIRE(std::isfinite(joint.coords[0]));
         REQUIRE(std::isfinite(joint.coords[1]));

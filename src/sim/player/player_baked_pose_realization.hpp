@@ -1,0 +1,56 @@
+#ifndef FOOTBALL_PLAYER_BAKED_POSE_REALIZATION_HPP
+#define FOOTBALL_PLAYER_BAKED_POSE_REALIZATION_HPP
+#include "sim/player/player_baked_pose_sample.hpp"
+#include "foundation/time/tick_boundary.hpp"
+
+// Animation realization, NOT a collision filter. Both observable skeleton and
+// physical primitives must use this returned pose. The policy follows the
+// original Animation::Apply simple smoothing branch: blend at clip entry,
+// bound joint rotation, and blend/bound vertical root displacement at entry.
+// Root XY remains Player-owned. No controller/action/RNG execution occurs here.
+inline PlayerBakedPoseSample WorldBakedPose(PlayerBakedPoseSample target) {
+  blunted::Quaternion base; base.SetAngleAxis(target.base_angle,{0,0,1});
+  target.pose.orientations[BodyPart::body] =
+      (base*target.pose.orientations[BodyPart::body]).GetNormalized();
+  target.base_angle=0;
+  return target;
+}
+inline PlayerBakedPoseSample RealizeBakedPose(const PlayerBakedPoseSample& previous,
+    const PlayerBakedPoseSample& input, bool outgoing_special_state = false) {
+  auto next=WorldBakedPose(input);
+  const auto old=WorldBakedPose(previous);
+  if (!(next.scale>0) || !std::isfinite(next.scale) || next.scale!=old.scale)
+    throw std::invalid_argument("baked realization requires a fixed positive actor scale");
+  const float dt=football::sim::kTickSeconds;
+  const float begin=std::sqrt(blunted::curve(1-blunted::NormalizedClamp(float(input.sampled_frame),0,8),1));
+  const float bias=begin*.5f;
+  for(std::size_t joint=0;joint<kBodyPartCount;++joint) {
+    if(joint==BodyPart::player) continue;
+    auto desired=next.pose.orientations[joint];
+    const auto& current=old.pose.orientations[joint];
+    desired.MakeSameNeighborhood(current);
+    desired=desired.GetSlerped(bias,current).GetNormalized();
+    const float dot=desired.MakeSameNeighborhood(current);
+    const float angle=2*std::acos(blunted::clamp(dot,-1.f,1.f));
+    float rate=7.5f*blunted::pi;
+    if(joint==left_elbow || joint==right_elbow || joint==left_knee || joint==right_knee) rate*=1.2f;
+    if(joint==left_ankle || joint==right_ankle) rate*=1.6f;
+    const float allowed=(.3f+.7f*(1-begin))*rate*dt;
+    if(angle>allowed) {
+      const auto delta=current.GetRotationTo(desired).GetNormalized();
+      desired=(delta.GetRotationMultipliedBy(allowed/angle)*current).GetNormalized();
+    }
+    next.pose.orientations[joint]=desired;
+  }
+  if(begin>.01f) {
+    const float old_z=old.pose.positions[BodyPart::player].coords[2]*old.scale;
+    float z=next.pose.positions[BodyPart::player].coords[2]*next.scale;
+    z=z*(1-bias)+old_z*bias;
+    const float allowed=(outgoing_special_state?6.f:2.8f)*dt;
+    const float limited=old_z+blunted::clamp(z-old_z,-allowed,allowed);
+    z=limited*begin+z*(1-begin);
+    next.pose.positions[BodyPart::player].coords[2]=z/next.scale;
+  }
+  return next;
+}
+#endif
