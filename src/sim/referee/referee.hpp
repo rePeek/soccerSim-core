@@ -19,6 +19,7 @@
 #define _HPP_REFEREE
 
 #include <vector>
+#include "model/pitch.hpp"
 #include <optional>
 
 #include "model/football_types.hpp"

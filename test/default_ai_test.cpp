@@ -1,4 +1,5 @@
 #include <array>
+#include "model/pitch.hpp"
 #include <cmath>
 #include <cstring>
 

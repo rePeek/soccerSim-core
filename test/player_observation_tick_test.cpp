@@ -1,4 +1,5 @@
 #include <algorithm>
+#include "model/pitch.hpp"
 #include <cmath>
 #include <limits>
 #include <optional>

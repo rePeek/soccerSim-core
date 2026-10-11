@@ -1,4 +1,5 @@
 #include <sstream>
+#include "model/pitch.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include "ai/default_ai.hpp"
 #include "app/fixtures/default_teams.hpp"

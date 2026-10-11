@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include "model/pitch.hpp"
 #include <exception>
 #include <iostream>
 

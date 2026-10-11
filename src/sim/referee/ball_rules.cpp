@@ -1,4 +1,5 @@
 #include "sim/referee/ball_rules.hpp"
+#include "model/pitch.hpp"
 
 #include <cmath>
 

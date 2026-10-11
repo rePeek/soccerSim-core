@@ -1,5 +1,6 @@
 // Read-only P4 body collision diagnostics. No contact is fed back to gameplay.
 #include <iostream>
+#include "model/pitch.hpp"
 #include <iomanip>
 #include <stdexcept>
 #include <string>

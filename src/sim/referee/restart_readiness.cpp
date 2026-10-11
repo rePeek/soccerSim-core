@@ -1,4 +1,5 @@
 #include "sim/referee/restart_readiness.hpp"
+#include "model/pitch.hpp"
 
 #include <algorithm>
 #include <cmath>

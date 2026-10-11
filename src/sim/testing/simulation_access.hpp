@@ -2,6 +2,7 @@
 #define FOOTBALL_SIM_TESTING_SIMULATION_ACCESS_HPP
 
 #include <cstdint>
+#include "model/pitch.hpp"
 #include <stdexcept>
 #include <vector>
 
@@ -177,7 +178,7 @@ class SimulationAccess {
       s.body_physics_shadow_candidates_.reserve(slots);
       s.body_geometry_episodes_.Resize(slots);
       s.body_impact_episodes_.Resize(slots);
-      s.body_physics_shadow_ball_ = std::make_unique<football::ball::Ball>(s.ball_config_, s.pitch_);
+      s.body_physics_shadow_ball_ = std::make_unique<football::ball::Ball>(s.ball_config_, s.ball_world_);
     } else {
       s.body_physics_shadow_ball_.reset();
     }

@@ -1,4 +1,5 @@
 #include "env.hpp"
+#include "model/pitch.hpp"
 
 #include <stdexcept>
 #include <utility>

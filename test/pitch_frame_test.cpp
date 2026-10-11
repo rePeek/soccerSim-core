@@ -1,4 +1,5 @@
 #include <algorithm>
+#include "model/pitch.hpp"
 #include <cstring>
 #include <array>
 #include <tuple>

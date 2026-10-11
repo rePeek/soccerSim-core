@@ -1,5 +1,6 @@
 // Read-only native restart diagnostics; not a runtime clock, scheduler or policy.
 #include <algorithm>
+#include "model/pitch.hpp"
 #include <array>
 #include <charconv>
 #include <cstdint>

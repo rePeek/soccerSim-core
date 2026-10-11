@@ -1,5 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
+import football.pitch;
+#include "model/pitch.hpp"
+
 #include <cmath>
 
 #include "app/fixtures/default_teams.hpp"
@@ -69,7 +72,7 @@ TEST_CASE("referee uses the injected sideline for throw-ins", "[sim][custom-pitc
 
 TEST_CASE("ball woodwork uses the injected goal post", "[sim][custom-pitch]") {
   const football::model::Pitch custom(100.0f, 64.0f, 0.04f, 1.6f, 0.025f);
-  football::ball::Ball ball(football::model::BallConfig{}, custom);
+  football::ball::Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(custom, football::model::BallConfig{})};
   football::ball::BallState state;
   state.position = Vector3(custom.half_length() - 0.15f, custom.goal_half_width(), 0.1f);
   state.velocity = Vector3(3.0f, 0.0f, 0.0f);
@@ -88,8 +91,8 @@ TEST_CASE("the same ball state diverges on different pitches", "[sim][custom-pit
   state.velocity = Vector3(10.0f, 0.0f, 0.0f);
   state.angular_velocity = Vector3(0.0f, 0.0f, 0.0f);
   state.orientation = blunted::Quaternion();
-  football::ball::Ball short_ball(football::model::BallConfig{}, short_grass);
-  football::ball::Ball tall_ball(football::model::BallConfig{}, tall_grass);
+  football::ball::Ball short_ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(short_grass, football::model::BallConfig{})};
+  football::ball::Ball tall_ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(tall_grass, football::model::BallConfig{})};
   short_ball.Reset(state);
   tall_ball.Reset(state);
   const auto short_next = short_ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{});

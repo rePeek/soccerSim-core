@@ -1,4 +1,7 @@
 #include <catch2/catch_approx.hpp>
+
+import football.pitch;
+#include "model/pitch.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/ball/ball.hpp"
@@ -137,7 +140,7 @@ TEST_CASE("magnus trajectory curves consistently and stays numerically stable",
     input.technique = TouchTechnique{lateral, 0};
     const auto proposal = ProposeActiveTouch(input);
     REQUIRE(proposal.reachable);
-    football::ball::Ball ball{pitch};
+    football::ball::Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(pitch, football::model::BallConfig{})};
     ball.Reset(proposal.response);
     return std::make_pair(ball.Predict(horizon, football::ball::BallEnvironment{}),
                           proposal.spin);

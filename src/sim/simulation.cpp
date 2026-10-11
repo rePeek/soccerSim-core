@@ -1,4 +1,5 @@
 #include "sim/simulation.hpp"
+#include "model/pitch.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -25,6 +26,7 @@
 #include "sim/team/possession.hpp"
 #include "sim/team/team.hpp"
 
+import football.pitch;
 using football::ball::Ball;
 
 namespace {
@@ -470,7 +472,8 @@ void Simulation::Init(
   second_team_ = options.reverse_team_processing ? 0 : 1;
 
   // Build the whole composition locally, then publish it only on full success.
-  auto ball = std::make_unique<Ball>(ball_config_, pitch_);
+  ball_world_ = football::pitch::BuildBallWorld(pitch_, ball_config_);
+  auto ball = std::make_unique<Ball>(ball_config_, ball_world_);
   const football::model::Team* descriptions[] = {&home_model, &away_model};
   std::array<std::unique_ptr<Team>, 2> teams;
   teams[first_team_] =

@@ -1,4 +1,5 @@
 #include "ai/tactical_board.hpp"
+#include "model/pitch.hpp"
 
 #include <algorithm>
 

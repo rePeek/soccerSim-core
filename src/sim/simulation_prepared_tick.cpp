@@ -63,7 +63,7 @@ void Simulation::EnablePreparedTickProduction(bool enabled) {
   prepared_tick_production_ = enabled;
   if (!enabled && baked_body_production_) EnableBakedBodyProduction(false);
   if (enabled && !preparation_ball_)
-    preparation_ball_ = std::make_unique<football::ball::Ball>(ball_config_, pitch_);
+    preparation_ball_ = std::make_unique<football::ball::Ball>(ball_config_, ball_world_);
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();
   committed_ball_tick_.reset();

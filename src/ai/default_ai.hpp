@@ -2,6 +2,7 @@
 #define FOOTBALL_AI_DEFAULT_AI_HPP
 
 #include <array>
+#include "model/pitch.hpp"
 #include <utility>
 
 #include "ai/ai_config.hpp"

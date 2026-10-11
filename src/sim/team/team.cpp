@@ -17,6 +17,7 @@
 // so don't ask. to be used for inspiration :)
 
 #include <algorithm>
+#include "model/pitch.hpp"
 #include "sim/team/team.hpp"
 
 #include "sim/team/formation.hpp"

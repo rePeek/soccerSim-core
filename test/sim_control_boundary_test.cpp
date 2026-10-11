@@ -1,4 +1,7 @@
 #include <memory>
+
+import football.pitch;
+#include "model/pitch.hpp"
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -486,7 +489,7 @@ TEST_CASE("Command authorization consumes supplied restart, ball and touch facts
   Runtime runtime;
   auto& team = *SimulationAccess::TeamOf(runtime.simulation, 0);
   auto& keeper = *team.GetGoalie();
-  Ball ball(SimulationAccess::PitchOf(runtime.simulation));
+  Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(SimulationAccess::PitchOf(runtime.simulation), football::model::BallConfig{})};
   ball.ResetSituation(Vector3(-52, 0, 0));
   football::sim::event::TouchState touches;
   RefereeBuffer restart = SimulationAccess::RefereeOf(runtime.simulation)->GetBuffer();

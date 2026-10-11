@@ -13,6 +13,7 @@
 
 
 #include "sim/referee/offside.hpp"
+#include "model/pitch.hpp"
 
 #include <cmath>
 

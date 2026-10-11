@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/referee/referee.hpp"
+#include "model/pitch.hpp"
 #include <cmath>
 #include <type_traits>
 #include <algorithm>

@@ -19,6 +19,7 @@
 #define _HPP_TEAM
 
 #include <cstdint>
+#include "model/pitch.hpp"
 #include <memory>
 #include <span>
 #include "model/team.hpp"

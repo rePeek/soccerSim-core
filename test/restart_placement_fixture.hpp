@@ -2,6 +2,7 @@
 #define FOOTBALL_TEST_RESTART_PLACEMENT_FIXTURE_HPP
 
 #include <array>
+#include "model/pitch.hpp"
 #include <cstdint>
 #include <sstream>
 

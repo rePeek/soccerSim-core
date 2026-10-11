@@ -1,4 +1,5 @@
 #include <algorithm>
+#include "model/pitch.hpp"
 #include <bit>
 #include <chrono>
 #include <iostream>

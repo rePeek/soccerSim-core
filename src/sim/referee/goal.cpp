@@ -12,6 +12,7 @@
 // limitations under the License.
 
 #include "sim/referee/goal.hpp"
+#include "model/pitch.hpp"
 
 #include <cmath>
 

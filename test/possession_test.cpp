@@ -1,5 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
+import football.pitch;
+#include "model/pitch.hpp"
+
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
 #include "sim/simulation.hpp"
@@ -137,7 +140,7 @@ TEST_CASE("Roster possession phases consume supplied opponent and physical retai
   football::sim::player::PrepareTeamPossession(team, opponent, true, false, retainer, &team);
   REQUIRE(team.GetTeamPossessionAmount() == 0.5f);
   REQUIRE(team.GetFadingTeamPossessionAmount() == 0.5f);
-  Ball supplied(SimulationAccess::PitchOf(simulation));
+  Ball supplied{football::model::BallConfig{}, football::pitch::BuildBallWorld(SimulationAccess::PitchOf(simulation), football::model::BallConfig{})};
   football::sim::player::RefreshTeamPossession(team, opponent, supplied, football::sim::Tick{123},
       team.GetAllPlayers()[1]);
   REQUIRE(team.HasPossession());

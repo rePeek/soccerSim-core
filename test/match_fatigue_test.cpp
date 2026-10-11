@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include "model/pitch.hpp"
 
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"

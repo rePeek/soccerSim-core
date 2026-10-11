@@ -2,6 +2,7 @@
 #define FOOTBALL_SIM_PLAYER_PLAYER_CONTROL_BUILDER_HPP
 
 #include "sim/player/player_control.hpp"
+#include "model/pitch.hpp"
 #include "sim/player/player_command.hpp"
 
 class Player;

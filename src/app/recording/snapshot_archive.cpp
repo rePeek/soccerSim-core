@@ -1,4 +1,5 @@
 #include "app/recording/snapshot_archive.hpp"
+#include "model/pitch.hpp"
 
 #include <algorithm>
 #include <array>

@@ -1,4 +1,7 @@
 #include <vector>
+
+import football.pitch;
+#include "model/pitch.hpp"
 #include <filesystem>
 #include <type_traits>
 #include "sim/animation/library.hpp"
@@ -132,7 +135,7 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
   auto& opponent = *SimulationAccess::TeamOf(simulation, 1);
   auto* toucher = opponent.GetAllPlayers()[1];
   const auto ambient_rng = SimulationAccess::RngOf(simulation).engine();
-  Ball supplied(football::model::Pitch{});
+  Ball supplied{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})};
   SpatialState spatial;
   spatial.position = Vector3(0);
   spatial.directionVec = Vector3(0, -1, 0);

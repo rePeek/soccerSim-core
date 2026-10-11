@@ -1,4 +1,5 @@
 #include <array>
+#include "model/pitch.hpp"
 #include <iostream>
 #include <sstream>
 #include <catch2/catch_test_macros.hpp>

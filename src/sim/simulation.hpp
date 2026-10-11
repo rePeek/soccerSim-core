@@ -27,6 +27,7 @@
 #include "sim/event/touch_record.hpp"
 #include "sim/event/rule_touch.hpp"
 #include "football/ball/ball_environment.hpp"
+#include "football/ball/ball_world.hpp"
 #include "sim/referee/referee_tick_facts.hpp"
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
@@ -238,6 +239,9 @@ class Simulation {
   MatchOptions options_;
   football::model::Pitch pitch_;
   football::model::BallConfig ball_config_;
+  // Assembled once per Init from pitch_ + ball_config_; every Ball instance
+  // (authoritative, preparation, shadow) reuses this static world.
+  football::ball::BallWorld ball_world_;
   std::shared_ptr<AnimationLibrary> animations_;
 
   std::unique_ptr<football::ball::Ball> ball_;

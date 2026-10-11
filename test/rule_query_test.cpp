@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include "model/pitch.hpp"
 
 #include "sim/observation/player_slots.hpp"
 #include "sim/referee/ball_rules.hpp"

@@ -1,4 +1,5 @@
 #include <atomic>
+#include "model/pitch.hpp"
 #include <bit>
 #include <chrono>
 #include <cstring>

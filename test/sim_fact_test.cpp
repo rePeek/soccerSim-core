@@ -1,4 +1,5 @@
 #include <variant>
+#include "model/pitch.hpp"
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>

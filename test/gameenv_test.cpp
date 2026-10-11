@@ -1,4 +1,5 @@
 #include <cstring>
+#include "model/pitch.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <type_traits>

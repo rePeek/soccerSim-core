@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/player/player.hpp"
+#include "model/pitch.hpp"
 
 #include <cmath>
 #include <cassert>

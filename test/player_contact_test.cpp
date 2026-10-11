@@ -1,4 +1,7 @@
 #include <array>
+
+import football.pitch;
+#include "model/pitch.hpp"
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
@@ -30,7 +33,7 @@ std::vector<Vector3> BallPredictionSamples(const Ball& ball) {
 
 struct PlayerContactFixture {
   Simulation simulation;
-  Ball ball{football::model::Pitch{}};
+  Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})};
   std::array<Player*, 3> players;
 
   explicit PlayerContactFixture(bool reverse) {

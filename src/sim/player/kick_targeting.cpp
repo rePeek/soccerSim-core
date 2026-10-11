@@ -13,6 +13,7 @@
 
 
 #include "sim/player/kick_targeting.hpp"
+#include "model/pitch.hpp"
 
 #include <cmath>
 #include <cassert>

@@ -1,4 +1,5 @@
 #include <iostream>
+#include "model/pitch.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"

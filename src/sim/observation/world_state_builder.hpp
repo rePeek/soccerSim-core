@@ -2,6 +2,7 @@
 #define FOOTBALL_SIM_OBSERVATION_WORLD_STATE_BUILDER_HPP
 
 #include "sim/observation/world_state.hpp"
+#include "model/pitch.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

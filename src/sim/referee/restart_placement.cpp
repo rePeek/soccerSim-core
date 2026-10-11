@@ -13,6 +13,7 @@
 
 
 #include "sim/referee/restart_placement.hpp"
+#include "model/pitch.hpp"
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/query/player_query.hpp"
 #include "football/ball/ball.hpp"
