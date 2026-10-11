@@ -18,6 +18,7 @@
 #include "sim/observation/mentalimage.hpp"
 
 #include "football/ball/ball.hpp"
+#include "football/ball/ball_timing.hpp"
 #include "sim/player/player.hpp"
 
 using football::ball::Ball;
@@ -97,7 +98,13 @@ std::vector<PlayerImagePosition> MentalImage::GetTeamPlayerImages(
 }
 
 void MentalImage::UpdateBallPredictions(const Ball& ball) {
-  ball.GetPredictionArray(ballPredictions);
+  // Frozen trajectory snapshot: recompute the legacy horizon samples through
+  // the stable tick kernel instead of a shared prediction cache.
+  const auto samples = football::sim::ball_timing::kPredictionHorizon.value;
+  ballPredictions.resize(samples);
+  for (std::uint64_t i = 0; i < samples; ++i)
+    ballPredictions[i] = ball.Predict(football::sim::TickSpan{i},
+                                      football::ball::BallEnvironment{}).position;
 }
 
 Vector3 MentalImage::GetBallPrediction(int time_ms, football::sim::Tick now, const Ball& ball) const {
@@ -110,7 +117,7 @@ Vector3 MentalImage::GetBallPrediction(int time_ms, football::sim::Tick now, con
     const auto index = std::min(combined_ms / football::sim::kMillisecondsPerTick,
         football::sim::ball_timing::kPredictionHorizon.value - 1);
     return ballPredictions[index].EnforceMaximumDeviation(
-        ball.Predict(football::sim::TickSpan{}), maxDistanceDeviation);
+        ball.Predict(football::sim::TickSpan{}, football::ball::BallEnvironment{}).position, maxDistanceDeviation);
   }
   return GetBallPrediction(football::sim::TickSpan{
       static_cast<std::uint64_t>(time_ms) / football::sim::kMillisecondsPerTick}, now, ball);
@@ -123,7 +130,7 @@ Vector3 MentalImage::GetBallPrediction(football::sim::TickSpan horizon,
   const auto age = std::min(now - captured_tick, last);
   const auto index = std::min(horizon, last - age) + age;
   Vector3 mentalResult = ballPredictions[index.value];
-  Vector3 realResult = ball.Predict(horizon);
+  Vector3 realResult = ball.Predict(horizon, football::ball::BallEnvironment{}).position;
 
   // let there be a maximum difference between the two. why?
   // when a ball gets a wholly new movement, this prediction is obviously far off reality, while some variables are not,

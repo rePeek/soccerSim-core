@@ -107,7 +107,8 @@ class SimulationAccess {
   static bool IsBallInPlayOf(Simulation& s) { return s.clock_->IsBallInPlay(); }
   static bool IsHalfUnderwayOf(Simulation& s) { return s.clock_->IsHalfUnderway(); }
   static football::ball::BallEnvironment BallEnvironmentOf(Simulation& s) {
-    return {s.ball_in_goal_};
+    (void)s;
+    return {};
   }
   static int ScoreOf(Simulation& s, int team_id) { return s.score_[team_id]; }
   static float PossessionFactorOf(Simulation& s) { return s.possession_60_seconds_ / 60.0f; }

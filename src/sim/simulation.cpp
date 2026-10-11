@@ -651,7 +651,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   } else {
     ProcessReferee();
   }
-  Vector3 previous_ball_pos = ball_->Predict(0);
+  Vector3 previous_ball_pos = ball_->state().position;
   Mirror(reverse, !reverse, false);
   // Restore the processing frame even on the referee's terminal transition.
   if (Finished()) {
@@ -713,9 +713,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   if (IsBallInPlay()) {
     // Retain the per-side legacy lookahead gate; geometry itself needs no Ball.
     const auto crossed_goal = [&](int side) {
-      if (fabs(ball_->Predict(10).coords[0]) < pitch_.half_length() - 1.0) return false;
+      if (fabs(ball_->Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.coords[0]) < pitch_.half_length() - 1.0) return false;
       return football::sim::CrossedGoalLine(
-          pitch_, side, previous_ball_pos, ball_->Predict(0));
+          pitch_, side, previous_ball_pos, ball_->state().position);
     };
     first_team_goal = crossed_goal(teams_[first_team_]->GetDynamicSide());
     second_team_goal = crossed_goal(teams_[second_team_]->GetDynamicSide());

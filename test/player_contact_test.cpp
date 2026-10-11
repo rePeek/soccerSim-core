@@ -6,6 +6,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
 #include "football/ball/ball.hpp"
+#include "football/ball/ball_timing.hpp"
 #include "sim/player/player_contact.hpp"
 #include "sim/simulation.hpp"
 
@@ -15,6 +16,15 @@ namespace {
 using namespace football::sim;
 using football::sim::testing::SimulationAccess;
 using blunted::Vector3;
+
+// Stable-kernel horizon samples (replaces the removed Ball prediction cache).
+std::vector<Vector3> BallPredictionSamples(const Ball& ball) {
+  std::vector<Vector3> out(football::sim::ball_timing::kPredictionHorizon.value);
+  for (std::size_t i = 0; i < out.size(); ++i)
+    out[i] = ball.Predict(football::sim::TickSpan{static_cast<std::uint64_t>(i)},
+                          football::ball::BallEnvironment{}).position;
+  return out;
+}
 
 
 
@@ -69,14 +79,12 @@ TEST_CASE("player contacts mutate pairs in caller order before the next pair",
     PlayerContactFixture fixture(reverse);
     const auto before = fixture.Positions();
     const auto rng = SimulationAccess::RngOf(fixture.simulation).engine();
-    std::vector<Vector3> predictions;
-    fixture.ball.GetPredictionArray(predictions);
+    const std::vector<Vector3> predictions = BallPredictionSamples(fixture.ball);
     ResolvePlayerContacts({Tick{19}, fixture.players, fixture.ball, nullptr}, fixture.fouls);
     const auto sweep = fixture.Positions();
     REQUIRE(sweep != before);
     REQUIRE(SimulationAccess::RngOf(fixture.simulation).engine() == rng);
-    std::vector<Vector3> after;
-    fixture.ball.GetPredictionArray(after);
+    const std::vector<Vector3> after = BallPredictionSamples(fixture.ball);
     REQUIRE(after == predictions);
 
     fixture.Reset();
@@ -141,7 +149,7 @@ TEST_CASE("foul assessment returns at most one offender per collision",
   REQUIRE(first_falls->position == home->GetPitchPosition());
   REQUIRE(first_falls->victim_position == home->GetPosition());
   REQUIRE(first_falls->offender_position == away->GetPosition());
-  REQUIRE(first_falls->ball_position == fixture.ball.Predict(0));
+  REQUIRE(first_falls->ball_position == fixture.ball.state().position);
   REQUIRE(first_falls->offender_frame == away->GetCurrentFrame());
   REQUIRE(first_falls->victim_team_fading_possession ==
           home->GetTeam()->GetFadingTeamPossessionAmount());

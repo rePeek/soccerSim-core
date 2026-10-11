@@ -63,7 +63,7 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
           std::vector<Player*> active;
           SimulationAccess::TeamOf(simulation, 0)->GetActivePlayers(active);
           SimulationAccess::TeamOf(simulation, 1)->GetActivePlayers(active);
-          const auto ball = ToHomePitchFrame(*SimulationAccess::TeamOf(simulation, reverse ? 1 : 0)).Position(SimulationAccess::BallOf(simulation)->Predict(TickSpan{}));
+          const auto ball = ToHomePitchFrame(*SimulationAccess::TeamOf(simulation, reverse ? 1 : 0)).Position(SimulationAccess::BallOf(simulation)->state().position);
           const auto plan = PlanRestart(SimulationAccess::PitchOf(simulation), ball, active, mode, *SimulationAccess::TeamOf(simulation, taking_team));
           const auto again = PlanRestart(SimulationAccess::PitchOf(simulation), ball, active, mode, *SimulationAccess::TeamOf(simulation, taking_team));
           REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
@@ -139,7 +139,7 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     ProcessRules(simulation);
     CAPTURE(reverse, RestartPlayersReady(state.plan, SimulationAccess::PitchOf(simulation)), simulation.Observe().ball_position.coords[0],
             simulation.Observe().ball_position.coords[1], simulation.Observe().ball_position.coords[2],
-            SimulationAccess::BallOf(simulation)->GetMovement().GetLength(), SimulationAccess::NowOf(simulation).value, state.earliest_restart_tick.value);
+            SimulationAccess::BallOf(simulation)->state().velocity.GetLength(), SimulationAccess::NowOf(simulation).value, state.earliest_restart_tick.value);
     REQUIRE(SimulationAccess::IsInPlayOf(simulation));
     REQUIRE(SimulationAccess::IsInSetPieceOf(simulation));
     REQUIRE_FALSE(simulation.Observe().restart_pending);
@@ -154,8 +154,8 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
         SimulationAccess::NowOf(simulation), state.plan.taker->GetID(),
         state.plan.team->GetTeamSide(), e_TouchType_Intentional_Nonkicked,
-        SimulationAccess::BallOf(simulation)->Predict(0),
-        SimulationAccess::BallOf(simulation)->GetMovement()});
+        SimulationAccess::BallOf(simulation)->state().position,
+        SimulationAccess::BallOf(simulation)->state().velocity});
     REQUIRE(SimulationAccess::RefereeOf(simulation)->GetBuffer().restart->phase == RestartPhase::Ready);
     simulation.AdvanceTime(Seconds(1));
     ProcessRules(simulation);
@@ -167,7 +167,7 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
       REQUIRE(++steps < 1000);
     }
     REQUIRE(SimulationAccess::RefereeOf(simulation)->GetBuffer().restart->phase == RestartPhase::Taken);
-    REQUIRE(SimulationAccess::BallOf(simulation)->GetMovement().GetLength() > 0.5f);
+    REQUIRE(SimulationAccess::BallOf(simulation)->state().velocity.GetLength() > 0.5f);
     REQUIRE(SimulationAccess::IsInSetPieceOf(simulation));
     football::test::StepDefaultAI(simulation, policy);
     REQUIRE(SimulationAccess::RefereeOf(simulation)->GetBuffer().restart->phase == RestartPhase::InPlay);
@@ -229,8 +229,8 @@ TEST_CASE("ordinary ball-out plans retain the right sideline and team in all run
         SimulationAccess::NowOf(simulation),
         SimulationAccess::TeamOf(simulation, last_team)->GetAllPlayers()[1]->GetID(),
         SimulationAccess::TeamOf(simulation, last_team)->GetTeamSide(),
-        e_TouchType_Accidental, SimulationAccess::BallOf(simulation)->Predict(0),
-        SimulationAccess::BallOf(simulation)->GetMovement()});
+        e_TouchType_Accidental, SimulationAccess::BallOf(simulation)->state().position,
+        SimulationAccess::BallOf(simulation)->state().velocity});
         const Vector3 out = mode == e_GameMode_ThrowIn ? Vector3(10, 40, 0) : Vector3(56, 10, 0);
         SetBallHome(simulation, out);
         const auto tick = SimulationAccess::NowOf(simulation);
@@ -318,7 +318,7 @@ TEST_CASE("restart planning consumes the supplied ball and roster, not runtime l
   Init(simulation, false);
   std::vector<Player*> players;
   SimulationAccess::TeamOf(simulation, 0)->GetActivePlayers(players); // Deliberately omit the opponent roster.
-  const auto before = SimulationAccess::BallOf(simulation)->Predict(TickSpan{});
+  const auto before = SimulationAccess::BallOf(simulation)->state().position;
   const auto rng = SimulationAccess::RngOf(simulation).engine();
   const Vector3 supplied(12, 6, 0);
   const auto plan = PlanRestart(SimulationAccess::PitchOf(simulation), supplied, players, e_GameMode_FreeKick,
@@ -327,7 +327,7 @@ TEST_CASE("restart planning consumes the supplied ball and roster, not runtime l
   REQUIRE(plan.players.size() == players.size());
   REQUIRE(plan.taker != nullptr);
   for (const auto& target : plan.players) REQUIRE(target.player->GetTeamID() == 0);
-  REQUIRE(SimulationAccess::BallOf(simulation)->Predict(TickSpan{}) == before);
+  REQUIRE(SimulationAccess::BallOf(simulation)->state().position == before);
   REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
 }
 } // namespace

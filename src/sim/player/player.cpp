@@ -23,6 +23,7 @@
 
 #include "foundation/geometry/triangle.hpp"
 #include "football/ball/ball.hpp"
+#include "football/ball/ball_timing.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player_motion_constants.hpp"
@@ -364,7 +365,7 @@ void Player::PublishPlayerDecisionQueue(
 void Player::CommitLocomotionIntentRefresh(const Ball& ball, football::sim::Tick now, bool retaining_ball) {
   ++HumanoidIntentRefreshCommits();
   const float distance_to_ball =
-      (ball.Predict(0).Get2D() - kinematicState.position).GetLength();
+      (ball.state().position.Get2D() - kinematicState.position).GetLength();
   ++PlayerLocomotionIntentConsumedTicks();
   locomotionIntentScheduler.Schedule(
       now,
@@ -732,7 +733,7 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
       const PlayerLocomotionReach reach =
           PlayerLocomotion::EstimateEarliestInterceptHybrid(
               GetKinematicState(),
-              [&ball](football::sim::TickSpan horizon) { return ball.Predict(horizon); },
+              [&ball](football::sim::TickSpan horizon) { return ball.Predict(horizon, football::ball::BallEnvironment{}).position; },
               locomotion_parameters, GetMaxVelocity(),
               football::sim::ball_timing::kPredictionHorizon,
               kReachabilityExactHorizon,
@@ -751,9 +752,9 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
     // Non-locomotion actions keep the legacy heuristic because their execution
     // still follows animation root motion.
     timeNeededToGetToBall_ms = std::max(
-        ballPredictionSize_ms,
+        static_cast<unsigned int>(football::sim::ToMilliseconds(football::sim::ball_timing::kPredictionHorizon)),
         (unsigned int)(std::round(
-            (ball.Predict(ballPredictionSize_ms - 10).Get2D() -
+            (ball.Predict(football::sim::ball_timing::kPredictionHorizon - football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() -
              (GetPosition() + GetMovement() * 0.2f)).GetLength() /
             (GetMaxVelocity() * 0.75f) * 1000)));
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
@@ -772,9 +773,9 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
     const bool precise = team->GetDesignatedTeamPossessionPlayer() == this;
     for (auto candidate = start; candidate < football::sim::ball_timing::kPredictionHorizon; candidate += step) {
       const auto ms = static_cast<unsigned int>(ToMilliseconds(candidate));
-      if (ball.Predict(candidate).coords[2] < 1.5f) {
+      if (ball.Predict(candidate, football::ball::BallEnvironment{}).position.coords[2] < 1.5f) {
         const auto result = football::sim::query::GetTimeNeededForDistance_ms(
-            GetPosition(), GetMovement(), ball.Predict(candidate).Get2D(),
+            GetPosition(), GetMovement(), ball.Predict(candidate, football::ball::BallEnvironment{}).position.Get2D(),
             GetMaxVelocity(), precise, candidate);
         if (result.optimistic_ms <= ms && ms < timeNeededToGetToBall_optimistic_ms) {
           timeNeededToGetToBall_optimistic_ms = ms;
@@ -791,7 +792,7 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
         }
       }
       if (!refine) {
-        const float balldist = (GetPosition() - ball.Predict(candidate).Get2D()).GetLength() + 0.2f;
+        const float balldist = (GetPosition() - ball.Predict(candidate, football::ball::BallEnvironment{}).position.Get2D()).GetLength() + 0.2f;
         const float maxBallVelo = 50;
         const unsigned int timeToGo_ms = int(std::round((balldist / maxBallVelo) * 1000.0f));
         // Preserve the historical adaptive grid search (round first, then floor).
@@ -806,7 +807,7 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   }
   if (timeNeededToGetToBall_ms < defaultTouchOffset_ms) {
-    timeNeededToGetToBall_ms = NormalizedClamp(((GetPosition() + GetMovement() * (defaultTouchOffset_ms * 0.001)) - ball.Predict(defaultTouchOffset_ms).Get2D()).GetLength(), 0.0f, 0.6f) * defaultTouchOffset_ms;
+    timeNeededToGetToBall_ms = NormalizedClamp(((GetPosition() + GetMovement() * (defaultTouchOffset_ms * 0.001)) - ball.Predict(football::sim::TickSpan{defaultTouchOffset_ms / football::sim::kMillisecondsPerTick}, football::ball::BallEnvironment{}).position.Get2D()).GetLength(), 0.0f, 0.6f) * defaultTouchOffset_ms;
     timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
   }
   if ((action_type == e_FunctionType_ShortPass ||

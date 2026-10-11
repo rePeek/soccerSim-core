@@ -8,6 +8,7 @@
 #include "sim/testing/simulation_access.hpp"
 #include "default_ai_fixture.hpp"
 #include "football/ball/ball.hpp"
+#include "football/ball/ball_timing.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
 
@@ -19,6 +20,15 @@ namespace {
 using namespace football::sim;
 using football::sim::testing::SimulationAccess;
 using blunted::Vector3;
+
+// Stable-kernel horizon samples (replaces the removed Ball prediction cache).
+std::vector<Vector3> BallPredictionSamples(const Ball& ball) {
+  std::vector<Vector3> out(football::sim::ball_timing::kPredictionHorizon.value);
+  for (std::size_t i = 0; i < out.size(); ++i)
+    out[i] = ball.Predict(football::sim::TickSpan{static_cast<std::uint64_t>(i)},
+                          football::ball::BallEnvironment{}).position;
+  return out;
+}
 
 TEST_CASE("history sampling and newest-ball refresh use explicit borrowed images",
           "[sim][history]") {
@@ -33,8 +43,7 @@ TEST_CASE("history sampling and newest-ball refresh use explicit borrowed images
   const auto oldest = images[2].ballPredictions;
   Ball ball(football::model::Pitch{});
   ball.ResetSituation(Vector3(4, 5, 0));
-  std::vector<Vector3> predictions;
-  ball.GetPredictionArray(predictions);
+  const std::vector<Vector3> predictions = BallPredictionSamples(ball);
   observation::RefreshLatestMentalImageBallPredictions(images, ball);
   REQUIRE(images[0].ballPredictions == predictions);
   REQUIRE(images[0].captured_tick == Tick{30});
@@ -65,8 +74,8 @@ TEST_CASE("Simulation owns the sole history across touch mirror reset and Stop I
     const auto oldest_predictions = simulation.GetMentalImage(TickSpan{20})->ballPredictions;
     const auto latest_capture = simulation.GetMentalImage(TickSpan{})->captured_tick;
     simulation.TouchBall(Vector3(7, 2, 1));
-    std::vector<Vector3> ball_predictions;
-    SimulationAccess::BallOf(simulation)->GetPredictionArray(ball_predictions);
+    const std::vector<Vector3> ball_predictions =
+        BallPredictionSamples(*SimulationAccess::BallOf(simulation));
     REQUIRE(simulation.GetMentalImage(TickSpan{})->ballPredictions == ball_predictions);
     REQUIRE(simulation.GetMentalImage(TickSpan{})->captured_tick == latest_capture);
     REQUIRE(simulation.GetMentalImage(TickSpan{20})->ballPredictions == oldest_predictions);
@@ -151,11 +160,10 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
   Ball other_ball(football::model::Pitch{});
   other_ball.ResetSituation(Vector3(-25, -4, 0));
   REQUIRE(image.GetBallPrediction(TickSpan{}, Tick{117}, other_ball) ==
-          captured_predictions[17].EnforceMaximumDeviation(other_ball.Predict(TickSpan{}),
+          captured_predictions[17].EnforceMaximumDeviation(other_ball.state().position,
                                                            image.maxDistanceDeviation));
   image.UpdateBallPredictions(other_ball);
-  std::vector<Vector3> expected_predictions;
-  other_ball.GetPredictionArray(expected_predictions);
+  const std::vector<Vector3> expected_predictions = BallPredictionSamples(other_ball);
   REQUIRE(image.ballPredictions == expected_predictions);
   REQUIRE(image.captured_tick == Tick{100});
   REQUIRE(image.players[0].position == captured.position);
@@ -166,7 +174,7 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
   simulation.Stop();
   REQUIRE(detached.GetAge(Tick{22}) == TickSpan{17});
   REQUIRE(detached.GetBallPrediction(0, Tick{22}, ball) ==
-          detached.ballPredictions[17].EnforceMaximumDeviation(ball.Predict(0),
+          detached.ballPredictions[17].EnforceMaximumDeviation(ball.state().position,
                                                               detached.maxDistanceDeviation));
 }
 
@@ -185,7 +193,8 @@ TEST_CASE("ball touch refreshes only the explicit history and does not publish a
     // Legacy ApplyBallTouch path is gone in P7c; an explicit Reset refreshes the
     // prediction cache without publishing a rule touch.
     SimulationAccess::BallOf(simulation)->Reset(football::ball::BallState{Vector3(7, 2, 1), Vector3(0), Vector3(0), blunted::Quaternion{}});
-    std::vector<Vector3> predictions; SimulationAccess::BallOf(simulation)->GetPredictionArray(predictions);
+    const std::vector<Vector3> predictions =
+        BallPredictionSamples(*SimulationAccess::BallOf(simulation));
     REQUIRE(history[0].ballPredictions == predictions);
     REQUIRE(history[0].ballPredictions != owned);
     REQUIRE(history[0].captured_tick == captured);

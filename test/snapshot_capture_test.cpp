@@ -32,7 +32,7 @@ void RequireLatest(Simulation& simulation, std::uint64_t steps) {
       SimulationAccess::OptionsOf(simulation).reverse_team_processing ? 1 : 0));
   REQUIRE(record->snapshot.ball.angular_velocity == ball_frame.Direction(
       SimulationAccess::BallOf(simulation)->state().angular_velocity));
-  // WorldState keeps its legacy cached Predict(0), which can lag true position.
+  // WorldState keeps its legacy cached state().position, which can lag true position.
   // Snapshot must use authoritative BallState without refreshing that cache.
   REQUIRE(record->snapshot.ball.position == ball_frame.Position(
       SimulationAccess::BallOf(simulation)->state().position));

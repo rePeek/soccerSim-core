@@ -77,7 +77,7 @@ inline std::uint64_t RestartFingerprint(std::uint64_t hash, Simulation &simulati
   };
   const auto value = [&](const auto &v) { bytes(&v, sizeof(v)); };
   const auto vector = [&](const blunted::Vector3 &v) { bytes(v.coords, sizeof(v.coords)); };
-  vector(SimulationAccess::BallOf(simulation)->Predict(0));
+  vector(SimulationAccess::BallOf(simulation)->state().position);
   for (int side = 0; side < 2; ++side) {
     const auto taker = takers[side] ? takers[side]->GetID() : model::kInvalidPlayerId;
     value(taker);

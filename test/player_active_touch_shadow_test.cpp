@@ -100,7 +100,7 @@ TEST_CASE("real action observation preserves snapshots touches rules RNG and end
     REQUIRE(report.dropped_details == 0);
     // P5c-1 reconciliation: the pure model sees the same reach distance as the
     // legacy gate on every real contact frame. The residual decision difference
-    // is the height gate reading the legacy Predict(0) cache instead of the
+    // is the height gate reading the legacy state().position cache instead of the
     // authoritative endpoint state, so it must be a small minority.
     REQUIRE(report.model_reach_checks > 0);
     REQUIRE(report.model_reach_gap_max == 0.0f);

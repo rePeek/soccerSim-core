@@ -12,8 +12,8 @@
 
 namespace football::ball::detail {
 
-// Resolves posts/crossbar collisions in-place. Mirrors the legacy computation,
-// including the order of position projection and momentum reflection.
+// Resolves posts/crossbar collisions in-place, in the order of position
+// projection then momentum reflection.
 void ResolveWoodwork(blunted::Vector3& position, blunted::Vector3& momentum,
                      const football::model::Pitch& pitch,
                      const football::model::BallConfig& config);

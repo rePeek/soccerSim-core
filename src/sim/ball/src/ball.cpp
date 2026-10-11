@@ -5,7 +5,6 @@
 #include <stdexcept>
 
 #include "ball_contact.hpp"
-#include "ball_prediction.hpp"
 #include "football/ball/ball_response.hpp"
 #include "foundation/math/scalar.hpp"
 #include "foundation/time/tick.hpp"
@@ -16,20 +15,10 @@ namespace football::ball {
 
 namespace {
 
-// Legacy per-millisecond rotation quaternion projection (kept only for the
-// transitional BallSpatialInfo / CalculatePrediction adapter).
-Quaternion RotationMsFromAngularVelocity(const Vector3& angular_velocity) {
-  Quaternion rotation;
-  rotation.SetAngles(angular_velocity.coords[0] * 0.001f,
-                     angular_velocity.coords[1] * 0.001f,
-                     angular_velocity.coords[2] * 0.001f);
-  return rotation;
-}
-
 // The Magnus chain is wired through BallDynamics::magnus_coefficient (rad/s x
 // m/s -> m/s^2). The value below is an explicit, deterministic starting point
-// for the new unit system; it is NOT a bit-match of the legacy swerve formula
-// and is recalibrated by the trajectory-diff step of the physics upgrade.
+// for the new unit system; it is not a bit-match of the historical swerve
+// formula and is recalibrated by the trajectory-diff step of the upgrade.
 constexpr float kMagnusCoefficient = 0.02f;
 
 BallDynamics BuildDynamics(const football::model::BallConfig& config,
@@ -53,10 +42,8 @@ Ball::Ball(const football::model::BallConfig& config,
       pitch_(pitch),
       state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()},
       dynamics_(BuildDynamics(config, pitch)),
-      colliders_(BuildPitchColliders(pitch, config)),
-      prediction_cache_(std::make_unique<detail::BallPredictionCache>()) {
+      colliders_(BuildPitchColliders(pitch, config)) {
   tick_colliders_.reserve(73);
-  RefreshPredictions(BallEnvironment{});
 }
 
 Ball::Ball(const football::model::Pitch& pitch)
@@ -65,11 +52,6 @@ Ball::Ball(const football::model::Pitch& pitch)
 Ball::~Ball() = default;
 
 BallState Ball::state() const { return state_; }
-
-void Ball::RefreshPredictions(const BallEnvironment& environment) {
-  prediction_cache_->Compute(state_, config_, pitch_, colliders_, dynamics_,
-                             environment);
-}
 
 BallStepResult Ball::AdvanceState(const BallState& current,
                                   std::span<const ColliderMotion> colliders,
@@ -134,8 +116,6 @@ BallStepResult Ball::Predict(const BallTickInput& input) const {
 BallStepResult Ball::Step(const BallTickInput& input) {
   auto result = EvaluateTick(input, tick_colliders_);
   state_ = result.state;
-  prediction_cache_->Invalidate();
-  RefreshPredictions(input.environment);
   return result;
 }
 
@@ -151,8 +131,6 @@ BallState Ball::Predict(football::sim::TickSpan ahead,
 
 void Ball::Reset(const BallState& state) {
   state_ = state;
-  prediction_cache_->Invalidate();
-  RefreshPredictions(BallEnvironment{});
 }
 
 void Ball::Mirror() {
@@ -164,28 +142,8 @@ void Ball::Mirror() {
   state_.angular_velocity.Mirror();
   const Quaternion half_turn(0.0f, 0.0f, 1.0f, 0.0f);
   state_.orientation = (half_turn * state_.orientation).GetNormalized();
-  prediction_cache_->Invalidate();
-  RefreshPredictions(BallEnvironment{});
 }
 
-Vector3 Ball::Predict(football::sim::TickSpan horizon) const {
-  return prediction_cache_->Sample(horizon);
-}
-
-Vector3 Ball::Predict(int predictTime_ms) const {
-  return Predict(football::sim::TickSpan{static_cast<std::uint64_t>(
-      std::max(predictTime_ms, 0)) / football::sim::kMillisecondsPerTick});
-}
-
-void Ball::GetPredictionArray(std::vector<Vector3>& target) const {
-  prediction_cache_->CopyTo(target);
-}
-
-Vector3 Ball::GetMovement() const { return state_.velocity; }
-
-Vector3 Ball::GetRotation() const { return state_.angular_velocity * 0.001f; }
-
-Quaternion Ball::GetOrientation() const { return state_.orientation; }
 
 
 void Ball::ResetSituation(const Vector3& focusPos) {
@@ -193,7 +151,6 @@ void Ball::ResetSituation(const Vector3& focusPos) {
   state_.angular_velocity = Vector3(0);
   state_.orientation = Quaternion();
   state_.position = Vector3(focusPos + Vector3(0, 0, config_.radius()));
-  prediction_cache_->Reset(state_.position);
 }
 
 }  // namespace football::ball

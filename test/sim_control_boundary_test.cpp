@@ -215,8 +215,8 @@ TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]")
   touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
       SimulationAccess::NowOf(runtime.simulation), team->GetAllPlayers()[1]->GetID(),
       team->GetTeamSide(), e_TouchType_Intentional_Kicked,
-      SimulationAccess::BallOf(runtime.simulation)->Predict(0),
-      SimulationAccess::BallOf(runtime.simulation)->GetMovement()});
+      SimulationAccess::BallOf(runtime.simulation)->state().position,
+      SimulationAccess::BallOf(runtime.simulation)->state().velocity});
   REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
 }
 
@@ -234,8 +234,8 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
         SimulationAccess::NowOf(runtime.simulation),
         SimulationAccess::TeamOf(runtime.simulation, last_team)->GetAllPlayers()[1]->GetID(),
         SimulationAccess::TeamOf(runtime.simulation, last_team)->GetTeamSide(),
-        e_TouchType_Accidental, SimulationAccess::BallOf(runtime.simulation)->Predict(0),
-        SimulationAccess::BallOf(runtime.simulation)->GetMovement()});
+        e_TouchType_Accidental, SimulationAccess::BallOf(runtime.simulation)->state().position,
+        SimulationAccess::BallOf(runtime.simulation)->state().velocity});
     SimulationAccess::BallOf(runtime.simulation)->ResetSituation(mode == e_GameMode_ThrowIn
         ? Vector3(10, 37, 0) : Vector3(56, 10, 0));
     const auto stopped = SimulationAccess::NowOf(runtime.simulation);
@@ -274,8 +274,8 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
       football::test::StepDefaultAI(runtime.simulation, runtime.policy);
     Player *taker = rules->GetBuffer().taker;
     CAPTURE(mode, taker->GetPosition().coords[0], taker->GetPosition().coords[1],
-            taker->GetCurrentFunctionType(), SimulationAccess::BallOf(runtime.simulation)->Predict(0).coords[0],
-            SimulationAccess::BallOf(runtime.simulation)->Predict(0).coords[1]);
+            taker->GetCurrentFunctionType(), SimulationAccess::BallOf(runtime.simulation)->state().position.coords[0],
+            SimulationAccess::BallOf(runtime.simulation)->state().position.coords[1]);
     REQUIRE_FALSE(SimulationAccess::IsInSetPieceOf(runtime.simulation));
     REQUIRE_FALSE(rules->GetBuffer().active);
   }

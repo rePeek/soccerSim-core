@@ -19,10 +19,10 @@
 #include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "football/ball/ball_state.hpp"
-#include "football/ball/ball_timing.hpp"
 #include "football/ball/collider.hpp"
 #include "football/ball/pitch_colliders.hpp"
 #include "foundation/math/quaternion.hpp"
+#include "foundation/time/tick.hpp"
 #include "foundation/math/vector3.hpp"
 #include "model/ball_config.hpp"
 #include "model/pitch.hpp"
@@ -44,10 +44,6 @@ struct BallTickInput {
   std::optional<BallEndpointConstraint> endpoint_constraint;
 };
 
-
-namespace detail {
-class BallPredictionCache;
-}  // namespace detail
 
 class Ball {
  public:
@@ -78,29 +74,19 @@ class Ball {
   // environment; use Predict(ahead, environment) when goal geometry matters.
   void Reset(const BallState& state);
   // Coordinate mirror: flips position, velocity, angular velocity and
-  // orientation, then rebuilds the prediction cache. This is a full physical
-  // state mirror (180 degree rotation about z), unlike the legacy
-  // position/momentum-only mirror.
+  // orientation (a 180 degree rotation about z).
   void Mirror();
 
-  // ---- Transitional compatibility API (do not use in new code) ----
-  blunted::Vector3 Predict(football::sim::TickSpan horizon) const;
-  blunted::Vector3 Predict(int predictTime_ms) const;
-  void GetPredictionArray(std::vector<blunted::Vector3>& target) const;
-  blunted::Vector3 GetMovement() const;
-  blunted::Vector3 GetRotation() const;
-  blunted::Quaternion GetOrientation() const;
   // ---- Lifecycle state reset ----
   void ResetSituation(const blunted::Vector3& focusPos);
 
  private:
-  // Pure tick computation including the transitional flexible net correction.
+  // Pure tick computation including the flexible net correction.
   BallStepResult AdvanceState(const BallState& current,
                               std::span<const ColliderMotion> colliders,
                               const BallEnvironment& environment) const;
   BallStepResult EvaluateTick(const BallTickInput& input,
                               std::vector<ColliderMotion>& scratch) const;
-  void RefreshPredictions(const BallEnvironment& environment);
 
   football::model::BallConfig config_;
   const football::model::Pitch pitch_;
@@ -112,7 +98,6 @@ class Ball {
   // Reused merge scratch; 7 static + 22*3 body motions fit without growth.
   // Larger rosters may grow it once. Prediction never consumes this buffer.
   std::vector<ColliderMotion> tick_colliders_;
-  std::unique_ptr<detail::BallPredictionCache> prediction_cache_;
 };
 
 }  // namespace football::ball

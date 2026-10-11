@@ -185,8 +185,8 @@ TEST_CASE("Player touch and card effect timestamps use the timeline tick", "[sim
     touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{now, player->GetID(),
         SimulationAccess::TeamOf(simulation, 0)->GetTeamSide(),
         e_TouchType_Intentional_Kicked,
-        SimulationAccess::BallOf(simulation)->Predict(0),
-        SimulationAccess::BallOf(simulation)->GetMovement()});
+        SimulationAccess::BallOf(simulation)->state().position,
+        SimulationAccess::BallOf(simulation)->state().velocity});
     REQUIRE(player->GetLastTouchTick() == now);
     const auto effective = now + TickSpan{5};
     player->GiveRedCard(effective);
@@ -234,11 +234,11 @@ TEST_CASE("Simulation updates the recent possession window only after admitted o
     const bool home = SimulationAccess::DesignatedPlayerOf(simulation)->GetTeam() == SimulationAccess::TeamOf(simulation, 0);
     REQUIRE(SimulationAccess::PossessionFactorOf(simulation) == (home ? -0.01f : 0.01f) / 60.f);
     const auto rng = SimulationAccess::RngOf(simulation).engine();
-    const auto ball = SimulationAccess::BallOf(simulation)->Predict(TickSpan{});
+    const auto ball = SimulationAccess::BallOf(simulation)->state().position;
     simulation.AdvanceTime(Seconds(61));
     const float saturated = home ? -1.f : 1.f;
     REQUIRE(SimulationAccess::PossessionFactorOf(simulation) == saturated);
-    REQUIRE(SimulationAccess::BallOf(simulation)->Predict(TickSpan{}) == ball);
+    REQUIRE(SimulationAccess::BallOf(simulation)->state().position == ball);
     REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
     REQUIRE_THROWS_AS(simulation.AdvanceTime(TickSpan{std::numeric_limits<std::uint64_t>::max()}),
                       std::overflow_error);

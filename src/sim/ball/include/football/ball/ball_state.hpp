@@ -16,8 +16,7 @@ namespace football::ball {
 //
 // This value type owns no derived data (prediction cache, last-touch history
 // or competition state). It is the only state shape visible through the stable
-// Ball API; transitional compatibility accessors still project the legacy
-// per-millisecond rotation quaternion onto `angular_velocity`.
+// Ball API, in SI units (m, m/s, rad/s, unit quaternion).
 struct BallState {
   blunted::Vector3 position;
   blunted::Vector3 velocity;

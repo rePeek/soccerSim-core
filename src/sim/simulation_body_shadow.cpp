@@ -97,7 +97,7 @@ void Simulation::BeginBodyPhysicsShadow() {
         const auto history = std::chrono::milliseconds{player->GetReactionTime_ms() +
             static_cast<int>(football::sim::ToMilliseconds(action.elapsed))};
         const auto index = football::sim::observation::MentalImageSampleIndex(mental_images_.size(), history);
-        if ((mental_images_[index].GetBallPrediction(football::sim::Seconds(1), now, *ball_) - ball_->Predict(1000)).GetLength() <= .5f)
+        if ((mental_images_[index].GetBallPrediction(football::sim::Seconds(1), now, *ball_) - ball_->Predict(football::sim::TickSpan{100}, football::ball::BallEnvironment{}).position).GetLength() <= .5f)
           blocks |= BodyUnexpectedDirection;
       }
     }
@@ -106,8 +106,8 @@ void Simulation::BeginBodyPhysicsShadow() {
     if (action.type == e_FunctionType_Sliding || action.type == e_FunctionType_Interfere) old_radius += .1f;
     if (action.type == e_FunctionType_Deflect) old_radius += .2f;
     bool old_hit = false;
-    for (const auto* volume : body.GetVolumes()) old_hit |= volume->IntersectsSphere(ball_->Predict(0), old_radius);
-    if (!old_hit || (prediction.start.position + Vector3(0, 0, .8f) - ball_->Predict(0)).GetLength() >= 2.5f)
+    for (const auto* volume : body.GetVolumes()) old_hit |= volume->IntersectsSphere(ball_->state().position, old_radius);
+    if (!old_hit || (prediction.start.position + Vector3(0, 0, .8f) - ball_->state().position).GetLength() >= 2.5f)
       blocks |= BodyOldGeometryMiss;
     const int latest_team = touches_.last_team != -1 ? touches_.last_team : first_team_;
     if (player == player->GetTeam()->GetDesignatedTeamPossessionPlayer() &&

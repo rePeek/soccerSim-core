@@ -99,7 +99,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   if (control.action == ControlAction::Save) {
     // Hands legality belongs to execution/rules, not a cooperative policy.
     Team *team = player.GetTeam();
-    const Vector3 ball = inputs.ball.Predict(160);
+    const Vector3 ball = inputs.ball.Predict(football::sim::TickSpan{16}, football::ball::BallEnvironment{}).position;
     const bool backpass = inputs.touches.last_team == team->GetID() &&
         football::sim::event::LastTouchPlayer(inputs.touches, *team) != &player &&
         inputs.touches.last_team_by_type[e_TouchType_Intentional_Kicked] == team->GetID();

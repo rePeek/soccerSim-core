@@ -151,8 +151,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       // closest to ball
       if (p1 == p1->GetTeam()->GetDesignatedTeamPossessionPlayer() &&
           p2 == p2->GetTeam()->GetDesignatedTeamPossessionPlayer()) {
-        float p1BallDistance = (inputs.ball.Predict(10).Get2D() - p1->GetPosition()).GetLength();
-        float p2BallDistance = (inputs.ball.Predict(10).Get2D() - p2->GetPosition()).GetLength();
+        float p1BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p1->GetPosition()).GetLength();
+        float p2BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p2->GetPosition()).GetLength();
         float ballDistanceDiffFactor = clamp(std::min(p2BallDistance, 1.2f) - std::min(p1BallDistance, 1.2f), -0.6f, 0.6f) * 1.0f; // std::min is cap so difference won't matter if ball is far away (so only used in battles about the ball)
         bounceBias += ballDistanceDiffFactor;
       }
@@ -231,8 +231,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       // closest to ball
       if (p1 == p1->GetTeam()->GetDesignatedTeamPossessionPlayer() &&
           p2 == p2->GetTeam()->GetDesignatedTeamPossessionPlayer()) {
-        float p1BallDistance = (inputs.ball.Predict(10).Get2D() - p1->GetPosition()).GetLength();
-        float p2BallDistance = (inputs.ball.Predict(10).Get2D() - p2->GetPosition()).GetLength();
+        float p1BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p1->GetPosition()).GetLength();
+        float p2BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p2->GetPosition()).GetLength();
         float ballDistanceDiffFactor = clamp(std::min(p2BallDistance, 1.2f) - std::min(p1BallDistance, 1.2f), -0.6f, 0.6f) * 1.0f; // std::min is cap so difference won't matter if ball is far away (so only used in battles about the ball)
         similarBias += ballDistanceDiffFactor;
       }
@@ -305,8 +305,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
           penetrationWeight;
 
       // ball proximity (usually means: stability is less because we sacrifice balance to control the ball)
-      float p1BallDistance = (inputs.ball.Predict(10).Get2D() - p1->GetPosition()).GetLength();
-      float p2BallDistance = (inputs.ball.Predict(10).Get2D() - p2->GetPosition()).GetLength();
+      float p1BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p1->GetPosition()).GetLength();
+      float p2BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p2->GetPosition()).GetLength();
       p1sensitivity += 1.0f - NormalizedClamp(p1BallDistance, 0.0f, 0.7f);
       p2sensitivity += 1.0f - NormalizedClamp(p2BallDistance, 0.0f, 0.7f);
 
@@ -380,7 +380,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         victim->TripMe(tripVec, tripType, inputs.ball_retainer);
         if (tripType == 3 && assessments != nullptr) {
           assessments->push_back(
-              MakeSlidingAssessment(victim, tackler, inputs.ball.Predict(0), inputs.now));
+              MakeSlidingAssessment(victim, tackler, inputs.ball.state().position, inputs.now));
         }
       }
     }
@@ -435,7 +435,7 @@ std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
 
   FoulAssessment assessment;
   assessment.kind = FoulKind::StandingFall;
-  FillContactEvidence(assessment, victim, offender, ball.Predict(0), now);
+  FillContactEvidence(assessment, victim, offender, ball.state().position, now);
   assessment.score = NormalizedClamp(victim_sensitivity, kStandingFallThreshold, 1.0f);
   return assessment;
 }

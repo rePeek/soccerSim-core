@@ -48,7 +48,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
       if (onlyWhenDirectionChangedUnexpectedly) {
         const auto history = std::chrono::milliseconds{players[i]->GetReactionTime_ms() + static_cast<int>(ToMilliseconds(action.elapsed))};
         const auto index = observation::MentalImageSampleIndex(inputs.history.size(), history);
-        float unexpectedDistance = (inputs.history[index].GetBallPrediction(Seconds(1), inputs.now, ball) - ball.Predict(1000)).GetLength();
+        float unexpectedDistance = (inputs.history[index].GetBallPrediction(Seconds(1), inputs.now, ball) - ball.Predict(football::sim::TickSpan{100}, football::ball::BallEnvironment{}).position).GetLength();
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
 
@@ -66,11 +66,11 @@ BallPlayerContactResult ResolveBallPlayerContacts(
         }
 
         if (((players[i]->GetPosition() + Vector3(0, 0, 0.8f)) -
-             ball.Predict(0)).GetLength() < 2.5f) {
+             ball.state().position).GetLength() < 2.5f) {
           const PlayerBodyCollider body = BuildBodyCollider(players[i]->GetKinematicState());
           for (const BodyVolume *volume : body.GetVolumes()) {
             float ballRadius = 0.11f + boundingBoxSizeOffset;
-            if (volume->IntersectsSphere(ball.Predict(0), ballRadius)) {
+            if (volume->IntersectsSphere(ball.state().position, ballRadius)) {
               // Read current touch records, not biases frozen before the sweep.
               const int latest_team = last_touch_team != -1
                   ? last_touch_team : inputs.fallback_last_touch_team;
@@ -80,19 +80,19 @@ BallPlayerContactResult ResolveBallPlayerContacts(
               } else {
                 float movementBias = oppLastTouchBias * 0.8f + 0.2f;
                 bounceVec +=
-                    (ball.Predict(0) - volume->center).GetNormalized(Vector3(0)) * movementBias +
+                    (ball.state().position - volume->center).GetNormalized(Vector3(0)) * movementBias +
                     players[i]->GetMovement() * (1.0f - movementBias);
                 bounceCount++;
                 inputs.touch_sink->OnAcceptedTouch(
                     football::sim::event::AcceptedTouch{inputs.now,
                         players[i]->GetID(), players[i]->GetTeam()->GetTeamSide(),
-                        e_TouchType_Accidental, ball.Predict(0),
-                        ball.GetMovement(),
+                        e_TouchType_Accidental, ball.state().position,
+                        ball.state().velocity,
                         static_cast<int>(players[i]->GetSimulationActionState().type)});
                 last_touch_team = teamID;
                 // Keep per-volume accumulation and touch/rule notification order.
                 bias += (1.0f -
-                         clamp(((ball.Predict(0) - volume->center).GetLength() - ballRadius) /
+                         clamp(((ball.state().position - volume->center).GetLength() - ballRadius) /
                                    volume->radius, 0.0f, 1.0f)) * 0.9f + 0.1f;
               }
             }
@@ -106,7 +106,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
   bounceVec /= (bounceCount * 1.0f);
   bounceVec.coords[2] *= 0.6f;
   bounceVec.Normalize();
-  Vector3 currentMovement = ball.GetMovement();
+  Vector3 currentMovement = ball.state().velocity;
   Vector3 fullCollisionVec = (bounceVec * 6.0f) + (bounceVec * currentMovement.GetLength() * 0.6f) + (currentMovement * -0.2f);
   bias = clamp(bias, 0.0f, 1.0f);
   bias = bias * 0.5f + 0.5f;

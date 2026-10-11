@@ -205,7 +205,7 @@ void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
   const RefereeTickFacts& tick = view.tick;
   if (tick.phase == MatchPhase::Finished) return;
   if (!(tick.play_authorized && !tick.set_piece_active)) return;
-  const auto home_ball = tick.ball_to_home.Position(tick.ball.Predict(TickSpan{}));
+  const auto home_ball = tick.ball_to_home.Position(tick.ball.state().position);
   // Legacy foul/side data uses stadium coordinates, including switched ends.
   const Vector3 ballPos = tick.stadium_to_home.Position(home_ball);
   // Goal-line priority: the legacy local authorization was cleared when the goal
@@ -365,7 +365,7 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
          buffer.taker->GetLastTouchType() == e_TouchType_Intentional_Kicked);
     const bool scheduled_contact=action.contact && action.elapsed == *action.contact;
     if ((scheduled_contact || facts.physical_kick) && kick &&
-        facts.ball->GetMovement().GetLength() > 0.1f) {
+        facts.ball->state().velocity.GetLength() > 0.1f) {
       buffer.restart->phase = RestartPhase::Taken;
       commands.StartBallInPlay();
     }
@@ -610,7 +610,7 @@ void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& 
     facts.home.GetActivePlayers(active);
     facts.away.GetActivePlayers(active);
     state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
-        facts.ball.Predict(TickSpan{})), active, buffer.desiredSetPiece, *buffer.setpiece_team);
+        facts.ball.state().position), active, buffer.desiredSetPiece, *buffer.setpiece_team);
     for (const auto& actor : state.plan.players) {
       const auto frame = FromHomePitchFrame(*actor.player->GetTeam());
       actor.player->ResetPosition(actor.player->GetPosition(), frame.Position(state.plan.ball_position));
@@ -623,7 +623,7 @@ void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& 
     facts.home.GetActivePlayers(active);
     facts.away.GetActivePlayers(active);
     state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
-        facts.ball.Predict(TickSpan{})), active, buffer.desiredSetPiece, *buffer.setpiece_team);
+        facts.ball.state().position), active, buffer.desiredSetPiece, *buffer.setpiece_team);
     buffer.taker = state.plan.taker;
   }
   if (facts.now < state.earliest_restart_tick) return;
@@ -632,11 +632,11 @@ void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& 
     commands.ResetBall(facts.ball_to_home.Position(state.plan.ball_position));
     state.used_timeout_placement = true;
   }
-  const auto ball_position = facts.ball_to_home.Position(facts.ball.Predict(TickSpan{}));
+  const auto ball_position = facts.ball_to_home.Position(facts.ball.state().position);
   if (!RestartPlayersReady(state.plan, facts.pitch) ||
       std::fabs(ball_position.coords[2] - 0.11f) > 0.03f ||
       (ball_position.Get2D() - state.plan.ball_position).GetLength() > 0.05f ||
-      facts.ball.GetMovement().GetLength() > 0.5f) return;
+      facts.ball.state().velocity.GetLength() > 0.5f) return;
   state.phase = RestartPhase::Ready;
   buffer.start_tick = facts.now; // Fact: authorization instant, not a preset delay.
   if (buffer.desiredSetPiece == e_GameMode_ThrowIn) {

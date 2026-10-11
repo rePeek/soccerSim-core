@@ -65,6 +65,6 @@ void RefreshTeamPossession(Team& team, const Team& opponent, Ball& ball,
 
 void RefreshDesignatedTeamPossessionPlayer(Team& team, const Ball& ball) {
   team.SetDesignatedTeamPossessionPlayer(
-      query::GetClosestPlayer(&team, ball.Predict(0).Get2D()));
+      query::GetClosestPlayer(&team, ball.state().position.Get2D()));
 }
 } // namespace football::sim::player

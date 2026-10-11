@@ -12,6 +12,7 @@
 #include "sim/simulation.hpp"
 #include "sim/team/team.hpp"
 #include "sim/testing/simulation_access.hpp"
+#include "football/ball/ball_timing.hpp"
 using football::sim::testing::SimulationAccess;
 
 namespace {
@@ -54,7 +55,7 @@ void SetPhysicalBall(Simulation& simulation, Vector3 position, Vector3 velocity)
 }
 
 Vector3 PhysicalBall(Simulation& simulation) {
-  auto position = SimulationAccess::BallOf(simulation)->Predict(0);
+  auto position = SimulationAccess::BallOf(simulation)->state().position;
   if (SimulationAccess::OptionsOf(simulation).reverse_team_processing) position.Mirror();
   return position;
 }

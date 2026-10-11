@@ -220,7 +220,7 @@ class Simulation {
   Team* GetLastTouchTeam() const;
   Player* GetLastTouchPlayer() const;
   void GetActiveTeamPlayers(int team_id, std::vector<Player*>& players);
-  football::ball::BallEnvironment GetBallEnvironment() const { return {ball_in_goal_}; }
+  football::ball::BallEnvironment GetBallEnvironment() const { return {}; }
 
   blunted::Rng rng_;
   // Constructed before the actors and kept alive until their borrows are gone.

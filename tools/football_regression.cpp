@@ -894,9 +894,9 @@ std::string CaptureSimulationDigest(Simulation& simulation) {
   }
 
   Ball* ball = SimulationAccess::BallOf(simulation);
-  const Vector3 ballPos = ball->Predict(0);
-  const Vector3 ballMomentum = ball->GetMovement();
-  const Vector3 ballRotation = ball->GetRotation();
+  const Vector3 ballPos = ball->state().position;
+  const Vector3 ballMomentum = ball->state().velocity;
+  const Vector3 ballRotation = ball->state().angular_velocity;
   AppendDigestFloat(out, ballPos.coords[0]);
   AppendDigestFloat(out, ballPos.coords[1]);
   AppendDigestFloat(out, ballPos.coords[2]);
@@ -1171,15 +1171,15 @@ void CheckRefereeRules(Simulation& simulation) {
   touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
       SimulationAccess::NowOf(simulation), home.at(1)->GetID(),
       SimulationAccess::TeamOf(simulation, 0)->GetTeamSide(),
-      e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->Predict(0),
-      SimulationAccess::BallOf(simulation)->GetMovement()});
+      e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->state().position,
+      SimulationAccess::BallOf(simulation)->state().velocity});
   Require(SimulationAccess::IsInPlayOf(simulation), "offside flagged the passer instead of reception");
   const auto offside_stopped = SimulationAccess::NowOf(simulation);
   touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
       SimulationAccess::NowOf(simulation), home.at(2)->GetID(),
       SimulationAccess::TeamOf(simulation, 0)->GetTeamSide(),
-      e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->Predict(0),
-      SimulationAccess::BallOf(simulation)->GetMovement()});
+      e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->state().position,
+      SimulationAccess::BallOf(simulation)->state().velocity});
   Require(!SimulationAccess::IsInPlayOf(simulation) && SimulationAccess::RefereeOf(simulation)->GetBuffer().active &&
               SimulationAccess::RefereeOf(simulation)->GetBuffer().desiredSetPiece == e_GameMode_FreeKick &&
               SimulationAccess::RefereeOf(simulation)->GetBuffer().teamID == 1 &&

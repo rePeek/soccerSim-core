@@ -60,9 +60,9 @@ BallStepResult AdvanceBall(const BallState& initial,
                            float dt, float ball_radius, float restitution,
                            std::size_t max_contacts = 8);
 
-// Continuous forces for the single-tick kernel. The exact legacy coefficient
-// extraction (Magnus, spin quaternion integration) is P3c; these leave the
-// explicit execution points, not yet the production numeric model.
+// Continuous forces for the single-tick kernel. Exact coefficient extraction
+// (Magnus, spin integration) is a later physics stage; these are the explicit
+// execution points, not yet the production numeric model.
 struct BallDynamics {
   float gravity = 9.81f;
   float quadratic_resistance = 0.04f;          // air drag, mapped from BallConfig::drag()

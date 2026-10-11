@@ -18,8 +18,8 @@ WorldState BuildWorldState(const WorldStateSource& s) {
 
   const Team& first_roster = s.first_team == 0 ? s.home : s.away;
   const auto ball_frame = ToHomePitchFrame(first_roster);
-  world.ball_position = ball_frame.Position(s.ball.Predict(0));
-  world.ball_velocity = ball_frame.Direction(s.ball.GetMovement());
+  world.ball_position = ball_frame.Position(s.ball.state().position);
+  world.ball_velocity = ball_frame.Direction(s.ball.state().velocity);
   world.pitch = s.pitch;
   world.in_play = s.in_play;
   world.in_set_piece = s.in_set_piece;

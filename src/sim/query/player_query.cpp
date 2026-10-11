@@ -62,19 +62,19 @@ bool HasPossession(Ball *ball, Player *player) {
   Vector3 playerMovement = player->GetMovement();
 
   // premature optimization ;)
-  if ((player->GetPosition() - ball->Predict(0)).GetLength() > 5.0) return false;
+  if ((player->GetPosition() - ball->state().position).GetLength() > 5.0) return false;
 
-  Vector3 ballMovement = ball->GetMovement();
-  if (std::fabs(ball->Predict(0).coords[2]) > 0.5) return false;
+  Vector3 ballMovement = ball->state().velocity;
+  if (std::fabs(ball->state().position.coords[2]) > 0.5) return false;
 
 
   bool distanceOK = true;
   float radius = 1.0f;
   Vector3 center = player->GetPosition() + player->GetMovement() * 0.05f + player->GetDirectionVec() * 0.1f;//was: 0.05f
-  if ((ball->Predict(0).Get2D() - center).GetLength() > radius) distanceOK = false;
+  if ((ball->state().position.Get2D() - center).GetLength() > radius) distanceOK = false;
 
   bool movementOK = true;
-  Vector3 ballMovement3D = (ball->Predict(10) - ball->Predict(0)) * 100.0f;
+  Vector3 ballMovement3D = (ball->Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position - ball->state().position) * 100.0f;
   if ((ballMovement3D - playerMovement).GetLength() > 6.0f) movementOK = false;
 
   if (distanceOK && movementOK) return true; else return false;

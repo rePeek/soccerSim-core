@@ -172,7 +172,7 @@ TEST_CASE("standing trip notices use explicit Ball and tick facts without a Matc
     ScopedRuleAction action(*tackler);
     action.state.type = e_FunctionType_Interfere;
     const auto rng = SimulationAccess::RngOf(simulation).engine();
-    const auto ball = SimulationAccess::BallOf(simulation)->Predict(0);
+    const auto ball = SimulationAccess::BallOf(simulation)->state().position;
     const auto sequence = SimulationAccess::ResetSequenceOf(simulation);
     // Referee has no runtime-owner dependency; only explicit inputs and live actors.
     for (int scenario = 0; scenario < 7; ++scenario) {
@@ -204,7 +204,7 @@ TEST_CASE("standing trip notices use explicit Ball and tick facts without a Matc
     REQUIRE(SimulationAccess::NowOf(simulation) == Tick{});
     REQUIRE(SimulationAccess::ResetSequenceOf(simulation) == sequence);
     REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
-    REQUIRE(SimulationAccess::BallOf(simulation)->Predict(0) == ball);
+    REQUIRE(SimulationAccess::BallOf(simulation)->state().position == ball);
   }
 }
 
@@ -221,7 +221,7 @@ TEST_CASE("sliding trip notices preserve strict grace, 3D radius, severity and d
   ScopedRuleAction action(*tackler);
   action.state.type = e_FunctionType_Sliding;
   action.state.contact.reset();
-  const auto live_ball = SimulationAccess::BallOf(simulation)->Predict(0);
+  const auto live_ball = SimulationAccess::BallOf(simulation)->state().position;
   for (int scenario = 0; scenario < 9; ++scenario) {
     CAPTURE(scenario);
     RefereeStateFixture referee(simulation);
@@ -269,7 +269,7 @@ TEST_CASE("sliding trip notices preserve strict grace, 3D radius, severity and d
   REQUIRE(referee.foul.foulType == 0);
   REQUIRE(SimulationAccess::NowOf(simulation) == Tick{});
   REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
-  REQUIRE(SimulationAccess::BallOf(simulation)->Predict(0) == live_ball);
+  REQUIRE(SimulationAccess::BallOf(simulation)->state().position == live_ball);
 }
 
 template<class T> concept HasImplicitTripNotice = requires(T& owner, Player* actor) {
@@ -295,8 +295,8 @@ TEST_CASE("the explicit touch sink is the only publication path for actor touche
   auto& sink = SimulationAccess::EventsOf(simulation);
   sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{now, player->GetID(),
       team->GetTeamSide(), e_TouchType_Intentional_Nonkicked,
-      SimulationAccess::BallOf(simulation)->Predict(0),
-      SimulationAccess::BallOf(simulation)->GetMovement()});
+      SimulationAccess::BallOf(simulation)->state().position,
+      SimulationAccess::BallOf(simulation)->state().velocity});
   REQUIRE(football::sim::event::LastTouchPlayer(SimulationAccess::TouchesOf(simulation), *team) == player);
   REQUIRE(player->GetLastTouchTick() == now);
   REQUIRE(player->GetLastTouchType() == e_TouchType_Intentional_Nonkicked);
@@ -495,8 +495,8 @@ TEST_CASE("the fact sink records the touch and buffers an immutable fact",
   const auto rng = SimulationAccess::RngOf(simulation).engine();
   sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{Tick{77}, player->GetID(),
       team->GetTeamSide(), e_TouchType_Intentional_Nonkicked,
-      SimulationAccess::BallOf(simulation)->Predict(0),
-      SimulationAccess::BallOf(simulation)->GetMovement()});
+      SimulationAccess::BallOf(simulation)->state().position,
+      SimulationAccess::BallOf(simulation)->state().velocity});
   const auto& touches = SimulationAccess::TouchesOf(simulation);
   REQUIRE(touches.last_team == 0);
   REQUIRE(touches.last_team_by_type[e_TouchType_Intentional_Nonkicked] == 0);
@@ -523,12 +523,12 @@ TEST_CASE("event touch identities survive send-offs and reset without team bookk
   const auto rng = SimulationAccess::RngOf(simulation).engine();
   events.OnAcceptedTouch(football::sim::event::AcceptedTouch{Tick{17}, home_actor->GetID(),
       SimulationAccess::TeamOf(simulation, 0)->GetTeamSide(),
-      e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->Predict(0),
-      SimulationAccess::BallOf(simulation)->GetMovement()});
+      e_TouchType_Intentional_Kicked, SimulationAccess::BallOf(simulation)->state().position,
+      SimulationAccess::BallOf(simulation)->state().velocity});
   events.OnAcceptedTouch(football::sim::event::AcceptedTouch{Tick{19}, away_actor->GetID(),
       SimulationAccess::TeamOf(simulation, 1)->GetTeamSide(),
-      e_TouchType_Accidental, SimulationAccess::BallOf(simulation)->Predict(0),
-      SimulationAccess::BallOf(simulation)->GetMovement()});
+      e_TouchType_Accidental, SimulationAccess::BallOf(simulation)->state().position,
+      SimulationAccess::BallOf(simulation)->state().velocity});
   const auto& touches = SimulationAccess::TouchesOf(simulation);
   REQUIRE(touches.last_player_by_team[0] == home.players[1].id);
   REQUIRE(touches.last_player_by_team[1] == away.players[1].id);

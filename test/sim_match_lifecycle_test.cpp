@@ -133,7 +133,7 @@ TEST_CASE("idle kickoff authorization cannot start either football clock", "[sim
     const auto& buffer = SimulationAccess::RefereeOf(simulation)->GetBuffer();
     REQUIRE(buffer.restart->phase == RestartPhase::Taken);
     REQUIRE(buffer.taker->GetLastTouchTick().value + 1 == taken.tick);
-    REQUIRE(SimulationAccess::BallOf(simulation)->GetMovement().GetLength() > 0.1f);
+    REQUIRE(SimulationAccess::BallOf(simulation)->state().velocity.GetLength() > 0.1f);
     for (int side : {0, 1})
       for (const auto* actor : SimulationAccess::TeamOf(simulation, side)->GetAllPlayers())
         REQUIRE(SimulationAccess::MayTouchBallOf(simulation, *actor));
