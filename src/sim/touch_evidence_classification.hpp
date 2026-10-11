@@ -2,18 +2,9 @@
 #define FOOTBALL_SIM_TOUCH_EVIDENCE_CLASSIFICATION_HPP
 
 #include <cstdint>
+#include "foundation/math/vector3.hpp"
 
-// P6: a single value-level classification of one ball/actor evidence tuple.
-// These three facts are NOT interchangeable and must never be collapsed into one
-// "touch" boolean:
-//   geometric contact  - shapes overlap or a sweep hits; says nothing physical
-//   physical impact    - a nonzero normal impulse actually changed the ball
-//   accepted rule touch- the referee-facing AcceptedTouch fact
-// Overlap projection, a zero-impulse resting contact and an accepted touch are
-// three different things. This header is pure so consumers can classify recorded
-// evidence without re-reading live actors.
 namespace football::sim {
-
 enum class TouchEvidence {
   None = 0,
   GeometricOverlapOnly,   // geometry present, no impulse, no rule fact
@@ -35,6 +26,17 @@ inline TouchEvidence ClassifyTouchEvidence(const TouchEvidenceInput& input) {
   if (input.physical_impact) return TouchEvidence::PhysicalImpactOnly;
   if (input.geometric_contact) return TouchEvidence::GeometricOverlapOnly;
   return TouchEvidence::None;
+}
+
+// P6c: a boot contact is a deliberate kick only while the boot is actively
+// swinging relative to the player root. A planted support foot carries the
+// root velocity (near-zero swing) and is never promoted to a deliberate
+// strike just because the action is a Shot/Pass.
+inline constexpr float kMinDeliberateKickSwingSpeed = 4.0f; // m/s
+inline bool IsDeliberateKickSwing(const blunted::Vector3& surface_velocity,
+                                  const blunted::Vector3& player_velocity) {
+  return (surface_velocity - player_velocity).GetLength() >
+         kMinDeliberateKickSwingSpeed;
 }
 
 // Evidence that must still be recorded authoritatively because a Snapshot alone

@@ -286,6 +286,18 @@ TEST_CASE("touch evidence keeps geometry impact and rule fact separate",
   REQUIRE(NeedsAuthoritativeRecord(TouchEvidence::PhysicalImpactAccepted));
 }
 
+TEST_CASE("deliberate kick swing separates the boot from the planted support foot", "[rule-touch][p6]") {
+  using football::sim::IsDeliberateKickSwing;
+  const blunted::Vector3 root{5.0f, 0, 0};
+  // A planted support foot moves with the root: near-zero relative swing.
+  REQUIRE_FALSE(IsDeliberateKickSwing({5.05f, 0, 0.02f}, root));
+  REQUIRE_FALSE(IsDeliberateKickSwing({4.9f, 0, 0.02f}, root));
+  // A kicking boot swings fast relative to the root in any direction.
+  REQUIRE(IsDeliberateKickSwing({20.0f, 0, 0.3f}, root));
+  REQUIRE(IsDeliberateKickSwing({5.0f, -9.0f, 0.3f}, root));
+  REQUIRE_FALSE(IsDeliberateKickSwing({6.0f, 0, 0.3f}, root));  // 1 m/s swing < gate
+}
+
 TEST_CASE("all four production switch combinations stay consistent and deterministic",
           "[active-shadow][p4d2][p5c][sim]") {
   auto home = football::app::fixtures::MakeDefaultHomeTeam();

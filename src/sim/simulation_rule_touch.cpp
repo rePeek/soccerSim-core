@@ -3,6 +3,7 @@
 #include "sim/team/team.hpp"
 #include "sim/player/player_body_pose_shadow.hpp"
 #include "sim/referee/referee.hpp"
+#include "sim/touch_evidence_classification.hpp"
 #include <algorithm>
 namespace {
 football::ball::ColliderId BodyEpisodeKey(football::ball::ColliderId id) {
@@ -17,10 +18,6 @@ football::ball::ColliderId BodyEpisodeKey(football::ball::ColliderId id) {
       segment==1 ? PlayerBodyPart::Head : PlayerBodyPart::LowerBody;
   return PlayerBodyColliderId(offset/kBakedBodySegmentCount,part);
 }
-// A boot contact is deliberate play only while the boot is actively swinging
-// relative to the player's root translation. A planted support foot carries
-// the root velocity (near-zero swing), so it is never classified as a kick.
-constexpr float kMinDeliberateKickSwingSpeed = 4.0f; // m/s
 }
 
 void Simulation::PublishRuleTouch(football::sim::event::RuleTouch touch) {
@@ -58,8 +55,10 @@ void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& re
     // player's root translation. A planted support foot moves with the root
     // (near-zero swing) and is never promoted to a deliberate strike just
     // because the action is a Shot/Pass.
-    const float swing=(contact.surface_velocity-player->GetKinematicState().velocity).GetLength();
-    const bool kick=boot && play_authorized_ && kick_action && swing>kMinDeliberateKickSwingSpeed;
+    // (swing gate below is the pure IsDeliberateKickSwing predicate)
+    const bool kick=boot && play_authorized_ && kick_action &&
+        football::sim::IsDeliberateKickSwing(contact.surface_velocity,
+                                            player->GetKinematicState().velocity);
     if(!IsBallInPlay()) {
       const auto& restart=referee_->GetBuffer();
       if(!kick || !set_piece_active_ || restart.taker!=player || !restart.restart ||
