@@ -160,3 +160,39 @@ TEST_CASE("magnus trajectory curves consistently and stays numerically stable",
     REQUIRE(state.position.GetLength() < 400.0f);
   }
 }
+
+TEST_CASE("real foot geometry sets the near-side contact and rejects far balls",
+          "[active-touch][model][foot]") {
+  // Boot surface just outside the ball on the +x side, at ball height:
+  // the contact point must sit on the +x surface and the strike stays
+  // torque-free because the lever arm lines up with the +x impulse.
+  auto side = Base();
+  side.strike_point = {0.19f, 0, 0.11f};
+  side.strike_radius = 0.071f;
+  const auto side_strike = ProposeActiveTouch(side);
+  REQUIRE(side_strike.reachable);
+  REQUIRE(side_strike.contact_point.coords[0] > 0);
+  REQUIRE(std::fabs((side_strike.contact_point - side.passive_endpoint.position).GetLength() - 0.11f) < 1e-5f);
+  REQUIRE(side_strike.spin.GetLength() < 1e-5f);
+  REQUIRE(side_strike.velocity_error < 1e-5f);
+
+  // A boot below the ball centre strikes the underside: the real lever arm
+  // produces backspin from the same point impulse (no angular assignment).
+  auto low = Base();
+  low.strike_point = {0.19f, 0, 0.05f};
+  low.strike_radius = 0.071f;
+  const auto low_strike = ProposeActiveTouch(low);
+  REQUIRE(low_strike.reachable);
+  REQUIRE(low_strike.spin.coords[1] < 0);
+  REQUIRE(low_strike.velocity_error < 1e-5f);
+
+  // A far ball is rejected, never projected onto the boot.
+  auto far = Base();
+  far.strike_point = {0, 0, 0.11f};
+  far.strike_radius = 0.071f;
+  far.passive_endpoint.position = {1.0f, 0, 0.11f};
+  const auto far_strike = ProposeActiveTouch(far);
+  REQUIRE_FALSE(far_strike.reachable);
+  REQUIRE(far_strike.rejection == TouchRejection::Distance);
+  REQUIRE(far_strike.contact_point == Vector3(0));
+}

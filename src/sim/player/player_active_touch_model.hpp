@@ -41,6 +41,12 @@ struct TouchProposalInput {
   football::ball::BallState passive_endpoint;
   blunted::Vector3 desired_ball_center = blunted::Vector3(0);
   blunted::Vector3 target_velocity = blunted::Vector3(0);
+  // P4f-3 real boot surface point (world) nearest the ball at the contact
+  // frame. A zero `strike_radius` keeps the legacy desired-centre fallback;
+  // otherwise reachability and the ball surface contact point come from this
+  // geometry and never from an arbitrary projection of a far ball.
+  blunted::Vector3 strike_point = blunted::Vector3(0);
+  float strike_radius = 0.0f;
   TouchTechnique technique;
   football::model::BallConfig config;
   float reach = 0.4f;
@@ -72,16 +78,32 @@ inline TouchProposal ProposeActiveTouch(const TouchProposalInput& input) {
     out.rejection = TouchRejection::Direction;
     return out;
   }
-  out.reach_error = (input.desired_ball_center - input.passive_endpoint.position).GetLength();
-  out.height_gap =
-      std::fabs(input.desired_ball_center.coords[2] - input.passive_endpoint.position.coords[2]);
-  if (!(out.reach_error < input.reach)) {
-    out.rejection = TouchRejection::Distance;
-    return out;
-  }
-  if (!(out.height_gap < input.height_tolerance)) {
-    out.rejection = TouchRejection::Height;
-    return out;
+  const auto& ball = input.passive_endpoint.position;
+  const bool foot = input.strike_radius > 0;
+  if (foot) {
+    // Foot-surface to ball-surface gap, measured from the real boot geometry.
+    const float foot_dist = (input.strike_point - ball).GetLength();
+    out.reach_error = std::max(0.0f, foot_dist - radius - input.strike_radius);
+    out.height_gap = std::fabs(input.strike_point.coords[2] - ball.coords[2]);
+    if (out.reach_error > input.reach) {
+      out.rejection = TouchRejection::Distance;
+      return out;
+    }
+    if (out.height_gap > input.height_tolerance) {
+      out.rejection = TouchRejection::Height;
+      return out;
+    }
+  } else {
+    out.reach_error = (input.desired_ball_center - ball).GetLength();
+    out.height_gap = std::fabs(input.desired_ball_center.coords[2] - ball.coords[2]);
+    if (!(out.reach_error < input.reach)) {
+      out.rejection = TouchRejection::Distance;
+      return out;
+    }
+    if (!(out.height_gap < input.height_tolerance)) {
+      out.rejection = TouchRejection::Height;
+      return out;
+    }
   }
   // The technique offset cannot exceed the ball silhouette; beyond that the
   // strike point does not exist on the ball.
@@ -99,19 +121,23 @@ inline TouchProposal ProposeActiveTouch(const TouchProposalInput& input) {
     out.rejection = TouchRejection::Direction;
     return out;
   }
-  // The contact normal must line up with the impulse, otherwise a centre strike
-  // could not be torque-free. A zero-offset strike is therefore spin-free even
-  // when the incoming ball is already moving.
+  // The impulse direction is the strike axis. For a real foot the ball contact
+  // point is the near-side surface point toward the boot; for the legacy
+  // fallback it is the near side opposite the impulse (torque-free centre
+  // strike). Lateral/vertical technique offsets then add deliberate spin
+  // around that real base point.
   const blunted::Vector3 strike = out.impulse.impulse / impulse_length;
-  // Strike frame: `side` is right of the impulse, `up` is world up.
   const blunted::Vector3 up{0, 0, 1};
   blunted::Vector3 side = strike.GetCrossProduct(up);
   side = side.GetNormalized(blunted::Vector3(1, 0, 0));
+  const blunted::Vector3 base_dir = foot
+      ? (input.strike_point - ball).GetNormalized(up)
+      : -strike;
   const blunted::Vector3 offset =
-      -strike * radius + side * input.technique.lateral + up * input.technique.vertical;
+      base_dir * radius + side * input.technique.lateral + up * input.technique.vertical;
   // Guarantee a real surface point while preserving the lever-arm direction.
-  out.contact_point = input.passive_endpoint.position + offset.GetNormalized(up) * radius;
-  out.lever_arm = out.contact_point - input.passive_endpoint.position;
+  out.contact_point = ball + offset.GetNormalized(up) * radius;
+  out.lever_arm = out.contact_point - ball;
   out.surface_error = std::fabs(out.lever_arm.GetLength() - radius);
   out.impulse.contact_point = out.contact_point;
   out.response = football::ball::ApplyImpulseAtPoint(

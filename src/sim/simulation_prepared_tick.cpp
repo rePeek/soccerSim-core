@@ -42,6 +42,7 @@ struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
     auto touch = input;
     if (second_roster) {
       touch.desired_ball_center.Mirror(); touch.target_velocity.Mirror();
+      touch.strike_point.Mirror();
       touch.fact.ball_position.Mirror(); touch.fact.ball_velocity.Mirror();
     }
     touches.push_back(touch);
@@ -153,6 +154,14 @@ void Simulation::RunPreparedPlayerTick() {
     proposal.passive_endpoint = passive.state;
     proposal.desired_ball_center = touch.desired_ball_center;
     proposal.target_velocity = touch.target_velocity;
+    proposal.strike_point = touch.strike_point;
+    proposal.strike_radius = touch.strike_radius;
+    // A real foot must be close to the ball surface; the legacy centre gate
+    // is looser because it compares the animation's intended ball centre.
+    if (touch.strike_radius > 0) {
+      proposal.reach = 0.25f;
+      proposal.height_tolerance = 0.8f;
+    }
     proposal.config = ball_config_;
     const auto model = football::sim::player::ProposeActiveTouch(proposal);
     if (active_touch_report_enabled_) {
