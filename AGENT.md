@@ -69,6 +69,28 @@ Runtime does not use that variable: it reads the configured baked animation asse
 Heavy Debug -O0 test loops may run against the Release preset (`--preset release`)
 for faster iteration; the final acceptance pass must still run the Debug suite.
 
+### C++20 modules build (football.pitch)
+
+`football.pitch` is the first real C++20 named module; Ball no longer reads
+`model::Pitch`. It needs a module-capable compiler, so it builds in a separate
+toolchain and directory (never mix with `build/debug`, which stays GCC):
+
+```sh
+nix develop .#modules --command bash -c 'cmake -S . -B build/modules -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/clang-modules-toolchain.cmake \
+  -DCMAKE_BUILD_TYPE=Debug -DFOOTBALL_BUILD_APP=OFF && \
+  cmake --build build/modules -j $(nproc)'
+```
+
+The `modules` devShell provides Clang 19 with libc++ (`llvmPackages_19.libcxxStdenv`).
+The toolchain file captures the wrapper's implicit includes for clang-scan-deps
+and points Clang at libc++'s `include/c++/v1` (the wrapper omits it, which would
+silently fall back to a newer libstdc++ and break Catch2). `CMAKE_CXX_SCAN_FOR_MODULES`
+stays ON so importers get the module BMI. Compiler change alters floating-point
+goldens; compare before/after within the same compiler.
+
+Dependency direction: `model::Pitch` -> `football.pitch` (BuildBallWorld) ->
+`football.ball::BallWorld` -> `Ball`. `football_ball` must never link `football_pitch`.
 ### Build performance (diagnosed, not fully resolved)
 
 `simulation.hpp` transitively includes `player_active_touch_shadow.hpp` (which
