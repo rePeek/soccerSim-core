@@ -2,9 +2,14 @@
 #include "sim/player/player.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player_body_pose_shadow.hpp"
+#include "sim/referee/referee.hpp"
 #include <algorithm>
 namespace {
 football::ball::ColliderId BodyEpisodeKey(football::ball::ColliderId id) {
+  if(id>=kFirstBakedContactRegionId && id<kFirstDynamicBodyColliderId) {
+    const auto offset=id-kFirstBakedContactRegionId;
+    return PlayerBodyColliderId(offset/kBakedContactRegionCount,kBakedContactRegionParts[offset%kBakedContactRegionCount]);
+  }
   if(id<kFirstBakedBodyColliderId) return id;
   const auto offset=id-kFirstBakedBodyColliderId;
   const auto segment=offset%kBakedBodySegmentCount;
@@ -26,22 +31,34 @@ void Simulation::PublishRuleTouch(football::sim::event::RuleTouch touch) {
 
 void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& result,
     std::span<const football::ball::ColliderMotion> bodies) {
-  // Policy is explicit: only an authorized, mapped, active player's genuine
-  // approaching impact not already accepted in the geometric contact episode is
-  // an accidental touch. Static hits, pure corrections and continuation do not
-  // fabricate a touch. This is experimental until the pose models are accepted.
+  // Only mapped active players' approaching impacts can become rule touches.
+  // Boot impact during an authorized kick is reviewed deliberate play; other
+  // live impacts are deflections. Ready restart release additionally requires
+  // the designated taker. Corrections/continuation never fabricate a touch.
+  // Classification remains experimental pending complete P6c acceptance.
   for (const auto& contact : result.contacts) {
-    if (!IsBallInPlay() || contact.normal_impulse <= 0 ||
+    if (contact.normal_impulse <= 0 ||
         contact.relative_velocity.GetDotProduct(contact.normal) >= 0) continue;
     const auto owner = body_collider_owners_.find(contact.collider);
     if (owner == body_collider_owners_.end()) continue;
     auto* player = FindPlayerById(owner->second.first);
     const auto episode_key=BodyEpisodeKey(contact.collider);
     if (!player || !player->IsActive() || rule_contact_episodes_.at(episode_key)) continue;
+    const auto action=player->GetSimulationActionState().type;
+    const bool boot=contact.collider>=kFirstBakedContactRegionId && contact.collider<kFirstDynamicBodyColliderId &&
+        ((contact.collider-kFirstBakedContactRegionId)%kBakedContactRegionCount==1 ||
+         (contact.collider-kFirstBakedContactRegionId)%kBakedContactRegionCount==2);
+    const bool kick=boot && play_authorized_ && (action==e_FunctionType_ShortPass || action==e_FunctionType_LongPass ||
+        action==e_FunctionType_HighPass || action==e_FunctionType_Shot);
+    if(!IsBallInPlay()) {
+      const auto& restart=referee_->GetBuffer();
+      if(!kick || !set_piece_active_ || restart.taker!=player || !restart.restart ||
+          restart.restart->phase!=RestartPhase::Ready) continue;
+    }
     football::sim::event::AcceptedTouch accepted{
         GetTimelineTick(), player->GetID(), player->GetTeam()->GetTeamSide(),
-        e_TouchType_Accidental, result.state.position, result.state.velocity,
-        static_cast<int>(player->GetSimulationActionState().type), true};
+        kick ? e_TouchType_Intentional_Kicked : e_TouchType_Accidental, result.state.position, result.state.velocity,
+        static_cast<int>(action), !kick, kick};
     PublishRuleTouch({accepted, owner->second.second,
         football::sim::event::RuleTouchSource::BodyCCD, 0, 0, contact});
     rule_contact_episodes_.at(episode_key) = true;

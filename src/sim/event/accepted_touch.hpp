@@ -25,6 +25,9 @@ struct AcceptedTouch {
   // Reviewed CCD deflection, not deliberate opponent play. Default false keeps
   // the legacy producer's semantics until its replacement is explicitly enabled.
   bool preserve_opponent_offside = false;
+  // Authorized selected kick action plus genuine approaching boot CCD impact.
+  // Physical timing replaces the animation marker only for this reviewed path.
+  bool physical_kick = false;
 };
 
 }  // namespace football::sim::event

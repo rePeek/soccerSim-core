@@ -20,6 +20,7 @@ target_sources(football_sim PRIVATE
   simulation.cpp simulation_body_shadow.cpp simulation_active_touch_shadow.cpp
   simulation_prepared_tick.cpp player/player_touch_preparation.hpp
   simulation_baked_body.cpp player/player_baked_pose_realization.hpp
+  player/player_baked_contact_regions.hpp player/player_baked_pose_sample.hpp
   simulation_rule_touch.cpp event/rule_touch.hpp
   player/player_active_touch_shadow.hpp player/player_active_impulse.hpp
   player/player_active_touch_model.hpp

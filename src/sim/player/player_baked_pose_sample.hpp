@@ -1,6 +1,7 @@
 #ifndef FOOTBALL_PLAYER_BAKED_POSE_SAMPLE_HPP
 #define FOOTBALL_PLAYER_BAKED_POSE_SAMPLE_HPP
 #include "sim/player/player_baked_body_pose.hpp"
+#include "sim/player/player_baked_contact_regions.hpp"
 
 // Read-only sample of the current runtime animation slot, not a forecast and
 // not another Humanoid execution. The requested frame is retained so a caller
@@ -17,6 +18,9 @@ struct PlayerBakedPoseSample {
   bool frame_clamped = false;
   BakedPlayerBodyCollider Geometry() const {
     return BuildBodyCollider(pose,state,base_angle,scale);
+  }
+  auto ContactRegions() const {
+    return BuildBakedContactRegions(pose,state,base_angle,scale);
   }
   void Mirror() {
     state.Mirror();

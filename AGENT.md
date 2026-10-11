@@ -23,13 +23,15 @@ foundation boilerplate is public domain.
 
 ## Build and test
 
-CMake >= 3.24, Ninja, C++23; use the `flake.nix` dev shell:
+CMake >= 3.24, Ninja, C++23; use the `flake.nix` dev shell.
+Development validation requires **Debug and core only**. Do not build Release
+or the app/CLI, or run app-based acceptance during development unless the
+maintainer explicitly requests it. Test-only app fixture dependencies remain
+allowed; they do not make the app executable a development build requirement.
 
 ```sh
-nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j 4 && ctest --preset release'
-# debug is another supported preset
-build/release/football_app
-build/release/football_app --half-duration-ms=1800
+nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && cmake --build --preset debug -j 4 && ctest --preset debug -j 4'
+nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF -DCMAKE_BUILD_TYPE=Debug && cmake --build build/core -j 4'
 ```
 
 BqLog 2.5.0 (pinned commit) is fetched by `cmake/CPM.cmake` in every build mode;
@@ -37,7 +39,7 @@ Catch2 v3.7.1 is fetched only with `BUILD_TESTING=ON`. Both use `.cache/CPM`.
 CTest registers whole test executables with add_test; Catch2 runs every case and
 reports case-level failures. No stdout-based discovery, build-time test execution,
 output filtering or third-party patch is needed. To select a Catch2 case, invoke
-its executable directly, e.g. build/release/football_sim_control_boundary_test '[failure]'.
+its executable directly, e.g. build/debug/football_sim_control_boundary_test '[failure]'.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
@@ -1166,3 +1168,31 @@ The 0.215 m realized native maximum is same Movement clip 1147, frame 7->8,
 not a clip switch. Entry smoothing catch-up needs assessment against original
 local animation motion before claiming that speed is realistic. Prior asset
 Trip/Movement evidence based on direct e_FunctionType comparisons is superseded.
+
+### P4f-2b additional contact regions (experimental checkpoint)
+
+`player/player_baked_contact_regions.hpp` owns nine Capsule/Sphere regions for
+chest, boots, arms and distal palms. The pelvis primitive now follows body,
+and trunk follows middle separately. Six primary IDs are preserved; extra
+fixed-slot IDs use checked 0x40000000..0x7fffffff. Simulation's dedicated tape
+contains all 15 shapes from the shared committed skeleton, independent of Shadow.
+Named local mesh vertex enclosures, two scales, mirror/ID limits and exact
+actual provider tape/public-pose A/B replay are covered by the extended tests
+and new test/player_baked_contact_regions_test.cpp. Runtime loads no meshes.
+
+Dense 1/16-Tick interpolation now includes all 15 shapes: maximum deviation
+0.0112886 m raw / 0.0186184 m realized. This supersedes the six-shape result;
+production error acceptance and 0.215 m/Tick entry catch-up assessment are open.
+
+Experimental authorized boot CCD kicks carry AcceptedTouch::physical_kick to
+BallTouchFacts through AcceptedTouchSink, allowing Ready taker release from
+physical evidence rather than marker timing. Non-taker/non-Ready contacts remain
+unauthorized before live play; other live body contacts remain deflections.
+Legacy producers default false. Intent-window and comprehensive rule acceptance
+remain P6c work; this is not blanket acceptance of all physical body impacts.
+
+Full evidence and explicit blockers: tools/p4f2b-contact-regions.md. Defaults,
+Golden and assets remain unchanged. Stop after this checkpoint commit per the
+maintainer; do not proceed to P4f-3/P6c/P7 or Ball Model Bake without resumption.
+Development builds from now on require Debug/core only, with app disabled,
+as specified in the Build and test section.

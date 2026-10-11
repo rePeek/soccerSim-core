@@ -40,7 +40,9 @@ TEST_CASE("six physical bodies use the published realized pose without shadow au
     bool injected=false;
     for(int tick=0;tick<2400;++tick) {
       PlayerControlSet controls; policy.Update(observed.Observe(),controls);
-      if(tick>=1200 && tick<1800) for(auto* actor:players) if(actor->IsActive()) {
+      // Execute the real tackle scenario when play is live, not during a
+      // restart-positioning interval whose length depends on physical outcomes.
+      if(tick<1800 && observed.Observe().ball_in_play) for(auto* actor:players) if(actor->IsActive()) {
         const auto* native=controls.Get(actor->GetID()); PlayerControl tackle=native ? *native:PlayerControl{};
         tackle.action=ControlAction::Tackle; tackle.desired_speed=7; controls.Set(actor->GetID(),tackle);
       }
@@ -76,18 +78,32 @@ TEST_CASE("six physical bodies use the published realized pose without shadow au
             REQUIRE(cursor<tape.size()); REQUIRE(tape[cursor].id==motion.id);
             SameShape(tape[cursor].start,motion.start); SameShape(tape[cursor].end,motion.end); ++cursor;
           }
+          const auto regions=BuildBakedContactRegionMotions(start.ContactRegions(),end.ContactRegions(),std::uint32_t(slot));
+          for(const auto& motion:regions) {
+            REQUIRE(cursor<tape.size()); REQUIRE(tape[cursor].id==motion.id);
+            SameShape(tape[cursor].start,motion.start); SameShape(tape[cursor].end,motion.end); ++cursor;
+          }
         }
         REQUIRE(cursor==tape.size()); ++checked;
       }
       if(const auto& commit=SimulationAccess::CommittedBallTickOf(observed); commit)
         for(const auto& contact:commit->contacts)
-          impacts+=contact.collider>=kFirstBakedBodyColliderId && contact.normal_impulse>0;
+          impacts+=contact.collider>=kFirstBakedContactRegionId && contact.normal_impulse>0;
       for(const auto& touch:SimulationAccess::RuleTouchesOf(observed)) {
         if(touch.source!=football::sim::event::RuleTouchSource::BodyCCD) continue;
-        REQUIRE(touch.contact.has_value()); REQUIRE(touch.contact->collider>=kFirstBakedBodyColliderId);
-        const auto slot=(touch.contact->collider-kFirstBakedBodyColliderId)/kBakedBodySegmentCount;
+        REQUIRE(touch.contact.has_value()); REQUIRE(touch.contact->collider>=kFirstBakedContactRegionId);
+        const auto id=touch.contact->collider;
+        const auto slot=id>=kFirstBakedBodyColliderId ? (id-kFirstBakedBodyColliderId)/kBakedBodySegmentCount :
+            (id-kFirstBakedContactRegionId)/kBakedContactRegionCount;
         REQUIRE(touch.accepted.player==observed.SnapshotMetadata().player_ids.at(slot));
         REQUIRE(touch.contact->normal_impulse>0); ++body_touches;
+        if(touch.accepted.physical_kick) {
+          REQUIRE(id<kFirstDynamicBodyColliderId);
+          const auto region=(id-kFirstBakedContactRegionId)%kBakedContactRegionCount;
+          REQUIRE((region==1 || region==2));
+          REQUIRE(touch.accepted.type==e_TouchType_Intentional_Kicked);
+          REQUIRE_FALSE(touch.accepted.preserve_opponent_offside);
+        }
       }
       REQUIRE(Engine(observed)==before); REQUIRE(Engine(observed)==Engine(control));
       const auto& a=SimulationAccess::BallOf(observed)->state(); const auto& b=SimulationAccess::BallOf(control)->state();
@@ -97,6 +113,8 @@ TEST_CASE("six physical bodies use the published realized pose without shadow au
       const auto& second=control.Snapshots().Latest()->snapshot.players; REQUIRE(first.size()==second.size());
       for(std::size_t slot=0;slot<first.size();++slot) { REQUIRE(first[slot].position==second[slot].position); REQUIRE(first[slot].animation_id==second[slot].animation_id); REQUIRE(first[slot].frame==second[slot].frame); }
     }
+    INFO("reverse="<<reverse<<" impacts="<<impacts<<" touches="<<body_touches<<" timeline="<<observed.Observe().tick
+        <<" live="<<observed.Observe().ball_in_play<<" authorized="<<observed.Observe().in_play);
     REQUIRE(checked>2000); REQUIRE(sliding>0); REQUIRE(trip>0);
     REQUIRE(impacts>0); REQUIRE(body_touches>0);
     observed.ResetSituation({0,0,0}); REQUIRE(observed.CommittedBakedPoses().empty());

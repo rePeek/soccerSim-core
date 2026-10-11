@@ -5,6 +5,15 @@
 #include "sim/player/player_baked_pose_realization.hpp"
 using football::sim::testing::SimulationAccess;
 namespace {
+struct CompleteGeometry {
+  std::array<football::ball::ColliderShape,kBakedBodySegmentCount+kBakedContactRegionCount> shapes;
+};
+CompleteGeometry Geometry(const PlayerBakedPoseSample& sample) {
+  CompleteGeometry result; const auto primary=sample.Geometry(); const auto extra=sample.ContactRegions();
+  std::copy(primary.shapes.begin(),primary.shapes.end(),result.shapes.begin());
+  std::copy(extra.begin(),extra.end(),result.shapes.begin()+kBakedBodySegmentCount);
+  return result;
+}
 PlayerBakedPoseSample Tween(const PlayerBakedPoseSample& a,const PlayerBakedPoseSample& b,float t) {
   auto sample=b; sample.state.position=a.state.position*(1-t)+b.state.position*t;
   for(std::size_t joint=0;joint<kBodyPartCount;++joint) {
@@ -15,8 +24,8 @@ PlayerBakedPoseSample Tween(const PlayerBakedPoseSample& a,const PlayerBakedPose
   return sample;
 }
 float Error(const PlayerBakedPoseSample& a,const PlayerBakedPoseSample& b,
-    const BakedPlayerBodyCollider& first,const BakedPlayerBodyCollider& last,float t) {
-  const auto actual=Tween(a,b,t).Geometry(); float max=0;
+    const CompleteGeometry& first,const CompleteGeometry& last,float t) {
+  const auto actual=Geometry(Tween(a,b,t)); float max=0;
   for(std::size_t segment=0;segment<actual.shapes.size();++segment)
     std::visit([&](const auto& c) {
       using T=std::decay_t<decltype(c)>;
@@ -46,8 +55,8 @@ TEST_CASE("dense adjacent pose sampling measures linear primitive versus local q
       target.state.position+=blunted::Vector3(.02f,.01f,0);
       const auto next_raw=WorldBakedPose(target);
       const auto next=RealizeBakedPose(realized,target,!clip.metadata.outgoing_special_state.empty());
-      const auto raw_start=raw.Geometry(),raw_end=next_raw.Geometry();
-      const auto realized_start=realized.Geometry(),realized_end=next.Geometry();
+      const auto raw_start=Geometry(raw),raw_end=Geometry(next_raw);
+      const auto realized_start=Geometry(realized),realized_end=Geometry(next);
       for(int sample=1;sample<16;++sample) {
         const float t=float(sample)/16;
         raw_error=std::max(raw_error,Error(raw,next_raw,raw_start,raw_end,t));

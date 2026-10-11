@@ -45,6 +45,7 @@ struct BallTouchFacts {
   std::span<Player* const> all_active_players;
   PitchFrameTransform stadium_to_home{false};
   bool preserve_opponent_offside = false;
+  bool physical_kick = false;
 };
 
 }  // namespace football::sim::rules

@@ -28,6 +28,8 @@ float Gap(blunted::Vector3 vertex, const football::ball::Capsule& capsule) {
 TEST_CASE("head and leg proxy envelopes cover the named baked meshes in transformed poses", "[baked-pose][mesh-envelope]") {
   const auto head=Vertices("head.ase"), thigh=Vertices("upperleg.ase"), shin=Vertices("lowerleg.ase");
   REQUIRE(head.size()==222); REQUIRE(thigh.size()==207); REQUIRE(shin.size()==224);
+  const auto pelvis=Vertices("pelvis.ase"),trunk=Vertices("trunk.ase"),foot=Vertices("foot.ase"),
+      upperarm=Vertices("upperarm.ase"),lowerarm=Vertices("lowerarm.ase");
   Simulation s; MatchOptions options; options.snapshot_capacity=1;
   s.Init(football::app::fixtures::MakeDefaultHomeTeam(),football::app::fixtures::MakeDefaultAwayTeam(),football::model::Pitch{},options);
   const auto& library=SimulationAccess::AnimationLibraryOf(s);
@@ -58,6 +60,28 @@ TEST_CASE("head and leg proxy envelopes cover the named baked meshes in transfor
         for(const auto& vertex:vertices) {
           const auto point=world.joints[joint]+world.orientations[joint]*(vertex*scale);
           REQUIRE(Gap(point,capsule)<=1e-5f);
+        }
+      }
+      const auto regions=BuildBakedContactRegions(pose,state,.37f,scale);
+      for(const auto& vertex:pelvis) {
+        const auto point=world.joints[body]+world.orientations[body]*(vertex*scale);
+        REQUIRE(Gap(point,std::get<football::ball::Capsule>(shapes.shapes[0]))<=1e-5f);
+      }
+      for(const auto [joint,index,vertices]:{
+          std::tuple{middle,0,&trunk},std::tuple{left_ankle,1,&foot},std::tuple{right_ankle,2,&foot},
+          std::tuple{left_shoulder,3,&upperarm},std::tuple{right_shoulder,4,&upperarm},
+          std::tuple{left_elbow,5,&lowerarm},std::tuple{right_elbow,6,&lowerarm}}) {
+        const auto& capsule=std::get<football::ball::Capsule>(regions[index]);
+        for(const auto& vertex:*vertices) {
+          const auto point=world.joints[joint]+world.orientations[joint]*(vertex*scale);
+          REQUIRE(Gap(point,capsule)<=1e-5f);
+        }
+      }
+      for(const auto [joint,index]:{std::pair{left_elbow,7},std::pair{right_elbow,8}}) {
+        const auto& palm=std::get<football::ball::Sphere>(regions[index]);
+        for(const auto& vertex:lowerarm) if(vertex.coords[2]<=-.24f) {
+          const auto point=world.joints[joint]+world.orientations[joint]*(vertex*scale);
+          REQUIRE((point-palm.center).GetLength()<=palm.radius+1e-5f);
         }
       }
     }

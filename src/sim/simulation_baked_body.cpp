@@ -13,13 +13,17 @@ void Simulation::EnableBakedBodyProduction(bool enabled) {
   if(!enabled) return;
   baked_body_poses_.resize(snapshot_players_.size()); baked_body_starts_.resize(snapshot_players_.size());
   baked_body_forecasts_.resize(snapshot_players_.size());
-  baked_body_colliders_.reserve(snapshot_players_.size()*kBakedBodySegmentCount);
+  baked_body_colliders_.reserve(snapshot_players_.size()*(kBakedBodySegmentCount+kBakedContactRegionCount));
   const BakedPlayerBodyCollider mapping{};
   for(std::size_t slot=0;slot<snapshot_players_.size();++slot) {
     for(std::size_t segment=0;segment<kBakedBodySegmentCount;++segment) {
       const auto id=BakedBodyColliderId(std::uint32_t(slot),static_cast<BakedBodySegment>(segment));
       body_collider_owners_[id]={snapshot_players_[slot]->GetID(),mapping.parts[segment]};
       rule_contact_episodes_[id]=false;
+    }
+    for(std::size_t region=0;region<kBakedContactRegionCount;++region) {
+      const auto id=BakedContactRegionId(std::uint32_t(slot),static_cast<BakedContactRegion>(region));
+      body_collider_owners_[id]={snapshot_players_[slot]->GetID(),kBakedContactRegionParts[region]};
     }
   }
   for(auto& [id,accepted]:rule_contact_episodes_) accepted=false;
@@ -34,6 +38,8 @@ void Simulation::BuildBakedBodyTape(std::span<const std::optional<PlayerBakedPos
     if(options_.reverse_team_processing) { start.Mirror(); end.Mirror(); }
     const auto motions=BuildBakedBodyColliderMotions(start.Geometry(),end.Geometry(),std::uint32_t(slot));
     baked_body_colliders_.insert(baked_body_colliders_.end(),motions.begin(),motions.end());
+    const auto regions=BuildBakedContactRegionMotions(start.ContactRegions(),end.ContactRegions(),std::uint32_t(slot));
+    baked_body_colliders_.insert(baked_body_colliders_.end(),regions.begin(),regions.end());
   }
 }
 void Simulation::BeginBakedBodyTick() {

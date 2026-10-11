@@ -314,6 +314,7 @@ void Referee::ConsumeBallTouch(Tick now,
   facts.all_active_players = view.all_active_players;
   facts.stadium_to_home = view.tick.stadium_to_home;
   facts.preserve_opponent_offside = fact.preserve_opponent_offside;
+  facts.physical_kick = fact.physical_kick;
   EvaluateBallTouch(facts, commands);
 }
 
@@ -362,7 +363,8 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
         action.type == e_FunctionType_HighPass || action.type == e_FunctionType_Shot ||
         (action.type == e_FunctionType_BallControl && buffer.desiredSetPiece != e_GameMode_ThrowIn &&
          buffer.taker->GetLastTouchType() == e_TouchType_Intentional_Kicked);
-    if (action.contact && action.elapsed == *action.contact && kick &&
+    const bool scheduled_contact=action.contact && action.elapsed == *action.contact;
+    if ((scheduled_contact || facts.physical_kick) && kick &&
         facts.ball->GetMovement().GetLength() > 0.1f) {
       buffer.restart->phase = RestartPhase::Taken;
       commands.StartBallInPlay();

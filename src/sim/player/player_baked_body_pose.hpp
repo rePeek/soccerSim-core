@@ -83,7 +83,10 @@ inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
   using namespace football::ball;
   const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, scale);
   const auto& j = world.joints;
-  return {{Capsule{j[body], j[neck], .20f * scale},
+  // Pelvis follows the body node, trunk follows middle separately. A single
+  // body-to-neck axis would miss rigid pelvis/trunk meshes when the spine bends.
+  return {{Capsule{j[body]+world.orientations[body]*blunted::Vector3(0,0,-.02f*scale),
+                  j[body]+world.orientations[body]*blunted::Vector3(0,0,.17f*scale),.20f*scale},
            Sphere{j[neck]+world.orientations[neck]*(kBakedHeadCenter*scale),kBakedHeadRadius*scale},
            Capsule{j[left_thigh], j[left_knee], kBakedThighRadius * scale},
            Capsule{j[left_knee], j[left_ankle], kBakedShinRadius * scale},
