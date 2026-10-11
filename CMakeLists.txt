@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.24)
 project(gameplayfootball LANGUAGES CXX)
 include(CTest)
+# Optional local build acceleration: use ccache whenever the dev shell
+# provides it. This is a silent no-op when ccache is absent, never a hard
+# dependency. The launcher must be set before any target is defined.
+find_program(FOOTBALL_CCACHE_PROGRAM ccache)
+if(FOOTBALL_CCACHE_PROGRAM)
+  set(CMAKE_CXX_COMPILER_LAUNCHER "${FOOTBALL_CCACHE_PROGRAM}"
+      CACHE STRING "C++ compiler launcher (ccache when available)")
+  set(CMAKE_C_COMPILER_LAUNCHER "${FOOTBALL_CCACHE_PROGRAM}"
+      CACHE STRING "C compiler launcher (ccache when available)")
+endif()
 option(FOOTBALL_BUILD_APP "Build the CLI executable and its sample inputs" ON)
 
 # Shared build policy only; each module owns its sources, exports and link edges.

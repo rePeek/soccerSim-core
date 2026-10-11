@@ -18,6 +18,7 @@
               pkgs.gcc
               pkgs.gnumake
               pkgs.ninja
+              pkgs.ccache
             ];
 
             shellHook = ''

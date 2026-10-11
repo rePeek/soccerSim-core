@@ -30,16 +30,22 @@ maintainer explicitly requests it. Test-only app fixture dependencies remain
 allowed; they do not make the app executable a development build requirement.
 
 ```sh
-nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && cmake --build --preset debug -j 4 && ctest --preset debug -j 4'
-nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF -DCMAKE_BUILD_TYPE=Debug && cmake --build build/core -j 4'
+nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && cmake --build --preset debug -j $(nproc) && ctest --preset debug -j $(nproc)'
+nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF -DCMAKE_BUILD_TYPE=Debug && cmake --build build/core -j $(nproc)'
 ```
 
 BqLog 2.5.0 (pinned commit) is fetched by `cmake/CPM.cmake` in every build mode;
 Catch2 v3.7.1 is fetched only with `BUILD_TESTING=ON`. Both use `.cache/CPM`.
+`flake.nix` provides ccache and the root CMake sets `CMAKE_{C,CXX}_COMPILER_LAUNCHER`
+to it whenever it is found, so local rebuilds are cached automatically; a missing
+ccache is a silent no-op. `-j $(nproc)` uses all host cores.
 CTest registers whole test executables with add_test; Catch2 runs every case and
 reports case-level failures. No stdout-based discovery, build-time test execution,
 output filtering or third-party patch is needed. To select a Catch2 case, invoke
 its executable directly, e.g. build/debug/football_sim_control_boundary_test '[failure]'.
+Prefer single Catch2 tags for focused iteration; the heavy baked/prepared/rules
+cases ([pose-runtime], [pose-interpolation], [prepared-tick], [rule-touch]) are
+minute-scale under Debug -O0, so run them in isolation rather than stacking tags.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
@@ -50,6 +56,23 @@ The app args/fixture archive remains an explicit `EXCLUDE_FROM_ALL` target even
 when CLI/tests are disabled. It is never linked into the shared library.
 CTest sets `GFOOTBALL_DATA_DIR=$PWD/data` for regression's offline import fixtures.
 Runtime does not use that variable: it reads the configured baked animation asset.
+
+Heavy Debug -O0 test loops may run against the Release preset (`--preset release`)
+for faster iteration; the final acceptance pass must still run the Debug suite.
+
+### Build performance (diagnosed, not fully resolved)
+
+`simulation.hpp` transitively includes `player_active_touch_shadow.hpp` (which
+pulls `player_active_touch_model.hpp` and `football/ball/ball.hpp`) and
+`player_baked_pose_sample.hpp` (which pulls the baked body-pose/contact-region
+geometry). Touching any of those inline headers therefore recompiles ~40
+translation units (including `src/env.cpp` and the 2360-line `humanoid.cpp`)
+and relinks ~15 executables; a measured single-header change rebuilds 54 ninja
+edges in ~30 s at `-j 4` (16 cores available). The deferred fix is to move
+value-typed state (`PlayerBakedPoseSample`, `ActiveTouchShadowReport`,
+`ActiveImpulseCandidate`) out of the `Simulation` class definition behind a
+pimpl or a private state holder so those headers stop appearing in
+`simulation.hpp`; do not attempt this as an incidental change mid-migration.
 
 ## Source layout
 
