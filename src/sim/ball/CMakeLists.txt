@@ -20,7 +20,6 @@ target_sources(football_ball
     src/ball_collision.cpp
     src/ball_deforming_capsule.cpp
     src/ball_response.cpp
-    src/pitch_colliders.cpp
 )
 
 target_sources(football_ball
@@ -29,13 +28,13 @@ target_sources(football_ball
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
     FILES
       include/football/ball/ball.hpp
+      include/football/ball/ball_world.hpp
       include/football/ball/ball_state.hpp
       include/football/ball/ball_impulse.hpp
       include/football/ball/ball_environment.hpp
       include/football/ball/ball_timing.hpp
       include/football/ball/collider.hpp
       include/football/ball/ball_contact.hpp
-      include/football/ball/pitch_colliders.hpp
       include/football/ball/ball_response.hpp
 )
 

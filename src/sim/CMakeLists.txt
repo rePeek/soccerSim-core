@@ -12,6 +12,7 @@ target_link_libraries(football_sim_contracts INTERFACE
 
 add_subdirectory(animation)
 add_subdirectory(ball)
+add_subdirectory(pitch)
 
 # Domain directories organize concepts, not public/private dependency units.
 add_library(football_sim STATIC)
@@ -85,7 +86,7 @@ target_sources(football_sim PUBLIC FILE_SET HEADERS
     observation/player_slots.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
-  PRIVATE football::animation football::model football::ball BqLog)
+  PRIVATE football::animation football::model football::ball football::pitch BqLog)
 football_configure_target(football_sim)
 # Resource lookup belongs to runtime loading, never public value/policy contracts.
 target_compile_definitions(football_sim PRIVATE
