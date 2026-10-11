@@ -173,30 +173,36 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         const auto body_part = part.find("head") != std::string::npos ? PlayerBodyPart::Head :
             (part.find("foot") != std::string::npos || part.find("lowerleg") != std::string::npos ?
              PlayerBodyPart::LowerBody : PlayerBodyPart::UpperBody);
-        // P4f-3: capture the real boot surface point from the committed baked
-        // pose at the contact frame. This is the foot geometry, not the
-        // animation's desired ball centre (`currentAnim.touchPos`).
+        // P4f-3: capture the real boot surface point nearest the ball. Take
+        // BOTH boot capsules and keep the nearer one: the kicking boot is the
+        // one at the ball at the contact frame while the planted support boot
+        // is elsewhere. `current_foot` is selector provenance, not a reliable
+        // contact-foot identity in the shipped asset.
         blunted::Vector3 strike_point;
         float strike_radius = 0.0f;
         int strike_foot = -1;
-        // `current_foot` is the e_Foot the clip uses for the touch (0=left,
-        // 1=right); `touch_foot` is empty in the shipped asset and only the
-        // offline selector derives the touch foot from it.
-        const int current_foot = GetCurrentBakedClip().metadata.current_foot;
-        if (current_foot == e_Foot_Left || current_foot == e_Foot_Right) {
+        {
           const float scale = CastPlayer()->GetModel().height / defaultPlayerHeight;
           const auto sample = CastPlayer()->GetBakedPoseSample(scale);
           const auto regions = sample.ContactRegions();
-          strike_foot = current_foot == e_Foot_Left ? 0 : 1;
-          const auto& boot = std::get<football::ball::Capsule>(regions[strike_foot == 0 ? 1 : 2]);
           const auto& ball_center = tick.ball.state().position;
-          const auto axis = boot.b - boot.a;
-          const float len2 = axis.GetDotProduct(axis);
-          const float t = len2 > 0 ? clamp((ball_center - boot.a).GetDotProduct(axis)/len2, 0.0f, 1.0f) : 0.0f;
-          const auto segment_point = boot.a + axis * t;
-          const auto to_ball = ball_center - segment_point;
-          const float dist = to_ball.GetLength();
-          strike_point = dist > 1e-6f ? segment_point + to_ball * (boot.radius/dist) : segment_point;
+          const auto surface = [&](const auto& boot) {
+            const auto axis = boot.b - boot.a;
+            const float len2 = axis.GetDotProduct(axis);
+            const float t = len2 > 0 ? clamp((ball_center - boot.a).GetDotProduct(axis)/len2, 0.0f, 1.0f) : 0.0f;
+            const auto segment = boot.a + axis * t;
+            const auto delta = ball_center - segment;
+            const float dist = delta.GetLength();
+            return dist > 1e-6f ? segment + delta * (boot.radius/dist) : segment;
+          };
+          const auto& left = std::get<football::ball::Capsule>(regions[1]);
+          const auto& right = std::get<football::ball::Capsule>(regions[2]);
+          const auto lp = surface(left), rp = surface(right);
+          const float ld = (lp - ball_center).GetLength();
+          const float rd = (rp - ball_center).GetLength();
+          strike_foot = ld <= rd ? 0 : 1;
+          const auto& boot = ld <= rd ? left : right;
+          strike_point = ld <= rd ? lp : rp;
           strike_radius = boot.radius;
         }
         tick.touch_preparation->PrepareTouch({

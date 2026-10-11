@@ -9,9 +9,10 @@ Humanoid preparation pass:
 
 - `Humanoid::notify_touch` reads the committed baked pose at the contact frame
   and extracts the kicking boot capsule (`BuildBakedContactRegions`, LeftBoot or
-  RightBoot) chosen from the clip's `current_foot` (e_Foot 0/1). The shipped
-  asset's `touch_foot` string is empty for all Shot/Pass clips, so the selector's
-  `current_foot` is the authoritative foot identity, not `touch_foot`.
+  RightBoot) as the boot NEAREST the ball centre: the kicking boot is the one
+  at the ball at the contact frame, while the planted support boot is elsewhere.
+  `current_foot` is selector provenance, not reliable contact-foot identity,
+  and the shipped asset's `touch_foot` is empty.
 - `strike_point` is the boot surface point nearest the ball centre in the tick
   common frame; `strike_radius` is that boot's radius and doubles as the
   presence flag (zero means the legacy desired-centre fallback).
