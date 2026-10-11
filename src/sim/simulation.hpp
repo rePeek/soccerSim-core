@@ -148,10 +148,13 @@ class Simulation {
   // production Ball integrates the predicted body colliders and the legacy
   // resolver is skipped, so exactly one authority changes the ball.
   void EnableBodyPhysicsProduction(bool enabled);
-  // Explicit timing-migration gate, independent of all diagnostic sinks.
   void EnablePreparedTickProduction(bool enabled);
   void RunPreparedPlayerTick();
   void EnableBakedBodyProduction(bool enabled);
+  // P7a: single production-entry/teardown points. Init/Stop own the lifecycle;
+  // these are the only places the three authority switches are flipped.
+  void InitializeProductionPhysics();
+  void ReleaseProductionPhysics();
   void BeginBakedBodyTick();
   void CompleteBakedBodyPreparation();
   void BuildBakedBodyTape(std::span<const std::optional<PlayerBakedPoseSample>> endpoints);

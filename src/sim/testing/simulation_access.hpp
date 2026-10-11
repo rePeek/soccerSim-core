@@ -197,6 +197,13 @@ class SimulationAccess {
   static void EnableActiveImpulseProduction(Simulation& s, bool enabled) { s.EnableActiveImpulseProduction(enabled); }
   static void EnableBodyPhysicsProduction(Simulation& s, bool enabled) { s.EnableBodyPhysicsProduction(enabled); }
   static void EnableBakedBodyProduction(Simulation& s, bool enabled) { s.EnableBakedBodyProduction(enabled); }
+  static void InitializeProductionPhysics(Simulation& s) { s.InitializeProductionPhysics(); }
+  static void ReleaseProductionPhysics(Simulation& s) { s.ReleaseProductionPhysics(); }
+  static bool PreparedTickProductionOf(const Simulation& s) { return s.prepared_tick_production_; }
+  static bool BodyPhysicsProductionOf(const Simulation& s) { return s.body_physics_production_; }
+  static bool BakedBodyProductionOf(const Simulation& s) { return s.baked_body_production_; }
+  static const auto& PreparationBallOf(const Simulation& s) { return s.preparation_ball_; }
+  static const auto& RuleContactEpisodesOf(const Simulation& s) { return s.rule_contact_episodes_; }
   static const auto& BakedBodyTapeOf(const Simulation& s) { return s.baked_body_colliders_; }
   static const auto& BakedBodyStartsOf(const Simulation& s) { return s.baked_body_starts_; }
   static const auto& ActiveTouchShadowReportOf(const Simulation& s) { return s.active_touch_shadow_report_; }

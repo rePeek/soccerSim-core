@@ -52,6 +52,7 @@ add_executable(football_sim_computation_test sim_computation_test.cpp tick_test.
   player_baked_body_pipeline_test.cpp
   player_baked_pose_interpolation_test.cpp
   player_baked_contact_regions_test.cpp
+  sim_production_lifecycle_test.cpp
   possession_test.cpp mental_image_history_test.cpp referee_state_test.cpp
   sim_fact_test.cpp event_recognizer_test.cpp rule_query_test.cpp
   touch_inference_test.cpp rule_command_fixture.hpp

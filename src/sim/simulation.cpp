@@ -555,6 +555,33 @@ void Simulation::Init(
   CaptureSnapshot();
 }
 
+void Simulation::InitializeProductionPhysics() {
+  if (!ball_) throw std::logic_error("simulation has no match");
+  // Order: prepared tick needs body physics for passive precedence; baked
+  // bodies additionally require prepared+body. Enable in dependency order so
+  // each prerequisite check sees the already-established authority.
+  EnableBodyPhysicsProduction(true);
+  EnablePreparedTickProduction(true);
+  EnableBakedBodyProduction(true);
+}
+
+void Simulation::ReleaseProductionPhysics() {
+  // Tear down in reverse dependency order, then drop the per-match caches.
+  // Enable(false) entries require ball_ to still be alive, so this must run
+  // before Stop releases the owners.
+  if (baked_body_production_) EnableBakedBodyProduction(false);
+  if (prepared_tick_production_) EnablePreparedTickProduction(false);
+  if (body_physics_production_) EnableBodyPhysicsProduction(false);
+  preparation_ball_.reset();
+  committed_ball_tick_.reset();
+  pending_active_impulse_.reset();
+  tick_active_candidates_.clear();
+  rule_touches_.clear();
+  // EnablePreparedTickProduction(false) re-derives this from the (soon dead)
+  // owner map; drop it so a second Init rebuilds it cleanly.
+  rule_contact_episodes_.clear();
+  body_physics_production_colliders_.clear();
+}
 void Simulation::EnsureAnimationLibrary() {
   if (animations_) return;
   // Never put resource loading inside assert(): Release must load and reject
@@ -1009,8 +1036,8 @@ MatchResult Simulation::Result() const {
 
 bool Simulation::Stop() {
   if (!ball_) return false;
+  ReleaseProductionPhysics();
   EnableActiveTouchShadow(false);
-  EnableBakedBodyProduction(false);
   teams_[first_team_]->Exit(GetTimelineTick());
   teams_[second_team_]->Exit(GetTimelineTick());
   // Clear every actor borrow before their owners go away: an uninitialized
