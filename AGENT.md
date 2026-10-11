@@ -30,8 +30,12 @@ maintainer explicitly requests it. Test-only app fixture dependencies remain
 allowed; they do not make the app executable a development build requirement.
 
 ```sh
-nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && cmake --build --preset debug -j $(nproc) && ctest --preset debug -j $(nproc)'
+# Fast iteration (unit/light, seconds): exclude full-match, heavy sim, regression, baking
+nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && cmake --build --preset debug -j $(nproc) && ctest --preset debug -j $(nproc) -LE full -LE slow -LE regression -LE animation'
+# Core-only build
 nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF -DCMAKE_BUILD_TYPE=Debug && cmake --build build/core -j $(nproc)'
+# Full acceptance (maintainer-authorized P7): everything
+nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=ON && cmake --build --preset debug -j $(nproc) && ctest --preset debug -j $(nproc)'
 ```
 
 BqLog 2.5.0 (pinned commit) is fetched by `cmake/CPM.cmake` in every build mode;
@@ -46,6 +50,11 @@ its executable directly, e.g. build/debug/football_sim_control_boundary_test '[f
 Prefer single Catch2 tags for focused iteration; the heavy baked/prepared/rules
 cases ([pose-runtime], [pose-interpolation], [prepared-tick], [rule-touch]) are
 minute-scale under Debug -O0, so run them in isolation rather than stacking tags.
+CTest labels tier the cost: `full` (45-minute CLI match), `slow` (aggregated
+computation/control-boundary suites), `regression` (regression + animation A/B),
+`animation` (offline bake/verify) and everything else is fast. `football_app_cli_default`
+is the long pole (~415 s Debug / ~6 s Release); keep it out of daily fast runs.
+Release preset is ~70x faster than Debug -O0 for the long full-match runs.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh

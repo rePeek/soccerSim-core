@@ -23,6 +23,7 @@ if(TARGET football_app)
   set_tests_properties(football_app_cli_default PROPERTIES
     PASS_REGULAR_EXPRESSION "home_score=[0-9]+ away_score=[0-9]+ outcome=.* duration_ticks=[1-9][0-9]*"
     # Two real 45-minute halves at 100 Hz, also with native Debug assertions.
+    LABELS "app;full"
     TIMEOUT 900)
   add_test(NAME football_app_cli_short_match COMMAND football_app --half-duration-ms=1800)
   set_tests_properties(football_app_cli_short_match PROPERTIES
@@ -63,7 +64,7 @@ football_configure_target(football_sim_computation_test)
 target_compile_definitions(football_sim_computation_test PRIVATE
   FOOTBALL_TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/data")
 add_test(NAME football_sim_computation_test COMMAND football_sim_computation_test)
-set_tests_properties(football_sim_computation_test PROPERTIES LABELS sim)
+set_tests_properties(football_sim_computation_test PROPERTIES LABELS "sim;slow")
 
 # Pure goal geometry must compile/link without Match, Ball, sim or libgame.
 add_executable(football_goal_test goal_test.cpp ../src/sim/referee/goal.cpp)
@@ -159,7 +160,7 @@ target_link_libraries(football_sim_control_boundary_test PRIVATE
   football::game football::app_support Catch2::Catch2WithMain)
 football_configure_target(football_sim_control_boundary_test)
 add_test(NAME football_sim_control_boundary_test COMMAND football_sim_control_boundary_test)
-set_tests_properties(football_sim_control_boundary_test PROPERTIES LABELS sim)
+set_tests_properties(football_sim_control_boundary_test PROPERTIES LABELS "sim;slow")
 
 # C++ boundary/integration suites (formerly mixed into tools/).
 add_executable(football_gameenv_test gameenv_test.cpp)
