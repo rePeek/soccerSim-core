@@ -1,10 +1,13 @@
 #include <cmath>
+#include "model/pitch.hpp"
 #include <stdexcept>
 #include <type_traits>
 
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/ball/ball.hpp"
+
+import football.pitch;
 
 namespace {
 
@@ -27,10 +30,9 @@ BallState TestState() {
 TEST_CASE("Ball is constructible from the stable config + geometry contract",
           "[sim][ball][state]") {
   static_assert(std::is_constructible_v<Ball, const BallConfig&,
-                                        const football::model::Pitch&>);
-  static_assert(std::is_constructible_v<Ball, const football::model::Pitch&>);
+                                        football::ball::BallWorld>);
 
-  Ball ball(BallConfig{}, kPitch);
+  Ball ball{BallConfig{}, football::pitch::BuildBallWorld(kPitch, BallConfig{})};
   const auto state = ball.state();
   REQUIRE(state.position == Vector3(0.0f, 0.0f, 0.0f));
   REQUIRE(state.velocity == Vector3(0.0f, 0.0f, 0.0f));
@@ -38,7 +40,7 @@ TEST_CASE("Ball is constructible from the stable config + geometry contract",
 }
 
 TEST_CASE("Reset publishes the observable state", "[sim][ball][state]") {
-  Ball ball(kPitch);
+  Ball ball{BallConfig{}, football::pitch::BuildBallWorld(kPitch, BallConfig{})};
   ball.Reset(TestState());
 
   const auto state = ball.state();
@@ -49,7 +51,7 @@ TEST_CASE("Reset publishes the observable state", "[sim][ball][state]") {
 }
 
 TEST_CASE("Mirror reflects momentum and position only", "[sim][ball][state]") {
-  Ball ball(kPitch);
+  Ball ball{BallConfig{}, football::pitch::BuildBallWorld(kPitch, BallConfig{})};
   ball.Reset(TestState());
   // Legacy mirror contract: momentum and position flip, rotation/orientation
   // are deliberately left untouched by the historical implementation.

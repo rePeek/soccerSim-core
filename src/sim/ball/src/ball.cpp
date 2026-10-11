@@ -22,13 +22,13 @@ namespace {
 constexpr float kMagnusCoefficient = 0.02f;
 
 BallDynamics BuildDynamics(const football::model::BallConfig& config,
-                           const football::model::Pitch& pitch) {
+                           const GroundSurface& ground) {
   BallDynamics dynamics;
   dynamics.gravity = 9.81f;
   dynamics.quadratic_resistance = config.drag();
-  dynamics.ground_deceleration = pitch.ground_deceleration();
-  dynamics.quadratic_ground_resistance = pitch.quadratic_resistance();
-  dynamics.grass_height = pitch.grass_height();
+  dynamics.ground_deceleration = ground.deceleration;
+  dynamics.quadratic_ground_resistance = ground.quadratic_resistance;
+  dynamics.grass_height = ground.grass_height;
   dynamics.spin_decay = 0.0f;
   dynamics.magnus_coefficient = kMagnusCoefficient;
   return dynamics;
@@ -36,18 +36,14 @@ BallDynamics BuildDynamics(const football::model::BallConfig& config,
 
 }  // namespace
 
-Ball::Ball(const football::model::BallConfig& config,
-           const football::model::Pitch& pitch)
+Ball::Ball(const football::model::BallConfig& config, BallWorld world)
     : config_(config),
-      pitch_(pitch),
+      world_(std::move(world)),
       state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()},
-      dynamics_(BuildDynamics(config, pitch)),
-      colliders_(BuildPitchColliders(pitch, config)) {
+      dynamics_(BuildDynamics(config, world_.ground)),
+      colliders_(world_.static_colliders) {
   tick_colliders_.reserve(73);
 }
-
-Ball::Ball(const football::model::Pitch& pitch)
-    : Ball(football::model::BallConfig{}, pitch) {}
 
 Ball::~Ball() = default;
 
@@ -59,7 +55,7 @@ BallStepResult Ball::AdvanceState(const BallState& current,
   BallStepResult result = AdvanceBallTick(
       current, colliders, football::sim::kTickSeconds, config_, dynamics_);
   // Flexible netting stays a discrete correction, not a rigid collider.
-  detail::ResolveNetting(result.state.position, result.state.velocity, pitch_,
+  detail::ResolveNetting(result.state.position, result.state.velocity, world_.net,
                          config_, environment);
   return result;
 }

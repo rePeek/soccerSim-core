@@ -6,7 +6,9 @@
 
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_response.hpp"
-#include "football/ball/pitch_colliders.hpp"
+#include "football/ball/ball_world.hpp"
+
+import football.pitch;
 #include "model/ball_config.hpp"
 #include "model/pitch.hpp"
 
@@ -208,11 +210,10 @@ TEST_CASE("advance ball resolves two contacts in one tick", "[ball][collision][a
 
 TEST_CASE("pitch colliders build a fixed deterministic static world",
           "[ball][collision][pitch]") {
-  using football::ball::BuildPitchColliders;
   const football::model::Pitch pitch;
   const football::model::BallConfig ball;
-  const auto world = BuildPitchColliders(pitch, ball);
-  const auto again = BuildPitchColliders(pitch, ball);
+  const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
+  const auto again = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
   REQUIRE(world.size() == 7);
   REQUIRE(again.size() == 7);
@@ -237,10 +238,9 @@ TEST_CASE("pitch colliders build a fixed deterministic static world",
 }
 
 TEST_CASE("new kernel detects a post and crossbar hit", "[ball][collision][pitch]") {
-  using football::ball::BuildPitchColliders;
   const football::model::Pitch pitch;
   const football::model::BallConfig ball;
-  const auto world = BuildPitchColliders(pitch, ball);
+  const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
   // Right high post (id 5) at (+half_length, +goal_half_width).
   const float x = pitch.half_length();
@@ -260,10 +260,9 @@ TEST_CASE("new kernel detects a post and crossbar hit", "[ball][collision][pitch
 
 TEST_CASE("new kernel keeps a tangentially rolling ball moving",
           "[ball][collision][pitch]") {
-  using football::ball::BuildPitchColliders;
   const football::model::Pitch pitch;
   const football::model::BallConfig ball;
-  const auto world = BuildPitchColliders(pitch, ball);
+  const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
   const BallState rolling = BallAt(Vector3(0, 0, ball.radius()), Vector3(5, 0, 0));
   const auto result = football::ball::AdvanceBall(rolling, world, 0.01f, ball.radius(),
@@ -276,10 +275,9 @@ TEST_CASE("tick model keeps a grounded ball rolling without ground impacts",
           "[ball][collision][tick]") {
   using football::ball::AdvanceBallTick;
   using football::ball::BallDynamics;
-  using football::ball::BuildPitchColliders;
   const football::model::Pitch pitch;
   const football::model::BallConfig ball;
-  const auto world = BuildPitchColliders(pitch, ball);
+  const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
   const BallState rolling = BallAt(Vector3(0, 0, ball.radius()), Vector3(5, 0, 0));
   const auto result = AdvanceBallTick(rolling, world, 0.01f, ball, BallDynamics{});
@@ -305,10 +303,9 @@ TEST_CASE("tick model falls under gravity without colliders", "[ball][collision]
 TEST_CASE("tick model bounces a fast landing once", "[ball][collision][tick]") {
   using football::ball::AdvanceBallTick;
   using football::ball::BallDynamics;
-  using football::ball::BuildPitchColliders;
   const football::model::Pitch pitch;
   const football::model::BallConfig ball;
-  const auto world = BuildPitchColliders(pitch, ball);
+  const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
   const BallState falling = BallAt(Vector3(0, 0, 1), Vector3(0, 0, -50));
   const auto result = AdvanceBallTick(falling, world, 0.05f, ball, BallDynamics{});
@@ -321,10 +318,9 @@ TEST_CASE("tick model resolves a post impact once at the contact point",
           "[ball][collision][tick]") {
   using football::ball::AdvanceBallTick;
   using football::ball::BallDynamics;
-  using football::ball::BuildPitchColliders;
   const football::model::Pitch pitch;
   const football::model::BallConfig ball;
-  const auto world = BuildPitchColliders(pitch, ball);
+  const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
   const float x = pitch.half_length();
   const float y = pitch.goal_half_width();
@@ -406,10 +402,9 @@ TEST_CASE("grounded rolling into a post still resolves the post impact",
           "[ball][collision][tick]") {
   using football::ball::AdvanceBallTick;
   using football::ball::BallDynamics;
-  using football::ball::BuildPitchColliders;
   const football::model::Pitch pitch;
   const football::model::BallConfig ball;
-  const auto world = BuildPitchColliders(pitch, ball);
+  const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
   const float x = pitch.half_length();
   const float y = pitch.goal_half_width();
   const BallState rolling = BallAt(Vector3(x - 0.5f, y, ball.radius()), Vector3(100, 0, 0));

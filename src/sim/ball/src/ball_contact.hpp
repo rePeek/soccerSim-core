@@ -1,27 +1,22 @@
 #ifndef FOOTBALL_BALL_DETAIL_BALL_CONTACT_HPP
 #define FOOTBALL_BALL_DETAIL_BALL_CONTACT_HPP
 
-// Private to football::ball. Owns the discrete goal-geometry contact
-// calculations (posts, crossbar, side/rear/top netting). The surrounding free
-// flight integration lives in ball_physics.hpp/.cpp.
+// Private to football::ball. Owns the discrete goal-net damping calculation.
+// The surrounding free flight integration lives in ball_physics.hpp/.cpp.
+// Posts and crossbars are ordinary static CCD colliders; there is no separate
+// woodwork solver here.
 
-#include "model/ball_config.hpp"
+#include "football/ball/ball_world.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "foundation/math/vector3.hpp"
-#include "model/pitch.hpp"
+#include "model/ball_config.hpp"
 
 namespace football::ball::detail {
-
-// Resolves posts/crossbar collisions in-place, in the order of position
-// projection then momentum reflection.
-void ResolveWoodwork(blunted::Vector3& position, blunted::Vector3& momentum,
-                     const football::model::Pitch& pitch,
-                     const football::model::BallConfig& config);
 
 // Resolves side/rear/top goal netting in-place when the ball is behind the
 // goal line inside the goal mouth.
 void ResolveNetting(blunted::Vector3& position, blunted::Vector3& momentum,
-                    const football::model::Pitch& pitch,
+                    const football::ball::GoalNetGeometry& net,
                     const football::model::BallConfig& config,
                     const football::ball::BallEnvironment& environment);
 

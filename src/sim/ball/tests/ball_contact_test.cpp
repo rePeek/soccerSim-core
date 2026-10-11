@@ -1,6 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
+#include "model/pitch.hpp"
 
 #include "football/ball/ball.hpp"
+
+import football.pitch;
 
 namespace {
 
@@ -23,20 +26,24 @@ BallState BehindGoalState() {
   return state;
 }
 
-TEST_CASE("goal netting changes trajectory only when the rule fact is set",
+TEST_CASE("goal netting applies geometrically behind the goal line",
           "[sim][ball][contact]") {
-  Ball ball(kPitch);
+  Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(kPitch, football::model::BallConfig{})};
   ball.Reset(BehindGoalState());
-
-  const auto outside = ball.Predict(football::sim::TickSpan{1}, BallEnvironment{});
-  const auto inside = ball.Predict(football::sim::TickSpan{1}, BallEnvironment{true});
-
-  REQUIRE(inside.velocity != outside.velocity);
-  REQUIRE(inside.velocity.coords[0] != outside.velocity.coords[0]);
+  const auto at_net = ball.Predict(football::sim::TickSpan{1}, BallEnvironment{});
+  // The same moving state in midfield is not damped by any net geometry.
+  BallState open = BehindGoalState();
+  open.position = Vector3(0.0f, 0.0f, 1.0f);
+  ball.Reset(open);
+  const auto midfield = ball.Predict(football::sim::TickSpan{1}, BallEnvironment{});
+  REQUIRE(midfield.velocity.coords[0] > 0.0f);
+  // Rear-net absorption reduces the outgoing +x speed; this is now a pure
+  // geometric fact, not a rule flag passed in BallEnvironment.
+  REQUIRE(at_net.velocity.coords[0] < midfield.velocity.coords[0]);
 }
 
 TEST_CASE("woodwork contact reflects the ball off the post", "[sim][ball][contact]") {
-  Ball ball(kPitch);
+  Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(kPitch, football::model::BallConfig{})};
   BallState state;
   // Place the ball just inside the post's collision radius, moving towards the
   // goal line so the first prediction step actually hits the post.

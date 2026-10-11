@@ -5,101 +5,19 @@
 #include "foundation/math/scalar.hpp"
 #include "foundation/time/tick.hpp"
 
-
 using namespace blunted;
 
 namespace football::ball::detail {
 
-namespace {
-constexpr float kPostRadius = 0.07f;
-constexpr float kPostAbsorbInv = 0.8f;
-}  // namespace
-
-void ResolveWoodwork(Vector3& nextPos, Vector3& momentumPredict,
-                     const football::model::Pitch& pitch,
-                     const football::model::BallConfig& config) {
-  const float pitchHalfW = pitch.half_length();
-  const float goalHalfWidth = pitch.goal_half_width();
-  const float goalHeight = pitch.goal_height();
-
-  const float ballRadius = config.radius();
-
-  // posts
-  if (nextPos.coords[2] < goalHeight + ballRadius + kPostRadius &&
-      (nextPos.Get2D().GetAbsolute() -
-       Vector3(pitchHalfW, goalHalfWidth, 0))
-              .GetLength() < ballRadius + kPostRadius) {
-    Vector3 normal;
-
-    if (nextPos.coords[0] < 0) {
-      // left side of pitch
-      if (nextPos.coords[1] < 0) {
-        // 'lower' side of pitch
-        normal = (nextPos.Get2D() - Vector3(-pitchHalfW, -goalHalfWidth, 0)).GetNormalized(Vector3(1, 0, 0));
-        float nextPosZ = nextPos.coords[2];
-        nextPos = Vector3(-pitchHalfW, -goalHalfWidth, 0) + normal * (kPostRadius + ballRadius);
-        nextPos.coords[2] = nextPosZ;
-      } else {
-        // 'upper' side of pitch
-        normal = (nextPos.Get2D() - Vector3(-pitchHalfW, goalHalfWidth, 0)).GetNormalized(Vector3(1, 0, 0));
-        float nextPosZ = nextPos.coords[2];
-        nextPos = Vector3(-pitchHalfW, goalHalfWidth, 0) + normal * (kPostRadius + ballRadius);
-        nextPos.coords[2] = nextPosZ;
-      }
-    } else {
-      // right side of pitch
-      if (nextPos.coords[1] < 0) {
-        // 'lower' side of pitch
-        normal = (nextPos.Get2D() - Vector3(pitchHalfW, -goalHalfWidth, 0)).GetNormalized(Vector3(-1, 0, 0));
-        float nextPosZ = nextPos.coords[2];
-        nextPos = Vector3(pitchHalfW, -goalHalfWidth, 0) + normal * (kPostRadius + ballRadius);
-        nextPos.coords[2] = nextPosZ;
-      } else {
-        // 'upper' side of pitch
-        normal = (nextPos.Get2D() - Vector3(pitchHalfW, goalHalfWidth, 0)).GetNormalized(Vector3(-1, 0, 0));
-        float nextPosZ = nextPos.coords[2];
-        nextPos = Vector3(pitchHalfW, goalHalfWidth, 0) + normal * (kPostRadius + ballRadius);
-        nextPos.coords[2] = nextPosZ;
-      }
-    }
-
-    momentumPredict = (momentumPredict.Get2D().GetNormalized(normal) + (normal * 1.1f)).GetNormalized() * momentumPredict.Get2D().GetLength() * kPostAbsorbInv + (Vector3(0, 0, 1) * momentumPredict.coords[2]);
-  }
-
-  // crossbar
-  Vector3 nextPosXZ = nextPos * Vector3(1, 0, 1);
-  if ((nextPosXZ.GetAbsolute() - Vector3(pitchHalfW, 0, goalHeight))
-              .GetLength() < ballRadius + kPostRadius &&
-      std::fabs(nextPos.coords[1]) < goalHalfWidth + ballRadius + kPostRadius) {
-    Vector3 normal;
-
-    if (nextPos.coords[0] < 0) {
-      // left side of pitch
-      normal = (nextPosXZ - Vector3(-pitchHalfW, 0, goalHeight)).GetNormalized(Vector3(0, 0, 1));
-      float nextPosY = nextPos.coords[1];
-      nextPos = Vector3(-pitchHalfW, 0, goalHeight) + normal * (kPostRadius + ballRadius);
-      nextPos.coords[1] = nextPosY;
-    } else {
-      // right side of pitch
-      normal = (nextPosXZ - Vector3(pitchHalfW, 0, goalHeight)).GetNormalized(Vector3(0, 0, -1));
-      float nextPosY = nextPos.coords[1];
-      nextPos = Vector3(pitchHalfW, 0, goalHeight) + normal * (kPostRadius + ballRadius);
-      nextPos.coords[1] = nextPosY;
-    }
-
-    Vector3 momentumPredictXZ = momentumPredict * Vector3(1, 0, 1);
-    momentumPredict = (momentumPredictXZ.GetNormalized(normal) + (normal * 1.1f)).GetNormalized() * momentumPredictXZ.GetLength() * kPostAbsorbInv + (Vector3(0, 1, 0) * momentumPredict.coords[1]);
-  }
-}
-
 void ResolveNetting(Vector3& nextPos, Vector3& momentumPredict,
-                    const football::model::Pitch& pitch,
+                    const football::ball::GoalNetGeometry& net,
                     const football::model::BallConfig& config,
                     const football::ball::BallEnvironment& environment) {
-  const float pitchHalfW = pitch.half_length();
-  const float goalHalfWidth = pitch.goal_half_width();
-  const float goalHeight = pitch.goal_height();
-  const float goalDepth = pitch.goal_depth();
+  (void)environment;
+  const float pitchHalfW = net.pitch_half_length;
+  const float goalHalfWidth = net.goal_half_width;
+  const float goalHeight = net.goal_height;
+  const float goalDepth = net.goal_depth;
   const float ballRadius = config.radius();
   const float timeStep = football::sim::kTickSeconds;
 
@@ -108,9 +26,7 @@ void ResolveNetting(Vector3& nextPos, Vector3& momentumPredict,
   const float powerFac = 1.8f;
   netAbsorbInv = std::pow(netAbsorbInv, timeStep * 100.0f);
 
-
   const bool behindBackline = std::fabs(nextPos.coords[0]) > pitchHalfW + ballRadius;
-  const bool behindGoalBack = std::fabs(nextPos.coords[0]) > pitchHalfW + goalDepth + ballRadius;
   const bool beforeGoalBack = std::fabs(nextPos.coords[0]) < pitchHalfW + goalDepth - ballRadius;
   const bool belowGoalHeight = nextPos.coords[2] < goalHeight + ballRadius;
   const bool betweenGoalWidth = std::fabs(nextPos.coords[1]) < goalHalfWidth - ballRadius;

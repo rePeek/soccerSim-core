@@ -1,9 +1,12 @@
 #include <limits>
+#include "model/pitch.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include "football/ball/ball.hpp"
+
+import football.pitch;
 #include "football/ball/ball_response.hpp"
 
 using namespace football::ball;
@@ -69,7 +72,7 @@ TEST_CASE("rotating capsule catches a stationary ball between clear endpoints", 
   REQUIRE((result.state.velocity-wrong.state.velocity).GetLength() > 10);
   REQUIRE(result.state.angular_velocity.GetLength() > 1);
   // Full Ball API still commits this same passive response through one Step.
-  Ball owner{football::model::Pitch{}}; owner.Reset(ball);
+  Ball owner{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})}; owner.Reset(ball);
   const auto before = owner.state(); const auto preview = owner.Predict(BallTickInput{world,{}});
   REQUIRE(owner.state().position == before.position);
   REQUIRE(owner.state().velocity == before.velocity);
@@ -216,7 +219,7 @@ TEST_CASE("invalid deforming input is rejected before state or force commit", "[
   REQUIRE_THROWS_AS(SweepBall(initial,c,dt,.11f),std::invalid_argument);
   std::get<Capsule>(c.end).radius = std::numeric_limits<float>::quiet_NaN();
   REQUIRE_THROWS_AS(SweepBall(initial,c,dt,.11f),std::invalid_argument);
-  Ball a{football::model::Pitch{}}, b{football::model::Pitch{}};
+  Ball a{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})}, b{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})};
   a.Reset(initial); b.Reset(initial);
   REQUIRE_THROWS_AS(a.Step(BallTickInput{std::array{c},{}}),std::invalid_argument);
   REQUIRE(a.state().position == initial.position); REQUIRE(a.state().velocity == initial.velocity);

@@ -20,12 +20,11 @@
 #include "football/ball/ball_environment.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/ball/collider.hpp"
-#include "football/ball/pitch_colliders.hpp"
+#include "football/ball/ball_world.hpp"
 #include "foundation/math/quaternion.hpp"
 #include "foundation/time/tick.hpp"
 #include "foundation/math/vector3.hpp"
 #include "model/ball_config.hpp"
-#include "model/pitch.hpp"
 
 namespace football::ball {
 
@@ -47,9 +46,7 @@ struct BallTickInput {
 
 class Ball {
  public:
-  explicit Ball(const football::model::BallConfig& config,
-                const football::model::Pitch& pitch);
-  explicit Ball(const football::model::Pitch& pitch);
+  explicit Ball(const football::model::BallConfig& config, BallWorld world);
   ~Ball();
 
   // ---- Stable state observation ----
@@ -89,7 +86,7 @@ class Ball {
                               std::vector<ColliderMotion>& scratch) const;
 
   football::model::BallConfig config_;
-  const football::model::Pitch pitch_;
+  BallWorld world_;
   // Single authoritative internal state (the public BallState projection is a
   // straight copy, not a lossy conversion).
   BallState state_;
