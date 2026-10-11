@@ -55,14 +55,17 @@ maximum distance 0.171231 m, chosen sphere radius 0.172 m. Thigh: 207 vertices,
 maximum distance to local hip/knee segment 0.105971 m, radius 0.106 m. Shin: 224
 vertices, maximum distance to local knee/ankle segment 0.101152 m, radius 0.102 m.
 Tests transform every named mesh vertex through representative reference,
-Sliding and Trip phases at two scales and require enclosure. Mesh paths are
+Movement, Sliding and Trip phases at two scales and require enclosure. Corrected
+P4f-2b tests decode e_DefString before comparing function kinds; prior Trip
+coverage based on the wrong enum domain is superseded.
 fixed test-only CMake inputs, independent of CTest working directory.
 
 This does **not** assert whole-avatar enclosure: torso remains provisional;
 arms, hands, boots and cosmetic hair are not covered by these three proofs.
-The initial runtime reference clip is tested explicitly rather than inventing a
-Movement metadata clip: the shipped library has no Movement/None-tagged clips.
-A running-gait/render-source contract remains a further calibration question.
+Correction after eb2ffe8: the shipped library DOES contain Movement clips.
+The prior claim was an enum-domain error: metadata.action_type is e_DefString
+(Animation::GetAnimType), not e_FunctionType. StringToFunctionType is required.
+Runtime clip/frame sampling itself already used the actual selected slot.
 
 ## Evidence and remaining gates
 
@@ -100,3 +103,26 @@ Logs: `/tmp/p4f2-final-release-ctest.log`,
 `/tmp/p4f2-final-debug-ctest.log`, `/tmp/p4f2-core-build.log`,
 `/tmp/p4f2-baseline.txt`. Test duration is not Tick latency. These default suite
 runs are not full ON/ON Baked-source regulation/rule/performance acceptance.
+
+## P4f-2b corrected evidence
+
+Dense 1/16-Tick interpolation measurements: 28,288 adjacent intervals, 1,016
+Movement / 12 Sliding / 38 Trip clips. Raw primitive endpoint maximum deviation
+from local quaternion interpolation: 0.00885556 m; realized: 0.0140686 m.
+Worst realized clip: sliding/sprint/000_ballside.anim, frame 8. No CCD redesign
+or sampling-based replacement was introduced; error is measured, not hidden.
+
+Native actual Movement samples at speed >3 m/s: normal 17,454 / reverse 9,489.
+Same-clip adjacent running frames with changing thigh rotations: 14,114 / 8,819.
+The 0.214825 / 0.214822 m realized maxima both occur at tick 740, Movement clip
+1147, frames 7->8 (players 3 / 14), NOT an animation switch. They coincide with
+entry smoothing release/catch-up; do not call them accepted biological speeds.
+Logs: /tmp/p4f2b-pose.log and /tmp/p4f2b-runtime.log. Full body coverage, actual
+running/sliding/falling collision trajectories and all later gates remain open.
+
+Corrected-source validation: Release and Debug football_sim_computation_test
+both passed (180.73 s / 921.77 s). The initial Debug command timed out at its
+900 s process limit; no pass is attributed to it. The rerun used a larger limit
+and cached immutable endpoint geometry without removing any dense samples.
+These focused executable runs include existing prepared/rule/pose tests, but
+are not final full-suite/full-regulation ON/ON acceptance.

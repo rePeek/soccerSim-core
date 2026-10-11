@@ -1144,9 +1144,10 @@ group adjacent leg surfaces while retaining distinct physical provenance.
 
 Named head/thigh/shin mesh envelopes are calibrated offline and tested against
 immutable vertices, without runtime Mesh dependency. Torso, boots, hands, running
-gait and sub-Tick render interpolation remain further gates. The shipped library
-has no Movement/None-tagged clips; initial reference coverage must not be called
-a running-gait proof. Non-injected 24-second provider replay had zero body impacts;
+gait and sub-Tick render interpolation remain further gates. Correction after
+eb2ffe8: baked action_type is e_DefString, not e_FunctionType. The previous
+claim of no Movement clips was wrong; decode with StringToFunctionType.
+Non-injected 24-second provider replay had zero body impacts;
 a separately labelled constructed head strike verifies six-ID CCD RuleTouch.
 
 Tests: player_baked_pose_runtime_test.cpp, player_baked_pose_realization_test.cpp,
@@ -1154,3 +1155,14 @@ player_baked_mesh_envelope_test.cpp and player_baked_body_pipeline_test.cpp.
 Contract and evidence: tools/p4f2-runtime-body-provider.md. P4f-2 acceptance,
 P4f-3 technique calibration, P6c semantic/full-match acceptance and P7 reviewed
 Golden/default/Legacy removal are not complete. Assets/Golden remain unchanged.
+
+P4f-2b diagnostics correct the asset-action type confusion without changing asset
+bytes or runtime selection. Actual native running poses advance thigh rotations
+in both processing orders. Dense 1/16-Tick samples cover 28,288 adjacent intervals
+across 1,016 Movement, 12 Sliding and 38 Trip clips; maximum primitive endpoint
+deviation versus local-quaternion interpolation is 8.856 mm raw / 14.069 mm
+realized. This is a measured error, not yet a production admission threshold.
+The 0.215 m realized native maximum is same Movement clip 1147, frame 7->8,
+not a clip switch. Entry smoothing catch-up needs assessment against original
+local animation motion before claiming that speed is realistic. Prior asset
+Trip/Movement evidence based on direct e_FunctionType comparisons is superseded.

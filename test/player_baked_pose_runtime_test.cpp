@@ -44,6 +44,8 @@ TEST_CASE("runtime baked samples observe real frames without another actor pass"
     std::vector<std::optional<PlayerBakedPoseSample>> realized(players.size());
     std::optional<std::uint64_t> realized_generation;
     float realized_switch_delta=0, realized_delta=0;
+    std::size_t running_pose_ticks=0,running_leg_samples=0;
+    std::string worst_realized;
     for(int tick=0;tick<2400;++tick) {
       std::vector<std::optional<PlayerBakedPoseSample>> before;
       for(auto* actor:players) before.push_back(actor->IsActive() ?
@@ -91,7 +93,12 @@ TEST_CASE("runtime baked samples observe real frames without another actor pass"
             !library.Get(sample.animation_id).metadata.outgoing_special_state.empty()) : WorldBakedPose(sample);
         if(prior_realized) {
           const float difference=JointDelta(*prior_realized,*realized[slot]);
-          realized_delta=std::max(realized_delta,difference);
+          if(difference>realized_delta) {
+            realized_delta=difference; std::ostringstream context;
+            context<<"tick="<<tick<<" player="<<actor.GetID()<<" clips="<<prior_realized->animation_id<<':'<<sample.animation_id
+                <<" frames="<<prior_realized->sampled_frame<<':'<<sample.sampled_frame
+                <<" actions="<<prior_realized->action<<':'<<sample.action; worst_realized=context.str();
+          }
           if(sample.animation_id!=prior_realized->animation_id || sample.sampled_frame<prior_realized->sampled_frame)
             realized_switch_delta=std::max(realized_switch_delta,difference);
           // FK bone lengths hold after actual animation realization, not a
@@ -118,6 +125,14 @@ TEST_CASE("runtime baked samples observe real frames without another actor pass"
         sliding+=sample.action==e_FunctionType_Sliding; trip+=sample.action==e_FunctionType_Trip;
         // A rule reset/end change is a placement boundary, not a swept pose.
         if(before[slot] && prior_generation && *prior_generation==observed.Snapshots().Latest()->stamp.generation) {
+          if(sample.action==e_FunctionType_Movement && sample.state.velocity.GetLength()>3.f) {
+            ++running_pose_ticks;
+            const auto action=StringToFunctionType(static_cast<e_DefString>(library.Get(sample.animation_id).metadata.action_type));
+            REQUIRE(action==e_FunctionType_Movement);
+            if(sample.animation_id==before[slot]->animation_id && sample.sampled_frame==before[slot]->sampled_frame+1 &&
+                (sample.pose.orientations[left_thigh]!=before[slot]->pose.orientations[left_thigh] ||
+                 sample.pose.orientations[right_thigh]!=before[slot]->pose.orientations[right_thigh])) ++running_leg_samples;
+          }
           const auto motions=BuildBakedBodyColliderMotions(before[slot]->Geometry(),geometry,std::uint32_t(slot));
           for(std::size_t segment=0;segment<motions.size();++segment)
             REQUIRE(motions[segment].id==BakedBodyColliderId(std::uint32_t(slot),static_cast<BakedBodySegment>(segment)));
@@ -148,9 +163,12 @@ TEST_CASE("runtime baked samples observe real frames without another actor pass"
              <<" clamped="<<clamped<<" same_clip_joint_delta_max="<<same_clip_jump
              <<" switched_clip_joint_delta_max="<<switched_clip_jump
              <<" root_rotation_component_max="<<root_rotation_component<<" worst_switch="<<worst_switch
-             <<" realized_delta_max="<<realized_delta<<" realized_switch_delta_max="<<realized_switch_delta<<'\n';
+             <<" realized_delta_max="<<realized_delta<<" realized_switch_delta_max="<<realized_switch_delta
+             <<" running_pose_ticks="<<running_pose_ticks<<" running_leg_samples="<<running_leg_samples
+             <<" worst_realized="<<worst_realized<<'\n';
     REQUIRE(switches>0); REQUIRE(sliding>0); REQUIRE(trip>0); REQUIRE(clamped==0);
     REQUIRE(root_rotation_component==0);
     REQUIRE(realized_switch_delta<switched_clip_jump);
+    REQUIRE(running_pose_ticks>0); REQUIRE(running_leg_samples>0);
   }
 }

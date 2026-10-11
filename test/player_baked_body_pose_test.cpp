@@ -41,10 +41,10 @@ TEST_CASE("real baked Sliding and Trip produce posed anatomy rather than fixed l
   std::size_t sliding_frames = 0, trip_frames = 0;
   float min_head = 10, max_head = -10;
   for (const auto& clip : library.Clips()) {
-    if (clip.metadata.action_type != e_FunctionType_Sliding &&
-        clip.metadata.action_type != e_FunctionType_Trip) continue;
+    const auto action=StringToFunctionType(static_cast<e_DefString>(clip.metadata.action_type));
+    if (action != e_FunctionType_Sliding && action != e_FunctionType_Trip) continue;
     for (const auto& frame : clip.poses) {
-      if (clip.metadata.action_type == e_FunctionType_Sliding) ++sliding_frames;
+      if (action == e_FunctionType_Sliding) ++sliding_frames;
       else ++trip_frames;
       const auto world = EvaluateBakedBodyPose(frame, state, .3f);
       const auto shapes = BuildBodyCollider(frame, state, .3f);
@@ -117,7 +117,8 @@ TEST_CASE("real adjacent baked pose frames produce six endpoint motion tapes", "
   std::size_t intervals = 0;
   PlayerKinematicState start, end; start.position = {5,2,0}; end.position = {5.02f,2.01f,0};
   for (const auto& clip : library.Clips()) {
-    if (clip.metadata.action_type != e_FunctionType_Sliding && clip.metadata.action_type != e_FunctionType_Trip) continue;
+    const auto action=StringToFunctionType(static_cast<e_DefString>(clip.metadata.action_type));
+    if (action != e_FunctionType_Sliding && action != e_FunctionType_Trip) continue;
     for (std::size_t frame = 1; frame < clip.poses.size(); ++frame) {
       ++intervals;
       const auto a = BuildBodyCollider(clip.poses[frame-1],start,.3f);

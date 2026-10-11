@@ -35,12 +35,14 @@ TEST_CASE("head and leg proxy envelopes cover the named baked meshes in transfor
   const auto reference_id=actors.front()->GetBakedPoseSample(1).animation_id;
   const auto& reference=library.Get(reference_id);
   INFO("Initial reference pose: "<<reference.name<<" action="<<reference.metadata.action_type);
-  std::size_t references=0, sliding=0, trip=0;
+  std::size_t references=0, sliding=0, trip=0, movement=0;
   PlayerKinematicState state; state.position={5,2,0};
   for(const auto& clip:library.Clips()) {
-    if(&clip!=&reference && clip.metadata.action_type!=e_FunctionType_Sliding && clip.metadata.action_type!=e_FunctionType_Trip) continue;
+    const auto action=StringToFunctionType(static_cast<e_DefString>(clip.metadata.action_type));
+    if(&clip!=&reference && action!=e_FunctionType_Movement && action!=e_FunctionType_Sliding && action!=e_FunctionType_Trip) continue;
     references+=&clip==&reference;
-    sliding+=clip.metadata.action_type==e_FunctionType_Sliding; trip+=clip.metadata.action_type==e_FunctionType_Trip;
+    sliding+=action==e_FunctionType_Sliding; trip+=action==e_FunctionType_Trip;
+    movement+=action==e_FunctionType_Movement;
     REQUIRE_FALSE(clip.poses.empty());
     for(const auto frame:{std::size_t(0),clip.poses.size()/2,clip.poses.size()-1}) for(float scale:{.88f,1.05f}) {
       const auto& pose=clip.poses[frame]; const auto world=EvaluateBakedBodyPose(pose,state,.37f,scale);
@@ -60,5 +62,5 @@ TEST_CASE("head and leg proxy envelopes cover the named baked meshes in transfor
       }
     }
   }
-  REQUIRE(references==1); REQUIRE(sliding>0); REQUIRE(trip>0);
+  REQUIRE(references==1); REQUIRE(sliding>0); REQUIRE(trip>0); REQUIRE(movement>0);
 }

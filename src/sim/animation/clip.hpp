@@ -39,7 +39,7 @@ struct PoseFrame {
 
 // Typed, baked animation metadata. The runtime never reads string variables.
 struct FootballAnimationMetadata {
-  int32_t action_type = 0;       // e_FunctionType
+  int32_t action_type = 0;       // e_DefString from Animation::GetAnimType(), NOT e_FunctionType
   float incoming_velocity = 0.0f;
   float outgoing_velocity = 0.0f;
   float incoming_body_angle = 0.0f;
