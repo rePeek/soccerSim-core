@@ -552,6 +552,10 @@ void Simulation::Init(
   last_goal_scorer_ = nullptr;
   best_possession_team_ = nullptr;
   SetMatchPhase(MatchPhase::PreMatch);
+  // P7a: the unified production path is the default authority. A single entry
+  // point enables Prepared Tick + body CCD + baked bodies after every owner is
+  // committed, so normal execution never depends on diagnostic Enable calls.
+  InitializeProductionPhysics();
   CaptureSnapshot();
 }
 

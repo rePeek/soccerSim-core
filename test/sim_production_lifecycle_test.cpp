@@ -21,17 +21,18 @@ TEST_CASE("production initialization and teardown are lifecycle-safe",
   Simulation s;
   s.Init(home, away, football::model::Pitch{}, options);
 
-  // The three authorities stay OFF until the explicit production entry point.
-  REQUIRE_FALSE(SimulationAccess::PreparedTickProductionOf(s));
-  REQUIRE_FALSE(SimulationAccess::BodyPhysicsProductionOf(s));
-  REQUIRE_FALSE(SimulationAccess::BakedBodyProductionOf(s));
-
-  SimulationAccess::InitializeProductionPhysics(s);
+  // P7a: Init composes the unified production path by default.
   REQUIRE(SimulationAccess::PreparedTickProductionOf(s));
   REQUIRE(SimulationAccess::BodyPhysicsProductionOf(s));
   REQUIRE(SimulationAccess::BakedBodyProductionOf(s));
   REQUIRE(SimulationAccess::PreparationBallOf(s) != nullptr);
   REQUIRE_FALSE(SimulationAccess::RuleContactEpisodesOf(s).empty());
+
+  // Re-entering the production entry point is idempotent.
+  SimulationAccess::InitializeProductionPhysics(s);
+  REQUIRE(SimulationAccess::PreparedTickProductionOf(s));
+  REQUIRE(SimulationAccess::BodyPhysicsProductionOf(s));
+  REQUIRE(SimulationAccess::BakedBodyProductionOf(s));
   // The 15 baked identities (6 primary + 9 regions) join the coarse band in
   // the Simulation-owned owner map.
   REQUIRE(SimulationAccess::BodyColliderOwnersOf(s).size() >

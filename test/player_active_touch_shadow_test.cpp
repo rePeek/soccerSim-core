@@ -470,7 +470,10 @@ TEST_CASE("prepared ON ON publishes reviewed CCD touch provenance through the re
           ++body_touches;
           REQUIRE(touch.contact.has_value());
           REQUIRE(touch.contact->normal_impulse > 0);
-          REQUIRE(touch.accepted.preserve_opponent_offside);
+          // Deliberate boot kicks stop preserving the previous offside; only an
+          // accidental deflection does. Both are reviewed CCD products here.
+          REQUIRE(touch.accepted.preserve_opponent_offside ==
+                  !touch.accepted.physical_kick);
           REQUIRE_FALSE(SimulationAccess::CommittedBallTickOf(s)->active_impulse.has_value());
         } else if (touch.source == football::sim::event::RuleTouchSource::PreparedAction) {
           ++strikes;
