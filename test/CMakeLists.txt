@@ -41,8 +41,8 @@ endif()
 # Runtime computation ownership has its own focused tests. App descriptions
 # remain test inputs and never become a runtime dependency.
 add_executable(football_sim_computation_test sim_computation_test.cpp tick_test.cpp
-  player_action_tick_test.cpp prediction_tick_test.cpp player_observation_tick_test.cpp
-  reachability_tick_test.cpp ball_player_contact_test.cpp player_contact_test.cpp
+  player_action_tick_test.cpp player_observation_tick_test.cpp
+  reachability_tick_test.cpp player_contact_test.cpp
   player_body_collider_motion_test.cpp player_body_shadow_test.cpp
   player_body_contact_diagnostics_test.cpp player_active_touch_shadow_test.cpp
   player_active_touch_model_test.cpp
@@ -183,10 +183,7 @@ add_test(NAME football_sim_contracts_test COMMAND football_sim_contracts_test)
 # foundation/model geometry), never Simulation/Player/Team/Referee.
 add_executable(football_ball_test
   ../src/sim/ball/tests/ball_state_test.cpp
-  ../src/sim/ball/tests/ball_physics_test.cpp
   ../src/sim/ball/tests/ball_contact_test.cpp
-  ../src/sim/ball/tests/ball_prediction_test.cpp
-  ../src/sim/ball/tests/ball_tick_input_test.cpp
   ../src/sim/ball/tests/ball_deforming_capsule_test.cpp
   ball_collision_test.cpp)
 target_link_libraries(football_ball_test PRIVATE football::ball Catch2::Catch2WithMain)

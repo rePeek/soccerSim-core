@@ -49,8 +49,8 @@ void SetPhysicalBall(Simulation& simulation, Vector3 position, Vector3 velocity)
     position.Mirror();
     velocity.Mirror();
   }
-  SimulationAccess::BallOf(simulation)->SetPosition(position, SimulationAccess::BallEnvironmentOf(simulation));
-  SimulationAccess::BallOf(simulation)->SetMomentum(velocity, SimulationAccess::BallEnvironmentOf(simulation));
+  SimulationAccess::BallOf(simulation)->Reset(football::ball::BallState{
+      position, velocity, Vector3(0), blunted::Quaternion{}});
 }
 
 Vector3 PhysicalBall(Simulation& simulation) {

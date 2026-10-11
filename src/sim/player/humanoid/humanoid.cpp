@@ -37,7 +37,6 @@
 #include "sim/team/team.hpp"
 
 #include "sim/observation/mentalimage_sampling.hpp"
-#include "sim/ball_touch_application.hpp"
 #include "sim/event/accepted_touch_sink.hpp"
 #include "sim/player/player_runtime_sink.hpp"
 #include "sim/player/player_motion_constants.hpp"
@@ -114,12 +113,9 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   Player* ball_retainer = tick.ball_retainer;
   std::optional<Vector3> prepared_velocity;
   std::optional<Vector3> prepared_anchor;
-  const auto set_rotation = [&](radian x, radian y, radian z, float bias,
-                                 const football::ball::BallEnvironment& environment) {
-    if (!tick.touch_preparation) {
-      if (!tick.legacy_ball) throw std::logic_error("missing legacy Ball mutation port");
-      tick.legacy_ball->SetRotation(x, y, z, bias, environment);
-    }
+  const auto set_rotation = [&](radian, radian, radian, float,
+                                 const football::ball::BallEnvironment&) {
+    // Legacy direct spin assignment is gone; spin comes from the point impulse.
   };
   // Tick-local publication: actors never reach the runtime owner for touch notification.
   std::optional<ActiveTouchObservation> active_observation;
@@ -154,17 +150,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     active_observation.reset();
   };
   const auto apply_touch = [&](const Vector3& velocity) {
-    if (tick.touch_preparation) {
-      prepared_velocity = velocity;
-      return;
-    }
-    if (active_observation) {
-      active_observation->before = tick.ball.state();
-      active_observation->stage = ActiveTouchStage::Executed;
-    }
-    if (!tick.legacy_ball) throw std::logic_error("missing legacy Ball mutation port");
-    football::sim::ApplyBallTouch(*tick.legacy_ball, tick.ball_environment, velocity, history,
-        tick.first_processing_team, tick.second_processing_team, now, ball_retainer);
+    prepared_velocity = velocity;
   };
   const auto notify_touch = [&](e_TouchType type) {
     if (tick.touch_preparation) {
@@ -219,12 +205,6 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       prepared_anchor.reset();
       return;
     }
-    if (active_observation) active_observation->accepted_type = type;
-    flush_active_observation();
-    touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{now,
-        CastPlayer()->GetID(), team->GetTeamSide(), type, tick.ball.Predict(0),
-        tick.ball.GetMovement(),
-        static_cast<int>(CastPlayer()->GetSimulationActionState().type)});
   };
   // Prepared execution never commits physics here. The default fused path
   // retains its legacy touch until the reviewed default/Golden transition.
@@ -997,8 +977,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       set_rotation(0, 0, 0, 1.0, tick.ball_environment);
       const auto anchor_position = ComputeRetainAnchor(
           spatialState.position, spatialState.bodyDirectionVec, anchor);
-      if (tick.touch_preparation) prepared_anchor = anchor_position;
-      else tick.legacy_ball->SetPosition(anchor_position, tick.ball_environment);
+      prepared_anchor = anchor_position;
       notify_touch(e_TouchType_Intentional_Nonkicked);
     } else {
       // no longer retaining

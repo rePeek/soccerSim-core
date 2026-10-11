@@ -39,7 +39,6 @@ target_sources(football_sim PRIVATE
   team/formation_roles.cpp team/formation_entry.hpp
   team/possession.cpp team/possession.hpp
   event/touch_type.hpp
-  ball_touch_application.cpp ball_touch_application.hpp
   observation/world_state_builder.cpp observation/world_state_builder.hpp
   observation/pitch_frame.cpp observation/pitch_frame.hpp
   observation/mentalimage.cpp observation/mentalimage.hpp observation/player_image.hpp

@@ -136,7 +136,7 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
   SpatialState spatial;
   spatial.position = Vector3(0);
   spatial.directionVec = Vector3(0, -1, 0);
-  supplied.SetPosition(Vector3(0, -0.2f, 0.11f), {});
+  supplied.Reset(football::ball::BallState{Vector3(0, -0.2f, 0.11f), Vector3(0), Vector3(0), blunted::Quaternion{}});
   event::TouchState touches;
   touches.Record(1, toucher->GetID(), e_TouchType_Intentional_Kicked);
   toucher->SetLastTouchTick(Tick{100});
@@ -158,7 +158,7 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
   expected.engine() = before;
   (void)expected.Uniform(0.5f, 1.0f);
   REQUIRE(rng.engine() == expected.engine());
-  supplied.SetPosition(Vector3(4, 0, 2), {});
+  supplied.Reset(football::ball::BallState{Vector3(4, 0, 2), Vector3(0), Vector3(0), blunted::Quaternion{}});
   rng.engine() = before;
   GetDifficultyFactors(&supplied, actor, touches, opponent, Tick{300}, rng, spatial,
       Vector3(0), distance, height, movement);

@@ -217,7 +217,7 @@ TEST_CASE("invalid deforming input is rejected before state or force commit", "[
   std::get<Capsule>(c.end).radius = std::numeric_limits<float>::quiet_NaN();
   REQUIRE_THROWS_AS(SweepBall(initial,c,dt,.11f),std::invalid_argument);
   Ball a{football::model::Pitch{}}, b{football::model::Pitch{}};
-  a.Reset(initial); b.Reset(initial); a.ApplyForce({2,0,0}); b.ApplyForce({2,0,0});
+  a.Reset(initial); b.Reset(initial);
   REQUIRE_THROWS_AS(a.Step(BallTickInput{std::array{c},{}}),std::invalid_argument);
   REQUIRE(a.state().position == initial.position); REQUIRE(a.state().velocity == initial.velocity);
   REQUIRE(a.state().angular_velocity == initial.angular_velocity);

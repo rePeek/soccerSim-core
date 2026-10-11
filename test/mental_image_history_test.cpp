@@ -8,7 +8,6 @@
 #include "sim/testing/simulation_access.hpp"
 #include "default_ai_fixture.hpp"
 #include "football/ball/ball.hpp"
-#include "sim/ball_touch_application.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/simulation.hpp"
 
@@ -183,9 +182,9 @@ TEST_CASE("ball touch refreshes only the explicit history and does not publish a
     const auto now = SimulationAccess::NowOf(simulation);
     const auto last_team = SimulationAccess::LastTouchTeamIDOf(simulation);
     const auto* last_player = SimulationAccess::LastTouchPlayerOf(simulation);
-    ApplyBallTouch(*SimulationAccess::BallOf(simulation), SimulationAccess::BallEnvironmentOf(simulation), Vector3(7, 2, 1), history,
-        *SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)), *SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation)),
-        SimulationAccess::NowOf(simulation), SimulationAccess::BallRetainerOf(simulation));
+    // Legacy ApplyBallTouch path is gone in P7c; an explicit Reset refreshes the
+    // prediction cache without publishing a rule touch.
+    SimulationAccess::BallOf(simulation)->Reset(football::ball::BallState{Vector3(7, 2, 1), Vector3(0), Vector3(0), blunted::Quaternion{}});
     std::vector<Vector3> predictions; SimulationAccess::BallOf(simulation)->GetPredictionArray(predictions);
     REQUIRE(history[0].ballPredictions == predictions);
     REQUIRE(history[0].ballPredictions != owned);
@@ -196,9 +195,7 @@ TEST_CASE("ball touch refreshes only the explicit history and does not publish a
     REQUIRE(SimulationAccess::NowOf(simulation) == now);
     REQUIRE(SimulationAccess::LastTouchTeamIDOf(simulation) == last_team);
     REQUIRE(SimulationAccess::LastTouchPlayerOf(simulation) == last_player);
-    REQUIRE_NOTHROW(ApplyBallTouch(*SimulationAccess::BallOf(simulation), SimulationAccess::BallEnvironmentOf(simulation), Vector3(0), {},
-        *SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)), *SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation)),
-        SimulationAccess::NowOf(simulation), SimulationAccess::BallRetainerOf(simulation)));
+    REQUIRE_NOTHROW(SimulationAccess::BallOf(simulation)->Reset(football::ball::BallState{Vector3(0), Vector3(0), Vector3(0), blunted::Quaternion{}}));
   }
 }
 

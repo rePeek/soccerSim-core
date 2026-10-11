@@ -12,7 +12,6 @@
 #include "sim/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/player/player_ball_contact.hpp"
-#include "sim/ball_touch_application.hpp"
 #include "sim/event/touch_query.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/observation/pitch_frame.hpp"
@@ -644,32 +643,6 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   // P4b only: capture the common ball/player frame and run read-only dynamic
   // CCD before the legacy resolver can change Ball or emit AcceptedTouch.
   BeginBodyCollisionShadow();
-  // Period whistles still win over pending contacts, before any RNG draw.
-  // P4d-2: with the passive authority switched to the unified Ball kernel the
-  // legacy resolver is skipped entirely, so only one path can change the ball
-  // and no impulse is applied twice.
-  if (!prepared_tick_production_ && !body_physics_production_ && IsBallInPlay() &&
-      !football::sim::rules::PeriodElapsed(IsHalfUnderway(), phase_,
-          GetRegulationTime(), options_.half_duration)) {
-    std::vector<Player*> players;
-    teams_[first_team_]->GetActivePlayers(players);
-    teams_[second_team_]->GetActivePlayers(players);
-    Team* roster_ptrs[2] = {teams_[0].get(), teams_[1].get()};
-    const football::sim::BallPlayerContactInputs inputs{
-        roster_ptrs, first_team_, touches_.last_team, mental_images_,
-        GetTimelineTick(), last_body_ball_collision_tick_, &*touch_sink_, touches_};
-    const auto contact = football::sim::ResolveBallPlayerContacts(
-        *ball_, players, inputs);
-    if (contact.impulse) {
-      football::sim::ApplyBallTouch(*ball_, GetBallEnvironment(), *contact.impulse,
-          mental_images_, *teams_[first_team_], *teams_[second_team_],
-          GetTimelineTick(), ball_retainer_);
-      // Preserve the three argument-expression RNG draws and refresh-before-spin.
-      ball_->SetRotation(rng_.Uniform(-30, 30), rng_.Uniform(-30, 30),
-          rng_.Uniform(-30, 30), contact.rotation_bias, GetBallEnvironment());
-      last_body_ball_collision_tick_ = GetTimelineTick();
-    }
-  }
 
   // ProcessReferee: before this tick's ball/player movement, in the contact frame.
   if (football::sim::rules::PeriodElapsed(
@@ -694,49 +667,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     DiscardBodyCollisionShadow();
     return;
   }
-  if (prepared_tick_production_) {
-    RunPreparedPlayerTick();
-  } else {
-  // StepBall. P4d-2 routes the predicted body colliders through the same single
-  // authoritative Step; the legacy duration adapter stays for the default path.
-  Mirror(false, false, reverse);
-  if (body_physics_production_) {
-    ball_->Step(football::ball::BallTickInput{body_physics_production_colliders_,
-                                              GetBallEnvironment()});
-  } else {
-    ball_->Step(football::sim::TickSpan{1}, GetBallEnvironment());
-  }
-  Mirror(false, false, reverse);
-  if (body_physics_shadow_tick_) {
-    body_physics_shadow_tick_->production = ball_->state();
-    body_physics_shadow_tick_->production_observed = true;
-  }
-
-  // CaptureHistory: preserve the pre-player-processing capture and sample-zero timing.
-  CaptureMentalImage();
-
-  // StepPlayers: team estimates bracket roster-ordered actor execution.
-  const auto step_team = [&](int id) {
-    Team& team = *teams_[id];
-    Team& opponent = *teams_[1 - id];
-    football::sim::player::PrepareTeamPossession(team, opponent, play_authorized_,
-        set_piece_active_, ball_retainer_, best_possession_team_);
-    for (Player* actor : team.GetAllPlayers()) {
-      if (actor->IsActive()) {
-        actor->Process(PlayerTickFacts(*actor), mental_images_, *touch_sink_, *player_runtime_sink_);
-        MeasureBodyShadowEndpoint(*actor);
-      }
-    }
-    football::sim::player::FinishTeamPossession(team, opponent);
-  };
-  Mirror(first_team_ == 1, first_team_ == 0, false);
-  step_team(first_team_);
-  Mirror(true, true, true);
-  step_team(second_team_);
-  Mirror(first_team_ == 0, first_team_ == 1, true);
-  // P5d: exactly one real-candidate arbitration per tick, in the common frame.
-  ArbitratePendingActiveTouches();
-  }
+  RunPreparedPlayerTick();
 
   // UpdatePossession: retain both per-roster refreshes before arbitration.
   Mirror(first_team_ == 1, first_team_ == 0, false);
@@ -842,11 +773,11 @@ WorldState Simulation::Observe() const {
 
 void Simulation::TouchBall(const Vector3& impulse) {
   if (!ball_) throw std::logic_error("simulation has no match");
-  football::sim::ApplyBallTouch(*ball_, GetBallEnvironment(), impulse,
-      mental_images_, *teams_[first_team_], *teams_[second_team_],
-      GetTimelineTick(), ball_retainer_);
+  // Diagnostic escape: a centre point impulse through the unified kernel.
+  football::ball::BallTickInput input{{}, GetBallEnvironment()};
+  input.active_impulse = football::ball::BallImpulse{impulse, ball_->state().position};
+  ball_->Step(input);
 }
-
 void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
   if (!ball_) throw std::logic_error("simulation has no match");
   if (team_0) teams_[0]->Mirror();

@@ -99,8 +99,8 @@ TEST_CASE("offside geometry follows second defender ball and halfway line", "[si
     for (Player *player : players) player->ResetPosition(Vector3(0), Vector3(0));
     players[0]->ResetPosition(Vector3(40 * side, 0, 0), Vector3(0));
     players[1]->ResetPosition(Vector3(30 * side, 0, 0), Vector3(0));
-    SimulationAccess::BallOf(runtime.simulation)->SetPosition(Vector3(0, 0, 0.11f), SimulationAccess::BallEnvironmentOf(runtime.simulation));
-    SimulationAccess::BallOf(runtime.simulation)->CalculatePrediction(SimulationAccess::BallEnvironmentOf(runtime.simulation));
+    SimulationAccess::BallOf(runtime.simulation)->Reset(football::ball::BallState{
+        Vector3(0, 0, 0.11f), Vector3(0), Vector3(0), blunted::Quaternion{}});
     std::vector<Player*> snapshot_players;
     SimulationAccess::TeamOf(runtime.simulation, SimulationAccess::FirstTeamOf(runtime.simulation))->GetActivePlayers(snapshot_players);
     SimulationAccess::TeamOf(runtime.simulation, SimulationAccess::SecondTeamOf(runtime.simulation))->GetActivePlayers(snapshot_players);
@@ -109,16 +109,16 @@ TEST_CASE("offside geometry follows second defender ball and halfway line", "[si
         SimulationAccess::PitchOf(runtime.simulation),
         *SimulationAccess::BallOf(runtime.simulation), teamID, side) == 30 * side);
 
-    SimulationAccess::BallOf(runtime.simulation)->SetPosition(Vector3(35 * side, 0, 0.11f), SimulationAccess::BallEnvironmentOf(runtime.simulation));
-    SimulationAccess::BallOf(runtime.simulation)->CalculatePrediction(SimulationAccess::BallEnvironmentOf(runtime.simulation));
+    SimulationAccess::BallOf(runtime.simulation)->Reset(football::ball::BallState{
+        Vector3(35 * side, 0, 0.11f), Vector3(0), Vector3(0), blunted::Quaternion{}});
     MentalImage ballAhead(SimulationAccess::NowOf(runtime.simulation), snapshot_players, *SimulationAccess::BallOf(runtime.simulation));
     CHECK(football::sim::rules::GetOffsideLine(ballAhead, SimulationAccess::NowOf(runtime.simulation),
         SimulationAccess::PitchOf(runtime.simulation),
         *SimulationAccess::BallOf(runtime.simulation), teamID, side) == 35 * side);
 
     for (Player *player : players) player->ResetPosition(Vector3(-10 * side, 0, 0), Vector3(0));
-    SimulationAccess::BallOf(runtime.simulation)->SetPosition(Vector3(-5 * side, 0, 0.11f), SimulationAccess::BallEnvironmentOf(runtime.simulation));
-    SimulationAccess::BallOf(runtime.simulation)->CalculatePrediction(SimulationAccess::BallEnvironmentOf(runtime.simulation));
+    SimulationAccess::BallOf(runtime.simulation)->Reset(football::ball::BallState{
+        Vector3(-5 * side, 0, 0.11f), Vector3(0), Vector3(0), blunted::Quaternion{}});
     MentalImage otherHalf(SimulationAccess::NowOf(runtime.simulation), snapshot_players, *SimulationAccess::BallOf(runtime.simulation));
     CHECK(football::sim::rules::GetOffsideLine(otherHalf, SimulationAccess::NowOf(runtime.simulation),
         SimulationAccess::PitchOf(runtime.simulation),

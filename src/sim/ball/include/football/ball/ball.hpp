@@ -44,16 +44,6 @@ struct BallTickInput {
   std::optional<BallEndpointConstraint> endpoint_constraint;
 };
 
-// Transitional projection shape for the legacy re-calculation adapter.
-struct BallSpatialInfo {
-  BallSpatialInfo(const blunted::Vector3& velocity,
-                  const blunted::Quaternion& rotation_ms) {
-    this->momentum = velocity;
-    this->rotation_ms = rotation_ms;
-  }
-  blunted::Vector3 momentum;      // actually velocity (m/s)
-  blunted::Quaternion rotation_ms;  // legacy per-millisecond rotation quaternion
-};
 
 namespace detail {
 class BallPredictionCache;
@@ -72,25 +62,10 @@ class Ball {
   // Read-only; never a live channel for mutating the ball.
   const football::model::BallConfig& config() const { return config_; }
 
-  // ---- Stable external physical input ----
-  // Force accumulated for the next Step interval. It is applied as one
-  // velocity change dv = (F / mass) * ToSeconds(dt) before that Step
-  // integrates, i.e. it models a constant force across the whole interval.
-  void ApplyForce(const blunted::Vector3& force);
-  // Instantaneous linear impulse: dv = J / mass.
-  void ApplyImpulse(const blunted::Vector3& impulse);
-  // Contact-point impulse: linear and angular velocity change through the
-  // unified point-impulse response (ApplyImpulseAtPoint in ball_response.hpp).
-  void ApplyImpulseAtPoint(const blunted::Vector3& impulse,
-                           const blunted::Vector3& world_point);
-
   // ---- Stable simulation ----
   // Exactly one tick, at most one passive impact, no remainder integration.
   // Returns physical evidence only; overlap/resting contact is not a rule touch.
   BallStepResult Step(const BallTickInput& input);
-  // Transitional static-only duration adapter. Zero ticks is a no-op; legacy
-  // accumulated-force semantics for multi-tick calls are retained until P7.
-  void Step(football::sim::TickSpan dt, const BallEnvironment& environment);
   // Read-only trajectory prediction sharing the same physics kernel as Step.
   BallState Predict(football::sim::TickSpan ahead,
                     const BallEnvironment& environment) const;
@@ -115,20 +90,7 @@ class Ball {
   blunted::Vector3 GetMovement() const;
   blunted::Vector3 GetRotation() const;
   blunted::Quaternion GetOrientation() const;
-
-  // Absolute-velocity touch / state mutation, not a physical impulse.
-  void Touch(const blunted::Vector3& target,
-             const BallEnvironment& environment);
-  void SetPosition(const blunted::Vector3& target,
-                   const BallEnvironment& environment);
-  void SetMomentum(const blunted::Vector3& target,
-                   const BallEnvironment& environment);
-  // Radians per second for each axis.
-  void SetRotation(blunted::real x, blunted::real y, blunted::real z, float bias,
-                   const BallEnvironment& environment);
-  BallSpatialInfo CalculatePrediction(const BallEnvironment& environment);
-  // Transitional single-tick adapter; equivalent to Step(TickSpan{1}, env).
-  void Process(const BallEnvironment& environment);
+  // ---- Lifecycle state reset ----
   void ResetSituation(const blunted::Vector3& focusPos);
 
  private:
@@ -151,7 +113,6 @@ class Ball {
   // Larger rosters may grow it once. Prediction never consumes this buffer.
   std::vector<ColliderMotion> tick_colliders_;
   std::unique_ptr<detail::BallPredictionCache> prediction_cache_;
-  blunted::Vector3 pending_force_;
 };
 
 }  // namespace football::ball
