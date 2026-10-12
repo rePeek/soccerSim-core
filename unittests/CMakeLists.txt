@@ -1,6 +1,6 @@
 # Test suite placeholder.
 #
-# All previous cases and test/baselines golden files were removed; the suite is
+# All previous cases and unittests/baselines golden files were removed; the suite is
 # being redesigned from scratch. The harness is still wired up: the root
 # CMakeLists fetches Catch2 (BUILD_TESTING=ON) and adds this directory, so new
 # executables/tests can be registered here.

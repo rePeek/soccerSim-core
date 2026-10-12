@@ -302,7 +302,7 @@ There is no `src/support/`: app profiles are typed fixtures retaining six-decima
 quantization, and legacy XML/codecs/text helpers live only in `tools/animBaker/import/`.
 File I/O uses the standard library; custom diagnostics/backtraces and Properties
 are removed. Neither app nor Catch2/offline baker code is linked into core.
-All previous test cases and `test/baselines/` golden files were deleted in
-preparation for redesigning the suite; `test/CMakeLists.txt` is an empty
+All previous test cases and `unittests/baselines/` golden files were deleted in
+preparation for redesigning the suite; `unittests/CMakeLists.txt` is an empty
 placeholder and the Catch2 hookup stays wired for the new unit tests.
 The offline baker remains a standalone tool under `tools/animBaker/`.

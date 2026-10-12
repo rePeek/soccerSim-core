@@ -39,9 +39,9 @@ Catch2 v3.7.1 is fetched only with `BUILD_TESTING=ON`. Both use `.cache/CPM`.
 `flake.nix` provides ccache and the root CMake sets `CMAKE_{C,CXX}_COMPILER_LAUNCHER`
 to it whenever it is found, so local rebuilds are cached automatically; a missing
 ccache is a silent no-op. `-j $(nproc)` uses all host cores.
-**The test suite was deleted and is being redesigned.** `test/CMakeLists.txt` is an
-empty placeholder; Catch2 and the `add_subdirectory(test)` hook remain wired up, so
-new unit executables can be registered there. `test/baselines/` no longer exists.
+**The test suite was deleted and is being redesigned.** `unittests/CMakeLists.txt` is an
+empty placeholder; Catch2 and the `add_subdirectory(unittests)` hook remain wired up, so
+new unit executables can be registered there. `unittests/baselines/` no longer exists.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
@@ -134,7 +134,7 @@ tools/
 └── animBaker/              offline importers and callable bake/check/verify library + CLI
     └── import/legacy_*     offline-only XML, value codecs and required text helpers
 
-test/                        empty placeholder; suite under redesign
+unittests/                        empty placeholder; suite under redesign
 ```
 
 ## Build ownership and architecture
@@ -186,7 +186,7 @@ anim_baking → legacy_anim + animation/foundation
   self-contained: it links only its own offline objects and foundation, never
   sim/ball/pitch/game/animation archives.
 - `tools/animBaker/` is the only developer tool tree (offline baker library + CLI);
-  `test/CMakeLists.txt` is an empty placeholder awaiting the redesigned unit
+  `unittests/CMakeLists.txt` is an empty placeholder awaiting the redesigned unit
   suite. The baker is built under BUILD_TESTING and never linked into core.
 - Source ownership and dependency boundaries are maintained directly in each
   module's CMakeLists and reviewed alongside C++ includes. There is no centralized
@@ -203,9 +203,9 @@ anim_baking → legacy_anim + animation/foundation
 ## Test targets
 
 There are currently no registered tests. All previous cases (unit, boundary,
-end-to-end, golden/baseline) and `test/baselines/` were deleted; the suite is
+end-to-end, golden/baseline) and `unittests/baselines/` were deleted; the suite is
 being redesigned. The scaffolding remains: `BUILD_TESTING=ON` fetches Catch2 and
-adds `test/`, whose `CMakeLists.txt` is an empty placeholder. Register new unit
+adds `unittests/`, whose `CMakeLists.txt` is an empty placeholder. Register new unit
 executables there; keep each one on the smallest target that proves its module.
 
 ## Autonomous runner and runtime authority
@@ -472,7 +472,7 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   Actions store only elapsed/duration/optional contact `TickSpan`; animation frame
   readers are projections, not duplicate clocks. Decision and locomotion schedulers
   use Tick deadlines and owner-local TickSpan cadences. Their tests are in
-  `test/player_action_tick_test.cpp`; old diagnostic digests project milliseconds.
+  `unittests/player_action_tick_test.cpp`; old diagnostic digests project milliseconds.
   Humanoid requeue/tactical phase cadences use the same tick-local policy values
   and overflow-safe reduced-remainder staggering, retaining both roster schedules.
   Player touch/card-effect timestamps are Tick; unused possession-duration storage
@@ -496,7 +496,7 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   prediction generation iterates TickSpan samples with seconds from the quantum.
   MentalImage stores a Tick capture instant and derives TickSpan age. Transitional
   calculation sampling adapters retain legacy horizon quantization; coverage is
-  in `test/prediction_tick_test.cpp`. Unused Ball/Player mean-history APIs and
+  in `unittests/prediction_tick_test.cpp`. Unused Ball/Player mean-history APIs and
   their write-only history storage are deleted, not replaced.
   Clock scale removal is a separate S2 semantic stage, not a unit-only rename.
   See the removed design notes before rounding continuous arrival estimates.
@@ -696,7 +696,7 @@ rankings retain millisecond precision; horizon comparison never floors the estim
 or multiplies a huge duration into milliseconds. The legacy action reachability
 search also owns a TickSpan cursor/optional horizon; its adaptive round-then-floor
 grid and strict crossed-limit behavior remain unchanged. Independent Step-based
-candidate rollouts live in test/reachability_tick_test.cpp. T4c changes no policy.
+candidate rollouts live in unittests/reachability_tick_test.cpp. T4c changes no policy.
 
 ### Native timeline callers after T4d
 
@@ -765,7 +765,7 @@ WorldState still reads the legacy Predict(0) position cache, which can lag the
 authoritative ball position; do not refresh it or change policy to force equality.
 Only created runtime actors have slots (current Team creates formation entries,
 not omitted bench profiles); inactive slots stay and do not dereference Humanoid.
-`test/snapshot_capture_test.cpp` covers both halves/orders, ceremonies, terminal
+`unittests/snapshot_capture_test.cpp` covers both halves/orders, ceremonies, terminal
 duplicate ticks, sends-off, unequal rosters, jumps, resets and Stop/Init replay.
 Release 36/36 and Debug 35/35 (excluding full-match CLI) pass unchanged goldens.
 Disk archive and temporal consumers remain separate stages. Snapshot is a
@@ -833,9 +833,9 @@ capsules and head sphere with stable dynamic ids from fixed match slots.
 read-only error/touch reports. Simulation owns id -> PlayerId/body-part mapping.
 the removed body-shadow diagnostic measures native
 runs; definitions and reports are in the removed body-shadow diagnostic. Geometry and
-shadow replay/frame tests live in test/player_body_collider_motion_test.cpp and
-test/player_body_shadow_test.cpp. These inputs never reach production Ball yet.
-Use CTest or executables at build/release/, not old build/release/test/ binaries.
+shadow replay/frame tests live in unittests/player_body_collider_motion_test.cpp and
+unittests/player_body_shadow_test.cpp. These inputs never reach production Ball yet.
+Use CTest or executables at build/release/, not old build/release/unittests/ binaries.
 No extra Player/Humanoid execution, RNG, touch/rules writes or Golden refresh.
 
 P4c Ball accepts borrowed dynamic colliders through BallTickInput and returns
@@ -858,7 +858,7 @@ touch or a production filter. `player_body_pose_shadow.hpp` proposes low Sliding
 Trip shapes on a separately labelled full-kernel branch, keeping upright evidence
 for comparisons; it requires an explicit common-frame pose axis, not blindly
 mirrored PlayerKinematicState::bodyFacing. Fixed schedules/scenarios/continuous
-tapes live in test/player_body_contact_diagnostics_test.cpp. Native reports still
+tapes live in unittests/player_body_contact_diagnostics_test.cpp. Native reports still
 show 152/26 upright nonzero responses, mostly continuing initial penetration.
 The moving-body continuous tape finds a zero-impulse projection freeze: no-
 remainder initial overlap prevents a separating ball from making progress. Its
@@ -1121,7 +1121,7 @@ fixed-slot IDs use checked 0x40000000..0x7fffffff. Simulation's dedicated tape
 contains all 15 shapes from the shared committed skeleton, independent of Shadow.
 Named local mesh vertex enclosures, two scales, mirror/ID limits and exact
 actual provider tape/public-pose A/B replay are covered by the extended tests
-and new test/player_baked_contact_regions_test.cpp. Runtime loads no meshes.
+and new unittests/player_baked_contact_regions_test.cpp. Runtime loads no meshes.
 
 Dense 1/16-Tick interpolation now includes all 15 shapes: maximum deviation
 0.0112886 m raw / 0.0186184 m realized. This supersedes the six-shape result;
