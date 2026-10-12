@@ -20,6 +20,11 @@ foundation boilerplate is public domain.
 - Do not casually edit `data/` or the baked asset: they are regression inputs.
 - Determinism is the product. Run regression tests after refactors; do not update
   golden values unless an intentional semantic change is explicitly documented.
+- **NEVER simulate a full match.** Do not launch `football_sim`, drive
+  `GameEnv`/`Simulation` end to end, or run any multi-tick/long match simulation
+  as part of development or validation. A Debug full match does not finish and
+  verifies nothing; it only burns time and hides regressions. See the explicit
+  rule in "Build and test" below.
 
 ## Build and test
 
@@ -42,6 +47,14 @@ ccache is a silent no-op. `-j $(nproc)` uses all host cores.
 **The test suite is small and unit-only.** `BUILD_TESTING=ON` fetches Catch2 and adds
 `unittests/`; see the layout and the two targets below. The former golden/end-to-end
 tier and `unittests/baselines/` are gone for good.
+
+**Never run a full match.** The only sanctioned validation is the bounded unit
+suites (`ctest --preset debug -L unit`). Do not run the `football_sim` app,
+`GameEnv`/`Simulation` end to end, or any long/multi-tick match simulation to
+check a change. It is not a test, it does not finish in Debug, and it must not
+be used to "smoke test" a refactor. If a runtime behaviour genuinely needs
+coverage, write a small, bounded, purpose-built test (a few ticks or one
+constructor/one helper) instead of simulating a match.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
