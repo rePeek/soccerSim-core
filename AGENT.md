@@ -133,12 +133,8 @@ cmake/
 └── bqlog.cmake            private third-party diagnostics build
 
 tools/
-├── snapshot-system.md       sampling semantics, archive API and binary format
-├── animBaker/              offline importers and callable bake/check/verify library + CLI
-│   └── import/legacy_*     offline-only XML, value codecs and required text helpers
-├── 4f-b-pure-locomotion-animation-read-audit.md
-├── 5a1-contact-authority.md
-└── time-model-migration.md  completed tick stages and explicit semantic boundaries
+└── animBaker/              offline importers and callable bake/check/verify library + CLI
+    └── import/legacy_*     offline-only XML, value codecs and required text helpers
 
 test/                        empty placeholder; suite under redesign
 ```
@@ -191,9 +187,9 @@ anim_baking → legacy_anim + animation/foundation
   callable offline library; `football_anim_baker` is its CLI. The baker is
   self-contained: it links only its own offline objects and foundation, never
   sim/ball/pitch/game/animation archives.
-- `tools/CMakeLists.txt` owns real developer tools. `test/CMakeLists.txt` registers
-  C++ tests, regression runs, real app short/full matches and baker CLI checks.
-  Tools are currently built under BUILD_TESTING, never linked into core.
+- `tools/animBaker/` is the only developer tool tree (offline baker library + CLI);
+  `test/CMakeLists.txt` is an empty placeholder awaiting the redesigned unit
+  suite. The baker is built under BUILD_TESTING and never linked into core.
 - Source ownership and dependency boundaries are maintained directly in each
   module's CMakeLists and reviewed alongside C++ includes. There is no centralized
   architecture validator or separate dependency allow-list.
@@ -505,7 +501,7 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   in `test/prediction_tick_test.cpp`. Unused Ball/Player mean-history APIs and
   their write-only history storage are deleted, not replaced.
   Clock scale removal is a separate S2 semantic stage, not a unit-only rename.
-  See tools/time-model-migration.md before rounding continuous arrival estimates.
+  See the removed design notes before rounding continuous arrival estimates.
 - Simulation owns period-end lifecycle and MatchClock value/lifetime. Simulation owns
   phase/score and only borrows the clock for transitional projections/commands.
   Clock contains executed-step count, Tick timeline, regulation and ball-in-play.
@@ -568,7 +564,7 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   but share Ready/Taken release: neither a whistle nor a timer fabricates contact.
   Bounds are provisional engineering policy, not realism calibration. Richer
   quick-free-kick/wall administration and calibration remain explicitly tracked
-  in tools/time-model-migration.md.
+  in the removed design notes.
 - Diagnostics/tests may compose Simulation and explicit PlayerControlSet sequences
   outside GameEnv. Equal declarations + equal control tapes must replay identical
   complete WorldState payloads and RNG states, including Stop/Init replay.
@@ -664,8 +660,7 @@ duplicate tags and whitespace removal; do not replace it with a new XML library.
 
 Active movement work is animation root motion → explicit procedural kinematics:
 player_kinematics, player_locomotion, player_body_facing and decision/locomotion
-schedulers. Before changing movement/contact authority, read both audit notes under
-tools/. Pure locomotion means procedural Movement without scheduled contact or
+schedulers. Pure locomotion means procedural Movement without scheduled contact or
 retained ball; smuggle offsets are transitional keyframe corrections; Shot/Pass/
 Trap/BallControl still animate their contact frame. Measurement-only changes must
 keep regression output exact.
@@ -790,7 +785,7 @@ footer. Failures surface through Append/Flush/Close and Close always joins.
 The offline reader requires the versioned/checksummed header/index/footer by
 default. Explicit RecoverPrefix validates whole chunks and exposes only a valid
 chronological prefix, marked incomplete. It never supplies live runtime queries.
-See tools/snapshot-system.md for exact little-endian fields/CRC and safety limits.
+See the removed design notes for exact little-endian fields/CRC and safety limits.
 
 GameEnv::CopyLatestSnapshot reuses caller-owned storage; SnapshotMetadata returns
 an owning value. Neither exposes actors/history pointers or resamples Simulation.
@@ -920,7 +915,7 @@ cannot change the winner. Production constructs no active impulse and keeps
 using the legacy touch path; the removed regression baseline harness is byte-identical.
 
 P5c-1/P5c-2 prepare the active-touch production migration and keep it off.
-`tools/p5c-active-touch-migration.md` records the exact `StepImpl`/`Humanoid::
+`the removed design notes` records the exact `StepImpl`/`Humanoid::
 Process` dependency table (which stages draw RNG, which advance animation,
 where `ApplyBallTouch + SetRotation` take effect) and the plan: split
 `Humanoid::Process` into one prepare pass (motion/animation frame/touch vector)
@@ -982,7 +977,7 @@ Current-Tick winner/buffer clear before all normal/ceremonial/terminal exits.
 The diagnostic observer is optional, generation-guarded and cannot silently
 discard candidates at a vector capacity limit. Actual committed endpoint
 evidence includes the applied impulse or endpoint constraint. This is not P7
-promotion. See `tools/p5c-active-touch-migration.md` for the timing change and
+promotion. See `the removed design notes` for the timing change and
 remaining acceptance gates. CTest wall time is NOT a 10ms tick benchmark.
 
 ### Reviewed rule touches on the prepared path (P6b experimental)
@@ -1030,7 +1025,7 @@ to equal the same Tick's committed Step input. The diagnostic is optional and
 does not run another Player action, RNG draw or Ball Step.
 
 Acceptance evidence and explicit remaining blockers are recorded in
-`tools/unified-contact-acceptance.md`. P4f/P7 are not completed by these tests.
+`the removed design notes`. P4f/P7 are not completed by these tests.
 
 The switches are diagnostic experiment controls, not interchangeable production
 engines: prepared active ON with body physics OFF previews static-only physics
@@ -1064,7 +1059,7 @@ Tests cover thin fast mid-Tick contacts, degeneracy, exit/separating rejection,
 local velocity/response, deterministic ordering/frame transforms, an independent
 distance oracle, zero-allocation queries, ID boundaries and every real adjacent
 Sliding/Trip pose pair. This is not P4f-2 provider/clip-switch calibration or
-production admission. Definitions/validation: `tools/p4f1-capsule-ccd.md`.
+production admission. Definitions/validation: `the removed design notes`.
 
 ### P4f-2 runtime provider experiment (not production acceptance)
 
@@ -1093,7 +1088,7 @@ a separately labelled constructed head strike verifies six-ID CCD RuleTouch.
 
 Tests: player_baked_pose_runtime_test.cpp, player_baked_pose_realization_test.cpp,
 player_baked_mesh_envelope_test.cpp and player_baked_body_pipeline_test.cpp.
-Contract and evidence: tools/p4f2-runtime-body-provider.md. P4f-2 acceptance,
+Contract and evidence: the removed design notes. P4f-2 acceptance,
 P4f-3 technique calibration, P6c semantic/full-match acceptance and P7 reviewed
 Golden/default/Legacy removal are not complete. Assets/Golden remain unchanged.
 
@@ -1141,7 +1136,7 @@ unauthorized before live play; other live body contacts remain deflections.
 Legacy producers default false. Intent-window and comprehensive rule acceptance
 remain P6c work; this is not blanket acceptance of all physical body impacts.
 
-Full evidence and explicit blockers: tools/p4f2b-contact-regions.md. Defaults,
+Full evidence and explicit blockers: the removed design notes. Defaults,
 Golden and assets remain unchanged. Stop after this checkpoint commit per the
 maintainer; do not proceed to P4f-3/P6c/P7 or Ball Model Bake without resumption.
 Development builds from now on require Debug/core only, with app disabled,

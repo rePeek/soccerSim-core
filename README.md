@@ -106,7 +106,7 @@ builds owning spatial/temporal graph inputs from the same samples. No GNN model,
 training framework or AI policy replacement is introduced.
 
 API examples, lifecycle/query semantics and the exact versioned file layout are
-documented in [tools/snapshot-system.md](tools/snapshot-system.md).
+documented in the removed design notes.
 
 ### AI intent and simulation replay
 
