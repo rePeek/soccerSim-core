@@ -25,17 +25,15 @@ foundation boilerplate is public domain.
 
 CMake >= 3.24, Ninja, C++23; use the `flake.nix` dev shell.
 Development validation requires **Debug and core only**. Do not build Release
-or the app/CLI, or run app-based acceptance during development unless the
-maintainer explicitly requests it. Test-only app fixture dependencies remain
-allowed; they do not make the app executable a development build requirement.
+or the app/CLI unless the maintainer explicitly requests it. Test-only app
+fixture dependencies remain allowed; they do not make the app executable a
+development build requirement.
 
 ```sh
-# Fast iteration (unit/light, seconds): exclude full-match, heavy sim, regression, baking
-nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && cmake --build --preset debug -j $(nproc) && ctest --preset debug -j $(nproc) -LE full -LE slow -LE regression -LE animation'
+# Core build + the (currently empty) test scaffolding
+nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && cmake --build --preset debug -j $(nproc) && ctest --preset debug'
 # Core-only build
 nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF -DCMAKE_BUILD_TYPE=Debug && cmake --build build/core -j $(nproc)'
-# Full acceptance (maintainer-authorized P7): everything
-nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=ON && cmake --build --preset debug -j $(nproc) && ctest --preset debug -j $(nproc)'
 ```
 
 BqLog 2.5.0 (pinned commit) is fetched by `cmake/CPM.cmake` in every build mode;
@@ -43,18 +41,9 @@ Catch2 v3.7.1 is fetched only with `BUILD_TESTING=ON`. Both use `.cache/CPM`.
 `flake.nix` provides ccache and the root CMake sets `CMAKE_{C,CXX}_COMPILER_LAUNCHER`
 to it whenever it is found, so local rebuilds are cached automatically; a missing
 ccache is a silent no-op. `-j $(nproc)` uses all host cores.
-CTest registers whole test executables with add_test; Catch2 runs every case and
-reports case-level failures. No stdout-based discovery, build-time test execution,
-output filtering or third-party patch is needed. To select a Catch2 case, invoke
-its executable directly, e.g. build/debug/football_sim_control_boundary_test '[failure]'.
-Prefer single Catch2 tags for focused iteration; the heavy baked/prepared/rules
-cases ([pose-runtime], [pose-interpolation], [prepared-tick], [rule-touch]) are
-minute-scale under Debug -O0, so run them in isolation rather than stacking tags.
-CTest labels tier the cost: `full` (45-minute CLI match), `slow` (aggregated
-computation/control-boundary suites), `regression` (regression + animation A/B),
-`animation` (offline bake/verify) and everything else is fast. `football_app_cli_default`
-is the long pole (~415 s Debug / ~6 s Release); keep it out of daily fast runs.
-Release preset is ~70x faster than Debug -O0 for the long full-match runs.
+**The test suite was deleted and is being redesigned.** `test/CMakeLists.txt` is an
+empty placeholder; Catch2 and the `add_subdirectory(test)` hook remain wired up, so
+new unit executables can be registered there. `test/baselines/` no longer exists.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
@@ -63,11 +52,7 @@ cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF
 
 The app args/fixture archive remains an explicit `EXCLUDE_FROM_ALL` target even
 when CLI/tests are disabled. It is never linked into the shared library.
-CTest sets `GFOOTBALL_DATA_DIR=$PWD/data` for regression's offline import fixtures.
-Runtime does not use that variable: it reads the configured baked animation asset.
-
-Heavy Debug -O0 test loops may run against the Release preset (`--preset release`)
-for faster iteration; the final acceptance pass must still run the Debug suite.
+Runtime reads the configured baked animation asset, never a data-dir env var.
 
 ### Pitch, and Pitch -> BallWorld (header-only, no module)
 
@@ -148,9 +133,6 @@ cmake/
 └── bqlog.cmake            private third-party diagnostics build
 
 tools/
-├── football_regression.cpp developer regression/animation A/B diagnostic
-├── football_restart_metrics.cpp read-only restart/clock composition diagnostic
-├── restart-metrics.md       definitions, measurements and reproducible reruns
 ├── snapshot-system.md       sampling semantics, archive API and binary format
 ├── animBaker/              offline importers and callable bake/check/verify library + CLI
 │   └── import/legacy_*     offline-only XML, value codecs and required text helpers
@@ -158,41 +140,7 @@ tools/
 ├── 5a1-contact-authority.md
 └── time-model-migration.md  completed tick stages and explicit semantic boundaries
 
-test/                        C++/Catch2 unit and integration tests, no shell guards
-├── gameenv_test.cpp          public façade lifecycle and composition equivalence
-├── player_identity_test.cpp  identity-independent runtime/RNG replay
-├── sim_contracts_test.cpp    standalone input/output values
-├── snapshot_history_test.cpp standalone ring/query/reset and zero-allocation writes
-├── snapshot_capture_test.cpp Step/Init/terminal/reset/frame and inactive actor coverage
-├── snapshot_consumers_test.cpp standalone temporal graph and Event trajectory windows
-├── snapshot_archive_test.cpp standalone format/queue/corruption/recovery/error coverage
-├── snapshot_archive_integration_test.cpp owning GameEnv samples, byte replay and CLI readback
-├── model_test.cpp            football::player/sim/pitch definition checks
-├── app_*_test.cpp            args, fixtures and CLI composition
-├── default_ai_test.cpp + default_ai_fixture.hpp
-├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
-├── ball_player_contact_test.cpp standalone Ball, contact cooldown/order and explicit history inputs
-├── player_contact_test.cpp   explicit contact inputs, in-place pair order and no RNG/ball mutation
-├── goal_test.cpp             standalone goal geometry, segment bounds and legacy side-net veto
-├── period_test.cpp           standalone explicit regulation boundary and ceremony/phase gates
-├── referee_state_test.cpp    explicit period operation changes only referee-owned facts
-├── possession_test.cpp       arrival ranking, ties, hysteresis and retainer override
-├── mental_image_history_test.cpp sole history, newest refresh, mirrors/reset/lifetime isolation
-├── actor_history_test.cpp    tick-local actor history inputs, no implicit query/fallback
-├── tick_test.cpp             typed arithmetic, overflow and non-grid boundary rejection
-├── player_observation_tick_test.cpp publication/reset stamps, re-entry ages and history sampling
-├── reachability_tick_test.cpp grid candidate rollouts, split horizons and continuous precision
-├── sim_control_boundary_test.cpp controls/frames/reset/replay
-├── sim_match_lifecycle_test.cpp phases/clocks/end changes/result/freeze
-├── pitch_frame_test.cpp     half/order geometry, nonzero ball/velocity and control round trips
-├── match_tick_test.cpp      timeline authority, restart bounds, freeze and invalid boundaries
-├── match_clock_test.cpp      standalone clock clipping, run gates, execution counts and atomicity
-├── match_fatigue_test.cpp   real-distance fatigue, excluding ceremonies
-├── restart_placement_test.cpp + restart_placement_fixture.hpp
-├── restart_readiness_test.cpp geometry, actor waiting, authorization/contact and frame contracts
-├── anim_baking_test.cpp      two independent bakes, byte equality, field/selection verification
-├── legacy_animation_import_test.cpp parser semantics, codecs and catchable failures
-└── baselines/               historical policy/input/phase schema goldens
+test/                        empty placeholder; suite under redesign
 ```
 
 ## Build ownership and architecture
@@ -260,58 +208,11 @@ anim_baking → legacy_anim + animation/foundation
 
 ## Test targets
 
-- `football_regression`: independent kinematics, body-facing, locomotion, collider,
-  scheduler, command-adapter, raw WorldState and authoritative-state/RNG replay
-  checks; model ownership, canonical frames, cached-animation lifetimes and offline
-  imports; fouls/cards/restarts, penalty, advantage, offside; Player fatigue/stats
-  and teardown RNG windows. Options: `--print-baseline`, `--animation-ab`,
-  `--animation-ab-lifecycle`. A/B uses reset/replay, not checkpoints.
-- `football_gameenv_test`: lifecycle errors, exactly-one-step stepping, copied
-  constructor/config values, owning snapshots, independent live owners, atomic
-  failed startup, complete short matches and Stop/Start replay.
-- `football_player_identity_test`: sparse/full-width IDs, reordered/reversed/unequal
-  rosters, side changes/send-offs and >256 entries; identity-independent numerical,
-  policy, scheduling and RNG fingerprints. Supports `--print-baseline`.
-- `football_model_test` and `football_sim_contracts_test` link only their value
-  targets; `football_default_ai_test` links only policy/contracts/Catch2.
-- `football_period_test` builds referee/period.cpp with value contracts/Catch2 only,
-  proving PeriodElapsed has no Referee/Match/runtime dependency. It checks inclusive
-  period boundaries, cumulative second-half limits, ceremony gates and maximum spans.
-- `football_goal_test` builds referee/goal.cpp with only foundation/pitch/Catch2, proving
-  goal geometry has no Match/Ball/runtime dependency. Lifecycle tests retain score,
-  half/order attribution and period-whistle coverage through real Simulation steps.
-- `football_match_clock_test` builds runtime/clock.cpp with value contracts/Catch2
-  only. It checks both-period clipping, ceremonies/dead balls, exact large tick spans,
-  atomic overflow rejection, terminal freeze and separate executed-step accounting.
-- `football_sim_control_boundary_test` includes lifecycle and restart tests.
-  Direct PlayerControlSet tapes cover every WorldState payload field and RNG state
-  at all 400 frames, both processing orders, independent replay and Stop/Init replay.
-  No policy or external action protocol is involved in this replay test.
-  Restart placement covers 72 original-source cases: 6 restart types × 2 processing
-  orders × 2 taker sides × 3 roster shapes (11/11, 3/2, 1/1).
-  Pitch-frame regressions cover both halves × both processing orders, repeated
-  physical end changes, exact player/ball distance preservation, input immutability
-  and DefaultAI chasing the real ball instead of its ghost mirror.
-  Readiness plans cover 48 mode/order/taker/end-change combinations, plus native
-  ball-out classification/placement, minimum/timeout crossing, non-repeated reset/RNG,
-  actual scheduled release and different actor-dependent waiting times.
-  An additional 800-step value/RNG replay under both orders covers pending targets
-  and replacement of a sent-off taker.
-- `football_anim_baking_test`: independent source loads/bakes produce identical
-  bytes, artifact round-trip/field/selection checks and failure cases. CTest also
-  invokes the real baker's --check, --verify, --verify-selection flags.
-- `football_legacy_animation_import_test`: original XML recursion, duplicate/tag
-  ordering and whitespace semantics; token appending, codecs, body-part/XML/file
-  failures throw instead of terminating the process. Links only offline/foundation.
-- Fixture tests preserve both sides' abilities bit-for-bit against fingerprints
-  captured before replacing XML; six-decimal quantization is fixture-local.
-- The actual `football_app` supplies black-box short/full match coverage. There is
-  no separate smoke executable and no shell architecture-test tier.
-- `tools/football_restart_metrics.cpp` is a read-only native composition diagnostic:
-  separate ordinary/ceremonial restart waits, period-censoring, timeout repair and
-  regulation/effective ticks by half. It observes rule facts, never supplies timing
-  policy or mutates actors/RNG. Short native runs in both processing orders check
-  clock/call invariants; metric definitions/reruns live in tools/restart-metrics.md.
+There are currently no registered tests. All previous cases (unit, boundary,
+end-to-end, golden/baseline) and `test/baselines/` were deleted; the suite is
+being redesigned. The scaffolding remains: `BUILD_TESTING=ON` fetches Catch2 and
+adds `test/`, whose `CMakeLists.txt` is an empty placeholder. Register new unit
+executables there; keep each one on the smallest target that proves its module.
 
 ## Autonomous runner and runtime authority
 
@@ -357,7 +258,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
 - Contact extraction retains cooldown's strict >15-tick boundary and the original
   three RNG argument-expression draws after touch-dependent refresh, before cooldown
   publication. Tests cover standalone Ball/netting, contact feedback/controlled gates
-  and explicit time/history sampling. Before/after regression --print-baseline and
+  and explicit time/history sampling. Before/after the removed regression baseline harness and
   restart diagnostics for seeds 42/43/44 × both orders × default/symmetric fixtures
   (30000 ticks per half) are byte-identical. No golden, physics or policy change.
 - player/player_contact owns the former humanoid-pair collision algorithm and private
@@ -418,7 +319,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   → netting fact → frame restoration → score/scorer/own-goal facts. No score or
   player state is read or written by the geometric predicate; no semantics repair
   or new goal event pipeline accompanies this extraction.
-  Goal extraction also keeps regression --print-baseline and all twelve diagnostics
+  Goal extraction also keeps the removed regression baseline harness and all twelve diagnostics
   byte-identical; Release 32/32, Debug 31/31 (excluding full-match CLI) and core-only
   builds pass. No regression baselines or baked assets are changed.
 
@@ -474,7 +375,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   Simulation::AdvanceTime is a transitional diagnostic clock-only entry (no rules,
   actors or executed-step count); product execution remains Step-only. Clock ownership
   stays in Match for now; neither that nor ballRetainer is derived selection state.
-  Each of possession/history/clock extraction preserves regression --print-baseline
+  Each of possession/history/clock extraction preserves the removed regression baseline harness
   and all twelve seed/order/fixture diagnostic records byte-for-byte. Final Release
   33/33, Debug 32/32 (excluding full-match CLI), standalone Clock and core-only builds
   pass; no golden, policy, physics or asset change accompanies these extractions.
@@ -687,7 +588,7 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   No command builder includes Match or retrieves it through Player; Player::GetMatch
   is deleted. Inputs are never retained, and save/backpass checks keep short-circuit order.
 - Default policy replacement was intentionally semantic, not bit-exact Eliza
-  migration. Historical goldens live in test/baselines/pre_value_ai.md. Do not
+  migration. Historical goldens live in the removed golden baselines. Do not
   reconstruct actor-calling decision ports or insert dummy RNG draws to match them.
 
 ## Identity, ownership and numerical invariants
@@ -733,7 +634,7 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   Initial/half-time ceremonial kickoff deadlines remain unchanged. There is no
   animation/waiting-mode switch; baked animation resources remain mandatory for
   player motion/actions/contact. Historical pre-readiness policy fingerprints are
-  archived in test/baselines/pre_condition_restarts.md.
+  archived in the removed golden baselines.
   Official removal intentionally changed RNG/goldens; current baselines include it.
 - No ambient environment/context/RNG, ScenarioConfig, controller hierarchy, retired
   GRF binding or memory-hook checkpoints. Durable saves would need explicit values.
@@ -825,33 +726,16 @@ Keep its ordering; observation/mentalimage_sampling rounds to capture slots. It 
 narrowing and handles the full signed duration range. Physical/RNG rows and complete
 seed 42/43/44 restart records remain unchanged after T4c–T4e in all tested modes.
 
-### Restart diagnostic matrix
-
-### Restart diagnostic matrix
-
-football_restart_metrics accepts an optional symmetric-input flag after seed/half/order.
-It copies complete home declarations to away with distinct IDs and equal difficulty
-before Init; no runtime intervention is involved. Short CTests cover both orders.
-It also prints one definition-precise `metrics` row per half: open-play running
-metres per side and accepted kicked touches split into shot/pass contacts, plus
-per-half goals. Pass contacts are not completed passes and shot contacts are not
-official shots-on-target; no reception or keeper-utility check exists yet. Counts and
-goal totals are validated against the final match facts before printing.
-The pre-fix full matrix exposed reversed execution chasing a ghost ball despite correct
-observation projection. See tools/restart-metrics.md; those reverse samples must not be
-treated as calibration evidence. Frame correctness must precede behavior tuning.
-
 ### First-roster execution frame correction
 
 Between ticks the ball shares the first processing roster's frame, including
 reverse processing. Referee/collision/first actor scopes turn only the OTHER roster;
 the second-actor all-actor turn is restored with an unconditional ball turn at exit.
 Possession rollout uses the same geometry. Referee no longer owns a special ball
-compensation adapter. See test/baselines/pre_first_roster_frame.md for intentional
-reverse-row change and causal pre-fix failure. Native reachability covers nonzero
+compensation adapter. The intentional reverse-row change and causal pre-fix failure
+are recorded in the removed golden baselines. Native reachability covers nonzero
 ball positions in both halves/orders; long two-half tests pin actual open-play
-kicks and exact replay, not desired scores. Full matrix/replays and unchanged normal
-records are in tools/restart-metrics.md. Realism/behavior calibration is not complete.
+kicks and exact replay, not desired scores. Realism/behavior calibration is not complete.
 
 ### Snapshot history — Stage 1
 
@@ -954,8 +838,8 @@ is committed locally, with no push.
 capsules and head sphere with stable dynamic ids from fixed match slots.
 `player/player_body_collision_shadow.hpp` holds pure linear prediction and
 read-only error/touch reports. Simulation owns id -> PlayerId/body-part mapping.
-`tools/football_body_shadow.cpp` (football_body_shadow target) measures native
-runs; definitions and reports are in tools/ball-body-shadow.md. Geometry and
+the removed body-shadow diagnostic measures native
+runs; definitions and reports are in the removed body-shadow diagnostic. Geometry and
 shadow replay/frame tests live in test/player_body_collider_motion_test.cpp and
 test/player_body_shadow_test.cpp. These inputs never reach production Ball yet.
 Use CTest or executables at build/release/, not old build/release/test/ binaries.
@@ -966,7 +850,7 @@ physical BallStepResult evidence; predictions remain static-only. Contacts expos
 normal impulse and overlap correction separately from rule touches. Body material
 is explicit and provisional (.35 restitution/.45 friction), not realism calibration.
 `sim/simulation_body_shadow.cpp` runs opt-in static-only/full-world production
-Ball kernels on one diagnostic owner. `football_body_shadow [steps] --full` reports
+Ball kernels on one diagnostic owner. the removed body-shadow diagnostic reports
 sources/TOI/owners/impulses/state deltas against static and actual production.
 Default Simulation still supplies no dynamic bodies: production authority, action
 and referee ordering are unchanged. Completed shadow evidence is bounded to one
@@ -986,7 +870,7 @@ show 152/26 upright nonzero responses, mostly continuing initial penetration.
 The moving-body continuous tape finds a zero-impulse projection freeze: no-
 remainder initial overlap prevents a separating ball from making progress. Its
 passing characterization test pins a known switch blocker, NOT readiness.
-See tools/ball-body-shadow.md for attribution, provisional pose limitations and
+See the removed body-shadow diagnostic for attribution, provisional pose limitations and
 the P5a shadow-only next gate. No production Ball API/kernel/authority changed.
 P4d-1.2 validation: Release 42/42, Debug 41/41 (without full regulation CLI),
 including existing regression/A-B modes, passed with no Golden/asset changes.
@@ -1033,7 +917,7 @@ whose owner+part already produced this tick's passive impact, then choose the
 largest velocity-change magnitude (`|J|/mass`) with lower PlayerId and lower body-part enum as stable
 tie-breakers, so at most one active impulse exists per tick and permutation
 cannot change the winner. Production constructs no active impulse and keeps
-using the legacy touch path; regression `--print-baseline` is byte-identical.
+using the legacy touch path; the removed regression baseline harness is byte-identical.
 
 P5c-1/P5c-2 prepare the active-touch production migration and keep it off.
 `tools/p5c-active-touch-migration.md` records the exact `StepImpl`/`Humanoid::

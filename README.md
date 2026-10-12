@@ -302,14 +302,7 @@ There is no `src/support/`: app profiles are typed fixtures retaining six-decima
 quantization, and legacy XML/codecs/text helpers live only in `tools/animBaker/import/`.
 File I/O uses the standard library; custom diagnostics/backtraces and Properties
 are removed. Neither app nor Catch2/offline baker code is linked into core.
-Tests cover rule/clock completion,
-results/lifecycle/restart, independent owners and AI-only value paths,
-control-tape/RNG replay and baselines. Test-only programs live under `test/`;
-`tools/` contains read-only regression/restart diagnostics and the offline baker.
-The baker shares callable bake/check/verify operations with Catch2 tests, which
-compare independent bakes byte-for-byte and verify fields/selection against source.
-Semantic-stage motion/action/RNG changes and prior hashes are archived under
-`test/baselines/`; the three-clock/scale-removal evidence is in `pre_three_clocks.md`.
-Restart CSV definitions, multi-seed results and rerun commands are documented in
-[`tools/restart-metrics.md`](tools/restart-metrics.md). These measurements do not
-change restart bounds or claim football realism.
+All previous test cases and `test/baselines/` golden files were deleted in
+preparation for redesigning the suite; `test/CMakeLists.txt` is an empty
+placeholder and the Catch2 hookup stays wired for the new unit tests.
+The offline baker remains a standalone tool under `tools/animBaker/`.
