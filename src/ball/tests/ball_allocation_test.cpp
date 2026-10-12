@@ -44,7 +44,7 @@ void operator delete[](void* p, std::size_t, std::align_val_t) noexcept { std::f
 
 TEST_CASE("dynamic collider merge reuses capacity without per-tick input allocation", "[ball][allocation]") {
   using namespace football::ball;
-  Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
   const BallState high{{0, 0, 10000}, blunted::Vector3(0), blunted::Vector3(0), blunted::Quaternion{}};
   for (const std::size_t count : {66u, 300u}) {
     std::vector<ColliderMotion> motions;

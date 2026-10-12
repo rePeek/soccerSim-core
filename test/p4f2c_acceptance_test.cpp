@@ -47,7 +47,7 @@ Capsule ShapeAt(const ColliderMotion& c, float t) {
 // first contact, not just an endpoint distance.
 TEST_CASE("interpolation error bound keeps first-contact TOI normal and impulse stable",
           "[p4f2c][deforming-ccd][acceptance]") {
-  const football::model::BallConfig config;
+  const football::ball::BallModel config;
   const auto base = KickingCapsule();
   auto perturbed = base;
   PerturbEnd(perturbed, kMeasuredRealizedEndpointError);

@@ -6,9 +6,8 @@ cmake_minimum_required(VERSION 3.24)
 # Private impl:     src/*
 #
 # football::ball must never depend on football_sim, football_player,
-# football_referee, football_event or football_observation. It only consumes
-# foundation math types and the immutable model geometry it is constructed
-# with.
+# football_referee, football_event, football_observation, football::model or
+# football::pitch. It consumes foundation math plus its own BallWorld.
 
 add_library(football_ball STATIC)
 add_library(football::ball ALIAS football_ball)
@@ -28,6 +27,7 @@ target_sources(football_ball
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
     FILES
       include/football/ball/ball.hpp
+      include/football/ball/ball_model.hpp
       include/football/ball/ball_world.hpp
       include/football/ball/ball_state.hpp
       include/football/ball/ball_impulse.hpp
@@ -50,7 +50,6 @@ target_compile_features(football_ball PUBLIC cxx_std_23)
 target_link_libraries(football_ball
   PUBLIC
     football::foundation
-    football::model
 )
 
 football_configure_target(football_ball)

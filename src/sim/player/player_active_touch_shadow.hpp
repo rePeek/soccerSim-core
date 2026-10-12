@@ -69,7 +69,7 @@ struct ActiveTouchComparison {
 // current ball surface. Coincident centers require an explicit foot/body proxy.
 // This provisional proxy is reported; it is NOT proof of a posed foot contact.
 inline ActiveTouchComparison CompareActiveTouch(ActiveTouchObservation observation,
-    const football::model::BallConfig& config) {
+    const football::ball::BallModel& config) {
   ActiveTouchComparison out;
   out.observation = observation;
   const auto& endpoint = observation.passive_endpoint ? *observation.passive_endpoint : observation.before;
@@ -155,7 +155,7 @@ struct ActiveTouchShadowReport {
   std::vector<ActiveTouchComparison> latest;
   std::uint64_t step = 0, generation = 0;
   void Record(ActiveTouchObservation observation, std::uint64_t step_index,
-              std::uint64_t reset_generation, const football::model::BallConfig& config,
+              std::uint64_t reset_generation, const football::ball::BallModel& config,
               football::ball::Ball* trajectory_ball = nullptr) {
     if (step != step_index || generation != reset_generation) {
       latest.clear(); step = step_index; generation = reset_generation;

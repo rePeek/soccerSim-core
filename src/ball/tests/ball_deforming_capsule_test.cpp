@@ -60,7 +60,7 @@ TEST_CASE("rotating capsule catches a stationary ball between clear endpoints", 
   const float h = 1e-4f;
   const float closing = (Gap(ball,c,hit->toi+h,.11f)-Gap(ball,c,hit->toi-h,.11f))/(2*h*dt);
   REQUIRE(std::fabs(closing-hit->relative_velocity.GetDotProduct(hit->normal)) < .05f);
-  const football::model::BallConfig config;
+  const football::ball::BallModel config;
   const std::array world{c};
   const auto result = AdvanceBallTick(ball,world,dt,config,Free());
   REQUIRE(result.contacts.size() == 1); REQUIRE(result.contacts[0].normal_impulse > 0);
@@ -72,7 +72,7 @@ TEST_CASE("rotating capsule catches a stationary ball between clear endpoints", 
   REQUIRE((result.state.velocity-wrong.state.velocity).GetLength() > 10);
   REQUIRE(result.state.angular_velocity.GetLength() > 1);
   // Full Ball API still commits this same passive response through one Step.
-  Ball owner{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})}; owner.Reset(ball);
+  Ball owner{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})}; owner.Reset(ball);
   const auto before = owner.state(); const auto preview = owner.Predict(BallTickInput{world,{}});
   REQUIRE(owner.state().position == before.position);
   REQUIRE(owner.state().velocity == before.velocity);
@@ -111,7 +111,7 @@ TEST_CASE("deforming capsule rejects exit and infinite-line roots including coll
   REQUIRE(late->toi > .5f); REQUIRE(late->relative_velocity.GetDotProduct(late->normal) < 0);
   c = {42,Capsule{{-1,0,1},{1,0,1},.03f},Capsule{{-1,-.1f,1},{1,-.2f,1},.03f},{}};
   REQUIRE_FALSE(SweepBall(At({0,.14f,1},{0,2,0}),c,dt,.11f));
-  const auto overlap = AdvanceBallTick(At({0,.135f,1},{1,2,0}),std::array{c},dt,football::model::BallConfig{},Free());
+  const auto overlap = AdvanceBallTick(At({0,.135f,1},{1,2,0}),std::array{c},dt,football::ball::BallModel{},Free());
   REQUIRE_FALSE(overlap.contacts.empty()); REQUIRE(overlap.contacts.front().position_corrected);
   for (const auto& contact : overlap.contacts) REQUIRE(contact.normal_impulse == 0);
   REQUIRE(overlap.state.position.coords[0] >= .01f-1e-6f);
@@ -146,7 +146,7 @@ TEST_CASE("rotating CCD is replay deterministic mirrored and globally ordered", 
   auto leg = c; std::get<Capsule>(leg.start).a.coords[2] = .13f; std::get<Capsule>(leg.start).b.coords[2] = .13f;
   std::get<Capsule>(leg.end).a.coords[2] = .13f; std::get<Capsule>(leg.end).b.coords[2] = .13f;
   const ColliderMotion ground{1,Plane{{0,0,0},{0,0,1}},Plane{{0,0,0},{0,0,1}},{.5f,.2f}};
-  const auto result = AdvanceBallTick(low,std::array{leg,ground},dt,football::model::BallConfig{},Free());
+  const auto result = AdvanceBallTick(low,std::array{leg,ground},dt,football::ball::BallModel{},Free());
   REQUIRE(result.contacts.size() == 1); REQUIRE(result.contacts.front().collider == 1);
   REQUIRE(result.contacts.front().normal_impulse > 0);
 }
@@ -185,7 +185,7 @@ TEST_CASE("early rotating TOI and zero-length start retain correct geometry", "[
   const auto ball = At({0,.14001f,1});
   const auto hit = SweepBall(ball,early,dt,.11f); REQUIRE(hit.has_value());
   REQUIRE(hit->toi > 0); REQUIRE(hit->toi < 1e-4f);
-  const auto result = AdvanceBallTick(ball,std::array{early},dt,football::model::BallConfig{},Free());
+  const auto result = AdvanceBallTick(ball,std::array{early},dt,football::ball::BallModel{},Free());
   REQUIRE(result.contacts.size() == 1); REQUIRE(result.contacts[0].normal_impulse > 0);
   REQUIRE((result.state.position-hit->point).GetLength() < 1e-6f);
   const ColliderMotion grow{42,Capsule{{0,0,1},{0,0,1},.04f},
@@ -219,7 +219,7 @@ TEST_CASE("invalid deforming input is rejected before state or force commit", "[
   REQUIRE_THROWS_AS(SweepBall(initial,c,dt,.11f),std::invalid_argument);
   std::get<Capsule>(c.end).radius = std::numeric_limits<float>::quiet_NaN();
   REQUIRE_THROWS_AS(SweepBall(initial,c,dt,.11f),std::invalid_argument);
-  Ball a{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})}, b{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})};
+  Ball a{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})}, b{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
   a.Reset(initial); b.Reset(initial);
   REQUIRE_THROWS_AS(a.Step(BallTickInput{std::array{c},{}}),std::invalid_argument);
   REQUIRE(a.state().position == initial.position); REQUIRE(a.state().velocity == initial.velocity);

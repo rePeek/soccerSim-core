@@ -31,7 +31,7 @@ void FlushLogging() {
 }  // namespace
 
 GameEnv::GameEnv(football::model::Team home, football::model::Team away,
-                 football::model::Pitch pitch, football::model::BallConfig ball_config,
+                 football::model::Pitch pitch, football::ball::BallModel ball_config,
                  MatchOptions match_options,
                  football::ai::AIConfig ai_config)
     : home_team_(std::move(home)), away_team_(std::move(away)),

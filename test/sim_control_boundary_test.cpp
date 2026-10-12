@@ -489,7 +489,7 @@ TEST_CASE("Command authorization consumes supplied restart, ball and touch facts
   Runtime runtime;
   auto& team = *SimulationAccess::TeamOf(runtime.simulation, 0);
   auto& keeper = *team.GetGoalie();
-  Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(SimulationAccess::PitchOf(runtime.simulation), football::model::BallConfig{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(SimulationAccess::PitchOf(runtime.simulation), football::ball::BallModel{})};
   ball.ResetSituation(Vector3(-52, 0, 0));
   football::sim::event::TouchState touches;
   RefereeBuffer restart = SimulationAccess::RefereeOf(runtime.simulation)->GetBuffer();

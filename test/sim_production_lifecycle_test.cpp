@@ -8,8 +8,8 @@
 using football::sim::testing::SimulationAccess;
 
 namespace {
-football::model::BallConfig CustomBall() {
-  return football::model::BallConfig(0.45f, 0.120f, 0.5f, 0.010f);
+football::ball::BallModel CustomBall() {
+  return football::ball::BallModel(0.45f, 0.120f, 0.5f, 0.010f);
 }
 }
 
@@ -62,12 +62,12 @@ TEST_CASE("Stop then Init with different config rebuilds production caches",
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   MatchOptions options; options.snapshot_capacity = 2;
   Simulation s;
-  s.Init(home, away, football::model::Pitch{}, options, football::model::BallConfig{});
+  s.Init(home, away, football::model::Pitch{}, options, football::ball::BallModel{});
   SimulationAccess::InitializeProductionPhysics(s);
   const football::ball::Ball* first =
       SimulationAccess::PreparationBallOf(s).get();
   REQUIRE(first != nullptr);
-  REQUIRE(first->config().radius() == football::model::BallConfig{}.radius());
+  REQUIRE(first->config().radius() == football::ball::BallModel{}.radius());
   REQUIRE(s.Stop());
 
   s.Init(home, away, football::model::Pitch{}, options, CustomBall());

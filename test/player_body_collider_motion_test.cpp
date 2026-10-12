@@ -93,7 +93,7 @@ TEST_CASE("body materials are explicit and oblique contact generates calibrated 
     REQUIRE(c.material.restitution == .35f);
     REQUIRE(c.material.friction == .45f);
   }
-  const football::model::BallConfig config;
+  const football::ball::BallModel config;
   const football::ball::BallState ball{Vector3(.3f, 0, .6f), Vector3(-10, 4, 0),
                                       Vector3(0), blunted::Quaternion{}};
   football::ball::BallContact contact;

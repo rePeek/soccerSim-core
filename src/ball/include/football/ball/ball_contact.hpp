@@ -9,7 +9,7 @@
 #include "football/ball/ball_state.hpp"
 #include "football/ball/collider.hpp"
 
-namespace football::model { class BallConfig; }
+namespace football::ball { class BallModel; }
 
 namespace football::ball {
 
@@ -65,7 +65,7 @@ BallStepResult AdvanceBall(const BallState& initial,
 // execution points, not yet the production numeric model.
 struct BallDynamics {
   float gravity = 9.81f;
-  float quadratic_resistance = 0.04f;          // air drag, mapped from BallConfig::drag()
+  float quadratic_resistance = 0.04f;          // air drag, mapped from BallModel::drag()
   float ground_deceleration = 1.6f;            // base rolling deceleration
   float quadratic_ground_resistance = 0.0f;    // speed-dependent ground resistance
   float grass_height = 0.025f;
@@ -83,7 +83,7 @@ struct BallDynamics {
 BallStepResult AdvanceBallTick(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
                                float dt,
-                               const football::model::BallConfig& config,
+                               const football::ball::BallModel& config,
                                const BallDynamics& dynamics);
 
 }  // namespace football::ball

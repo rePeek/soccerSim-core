@@ -11,7 +11,7 @@ namespace football::ball::detail {
 
 void ResolveNetting(Vector3& nextPos, Vector3& momentumPredict,
                     const football::ball::GoalNetGeometry& net,
-                    const football::model::BallConfig& config,
+                    const football::ball::BallModel& config,
                     const football::ball::BallEnvironment& environment) {
   (void)environment;
   const float pitchHalfW = net.pitch_half_length;

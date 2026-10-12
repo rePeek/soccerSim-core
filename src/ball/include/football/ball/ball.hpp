@@ -24,7 +24,7 @@
 #include "foundation/math/quaternion.hpp"
 #include "foundation/time/tick.hpp"
 #include "foundation/math/vector3.hpp"
-#include "model/ball_config.hpp"
+#include "football/ball/ball_model.hpp"
 
 namespace football::ball {
 
@@ -46,14 +46,14 @@ struct BallTickInput {
 
 class Ball {
  public:
-  explicit Ball(const football::model::BallConfig& config, BallWorld world);
+  explicit Ball(const football::ball::BallModel& config, BallWorld world);
   ~Ball();
 
   // ---- Stable state observation ----
   BallState state() const;
   // Physics configuration actually in force (mass, radius, restitution).
   // Read-only; never a live channel for mutating the ball.
-  const football::model::BallConfig& config() const { return config_; }
+  const football::ball::BallModel& config() const { return config_; }
 
   // ---- Stable simulation ----
   // Exactly one tick, at most one passive impact, no remainder integration.
@@ -74,8 +74,6 @@ class Ball {
   // orientation (a 180 degree rotation about z).
   void Mirror();
 
-  // ---- Lifecycle state reset ----
-  void ResetSituation(const blunted::Vector3& focusPos);
 
  private:
   // Pure tick computation including the flexible net correction.
@@ -85,13 +83,12 @@ class Ball {
   BallStepResult EvaluateTick(const BallTickInput& input,
                               std::vector<ColliderMotion>& scratch) const;
 
-  football::model::BallConfig config_;
+  football::ball::BallModel config_;
   BallWorld world_;
   // Single authoritative internal state (the public BallState projection is a
   // straight copy, not a lossy conversion).
   BallState state_;
   BallDynamics dynamics_;
-  std::vector<ColliderMotion> colliders_;
   // Reused merge scratch; 7 static + 22*3 body motions fit without growth.
   // Larger rosters may grow it once. Prediction never consumes this buffer.
   std::vector<ColliderMotion> tick_colliders_;

@@ -4,15 +4,15 @@
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/ball/collider.hpp"
-#include "model/ball_config.hpp"
+#include "football/ball/ball_model.hpp"
 
 namespace football::ball {
 
 // Spherical inertia factor; thin-shell approximation. Keep it internal until
-// different ball materials actually need it in BallConfig.
+// different ball materials actually need it in BallModel.
 inline constexpr float kBallInertiaFactor = 2.0f / 3.0f;
 
-float BallInertia(const football::model::BallConfig& config);
+float BallInertia(const football::ball::BallModel& config);
 
 // Bottom of the response stack: apply an impulse at a world-space point and
 // change both velocity and angular_velocity. No contact judgement, friction or
@@ -20,7 +20,7 @@ float BallInertia(const football::model::BallConfig& config);
 BallState ApplyImpulseAtPoint(const BallState& ball,
                               const blunted::Vector3& impulse,
                               const blunted::Vector3& world_point,
-                              const football::model::BallConfig& config);
+                              const football::ball::BallModel& config);
 
 // Passive contact response: normal impulse from restitution plus
 // Coulomb-capped tangential friction impulse from the contact-point relative
@@ -30,7 +30,7 @@ BallState ApplyImpulseAtPoint(const BallState& ball,
 BallState ResolveContact(const BallState& ball, const BallContact& contact,
                          const ContactMaterial& material,
                          const blunted::Vector3& collider_velocity,
-                         const football::model::BallConfig& config);
+                         const football::ball::BallModel& config);
 
 // Explicit response diagnostics: a separating/resting contact has jn == 0.
 struct BallContactResponse {
@@ -41,7 +41,7 @@ struct BallContactResponse {
 BallContactResponse ResolveContactResponse(
     const BallState& ball, const BallContact& contact,
     const ContactMaterial& material, const blunted::Vector3& collider_velocity,
-    const football::model::BallConfig& config);
+    const football::ball::BallModel& config);
 
 }  // namespace football::ball
 

@@ -92,7 +92,7 @@ football_configure_target(football_snapshot_history_test)
 add_test(NAME football_snapshot_history_test COMMAND football_snapshot_history_test)
 set_tests_properties(football_snapshot_history_test PROPERTIES LABELS "sim;unit;snapshot")
 
-add_executable(football_ball_allocation_test ../src/sim/ball/tests/ball_allocation_test.cpp)
+add_executable(football_ball_allocation_test ../src/ball/tests/ball_allocation_test.cpp)
 target_link_libraries(football_ball_allocation_test PRIVATE football::ball football::pitch Catch2::Catch2WithMain)
 football_configure_target(football_ball_allocation_test)
 add_test(NAME football_ball_allocation_test COMMAND football_ball_allocation_test)
@@ -182,9 +182,9 @@ add_test(NAME football_sim_contracts_test COMMAND football_sim_contracts_test)
 # Ball is an independent module: these tests link only football::ball (plus
 # foundation/model geometry), never Simulation/Player/Team/Referee.
 add_executable(football_ball_test
-  ../src/sim/ball/tests/ball_state_test.cpp
-  ../src/sim/ball/tests/ball_contact_test.cpp
-  ../src/sim/ball/tests/ball_deforming_capsule_test.cpp
+  ../src/ball/tests/ball_state_test.cpp
+  ../src/ball/tests/ball_contact_test.cpp
+  ../src/ball/tests/ball_deforming_capsule_test.cpp
   ball_collision_test.cpp)
 # Tests build the static world through the real football.pitch module; the
 # ball library itself still does not depend on pitch.

@@ -7,7 +7,7 @@
 #include "football/ball/ball_response.hpp"
 #include "football/ball/ball_state.hpp"
 #include "foundation/math/vector3.hpp"
-#include "model/ball_config.hpp"
+#include "football/ball/ball_model.hpp"
 
 // P5c-2: pure active-touch model. The Player chooses *where on the ball* and
 // *how hard* to strike; the impulse response derives both velocity and spin.
@@ -48,7 +48,7 @@ struct TouchProposalInput {
   blunted::Vector3 strike_point = blunted::Vector3(0);
   float strike_radius = 0.0f;
   TouchTechnique technique;
-  football::model::BallConfig config;
+  football::ball::BallModel config;
   float reach = 0.4f;
   float height_tolerance = 1.0f;
 };

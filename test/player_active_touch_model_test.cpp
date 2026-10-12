@@ -140,7 +140,7 @@ TEST_CASE("magnus trajectory curves consistently and stays numerically stable",
     input.technique = TouchTechnique{lateral, 0};
     const auto proposal = ProposeActiveTouch(input);
     REQUIRE(proposal.reachable);
-    football::ball::Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(pitch, football::model::BallConfig{})};
+    football::ball::Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(pitch, football::ball::BallModel{})};
     ball.Reset(proposal.response);
     return std::make_pair(ball.Predict(horizon, football::ball::BallEnvironment{}),
                           proposal.spin);

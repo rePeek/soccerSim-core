@@ -28,7 +28,7 @@ BallState BehindGoalState() {
 
 TEST_CASE("goal netting applies geometrically behind the goal line",
           "[sim][ball][contact]") {
-  Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(kPitch, football::model::BallConfig{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(kPitch, football::ball::BallModel{})};
   ball.Reset(BehindGoalState());
   const auto at_net = ball.Predict(football::sim::TickSpan{1}, BallEnvironment{});
   // The same moving state in midfield is not damped by any net geometry.
@@ -43,7 +43,7 @@ TEST_CASE("goal netting applies geometrically behind the goal line",
 }
 
 TEST_CASE("woodwork contact reflects the ball off the post", "[sim][ball][contact]") {
-  Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(kPitch, football::model::BallConfig{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(kPitch, football::ball::BallModel{})};
   BallState state;
   // Place the ball just inside the post's collision radius, moving towards the
   // goal line so the first prediction step actually hits the post.

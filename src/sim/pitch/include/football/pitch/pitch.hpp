@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "model/pitch.hpp"
-#include "model/ball_config.hpp"
+#include "football/ball/ball_model.hpp"
 #include "football/ball/ball_world.hpp"
 #include "football/ball/collider.hpp"
 #include "foundation/math/vector3.hpp"
@@ -51,7 +51,7 @@ inline ColliderMotion StaticCollider(ColliderId id, ColliderShape shape,
 // active ball material. Deterministic; constructs once per match.
 inline football::ball::BallWorld BuildBallWorld(
     const football::model::Pitch& pitch,
-    const football::model::BallConfig& ball) {
+    const football::ball::BallModel& ball) {
   using namespace detail;
   using blunted::Vector3;
   const float x = pitch.half_length();

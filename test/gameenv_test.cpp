@@ -36,7 +36,7 @@ template<class F> void LogicError(F call) {
 }
 GameEnv MakeGame(MatchOptions options = {}) {
   return {fixtures::MakeDefaultHomeTeam(), fixtures::MakeDefaultAwayTeam(),
-          model::Pitch{}, model::BallConfig{}, options, {}};
+          model::Pitch{}, football::ball::BallModel{}, options, {}};
 }
 bool Same(const blunted::Vector3& a, const blunted::Vector3& b) {
   return std::memcmp(a.coords, b.coords, sizeof(a.coords)) == 0;
@@ -101,7 +101,7 @@ void Composition() {
   config.initial_tactics[0] = football::ai::MakeTacticalBoard(home, model::TeamSide::Home, model::Pitch{});
   config.initial_tactics[0]->width = 0.9f;
   const auto initial_config = config;
-  GameEnv game{home, away, model::Pitch{}, model::BallConfig{}, options, config};
+  GameEnv game{home, away, model::Pitch{}, football::ball::BallModel{}, options, config};
   home.players[0].id = 42; home.players[1].height = 1.5f;
   config.initial_tactics[0]->width = 0.1f; options.game_engine_random_seed = 999;
   for (int repeat = 0; repeat < 2; ++repeat) {
@@ -142,7 +142,7 @@ void FinalResult() {
 void RejectedStartup() {
   auto home = fixtures::MakeDefaultHomeTeam(); auto away = fixtures::MakeDefaultAwayTeam();
   away.players.front().id = home.players.front().id;
-  GameEnv rejected{home, away, model::Pitch{}, model::BallConfig{}, {}, {}};
+  GameEnv rejected{home, away, model::Pitch{}, football::ball::BallModel{}, {}, {}};
   for (int attempt = 0; attempt < 2; ++attempt) {
     bool threw = false;
     try { rejected.Start(); } catch (const std::invalid_argument&) { threw = true; }

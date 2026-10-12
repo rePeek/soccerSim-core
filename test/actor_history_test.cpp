@@ -135,7 +135,7 @@ TEST_CASE("Ball difficulty uses the supplied ball, touch clock and RNG",
   auto& opponent = *SimulationAccess::TeamOf(simulation, 1);
   auto* toucher = opponent.GetAllPlayers()[1];
   const auto ambient_rng = SimulationAccess::RngOf(simulation).engine();
-  Ball supplied{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})};
+  Ball supplied{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
   SpatialState spatial;
   spatial.position = Vector3(0);
   spatial.directionVec = Vector3(0, -1, 0);

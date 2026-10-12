@@ -11,7 +11,6 @@ target_link_libraries(football_sim_contracts INTERFACE
   football::foundation football::model)
 
 add_subdirectory(animation)
-add_subdirectory(ball)
 add_subdirectory(pitch)
 
 # Domain directories organize concepts, not public/private dependency units.

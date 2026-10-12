@@ -108,16 +108,16 @@ src/
 │   ├── formation.hpp initial formation + normalized TacticalFormation declarations
 │   ├── pitch.hpp     sole pitch geometry type (legacy 110 × 72 metres)
 │   └── football_types.hpp roles/game modes/player count
-├── sim/              domain-organized rules, physics, execution and observation
+├── ball/            standalone football::ball: BallModel (self-owned physics),
+│                    BallState, BallWorld, collider/CCD, contact evidence and point-
+│                    impulse response; depends only on foundation, never model/sim
+├── sim/             domain-organized rules, physics, execution and observation
 │   ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
 │   ├── simulation_config.hpp match-level options value
 │   ├── pitch_geometry.hpp    legacy global pitch constants awaiting model::Pitch
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
-│   ├── ball/         standalone Ball physics/environment, prediction timing, touch kinds
-│   │                 and ball_player_contact interaction; unified collider geometry
-│   │                 (collider.hpp), swept-sphere CCD (ball_contact.hpp, ball_collision.cpp)
-│   │                 and point-impulse response (ball_response.hpp)
+│   ├── pitch/        BuildBallWorld: model::Pitch + BallModel -> BallWorld (header-only)
 │   ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
 │   │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters

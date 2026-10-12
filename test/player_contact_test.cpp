@@ -33,7 +33,7 @@ std::vector<Vector3> BallPredictionSamples(const Ball& ball) {
 
 struct PlayerContactFixture {
   Simulation simulation;
-  Ball ball{football::model::BallConfig{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::model::BallConfig{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
   std::array<Player*, 3> players;
 
   explicit PlayerContactFixture(bool reverse) {

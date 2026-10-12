@@ -1416,7 +1416,7 @@ int main(int argc, char** argv) {
       Require(mode.empty() || mode == "--print-baseline", "unknown regression mode");
       GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
                    football::app::fixtures::MakeDefaultAwayTeam(),
-                   football::model::Pitch{}, football::model::BallConfig{}, {}, {}};
+                   football::model::Pitch{}, football::ball::BallModel{}, {}, {}};
       game.Start();
       CheckGoldenSnapshots(simulation, game, mode == "--print-baseline");
       if (mode == "--print-baseline") return 0;

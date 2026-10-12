@@ -101,7 +101,7 @@ class Simulation::RuleCommands final : public football::sim::rules::RuleCommandS
   void StartBallInPlay() override { simulation_.StartBallInPlay(); }
   void SetBallRetainer(Player* retainer) override { simulation_.SetBallRetainer(retainer); }
   void ResetSituation(const Vector3& position) override { simulation_.ResetSituation(position); }
-  void ResetBall(const Vector3& position) override { simulation_.ball_->ResetSituation(position); }
+  void ResetBall(const Vector3& position) override { simulation_.PlaceBallAt(position); }
   void SetPhase(MatchPhase phase) override { simulation_.SetMatchPhase(phase); }
  private:
   Simulation& simulation_;
@@ -401,7 +401,7 @@ Simulation::~Simulation() {
 void Simulation::Init(
     const football::model::Team& home, const football::model::Team& away,
     const football::model::Pitch& pitch, MatchOptions options,
-    const football::model::BallConfig& ball_config) {
+    const football::ball::BallModel& ball_config) {
   if (ball_) throw std::logic_error("simulation already initialized");
   // Native duration and full-match capacity are checked before any RNG draws.
   if (options.half_duration == football::sim::TickSpan{} ||
@@ -794,6 +794,14 @@ void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
   }
 }
 
+void Simulation::PlaceBallAt(const Vector3& focus) {
+  // Match semantics (kickoff/free-kick placement) live here, not in Ball.
+  // Position is lifted by the ball radius so the sphere rests on the ground.
+  ball_->Reset(football::ball::BallState{
+      focus + Vector3(0, 0, ball_config_.radius()), Vector3(0), Vector3(0),
+      blunted::Quaternion{}});
+}
+
 void Simulation::ResetSituation(const Vector3& focus_position) {
   if (!ball_) throw std::logic_error("simulation has no match");
   if (body_shadow_active_) ++body_shadow_report_.discarded_ticks;
@@ -818,7 +826,7 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   last_goal_scorer_ = nullptr;
   best_possession_team_ = nullptr;
   last_body_ball_collision_tick_ = {};
-  ball_->ResetSituation(focus_position);
+  PlaceBallAt(focus_position);
   teams_[first_team_]->ResetSituation(focus_position, GetTimelineTick());
   teams_[second_team_]->ResetSituation(focus_position, GetTimelineTick());
 }

@@ -224,7 +224,7 @@ class SimulationAccess {
   static void SetBallRetainer(Simulation& s, Player* retainer) { s.SetBallRetainer(retainer); }
   static void RequestChangeOfEnds(Simulation& s) { s.pending_change_of_ends_ = true; }
   static void ResetBall(Simulation& s, const blunted::Vector3& position) {
-    s.ball_->ResetSituation(position);
+    s.PlaceBallAt(position);
   }
 };
 

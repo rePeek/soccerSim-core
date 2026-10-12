@@ -140,7 +140,7 @@ TEST_CASE("Roster possession phases consume supplied opponent and physical retai
   football::sim::player::PrepareTeamPossession(team, opponent, true, false, retainer, &team);
   REQUIRE(team.GetTeamPossessionAmount() == 0.5f);
   REQUIRE(team.GetFadingTeamPossessionAmount() == 0.5f);
-  Ball supplied{football::model::BallConfig{}, football::pitch::BuildBallWorld(SimulationAccess::PitchOf(simulation), football::model::BallConfig{})};
+  Ball supplied{football::ball::BallModel{}, football::pitch::BuildBallWorld(SimulationAccess::PitchOf(simulation), football::ball::BallModel{})};
   football::sim::player::RefreshTeamPossession(team, opponent, supplied, football::sim::Tick{123},
       team.GetAllPlayers()[1]);
   REQUIRE(team.HasPossession());

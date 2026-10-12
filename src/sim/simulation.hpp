@@ -12,7 +12,7 @@
 #include "sim/player/player_control_set.hpp"
 #include "model/team.hpp"
 #include "model/pitch.hpp"
-#include "model/ball_config.hpp"
+#include "football/ball/ball_model.hpp"
 #include "sim/simulation_config.hpp"
 #include "foundation/math/rng.hpp"
 #include "sim/observation/world_state.hpp"
@@ -60,7 +60,7 @@ class Simulation {
   void Init(const football::model::Team& home,
             const football::model::Team& away,
             const football::model::Pitch& pitch, MatchOptions options,
-            const football::model::BallConfig& ball_config = football::model::BallConfig{});
+            const football::ball::BallModel& ball_config = football::ball::BallModel{});
   bool Stop();
   void Step(const PlayerControlSet& controls);
   bool IsInPlay() const;
@@ -164,6 +164,9 @@ class Simulation {
       std::span<const football::ball::ColliderMotion> bodies);
 
   // Lifecycle mutations, published through the write-only rule/player ports.
+  // Match restart semantics: place the ball at a kickoff/free-kick focus with
+  // zero motion. Ball itself only exposes Reset(BallState).
+  void PlaceBallAt(const blunted::Vector3& focus);
   void SetMatchPhase(MatchPhase newPhase);
   void StartPlay() { play_authorized_ = true; }
   void StopPlay() {
@@ -238,7 +241,7 @@ class Simulation {
 
   MatchOptions options_;
   football::model::Pitch pitch_;
-  football::model::BallConfig ball_config_;
+  football::ball::BallModel ball_config_;
   // Assembled once per Init from pitch_ + ball_config_; every Ball instance
   // (authoritative, preparation, shadow) reuses this static world.
   football::ball::BallWorld ball_world_;

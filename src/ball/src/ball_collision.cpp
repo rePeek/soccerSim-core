@@ -1,6 +1,6 @@
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_response.hpp"
-#include "model/ball_config.hpp"
+#include "football/ball/ball_model.hpp"
 #include "ball_deforming_capsule.hpp"
 
 #include <algorithm>
@@ -277,7 +277,7 @@ BallStepResult AdvanceBall(const BallState& initial,
 BallStepResult AdvanceBallTick(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
                                float dt,
-                               const football::model::BallConfig& config,
+                               const football::ball::BallModel& config,
                                const BallDynamics& dynamics) {
   BallStepResult result;
   result.state = initial;

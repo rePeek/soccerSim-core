@@ -21,7 +21,7 @@ namespace {
 // formula and is recalibrated by the trajectory-diff step of the upgrade.
 constexpr float kMagnusCoefficient = 0.02f;
 
-BallDynamics BuildDynamics(const football::model::BallConfig& config,
+BallDynamics BuildDynamics(const football::ball::BallModel& config,
                            const GroundSurface& ground) {
   BallDynamics dynamics;
   dynamics.gravity = 9.81f;
@@ -36,12 +36,11 @@ BallDynamics BuildDynamics(const football::model::BallConfig& config,
 
 }  // namespace
 
-Ball::Ball(const football::model::BallConfig& config, BallWorld world)
+Ball::Ball(const football::ball::BallModel& config, BallWorld world)
     : config_(config),
       world_(std::move(world)),
       state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()},
-      dynamics_(BuildDynamics(config, world_.ground)),
-      colliders_(world_.static_colliders) {
+      dynamics_(BuildDynamics(config, world_.ground)) {
   tick_colliders_.reserve(73);
 }
 
@@ -69,7 +68,7 @@ BallStepResult Ball::EvaluateTick(const BallTickInput& input,
     throw std::invalid_argument("active impulse and endpoint constraint conflict");
   for (std::size_t i = 0; i < input.dynamic_colliders.size(); ++i) {
     const auto id = input.dynamic_colliders[i].id;
-    if (id == 0 || std::any_of(colliders_.begin(), colliders_.end(),
+    if (id == 0 || std::any_of(world_.static_colliders.begin(), world_.static_colliders.end(),
                              [id](const auto& c) { return c.id == id; }))
       throw std::invalid_argument("dynamic collider id conflicts with pitch or is zero");
     for (std::size_t j = 0; j < i; ++j) {
@@ -77,15 +76,15 @@ BallStepResult Ball::EvaluateTick(const BallTickInput& input,
         throw std::invalid_argument("duplicate dynamic collider id");
     }
   }
-  std::span<const ColliderMotion> world = colliders_;
+  std::span<const ColliderMotion> all_colliders = world_.static_colliders;
   if (!input.dynamic_colliders.empty()) {
-    scratch.assign(colliders_.begin(), colliders_.end());
+    scratch.assign(world_.static_colliders.begin(), world_.static_colliders.end());
     scratch.insert(scratch.end(), input.dynamic_colliders.begin(),
                    input.dynamic_colliders.end());
-    world = scratch;
+    all_colliders = scratch;
   }
   BallState initial = state_;
-  BallStepResult result = AdvanceState(initial, world, input.environment);
+  BallStepResult result = AdvanceState(initial, all_colliders, input.environment);
   // P5b: the active impulse belongs to the tick endpoint. It is applied after
   // passive motion and netting, changes only velocity/spin about the given
   // point, never advances position again and never runs a second Step.
@@ -120,7 +119,7 @@ BallState Ball::Predict(football::sim::TickSpan ahead,
                         const BallEnvironment& environment) const {
   BallState predicted = state_;
   for (football::sim::TickSpan i{0}; i < ahead; i += football::sim::TickSpan{1}) {
-    predicted = AdvanceState(predicted, colliders_, environment).state;
+    predicted = AdvanceState(predicted, world_.static_colliders, environment).state;
   }
   return predicted;
 }
@@ -141,12 +140,5 @@ void Ball::Mirror() {
 }
 
 
-
-void Ball::ResetSituation(const Vector3& focusPos) {
-  state_.velocity = Vector3(0);
-  state_.angular_velocity = Vector3(0);
-  state_.orientation = Quaternion();
-  state_.position = Vector3(focusPos + Vector3(0, 0, config_.radius()));
-}
 
 }  // namespace football::ball

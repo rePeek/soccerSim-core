@@ -12,7 +12,7 @@
 namespace {
 
 using football::ball::Ball;
-using football::model::BallConfig;
+using football::ball::BallModel;
 using football::ball::BallState;
 using blunted::Vector3;
 
@@ -29,10 +29,10 @@ BallState TestState() {
 
 TEST_CASE("Ball is constructible from the stable config + geometry contract",
           "[sim][ball][state]") {
-  static_assert(std::is_constructible_v<Ball, const BallConfig&,
+  static_assert(std::is_constructible_v<Ball, const BallModel&,
                                         football::ball::BallWorld>);
 
-  Ball ball{BallConfig{}, football::pitch::BuildBallWorld(kPitch, BallConfig{})};
+  Ball ball{BallModel{}, football::pitch::BuildBallWorld(kPitch, BallModel{})};
   const auto state = ball.state();
   REQUIRE(state.position == Vector3(0.0f, 0.0f, 0.0f));
   REQUIRE(state.velocity == Vector3(0.0f, 0.0f, 0.0f));
@@ -40,7 +40,7 @@ TEST_CASE("Ball is constructible from the stable config + geometry contract",
 }
 
 TEST_CASE("Reset publishes the observable state", "[sim][ball][state]") {
-  Ball ball{BallConfig{}, football::pitch::BuildBallWorld(kPitch, BallConfig{})};
+  Ball ball{BallModel{}, football::pitch::BuildBallWorld(kPitch, BallModel{})};
   ball.Reset(TestState());
 
   const auto state = ball.state();
@@ -51,7 +51,7 @@ TEST_CASE("Reset publishes the observable state", "[sim][ball][state]") {
 }
 
 TEST_CASE("Mirror reflects momentum and position only", "[sim][ball][state]") {
-  Ball ball{BallConfig{}, football::pitch::BuildBallWorld(kPitch, BallConfig{})};
+  Ball ball{BallModel{}, football::pitch::BuildBallWorld(kPitch, BallModel{})};
   ball.Reset(TestState());
   // Legacy mirror contract: momentum and position flip, rotation/orientation
   // are deliberately left untouched by the historical implementation.
@@ -63,9 +63,9 @@ TEST_CASE("Mirror reflects momentum and position only", "[sim][ball][state]") {
 }
 
 TEST_CASE("invalid physical config is rejected", "[sim][ball][state]") {
-  REQUIRE_THROWS_AS(football::model::BallConfig(0.0f, 0.11f, 0.62f, 0.015f), std::invalid_argument);
-  REQUIRE_THROWS_AS(football::model::BallConfig(0.43f, -1.0f, 0.62f, 0.015f), std::invalid_argument);
-  REQUIRE_THROWS_AS(football::model::BallConfig(std::nanf(""), 0.11f, 0.62f, 0.015f), std::invalid_argument);
+  REQUIRE_THROWS_AS(football::ball::BallModel(0.0f, 0.11f, 0.62f, 0.015f), std::invalid_argument);
+  REQUIRE_THROWS_AS(football::ball::BallModel(0.43f, -1.0f, 0.62f, 0.015f), std::invalid_argument);
+  REQUIRE_THROWS_AS(football::ball::BallModel(std::nanf(""), 0.11f, 0.62f, 0.015f), std::invalid_argument);
 }
 
 }  // namespace

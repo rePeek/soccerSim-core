@@ -9,7 +9,7 @@
 #include "football/ball/ball_world.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "foundation/math/vector3.hpp"
-#include "model/ball_config.hpp"
+#include "football/ball/ball_model.hpp"
 
 namespace football::ball::detail {
 
@@ -17,7 +17,7 @@ namespace football::ball::detail {
 // goal line inside the goal mouth.
 void ResolveNetting(blunted::Vector3& position, blunted::Vector3& momentum,
                     const football::ball::GoalNetGeometry& net,
-                    const football::model::BallConfig& config,
+                    const football::ball::BallModel& config,
                     const football::ball::BallEnvironment& environment);
 
 }  // namespace football::ball::detail

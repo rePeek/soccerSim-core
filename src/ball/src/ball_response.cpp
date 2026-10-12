@@ -2,13 +2,13 @@
 
 namespace football::ball {
 
-float BallInertia(const football::model::BallConfig& config) {
+float BallInertia(const football::ball::BallModel& config) {
   return kBallInertiaFactor * config.mass() * config.radius() * config.radius();
 }
 
 BallState ApplyImpulseAtPoint(const BallState& ball, const blunted::Vector3& impulse,
                               const blunted::Vector3& world_point,
-                              const football::model::BallConfig& config) {
+                              const football::ball::BallModel& config) {
   BallState next = ball;
   next.velocity = next.velocity + impulse * (1.0f / config.mass());
 
@@ -24,7 +24,7 @@ BallState ApplyImpulseAtPoint(const BallState& ball, const blunted::Vector3& imp
 BallContactResponse ResolveContactResponse(const BallState& ball, const BallContact& contact,
                                             const ContactMaterial& material,
                                             const blunted::Vector3& collider_velocity,
-                                            const football::model::BallConfig& config) {
+                                            const football::ball::BallModel& config) {
   const blunted::Vector3 n = contact.normal.GetNormalized({0, 0, 1});
   const blunted::Vector3 center = ball.position;
   const blunted::Vector3 surface_point = center - n * config.radius();
@@ -59,7 +59,7 @@ BallContactResponse ResolveContactResponse(const BallState& ball, const BallCont
 BallState ResolveContact(const BallState& ball, const BallContact& contact,
                          const ContactMaterial& material,
                          const blunted::Vector3& collider_velocity,
-                         const football::model::BallConfig& config) {
+                         const football::ball::BallModel& config) {
   return ResolveContactResponse(ball, contact, material, collider_velocity, config).state;
 }
 

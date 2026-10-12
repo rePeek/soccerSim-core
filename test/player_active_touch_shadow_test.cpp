@@ -10,7 +10,7 @@ using football::sim::testing::SimulationAccess;
 using blunted::Vector3;
 
 TEST_CASE("active shadow computes endpoint impulse without time or constraint integration", "[active-shadow]") {
-  football::model::BallConfig config;
+  football::ball::BallModel config;
   ActiveTouchObservation o;
   o.candidate.action = e_FunctionType_Shot;
   o.candidate.reachable = true;

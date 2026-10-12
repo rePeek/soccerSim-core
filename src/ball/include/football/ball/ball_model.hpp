@@ -1,23 +1,24 @@
-#ifndef FOOTBALL_MODEL_BALL_CONFIG_HPP
-#define FOOTBALL_MODEL_BALL_CONFIG_HPP
+#ifndef FOOTBALL_BALL_BALL_MODEL_HPP
+#define FOOTBALL_BALL_BALL_MODEL_HPP
 
 #include <cmath>
 #include <stdexcept>
 
-namespace football::model {
+namespace football::ball {
 
 // Static physical description of the football. It owns no runtime state and is
-// validated at construction; consumers read it through getters only.
+// validated at construction; consumers read it through getters only. This is
+// the ball domain's own model type; Ball does not read model::Pitch/BallModel.
 //
 // `restitution` currently represents the effective ball-ground contact in the
 // legacy physics and is not a pure ball material property. Keep it here to
 // preserve behaviour until a contact-material model is introduced.
-class BallConfig {
+class BallModel {
  public:
-  constexpr BallConfig() = default;
+  constexpr BallModel() = default;
 
-  BallConfig(float mass, float radius, float restitution = 0.62f,
-             float drag = 0.015f)
+  BallModel(float mass, float radius, float restitution = 0.62f,
+            float drag = 0.015f)
       : mass_(mass),
         radius_(radius),
         restitution_(restitution),
@@ -36,7 +37,7 @@ class BallConfig {
   constexpr float restitution() const { return restitution_; }
   constexpr float drag() const { return drag_; }
 
-  bool operator==(const BallConfig&) const = default;
+  bool operator==(const BallModel&) const = default;
 
  private:
   float mass_ = 0.43f;
@@ -45,6 +46,6 @@ class BallConfig {
   float drag_ = 0.015f;
 };
 
-}  // namespace football::model
+}  // namespace football::ball
 
-#endif  // FOOTBALL_MODEL_BALL_CONFIG_HPP
+#endif  // FOOTBALL_BALL_BALL_MODEL_HPP
