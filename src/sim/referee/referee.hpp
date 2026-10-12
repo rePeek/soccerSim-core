@@ -22,7 +22,8 @@
 #include "football/pitch/pitch.hpp"
 #include <optional>
 
-#include "model/football_types.hpp"
+#include "sim/player/player_role.hpp"
+#include "sim/referee/game_mode.hpp"
 #include "foundation/time/tick.hpp"
 #include "sim/runtime/phase.hpp"
 #include "sim/referee/restart_readiness.hpp"
@@ -142,7 +143,7 @@ class Referee {
                          const football::sim::rules::RefereeTickFacts& facts,
                          football::sim::rules::RuleCommandSink& commands);
     Player* FindPlayer(const football::sim::rules::RefereeTickFacts& facts,
-                       football::model::PlayerId id) const;
+                       football::player::PlayerId id) const;
 };
 
 #endif

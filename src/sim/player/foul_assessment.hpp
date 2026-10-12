@@ -3,7 +3,7 @@
 
 #include "foundation/math/vector3.hpp"
 #include "foundation/time/tick.hpp"
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 
 namespace football::sim {
 
@@ -25,8 +25,8 @@ enum class FoulKind {
 // contact solver is the only owner that can capture them.
 struct FoulAssessment {
   FoulKind kind = FoulKind::StandingFall;
-  model::PlayerId offender = model::kInvalidPlayerId;
-  model::PlayerId victim = model::kInvalidPlayerId;
+  football::player::PlayerId offender = football::player::kInvalidPlayerId;
+  football::player::PlayerId victim = football::player::kInvalidPlayerId;
   int victim_team_id = -1;
   int offender_team_id = -1;
   // Normalized suspicion in [0, 1]. Not a card severity and not a rule verdict.

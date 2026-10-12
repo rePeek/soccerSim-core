@@ -32,7 +32,6 @@ include(cmake/CPM.cmake)
 include(cmake/bqlog.cmake)
 
 add_subdirectory(src/foundation)
-add_subdirectory(src/model)
 add_subdirectory(src/ball)
 add_subdirectory(src/animation)
 add_subdirectory(src/pitch)
@@ -45,7 +44,7 @@ target_sources(game PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/src
   FILES src/env.hpp)
 target_link_libraries(game
-  PUBLIC football::model football::sim_contracts football::ai_contracts football::ball
+  PUBLIC football::sim_contracts football::ai_contracts football::ball
   PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim>")

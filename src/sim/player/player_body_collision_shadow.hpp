@@ -7,7 +7,7 @@
 #include <optional>
 
 #include "football/ball/ball_contact.hpp"
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 #include "sim/player/player_body_contact_diagnostics.hpp"
@@ -22,7 +22,7 @@ inline PlayerKinematicState PredictBodyKinematicState(
 }
 
 struct PlayerBodyMotionPrediction {
-  football::model::PlayerId player = football::model::kInvalidPlayerId;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   PlayerKinematicState start;
   PlayerKinematicState end;
   std::array<football::ball::ColliderMotion, kPlayerBodyPartCount> colliders;
@@ -33,7 +33,7 @@ struct PlayerBodyMotionPrediction {
 };
 
 inline PlayerBodyMotionPrediction PredictBodyColliderMotions(
-    football::model::PlayerId player, const PlayerKinematicState& start,
+    football::player::PlayerId player, const PlayerKinematicState& start,
     football::sim::TickSpan horizon, const PlayerBodyColliderMotionIds& ids) {
   PlayerBodyMotionPrediction prediction;
   prediction.player = player;
@@ -85,7 +85,7 @@ inline std::size_t BodyShadowActionCategory(e_FunctionType action) {
 
 struct BodyShadowCandidate {
   football::ball::ColliderId collider = 0;
-  football::model::PlayerId player = football::model::kInvalidPlayerId;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   PlayerBodyPart part = PlayerBodyPart::UpperBody;
   BodyImpactClassification classification;
   bool swept = false;
@@ -101,7 +101,7 @@ struct BodyPhysicsShadowTick {
   football::ball::BallStepResult unified;
   football::ball::BallState production; // immediately after real Ball Step
   bool production_observed = false;
-  std::optional<football::model::PlayerId> player;
+  std::optional<football::player::PlayerId> player;
   std::optional<PlayerBodyPart> part;
   std::optional<BodyImpactClassification> classification;
   std::optional<football::ball::BallStepResult> posed; // provisional low-pose comparison only

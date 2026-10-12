@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.24)
 # Private impl:     src/*
 #
 # football::ball must never depend on football_sim, football_player,
-# football_referee, football_event, football_observation, football::model or
+# football_referee, football_event, football_observation, football::pitch or
 # football::pitch. It consumes foundation math plus its own BallWorld.
 
 add_library(football_ball STATIC)

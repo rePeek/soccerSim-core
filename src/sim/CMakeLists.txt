@@ -8,7 +8,7 @@ target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
   simulation_config.hpp runtime/phase.hpp runtime/result.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
-  football::foundation football::model football::pitch)
+  football::foundation football::pitch)
 
 
 # Domain directories organize concepts, not public/private dependency units.
@@ -83,7 +83,7 @@ target_sources(football_sim PUBLIC FILE_SET HEADERS
     observation/player_slots.hpp)
 target_link_libraries(football_sim
   PUBLIC football::sim_contracts
-  PRIVATE football::animation football::model football::ball football::pitch_ball BqLog)
+  PRIVATE football::animation football::ball football::pitch_ball BqLog)
 football_configure_target(football_sim)
 # Resource lookup belongs to runtime loading, never public value/policy contracts.
 target_compile_definitions(football_sim PRIVATE

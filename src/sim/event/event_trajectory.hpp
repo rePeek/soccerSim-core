@@ -19,8 +19,8 @@ enum class TrajectoryKind { Pass, Shot };
 struct EventTrajectory {
   EventId event = kInvalidEventId;
   TrajectoryKind kind = TrajectoryKind::Pass;
-  model::PlayerId actor = model::kInvalidPlayerId;
-  model::TeamSide team = model::TeamSide::Home;
+  football::player::PlayerId actor = football::player::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
   std::uint64_t generation = 0;
   std::uint64_t first_step = 0;
   std::uint64_t last_step = 0;

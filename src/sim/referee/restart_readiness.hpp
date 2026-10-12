@@ -5,7 +5,8 @@
 #include <vector>
 
 #include "foundation/math/vector3.hpp"
-#include "model/football_types.hpp"
+#include "sim/player/player_role.hpp"
+#include "sim/referee/game_mode.hpp"
 #include "football/pitch/pitch.hpp"
 
 class Player;

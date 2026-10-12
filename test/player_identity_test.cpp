@@ -17,20 +17,19 @@
 #include "sim/testing/simulation_access.hpp"
 using football::sim::testing::SimulationAccess;
 
-namespace model = football::model;
-static_assert(std::is_same_v<model::PlayerId, std::uint32_t>);
-static_assert(std::is_same_v<decltype(WorldPlayerState::side), model::TeamSide>);
-static_assert(std::is_same_v<decltype(football::ai::TacticalBoard::side), model::TeamSide>);
+static_assert(std::is_same_v<football::player::PlayerId, std::uint32_t>);
+static_assert(std::is_same_v<decltype(WorldPlayerState::side), football::sim::TeamSide>);
+static_assert(std::is_same_v<decltype(football::ai::TacticalBoard::side), football::sim::TeamSide>);
 
 template<class T> concept HasRuntimeIndex =
     requires { &T::GetIndex; } || requires { &T::index; };
-static_assert(!HasRuntimeIndex<model::Player>);
+static_assert(!HasRuntimeIndex<football::player::PlayerDefinition>);
 static_assert(!HasRuntimeIndex<WorldPlayerState>);
 static_assert(!HasRuntimeIndex<Player>);
 template<class T> concept HasSchedulingDetail =
     requires(T& value) { value.schedule_phase_; } ||
     requires { &T::GetSchedulePhase; };
-static_assert(!HasSchedulingDetail<model::Player>);
+static_assert(!HasSchedulingDetail<football::player::PlayerDefinition>);
 static_assert(!HasSchedulingDetail<WorldPlayerState>);
 static_assert(!HasSchedulingDetail<Player>);
 
@@ -85,15 +84,15 @@ void CheckSamePhysics(Simulation& a, Simulation& b) {
   }
 }
 
-void CheckIdentity(Simulation& simulation, const model::Team& home,
-                   const model::Team& away) {
+void CheckIdentity(Simulation& simulation, const football::sim::TeamSetup& home,
+                   const football::sim::TeamSetup& away) {
   const WorldState world = simulation.Observe();
   std::size_t cursor = 0;
   for (int side = 0; side < 2; ++side) {
     std::vector<Player*> players;
     SimulationAccess::TeamOf(simulation, side)->GetAllPlayers(players);
-    const model::Team& description = side == 0 ? home : away;
-    const auto team_side = side == 0 ? model::TeamSide::Home : model::TeamSide::Away;
+    const football::sim::TeamSetup& description = side == 0 ? home : away;
+    const auto team_side = side == 0 ? football::sim::TeamSide::Home : football::sim::TeamSide::Away;
     for (std::size_t i = 0; i < players.size(); ++i) {
       Player* player = players[i];
       Require(player->GetID() == description.players.at(i).id &&
@@ -112,10 +111,10 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   const auto default_away = football::app::fixtures::MakeDefaultAwayTeam();
   auto home = default_home, away = default_away;
   for (std::size_t i = 0; i < home.players.size(); ++i) {
-    home.players[i].id = 4000000033u - static_cast<model::PlayerId>(i) * 17u;
-    away.players[i].id = 2000000003u + static_cast<model::PlayerId>(i) * 19u;
+    home.players[i].id = 4000000033u - static_cast<football::player::PlayerId>(i) * 17u;
+    away.players[i].id = 2000000003u + static_cast<football::player::PlayerId>(i) * 19u;
   }
-  home.players[0].id = model::kInvalidPlayerId - 1;
+  home.players[0].id = football::player::kInvalidPlayerId - 1;
   away.players[0].id = 0;  // Zero is a valid identity, not a scheduler phase.
   MatchOptions options;
   options.reverse_team_processing = reverse;
@@ -213,8 +212,8 @@ void CheckRosterComposition() {
   home.formation.resize(130);
   away.formation.resize(130);
   for (std::size_t i = 0; i < 130; ++i) {
-    home.players[i].id = 1000u + static_cast<model::PlayerId>(i);
-    away.players[i].id = 2000u + static_cast<model::PlayerId>(i);
+    home.players[i].id = 1000u + static_cast<football::player::PlayerId>(i);
+    away.players[i].id = 2000u + static_cast<football::player::PlayerId>(i);
   }
   for (bool reverse : {false, true}) {
     MatchOptions options;
@@ -235,7 +234,7 @@ void CheckValidationAndDefaults() {
   Require(home.players[0].id == 0 && away.players[0].id == 11 &&
               home.players[0].database_id == away.players[0].database_id,
           "default identity is conflated with database provenance");
-  Require(football::app::fixtures::LoadLegacyPlayerProfile(398, true).id == model::kInvalidPlayerId,
+  Require(football::app::fixtures::LoadLegacyPlayerProfile(398, true).id == football::player::kInvalidPlayerId,
           "profile loader invented a player identity from provenance");
   Simulation reference;
   reference.Init(home, away, football::pitch::Pitch{}, MatchOptions{});
@@ -243,7 +242,7 @@ void CheckValidationAndDefaults() {
   auto& rng = SimulationAccess::RngOf(reference);
   reference.Stop();
   const auto rng_before = rng.engine();
-  const auto reject = [&](const model::Team& h, const model::Team& a) {
+  const auto reject = [&](const football::sim::TeamSetup& h, const football::sim::TeamSetup& a) {
     bool rejected = false;
     try {
       reference.Init(h, a, football::pitch::Pitch{}, MatchOptions{});
@@ -254,7 +253,7 @@ void CheckValidationAndDefaults() {
             "invalid identity/formation input was accepted or consumed RNG");
   };
   auto invalid = home;
-  invalid.players[0].id = model::kInvalidPlayerId;
+  invalid.players[0].id = football::player::kInvalidPlayerId;
   reject(invalid, away);
   invalid = home;
   invalid.players[1].id = invalid.players[0].id;
@@ -262,7 +261,7 @@ void CheckValidationAndDefaults() {
   reject(home, home);  // Duplicate across opponents, despite distinct sides.
   invalid = home;
   invalid.players[0].id = away.players[0].id;
-  reject(invalid, model::Team{});  // An empty roster is no longer a default.
+  reject(invalid, football::sim::TeamSetup{});  // An empty roster is no longer a default.
   invalid = home;
   invalid.players.resize(3);  // Empty formation still requires 11 profiles.
   reject(invalid, away);

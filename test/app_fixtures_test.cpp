@@ -10,19 +10,18 @@
 
 #include "app/fixtures/default_teams.hpp"
 #include "app/fixtures/legacy_player_profile.hpp"
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 
 namespace {
 
 namespace fixtures = football::app::fixtures;
-namespace model = football::model;
 
 // The shared legacy roster behind both default teams, in roster order.
-constexpr model::PlayerDatabaseId kLegacyRoster[] = {
+constexpr football::player::PlayerDatabaseId kLegacyRoster[] = {
     398, 11, 254, 320, 103, 188, 74, 332, 290, 391, 264};
 
 struct ExpectedProfile {
-  model::PlayerDatabaseId database_id;
+  football::player::PlayerDatabaseId database_id;
   const char* left_name;
   const char* right_name;
   int age;
@@ -55,7 +54,7 @@ constexpr ExpectedProfile kExpectedProfiles[] = {
      1.69f},
 };
 
-std::string FullName(const model::Player& player) {
+std::string FullName(const football::player::PlayerDefinition& player) {
   return player.first_name + " " + player.last_name;
 }
 
@@ -65,9 +64,9 @@ TEST_CASE("legacy profile import fills the whole static description",
           "[app][fixtures]") {
   STATIC_REQUIRE(std::size(kExpectedProfiles) == std::size(kLegacyRoster));
   for (const ExpectedProfile& expected : kExpectedProfiles) {
-    const model::Player left =
+    const football::player::PlayerDefinition left =
         fixtures::LoadLegacyPlayerProfile(expected.database_id, true);
-    const model::Player right =
+    const football::player::PlayerDefinition right =
         fixtures::LoadLegacyPlayerProfile(expected.database_id, false);
     INFO("database id " << expected.database_id);
 
@@ -87,8 +86,8 @@ TEST_CASE("legacy profile import fills the whole static description",
     CHECK(left.appearance.hair_color == expected.hair_color);
 
     // Import provenance must never invent an identity.
-    CHECK(left.id == model::kInvalidPlayerId);
-    CHECK(right.id == model::kInvalidPlayerId);
+    CHECK(left.id == football::player::kInvalidPlayerId);
+    CHECK(right.id == football::player::kInvalidPlayerId);
 
     // Side changes the name only, not the imported qualities.
     CHECK(left.attributes == right.attributes);
@@ -103,7 +102,7 @@ TEST_CASE("legacy profile import fills the whole static description",
 TEST_CASE("imported abilities are clamped and leave the neutral default",
           "[app][fixtures]") {
   for (const ExpectedProfile& expected : kExpectedProfiles) {
-    const model::Player player =
+    const football::player::PlayerDefinition player =
         fixtures::LoadLegacyPlayerProfile(expected.database_id, true);
     INFO("database id " << expected.database_id);
     bool all_neutral = true;
@@ -119,7 +118,7 @@ TEST_CASE("imported abilities are clamped and leave the neutral default",
 TEST_CASE("imported abilities keep the legacy six-decimal round trip",
           "[app][fixtures]") {
   for (const ExpectedProfile& expected : kExpectedProfiles) {
-    const model::Player player =
+    const football::player::PlayerDefinition player =
         fixtures::LoadLegacyPlayerProfile(expected.database_id, true);
     INFO("database id " << expected.database_id);
     for (float ability : player.attributes.values()) {
@@ -155,8 +154,8 @@ TEST_CASE("typed fixtures retain every pre-XML-removal ability bit",
 
 TEST_CASE("an unknown database id stays a neutral, unnamed player",
           "[app][fixtures]") {
-  const model::Player player = fixtures::LoadLegacyPlayerProfile(999999, true);
-  CHECK(player.id == model::kInvalidPlayerId);
+  const football::player::PlayerDefinition player = fixtures::LoadLegacyPlayerProfile(999999, true);
+  CHECK(player.id == football::player::kInvalidPlayerId);
   CHECK(player.database_id == 999999);
   CHECK(player.first_name.empty());
   CHECK(player.last_name.empty());
@@ -172,8 +171,8 @@ TEST_CASE("an unknown database id stays a neutral, unnamed player",
 
 TEST_CASE("default teams name and size the two sample rosters",
           "[app][fixtures]") {
-  const model::Team home = fixtures::MakeDefaultHomeTeam();
-  const model::Team away = fixtures::MakeDefaultAwayTeam();
+  const football::sim::TeamSetup home = fixtures::MakeDefaultHomeTeam();
+  const football::sim::TeamSetup away = fixtures::MakeDefaultAwayTeam();
 
   CHECK(home.name == "Frequentists United");
   CHECK(away.name == "Real Bayesians");
@@ -190,19 +189,19 @@ TEST_CASE("default teams name and size the two sample rosters",
 }
 
 TEST_CASE("default teams assign disjoint identities", "[app][fixtures]") {
-  const model::Team home = fixtures::MakeDefaultHomeTeam();
-  const model::Team away = fixtures::MakeDefaultAwayTeam();
+  const football::sim::TeamSetup home = fixtures::MakeDefaultHomeTeam();
+  const football::sim::TeamSetup away = fixtures::MakeDefaultAwayTeam();
 
   for (std::size_t i = 0; i < std::size(kLegacyRoster); ++i) {
-    CHECK(home.players[i].id == static_cast<model::PlayerId>(i));
+    CHECK(home.players[i].id == static_cast<football::player::PlayerId>(i));
     CHECK(away.players[i].id ==
-          static_cast<model::PlayerId>(std::size(kLegacyRoster) + i));
+          static_cast<football::player::PlayerId>(std::size(kLegacyRoster) + i));
   }
-  for (const model::Player& player : home.players) {
-    CHECK(player.id != model::kInvalidPlayerId);
+  for (const football::player::PlayerDefinition& player : home.players) {
+    CHECK(player.id != football::player::kInvalidPlayerId);
   }
-  for (const model::Player& player : away.players) {
-    CHECK(player.id != model::kInvalidPlayerId);
+  for (const football::player::PlayerDefinition& player : away.players) {
+    CHECK(player.id != football::player::kInvalidPlayerId);
   }
 }
 
@@ -228,8 +227,8 @@ TEST_CASE("default teams carry the legacy tactical shape", "[app][fixtures]") {
       {0.6f, 0.75f, e_PlayerRole_LM},   {1.0f, 0.0f, e_PlayerRole_CF},
       {0.6f, -0.75f, e_PlayerRole_RM}};
 
-  const model::Team home = fixtures::MakeDefaultHomeTeam();
-  const model::Team away = fixtures::MakeDefaultAwayTeam();
+  const football::sim::TeamSetup home = fixtures::MakeDefaultHomeTeam();
+  const football::sim::TeamSetup away = fixtures::MakeDefaultAwayTeam();
   REQUIRE(home.tactical_formation.size() == std::size(expected));
   REQUIRE(away.tactical_formation.size() == home.tactical_formation.size());
   for (std::size_t i = 0; i < std::size(expected); ++i) {
@@ -245,7 +244,7 @@ TEST_CASE("default teams carry the legacy tactical shape", "[app][fixtures]") {
 
 TEST_CASE("default teams carry the legacy tactical preferences",
           "[app][fixtures]") {
-  const model::Team home = fixtures::MakeDefaultHomeTeam();
+  const football::sim::TeamSetup home = fixtures::MakeDefaultHomeTeam();
   REQUIRE(home.tactics.size() == 12);
   CHECK(home.tactics.at("dribble_centermagnet") == 0.72f);
   CHECK(home.tactics.at("dribble_offensiveness") == 0.5f);
@@ -263,13 +262,13 @@ TEST_CASE("default teams carry the legacy tactical preferences",
 }
 
 TEST_CASE("default teams are independent values", "[app][fixtures]") {
-  model::Team home = fixtures::MakeDefaultHomeTeam();
-  const model::Team original = home;
+  football::sim::TeamSetup home = fixtures::MakeDefaultHomeTeam();
+  const football::sim::TeamSetup original = home;
   home.players.front().attributes.fill(0.25f);
   home.players.front().id = 12345u;
   home.tactics["dribble_centermagnet"] = 0.0f;
 
-  const model::Team fresh = fixtures::MakeDefaultHomeTeam();
+  const football::sim::TeamSetup fresh = fixtures::MakeDefaultHomeTeam();
   CHECK(fresh.players.front().attributes ==
         original.players.front().attributes);
   CHECK(fresh.players.front().id == original.players.front().id);
@@ -277,10 +276,10 @@ TEST_CASE("default teams are independent values", "[app][fixtures]") {
 }
 
 TEST_CASE("the two default sides share no identity", "[app][fixtures]") {
-  const model::Team home = fixtures::MakeDefaultHomeTeam();
-  const model::Team away = fixtures::MakeDefaultAwayTeam();
-  for (const model::Player& left : home.players) {
-    for (const model::Player& right : away.players) {
+  const football::sim::TeamSetup home = fixtures::MakeDefaultHomeTeam();
+  const football::sim::TeamSetup away = fixtures::MakeDefaultAwayTeam();
+  for (const football::player::PlayerDefinition& left : home.players) {
+    for (const football::player::PlayerDefinition& right : away.players) {
       CHECK(left.id != right.id);
     }
   }

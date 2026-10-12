@@ -25,7 +25,6 @@ static_assert(!HasRuntimeAccess<GameEnv>);
 
 namespace {
 namespace fixtures = football::app::fixtures;
-namespace model = football::model;
 void Require(bool condition, const char* message) {
   if (!condition) throw std::runtime_error(message);
 }
@@ -92,13 +91,13 @@ void CoreAPI() {
 }
 void Composition() {
   auto home = fixtures::MakeDefaultHomeTeam(); const auto away = fixtures::MakeDefaultAwayTeam();
-  home.players[0].id = model::kInvalidPlayerId - 1;
+  home.players[0].id = football::player::kInvalidPlayerId - 1;
   home.players[1].height = 1.93f;
-  home.players[1].attributes.set(model::PlayerStat::physical_velocity, 0.8123456f);
+  home.players[1].attributes.set(football::player::PlayerStat::physical_velocity, 0.8123456f);
   const auto declared = home;
   MatchOptions options; options.game_engine_random_seed = 123; options.reverse_team_processing = true;
   football::ai::AIConfig config;
-  config.initial_tactics[0] = football::ai::MakeTacticalBoard(home, model::TeamSide::Home, football::pitch::Pitch{});
+  config.initial_tactics[0] = football::ai::MakeTacticalBoard(home, football::sim::TeamSide::Home, football::pitch::Pitch{});
   config.initial_tactics[0]->width = 0.9f;
   const auto initial_config = config;
   GameEnv game{home, away, football::pitch::Pitch{}, football::ball::BallModel{}, options, config};

@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "sim/player/player_control_set.hpp"
-#include "model/team.hpp"
+#include "sim/runtime/match_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "sim/simulation_config.hpp"
@@ -57,8 +57,8 @@ class Simulation {
   Simulation();
   ~Simulation();
 
-  void Init(const football::model::Team& home,
-            const football::model::Team& away,
+  void Init(const football::sim::TeamSetup& home,
+            const football::sim::TeamSetup& away,
             const football::pitch::Pitch& pitch, MatchOptions options,
             const football::ball::BallModel& ball_config = football::ball::BallModel{});
   bool Stop();
@@ -107,7 +107,7 @@ class Simulation {
 
   // Synchronous accepted-touch dispatch: bookkeeping, recognition and the
   // referee consume happen at the exact legacy boundary and in legacy order.
-  Player* FindPlayerById(football::model::PlayerId id) const;
+  Player* FindPlayerById(football::player::PlayerId id) const;
   void DispatchTouch(const football::sim::event::AcceptedTouch& touch);
   void ApplyPendingRulings();
   // Exhaustive ruling execution: every defined verdict has an explicit handler,
@@ -268,7 +268,7 @@ class Simulation {
   // opaque ColliderId; P4d will consume this mapping when it translates a
   // physical body impact into the existing touch/rules identity.
   std::map<football::ball::ColliderId,
-           std::pair<football::model::PlayerId, PlayerBodyPart>>
+           std::pair<football::player::PlayerId, PlayerBodyPart>>
       body_collider_owners_;
 
   // P4b transient CCD input/evidence. It is deliberately outside BallState,

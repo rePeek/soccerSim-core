@@ -99,7 +99,7 @@ static_assert(!std::is_constructible_v<Humanoid, Player*>);
 static_assert(!std::is_constructible_v<Humanoid, Player*, const AnimationLibrary&>);
 static_assert(!std::is_constructible_v<HumanoidBase, Player*>);
 static_assert(!std::is_constructible_v<HumanoidBase, Player*, const AnimationLibrary&>);
-static_assert(!std::is_constructible_v<Player, Team*, const football::model::Player&, std::uint8_t>);
+static_assert(!std::is_constructible_v<Player, Team*, const football::player::PlayerDefinition&, std::uint8_t>);
 
 TEST_CASE("Humanoid baked clips come from its injected library, not the runtime owner",
           "[sim][animation][dependency]") {

@@ -102,14 +102,9 @@ src/
 ├── foundation/       general math and geometry; STL/self only
 │   ├── math/         vectors, matrices, quaternion, scalar and RNG
 │   └── geometry/     line and triangle
-├── model/            STL-only static football descriptions
-│   ├── player.hpp    PlayerId, legacy PlayerDatabaseId, abilities and appearance
-│   ├── team.hpp      rosters, typed tactics, TeamSide (Home/Away, not club identity)
-│   ├── formation.hpp initial formation + normalized TacticalFormation declarations
-│   └── football_types.hpp roles/game modes/player count
 ├── ball/            standalone football::ball: BallModel (self-owned physics),
 │                    BallState, BallWorld, collider/CCD, contact evidence and point-
-│                    impulse response; depends only on foundation, never model/sim
+│                    impulse response; depends only on foundation, never sim
 ├── pitch/          football::pitch: Pitch description (foundation-only) plus the
 │                    header-only football::pitch_ball BuildBallWorld assembly
 ├── animation/      header-only baked schema/library/selector (football::animation);
@@ -129,15 +124,16 @@ src/
 │   │                 shadow-only Snapshot touch inference
 │   ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
 │   │                 rules and restarts
-│   ├── runtime/      MatchClock, MatchPhase and MatchResult value/time types
+│   ├── runtime/      MatchClock/MatchPhase/MatchResult, match_config.hpp (TeamSetup
+│   │                 + TeamSide) and the initial/tactical formation declarations
 │   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
-│   └── player/       Player, tick-local inputs, controls, locomotion, possession,
-│       │             contacts, roster_query (span of borrowed players),
-│       │             reachability and perception
+│   └── player/       Player + PlayerDefinition, player_role, tick-local inputs,
+│       │             controls, locomotion, possession, contacts, roster_query
+│       │             (span of borrowed players), reachability and perception
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
 ├── ai/               value-only decisions; never links sim runtime
 │   ├── ai_config.hpp startup values; no live channel
-│   ├── tactical_board.* persistent desired/planned values + model-only bootstrap
+│   ├── tactical_board.* persistent desired/planned values + definition-only bootstrap
 │   └── default_ai.*  WorldState + persistent tactical boards → PlayerControlSet
 ├── app/              executable-side code, never in core
 │   ├── app.cpp / args.* parse → GameEnv → complete match → write Result
@@ -209,21 +205,21 @@ symbols (including the currently unused GetRoleFromString).
 
 ```text
 app → game (env.cpp) → ai + sim
-ai → ai_contracts + sim_contracts → model/foundation/pitch
-sim → sim_contracts + animation + pitch_ball → model/foundation/ball (PRIVATE BqLog)
-app_support (args/fixtures) → model/foundation
+ai → ai_contracts + sim_contracts → foundation/pitch
+sim → sim_contracts + animation + pitch_ball → foundation/ball (PRIVATE BqLog)
+app_support (args/fixtures) → foundation
 anim_baking → legacy_anim + animation/foundation
 ```
 
-- `football_sim_contracts` links foundation/model/pitch (Pitch is now a pitch-
-  owned value) and explicitly exports PlayerControl/PlayerControlSet,
-  or a contract domain. It explicitly exports PlayerControl/PlayerControlSet,
-  WorldState, MatchOptions/MatchPhase/MatchResult and the two time headers.
+- `football_sim_contracts` is a header-only build/export target, not a directory
+  or a contract domain. It links foundation/pitch and explicitly exports
+  PlayerControl/PlayerControlSet, WorldState, MatchOptions/MatchPhase/MatchResult
+  and the two time headers.
   Public values live with their domain; directory placement never exports actors.
   The former gamedefines umbrella is split among player, ball, team, match and
   observation. No compatibility headers or common/types layer remains.
 - `football_ai_contracts` owns AIConfig and TacticalBoard declarations; it depends
-  on model/foundation/pitch, not concrete policy. `football_ai` owns policy implementations.
+  on foundation/pitch, not concrete policy. `football_ai` owns policy implementations.
 - Game's PUBLIC usage requirements are model + sim_contracts + ai_contracts.
   Concrete sim/AI are PRIVATE. `env.hpp` never includes default_ai.hpp.
 - GameEnv::Start creates/reconfigures the single process logger `football` before
@@ -254,8 +250,9 @@ anim_baking → legacy_anim + animation/foundation
   architecture validator or separate dependency allow-list.
 - All targets use `src` as an include root; keep includes consistent with module boundaries.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
-  model/foundation must not depend on upper layers. sim must never depend on AI.
-- model and foundation retain standalone CMake support.
+  foundation must not depend on upper layers. sim must never depend on AI.
+- foundation, ball, animation and pitch retain standalone CMake support; the
+  former src/model module is gone and its data lives with its domain.
 - `GFOOTBALL_BAKED_ANIM_PATH` belongs only to football_sim PRIVATE compile definitions.
   The shared target helper owns include roots/C++23/PIC/output, not resource lookup.
   No public contract, foundation/model, AI, app or baker inherits the runtime path.
@@ -279,7 +276,7 @@ anim_baking → legacy_anim + animation/foundation
 - `football_period_test` builds referee/period.cpp with value contracts/Catch2 only,
   proving PeriodElapsed has no Referee/Match/runtime dependency. It checks inclusive
   period boundaries, cumulative second-half limits, ceremony gates and maximum spans.
-- `football_goal_test` builds referee/goal.cpp with only model/foundation/Catch2, proving
+- `football_goal_test` builds referee/goal.cpp with only foundation/pitch/Catch2, proving
   goal geometry has no Match/Ball/runtime dependency. Lifecycle tests retain score,
   half/order attribution and period-whistle coverage through real Simulation steps.
 - `football_match_clock_test` builds runtime/clock.cpp with value contracts/Catch2
@@ -694,12 +691,13 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
 
 ## Identity, ownership and numerical invariants
 
-- PlayerId is caller-provided uint32 identity in model/player.hpp. PlayerDatabaseId
+- PlayerId is caller-provided uint32 identity in player/player_definition.hpp.
+  PlayerDatabaseId
   is import provenance only. No ID remapping/allocator, PlayerIndex, generic IDs
   module, TeamId or ambient actor numbering. Roster positions are local indices.
-- Player holds a reference to the model::Player owned by Team; Team copies the
-  model::Team and derives runtime FormationEntries. Simulation owns score/possession.
-  Sample factories live in app/fixtures, never model or core.
+- Player holds a reference to the player::PlayerDefinition owned by Team; Team copies
+  the sim::TeamSetup and derives runtime FormationEntries. Simulation owns score/possession.
+  Sample factories live in app/fixtures, never core.
 - Reject invalid/duplicate IDs, empty rosters, formation/profile mismatch and invalid
   time rules before consuming RNG. Init seeds to 0, draws one Uniform(1,4) per
   declared profile (even explicit appearance and omitted formation profiles), then
@@ -768,7 +766,8 @@ keep regression output exact.
 
 ## Conventions
 
-C++23, extensions off, PIC on. Namespaces: football::model, football::ai,
+C++23, extensions off, PIC on. Namespaces: football::player/sim/pitch/ball/animation,
+football::ai,
 football::app, blunted. Legacy sim/value classes remain global. Never duplicate
 an authoritative field as a cache without need. Preserve Mirror/reverse processing
 symmetry. Model must not include simulation or orchestration headers.

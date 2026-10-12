@@ -5,7 +5,7 @@
 
 #include "foundation/math/vector3.hpp"
 #include "foundation/time/tick.hpp"
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 #include "football/pitch/pitch.hpp"
 #include "animation/types.hpp"
 
@@ -38,7 +38,7 @@ struct Snapshot {
 // Match-wide slot order: never compact inactive players or reuse a slot for a
 // different identity. The producer establishes this table when starting a match.
 struct SnapshotMetadata {
-  std::vector<football::model::PlayerId> player_ids;
+  std::vector<football::player::PlayerId> player_ids;
   football::pitch::Pitch pitch;
   // FNV-1a-64 over the exact loaded .simanim bytes (not a cryptographic hash).
   std::uint64_t animation_library_hash = 0;

@@ -8,7 +8,7 @@ target_sources(football_app_support
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
     FILES args.hpp fixtures/legacy_player_profile.hpp fixtures/default_teams.hpp)
 target_link_libraries(football_app_support
-  PUBLIC football::model PRIVATE football::foundation)
+  PUBLIC football::foundation)
 football_configure_target(football_app_support)
 
 # Disk I/O and the private writer thread remain executable-side, never libgame.

@@ -7,7 +7,7 @@
 #include <cmath>
 #include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_response.hpp"
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 #include "sim/event/touch_type.hpp"
@@ -21,7 +21,7 @@ enum class ActiveTouchOrigin { Scheduled, Controlled, RetainAcquire, RetainAncho
 enum class ActiveTouchStage { Pending, Rejected, Executed, NoImpulse, Constraint };
 enum class ActiveTouchReject { None, Authorization, Distance, Height, Unsupported };
 struct ActiveTouchCandidate {
-  football::model::PlayerId player = football::model::kInvalidPlayerId;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   PlayerBodyPart body_part = PlayerBodyPart::LowerBody;
   e_FunctionType action = e_FunctionType_None;
   blunted::Vector3 target_velocity = blunted::Vector3(0);

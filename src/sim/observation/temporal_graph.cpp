@@ -17,9 +17,9 @@ TemporalGraph GraphBuilder::Build(std::span<const SnapshotRecord> window,
                                   const SnapshotMetadata& metadata, GraphBuildOptions options) {
   if (!std::isfinite(options.spatial_radius) || options.spatial_radius <= 0)
     throw std::invalid_argument("graph spatial radius must be finite and positive");
-  std::set<model::PlayerId> ids;
+  std::set<football::player::PlayerId> ids;
   for (auto id : metadata.player_ids) {
-    if (id == model::kInvalidPlayerId || !ids.insert(id).second)
+    if (id == football::player::kInvalidPlayerId || !ids.insert(id).second)
       throw std::invalid_argument("graph requires unique valid player slots");
   }
   TemporalGraph graph;

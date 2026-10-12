@@ -126,7 +126,7 @@ TEST_CASE("real action observation preserves snapshots touches rules RNG and end
 }
 
 TEST_CASE("active impulse arbitration is unique, deterministic and passive-aware", "[active-shadow]") {
-  auto candidate = [](football::model::PlayerId player, PlayerBodyPart part, float speed,
+  auto candidate = [](football::player::PlayerId player, PlayerBodyPart part, float speed,
                       bool passive_same_part = false) {
     ActiveImpulseCandidate c;
     c.player = player;

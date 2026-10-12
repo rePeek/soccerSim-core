@@ -22,7 +22,7 @@
 #include <memory>
 #include <optional>
 #include <span>
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_kinematics.hpp"
@@ -153,15 +153,15 @@ class Player final {
   friend class HumanoidBase;
 
   public:
-    Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
+    Player(Team *team, const football::player::PlayerDefinition& model, std::uint8_t schedule_phase,
            const AnimationLibrary& animations, const football::pitch::Pitch& pitch, blunted::Rng& rng);
     ~Player();
     // Explicit teardown reset before deletion; no hidden clock/RNG destructor path.
     void Exit(football::sim::Tick now);
     void Mirror();
 
-    football::model::PlayerId GetID() const { return model_.id; }
-    const football::model::Player& GetModel() const { return model_; }
+    football::player::PlayerId GetID() const { return model_.id; }
+    const football::player::PlayerDefinition& GetModel() const { return model_; }
 
     inline bool IsActive() { return isActive; }
 
@@ -349,7 +349,7 @@ class Player final {
     void CommitTick(const football::sim::PlayerTickContext& tick, float distance);
 
 
-    float GetStat(football::model::PlayerStat name) const;
+    float GetStat(football::player::PlayerStat name) const;
     float GetVelocityMultiplier() const;
     float GetMaxVelocity() const;
 
@@ -420,7 +420,7 @@ class Player final {
     blunted::Rng& rng_;
 
     // Team owns an immutable description for the entire actor lifetime.
-    const football::model::Player& model_;
+    const football::player::PlayerDefinition& model_;
     // Non-unique 0..9 offset for staggered 100 ms work, never identity or order.
     const std::uint8_t schedule_phase_;
 

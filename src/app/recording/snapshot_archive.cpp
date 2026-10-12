@@ -137,9 +137,9 @@ Block ReadBlock(std::istream& stream, std::uint64_t offset, std::uint64_t file_s
 
 void ValidateMetadata(const SnapshotMetadata& metadata) {
   if (metadata.player_ids.size() > kMaxPlayers) throw std::invalid_argument("too many snapshot player slots");
-  std::set<model::PlayerId> ids;
+  std::set<football::player::PlayerId> ids;
   for (auto id : metadata.player_ids) {
-    if (id == model::kInvalidPlayerId || !ids.insert(id).second)
+    if (id == football::player::kInvalidPlayerId || !ids.insert(id).second)
       throw std::invalid_argument("invalid or duplicate snapshot PlayerId");
   }
 }
@@ -174,7 +174,7 @@ SnapshotMetadata DecodeMetadata(const Bytes& bytes) {
   const auto count = cursor.Get(4);
   if (count > kMaxPlayers || bytes.size() != 68 + count * 4) Bad("invalid player slot table size");
   metadata.player_ids.resize(static_cast<std::size_t>(count));
-  for (auto& id : metadata.player_ids) id = static_cast<model::PlayerId>(cursor.Get(4));
+  for (auto& id : metadata.player_ids) id = static_cast<football::player::PlayerId>(cursor.Get(4));
   cursor.End();
   ValidateMetadata(metadata);
   return metadata;

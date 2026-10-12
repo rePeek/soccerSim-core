@@ -26,8 +26,8 @@ namespace rules = football::sim::rules;
 TEST_CASE("event log stores only confirmed match history", "[sim][event][log]") {
   event::EventLog log;
   REQUIRE(log.empty());
-  log.Record(event::GoalScoredEvent{Tick{10}, football::model::TeamSide::Home, 5u, false});
-  log.Record(event::CardShownEvent{Tick{12}, football::model::TeamSide::Away, 6u, true});
+  log.Record(event::GoalScoredEvent{Tick{10}, football::sim::TeamSide::Home, 5u, false});
+  log.Record(event::CardShownEvent{Tick{12}, football::sim::TeamSide::Away, 6u, true});
   REQUIRE(log.size() == 2);
   REQUIRE(std::holds_alternative<event::GoalScoredEvent>(log.events().front()));
   REQUIRE(std::holds_alternative<event::CardShownEvent>(log.events().back()));

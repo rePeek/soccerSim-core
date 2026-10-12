@@ -8,7 +8,7 @@
 #include "ai/ai_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
-#include "model/team.hpp"
+#include "sim/runtime/match_config.hpp"
 #include "sim/simulation_config.hpp"
 #include "sim/runtime/result.hpp"
 #include "sim/observation/world_state.hpp"
@@ -22,7 +22,7 @@ namespace football::ai { class DefaultAI; }
 // No live control/tactics/request channel on the headless orchestration boundary.
 class GameEnv {
  public:
-  GameEnv(football::model::Team home, football::model::Team away,
+  GameEnv(football::sim::TeamSetup home, football::sim::TeamSetup away,
           football::pitch::Pitch pitch, football::ball::BallModel ball_config,
           MatchOptions match_options,
           football::ai::AIConfig ai_config);
@@ -55,8 +55,8 @@ class GameEnv {
   void Stop();
 
  private:
-  const football::model::Team home_team_;
-  const football::model::Team away_team_;
+  const football::sim::TeamSetup home_team_;
+  const football::sim::TeamSetup away_team_;
   const football::pitch::Pitch pitch_;
   const football::ball::BallModel ball_config_;
   const MatchOptions match_options_;

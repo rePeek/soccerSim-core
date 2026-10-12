@@ -8,8 +8,8 @@
 namespace football::ai {
 namespace {
 using blunted::Vector3;
-using model::PlayerId;
-using model::TeamSide;
+using football::player::PlayerId;
+using football::sim::TeamSide;
 
 const WorldPlayerState *Find(const WorldState &world, PlayerId id) {
   for (const auto &player : world.players) if (player.id == id) return &player;

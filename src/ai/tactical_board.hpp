@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "model/player.hpp"
-#include "model/team.hpp"
+#include "sim/player/player_definition.hpp"
+#include "sim/runtime/match_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "foundation/math/vector3.hpp"
 
@@ -21,18 +21,18 @@ enum class PlannedPlayerRole {
 };
 
 struct PlayerDirective {
-  football::model::PlayerId player = football::model::kInvalidPlayerId;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   PlannedPlayerRole role = PlannedPlayerRole::Unspecified;
   // Base anchor in the same home pitch frame/metres as WorldState. Player AI
   // adapts a local copy; it never writes a tick's target back into this intent.
   std::optional<blunted::Vector3> formation_position;
-  std::optional<football::model::PlayerId> marking_target;
+  std::optional<football::player::PlayerId> marking_target;
 };
 
 // Persistent AI-owned configuration. External coaches/UI may edit these values.
 // Actual restarts belong to sim/WorldState; policy owns no transient channel.
 struct TacticalBoard {
-  football::model::TeamSide side = football::model::TeamSide::Home;
+  football::sim::TeamSide side = football::sim::TeamSide::Home;
   // Desired dimensions as fractions of pitch width/length, not metres.
   float width = 0.75f;
   float depth = 0.55f;
@@ -40,7 +40,7 @@ struct TacticalBoard {
 };
 
 // Bootstrap desired shape from static declarations, without observing sim.
-TacticalBoard MakeTacticalBoard(const model::Team &team, model::TeamSide side,
+TacticalBoard MakeTacticalBoard(const football::sim::TeamSetup &team, football::sim::TeamSide side,
                                const football::pitch::Pitch &pitch);
 
 }  // namespace football::ai

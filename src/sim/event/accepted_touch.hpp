@@ -3,8 +3,8 @@
 
 #include "foundation/math/vector3.hpp"
 #include "foundation/time/tick.hpp"
-#include "model/player.hpp"
-#include "model/team.hpp"
+#include "sim/player/player_definition.hpp"
+#include "sim/runtime/match_config.hpp"
 #include "sim/event/touch_type.hpp"
 
 namespace football::sim::event {
@@ -16,8 +16,8 @@ namespace football::sim::event {
 // architecture.
 struct AcceptedTouch {
   football::sim::Tick touched_at{};
-  football::model::PlayerId player = football::model::kInvalidPlayerId;
-  football::model::TeamSide team = football::model::TeamSide::Home;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
   e_TouchType type = e_TouchType_None;
   blunted::Vector3 ball_position;
   blunted::Vector3 ball_velocity;

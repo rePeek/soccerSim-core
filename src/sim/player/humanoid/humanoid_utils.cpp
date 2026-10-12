@@ -187,7 +187,7 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
     if (lastTouchPlayer) {
       float lastTouchBiasPenalty =
           std::pow(lastTouchPlayer->GetLastTouchBias(
-                       1000 - player->GetStat(football::model::PlayerStat::physical_reaction) * 500, now),
+                       1000 - player->GetStat(football::player::PlayerStat::physical_reaction) * 500, now),
                    0.6f) *
           5.0f;
       distanceFactor += lastTouchBiasPenalty;
@@ -198,7 +198,7 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
   ballMovementFactor = clamp(ballMovementFactor, 0.0f, 0.9f);
 
   float skillPenaltyMultiplier =
-      (1.0f - player->GetStat(football::model::PlayerStat::technical_ballcontrol) * 0.5f) *
+      (1.0f - player->GetStat(football::player::PlayerStat::technical_ballcontrol) * 0.5f) *
       rng.Uniform(0.5f, 1.0f);
   distanceFactor *= skillPenaltyMultiplier;
   heightFactor *= skillPenaltyMultiplier;
@@ -258,7 +258,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, Team& opponent, c
 
   Vector3 FFOsrc = GetFrontOfFootOffsetRel(physicsVelocity, nextBodyAngle - spatialState.angle, ball->state().position.coords[2]);
   float annoyanceVeloFactor = curve(NormalizedClamp(clip.metadata.outgoing_velocity, idleVelocity, sprintVelocity), 0.7f); // do not apply effect to low velo's; makes it too chaotic
-  float opponentAnnoyanceFactor = (1.0f - NormalizedClamp(player->GetClosestOpponentDistance(opponent), 0.5f, 1.5f)) * (1.0f - (player->GetStat(football::model::PlayerStat::mental_calmness) * 0.5f + player->GetStat(football::model::PlayerStat::physical_balance) * 0.3f)) * annoyanceVeloFactor;
+  float opponentAnnoyanceFactor = (1.0f - NormalizedClamp(player->GetClosestOpponentDistance(opponent), 0.5f, 1.5f)) * (1.0f - (player->GetStat(football::player::PlayerStat::mental_calmness) * 0.5f + player->GetStat(football::player::PlayerStat::physical_balance) * 0.3f)) * annoyanceVeloFactor;
   Vector3 FFO = Vector3(0, -1, 0).GetRotated2D(nextBodyAngle) * (FFOsrc.GetLength() + ffoOffset + opponentAnnoyanceFactor * 3.0f); // positionOffset is already in ffoOffset (though only for trap atm)
   float heightFFOOffset = NormalizedClamp(ball->state().position.coords[2], 0.5f, 1.0f) * 0.5f; // bounce high balls off body - else they keep colliding inside body and stuff like that
   FFO += FFOsrc * heightFFOOffset * 0.5f +
@@ -298,7 +298,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, Team& opponent, c
   timeToGo += physicsDelayTime * physicsBias + desiredDelayTime * (1.0f - physicsBias);
   timeToGo += defaultTouchOffset_ms * 0.001f;//0.08f; // time into next anim where we want to hit the ball
 
-  float divisor = timeToGo * (0.38f + 0.02f * player->GetStat(football::model::PlayerStat::technical_dribble)); // higher == closer
+  float divisor = timeToGo * (0.38f + 0.02f * player->GetStat(football::player::PlayerStat::technical_dribble)); // higher == closer
   divisor *= 1.1f;
 
   // to get the ball to the planned position in timeToGo seconds, we need to do some std::pow() magic, since the ball also slows down faster at higher ball velos
@@ -312,8 +312,8 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, Team& opponent, c
   float height = clamp(0.1f + 1.5f * std::pow(power / 10.0f, 1.6f), 0.0f,
                        1.5f);  // power ~= 0 to 10
 
-  //if (player->GetDebug()) printf("tech ballctrl: %f\n", player->GetStat(football::model::PlayerStat::technical_ballcontrol));
-  float powerMultiplier = 1.2f - (player->GetStat(football::model::PlayerStat::technical_ballcontrol) * 0.03f); // 1.24 .. * 0.1
+  //if (player->GetDebug()) printf("tech ballctrl: %f\n", player->GetStat(football::player::PlayerStat::technical_ballcontrol));
+  float powerMultiplier = 1.2f - (player->GetStat(football::player::PlayerStat::technical_ballcontrol) * 0.03f); // 1.24 .. * 0.1
   float veloBias = NormalizedClamp(velocity, walkVelocity, sprintVelocity - 0.8f); // this multiplier only applies to high velocities
   powerMultiplier = 1.0f * (1.0f - veloBias) + powerMultiplier * veloBias;
 
@@ -416,7 +416,7 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   float animMaxPowerFactor = clip.metadata.touch_max_power_factor;
   if (animMaxPowerFactor == 0.0f) animMaxPowerFactor = 1.0f;
 
-  float power = clamp(powerFactor * adaptedDesiredPower, 0.0f, (32.0f + player->GetStat(football::model::PlayerStat::physical_shotpower) * 13.0f) * (0.2f + animMaxPowerFactor * 0.8f));
+  float power = clamp(powerFactor * adaptedDesiredPower, 0.0f, (32.0f + player->GetStat(football::player::PlayerStat::physical_shotpower) * 13.0f) * (0.2f + animMaxPowerFactor * 0.8f));
 
   // add this after previous stat-clamp, because using the current ball movement is like an added (power) bonus that everybody profits from, even sucky players
   float playerMovBallMovPowerFactor = (touchMovement - ball->state().velocity).GetLength();
@@ -436,7 +436,7 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   float positionOffsetEasinessFactor = 1.0f - NormalizedClamp(positionOffset.GetLength(), 0.0f, 0.1f);
 
   float playerMovBallMovEasinessFactor = (touchMovement - ball->state().velocity).GetLength();
-  playerMovBallMovEasinessFactor = 1.0f - playerMovBallMovPowerFactor * (0.5f - player->GetStat(football::model::PlayerStat::technical_volley) * 0.3f);
+  playerMovBallMovEasinessFactor = 1.0f - playerMovBallMovPowerFactor * (0.5f - player->GetStat(football::player::PlayerStat::technical_volley) * 0.3f);
 
   float powerEasinessFactor = 1.0f - NormalizedClamp(power, 30.0f, 100.0f);
   powerEasinessFactor = curve(powerEasinessFactor, 1.0f);
@@ -480,7 +480,7 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
 
   float worstCaseFactor = rng.Uniform(0.0f, 1.0f);
   worstCaseFactor =
-      std::pow(worstCaseFactor, player->GetStat(football::model::PlayerStat::technical_shot) * 0.7f);
+      std::pow(worstCaseFactor, player->GetStat(football::player::PlayerStat::technical_shot) * 0.7f);
 
   Vector3 shot = desiredShot * (1.0f - worstCaseFactor) +
                  worstCaseShot * worstCaseFactor;

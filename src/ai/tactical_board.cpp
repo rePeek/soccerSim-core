@@ -39,7 +39,7 @@ struct ShapeEntry {
 // The default policy seeds its own desired shape. These initial conventions
 // match the legacy preset, but do not read sim's rule-owned runtime formation.
 // Deliberately keep the summation/clamping order for existing policy goldens.
-std::vector<ShapeEntry> InitialShape(const model::Team &team) {
+std::vector<ShapeEntry> InitialShape(const football::sim::TeamSetup &team) {
   const std::size_t count = !team.formation.empty() ? team.formation.size()
       : !team.tactical_formation.empty() ? team.tactical_formation.size()
       : team.players.size();
@@ -88,12 +88,12 @@ std::vector<ShapeEntry> InitialShape(const model::Team &team) {
 }
 }  // namespace
 
-TacticalBoard MakeTacticalBoard(const model::Team &team, model::TeamSide side,
+TacticalBoard MakeTacticalBoard(const football::sim::TeamSetup &team, football::sim::TeamSide side,
                                const football::pitch::Pitch &pitch) {
   TacticalBoard board;
   board.side = side;
   const auto shape = InitialShape(team);
-  const int defend = side == model::TeamSide::Home ? -1 : 1;
+  const int defend = side == football::sim::TeamSide::Home ? -1 : 1;
   // Team descriptions are validated by Simulation at startup. AI can be
   // constructed before that, and never invents identities for missing profiles.
   for (std::size_t i = 0; i < std::min(shape.size(), team.players.size()); ++i) {

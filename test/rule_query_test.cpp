@@ -55,14 +55,14 @@ TEST_CASE("player slot table maps identities to stable team sides",
           "[sim][observation][query]") {
   football::sim::observation::PlayerSlotTable slots;
   slots.player_ids = {10u, 11u, 20u};
-  slots.team_sides = {football::model::TeamSide::Home,
-                      football::model::TeamSide::Home,
-                      football::model::TeamSide::Away};
+  slots.team_sides = {football::sim::TeamSide::Home,
+                      football::sim::TeamSide::Home,
+                      football::sim::TeamSide::Away};
 
   REQUIRE(slots.Size() == 3u);
   REQUIRE(slots.SlotOf(11u) == 1u);
-  REQUIRE(slots.SideOf(10u) == football::model::TeamSide::Home);
-  REQUIRE(slots.SideOf(20u) == football::model::TeamSide::Away);
+  REQUIRE(slots.SideOf(10u) == football::sim::TeamSide::Home);
+  REQUIRE(slots.SideOf(20u) == football::sim::TeamSide::Away);
   REQUIRE_FALSE(slots.SlotOf(99u).has_value());
   REQUIRE_FALSE(slots.SideOf(99u).has_value());
 }

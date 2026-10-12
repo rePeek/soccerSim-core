@@ -6,9 +6,10 @@
 
 #include "foundation/math/vector3.hpp"
 #include "foundation/time/tick.hpp"
-#include "model/football_types.hpp"
-#include "model/player.hpp"
-#include "model/team.hpp"
+#include "sim/player/player_role.hpp"
+#include "sim/referee/game_mode.hpp"
+#include "sim/player/player_definition.hpp"
+#include "sim/runtime/match_config.hpp"
 
 namespace football::sim::event {
 
@@ -19,18 +20,18 @@ namespace football::sim::event {
 struct StopPlayRuling {};
 
 struct AwardGoalRuling {
-  model::TeamSide team = model::TeamSide::Home;
-  std::optional<model::PlayerId> scorer;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
+  std::optional<football::player::PlayerId> scorer;
 };
 
 struct AwardRestartRuling {
   e_GameMode kind = e_GameMode_Normal;
-  model::TeamSide team = model::TeamSide::Home;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
   blunted::Vector3 position;
 };
 
 struct CardRuling {
-  model::PlayerId player = model::kInvalidPlayerId;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   int type = 0;  // 2 = yellow, 3 = red
   Tick effective_at{};
 };

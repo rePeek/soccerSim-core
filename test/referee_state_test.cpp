@@ -544,7 +544,7 @@ TEST_CASE("event touch identities survive send-offs and reset without team bookk
   REQUIRE(football::sim::event::LastTouchPlayer(touches, *SimulationAccess::TeamOf(simulation, 1)) == away_actor);
   simulation.ResetSituation(Vector3(0));
   REQUIRE(touches.last_team == -1);
-  for (auto id : touches.last_player_by_team) REQUIRE(id == football::model::kInvalidPlayerId);
+  for (auto id : touches.last_player_by_team) REQUIRE(id == football::player::kInvalidPlayerId);
   REQUIRE(football::sim::event::LastTouchPlayer(touches, *SimulationAccess::TeamOf(simulation, 0)) == nullptr);
   REQUIRE(football::sim::event::TeamTouchBias(touches, *SimulationAccess::TeamOf(simulation, 1), 503, Tick{23}) == 0.f);
 }
@@ -567,11 +567,11 @@ TEST_CASE("reviewed opposing CCD deflection preserves offside until the attacker
   football::sim::rules::RefereeView view{facts, players, true};
   football::test::RuleCommandProbe commands;
   football::sim::event::AcceptedTouch deflection{football::sim::Tick{10}, defender->GetID(),
-      football::model::TeamSide::Away, e_TouchType_Accidental, {}, {}, 0, true};
+      football::sim::TeamSide::Away, e_TouchType_Accidental, {}, {}, 0, true};
   referee.ConsumeBallTouch(football::sim::Tick{10}, deflection, view, commands);
   REQUIRE(referee.offsidePlayers == std::vector<Player*>{attacker});
   REQUIRE(commands.calls.empty());
-  deflection.player = attacker->GetID(); deflection.team = football::model::TeamSide::Home;
+  deflection.player = attacker->GetID(); deflection.team = football::sim::TeamSide::Home;
   referee.ConsumeBallTouch(football::sim::Tick{11}, deflection, view, commands);
   REQUIRE(referee.buffer.active);
   REQUIRE(referee.buffer.desiredSetPiece == e_GameMode_FreeKick);
@@ -598,14 +598,14 @@ TEST_CASE("deliberate defender play clears the offside candidate, deflection pre
   // A reviewed passive deflection (preserve=true) keeps the flagged attacker.
   referee.offsidePlayers = {attacker};
   football::sim::event::AcceptedTouch deflection{football::sim::Tick{10}, defender->GetID(),
-      football::model::TeamSide::Away, e_TouchType_Accidental, {}, {}, 0, true};
+      football::sim::TeamSide::Away, e_TouchType_Accidental, {}, {}, 0, true};
   referee.ConsumeBallTouch(football::sim::Tick{10}, deflection, view, commands);
   REQUIRE(referee.offsidePlayers == std::vector<Player*>{attacker});
 
   // A deliberate defender touch (preserve=false, intentional) becomes the new
   // offside reference and clears the old candidate.
   football::sim::event::AcceptedTouch deliberate{football::sim::Tick{11}, defender->GetID(),
-      football::model::TeamSide::Away, e_TouchType_Intentional_Kicked, {}, {}, 0, false};
+      football::sim::TeamSide::Away, e_TouchType_Intentional_Kicked, {}, {}, 0, false};
   referee.ConsumeBallTouch(football::sim::Tick{11}, deliberate, view, commands);
   REQUIRE(std::find(referee.offsidePlayers.begin(), referee.offsidePlayers.end(), attacker) ==
           referee.offsidePlayers.end());

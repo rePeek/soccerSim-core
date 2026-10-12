@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_MODEL_PLAYER_HPP
-#define FOOTBALL_MODEL_PLAYER_HPP
+#ifndef FOOTBALL_SIM_PLAYER_PLAYER_DEFINITION_HPP
+#define FOOTBALL_SIM_PLAYER_PLAYER_DEFINITION_HPP
 
 #include <array>
 #include <cstddef>
@@ -8,7 +8,7 @@
 #include <optional>
 #include <string>
 
-namespace football::model {
+namespace football::player {
 
 // Caller-provided identity, independent of roster order and match indexing.
 using PlayerId = std::uint32_t;
@@ -78,7 +78,7 @@ struct PlayerAppearance {
 
 // Complete static player description. Database identity is provenance only:
 // the runtime consumes these values rather than reloading them from the key.
-struct Player {
+struct PlayerDefinition {
   PlayerId id = kInvalidPlayerId;
   PlayerDatabaseId database_id = 0;
   std::string first_name;
@@ -89,6 +89,6 @@ struct Player {
   PlayerAppearance appearance;
 };
 
-}  // namespace football::model
+}  // namespace football::player
 
-#endif  // FOOTBALL_MODEL_PLAYER_HPP
+#endif  // FOOTBALL_SIM_PLAYER_PLAYER_DEFINITION_HPP

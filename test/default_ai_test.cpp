@@ -12,7 +12,7 @@ using football::ai::PlannedPlayerRole;
 
 namespace {
 using blunted::Vector3;
-using football::model::TeamSide;
+using football::sim::TeamSide;
 using football::ai::DefaultAI;
 
 WorldPlayerState Actor(unsigned id, TeamSide side, Vector3 position) {
@@ -252,8 +252,7 @@ TEST_CASE("AI instances copies and side boards own independent tactical values",
 }
 
 TEST_CASE("AI bootstraps independent tactical boards directly from static models", "[ai]") {
-  namespace model = football::model;
-  model::Team home, away;
+  football::sim::TeamSetup home, away;
   home.players.resize(3);
   home.players[0].id = 4000000000u;
   home.players[1].id = 17;
@@ -289,12 +288,11 @@ TEST_CASE("AI bootstraps independent tactical boards directly from static models
   home.tactical_formation[1].position = {1.f, 0.f};
   REQUIRE(board.players[1].player == 17);
   REQUIRE(board.players[1].formation_position == anchor);
-  REQUIRE(DefaultAI(model::Team{}, model::Team{}).tactics(TeamSide::Home).players.empty());
+  REQUIRE(DefaultAI(football::sim::TeamSetup{}, football::sim::TeamSetup{}).tactics(TeamSide::Home).players.empty());
 }
 
 TEST_CASE("AI bootstrap respects formation precedence and never invents roster profiles", "[ai]") {
-  namespace model = football::model;
-  model::Team team;
+  football::sim::TeamSetup team;
   team.players.resize(3);
   for (unsigned i = 0; i < 3; ++i) team.players[i].id = i + 1;
   team.tactical_formation = {{{1.f, 0.f}, e_PlayerRole_CF},
@@ -318,8 +316,7 @@ TEST_CASE("AI bootstrap respects formation precedence and never invents roster p
 }
 
 TEST_CASE("AI initial desired shape deterministically spaces coincident outfield anchors", "[ai]") {
-  namespace model = football::model;
-  model::Team team;
+  football::sim::TeamSetup team;
   team.players.resize(2);
   team.players[0].id = 1;
   team.players[1].id = 2;

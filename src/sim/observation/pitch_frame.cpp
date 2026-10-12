@@ -4,7 +4,7 @@
 #include "sim/team/team.hpp"
 
 PitchFrameTransform ToHomePitchFrame(const Team& team) {
-  const int home_pitch_side = team.GetTeamSide() == football::model::TeamSide::Home
+  const int home_pitch_side = team.GetTeamSide() == football::sim::TeamSide::Home
       ? -1 : 1;
   return PitchFrameTransform(team.GetDynamicSide() != home_pitch_side);
 }

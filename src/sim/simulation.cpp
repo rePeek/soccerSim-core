@@ -35,7 +35,7 @@ namespace {
 // Resolve only unspecified runtime appearance, never import or invent profiles.
 // Preserve the historical home-then-away draw for every declared profile, even
 // profiles omitted by a smaller formation and profiles with explicit appearance.
-void ResolveAppearance(football::model::Team& team, blunted::Rng& rng) {
+void ResolveAppearance(football::sim::TeamSetup& team, blunted::Rng& rng) {
   for (auto& player : team.players) {
     const int skin_color = int(std::round(rng.Uniform(1, 4)));
     if (!player.appearance.skin_color) player.appearance.skin_color = skin_color;
@@ -62,11 +62,11 @@ bool LeftTeamOwnsBall(const std::vector<FormationEntry>& left,
 
 // Validate the effective descriptions before profile draws, reseeding or
 // actor construction. Caller identities are never generated or renumbered.
-void ValidatePlayers(const football::model::Team& home, const football::model::Team& away) {
+void ValidatePlayers(const football::sim::TeamSetup& home, const football::sim::TeamSetup& away) {
   if (home.players.empty() || away.players.empty()) {
     throw std::invalid_argument("match requires explicit player rosters");
   }
-  const auto player_count = [](const football::model::Team& team) -> std::size_t {
+  const auto player_count = [](const football::sim::TeamSetup& team) -> std::size_t {
     return !team.formation.empty() ? team.formation.size()
         : !team.tactical_formation.empty() ? team.tactical_formation.size()
         : team.players.size();
@@ -76,10 +76,10 @@ void ValidatePlayers(const football::model::Team& home, const football::model::T
   if (home_count > home.players.size() || away_count > away.players.size()) {
     throw std::invalid_argument("formation has no corresponding player profile");
   }
-  std::set<football::model::PlayerId> identities;
-  for (const football::model::Team* team : {&home, &away}) {
-    for (const football::model::Player& player : team->players) {
-      if (player.id == football::model::kInvalidPlayerId) {
+  std::set<football::player::PlayerId> identities;
+  for (const football::sim::TeamSetup* team : {&home, &away}) {
+    for (const football::player::PlayerDefinition& player : team->players) {
+      if (player.id == football::player::kInvalidPlayerId) {
         throw std::invalid_argument("match player requires an explicit PlayerId");
       }
       if (!identities.insert(player.id).second) {
@@ -157,7 +157,7 @@ class Simulation::TouchEvents final : public football::sim::AcceptedTouchSink {
   Simulation& simulation_;
 };
 
-Player* Simulation::FindPlayerById(football::model::PlayerId id) const {
+Player* Simulation::FindPlayerById(football::player::PlayerId id) const {
   for (const auto& team : teams_) {
     if (!team) continue;
     for (Player* player : team->GetAllPlayers()) {
@@ -241,7 +241,7 @@ void Simulation::CompleteBodyCollisionShadow() {
     if (prediction.turned) body_shadow_report_.turning_errors.Record(error);
   }
 
-  std::optional<football::model::PlayerId> shadow_player;
+  std::optional<football::player::PlayerId> shadow_player;
   if (body_shadow_contact_) {
     const auto owner = body_collider_owners_.find(body_shadow_contact_->collider);
     if (owner != body_collider_owners_.end()) shadow_player = owner->second.first;
@@ -401,7 +401,7 @@ Simulation::~Simulation() {
 }
 
 void Simulation::Init(
-    const football::model::Team& home, const football::model::Team& away,
+    const football::sim::TeamSetup& home, const football::sim::TeamSetup& away,
     const football::pitch::Pitch& pitch, MatchOptions options,
     const football::ball::BallModel& ball_config) {
   if (ball_) throw std::logic_error("simulation already initialized");
@@ -413,7 +413,7 @@ void Simulation::Init(
   if (options.snapshot_capacity == 0)
     throw std::invalid_argument("snapshot capacity must be positive");
   ValidatePlayers(home, away);
-  football::model::Team home_model = home, away_model = away;
+  football::sim::TeamSetup home_model = home, away_model = away;
   // Appearance is not competition physics: isolate its seed-0 stream so a
   // second Init never depends on the previous match's residual RNG state.
   blunted::Rng appearance_rng;
@@ -476,7 +476,7 @@ void Simulation::Init(
   // Build the whole composition locally, then publish it only on full success.
   ball_world_ = football::pitch::BuildBallWorld(pitch_, ball_config_);
   auto ball = std::make_unique<Ball>(ball_config_, ball_world_);
-  const football::model::Team* descriptions[] = {&home_model, &away_model};
+  const football::sim::TeamSetup* descriptions[] = {&home_model, &away_model};
   std::array<std::unique_ptr<Team>, 2> teams;
   teams[first_team_] =
       std::make_unique<Team>(first_team_, *descriptions[first_team_],
@@ -515,7 +515,7 @@ void Simulation::Init(
     }
   }
   std::map<football::ball::ColliderId,
-           std::pair<football::model::PlayerId, PlayerBodyPart>>
+           std::pair<football::player::PlayerId, PlayerBodyPart>>
       body_collider_owners;
   for (std::size_t slot = 0; slot < snapshot_players.size(); ++slot) {
     const PlayerBodyColliderMotionIds ids =
@@ -755,7 +755,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
       }
       event_log_.Record(football::sim::event::GoalScoredEvent{
           GetTimelineTick(), last_goal_team_->GetTeamSide(),
-          last_goal_scorer_ ? last_goal_scorer_->GetID() : football::model::kInvalidPlayerId,
+          last_goal_scorer_ ? last_goal_scorer_->GetID() : football::player::kInvalidPlayerId,
           own_goal});
     }
   }

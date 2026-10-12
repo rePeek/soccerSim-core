@@ -30,9 +30,9 @@ TEST_CASE("the CLI composition reports declared identities", "[app][cli]") {
   const auto world = game.Observe();
   for (std::size_t i = 0; i < 11; ++i) {
     REQUIRE(world.players[i].id == i);
-    REQUIRE(world.players[i].side == football::model::TeamSide::Home);
+    REQUIRE(world.players[i].side == football::sim::TeamSide::Home);
     REQUIRE(world.players[11 + i].id == 11 + i);
-    REQUIRE(world.players[11 + i].side == football::model::TeamSide::Away);
+    REQUIRE(world.players[11 + i].side == football::sim::TeamSide::Away);
   }
 }
 TEST_CASE("the CLI runner ends autonomously with a final result", "[app][cli]") {

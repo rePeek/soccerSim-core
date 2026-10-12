@@ -972,7 +972,7 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   SimulationAccess::TeamOf(simulation, 1)->GetActivePlayers(players);
   Player* player = players.at(1);
   player->RelaxFatigue(-0.25f);
-  const auto stat = football::model::PlayerStat::physical_reaction;
+  const auto stat = football::player::PlayerStat::physical_reaction;
   float multiplier = 0.3f + 0.7f * player->GetTeam()->GetAiDifficulty();
   multiplier *= 0.7f + 0.3f * player->GetFatigueFactorInv();
   RequireNear(player->GetStat(stat),
@@ -1297,20 +1297,19 @@ void CheckImportHierarchy() {
 }
 
 void CheckModelComposition() {
-  namespace model = football::model;
   auto home = football::app::fixtures::MakeDefaultHomeTeam();
   auto away = football::app::fixtures::MakeDefaultAwayTeam();
   home.name = "Static Home";
-  home.players.front().attributes.set(model::PlayerStat::physical_velocity,
+  home.players.front().attributes.set(football::player::PlayerStat::physical_velocity,
                                      0.8123456f);
-  const model::PlayerAttributes attributes = home.players.front().attributes;
-  const model::Team declared_home = home;
+  const football::player::PlayerAttributes attributes = home.players.front().attributes;
+  const football::sim::TeamSetup declared_home = home;
   Simulation simulation;
   simulation.Init(home, away, football::pitch::Pitch{}, MatchOptions{});
   home.name = "Changed after initialization";
   home.players.front().attributes.fill(0.1f);
   for (int repeat = 0; repeat < 2; ++repeat) {
-    const football::model::Team& team = SimulationAccess::TeamOf(simulation, 0)->GetModel();
+    const football::sim::TeamSetup& team = SimulationAccess::TeamOf(simulation, 0)->GetModel();
     Require(team.name == "Static Home" &&
                 team.players.at(0).attributes == attributes &&
                 SimulationAccess::PitchOf(simulation) == football::pitch::Pitch{},

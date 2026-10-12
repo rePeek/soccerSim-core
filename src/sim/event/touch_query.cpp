@@ -5,7 +5,7 @@
 namespace football::sim::event {
 Player* LastTouchPlayer(const TouchState& touches, const Team& team) {
   const auto id = touches.last_player_by_team[team.GetID()];
-  if (id == football::model::kInvalidPlayerId) return nullptr;
+  if (id == football::player::kInvalidPlayerId) return nullptr;
   for (Player* player : team.GetAllPlayers())
     if (player->GetID() == id) return player;
   return nullptr;

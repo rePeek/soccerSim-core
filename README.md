@@ -13,7 +13,7 @@ Declare both teams, pitch, match rules and startup AI configuration explicitly:
 
 GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
              football::app::fixtures::MakeDefaultAwayTeam(),
-             football::model::Pitch{}, football::model::BallConfig{},
+             football::pitch::Pitch{}, football::ball::BallModel{},
              MatchOptions{}, football::ai::AIConfig{}};
 game.Start();
 while (!game.Finished()) game.Step();
@@ -278,8 +278,8 @@ football_app → football::game → ai + sim → model/foundation
 Root CMake exposes model, sim contracts and AI startup contracts as PUBLIC usage
 requirements; concrete sim/AI implementations stay PRIVATE. The header-only
 `football_sim_contracts` build target exports selected domain value headers, not
-entire directories. sim/animation is an independent archive also consumed by the
-offline baker. AI links only value contracts, never sim actors.
+entire directories. football::animation is a header-only module also consumed by
+the offline baker. AI links only value contracts, never sim actors.
 
 ```sh
 nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j 4 && ctest --preset release --output-on-failure'

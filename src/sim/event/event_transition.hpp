@@ -14,32 +14,32 @@ namespace football::sim::event {
 
 struct PassStarted {
   EventId id = kInvalidEventId;
-  model::PlayerId passer = model::kInvalidPlayerId;
-  model::TeamSide team = model::TeamSide::Home;
+  football::player::PlayerId passer = football::player::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
   Tick tick{};
 };
 
 struct PassEnded {
   EventId id = kInvalidEventId;
   EventStatus status = EventStatus::Active;
-  model::PlayerId passer = model::kInvalidPlayerId;
-  model::TeamSide team = model::TeamSide::Home;
-  model::PlayerId receiver = model::kInvalidPlayerId;
+  football::player::PlayerId passer = football::player::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
+  football::player::PlayerId receiver = football::player::kInvalidPlayerId;
   Tick tick{};
 };
 
 struct ShotStarted {
   EventId id = kInvalidEventId;
-  model::PlayerId shooter = model::kInvalidPlayerId;
-  model::TeamSide team = model::TeamSide::Home;
+  football::player::PlayerId shooter = football::player::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
   Tick tick{};
 };
 
 struct ShotEnded {
   EventId id = kInvalidEventId;
   EventStatus status = EventStatus::Active;
-  model::PlayerId shooter = model::kInvalidPlayerId;
-  model::TeamSide team = model::TeamSide::Home;
+  football::player::PlayerId shooter = football::player::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
   bool goal = false;
   Tick tick{};
 };

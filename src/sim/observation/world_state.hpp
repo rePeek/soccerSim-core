@@ -6,16 +6,16 @@
 #include <optional>
 #include <vector>
 
-#include "model/player.hpp"
-#include "model/team.hpp"
+#include "sim/player/player_definition.hpp"
+#include "sim/runtime/match_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "foundation/math/vector3.hpp"
 #include "sim/runtime/phase.hpp"
 #include "foundation/time/tick.hpp"
 
 struct WorldPlayerState {
-  football::model::PlayerId id = football::model::kInvalidPlayerId;
-  football::model::TeamSide side = football::model::TeamSide::Home;
+  football::player::PlayerId id = football::player::kInvalidPlayerId;
+  football::sim::TeamSide side = football::sim::TeamSide::Home;
   blunted::Vector3 position = blunted::Vector3(0);
   blunted::Vector3 velocity = blunted::Vector3(0);
   blunted::Vector3 facing = blunted::Vector3(1, 0, 0);
@@ -28,7 +28,7 @@ struct WorldPlayerState {
 };
 
 struct WorldTeamState {
-  football::model::TeamSide side = football::model::TeamSide::Home;
+  football::sim::TeamSide side = football::sim::TeamSide::Home;
   int defending_direction = -1;
   int score = 0;
 };
@@ -51,16 +51,16 @@ struct WorldState {
   blunted::Vector3 ball_velocity = blunted::Vector3(0);
   football::pitch::Pitch pitch;
   std::array<WorldTeamState, 2> teams{{
-      {football::model::TeamSide::Home, -1, 0},
-      {football::model::TeamSide::Away, 1, 0}}};
+      {football::sim::TeamSide::Home, -1, 0},
+      {football::sim::TeamSide::Away, 1, 0}}};
   // Execution authorization, including a Ready taker before actual restart contact.
   // Use ball_in_play / ball_in_play_time for effective-time measurements.
   bool in_play = false;
   bool in_set_piece = false;
   e_GameMode restart = e_GameMode_Normal;
-  std::optional<football::model::PlayerId> restart_taker;
+  std::optional<football::player::PlayerId> restart_taker;
   bool restart_pending = false;
-  std::optional<football::model::PlayerId> ball_retainer;
+  std::optional<football::player::PlayerId> ball_retainer;
   // Simulation-owned count of ResetSituation discontinuities; resets with a new match.
   std::uint64_t reset_sequence = 0;
 };

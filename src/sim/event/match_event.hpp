@@ -4,9 +4,10 @@
 #include <variant>
 
 #include "foundation/time/tick.hpp"
-#include "model/football_types.hpp"
-#include "model/player.hpp"
-#include "model/team.hpp"
+#include "sim/player/player_role.hpp"
+#include "sim/referee/game_mode.hpp"
+#include "sim/player/player_definition.hpp"
+#include "sim/runtime/match_config.hpp"
 #include "sim/event/event.hpp"
 #include "sim/runtime/phase.hpp"
 
@@ -17,21 +18,21 @@ namespace football::sim::event {
 // queried by presentation, statistics or training-data consumers.
 struct GoalScoredEvent {
   Tick tick{};
-  model::TeamSide team = model::TeamSide::Home;
-  model::PlayerId scorer = model::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
+  football::player::PlayerId scorer = football::player::kInvalidPlayerId;
   bool own_goal = false;
 };
 
 struct CardShownEvent {
   Tick tick{};
-  model::TeamSide team = model::TeamSide::Home;
-  model::PlayerId player = model::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   bool red = false;
 };
 
 struct RestartAwardedEvent {
   Tick tick{};
-  model::TeamSide team = model::TeamSide::Home;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
   e_GameMode kind = e_GameMode_Normal;
   blunted::Vector3 position;
 };
@@ -39,16 +40,16 @@ struct RestartAwardedEvent {
 struct PassCompletedEvent {
   Tick tick{};
   EventId id = kInvalidEventId;
-  model::TeamSide team = model::TeamSide::Home;
-  model::PlayerId passer = model::kInvalidPlayerId;
-  model::PlayerId receiver = model::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
+  football::player::PlayerId passer = football::player::kInvalidPlayerId;
+  football::player::PlayerId receiver = football::player::kInvalidPlayerId;
 };
 
 struct ShotEndedEvent {
   Tick tick{};
   EventId id = kInvalidEventId;
-  model::TeamSide team = model::TeamSide::Home;
-  model::PlayerId shooter = model::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
+  football::player::PlayerId shooter = football::player::kInvalidPlayerId;
   bool goal = false;
 };
 

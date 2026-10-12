@@ -7,15 +7,15 @@
 namespace football::app::fixtures {
 namespace {
 
-model::Team MakeDefaultTeam(const std::string& name, bool left_team) {
-  model::Team team;
+football::sim::TeamSetup MakeDefaultTeam(const std::string& name, bool left_team) {
+  football::sim::TeamSetup team;
   team.name = name;
-  constexpr model::PlayerDatabaseId player_ids[] = {398, 11, 254, 320, 103, 188,
+  constexpr football::player::PlayerDatabaseId player_ids[] = {398, 11, 254, 320, 103, 188,
                                                     74, 332, 290, 391, 264};
   // Identities belong to the caller's two distinct rosters, not database keys.
-  model::PlayerId player_id = left_team ? 0 : std::size(player_ids);
-  for (model::PlayerDatabaseId database_id : player_ids) {
-    model::Player player = LoadLegacyPlayerProfile(database_id, left_team);
+  football::player::PlayerId player_id = left_team ? 0 : std::size(player_ids);
+  for (football::player::PlayerDatabaseId database_id : player_ids) {
+    football::player::PlayerDefinition player = LoadLegacyPlayerProfile(database_id, left_team);
     player.id = player_id++;
     team.players.push_back(std::move(player));
   }
@@ -44,11 +44,11 @@ model::Team MakeDefaultTeam(const std::string& name, bool left_team) {
 
 }  // namespace
 
-model::Team MakeDefaultHomeTeam() {
+football::sim::TeamSetup MakeDefaultHomeTeam() {
   return MakeDefaultTeam("Frequentists United", true);
 }
 
-model::Team MakeDefaultAwayTeam() {
+football::sim::TeamSetup MakeDefaultAwayTeam() {
   return MakeDefaultTeam("Real Bayesians", false);
 }
 

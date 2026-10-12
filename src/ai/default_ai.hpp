@@ -16,27 +16,27 @@ namespace football::ai {
 // Update replaces frame-local output without mutating tactical intent.
 class DefaultAI {
  public:
-  DefaultAI() { boards_[1].side = model::TeamSide::Away; }
+  DefaultAI() { boards_[1].side = football::sim::TeamSide::Away; }
   explicit DefaultAI(std::array<TacticalBoard, 2> boards)
       : boards_(std::move(boards)) {
-    boards_[0].side = model::TeamSide::Home;
-    boards_[1].side = model::TeamSide::Away;
+    boards_[0].side = football::sim::TeamSide::Home;
+    boards_[1].side = football::sim::TeamSide::Away;
   }
-  DefaultAI(const model::Team &home, const model::Team &away,
+  DefaultAI(const football::sim::TeamSetup &home, const football::sim::TeamSetup &away,
             const football::pitch::Pitch &pitch = football::pitch::Pitch{},
             const AIConfig &config = {})
       : boards_{config.initial_tactics[0]
-                    ? *config.initial_tactics[0] : MakeTacticalBoard(home, model::TeamSide::Home, pitch),
+                    ? *config.initial_tactics[0] : MakeTacticalBoard(home, football::sim::TeamSide::Home, pitch),
                 config.initial_tactics[1]
-                    ? *config.initial_tactics[1] : MakeTacticalBoard(away, model::TeamSide::Away, pitch)} {
-    boards_[0].side = model::TeamSide::Home;
-    boards_[1].side = model::TeamSide::Away;
+                    ? *config.initial_tactics[1] : MakeTacticalBoard(away, football::sim::TeamSide::Away, pitch)} {
+    boards_[0].side = football::sim::TeamSide::Home;
+    boards_[1].side = football::sim::TeamSide::Away;
   }
 
-  TacticalBoard &tactics(model::TeamSide side) {
+  TacticalBoard &tactics(football::sim::TeamSide side) {
     return boards_.at(static_cast<unsigned>(side));
   }
-  const TacticalBoard &tactics(model::TeamSide side) const {
+  const TacticalBoard &tactics(football::sim::TeamSide side) const {
     return boards_.at(static_cast<unsigned>(side));
   }
   void Update(const WorldState &world, PlayerControlSet &output) const;

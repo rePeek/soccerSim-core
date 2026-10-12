@@ -17,7 +17,7 @@
 namespace {
 
 using blunted::Vector3;
-using football::model::PlayerId;
+using football::player::PlayerId;
 using football::sim::Tick;
 using football::sim::observation::InferTouches;
 using football::sim::observation::Snapshot;

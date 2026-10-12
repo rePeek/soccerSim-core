@@ -45,7 +45,7 @@ bool Same(const Vector3 &a, const Vector3 &b) {
   return std::memcmp(a.coords, b.coords, sizeof(a.coords)) == 0;
 }
 
-const WorldPlayerState &Actor(const WorldState &world, football::model::PlayerId id) {
+const WorldPlayerState &Actor(const WorldState &world, football::player::PlayerId id) {
   auto found = std::find_if(world.players.begin(), world.players.end(),
       [id](const auto &entry) { return entry.id == id; });
   REQUIRE(found != world.players.end());

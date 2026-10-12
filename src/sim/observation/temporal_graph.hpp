@@ -13,7 +13,7 @@ namespace football::sim::observation {
 // Slot zero is the ball, then the fixed metadata player order at each frame.
 struct TemporalGraphNode {
   std::size_t frame_index = 0;
-  std::optional<model::PlayerId> player_id; // nullopt = ball
+  std::optional<football::player::PlayerId> player_id; // nullopt = ball
   blunted::Vector3 position{0};
   blunted::Vector3 velocity{0};
   blunted::Vector3 angular_velocity{0}; // ball only

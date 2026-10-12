@@ -28,7 +28,7 @@ struct Name {
   const char* last;
 };
 struct Profile {
-  model::PlayerDatabaseId database_id;
+  football::player::PlayerDatabaseId database_id;
   Name home_name;
   Name away_name;
   float base_stat;
@@ -37,10 +37,10 @@ struct Profile {
   const char* hair_style;
   const char* hair_color;
   float height;
-  // Stable model::PlayerStat ordering, not strings or XML at runtime.
-  std::array<float, model::kPlayerStatCount> stats;
+  // Stable football::player::PlayerStat ordering, not strings or XML at runtime.
+  std::array<float, football::player::kPlayerStatCount> stats;
 };
-static_assert(model::kPlayerStatCount == 22);
+static_assert(football::player::kPlayerStatCount == 22);
 
 constexpr Profile kProfiles[] = {
     {398, {"Ada", "Lovelace"}, {"Lisa", "Meitner"},
@@ -117,9 +117,9 @@ float CalculateLegacyStat(float baseStat, float profileStat, float age) {
 
 }  // namespace
 
-model::Player LoadLegacyPlayerProfile(model::PlayerDatabaseId database_id,
+football::player::PlayerDefinition LoadLegacyPlayerProfile(football::player::PlayerDatabaseId database_id,
                                      bool left_team) {
-  model::Player player;
+  football::player::PlayerDefinition player;
   player.database_id = database_id;
   for (const Profile& profile : kProfiles) {
     if (profile.database_id != database_id) continue;
@@ -132,7 +132,7 @@ model::Player LoadLegacyPlayerProfile(model::PlayerDatabaseId database_id,
     player.appearance.hair_style = profile.hair_style;
     player.appearance.hair_color = profile.hair_color;
     for (std::size_t i = 0; i < profile.stats.size(); ++i) {
-      player.attributes.set(static_cast<model::PlayerStat>(i),
+      player.attributes.set(static_cast<football::player::PlayerStat>(i),
                             CalculateLegacyStat(profile.base_stat,
                                                 profile.stats[i], profile.age));
     }

@@ -895,7 +895,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         if (lastTouchPlayer) {
           reactionDifficulty =
               std::pow(lastTouchPlayer->GetLastTouchBias(
-                           1200 - player->GetStat(football::model::PlayerStat::physical_reaction) * 400, now),
+                           1200 - player->GetStat(football::player::PlayerStat::physical_reaction) * 400, now),
                        0.6f);
         }
         if ((1.0f - veloDifficulty) * (1.0f - reactionDifficulty) < 0.3f) canRetain = false; // too hard!
@@ -2097,7 +2097,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
         // just touched ball
         float lastTouchBias = curve(player->GetLastTouchBias(600, now + football::sim::TickSpan{static_cast<std::uint64_t>(animTouchFrame)}), 1.0f);
         if (lastTouchBias > 0.0f) {
-          float factor = 1.0f - lastTouchBias * 0.97f * (1.0f - player->GetStat(football::model::PlayerStat::technical_ballcontrol) * 0.1f);
+          float factor = 1.0f - lastTouchBias * 0.97f * (1.0f - player->GetStat(football::player::PlayerStat::technical_ballcontrol) * 0.1f);
           radiusFactor *= factor;
           radiusCheatOffset *= factor;
         }
@@ -2309,8 +2309,8 @@ Vector3 Humanoid::GetBestPossibleTouch(football::sim::Tick now, const football::
 
   // apply stats
   if (functionType == e_FunctionType_ShortPass ||
-      functionType == e_FunctionType_LongPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(football::model::PlayerStat::technical_shortpass) * 0.5f);
-  if (functionType == e_FunctionType_HighPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(football::model::PlayerStat::technical_highpass)  * 0.5f);
+      functionType == e_FunctionType_LongPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(football::player::PlayerStat::technical_shortpass) * 0.5f);
+  if (functionType == e_FunctionType_HighPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(football::player::PlayerStat::technical_highpass)  * 0.5f);
 
   float distanceFactor = 0.0f;
   float heightFactor = 0.0f;

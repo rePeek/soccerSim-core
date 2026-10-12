@@ -22,7 +22,7 @@
 #include "football/pitch/pitch.hpp"
 #include <memory>
 #include <span>
-#include "model/team.hpp"
+#include "sim/runtime/match_config.hpp"
 #include "sim/player/player.hpp"
 
 class AnimationLibrary;
@@ -32,7 +32,7 @@ class MentalImage;
 class Team {
 
   public:
-    Team(int id, const football::model::Team& model,
+    Team(int id, const football::sim::TeamSetup& model,
          float aiDifficulty);
     void Mirror();
     // Half-time change of ends: this team attacks the opposite goal from now on.
@@ -55,8 +55,8 @@ class Team {
 
 
 
-    football::model::TeamSide GetTeamSide() const {
-      return static_cast<football::model::TeamSide>(id);
+    football::sim::TeamSide GetTeamSide() const {
+      return static_cast<football::sim::TeamSide>(id);
     }
     // Legacy rule-engine slot (home=0, away=1), not persistent team identity.
     int GetID() const { return id; }
@@ -68,7 +68,7 @@ class Team {
     inline signed int GetStaticSide() const {
       return static_side_;
     }
-    const football::model::Team& GetModel() const { return model_; }
+    const football::sim::TeamSetup& GetModel() const { return model_; }
 
     FormationEntry GetFormationEntry(void* player);
     void SetFormationEntry(Player* player, FormationEntry entry);
@@ -116,7 +116,7 @@ class Team {
   protected:
     const int id;
     Team *opponent = 0;
-    const football::model::Team model_;
+    const football::sim::TeamSetup model_;
     std::vector<FormationEntry> formation_;
     const float aiDifficulty;
 

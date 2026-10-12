@@ -1,13 +1,13 @@
 #ifndef FOOTBALL_APP_FIXTURES_LEGACY_PLAYER_PROFILE_HPP
 #define FOOTBALL_APP_FIXTURES_LEGACY_PLAYER_PROFILE_HPP
 
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 
 namespace football::app::fixtures {
 
 // Typed sample fixture retaining the historical profile values and quantization.
 // Unknown keys retain neutral defaults; provenance never supplies identity.
-model::Player LoadLegacyPlayerProfile(model::PlayerDatabaseId database_id,
+football::player::PlayerDefinition LoadLegacyPlayerProfile(football::player::PlayerDatabaseId database_id,
                                      bool left_team);
 
 }  // namespace football::app::fixtures

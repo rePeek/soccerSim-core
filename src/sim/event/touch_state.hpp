@@ -3,7 +3,7 @@
 
 #include <array>
 #include "sim/event/touch_type.hpp"
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 
 namespace football::sim::event {
 
@@ -11,9 +11,9 @@ namespace football::sim::event {
 struct TouchState {
   int last_team = -1;
   std::array<int, e_TouchType_SIZE> last_team_by_type;
-  std::array<football::model::PlayerId, 2> last_player_by_team;
+  std::array<football::player::PlayerId, 2> last_player_by_team;
   TouchState() { Reset(); }
-  void Record(int team, football::model::PlayerId player, e_TouchType type) {
+  void Record(int team, football::player::PlayerId player, e_TouchType type) {
     last_player_by_team[team] = player;
     last_team_by_type[type] = team;
     last_team = team;
@@ -21,7 +21,7 @@ struct TouchState {
   void Reset() {
     last_team_by_type.fill(-1);
     last_team = -1;
-    last_player_by_team.fill(football::model::kInvalidPlayerId);
+    last_player_by_team.fill(football::player::kInvalidPlayerId);
   }
 };
 

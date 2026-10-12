@@ -13,7 +13,7 @@ namespace football::ball { class Ball; }
 class Team;
 struct RefereeBuffer;
 class ActiveTouchShadowSink;
-namespace football::model { class Pitch; }
+namespace football::pitch { class Pitch; }
 
 namespace football::sim {
 // Stack-local input for a single Player call. Never retained by an actor.

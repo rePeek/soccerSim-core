@@ -8,7 +8,7 @@
 class Player;
 namespace football::ball { class Ball; }
 struct RefereeBuffer;
-namespace football::model { struct Pitch; }
+namespace football::pitch { class Pitch; }
 namespace football::sim::event { struct TouchState; }
 
 // Only the inputs consumed by command authorization/keeper-hands legality.

@@ -6,7 +6,7 @@
 #include <span>
 
 #include "football/ball/ball_impulse.hpp"
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 #include "sim/player/player_action.hpp"
 
@@ -14,7 +14,7 @@
 // the candidate list and the passive-impact facts; this header only selects at
 // most one winner. Ball never sees player/action/rule identity.
 struct ActiveImpulseCandidate {
-  football::model::PlayerId player = football::model::kInvalidPlayerId;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   PlayerBodyPart body_part = PlayerBodyPart::LowerBody;
   e_FunctionType action = e_FunctionType_None;
   football::ball::BallImpulse impulse;

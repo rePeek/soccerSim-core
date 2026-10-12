@@ -80,7 +80,7 @@ inline std::uint64_t RestartFingerprint(std::uint64_t hash, Simulation &simulati
   const auto vector = [&](const blunted::Vector3 &v) { bytes(v.coords, sizeof(v.coords)); };
   vector(SimulationAccess::BallOf(simulation)->state().position);
   for (int side = 0; side < 2; ++side) {
-    const auto taker = takers[side] ? takers[side]->GetID() : model::kInvalidPlayerId;
+    const auto taker = takers[side] ? takers[side]->GetID() : football::player::kInvalidPlayerId;
     value(taker);
     for (Player *player : SimulationAccess::TeamOf(simulation, side)->GetAllPlayers()) {
       vector(player->GetPosition()); vector(player->GetMovement());
@@ -93,7 +93,7 @@ inline std::uint64_t RestartFingerprint(std::uint64_t hash, Simulation &simulati
       vector(action.contactPosition);
     }
   }
-  const auto retainer = SimulationAccess::BallRetainerOf(simulation) ? SimulationAccess::BallRetainerOf(simulation)->GetID() : model::kInvalidPlayerId;
+  const auto retainer = SimulationAccess::BallRetainerOf(simulation) ? SimulationAccess::BallRetainerOf(simulation)->GetID() : football::player::kInvalidPlayerId;
   value(retainer);
   std::ostringstream rng;
   rng << SimulationAccess::RngOf(simulation).engine();

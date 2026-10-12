@@ -37,14 +37,14 @@ void EventRecognizer::Reset() {
 }
 
 void EventRecognizer::ResolvePass(EventStatus status,
-                                  std::optional<model::PlayerId> receiver, Tick now,
+                                  std::optional<football::player::PlayerId> receiver, Tick now,
                                   std::optional<std::uint64_t> snapshot_step) {
   if (!pending_pass_) return;
   pending_pass_->status = status;
   pending_pass_->ended_at = now;
   pending_pass_->receiver = receiver;
   transitions_.push_back(PassEnded{pending_pass_->id, status, pending_pass_->passer,
-      pending_pass_->team, receiver.value_or(model::kInvalidPlayerId), now});
+      pending_pass_->team, receiver.value_or(football::player::kInvalidPlayerId), now});
   FinishTrajectory(pass_motion_, snapshot_step);
   pending_pass_.reset();
 }
@@ -122,7 +122,7 @@ void EventRecognizer::Advance(Tick now, const EventView& view) {
   }
 }
 
-void EventRecognizer::OnGoalConfirmed(Tick now, model::TeamSide team,
+void EventRecognizer::OnGoalConfirmed(Tick now, football::sim::TeamSide team,
                                       std::optional<std::uint64_t> snapshot_step) {
   transitions_.clear();
   if (pending_shot_ && pending_shot_->team == team) {

@@ -136,10 +136,10 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       const PlayerActionState &p2Action = p2->GetSimulationActionState();
       bounceBias -= clamp(((p1velocity - p2velocity) / sprintVelocity) * 0.2f, -0.2f, 0.2f);
 
-      if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Interfere) bounceBias += 0.1f + 0.4f * p1->GetStat(football::model::PlayerStat::technical_standingtackle);
-      if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Sliding)   bounceBias += 0.1f + 0.4f * p1->GetStat(football::model::PlayerStat::technical_slidingtackle);
-      if (p2Action.IsContactPending() && p2Action.type == e_FunctionType_Interfere) bounceBias -= 0.1f + 0.4f * p2->GetStat(football::model::PlayerStat::technical_standingtackle);
-      if (p2Action.IsContactPending() && p2Action.type == e_FunctionType_Sliding)   bounceBias -= 0.1f + 0.4f * p2->GetStat(football::model::PlayerStat::technical_slidingtackle);
+      if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Interfere) bounceBias += 0.1f + 0.4f * p1->GetStat(football::player::PlayerStat::technical_standingtackle);
+      if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Sliding)   bounceBias += 0.1f + 0.4f * p1->GetStat(football::player::PlayerStat::technical_slidingtackle);
+      if (p2Action.IsContactPending() && p2Action.type == e_FunctionType_Interfere) bounceBias -= 0.1f + 0.4f * p2->GetStat(football::player::PlayerStat::technical_standingtackle);
+      if (p2Action.IsContactPending() && p2Action.type == e_FunctionType_Sliding)   bounceBias -= 0.1f + 0.4f * p2->GetStat(football::player::PlayerStat::technical_slidingtackle);
 
       // problem is, once possession is lost (usually directly after ball is touched), bias may turn around the other way. (well, maybe that's not a problem. dunno.)
       // if (p1->HasPossession() == true) bounceBias -= 0.3f;
@@ -157,8 +157,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         bounceBias += ballDistanceDiffFactor;
       }
 
-      bounceBias += p1->GetStat(football::model::PlayerStat::physical_balance) * 1.0f;
-      bounceBias -= p2->GetStat(football::model::PlayerStat::physical_balance) * 1.0f;
+      bounceBias += p1->GetStat(football::player::PlayerStat::physical_balance) * 1.0f;
+      bounceBias -= p2->GetStat(football::player::PlayerStat::physical_balance) * 1.0f;
 
       bounceBias = clamp(bounceBias, -1.0f, 1.0f);
       bounceBias *= 0.5f;
@@ -187,7 +187,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         float p1_to_p2_right = (p1pos - p2_rightside).GetLength();
         Vector3 p2side = p1_to_p2_left < p1_to_p2_right ? p2_leftside : p2_rightside;
         // SetYellowDebugPilon(p2side);
-        offset1 += (p2side - p1pos).GetNormalizedMax(0.01f) * p1->GetStat(football::model::PlayerStat::physical_balance) * 0.3f;
+        offset1 += (p2side - p1pos).GetNormalizedMax(0.01f) * p1->GetStat(football::player::PlayerStat::physical_balance) * 0.3f;
       }
 
       else if (inputs.designated_possession_player == p1 && p1->HasPossession()) {
@@ -197,7 +197,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         float p2_to_p1_right = (p2pos - p1_rightside).GetLength();
         Vector3 p1side = p2_to_p1_left < p2_to_p1_right ? p1_leftside : p1_rightside;
         // SetRedDebugPilon(p1side);
-        offset2 += (p1side - p2pos).GetNormalizedMax(0.01f) * p2->GetStat(football::model::PlayerStat::physical_balance) * 0.3f;
+        offset2 += (p1side - p2pos).GetNormalizedMax(0.01f) * p2->GetStat(football::player::PlayerStat::physical_balance) * 0.3f;
       }
 
       // can not bump faster than sprint
@@ -237,8 +237,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         similarBias += ballDistanceDiffFactor;
       }
 
-      similarBias += p1->GetStat(football::model::PlayerStat::physical_balance) * 1.0f;
-      similarBias -= p2->GetStat(football::model::PlayerStat::physical_balance) * 1.0f;
+      similarBias += p1->GetStat(football::player::PlayerStat::physical_balance) * 1.0f;
+      similarBias -= p2->GetStat(football::player::PlayerStat::physical_balance) * 1.0f;
 
       similarBias = clamp(similarBias, -1.0f, 1.0f);
       similarBias *= 0.9f;
@@ -283,8 +283,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       if (p2->HasBestPossession() == true) p2sensitivity += 1.0f;
 
       float balanceWeight = 3.0f;
-      p1sensitivity += (1.0f - p1->GetStat(football::model::PlayerStat::physical_balance) * 1.0f) * balanceWeight;
-      p2sensitivity += (1.0f - p2->GetStat(football::model::PlayerStat::physical_balance) * 1.0f) * balanceWeight;
+      p1sensitivity += (1.0f - p1->GetStat(football::player::PlayerStat::physical_balance) * 1.0f) * balanceWeight;
+      p2sensitivity += (1.0f - p2->GetStat(football::player::PlayerStat::physical_balance) * 1.0f) * balanceWeight;
 
       p1sensitivity += clamp(p1->GetDecayingPositionOffsetLength() * 10.0f, 0.0f, 1.0f);
       p2sensitivity += clamp(p2->GetDecayingPositionOffsetLength() * 10.0f, 0.0f, 1.0f);

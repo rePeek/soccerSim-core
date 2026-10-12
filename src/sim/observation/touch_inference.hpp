@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 #include "animation/library.hpp"
 #include "sim/observation/snapshot.hpp"
 
@@ -12,7 +12,7 @@ namespace football::sim::observation {
 // One touch inferred purely from consecutive snapshots. `confidence` is an
 // ordering/diagnostic heuristic, not a calibrated probability.
 struct TouchCandidate {
-  football::model::PlayerId player = football::model::kInvalidPlayerId;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   float confidence = 0.0f;
 };
 

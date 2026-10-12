@@ -32,7 +32,7 @@ class EventRecognizer {
  public:
   void Consume(const AcceptedTouch& touch, const EventView& view);
   void Advance(Tick now, const EventView& view);
-  void OnGoalConfirmed(Tick now, model::TeamSide team,
+  void OnGoalConfirmed(Tick now, football::sim::TeamSide team,
                        std::optional<std::uint64_t> snapshot_step = std::nullopt);
   void Reset();
 
@@ -47,7 +47,7 @@ class EventRecognizer {
 
  private:
   EventId NextId() { return next_id_++; }
-  void ResolvePass(EventStatus status, std::optional<model::PlayerId> receiver, Tick now,
+  void ResolvePass(EventStatus status, std::optional<football::player::PlayerId> receiver, Tick now,
                    std::optional<std::uint64_t> snapshot_step);
   void ResolveShot(EventStatus status, bool goal, Tick now,
                    std::optional<std::uint64_t> snapshot_step);
@@ -56,8 +56,8 @@ class EventRecognizer {
     EventId id;
     std::uint64_t first_step, last_step, generation;
     TrajectoryKind kind;
-    model::PlayerId actor;
-    model::TeamSide team;
+    football::player::PlayerId actor;
+    football::sim::TeamSide team;
   };
   void FinishTrajectory(std::optional<MotionWindow>& pending,
                         std::optional<std::uint64_t> last_step);

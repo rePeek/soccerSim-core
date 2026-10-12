@@ -291,7 +291,7 @@ bool FloatBitsEqual(float a, float b) {
 
 }  // namespace
 
-Player::Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
+Player::Player(Team *team, const football::player::PlayerDefinition& model, std::uint8_t schedule_phase,
                const AnimationLibrary& animations, const football::pitch::Pitch& pitch, blunted::Rng& rng)
     : animations_(animations), pitch_(pitch), rng_(rng),
       model_(model),
@@ -594,7 +594,7 @@ void Player::Deactivate(const Ball& ball, football::sim::Tick now) {
 }
 
 int Player::GetReactionTime_ms() {
-  int reaction = int(std::round(80.f - GetStat(football::model::PlayerStat::physical_reaction) * 40.f));
+  int reaction = int(std::round(80.f - GetStat(football::player::PlayerStat::physical_reaction) * 40.f));
   reaction += (1.f - team->GetAiDifficulty()) * 100;
   return reaction;
 }
@@ -655,7 +655,7 @@ void Player::CommitTick(const football::sim::PlayerTickContext& tick, float dist
   }
 }
 
-float Player::GetStat(football::model::PlayerStat name) const {
+float Player::GetStat(football::player::PlayerStat name) const {
   float multiplier = 0.3f + 0.7f * team->GetAiDifficulty();
   multiplier *= 0.7f + 0.3f * GetFatigueFactorInv();
   return model_.attributes.get(name) * multiplier;
@@ -668,7 +668,7 @@ float Player::GetMaxVelocity() const {
 
 float Player::GetVelocityMultiplier() const {
   // see humanoid_utils' physics function
-  return 0.9f + model_.attributes.get(football::model::PlayerStat::physical_velocity) * 0.1f;
+  return 0.9f + model_.attributes.get(football::player::PlayerStat::physical_velocity) * 0.1f;
 }
 
 float Player::GetLastTouchBias(int decay_ms, football::sim::Tick time) {
@@ -884,7 +884,7 @@ void Player::SendOff(const Ball& ball, football::sim::Tick now, blunted::Rng& rn
 }
 
 float Player::GetStaminaStat() const {
-  return model_.attributes.get(football::model::PlayerStat::physical_stamina);
+  return model_.attributes.get(football::player::PlayerStat::physical_stamina);
 }
 
 void Player::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {

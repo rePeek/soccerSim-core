@@ -37,7 +37,7 @@ event::AcceptedTouch Touch(Tick tick, int action) {
   event::AcceptedTouch touch;
   touch.touched_at = tick;
   touch.player = 7;
-  touch.team = football::model::TeamSide::Home;
+  touch.team = football::sim::TeamSide::Home;
   touch.action_type = action;
   // Exact contact evidence intentionally differs from whole-step snapshots.
   touch.ball_position = {-100, 20, 0};
@@ -130,7 +130,7 @@ TEST_CASE("graph rejects malformed value windows without live fallbacks", "[snap
   REQUIRE_THROWS_AS(GraphBuilder::Build(records, metadata, {0}), std::invalid_argument);
   REQUIRE_THROWS_AS(GraphBuilder::Build(records, metadata, {std::numeric_limits<float>::infinity()}), std::invalid_argument);
   REQUIRE_THROWS_AS(GraphBuilder::Build(records, SnapshotMetadata{{10, 10}}), std::invalid_argument);
-  REQUIRE_THROWS_AS(GraphBuilder::Build(records, SnapshotMetadata{{football::model::kInvalidPlayerId, 20}}), std::invalid_argument);
+  REQUIRE_THROWS_AS(GraphBuilder::Build(records, SnapshotMetadata{{football::player::kInvalidPlayerId, 20}}), std::invalid_argument);
   REQUIRE_THROWS_AS(GraphBuilder::Build(records, SnapshotMetadata{{10}}), std::invalid_argument);
   records[1].stamp.step_index = 1;
   REQUIRE_THROWS_AS(GraphBuilder::Build(records, metadata), std::invalid_argument);
@@ -172,7 +172,7 @@ TEST_CASE("Event trajectory is published after resolution-step snapshot and cann
   REQUIRE(summary.last_step == 4);
   REQUIRE(summary.actor == 7);
   REQUIRE(summary.kind == event::TrajectoryKind::Pass);
-  REQUIRE(summary.team == football::model::TeamSide::Home);
+  REQUIRE(summary.team == football::sim::TeamSide::Home);
   REQUIRE(summary.sample_count == 4);
   REQUIRE(summary.complete);
   REQUIRE(summary.first_ball_position == blunted::Vector3(2, 0, 0));
@@ -215,7 +215,7 @@ TEST_CASE("shot goals cancellations and diagnostic facts keep independent semant
   history.Record(frame.stamp, frame.snapshot);
   event::EventRecognizer recognizer;
   recognizer.Consume(Touch(Tick{}, e_FunctionType_Shot), {true, false, 1, 0});
-  recognizer.OnGoalConfirmed(Tick{1}, football::model::TeamSide::Home, 1);
+  recognizer.OnGoalConfirmed(Tick{1}, football::sim::TeamSide::Home, 1);
   REQUIRE(std::get<event::ShotEnded>(recognizer.transitions().front()).goal);
   recognizer.PublishTrajectories(history);
   REQUIRE(recognizer.trajectories().size() == 1);
@@ -230,7 +230,7 @@ TEST_CASE("shot goals cancellations and diagnostic facts keep independent semant
   REQUIRE(recognizer.trajectories().size() == 1);
   recognizer.Reset();
   recognizer.Consume(Touch(Tick{}, e_FunctionType_Shot), {true, false}); // outside Step
-  recognizer.OnGoalConfirmed(Tick{1}, football::model::TeamSide::Home);
+  recognizer.OnGoalConfirmed(Tick{1}, football::sim::TeamSide::Home);
   recognizer.PublishTrajectories(history);
   REQUIRE(recognizer.trajectories().empty());
   REQUIRE(std::get<event::ShotEnded>(recognizer.transitions().front()).goal);

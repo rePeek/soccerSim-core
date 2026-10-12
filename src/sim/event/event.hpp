@@ -5,8 +5,8 @@
 #include <optional>
 
 #include "foundation/time/tick.hpp"
-#include "model/player.hpp"
-#include "model/team.hpp"
+#include "sim/player/player_definition.hpp"
+#include "sim/runtime/match_config.hpp"
 
 namespace football::sim::event {
 
@@ -21,18 +21,18 @@ enum class EventStatus { Active, Completed, Failed, Cancelled };
 
 struct PassEvent {
   EventId id = kInvalidEventId;
-  model::PlayerId passer = model::kInvalidPlayerId;
-  model::TeamSide team = model::TeamSide::Home;
+  football::player::PlayerId passer = football::player::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
   Tick started_at{};
   std::optional<Tick> ended_at;
   EventStatus status = EventStatus::Active;
-  std::optional<model::PlayerId> receiver;
+  std::optional<football::player::PlayerId> receiver;
 };
 
 struct ShotEvent {
   EventId id = kInvalidEventId;
-  model::PlayerId shooter = model::kInvalidPlayerId;
-  model::TeamSide team = model::TeamSide::Home;
+  football::player::PlayerId shooter = football::player::kInvalidPlayerId;
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
   Tick started_at{};
   std::optional<Tick> ended_at;
   EventStatus status = EventStatus::Active;

@@ -22,7 +22,7 @@
 
 #include "sim/team/formation.hpp"
 
-Team::Team(int id, const football::model::Team& model,
+Team::Team(int id, const football::sim::TeamSetup& model,
            float aiDifficulty)
     : id(id), model_(model), formation_(BuildFormation(model)),
       aiDifficulty(aiDifficulty), static_side_(id == 0 ? -1 : 1) {

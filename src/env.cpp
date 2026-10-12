@@ -30,7 +30,7 @@ void FlushLogging() {
 
 }  // namespace
 
-GameEnv::GameEnv(football::model::Team home, football::model::Team away,
+GameEnv::GameEnv(football::sim::TeamSetup home, football::sim::TeamSetup away,
                  football::pitch::Pitch pitch, football::ball::BallModel ball_config,
                  MatchOptions match_options,
                  football::ai::AIConfig ai_config)

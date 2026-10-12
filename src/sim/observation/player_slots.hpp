@@ -5,8 +5,8 @@
 #include <optional>
 #include <vector>
 
-#include "model/player.hpp"
-#include "model/team.hpp"
+#include "sim/player/player_definition.hpp"
+#include "sim/runtime/match_config.hpp"
 
 namespace football::sim::observation {
 
@@ -16,19 +16,19 @@ namespace football::sim::observation {
 // player -> TeamSide association the referee needs without holding live Team
 // pointers, and survives send-offs and half-time side changes.
 struct PlayerSlotTable {
-  std::vector<football::model::PlayerId> player_ids;
-  std::vector<football::model::TeamSide> team_sides;
+  std::vector<football::player::PlayerId> player_ids;
+  std::vector<football::sim::TeamSide> team_sides;
 
   std::size_t Size() const { return player_ids.size(); }
 
-  std::optional<std::size_t> SlotOf(football::model::PlayerId id) const {
+  std::optional<std::size_t> SlotOf(football::player::PlayerId id) const {
     for (std::size_t i = 0; i < player_ids.size(); ++i) {
       if (player_ids[i] == id) return i;
     }
     return std::nullopt;
   }
 
-  std::optional<football::model::TeamSide> SideOf(football::model::PlayerId id) const {
+  std::optional<football::sim::TeamSide> SideOf(football::player::PlayerId id) const {
     const auto slot = SlotOf(id);
     if (!slot.has_value()) return std::nullopt;
     return team_sides[*slot];

@@ -21,7 +21,7 @@ Vector3 DefaultRolePosition(e_PlayerRole role) {
 
 }  // namespace
 
-std::vector<FormationEntry> BuildFormation(const football::model::Team& team) {
+std::vector<FormationEntry> BuildFormation(const football::sim::TeamSetup& team) {
   const std::size_t count = !team.formation.empty() ? team.formation.size()
       : !team.tactical_formation.empty() ? team.tactical_formation.size()
       : team.players.size();

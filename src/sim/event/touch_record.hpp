@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "model/player.hpp"
+#include "sim/player/player_definition.hpp"
 #include "sim/event/touch_type.hpp"
 
 namespace football::sim::event {
@@ -14,7 +14,7 @@ namespace football::sim::event {
 struct RecordedTouch {
   std::uint64_t step_index = 0;
   std::uint64_t generation = 0;
-  football::model::PlayerId player = football::model::kInvalidPlayerId;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   e_TouchType type = e_TouchType_None;
   int action_type = 0;
 };

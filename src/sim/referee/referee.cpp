@@ -322,7 +322,7 @@ void Referee::ConsumeBallTouch(Tick now,
 
 
 Player* Referee::FindPlayer(const RefereeTickFacts& facts,
-                           football::model::PlayerId id) const {
+                           football::player::PlayerId id) const {
   for (Player* player : facts.home.GetAllPlayers()) {
     if (player->GetID() == id) return player;
   }

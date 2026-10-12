@@ -8,7 +8,7 @@ namespace football::ball { class Ball; }
 class Player;
 class Team;
 class Referee;
-namespace football::model { class Pitch; }
+namespace football::pitch { class Pitch; }
 
 // Observation-only view assembled by the composition root. It serves exactly one
 // BuildWorldState call, is never retained by actors, and is not a runtime context.

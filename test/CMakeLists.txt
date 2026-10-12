@@ -70,7 +70,7 @@ set_tests_properties(football_sim_computation_test PROPERTIES LABELS "sim;slow")
 # football::pitch is the description-only target and pulls no ball.
 add_executable(football_goal_test goal_test.cpp ../src/sim/referee/goal.cpp)
 target_link_libraries(football_goal_test PRIVATE
-  football::foundation football::model football::pitch Catch2::Catch2WithMain)
+  football::foundation football::pitch Catch2::Catch2WithMain)
 football_configure_target(football_goal_test)
 add_test(NAME football_goal_test COMMAND football_goal_test)
 set_tests_properties(football_goal_test PROPERTIES LABELS sim)
@@ -195,7 +195,7 @@ add_test(NAME football_ball_test COMMAND football_ball_test)
 set_tests_properties(football_ball_test PROPERTIES LABELS "sim;ball")
 
 add_executable(football_model_test model_test.cpp)
-target_link_libraries(football_model_test PRIVATE football::model football::pitch)
+target_link_libraries(football_model_test PRIVATE football::foundation football::pitch)
 football_configure_target(football_model_test)
 add_test(NAME football_model_test COMMAND football_model_test)
 set_tests_properties(football_model_test football_player_identity_test football_sim_contracts_test

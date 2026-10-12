@@ -71,7 +71,7 @@ void SetPhysicalPlayer(Player& player, Vector3 position) {
 }
 
 const WorldPlayerState& Actor(const WorldState& world,
-                             football::model::PlayerId id) {
+                             football::player::PlayerId id) {
   const auto found = std::find_if(world.players.begin(), world.players.end(),
       [id](const auto& player) { return player.id == id; });
   REQUIRE(found != world.players.end());
@@ -283,7 +283,7 @@ TEST_CASE("both processing orders execute native open-play contacts in both halv
       Init(simulation, reverse, TickSpan{5000});
       const auto policy = football::test::MakeDefaultAI(simulation);
       std::vector<Tick> touches(simulation.Observe().players.size());
-      std::vector<std::tuple<MatchPhase, football::model::PlayerId, Tick>> contacts;
+      std::vector<std::tuple<MatchPhase, football::player::PlayerId, Tick>> contacts;
       std::array<unsigned, 2> per_half{};
       unsigned steps = 0;
       while (!simulation.Finished()) {
