@@ -514,6 +514,18 @@ void Simulation::Init(
   teams_[1].reset();
   rosters_[0].Clear();
   rosters_[1].Clear();
+  // The only authoritative team orientation and match state. Both teams start in
+  // the first processing frame (dynamic_side -1); only the persistent direction
+  // differs by slot. Team borrows these for the whole composition.
+  for (int i = 0; i < 2; ++i) {
+    team_frames_[i].dynamic_side = -1;
+    team_frames_[i].static_side = i == 0 ? -1 : 1;
+    team_frames_[i].mirrored = false;
+    team_states_[i] = football::sim::TeamMatchState{};
+    team_states_[i].time_to_ball_ms = 100;
+    team_states_[i].possession_amount = 1.0f;
+    team_states_[i].fading_possession_amount = 1.0f;
+  }
 
   EnsureAnimationLibrary();
   clock_.emplace(options.half_duration);
@@ -546,12 +558,13 @@ void Simulation::Init(
   team_setups_[first_team_] = *descriptions[first_team_];
   team_setups_[second_team_] = *descriptions[second_team_];
   std::array<std::unique_ptr<Team>, 2> teams;
-  teams[first_team_] =
-      std::make_unique<Team>(first_team_, team_setups_[first_team_],
-                             rosters_[first_team_], difficulties[first_team_]);
-  teams[second_team_] =
-      std::make_unique<Team>(second_team_, team_setups_[second_team_],
-                             rosters_[second_team_], difficulties[second_team_]);
+  // Team borrows the roster, the frame and the match state from Simulation.
+  teams[first_team_] = std::make_unique<Team>(first_team_, rosters_[first_team_],
+                                              team_frames_[first_team_],
+                                              team_states_[first_team_]);
+  teams[second_team_] = std::make_unique<Team>(second_team_, rosters_[second_team_],
+                                               team_frames_[second_team_],
+                                               team_states_[second_team_]);
   teams[first_team_]->SetOpponent(teams[second_team_].get());
   teams[second_team_]->SetOpponent(teams[first_team_].get());
   // Preserve the historical scheduling stagger across both rosters, including

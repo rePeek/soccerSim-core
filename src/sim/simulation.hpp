@@ -259,9 +259,11 @@ class Simulation {
   // outlive every roster and Team adapter: declared first, destroyed last.
   std::array<football::sim::TeamSetup, 2> team_setups_;
   std::unique_ptr<football::ball::Ball> ball_;
-  // Player ownership. Declared before teams_ so the Team adapters (which borrow
-  // these rosters) are destroyed first and never observe a cleared roster.
   std::array<football::sim::Roster, 2> rosters_;
+  // The only authoritative team orientation and team match state. Team borrows
+  // these; it keeps no copy of its own.
+  std::array<football::sim::TeamFrame, 2> team_frames_;
+  std::array<football::sim::TeamMatchState, 2> team_states_;
   std::array<std::unique_ptr<Team>, 2> teams_;
   std::unique_ptr<Referee> referee_;
 

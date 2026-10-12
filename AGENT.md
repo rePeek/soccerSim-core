@@ -134,11 +134,10 @@ src/                 implementations; public headers live in include/football/
 │                    compiled into libsimcore.so with everything else under src/
     ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
     ├── simulation_config.hpp match-level options value
-    ├── team/         TRANSITIONAL Team adapter. Since P6a it owns nothing: it
-    │                 borrows a Roster from Simulation and keeps only team match
-    │                 state plus Mirror/SwitchEnds. Simulation owns the players,
-    │                 their creation and their teardown. P6b drains it and deletes
-    │                 this directory.
+    ├── team/         TRANSITIONAL Team adapter. Since P6a/P6b-1a it owns nothing:
+    │                 it borrows Roster, TeamFrame and TeamMatchState from
+    │                 Simulation. Only Mirror/SwitchEnds/PublishTeamFacts remain on
+    │                 it (P6b-1b moves those); P6b-2 deletes the directory.
     ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
     │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
     ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
@@ -260,16 +259,17 @@ anim_baking → legacy_anim + animation/foundation
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   foundation must not depend on upper layers. sim must never depend on AI.
 - sim ownership boundary: `Simulation` owns `std::array<Roster, 2> rosters_`
-(the player entities) and `std::array<TeamSetup, 2> team_setups_` (the
-`PlayerDefinition` storage every `Player` references), Runtime owns the match
-facts that cannot be derived from one player (`TeamMatchState`), and `Player`
-owns only its own identity, `FormationEntry`, kinematics and behaviour.
-`src/sim/player/` must never reference `Team` or iterate the squad; team-level
-algorithms live in `src/sim/runtime/` (possession, roster_possession,
-formation). A per-call `PlayerTeamView` (borrowed roster slices + the live
-`TeamMatchState`) is how a player sees its team. `Team` is a transitional
-adapter that only borrows a `Roster` (P6a); Rules and Observation no longer see
-it at all (P5). P6b moves its remaining match state into Simulation and deletes
+(the player entities), `std::array<TeamSetup, 2> team_setups_` (the
+`PlayerDefinition` storage every `Player` references), and the only
+`std::array<TeamFrame, 2> team_frames_` and `std::array<TeamMatchState, 2>`
+`team_states_` (orientation and team match facts). `Player` owns only its own
+identity, `FormationEntry`, kinematics and behaviour. `src/sim/player/` must
+never reference `Team` or iterate the squad; team-level algorithms live in
+`src/sim/runtime/` (possession, roster_possession, formation). A per-call
+`PlayerTeamView` (borrowed roster slices + the live `TeamMatchState`) is how a
+player sees its team. `Team` is a transitional adapter that borrows its roster,
+frame and state and owns nothing (P6a/P6b-1a); Rules and Observation no longer
+see it at all (P5). P6b-1b/2 move the remaining behaviours and delete
 `src/sim/team/`.
 - Modules are configured from the repository root: public headers live in the
   top-level include/football/ tree, so module directories are no longer

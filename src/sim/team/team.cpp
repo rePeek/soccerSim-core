@@ -21,23 +21,17 @@
 #include "sim/team/team.hpp"
 
 
-Team::Team(int id, const football::sim::TeamSetup& model,
-           football::sim::Roster& roster, float aiDifficulty)
-    : id(id), model_(model), aiDifficulty(aiDifficulty), roster_(roster),
-      static_side_(id == 0 ? -1 : 1) {
+Team::Team(int id, football::sim::Roster& roster, football::sim::TeamFrame& frame,
+           football::sim::TeamMatchState& state)
+    : id(id), roster_(roster), frame_(frame), state_(state) {
   assert(id == 0 || id == 1);
-  match_state_.time_to_ball_ms = 100;
-  match_state_.has_possession = false;
-
-  match_state_.possession_amount = 1.0f;
-  match_state_.fading_possession_amount = 1.0f;
 }
 
 Team::~Team() {}
 
 void Team::Mirror() {
-  side *= -1;
-  mirrored = !mirrored;
+  frame_.dynamic_side *= -1;
+  frame_.mirrored = !frame_.mirrored;
   for (Player* p : roster_.Players()) {
     p->Mirror();
     p->SetTeamContext(TeamFacts());
@@ -45,8 +39,8 @@ void Team::Mirror() {
 }
 
 void Team::SwitchEnds() {
-  static_side_ = -static_side_;
-  side = -side;
+  frame_.static_side = -frame_.static_side;
+  frame_.dynamic_side = -frame_.dynamic_side;
   for (Player* p : roster_.Players()) {
     p->Mirror();
     p->SetTeamContext(TeamFacts());
@@ -69,11 +63,11 @@ int Team::GetActivePlayersCount() const {
   return count;
 }
 
-bool Team::HasPossession() const { return match_state_.has_possession; }
+bool Team::HasPossession() const { return state_.has_possession; }
 
 
 int Team::GetTimeNeededToGetToBall_ms() const {
-  return match_state_.time_to_ball_ms;
+  return state_.time_to_ball_ms;
 }
 
 Player *Team::GetBestPossessionPlayer() {
@@ -94,26 +88,26 @@ Player *Team::GetBestPossessionPlayer() {
   return bestPlayer;
 }
 
-float Team::GetTeamPossessionAmount() const { return match_state_.possession_amount; }
+float Team::GetTeamPossessionAmount() const { return state_.possession_amount; }
 
 float Team::GetFadingTeamPossessionAmount() const {
-  return match_state_.fading_possession_amount;
+  return state_.fading_possession_amount;
 }
 
 void Team::SetFadingTeamPossessionAmount(float value) {
-  match_state_.fading_possession_amount = clamp(value, 0.5, 1.5);
+  state_.fading_possession_amount = clamp(value, 0.5, 1.5);
   PublishTeamFacts();
 }
 
 
 void Team::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
-  match_state_.time_to_ball_ms = 100;
-  match_state_.has_possession = false;
+  state_.time_to_ball_ms = 100;
+  state_.has_possession = false;
 
-  match_state_.possession_amount = 1.0f;
-  match_state_.fading_possession_amount = 1.0f;
+  state_.possession_amount = 1.0f;
+  state_.fading_possession_amount = 1.0f;
 
-  match_state_.designated_player = roster_.Players().front();
+  state_.designated_player = roster_.Players().front();
 
   for (Player* player : roster_.Players()) {
     if (player->IsActive()) {

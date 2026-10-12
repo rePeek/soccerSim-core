@@ -117,6 +117,28 @@ TEST_CASE("Runtime harness: two rosters initialise with live definitions",
   CHECK_FALSE(sim.Stop());  // Idempotent: reports already stopped.
 }
 
+TEST_CASE("Runtime harness: initial team orientation is Simulation-owned",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  Team* home = SimulationAccess::TeamOf(sim, 0);
+  Team* away = SimulationAccess::TeamOf(sim, 1);
+  REQUIRE(home != nullptr);
+  REQUIRE(away != nullptr);
+  // Historical initial orientation: both teams start in the first processing
+  // frame (dynamic -1); only the persistent direction differs by slot. Team
+  // keeps no copy of this -- Simulation owns the only TeamFrame.
+  CHECK(home->GetDynamicSide() == -1);
+  CHECK(away->GetDynamicSide() == -1);
+  CHECK(home->GetStaticSide() == -1);
+  CHECK(away->GetStaticSide() == 1);
+  CHECK_FALSE(home->isMirrored());
+  CHECK_FALSE(away->isMirrored());
+  CHECK(home->onOriginalSide());
+  CHECK_FALSE(away->onOriginalSide());
+  CHECK(sim.Stop());
+}
+
 TEST_CASE("Runtime harness: a few ticks advance and tear down cleanly",
           "[runtime][sim]") {
   Simulation sim;
