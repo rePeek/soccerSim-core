@@ -11,36 +11,31 @@
       devShells = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
-          common = [
-            pkgs.cmake
-            pkgs.gnumake
-            pkgs.ninja
-            pkgs.ccache
-          ];
-          banner = ''
-            echo "Configure: cmake --preset release   (or: debug)"
-            echo "Build:     cmake --build --preset release"
-            echo "Test:      ctest --preset release"
-          '';
-        in {
-          # Default toolchain stays on GCC so existing Debug/Release artifacts
-          # and golden fingerprints remain valid during the module migration.
-          default = pkgs.mkShell {
-            packages = common ++ [ pkgs.gcc13 ];
-            shellHook = banner;
-          };
-
-          # C++20 named-module toolchain (CMake CXX_MODULES needs Clang 16+ or
-          # GCC 14+). Use a separate build directory; never mix with build/debug.
-          modules = (pkgs.mkShell.override { stdenv = pkgs.llvmPackages_19.libcxxStdenv; }) {
-            packages = common ++ [
+          # One toolchain for the whole project. C++20 named modules need
+          # Clang 16+ / GCC 14+ and the CMake CXX_MODULES scanner; GCC 13
+          # cannot process the module entry, so the default build and the
+          # module build must not use different compilers. Clang 19 + libc++
+          # is the single supported toolchain.
+          shell = (pkgs.mkShell.override { stdenv = pkgs.llvmPackages_19.libcxxStdenv; }) {
+            packages = [
+              pkgs.cmake
+              pkgs.gnumake
+              pkgs.ninja
+              pkgs.ccache
               pkgs.llvmPackages_19.clang
               pkgs.llvmPackages_19.clang-tools
             ];
-            shellHook = banner + ''
-              echo "Modules shell: clang++ (Clang 19), use -B build/modules"
+            shellHook = ''
+              echo "Toolchain: clang++ $(clang++ --version | head -1 | sed 's/.*\((.*)\).*/\1/')"
+              echo "Configure: cmake --preset debug   (or: release)"
+              echo "Build:     cmake --build --preset debug"
+              echo "Test:      ctest --preset debug"
             '';
           };
+        in {
+          default = shell;
+          # Retained name for any existing scripts; identical toolchain.
+          modules = shell;
         });
     };
 }
