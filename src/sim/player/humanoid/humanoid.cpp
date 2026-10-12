@@ -27,7 +27,6 @@
 
 #include <cmath>
 
-#include "foundation/geometry/line.hpp"
 #include "sim/player/humanoid/humanoid_utils.hpp"
 
 #include "sim/player/player_retain_anchor.hpp"
@@ -83,6 +82,20 @@ constexpr bool allowMovementReQueue = true;
 constexpr bool allowBallControlReQueue = true;
 constexpr bool allowTrapReQueue = true;
 constexpr bool allowPreTouchRotationSmuggle = false;
+
+namespace {
+// Former foundation::Line, inlined at its only caller. `u` is the unclamped
+// parameter of `point` projected onto the segment [a, b]; it keeps the legacy
+// 2D-projection / 3D-length formula exactly.
+float SegmentParameter(const Vector3& a, const Vector3& b, const Vector3& point) {
+  if (a == b) return 0.0f;
+  const float lineDistance = (b - a).GetLength();
+  if (lineDistance < 0.000001f) return 0.0f;
+  return ((point.coords[0] - a.coords[0]) * (b.coords[0] - a.coords[0]) +
+          (point.coords[1] - a.coords[1]) * (b.coords[1] - a.coords[1])) /
+         (lineDistance * lineDistance);
+}
+}  // namespace
 
 Humanoid::Humanoid(Player *player, const AnimationLibrary& animations, blunted::Rng& rng)
     : HumanoidBase(player, animations, rng) {
@@ -1998,9 +2011,10 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
 
       // now pick the ballPos from the previous 9ms that is closest to animBallPos. this is to emulate a continuous 'close enough?'-check instead of a 'single moment' check.
       if (useContinuousBallCheck) {
-        Line ballLine(ballPos - ballMovement * 0.006f, ballPos + ballMovement * 0.003f);
-        float u = clamp(ballLine.GetClosestToPoint(animBallPos), 0.0f, 1.0f);
-        ballPos = ballLine.GetVertex(0) + (ballLine.GetVertex(1) - ballLine.GetVertex(0)) * u;
+        const Vector3 ballLineA = ballPos - ballMovement * 0.006f;
+        const Vector3 ballLineB = ballPos + ballMovement * 0.003f;
+        float u = clamp(SegmentParameter(ballLineA, ballLineB, animBallPos), 0.0f, 1.0f);
+        ballPos = ballLineA + (ballLineB - ballLineA) * u;
       }
 
       Vector3 actionSmuggleVec3D = ballPos - animBallPos;
@@ -2239,13 +2253,12 @@ Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const footba
     // macro effect: consider a line going in the ball movement direction. consider the spot we want the ball at (in front of us) after this movement anim.
     // now calculate the shortest line between that line and that point. now move over that line from the point towards the line somewhat
 
-    Line ballMovementLine;
-    ballMovementLine.SetVertex(0, football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(0, now, tick.ball).Get2D());
-    ballMovementLine.SetVertex(1, football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(futureTime_ms, now, tick.ball).Get2D());
-    if (ballMovementLine.GetLength() < 0.5f) return Vector3(0); // ball is slow or very close
+    const Vector3 ballLineA = football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(0, now, tick.ball).Get2D();
+    const Vector3 ballLineB = football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(futureTime_ms, now, tick.ball).Get2D();
+    if ((ballLineA - ballLineB).GetLength() < 0.5f) return Vector3(0); // ball is slow or very close
 
-    float u = ballMovementLine.GetClosestToPoint(desiredBallPos);
-    Vector3 closestBallPos = ballMovementLine.GetVertex(0) + (ballMovementLine.GetVertex(1) - ballMovementLine.GetVertex(0)) * u;
+    float u = SegmentParameter(ballLineA, ballLineB, desiredBallPos);
+    Vector3 closestBallPos = ballLineA + (ballLineB - ballLineA) * u;
 
     toDesired = closestBallPos - desiredBallPos;
 

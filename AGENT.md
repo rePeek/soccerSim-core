@@ -82,9 +82,8 @@ pimpl or a private state holder so those headers stop appearing in
 
 ```text
 src/
-├── foundation/       general math and geometry; STL/self only
-│   ├── math/         vectors, matrices, quaternion, scalar and RNG
-│   └── geometry/     line and triangle
+├── foundation/       general math only; STL/self, no football concepts
+│   └── math/         Vector3, quaternion, scalar helpers and RNG
 ├── ball/            standalone football::ball: BallModel (self-owned physics),
 │                    BallState, BallWorld, collider/CCD, contact evidence and point-
 │                    impulse response; depends only on foundation, never sim

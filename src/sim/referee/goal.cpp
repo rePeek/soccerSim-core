@@ -16,49 +16,36 @@
 
 #include <cmath>
 
-#include "foundation/geometry/line.hpp"
-#include "foundation/geometry/triangle.hpp"
-
 namespace football::sim {
-using blunted::Line;
-using blunted::Triangle;
 using blunted::Vector3;
 
 bool CrossedGoalLine(const football::pitch::Pitch& pitch, int side,
                      const Vector3& previous, const Vector3& current) {
-  Line line;
-  line.SetVertex(0, previous);
-  line.SetVertex(1, current);
-
+  // The goal mouth is the plane x = goal_x clipped to the goal rectangle
+  // (|y| <= goal half width, 0 <= z <= goal height). No mesh triangles needed.
   const float goal_x =
       (pitch.half_length() + pitch.line_half_width() + 0.11f) * side;
   const float half_goal_width = pitch.goal_half_width();
   const float goal_height = pitch.goal_height();
-  Triangle goal1;
-  goal1.SetVertex(0, Vector3(goal_x, half_goal_width, 0));
-  goal1.SetVertex(1, Vector3(goal_x, -half_goal_width, 0));
-  goal1.SetVertex(2, Vector3(goal_x, half_goal_width, goal_height));
-  goal1.SetNormals(Vector3(-side, 0, 0));
-  Triangle goal2;
-  goal2.SetVertex(0, Vector3(goal_x, -half_goal_width, 0));
-  goal2.SetVertex(1, Vector3(goal_x, -half_goal_width, goal_height));
-  goal2.SetVertex(2, Vector3(goal_x, half_goal_width, goal_height));
-  goal2.SetNormals(Vector3(-side, 0, 0));
 
-  Vector3 intersectVec;
-  bool intersect1 = goal1.IntersectsLine(line, intersectVec);
-  bool intersect2 = goal2.IntersectsLine(line, intersectVec);
-  // extra check: ball could have gone 'in' via the side netting, if line begin
+  // Extra check: ball could have gone 'in' via the side netting, if line begin
   // == inside pitch, but outside of post, and line end == in goal. disallow!
   if (fabs(previous.coords[1]) > half_goal_width &&
       fabs(previous.coords[0]) >
           pitch.half_length() - pitch.line_half_width() - 0.11) {
     return false;
   }
-  if (intersect1 || intersect2) {
-    return true;
-  }
-  return false;
+
+  const float dx = current.coords[0] - previous.coords[0];
+  if (std::fabs(dx) < 0.000001f) return false;  // parallel to the goal plane
+  const float r = (goal_x - previous.coords[0]) / dx;
+  if (r <= 0.0f || r >= 1.0f) return false;  // crossing strictly inside the step
+
+  const float y = previous.coords[1] + (current.coords[1] - previous.coords[1]) * r;
+  const float z = previous.coords[2] + (current.coords[2] - previous.coords[2]) * r;
+  if (std::fabs(y) > half_goal_width || z < 0.0f || z > goal_height) return false;
+
+  return true;
 }
 
 }  // namespace football::sim
