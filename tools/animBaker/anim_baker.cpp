@@ -28,10 +28,10 @@
 
 #include "animation/animcollection.hpp"
 #include "animation/animation.hpp"
-#include "sim/animation/clip.hpp"
-#include "sim/animation/library.hpp"
+#include "animation/clip.hpp"
+#include "animation/library.hpp"
 #include "animation/extensions/footballanimationextension.hpp"
-#include "sim/animation/baked_selector.hpp"
+#include "animation/selector.hpp"
 #include "foundation/math/vector3.hpp"
 #include "import/legacy_value_codec.hpp"
 

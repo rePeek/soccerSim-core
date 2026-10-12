@@ -16,7 +16,7 @@
 #define FOOTBALL_SIM_QUERY_REACHABILITY_HPP
 
 #include "foundation/math/vector3.hpp"
-#include "sim/animation/types.hpp"
+#include "animation/types.hpp"
 #include "foundation/time/tick.hpp"
 #include <optional>
 

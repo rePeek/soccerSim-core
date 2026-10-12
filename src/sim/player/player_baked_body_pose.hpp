@@ -3,8 +3,8 @@
 #include <array>
 #include <cmath>
 #include <stdexcept>
-#include "sim/animation/clip.hpp"
-#include "sim/animation/types.hpp"
+#include "animation/clip.hpp"
+#include "animation/types.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 

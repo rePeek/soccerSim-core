@@ -17,7 +17,7 @@
 
 #include "foundation/math/vector3.hpp"
 #include "model/pitch.hpp"
-#include "sim/animation/types.hpp"
+#include "animation/types.hpp"
 
 using blunted::Vector3;
 

@@ -4,7 +4,7 @@
 #include "model/pitch.hpp"
 #include <filesystem>
 #include <type_traits>
-#include "sim/animation/library.hpp"
+#include "animation/library.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

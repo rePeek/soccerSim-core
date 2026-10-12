@@ -15,7 +15,7 @@
 #define _HPP_ANIMATION_QUADRANT
 
 #include "foundation/math/vector3.hpp"
-#include "sim/animation/types.hpp"
+#include "animation/types.hpp"
 
 // Quantized outgoing movement (velocity plus angle). Kept as a pure value type
 // so baked runtime selection stays independent of the simulation runtime.

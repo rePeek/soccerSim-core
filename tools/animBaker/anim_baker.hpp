@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <vector>
 
-#include "sim/animation/clip.hpp"
+#include "animation/clip.hpp"
 
 namespace football::tools {
 

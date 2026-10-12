@@ -7,7 +7,7 @@
 #include "foundation/time/tick.hpp"
 #include "model/player.hpp"
 #include "model/pitch.hpp"
-#include "sim/animation/types.hpp"
+#include "animation/types.hpp"
 
 namespace football::sim::observation {
 

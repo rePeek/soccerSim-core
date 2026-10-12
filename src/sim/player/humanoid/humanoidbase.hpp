@@ -24,8 +24,8 @@
 #include "sim/player/player_command.hpp"
 #include "sim/player/player_tick_context.hpp"
 
-#include "sim/animation/selection_query.hpp"
-#include "sim/animation/clip.hpp"
+#include "animation/selection_query.hpp"
+#include "animation/clip.hpp"
 #include "sim/player/player_baked_pose_sample.hpp"
 
 #include "sim/player/player_kinematics.hpp"

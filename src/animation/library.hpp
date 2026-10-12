@@ -21,7 +21,7 @@
 #include <iostream>
 #include <vector>
 
-#include "sim/animation/clip.hpp"
+#include "animation/clip.hpp"
 
 // Read-only view over a baked animations.simanim artifact.
 //

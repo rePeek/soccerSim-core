@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "sim/animation/simanim_format.hpp"
+#include "animation/format.hpp"
 #include "foundation/math/quaternion.hpp"
 #include "foundation/math/vector3.hpp"
 

@@ -2,7 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "sim/animation/types.hpp"
+#include "animation/types.hpp"
 #include "sim/event/event_recognizer.hpp"
 
 namespace {

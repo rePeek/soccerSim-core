@@ -10,7 +10,6 @@ target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
   football::foundation football::model)
 
-add_subdirectory(animation)
 add_subdirectory(pitch)
 
 # Domain directories organize concepts, not public/private dependency units.

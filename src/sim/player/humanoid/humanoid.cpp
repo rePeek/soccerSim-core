@@ -44,8 +44,8 @@
 
 #include "sim/player/kick_targeting.hpp"
 
-#include "sim/animation/baked_selector.hpp"
-#include "sim/animation/library.hpp"
+#include "animation/selector.hpp"
+#include "animation/library.hpp"
 #include "sim/event/touch_query.hpp"
 #include "sim/referee/referee.hpp"
 

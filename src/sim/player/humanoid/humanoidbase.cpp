@@ -38,8 +38,8 @@
 
 
 
-#include "sim/animation/baked_selector.hpp"
-#include "sim/animation/library.hpp"
+#include "animation/selector.hpp"
+#include "animation/library.hpp"
 
 using football::ball::Ball;
 

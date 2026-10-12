@@ -16,7 +16,7 @@
 
 #include "foundation/math/vector3.hpp"
 #include "model/football_types.hpp"
-#include "sim/animation/types.hpp"
+#include "animation/types.hpp"
 
 using namespace blunted;
 

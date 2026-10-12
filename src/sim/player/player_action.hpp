@@ -4,7 +4,7 @@
 
 #include <optional>
 
-#include "sim/animation/types.hpp"
+#include "animation/types.hpp"
 #include "foundation/math/vector3.hpp"
 #include "foundation/time/tick.hpp"
 

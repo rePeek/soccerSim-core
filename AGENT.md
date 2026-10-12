@@ -111,6 +111,8 @@ src/
 ├── ball/            standalone football::ball: BallModel (self-owned physics),
 │                    BallState, BallWorld, collider/CCD, contact evidence and point-
 │                    impulse response; depends only on foundation, never model/sim
+├── animation/      header-only baked schema/library/selector (football::animation);
+│                    depends only on foundation, never sim/model/ball
 ├── sim/             domain-organized rules, physics, execution and observation
 │   ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
@@ -125,7 +127,6 @@ src/
 │   │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph,
 │   │                 static PlayerSlotTable identity -> TeamSide mapping and a pure
 │   │                 shadow-only Snapshot touch inference
-│   ├── animation/    baked schema/library/selector; depends only on foundation
 │   ├── query/        player queries, reachability and force-field representation
 │   ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
 │   │                 rules and restarts

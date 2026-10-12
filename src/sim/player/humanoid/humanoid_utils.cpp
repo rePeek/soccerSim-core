@@ -25,8 +25,8 @@
 
 #include "sim/player/humanoid/humanoid.hpp"
 
-#include "sim/animation/clip.hpp"
-#include "sim/animation/types.hpp"
+#include "animation/clip.hpp"
+#include "animation/types.hpp"
 #include "sim/player/player.hpp"
 
 using football::ball::Ball;
