@@ -22,7 +22,6 @@
 #include <cassert>
 #include <cstring>
 
-#include "foundation/geometry/triangle.hpp"
 #include "football/ball/ball.hpp"
 #include "football/ball/ball_timing.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"

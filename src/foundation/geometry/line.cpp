@@ -51,32 +51,4 @@ void Line::SetVertex(unsigned char pos, const Vector3 &vec) {
 
     return u;
   }
-
-  float Line::GetDistanceToPoint(const Vector3 &point, float &u) const {
-    u = GetClosestToPoint(point);
-
-    Vector3 intersect;
-    intersect.coords[0] = vertices[0].coords[0] + u * (vertices[1].coords[0] - vertices[0].coords[0]);
-    intersect.coords[1] = vertices[0].coords[1] + u * (vertices[1].coords[1] - vertices[0].coords[1]);
-
-    return (intersect - point).GetLength();
-  }
-
-  Vector3 Line::GetIntersectionPoint(const Line &line) const {
-    float u = 0.0f; //dud
-    return GetIntersectionPoint(line, u);
-  }
-
-  Vector3 Line::GetIntersectionPoint(const Line &line, float &u) const {
-    float divisor = (line.GetVertex(1).coords[1] - line.GetVertex(0).coords[1]) * (vertices[1].coords[0] - vertices[0].coords[0]) - (line.GetVertex(1).coords[0] - line.GetVertex(0).coords[0]) * (vertices[1].coords[1] - vertices[0].coords[1]);
-    if (divisor == 0.0f) return vertices[0];
-    u = ( (line.GetVertex(1).coords[0] - line.GetVertex(0).coords[0]) * (vertices[0].coords[1] - line.GetVertex(0).coords[1]) - (line.GetVertex(1).coords[1] - line.GetVertex(0).coords[1]) * (vertices[0].coords[0] - line.GetVertex(0).coords[0]) ) /
-        ( divisor );
-
-    return vertices[0] + (vertices[1] - vertices[0]) * u;
-  }
-
-  bool Line::WhatSide(const Vector3 &point) {
-    return ((vertices[1].coords[0] - vertices[0].coords[0]) * (point.coords[1] - vertices[0].coords[1]) - (vertices[1].coords[1] - vertices[0].coords[1]) * (point.coords[0] - vertices[0].coords[0])) > 0;
-  }
 }

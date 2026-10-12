@@ -18,37 +18,23 @@
 #ifndef _HPP_BASE_GEOMETRY_TRIANGLE
 #define _HPP_BASE_GEOMETRY_TRIANGLE
 
-
 #include "foundation/math/vector3.hpp"
 #include "foundation/geometry/line.hpp"
 
 namespace blunted {
 
+  // Triangle as used by goal-line crossing: three vertices plus one normal per
+  // vertex. The legacy mesh state (texture coordinates, tangents, bitangents)
+  // had no consumer and was removed.
   class Triangle {
 
     public:
-      Triangle();
-      Triangle(const Triangle &triangle);
-      Triangle(const Vector3 &v1, const Vector3 &v2, const Vector3 &v3);
-      ~Triangle();
-      bool operator == (const Triangle &triangle) const;
+      Triangle() = default;
 
       inline void SetVertex(unsigned char pos, const Vector &vec) {
         vertices[pos].coords[0] = vec.coords[0];
         vertices[pos].coords[1] = vec.coords[1];
         vertices[pos].coords[2] = vec.coords[2];
-      }
-
-      inline void SetTextureVertex(unsigned char texture_unit, unsigned char pos, const real x, const real y, const real z) {
-        textureVertices[pos][texture_unit].coords[0] = x;
-        textureVertices[pos][texture_unit].coords[1] = y;
-        textureVertices[pos][texture_unit].coords[2] = z;
-      }
-
-      inline void SetNormal(unsigned char pos, const real x, const real y, const real z) {
-        normals[pos].coords[0] = x;
-        normals[pos].coords[1] = y;
-        normals[pos].coords[2] = z;
       }
 
       inline void SetNormals(const Vector &vec) {
@@ -59,44 +45,11 @@ namespace blunted {
         }
       }
 
-      inline const Vector3 &GetVertex(unsigned char pos) const {
-        return vertices[pos];
-      }
-
-      inline const Vector3 &GetTextureVertex(unsigned char pos) const {
-        return GetTextureVertex(0, pos);
-      }
-
-      inline const Vector3 &GetTextureVertex(unsigned char texture_unit, unsigned char pos) const {
-        return textureVertices[pos][texture_unit];
-      }
-
-      inline const Vector3 &GetNormal(unsigned char pos) const {
-        return normals[pos];
-      }
-
-      // ----- intersections
       bool IntersectsLine(const Line &u_ray, Vector3 &intersectVec) const;
-
-      // ----- utility
-      void CalculateTangents();
-
-      inline const Vector3 &GetTangent(unsigned char pos) const {
-        return tangents[pos];
-      }
-
-      inline const Vector3 &GetBiTangent(unsigned char pos) const {
-        return biTangents[pos];
-      }
 
     protected:
       Vector3 vertices[3];
-      Vector3 tangents[3];
-      Vector3 biTangents[3];
-      Vector3 textureVertices[3][8];
       Vector3 normals[3];
-
-    private:
 
   };
 

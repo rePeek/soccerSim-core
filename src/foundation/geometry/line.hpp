@@ -35,12 +35,8 @@ namespace blunted {
       const Vector3 &GetVertex(unsigned char pos) const;
 
       float GetClosestToPoint(const Vector3 &point) const;
-      float GetDistanceToPoint(const Vector3 &point, float &u) const;
 
-      Vector3 GetIntersectionPoint(const Line &line) const;
-      Vector3 GetIntersectionPoint(const Line &line, float &u) const;
 
-      bool WhatSide(const Vector3 &point);
       float GetLength() const { return (vertices[0] - vertices[1]).GetLength(); }
 
     protected:
