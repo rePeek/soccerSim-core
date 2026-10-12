@@ -89,6 +89,9 @@ and points Clang at libc++'s `include/c++/v1` (the wrapper omits it, which would
 silently fall back to a newer libstdc++ and break Catch2). `CMAKE_CXX_SCAN_FOR_MODULES`
 stays ON so importers get the module BMI. The unified toolchain replaces the old
 GCC 13 default; floating-point goldens are compared within one compiler.
+Existing GCC-configured build directories (`build/debug`, `build/release`,
+`build/core`) must be deleted once before the first Clang configure; CMake
+rejects an in-place compiler change.
 
 Dependency direction: `model::Pitch` -> `football.pitch` (BuildBallWorld) ->
 `football.ball::BallWorld` -> `Ball`. `football_ball` must never link `football_pitch`.
