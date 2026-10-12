@@ -1,4 +1,4 @@
-# Executable-side args/fixtures are internal support for the CLI and tests;
+# Executable-side args/fixtures are internal support for the football_sim CLI;
 # EXCLUDE_FROM_ALL keeps them out of core-only builds.
 add_library(football_app_support STATIC EXCLUDE_FROM_ALL)
 add_library(football::app_support ALIAS football_app_support)
@@ -11,7 +11,7 @@ target_link_libraries(football_app_support
   PUBLIC football::foundation)
 football_configure_target(football_app_support)
 
-# Disk I/O and the private writer thread remain executable-side, never libgame.
+# Disk I/O and the private writer thread remain executable-side, never libsimcore.
 find_package(Threads REQUIRED)
 add_library(football_recording STATIC EXCLUDE_FROM_ALL recording/snapshot_archive.cpp)
 add_library(football::recording ALIAS football_recording)
@@ -22,6 +22,6 @@ target_link_libraries(football_recording
   PUBLIC football::sim_contracts PRIVATE Threads::Threads)
 football_configure_target(football_recording)
 
-add_executable(football_app app.cpp)
-target_link_libraries(football_app PRIVATE football::game football::app_support football::recording)
-football_configure_target(football_app)
+add_executable(football_sim app.cpp)
+target_link_libraries(football_sim PRIVATE football::simcore football::app_support football::recording)
+football_configure_target(football_sim)

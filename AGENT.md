@@ -119,18 +119,18 @@ src/
 │   ├── ai_config.hpp startup values; no live channel
 │   ├── tactical_board.* persistent desired/planned values + definition-only bootstrap
 │   └── default_ai.*  WorldState + persistent tactical boards → PlayerControlSet
-├── app/              executable-side code, never in core
-│   ├── app.cpp / args.* parse → GameEnv → complete match → write Result
-│   ├── fixtures/     typed sample rosters/profiles → model; local six-decimal quantization
-│   └── recording/    SnapshotArchive async bounded writer + offline reader (football_recording)
 ├── env.hpp           public autonomous match façade; values + opaque private owners
-└── env.cpp           sole product composition implementation for AI + sim
+└── env.cpp           sole product composition implementation for AI + sim;
+                    compiled into libsimcore.so with everything else under src/
 
 cmake/
 ├── CPM.cmake
 └── bqlog.cmake            private third-party diagnostics build
 
 tools/
+├── app/                    football_sim CLI: parse → GameEnv → complete match → Result
+│   ├── args.* fixtures/     executable-side args and sample rosters/profiles
+│   └── recording/           SnapshotArchive writer/reader (football_recording)
 └── animBaker/              offline importers and callable bake/check/verify library + CLI
     └── import/legacy_*     offline-only XML, value codecs and required text helpers
 
@@ -141,13 +141,13 @@ unittests/                        empty placeholder; suite under redesign
 
 Each module explicitly declares its sources, public `FILE_SET HEADERS`, aliases
 and link edges in its own `CMakeLists.txt`. No source globbing or `sources.cmake`.
-Root CMake directly builds `game` from `src/env.cpp`, publishes `env.hpp`,
-and provides `football::game`. There is no env directory, env target or intermediate
+Root CMake directly builds `simcore` from `src/env.cpp`, publishes `env.hpp`,
+and provides `football::simcore`. There is no env directory, env target or intermediate
 engine object target. Runtime whole-archive packaging retains unreferenced runtime
 symbols (including the currently unused GetRoleFromString).
 
 ```text
-app → game (env.cpp) → ai + sim
+app → simcore (env.cpp) → ai + sim
 ai → ai_contracts + sim_contracts → foundation/pitch
 sim → sim_contracts + animation + pitch_ball → foundation/ball (PRIVATE BqLog)
 app_support (args/fixtures) → foundation
@@ -167,7 +167,7 @@ anim_baking → legacy_anim + animation/foundation
   Concrete sim/AI are PRIVATE. `env.hpp` never includes default_ai.hpp.
 - GameEnv::Start creates/reconfigures the single process logger `football` before
   constructing Simulation/AI; Stop destroys AI then Simulation and flushes it.
-  BqLog is PRIVATE to game/sim, never in public value contracts or policy.
+  BqLog is PRIVATE to simcore/sim, never in public value contracts or policy.
   Warning sites tolerate a missing logger for direct Simulation users. BqLog
   uses unpatched upstream sources and keeps its normal Debug assertions/output;
   no forced NDEBUG or BQ_TOOLS/BQ_UNIT_TEST workaround.
@@ -184,7 +184,7 @@ anim_baking → legacy_anim + animation/foundation
 - `football_legacy_anim` is an offline object target. `football_anim_baking` is a
   callable offline library; `football_anim_baker` is its CLI. The baker is
   self-contained: it links only its own offline objects and foundation, never
-  sim/ball/pitch/game/animation archives.
+  sim/ball/pitch/simcore/animation archives.
 - `tools/animBaker/` is the only developer tool tree (offline baker library + CLI);
   `unittests/CMakeLists.txt` is an empty placeholder awaiting the redesigned unit
   suite. The baker is built under BUILD_TESTING and never linked into core.
@@ -649,7 +649,7 @@ They neither include Match nor retrieve it through Player; Match::GetAnimPositio
 and the private implicit clip lookup are deleted. Shot inputs omit unused arguments.
 There is no ambient animation owner or hidden load.
 Offline `.anim`/XML/object parsing lives under
-`tools/animBaker/`, never libgame.so. Two include roots are distinct:
+`tools/animBaker/`, never libsimcore.so. Two include roots are distinct:
 `sim/animation/...` is runtime, `animation/...` is offline tooling. Their filenames
 are disjoint. The original XML parser, codecs and necessary token/decimal helpers
 are owned by `tools/animBaker/import/legacy_*`, compiled only into the offline
@@ -774,7 +774,7 @@ read-only record, never a WorldState replacement or restart checkpoint.
 ### Snapshot archive — Stage 3
 
 app/recording/snapshot_archive.* is owned by the EXCLUDE_FROM_ALL
-football_recording target, linked only by app and archive tests, never by libgame.
+football_recording target, linked only by app and archive tests, never by libsimcore.
 It uses Threads::Threads privately and model/value contracts publicly. Open/Append/
 Flush/Close are single-producer APIs; the worker owns disk/index/chunk state.
 Append copies into a bounded preallocated queue (default 1,000 frames). Block

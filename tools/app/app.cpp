@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
               << " duration_ticks=" << result.duration_ticks << '\n';
     return EXIT_SUCCESS;
   } catch (const std::exception& error) {
-    std::cerr << "football_app: " << error.what() << '\n';
+    std::cerr << "football_sim: " << error.what() << '\n';
     return EXIT_FAILURE;
   }
 }

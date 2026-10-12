@@ -94,8 +94,8 @@ stamps distinguish executed steps, timeline ticks and reset generations.
 Snapshot does not replace WorldState, MentalImage, contact facts or checkpoints.
 
 ```sh
-build/release/football_app --snapshot=match.snap
-build/release/football_app --half-duration-ms=1800 --snapshot-capacity=100 --snapshot=short.snap
+build/release/football_sim --snapshot=match.snap
+build/release/football_sim --half-duration-ms=1800 --snapshot-capacity=100 --snapshot=short.snap
 ```
 
 The app-only archive uses a bounded background queue, checksummed binary chunks
@@ -267,12 +267,12 @@ stay synchronous. No RulesContext or deferred notices are added.
 ## Build and tests
 
 Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,
-dependencies and `football::` aliases. `game` directly compiles `src/env.cpp`;
+dependencies and `football::` aliases. `simcore` directly compiles `src/env.cpp`;
 `src/env.hpp` is the public match façade. Its implementation is the sole product
 composition root for sim + AI:
 
 ```text
-football_app → football::game → ai + sim → model/foundation
+football_sim → football::simcore → ai + sim → model/foundation
 ```
 
 Root CMake exposes model, sim contracts and AI startup contracts as PUBLIC usage
@@ -283,8 +283,8 @@ the offline baker. AI links only value contracts, never sim actors.
 
 ```sh
 nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j 4 && ctest --preset release --output-on-failure'
-build/release/football_app                         # one complete regulation match
-build/release/football_app --half-duration-ms=1800 # complete short regulation match
+build/release/football_sim                         # one complete regulation match
+build/release/football_sim --half-duration-ms=1800 # complete short regulation match
 ```
 
 `--steps` is retired; app always loops until sim completion and prints MatchResult,
@@ -296,7 +296,7 @@ BqLog 2.5.0 is fetched via CPM at a pinned commit in all build modes; Catch2 is
 fetched only with BUILD_TESTING enabled. Both are cached in `.cache/CPM`.
 `-DBUILD_TESTING=OFF` builds core without Catch2 (first BqLog fetch needs
 network); the args/fixture archive remains EXCLUDE_FROM_ALL. BqLog is PRIVATE
-to game/sim. GameEnv starts the single `football` logger and flushes after teardown;
+to simcore/sim. GameEnv starts the single `football` logger and flushes after teardown;
 warnings log, operational failures throw, and debug invariants use `<cassert>`.
 There is no `src/support/`: app profiles are typed fixtures retaining six-decimal
 quantization, and legacy XML/codecs/text helpers live only in `tools/animBaker/import/`.

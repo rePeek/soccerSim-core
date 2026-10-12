@@ -1,7 +1,7 @@
 # Offline .anim/XML pipeline. Self-contained: the baker links only its own
 # offline objects plus football::foundation. The animation format is
 # header-only (football::animation, an INTERFACE target), so no runtime
-# archive (ball/pitch/sim/game/animation) is linked into the baker.
+# archive (ball/pitch/sim/simcore/animation) is linked into the baker.
 add_library(football_legacy_anim OBJECT
   animation/animation.cpp
   animation/animcollection.cpp

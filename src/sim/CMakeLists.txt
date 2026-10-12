@@ -12,9 +12,9 @@ target_link_libraries(football_sim_contracts INTERFACE
 
 
 # Domain directories organize concepts, not public/private dependency units.
-add_library(football_sim STATIC)
-add_library(football::sim ALIAS football_sim)
-target_sources(football_sim PRIVATE
+add_library(football_sim_domain STATIC)
+add_library(football::sim ALIAS football_sim_domain)
+target_sources(football_sim_domain PRIVATE
   simulation.cpp simulation_body_shadow.cpp simulation_active_touch_shadow.cpp
   simulation_prepared_tick.cpp player/player_touch_preparation.hpp
   simulation_baked_body.cpp player/player_baked_pose_realization.hpp
@@ -76,15 +76,15 @@ target_sources(football_sim PRIVATE
   player/player_locomotion.hpp player/player_decision_scheduler.hpp
   player/locomotion_intent_scheduler.hpp player/legacy_locomotion_command.hpp
   player/kick_targeting.hpp)
-target_sources(football_sim PUBLIC FILE_SET HEADERS
+target_sources(football_sim_domain PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
   FILES simulation.hpp observation/snapshot.hpp observation/snapshot_history.hpp
     observation/temporal_graph.hpp event/event_trajectory.hpp player/foul_assessment.hpp
     observation/player_slots.hpp)
-target_link_libraries(football_sim
+target_link_libraries(football_sim_domain
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::ball football::pitch_ball BqLog)
-football_configure_target(football_sim)
+football_configure_target(football_sim_domain)
 # Resource lookup belongs to runtime loading, never public value/policy contracts.
-target_compile_definitions(football_sim PRIVATE
+target_compile_definitions(football_sim_domain PRIVATE
   GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")

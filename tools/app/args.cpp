@@ -21,7 +21,7 @@ AppOptions ParseArgs(int argc, char** argv) {
     const bool duration = argument.starts_with("--half-duration-ms=");
     const bool capacity = argument.starts_with("--snapshot-capacity=");
     if (!duration && !capacity) {
-      throw std::runtime_error("usage: football_app [--half-duration-ms=N] "
+      throw std::runtime_error("usage: football_sim [--half-duration-ms=N] "
                                "[--snapshot=PATH] [--snapshot-capacity=N]");
     }
     const auto prefix = duration ? std::string_view("--half-duration-ms=")

@@ -24,7 +24,7 @@ target_sources(football_foundation
       time/tick.hpp time/tick_boundary.hpp)
 target_compile_features(football_foundation PUBLIC cxx_std_23)
 
-# The library is linked into libgame.so in the parent project. Keep this local
+# The library is linked into libsimcore.so in the parent project. Keep this local
 # so add_subdirectory() works even when the parent does not set global PIC.
 set_target_properties(football_foundation PROPERTIES
   POSITION_INDEPENDENT_CODE ON)

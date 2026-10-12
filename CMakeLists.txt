@@ -37,21 +37,23 @@ add_subdirectory(src/pitch)
 add_subdirectory(src/sim)
 add_subdirectory(src/ai)
 
-add_library(game SHARED src/env.cpp)
-add_library(football::game ALIAS game)
-target_sources(game PUBLIC FILE_SET HEADERS
+# The core shared library. Everything under src/ is compiled into libsimcore.so;
+# executables (tools/) link it and never get compiled into it.
+add_library(simcore SHARED src/env.cpp)
+add_library(football::simcore ALIAS simcore)
+target_sources(simcore PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/src
   FILES src/env.hpp)
-target_link_libraries(game
+target_link_libraries(simcore
   PUBLIC football::sim_contracts football::ai_contracts football::ball
   PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
-    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim>")
-football_configure_target(game)
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim_domain>")
+football_configure_target(simcore)
 
-# Executable-side args/fixtures stay EXCLUDE_FROM_ALL but are available to tests
-# and explicit consumers even when CLI and testing are both disabled.
-add_subdirectory(src/app)
+# Executable-side args/fixtures live under tools/app. app_support/recording stay
+# EXCLUDE_FROM_ALL and are pulled in only by the football_sim executable.
+add_subdirectory(tools/app)
 
 if(BUILD_TESTING)
   CPMAddPackage(NAME Catch2 GITHUB_REPOSITORY catchorg/Catch2 GIT_TAG v3.7.1

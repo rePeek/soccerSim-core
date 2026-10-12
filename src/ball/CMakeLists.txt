@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.24)
 # Public contract:  include/football/ball/*
 # Private impl:     src/*
 #
-# football::ball must never depend on football_sim, football_player,
+# football::ball must never depend on football_sim_domain, football_player,
 # football_referee, football_event, football_observation, football::pitch or
 # football::pitch. It consumes foundation math plus its own BallWorld.
 
