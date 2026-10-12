@@ -149,23 +149,21 @@ an explicit value state contract, not per-class memory hooks.
 whether they are exported:
 
 ```text
-sim/
+src/sim/            (implementation; its headers are not migrated yet)
 ├── simulation.hpp / simulation.cpp
-├── time/         Tick, TickSpan and boundary conversions (no actor timing policy)
-├── player/       Player, PlayerControl/Set, execution commands and mechanics
-├── ball/         Ball physics, touches and prediction timing
-├── match/        Match, MatchClock, MatchOptions, MatchPhase and MatchResult
+├── simulation_config.hpp  match-level options value
+├── player/       Player, controls, locomotion, contacts, baked body/pose
+├── event/        EventRecognizer, TouchState and AcceptedTouch
+├── observation/  WorldState, pitch_frame, MentalImage, Snapshot
+├── referee/      Referee, goal, period, offside and restarts
+├── runtime/      MatchClock/Phase/Result, Roster, TeamSetup/TeamSide, formation
 ├── team/         runtime Team, formation adaptation and possession arbitration
-├── observation/  WorldState, world_state_builder, pitch_frame and execution history
-├── rules/        Referee, goal geometry, offside and restarts
-├── animation/    baked clips, library and selection
-├── query/        reachability and player queries
-└── random/       simulation RNG authority (algorithm remains in foundation)
+└── testing/      SimulationAccess (internal, not product/actor-facing)
 ```
 
 For example, AI includes `sim/observation/world_state.hpp` and
-`sim/player/player_control_set.hpp`; apps use `sim/simulation.hpp` and
-`sim/match/match_options.hpp`. WorldState remains an owning observation
+`sim/player/player_control_set.hpp`; apps use `include/football/env.hpp` and
+`sim/simulation.hpp`. WorldState remains an owning observation
 projection, never mutable world authority. CMake exports define library/API
 boundaries; there is no `contracts/` directory or legacy include-path shim.
 

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.24)
 # Independent football::ball module.
 #
 # Public contract:  ${PROJECT_SOURCE_DIR}/include/football/ball/*
-# Private impl:     src/*
+# Private impl:     *.cpp + private headers in this directory
 #
 # football::ball must never depend on football_sim_domain, football_player,
 # football_referee, football_event, football_observation, football::pitch or
@@ -14,11 +14,11 @@ add_library(football::ball ALIAS football_ball)
 
 target_sources(football_ball
   PRIVATE
-    src/ball.cpp
-    src/ball_netting.cpp
-    src/ball_collision.cpp
-    src/ball_deforming_capsule.cpp
-    src/ball_response.cpp
+    ball.cpp
+    ball_netting.cpp
+    ball_collision.cpp
+    ball_deforming_capsule.cpp
+    ball_response.cpp
 )
 
 target_sources(football_ball
@@ -42,7 +42,7 @@ target_include_directories(football_ball
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_compile_features(football_ball PUBLIC cxx_std_23)

@@ -31,9 +31,45 @@ include(cmake/CPM.cmake)
 include(cmake/bqlog.cmake)
 
 add_subdirectory(src/foundation)
+
+# Header-only modules have no implementation directory, so their INTERFACE
+# targets are declared here; the headers live in include/football/<module>/.
+add_library(football_animation INTERFACE)
+add_library(football::animation ALIAS football_animation)
+target_sources(football_animation INTERFACE FILE_SET HEADERS
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/animation/types.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/format.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/clip.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/library.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/selector.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/selection_math.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/selection_query.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/quadrant.hpp)
+target_compile_features(football_animation INTERFACE cxx_std_23)
+target_link_libraries(football_animation INTERFACE football::foundation)
+
 add_subdirectory(src/ball)
-add_subdirectory(src/animation)
-add_subdirectory(src/pitch)
+
+# football::pitch owns the Pitch description; football::pitch_ball owns the
+# header-only Pitch -> BallWorld assembly and pulls football::ball.
+add_library(football_pitch INTERFACE)
+add_library(football::pitch ALIAS football_pitch)
+target_sources(football_pitch INTERFACE FILE_SET HEADERS
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES ${PROJECT_SOURCE_DIR}/include/football/pitch/pitch.hpp)
+target_compile_features(football_pitch INTERFACE cxx_std_23)
+target_link_libraries(football_pitch INTERFACE football::foundation)
+
+add_library(football_pitch_ball INTERFACE)
+add_library(football::pitch_ball ALIAS football_pitch_ball)
+target_sources(football_pitch_ball INTERFACE FILE_SET HEADERS
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES ${PROJECT_SOURCE_DIR}/include/football/pitch/ball_world.hpp)
+target_compile_features(football_pitch_ball INTERFACE cxx_std_23)
+target_link_libraries(football_pitch_ball INTERFACE football::pitch football::ball)
+
 add_subdirectory(src/sim)
 add_subdirectory(src/ai)
 

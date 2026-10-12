@@ -93,9 +93,8 @@ include/football/    public headers (interfaces), one directory per module
 
 src/                 implementations; public headers live in include/football/
 ├── foundation/      math/*.cpp (foundation is otherwise header-only)
-├── ball/            src/*.cpp + private impl headers (never exported)
-├── animation/       target declaration only (header-only module)
-├── pitch/           target declaration only (header-only module)
+├── ball/            football::ball implementation: *.cpp + private headers
+│                    (ball_netting.hpp, ball_deforming_capsule.hpp; never exported)
 ├── ai/              default_ai.cpp, tactical_board.cpp
 ├── env.cpp          sole product composition implementation for AI + sim;
 │                    compiled into libsimcore.so with everything else under src/
@@ -1042,7 +1041,7 @@ Maintainer review of `e4298fb` accepted BallState/core physics and P5e's executi
 boundary. Do not re-split Humanoid or redesign Ball's member API. Current roadmap
 is P4f → P6c → P7; retain AcceptedTouchSink as the rule submission port.
 
-`ball/src/ball_deforming_capsule.{hpp,cpp}` privately extends SweepBall for unequal
+`src/ball/ball_deforming_capsule.{hpp,cpp}` privately extends SweepBall for unequal
 capsule endpoint displacements and changing radii. A conservative swept AABB,
 quartic interior equation, cap quadratics and deterministic derivative-root
 partition/bisection find the first incoming finite-feature contact without a
