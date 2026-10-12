@@ -179,10 +179,11 @@ No pair sorting, position snapshotting or deferred foul-event queue is introduce
 The caller keeps the legacy prediction gate and AdvanceTime → both goal checks →
 score/scorer application order; geometry reads no Match, Ball, player or clock.
 
-`Ball` owns only physics/predictions and a copied Pitch; netting receives the current
-`BallEnvironment` rule fact on each call. Touch-dependent history/possession refresh
-is composed by `ball/ball_touch_application.*::ApplyBallTouch` with explicit Ball,
-environment, impulse, history and processing-ordered teams. Match::TouchBall is removed;
+`Ball` owns only its own model/state and holds a const reference to the immutable
+Pitch; gravity, ground resistance, goal/net geometry and the static colliders all
+come from it, with no BallWorld/BallEnvironment adapter. Touch-dependent history
+refresh is composed by `ball/ball_touch_application.*::ApplyBallTouch` with explicit
+Ball, environment, impulse, history and processing-ordered teams. Match::TouchBall is removed;
 physics → newest history → first/second possession refresh remains synchronous, before
 rotation. Simulation::TouchBall is a transitional diagnostic escape. Actor/body touches
 publish through the write-only `BallTouchSink` (`event/ball_touch_sink.hpp`). Simulation

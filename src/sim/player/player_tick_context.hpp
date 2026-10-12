@@ -4,7 +4,6 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/foundation/math/rng.hpp"
-#include "football/ball/ball_environment.hpp"
 #include "sim/event/touch_state.hpp"
 #include "sim/player/player_touch_preparation.hpp"
 
@@ -29,7 +28,6 @@ struct PlayerTickContext {
   const bool& half_underway;
 
   const football::ball::Ball& ball;
-  football::ball::BallEnvironment ball_environment;
 
   Player* ball_retainer;
   Player* designated_possession_player;

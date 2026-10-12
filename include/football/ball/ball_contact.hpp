@@ -8,6 +8,7 @@
 #include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/geometry/collider.hpp"
+#include "football/pitch/pitch.hpp"
 
 namespace football::ball { class BallModel; }
 
@@ -60,19 +61,6 @@ BallStepResult AdvanceBall(const BallState& initial,
                            float dt, float ball_radius, float restitution,
                            std::size_t max_contacts = 8);
 
-// Continuous forces for the single-tick kernel. Exact coefficient extraction
-// (Magnus, spin integration) is a later physics stage; these are the explicit
-// execution points, not yet the production numeric model.
-struct BallDynamics {
-  float gravity = 9.81f;
-  float quadratic_resistance = 0.04f;          // air drag, mapped from BallModel::drag()
-  float ground_deceleration = 1.6f;            // base rolling deceleration
-  float quadratic_ground_resistance = 0.0f;    // speed-dependent ground resistance
-  float grass_height = 0.025f;
-  float spin_decay = 0.0f;
-  float magnus_coefficient = 0.0f;
-};
-
 // Tick-based model: one free-motion candidate and at most one impulse-bearing
 // impact at the earliest TOI. A contact that only projects the ball out of an
 // existing overlap is instantaneous: it is reported with a zero normal impulse
@@ -80,11 +68,14 @@ struct BallDynamics {
 // still find one genuine impact (P4e). Grounded is a persistent rolling
 // constraint (z = radius, vz = 0, horizontal roll + rolling drag), not a
 // per-tick ground impact. Response reads football::geometry::ColliderMotion::material.
+//
+// All long-lived physical parameters come from the ball's own model and the
+// pitch it moves in; this call only adds the colliders active in this tick.
 BallStepResult AdvanceBallTick(const BallState& initial,
                                std::span<const football::geometry::ColliderMotion> colliders,
                                float dt,
                                const football::ball::BallModel& config,
-                               const BallDynamics& dynamics);
+                               const football::pitch::Pitch& pitch);
 
 }  // namespace football::ball
 

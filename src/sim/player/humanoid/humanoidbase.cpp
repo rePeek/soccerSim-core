@@ -940,8 +940,8 @@ void HumanoidBase::ResetSituation(const Vector3 &focusPos) {
 }
 
 bool HumanoidBase::_HighOrBouncyBall(const Ball& ball) const {
-  float ballHeight1 = ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.coords[2];
-  float ballHeight2 = ball.Predict(football::sim::TickSpan{defaultTouchOffset_ms / football::sim::kMillisecondsPerTick}, football::ball::BallEnvironment{}).position.coords[2];
+  float ballHeight1 = ball.Predict(football::sim::TickSpan{1}).position.coords[2];
+  float ballHeight2 = ball.Predict(football::sim::TickSpan{defaultTouchOffset_ms / football::sim::kMillisecondsPerTick}).position.coords[2];
   float ballBounce = std::fabs(ball.state().velocity.coords[2]);
   bool highBall = false;
   if (ballHeight1 > 0.3f || ballHeight2 > 0.3f) {

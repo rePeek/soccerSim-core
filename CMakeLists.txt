@@ -66,23 +66,16 @@ target_link_libraries(football_animation INTERFACE football::foundation)
 
 add_subdirectory(src/ball)
 
-# football::pitch owns the Pitch description; football::pitch_ball owns the
-# header-only Pitch -> BallWorld assembly and pulls football::ball.
+# football::pitch owns the pitch description and the static physics scene
+# (ground/posts/crossbars as geometry colliders). ball and player read it;
+# pitch never depends on them.
 add_library(football_pitch INTERFACE)
 add_library(football::pitch ALIAS football_pitch)
 target_sources(football_pitch INTERFACE FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES ${PROJECT_SOURCE_DIR}/include/football/pitch/pitch.hpp)
 target_compile_features(football_pitch INTERFACE cxx_std_23)
-target_link_libraries(football_pitch INTERFACE football::foundation)
-
-add_library(football_pitch_ball INTERFACE)
-add_library(football::pitch_ball ALIAS football_pitch_ball)
-target_sources(football_pitch_ball INTERFACE FILE_SET HEADERS
-  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
-  FILES ${PROJECT_SOURCE_DIR}/include/football/pitch/ball_world.hpp)
-target_compile_features(football_pitch_ball INTERFACE cxx_std_23)
-target_link_libraries(football_pitch_ball INTERFACE football::pitch football::ball football::geometry)
+target_link_libraries(football_pitch INTERFACE football::foundation football::geometry)
 
 add_subdirectory(src/sim)
 add_subdirectory(src/ai)

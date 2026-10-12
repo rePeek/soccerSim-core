@@ -220,10 +220,10 @@ struct ActiveTouchShadowReport {
         const auto deviation = [&](football::sim::TickSpan horizon) {
           trajectory_ball->Reset(observation.after);
           const auto legacy =
-              trajectory_ball->Predict(horizon, football::ball::BallEnvironment{});
+              trajectory_ball->Predict(horizon);
           trajectory_ball->Reset(comparison.response);
           const auto physical =
-              trajectory_ball->Predict(horizon, football::ball::BallEnvironment{});
+              trajectory_ball->Predict(horizon);
           return (legacy.position - physical.position).GetLength();
         };
         ++a.trajectory_samples;

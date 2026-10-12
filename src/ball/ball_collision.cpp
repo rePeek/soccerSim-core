@@ -23,6 +23,30 @@ namespace {
 
 constexpr float kEpsilon = 1e-6f;
 
+// Long-lived physics parameters, derived from the ball's own model and the
+// pitch it moves in. Internal to this kernel: BallModel/Pitch remain the
+// only configuration surface, so there is no second set of exposed values.
+struct Dynamics {
+  float quadratic_resistance = 0.04f;       // air drag, from BallModel::drag()
+  float ground_deceleration = 1.6f;         // rolling deceleration, from ground
+  float quadratic_ground_resistance = 0.0f; // speed-dependent ground resistance
+  float grass_height = 0.025f;
+  float spin_decay = 0.0f;
+  float magnus_coefficient = 0.0f;          // from BallModel::magnus_coefficient()
+};
+
+Dynamics MakeDynamics(const football::ball::BallModel& config,
+                      const football::pitch::Pitch& pitch) {
+  Dynamics dynamics;
+  dynamics.quadratic_resistance = config.drag();
+  dynamics.ground_deceleration = pitch.ground_deceleration();
+  dynamics.quadratic_ground_resistance = pitch.quadratic_resistance();
+  dynamics.grass_height = pitch.grass_height();
+  dynamics.spin_decay = 0.0f;
+  dynamics.magnus_coefficient = config.magnus_coefficient();
+  return dynamics;
+}
+
 // Returns the number of roots; if two, t0 <= t1.
 int SolveQuadratic(float a, float b, float c, float& t0, float& t1) {
   if (std::fabs(a) < kEpsilon) {
@@ -286,7 +310,8 @@ BallStepResult AdvanceBallTick(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
                                float dt,
                                const football::ball::BallModel& config,
-                               const BallDynamics& dynamics) {
+                               const football::pitch::Pitch& pitch) {
+  const Dynamics dynamics = MakeDynamics(config, pitch);
   BallStepResult result;
   result.state = initial;
   const float eps = 1e-4f;
@@ -442,7 +467,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
 
   // Airborne free-motion candidate. The launch velocity is recomputed from the
   // cursor so a corrected state still integrates its own drag and gravity.
-  const blunted::Vector3 gravity(0, 0, -dynamics.gravity);
+  const blunted::Vector3 gravity = pitch.gravity();
   const auto launch_velocity = [&](const BallState& s) {
     if (s.position.coords[2] <= grass_zone + eps && s.velocity.coords[2] >= -eps)
       return grass_drag(s.velocity);

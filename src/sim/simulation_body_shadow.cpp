@@ -60,7 +60,7 @@ void Simulation::BeginBodyPhysicsShadow() {
   const auto compute = [&](std::span<const football::geometry::ColliderMotion> bodies) {
     body_physics_shadow_ball_->Reset(tick.initial);
     if (reverse) body_physics_shadow_ball_->Mirror();
-    auto result = body_physics_shadow_ball_->Step(football::ball::BallTickInput{bodies, GetBallEnvironment()});
+    auto result = body_physics_shadow_ball_->Step(football::ball::BallTickInput{bodies});
     if (reverse) MirrorResult(result);
     return result;
   };
@@ -97,7 +97,7 @@ void Simulation::BeginBodyPhysicsShadow() {
         const auto history = std::chrono::milliseconds{player->GetReactionTime_ms() +
             static_cast<int>(football::sim::ToMilliseconds(action.elapsed))};
         const auto index = football::sim::observation::MentalImageSampleIndex(mental_images_.size(), history);
-        if ((mental_images_[index].GetBallPrediction(football::sim::Seconds(1), now, *ball_) - ball_->Predict(football::sim::TickSpan{100}, football::ball::BallEnvironment{}).position).GetLength() <= .5f)
+        if ((mental_images_[index].GetBallPrediction(football::sim::Seconds(1), now, *ball_) - ball_->Predict(football::sim::TickSpan{100}).position).GetLength() <= .5f)
           blocks |= BodyUnexpectedDirection;
       }
     }
@@ -296,5 +296,5 @@ void Simulation::EnableBodyPhysicsProduction(bool enabled) {
   body_physics_shadow_candidates_.reserve(slots);
   body_geometry_episodes_.Resize(slots);
   body_impact_episodes_.Resize(slots);
-  body_physics_shadow_ball_ = std::make_unique<football::ball::Ball>(ball_config_, ball_world_);
+  body_physics_shadow_ball_ = std::make_unique<football::ball::Ball>(ball_config_, pitch_);
 }

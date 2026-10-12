@@ -52,18 +52,20 @@ The app args/fixture archive remains an explicit `EXCLUDE_FROM_ALL` target even
 when CLI/tests are disabled. It is never linked into the shared library.
 Runtime reads the configured baked animation asset, never a data-dir env var.
 
-### Pitch, and Pitch -> BallWorld (header-only, no module)
+### Pitch owns the static physics scene (header-only, no module)
 
-`football.pitch` is a header-only INTERFACE target owning `football::pitch::Pitch`
-(`include/football/pitch/pitch.hpp`); it depends only on foundation. The
-header-only `football::pitch_ball` target owns the inline `BuildBallWorld`
-(`include/football/pitch/ball_world.hpp`) and is the only target that combines
-Pitch with `football::ball`. Ball never reads `Pitch`; the caller assembles
-`BallWorld`. No C++20 module, no module toolchain, no extra CMake flags: any
-supported compiler builds it.
+`football.pitch` is a header-only INTERFACE target owning
+`football::pitch::Pitch` (`include/football/pitch/pitch.hpp`). Pitch builds and
+caches the whole static scene once: the ground plane, the four goal posts, the
+two crossbars, the ground/goal parameters and the fixed environment (gravity,
+wind). Goal-net damping parameters come from the same description. It depends
+on foundation + geometry and never on ball/player.
 
-Dependency direction: `football::pitch` -> `football::ball` (pitch_ball) ->
-`Ball`. `football_ball` must never link `football_pitch` or `football_pitch_ball`.
+Dependency direction: `football::pitch` -> `football::geometry` ->
+`football::foundation`; `football::ball` and (later) `football::player` read
+the immutable pitch scene. `football_pitch` must never link `football_ball`.
+No C++20 module, no module toolchain, no extra CMake flags: any supported
+compiler builds it.
 ### Build performance (diagnosed, not fully resolved)
 
 `simulation.hpp` transitively includes `player_active_touch_shadow.hpp` (which
@@ -88,10 +90,11 @@ include/football/    public headers (interfaces), one directory per module
 │                    ColliderShape variant, ContactMaterial, Collider and the
 │                    per-tick ColliderMotion (depends only on foundation math)
 ├── animation/       header-only baked schema/library/selector (football::animation)
-├── ball/            football::ball: Ball, BallModel, BallState, BallWorld,
-│                    collider/CCD sweeps, contact evidence and impulse response
-├── pitch/           football::pitch: Pitch description plus the header-only
-│                    football::pitch_ball BuildBallWorld assembly
+├── ball/            football::ball: Ball, BallModel, BallState,
+│                    collider/CCD sweeps, contact evidence and impulse response;
+│                    reads the immutable football::pitch scene
+├── pitch/           football::pitch: Pitch description plus the ground/posts/
+│                    crossbars colliders and the fixed environment
 ├── ai/              AIConfig, TacticalBoard and DefaultAI declarations
 └── env.hpp          public autonomous match façade; values + opaque private owners
 
@@ -153,7 +156,7 @@ symbols (including the currently unused GetRoleFromString).
 ```text
 app → simcore (env.cpp) → ai + sim
 ai → ai_contracts + sim_contracts → foundation/pitch/geometry
-sim → sim_contracts + animation + pitch_ball → foundation/ball/geometry (PRIVATE BqLog)
+sim → sim_contracts + animation + ball + pitch → foundation/geometry (PRIVATE BqLog)
 app_support (args/fixtures) → sim_contracts/foundation
 anim_baking → legacy_anim + animation/foundation
 ```
@@ -259,9 +262,11 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   snapshots or fixed pre-sweep biases would change behavior.
   Publication stays synchronous inside the tick. Never freeze touch
   biases before the sweep: later actors must see earlier touches in the same tick.
-- Ball owns a copied football::pitch::Pitch, never Match/Simulation, Team, Player or RNG.
-  Every prediction-mutating operation receives BallEnvironment (the current netting
-  rule fact), not a stored duplicate of match goal state. Ball::Touch is physics only.
+- Ball holds a const reference to the immutable football::pitch::Pitch it was
+  built with (the caller outlives it), never Match/Simulation, Team, Player or RNG.
+  Gravity, ground resistance, goal-net parameters and the static colliders all
+  come from that Pitch; there is no BallWorld/BallEnvironment copy. Rule facts
+  (goal, out of play) still arrive as explicit values. Ball::Step is physics only.
   ball/ball_touch_application.*::ApplyBallTouch composes Touch → newest history refresh →
   first/second processing-roster possession refresh from explicit inputs; callers then set
   rotation. Match::TouchBall is removed; Simulation::TouchBall is a diagnostic escape.

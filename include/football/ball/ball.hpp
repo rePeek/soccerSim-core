@@ -16,10 +16,9 @@
 
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_impulse.hpp"
-#include "football/ball/ball_environment.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/geometry/collider.hpp"
-#include "football/ball/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 #include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/foundation/math/vector3.hpp"
@@ -32,7 +31,6 @@ namespace football::ball {
 // IDs must be nonzero, unique, and disjoint from pitch IDs 1--7.
 struct BallTickInput {
   std::span<const football::geometry::ColliderMotion> dynamic_colliders;
-  BallEnvironment environment;
   // P5b: at most one active impulse, supplied by Simulation after arbitration
   // and applied at the tick endpoint (after passive motion and netting). It
   // changes velocity and spin only; position is never advanced a second time
@@ -45,12 +43,13 @@ struct BallTickInput {
 
 class Ball {
  public:
-  explicit Ball(const football::ball::BallModel& config, BallWorld world);
+  Ball(const football::ball::BallModel& model,
+       const football::pitch::Pitch& pitch);
   ~Ball();
 
   // ---- Stable state observation ----
   BallState state() const;
-  // Physics configuration actually in force (mass, radius, restitution).
+  // Physics configuration actually in force (mass, radius, aerodynamics).
   // Read-only; never a live channel for mutating the ball.
   const football::ball::BallModel& config() const { return config_; }
 
@@ -59,15 +58,15 @@ class Ball {
   // Returns physical evidence only; overlap/resting contact is not a rule touch.
   BallStepResult Step(const BallTickInput& input);
   // Read-only trajectory prediction sharing the same physics kernel as Step.
-  BallState Predict(football::sim::TickSpan ahead,
-                    const BallEnvironment& environment) const;
+  // The pitch (gravity, ground, static colliders) comes from the Ball itself.
+  BallState Predict(football::sim::TickSpan ahead) const;
   // Read-only preview of precisely the same tick input/kernel as Step, including
   // dynamic CCD. Does not consume accumulated forces or modify any Ball state.
   BallStepResult Predict(const BallTickInput& input) const;
 
   // ---- Stable lifecycle and coordinate frame ----
   // Explicit state replacement (prediction shares the live state).
-  // Goal geometry is supplied per call via Predict(ahead, environment).
+  // Goal geometry comes from the stored pitch.
   void Reset(const BallState& state);
   // Coordinate mirror: flips position, velocity, angular velocity and
   // orientation (a 180 degree rotation about z).
@@ -76,18 +75,18 @@ class Ball {
 
  private:
   // Pure tick computation including the flexible net correction.
-  BallStepResult AdvanceState(const BallState& current,
-                              std::span<const football::geometry::ColliderMotion> colliders,
-                              const BallEnvironment& environment) const;
+  BallStepResult AdvanceState(
+      const BallState& current,
+      std::span<const football::geometry::ColliderMotion> colliders) const;
   BallStepResult EvaluateTick(const BallTickInput& input,
                               std::vector<football::geometry::ColliderMotion>& scratch) const;
 
   football::ball::BallModel config_;
-  BallWorld world_;
+  // The immutable pitch scene the ball moves in; must outlive this Ball.
+  const football::pitch::Pitch& pitch_;
   // Single authoritative internal state (the public BallState projection is a
   // straight copy, not a lossy conversion).
   BallState state_;
-  BallDynamics dynamics_;
   // Reused merge scratch; 7 static + 22*3 body motions fit without growth.
   // Larger rosters may grow it once. Prediction never consumes this buffer.
   std::vector<football::geometry::ColliderMotion> tick_colliders_;

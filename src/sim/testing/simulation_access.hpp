@@ -109,10 +109,6 @@ class SimulationAccess {
   static bool IsInSetPieceOf(Simulation& s) { return s.set_piece_active_; }
   static bool IsBallInPlayOf(Simulation& s) { return s.clock_->IsBallInPlay(); }
   static bool IsHalfUnderwayOf(Simulation& s) { return s.clock_->IsHalfUnderway(); }
-  static football::ball::BallEnvironment BallEnvironmentOf(Simulation& s) {
-    (void)s;
-    return {};
-  }
   static int ScoreOf(Simulation& s, int team_id) { return s.score_[team_id]; }
   static float PossessionFactorOf(Simulation& s) { return s.possession_60_seconds_ / 60.0f; }
   static MatchPhase PhaseOf(Simulation& s) { return s.phase_; }
@@ -180,7 +176,7 @@ class SimulationAccess {
       s.body_physics_shadow_candidates_.reserve(slots);
       s.body_geometry_episodes_.Resize(slots);
       s.body_impact_episodes_.Resize(slots);
-      s.body_physics_shadow_ball_ = std::make_unique<football::ball::Ball>(s.ball_config_, s.ball_world_);
+      s.body_physics_shadow_ball_ = std::make_unique<football::ball::Ball>(s.ball_config_, s.pitch_);
     } else {
       s.body_physics_shadow_ball_.reset();
     }

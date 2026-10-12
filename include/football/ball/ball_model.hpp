@@ -6,44 +6,44 @@
 
 namespace football::ball {
 
-// Static physical description of the football. It owns no runtime state and is
-// validated at construction; consumers read it through getters only. This is
-// the ball domain's own model type; Ball does not read football::pitch::Pitch/BallModel.
+// Static physical description of the football itself: mass, radius and the
+// aerodynamic coefficients. It owns no runtime state and is validated at
+// construction.
 //
-// `restitution` currently represents the effective ball-ground contact
-// coefficient in the current physics, not a pure ball material property.
-// Keep it here to preserve behaviour until a contact-material model exists.
+// Gravity, wind, the ground, the goal and every static collider are properties
+// of the world, so they live in football::pitch::Pitch, not here.
 class BallModel {
  public:
   constexpr BallModel() = default;
 
-  BallModel(float mass, float radius, float restitution = 0.62f,
-            float drag = 0.015f)
+  BallModel(float mass, float radius, float drag = 0.015f,
+            float magnus_coefficient = 0.02f)
       : mass_(mass),
         radius_(radius),
-        restitution_(restitution),
-        drag_(drag) {
+        drag_(drag),
+        magnus_coefficient_(magnus_coefficient) {
     if (!std::isfinite(mass) || !std::isfinite(radius) ||
-        !std::isfinite(restitution) || !std::isfinite(drag) ||
+        !std::isfinite(drag) || !std::isfinite(magnus_coefficient) ||
         mass <= 0.0f || radius <= 0.0f ||
-        restitution < 0.0f || restitution > 1.0f ||
-        drag < 0.0f) {
+        drag < 0.0f || magnus_coefficient < 0.0f) {
       throw std::invalid_argument("Invalid ball configuration");
     }
   }
 
   constexpr float mass() const { return mass_; }
   constexpr float radius() const { return radius_; }
-  constexpr float restitution() const { return restitution_; }
+  // Air drag coefficient: acceleration is -drag * |v| * v.
   constexpr float drag() const { return drag_; }
+  // Magnus coupling: acceleration is magnus * (spin x v).
+  constexpr float magnus_coefficient() const { return magnus_coefficient_; }
 
   bool operator==(const BallModel&) const = default;
 
  private:
   float mass_ = 0.43f;
   float radius_ = 0.11f;
-  float restitution_ = 0.62f;
   float drag_ = 0.015f;
+  float magnus_coefficient_ = 0.02f;
 };
 
 }  // namespace football::ball

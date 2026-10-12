@@ -26,8 +26,7 @@
 #include "sim/event/touch_state.hpp"
 #include "sim/event/touch_record.hpp"
 #include "sim/event/rule_touch.hpp"
-#include "football/ball/ball_environment.hpp"
-#include "football/ball/ball_world.hpp"
+
 #include "sim/referee/referee_tick_facts.hpp"
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
@@ -224,7 +223,6 @@ class Simulation {
   Team* GetLastTouchTeam() const;
   Player* GetLastTouchPlayer() const;
   void GetActiveTeamPlayers(int team_id, std::vector<Player*>& players);
-  football::ball::BallEnvironment GetBallEnvironment() const { return {}; }
 
   blunted::Rng rng_;
   // Constructed before the actors and kept alive until their borrows are gone.
@@ -242,9 +240,6 @@ class Simulation {
   MatchOptions options_;
   football::pitch::Pitch pitch_;
   football::ball::BallModel ball_config_;
-  // Assembled once per Init from pitch_ + ball_config_; every Ball instance
-  // (authoritative, preparation, shadow) reuses this static world.
-  football::ball::BallWorld ball_world_;
   std::shared_ptr<AnimationLibrary> animations_;
 
   std::unique_ptr<football::ball::Ball> ball_;

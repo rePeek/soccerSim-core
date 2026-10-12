@@ -48,7 +48,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
       if (onlyWhenDirectionChangedUnexpectedly) {
         const auto history = std::chrono::milliseconds{players[i]->GetReactionTime_ms() + static_cast<int>(ToMilliseconds(action.elapsed))};
         const auto index = observation::MentalImageSampleIndex(inputs.history.size(), history);
-        float unexpectedDistance = (inputs.history[index].GetBallPrediction(Seconds(1), inputs.now, ball) - ball.Predict(football::sim::TickSpan{100}, football::ball::BallEnvironment{}).position).GetLength();
+        float unexpectedDistance = (inputs.history[index].GetBallPrediction(Seconds(1), inputs.now, ball) - ball.Predict(football::sim::TickSpan{100}).position).GetLength();
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
 

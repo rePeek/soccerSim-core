@@ -10,14 +10,12 @@ using namespace blunted;
 namespace football::ball::detail {
 
 void ResolveNetting(Vector3& nextPos, Vector3& momentumPredict,
-                    const football::ball::GoalNetGeometry& net,
-                    const football::ball::BallModel& config,
-                    const football::ball::BallEnvironment& environment) {
-  (void)environment;
-  const float pitchHalfW = net.pitch_half_length;
-  const float goalHalfWidth = net.goal_half_width;
-  const float goalHeight = net.goal_height;
-  const float goalDepth = net.goal_depth;
+                    const football::pitch::Pitch& pitch,
+                    const football::ball::BallModel& config) {
+  const float pitchHalfW = pitch.half_length();
+  const float goalHalfWidth = pitch.goal_half_width();
+  const float goalHeight = pitch.goal_height();
+  const float goalDepth = pitch.goal_depth();
   const float ballRadius = config.radius();
   const float timeStep = football::sim::kTickSeconds;
 

@@ -63,7 +63,7 @@ void Simulation::EnablePreparedTickProduction(bool enabled) {
   prepared_tick_production_ = enabled;
   if (!enabled && baked_body_production_) EnableBakedBodyProduction(false);
   if (enabled && !preparation_ball_)
-    preparation_ball_ = std::make_unique<football::ball::Ball>(ball_config_, ball_world_);
+    preparation_ball_ = std::make_unique<football::ball::Ball>(ball_config_, pitch_);
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();
   committed_ball_tick_.reset();
@@ -81,7 +81,7 @@ void Simulation::RunPreparedPlayerTick() {
   auto bodies = body_physics_production_ ?
       std::span<const ColliderMotion>{baked_body_production_ ? baked_body_colliders_ : body_physics_production_colliders_} :
       std::span<const ColliderMotion>{};
-  BallTickInput input{bodies, GetBallEnvironment()};
+  BallTickInput input{bodies};
   // Const actor forecast: no force consumption or actor/action/RNG advance.
   // Baked mode later refreshes the passive preview against actual prepared
   // geometry; the normal physical write remains the single final Step.
@@ -106,7 +106,7 @@ void Simulation::RunPreparedPlayerTick() {
       auto base = PlayerTickFacts(*actor);
       football::sim::PlayerTickContext facts{
           base.now, base.play_authorized, base.set_piece_active, base.ball_in_play,
-          base.half_underway, *preparation_ball_, base.ball_environment,
+          base.half_underway, *preparation_ball_,
           base.ball_retainer, base.designated_possession_player, base.last_touch_player,
           base.touches, base.restart, base.pitch, base.own_team, base.opponent_team,
           base.first_processing_team, base.second_processing_team, base.processing_slot,

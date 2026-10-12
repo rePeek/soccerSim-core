@@ -1,5 +1,4 @@
 #include "sim/simulation.hpp"
-#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
 
 #include <algorithm>
@@ -27,7 +26,6 @@
 #include "sim/team/possession.hpp"
 #include "sim/team/team.hpp"
 
-#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
 using football::ball::Ball;
 
@@ -126,7 +124,7 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
   Team& second = *teams_[second_team_];
   const int processing_slot = actor.GetTeamID() == second_team_ ? 1 : 0;
   return {GetTimelineTick(), play_authorized_, set_piece_active_, IsBallInPlay(),
-          clock_->IsHalfUnderway(), *ball_, GetBallEnvironment(), ball_retainer_,
+          clock_->IsHalfUnderway(), *ball_, ball_retainer_,
           designated_possession_player_, GetLastTouchPlayer(), touches_,
           referee_->GetBuffer(), pitch_, own, opponent, first, second, processing_slot,
           referee_->RestartNeedsSimulation(), rng_,
@@ -474,8 +472,7 @@ void Simulation::Init(
   second_team_ = options.reverse_team_processing ? 0 : 1;
 
   // Build the whole composition locally, then publish it only on full success.
-  ball_world_ = football::pitch::BuildBallWorld(pitch_, ball_config_);
-  auto ball = std::make_unique<Ball>(ball_config_, ball_world_);
+  auto ball = std::make_unique<Ball>(ball_config_, pitch_);
   const football::sim::TeamSetup* descriptions[] = {&home_model, &away_model};
   std::array<std::unique_ptr<Team>, 2> teams;
   teams[first_team_] =
@@ -718,7 +715,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   if (IsBallInPlay()) {
     // Retain the per-side legacy lookahead gate; geometry itself needs no Ball.
     const auto crossed_goal = [&](int side) {
-      if (fabs(ball_->Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.coords[0]) < pitch_.half_length() - 1.0) return false;
+      if (fabs(ball_->Predict(football::sim::TickSpan{1}).position.coords[0]) < pitch_.half_length() - 1.0) return false;
       return football::sim::CrossedGoalLine(
           pitch_, side, previous_ball_pos, ball_->state().position);
     };
@@ -779,7 +776,7 @@ WorldState Simulation::Observe() const {
 void Simulation::TouchBall(const Vector3& impulse) {
   if (!ball_) throw std::logic_error("simulation has no match");
   // Diagnostic escape: a centre point impulse through the unified kernel.
-  football::ball::BallTickInput input{{}, GetBallEnvironment()};
+  football::ball::BallTickInput input{};
   input.active_impulse = football::ball::BallImpulse{impulse, ball_->state().position};
   ball_->Step(input);
 }

@@ -1,13 +1,21 @@
 #ifndef FOOTBALL_PITCH_PITCH_HPP
 #define FOOTBALL_PITCH_PITCH_HPP
 
-// football::pitch owns the read-only pitch description. Geometry is fixed at
-// construction; the match must not mutate it at runtime. The pitch -> BallWorld
-// assembly lives in football/pitch/ball_world.hpp so that consumers which only
-// need the description never pull in football::ball.
+// football::pitch owns the pitch physics scene: the read-only description, the
+// fixed environment (gravity, wind, ground) and the static colliders generated
+// once at construction.
+//
+// The dependency points one way: ball/player read this scene; pitch never knows
+// about them. Rule decisions (goal, out of play, fouls) stay in the rules
+// module -- pitch only provides the geometry those decisions need.
 
 #include <cmath>
+#include <span>
 #include <stdexcept>
+#include <vector>
+
+#include "football/foundation/math/vector3.hpp"
+#include "football/geometry/collider.hpp"
 
 namespace football::pitch {
 
@@ -19,14 +27,13 @@ namespace football::pitch {
 // behaviour exactly.
 class Pitch {
  public:
-  constexpr Pitch() = default;
-
   // Core geometry and ground physics are constructor-required; remaining
   // dimensions keep their legacy defaults. Invalid (non-finite or
   // non-positive geometry / negative friction) values are rejected here so
   // every consumer shares one validated description.
-  Pitch(float length, float width, float quadratic_resistance,
-        float ground_deceleration, float grass_height)
+  Pitch(float length = 105.0f, float width = 68.0f,
+        float quadratic_resistance = 0.04f, float ground_deceleration = 1.6f,
+        float grass_height = 0.025f)
       : length_(length),
         width_(width),
         quadratic_resistance_(quadratic_resistance),
@@ -41,6 +48,7 @@ class Pitch {
       throw std::invalid_argument(
           "football::pitch::Pitch: invalid geometry or ground parameters");
     }
+    BuildColliders();
   }
 
   constexpr float length() const { return length_; }
@@ -51,13 +59,23 @@ class Pitch {
   constexpr float goal_half_width() const { return goal_width_ * 0.5f; }
   constexpr float goal_height() const { return goal_height_; }
   constexpr float goal_depth() const { return goal_depth_; }
-
-  constexpr float quadratic_resistance() const { return quadratic_resistance_; }
-  constexpr float ground_deceleration() const { return ground_deceleration_; }
-  constexpr float grass_height() const { return grass_height_; }
   // Penalty-area geometry used by the referee and restart placement.
   constexpr float penalty_area_depth() const { return penalty_area_depth_; }
   constexpr float penalty_mark_distance() const { return penalty_mark_distance_; }
+
+  // ---- Fixed environment the bodies move in (not per-tick input) ----
+  const blunted::Vector3& gravity() const { return gravity_; }
+  // Reserved: wind is not consumed by the current physics.
+  const blunted::Vector3& wind_velocity() const { return wind_velocity_; }
+  constexpr float quadratic_resistance() const { return quadratic_resistance_; }
+  constexpr float ground_deceleration() const { return ground_deceleration_; }
+  constexpr float grass_height() const { return grass_height_; }
+
+  // ---- Physics scene: ground, posts and crossbars, generated once ----
+  // Stable ids (also the deterministic CCD tie-break order) and a fixed order.
+  std::span<const football::geometry::ColliderMotion> colliders() const {
+    return colliders_;
+  }
 
   // Ground-plane bounds only. Ball radius, line crossing and restart decisions
   // belong to the runtime simulation and referee, not this domain description.
@@ -69,6 +87,75 @@ class Pitch {
   bool operator==(const Pitch&) const = default;
 
  private:
+  void BuildColliders() {
+    using football::geometry::Capsule;
+    using football::geometry::ColliderId;
+    using football::geometry::ColliderMotion;
+    using football::geometry::ColliderShape;
+    using football::geometry::ContactMaterial;
+    using football::geometry::Plane;
+
+    const auto static_collider = [](ColliderId id, ColliderShape shape,
+                                    ContactMaterial material) {
+      ColliderMotion motion;
+      motion.id = id;
+      motion.start = shape;
+      motion.end = shape;
+      motion.material = material;
+      return motion;
+    };
+
+    const float x = half_length();
+    const float y = goal_half_width();
+    const float z = goal_height();
+    // Ground friction/handling is the world's; the posts are steel. The
+    // effective contact material is carried by each collider, exactly as the
+    // historical effective ball-ground restitution was.
+    const ContactMaterial ground{ground_material_};
+    const ContactMaterial steel{post_material_};
+
+    colliders_.clear();
+    colliders_.reserve(7);
+    colliders_.push_back(static_collider(
+        kGroundColliderId, Plane{blunted::Vector3(0, 0, 0), blunted::Vector3(0, 0, 1)},
+        ground));
+    colliders_.push_back(static_collider(
+        kLeftPostLowColliderId,
+        Capsule{blunted::Vector3(-x, -y, 0), blunted::Vector3(-x, -y, z), kPostRadius},
+        steel));
+    colliders_.push_back(static_collider(
+        kLeftPostHighColliderId,
+        Capsule{blunted::Vector3(-x, y, 0), blunted::Vector3(-x, y, z), kPostRadius},
+        steel));
+    colliders_.push_back(static_collider(
+        kRightPostLowColliderId,
+        Capsule{blunted::Vector3(x, -y, 0), blunted::Vector3(x, -y, z), kPostRadius},
+        steel));
+    colliders_.push_back(static_collider(
+        kRightPostHighColliderId,
+        Capsule{blunted::Vector3(x, y, 0), blunted::Vector3(x, y, z), kPostRadius},
+        steel));
+    colliders_.push_back(static_collider(
+        kLeftBarColliderId,
+        Capsule{blunted::Vector3(-x, -y, z), blunted::Vector3(-x, y, z), kPostRadius},
+        steel));
+    colliders_.push_back(static_collider(
+        kRightBarColliderId,
+        Capsule{blunted::Vector3(x, -y, z), blunted::Vector3(x, y, z), kPostRadius},
+        steel));
+  }
+
+  // Stable ids and geometry frozen because the CCD uses ColliderId for
+  // deterministic contact sorting.
+  static constexpr football::geometry::ColliderId kGroundColliderId = 1;
+  static constexpr football::geometry::ColliderId kLeftPostLowColliderId = 2;
+  static constexpr football::geometry::ColliderId kLeftPostHighColliderId = 3;
+  static constexpr football::geometry::ColliderId kRightPostLowColliderId = 4;
+  static constexpr football::geometry::ColliderId kRightPostHighColliderId = 5;
+  static constexpr football::geometry::ColliderId kLeftBarColliderId = 6;
+  static constexpr football::geometry::ColliderId kRightBarColliderId = 7;
+  static constexpr float kPostRadius = 0.06f;
+
   float length_ = 105.0f;
   float width_ = 68.0f;
   float quadratic_resistance_ = 0.04f;
@@ -80,6 +167,12 @@ class Pitch {
   float goal_depth_ = 2.55f;
   float penalty_area_depth_ = 16.5f;
   float penalty_mark_distance_ = 11.0f;
+
+  blunted::Vector3 gravity_{0.0f, 0.0f, -9.81f};
+  blunted::Vector3 wind_velocity_{0.0f, 0.0f, 0.0f};
+  football::geometry::ContactMaterial ground_material_{0.62f, 0.0f};
+  football::geometry::ContactMaterial post_material_{0.8f, 0.0f};
+  std::vector<football::geometry::ColliderMotion> colliders_;
 };
 
 }  // namespace football::pitch

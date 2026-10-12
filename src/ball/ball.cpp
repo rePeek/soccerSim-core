@@ -21,34 +21,12 @@ using football::geometry::ContactMaterial;
 using football::geometry::Plane;
 using football::geometry::Sphere;
 
-namespace {
 
-// The Magnus chain is wired through BallDynamics::magnus_coefficient (rad/s x
-// m/s -> m/s^2). The value below is an explicit, deterministic starting point
-// for the new unit system; it is not a bit-match of the historical swerve
-// formula and is recalibrated by the trajectory-diff step of the upgrade.
-constexpr float kMagnusCoefficient = 0.02f;
-
-BallDynamics BuildDynamics(const football::ball::BallModel& config,
-                           const GroundSurface& ground) {
-  BallDynamics dynamics;
-  dynamics.gravity = 9.81f;
-  dynamics.quadratic_resistance = config.drag();
-  dynamics.ground_deceleration = ground.deceleration;
-  dynamics.quadratic_ground_resistance = ground.quadratic_resistance;
-  dynamics.grass_height = ground.grass_height;
-  dynamics.spin_decay = 0.0f;
-  dynamics.magnus_coefficient = kMagnusCoefficient;
-  return dynamics;
-}
-
-}  // namespace
-
-Ball::Ball(const football::ball::BallModel& config, BallWorld world)
+Ball::Ball(const football::ball::BallModel& config,
+         const football::pitch::Pitch& pitch)
     : config_(config),
-      world_(std::move(world)),
-      state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()},
-      dynamics_(BuildDynamics(config, world_.ground)) {
+      pitch_(pitch),
+      state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()} {
   tick_colliders_.reserve(73);
 }
 
@@ -57,13 +35,12 @@ Ball::~Ball() = default;
 BallState Ball::state() const { return state_; }
 
 BallStepResult Ball::AdvanceState(const BallState& current,
-                                  std::span<const ColliderMotion> colliders,
-                                  const BallEnvironment& environment) const {
+                                  std::span<const ColliderMotion> colliders) const {
   BallStepResult result = AdvanceBallTick(
-      current, colliders, football::sim::kTickSeconds, config_, dynamics_);
+      current, colliders, football::sim::kTickSeconds, config_, pitch_);
   // Flexible netting stays a discrete correction, not a rigid collider.
-  detail::ResolveNetting(result.state.position, result.state.velocity, world_.net,
-                         config_, environment);
+  detail::ResolveNetting(result.state.position, result.state.velocity, pitch_,
+                         config_);
   return result;
 }
 
@@ -76,7 +53,7 @@ BallStepResult Ball::EvaluateTick(const BallTickInput& input,
     throw std::invalid_argument("active impulse and endpoint constraint conflict");
   for (std::size_t i = 0; i < input.dynamic_colliders.size(); ++i) {
     const auto id = input.dynamic_colliders[i].id;
-    if (id == 0 || std::any_of(world_.static_colliders.begin(), world_.static_colliders.end(),
+    if (id == 0 || std::any_of(pitch_.colliders().begin(), pitch_.colliders().end(),
                              [id](const auto& c) { return c.id == id; }))
       throw std::invalid_argument("dynamic collider id conflicts with pitch or is zero");
     for (std::size_t j = 0; j < i; ++j) {
@@ -84,15 +61,15 @@ BallStepResult Ball::EvaluateTick(const BallTickInput& input,
         throw std::invalid_argument("duplicate dynamic collider id");
     }
   }
-  std::span<const ColliderMotion> all_colliders = world_.static_colliders;
+  std::span<const ColliderMotion> all_colliders = pitch_.colliders();
   if (!input.dynamic_colliders.empty()) {
-    scratch.assign(world_.static_colliders.begin(), world_.static_colliders.end());
+    scratch.assign(pitch_.colliders().begin(), pitch_.colliders().end());
     scratch.insert(scratch.end(), input.dynamic_colliders.begin(),
                    input.dynamic_colliders.end());
     all_colliders = scratch;
   }
   BallState initial = state_;
-  BallStepResult result = AdvanceState(initial, all_colliders, input.environment);
+  BallStepResult result = AdvanceState(initial, all_colliders);
   // P5b: the active impulse belongs to the tick endpoint. It is applied after
   // passive motion and netting, changes only velocity/spin about the given
   // point, never advances position again and never runs a second Step.
@@ -123,11 +100,10 @@ BallStepResult Ball::Step(const BallTickInput& input) {
 }
 
 
-BallState Ball::Predict(football::sim::TickSpan ahead,
-                        const BallEnvironment& environment) const {
+BallState Ball::Predict(football::sim::TickSpan ahead) const {
   BallState predicted = state_;
   for (football::sim::TickSpan i{0}; i < ahead; i += football::sim::TickSpan{1}) {
-    predicted = AdvanceState(predicted, world_.static_colliders, environment).state;
+    predicted = AdvanceState(predicted, pitch_.colliders()).state;
   }
   return predicted;
 }

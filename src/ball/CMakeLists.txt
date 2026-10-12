@@ -6,8 +6,8 @@ cmake_minimum_required(VERSION 3.24)
 # Private impl:     *.cpp + private headers in this directory
 #
 # football::ball must never depend on football_sim_domain, football_player,
-# football_referee, football_event, football_observation, football::pitch or
-# football::pitch. It consumes foundation math plus its own BallWorld.
+# football_referee, football_event or football_observation. It reads the
+# immutable football::pitch scene and consumes foundation math + geometry.
 
 add_library(football_ball STATIC)
 add_library(football::ball ALIAS football_ball)
@@ -28,10 +28,8 @@ target_sources(football_ball
     FILES
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_model.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_world.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_state.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_impulse.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_environment.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_timing.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_contact.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_response.hpp
@@ -48,7 +46,7 @@ target_compile_features(football_ball PUBLIC cxx_std_23)
 
 target_link_libraries(football_ball
   PUBLIC
-    football::foundation football::geometry
+    football::foundation football::geometry football::pitch
 )
 
 football_configure_target(football_ball)
