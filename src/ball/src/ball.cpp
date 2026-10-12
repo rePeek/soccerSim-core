@@ -4,7 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 
-#include "ball_contact.hpp"
+#include "ball_netting.hpp"
 #include "football/ball/ball_response.hpp"
 #include "foundation/math/scalar.hpp"
 #include "foundation/time/tick.hpp"

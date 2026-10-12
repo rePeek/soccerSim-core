@@ -11,7 +11,6 @@
 // R4a-1: the runtime class is defined inside namespace football::ball. There is
 // no global `Ball` name and no `using namespace` in this public header.
 
-#include <memory>
 #include <optional>
 #include <vector>
 
@@ -67,8 +66,8 @@ class Ball {
   BallStepResult Predict(const BallTickInput& input) const;
 
   // ---- Stable lifecycle and coordinate frame ----
-  // Explicit state replacement. Predictions are rebuilt with a neutral
-  // environment; use Predict(ahead, environment) when goal geometry matters.
+  // Explicit state replacement (prediction shares the live state).
+  // Goal geometry is supplied per call via Predict(ahead, environment).
   void Reset(const BallState& state);
   // Coordinate mirror: flips position, velocity, angular velocity and
   // orientation (a 180 degree rotation about z).

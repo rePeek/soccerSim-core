@@ -15,7 +15,7 @@ add_library(football::ball ALIAS football_ball)
 target_sources(football_ball
   PRIVATE
     src/ball.cpp
-    src/ball_contact.cpp
+    src/ball_netting.cpp
     src/ball_collision.cpp
     src/ball_deforming_capsule.cpp
     src/ball_response.cpp

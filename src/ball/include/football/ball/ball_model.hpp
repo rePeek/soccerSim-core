@@ -10,9 +10,9 @@ namespace football::ball {
 // validated at construction; consumers read it through getters only. This is
 // the ball domain's own model type; Ball does not read model::Pitch/BallModel.
 //
-// `restitution` currently represents the effective ball-ground contact in the
-// legacy physics and is not a pure ball material property. Keep it here to
-// preserve behaviour until a contact-material model is introduced.
+// `restitution` currently represents the effective ball-ground contact
+// coefficient in the current physics, not a pure ball material property.
+// Keep it here to preserve behaviour until a contact-material model exists.
 class BallModel {
  public:
   constexpr BallModel() = default;
