@@ -11,7 +11,6 @@ if(FOOTBALL_CCACHE_PROGRAM)
   set(CMAKE_C_COMPILER_LAUNCHER "${FOOTBALL_CCACHE_PROGRAM}"
       CACHE STRING "C compiler launcher (ccache when available)")
 endif()
-option(FOOTBALL_BUILD_APP "Build the CLI executable and its sample inputs" ON)
 
 # Shared build policy only; each module owns its sources, exports and link edges.
 function(football_configure_target tgt)

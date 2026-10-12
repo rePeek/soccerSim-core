@@ -25,15 +25,13 @@ foundation boilerplate is public domain.
 
 CMake >= 3.24, Ninja, C++23; use the `flake.nix` dev shell.
 Development validation requires **Debug and core only**. Do not build Release
-or the app/CLI unless the maintainer explicitly requests it. Test-only app
-fixture dependencies remain allowed; they do not make the app executable a
-development build requirement.
+unless the maintainer explicitly requests it.
 
 ```sh
 # Core build + the (currently empty) test scaffolding
-nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && cmake --build --preset debug -j $(nproc) && ctest --preset debug'
+nix develop --command bash -c 'cmake --preset debug && cmake --build --preset debug -j $(nproc) && ctest --preset debug'
 # Core-only build
-nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF -DCMAKE_BUILD_TYPE=Debug && cmake --build build/core -j $(nproc)'
+nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Debug && cmake --build build/core -j $(nproc)'
 ```
 
 BqLog 2.5.0 (pinned commit) is fetched by `cmake/CPM.cmake` in every build mode;
@@ -47,7 +45,7 @@ new unit executables can be registered there. `test/baselines/` no longer exists
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
-cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF
+cmake -S . -B build/core -DBUILD_TESTING=OFF
 ```
 
 The app args/fixture archive remains an explicit `EXCLUDE_FROM_ALL` target even

@@ -1,5 +1,5 @@
-# Executable-side args/fixtures remain available with CLI/tests disabled.
-# EXCLUDE_FROM_ALL keeps sample inputs out of core-only builds.
+# Executable-side args/fixtures are internal support for the CLI and tests;
+# EXCLUDE_FROM_ALL keeps them out of core-only builds.
 add_library(football_app_support STATIC EXCLUDE_FROM_ALL)
 add_library(football::app_support ALIAS football_app_support)
 target_sources(football_app_support
@@ -22,8 +22,6 @@ target_link_libraries(football_recording
   PUBLIC football::sim_contracts PRIVATE Threads::Threads)
 football_configure_target(football_recording)
 
-if(FOOTBALL_BUILD_APP)
-  add_executable(football_app app.cpp)
-  target_link_libraries(football_app PRIVATE football::game football::app_support football::recording)
-  football_configure_target(football_app)
-endif()
+add_executable(football_app app.cpp)
+target_link_libraries(football_app PRIVATE football::game football::app_support football::recording)
+football_configure_target(football_app)

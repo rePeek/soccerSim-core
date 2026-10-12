@@ -294,8 +294,8 @@ black-box coverage; a separate smoke executable is unnecessary.
 
 BqLog 2.5.0 is fetched via CPM at a pinned commit in all build modes; Catch2 is
 fetched only with BUILD_TESTING enabled. Both are cached in `.cache/CPM`.
-`-DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF` builds core only (first BqLog fetch
-needs network); the args/fixture archive remains EXCLUDE_FROM_ALL. BqLog is PRIVATE
+`-DBUILD_TESTING=OFF` builds core without Catch2 (first BqLog fetch needs
+network); the args/fixture archive remains EXCLUDE_FROM_ALL. BqLog is PRIVATE
 to game/sim. GameEnv starts the single `football` logger and flushes after teardown;
 warnings log, operational failures throw, and debug invariants use `<cassert>`.
 There is no `src/support/`: app profiles are typed fixtures retaining six-decimal
