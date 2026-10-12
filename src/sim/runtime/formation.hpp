@@ -3,10 +3,12 @@
 
 #include <vector>
 
+#include "sim/player/formation_entry.hpp"
 #include "sim/player/player_role.hpp"
 #include "sim/referee/game_mode.hpp"
 
 namespace football::sim {
+struct TeamSetup;
 
 // Initial positions in the environment's public pitch coordinates. Simulation
 // converts these to its pitch frame; this is not mutable runtime state.
@@ -34,5 +36,11 @@ struct TacticalFormationEntry {
 using TacticalFormation = std::vector<TacticalFormationEntry>;
 
 }  // namespace football::sim
+
+// Runtime initialisation: turns a team's static configuration into concrete
+// per-player formation entries (role adaptation + personal-space
+// normalisation). It iterates the whole squad, so it belongs to runtime -- not
+// to Player, which only stores its own FormationEntry.
+std::vector<FormationEntry> BuildFormation(const football::sim::TeamSetup& team);
 
 #endif  // FOOTBALL_SIM_RUNTIME_FORMATION_HPP

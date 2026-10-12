@@ -20,7 +20,7 @@
 #include "football/pitch/pitch.hpp"
 #include "sim/team/team.hpp"
 
-#include "sim/team/formation.hpp"
+#include "sim/runtime/formation.hpp"
 
 Team::Team(int id, const football::sim::TeamSetup& model,
            float aiDifficulty)

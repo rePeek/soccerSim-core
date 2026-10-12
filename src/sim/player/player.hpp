@@ -31,7 +31,7 @@
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
 #include "sim/player/player_control.hpp"
-#include "sim/team/formation_entry.hpp"
+#include "sim/player/formation_entry.hpp"
 #include "sim/runtime/match_config.hpp"
 #include "sim/event/touch_type.hpp"
 #include "football/foundation/time/tick_boundary.hpp"

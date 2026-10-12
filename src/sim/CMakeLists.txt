@@ -33,8 +33,9 @@ target_sources(football_sim_domain PRIVATE
   referee/ruling.hpp event/match_event.hpp event/event_log.hpp
   event/touch_query.cpp event/touch_query.hpp
   runtime/clock.cpp runtime/clock.hpp runtime/roster.cpp runtime/roster.hpp
-  team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
-  team/formation_roles.cpp team/formation_entry.hpp
+  runtime/formation.cpp player/role_parser.cpp player/role_parser.hpp
+  player/formation_entry.hpp
+  team/team.cpp team/team.hpp
   team/possession.cpp team/possession.hpp
   event/touch_type.hpp
   observation/world_state_builder.cpp observation/world_state_builder.hpp

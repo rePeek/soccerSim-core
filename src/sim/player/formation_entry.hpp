@@ -11,10 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef FOOTBALL_SIM_TEAM_FORMATION_ENTRY_HPP
-#define FOOTBALL_SIM_TEAM_FORMATION_ENTRY_HPP
+// A player's own formation role and slot position. Owned by the player domain:
+// the player stores its entry; runtime computes the initial values (see
+// sim/runtime/formation.hpp BuildFormation).
 
-#include <string>
+#ifndef FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP
+#define FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP
+
 
 #include "football/foundation/math/vector3.hpp"
 #include "sim/player/player_role.hpp"
@@ -56,6 +59,4 @@ struct FormationEntry {
   bool controllable = true;
 };
 
-e_PlayerRole GetRoleFromString(const std::string &roleString);
-
-#endif  // FOOTBALL_SIM_TEAM_FORMATION_ENTRY_HPP
+#endif  // FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP

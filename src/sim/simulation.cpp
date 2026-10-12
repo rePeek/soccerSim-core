@@ -22,7 +22,7 @@
 #include "sim/referee/goal.hpp"
 #include "sim/referee/period.hpp"
 #include "sim/referee/referee.hpp"
-#include "sim/team/formation.hpp"
+#include "sim/runtime/formation.hpp"
 #include "sim/team/possession.hpp"
 #include "sim/team/team.hpp"
 

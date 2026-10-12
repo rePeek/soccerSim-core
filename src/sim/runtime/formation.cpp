@@ -1,5 +1,8 @@
-// Role adaptation/spacing arithmetic retained from the former TeamData.
-#include "sim/team/formation.hpp"
+// Role adaptation and personal-space normalization: a runtime initialisation
+// step over a whole squad, not a single player's behaviour.
+#include "sim/runtime/formation.hpp"
+
+#include "sim/runtime/match_config.hpp"
 
 namespace {
 
