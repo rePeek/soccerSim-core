@@ -45,7 +45,7 @@ struct PlayerContactFixture {
     players = {SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[1],
                SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetAllPlayers()[1],
                SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[2]};
-    ball.ResetSituation(Vector3(20, 20, 0));
+    SimulationAccess::ResetBallTo(ball, Vector3(20, 20, 0));
     Reset();
   }
 

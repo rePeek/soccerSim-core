@@ -99,7 +99,7 @@ TEST_CASE("Tick timeline executes ordinary restart positioning without a skip",
     for (int i = 0; i < 40; ++i) simulation.Step({});
     REQUIRE(SimulationAccess::IsInPlayOf(simulation));
     REQUIRE_FALSE(SimulationAccess::IsInSetPieceOf(simulation));
-    SimulationAccess::BallOf(simulation)->ResetSituation(blunted::Vector3(10.f, 40.f, 0.f));
+    SimulationAccess::ResetBall(simulation, blunted::Vector3(10.f, 40.f, 0.f));
     const Tick before = SimulationAccess::NowOf(simulation);
     const auto football_clock = SimulationAccess::RegulationTimeOf(simulation);
     const auto in_play_clock = SimulationAccess::BallInPlayTimeOf(simulation);
@@ -139,7 +139,7 @@ TEST_CASE("Restart setup and timeout fire once across timeline jumps",
     Init(simulation, options);
     football::test::TakeKickOff(simulation);
     for (int i = 0; i < 40; ++i) simulation.Step({});
-    SimulationAccess::BallOf(simulation)->ResetSituation(blunted::Vector3(10.f, 40.f, 0.f));
+    SimulationAccess::ResetBall(simulation, blunted::Vector3(10.f, 40.f, 0.f));
     simulation.Step({});
     Referee* rules = SimulationAccess::RefereeOf(simulation);
     const auto process_rules = [&] {

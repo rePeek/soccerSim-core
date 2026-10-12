@@ -208,12 +208,12 @@ TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]")
   Player *keeper = team->GetGoalie();
   PlayerControl save;
   save.action = ControlAction::Save;
-  SimulationAccess::BallOf(runtime.simulation)->ResetSituation(Vector3(-52, 0, 0));
+  SimulationAccess::ResetBall(runtime.simulation, Vector3(-52, 0, 0));
   REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Deflect);
   REQUIRE(BuildPlayerCommands(save, *team->GetAllPlayers()[1], SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
-  SimulationAccess::BallOf(runtime.simulation)->ResetSituation(Vector3(0));
+  SimulationAccess::ResetBall(runtime.simulation, Vector3(0));
   REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
-  SimulationAccess::BallOf(runtime.simulation)->ResetSituation(Vector3(-52, 0, 0));
+  SimulationAccess::ResetBall(runtime.simulation, Vector3(-52, 0, 0));
   auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
   touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
       SimulationAccess::NowOf(runtime.simulation), team->GetAllPlayers()[1]->GetID(),
@@ -239,7 +239,7 @@ TEST_CASE("rules prepare and release restarts through value controls without AI 
         SimulationAccess::TeamOf(runtime.simulation, last_team)->GetTeamSide(),
         e_TouchType_Accidental, SimulationAccess::BallOf(runtime.simulation)->state().position,
         SimulationAccess::BallOf(runtime.simulation)->state().velocity});
-    SimulationAccess::BallOf(runtime.simulation)->ResetSituation(mode == e_GameMode_ThrowIn
+    SimulationAccess::ResetBall(runtime.simulation, mode == e_GameMode_ThrowIn
         ? Vector3(10, 37, 0) : Vector3(56, 10, 0));
     const auto stopped = SimulationAccess::NowOf(runtime.simulation);
     const auto football_time = SimulationAccess::RegulationTimeOf(runtime.simulation);
@@ -490,7 +490,7 @@ TEST_CASE("Command authorization consumes supplied restart, ball and touch facts
   auto& team = *SimulationAccess::TeamOf(runtime.simulation, 0);
   auto& keeper = *team.GetGoalie();
   Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(SimulationAccess::PitchOf(runtime.simulation), football::ball::BallModel{})};
-  ball.ResetSituation(Vector3(-52, 0, 0));
+  SimulationAccess::ResetBallTo(ball, Vector3(-52, 0, 0));
   football::sim::event::TouchState touches;
   RefereeBuffer restart = SimulationAccess::RefereeOf(runtime.simulation)->GetBuffer();
   restart.active = false;
@@ -503,7 +503,7 @@ TEST_CASE("Command authorization consumes supplied restart, ball and touch facts
   touches.Record(0, team.GetAllPlayers()[1]->GetID(), e_TouchType_Intentional_Kicked);
   REQUIRE(BuildPlayerCommands(save, keeper, inputs)[0].desiredFunctionType == e_FunctionType_Movement);
   touches.Reset();
-  ball.ResetSituation(Vector3(0));
+  SimulationAccess::ResetBallTo(ball, Vector3(0));
   REQUIRE(BuildPlayerCommands(save, keeper, inputs)[0].desiredFunctionType == e_FunctionType_Movement);
   PlayerControl shot; shot.action = ControlAction::Shoot;
   REQUIRE(BuildPlayerCommands(shot, keeper, inputs)[0].desiredFunctionType == e_FunctionType_Shot);

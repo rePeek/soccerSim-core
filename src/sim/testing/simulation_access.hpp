@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "sim/simulation.hpp"
-#include "sim/animation/library.hpp"
+#include "animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
@@ -225,6 +225,15 @@ class SimulationAccess {
   static void RequestChangeOfEnds(Simulation& s) { s.pending_change_of_ends_ = true; }
   static void ResetBall(Simulation& s, const blunted::Vector3& position) {
     s.PlaceBallAt(position);
+  }
+  // Ground-resting placement for a standalone Ball under test. The removed
+  // Ball::ResetSituation is expressed here through the stable Ball::Reset API;
+  // product restart placement lives in Simulation::PlaceBallAt.
+  static void ResetBallTo(football::ball::Ball& ball,
+                          const blunted::Vector3& position) {
+    ball.Reset(football::ball::BallState{
+        position + blunted::Vector3(0, 0, ball.config().radius()),
+        blunted::Vector3(0), blunted::Vector3(0), blunted::Quaternion{}});
   }
 };
 

@@ -31,7 +31,7 @@ void ProcessRules(Simulation& simulation) {
 }
 void SetBallHome(Simulation& simulation, Vector3 position) {
   // Between ticks the ball shares the first processing roster's frame.
-  SimulationAccess::BallOf(simulation)->ResetSituation(FromHomePitchFrame(*SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))).Position(position));
+  SimulationAccess::ResetBall(simulation, FromHomePitchFrame(*SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))).Position(position));
 }
 void TriggerThrow(Simulation& simulation) {
   SetBallHome(simulation, Vector3(10, 40, 0));

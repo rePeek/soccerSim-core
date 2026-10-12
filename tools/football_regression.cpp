@@ -1167,7 +1167,7 @@ void CheckRefereeRules(Simulation& simulation) {
     defender->ResetPosition(Vector3(-10.0f * side, 0, 0), Vector3(0));
   home.at(1)->ResetPosition(Vector3(0, 0, 0), Vector3(0));
   home.at(2)->ResetPosition(Vector3(-45.0f * side, 0, 0), Vector3(0));
-  SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(0));
+  SimulationAccess::ResetBall(simulation, Vector3(0));
   auto& touch_sink = SimulationAccess::EventsOf(simulation);
   touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
       SimulationAccess::NowOf(simulation), home.at(1)->GetID(),

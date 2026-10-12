@@ -45,7 +45,7 @@ TEST_CASE("history sampling and newest-ball refresh use explicit borrowed images
   const auto older = images[1].ballPredictions;
   const auto oldest = images[2].ballPredictions;
   Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
-  ball.ResetSituation(Vector3(4, 5, 0));
+  SimulationAccess::ResetBallTo(ball, Vector3(4, 5, 0));
   const std::vector<Vector3> predictions = BallPredictionSamples(ball);
   observation::RefreshLatestMentalImageBallPredictions(images, ball);
   REQUIRE(images[0].ballPredictions == predictions);
@@ -140,7 +140,7 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
   auto* second = SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetAllPlayers()[2];
   std::array<Player*, 2> inputs{second, first};
   Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
-  ball.ResetSituation(Vector3(8, 3, 0));
+  SimulationAccess::ResetBallTo(ball, Vector3(8, 3, 0));
   MentalImage image(Tick{100}, inputs, ball);
   REQUIRE(image.captured_tick == Tick{100});
   REQUIRE(image.GetAge(Tick{117}) == TickSpan{17});
@@ -161,7 +161,7 @@ TEST_CASE("mental images capture explicit ordered inputs and sample with explici
   REQUIRE(team_images.size() == 1);
   REQUIRE(team_images[0].position == sampled.position);
   Ball other_ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
-  other_ball.ResetSituation(Vector3(-25, -4, 0));
+  SimulationAccess::ResetBallTo(other_ball, Vector3(-25, -4, 0));
   REQUIRE(image.GetBallPrediction(TickSpan{}, Tick{117}, other_ball) ==
           captured_predictions[17].EnforceMaximumDeviation(other_ball.state().position,
                                                            image.maxDistanceDeviation));

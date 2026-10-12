@@ -84,7 +84,7 @@ TEST_CASE("possession hysteresis preserves unsigned add, float ratio and strict 
   ArrivalTeam first(0), second(1);
   first.Arrival(100); second.Arrival(0);
   second.SetDesignatedTeamPossessionPlayer(candidate);
-  SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(0));
+  SimulationAccess::ResetBall(simulation, Vector3(0));
   bool switched = false, retained = false;
   for (float distance : {0.f, 1.f, 4.f, 8.f, 16.f}) {
     candidate->ResetPosition(Vector3(distance, 0, 0), Vector3(0));

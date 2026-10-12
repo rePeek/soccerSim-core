@@ -39,7 +39,7 @@ TEST_CASE("an injected pitch drives referee, observation and restart geometry",
   facts.now = football::sim::Tick{9001};
   facts.play_authorized = true;
   facts.set_piece_active = false;
-  SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(50.5f, 0.0f, 0.0f));
+  SimulationAccess::ResetBall(simulation, Vector3(50.5f, 0.0f, 0.0f));
   football::test::RuleCommandProbe commands;
   football::test::ProcessReferee(SimulationAccess::RulesOf(simulation), facts,
       SimulationAccess::OptionsOf(simulation),
@@ -58,7 +58,7 @@ TEST_CASE("referee uses the injected sideline for throw-ins", "[sim][custom-pitc
   facts.now = football::sim::Tick{9001};
   facts.play_authorized = true;
   facts.set_piece_active = false;
-  SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(0.0f, 32.5f, 0.0f));
+  SimulationAccess::ResetBall(simulation, Vector3(0.0f, 32.5f, 0.0f));
   football::test::RuleCommandProbe commands;
   football::test::ProcessReferee(SimulationAccess::RulesOf(simulation), facts,
       SimulationAccess::OptionsOf(simulation),

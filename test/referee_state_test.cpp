@@ -109,7 +109,7 @@ TEST_CASE("Referee invokes the explicit reset action synchronously once before r
     football::test::TakeKickOff(simulation);
     for (int tick = 0; tick < 40; ++tick) simulation.Step({});
     auto& referee = *SimulationAccess::RefereeOf(simulation);
-    SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(10, 40, 0));
+    SimulationAccess::ResetBall(simulation, Vector3(10, 40, 0));
     simulation.Step({}); // Out-of-play classification, no setup/reset yet.
     REQUIRE(referee.GetBuffer().restart);
     REQUIRE_FALSE(referee.GetBuffer().restart->setup_done);
@@ -416,7 +416,7 @@ TEST_CASE("referee facts and write-only consequences do not fall back to runtime
   facts.now = Tick{9001};
   facts.play_authorized = true; // Match is still unauthorized PreMatch.
   facts.set_piece_active = false;
-  SimulationAccess::BallOf(simulation)->ResetSituation(Vector3(56, 40, 0)); // Beyond BOTH lines.
+  SimulationAccess::ResetBall(simulation, Vector3(56, 40, 0)); // Beyond BOTH lines.
   const auto rng = SimulationAccess::RngOf(simulation).engine();
   football::test::ProcessReferee(referee, facts, SimulationAccess::OptionsOf(simulation), SimulationAccess::RngOf(simulation), commands);
   REQUIRE(commands.calls == std::vector<std::string>{"stop"});
