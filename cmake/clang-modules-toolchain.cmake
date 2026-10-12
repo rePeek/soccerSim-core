@@ -10,10 +10,9 @@
 #     Catch2 decomposition; point the compiler at the real libc++ root and
 #     forbid the libstdc++ fallback.
 #
-# Usage (separate build dir; never mix with the GCC build/debug):
-#   cmake -S . -B build/modules -G Ninja \
-#     -DCMAKE_TOOLCHAIN_FILE=cmake/clang-modules-toolchain.cmake \
-#     -DCMAKE_BUILD_TYPE=Debug -DFOOTBALL_BUILD_APP=OFF
+# Usage: applied automatically by the debug/release CMake presets. For a
+# bare configure, pass -DCMAKE_TOOLCHAIN_FILE=cmake/clang-modules-toolchain.cmake
+# (and use Ninja: the module scanner needs a dyndep-capable generator).
 
 set(CMAKE_CXX_COMPILER "clang++" CACHE FILEPATH "C++ compiler")
 
