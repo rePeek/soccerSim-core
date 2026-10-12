@@ -103,8 +103,9 @@ include/football/    public headers (interfaces), one directory per module
 └── env.hpp          public autonomous match façade; values + opaque private owners
 
 src/                 implementations; public headers live in include/football/
-├── foundation/      math/ (math/*.cpp); geometry/ and collision/ hold their
-│                    own CMakeLists and targets, with headers in include/
+├── foundation/      CMakeLists.txt declares football::foundation (math/*.cpp)
+│                    and football::geometry (header-only); collision/ has its
+│                    own CMakeLists for football::collision
 ├── ball/            football::ball implementation: *.cpp + private headers
 │                    (ball_netting.hpp; never exported)
 ├── ai/              default_ai.cpp, tactical_board.cpp

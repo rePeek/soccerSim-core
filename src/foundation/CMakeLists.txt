@@ -25,8 +25,20 @@ target_compile_features(football_foundation PUBLIC cxx_std_23)
 set_target_properties(football_foundation PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
-# geometry (and later collision) live under foundation/ but are independent
-# targets. football_foundation must never link them back: geometry depends on
+# geometry and collision live under foundation/ but are independent targets.
+# football_foundation must never link them back: geometry depends on
 # foundation, so a return edge would create a target cycle.
-add_subdirectory(geometry)
+#
+# geometry is header-only, so its target is declared here (no separate
+# directory with only a CMakeLists).
+add_library(football_geometry INTERFACE)
+add_library(football::geometry ALIAS football_geometry)
+target_sources(football_geometry INTERFACE FILE_SET HEADERS
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/foundation/geometry/shapes.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/foundation/geometry/collider.hpp)
+target_compile_features(football_geometry INTERFACE cxx_std_23)
+target_link_libraries(football_geometry INTERFACE football::foundation)
+
 add_subdirectory(collision)
