@@ -12,6 +12,7 @@
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/player_control_builder.hpp"
+#include "sim/player/player_team_view.hpp"
 #include "sim/referee/referee.hpp"
 #include "sim/team/team.hpp"
 
@@ -30,18 +31,19 @@ class SimulationAccess {
   }
   static void SendOff(Simulation& simulation, Player& actor) {
     const auto tick = PlayerTickOf(simulation, actor);
-    actor.SendOff(tick.ball, tick.now, tick.rng, *TeamOf(simulation, actor.GetTeamID()));
+    actor.SendOff(tick.ball, tick.now, tick.rng, simulation.send_off_sink_.get());
   }
   static void Deactivate(Simulation& simulation, Player& actor) {
     const auto tick = PlayerTickOf(simulation, actor);
     actor.Deactivate(tick.ball, tick.now);
   }
+  // The caller supplies the borrowed team view: PlayerCommandInputs stores a
+  // reference, so the helper cannot manufacture a temporary one.
   static PlayerCommandInputs CommandInputsOf(Simulation& simulation,
-                                             const Player& player) {
+                                             const PlayerTeamView& own_team) {
     if (!simulation.ball_) throw std::logic_error("simulation has no match");
     return {*simulation.ball_, simulation.touches_, RulesOf(simulation).GetBuffer(),
-            simulation.ball_retainer_, simulation.pitch_,
-            *TeamOf(simulation, player.GetTeamID())};
+            simulation.ball_retainer_, simulation.pitch_, own_team};
   }
   static AcceptedTouchSink& EventsOf(Simulation& simulation) {
     if (!simulation.touch_sink_) throw std::logic_error("simulation has no match");

@@ -48,17 +48,18 @@ ccache is a silent no-op. `-j $(nproc)` uses all host cores.
 `unittests/`; see the layout and the two targets below. The former golden/end-to-end
 tier and `unittests/baselines/` are gone for good.
 
-**Never run a full match.** The only sanctioned validation is the bounded unit
-suites (`ctest --preset debug -L unit`). Do not run the `football_sim` app,
-`GameEnv`/`Simulation` end to end, or any long/multi-tick match simulation to
-check a change. It is not a test, it must not be used to "smoke test" a
-refactor, and it is not even usable for a short bounded run: measured, the app
-does not terminate within 60 s even with `--half-duration-ms=100` (10 ticks per
-half) in a Release build, and it runs for hundreds of seconds in Debug. That is
-a property of the app in this environment, not of any particular change, so it
-proves nothing either way and only burns time. If a runtime behaviour genuinely
-needs coverage, write a small, bounded, purpose-built test (a few ticks or one
-constructor/one helper) instead of simulating a match.
+**Never run a full match.** The sanctioned validation is the bounded suites
+(`ctest --preset debug`, or `-L unit` for the leaf modules and `-L runtime` for
+the runtime harness). Do not run the `football_sim` app, `GameEnv`/`Simulation`
+end to end, or any long/multi-tick match simulation to check a change: it is not
+a test, it must not be used to "smoke test" a refactor, and it only burns time.
+Measured: the app does not terminate within 60 s even with
+`--half-duration-ms=100` in Release, because it loops `while (!Finished())` and
+a tiny half duration does not bound how many ticks the match takes to reach full
+time (a single Step is cheap -- see the harness baselines -- so this is not a
+hang, just an unbounded loop). For runtime coverage use `unittests/runtime/`:
+it builds a real Simulation, runs a handful of ticks and stops, under a
+wall-clock CTest timeout, and never plays a match.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
@@ -280,7 +281,19 @@ it at all (P5). P6b moves its remaining match state into Simulation and deletes
 
 ## Test targets
 
-Registered tests are unit-only; there is no golden/end-to-end tier.
+`ctest -L unit` runs the leaf suites; `ctest -L runtime` runs the bounded runtime
+harness. There is still no golden/end-to-end tier.
+
+- `football_sim_runtime_tests` (label `runtime`, name `sim_runtime`) is the one
+  non-leaf test: it links `football::sim` (never simcore or AI) and builds a real
+  `Simulation` to check composition and lifetime only -- two rosters initialise
+  with live `PlayerDefinition` references, a few ticks advance the timeline,
+  `Mirror` twice restores actors/sides/ball, `SwitchEnds` flips both directions
+  without touching the between-tick frame, and `Stop` is clean and idempotent.
+  It never plays a match and asserts no physics. Baselines (Debug): Init ~0.23 s,
+  first Step ~0.77 s, later Steps ~0, Stop ~0.01 s. The CTest `TIMEOUT` is the
+  real guard, because bounding the tick count cannot catch a call that never
+  returns.
 
 - `football_foundation_unit_tests` (`ctest -L unit`, name `foundation_unit`) links
   only `football::foundation`: Vector3 length/dot/cross/normalization/rotation,
