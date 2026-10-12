@@ -7,7 +7,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "football/ball/ball.hpp"
 
-import football.pitch;
+#include "football/pitch/pitch.hpp"
 
 namespace {
 thread_local std::size_t* allocation_count = nullptr;

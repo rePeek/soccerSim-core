@@ -7,7 +7,7 @@
 
 #include "football/ball/ball.hpp"
 
-import football.pitch;
+#include "football/pitch/pitch.hpp"
 
 namespace {
 

@@ -33,7 +33,7 @@ allowed; they do not make the app executable a development build requirement.
 # Fast iteration (unit/light, seconds): exclude full-match, heavy sim, regression, baking
 nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && cmake --build --preset debug -j $(nproc) && ctest --preset debug -j $(nproc) -LE full -LE slow -LE regression -LE animation'
 # Core-only build
-nix develop --command bash -c 'cmake -S . -B build/core -G Ninja -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=cmake/clang-modules-toolchain.cmake && cmake --build build/core -j $(nproc)'
+nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF -DCMAKE_BUILD_TYPE=Debug && cmake --build build/core -j $(nproc)'
 # Full acceptance (maintainer-authorized P7): everything
 nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=ON && cmake --build --preset debug -j $(nproc) && ctest --preset debug -j $(nproc)'
 ```
@@ -58,7 +58,7 @@ Release preset is ~70x faster than Debug -O0 for the long full-match runs.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
-cmake -S . -B build/core -G Ninja -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF -DCMAKE_TOOLCHAIN_FILE=cmake/clang-modules-toolchain.cmake
+cmake -S . -B build/core -DBUILD_TESTING=OFF -DFOOTBALL_BUILD_APP=OFF
 ```
 
 The app args/fixture archive remains an explicit `EXCLUDE_FROM_ALL` target even
@@ -69,29 +69,15 @@ Runtime does not use that variable: it reads the configured baked animation asse
 Heavy Debug -O0 test loops may run against the Release preset (`--preset release`)
 for faster iteration; the final acceptance pass must still run the Debug suite.
 
-### C++20 modules build (football.pitch)
+### Pitch -> BallWorld (header-only, no module)
 
-`football.pitch` is the first real C++20 named module; Ball no longer reads
-`model::Pitch`. CMake CXX_MODULES needs a module-capable compiler (Clang 16+ /
-GCC 14+); GCC 13 cannot scan modules, so the whole project uses ONE toolchain
-and ONE entry point. `flake.nix` provides Clang 19 with libc++
-(`llvmPackages_19.libcxxStdenv`) in both `default` and the `modules` alias, and
-the `debug`/`release` presets apply `cmake/clang-modules-toolchain.cmake`.
-Build with the normal commands (no separate directory or shell):
+`football.pitch` is a header-only INTERFACE target
+(`include/football/pitch/pitch.hpp`, inline `BuildBallWorld`). Ball never reads
+`model::Pitch`; the caller assembles `BallWorld`. No C++20 module, no module
+toolchain, no extra CMake flags: any supported compiler builds it.
 
-```sh
-nix develop --command bash -c 'cmake --preset debug -DFOOTBALL_BUILD_APP=OFF && \
-  cmake --build --preset debug -j $(nproc)'
-```
-
-The toolchain file captures the wrapper's implicit includes for clang-scan-deps
-and points Clang at libc++'s `include/c++/v1` (the wrapper omits it, which would
-silently fall back to a newer libstdc++ and break Catch2). `CMAKE_CXX_SCAN_FOR_MODULES`
-stays ON so importers get the module BMI. The unified toolchain replaces the old
-GCC 13 default; floating-point goldens are compared within one compiler.
-Existing GCC-configured build directories (`build/debug`, `build/release`,
-`build/core`) must be deleted once before the first Clang configure; CMake
-rejects an in-place compiler change.
+Dependency direction: `model::Pitch` -> `football.pitch` (BuildBallWorld) ->
+`football.ball::BallWorld` -> `Ball`. `football_ball` must never link `football_pitch`.
 
 Dependency direction: `model::Pitch` -> `football.pitch` (BuildBallWorld) ->
 `football.ball::BallWorld` -> `Ball`. `football_ball` must never link `football_pitch`.

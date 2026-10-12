@@ -1,6 +1,6 @@
 #include <memory>
 
-import football.pitch;
+#include "football/pitch/pitch.hpp"
 #include "model/pitch.hpp"
 #include <algorithm>
 #include <array>

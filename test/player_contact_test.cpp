@@ -1,6 +1,6 @@
 #include <array>
 
-import football.pitch;
+#include "football/pitch/pitch.hpp"
 #include "model/pitch.hpp"
 #include <vector>
 

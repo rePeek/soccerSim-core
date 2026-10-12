@@ -1,6 +1,6 @@
 #include <catch2/catch_approx.hpp>
 
-import football.pitch;
+#include "football/pitch/pitch.hpp"
 #include "model/pitch.hpp"
 #include <catch2/catch_test_macros.hpp>
 

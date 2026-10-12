@@ -26,7 +26,7 @@
 #include "sim/team/possession.hpp"
 #include "sim/team/team.hpp"
 
-import football.pitch;
+#include "football/pitch/pitch.hpp"
 using football::ball::Ball;
 
 namespace {

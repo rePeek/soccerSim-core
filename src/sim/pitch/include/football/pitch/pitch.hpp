@@ -1,4 +1,9 @@
-module;
+#ifndef FOOTBALL_PITCH_PITCH_HPP
+#define FOOTBALL_PITCH_PITCH_HPP
+
+// Pitch -> BallWorld assembly: the only place that knows both model::Pitch and
+// Ball's static environment. Header-only (inline): the runtime and the offline
+// baker share one definition, and no module toolchain or extra CMake is needed.
 
 #include <vector>
 
@@ -8,10 +13,8 @@ module;
 #include "football/ball/collider.hpp"
 #include "foundation/math/vector3.hpp"
 
-module football.pitch;
-
 namespace football::pitch {
-namespace {
+namespace detail {
 
 using football::ball::Capsule;
 using football::ball::ColliderId;
@@ -22,17 +25,18 @@ using football::ball::Plane;
 
 // Stable ids (also the deterministic tie-break order); geometry and order are
 // frozen because the CCD uses ColliderId for deterministic contact sorting.
-constexpr ColliderId kGround = 1;
-constexpr ColliderId kLeftPostLow = 2;
-constexpr ColliderId kLeftPostHigh = 3;
-constexpr ColliderId kRightPostLow = 4;
-constexpr ColliderId kRightPostHigh = 5;
-constexpr ColliderId kLeftBar = 6;
-constexpr ColliderId kRightBar = 7;
+inline constexpr ColliderId kGround = 1;
+inline constexpr ColliderId kLeftPostLow = 2;
+inline constexpr ColliderId kLeftPostHigh = 3;
+inline constexpr ColliderId kRightPostLow = 4;
+inline constexpr ColliderId kRightPostHigh = 5;
+inline constexpr ColliderId kLeftBar = 6;
+inline constexpr ColliderId kRightBar = 7;
 
-constexpr float kPostRadius = 0.06f;
+inline constexpr float kPostRadius = 0.06f;
 
-ColliderMotion StaticCollider(ColliderId id, ColliderShape shape, ContactMaterial material) {
+inline ColliderMotion StaticCollider(ColliderId id, ColliderShape shape,
+                                     ContactMaterial material) {
   ColliderMotion motion;
   motion.id = id;
   motion.start = shape;
@@ -41,10 +45,14 @@ ColliderMotion StaticCollider(ColliderId id, ColliderShape shape, ContactMateria
   return motion;
 }
 
-}  // namespace
+}  // namespace detail
 
-football::ball::BallWorld BuildBallWorld(const football::model::Pitch& pitch,
-                                         const football::model::BallConfig& ball) {
+// Assembles the complete static BallWorld from the pitch description and the
+// active ball material. Deterministic; constructs once per match.
+inline football::ball::BallWorld BuildBallWorld(
+    const football::model::Pitch& pitch,
+    const football::model::BallConfig& ball) {
+  using namespace detail;
   using blunted::Vector3;
   const float x = pitch.half_length();
   const float y = pitch.goal_half_width();
@@ -78,3 +86,5 @@ football::ball::BallWorld BuildBallWorld(const football::model::Pitch& pitch,
 }
 
 }  // namespace football::pitch
+
+#endif  // FOOTBALL_PITCH_PITCH_HPP

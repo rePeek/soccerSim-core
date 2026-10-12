@@ -8,7 +8,7 @@
 #include "football/ball/ball_response.hpp"
 #include "football/ball/ball_world.hpp"
 
-import football.pitch;
+#include "football/pitch/pitch.hpp"
 #include "model/ball_config.hpp"
 #include "model/pitch.hpp"
 

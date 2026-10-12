@@ -9,10 +9,9 @@
     {
       "name": "debug",
       "displayName": "Debug",
-      "description": "Clang 19 + libc++ with C++20 module scanning",
+      "description": "GCC with C++20 module scanning",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/debug",
-      "toolchainFile": "${sourceDir}/cmake/clang-modules-toolchain.cmake",
       "cacheVariables": {
         "CMAKE_CXX_EXTENSIONS": "OFF",
         "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
@@ -23,10 +22,9 @@
     {
       "name": "release",
       "displayName": "Release",
-      "description": "Clang 19 + libc++ with C++20 module scanning (optimized)",
+      "description": "GCC with C++20 module scanning (optimized)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/release",
-      "toolchainFile": "${sourceDir}/cmake/clang-modules-toolchain.cmake",
       "cacheVariables": {
         "CMAKE_CXX_EXTENSIONS": "OFF",
         "CMAKE_POSITION_INDEPENDENT_CODE": "ON",

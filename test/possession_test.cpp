@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
-import football.pitch;
+#include "football/pitch/pitch.hpp"
 #include "model/pitch.hpp"
 
 #include "app/fixtures/default_teams.hpp"

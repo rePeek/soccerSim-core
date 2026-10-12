@@ -6,7 +6,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "football/ball/ball.hpp"
 
-import football.pitch;
+#include "football/pitch/pitch.hpp"
 #include "football/ball/ball_response.hpp"
 
 using namespace football::ball;
