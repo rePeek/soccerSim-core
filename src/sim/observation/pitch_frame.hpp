@@ -14,11 +14,11 @@ class PitchFrameTransform {
  public:
   explicit constexpr PitchFrameTransform(bool mirrored) : mirrored_(mirrored) {}
 
-  blunted::Vector3 Position(blunted::Vector3 value) const {
+  football::math::Vector3 Position(football::math::Vector3 value) const {
     if (mirrored_) value.Mirror();
     return value;
   }
-  blunted::Vector3 Direction(blunted::Vector3 value) const {
+  football::math::Vector3 Direction(football::math::Vector3 value) const {
     if (mirrored_) value.Mirror();
     return value;
   }

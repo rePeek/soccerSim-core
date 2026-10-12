@@ -8,7 +8,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 // The elapsed tick cursor is action time authority, independent of timeline
 // fast-forwards. A baked animation frame is one tick; frame accessors are index

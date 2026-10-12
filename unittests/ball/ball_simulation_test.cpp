@@ -23,7 +23,7 @@
 #include "football/foundation/geometry/collider.hpp"
 #include "football/pitch/pitch.hpp"
 
-using blunted::Vector3;
+using football::math::Vector3;
 using football::ball::AdvanceBallTick;
 using football::ball::Ball;
 using football::ball::BallEndpointConstraint;

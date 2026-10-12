@@ -20,7 +20,7 @@
 #include <iterator>
 #include <stdexcept>
 
-namespace blunted {
+namespace football::anim_baker {
 
 XMLLoader::XMLLoader() {}
 
@@ -97,4 +97,4 @@ void XMLLoader::BuildTree(XMLTree& tree, const std::string& source) {
   }
 }
 
-}  // namespace blunted
+}  // namespace football::anim_baker

@@ -14,7 +14,7 @@
 #include "football/foundation/geometry/shapes.hpp"
 #include "football/foundation/math/vector3.hpp"
 
-using blunted::Vector3;
+using football::math::Vector3;
 using football::collision::CollisionHit;
 using football::collision::FirstHit;
 using football::collision::MovingSphere;

@@ -23,7 +23,7 @@
 
 #include "football/foundation/math/scalar.hpp"
 
-namespace blunted {
+namespace football::math {
 
   class Vector3;
 

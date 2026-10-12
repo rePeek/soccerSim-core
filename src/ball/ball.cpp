@@ -9,7 +9,7 @@
 #include "football/foundation/math/scalar.hpp"
 #include "football/foundation/time/tick.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 namespace football::ball {
 using football::geometry::Capsule;

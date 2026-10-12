@@ -16,8 +16,8 @@
 #include <optional>
 
 // This header is used from its own translation unit as well, so it cannot rely
-// on another header having opened the blunted namespace.
-using namespace blunted;
+// on another header having opened the football::math namespace.
+using namespace football::math;
 
 // Simulation-owned procedural locomotion for pure Movement ticks.
 //

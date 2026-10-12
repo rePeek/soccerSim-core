@@ -6,7 +6,7 @@
 
 namespace football::sim::observation {
 namespace {
-void RequireFinite(const blunted::Vector3& value) {
+void RequireFinite(const football::math::Vector3& value) {
   for (float coord : value.coords) {
     if (!std::isfinite(coord)) throw std::invalid_argument("graph requires finite snapshot vectors");
   }

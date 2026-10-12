@@ -27,7 +27,7 @@ struct AwardGoalRuling {
 struct AwardRestartRuling {
   e_GameMode kind = e_GameMode_Normal;
   football::sim::TeamSide team = football::sim::TeamSide::Home;
-  blunted::Vector3 position;
+  football::math::Vector3 position;
 };
 
 struct CardRuling {

@@ -22,7 +22,8 @@
 #include <map>
 #include <vector>
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
   struct FootballKeyFrame {
     Quaternion orientation;

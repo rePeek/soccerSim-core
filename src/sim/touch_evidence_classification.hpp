@@ -33,8 +33,8 @@ inline TouchEvidence ClassifyTouchEvidence(const TouchEvidenceInput& input) {
 // root velocity (near-zero swing) and is never promoted to a deliberate
 // strike just because the action is a Shot/Pass.
 inline constexpr float kMinDeliberateKickSwingSpeed = 4.0f; // m/s
-inline bool IsDeliberateKickSwing(const blunted::Vector3& surface_velocity,
-                                  const blunted::Vector3& player_velocity) {
+inline bool IsDeliberateKickSwing(const football::math::Vector3& surface_velocity,
+                                  const football::math::Vector3& player_velocity) {
   return (surface_velocity - player_velocity).GetLength() >
          kMinDeliberateKickSwingSpeed;
 }

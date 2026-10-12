@@ -64,8 +64,8 @@ inline PlayerBodyColliderMotionIds PlayerBodyColliderIdsForSlot(
 }
 
 inline football::geometry::Capsule BodyVolumeCapsule(const BodyVolume& volume) {
-  return {volume.center - blunted::Vector3(0.0f, 0.0f, volume.halfHeight),
-          volume.center + blunted::Vector3(0.0f, 0.0f, volume.halfHeight),
+  return {volume.center - football::math::Vector3(0.0f, 0.0f, volume.halfHeight),
+          volume.center + football::math::Vector3(0.0f, 0.0f, volume.halfHeight),
           volume.radius};
 }
 

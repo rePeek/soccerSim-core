@@ -145,7 +145,7 @@ float StretchSprintTo(const float &inputVelocity, float inputSpaceMaxVelocity,
 
 void GetDifficultyFactors(const Ball *ball, Player *player,
                           const football::sim::event::TouchState& touches, Team& opponent,
-                          football::sim::Tick now, blunted::Rng& rng,
+                          football::sim::Tick now, football::math::Rng& rng,
                           const SpatialState &spatialState,
                           const Vector3 &positionOffset, float &distanceFactor,
                           float &heightFactor, float &ballMovementFactor) {
@@ -340,7 +340,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, Team& opponent, c
 
 Vector3 GetTrapVector(const Ball *ball, Player *player,
                       const football::sim::event::TouchState& touches, Team& opponent,
-                      football::sim::Tick now, blunted::Rng& rng, const AnimationClip& clip,
+                      football::sim::Tick now, football::math::Rng& rng, const AnimationClip& clip,
                       const Vector3 &nextStartPos,
                       radian nextStartAngle, radian nextBodyAngle,
                       const Vector3 &outgoingMovement, const Anim &currentAnim,
@@ -364,7 +364,7 @@ Vector3 GetTrapVector(const Ball *ball, Player *player,
          ball->state().velocity * ballMovementFactor;
 }
 
-Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& clip, blunted::Rng& rng,
+Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& clip, football::math::Rng& rng,
                       const Anim &currentAnim, const SpatialState &spatialState,
                       const Vector3 &positionOffset, radian &xRot, radian &yRot, radian &zRot) {
 

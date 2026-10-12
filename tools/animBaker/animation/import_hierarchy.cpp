@@ -13,7 +13,8 @@
 
 #include "animation/import_hierarchy.hpp"
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 ImportNode::ImportNode(std::string name, ImportNodeKind kind)
     : name(std::move(name)), kind(kind) {
@@ -105,4 +106,4 @@ void ImportNode::CollectAnchors(std::vector<ImportNode*>& out) const {
   }
 }
 
-}  // namespace blunted
+}  // namespace football::anim_baker

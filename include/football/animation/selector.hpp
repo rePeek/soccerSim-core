@@ -67,8 +67,8 @@ inline bool CheckFunctionType(int32_t anim_type, e_FunctionType query_type) {
 }
 
 // Legacy AnimCollection constructor default deviations.
-inline constexpr float kMaxIncomingBallDirectionDeviation = 0.25f * blunted::pi;
-inline constexpr float kMaxOutgoingBallDirectionDeviation = 0.25f * blunted::pi;
+inline constexpr float kMaxIncomingBallDirectionDeviation = 0.25f * football::math::pi;
+inline constexpr float kMaxOutgoingBallDirectionDeviation = 0.25f * football::math::pi;
 
 }  // namespace football_animation_detail
 
@@ -77,7 +77,7 @@ class BakedAnimationSelector {
   static void CrudeSelection(const std::vector<AnimationClip>& clips,
                              const CrudeSelectionQuery& query,
                              DataSet& data_set) {
-    using namespace blunted;
+    using namespace football::math;
     using football_animation_detail::CheckFunctionType;
     using football_animation_detail::kMaxIncomingBallDirectionDeviation;
     using football_animation_detail::kMaxOutgoingBallDirectionDeviation;
@@ -353,7 +353,7 @@ class BakedAnimationSelector {
   // Deterministic quadrant table (velocity + angle) mirroring the legacy
   // AnimCollection constructor. Only velocity and angle are read.
   static Quadrant GetQuadrant(int id) {
-    using namespace blunted;
+    using namespace football::math;
     Quadrant q;
     q.id = id;
     if (id == 0) {

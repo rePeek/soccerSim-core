@@ -21,9 +21,9 @@
 // so baked runtime selection stays independent of the simulation runtime.
 struct Quadrant {
   int id = 0;
-  blunted::Vector3 position;
+  football::math::Vector3 position;
   e_Velocity velocity;
-  blunted::radian angle;
+  football::math::radian angle;
 };
 
 #endif

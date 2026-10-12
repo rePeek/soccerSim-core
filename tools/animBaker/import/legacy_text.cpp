@@ -2,7 +2,8 @@
 
 #include <cstdio>
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 void tokenize(const std::string& str, std::vector<std::string>& tokens,
               const std::string& delimiters) {
@@ -27,4 +28,4 @@ std::string real_to_str(real value) {
   return buffer;
 }
 
-}  // namespace blunted
+}  // namespace football::anim_baker

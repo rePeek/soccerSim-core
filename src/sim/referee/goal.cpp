@@ -17,7 +17,7 @@
 #include <cmath>
 
 namespace football::sim {
-using blunted::Vector3;
+using football::math::Vector3;
 
 bool CrossedGoalLine(const football::pitch::Pitch& pitch, int side,
                      const Vector3& previous, const Vector3& current) {

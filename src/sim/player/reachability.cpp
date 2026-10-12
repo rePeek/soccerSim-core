@@ -18,7 +18,7 @@
 #include <cmath>
 
 namespace football::sim::player {
-using blunted::clamp;
+using football::math::clamp;
 
 TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
                                           const Vector3 &playerMovement,

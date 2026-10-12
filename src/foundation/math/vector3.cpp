@@ -23,7 +23,7 @@
 
 #include <cassert>
 
-namespace blunted {
+namespace football::math {
 
 Vector3::Vector3() {
   coords[0] = 0;

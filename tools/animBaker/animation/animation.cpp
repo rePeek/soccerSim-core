@@ -30,7 +30,8 @@
 
 #include "animation/extensions/footballanimationextension.hpp"
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 
 

@@ -25,7 +25,7 @@ inline std::array<football::geometry::ColliderShape,kBakedContactRegionCount> Bu
     const PoseFrame& pose,const PlayerKinematicState& state,float base_angle,float scale=1) {
   using namespace football::geometry;
   const auto world=EvaluateBakedBodyPose(pose,state,base_angle,scale);
-  const auto point=[&](BodyPart joint,blunted::Vector3 local) {
+  const auto point=[&](BodyPart joint,football::math::Vector3 local) {
     return world.joints[joint]+world.orientations[joint]*(local*scale);
   };
   // Bounds calibrated offline against shipped trunk/foot/upperarm/lowerarm

@@ -7,7 +7,8 @@
 
 #include "import/legacy_text.hpp"
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 std::string GetStringFromVector(const Vector3& vec) {
   char buffer[1000];
@@ -45,4 +46,4 @@ Quaternion GetQuaternionFromString(const std::string& value) {
   return quaternion;
 }
 
-}  // namespace blunted
+}  // namespace football::anim_baker

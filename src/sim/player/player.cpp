@@ -294,7 +294,7 @@ Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
                const football::player::PlayerDefinition& model,
                const FormationEntry& formation_entry,
                std::uint8_t schedule_phase,
-               const AnimationLibrary& animations, const football::pitch::Pitch& pitch, blunted::Rng& rng)
+               const AnimationLibrary& animations, const football::pitch::Pitch& pitch, football::math::Rng& rng)
     : animations_(animations), pitch_(pitch), rng_(rng),
       model_(model),
       schedule_phase_(schedule_phase % 10),
@@ -869,7 +869,7 @@ float Player::GetClosestOpponentDistance(Team& opponent) const {
 
 
 
-void Player::SendOff(const Ball& ball, football::sim::Tick now, blunted::Rng& rng, Team& own_team) {
+void Player::SendOff(const Ball& ball, football::sim::Tick now, football::math::Rng& rng, Team& own_team) {
   // Preserve the historical draw even though its message was removed.
   (void)rng.Uniform(0, 3);
   Deactivate(ball, now);

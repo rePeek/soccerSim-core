@@ -20,7 +20,7 @@
 #include "football/pitch/pitch.hpp"
 #include "football/animation/types.hpp"
 
-using blunted::Vector3;
+using football::math::Vector3;
 
 class Player;
 

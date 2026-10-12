@@ -157,7 +157,7 @@ void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
 }
 
 void Referee::Advance(const football::sim::rules::RefereeView& view,
-                      const MatchOptions& options, blunted::Rng& rng,
+                      const MatchOptions& options, football::math::Rng& rng,
                       RuleCommandSink& commands) {
   const RefereeTickFacts& facts = view.tick;
   if (facts.phase == MatchPhase::Finished) return;
@@ -333,7 +333,7 @@ Player* Referee::FindPlayer(const RefereeTickFacts& facts,
 }
 
 void Referee::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
-                                     const MatchOptions& options, blunted::Rng& rng,
+                                     const MatchOptions& options, football::math::Rng& rng,
                                      RuleCommandSink& commands) {
   // Opening/half-time placement is intentionally separate from ordinary readiness.
   commands.ResetSituation(options.reverse_team_processing ? -buffer.restartPos : buffer.restartPos);
@@ -591,7 +591,7 @@ std::optional<Vector3> Referee::GetRestartTarget(const Player* player) const {
 }
 
 void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& options,
-                             blunted::Rng& rng, RuleCommandSink& commands) {
+                             football::math::Rng& rng, RuleCommandSink& commands) {
   auto& state = *buffer.restart;
   if (state.phase == RestartPhase::Taken) {
     state.phase = RestartPhase::InPlay;

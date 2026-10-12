@@ -27,7 +27,7 @@
 // lots of credit to the ogre3d crew!
 // http://www.ogre3d.org/
 
-namespace blunted {
+namespace football::math {
 
 Quaternion::Quaternion(real x, real y, real z, real w) {
   elements[0] = x;

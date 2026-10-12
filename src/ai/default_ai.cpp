@@ -7,7 +7,7 @@
 
 namespace football::ai {
 namespace {
-using blunted::Vector3;
+using football::math::Vector3;
 using football::player::PlayerId;
 using football::sim::TeamSide;
 

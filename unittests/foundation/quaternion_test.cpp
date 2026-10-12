@@ -8,21 +8,21 @@
 #include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/math/vector3.hpp"
 
-using blunted::Quaternion;
-using blunted::Vector3;
+using football::math::Quaternion;
+using football::math::Vector3;
 using Catch::Approx;
 
 namespace {
 
 Quaternion QuarterTurnZ() {
-  const float s = std::sin(blunted::pi * 0.25f);
-  const float c = std::cos(blunted::pi * 0.25f);
+  const float s = std::sin(football::math::pi * 0.25f);
+  const float c = std::cos(football::math::pi * 0.25f);
   return Quaternion(0.0f, 0.0f, s, c);
 }
 
 Quaternion QuarterTurnY() {
-  const float s = std::sin(blunted::pi * 0.25f);
-  const float c = std::cos(blunted::pi * 0.25f);
+  const float s = std::sin(football::math::pi * 0.25f);
+  const float c = std::cos(football::math::pi * 0.25f);
   return Quaternion(0.0f, s, 0.0f, c);
 }
 

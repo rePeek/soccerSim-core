@@ -15,9 +15,9 @@ namespace football::collision {
 
 // Closest point on segment [a, b] to p. Shared by the sweep kernels and by
 // callers that need the same projection (e.g. capsule depenetration).
-blunted::Vector3 ClosestPointOnSegment(const blunted::Vector3& p,
-                                       const blunted::Vector3& a,
-                                       const blunted::Vector3& b);
+football::math::Vector3 ClosestPointOnSegment(const football::math::Vector3& p,
+                                       const football::math::Vector3& a,
+                                       const football::math::Vector3& b);
 
 // ---- Static overlap (no time component) ----
 bool Overlap(const football::geometry::Sphere& sphere,

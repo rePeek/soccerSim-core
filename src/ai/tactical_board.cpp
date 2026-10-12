@@ -5,7 +5,7 @@
 
 namespace football::ai {
 namespace {
-using blunted::Vector3;
+using football::math::Vector3;
 
 Vector3 RoleAnchor(e_PlayerRole role) {
   switch (role) {

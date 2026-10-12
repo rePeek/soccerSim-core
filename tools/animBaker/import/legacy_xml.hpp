@@ -17,7 +17,7 @@
 #include <map>
 #include <string>
 
-namespace blunted {
+namespace football::anim_baker {
 
 struct XMLTree;
 
@@ -41,6 +41,6 @@ class XMLLoader {
   void BuildTree(XMLTree& tree, const std::string& source);
 };
 
-}  // namespace blunted
+}  // namespace football::anim_baker
 
 #endif  // FOOTBALL_ANIMBAKER_IMPORT_LEGACY_XML_HPP

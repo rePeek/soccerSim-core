@@ -14,14 +14,14 @@ float BallInertia(const football::ball::BallModel& config) {
   return kBallInertiaFactor * config.mass() * config.radius() * config.radius();
 }
 
-BallState ApplyImpulseAtPoint(const BallState& ball, const blunted::Vector3& impulse,
-                              const blunted::Vector3& world_point,
+BallState ApplyImpulseAtPoint(const BallState& ball, const football::math::Vector3& impulse,
+                              const football::math::Vector3& world_point,
                               const football::ball::BallModel& config) {
   BallState next = ball;
   next.velocity = next.velocity + impulse * (1.0f / config.mass());
 
-  const blunted::Vector3 r = world_point - ball.position;
-  const blunted::Vector3 torque(
+  const football::math::Vector3 r = world_point - ball.position;
+  const football::math::Vector3 torque(
       r.coords[1] * impulse.coords[2] - r.coords[2] * impulse.coords[1],
       r.coords[2] * impulse.coords[0] - r.coords[0] * impulse.coords[2],
       r.coords[0] * impulse.coords[1] - r.coords[1] * impulse.coords[0]);
@@ -31,31 +31,31 @@ BallState ApplyImpulseAtPoint(const BallState& ball, const blunted::Vector3& imp
 
 BallContactResponse ResolveContactResponse(const BallState& ball, const BallContact& contact,
                                             const ContactMaterial& material,
-                                            const blunted::Vector3& collider_velocity,
+                                            const football::math::Vector3& collider_velocity,
                                             const football::ball::BallModel& config) {
-  const blunted::Vector3 n = contact.normal.GetNormalized({0, 0, 1});
-  const blunted::Vector3 center = ball.position;
-  const blunted::Vector3 surface_point = center - n * config.radius();
-  const blunted::Vector3 r = surface_point - center;
+  const football::math::Vector3 n = contact.normal.GetNormalized({0, 0, 1});
+  const football::math::Vector3 center = ball.position;
+  const football::math::Vector3 surface_point = center - n * config.radius();
+  const football::math::Vector3 r = surface_point - center;
 
-  const blunted::Vector3& omega = ball.angular_velocity;
-  const blunted::Vector3 omega_cross_r(
+  const football::math::Vector3& omega = ball.angular_velocity;
+  const football::math::Vector3 omega_cross_r(
       omega.coords[1] * r.coords[2] - omega.coords[2] * r.coords[1],
       omega.coords[2] * r.coords[0] - omega.coords[0] * r.coords[2],
       omega.coords[0] * r.coords[1] - omega.coords[1] * r.coords[0]);
 
-  const blunted::Vector3 u = ball.velocity + omega_cross_r - collider_velocity;
+  const football::math::Vector3 u = ball.velocity + omega_cross_r - collider_velocity;
   const float un = u.GetDotProduct(n);
   if (un >= 0.0f) return {ball};  // separating or resting: no new impulse
 
   const float mass = config.mass();
   const float jn = -mass * (1.0f + material.restitution) * un;
 
-  const blunted::Vector3 ut = u - n * un;
+  const football::math::Vector3 ut = u - n * un;
   // Effective tangential inverse mass for a sphere: 1/m + R^2 / I.
   const float inverse =
       1.0f / mass + (config.radius() * config.radius()) / BallInertia(config);
-  blunted::Vector3 jt = ut * (-1.0f / inverse);
+  football::math::Vector3 jt = ut * (-1.0f / inverse);
 
   const float jt_len = jt.GetLength();
   const float mu_jn = material.friction * jn;
@@ -66,7 +66,7 @@ BallContactResponse ResolveContactResponse(const BallState& ball, const BallCont
 
 BallState ResolveContact(const BallState& ball, const BallContact& contact,
                          const ContactMaterial& material,
-                         const blunted::Vector3& collider_velocity,
+                         const football::math::Vector3& collider_velocity,
                          const football::ball::BallModel& config) {
   return ResolveContactResponse(ball, contact, material, collider_velocity, config).state;
 }

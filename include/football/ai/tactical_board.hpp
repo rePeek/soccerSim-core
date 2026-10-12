@@ -25,7 +25,7 @@ struct PlayerDirective {
   PlannedPlayerRole role = PlannedPlayerRole::Unspecified;
   // Base anchor in the same home pitch frame/metres as WorldState. Player AI
   // adapts a local copy; it never writes a tick's target back into this intent.
-  std::optional<blunted::Vector3> formation_position;
+  std::optional<football::math::Vector3> formation_position;
   std::optional<football::player::PlayerId> marking_target;
 };
 

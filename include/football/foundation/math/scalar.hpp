@@ -25,7 +25,7 @@
 
 
 
-namespace blunted {
+namespace football::math {
   typedef float real;
 
   real clamp(const real value, const real min, const real max);

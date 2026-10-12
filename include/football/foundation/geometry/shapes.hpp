@@ -10,18 +10,18 @@
 namespace football::geometry {
 
 struct Plane {
-  blunted::Vector3 point;
-  blunted::Vector3 normal;
+  football::math::Vector3 point;
+  football::math::Vector3 normal;
 };
 
 struct Sphere {
-  blunted::Vector3 center;
+  football::math::Vector3 center;
   float radius = 0.0f;
 };
 
 struct Capsule {
-  blunted::Vector3 a;
-  blunted::Vector3 b;
+  football::math::Vector3 a;
+  football::math::Vector3 b;
   float radius = 0.0f;
 };
 

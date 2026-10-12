@@ -6,7 +6,8 @@
 
 #include "football/foundation/math/scalar.hpp"
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 // Only the tokenization/decimal formatting required by the legacy importer.
 void tokenize(const std::string& str, std::vector<std::string>& tokens,
@@ -14,6 +15,6 @@ void tokenize(const std::string& str, std::vector<std::string>& tokens,
 std::string int_to_str(int value);
 std::string real_to_str(real value);
 
-}  // namespace blunted
+}  // namespace football::anim_baker
 
 #endif  // FOOTBALL_ANIMBAKER_IMPORT_LEGACY_TEXT_HPP

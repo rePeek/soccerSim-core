@@ -13,7 +13,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/geometry/collider.hpp"
 
-using blunted::Vector3;
+using football::math::Vector3;
 using football::ball::ApplyImpulseAtPoint;
 using football::ball::BallContact;
 using football::ball::BallInertia;

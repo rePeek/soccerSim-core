@@ -22,15 +22,15 @@ namespace football::ball {
 struct BallContact {
   football::geometry::ColliderId collider = 0;
   float toi = 0.0f;
-  blunted::Vector3 point; // ball center at TOI; projected center after penetration repair
-  blunted::Vector3 normal;
-  blunted::Vector3 relative_velocity;
+  football::math::Vector3 point; // ball center at TOI; projected center after penetration repair
+  football::math::Vector3 normal;
+  football::math::Vector3 relative_velocity;
   // Populated only by AdvanceBallTick/Step, not by the collision query.
   float normal_impulse = 0.0f; // >0 identifies an impulse-bearing impact
   bool position_corrected = false; // correction is not itself a new touch
   // Surface velocity at TOI, including minimal-twist capsule rotation/stretch
   // and radial dilation (see football::geometry::ColliderMotion). Not one endpoint's velocity.
-  blunted::Vector3 surface_velocity = blunted::Vector3(0);
+  football::math::Vector3 surface_velocity = football::math::Vector3(0);
 };
 
 

@@ -11,7 +11,7 @@
 #include "sim/team/team.hpp"
 
 namespace {
-using blunted::Vector3;
+using football::math::Vector3;
 constexpr float kTargetTolerance = 0.35f;
 constexpr float kSeparationMargin = 0.5f;
 // Legacy penalty-box half-width literals; keep values until the standard

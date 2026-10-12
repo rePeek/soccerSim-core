@@ -33,7 +33,7 @@ namespace {
 // Resolve only unspecified runtime appearance, never import or invent profiles.
 // Preserve the historical home-then-away draw for every declared profile, even
 // profiles omitted by a smaller formation and profiles with explicit appearance.
-void ResolveAppearance(football::sim::TeamSetup& team, blunted::Rng& rng) {
+void ResolveAppearance(football::sim::TeamSetup& team, football::math::Rng& rng) {
   for (auto& player : team.players) {
     const int skin_color = int(std::round(rng.Uniform(1, 4)));
     if (!player.appearance.skin_color) player.appearance.skin_color = skin_color;
@@ -44,7 +44,7 @@ void ResolveAppearance(football::sim::TeamSetup& team, blunted::Rng& rng) {
 // initial formation player stands closer to the kickoff spot starts in possession.
 bool LeftTeamOwnsBall(const std::vector<FormationEntry>& left,
                       const std::vector<FormationEntry>& right,
-                      const blunted::Vector3& ball_position) {
+                      const football::math::Vector3& ball_position) {
   float leftDistance = 1000000;
   float rightDistance = 1000000;
   for (const FormationEntry& player : left) {
@@ -415,7 +415,7 @@ void Simulation::Init(
   football::sim::TeamSetup home_model = home, away_model = away;
   // Appearance is not competition physics: isolate its seed-0 stream so a
   // second Init never depends on the previous match's residual RNG state.
-  blunted::Rng appearance_rng;
+  football::math::Rng appearance_rng;
   appearance_rng.Seed(0);
   ResolveAppearance(home_model, appearance_rng);
   ResolveAppearance(away_model, appearance_rng);
@@ -799,7 +799,7 @@ void Simulation::PlaceBallAt(const Vector3& focus) {
   // Position is lifted by the ball radius so the sphere rests on the ground.
   ball_->Reset(football::ball::BallState{
       focus + Vector3(0, 0, ball_config_.radius()), Vector3(0), Vector3(0),
-      blunted::Quaternion{}});
+      football::math::Quaternion{}});
 }
 
 void Simulation::ResetSituation(const Vector3& focus_position) {

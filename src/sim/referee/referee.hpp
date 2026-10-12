@@ -39,7 +39,7 @@
 #include "football/foundation/math/rng.hpp"
 
 
-using namespace blunted;
+using namespace football::math;
 
 class Player;
 class Team;
@@ -64,7 +64,7 @@ class Referee {
     // opening/half-time ceremonies and the post-restart grace countdown. No
     // ball/line facts are produced or consumed here.
     void Advance(const football::sim::rules::RefereeView& view,
-                 const MatchOptions& options, blunted::Rng& rng,
+                 const MatchOptions& options, football::math::Rng& rng,
                  football::sim::rules::RuleCommandSink& commands);
 
     // Classify this instant's out-of-play condition from the live ball and
@@ -128,18 +128,18 @@ class Referee {
     void ScheduleRestart(const RestartSchedule& schedule,
                          football::sim::TickSpan administration = {});
     void ProcessRestart(const football::sim::rules::RefereeTickFacts& facts,
-                        const MatchOptions& options, blunted::Rng& rng,
+                        const MatchOptions& options, football::math::Rng& rng,
                         football::sim::rules::RuleCommandSink& commands);
     void PrepareCeremonialKickOff(const football::sim::rules::RefereeTickFacts& facts,
-                                 const MatchOptions& options, blunted::Rng& rng,
+                                 const MatchOptions& options, football::math::Rng& rng,
                                  football::sim::rules::RuleCommandSink& commands);
     void EvaluateBallTouch(const football::sim::rules::BallTouchFacts& facts,
                            football::sim::rules::RuleCommandSink& commands);
 
-    void SettleGoalLine(const blunted::Vector3& ball_pos,
+    void SettleGoalLine(const football::math::Vector3& ball_pos,
                         const football::sim::rules::RefereeTickFacts& facts,
                         football::sim::rules::RuleCommandSink& commands);
-    void SettleTouchline(const blunted::Vector3& ball_pos,
+    void SettleTouchline(const football::math::Vector3& ball_pos,
                          const football::sim::rules::RefereeTickFacts& facts,
                          football::sim::rules::RuleCommandSink& commands);
     Player* FindPlayer(const football::sim::rules::RefereeTickFacts& facts,

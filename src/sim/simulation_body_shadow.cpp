@@ -30,7 +30,7 @@ void MirrorResult(football::ball::BallStepResult& result) {
   result.state.position.Mirror();
   result.state.velocity.Mirror();
   result.state.angular_velocity.Mirror();
-  const blunted::Quaternion half_turn(0, 0, 1, 0);
+  const football::math::Quaternion half_turn(0, 0, 1, 0);
   result.state.orientation = (half_turn * result.state.orientation).GetNormalized();
   for (auto& contact : result.contacts) {
     contact.point.Mirror();

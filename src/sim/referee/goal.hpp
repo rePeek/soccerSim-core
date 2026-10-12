@@ -11,8 +11,8 @@ namespace football::sim {
 // Live-ball authorization and the prediction lookahead gate belong to the caller;
 // this predicate neither reads actors/time nor applies score or scorer facts.
 bool CrossedGoalLine(const football::pitch::Pitch& pitch, int side,
-                     const blunted::Vector3& previous,
-                     const blunted::Vector3& current);
+                     const football::math::Vector3& previous,
+                     const football::math::Vector3& current);
 
 }  // namespace football::sim
 

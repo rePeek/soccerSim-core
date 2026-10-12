@@ -18,16 +18,16 @@ namespace football::ball {
 // or competition state). It is the only state shape visible through the stable
 // Ball API, in SI units (m, m/s, rad/s, unit quaternion).
 struct BallState {
-  blunted::Vector3 position;
-  blunted::Vector3 velocity;
-  blunted::Vector3 angular_velocity;
-  blunted::Quaternion orientation;
+  football::math::Vector3 position;
+  football::math::Vector3 velocity;
+  football::math::Vector3 angular_velocity;
+  football::math::Quaternion orientation;
 };
 
 // Kinematic endpoint constraint, not an impact. No football identity/rules.
 struct BallEndpointConstraint {
-  blunted::Vector3 position;
-  blunted::Vector3 velocity;
+  football::math::Vector3 position;
+  football::math::Vector3 velocity;
 };
 
 }  // namespace football::ball

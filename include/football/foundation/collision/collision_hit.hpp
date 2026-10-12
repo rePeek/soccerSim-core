@@ -18,7 +18,7 @@ namespace football::collision {
 // velocity needed to sweep it.
 struct MovingSphere {
   football::geometry::Sphere shape;
-  blunted::Vector3 velocity;
+  football::math::Vector3 velocity;
 };
 
 // Result of one continuous collision query.
@@ -30,9 +30,9 @@ struct MovingSphere {
 struct CollisionHit {
   football::geometry::ColliderId collider = 0;
   float toi = 0.0f;
-  blunted::Vector3 center;
-  blunted::Vector3 normal;
-  blunted::Vector3 surface_velocity;
+  football::math::Vector3 center;
+  football::math::Vector3 normal;
+  football::math::Vector3 surface_velocity;
 };
 
 }  // namespace football::collision

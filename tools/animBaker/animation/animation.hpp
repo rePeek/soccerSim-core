@@ -31,7 +31,8 @@
 #include "import/legacy_xml.hpp"
 #include "football/animation/types.hpp"
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 struct ImportNode;
 

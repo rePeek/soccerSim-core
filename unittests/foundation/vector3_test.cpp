@@ -8,8 +8,8 @@
 #include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/math/vector3.hpp"
 
-using blunted::Quaternion;
-using blunted::Vector3;
+using football::math::Quaternion;
+using football::math::Vector3;
 using Catch::Approx;
 
 TEST_CASE("Vector3 length and squared length", "[unit][foundation][vector3]") {
@@ -62,7 +62,7 @@ TEST_CASE("Vector3 Mirror flips x and y but not z", "[unit][foundation][vector3]
 
 TEST_CASE("Vector3 2D rotation is a proper rotation", "[unit][foundation][vector3]") {
   const Vector3 x{1.0f, 0.0f, 0.0f};
-  const Vector3 y = x.GetRotated2D(blunted::pi * 0.5f);
+  const Vector3 y = x.GetRotated2D(football::math::pi * 0.5f);
   CHECK(y.coords[0] == Approx(0.0f).margin(1e-6f));
   CHECK(y.coords[1] == Approx(1.0f).margin(1e-6f));
   CHECK(y.coords[2] == Approx(0.0f));
@@ -71,7 +71,7 @@ TEST_CASE("Vector3 2D rotation is a proper rotation", "[unit][foundation][vector
 
 TEST_CASE("Vector3 2D angle uses the x/y plane", "[unit][foundation][vector3]") {
   CHECK(float(Vector3(1.0f, 0.0f, 0.0f).GetAngle2D()) == Approx(0.0f).margin(1e-6f));
-  CHECK(float(Vector3(0.0f, 1.0f, 0.0f).GetAngle2D()) == Approx(blunted::pi * 0.5f).margin(1e-6f));
+  CHECK(float(Vector3(0.0f, 1.0f, 0.0f).GetAngle2D()) == Approx(football::math::pi * 0.5f).margin(1e-6f));
 }
 
 TEST_CASE("Vector3 identity quaternion rotation is a no-op",
@@ -85,8 +85,8 @@ TEST_CASE("Vector3 identity quaternion rotation is a no-op",
 }
 
 TEST_CASE("Vector3 quarter turn about z maps +x to +y", "[unit][foundation][vector3]") {
-  const float s = std::sin(blunted::pi * 0.25f);
-  const float c = std::cos(blunted::pi * 0.25f);
+  const float s = std::sin(football::math::pi * 0.25f);
+  const float c = std::cos(football::math::pi * 0.25f);
   const Quaternion quarter_turn(0.0f, 0.0f, s, c);
 
   Vector3 v{1.0f, 0.0f, 0.0f};

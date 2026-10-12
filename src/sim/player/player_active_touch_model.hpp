@@ -39,13 +39,13 @@ enum class TouchRejection { None, Distance, Height, SurfaceRange, Direction };
 // Ball endpoint; the real Ball is never mutated here.
 struct TouchProposalInput {
   football::ball::BallState passive_endpoint;
-  blunted::Vector3 desired_ball_center = blunted::Vector3(0);
-  blunted::Vector3 target_velocity = blunted::Vector3(0);
+  football::math::Vector3 desired_ball_center = football::math::Vector3(0);
+  football::math::Vector3 target_velocity = football::math::Vector3(0);
   // P4f-3 real boot surface point (world) nearest the ball at the contact
   // frame. A zero `strike_radius` keeps the legacy desired-centre fallback;
   // otherwise reachability and the ball surface contact point come from this
   // geometry and never from an arbitrary projection of a far ball.
-  blunted::Vector3 strike_point = blunted::Vector3(0);
+  football::math::Vector3 strike_point = football::math::Vector3(0);
   float strike_radius = 0.0f;
   TouchTechnique technique;
   football::ball::BallModel config;
@@ -59,12 +59,12 @@ struct TouchProposal {
   float reach_error = 0.0f;
   float height_gap = 0.0f;
   float surface_error = 0.0f;
-  blunted::Vector3 contact_point = blunted::Vector3(0);
-  blunted::Vector3 lever_arm = blunted::Vector3(0);
+  football::math::Vector3 contact_point = football::math::Vector3(0);
+  football::math::Vector3 lever_arm = football::math::Vector3(0);
   football::ball::BallImpulse impulse;
   football::ball::BallState response;
   float velocity_error = 0.0f;  // |response.velocity - target_velocity|
-  blunted::Vector3 spin = blunted::Vector3(0);  // response angular velocity
+  football::math::Vector3 spin = football::math::Vector3(0);  // response angular velocity
 };
 
 // Reachability is decided BEFORE any geometric projection, so an out-of-reach
@@ -126,14 +126,14 @@ inline TouchProposal ProposeActiveTouch(const TouchProposalInput& input) {
   // fallback it is the near side opposite the impulse (torque-free centre
   // strike). Lateral/vertical technique offsets then add deliberate spin
   // around that real base point.
-  const blunted::Vector3 strike = out.impulse.impulse / impulse_length;
-  const blunted::Vector3 up{0, 0, 1};
-  blunted::Vector3 side = strike.GetCrossProduct(up);
-  side = side.GetNormalized(blunted::Vector3(1, 0, 0));
-  const blunted::Vector3 base_dir = foot
+  const football::math::Vector3 strike = out.impulse.impulse / impulse_length;
+  const football::math::Vector3 up{0, 0, 1};
+  football::math::Vector3 side = strike.GetCrossProduct(up);
+  side = side.GetNormalized(football::math::Vector3(1, 0, 0));
+  const football::math::Vector3 base_dir = foot
       ? (input.strike_point - ball).GetNormalized(up)
       : -strike;
-  const blunted::Vector3 offset =
+  const football::math::Vector3 offset =
       base_dir * radius + side * input.technique.lateral + up * input.technique.vertical;
   // Guarantee a real surface point while preserving the lever-arm direction.
   out.contact_point = ball + offset.GetNormalized(up) * radius;

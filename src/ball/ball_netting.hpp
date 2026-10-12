@@ -14,7 +14,7 @@ namespace football::ball::detail {
 
 // Resolves side/rear/top goal netting in-place when the ball is behind the
 // goal line inside the goal mouth.
-void ResolveNetting(blunted::Vector3& position, blunted::Vector3& momentum,
+void ResolveNetting(football::math::Vector3& position, football::math::Vector3& momentum,
                     const football::pitch::Pitch& pitch,
                     const football::ball::BallModel& config);
 

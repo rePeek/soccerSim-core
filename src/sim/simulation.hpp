@@ -94,9 +94,9 @@ class Simulation {
   void AdvanceTime(football::sim::TickSpan delta);
   // Runtime composition, also transitional test/diagnostic escapes.
   void Mirror(bool team_0, bool team_1, bool ball);
-  void ResetSituation(const blunted::Vector3& focus_position);
+  void ResetSituation(const football::math::Vector3& focus_position);
   // Transitional diagnostic impulse; synchronous physics/history/possession only.
-  void TouchBall(const blunted::Vector3& impulse);
+  void TouchBall(const football::math::Vector3& impulse);
 
  private:
   friend class football::sim::testing::SimulationAccess;
@@ -166,7 +166,7 @@ class Simulation {
   // Lifecycle mutations, published through the write-only rule/player ports.
   // Match restart semantics: place the ball at a kickoff/free-kick focus with
   // zero motion. Ball itself only exposes Reset(BallState).
-  void PlaceBallAt(const blunted::Vector3& focus);
+  void PlaceBallAt(const football::math::Vector3& focus);
   void SetMatchPhase(MatchPhase newPhase);
   void StartPlay() { play_authorized_ = true; }
   void StopPlay() {
@@ -199,7 +199,7 @@ class Simulation {
   const football::pitch::Pitch& pitch() const { return pitch_; }
   const AnimationLibrary& GetAnimationLibrary() const { return *animations_; }
   const MatchOptions& options() const { return options_; }
-  blunted::Rng& rng() { return rng_; }
+  football::math::Rng& rng() { return rng_; }
   bool IsInSetPiece() const { return set_piece_active_; }
   MatchPhase GetMatchPhase() const { return phase_; }
   Referee* GetReferee() const { return referee_.get(); }
@@ -225,7 +225,7 @@ class Simulation {
   Player* GetLastTouchPlayer() const;
   void GetActiveTeamPlayers(int team_id, std::vector<Player*>& players);
 
-  blunted::Rng rng_;
+  football::math::Rng rng_;
   // Constructed before the actors and kept alive until their borrows are gone.
   std::vector<MentalImage> mental_images_;
   std::optional<football::sim::MatchClock> clock_;

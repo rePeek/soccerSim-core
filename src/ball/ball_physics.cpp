@@ -52,7 +52,7 @@ Dynamics MakeDynamics(const football::ball::BallModel& config,
 // layer needs the relative contact velocity, which the query deliberately does
 // not compute (it only reports the surface velocity).
 BallContact ToBallContact(const football::collision::CollisionHit& hit,
-                          const blunted::Vector3& velocity) {
+                          const football::math::Vector3& velocity) {
   BallContact contact;
   contact.collider = hit.collider;
   contact.toi = hit.toi;
@@ -84,9 +84,9 @@ BallStepResult AdvanceBallTick(const BallState& initial,
                     colliders, dt);
   };
 
-  const auto integrate_orientation = [](const blunted::Quaternion& q,
-                                        const blunted::Vector3& omega, float dt) {
-    const blunted::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
+  const auto integrate_orientation = [](const football::math::Quaternion& q,
+                                        const football::math::Vector3& omega, float dt) {
+    const football::math::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
     return (q + omega_q * q * (0.5f * dt)).GetNormalized();
   };
 
@@ -97,8 +97,8 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     if (contact.toi > eps) return;
     for (const ColliderMotion& c : colliders) {
       if (c.id != contact.collider) continue;
-      const blunted::Vector3 surface = std::visit(
-          [&](const auto& shape) -> blunted::Vector3 {
+      const football::math::Vector3 surface = std::visit(
+          [&](const auto& shape) -> football::math::Vector3 {
             using T = std::decay_t<decltype(shape)>;
             if constexpr (std::is_same_v<T, Plane>) {
               return s.position -
@@ -175,8 +175,8 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   const bool in_grass_zone = initial.position.coords[2] <= grass_zone + eps;
   const bool not_descending = initial.velocity.coords[2] >= -eps;
 
-  const auto grass_drag = [&](const blunted::Vector3& velocity) {
-    blunted::Vector3 v = velocity;
+  const auto grass_drag = [&](const football::math::Vector3& velocity) {
+    football::math::Vector3 v = velocity;
     const float hs =
         std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
     if (hs > 0.0f) {
@@ -190,16 +190,16 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     return v;
   };
 
-  blunted::Vector3 grass_v = initial.velocity;
+  football::math::Vector3 grass_v = initial.velocity;
   if (in_grass_zone && not_descending) grass_v = grass_drag(initial.velocity);
 
   const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
-  const blunted::Vector3 omega1 = initial.angular_velocity * spin_scale;
+  const football::math::Vector3 omega1 = initial.angular_velocity * spin_scale;
 
   // Persistent ground contact: rolling constraint, but still check other
   // (non-ground) colliders; the tangent ground plane produces no ground hit.
   if (on_ground && not_descending) {
-    const blunted::Vector3 v{grass_v.coords[0], grass_v.coords[1], 0.0f};
+    const football::math::Vector3 v{grass_v.coords[0], grass_v.coords[1], 0.0f};
     BallState cursor = initial;
     cursor.velocity = v;
     cursor.position.coords[2] = resting_z;
@@ -233,20 +233,20 @@ BallStepResult AdvanceBallTick(const BallState& initial,
 
   // Airborne free-motion candidate. The launch velocity is recomputed from the
   // cursor so a corrected state still integrates its own drag and gravity.
-  const blunted::Vector3 gravity = pitch.gravity();
+  const football::math::Vector3 gravity = pitch.gravity();
   const auto launch_velocity = [&](const BallState& s) {
     if (s.position.coords[2] <= grass_zone + eps && s.velocity.coords[2] >= -eps)
       return grass_drag(s.velocity);
     return s.velocity;
   };
-  const auto acceleration = [&](const blunted::Vector3& v0) {
+  const auto acceleration = [&](const football::math::Vector3& v0) {
     const float speed = v0.GetLength();
-    blunted::Vector3 accel = gravity;
+    football::math::Vector3 accel = gravity;
     if (speed > 0.0f)
       accel = accel - v0 * (dynamics.quadratic_resistance * speed);
     if (dynamics.magnus_coefficient != 0.0f) {
-      const blunted::Vector3& o = initial.angular_velocity;
-      accel = accel + blunted::Vector3(
+      const football::math::Vector3& o = initial.angular_velocity;
+      accel = accel + football::math::Vector3(
           o.coords[1] * v0.coords[2] - o.coords[2] * v0.coords[1],
           o.coords[2] * v0.coords[0] - o.coords[0] * v0.coords[2],
           o.coords[0] * v0.coords[1] - o.coords[1] * v0.coords[0]) *
@@ -257,9 +257,9 @@ BallStepResult AdvanceBallTick(const BallState& initial,
 
   BallState cursor = initial;
   for (std::size_t guard = 0;; ++guard) {
-    const blunted::Vector3 v0 = launch_velocity(cursor);
-    const blunted::Vector3 accel = acceleration(v0);
-    const blunted::Vector3 vavg = v0 + accel * (0.5f * dt);
+    const football::math::Vector3 v0 = launch_velocity(cursor);
+    const football::math::Vector3 accel = acceleration(v0);
+    const football::math::Vector3 vavg = v0 + accel * (0.5f * dt);
     BallState probe = cursor;
     probe.velocity = vavg;
     const auto hit = sweep_from(probe);
@@ -275,7 +275,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     const BallContact first = ToBallContact(*hit, probe.velocity);
     if (!correction_only(first) || guard >= correction_cap) {
       // Move to the contact instant and let ResolveContact also spin the ball.
-      const blunted::Vector3 vc = v0 + accel * (first.toi * dt);
+      const football::math::Vector3 vc = v0 + accel * (first.toi * dt);
       result.state = cursor;
       result.state.position = first.point;
       result.state.velocity = vc;

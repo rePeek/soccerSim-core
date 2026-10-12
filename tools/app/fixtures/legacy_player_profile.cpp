@@ -103,7 +103,7 @@ constexpr Profile kProfiles[] = {
 // Preserve both the legacy age formula and the %f -> atof quantization. This
 // sample-data policy is intentionally local to fixtures, not a text utility.
 float CalculateLegacyStat(float baseStat, float profileStat, float age) {
-  using namespace blunted;
+  using namespace football::math;
   float idealAge = 27;
   float ageFactor = curve(1.0f - NormalizedClamp(fabs(age - idealAge), 0, 13) * 0.5f,
                           1.0f) * 2.0f - 1.0f;

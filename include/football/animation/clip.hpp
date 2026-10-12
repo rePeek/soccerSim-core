@@ -23,7 +23,7 @@
 #include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/math/vector3.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 // Number of animated body parts. Must match the legacy BodyPart::body_part_max
 // so that a baked pose can be compared index-for-index against

@@ -42,7 +42,8 @@
 #include <string>
 #include <vector>
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 enum e_LocalMode {
   e_LocalMode_Relative,
@@ -113,6 +114,6 @@ struct ImportHierarchy {
   std::vector<ImportNode*> anchors;
 };
 
-}  // namespace blunted
+}  // namespace football::anim_baker
 
 #endif

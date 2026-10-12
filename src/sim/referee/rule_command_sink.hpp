@@ -20,8 +20,8 @@ class RuleCommandSink {
   virtual void StartBallInPlay() = 0;
   // Rule-driven retain (throw-in taker holds the ball).
   virtual void SetBallRetainer(Player* retainer) = 0;
-  virtual void ResetSituation(const blunted::Vector3& position) = 0;
-  virtual void ResetBall(const blunted::Vector3& position) = 0;
+  virtual void ResetSituation(const football::math::Vector3& position) = 0;
+  virtual void ResetBall(const football::math::Vector3& position) = 0;
   virtual void SetPhase(MatchPhase phase) = 0;
 };
 

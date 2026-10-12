@@ -24,7 +24,8 @@
 #include "import/legacy_xml.hpp"
 #include "animation/import_hierarchy.hpp"
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 class ImportLoader {
  public:
@@ -42,6 +43,6 @@ class ImportLoader {
   e_LocalMode InterpretLocalMode(const std::string& value) const;
 };
 
-}  // namespace blunted
+}  // namespace football::anim_baker
 
 #endif

@@ -16,7 +16,8 @@
 #include "import/legacy_value_codec.hpp"
 #include <filesystem>
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 ImportHierarchy ImportLoader::LoadObject(const std::string& filename,
                                          const Vector3& offset) const {
@@ -128,4 +129,4 @@ e_LocalMode ImportLoader::InterpretLocalMode(const std::string& value) const {
   }
 }
 
-}  // namespace blunted
+}  // namespace football::anim_baker

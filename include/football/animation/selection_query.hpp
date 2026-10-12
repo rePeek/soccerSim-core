@@ -40,7 +40,7 @@ struct CrudeSelectionQuery {
   e_Foot strongFoot = e_Foot_Right;
 
   bool bySide = false;
-  blunted::Vector3 lookAtVecRel;
+  football::math::Vector3 lookAtVecRel;
 
   bool allowLastDitchAnims = false;
 
@@ -58,15 +58,15 @@ struct CrudeSelectionQuery {
   bool pickupBall = true;
 
   bool byIncomingBodyDirection = false;
-  blunted::Vector3 incomingBodyDirection;
+  football::math::Vector3 incomingBodyDirection;
   bool incomingBodyDirection_Strict = false;
   bool incomingBodyDirection_ForceLinearity = false;
 
   bool byIncomingBallDirection = false;
-  blunted::Vector3 incomingBallDirection;
+  football::math::Vector3 incomingBallDirection;
 
   bool byOutgoingBallDirection = false;
-  blunted::Vector3 outgoingBallDirection;
+  football::math::Vector3 outgoingBallDirection;
 
   bool byTripType = false;
   int tripType = 0;

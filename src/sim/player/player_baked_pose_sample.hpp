@@ -26,7 +26,7 @@ struct PlayerBakedPoseSample {
     state.Mirror();
     // PlayerKinematicState::Mirror deliberately does not rotate facing fields;
     // FK takes the animation base explicitly, so only that angle is transformed.
-    blunted::radian angle = base_angle;
+    football::math::radian angle = base_angle;
     angle.Mirror(); base_angle = angle;
   }
 };

@@ -20,7 +20,7 @@
 namespace football::sim::player {
 
 Player *FindClosestPlayer(std::span<Player *const> players,
-                          const blunted::Vector3 &position,
+                          const football::math::Vector3 &position,
                           const Player *excluded) {
   float closestDistance = 10000;
   Player *closestPlayer = nullptr;
@@ -36,7 +36,7 @@ Player *FindClosestPlayer(std::span<Player *const> players,
 }
 
 void FindClosestPlayers(std::span<Player *const> players,
-                        const blunted::Vector3 &position,
+                        const football::math::Vector3 &position,
                         std::vector<Player *> &result, unsigned int playerCount) {
   // Equivalent keys preserve insertion/roster order, never PlayerId order.
   std::multimap<float, Player *> sorted;

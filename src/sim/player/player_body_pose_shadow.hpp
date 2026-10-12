@@ -9,17 +9,17 @@
 // intentionally does NOT mirror bodyFacing; its callers must convert explicitly.
 inline void BuildShadowPosedBodyMotions(
     const PlayerKinematicState& start, const PlayerKinematicState& end,
-    e_FunctionType action, blunted::Vector3 axis,
+    e_FunctionType action, football::math::Vector3 axis,
     const PlayerBodyColliderMotionIds& ids,
     std::span<football::geometry::ColliderMotion> output) {
   BuildBodyColliderMotions(start, end, ids, output);
   if (action != e_FunctionType_Sliding && action != e_FunctionType_Trip) return;
-  axis = axis.Get2D().GetNormalized(blunted::Vector3(0, -1, 0));
+  axis = axis.Get2D().GetNormalized(football::math::Vector3(0, -1, 0));
   const bool sliding = action == e_FunctionType_Sliding;
   const auto shapes = [&](const PlayerKinematicState& k) {
     const auto origin = k.position.Get2D();
     const auto at = [&](float offset, float height) {
-      return origin + axis * offset + blunted::Vector3(0, 0, height);
+      return origin + axis * offset + football::math::Vector3(0, 0, height);
     };
     return std::array<football::geometry::ColliderShape, 3>{
         football::geometry::Capsule{at(sliding ? -.55f : 0, .24f), at(sliding ? .05f : .55f, .24f), .20f},
@@ -37,7 +37,7 @@ inline void BuildShadowPosedBodyMotions(
 
 // Signed initial ball-surface gap, for episodes independent of impact impulses.
 // Tangency/resting contact is geometric even if collision::Sweep rejects an exit root.
-inline float BodyShadowGap(const blunted::Vector3& center, float radius,
+inline float BodyShadowGap(const football::math::Vector3& center, float radius,
                            const football::geometry::ColliderShape& shape) {
   return std::visit([&](const auto& s) {
     using T = std::decay_t<decltype(s)>;
@@ -46,7 +46,7 @@ inline float BodyShadowGap(const blunted::Vector3& center, float radius,
     } else if constexpr (std::is_same_v<T, football::geometry::Capsule>) {
       const auto ab = s.b - s.a;
       const auto length2 = ab.GetDotProduct(ab);
-      const float u = length2 > 1e-8f ? blunted::clamp((center - s.a).GetDotProduct(ab) / length2, 0.0f, 1.0f) : 0;
+      const float u = length2 > 1e-8f ? football::math::clamp((center - s.a).GetDotProduct(ab) / length2, 0.0f, 1.0f) : 0;
       return (center - s.a - ab * u).GetLength() - radius - s.radius;
     } else {
       return (center - s.point).GetDotProduct(s.normal.GetNormalized({0, 0, 1})) - radius;

@@ -96,7 +96,7 @@ class SimulationAccess {
   static const Team* TeamOf(const Simulation& s, int team_id) {
     return s.teams_[team_id].get();
   }
-  static blunted::Rng& RngOf(Simulation& s) { return s.rng_; }
+  static football::math::Rng& RngOf(Simulation& s) { return s.rng_; }
   static football::sim::Tick NowOf(Simulation& s) { return s.clock_->now(); }
   static football::sim::TickSpan RegulationTimeOf(Simulation& s) {
     return s.clock_->RegulationTime();
@@ -221,17 +221,17 @@ class SimulationAccess {
   static void SetGoalScored(Simulation& s, bool value) { s.SetGoalScored(value); }
   static void SetBallRetainer(Simulation& s, Player* retainer) { s.SetBallRetainer(retainer); }
   static void RequestChangeOfEnds(Simulation& s) { s.pending_change_of_ends_ = true; }
-  static void ResetBall(Simulation& s, const blunted::Vector3& position) {
+  static void ResetBall(Simulation& s, const football::math::Vector3& position) {
     s.PlaceBallAt(position);
   }
   // Ground-resting placement for a standalone Ball under test. The removed
   // Ball::ResetSituation is expressed here through the stable Ball::Reset API;
   // product restart placement lives in Simulation::PlaceBallAt.
   static void ResetBallTo(football::ball::Ball& ball,
-                          const blunted::Vector3& position) {
+                          const football::math::Vector3& position) {
     ball.Reset(football::ball::BallState{
-        position + blunted::Vector3(0, 0, ball.config().radius()),
-        blunted::Vector3(0), blunted::Vector3(0), blunted::Quaternion{}});
+        position + football::math::Vector3(0, 0, ball.config().radius()),
+        football::math::Vector3(0), football::math::Vector3(0), football::math::Quaternion{}});
   }
 };
 

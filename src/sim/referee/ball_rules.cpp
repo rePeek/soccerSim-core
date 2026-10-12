@@ -14,7 +14,7 @@ constexpr float kOutOfPlayMargin = 0.11f;
 }  // namespace
 
 BallOutOfPlay ClassifyBallOutOfPlay(const football::pitch::Pitch& pitch,
-                                    const blunted::Vector3& ball_position) {
+                                    const football::math::Vector3& ball_position) {
   // Goal-line priority is preserved: an instant is at most one condition, and
   // the goal line is tested before the touchline.
   const float limit_x = pitch.half_length() + pitch.line_half_width() + kOutOfPlayMargin;
@@ -25,8 +25,8 @@ BallOutOfPlay ClassifyBallOutOfPlay(const football::pitch::Pitch& pitch,
 }
 
 std::optional<int> CrossedGoalMouth(const football::pitch::Pitch& pitch,
-                                    const blunted::Vector3& previous,
-                                    const blunted::Vector3& current) {
+                                    const football::math::Vector3& previous,
+                                    const football::math::Vector3& current) {
   for (int side : {-1, 1}) {
     if (CrossedGoalLine(pitch, side, previous, current)) return side;
   }

@@ -19,7 +19,7 @@
 #include "sim/referee/game_mode.hpp"
 #include "football/animation/types.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 class Player;
 

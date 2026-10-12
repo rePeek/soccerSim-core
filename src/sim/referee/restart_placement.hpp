@@ -20,7 +20,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch, Team *team,
                               e_GameMode set_piece, Team *other_team,
                               int kickoff_taker_team_id, int taker_team_id,
                               const football::ball::Ball& ball, football::sim::TickSpan regulation,
-                              const MatchOptions& options, blunted::Rng& rng,
+                              const MatchOptions& options, football::math::Rng& rng,
                               football::sim::rules::RuleCommandSink& commands);
 
 #endif

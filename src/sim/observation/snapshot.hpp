@@ -14,10 +14,10 @@ namespace football::sim::observation {
 // Dynamic values only, in the fixed home-pitch frame shared with WorldState.
 // Animation identity/frame describe a pose; this is not a simulation checkpoint.
 struct PlayerSnapshot {
-  blunted::Vector3 position{0};
-  blunted::Vector3 velocity{0};
-  blunted::Vector3 facing{1, 0, 0};
-  blunted::Vector3 body_facing{1, 0, 0};
+  football::math::Vector3 position{0};
+  football::math::Vector3 velocity{0};
+  football::math::Vector3 facing{1, 0, 0};
+  football::math::Vector3 body_facing{1, 0, 0};
   AnimationId animation_id = -1;
   std::uint32_t frame = 0;
   bool active = false;
@@ -25,9 +25,9 @@ struct PlayerSnapshot {
 };
 
 struct BallSnapshot {
-  blunted::Vector3 position{0};
-  blunted::Vector3 velocity{0};
-  blunted::Vector3 angular_velocity{0};
+  football::math::Vector3 position{0};
+  football::math::Vector3 velocity{0};
+  football::math::Vector3 angular_velocity{0};
 };
 
 struct Snapshot {

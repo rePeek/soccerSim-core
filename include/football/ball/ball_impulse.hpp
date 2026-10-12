@@ -4,8 +4,8 @@
 namespace football::ball {
 // Pure physical input. No identity, action, touch type, or rules dependency.
 struct BallImpulse {
-  blunted::Vector3 impulse = blunted::Vector3(0); // N*s
-  blunted::Vector3 contact_point = blunted::Vector3(0); // world-space ball surface
+  football::math::Vector3 impulse = football::math::Vector3(0); // N*s
+  football::math::Vector3 contact_point = football::math::Vector3(0); // world-space ball surface
 };
 }
 #endif

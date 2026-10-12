@@ -711,9 +711,10 @@ keep regression output exact.
 
 ## Conventions
 
-C++23, extensions off, PIC on. Namespaces: football::player/sim/pitch/ball/animation,
-football::ai,
-football::app, blunted. Legacy sim/value classes remain global. Never duplicate
+C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
+football::geometry, football::collision, football::player/sim/pitch/ball/animation,
+football::ai, football::app; the offline baker uses football::anim_baker. Legacy
+sim/value classes remain global. Never duplicate
 an authoritative field as a cache without need. Preserve Mirror/reverse processing
 symmetry. Model must not include simulation or orchestration headers.
 

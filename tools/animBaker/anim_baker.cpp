@@ -35,7 +35,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "import/legacy_value_codec.hpp"
 
-using namespace blunted;
+using namespace football::anim_baker;
 
 namespace {
 

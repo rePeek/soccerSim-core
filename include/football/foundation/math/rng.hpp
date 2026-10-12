@@ -7,7 +7,7 @@
 
 #include <random>
 
-namespace blunted {
+namespace football::math {
 
 typedef std::mt19937 BaseGenerator;
 

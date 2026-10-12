@@ -27,7 +27,7 @@
 #include "sim/observation/player_image.hpp"
 #include "football/foundation/time/tick.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 class Player;
 namespace football::ball { class Ball; }

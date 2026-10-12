@@ -20,7 +20,7 @@
 #include "sim/player/player_role.hpp"
 #include "sim/referee/game_mode.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 const int playerNum = 11;
 const float FORMATION_Y_SCALE = -2.36f;

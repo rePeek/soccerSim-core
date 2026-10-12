@@ -33,7 +33,7 @@ struct BallPlayerContactInputs {
 };
 
 struct BallPlayerContactResult {
-  std::optional<blunted::Vector3> impulse;
+  std::optional<football::math::Vector3> impulse;
   float rotation_bias = 0.0f;
 };
 

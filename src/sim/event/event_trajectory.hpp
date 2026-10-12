@@ -25,8 +25,8 @@ struct EventTrajectory {
   std::uint64_t first_step = 0;
   std::uint64_t last_step = 0;
   std::size_t sample_count = 0;
-  std::optional<blunted::Vector3> first_ball_position;
-  std::optional<blunted::Vector3> last_ball_position;
+  std::optional<football::math::Vector3> first_ball_position;
+  std::optional<football::math::Vector3> last_ball_position;
   float ball_path_length = 0;
   float peak_ball_speed = 0;
   bool complete = false;

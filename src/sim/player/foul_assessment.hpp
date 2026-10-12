@@ -38,16 +38,16 @@ struct FoulAssessment {
 
   // Foul location in the victim's pitch frame, so a later ruling can schedule
   // a restart there. It is not the post-collision snapshot position.
-  blunted::Vector3 position;
-  blunted::Vector3 victim_position;
-  blunted::Vector3 victim_direction;
-  blunted::Vector3 offender_position;
-  blunted::Vector3 ball_position;
+  football::math::Vector3 position;
+  football::math::Vector3 victim_position;
+  football::math::Vector3 victim_direction;
+  football::math::Vector3 offender_position;
+  football::math::Vector3 ball_position;
   int offender_action_type = 0;
   bool offender_scheduled_contact = false;
   int offender_contact_frame = -1;
   int offender_frame = 0;
-  blunted::Vector3 offender_contact_position;
+  football::math::Vector3 offender_contact_position;
   Tick offender_last_touch_tick{};
   float victim_team_fading_possession = 0.0f;
 };

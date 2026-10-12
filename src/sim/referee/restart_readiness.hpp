@@ -16,19 +16,19 @@ class Team;
 // Planning does not move actors, select animations, or consume RNG.
 struct RestartPlayerTarget {
   Player* player = nullptr;
-  blunted::Vector3 position;
+  football::math::Vector3 position;
 };
 struct RestartPlan {
   e_GameMode mode = e_GameMode_Normal;
   Team* team = nullptr;
   Player* taker = nullptr;
-  blunted::Vector3 ball_position;
+  football::math::Vector3 ball_position;
   std::vector<RestartPlayerTarget> players;
 };
 
 // Explicit home-frame ball position and home-then-away active roster order.
 RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
-                        const blunted::Vector3& home_ball_position,
+                        const football::math::Vector3& home_ball_position,
                         std::span<Player* const> active_players,
                         e_GameMode mode, Team& team);
 bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& pitch);

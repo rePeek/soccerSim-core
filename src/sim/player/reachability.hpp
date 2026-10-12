@@ -20,7 +20,7 @@
 #include "sim/player/player_motion_constants.hpp"
 #include <optional>
 
-using blunted::Vector3;
+using football::math::Vector3;
 
 namespace football::sim::player {
 

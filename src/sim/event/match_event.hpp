@@ -34,7 +34,7 @@ struct RestartAwardedEvent {
   Tick tick{};
   football::sim::TeamSide team = football::sim::TeamSide::Home;
   e_GameMode kind = e_GameMode_Normal;
-  blunted::Vector3 position;
+  football::math::Vector3 position;
 };
 
 struct PassCompletedEvent {

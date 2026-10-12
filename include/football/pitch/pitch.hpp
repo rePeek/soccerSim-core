@@ -64,9 +64,9 @@ class Pitch {
   constexpr float penalty_mark_distance() const { return penalty_mark_distance_; }
 
   // ---- Fixed environment the bodies move in (not per-tick input) ----
-  const blunted::Vector3& gravity() const { return gravity_; }
+  const football::math::Vector3& gravity() const { return gravity_; }
   // Reserved: wind is not consumed by the current physics.
-  const blunted::Vector3& wind_velocity() const { return wind_velocity_; }
+  const football::math::Vector3& wind_velocity() const { return wind_velocity_; }
   constexpr float quadratic_resistance() const { return quadratic_resistance_; }
   constexpr float ground_deceleration() const { return ground_deceleration_; }
   constexpr float grass_height() const { return grass_height_; }
@@ -115,7 +115,7 @@ private:
     using football::geometry::Plane;
     colliders_.push_back(StaticCollider(
         kGroundColliderId,
-        Plane{blunted::Vector3(0, 0, 0), blunted::Vector3(0, 0, 1)},
+        Plane{football::math::Vector3(0, 0, 0), football::math::Vector3(0, 0, 1)},
         ground_material_));
   }
 
@@ -127,27 +127,27 @@ private:
     const float z = goal_height();
     colliders_.push_back(StaticCollider(
         kLeftPostLowColliderId,
-        Capsule{blunted::Vector3(-x, -y, 0), blunted::Vector3(-x, -y, z), kPostRadius},
+        Capsule{football::math::Vector3(-x, -y, 0), football::math::Vector3(-x, -y, z), kPostRadius},
         post_material_));
     colliders_.push_back(StaticCollider(
         kLeftPostHighColliderId,
-        Capsule{blunted::Vector3(-x, y, 0), blunted::Vector3(-x, y, z), kPostRadius},
+        Capsule{football::math::Vector3(-x, y, 0), football::math::Vector3(-x, y, z), kPostRadius},
         post_material_));
     colliders_.push_back(StaticCollider(
         kRightPostLowColliderId,
-        Capsule{blunted::Vector3(x, -y, 0), blunted::Vector3(x, -y, z), kPostRadius},
+        Capsule{football::math::Vector3(x, -y, 0), football::math::Vector3(x, -y, z), kPostRadius},
         post_material_));
     colliders_.push_back(StaticCollider(
         kRightPostHighColliderId,
-        Capsule{blunted::Vector3(x, y, 0), blunted::Vector3(x, y, z), kPostRadius},
+        Capsule{football::math::Vector3(x, y, 0), football::math::Vector3(x, y, z), kPostRadius},
         post_material_));
     colliders_.push_back(StaticCollider(
         kLeftBarColliderId,
-        Capsule{blunted::Vector3(-x, -y, z), blunted::Vector3(-x, y, z), kPostRadius},
+        Capsule{football::math::Vector3(-x, -y, z), football::math::Vector3(-x, y, z), kPostRadius},
         post_material_));
     colliders_.push_back(StaticCollider(
         kRightBarColliderId,
-        Capsule{blunted::Vector3(x, -y, z), blunted::Vector3(x, y, z), kPostRadius},
+        Capsule{football::math::Vector3(x, -y, z), football::math::Vector3(x, y, z), kPostRadius},
         post_material_));
   }
 
@@ -174,8 +174,8 @@ private:
   float penalty_area_depth_ = 16.5f;
   float penalty_mark_distance_ = 11.0f;
 
-  blunted::Vector3 gravity_{0.0f, 0.0f, -9.81f};
-  blunted::Vector3 wind_velocity_{0.0f, 0.0f, 0.0f};
+  football::math::Vector3 gravity_{0.0f, 0.0f, -9.81f};
+  football::math::Vector3 wind_velocity_{0.0f, 0.0f, 0.0f};
   football::geometry::ContactMaterial ground_material_{0.62f, 0.0f};
   football::geometry::ContactMaterial post_material_{0.8f, 0.0f};
   std::vector<football::geometry::ColliderMotion> colliders_;

@@ -24,9 +24,9 @@ struct ActiveTouchCandidate {
   football::player::PlayerId player = football::player::kInvalidPlayerId;
   PlayerBodyPart body_part = PlayerBodyPart::LowerBody;
   e_FunctionType action = e_FunctionType_None;
-  blunted::Vector3 target_velocity = blunted::Vector3(0);
-  blunted::Vector3 target_angular_velocity = blunted::Vector3(0);
-  blunted::Vector3 contact_point = blunted::Vector3(0);
+  football::math::Vector3 target_velocity = football::math::Vector3(0);
+  football::math::Vector3 target_angular_velocity = football::math::Vector3(0);
+  football::math::Vector3 contact_point = football::math::Vector3(0);
   football::sim::Tick scheduled_tick; // physical endpoint; old rule stamp is separate
   float reach_error = 0;
   bool reachable = false;
@@ -42,8 +42,8 @@ struct ActiveTouchObservation {
   // leaves this empty and uses the explicitly provisional surface proxy below.
   std::optional<football::ball::BallImpulse> prepared_impulse;
   bool same_part_passive_impact = false, other_player_passive_impact = false;
-  blunted::Vector3 raw_animation_point = blunted::Vector3(0); // desired BALL CENTER, not surface
-  blunted::Vector3 player_position = blunted::Vector3(0);
+  football::math::Vector3 raw_animation_point = football::math::Vector3(0); // desired BALL CENTER, not surface
+  football::math::Vector3 player_position = football::math::Vector3(0);
   football::sim::Tick legacy_rule_tick;
   int animation_id = -1, contact_frame = -1, elapsed = 0;
   e_TouchType accepted_type = e_TouchType_None;
@@ -83,7 +83,7 @@ inline ActiveTouchComparison CompareActiveTouch(ActiveTouchObservation observati
     auto radial = observation.raw_animation_point - endpoint.position;
     if (radial.GetLength() < 1e-5f) {
       out.fallback_point = true;
-      radial = observation.player_position + blunted::Vector3(0, 0, .1f) - endpoint.position;
+      radial = observation.player_position + football::math::Vector3(0, 0, .1f) - endpoint.position;
     }
     const auto proxy = endpoint.position + radial.GetNormalized({1, 0, 0}) * config.radius();
     out.impulse = football::ball::BallImpulse{

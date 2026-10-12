@@ -10,7 +10,7 @@
 
 #include "football/foundation/math/vector3.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 
 // A presentation-independent horizontal body volume for ordinary player

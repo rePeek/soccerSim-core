@@ -27,7 +27,7 @@
 #include "football/animation/selection_math.hpp"
 #include "football/animation/selection_query.hpp"
 
-using namespace blunted;
+using namespace football::anim_baker;
 
 // Body-part names -> imported transform. See import_hierarchy.hpp.
 void BuildImportNodeMap(ImportNode *targetNode, ImportNodeMap &nodeMap);

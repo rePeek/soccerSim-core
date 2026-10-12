@@ -28,10 +28,10 @@ namespace football::sim::player {
 // know what a Team is. Equal distances retain input order, and
 // FindClosestPlayers appends to `result`.
 Player *FindClosestPlayer(std::span<Player *const> players,
-                          const blunted::Vector3 &position,
+                          const football::math::Vector3 &position,
                           const Player *excluded = nullptr);
 void FindClosestPlayers(std::span<Player *const> players,
-                        const blunted::Vector3 &position,
+                        const football::math::Vector3 &position,
                         std::vector<Player *> &result,
                         unsigned int playerCount = 3);
 

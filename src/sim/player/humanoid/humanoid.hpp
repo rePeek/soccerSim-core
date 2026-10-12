@@ -20,7 +20,7 @@
 
 #include "sim/player/humanoid/humanoidbase.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 class Player;
 class Team;
@@ -28,7 +28,7 @@ class Team;
 class Humanoid : public HumanoidBase {
 
   public:
-    Humanoid(Player *player, const AnimationLibrary& animations, blunted::Rng& rng);
+    Humanoid(Player *player, const AnimationLibrary& animations, football::math::Rng& rng);
     virtual ~Humanoid();
 
     Player *CastPlayer() const;

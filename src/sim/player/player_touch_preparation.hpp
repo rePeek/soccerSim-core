@@ -11,8 +11,8 @@ namespace football::sim {
 struct PreparedPlayerTouch {
   event::AcceptedTouch fact;
   PlayerBodyPart part = PlayerBodyPart::LowerBody;
-  blunted::Vector3 desired_ball_center;
-  blunted::Vector3 target_velocity;
+  football::math::Vector3 desired_ball_center;
+  football::math::Vector3 target_velocity;
   // Possession anchoring is a constraint, never an enormous strike impulse.
   bool retain_anchor = false;
   // P4f-3: real foot geometry captured from the baked pose at the contact
@@ -22,7 +22,7 @@ struct PreparedPlayerTouch {
   // 0=left, 1=right, -1=unknown. Never confuse this with `desired_ball_center`,
   // which is the animation's intended ball centre, or with the final ball
   // surface contact point computed from `strike_point`.
-  blunted::Vector3 strike_point;
+  football::math::Vector3 strike_point;
   float strike_radius = 0.0f;
   int strike_foot = -1;
   // Provenance sampled during the one real Humanoid pass, not reconstructed later.

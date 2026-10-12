@@ -22,7 +22,8 @@
 
 #include "import/legacy_text.hpp"
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
 FootballAnimationExtension::FootballAnimationExtension(Animation *parent)
     : AnimationExtension(parent) {

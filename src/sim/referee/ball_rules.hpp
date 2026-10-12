@@ -21,14 +21,14 @@ enum class BallOutOfPlay {
 // Geometry only, in one shared frame. The caller supplies the legacy
 // goal-scored authorization separately.
 BallOutOfPlay ClassifyBallOutOfPlay(const football::pitch::Pitch& pitch,
-                                    const blunted::Vector3& ball_position);
+                                    const football::math::Vector3& ball_position);
 
 // The +1/-1 goal side whose goal line the ball crossed between two consecutive
 // observed positions, or nullopt. Reuses the legacy CrossedGoalLine segment
 // endpoints, bidirectional crossing and side-net veto.
 std::optional<int> CrossedGoalMouth(const football::pitch::Pitch& pitch,
-                                    const blunted::Vector3& previous,
-                                    const blunted::Vector3& current);
+                                    const football::math::Vector3& previous,
+                                    const football::math::Vector3& current);
 
 }  // namespace football::sim
 

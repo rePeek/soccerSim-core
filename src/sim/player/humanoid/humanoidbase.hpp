@@ -37,7 +37,7 @@
 
 namespace football::sim { class AcceptedTouchSink; class PlayerRuntimeSink; }
 
-using namespace blunted;
+using namespace football::math;
 
 class AnimationLibrary;
 
@@ -343,7 +343,7 @@ struct SpatialState {
 class HumanoidBase {
 
   public:
-    HumanoidBase(Player *player, const AnimationLibrary& animations, blunted::Rng& rng);
+    HumanoidBase(Player *player, const AnimationLibrary& animations, football::math::Rng& rng);
     virtual ~HumanoidBase();
     void Mirror();
 
@@ -478,7 +478,7 @@ class HumanoidBase {
     radian ForceIntoPreferredDirectionAngle(radian angle) const;
 
     const AnimationLibrary& animations_;
-    blunted::Rng& rng_;
+    football::math::Rng& rng_;
     Player *player;
     // Shared between all players, no need to snapshot.
     // Seems to contain current animation context.

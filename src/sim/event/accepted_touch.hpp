@@ -19,8 +19,8 @@ struct AcceptedTouch {
   football::player::PlayerId player = football::player::kInvalidPlayerId;
   football::sim::TeamSide team = football::sim::TeamSide::Home;
   e_TouchType type = e_TouchType_None;
-  blunted::Vector3 ball_position;
-  blunted::Vector3 ball_velocity;
+  football::math::Vector3 ball_position;
+  football::math::Vector3 ball_velocity;
   int action_type = 0;
   // Reviewed CCD deflection, not deliberate opponent play. Default false keeps
   // the legacy producer's semantics until its replacement is explicitly enabled.

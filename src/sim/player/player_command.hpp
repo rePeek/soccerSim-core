@@ -19,7 +19,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/animation/types.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 class Player;
 

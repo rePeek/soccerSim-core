@@ -14,8 +14,8 @@
 // position is applied. These versioned bind offsets are a model declaration;
 // runtime never parses the object or imports offline nodes/meshes.
 struct BakedBodyPose {
-  std::array<blunted::Vector3, kBodyPartCount> joints;
-  std::array<blunted::Quaternion, kBodyPartCount> orientations;
+  std::array<football::math::Vector3, kBodyPartCount> joints;
+  std::array<football::math::Quaternion, kBodyPartCount> orientations;
 };
 inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
     const PlayerKinematicState& state, float animation_base_angle, float scale = 1.0f) {
@@ -25,11 +25,11 @@ inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
   // Baked vertical root displacement is NOT in the 2D PlayerState.
   BakedBodyPose out;
   out.joints[BodyPart::player] = state.position +
-      blunted::Vector3(0, 0, pose.positions[BodyPart::player].coords[2] * scale);
-  out.orientations[BodyPart::player] = blunted::Quaternion{};
-  blunted::Quaternion base;
+      football::math::Vector3(0, 0, pose.positions[BodyPart::player].coords[2] * scale);
+  out.orientations[BodyPart::player] = football::math::Quaternion{};
+  football::math::Quaternion base;
   base.SetAngleAxis(animation_base_angle, {0, 0, 1});
-  const auto joint = [&](BodyPart child, BodyPart parent, blunted::Vector3 bind) {
+  const auto joint = [&](BodyPart child, BodyPart parent, football::math::Vector3 bind) {
     out.joints[child] = out.joints[parent] + out.orientations[parent] * (bind * scale);
     const auto local = child == BodyPart::body ? base * pose.orientations[child] : pose.orientations[child];
     out.orientations[child] = (out.orientations[parent] * local).GetNormalized();
@@ -74,7 +74,7 @@ struct BakedPlayerBodyCollider {
 // head (222 vertices), upperleg (207), lowerleg (224). No runtime mesh loading.
 // These cover those named meshes, not arms/boots; active boot/hand geometry is
 // a separate P4f-3 gate, not a claim that six primitives cover the whole avatar.
-inline const blunted::Vector3 kBakedHeadCenter{.0003f,-.0121f,.1212f};
+inline const football::math::Vector3 kBakedHeadCenter{.0003f,-.0121f,.1212f};
 inline constexpr float kBakedHeadRadius=.172f;
 inline constexpr float kBakedThighRadius=.106f;
 inline constexpr float kBakedShinRadius=.102f;
@@ -85,8 +85,8 @@ inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
   const auto& j = world.joints;
   // Pelvis follows the body node, trunk follows middle separately. A single
   // body-to-neck axis would miss rigid pelvis/trunk meshes when the spine bends.
-  return {{Capsule{j[body]+world.orientations[body]*blunted::Vector3(0,0,-.02f*scale),
-                  j[body]+world.orientations[body]*blunted::Vector3(0,0,.17f*scale),.20f*scale},
+  return {{Capsule{j[body]+world.orientations[body]*football::math::Vector3(0,0,-.02f*scale),
+                  j[body]+world.orientations[body]*football::math::Vector3(0,0,.17f*scale),.20f*scale},
            Sphere{j[neck]+world.orientations[neck]*(kBakedHeadCenter*scale),kBakedHeadRadius*scale},
            Capsule{j[left_thigh], j[left_knee], kBakedThighRadius * scale},
            Capsule{j[left_knee], j[left_ankle], kBakedShinRadius * scale},

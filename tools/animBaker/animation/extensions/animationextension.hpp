@@ -21,7 +21,8 @@
 #include <vector>
 #include "football/foundation/math/vector3.hpp"
 
-namespace blunted {
+namespace football::anim_baker {
+using namespace football::math;
 
   class Animation;
 

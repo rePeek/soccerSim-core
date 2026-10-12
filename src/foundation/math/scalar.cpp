@@ -20,7 +20,7 @@
 #include <cmath>
 
 
-namespace blunted {
+namespace football::math {
 
   unsigned int fastrandseed = 0;
 

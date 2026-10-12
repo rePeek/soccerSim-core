@@ -16,15 +16,15 @@
 struct WorldPlayerState {
   football::player::PlayerId id = football::player::kInvalidPlayerId;
   football::sim::TeamSide side = football::sim::TeamSide::Home;
-  blunted::Vector3 position = blunted::Vector3(0);
-  blunted::Vector3 velocity = blunted::Vector3(0);
-  blunted::Vector3 facing = blunted::Vector3(1, 0, 0);
+  football::math::Vector3 position = football::math::Vector3(0);
+  football::math::Vector3 velocity = football::math::Vector3(0);
+  football::math::Vector3 facing = football::math::Vector3(1, 0, 0);
   bool active = false;
   bool has_possession = false;
   bool lazy = false;
   float max_speed = 0.0f;
   // Rule-assigned positioning during a pending restart, in the same pitch frame.
-  std::optional<blunted::Vector3> restart_target;
+  std::optional<football::math::Vector3> restart_target;
 };
 
 struct WorldTeamState {
@@ -46,9 +46,9 @@ struct WorldState {
   football::sim::TickSpan ball_in_play_time{};
   bool half_underway = false;
   bool ball_in_play = false;
-  blunted::Vector3 ball_position = blunted::Vector3(0);
+  football::math::Vector3 ball_position = football::math::Vector3(0);
   std::vector<WorldPlayerState> players;
-  blunted::Vector3 ball_velocity = blunted::Vector3(0);
+  football::math::Vector3 ball_velocity = football::math::Vector3(0);
   football::pitch::Pitch pitch;
   std::array<WorldTeamState, 2> teams{{
       {football::sim::TeamSide::Home, -1, 0},

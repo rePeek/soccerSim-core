@@ -24,7 +24,7 @@ namespace football::sim::player {
 // Opponent-distribution estimate over a borrowed mental image. Perception data
 // for the player's own tactical situation; never a team or AI decision owner.
 float CalculateFreeSpace(Tick now, const MentalImage *mentalImage, int teamID,
-                         const blunted::Vector3 &focusPos,
+                         const football::math::Vector3 &focusPos,
                          float safeDistance = 8.0f, float futureTime_sec = 0.3f);
 
 }  // namespace football::sim::player

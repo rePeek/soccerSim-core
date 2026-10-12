@@ -46,7 +46,7 @@ struct PlayerTickContext {
 
   bool restart_needs_simulation;
 
-  blunted::Rng& rng;
+  football::math::Rng& rng;
   ActiveTouchShadowSink* active_touch_shadow = nullptr; // optional read-only diagnostic
   // Non-null only in the prepare phase. Ball is an immutable endpoint view:
   // touches/rotation/retention are proposals, not immediate mutations/events.

@@ -97,7 +97,7 @@ float SegmentParameter(const Vector3& a, const Vector3& b, const Vector3& point)
 }
 }  // namespace
 
-Humanoid::Humanoid(Player *player, const AnimationLibrary& animations, blunted::Rng& rng)
+Humanoid::Humanoid(Player *player, const AnimationLibrary& animations, football::math::Rng& rng)
     : HumanoidBase(player, animations, rng) {
 }
 
@@ -175,7 +175,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         // one at the ball at the contact frame while the planted support boot
         // is elsewhere. `current_foot` is selector provenance, not a reliable
         // contact-foot identity in the shipped asset.
-        blunted::Vector3 strike_point;
+        football::math::Vector3 strike_point;
         float strike_radius = 0.0f;
         int strike_foot = -1;
         {

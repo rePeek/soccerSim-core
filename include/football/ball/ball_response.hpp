@@ -18,8 +18,8 @@ float BallInertia(const football::ball::BallModel& config);
 // change both velocity and angular_velocity. No contact judgement, friction or
 // restitution lives here; dt is never applied to an impulse.
 BallState ApplyImpulseAtPoint(const BallState& ball,
-                              const blunted::Vector3& impulse,
-                              const blunted::Vector3& world_point,
+                              const football::math::Vector3& impulse,
+                              const football::math::Vector3& world_point,
                               const football::ball::BallModel& config);
 
 // Passive contact response: normal impulse from restitution plus
@@ -29,18 +29,18 @@ BallState ApplyImpulseAtPoint(const BallState& ball,
 // `collider_velocity` is the collider contact velocity (zero for static).
 BallState ResolveContact(const BallState& ball, const BallContact& contact,
                          const football::geometry::ContactMaterial& material,
-                         const blunted::Vector3& collider_velocity,
+                         const football::math::Vector3& collider_velocity,
                          const football::ball::BallModel& config);
 
 // Explicit response diagnostics: a separating/resting contact has jn == 0.
 struct BallContactResponse {
   BallState state;
   float normal_impulse = 0.0f; // N*s, not a per-tick velocity change
-  blunted::Vector3 tangential_impulse{0};
+  football::math::Vector3 tangential_impulse{0};
 };
 BallContactResponse ResolveContactResponse(
     const BallState& ball, const BallContact& contact,
-    const football::geometry::ContactMaterial& material, const blunted::Vector3& collider_velocity,
+    const football::geometry::ContactMaterial& material, const football::math::Vector3& collider_velocity,
     const football::ball::BallModel& config);
 
 }  // namespace football::ball

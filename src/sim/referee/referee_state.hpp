@@ -11,7 +11,7 @@
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/referee/restart_readiness.hpp"
 
-using namespace blunted;
+using namespace football::math;
 
 class Player;
 class Team;

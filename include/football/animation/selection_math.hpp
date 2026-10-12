@@ -16,11 +16,11 @@
 
 #include "football/animation/types.hpp"
 
-inline blunted::radian FixAngle(blunted::radian angle) {
+inline football::math::radian FixAngle(football::math::radian angle) {
   // Convert engine angle into football angle (different base orientation:
   // 'down' on y instead of 'right' on x).
-  angle += 0.5f * blunted::pi;
-  return blunted::ModulateIntoRange(-blunted::pi, blunted::pi, angle);
+  angle += 0.5f * football::math::pi;
+  return football::math::ModulateIntoRange(-football::math::pi, football::math::pi, angle);
 }
 
 #endif

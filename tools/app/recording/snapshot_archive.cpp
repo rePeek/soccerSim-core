@@ -38,7 +38,7 @@ void Put(Bytes& bytes, std::uint64_t value, unsigned width) {
   for (unsigned i = 0; i < width; ++i) bytes.push_back(static_cast<std::uint8_t>(value >> (8 * i)));
 }
 void PutFloat(Bytes& bytes, float value) { Put(bytes, std::bit_cast<std::uint32_t>(value), 4); }
-void PutVector(Bytes& bytes, const blunted::Vector3& v) {
+void PutVector(Bytes& bytes, const football::math::Vector3& v) {
   for (float coord : v.coords) PutFloat(bytes, coord);
 }
 
@@ -52,7 +52,7 @@ class Cursor {
     return value;
   }
   float Float() { return std::bit_cast<float>(static_cast<std::uint32_t>(Get(4))); }
-  blunted::Vector3 Vector() {
+  football::math::Vector3 Vector() {
     const float x = Float(), y = Float(), z = Float();
     return {x, y, z};
   }

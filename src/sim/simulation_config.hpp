@@ -21,7 +21,7 @@ struct MatchOptions {
   // Kickoff and second-half ball position in runtime units. The legacy episode
   // conversion multiplied public (0, 0, 0) by (54.4, -83.6, 1), which leaves
   // the historical signed zero on y; keeping it preserves bit-identical replays.
-  blunted::Vector3 ball_position = blunted::Vector3(0.0f, -0.0f, 0.0f);
+  football::math::Vector3 ball_position = football::math::Vector3(0.0f, -0.0f, 0.0f);
   // Derived once from the effective initial formations at initialization.
   bool left_team_owns_ball = false;
   // Read-only history retention; 60,000 samples at 100 Hz = ten minutes.

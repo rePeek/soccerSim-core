@@ -6,7 +6,7 @@
 namespace {
 void MirrorState(football::ball::BallState& state) {
   state.position.Mirror(); state.velocity.Mirror(); state.angular_velocity.Mirror();
-  state.orientation = (blunted::Quaternion(0, 0, 1, 0) * state.orientation).GetNormalized();
+  state.orientation = (football::math::Quaternion(0, 0, 1, 0) * state.orientation).GetNormalized();
 }
 }
 class Simulation::ActiveTouchEvents final : public ActiveTouchShadowSink {
@@ -73,7 +73,7 @@ void Simulation::SubmitActiveTouchCandidate(const ActiveTouchObservation& observ
       passive ? *passive : observation.before,
       observation.raw_animation_point,
       observation.candidate.target_velocity,
-      blunted::Vector3(0), 0.0f,  // shadow has no baked boot geometry
+      football::math::Vector3(0), 0.0f,  // shadow has no baked boot geometry
       {},
       ball_config_,
       observation.incoming_retain_override ? 1.0f : 0.4f};

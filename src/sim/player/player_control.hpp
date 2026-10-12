@@ -24,12 +24,12 @@ enum class ControlAction {
 // A caller may retain/resubmit it; simulation translates it into commands.
 struct PlayerControl {
   football::player::PlayerId player = football::player::kInvalidPlayerId;
-  blunted::Vector3 move_direction = blunted::Vector3(0);
+  football::math::Vector3 move_direction = football::math::Vector3(0);
   float desired_speed = 0.0f;
-  std::optional<blunted::Vector3> look_at;
+  std::optional<football::math::Vector3> look_at;
   ControlAction action = ControlAction::None;
   std::optional<football::player::PlayerId> target_player;
-  std::optional<blunted::Vector3> target_position;
+  std::optional<football::math::Vector3> target_position;
   float power = 0.0f;
 };
 

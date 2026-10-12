@@ -11,7 +11,7 @@ void MirrorResult(football::ball::BallStepResult& result) {
   result.state.position.Mirror();
   result.state.velocity.Mirror();
   result.state.angular_velocity.Mirror();
-  result.state.orientation = (blunted::Quaternion(0, 0, 1, 0) * result.state.orientation).GetNormalized();
+  result.state.orientation = (football::math::Quaternion(0, 0, 1, 0) * result.state.orientation).GetNormalized();
   for (auto& c : result.contacts) {
     c.point.Mirror(); c.normal.Mirror(); c.relative_velocity.Mirror();
     c.surface_velocity.Mirror();
@@ -234,7 +234,7 @@ void Simulation::RunPreparedPlayerTick() {
       input.active_impulse->contact_point.Mirror();
     }
   } else if (anchor && !passive_impact) {
-    input.endpoint_constraint = BallEndpointConstraint{anchor->desired_ball_center, blunted::Vector3(0)};
+    input.endpoint_constraint = BallEndpointConstraint{anchor->desired_ball_center, football::math::Vector3(0)};
     if (reverse) input.endpoint_constraint->position.Mirror();
   }
   tick_active_candidates_.clear();

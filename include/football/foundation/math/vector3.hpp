@@ -24,7 +24,7 @@
 #include "football/foundation/math/scalar.hpp"
 #include "football/foundation/math/quaternion.hpp"
 
-namespace blunted {
+namespace football::math {
 
   class Vector3;
 
