@@ -12,17 +12,17 @@
 // limitations under the License.
 
 
-#ifndef FOOTBALL_SIM_QUERY_REACHABILITY_HPP
-#define FOOTBALL_SIM_QUERY_REACHABILITY_HPP
+#ifndef FOOTBALL_SIM_PLAYER_REACHABILITY_HPP
+#define FOOTBALL_SIM_PLAYER_REACHABILITY_HPP
 
 #include "foundation/math/vector3.hpp"
-#include "animation/types.hpp"
 #include "foundation/time/tick.hpp"
+#include "sim/player/player_motion_constants.hpp"
 #include <optional>
 
 using blunted::Vector3;
 
-namespace football::sim::query {
+namespace football::sim::player {
 
 struct TimeNeeded {
   TimeNeeded() {
@@ -37,9 +37,9 @@ struct TimeNeeded {
 // retain millisecond precision and are not grid deadlines. No horizon is unbounded.
 TimeNeeded GetTimeNeededForDistance_ms(
     const Vector3 &playerPos, const Vector3 &playerMovement,
-    const Vector3 &targetPos, float maxVelocity = sprintVelocity,
+    const Vector3 &targetPos, float maxVelocity = playerSprintVelocity,
     bool precise = false, std::optional<TickSpan> horizon = std::nullopt);
 
-}  // namespace football::sim::query
+}  // namespace football::sim::player
 
-#endif  // FOOTBALL_SIM_QUERY_REACHABILITY_HPP
+#endif  // FOOTBALL_SIM_PLAYER_REACHABILITY_HPP

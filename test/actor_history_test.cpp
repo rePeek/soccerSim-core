@@ -12,7 +12,7 @@
 #include "default_ai_fixture.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/event/accepted_touch_sink.hpp"
-#include "sim/query/player_query.hpp"
+#include "sim/player/perception.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/testing/simulation_access.hpp"
 #include "sim/player/humanoid/humanoid_utils.hpp"
@@ -56,10 +56,10 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     for (auto& image : supplied[0].players) image.position = actor->GetPosition();
     const auto position = actor->GetPosition();
     const auto forward_focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
-    const auto forward = query::CalculateFreeSpace(SimulationAccess::NowOf(simulation), &supplied[0], actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
-    const auto space = query::CalculateFreeSpace(SimulationAccess::NowOf(simulation), &supplied[0], actor->GetTeamID(),
+    const auto forward = player::CalculateFreeSpace(SimulationAccess::NowOf(simulation), &supplied[0], actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
+    const auto space = player::CalculateFreeSpace(SimulationAccess::NowOf(simulation), &supplied[0], actor->GetTeamID(),
         position + actor->GetMovement() * 0.1f, 5.0f, 0.1f);
-    const auto owned_forward = query::CalculateFreeSpace(SimulationAccess::NowOf(simulation), simulation.GetMentalImage(TickSpan{}),
+    const auto owned_forward = player::CalculateFreeSpace(SimulationAccess::NowOf(simulation), simulation.GetMentalImage(TickSpan{}),
         actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
     REQUIRE(forward != owned_forward);
     actor->Process(SimulationAccess::PlayerTickOf(simulation, *actor), supplied, touch_sink, SimulationAccess::RuntimeOf(simulation));
@@ -200,7 +200,7 @@ TEST_CASE("Player tactical refresh honors supplied tick and authorization",
       SimulationAccess::RngOf(simulation)};
   const auto position = actor->GetPosition();
   const auto focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
-  const float expected = query::CalculateFreeSpace(tick.now, &history[0], actor->GetTeamID(), focus, 5.0f, 0.5f);
+  const float expected = player::CalculateFreeSpace(tick.now, &history[0], actor->GetTeamID(), focus, 5.0f, 0.5f);
   REQUIRE(expected == 1.f);
   REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == 0.f);
   actor->Process(tick, history, SimulationAccess::EventsOf(simulation), SimulationAccess::RuntimeOf(simulation));

@@ -11,31 +11,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef FOOTBALL_SIM_QUERY_FORCE_SPOT_HPP
-#define FOOTBALL_SIM_QUERY_FORCE_SPOT_HPP
+#ifndef FOOTBALL_SIM_PLAYER_PERCEPTION_HPP
+#define FOOTBALL_SIM_PLAYER_PERCEPTION_HPP
 
 #include "foundation/math/vector3.hpp"
+#include "foundation/time/tick.hpp"
 
-using namespace blunted;
+class MentalImage;
 
-enum e_DecayType {
-  e_DecayType_Constant,
-  e_DecayType_Variable
-};
+namespace football::sim::player {
 
-enum e_MagnetType {
-  e_MagnetType_Attract,
-  e_MagnetType_Repel
-};
+// Opponent-distribution estimate over a borrowed mental image. Perception data
+// for the player's own tactical situation; never a team or AI decision owner.
+float CalculateFreeSpace(Tick now, const MentalImage *mentalImage, int teamID,
+                         const blunted::Vector3 &focusPos,
+                         float safeDistance = 8.0f, float futureTime_sec = 0.3f);
 
-// forcefields consist of forcespots, representing a repelling or attracting force from a position, including linearity/etc parameters
-struct ForceSpot {
-  Vector3 origin;
-  e_MagnetType magnetType;
-  e_DecayType decayType;
-  float exp = 1.0f;
-  float power = 0.0f;
-  float scale = 0.0f; // scaled #meters until effect is almost decimated
-};
+}  // namespace football::sim::player
 
-#endif  // FOOTBALL_SIM_QUERY_FORCE_SPOT_HPP
+#endif  // FOOTBALL_SIM_PLAYER_PERCEPTION_HPP

@@ -10,8 +10,9 @@
 #include "football/ball/ball.hpp"
 #include "sim/player/kick_targeting.hpp"
 #include "sim/player/player.hpp"
-#include "sim/query/player_query.hpp"
-#include "sim/query/reachability.hpp"
+#include "sim/player/perception.hpp"
+#include "sim/player/reachability.hpp"
+#include "sim/player/roster_query.hpp"
 #include "sim/referee/offside.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/simulation.hpp"
@@ -53,13 +54,13 @@ TEST_CASE("reachability retains legacy near and far estimates", "[sim][query]") 
   }};
   for (const auto &sample : samples) {
     INFO(sample.distance << " " << sample.speed);
-    const auto result = football::sim::query::GetTimeNeededForDistance_ms(
+    const auto result = football::sim::player::GetTimeNeededForDistance_ms(
         Vector3(0), Vector3(sample.speed, 0, 0), Vector3(sample.distance, 0, 0),
         8.f, true);
     CHECK(result.usual_ms == sample.usual);
     CHECK(result.optimistic_ms == sample.optimistic);
   }
-  const auto bounded = football::sim::query::GetTimeNeededForDistance_ms(
+  const auto bounded = football::sim::player::GetTimeNeededForDistance_ms(
       Vector3(0), Vector3(0), Vector3(10, 0, 0), 8.f, true, football::sim::TickSpan{10});
   CHECK(bounded.usual_ms == 1667);
   CHECK(bounded.optimistic_ms == 110);
@@ -74,19 +75,19 @@ TEST_CASE("player queries retain roster ties append and eligibility", "[sim][que
   players[0]->ResetPosition(Vector3(1, 0, 0), Vector3(0));
   players[1]->ResetPosition(Vector3(-1, 0, 0), Vector3(0));
 
-  CHECK(football::sim::query::GetClosestPlayer(team, Vector3(0)) == players[0]);
-  CHECK(football::sim::query::GetClosestPlayer(team, Vector3(0), players[0]) == players[1]);
+  CHECK(football::sim::player::FindClosestPlayer(team->GetAllPlayers(), Vector3(0)) == players[0]);
+  CHECK(football::sim::player::FindClosestPlayer(team->GetAllPlayers(), Vector3(0), players[0]) == players[1]);
   std::vector<Player*> result{players[2]};
-  football::sim::query::GetClosestPlayers(team, Vector3(0), result, 2);
+  football::sim::player::FindClosestPlayers(team->GetAllPlayers(), Vector3(0), result, 2);
   REQUIRE(result.size() == 3);
   CHECK(result[0] == players[2]);
   CHECK(result[1] == players[0]);
   CHECK(result[2] == players[1]);
 
   players[0]->Deactivate(*SimulationAccess::BallOf(runtime.simulation), SimulationAccess::NowOf(runtime.simulation));
-  CHECK(football::sim::query::GetClosestPlayer(team, Vector3(0)) == players[1]);
+  CHECK(football::sim::player::FindClosestPlayer(team->GetAllPlayers(), Vector3(0)) == players[1]);
   result.clear();
-  football::sim::query::GetClosestPlayers(team, Vector3(0), result, 1);
+  football::sim::player::FindClosestPlayers(team->GetAllPlayers(), Vector3(0), result, 1);
   REQUIRE(result.size() == 1);
   CHECK(result[0] == players[1]);
 }

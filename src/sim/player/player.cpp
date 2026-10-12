@@ -28,8 +28,9 @@
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player_motion_constants.hpp"
-#include "sim/query/player_query.hpp"
-#include "sim/query/reachability.hpp"
+#include "sim/player/perception.hpp"
+#include "sim/player/reachability.hpp"
+#include "sim/player/roster_query.hpp"
 #include "sim/player/player_action_executor.hpp"
 #include "sim/player/player_locomotion.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
@@ -38,6 +39,31 @@
 #include "sim/player/possession.hpp"
 
 using football::ball::Ball;
+
+namespace {
+// Player-local ball-control estimate. It reads only the player's own motion and
+// the ball's predicted movement, so it lives with the player's possession state
+// rather than in a general query module.
+bool ComputeHasPossession(Ball *ball, Player *player) {
+  Vector3 playerMovement = player->GetMovement();
+
+  // premature optimization ;)
+  if ((player->GetPosition() - ball->state().position).GetLength() > 5.0) return false;
+
+  if (std::fabs(ball->state().position.coords[2]) > 0.5) return false;
+
+  bool distanceOK = true;
+  float radius = 1.0f;
+  Vector3 center = player->GetPosition() + player->GetMovement() * 0.05f + player->GetDirectionVec() * 0.1f;//was: 0.05f
+  if ((ball->state().position.Get2D() - center).GetLength() > radius) distanceOK = false;
+
+  bool movementOK = true;
+  Vector3 ballMovement3D = (ball->Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position - ball->state().position) * 100.0f;
+  if ((ballMovement3D - playerMovement).GetLength() > 6.0f) movementOK = false;
+
+  return distanceOK && movementOK;
+}
+}  // namespace
 
 int &SimulationOnlyGateMismatchForResetContext(int context) {
   static int records[kResetSituationCallContextCount] = {};
@@ -775,7 +801,7 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
     for (auto candidate = start; candidate < football::sim::ball_timing::kPredictionHorizon; candidate += step) {
       const auto ms = static_cast<unsigned int>(ToMilliseconds(candidate));
       if (ball.Predict(candidate, football::ball::BallEnvironment{}).position.coords[2] < 1.5f) {
-        const auto result = football::sim::query::GetTimeNeededForDistance_ms(
+        const auto result = football::sim::player::GetTimeNeededForDistance_ms(
             GetPosition(), GetMovement(), ball.Predict(candidate, football::ball::BallEnvironment{}).position.Get2D(),
             GetMaxVelocity(), precise, candidate);
         if (result.optimistic_ms <= ms && ms < timeNeededToGetToBall_optimistic_ms) {
@@ -817,7 +843,7 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
        action_type == e_FunctionType_Shot) && !TouchPending()) {
     hasPossession = false;
   } else {
-    hasPossession = football::sim::query::HasPossession(&ball, this);
+    hasPossession = ComputeHasPossession(&ball, this);
   }
   this->hasBestPossession = hasPossession && opponent.GetTimeNeededToGetToBall_ms() > this->GetTimeNeededToGetToBall_ms();
   this->hasUniquePossession = hasPossession && !opponent.HasPossession();
@@ -836,7 +862,7 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
 }
 
 float Player::GetClosestOpponentDistance(Team& opponent) const {
-  Player *opp = football::sim::query::GetClosestPlayer(&opponent, GetPosition());
+  Player *opp = football::sim::player::FindClosestPlayer(opponent.GetAllPlayers(), GetPosition());
   return opp->GetPosition().GetDistance(GetPosition());
 }
 
@@ -886,10 +912,10 @@ void Player::_CalculateTacticalSituation(const football::sim::PlayerTickContext&
   assert(IsActive());
   float time_sec = 0.5f;
   Vector3 checkPos = GetPosition() + Vector3(-team->GetDynamicSide(), 0, 0) * sprintVelocity * time_sec;
-  tacticalSituation.forwardSpaceRating = football::sim::query::CalculateFreeSpace(tick.now, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
+  tacticalSituation.forwardSpaceRating = football::sim::player::CalculateFreeSpace(tick.now, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
   time_sec = 0.1f;
   checkPos = GetPosition() + GetMovement() * time_sec;
-  tacticalSituation.spaceRating = football::sim::query::CalculateFreeSpace(tick.now, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
+  tacticalSituation.spaceRating = football::sim::player::CalculateFreeSpace(tick.now, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
   tacticalSituation.forwardRating =
       1.0f - clamp((Vector3(pitch_.half_length() * -team->GetDynamicSide(), 0, 0) - GetPosition()).GetLength() /
                        (pitch_.half_length() * 2.0f), 0.0f, 1.0f);

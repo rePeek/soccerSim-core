@@ -15,7 +15,7 @@
 #include "sim/referee/restart_placement.hpp"
 #include "model/pitch.hpp"
 #include "sim/referee/rule_command_sink.hpp"
-#include "sim/query/player_query.hpp"
+#include "sim/player/roster_query.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player.hpp"
@@ -212,7 +212,7 @@ Player *PositionRestartPlayers(const football::model::Pitch& pitch, Team *team,
                     // supporting players
                     if (isTakerTeam) {
                       std::vector<Player *> result;
-                      football::sim::query::GetClosestPlayers(team, Vector3(0), result, 2);
+                      football::sim::player::FindClosestPlayers(team->GetAllPlayers(), Vector3(0), result, 2);
                       for (unsigned int i = 0; i < result.size(); i++) {
                         result[i]->ResetPosition(
                             Vector3(0, i * 1.4 * team->GetDynamicSide(), 0),
@@ -401,7 +401,7 @@ Player *PositionRestartPlayers(const football::model::Pitch& pitch, Team *team,
                        Vector3(team->GetDynamicSide() * pitch.half_length(), 0, 0))
                               .GetLength() < 40.0) {
                     std::vector<Player *> result;
-                    football::sim::query::GetClosestPlayers(team,
+                    football::sim::player::FindClosestPlayers(team->GetAllPlayers(),
                                          ball.state().position.Get2D(),
                                          result, 3);
                     for (unsigned int i = 0; i < result.size(); i++) {
@@ -517,7 +517,7 @@ Player *PositionRestartPlayers(const football::model::Pitch& pitch, Team *team,
               if (isTakerTeam) {
                 auto ball_pos = ball.state().position.Get2D();
                 std::vector<Player *> players;
-                football::sim::query::GetClosestPlayers(team, ball.state().position.Get2D(),
+                football::sim::player::FindClosestPlayers(team->GetAllPlayers(), ball.state().position.Get2D(),
                                      players, 2);
                 taker = players[0];
                 if (setPiece == e_GameMode_KickOff) {

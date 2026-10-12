@@ -2,7 +2,7 @@
 
 #include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
-#include "sim/query/player_query.hpp"
+#include "sim/player/roster_query.hpp"
 #include "sim/team/team.hpp"
 
 using football::ball::Ball;
@@ -65,6 +65,6 @@ void RefreshTeamPossession(Team& team, const Team& opponent, Ball& ball,
 
 void RefreshDesignatedTeamPossessionPlayer(Team& team, const Ball& ball) {
   team.SetDesignatedTeamPossessionPlayer(
-      query::GetClosestPlayer(&team, ball.state().position.Get2D()));
+      FindClosestPlayer(team.GetAllPlayers(), ball.state().position.Get2D()));
 }
 } // namespace football::sim::player

@@ -12,12 +12,12 @@
 // limitations under the License.
 
 
-#include "sim/query/reachability.hpp"
+#include "sim/player/reachability.hpp"
 #include "foundation/time/tick_boundary.hpp"
 
 #include <cmath>
 
-namespace football::sim::query {
+namespace football::sim::player {
 using blunted::clamp;
 
 TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
@@ -49,7 +49,7 @@ TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
   Vector3 currentMovement = playerMovement;
 
   float ffo = 0.1f; // in front of foot offset (ideal ball position)
-  if (currentMovement.GetLength() > idleDribbleSwitch) {
+  if (currentMovement.GetLength() > playerIdleDribbleSwitch) {
 
     currentPos += currentMovement.GetNormalized() * ffo;
     currentPos += currentMovement * 0.01f;
@@ -142,4 +142,4 @@ TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
   */
 }
 
-}  // namespace football::sim::query
+}  // namespace football::sim::player

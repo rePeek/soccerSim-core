@@ -11,7 +11,7 @@
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
 #include "default_ai_fixture.hpp"
-#include "sim/query/reachability.hpp"
+#include "sim/player/reachability.hpp"
 
 namespace {
 using namespace football::sim;
@@ -22,15 +22,15 @@ TEST_CASE("Continuous reachability estimates retain sub-tick ranking precision",
   const Case cases[] = {{0.02f, 1, 1}, {2.84f, 703, 600},
                         {8.815f, 1551, 1463}, {20.f, 3556, 3356}};
   for (const auto& sample : cases) {
-    const auto estimate = query::GetTimeNeededForDistance_ms(
+    const auto estimate = player::GetTimeNeededForDistance_ms(
         blunted::Vector3(0), blunted::Vector3(0), blunted::Vector3(sample.metres, 0, 0), 7.5f);
     REQUIRE(estimate.usual_ms == sample.usual_ms);
     REQUIRE(estimate.optimistic_ms == sample.optimistic_ms);
     REQUIRE(estimate.usual_ms % 10 != 0); // Not an integer-grid deadline.
   }
-  const auto near = query::GetTimeNeededForDistance_ms(
+  const auto near = player::GetTimeNeededForDistance_ms(
       blunted::Vector3(0), blunted::Vector3(0), blunted::Vector3(0.02f, 0, 0), 7.5f);
-  const auto further = query::GetTimeNeededForDistance_ms(
+  const auto further = player::GetTimeNeededForDistance_ms(
       blunted::Vector3(0), blunted::Vector3(0), blunted::Vector3(0.06f, 0, 0), 7.5f);
   REQUIRE(near.usual_ms < further.usual_ms);
   REQUIRE(near.usual_ms / 10 == further.usual_ms / 10); // Flooring would invent a tie.

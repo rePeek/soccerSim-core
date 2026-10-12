@@ -127,12 +127,13 @@ src/
 │   │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph,
 │   │                 static PlayerSlotTable identity -> TeamSide mapping and a pure
 │   │                 shadow-only Snapshot touch inference
-│   ├── query/        player queries, reachability and force-field representation
 │   ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
 │   │                 rules and restarts
 │   ├── runtime/      MatchClock, MatchPhase and MatchResult value/time types
 │   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
-│   └── player/       Player, tick-local inputs, controls, locomotion, possession and contacts
+│   └── player/       Player, tick-local inputs, controls, locomotion, possession,
+│       │             contacts, roster_query (span of borrowed players),
+│       │             reachability and perception
 │       └── humanoid/ Humanoid / HumanoidBase / utilities
 ├── ai/               value-only decisions; never links sim runtime
 │   ├── ai_config.hpp startup values; no live channel
@@ -218,8 +219,8 @@ anim_baking → legacy_anim + animation/foundation
   or a contract domain. It explicitly exports PlayerControl/PlayerControlSet,
   WorldState, MatchOptions/MatchPhase/MatchResult and the two time headers.
   Public values live with their domain; directory placement never exports actors.
-  The former gamedefines umbrella is split among player, ball, team, match,
-  observation and query. No compatibility headers or common/types layer remains.
+  The former gamedefines umbrella is split among player, ball, team, match and
+  observation. No compatibility headers or common/types layer remains.
 - `football_ai_contracts` owns AIConfig and TacticalBoard declarations; it depends
   on model/foundation, not concrete policy. `football_ai` owns policy implementations.
 - Game's PUBLIC usage requirements are model + sim_contracts + ai_contracts.

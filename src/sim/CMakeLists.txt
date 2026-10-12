@@ -45,8 +45,8 @@ target_sources(football_sim PRIVATE
   observation/snapshot_history.cpp
   observation/temporal_graph.cpp
   observation/touch_inference.cpp observation/touch_inference.hpp
-  query/player_query.cpp query/reachability.cpp
-  query/player_query.hpp query/reachability.hpp query/force_spot.hpp
+  player/reachability.cpp player/roster_query.cpp player/perception.cpp
+  player/reachability.hpp player/roster_query.hpp player/perception.hpp
   referee/referee.cpp referee/referee.hpp
   referee/goal.cpp referee/goal.hpp
   referee/period.cpp referee/period.hpp

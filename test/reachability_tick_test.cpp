@@ -6,7 +6,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "sim/player/player_locomotion.hpp"
-#include "sim/query/reachability.hpp"
+#include "sim/player/reachability.hpp"
 
 namespace {
 using namespace football::sim;
@@ -125,11 +125,11 @@ TEST_CASE("Continuous arrival values survive comparison with discrete horizons",
       7.5f, TickSpan{static_cast<std::uint64_t>(steady / 10 + 1)}, 0.28f) == steady);
   const TickSpan huge{std::numeric_limits<std::uint64_t>::max()};
   REQUIRE(PlayerLocomotion::EstimateSteadyReachTime(state, target, parameters, 7.5f, huge, 0.28f) == steady);
-  const auto unbounded = query::GetTimeNeededForDistance_ms(blunted::Vector3(0), blunted::Vector3(0), target, 7.5f);
-  const auto large = query::GetTimeNeededForDistance_ms(blunted::Vector3(0), blunted::Vector3(0), target, 7.5f, false, huge);
+  const auto unbounded = player::GetTimeNeededForDistance_ms(blunted::Vector3(0), blunted::Vector3(0), target, 7.5f);
+  const auto large = player::GetTimeNeededForDistance_ms(blunted::Vector3(0), blunted::Vector3(0), target, 7.5f, false, huge);
   REQUIRE(large.usual_ms == unbounded.usual_ms);
   REQUIRE(large.optimistic_ms == unbounded.optimistic_ms);
-  const auto zero = query::GetTimeNeededForDistance_ms(blunted::Vector3(0), blunted::Vector3(0), target, 7.5f, false, TickSpan{});
+  const auto zero = player::GetTimeNeededForDistance_ms(blunted::Vector3(0), blunted::Vector3(0), target, 7.5f, false, TickSpan{});
   REQUIRE(zero.optimistic_ms == 10); // Historical strict > limit, not >=.
 }
 } // namespace

@@ -16,6 +16,13 @@
 
 const float animSprintVelocity = 7.0f;
 
+// Player-owned movement ability thresholds, in m/s. They currently mirror the
+// animation movement buckets so selection stays consistent; when animation/
+// types.hpp is split, these stay with the player and animation keeps only its
+// resource tags.
+const float playerIdleDribbleSwitch = 1.8f;
+const float playerSprintVelocity = 8.0f;
+
 // PES6 digital control mode, quantizes some input to x degree angles
 const bool quantizeDirection = true;
 const float analogStickDeadzone = 0.75f;
