@@ -33,7 +33,6 @@ target_sources(football_ball
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_impulse.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_environment.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_timing.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/ball/collider.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_contact.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_response.hpp
 )
@@ -49,7 +48,7 @@ target_compile_features(football_ball PUBLIC cxx_std_23)
 
 target_link_libraries(football_ball
   PUBLIC
-    football::foundation
+    football::foundation football::geometry
 )
 
 football_configure_target(football_ball)

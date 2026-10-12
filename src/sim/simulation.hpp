@@ -161,7 +161,7 @@ class Simulation {
   void BuildBakedBodyTape(std::span<const std::optional<PlayerBakedPoseSample>> endpoints);
   void PublishRuleTouch(football::sim::event::RuleTouch touch);
   void PublishBodyRuleTouches(const football::ball::BallStepResult& result,
-      std::span<const football::ball::ColliderMotion> bodies);
+      std::span<const football::geometry::ColliderMotion> bodies);
 
   // Lifecycle mutations, published through the write-only rule/player ports.
   // Match restart semantics: place the ball at a kickoff/free-kick focus with
@@ -267,14 +267,14 @@ class Simulation {
   // Stable dynamic-collider identity is Simulation-owned. Ball only sees an
   // opaque ColliderId; P4d will consume this mapping when it translates a
   // physical body impact into the existing touch/rules identity.
-  std::map<football::ball::ColliderId,
+  std::map<football::geometry::ColliderId,
            std::pair<football::player::PlayerId, PlayerBodyPart>>
       body_collider_owners_;
 
   // P4b transient CCD input/evidence. It is deliberately outside BallState,
   // Snapshot and AcceptedTouch: the existing body-contact path stays authoritative.
   std::vector<PlayerBodyMotionPrediction> body_shadow_predictions_;
-  std::vector<football::ball::ColliderMotion> body_shadow_colliders_;
+  std::vector<football::geometry::ColliderMotion> body_shadow_colliders_;
   std::optional<football::ball::BallContact> body_shadow_contact_;
   std::size_t body_shadow_touch_start_ = 0;
   bool body_shadow_active_ = false;
@@ -283,10 +283,10 @@ class Simulation {
   PlayerBodyCollisionShadowReport body_shadow_report_;
   // Opt-in production-kernel shadow owner; no extra physics implementation.
   std::unique_ptr<football::ball::Ball> body_physics_shadow_ball_;
-  std::vector<football::ball::ColliderMotion> body_physics_shadow_colliders_;
+  std::vector<football::geometry::ColliderMotion> body_physics_shadow_colliders_;
   // The exact list the unified comparison used (upright, before any low-pose
   // proposal overwrites the shadow buffer). P4d-2 feeds this to production.
-  std::vector<football::ball::ColliderMotion> body_physics_production_colliders_;
+  std::vector<football::geometry::ColliderMotion> body_physics_production_colliders_;
   std::vector<BodyShadowCandidate> body_physics_shadow_candidates_;
   std::optional<BodyPhysicsShadowTick> body_physics_shadow_tick_, body_physics_shadow_latest_;
   BodyPhysicsShadowReport body_physics_shadow_report_;
@@ -304,11 +304,11 @@ class Simulation {
   std::unique_ptr<football::ball::Ball> preparation_ball_;
   std::optional<football::ball::BallStepResult> committed_ball_tick_;
   std::vector<football::sim::event::RuleTouch> rule_touches_; // latest committed tick
-  std::map<football::ball::ColliderId, bool> rule_contact_episodes_;
+  std::map<football::geometry::ColliderId, bool> rule_contact_episodes_;
   bool baked_body_production_ = false; // P4f-2 experiment; defaults stay OFF
   std::optional<std::uint64_t> baked_pose_generation_;
   std::vector<std::optional<PlayerBakedPoseSample>> baked_body_poses_, baked_body_starts_, baked_body_forecasts_;
-  std::vector<football::ball::ColliderMotion> baked_body_colliders_;
+  std::vector<football::geometry::ColliderMotion> baked_body_colliders_;
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;

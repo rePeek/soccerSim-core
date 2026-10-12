@@ -1,30 +1,20 @@
-#ifndef FOOTBALL_BALL_COLLIDER_HPP
-#define FOOTBALL_BALL_COLLIDER_HPP
+#ifndef FOOTBALL_GEOMETRY_COLLIDER_HPP
+#define FOOTBALL_GEOMETRY_COLLIDER_HPP
+
+// Shared collision-geometry contract: shapes, their per-tick motion and the
+// contact material. Owned by no single domain: ball, pitch and the player body
+// all produce or consume these values. No ball/rules semantics live here.
 
 #include <cstdint>
 #include <variant>
 
-#include "football/foundation/math/vector3.hpp"
+#include "football/geometry/capsule.hpp"
+#include "football/geometry/plane.hpp"
+#include "football/geometry/sphere.hpp"
 
-namespace football::ball {
+namespace football::geometry {
 
 using ColliderId = std::uint32_t;
-
-struct Plane {
-  blunted::Vector3 point;
-  blunted::Vector3 normal;
-};
-
-struct Sphere {
-  blunted::Vector3 center;
-  float radius = 0.0f;
-};
-
-struct Capsule {
-  blunted::Vector3 a;
-  blunted::Vector3 b;
-  float radius = 0.0f;
-};
 
 using ColliderShape = std::variant<Plane, Sphere, Capsule>;
 
@@ -57,6 +47,6 @@ struct ColliderMotion {
   ContactMaterial material;
 };
 
-}  // namespace football::ball
+}  // namespace football::geometry
 
-#endif  // FOOTBALL_BALL_COLLIDER_HPP
+#endif  // FOOTBALL_GEOMETRY_COLLIDER_HPP

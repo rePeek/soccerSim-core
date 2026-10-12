@@ -271,7 +271,7 @@ dependencies and `football::` aliases. Public headers live in the top-level
 the sole product composition root for sim + AI:
 
 ```text
-football_sim → football::simcore → ai + sim → model/foundation
+football_sim → football::simcore → ai + sim → foundation/pitch/ball/geometry
 ```
 
 Root CMake exposes model, sim contracts and AI startup contracts as PUBLIC usage

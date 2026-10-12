@@ -4,6 +4,6 @@
 namespace football::ball::detail {
 // Endpoint-linear, radius-linear capsule motion. No actor/animation dependency.
 std::optional<BallContact> SweepDeformingCapsule(const BallState& ball, float ball_radius,
-    const ColliderMotion& collider, const Capsule& start, const Capsule& end, float dt);
+    const football::geometry::ColliderMotion& collider, const football::geometry::Capsule& start, const football::geometry::Capsule& end, float dt);
 }
 #endif

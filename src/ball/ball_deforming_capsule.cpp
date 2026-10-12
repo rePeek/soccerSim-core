@@ -5,6 +5,8 @@
 #include <stdexcept>
 
 namespace football::ball::detail {
+using football::geometry::Capsule;
+using football::geometry::ColliderMotion;
 namespace {
 // Compute roots/geometry in double; public state/evidence remains float. Working
 // storage is fixed-size: a quartic has at most four roots, two caps add four.

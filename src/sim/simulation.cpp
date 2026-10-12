@@ -514,7 +514,7 @@ void Simulation::Init(
       player_slots.team_sides.push_back(player->GetTeamSide());
     }
   }
-  std::map<football::ball::ColliderId,
+  std::map<football::geometry::ColliderId,
            std::pair<football::player::PlayerId, PlayerBodyPart>>
       body_collider_owners;
   for (std::size_t slot = 0; slot < snapshot_players.size(); ++slot) {

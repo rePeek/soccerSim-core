@@ -3,7 +3,7 @@
 
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_state.hpp"
-#include "football/ball/collider.hpp"
+#include "football/geometry/collider.hpp"
 #include "football/ball/ball_model.hpp"
 
 namespace football::ball {
@@ -28,7 +28,7 @@ BallState ApplyImpulseAtPoint(const BallState& ball,
 // center at response time (possibly projected out of initial penetration).
 // `collider_velocity` is the collider contact velocity (zero for static).
 BallState ResolveContact(const BallState& ball, const BallContact& contact,
-                         const ContactMaterial& material,
+                         const football::geometry::ContactMaterial& material,
                          const blunted::Vector3& collider_velocity,
                          const football::ball::BallModel& config);
 
@@ -40,7 +40,7 @@ struct BallContactResponse {
 };
 BallContactResponse ResolveContactResponse(
     const BallState& ball, const BallContact& contact,
-    const ContactMaterial& material, const blunted::Vector3& collider_velocity,
+    const football::geometry::ContactMaterial& material, const blunted::Vector3& collider_velocity,
     const football::ball::BallModel& config);
 
 }  // namespace football::ball

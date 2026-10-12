@@ -12,12 +12,12 @@
 #include "football/foundation/time/tick_boundary.hpp"
 
 namespace {
-void MirrorShape(football::ball::ColliderShape& shape) {
+void MirrorShape(football::geometry::ColliderShape& shape) {
   std::visit([](auto& s) {
     using T = std::decay_t<decltype(s)>;
-    if constexpr (std::is_same_v<T, football::ball::Sphere>) {
+    if constexpr (std::is_same_v<T, football::geometry::Sphere>) {
       s.center.Mirror();
-    } else if constexpr (std::is_same_v<T, football::ball::Capsule>) {
+    } else if constexpr (std::is_same_v<T, football::geometry::Capsule>) {
       s.a.Mirror();
       s.b.Mirror();
     } else {
@@ -57,7 +57,7 @@ void Simulation::BeginBodyPhysicsShadow() {
       MirrorShape(collider.end);
     }
   }
-  const auto compute = [&](std::span<const football::ball::ColliderMotion> bodies) {
+  const auto compute = [&](std::span<const football::geometry::ColliderMotion> bodies) {
     body_physics_shadow_ball_->Reset(tick.initial);
     if (reverse) body_physics_shadow_ball_->Mirror();
     auto result = body_physics_shadow_ball_->Step(football::ball::BallTickInput{bodies, GetBallEnvironment()});
@@ -149,7 +149,7 @@ void Simulation::BeginBodyPhysicsShadow() {
       // Humanoid facing remains roster-local through mirrors. Convert only a copy.
       auto axis = p.start.bodyFacing;
       if (FindPlayerById(p.player)->GetTeamID() == second_team_) axis.Mirror();
-      std::array<football::ball::ColliderMotion, kPlayerBodyPartCount> posed;
+      std::array<football::geometry::ColliderMotion, kPlayerBodyPartCount> posed;
       BuildShadowPosedBodyMotions(p.start, p.end, p.action, axis, ids, posed);
       for (auto& collider : posed) {
         if (reverse) { MirrorShape(collider.start); MirrorShape(collider.end); }

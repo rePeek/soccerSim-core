@@ -7,7 +7,7 @@
 
 #include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_state.hpp"
-#include "football/ball/collider.hpp"
+#include "football/geometry/collider.hpp"
 
 namespace football::ball { class BallModel; }
 
@@ -18,7 +18,7 @@ namespace football::ball {
 // the ball so an approaching ball has (ball.velocity - collider.velocity) dot
 // normal < 0.
 struct BallContact {
-  ColliderId collider = 0;
+  football::geometry::ColliderId collider = 0;
   float toi = 0.0f;
   blunted::Vector3 point; // ball center at TOI; projected center after penetration repair
   blunted::Vector3 normal;
@@ -27,18 +27,18 @@ struct BallContact {
   float normal_impulse = 0.0f; // >0 identifies an impulse-bearing impact
   bool position_corrected = false; // correction is not itself a new touch
   // Surface velocity at TOI, including minimal-twist capsule rotation/stretch
-  // and radial dilation (see ColliderMotion). Not one endpoint's velocity.
+  // and radial dilation (see football::geometry::ColliderMotion). Not one endpoint's velocity.
   blunted::Vector3 surface_velocity = blunted::Vector3(0);
 };
 
 // Pure swept-sphere CCD against one collider over one tick. Never mutates state
 // and draws no RNG. `dt` is seconds; `ball_radius` is the football radius.
 std::optional<BallContact> SweepBall(const BallState& ball,
-                                     const ColliderMotion& collider,
+                                     const football::geometry::ColliderMotion& collider,
                                      float dt, float ball_radius);
 
 std::optional<BallContact> FirstContact(const BallState& ball,
-                                        std::span<const ColliderMotion> colliders,
+                                        std::span<const football::geometry::ColliderMotion> colliders,
                                         float dt, float ball_radius);
 
 // One step of free motion (constant velocity) with collision response and
@@ -56,7 +56,7 @@ struct BallStepResult {
 };
 
 BallStepResult AdvanceBall(const BallState& initial,
-                           std::span<const ColliderMotion> colliders,
+                           std::span<const football::geometry::ColliderMotion> colliders,
                            float dt, float ball_radius, float restitution,
                            std::size_t max_contacts = 8);
 
@@ -79,9 +79,9 @@ struct BallDynamics {
 // and does not consume the tick, so the ball keeps its free motion and may
 // still find one genuine impact (P4e). Grounded is a persistent rolling
 // constraint (z = radius, vz = 0, horizontal roll + rolling drag), not a
-// per-tick ground impact. Response reads ColliderMotion::material.
+// per-tick ground impact. Response reads football::geometry::ColliderMotion::material.
 BallStepResult AdvanceBallTick(const BallState& initial,
-                               std::span<const ColliderMotion> colliders,
+                               std::span<const football::geometry::ColliderMotion> colliders,
                                float dt,
                                const football::ball::BallModel& config,
                                const BallDynamics& dynamics);

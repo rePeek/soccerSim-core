@@ -193,8 +193,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
             const float dist = delta.GetLength();
             return dist > 1e-6f ? segment + delta * (boot.radius/dist) : segment;
           };
-          const auto& left = std::get<football::ball::Capsule>(regions[1]);
-          const auto& right = std::get<football::ball::Capsule>(regions[2]);
+          const auto& left = std::get<football::geometry::Capsule>(regions[1]);
+          const auto& right = std::get<football::geometry::Capsule>(regions[2]);
           const auto lp = surface(left), rp = surface(right);
           const float ld = (lp - ball_center).GetLength();
           const float rd = (rp - ball_center).GetLength();

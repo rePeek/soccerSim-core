@@ -12,6 +12,14 @@
 using namespace blunted;
 
 namespace football::ball {
+using football::geometry::Capsule;
+using football::geometry::Collider;
+using football::geometry::ColliderId;
+using football::geometry::ColliderMotion;
+using football::geometry::ColliderShape;
+using football::geometry::ContactMaterial;
+using football::geometry::Plane;
+using football::geometry::Sphere;
 
 namespace {
 

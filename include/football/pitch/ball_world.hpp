@@ -12,19 +12,19 @@
 
 #include "football/ball/ball_model.hpp"
 #include "football/ball/ball_world.hpp"
-#include "football/ball/collider.hpp"
+#include "football/geometry/collider.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/foundation/math/vector3.hpp"
 
 namespace football::pitch {
 namespace detail {
 
-using football::ball::Capsule;
-using football::ball::ColliderId;
-using football::ball::ColliderMotion;
-using football::ball::ColliderShape;
-using football::ball::ContactMaterial;
-using football::ball::Plane;
+using football::geometry::Capsule;
+using football::geometry::ColliderId;
+using football::geometry::ColliderMotion;
+using football::geometry::ColliderShape;
+using football::geometry::ContactMaterial;
+using football::geometry::Plane;
 
 // Stable ids (also the deterministic tie-break order); geometry and order are
 // frozen because the CCD uses ColliderId for deterministic contact sorting.

@@ -25,7 +25,7 @@ struct PlayerBodyMotionPrediction {
   football::player::PlayerId player = football::player::kInvalidPlayerId;
   PlayerKinematicState start;
   PlayerKinematicState end;
-  std::array<football::ball::ColliderMotion, kPlayerBodyPartCount> colliders;
+  std::array<football::geometry::ColliderMotion, kPlayerBodyPartCount> colliders;
   e_FunctionType action = e_FunctionType_None;
   PlayerActionState action_state; // frozen pre-sweep schedule, not a second executor
   std::optional<float> endpoint_error;
@@ -84,7 +84,7 @@ inline std::size_t BodyShadowActionCategory(e_FunctionType action) {
 }
 
 struct BodyShadowCandidate {
-  football::ball::ColliderId collider = 0;
+  football::geometry::ColliderId collider = 0;
   football::player::PlayerId player = football::player::kInvalidPlayerId;
   PlayerBodyPart part = PlayerBodyPart::UpperBody;
   BodyImpactClassification classification;

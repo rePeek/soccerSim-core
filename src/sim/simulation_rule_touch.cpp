@@ -6,7 +6,7 @@
 #include "sim/touch_evidence_classification.hpp"
 #include <algorithm>
 namespace {
-football::ball::ColliderId BodyEpisodeKey(football::ball::ColliderId id) {
+football::geometry::ColliderId BodyEpisodeKey(football::geometry::ColliderId id) {
   if(id>=kFirstBakedContactRegionId && id<kFirstDynamicBodyColliderId) {
     const auto offset=id-kFirstBakedContactRegionId;
     return PlayerBodyColliderId(offset/kBakedContactRegionCount,kBakedContactRegionParts[offset%kBakedContactRegionCount]);
@@ -31,7 +31,7 @@ void Simulation::PublishRuleTouch(football::sim::event::RuleTouch touch) {
 }
 
 void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& result,
-    std::span<const football::ball::ColliderMotion> bodies) {
+    std::span<const football::geometry::ColliderMotion> bodies) {
   // Only mapped active players' approaching impacts can become rule touches.
   // Boot impact during an authorized kick is reviewed deliberate play; other
   // live impacts are deflections. Ready restart release additionally requires

@@ -4,7 +4,7 @@
 
 // Separate band preserves the six original anatomical identities. Static pitch
 // IDs do not occupy this band; overflow is checked before input construction.
-inline constexpr football::ball::ColliderId kFirstBakedContactRegionId=0x40000000u;
+inline constexpr football::geometry::ColliderId kFirstBakedContactRegionId=0x40000000u;
 enum class BakedContactRegion : std::uint8_t {
   Chest, LeftBoot, RightBoot, LeftUpperArm, RightUpperArm,
   LeftForearm, RightForearm, LeftPalm, RightPalm
@@ -14,16 +14,16 @@ inline constexpr std::array<PlayerBodyPart,kBakedContactRegionCount> kBakedConta
   PlayerBodyPart::UpperBody,PlayerBodyPart::LowerBody,PlayerBodyPart::LowerBody,
   PlayerBodyPart::UpperBody,PlayerBodyPart::UpperBody,PlayerBodyPart::UpperBody,
   PlayerBodyPart::UpperBody,PlayerBodyPart::UpperBody,PlayerBodyPart::UpperBody};
-inline football::ball::ColliderId BakedContactRegionId(std::uint32_t slot,BakedContactRegion region) {
+inline football::geometry::ColliderId BakedContactRegionId(std::uint32_t slot,BakedContactRegion region) {
   const auto index=static_cast<std::uint8_t>(region);
   const std::uint64_t id=std::uint64_t(kFirstBakedContactRegionId)+std::uint64_t(slot)*kBakedContactRegionCount+index;
   if(index>=kBakedContactRegionCount || id>=kFirstDynamicBodyColliderId)
     throw std::out_of_range("baked contact region exceeds reserved band");
-  return static_cast<football::ball::ColliderId>(id);
+  return static_cast<football::geometry::ColliderId>(id);
 }
-inline std::array<football::ball::ColliderShape,kBakedContactRegionCount> BuildBakedContactRegions(
+inline std::array<football::geometry::ColliderShape,kBakedContactRegionCount> BuildBakedContactRegions(
     const PoseFrame& pose,const PlayerKinematicState& state,float base_angle,float scale=1) {
-  using namespace football::ball;
+  using namespace football::geometry;
   const auto world=EvaluateBakedBodyPose(pose,state,base_angle,scale);
   const auto point=[&](BodyPart joint,blunted::Vector3 local) {
     return world.joints[joint]+world.orientations[joint]*(local*scale);
@@ -41,10 +41,10 @@ inline std::array<football::ball::ColliderShape,kBakedContactRegionCount> BuildB
     Sphere{point(left_elbow,{0,-.005f,-.30f}),.065f*scale},
     Sphere{point(right_elbow,{0,-.005f,-.30f}),.065f*scale}};
 }
-inline std::array<football::ball::ColliderMotion,kBakedContactRegionCount> BuildBakedContactRegionMotions(
-    const std::array<football::ball::ColliderShape,kBakedContactRegionCount>& start,
-    const std::array<football::ball::ColliderShape,kBakedContactRegionCount>& end,std::uint32_t slot) {
-  std::array<football::ball::ColliderMotion,kBakedContactRegionCount> out;
+inline std::array<football::geometry::ColliderMotion,kBakedContactRegionCount> BuildBakedContactRegionMotions(
+    const std::array<football::geometry::ColliderShape,kBakedContactRegionCount>& start,
+    const std::array<football::geometry::ColliderShape,kBakedContactRegionCount>& end,std::uint32_t slot) {
+  std::array<football::geometry::ColliderMotion,kBakedContactRegionCount> out;
   for(std::size_t index=0;index<out.size();++index)
     out[index]={BakedContactRegionId(slot,static_cast<BakedContactRegion>(index)),start[index],end[index],kPlayerBodyContactMaterial};
   return out;

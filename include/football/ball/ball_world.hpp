@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "football/ball/collider.hpp"
+#include "football/geometry/collider.hpp"
 
 namespace football::ball {
 
@@ -28,7 +28,7 @@ struct GoalNetGeometry {
 
 struct BallWorld {
   // Ground plane and goal posts/crossbars, with stable ids and order.
-  std::vector<ColliderMotion> static_colliders;
+  std::vector<football::geometry::ColliderMotion> static_colliders;
   GroundSurface ground;
   GoalNetGeometry net;
 };

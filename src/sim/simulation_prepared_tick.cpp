@@ -75,6 +75,7 @@ void Simulation::EnablePreparedTickProduction(bool enabled) {
 
 void Simulation::RunPreparedPlayerTick() {
   using namespace football::ball;
+  using namespace football::geometry;
   const bool reverse = options_.reverse_team_processing;
   BeginBakedBodyTick();
   auto bodies = body_physics_production_ ?

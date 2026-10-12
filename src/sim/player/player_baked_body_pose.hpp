@@ -55,16 +55,16 @@ inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
 // permanent roster slots, never traversal order or PlayerId.
 enum class BakedBodySegment : std::uint8_t { Torso, Head, LeftThigh, LeftShin, RightThigh, RightShin };
 inline constexpr std::size_t kBakedBodySegmentCount = 6;
-inline football::ball::ColliderId BakedBodyColliderId(std::uint32_t slot, BakedBodySegment segment) {
+inline football::geometry::ColliderId BakedBodyColliderId(std::uint32_t slot, BakedBodySegment segment) {
   const auto index = static_cast<std::uint8_t>(segment);
   const std::uint64_t id = std::uint64_t(kFirstBakedBodyColliderId) +
       std::uint64_t(slot)*kBakedBodySegmentCount + index;
-  if (index >= kBakedBodySegmentCount || id > std::numeric_limits<football::ball::ColliderId>::max())
+  if (index >= kBakedBodySegmentCount || id > std::numeric_limits<football::geometry::ColliderId>::max())
     throw std::out_of_range("baked body collider exceeds reserved id range or segment count");
-  return static_cast<football::ball::ColliderId>(id);
+  return static_cast<football::geometry::ColliderId>(id);
 }
 struct BakedPlayerBodyCollider {
-  std::array<football::ball::ColliderShape, kBakedBodySegmentCount> shapes;
+  std::array<football::geometry::ColliderShape, kBakedBodySegmentCount> shapes;
   std::array<PlayerBodyPart, kBakedBodySegmentCount> parts{
       PlayerBodyPart::UpperBody, PlayerBodyPart::Head,
       PlayerBodyPart::LowerBody, PlayerBodyPart::LowerBody,
@@ -80,7 +80,7 @@ inline constexpr float kBakedThighRadius=.106f;
 inline constexpr float kBakedShinRadius=.102f;
 inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
     const PlayerKinematicState& state, float animation_base_angle, float scale = 1.0f) {
-  using namespace football::ball;
+  using namespace football::geometry;
   const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, scale);
   const auto& j = world.joints;
   // Pelvis follows the body node, trunk follows middle separately. A single
@@ -97,10 +97,10 @@ inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
 // Both actual pose endpoints are supplied by the caller. Physics uses the
 // endpoint/radius-linear contract, not an inferred rigid SLERP between poses.
 // Production admission still requires P4f-2 continuity and P4f-3 calibration.
-inline std::array<football::ball::ColliderMotion, kBakedBodySegmentCount> BuildBakedBodyColliderMotions(
+inline std::array<football::geometry::ColliderMotion, kBakedBodySegmentCount> BuildBakedBodyColliderMotions(
     const BakedPlayerBodyCollider& start, const BakedPlayerBodyCollider& end, std::uint32_t fixed_slot,
-    football::ball::ContactMaterial material = kPlayerBodyContactMaterial) {
-  std::array<football::ball::ColliderMotion, kBakedBodySegmentCount> out;
+    football::geometry::ContactMaterial material = kPlayerBodyContactMaterial) {
+  std::array<football::geometry::ColliderMotion, kBakedBodySegmentCount> out;
   for (std::size_t i = 0; i < out.size(); ++i)
     out[i] = {BakedBodyColliderId(fixed_slot, static_cast<BakedBodySegment>(i)),
               start.shapes[i], end.shapes[i], material};

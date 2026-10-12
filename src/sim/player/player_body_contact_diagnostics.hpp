@@ -7,7 +7,7 @@
 #include <limits>
 #include <vector>
 #include "sim/player/player_action.hpp"
-#include "football/ball/collider.hpp"
+#include "football/geometry/collider.hpp"
 
 inline constexpr std::size_t kBodyActionCount = e_FunctionType_Special + 1;
 inline constexpr const char* kBodyActionNames[kBodyActionCount] = {

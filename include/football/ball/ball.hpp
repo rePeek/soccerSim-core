@@ -18,7 +18,7 @@
 #include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "football/ball/ball_state.hpp"
-#include "football/ball/collider.hpp"
+#include "football/geometry/collider.hpp"
 #include "football/ball/ball_world.hpp"
 #include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/time/tick.hpp"
@@ -31,7 +31,7 @@ namespace football::ball {
 // Borrowed input for exactly one 10ms interval, in BallState's coordinate frame.
 // IDs must be nonzero, unique, and disjoint from pitch IDs 1--7.
 struct BallTickInput {
-  std::span<const ColliderMotion> dynamic_colliders;
+  std::span<const football::geometry::ColliderMotion> dynamic_colliders;
   BallEnvironment environment;
   // P5b: at most one active impulse, supplied by Simulation after arbitration
   // and applied at the tick endpoint (after passive motion and netting). It
@@ -77,10 +77,10 @@ class Ball {
  private:
   // Pure tick computation including the flexible net correction.
   BallStepResult AdvanceState(const BallState& current,
-                              std::span<const ColliderMotion> colliders,
+                              std::span<const football::geometry::ColliderMotion> colliders,
                               const BallEnvironment& environment) const;
   BallStepResult EvaluateTick(const BallTickInput& input,
-                              std::vector<ColliderMotion>& scratch) const;
+                              std::vector<football::geometry::ColliderMotion>& scratch) const;
 
   football::ball::BallModel config_;
   BallWorld world_;
@@ -90,7 +90,7 @@ class Ball {
   BallDynamics dynamics_;
   // Reused merge scratch; 7 static + 22*3 body motions fit without growth.
   // Larger rosters may grow it once. Prediction never consumes this buffer.
-  std::vector<ColliderMotion> tick_colliders_;
+  std::vector<football::geometry::ColliderMotion> tick_colliders_;
 };
 
 }  // namespace football::ball

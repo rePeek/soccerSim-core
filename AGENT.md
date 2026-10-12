@@ -83,9 +83,13 @@ pimpl or a private state holder so those headers stop appearing in
 ```text
 include/football/    public headers (interfaces), one directory per module
 ├── foundation/      math/ + time/ (Vector3, quaternion, scalar, RNG, Tick)
+├── geometry/        header-only collision-geometry contract shared by ball,
+│                    pitch and the player body: Plane/Sphere/Capsule, the
+│                    ColliderShape variant, ContactMaterial, Collider and the
+│                    per-tick ColliderMotion (depends only on foundation math)
 ├── animation/       header-only baked schema/library/selector (football::animation)
 ├── ball/            football::ball: Ball, BallModel, BallState, BallWorld,
-│                    collider/CCD, contact evidence and impulse response
+│                    collider/CCD sweeps, contact evidence and impulse response
 ├── pitch/           football::pitch: Pitch description plus the header-only
 │                    football::pitch_ball BuildBallWorld assembly
 ├── ai/              AIConfig, TacticalBoard and DefaultAI declarations
@@ -146,9 +150,9 @@ symbols (including the currently unused GetRoleFromString).
 
 ```text
 app → simcore (env.cpp) → ai + sim
-ai → ai_contracts + sim_contracts → foundation/pitch
-sim → sim_contracts + animation + pitch_ball → foundation/ball (PRIVATE BqLog)
-app_support (args/fixtures) → foundation
+ai → ai_contracts + sim_contracts → foundation/pitch/geometry
+sim → sim_contracts + animation + pitch_ball → foundation/ball/geometry (PRIVATE BqLog)
+app_support (args/fixtures) → sim_contracts/foundation
 anim_baking → legacy_anim + animation/foundation
 ```
 
@@ -175,6 +179,11 @@ anim_baking → legacy_anim + animation/foundation
   Current product scope is one process/one match: no logger registry, batch or
   new general infrastructure/utils module. There is no src/support or support target;
   file I/O uses the STL at its call sites, Properties and custom diagnostics are removed.
+- `football_geometry` is a header-only INTERFACE target owning the shared
+  collision-geometry contract (Plane/Sphere/Capsule, ColliderShape, ColliderId,
+  ContactMaterial, Collider, ColliderMotion). ball, pitch and the player body
+  all link it, so none of them owns geometry and the player no longer reaches
+  into `football::ball` for a Capsule. It depends only on foundation math.
 - `football_animation` is a header-only INTERFACE target (format types,
   serialization, the library reader, and selection) depending only on
   foundation. The runtime and the offline baker share one definition, so the
