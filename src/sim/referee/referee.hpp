@@ -42,7 +42,7 @@
 using namespace football::math;
 
 class Player;
-class Team;
+class Player;
 
 #include "sim/referee/referee_state.hpp"
 
@@ -52,12 +52,13 @@ class Team;
 class Referee {
 
   public:
-    Referee(Team& kickoff_team, const Vector3& kickoff_position);
+    // Rules identify teams by legacy slot (0/1), never by a Team object.
+    Referee(int kickoff_team_id, const Vector3& kickoff_position);
     virtual ~Referee();
 
     // Mutates only referee facts; lifecycle consequences belong to Simulation.
     void OnPeriodEnded(MatchPhase ended_phase, football::sim::Tick now,
-                       const Vector3& kickoff_position, Team& kickoff_team);
+                       const Vector3& kickoff_position, int kickoff_team_id);
 
 
     // Time-only state advance for one instant: pending restart administration,
@@ -102,7 +103,9 @@ class Referee {
                     football::sim::Tick now);
     // Foul facts carry their own timestamps; the caller supplies the evaluation instant.
     bool CheckFoul(football::sim::Tick now, const football::pitch::Pitch& pitch,
-                   PitchFrameTransform stadium_to_home, Team& home, Team& away,
+                   PitchFrameTransform stadium_to_home,
+                   const football::sim::TeamView& home,
+                   const football::sim::TeamView& away,
                    football::sim::rules::RuleCommandSink& commands);
     // Synchronous accepted-touch consumption (restart release / offside).
     void ConsumeBallTouch(football::sim::Tick now,

@@ -24,6 +24,7 @@
 #include <span>
 #include "sim/runtime/match_config.hpp"
 #include "sim/runtime/team_state.hpp"
+#include "sim/runtime/team_view.hpp"
 #include "sim/runtime/roster.hpp"
 #include "sim/player/player.hpp"
 
@@ -94,7 +95,8 @@ class Team {
     void SetFadingTeamPossessionAmount(float value);
     // Data publication only; tick/refresh algorithms live in runtime/roster_possession.
     void SetPossessionAmounts(float amount, float fading) {
-      teamPossessionAmount = amount; fadingTeamPossessionAmount = fading;
+      match_state_.possession_amount = amount;
+      match_state_.fading_possession_amount = fading;
       PublishTeamFacts();
     }
     void SetPossessionEstimate(bool has, int arrival_ms) {
@@ -105,6 +107,15 @@ class Team {
     // borrowed PlayerTeamView. Never a second source of truth.
     football::sim::TeamMatchState &match_state() { return match_state_; }
     const football::sim::TeamMatchState &match_state() const { return match_state_; }
+
+    // Transitional adapter while Team still owns the roster: packages the same
+    // identity/direction/roster/match-state that Simulation will build directly
+    // from Roster + TeamMatchState once Team is deleted (P6).
+    football::sim::TeamView view() {
+      return football::sim::TeamView{id, GetTeamSide(), side, static_side_,
+                                     GetGoalie(), roster_.Players(),
+                                     &match_state_};
+    }
 
 
     void ResetSituation(const Vector3 &focusPos, football::sim::Tick now);
@@ -120,7 +131,8 @@ class Team {
     // projection only; it never holds a Team object.
     PlayerTeamFacts TeamFacts() const {
       return PlayerTeamFacts{side, static_side_, side == static_side_,
-                             teamPossessionAmount, fadingTeamPossessionAmount,
+                             match_state_.possession_amount,
+                             match_state_.fading_possession_amount,
                              match_state_.designated_player};
     }
     void PublishTeamFacts() {
@@ -142,9 +154,6 @@ class Team {
 
     // Team match facts shared with players through a borrowed view.
     football::sim::TeamMatchState match_state_;
-
-    float teamPossessionAmount = 0.0f;
-    float fadingTeamPossessionAmount = 0.0f;
 
 
     // Ownership lives in the Roster; Team keeps only match state (below).

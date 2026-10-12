@@ -6,14 +6,16 @@ class Player;
 namespace football::sim {
 
 // Team-level match facts that cannot be derived from any single player. Runtime
-// owns the storage; players read it through a borrowed PlayerTeamView and may
-// update the one field their own action legitimately changes (the receiver
-// designated by a pass). This is a value, not a Team entity: it holds no
-// roster, no tactics and no behaviour.
+// owns the storage; players and rules read it through a borrowed TeamView and
+// may update the few fields their own action legitimately changes (a pass
+// designates its receiver; a restart placement sets the possession weight).
+// This is a value, not a Team entity: no roster, no tactics, no behaviour.
 struct TeamMatchState {
   bool has_possession = false;
   int time_to_ball_ms = 100;
   Player* designated_player = nullptr;
+  float possession_amount = 0.0f;
+  float fading_possession_amount = 0.0f;
 };
 
 }  // namespace football::sim

@@ -14,7 +14,7 @@
 using namespace football::math;
 
 class Player;
-class Team;
+class Player;
 
 // Referee-owned rule state: the values the rules must carry across ticks to
 // relate facts over time. Physics and actors never read or write them; only the
@@ -27,7 +27,8 @@ struct RestartPolicy {
 // Explicit restart-scheduling facts; the referee state machine reads no Match here.
 struct RestartSchedule {
   football::sim::Tick now{};
-  Team* setpiece_team = nullptr;
+  // Legacy team slot (0/1) that takes the restart; -1 when unresolved.
+  int setpiece_team = -1;
   PitchFrameTransform frame{false};
 };
 enum class RestartPhase { Pending, Ready, Taken, InPlay };
@@ -46,7 +47,7 @@ struct RefereeBuffer {
   bool active = false;
   e_GameMode desiredSetPiece;
   signed int teamID = 0;
-  Team* setpiece_team = 0;
+  int setpiece_team = -1;
   football::sim::Tick stop_tick{};
   football::sim::Tick prepare_tick{};
   football::sim::Tick start_tick{};

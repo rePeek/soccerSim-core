@@ -109,10 +109,14 @@ class Simulation::RuleCommands final : public football::sim::rules::RuleCommandS
 
 football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
   if (!ball_) throw std::logic_error("simulation has no match");
+  const football::sim::TeamView home = teams_[0]->view();
+  const football::sim::TeamView away = teams_[1]->view();
   return {GetTimelineTick(), phase_, play_authorized_, set_piece_active_, goal_scored_,
-      *ball_, pitch_, GetRegulationTime(), *teams_[0], *teams_[1], first_team_,
-      GetLastTouchTeam(), last_goal_team_,
-      ToHomePitchFrame(*teams_[options_.reverse_team_processing ? 1 : 0]),
+      *ball_, pitch_, GetRegulationTime(), home, away, first_team_,
+      GetLastTouchTeam() != nullptr ? GetLastTouchTeam()->GetID() : -1,
+      last_goal_team_ != nullptr ? last_goal_team_->GetID() : -1,
+      ToHomePitchFrame(teams_[options_.reverse_team_processing ? 1 : 0]->GetTeamSide(),
+                       teams_[options_.reverse_team_processing ? 1 : 0]->GetDynamicSide()),
       PitchFrameTransform(teams_[0]->GetStaticSide() != -1)};
 }
 
@@ -526,7 +530,7 @@ void Simulation::Init(
   teams[first_team_]->GetActivePlayers(active_players);
   Player* designated = active_players.at(0);
 
-  auto referee = std::make_unique<Referee>(*teams[first_team_], options.ball_position);
+  auto referee = std::make_unique<Referee>(teams[first_team_]->GetID(), options.ball_position);
   auto commands = std::make_unique<RuleCommands>(*this);
   auto touches = std::make_unique<TouchEvents>(*this);
   auto rulings = std::make_unique<RulingEvents>(*this);
@@ -805,7 +809,7 @@ WorldState Simulation::Observe() const {
       GetRegulationTime(), GetBallInPlayTime(), clock_->IsHalfUnderway(),
       IsBallInPlay(), reset_sequence_, *ball_, pitch_,
       play_authorized_, set_piece_active_, *referee_, ball_retainer_,
-      score_[0], score_[1], *teams_[0], *teams_[1],
+      score_[0], score_[1], teams_[0]->view(), teams_[1]->view(),
       first_team});
 }
 
@@ -887,7 +891,7 @@ void Simulation::EndPeriod() {
   EndHalf();
   referee_->OnPeriodEnded(phase_, GetTimelineTick(),
       options_.ball_position,
-      *teams_[options_.left_team_owns_ball ? 1 : 0]);
+      teams_[options_.left_team_owns_ball ? 1 : 0]->GetID());
   if (phase_ == MatchPhase::SecondHalf) {
     SetMatchPhase(MatchPhase::Finished);
     return;
@@ -935,7 +939,8 @@ void Simulation::AdvanceTime(football::sim::TickSpan delta) {
 
 void Simulation::CaptureSnapshot() {
   const auto state = ball_->state();
-  const auto ball_frame = ToHomePitchFrame(*teams_[first_team_]);
+  const auto ball_frame = ToHomePitchFrame(
+      teams_[first_team_]->GetTeamSide(), teams_[first_team_]->GetDynamicSide());
   auto& ball = snapshot_scratch_.ball;
   ball.position = ball_frame.Position(state.position);
   ball.velocity = ball_frame.Direction(state.velocity);

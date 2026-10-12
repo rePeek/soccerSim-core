@@ -30,8 +30,8 @@ Team::Team(int id, const football::sim::TeamSetup& model,
   match_state_.time_to_ball_ms = 100;
   match_state_.has_possession = false;
 
-  teamPossessionAmount = 1.0;
-  fadingTeamPossessionAmount = 1.0;
+  match_state_.possession_amount = 1.0f;
+  match_state_.fading_possession_amount = 1.0f;
 }
 
 Team::~Team() {}
@@ -141,14 +141,14 @@ Player *Team::GetBestPossessionPlayer() {
   return bestPlayer;
 }
 
-float Team::GetTeamPossessionAmount() const { return teamPossessionAmount; }
+float Team::GetTeamPossessionAmount() const { return match_state_.possession_amount; }
 
 float Team::GetFadingTeamPossessionAmount() const {
-  return fadingTeamPossessionAmount;
+  return match_state_.fading_possession_amount;
 }
 
 void Team::SetFadingTeamPossessionAmount(float value) {
-  fadingTeamPossessionAmount = clamp(value, 0.5, 1.5);
+  match_state_.fading_possession_amount = clamp(value, 0.5, 1.5);
   PublishTeamFacts();
 }
 
@@ -157,8 +157,8 @@ void Team::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
   match_state_.time_to_ball_ms = 100;
   match_state_.has_possession = false;
 
-  teamPossessionAmount = 1.0f;
-  fadingTeamPossessionAmount = 1.0f;
+  match_state_.possession_amount = 1.0f;
+  match_state_.fading_possession_amount = 1.0f;
 
   match_state_.designated_player = roster_.Players().front();
 

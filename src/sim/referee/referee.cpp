@@ -23,7 +23,6 @@
 
 #include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
-#include "sim/team/team.hpp"
 #include "sim/referee/offside.hpp"
 #include "sim/referee/ball_rules.hpp"
 #include "sim/observation/mentalimage.hpp"
@@ -108,10 +107,10 @@ FoulAssessment LiveFoulAssessment(Player* tripee, Player* tripper, int tackleTyp
 }
 }  // namespace
 
-Referee::Referee(Team& kickoff_team, const Vector3& kickoff_position) {
+Referee::Referee(int kickoff_team_id, const Vector3& kickoff_position) {
   buffer.desiredSetPiece = e_GameMode_KickOff;
-  buffer.teamID = kickoff_team.GetID();
-  buffer.setpiece_team = &kickoff_team;
+  buffer.teamID = kickoff_team_id;
+  buffer.setpiece_team = kickoff_team_id;
   buffer.stop_tick = {};
   buffer.prepare_tick = {};
   buffer.start_tick = Tick{} + kRestartWhistle;
@@ -132,7 +131,7 @@ Referee::Referee(Team& kickoff_team, const Vector3& kickoff_position) {
 Referee::~Referee() {}
 
 void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
-                            const Vector3& kickoff_position, Team& kickoff_team) {
+                            const Vector3& kickoff_position, int kickoff_team_id) {
   buffer.active = false;
   buffer.taker = nullptr;
   buffer.endPhase = false;
@@ -152,8 +151,8 @@ void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
   buffer.restartPos = kickoff_position;
   buffer.active = true;
   buffer.endPhase = true;
-  buffer.teamID = kickoff_team.GetID();
-  buffer.setpiece_team = &kickoff_team;
+  buffer.teamID = kickoff_team_id;
+  buffer.setpiece_team = kickoff_team_id;
 }
 
 void Referee::Advance(const football::sim::rules::RefereeView& view,
@@ -221,7 +220,9 @@ void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
 
 void Referee::SettleGoalLine(const Vector3& ballPos, const RefereeTickFacts& facts,
                              RuleCommandSink& commands) {
-  const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
+  const auto team = [&](int id) -> const football::sim::TeamView& {
+    return id == 0 ? facts.home : facts.away;
+  };
   foul.advantage = false;
   bool isFoul = false;
   if (!facts.goal_scored) {
@@ -232,13 +233,13 @@ void Referee::SettleGoalLine(const Vector3& ballPos, const RefereeTickFacts& fac
   if (isFoul) return;
   commands.StopPlay();
   // corner, goal kick or kick off?
-  Team* lastTouchTeam = facts.last_touch_team;
-  if (lastTouchTeam == 0) lastTouchTeam = team(facts.first_team);
-  signed int lastSide = lastTouchTeam->GetStaticSide();
+  int lastTouchTeam = facts.last_touch_team;
+  if (lastTouchTeam < 0) lastTouchTeam = facts.first_team;
+  signed int lastSide = team(lastTouchTeam).static_side;
   if (facts.goal_scored) {
     buffer.desiredSetPiece = e_GameMode_KickOff;
     buffer.restartPos = Vector3(0, 0, 0);
-    buffer.teamID = facts.last_goal_team->Opponent()->GetID();
+    buffer.teamID = 1 - facts.last_goal_team;
   } else if ((ballPos.coords[0] > 0 && lastSide > 0) ||
              (ballPos.coords[0] < 0 && lastSide < 0)) {
     buffer.desiredSetPiece = e_GameMode_Corner;
@@ -246,42 +247,36 @@ void Referee::SettleGoalLine(const Vector3& ballPos, const RefereeTickFacts& fac
     if (y > 0) y = facts.pitch.half_width(); else
                y = -facts.pitch.half_width();
     buffer.restartPos = Vector3(facts.pitch.half_length() * lastSide, y, 0);
-    buffer.teamID = 1 - lastTouchTeam->GetID();
-  } else {
-    buffer.desiredSetPiece = e_GameMode_GoalKick;
-    buffer.restartPos = Vector3(facts.pitch.half_length() * 0.92 * -lastSide, 0, 0);
-    buffer.teamID = 1 - lastTouchTeam->GetID();
+    buffer.teamID = 1 - lastTouchTeam;
   }
-  ScheduleRestart({facts.now, team(buffer.teamID), facts.stadium_to_home});
+  ScheduleRestart({facts.now, buffer.teamID, facts.stadium_to_home});
 }
 
 void Referee::SettleTouchline(const Vector3& ballPos, const RefereeTickFacts& facts,
                               RuleCommandSink& commands) {
   if (post_restart_relax_ != TickSpan{}) return;
-  const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
   foul.advantage = false;
   if (CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, facts.home, facts.away, commands)) return;
   commands.StopPlay();
-  Team* lastTouchTeam = facts.last_touch_team;
-  if (lastTouchTeam == 0) lastTouchTeam = &facts.home;
-  buffer.teamID = 1 - lastTouchTeam->GetID();
+  int lastTouchTeam = facts.last_touch_team;
+  if (lastTouchTeam < 0) lastTouchTeam = facts.home.team_id;
+  buffer.teamID = 1 - lastTouchTeam;
   buffer.desiredSetPiece = e_GameMode_ThrowIn;
   buffer.restartPos.coords[0] = clamp(ballPos.coords[0], -facts.pitch.half_length() + 0.6f, facts.pitch.half_length() - 0.6f);
   if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = facts.pitch.half_width();
   if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -facts.pitch.half_width();
   buffer.restartPos.coords[2] = 0;
-  ScheduleRestart({facts.now, team(buffer.teamID), facts.stadium_to_home});
+  ScheduleRestart({facts.now, buffer.teamID, facts.stadium_to_home});
 }
 
 void Referee::GoalMouthCrossed(int side, const RefereeTickFacts& facts,
                                football::sim::event::RulingSink* rulings) {
   // The opponent of the side whose goal mouth was crossed scores.
-  Team* scorer_team = nullptr;
-  if (facts.home.GetDynamicSide() == -side) scorer_team = &facts.home;
-  else if (facts.away.GetDynamicSide() == -side) scorer_team = &facts.away;
-  if (scorer_team != nullptr && rulings != nullptr) {
-    rulings->Submit(football::sim::event::AwardGoalRuling{
-        scorer_team->GetTeamSide(), std::nullopt});
+  std::optional<football::sim::TeamSide> scorer_side;
+  if (facts.home.dynamic_side == -side) scorer_side = facts.home.side;
+  else if (facts.away.dynamic_side == -side) scorer_side = facts.away.side;
+  if (scorer_side.has_value() && rulings != nullptr) {
+    rulings->Submit(football::sim::event::AwardGoalRuling{*scorer_side, std::nullopt});
   }
 }
 
@@ -300,13 +295,15 @@ void Referee::ConsumeBallTouch(Tick now,
                                RuleCommandSink& commands) {
   Player* player = FindPlayer(view.tick, fact.player);
   if (player == nullptr) return;
-  Team* team = player->GetTeamID() == view.tick.home.GetID() ? &view.tick.home : &view.tick.away;
+  const football::sim::TeamView& team =
+      player->GetTeamID() == view.tick.home.team_id ? view.tick.home : view.tick.away;
   football::sim::rules::BallTouchFacts facts;
   facts.now = now;
   facts.touch_player = player;
-  facts.touch_team_id = team->GetID();
+  facts.touch_team_id = team.team_id;
   facts.touch_team = team;
-  facts.defending_team = team->Opponent();
+  facts.defending_team = team.team_id == view.tick.home.team_id ? view.tick.away
+                                                               : view.tick.home;
   facts.in_play = view.tick.play_authorized;
   facts.in_set_piece = view.tick.set_piece_active;
   facts.offsides_enabled = view.offsides_enabled;
@@ -323,10 +320,10 @@ void Referee::ConsumeBallTouch(Tick now,
 
 Player* Referee::FindPlayer(const RefereeTickFacts& facts,
                            football::player::PlayerId id) const {
-  for (Player* player : facts.home.GetAllPlayers()) {
+  for (Player* player : facts.home.players) {
     if (player->GetID() == id) return player;
   }
-  for (Player* player : facts.away.GetAllPlayers()) {
+  for (Player* player : facts.away.players) {
     if (player->GetID() == id) return player;
   }
   return nullptr;
@@ -337,12 +334,14 @@ void Referee::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
                                      RuleCommandSink& commands) {
   // Opening/half-time placement is intentionally separate from ordinary readiness.
   commands.ResetSituation(options.reverse_team_processing ? -buffer.restartPos : buffer.restartPos);
-  Team* first = facts.first_team == 0 ? &facts.home : &facts.away;
-  Team* second = facts.first_team == 0 ? &facts.away : &facts.home;
+  const football::sim::TeamView& first =
+      facts.first_team == 0 ? facts.home : facts.away;
+  const football::sim::TeamView& second =
+      facts.first_team == 0 ? facts.away : facts.home;
   Player *first_taker = PositionRestartPlayers(facts.pitch, first, e_GameMode_KickOff, second,
-      buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng, commands);
+      buffer.setpiece_team, buffer.teamID, facts.ball, facts.regulation, options, rng, commands);
   Player *second_taker = PositionRestartPlayers(facts.pitch, second, e_GameMode_KickOff, first,
-      buffer.setpiece_team->GetID(), buffer.teamID, facts.ball, facts.regulation, options, rng, commands);
+      buffer.setpiece_team, buffer.teamID, facts.ball, facts.regulation, options, rng, commands);
   buffer.taker = buffer.teamID == facts.first_team ? first_taker : second_taker;
   offsidePlayers.clear();
 }
@@ -393,13 +392,13 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
     for (auto p : offsidePlayers) {
       if (p == ballOwner) {
         foul.advantage = false;
-        if (!CheckFoul(facts.now, *facts.pitch, facts.stadium_to_home, *facts.touch_team, *facts.defending_team, commands)) {
+        if (!CheckFoul(facts.now, *facts.pitch, facts.stadium_to_home, facts.touch_team, facts.defending_team, commands)) {
           // uooooga uooooga offside!
           commands.StopPlay();
           buffer.desiredSetPiece = e_GameMode_FreeKick;
           buffer.restartPos = ballOwner->GetPitchPosition();
           buffer.teamID = defending_team_id;
-          ScheduleRestart({facts.now, facts.defending_team, facts.stadium_to_home});
+          ScheduleRestart({facts.now, facts.defending_team.team_id, facts.stadium_to_home});
           break; // Setup clears offside state on the next rule tick, not during this iteration.
         }
       }
@@ -423,8 +422,8 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
     // check for offside players at moment of touch
     MentalImage mentalImage(facts.now, facts.all_active_players, *facts.ball);
     float offside = football::sim::rules::GetOffsideLine(mentalImage, facts.now, *facts.pitch,
-        *facts.ball, defending_team_id, facts.defending_team->GetDynamicSide());
-    const signed int side = facts.touch_team->GetDynamicSide();
+        *facts.ball, defending_team_id, facts.defending_team.dynamic_side);
+    const signed int side = facts.touch_team.dynamic_side;
     for (Player* player : facts.all_active_players) {
       if (player->GetTeamID() != lastTouchTeamID) continue;
       if (player != facts.touch_player) {
@@ -499,11 +498,10 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
 
 
 bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
-                        PitchFrameTransform stadium_to_home, Team& home, Team& away,
+                        PitchFrameTransform stadium_to_home,
+                        const football::sim::TeamView& home,
+                        const football::sim::TeamView& away,
                         RuleCommandSink& commands) {
-  const auto team_of = [&](const Player* p) -> Team& {
-    return p->GetTeamID() == home.GetID() ? home : away;
-  };
 
   bool penalty = false;
   if (foul.foulType != 0) {
@@ -544,7 +542,7 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
                   0, 0)
         : foul.foulPosition;
     buffer.teamID = foul.foulVictim->GetTeamID();
-    ScheduleRestart({now, &team_of(foul.foulVictim), stadium_to_home},
+    ScheduleRestart({now, foul.foulVictim->GetTeamID(), stadium_to_home},
         foul.foulType >= 2 ? kCardAdministration : TickSpan{});
     if (foul.foulType == 2) {
       foul.foulPlayer->GiveYellowCard(now + kCardEffectDelay);
@@ -593,6 +591,9 @@ std::optional<Vector3> Referee::GetRestartTarget(const Player* player) const {
 void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& options,
                              football::math::Rng& rng, RuleCommandSink& commands) {
   auto& state = *buffer.restart;
+  const auto setpiece_view = [&]() -> const football::sim::TeamView& {
+    return buffer.setpiece_team == facts.home.team_id ? facts.home : facts.away;
+  };
   if (state.phase == RestartPhase::Taken) {
     state.phase = RestartPhase::InPlay;
     buffer.active = false;
@@ -611,10 +612,15 @@ void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& 
     }
     commands.ResetSituation(facts.ball_to_home.Position(buffer.restartPos));
     std::vector<Player*> active;
-    facts.home.GetActivePlayers(active);
-    facts.away.GetActivePlayers(active);
+    for (Player* actor : facts.home.players) {
+      if (actor->IsActive()) active.push_back(actor);
+    }
+    for (Player* actor : facts.away.players) {
+      if (actor->IsActive()) active.push_back(actor);
+    }
     state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
-        facts.ball.state().position), active, buffer.desiredSetPiece, *buffer.setpiece_team);
+        facts.ball.state().position), active, buffer.desiredSetPiece,
+        buffer.setpiece_team);
     for (const auto& actor : state.plan.players) {
       const auto frame = FromHomePitchFrame(actor.player->GetTeamSide(), actor.player->GetDynamicSide());
       actor.player->ResetPosition(actor.player->GetPosition(), frame.Position(state.plan.ball_position));
@@ -624,10 +630,15 @@ void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& 
   }
   if (!buffer.taker || !buffer.taker->IsActive()) {
     std::vector<Player*> active;
-    facts.home.GetActivePlayers(active);
-    facts.away.GetActivePlayers(active);
+    for (Player* actor : facts.home.players) {
+      if (actor->IsActive()) active.push_back(actor);
+    }
+    for (Player* actor : facts.away.players) {
+      if (actor->IsActive()) active.push_back(actor);
+    }
     state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
-        facts.ball.state().position), active, buffer.desiredSetPiece, *buffer.setpiece_team);
+        facts.ball.state().position), active, buffer.desiredSetPiece,
+        buffer.setpiece_team);
     buffer.taker = state.plan.taker;
   }
   if (facts.now < state.earliest_restart_tick) return;

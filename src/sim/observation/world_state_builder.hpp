@@ -3,10 +3,10 @@
 
 #include "sim/observation/world_state.hpp"
 #include "football/pitch/pitch.hpp"
+#include "sim/runtime/team_view.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
-class Team;
 class Referee;
 namespace football::pitch { class Pitch; }
 
@@ -28,8 +28,9 @@ struct WorldStateSource {
   const Player* ball_retainer;
   int score_home;
   int score_away;
-  Team& home;
-  Team& away;
+  // Borrowed team views; observation reads identity, direction and roster only.
+  football::sim::TeamView home;
+  football::sim::TeamView away;
   int first_team;  // 0 or 1; whose runtime frame the between-tick ball shares
 };
 

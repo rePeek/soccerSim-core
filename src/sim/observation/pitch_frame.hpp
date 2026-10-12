@@ -4,7 +4,6 @@
 #include "football/foundation/math/vector3.hpp"
 #include "sim/runtime/match_config.hpp"
 
-class Team;
 
 // Runtime-to-policy rotation around the pitch centre. Position and direction
 // share the same rotation; height/vertical velocity and vector lengths do not
@@ -28,14 +27,11 @@ class PitchFrameTransform {
 };
 
 // An actor's current processing frame -> fixed policy frame (Home defends -X).
-PitchFrameTransform ToHomePitchFrame(const Team& team);
-// Actor-only overload: avoids needing the owning Team object.
+// Teams are identified by their side and dynamic direction, never by a Team
+// object; the between-tick ball frame is derived from the first processing
+// roster by the composition root.
 PitchFrameTransform ToHomePitchFrame(football::sim::TeamSide side, int dynamic_side);
-// The between-tick ball frame is derived from the first processing roster by
-// the composition root; this header only exposes the per-team frame.
 // Fixed policy controls -> the actor's current processing frame.
-PitchFrameTransform FromHomePitchFrame(const Team& team);
-// Actor-only overload: avoids needing the owning Team object.
 PitchFrameTransform FromHomePitchFrame(football::sim::TeamSide side, int dynamic_side);
 
 #endif

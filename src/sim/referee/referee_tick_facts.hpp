@@ -3,17 +3,19 @@
 
 #include "football/pitch/pitch.hpp"
 #include "sim/runtime/phase.hpp"
+#include "sim/runtime/team_view.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "football/foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
-class Team;
 
 namespace football::sim::rules {
 
 // Borrowed for one referee call only. football::ball::Ball/actors remain live across synchronous
 // reset commands; copying their position before a reset would change readiness.
 // Configuration and RNG are separate explicit Process arguments.
+// Teams are borrowed views (identity + direction + roster slice + runtime match
+// state); Rules never holds or receives a Team object.
 struct RefereeTickFacts {
   Tick now;
   MatchPhase phase;
@@ -23,11 +25,12 @@ struct RefereeTickFacts {
   const football::ball::Ball& ball;
   const football::pitch::Pitch& pitch;
   TickSpan regulation;
-  Team& home;
-  Team& away;
+  football::sim::TeamView home;
+  football::sim::TeamView away;
   int first_team;
-  Team* last_touch_team;
-  Team* last_goal_team;
+  // Legacy team slots (0/1), -1 when the fact is unknown.
+  int last_touch_team = -1;
+  int last_goal_team = -1;
   PitchFrameTransform ball_to_home;
   PitchFrameTransform stadium_to_home;
 };

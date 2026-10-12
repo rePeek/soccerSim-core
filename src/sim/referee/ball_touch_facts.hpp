@@ -20,10 +20,10 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/observation/pitch_frame.hpp"
+#include "sim/runtime/team_view.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
-class Team;
 
 namespace football::sim::rules {
 
@@ -35,8 +35,8 @@ struct BallTouchFacts {
   football::sim::Tick now{};
   Player* touch_player = nullptr;
   int touch_team_id = -1;
-  Team* touch_team = nullptr;
-  Team* defending_team = nullptr;
+  football::sim::TeamView touch_team;
+  football::sim::TeamView defending_team;
   bool in_play = false;
   bool in_set_piece = false;
   bool offsides_enabled = false;

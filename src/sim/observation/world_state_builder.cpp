@@ -4,7 +4,6 @@
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
 #include "sim/referee/referee.hpp"
-#include "sim/team/team.hpp"
 
 WorldState BuildWorldState(const WorldStateSource& s) {
   WorldState world;
@@ -16,8 +15,10 @@ WorldState BuildWorldState(const WorldStateSource& s) {
   world.ball_in_play = s.ball_in_play;
   world.reset_sequence = s.reset_sequence;
 
-  const Team& first_roster = s.first_team == 0 ? s.home : s.away;
-  const auto ball_frame = ToHomePitchFrame(first_roster);
+  const football::sim::TeamView& first_roster =
+      s.first_team == 0 ? s.home : s.away;
+  const auto ball_frame =
+      ToHomePitchFrame(first_roster.side, first_roster.dynamic_side);
   world.ball_position = ball_frame.Position(s.ball.state().position);
   world.ball_velocity = ball_frame.Direction(s.ball.state().velocity);
   world.pitch = s.pitch;
@@ -32,14 +33,13 @@ WorldState BuildWorldState(const WorldStateSource& s) {
   }
   if (s.ball_retainer) world.ball_retainer = s.ball_retainer->GetID();
 
-  Team* rosters[2] = {&s.home, &s.away};
+  const football::sim::TeamView* rosters[2] = {&s.home, &s.away};
   const int score[2] = {s.score_home, s.score_away};
   for (int team_id = 0; team_id < 2; ++team_id) {
     world.teams[team_id].score = score[team_id];
-    const auto player_frame = ToHomePitchFrame(*rosters[team_id]);
-    std::vector<Player*> players;
-    rosters[team_id]->GetAllPlayers(players);
-    for (Player* player : players) {
+    const auto player_frame = ToHomePitchFrame(rosters[team_id]->side,
+                                               rosters[team_id]->dynamic_side);
+    for (Player* player : rosters[team_id]->players) {
       const PlayerKinematicState& state = player->GetKinematicState();
       WorldPlayerState observed{player->GetID(), player->GetTeamSide(),
           player_frame.Position(state.position), player_frame.Direction(state.velocity),
