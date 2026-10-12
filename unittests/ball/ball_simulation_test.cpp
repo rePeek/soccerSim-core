@@ -10,6 +10,7 @@
 
 #include <array>
 #include <stdexcept>
+#include <variant>
 #include <vector>
 
 #include "football/ball/ball.hpp"
@@ -154,7 +155,14 @@ TEST_CASE("The pitch scene carries the ground and goal colliders",
           "[unit][ball][simulation]") {
   const Pitch pitch;
   REQUIRE(pitch.colliders().size() == 7);
-  // Ground first, then posts/crossbars, with stable ids.
+  // Grass is the single ground plane, built first.
+  CHECK(std::holds_alternative<football::geometry::Plane>(pitch.colliders()[0].start));
+  // Goal furniture is capsules (four posts + two crossbars).
+  for (std::size_t i = 1; i < pitch.colliders().size(); ++i) {
+    CHECK(std::holds_alternative<football::geometry::Capsule>(
+        pitch.colliders()[i].start));
+  }
+  // Stable ids: ground 1, then the goal, in a fixed order.
   CHECK(pitch.colliders().front().id == 1);
   CHECK(pitch.colliders()[1].id == 2);
   CHECK(pitch.colliders().back().id == 7);

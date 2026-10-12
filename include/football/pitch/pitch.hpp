@@ -86,63 +86,69 @@ class Pitch {
 
   bool operator==(const Pitch&) const = default;
 
- private:
+private:
+  // Deterministic static collider: same shape at start and end (no motion).
+  static football::geometry::ColliderMotion StaticCollider(
+      football::geometry::ColliderId id,
+      football::geometry::ColliderShape shape,
+      football::geometry::ContactMaterial material) {
+    football::geometry::ColliderMotion motion;
+    motion.id = id;
+    motion.start = shape;
+    motion.end = shape;
+    motion.material = material;
+    return motion;
+  }
+
+  // The whole immutable scene, built once at construction.
   void BuildColliders() {
-    using football::geometry::Capsule;
-    using football::geometry::ColliderId;
-    using football::geometry::ColliderMotion;
-    using football::geometry::ColliderShape;
-    using football::geometry::ContactMaterial;
+    colliders_.clear();
+    colliders_.reserve(7);
+    BuildGrass();
+    BuildGoal();
+  }
+
+  // Grass: the ground plane the ball rolls on. Rolling resistance and grass
+  // height are the ground_* fields, not properties of the Plane geometry; the
+  // effective ball-ground restitution is the ground contact material.
+  void BuildGrass() {
     using football::geometry::Plane;
+    colliders_.push_back(StaticCollider(
+        kGroundColliderId,
+        Plane{blunted::Vector3(0, 0, 0), blunted::Vector3(0, 0, 1)},
+        ground_material_));
+  }
 
-    const auto static_collider = [](ColliderId id, ColliderShape shape,
-                                    ContactMaterial material) {
-      ColliderMotion motion;
-      motion.id = id;
-      motion.start = shape;
-      motion.end = shape;
-      motion.material = material;
-      return motion;
-    };
-
+  // Goal: four posts plus two crossbars, all steel.
+  void BuildGoal() {
+    using football::geometry::Capsule;
     const float x = half_length();
     const float y = goal_half_width();
     const float z = goal_height();
-    // Ground friction/handling is the world's; the posts are steel. The
-    // effective contact material is carried by each collider, exactly as the
-    // historical effective ball-ground restitution was.
-    const ContactMaterial ground{ground_material_};
-    const ContactMaterial steel{post_material_};
-
-    colliders_.clear();
-    colliders_.reserve(7);
-    colliders_.push_back(static_collider(
-        kGroundColliderId, Plane{blunted::Vector3(0, 0, 0), blunted::Vector3(0, 0, 1)},
-        ground));
-    colliders_.push_back(static_collider(
+    colliders_.push_back(StaticCollider(
         kLeftPostLowColliderId,
         Capsule{blunted::Vector3(-x, -y, 0), blunted::Vector3(-x, -y, z), kPostRadius},
-        steel));
-    colliders_.push_back(static_collider(
+        post_material_));
+    colliders_.push_back(StaticCollider(
         kLeftPostHighColliderId,
         Capsule{blunted::Vector3(-x, y, 0), blunted::Vector3(-x, y, z), kPostRadius},
-        steel));
-    colliders_.push_back(static_collider(
+        post_material_));
+    colliders_.push_back(StaticCollider(
         kRightPostLowColliderId,
         Capsule{blunted::Vector3(x, -y, 0), blunted::Vector3(x, -y, z), kPostRadius},
-        steel));
-    colliders_.push_back(static_collider(
+        post_material_));
+    colliders_.push_back(StaticCollider(
         kRightPostHighColliderId,
         Capsule{blunted::Vector3(x, y, 0), blunted::Vector3(x, y, z), kPostRadius},
-        steel));
-    colliders_.push_back(static_collider(
+        post_material_));
+    colliders_.push_back(StaticCollider(
         kLeftBarColliderId,
         Capsule{blunted::Vector3(-x, -y, z), blunted::Vector3(-x, y, z), kPostRadius},
-        steel));
-    colliders_.push_back(static_collider(
+        post_material_));
+    colliders_.push_back(StaticCollider(
         kRightBarColliderId,
         Capsule{blunted::Vector3(x, -y, z), blunted::Vector3(x, y, z), kPostRadius},
-        steel));
+        post_material_));
   }
 
   // Stable ids and geometry frozen because the CCD uses ColliderId for
