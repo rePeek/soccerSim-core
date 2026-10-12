@@ -4,3 +4,4 @@
 # football::simcore, football::ai, player/animation assets or a running match.
 
 add_subdirectory(foundation)
+add_subdirectory(ball)

@@ -39,9 +39,9 @@ Catch2 v3.7.1 is fetched only with `BUILD_TESTING=ON`. Both use `.cache/CPM`.
 `flake.nix` provides ccache and the root CMake sets `CMAKE_{C,CXX}_COMPILER_LAUNCHER`
 to it whenever it is found, so local rebuilds are cached automatically; a missing
 ccache is a silent no-op. `-j $(nproc)` uses all host cores.
-**The test suite was deleted and is being redesigned.** `unittests/CMakeLists.txt` is an
-empty placeholder; Catch2 and the `add_subdirectory(unittests)` hook remain wired up, so
-new unit executables can be registered there. `unittests/baselines/` no longer exists.
+**The test suite is small and unit-only.** `BUILD_TESTING=ON` fetches Catch2 and adds
+`unittests/`; see the layout and the two targets below. The former golden/end-to-end
+tier and `unittests/baselines/` are gone for good.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
@@ -136,7 +136,9 @@ tools/
 └── animBaker/              offline importers and callable bake/check/verify library + CLI
     └── import/legacy_*     offline-only XML, value codecs and required text helpers
 
-unittests/                        empty placeholder; suite under redesign
+unittests/                        small unit suites, one CTest entry each
+├── foundation/     Vector3, Quaternion, scalar, Tick, Rng math contract
+└── ball/           BallModel, CCD (SweepBall), response (impulse) and one-tick motion
 
 ## Build ownership and architecture
 
@@ -213,11 +215,20 @@ anim_baking → legacy_anim + animation/foundation
 
 ## Test targets
 
-There are currently no registered tests. All previous cases (unit, boundary,
-end-to-end, golden/baseline) and `unittests/baselines/` were deleted; the suite is
-being redesigned. The scaffolding remains: `BUILD_TESTING=ON` fetches Catch2 and
-adds `unittests/`, whose `CMakeLists.txt` is an empty placeholder. Register new unit
-executables there; keep each one on the smallest target that proves its module.
+Registered tests are unit-only; there is no golden/end-to-end tier.
+
+- `football_foundation_unit_tests` (`ctest -L unit`, name `foundation_unit`) links
+  only `football::foundation`: Vector3 length/dot/cross/normalization/rotation,
+  quaternion identity/composition/inverse/slerp, scalar clamp/wrap, Tick 100 Hz
+  exactness and overflow/negative-interval rejection, Rng determinism/range.
+- `football_ball_unit_tests` (name `ball_unit`) links only `football::ball`
+  (+ foundation/geometry it declares), never simcore/AI/animation assets:
+  BallModel validation, swept-sphere CCD against Plane/Sphere/Capsule (static,
+  moving, deforming), FirstContact tie-break, impulse/momentum and restitution/
+  friction response, and one-tick free fall/drag/spin/grass/landing plus the
+  Step/Predict/Reset/Mirror lifecycle and illegal-input rejection.
+- Keep each test on the smallest target and use analytic expectations (conserved
+  quantities, invariants), not values copied from the implementation.
 
 ## Autonomous runner and runtime authority
 
