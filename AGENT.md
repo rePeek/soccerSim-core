@@ -51,9 +51,13 @@ tier and `unittests/baselines/` are gone for good.
 **Never run a full match.** The only sanctioned validation is the bounded unit
 suites (`ctest --preset debug -L unit`). Do not run the `football_sim` app,
 `GameEnv`/`Simulation` end to end, or any long/multi-tick match simulation to
-check a change. It is not a test, it does not finish in Debug, and it must not
-be used to "smoke test" a refactor. If a runtime behaviour genuinely needs
-coverage, write a small, bounded, purpose-built test (a few ticks or one
+check a change. It is not a test, it must not be used to "smoke test" a
+refactor, and it is not even usable for a short bounded run: measured, the app
+does not terminate within 60 s even with `--half-duration-ms=100` (10 ticks per
+half) in a Release build, and it runs for hundreds of seconds in Debug. That is
+a property of the app in this environment, not of any particular change, so it
+proves nothing either way and only burns time. If a runtime behaviour genuinely
+needs coverage, write a small, bounded, purpose-built test (a few ticks or one
 constructor/one helper) instead of simulating a match.
 Core-only configuration needs network on the first dependency fetch:
 
@@ -129,9 +133,11 @@ src/                 implementations; public headers live in include/football/
 │                    compiled into libsimcore.so with everything else under src/
     ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
     ├── simulation_config.hpp match-level options value
-    ├── team/         TRANSITIONAL Team object; only the runtime state holder and
-    │                 the single place P5/P6 still have to drain. It no longer owns
-    │                 any player-facing algorithm.
+    ├── team/         TRANSITIONAL Team adapter. Since P6a it owns nothing: it
+    │                 borrows a Roster from Simulation and keeps only team match
+    │                 state plus Mirror/SwitchEnds. Simulation owns the players,
+    │                 their creation and their teardown. P6b drains it and deletes
+    │                 this directory.
     ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
     │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
     ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
@@ -252,14 +258,18 @@ anim_baking → legacy_anim + animation/foundation
   `sim/` headers and for module-private implementation headers.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   foundation must not depend on upper layers. sim must never depend on AI.
-- sim ownership boundary: `Roster` owns the player entities, Runtime owns the
-  match facts that cannot be derived from one player (`TeamMatchState`), and
-  `Player` owns only its own identity, `FormationEntry`, kinematics and
-  behaviour. `src/sim/player/` must never reference `Team` or iterate the
-  squad; team-level algorithms live in `src/sim/runtime/` (possession,
-  roster_possession, formation). A per-call `PlayerTeamView` (borrowed roster
-  slices + the live `TeamMatchState`) is how a player sees its team. `Team` is
-  transitional: only referee/observation/Simulation still consume it.
+- sim ownership boundary: `Simulation` owns `std::array<Roster, 2> rosters_`
+(the player entities) and `std::array<TeamSetup, 2> team_setups_` (the
+`PlayerDefinition` storage every `Player` references), Runtime owns the match
+facts that cannot be derived from one player (`TeamMatchState`), and `Player`
+owns only its own identity, `FormationEntry`, kinematics and behaviour.
+`src/sim/player/` must never reference `Team` or iterate the squad; team-level
+algorithms live in `src/sim/runtime/` (possession, roster_possession,
+formation). A per-call `PlayerTeamView` (borrowed roster slices + the live
+`TeamMatchState`) is how a player sees its team. `Team` is a transitional
+adapter that only borrows a `Roster` (P6a); Rules and Observation no longer see
+it at all (P5). P6b moves its remaining match state into Simulation and deletes
+`src/sim/team/`.
 - Modules are configured from the repository root: public headers live in the
   top-level include/football/ tree, so module directories are no longer
   standalone-configurable. The former src/model module is gone; its data lives
