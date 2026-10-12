@@ -182,7 +182,7 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
   heightFactor += fartherAwayPenalty;
 
   // make intercepting passes harder
-  if (touches.last_team != player->GetTeam()->GetID()) {
+  if (touches.last_team != player->GetTeamID()) {
     Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(touches, opponent);
     if (lastTouchPlayer) {
       float lastTouchBiasPenalty =

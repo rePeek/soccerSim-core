@@ -85,8 +85,8 @@ TEST_CASE("referee classifies a foul from frozen assessment evidence",
   fact.kind = football::sim::FoulKind::StandingFall;
   fact.victim = victim->GetID();
   fact.offender = offender->GetID();
-  fact.victim_team_id = victim->GetTeam()->GetID();
-  fact.offender_team_id = offender->GetTeam()->GetID();
+  fact.victim_team_id = victim->GetTeamID();
+  fact.offender_team_id = offender->GetTeamID();
   fact.victim_team_fading_possession = 1.2f;
   fact.offender_action_type = static_cast<int>(e_FunctionType_Interfere);
   fact.victim_position = victim->GetPosition();

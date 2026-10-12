@@ -102,7 +102,7 @@ class Referee {
                     football::sim::Tick now);
     // Foul facts carry their own timestamps; the caller supplies the evaluation instant.
     bool CheckFoul(football::sim::Tick now, const football::pitch::Pitch& pitch,
-                   PitchFrameTransform stadium_to_home,
+                   PitchFrameTransform stadium_to_home, Team& home, Team& away,
                    football::sim::rules::RuleCommandSink& commands);
     // Synchronous accepted-touch consumption (restart release / offside).
     void ConsumeBallTouch(football::sim::Tick now,

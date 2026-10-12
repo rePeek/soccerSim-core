@@ -86,7 +86,6 @@ constexpr bool allowPreTouchRotationSmuggle = false;
 
 Humanoid::Humanoid(Player *player, const AnimationLibrary& animations, blunted::Rng& rng)
     : HumanoidBase(player, animations, rng) {
-  team = CastPlayer()->GetTeam();
 }
 
 Humanoid::~Humanoid() {}
@@ -192,7 +191,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
           strike_radius = boot.radius;
         }
         tick.touch_preparation->PrepareTouch({
-            {now, CastPlayer()->GetID(), team->GetTeamSide(), type, tick.ball.state().position,
+            {now, CastPlayer()->GetID(), CastPlayer()->GetTeamSide(), type, tick.ball.state().position,
              *prepared_velocity, static_cast<int>(CastPlayer()->GetSimulationActionState().type)},
             body_part, prepared_anchor.value_or(currentAnim.touchPos + currentAnim.positionOffset),
             *prepared_velocity, prepared_anchor.has_value(),
@@ -215,7 +214,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   };
 
   bool instaDoorheb = false;
-  if (tick.touches.last_team == team->GetID()) instaDoorheb = true;
+  if (tick.touches.last_team == CastPlayer()->GetTeamID()) instaDoorheb = true;
   mentalImageTime = std::chrono::milliseconds{instaDoorheb ? 0 : CastPlayer()->GetReactionTime_ms()};
 
   // The authoritative movement state at tick start. Captured before
@@ -253,7 +252,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   const bool designated_possession_player =
       tick.designated_possession_player == player;
   const bool designated_team_possession_player =
-      team->GetDesignatedTeamPossessionPlayer() == player;
+      tick.own_team.GetDesignatedTeamPossessionPlayer() == player;
   const auto player_decision_cadence = PlayerDecisionCadenceForContext(
       designated_possession_player, designated_team_possession_player,
       decision_distance_to_ball);
@@ -267,7 +266,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     PlayerCommandQueue player_decision_commands;
     CastPlayer()->RequestCommand(player_decision_commands,
         {tick.ball, tick.touches, tick.restart,
-         ball_retainer, tick.pitch});
+         ball_retainer, tick.pitch, tick.own_team});
     CastPlayer()->PublishPlayerDecisionQueue(
         player_decision_commands, decision_now);
     bool has_movement = false;
@@ -316,8 +315,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       CastPlayer()->GetSimulationActionState();
   previousAnim_frameNum++;
 
-  assert(team);
-  int teamID = team->GetID();
+  int teamID = CastPlayer()->GetTeamID();
   Team& first_roster = tick.first_processing_team;
   Team& second_roster = tick.second_processing_team;
 
@@ -365,7 +363,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     } else if (tick.designated_possession_player == player) {
       frameNumPredicate = StaggeredRefreshDue(now, kOwner, football::sim::TickSpan{phase});
 
-    } else if (team->GetDesignatedTeamPossessionPlayer() == player) {
+    } else if (tick.own_team.GetDesignatedTeamPossessionPlayer() == player) {
       frameNumPredicate = StaggeredRefreshDue(now, kTeamOwner, football::sim::TickSpan{phase * 2});
 
     } else if (actionDistance < 5.0f) {
@@ -768,7 +766,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         float tmpBallPower = ballPower;
         Player *tmpTargetPlayer = 0;
         Player *forcedTargetPlayer = 0;
-        football::sim::mechanics::GetPass(CastPlayer(), currentAnim.originatingCommand.desiredFunctionType, inputDirection, currentAnim.originatingCommand.touchInfo.inputPower, currentAnim.originatingCommand.touchInfo.autoDirectionBias, currentAnim.originatingCommand.touchInfo.autoPowerBias, tmpBallDirection, tmpBallPower, tmpTargetPlayer, currentAnim.originatingCommand.touchInfo.forcedTargetPlayer);
+        football::sim::mechanics::GetPass(CastPlayer(), tick.own_team.GetAllPlayers(), currentAnim.originatingCommand.desiredFunctionType, inputDirection, currentAnim.originatingCommand.touchInfo.inputPower, currentAnim.originatingCommand.touchInfo.autoDirectionBias, currentAnim.originatingCommand.touchInfo.autoPowerBias, tmpBallDirection, tmpBallPower, tmpTargetPlayer, currentAnim.originatingCommand.touchInfo.forcedTargetPlayer);
         float maxDeviationAngle = 0.15f * pi;
         radian angleDiff = tmpBallDirection.Get2D().GetAngle2D(ballDirection.Get2D());
         if (std::fabs(angleDiff) <= maxDeviationAngle) {
@@ -792,7 +790,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         }  // else: just stick to original
 
         if (targetPlayer) {
-          team->SetDesignatedTeamPossessionPlayer(targetPlayer);
+          tick.own_team.SetDesignatedTeamPossessionPlayer(targetPlayer);
 
         }
         float zcurve = 0.0f;
@@ -912,7 +910,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
           Vector3 playerMovement = spatialState.movement;
           Vector3 touchVec =
               (-currentBallMovement * 0.1f + playerMovement * 2.0f +
-               Vector3(-team->GetDynamicSide(), 0, 0) * 4.0f +
+               Vector3(-CastPlayer()->GetDynamicSide(), 0, 0) * 4.0f +
                Vector3(0, rng_.Uniform(-1, 1), 0))
                   .GetNormalized(0) *
               (currentBallMovement.GetLength() * 0.3f +
@@ -1076,23 +1074,23 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     if (tick.ball.state().position.coords[1] < -20.05f) {
       OffsetPosition(Vector3(0, clamp(-20.05f - tick.ball.state().position.coords[1], -0.5f, 0.5f), 0) * 0.3f);
     }
-    if (tick.ball.state().position.coords[0] * -team->GetDynamicSide() >
+    if (tick.ball.state().position.coords[0] * -CastPlayer()->GetDynamicSide() >
         -tick.pitch.half_length() + 16.4f) {
       OffsetPosition(Vector3(clamp((-tick.pitch.half_length() + 16.4f) -
                                        tick.ball.state().position.coords[0] *
-                                           -team->GetDynamicSide(),
+                                           -CastPlayer()->GetDynamicSide(),
                                    -0.5f, 0.5f),
                              0, 0) *
-                     -team->GetDynamicSide() * 0.3f);
+                     -CastPlayer()->GetDynamicSide() * 0.3f);
     }
-    if (tick.ball.state().position.coords[0] * -team->GetDynamicSide() <
+    if (tick.ball.state().position.coords[0] * -CastPlayer()->GetDynamicSide() <
         -tick.pitch.half_length() + 0.1f) {
       OffsetPosition(Vector3(clamp((-tick.pitch.half_length() + 0.1f) -
                                        tick.ball.state().position.coords[0] *
-                                           -team->GetDynamicSide(),
+                                           -CastPlayer()->GetDynamicSide(),
                                    -0.5f, 0.5f),
                              0, 0) *
-                     -team->GetDynamicSide() * 0.4f);
+                     -CastPlayer()->GetDynamicSide() * 0.4f);
     }
   }
 
@@ -2212,7 +2210,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const footba
 
   if (!enableMovementSmuggle) return Vector3(0);
 
-  if (team->GetDesignatedTeamPossessionPlayer() != player || tick.designated_possession_player != player ||
+  if (tick.own_team.GetDesignatedTeamPossessionPlayer() != player || tick.designated_possession_player != player ||
       currentAnim.touchFrame != -1 || (currentAnim.functionType == e_FunctionType_Trip && GetCurrentBakedClip().metadata.trip_type != 1) || GetCurrentBakedClip().metadata.incoming_special_state.compare("") != 0 || GetCurrentBakedClip().metadata.outgoing_special_state.compare("") != 0 ||
       !tick.play_authorized || tick.set_piece_active || tick.ball_retainer != 0) return Vector3(0);
 

@@ -973,7 +973,7 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   Player* player = players.at(1);
   player->RelaxFatigue(-0.25f);
   const auto stat = football::player::PlayerStat::physical_reaction;
-  float multiplier = 0.3f + 0.7f * player->GetTeam()->GetAiDifficulty();
+  float multiplier = 0.3f + 0.7f * player->GetAiDifficulty();
   multiplier *= 0.7f + 0.3f * player->GetFatigueFactorInv();
   RequireNear(player->GetStat(stat),
               player->GetModel().attributes.get(stat) * multiplier,
@@ -989,7 +989,7 @@ void CheckFlattenedPlayerLifecycle(Simulation& simulation) {
   control.power = 0.6f;
   player->SetControl(control);
   PlayerCommandQueue commands;
-  player->RequestCommand(commands, SimulationAccess::CommandInputsOf(simulation));
+  player->RequestCommand(commands, SimulationAccess::CommandInputsOf(simulation, *player));
   player->ClearControl();
   Require(commands.size() == 2 &&
               commands.front().desiredFunctionType == e_FunctionType_Shot &&
@@ -1035,12 +1035,13 @@ static_assert(!HasAnimationRestartHook<Referee>);
 class RefereeFixture : public Referee {
  public:
   explicit RefereeFixture(Simulation& simulation)
-      : Referee(*SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)), SimulationAccess::OptionsOf(simulation).ball_position) {}
+      : Referee(*SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)), SimulationAccess::OptionsOf(simulation).ball_position),
+        simulation_(&simulation) {}
   void RecordFoul(Player* offender, Player* victim, int type,
                   const Vector3& position, football::sim::Tick now, bool advantage = false) {
     buffer.active = false;
     buffer.endPhase = false;
-    buffer.setpiece_team = victim->GetTeam();
+    buffer.setpiece_team = SimulationAccess::TeamOf(*simulation_, victim->GetTeamID());
     foul = Foul{};
     foul.foulPlayer = offender;
     foul.foulVictim = victim;
@@ -1049,6 +1050,8 @@ class RefereeFixture : public Referee {
     foul.foulPosition = position;
     foul.advantage = advantage;
   }
+ private:
+  Simulation* simulation_ = nullptr;
 };
 
 void CheckRefereeRules(Simulation& simulation) {
@@ -1067,7 +1070,7 @@ void CheckRefereeRules(Simulation& simulation) {
       const int foul_type = scenario == 4 ? 2 : scenario;
       if (scenario == 4) offender->GiveYellowCard(football::sim::Tick{});
       const Vector3 position = penalty
-          ? Vector3(-45.0f * victim->GetTeam()->GetStaticSide(), 0, 0)
+          ? Vector3(-45.0f * victim->GetStaticSide(), 0, 0)
           : Vector3(0, 0, 0);
       RefereeFixture rules(simulation);
       // Even advantage must be stopped for a penalty.
@@ -1076,15 +1079,14 @@ void CheckRefereeRules(Simulation& simulation) {
       const auto stopped = SimulationAccess::NowOf(simulation);
       Require(rules.CheckFoul(SimulationAccess::NowOf(simulation),
           SimulationAccess::PitchOf(simulation),
-          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
-          SimulationAccess::CommandsOf(simulation)), "unprocessed foul did not stop play");
+          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home, *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), SimulationAccess::CommandsOf(simulation)), "unprocessed foul did not stop play");
       const RefereeBuffer scheduled = rules.GetBuffer();
       const auto card_delay = foul_type >= 2 ? football::sim::Seconds(10) : football::sim::TickSpan{};
       const auto effective_time = SimulationAccess::NowOf(simulation) + football::sim::Seconds(6);
       Require(!SimulationAccess::IsInPlayOf(simulation) && scheduled.active &&
                   scheduled.desiredSetPiece == (penalty ? e_GameMode_Penalty
                                                         : e_GameMode_FreeKick) &&
-                  scheduled.teamID == victim->GetTeam()->GetID() &&
+                  scheduled.teamID == victim->GetTeamID() &&
                   scheduled.stop_tick == stopped &&
                   scheduled.restart.has_value() &&
                   scheduled.restart->earliest_restart_tick == stopped + card_delay +
@@ -1096,8 +1098,7 @@ void CheckRefereeRules(Simulation& simulation) {
               "rule restart/card budget changed or consumed RNG");
       Require(!rules.CheckFoul(SimulationAccess::NowOf(simulation),
           SimulationAccess::PitchOf(simulation),
-          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
-          SimulationAccess::CommandsOf(simulation)) &&
+          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home, *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), SimulationAccess::CommandsOf(simulation)) &&
                   rules.GetBuffer().restart->earliest_restart_tick == scheduled.restart->earliest_restart_tick &&
                   rules.GetBuffer().restart->timeout_tick == scheduled.restart->timeout_tick,
               "foul was processed twice or its deadline changed");
@@ -1144,14 +1145,12 @@ void CheckRefereeRules(Simulation& simulation) {
     advantage.RecordFoul(home.at(1), away.at(1), 1, Vector3(0), SimulationAccess::NowOf(simulation), true);
     Require(!advantage.CheckFoul(SimulationAccess::NowOf(simulation),
         SimulationAccess::PitchOf(simulation),
-          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
-        SimulationAccess::CommandsOf(simulation)) && SimulationAccess::IsInPlayOf(simulation),
+          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home, *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), SimulationAccess::CommandsOf(simulation)) && SimulationAccess::IsInPlayOf(simulation),
             "advantage should not immediately stop open play");
     simulation.AdvanceTime(football::sim::TickSpan{301});
     Require(!advantage.CheckFoul(SimulationAccess::NowOf(simulation),
         SimulationAccess::PitchOf(simulation),
-          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home,
-        SimulationAccess::CommandsOf(simulation)) && advantage.GetCurrentFoulType() == 0 &&
+          SimulationAccess::RefereeFactsOf(simulation).stadium_to_home, *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), SimulationAccess::CommandsOf(simulation)) && advantage.GetCurrentFoulType() == 0 &&
                 SimulationAccess::IsInPlayOf(simulation), "expired advantage was not cancelled");
   }
 

@@ -57,7 +57,7 @@ TEST_CASE("Player tactical sampling consumes only the tick-local supplied histor
     supplied[0].maxDistanceDeviation = 1000.0f;
     for (auto& image : supplied[0].players) image.position = actor->GetPosition();
     const auto position = actor->GetPosition();
-    const auto forward_focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
+    const auto forward_focus = position + Vector3(-actor->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
     const auto forward = player::CalculateFreeSpace(SimulationAccess::NowOf(simulation), &supplied[0], actor->GetTeamID(), forward_focus, 5.0f, 0.5f);
     const auto space = player::CalculateFreeSpace(SimulationAccess::NowOf(simulation), &supplied[0], actor->GetTeamID(),
         position + actor->GetMovement() * 0.1f, 5.0f, 0.1f);
@@ -201,7 +201,7 @@ TEST_CASE("Player tactical refresh honors supplied tick and authorization",
       *SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation)), *SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation)), 0, false,
       SimulationAccess::RngOf(simulation)};
   const auto position = actor->GetPosition();
-  const auto focus = position + Vector3(-actor->GetTeam()->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
+  const auto focus = position + Vector3(-actor->GetDynamicSide(), 0, 0) * sprintVelocity * 0.5f;
   const float expected = player::CalculateFreeSpace(tick.now, &history[0], actor->GetTeamID(), focus, 5.0f, 0.5f);
   REQUIRE(expected == 1.f);
   REQUIRE(actor->GetTacticalSituation().forwardSpaceRating == 0.f);

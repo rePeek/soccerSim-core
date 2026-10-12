@@ -19,7 +19,7 @@ void PrepareTeamPossession(Team& team, const Team& opponent, bool play_authorize
   fading += clamp(tmpFadingTeamPossessionAmount - fading, -0.005f, 0.005f);
   if (!play_authorized || set_piece_active || retainer != 0) {
     if (retainer != 0) {
-      fading = amount = (retainer->GetTeam() == &team) ? 1.5f : 0.5f;
+      fading = amount = (retainer->GetTeamID() == team.GetID()) ? 1.5f : 0.5f;
     } else {
       fading = amount = (best_possession_team == &team) ? 1.5f : 0.5f;
     }
@@ -49,7 +49,7 @@ void FinishTeamPossession(Team& team, const Team& opponent) {
 void RefreshTeamPossession(Team& team, const Team& opponent, Ball& ball,
                           Tick now, const Player* retainer) {
   for (Player* actor : team.GetAllPlayers()) {
-    if (actor->IsActive()) actor->UpdatePossessionStats(ball, opponent, now, retainer);
+    if (actor->IsActive()) actor->UpdatePossessionStats(ball, opponent, now, retainer, team.GetDesignatedTeamPossessionPlayer());
   }
   bool hasPossession = false;
   int timeNeededToGetToBall_ms = 100000;

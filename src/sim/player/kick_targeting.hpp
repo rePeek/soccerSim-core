@@ -15,6 +15,7 @@
 #ifndef FOOTBALL_SIM_PLAYER_KICK_TARGETING_HPP
 #define FOOTBALL_SIM_PLAYER_KICK_TARGETING_HPP
 
+#include <span>
 #include "foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
 #include "animation/types.hpp"
@@ -26,7 +27,8 @@ class Player;
 namespace football::sim::mechanics {
 
 // Pass/shot direction and power used both when queuing and executing kicks.
-void GetPass(Player *player, e_FunctionType passType,
+void GetPass(Player *player, std::span<Player *const> teammates,
+             e_FunctionType passType,
              const Vector3 &inputDirection, float inputPower,
              float autoDirectionBias, float autoPowerBias,
              Vector3 &resultingDirection, float &resultingPower,

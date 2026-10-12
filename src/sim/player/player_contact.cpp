@@ -39,8 +39,8 @@ void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
   const PlayerActionState& action = offender->GetSimulationActionState();
   fact.offender = offender->GetID();
   fact.victim = victim->GetID();
-  fact.victim_team_id = victim->GetTeam()->GetID();
-  fact.offender_team_id = offender->GetTeam()->GetID();
+  fact.victim_team_id = victim->GetTeamID();
+  fact.offender_team_id = offender->GetTeamID();
   fact.contacted_at = now;
   fact.position = victim->GetPitchPosition();
   fact.victim_position = victim->GetPosition();
@@ -54,7 +54,7 @@ void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
   fact.offender_contact_position = action.contactPosition;
   fact.offender_last_touch_tick = offender->GetLastTouchTick();
   fact.victim_team_fading_possession =
-      victim->GetTeam()->GetFadingTeamPossessionAmount();
+      victim->GetTeamFadingPossessionAmount();
 }
 
 // Legacy sliding severity, computed once from the frozen evidence. The
@@ -149,8 +149,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       if (p2 == inputs.designated_possession_player) bounceBias -= 0.4f;
 
       // closest to ball
-      if (p1 == p1->GetTeam()->GetDesignatedTeamPossessionPlayer() &&
-          p2 == p2->GetTeam()->GetDesignatedTeamPossessionPlayer()) {
+      if (p1 == p1->GetTeamDesignatedPossessionPlayer() &&
+          p2 == p2->GetTeamDesignatedPossessionPlayer()) {
         float p1BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p1->GetPosition()).GetLength();
         float p2BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p2->GetPosition()).GetLength();
         float ballDistanceDiffFactor = clamp(std::min(p2BallDistance, 1.2f) - std::min(p1BallDistance, 1.2f), -0.6f, 0.6f) * 1.0f; // std::min is cap so difference won't matter if ball is far away (so only used in battles about the ball)
@@ -229,8 +229,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       if (p2 == inputs.designated_possession_player) similarBias -= 0.6f;
 
       // closest to ball
-      if (p1 == p1->GetTeam()->GetDesignatedTeamPossessionPlayer() &&
-          p2 == p2->GetTeam()->GetDesignatedTeamPossessionPlayer()) {
+      if (p1 == p1->GetTeamDesignatedPossessionPlayer() &&
+          p2 == p2->GetTeamDesignatedPossessionPlayer()) {
         float p1BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p1->GetPosition()).GetLength();
         float p2BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}, football::ball::BallEnvironment{}).position.Get2D() - p2->GetPosition()).GetLength();
         float ballDistanceDiffFactor = clamp(std::min(p2BallDistance, 1.2f) - std::min(p1BallDistance, 1.2f), -0.6f, 0.6f) * 1.0f; // std::min is cap so difference won't matter if ball is far away (so only used in battles about the ball)

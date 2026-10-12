@@ -157,7 +157,7 @@ TEST_CASE("foul assessment returns at most one offender per collision",
   REQUIRE(first_falls->ball_position == fixture.ball.state().position);
   REQUIRE(first_falls->offender_frame == away->GetCurrentFrame());
   REQUIRE(first_falls->victim_team_fading_possession ==
-          home->GetTeam()->GetFadingTeamPossessionAmount());
+          home->GetTeamFadingPossessionAmount());
 
   auto second_falls = AssessCollision(home, away, 0.1f, 0.8f, fixture.ball, now);
   REQUIRE(second_falls.has_value());

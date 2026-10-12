@@ -90,7 +90,7 @@ void Run(unsigned seed, TickSpan half_duration, bool reverse, bool symmetric) {
   std::map<Key, Samples> ordinary, ceremonies;
   std::array<TickSpan, 2> regulation{}, effective{}, event_dead_time{};
   std::array<HalfMetrics, 2> metrics{};
-  const auto roster = [&](int side) -> const std::vector<Player*>& {
+  const auto roster = [&](int side) -> std::span<Player* const> {
     return SimulationAccess::TeamOf(simulation, side)->GetAllPlayers();
   };
   const auto roster_size = roster(0).size() + roster(1).size();

@@ -41,7 +41,7 @@ WorldState BuildWorldState(const WorldStateSource& s) {
     rosters[team_id]->GetAllPlayers(players);
     for (Player* player : players) {
       const PlayerKinematicState& state = player->GetKinematicState();
-      WorldPlayerState observed{player->GetID(), player->GetTeam()->GetTeamSide(),
+      WorldPlayerState observed{player->GetID(), player->GetTeamSide(),
           player_frame.Position(state.position), player_frame.Direction(state.velocity),
           player_frame.Direction(state.facing), player->IsActive(), player->HasPossession()};
       observed.lazy = player->GetFormationEntry().lazy;

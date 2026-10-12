@@ -110,7 +110,7 @@ void Simulation::BeginBodyPhysicsShadow() {
     if (!old_hit || (prediction.start.position + Vector3(0, 0, .8f) - ball_->state().position).GetLength() >= 2.5f)
       blocks |= BodyOldGeometryMiss;
     const int latest_team = touches_.last_team != -1 ? touches_.last_team : first_team_;
-    if (player == player->GetTeam()->GetDesignatedTeamPossessionPlayer() &&
+    if (player == player->GetTeamDesignatedPossessionPlayer() &&
         football::sim::event::TeamTouchBias(touches_, *teams_[latest_team], 200, now) < .01f) blocks |= BodyControlledRoute;
     for (std::size_t part = 0; part < kPlayerBodyPartCount; ++part) {
       const auto& collider = prediction.colliders[part];

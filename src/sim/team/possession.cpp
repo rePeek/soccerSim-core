@@ -12,7 +12,7 @@ PossessionSelection EvaluatePossession(Team& first, Team& second,
                                       Player* ball_retainer) {
   PossessionSelection selection{nullptr, current_designated};
   if (ball_retainer != 0) {
-    selection.best_team = ball_retainer->GetTeam();
+    selection.best_team = ball_retainer->GetTeamID() == first.GetID() ? &first : &second;
   } else {
     int bestTime_ms[2] = {100000, 100000};
     bestTime_ms[0] = first.GetTimeNeededToGetToBall_ms();
@@ -38,7 +38,7 @@ PossessionSelection EvaluatePossession(Team& first, Team& second,
       }
     } else {
       // just stick with current team
-      selection.designated_player = current_designated->GetTeam()->GetDesignatedTeamPossessionPlayer();
+      selection.designated_player = (current_designated->GetTeamID() == first.GetID() ? first : second).GetDesignatedTeamPossessionPlayer();
     }
   } else {
     selection.designated_player = ball_retainer;

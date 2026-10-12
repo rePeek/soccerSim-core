@@ -124,8 +124,9 @@ src/
 │   │                 shadow-only Snapshot touch inference
 │   ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
 │   │                 rules and restarts
-│   ├── runtime/      MatchClock/MatchPhase/MatchResult, match_config.hpp (TeamSetup
-│   │                 + TeamSide) and the initial/tactical formation declarations
+│   ├── runtime/      MatchClock/MatchPhase/MatchResult, Roster (owns player
+│   │                 entities), match_config.hpp (TeamSetup + TeamSide) and the
+│   │                 initial/tactical formation declarations
 │   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
 │   └── player/       Player + PlayerDefinition, player_role, tick-local inputs,
 │       │             controls, locomotion, possession, contacts, roster_query
@@ -695,9 +696,13 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   PlayerDatabaseId
   is import provenance only. No ID remapping/allocator, PlayerIndex, generic IDs
   module, TeamId or ambient actor numbering. Roster positions are local indices.
-- Player holds a reference to the player::PlayerDefinition owned by Team; Team copies
-  the sim::TeamSetup and derives runtime FormationEntries. Simulation owns score/possession.
-  Sample factories live in app/fixtures, never core.
+- Player holds no Team object. It owns only its own identity (team_id_/side_),
+  its static formation entry and a PlayerTeamFacts projection (dynamic/static side,
+  possession amounts, designated possession player) that Runtime/Team republishes
+  on every change. Cross-player reads take a borrowed std::span<Player* const>.
+- The runtime Roster owns the player entities and their stable order; Team copies
+  the sim::TeamSetup and derives runtime FormationEntries. Simulation owns score/
+  possession. Sample factories live in app/fixtures, never core.
 - Reject invalid/duplicate IDs, empty rosters, formation/profile mismatch and invalid
   time rules before consuming RNG. Init seeds to 0, draws one Uniform(1,4) per
   declared profile (even explicit appearance and omitted formation profiles), then

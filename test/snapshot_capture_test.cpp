@@ -46,7 +46,7 @@ void RequireLatest(Simulation& simulation, std::uint64_t steps) {
       REQUIRE(observed.position == expected.position);
       REQUIRE(observed.velocity == expected.velocity);
       REQUIRE(observed.facing == expected.facing);
-      REQUIRE(observed.body_facing == ToHomePitchFrame(*actor->GetTeam()).Direction(
+      REQUIRE(observed.body_facing == ToHomePitchFrame(actor->GetTeamSide(), actor->GetDynamicSide()).Direction(
           actor->GetKinematicState().bodyFacing));
       REQUIRE(observed.active == expected.active);
       REQUIRE(observed.has_possession == expected.has_possession);
@@ -139,7 +139,8 @@ TEST_CASE("Snapshot history survives resets time jumps send-offs and unequal ros
   REQUIRE(simulation.Snapshots().Find(Tick{500}, 2) == nullptr);
   auto* actor = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   actor->SendOff(*SimulationAccess::BallOf(simulation), Tick{simulation.Observe().tick},
-                SimulationAccess::RngOf(simulation));
+                SimulationAccess::RngOf(simulation),
+                *SimulationAccess::TeamOf(simulation, actor->GetTeamID()));
   simulation.Step({});
   RequireLatest(simulation, 2);
   REQUIRE(simulation.Snapshots().Latest()->stamp.generation >= old.stamp.generation + 2);

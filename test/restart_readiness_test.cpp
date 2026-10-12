@@ -69,7 +69,7 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
           const auto again = PlanRestart(SimulationAccess::PitchOf(simulation), ball, active, mode, *SimulationAccess::TeamOf(simulation, taking_team));
           REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);
           REQUIRE(plan.taker != nullptr);
-          REQUIRE(plan.taker->GetTeam()->GetID() == taking_team);
+          REQUIRE(plan.taker->GetTeamID() == taking_team);
           REQUIRE(plan.ball_position.GetDistance(focus) < 0.001f);
           REQUIRE(plan.players.size() == 22);
           REQUIRE(plan.taker == again.taker);
@@ -84,17 +84,17 @@ TEST_CASE("restart plans are pure and legal through both processing orders and c
           simulation.Mirror(reverse, !reverse, false);
           REQUIRE(RestartPlayersReady(plan, SimulationAccess::PitchOf(simulation))); // Predicate is not tied to a transient mirror.
           for (const auto& target : plan.players) {
-            const auto observed = ToHomePitchFrame(*target.player->GetTeam()).Position(target.player->GetPosition());
+            const auto observed = ToHomePitchFrame(target.player->GetTeamSide(), target.player->GetDynamicSide()).Position(target.player->GetPosition());
             REQUIRE(observed.GetDistance(target.position) < 0.001f);
             if (target.player == plan.taker) continue;
             if (mode == e_GameMode_KickOff)
-              REQUIRE(observed.coords[0] * (target.player->GetTeam()->GetID() == 0 ? -1 : 1) >= 0);
-            if (target.player->GetTeam()->GetID() != taking_team &&
+              REQUIRE(observed.coords[0] * (target.player->GetTeamID() == 0 ? -1 : 1) >= 0);
+            if (target.player->GetTeamID() != taking_team &&
                 (mode == e_GameMode_FreeKick || mode == e_GameMode_Corner || mode == e_GameMode_KickOff))
               REQUIRE(observed.GetDistance(focus) >= 9.15f);
           }
           auto* taker = plan.taker;
-          const auto frame = FromHomePitchFrame(*taker->GetTeam());
+          const auto frame = FromHomePitchFrame(taker->GetTeamSide(), taker->GetDynamicSide());
           auto target = plan.players.front().position;
           for (const auto& entry : plan.players) if (entry.player == taker) target = entry.position;
           taker->ResetPosition(frame.Position(target + Vector3(1, 0, 0)), frame.Position(focus));
@@ -117,8 +117,8 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     REQUIRE(RestartPlayersReady(state.plan, SimulationAccess::PitchOf(simulation)));
     PlayerControl shot;
     shot.action = ControlAction::Shoot;
-    REQUIRE(BuildPlayerCommands(shot, *state.plan.taker, SimulationAccess::CommandInputsOf(simulation)).size() == 1);
-    REQUIRE(BuildPlayerCommands(shot, *state.plan.taker, SimulationAccess::CommandInputsOf(simulation))[0].desiredFunctionType == e_FunctionType_Movement);
+    REQUIRE(BuildPlayerCommands(shot, *state.plan.taker, SimulationAccess::CommandInputsOf(simulation, *state.plan.taker)).size() == 1);
+    REQUIRE(BuildPlayerCommands(shot, *state.plan.taker, SimulationAccess::CommandInputsOf(simulation, *state.plan.taker))[0].desiredFunctionType == e_FunctionType_Movement);
     simulation.AdvanceTime((state.earliest_restart_tick - SimulationAccess::NowOf(simulation)) - TickSpan{1});
     ProcessRules(simulation);
     REQUIRE_FALSE(SimulationAccess::IsInPlayOf(simulation));
@@ -132,7 +132,7 @@ TEST_CASE("restart authorization needs minimum time, legal actors and a placed s
     REQUIRE_FALSE(SimulationAccess::IsInPlayOf(simulation));
     SetBallHome(simulation, state.plan.ball_position);
     auto* opponent = SimulationAccess::TeamOf(simulation, 1 - state.plan.team->GetID())->GetAllPlayers()[1];
-    const auto frame = FromHomePitchFrame(*opponent->GetTeam());
+    const auto frame = FromHomePitchFrame(opponent->GetTeamSide(), opponent->GetDynamicSide());
     opponent->ResetPosition(frame.Position(state.plan.ball_position), frame.Position(state.plan.ball_position));
     ProcessRules(simulation);
     REQUIRE_FALSE(SimulationAccess::IsInPlayOf(simulation));
@@ -189,7 +189,7 @@ TEST_CASE("restart positioning executes physics and produces condition-dependent
       PlaceRestartPlayersAtTimeout(state.plan);
       for (const auto& entry : state.plan.players) {
         if (entry.player != state.plan.taker) continue;
-        const auto frame = FromHomePitchFrame(*entry.player->GetTeam());
+        const auto frame = FromHomePitchFrame(entry.player->GetTeamSide(), entry.player->GetDynamicSide());
         entry.player->ResetPosition(frame.Position(entry.position + Vector3(layout == 0 ? 5.f : 25.f, 0, 0)),
                                    frame.Position(state.plan.ball_position));
       }

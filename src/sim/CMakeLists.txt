@@ -32,7 +32,7 @@ target_sources(football_sim PRIVATE
   event/accepted_touch.hpp event/accepted_touch_sink.hpp
   referee/ruling.hpp event/match_event.hpp event/event_log.hpp
   event/touch_query.cpp event/touch_query.hpp
-  runtime/clock.cpp runtime/clock.hpp
+  runtime/clock.cpp runtime/clock.hpp runtime/roster.cpp runtime/roster.hpp
   team/team.cpp team/team.hpp team/formation.cpp team/formation.hpp
   team/formation_roles.cpp team/formation_entry.hpp
   team/possession.cpp team/possession.hpp

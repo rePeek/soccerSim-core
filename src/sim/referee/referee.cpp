@@ -72,8 +72,8 @@ FoulAssessment LiveFoulAssessment(Player* tripee, Player* tripper, int tackleTyp
   fact.kind = tackleType == 3 ? FoulKind::SlidingTackle : FoulKind::StandingFall;
   fact.victim = tripee->GetID();
   fact.offender = tripper->GetID();
-  fact.victim_team_id = tripee->GetTeam()->GetID();
-  fact.offender_team_id = tripper->GetTeam()->GetID();
+  fact.victim_team_id = tripee->GetTeamID();
+  fact.offender_team_id = tripper->GetTeamID();
   fact.contacted_at = now;
   fact.position = tripee->GetPitchPosition();
   fact.victim_position = tripee->GetPosition();
@@ -87,7 +87,7 @@ FoulAssessment LiveFoulAssessment(Player* tripee, Player* tripper, int tackleTyp
   fact.offender_contact_position = action.contactPosition;
   fact.offender_last_touch_tick = tripper->GetLastTouchTick();
   fact.victim_team_fading_possession =
-      tripee->GetTeam()->GetFadingTeamPossessionAmount();
+      tripee->GetTeamFadingPossessionAmount();
   // Sliding severity is normally frozen by the solver; reproduce it for the
   // test adapter only.
   float severity = 1.0;
@@ -225,7 +225,7 @@ void Referee::SettleGoalLine(const Vector3& ballPos, const RefereeTickFacts& fac
   foul.advantage = false;
   bool isFoul = false;
   if (!facts.goal_scored) {
-    isFoul = CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, commands);
+    isFoul = CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, facts.home, facts.away, commands);
   } else {
     foul.foulType = 0;
   }
@@ -260,7 +260,7 @@ void Referee::SettleTouchline(const Vector3& ballPos, const RefereeTickFacts& fa
   if (post_restart_relax_ != TickSpan{}) return;
   const auto team = [&](int id) { return id == 0 ? &facts.home : &facts.away; };
   foul.advantage = false;
-  if (CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, commands)) return;
+  if (CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, facts.home, facts.away, commands)) return;
   commands.StopPlay();
   Team* lastTouchTeam = facts.last_touch_team;
   if (lastTouchTeam == 0) lastTouchTeam = &facts.home;
@@ -287,7 +287,7 @@ void Referee::GoalMouthCrossed(int side, const RefereeTickFacts& facts,
 
 void Referee::CheckPendingFoul(const football::sim::rules::RefereeView& view,
                                RuleCommandSink& commands) {
-  CheckFoul(view.tick.now, view.tick.pitch, view.tick.stadium_to_home, commands);
+  CheckFoul(view.tick.now, view.tick.pitch, view.tick.stadium_to_home, view.tick.home, view.tick.away, commands);
 }
 
 
@@ -300,7 +300,7 @@ void Referee::ConsumeBallTouch(Tick now,
                                RuleCommandSink& commands) {
   Player* player = FindPlayer(view.tick, fact.player);
   if (player == nullptr) return;
-  Team* team = player->GetTeam();
+  Team* team = player->GetTeamID() == view.tick.home.GetID() ? &view.tick.home : &view.tick.away;
   football::sim::rules::BallTouchFacts facts;
   facts.now = now;
   facts.touch_player = player;
@@ -393,7 +393,7 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
     for (auto p : offsidePlayers) {
       if (p == ballOwner) {
         foul.advantage = false;
-        if (!CheckFoul(facts.now, *facts.pitch, facts.stadium_to_home, commands)) {
+        if (!CheckFoul(facts.now, *facts.pitch, facts.stadium_to_home, *facts.touch_team, *facts.defending_team, commands)) {
           // uooooga uooooga offside!
           commands.StopPlay();
           buffer.desiredSetPiece = e_GameMode_FreeKick;
@@ -499,14 +499,17 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
 
 
 bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
-                        PitchFrameTransform stadium_to_home,
+                        PitchFrameTransform stadium_to_home, Team& home, Team& away,
                         RuleCommandSink& commands) {
+  const auto team_of = [&](const Player* p) -> Team& {
+    return p->GetTeamID() == home.GetID() ? home : away;
+  };
 
   bool penalty = false;
   if (foul.foulType != 0) {
     if (fabs(foul.foulPosition.coords[1]) < 20.15f - pitch.line_half_width() &&
         foul.foulPosition.coords[0] *
-                -foul.foulVictim->GetTeam()->GetStaticSide() >
+                -foul.foulVictim->GetStaticSide() >
             pitch.half_length() - pitch.penalty_area_depth() + pitch.line_half_width())
       penalty = true;
   }
@@ -523,7 +526,7 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
           foul.foulType = 0;
         } else {
           // calculate if there's advantage still
-          if (foul.foulVictim->GetTeam()->GetFadingTeamPossessionAmount() <
+          if (foul.foulVictim->GetTeamFadingPossessionAmount() <
               1.0) {
             foul.advantage = false;
           }
@@ -537,11 +540,11 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
     commands.StopPlay();
     buffer.desiredSetPiece = penalty ? e_GameMode_Penalty : e_GameMode_FreeKick;
     buffer.restartPos = penalty
-        ? Vector3((pitch.half_length() - pitch.penalty_mark_distance()) * foul.foulPlayer->GetTeam()->GetStaticSide(),
+        ? Vector3((pitch.half_length() - pitch.penalty_mark_distance()) * foul.foulPlayer->GetStaticSide(),
                   0, 0)
         : foul.foulPosition;
-    buffer.teamID = foul.foulVictim->GetTeam()->GetID();
-    ScheduleRestart({now, foul.foulVictim->GetTeam(), stadium_to_home},
+    buffer.teamID = foul.foulVictim->GetTeamID();
+    ScheduleRestart({now, &team_of(foul.foulVictim), stadium_to_home},
         foul.foulType >= 2 ? kCardAdministration : TickSpan{});
     if (foul.foulType == 2) {
       foul.foulPlayer->GiveYellowCard(now + kCardEffectDelay);
@@ -613,7 +616,7 @@ void Referee::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& 
     state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
         facts.ball.state().position), active, buffer.desiredSetPiece, *buffer.setpiece_team);
     for (const auto& actor : state.plan.players) {
-      const auto frame = FromHomePitchFrame(*actor.player->GetTeam());
+      const auto frame = FromHomePitchFrame(actor.player->GetTeamSide(), actor.player->GetDynamicSide());
       actor.player->ResetPosition(actor.player->GetPosition(), frame.Position(state.plan.ball_position));
     }
     buffer.taker = state.plan.taker;

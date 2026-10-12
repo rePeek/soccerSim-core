@@ -23,6 +23,7 @@
 #include <memory>
 #include <span>
 #include "sim/runtime/match_config.hpp"
+#include "sim/runtime/roster.hpp"
 #include "sim/player/player.hpp"
 
 class AnimationLibrary;
@@ -73,9 +74,10 @@ class Team {
     FormationEntry GetFormationEntry(void* player);
     void SetFormationEntry(Player* player, FormationEntry entry);
     float GetAiDifficulty() const { return aiDifficulty; }
-    const std::vector<Player *> &GetAllPlayers() const { return player_views_; }
-    void GetAllPlayers(std::vector<Player*> &allPlayers) {
-      allPlayers.insert(allPlayers.end(), player_views_.begin(), player_views_.end());
+    std::span<Player *const> GetAllPlayers() const { return roster_.Players(); }
+    void GetAllPlayers(std::vector<Player*> &allPlayers) const {
+      const auto players = roster_.Players();
+      allPlayers.insert(allPlayers.end(), players.begin(), players.end());
     }
     void GetActivePlayers(std::vector<Player *> &activePlayers);
     int GetActivePlayersCount() const;
@@ -92,6 +94,7 @@ class Team {
     // Data publication only; tick/refresh algorithms live in player/possession.
     void SetPossessionAmounts(float amount, float fading) {
       teamPossessionAmount = amount; fadingTeamPossessionAmount = fading;
+      PublishTeamFacts();
     }
     void SetPossessionEstimate(bool has, int arrival_ms) {
       hasPossession = has; timeNeededToGetToBall_ms = arrival_ms;
@@ -105,13 +108,24 @@ class Team {
     // Contact/reachability metadata, not input selection or ownership.
     void SetDesignatedTeamPossessionPlayer(Player *player) {
       designatedTeamPossessionPlayer = player;
+      PublishTeamFacts();
+    }
+    // Publishes the team's current match facts to every player. Player stores a
+    // projection only; it never holds a Team object.
+    PlayerTeamFacts TeamFacts() const {
+      return PlayerTeamFacts{side, static_side_, side == static_side_,
+                             teamPossessionAmount, fadingTeamPossessionAmount,
+                             designatedTeamPossessionPlayer};
+    }
+    void PublishTeamFacts() {
+      for (Player* p : roster_.Players()) p->SetTeamContext(TeamFacts());
     }
 
     void RelaxFatigue(float howMuch);
 
 
 
-    Player *GetGoalie();
+    Player *GetGoalie() const;
 
   protected:
     const int id;
@@ -128,9 +142,8 @@ class Team {
     float fadingTeamPossessionAmount = 0.0f;
 
 
-    // Ownership; raw views below are stable for the whole team lifetime.
-    std::vector<std::unique_ptr<Player>> players_;
-    std::vector<Player*> player_views_;
+    // Ownership lives in the Roster; Team keeps only match state (below).
+    football::sim::Roster roster_;
 
 
     int side = -1;

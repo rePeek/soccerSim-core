@@ -70,8 +70,6 @@ class Humanoid : public HumanoidBase {
                                      std::span<MentalImage> history);
     Vector3 GetBestPossibleTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
                                  const Vector3 &desiredTouch, e_FunctionType functionType);
-
-    Team *team;
 };
 
 #endif

@@ -34,7 +34,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   // Value controls use home pitch coordinates; convert at consumption, after
   // Simulation selects the actor's processing frame. Never mutate caller data.
   PlayerControl control = input;
-  const auto runtime_frame = FromHomePitchFrame(*player.GetTeam());
+  const auto runtime_frame = FromHomePitchFrame(player.GetTeamSide(), player.GetDynamicSide());
   control.move_direction = runtime_frame.Direction(control.move_direction);
   if (control.look_at) control.look_at = runtime_frame.Position(*control.look_at);
   if (control.target_position) control.target_position = runtime_frame.Position(*control.target_position);
@@ -69,7 +69,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     command.touchInfo.autoDirectionBias = control.target_position ? 0.f : 1.f;
     command.touchInfo.autoPowerBias = control.power > 0.f ? 0.f : 1.f;
     if (control.target_player) {
-      for (Player *candidate : player.GetTeam()->GetAllPlayers()) {
+      for (Player *candidate : inputs.own_team.GetAllPlayers()) {
         if (candidate->IsActive() && candidate->GetID() == *control.target_player &&
             candidate != &player) {
           command.touchInfo.targetPlayer = candidate;
@@ -89,7 +89,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
           &player, inputs.pitch, command.touchInfo.inputDirection, command.touchInfo.autoDirectionBias);
       command.touchInfo.desiredPower = control.power;
     } else {
-      football::sim::mechanics::GetPass(&player, command.desiredFunctionType,
+      football::sim::mechanics::GetPass(&player, inputs.own_team.GetAllPlayers(), command.desiredFunctionType,
           command.touchInfo.inputDirection, command.touchInfo.inputPower,
           command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias,
           command.touchInfo.desiredDirection, command.touchInfo.desiredPower,
@@ -98,14 +98,14 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   }
   if (control.action == ControlAction::Save) {
     // Hands legality belongs to execution/rules, not a cooperative policy.
-    Team *team = player.GetTeam();
+    const Team& team = inputs.own_team;
     const Vector3 ball = inputs.ball.Predict(football::sim::TickSpan{16}, football::ball::BallEnvironment{}).position;
-    const bool backpass = inputs.touches.last_team == team->GetID() &&
-        football::sim::event::LastTouchPlayer(inputs.touches, *team) != &player &&
-        inputs.touches.last_team_by_type[e_TouchType_Intentional_Kicked] == team->GetID();
-    if (team->GetGoalie() != &player || inputs.retainer || backpass ||
+    const bool backpass = inputs.touches.last_team == team.GetID() &&
+        football::sim::event::LastTouchPlayer(inputs.touches, team) != &player &&
+        inputs.touches.last_team_by_type[e_TouchType_Intentional_Kicked] == team.GetID();
+    if (team.GetGoalie() != &player || inputs.retainer || backpass ||
         std::fabs(ball.coords[1]) > 20.05f ||
-        ball.coords[0] * -team->GetDynamicSide() > -inputs.pitch.half_length() + 16.4f)
+        ball.coords[0] * -player.GetDynamicSide() > -inputs.pitch.half_length() + 16.4f)
       return {movement};
     command.useDesiredMovement = false;
     command.useDesiredLookAt = false;

@@ -70,7 +70,7 @@ TEST_CASE("physical retention overrides selection without changing the retention
   ArrivalTeam first(0), second(1); // No designated players: retainer must bypass reads.
   first.Arrival(0); second.Arrival(100000);
   const auto selection = EvaluatePossession(first, second, nullptr, retainer);
-  REQUIRE(selection.best_team == retainer->GetTeam());
+  REQUIRE(selection.best_team == SimulationAccess::TeamOf(simulation, retainer->GetTeamID()));
   REQUIRE(selection.designated_player == retainer);
   REQUIRE(SimulationAccess::BallRetainerOf(simulation) == nullptr); // Caller alone owns the input fact.
 }
@@ -93,7 +93,8 @@ TEST_CASE("possession hysteresis preserves unsigned add, float ratio and strict 
     // Observe a complete refresh cadence; initialization may start mid-animation.
     for (int tick = 0; tick < 10; ++tick) {
       candidate->UpdatePossessionStats(*SimulationAccess::BallOf(simulation), *SimulationAccess::TeamOf(simulation, 0),
-          SimulationAccess::NowOf(simulation), SimulationAccess::BallRetainerOf(simulation));
+          SimulationAccess::NowOf(simulation), SimulationAccess::BallRetainerOf(simulation),
+          SimulationAccess::TeamOf(simulation, candidate->GetTeamID())->GetDesignatedTeamPossessionPlayer());
       simulation.AdvanceTime(football::sim::TickSpan{1});
     }
     const unsigned int old_time = current->GetTimeNeededToGetToBall_ms();

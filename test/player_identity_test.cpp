@@ -146,7 +146,7 @@ void CheckIdentityDoesNotDriveSimulation(bool reverse) {
   std::vector<Player*> players;
   SimulationAccess::TeamOf(renamed, 1)->GetAllPlayers(players);
   PlayerCommandQueue commands;
-  players[0]->RequestCommand(commands, SimulationAccess::CommandInputsOf(renamed));
+  players[0]->RequestCommand(commands, SimulationAccess::CommandInputsOf(renamed, *players[0]));
   Require(commands.size() == 1 && commands[0].desiredVelocityFloat == move.desired_speed,
           "controls did not bind by model identity");
   const WorldState replay_target = renamed.Observe();
@@ -354,7 +354,7 @@ void CheckHistoricalScheduling(bool print_baseline) {
     Require(simulation.Observe().ball_in_play_time <= simulation.Observe().regulation_time &&
                 simulation.Observe().regulation_time.value <= simulation.Observe().tick,
             "identity fixture broke the three-clock ordering");
-    SimulationAccess::SendOff(simulation, *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers().at(1));
+    SimulationAccess::SendOff(simulation, *SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1]);
     for (int tick = 0; tick < 300; ++tick) football::test::StepDefaultAI(simulation, policy);
     const auto after = CaptureScheduleState(simulation);
     if (print_baseline) {

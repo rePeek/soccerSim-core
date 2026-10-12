@@ -64,7 +64,7 @@ TEST_CASE("simulation has no implicit AI command source", "[sim][boundary]") {
   for (int side = 0; side < 2; ++side) {
     for (Player *player : SimulationAccess::TeamOf(runtime.simulation, side)->GetAllPlayers()) {
       PlayerCommandQueue queue;
-      player->RequestCommand(queue, SimulationAccess::CommandInputsOf(runtime.simulation));
+      player->RequestCommand(queue, SimulationAccess::CommandInputsOf(runtime.simulation, *player));
       REQUIRE(queue.size() == 1);
       REQUIRE(queue[0].desiredFunctionType == e_FunctionType_Movement);
       REQUIRE(queue[0].desiredVelocityFloat == 0.f);
@@ -147,7 +147,7 @@ TEST_CASE("control translation resolves identity and converts the pitch frame", 
       control.target_position = Vector3(30, 10, 0);
       control.power = 0.4f;
       const PlayerControl retained = control;
-      auto queue = BuildPlayerCommands(control, *player, SimulationAccess::CommandInputsOf(runtime.simulation));
+      auto queue = BuildPlayerCommands(control, *player, SimulationAccess::CommandInputsOf(runtime.simulation, *player));
       REQUIRE(queue.size() == 2);
       REQUIRE(queue[0].desiredFunctionType == e_FunctionType_ShortPass);
       REQUIRE(queue[1].desiredFunctionType == e_FunctionType_Movement);
@@ -166,10 +166,10 @@ TEST_CASE("control translation resolves identity and converts the pitch frame", 
       REQUIRE(queue[0].touchInfo.desiredDirection.coords[2] > 0.f);
       REQUIRE(queue[0].touchInfo.desiredPower > 0.f);
       SimulationAccess::SendOff(runtime.simulation, *players[2]);
-      queue = BuildPlayerCommands(control, *player, SimulationAccess::CommandInputsOf(runtime.simulation));
+      queue = BuildPlayerCommands(control, *player, SimulationAccess::CommandInputsOf(runtime.simulation, *player));
       REQUIRE(queue[0].touchInfo.forcedTargetPlayer == nullptr);
       control.target_player = player->GetID();
-      queue = BuildPlayerCommands(control, *player, SimulationAccess::CommandInputsOf(runtime.simulation));
+      queue = BuildPlayerCommands(control, *player, SimulationAccess::CommandInputsOf(runtime.simulation, *player));
       REQUIRE(queue[0].touchInfo.forcedTargetPlayer == nullptr);
     }
   }
@@ -211,10 +211,10 @@ TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]")
   PlayerControl save;
   save.action = ControlAction::Save;
   SimulationAccess::ResetBall(runtime.simulation, Vector3(-52, 0, 0));
-  REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Deflect);
-  REQUIRE(BuildPlayerCommands(save, *team->GetAllPlayers()[1], SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
+  REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation, *keeper))[0].desiredFunctionType == e_FunctionType_Deflect);
+  REQUIRE(BuildPlayerCommands(save, *team->GetAllPlayers()[1], SimulationAccess::CommandInputsOf(runtime.simulation, *team->GetAllPlayers()[1]))[0].desiredFunctionType == e_FunctionType_Movement);
   SimulationAccess::ResetBall(runtime.simulation, Vector3(0));
-  REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
+  REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation, *keeper))[0].desiredFunctionType == e_FunctionType_Movement);
   SimulationAccess::ResetBall(runtime.simulation, Vector3(-52, 0, 0));
   auto& touch_sink = SimulationAccess::EventsOf(runtime.simulation);
   touch_sink.OnAcceptedTouch(football::sim::event::AcceptedTouch{
@@ -222,7 +222,7 @@ TEST_CASE("save requests cannot bypass keeper hands legality", "[sim][control]")
       team->GetTeamSide(), e_TouchType_Intentional_Kicked,
       SimulationAccess::BallOf(runtime.simulation)->state().position,
       SimulationAccess::BallOf(runtime.simulation)->state().velocity});
-  REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
+  REQUIRE(BuildPlayerCommands(save, *keeper, SimulationAccess::CommandInputsOf(runtime.simulation, *keeper))[0].desiredFunctionType == e_FunctionType_Movement);
 }
 
 TEST_CASE("rules prepare and release restarts through value controls without AI objects", "[sim][rules]") {
@@ -296,13 +296,13 @@ TEST_CASE("explicit controls are the sole command source and absence is idle", "
   controls.Set(player->GetID(), control);
   runtime.simulation.Step(controls);
   PlayerCommandQueue queue;
-  player->RequestCommand(queue, SimulationAccess::CommandInputsOf(runtime.simulation));
+  player->RequestCommand(queue, SimulationAccess::CommandInputsOf(runtime.simulation, *player));
   REQUIRE(queue.size() == 1);
   REQUIRE(queue[0].desiredVelocityFloat == control.desired_speed);
   REQUIRE(Same(queue[0].desiredDirection, control.move_direction));
   // Inputs are owned values; an empty next tick does not retain the old command.
   runtime.simulation.Step(PlayerControlSet{});
-  player->RequestCommand(queue, SimulationAccess::CommandInputsOf(runtime.simulation));
+  player->RequestCommand(queue, SimulationAccess::CommandInputsOf(runtime.simulation, *player));
   REQUIRE(queue.size() == 1);
   REQUIRE(queue[0].desiredVelocityFloat == 0.f);
 }
@@ -496,12 +496,13 @@ TEST_CASE("Command authorization consumes supplied restart, ball and touch facts
   football::sim::event::TouchState touches;
   RefereeBuffer restart = SimulationAccess::RefereeOf(runtime.simulation)->GetBuffer();
   restart.active = false;
-  const PlayerCommandInputs inputs{ball, touches, restart, nullptr, SimulationAccess::PitchOf(runtime.simulation)};
+  const PlayerCommandInputs inputs{ball, touches, restart, nullptr,
+      SimulationAccess::PitchOf(runtime.simulation), team};
   const auto rng = SimulationAccess::RngOf(runtime.simulation).engine();
   PlayerControl save; save.action = ControlAction::Save;
   REQUIRE(BuildPlayerCommands(save, keeper, inputs)[0].desiredFunctionType == e_FunctionType_Deflect);
   // Ambient ball at midfield and its unrelated restart do not authorize this save.
-  REQUIRE(BuildPlayerCommands(save, keeper, SimulationAccess::CommandInputsOf(runtime.simulation))[0].desiredFunctionType == e_FunctionType_Movement);
+  REQUIRE(BuildPlayerCommands(save, keeper, SimulationAccess::CommandInputsOf(runtime.simulation, keeper))[0].desiredFunctionType == e_FunctionType_Movement);
   touches.Record(0, team.GetAllPlayers()[1]->GetID(), e_TouchType_Intentional_Kicked);
   REQUIRE(BuildPlayerCommands(save, keeper, inputs)[0].desiredFunctionType == e_FunctionType_Movement);
   touches.Reset();

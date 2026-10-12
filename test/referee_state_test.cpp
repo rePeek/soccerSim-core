@@ -168,8 +168,8 @@ TEST_CASE("standing trip notices use explicit Ball and tick facts without a Matc
     auto* tackler = SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetAllPlayers()[1];
     victim->ResetPosition(Vector3(3, 4, 0), Vector3(4, 4, 0));
     tackler->ResetPosition(Vector3(2, 4, 0), Vector3(4, 4, 0));
-    victim->GetTeam()->SetFadingTeamPossessionAmount(1.2f);
-    tackler->GetTeam()->SetFadingTeamPossessionAmount(1.2f);
+    SimulationAccess::TeamOf(simulation, victim->GetTeamID())->SetFadingTeamPossessionAmount(1.2f);
+    SimulationAccess::TeamOf(simulation, tackler->GetTeamID())->SetFadingTeamPossessionAmount(1.2f);
     ScopedRuleAction action(*tackler);
     action.state.type = e_FunctionType_Interfere;
     const auto rng = SimulationAccess::RngOf(simulation).engine();
@@ -183,8 +183,8 @@ TEST_CASE("standing trip notices use explicit Ball and tick facts without a Matc
       Vector3 ball_position(3, 4, 100); // Standing distance retains the old 2D projection.
       if (scenario == 1) ball_position.coords[0] += 2; // Strict distance <2.
       // The legacy >1.1 uses a double literal: float 1.1f is slightly ABOVE it.
-      if (scenario == 2) victim->GetTeam()->SetFadingTeamPossessionAmount(0x1.199998p0f);
-      else victim->GetTeam()->SetFadingTeamPossessionAmount(scenario == 6 ? 1.1f : 1.2f);
+      if (scenario == 2) SimulationAccess::TeamOf(simulation, victim->GetTeamID())->SetFadingTeamPossessionAmount(0x1.199998p0f);
+      else SimulationAccess::TeamOf(simulation, victim->GetTeamID())->SetFadingTeamPossessionAmount(scenario == 6 ? 1.1f : 1.2f);
       action.state.type = scenario == 3 ? e_FunctionType_Movement : e_FunctionType_Interfere;
       referee.buffer.active = scenario == 4;
       referee.TripNotice(scenario == 5 ? tackler : victim, tackler, 2, Tick{9001}, ball_position);
@@ -373,7 +373,7 @@ TEST_CASE("foul evaluation timing comes from the supplied instant, not Match",
       football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   auto* offender = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto* victim = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
-  victim->GetTeam()->SetFadingTeamPossessionAmount(1.2f);
+  SimulationAccess::TeamOf(simulation, victim->GetTeamID())->SetFadingTeamPossessionAmount(1.2f);
   RefereeStateFixture referee(simulation);
   football::test::RuleCommandProbe commands;
   referee.buffer.active = false;
@@ -383,14 +383,14 @@ TEST_CASE("foul evaluation timing comes from the supplied instant, not Match",
   referee.foul.advantage = true;
   referee.foul.foul_tick = Tick{100};
   referee.foul.hasBeenProcessed = false;
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck + TickSpan{1}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kRecheck + TickSpan{1}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), commands));
   REQUIRE(referee.foul.advantage); // Kept while the victim side still has possession.
   REQUIRE(referee.foul.foulType == 1);
   REQUIRE(referee.foul.foulPlayer == offender); // Expires only past the advantage window.
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
-  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry + TickSpan{1}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{100} + kExpiry + TickSpan{1}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), commands));
   REQUIRE(commands.calls.empty());
   REQUIRE(referee.foul.foulType == 0);
   REQUIRE(referee.foul.foulPlayer == nullptr);
@@ -445,7 +445,7 @@ TEST_CASE("foul commands schedule and card from supplied tick and stadium frame"
   referee.foul.hasBeenProcessed = false;
   football::test::RuleCommandProbe commands;
   const auto rng = SimulationAccess::RngOf(simulation).engine();
-  REQUIRE(referee.CheckFoul(Tick{8001}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(true), commands));
+  REQUIRE(referee.CheckFoul(Tick{8001}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(true), *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), commands));
   REQUIRE(commands.calls == std::vector<std::string>{"stop"});
   REQUIRE(referee.buffer.setpiece_team == SimulationAccess::TeamOf(simulation, 1));
   REQUIRE(referee.buffer.restartPos == Vector3(-12, -6, 0));
@@ -453,7 +453,7 @@ TEST_CASE("foul commands schedule and card from supplied tick and stadium frame"
   REQUIRE(referee.buffer.restart->earliest_restart_tick == Tick{9001});
   REQUIRE(referee.buffer.restart->timeout_tick == Tick{12001});
   REQUIRE(referee.foul.foulPlayer->HasCards());
-  REQUIRE_FALSE(referee.CheckFoul(Tick{9001}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), commands));
+  REQUIRE_FALSE(referee.CheckFoul(Tick{9001}, SimulationAccess::PitchOf(simulation), PitchFrameTransform(false), *SimulationAccess::TeamOf(simulation, 0), *SimulationAccess::TeamOf(simulation, 1), commands));
   REQUIRE(commands.calls.size() == 1);
   REQUIRE(SimulationAccess::NowOf(simulation) == Tick{});
   REQUIRE(SimulationAccess::RngOf(simulation).engine() == rng);

@@ -152,7 +152,7 @@ TEST_CASE("kick targeting preserves forced recipients and manual shot direction"
     Vector3 direction;
     float power = 0;
     Player *target = nullptr;
-    football::sim::mechanics::GetPass(kicker, type, Vector3(1, 0, 0), 0.25f,
+    football::sim::mechanics::GetPass(kicker, players, type, Vector3(1, 0, 0), 0.25f,
                                      0.5f, 0.5f, direction, power, target, recipient);
     CHECK(target == recipient);
     CHECK(std::isfinite(power));

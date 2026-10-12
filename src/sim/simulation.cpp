@@ -330,7 +330,7 @@ void Simulation::ApplyCardRuling(const football::sim::event::CardRuling& ruling)
     player->GiveYellowCard(ruling.effective_at);
   }
   event_log_.Record(football::sim::event::CardShownEvent{GetTimelineTick(),
-      player->GetTeam()->GetTeamSide(), ruling.player, ruling.type >= 3});
+      player->GetTeamSide(), ruling.player, ruling.type >= 3});
 }
 
 void Simulation::ApplyPendingRulings() {
@@ -511,7 +511,7 @@ void Simulation::Init(
       snapshot_players.push_back(player);
       metadata.player_ids.push_back(player->GetID());
       player_slots.player_ids.push_back(player->GetID());
-      player_slots.team_sides.push_back(player->GetTeam()->GetTeamSide());
+      player_slots.team_sides.push_back(player->GetTeamSide());
     }
   }
   std::map<football::ball::ColliderId,
@@ -885,7 +885,7 @@ void Simulation::UpdateRecentPossession(football::sim::TickSpan admitted) {
   if (IsBallInPlay() && !set_piece_active_) {
     // Continuous possession window in SI seconds, derived from admitted ticks.
     const float seconds = football::sim::ToSeconds(admitted);
-    if (teams_[0].get() == designated_possession_player_->GetTeam()) {
+    if (designated_possession_player_ != nullptr && designated_possession_player_->GetTeamID() == 0) {
       possession_60_seconds_ = std::max(possession_60_seconds_ - seconds, -60.0f);
     } else {
       possession_60_seconds_ = std::min(possession_60_seconds_ + seconds, 60.0f);
@@ -913,7 +913,7 @@ void Simulation::CaptureSnapshot() {
     Player& player = *snapshot_players_[i];
     auto& dst = snapshot_scratch_.players[i];
     const auto& kinematic = player.GetKinematicState();
-    const auto frame = ToHomePitchFrame(*player.GetTeam());
+    const auto frame = ToHomePitchFrame(player.GetTeamSide(), player.GetDynamicSide());
     dst.position = frame.Position(kinematic.position);
     dst.velocity = frame.Direction(kinematic.velocity);
     dst.facing = frame.Direction(kinematic.facing);

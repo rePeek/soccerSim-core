@@ -63,7 +63,7 @@ Vector3 PhysicalBall(Simulation& simulation) {
 
 void SetPhysicalPlayer(Player& player, Vector3 position) {
   Vector3 focus = position + Vector3(3.f, 4.f, 0.f);
-  if (!player.GetTeam()->onOriginalSide()) {
+  if (!player.OnOriginalSide()) {
     position.Mirror();
     focus.Mirror();
   }
@@ -179,12 +179,12 @@ TEST_CASE("canonical controls round trip through each actor runtime frame",
         control.action = ControlAction::Shoot;
         control.power = 0.6f;
         const PlayerControl retained = control;
-        const bool mirror = player.GetTeam()->GetDynamicSide() != (team == 0 ? -1 : 1);
+        const bool mirror = player.GetDynamicSide() != (team == 0 ? -1 : 1);
         auto direction = control.move_direction;
         auto look_at = *control.look_at;
         auto target = *control.target_position;
         if (mirror) { direction.Mirror(); look_at.Mirror(); target.Mirror(); }
-        const auto queue = BuildPlayerCommands(control, player, SimulationAccess::CommandInputsOf(simulation));
+        const auto queue = BuildPlayerCommands(control, player, SimulationAccess::CommandInputsOf(simulation, player));
         REQUIRE(queue.size() == 2);
         REQUIRE(queue[0].desiredFunctionType == e_FunctionType_Shot);
         REQUIRE(queue[1].desiredDirection == direction.Get2D().GetNormalized(player.GetDirectionVec()));
@@ -195,8 +195,8 @@ TEST_CASE("canonical controls round trip through each actor runtime frame",
         REQUIRE(Same(*control.look_at, *retained.look_at));
         REQUIRE(Same(*control.target_position, *retained.target_position));
 
-        const auto to_home = ToHomePitchFrame(*player.GetTeam());
-        const auto from_home = FromHomePitchFrame(*player.GetTeam());
+        const auto to_home = ToHomePitchFrame(player.GetTeamSide(), player.GetDynamicSide());
+        const auto from_home = FromHomePitchFrame(player.GetTeamSide(), player.GetDynamicSide());
         const Vector3 value(-0.0f, 7.f, 0.4f);
         REQUIRE(Same(to_home.Position(from_home.Position(value)), value));
         REQUIRE(Same(to_home.Direction(from_home.Direction(value)), value));

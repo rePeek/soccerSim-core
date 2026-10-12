@@ -32,6 +32,7 @@
 #include "sim/player/player_decision_scheduler.hpp"
 #include "sim/player/player_control.hpp"
 #include "sim/team/formation_entry.hpp"
+#include "sim/runtime/match_config.hpp"
 #include "sim/event/touch_type.hpp"
 #include "foundation/time/tick_boundary.hpp"
 #include "sim/player/player_tick_context.hpp"
@@ -146,6 +147,18 @@ struct TacticalPlayerSituation {
 };
 
 class Team;
+class Player;
+
+// Facts Runtime publishes to each Player. This is a per-tick projection of its
+// team's match state; Player never stores or owns a Team object.
+struct PlayerTeamFacts {
+  int dynamic_side = -1;
+  int static_side = -1;
+  bool on_original_side = true;
+  float possession_amount = 1.0f;
+  float fading_possession_amount = 1.0f;
+  Player* designated_possession_player = nullptr;
+};
 
 // Concrete football-player runtime; no shared official-actor base remains.
 class Player final {
@@ -153,7 +166,10 @@ class Player final {
   friend class HumanoidBase;
 
   public:
-    Player(Team *team, const football::player::PlayerDefinition& model, std::uint8_t schedule_phase,
+    Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
+           const football::player::PlayerDefinition& model,
+           const FormationEntry& formation_entry,
+           std::uint8_t schedule_phase,
            const AnimationLibrary& animations, const football::pitch::Pitch& pitch, blunted::Rng& rng);
     ~Player();
     // Explicit teardown reset before deletion; no hidden clock/RNG destructor path.
@@ -376,8 +392,21 @@ class Player final {
     void ResetSituation(const Vector3 &focusPos, football::sim::Tick now);
 
     Humanoid *CastHumanoid();
-    int GetTeamID() const;
-    Team *GetTeam() const;
+    int GetTeamID() const { return team_id_; }
+    football::sim::TeamSide GetTeamSide() const { return side_; }
+    // Per-tick processing-frame direction (mirror counter), not persistent.
+    int GetDynamicSide() const { return team_facts_.dynamic_side; }
+    int GetStaticSide() const { return team_facts_.static_side; }
+    bool OnOriginalSide() const { return team_facts_.on_original_side; }
+    float GetTeamFadingPossessionAmount() const {
+      return team_facts_.fading_possession_amount;
+    }
+    Player* GetTeamDesignatedPossessionPlayer() const {
+      return team_facts_.designated_possession_player;
+    }
+    float GetAiDifficulty() const { return ai_difficulty_; }
+    // Runtime publishes the per-tick match facts; Player never holds Team.
+    void SetTeamContext(const PlayerTeamFacts& facts) { team_facts_ = facts; }
     Vector3 GetPitchPosition();
     bool TouchPending() const { return GetSimulationActionState().IsContactPending(); }
     bool TouchAnim() const { return GetSimulationActionState().HasScheduledContact(); }
@@ -385,7 +414,8 @@ class Player final {
     int GetTouchFrame() const { return GetSimulationActionState().ContactFrame(); }
     int GetCurrentFrame() const { return GetSimulationActionState().Frame(); }
     void SelectRetainAnim() { humanoid->SelectRetainAnim(); }
-    FormationEntry GetFormationEntry();
+    FormationEntry GetFormationEntry() const { return formationEntry_; }
+    void SetFormationEntry(FormationEntry entry) { formationEntry_ = entry; }
     void SetDynamicFormationEntry(FormationEntry entry) { dynamicFormationEntry = entry; }
     FormationEntry GetDynamicFormationEntry() { return dynamicFormationEntry; }
     bool HasPossession() const;
@@ -400,13 +430,13 @@ class Player final {
     void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
     bool IsControlledBallCollisionTriggered() { return triggerControlledBallCollision; }
     void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
-    void UpdatePossessionStats(football::ball::Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer);
+    void UpdatePossessionStats(football::ball::Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own);
     float GetClosestOpponentDistance(Team& opponent) const;
     const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
     void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
     void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
     bool HasCards() { return cards > 0; }
-    void SendOff(const football::ball::Ball& ball, football::sim::Tick now, blunted::Rng& rng);
+    void SendOff(const football::ball::Ball& ball, football::sim::Tick now, blunted::Rng& rng, Team& own_team);
     float GetStaminaStat() const;
 
   private:
@@ -423,6 +453,14 @@ class Player final {
     const football::player::PlayerDefinition& model_;
     // Non-unique 0..9 offset for staggered 100 ms work, never identity or order.
     const std::uint8_t schedule_phase_;
+
+    // Own team identity plus the match facts Runtime publishes. Player knows
+    // which team it belongs to but never owns or stores a Team object.
+    const int team_id_;
+    const football::sim::TeamSide side_;
+    const float ai_difficulty_;
+    FormationEntry formationEntry_;
+    PlayerTeamFacts team_facts_;
 
     std::unique_ptr<Humanoid> humanoid;
     PlayerKinematicState kinematicState;
@@ -474,7 +512,6 @@ class Player final {
 
     float fatigueFactorInv = 0.0f;
 
-    Team *team = nullptr;
     FormationEntry dynamicFormationEntry;
     bool hasPossession = false;
     bool hasBestPossession = false;

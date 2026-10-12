@@ -291,12 +291,18 @@ bool FloatBitsEqual(float a, float b) {
 
 }  // namespace
 
-Player::Player(Team *team, const football::player::PlayerDefinition& model, std::uint8_t schedule_phase,
+Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
+               const football::player::PlayerDefinition& model,
+               const FormationEntry& formation_entry,
+               std::uint8_t schedule_phase,
                const AnimationLibrary& animations, const football::pitch::Pitch& pitch, blunted::Rng& rng)
     : animations_(animations), pitch_(pitch), rng_(rng),
       model_(model),
       schedule_phase_(schedule_phase % 10),
-      team(team) {
+      team_id_(team_id),
+      side_(side),
+      ai_difficulty_(ai_difficulty),
+      formationEntry_(formation_entry) {
   last_touch_tick_ = {};
   lastTouchType = e_TouchType_None;
   fatigueFactorInv = 1.0;
@@ -590,12 +596,11 @@ void Player::Deactivate(const Ball& ball, football::sim::Tick now) {
   SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
   ResetSituation(GetPosition(), now);
   isActive = false;
-  football::sim::player::RefreshDesignatedTeamPossessionPlayer(*team, ball);
 }
 
 int Player::GetReactionTime_ms() {
   int reaction = int(std::round(80.f - GetStat(football::player::PlayerStat::physical_reaction) * 40.f));
-  reaction += (1.f - team->GetAiDifficulty()) * 100;
+  reaction += (1.f - ai_difficulty_) * 100;
   return reaction;
 }
 
@@ -612,7 +617,7 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue, const PlayerComman
     PlayerControl idle;
     idle.player = GetID();
     idle.move_direction = GetDirectionVec();
-    if (team->GetDynamicSide() != (GetTeamID() == 0 ? -1 : 1))
+    if (team_facts_.dynamic_side != (team_id_ == 0 ? -1 : 1))
       idle.move_direction.Mirror();
     commandQueue = BuildPlayerCommands(idle, *this, inputs);
   }
@@ -650,13 +655,13 @@ void Player::CommitTick(const football::sim::PlayerTickContext& tick, float dist
     fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
   }
   if (cards > 1 && card_effective_tick_ <= tick.now &&
-      GetTeam()->GetActivePlayersCount() > 1) {
-    SendOff(tick.ball, tick.now, tick.rng);
+      tick.own_team.GetActivePlayersCount() > 1) {
+    SendOff(tick.ball, tick.now, tick.rng, tick.own_team);
   }
 }
 
 float Player::GetStat(football::player::PlayerStat name) const {
-  float multiplier = 0.3f + 0.7f * team->GetAiDifficulty();
+  float multiplier = 0.3f + 0.7f * ai_difficulty_;
   multiplier *= 0.7f + 0.3f * GetFatigueFactorInv();
   return model_.attributes.get(name) * multiplier;
 }
@@ -705,12 +710,10 @@ void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now)
 
 Humanoid *Player::CastHumanoid() { return humanoid.get(); }
 
-int Player::GetTeamID() const { return team->GetID(); }
-Team *Player::GetTeam() const { return team; }
 
 Vector3 Player::GetPitchPosition() {
   Vector3 pos = GetPosition();
-  if (!team->onOriginalSide()) pos.Mirror();
+  if (!team_facts_.on_original_side) pos.Mirror();
   return pos;
 }
 
@@ -720,24 +723,23 @@ void Player::Activate() {
   humanoid.reset(new Humanoid(this, animations_, rng_));
   CastHumanoid()->ResetPosition(
       GetFormationEntry().position * 25 *
-          Vector3(-team->GetDynamicSide(), -team->GetDynamicSide(), 0),
+          Vector3(-team_facts_.dynamic_side, -team_facts_.dynamic_side, 0),
       Vector3(0));
   SynchronizeKinematicState();
   BeginSimulationAction();
   SetDynamicFormationEntry(GetFormationEntry());
 }
 
-FormationEntry Player::GetFormationEntry() { return team->GetFormationEntry(this); }
 bool Player::HasPossession() const { return hasPossession; }
 bool Player::HasBestPossession() const { return hasBestPossession; }
 bool Player::HasUniquePossession() const { return hasUniquePossession; }
 
 bool Player::AllowLastDitch(bool includingPossessionAmount) const {
-  if (includingPossessionAmount && team->GetTeamPossessionAmount() < 1.0f) return true;
+  if (includingPossessionAmount && team_facts_.possession_amount < 1.0f) return true;
   return (GetTimeNeededToGetToBall_optimistic_ms() * 1.7f + 800 < GetTimeNeededToGetToBall_ms());
 }
 
-void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer) {
+void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own) {
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
   const e_FunctionType action_type = GetCurrentFunctionType();
   if (actionState.IsPureLocomotion(retainer == this)) {
@@ -797,7 +799,7 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
     bool refine = false;
     TickSpan step{1};
     TickSpan previous{};
-    const bool precise = team->GetDesignatedTeamPossessionPlayer() == this;
+    const bool precise = designated_own == this;
     for (auto candidate = start; candidate < football::sim::ball_timing::kPredictionHorizon; candidate += step) {
       const auto ms = static_cast<unsigned int>(ToMilliseconds(candidate));
       if (ball.Predict(candidate, football::ball::BallEnvironment{}).position.coords[2] < 1.5f) {
@@ -868,19 +870,18 @@ float Player::GetClosestOpponentDistance(Team& opponent) const {
 
 
 
-void Player::SendOff(const Ball& ball, football::sim::Tick now, blunted::Rng& rng) {
+void Player::SendOff(const Ball& ball, football::sim::Tick now, blunted::Rng& rng, Team& own_team) {
   // Preserve the historical draw even though its message was removed.
   (void)rng.Uniform(0, 3);
   Deactivate(ball, now);
-  if (GetFormationEntry().role == e_PlayerRole_GK) {
-    FormationEntry entry = GetFormationEntry();
+  if (formationEntry_.role == e_PlayerRole_GK) {
+    FormationEntry entry = formationEntry_;
     std::vector<Player*> activePlayers;
-    team->GetActivePlayers(activePlayers);
+    own_team.GetActivePlayers(activePlayers);
     assert(activePlayers.size() > 0);
-    team->SetFormationEntry(*activePlayers.begin(), entry);
+    if (!activePlayers.empty()) activePlayers.front()->SetFormationEntry(entry);
   }
-  std::vector<Player*> activePlayers;
-  team->GetActivePlayers(activePlayers);
+  football::sim::player::RefreshDesignatedTeamPossessionPlayer(own_team, ball);
 }
 
 float Player::GetStaminaStat() const {
@@ -911,13 +912,13 @@ void Player::_CalculateTacticalSituation(const football::sim::PlayerTickContext&
   assert(mentalImage);
   assert(IsActive());
   float time_sec = 0.5f;
-  Vector3 checkPos = GetPosition() + Vector3(-team->GetDynamicSide(), 0, 0) * sprintVelocity * time_sec;
-  tacticalSituation.forwardSpaceRating = football::sim::player::CalculateFreeSpace(tick.now, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
+  Vector3 checkPos = GetPosition() + Vector3(-team_facts_.dynamic_side, 0, 0) * sprintVelocity * time_sec;
+  tacticalSituation.forwardSpaceRating = football::sim::player::CalculateFreeSpace(tick.now, mentalImage, team_id_, checkPos, 5.0f, time_sec);
   time_sec = 0.1f;
   checkPos = GetPosition() + GetMovement() * time_sec;
-  tacticalSituation.spaceRating = football::sim::player::CalculateFreeSpace(tick.now, mentalImage, team->GetID(), checkPos, 5.0f, time_sec);
+  tacticalSituation.spaceRating = football::sim::player::CalculateFreeSpace(tick.now, mentalImage, team_id_, checkPos, 5.0f, time_sec);
   tacticalSituation.forwardRating =
-      1.0f - clamp((Vector3(pitch_.half_length() * -team->GetDynamicSide(), 0, 0) - GetPosition()).GetLength() /
+      1.0f - clamp((Vector3(pitch_.half_length() * -team_facts_.dynamic_side, 0, 0) - GetPosition()).GetLength() /
                        (pitch_.half_length() * 2.0f), 0.0f, 1.0f);
   tacticalSituation.forwardRating = std::pow(tacticalSituation.forwardRating, 1.5f);
 }

@@ -30,16 +30,18 @@ class SimulationAccess {
   }
   static void SendOff(Simulation& simulation, Player& actor) {
     const auto tick = PlayerTickOf(simulation, actor);
-    actor.SendOff(tick.ball, tick.now, tick.rng);
+    actor.SendOff(tick.ball, tick.now, tick.rng, *TeamOf(simulation, actor.GetTeamID()));
   }
   static void Deactivate(Simulation& simulation, Player& actor) {
     const auto tick = PlayerTickOf(simulation, actor);
     actor.Deactivate(tick.ball, tick.now);
   }
-  static PlayerCommandInputs CommandInputsOf(Simulation& simulation) {
+  static PlayerCommandInputs CommandInputsOf(Simulation& simulation,
+                                             const Player& player) {
     if (!simulation.ball_) throw std::logic_error("simulation has no match");
     return {*simulation.ball_, simulation.touches_, RulesOf(simulation).GetBuffer(),
-            simulation.ball_retainer_, simulation.pitch_};
+            simulation.ball_retainer_, simulation.pitch_,
+            *TeamOf(simulation, player.GetTeamID())};
   }
   static AcceptedTouchSink& EventsOf(Simulation& simulation) {
     if (!simulation.touch_sink_) throw std::logic_error("simulation has no match");

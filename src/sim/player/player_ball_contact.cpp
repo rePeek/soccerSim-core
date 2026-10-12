@@ -30,7 +30,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
 
   for (int i = 0; i < (signed int)players.size(); i++) {
     const PlayerActionState &action = players[i]->GetSimulationActionState();
-    int teamID = players[i]->GetTeam()->GetID();
+    int teamID = players[i]->GetTeamID();
 
     int touchTimeThreshold_ms = 200;
     float oppLastTouchBias = event::TeamTouchBias(inputs.touches, *inputs.teams[abs(teamID - 1)], touchTimeThreshold_ms, inputs.now);
@@ -74,7 +74,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
               // Read current touch records, not biases frozen before the sweep.
               const int latest_team = last_touch_team != -1
                   ? last_touch_team : inputs.fallback_last_touch_team;
-              if (players[i] == players[i]->GetTeam()->GetDesignatedTeamPossessionPlayer() &&
+              if (players[i] == players[i]->GetTeamDesignatedPossessionPlayer() &&
                   event::TeamTouchBias(inputs.touches, *inputs.teams[latest_team], 200, inputs.now) < 0.01f) {
                 players[i]->TriggerControlledBallCollision();
               } else {
@@ -85,7 +85,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
                 bounceCount++;
                 inputs.touch_sink->OnAcceptedTouch(
                     football::sim::event::AcceptedTouch{inputs.now,
-                        players[i]->GetID(), players[i]->GetTeam()->GetTeamSide(),
+                        players[i]->GetID(), players[i]->GetTeamSide(),
                         e_TouchType_Accidental, ball.state().position,
                         ball.state().velocity,
                         static_cast<int>(players[i]->GetSimulationActionState().type)});

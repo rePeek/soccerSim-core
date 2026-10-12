@@ -657,7 +657,7 @@ void HumanoidBase::Process(football::sim::Tick now, const football::sim::PlayerT
       if (controller_queried) return;
       player->RequestCommand(controllerQueue,
           {tick.ball, tick.touches, tick.restart,
-           tick.ball_retainer, tick.pitch});
+           tick.ball_retainer, tick.pitch, tick.own_team});
       controller_queried = true;
       for (const PlayerCommand &controller_command : controllerQueue) {
         commandQueue.push_back(controller_command);

@@ -33,8 +33,7 @@ Vector3 AdaptRestartFormation(
     float yFocus, float yFocusStrength, const Vector3 &microFocus,
     float microFocusStrength, float midfieldFocus, float midfieldFocusStrength,
     bool useDynamicFormationPosition) {
-  Team *team = player->GetTeam();
-  int side = team->GetDynamicSide();
+  int side = player->GetDynamicSide();
 
   Vector3 position;
 
@@ -53,9 +52,9 @@ Vector3 AdaptRestartFormation(
     stretchBias = curve(stretchBias, 1.0f);
 
     stretchBias *= midfieldFocusStrength;
-    //if (player->GetTeam()->GetID() == 0) printf("==> %f\n", position.coords[0]);
+    //if (player->GetTeamID() == 0) printf("==> %f\n", position.coords[0]);
     position.coords[0] = position.coords[0] * (1.0f - stretchBias) + midfieldPositionFactor * stretchBias;
-    //if (player->GetTeam()->GetID() == 0) printf("--> %f %f %f\n", position.coords[0], midfieldPositionFactor, stretchBias);
+    //if (player->GetTeamID() == 0) printf("--> %f %f %f\n", position.coords[0], midfieldPositionFactor, stretchBias);
   }
 
   float xLength = frontXBound - backXBound;
@@ -104,7 +103,7 @@ Vector3 AdaptRestartFormation(
       float microFocusBias2 = std::sin((dist - 0.25f) * 2.0f * pi) * 0.5f + 0.5f; // _/-\_
       // mates in team in possession want to keep some distance for easier pass-to-ability, while defenders just want to jump into the action more
 
-      float sineBias = 0.15f;// + clamp(player->GetTeam()->GetFadingTeamPossessionAmount() - 0.5f, 0.0f, 1.0f) * 0.2f;
+      float sineBias = 0.15f;// + clamp(player->GetTeamFadingPossessionAmount() - 0.5f, 0.0f, 1.0f) * 0.2f;
       float microFocusBias = microFocusBias1 * (1.0f - sineBias) +
                              microFocusBias2 * sineBias;
       */

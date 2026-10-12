@@ -232,7 +232,7 @@ TEST_CASE("Simulation updates the recent possession window only after admitted o
     REQUIRE(SimulationAccess::PossessionFactorOf(simulation) == 0.f);
     simulation.Step({}); // Referee releases Taken before this tick's window update.
     REQUIRE_FALSE(SimulationAccess::IsInSetPieceOf(simulation));
-    const bool home = SimulationAccess::DesignatedPlayerOf(simulation)->GetTeam() == SimulationAccess::TeamOf(simulation, 0);
+    const bool home = SimulationAccess::DesignatedPlayerOf(simulation)->GetTeamID() == 0;
     REQUIRE(SimulationAccess::PossessionFactorOf(simulation) == (home ? -0.01f : 0.01f) / 60.f);
     const auto rng = SimulationAccess::RngOf(simulation).engine();
     const auto ball = SimulationAccess::BallOf(simulation)->state().position;
