@@ -81,46 +81,46 @@ pimpl or a private state holder so those headers stop appearing in
 ## Source layout
 
 ```text
-src/
-├── foundation/       general math only; STL/self, no football concepts
-│   └── math/         Vector3, quaternion, scalar helpers and RNG
-├── ball/            standalone football::ball: BallModel (self-owned physics),
-│                    BallState, BallWorld, collider/CCD, contact evidence and point-
-│                    impulse response; depends only on foundation, never sim
-├── pitch/          football::pitch: Pitch description (foundation-only) plus the
-│                    header-only football::pitch_ball BuildBallWorld assembly
-├── animation/      header-only baked schema/library/selector (football::animation);
-│                    depends only on foundation, never sim/model/ball
-├── sim/             domain-organized rules, physics, execution and observation
-│   ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
-│   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
-│   ├── simulation_config.hpp match-level options value
-│   ├── pitch_geometry.hpp    legacy global pitch constants awaiting Pitch migration
-│   ├── team/         runtime Team, formation adaptation and possession arbitration
-│   ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
-│   │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
-│   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
-│   │                 MentalImage/player-image history + nearest-slot sampling,
-│   │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph,
-│   │                 static PlayerSlotTable identity -> TeamSide mapping and a pure
-│   │                 shadow-only Snapshot touch inference
-│   ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
-│   │                 rules and restarts
-│   ├── runtime/      MatchClock/MatchPhase/MatchResult, Roster (owns player
-│   │                 entities), match_config.hpp (TeamSetup + TeamSide) and the
-│   │                 initial/tactical formation declarations
-│   ├── testing/      internal SimulationAccess, not exported/product or actor-facing
-│   └── player/       Player + PlayerDefinition, player_role, tick-local inputs,
-│       │             controls, locomotion, possession, contacts, roster_query
-│       │             (span of borrowed players), reachability and perception
-│       └── humanoid/ Humanoid / HumanoidBase / utilities
-├── ai/               value-only decisions; never links sim runtime
-│   ├── ai_config.hpp startup values; no live channel
-│   ├── tactical_board.* persistent desired/planned values + definition-only bootstrap
-│   └── default_ai.*  WorldState + persistent tactical boards → PlayerControlSet
-├── env.hpp           public autonomous match façade; values + opaque private owners
-└── env.cpp           sole product composition implementation for AI + sim;
-                    compiled into libsimcore.so with everything else under src/
+include/football/    public headers (interfaces), one directory per module
+├── foundation/      math/ + time/ (Vector3, quaternion, scalar, RNG, Tick)
+├── animation/       header-only baked schema/library/selector (football::animation)
+├── ball/            football::ball: Ball, BallModel, BallState, BallWorld,
+│                    collider/CCD, contact evidence and impulse response
+├── pitch/           football::pitch: Pitch description plus the header-only
+│                    football::pitch_ball BuildBallWorld assembly
+├── ai/              AIConfig, TacticalBoard and DefaultAI declarations
+└── env.hpp          public autonomous match façade; values + opaque private owners
+
+src/                 implementations; public headers live in include/football/
+├── foundation/      math/*.cpp (foundation is otherwise header-only)
+├── ball/            src/*.cpp + private impl headers (never exported)
+├── animation/       target declaration only (header-only module)
+├── pitch/           target declaration only (header-only module)
+├── ai/              default_ai.cpp, tactical_board.cpp
+├── env.cpp          sole product composition implementation for AI + sim;
+│                    compiled into libsimcore.so with everything else under src/
+└── sim/             domain-organized rules, physics, execution and observation
+    ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
+    ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
+    ├── simulation_config.hpp match-level options value
+    ├── team/         runtime Team, formation adaptation and possession arbitration
+    ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
+    │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
+    ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
+    │                 MentalImage/player-image history + nearest-slot sampling,
+    │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph,
+    │                 static PlayerSlotTable identity -> TeamSide mapping and a pure
+    │                 shadow-only Snapshot touch inference
+    ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
+    │                 rules and restarts
+    ├── runtime/      MatchClock/MatchPhase/MatchResult, Roster (owns player
+    │                 entities), match_config.hpp (TeamSetup + TeamSide) and the
+    │                 initial/tactical formation declarations
+    ├── testing/      internal SimulationAccess, not exported/product or actor-facing
+    └── player/       Player + PlayerDefinition, player_role, tick-local inputs,
+        │             controls, locomotion, possession, contacts, roster_query
+        │             (span of borrowed players), reachability and perception
+        └── humanoid/ Humanoid / HumanoidBase / utilities
 
 cmake/
 ├── CPM.cmake
@@ -134,13 +134,13 @@ tools/
     └── import/legacy_*     offline-only XML, value codecs and required text helpers
 
 unittests/                        empty placeholder; suite under redesign
-```
 
 ## Build ownership and architecture
 
 Each module explicitly declares its sources, public `FILE_SET HEADERS`, aliases
 and link edges in its own `CMakeLists.txt`. No source globbing or `sources.cmake`.
-Root CMake directly builds `simcore` from `src/env.cpp`, publishes `env.hpp`,
+Root CMake directly builds `simcore` from `src/env.cpp`, publishes
+`include/football/env.hpp`,
 and provides `football::simcore`. There is no env directory, env target or intermediate
 engine object target. Runtime whole-archive packaging retains unreferenced runtime
 symbols (including the currently unused GetRoleFromString).
@@ -190,11 +190,15 @@ anim_baking → legacy_anim + animation/foundation
 - Source ownership and dependency boundaries are maintained directly in each
   module's CMakeLists and reviewed alongside C++ includes. There is no centralized
   architecture validator or separate dependency allow-list.
-- All targets use `src` as an include root; keep includes consistent with module boundaries.
+- Public headers are consumed from the top-level `include/` root as
+  `football/<module>/...`; `src` remains the include root for the not-yet-migrated
+  `sim/` headers and for module-private implementation headers.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   foundation must not depend on upper layers. sim must never depend on AI.
-- foundation, ball, animation and pitch retain standalone CMake support; the
-  former src/model module is gone and its data lives with its domain.
+- Modules are configured from the repository root: public headers live in the
+  top-level include/football/ tree, so module directories are no longer
+  standalone-configurable. The former src/model module is gone; its data lives
+  with its domain.
 - `GFOOTBALL_BAKED_ANIM_PATH` belongs only to football_sim PRIVATE compile definitions.
   The shared target helper owns include roots/C++23/PIC/output, not resource lookup.
   No public contract, foundation/model, AI, app or baker inherits the runtime path.
@@ -649,7 +653,8 @@ and the private implicit clip lookup are deleted. Shot inputs omit unused argume
 There is no ambient animation owner or hidden load.
 Offline `.anim`/XML/object parsing lives under
 `tools/animBaker/`, never libsimcore.so. Two include roots are distinct:
-`sim/animation/...` is runtime, `animation/...` is offline tooling. Their filenames
+`football/animation/...` is the shared baked format; `animation/...` under
+tools/animBaker is the offline import tooling. Their filenames
 are disjoint. The original XML parser, codecs and necessary token/decimal helpers
 are owned by `tools/animBaker/import/legacy_*`, compiled only into the offline
 `football_legacy_anim` target. Keep parser semantics, including multimap ordering,

@@ -6,8 +6,8 @@
 #include "app/args.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "app/recording/snapshot_archive.hpp"
-#include "env.hpp"
-#include "foundation/time/tick_boundary.hpp"
+#include "football/env.hpp"
+#include "football/foundation/time/tick_boundary.hpp"
 
 namespace {
 const char* OutcomeName(MatchOutcome outcome) {

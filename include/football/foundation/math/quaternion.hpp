@@ -21,7 +21,7 @@
 #include <cmath>
 #include <iostream>
 
-#include "foundation/math/scalar.hpp"
+#include "football/foundation/math/scalar.hpp"
 
 namespace blunted {
 

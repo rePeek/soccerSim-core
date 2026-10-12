@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "foundation/math/scalar.hpp"
+#include "football/foundation/math/scalar.hpp"
 
 namespace football::sim::observation {
 namespace {

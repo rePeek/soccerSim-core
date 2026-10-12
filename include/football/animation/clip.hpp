@@ -19,9 +19,9 @@
 #include <string>
 #include <vector>
 
-#include "animation/format.hpp"
-#include "foundation/math/quaternion.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/animation/format.hpp"
+#include "football/foundation/math/quaternion.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 using namespace blunted;
 

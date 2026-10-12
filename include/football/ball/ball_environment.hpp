@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_BALL_BALL_ENVIRONMENT_HPP
 #define FOOTBALL_BALL_BALL_ENVIRONMENT_HPP
 
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 namespace football::ball {
 

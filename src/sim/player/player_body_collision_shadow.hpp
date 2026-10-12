@@ -11,7 +11,7 @@
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 #include "sim/player/player_body_contact_diagnostics.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 
 // Read-only linear prediction. Never executes animation/locomotion or draws RNG.
 inline PlayerKinematicState PredictBodyKinematicState(

@@ -20,9 +20,9 @@
 #include "football/ball/ball_state.hpp"
 #include "football/ball/collider.hpp"
 #include "football/ball/ball_world.hpp"
-#include "foundation/math/quaternion.hpp"
-#include "foundation/time/tick.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/quaternion.hpp"
+#include "football/foundation/time/tick.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "football/ball/ball_model.hpp"
 
 namespace football::ball {

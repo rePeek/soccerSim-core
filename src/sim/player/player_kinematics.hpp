@@ -14,7 +14,7 @@
 #ifndef _HPP_PLAYER_KINEMATICS
 #define _HPP_PLAYER_KINEMATICS
 
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 
 // Explicit movement state for a player. During the initial shadow phase it is

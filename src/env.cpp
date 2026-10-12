@@ -1,11 +1,11 @@
-#include "env.hpp"
+#include "football/env.hpp"
 #include "football/pitch/pitch.hpp"
 
 #include <stdexcept>
 #include <utility>
 #include <bq_log/bq_log.h>
 
-#include "ai/default_ai.hpp"
+#include "football/ai/default_ai.hpp"
 #include "sim/simulation.hpp"
 
 namespace {

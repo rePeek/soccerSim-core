@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-#include "ai/ai_config.hpp"
+#include "football/ai/ai_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "sim/runtime/match_config.hpp"

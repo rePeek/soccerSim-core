@@ -8,7 +8,7 @@
 #ifndef _HPP_PLAYER_GROUND_COLLIDER
 #define _HPP_PLAYER_GROUND_COLLIDER
 
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 using namespace blunted;
 

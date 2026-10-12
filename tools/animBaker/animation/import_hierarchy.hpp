@@ -35,8 +35,8 @@
 // SetScale, and multiplying by a unit scale is exact in IEEE arithmetic.
 
 
-#include "foundation/math/quaternion.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/quaternion.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 #include <memory>
 #include <string>

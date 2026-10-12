@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "sim/simulation.hpp"
-#include "animation/library.hpp"
+#include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"

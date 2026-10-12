@@ -2,8 +2,8 @@
 
 #include <cmath>
 
-#include "foundation/math/scalar.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/math/scalar.hpp"
+#include "football/foundation/time/tick.hpp"
 
 using namespace blunted;
 

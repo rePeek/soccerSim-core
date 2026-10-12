@@ -9,7 +9,7 @@
 #include "sim/event/touch_query.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/referee/period.hpp"
-#include "foundation/time/tick_boundary.hpp"
+#include "football/foundation/time/tick_boundary.hpp"
 
 namespace {
 void MirrorShape(football::ball::ColliderShape& shape) {

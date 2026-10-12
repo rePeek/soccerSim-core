@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 # Independent football::ball module.
 #
-# Public contract:  include/football/ball/*
+# Public contract:  ${PROJECT_SOURCE_DIR}/include/football/ball/*
 # Private impl:     src/*
 #
 # football::ball must never depend on football_sim_domain, football_player,
@@ -24,23 +24,23 @@ target_sources(football_ball
 target_sources(football_ball
   PUBLIC
     FILE_SET HEADERS
-    BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
+    BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES
-      include/football/ball/ball.hpp
-      include/football/ball/ball_model.hpp
-      include/football/ball/ball_world.hpp
-      include/football/ball/ball_state.hpp
-      include/football/ball/ball_impulse.hpp
-      include/football/ball/ball_environment.hpp
-      include/football/ball/ball_timing.hpp
-      include/football/ball/collider.hpp
-      include/football/ball/ball_contact.hpp
-      include/football/ball/ball_response.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_model.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_world.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_state.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_impulse.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_environment.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_timing.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/collider.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_contact.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_response.hpp
 )
 
 target_include_directories(football_ball
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

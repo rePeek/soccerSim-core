@@ -20,10 +20,10 @@
 #include <string>
 #include <vector>
 
-#include "animation/quadrant.hpp"
-#include "animation/selection_math.hpp"
-#include "animation/selection_query.hpp"
-#include "animation/clip.hpp"
+#include "football/animation/quadrant.hpp"
+#include "football/animation/selection_math.hpp"
+#include "football/animation/selection_query.hpp"
+#include "football/animation/clip.hpp"
 
 // Selection over baked AnimationClips. This is a line-for-line translation of
 // the legacy AnimCollection::CrudeSelection; it reads only typed metadata.

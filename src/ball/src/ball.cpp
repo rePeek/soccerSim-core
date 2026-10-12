@@ -6,8 +6,8 @@
 
 #include "ball_netting.hpp"
 #include "football/ball/ball_response.hpp"
-#include "foundation/math/scalar.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/math/scalar.hpp"
+#include "football/foundation/time/tick.hpp"
 
 using namespace blunted;
 

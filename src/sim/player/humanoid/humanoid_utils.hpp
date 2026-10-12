@@ -22,8 +22,8 @@
 
 #include "football/ball/ball.hpp"
 
-#include "foundation/math/vector3.hpp"
-#include "foundation/math/rng.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/foundation/math/rng.hpp"
 
 using namespace blunted;
 

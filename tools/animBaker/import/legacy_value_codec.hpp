@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "foundation/math/quaternion.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/quaternion.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 namespace blunted {
 

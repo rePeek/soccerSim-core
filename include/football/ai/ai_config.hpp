@@ -4,7 +4,7 @@
 #include <array>
 #include <optional>
 
-#include "ai/tactical_board.hpp"
+#include "football/ai/tactical_board.hpp"
 
 namespace football::ai {
 

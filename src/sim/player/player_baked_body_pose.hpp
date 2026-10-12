@@ -3,8 +3,8 @@
 #include <array>
 #include <cmath>
 #include <stdexcept>
-#include "animation/clip.hpp"
-#include "animation/types.hpp"
+#include "football/animation/clip.hpp"
+#include "football/animation/types.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 

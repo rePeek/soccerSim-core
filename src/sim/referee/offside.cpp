@@ -17,7 +17,7 @@
 
 #include <cmath>
 
-#include "foundation/math/scalar.hpp"
+#include "football/foundation/math/scalar.hpp"
 #include "sim/observation/mentalimage.hpp"
 
 using football::ball::Ball;

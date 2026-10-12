@@ -8,7 +8,7 @@
 #include <limits>
 #include <type_traits>
 
-#include "foundation/math/scalar.hpp"
+#include "football/foundation/math/scalar.hpp"
 
 namespace football::ball {
 namespace {

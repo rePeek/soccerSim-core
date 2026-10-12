@@ -3,11 +3,11 @@
 #include <cstdint>
 #include <vector>
 
-#include "foundation/math/vector3.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "sim/player/player_definition.hpp"
 #include "football/pitch/pitch.hpp"
-#include "animation/types.hpp"
+#include "football/animation/types.hpp"
 
 namespace football::sim::observation {
 

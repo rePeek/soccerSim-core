@@ -9,9 +9,9 @@
 #include "sim/player/player_definition.hpp"
 #include "sim/runtime/match_config.hpp"
 #include "football/pitch/pitch.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "sim/runtime/phase.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 
 struct WorldPlayerState {
   football::player::PlayerId id = football::player::kInvalidPlayerId;

@@ -15,12 +15,12 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#include "foundation/math/quaternion.hpp"
+#include "football/foundation/math/quaternion.hpp"
 
 #include <cmath>
 
-#include "foundation/math/scalar.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/scalar.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 
 // most of the formulas derived from ogre3d

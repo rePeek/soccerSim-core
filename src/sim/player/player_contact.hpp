@@ -5,7 +5,7 @@
 #include <span>
 #include <vector>
 
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "sim/player/foul_assessment.hpp"
 
 namespace football::ball { class Ball; }

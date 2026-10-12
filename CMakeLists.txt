@@ -42,8 +42,8 @@ add_subdirectory(src/ai)
 add_library(simcore SHARED src/env.cpp)
 add_library(football::simcore ALIAS simcore)
 target_sources(simcore PUBLIC FILE_SET HEADERS
-  BASE_DIRS ${PROJECT_SOURCE_DIR}/src
-  FILES src/env.hpp)
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES ${PROJECT_SOURCE_DIR}/include/football/env.hpp)
 target_link_libraries(simcore
   PUBLIC football::sim_contracts football::ai_contracts football::ball
   PRIVATE football::ai BqLog

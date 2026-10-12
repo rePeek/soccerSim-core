@@ -5,8 +5,8 @@
 #include "sim/referee/game_mode.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/simulation_config.hpp"
-#include "foundation/math/rng.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/math/rng.hpp"
+#include "football/foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
 

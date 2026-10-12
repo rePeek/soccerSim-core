@@ -16,8 +16,8 @@
 
 #include <vector>
 
-#include "foundation/math/vector3.hpp"
-#include "animation/types.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/animation/types.hpp"
 
 using namespace blunted;
 

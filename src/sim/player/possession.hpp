@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_PLAYER_POSSESSION_HPP
 #define FOOTBALL_SIM_PLAYER_POSSESSION_HPP
 
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

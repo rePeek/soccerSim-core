@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "animation/library.hpp"
+#include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/player/player_ball_contact.hpp"
 #include "sim/event/touch_query.hpp"

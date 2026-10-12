@@ -19,18 +19,18 @@
 #define _HPP_HUMANOIDBASE
 
 #include "sim/player/player_definition.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 #include "sim/player/player_command.hpp"
 #include "sim/player/player_tick_context.hpp"
 
-#include "animation/selection_query.hpp"
-#include "animation/clip.hpp"
+#include "football/animation/selection_query.hpp"
+#include "football/animation/clip.hpp"
 #include "sim/player/player_baked_pose_sample.hpp"
 
 #include "sim/player/player_kinematics.hpp"
 #include "sim/observation/mentalimage.hpp"
-#include "foundation/math/rng.hpp"
+#include "football/foundation/math/rng.hpp"
 
 #include <chrono>
 #include <span>

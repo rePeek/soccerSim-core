@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <optional>
 
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "sim/event/event.hpp"
 
 namespace football::sim::event {

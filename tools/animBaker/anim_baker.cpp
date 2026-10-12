@@ -28,11 +28,11 @@
 
 #include "animation/animcollection.hpp"
 #include "animation/animation.hpp"
-#include "animation/clip.hpp"
-#include "animation/library.hpp"
+#include "football/animation/clip.hpp"
+#include "football/animation/library.hpp"
 #include "animation/extensions/footballanimationextension.hpp"
-#include "animation/selector.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/animation/selector.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "import/legacy_value_codec.hpp"
 
 using namespace blunted;

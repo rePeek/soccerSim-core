@@ -16,9 +16,9 @@
 #define FOOTBALL_SIM_PLAYER_KICK_TARGETING_HPP
 
 #include <span>
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
-#include "animation/types.hpp"
+#include "football/animation/types.hpp"
 
 using blunted::Vector3;
 

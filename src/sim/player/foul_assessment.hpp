@@ -1,8 +1,8 @@
 #ifndef FOOTBALL_SIM_PLAYER_FOUL_ASSESSMENT_HPP
 #define FOOTBALL_SIM_PLAYER_FOUL_ASSESSMENT_HPP
 
-#include "foundation/math/vector3.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "sim/player/player_definition.hpp"
 
 namespace football::sim {

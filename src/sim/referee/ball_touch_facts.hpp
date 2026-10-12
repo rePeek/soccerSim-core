@@ -17,7 +17,7 @@
 
 #include <span>
 
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/observation/pitch_frame.hpp"
 

@@ -14,7 +14,7 @@
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "sim/simulation_config.hpp"
-#include "foundation/math/rng.hpp"
+#include "football/foundation/math/rng.hpp"
 #include "sim/observation/world_state.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/snapshot_history.hpp"

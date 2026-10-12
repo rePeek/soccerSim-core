@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "sim/player/player_definition.hpp"
-#include "animation/library.hpp"
+#include "football/animation/library.hpp"
 #include "sim/observation/snapshot.hpp"
 
 namespace football::sim::observation {

@@ -4,7 +4,7 @@
 #include <optional>
 
 #include "sim/player/player_definition.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 // Football-domain action request. This intentionally does not expose input
 // buttons, animation states, or simulation execution enums.

@@ -1,8 +1,8 @@
 #ifndef FOOTBALL_BALL_BALL_STATE_HPP
 #define FOOTBALL_BALL_BALL_STATE_HPP
 
-#include "foundation/math/quaternion.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/quaternion.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 namespace football::ball {
 

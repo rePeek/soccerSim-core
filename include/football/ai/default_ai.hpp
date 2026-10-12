@@ -5,8 +5,8 @@
 #include "football/pitch/pitch.hpp"
 #include <utility>
 
-#include "ai/ai_config.hpp"
-#include "ai/tactical_board.hpp"
+#include "football/ai/ai_config.hpp"
+#include "football/ai/tactical_board.hpp"
 #include "sim/player/player_control_set.hpp"
 #include "sim/observation/world_state.hpp"
 

@@ -14,7 +14,7 @@
 #include "football/ball/ball.hpp"
 #include "sim/player/player_active_touch_model.hpp"
 #include "sim/player/player_active_impulse.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 
 // Diagnostic stages, NOT another football action enum.
 enum class ActiveTouchOrigin { Scheduled, Controlled, RetainAcquire, RetainAnchor, RetainRelease };

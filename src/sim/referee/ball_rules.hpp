@@ -3,7 +3,7 @@
 
 #include <optional>
 
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
 
 namespace football::sim {

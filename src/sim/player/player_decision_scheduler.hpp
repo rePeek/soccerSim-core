@@ -2,7 +2,7 @@
 #ifndef FOOTBALL_SIM_PLAYER_DECISION_SCHEDULER_HPP
 #define FOOTBALL_SIM_PLAYER_DECISION_SCHEDULER_HPP
 
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 
 namespace football::sim::player_timing {
 inline constexpr TickSpan kOwnerNear{2};

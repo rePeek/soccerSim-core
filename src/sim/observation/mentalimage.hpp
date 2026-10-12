@@ -22,10 +22,10 @@
 #include <span>
 #include <vector>
 
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 #include "sim/observation/player_image.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 
 using namespace blunted;
 

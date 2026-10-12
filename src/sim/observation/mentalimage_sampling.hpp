@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <span>
 
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
 class MentalImage;

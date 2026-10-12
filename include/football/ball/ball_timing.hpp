@@ -3,7 +3,7 @@
 
 // Ball prediction policy (a fixed horizon shared by MentalImage reachability
 // sampling). Not simulation quantum or a runtime-configurable dt.
-#include "foundation/time/tick_boundary.hpp"
+#include "football/foundation/time/tick_boundary.hpp"
 
 namespace football::sim::ball_timing {
 inline constexpr auto kPredictionHorizon = Seconds(3);

@@ -14,7 +14,7 @@
 #include "football/ball/ball_world.hpp"
 #include "football/ball/collider.hpp"
 #include "football/pitch/pitch.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 namespace football::pitch {
 namespace detail {

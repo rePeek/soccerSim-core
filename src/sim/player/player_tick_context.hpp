@@ -1,9 +1,9 @@
 #ifndef FOOTBALL_SIM_PLAYER_TICK_CONTEXT_HPP
 #define FOOTBALL_SIM_PLAYER_TICK_CONTEXT_HPP
 
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
-#include "foundation/math/rng.hpp"
+#include "football/foundation/math/rng.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "sim/event/touch_state.hpp"
 #include "sim/player/player_touch_preparation.hpp"

@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_RULES_GOAL_HPP
 #define FOOTBALL_SIM_RULES_GOAL_HPP
 
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
 
 namespace football::sim {

@@ -34,7 +34,7 @@
 #include "sim/team/formation_entry.hpp"
 #include "sim/runtime/match_config.hpp"
 #include "sim/event/touch_type.hpp"
-#include "foundation/time/tick_boundary.hpp"
+#include "football/foundation/time/tick_boundary.hpp"
 #include "sim/player/player_tick_context.hpp"
 
 // Caller scope for the remaining ResetSituation instrumentation. This is

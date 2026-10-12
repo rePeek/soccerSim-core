@@ -1,13 +1,8 @@
 cmake_minimum_required(VERSION 3.24)
 
-# This directory may be consumed either with:
-#
-#   add_subdirectory(path/to/src/foundation)
-#
-# or configured directly for a standalone foundation build.
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-  project(football_foundation LANGUAGES CXX)
-endif()
+# football::foundation — math/time primitives. Public headers live in the
+# top-level include/ tree; this directory holds only the implementation. It is
+# built from the repository root (PROJECT_SOURCE_DIR/include).
 
 add_library(football_foundation STATIC)
 add_library(football::foundation ALIAS football_foundation)
@@ -15,11 +10,14 @@ target_sources(football_foundation
   PRIVATE
     math/quaternion.cpp math/scalar.cpp math/vector3.cpp
   PUBLIC FILE_SET HEADERS
-    BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
+    BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES
-      math/quaternion.hpp math/rng.hpp
-      math/scalar.hpp math/vector3.hpp
-      time/tick.hpp time/tick_boundary.hpp)
+      ${PROJECT_SOURCE_DIR}/include/football/foundation/math/quaternion.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/foundation/math/rng.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/foundation/math/scalar.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/foundation/math/vector3.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/foundation/time/tick.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/foundation/time/tick_boundary.hpp)
 target_compile_features(football_foundation PUBLIC cxx_std_23)
 
 # The library is linked into libsimcore.so in the parent project. Keep this local

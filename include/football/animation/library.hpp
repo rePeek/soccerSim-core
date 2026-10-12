@@ -21,7 +21,7 @@
 #include <iostream>
 #include <vector>
 
-#include "animation/clip.hpp"
+#include "football/animation/clip.hpp"
 
 // Read-only view over a baked animations.simanim artifact.
 //

@@ -6,7 +6,7 @@
 #include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_response.hpp"
 #include "football/ball/ball_state.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "football/ball/ball_model.hpp"
 
 // P5c-2: pure active-touch model. The Player chooses *where on the ball* and

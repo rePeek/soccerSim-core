@@ -12,7 +12,7 @@
 // limitations under the License.
 
 #include "app/fixtures/legacy_player_profile.hpp"
-#include "foundation/math/scalar.hpp"
+#include "football/foundation/math/scalar.hpp"
 
 #include <array>
 #include <cassert>

@@ -15,7 +15,7 @@
 #ifndef FOOTBALL_SIM_RULES_OFFSIDE_HPP
 #define FOOTBALL_SIM_RULES_OFFSIDE_HPP
 
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
 
 namespace football::ball { class Ball; }

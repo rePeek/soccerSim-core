@@ -14,8 +14,8 @@
 #ifndef FOOTBALL_SIM_PLAYER_PERCEPTION_HPP
 #define FOOTBALL_SIM_PLAYER_PERCEPTION_HPP
 
-#include "foundation/math/vector3.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/foundation/time/tick.hpp"
 
 class MentalImage;
 

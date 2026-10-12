@@ -7,7 +7,7 @@
 #include "sim/player/player_definition.hpp"
 #include "sim/runtime/match_config.hpp"
 #include "football/pitch/pitch.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 namespace football::ai {
 

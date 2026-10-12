@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "foundation/math/vector3.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/foundation/time/tick.hpp"
 
 // Match-level simulation options only. Teams, pitch and runtime objects are
 // passed separately; this is not a composition container. Every value is

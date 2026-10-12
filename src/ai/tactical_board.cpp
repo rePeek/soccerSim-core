@@ -1,4 +1,4 @@
-#include "ai/tactical_board.hpp"
+#include "football/ai/tactical_board.hpp"
 #include "football/pitch/pitch.hpp"
 
 #include <algorithm>

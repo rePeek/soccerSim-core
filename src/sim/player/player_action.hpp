@@ -4,9 +4,9 @@
 
 #include <optional>
 
-#include "animation/types.hpp"
-#include "foundation/math/vector3.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/animation/types.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/foundation/time/tick.hpp"
 
 using namespace blunted;
 

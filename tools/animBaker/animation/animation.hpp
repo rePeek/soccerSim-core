@@ -20,7 +20,7 @@
 
 #include <algorithm>
 #include <memory>
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include <stdexcept>
 #include <iostream>
 
@@ -29,7 +29,7 @@
 #include "animation/extensions/animationextension.hpp"
 
 #include "import/legacy_xml.hpp"
-#include "animation/types.hpp"
+#include "football/animation/types.hpp"
 
 namespace blunted {
 

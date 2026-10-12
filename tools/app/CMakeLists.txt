@@ -7,8 +7,10 @@ target_sources(football_app_support
   PUBLIC FILE_SET HEADERS
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
     FILES args.hpp fixtures/legacy_player_profile.hpp fixtures/default_teams.hpp)
+# Fixtures build sim::TeamSetup/player definitions, so they need the sim
+# value-contract include root as well as foundation.
 target_link_libraries(football_app_support
-  PUBLIC football::foundation)
+  PUBLIC football::sim_contracts)
 football_configure_target(football_app_support)
 
 # Disk I/O and the private writer thread remain executable-side, never libsimcore.

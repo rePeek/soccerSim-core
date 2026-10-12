@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <variant>
 
-#include "animation/types.hpp"
+#include "football/animation/types.hpp"
 
 namespace football::sim::event {
 namespace {

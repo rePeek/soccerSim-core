@@ -2,7 +2,7 @@
 #include "sim/player/player.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/player/player_baked_pose_realization.hpp"
-#include "animation/library.hpp"
+#include "football/animation/library.hpp"
 
 void Simulation::EnableBakedBodyProduction(bool enabled) {
   if(enabled && (!ball_ || !prepared_tick_production_ || !body_physics_production_))

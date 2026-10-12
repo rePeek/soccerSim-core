@@ -19,7 +19,7 @@
 #define _HPP_ANIMATIONEXTENSION
 
 #include <vector>
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 namespace blunted {
 

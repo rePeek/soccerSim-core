@@ -14,7 +14,7 @@
 #ifndef _HPP_ANIMATION_SELECTION_MATH
 #define _HPP_ANIMATION_SELECTION_MATH
 
-#include "animation/types.hpp"
+#include "football/animation/types.hpp"
 
 inline blunted::radian FixAngle(blunted::radian angle) {
   // Convert engine angle into football angle (different base orientation:

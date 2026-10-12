@@ -15,8 +15,8 @@
 #ifndef FOOTBALL_SIM_PLAYER_REACHABILITY_HPP
 #define FOOTBALL_SIM_PLAYER_REACHABILITY_HPP
 
-#include "foundation/math/vector3.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include <optional>
 

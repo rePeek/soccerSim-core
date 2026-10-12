@@ -8,7 +8,7 @@
 
 #include "football/ball/ball_world.hpp"
 #include "football/ball/ball_environment.hpp"
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "football/ball/ball_model.hpp"
 
 namespace football::ball::detail {

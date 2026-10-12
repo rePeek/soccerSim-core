@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "foundation/math/scalar.hpp"
+#include "football/foundation/math/scalar.hpp"
 
 namespace blunted {
 

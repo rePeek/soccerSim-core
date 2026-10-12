@@ -1,6 +1,6 @@
 #ifndef FOOTBALL_BALL_IMPULSE_HPP
 #define FOOTBALL_BALL_IMPULSE_HPP
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 namespace football::ball {
 // Pure physical input. No identity, action, touch type, or rules dependency.
 struct BallImpulse {

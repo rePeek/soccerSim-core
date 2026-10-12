@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <variant>
 
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 namespace football::ball {
 

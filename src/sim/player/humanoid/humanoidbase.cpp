@@ -38,8 +38,8 @@
 
 
 
-#include "animation/selector.hpp"
-#include "animation/library.hpp"
+#include "football/animation/selector.hpp"
+#include "football/animation/library.hpp"
 
 using football::ball::Ball;
 

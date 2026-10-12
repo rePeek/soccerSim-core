@@ -16,7 +16,7 @@
 #include <cassert>
 #include <cmath>
 
-#include "foundation/math/scalar.hpp"
+#include "football/foundation/math/scalar.hpp"
 #include "sim/player/player_role.hpp"
 #include "sim/referee/game_mode.hpp"
 #include "sim/observation/mentalimage.hpp"

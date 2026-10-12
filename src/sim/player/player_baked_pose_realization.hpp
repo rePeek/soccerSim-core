@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_PLAYER_BAKED_POSE_REALIZATION_HPP
 #define FOOTBALL_PLAYER_BAKED_POSE_REALIZATION_HPP
 #include "sim/player/player_baked_pose_sample.hpp"
-#include "foundation/time/tick_boundary.hpp"
+#include "football/foundation/time/tick_boundary.hpp"
 
 // Animation realization, NOT a collision filter. Both observable skeleton and
 // physical primitives must use this returned pose. The policy is adapted from the

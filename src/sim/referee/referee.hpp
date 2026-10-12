@@ -24,7 +24,7 @@
 
 #include "sim/player/player_role.hpp"
 #include "sim/referee/game_mode.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "sim/runtime/phase.hpp"
 #include "sim/referee/restart_readiness.hpp"
 #include "sim/referee/ball_touch_facts.hpp"
@@ -36,7 +36,7 @@
 #include "sim/event/accepted_touch.hpp"
 #include "sim/player/foul_assessment.hpp"
 #include "sim/referee/ruling.hpp"
-#include "foundation/math/rng.hpp"
+#include "football/foundation/math/rng.hpp"
 
 
 using namespace blunted;

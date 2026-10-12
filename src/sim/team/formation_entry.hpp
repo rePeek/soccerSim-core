@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include "foundation/math/vector3.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "sim/player/player_role.hpp"
 #include "sim/referee/game_mode.hpp"
 

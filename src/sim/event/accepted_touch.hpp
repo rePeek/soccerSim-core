@@ -1,8 +1,8 @@
 #ifndef FOOTBALL_SIM_EVENT_ACCEPTED_TOUCH_HPP
 #define FOOTBALL_SIM_EVENT_ACCEPTED_TOUCH_HPP
 
-#include "foundation/math/vector3.hpp"
-#include "foundation/time/tick.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "sim/player/player_definition.hpp"
 #include "sim/runtime/match_config.hpp"
 #include "sim/event/touch_type.hpp"

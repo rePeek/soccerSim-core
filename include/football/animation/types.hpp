@@ -16,7 +16,7 @@
 
 #include <cstdint>
 #include <vector>
-#include "foundation/math/scalar.hpp"
+#include "football/foundation/math/scalar.hpp"
 
 // Runtime identity of an entry in AnimationLibrary. Keep this signed while
 // selection still uses -1 as its invalid sentinel.

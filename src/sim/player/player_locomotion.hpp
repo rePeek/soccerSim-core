@@ -12,7 +12,7 @@
 
 #include <cassert>
 #include "sim/player/player_kinematics.hpp"
-#include "foundation/time/tick_boundary.hpp"
+#include "football/foundation/time/tick_boundary.hpp"
 #include <optional>
 
 // This header is used from its own translation unit as well, so it cannot rely

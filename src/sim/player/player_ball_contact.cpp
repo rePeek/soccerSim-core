@@ -10,7 +10,7 @@
 #include "sim/player/player.hpp"
 #include "sim/player/player_body_collider.hpp"
 #include "sim/team/team.hpp"
-#include "foundation/time/tick_boundary.hpp"
+#include "football/foundation/time/tick_boundary.hpp"
 #include "sim/event/touch_query.hpp"
 
 using football::ball::Ball;
