@@ -269,12 +269,14 @@ anim_baking → legacy_anim + animation/foundation
 `team_states_` (orientation and team match facts). `Player` owns only its own
 identity, `FormationEntry`, kinematics and behaviour. `src/sim/player/` must
 never reference `Team` or iterate the squad; team-level algorithms live in
-`src/sim/runtime/` (possession, roster_possession, formation). A per-call
+`src/sim/runtime/` (possession, roster_possession, formation, team_facts).
+Possession takes the roster plus the runtime-owned `TeamFrame`/`TeamMatchState`
+directly and identifies a team by `TeamSide`, never by a `Team*`. A per-call
 `PlayerTeamView` (borrowed roster slices + the live `TeamMatchState`) is how a
-player sees its team. `Team` is a transitional adapter that borrows its roster,
-frame and state and owns nothing (P6a/P6b-1a); Rules and Observation no longer
-see it at all (P5). P6b-1b/2 move the remaining behaviours and delete
-`src/sim/team/`.
+player sees its team. `Team` is a transitional facade that borrows its roster,
+frame and state, runs no orientation or possession algorithm and owns nothing
+(P6a/P6b-1a/1b/1c); Rules and Observation no longer see it at all (P5). P6b-2
+deletes the remaining query/setter forwarding and `src/sim/team/`.
 - Modules are configured from the repository root: public headers live in the
   top-level include/football/ tree, so module directories are no longer
   standalone-configurable. The former src/model module is gone; its data lives

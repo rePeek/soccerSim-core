@@ -109,6 +109,17 @@ class SimulationAccess {
   static PlayerTeamFacts TeamFactsOf(const Simulation& s, int team_id) {
     return s.TeamFactsFor(team_id);
   }
+  // The runtime-owned possession inputs: the roster and the match state a team
+  // owns. Exposed so the harness can exercise possession without a Team object.
+  static football::sim::Roster& RosterOf(Simulation& s, int team_id) {
+    return s.rosters_[team_id];
+  }
+  static football::sim::TeamFrame& TeamFrameOf(Simulation& s, int team_id) {
+    return s.team_frames_[team_id];
+  }
+  static football::sim::TeamMatchState& TeamStateOf(Simulation& s, int team_id) {
+    return s.team_states_[team_id];
+  }
   static football::sim::Tick NowOf(Simulation& s) { return s.clock_->now(); }
   static football::sim::TickSpan RegulationTimeOf(Simulation& s) {
     return s.clock_->RegulationTime();

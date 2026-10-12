@@ -365,7 +365,10 @@ void Simulation::HandlePlayerSentOff(Player& player) {
     if (!active_players.empty()) active_players.front()->SetFormationEntry(entry);
   }
   // Runtime re-designates possession to the closest remaining teammate.
-  football::sim::RefreshDesignatedTeamPossessionPlayer(team, *ball_);
+  const int sent_off_team = player.GetTeamID();
+  football::sim::RefreshDesignatedTeamPossessionPlayer(
+      rosters_[sent_off_team], team_frames_[sent_off_team],
+      team_states_[sent_off_team], *ball_);
 }
 
 void Simulation::InitTeamPlayers(Team& team, football::sim::Roster& roster,
@@ -534,7 +537,7 @@ void Simulation::Init(
   last_goal_scorer_ = nullptr;
   ball_retainer_ = nullptr;
   designated_possession_player_ = nullptr;
-  best_possession_team_ = nullptr;
+  best_possession_team_.reset();
   reset_sequence_ = 0;
   pending_change_of_ends_ = false;
   last_body_ball_collision_tick_ = {};
@@ -670,7 +673,7 @@ void Simulation::Init(
   ball_retainer_ = nullptr;
   last_goal_team_ = nullptr;
   last_goal_scorer_ = nullptr;
-  best_possession_team_ = nullptr;
+  best_possession_team_.reset();
   SetMatchPhase(MatchPhase::PreMatch);
   // P7a: the unified production path is the default authority. A single entry
   // point enables Prepared Tick + body CCD + baked bodies after every owner is
@@ -792,16 +795,20 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
 
   // UpdatePossession: retain both per-roster refreshes before arbitration.
   Mirror(first_team_ == 1, first_team_ == 0, false);
-  football::sim::RefreshTeamPossession(*teams_[first_team_],
-      *teams_[second_team_], *ball_, GetTimelineTick(), ball_retainer_);
+  football::sim::RefreshTeamPossession(rosters_[first_team_],
+      team_frames_[first_team_], team_states_[first_team_],
+      team_states_[second_team_], *ball_, GetTimelineTick(), ball_retainer_);
   Mirror(true, true, true);
-  football::sim::RefreshTeamPossession(*teams_[second_team_],
-      *teams_[first_team_], *ball_, GetTimelineTick(), ball_retainer_);
+  football::sim::RefreshTeamPossession(rosters_[second_team_],
+      team_frames_[second_team_], team_states_[second_team_],
+      team_states_[first_team_], *ball_, GetTimelineTick(), ball_retainer_);
   Mirror(first_team_ == 0, first_team_ == 1, true);
 
   const auto possession = football::sim::EvaluatePossession(
-      *teams_[first_team_], *teams_[second_team_],
-      designated_possession_player_, ball_retainer_);
+      static_cast<football::sim::TeamSide>(first_team_),
+      team_states_[first_team_],
+      static_cast<football::sim::TeamSide>(second_team_),
+      team_states_[second_team_], designated_possession_player_, ball_retainer_);
   best_possession_team_ = possession.best_team;
   designated_possession_player_ = possession.designated_player;
 
@@ -944,7 +951,7 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   ball_in_goal_ = false;
   touches_.Reset();
   last_goal_scorer_ = nullptr;
-  best_possession_team_ = nullptr;
+  best_possession_team_.reset();
   last_body_ball_collision_tick_ = {};
   PlaceBallAt(focus_position);
   teams_[first_team_]->ResetSituation(focus_position, GetTimelineTick());
@@ -1117,7 +1124,7 @@ bool Simulation::Stop() {
   last_goal_scorer_ = nullptr;
   ball_retainer_ = nullptr;
   designated_possession_player_ = nullptr;
-  best_possession_team_ = nullptr;
+  best_possession_team_.reset();
   referee_.reset();
   recognizer_.Reset();
   mental_images_.clear();

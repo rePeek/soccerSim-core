@@ -1,37 +1,64 @@
 #include "sim/runtime/roster_possession.hpp"
 
+#include <cassert>
+
 #include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/roster_query.hpp"
-#include "sim/team/team.hpp"
+#include "sim/runtime/team_facts.hpp"
 
 using football::ball::Ball;
 
 namespace football::sim {
-void PrepareTeamPossession(Team& team, const Team& opponent, bool play_authorized,
-                          bool set_piece_active, const Player* retainer,
-                          const Team* best_possession_team) {
-  float amount = (float)(opponent.GetTimeNeededToGetToBall_ms() + 1500) /
-      (float)(team.GetTimeNeededToGetToBall_ms() + 1500);
-  float fading = team.GetFadingTeamPossessionAmount();
+
+Player* BestPossessionPlayer(const Roster& roster) {
+  int bestTime_ms = 10000000;
+  Player* bestPlayer = nullptr;
+  for (Player* player : roster.Players()) {
+    if (player->IsActive()) {
+      const int time_ms = player->GetTimeNeededToGetToBall_ms();
+      if (time_ms < bestTime_ms) {
+        bestTime_ms = time_ms;
+        bestPlayer = player;
+      }
+    }
+  }
+  assert(bestPlayer != nullptr);
+  return bestPlayer;
+}
+
+void PrepareTeamPossession(TeamSide side, const Roster& roster,
+                          const TeamFrame& frame, TeamMatchState& state,
+                          const TeamMatchState& opponent_state,
+                          bool play_authorized, bool set_piece_active,
+                          const Player* retainer,
+                          std::optional<TeamSide> best_possession_team) {
+  float amount = (float)(opponent_state.time_to_ball_ms + 1500) /
+      (float)(state.time_to_ball_ms + 1500);
+  float fading = state.fading_possession_amount;
   float tmpFadingTeamPossessionAmount =
       fading * 0.995f + clamp(amount, 0.5f, 1.5f) * 0.005f;
   fading += clamp(tmpFadingTeamPossessionAmount - fading, -0.005f, 0.005f);
   if (!play_authorized || set_piece_active || retainer != 0) {
     if (retainer != 0) {
-      fading = amount = (retainer->GetTeamID() == team.GetID()) ? 1.5f : 0.5f;
+      fading = amount = (retainer->GetTeamSide() == side) ? 1.5f : 0.5f;
     } else {
-      fading = amount = (best_possession_team == &team) ? 1.5f : 0.5f;
+      fading = amount =
+          (best_possession_team.has_value() && *best_possession_team == side) ? 1.5f : 0.5f;
     }
   }
-  team.SetPossessionAmounts(amount, fading);
+  state.possession_amount = amount;
+  state.fading_possession_amount = fading;
+  PublishTeamFacts(roster, frame, state);
 }
 
-void FinishTeamPossession(Team& team, const Team& opponent) {
-  Player* designated = team.GetDesignatedTeamPossessionPlayer();
+void FinishTeamPossession(const Roster& roster, const TeamFrame& frame,
+                          TeamMatchState& state,
+                          const TeamMatchState& opponent_state) {
+  Player* designated = state.designated_player;
   int designatedPlayerTime_ms = designated->GetTimeNeededToGetToBall_ms();
-  Player* bestPlayer = team.GetBestPossessionPlayer();
-  int oppTime_ms = opponent.GetTimeNeededToGetToBall_ms();
+  Player* bestPlayer = BestPossessionPlayer(roster);
+  int oppTime_ms = opponent_state.time_to_ball_ms;
   if (designated != bestPlayer) {
     int bestPlayerTime_ms = bestPlayer->GetTimeNeededToGetToBall_ms();
     float timeRating = (float)(bestPlayerTime_ms + 500) /
@@ -42,30 +69,42 @@ void FinishTeamPossession(Team& team, const Team& opponent) {
       timeRating += 0.2f;
       timeRating *= 1.2f;
     }
-    if (timeRating < 0.8f) team.SetDesignatedTeamPossessionPlayer(bestPlayer);
+    if (timeRating < 0.8f) {
+      state.designated_player = bestPlayer;
+      PublishTeamFacts(roster, frame, state);
+    }
   }
 }
 
-void RefreshTeamPossession(Team& team, const Team& opponent, Ball& ball,
+void RefreshTeamPossession(const Roster& roster, const TeamFrame& frame,
+                          TeamMatchState& state,
+                          const TeamMatchState& opponent_state, Ball& ball,
                           Tick now, const Player* retainer) {
-  for (Player* actor : team.GetAllPlayers()) {
+  (void)frame;  // aggregation writes only estimates, which do not publish
+  for (Player* actor : roster.Players()) {
     if (actor->IsActive()) actor->UpdatePossessionStats(
-        ball, opponent.match_state(), now, retainer, team.GetDesignatedTeamPossessionPlayer());
+        ball, opponent_state, now, retainer, state.designated_player);
   }
   bool hasPossession = false;
   int timeNeededToGetToBall_ms = 100000;
-  for (Player* actor : team.GetAllPlayers()) {
+  for (Player* actor : roster.Players()) {
     if (actor->IsActive()) {
       if (actor->HasPossession()) hasPossession = true;
       if (actor->GetTimeNeededToGetToBall_ms() < timeNeededToGetToBall_ms)
         timeNeededToGetToBall_ms = actor->GetTimeNeededToGetToBall_ms();
     }
   }
-  team.SetPossessionEstimate(hasPossession, timeNeededToGetToBall_ms);
+  state.has_possession = hasPossession;
+  state.time_to_ball_ms = timeNeededToGetToBall_ms;
 }
 
-void RefreshDesignatedTeamPossessionPlayer(Team& team, const Ball& ball) {
-  team.SetDesignatedTeamPossessionPlayer(
-      football::sim::player::FindClosestPlayer(team.GetAllPlayers(), ball.state().position.Get2D()));
+void RefreshDesignatedTeamPossessionPlayer(const Roster& roster,
+                                          const TeamFrame& frame,
+                                          TeamMatchState& state,
+                                          const Ball& ball) {
+  state.designated_player =
+      football::sim::player::FindClosestPlayer(roster.Players(), ball.state().position.Get2D());
+  PublishTeamFacts(roster, frame, state);
 }
+
 }  // namespace football::sim

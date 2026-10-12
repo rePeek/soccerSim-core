@@ -236,7 +236,7 @@ class Simulation {
   Player* GetLastGoalScorer() const { return last_goal_scorer_; }
   Player* GetDesignatedPossessionPlayer() const { return designated_possession_player_; }
   Player* GetBallRetainer() const { return ball_retainer_; }
-  Team* GetBestPossessionTeam() const { return best_possession_team_; }
+  std::optional<football::sim::TeamSide> GetBestPossessionTeam() const { return best_possession_team_; }
   const football::sim::event::TouchState& touches() const { return touches_; }
   int GetLastTouchTeamID() const { return touches_.last_team; }
   int GetLastTouchTeamID(e_TouchType touch_type) const {
@@ -350,7 +350,7 @@ class Simulation {
   Player* last_goal_scorer_ = nullptr;
   Player* ball_retainer_ = nullptr;
   Player* designated_possession_player_ = nullptr;
-  Team* best_possession_team_ = nullptr;
+  std::optional<football::sim::TeamSide> best_possession_team_;
   std::uint64_t reset_sequence_ = 0;
   bool pending_change_of_ends_ = false;
   football::sim::Tick last_body_ball_collision_tick_{};

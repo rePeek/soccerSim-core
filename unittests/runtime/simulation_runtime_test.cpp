@@ -29,6 +29,8 @@
 #include "sim/player/player_definition.hpp"
 #include "sim/observation/world_state.hpp"
 #include "sim/runtime/match_config.hpp"
+#include "sim/runtime/possession.hpp"
+#include "sim/runtime/roster_possession.hpp"
 #include "sim/simulation.hpp"
 #include "sim/simulation_config.hpp"
 #include "sim/team/team.hpp"
@@ -235,5 +237,46 @@ TEST_CASE("Runtime harness: SwitchEnds flips both directions, not the tick frame
   CHECK(home->GetDynamicSide() == dynamic_before);
   CHECK(home->GetStaticSide() == static_before);
   CHECK(home->isMirrored() == mirrored_before);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: possession arbitration is runtime-owned",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
+  football::sim::TeamMatchState& home_state = SimulationAccess::TeamStateOf(sim, 0);
+  football::sim::TeamMatchState& away_state = SimulationAccess::TeamStateOf(sim, 1);
+
+  // The aggregation and the arbitration read the roster and the match state
+  // directly; no Team object is involved.
+  Player* best = football::sim::BestPossessionPlayer(home_roster);
+  REQUIRE(best != nullptr);
+  CHECK(best->IsActive());
+
+  home_state.time_to_ball_ms = 50;
+  away_state.time_to_ball_ms = 5000;
+  const auto selection = football::sim::EvaluatePossession(
+      football::sim::TeamSide::Home, home_state, football::sim::TeamSide::Away,
+      away_state, best, nullptr);
+  REQUIRE(selection.best_team.has_value());
+  CHECK(*selection.best_team == football::sim::TeamSide::Home);
+
+  // A retainer is a physical fact and wins over the estimates.
+  const auto retained = football::sim::EvaluatePossession(
+      football::sim::TeamSide::Home, home_state, football::sim::TeamSide::Away,
+      away_state, best, away_state.designated_player);
+  REQUIRE(retained.best_team.has_value());
+  CHECK(*retained.best_team == football::sim::TeamSide::Away);
+  CHECK(retained.designated_player == away_state.designated_player);
+
+  // A send-off re-designation writes the runtime state and publishes it.
+  football::sim::RefreshDesignatedTeamPossessionPlayer(
+      home_roster, SimulationAccess::TeamFrameOf(sim, 0), home_state,
+      *SimulationAccess::BallOf(sim));
+  CHECK(home_state.designated_player != nullptr);
+  for (Player* player : home_roster.Players()) {
+    CHECK(player->GetTeamDesignatedPossessionPlayer() == home_state.designated_player);
+  }
   CHECK(sim.Stop());
 }

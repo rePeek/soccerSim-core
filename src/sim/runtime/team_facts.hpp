@@ -20,7 +20,7 @@ inline PlayerTeamFacts TeamFactsOf(const TeamFrame& frame,
 }
 
 // Publishes the current facts to every player of the roster, in roster order.
-inline void PublishTeamFacts(Roster& roster, const TeamFrame& frame,
+inline void PublishTeamFacts(const Roster& roster, const TeamFrame& frame,
                              const TeamMatchState& state) {
   const PlayerTeamFacts facts = TeamFactsOf(frame, state);
   for (Player* player : roster.Players()) player->SetTeamContext(facts);

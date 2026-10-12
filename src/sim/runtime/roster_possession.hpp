@@ -1,26 +1,45 @@
 #ifndef FOOTBALL_SIM_RUNTIME_ROSTER_POSSESSION_HPP
 #define FOOTBALL_SIM_RUNTIME_ROSTER_POSSESSION_HPP
 
+#include <optional>
+
+#include "sim/runtime/match_config.hpp"
+#include "sim/runtime/roster.hpp"
+#include "sim/runtime/team_state.hpp"
 #include "football/foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
-class Team;
 
 namespace football::sim {
-// Per-roster possession aggregation. This is a team-level algorithm, so it lives
-// with Runtime, not with Player: a single Player only owns its own capability
-// and state (Player::UpdatePossessionStats). These phases surround ordered
-// player execution. All world facts are supplied; Team stores only the resulting
-// roster estimates, never a runtime context.
-void PrepareTeamPossession(Team& team, const Team& opponent, bool play_authorized,
-                           bool set_piece_active, const Player* retainer,
-                           const Team* best_possession_team);
-void FinishTeamPossession(Team& team, const Team& opponent);
+// Per-roster possession aggregation. Team-level algorithms owned by Runtime:
+// they take the roster, the borrowed TeamFrame and the live TeamMatchState
+// directly, so no Team object is involved. A single Player only owns its own
+// capability/state (Player::UpdatePossessionStats). These phases surround
+// ordered player execution; all world facts are supplied. Publication happens
+// exactly where the legacy Team setters published, so player-cached facts never
+// lag a tick.
+void PrepareTeamPossession(TeamSide side, const Roster& roster,
+                           const TeamFrame& frame, TeamMatchState& state,
+                           const TeamMatchState& opponent_state,
+                           bool play_authorized, bool set_piece_active,
+                           const Player* retainer,
+                           std::optional<TeamSide> best_possession_team);
+void FinishTeamPossession(const Roster& roster, const TeamFrame& frame,
+                          TeamMatchState& state,
+                          const TeamMatchState& opponent_state);
 // Refresh actors first, then aggregate this roster. Invoke first/second in order.
-void RefreshTeamPossession(Team& team, const Team& opponent, football::ball::Ball& ball,
-                           Tick now, const Player* retainer);
-void RefreshDesignatedTeamPossessionPlayer(Team& team, const football::ball::Ball& ball);
+void RefreshTeamPossession(const Roster& roster, const TeamFrame& frame,
+                           TeamMatchState& state,
+                           const TeamMatchState& opponent_state,
+                           football::ball::Ball& ball, Tick now,
+                           const Player* retainer);
+void RefreshDesignatedTeamPossessionPlayer(const Roster& roster,
+                                           const TeamFrame& frame,
+                                           TeamMatchState& state,
+                                           const football::ball::Ball& ball);
+// Lowest time-to-ball active player, the legacy Team::GetBestPossessionPlayer.
+Player* BestPossessionPlayer(const Roster& roster);
 }  // namespace football::sim
 
 #endif
