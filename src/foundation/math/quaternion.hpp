@@ -26,7 +26,6 @@
 namespace blunted {
 
   class Vector3;
-  class Matrix3;
 
   static real QUATERNION_IDENTITY[4] = { 0, 0, 0, 1 };
 
@@ -44,13 +43,11 @@ namespace blunted {
 
       void Set(real x, real y, real z, real w);
       void Set(const Quaternion &quat);
-      void Set(const Matrix3 &mat);
 
       // ----- operator overloading
       bool operator != (const Quaternion &fac) const;
       const Quaternion operator * (float scale) const;
       Vector3 operator * (const Vector3 &fac) const;
-      void operator = (const Vector3 &vec);
 
       Quaternion operator * (const Quaternion &fac) const;
       Quaternion operator + (const Quaternion &q2) const;
@@ -59,7 +56,6 @@ namespace blunted {
 
       // ----- mathematics
       Quaternion GetInverse() const;
-      void ConstructMatrix(Matrix3 &rotation) const;
       void GetAngles(real &X, real &Y, real &Z) const;
       void SetAngles(real X, real Y, real Z);
       void GetAngleAxis(radian &rfangle, Vector3 &rkaxis) const;

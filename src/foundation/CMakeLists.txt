@@ -13,11 +13,11 @@ add_library(football_foundation STATIC)
 add_library(football::foundation ALIAS football_foundation)
 target_sources(football_foundation
   PRIVATE
-    math/matrix3.cpp math/matrix4.cpp math/quaternion.cpp math/scalar.cpp math/vector3.cpp
+    math/quaternion.cpp math/scalar.cpp math/vector3.cpp
   PUBLIC FILE_SET HEADERS
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
     FILES
-      math/matrix3.hpp math/matrix4.hpp math/quaternion.hpp math/rng.hpp
+      math/quaternion.hpp math/rng.hpp
       math/scalar.hpp math/vector3.hpp
       time/tick.hpp time/tick_boundary.hpp)
 target_compile_features(football_foundation PUBLIC cxx_std_23)

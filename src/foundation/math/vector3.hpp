@@ -22,8 +22,6 @@
 #include <iostream>
 
 #include "foundation/math/scalar.hpp"
-#include "foundation/math/matrix3.hpp"
-#include "foundation/math/matrix4.hpp"
 #include "foundation/math/quaternion.hpp"
 
 namespace blunted {
@@ -61,8 +59,6 @@ namespace blunted {
       Vector3 operator * (const Vector3 &scalar) const;
       Vector3 &operator *= (const real scalar);
       Vector3 &operator *= (const Vector3 &scalar);
-      Vector3 &operator *= (const Matrix3 &mat);
-      Vector3 &operator *= (const Matrix4 &mat);
       Vector3 operator / (const real scalar) const;
       Vector3 operator / (const Vector3 &scalar) const;
       Vector3 &operator /= (const Vector3 &scalar);
@@ -81,7 +77,6 @@ namespace blunted {
       // ----- mathematics
       Vector3 GetCrossProduct(const Vector3 &fac) const;
       real GetDotProduct(const Vector3 &fac) const;
-      void ConstructMatrix(Matrix3 &mat) const;
       void FastNormalize();
       void Normalize(const Vector3 &ifNull);
       void Normalize();

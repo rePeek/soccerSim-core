@@ -21,7 +21,6 @@
 
 #include "foundation/math/scalar.hpp"
 #include "foundation/math/vector3.hpp"
-#include "foundation/math/matrix3.hpp"
 
 
 // most of the formulas derived from ogre3d
@@ -58,37 +57,6 @@ void Quaternion::Set(const Quaternion &quat) {
   elements[3] = quat.elements[3];
 }
 
-void Quaternion::Set(const Matrix3 &mat) {
-  // http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/forum.htm
-
-  real n4;  // the norm of quaternion multiplied by 4
-  Matrix3 tmp(mat);
-
-  real tr =
-      tmp.elements[0] + tmp.elements[4] + tmp.elements[8];  // trace of matrix
-  if (tr > 0.0f) {
-    Set(tmp.elements[7] - tmp.elements[5], tmp.elements[2] - tmp.elements[6],
-        tmp.elements[3] - tmp.elements[1], tr + 1.0f);
-    n4 = elements[3];
-  } else if ((tmp.elements[0] > tmp.elements[4]) &&
-             (tmp.elements[0] > tmp.elements[8])) {
-    Set(1.0f + tmp.elements[0] - tmp.elements[4] - tmp.elements[8],
-        tmp.elements[1] + tmp.elements[3], tmp.elements[2] + tmp.elements[6],
-        tmp.elements[7] - tmp.elements[5]);
-    n4 = elements[0];
-  } else if (tmp.elements[4] > tmp.elements[8]) {
-    Set(tmp.elements[1] + tmp.elements[3],
-        1.0f + tmp.elements[4] - tmp.elements[0] - tmp.elements[8],
-        tmp.elements[5] + tmp.elements[7], tmp.elements[2] - tmp.elements[6]);
-    n4 = elements[1];
-  } else {
-    Set(tmp.elements[2] + tmp.elements[6], tmp.elements[5] + tmp.elements[7],
-        1.0f + tmp.elements[8] - tmp.elements[0] - tmp.elements[4],
-        tmp.elements[3] - tmp.elements[1]);
-    n4 = elements[2];
-  }
-  scale(0.5f / (float)std::sqrt(n4));
-}
 
   // ----- operator overloading
 
@@ -119,21 +87,6 @@ void Quaternion::Set(const Matrix3 &mat) {
 
   }
 
-  void Quaternion::operator=(const Vector3 &vec) {
-
-    Vector3 z = vec;
-    z.Normalize();
-    Vector3 y(0, -1, 0);
-    Vector3 x = y.GetCrossProduct(z); // x = y cross z
-    x.Normalize();
-    y = z.GetCrossProduct(x); // y = z cross x
-
-    Matrix3 mat(x.coords[0], x.coords[1], x.coords[2],
-                y.coords[0], y.coords[1], y.coords[2],
-                z.coords[0], z.coords[1], z.coords[2]);
-
-    this->Set(mat);
-  }
 
   Quaternion Quaternion::operator * (const Quaternion &fac) const {
     Quaternion result;
@@ -171,32 +124,6 @@ void Quaternion::Set(const Matrix3 &mat) {
     }
   }
 
-  void Quaternion::ConstructMatrix(Matrix3 &rotation) const {
-
-    real xx      = elements[0] * elements[0];
-    real xy      = elements[0] * elements[1];
-    real xz      = elements[0] * elements[2];
-    real xw      = elements[0] * elements[3];
-
-    real yy      = elements[1] * elements[1];
-    real yz      = elements[1] * elements[2];
-    real yw      = elements[1] * elements[3];
-
-    real zz      = elements[2] * elements[2];
-    real zw      = elements[2] * elements[3];
-
-    rotation.elements[0]  = 1 - 2 * ( yy + zz );
-    rotation.elements[1]  =     2 * ( xy - zw );
-    rotation.elements[2]  =     2 * ( xz + yw );
-
-    rotation.elements[3]  =     2 * ( xy + zw );
-    rotation.elements[4]  = 1 - 2 * ( xx + zz );
-    rotation.elements[5]  =     2 * ( yz - xw );
-
-    rotation.elements[6]  =     2 * ( xz - yw );
-    rotation.elements[7]  =     2 * ( yz + xw );
-    rotation.elements[8]  = 1 - 2 * ( xx + yy );
-  }
 
   void Quaternion::GetAngles(real &X, real &Y, real &Z) const {
     int x = 0;

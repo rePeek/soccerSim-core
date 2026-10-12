@@ -104,32 +104,6 @@ void Vector3::Set(const Vector3 &vec) {
     Set(result.elements[0], result.elements[1], result.elements[2]);
   }
 
-  Vector3 &Vector3::operator*=(const Matrix3 &mat) {
-    Vector3 tmp;
-    tmp.coords[0] = coords[0] * mat.elements[0] + coords[1] * mat.elements[3] + coords[2] * mat.elements[6];
-    tmp.coords[1] = coords[0] * mat.elements[1] + coords[1] * mat.elements[4] + coords[2] * mat.elements[7];
-    tmp.coords[2] = coords[0] * mat.elements[2] + coords[1] * mat.elements[5] + coords[2] * mat.elements[8];
-    coords[0] = tmp.coords[0];
-    coords[1] = tmp.coords[1];
-    coords[2] = tmp.coords[2];
-
-    return *this;
-  }
-
-  // not sure if legal
-  Vector3 &Vector3::operator*=(const Matrix4 &mat) {
-
-    const Matrix3 bla = Matrix3(mat);
-    Vector3 tmp = *this;
-    tmp *= bla;
-    *this = tmp;
-
-    coords[0] += mat.elements[3];
-    coords[1] += mat.elements[7];
-    coords[2] += mat.elements[11];
-
-    return *this;
-  }
 
   // ----- mathematics!!! don't we just love it
 
@@ -143,11 +117,6 @@ void Vector3::Set(const Vector3 &vec) {
     return (coords[0] * fac.coords[0] + coords[1] * fac.coords[1] + coords[2] * fac.coords[2]);
   }
 
-  void Vector3::ConstructMatrix(Matrix3 &mat) const {
-    mat.elements[0] = coords[0];
-    mat.elements[4] = coords[1];
-    mat.elements[8] = coords[2];
-  }
 
   void Vector3::FastNormalize() {
 
