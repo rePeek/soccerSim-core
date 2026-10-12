@@ -166,7 +166,7 @@ test/                        C++/Catch2 unit and integration tests, no shell gua
 ├── snapshot_consumers_test.cpp standalone temporal graph and Event trajectory windows
 ├── snapshot_archive_test.cpp standalone format/queue/corruption/recovery/error coverage
 ├── snapshot_archive_integration_test.cpp owning GameEnv samples, byte replay and CLI readback
-├── model_test.cpp            standalone STL domain checks
+├── model_test.cpp            football::player/sim/pitch definition checks
 ├── app_*_test.cpp            args, fixtures and CLI composition
 ├── default_ai_test.cpp + default_ai_fixture.hpp
 ├── sim_computation_test.cpp  queries, reachability, offside, kick mechanics
