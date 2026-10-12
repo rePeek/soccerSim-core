@@ -7,7 +7,6 @@ using football::geometry::ColliderId;
 using football::geometry::ColliderMotion;
 using football::geometry::ColliderShape;
 using football::geometry::ContactMaterial;
-using football::geometry::Plane;
 using football::geometry::Sphere;
 
 float BallInertia(const football::ball::BallModel& config) {

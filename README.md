@@ -303,8 +303,10 @@ quantization, and legacy XML/codecs/text helpers live only in `tools/animBaker/i
 File I/O uses the standard library; custom diagnostics/backtraces and Properties
 are removed. Neither app nor Catch2/offline baker code is linked into core.
 Unit tests live under `unittests/` and link only the module under test:
-`foundation_unit` (math/time), `collision_unit` (generic CCD and overlap) and
-`ball_unit` (ball physics: impulse/response, one-tick motion, Step/Predict).
+`foundation_unit` (math/time), `collision_unit` (generic CCD, overlap and the
+malformed-input contract), `pitch_unit` (the ground/goal scene and its
+configuration) and `ball_unit` (ball physics: impulse/response, one-tick
+motion, Step/Predict).
 They run in milliseconds and never load a match, animation asset or
 `football::simcore`.
 The offline baker remains a standalone tool under `tools/animBaker/`.

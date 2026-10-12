@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 #include <type_traits>
 
+#include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/scalar.hpp"
 #include "sweep_deforming_capsule.hpp"
 
@@ -12,6 +14,8 @@ namespace football::collision {
 
 using football::geometry::Capsule;
 using football::geometry::ColliderMotion;
+using football::geometry::ColliderShape;
+using football::geometry::HalfSpace;
 using football::geometry::Plane;
 using football::geometry::Sphere;
 
@@ -51,18 +55,105 @@ football::math::Vector3 NormalizedSafe(const football::math::Vector3& v,
   return v.GetNormalized(fallback);
 }
 
+// ---- Input validation ----
+bool IsFiniteVector(const football::math::Vector3& v) {
+  return std::isfinite(v.coords[0]) && std::isfinite(v.coords[1]) &&
+         std::isfinite(v.coords[2]);
+}
+
+void ValidateShape(const ColliderShape& shape) {
+  std::visit(
+      [](const auto& s) {
+        using T = std::decay_t<decltype(s)>;
+        if constexpr (std::is_same_v<T, Plane> || std::is_same_v<T, HalfSpace>) {
+          if (!IsFiniteVector(s.point) || !IsFiniteVector(s.normal))
+            throw std::invalid_argument(
+                "football::collision::Sweep: non-finite plane/half-space");
+        } else if constexpr (std::is_same_v<T, Sphere>) {
+          if (!std::isfinite(s.radius) || s.radius < 0.0f)
+            throw std::invalid_argument(
+                "football::collision::Sweep: invalid sphere radius");
+          if (!IsFiniteVector(s.center))
+            throw std::invalid_argument(
+                "football::collision::Sweep: non-finite sphere centre");
+        } else {
+          if (!std::isfinite(s.radius) || s.radius < 0.0f)
+            throw std::invalid_argument(
+                "football::collision::Sweep: invalid capsule radius");
+          if (!IsFiniteVector(s.a) || !IsFiniteVector(s.b))
+            throw std::invalid_argument(
+                "football::collision::Sweep: non-finite capsule axis");
+        }
+      },
+      shape);
+}
+
+// Rejects malformed sweeps. A valid query with no contact returns nullopt; bad
+// input is a caller bug, so it throws instead of being reported as "no hit".
+void ValidateSweep(const MovingSphere& sphere, const ColliderMotion& collider,
+                   float dt) {
+  if (!std::isfinite(dt) || dt <= 0.0f)
+    throw std::invalid_argument(
+        "football::collision::Sweep: dt must be finite and > 0");
+  if (!std::isfinite(sphere.shape.radius) || sphere.shape.radius < 0.0f ||
+      !IsFiniteVector(sphere.shape.center) || !IsFiniteVector(sphere.velocity))
+    throw std::invalid_argument(
+        "football::collision::Sweep: invalid moving sphere");
+  if (collider.start.index() != collider.end.index())
+    throw std::invalid_argument(
+        "football::collision::Sweep: collider start/end shape kinds differ");
+  ValidateShape(collider.start);
+  ValidateShape(collider.end);
+}
+
+// Two-sided plane: a thin surface. The sphere touches when its centre is one
+// radius away, on either side, and the normal points back to the side it
+// arrived from.
 std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
                                        const ColliderMotion& collider,
                                        const Plane& plane, float dt) {
   const football::math::Vector3 ball_position = sphere.shape.center;
-  const football::math::Vector3 ball_velocity = sphere.velocity;
+  const football::math::Vector3 disp = sphere.velocity * dt;
   const float ball_radius = sphere.shape.radius;
 
   const football::math::Vector3 n = NormalizedSafe(plane.normal, {0, 0, 1});
-  const football::math::Vector3 r0 = ball_position - plane.point;
-  const football::math::Vector3 disp = ball_velocity * dt;
-  const float d0 = r0.GetDotProduct(n) - ball_radius;
+  const float d0 = (ball_position - plane.point).GetDotProduct(n);
   const float dn = disp.GetDotProduct(n);
+
+  CollisionHit hit;
+  hit.collider = collider.id;
+  if (std::fabs(d0) <= ball_radius + kEpsilon) {
+    hit.toi = 0.0f;
+    hit.center = ball_position;
+    hit.normal = (d0 >= 0.0f) ? n : -n;
+    return hit;
+  }
+  if (std::fabs(dn) < kEpsilon) return std::nullopt;
+  const float target = (d0 > 0.0f) ? ball_radius : -ball_radius;
+  const float t = (target - d0) / dn;
+  if (t < 0.0f || t > 1.0f) return std::nullopt;
+  hit.toi = t;
+  hit.center = ball_position + disp * t;
+  hit.normal = (d0 > 0.0f) ? n : -n;
+  return hit;
+}
+
+// One-sided solid: the -normal side is solid, so a sphere already inside it
+// reports toi == 0 and otherwise contacts when its surface reaches the plane.
+std::optional<CollisionHit> SweepHalfSpace(const MovingSphere& sphere,
+                                           const ColliderMotion& collider,
+                                           const HalfSpace& half_space,
+                                           float dt) {
+  const football::math::Vector3 ball_position = sphere.shape.center;
+  const football::math::Vector3 disp = sphere.velocity * dt;
+  const float ball_radius = sphere.shape.radius;
+
+  const football::math::Vector3 n =
+      NormalizedSafe(half_space.normal, {0, 0, 1});
+  const float d0 =
+      (ball_position - half_space.point).GetDotProduct(n) - ball_radius;
+  const float dn = disp.GetDotProduct(n);
+
   CollisionHit hit;
   hit.collider = collider.id;
   hit.normal = n;
@@ -204,14 +295,16 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
 
 std::optional<CollisionHit> Sweep(const MovingSphere& sphere,
                                   const ColliderMotion& collider, float dt) {
+  ValidateSweep(sphere, collider, dt);
   return std::visit(
       [&](const auto& start_shape) -> std::optional<CollisionHit> {
         using T = std::decay_t<decltype(start_shape)>;
         if constexpr (std::is_same_v<T, Plane>) {
           return SweepPlane(sphere, collider, start_shape, dt);
+        } else if constexpr (std::is_same_v<T, HalfSpace>) {
+          return SweepHalfSpace(sphere, collider, start_shape, dt);
         } else if constexpr (std::is_same_v<T, Sphere>) {
           const auto* end = std::get_if<Sphere>(&collider.end);
-          if (end == nullptr) return std::nullopt;
           if (start_shape.radius != end->radius)
             return detail::SweepDeformingCapsule(sphere, collider,
                 Capsule{start_shape.center, start_shape.center, start_shape.radius},
@@ -219,7 +312,6 @@ std::optional<CollisionHit> Sweep(const MovingSphere& sphere,
           return SweepSphere(sphere, collider, start_shape, *end, dt);
         } else if constexpr (std::is_same_v<T, Capsule>) {
           const auto* end = std::get_if<Capsule>(&collider.end);
-          if (end == nullptr) return std::nullopt;
           if (end->a - start_shape.a != end->b - start_shape.b || start_shape.radius != end->radius)
             return detail::SweepDeformingCapsule(sphere, collider, start_shape, *end, dt);
           return SweepCapsule(sphere, collider, start_shape, *end, dt);
@@ -261,6 +353,13 @@ bool Overlap(const Sphere& sphere, const Plane& plane) {
   // A plane is a surface, not a half-space: the sphere intersects it when its
   // center is within one radius of it, on either side.
   return std::fabs((sphere.center - plane.point).GetDotProduct(n)) <= sphere.radius;
+}
+
+bool Overlap(const Sphere& sphere, const HalfSpace& half_space) {
+  const football::math::Vector3 n =
+      NormalizedSafe(half_space.normal, {0, 0, 1});
+  // Solid on the -normal side: overlap once the surface reaches the solid.
+  return (sphere.center - half_space.point).GetDotProduct(n) <= sphere.radius;
 }
 
 }  // namespace football::collision

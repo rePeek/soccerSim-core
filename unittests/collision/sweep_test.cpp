@@ -6,7 +6,10 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <cmath>
+#include <limits>
 #include <optional>
+#include <stdexcept>
 #include <vector>
 
 #include "football/foundation/collision/sweep.hpp"
@@ -23,6 +26,7 @@ using football::collision::Sweep;
 using football::geometry::Capsule;
 using football::geometry::ColliderMotion;
 using football::geometry::ContactMaterial;
+using football::geometry::HalfSpace;
 using football::geometry::Plane;
 using football::geometry::Sphere;
 using Catch::Approx;
@@ -204,4 +208,101 @@ TEST_CASE("Static overlap queries", "[unit][collision][overlap]") {
 
   CHECK(Overlap(ball, Plane{{0.0f, 0.0f, 0.4f}, {0.0f, 0.0f, 1.0f}}));
   CHECK_FALSE(Overlap(ball, Plane{{0.0f, 0.0f, 0.6f}, {0.0f, 0.0f, 1.0f}}));
+}
+
+TEST_CASE("Half-space is a one-sided solid", "[unit][collision][sweep]") {
+  const HalfSpace ground{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+  const ColliderMotion collider{1, ground, ground, ContactMaterial{0.5f, 0.0f}};
+
+  SECTION("approaching from above contacts at one radius") {
+    const MovingSphere sphere = BallSweep({0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, -2.0f});
+    const auto hit = Sweep(sphere, collider, 0.5f);
+    REQUIRE(hit.has_value());
+    CHECK(hit->toi == Approx(0.89f).margin(1e-4f));
+    CHECK(hit->normal.coords[2] == Approx(1.0f).margin(1e-5f));
+  }
+
+  SECTION("already deep inside the solid reports toi zero") {
+    const MovingSphere sphere = BallSweep({0.0f, 0.0f, -10.0f}, {0.0f, 0.0f, 1.0f});
+    const auto hit = Sweep(sphere, collider, 0.5f);
+    REQUIRE(hit.has_value());
+    CHECK(hit->toi == Approx(0.0f));
+  }
+
+  SECTION("moving away from the solid is not a contact") {
+    const MovingSphere sphere = BallSweep({0.0f, 0.0f, 5.0f}, {0.0f, 0.0f, 1.0f});
+    CHECK_FALSE(Sweep(sphere, collider, 0.5f).has_value());
+  }
+}
+
+TEST_CASE("Overlap distinguishes a plane from a half-space",
+          "[unit][collision][overlap]") {
+  // Ten metres below the ground: inside the solid, far from the surface.
+  const Sphere below{{0.0f, 0.0f, -10.0f}, 0.11f};
+  CHECK(Overlap(below, HalfSpace{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}));
+  CHECK_FALSE(Overlap(below, Plane{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}));
+
+  // One radius above the surface: touching either way.
+  const Sphere touching{{0.0f, 0.0f, 0.11f}, 0.11f};
+  CHECK(Overlap(touching, HalfSpace{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}));
+  CHECK(Overlap(touching, Plane{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}));
+}
+
+TEST_CASE("A two-sided plane contacts from either side",
+          "[unit][collision][sweep]") {
+  const Plane plane{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+  const ColliderMotion collider{2, plane, plane, ContactMaterial{0.5f, 0.0f}};
+
+  const MovingSphere above = BallSweep({0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, -2.0f});
+  const auto from_above = Sweep(above, collider, 0.5f);
+  REQUIRE(from_above.has_value());
+  CHECK(from_above->normal.coords[2] == Approx(1.0f).margin(1e-5f));
+
+  const MovingSphere below = BallSweep({0.0f, 0.0f, -1.0f}, {0.0f, 0.0f, 2.0f});
+  const auto from_below = Sweep(below, collider, 0.5f);
+  REQUIRE(from_below.has_value());
+  CHECK(from_below->normal.coords[2] == Approx(-1.0f).margin(1e-5f));
+}
+
+TEST_CASE("Sweep rejects malformed input instead of reporting no hit",
+          "[unit][collision][sweep]") {
+  const Sphere target{{0.0f, 0.0f, 1.0f}, 0.4f};
+  const ColliderMotion sphere_collider{1, target, target, ContactMaterial{0.5f, 0.0f}};
+  const MovingSphere valid = BallSweep({-2.0f, 0.0f, 1.0f}, {10.0f, 0.0f, 0.0f}, 0.1f);
+
+  SECTION("non-positive or non-finite dt") {
+    CHECK_THROWS_AS(Sweep(valid, sphere_collider, 0.0f), std::invalid_argument);
+    CHECK_THROWS_AS(Sweep(valid, sphere_collider, -0.1f), std::invalid_argument);
+    CHECK_THROWS_AS(Sweep(valid, sphere_collider,
+                          std::numeric_limits<float>::quiet_NaN()),
+                    std::invalid_argument);
+  }
+
+  SECTION("negative or non-finite sphere") {
+    CHECK_THROWS_AS(Sweep(BallSweep({0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, -0.1f),
+                          sphere_collider, kDt),
+                    std::invalid_argument);
+    CHECK_THROWS_AS(
+        Sweep(BallSweep({std::numeric_limits<float>::infinity(), 0.0f, 1.0f},
+                        {1.0f, 0.0f, 0.0f}),
+              sphere_collider, kDt),
+        std::invalid_argument);
+  }
+
+  SECTION("mismatched start/end shape kinds") {
+    const ColliderMotion mismatched{1, target, Plane{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+                                     ContactMaterial{0.5f, 0.0f}};
+    CHECK_THROWS_AS(Sweep(valid, mismatched, kDt), std::invalid_argument);
+  }
+
+  SECTION("negative capsule radius") {
+    const Capsule bad{{0.0f, -1.0f, 1.0f}, {0.0f, 1.0f, 1.0f}, -0.3f};
+    const ColliderMotion collider{1, bad, bad, ContactMaterial{0.5f, 0.0f}};
+    CHECK_THROWS_AS(Sweep(valid, collider, kDt), std::invalid_argument);
+  }
+
+  SECTION("valid input with no contact is a quiet nullopt") {
+    const MovingSphere far = BallSweep({-2.0f, 0.0f, 1.0f}, {-10.0f, 0.0f, 0.0f}, 0.1f);
+    CHECK_FALSE(Sweep(far, sphere_collider, kDt).has_value());
+  }
 }

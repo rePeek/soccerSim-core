@@ -24,12 +24,22 @@ bool Overlap(const football::geometry::Sphere& sphere,
              const football::geometry::Sphere& other);
 bool Overlap(const football::geometry::Sphere& sphere,
              const football::geometry::Capsule& capsule);
+// Two-sided: true when the centre is within one radius of the surface.
 bool Overlap(const football::geometry::Sphere& sphere,
              const football::geometry::Plane& plane);
+// One-sided: true when the sphere reaches into the solid (-normal) side.
+bool Overlap(const football::geometry::Sphere& sphere,
+             const football::geometry::HalfSpace& half_space);
 
-// ---- Continuous queries ----
 // Pure swept-sphere CCD against one collider over [0, dt] (`dt` in seconds).
 // Deterministic, never mutates state and draws no RNG.
+//
+// Input contract: dt must be finite and > 0, radii must be finite and >= 0,
+// all coordinates must be finite, and collider.start/end must hold the same
+// shape kind. A violation throws std::invalid_argument (a malformed collider
+// is a caller bug, not 'no collision'). Valid input with no contact over the
+// interval returns nullopt. Planes are two-sided surfaces; half-spaces are
+// one-sided solids.
 std::optional<CollisionHit> Sweep(
     const MovingSphere& sphere,
     const football::geometry::ColliderMotion& collider, float dt);

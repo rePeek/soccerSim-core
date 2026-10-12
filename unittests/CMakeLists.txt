@@ -5,4 +5,5 @@
 
 add_subdirectory(foundation)
 add_subdirectory(collision)
+add_subdirectory(pitch)
 add_subdirectory(ball)

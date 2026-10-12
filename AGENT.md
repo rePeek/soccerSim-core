@@ -88,10 +88,13 @@ include/football/    public headers (interfaces), one directory per module
 │   │                subdirectory is its own CMake target.
 │   ├── math/         Vector3, quaternion, scalar, RNG (football::foundation)
 │   ├── time/         Tick / TickSpan (football::foundation)
-│   ├── geometry/     Plane/Sphere/Capsule, ColliderShape, ContactMaterial,
-│   │                 Collider and per-tick ColliderMotion (football::geometry)
+│   ├── geometry/     Plane/HalfSpace/Sphere/Capsule, ColliderShape,
+│   │                 ContactMaterial, Collider and per-tick ColliderMotion
+│   │                 (football::geometry)
 │   └── collision/    generic Overlap/Sweep/FirstHit CCD, MovingSphere and
-│                     CollisionHit (football::collision)
+│                     CollisionHit (football::collision); Sweep validates its
+│                     input (dt > 0, finite/positive radii, matching
+│                     start/end kinds) and throws on a violation
 ├── animation/       header-only baked schema/library/selector (football::animation)
 ├── ball/            football::ball: Ball, BallModel, BallState, contact
 │                    evidence, impulse and per-tick integration; reads the
@@ -196,14 +199,20 @@ anim_baking → legacy_anim + animation/foundation
   INTERFACE) and `football_collision` (STATIC) live under src/foundation/ too but
   are independent targets; the directory is organization, the targets are the
   boundary. football_foundation never links them back (that would be a cycle).
-- `football_geometry` owns the shared shape/collider contract (Plane/Sphere/
-  Capsule, ColliderShape, ColliderId, ContactMaterial, Collider, ColliderMotion).
-  ball, pitch and the player body all link it, so none of them owns geometry and
-  the player no longer reaches into `football::ball` for a Capsule.
+- `football_geometry` owns the shared shape/collider contract (Plane/HalfSpace/
+  Sphere/Capsule, ColliderShape, ColliderId, ContactMaterial, Collider,
+  ColliderMotion). Plane is a two-sided thin surface; HalfSpace is a solid whose
+  interior is on the -normal side (the ground). ball, pitch and the player body
+  all link it, so none of them owns geometry and the player no longer reaches
+  into `football::ball` for a Capsule.
 - `football_collision` owns the generic CCD queries (Overlap, Sweep, FirstHit)
   and their input/result values (MovingSphere, CollisionHit). It depends only on
   geometry. Ball and Player keep their own impulse/restitution/friction response
   on top of it; collision never decides how a contactor moves afterwards.
+  Sweep's contract: dt finite and > 0, radii finite and >= 0, coordinates
+  finite, and collider.start/end the same shape kind. A violation throws
+  std::invalid_argument instead of masquerading as 'no hit'; a valid query with
+  no contact returns nullopt.
 - `football_animation` is a header-only INTERFACE target (format types,
   serialization, the library reader, and selection) depending only on
   foundation. The runtime and the offline baker share one definition, so the
@@ -241,9 +250,14 @@ Registered tests are unit-only; there is no golden/end-to-end tier.
   exactness and overflow/negative-interval rejection, Rng determinism/range.
 - `football_collision_unit_tests` (name `collision_unit`) links only
   `football::collision` (geometry + foundation): swept-sphere CCD against
-  static/moving/deforming Plane/Sphere/Capsule, TOI/normal/center, no-tunnelling,
-  tangent rejection, initial penetration, FirstHit earliest/lowest-id tie-break
-  and the static Overlap queries.
+  static/moving/deforming Plane/Sphere/Capsule and the one-sided HalfSpace,
+  TOI/normal/center, no-tunnelling, tangent rejection, initial penetration,
+  FirstHit earliest/lowest-id tie-break, the static Overlap queries, and the
+  malformed-input rejection contract (bad dt/radius/mismatched kinds throw).
+- `football_pitch_unit_tests` (name `pitch_unit`) links only `football::pitch`:
+  the seven ground/goal colliders, unique ids and fixed order, post/crossbar
+  placement, custom dimensions, invalid-configuration rejection and
+  configuration-only equality. No Ball, no Simulation.
 - `football_ball_unit_tests` (name `ball_unit`) links only `football::ball`
   (+ geometry/collision/pitch it declares), never simcore/AI/animation assets:
   BallModel validation, impulse/momentum and restitution/friction response, and

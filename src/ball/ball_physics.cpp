@@ -17,6 +17,7 @@ namespace football::ball {
 using football::geometry::Capsule;
 using football::geometry::ColliderMotion;
 using football::geometry::ContactMaterial;
+using football::geometry::HalfSpace;
 using football::geometry::Plane;
 using football::geometry::Sphere;
 
@@ -100,7 +101,8 @@ BallStepResult AdvanceBallTick(const BallState& initial,
       const football::math::Vector3 surface = std::visit(
           [&](const auto& shape) -> football::math::Vector3 {
             using T = std::decay_t<decltype(shape)>;
-            if constexpr (std::is_same_v<T, Plane>) {
+            if constexpr (std::is_same_v<T, Plane> ||
+                          std::is_same_v<T, HalfSpace>) {
               return s.position -
                      contact.normal *
                          (s.position - shape.point).GetDotProduct(shape.normal);

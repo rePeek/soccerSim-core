@@ -43,6 +43,9 @@ struct BallTickInput {
 
 class Ball {
  public:
+  // `pitch` is borrowed and must outlive this Ball: the pitch owns the immutable
+  // static scene and the ball never copies it. Simulation owns both, so the
+  // lifetime ordering is guaranteed there; do not pass a temporary Pitch.
   Ball(const football::ball::BallModel& model,
        const football::pitch::Pitch& pitch);
   ~Ball();

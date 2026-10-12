@@ -15,11 +15,12 @@ namespace football::geometry {
 
 using ColliderId = std::uint32_t;
 
-using ColliderShape = std::variant<Plane, Sphere, Capsule>;
+using ColliderShape = std::variant<Plane, HalfSpace, Sphere, Capsule>;
 
 struct ContactMaterial {
   float restitution = 0.5f;
   float friction = 0.0f;
+  bool operator==(const ContactMaterial&) const = default;
 };
 
 // Static collider: geometry + material. Id is used for stable, deterministic
@@ -28,6 +29,7 @@ struct Collider {
   ColliderId id = 0;
   ColliderShape shape;
   ContactMaterial material;
+  bool operator==(const Collider&) const = default;
 };
 
 // One tick, t in [0,1]. Sphere center, capsule endpoints and radii interpolate
@@ -38,12 +40,13 @@ struct Collider {
 // axis parameter, plus omega x (radius*normal) with omega=d x d_dot / |d|^2,
 // and radius_dot*normal. No axial spin is inferable from an axis; it is zero.
 // At a collapsed axis omega is zero. Primitive kind must stay fixed. Planes
-// remain static. A static sphere/capsule has end == start.
+// and half-spaces remain static. A static sphere/capsule has end == start.
 struct ColliderMotion {
   ColliderId id = 0;
   ColliderShape start;
   ColliderShape end;
   ContactMaterial material;
+  bool operator==(const ColliderMotion&) const = default;
 };
 
 }  // namespace football::geometry

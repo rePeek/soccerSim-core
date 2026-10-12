@@ -19,9 +19,10 @@
 
 #include "football/foundation/math/quaternion.hpp"
 
-#include <cmath>
-
+#include <bit>
 #include <cassert>
+#include <cmath>
+#include <cstdint>
 
 namespace football::math {
 
@@ -121,14 +122,19 @@ void Vector3::Set(const Vector3 &vec) {
   void Vector3::FastNormalize() {
 
     // http://www.devmaster.net/forums/showthread.php?t=4460
+    // Quake-style fast inverse square root. std::bit_cast keeps the bit
+    // reinterpretation well-defined, unlike the old pointer punning.
 
-    float x = GetDotProduct(*this);
-    float xhalf = 0.5f * x;
-    int i = *(int*)&x;         // get bits for floating value
-    i = 0x5f3759df - (i>>1);   // give initial guess y0
-    x = *(float*)&i;           // convert bits back to float
-    x *= 1.5f - xhalf*x*x;     // newton step, repeating this step
-                               // increases accuracy
+    const real squared_length = GetDotProduct(*this);
+    if (squared_length == 0.0f) return;  // contract: zero stays zero
+
+    float x = squared_length;
+    const float xhalf = 0.5f * x;
+    std::uint32_t i = std::bit_cast<std::uint32_t>(x);  // bits of the float
+    i = 0x5f3759dfu - (i >> 1);                         // initial guess y0
+    x = std::bit_cast<float>(i);                        // back to float
+    x *= 1.5f - xhalf*x*x;                              // newton step, repeating
+                                                        // increases accuracy
 
     coords[0] *= x;
     coords[1] *= x;
@@ -151,14 +157,18 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
   void Vector3::Normalize() {
-    real f = 1.0f / std::sqrt(GetDotProduct(*this));
+    const real squared_length = GetDotProduct(*this);
+    if (squared_length == 0.0f) return;  // contract: zero stays zero
+    real f = 1.0f / std::sqrt(squared_length);
     coords[0] *= f;
     coords[1] *= f;
     coords[2] *= f;
   }
 
   void Vector3::NormalizeTo(float length) {
-    real f = length / std::sqrt(GetDotProduct(*this));
+    const real squared_length = GetDotProduct(*this);
+    if (squared_length == 0.0f) return;  // contract: zero stays zero
+    real f = length / std::sqrt(squared_length);
 
     coords[0] *= f;
     coords[1] *= f;

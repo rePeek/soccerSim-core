@@ -84,7 +84,22 @@ class Pitch {
            y >= -half_width() && y <= half_width();
   }
 
-  bool operator==(const Pitch&) const = default;
+  // Equality compares the configuration only. The collider list is derived data
+  // rebuilt from the configuration in the constructor, so it is not part of a
+  // pitch's identity.
+  bool operator==(const Pitch& other) const {
+    return length_ == other.length_ && width_ == other.width_ &&
+           quadratic_resistance_ == other.quadratic_resistance_ &&
+           ground_deceleration_ == other.ground_deceleration_ &&
+           grass_height_ == other.grass_height_ && line_width_ == other.line_width_ &&
+           goal_width_ == other.goal_width_ && goal_height_ == other.goal_height_ &&
+           goal_depth_ == other.goal_depth_ &&
+           penalty_area_depth_ == other.penalty_area_depth_ &&
+           penalty_mark_distance_ == other.penalty_mark_distance_ &&
+           gravity_ == other.gravity_ && wind_velocity_ == other.wind_velocity_ &&
+           ground_material_ == other.ground_material_ &&
+           post_material_ == other.post_material_;
+  }
 
 private:
   // Deterministic static collider: same shape at start and end (no motion).
@@ -108,14 +123,14 @@ private:
     BuildGoal();
   }
 
-  // Grass: the ground plane the ball rolls on. Rolling resistance and grass
-  // height are the ground_* fields, not properties of the Plane geometry; the
-  // effective ball-ground restitution is the ground contact material.
+  // Grass: the ground half-space the ball rolls on. Rolling resistance and grass
+  // height are the ground_* fields, not properties of the HalfSpace geometry;
+  // the effective ball-ground restitution is the ground contact material.
   void BuildGrass() {
-    using football::geometry::Plane;
+    using football::geometry::HalfSpace;
     colliders_.push_back(StaticCollider(
         kGroundColliderId,
-        Plane{football::math::Vector3(0, 0, 0), football::math::Vector3(0, 0, 1)},
+        HalfSpace{football::math::Vector3(0, 0, 0), football::math::Vector3(0, 0, 1)},
         ground_material_));
   }
 

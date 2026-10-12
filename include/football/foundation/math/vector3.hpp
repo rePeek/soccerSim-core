@@ -77,9 +77,14 @@ namespace football::math {
       // ----- mathematics
       Vector3 GetCrossProduct(const Vector3 &fac) const;
       real GetDotProduct(const Vector3 &fac) const;
+      // Fast inverse-sqrt approximation. Contract: a zero vector is left
+      // unchanged.
       void FastNormalize();
+      // Normalizes to unit length. A zero vector is replaced by ifNull.
       void Normalize(const Vector3 &ifNull);
+      // Normalizes to unit length. Contract: a zero vector is left as zero.
       void Normalize();
+      // Scales to the given length. Contract: a zero vector is left as zero.
       void NormalizeTo(float length);
       void NormalizeMax(float length);
       // this function does not make much sense does it? void NormalizeMax(float length, const Vector3 &ifNull);

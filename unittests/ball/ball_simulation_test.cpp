@@ -33,7 +33,7 @@ using football::ball::BallState;
 using football::ball::BallTickInput;
 using football::geometry::ColliderMotion;
 using football::geometry::ContactMaterial;
-using football::geometry::Plane;
+using football::geometry::HalfSpace;
 using football::pitch::Pitch;
 using Catch::Approx;
 
@@ -55,7 +55,7 @@ BallModel BallWithoutAero() { return BallModel(0.43f, 0.11f, 0.0f, 0.0f); }
 Pitch FrictionlessPitch() { return Pitch(105.0f, 68.0f, 0.0f, 0.0f, 0.025f); }
 
 ColliderMotion GroundPlane(float restitution) {
-  const Plane plane{Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f)};
+  const HalfSpace plane{Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f)};
   return ColliderMotion{100, plane, plane, ContactMaterial{restitution, 0.0f}};
 }
 
@@ -149,23 +149,6 @@ TEST_CASE("Initial penetration is repaired without an impulse",
   for (const auto& contact : result.contacts) {
     CHECK(contact.normal_impulse == Approx(0.0f));
   }
-}
-
-TEST_CASE("The pitch scene carries the ground and goal colliders",
-          "[unit][ball][simulation]") {
-  const Pitch pitch;
-  REQUIRE(pitch.colliders().size() == 7);
-  // Grass is the single ground plane, built first.
-  CHECK(std::holds_alternative<football::geometry::Plane>(pitch.colliders()[0].start));
-  // Goal furniture is capsules (four posts + two crossbars).
-  for (std::size_t i = 1; i < pitch.colliders().size(); ++i) {
-    CHECK(std::holds_alternative<football::geometry::Capsule>(
-        pitch.colliders()[i].start));
-  }
-  // Stable ids: ground 1, then the goal, in a fixed order.
-  CHECK(pitch.colliders().front().id == 1);
-  CHECK(pitch.colliders()[1].id == 2);
-  CHECK(pitch.colliders().back().id == 7);
 }
 
 TEST_CASE("Ball Predict previews without mutating state",
@@ -301,7 +284,7 @@ TEST_CASE("Endpoint constraint sets position/velocity and clears spin",
 TEST_CASE("Ball rejects illegal dynamic collider ids", "[unit][ball][simulation]") {
   const BallModel config;
   const Pitch pitch;
-  const Plane plane{Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f)};
+  const HalfSpace plane{Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f)};
 
   SECTION("zero id") {
     Ball ball(config, pitch);

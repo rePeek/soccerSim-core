@@ -33,6 +33,33 @@ TEST_CASE("Vector3 normalization falls back for the zero vector",
   CHECK(zero.GetNormalized(fallback) == fallback);
 }
 
+TEST_CASE("Vector3 Normalize leaves the zero vector as zero",
+          "[unit][foundation][vector3]") {
+  Vector3 zero{0.0f, 0.0f, 0.0f};
+  zero.Normalize();
+  CHECK(zero == Vector3(0.0f, 0.0f, 0.0f));
+  CHECK_FALSE(std::isnan(zero.coords[0]));
+
+  Vector3 scaled{0.0f, 0.0f, 0.0f};
+  scaled.NormalizeTo(3.0f);
+  CHECK(scaled == Vector3(0.0f, 0.0f, 0.0f));
+}
+
+TEST_CASE("Vector3 FastNormalize approximates unit length safely",
+          "[unit][foundation][vector3]") {
+  Vector3 v{3.0f, 4.0f, 0.0f};
+  v.FastNormalize();
+  CHECK(v.GetLength() == Approx(1.0f).margin(1e-2f));
+  CHECK(v.coords[0] == Approx(0.6f).margin(1e-2f));
+  CHECK(v.coords[1] == Approx(0.8f).margin(1e-2f));
+  CHECK(std::isfinite(v.coords[0]));
+
+  // Contract: a zero vector is left unchanged (no NaN/Inf).
+  Vector3 zero{0.0f, 0.0f, 0.0f};
+  zero.FastNormalize();
+  CHECK(zero == Vector3(0.0f, 0.0f, 0.0f));
+}
+
 TEST_CASE("Vector3 cross product is perpendicular and right-handed",
           "[unit][foundation][vector3]") {
   const Vector3 x{1.0f, 0.0f, 0.0f};

@@ -44,9 +44,15 @@ target_include_directories(football_ball
 
 target_compile_features(football_ball PUBLIC cxx_std_23)
 
+# football::collision is a private implementation detail: the public ball
+# headers never expose CollisionHit/MovingSphere, so consumers need not treat
+# collision as a public dependency. It stays linked in through the static
+# library's LINK_ONLY interface.
 target_link_libraries(football_ball
   PUBLIC
-    football::foundation football::geometry football::pitch football::collision
+    football::foundation football::geometry football::pitch
+  PRIVATE
+    football::collision
 )
 
 football_configure_target(football_ball)
