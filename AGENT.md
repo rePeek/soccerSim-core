@@ -186,8 +186,9 @@ tools/
 ├── app/                    football_sim CLI: parse → GameEnv → complete match → Result
 │   ├── args.* fixtures/     executable-side args and sample rosters/profiles
 │   └── recording/           SnapshotArchive writer/reader (football_recording)
-└── animBaker/              offline importers and callable bake/check/verify library + CLI
-    └── import/legacy_*     offline-only XML, value codecs and required text helpers
+├── animBaker/              offline importers and callable bake/check/verify library + CLI
+│   └── import/legacy_*     offline-only XML, value codecs and required text helpers
+└── playerAssets/           standalone Blender player-template/GLB converter and validators
 
 unittests/                        small unit suites, one CTest entry each
 ├── foundation/     Vector3, Quaternion, scalar, Tick, Rng math contract
@@ -268,9 +269,14 @@ anim_baking → legacy_anim + animation/foundation
   callable offline library; `football_anim_baker` is its CLI. The baker is
   self-contained: it links only its own offline objects and foundation, never
   sim/ball/pitch/simcore/animation archives.
-- `tools/animBaker/` is the only developer tool tree (offline baker library + CLI);
-  `unittests/CMakeLists.txt` is an empty placeholder awaiting the redesigned unit
-  suite. The baker is built under BUILD_TESTING and never linked into core.
+- `tools/animBaker/` owns the offline baker library + CLI. The baker is built
+  under BUILD_TESTING and never linked into core.
+- `tools/playerAssets/` is standalone Python/Blender tooling, outside CMake and
+  the runtime. It reads immutable `data/`, reconstructs legacy color-encoded
+  weights/base-to-straight binding and writes ignored `build/player-assets/`.
+  Run its stdlib tests and Blender export/GLB verification as documented in
+  `tools/playerAssets/README.md`. This is an appearance/template preview, not
+  a change to simulation poses, baked assets or a finished modular mod API.
 - Source ownership and dependency boundaries are maintained directly in each
   module's CMakeLists and reviewed alongside C++ includes. There is no centralized
   architecture validator or separate dependency allow-list.
