@@ -193,13 +193,14 @@ Match::SetLastTouchTeamID are deleted. Team's latest-touch pointer/accounting/qu
 are removed too: TouchState stores full-width PlayerIds by roster; explicit queries
 retain sent-off actor lookup and live timestamp decay. No touch/RNG notification is
 hidden inside Team or Match. `Simulation::Step()` composes all legacy phases explicitly;
-`Match::StepRemainingTick` is removed. `team/possession.*` evaluates best-team and
+`Match::StepRemainingTick` is removed. `runtime/possession.*` evaluates best-team and
 designated-player selection without publishing state. Simulation applies the selection
 after roster refreshes; the separate physical `ballRetainer` fact remains Match-owned.
-`player/possession.*` owns roster refresh and pre/post-player possession phases.
-Simulation iterates active players directly; Team::Process/UpdatePossessionStats and
-its unused restart/unique-possession wrappers are deleted. Player refresh consumes
-explicit Ball, opponent, tick and physical retainer; no Team runtime context is added.
+`runtime/roster_possession.*` owns roster refresh and pre/post-player possession phases
+(moved out of the player domain). Simulation iterates active players directly;
+Team::Process/UpdatePossessionStats and its unused restart/unique-possession wrappers
+are deleted. Player refresh consumes explicit Ball, the opponent TeamMatchState, tick
+and physical retainer; no Team runtime context is added and Player never holds a Team.
 Match still owns runtime objects and competition facts; its history bridge is removed.
 `Simulation::match()` remains a temporary test/diagnostic escape hatch.
 

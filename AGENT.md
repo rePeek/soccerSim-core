@@ -127,11 +127,11 @@ src/                 implementations; public headers live in include/football/
 ├── ai/              default_ai.cpp, tactical_board.cpp
 ├── env.cpp          sole product composition implementation for AI + sim;
 │                    compiled into libsimcore.so with everything else under src/
-└── sim/             domain-organized rules, physics, execution and observation
     ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
-    ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
     ├── simulation_config.hpp match-level options value
-    ├── team/         runtime Team, formation adaptation and possession arbitration
+    ├── team/         TRANSITIONAL Team object; only the runtime state holder and
+    │                 the single place P5/P6 still have to drain. It no longer owns
+    │                 any player-facing algorithm.
     ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
     │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
     ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
@@ -141,13 +141,18 @@ src/                 implementations; public headers live in include/football/
     │                 shadow-only Snapshot touch inference
     ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
     │                 rules and restarts
-    ├── runtime/      MatchClock/MatchPhase/MatchResult, Roster (owns player
-    │                 entities), match_config.hpp (TeamSetup + TeamSide) and the
-    │                 initial/tactical formation declarations
+    ├── runtime/      MatchClock/MatchPhase/MatchResult, Roster (owns player entities),
+    │                 TeamMatchState (team facts Runtime owns and publishes),
+    │                 possession (cross-team arbitration) and roster_possession
+    │                 (per-roster aggregation), match_config.hpp (TeamSetup +
+    │                 TeamSide), formation.hpp (InitialFormation/TacticalFormation +
+    │                 BuildFormation), team_state.hpp
     ├── testing/      internal SimulationAccess, not exported/product or actor-facing
-    └── player/       Player + PlayerDefinition, player_role, tick-local inputs,
-        │             controls, locomotion, possession, contacts, roster_query
-        │             (span of borrowed players), reachability and perception
+    └── player/       Player + PlayerDefinition, player_role, FormationEntry, tick-local
+        │             inputs, controls, locomotion, contacts, roster_query
+        │             (span of borrowed players), reachability and perception.
+        │             Owns ONLY single-player state and behaviour: it never holds a
+        │             Team, never iterates the squad and contains no team algorithm.
         └── humanoid/ Humanoid / HumanoidBase / utilities
 
 cmake/
@@ -247,6 +252,14 @@ anim_baking → legacy_anim + animation/foundation
   `sim/` headers and for module-private implementation headers.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   foundation must not depend on upper layers. sim must never depend on AI.
+- sim ownership boundary: `Roster` owns the player entities, Runtime owns the
+  match facts that cannot be derived from one player (`TeamMatchState`), and
+  `Player` owns only its own identity, `FormationEntry`, kinematics and
+  behaviour. `src/sim/player/` must never reference `Team` or iterate the
+  squad; team-level algorithms live in `src/sim/runtime/` (possession,
+  roster_possession, formation). A per-call `PlayerTeamView` (borrowed roster
+  slices + the live `TeamMatchState`) is how a player sees its team. `Team` is
+  transitional: only referee/observation/Simulation still consume it.
 - Modules are configured from the repository root: public headers live in the
   top-level include/football/ tree, so module directories are no longer
   standalone-configurable. The former src/model module is gone; its data lives
@@ -397,11 +410,14 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   time comparison, tie fallback, unsigned +10 float ratio and strict <0.85 hysteresis.
   Simulation publishes bestPossessionTeam then designatedPossessionPlayer at the old
   phase boundary. Both selection fields and the distinct physical ballRetainer fact
-  remain Simulation-owned. Player::UpdatePossessionStats consumes Ball, opponent, now and
-  the physical retainer explicitly. player/possession owns roster aggregation and the
-  pre/post-player possession phases. Simulation iterates each active roster in order;
-  Team::Process/UpdatePossessionStats/UpdateDesignatedTeamPossessionPlayer are deleted.
-  Team only publishes its resulting data; no Team context/services are introduced.
+  remain Simulation-owned. Player::UpdatePossessionStats consumes Ball, the opponent
+  TeamMatchState, now and the physical retainer explicitly. runtime/roster_possession
+  owns roster aggregation and the pre/post-player possession phases (moved out of
+  player/); runtime/possession owns the cross-team arbitration. Simulation iterates
+  each active roster in order; Team::Process/UpdatePossessionStats/
+  UpdateDesignatedTeamPossessionPlayer are deleted. Team only publishes its
+  resulting data (match_state_); no Team context/services are introduced and Player
+  never receives a Team&.
   Unused Team::HasUniquePossession and restart query wrappers are deleted; restart
   facts are read from rules directly. Team has no Match pointer at all;
   until Player/Humanoid lifetime dependencies are removed. ApplyBallTouch supplies
@@ -668,11 +684,13 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   module, TeamId or ambient actor numbering. Roster positions are local indices.
 - Player holds no Team object. It owns only its own identity (team_id_/side_),
   its static formation entry and a PlayerTeamFacts projection (dynamic/static side,
-  possession amounts, designated possession player) that Runtime/Team republishes
-  on every change. Cross-player reads take a borrowed std::span<Player* const>.
-- The runtime Roster owns the player entities and their stable order; Team copies
-  the sim::TeamSetup and derives runtime FormationEntries. Simulation owns score/
-  possession. Sample factories live in app/fixtures, never core.
+  possession amounts, designated possession player) that Runtime republishes on
+  every change. Cross-player reads take a borrowed std::span<Player* const> or a
+  borrowed PlayerTeamView; a player never iterates its own squad.
+- The runtime Roster owns the player entities and their stable order; Team keeps
+  only the transitional TeamMatchState and derives runtime FormationEntries via
+  runtime/formation.hpp BuildFormation. Simulation owns score/possession. Sample
+  factories live in app/fixtures, never core.
 - Reject invalid/duplicate IDs, empty rosters, formation/profile mismatch and invalid
   time rules before consuming RNG. Init seeds to 0, draws one Uniform(1,4) per
   declared profile (even explicit appearance and omitted formation profiles), then
