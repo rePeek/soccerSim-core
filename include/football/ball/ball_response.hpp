@@ -3,7 +3,7 @@
 
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_state.hpp"
-#include "football/geometry/collider.hpp"
+#include "football/foundation/geometry/collider.hpp"
 #include "football/ball/ball_model.hpp"
 
 namespace football::ball {

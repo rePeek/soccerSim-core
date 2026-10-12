@@ -114,7 +114,10 @@ void Simulation::BeginBodyPhysicsShadow() {
         football::sim::event::TeamTouchBias(touches_, *teams_[latest_team], 200, now) < .01f) blocks |= BodyControlledRoute;
     for (std::size_t part = 0; part < kPlayerBodyPartCount; ++part) {
       const auto& collider = prediction.colliders[part];
-      const auto sweep = football::ball::SweepBall(tick.initial, collider, football::sim::kTickSeconds, ball_config_.radius());
+      const auto sweep = football::collision::Sweep(
+          football::collision::MovingSphere{
+              {tick.initial.position, ball_config_.radius()}, tick.initial.velocity},
+          collider, football::sim::kTickSeconds);
       const float gap = BodyShadowGap(tick.initial.position, ball_config_.radius(), collider.start);
       // The production probe includes gravity/drag/grass. Never lose its
       // winning evidence just because a straight initial-velocity query misses.

@@ -84,24 +84,29 @@ pimpl or a private state holder so those headers stop appearing in
 
 ```text
 include/football/    public headers (interfaces), one directory per module
-├── foundation/      math/ + time/ (Vector3, quaternion, scalar, RNG, Tick)
-├── geometry/        header-only collision-geometry contract shared by ball,
-│                    pitch and the player body: Plane/Sphere/Capsule, the
-│                    ColliderShape variant, ContactMaterial, Collider and the
-│                    per-tick ColliderMotion (depends only on foundation math)
+├── foundation/      the low-level layer. Directory organization only; each
+│   │                subdirectory is its own CMake target.
+│   ├── math/         Vector3, quaternion, scalar, RNG (football::foundation)
+│   ├── time/         Tick / TickSpan (football::foundation)
+│   ├── geometry/     Plane/Sphere/Capsule, ColliderShape, ContactMaterial,
+│   │                 Collider and per-tick ColliderMotion (football::geometry)
+│   └── collision/    generic Overlap/Sweep/FirstHit CCD, MovingSphere and
+│                     CollisionHit (football::collision)
 ├── animation/       header-only baked schema/library/selector (football::animation)
-├── ball/            football::ball: Ball, BallModel, BallState,
-│                    collider/CCD sweeps, contact evidence and impulse response;
-│                    reads the immutable football::pitch scene
+├── ball/            football::ball: Ball, BallModel, BallState, contact
+│                    evidence, impulse and per-tick integration; reads the
+│                    immutable football::pitch scene and queries via
+│                    football::collision
 ├── pitch/           football::pitch: Pitch description plus the ground/posts/
 │                    crossbars colliders and the fixed environment
 ├── ai/              AIConfig, TacticalBoard and DefaultAI declarations
 └── env.hpp          public autonomous match façade; values + opaque private owners
 
 src/                 implementations; public headers live in include/football/
-├── foundation/      math/*.cpp (foundation is otherwise header-only)
+├── foundation/      math/ (math/*.cpp); geometry/ and collision/ hold their
+│                    own CMakeLists and targets, with headers in include/
 ├── ball/            football::ball implementation: *.cpp + private headers
-│                    (ball_netting.hpp, ball_deforming_capsule.hpp; never exported)
+│                    (ball_netting.hpp; never exported)
 ├── ai/              default_ai.cpp, tactical_board.cpp
 ├── env.cpp          sole product composition implementation for AI + sim;
 │                    compiled into libsimcore.so with everything else under src/
@@ -141,7 +146,8 @@ tools/
 
 unittests/                        small unit suites, one CTest entry each
 ├── foundation/     Vector3, Quaternion, scalar, Tick, Rng math contract
-└── ball/           BallModel, CCD (SweepBall), response (impulse) and one-tick motion
+├── collision/      swept-sphere CCD (Sweep/FirstHit) and static Overlap
+└── ball/           BallModel, response (impulse) and one-tick motion
 
 ## Build ownership and architecture
 
@@ -155,7 +161,8 @@ symbols (including the currently unused GetRoleFromString).
 
 ```text
 app → simcore (env.cpp) → ai + sim
-ai → ai_contracts + sim_contracts → foundation/pitch/geometry
+foundation ← geometry ← collision ← ball ← sim (and later player)
+ai → ai_contracts + sim_contracts → foundation/pitch/collision
 sim → sim_contracts + animation + ball + pitch → foundation/geometry (PRIVATE BqLog)
 app_support (args/fixtures) → sim_contracts/foundation
 anim_baking → legacy_anim + animation/foundation
@@ -184,11 +191,18 @@ anim_baking → legacy_anim + animation/foundation
   Current product scope is one process/one match: no logger registry, batch or
   new general infrastructure/utils module. There is no src/support or support target;
   file I/O uses the STL at its call sites, Properties and custom diagnostics are removed.
-- `football_geometry` is a header-only INTERFACE target owning the shared
-  collision-geometry contract (Plane/Sphere/Capsule, ColliderShape, ColliderId,
-  ContactMaterial, Collider, ColliderMotion). ball, pitch and the player body
-  all link it, so none of them owns geometry and the player no longer reaches
-  into `football::ball` for a Capsule. It depends only on foundation math.
+- `football_foundation` holds only math + time. `football_geometry` (header-only
+  INTERFACE) and `football_collision` (STATIC) live under src/foundation/ too but
+  are independent targets; the directory is organization, the targets are the
+  boundary. football_foundation never links them back (that would be a cycle).
+- `football_geometry` owns the shared shape/collider contract (Plane/Sphere/
+  Capsule, ColliderShape, ColliderId, ContactMaterial, Collider, ColliderMotion).
+  ball, pitch and the player body all link it, so none of them owns geometry and
+  the player no longer reaches into `football::ball` for a Capsule.
+- `football_collision` owns the generic CCD queries (Overlap, Sweep, FirstHit)
+  and their input/result values (MovingSphere, CollisionHit). It depends only on
+  geometry. Ball and Player keep their own impulse/restitution/friction response
+  on top of it; collision never decides how a contactor moves afterwards.
 - `football_animation` is a header-only INTERFACE target (format types,
   serialization, the library reader, and selection) depending only on
   foundation. The runtime and the offline baker share one definition, so the
@@ -224,12 +238,16 @@ Registered tests are unit-only; there is no golden/end-to-end tier.
   only `football::foundation`: Vector3 length/dot/cross/normalization/rotation,
   quaternion identity/composition/inverse/slerp, scalar clamp/wrap, Tick 100 Hz
   exactness and overflow/negative-interval rejection, Rng determinism/range.
+- `football_collision_unit_tests` (name `collision_unit`) links only
+  `football::collision` (geometry + foundation): swept-sphere CCD against
+  static/moving/deforming Plane/Sphere/Capsule, TOI/normal/center, no-tunnelling,
+  tangent rejection, initial penetration, FirstHit earliest/lowest-id tie-break
+  and the static Overlap queries.
 - `football_ball_unit_tests` (name `ball_unit`) links only `football::ball`
-  (+ foundation/geometry it declares), never simcore/AI/animation assets:
-  BallModel validation, swept-sphere CCD against Plane/Sphere/Capsule (static,
-  moving, deforming), FirstContact tie-break, impulse/momentum and restitution/
-  friction response, and one-tick free fall/drag/spin/grass/landing plus the
-  Step/Predict/Reset/Mirror lifecycle and illegal-input rejection.
+  (+ geometry/collision/pitch it declares), never simcore/AI/animation assets:
+  BallModel validation, impulse/momentum and restitution/friction response, and
+  one-tick free fall/drag/spin/grass/landing plus the Step/Predict/Reset/Mirror
+  lifecycle and illegal-input rejection.
 - Keep each test on the smallest target and use analytic expectations (conserved
   quantities, invariants), not values copied from the implementation.
 
@@ -1066,7 +1084,7 @@ Maintainer review of `e4298fb` accepted BallState/core physics and P5e's executi
 boundary. Do not re-split Humanoid or redesign Ball's member API. Current roadmap
 is P4f → P6c → P7; retain AcceptedTouchSink as the rule submission port.
 
-`src/ball/ball_deforming_capsule.{hpp,cpp}` privately extends SweepBall for unequal
+`src/foundation/collision/sweep_deforming_capsule.{hpp,cpp}` extends the sweep
 capsule endpoint displacements and changing radii. A conservative swept AABB,
 quartic interior equation, cap quadratics and deterministic derivative-root
 partition/bisection find the first incoming finite-feature contact without a

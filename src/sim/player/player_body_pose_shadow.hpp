@@ -36,7 +36,7 @@ inline void BuildShadowPosedBodyMotions(
 }
 
 // Signed initial ball-surface gap, for episodes independent of impact impulses.
-// Tangency/resting contact is geometric even if SweepBall rejects an exit root.
+// Tangency/resting contact is geometric even if collision::Sweep rejects an exit root.
 inline float BodyShadowGap(const blunted::Vector3& center, float radius,
                            const football::geometry::ColliderShape& shape) {
   return std::visit([&](const auto& s) {

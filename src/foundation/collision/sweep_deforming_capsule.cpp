@@ -1,13 +1,17 @@
-#include "ball_deforming_capsule.hpp"
+#include "sweep_deforming_capsule.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <stdexcept>
 
-namespace football::ball::detail {
+namespace football::collision::detail {
+
 using football::geometry::Capsule;
 using football::geometry::ColliderMotion;
+
 namespace {
+
 // Compute roots/geometry in double; public state/evidence remains float. Working
 // storage is fixed-size: a quartic has at most four roots, two caps add four.
 struct V {
@@ -19,9 +23,12 @@ struct V {
   V cross(V b) const { return {y*b.z-z*b.y, z*b.x-x*b.z, x*b.y-y*b.x}; }
   double length() const { return std::sqrt(dot(*this)); }
 };
+
 V Vec(const blunted::Vector3& v) { return {v.coords[0], v.coords[1], v.coords[2]}; }
 blunted::Vector3 Float(V v) { return {float(v.x), float(v.y), float(v.z)}; }
-using Polynomial = std::array<double, 5>; // ascending powers
+
+using Polynomial = std::array<double, 5>;  // ascending powers
+
 struct Roots {
   std::array<double, 4> values{};
   int count = 0;
@@ -35,11 +42,13 @@ struct Roots {
     values[at] = t; ++count;
   }
 };
+
 double Evaluate(const Polynomial& p, int degree, double t) {
   double f = p[degree];
   for (int i = degree-1; i >= 0; --i) f = f*t + p[i];
   return f;
 }
+
 // Derivative roots partition [0,1] into monotone intervals. Sign-changing roots
 // are bracketed and bisected (64 fixed iterations), not found by temporal point
 // sampling or a speed-dependent subdivision cap. Even-multiplicity tangencies
@@ -74,15 +83,24 @@ Roots Isolate(const Polynomial& p, int degree) {
   }
   return out;
 }
+
 Polynomial CapPolynomial(V q, V v, double radius, double dr) {
   return {q.dot(q)-radius*radius, 2*(q.dot(v)-radius*dr), v.dot(v)-dr*dr, 0, 0};
 }
-bool Finite(V v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); }
-}
 
-std::optional<BallContact> SweepDeformingCapsule(const BallState& ball, float ball_radius,
-    const ColliderMotion& collider, const Capsule& start, const Capsule& end, float dt) {
-  const V p = Vec(ball.position), velocity = Vec(ball.velocity);
+bool Finite(V v) { return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z); }
+
+}  // namespace
+
+std::optional<CollisionHit> SweepDeformingCapsule(const MovingSphere& sphere,
+                                                  const ColliderMotion& collider,
+                                                  const Capsule& start,
+                                                  const Capsule& end, float dt) {
+  const blunted::Vector3 ball_position = sphere.shape.center;
+  const blunted::Vector3 ball_velocity = sphere.velocity;
+  const float ball_radius = sphere.shape.radius;
+
+  const V p = Vec(ball_position), velocity = Vec(ball_velocity);
   const V a = Vec(start.a), b = Vec(start.b), da = Vec(end.a)-a, db = Vec(end.b)-b;
   if (!(dt > 0) || !std::isfinite(dt) || !(ball_radius >= 0) || !std::isfinite(ball_radius) ||
       !Finite(p) || !Finite(velocity) || !Finite(a) || !Finite(b) || !Finite(da) || !Finite(db) ||
@@ -95,7 +113,7 @@ std::optional<BallContact> SweepDeformingCapsule(const BallState& ball, float ba
   // box. This culls distant rotating anatomy without roots or heap allocation.
   const double extent = double(ball_radius)+std::max(start.radius, end.radius);
   for (int axis = 0; axis < 3; ++axis) {
-    const double p0 = ball.position.coords[axis], p1 = p0+ball.velocity.coords[axis]*double(dt);
+    const double p0 = ball_position.coords[axis], p1 = p0+ball_velocity.coords[axis]*double(dt);
     const double min_c = std::min({double(start.a.coords[axis]), double(start.b.coords[axis]),
                                   double(end.a.coords[axis]), double(end.b.coords[axis])});
     const double max_c = std::max({double(start.a.coords[axis]), double(start.b.coords[axis]),
@@ -103,7 +121,7 @@ std::optional<BallContact> SweepDeformingCapsule(const BallState& ball, float ba
     if (std::max(p0,p1) < min_c-extent || std::min(p0,p1) > max_c+extent) return std::nullopt;
   }
   const V d0 = b-a, dv = db-da, q0 = p-a, qv = disp-da;
-  const auto at = [&](double t, bool overlap) -> std::optional<BallContact> {
+  const auto at = [&](double t, bool overlap) -> std::optional<CollisionHit> {
     const V axis = d0+dv*t, q = q0+qv*t;
     const double len2 = axis.dot(axis);
     const double s = len2 > 0 ? std::clamp(q.dot(axis)/len2, 0.0, 1.0) : 0;
@@ -121,13 +139,14 @@ std::optional<BallContact> SweepDeformingCapsule(const BallState& ball, float ba
     const V omega = len2 > 0 ? axis.cross(dv)*(1/(len2*dt)) : V{0,0,0};
     const V surface_velocity = (da*(1-s)+db*s)*(1.0/dt) + omega.cross(n*r) + n*(dr/dt);
     const V relative = velocity-surface_velocity;
-    if (!overlap && relative.dot(n) >= 0) return std::nullopt; // never choose an exit root
-    BallContact contact;
-    contact.collider = collider.id; contact.toi = float(t);
-    contact.point = Float(p+disp*t); contact.normal = Float(n);
-    contact.surface_velocity = Float(surface_velocity);
-    contact.relative_velocity = ball.velocity-contact.surface_velocity;
-    return contact;
+    if (!overlap && relative.dot(n) >= 0) return std::nullopt;  // never choose an exit root
+    CollisionHit hit;
+    hit.collider = collider.id;
+    hit.toi = float(t);
+    hit.center = Float(p+disp*t);
+    hit.normal = Float(n);
+    hit.surface_velocity = Float(surface_velocity);
+    return hit;
   };
   const double s0 = d0.dot(d0) > 0 ? std::clamp(q0.dot(d0)/d0.dot(d0), 0.0, 1.0) : 0;
   if ((q0-d0*s0).length() < radius-1e-6) return at(0, true);
@@ -137,12 +156,12 @@ std::optional<BallContact> SweepDeformingCapsule(const BallState& ball, float ba
   // at() rejects roots outside the capsule; two cap quadratics complete it.
   const V c0 = q0.cross(d0), c1 = q0.cross(dv)+qv.cross(d0), c2 = qv.cross(dv);
   Polynomial interior{c0.dot(c0), 2*c0.dot(c1), c1.dot(c1)+2*c0.dot(c2),
-                      2*c1.dot(c2), c2.dot(c2)};
+                     2*c1.dot(c2), c2.dot(c2)};
   const std::array<double,3> rr{radius*radius, 2*radius*dr, dr*dr};
   const std::array<double,3> dd{d0.dot(d0), 2*d0.dot(dv), dv.dot(dv)};
   for (int i = 0; i < 3; ++i)
     for (int j = 0; j < 3; ++j) interior[i+j] -= rr[i]*dd[j];
-  std::optional<BallContact> best;
+  std::optional<CollisionHit> best;
   const auto consider = [&](const Roots& roots) {
     for (int i = 0; i < roots.count; ++i) {
       const auto contact = at(roots.values[i], false);
@@ -154,4 +173,5 @@ std::optional<BallContact> SweepDeformingCapsule(const BallState& ball, float ba
   consider(Isolate(CapPolynomial(p-b, disp-db, radius, dr), 2));
   return best;
 }
-}
+
+}  // namespace football::collision::detail

@@ -16,8 +16,8 @@ target_sources(football_ball
   PRIVATE
     ball.cpp
     ball_netting.cpp
-    ball_collision.cpp
-    ball_deforming_capsule.cpp
+    ball_physics.cpp
+
     ball_response.cpp
 )
 
@@ -46,7 +46,7 @@ target_compile_features(football_ball PUBLIC cxx_std_23)
 
 target_link_libraries(football_ball
   PUBLIC
-    football::foundation football::geometry football::pitch
+    football::foundation football::geometry football::pitch football::collision
 )
 
 football_configure_target(football_ball)

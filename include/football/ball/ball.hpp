@@ -17,7 +17,7 @@
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_state.hpp"
-#include "football/geometry/collider.hpp"
+#include "football/foundation/geometry/collider.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/time/tick.hpp"

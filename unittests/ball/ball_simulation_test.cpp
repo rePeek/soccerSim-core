@@ -20,7 +20,7 @@
 #include "football/ball/ball_state.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/geometry/collider.hpp"
+#include "football/foundation/geometry/collider.hpp"
 #include "football/pitch/pitch.hpp"
 
 using blunted::Vector3;

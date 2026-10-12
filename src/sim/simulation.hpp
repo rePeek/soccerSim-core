@@ -13,6 +13,7 @@
 #include "sim/runtime/match_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
+#include "football/foundation/collision/sweep.hpp"
 #include "sim/simulation_config.hpp"
 #include "football/foundation/math/rng.hpp"
 #include "sim/observation/world_state.hpp"
@@ -270,7 +271,7 @@ class Simulation {
   // Snapshot and AcceptedTouch: the existing body-contact path stays authoritative.
   std::vector<PlayerBodyMotionPrediction> body_shadow_predictions_;
   std::vector<football::geometry::ColliderMotion> body_shadow_colliders_;
-  std::optional<football::ball::BallContact> body_shadow_contact_;
+  std::optional<football::collision::CollisionHit> body_shadow_contact_;
   std::size_t body_shadow_touch_start_ = 0;
   bool body_shadow_active_ = false;
   bool body_shadow_action_phase_conflict_ = false;

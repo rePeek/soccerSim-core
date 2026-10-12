@@ -1,16 +1,15 @@
 #ifndef FOOTBALL_GEOMETRY_COLLIDER_HPP
 #define FOOTBALL_GEOMETRY_COLLIDER_HPP
 
-// Shared collision-geometry contract: shapes, their per-tick motion and the
-// contact material. Owned by no single domain: ball, pitch and the player body
-// all produce or consume these values. No ball/rules semantics live here.
+// Collision-geometry contract: shapes tagged for deterministic ordering, plus
+// their per-tick motion and contact material. Owned by no single domain: ball,
+// pitch and the player body all produce or consume these values. No ball/rules
+// semantics live here.
 
 #include <cstdint>
 #include <variant>
 
-#include "football/geometry/capsule.hpp"
-#include "football/geometry/plane.hpp"
-#include "football/geometry/sphere.hpp"
+#include "football/foundation/geometry/shapes.hpp"
 
 namespace football::geometry {
 

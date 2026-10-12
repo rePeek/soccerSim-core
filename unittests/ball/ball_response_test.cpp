@@ -11,7 +11,7 @@
 #include "football/ball/ball_response.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/foundation/math/vector3.hpp"
-#include "football/geometry/collider.hpp"
+#include "football/foundation/geometry/collider.hpp"
 
 using blunted::Vector3;
 using football::ball::ApplyImpulseAtPoint;

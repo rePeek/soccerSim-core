@@ -15,7 +15,7 @@
 #include <stdexcept>
 #include <limits>
 
-#include "football/geometry/collider.hpp"
+#include "football/foundation/geometry/collider.hpp"
 #include "sim/player/player_body_collider.hpp"
 
 // The three coarse passive body shapes intentionally match PlayerBodyCollider.

@@ -272,7 +272,7 @@ dependencies and `football::` aliases. Public headers live in the top-level
 the sole product composition root for sim + AI:
 
 ```text
-football_sim → football::simcore → ai + sim → foundation/pitch/ball/geometry
+football_sim → football::simcore → ai + sim → foundation/{geometry,collision,pitch,ball}
 ```
 
 Root CMake exposes model, sim contracts and AI startup contracts as PUBLIC usage
@@ -303,7 +303,8 @@ quantization, and legacy XML/codecs/text helpers live only in `tools/animBaker/i
 File I/O uses the standard library; custom diagnostics/backtraces and Properties
 are removed. Neither app nor Catch2/offline baker code is linked into core.
 Unit tests live under `unittests/` and link only the module under test:
-`foundation_unit` covers the math/time contract and `ball_unit` covers ball
-physics (CCD, impulse/response, one-tick motion). Both run in milliseconds and
-never load a match, animation asset or `football::simcore`.
+`foundation_unit` (math/time), `collision_unit` (generic CCD and overlap) and
+`ball_unit` (ball physics: impulse/response, one-tick motion, Step/Predict).
+They run in milliseconds and never load a match, animation asset or
+`football::simcore`.
 The offline baker remains a standalone tool under `tools/animBaker/`.

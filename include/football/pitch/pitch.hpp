@@ -15,7 +15,7 @@
 #include <vector>
 
 #include "football/foundation/math/vector3.hpp"
-#include "football/geometry/collider.hpp"
+#include "football/foundation/geometry/collider.hpp"
 
 namespace football::pitch {
 

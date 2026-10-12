@@ -3,7 +3,6 @@
 
 add_executable(football_ball_unit_tests
   ball_model_test.cpp
-  ball_collision_test.cpp
   ball_response_test.cpp
   ball_simulation_test.cpp)
 

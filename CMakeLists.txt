@@ -32,20 +32,6 @@ include(cmake/bqlog.cmake)
 
 add_subdirectory(src/foundation)
 
-# Shared collision geometry: shapes plus their per-tick motion/material
-# contract. Used by ball, pitch and the player body, so it is its own leaf
-# module (header-only, depends only on foundation math).
-add_library(football_geometry INTERFACE)
-add_library(football::geometry ALIAS football_geometry)
-target_sources(football_geometry INTERFACE FILE_SET HEADERS
-  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
-  FILES
-    ${PROJECT_SOURCE_DIR}/include/football/geometry/plane.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/geometry/sphere.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/geometry/capsule.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/geometry/collider.hpp)
-target_compile_features(football_geometry INTERFACE cxx_std_23)
-target_link_libraries(football_geometry INTERFACE football::foundation)
 # Header-only modules have no implementation directory, so their INTERFACE
 # targets are declared here; the headers live in include/football/<module>/.
 add_library(football_animation INTERFACE)

@@ -190,9 +190,10 @@ void Simulation::BeginBodyCollisionShadow() {
     body_shadow_predictions_.push_back(std::move(prediction));
   }
 
-  body_shadow_contact_ = football::ball::FirstContact(
-      ball_->state(), body_shadow_colliders_, football::sim::kTickSeconds,
-      ball_config_.radius());
+  body_shadow_contact_ = football::collision::FirstHit(
+      football::collision::MovingSphere{
+          {ball_->state().position, ball_config_.radius()}, ball_->state().velocity},
+      body_shadow_colliders_, football::sim::kTickSeconds);
   BeginBodyPhysicsShadow();
   if (!body_shadow_contact_) return;
 
