@@ -29,23 +29,7 @@ Team::Team(int id, football::sim::Roster& roster, football::sim::TeamFrame& fram
 
 Team::~Team() {}
 
-void Team::Mirror() {
-  frame_.dynamic_side *= -1;
-  frame_.mirrored = !frame_.mirrored;
-  for (Player* p : roster_.Players()) {
-    p->Mirror();
-    p->SetTeamContext(TeamFacts());
-  }
-}
 
-void Team::SwitchEnds() {
-  frame_.static_side = -frame_.static_side;
-  frame_.dynamic_side = -frame_.dynamic_side;
-  for (Player* p : roster_.Players()) {
-    p->Mirror();
-    p->SetTeamContext(TeamFacts());
-  }
-}
 
 
 

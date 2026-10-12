@@ -384,10 +384,42 @@ void Simulation::InitTeamPlayers(Team& team, football::sim::Roster& roster,
     schedule_phase = (schedule_phase + 1) % 10;
     Player* raw = player.get();
     roster.Add(std::move(player));
-    raw->SetTeamContext(team.TeamFacts());
+    raw->SetTeamContext(TeamFactsFor(team.GetID()));
     if (i < static_cast<std::size_t>(playerNum)) raw->Activate();
   }
   team.match_state().designated_player = roster.Players().front();
+}
+
+PlayerTeamFacts Simulation::TeamFactsFor(int team_id) const {
+  return football::sim::TeamFactsOf(team_frames_[team_id], team_states_[team_id]);
+}
+
+void Simulation::PublishTeamFacts(int team_id) {
+  football::sim::PublishTeamFacts(rosters_[team_id], team_frames_[team_id],
+                                  team_states_[team_id]);
+}
+
+void Simulation::MirrorTeam(int team_id) {
+  football::sim::TeamFrame& frame = team_frames_[team_id];
+  frame.dynamic_side *= -1;
+  frame.mirrored = !frame.mirrored;
+  const PlayerTeamFacts facts = TeamFactsFor(team_id);
+  for (Player* player : rosters_[team_id].Players()) {
+    player->Mirror();
+    player->SetTeamContext(facts);
+  }
+}
+
+void Simulation::SwitchTeamEnds(int team_id) {
+  football::sim::TeamFrame& frame = team_frames_[team_id];
+  // Historical order: the persistent direction flips first, then the frame.
+  frame.static_side = -frame.static_side;
+  frame.dynamic_side = -frame.dynamic_side;
+  const PlayerTeamFacts facts = TeamFactsFor(team_id);
+  for (Player* player : rosters_[team_id].Players()) {
+    player->Mirror();
+    player->SetTeamContext(facts);
+  }
 }
 
 void Simulation::ApplyPendingRulings() {
@@ -871,8 +903,8 @@ void Simulation::TouchBall(const Vector3& impulse) {
 }
 void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
   if (!ball_) throw std::logic_error("simulation has no match");
-  if (team_0) teams_[0]->Mirror();
-  if (team_1) teams_[1]->Mirror();
+  if (team_0) MirrorTeam(0);
+  if (team_1) MirrorTeam(1);
   if (ball) {
     ball_mirrored_ = !ball_mirrored_;
     ball_->Mirror();
@@ -959,8 +991,8 @@ void Simulation::ApplyChangeOfEnds() {
   rule_touches_.clear();
   for (auto& [id, active] : rule_contact_episodes_) active = false;
   // Permanent end change: preserve processing-roster order and canonical flags.
-  teams_[first_team_]->SwitchEnds();
-  teams_[second_team_]->SwitchEnds();
+  SwitchTeamEnds(first_team_);
+  SwitchTeamEnds(second_team_);
   ball_->Mirror();
   for (auto& image : mental_images_) {
     image.Mirror(true, true, true);

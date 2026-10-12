@@ -34,7 +34,7 @@ target_sources(football_sim_domain PRIVATE
   event/touch_query.cpp event/touch_query.hpp
   runtime/clock.cpp runtime/clock.hpp runtime/roster.cpp runtime/roster.hpp
   runtime/formation.cpp player/role_parser.cpp player/role_parser.hpp
-  runtime/team_state.hpp runtime/team_view.hpp
+  runtime/team_state.hpp runtime/team_view.hpp runtime/team_facts.hpp
   player/player_team_view.cpp player/player_team_view.hpp player/player_send_off_sink.hpp
   player/formation_entry.hpp
   runtime/possession.cpp runtime/possession.hpp

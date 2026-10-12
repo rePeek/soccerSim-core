@@ -25,6 +25,7 @@
 #include "sim/runtime/match_config.hpp"
 #include "sim/runtime/team_state.hpp"
 #include "sim/runtime/team_view.hpp"
+#include "sim/runtime/team_facts.hpp"
 #include "sim/runtime/roster.hpp"
 #include "sim/player/player.hpp"
 
@@ -39,11 +40,8 @@ class Team {
     // borrows all three and owns no authoritative team state of its own.
     Team(int id, football::sim::Roster& roster, football::sim::TeamFrame& frame,
          football::sim::TeamMatchState& state);
-    void Mirror();
-    // Half-time change of ends: this team attacks the opposite goal from now on.
-    // Mirrors its actors like Mirror() but leaves the canonical between-tick frame
-    // (mirrored == false), so CheckCanonicalFrame still holds afterwards.
-    void SwitchEnds();
+    // Mirror/SwitchEnds are runtime behaviour now (Simulation::MirrorTeam and
+    // SwitchTeamEnds); Team only exposes the borrowed orientation.
     bool isMirrored() const {
       return frame_.mirrored;
     }
@@ -123,14 +121,10 @@ class Team {
     // Publishes the team's current match facts to every player. Player stores a
     // projection only; it never holds a Team object.
     PlayerTeamFacts TeamFacts() const {
-      return PlayerTeamFacts{frame_.dynamic_side, frame_.static_side,
-                             frame_.dynamic_side == frame_.static_side,
-                             state_.possession_amount,
-                             state_.fading_possession_amount,
-                             state_.designated_player};
+      return football::sim::TeamFactsOf(frame_, state_);
     }
     void PublishTeamFacts() {
-      for (Player* p : roster_.Players()) p->SetTeamContext(TeamFacts());
+      football::sim::PublishTeamFacts(roster_, frame_, state_);
     }
 
     void RelaxFatigue(float howMuch);

@@ -22,6 +22,7 @@
 #include "sim/observation/player_slots.hpp"
 #include "sim/runtime/result.hpp"
 #include "sim/runtime/roster.hpp"
+#include "sim/runtime/team_facts.hpp"
 #include "sim/runtime/clock.hpp"
 #include "sim/event/accepted_touch_sink.hpp"
 #include "sim/event/event_recognizer.hpp"
@@ -127,6 +128,14 @@ class Simulation {
   void InitTeamPlayers(Team& team, football::sim::Roster& roster,
                        const football::sim::TeamSetup& setup, float ai_difficulty,
                        std::uint8_t first_schedule_phase);
+  // Team orientation is runtime-owned behaviour: these mutate the borrowed
+  // TeamFrame and publish the resulting facts to that roster, in roster order.
+  // MirrorTeam flips the execution frame; SwitchTeamEnds is the half-time
+  // change of ends (both directions flip, the between-tick frame does not).
+  void MirrorTeam(int team_id);
+  void SwitchTeamEnds(int team_id);
+  PlayerTeamFacts TeamFactsFor(int team_id) const;
+  void PublishTeamFacts(int team_id);
   void ProcessReferee();
   // Recognized behavior transitions -> confirmed MatchEvents.
   void CommitEventTransitions(football::sim::Tick now);

@@ -220,12 +220,18 @@ TEST_CASE("Runtime harness: SwitchEnds flips both directions, not the tick frame
 
   // Half-time change of ends: both directions flip; the canonical between-tick
   // frame (mirrored) must not change.
-  home->SwitchEnds();
+  SimulationAccess::SwitchTeamEnds(sim, 0);
   CHECK(home->GetDynamicSide() == -dynamic_before);
   CHECK(home->GetStaticSide() == -static_before);
   CHECK(home->isMirrored() == mirrored_before);
+  // Publication is part of the behaviour: a switched end that skipped it would
+  // leave every player reading the previous tick's team facts.
+  for (Player* player : home->GetAllPlayers()) {
+    CHECK(player->GetDynamicSide() == -dynamic_before);
+    CHECK(player->GetStaticSide() == -static_before);
+  }
 
-  home->SwitchEnds();
+  SimulationAccess::SwitchTeamEnds(sim, 0);
   CHECK(home->GetDynamicSide() == dynamic_before);
   CHECK(home->GetStaticSide() == static_before);
   CHECK(home->isMirrored() == mirrored_before);

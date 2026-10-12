@@ -99,6 +99,16 @@ class SimulationAccess {
     return s.teams_[team_id].get();
   }
   static football::math::Rng& RngOf(Simulation& s) { return s.rng_; }
+  // Runtime-owned orientation behaviour, reachable from the harness without a
+  // Team object: MirrorTeam flips the execution frame, SwitchTeamEnds is the
+  // half-time change of ends.
+  static void MirrorTeam(Simulation& s, int team_id) { s.MirrorTeam(team_id); }
+  static void SwitchTeamEnds(Simulation& s, int team_id) {
+    s.SwitchTeamEnds(team_id);
+  }
+  static PlayerTeamFacts TeamFactsOf(const Simulation& s, int team_id) {
+    return s.TeamFactsFor(team_id);
+  }
   static football::sim::Tick NowOf(Simulation& s) { return s.clock_->now(); }
   static football::sim::TickSpan RegulationTimeOf(Simulation& s) {
     return s.clock_->RegulationTime();

@@ -134,10 +134,14 @@ src/                 implementations; public headers live in include/football/
 │                    compiled into libsimcore.so with everything else under src/
     ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
     ├── simulation_config.hpp match-level options value
-    ├── team/         TRANSITIONAL Team adapter. Since P6a/P6b-1a it owns nothing:
-    │                 it borrows Roster, TeamFrame and TeamMatchState from
-    │                 Simulation. Only Mirror/SwitchEnds/PublishTeamFacts remain on
-    │                 it (P6b-1b moves those); P6b-2 deletes the directory.
+    ├── team/         TRANSITIONAL Team facade. Since P6a/P6b-1a it owns nothing
+    │                 (it borrows Roster, TeamFrame and TeamMatchState from
+    │                 Simulation) and since P6b-1b it runs no orientation behaviour:
+    │                 Mirror/SwitchEnds and the facts projection live in
+    │                 Simulation (runtime/team_facts.hpp). What is left is query
+    │                 forwarding plus possession-state setters and the
+    │                 ResetSituation/RelaxFatigue/Fatigue loops; P6b-1c/2 drain and
+    │                 delete the directory.
     ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
     │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
     ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
