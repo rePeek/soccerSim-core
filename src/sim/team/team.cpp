@@ -20,12 +20,11 @@
 #include "football/pitch/pitch.hpp"
 #include "sim/team/team.hpp"
 
-#include "sim/runtime/formation.hpp"
 
 Team::Team(int id, const football::sim::TeamSetup& model,
-           float aiDifficulty)
-    : id(id), model_(model), formation_(BuildFormation(model)),
-      aiDifficulty(aiDifficulty), static_side_(id == 0 ? -1 : 1) {
+           football::sim::Roster& roster, float aiDifficulty)
+    : id(id), model_(model), aiDifficulty(aiDifficulty), roster_(roster),
+      static_side_(id == 0 ? -1 : 1) {
   assert(id == 0 || id == 1);
   match_state_.time_to_ball_ms = 100;
   match_state_.has_possession = false;
@@ -54,53 +53,7 @@ void Team::SwitchEnds() {
   }
 }
 
-void Team::Exit(football::sim::Tick now) {
-  for (Player* player : roster_.Players()) {
-    player->Exit(now);
-  }
-  roster_.Clear();
-}
 
-void Team::InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::pitch::Pitch& pitch, football::math::Rng& rng) {
-  // Roster traversal supplies order; phases repeat every ten players.
-  std::uint8_t schedule_phase = first_schedule_phase;
-  for (std::size_t i = 0; i < formation_.size(); ++i) {
-    auto player = std::make_unique<Player>(id, GetTeamSide(), aiDifficulty,
-                                           model_.players[i], formation_.at(i),
-                                           schedule_phase, animations, pitch, rng);
-    schedule_phase = (schedule_phase + 1) % 10;
-    Player* raw = player.get();
-    roster_.Add(std::move(player));
-    raw->SetTeamContext(TeamFacts());
-
-    if (i < playerNum) {
-      // activate playerCount players (the starting eleven, usually)
-      raw->Activate();
-    }
-  }
-
-  match_state_.designated_player = roster_.Players().front();
-}
-
-FormationEntry Team::GetFormationEntry(void *player) {
-  for (int i = 0; i < (signed int)roster_.Players().size(); i++) {
-    if (roster_.Players()[i] == player) {
-      return formation_.at(i);
-    }
-  }
-
-  assert(1 == 2);
-  FormationEntry fail;
-  return fail;
-}
-
-void Team::SetFormationEntry(Player *player, FormationEntry entry) {
-  for (int i = 0; i < (signed int)roster_.Players().size(); i++) {
-    if (roster_.Players()[i] == player) {
-      formation_.at(i) = entry;
-    }
-  }
-}
 
 void Team::GetActivePlayers(std::vector<Player *> &activePlayers) {
   for (Player* player : roster_.Players()) {

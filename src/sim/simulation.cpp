@@ -368,6 +368,28 @@ void Simulation::HandlePlayerSentOff(Player& player) {
   football::sim::RefreshDesignatedTeamPossessionPlayer(team, *ball_);
 }
 
+void Simulation::InitTeamPlayers(Team& team, football::sim::Roster& roster,
+                                 const football::sim::TeamSetup& setup,
+                                 float ai_difficulty,
+                                 std::uint8_t first_schedule_phase) {
+  // Roster traversal supplies order; phases repeat every ten players. The
+  // sequence (create, Add, publish facts, activate) is the historical one.
+  const std::vector<FormationEntry> formation = BuildFormation(setup);
+  std::uint8_t schedule_phase = first_schedule_phase;
+  for (std::size_t i = 0; i < formation.size(); ++i) {
+    auto player = std::make_unique<Player>(team.GetID(), team.GetTeamSide(),
+                                           ai_difficulty, setup.players[i],
+                                           formation.at(i), schedule_phase,
+                                           *animations_, pitch_, rng_);
+    schedule_phase = (schedule_phase + 1) % 10;
+    Player* raw = player.get();
+    roster.Add(std::move(player));
+    raw->SetTeamContext(team.TeamFacts());
+    if (i < static_cast<std::size_t>(playerNum)) raw->Activate();
+  }
+  team.match_state().designated_player = roster.Players().front();
+}
+
 void Simulation::ApplyPendingRulings() {
   for (const auto& ruling : pending_rulings_) {
     std::visit(
@@ -487,6 +509,11 @@ void Simulation::Init(
   ball_mirrored_ = false;
   touches_.Reset();
   mental_images_.clear();
+  // Player ownership root: drop any adapters first, then the previous rosters.
+  teams_[0].reset();
+  teams_[1].reset();
+  rosters_[0].Clear();
+  rosters_[1].Clear();
 
   EnsureAnimationLibrary();
   clock_.emplace(options.half_duration);
@@ -509,22 +536,31 @@ void Simulation::Init(
   second_team_ = options.reverse_team_processing ? 0 : 1;
 
   // Build the whole composition locally, then publish it only on full success.
+  // Rosters and the player-definition copies live in their final member storage
+  // because Team borrows the roster and Player borrows a PlayerDefinition by
+  // reference; neither may observe a stale address or a dead local.
   auto ball = std::make_unique<Ball>(ball_config_, pitch_);
   const football::sim::TeamSetup* descriptions[] = {&home_model, &away_model};
+  const float difficulties[] = {options.left_team_difficulty,
+                               options.right_team_difficulty};
+  team_setups_[first_team_] = *descriptions[first_team_];
+  team_setups_[second_team_] = *descriptions[second_team_];
   std::array<std::unique_ptr<Team>, 2> teams;
   teams[first_team_] =
-      std::make_unique<Team>(first_team_, *descriptions[first_team_],
-          first_team_ ? options.right_team_difficulty : options.left_team_difficulty);
+      std::make_unique<Team>(first_team_, team_setups_[first_team_],
+                             rosters_[first_team_], difficulties[first_team_]);
   teams[second_team_] =
-      std::make_unique<Team>(second_team_, *descriptions[second_team_],
-          second_team_ ? options.right_team_difficulty : options.left_team_difficulty);
+      std::make_unique<Team>(second_team_, team_setups_[second_team_],
+                             rosters_[second_team_], difficulties[second_team_]);
   teams[first_team_]->SetOpponent(teams[second_team_].get());
   teams[second_team_]->SetOpponent(teams[first_team_].get());
   // Preserve the historical scheduling stagger across both rosters, including
   // reversed processing. Only a periodic phase is passed, not a creation ID.
-  teams[first_team_]->InitPlayers(0, *animations_, pitch_, rng_);
-  teams[second_team_]->InitPlayers(static_cast<std::uint8_t>(
-      teams[first_team_]->GetAllPlayers().size() % 10), *animations_, pitch_, rng_);
+  InitTeamPlayers(*teams[first_team_], rosters_[first_team_],
+                  team_setups_[first_team_], difficulties[first_team_], 0);
+  InitTeamPlayers(*teams[second_team_], rosters_[second_team_],
+                  team_setups_[second_team_], difficulties[second_team_],
+                  static_cast<std::uint8_t>(rosters_[first_team_].Players().size() % 10));
 
   std::vector<Player*> active_players;
   teams[first_team_]->GetActivePlayers(active_players);
@@ -1025,8 +1061,11 @@ bool Simulation::Stop() {
   if (!ball_) return false;
   ReleaseProductionPhysics();
   EnableActiveTouchShadow(false);
-  teams_[first_team_]->Exit(GetTimelineTick());
-  teams_[second_team_]->Exit(GetTimelineTick());
+  // End actor runtime state first; the rosters are cleared after the adapters go.
+  const football::sim::Tick end_tick = GetTimelineTick();
+  for (int i = 0; i < 2; ++i) {
+    for (Player* player : rosters_[i].Players()) player->Exit(end_tick);
+  }
   // Clear every actor borrow before their owners go away: an uninitialized
   // Simulation must hold no dangling pointers.
   last_goal_team_ = nullptr;
@@ -1055,6 +1094,9 @@ bool Simulation::Stop() {
   ball_.reset();
   teams_[0].reset();
   teams_[1].reset();
+  // Rosters outlive the adapters that borrow them.
+  rosters_[0].Clear();
+  rosters_[1].Clear();
   clock_.reset();
   return true;
 }

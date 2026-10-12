@@ -35,8 +35,10 @@ class MentalImage;
 class Team {
 
   public:
+    // Simulation owns the Roster and the players' lifetime; Team only borrows it.
+    // `roster` must outlive this Team.
     Team(int id, const football::sim::TeamSetup& model,
-         float aiDifficulty);
+         football::sim::Roster& roster, float aiDifficulty);
     void Mirror();
     // Half-time change of ends: this team attacks the opposite goal from now on.
     // Mirrors its actors like Mirror() but leaves the canonical between-tick frame
@@ -51,10 +53,6 @@ class Team {
     }
 
     virtual ~Team();
-
-    void Exit(football::sim::Tick now);
-
-    void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::pitch::Pitch& pitch, football::math::Rng& rng);
 
 
 
@@ -71,11 +69,6 @@ class Team {
     inline signed int GetStaticSide() const {
       return static_side_;
     }
-    const football::sim::TeamSetup& GetModel() const { return model_; }
-
-    FormationEntry GetFormationEntry(void* player);
-    void SetFormationEntry(Player* player, FormationEntry entry);
-    float GetAiDifficulty() const { return aiDifficulty; }
     std::span<Player *const> GetAllPlayers() const { return roster_.Players(); }
     void GetAllPlayers(std::vector<Player*> &allPlayers) const {
       const auto players = roster_.Players();
@@ -149,15 +142,14 @@ class Team {
     const int id;
     Team *opponent = 0;
     const football::sim::TeamSetup model_;
-    std::vector<FormationEntry> formation_;
     const float aiDifficulty;
 
     // Team match facts shared with players through a borrowed view.
     football::sim::TeamMatchState match_state_;
 
 
-    // Ownership lives in the Roster; Team keeps only match state (below).
-    football::sim::Roster roster_;
+    // Borrowed from Simulation (which owns it); Team never clears or frees it.
+    football::sim::Roster &roster_;
 
 
     int side = -1;

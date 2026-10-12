@@ -21,6 +21,7 @@
 #include "sim/observation/snapshot_history.hpp"
 #include "sim/observation/player_slots.hpp"
 #include "sim/runtime/result.hpp"
+#include "sim/runtime/roster.hpp"
 #include "sim/runtime/clock.hpp"
 #include "sim/event/accepted_touch_sink.hpp"
 #include "sim/event/event_recognizer.hpp"
@@ -120,6 +121,12 @@ class Simulation {
   void ApplyCardRuling(const football::sim::event::CardRuling& ruling);
   // Roster/formation/possession follow-up when a player leaves the pitch.
   void HandlePlayerSentOff(Player& player);
+  // Creates and activates one roster's players. Runtime owns the lifecycle; the
+  // Team adapter only reads the roster. Preserves the historical schedule-phase
+  // sequence, RNG draw order and starting-eleven activation order.
+  void InitTeamPlayers(Team& team, football::sim::Roster& roster,
+                       const football::sim::TeamSetup& setup, float ai_difficulty,
+                       std::uint8_t first_schedule_phase);
   void ProcessReferee();
   // Recognized behavior transitions -> confirmed MatchEvents.
   void CommitEventTransitions(football::sim::Tick now);
@@ -248,7 +255,13 @@ class Simulation {
   football::ball::BallModel ball_config_;
   std::shared_ptr<AnimationLibrary> animations_;
 
+  // Player definitions. Player stores a const PlayerDefinition&, so this copy must
+  // outlive every roster and Team adapter: declared first, destroyed last.
+  std::array<football::sim::TeamSetup, 2> team_setups_;
   std::unique_ptr<football::ball::Ball> ball_;
+  // Player ownership. Declared before teams_ so the Team adapters (which borrow
+  // these rosters) are destroyed first and never observe a cleared roster.
+  std::array<football::sim::Roster, 2> rosters_;
   std::array<std::unique_ptr<Team>, 2> teams_;
   std::unique_ptr<Referee> referee_;
 
