@@ -1,8 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include "football/ball/ball.hpp"
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
 
 namespace {
@@ -12,7 +14,7 @@ using football::ball::BallEnvironment;
 using football::ball::BallState;
 using blunted::Vector3;
 
-const football::model::Pitch kPitch = football::model::Pitch{};
+const football::pitch::Pitch kPitch = football::pitch::Pitch{};
 constexpr float kPostRadius = 0.06f;
 
 BallState BehindGoalState() {

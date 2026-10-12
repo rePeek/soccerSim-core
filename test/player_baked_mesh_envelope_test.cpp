@@ -1,5 +1,5 @@
 #include <fstream>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <sstream>
 #include <string>
 #include <vector>
@@ -32,7 +32,7 @@ TEST_CASE("head and leg proxy envelopes cover the named baked meshes in transfor
   const auto pelvis=Vertices("pelvis.ase"),trunk=Vertices("trunk.ase"),foot=Vertices("foot.ase"),
       upperarm=Vertices("upperarm.ase"),lowerarm=Vertices("lowerarm.ase");
   Simulation s; MatchOptions options; options.snapshot_capacity=1;
-  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),football::app::fixtures::MakeDefaultAwayTeam(),football::model::Pitch{},options);
+  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),football::app::fixtures::MakeDefaultAwayTeam(),football::pitch::Pitch{},options);
   const auto& library=SimulationAccess::AnimationLibraryOf(s);
   std::vector<Player*> actors; SimulationAccess::ActiveTeamPlayersOf(s,0,actors);
   const auto reference_id=actors.front()->GetBakedPoseSample(1).animation_id;

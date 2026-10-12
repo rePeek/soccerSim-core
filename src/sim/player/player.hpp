@@ -23,7 +23,7 @@
 #include <optional>
 #include <span>
 #include "model/player.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_ground_collider.hpp"
@@ -154,7 +154,7 @@ class Player final {
 
   public:
     Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
-           const AnimationLibrary& animations, const football::model::Pitch& pitch, blunted::Rng& rng);
+           const AnimationLibrary& animations, const football::pitch::Pitch& pitch, blunted::Rng& rng);
     ~Player();
     // Explicit teardown reset before deletion; no hidden clock/RNG destructor path.
     void Exit(football::sim::Tick now);
@@ -416,7 +416,7 @@ class Player final {
     PlayerActionState CaptureLegacyActionState() const;
     void SetNextResetSituationAuditContext(int context);
     const AnimationLibrary& animations_;
-    const football::model::Pitch& pitch_;
+    const football::pitch::Pitch& pitch_;
     blunted::Rng& rng_;
 
     // Team owns an immutable description for the entire actor lifetime.

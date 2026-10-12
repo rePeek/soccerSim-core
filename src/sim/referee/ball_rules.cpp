@@ -1,5 +1,5 @@
 #include "sim/referee/ball_rules.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <cmath>
 
@@ -13,7 +13,7 @@ constexpr float kOutOfPlayMargin = 0.11f;
 
 }  // namespace
 
-BallOutOfPlay ClassifyBallOutOfPlay(const football::model::Pitch& pitch,
+BallOutOfPlay ClassifyBallOutOfPlay(const football::pitch::Pitch& pitch,
                                     const blunted::Vector3& ball_position) {
   // Goal-line priority is preserved: an instant is at most one condition, and
   // the goal line is tested before the touchline.
@@ -24,7 +24,7 @@ BallOutOfPlay ClassifyBallOutOfPlay(const football::model::Pitch& pitch,
   return BallOutOfPlay::None;
 }
 
-std::optional<int> CrossedGoalMouth(const football::model::Pitch& pitch,
+std::optional<int> CrossedGoalMouth(const football::pitch::Pitch& pitch,
                                     const blunted::Vector3& previous,
                                     const blunted::Vector3& current) {
   for (int side : {-1, 1}) {

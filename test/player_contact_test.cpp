@@ -1,7 +1,9 @@
 #include <array>
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
@@ -33,7 +35,7 @@ std::vector<Vector3> BallPredictionSamples(const Ball& ball) {
 
 struct PlayerContactFixture {
   Simulation simulation;
-  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})};
   std::array<Player*, 3> players;
 
   explicit PlayerContactFixture(bool reverse) {
@@ -41,7 +43,7 @@ struct PlayerContactFixture {
     options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
         football::app::fixtures::MakeDefaultAwayTeam(),
-        football::model::Pitch{}, options);
+        football::pitch::Pitch{}, options);
     players = {SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[1],
                SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetAllPlayers()[1],
                SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[2]};
@@ -202,7 +204,7 @@ TEST_CASE("simulation publishes a fresh foul assessment set each tick",
           "[sim][player][contact][foul]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   REQUIRE(SimulationAccess::FoulAssessmentsOf(simulation).empty());
   const PlayerControlSet controls;
   simulation.Step(controls);

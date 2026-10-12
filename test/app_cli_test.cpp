@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <stdexcept>
 
 #include "app/fixtures/default_teams.hpp"
@@ -13,7 +13,7 @@ namespace {
 GameEnv MakeGame(MatchOptions options = {}) {
   return {football::app::fixtures::MakeDefaultHomeTeam(),
           football::app::fixtures::MakeDefaultAwayTeam(),
-          football::model::Pitch{}, football::ball::BallModel{}, options, {}};
+          football::pitch::Pitch{}, football::ball::BallModel{}, options, {}};
 }
 }
 TEST_CASE("the CLI composition starts and exposes secondary owning telemetry", "[app][cli]") {

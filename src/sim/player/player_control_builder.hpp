@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_PLAYER_PLAYER_CONTROL_BUILDER_HPP
 
 #include "sim/player/player_control.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "sim/player/player_command.hpp"
 
 class Player;
@@ -18,7 +18,7 @@ struct PlayerCommandInputs {
   const football::sim::event::TouchState& touches;
   const RefereeBuffer& restart;
   const Player* retainer;
-  const football::model::Pitch& pitch;
+  const football::pitch::Pitch& pitch;
 };
 
 // Converts decision-domain values into the existing execution command format.

@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 #include "model/formation.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "model/player.hpp"
 #include "model/team.hpp"
 
@@ -14,7 +14,7 @@ int main() {
   static_assert(model::TeamSide::Home != model::TeamSide::Away);
   static_assert(std::is_same_v<std::underlying_type_t<model::TeamSide>, std::uint8_t>);
   static_assert(model::kPlayerStatCount == 22);
-  constexpr model::Pitch pitch = model::Pitch{};
+  constexpr football::pitch::Pitch pitch = football::pitch::Pitch{};
   static_assert(pitch.length() == 105.0f && pitch.width() == 68.0f);
   static_assert(pitch.contains(52.5f, 34.0f));
   static_assert(pitch.contains(-52.5f, -34.0f));
@@ -61,29 +61,29 @@ int main() {
       pitch.grass_height() != 0.025f) {
     return EXIT_FAILURE;
   }
-  model::Pitch custom(105.0f, 68.0f, 0.05f, 1.8f, 0.02f);
+  football::pitch::Pitch custom(105.0f, 68.0f, 0.05f, 1.8f, 0.02f);
   if (custom.length() != 105.0f || custom.width() != 68.0f ||
       custom.quadratic_resistance() != 0.05f || custom.ground_deceleration() != 1.8f ||
       custom.grass_height() != 0.02f) {
     return EXIT_FAILURE;
   }
   try {
-    model::Pitch bad(0.0f, 68.0f, 0.04f, 1.6f, 0.025f);
+    football::pitch::Pitch bad(0.0f, 68.0f, 0.04f, 1.6f, 0.025f);
     return EXIT_FAILURE;
   } catch (const std::invalid_argument&) {
   }
   try {
-    model::Pitch bad(105.0f, 68.0f, -1.0f, 1.6f, 0.025f);
+    football::pitch::Pitch bad(105.0f, 68.0f, -1.0f, 1.6f, 0.025f);
     return EXIT_FAILURE;
   } catch (const std::invalid_argument&) {
   }
   try {
-    model::Pitch bad(std::numeric_limits<float>::quiet_NaN(), 68.0f, 0.04f, 1.6f, 0.025f);
+    football::pitch::Pitch bad(std::numeric_limits<float>::quiet_NaN(), 68.0f, 0.04f, 1.6f, 0.025f);
     return EXIT_FAILURE;
   } catch (const std::invalid_argument&) {
   }
   try {
-    model::Pitch bad(105.0f, 68.0f, 0.04f, 1.6f, 0.0f);
+    football::pitch::Pitch bad(105.0f, 68.0f, 0.04f, 1.6f, 0.0f);
     return EXIT_FAILURE;
   } catch (const std::invalid_argument&) {
   }

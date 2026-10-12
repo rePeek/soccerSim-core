@@ -16,7 +16,7 @@
 #define FOOTBALL_SIM_RULES_OFFSIDE_HPP
 
 #include "foundation/time/tick.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 namespace football::ball { class Ball; }
 class MentalImage;
@@ -28,7 +28,7 @@ namespace football::sim::rules {
 // second-deepest defender, ball and halfway line; prediction and geometry retain
 // legacy semantics. No Match, Team or simulation-state access.
 float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,
-                     const football::model::Pitch& pitch,
+                     const football::pitch::Pitch& pitch,
                      const football::ball::Ball& ball, int defending_team_id, int defending_side,
                      unsigned int futureSim_ms = 0);
 

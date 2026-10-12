@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_RULES_GOAL_HPP
 
 #include "foundation/math/vector3.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 namespace football::sim {
 
@@ -10,7 +10,7 @@ namespace football::sim {
 // Preserves strict segment endpoints, both crossing directions and side-net veto.
 // Live-ball authorization and the prediction lookahead gate belong to the caller;
 // this predicate neither reads actors/time nor applies score or scorer facts.
-bool CrossedGoalLine(const football::model::Pitch& pitch, int side,
+bool CrossedGoalLine(const football::pitch::Pitch& pitch, int side,
                      const blunted::Vector3& previous,
                      const blunted::Vector3& current);
 

@@ -1,5 +1,5 @@
 #include <iostream>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
@@ -42,7 +42,7 @@ float Error(const PlayerBakedPoseSample& a,const PlayerBakedPoseSample& b,
 }
 TEST_CASE("dense adjacent pose sampling measures linear primitive versus local quaternion motion", "[pose-interpolation]") {
   Simulation s; MatchOptions options; options.snapshot_capacity=1;
-  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),football::app::fixtures::MakeDefaultAwayTeam(),football::model::Pitch{},options);
+  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),football::app::fixtures::MakeDefaultAwayTeam(),football::pitch::Pitch{},options);
   std::size_t movement=0,sliding=0,trip=0,intervals=0; float raw_error=0,realized_error=0;
   std::string worst; int worst_frame=0;
   for(const auto& clip:SimulationAccess::AnimationLibraryOf(s).Clips()) {
@@ -74,7 +74,7 @@ TEST_CASE("dense adjacent pose sampling measures linear primitive versus local q
 }
 TEST_CASE("movement smoothing catch-up is separated from honest raw gait", "[baked-pose][pose-motion]") {
   Simulation s; MatchOptions options; options.snapshot_capacity=1;
-  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),football::app::fixtures::MakeDefaultAwayTeam(),football::model::Pitch{},options);
+  s.Init(football::app::fixtures::MakeDefaultHomeTeam(),football::app::fixtures::MakeDefaultAwayTeam(),football::pitch::Pitch{},options);
   const AnimationClip* clip=nullptr;
   for(const auto& c:SimulationAccess::AnimationLibraryOf(s).Clips()) if(c.id==1147) { clip=&c; break; }
   REQUIRE(clip!=nullptr);

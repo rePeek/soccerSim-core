@@ -1,5 +1,5 @@
 #include "app/recording/snapshot_archive.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <algorithm>
 #include <array>
@@ -165,7 +165,7 @@ SnapshotMetadata DecodeMetadata(const Bytes& bytes) {
   metadata.animation_library_hash = cursor.Get(8);
   const float length = cursor.Float(), width = cursor.Float(), resistance = cursor.Float();
   const float deceleration = cursor.Float(), grass = cursor.Float();
-  metadata.pitch = model::Pitch(length, width, resistance, deceleration, grass);
+  metadata.pitch = football::pitch::Pitch(length, width, resistance, deceleration, grass);
   const auto& p = metadata.pitch;
   for (float value : {p.line_half_width(), p.goal_half_width(), p.goal_height(),
        p.goal_depth(), p.penalty_area_depth(), p.penalty_mark_distance()}) {

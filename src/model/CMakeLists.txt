@@ -13,4 +13,4 @@ target_include_directories(football_model INTERFACE
 target_compile_features(football_model INTERFACE cxx_std_23)
 target_sources(football_model INTERFACE
   FILE_SET HEADERS
-  FILES football_types.hpp player.hpp team.hpp formation.hpp pitch.hpp)
+  FILES football_types.hpp player.hpp team.hpp formation.hpp)

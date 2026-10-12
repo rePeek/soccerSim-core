@@ -8,7 +8,7 @@
 namespace football::ball {
 
 // Ball's complete static physical environment, assembled by the caller (the
-// Pitch module) from the pitch description. Ball never reads model::Pitch and
+// Pitch module) from the pitch description. Ball never reads football::pitch::Pitch and
 // never builds pitch geometry itself; it only consumes this value.
 struct GroundSurface {
   float deceleration = 1.6f;

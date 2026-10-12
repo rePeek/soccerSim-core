@@ -1,7 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <cmath>
 
@@ -19,7 +21,7 @@ using football::sim::testing::SimulationAccess;
 
 TEST_CASE("an injected pitch drives referee, observation and restart geometry",
           "[sim][custom-pitch]") {
-  const football::model::Pitch custom(100.0f, 64.0f, 0.04f, 1.6f, 0.025f);
+  const football::pitch::Pitch custom(100.0f, 64.0f, 0.04f, 1.6f, 0.025f);
   REQUIRE(custom.half_length() == 50.0f);
   REQUIRE(custom.half_width() == 32.0f);
 
@@ -49,7 +51,7 @@ TEST_CASE("an injected pitch drives referee, observation and restart geometry",
 }
 
 TEST_CASE("referee uses the injected sideline for throw-ins", "[sim][custom-pitch]") {
-  const football::model::Pitch custom(100.0f, 64.0f, 0.04f, 1.6f, 0.025f);
+  const football::pitch::Pitch custom(100.0f, 64.0f, 0.04f, 1.6f, 0.025f);
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                   football::app::fixtures::MakeDefaultAwayTeam(), custom, {});
@@ -71,7 +73,7 @@ TEST_CASE("referee uses the injected sideline for throw-ins", "[sim][custom-pitc
 }
 
 TEST_CASE("ball woodwork uses the injected goal post", "[sim][custom-pitch]") {
-  const football::model::Pitch custom(100.0f, 64.0f, 0.04f, 1.6f, 0.025f);
+  const football::pitch::Pitch custom(100.0f, 64.0f, 0.04f, 1.6f, 0.025f);
   football::ball::Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(custom, football::ball::BallModel{})};
   football::ball::BallState state;
   state.position = Vector3(custom.half_length() - 0.15f, custom.goal_half_width(), 0.1f);
@@ -84,8 +86,8 @@ TEST_CASE("ball woodwork uses the injected goal post", "[sim][custom-pitch]") {
 }
 
 TEST_CASE("the same ball state diverges on different pitches", "[sim][custom-pitch]") {
-  const football::model::Pitch short_grass(100.0f, 64.0f, 0.04f, 1.6f, 0.02f);
-  const football::model::Pitch tall_grass(100.0f, 64.0f, 0.04f, 1.6f, 0.10f);
+  const football::pitch::Pitch short_grass(100.0f, 64.0f, 0.04f, 1.6f, 0.02f);
+  const football::pitch::Pitch tall_grass(100.0f, 64.0f, 0.04f, 1.6f, 0.10f);
   football::ball::BallState state;
   state.position = Vector3(0.0f, 0.0f, 0.16f);
   state.velocity = Vector3(10.0f, 0.0f, 0.0f);

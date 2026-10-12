@@ -1,5 +1,5 @@
 #include <limits>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -17,7 +17,7 @@ using namespace football::sim;
 void Init(Simulation& simulation, MatchOptions options = {}) {
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                   football::app::fixtures::MakeDefaultAwayTeam(),
-                  football::model::Pitch{}, options);
+                  football::pitch::Pitch{}, options);
 }
 
 TEST_CASE("Match snapshots read the authoritative tick timeline and freeze at full time",

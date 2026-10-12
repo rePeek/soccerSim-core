@@ -8,7 +8,7 @@ namespace football::ball {
 
 // Static physical description of the football. It owns no runtime state and is
 // validated at construction; consumers read it through getters only. This is
-// the ball domain's own model type; Ball does not read model::Pitch/BallModel.
+// the ball domain's own model type; Ball does not read football::pitch::Pitch/BallModel.
 //
 // `restitution` currently represents the effective ball-ground contact
 // coefficient in the current physics, not a pure ball material property.

@@ -1,5 +1,5 @@
 #include "sim/referee/restart_readiness.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -33,7 +33,7 @@ bool Goalkeeper(const Player& player) {
   return player.GetTeam()->GetGoalie() == &player;
 }
 Vector3 LegalTarget(const RestartPlan& plan, Player& player, Vector3 target,
-                    const football::model::Pitch& pitch) {
+                    const football::pitch::Pitch& pitch) {
   const float half_x = pitch.half_length();
   const float half_y = pitch.half_width();
   target.coords[0] = std::clamp(target.coords[0], -half_x + 0.2f, half_x - 0.2f);
@@ -69,7 +69,7 @@ Vector3 LegalTarget(const RestartPlan& plan, Player& player, Vector3 target,
   return target;
 }
 bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3& position,
-                   const football::model::Pitch& pitch) {
+                   const football::pitch::Pitch& pitch) {
   const bool opponent = player.GetTeam() != plan.team;
   if (plan.mode == e_GameMode_KickOff && position.coords[0] * Side(*player.GetTeam()) < -0.01f)
     return false;
@@ -89,7 +89,7 @@ bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3&
 }
 }  // namespace
 
-RestartPlan PlanRestart(const football::model::Pitch& pitch,
+RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
                         const Vector3& home_ball_position,
                         std::span<Player* const> active_players,
                         e_GameMode mode, Team& team) {
@@ -149,7 +149,7 @@ RestartPlan PlanRestart(const football::model::Pitch& pitch,
   return plan;
 }
 
-bool RestartPlayersReady(const RestartPlan& plan, const football::model::Pitch& pitch) {
+bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& pitch) {
   if (!plan.taker || !plan.taker->IsActive()) return false;
   for (const auto& target : plan.players) {
     if (!target.player->IsActive()) continue;

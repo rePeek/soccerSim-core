@@ -1,11 +1,13 @@
 #include <limits>
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include "football/ball/ball.hpp"
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_response.hpp"
 
@@ -72,7 +74,7 @@ TEST_CASE("rotating capsule catches a stationary ball between clear endpoints", 
   REQUIRE((result.state.velocity-wrong.state.velocity).GetLength() > 10);
   REQUIRE(result.state.angular_velocity.GetLength() > 1);
   // Full Ball API still commits this same passive response through one Step.
-  Ball owner{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})}; owner.Reset(ball);
+  Ball owner{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})}; owner.Reset(ball);
   const auto before = owner.state(); const auto preview = owner.Predict(BallTickInput{world,{}});
   REQUIRE(owner.state().position == before.position);
   REQUIRE(owner.state().velocity == before.velocity);
@@ -219,7 +221,7 @@ TEST_CASE("invalid deforming input is rejected before state or force commit", "[
   REQUIRE_THROWS_AS(SweepBall(initial,c,dt,.11f),std::invalid_argument);
   std::get<Capsule>(c.end).radius = std::numeric_limits<float>::quiet_NaN();
   REQUIRE_THROWS_AS(SweepBall(initial,c,dt,.11f),std::invalid_argument);
-  Ball a{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})}, b{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
+  Ball a{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})}, b{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})};
   a.Reset(initial); b.Reset(initial);
   REQUIRE_THROWS_AS(a.Step(BallTickInput{std::array{c},{}}),std::invalid_argument);
   REQUIRE(a.state().position == initial.position); REQUIRE(a.state().velocity == initial.velocity);

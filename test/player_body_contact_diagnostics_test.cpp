@@ -1,7 +1,9 @@
 #include <algorithm>
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 #include <cmath>
 #include <limits>
 #include <catch2/catch_test_macros.hpp>
@@ -26,7 +28,7 @@ BallState State(Vector3 position, Vector3 velocity) {
   return {position, velocity, Vector3(0), blunted::Quaternion{}};
 }
 BallStepResult Step(const BallState& state, std::span<const ColliderMotion> motions) {
-  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})};
   ball.Reset(state);
   return ball.Step(BallTickInput{motions, {}});
 }
@@ -164,7 +166,7 @@ TEST_CASE("two contestants and several body parts compete by stable ids not inpu
 
 TEST_CASE("fixed collider tapes continuously separate with identical permutation and rotation replay", "[sim][body-trajectory]") {
   for (const auto action : {e_FunctionType_Movement, e_FunctionType_Sliding, e_FunctionType_Trip}) {
-    Ball forward{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})}, reordered{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})}, rotated{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
+    Ball forward{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})}, reordered{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})}, rotated{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})};
     const auto initial = State({-1.3f, 0, action == e_FunctionType_Movement ? .6f : .24f}, {8, 0, 0});
     forward.Reset(initial); reordered.Reset(initial); rotated.Reset(initial); rotated.Mirror();
     std::size_t body_impacts = 0;
@@ -208,7 +210,7 @@ TEST_CASE("fixed collider tapes continuously separate with identical permutation
 TEST_CASE("deep separating overlap projects once but does not invent a followup impact", "[sim][body-trajectory]") {
   const auto body = Body(e_FunctionType_Movement);
   const auto lower = std::span<const ColliderMotion>{body}.subspan(1, 1);
-  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})};
   ball.Reset(State({.1f, 0, .6f}, {4, 0, 0}));
   const auto projection = ball.Step(BallTickInput{lower, {}});
   REQUIRE(projection.contacts.front().position_corrected);
@@ -223,7 +225,7 @@ TEST_CASE("deep separating overlap projects once but does not invent a followup 
 }
 
 TEST_CASE("moving-body tape releases a separating ball instead of freezing on overlap", "[sim][body-trajectory]") {
-  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})};
   ball.Reset(State({-.4f, 0, .6f}, {20, 0, 0}));
   int impulses = 0;
   float previous_x = ball.state().position.coords[0];

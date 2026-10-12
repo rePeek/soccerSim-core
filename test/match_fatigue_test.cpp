@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
@@ -12,7 +12,7 @@ TEST_CASE("fatigue charges real metres during dead balls but not ceremonial warm
     Simulation simulation;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
         football::app::fixtures::MakeDefaultAwayTeam(),
-        football::model::Pitch{}, MatchOptions{});
+        football::pitch::Pitch{}, MatchOptions{});
     if (half_underway) football::test::TakeKickOff(simulation);
     else simulation.Step({}); // Establish the native history before directly processing an actor.
     SimulationAccess::StopPlay(simulation); // Dead ball, not EndHalf: ordinary stoppages still belong to the half.

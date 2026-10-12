@@ -1,5 +1,6 @@
 #include "sim/simulation.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -26,6 +27,7 @@
 #include "sim/team/possession.hpp"
 #include "sim/team/team.hpp"
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
 using football::ball::Ball;
 
@@ -400,7 +402,7 @@ Simulation::~Simulation() {
 
 void Simulation::Init(
     const football::model::Team& home, const football::model::Team& away,
-    const football::model::Pitch& pitch, MatchOptions options,
+    const football::pitch::Pitch& pitch, MatchOptions options,
     const football::ball::BallModel& ball_config) {
   if (ball_) throw std::logic_error("simulation already initialized");
   // Native duration and full-match capacity are checked before any RNG draws.

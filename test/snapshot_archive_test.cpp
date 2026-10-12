@@ -1,5 +1,5 @@
 #include <atomic>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <bit>
 #include <chrono>
 #include <cstring>
@@ -33,7 +33,7 @@ struct TempFile {
 SnapshotMetadata Metadata(std::size_t count = 3) {
   SnapshotMetadata metadata;
   for (std::size_t i = 0; i < count; ++i) metadata.player_ids.push_back(static_cast<std::uint32_t>(1000000000 + i));
-  metadata.pitch = football::model::Pitch(110, 72, 0.03f, 1.7f, 0.04f);
+  metadata.pitch = football::pitch::Pitch(110, 72, 0.03f, 1.7f, 0.04f);
   metadata.animation_library_hash = UINT64_C(0x123456789abcdef0);
   return metadata;
 }

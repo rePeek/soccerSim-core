@@ -13,7 +13,7 @@
 
 
 #include "sim/player/kick_targeting.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <cmath>
 #include <cassert>
@@ -169,7 +169,7 @@ void GetPass(Player *player, e_FunctionType passType,
   CalculatePassDirectionAndPower(passType, resultingTargetRel, resultingDirection, resultingPower);
 }
 
-Vector3 GetShotDirection(Player *player, const football::model::Pitch& pitch,
+Vector3 GetShotDirection(Player *player, const football::pitch::Pitch& pitch,
                             const Vector3 &inputDirection,
                             float autoDirectionBias) {
 

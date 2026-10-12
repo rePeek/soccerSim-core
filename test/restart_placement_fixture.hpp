@@ -2,7 +2,7 @@
 #define FOOTBALL_TEST_RESTART_PLACEMENT_FIXTURE_HPP
 
 #include <array>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <cstdint>
 #include <sstream>
 
@@ -33,7 +33,7 @@ inline void SetupRestart(Simulation &simulation, const RestartCase &test) {
   MatchOptions options;
   options.reverse_team_processing = test.reverse;
   simulation.Stop();
-  simulation.Init(home, away, model::Pitch{}, options);
+  simulation.Init(home, away, football::pitch::Pitch{}, options);
   simulation.Mirror(test.reverse, !test.reverse, test.reverse);
   blunted::Vector3 focus(0);
   switch (test.mode) {

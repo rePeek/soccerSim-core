@@ -35,6 +35,7 @@ add_subdirectory(src/foundation)
 add_subdirectory(src/model)
 add_subdirectory(src/ball)
 add_subdirectory(src/animation)
+add_subdirectory(src/pitch)
 add_subdirectory(src/sim)
 add_subdirectory(src/ai)
 

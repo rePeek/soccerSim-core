@@ -1,5 +1,5 @@
 #include <numeric>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include "ai/default_ai.hpp"
 #include "app/fixtures/default_teams.hpp"
@@ -17,11 +17,11 @@ TEST_CASE("body shadow preserves physics actors RNG and accepted facts under bot
     options.snapshot_capacity = 4;
     options.reverse_team_processing = reverse;
     Simulation observed, control;
-    observed.Init(home, away, football::model::Pitch{}, options);
-    control.Init(home, away, football::model::Pitch{}, options);
+    observed.Init(home, away, football::pitch::Pitch{}, options);
+    control.Init(home, away, football::pitch::Pitch{}, options);
     SimulationAccess::EnableBodyCollisionShadow(control, false);
     SimulationAccess::EnableBodyPhysicsShadow(observed, true);
-    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
     for (int step = 0; step < 800; ++step) {
       if (step == 400) {
         SimulationAccess::RequestChangeOfEnds(observed);
@@ -87,7 +87,7 @@ TEST_CASE("fixed body slots and common collider coordinates survive end changes 
     options.reverse_team_processing = reverse;
     options.snapshot_capacity = 2;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+        football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, options);
     const auto owners = SimulationAccess::BodyColliderOwnersOf(simulation);
     for (int half = 0; half < 2; ++half) {
       if (half == 1) {
@@ -119,7 +119,7 @@ TEST_CASE("full physics shadow shares pitch priority and maps moving-frame bodie
     options.reverse_team_processing = reverse;
     options.snapshot_capacity = 2;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+        football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, options);
     SimulationAccess::EnableBodyPhysicsShadow(simulation, true);
     simulation.Mirror(reverse, !reverse, false);
     for (int side = 0; side < 2; ++side) {
@@ -181,7 +181,7 @@ TEST_CASE("pre-sweep classification preserves the strict old cooldown boundary w
     Simulation simulation;
     MatchOptions options; options.reverse_team_processing = reverse; options.snapshot_capacity = 2;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+        football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, options);
     SimulationAccess::EnableBodyPhysicsShadow(simulation, true);
     simulation.Mirror(reverse, !reverse, false);
     for (int side = 0; side < 2; ++side)
@@ -222,7 +222,7 @@ TEST_CASE("body classification retains gravity-induced kernel winners absent fro
     Simulation simulation;
     MatchOptions options; options.reverse_team_processing = reverse; options.snapshot_capacity = 2;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+        football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, options);
     SimulationAccess::EnableBodyPhysicsShadow(simulation, true);
     simulation.Mirror(reverse, !reverse, false);
     for (int side = 0; side < 2; ++side)

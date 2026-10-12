@@ -1,12 +1,14 @@
 // Standalone allocator interposition: never linked into Simulation suites.
 #include <cstdlib>
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 #include <limits>
 #include <new>
 #include <vector>
 #include <catch2/catch_test_macros.hpp>
 #include "football/ball/ball.hpp"
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
 
 namespace {
@@ -44,7 +46,7 @@ void operator delete[](void* p, std::size_t, std::align_val_t) noexcept { std::f
 
 TEST_CASE("dynamic collider merge reuses capacity without per-tick input allocation", "[ball][allocation]") {
   using namespace football::ball;
-  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::model::Pitch{}, football::ball::BallModel{})};
+  Ball ball{football::ball::BallModel{}, football::pitch::BuildBallWorld(football::pitch::Pitch{}, football::ball::BallModel{})};
   const BallState high{{0, 0, 10000}, blunted::Vector3(0), blunted::Vector3(0), blunted::Quaternion{}};
   for (const std::size_t count : {66u, 300u}) {
     std::vector<ColliderMotion> motions;

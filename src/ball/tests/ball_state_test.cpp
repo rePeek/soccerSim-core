@@ -1,5 +1,6 @@
 #include <cmath>
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 #include <stdexcept>
 #include <type_traits>
 
@@ -7,6 +8,7 @@
 
 #include "football/ball/ball.hpp"
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
 
 namespace {
@@ -16,7 +18,7 @@ using football::ball::BallModel;
 using football::ball::BallState;
 using blunted::Vector3;
 
-const football::model::Pitch kPitch = football::model::Pitch{};
+const football::pitch::Pitch kPitch = football::pitch::Pitch{};
 
 BallState TestState() {
   BallState state;

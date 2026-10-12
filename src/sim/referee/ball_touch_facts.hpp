@@ -18,7 +18,7 @@
 #include <span>
 
 #include "foundation/time/tick.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "sim/observation/pitch_frame.hpp"
 
 namespace football::ball { class Ball; }
@@ -41,7 +41,7 @@ struct BallTouchFacts {
   bool in_set_piece = false;
   bool offsides_enabled = false;
   const football::ball::Ball* ball = nullptr;
-  const football::model::Pitch* pitch = nullptr;
+  const football::pitch::Pitch* pitch = nullptr;
   std::span<Player* const> all_active_players;
   PitchFrameTransform stadium_to_home{false};
   bool preserve_opponent_offside = false;

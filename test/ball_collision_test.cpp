@@ -8,9 +8,11 @@
 #include "football/ball/ball_response.hpp"
 #include "football/ball/ball_world.hpp"
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 
 namespace {
 
@@ -210,7 +212,7 @@ TEST_CASE("advance ball resolves two contacts in one tick", "[ball][collision][a
 
 TEST_CASE("pitch colliders build a fixed deterministic static world",
           "[ball][collision][pitch]") {
-  const football::model::Pitch pitch;
+  const football::pitch::Pitch pitch;
   const football::ball::BallModel ball;
   const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
   const auto again = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
@@ -238,7 +240,7 @@ TEST_CASE("pitch colliders build a fixed deterministic static world",
 }
 
 TEST_CASE("new kernel detects a post and crossbar hit", "[ball][collision][pitch]") {
-  const football::model::Pitch pitch;
+  const football::pitch::Pitch pitch;
   const football::ball::BallModel ball;
   const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
@@ -260,7 +262,7 @@ TEST_CASE("new kernel detects a post and crossbar hit", "[ball][collision][pitch
 
 TEST_CASE("new kernel keeps a tangentially rolling ball moving",
           "[ball][collision][pitch]") {
-  const football::model::Pitch pitch;
+  const football::pitch::Pitch pitch;
   const football::ball::BallModel ball;
   const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
@@ -275,7 +277,7 @@ TEST_CASE("tick model keeps a grounded ball rolling without ground impacts",
           "[ball][collision][tick]") {
   using football::ball::AdvanceBallTick;
   using football::ball::BallDynamics;
-  const football::model::Pitch pitch;
+  const football::pitch::Pitch pitch;
   const football::ball::BallModel ball;
   const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
@@ -303,7 +305,7 @@ TEST_CASE("tick model falls under gravity without colliders", "[ball][collision]
 TEST_CASE("tick model bounces a fast landing once", "[ball][collision][tick]") {
   using football::ball::AdvanceBallTick;
   using football::ball::BallDynamics;
-  const football::model::Pitch pitch;
+  const football::pitch::Pitch pitch;
   const football::ball::BallModel ball;
   const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
@@ -318,7 +320,7 @@ TEST_CASE("tick model resolves a post impact once at the contact point",
           "[ball][collision][tick]") {
   using football::ball::AdvanceBallTick;
   using football::ball::BallDynamics;
-  const football::model::Pitch pitch;
+  const football::pitch::Pitch pitch;
   const football::ball::BallModel ball;
   const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
 
@@ -402,7 +404,7 @@ TEST_CASE("grounded rolling into a post still resolves the post impact",
           "[ball][collision][tick]") {
   using football::ball::AdvanceBallTick;
   using football::ball::BallDynamics;
-  const football::model::Pitch pitch;
+  const football::pitch::Pitch pitch;
   const football::ball::BallModel ball;
   const auto world = football::pitch::BuildBallWorld(pitch, ball).static_colliders;
   const float x = pitch.half_length();
@@ -419,7 +421,7 @@ TEST_CASE("spin-only tick advances orientation without moving the ball",
   using football::ball::BallDynamics;
   BallState state = BallAt(Vector3(0, 0, 1), Vector3(0, 0, 0));
   state.angular_velocity = Vector3(0, 0, 10);  // spin about +z
-  const football::model::Pitch pitch;
+  const football::pitch::Pitch pitch;
   const football::ball::BallModel config;
   std::vector<ColliderMotion> none;
   BallDynamics dynamics;

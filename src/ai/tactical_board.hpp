@@ -6,7 +6,7 @@
 
 #include "model/player.hpp"
 #include "model/team.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "foundation/math/vector3.hpp"
 
 namespace football::ai {
@@ -41,7 +41,7 @@ struct TacticalBoard {
 
 // Bootstrap desired shape from static declarations, without observing sim.
 TacticalBoard MakeTacticalBoard(const model::Team &team, model::TeamSide side,
-                               const model::Pitch &pitch);
+                               const football::pitch::Pitch &pitch);
 
 }  // namespace football::ai
 

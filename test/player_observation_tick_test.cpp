@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <cmath>
 #include <limits>
 #include <optional>
@@ -40,7 +40,7 @@ void Init(Simulation& simulation, bool reverse) {
   MatchOptions options;
   options.reverse_team_processing = reverse;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, options);
 }
 
 template<class T> concept HasUnusedQueueShadow = requires(T& actor) {

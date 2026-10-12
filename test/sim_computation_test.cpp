@@ -1,5 +1,5 @@
 #include <array>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <cmath>
 
 #include <catch2/catch_test_macros.hpp>
@@ -29,7 +29,7 @@ struct Runtime {
   Runtime() {
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                     football::app::fixtures::MakeDefaultAwayTeam(),
-                    football::model::Pitch{}, MatchOptions{});
+                    football::pitch::Pitch{}, MatchOptions{});
   }
 
 };

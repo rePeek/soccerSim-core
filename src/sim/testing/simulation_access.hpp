@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_TESTING_SIMULATION_ACCESS_HPP
 
 #include <cstdint>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <stdexcept>
 #include <vector>
 
@@ -123,8 +123,8 @@ class SimulationAccess {
   static bool IsBallMirroredOf(Simulation& s) { return s.ball_mirrored_; }
   static Player* DesignatedPlayerOf(Simulation& s) { return s.designated_possession_player_; }
   static Player* BallRetainerOf(Simulation& s) { return s.ball_retainer_; }
-  static const football::model::Pitch& PitchOf(Simulation& s) { return s.pitch_; }
-  static const football::model::Pitch& PitchOf(const Simulation& s) { return s.pitch_; }
+  static const football::pitch::Pitch& PitchOf(Simulation& s) { return s.pitch_; }
+  static const football::pitch::Pitch& PitchOf(const Simulation& s) { return s.pitch_; }
   static const MatchOptions& OptionsOf(Simulation& s) { return s.options_; }
   static bool MayTouchBallOf(Simulation& s, const Player& actor) {
     return s.clock_->IsBallInPlay() ||

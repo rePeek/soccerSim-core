@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_PLAYER_TICK_CONTEXT_HPP
 
 #include "foundation/time/tick.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "foundation/math/rng.hpp"
 #include "football/ball/ball_environment.hpp"
 #include "sim/event/touch_state.hpp"
@@ -38,7 +38,7 @@ struct PlayerTickContext {
   const event::TouchState& touches;
   const RefereeBuffer& restart;
 
-  const football::model::Pitch& pitch;
+  const football::pitch::Pitch& pitch;
 
   Team& own_team;
   Team& opponent_team;  // transitional: Player/Humanoid still read opponent records

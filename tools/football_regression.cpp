@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -942,7 +942,7 @@ void InitDefaultMatch(Simulation& simulation) {
   simulation.Stop();
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
                   football::app::fixtures::MakeDefaultAwayTeam(),
-                  football::model::Pitch{}, MatchOptions{});
+                  football::pitch::Pitch{}, MatchOptions{});
 }
 
 void Advance(Simulation& simulation, int ticks) {
@@ -1306,17 +1306,17 @@ void CheckModelComposition() {
   const model::PlayerAttributes attributes = home.players.front().attributes;
   const model::Team declared_home = home;
   Simulation simulation;
-  simulation.Init(home, away, model::Pitch{}, MatchOptions{});
+  simulation.Init(home, away, football::pitch::Pitch{}, MatchOptions{});
   home.name = "Changed after initialization";
   home.players.front().attributes.fill(0.1f);
   for (int repeat = 0; repeat < 2; ++repeat) {
     const football::model::Team& team = SimulationAccess::TeamOf(simulation, 0)->GetModel();
     Require(team.name == "Static Home" &&
                 team.players.at(0).attributes == attributes &&
-                SimulationAccess::PitchOf(simulation) == model::Pitch{},
+                SimulationAccess::PitchOf(simulation) == football::pitch::Pitch{},
             "core lost owned team, ability or pitch descriptions");
     simulation.Stop();
-    simulation.Init(declared_home, away, model::Pitch{}, MatchOptions{});
+    simulation.Init(declared_home, away, football::pitch::Pitch{}, MatchOptions{});
   }
 }
 
@@ -1416,7 +1416,7 @@ int main(int argc, char** argv) {
       Require(mode.empty() || mode == "--print-baseline", "unknown regression mode");
       GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
                    football::app::fixtures::MakeDefaultAwayTeam(),
-                   football::model::Pitch{}, football::ball::BallModel{}, {}, {}};
+                   football::pitch::Pitch{}, football::ball::BallModel{}, {}, {}};
       game.Start();
       CheckGoldenSnapshots(simulation, game, mode == "--print-baseline");
       if (mode == "--print-baseline") return 0;

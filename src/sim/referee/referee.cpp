@@ -16,7 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/referee/referee.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <cmath>
 #include <type_traits>
 #include <algorithm>
@@ -498,7 +498,7 @@ void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
 }
 
 
-bool Referee::CheckFoul(Tick now, const football::model::Pitch& pitch,
+bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
                         PitchFrameTransform stadium_to_home,
                         RuleCommandSink& commands) {
 

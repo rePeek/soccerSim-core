@@ -1,16 +1,19 @@
-#ifndef FOOTBALL_PITCH_PITCH_HPP
-#define FOOTBALL_PITCH_PITCH_HPP
+#ifndef FOOTBALL_PITCH_BALL_WORLD_HPP
+#define FOOTBALL_PITCH_BALL_WORLD_HPP
 
-// Pitch -> BallWorld assembly: the only place that knows both model::Pitch and
-// Ball's static environment. Header-only (inline): the runtime and the offline
-// baker share one definition, and no module toolchain or extra CMake is needed.
+// Pitch -> BallWorld assembly: the only place that knows both Pitch and Ball's
+// static environment. Header-only (inline): the runtime and the offline baker
+// share one definition, and no module toolchain or extra CMake is needed.
+//
+// Consumers that only need the pitch description include football/pitch/pitch.hpp
+// instead; this header is what makes football::pitch depend on football::ball.
 
 #include <vector>
 
-#include "model/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "football/ball/ball_world.hpp"
 #include "football/ball/collider.hpp"
+#include "football/pitch/pitch.hpp"
 #include "foundation/math/vector3.hpp"
 
 namespace football::pitch {
@@ -50,8 +53,7 @@ inline ColliderMotion StaticCollider(ColliderId id, ColliderShape shape,
 // Assembles the complete static BallWorld from the pitch description and the
 // active ball material. Deterministic; constructs once per match.
 inline football::ball::BallWorld BuildBallWorld(
-    const football::model::Pitch& pitch,
-    const football::ball::BallModel& ball) {
+    const Pitch& pitch, const football::ball::BallModel& ball) {
   using namespace detail;
   using blunted::Vector3;
   const float x = pitch.half_length();
@@ -87,4 +89,4 @@ inline football::ball::BallWorld BuildBallWorld(
 
 }  // namespace football::pitch
 
-#endif  // FOOTBALL_PITCH_PITCH_HPP
+#endif  // FOOTBALL_PITCH_BALL_WORLD_HPP

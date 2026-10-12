@@ -1,14 +1,18 @@
-#ifndef FOOTBALL_MODEL_PITCH_HPP
-#define FOOTBALL_MODEL_PITCH_HPP
+#ifndef FOOTBALL_PITCH_PITCH_HPP
+#define FOOTBALL_PITCH_PITCH_HPP
+
+// football::pitch owns the read-only pitch description. Geometry is fixed at
+// construction; the match must not mutate it at runtime. The pitch -> BallWorld
+// assembly lives in football/pitch/ball_world.hpp so that consumers which only
+// need the description never pull in football::ball.
 
 #include <cmath>
 #include <stdexcept>
 
-namespace football::model {
+namespace football::pitch {
 
 // Read-only pitch description in metres: x is length, y is width, and the
-// centre spot is the origin. Geometry and ground-surface parameters are fixed
-// at construction; the match must not mutate them at runtime.
+// centre spot is the origin.
 //
 // Ground parameters keep the legacy empirical values, not standard Coulomb
 // coefficients, so migration to Pitch preserves the historical simulation
@@ -35,7 +39,7 @@ class Pitch {
         quadratic_resistance < 0.0f || ground_deceleration < 0.0f ||
         grass_height <= 0.0f) {
       throw std::invalid_argument(
-          "football::model::Pitch: invalid geometry or ground parameters");
+          "football::pitch::Pitch: invalid geometry or ground parameters");
     }
   }
 
@@ -78,7 +82,6 @@ class Pitch {
   float penalty_mark_distance_ = 11.0f;
 };
 
+}  // namespace football::pitch
 
-}  // namespace football::model
-
-#endif  // FOOTBALL_MODEL_PITCH_HPP
+#endif  // FOOTBALL_PITCH_PITCH_HPP

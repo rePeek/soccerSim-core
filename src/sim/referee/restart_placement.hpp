@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_RULES_RESTART_PLACEMENT_HPP
 
 #include "model/football_types.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "sim/simulation_config.hpp"
 #include "foundation/math/rng.hpp"
 #include "foundation/time/tick.hpp"
@@ -15,7 +15,7 @@ namespace football::sim::rules { class RuleCommandSink; }
 
 // Rule-owned placement. Referee calls in its established team/RNG order and
 // owns the returned taker; AI cannot change restart authority or deadlines.
-Player *PositionRestartPlayers(const football::model::Pitch& pitch, Team *team,
+Player *PositionRestartPlayers(const football::pitch::Pitch& pitch, Team *team,
                               e_GameMode set_piece, Team *other_team,
                               int kickoff_taker_team_id, int taker_team_id,
                               const football::ball::Ball& ball, football::sim::TickSpan regulation,

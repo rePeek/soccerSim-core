@@ -13,7 +13,7 @@
 
 
 #include "sim/referee/offside.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <cmath>
 
@@ -25,7 +25,7 @@ using football::ball::Ball;
 namespace football::sim::rules {
 
 float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,
-                     const football::model::Pitch& pitch,
+                     const football::pitch::Pitch& pitch,
                      const Ball& ball, int defending_team_id, int defending_side,
                      unsigned int futureSim_ms) {
   signed int side = defending_side;

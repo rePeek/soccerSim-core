@@ -1,7 +1,9 @@
 #include <catch2/catch_approx.hpp>
 
+#include "football/pitch/ball_world.hpp"
 #include "football/pitch/pitch.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/ball_world.hpp"
+#include "football/pitch/pitch.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/ball/ball.hpp"
@@ -130,7 +132,7 @@ TEST_CASE("left/right mirror and moving versus static strikes", "[active-touch][
 
 TEST_CASE("magnus trajectory curves consistently and stays numerically stable",
           "[active-touch][model][magnus]") {
-  const football::model::Pitch pitch;
+  const football::pitch::Pitch pitch;
   auto spin_shot = [&](float lateral, football::sim::TickSpan horizon) {
     TouchProposalInput input;
     input.passive_endpoint = football::ball::BallState{

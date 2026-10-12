@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "ai/ai_config.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "model/team.hpp"
 #include "sim/simulation_config.hpp"
@@ -23,7 +23,7 @@ namespace football::ai { class DefaultAI; }
 class GameEnv {
  public:
   GameEnv(football::model::Team home, football::model::Team away,
-          football::model::Pitch pitch, football::ball::BallModel ball_config,
+          football::pitch::Pitch pitch, football::ball::BallModel ball_config,
           MatchOptions match_options,
           football::ai::AIConfig ai_config);
   ~GameEnv();
@@ -57,7 +57,7 @@ class GameEnv {
  private:
   const football::model::Team home_team_;
   const football::model::Team away_team_;
-  const football::model::Pitch pitch_;
+  const football::pitch::Pitch pitch_;
   const football::ball::BallModel ball_config_;
   const MatchOptions match_options_;
   const football::ai::AIConfig ai_config_;

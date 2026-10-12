@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <limits>
 #include <vector>
 #include <catch2/catch_test_macros.hpp>
@@ -36,7 +36,7 @@ TEST_CASE("real baked Sliding and Trip produce posed anatomy rather than fixed l
   Simulation s;
   MatchOptions options; options.snapshot_capacity = 1;
   s.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, options);
   const auto& library = SimulationAccess::AnimationLibraryOf(s);
   PlayerKinematicState state; state.position = {5, 2, 0};
   std::size_t sliding_frames = 0, trip_frames = 0;
@@ -113,7 +113,7 @@ TEST_CASE("real adjacent baked pose frames produce six endpoint motion tapes", "
   using namespace football::ball;
   Simulation s; MatchOptions options; options.snapshot_capacity = 1;
   s.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-         football::app::fixtures::MakeDefaultAwayTeam(),football::model::Pitch{},options);
+         football::app::fixtures::MakeDefaultAwayTeam(),football::pitch::Pitch{},options);
   const auto& library = SimulationAccess::AnimationLibraryOf(s);
   std::size_t intervals = 0;
   PlayerKinematicState start, end; start.position = {5,2,0}; end.position = {5.02f,2.01f,0};

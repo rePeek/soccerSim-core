@@ -6,7 +6,7 @@
 
 #include "foundation/math/vector3.hpp"
 #include "model/football_types.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 class Player;
 class Team;
@@ -26,11 +26,11 @@ struct RestartPlan {
 };
 
 // Explicit home-frame ball position and home-then-away active roster order.
-RestartPlan PlanRestart(const football::model::Pitch& pitch,
+RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
                         const blunted::Vector3& home_ball_position,
                         std::span<Player* const> active_players,
                         e_GameMode mode, Team& team);
-bool RestartPlayersReady(const RestartPlan& plan, const football::model::Pitch& pitch);
+bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& pitch);
 // Deterministic rule fallback for actors that fail to get ready by the timeout.
 // This repairs positions, never invents a ball contact or an AI decision.
 void PlaceRestartPlayersAtTimeout(const RestartPlan& plan);

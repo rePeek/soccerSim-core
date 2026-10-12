@@ -1,12 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include "sim/referee/goal.hpp"
 
 namespace {
 using blunted::Vector3;
 using football::sim::CrossedGoalLine;
-const auto pitch = football::model::Pitch{};
+const auto pitch = football::pitch::Pitch{};
 
 float GoalX(int side) {
   return (pitch.half_length() + pitch.line_half_width() + 0.11f) * side;

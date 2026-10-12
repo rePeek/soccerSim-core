@@ -1,5 +1,5 @@
 #include <sstream>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include "ai/default_ai.hpp"
 #include "app/fixtures/default_teams.hpp"
@@ -22,7 +22,7 @@ TEST_CASE("six physical bodies use the published realized pose without shadow au
     MatchOptions options; options.reverse_team_processing=reverse; options.snapshot_capacity=2;
     Simulation observed,control;
     for(auto* s:{&observed,&control}) {
-      s->Init(home,away,football::model::Pitch{},options);
+      s->Init(home,away,football::pitch::Pitch{},options);
       REQUIRE_THROWS_AS(SimulationAccess::EnableBakedBodyProduction(*s,true),std::logic_error);
       SimulationAccess::EnablePreparedTickProduction(*s,true);
       SimulationAccess::EnableBodyPhysicsProduction(*s,true);
@@ -30,7 +30,7 @@ TEST_CASE("six physical bodies use the published realized pose without shadow au
     }
     SimulationAccess::EnableActiveTouchShadow(observed,true);
     SimulationAccess::EnableBodyCollisionShadow(control,false);
-    football::ai::DefaultAI policy(home,away,football::model::Pitch{});
+    football::ai::DefaultAI policy(home,away,football::pitch::Pitch{});
     std::vector<Player*> players,peers;
     for(int team=0;team<2;++team) {
       std::vector<Player*> roster; SimulationAccess::ActiveTeamPlayersOf(observed,team,roster);

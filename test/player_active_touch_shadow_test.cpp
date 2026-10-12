@@ -1,5 +1,5 @@
 #include <array>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include "ai/default_ai.hpp"
 #include "app/fixtures/default_teams.hpp"
@@ -58,11 +58,11 @@ TEST_CASE("real action observation preserves snapshots touches rules RNG and end
   for (bool reverse : {false, true}) {
     MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
     Simulation observed, control;
-    observed.Init(home, away, football::model::Pitch{}, options);
-    control.Init(home, away, football::model::Pitch{}, options);
+    observed.Init(home, away, football::pitch::Pitch{}, options);
+    control.Init(home, away, football::pitch::Pitch{}, options);
     SimulationAccess::EnableBodyPhysicsShadow(observed, true);
     SimulationAccess::EnableActiveTouchShadow(observed, true);
-    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
     for (int step = 0; step < 1600; ++step) {
       if (step == 800) {
         SimulationAccess::RequestChangeOfEnds(observed);
@@ -170,11 +170,11 @@ TEST_CASE("contact-point takeover preserves linear state and derives spin from t
   for (bool reverse : {false, true}) {
     MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
     Simulation legacy, physical;
-    legacy.Init(home, away, football::model::Pitch{}, options);
-    physical.Init(home, away, football::model::Pitch{}, options);
+    legacy.Init(home, away, football::pitch::Pitch{}, options);
+    physical.Init(home, away, football::pitch::Pitch{}, options);
     SimulationAccess::EnableActiveImpulseProduction(physical, true);
-    football::ai::DefaultAI policy_legacy(home, away, football::model::Pitch{});
-    football::ai::DefaultAI policy_physical(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy_legacy(home, away, football::pitch::Pitch{});
+    football::ai::DefaultAI policy_physical(home, away, football::pitch::Pitch{});
     bool observed_spin_change = false;
     int observed_at = -1;
     for (int step = 0; step < 4000 && !observed_spin_change; ++step) {
@@ -236,11 +236,11 @@ TEST_CASE("passive body production switch applies exactly the unified kernel res
   for (bool reverse : {false, true}) {
     MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
     Simulation legacy, production;
-    legacy.Init(home, away, football::model::Pitch{}, options);
-    production.Init(home, away, football::model::Pitch{}, options);
+    legacy.Init(home, away, football::pitch::Pitch{}, options);
+    production.Init(home, away, football::pitch::Pitch{}, options);
     SimulationAccess::EnableBodyPhysicsProduction(production, true);
-    football::ai::DefaultAI policy_legacy(home, away, football::model::Pitch{});
-    football::ai::DefaultAI policy_production(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy_legacy(home, away, football::pitch::Pitch{});
+    football::ai::DefaultAI policy_production(home, away, football::pitch::Pitch{});
     std::uint64_t exact = 0, with_contact = 0;
     for (int step = 0; step < 4000; ++step) {
       PlayerControlSet ca, cb;
@@ -309,8 +309,8 @@ TEST_CASE("all four production switch combinations stay consistent and determini
       const bool passive = (mask & 2) != 0;
       MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
       Simulation run, replay;
-      run.Init(home, away, football::model::Pitch{}, options);
-      replay.Init(home, away, football::model::Pitch{}, options);
+      run.Init(home, away, football::pitch::Pitch{}, options);
+      replay.Init(home, away, football::pitch::Pitch{}, options);
       if (active) {
         SimulationAccess::EnableActiveImpulseProduction(run, true);
         SimulationAccess::EnableActiveImpulseProduction(replay, true);
@@ -319,8 +319,8 @@ TEST_CASE("all four production switch combinations stay consistent and determini
         SimulationAccess::EnableBodyPhysicsProduction(run, true);
         SimulationAccess::EnableBodyPhysicsProduction(replay, true);
       }
-      football::ai::DefaultAI policy_a(home, away, football::model::Pitch{});
-      football::ai::DefaultAI policy_b(home, away, football::model::Pitch{});
+      football::ai::DefaultAI policy_a(home, away, football::pitch::Pitch{});
+      football::ai::DefaultAI policy_b(home, away, football::pitch::Pitch{});
       std::uint64_t evidence_ticks = 0;
       for (int step = 0; step < 1500; ++step) {
         PlayerControlSet ca, cb;
@@ -377,11 +377,11 @@ TEST_CASE("active candidate arbitration is not gated on the diagnostic shadow",
   for (bool reverse : {false, true}) {
     MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
     Simulation simulation;
-    simulation.Init(home, away, football::model::Pitch{}, options);
+    simulation.Init(home, away, football::pitch::Pitch{}, options);
     // Only the production switch: no active-touch report, no body shadow report.
     SimulationAccess::EnableActiveImpulseProduction(simulation, true);
     REQUIRE(SimulationAccess::ActiveTouchShadowReportOf(simulation).latest.empty());
-    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
     int committed_strikes = 0;
     for (int step = 0; step < 4000; ++step) {
       PlayerControlSet controls;
@@ -413,11 +413,11 @@ TEST_CASE("prepared tick commits the arbitrated impulse inside its sole Ball Ste
   for (bool reverse : {false, true}) {
     MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
     Simulation a, b;
-    a.Init(home, away, football::model::Pitch{}, options);
-    b.Init(home, away, football::model::Pitch{}, options);
+    a.Init(home, away, football::pitch::Pitch{}, options);
+    b.Init(home, away, football::pitch::Pitch{}, options);
     SimulationAccess::EnablePreparedTickProduction(a, true);
     SimulationAccess::EnablePreparedTickProduction(b, true);
-    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
     int active_steps = 0;
     for (int step = 0; step < 4000; ++step) {
       PlayerControlSet controls; policy.Update(a.Observe(), controls);
@@ -452,10 +452,10 @@ TEST_CASE("prepared ON ON publishes reviewed CCD touch provenance through the re
   auto away = football::app::fixtures::MakeDefaultAwayTeam();
   for (bool reverse : {false, true}) {
     MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
-    Simulation s; s.Init(home, away, football::model::Pitch{}, options);
+    Simulation s; s.Init(home, away, football::pitch::Pitch{}, options);
     SimulationAccess::EnableBodyPhysicsProduction(s, true);
     SimulationAccess::EnablePreparedTickProduction(s, true);
-    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
     int body_touches = 0, strikes = 0;
     for (int step = 0; step < 4000; ++step) {
       PlayerControlSet controls; policy.Update(s.Observe(), controls); s.Step(controls);
@@ -494,14 +494,14 @@ TEST_CASE("prepared Shadow observes actual Step proposals without affecting exec
   for (bool reverse : {false, true}) {
     MatchOptions options; options.snapshot_capacity = 2; options.reverse_team_processing = reverse;
     Simulation observed, plain;
-    observed.Init(home, away, football::model::Pitch{}, options);
-    plain.Init(home, away, football::model::Pitch{}, options);
+    observed.Init(home, away, football::pitch::Pitch{}, options);
+    plain.Init(home, away, football::pitch::Pitch{}, options);
     for (auto* s : {&observed, &plain}) {
       SimulationAccess::EnablePreparedTickProduction(*s, true);
       SimulationAccess::EnableBodyPhysicsProduction(*s, true);
     }
     SimulationAccess::EnableActiveTouchShadow(observed, true);
-    football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+    football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
     int strikes = 0;
     for (int step = 0; step < 2200; ++step) {
       PlayerControlSet controls; policy.Update(plain.Observe(), controls);

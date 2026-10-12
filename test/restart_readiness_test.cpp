@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
@@ -19,7 +19,7 @@ void Init(Simulation& simulation, bool reverse) {
   options.half_duration = Minutes(3);
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::Pitch{}, options);
+      football::pitch::Pitch{}, options);
   football::test::TakeKickOff(simulation);
   for (int i = 0; i < 40; ++i) simulation.Step({});
 }

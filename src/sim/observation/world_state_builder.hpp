@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_OBSERVATION_WORLD_STATE_BUILDER_HPP
 
 #include "sim/observation/world_state.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
@@ -21,7 +21,7 @@ struct WorldStateSource {
   const bool& ball_in_play;
   std::uint64_t reset_sequence;
   const football::ball::Ball& ball;
-  const football::model::Pitch& pitch;
+  const football::pitch::Pitch& pitch;
   bool in_play;
   bool in_set_piece;
   Referee& referee;

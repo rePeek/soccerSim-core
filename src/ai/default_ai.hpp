@@ -2,7 +2,7 @@
 #define FOOTBALL_AI_DEFAULT_AI_HPP
 
 #include <array>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <utility>
 
 #include "ai/ai_config.hpp"
@@ -23,7 +23,7 @@ class DefaultAI {
     boards_[1].side = model::TeamSide::Away;
   }
   DefaultAI(const model::Team &home, const model::Team &away,
-            const model::Pitch &pitch = model::Pitch{},
+            const football::pitch::Pitch &pitch = football::pitch::Pitch{},
             const AIConfig &config = {})
       : boards_{config.initial_tactics[0]
                     ? *config.initial_tactics[0] : MakeTacticalBoard(home, model::TeamSide::Home, pitch),

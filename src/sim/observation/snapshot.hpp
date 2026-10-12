@@ -6,7 +6,7 @@
 #include "foundation/math/vector3.hpp"
 #include "foundation/time/tick.hpp"
 #include "model/player.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "animation/types.hpp"
 
 namespace football::sim::observation {
@@ -39,7 +39,7 @@ struct Snapshot {
 // different identity. The producer establishes this table when starting a match.
 struct SnapshotMetadata {
   std::vector<football::model::PlayerId> player_ids;
-  football::model::Pitch pitch;
+  football::pitch::Pitch pitch;
   // FNV-1a-64 over the exact loaded .simanim bytes (not a cryptographic hash).
   std::uint64_t animation_library_hash = 0;
 };

@@ -8,7 +8,7 @@
 
 #include "model/player.hpp"
 #include "model/team.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "foundation/math/vector3.hpp"
 #include "sim/runtime/phase.hpp"
 #include "foundation/time/tick.hpp"
@@ -49,7 +49,7 @@ struct WorldState {
   blunted::Vector3 ball_position = blunted::Vector3(0);
   std::vector<WorldPlayerState> players;
   blunted::Vector3 ball_velocity = blunted::Vector3(0);
-  football::model::Pitch pitch;
+  football::pitch::Pitch pitch;
   std::array<WorldTeamState, 2> teams{{
       {football::model::TeamSide::Home, -1, 0},
       {football::model::TeamSide::Away, 1, 0}}};

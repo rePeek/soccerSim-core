@@ -59,7 +59,7 @@ add_executable(football_sim_computation_test sim_computation_test.cpp tick_test.
   touch_inference_test.cpp rule_command_fixture.hpp
   referee_process_fixture.hpp)
 target_link_libraries(football_sim_computation_test PRIVATE
-  football::game football::ai football::app_support football::pitch Catch2::Catch2WithMain)
+  football::game football::ai football::app_support football::pitch_ball Catch2::Catch2WithMain)
 football_configure_target(football_sim_computation_test)
 target_compile_definitions(football_sim_computation_test PRIVATE
   FOOTBALL_TEST_DATA_DIR="${PROJECT_SOURCE_DIR}/data")
@@ -67,9 +67,10 @@ add_test(NAME football_sim_computation_test COMMAND football_sim_computation_tes
 set_tests_properties(football_sim_computation_test PROPERTIES LABELS "sim;slow")
 
 # Pure goal geometry must compile/link without Match, Ball, sim or libgame.
+# football::pitch is the description-only target and pulls no ball.
 add_executable(football_goal_test goal_test.cpp ../src/sim/referee/goal.cpp)
 target_link_libraries(football_goal_test PRIVATE
-  football::foundation football::model Catch2::Catch2WithMain)
+  football::foundation football::model football::pitch Catch2::Catch2WithMain)
 football_configure_target(football_goal_test)
 add_test(NAME football_goal_test COMMAND football_goal_test)
 set_tests_properties(football_goal_test PROPERTIES LABELS sim)
@@ -93,7 +94,7 @@ add_test(NAME football_snapshot_history_test COMMAND football_snapshot_history_t
 set_tests_properties(football_snapshot_history_test PROPERTIES LABELS "sim;unit;snapshot")
 
 add_executable(football_ball_allocation_test ../src/ball/tests/ball_allocation_test.cpp)
-target_link_libraries(football_ball_allocation_test PRIVATE football::ball football::pitch Catch2::Catch2WithMain)
+target_link_libraries(football_ball_allocation_test PRIVATE football::ball football::pitch_ball Catch2::Catch2WithMain)
 football_configure_target(football_ball_allocation_test)
 add_test(NAME football_ball_allocation_test COMMAND football_ball_allocation_test)
 set_tests_properties(football_ball_allocation_test PROPERTIES LABELS "ball;unit")
@@ -157,7 +158,7 @@ add_executable(football_sim_control_boundary_test
   snapshot_capture_test.cpp
   actor_history_test.cpp custom_pitch_test.cpp referee_process_fixture.hpp)
 target_link_libraries(football_sim_control_boundary_test PRIVATE
-  football::game football::app_support football::pitch Catch2::Catch2WithMain)
+  football::game football::app_support football::pitch_ball Catch2::Catch2WithMain)
 football_configure_target(football_sim_control_boundary_test)
 add_test(NAME football_sim_control_boundary_test COMMAND football_sim_control_boundary_test)
 set_tests_properties(football_sim_control_boundary_test PROPERTIES LABELS "sim;slow")
@@ -188,13 +189,13 @@ add_executable(football_ball_test
   ball_collision_test.cpp)
 # Tests build the static world through the real football.pitch module; the
 # ball library itself still does not depend on pitch.
-target_link_libraries(football_ball_test PRIVATE football::ball football::pitch Catch2::Catch2WithMain)
+target_link_libraries(football_ball_test PRIVATE football::ball football::pitch_ball Catch2::Catch2WithMain)
 football_configure_target(football_ball_test)
 add_test(NAME football_ball_test COMMAND football_ball_test)
 set_tests_properties(football_ball_test PROPERTIES LABELS "sim;ball")
 
 add_executable(football_model_test model_test.cpp)
-target_link_libraries(football_model_test PRIVATE football::model)
+target_link_libraries(football_model_test PRIVATE football::model football::pitch)
 football_configure_target(football_model_test)
 add_test(NAME football_model_test COMMAND football_model_test)
 set_tests_properties(football_model_test football_player_identity_test football_sim_contracts_test

@@ -19,7 +19,7 @@
 #define _HPP_REFEREE
 
 #include <vector>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <optional>
 
 #include "model/football_types.hpp"
@@ -100,7 +100,7 @@ class Referee {
                     const football::sim::FoulAssessment& fact,
                     football::sim::Tick now);
     // Foul facts carry their own timestamps; the caller supplies the evaluation instant.
-    bool CheckFoul(football::sim::Tick now, const football::model::Pitch& pitch,
+    bool CheckFoul(football::sim::Tick now, const football::pitch::Pitch& pitch,
                    PitchFrameTransform stadium_to_home,
                    football::sim::rules::RuleCommandSink& commands);
     // Synchronous accepted-touch consumption (restart release / offside).

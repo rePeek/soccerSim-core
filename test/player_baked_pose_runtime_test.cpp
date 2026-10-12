@@ -1,5 +1,5 @@
 #include <array>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <iostream>
 #include <sstream>
 #include <catch2/catch_test_macros.hpp>
@@ -28,11 +28,11 @@ TEST_CASE("runtime baked samples observe real frames without another actor pass"
     const auto home=football::app::fixtures::MakeDefaultHomeTeam(), away=football::app::fixtures::MakeDefaultAwayTeam();
     MatchOptions options; options.snapshot_capacity=2; options.reverse_team_processing=reverse;
     Simulation observed, control;
-    observed.Init(home,away,football::model::Pitch{},options);
-    control.Init(home,away,football::model::Pitch{},options);
+    observed.Init(home,away,football::pitch::Pitch{},options);
+    control.Init(home,away,football::pitch::Pitch{},options);
     SimulationAccess::EnablePreparedTickProduction(observed,true); SimulationAccess::EnablePreparedTickProduction(control,true);
     SimulationAccess::EnableBodyPhysicsProduction(observed,true); SimulationAccess::EnableBodyPhysicsProduction(control,true);
-    football::ai::DefaultAI policy(home,away,football::model::Pitch{});
+    football::ai::DefaultAI policy(home,away,football::pitch::Pitch{});
     std::vector<Player*> players, peers;
     for(int team=0;team<2;++team) {
       std::vector<Player*> roster;

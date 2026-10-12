@@ -6,7 +6,7 @@
 #include "football/ball/ball.hpp"
 #include "sim/event/touch_query.hpp"
 #include "sim/referee/referee.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/team/team.hpp"
 #include "sim/player/player.hpp"

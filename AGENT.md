@@ -69,18 +69,18 @@ Runtime does not use that variable: it reads the configured baked animation asse
 Heavy Debug -O0 test loops may run against the Release preset (`--preset release`)
 for faster iteration; the final acceptance pass must still run the Debug suite.
 
-### Pitch -> BallWorld (header-only, no module)
+### Pitch, and Pitch -> BallWorld (header-only, no module)
 
-`football.pitch` is a header-only INTERFACE target
-(`include/football/pitch/pitch.hpp`, inline `BuildBallWorld`). Ball never reads
-`model::Pitch`; the caller assembles `BallWorld`. No C++20 module, no module
-toolchain, no extra CMake flags: any supported compiler builds it.
+`football.pitch` is a header-only INTERFACE target owning `football::pitch::Pitch`
+(`include/football/pitch/pitch.hpp`); it depends only on foundation. The
+header-only `football::pitch_ball` target owns the inline `BuildBallWorld`
+(`include/football/pitch/ball_world.hpp`) and is the only target that combines
+Pitch with `football::ball`. Ball never reads `Pitch`; the caller assembles
+`BallWorld`. No C++20 module, no module toolchain, no extra CMake flags: any
+supported compiler builds it.
 
-Dependency direction: `model::Pitch` -> `football.pitch` (BuildBallWorld) ->
-`football.ball::BallWorld` -> `Ball`. `football_ball` must never link `football_pitch`.
-
-Dependency direction: `model::Pitch` -> `football.pitch` (BuildBallWorld) ->
-`football.ball::BallWorld` -> `Ball`. `football_ball` must never link `football_pitch`.
+Dependency direction: `football::pitch` -> `football::ball` (pitch_ball) ->
+`Ball`. `football_ball` must never link `football_pitch` or `football_pitch_ball`.
 ### Build performance (diagnosed, not fully resolved)
 
 `simulation.hpp` transitively includes `player_active_touch_shadow.hpp` (which
@@ -106,20 +106,20 @@ src/
 │   ├── player.hpp    PlayerId, legacy PlayerDatabaseId, abilities and appearance
 │   ├── team.hpp      rosters, typed tactics, TeamSide (Home/Away, not club identity)
 │   ├── formation.hpp initial formation + normalized TacticalFormation declarations
-│   ├── pitch.hpp     sole pitch geometry type (legacy 110 × 72 metres)
 │   └── football_types.hpp roles/game modes/player count
 ├── ball/            standalone football::ball: BallModel (self-owned physics),
 │                    BallState, BallWorld, collider/CCD, contact evidence and point-
 │                    impulse response; depends only on foundation, never model/sim
+├── pitch/          football::pitch: Pitch description (foundation-only) plus the
+│                    header-only football::pitch_ball BuildBallWorld assembly
 ├── animation/      header-only baked schema/library/selector (football::animation);
 │                    depends only on foundation, never sim/model/ball
 ├── sim/             domain-organized rules, physics, execution and observation
 │   ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
 │   ├── time/         Tick/TickSpan, 100 Hz quantum and exact boundary conversions
 │   ├── simulation_config.hpp match-level options value
-│   ├── pitch_geometry.hpp    legacy global pitch constants awaiting model::Pitch
+│   ├── pitch_geometry.hpp    legacy global pitch constants awaiting Pitch migration
 │   ├── team/         runtime Team, formation adaptation and possession arbitration
-│   ├── pitch/        BuildBallWorld: model::Pitch + BallModel -> BallWorld (header-only)
 │   ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
 │   │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
 │   ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
@@ -209,20 +209,21 @@ symbols (including the currently unused GetRoleFromString).
 
 ```text
 app → game (env.cpp) → ai + sim
-ai → ai_contracts + sim_contracts → model/foundation
-sim → sim_contracts + animation → model/foundation (PRIVATE BqLog)
+ai → ai_contracts + sim_contracts → model/foundation/pitch
+sim → sim_contracts + animation + pitch_ball → model/foundation/ball (PRIVATE BqLog)
 app_support (args/fixtures) → model/foundation
 anim_baking → legacy_anim + animation/foundation
 ```
 
-- `football_sim_contracts` is a header-only build/export target, not a directory
+- `football_sim_contracts` links foundation/model/pitch (Pitch is now a pitch-
+  owned value) and explicitly exports PlayerControl/PlayerControlSet,
   or a contract domain. It explicitly exports PlayerControl/PlayerControlSet,
   WorldState, MatchOptions/MatchPhase/MatchResult and the two time headers.
   Public values live with their domain; directory placement never exports actors.
   The former gamedefines umbrella is split among player, ball, team, match and
   observation. No compatibility headers or common/types layer remains.
 - `football_ai_contracts` owns AIConfig and TacticalBoard declarations; it depends
-  on model/foundation, not concrete policy. `football_ai` owns policy implementations.
+  on model/foundation/pitch, not concrete policy. `football_ai` owns policy implementations.
 - Game's PUBLIC usage requirements are model + sim_contracts + ai_contracts.
   Concrete sim/AI are PRIVATE. `env.hpp` never includes default_ai.hpp.
 - GameEnv::Start creates/reconfigures the single process logger `football` before
@@ -343,7 +344,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   snapshots or fixed pre-sweep biases would change behavior.
   Publication stays synchronous inside the tick. Never freeze touch
   biases before the sweep: later actors must see earlier touches in the same tick.
-- Ball owns a copied model::Pitch, never Match/Simulation, Team, Player or RNG.
+- Ball owns a copied football::pitch::Pitch, never Match/Simulation, Team, Player or RNG.
   Every prediction-mutating operation receives BallEnvironment (the current netting
   rule fact), not a stored duplicate of match goal state. Ball::Touch is physics only.
   ball/ball_touch_application.*::ApplyBallTouch composes Touch → newest history refresh →
@@ -733,7 +734,7 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   Official removal intentionally changed RNG/goldens; current baselines include it.
 - No ambient environment/context/RNG, ScenarioConfig, controller hierarchy, retired
   GRF binding or memory-hook checkpoints. Durable saves would need explicit values.
-- Pitch is model::Pitch only (legacy geometry currently); formation runtime role
+- Pitch is football::pitch::Pitch only (legacy geometry currently); formation runtime role
   adaptation is sim algorithm code, no XML/DB lookup.
 
 ## Animation and ongoing work

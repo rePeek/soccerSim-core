@@ -16,7 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/player/player.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <cmath>
 #include <cassert>
@@ -292,7 +292,7 @@ bool FloatBitsEqual(float a, float b) {
 }  // namespace
 
 Player::Player(Team *team, const football::model::Player& model, std::uint8_t schedule_phase,
-               const AnimationLibrary& animations, const football::model::Pitch& pitch, blunted::Rng& rng)
+               const AnimationLibrary& animations, const football::pitch::Pitch& pitch, blunted::Rng& rng)
     : animations_(animations), pitch_(pitch), rng_(rng),
       model_(model),
       schedule_phase_(schedule_phase % 10),

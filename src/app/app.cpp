@@ -1,5 +1,5 @@
 #include <cstdlib>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <exception>
 #include <iostream>
 
@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
       match_options.snapshot_capacity = static_cast<std::size_t>(*config.snapshot_capacity);
     GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
                  football::app::fixtures::MakeDefaultAwayTeam(),
-                 football::model::Pitch{}, football::ball::BallModel{},
+                 football::pitch::Pitch{}, football::ball::BallModel{},
                  match_options, {}};
     game.Start();
     football::app::recording::SnapshotArchive archive;

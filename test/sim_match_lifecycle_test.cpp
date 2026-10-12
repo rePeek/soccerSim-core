@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <limits>
 #include <stdexcept>
@@ -19,7 +19,7 @@ static_assert(!HasImplicitPeriodQuery<Referee>);
 void Init(Simulation& simulation, MatchOptions options = {}) {
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::Pitch{}, options);
+      football::pitch::Pitch{}, options);
 }
 void StartHalf(Simulation& simulation) {
   const auto policy = football::test::MakeDefaultAI(simulation);

@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_RULES_REFEREE_TICK_FACTS_HPP
 #define FOOTBALL_SIM_RULES_REFEREE_TICK_FACTS_HPP
 
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "sim/runtime/phase.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "foundation/time/tick.hpp"
@@ -21,7 +21,7 @@ struct RefereeTickFacts {
   bool set_piece_active;
   bool goal_scored;
   const football::ball::Ball& ball;
-  const football::model::Pitch& pitch;
+  const football::pitch::Pitch& pitch;
   TickSpan regulation;
   Team& home;
   Team& away;

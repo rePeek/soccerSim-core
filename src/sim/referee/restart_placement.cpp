@@ -13,7 +13,7 @@
 
 
 #include "sim/referee/restart_placement.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/player/roster_query.hpp"
 #include "football/ball/ball.hpp"
@@ -27,7 +27,7 @@ namespace {
 // Coordinate deformation for rule-owned restart layouts only. It no longer
 // invokes an AI policy during authoritative reset/placement.
 Vector3 AdaptRestartFormation(
-    const football::model::Pitch& pitch,
+    const football::pitch::Pitch& pitch,
     Player *player, float backXBound, float frontXBound,
     float lowYBound, float highYBound, float xFocus, float xFocusStrength,
     float yFocus, float yFocusStrength, const Vector3 &microFocus,
@@ -147,7 +147,7 @@ Vector3 AdaptRestartFormation(
 
 }  // namespace
 
-Player *PositionRestartPlayers(const football::model::Pitch& pitch, Team *team,
+Player *PositionRestartPlayers(const football::pitch::Pitch& pitch, Team *team,
                                        e_GameMode setPiece, Team *other_team,
                                        int kickoffTakerTeamId,
                                        int takerTeamID, const Ball& ball,

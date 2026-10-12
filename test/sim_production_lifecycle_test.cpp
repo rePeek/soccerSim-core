@@ -3,7 +3,7 @@
 #include "ai/default_ai.hpp"
 #include "app/fixtures/default_teams.hpp"
 #include "sim/testing/simulation_access.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 using football::sim::testing::SimulationAccess;
 
@@ -19,7 +19,7 @@ TEST_CASE("production initialization and teardown are lifecycle-safe",
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   MatchOptions options; options.snapshot_capacity = 2;
   Simulation s;
-  s.Init(home, away, football::model::Pitch{}, options);
+  s.Init(home, away, football::pitch::Pitch{}, options);
 
   // P7a: Init composes the unified production path by default.
   REQUIRE(SimulationAccess::PreparedTickProductionOf(s));
@@ -38,7 +38,7 @@ TEST_CASE("production initialization and teardown are lifecycle-safe",
   REQUIRE(SimulationAccess::BodyColliderOwnersOf(s).size() >
           3 * SimulationAccess::TeamOf(s, 0)->GetAllPlayers().size());
 
-  football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+  football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
   for (int step = 0; step < 8; ++step) {
     PlayerControlSet controls;
     policy.Update(s.Observe(), controls);
@@ -62,7 +62,7 @@ TEST_CASE("Stop then Init with different config rebuilds production caches",
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   MatchOptions options; options.snapshot_capacity = 2;
   Simulation s;
-  s.Init(home, away, football::model::Pitch{}, options, football::ball::BallModel{});
+  s.Init(home, away, football::pitch::Pitch{}, options, football::ball::BallModel{});
   SimulationAccess::InitializeProductionPhysics(s);
   const football::ball::Ball* first =
       SimulationAccess::PreparationBallOf(s).get();
@@ -70,7 +70,7 @@ TEST_CASE("Stop then Init with different config rebuilds production caches",
   REQUIRE(first->config().radius() == football::ball::BallModel{}.radius());
   REQUIRE(s.Stop());
 
-  s.Init(home, away, football::model::Pitch{}, options, CustomBall());
+  s.Init(home, away, football::pitch::Pitch{}, options, CustomBall());
   SimulationAccess::InitializeProductionPhysics(s);
   const football::ball::Ball* second =
       SimulationAccess::PreparationBallOf(s).get();
@@ -86,13 +86,13 @@ TEST_CASE("repeated Init is rejected and Stop is idempotent",
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   MatchOptions options; options.snapshot_capacity = 1;
   Simulation s;
-  s.Init(home, away, football::model::Pitch{}, options);
-  REQUIRE_THROWS_AS(s.Init(home, away, football::model::Pitch{}, options),
+  s.Init(home, away, football::pitch::Pitch{}, options);
+  REQUIRE_THROWS_AS(s.Init(home, away, football::pitch::Pitch{}, options),
                     std::logic_error);
   REQUIRE(s.Stop());
   REQUIRE_FALSE(s.Stop());  // idempotent
   // A stopped simulation can start again with a different roster shape.
-  s.Init(home, away, football::model::Pitch{}, options, CustomBall());
+  s.Init(home, away, football::pitch::Pitch{}, options, CustomBall());
   REQUIRE(SimulationAccess::IsInitializedOf(s));
   REQUIRE(s.Stop());
 }
@@ -103,9 +103,9 @@ TEST_CASE("reset and end change leave no stale per-tick production state",
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   MatchOptions options; options.snapshot_capacity = 2;
   Simulation s;
-  s.Init(home, away, football::model::Pitch{}, options);
+  s.Init(home, away, football::pitch::Pitch{}, options);
   SimulationAccess::InitializeProductionPhysics(s);
-  football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+  football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
   for (int step = 0; step < 4; ++step) {
     PlayerControlSet controls;
     policy.Update(s.Observe(), controls);

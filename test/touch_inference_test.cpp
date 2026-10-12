@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -63,7 +63,7 @@ TEST_CASE("snapshot touch inference identifies a single animation touch",
           "[sim][observation][touch]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   const auto& animations = SimulationAccess::AnimationLibraryOf(simulation);
   const SnapshotMetadata& metadata = simulation.SnapshotMetadata();
   const auto clip = FindTouchClip(animations);
@@ -97,7 +97,7 @@ TEST_CASE("snapshot touch inference is deterministic and spatial",
           "[sim][observation][touch]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   const auto& animations = SimulationAccess::AnimationLibraryOf(simulation);
   const SnapshotMetadata& metadata = simulation.SnapshotMetadata();
   const auto clip = FindTouchClip(animations);
@@ -137,7 +137,7 @@ TEST_CASE("snapshot touch inference refuses unsafe snapshot pairs",
           "[sim][observation][touch]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   const auto& animations = SimulationAccess::AnimationLibraryOf(simulation);
   const SnapshotMetadata& metadata = simulation.SnapshotMetadata();
   const auto clip = FindTouchClip(animations);
@@ -172,7 +172,7 @@ TEST_CASE("snapshot touch inference reports several candidates in one step",
           "[sim][observation][touch]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   const auto& animations = SimulationAccess::AnimationLibraryOf(simulation);
   const SnapshotMetadata& metadata = simulation.SnapshotMetadata();
   const auto clip = FindTouchClip(animations);
@@ -234,7 +234,7 @@ TEST_CASE("snapshot touch inference miss attribution shadow",
   const auto home = football::app::fixtures::MakeDefaultHomeTeam();
   const auto away = football::app::fixtures::MakeDefaultAwayTeam();
   Simulation simulation;
-  simulation.Init(home, away, football::model::Pitch{}, {});
+  simulation.Init(home, away, football::pitch::Pitch{}, {});
   football::ai::DefaultAI ai(home, away);
   const auto& animations = SimulationAccess::AnimationLibraryOf(simulation);
   const SnapshotMetadata& metadata = simulation.SnapshotMetadata();

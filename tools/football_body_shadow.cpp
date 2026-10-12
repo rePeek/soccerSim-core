@@ -1,6 +1,6 @@
 // Read-only P4 body collision diagnostics. No contact is fed back to gameplay.
 #include <iostream>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <iomanip>
 #include <stdexcept>
 #include <string>
@@ -37,13 +37,13 @@ int main(int argc, char** argv) {
       options.snapshot_capacity = 4;
       options.game_engine_random_seed = 42;
       Simulation simulation;
-      simulation.Init(home, away, football::model::Pitch{}, options);
+      simulation.Init(home, away, football::pitch::Pitch{}, options);
       if (full) {
         SimulationAccess::EnableBodyPhysicsShadow(simulation, true);
         SimulationAccess::EnableActiveTouchShadow(simulation, true);
       }
       int contact_samples = 0;
-      football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+      football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
       PlayerControlSet controls;
       for (int i = 0; i < steps && !simulation.Finished(); ++i) {
         policy.Update(simulation.Observe(), controls);

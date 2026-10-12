@@ -5,7 +5,7 @@ target_sources(football_ai_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
   FILES ai_config.hpp tactical_board.hpp)
 target_compile_features(football_ai_contracts INTERFACE cxx_std_23)
-target_link_libraries(football_ai_contracts INTERFACE football::model football::foundation)
+target_link_libraries(football_ai_contracts INTERFACE football::model football::foundation football::pitch)
 
 # Value policy: no actor/runtime link or input ownership.
 add_library(football_ai STATIC)

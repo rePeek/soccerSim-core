@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include "app/fixtures/default_teams.hpp"
 #include "default_ai_fixture.hpp"
@@ -29,7 +29,7 @@ struct RefereeStateFixture : Referee {
 TEST_CASE("period end updates only referee facts from explicit inputs", "[sim][referee][period]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   auto& kickoff_team = *SimulationAccess::TeamOf(simulation, 1);
   auto* actor = kickoff_team.GetAllPlayers()[1];
   for (auto phase : {MatchPhase::FirstHalf, MatchPhase::SecondHalf}) {
@@ -105,7 +105,7 @@ TEST_CASE("Referee invokes the explicit reset action synchronously once before r
     Simulation simulation;
     MatchOptions options; options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+        football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, options);
     football::test::TakeKickOff(simulation);
     for (int tick = 0; tick < 40; ++tick) simulation.Step({});
     auto& referee = *SimulationAccess::RefereeOf(simulation);
@@ -163,7 +163,7 @@ TEST_CASE("standing trip notices use explicit Ball and tick facts without a Matc
     Simulation simulation;
     MatchOptions options; options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+        football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, options);
     auto* victim = SimulationAccess::TeamOf(simulation, SimulationAccess::FirstTeamOf(simulation))->GetAllPlayers()[1];
     auto* tackler = SimulationAccess::TeamOf(simulation, SimulationAccess::SecondTeamOf(simulation))->GetAllPlayers()[1];
     victim->ResetPosition(Vector3(3, 4, 0), Vector3(4, 4, 0));
@@ -213,7 +213,7 @@ TEST_CASE("sliding trip notices preserve strict grace, 3D radius, severity and d
           "[sim][referee][foul]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   auto* victim = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto* tackler = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
   victim->ResetPosition(Vector3(3, 4, 0), Vector3(4, 4, 0));
@@ -287,7 +287,7 @@ TEST_CASE("the explicit touch sink is the only publication path for actor touche
           "[sim][touchsink]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   auto* team = SimulationAccess::TeamOf(simulation, 0);
   auto* player = team->GetAllPlayers()[1];
   auto* other = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
@@ -312,7 +312,7 @@ TEST_CASE("touch notices consume explicit facts instead of Match state",
           "[sim][referee][offside]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   auto* touch_player = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   std::vector<Player*> active_players;
   SimulationAccess::TeamOf(simulation, 0)->GetActivePlayers(active_players);
@@ -370,7 +370,7 @@ TEST_CASE("foul evaluation timing comes from the supplied instant, not Match",
   static constexpr TickSpan kExpiry{300};
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   auto* offender = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto* victim = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
   victim->GetTeam()->SetFadingTeamPossessionAmount(1.2f);
@@ -407,7 +407,7 @@ TEST_CASE("referee facts and write-only consequences do not fall back to runtime
           "[sim][referee][commands]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   RefereeStateFixture referee(simulation);
   referee.buffer.active = false;
   football::test::RuleCommandProbe commands;
@@ -434,7 +434,7 @@ TEST_CASE("foul commands schedule and card from supplied tick and stadium frame"
           "[sim][referee][commands][foul]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   RefereeStateFixture referee(simulation);
   referee.buffer.active = false;
   referee.foul.foulPlayer = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
@@ -466,7 +466,7 @@ TEST_CASE("Simulation uniquely owns independent rules across Init and Stop", "[s
   for (bool reverse : {false, true}) {
     MatchOptions options; options.reverse_team_processing = reverse;
     simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-        football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, options);
+        football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, options);
     auto& rules = SimulationAccess::RulesOf(simulation);
     REQUIRE(&rules == SimulationAccess::RefereeOf(simulation));
     REQUIRE(rules.GetBuffer().setpiece_team == SimulationAccess::TeamOf(simulation, reverse ? 1 : 0));
@@ -489,7 +489,7 @@ TEST_CASE("the fact sink records the touch and buffers an immutable fact",
           "[sim][touchsink][event]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   auto* team = SimulationAccess::TeamOf(simulation, 0);
   auto* player = team->GetAllPlayers()[1];
   auto& sink = SimulationAccess::EventsOf(simulation);
@@ -517,7 +517,7 @@ TEST_CASE("event touch identities survive send-offs and reset without team bookk
   home.players[1].id = 0xf0001234u;
   away.players[1].id = 0xe0005678u;
   Simulation simulation;
-  simulation.Init(home, away, football::model::Pitch{}, {});
+  simulation.Init(home, away, football::pitch::Pitch{}, {});
   auto* home_actor = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto* away_actor = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];
   auto& events = SimulationAccess::EventsOf(simulation);
@@ -553,7 +553,7 @@ TEST_CASE("event touch identities survive send-offs and reset without team bookk
 TEST_CASE("reviewed opposing CCD deflection preserves offside until the attacker touches", "[rule-touch][referee]") {
   Simulation s;
   s.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   RefereeStateFixture referee(s);
   referee.buffer.active = false; referee.buffer.restart.reset();
   auto* attacker = SimulationAccess::TeamOf(s, 0)->GetAllPlayers()[2];
@@ -582,7 +582,7 @@ TEST_CASE("reviewed opposing CCD deflection preserves offside until the attacker
 TEST_CASE("deliberate defender play clears the offside candidate, deflection preserves it", "[rule-touch][referee]") {
   Simulation s;
   s.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   RefereeStateFixture referee(s);
   referee.buffer.active = false; referee.buffer.restart.reset();
   auto* attacker = SimulationAccess::TeamOf(s, 0)->GetAllPlayers()[2];

@@ -1,5 +1,5 @@
 #include "ai/tactical_board.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <algorithm>
 
@@ -89,7 +89,7 @@ std::vector<ShapeEntry> InitialShape(const model::Team &team) {
 }  // namespace
 
 TacticalBoard MakeTacticalBoard(const model::Team &team, model::TeamSide side,
-                               const model::Pitch &pitch) {
+                               const football::pitch::Pitch &pitch) {
   TacticalBoard board;
   board.side = side;
   const auto shape = InitialShape(team);

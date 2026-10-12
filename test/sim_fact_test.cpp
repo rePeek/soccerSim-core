@@ -1,5 +1,5 @@
 #include <variant>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
@@ -44,7 +44,7 @@ TEST_CASE("referee turns a crossed goal mouth into an award ruling for the oppon
           "[sim][event][referee]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   auto& referee = SimulationAccess::RulesOf(simulation);
   // Establish the canonical dynamic sides (home -1, away +1) without a full Step.
   SimulationAccess::TeamOf(simulation, 1)->Mirror();
@@ -66,7 +66,7 @@ TEST_CASE("referee classifies a foul from frozen assessment evidence",
           "[sim][event][referee]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   // A fresh referee with no pending restart so the trip gate is open.
   struct ProbeReferee : Referee {
     using Referee::Referee;
@@ -102,7 +102,7 @@ TEST_CASE("the TripNotice test adapter still reports falls without a foul",
           "[sim][event][referee]") {
   Simulation simulation;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
-      football::app::fixtures::MakeDefaultAwayTeam(), football::model::Pitch{}, {});
+      football::app::fixtures::MakeDefaultAwayTeam(), football::pitch::Pitch{}, {});
   auto& referee = SimulationAccess::RulesOf(simulation);
   auto* victim = SimulationAccess::TeamOf(simulation, 0)->GetAllPlayers()[1];
   auto* offender = SimulationAccess::TeamOf(simulation, 1)->GetAllPlayers()[1];

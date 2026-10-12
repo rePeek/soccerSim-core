@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <bit>
 #include <chrono>
 #include <iostream>
@@ -25,10 +25,10 @@ Run Play(football::sim::TickSpan half, bool reverse) {
   auto away = football::app::fixtures::MakeDefaultAwayTeam();
   MatchOptions options; options.half_duration = half; options.snapshot_capacity = 2;
   options.reverse_team_processing = reverse;
-  Simulation s; s.Init(home, away, football::model::Pitch{}, options);
+  Simulation s; s.Init(home, away, football::pitch::Pitch{}, options);
   SimulationAccess::EnableActiveImpulseProduction(s, true);
   SimulationAccess::EnableBodyPhysicsProduction(s, true);
-  football::ai::DefaultAI policy(home, away, football::model::Pitch{});
+  football::ai::DefaultAI policy(home, away, football::pitch::Pitch{});
   Run out;
   std::vector<double> durations;
   const auto hash = [&](std::uint64_t value) {

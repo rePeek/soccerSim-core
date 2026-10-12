@@ -1,5 +1,5 @@
 #include <algorithm>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <cstring>
 #include <array>
 #include <tuple>
@@ -26,7 +26,7 @@ void Init(Simulation& simulation, bool reverse,
   options.half_duration = half_duration;
   simulation.Init(football::app::fixtures::MakeDefaultHomeTeam(),
       football::app::fixtures::MakeDefaultAwayTeam(),
-      football::model::Pitch{}, options);
+      football::pitch::Pitch{}, options);
 }
 
 void ReachHalf(Simulation& simulation, MatchPhase phase) {

@@ -11,7 +11,7 @@
 
 #include "sim/player/player_control_set.hpp"
 #include "model/team.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "sim/simulation_config.hpp"
 #include "foundation/math/rng.hpp"
@@ -59,7 +59,7 @@ class Simulation {
 
   void Init(const football::model::Team& home,
             const football::model::Team& away,
-            const football::model::Pitch& pitch, MatchOptions options,
+            const football::pitch::Pitch& pitch, MatchOptions options,
             const football::ball::BallModel& ball_config = football::ball::BallModel{});
   bool Stop();
   void Step(const PlayerControlSet& controls);
@@ -196,7 +196,7 @@ class Simulation {
   const bool& IsBallInPlay() const { return clock_->IsBallInPlay(); }
   football::ball::Ball* GetBall() const { return ball_.get(); }
   Team* GetTeam(int team_id) const { return teams_[team_id].get(); }
-  const football::model::Pitch& pitch() const { return pitch_; }
+  const football::pitch::Pitch& pitch() const { return pitch_; }
   const AnimationLibrary& GetAnimationLibrary() const { return *animations_; }
   const MatchOptions& options() const { return options_; }
   blunted::Rng& rng() { return rng_; }
@@ -240,7 +240,7 @@ class Simulation {
   std::optional<std::uint64_t> snapshot_step_;
 
   MatchOptions options_;
-  football::model::Pitch pitch_;
+  football::pitch::Pitch pitch_;
   football::ball::BallModel ball_config_;
   // Assembled once per Init from pitch_ + ball_config_; every Ball instance
   // (authoritative, preparation, shadow) reuses this static world.

@@ -19,7 +19,7 @@
 #define _HPP_TEAM
 
 #include <cstdint>
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include <memory>
 #include <span>
 #include "model/team.hpp"
@@ -51,7 +51,7 @@ class Team {
 
     void Exit(football::sim::Tick now);
 
-    void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::model::Pitch& pitch, blunted::Rng& rng);
+    void InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary& animations, const football::pitch::Pitch& pitch, blunted::Rng& rng);
 
 
 

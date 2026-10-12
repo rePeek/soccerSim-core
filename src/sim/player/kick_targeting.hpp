@@ -16,7 +16,7 @@
 #define FOOTBALL_SIM_PLAYER_KICK_TARGETING_HPP
 
 #include "foundation/math/vector3.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 #include "animation/types.hpp"
 
 using blunted::Vector3;
@@ -32,7 +32,7 @@ void GetPass(Player *player, e_FunctionType passType,
              Vector3 &resultingDirection, float &resultingPower,
              Player *&targetPlayer, Player *forcedTargetPlayer = 0);
 // Rough shot direction for animation selection; refined during execution.
-Vector3 GetShotDirection(Player *player, const football::model::Pitch& pitch,
+Vector3 GetShotDirection(Player *player, const football::pitch::Pitch& pitch,
                          const Vector3 &inputDirection,
                          float autoDirectionBias = 1.0f);
 

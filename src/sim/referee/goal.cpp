@@ -12,7 +12,7 @@
 // limitations under the License.
 
 #include "sim/referee/goal.hpp"
-#include "model/pitch.hpp"
+#include "football/pitch/pitch.hpp"
 
 #include <cmath>
 
@@ -24,7 +24,7 @@ using blunted::Line;
 using blunted::Triangle;
 using blunted::Vector3;
 
-bool CrossedGoalLine(const football::model::Pitch& pitch, int side,
+bool CrossedGoalLine(const football::pitch::Pitch& pitch, int side,
                      const Vector3& previous, const Vector3& current) {
   Line line;
   line.SetVertex(0, previous);
