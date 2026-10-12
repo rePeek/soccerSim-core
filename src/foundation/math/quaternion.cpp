@@ -240,7 +240,7 @@ void Quaternion::Set(const Quaternion &quat) {
     if (qmagsq < 0.000001f) {
       Set(QUATERNION_IDENTITY[0], QUATERNION_IDENTITY[1], QUATERNION_IDENTITY[2], QUATERNION_IDENTITY[3]);
     } else {
-      if (abs(1.0 - qmagsq) < 2.107342e-08) {
+      if (std::fabs(1.0 - qmagsq) < 2.107342e-08) {
         scale(2.0 / (1.0 + qmagsq));
       } else {
         scale(1.0 / sqrt(qmagsq));
