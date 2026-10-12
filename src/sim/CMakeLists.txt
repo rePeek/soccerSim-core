@@ -34,9 +34,12 @@ target_sources(football_sim_domain PRIVATE
   event/touch_query.cpp event/touch_query.hpp
   runtime/clock.cpp runtime/clock.hpp runtime/roster.cpp runtime/roster.hpp
   runtime/formation.cpp player/role_parser.cpp player/role_parser.hpp
+  runtime/team_state.hpp
+  player/player_team_view.cpp player/player_team_view.hpp player/player_send_off_sink.hpp
   player/formation_entry.hpp
+  runtime/possession.cpp runtime/possession.hpp
+  runtime/roster_possession.cpp runtime/roster_possession.hpp
   team/team.cpp team/team.hpp
-  team/possession.cpp team/possession.hpp
   event/touch_type.hpp
   observation/world_state_builder.cpp observation/world_state_builder.hpp
   observation/pitch_frame.cpp observation/pitch_frame.hpp
@@ -59,7 +62,6 @@ target_sources(football_sim_domain PRIVATE
   player/player.cpp player/player_control_builder.cpp player/player_locomotion.cpp
   player/player_contact.cpp player/player_contact.hpp
   player/player_ball_contact.cpp player/player_ball_contact.hpp
-  player/possession.cpp player/possession.hpp
   player/kick_targeting.cpp
   player/humanoid/humanoid_utils.cpp
   player/humanoid/humanoidbase.cpp

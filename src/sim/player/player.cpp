@@ -25,7 +25,6 @@
 #include "football/ball/ball.hpp"
 #include "football/ball/ball_timing.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
-#include "sim/team/team.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/player/perception.hpp"
 #include "sim/player/reachability.hpp"
@@ -35,7 +34,7 @@
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_control_builder.hpp"
-#include "sim/player/possession.hpp"
+#include "sim/player/player_send_off_sink.hpp"
 
 using football::ball::Ball;
 
@@ -654,8 +653,8 @@ void Player::CommitTick(const football::sim::PlayerTickContext& tick, float dist
     fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
   }
   if (cards > 1 && card_effective_tick_ <= tick.now &&
-      tick.own_team.GetActivePlayersCount() > 1) {
-    SendOff(tick.ball, tick.now, tick.rng, tick.own_team);
+      ActivePlayerCount(tick.own_team.teammates) > 1) {
+    SendOff(tick.ball, tick.now, tick.rng, tick.send_off);
   }
 }
 
@@ -738,7 +737,7 @@ bool Player::AllowLastDitch(bool includingPossessionAmount) const {
   return (GetTimeNeededToGetToBall_optimistic_ms() * 1.7f + 800 < GetTimeNeededToGetToBall_ms());
 }
 
-void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own) {
+void Player::UpdatePossessionStats(Ball& ball, const football::sim::TeamMatchState& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own) {
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
   const e_FunctionType action_type = GetCurrentFunctionType();
   if (actionState.IsPureLocomotion(retainer == this)) {
@@ -846,8 +845,8 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
   } else {
     hasPossession = ComputeHasPossession(&ball, this);
   }
-  this->hasBestPossession = hasPossession && opponent.GetTimeNeededToGetToBall_ms() > this->GetTimeNeededToGetToBall_ms();
-  this->hasUniquePossession = hasPossession && !opponent.HasPossession();
+  this->hasBestPossession = hasPossession && opponent.time_to_ball_ms > this->GetTimeNeededToGetToBall_ms();
+  this->hasUniquePossession = hasPossession && !opponent.has_possession;
   if (retainer == this) {
     timeNeededToGetToBall_ms = 1;
     timeNeededToGetToBall_optimistic_ms = 1;
@@ -862,25 +861,20 @@ void Player::UpdatePossessionStats(Ball& ball, const Team& opponent, football::s
   }
 }
 
-float Player::GetClosestOpponentDistance(Team& opponent) const {
-  Player *opp = football::sim::player::FindClosestPlayer(opponent.GetAllPlayers(), GetPosition());
+float Player::GetClosestOpponentDistance(const PlayerTeamView& opponent) const {
+  Player *opp = football::sim::player::FindClosestPlayer(opponent.teammates, GetPosition());
   return opp->GetPosition().GetDistance(GetPosition());
 }
 
 
 
-void Player::SendOff(const Ball& ball, football::sim::Tick now, football::math::Rng& rng, Team& own_team) {
+void Player::SendOff(const Ball& ball, football::sim::Tick now, football::math::Rng& rng, football::sim::PlayerSendOffSink* send_off) {
   // Preserve the historical draw even though its message was removed.
   (void)rng.Uniform(0, 3);
   Deactivate(ball, now);
-  if (formationEntry_.role == e_PlayerRole_GK) {
-    FormationEntry entry = formationEntry_;
-    std::vector<Player*> activePlayers;
-    own_team.GetActivePlayers(activePlayers);
-    assert(activePlayers.size() > 0);
-    if (!activePlayers.empty()) activePlayers.front()->SetFormationEntry(entry);
-  }
-  football::sim::player::RefreshDesignatedTeamPossessionPlayer(own_team, ball);
+  // Runtime owns the roster/formation/possession follow-up: the trigger stays
+  // synchronous here so the per-actor order (and the RNG draw above) is intact.
+  if (send_off != nullptr) send_off->OnPlayerSentOff(*this);
 }
 
 float Player::GetStaminaStat() const {

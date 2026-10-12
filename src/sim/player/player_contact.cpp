@@ -22,7 +22,6 @@
 #include "sim/player/player.hpp"
 #include "sim/player/player_action_volume.hpp"
 #include "sim/player/player_motion_constants.hpp"
-#include "sim/team/team.hpp"
 
 namespace football::sim {
 namespace {

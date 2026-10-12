@@ -1,4 +1,4 @@
-#include "sim/player/possession.hpp"
+#include "sim/runtime/roster_possession.hpp"
 
 #include "football/ball/ball.hpp"
 #include "sim/player/player.hpp"
@@ -7,7 +7,7 @@
 
 using football::ball::Ball;
 
-namespace football::sim::player {
+namespace football::sim {
 void PrepareTeamPossession(Team& team, const Team& opponent, bool play_authorized,
                           bool set_piece_active, const Player* retainer,
                           const Team* best_possession_team) {
@@ -49,7 +49,8 @@ void FinishTeamPossession(Team& team, const Team& opponent) {
 void RefreshTeamPossession(Team& team, const Team& opponent, Ball& ball,
                           Tick now, const Player* retainer) {
   for (Player* actor : team.GetAllPlayers()) {
-    if (actor->IsActive()) actor->UpdatePossessionStats(ball, opponent, now, retainer, team.GetDesignatedTeamPossessionPlayer());
+    if (actor->IsActive()) actor->UpdatePossessionStats(
+        ball, opponent.match_state(), now, retainer, team.GetDesignatedTeamPossessionPlayer());
   }
   bool hasPossession = false;
   int timeNeededToGetToBall_ms = 100000;
@@ -65,6 +66,6 @@ void RefreshTeamPossession(Team& team, const Team& opponent, Ball& ball,
 
 void RefreshDesignatedTeamPossessionPlayer(Team& team, const Ball& ball) {
   team.SetDesignatedTeamPossessionPlayer(
-      FindClosestPlayer(team.GetAllPlayers(), ball.state().position.Get2D()));
+      football::sim::player::FindClosestPlayer(team.GetAllPlayers(), ball.state().position.Get2D()));
 }
-} // namespace football::sim::player
+}  // namespace football::sim

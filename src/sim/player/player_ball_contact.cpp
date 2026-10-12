@@ -9,7 +9,6 @@
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player.hpp"
 #include "sim/player/player_body_collider.hpp"
-#include "sim/team/team.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 #include "sim/event/touch_query.hpp"
 
@@ -33,7 +32,9 @@ BallPlayerContactResult ResolveBallPlayerContacts(
     int teamID = players[i]->GetTeamID();
 
     int touchTimeThreshold_ms = 200;
-    float oppLastTouchBias = event::TeamTouchBias(inputs.touches, *inputs.teams[abs(teamID - 1)], touchTimeThreshold_ms, inputs.now);
+    float oppLastTouchBias = event::TeamTouchBias(inputs.touches,
+        inputs.teams[abs(teamID - 1)].team_id,
+        inputs.teams[abs(teamID - 1)].teammates, touchTimeThreshold_ms, inputs.now);
     float lastTouchBias = players[i]->GetLastTouchBias(touchTimeThreshold_ms, inputs.now);
 
     if (lastTouchBias <= 0.01f && oppLastTouchBias > 0.01f) {
@@ -75,7 +76,9 @@ BallPlayerContactResult ResolveBallPlayerContacts(
               const int latest_team = last_touch_team != -1
                   ? last_touch_team : inputs.fallback_last_touch_team;
               if (players[i] == players[i]->GetTeamDesignatedPossessionPlayer() &&
-                  event::TeamTouchBias(inputs.touches, *inputs.teams[latest_team], 200, inputs.now) < 0.01f) {
+                  event::TeamTouchBias(inputs.touches,
+                      inputs.teams[latest_team].team_id,
+                      inputs.teams[latest_team].teammates, 200, inputs.now) < 0.01f) {
                 players[i]->TriggerControlledBallCollision();
               } else {
                 float movementBias = oppLastTouchBias * 0.8f + 0.2f;

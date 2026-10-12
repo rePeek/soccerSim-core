@@ -32,6 +32,7 @@
 #include "sim/referee/rule_command_sink.hpp"
 #include "sim/player/player_tick_context.hpp"
 #include "sim/player/player_runtime_sink.hpp"
+#include "sim/player/player_send_off_sink.hpp"
 #include "sim/player/foul_assessment.hpp"
 #include "sim/player/player_body_collision_shadow.hpp"
 #include "sim/player/player_active_touch_shadow.hpp"
@@ -104,6 +105,8 @@ class Simulation {
   class TouchEvents;
   class RulingEvents;
   class ActiveTouchEvents;
+  // Applies the team-level follow-up of a send-off; Player only reports it.
+  class SendOffEvents;
 
   // Synchronous accepted-touch dispatch: bookkeeping, recognition and the
   // referee consume happen at the exact legacy boundary and in legacy order.
@@ -115,6 +118,8 @@ class Simulation {
   void ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling);
   void ApplyRestartRuling(const football::sim::event::AwardRestartRuling& ruling);
   void ApplyCardRuling(const football::sim::event::CardRuling& ruling);
+  // Roster/formation/possession follow-up when a player leaves the pitch.
+  void HandlePlayerSentOff(Player& player);
   void ProcessReferee();
   // Recognized behavior transitions -> confirmed MatchEvents.
   void CommitEventTransitions(football::sim::Tick now);
@@ -252,6 +257,8 @@ class Simulation {
   football::sim::PlayerRuntimeSink* player_runtime_sink_ = nullptr;
   // Single synchronous accepted-touch sink.
   std::unique_ptr<football::sim::AcceptedTouchSink> touch_sink_;
+  // Synchronous send-off port; the concrete sink is a private nested class.
+  std::unique_ptr<football::sim::PlayerSendOffSink> send_off_sink_;
   std::unique_ptr<RulingEvents> ruling_sink_;
   std::vector<football::sim::event::RefereeRuling> pending_rulings_;
   std::vector<football::sim::FoulAssessment> foul_assessments_;

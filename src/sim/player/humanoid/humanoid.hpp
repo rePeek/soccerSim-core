@@ -23,7 +23,6 @@
 using namespace football::math;
 
 class Player;
-class Team;
 
 class Humanoid : public HumanoidBase {
 

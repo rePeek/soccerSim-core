@@ -4,9 +4,9 @@
 #include "sim/player/player_control.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/player/player_command.hpp"
+#include "sim/player/player_team_view.hpp"
 
 class Player;
-class Team;
 namespace football::ball { class Ball; }
 struct RefereeBuffer;
 namespace football::pitch { class Pitch; }
@@ -20,8 +20,8 @@ struct PlayerCommandInputs {
   const RefereeBuffer& restart;
   const Player* retainer;
   const football::pitch::Pitch& pitch;
-  // The acting player's own roster and legacy slot. Borrowed for the call.
-  const Team& own_team;
+  // The acting player's own roster slice and runtime team facts. Borrowed.
+  const PlayerTeamView& own_team;
 };
 
 // Converts decision-domain values into the existing execution command format.

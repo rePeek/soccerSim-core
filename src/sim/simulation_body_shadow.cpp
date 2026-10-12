@@ -82,7 +82,10 @@ void Simulation::BeginBodyPhysicsShadow() {
     std::uint32_t blocks = 0;
     if (now <= last_body_ball_collision_tick_ + football::sim::TickSpan{15}) blocks |= BodyCooldown;
     if (player->GetLastTouchBias(200, now) > .01f) blocks |= BodyOwnRecentTouch;
-    if (football::sim::event::TeamTouchBias(touches_, *teams_[1 - player->GetTeamID()], 200, now) <= .01f)
+    if (football::sim::event::TeamTouchBias(touches_,
+                                           teams_[1 - player->GetTeamID()]->GetID(),
+                                           teams_[1 - player->GetTeamID()]->GetAllPlayers(),
+                                           200, now) <= .01f)
       blocks |= BodyNoOpponentTouch;
     const bool allowed = action.type == e_FunctionType_Movement || action.type == e_FunctionType_Trip ||
         action.type == e_FunctionType_Sliding || action.type == e_FunctionType_Interfere || action.type == e_FunctionType_Deflect;
@@ -111,7 +114,9 @@ void Simulation::BeginBodyPhysicsShadow() {
       blocks |= BodyOldGeometryMiss;
     const int latest_team = touches_.last_team != -1 ? touches_.last_team : first_team_;
     if (player == player->GetTeamDesignatedPossessionPlayer() &&
-        football::sim::event::TeamTouchBias(touches_, *teams_[latest_team], 200, now) < .01f) blocks |= BodyControlledRoute;
+        football::sim::event::TeamTouchBias(touches_, teams_[latest_team]->GetID(),
+                                           teams_[latest_team]->GetAllPlayers(),
+                                           200, now) < .01f) blocks |= BodyControlledRoute;
     for (std::size_t part = 0; part < kPlayerBodyPartCount; ++part) {
       const auto& collider = prediction.colliders[part];
       const auto sweep = football::collision::Sweep(

@@ -20,7 +20,6 @@
 
 
 #include "sim/event/touch_query.hpp"
-#include "sim/team/team.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
 #include "sim/player/humanoid/humanoid.hpp"
@@ -144,7 +143,7 @@ float StretchSprintTo(const float &inputVelocity, float inputSpaceMaxVelocity,
 }
 
 void GetDifficultyFactors(const Ball *ball, Player *player,
-                          const football::sim::event::TouchState& touches, Team& opponent,
+                          const football::sim::event::TouchState& touches, const PlayerTeamView &opponent,
                           football::sim::Tick now, football::math::Rng& rng,
                           const SpatialState &spatialState,
                           const Vector3 &positionOffset, float &distanceFactor,
@@ -183,7 +182,8 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
 
   // make intercepting passes harder
   if (touches.last_team != player->GetTeamID()) {
-    Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(touches, opponent);
+    Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(
+        touches, opponent.team_id, opponent.teammates);
     if (lastTouchPlayer) {
       float lastTouchBiasPenalty =
           std::pow(lastTouchPlayer->GetLastTouchBias(
@@ -208,7 +208,7 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
   ballMovementFactor = clamp(ballMovementFactor, 0.0f, 1.0f);
 }
 
-Vector3 GetBallControlVector(const Ball *ball, Player *player, Team& opponent, const AnimationClip& clip,
+Vector3 GetBallControlVector(const Ball *ball, Player *player, const PlayerTeamView &opponent, const AnimationClip& clip,
                              const Vector3 &nextStartPos, radian nextStartAngle,
                              radian nextBodyAngle,
                              const Vector3 &outgoingMovement,
@@ -339,7 +339,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, Team& opponent, c
 }
 
 Vector3 GetTrapVector(const Ball *ball, Player *player,
-                      const football::sim::event::TouchState& touches, Team& opponent,
+                      const football::sim::event::TouchState& touches, const PlayerTeamView &opponent,
                       football::sim::Tick now, football::math::Rng& rng, const AnimationClip& clip,
                       const Vector3 &nextStartPos,
                       radian nextStartAngle, radian nextBodyAngle,

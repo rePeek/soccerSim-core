@@ -134,7 +134,7 @@ void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
 
 class MentalImage;
-namespace football::sim { class AcceptedTouchSink; class PlayerRuntimeSink; }
+namespace football::sim { class AcceptedTouchSink; class PlayerRuntimeSink; class PlayerSendOffSink; }
 class HumanoidBase;
 class AnimationLibrary;
 struct PlayerCommandInputs;
@@ -146,7 +146,6 @@ struct TacticalPlayerSituation {
   float forwardRating = 0.0f;
 };
 
-class Team;
 class Player;
 
 // Facts Runtime publishes to each Player. This is a per-tick projection of its
@@ -430,13 +429,13 @@ class Player final {
     void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
     bool IsControlledBallCollisionTriggered() { return triggerControlledBallCollision; }
     void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
-    void UpdatePossessionStats(football::ball::Ball& ball, const Team& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own);
-    float GetClosestOpponentDistance(Team& opponent) const;
+    void UpdatePossessionStats(football::ball::Ball& ball, const football::sim::TeamMatchState& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own);
+    float GetClosestOpponentDistance(const PlayerTeamView& opponent) const;
     const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
     void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
     void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
     bool HasCards() { return cards > 0; }
-    void SendOff(const football::ball::Ball& ball, football::sim::Tick now, football::math::Rng& rng, Team& own_team);
+    void SendOff(const football::ball::Ball& ball, football::sim::Tick now, football::math::Rng& rng, football::sim::PlayerSendOffSink* send_off);
     float GetStaminaStat() const;
 
   private:

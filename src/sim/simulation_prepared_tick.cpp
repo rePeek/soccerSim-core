@@ -1,7 +1,7 @@
 #include "sim/simulation.hpp"
 #include "sim/player/player.hpp"
 #include "sim/team/team.hpp"
-#include "sim/player/possession.hpp"
+#include "sim/runtime/roster_possession.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include <algorithm>
 #include <stdexcept>
@@ -98,7 +98,7 @@ void Simulation::RunPreparedPlayerTick() {
   const auto prepare_team = [&](int id) {
     auto& team = *teams_[id];
     auto& opponent = *teams_[1 - id];
-    football::sim::player::PrepareTeamPossession(team, opponent, play_authorized_,
+    football::sim::PrepareTeamPossession(team, opponent, play_authorized_,
         set_piece_active_, ball_retainer_, best_possession_team_);
     for (auto* actor : team.GetAllPlayers()) {
       if (!actor->IsActive()) continue;
@@ -109,8 +109,9 @@ void Simulation::RunPreparedPlayerTick() {
           base.half_underway, *preparation_ball_,
           base.ball_retainer, base.designated_possession_player, base.last_touch_player,
           base.touches, base.restart, base.pitch, base.own_team, base.opponent_team,
-          base.first_processing_team, base.second_processing_team, base.processing_slot,
-          base.restart_needs_simulation, base.rng, nullptr, &ports};
+          base.processing_slot,
+          base.restart_needs_simulation, base.rng, nullptr, &ports, nullptr,
+          base.send_off};
       const auto before = preparation_ball_->state();
       const auto distance = actor->PrepareTick(facts, mental_images_, ports, ports);
       if (!SameState(before, preparation_ball_->state()))
@@ -118,7 +119,7 @@ void Simulation::RunPreparedPlayerTick() {
       prepared.emplace_back(actor, distance);
       MeasureBodyShadowEndpoint(*actor);
     }
-    football::sim::player::FinishTeamPossession(team, opponent);
+    football::sim::FinishTeamPossession(team, opponent);
   };
   Mirror(first_team_ == 1, first_team_ == 0, false);
   prepare_team(first_team_);

@@ -18,12 +18,12 @@
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/observation/world_state_builder.hpp"
 #include "sim/player/player_contact.hpp"
-#include "sim/player/possession.hpp"
+#include "sim/runtime/roster_possession.hpp"
 #include "sim/referee/goal.hpp"
 #include "sim/referee/period.hpp"
 #include "sim/referee/referee.hpp"
 #include "sim/runtime/formation.hpp"
-#include "sim/team/possession.hpp"
+#include "sim/runtime/possession.hpp"
 #include "sim/team/team.hpp"
 
 #include "football/pitch/pitch.hpp"
@@ -120,16 +120,21 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
   if (!ball_) throw std::logic_error("simulation has no match");
   Team& own = *teams_[actor.GetTeamID()];
   Team& opponent = *teams_[1 - actor.GetTeamID()];
-  Team& first = *teams_[first_team_];
-  Team& second = *teams_[second_team_];
   const int processing_slot = actor.GetTeamID() == second_team_ ? 1 : 0;
+  // Borrowed views: roster slices plus the runtime-owned team match state.
+  const PlayerTeamView own_view{own.GetID(), own.GetAllPlayers(),
+                                opponent.GetAllPlayers(), own.GetGoalie(),
+                                &own.match_state()};
+  const PlayerTeamView opponent_view{opponent.GetID(), opponent.GetAllPlayers(),
+                                     own.GetAllPlayers(), opponent.GetGoalie(),
+                                     &opponent.match_state()};
   return {GetTimelineTick(), play_authorized_, set_piece_active_, IsBallInPlay(),
           clock_->IsHalfUnderway(), *ball_, ball_retainer_,
           designated_possession_player_, GetLastTouchPlayer(), touches_,
-          referee_->GetBuffer(), pitch_, own, opponent, first, second, processing_slot,
+          referee_->GetBuffer(), pitch_, own_view, opponent_view, processing_slot,
           referee_->RestartNeedsSimulation(), rng_,
           active_candidate_capture_ ? active_touch_shadow_sink_.get() : nullptr,
-          nullptr, ball_.get()};
+          nullptr, ball_.get(), send_off_sink_.get()};
 }
 
 // The single write-only fact-production port. Touch bookkeeping stays synchronous
@@ -150,6 +155,19 @@ class Simulation::TouchEvents final : public football::sim::AcceptedTouchSink {
         simulation_.snapshot_step_.value_or(0), simulation_.reset_sequence_,
         touch.player, touch.type, touch.action_type});
     simulation_.DispatchTouch(touch);
+  }
+private:
+  Simulation& simulation_;
+};
+
+// Write-only send-off port. Player reports that it left the pitch; the
+// team-level follow-up (GK role hand-over, possession re-designation) stays
+// with Runtime and runs synchronously at the same per-actor point as before.
+class Simulation::SendOffEvents final : public football::sim::PlayerSendOffSink {
+ public:
+  explicit SendOffEvents(Simulation& simulation) : simulation_(simulation) {}
+  void OnPlayerSentOff(Player& player) override {
+    simulation_.HandlePlayerSentOff(player);
   }
  private:
   Simulation& simulation_;
@@ -330,6 +348,20 @@ void Simulation::ApplyCardRuling(const football::sim::event::CardRuling& ruling)
   }
   event_log_.Record(football::sim::event::CardShownEvent{GetTimelineTick(),
       player->GetTeamSide(), ruling.player, ruling.type >= 3});
+}
+
+void Simulation::HandlePlayerSentOff(Player& player) {
+  Team& team = *teams_[player.GetTeamID()];
+  // A sent-off goalkeeper hands its role to the first remaining active player.
+  if (player.GetFormationEntry().role == e_PlayerRole_GK) {
+    const FormationEntry entry = player.GetFormationEntry();
+    std::vector<Player*> active_players;
+    team.GetActivePlayers(active_players);
+    assert(!active_players.empty());
+    if (!active_players.empty()) active_players.front()->SetFormationEntry(entry);
+  }
+  // Runtime re-designates possession to the closest remaining teammate.
+  football::sim::RefreshDesignatedTeamPossessionPlayer(team, *ball_);
 }
 
 void Simulation::ApplyPendingRulings() {
@@ -540,6 +572,7 @@ void Simulation::Init(
   player_runtime_sink_ = commands.get();
   rule_commands_ = std::move(commands);
   touch_sink_ = std::move(touches);
+  send_off_sink_ = std::make_unique<SendOffEvents>(*this);
   ruling_sink_ = std::move(rulings);
   snapshot_players_ = std::move(snapshot_players);
   snapshot_metadata_ = std::move(metadata);
@@ -674,10 +707,10 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
 
   // UpdatePossession: retain both per-roster refreshes before arbitration.
   Mirror(first_team_ == 1, first_team_ == 0, false);
-  football::sim::player::RefreshTeamPossession(*teams_[first_team_],
+  football::sim::RefreshTeamPossession(*teams_[first_team_],
       *teams_[second_team_], *ball_, GetTimelineTick(), ball_retainer_);
   Mirror(true, true, true);
-  football::sim::player::RefreshTeamPossession(*teams_[second_team_],
+  football::sim::RefreshTeamPossession(*teams_[second_team_],
       *teams_[first_team_], *ball_, GetTimelineTick(), ball_retainer_);
   Mirror(first_team_ == 0, first_team_ == 1, true);
 
@@ -746,10 +779,12 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
       if (GetLastTouchTeamID(e_TouchType_Intentional_Kicked) == last_goal_team_->GetID() ||
           GetLastTouchTeamID(e_TouchType_Intentional_Nonkicked) == last_goal_team_->GetID()) own_goal = false;
       if (!own_goal) {
-        last_goal_scorer_ = football::sim::event::LastTouchPlayer(touches_, *last_goal_team_);
+        last_goal_scorer_ = football::sim::event::LastTouchPlayer(
+            touches_, last_goal_team_->GetID(), last_goal_team_->GetAllPlayers());
       } else {
         last_goal_scorer_ = football::sim::event::LastTouchPlayer(
-            touches_, *teams_[abs(last_goal_team_->GetID() - 1)]);
+            touches_, teams_[abs(last_goal_team_->GetID() - 1)]->GetID(),
+            teams_[abs(last_goal_team_->GetID() - 1)]->GetAllPlayers());
       }
       event_log_.Record(football::sim::event::GoalScoredEvent{
           GetTimelineTick(), last_goal_team_->GetTeamSide(),
@@ -961,7 +996,8 @@ Team* Simulation::GetLastTouchTeam() const {
 }
 
 Player* Simulation::GetLastTouchPlayer() const {
-  return football::sim::event::LastTouchPlayer(touches_, *GetLastTouchTeam());
+  return football::sim::event::LastTouchPlayer(
+      touches_, GetLastTouchTeam()->GetID(), GetLastTouchTeam()->GetAllPlayers());
 }
 
 void Simulation::GetActiveTeamPlayers(int team_id, std::vector<Player*>& players) {

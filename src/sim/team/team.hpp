@@ -23,6 +23,7 @@
 #include <memory>
 #include <span>
 #include "sim/runtime/match_config.hpp"
+#include "sim/runtime/team_state.hpp"
 #include "sim/runtime/roster.hpp"
 #include "sim/player/player.hpp"
 
@@ -85,20 +86,25 @@ class Team {
     bool HasPossession() const;
     int GetTimeNeededToGetToBall_ms() const;
     Player *GetDesignatedTeamPossessionPlayer() {
-      return designatedTeamPossessionPlayer;
+      return match_state_.designated_player;
     }
     Player *GetBestPossessionPlayer();
     float GetTeamPossessionAmount() const;
     float GetFadingTeamPossessionAmount() const;
     void SetFadingTeamPossessionAmount(float value);
-    // Data publication only; tick/refresh algorithms live in player/possession.
+    // Data publication only; tick/refresh algorithms live in runtime/roster_possession.
     void SetPossessionAmounts(float amount, float fading) {
       teamPossessionAmount = amount; fadingTeamPossessionAmount = fading;
       PublishTeamFacts();
     }
     void SetPossessionEstimate(bool has, int arrival_ms) {
-      hasPossession = has; timeNeededToGetToBall_ms = arrival_ms;
+      match_state_.has_possession = has; match_state_.time_to_ball_ms = arrival_ms;
     }
+
+    // Runtime-owned team match facts, also exposed to players through a
+    // borrowed PlayerTeamView. Never a second source of truth.
+    football::sim::TeamMatchState &match_state() { return match_state_; }
+    const football::sim::TeamMatchState &match_state() const { return match_state_; }
 
 
     void ResetSituation(const Vector3 &focusPos, football::sim::Tick now);
@@ -107,7 +113,7 @@ class Team {
     Team* Opponent() { return opponent; }
     // Contact/reachability metadata, not input selection or ownership.
     void SetDesignatedTeamPossessionPlayer(Player *player) {
-      designatedTeamPossessionPlayer = player;
+      match_state_.designated_player = player;
       PublishTeamFacts();
     }
     // Publishes the team's current match facts to every player. Player stores a
@@ -115,7 +121,7 @@ class Team {
     PlayerTeamFacts TeamFacts() const {
       return PlayerTeamFacts{side, static_side_, side == static_side_,
                              teamPossessionAmount, fadingTeamPossessionAmount,
-                             designatedTeamPossessionPlayer};
+                             match_state_.designated_player};
     }
     void PublishTeamFacts() {
       for (Player* p : roster_.Players()) p->SetTeamContext(TeamFacts());
@@ -134,9 +140,8 @@ class Team {
     std::vector<FormationEntry> formation_;
     const float aiDifficulty;
 
-    bool hasPossession = false;
-    int timeNeededToGetToBall_ms = 0;
-    Player *designatedTeamPossessionPlayer = 0;
+    // Team match facts shared with players through a borrowed view.
+    football::sim::TeamMatchState match_state_;
 
     float teamPossessionAmount = 0.0f;
     float fadingTeamPossessionAmount = 0.0f;

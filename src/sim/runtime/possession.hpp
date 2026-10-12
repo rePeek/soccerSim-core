@@ -1,11 +1,13 @@
-#ifndef FOOTBALL_SIM_TEAM_POSSESSION_HPP
-#define FOOTBALL_SIM_TEAM_POSSESSION_HPP
+#ifndef FOOTBALL_SIM_RUNTIME_POSSESSION_HPP
+#define FOOTBALL_SIM_RUNTIME_POSSESSION_HPP
 
 class Team;
 class Player;
 
 namespace football::sim {
 
+// Cross-team possession arbitration: which team (and which player) currently
+// owns the ball. Runtime-level, because it compares two rosters.
 struct PossessionSelection {
   Team* best_team = nullptr;
   Player* designated_player = nullptr;

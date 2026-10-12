@@ -10,7 +10,9 @@
 
 namespace football::ball { class Ball; }
 class Player;
-class Team;
+class MentalImage;
+
+#include "sim/player/player_team_view.hpp"
 class MentalImage;
 
 namespace football::sim {
@@ -20,7 +22,7 @@ class AcceptedTouchSink;
 // Borrowed, tick-local dependencies; neither Match nor Simulation is a service
 // locator for the resolver. All actors/ball/history must share one physical frame.
 struct BallPlayerContactInputs {
-  std::span<Team* const, 2> teams;
+  std::span<const PlayerTeamView, 2> teams;
   int fallback_last_touch_team;
   // Initial latest-touch fact; the sweep advances its local cursor on each hit.
   int last_touch_team;

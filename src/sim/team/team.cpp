@@ -27,8 +27,8 @@ Team::Team(int id, const football::sim::TeamSetup& model,
     : id(id), model_(model), formation_(BuildFormation(model)),
       aiDifficulty(aiDifficulty), static_side_(id == 0 ? -1 : 1) {
   assert(id == 0 || id == 1);
-  timeNeededToGetToBall_ms = 100;
-  hasPossession = false;
+  match_state_.time_to_ball_ms = 100;
+  match_state_.has_possession = false;
 
   teamPossessionAmount = 1.0;
   fadingTeamPossessionAmount = 1.0;
@@ -79,7 +79,7 @@ void Team::InitPlayers(std::uint8_t first_schedule_phase, const AnimationLibrary
     }
   }
 
-  designatedTeamPossessionPlayer = roster_.Players().front();
+  match_state_.designated_player = roster_.Players().front();
 }
 
 FormationEntry Team::GetFormationEntry(void *player) {
@@ -116,11 +116,11 @@ int Team::GetActivePlayersCount() const {
   return count;
 }
 
-bool Team::HasPossession() const { return hasPossession; }
+bool Team::HasPossession() const { return match_state_.has_possession; }
 
 
 int Team::GetTimeNeededToGetToBall_ms() const {
-  return timeNeededToGetToBall_ms;
+  return match_state_.time_to_ball_ms;
 }
 
 Player *Team::GetBestPossessionPlayer() {
@@ -154,13 +154,13 @@ void Team::SetFadingTeamPossessionAmount(float value) {
 
 
 void Team::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
-  timeNeededToGetToBall_ms = 100;
-  hasPossession = false;
+  match_state_.time_to_ball_ms = 100;
+  match_state_.has_possession = false;
 
   teamPossessionAmount = 1.0f;
   fadingTeamPossessionAmount = 1.0f;
 
-  designatedTeamPossessionPlayer = roster_.Players().front();
+  match_state_.designated_player = roster_.Players().front();
 
   for (Player* player : roster_.Players()) {
     if (player->IsActive()) {

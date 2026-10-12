@@ -33,7 +33,6 @@
 
 #include "sim/player/player.hpp"
 #include "sim/player/player_control_builder.hpp"
-#include "sim/team/team.hpp"
 
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/event/accepted_touch_sink.hpp"
@@ -264,7 +263,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   const bool designated_possession_player =
       tick.designated_possession_player == player;
   const bool designated_team_possession_player =
-      tick.own_team.GetDesignatedTeamPossessionPlayer() == player;
+      tick.own_team.DesignatedPlayer() == player;
   const auto player_decision_cadence = PlayerDecisionCadenceForContext(
       designated_possession_player, designated_team_possession_player,
       decision_distance_to_ball);
@@ -327,9 +326,6 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
       CastPlayer()->GetSimulationActionState();
   previousAnim_frameNum++;
 
-  int teamID = CastPlayer()->GetTeamID();
-  Team& first_roster = tick.first_processing_team;
-  Team& second_roster = tick.second_processing_team;
 
   /*
 
@@ -375,7 +371,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     } else if (tick.designated_possession_player == player) {
       frameNumPredicate = StaggeredRefreshDue(now, kOwner, football::sim::TickSpan{phase});
 
-    } else if (tick.own_team.GetDesignatedTeamPossessionPlayer() == player) {
+    } else if (tick.own_team.DesignatedPlayer() == player) {
       frameNumPredicate = StaggeredRefreshDue(now, kTeamOwner, football::sim::TickSpan{phase * 2});
 
     } else if (actionDistance < 5.0f) {
@@ -576,7 +572,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   float ballDistanceFuture = (tick.ball.Predict(football::sim::TickSpan{20}).position.Get2D() - (spatialState.position + spatialState.movement * 0.2f)).GetLength();
   float lastTouchBias = CastPlayer()->GetLastTouchBias(1500, now);
   float oppLastTouchBias = football::sim::event::TeamTouchBias(tick.touches,
-      tick.opponent_team, 240, now);
+      tick.opponent_team.team_id, tick.opponent_team.teammates, 240, now);
 
   if (CastPlayer() == tick.designated_possession_player &&
       ((lastTouchBias <= 0.01f && oppLastTouchBias <= 0.01f &&
@@ -778,7 +774,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         float tmpBallPower = ballPower;
         Player *tmpTargetPlayer = 0;
         Player *forcedTargetPlayer = 0;
-        football::sim::mechanics::GetPass(CastPlayer(), tick.own_team.GetAllPlayers(), currentAnim.originatingCommand.desiredFunctionType, inputDirection, currentAnim.originatingCommand.touchInfo.inputPower, currentAnim.originatingCommand.touchInfo.autoDirectionBias, currentAnim.originatingCommand.touchInfo.autoPowerBias, tmpBallDirection, tmpBallPower, tmpTargetPlayer, currentAnim.originatingCommand.touchInfo.forcedTargetPlayer);
+        football::sim::mechanics::GetPass(CastPlayer(), tick.own_team.teammates, currentAnim.originatingCommand.desiredFunctionType, inputDirection, currentAnim.originatingCommand.touchInfo.inputPower, currentAnim.originatingCommand.touchInfo.autoDirectionBias, currentAnim.originatingCommand.touchInfo.autoPowerBias, tmpBallDirection, tmpBallPower, tmpTargetPlayer, currentAnim.originatingCommand.touchInfo.forcedTargetPlayer);
         float maxDeviationAngle = 0.15f * pi;
         radian angleDiff = tmpBallDirection.Get2D().GetAngle2D(ballDirection.Get2D());
         if (std::fabs(angleDiff) <= maxDeviationAngle) {
@@ -802,7 +798,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         }  // else: just stick to original
 
         if (targetPlayer) {
-          tick.own_team.SetDesignatedTeamPossessionPlayer(targetPlayer);
+          tick.own_team.SetDesignatedPlayer(targetPlayer);
 
         }
         float zcurve = 0.0f;
@@ -901,7 +897,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         float veloDifficulty = NormalizedClamp((tick.ball.state().velocity - spatialState.movement).GetLength(), 0.0f, 40.0f);
         float reactionDifficulty = 0.0f;
         Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(tick.touches,
-            tick.opponent_team);
+            tick.opponent_team.team_id, tick.opponent_team.teammates);
         if (lastTouchPlayer) {
           reactionDifficulty =
               std::pow(lastTouchPlayer->GetLastTouchBias(
@@ -2223,7 +2219,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const footba
 
   if (!enableMovementSmuggle) return Vector3(0);
 
-  if (tick.own_team.GetDesignatedTeamPossessionPlayer() != player || tick.designated_possession_player != player ||
+  if (tick.own_team.DesignatedPlayer() != player || tick.designated_possession_player != player ||
       currentAnim.touchFrame != -1 || (currentAnim.functionType == e_FunctionType_Trip && GetCurrentBakedClip().metadata.trip_type != 1) || GetCurrentBakedClip().metadata.incoming_special_state.compare("") != 0 || GetCurrentBakedClip().metadata.outgoing_special_state.compare("") != 0 ||
       !tick.play_authorized || tick.set_piece_active || tick.ball_retainer != 0) return Vector3(0);
 

@@ -5,16 +5,19 @@
 #include "football/pitch/pitch.hpp"
 #include "football/foundation/math/rng.hpp"
 #include "sim/event/touch_state.hpp"
+#include "sim/player/player_team_view.hpp"
 #include "sim/player/player_touch_preparation.hpp"
 
 class Player;
 namespace football::ball { class Ball; }
-class Team;
 struct RefereeBuffer;
 class ActiveTouchShadowSink;
 namespace football::pitch { class Pitch; }
 
 namespace football::sim {
+// Write-only send-off port implemented by Runtime (declared inside the
+// namespace, unlike the global diagnostic sink above).
+class PlayerSendOffSink;
 // Stack-local input for a single Player call. Never retained by an actor.
 // Opening contact may start the half during that call: fatigue reads the live
 // clock gate AFTER Humanoid execution, not a pre-contact frozen snapshot.
@@ -38,10 +41,10 @@ struct PlayerTickContext {
 
   const football::pitch::Pitch& pitch;
 
-  Team& own_team;
-  Team& opponent_team;  // transitional: Player/Humanoid still read opponent records
-  Team& first_processing_team;  // teams[FirstTeam()], preserving ApplyBallTouch order
-  Team& second_processing_team;
+  // Borrowed team views: roster slices + runtime-owned match facts. Not a Team
+  // entity and never retained beyond this call.
+  PlayerTeamView own_team;
+  PlayerTeamView opponent_team;
   int processing_slot;  // own team's processing order (0 = first, 1 = second)
 
   bool restart_needs_simulation;
@@ -51,8 +54,10 @@ struct PlayerTickContext {
   // Non-null only in the prepare phase. Ball is an immutable endpoint view:
   // touches/rotation/retention are proposals, not immediate mutations/events.
   PlayerTouchPreparationSink* touch_preparation = nullptr;
-  // Only the legacy fused branch gets a mutable port; preparation never does.
   football::ball::Ball* legacy_ball = nullptr;
+  // Write-only port: a send-off reports itself and Runtime performs the
+  // team-level follow-up. Optional; a null port only skips that follow-up.
+  PlayerSendOffSink* send_off = nullptr;
 };
 } // namespace football::sim
 
