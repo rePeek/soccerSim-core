@@ -5,6 +5,12 @@
 // their per-tick motion and contact material. Owned by no single domain: ball,
 // pitch and the player body all produce or consume these values. No ball/rules
 // semantics live here.
+//
+// ContactMaterial deliberately lives in geometry for now: the producers (pitch,
+// player body) already attach it to the collider they emit, and collision never
+// reads it, so a separate material/physics module would add a hop without a
+// consumer. Revisit once the player body shares the generic collision path and
+// the right home for shared contact materials is clear.
 
 #include <cstdint>
 #include <variant>

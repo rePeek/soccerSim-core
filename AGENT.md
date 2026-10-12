@@ -204,7 +204,9 @@ anim_baking → legacy_anim + animation/foundation
   ColliderMotion). Plane is a two-sided thin surface; HalfSpace is a solid whose
   interior is on the -normal side (the ground). ball, pitch and the player body
   all link it, so none of them owns geometry and the player no longer reaches
-  into `football::ball` for a Capsule.
+  into `football::ball` for a Capsule. ContactMaterial stays here deliberately
+  (producers attach it to the collider they emit; collision never reads it) --
+  there is no separate material/physics module yet.
 - `football_collision` owns the generic CCD queries (Overlap, Sweep, FirstHit)
   and their input/result values (MovingSphere, CollisionHit). It depends only on
   geometry. Ball and Player keep their own impulse/restitution/friction response
