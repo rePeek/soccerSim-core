@@ -1027,6 +1027,45 @@ nominal human height, not the collision-envelope top, and is documented rather
 than silently re-tuned. Sampling a real Idle animation frame is deferred to the
 stage-2 animation work where idle-clip selection is defined.
 
+## Locomotion and animation adaptation (LOCO-2)
+
+LOCO-2 adapts the existing off-ball motion (PlayerMotion/PlayerLocomotion) to
+the baked Movement animation clips; no Godot, no ball actions, no player-player
+contact changes. The authority boundary: PlayerMotion moves the player; the
+animation adapter only selects clips/rate/phase and never writes position.
+
+### LOCO-2.0 Movement animation audit
+
+Source templates live under data/media/animations/movement/{idle,walk,sprint,
+dribble} (+ angled/newangles); the baker expands them into a full generated
+matrix. The baked library contains 1016 Movement-type clips (988 pure off-ball,
+28 retain/`holdball` dribble variants). The `base_animation` flag is 0 on all
+Movement clips; loopability is implied by incoming == outgoing velocity with a
+straight heading (66 straight cruise candidates).
+
+Incoming velocity buckets (m/s): idle 0 / dribble 3.5 / walk 5.0 / sprint 8.0.
+
+Pure off-ball coverage matrix (988 clips):
+- idle:    114 (90 accel-out, 24 cruise)
+- dribble: 482 (142 accel, 252 cruise, 88 decel)
+- walk:    320 (28 accel, 98 cruise, 194 decel)
+- sprint:   72 (64 decel, 8 cruise)
+
+Speed-transition coverage: idle->dribble 90, dribble->walk 142, walk->sprint 28,
+walk->dribble 144, dribble->idle 88, walk->idle 50, sprint->walk 22,
+sprint->dribble 20, sprint->idle 22.
+
+Heading-turn coverage (pure, nearest bucket): 0 deg 172, 45 deg 298, 90 deg 242,
+135 deg 164, ~180 deg (a178) 112, for both mirror directions. Body-angle turns
+(b+-44/b+-45/b+-135) are present across the same matrix, encoded in
+outgoing_body_angle.
+
+Coverage verdict: idle, straight cruise, accel ramp, decel/stop and 45/90/135/
+180 heading changes are all present, so the adapter can be reference-driven
+rather than requiring a new parallel state machine. Open for LOCO-2.2+: mapping
+physical speed between buckets to a playback rate, and choosing transition vs
+loop clips by speed trend.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
