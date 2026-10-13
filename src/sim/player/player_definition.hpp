@@ -85,6 +85,10 @@ struct PlayerDefinition {
   std::string last_name;
   int age = 15;
   float height = 1.8f;
+  // Body mass in kilograms. Optional on purpose: most existing definitions
+  // omit it and must keep the legacy standard girth instead of silently
+  // adopting a synthetic default weight (see MakePlayerBodyProfile).
+  std::optional<float> weight_kg;
   PlayerAttributes attributes;
   PlayerAppearance appearance;
 };
