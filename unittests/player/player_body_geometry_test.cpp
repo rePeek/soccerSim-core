@@ -30,6 +30,7 @@ using football::geometry::Sphere;
 using football::math::Vector3;
 using football::player::BodyBuild;
 using football::player::MakePlayerBodyProfile;
+using football::player::kReferenceBmi;
 using football::player::PlayerBodyProfile;
 using football::player::PlayerDefinition;
 
@@ -384,6 +385,72 @@ TEST_CASE("body geometry is consumable by Overlap and Sweep") {
   REQUIRE(hit->toi >= 0.0f);
   REQUIRE(hit->toi <= 1.0f);
   REQUIRE(std::isfinite(hit->center.coords[2]));
+}
+
+TEST_CASE("body-profile girth changes ball CCD consistently") {
+  const PoseFrame pose = StandingPose();
+  const PlayerKinematicState state{};
+  const float height = 1.80f;
+
+  const auto slim = MakeProfile(height, 64.0f);
+  const auto normal = MakeProfile(height, 75.0f);
+  const auto broad = MakeProfile(height, 90.0f);
+  const auto segs = [](const football::player::PlayerBodyProfile& p) {
+    return BuildBodyCollider(StandingPose(), PlayerKinematicState{}, 0.0f, p);
+  };
+  const auto motions = [](const auto& body) {
+    return BuildBakedBodyColliderMotions(body, body, 0);
+  };
+
+  // Same ball, same algorithm: only the body radius differs, so the wider
+  // torso is reached sooner along a horizontal sweep from the left.
+  const football::collision::MovingSphere ball{
+      Sphere{Vector3(-0.5f, 0.0f, 1.0f), 0.11f}, Vector3(1.0f, 0.0f, 0.0f)};
+
+  const auto hit_slim = football::collision::FirstHit(ball, motions(segs(slim)), 1.0f);
+  const auto hit_normal = football::collision::FirstHit(ball, motions(segs(normal)), 1.0f);
+  const auto hit_broad = football::collision::FirstHit(ball, motions(segs(broad)), 1.0f);
+  REQUIRE(hit_slim.has_value());
+  REQUIRE(hit_normal.has_value());
+  REQUIRE(hit_broad.has_value());
+
+  REQUIRE(hit_broad->toi < hit_normal->toi);
+  REQUIRE(hit_normal->toi < hit_slim->toi);
+
+  const auto torso_id = BakedBodyColliderId(0, BakedBodySegment::Torso);
+  REQUIRE(hit_slim->collider == torso_id);
+  REQUIRE(hit_normal->collider == torso_id);
+  REQUIRE(hit_broad->collider == torso_id);
+}
+
+TEST_CASE("legacy no-weight player keeps standard girth geometry") {
+  const PoseFrame pose = StandingPose();
+  const PlayerKinematicState state{};
+  const float height = 1.80f;
+
+  PlayerDefinition no_weight;
+  no_weight.height = height;  // weight_kg stays unset
+  const auto legacy = MakePlayerBodyProfile(no_weight);
+
+  PlayerDefinition standard;
+  standard.height = height;
+  standard.weight_kg = kReferenceBmi * height * height;  // girth_scale == 1
+  const auto standard_profile = MakePlayerBodyProfile(standard);
+
+  REQUIRE(legacy.girth_scale == Catch::Approx(1.0f));
+  REQUIRE(standard_profile.girth_scale == Catch::Approx(1.0f));
+
+  const auto a = BuildBodyCollider(pose, state, 0.0f, legacy);
+  const auto b = BuildBodyCollider(pose, state, 0.0f, standard_profile);
+  for (std::size_t i = 0; i < a.shapes.size(); ++i) {
+    if (std::holds_alternative<Capsule>(a.shapes[i])) {
+      REQUIRE(CapsuleLength(AsCapsule(a.shapes[i])) ==
+              Catch::Approx(CapsuleLength(AsCapsule(b.shapes[i]))).margin(1e-6f));
+      REQUIRE(AsCapsule(a.shapes[i]).radius == AsCapsule(b.shapes[i]).radius);
+    } else {
+      REQUIRE(AsSphere(a.shapes[i]).radius == AsSphere(b.shapes[i]).radius);
+    }
+  }
 }
 
 TEST_CASE("optional bounded geometry diagnostics") {
