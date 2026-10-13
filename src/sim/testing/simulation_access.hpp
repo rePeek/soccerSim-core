@@ -14,7 +14,6 @@
 #include "sim/player/player_control_builder.hpp"
 #include "sim/player/player_team_view.hpp"
 #include "sim/referee/referee.hpp"
-#include "sim/team/team.hpp"
 
 namespace football::sim::testing {
 
@@ -94,9 +93,9 @@ class SimulationAccess {
   static void EnablePreparedTickProduction(Simulation& s, bool enabled) { s.EnablePreparedTickProduction(enabled); }
   static const auto& CommittedBallTickOf(const Simulation& s) { return s.committed_ball_tick_; }
   static const auto& RuleTouchesOf(const Simulation& s) { return s.rule_touches_; }
-  static Team* TeamOf(Simulation& s, int team_id) { return s.teams_[team_id].get(); }
-  static const Team* TeamOf(const Simulation& s, int team_id) {
-    return s.teams_[team_id].get();
+  // Borrowed view of one team, as rules/observation see it.
+  static football::sim::TeamView TeamViewOf(Simulation& s, int team_id) {
+    return s.TeamViewOf(team_id);
   }
   static football::math::Rng& RngOf(Simulation& s) { return s.rng_; }
   // Runtime-owned orientation behaviour, reachable from the harness without a
@@ -137,7 +136,7 @@ class SimulationAccess {
   static MatchPhase PhaseOf(Simulation& s) { return s.phase_; }
   static const AnimationLibrary& AnimationLibraryOf(Simulation& s) { return *s.animations_; }
   static void ActiveTeamPlayersOf(Simulation& s, int team_id, std::vector<Player*>& out) {
-    s.teams_[team_id]->GetActivePlayers(out);
+    s.GetActiveTeamPlayers(team_id, out);
   }
   static int FirstTeamOf(Simulation& s) { return s.first_team_; }
   static int SecondTeamOf(Simulation& s) { return s.second_team_; }
@@ -154,9 +153,9 @@ class SimulationAccess {
   }
   static bool IsGoalScoredOf(Simulation& s) { return s.goal_scored_; }
   static bool IsBallInGoalOf(Simulation& s) { return s.ball_in_goal_; }
-  static Team* LastGoalTeamOf(Simulation& s) { return s.last_goal_team_; }
+  static int LastGoalTeamOf(Simulation& s) { return s.last_goal_team_; }
   static Referee* RefereeOf(Simulation& s) { return s.referee_.get(); }
-  static Team* LastTouchTeamOf(Simulation& s) { return s.GetLastTouchTeam(); }
+  static int LastTouchTeamOf(Simulation& s) { return s.GetLastTouchTeam(); }
   static Player* LastGoalScorerOf(Simulation& s) { return s.last_goal_scorer_; }
   static int LastTouchTeamIDOf(Simulation& s) { return s.touches_.last_team; }
   static int LastTouchTeamIDOf(Simulation& s, e_TouchType type) {

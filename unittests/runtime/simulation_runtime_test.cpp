@@ -33,7 +33,6 @@
 #include "sim/runtime/roster_possession.hpp"
 #include "sim/simulation.hpp"
 #include "sim/simulation_config.hpp"
-#include "sim/team/team.hpp"
 #include "sim/testing/simulation_access.hpp"
 
 namespace {
@@ -79,6 +78,14 @@ void InitMatch(Simulation& sim) {
            MatchOptions{}, football::ball::BallModel{});
 }
 
+int ActiveCountOf(const football::sim::Roster& roster) {
+  int count = 0;
+  for (Player* player : roster.Players()) {
+    if (player->IsActive()) ++count;
+  }
+  return count;
+}
+
 }  // namespace
 
 TEST_CASE("Runtime harness: two rosters initialise with live definitions",
@@ -89,17 +96,18 @@ TEST_CASE("Runtime harness: two rosters initialise with live definitions",
   std::fprintf(stderr, "[runtime] Init: %.3fs\n", SecondsSince(init_start));
 
   REQUIRE(SimulationAccess::IsInitializedOf(sim));
-  Team* home = SimulationAccess::TeamOf(sim, 0);
-  Team* away = SimulationAccess::TeamOf(sim, 1);
-  REQUIRE(home != nullptr);
-  REQUIRE(away != nullptr);
+  const football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
+  const football::sim::Roster& away_roster = SimulationAccess::RosterOf(sim, 1);
 
-  const std::span<Player* const> home_players = home->GetAllPlayers();
-  const std::span<Player* const> away_players = away->GetAllPlayers();
+
+
+
+  const std::span<Player* const> home_players = home_roster.Players();
+  const std::span<Player* const> away_players = away_roster.Players();
   REQUIRE(home_players.size() == 11);
   REQUIRE(away_players.size() == 11);
-  CHECK(home->GetActivePlayersCount() == 11);
-  CHECK(away->GetActivePlayersCount() == 11);
+  CHECK(ActiveCountOf(home_roster) == 11);
+  CHECK(ActiveCountOf(away_roster) == 11);
 
   for (std::size_t i = 0; i < home_players.size(); ++i) {
     // Roster order, identity and side survive construction.
@@ -123,21 +131,20 @@ TEST_CASE("Runtime harness: initial team orientation is Simulation-owned",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  Team* home = SimulationAccess::TeamOf(sim, 0);
-  Team* away = SimulationAccess::TeamOf(sim, 1);
-  REQUIRE(home != nullptr);
-  REQUIRE(away != nullptr);
+  const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
+  const football::sim::TeamFrame& away_frame = SimulationAccess::TeamFrameOf(sim, 1);
+
   // Historical initial orientation: both teams start in the first processing
-  // frame (dynamic -1); only the persistent direction differs by slot. Team
-  // keeps no copy of this -- Simulation owns the only TeamFrame.
-  CHECK(home->GetDynamicSide() == -1);
-  CHECK(away->GetDynamicSide() == -1);
-  CHECK(home->GetStaticSide() == -1);
-  CHECK(away->GetStaticSide() == 1);
-  CHECK_FALSE(home->isMirrored());
-  CHECK_FALSE(away->isMirrored());
-  CHECK(home->onOriginalSide());
-  CHECK_FALSE(away->onOriginalSide());
+  // frame (dynamic -1); only the persistent direction differs by slot. Nothing
+  // keeps a copy of this -- Simulation owns the only TeamFrame.
+  CHECK(home_frame.dynamic_side == -1);
+  CHECK(away_frame.dynamic_side == -1);
+  CHECK(home_frame.static_side == -1);
+  CHECK(away_frame.static_side == 1);
+  CHECK_FALSE(home_frame.mirrored);
+  CHECK_FALSE(away_frame.mirrored);
+  CHECK(home_frame.dynamic_side == home_frame.static_side);
+  CHECK(away_frame.dynamic_side != away_frame.static_side);
   CHECK(sim.Stop());
 }
 
@@ -180,23 +187,25 @@ TEST_CASE("Runtime harness: Mirror twice restores players, sides and ball",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  Team* home = SimulationAccess::TeamOf(sim, 0);
-  REQUIRE(home != nullptr);
+  const football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
+  const football::sim::Roster& away_roster = SimulationAccess::RosterOf(sim, 1);
+
 
   const WorldState before = sim.Observe();
-  const int dynamic_before = home->GetDynamicSide();
+  const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
+  const int dynamic_before = home_frame.dynamic_side;
   std::vector<int> player_sides;
-  for (Player* player : home->GetAllPlayers()) player_sides.push_back(player->GetDynamicSide());
+  for (Player* player : home_roster.Players()) player_sides.push_back(player->GetDynamicSide());
 
   // Mirror both teams but not the ball; mirroring is its own inverse.
   sim.Mirror(true, true, false);
-  CHECK(home->GetDynamicSide() == -dynamic_before);
-  for (Player* player : home->GetAllPlayers()) {
+  CHECK(home_frame.dynamic_side == -dynamic_before);
+  for (Player* player : home_roster.Players()) {
     CHECK(player->GetDynamicSide() == -dynamic_before);
   }
   sim.Mirror(true, true, false);
 
-  CHECK(home->GetDynamicSide() == dynamic_before);
+  CHECK(home_frame.dynamic_side == dynamic_before);
   const WorldState after = sim.Observe();
   REQUIRE(after.players.size() == before.players.size());
   for (std::size_t i = 0; i < before.players.size(); ++i) {
@@ -213,30 +222,32 @@ TEST_CASE("Runtime harness: SwitchEnds flips both directions, not the tick frame
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  Team* home = SimulationAccess::TeamOf(sim, 0);
-  REQUIRE(home != nullptr);
+  const football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
+  const football::sim::Roster& away_roster = SimulationAccess::RosterOf(sim, 1);
 
-  const int dynamic_before = home->GetDynamicSide();
-  const int static_before = home->GetStaticSide();
-  const bool mirrored_before = home->isMirrored();
+
+  const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
+  const int dynamic_before = home_frame.dynamic_side;
+  const int static_before = home_frame.static_side;
+  const bool mirrored_before = home_frame.mirrored;
 
   // Half-time change of ends: both directions flip; the canonical between-tick
   // frame (mirrored) must not change.
   SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(home->GetDynamicSide() == -dynamic_before);
-  CHECK(home->GetStaticSide() == -static_before);
-  CHECK(home->isMirrored() == mirrored_before);
+  CHECK(home_frame.dynamic_side == -dynamic_before);
+  CHECK(home_frame.static_side == -static_before);
+  CHECK(home_frame.mirrored == mirrored_before);
   // Publication is part of the behaviour: a switched end that skipped it would
   // leave every player reading the previous tick's team facts.
-  for (Player* player : home->GetAllPlayers()) {
+  for (Player* player : home_roster.Players()) {
     CHECK(player->GetDynamicSide() == -dynamic_before);
     CHECK(player->GetStaticSide() == -static_before);
   }
 
   SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(home->GetDynamicSide() == dynamic_before);
-  CHECK(home->GetStaticSide() == static_before);
-  CHECK(home->isMirrored() == mirrored_before);
+  CHECK(home_frame.dynamic_side == dynamic_before);
+  CHECK(home_frame.static_side == static_before);
+  CHECK(home_frame.mirrored == mirrored_before);
   CHECK(sim.Stop());
 }
 
@@ -285,7 +296,7 @@ TEST_CASE("Runtime harness: restart possession weight publishes immediately",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  football::sim::TeamView view = SimulationAccess::TeamOf(sim, 0)->view();
+  football::sim::TeamView view = SimulationAccess::TeamViewOf(sim, 0);
   const float before = view.players.front()->GetTeamFadingPossessionAmount();
 
   // The legacy Team setter clamped the value and published the facts at once.
@@ -306,5 +317,64 @@ TEST_CASE("Runtime harness: restart possession weight publishes immediately",
     CHECK(player->GetTeamFadingPossessionAmount() == Catch::Approx(0.5f));
   }
   CHECK(before == Catch::Approx(1.0f));
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: ResetSituation resets team state and actors",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  football::sim::TeamMatchState& state = SimulationAccess::TeamStateOf(sim, 0);
+
+  // Dirty the state first so the reset is observable.
+  state.time_to_ball_ms = 4321;
+  state.has_possession = true;
+  state.possession_amount = 0.25f;
+  state.fading_possession_amount = 0.25f;
+  state.designated_player = nullptr;
+
+  const football::math::Vector3 focus{5.0f, -3.0f, 0.0f};
+  sim.ResetSituation(focus);
+
+  // Legacy order: state first, then the designated player, then the actors with
+  // their facts published inside the same loop.
+  CHECK(state.time_to_ball_ms == 100);
+  CHECK_FALSE(state.has_possession);
+  CHECK(state.possession_amount == Catch::Approx(1.0f));
+  CHECK(state.fading_possession_amount == Catch::Approx(1.0f));
+  REQUIRE(state.designated_player != nullptr);
+  CHECK(state.designated_player->IsActive());
+  for (Player* player : SimulationAccess::RosterOf(sim, 0).Players()) {
+    CHECK(IsFinite(player->GetPosition()));
+    // Published projection matches the reset state.
+    CHECK(player->GetTeamFadingPossessionAmount() == Catch::Approx(1.0f));
+  }
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: Stop then re-Init rebuilds both rosters",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  for (int i = 0; i < 2; ++i) sim.Step(PlayerControlSet{});
+  CHECK(sim.Stop());
+
+  // A second Init must not inherit players, state or dangling references.
+  InitMatch(sim);
+  for (int team = 0; team < 2; ++team) {
+    const football::sim::Roster& roster = SimulationAccess::RosterOf(sim, team);
+    REQUIRE(roster.Players().size() == 11);
+    for (std::size_t i = 0; i < roster.Players().size(); ++i) {
+      Player* player = roster.Players()[i];
+      CHECK(player->GetID() ==
+            static_cast<football::player::PlayerId>(team * 11 + i));
+      CHECK(player->GetTeamSide() == (team == 0 ? football::sim::TeamSide::Home
+                                                : football::sim::TeamSide::Away));
+      // The PlayerDefinition reference must point at the new team_setups_.
+      CHECK(player->GetModel().height > 1.0f);
+      CHECK(player->GetModel().id == player->GetID());
+    }
+    CHECK(SimulationAccess::TeamStateOf(sim, team).designated_player != nullptr);
+  }
   CHECK(sim.Stop());
 }

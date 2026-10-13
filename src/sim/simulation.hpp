@@ -47,7 +47,6 @@
 
 class Player;
 namespace football::ball { class Ball; }
-class Team;
 class Referee;
 class AnimationLibrary;
 namespace football::sim::testing { class SimulationAccess; }
@@ -125,9 +124,12 @@ class Simulation {
   // Creates and activates one roster's players. Runtime owns the lifecycle; the
   // Team adapter only reads the roster. Preserves the historical schedule-phase
   // sequence, RNG draw order and starting-eleven activation order.
-  void InitTeamPlayers(Team& team, football::sim::Roster& roster,
+  void InitTeamPlayers(int team_id, football::sim::Roster& roster,
                        const football::sim::TeamSetup& setup, float ai_difficulty,
                        std::uint8_t first_schedule_phase);
+  // Borrowed view of one team for rules/observation. Rebuilt on demand from the
+  // runtime-owned roster/frame/state; no allocation, nothing retained.
+  football::sim::TeamView TeamViewOf(int team_id) const;
   // Team orientation is runtime-owned behaviour: these mutate the borrowed
   // TeamFrame and publish the resulting facts to that roster, in roster order.
   // MirrorTeam flips the execution frame; SwitchTeamEnds is the half-time
@@ -136,6 +138,13 @@ class Simulation {
   void SwitchTeamEnds(int team_id);
   PlayerTeamFacts TeamFactsFor(int team_id) const;
   void PublishTeamFacts(int team_id);
+  // Resets one team's match state and its actors in the legacy order: state
+  // first, then the designated player, then per-player ResetSituation and fact
+  // publication inside the same loop (not batched afterwards).
+  void ResetTeamSituation(int team_id,
+                          const football::math::Vector3& focus_position,
+                          football::sim::Tick now);
+  void RelaxTeamFatigue(int team_id, float amount);
   void ProcessReferee();
   // Recognized behavior transitions -> confirmed MatchEvents.
   void CommitEventTransitions(football::sim::Tick now);
@@ -216,7 +225,7 @@ class Simulation {
   const bool& IsHalfUnderway() const { return clock_->IsHalfUnderway(); }
   const bool& IsBallInPlay() const { return clock_->IsBallInPlay(); }
   football::ball::Ball* GetBall() const { return ball_.get(); }
-  Team* GetTeam(int team_id) const { return teams_[team_id].get(); }
+
   const football::pitch::Pitch& pitch() const { return pitch_; }
   const AnimationLibrary& GetAnimationLibrary() const { return *animations_; }
   const MatchOptions& options() const { return options_; }
@@ -232,7 +241,7 @@ class Simulation {
   bool isBallMirrored() const { return ball_mirrored_; }
   bool IsGoalScored() const { return goal_scored_; }
   bool IsBallInGoal() const { return ball_in_goal_; }
-  Team* GetLastGoalTeam() const { return last_goal_team_; }
+  int GetLastGoalTeam() const { return last_goal_team_; }
   Player* GetLastGoalScorer() const { return last_goal_scorer_; }
   Player* GetDesignatedPossessionPlayer() const { return designated_possession_player_; }
   Player* GetBallRetainer() const { return ball_retainer_; }
@@ -242,7 +251,7 @@ class Simulation {
   int GetLastTouchTeamID(e_TouchType touch_type) const {
     return touches_.last_team_by_type[touch_type];
   }
-  Team* GetLastTouchTeam() const;
+  int GetLastTouchTeam() const;
   Player* GetLastTouchPlayer() const;
   void GetActiveTeamPlayers(int team_id, std::vector<Player*>& players);
 
@@ -271,9 +280,11 @@ class Simulation {
   std::array<football::sim::Roster, 2> rosters_;
   // The only authoritative team orientation and team match state. Team borrows
   // these; it keeps no copy of its own.
-  std::array<football::sim::TeamFrame, 2> team_frames_;
-  std::array<football::sim::TeamMatchState, 2> team_states_;
-  std::array<std::unique_ptr<Team>, 2> teams_;
+  // mutable: a TeamView is a borrowed *mutable* handle to runtime-owned team state
+  // (rules write the designated player / restart weight), so it may be obtained
+  // from a const observer without copying the state.
+  mutable std::array<football::sim::TeamFrame, 2> team_frames_;
+  mutable std::array<football::sim::TeamMatchState, 2> team_states_;
   std::unique_ptr<Referee> referee_;
 
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;
@@ -346,7 +357,7 @@ class Simulation {
   bool set_piece_active_ = false;
   bool goal_scored_ = false;
   bool ball_in_goal_ = false;
-  Team* last_goal_team_ = nullptr;
+  int last_goal_team_ = -1;
   Player* last_goal_scorer_ = nullptr;
   Player* ball_retainer_ = nullptr;
   Player* designated_possession_player_ = nullptr;

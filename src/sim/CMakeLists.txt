@@ -39,7 +39,6 @@ target_sources(football_sim_domain PRIVATE
   player/formation_entry.hpp
   runtime/possession.cpp runtime/possession.hpp
   runtime/roster_possession.cpp runtime/roster_possession.hpp
-  team/team.cpp team/team.hpp
   event/touch_type.hpp
   observation/world_state_builder.cpp observation/world_state_builder.hpp
   observation/pitch_frame.cpp observation/pitch_frame.hpp

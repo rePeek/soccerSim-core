@@ -134,14 +134,7 @@ src/                 implementations; public headers live in include/football/
 │                    compiled into libsimcore.so with everything else under src/
     ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
     ├── simulation_config.hpp match-level options value
-    ├── team/         TRANSITIONAL Team facade. Since P6a/P6b-1a it owns nothing
-    │                 (it borrows Roster, TeamFrame and TeamMatchState from
-    │                 Simulation) and since P6b-1b it runs no orientation behaviour:
-    │                 Mirror/SwitchEnds and the facts projection live in
-    │                 Simulation (runtime/team_facts.hpp). What is left is query
-    │                 forwarding plus possession-state setters and the
-    │                 ResetSituation/RelaxFatigue/Fatigue loops; P6b-1c/2 drain and
-    │                 delete the directory.
+
     ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
     │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
     ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
@@ -151,12 +144,14 @@ src/                 implementations; public headers live in include/football/
     │                 shadow-only Snapshot touch inference
     ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
     │                 rules and restarts
-    ├── runtime/      MatchClock/MatchPhase/MatchResult, Roster (owns player entities),
-    │                 TeamMatchState (team facts Runtime owns and publishes),
-    │                 possession (cross-team arbitration) and roster_possession
-    │                 (per-roster aggregation), match_config.hpp (TeamSetup +
-    │                 TeamSide), formation.hpp (InitialFormation/TacticalFormation +
-    │                 BuildFormation), team_state.hpp
+    ├── runtime/      MatchClock/MatchPhase/MatchResult, Roster (owns the player
+    │                 entities), TeamFrame/TeamMatchState (the only team
+    │                 orientation and match state), TeamView/team_facts (borrowed
+    │                 view + facts projection), possession (cross-team
+    │                 arbitration) and roster_possession (per-roster aggregation),
+    │                 match_config.hpp (TeamSetup + TeamSide), formation.hpp
+    │                 (InitialFormation/TacticalFormation + BuildFormation).
+    │                 There is no Team class and no src/sim/team/ directory.
     ├── testing/      internal SimulationAccess, not exported/product or actor-facing
     └── player/       Player + PlayerDefinition, player_role, FormationEntry, tick-local
         │             inputs, controls, locomotion, contacts, roster_query
@@ -273,10 +268,15 @@ never reference `Team` or iterate the squad; team-level algorithms live in
 Possession takes the roster plus the runtime-owned `TeamFrame`/`TeamMatchState`
 directly and identifies a team by `TeamSide`, never by a `Team*`. A per-call
 `PlayerTeamView` (borrowed roster slices + the live `TeamMatchState`) is how a
-player sees its team. `Team` is a transitional facade that borrows its roster,
-frame and state, runs no orientation or possession algorithm and owns nothing
-(P6a/P6b-1a/1b/1c); Rules and Observation no longer see it at all (P5). P6b-2
-deletes the remaining query/setter forwarding and `src/sim/team/`.
+player sees its team. There is no runtime Team class: `Simulation` owns the
+rosters, frames and states, `Simulation::TeamViewOf()` builds the borrowed view
+on demand, and `Simulation::MirrorTeam/SwitchTeamEnds/ResetTeamSituation/
+RelaxTeamFatigue` own the remaining team behaviour. Rules and Observation see
+only `TeamView`.
+- The team/ directory is gone. A team is now a relationship expressed by a
+player's own `TeamSide`, the runtime's `TeamFrame`/`TeamMatchState` and the
+`Roster` collection -- not an entity. Do not reintroduce a Team adapter: add
+the behaviour to `Simulation` or to `src/sim/runtime/`.
 - Modules are configured from the repository root: public headers live in the
   top-level include/football/ tree, so module directories are no longer
   standalone-configurable. The former src/model module is gone; its data lives

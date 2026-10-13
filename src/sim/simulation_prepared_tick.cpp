@@ -1,6 +1,5 @@
 #include "sim/simulation.hpp"
 #include "sim/player/player.hpp"
-#include "sim/team/team.hpp"
 #include "sim/runtime/roster_possession.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include <algorithm>
@@ -96,13 +95,13 @@ void Simulation::RunPreparedPlayerTick() {
   std::vector<std::pair<Player*, float>> prepared;
   prepared.reserve(snapshot_players_.size());
   const auto prepare_team = [&](int id) {
-    auto& team = *teams_[id];
-    auto& opponent = *teams_[1 - id];
+
+
     football::sim::PrepareTeamPossession(
         static_cast<football::sim::TeamSide>(id), rosters_[id], team_frames_[id],
         team_states_[id], team_states_[1 - id], play_authorized_,
         set_piece_active_, ball_retainer_, best_possession_team_);
-    for (auto* actor : team.GetAllPlayers()) {
+    for (auto* actor : rosters_[id].Players()) {
       if (!actor->IsActive()) continue;
       // Rebind the Ball reference; do not swap the authoritative owner.
       auto base = PlayerTickFacts(*actor);

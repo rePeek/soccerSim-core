@@ -1,6 +1,5 @@
 #include "sim/simulation.hpp"
 #include "sim/player/player.hpp"
-#include "sim/team/team.hpp"
 #include "sim/player/player_body_pose_shadow.hpp"
 #include "sim/referee/referee.hpp"
 #include "sim/touch_evidence_classification.hpp"
