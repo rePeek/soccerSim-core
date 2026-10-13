@@ -368,16 +368,15 @@ PlayerKinematicState Player::CommitLocomotion(
         command.desiredDirection.Get2D().GetNormalized(tick_start.facing) *
         clamp(command.desiredVelocityFloat, 0.f, max_speed);
   }
-  // Behaviour-preserving first cut: only max_speed is ability-derived, exactly
-  // as the legacy call site did (parameters.maxSpeed = GetMaxVelocity(), other
-  // parameters left at their defaults). P2b enables the capability-driven
-  // acceleration/braking/turn rate from the same profile.
+  // P2b: the whole capability profile is in force now. max_speed keeps the
+  // established GetMaxVelocity() semantics; acceleration/braking follow
+  // physical_acceleration and turn_rate follows physical_agility. This is an
+  // intentional trajectory change (a more athletic player now accelerates and
+  // turns faster instead of only being allowed a higher top speed). Fatigue and
+  // AI difficulty are still deliberately not baked in: they remain per-tick
+  // runtime modifiers, so a tired player can still slow down.
   PlayerMotionProfile profile = MakePlayerMotionProfile(model_);
-  const PlayerLocomotionParameters defaults;
   profile.max_speed = max_speed;
-  profile.acceleration = defaults.acceleration;
-  profile.braking = defaults.braking;
-  profile.turn_rate = defaults.maxTurnRate;
 
   PlayerKinematicState next =
       PlayerMotion::StepContinuous(tick_start, profile, input.desiredVelocity,
