@@ -350,7 +350,23 @@ positionOffsetMovement, decayingPositionOffset, currentAnim.positionOffset)
 *without* re-deriving the Player state. `HumanoidBase::OffsetPosition` remains
 for corrections that originate inside the Humanoid (its own goalkeeper boundary
 clamps) and still syncs back; those call sites are the remaining legacy path for
-P2c-3, together with the reverse sync for pure locomotion.
+clamps) still call the legacy entry; those call sites remain for S0.2.
+
+S0.1 (done) removes the *implicit* reverse sync for pure locomotion. The former
+source-agnostic `Player::SynchronizeKinematicState()` is now
+`Player::CommitLegacyActionMotion()`: an explicitly named entry that adopts the
+motion the legacy Humanoid derived from animation root motion. It is still used
+by `CalculateSpatialState`, `CalculateFactualSpatialState` and
+`HumanoidBase::OffsetPosition` (legacy action paths) plus
+`ResetPosition`/`ResetRuntimeState`/`Activate`/`PrepareTick`, which S0.2-S0.4
+migrate. `HumanoidBase::ApplySimulationMovementState` is split into
+`ProjectSimulationMovementState` (spatial-state projection only) and the legacy
+`ApplySimulationMovementState` (projection + adoption). The pure-locomotion
+branch of `ProjectMovementState` now only projects the state the Player already
+committed and then asserts the mirror oracle, so the Humanoid can no longer
+overwrite a locomotion tick. The roadmap is now S0 (authority), S1 (attributes
+and motion), S2 (animation decoupling), S3 (collision and touch), S4 (legacy
+removal); old P2c-3/P2d map to S0.
 
 Known follow-up (not part of P2c-1): `Player::UpdatePossessionStats()` builds its
 interception-prediction `PlayerLocomotionParameters` with only `maxSpeed`

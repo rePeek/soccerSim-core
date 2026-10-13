@@ -921,7 +921,7 @@ void HumanoidBase::OffsetPosition(const Vector3 &offset) {
   // then calls ApplyPositionOffset, so this sync-back is never the authority for
   // a contact correction.
   ApplyPositionOffset(offset);
-  if (player) player->SynchronizeKinematicState();
+  if (player) player->CommitLegacyActionMotion();
 }
 
 void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType, const Player *ball_retainer) {
@@ -1400,7 +1400,7 @@ void HumanoidBase::CalculateSpatialState(const Player* ball_retainer) {
   // changes. Controllers are queried later in the same tick and read the
   // player's own position/movement through Player, so a mirror that only
   // refreshed at the end of Player::Process would be a tick behind.
-  if (player) player->SynchronizeKinematicState();
+  if (player) player->CommitLegacyActionMotion();
 }
 
 void HumanoidBase::CalculateFactualSpatialState() {
@@ -1413,10 +1413,10 @@ void HumanoidBase::CalculateFactualSpatialState() {
     spatialState.movement = Vector3(0);
   }
 
-  if (player) player->SynchronizeKinematicState();
+  if (player) player->CommitLegacyActionMotion();
 }
 
-void HumanoidBase::ApplySimulationMovementState(
+void HumanoidBase::ProjectSimulationMovementState(
     const PlayerKinematicState &state, const Player* ball_retainer) {
   spatialState.position = state.position;
   spatialState.movement = state.velocity;
@@ -1437,7 +1437,15 @@ void HumanoidBase::ApplySimulationMovementState(
   // position actually in force. Collision corrections land here too, exactly
   // as they did when the legacy root motion owned the position.
   previousPosition2D = spatialState.position;
-  if (player) player->SynchronizeKinematicState();
+}
+
+void HumanoidBase::ApplySimulationMovementState(
+    const PlayerKinematicState &state, const Player* ball_retainer) {
+  // Legacy action path: animation root motion produced this state, so adopting
+  // it as the Player's motion is correct here -- and is the only remaining
+  // source-explicit way for the Humanoid to write the Player.
+  ProjectSimulationMovementState(state, ball_retainer);
+  if (player) player->CommitLegacyActionMotion();
 }
 
 void HumanoidBase::ApplySimulationBodyState(
@@ -1490,11 +1498,14 @@ void HumanoidBase::ProjectMovementState(
   player->CheckDecisionLocomotionIntentOracle();
   const PlayerCommand &command = player->GetDecisionLocomotionIntent();
   // P2a: Player computes the locomotion through PlayerMotion and commits the
-  // resulting state. This function only projects it into the legacy spatial
-  // state, so the mirror can still be compared against the new authority.
+  // resulting state. S0.1: this path only *projects* it into the legacy spatial
+  // state -- it does not adopt it back, so the Humanoid can no longer overwrite
+  // a locomotion tick the Player already owns. The oracle proves the two sides
+  // agree at this point.
   const PlayerKinematicState next = player->CommitLocomotion(
       command, tickStartState, restart_needs_simulation, 0.01f);
-  ApplySimulationMovementState(next, ball_retainer);
+  ProjectSimulationMovementState(next, ball_retainer);
+  player->CheckSimulationKinematicOracle();
 }
 
 void HumanoidBase::AddTripCommandToQueue(PlayerCommandQueue &commandQueue,

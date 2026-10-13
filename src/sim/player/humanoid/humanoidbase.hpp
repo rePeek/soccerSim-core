@@ -428,6 +428,11 @@ class HumanoidBase {
     // animMovement, the smuggle movements and the foot) is deliberately left
     // alone until H3e4 takes it over.
     void ApplySimulationMovementState(const PlayerKinematicState &state, const Player* ball_retainer);
+    // S0.1: the projection half of the above, without adopting the projected
+    // state back into the Player. The pure-locomotion path uses this: the Player
+    // already computed and committed that state, so adopting it back would make
+    // the Humanoid the authority again for that tick.
+    void ProjectSimulationMovementState(const PlayerKinematicState &state, const Player* ball_retainer);
     // One-way body-orientation compatibility projection. Continuous fields are
     // derived exactly from state.bodyFacing; quantized relBody* exists only for
     // legacy animation selection and never feeds bodyFacing back.

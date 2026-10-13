@@ -25,6 +25,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/player/player.hpp"
+#include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_control_set.hpp"
 #include "sim/player/player_definition.hpp"
 #include "sim/player/player_motion.hpp"
@@ -707,5 +708,39 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
   sim.Step(PlayerControlSet{});
   CHECK(humanoid->GetPosition() == player->GetPosition());
   CHECK(player->GetKinematicState().position == player->GetPosition());
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: the Player is the locomotion authority across ticks",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  PlayerControlSet controls;
+
+  const int procedural_before = HumanoidProceduralMovementTicks();
+
+  for (int tick = 0; tick < 200; ++tick) {
+    sim.Step(controls);
+    // Whichever path ran this tick, the Player's committed state and the legacy
+    // Humanoid projection must agree. On the pure-locomotion path the Player
+    // writes first and the projection must not adopt anything back, so this
+    // invariant is what proves there is no hidden second authority.
+    for (int team = 0; team < 2; ++team) {
+      for (Player* player : SimulationAccess::RosterOf(sim, team).Players()) {
+        Humanoid* humanoid = player->CastHumanoid();
+        if (humanoid == nullptr) continue;
+        REQUIRE(humanoid->GetPosition() == player->GetKinematicState().position);
+        REQUIRE(humanoid->GetMovement() == player->GetKinematicState().velocity);
+      }
+    }
+  }
+  const int procedural_ticks =
+      HumanoidProceduralMovementTicks() - procedural_before;
+  std::fprintf(stderr, "[runtime] procedural locomotion ticks=%d\n",
+               procedural_ticks);
+  // The pure-locomotion path must actually have run, otherwise this case would
+  // only be proving that the legacy path stays consistent.
+  CHECK(procedural_ticks > 0);
+
   CHECK(sim.Stop());
 }

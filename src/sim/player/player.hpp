@@ -449,7 +449,17 @@ class Player final {
   private:
     void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
     void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history);
-    void SynchronizeKinematicState();
+    // S0.1: the *only* entry that adopts motion the legacy Humanoid produced from
+    // animation root motion, plus the lifecycle resets that re-read the Humanoid
+    // pose. It is source-explicit on purpose: it must never be the way a pure
+    // locomotion result reaches the Player (that is CommitLocomotion ->
+    // CommitKinematicState), because adopting it would make the Humanoid the
+    // authority again for a tick the Player already computed. Still used by
+    // CalculateSpatialState / CalculateFactualSpatialState /
+    // HumanoidBase::OffsetPosition (legacy action paths) and by
+    // ResetPosition / ResetRuntimeState / Activate / PrepareTick, which
+    // S0.2-S0.4 migrate.
+    void CommitLegacyActionMotion();
     // P2c-1: the single write point for the Player's kinematic state. It commits
     // the whole struct the caller computed and keeps the ground collider in
     // step. It deliberately does NOT recompute `speed` (the producer owns that)

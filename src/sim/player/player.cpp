@@ -404,9 +404,13 @@ void Player::CommitKinematicState(const PlayerKinematicState& next) {
   groundCollider.SetCenter(kinematicState.position);
 }
 
-void Player::SynchronizeKinematicState() {
-  // Legacy sync direction: Humanoid -> Player, kept until the non-locomotion
-  // actions migrate (P3a). The commit still goes through the single write point.
+void Player::CommitLegacyActionMotion() {
+  // S0.1: adopting the Humanoid's motion is legitimate ONLY for the legacy
+  // animation-root-motion paths (and the lifecycle resets that re-read its
+  // pose). Pure locomotion never comes through here, so the Humanoid cannot
+  // become the authority for a tick the Player already computed. The commit
+  // still goes through the single write point, which also keeps the ground
+  // collider in step.
   PlayerKinematicState next;
   next.position = humanoid->GetPosition();
   next.velocity = humanoid->GetMovement();
@@ -628,7 +632,7 @@ bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {
 
 void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   humanoid->ResetPosition(newPos, focusPos);
-  SynchronizeKinematicState();
+  CommitLegacyActionMotion();
   BeginSimulationAction();
 }
 
@@ -709,7 +713,7 @@ float Player::PrepareTick(const football::sim::PlayerTickContext& tick, std::spa
     }
     Vector3 posBefore = CastHumanoid()->GetPosition();
     CastHumanoid()->Process(tick.now, tick, history, touch_sink, runtime_sink);
-    SynchronizeKinematicState();
+    CommitLegacyActionMotion();
     CheckSimulationActionOracle();
     return (CastHumanoid()->GetPosition() - posBefore).GetLength();
   }
@@ -771,7 +775,7 @@ void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now)
           : kResetSituationInitialBeforeFirstPlayerTick;
     }
     humanoid->ResetSituation(focusPos);
-    SynchronizeKinematicState();
+    CommitLegacyActionMotion();
     BeginSimulationAction();
   }
   resetSituationAuditContext = kResetSituationUnspecified;
@@ -794,7 +798,7 @@ void Player::Activate() {
       GetFormationEntry().position * 25 *
           Vector3(-team_facts_.dynamic_side, -team_facts_.dynamic_side, 0),
       Vector3(0));
-  SynchronizeKinematicState();
+  CommitLegacyActionMotion();
   BeginSimulationAction();
   SetDynamicFormationEntry(GetFormationEntry());
 }
