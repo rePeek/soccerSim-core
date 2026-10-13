@@ -957,8 +957,49 @@ scale today):
 which flows into `BuildBodyCollider` and `BuildBakedContactRegions` and finally
 `EvaluateBakedBodyPose`, which multiplies every bind offset by `scale` and
 never re-applies height (root XY stays in `PlayerKinematicState`; only the
-baked root Z is scaled). There is no weight field anywhere yet, and no other
-scale source.
+baked root Z is scaled). At this audit there was no weight field yet and no
+other scale source; BODY-1.1–1.6 below replace this with one profile.
+
+### BODY-1.1–1.6 status: profile-driven body geometry is the single source
+
+- `PlayerDefinition.weight_kg` is optional; `MakePlayerBodyProfile` derives
+  `height_scale = H / 1.92` and `girth_scale = sqrt(M / (23·H²))`. A player
+  without a weight keeps `girth_scale == 1` (the legacy geometry), so no
+  fixture changes.
+- `Player` caches one const `PlayerBodyProfile` at construction and exposes
+  `BodyProfile()`; `GetBakedPoseSample()` takes no scale argument, and the
+  legacy `defaultPlayerHeight` constant is removed.
+- `EvaluateBakedBodyPose` scales joints by `height_scale` only (weight never
+  moves bones). `BuildBodyCollider` / `BuildBakedContactRegions` scale radii by
+  `height_scale * (1 + (girth_scale - 1) * part_weight)` with per-part weights:
+  torso/pelvis/chest 1.0, thigh/shin/upper-arm 0.7, forearm/palm 0.4,
+  head/boot 0.
+- Body geometry is the default production CCD authority after Init (P7a
+  enables prepared tick + body CCD + baked bodies); the girth path is live but
+  inert while fixtures leave `weight_kg` unset, so no golden changes.
+- `PlayerGroundCollider.radius = 0.36` and `player_contact.cpp`'s 0.72 m
+  contest threshold are intentionally untouched.
+- Tests: `unittests/player` covers profile derivation, nine-profile bind-pose
+  geometry, symmetry/mirror, CCD ordering and legacy no-weight equivalence.
+
+### BODY-1.7 Godot appearance contract (data convention only)
+
+This repository has no Godot front-end; the contract below is what a future
+asset must satisfy so C++ capsules and rendered meshes share one body profile.
+
+- `Player3D / VisualRoot → Skeleton3D + MeshInstance3D`, using one skeleton
+  compatible with the existing 14-node bind hierarchy.
+- Bake a standard-girth skinned mesh plus `Slim` and `Broad` Blend Shapes.
+  Animations stay shared; only the body shape differs per player.
+- Godot reads the same `PlayerBodyProfile`:
+  - `height_scale` → `VisualRoot` overall scale;
+  - `girth_scale` → Blend Shape weight (Slim below Normal, Broad above);
+  - `mass_kg` → physics-only input, never rendered directly.
+- C++ capsules are not reverse-generated from the mesh: they stay the
+  authoritative collision geometry and are overlaid as debug geometry for
+  visual acceptance against chest/limb/head silhouettes.
+- If the current assets lack skin weights or Blend Shapes, prepare them in
+  Blender first; a C# scale API alone is not visual modelling.
 
 ## Conventions
 
