@@ -1129,6 +1129,17 @@ Non-integer frame sampling and animation/physics time separation remain
 LOCO-2.6. The runtime harness asserts the audit accumulates finite samples
 while the frame clock stays untouched.
 
+### LOCO-2.4/2.5/2.7 headless off-ball acceptance
+
+`unittests/loco_animation` drives the strategy over the real baked library for
+idle / start / cruise / brake / 90 deg / 180 deg and verifies the expected
+Motion class per scenario (idle->idle, accel out of idle, steady walk cruise
+near 5 m/s, decel to idle, ~90 deg and ~178 deg turns) plus determinism. It
+also proves a PlayerBodyProfile changes body geometry (hip/knee/neck scale
+with height) while the animation choice is identical, i.e. the animation
+library is shared and capability-independent. Optional diagnostics via
+`FOOTBALL_LOCO_ACCEPTANCE_DIAG`.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
