@@ -633,8 +633,24 @@ void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
 }
 
 void Player::OffsetPosition(const Vector3 &offset) {
-  humanoid->OffsetPosition(offset);
-  SynchronizeKinematicState();
+  // P2c-2: the Player is the authority for a corrected position. Commit it
+  // first, then let the legacy Humanoid adopt the same offset as animation/
+  // motion bookkeeping (startPos, previous position, smuggle offsets) without
+  // re-deriving the Player state.
+  //
+  // Only the position changes. Velocity, facing and bodyFacing stay exactly the
+  // values the previous commit installed, and `speed` is deliberately not
+  // recomputed: a contact correction is an instantaneous displacement, not new
+  // motion. That is also what the legacy path produced, since the Humanoid never
+  // changed its movement/direction for an offset.
+  PlayerKinematicState corrected = kinematicState;
+  corrected.position += offset;
+  CommitKinematicState(corrected);
+  humanoid->ApplyPositionOffset(offset);
+  // No kinematic oracle here: this is not a sync point. A standalone
+  // CommitLocomotion leaves the Player ahead of the not-yet-mirrored Humanoid
+  // by design, and the oracle is asserted where a sync completes
+  // (SynchronizeKinematicState / ApplySimulationMovementState).
   CheckSimulationActionOracle();
 }
 

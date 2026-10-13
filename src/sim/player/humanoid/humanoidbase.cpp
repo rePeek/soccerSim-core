@@ -902,7 +902,7 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   tripDirection = Vector3(0);
 }
 
-void HumanoidBase::OffsetPosition(const Vector3 &offset) {
+void HumanoidBase::ApplyPositionOffset(const Vector3 &offset) {
 
   assert(offset.coords[2] == 0.0f);
 
@@ -913,7 +913,14 @@ void HumanoidBase::OffsetPosition(const Vector3 &offset) {
   decayingPositionOffset += offset;
   if (decayingPositionOffset.GetLength() > 0.1f) decayingPositionOffset = decayingPositionOffset.GetNormalized() * 0.1f;
   currentAnim.positionOffset += offset;
+}
 
+void HumanoidBase::OffsetPosition(const Vector3 &offset) {
+  // Legacy entry point for corrections that originate inside the Humanoid (its
+  // own boundary clamps). Player::OffsetPosition commits the position itself and
+  // then calls ApplyPositionOffset, so this sync-back is never the authority for
+  // a contact correction.
+  ApplyPositionOffset(offset);
   if (player) player->SynchronizeKinematicState();
 }
 

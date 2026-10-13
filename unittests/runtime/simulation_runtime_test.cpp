@@ -655,51 +655,55 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
   CHECK(humanoid->GetDirectionVec() == after_tick.facing);
   CHECK(humanoid->GetBodyDirectionVec() == after_tick.bodyFacing);
 
-  // 2) CommitLocomotion installs exactly the state it computed (single write
-  // point), including the speed the producer calculated.
+  // 2) Contact corrections are committed by the Player first (P2c-2). They
+  // accumulate, touch nothing but the position, and the legacy Humanoid
+  // bookkeeping adopts the same offset so both sides stay consistent.
+  const Vector3 offset_a(0.10f, 0.0f, 0.0f);
+  const Vector3 offset_b(0.0f, -0.05f, 0.0f);
+  player->OffsetPosition(offset_a);
+  const Vector3 after_a = player->GetPosition();
+  // Visible immediately on the Player, and exactly the position that moved.
+  CHECK(after_a == after_tick.position + offset_a);
+  CHECK(player->GetKinematicState().velocity == after_tick.velocity);
+  CHECK(player->GetKinematicState().facing == after_tick.facing);
+  CHECK(player->GetKinematicState().bodyFacing == after_tick.bodyFacing);
+  CHECK(player->GetKinematicState().speed == after_tick.speed);
+  CHECK(humanoid->GetPosition() == after_a);
+  CHECK(player->GetGroundCollider().center == after_a.Get2D());
+
+  player->OffsetPosition(offset_b);
+  const Vector3 after_b = player->GetPosition();
+  CHECK(after_b == after_a + offset_b);  // corrections accumulate exactly
+  CHECK(humanoid->GetPosition() == after_b);
+  CHECK(player->GetKinematicState().velocity == after_tick.velocity);
+
+  // 3) The corrected state is the origin of the next motion computation: a later
+  // step must not jump back to where the player stood before the contact.
   PlayerCommand command;
   command.desiredFunctionType = e_FunctionType_Movement;
   command.useDesiredMovement = true;
   command.desiredDirection = Vector3(1.0f, 0.0f, 0.0f);
   command.desiredVelocityFloat = 5.0f;
-  const PlayerKinematicState committed =
-      player->CommitLocomotion(command, after_tick, false, 0.01f);
-  CHECK(player->GetKinematicState().position.coords[0] == committed.position.coords[0]);
-  CHECK(player->GetKinematicState().position.coords[1] == committed.position.coords[1]);
-  CHECK(player->GetKinematicState().velocity.coords[0] == committed.velocity.coords[0]);
-  CHECK(player->GetKinematicState().facing.coords[1] == committed.facing.coords[1]);
-  CHECK(player->GetKinematicState().speed == committed.speed);
-  CHECK(player->GetKinematicState().speed == committed.velocity.GetLength());
-
-  // 3) Contact corrections through the existing (still Humanoid-owned) path:
-  // they accumulate and leave both sides consistent. Order and semantics are the
-  // legacy ones; this case only pins them, it does not change them.
-  const Vector3 offset_a(0.10f, 0.0f, 0.0f);
-  const Vector3 offset_b(0.0f, -0.05f, 0.0f);
-  player->OffsetPosition(offset_a);
-  const Vector3 after_a = player->GetPosition();
-  player->OffsetPosition(offset_b);
-  const Vector3 after_b = player->GetPosition();
-
-  CHECK(after_a.coords[0] ==
-        Approx(player->GetKinematicState().position.coords[0]));
-  CHECK(after_b.coords[0] == Approx(after_a.coords[0] + offset_b.coords[0]));
-  CHECK(after_b.coords[1] == Approx(after_a.coords[1] + offset_b.coords[1]));
-  CHECK(after_b.coords[2] == Approx(after_a.coords[2]));
-  CHECK(humanoid->GetPosition() == after_b);
-  CHECK(player->GetGroundCollider().center == after_b.Get2D());
-
-  // 4) The corrected state is the origin of the next motion computation: stepping
-  // from it must not jump back to the pre-correction place. (A real sim tick also
-  // runs PreMatch positioning, which moves the player independently, so the
-  // invariant is asserted on the motion computation itself.)
   const PlayerKinematicState after_contact = player->GetKinematicState();
   const PlayerKinematicState next_step =
       player->CommitLocomotion(command, after_contact, false, 0.01f);
   CHECK(next_step.position.GetDistance(after_contact.position) < 0.01f);
   CHECK(next_step.position.GetDistance(after_tick.position) > 0.05f);
 
-  // A real tick still leaves Player and its legacy mirror consistent.
+  // 4) Mirror round trip with a correction in between stays consistent on both
+  // sides and returns the frame to its canonical orientation.
+  sim.Step(PlayerControlSet{});
+  const Vector3 before_mirror = player->GetPosition();
+  sim.Mirror(true, true, false);
+  player->OffsetPosition(offset_a);
+  CHECK(humanoid->GetPosition() == player->GetPosition());
+  sim.Mirror(true, true, false);
+  CHECK(humanoid->GetPosition() == player->GetPosition());
+  CHECK(player->GetKinematicState().position == player->GetPosition());
+  CHECK(player->GetPosition().GetDistance(before_mirror) > 0.0f);
+
+  // 5) A reset clears the correction and both sides stay consistent.
+  sim.ResetSituation(Vector3(0.0f, 0.0f, 0.0f));
   sim.Step(PlayerControlSet{});
   CHECK(humanoid->GetPosition() == player->GetPosition());
   CHECK(player->GetKinematicState().position == player->GetPosition());

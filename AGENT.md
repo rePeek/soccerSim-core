@@ -335,13 +335,22 @@ P2c-1 (done) unifies the *write point* without changing the producers or the
 sync direction: `Player::CommitKinematicState(next)` is now the only function
 that installs a `PlayerKinematicState` (it also keeps `groundCollider` in step),
 and both `CommitLocomotion` and `SynchronizeKinematicState` go through it. It
-deliberately neither recomputes `speed` (the producer owns that) nor runs
 `CheckSimulationKinematicOracle()`: right after a commit the Humanoid mirror is
-still stale, so the oracle runs only after the sync step. `OffsetPosition`,
+still stale, so the oracle is asserted only where a sync completes
+(`SynchronizeKinematicState`, `ApplySimulationMovementState`).
 `ResetPosition`, `ResetRuntimeState` and `Activate` keep their legacy order, and
-`Mirror()` keeps its atomic dual-state compatibility path until P2d. The
-Humanoid -> Player direction therefore still exists; P2c-2 flips the contact
-correction first, P2c-3 removes the reverse sync for pure locomotion.
+`Mirror()` keeps its atomic dual-state compatibility path until P2d.
+
+P2c-2 (done) flips the *contact correction*: `Player::OffsetPosition` commits the
+corrected position itself (only the position changes; velocity, facing,
+bodyFacing and `speed` are left exactly as the previous commit installed them)
+and then calls `HumanoidBase::ApplyPositionOffset(offset)`, which is the legacy
+animation/motion bookkeeping (startPos, nextStartPos, previous position,
+positionOffsetMovement, decayingPositionOffset, currentAnim.positionOffset)
+*without* re-deriving the Player state. `HumanoidBase::OffsetPosition` remains
+for corrections that originate inside the Humanoid (its own goalkeeper boundary
+clamps) and still syncs back; those call sites are the remaining legacy path for
+P2c-3, together with the reverse sync for pure locomotion.
 
 Known follow-up (not part of P2c-1): `Player::UpdatePossessionStats()` builds its
 interception-prediction `PlayerLocomotionParameters` with only `maxSpeed`
