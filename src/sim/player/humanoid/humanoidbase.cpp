@@ -1482,28 +1482,11 @@ void HumanoidBase::ProjectMovementState(
   // so the animation command no longer decides what executes.
   player->CheckDecisionLocomotionIntentOracle();
   const PlayerCommand &command = player->GetDecisionLocomotionIntent();
-  // H3e4f-b: locomotion reads the simulation-owned copy, not the legacy anim.
-  PlayerLocomotionInput input = BuildLegacyLocomotionInput(
-      command, tickStartState, player->GetMaxVelocity(), tickStartState.bodyFacing);
-  if (restart_needs_simulation) {
-    // The legacy idle-speed deadband stops approach ~0.7 m from a target.
-    // Pending legal positioning needs continuous low speeds; live-play semantics
-    // and the shared locomotion physics primitive are otherwise unchanged.
-    input.desiredVelocity = command.desiredDirection.Get2D().GetNormalized(tickStartState.facing) *
-        clamp(command.desiredVelocityFloat, 0.f, player->GetMaxVelocity());
-  }
-  PlayerLocomotionParameters parameters;
-  parameters.maxSpeed = player->GetMaxVelocity();
-  PlayerKinematicState next = tickStartState;
-  PlayerLocomotion::Step(next, input, parameters, 0.01f);
-  PlayerBodyFacingInput bodyInput;
-  bodyInput.desiredFacing = next.facing;
-  if (command.useDesiredLookAt) {
-    bodyInput.desiredFacing =
-        (command.desiredLookAt - next.position).Get2D().GetNormalized(next.facing);
-  }
-  PlayerBodyFacingParameters bodyParameters;
-  PlayerBodyFacing::Step(next, bodyInput, bodyParameters, 0.01f);
+  // P2a: Player computes the locomotion through PlayerMotion and commits the
+  // resulting state. This function only projects it into the legacy spatial
+  // state, so the mirror can still be compared against the new authority.
+  const PlayerKinematicState next = player->CommitLocomotion(
+      command, tickStartState, restart_needs_simulation, 0.01f);
   ApplySimulationMovementState(next, ball_retainer);
 }
 

@@ -12,19 +12,27 @@ PlayerLocomotionParameters PlayerMotion::LocomotionParameters(
   return parameters;
 }
 
+MotionStep PlayerMotion::StepContinuous(
+    const PlayerKinematicState& current, const PlayerMotionProfile& profile,
+    const football::math::Vector3& desired_velocity,
+    const football::math::Vector3& idle_facing, float dt) {
+  MotionStep step;
+  step.state = current;
+  PlayerLocomotionInput input;
+  input.desiredVelocity = desired_velocity;
+  input.idleFacing = idle_facing;
+  PlayerLocomotion::Step(step.state, input, LocomotionParameters(profile), dt);
+  step.sample.displacement = step.state.position - current.position;
+  step.sample.velocity = step.state.velocity;
+  return step;
+}
+
 MotionSample PlayerMotion::SampleContinuous(
     const PlayerKinematicState& current, const PlayerMotionProfile& profile,
     const football::math::Vector3& desired_velocity,
     const football::math::Vector3& idle_facing, float dt) {
-  PlayerKinematicState stepped = current;
-  PlayerLocomotionInput input;
-  input.desiredVelocity = desired_velocity;
-  input.idleFacing = idle_facing;
-  PlayerLocomotion::Step(stepped, input, LocomotionParameters(profile), dt);
-  MotionSample sample;
-  sample.displacement = stepped.position - current.position;
-  sample.velocity = stepped.velocity;
-  return sample;
+  return StepContinuous(current, profile, desired_velocity, idle_facing, dt)
+      .sample;
 }
 
 football::math::Vector3 PlayerMotion::ClipDisplacement(const MotionClip& clip,

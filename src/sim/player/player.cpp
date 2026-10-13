@@ -31,6 +31,8 @@
 #include "sim/player/roster_query.hpp"
 #include "sim/player/player_action_executor.hpp"
 #include "sim/player/player_locomotion.hpp"
+#include "sim/player/player_motion.hpp"
+#include "sim/player/player_body_facing.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/legacy_locomotion_command.hpp"
 #include "sim/player/player_control_builder.hpp"
@@ -350,6 +352,49 @@ void Player::Mirror() {
   kinematicState.Mirror();
   groundCollider.Mirror();
   CheckSimulationKinematicOracle();
+}
+
+PlayerKinematicState Player::CommitLocomotion(
+    const PlayerCommand &command, const PlayerKinematicState &tick_start,
+    bool restart_needs_simulation, float dt) {
+  const float max_speed = GetMaxVelocity();
+  PlayerLocomotionInput input = BuildLegacyLocomotionInput(
+      command, tick_start, max_speed, tick_start.bodyFacing);
+  if (restart_needs_simulation) {
+    // The legacy idle-speed deadband stops approach ~0.7 m from a target.
+    // Pending legal positioning needs continuous low speeds; live-play semantics
+    // and the shared locomotion physics primitive are otherwise unchanged.
+    input.desiredVelocity =
+        command.desiredDirection.Get2D().GetNormalized(tick_start.facing) *
+        clamp(command.desiredVelocityFloat, 0.f, max_speed);
+  }
+  // Behaviour-preserving first cut: only max_speed is ability-derived, exactly
+  // as the legacy call site did (parameters.maxSpeed = GetMaxVelocity(), other
+  // parameters left at their defaults). P2b enables the capability-driven
+  // acceleration/braking/turn rate from the same profile.
+  PlayerMotionProfile profile = MakePlayerMotionProfile(model_);
+  const PlayerLocomotionParameters defaults;
+  profile.max_speed = max_speed;
+  profile.acceleration = defaults.acceleration;
+  profile.braking = defaults.braking;
+  profile.turn_rate = defaults.maxTurnRate;
+
+  PlayerKinematicState next =
+      PlayerMotion::StepContinuous(tick_start, profile, input.desiredVelocity,
+                                   input.idleFacing, dt)
+          .state;
+  // Torso model consumes the resulting locomotion facing and writes only
+  // bodyFacing; order and parameters are unchanged from the legacy path.
+  PlayerBodyFacingInput bodyInput;
+  bodyInput.desiredFacing = next.facing;
+  if (command.useDesiredLookAt) {
+    bodyInput.desiredFacing =
+        (command.desiredLookAt - next.position).Get2D().GetNormalized(next.facing);
+  }
+  PlayerBodyFacing::Step(next, bodyInput, PlayerBodyFacingParameters{}, dt);
+  kinematicState = next;
+  groundCollider.SetCenter(kinematicState.position);
+  return next;
 }
 
 void Player::SynchronizeKinematicState() {

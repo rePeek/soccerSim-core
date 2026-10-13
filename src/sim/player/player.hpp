@@ -236,6 +236,14 @@ class Player final {
     const PlayerCommand &GetDecisionLocomotionIntent() const {
       return decisionLocomotionState.command;
     }
+    // P2a: Player owns the locomotion computation. It builds the proposal
+    // through PlayerMotion and commits the resulting kinematic state; the
+    // legacy Humanoid spatial state is only a mirror of it for this step.
+    // `tick_start` is the tick-start state, so a later action selection in the
+    // same tick cannot change what this tick's locomotion was.
+    PlayerKinematicState CommitLocomotion(const PlayerCommand &command,
+                                          const PlayerKinematicState &tick_start,
+                                          bool restart_needs_simulation, float dt);
     // Decision-side execution oracle. The gate answers executability; this answers
     // the producer contract, which stays fatal rather than being folded into the
     // gate predicate.

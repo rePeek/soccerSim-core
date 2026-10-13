@@ -438,3 +438,70 @@ TEST_CASE("Runtime harness: PlayerMotion proposes, Player commits",
   CHECK(PlayerMotion::ClipDisplacement(clip, 0.0f).GetLength() == Approx(0.0f));
   CHECK(PlayerMotion::ClipDisplacement(clip, 2.5f).coords[0] == Approx(0.07f));
 }
+
+TEST_CASE("Runtime harness: P2a motion step is bit-identical to the legacy call",
+          "[runtime][sim]") {
+  // The profile Player::CommitLocomotion builds for this step: only max_speed is
+  // ability-derived, everything else keeps the locomotion defaults.
+  const football::player::PlayerDefinition definition;
+  const PlayerLocomotionParameters defaults;
+  const float max_speed =
+      7.0f * (0.9f + 0.1f * definition.attributes.get(
+                                 football::player::PlayerStat::physical_velocity));
+  PlayerMotionProfile profile = MakePlayerMotionProfile(definition);
+  profile.max_speed = max_speed;
+  profile.acceleration = defaults.acceleration;
+  profile.braking = defaults.braking;
+  profile.turn_rate = defaults.maxTurnRate;
+
+  struct Case {
+    Vector3 velocity;
+    Vector3 facing;
+    Vector3 desired;
+    Vector3 idle;
+  };
+  const Case cases[] = {
+      {{0, 0, 0}, {0, -1, 0}, {5, 0, 0}, {0, -1, 0}},   // accelerate
+      {{5, 0, 0}, {1, 0, 0}, {0, 5, 0}, {1, 0, 0}},     // turn
+      {{3, 3, 0}, {0, 1, 0}, {-3, -3, 0}, {0, 1, 0}},   // reverse
+      {{7, 0, 0}, {1, 0, 0}, {0, 0, 0}, {0, -1, 0}},    // brake
+      {{0.4f, 0, 0}, {1, 0, 0}, {0, 0, 0}, {1, 0, 0}},  // below idle threshold
+  };
+
+  for (const Case& c : cases) {
+    PlayerKinematicState start;
+    start.position = Vector3(1.0f, 2.0f, 0.0f);
+    start.velocity = c.velocity;
+    start.facing = c.facing;
+    start.speed = c.velocity.GetLength();
+
+    PlayerLocomotionInput input;
+    input.desiredVelocity = c.desired;
+    input.idleFacing = c.idle;
+    PlayerLocomotionParameters parameters;
+    parameters.maxSpeed = max_speed;
+    PlayerKinematicState expected = start;
+    PlayerLocomotion::Step(expected, input, parameters, 0.01f);
+
+    const MotionStep step =
+        PlayerMotion::StepContinuous(start, profile, c.desired, c.idle, 0.01f);
+    // The facade must not change the arithmetic: same function, same parameters.
+    CHECK(step.state.position.coords[0] == expected.position.coords[0]);
+    CHECK(step.state.position.coords[1] == expected.position.coords[1]);
+    CHECK(step.state.velocity.coords[0] == expected.velocity.coords[0]);
+    CHECK(step.state.velocity.coords[1] == expected.velocity.coords[1]);
+    CHECK(step.state.facing.coords[0] == expected.facing.coords[0]);
+    CHECK(step.state.facing.coords[1] == expected.facing.coords[1]);
+    CHECK(step.state.speed == expected.speed);
+    // The proposal and the committed state cannot disagree.
+    CHECK(step.sample.velocity.coords[0] == step.state.velocity.coords[0]);
+    CHECK(step.sample.displacement.coords[0] ==
+          step.state.position.coords[0] - start.position.coords[0]);
+    const MotionSample sample =
+        PlayerMotion::SampleContinuous(start, profile, c.desired, c.idle, 0.01f);
+    CHECK(sample.velocity.coords[1] == step.state.velocity.coords[1]);
+    // Stepping never mutates the caller's state.
+    CHECK(start.position.coords[0] == 1.0f);
+    CHECK(start.velocity.coords[0] == c.velocity.coords[0]);
+  }
+}
