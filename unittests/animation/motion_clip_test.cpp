@@ -78,9 +78,9 @@ TEST_CASE("Running clip extraction reproduces the baked per-tick displacement",
   for (std::size_t frame = 1; frame < motion.size(); ++frame) {
     const Vector3 reconstructed = ReferencePosition(motion, frame);
     CHECK(reconstructed.coords[0] ==
-          Approx(clip.root_positions[frame - 1].coords[0]).margin(1e-5f));
+          Approx(clip.root_positions[frame].coords[0]).margin(1e-5f));
     CHECK(reconstructed.coords[1] ==
-          Approx(clip.root_positions[frame - 1].coords[1]).margin(1e-5f));
+          Approx(clip.root_positions[frame].coords[1]).margin(1e-5f));
   }
   CHECK(ReferencePosition(motion, motion.size()).coords[0] ==
         Approx(clip.root_positions.back().coords[0]).margin(1e-5f));
@@ -135,7 +135,8 @@ TEST_CASE("Extraction handles degenerate clips", "[unit][animation][motion]") {
   const MotionClip single_motion = ExtractMotionClip(single);
   REQUIRE(single_motion.size() == 1);
   CHECK(single_motion.frames[0].local_displacement == Vector3(0, 0, 0));
-  CHECK(ReferencePosition(single_motion, 1) == Vector3(0));
+  CHECK(ReferencePosition(single_motion, 0) == Vector3(0));
+  CHECK(ReferencePosition(single_motion, 1) == Vector3(0));  // past the end clamps
 
   const AnimationClip stationary = ClipWithRootPositions(
       {Vector3(1, 2, 0), Vector3(1, 2, 0.02f), Vector3(1, 2, 0)});
@@ -143,4 +144,68 @@ TEST_CASE("Extraction handles degenerate clips", "[unit][animation][motion]") {
   for (const MotionFrame& frame : stationary_motion.frames) {
     CHECK(frame.local_displacement.GetLength() == Approx(0.0f));
   }
+}
+
+TEST_CASE("Frame index and frame time are unambiguous",
+          "[unit][animation][motion]") {
+  const AnimationClip clip = RunningClip(5, 0.07f);  // frames 0..4
+  const MotionClip motion = ExtractMotionClip(clip);
+  REQUIRE(motion.size() == 5);
+  CHECK(motion.last_frame_time() == Approx(4.0f));
+
+  // Frame index 0 is the origin; index i is the reference *at* that frame.
+  CHECK(ReferencePosition(motion, 0) == Vector3(0));
+  for (std::size_t frame = 0; frame < motion.size(); ++frame) {
+    CHECK(ReferencePosition(motion, frame).coords[0] ==
+          Approx(clip.root_positions[frame].coords[0]).margin(1e-5f));
+  }
+  // Past the last frame the reference holds its final position: a finished clip
+  // must not keep accumulating the last displacement.
+  const Vector3 end = ReferencePosition(motion, motion.size() - 1);
+  CHECK(ReferencePosition(motion, motion.size() + 10) == end);
+  CHECK(ReferencePositionAt(motion, 99.0f).coords[0] == Approx(end.coords[0]));
+  CHECK(ReferencePositionAt(motion, -3.0f) == Vector3(0));
+
+  // Frame time interpolates between frame samples.
+  CHECK(ReferencePositionAt(motion, 2.0f) == ReferencePosition(motion, 2));
+  CHECK(ReferencePositionAt(motion, 2.5f).coords[0] == Approx(0.175f).margin(1e-5f));
+}
+
+TEST_CASE("Displacement sampling is additive, rate-independent and clamps",
+          "[unit][animation][motion]") {
+  constexpr float kFramesPerTick = 1.0f;  // 1.0 == normal playback at 100 Hz
+  const AnimationClip clip = RunningClip(11, 0.07f);  // 0 .. 10
+  const MotionClip motion = ExtractMotionClip(clip);
+
+  // One tick at 1.0x advances one frame.
+  const Vector3 one = SampleDisplacement(motion, 0.0f, kFramesPerTick);
+  CHECK(one.coords[0] == Approx(0.07f).margin(1e-6f));
+
+  // Rates scale the time the caller advances, not the sampled result.
+  CHECK(SampleDisplacement(motion, 0.0f, 0.5f).coords[0] ==
+        Approx(0.035f).margin(1e-6f));   // 0.5x playback
+  CHECK(SampleDisplacement(motion, 0.0f, 1.5f).coords[0] ==
+        Approx(0.105f).margin(1e-6f));   // 1.5x playback
+
+  // A tick that spans several frames equals the sum of single-frame parts.
+  const Vector3 span = SampleDisplacement(motion, 2.0f, 7.0f);
+  Vector3 split(0);
+  for (float t = 2.0f; t < 7.0f; t += 1.0f) {
+    split += SampleDisplacement(motion, t, t + 1.0f);
+  }
+  CHECK(span.coords[0] == Approx(split.coords[0]).margin(1e-6f));
+  CHECK(span.coords[0] == Approx(0.35f).margin(1e-6f));
+
+  // Splitting at a fractional boundary is still additive.
+  const Vector3 whole = SampleDisplacement(motion, 1.25f, 4.75f);
+  const Vector3 first = SampleDisplacement(motion, 1.25f, 3.0f);
+  const Vector3 second = SampleDisplacement(motion, 3.0f, 4.75f);
+  CHECK(whole.coords[0] == Approx(first.coords[0] + second.coords[0]).margin(1e-6f));
+
+  // Sampling past the end adds nothing more.
+  CHECK(SampleDisplacement(motion, 10.0f, 25.0f) == Vector3(0));
+  CHECK(SampleDisplacement(motion, 0.0f, 100.0f).coords[0] ==
+        Approx(ReferencePosition(motion, motion.size() - 1).coords[0]).margin(1e-6f));
+  // The motion is planar: sampling never produces a z displacement.
+  CHECK(SampleDisplacement(motion, 0.0f, 5.0f).coords[2] == Approx(0.0f));
 }
