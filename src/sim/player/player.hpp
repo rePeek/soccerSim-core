@@ -183,6 +183,9 @@ class Player final {
 
     football::player::PlayerId GetID() const { return model_.id; }
     const football::player::PlayerDefinition& GetModel() const { return model_; }
+    // Static body geometry authority: derived once from the definition, not
+    // re-derived per tick or per consumer (BODY-1.5).
+    const football::player::PlayerBodyProfile& BodyProfile() const { return body_profile_; }
 
     inline bool IsActive() { return isActive; }
 
@@ -395,9 +398,9 @@ class Player final {
     PlayerMotionProfile EffectiveMotionProfile() const;
 
     const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
-    PlayerBakedPoseSample GetBakedPoseSample(const football::player::PlayerBodyProfile& profile) const {
+    PlayerBakedPoseSample GetBakedPoseSample() const {
       if (!humanoid) throw std::logic_error("inactive player has no baked pose source");
-      return humanoid->SampleBakedPose(kinematicState, profile);
+      return humanoid->SampleBakedPose(kinematicState, body_profile_);
     }
 
     void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
@@ -500,6 +503,7 @@ class Player final {
 
     // Team owns an immutable description for the entire actor lifetime.
     const football::player::PlayerDefinition& model_;
+    const football::player::PlayerBodyProfile body_profile_;
     // Non-unique 0..9 offset for staggered 100 ms work, never identity or order.
     const std::uint8_t schedule_phase_;
 

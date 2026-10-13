@@ -32,8 +32,8 @@ struct PlayerBodyProfile {
 // This is a geometric calibration parameter, not an anthropometric claim.
 inline constexpr float kReferenceBmi = 23.0f;
 
-// Existing animation scale reference: the height at which height_scale == 1.
-// Kept in step with defaultPlayerHeight so body and pose share one reference.
+// The single reference height at which height_scale == 1 (was the legacy
+// defaultPlayerHeight; BODY-1.5 removes that duplicate).
 inline constexpr float kReferencePlayerHeight = 1.92f;
 
 // Classify by the mass-to-standard-mass ratio r = M / (B0*H^2). Thresholds map

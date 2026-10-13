@@ -41,7 +41,6 @@ const float distanceToVelocityMultiplier = 2.6f; // for example: when we need to
 
 // how far into an animation the ball is usually touched
 const unsigned int defaultTouchOffset_ms = 80;
-const float defaultPlayerHeight = 1.92f;
 const int temporalSmoother_history_ms = 20;
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_MOTION_CONSTANTS_HPP

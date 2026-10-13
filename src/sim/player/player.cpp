@@ -298,6 +298,7 @@ Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
                const AnimationLibrary& animations, const football::pitch::Pitch& pitch, football::math::Rng& rng)
     : animations_(animations), pitch_(pitch), rng_(rng),
       model_(model),
+      body_profile_(football::player::MakePlayerBodyProfile(model)),
       schedule_phase_(schedule_phase % 10),
       team_id_(team_id),
       side_(side),

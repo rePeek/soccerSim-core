@@ -178,8 +178,7 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         float strike_radius = 0.0f;
         int strike_foot = -1;
         {
-          const auto sample = CastPlayer()->GetBakedPoseSample(
-              football::player::MakePlayerBodyProfile(CastPlayer()->GetModel()));
+          const auto sample = CastPlayer()->GetBakedPoseSample();
           const auto regions = sample.ContactRegions();
           const auto& ball_center = tick.ball.state().position;
           const auto surface = [&](const auto& boot) {
@@ -1903,7 +1902,6 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
 
   Vector3 desiredMovement = desiredDirection * desiredVelocityFloat;
 
-  float playerHeight = player->GetModel().height;
 
   e_FunctionType functionType = StringToFunctionType(
       static_cast<e_DefString>(GetBakedClip(*iter).metadata.action_type));
@@ -2002,7 +2000,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
       } else {
         animBallPos = (animBallPos - animBodyPos) + positions_ret.at(animTouchFrame).GetRotated2D(-spatialState.angle);
       }
-      animBallPos.coords[2] = animBallHeight * (playerHeight / defaultPlayerHeight);
+      animBallPos.coords[2] = animBallHeight * player->BodyProfile().height_scale;
 
       // now pick the ballPos from the previous 9ms that is closest to animBallPos. this is to emulate a continuous 'close enough?'-check instead of a 'single moment' check.
       if (useContinuousBallCheck) {
