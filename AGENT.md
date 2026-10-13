@@ -1095,6 +1095,18 @@ cannot write PlayerKinematicState: PlayerMotion stays the sole position
 authority. This is the boundary LOCO-2.3+ implement against, not a behaviour
 change.
 
+### LOCO-2.3a pure selection strategy
+
+`locomotion_animation_strategy.hpp` adds `SelectLocomotionAnimation`: it reuses
+`BakedAnimationSelector` for the coarse Movement/incoming-velocity filter, then
+ranks survivors with a deterministic score across three regimes driven by
+desired-vs-actual speed (accel / decel / cruise). Cruise ranks on continuous
+clip reference speed, accel/decel on the clip's outgoing velocity, and a
+secondary turn term matches the requested heading change; clip id is the
+stable tie-break. Near-zero speed uses bodyFacing as the direction reference
+instead of normalising a zero velocity. Pure function, no behaviour change
+until LOCO-2.3b wires it in; tests use synthetic clips (no asset).
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
