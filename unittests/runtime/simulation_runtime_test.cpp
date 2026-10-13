@@ -27,6 +27,8 @@
 #include "sim/player/player.hpp"
 #include "sim/player/player_control_set.hpp"
 #include "sim/player/player_definition.hpp"
+#include "sim/player/player_motion.hpp"
+#include "sim/player/player_motion_profile.hpp"
 #include "sim/observation/world_state.hpp"
 #include "sim/runtime/match_config.hpp"
 #include "sim/runtime/possession.hpp"
@@ -37,6 +39,7 @@
 
 namespace {
 
+using Catch::Approx;
 using football::sim::testing::SimulationAccess;
 using Clock = std::chrono::steady_clock;
 
@@ -377,4 +380,61 @@ TEST_CASE("Runtime harness: Stop then re-Init rebuilds both rosters",
     CHECK(SimulationAccess::TeamStateOf(sim, team).designated_player != nullptr);
   }
   CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: motion profile is a faithful static extraction",
+          "[runtime][sim]") {
+  football::player::PlayerDefinition neutral;  // every attribute defaults to 1.0
+  const PlayerMotionProfile neutral_profile = MakePlayerMotionProfile(neutral);
+  const PlayerLocomotionParameters defaults;
+
+  // A neutral definition must reproduce the locomotion defaults exactly; the
+  // profile is an extraction, not a new physics model.
+  CHECK(neutral_profile.max_speed == Approx(7.0f));       // animSprintVelocity * 1.0
+  CHECK(neutral_profile.acceleration == Approx(defaults.acceleration));
+  CHECK(neutral_profile.braking == Approx(defaults.braking));
+  CHECK(neutral_profile.turn_rate == Approx(defaults.maxTurnRate));
+
+  football::player::PlayerDefinition athletic = neutral;
+  athletic.attributes.set(football::player::PlayerStat::physical_velocity, 2.0f);
+  athletic.attributes.set(football::player::PlayerStat::physical_acceleration, 2.0f);
+  athletic.attributes.set(football::player::PlayerStat::physical_agility, 2.0f);
+  const PlayerMotionProfile athletic_profile = MakePlayerMotionProfile(athletic);
+  CHECK(athletic_profile.max_speed > neutral_profile.max_speed);
+  CHECK(athletic_profile.acceleration > neutral_profile.acceleration);
+  CHECK(athletic_profile.turn_rate > neutral_profile.turn_rate);
+  // Pure function of the definition: no RNG, no hidden state, no fatigue baked in.
+  CHECK(MakePlayerMotionProfile(athletic).max_speed == Approx(athletic_profile.max_speed));
+  CHECK(MakePlayerMotionProfile(neutral).braking == Approx(neutral_profile.braking));
+}
+
+TEST_CASE("Runtime harness: PlayerMotion proposes, Player commits",
+          "[runtime][sim]") {
+  const PlayerMotionProfile profile =
+      MakePlayerMotionProfile(football::player::PlayerDefinition{});
+  PlayerKinematicState state;
+  state.position = Vector3(0, 0, 0);
+  state.velocity = Vector3(0, 0, 0);
+  state.facing = Vector3(0, -1, 0);
+
+  const MotionSample continuous = PlayerMotion::SampleContinuous(
+      state, profile, Vector3(5, 0, 0), Vector3(0, -1, 0), 0.01f);
+  CHECK(continuous.velocity.coords[0] > 0.0f);
+  CHECK(continuous.displacement.coords[2] == Approx(0.0f));
+  // A sample is a proposal: the caller's state is untouched.
+  CHECK(state.position == Vector3(0, 0, 0));
+  CHECK(state.velocity == Vector3(0, 0, 0));
+
+  // The baked source is planar and needs no clip mutation.
+  MotionClip clip;
+  clip.frames.resize(4);
+  for (std::size_t i = 1; i < clip.frames.size(); ++i) {
+    clip.frames[i].local_displacement = Vector3(0.07f, 0, 0);
+  }
+  const MotionSample baked = PlayerMotion::SampleClip(clip, 2.0f, 0.01f);
+  CHECK(baked.displacement.coords[0] == Approx(0.07f));
+  CHECK(baked.displacement.coords[2] == Approx(0.0f));
+  CHECK(baked.velocity.coords[0] == Approx(7.0f).margin(1e-4f));
+  CHECK(PlayerMotion::ClipDisplacement(clip, 0.0f).GetLength() == Approx(0.0f));
+  CHECK(PlayerMotion::ClipDisplacement(clip, 2.5f).coords[0] == Approx(0.07f));
 }

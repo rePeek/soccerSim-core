@@ -155,10 +155,14 @@ src/                 implementations; public headers live in include/football/
     ├── testing/      internal SimulationAccess, not exported/product or actor-facing
     └── player/       Player + PlayerDefinition, player_role, FormationEntry, tick-local
         │             inputs, controls, locomotion, contacts, roster_query
-        │             (span of borrowed players), reachability and perception.
+        │             (span of borrowed players), reachability and perception,
+        │             plus the P1 motion layer: player_motion_profile.hpp (ability ->
+        │             capability, no fatigue baked in) and player_motion.{hpp,cpp}
+        │             (MotionSample + PlayerMotion::SampleContinuous/SampleClip).
         │             Owns ONLY single-player state and behaviour: it never holds a
         │             Team, never iterates the squad and contains no team algorithm.
-        └── humanoid/ Humanoid / HumanoidBase / utilities
+        └── humanoid/ Humanoid / HumanoidBase / utilities (still the animation and
+                      motion executor; P2+ move the motion authority to Player)
 
 cmake/
 ├── CPM.cmake
@@ -300,11 +304,15 @@ harness. There is still no golden/end-to-end tier.
   first Step ~0.77 s, later Steps ~0, Stop ~0.01 s. The CTest `TIMEOUT` is the
   real guard, because bounding the tick count cannot catch a call that never
   returns.
-
 - `football_foundation_unit_tests` (`ctest -L unit`, name `foundation_unit`) links
   only `football::foundation`: Vector3 length/dot/cross/normalization/rotation,
   quaternion identity/composition/inverse/slerp, scalar clamp/wrap, Tick 100 Hz
   exactness and overflow/negative-interval rejection, Rng determinism/range.
+- `football_animation_unit_tests` (name `animation_unit`) links only
+  `football::animation`: `ExtractMotionClip` reproduces a clip's baked root
+  trajectory frame by frame for a running and a shooting reference clip, drops
+  the pelvis bob (z stays with the animation pose), leaves the source clip
+  untouched, and handles empty/single-frame/stationary clips.
 - `football_collision_unit_tests` (name `collision_unit`) links only
   `football::collision` (geometry + foundation): swept-sphere CCD against
   static/moving/deforming Plane/Sphere/Capsule and the one-sided HalfSpace,

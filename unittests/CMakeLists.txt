@@ -6,6 +6,7 @@
 # handful of ticks under a wall-clock CTest timeout -- it never plays a match.
 
 add_subdirectory(foundation)
+add_subdirectory(animation)
 add_subdirectory(collision)
 add_subdirectory(pitch)
 add_subdirectory(ball)

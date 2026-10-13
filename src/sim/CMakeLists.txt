@@ -69,6 +69,7 @@ target_sources(football_sim_domain PRIVATE
   player/humanoid/humanoid_utils.hpp
   player/player.hpp player/player_control_builder.hpp player/player_kinematics.hpp
   player/player_command.hpp player/player_motion_constants.hpp
+  player/player_motion.cpp player/player_motion.hpp player/player_motion_profile.hpp
   player/player_tick_context.hpp
   player/player_retain_anchor.hpp player/player_ground_collider.hpp
   player/player_body_collider.hpp player/player_body_collider_motion.hpp
