@@ -372,7 +372,6 @@ class HumanoidBase {
 
     int GetIdleMovementAnimID();
     void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos);
-    void OffsetPosition(const Vector3 &offset);
     // Legacy bookkeeping for a correction whose authority is the Player: it
     // updates the animation/motion origin (startPos, previous position, smuggle
     // offsets) without re-deriving the Player state.

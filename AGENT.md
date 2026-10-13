@@ -365,8 +365,19 @@ migrate. `HumanoidBase::ApplySimulationMovementState` is split into
 branch of `ProjectMovementState` now only projects the state the Player already
 committed and then asserts the mirror oracle, so the Humanoid can no longer
 overwrite a locomotion tick. The roadmap is now S0 (authority), S1 (attributes
-and motion), S2 (animation decoupling), S3 (collision and touch), S4 (legacy
+and motion), S2 (animation decoupling), S3 (collision and touch) and S4 (legacy
 removal); old P2c-3/P2d map to S0.
+
+S0.2 (done) moves the goalkeeper boundary corrections' *authority* to the Player
+while keeping their evaluation where it is. `Player::OffsetPosition` is now
+`ApplyPositionCorrection(offset)` + the action oracle, and
+`ApplyPositionCorrection` is the shared commit point (corrected position first,
+then the Humanoid bookkeeping) for corrections whose evaluation still lives in
+the Humanoid's pass. The four goalkeeper clamps in `Humanoid::Process` call
+`CastPlayer()->ApplyPositionCorrection(...)` with unchanged formulas, conditions,
+order and timing; `Humanoid` is a (transitional) friend of `Player` for that.
+`HumanoidBase::OffsetPosition` had no callers left and was deleted, so no
+bidirectional position entry survives.
 
 Known follow-up (not part of P2c-1): `Player::UpdatePossessionStats()` builds its
 interception-prediction `PlayerLocomotionParameters` with only `maxSpeed`

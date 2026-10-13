@@ -163,6 +163,10 @@ struct PlayerTeamFacts {
 class Player final {
 
   friend class HumanoidBase;
+  // S0.2 (transitional): the goalkeeper boundary corrections are still evaluated
+  // inside Humanoid::Process, but they now commit through the Player's position
+  // entry. Drop this friendship once those clamps move out of the Humanoid pass.
+  friend class Humanoid;
 
   public:
     Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
@@ -460,6 +464,12 @@ class Player final {
     // ResetPosition / ResetRuntimeState / Activate / PrepareTick, which
     // S0.2-S0.4 migrate.
     void CommitLegacyActionMotion();
+    // S0.2: a position correction whose *evaluation* still lives in the
+    // Humanoid's own pass (the goalkeeper boundary clamps). Same authority as
+    // Player::OffsetPosition -- it commits the corrected position and updates the
+    // Humanoid bookkeeping -- but it does not run the action oracle, because it
+    // is evaluated while the animation state is still mid-update.
+    void ApplyPositionCorrection(const football::math::Vector3& offset);
     // P2c-1: the single write point for the Player's kinematic state. It commits
     // the whole struct the caller computed and keeps the ground collider in
     // step. It deliberately does NOT recompute `speed` (the producer owns that)

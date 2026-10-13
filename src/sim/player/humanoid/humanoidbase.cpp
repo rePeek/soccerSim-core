@@ -915,14 +915,6 @@ void HumanoidBase::ApplyPositionOffset(const Vector3 &offset) {
   currentAnim.positionOffset += offset;
 }
 
-void HumanoidBase::OffsetPosition(const Vector3 &offset) {
-  // Legacy entry point for corrections that originate inside the Humanoid (its
-  // own boundary clamps). Player::OffsetPosition commits the position itself and
-  // then calls ApplyPositionOffset, so this sync-back is never the authority for
-  // a contact correction.
-  ApplyPositionOffset(offset);
-  if (player) player->CommitLegacyActionMotion();
-}
 
 void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType, const Player *ball_retainer) {
   if (ball_retainer == player) return;
