@@ -280,3 +280,31 @@ TEST_CASE("Runtime harness: possession arbitration is runtime-owned",
   }
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: restart possession weight publishes immediately",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  football::sim::TeamView view = SimulationAccess::TeamOf(sim, 0)->view();
+  const float before = view.players.front()->GetTeamFadingPossessionAmount();
+
+  // The legacy Team setter clamped the value and published the facts at once.
+  // Runtime must keep both halves: a restart placement that only wrote the state
+  // would leave every player reading the previous tick's team facts.
+  view.SetFadingPossessionAmount(1.5f);
+  CHECK(view.fading_possession_amount() == Catch::Approx(1.5f));
+  for (Player* player : view.players) {
+    CHECK(player->GetTeamFadingPossessionAmount() == Catch::Approx(1.5f));
+  }
+
+  // Out-of-range input is clamped exactly as before, and still published.
+  view.SetFadingPossessionAmount(9.0f);
+  CHECK(view.fading_possession_amount() == Catch::Approx(1.5f));
+  view.SetFadingPossessionAmount(0.0f);
+  CHECK(view.fading_possession_amount() == Catch::Approx(0.5f));
+  for (Player* player : view.players) {
+    CHECK(player->GetTeamFadingPossessionAmount() == Catch::Approx(0.5f));
+  }
+  CHECK(before == Catch::Approx(1.0f));
+  CHECK(sim.Stop());
+}

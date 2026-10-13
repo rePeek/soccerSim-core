@@ -1,6 +1,8 @@
 #ifndef FOOTBALL_SIM_RUNTIME_TEAM_FACTS_HPP
 #define FOOTBALL_SIM_RUNTIME_TEAM_FACTS_HPP
 
+#include <span>
+
 #include "sim/player/player.hpp"
 #include "sim/runtime/roster.hpp"
 #include "sim/runtime/team_state.hpp"
@@ -19,11 +21,18 @@ inline PlayerTeamFacts TeamFactsOf(const TeamFrame& frame,
                          state.designated_player};
 }
 
-// Publishes the current facts to every player of the roster, in roster order.
-inline void PublishTeamFacts(const Roster& roster, const TeamFrame& frame,
+// Publishes the current facts to every player of the slice, in roster order.
+inline void PublishTeamFacts(std::span<Player* const> players,
+                             const TeamFrame& frame,
                              const TeamMatchState& state) {
   const PlayerTeamFacts facts = TeamFactsOf(frame, state);
-  for (Player* player : roster.Players()) player->SetTeamContext(facts);
+  for (Player* player : players) player->SetTeamContext(facts);
+}
+
+// Same, for a caller that holds the owning Roster.
+inline void PublishTeamFacts(const Roster& roster, const TeamFrame& frame,
+                             const TeamMatchState& state) {
+  PublishTeamFacts(roster.Players(), frame, state);
 }
 
 }  // namespace football::sim

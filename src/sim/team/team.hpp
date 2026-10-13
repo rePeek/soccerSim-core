@@ -105,7 +105,7 @@ class Team {
     football::sim::TeamView view() {
       return football::sim::TeamView{id, GetTeamSide(), frame_.dynamic_side, frame_.static_side,
                                      GetGoalie(), roster_.Players(),
-                                     &state_};
+                                     &state_, &frame_};
     }
 
 

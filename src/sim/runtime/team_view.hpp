@@ -1,9 +1,11 @@
 #ifndef FOOTBALL_SIM_RUNTIME_TEAM_VIEW_HPP
 #define FOOTBALL_SIM_RUNTIME_TEAM_VIEW_HPP
 
+#include <algorithm>
 #include <span>
 
 #include "sim/runtime/match_config.hpp"
+#include "sim/runtime/team_facts.hpp"
 #include "sim/runtime/team_state.hpp"
 
 class Player;
@@ -12,9 +14,9 @@ namespace football::sim {
 
 // Borrowed, non-owning view of one team for a single call (rules, observation).
 // Runtime reconstructs it every tick and never hands over ownership, so it is
-// not a Team entity: it carries only identity, direction, the roster slice and a
-// pointer to the live runtime-owned TeamMatchState. Nothing in this header can
-// create or own a team.
+// not a Team entity: it carries only identity, direction, the roster slice and
+// pointers to the live runtime-owned TeamFrame/TeamMatchState. Nothing here can
+// create or own a team, and a view must never be stored across ticks.
 struct TeamView {
   int team_id = -1;
   TeamSide side = TeamSide::Home;
@@ -23,8 +25,10 @@ struct TeamView {
   Player* goalie = nullptr;
   // Full roster in stable insertion order; callers filter IsActive() themselves.
   std::span<Player* const> players;
-  // Live runtime-owned match facts; null only for a view without team state.
+  // Live runtime-owned state; null only for a view without team state.
   TeamMatchState* state = nullptr;
+  // Live orientation, needed to publish team facts after a state write.
+  const TeamFrame* frame = nullptr;
 
   bool HasPossession() const { return state != nullptr && state->has_possession; }
   int TimeNeededToGetToBall_ms() const {
@@ -39,8 +43,13 @@ struct TeamView {
   float fading_possession_amount() const {
     return state != nullptr ? state->fading_possession_amount : 0.0f;
   }
+  // Restart placement weight. The legacy Team setter clamped the value AND
+  // published the new facts immediately; both halves are behaviour (Player
+  // caches the projection), so they stay together here.
   void SetFadingPossessionAmount(float value) const {
-    if (state != nullptr) state->fading_possession_amount = value;
+    if (state == nullptr) return;
+    state->fading_possession_amount = std::clamp(value, 0.5f, 1.5f);
+    if (frame != nullptr) PublishTeamFacts(players, *frame, *state);
   }
 };
 
