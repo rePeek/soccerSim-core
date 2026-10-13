@@ -844,3 +844,35 @@ TEST_CASE("Runtime harness: one effective motion profile, static-driven",
   CHECK(again.turn_rate == after_fatigue.turn_rate);
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: animation adaptation never changes the committed trajectory",
+          "[runtime][sim]") {
+  // LOCO-2.3b controlled A/B: the motion-driven Movement reorder may pick a
+  // different clip, but the Player position/velocity are committed by
+  // PlayerMotion before SelectAnim runs, so they must be bit-identical.
+  const auto run = [](bool adaptation) {
+    Simulation sim;
+    InitMatch(sim);
+    SimulationAccess::EnableLocomotionAnimationAdaptation(sim, adaptation);
+    PlayerControlSet controls;
+    for (int tick = 0; tick < 50; ++tick) sim.Step(controls);
+    std::vector<PlayerKinematicState> states;
+    for (int team = 0; team < 2; ++team)
+      for (Player* player : SimulationAccess::RosterOf(sim, team).Players())
+        states.push_back(player->GetKinematicState());
+    sim.Stop();
+    return states;
+  };
+
+  const std::vector<PlayerKinematicState> on = run(true);
+  const std::vector<PlayerKinematicState> off = run(false);
+  REQUIRE(on.size() == off.size());
+  REQUIRE(on.size() == 22);
+  for (std::size_t i = 0; i < on.size(); ++i) {
+    CHECK(on[i].position.coords[0] == off[i].position.coords[0]);
+    CHECK(on[i].position.coords[1] == off[i].position.coords[1]);
+    CHECK(on[i].velocity.coords[0] == off[i].velocity.coords[0]);
+    CHECK(on[i].velocity.coords[1] == off[i].velocity.coords[1]);
+    CHECK(on[i].speed == off[i].speed);
+  }
+}

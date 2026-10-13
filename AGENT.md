@@ -1107,6 +1107,20 @@ stable tie-break. Near-zero speed uses bodyFacing as the direction reference
 instead of normalising a zero velocity. Pure function, no behaviour change
 until LOCO-2.3b wires it in; tests use synthetic clips (no asset).
 
+### LOCO-2.3b wired Movement reorder (behaviour change)
+
+`Player::CommitLocomotion` now captures the committed tick's
+`LocomotionAnimationInput` (current/next state + requested velocity + body),
+and `Humanoid::SelectAnim`'s Movement branch reorders the already-valid
+candidate set so the strategy's preferred clip wins, only when the action is
+pure procedural locomotion (`IsEligibleForProceduralLocomotion`). No new
+candidates are added and `GetBestCheatableAnimID`/non-Movement paths are
+untouched. `Simulation::EnableLocomotionAnimationAdaptation` (default ON) is
+the controlled A/B switch; the runtime harness asserts the ON/OFF committed
+positions and velocities are bit-identical, so the reorder never moves the
+player. Ball state is deliberately NOT compared: different body poses may
+change body CCD, which is the intended separation from the motion authority.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),

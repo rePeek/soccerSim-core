@@ -219,6 +219,7 @@ class SimulationAccess {
   static void EnableActiveImpulseProduction(Simulation& s, bool enabled) { s.EnableActiveImpulseProduction(enabled); }
   static void EnableBodyPhysicsProduction(Simulation& s, bool enabled) { s.EnableBodyPhysicsProduction(enabled); }
   static void EnableBakedBodyProduction(Simulation& s, bool enabled) { s.EnableBakedBodyProduction(enabled); }
+  static void EnableLocomotionAnimationAdaptation(Simulation& s, bool enabled) { s.EnableLocomotionAnimationAdaptation(enabled); }
   static void InitializeProductionPhysics(Simulation& s) { s.InitializeProductionPhysics(); }
   static void ReleaseProductionPhysics(Simulation& s) { s.ReleaseProductionPhysics(); }
   static bool PreparedTickProductionOf(const Simulation& s) { return s.prepared_tick_production_; }

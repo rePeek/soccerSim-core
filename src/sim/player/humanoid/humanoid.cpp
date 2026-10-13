@@ -33,6 +33,8 @@
 
 #include "sim/player/player.hpp"
 #include "sim/player/player_control_builder.hpp"
+#include "sim/player/locomotion_animation_strategy.hpp"
+#include <iterator>
 
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/event/accepted_touch_sink.hpp"
@@ -1610,6 +1612,21 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
 
   Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);
   if (command.useDesiredLookAt) desiredBodyDirectionRel = (command.desiredLookAt - (spatialState.position + spatialState.movement * 0.1f)).GetNormalized(Vector3(0, -1, 0)).GetRotated2D(-spatialState.angle);
+
+  // LOCO-2.3b: for pure procedural locomotion, reorder the already-valid
+  // Movement candidates so the motion-driven strategy's preferred clip wins,
+  // without adding candidates or touching the non-Movement/touch paths.
+  if (command.desiredFunctionType == e_FunctionType_Movement &&
+      CastPlayer()->LocomotionAnimationAdaptation() &&
+      CastPlayer()->IsEligibleForProceduralLocomotion(tick.ball_retainer == player) &&
+      CastPlayer()->LocomotionAnimationInputSnapshot().has_value() && !dataSet.empty()) {
+    const auto choice = SelectLocomotionAnimation(
+        *CastPlayer()->LocomotionAnimationInputSnapshot(), animations_.Clips());
+    auto preferred = std::find(dataSet.begin(), dataSet.end(),
+                               static_cast<int>(choice.animation_id));
+    if (preferred != dataSet.end() && preferred != dataSet.begin())
+      std::rotate(dataSet.begin(), preferred, std::next(preferred));
+  }
 
   if (command.desiredFunctionType == e_FunctionType_Movement ||
       command.desiredFunctionType == e_FunctionType_Trip ||

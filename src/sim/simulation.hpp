@@ -182,6 +182,10 @@ class Simulation {
   void EnablePreparedTickProduction(bool enabled);
   void RunPreparedPlayerTick();
   void EnableBakedBodyProduction(bool enabled);
+  // LOCO-2.3b: toggles the motion-driven Movement animation reorder on every
+  // active player. Default ON in production; OFF is the controlled A/B leg that
+  // proves the reorder never changes the committed trajectory.
+  void EnableLocomotionAnimationAdaptation(bool enabled);
   // P7a: single production-entry/teardown points. Init/Stop own the lifecycle;
   // these are the only places the three authority switches are flipped.
   void InitializeProductionPhysics();

@@ -28,6 +28,7 @@
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_motion_profile.hpp"
 #include "sim/player/player_body_profile.hpp"
+#include "sim/player/player_locomotion_animation.hpp"
 #include "sim/player/player_ground_collider.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
@@ -186,6 +187,14 @@ class Player final {
     // Static body geometry authority: derived once from the definition, not
     // re-derived per tick or per consumer (BODY-1.5).
     const football::player::PlayerBodyProfile& BodyProfile() const { return body_profile_; }
+    // LOCO-2.3b: value snapshot of the committed locomotion tick (current/next
+    // state + requested velocity + body), captured by CommitLocomotion so the
+    // animation adapter never re-runs the motion model.
+    const std::optional<LocomotionAnimationInput>& LocomotionAnimationInputSnapshot() const {
+      return locomotion_animation_input_;
+    }
+    bool LocomotionAnimationAdaptation() const { return locomotion_animation_adaptation_; }
+    void SetLocomotionAnimationAdaptation(bool enabled) { locomotion_animation_adaptation_ = enabled; }
 
     inline bool IsActive() { return isActive; }
 
@@ -504,6 +513,10 @@ class Player final {
     // Team owns an immutable description for the entire actor lifetime.
     const football::player::PlayerDefinition& model_;
     const football::player::PlayerBodyProfile body_profile_;
+    // LOCO-2.3b: fresh snapshot of the last committed locomotion tick, plus a
+    // runtime gate so the A/B regression can prove physics invariance.
+    std::optional<LocomotionAnimationInput> locomotion_animation_input_;
+    bool locomotion_animation_adaptation_ = true;
     // Non-unique 0..9 offset for staggered 100 ms work, never identity or order.
     const std::uint8_t schedule_phase_;
 

@@ -394,6 +394,11 @@ PlayerKinematicState Player::CommitLocomotion(
         (command.desiredLookAt - next.position).Get2D().GetNormalized(next.facing);
   }
   PlayerBodyFacing::Step(next, bodyInput, PlayerBodyFacingParameters{}, dt);
+  // LOCO-2.3b: capture the snapshot the animation adapter reads later this
+  // tick. next already reflects bodyFacing, so the adapter sees the committed
+  // motion without re-running the physics model.
+  locomotion_animation_input_ =
+      MakeLocomotionAnimationInput(tick_start, next, input.desiredVelocity, body_profile_);
   CommitKinematicState(next);
   return next;
 }
