@@ -1375,3 +1375,19 @@ Golden and assets remain unchanged. Stop after this checkpoint commit per the
 maintainer; do not proceed to P4f-3/P6c/P7 or Ball Model Bake without resumption.
 Development builds from now on require Debug/core only, with app disabled,
 as specified in the Build and test section.
+
+S0.3 (done) removes the last unconditional adoption. `Player::PrepareTick` no
+longer adopts the Humanoid state after `Humanoid::Process`: every path already
+finished its own write inside that call (the pure-locomotion branch commits and
+projects; each legacy root-motion branch adopts where it produced the position,
+in `CalculateSpatialState` / `CalculateFactualSpatialState`). Re-adopting there
+was identity at best and a hidden re-read at worst.
+
+`HumanoidBase::previousPosition2D` is documented as a legacy animation cache, not a
+second world-position authority: it is written by the state projection and the
+legacy reset/root-motion paths, and read in exactly one place
+(`CalculateSpatialState` derives the legacy `actualMovement` from
+`position - previousPosition2D` on the root-motion branch). The pure-locomotion
+branch never reads it. Coverage: the 200-tick mirror-invariant case still passes
+with the adoption removed, over both paths (156 legacy ticks and 44
+pure-locomotion ticks, 11787 assertions).

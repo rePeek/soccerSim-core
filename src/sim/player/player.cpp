@@ -721,7 +721,11 @@ float Player::PrepareTick(const football::sim::PlayerTickContext& tick, std::spa
     }
     Vector3 posBefore = CastHumanoid()->GetPosition();
     CastHumanoid()->Process(tick.now, tick, history, touch_sink, runtime_sink);
-    CommitLegacyActionMotion();
+    // S0.3: no adoption here. Every path already finished its own write inside
+    // Process -- the pure-locomotion branch committed and projected, and each
+    // legacy root-motion branch adopted at the point where it produced the
+    // position (CalculateSpatialState / CalculateFactualSpatialState). Adopting
+    // again would silently re-read the Humanoid after the Player had authority.
     CheckSimulationActionOracle();
     return (CastHumanoid()->GetPosition() - posBefore).GetLength();
   }

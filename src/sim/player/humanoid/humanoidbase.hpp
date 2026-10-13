@@ -506,6 +506,12 @@ class HumanoidBase {
     // realtime info
     SpatialState spatialState;
 
+    // S0.3: legacy animation cache only, NOT a second world-position authority.
+    // Written by the state projection and by the legacy reset/root-motion paths,
+    // and read in exactly one place: CalculateSpatialState derives the legacy
+    // `actualMovement` from (position - previousPosition2D) on the root-motion
+    // branch. The pure-locomotion branch never reads it, so it cannot become a
+    // hidden source of motion for the authority the Player now owns.
     Vector3 previousPosition2D;
 
     e_InterruptAnim interruptAnim;
