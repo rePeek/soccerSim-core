@@ -441,8 +441,10 @@ TEST_CASE("Runtime harness: PlayerMotion proposes, Player commits",
 
 TEST_CASE("Runtime harness: P2a motion step is bit-identical to the legacy call",
           "[runtime][sim]") {
-  // The profile Player::CommitLocomotion builds for this step: only max_speed is
-  // ability-derived, everything else keeps the locomotion defaults.
+  // A profile that pins acceleration/braking/turn_rate to the locomotion
+  // defaults, i.e. the P2a cut. Since P2b-1 CommitLocomotion no longer does
+  // that, this case verifies the *facade* (StepContinuous must be exactly
+  // PlayerLocomotion::Step), not the production profile.
   const football::player::PlayerDefinition definition;
   const PlayerLocomotionParameters defaults;
   const float max_speed =
@@ -503,5 +505,131 @@ TEST_CASE("Runtime harness: P2a motion step is bit-identical to the legacy call"
     // Stepping never mutates the caller's state.
     CHECK(start.position.coords[0] == 1.0f);
     CHECK(start.velocity.coords[0] == c.velocity.coords[0]);
+  }
+}
+
+TEST_CASE("Runtime harness: capability profile changes acceleration and turning",
+          "[runtime][sim]") {
+  constexpr float kDt = 0.01f;
+  football::player::PlayerDefinition neutral;
+  football::player::PlayerDefinition athletic = neutral;
+  athletic.attributes.set(football::player::PlayerStat::physical_acceleration, 2.0f);
+  athletic.attributes.set(football::player::PlayerStat::physical_agility, 2.0f);
+  const PlayerMotionProfile neutral_profile = MakePlayerMotionProfile(neutral);
+  const PlayerMotionProfile athletic_profile = MakePlayerMotionProfile(athletic);
+  REQUIRE(athletic_profile.acceleration > neutral_profile.acceleration);
+  REQUIRE(athletic_profile.braking > neutral_profile.braking);
+  REQUIRE(athletic_profile.turn_rate > neutral_profile.turn_rate);
+  // The ability mapping never invents a top speed of its own.
+  CHECK(neutral_profile.max_speed == Approx(athletic_profile.max_speed));
+
+  PlayerKinematicState start;
+  start.position = Vector3(0, 0, 0);
+  start.facing = Vector3(0, -1, 0);
+  const Vector3 sprint(7.0f, 0.0f, 0.0f);
+
+  // Acceleration: same input, the athletic player covers more ground.
+  const PlayerKinematicState neutral_accel =
+      PlayerMotion::StepContinuous(start, neutral_profile, sprint, start.facing, kDt).state;
+  const PlayerKinematicState athletic_accel =
+      PlayerMotion::StepContinuous(start, athletic_profile, sprint, start.facing, kDt).state;
+  CHECK(athletic_accel.speed > neutral_accel.speed);
+  CHECK(athletic_accel.position.GetDistance(start.position) >
+        neutral_accel.position.GetDistance(start.position));
+
+  // Braking: from a moving start toward a standstill.
+  PlayerKinematicState moving = start;
+  moving.velocity = Vector3(5.0f, 0.0f, 0.0f);
+  moving.speed = 5.0f;
+  moving.facing = Vector3(1.0f, 0.0f, 0.0f);
+  const PlayerKinematicState neutral_stop =
+      PlayerMotion::StepContinuous(moving, neutral_profile, Vector3(0), moving.facing, kDt).state;
+  const PlayerKinematicState athletic_stop =
+      PlayerMotion::StepContinuous(moving, athletic_profile, Vector3(0), moving.facing, kDt).state;
+  CHECK(athletic_stop.speed < neutral_stop.speed);
+
+  // Turning: same requested heading change at speed, the agile player ends closer
+  // to it, and neither exceeds the per-tick turn rate bound.
+  const Vector3 want(0.0f, 5.0f, 0.0f);
+  const PlayerKinematicState neutral_turn =
+      PlayerMotion::StepContinuous(moving, neutral_profile, want, moving.facing, kDt).state;
+  const PlayerKinematicState athletic_turn =
+      PlayerMotion::StepContinuous(moving, athletic_profile, want, moving.facing, kDt).state;
+  const float neutral_error = std::fabs(neutral_turn.facing.GetAngle2D(want));
+  const float athletic_error = std::fabs(athletic_turn.facing.GetAngle2D(want));
+  CHECK(athletic_error <= neutral_error);
+  CHECK(std::fabs(neutral_turn.facing.GetAngle2D(moving.facing)) <=
+        neutral_profile.turn_rate * kDt + 1e-4f);
+  CHECK(std::fabs(athletic_turn.facing.GetAngle2D(moving.facing)) <=
+        athletic_profile.turn_rate * kDt + 1e-4f);
+  // Turning costs speed in both, and nothing leaves the finite range.
+  CHECK(neutral_turn.speed < moving.speed);
+  CHECK(athletic_turn.speed < moving.speed);
+  CHECK(athletic_turn.speed <= athletic_profile.max_speed);
+  for (const PlayerKinematicState* state :
+       {&neutral_accel, &athletic_accel, &neutral_stop, &athletic_stop,
+        &neutral_turn, &athletic_turn}) {
+    CHECK(std::isfinite(state->speed));
+    CHECK(IsFinite(state->position));
+    CHECK(IsFinite(state->velocity));
+    CHECK(IsFinite(state->facing));
+    CHECK(state->speed <= athletic_profile.max_speed + 1e-4f);
+  }
+}
+
+TEST_CASE("Runtime harness: capability motion replays deterministically",
+          "[runtime][sim]") {
+  constexpr float kDt = 0.01f;
+  football::player::PlayerDefinition definition;
+  definition.attributes.set(football::player::PlayerStat::physical_acceleration, 1.7f);
+  definition.attributes.set(football::player::PlayerStat::physical_agility, 0.6f);
+  definition.attributes.set(football::player::PlayerStat::physical_velocity, 1.3f);
+  const PlayerMotionProfile profile = MakePlayerMotionProfile(definition);
+
+  // A deterministic control sequence: no RNG anywhere on the motion path, so the
+  // same sequence must reproduce the same trajectory exactly.
+  const auto run = [&profile](int ticks) {
+    std::vector<PlayerKinematicState> states;
+    states.reserve(static_cast<std::size_t>(ticks) + 1);
+    PlayerKinematicState state;
+    state.position = Vector3(10.0f, -4.0f, 0.0f);
+    states.push_back(state);
+    for (int tick = 0; tick < ticks; ++tick) {
+      const float phase = static_cast<float>(tick) * 0.05f;
+      const Vector3 desired(7.0f * std::cos(phase), 7.0f * std::sin(phase), 0.0f);
+      state = PlayerMotion::StepContinuous(state, profile, desired, state.facing, kDt).state;
+      states.push_back(state);
+    }
+    return states;
+  };
+
+  const std::vector<PlayerKinematicState> first = run(200);
+  const std::vector<PlayerKinematicState> repeat = run(200);
+  REQUIRE(first.size() == repeat.size());
+  for (std::size_t i = 0; i < first.size(); ++i) {
+    // Bit-exact, not approximate: determinism is the contract.
+    CHECK(first[i].position.coords[0] == repeat[i].position.coords[0]);
+    CHECK(first[i].position.coords[1] == repeat[i].position.coords[1]);
+    CHECK(first[i].velocity.coords[0] == repeat[i].velocity.coords[0]);
+    CHECK(first[i].velocity.coords[1] == repeat[i].velocity.coords[1]);
+    CHECK(first[i].facing.coords[0] == repeat[i].facing.coords[0]);
+    CHECK(first[i].speed == repeat[i].speed);
+  }
+
+  // Replaying from the initial state after a different run is still identical: no
+  // hidden accumulators survive a reset.
+  run(37);
+  const std::vector<PlayerKinematicState> after_interference = run(200);
+  for (std::size_t i = 0; i < first.size(); ++i) {
+    CHECK(first[i].position.coords[0] == after_interference[i].position.coords[0]);
+    CHECK(first[i].velocity.coords[1] == after_interference[i].velocity.coords[1]);
+    CHECK(first[i].facing.coords[1] == after_interference[i].facing.coords[1]);
+  }
+
+  // The trajectory is bounded and finite over the whole run.
+  for (const PlayerKinematicState& state : first) {
+    CHECK(IsFinite(state.position));
+    CHECK(IsFinite(state.velocity));
+    CHECK(state.speed <= profile.max_speed + 1e-4f);
   }
 }
