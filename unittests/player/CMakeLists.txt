@@ -1,12 +1,17 @@
-# Player static body model: PlayerBodyProfile derivation from height/weight.
-# Pure value computation; links only Catch2 and includes the private src/ tree,
-# never football::sim, actors, RNG or animation assets.
+# Player body model unit tests: pure PlayerBodyProfile derivation plus the
+# static bind-pose geometry (nine height/build profiles). Links football::
+# collision/animation for geometry + foundation and includes the private src/
+# tree; never football::sim, actors, RNG or animation assets.
 
-add_executable(football_player_unit_tests player_body_profile_test.cpp)
+add_executable(football_player_unit_tests
+  player_body_profile_test.cpp
+  player_body_geometry_test.cpp)
 target_include_directories(football_player_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_player_unit_tests
   PRIVATE
+    football::collision
+    football::animation
     Catch2::Catch2WithMain)
 
 football_configure_target(football_player_unit_tests)
