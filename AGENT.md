@@ -1085,6 +1085,16 @@ trajectory is the *velocity direction*; the adapter must key body/hip turn off
 velocity direction, not off the frozen `facing` field. Different motion
 capabilities produce different trajectories under identical control (M1).
 
+### LOCO-2.2 read-only adapter interface
+
+`player_locomotion_animation.hpp` defines `LocomotionAnimationInput` (a value
+snapshot of current/next kinematic state + desired velocity + body profile)
+and `LocomotionAnimationOutput` (clip id / playback rate / frame time / gait
+phase / switch suggestion). The output never carries a world position and
+cannot write PlayerKinematicState: PlayerMotion stays the sole position
+authority. This is the boundary LOCO-2.3+ implement against, not a behaviour
+change.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
