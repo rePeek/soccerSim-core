@@ -387,7 +387,7 @@ class HumanoidBase {
     // these resolve through the stable AnimationId into the read-only library.
     const AnimationClip &GetBakedClip(AnimationId id) const;
     const AnimationClip &GetCurrentBakedClip() const;
-    PlayerBakedPoseSample SampleBakedPose(const PlayerKinematicState& state, float scale) const {
+    PlayerBakedPoseSample SampleBakedPose(const PlayerKinematicState& state, const football::player::PlayerBodyProfile& profile) const {
       const auto& clip = GetCurrentBakedClip();
       if (clip.poses.empty() || currentAnim.frameNum < 0)
         throw std::logic_error("missing runtime baked pose frame");
@@ -398,7 +398,7 @@ class HumanoidBase {
       sample.requested_frame = currentAnim.frameNum; sample.sampled_frame = int(frame);
       sample.frame_clamped = sample.requested_frame != sample.sampled_frame;
       sample.base_angle = startAngle + currentAnim.rotationSmuggleOffset;
-      sample.scale = scale; sample.action = currentAnim.functionType;
+      sample.body_profile = profile; sample.action = currentAnim.functionType;
       return sample;
     }
     // Per-animation scratch for the selection sort predicates (replaces the

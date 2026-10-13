@@ -24,8 +24,9 @@ inline PlayerBakedPoseSample RealizeBakedPose(const PlayerBakedPoseSample& previ
     const PlayerBakedPoseSample& input, bool outgoing_special_state = false) {
   auto next=WorldBakedPose(input);
   const auto old=WorldBakedPose(previous);
-  if (!(next.scale>0) || !std::isfinite(next.scale) || next.scale!=old.scale)
-    throw std::invalid_argument("baked realization requires a fixed positive actor scale");
+  if (!(next.body_profile.height_scale>0) || !std::isfinite(next.body_profile.height_scale)
+      || next.body_profile.height_scale!=old.body_profile.height_scale)
+    throw std::invalid_argument("baked realization requires a fixed positive actor height scale");
   const float dt=football::sim::kTickSeconds;
   const float begin=std::sqrt(football::math::curve(1-football::math::NormalizedClamp(float(input.sampled_frame),0,8),1));
   const float bias=begin*.5f;
@@ -50,13 +51,13 @@ inline PlayerBakedPoseSample RealizeBakedPose(const PlayerBakedPoseSample& previ
     next.pose.orientations[joint]=desired;
   }
   if(begin>.01f) {
-    const float old_z=old.pose.positions[BodyPart::player].coords[2]*old.scale;
-    float z=next.pose.positions[BodyPart::player].coords[2]*next.scale;
+    const float old_z=old.pose.positions[BodyPart::player].coords[2]*old.body_profile.height_scale;
+    float z=next.pose.positions[BodyPart::player].coords[2]*next.body_profile.height_scale;
     z=z*(1-bias)+old_z*bias;
     const float allowed=(outgoing_special_state?6.f:2.8f)*dt;
     const float limited=old_z+football::math::clamp(z-old_z,-allowed,allowed);
     z=limited*begin+z*(1-begin);
-    next.pose.positions[BodyPart::player].coords[2]=z/next.scale;
+    next.pose.positions[BodyPart::player].coords[2]=z/next.body_profile.height_scale;
   }
   return next;
 }

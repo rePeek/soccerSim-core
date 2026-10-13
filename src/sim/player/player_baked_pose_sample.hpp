@@ -13,14 +13,14 @@ struct PlayerBakedPoseSample {
   int requested_frame = 0;
   int sampled_frame = 0;
   float base_angle = 0;
-  float scale = 1;
+  football::player::PlayerBodyProfile body_profile;
   e_FunctionType action = e_FunctionType_None;
   bool frame_clamped = false;
   BakedPlayerBodyCollider Geometry() const {
-    return BuildBodyCollider(pose,state,base_angle,scale);
+    return BuildBodyCollider(pose,state,base_angle,body_profile);
   }
   auto ContactRegions() const {
-    return BuildBakedContactRegions(pose,state,base_angle,scale);
+    return BuildBakedContactRegions(pose,state,base_angle,body_profile);
   }
   void Mirror() {
     state.Mirror();

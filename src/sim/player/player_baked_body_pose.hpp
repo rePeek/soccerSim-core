@@ -7,6 +7,7 @@
 #include "football/animation/types.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
+#include "sim/player/player_body_profile.hpp"
 
 // PoseFrame contains LOCAL keyframe rotations, not 14 world-space joint points.
 // Animation::Apply rotates joints while retaining bind translations from
@@ -18,7 +19,9 @@ struct BakedBodyPose {
   std::array<football::math::Quaternion, kBodyPartCount> orientations;
 };
 inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
-    const PlayerKinematicState& state, float animation_base_angle, float scale = 1.0f) {
+    const PlayerKinematicState& state, float animation_base_angle,
+    const football::player::PlayerBodyProfile& profile) {
+  const float scale = profile.height_scale;
   if (!std::isfinite(scale) || scale <= 0 || !std::isfinite(animation_base_angle))
     throw std::invalid_argument("invalid baked body pose transform");
   // No root XY duplication: procedural/animated PlayerState already contains it.
@@ -79,9 +82,11 @@ inline constexpr float kBakedHeadRadius=.172f;
 inline constexpr float kBakedThighRadius=.106f;
 inline constexpr float kBakedShinRadius=.102f;
 inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
-    const PlayerKinematicState& state, float animation_base_angle, float scale = 1.0f) {
+    const PlayerKinematicState& state, float animation_base_angle,
+    const football::player::PlayerBodyProfile& profile) {
   using namespace football::geometry;
-  const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, scale);
+  const float scale = profile.height_scale;
+  const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, profile);
   const auto& j = world.joints;
   // Pelvis follows the body node, trunk follows middle separately. A single
   // body-to-neck axis would miss rigid pelvis/trunk meshes when the spine bends.

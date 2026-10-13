@@ -27,6 +27,7 @@
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_motion_profile.hpp"
+#include "sim/player/player_body_profile.hpp"
 #include "sim/player/player_ground_collider.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
@@ -394,9 +395,9 @@ class Player final {
     PlayerMotionProfile EffectiveMotionProfile() const;
 
     const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
-    PlayerBakedPoseSample GetBakedPoseSample(float scale) const {
+    PlayerBakedPoseSample GetBakedPoseSample(const football::player::PlayerBodyProfile& profile) const {
       if (!humanoid) throw std::logic_error("inactive player has no baked pose source");
-      return humanoid->SampleBakedPose(kinematicState,scale);
+      return humanoid->SampleBakedPose(kinematicState, profile);
     }
 
     void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }

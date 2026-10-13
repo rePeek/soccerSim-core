@@ -178,8 +178,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         float strike_radius = 0.0f;
         int strike_foot = -1;
         {
-          const float scale = CastPlayer()->GetModel().height / defaultPlayerHeight;
-          const auto sample = CastPlayer()->GetBakedPoseSample(scale);
+          const auto sample = CastPlayer()->GetBakedPoseSample(
+              football::player::MakePlayerBodyProfile(CastPlayer()->GetModel()));
           const auto regions = sample.ContactRegions();
           const auto& ball_center = tick.ball.state().position;
           const auto surface = [&](const auto& boot) {

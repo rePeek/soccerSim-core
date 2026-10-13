@@ -54,7 +54,7 @@ void Simulation::BeginBakedBodyTick() {
   for(std::size_t slot=0;slot<snapshot_players_.size();++slot) {
     auto& actor=*snapshot_players_[slot];
     if(!actor.IsActive()) { baked_body_poses_[slot].reset(); baked_body_starts_[slot].reset(); continue; }
-    auto target=actor.GetBakedPoseSample(actor.GetModel().height/defaultPlayerHeight);
+    auto target=actor.GetBakedPoseSample(football::player::MakePlayerBodyProfile(actor.GetModel()));
     if(actor.GetTeamID()==second_team_) target.Mirror();
     if(!baked_body_poses_[slot]) baked_body_poses_[slot]=WorldBakedPose(target);
     // Player pair/root projection is already committed at Tick entry. Do not
@@ -77,7 +77,7 @@ void Simulation::CompleteBakedBodyPreparation() {
   for(std::size_t slot=0;slot<snapshot_players_.size();++slot) {
     auto& actor=*snapshot_players_[slot];
     if(!actor.IsActive()) { baked_body_poses_[slot].reset(); continue; }
-    auto target=actor.GetBakedPoseSample(actor.GetModel().height/defaultPlayerHeight);
+    auto target=actor.GetBakedPoseSample(football::player::MakePlayerBodyProfile(actor.GetModel()));
     if(actor.GetTeamID()==second_team_) target.Mirror();
     const auto& clip=animations_->Get(target.animation_id);
     baked_body_poses_[slot]=RealizeBakedPose(*baked_body_starts_[slot],target,!clip.metadata.outgoing_special_state.empty());
