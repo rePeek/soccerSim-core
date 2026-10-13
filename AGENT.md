@@ -166,8 +166,14 @@ src/                 implementations; public headers live in include/football/
         │             here.
         │             Owns ONLY single-player state and behaviour: it never holds a
         │             Team, never iterates the squad and contains no team algorithm.
-        └── humanoid/ Humanoid / HumanoidBase / utilities (still the animation and
-                      motion executor; P2+ move the motion authority to Player)
+        └── humanoid/ Humanoid / HumanoidBase / utilities. Since P2a Player computes
+                      and commits locomotion (Player::CommitLocomotion via
+                      PlayerMotion) and HumanoidBase only mirrors that committed
+                      state into the legacy spatial state; Humanoid still owns
+                      animation selection, sampling and the non-locomotion action
+                      path. P2b enables the capability-driven acceleration/braking/
+                      turn rate and removes the mirror; P3 shrinks Humanoid to
+                      animation only.
 
 cmake/
 ├── CPM.cmake
