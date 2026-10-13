@@ -450,6 +450,14 @@ class Player final {
     void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
     void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history);
     void SynchronizeKinematicState();
+    // P2c-1: the single write point for the Player's kinematic state. It commits
+    // the whole struct the caller computed and keeps the ground collider in
+    // step. It deliberately does NOT recompute `speed` (the producer owns that)
+    // and does NOT run CheckSimulationKinematicOracle(): at this instant the
+    // Humanoid mirror has not been refreshed yet, so the two sides are
+    // temporarily allowed to disagree; ApplySimulationMovementState syncs them
+    // and the oracle runs afterwards.
+    void CommitKinematicState(const PlayerKinematicState& next);
     PlayerActionState CaptureLegacyActionState() const;
     void SetNextResetSituationAuditContext(int context);
     const AnimationLibrary& animations_;

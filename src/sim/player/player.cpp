@@ -391,18 +391,29 @@ PlayerKinematicState Player::CommitLocomotion(
         (command.desiredLookAt - next.position).Get2D().GetNormalized(next.facing);
   }
   PlayerBodyFacing::Step(next, bodyInput, PlayerBodyFacingParameters{}, dt);
-  kinematicState = next;
-  groundCollider.SetCenter(kinematicState.position);
+  CommitKinematicState(next);
   return next;
 }
 
-void Player::SynchronizeKinematicState() {
-  kinematicState.position = humanoid->GetPosition();
-  kinematicState.velocity = humanoid->GetMovement();
-  kinematicState.facing = humanoid->GetDirectionVec();
-  kinematicState.bodyFacing = humanoid->GetBodyDirectionVec();
-  kinematicState.speed = kinematicState.velocity.GetLength();
+void Player::CommitKinematicState(const PlayerKinematicState& next) {
+  // Full-state commit: the caller computed every field, including `speed`; this
+  // point only installs it and keeps the ground collider consistent. No oracle
+  // here: the Humanoid mirror is refreshed by the caller's sync step, and the
+  // two sides are momentarily allowed to disagree.
+  kinematicState = next;
   groundCollider.SetCenter(kinematicState.position);
+}
+
+void Player::SynchronizeKinematicState() {
+  // Legacy sync direction: Humanoid -> Player, kept until the non-locomotion
+  // actions migrate (P3a). The commit still goes through the single write point.
+  PlayerKinematicState next;
+  next.position = humanoid->GetPosition();
+  next.velocity = humanoid->GetMovement();
+  next.facing = humanoid->GetDirectionVec();
+  next.bodyFacing = humanoid->GetBodyDirectionVec();
+  next.speed = next.velocity.GetLength();
+  CommitKinematicState(next);
   CheckSimulationKinematicOracle();
 }
 

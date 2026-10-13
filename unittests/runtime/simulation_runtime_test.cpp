@@ -633,3 +633,75 @@ TEST_CASE("Runtime harness: capability motion replays deterministically",
     CHECK(state.speed <= profile.max_speed + 1e-4f);
   }
 }
+
+TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players().front();
+  REQUIRE(player != nullptr);
+  Humanoid* humanoid = player->CastHumanoid();
+  REQUIRE(humanoid != nullptr);
+
+  // 1) A real tick runs the production chain: Player::CommitLocomotion ->
+  // HumanoidBase::ApplySimulationMovementState -> SynchronizeKinematicState.
+  // Player and its legacy mirror must agree afterwards.
+  sim.Step(PlayerControlSet{});
+  const PlayerKinematicState after_tick = player->GetKinematicState();
+  CHECK(player->GetPosition() == after_tick.position);
+  CHECK(player->GetMovement() == after_tick.velocity);
+  CHECK(humanoid->GetPosition() == after_tick.position);
+  CHECK(humanoid->GetMovement() == after_tick.velocity);
+  CHECK(humanoid->GetDirectionVec() == after_tick.facing);
+  CHECK(humanoid->GetBodyDirectionVec() == after_tick.bodyFacing);
+
+  // 2) CommitLocomotion installs exactly the state it computed (single write
+  // point), including the speed the producer calculated.
+  PlayerCommand command;
+  command.desiredFunctionType = e_FunctionType_Movement;
+  command.useDesiredMovement = true;
+  command.desiredDirection = Vector3(1.0f, 0.0f, 0.0f);
+  command.desiredVelocityFloat = 5.0f;
+  const PlayerKinematicState committed =
+      player->CommitLocomotion(command, after_tick, false, 0.01f);
+  CHECK(player->GetKinematicState().position.coords[0] == committed.position.coords[0]);
+  CHECK(player->GetKinematicState().position.coords[1] == committed.position.coords[1]);
+  CHECK(player->GetKinematicState().velocity.coords[0] == committed.velocity.coords[0]);
+  CHECK(player->GetKinematicState().facing.coords[1] == committed.facing.coords[1]);
+  CHECK(player->GetKinematicState().speed == committed.speed);
+  CHECK(player->GetKinematicState().speed == committed.velocity.GetLength());
+
+  // 3) Contact corrections through the existing (still Humanoid-owned) path:
+  // they accumulate and leave both sides consistent. Order and semantics are the
+  // legacy ones; this case only pins them, it does not change them.
+  const Vector3 offset_a(0.10f, 0.0f, 0.0f);
+  const Vector3 offset_b(0.0f, -0.05f, 0.0f);
+  player->OffsetPosition(offset_a);
+  const Vector3 after_a = player->GetPosition();
+  player->OffsetPosition(offset_b);
+  const Vector3 after_b = player->GetPosition();
+
+  CHECK(after_a.coords[0] ==
+        Approx(player->GetKinematicState().position.coords[0]));
+  CHECK(after_b.coords[0] == Approx(after_a.coords[0] + offset_b.coords[0]));
+  CHECK(after_b.coords[1] == Approx(after_a.coords[1] + offset_b.coords[1]));
+  CHECK(after_b.coords[2] == Approx(after_a.coords[2]));
+  CHECK(humanoid->GetPosition() == after_b);
+  CHECK(player->GetGroundCollider().center == after_b.Get2D());
+
+  // 4) The corrected state is the origin of the next motion computation: stepping
+  // from it must not jump back to the pre-correction place. (A real sim tick also
+  // runs PreMatch positioning, which moves the player independently, so the
+  // invariant is asserted on the motion computation itself.)
+  const PlayerKinematicState after_contact = player->GetKinematicState();
+  const PlayerKinematicState next_step =
+      player->CommitLocomotion(command, after_contact, false, 0.01f);
+  CHECK(next_step.position.GetDistance(after_contact.position) < 0.01f);
+  CHECK(next_step.position.GetDistance(after_tick.position) > 0.05f);
+
+  // A real tick still leaves Player and its legacy mirror consistent.
+  sim.Step(PlayerControlSet{});
+  CHECK(humanoid->GetPosition() == player->GetPosition());
+  CHECK(player->GetKinematicState().position == player->GetPosition());
+  CHECK(sim.Stop());
+}

@@ -329,9 +329,26 @@ Findings P2c/P2d must resolve, in this order:
    `PlayerKinematicState::Mirror` deliberately mirrors position/velocity only.
    No stage may start rotating facing/bodyFacing here: that is a separate
    coordinate-system migration.
-5. Non-locomotion actions still integrate legacy root motion inside
-   `CalculateSpatialState`, so that path cannot be deleted before P3a migrates
    the actions.
+
+P2c-1 (done) unifies the *write point* without changing the producers or the
+sync direction: `Player::CommitKinematicState(next)` is now the only function
+that installs a `PlayerKinematicState` (it also keeps `groundCollider` in step),
+and both `CommitLocomotion` and `SynchronizeKinematicState` go through it. It
+deliberately neither recomputes `speed` (the producer owns that) nor runs
+`CheckSimulationKinematicOracle()`: right after a commit the Humanoid mirror is
+still stale, so the oracle runs only after the sync step. `OffsetPosition`,
+`ResetPosition`, `ResetRuntimeState` and `Activate` keep their legacy order, and
+`Mirror()` keeps its atomic dual-state compatibility path until P2d. The
+Humanoid -> Player direction therefore still exists; P2c-2 flips the contact
+correction first, P2c-3 removes the reverse sync for pure locomotion.
+
+Known follow-up (not part of P2c-1): `Player::UpdatePossessionStats()` builds its
+interception-prediction `PlayerLocomotionParameters` with only `maxSpeed`
+overridden, while execution has used the capability-driven acceleration,
+braking and turn rate since P2b. Prediction can therefore disagree with the
+simulation about where a player can reach; prediction and execution must
+eventually share one effective capability profile.
 - Modules are configured from the repository root: public headers live in the
   top-level include/football/ tree, so module directories are no longer
   standalone-configurable. The former src/model module is gone; its data lives
