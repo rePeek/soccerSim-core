@@ -898,6 +898,68 @@ retained ball; smuggle offsets are transitional keyframe corrections; Shot/Pass/
 Trap/BallControl still animate their contact frame. Measurement-only changes must
 keep regression output exact.
 
+## Player body model (BODY-1)
+
+BODY-1 gives one default skeleton the ability to express different heights and
+builds purely from `PlayerDefinition` height + (new) weight, before any Godot
+asset work. The scope is body modelling and geometry; player-player contact,
+ball impulse, action clocks, root motion and AI are untouched.
+
+### BODY-1.0 reference body dimensions audit
+
+The shipped bind hierarchy is `data/media/objects/players/player.object`, and
+`player_baked_body_pose.hpp` re-declares the same 14-node offsets (root,
+body/pelvis, middle/trunk, neck, two thighs, two knees, two ankles, two
+shoulders, two elbows) as versioned bind offsets; the runtime never parses the
+object. Reference bind-pose heights at scale 1 (z above root z, the standing
+reference):
+
+- total height: head top ≈ 1.903 m (neck 1.61 + head center offset .1212 +
+  head radius .172); the animation-scale reference `defaultPlayerHeight` is
+  1.92 m, ~1.7 cm above the geometric head top — a nominal constant, not a
+  measured vertex.
+- hip (body/pelvis): 0.96 m
+- thigh joint: 0.95 m, knee: 0.53 m, ankle: 0.09 m
+- shoulder: 1.59 m, elbow: 1.26 m
+- neck: 1.61 m
+- standing foot lowest point: boot capsule bottom ≈ -0.038 m (ankle - .057 -
+  boot radius .071), i.e. the boot volume pokes slightly below root z.
+
+Reference capsule/sphere radii (scale 1) for the fine baked body geometry:
+
+- torso: radius .20 (body z - .02 → body z + .17)
+- head: sphere radius .172 (center = neck + {.0003, -.0121, .1212})
+- thigh: radius .106 (thigh → knee), shin: radius .102 (knee → ankle)
+- chest contact region: radius .233 (middle → middle + .48)
+- boots: radius .071, upper arms: .072, forearms: .053, palms: .065
+
+Three distinct geometries must not be conflated:
+1. fine baked skeleton capsules (`BuildBodyCollider`, six segments) — the
+   posed body against the ball.
+2. coarse three-part `PlayerBodyCollider` (upperBody .22 @ z 1.11/.30, lower
+   .19 @ z .60/.55, head .11 @ z 1.61) — legacy upright body volume.
+3. `PlayerGroundCollider.radius = 0.36` — the horizontal *contest* radius
+   (two players touch at 0.72 m, `player_contact.cpp` `distanceFactor`), not a
+   body width.
+
+All existing scale call sites (the only places `height` becomes a pose/contact
+scale today):
+
+- `player_motion_constants.hpp:44` — `defaultPlayerHeight = 1.92f` (definition).
+- `humanoid.cpp:181` — `height / defaultPlayerHeight` for the active-touch boot
+  surface/contact-region strike point.
+- `humanoid.cpp:2005` — `playerHeight / defaultPlayerHeight` for the touch
+  ball-height projection.
+- `simulation_baked_body.cpp:57` and `:80` — `GetBakedPoseSample(height /
+  defaultPlayerHeight)` in `BeginBakedBodyTick` / `CompleteBakedBodyPreparation`.
+
+`GetBakedPoseSample(scale)` stores the scale in `PlayerBakedPoseSample.scale`,
+which flows into `BuildBodyCollider` and `BuildBakedContactRegions` and finally
+`EvaluateBakedBodyPose`, which multiplies every bind offset by `scale` and
+never re-applies height (root XY stays in `PlayerKinematicState`; only the
+baked root Z is scaled). There is no weight field anywhere yet, and no other
+scale source.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
