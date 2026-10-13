@@ -81,22 +81,47 @@ inline const football::math::Vector3 kBakedHeadCenter{.0003f,-.0121f,.1212f};
 inline constexpr float kBakedHeadRadius=.172f;
 inline constexpr float kBakedThighRadius=.106f;
 inline constexpr float kBakedShinRadius=.102f;
+
+// Per-part girth influence (0 = weight does not widen this part, 1 = the full
+// girth_scale applies). First-pass geometric calibration, not anthropometry:
+// pelvis/torso widen most, limbs moderately, forearm slightly, and head/boots
+// keep the height-derived reference radius.
+inline constexpr float kBakedGirthTorso = 1.0f;
+inline constexpr float kBakedGirthThigh = 0.7f;
+inline constexpr float kBakedGirthShin = 0.7f;
+inline constexpr float kBakedGirthUpperArm = 0.7f;
+inline constexpr float kBakedGirthForearm = 0.4f;
+inline constexpr float kBakedGirthPalm = 0.4f;
+inline constexpr float kBakedGirthHead = 0.0f;
+inline constexpr float kBakedGirthBoot = 0.0f;
+
+// Continuous per-part radius factor: 1 at standard girth, tending toward
+// girth_scale by the part's influence. Geometry consumes this value, never the
+// BodyBuild label.
+inline float BakedGirthScale(float girth_scale, float part_influence) {
+  return 1.0f + (girth_scale - 1.0f) * part_influence;
+}
 inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
     const PlayerKinematicState& state, float animation_base_angle,
     const football::player::PlayerBodyProfile& profile) {
   using namespace football::geometry;
   const float scale = profile.height_scale;
+  const float girth = profile.girth_scale;
+  if (!std::isfinite(girth) || girth <= 0.0f)
+    throw std::invalid_argument("invalid baked body girth scale");
   const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, profile);
   const auto& j = world.joints;
   // Pelvis follows the body node, trunk follows middle separately. A single
   // body-to-neck axis would miss rigid pelvis/trunk meshes when the spine bends.
   return {{Capsule{j[body]+world.orientations[body]*football::math::Vector3(0,0,-.02f*scale),
-                  j[body]+world.orientations[body]*football::math::Vector3(0,0,.17f*scale),.20f*scale},
-           Sphere{j[neck]+world.orientations[neck]*(kBakedHeadCenter*scale),kBakedHeadRadius*scale},
-           Capsule{j[left_thigh], j[left_knee], kBakedThighRadius * scale},
-           Capsule{j[left_knee], j[left_ankle], kBakedShinRadius * scale},
-           Capsule{j[right_thigh], j[right_knee], kBakedThighRadius * scale},
-           Capsule{j[right_knee], j[right_ankle], kBakedShinRadius * scale}}};
+                  j[body]+world.orientations[body]*football::math::Vector3(0,0,.17f*scale),
+                  .20f * scale * BakedGirthScale(girth, kBakedGirthTorso)},
+           Sphere{j[neck]+world.orientations[neck]*(kBakedHeadCenter*scale),
+                  kBakedHeadRadius * scale * BakedGirthScale(girth, kBakedGirthHead)},
+           Capsule{j[left_thigh], j[left_knee], kBakedThighRadius * scale * BakedGirthScale(girth, kBakedGirthThigh)},
+           Capsule{j[left_knee], j[left_ankle], kBakedShinRadius * scale * BakedGirthScale(girth, kBakedGirthShin)},
+           Capsule{j[right_thigh], j[right_knee], kBakedThighRadius * scale * BakedGirthScale(girth, kBakedGirthThigh)},
+           Capsule{j[right_knee], j[right_ankle], kBakedShinRadius * scale * BakedGirthScale(girth, kBakedGirthShin)}}};
 }
 
 // Both actual pose endpoints are supplied by the caller. Physics uses the

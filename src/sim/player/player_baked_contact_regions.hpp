@@ -26,6 +26,9 @@ inline std::array<football::geometry::ColliderShape,kBakedContactRegionCount> Bu
     const football::player::PlayerBodyProfile& profile) {
   using namespace football::geometry;
   const float scale = profile.height_scale;
+  const float girth = profile.girth_scale;
+  if (!std::isfinite(girth) || girth <= 0.0f)
+    throw std::invalid_argument("invalid baked contact region girth scale");
   const auto world=EvaluateBakedBodyPose(pose,state,base_angle,profile);
   const auto point=[&](BodyPart joint,football::math::Vector3 local) {
     return world.joints[joint]+world.orientations[joint]*(local*scale);
@@ -33,15 +36,15 @@ inline std::array<football::geometry::ColliderShape,kBakedContactRegionCount> Bu
   // Bounds calibrated offline against shipped trunk/foot/upperarm/lowerarm
   // vertices in their declared local joint spaces. Hand has no independent
   // bone/mesh: palm volume is the distal lowerarm subset, not a fabricated joint.
-  return {Capsule{point(middle,{0,0,0}),point(middle,{0,0,.48f}),.233f*scale},
-    Capsule{point(left_ankle,{0,.05f,-.057f}),point(left_ankle,{0,-.11f,-.057f}),.071f*scale},
-    Capsule{point(right_ankle,{0,.05f,-.057f}),point(right_ankle,{0,-.11f,-.057f}),.071f*scale},
-    Capsule{world.joints[left_shoulder],world.joints[left_elbow],.072f*scale},
-    Capsule{world.joints[right_shoulder],world.joints[right_elbow],.072f*scale},
-    Capsule{world.joints[left_elbow],point(left_elbow,{0,0,-.30f}),.053f*scale},
-    Capsule{world.joints[right_elbow],point(right_elbow,{0,0,-.30f}),.053f*scale},
-    Sphere{point(left_elbow,{0,-.005f,-.30f}),.065f*scale},
-    Sphere{point(right_elbow,{0,-.005f,-.30f}),.065f*scale}};
+  return {Capsule{point(middle,{0,0,0}),point(middle,{0,0,.48f}),.233f*scale*BakedGirthScale(girth,kBakedGirthTorso)},
+    Capsule{point(left_ankle,{0,.05f,-.057f}),point(left_ankle,{0,-.11f,-.057f}),.071f*scale*BakedGirthScale(girth,kBakedGirthBoot)},
+    Capsule{point(right_ankle,{0,.05f,-.057f}),point(right_ankle,{0,-.11f,-.057f}),.071f*scale*BakedGirthScale(girth,kBakedGirthBoot)},
+    Capsule{world.joints[left_shoulder],world.joints[left_elbow],.072f*scale*BakedGirthScale(girth,kBakedGirthUpperArm)},
+    Capsule{world.joints[right_shoulder],world.joints[right_elbow],.072f*scale*BakedGirthScale(girth,kBakedGirthUpperArm)},
+    Capsule{world.joints[left_elbow],point(left_elbow,{0,0,-.30f}),.053f*scale*BakedGirthScale(girth,kBakedGirthForearm)},
+    Capsule{world.joints[right_elbow],point(right_elbow,{0,0,-.30f}),.053f*scale*BakedGirthScale(girth,kBakedGirthForearm)},
+    Sphere{point(left_elbow,{0,-.005f,-.30f}),.065f*scale*BakedGirthScale(girth,kBakedGirthPalm)},
+    Sphere{point(right_elbow,{0,-.005f,-.30f}),.065f*scale*BakedGirthScale(girth,kBakedGirthPalm)}};
 }
 inline std::array<football::geometry::ColliderMotion,kBakedContactRegionCount> BuildBakedContactRegionMotions(
     const std::array<football::geometry::ColliderShape,kBakedContactRegionCount>& start,
