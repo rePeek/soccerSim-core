@@ -10,6 +10,8 @@
 
 #include <array>
 
+#include "football/foundation/collision/sweep.hpp"
+#include "football/foundation/geometry/shapes.hpp"
 #include "sim/player/player_kinematics.hpp"
 
 // Approximate body volume used for *passive* ball-body collisions.
@@ -36,14 +38,19 @@ struct BodyVolume {
   float radius = 0.0f;
   float halfHeight = 0.0f;  // vertical half length; 0 means sphere
 
-  // Vertical capsule (or sphere when halfHeight == 0) against a sphere.
+  // Vertical capsule (or a sphere when halfHeight == 0) against a sphere. The
+  // shape geometry is football::collision's; the comparison stays strict because
+  // exact tangency is not a contact in the legacy body test.
   bool IntersectsSphere(const football::math::Vector3 &sphereCenter,
                         float sphereRadius) const {
-    const float clampedZ = football::math::clamp(
-        sphereCenter.coords[2] - center.coords[2], -halfHeight, halfHeight);
-    const football::math::Vector3 closest(center.coords[0], center.coords[1],
-                                   center.coords[2] + clampedZ);
-    return (sphereCenter - closest).GetLength() < radius + sphereRadius;
+    const football::geometry::Capsule capsule{
+        football::math::Vector3(center.coords[0], center.coords[1],
+                                center.coords[2] - halfHeight),
+        football::math::Vector3(center.coords[0], center.coords[1],
+                                center.coords[2] + halfHeight),
+        radius};
+    return football::collision::Penetrates(
+        football::geometry::Sphere{sphereCenter, sphereRadius}, capsule);
   }
 };
 

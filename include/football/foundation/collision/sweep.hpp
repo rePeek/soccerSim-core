@@ -19,7 +19,6 @@ football::math::Vector3 ClosestPointOnSegment(const football::math::Vector3& p,
                                        const football::math::Vector3& a,
                                        const football::math::Vector3& b);
 
-// ---- Static overlap (no time component) ----
 bool Overlap(const football::geometry::Sphere& sphere,
              const football::geometry::Sphere& other);
 bool Overlap(const football::geometry::Sphere& sphere,
@@ -30,6 +29,15 @@ bool Overlap(const football::geometry::Sphere& sphere,
 // One-sided: true when the sphere reaches into the solid (-normal) side.
 bool Overlap(const football::geometry::Sphere& sphere,
              const football::geometry::HalfSpace& half_space);
+
+// ---- Static penetration (strict) ----
+// Same geometry as Overlap(), but exact tangency is *not* penetration. The
+// legacy player body test uses a strict comparison, so these exist to reuse the
+// shared shape geometry without silently changing its tangency semantics.
+bool Penetrates(const football::geometry::Sphere& sphere,
+                const football::geometry::Sphere& other);
+bool Penetrates(const football::geometry::Sphere& sphere,
+                const football::geometry::Capsule& capsule);
 
 // Pure swept-sphere CCD against one collider over [0, dt] (`dt` in seconds).
 // Deterministic, never mutates state and draws no RNG.

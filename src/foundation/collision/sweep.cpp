@@ -362,4 +362,18 @@ bool Overlap(const Sphere& sphere, const HalfSpace& half_space) {
   return (sphere.center - half_space.point).GetDotProduct(n) <= sphere.radius;
 }
 
+// Strict variants: identical geometry to Overlap(), but exact tangency is not a
+// contact. Kept next to their non-strict twins so the two stay in step.
+bool Penetrates(const Sphere& sphere, const Sphere& other) {
+  const float radius_sum = sphere.radius + other.radius;
+  return (sphere.center - other.center).GetSquaredLength() < radius_sum * radius_sum;
+}
+
+bool Penetrates(const Sphere& sphere, const Capsule& capsule) {
+  const football::math::Vector3 closest =
+      ClosestPointOnSegment(sphere.center, capsule.a, capsule.b);
+  const float radius_sum = sphere.radius + capsule.radius;
+  return (sphere.center - closest).GetSquaredLength() < radius_sum * radius_sum;
+}
+
 }  // namespace football::collision

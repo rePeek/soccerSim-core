@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "football/foundation/collision/penetration2d.hpp"
 #include "football/foundation/collision/sweep.hpp"
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/geometry/shapes.hpp"
@@ -22,6 +23,9 @@ using football::collision::CollisionHit;
 using football::collision::FirstHit;
 using football::collision::MovingSphere;
 using football::collision::Overlap;
+using football::collision::Penetrates;
+using football::collision::PenetratesCapsuleCircle2D;
+using football::collision::PenetratesCircleCircle2D;
 using football::collision::Sweep;
 using football::geometry::Capsule;
 using football::geometry::ColliderMotion;
@@ -305,4 +309,85 @@ TEST_CASE("Sweep rejects malformed input instead of reporting no hit",
     const MovingSphere far = BallSweep({-2.0f, 0.0f, 1.0f}, {-10.0f, 0.0f, 0.0f}, 0.1f);
     CHECK_FALSE(Sweep(far, sphere_collider, kDt).has_value());
   }
+}
+
+TEST_CASE("Planar circle contestion is strict and planar",
+          "[unit][collision][penetration2d]") {
+  const Vector3 a(0.0f, 0.0f, 3.0f);
+  const Vector3 b(0.70f, 0.0f, -9.0f);  // z differs wildly: must be ignored
+
+  // Strict: exact tangency (0.36 + 0.36 = 0.72) is not a contest.
+  CHECK_FALSE(PenetratesCircleCircle2D(a, 0.36f, Vector3(0.72f, 0.0f, 0.0f), 0.36f));
+  CHECK(PenetratesCircleCircle2D(a, 0.36f, Vector3(0.719f, 0.0f, 0.0f), 0.36f));
+  // Overlap() would count the exact touch; the legacy player test must not.
+  CHECK(Overlap(Sphere{Vector3(0.0f, 0.0f, 0.0f), 0.36f},
+                Sphere{Vector3(0.72f, 0.0f, 0.0f), 0.36f}));
+  // Planar: only the projection matters, so z is irrelevant.
+  CHECK(PenetratesCircleCircle2D(a, 0.36f, b, 0.36f));
+  // Symmetry: the order of the two circles cannot matter.
+  CHECK(PenetratesCircleCircle2D(b, 0.36f, a, 0.36f) ==
+        PenetratesCircleCircle2D(a, 0.36f, b, 0.36f));
+  // Mirroring both centres preserves the relative geometry.
+  CHECK(PenetratesCircleCircle2D(Vector3(-a.coords[0], -a.coords[1], a.coords[2]),
+                                 0.36f, Vector3(-b.coords[0], -b.coords[1], 1.0f),
+                                 0.36f));
+  // Zero radii touch at a point but never penetrate.
+  CHECK_FALSE(PenetratesCircleCircle2D(a, 0.0f, a, 0.0f));
+}
+
+TEST_CASE("Planar capsule contestion clamps to the segment",
+          "[unit][collision][penetration2d]") {
+  const Vector3 origin(0.0f, 0.0f, 1.5f);
+  const Vector3 axis(1.0f, 0.0f, 0.0f);
+  constexpr float kLength = 1.6f;
+  constexpr float kRadius = 0.45f;
+
+  // Beside the middle of the axis.
+  CHECK(PenetratesCapsuleCircle2D(origin, axis, kLength, kRadius,
+                                  Vector3(0.8f, 0.4f, 0.5f), 0.36f));
+  // Exactly tangent is not a contest.
+  CHECK_FALSE(PenetratesCapsuleCircle2D(origin, axis, kLength, kRadius,
+                                        Vector3(0.8f, 0.81f, 0.0f), 0.36f));
+  // Past the far end the capsule behaves like its end cap: reach is
+  // radius + ball radius (0.45 + 0.36) measured from the end point (x = 1.6).
+  CHECK(PenetratesCapsuleCircle2D(origin, axis, kLength, kRadius,
+                                  Vector3(1.99f, 0.0f, 0.0f), 0.36f));
+  CHECK_FALSE(PenetratesCapsuleCircle2D(origin, axis, kLength, kRadius,
+                                        Vector3(2.41f, 0.0f, 0.0f), 0.36f));
+  CHECK_FALSE(PenetratesCapsuleCircle2D(origin, axis, kLength, kRadius,
+                                        Vector3(2.50f, 0.0f, 0.0f), 0.36f));
+  // A zero-length capsule is a circle.
+  CHECK(PenetratesCapsuleCircle2D(origin, axis, 0.0f, kRadius,
+                                  Vector3(0.5f, 0.0f, 0.0f), 0.36f) ==
+        PenetratesCircleCircle2D(origin, kRadius, Vector3(0.5f, 0.0f, 0.0f), 0.36f));
+  // Mirroring the axis and the query point preserves the relative geometry.
+  const Vector3 mirrored_axis(-axis.coords[0], -axis.coords[1], 0.0f);
+  CHECK(PenetratesCapsuleCircle2D(origin, mirrored_axis, kLength, kRadius,
+                                  Vector3(-0.8f, 0.4f, 0.0f), 0.36f) ==
+        PenetratesCapsuleCircle2D(origin, axis, kLength, kRadius,
+                                  Vector3(0.8f, 0.4f, 0.0f), 0.36f));
+}
+
+TEST_CASE("Body-volume geometry keeps the strict sphere/capsule semantics",
+          "[unit][collision][penetration2d]") {
+  const Sphere sphere{Vector3(0.0f, 0.0f, 1.11f), 0.10f};
+  const Capsule torso{Vector3(0.0f, 0.0f, 0.81f), Vector3(0.0f, 0.0f, 1.41f), 0.22f};
+
+  CHECK(Penetrates(sphere, torso));
+  // Exactly tangent (0.32 apart on the axis) is not penetration, while the
+  // non-strict twin counts it.
+  const Sphere tangent{Vector3(0.32f, 0.0f, 1.11f), 0.10f};
+  CHECK_FALSE(Penetrates(tangent, torso));
+  CHECK(Overlap(tangent, torso));
+
+  // A degenerate capsule (both ends equal) is a sphere.
+  const Capsule head{Vector3(0.0f, 0.0f, 1.61f), Vector3(0.0f, 0.0f, 1.61f), 0.11f};
+  CHECK(Penetrates(sphere, head) == Penetrates(sphere, Sphere{head.a, head.radius}));
+  CHECK_FALSE(Penetrates(Sphere{Vector3(0.0f, 0.0f, 0.0f), 0.1f}, head));
+
+  // Initial penetration on the axis is strict, and swapping the capsule
+  // endpoints cannot change it.
+  CHECK(Penetrates(Sphere{Vector3(0.0f, 0.0f, 1.11f), 0.0f}, torso));
+  const Capsule reversed{torso.b, torso.a, torso.radius};
+  CHECK(Penetrates(sphere, reversed) == Penetrates(sphere, torso));
 }

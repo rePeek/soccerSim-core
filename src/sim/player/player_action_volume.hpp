@@ -9,6 +9,7 @@
 #define _HPP_PLAYER_ACTION_VOLUME
 
 #include "sim/player/player_action.hpp"
+#include "football/foundation/collision/penetration2d.hpp"
 #include "sim/player/player_ground_collider.hpp"
 #include "sim/player/player_kinematics.hpp"
 
@@ -28,14 +29,12 @@ struct PlayerActionVolume {
   float length = 0.0f;
   float radius = 0.0f;
 
-  // Capsule [origin, origin + axis * length] against a horizontal circle.
-  // Everything is evaluated on the pitch plane, so body height is ignored.
+  // Geometry lives in football::collision; the strict tangency semantics and the
+  // planar projection are unchanged.
   bool Intersects(const PlayerGroundCollider &other) const {
     if (!active) return false;
-    const Vector3 toCenter = (other.center - origin).Get2D();
-    const float along = clamp(toCenter.GetDotProduct(axis), 0.0f, length);
-    const Vector3 closest = origin + axis * along;
-    return (other.center - closest).Get2D().GetLength() < radius + other.radius;
+    return football::collision::PenetratesCapsuleCircle2D(
+        origin, axis, length, radius, other.center, other.radius);
   }
 };
 

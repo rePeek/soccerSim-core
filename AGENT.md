@@ -159,6 +159,11 @@ src/                 implementations; public headers live in include/football/
         │             plus the P1 motion layer: player_motion_profile.hpp (ability ->
         │             capability, no fatigue baked in) and player_motion.{hpp,cpp}
         │             (MotionSample + PlayerMotion::SampleContinuous/SampleClip).
+        │             Player ground/action/body volumes keep their *decision* logic
+        │             (action windows, response, fouls) but take their geometry from
+        │             football::collision (2D circle/capsule penetration and the strict
+        │             sphere/capsule twins), so no distance intersection is re-derived
+        │             here.
         │             Owns ONLY single-player state and behaviour: it never holds a
         │             Team, never iterates the squad and contains no team algorithm.
         └── humanoid/ Humanoid / HumanoidBase / utilities (still the animation and
@@ -234,14 +239,15 @@ anim_baking → legacy_anim + animation/foundation
   into `football::ball` for a Capsule. ContactMaterial stays here deliberately
   (producers attach it to the collider they emit; collision never reads it) --
   there is no separate material/physics module yet.
-- `football_collision` owns the generic CCD queries (Overlap, Sweep, FirstHit)
-  and their input/result values (MovingSphere, CollisionHit). It depends only on
-  geometry. Ball and Player keep their own impulse/restitution/friction response
-  on top of it; collision never decides how a contactor moves afterwards.
-  Sweep's contract: dt finite and > 0, radii finite and >= 0, coordinates
-  finite, and collider.start/end the same shape kind. A violation throws
-  std::invalid_argument instead of masquerading as 'no hit'; a valid query with
   no contact returns nullopt.
+  It also owns the planar penetration tests players use for horizontal
+  volumes (`PenetratesCircleCircle2D`, `PenetratesCapsuleCircle2D`) and the
+  strict sphere/capsule twins of Overlap (`Penetrates`). Strict means exact
+  tangency is not a contact: the legacy player contest, tackle and body tests
+  used `<`, and switching them to Overlap's `<=` would change which
+  shoulder-to-shoulder and edge-of-reach duels register. Player keeps only the
+  *decision* around these queries (action windows, response, fouls); it must not
+  hand-write its own equivalent distance intersection.
 - `football_animation` is a header-only INTERFACE target (format types,
   serialization, the library reader, and selection) depending only on
   foundation. The runtime and the offline baker share one definition, so the

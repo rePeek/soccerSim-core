@@ -8,6 +8,7 @@
 #ifndef _HPP_PLAYER_GROUND_COLLIDER
 #define _HPP_PLAYER_GROUND_COLLIDER
 
+#include "football/foundation/collision/penetration2d.hpp"
 #include "football/foundation/math/vector3.hpp"
 
 using namespace football::math;
@@ -22,8 +23,12 @@ struct PlayerGroundCollider {
 
   void SetCenter(const Vector3 &position) { center = position.Get2D(); }
 
+  // Geometry lives in football::collision; this keeps the legacy strict
+  // tangency semantics (touching is not a contest).
   bool Intersects(const PlayerGroundCollider &other) const {
-    return (center - other.center).Get2D().GetLength() < radius + other.radius;
+    return football::collision::PenetratesCircleCircle2D(center, radius,
+                                                         other.center,
+                                                         other.radius);
   }
 
   void Mirror() { center.Mirror(); }
