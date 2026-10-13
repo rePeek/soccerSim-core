@@ -1066,6 +1066,25 @@ rather than requiring a new parallel state machine. Open for LOCO-2.2+: mapping
 physical speed between buckets to a playback rate, and choosing transition vs
 loop clips by speed trend.
 
+### LOCO-2.1 off-ball locomotion baseline
+
+`unittests/locomotion` drives the real PlayerMotion::StepContinuous +
+PlayerBodyFacing at 100 Hz with no Simulation/animation asset, over ten
+scenarios: stand, accel to max, 2/6 m/s cruise, brake to rest, 45/90/180 deg
+turns, slalom, sideways body observation, bit-identical replay and two
+capability profiles. Contracts pinned: speed never exceeds max_speed, the
+asymmetric approach never exceeds acceleration up / braking down, the velocity
+direction turns at no more than maxTurnRate, no NaN and no per-tick position
+jump.
+
+Behaviour pinned for the animation adapter: the locomotion `facing` field is
+frozen to idleFacing below idleSpeedThreshold (0.5 m/s) and adopts the
+(already rate-limited) velocity direction once the actor is moving, so `facing`
+can jump when an actor starts from a standstill. The physically continuous
+trajectory is the *velocity direction*; the adapter must key body/hip turn off
+velocity direction, not off the frozen `facing` field. Different motion
+capabilities produce different trajectories under identical control (M1).
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
