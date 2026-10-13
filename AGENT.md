@@ -1001,6 +1001,32 @@ asset must satisfy so C++ capsules and rendered meshes share one body profile.
 - If the current assets lack skin weights or Blend Shapes, prepare them in
   Blender first; a C# scale API alone is not visual modelling.
 
+### BODY-1.8 headless body placement validation
+
+`unittests/player/player_body_placement_test.cpp` places nine standing-pose
+players (the same zero-rotation bind pose) on a real `Pitch(105, 68)` whose
+ground HalfSpace is at z = 0, and checks pitch-space geometry: root at z = 0,
+joint proportions, left/right symmetry, capsule extents and the support-foot
+height. Optional bounded CSV/text diagnostics via
+`FOOTBALL_BODY_PLACEMENT_DIAG`.
+
+Foot semantics, deliberately kept distinct:
+- ankle joint: a skeletal quantity at ~0.09 × height_scale (0.084 m at 1.80 m),
+  never forced to zero.
+- boot capsule (`BuildBakedContactRegions`): ball-foot contact geometry whose
+  reference bottom is -0.038 × height_scale (≈ -3.6 cm at 1.80 m), so it pokes
+  slightly below the ground plane. This is not a foot-ground support solver.
+- `PlayerGroundCollider` is a 2D horizontal contest circle, not foot support.
+
+Standing acceptance: the support foot's lowest boot capsule stays near z = 0
+(tested in [-0.06, +0.02] m) while the ankle stays clearly above it; no
+per-frame or per-foot exact-zero requirement. `Pitch::grass_height()` = 0.025 m
+is a rolling-physics parameter, not a plane offset. The reference head top is
+≈ 1.9032 × height_scale (~1.78 m for a nominal 1.80 m player): `height` is the
+nominal human height, not the collision-envelope top, and is documented rather
+than silently re-tuned. Sampling a real Idle animation frame is deferred to the
+stage-2 animation work where idle-clip selection is defined.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
