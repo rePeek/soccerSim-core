@@ -794,3 +794,53 @@ TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
   CHECK(player->GetKinematicState().position == player->GetPosition());
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: one effective motion profile, static-driven",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players().front();
+  REQUIRE(player != nullptr);
+
+  // S1.1: execution and prediction must read the same capability source, and that
+  // source must be the definition-derived profile with the established top-speed
+  // formula.
+  const PlayerMotionProfile profile = player->EffectiveMotionProfile();
+  const PlayerMotionProfile from_definition =
+      MakePlayerMotionProfile(player->GetModel());
+  CHECK(profile.acceleration == Approx(from_definition.acceleration));
+  CHECK(profile.braking == Approx(from_definition.braking));
+  CHECK(profile.turn_rate == Approx(from_definition.turn_rate));
+  CHECK(profile.max_speed == Approx(player->GetMaxVelocity()));
+
+  // A neutral definition must still reproduce the locomotion defaults, so the
+  // profile stays an extraction rather than a new physics model.
+  football::player::PlayerDefinition neutral;
+  const PlayerMotionProfile neutral_profile = MakePlayerMotionProfile(neutral);
+  const PlayerLocomotionParameters defaults;
+  CHECK(neutral_profile.acceleration == Approx(defaults.acceleration));
+  CHECK(neutral_profile.braking == Approx(defaults.braking));
+  CHECK(neutral_profile.turn_rate == Approx(defaults.maxTurnRate));
+  CHECK(neutral_profile.max_speed == Approx(7.0f));
+
+  // Pinned decision: fatigue and AI difficulty scale abilities today, but they do
+  // NOT yet scale the motion profile. Whether they should is a separate behaviour
+  // change; if it happens, this expectation is the one that must change.
+  const float fatigue_before = player->GetFatigueFactorInv();
+  player->RelaxFatigue(1.0f);
+  CHECK(player->GetFatigueFactorInv() >= fatigue_before);
+  const PlayerMotionProfile after_fatigue = player->EffectiveMotionProfile();
+  CHECK(after_fatigue.max_speed == profile.max_speed);
+  CHECK(after_fatigue.acceleration == profile.acceleration);
+  CHECK(after_fatigue.braking == profile.braking);
+  CHECK(after_fatigue.turn_rate == profile.turn_rate);
+
+  // Determinism: the profile is a pure function of the definition plus the
+  // explicit runtime state, so reading it twice cannot differ.
+  const PlayerMotionProfile again = player->EffectiveMotionProfile();
+  CHECK(again.max_speed == after_fatigue.max_speed);
+  CHECK(again.acceleration == after_fatigue.acceleration);
+  CHECK(again.braking == after_fatigue.braking);
+  CHECK(again.turn_rate == after_fatigue.turn_rate);
+  CHECK(sim.Stop());
+}

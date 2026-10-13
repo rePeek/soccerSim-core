@@ -1409,3 +1409,13 @@ ResetPosition, ResetRuntimeState, Activate), `ApplyPositionCorrection` (contact
 and goalkeeper-boundary corrections) and `Mirror`. There is no other implicit
 write path. Coverage: 17 runtime cases / 11808 assertions, including a 200-tick
 mirror invariant over both paths.
+
+S1.1 (done) gives the capability in force exactly one source:
+`Player::EffectiveMotionProfile()` = the definition-derived profile
+(`MakePlayerMotionProfile`) with the established `GetMaxVelocity()` top speed.
+`CommitLocomotion` reads it instead of assembling the profile itself, so
+execution and (next) prediction have one place to read. Pinned decision, with a
+test: the runtime modifiers scale *abilities* (`GetStat`) today but do NOT scale
+the motion profile, so `max_speed` keeps its formula with no fatigue or
+AI-difficulty factor. Whether fatigue should slow a player down is a separate
+behaviour change.

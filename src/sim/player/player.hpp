@@ -26,6 +26,7 @@
 #include "football/pitch/pitch.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_kinematics.hpp"
+#include "sim/player/player_motion_profile.hpp"
 #include "sim/player/player_ground_collider.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
@@ -379,6 +380,18 @@ class Player final {
     float GetStat(football::player::PlayerStat name) const;
     float GetVelocityMultiplier() const;
     float GetMaxVelocity() const;
+    // S1.1: the motion capability actually in force, in ONE place. The static
+    // part comes from the definition (MakePlayerMotionProfile); the runtime part
+    // (AI difficulty, fatigue) is applied here and is never baked into the
+    // definition or a MotionClip. It is the only source both execution and
+    // prediction may read, so they cannot drift apart.
+    //
+    // Deliberate decision, pinned by a test: today the runtime modifiers scale
+    // the *abilities* (GetStat) but NOT the motion profile. In particular
+    // max_speed keeps the established GetMaxVelocity() formula with no fatigue or
+    // difficulty factor. Whether fatigue should slow a player down is a separate
+    // behaviour change, not part of unifying the parameter source.
+    PlayerMotionProfile EffectiveMotionProfile() const;
 
     const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
     PlayerBakedPoseSample GetBakedPoseSample(float scale) const {

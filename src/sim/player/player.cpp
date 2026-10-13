@@ -374,15 +374,11 @@ PlayerKinematicState Player::CommitLocomotion(
         command.desiredDirection.Get2D().GetNormalized(tick_start.facing) *
         clamp(command.desiredVelocityFloat, 0.f, max_speed);
   }
-  // P2b: the whole capability profile is in force now. max_speed keeps the
-  // established GetMaxVelocity() semantics; acceleration/braking follow
-  // physical_acceleration and turn_rate follows physical_agility. This is an
-  // intentional trajectory change (a more athletic player now accelerates and
-  // turns faster instead of only being allowed a higher top speed). Fatigue and
-  // AI difficulty are still deliberately not baked in: they remain per-tick
-  // runtime modifiers, so a tired player can still slow down.
-  PlayerMotionProfile profile = MakePlayerMotionProfile(model_);
-  profile.max_speed = max_speed;
+  // S1.1: one source for the capability in force, shared with prediction, so the
+  // two cannot drift apart. max_speed keeps the established GetMaxVelocity()
+  // semantics, and the runtime modifiers are applied inside it (currently none
+  // touch the profile -- see the declaration for the pinned decision).
+  const PlayerMotionProfile profile = EffectiveMotionProfile();
 
   PlayerKinematicState next =
       PlayerMotion::StepContinuous(tick_start, profile, input.desiredVelocity,
@@ -760,6 +756,16 @@ float Player::GetStat(football::player::PlayerStat name) const {
 float Player::GetMaxVelocity() const {
   // see humanoidbase's physics function
   return sprintVelocity * GetVelocityMultiplier();
+}
+
+PlayerMotionProfile Player::EffectiveMotionProfile() const {
+  // Static ability -> capability conversion, in one place.
+  PlayerMotionProfile profile = MakePlayerMotionProfile(model_);
+  // Established top-speed semantics: the ability formula, deliberately with no
+  // AI-difficulty or fatigue factor (see the header). Keeping the runtime part
+  // here means a later behaviour change has exactly one place to land.
+  profile.max_speed = GetMaxVelocity();
+  return profile;
 }
 
 float Player::GetVelocityMultiplier() const {
