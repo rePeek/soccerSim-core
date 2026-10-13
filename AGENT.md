@@ -293,6 +293,45 @@ only `TeamView`.
 player's own `TeamSide`, the runtime's `TeamFrame`/`TeamMatchState` and the
 `Roster` collection -- not an entity. Do not reintroduce a Team adapter: add
 the behaviour to `Simulation` or to `src/sim/runtime/`.
+
+### Motion state writers (P2 preflight audit)
+
+Audited at 4f9dc4c. `PlayerKinematicState` has one *declared* authority but
+several writers, and two of them write it **through** the Humanoid spatial
+state. Nothing may be added here without stopping to review the authority rule,
+and each row below must shrink as P2c/P2d proceed.
+
+| Writer | Fields | Tick phase | Cross-state sync | RNG |
+|---|---|---|---|---|
+| `Player::CommitLocomotion` (P2a) | whole state: position, velocity, facing, bodyFacing, speed | mid-tick, inside `HumanoidBase::ProjectMovementState` | committed value is immediately re-derived from the Humanoid by `ApplySimulationMovementState` -> `SynchronizeKinematicState` | none |
+| `Player::SynchronizeKinematicState` | position, velocity, facing, bodyFacing, speed + groundCollider | whenever the Humanoid spatial state changes | **reverse path** Player <- Humanoid; callers: `ApplySimulationMovementState`, `CalculateSpatialState`, `CalculateFactualSpatialState`, `HumanoidBase::OffsetPosition`, `Player::OffsetPosition`, `Player::ResetPosition`, `Player::PrepareTick`, `Player::ResetRuntimeState`, `Player::Activate` | none |
+| `Player::OffsetPosition` | position (+ Humanoid: startPos, nextStartPos, positionOffsetMovement, decayingPositionOffset, currentAnim.positionOffset) | contact resolution, after movement | delegates to `Humanoid::OffsetPosition`, then syncs back | none |
+| `Player::ResetPosition` | position, facing/angle (+ Humanoid start/next/previous) | restart placement, reset, activation | delegates to `HumanoidBase::ResetPosition`, syncs back, then `BeginSimulationAction()` | none |
+| `Player::ResetRuntimeState` | runtime flags, then a mirror sync | situation reset | syncs back | none |
+| `Player::Activate` | mirror sync after the Humanoid exists | roster activation | syncs back | none |
+| `Player::Mirror` | `kinematicState.Mirror()` (position+velocity) and `humanoid->Mirror()` (start/next/spatialState) | `Simulation::Mirror` around actor processing | mirrors both copies separately; the kinematic oracle proves they agree | none |
+| `HumanoidBase::CalculateSpatialState` | non-procedural path: `spatialState.position = startPos + currentAnim.positions[frame] + smuggle offsets`, plus movement/directionVec/angle/floatVelocity | `Humanoid::Process` before `ProjectMovementState` | syncs back | none |
+| `HumanoidBase::ApplySimulationMovementState` | spatialState position/movement/directionVec/floatVelocity/angle, previousPosition2D, body direction | mid-tick | then syncs back | none |
+| `HumanoidBase::CalculateFactualSpatialState` | zeroes velocity/movement on an outgoing special state | end of a legacy animation | syncs back | none |
+
+Findings P2c/P2d must resolve, in this order:
+
+1. `CommitLocomotion` is only *partly* authoritative: the value it commits is
+   immediately re-derived from the Humanoid, so one fact still has two writers.
+   They agree today only because the kinematic oracle enforces it.
+2. `Player::OffsetPosition` and `Player::ResetPosition` write the position
+   *through* the Humanoid and sync back, so collision and reset authority still
+   lives in the Humanoid `startPos`/`spatialState`, not in the Player.
+3. `previousPosition2D` is the next tick's motion origin; a contact correction
+   only lands there via the sync-back order. P2c must make the corrected Player
+   state that origin.
+4. `Player::Mirror` mirrors two copies of the same fact, and
+   `PlayerKinematicState::Mirror` deliberately mirrors position/velocity only.
+   No stage may start rotating facing/bodyFacing here: that is a separate
+   coordinate-system migration.
+5. Non-locomotion actions still integrate legacy root motion inside
+   `CalculateSpatialState`, so that path cannot be deleted before P3a migrates
+   the actions.
 - Modules are configured from the repository root: public headers live in the
   top-level include/football/ tree, so module directories are no longer
   standalone-configurable. The former src/model module is gone; its data lives
