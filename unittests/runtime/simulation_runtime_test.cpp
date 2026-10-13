@@ -744,3 +744,53 @@ TEST_CASE("Runtime harness: the Player is the locomotion authority across ticks"
 
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players().front();
+  REQUIRE(player != nullptr);
+  Humanoid* humanoid = player->CastHumanoid();
+  REQUIRE(humanoid != nullptr);
+  sim.Step(PlayerControlSet{});
+
+  const PlayerKinematicState base = player->GetKinematicState();
+
+  // Mirror commits through the Player and keeps the historical asymmetry:
+  // position and velocity are mirrored, facing and bodyFacing are not.
+  sim.Mirror(true, true, false);
+  const PlayerKinematicState mirrored = player->GetKinematicState();
+  CHECK(mirrored.position == -base.position);
+  CHECK(mirrored.velocity == -base.velocity);
+  CHECK(mirrored.facing == base.facing);
+  CHECK(mirrored.bodyFacing == base.bodyFacing);
+  CHECK(humanoid->GetPosition() == mirrored.position);
+  CHECK(humanoid->GetMovement() == mirrored.velocity);
+  CHECK(player->GetGroundCollider().center == mirrored.position.Get2D());
+
+  // Mirroring is its own inverse, so a round trip restores every field.
+  sim.Mirror(true, true, false);
+  CHECK(player->GetKinematicState().position == base.position);
+  CHECK(player->GetKinematicState().velocity == base.velocity);
+  CHECK(player->GetKinematicState().facing == base.facing);
+  CHECK(player->GetKinematicState().bodyFacing == base.bodyFacing);
+  CHECK(humanoid->GetPosition() == base.position);
+
+  // A contact correction followed by a reset must not leave residue, and both
+  // sides must agree after the lifecycle entry.
+  player->OffsetPosition(Vector3(0.2f, 0.1f, 0.0f));
+  player->ResetPosition(Vector3(3.0f, -2.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f));
+  CHECK(player->GetPosition().coords[0] == Approx(3.0f));
+  CHECK(player->GetPosition().coords[1] == Approx(-2.0f));
+  CHECK(player->GetKinematicState().position == player->GetPosition());
+  CHECK(humanoid->GetPosition() == player->GetPosition());
+
+  // The situation reset path (which also adopts the Humanoid pose) stays
+  // consistent across a following tick.
+  sim.ResetSituation(Vector3(1.0f, 1.0f, 0.0f));
+  sim.Step(PlayerControlSet{});
+  CHECK(humanoid->GetPosition() == player->GetPosition());
+  CHECK(player->GetKinematicState().position == player->GetPosition());
+  CHECK(sim.Stop());
+}

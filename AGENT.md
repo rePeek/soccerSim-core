@@ -1391,3 +1391,21 @@ legacy reset/root-motion paths, and read in exactly one place
 branch never reads it. Coverage: the 200-tick mirror-invariant case still passes
 with the adoption removed, over both paths (156 legacy ticks and 44
 pure-locomotion ticks, 11787 assertions).
+
+S0.4 (done) finishes the lifecycle group. `Player::Mirror` now mirrors through
+`CommitKinematicState` instead of writing the state directly, keeping the
+historical asymmetry on purpose (`PlayerKinematicState::Mirror` mirrors position
+and velocity only; facing and bodyFacing are left to the legacy convention).
+`ResetPosition`, `ResetRuntimeState` and `Activate` keep adopting the Humanoid's
+reset pose, but through the explicitly named `CommitLegacyActionMotion()`.
+
+S0 is complete, and the write closure is verified by search:
+`PlayerKinematicState kinematicState` is assigned in exactly one place
+(`Player::CommitKinematicState`), and that function has exactly four callers:
+`CommitLocomotion` (continuous motion), `CommitLegacyActionMotion` (legacy
+animation root motion, six classified call sites: CalculateSpatialState,
+CalculateFactualSpatialState, ApplySimulationMovementState's legacy branch,
+ResetPosition, ResetRuntimeState, Activate), `ApplyPositionCorrection` (contact
+and goalkeeper-boundary corrections) and `Mirror`. There is no other implicit
+write path. Coverage: 17 runtime cases / 11808 assertions, including a 200-tick
+mirror invariant over both paths.

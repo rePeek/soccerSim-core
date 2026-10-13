@@ -349,8 +349,14 @@ void Player::Mirror() {
   // own their Humanoid and must keep the historical mirror/oracle path.
   if (!humanoid) return;
   humanoid->Mirror();
-  kinematicState.Mirror();
-  groundCollider.Mirror();
+  // S0.4: mirror through the single commit point. PlayerKinematicState::Mirror
+  // keeps the historical field asymmetry on purpose -- position and velocity are
+  // mirrored, facing and bodyFacing are not -- because the legacy spatial-state
+  // mirror does the same. Changing that would be a coordinate-system migration,
+  // not a lifecycle cleanup.
+  PlayerKinematicState mirrored = kinematicState;
+  mirrored.Mirror();
+  CommitKinematicState(mirrored);
   CheckSimulationKinematicOracle();
 }
 
