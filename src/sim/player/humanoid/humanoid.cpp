@@ -1622,6 +1622,13 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
       CastPlayer()->LocomotionAnimationInputSnapshot().has_value() && !dataSet.empty()) {
     const auto choice = SelectLocomotionAnimation(
         *CastPlayer()->LocomotionAnimationInputSnapshot(), animations_.Clips());
+    // LOCO-2.3c: record the reference rate for calibration; frameNum is not
+    // advanced by it here.
+    auto& audit = LocomotionPlaybackAuditState();
+    ++audit.samples;
+    audit.reference_speed_sum += choice.reference_speed;
+    audit.playback_rate_sum += choice.playback_rate;
+    audit.playback_rate_max = std::max(audit.playback_rate_max, choice.playback_rate);
     auto preferred = std::find(dataSet.begin(), dataSet.end(),
                                static_cast<int>(choice.animation_id));
     if (preferred != dataSet.end() && preferred != dataSet.begin())

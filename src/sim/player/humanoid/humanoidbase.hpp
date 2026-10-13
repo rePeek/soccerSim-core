@@ -43,6 +43,15 @@ class AnimationLibrary;
 
 // Library-side H3e4b diagnostics; shared with regression, never simulation state.
 int &HumanoidProceduralMovementTicks();
+// LOCO-2.3c: reference playback-rate recording only; the integer frameNum
+// clock is NOT driven by these values until LOCO-2.6.
+struct LocomotionPlaybackAudit {
+  int samples = 0;
+  float reference_speed_sum = 0.0f;
+  float playback_rate_sum = 0.0f;
+  float playback_rate_max = 0.0f;
+};
+LocomotionPlaybackAudit &LocomotionPlaybackAuditState();
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
 // reset-seed-prep: compare animation and simulation locomotion gates while the

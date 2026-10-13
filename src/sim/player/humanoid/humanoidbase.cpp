@@ -81,6 +81,7 @@ const Vector3 preferredDirectionVecs[] = {
 };
 
 int &HumanoidProceduralMovementTicks() { static int value = 0; return value; }
+LocomotionPlaybackAudit &LocomotionPlaybackAuditState() { static LocomotionPlaybackAudit value; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement() { static int value = 0; return value; }
 int &HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement() { static int value = 0; return value; }
 int &HumanoidLocomotionGateBothTrue() { static int value = 0; return value; }

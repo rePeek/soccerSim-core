@@ -876,3 +876,20 @@ TEST_CASE("Runtime harness: animation adaptation never changes the committed tra
     CHECK(on[i].speed == off[i].speed);
   }
 }
+
+TEST_CASE("Runtime harness: locomotion playback reference is recorded, not applied",
+          "[runtime][sim]") {
+  // LOCO-2.3c: the strategy computes and records a reference playback rate,
+  // but the integer frameNum clock is not advanced by it until LOCO-2.6.
+  const int before = LocomotionPlaybackAuditState().samples;
+  Simulation sim;
+  InitMatch(sim);
+  PlayerControlSet controls;
+  for (int tick = 0; tick < 30; ++tick) sim.Step(controls);
+  const LocomotionPlaybackAudit& audit = LocomotionPlaybackAuditState();
+  CHECK(audit.samples > before);
+  CHECK(std::isfinite(audit.reference_speed_sum));
+  CHECK(std::isfinite(audit.playback_rate_sum));
+  CHECK(audit.playback_rate_max >= 0.0f);
+  CHECK(sim.Stop());
+}

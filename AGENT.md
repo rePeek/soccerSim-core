@@ -1121,6 +1121,14 @@ positions and velocities are bit-identical, so the reorder never moves the
 player. Ball state is deliberately NOT compared: different body poses may
 change body CCD, which is the intended separation from the motion authority.
 
+### LOCO-2.3c reference playback rate recording
+
+The wired reorder records `LocomotionPlaybackAudit` (samples, reference-speed
+and playback-rate sums/max) without advancing the integer `frameNum` clock.
+Non-integer frame sampling and animation/physics time separation remain
+LOCO-2.6. The runtime harness asserts the audit accumulates finite samples
+while the frame clock stays untouched.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
