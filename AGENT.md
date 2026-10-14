@@ -1291,6 +1291,36 @@ so it is kept as an explicit locomotion heading (plan B). The three-field
 target (position/velocity/bodyFacing) is therefore not reached by deletion of
 `facing`; STATE-1.3 handles the legacy projection, not this field.
 
+### STATE-1.3 legacy projection audit (read-only; no behaviour change)
+
+The boundary is now explicit and gates cleanly on `UsesProceduralLocomotion()`:
+- Pure Movement: `ProjectMovementState` -> `CommitLocomotion` (Player is the
+  sole authority) -> `ProjectSimulationMovementState` (one-way projection into
+  `SpatialState`, no adoption back). `CalculateSpatialState` early-returns and
+  only sets `spatialState.foot`.
+- Non-Movement (legacy action): `CalculateSpatialState` derives root-motion
+  `SpatialState` -> `CommitLegacyActionMotion` (adopts into Player) ->
+  `ApplySimulationMovementState` re-projects + adopts again (idempotent).
+
+Field ownership (spatialState):
+- position/movement/floatVelocity: pure = projected from Player; non-Movement
+  = root motion computed in CalculateSpatialState, then re-projected.
+- directionVec: pure = state.facing; non-Movement = derived from movement/body
+  direction, then re-projected.
+- actualMovement/physicsMovement/animMovement: non-Movement = computed in
+  CalculateSpatialState; pure = set to velocity (compatibility, no pure
+  producer).
+- bodyDirectionVec/bodyAngle/relBodyDirectionVec/relBodyAngle: written by
+  `ApplySimulationBodyState` from `state.bodyFacing` on both paths;
+  rel-body is animation-selection-only quantization.
+- angle/previousPosition2D: projected for the next movement derivation.
+
+Conclusion: the two paths never overwrite each other within one tick (the gate
+is exclusive), and no field has two live writers on the same path. No code
+change is made in this cut. Deferred, recorded for later work: the redundant
+second `CommitLegacyActionMotion` on the legacy path, further shrinking of
+`SpatialState` rest fields, and a future `facing` -> `locomotionHeading` rename.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
