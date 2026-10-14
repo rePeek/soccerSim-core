@@ -1270,26 +1270,26 @@ scalar, and readers derive it. The old bit-exact mirror oracle clause
 during real turning movement (~1e-8 divergence), so removing `speed` fixes a
 latent Debug assertion. Facing remains untouched (STATE-1.2).
 
-### STATE-1.2 facing audit (read-only; field is kept)
+### STATE-1.2 facing removed (derived GetFacing)
 
-`facing` is NOT a redundant duplicate of velocity: it is the locomotion heading
-and the standing/idle direction reference. Consumers that cannot derive it:
-- player_locomotion.hpp:112/156 — velocity~0 fallback and the idleFacing store.
-- player.cpp:389 — bodyInput.desiredFacing defaults to next.facing, so the
-  torso cone anchor and stand-still body facing depend on it.
-- player_body_facing.hpp:37/63 — the body-facing relative cone is anchored on
-  state.facing.
-- player_contact.cpp:121-122/183-194/375 — player-player bounce/trip geometry
-  and direction use kinematicState.facing.
-- player_action_volume.hpp:75 — action volume axis.
-- world_state_builder.cpp:46 -> WorldPlayerState.facing — the AI observation's
-  direction fallback (DefaultAI uses it).
+Reopened after the audit below, then completed in four cuts (1.2b-e).
+`PlayerKinematicState` is now exactly position/velocity/bodyFacing, with:
+- `GetSpeed() = velocity.GetLength()`.
+- `GetFacing() = velocity.Get2D().GetNormalized()` while `GetSpeed() > 1e-4`,
+  else `bodyFacing` (normalized, falling back to -Y). The tolerance is a
+  numeric-zero epsilon, NOT the 0.5 m/s idle threshold: a 0.3 m/s player is
+  moving and its heading is the velocity direction.
 
-Conclusion: deleting `facing` (plan A) would change stand-still start direction,
-the body-facing anchor, player-player contact response and the AI observation,
-so it is kept as an explicit locomotion heading (plan B). The three-field
-target (position/velocity/bodyFacing) is therefore not reached by deletion of
-`facing`; STATE-1.3 handles the legacy projection, not this field.
+Consumers were migrated by role: `PlayerLocomotion`/`PlayerBodyFacing` use
+`GetFacing()` (the stand-still start reference is now the body facing);
+`GetDirectionVec`, action volume, legacy command, `CommitLocomotion`, the
+`SpatialState` direction projection, `WorldPlayerState.facing` and the
+player-player contact geometry all read `GetFacing()`. `Mirror()` still mirrors
+position/velocity only, so the derived heading mirrors through velocity while
+moving and stays on the un-mirrored body facing at rest — a deliberate
+semantic change (not a pure field deletion). The observation layer keeps its
+own derived `facing` for AI. Facing writes and the bit-exact facing oracle
+clause were deleted with the field.
 
 ### STATE-1.3 legacy projection audit (read-only; no behaviour change)
 
