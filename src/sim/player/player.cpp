@@ -635,6 +635,9 @@ bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {
 
 void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   humanoid->ResetPosition(newPos, focusPos);
+  // ANIM-1.1: re-placement clears any pending active/passive request.
+  pending_action_request_.reset();
+  pending_reaction_.reset();
   CommitLegacyActionMotion();
   BeginSimulationAction();
 }
@@ -785,6 +788,9 @@ float Player::GetLastTouchBias(int decay_ms, football::sim::Tick time) {
 void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now) {
   last_touch_tick_ = {};
   lastTouchType = e_TouchType_None;
+  // ANIM-1.1: a reset must not leave a stale active/passive request behind.
+  pending_action_request_.reset();
+  pending_reaction_.reset();
   if (IsActive()) {
     // The reset itself is the discontinuity, so it anchors the generation that
     // a later reset re-entry compares against.

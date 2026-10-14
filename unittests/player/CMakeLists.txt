@@ -12,7 +12,8 @@ add_executable(football_player_unit_tests
   player_locomotion_animation_test.cpp
   locomotion_animation_strategy_test.cpp
   pose_blend_test.cpp
-  animation_transition_state_test.cpp)
+  animation_transition_state_test.cpp
+  player_action_request_test.cpp)
 target_include_directories(football_player_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_player_unit_tests

@@ -31,6 +31,7 @@
 #include "sim/player/player_locomotion_animation.hpp"
 #include "sim/player/player_ground_collider.hpp"
 #include "sim/player/player_action.hpp"
+#include "sim/player/player_action_request.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
 #include "sim/player/player_control.hpp"
@@ -330,6 +331,43 @@ class Player final {
     const PlayerActionState &GetSimulationActionState() const {
       return actionState;
     }
+
+    // ANIM-1.1: per-player action request / reaction contract. These submit a
+    // request and record the arbitration outcome; they do not change the pose
+    // here (the later ANIM-1 cuts wire the request into the runtime).
+    RequestOutcome Play(const PlayerActionRequest& request) {
+      const RequestOutcome outcome = ArbitrateActionRequest(actionState, request.kind);
+      action_request_outcome_ = outcome;
+      ++action_request_attempts_;
+      if (outcome == RequestOutcome::Accepted) ++action_request_accepts_;
+      else if (outcome == RequestOutcome::Deferred) ++action_request_defers_;
+      else ++action_request_rejects_;
+      if (outcome != RequestOutcome::Rejected) pending_action_request_ = request;
+      return outcome;
+    }
+    RequestOutcome React(const PlayerReaction& reaction) {
+      const RequestOutcome outcome = ArbitrateReaction(actionState, reaction.kind);
+      reaction_outcome_ = outcome;
+      if (outcome != RequestOutcome::Rejected) pending_reaction_ = reaction;
+      return outcome;
+    }
+    const std::optional<PlayerActionRequest>& PendingActionRequest() const {
+      return pending_action_request_;
+    }
+    const std::optional<PlayerReaction>& PendingReaction() const {
+      return pending_reaction_;
+    }
+    RequestOutcome LastActionRequestOutcome() const { return action_request_outcome_; }
+    RequestOutcome LastReactionOutcome() const { return reaction_outcome_; }
+    int ActionRequestAttempts() const { return action_request_attempts_; }
+    int ActionRequestAccepts() const { return action_request_accepts_; }
+    int ActionRequestDefers() const { return action_request_defers_; }
+    int ActionRequestRejects() const { return action_request_rejects_; }
+    // ANIM-1.1: the single final pose for this player (default when inactive).
+    PoseFrame Pose() const {
+      if (!isActive || !humanoid) return PoseFrame{};
+      return humanoid->SampleBakedPose(kinematicState, body_profile_).pose;
+    }
     // H3e4f-c2a: observation only. The simulation keeps its own locomotion
     // intent cadence in parallel with the animation requeue lifecycle, so the
     // two schedules can be compared before either one takes over.
@@ -539,6 +577,16 @@ class Player final {
     PlayerKinematicState kinematicState;
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
+    // ANIM-1.1: pending active/passive requests and their recorded arbitration
+    // outcome. Cleared on every reset path so no stale request survives.
+    std::optional<PlayerActionRequest> pending_action_request_;
+    std::optional<PlayerReaction> pending_reaction_;
+    RequestOutcome action_request_outcome_ = RequestOutcome::Accepted;
+    RequestOutcome reaction_outcome_ = RequestOutcome::Accepted;
+    int action_request_attempts_ = 0;
+    int action_request_accepts_ = 0;
+    int action_request_defers_ = 0;
+    int action_request_rejects_ = 0;
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
     // Explicit cause of the next Direct publication. A continuity repair runs

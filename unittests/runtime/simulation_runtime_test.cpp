@@ -942,3 +942,54 @@ TEST_CASE("Runtime harness: reset makes body facing consistent with the focus",
   CHECK(state.bodyFacing != Vector3(0.0f, -1.0f, 0.0f));
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: per-player Play/React/Pose contract", "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  Player* striker = SimulationAccess::RosterOf(sim, 0).Players()[9];
+  Player* teammate = SimulationAccess::RosterOf(sim, 0).Players()[8];
+  REQUIRE(striker != nullptr);
+  REQUIRE(teammate != nullptr);
+
+  // 22 players hold independent requests; two are shown here.
+  PlayerActionRequest shoot;
+  shoot.kind = ActionRequestKind::Shoot;
+  shoot.direction = Vector3(1, 0, 0);
+  shoot.power = 1.0f;
+  CHECK(striker->Play(shoot) == RequestOutcome::Accepted);
+
+  PlayerActionRequest pass;
+  pass.kind = ActionRequestKind::ShortPass;
+  pass.target_player = teammate->GetID();
+  CHECK(teammate->Play(pass) == RequestOutcome::Accepted);
+
+  REQUIRE(striker->PendingActionRequest().has_value());
+  REQUIRE(teammate->PendingActionRequest().has_value());
+  CHECK(striker->PendingActionRequest()->kind == ActionRequestKind::Shoot);
+  CHECK(teammate->PendingActionRequest()->kind == ActionRequestKind::ShortPass);
+  CHECK(striker->ActionRequestAccepts() == 1);
+  CHECK(teammate->ActionRequestAccepts() == 1);
+
+  // A passive reaction uses its own channel and preempts.
+  PlayerReaction trip;
+  trip.kind = ReactionKind::Trip;
+  trip.direction = Vector3(0, -1, 0);
+  trip.severity = 1.0f;
+  CHECK(striker->React(trip) == RequestOutcome::Accepted);
+  REQUIRE(striker->PendingReaction().has_value());
+  CHECK(striker->PendingReaction()->kind == ReactionKind::Trip);
+
+  // Pose() returns a finite final pose for an active player.
+  const PoseFrame pose = striker->Pose();
+  for (std::size_t j = 0; j < kBodyPartCount; ++j) {
+    for (int e = 0; e < 4; ++e) {
+      CHECK(std::isfinite(pose.orientations[j].elements[e]));
+    }
+  }
+
+  // A reset must leave no stale request behind.
+  sim.ResetSituation(Vector3(0.0f, 0.0f, 0.0f));
+  CHECK_FALSE(striker->PendingActionRequest().has_value());
+  CHECK_FALSE(striker->PendingReaction().has_value());
+  CHECK(sim.Stop());
+}
