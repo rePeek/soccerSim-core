@@ -1194,6 +1194,15 @@ and rate-limited pose continuity (no teleport) across switches, and hip
 height scaling with height_scale only. Diagnostics via
 `FOOTBALL_LOCO_REPLAY_DIAG`.
 
+The blend->body-CCD path is verified headlessly by
+`loco_animation_ccd_consistency_test` (blend ON vs OFF changes the committed
+body geometry during a switch). A fully Simulation-driven switch test is
+deferred to CTRL-1: the bounded harness keeps players in the ceremonial/idle
+state, so a `PlayerControlSet` movement tape does not drive locomotion (the
+tested player's position stays constant) and no clip switch occurs. The
+existing `EnableMovementPoseBlend` runtime A/B (empty controls) still proves
+ON/OFF keep the committed motion bit-identical.
+
 ### LOCO-2.8 legacy root-motion audit (read-only, no deletion)
 
 The pure-Movement position authority was already removed in S0/P2a:

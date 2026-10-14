@@ -918,3 +918,4 @@ TEST_CASE("Runtime harness: locomotion playback reference is recorded, not appli
   CHECK(audit.playback_rate_max >= 0.0f);
   CHECK(sim.Stop());
 }
+
