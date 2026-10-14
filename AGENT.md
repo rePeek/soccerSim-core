@@ -1300,6 +1300,21 @@ semantic change (not a pure field deletion). The observation layer keeps its
 own derived `facing` for AI. Facing writes and the bit-exact facing oracle
 clause were deleted with the field.
 
+STATE-1.2 follow-ups (P1/P2 from review):
+- P1 (fixed): `HumanoidBase::ResetPosition` now sets `bodyDirectionVec`/
+  `bodyAngle` from the locomotion direction (the focus-derived `startAngle`),
+  so `bodyFacing`, the animation base and `GetFacing()` all agree after a
+  reset instead of body facing hard-coded world -Y. Verified by a non-default
+  focus runtime test.
+- P2 (tested, not changed): `Mirror()` still mirrors position/velocity only,
+  so the derived `GetFacing()` mirrors through velocity while moving and stays
+  on the un-mirrored body facing at rest. A pure test pins this.
+- P2 (deferred interface cleanup): `PlayerLocomotionInput.idleFacing` is no
+  longer read by `PlayerLocomotion::Step` (the stand-still reference is now
+  `GetFacing()`), and the dead `PlayerKinematics::Step` still takes unused
+  `desiredFacing`/`maxTurnRate`. Both are interface tidy-ups for the CTRL-1
+  input-adapter work, not new direction state.
+
 ### STATE-1.3 legacy projection audit (read-only; no behaviour change)
 
 The boundary is now explicit and gates cleanly on `UsesProceduralLocomotion()`:
