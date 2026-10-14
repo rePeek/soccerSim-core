@@ -1380,6 +1380,50 @@ queue remains the action-candidate/fallback path. The Movement intent is
 currently refreshed only on epoch change, so CTRL-1.2 (per-tick control
 consumption) is the deliberate response-frequency change; CTRL-1.1 is
 data-channel only.
+
+## Player animation runtime (ANIM-1)
+
+Goal: a stable per-player animation runtime so an actor keeps advancing its
+animation without new AI input, can switch actions actively, can be
+interrupted by real physics, and every active player produces one final pose
+per tick that physics and snapshots share. No GNN, no future-action queue, no
+ragdoll, no asset-format change, no C++20 modules.
+
+### ANIM-1.0 audit (read-only)
+
+Which object owns the action clock: `Player::actionState.elapsed` (a
+`PlayerActionState` stepped by `PlayerActionExecutor::Step` through
+`Player::StepSimulationAction(TickSpan{1})`), called once per tick from
+`Humanoid::Process` (humanoid.cpp:323). In parallel `HumanoidBase::currentAnim.
+frameNum` is the legacy animation frame cursor, advanced at humanoid.cpp:322
+and reset to 0 on a clip switch. `Player::CheckSimulationActionOracle` asserts
+the two agree. `Player::Process` = `PrepareTick` + `CommitTick`; `PrepareTick`
+runs the Humanoid pass (animation + action clock), `CommitTick` applies fatigue
+and send-offs.
+
+Which path owns the final Pose write: `HumanoidBase::SampleBakedPose` returns
+the pose = `final_blended_pose_` (set once per tick by
+`AdvanceMovementPoseBlend` at the end of `Humanoid::Process`) when valid, else
+`clip.poses[frame]`. `Player::GetBakedPoseSample()` is the read-only facade;
+`Simulation::BeginBakedBodyTick`/`CompleteBakedBodyPreparation` feed it through
+`RealizeBakedPose` + `BuildBodyCollider`/`BuildBakedContactRegions`. The Humanoid
+owns the final pose today.
+
+Where active actions and Trip enter: active commands go
+`PlayerControl -> BuildPlayerCommands -> PlayerCommandQueue -> decision clock ->
+CommitLocomotion` (Movement) / `SelectAnim` (non-Movement clip choice). Trip is
+passive: `player_contact.cpp` -> `Player::TripMe` -> `Humanoid::TripMe`, which
+mutates the Humanoid interrupt state directly.
+
+Humanoid dependency: animation selection, clip switch, frame clock, pose
+sampling, non-Movement root motion, TripMe and the legacy spatial state all
+live in the Humanoid; Player delegates heavily. Untouched modules: foundation,/
+geometry, collision, animation (baked format/selector), ball, pitch, referee,
+observation, ai. Covering tests: unittests/runtime (bounded), and the pure
+unittests/player, unittests/locomotion, unittests/loco_animation suites.
+
+Later ANIM-1 cuts (1.1 action lifecycle, 1.2 per-tick pose update, 1.3 active
+transitions, 1.4 passive reactions, 1.5 scheduling) are recorded as they land.
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
