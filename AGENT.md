@@ -1241,6 +1241,25 @@ Deferred follow-ups (separate, reviewed work): the optional category-3
 simplification of shared root-motion writers, and the `facing`/`speed`
 compatibility state-cohesion refactor.
 
+## Player kinematic state cohesion (STATE-1)
+
+Target: converge `PlayerKinematicState` from five fields (position, velocity,
+facing, bodyFacing, speed) toward three (position, velocity, bodyFacing), with
+no second motion authority. `speed` is redundant and removed first; `facing`
+carries the low-speed direction reference, so its removal is a separate
+physics-semantics decision (plan A: derive from control at standstill, plan B:
+keep as locomotionHeading).
+
+### STATE-1.0 baseline (test-only)
+
+`unittests/locomotion/locomotion_state_baseline_test.cpp` pins static-start,
+reverse-after-brake, slalom and bodyFacing-independence, and measures the
+critical risk for STATE-1.1: the stored `speed` and `velocity.GetLength()` are
+NOT bit-identical (the normalized direction is not exactly unit length, so
+`dir * speed` differs from the scalar by ~1e-8). STATE-1.1 recomputes
+GetLength() and accepts this last-bit-only change; the baseline bounds it
+below 1e-6.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),

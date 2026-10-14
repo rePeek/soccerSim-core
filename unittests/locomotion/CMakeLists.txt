@@ -3,7 +3,9 @@
 # Simulation object, no Humanoid, no RNG and no animation asset. Links
 # football::sim for the production PlayerMotion implementation.
 
-add_executable(football_locomotion_unit_tests locomotion_motion_test.cpp)
+add_executable(football_locomotion_unit_tests
+  locomotion_motion_test.cpp
+  locomotion_state_baseline_test.cpp)
 target_link_libraries(football_locomotion_unit_tests
   PRIVATE
     football::sim
