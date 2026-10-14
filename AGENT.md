@@ -1345,6 +1345,41 @@ change is made in this cut. Deferred, recorded for later work: the redundant
 second `CommitLegacyActionMotion` on the legacy path, further shrinking of
 `SpatialState` rest fields, and a future `facing` -> `locomotionHeading` rename.
 
+## Player control authority migration (CTRL-1)
+
+Goal: let pure Movement consume `PlayerControl` directly instead of the legacy
+Decision-Queue/PlayerCommand cache, without deleting the queue (it still
+selects ball-action candidates). The three-field `PlayerKinematicState` is
+kept unchanged; CTRL-1 adds no new state.
+
+### CTRL-1.0 control -> command -> motion audit (read-only)
+
+Current chain, in order:
+1. `DefaultAI::Update` emits a `PlayerControlSet` of
+   `PlayerControl{move_direction, desired_speed, look_at, action, ...}`.
+2. `Simulation` dispatch applies it via `Player::SetControl` (home-frame
+   values; `BuildPlayerCommands` converts to the runtime frame at consumption).
+3. On the decision-clock cadence (periodic or continuity repair),
+   `Player::RequestCommand` -> `BuildPlayerCommands` builds a Movement command
+   directly from the control (`move_direction`/`desired_speed`/`look_at`) and,
+   when `action != None`, an action command; the queue is `{action, movement}`.
+4. `Player::PublishPlayerDecisionQueue` stores the queue + generation and
+   commits the scheduler.
+5. On continuity repair only, `PublishMovementIntentFromQueue` picks the first
+   Movement+useDesiredMovement command and stores it as the decision locomotion
+   intent (epoch-stamped).
+6. `HumanoidBase::ProjectMovementState` pure branch reads
+   `GetDecisionLocomotionIntent()` -> `Player::CommitLocomotion` ->
+   `PlayerMotion::StepContinuous` -> `CommitKinematicState`.
+
+Findings for CTRL-1.1/1.2: `BuildPlayerCommands` already derives the Movement
+command straight from `PlayerControl` (its `desiredDirection` fallback is
+`GetDirectionVec()` = `GetFacing()`, consistent with STATE-1.2), so a direct
+control->motion adapter can reuse it and skip the queue for pure Movement. The
+queue remains the action-candidate/fallback path. The Movement intent is
+currently refreshed only on epoch change, so CTRL-1.2 (per-tick control
+consumption) is the deliberate response-frequency change; CTRL-1.1 is
+data-channel only.
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
