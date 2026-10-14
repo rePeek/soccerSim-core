@@ -89,14 +89,14 @@ std::vector<ReplayRow> Replay(const AnimationLibrary& library,
     PoseFrame final;
     if (choice.animation_id != previous_clip) {
       if (have_previous) {
-        transition.Begin(previous_final, kDefaultMovementBlendTicks);
-        final = transition.Advance(target);
+        transition.Begin(previous_final, 0.0f, kDefaultMovementBlendTicks);
+        final = transition.Advance(target, 0.0f);
       } else {
         transition.Reset();
         final = target;
       }
     } else {
-      final = transition.Advance(target);
+      final = transition.Advance(target, 0.0f);
     }
 
     // Continuity is measured BEFORE advancing previous_final, so `final` is

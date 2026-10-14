@@ -576,10 +576,12 @@ void HumanoidBase::AdvanceMovementPoseBlend(bool pure_movement) {
   const auto frame =
       std::min(static_cast<std::size_t>(requested), clip.poses.size() - 1);
   const PoseFrame target = clip.poses[frame];
+  const float target_base_angle = startAngle + currentAnim.rotationSmuggleOffset;
 
   if (!movement_pose_blend_enabled_ || !pure_movement) {
     movement_transition_.Reset();
     final_blended_pose_ = target;
+    final_blended_base_angle_ = target_base_angle;
     movement_transition_clip_id_ = currentAnim.animationId;
     movement_transition_pose_valid_ = true;
     return;
@@ -587,16 +589,19 @@ void HumanoidBase::AdvanceMovementPoseBlend(bool pure_movement) {
 
   if (currentAnim.animationId != movement_transition_clip_id_) {
     if (movement_transition_pose_valid_) {
-      movement_transition_.Begin(final_blended_pose_, kDefaultMovementBlendTicks);
+      movement_transition_.Begin(final_blended_pose_, final_blended_base_angle_,
+                                 kDefaultMovementBlendTicks);
     } else {
       movement_transition_.Reset();
       final_blended_pose_ = target;
+      final_blended_base_angle_ = target_base_angle;
       movement_transition_clip_id_ = currentAnim.animationId;
       movement_transition_pose_valid_ = true;
       return;
     }
   }
-  final_blended_pose_ = movement_transition_.Advance(target);
+  final_blended_pose_ = movement_transition_.Advance(target, target_base_angle);
+  final_blended_base_angle_ = movement_transition_.blended_base_angle;
   movement_transition_clip_id_ = currentAnim.animationId;
   movement_transition_pose_valid_ = true;
 }

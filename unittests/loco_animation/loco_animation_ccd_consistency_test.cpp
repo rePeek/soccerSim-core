@@ -85,8 +85,8 @@ TEST_CASE("blend ON changes body geometry versus OFF during a switch") {
 
   // ON: the first blended tick of an idle->walk transition.
   AnimationTransitionState on;
-  on.Begin(source, kDefaultMovementBlendTicks);
-  const PoseFrame blended = on.Advance(target);
+  on.Begin(source, 0.0f, kDefaultMovementBlendTicks);
+  const PoseFrame blended = on.Advance(target, 0.0f);
 
   // OFF / forecast: the raw next clip frame, i.e. the target's first pose.
   const PoseFrame raw = target;

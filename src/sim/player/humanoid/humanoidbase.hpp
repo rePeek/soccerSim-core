@@ -408,7 +408,9 @@ class HumanoidBase {
       sample.animation_id = currentAnim.animationId;
       sample.requested_frame = currentAnim.frameNum; sample.sampled_frame = int(frame);
       sample.frame_clamped = sample.requested_frame != sample.sampled_frame;
-      sample.base_angle = startAngle + currentAnim.rotationSmuggleOffset;
+      sample.base_angle = movement_transition_pose_valid_
+          ? final_blended_base_angle_
+          : startAngle + currentAnim.rotationSmuggleOffset;
       sample.body_profile = profile; sample.action = currentAnim.functionType;
       return sample;
     }
@@ -517,6 +519,7 @@ class HumanoidBase {
     // body-geometry consumer reads once a transition is active.
     AnimationTransitionState movement_transition_;
     PoseFrame final_blended_pose_;
+    float final_blended_base_angle_ = 0.0f;
     int movement_transition_clip_id_ = -1;
     bool movement_transition_pose_valid_ = false;
     bool movement_pose_blend_enabled_ = true;

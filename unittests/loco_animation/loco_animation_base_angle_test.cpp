@@ -14,6 +14,8 @@
 
 #include "football/animation/pose_blend.hpp"
 #include "football/animation/types.hpp"
+#include "sim/player/animation_transition_state.hpp"
+#include "football/animation/types.hpp"
 #include "sim/player/player_baked_body_pose.hpp"
 #include "sim/player/player_body_profile.hpp"
 #include "sim/player/player_kinematics.hpp"
@@ -67,4 +69,27 @@ TEST_CASE("local blend leaves base-angle world discontinuity unsmoothed") {
   // The blend is smooth locally, but the world bearing still jumps by the full
   // base-angle delta: the transition state does not interpolate base_angle.
   REQUIRE(std::fabs(base90 - base0) == Catch::Approx(90.0f).margin(1e-3f));
+  REQUIRE(std::fabs(base90 - base0) == Catch::Approx(90.0f).margin(1e-3f));
+}
+
+TEST_CASE("transition state smooths base angle across a switch") {
+  const PoseFrame source{};  // base 0
+  const PoseFrame target{};  // base 90, identical local pose
+
+  AnimationTransitionState transition;
+  transition.Begin(source, 0.0f, kDefaultMovementBlendTicks);
+
+  const PoseFrame mid = transition.Advance(target, football::math::pi / 2.0f);
+  const float a_mid = WorldBodyAngleDeg(mid, transition.blended_base_angle);
+  const float a0 = WorldBodyAngleDeg(source, 0.0f);
+  const float a90 = WorldBodyAngleDeg(target, football::math::pi / 2.0f);
+  REQUIRE(a_mid > a0);
+  REQUIRE(a_mid < a90);
+
+  PoseFrame final = mid;
+  for (int i = 1; i < kDefaultMovementBlendTicks; ++i)
+    final = transition.Advance(target, football::math::pi / 2.0f);
+  REQUIRE_FALSE(transition.active);
+  REQUIRE(transition.blended_base_angle ==
+          Catch::Approx(football::math::pi / 2.0f).margin(1e-3f));
 }
