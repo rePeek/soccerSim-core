@@ -903,8 +903,13 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   spatialState.movement = Vector3(0);
   spatialState.relBodyDirectionVec = Vector3(0, -1, 0);
   spatialState.relBodyAngle = 0;
-  spatialState.bodyDirectionVec = Vector3(0, -1, 0);
-  spatialState.bodyAngle = 0;
+  // After a reset the body faces the focus direction, matching the locomotion
+  // direction and the animation base angle (startAngle). Otherwise the derived
+  // GetFacing() (velocity=0 -> bodyFacing) would report world -Y instead of the
+  // direction the reset actually asked for. relBodyDirectionVec/relBodyAngle
+  // stay (0,-1,0)/0 because body and locomotion now agree.
+  spatialState.bodyDirectionVec = spatialState.directionVec;
+  spatialState.bodyAngle = spatialState.angle;
   spatialState.foot = e_Foot_Right;
 
   const AnimationId idleAnimID = GetIdleMovementAnimID();

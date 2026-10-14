@@ -919,3 +919,26 @@ TEST_CASE("Runtime harness: locomotion playback reference is recorded, not appli
   CHECK(sim.Stop());
 }
 
+
+TEST_CASE("Runtime harness: reset makes body facing consistent with the focus",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[9];
+  Humanoid* humanoid = player->CastHumanoid();
+  REQUIRE(humanoid != nullptr);
+
+  // Non-default focus: face +Y relative to the new position.
+  const Vector3 new_pos(10.0f, 0.0f, 0.0f);
+  const Vector3 focus(10.0f, 5.0f, 0.0f);
+  player->ResetPosition(new_pos, focus);
+
+  const PlayerKinematicState state = player->GetKinematicState();
+  // Body facing, locomotion direction and the animation base now agree after a
+  // reset, and reflect the focus instead of the old hard-coded world -Y.
+  CHECK(state.bodyFacing == humanoid->GetDirectionVec());
+  CHECK(humanoid->GetBodyDirectionVec() == humanoid->GetDirectionVec());
+  CHECK(state.GetFacing() == humanoid->GetDirectionVec());
+  CHECK(state.bodyFacing != Vector3(0.0f, -1.0f, 0.0f));
+  CHECK(sim.Stop());
+}

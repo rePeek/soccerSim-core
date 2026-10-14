@@ -132,3 +132,19 @@ TEST_CASE("GetFacing derives velocity direction while moving and body facing at 
   CHECK(state.GetFacing().coords[0] == Catch::Approx(0.0f).margin(1e-4f));
   CHECK(state.GetFacing().coords[1] == Catch::Approx(-1.0f).margin(1e-4f));
 }
+
+TEST_CASE("mirror derives the facing through velocity but leaves body facing") {
+  PlayerKinematicState state;
+  state.velocity = Vector3(3.0f, 0.0f, 0.0f);
+  state.bodyFacing = Vector3(0.0f, -1.0f, 0.0f);
+  const Vector3 before = state.GetFacing();  // (1, 0, 0): moving -> velocity
+
+  state.Mirror();  // position/velocity mirror; bodyFacing is left untouched
+  CHECK(state.bodyFacing == Vector3(0.0f, -1.0f, 0.0f));
+  CHECK(state.GetFacing().coords[0] == Catch::Approx(-before.coords[0]).margin(1e-4f));
+  CHECK(state.GetFacing().coords[1] == Catch::Approx(before.coords[1]).margin(1e-4f));
+
+  // At rest the derived facing stays on the un-mirrored body facing.
+  state.velocity = Vector3(0.0f, 0.0f, 0.0f);
+  CHECK(state.GetFacing().coords[1] == Catch::Approx(-1.0f).margin(1e-4f));
+}
