@@ -334,8 +334,6 @@ bool Player::IsKinematicMirrorConsistent() const {
          Vector3BitsEqual(kinematicState.facing, humanoid->GetDirectionVec()) &&
          Vector3BitsEqual(kinematicState.bodyFacing,
                           humanoid->GetBodyDirectionVec()) &&
-         FloatBitsEqual(kinematicState.speed,
-                        kinematicState.velocity.GetLength()) &&
          Vector3BitsEqual(groundCollider.center,
                           kinematicState.position.Get2D());
 }
@@ -424,7 +422,6 @@ void Player::CommitLegacyActionMotion() {
   next.velocity = humanoid->GetMovement();
   next.facing = humanoid->GetDirectionVec();
   next.bodyFacing = humanoid->GetBodyDirectionVec();
-  next.speed = next.velocity.GetLength();
   CommitKinematicState(next);
   CheckSimulationKinematicOracle();
 }

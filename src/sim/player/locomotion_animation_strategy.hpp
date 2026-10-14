@@ -91,7 +91,7 @@ inline LocomotionAnimationChoice SelectLocomotionAnimation(
   float best_score = std::numeric_limits<float>::infinity();
 
   const float desired_turn =
-      AngleBetweenDeg(input.current.speed > 1e-3f
+      AngleBetweenDeg(input.current.GetSpeed() > 1e-3f
                          ? input.current.velocity.GetNormalized(motion_dir)
                          : stable_dir,
                      desired_dir);

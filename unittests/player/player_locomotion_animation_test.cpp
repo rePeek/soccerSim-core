@@ -33,7 +33,6 @@ TEST_CASE("adapter input is a deterministic value snapshot") {
   current.velocity = Vector3(0.0f, -3.0f, 0.0f);
   current.facing = Vector3(0.0f, -1.0f, 0.0f);
   current.bodyFacing = Vector3(0.0f, -1.0f, 0.0f);
-  current.speed = 3.0f;
 
   PlayerKinematicState next = current;
   next.position += Vector3(0.0f, -0.03f, 0.0f);

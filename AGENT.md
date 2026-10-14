@@ -1260,6 +1260,16 @@ NOT bit-identical (the normalized direction is not exactly unit length, so
 GetLength() and accepts this last-bit-only change; the baseline bounds it
 below 1e-6.
 
+### STATE-1.1 speed removed (derived)
+
+`PlayerKinematicState.speed` is deleted and replaced by the inline `GetSpeed()`
+= velocity.GetLength()`. Writers (`PlayerLocomotion::Step`,
+`PlayerKinematics::Step`, `CommitLegacyActionMotion`) no longer store the
+scalar, and readers derive it. The old bit-exact mirror oracle clause
+`FloatBitsEqual(speed, |velocity|)` is gone; it would otherwise assert-fail
+during real turning movement (~1e-8 divergence), so removing `speed` fixes a
+latent Debug assertion. Facing remains untouched (STATE-1.2).
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),

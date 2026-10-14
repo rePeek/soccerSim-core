@@ -476,7 +476,6 @@ TEST_CASE("Runtime harness: P2a motion step is bit-identical to the legacy call"
     start.position = Vector3(1.0f, 2.0f, 0.0f);
     start.velocity = c.velocity;
     start.facing = c.facing;
-    start.speed = c.velocity.GetLength();
 
     PlayerLocomotionInput input;
     input.desiredVelocity = c.desired;
@@ -495,7 +494,7 @@ TEST_CASE("Runtime harness: P2a motion step is bit-identical to the legacy call"
     CHECK(step.state.velocity.coords[1] == expected.velocity.coords[1]);
     CHECK(step.state.facing.coords[0] == expected.facing.coords[0]);
     CHECK(step.state.facing.coords[1] == expected.facing.coords[1]);
-    CHECK(step.state.speed == expected.speed);
+    CHECK(step.state.GetSpeed() == expected.GetSpeed());
     // The proposal and the committed state cannot disagree.
     CHECK(step.sample.velocity.coords[0] == step.state.velocity.coords[0]);
     CHECK(step.sample.displacement.coords[0] ==
@@ -534,20 +533,19 @@ TEST_CASE("Runtime harness: capability profile changes acceleration and turning"
       PlayerMotion::StepContinuous(start, neutral_profile, sprint, start.facing, kDt).state;
   const PlayerKinematicState athletic_accel =
       PlayerMotion::StepContinuous(start, athletic_profile, sprint, start.facing, kDt).state;
-  CHECK(athletic_accel.speed > neutral_accel.speed);
+  CHECK(athletic_accel.GetSpeed() > neutral_accel.GetSpeed());
   CHECK(athletic_accel.position.GetDistance(start.position) >
         neutral_accel.position.GetDistance(start.position));
 
   // Braking: from a moving start toward a standstill.
   PlayerKinematicState moving = start;
   moving.velocity = Vector3(5.0f, 0.0f, 0.0f);
-  moving.speed = 5.0f;
   moving.facing = Vector3(1.0f, 0.0f, 0.0f);
   const PlayerKinematicState neutral_stop =
       PlayerMotion::StepContinuous(moving, neutral_profile, Vector3(0), moving.facing, kDt).state;
   const PlayerKinematicState athletic_stop =
       PlayerMotion::StepContinuous(moving, athletic_profile, Vector3(0), moving.facing, kDt).state;
-  CHECK(athletic_stop.speed < neutral_stop.speed);
+  CHECK(athletic_stop.GetSpeed() < neutral_stop.GetSpeed());
 
   // Turning: same requested heading change at speed, the agile player ends closer
   // to it, and neither exceeds the per-tick turn rate bound.
@@ -564,17 +562,17 @@ TEST_CASE("Runtime harness: capability profile changes acceleration and turning"
   CHECK(std::fabs(athletic_turn.facing.GetAngle2D(moving.facing)) <=
         athletic_profile.turn_rate * kDt + 1e-4f);
   // Turning costs speed in both, and nothing leaves the finite range.
-  CHECK(neutral_turn.speed < moving.speed);
-  CHECK(athletic_turn.speed < moving.speed);
-  CHECK(athletic_turn.speed <= athletic_profile.max_speed);
+  CHECK(neutral_turn.GetSpeed() < moving.GetSpeed());
+  CHECK(athletic_turn.GetSpeed() < moving.GetSpeed());
+  CHECK(athletic_turn.GetSpeed() <= athletic_profile.max_speed);
   for (const PlayerKinematicState* state :
        {&neutral_accel, &athletic_accel, &neutral_stop, &athletic_stop,
         &neutral_turn, &athletic_turn}) {
-    CHECK(std::isfinite(state->speed));
+    CHECK(std::isfinite(state->GetSpeed()));
     CHECK(IsFinite(state->position));
     CHECK(IsFinite(state->velocity));
     CHECK(IsFinite(state->facing));
-    CHECK(state->speed <= athletic_profile.max_speed + 1e-4f);
+    CHECK(state->GetSpeed() <= athletic_profile.max_speed + 1e-4f);
   }
 }
 
@@ -614,7 +612,7 @@ TEST_CASE("Runtime harness: capability motion replays deterministically",
     CHECK(first[i].velocity.coords[0] == repeat[i].velocity.coords[0]);
     CHECK(first[i].velocity.coords[1] == repeat[i].velocity.coords[1]);
     CHECK(first[i].facing.coords[0] == repeat[i].facing.coords[0]);
-    CHECK(first[i].speed == repeat[i].speed);
+    CHECK(first[i].GetSpeed() == repeat[i].GetSpeed());
   }
 
   // Replaying from the initial state after a different run is still identical: no
@@ -631,7 +629,7 @@ TEST_CASE("Runtime harness: capability motion replays deterministically",
   for (const PlayerKinematicState& state : first) {
     CHECK(IsFinite(state.position));
     CHECK(IsFinite(state.velocity));
-    CHECK(state.speed <= profile.max_speed + 1e-4f);
+    CHECK(state.GetSpeed() <= profile.max_speed + 1e-4f);
   }
 }
 
@@ -668,7 +666,7 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
   CHECK(player->GetKinematicState().velocity == after_tick.velocity);
   CHECK(player->GetKinematicState().facing == after_tick.facing);
   CHECK(player->GetKinematicState().bodyFacing == after_tick.bodyFacing);
-  CHECK(player->GetKinematicState().speed == after_tick.speed);
+  CHECK(player->GetKinematicState().GetSpeed() == after_tick.GetSpeed());
   CHECK(humanoid->GetPosition() == after_a);
   CHECK(player->GetGroundCollider().center == after_a.Get2D());
 
@@ -873,7 +871,7 @@ TEST_CASE("Runtime harness: animation adaptation never changes the committed tra
     CHECK(on[i].position.coords[1] == off[i].position.coords[1]);
     CHECK(on[i].velocity.coords[0] == off[i].velocity.coords[0]);
     CHECK(on[i].velocity.coords[1] == off[i].velocity.coords[1]);
-    CHECK(on[i].speed == off[i].speed);
+    CHECK(on[i].GetSpeed() == off[i].GetSpeed());
   }
 }
 
@@ -905,7 +903,7 @@ TEST_CASE("Runtime harness: movement pose blend never changes the committed traj
     CHECK(on[i].position.coords[1] == off[i].position.coords[1]);
     CHECK(on[i].velocity.coords[0] == off[i].velocity.coords[0]);
     CHECK(on[i].velocity.coords[1] == off[i].velocity.coords[1]);
-    CHECK(on[i].speed == off[i].speed);
+    CHECK(on[i].GetSpeed() == off[i].GetSpeed());
   }
 }
 

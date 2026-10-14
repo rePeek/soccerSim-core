@@ -27,7 +27,7 @@ struct PlayerKinematicState {
   // Temporary exact shadow of Humanoid's animation-derived body pose. It is
   // deliberately separate from facing: the latter is locomotion direction.
   football::math::Vector3 bodyFacing = football::math::Vector3(0, -1, 0);
-  float speed = 0.0f;
+  float GetSpeed() const { return velocity.GetLength(); }
 
   // Mirrors position and velocity like the legacy spatial state. Facing and
   // bodyFacing are deliberately left untouched: HumanoidBase's spatial state
@@ -75,8 +75,8 @@ class PlayerKinematics {
 
     const football::math::Vector3 velocityDelta = desiredVelocity - state.velocity;
     const float changeLimit =
-        (desiredVelocity.GetLength() < state.speed ? parameters.braking
-                                                  : parameters.acceleration) *
+        (desiredVelocity.GetLength() < state.GetSpeed() ? parameters.braking
+                                                      : parameters.acceleration) *
         dt;
     if (velocityDelta.GetLength() > changeLimit && changeLimit > 0.0f) {
       state.velocity += velocityDelta.GetNormalized(football::math::Vector3(0)) *
@@ -85,7 +85,6 @@ class PlayerKinematics {
       state.velocity = desiredVelocity;
     }
     state.velocity.coords[2] = 0.0f;
-    state.speed = state.velocity.GetLength();
 
     const football::math::Vector3 currentFacing =
         state.facing.Get2D().GetNormalized(football::math::Vector3(0, -1, 0));

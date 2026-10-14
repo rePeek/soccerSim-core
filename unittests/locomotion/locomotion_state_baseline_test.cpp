@@ -49,7 +49,7 @@ std::vector<Record> Run(int ticks, DesiredFn desired, IdleFn idle) {
     const auto step =
         PlayerMotion::StepContinuous(state, Profile(), desired(i), idle(i), kDt);
     state = step.state;
-    records.push_back({state.speed, state.velocity.GetLength(), HeadingDeg(state.facing)});
+    records.push_back({state.GetSpeed(), state.velocity.GetLength(), HeadingDeg(state.facing)});
   }
   return records;
 }
