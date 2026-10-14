@@ -1174,6 +1174,16 @@ pose, so the body/CCD tape derives from the same single pose. Integer
 (default ON) is the A/B switch; the runtime harness asserts ON/OFF committed
 positions and velocities are bit-identical.
 
+Known boundary (verified by `loco_animation_base_angle_test`): the blend is
+LOCAL-joint only; `SampleBakedPose` applies `base_angle` (startAngle +
+rotationSmuggleOffset) in world space. Two clips with identical local poses
+but different base_angle therefore still rotate the world pose by the full
+base-angle delta at a switch. Smoothing the world body yaw (blend root
+orientation or transform the source into the target base) is a deliberate
+follow-up, not a change to PlayerMotion/PlayerControl. `ResetPosition` also
+clears `movement_transition_`/`final_blended_pose_` so re-placement never
+restarts a blend from a pre-reset pose.
+
 ### LOCO-2.7 headless per-tick replay
 
 `unittests/loco_animation/loco_animation_replay_test.cpp` scripts an
