@@ -1215,6 +1215,22 @@ vs action) plus a later state-cohesion cleanup; `facing`/`speed` compatibility
 reads are explicitly left for the next state-cohesion refactor. Deferred to its
 own focused change after a reviewed audit.
 
+### LOCO-2 completion status
+
+The redefined LOCO-2 (off-ball motion, animation selection, pose blending and
+continuity) is complete: LOCO-2.0..2.7 are implemented and committed, and the
+LOCO-2.8 audit proves the pure-Movement legacy root-motion position authority
+was already removed by the `UsesProceduralLocomotion` gate. Milestones M1
+(motion physics), M2 (animation matches motion), M3 (blend/interruption
+continuity) and M4 (nine body builds share animation, geometry follows the
+final pose) all pass at the headless/runtime level. Every behaviour change
+ships with an A/B or controlled regression proving Player position/velocity
+stays bit-identical under animation-selection or pose-blend changes.
+
+Deferred follow-ups (separate, reviewed work): the optional category-3
+simplification of shared root-motion writers, and the `facing`/`speed`
+compatibility state-cohesion refactor.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
