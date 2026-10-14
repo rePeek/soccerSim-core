@@ -108,8 +108,7 @@ class PlayerLocomotion {
     assert(parameters.acceleration > 0.0f);
     assert(parameters.braking > 0.0f);
     assert(parameters.maxTurnRate >= 0.0f);
-    const Vector3 previousFacing =
-        state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+    const Vector3 previousFacing = state.GetFacing();
     const Vector3 desiredVelocity = input.desiredVelocity.Get2D();
     const float desiredSpeed = desiredVelocity.GetLength();
     const float currentSpeed = state.velocity.GetLength();
@@ -150,12 +149,6 @@ class PlayerLocomotion {
         currentDirection.GetRotated2D(appliedTurn).GetNormalized(currentDirection);
     state.velocity = newDirection * newSpeed;
     state.velocity.coords[2] = 0.0f;
-    if (newSpeed > parameters.idleSpeedThreshold) {
-      state.facing = newDirection;
-    } else {
-      state.facing = input.idleFacing.Get2D().GetNormalized(previousFacing);
-    }
-    state.facing.coords[2] = 0.0f;
     state.position += state.velocity * dt;
     state.position.coords[2] = 0.0f;
   }
@@ -206,8 +199,8 @@ class PlayerLocomotion {
       if (reach.usual || elapsed == horizon) break;
       PlayerLocomotionInput input;
       input.desiredVelocity =
-          (target.Get2D() - state.position).GetNormalized(state.facing) * desired_speed;
-      input.idleFacing = state.facing;
+          (target.Get2D() - state.position).GetNormalized(state.GetFacing()) * desired_speed;
+      input.idleFacing = state.GetFacing();
       Step(state, input, parameters, football::sim::kTickSeconds);
     }
     return reach;
@@ -336,7 +329,7 @@ class PlayerLocomotion {
     const float distance = to_target.GetLength();
     if (distance <= radius) return 0;
     const Vector3 current_direction = start.velocity.Get2D().GetNormalized(
-        start.facing.Get2D().GetNormalized(Vector3(0, -1, 0)));
+        start.GetFacing());
     const Vector3 target_direction = to_target.GetNormalized(current_direction);
     const float heading_error =
         std::fabs(current_direction.GetAngle2D(target_direction));

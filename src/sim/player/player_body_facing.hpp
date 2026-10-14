@@ -33,8 +33,7 @@ class PlayerBodyFacing {
   static Vector3 AllowedTarget(const PlayerKinematicState &state,
                                const PlayerBodyFacingInput &input,
                                const PlayerBodyFacingParameters &parameters) {
-    const Vector3 locomotionFacing =
-        state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+    const Vector3 locomotionFacing = state.GetFacing();
     const Vector3 desired =
         input.desiredFacing.Get2D().GetNormalized(locomotionFacing);
     const float requestedRelative = desired.GetAngle2D(locomotionFacing);
@@ -59,8 +58,7 @@ class PlayerBodyFacing {
     assert(parameters.maxRelativeAngle >= 0.0f);
     assert(parameters.maxRelativeAngle <= pi);
 
-    const Vector3 locomotionFacing =
-        state.facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+    const Vector3 locomotionFacing = state.GetFacing();
     const Vector3 current =
         state.bodyFacing.Get2D().GetNormalized(locomotionFacing);
     const Vector3 target = AllowedTarget(state, input, parameters);
