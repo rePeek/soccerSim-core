@@ -79,6 +79,7 @@ target_sources(football_sim_domain PRIVATE
   player/player_action.hpp player/player_action_executor.hpp player/player_action_volume.hpp
   player/player_locomotion.hpp player/player_locomotion_animation.hpp player/player_decision_scheduler.hpp
   player/locomotion_animation_strategy.hpp
+  player/animation_transition_state.hpp
   player/locomotion_intent_scheduler.hpp player/legacy_locomotion_command.hpp
   player/kick_targeting.hpp)
 target_sources(football_sim_domain PUBLIC FILE_SET HEADERS
