@@ -115,3 +115,24 @@ TEST_CASE("body facing stays independent while speed stays derived") {
                            [](int) { return Vector3(0.0f, -1.0f, 0.0f); });
   CheckSpeedClose(records);
 }
+
+TEST_CASE("GetFacing derives velocity direction while moving and body facing at rest") {
+  PlayerKinematicState state;
+
+  // Moving: facing follows velocity, even well below the idle threshold.
+  state.velocity = Vector3(0.3f, 0.0f, 0.0f);
+  state.bodyFacing = Vector3(0.0f, -1.0f, 0.0f);
+  CHECK(state.GetFacing().coords[0] == Catch::Approx(1.0f).margin(1e-4f));
+  CHECK(state.GetFacing().coords[1] == Catch::Approx(0.0f).margin(1e-4f));
+
+  // At rest: facing is the body facing.
+  state.velocity = Vector3(0.0f, 0.0f, 0.0f);
+  state.bodyFacing = Vector3(1.0f, 0.0f, 0.0f);
+  CHECK(state.GetFacing().coords[0] == Catch::Approx(1.0f).margin(1e-4f));
+  CHECK(state.GetFacing().coords[1] == Catch::Approx(0.0f).margin(1e-4f));
+
+  // A zero body facing falls back to the canonical -Y direction.
+  state.bodyFacing = Vector3(0.0f, 0.0f, 0.0f);
+  CHECK(state.GetFacing().coords[0] == Catch::Approx(0.0f).margin(1e-4f));
+  CHECK(state.GetFacing().coords[1] == Catch::Approx(-1.0f).margin(1e-4f));
+}

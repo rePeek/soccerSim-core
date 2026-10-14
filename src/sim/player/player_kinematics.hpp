@@ -29,6 +29,18 @@ struct PlayerKinematicState {
   football::math::Vector3 bodyFacing = football::math::Vector3(0, -1, 0);
   float GetSpeed() const { return velocity.GetLength(); }
 
+  // Derived locomotion heading: the velocity direction while numerically
+  // moving, otherwise the body facing. This replaces the stored `facing`
+  // field (STATE-1.2): the next start-from-standstill reference is the body
+  // facing, not a separate hidden heading.
+  football::math::Vector3 GetFacing() const {
+    constexpr float kEpsilon = 1e-4f;
+    if (GetSpeed() > kEpsilon) {
+      return velocity.Get2D().GetNormalized();
+    }
+    return bodyFacing.Get2D().GetNormalized(football::math::Vector3(0, -1, 0));
+  }
+
   // Mirrors position and velocity like the legacy spatial state. Facing and
   // bodyFacing are deliberately left untouched: HumanoidBase's spatial state
   // mirror only negates position and movements, so changing either here would
