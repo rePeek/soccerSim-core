@@ -27,6 +27,8 @@
 #include "football/animation/selection_query.hpp"
 #include "football/animation/clip.hpp"
 #include "sim/player/player_baked_pose_sample.hpp"
+#include "sim/player/animation_transition_state.hpp"
+#include "football/animation/pose_blend.hpp"
 
 #include "sim/player/player_kinematics.hpp"
 #include "sim/observation/mentalimage.hpp"
@@ -402,7 +404,7 @@ class HumanoidBase {
         throw std::logic_error("missing runtime baked pose frame");
       const auto frame = std::min(std::size_t(currentAnim.frameNum),clip.poses.size()-1);
       PlayerBakedPoseSample sample;
-      sample.pose = clip.poses[frame]; sample.state = state;
+      sample.pose = movement_transition_pose_valid_ ? final_blended_pose_ : clip.poses[frame]; sample.state = state;
       sample.animation_id = currentAnim.animationId;
       sample.requested_frame = currentAnim.frameNum; sample.sampled_frame = int(frame);
       sample.frame_clamped = sample.requested_frame != sample.sampled_frame;
@@ -410,6 +412,12 @@ class HumanoidBase {
       sample.body_profile = profile; sample.action = currentAnim.functionType;
       return sample;
     }
+    // LOCO-2.6c: advance the Movement pose blend exactly once per tick (after
+    // SelectAnim settles). Non-Movement simply copies the raw pose and resets
+    // the transition.
+    void AdvanceMovementPoseBlend(bool pure_movement);
+    bool MovementPoseBlendEnabled() const { return movement_pose_blend_enabled_; }
+    void SetMovementPoseBlendEnabled(bool enabled) { movement_pose_blend_enabled_ = enabled; }
     // Per-animation scratch for the selection sort predicates (replaces the
     // legacy mutable Animation::order_float field).
     float &OrderScratch(int id) const;
@@ -503,6 +511,15 @@ class HumanoidBase {
     Anim currentAnim;
     int previousAnim_frameNum;
     e_FunctionType previousAnim_functionType = e_FunctionType_None;
+
+    // LOCO-2.6c/d: Movement pose blending state. currentAnim.frameNum stays
+    // the integer frame clock; final_blended_pose_ is the single pose every
+    // body-geometry consumer reads once a transition is active.
+    AnimationTransitionState movement_transition_;
+    PoseFrame final_blended_pose_;
+    int movement_transition_clip_id_ = -1;
+    bool movement_transition_pose_valid_ = false;
+    bool movement_pose_blend_enabled_ = true;
 
     // position/rotation offsets at the start of currentAnim
     Vector3 startPos;

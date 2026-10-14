@@ -566,6 +566,41 @@ const AnimationClip &HumanoidBase::GetCurrentBakedClip() const {
   return GetBakedClip(currentAnim.animationId);
 }
 
+void HumanoidBase::AdvanceMovementPoseBlend(bool pure_movement) {
+  const AnimationClip &clip = GetCurrentBakedClip();
+  if (clip.poses.empty()) {
+    movement_transition_pose_valid_ = false;
+    return;
+  }
+  const int requested = currentAnim.frameNum < 0 ? 0 : currentAnim.frameNum;
+  const auto frame =
+      std::min(static_cast<std::size_t>(requested), clip.poses.size() - 1);
+  const PoseFrame target = clip.poses[frame];
+
+  if (!movement_pose_blend_enabled_ || !pure_movement) {
+    movement_transition_.Reset();
+    final_blended_pose_ = target;
+    movement_transition_clip_id_ = currentAnim.animationId;
+    movement_transition_pose_valid_ = true;
+    return;
+  }
+
+  if (currentAnim.animationId != movement_transition_clip_id_) {
+    if (movement_transition_pose_valid_) {
+      movement_transition_.Begin(final_blended_pose_, kDefaultMovementBlendTicks);
+    } else {
+      movement_transition_.Reset();
+      final_blended_pose_ = target;
+      movement_transition_clip_id_ = currentAnim.animationId;
+      movement_transition_pose_valid_ = true;
+      return;
+    }
+  }
+  final_blended_pose_ = movement_transition_.Advance(target);
+  movement_transition_clip_id_ = currentAnim.animationId;
+  movement_transition_pose_valid_ = true;
+}
+
 float &HumanoidBase::OrderScratch(int id) const {
   if (orderScratch_.size() <= static_cast<size_t>(id)) {
     orderScratch_.resize(static_cast<size_t>(id) + 1, 0.0f);

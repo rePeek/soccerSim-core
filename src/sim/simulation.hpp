@@ -186,6 +186,7 @@ class Simulation {
   // active player. Default ON in production; OFF is the controlled A/B leg that
   // proves the reorder never changes the committed trajectory.
   void EnableLocomotionAnimationAdaptation(bool enabled);
+  void EnableMovementPoseBlend(bool enabled);
   // P7a: single production-entry/teardown points. Init/Stop own the lifecycle;
   // these are the only places the three authority switches are flipped.
   void InitializeProductionPhysics();

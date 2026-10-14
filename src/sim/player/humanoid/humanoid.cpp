@@ -1109,6 +1109,13 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     //printf("size: %i\n", currentAnim.positions.size());
   } else {
   }
+
+  // LOCO-2.6c/d: the single final pose for this tick, after SelectAnim has
+  // settled the current animation and integer frame. Pure Movement blends
+  // across a clip change; everything else copies the raw pose.
+  AdvanceMovementPoseBlend(
+      currentAnim.functionType == e_FunctionType_Movement &&
+      CastPlayer()->IsEligibleForProceduralLocomotion(ball_retainer == player));
 }
 
 void Humanoid::SelectRetainAnim() {

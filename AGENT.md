@@ -1162,6 +1162,18 @@ in `humanoidbase.cpp:871` (idle init), `humanoidbase.cpp:1214`,
 "make it so"). The transition must advance exactly once per tick, after
 SelectAnim settles and before `SampleBakedPose` consumes the final pose.
 
+### LOCO-2.6c/d wired pose blending
+
+`HumanoidBase` now owns `AnimationTransitionState`, the last `final_blended_pose_
+and a clip-change guard. `Humanoid::Process` calls `AdvanceMovementPoseBlend`
+exactly once at the end: pure Movement blends across a clip change from the
+previous final pose (mid-interruption safe), everything else copies the raw
+pose and resets the transition. `SampleBakedPose` returns the final blended
+pose, so the body/CCD tape derives from the same single pose. Integer
+`currentAnim.frameNum` is untouched. `Simulation::EnableMovementPoseBlend`
+(default ON) is the A/B switch; the runtime harness asserts ON/OFF committed
+positions and velocities are bit-identical.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),

@@ -9,6 +9,12 @@ void Simulation::EnableLocomotionAnimationAdaptation(bool enabled) {
     for (Player* player : roster.Players())
       if (player != nullptr) player->SetLocomotionAnimationAdaptation(enabled);
 }
+
+void Simulation::EnableMovementPoseBlend(bool enabled) {
+  for (auto& roster : rosters_)
+    for (Player* player : roster.Players())
+      if (player != nullptr) player->SetMovementPoseBlend(enabled);
+}
 void Simulation::EnableBakedBodyProduction(bool enabled) {
   if(enabled && (!ball_ || !prepared_tick_production_ || !body_physics_production_))
     throw std::logic_error("baked bodies require prepared unified body physics");

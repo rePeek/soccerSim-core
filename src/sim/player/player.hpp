@@ -195,6 +195,13 @@ class Player final {
     }
     bool LocomotionAnimationAdaptation() const { return locomotion_animation_adaptation_; }
     void SetLocomotionAnimationAdaptation(bool enabled) { locomotion_animation_adaptation_ = enabled; }
+    // LOCO-2.6c: pose blending gate (A/B).
+    void SetMovementPoseBlend(bool enabled) {
+      if (humanoid) humanoid->SetMovementPoseBlendEnabled(enabled);
+    }
+    bool MovementPoseBlend() const {
+      return humanoid != nullptr && humanoid->MovementPoseBlendEnabled();
+    }
 
     inline bool IsActive() { return isActive; }
 

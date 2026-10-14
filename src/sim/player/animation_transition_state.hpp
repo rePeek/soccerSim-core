@@ -18,6 +18,9 @@ inline float SmoothStep(float t) {
   return c * c * (3.0f - 2.0f * c);
 }
 
+// Fixed, bounded transition length used as the first calibration baseline.
+inline constexpr int kDefaultMovementBlendTicks = 8;
+
 struct AnimationTransitionState {
   PoseFrame source_pose;
   int elapsed_ticks = 0;

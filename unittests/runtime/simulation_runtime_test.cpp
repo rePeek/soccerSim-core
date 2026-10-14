@@ -877,6 +877,38 @@ TEST_CASE("Runtime harness: animation adaptation never changes the committed tra
   }
 }
 
+TEST_CASE("Runtime harness: movement pose blend never changes the committed trajectory",
+          "[runtime][sim]") {
+  // LOCO-2.6c/d: the pose blend between Movement clips changes only the final
+  // pose (body CCD), never the Player position/velocity committed by
+  // PlayerMotion.
+  const auto run = [](bool blend) {
+    Simulation sim;
+    InitMatch(sim);
+    SimulationAccess::EnableMovementPoseBlend(sim, blend);
+    PlayerControlSet controls;
+    for (int tick = 0; tick < 50; ++tick) sim.Step(controls);
+    std::vector<PlayerKinematicState> states;
+    for (int team = 0; team < 2; ++team)
+      for (Player* player : SimulationAccess::RosterOf(sim, team).Players())
+        states.push_back(player->GetKinematicState());
+    sim.Stop();
+    return states;
+  };
+
+  const std::vector<PlayerKinematicState> on = run(true);
+  const std::vector<PlayerKinematicState> off = run(false);
+  REQUIRE(on.size() == off.size());
+  REQUIRE(on.size() == 22);
+  for (std::size_t i = 0; i < on.size(); ++i) {
+    CHECK(on[i].position.coords[0] == off[i].position.coords[0]);
+    CHECK(on[i].position.coords[1] == off[i].position.coords[1]);
+    CHECK(on[i].velocity.coords[0] == off[i].velocity.coords[0]);
+    CHECK(on[i].velocity.coords[1] == off[i].velocity.coords[1]);
+    CHECK(on[i].speed == off[i].speed);
+  }
+}
+
 TEST_CASE("Runtime harness: locomotion playback reference is recorded, not applied",
           "[runtime][sim]") {
   // LOCO-2.3c: the strategy computes and records a reference playback rate,
