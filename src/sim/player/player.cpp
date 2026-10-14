@@ -370,7 +370,7 @@ PlayerKinematicState Player::CommitLocomotion(
     // Pending legal positioning needs continuous low speeds; live-play semantics
     // and the shared locomotion physics primitive are otherwise unchanged.
     input.desiredVelocity =
-        command.desiredDirection.Get2D().GetNormalized(tick_start.facing) *
+        command.desiredDirection.Get2D().GetNormalized(tick_start.GetFacing()) *
         clamp(command.desiredVelocityFloat, 0.f, max_speed);
   }
   // S1.1: one source for the capability in force, shared with prediction, so the
@@ -386,10 +386,10 @@ PlayerKinematicState Player::CommitLocomotion(
   // Torso model consumes the resulting locomotion facing and writes only
   // bodyFacing; order and parameters are unchanged from the legacy path.
   PlayerBodyFacingInput bodyInput;
-  bodyInput.desiredFacing = next.facing;
+  bodyInput.desiredFacing = next.GetFacing();
   if (command.useDesiredLookAt) {
     bodyInput.desiredFacing =
-        (command.desiredLookAt - next.position).Get2D().GetNormalized(next.facing);
+        (command.desiredLookAt - next.position).Get2D().GetNormalized(next.GetFacing());
   }
   PlayerBodyFacing::Step(next, bodyInput, PlayerBodyFacingParameters{}, dt);
   // LOCO-2.3b: capture the snapshot the animation adapter reads later this

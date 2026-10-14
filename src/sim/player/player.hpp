@@ -292,7 +292,7 @@ class Player final {
     // Actors must be positioned through Player::ResetPosition /
     // OffsetPosition so that this state cannot be left stale.
     inline Vector3 GetPosition() const { return kinematicState.position; }
-    inline Vector3 GetDirectionVec() const { return kinematicState.facing; }
+    inline Vector3 GetDirectionVec() const { return kinematicState.GetFacing(); }
     inline Vector3 GetBodyDirectionVec() const { return kinematicState.bodyFacing; }
     inline Vector3 GetMovement() const { return kinematicState.velocity; }
     // Gameplay reads continuous relative orientation. The quantized Humanoid

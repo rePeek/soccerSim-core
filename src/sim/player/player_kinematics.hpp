@@ -99,7 +99,7 @@ class PlayerKinematics {
     state.velocity.coords[2] = 0.0f;
 
     const football::math::Vector3 currentFacing =
-        state.facing.Get2D().GetNormalized(football::math::Vector3(0, -1, 0));
+        state.GetFacing().Get2D().GetNormalized(football::math::Vector3(0, -1, 0));
     const football::math::Vector3 desiredFacing =
         input.desiredFacing.Get2D().GetNormalized(currentFacing);
     const float requestedTurn = desiredFacing.GetAngle2D(currentFacing);

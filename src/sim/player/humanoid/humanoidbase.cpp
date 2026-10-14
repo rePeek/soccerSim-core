@@ -1466,7 +1466,7 @@ void HumanoidBase::ProjectSimulationMovementState(
     spatialState.physicsMovement = state.velocity;
     spatialState.animMovement = state.velocity;
   }
-  spatialState.directionVec = state.facing;
+  spatialState.directionVec = state.GetFacing();
   spatialState.floatVelocity = spatialState.movement.GetLength();
   spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
   spatialState.angle =

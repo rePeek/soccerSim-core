@@ -43,7 +43,7 @@ WorldState BuildWorldState(const WorldStateSource& s) {
       const PlayerKinematicState& state = player->GetKinematicState();
       WorldPlayerState observed{player->GetID(), player->GetTeamSide(),
           player_frame.Position(state.position), player_frame.Direction(state.velocity),
-          player_frame.Direction(state.facing), player->IsActive(), player->HasPossession()};
+          player_frame.Direction(state.GetFacing()), player->IsActive(), player->HasPossession()};
       observed.lazy = player->GetFormationEntry().lazy;
       observed.max_speed = player->GetMaxVelocity();
       observed.restart_target = s.referee.GetRestartTarget(player);

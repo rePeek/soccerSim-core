@@ -118,8 +118,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
     bounceVec = (p1pos - p2pos).GetNormalized(Vector3(0, -1, 0));
 
     // back facing
-    Vector3 p1facing = p1->GetKinematicState().facing.GetRotated2D(p1->GetRelBodyAngle() * 0.7f);
-    Vector3 p2facing = p2->GetKinematicState().facing.GetRotated2D(p2->GetRelBodyAngle() * 0.7f);
+    Vector3 p1facing = p1->GetKinematicState().GetFacing().GetRotated2D(p1->GetRelBodyAngle() * 0.7f);
+    Vector3 p2facing = p2->GetKinematicState().GetFacing().GetRotated2D(p2->GetRelBodyAngle() * 0.7f);
     p1backFacing = clamp(p1facing.GetDotProduct( bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f); // 0 .. 1 == worst .. best
     p2backFacing = clamp(p2facing.GetDotProduct(-bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f);
 
@@ -180,8 +180,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
 
 
       if (inputs.designated_possession_player == p2 && p2->HasPossession()) {
-        Vector3 p2_leftside = p2pos + p2->GetKinematicState().facing.GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
-        Vector3 p2_rightside = p2pos + p2->GetKinematicState().facing.GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
+        Vector3 p2_leftside = p2pos + p2->GetKinematicState().GetFacing().GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
+        Vector3 p2_rightside = p2pos + p2->GetKinematicState().GetFacing().GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
         float p1_to_p2_left = (p1pos - p2_leftside).GetLength();
         float p1_to_p2_right = (p1pos - p2_rightside).GetLength();
         Vector3 p2side = p1_to_p2_left < p1_to_p2_right ? p2_leftside : p2_rightside;
@@ -190,8 +190,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       }
 
       else if (inputs.designated_possession_player == p1 && p1->HasPossession()) {
-        Vector3 p1_leftside = p1pos + p1->GetKinematicState().facing.GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
-        Vector3 p1_rightside = p1pos + p1->GetKinematicState().facing.GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
+        Vector3 p1_leftside = p1pos + p1->GetKinematicState().GetFacing().GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
+        Vector3 p1_rightside = p1pos + p1->GetKinematicState().GetFacing().GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
         float p2_to_p1_left = (p2pos - p1_leftside).GetLength();
         float p2_to_p1_right = (p2pos - p1_rightside).GetLength();
         Vector3 p1side = p2_to_p1_left < p2_to_p1_right ? p1_leftside : p1_rightside;
@@ -372,7 +372,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
     if (tacklerVolume.Intersects(victim->GetGroundCollider())) {
       if (tacklerAction.Frame() > 10 &&
           tacklerAction.Frame() < tacklerAction.FrameCount() - 6) {
-        Vector3 tripVec = victim->GetKinematicState().facing;
+        Vector3 tripVec = victim->GetKinematicState().GetFacing();
         int tripType = 3;  // sliding
         if (tacklerAction.type == e_FunctionType_Interfere)
           tripType = 1;  // was 2
