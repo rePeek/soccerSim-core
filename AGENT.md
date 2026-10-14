@@ -1140,6 +1140,28 @@ with height) while the animation choice is identical, i.e. the animation
 library is shared and capability-independent. Optional diagnostics via
 `FOOTBALL_LOCO_ACCEPTANCE_DIAG`.
 
+### LOCO-2.6 redefined: pose blending and interruption, integer frames kept
+
+LOCO-2.6 is no longer about variable playback rate. The simulation stays at
+100 Hz, the baked clips stay at 100 Hz (one integer frame per tick), and
+Replay never changes PlayerMotion/Ball/rules. The new target is a continuous,
+deterministic final pose across frequent action switches.
+
+- `football/animation/pose_blend.hpp` (LOCO-2.6a): `BlendPose(source, target,
+  weight)` — quaternion SLERP on the shortest path, linear root Z, exact 0%/
+  100% endpoints, no NaN, no position authority.
+- `player/animation_transition_state.hpp` (LOCO-2.6b): `AnimationTransitionState`
+  advances one tick at a time; every transition starts from the previous
+  tick's final blended pose, so a mid-blend interruption never snaps back to
+  the original clip's first frame. `currentAnim.frameNum` stays int and is
+  not deleted or retyped.
+
+LOCO-2.6c wiring points (identified, not yet wired): a new clip is installed
+in `humanoidbase.cpp:871` (idle init), `humanoidbase.cpp:1214`,
+`humanoid.cpp:1135` (empty fallback) and `humanoid.cpp:1705` (SelectAnim
+"make it so"). The transition must advance exactly once per tick, after
+SelectAnim settles and before `SampleBakedPose` consumes the final pose.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
