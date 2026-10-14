@@ -1424,6 +1424,28 @@ unittests/player, unittests/locomotion, unittests/loco_animation suites.
 
 Later ANIM-1 cuts (1.1 action lifecycle, 1.2 per-tick pose update, 1.3 active
 transitions, 1.4 passive reactions, 1.5 scheduling) are recorded as they land.
+
+### ANIM-1.1 action lifecycle interface
+
+`player_action_request.hpp` defines `PlayerActionRequest` (kind + direction +
+optional target/power -> `e_FunctionType`), `PlayerReaction` (Trip/Bump +
+direction/severity/source) and `RequestOutcome` (Accepted/Deferred/Rejected).
+Pure arbitration: a one-shot in flight rejects a repeat of the same action (so
+repeated control input cannot restart it) and defers a different one until a
+legal switch window; a physics reaction always preempts.
+
+`Player::Play(request)` / `Player::React(reaction)` record the outcome and keep
+the pending request on a per-player active/passive channel; `Player::Pose()`
+returns the player's final `PoseFrame` (default when inactive). Execution is
+deliberately unchanged: these are the stable request vocabulary the later
+ANIM-1 cuts wire into the runtime, so the legacy PlayerControl/PlayerCommand
+path stays authoritative for now. Every reset path (`ResetPosition`,
+`ResetRuntimeState`) clears both channels, so no stale request survives a
+reset/half-time/deactivation.
+
+Tests: `unittests/player/player_action_request_test.cpp` (arbitration) and a
+bounded runtime case asserting per-player independent Play/React channels, a
+finite `Pose()`, and reset clearing.
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
