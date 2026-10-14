@@ -1446,6 +1446,23 @@ reset/half-time/deactivation.
 Tests: `unittests/player/player_action_request_test.cpp` (arbitration) and a
 bounded runtime case asserting per-player independent Play/React channels, a
 finite `Pose()`, and reset clearing.
+
+### ANIM-1.2 per-tick pose update
+
+Already unified by LOCO-2.6: `Humanoid::Process` calls `AdvanceMovementPoseBlend`
+exactly once per tick for every action type (pure Movement blends; other
+actions copy the raw baked pose), and `SampleBakedPose` returns that single
+`final_blended_pose_` as the one `PlayerBakedPoseSample.pose` that physics and
+snapshots share. Reading the pose advances nothing and consumes no RNG.
+`Player::Pose()` is the read-only facade (default when inactive). A bounded
+runtime test asserts the pose is idempotent within a tick and still advances
+across ticks with no new control input.
+
+Remaining ANIM-1 cuts (1.3 active Movement<->non-Movement transitions with
+per-action durations and touch-frame integrity, 1.4 unified passive reactions
+replacing direct `Humanoid::TripMe`, 1.5 scheduling consolidation) need the
+Humanoid action-switch lifecycle and touch timing, and are tracked for later
+focused work.
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
