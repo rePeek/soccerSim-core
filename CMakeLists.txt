@@ -43,6 +43,7 @@ target_sources(football_animation INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/format.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/clip.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/motion_clip.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/pose_blend.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/library.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/selector.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/selection_math.hpp
