@@ -993,3 +993,39 @@ TEST_CASE("Runtime harness: per-player Play/React/Pose contract", "[runtime][sim
   CHECK_FALSE(striker->PendingReaction().has_value());
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: one final pose per tick, advancing without a re-read",
+          "[runtime][sim]") {
+  // ANIM-1.2: the per-player pose is committed once per tick by the animation
+  // pass; reading it never advances the animation or consumes RNG.
+  Simulation sim;
+  InitMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[9];
+  PlayerControlSet controls;
+
+  const auto same = [](const PoseFrame& a, const PoseFrame& b) {
+    for (std::size_t j = 0; j < kBodyPartCount; ++j) {
+      for (int e = 0; e < 4; ++e)
+        if (a.orientations[j].elements[e] != b.orientations[j].elements[e]) return false;
+      for (int c = 0; c < 3; ++c)
+        if (a.positions[j].coords[c] != b.positions[j].coords[c]) return false;
+    }
+    return true;
+  };
+
+  const PoseFrame first = player->Pose();
+  // Idempotent read within the same tick.
+  CHECK(same(first, player->Pose()));
+
+  bool changed = false;
+  for (int tick = 0; tick < 60; ++tick) {
+    sim.Step(controls);
+    const PoseFrame now = player->Pose();
+    if (!same(now, first)) changed = true;
+    // Still idempotent after the tick.
+    CHECK(same(now, player->Pose()));
+  }
+  // Without any new control input the idle animation still advances the pose.
+  CHECK(changed);
+  CHECK(sim.Stop());
+}
