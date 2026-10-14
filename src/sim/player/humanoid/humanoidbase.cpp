@@ -927,6 +927,12 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   previousAnim_frameNum = 0;
   previousAnim_functionType = e_FunctionType_Movement;
 
+  // LOCO-2.6d: a reset invalidates the previous final-pose cache so the next
+  // Movement entry cannot start a blend from a pre-reset pose.
+  movement_transition_.Reset();
+  movement_transition_pose_valid_ = false;
+  movement_transition_clip_id_ = -1;
+
 
   interruptAnim = e_InterruptAnim_None;
   tripType = 0;
