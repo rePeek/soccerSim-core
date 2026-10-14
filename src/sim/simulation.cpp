@@ -1070,7 +1070,7 @@ void Simulation::CaptureSnapshot() {
     const auto frame = ToHomePitchFrame(player.GetTeamSide(), player.GetDynamicSide());
     dst.position = frame.Position(kinematic.position);
     dst.velocity = frame.Direction(kinematic.velocity);
-    dst.facing = frame.Direction(kinematic.facing);
+    dst.facing = frame.Direction(kinematic.GetFacing());
     dst.body_facing = frame.Direction(kinematic.bodyFacing);
     dst.active = player.IsActive();
     dst.has_possession = player.HasPossession();

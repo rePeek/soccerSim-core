@@ -23,9 +23,7 @@
 struct PlayerKinematicState {
   football::math::Vector3 position = football::math::Vector3(0);
   football::math::Vector3 velocity = football::math::Vector3(0);
-  football::math::Vector3 facing = football::math::Vector3(0, -1, 0);
-  // Temporary exact shadow of Humanoid's animation-derived body pose. It is
-  // deliberately separate from facing: the latter is locomotion direction.
+  // Exact shadow of Humanoid's animation-derived body pose.
   football::math::Vector3 bodyFacing = football::math::Vector3(0, -1, 0);
   float GetSpeed() const { return velocity.GetLength(); }
 
@@ -41,10 +39,10 @@ struct PlayerKinematicState {
     return bodyFacing.Get2D().GetNormalized(football::math::Vector3(0, -1, 0));
   }
 
-  // Mirrors position and velocity like the legacy spatial state. Facing and
-  // bodyFacing are deliberately left untouched: HumanoidBase's spatial state
-  // mirror only negates position and movements, so changing either here would
-  // diverge from the mirrored legacy actor until the next Process() resync.
+  // Mirrors position and velocity like the legacy spatial state. bodyFacing is
+  // deliberately left untouched (the legacy spatial state mirror only negates
+  // position and movements); the derived GetFacing() therefore mirrors through
+  // velocity while moving and stays on the un-mirrored body facing at rest.
   void Mirror() {
     position.Mirror();
     velocity.Mirror();
@@ -98,17 +96,6 @@ class PlayerKinematics {
     }
     state.velocity.coords[2] = 0.0f;
 
-    const football::math::Vector3 currentFacing =
-        state.GetFacing().Get2D().GetNormalized(football::math::Vector3(0, -1, 0));
-    const football::math::Vector3 desiredFacing =
-        input.desiredFacing.Get2D().GetNormalized(currentFacing);
-    const float requestedTurn = desiredFacing.GetAngle2D(currentFacing);
-    const float turnLimit = parameters.maxTurnRate * dt;
-    const float appliedTurn =
-        football::math::clamp(requestedTurn, -turnLimit, turnLimit);
-    state.facing = currentFacing.GetRotated2D(appliedTurn).GetNormalized(
-        currentFacing);
-    state.facing.coords[2] = 0.0f;
 
     state.position += state.velocity * dt;
     state.position.coords[2] = 0.0f;

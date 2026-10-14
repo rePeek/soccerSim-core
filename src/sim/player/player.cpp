@@ -331,7 +331,6 @@ void Player::Exit(football::sim::Tick now) {
 bool Player::IsKinematicMirrorConsistent() const {
   return Vector3BitsEqual(kinematicState.position, humanoid->GetPosition()) &&
          Vector3BitsEqual(kinematicState.velocity, humanoid->GetMovement()) &&
-         Vector3BitsEqual(kinematicState.facing, humanoid->GetDirectionVec()) &&
          Vector3BitsEqual(kinematicState.bodyFacing,
                           humanoid->GetBodyDirectionVec()) &&
          Vector3BitsEqual(groundCollider.center,
@@ -420,7 +419,6 @@ void Player::CommitLegacyActionMotion() {
   PlayerKinematicState next;
   next.position = humanoid->GetPosition();
   next.velocity = humanoid->GetMovement();
-  next.facing = humanoid->GetDirectionVec();
   next.bodyFacing = humanoid->GetBodyDirectionVec();
   CommitKinematicState(next);
   CheckSimulationKinematicOracle();

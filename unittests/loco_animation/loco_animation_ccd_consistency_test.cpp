@@ -39,7 +39,6 @@ PlayerBodyProfile Profile() {
 PlayerKinematicState State(float speed, const Vector3& dir) {
   PlayerKinematicState s;
   s.velocity = dir.GetNormalized(Vector3(0, -1, 0)) * speed;
-  s.facing = dir.GetNormalized(Vector3(0, -1, 0));
   s.bodyFacing = dir.GetNormalized(Vector3(0, -1, 0));
   return s;
 }

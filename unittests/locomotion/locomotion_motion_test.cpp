@@ -54,13 +54,12 @@ template <typename DesiredFn, typename BodyFn>
 std::vector<TickRecord> Run(const PlayerMotionProfile& profile, int ticks,
                             DesiredFn desired, BodyFn body) {
   PlayerKinematicState state;
-  state.facing = Vector3(0.0f, -1.0f, 0.0f);
   state.bodyFacing = Vector3(0.0f, -1.0f, 0.0f);
 
   std::vector<TickRecord> records;
   records.reserve(static_cast<std::size_t>(ticks));
   float previous_speed = 0.0f;
-  Vector3 previous_velocity_dir = state.facing;
+  Vector3 previous_velocity_dir = state.GetFacing();
 
   for (int i = 0; i < ticks; ++i) {
     const Vector3 desired_velocity = desired(i);
@@ -83,7 +82,7 @@ std::vector<TickRecord> Run(const PlayerMotionProfile& profile, int ticks,
     r.y = state.position.coords[1];
     r.speed = speed;
     r.acceleration = (speed - previous_speed) / kDt;
-    r.facing_deg = HeadingDeg(state.facing);
+    r.facing_deg = HeadingDeg(state.GetFacing());
     r.body_deg = HeadingDeg(state.bodyFacing);
     r.turn_rate = turn / kDt;
     records.push_back(r);
@@ -225,7 +224,7 @@ TEST_CASE("body observing direction is independent and cone clamped") {
   const auto records = Run(DefaultProfile(), 200,
                            [](int) { return Vector3(0.0f, -3.0f, 0.0f); },
                            [](int, const PlayerKinematicState& s) {
-                             const auto fwd = s.facing.GetNormalized(Vector3(0, -1, 0));
+                             const auto fwd = s.GetFacing().GetNormalized(Vector3(0, -1, 0));
                              return fwd.GetRotated2D(90.0f * football::math::pi / 180.0f);
                            });
   DumpRecords("look_side", records);

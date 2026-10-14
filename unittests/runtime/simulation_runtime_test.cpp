@@ -416,7 +416,6 @@ TEST_CASE("Runtime harness: PlayerMotion proposes, Player commits",
   PlayerKinematicState state;
   state.position = Vector3(0, 0, 0);
   state.velocity = Vector3(0, 0, 0);
-  state.facing = Vector3(0, -1, 0);
 
   const MotionSample continuous = PlayerMotion::SampleContinuous(
       state, profile, Vector3(5, 0, 0), Vector3(0, -1, 0), 0.01f);
@@ -475,7 +474,6 @@ TEST_CASE("Runtime harness: P2a motion step is bit-identical to the legacy call"
     PlayerKinematicState start;
     start.position = Vector3(1.0f, 2.0f, 0.0f);
     start.velocity = c.velocity;
-    start.facing = c.facing;
 
     PlayerLocomotionInput input;
     input.desiredVelocity = c.desired;
@@ -492,8 +490,8 @@ TEST_CASE("Runtime harness: P2a motion step is bit-identical to the legacy call"
     CHECK(step.state.position.coords[1] == expected.position.coords[1]);
     CHECK(step.state.velocity.coords[0] == expected.velocity.coords[0]);
     CHECK(step.state.velocity.coords[1] == expected.velocity.coords[1]);
-    CHECK(step.state.facing.coords[0] == expected.facing.coords[0]);
-    CHECK(step.state.facing.coords[1] == expected.facing.coords[1]);
+    CHECK(step.state.GetFacing().coords[0] == expected.GetFacing().coords[0]);
+    CHECK(step.state.GetFacing().coords[1] == expected.GetFacing().coords[1]);
     CHECK(step.state.GetSpeed() == expected.GetSpeed());
     // The proposal and the committed state cannot disagree.
     CHECK(step.sample.velocity.coords[0] == step.state.velocity.coords[0]);
@@ -525,14 +523,13 @@ TEST_CASE("Runtime harness: capability profile changes acceleration and turning"
 
   PlayerKinematicState start;
   start.position = Vector3(0, 0, 0);
-  start.facing = Vector3(0, -1, 0);
   const Vector3 sprint(7.0f, 0.0f, 0.0f);
 
   // Acceleration: same input, the athletic player covers more ground.
   const PlayerKinematicState neutral_accel =
-      PlayerMotion::StepContinuous(start, neutral_profile, sprint, start.facing, kDt).state;
+      PlayerMotion::StepContinuous(start, neutral_profile, sprint, start.GetFacing(), kDt).state;
   const PlayerKinematicState athletic_accel =
-      PlayerMotion::StepContinuous(start, athletic_profile, sprint, start.facing, kDt).state;
+      PlayerMotion::StepContinuous(start, athletic_profile, sprint, start.GetFacing(), kDt).state;
   CHECK(athletic_accel.GetSpeed() > neutral_accel.GetSpeed());
   CHECK(athletic_accel.position.GetDistance(start.position) >
         neutral_accel.position.GetDistance(start.position));
@@ -540,26 +537,25 @@ TEST_CASE("Runtime harness: capability profile changes acceleration and turning"
   // Braking: from a moving start toward a standstill.
   PlayerKinematicState moving = start;
   moving.velocity = Vector3(5.0f, 0.0f, 0.0f);
-  moving.facing = Vector3(1.0f, 0.0f, 0.0f);
   const PlayerKinematicState neutral_stop =
-      PlayerMotion::StepContinuous(moving, neutral_profile, Vector3(0), moving.facing, kDt).state;
+      PlayerMotion::StepContinuous(moving, neutral_profile, Vector3(0), moving.GetFacing(), kDt).state;
   const PlayerKinematicState athletic_stop =
-      PlayerMotion::StepContinuous(moving, athletic_profile, Vector3(0), moving.facing, kDt).state;
+      PlayerMotion::StepContinuous(moving, athletic_profile, Vector3(0), moving.GetFacing(), kDt).state;
   CHECK(athletic_stop.GetSpeed() < neutral_stop.GetSpeed());
 
   // Turning: same requested heading change at speed, the agile player ends closer
   // to it, and neither exceeds the per-tick turn rate bound.
   const Vector3 want(0.0f, 5.0f, 0.0f);
   const PlayerKinematicState neutral_turn =
-      PlayerMotion::StepContinuous(moving, neutral_profile, want, moving.facing, kDt).state;
+      PlayerMotion::StepContinuous(moving, neutral_profile, want, moving.GetFacing(), kDt).state;
   const PlayerKinematicState athletic_turn =
-      PlayerMotion::StepContinuous(moving, athletic_profile, want, moving.facing, kDt).state;
-  const float neutral_error = std::fabs(neutral_turn.facing.GetAngle2D(want));
-  const float athletic_error = std::fabs(athletic_turn.facing.GetAngle2D(want));
+      PlayerMotion::StepContinuous(moving, athletic_profile, want, moving.GetFacing(), kDt).state;
+  const float neutral_error = std::fabs(neutral_turn.GetFacing().GetAngle2D(want));
+  const float athletic_error = std::fabs(athletic_turn.GetFacing().GetAngle2D(want));
   CHECK(athletic_error <= neutral_error);
-  CHECK(std::fabs(neutral_turn.facing.GetAngle2D(moving.facing)) <=
+  CHECK(std::fabs(neutral_turn.GetFacing().GetAngle2D(moving.GetFacing())) <=
         neutral_profile.turn_rate * kDt + 1e-4f);
-  CHECK(std::fabs(athletic_turn.facing.GetAngle2D(moving.facing)) <=
+  CHECK(std::fabs(athletic_turn.GetFacing().GetAngle2D(moving.GetFacing())) <=
         athletic_profile.turn_rate * kDt + 1e-4f);
   // Turning costs speed in both, and nothing leaves the finite range.
   CHECK(neutral_turn.GetSpeed() < moving.GetSpeed());
@@ -571,7 +567,7 @@ TEST_CASE("Runtime harness: capability profile changes acceleration and turning"
     CHECK(std::isfinite(state->GetSpeed()));
     CHECK(IsFinite(state->position));
     CHECK(IsFinite(state->velocity));
-    CHECK(IsFinite(state->facing));
+    CHECK(IsFinite(state->GetFacing()));
     CHECK(state->GetSpeed() <= athletic_profile.max_speed + 1e-4f);
   }
 }
@@ -596,7 +592,7 @@ TEST_CASE("Runtime harness: capability motion replays deterministically",
     for (int tick = 0; tick < ticks; ++tick) {
       const float phase = static_cast<float>(tick) * 0.05f;
       const Vector3 desired(7.0f * std::cos(phase), 7.0f * std::sin(phase), 0.0f);
-      state = PlayerMotion::StepContinuous(state, profile, desired, state.facing, kDt).state;
+      state = PlayerMotion::StepContinuous(state, profile, desired, state.GetFacing(), kDt).state;
       states.push_back(state);
     }
     return states;
@@ -611,7 +607,7 @@ TEST_CASE("Runtime harness: capability motion replays deterministically",
     CHECK(first[i].position.coords[1] == repeat[i].position.coords[1]);
     CHECK(first[i].velocity.coords[0] == repeat[i].velocity.coords[0]);
     CHECK(first[i].velocity.coords[1] == repeat[i].velocity.coords[1]);
-    CHECK(first[i].facing.coords[0] == repeat[i].facing.coords[0]);
+    CHECK(first[i].GetFacing().coords[0] == repeat[i].GetFacing().coords[0]);
     CHECK(first[i].GetSpeed() == repeat[i].GetSpeed());
   }
 
@@ -622,7 +618,7 @@ TEST_CASE("Runtime harness: capability motion replays deterministically",
   for (std::size_t i = 0; i < first.size(); ++i) {
     CHECK(first[i].position.coords[0] == after_interference[i].position.coords[0]);
     CHECK(first[i].velocity.coords[1] == after_interference[i].velocity.coords[1]);
-    CHECK(first[i].facing.coords[1] == after_interference[i].facing.coords[1]);
+    CHECK(first[i].GetFacing().coords[1] == after_interference[i].GetFacing().coords[1]);
   }
 
   // The trajectory is bounded and finite over the whole run.
@@ -651,7 +647,7 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
   CHECK(player->GetMovement() == after_tick.velocity);
   CHECK(humanoid->GetPosition() == after_tick.position);
   CHECK(humanoid->GetMovement() == after_tick.velocity);
-  CHECK(humanoid->GetDirectionVec() == after_tick.facing);
+  CHECK(humanoid->GetDirectionVec() == after_tick.GetFacing());
   CHECK(humanoid->GetBodyDirectionVec() == after_tick.bodyFacing);
 
   // 2) Contact corrections are committed by the Player first (P2c-2). They
@@ -664,7 +660,6 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
   // Visible immediately on the Player, and exactly the position that moved.
   CHECK(after_a == after_tick.position + offset_a);
   CHECK(player->GetKinematicState().velocity == after_tick.velocity);
-  CHECK(player->GetKinematicState().facing == after_tick.facing);
   CHECK(player->GetKinematicState().bodyFacing == after_tick.bodyFacing);
   CHECK(player->GetKinematicState().GetSpeed() == after_tick.GetSpeed());
   CHECK(humanoid->GetPosition() == after_a);
@@ -756,12 +751,13 @@ TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
   const PlayerKinematicState base = player->GetKinematicState();
 
   // Mirror commits through the Player and keeps the historical asymmetry:
-  // position and velocity are mirrored, facing and bodyFacing are not.
+  // position and velocity are mirrored, bodyFacing is not. The derived
+  // GetFacing() therefore mirrors through velocity while moving, and at rest
+  // stays on the un-mirrored bodyFacing (verified by the round trip below).
   sim.Mirror(true, true, false);
   const PlayerKinematicState mirrored = player->GetKinematicState();
   CHECK(mirrored.position == -base.position);
   CHECK(mirrored.velocity == -base.velocity);
-  CHECK(mirrored.facing == base.facing);
   CHECK(mirrored.bodyFacing == base.bodyFacing);
   CHECK(humanoid->GetPosition() == mirrored.position);
   CHECK(humanoid->GetMovement() == mirrored.velocity);
@@ -771,7 +767,6 @@ TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
   sim.Mirror(true, true, false);
   CHECK(player->GetKinematicState().position == base.position);
   CHECK(player->GetKinematicState().velocity == base.velocity);
-  CHECK(player->GetKinematicState().facing == base.facing);
   CHECK(player->GetKinematicState().bodyFacing == base.bodyFacing);
   CHECK(humanoid->GetPosition() == base.position);
 

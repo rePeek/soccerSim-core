@@ -41,7 +41,6 @@ float HeadingDeg(const Vector3& v) {
 template <typename DesiredFn, typename IdleFn>
 std::vector<Record> Run(int ticks, DesiredFn desired, IdleFn idle) {
   PlayerKinematicState state;
-  state.facing = Vector3(0.0f, -1.0f, 0.0f);
   state.bodyFacing = Vector3(0.0f, -1.0f, 0.0f);
 
   std::vector<Record> records;
@@ -49,7 +48,7 @@ std::vector<Record> Run(int ticks, DesiredFn desired, IdleFn idle) {
     const auto step =
         PlayerMotion::StepContinuous(state, Profile(), desired(i), idle(i), kDt);
     state = step.state;
-    records.push_back({state.GetSpeed(), state.velocity.GetLength(), HeadingDeg(state.facing)});
+    records.push_back({state.GetSpeed(), state.velocity.GetLength(), HeadingDeg(state.GetFacing())});
   }
   return records;
 }
@@ -69,20 +68,17 @@ void CheckSpeedClose(const std::vector<Record>& records) {
 
 }  // namespace
 
-TEST_CASE("static start in a direction away from facing crosses the idle threshold") {
+TEST_CASE("static start turns toward the requested direction immediately") {
   const auto records = Run(200,
                            [](int) { return Vector3(1.0f, 0.0f, 0.0f) * 5.0f; },
                            [](int) { return Vector3(0.0f, -1.0f, 0.0f); });
   CheckSpeedClose(records);
 
-  // Below the idle threshold the locomotion facing stays frozen at idleFacing,
-  // then adopts the (already rate-limited) velocity direction once moving.
-  int crossing = -1;
-  for (std::size_t i = 0; i < records.size(); ++i) {
-    if (records[i].speed > 0.5f) { crossing = static_cast<int>(i); break; }
-  }
-  REQUIRE(crossing > 0);
-  REQUIRE(records[0].facing_deg == Catch::Approx(0.0f).margin(1e-3f));
+  // STATE-1.2: facing is derived from velocity whenever speed is numerically
+  // non-zero, so the first tick already turns toward the requested direction
+  // (no freeze below the old 0.5 m/s threshold).
+  REQUIRE(records[0].facing_deg > 0.0f);
+  REQUIRE(records[0].facing_deg < 10.0f);
   // Final facing converges toward the requested 90-degree direction.
   REQUIRE(records.back().facing_deg == Catch::Approx(90.0f).margin(5.0f));
 }
