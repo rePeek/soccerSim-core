@@ -99,6 +99,16 @@ std::vector<ReplayRow> Replay(const AnimationLibrary& library,
     } else {
       final = transition.Advance(target);
     }
+
+    // Continuity is measured BEFORE advancing previous_final, so `final` is
+    // compared against the pose produced at the end of the previous tick.
+    float jump = 0.0f;
+    if (have_previous) {
+      for (std::size_t b = 0; b < kBodyPartCount; ++b) {
+        jump = std::max(jump, static_cast<float>(final.orientations[b].GetRotationAngle(
+                             previous_final.orientations[b])));
+      }
+    }
     previous_final = final;
     have_previous = true;
     previous_clip = choice.animation_id;
@@ -111,17 +121,8 @@ std::vector<ReplayRow> Replay(const AnimationLibrary& library,
     row.clip_id = choice.animation_id;
     row.reference_speed = choice.reference_speed;
     row.hip_z = world.joints[BodyPart::body].coords[2];
+    row.max_joint_jump = jump;
     rows.push_back(row);
-
-    // Continuity: the blended pose never jumps from the previous final pose.
-    if (rows.size() > 1) {
-      float jump = 0.0f;
-      for (std::size_t b = 0; b < kBodyPartCount; ++b) {
-        jump = std::max(jump, static_cast<float>(final.orientations[b].GetRotationAngle(
-                                 previous_final.orientations[b])));
-      }
-      rows.back().max_joint_jump = jump;
-    }
     ++script_frame;
   }
   return rows;
@@ -157,15 +158,15 @@ TEST_CASE("nine profiles replay deterministically with continuous poses") {
     REQUIRE(again[t].hip_z == runs[0][t].hip_z);
   }
 
-  // Continuity: no joint jump exceeds a loose bound (a genuine teleport would
-  // be near pi; the rate-limited blend keeps every switch well below that).
+  // Continuity: measured per joint between consecutive final poses. Observed
+  // max is ~0.40 rad (23 deg) across real idle/walk/sprint/brake/turn
+  // switches; a genuine teleport would be near pi. 1.0 rad is a loose but
+  // meaningful no-teleport bound.
   for (const auto& run : runs) {
     for (const auto& row : run) {
       REQUIRE(std::isfinite(row.hip_z));
       REQUIRE(std::isfinite(row.max_joint_jump));
-      if (row.max_joint_jump > 0.0f) {
-        REQUIRE(row.max_joint_jump < 1.5f);
-      }
+      REQUIRE(row.max_joint_jump < 1.0f);
     }
   }
 
