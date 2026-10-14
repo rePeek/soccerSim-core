@@ -1184,6 +1184,37 @@ and rate-limited pose continuity (no teleport) across switches, and hip
 height scaling with height_scale only. Diagnostics via
 `FOOTBALL_LOCO_REPLAY_DIAG`.
 
+### LOCO-2.8 legacy root-motion audit (read-only, no deletion)
+
+The pure-Movement position authority was already removed in S0/P2a:
+`HumanoidBase::UsesProceduralLocomotion(ball_retainer)` (humanoidbase.cpp:1301)
+gates both `CalculateSpatialState` (line 1311 early-returns; only `spatialState.foot`
+is set) and `ProjectMovementState` (line 1505: pure branch only commits + projects;
+non-procedural keeps root-motion adoption). So `currentAnim.positions`,
+`movementSmuggle` and `actionSmuggle` are NOT read on the pure-locomotion
+position path.
+
+Classification:
+- Category 2 (keep, non-Movement still needs): `CalculateSpatialState`
+  non-procedural branch, `ProjectMovementState` non-procedural branch,
+  `CalculatePhysicsVector` (touch/trap/ball-control prediction via
+  GetBestCheatableAnimID + CalculatePredictedSituation), `currentAnim.positions`,
+  `currentAnim.frameNum`, `movementSmuggle`/`movementSmuggleOffset`,
+  `CalculateFactualSpatialState`, `CalculatePredictedSituation`.
+- Category 3 (compatibility projection, no authority): the Movement-branch output
+  of `CalculatePhysicsVector` (`positions_tmp` -> `currentAnim.positions`,
+  `rotationSmuggle_tmp`) and the `CalculateMovementSmuggle` write for Movement.
+  These are written but never consumed by the pure path, and they share the same
+  functions as category-2 callers.
+- Category 1 (pure-Movement-dead, safe to delete as a self-contained unit): none
+  found.
+
+Conclusion: LOCO-2.8 is not a clean category-1 deletion. The remaining work is
+"simplify category 3" (split `CalculatePhysicsVector`/smuggle writers by Movement
+vs action) plus a later state-cohesion cleanup; `facing`/`speed` compatibility
+reads are explicitly left for the next state-cohesion refactor. Deferred to its
+own focused change after a reviewed audit.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
