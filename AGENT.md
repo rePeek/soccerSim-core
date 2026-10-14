@@ -1174,6 +1174,16 @@ pose, so the body/CCD tape derives from the same single pose. Integer
 (default ON) is the A/B switch; the runtime harness asserts ON/OFF committed
 positions and velocities are bit-identical.
 
+### LOCO-2.7 headless per-tick replay
+
+`unittests/loco_animation/loco_animation_replay_test.cpp` scripts an
+idle/walk/sprint/brake/90-turn sequence, drives selection + transition state +
+body geometry per tick for the nine body profiles, and verifies: identical
+animation selection for every body, deterministic bit-identical replay, finite
+and rate-limited pose continuity (no teleport) across switches, and hip
+height scaling with height_scale only. Diagnostics via
+`FOOTBALL_LOCO_REPLAY_DIAG`.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
