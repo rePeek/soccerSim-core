@@ -1270,6 +1270,27 @@ scalar, and readers derive it. The old bit-exact mirror oracle clause
 during real turning movement (~1e-8 divergence), so removing `speed` fixes a
 latent Debug assertion. Facing remains untouched (STATE-1.2).
 
+### STATE-1.2 facing audit (read-only; field is kept)
+
+`facing` is NOT a redundant duplicate of velocity: it is the locomotion heading
+and the standing/idle direction reference. Consumers that cannot derive it:
+- player_locomotion.hpp:112/156 — velocity~0 fallback and the idleFacing store.
+- player.cpp:389 — bodyInput.desiredFacing defaults to next.facing, so the
+  torso cone anchor and stand-still body facing depend on it.
+- player_body_facing.hpp:37/63 — the body-facing relative cone is anchored on
+  state.facing.
+- player_contact.cpp:121-122/183-194/375 — player-player bounce/trip geometry
+  and direction use kinematicState.facing.
+- player_action_volume.hpp:75 — action volume axis.
+- world_state_builder.cpp:46 -> WorldPlayerState.facing — the AI observation's
+  direction fallback (DefaultAI uses it).
+
+Conclusion: deleting `facing` (plan A) would change stand-still start direction,
+the body-facing anchor, player-player contact response and the AI observation,
+so it is kept as an explicit locomotion heading (plan B). The three-field
+target (position/velocity/bodyFacing) is therefore not reached by deletion of
+`facing`; STATE-1.3 handles the legacy projection, not this field.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
