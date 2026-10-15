@@ -1140,6 +1140,11 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
                player->InstallMismatches());
   CHECK(player->InstallChecks() > 0);
   CHECK(player->InstallMismatches() == 0);
+  std::fprintf(stderr, "[runtime] A6.3b.3 cursor checks=%d match=%d mismatch=%d\n",
+               player->InstallCursorChecks(), player->InstallCursorMatches(),
+               player->InstallCursorMismatches());
+  CHECK(player->InstallCursorChecks() > 0);
+  CHECK(player->InstallCursorMismatches() == 0);
   CHECK(audit.refine_checks > 0);
   CHECK(sim.Stop());
 }

@@ -2171,3 +2171,12 @@ cross-checks (`InstallChecks`/`InstallMatches`/`InstallMismatches`), while
 `install checks=2 match=2 mismatch=0` over the P0 tape and the A6.3a final-clip
 oracle is unchanged, so the authority transfer is behaviour-preserving. The
 `currentAnim` storage and its readers remain; retiring them is the next cut.
+
+### ANIM-1 A6.3b.3 third cut: same-tick install consistency oracle
+
+`Player::InstallSelectedAction` now also checks, immediately after committing,
+that the action cursor, duration, scheduled-contact presence and contact frame
+all match the selection (`InstallCursorChecks`/`Matches`/`Mismatches`). This is
+the "install then sample in the same tick" guard: it catches a one-tick cursor or
+contact offset between the Player cursor, the selection and the compat
+projection. `cursor checks=2 match=2 mismatch=0` over the P0 tape.

@@ -440,6 +440,9 @@ class Player final {
     int InstallChecks() const { return install_checks_; }
     int InstallMatches() const { return install_matches_; }
     int InstallMismatches() const { return install_mismatches_; }
+    int InstallCursorChecks() const { return install_cursor_checks_; }
+    int InstallCursorMatches() const { return install_cursor_matches_; }
+    int InstallCursorMismatches() const { return install_cursor_mismatches_; }
     void StepSimulationAction(football::sim::TickSpan elapsed);
     // Validates the authoritative schedule against Humanoid's temporary
     // legacy projection. It is intentionally a fatal invariant in all builds.
@@ -639,6 +642,11 @@ class Player final {
     int install_checks_ = 0;
     int install_matches_ = 0;
     int install_mismatches_ = 0;
+    // ANIM-1 A6.3b.3: same-tick install/commit consistency (no one-tick cursor or
+    // contact offset between the Player cursor, the selection and the compat projection).
+    int install_cursor_checks_ = 0;
+    int install_cursor_matches_ = 0;
+    int install_cursor_mismatches_ = 0;
     // ANIM-1.1: pending active/passive requests and their recorded arbitration
     // outcome. Cleared on every reset path so no stale request survives.
     std::optional<PlayerActionRequest> pending_action_request_;

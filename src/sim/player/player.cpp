@@ -651,6 +651,21 @@ void Player::InstallSelectedAction(const football::sim::SelectedAction &selectio
 
   // Oracle during migration: the compat Humanoid projection must still agree with
   // the Player-owned selection, otherwise the two authorities have drifted.
+
+  // Same-tick consistency: the committed cursor, the scheduled contact and the
+  // compat projection must all agree with the selection immediately, so an
+  // install followed by a sample in the same tick cannot be one tick off.
+  ++install_cursor_checks_;
+  const bool cursor_same =
+      actionState.Frame() == selection.start_frame &&
+      actionState.FrameCount() == selection.frame_count &&
+      actionState.HasScheduledContact() == (selection.touch_frame >= 0) &&
+      actionState.ContactFrame() == selection.touch_frame;
+  if (cursor_same) {
+    ++install_cursor_matches_;
+  } else {
+    ++install_cursor_mismatches_;
+  }
   ++install_checks_;
   const Anim *anim = humanoid->GetCurrentAnim();
   const bool same =
