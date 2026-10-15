@@ -1576,7 +1576,8 @@ and A8 (PlayerMotion non-Movement displacement).
 On each pure-Movement selection the motion-driven selector's choice is compared
 with the legacy Movement candidate set (`LocomotionPlaybackAuditState()`'s
 `shadow_checks`/`shadow_in_candidates`/`shadow_not_in_candidates`). Over the P0
-tape (post-kickoff Movement) the result is `checks=35 in=34 not_in=1`: the new
+tape (post-kickoff Movement) the result is `checks=35 in=34 not_in=1` and, on the
+upgraded final-result comparison, `clip_match=34 clip_mismatch=1 fallback=1`: the new
 selector picked a clip the legacy filter rejects on ~3% of Movement ticks.
 Because the current reorder only wins when the choice is already a legal
 candidate, A6.3b cannot blindly hand Movement selection to the Player without
