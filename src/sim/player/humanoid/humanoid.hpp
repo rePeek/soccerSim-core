@@ -45,14 +45,9 @@ class Humanoid : public HumanoidBase {
     int GetTouchFrame() { return currentAnim.touchFrame; }
     int GetCurrentFrame() { return currentAnim.frameNum; }
 
-    void SelectRetainAnim();
 
     virtual void ResetSituation(const Vector3 &focusPos);
 
-    // ANIM-1 A6.4 step 4: the Player owns touch-animation selection. The
-    // Humanoid still performs the evaluation (its physics helpers are not
-    // relocated yet), but the call now goes through the Player entry point.
-    CrudeSelectionQuery BuildCrudeSelectionQuery(const PlayerCommand &command, const football::sim::PlayerTickContext &tick, football::sim::Tick now, MentalImage *current_mental_image) const;
     // ANIM-1 A6.4 step 7a: the compat install projection. It writes the fields
     // of the legacy `currentAnim` from a selection result. It deliberately does
     // NOT install: `Player::CommitSelectedAction` owns the dispatch.
@@ -68,11 +63,6 @@ class Humanoid : public HumanoidBase {
     // stays a pure field write and the audit runs after the Player install.
     void RecordSelectedContactAudit(const PlayerCommand &command);
   protected:
-    bool SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
-                    const PlayerCommand &command, std::span<MentalImage> history,
-                    e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) override;
-    bool NeedTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick, int animID,
-                   const PlayerCommand &command, std::span<MentalImage> history);
     Vector3 CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
                                      const Vector3 &desiredDirection, float desiredVelocityFloat,
                                      std::span<MentalImage> history);

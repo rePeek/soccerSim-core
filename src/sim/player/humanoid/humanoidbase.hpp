@@ -448,9 +448,6 @@ class HumanoidBase {
     bool _HighOrBouncyBall(const football::ball::Ball& ball) const;
     void _KeepBestDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0, int allowedVelocitySteps = 0, int forcedQuadrantID = -1); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
     void _KeepBestBodyDirectionAnims(DataSet& dataset, const PlayerCommand &command, bool strict = true, radian allowedAngle = 0); // ALERT: set sorting predicates before calling this function. strict kinda overrules the allowedstuff
-    virtual bool SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
-                            const PlayerCommand &command, std::span<MentalImage> history,
-                            e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false);
     void CalculatePredictedSituation(Vector3 &predictedPos, radian &predictedAngle);
     Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
 

@@ -2582,3 +2582,31 @@ tuning constant was duplicated.
 are deleted. Runtime P0 fingerprint unchanged: `A6.3a clip_match=52
 clip_mismatch=1 fallback=1`, `install 11/11/0`, `cursor 11/11/0`,
 `authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`; 10/10 CTest.
+
+### ANIM-1 A6.4 step 9a + 10: the selection flow is Player-owned; SelectAnim is gone
+
+`Humanoid::SelectAnim`, the `HumanoidBase::SelectAnim` virtual, the
+`Humanoid::BuildCrudeSelectionQuery`/`NeedTouch`/`SelectRetainAnim` methods and
+the `HumanoidBase::SelectAnim` definition are all deleted. The whole flow now
+lives in `src/sim/player/player_anim_selection.cpp`:
+`Player::TrySelectAction` (the relocated `SelectAnim` body),
+`Player::BuildCrudeSelectionQuery` (step 9a: the crude constraints, built by the
+Player as an explicit `CrudeSelectionQuery`) and `Player::NeedTouch`. The retain
+path is `Player::SelectRetainAnim`, so the referee's retain call no longer
+reaches a Humanoid selector. `Player` also gained `SelectBestTouchAnim`
+(step 9c) and owns `CommitSelectedAction` (step 7), so selection, refinement,
+touch scoring and installation are all Player decisions.
+
+`Humanoid::Process` and the (dead) `HumanoidBase::Process` now call
+`Player::TrySelectAction`, and `HumanoidBase` grants `friend class Player`
+because the not-yet-migrated spatial facts (`spatialState`, `currentAnim`, the
+sort predicates, `CalculatePhysicsVector`) are read through it. The pure
+algorithms stay in Animation (crude selection, refinement, touch geometry/
+scoring) and the reference motion in PlayerMotion (A8.0). The requeue tuning
+shared by the Humanoid's opportunity gate and the Player's selection gate moved
+to `player_motion_constants.hpp` so there is one definition.
+
+Runtime P0 fingerprint unchanged: `A6.3a clip_match=52 clip_mismatch=1
+fallback=1`, `install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
+`nm pure_ticks=4 touch_selections=4`; 10/10 CTest. A6.4 is complete: Humanoid no
+longer decides what action plays.

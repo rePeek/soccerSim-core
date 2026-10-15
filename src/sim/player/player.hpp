@@ -506,6 +506,26 @@ class Player final {
                               std::span<MentalImage> history,
                               e_InterruptAnim local_interrupt_anim,
                               bool material_candidate);
+    // ANIM-1 A6.4 step 9a: the crude candidate constraints, built by the Player.
+    CrudeSelectionQuery BuildCrudeSelectionQuery(
+        const PlayerCommand &command,
+        const football::sim::PlayerTickContext &tick, football::sim::Tick now,
+        MentalImage *current_mental_image);
+    // ANIM-1 A6.4 step 10: the touchdown gate, relocated from the Humanoid.
+    bool NeedTouch(football::sim::Tick now,
+                   const football::sim::PlayerTickContext &tick, int anim_id,
+                   const PlayerCommand &command,
+                   std::span<MentalImage> history);
+    // ANIM-1 A6.4 step 10: the single Player-owned action-selection entry.
+    // The Humanoid calls this instead of running its own selector.
+    bool TrySelectAction(football::sim::Tick now,
+                         const football::sim::PlayerTickContext &tick,
+                         const PlayerCommand &command,
+                         std::span<MentalImage> history,
+                         e_InterruptAnim local_interrupt_anim,
+                         bool prefer_pass_and_shot,
+                         bool allow_pre_touch_rotation_smuggle,
+                         bool use_continuous_ball_check);
     const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
     int InstallChecks() const { return install_checks_; }
     int InstallMatches() const { return install_matches_; }
@@ -616,7 +636,7 @@ class Player final {
     Vector3 GetTouchPos() const { return GetSimulationActionState().contactPosition; }
     int GetTouchFrame() const { return GetSimulationActionState().ContactFrame(); }
     int GetCurrentFrame() const { return GetSimulationActionState().Frame(); }
-    void SelectRetainAnim() { humanoid->SelectRetainAnim(); }
+    void SelectRetainAnim();
     FormationEntry GetFormationEntry() const { return formationEntry_; }
     void SetFormationEntry(FormationEntry entry) { formationEntry_ = entry; }
     void SetDynamicFormationEntry(FormationEntry entry) { dynamicFormationEntry = entry; }

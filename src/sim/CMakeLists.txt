@@ -58,7 +58,7 @@ target_sources(football_sim_domain PRIVATE
   referee/referee_state.hpp referee/referee_tick_facts.hpp referee/rule_command_sink.hpp referee/referee_view.hpp
   testing/simulation_access.hpp
   referee/offside.hpp referee/restart_placement.hpp referee/restart_readiness.hpp
-  player/player.cpp player/player_action_selection.cpp player/player_control_builder.cpp player/player_locomotion.cpp
+  player/player.cpp player/player_action_selection.cpp player/player_anim_selection.cpp player/player_control_builder.cpp player/player_locomotion.cpp
   player/player_contact.cpp player/player_contact.hpp
   player/player_ball_contact.cpp player/player_ball_contact.hpp
   player/kick_targeting.cpp

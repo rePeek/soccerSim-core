@@ -43,4 +43,13 @@ const float distanceToVelocityMultiplier = 2.6f; // for example: when we need to
 const unsigned int defaultTouchOffset_ms = 80;
 const int temporalSmoother_history_ms = 20;
 
+// ANIM-1 A6.4 step 10: the requeue tuning shared by the Humanoid's requeue
+// opportunity gate and the Player-owned selection gate.
+const bool allowMovementReQueue = true;
+const bool allowBallControlReQueue = true;
+const bool allowTrapReQueue = true;
+const int maxBallControlReQueueFrame = 8;
+const int minRemainingMovementReQueueFrames = 6;  // after this # of frames remaining, just let anim finish; we're almost there anyway
+const int minRemainingTrapReQueueFrames = 6;  // after this # of frames remaining to touchframe, just let anim finish; we're almost there anyway
+
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_MOTION_CONSTANTS_HPP
