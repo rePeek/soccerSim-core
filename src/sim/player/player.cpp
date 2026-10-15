@@ -626,32 +626,46 @@ void Player::BeginSimulationAction() {
   CheckSimulationActionOracle();
 }
 
-
 void Player::InstallSelectedAction(const football::sim::SelectedAction &selection) {
-  // ANIM-1 A6.3b.3 (first cut): the single install entry. The selector prepares
-  // the football::sim::SelectedAction and syncs the compat Humanoid storage; the Player commits
-  // the selection and runs the shared install transaction. It never re-selects a
-  // clip or vetoes an interrupt.
+  // ANIM-1 A6.3b.3 (second cut): the Player is now the authority for the action
+  // definition - it is built from the Player-owned `SelectedAction`, not read
+  // back from the Humanoid. The compat Humanoid projection is synced by the
+  // selector before this call and is cross-checked below. The entry never
+  // re-selects a clip or vetoes an interrupt.
   installed_action_ = selection;
-  BeginSimulationAction();
-  // Oracle: the Player-owned selection must describe the action the executor
-  // actually committed.
+
+  PlayerActionDefinition definition;
+  definition.type = selection.function_type;
+  definition.duration = {static_cast<std::uint64_t>(selection.frame_count)};
+  if (selection.touch_frame >= 0)
+    definition.contact = football::sim::TickSpan{static_cast<std::uint64_t>(selection.touch_frame)};
+  definition.contactPosition = selection.touch_position;
+  last_begun_definition_ = definition;
+  last_begun_start_frame_ = selection.start_frame;
+  PlayerActionExecutor::Begin(actionState, definition);
+  if (selection.start_frame > 0) {
+    PlayerActionExecutor::Step(
+        actionState, football::sim::TickSpan{static_cast<std::uint64_t>(selection.start_frame)});
+  }
+  CheckSimulationActionOracle();
+
+  // Oracle during migration: the compat Humanoid projection must still agree with
+  // the Player-owned selection, otherwise the two authorities have drifted.
   ++install_checks_;
-  const PlayerActionDefinition &committed = last_begun_definition_;
-  const int committed_touch =
-      committed.contact ? static_cast<int>(committed.contact->value) : -1;
+  const Anim *anim = humanoid->GetCurrentAnim();
   const bool same =
-      selection.function_type == committed.type &&
-      selection.frame_count == static_cast<int>(committed.duration.value) &&
-      selection.start_frame == last_begun_start_frame_ &&
-      selection.touch_frame == committed_touch &&
-      selection.touch_position == committed.contactPosition;
+      selection.function_type == humanoid->GetCurrentFunctionType() &&
+      selection.frame_count == humanoid->GetFrameCount() &&
+      selection.start_frame == humanoid->GetFrameNum() &&
+      selection.touch_frame == anim->touchFrame &&
+      selection.touch_position == anim->touchPos;
   if (same) {
     ++install_matches_;
   } else {
     ++install_mismatches_;
   }
 }
+
 
 
 void Player::StepSimulationAction(football::sim::TickSpan elapsed) {

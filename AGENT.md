@@ -2158,3 +2158,16 @@ definition the executor committed (`InstallChecks`/`InstallMatches`/
 the P0 tape `install checks=2 match=2 mismatch=0`, and the A6.3a final-clip
 oracle is unchanged. The compat `currentAnim` storage and all its readers are
 untouched, so this cut is behaviour-preserving; state ownership moves next.
+
+### ANIM-1 A6.3b.3 second cut: the Player authors the action definition
+
+`Player::InstallSelectedAction` no longer reads the definition back from the
+Humanoid: it builds `PlayerActionDefinition` from the Player-owned
+`SelectedAction` (type, duration, contact frame/position) and establishes the
+start cursor from `selection.start_frame`. The compat Humanoid `currentAnim`
+projection is still synced by the selector first and is now the thing the oracle
+cross-checks (`InstallChecks`/`InstallMatches`/`InstallMismatches`), while
+`CheckSimulationActionOracle()` still guards the schedule.
+`install checks=2 match=2 mismatch=0` over the P0 tape and the A6.3a final-clip
+oracle is unchanged, so the authority transfer is behaviour-preserving. The
+`currentAnim` storage and its readers remain; retiring them is the next cut.
