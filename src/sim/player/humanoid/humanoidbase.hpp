@@ -480,9 +480,6 @@ class HumanoidBase {
                              bool restart_needs_simulation);
     bool UsesProceduralLocomotion(const Player* ball_retainer) const;
 
-    void AddTripCommandToQueue(PlayerCommandQueue &commandQueue, const Vector3 &tripVector, int tripType);
-    PlayerCommand GetTripCommand(const Vector3 &tripVector, int tripType);
-    PlayerCommand GetBasicMovementCommand(const Vector3 &desiredDirection, float velocityFloat);
 
     void SetFootSimilarityPredicate(e_Foot desiredFoot) const;
     bool CompareFootSimilarity(e_Foot foot, int animIndex1, int animIndex2) const;

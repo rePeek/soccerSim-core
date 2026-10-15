@@ -423,12 +423,15 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
         interruptAnim == e_InterruptAnim_Trip && tripType != 0;
     if (trip_local_queue) {
       ++PlayerPathLocalTripAttempts();
-      AddTripCommandToQueue(commandQueue, tripDirection, tripType);
-      while (commandProvenance.size() < commandQueue.size()) {
+      // ANIM-1 A7 step 2: the Player owns the local trip command construction.
+      CastPlayer()->BuildTripSelectionCommands(
+          commandQueue, tripDirection, tripType, spatialState.floatVelocity,
+          spatialState.directionVec, spatialState.position);
+      // All but the last command are trips; the last is the movement fallback.
+      while (commandProvenance.size() + 1 < commandQueue.size()) {
         commandProvenance.push_back(PlayerPathSelectionCommandProvenance::LocalTrip);
       }
       tripType = 0;
-      commandQueue.push_back(GetBasicMovementCommand(tripDirection, spatialState.floatVelocity)); // backup, if there's no applicable trip anim
       commandProvenance.push_back(
           PlayerPathSelectionCommandProvenance::LocalTripMovementFallback);
     } else {

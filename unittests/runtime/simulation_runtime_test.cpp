@@ -82,6 +82,31 @@ void InitMatch(Simulation& sim) {
            MatchOptions{}, football::ball::BallModel{});
 }
 
+// A deliberately tiny roster for tests that must reach play but only need a
+// single tracked actor. The ceremony length is unchanged; only the per-tick
+// cost drops, which keeps the bounded runtime suite inside its timeout.
+football::sim::TeamSetup MakeSmallTeam(const char* name,
+                                        football::player::PlayerId first_id) {
+  football::sim::TeamSetup team;
+  team.name = name;
+  for (int i = 0; i < 2; ++i) {
+    football::player::PlayerDefinition player;
+    player.id = first_id + static_cast<football::player::PlayerId>(i);
+    player.database_id = 100 + i;
+    player.height = 1.75f;
+    team.players.push_back(std::move(player));
+  }
+  team.tactical_formation = {
+      {{-1.0f, 0.0f}, e_PlayerRole_GK},
+      {{0.4f, 0.0f}, e_PlayerRole_CF}};
+  return team;
+}
+
+void InitSmallMatch(Simulation& sim) {
+  sim.Init(MakeSmallTeam("home", 0), MakeSmallTeam("away", 2),
+           football::pitch::Pitch{}, MatchOptions{}, football::ball::BallModel{});
+}
+
 int ActiveCountOf(const football::sim::Roster& roster) {
   int count = 0;
   for (Player* player : roster.Players()) {
@@ -1233,5 +1258,59 @@ TEST_CASE("Runtime harness: possession drives a non-Movement action install",
                nm.nm_pure_ticks, player->TouchSelectionSuccesses());
   CHECK(player->TouchSelectionSuccesses() > 0);
   CHECK(nm.nm_pure_ticks > 0);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
+          "[runtime][sim]") {
+  // A7: the Player owns the passive-trip decision. Injected directly (so the
+  // test does not depend on contact geometry), the accepted trip must reach the
+  // Humanoid interrupt and install a Trip action, then leave it again. The tiny
+  // roster keeps this reachable inside the runtime timeout.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  // Wait for play: the kickoff resets the players and would clear an earlier
+  // pending trip. Inject once the ceremony has finished.
+  int in_play_tick = -1;
+  int trip_seen_tick = -1;
+  int recovery_tick = -1;
+  bool trip_injected = false;
+  e_FunctionType last_type = e_FunctionType_None;
+  std::vector<int> sequence;
+  for (int tick = 0; tick < 400 && recovery_tick < 0; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    PlayerControlSet controls;
+    sim.Step(controls);
+    if (!trip_injected && in_play_tick >= 0 && tick > in_play_tick + 3) {
+      player->TripMe(Vector3(0, -1, 0), 2, nullptr);
+      trip_injected = true;
+    }
+    const e_FunctionType type = player->GetSimulationActionState().type;
+    if (type != last_type) {
+      sequence.push_back(static_cast<int>(type));
+      last_type = type;
+    }
+    if (type == e_FunctionType_Trip && trip_seen_tick < 0) trip_seen_tick = tick;
+    if (trip_seen_tick >= 0 && recovery_tick < 0 && type != e_FunctionType_Trip &&
+        type != e_FunctionType_None) {
+      recovery_tick = tick;
+    }
+  }
+
+  std::fprintf(stderr,
+               "[runtime] A7 trip in_play=%d trip_tick=%d recovery_tick=%d sequence:",
+               in_play_tick, trip_seen_tick, recovery_tick);
+  for (int t : sequence) std::fprintf(stderr, " %d", t);
+  std::fprintf(stderr, "\n");
+
+  CHECK(in_play_tick >= 0);
+  CHECK(trip_injected);
+  CHECK(trip_seen_tick >= 0);
+  CHECK(recovery_tick >= 0);
+  REQUIRE(!sequence.empty());
+  CHECK(sequence.back() == static_cast<int>(e_FunctionType_Movement));
   CHECK(sim.Stop());
 }

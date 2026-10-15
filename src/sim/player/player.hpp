@@ -535,6 +535,14 @@ class Player final {
                          bool prefer_pass_and_shot,
                          bool allow_pre_touch_rotation_smuggle,
                          bool use_continuous_ball_check);
+    // ANIM-1 A7 step 2: the Player owns the local trip selection queue. It
+    // builds the trip commands for the requested type and the movement fallback
+    // used when no trip animation applies.
+    void BuildTripSelectionCommands(PlayerCommandQueue &queue,
+                                    const Vector3 &trip_direction, int trip_type,
+                                    float current_velocity_float,
+                                    const Vector3 &direction_vec,
+                                    const Vector3 &position) const;
     const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
     int InstallChecks() const { return install_checks_; }
     int InstallMatches() const { return install_matches_; }

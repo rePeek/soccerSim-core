@@ -2635,3 +2635,26 @@ the no-regression check: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
 `nm pure_ticks=4 touch_selections=4`; 84 player cases / 1250 assertions; 10/10
 CTest. `React -> Trip -> Ground -> StandUp` execution ownership beyond this
 intake step, and A8 (PlayerMotion non-Movement displacement), remain.
+
+### ANIM-1 A7 step 2: the local trip selection queue is Player-owned
+
+`HumanoidBase::AddTripCommandToQueue`, `GetTripCommand` and
+`GetBasicMovementCommand` are deleted. `Player::BuildTripSelectionCommands`
+builds the byte-identical local queue: the requested trip type (plus the
+alternative/type-1 commands for a fall) and the movement fallback used when no
+trip animation applies. `Humanoid::Process` and the (dead) `HumanoidBase::Process`
+now call it with the explicit spatial facts; the provenance vector is still built
+by the Humanoid and matches the old trip/fallback split.
+
+A reproducible integration scenario
+(`unittests/runtime`: "a passive trip drives the Trip action chain") now reaches
+play, injects one passive trip through `Player::TripMe`, and observes the action
+sequence: `Movement -> Trip -> Movement`, with the trip installed at tick 206 and
+recovered at tick 267. To keep this inside the 180 s CTest timeout the harness
+gained a tiny-roster `InitSmallMatch` (the ceremony length is unchanged; only the
+per-tick cost drops), so the new case adds ~17 s instead of ~6 min. The P0
+fingerprint is unchanged: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
+`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
+`nm pure_ticks=4 touch_selections=4`; runtime suite 126 s, 10/10 CTest.
+Remaining A7 work: the switch-cost policy and full `React -> Trip -> Ground ->
+StandUp` ownership; A8 and A9 remain.

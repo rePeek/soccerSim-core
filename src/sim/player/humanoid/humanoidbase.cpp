@@ -689,9 +689,11 @@ void HumanoidBase::Process(football::sim::Tick now, const football::sim::PlayerT
         interruptAnim == e_InterruptAnim_Trip && tripType != 0;
 
     if (trip_local_queue) {
-      AddTripCommandToQueue(commandQueue, tripDirection, tripType);
+      // ANIM-1 A7 step 2: the Player owns the local trip command construction.
+      player->BuildTripSelectionCommands(
+          commandQueue, tripDirection, tripType, spatialState.floatVelocity,
+          spatialState.directionVec, spatialState.position);
       tripType = 0;
-      commandQueue.push_back(GetBasicMovementCommand(tripDirection, spatialState.floatVelocity)); // backup, if there's no applicable trip anim
     }
 
     // Simulation cadence: adopt fresh Movement intent without waiting for
@@ -1327,45 +1329,6 @@ void HumanoidBase::ProjectMovementState(
   player->CheckSimulationKinematicOracle();
 }
 
-void HumanoidBase::AddTripCommandToQueue(PlayerCommandQueue &commandQueue,
-                                         const Vector3 &tripVector,
-                                         int tripType) {
-  if (tripType == 1) {
-    commandQueue.push_back(GetTripCommand(tripDirection, tripType));
-  } else {
-    // allow both types 2 and 3, but prefer the right one
-    int otherTripType = 3;
-    if (tripType == 3) otherTripType = 2;
-    commandQueue.push_back(GetTripCommand(tripDirection, tripType));
-    commandQueue.push_back(GetTripCommand(tripDirection, otherTripType));
-    commandQueue.push_back(GetTripCommand(tripDirection, 1));
-  }
-}
-
-PlayerCommand HumanoidBase::GetTripCommand(const Vector3 &tripVector,
-                                           int tripType) {
-  PlayerCommand command;
-  command.desiredFunctionType = e_FunctionType_Trip;
-  command.useDesiredMovement = false;
-  command.useDesiredTripDirection = true;
-  command.desiredTripDirection = tripVector;
-  command.desiredVelocityFloat = spatialState.floatVelocity;//e_Velocity_Sprint;
-  command.useTripType = true;
-  command.tripType = tripType;
-  return command;
-}
-
-PlayerCommand HumanoidBase::GetBasicMovementCommand(
-    const Vector3 &desiredDirection, float velocityFloat) {
-  PlayerCommand command;
-  command.desiredFunctionType = e_FunctionType_Movement;
-  command.useDesiredMovement = true;
-  command.useDesiredLookAt = true;
-  command.desiredDirection = spatialState.directionVec;
-  command.desiredVelocityFloat = velocityFloat;
-  command.desiredLookAt = spatialState.position + command.desiredDirection * 10.0f;
-  return command;
-}
 
 void HumanoidBase::SetFootSimilarityPredicate(e_Foot desiredFoot) const {
   predicate_DesiredFoot = desiredFoot;

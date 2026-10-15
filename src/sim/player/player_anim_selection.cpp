@@ -763,3 +763,52 @@ std::optional<PendingPassiveTrip> Player::ConsumePendingPassiveTrip() {
   pending_passive_trip_.reset();
   return trip;
 }
+
+// ---------------------------------------------------------------------------
+// ANIM-1 A7 step 2: the local trip selection queue is Player-owned. Relocated
+// from HumanoidBase::AddTripCommandToQueue / GetTripCommand /
+// GetBasicMovementCommand; the commands are byte-identical.
+// ---------------------------------------------------------------------------
+namespace {
+
+PlayerCommand MakeTripCommand(const Vector3 &tripVector, int tripType,
+                              float velocity) {
+  PlayerCommand command;
+  command.desiredFunctionType = e_FunctionType_Trip;
+  command.useDesiredMovement = false;
+  command.useDesiredTripDirection = true;
+  command.desiredTripDirection = tripVector;
+  command.desiredVelocityFloat = velocity;  // e_Velocity_Sprint;
+  command.useTripType = true;
+  command.tripType = tripType;
+  return command;
+}
+
+}  // namespace
+
+void Player::BuildTripSelectionCommands(PlayerCommandQueue &queue,
+                                        const Vector3 &trip_direction,
+                                        int trip_type,
+                                        float current_velocity_float,
+                                        const Vector3 &direction_vec,
+                                        const Vector3 &position) const {
+  if (trip_type == 1) {
+    queue.push_back(MakeTripCommand(trip_direction, trip_type, current_velocity_float));
+  } else {
+    int otherTripType = 3;
+    if (trip_type == 3) otherTripType = 2;
+    queue.push_back(MakeTripCommand(trip_direction, trip_type, current_velocity_float));
+    queue.push_back(MakeTripCommand(trip_direction, otherTripType, current_velocity_float));
+    queue.push_back(MakeTripCommand(trip_direction, 1, current_velocity_float));
+  }
+
+  // backup, if there's no applicable trip anim
+  PlayerCommand movement;
+  movement.desiredFunctionType = e_FunctionType_Movement;
+  movement.useDesiredMovement = true;
+  movement.useDesiredLookAt = true;
+  movement.desiredDirection = direction_vec;
+  movement.desiredVelocityFloat = current_velocity_float;
+  movement.desiredLookAt = position + movement.desiredDirection * 10.0f;
+  queue.push_back(movement);
+}
