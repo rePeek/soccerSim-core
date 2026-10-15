@@ -1529,6 +1529,47 @@ SamplePose + BlendPose). No second stateful AnimationRuntime.
 Still open: clip SELECTION still lives in `Humanoid::SelectAnim` (the Player
 consumes the selected clip); `React`->`Trip`->`Ground`->`StandUp` execution;
 PlayerMotion owning non-Movement reference displacement.
+
+### ANIM-1 A6.1 SelectAnim audit (read-only)
+
+`Humanoid::SelectAnim` (humanoid.cpp:1158-1760) mixes four things:
+1. Cheap culling for non-Movement (ball-distance early outs).
+2. ReQueue gating: momentum comparison, requeue delays, same-type delays.
+3. Candidate filtering + a stable sort chain: function type, incoming/outgoing
+   velocity, side, incoming body/ball direction, properties, trip type, foot;
+   then priority / idle / foot / body-direction / velocity / baseanim / catch
+   sorts. This is `BakedAnimationSelector::CrudeSelection` + Player-state
+   predicates.
+4. Pick + install: Movement/Trip/Special take `*dataSet.begin()`; pass/shot/
+   control/trap/interfere/deflect call `GetBestCheatableAnimID`, which builds
+   touch vectors and is the only RNG-drawing part (via `rng_.Uniform` in the
+   trap/control vector helpers). Installation mutates `currentAnim` and calls
+   `BeginSimulationAction`.
+
+So a naive `SelectClip` copy is wrong: the RNG-drawing touch scoring and the
+action policy must stay on the Player side, and the request must carry any
+randomness explicitly for reproducibility. `Player::Play` must be the decision
+and playback owner; Animation supplies only stateless matching/sampling/
+blending.
+
+A6.2 delivers the pure Animation half: `select_clip.hpp`'s `SelectClip(clips,
+request)` filters by action/velocity and returns the lowest-id match
+deterministically (no RNG, no Player/Ball/Simulation). It is not yet wired into
+`Humanoid::SelectAnim`; A6.3/A6.4 move selection onto `Player::Play` and remove
+the Humanoid's choice, and A7/A8 (Trip chain, PlayerMotion displacement) remain.
+
+### ANIM-1 A6.2 stateless SelectClip
+
+`football/animation/select_clip.hpp` owns `ClipAction`, `SelectionRequest` and
+`SelectClip`: `CrudeSelection` by function type (plus the incoming-velocity
+bucket for Movement), then a deterministic lowest-id pick, returning an invalid
+result on no candidates. Pure and independent of PlaybackState. Tested against
+synthetic clips and the real baked library.
+
+Remaining, tracked for the next focused work: A6.3 (`Player::Play` owns
+selection + playback, with explicit RNG for touch scoring), A6.4 (remove the
+Humanoid selection with an old/new oracle), A7 (React->Trip->Ground->StandUp)
+and A8 (PlayerMotion non-Movement displacement).
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
