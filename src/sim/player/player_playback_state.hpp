@@ -2,6 +2,7 @@
 #define FOOTBALL_SIM_PLAYER_PLAYER_PLAYBACK_STATE_HPP
 
 #include "football/animation/clip.hpp"
+#include "football/animation/types.hpp"
 #include "football/animation/pose_sampling.hpp"
 #include "sim/player/animation_transition_state.hpp"
 

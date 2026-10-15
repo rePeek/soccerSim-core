@@ -7,6 +7,7 @@
 add_executable(football_loco_animation_tests
   loco_animation_acceptance_test.cpp
   loco_animation_replay_test.cpp
+  loco_animation_multislot_test.cpp
   loco_animation_transition_test.cpp
   loco_animation_base_angle_test.cpp
   loco_animation_ccd_consistency_test.cpp)
