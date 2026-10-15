@@ -2212,3 +2212,18 @@ is now valid after initialisation and every reset.
 `install checks=11 match=11 mismatch=0`, `cursor checks=11 match=11 mismatch=0`
 over the P0 tape; the A6.3a final-clip oracle is unchanged. Remaining for c.2:
 flip the per-tick `frameNum` advance to the Player authority.
+
+### ANIM-1 A6.3c.2: the Player owns the per-tick action clock
+
+`Player::AdvanceActionTick()` is now the single real time advance: it steps
+`PlayerActionState` (the authority), projects the cursor onto the compat Humanoid
+`currentAnim.frameNum` via `HumanoidBase::SetCompatFrameNum`, and only then runs
+`CheckSimulationActionOracle`. Both Process paths (`humanoid.cpp` and
+`humanoidbase.cpp`) call it in place of their separate `currentAnim.frameNum++` +
+`StepSimulationAction`. Ordering is therefore advance -> project -> check, which
+is why the earlier projection-only attempt failed. The legacy `frameNum++` was
+unbounded while the executor cursor saturates at `duration`; the projection now
+makes the Humanoid frame follow the saturated authoritative value.
+`previousAnim_frameNum` keeps its legacy semantics for now.
+`install checks=11 match=11 mismatch=0`, `cursor checks=11 match=11 mismatch=0`,
+and the A6.3a final-clip oracle is unchanged.

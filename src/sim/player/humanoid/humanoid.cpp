@@ -323,8 +323,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   // fields end up as a projection of the authoritative kinematic state.
   ProjectMovementState(tickStartState, ball_retainer, tick.restart_needs_simulation);
 
-  currentAnim.frameNum++;
-  CastPlayer()->StepSimulationAction(football::sim::TickSpan{1});
+  CastPlayer()->AdvanceActionTick();
+
   const PlayerActionState &action =
       CastPlayer()->GetSimulationActionState();
   previousAnim_frameNum++;

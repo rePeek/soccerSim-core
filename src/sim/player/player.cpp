@@ -699,6 +699,13 @@ bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {
   return actionState.IsPureLocomotion(retaining_ball);
 }
 
+void Player::AdvanceActionTick() {
+  // ANIM-1 A6.3c.2: one real time advance. The PlayerActionState cursor is the
+  // authority; the Humanoid integer frame is a read-only compat projection.
+  PlayerActionExecutor::Step(actionState, football::sim::TickSpan{1});
+  humanoid->SetCompatFrameNum(actionState.Frame());
+  CheckSimulationActionOracle();
+}
 
 void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   humanoid->ResetPosition(newPos, focusPos);

@@ -379,6 +379,7 @@ class HumanoidBase {
                         football::sim::PlayerRuntimeSink& runtime_sink);
 
     inline int GetFrameNum() { return currentAnim.frameNum; }
+    inline void SetCompatFrameNum(int frame) { currentAnim.frameNum = frame; }
     inline int GetFrameCount() { return static_cast<int>(GetCurrentBakedClip().frame_count); }
 
     inline Vector3 GetPosition() const { return spatialState.position; }

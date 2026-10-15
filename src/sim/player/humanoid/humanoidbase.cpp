@@ -625,8 +625,8 @@ void HumanoidBase::Process(football::sim::Tick now, const football::sim::PlayerT
   spatialState.positionOffsetMovement = Vector3(0);
   ProjectMovementState(tickStartState, tick.ball_retainer, tick.restart_needs_simulation);
 
-  currentAnim.frameNum++;
-  player->StepSimulationAction(football::sim::TickSpan{1});
+  player->AdvanceActionTick();
+
   const PlayerActionState &action = player->GetSimulationActionState();
   previousAnim_frameNum++;
 

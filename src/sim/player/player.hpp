@@ -444,6 +444,10 @@ class Player final {
     int InstallCursorMatches() const { return install_cursor_matches_; }
     int InstallCursorMismatches() const { return install_cursor_mismatches_; }
     void StepSimulationAction(football::sim::TickSpan elapsed);
+    // ANIM-1 A6.3c.2: the single per-tick action clock advance: step the
+    // authoritative cursor, project it onto the compat Humanoid storage, then
+    // run the oracle so it sees a fully advanced and projected state.
+    void AdvanceActionTick();
     // Validates the authoritative schedule against Humanoid's temporary
     // legacy projection. It is intentionally a fatal invariant in all builds.
     void CheckSimulationActionOracle() const;
