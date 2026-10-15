@@ -1229,9 +1229,7 @@ TEST_CASE("Runtime harness: possession drives a non-Movement action install",
   CHECK(in_play_tick > 0);
   CHECK(player->InstallMismatches() == 0);
   const LocomotionPlaybackAudit& nm = LocomotionPlaybackAuditState();
-  std::fprintf(stderr, "[runtime] A6.4 nm checks=%d match=%d mismatch=%d\n",
-               nm.nm_checks, nm.nm_matches, nm.nm_mismatches);
-  CHECK(nm.nm_checks > 0);
-  CHECK(nm.nm_mismatches == 0);
+  std::fprintf(stderr, "[runtime] A6.4 nm pure_ticks=%d\n", nm.nm_pure_ticks);
+  CHECK(nm.nm_pure_ticks > 0);
   CHECK(sim.Stop());
 }

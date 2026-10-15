@@ -2298,3 +2298,26 @@ as an ordered sequence (`LocomotionPlaybackAudit::nm_checks`/`nm_matches`/
 Shot force `useDesiredMovement = false`, so they never enter the filter branch):
 `nm checks=4 match=4 mismatch=0`. Shadow only - the legacy chain is still the
 production path for non-Movement.
+
+### ANIM-1 A6.4 step 1c/1d: pure non-Movement selection owns the candidate list
+
+step 1c made `RefineNonMovementCandidates` the authority for the non-Movement
+`useDesiredMovement` candidate list (`dataSet.assign(nm_pure...)`), with the
+legacy chain still running as a dual-run oracle (`nm checks=4 match=4
+mismatch=0`). step 1d then removed that chain: `SelectAnim` is now
+
+```
+if (!pure_movement && !pure_non_movement) { legacy chain }
+else if (pure_non_movement)               { pure refinement }
+else                                      { pure Movement refinement }
+```
+
+`pure_non_movement` = non-Movement `useDesiredMovement` command with a non-empty
+crude set. The BallControl / Trap / Interfere branch filter calls are guarded by
+`if (!pure_non_movement)`, and the non-Movement filter parameters (`nm_strict`,
+`nm_allowed_angle`, `nm_allowed_velocity_steps`, `nm_idle_level`) are hoisted so
+the pure branch can rebuild the request. The audit counter is now
+`nm_pure_ticks` only; the dual-run counters are gone. `foot_counterfactual` was
+already Movement-only, so the deleted chain carried no non-Movement side effects.
+Post-removal fingerprint: `nm pure_ticks=4`, `install 11/11/0`,
+`cursor 11/11/0`, `authority 42/42/0`.
