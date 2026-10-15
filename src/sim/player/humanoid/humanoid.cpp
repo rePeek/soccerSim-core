@@ -1116,6 +1116,14 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   AdvanceMovementPoseBlend(
       currentAnim.functionType == e_FunctionType_Movement &&
       CastPlayer()->IsEligibleForProceduralLocomotion(ball_retainer == player));
+  // ANIM-1 A3: the Player owns the playback state and recomputes the same
+  // final pose from the selected clip/frame/base yaw (dual-run while the
+  // Humanoid result remains the physics source until A5 flips it).
+  CastPlayer()->UpdatePlayback(
+      currentAnim.animationId, currentAnim.frameNum,
+      startAngle + currentAnim.rotationSmuggleOffset,
+      BlendTicksForSwitch(currentAnim.functionType == e_FunctionType_Movement &&
+                          CastPlayer()->IsEligibleForProceduralLocomotion(ball_retainer == player)));
 }
 
 void Humanoid::SelectRetainAnim() {

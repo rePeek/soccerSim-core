@@ -32,6 +32,7 @@
 #include "sim/player/player_ground_collider.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_action_request.hpp"
+#include "sim/player/player_playback_state.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
 #include "sim/player/player_control.hpp"
@@ -363,9 +364,17 @@ class Player final {
     int ActionRequestAccepts() const { return action_request_accepts_; }
     int ActionRequestDefers() const { return action_request_defers_; }
     int ActionRequestRejects() const { return action_request_rejects_; }
+    // ANIM-1 A3: the Player owns the animation playback state and computes the
+    // final pose; the Animation module stays stateless. The Humanoid still
+    // selects the clip and feeds the integer frame/base yaw each tick.
+    void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
+    const PoseFrame& PlaybackPose() const { return playback_state_.final_pose; }
+    float PlaybackBaseAngle() const { return playback_state_.final_base_angle; }
+    const PlayerPlaybackState& PlaybackState() const { return playback_state_; }
     // ANIM-1.1: the single final pose for this player (default when inactive).
     PoseFrame Pose() const {
       if (!isActive || !humanoid) return PoseFrame{};
+      if (playback_state_.have_pose) return playback_state_.final_pose;
       return humanoid->SampleBakedPose(kinematicState, body_profile_).pose;
     }
     // H3e4f-c2a: observation only. The simulation keeps its own locomotion
@@ -454,7 +463,15 @@ class Player final {
     const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
     PlayerBakedPoseSample GetBakedPoseSample() const {
       if (!humanoid) throw std::logic_error("inactive player has no baked pose source");
-      return humanoid->SampleBakedPose(kinematicState, body_profile_);
+      PlayerBakedPoseSample sample = humanoid->SampleBakedPose(kinematicState, body_profile_);
+      // ANIM-1 A5: the Player owns the final pose; the Humanoid provides the
+      // clip/frame metadata. Verified bit-identical to the Humanoid pose by the
+      // A3.2 dual-run oracle before this flip.
+      if (playback_state_.have_pose) {
+        sample.pose = playback_state_.final_pose;
+        sample.base_angle = playback_state_.final_base_angle;
+      }
+      return sample;
     }
 
     void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
@@ -577,6 +594,9 @@ class Player final {
     PlayerKinematicState kinematicState;
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
+    // ANIM-1 A3: Player-owned animation playback state (clip cursor, transition,
+    // final pose). Reset with the rest of the actor state.
+    PlayerPlaybackState playback_state_;
     // ANIM-1.1: pending active/passive requests and their recorded arbitration
     // outcome. Cleared on every reset path so no stale request survives.
     std::optional<PlayerActionRequest> pending_action_request_;

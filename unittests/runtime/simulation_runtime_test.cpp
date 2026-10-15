@@ -1112,3 +1112,30 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
   CHECK(switches > 0);
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: Player playback reproduces the Humanoid pose", "[runtime][sim]") {
+  // ANIM-1 A3.2 dual-run oracle: the Player-owned playback state must produce
+  // exactly the pose the Humanoid still hands to physics.
+  Simulation sim;
+  InitMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[6];
+  Humanoid* humanoid = player->CastHumanoid();
+  REQUIRE(humanoid != nullptr);
+  PlayerControlSet controls;
+
+  for (int tick = 0; tick < 120; ++tick) {
+    sim.Step(controls);
+    const PoseFrame& a = player->PlaybackPose();
+    const PoseFrame b =
+        humanoid->SampleBakedPose(player->GetKinematicState(), player->BodyProfile()).pose;
+    for (std::size_t j = 0; j < kBodyPartCount; ++j) {
+      for (int e = 0; e < 4; ++e) {
+        REQUIRE(a.orientations[j].elements[e] == b.orientations[j].elements[e]);
+      }
+      for (int c = 0; c < 3; ++c) {
+        REQUIRE(a.positions[j].coords[c] == b.positions[j].coords[c]);
+      }
+    }
+  }
+  CHECK(sim.Stop());
+}

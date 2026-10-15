@@ -16,6 +16,7 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "sim/player/player.hpp"
+#include "football/animation/library.hpp"
 #include "football/pitch/pitch.hpp"
 
 #include <cmath>
@@ -628,6 +629,12 @@ void Player::StepSimulationAction(football::sim::TickSpan elapsed) {
   CheckSimulationActionOracle();
 }
 
+void Player::UpdatePlayback(AnimationId clip_id, int frame, float base_angle,
+                            int blend_ticks) {
+  const AnimationClip& clip = animations_.Get(static_cast<std::uint32_t>(clip_id));
+  playback_state_.Sample(clip, frame, base_angle, blend_ticks);
+}
+
 bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {
   return actionState.IsPureLocomotion(retaining_ball);
 }
@@ -637,6 +644,7 @@ void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   humanoid->ResetPosition(newPos, focusPos);
   // ANIM-1.1: re-placement clears any pending active/passive request.
   pending_action_request_.reset();
+  playback_state_.Reset();
   pending_reaction_.reset();
   CommitLegacyActionMotion();
   BeginSimulationAction();
@@ -790,6 +798,7 @@ void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now)
   lastTouchType = e_TouchType_None;
   // ANIM-1.1: a reset must not leave a stale active/passive request behind.
   pending_action_request_.reset();
+  playback_state_.Reset();
   pending_reaction_.reset();
   if (IsActive()) {
     // The reset itself is the discontinuity, so it anchors the generation that
