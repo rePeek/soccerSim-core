@@ -78,6 +78,7 @@ target_sources(football_sim_domain PRIVATE
   player/player_body_contact_diagnostics.hpp player/player_body_pose_shadow.hpp
   player/player_action.hpp player/player_action_executor.hpp player/player_action_volume.hpp
   player/player_action_request.hpp
+  player/player_playback_state.hpp
   player/player_locomotion.hpp player/player_locomotion_animation.hpp player/player_decision_scheduler.hpp
   player/locomotion_animation_strategy.hpp
   player/animation_transition_state.hpp
