@@ -369,6 +369,12 @@ class Player final {
     // final pose; the Animation module stays stateless. The Humanoid still
     // selects the clip and feeds the integer frame/base yaw each tick.
     void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
+    // ANIM-1 A6.3c.3: the clip id and frame now come from the Player's authoritative
+    // state (installed selection + action cursor); only the not-yet-migrated base
+    // yaw and the blend length are supplied by the Humanoid.
+    void UpdatePlaybackFromAuthority(float base_angle, int blend_ticks) {
+      UpdatePlayback(InstalledAction().clip_id, actionState.Frame(), base_angle, blend_ticks);
+    }
     // ANIM-1 A6.3b.3: the Player owns the Movement candidate selection. The
     // Humanoid only supplies the spatial request; the Player runs the stateless
     // Animation refinement and retains the ordered candidate list (and the

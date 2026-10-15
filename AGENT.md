@@ -2227,3 +2227,13 @@ makes the Humanoid frame follow the saturated authoritative value.
 `previousAnim_frameNum` keeps its legacy semantics for now.
 `install checks=11 match=11 mismatch=0`, `cursor checks=11 match=11 mismatch=0`,
 and the A6.3a final-clip oracle is unchanged.
+
+### ANIM-1 A6.3c.3: the Player samples from its own clock
+
+`Player::UpdatePlaybackFromAuthority(base_angle, blend_ticks)` takes the clip id
+from `InstalledAction().clip_id` and the frame from `actionState.Frame()`, so the
+Humanoid no longer hands over clip/frame at all - it only supplies the
+not-yet-migrated base yaw (`startAngle + rotationSmuggleOffset`) and the blend
+length. `SamplePose`/`BlendPose` are untouched, and the same-tick install still
+samples the new clip immediately (the A6.3b.3 cursor oracle covers the cursor;
+the A6.3a final-clip oracle is unchanged).

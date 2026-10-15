@@ -1115,8 +1115,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   // ANIM-1 A5: the Player owns the final pose. The Humanoid only hands over the
   // selected clip/frame and the base yaw once per tick; the Player's playback
   // state samples/blends it.
-  CastPlayer()->UpdatePlayback(
-      currentAnim.animationId, currentAnim.frameNum,
+  // ANIM-1 A6.3c.3: the clip id and frame come from the Player authority.
+  CastPlayer()->UpdatePlaybackFromAuthority(
       startAngle + currentAnim.rotationSmuggleOffset,
       BlendTicksForSwitch(currentAnim.functionType == e_FunctionType_Movement &&
                           CastPlayer()->IsEligibleForProceduralLocomotion(ball_retainer == player)));
