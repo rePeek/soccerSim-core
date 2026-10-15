@@ -1661,6 +1661,10 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
       } else {
         ++nm_audit.nm_mismatches;
       }
+      // A6.4 step 1c: the pure refinement becomes the authority for the
+      // non-Movement candidate list; the legacy chain above is now a dual-run
+      // oracle only.
+      dataSet.assign(nm_pure.begin(), nm_pure.end());
     }
   } else {
     // ANIM-1 A6.3b.2: the pure Animation refinement is the authority for the
