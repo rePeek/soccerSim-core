@@ -19,6 +19,7 @@
 #define _HPP_HUMANOID
 
 #include "sim/player/humanoid/humanoidbase.hpp"
+#include "sim/player/player_touch_choice.hpp"
 
 using namespace football::math;
 
@@ -63,7 +64,7 @@ class Humanoid : public HumanoidBase {
         const Vector3 &actualBallPos2D, const Vector3 &ballMovement2D,
         float radiusFactor, float radiusCheatDistance, float decayPow,
         bool debug = false) const;
-    signed int GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, int &animTouchFrame_ret, float &radiusOffset_ret, Vector3 &touchPos_ret, Vector3 &fullActionSmuggle_ret, Vector3 &actionSmuggle_ret, radian &rotationSmuggle_ret, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) const;
+    signed int GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, football::sim::TouchChoice &choice, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) const;
     Vector3 CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
                                      const Vector3 &desiredDirection, float desiredVelocityFloat,
                                      std::span<MentalImage> history);

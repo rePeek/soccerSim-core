@@ -1712,13 +1712,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
   }
 
   int selectedAnimID = -1;
-  std::vector<Vector3> positions_tmp;
-  int touchFrame_tmp = -1;
-  float radiusOffset_tmp = 0.0f;
-  Vector3 touchPos_tmp;
-  Vector3 fullActionSmuggle_tmp;
-  Vector3 actionSmuggle_tmp;
-  radian rotationSmuggle_tmp = 0;
+  football::sim::TouchChoice touch_choice;
 
   if (dataSet.size() == 0 &&
       command.desiredFunctionType == e_FunctionType_Movement) {
@@ -1780,29 +1774,29 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
     selectedAnimID = *dataSet.begin();
     Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
     assert(desiredMovement.coords[2] == 0.0f);
-    Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
+    Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
   } else if (command.desiredFunctionType == e_FunctionType_BallControl) {
     if (NeedTouch(now, tick, *dataSet.begin(), command, history)) {
-      selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim, preferPassAndShot);
+      selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot);
     }
   } else if (command.desiredFunctionType == e_FunctionType_Trap ||
              command.desiredFunctionType == e_FunctionType_Interfere ||
              command.desiredFunctionType == e_FunctionType_Deflect) {
-    selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim, preferPassAndShot);
+    selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot);
   } else if (command.desiredFunctionType == e_FunctionType_ShortPass ||
              command.desiredFunctionType == e_FunctionType_LongPass ||
              command.desiredFunctionType == e_FunctionType_HighPass ||
              command.desiredFunctionType == e_FunctionType_Shot) {
 
-    selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim);
+    selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim);
   } else if (command.desiredFunctionType == e_FunctionType_Sliding) {
-    selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, touchFrame_tmp, radiusOffset_tmp, touchPos_tmp, fullActionSmuggle_tmp, actionSmuggle_tmp, rotationSmuggle_tmp, localInterruptAnim);
+    selectedAnimID = GetBestCheatableAnimID(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim);
     if (selectedAnimID == -1) {
       if (dataSet.size() > 0) {
         selectedAnimID = *dataSet.begin();
             Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
         assert(desiredMovement.coords[2] == 0.0f);
-        Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, positions_tmp, rotationSmuggle_tmp);
+        Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
       }
     }
   }
@@ -1810,7 +1804,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
   // check if we really want to requeue; if the anim we dug up is actually better than the current
 
   if (localInterruptAnim == e_InterruptAnim_ReQueue && selectedAnimID != -1 &&
-      currentAnim.positions.size() > 1 && positions_tmp.size() > 1) {
+      currentAnim.positions.size() > 1 && touch_choice.positions.size() > 1) {
 
     // don't requeue to same quadrant
     if (action.type == command.desiredFunctionType &&
@@ -1843,22 +1837,22 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
     currentAnim.animationId = selectedAnimID;
     currentAnim.functionType = command.desiredFunctionType;
     currentAnim.frameNum = 0;
-    currentAnim.touchFrame = touchFrame_tmp;
+    currentAnim.touchFrame = touch_choice.touch_frame;
     currentAnim.originatingInterrupt = localInterruptAnim;
-    currentAnim.touchPos = touchPos_tmp;
+    currentAnim.touchPos = touch_choice.touch_position;
     currentAnim.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatialState.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
-    currentAnim.rotationSmuggle.end = rotationSmuggle_tmp;
+    currentAnim.rotationSmuggle.end = touch_choice.rotation_smuggle;
     currentAnim.rotationSmuggleOffset = 0;
-    currentAnim.actionSmuggle = actionSmuggle_tmp;
+    currentAnim.actionSmuggle = touch_choice.action_smuggle;
     currentAnim.actionSmuggleOffset = Vector3(0);
     currentAnim.actionSmuggleSustain = Vector3(0); // calculated below
     currentAnim.actionSmuggleSustainOffset = Vector3(0);
     currentAnim.movementSmuggle = Vector3(0); // needs to be reset here, else the previous calc is used in upcoming 'calculatemovementsmuggle'
     currentAnim.movementSmuggleOffset = Vector3(0);
     currentAnim.incomingMovement = spatialState.movement;
-    currentAnim.outgoingMovement = CalculateOutgoingMovement(positions_tmp);
+    currentAnim.outgoingMovement = CalculateOutgoingMovement(touch_choice.positions);
     currentAnim.positions.clear();
-    currentAnim.positions.assign(positions_tmp.begin(), positions_tmp.end());
+    currentAnim.positions.assign(touch_choice.positions.begin(), touch_choice.positions.end());
     currentAnim.positionOffset = Vector3(0);
     currentAnim.originatingCommand = command;
     RecordMovementCommandAcceptance(material_candidate, action.type,
@@ -2049,7 +2043,7 @@ float Humanoid::GetBodyBallDistanceAdvantage(int animID, e_FunctionType function
   return result;
 }
 
-signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, int &animTouchFrame_ret, float &radiusOffset_ret, Vector3 &touchPos_ret, Vector3 &fullActionSmuggle_ret, Vector3 &actionSmuggle_ret, radian &rotationSmuggle_ret, e_InterruptAnim localInterruptAnim, bool preferPassAndShot) const {
+signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, football::sim::TouchChoice &choice, e_InterruptAnim localInterruptAnim, bool preferPassAndShot) const {
 
   // never allow touchanims when someone else is holding the ball in his/her hands
   if (tick.ball_retainer != 0 && tick.ball_retainer != player) return -1;
@@ -2082,7 +2076,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
 
     const std::vector<Vector3> &origPositionCache = clip.root_positions;
 
-    Vector3 physicsVector = CalculatePhysicsVector(now, *iter, useDesiredMovement, desiredMovement, useDesiredBodyDirection, desiredBodyDirectionRel, positions_ret, rotationSmuggle_ret_tmp);
+    Vector3 physicsVector = CalculatePhysicsVector(now, *iter, useDesiredMovement, desiredMovement, useDesiredBodyDirection, desiredBodyDirectionRel, choice.positions, rotationSmuggle_ret_tmp);
 
     // anim space!
     predictedAngle = clip.metadata.outgoing_angle + rotationSmuggle_ret_tmp;
@@ -2098,7 +2092,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
     Vector3 bodyPos;
     Vector3 prevBodyPos;
 
-    Vector3 outgoingMovement = CalculateOutgoingMovement(positions_ret).GetRotated2D(-spatialState.angle);
+    Vector3 outgoingMovement = CalculateOutgoingMovement(choice.positions).GetRotated2D(-spatialState.angle);
     adaptedOutgoingMovement = outgoingMovement; // may be changed into touchMovement later on, when an anim is found
 
     int frameCount = static_cast<int>(clip.frame_count) - 1;
@@ -2136,7 +2130,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
         }
       }
 
-      Vector3 touchMovement = CalculateMovementAtFrame(positions_ret, animTouchFrame).GetRotated2D(-spatialState.angle);
+      Vector3 touchMovement = CalculateMovementAtFrame(choice.positions, animTouchFrame).GetRotated2D(-spatialState.angle);
       Vector3 animTouchMovement = CalculateMovementAtFrame(origPositionCache, animTouchFrame);// already anim space so no: .GetRotated2D(-spatialState.angle);
 
       Vector3 ballPos, ballMovement;
@@ -2146,7 +2140,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
       ballPos = (ballPos - spatialState.position).GetRotated2D(-spatialState.angle);
       ballMovement = ballMovement.GetRotated2D(-spatialState.angle);
 
-      bodyPos = positions_ret.at(animTouchFrame).GetRotated2D(-spatialState.angle);
+      bodyPos = choice.positions.at(animTouchFrame).GetRotated2D(-spatialState.angle);
       bodyPos.coords[2] = 0;
 
       const auto &touchPose = clip.poses[animTouchFrame];
@@ -2162,7 +2156,7 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
       touch_request.anim_ball_pos = animBallPos;
       touch_request.anim_body_pos = animBodyPos;
       touch_request.touch_body_pos_rotated =
-          positions_ret.at(animTouchFrame).GetRotated2D(-spatialState.angle);
+          choice.positions.at(animTouchFrame).GetRotated2D(-spatialState.angle);
       touch_request.ball_pos = ballPos;
       touch_request.ball_movement = ballMovement;
       touch_request.touch_movement = touchMovement;
@@ -2206,8 +2200,8 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
           bestAnimID = (signed int)*iter;
           bestActionSmuggleVec2D = actionSmuggleVec2D;
           bestTouchMovementAbs = touchMovement.GetRotated2D(spatialState.angle);
-          animTouchFrame_ret = animTouchFrame;
-          radiusOffset_ret = 1000.0f;//radiusOffset; todo? is this still in use?
+          choice.touch_frame = animTouchFrame;
+          choice.radius_offset = 1000.0f;//radiusOffset; todo? is this still in use?
         }
       }
       touchNum++;
@@ -2217,15 +2211,15 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
 
   if (found) {
     auto currentMentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
-    touchPos_ret = currentMentalImage->GetBallPrediction(animTouchFrame_ret * 10, now, tick.ball);
-    fullActionSmuggle_ret = bestActionSmuggleVec2D.GetRotated2D(spatialState.angle);
+    choice.touch_position = currentMentalImage->GetBallPrediction(choice.touch_frame * 10, now, tick.ball);
+    choice.full_action_smuggle = bestActionSmuggleVec2D.GetRotated2D(spatialState.angle);
 
     // ANIM-1 A6.4 step 2a: the smuggle-discard arithmetic lives in the
     // stateless Animation module; the Player only supplies the inputs.
     football::animation::ResolveActionSmuggleRequest smuggle_request;
-    smuggle_request.raw_smuggle = fullActionSmuggle_ret;
-    smuggle_request.touch_pos_z = touchPos_ret.coords[2];
-    smuggle_request.anim_touch_frame = animTouchFrame_ret;
+    smuggle_request.raw_smuggle = choice.full_action_smuggle;
+    smuggle_request.touch_pos_z = choice.touch_position.coords[2];
+    smuggle_request.anim_touch_frame = choice.touch_frame;
     smuggle_request.function_type = functionType;
     smuggle_request.ball_retained_by_player = (tick.ball_retainer == player);
     smuggle_request.predicted_angle = predictedAngle;
@@ -2240,13 +2234,13 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
     smuggle_request.discard_sideways_smuggle = discardSidewaysSmuggle;
     smuggle_request.closest_opponent_distance =
         CastPlayer()->GetClosestOpponentDistance(tick.opponent_team);
-    actionSmuggle_ret = football::animation::ResolveActionSmuggle(smuggle_request);
+    choice.action_smuggle = football::animation::ResolveActionSmuggle(smuggle_request);
 
-    assert(actionSmuggle_ret.coords[2] == 0.0f);
-    assert(actionSmuggle_ret.coords[2] == 0.0f);
+    assert(choice.action_smuggle.coords[2] == 0.0f);
+    assert(choice.action_smuggle.coords[2] == 0.0f);
   }
 
-  rotationSmuggle_ret = rotationSmuggle_ret_tmp;
+  choice.rotation_smuggle = rotationSmuggle_ret_tmp;
 
   return bestAnimID;
 }

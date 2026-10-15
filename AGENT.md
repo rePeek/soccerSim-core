@@ -2382,3 +2382,20 @@ Post-move runtime fingerprint: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
 Remaining in step 2: the loop skeleton and the four `GetBestCheatableAnimID`
 call sites (`humanoid.cpp:1794/1799/1805/1807`), then `CalculatePhysicsVector`
 (`humanoidbase.cpp`, 519 lines) if it is to move too.
+
+### ANIM-1 A6.4 step 2c: the touch selection result is one value
+
+`src/sim/player/player_touch_choice.hpp` adds `football::sim::TouchChoice
+{positions, touch_frame, radius_offset, touch_position, full_action_smuggle,
+action_smuggle, rotation_smuggle}`. `GetBestCheatableAnimID` published its answer
+through eight out-parameters of which two (`fullActionSmuggle_tmp`,
+`radiusOffset_tmp`) no caller ever read; it now takes one `TouchChoice&` and
+returns the same `signed int` anim id. `SelectAnim` declares a single
+`football::sim::TouchChoice touch_choice;` instead of seven locals and reads the
+consumed fields back (`currentAnim.touchFrame/touchPos/rotationSmuggle.end/
+actionSmuggle/positions`, plus `CalculateOutgoingMovement`).
+
+The signature is now ready for the Player-owned version of the loop: the
+selection already has a single inspectable result value. Behaviour is unchanged
+(runtime P0 fingerprint identical), and the two unread fields are kept because
+they document the full result of the algorithm.
