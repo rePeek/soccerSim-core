@@ -2180,3 +2180,14 @@ all match the selection (`InstallCursorChecks`/`Matches`/`Mismatches`). This is
 the "install then sample in the same tick" guard: it catches a one-tick cursor or
 contact offset between the Player cursor, the selection and the compat
 projection. `cursor checks=2 match=2 mismatch=0` over the P0 tape.
+
+### ANIM-1 A6.3b.3 fourth cut (playback cursor ownership): attempted, blocked
+
+Making `Player` the authority for the playback cursor advance (replacing
+`Humanoid::Process`'s `currentAnim.frameNum++` with
+`currentAnim.frameNum = CastPlayer()->AdvancePlaybackCursor()`) trips
+`Player::CheckSimulationActionOracle()`: `currentAnim.frameNum` is also written
+directly outside `Humanoid::Process` (e.g. the `ResetPosition` path in
+`humanoidbase.cpp`), so the projection desynchronises from the executor cursor.
+Reverted. The cut needs every direct `currentAnim.frameNum` writer routed through
+the Player cursor API first; that inventory is the prerequisite.
