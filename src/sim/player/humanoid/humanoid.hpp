@@ -53,7 +53,6 @@ class Humanoid : public HumanoidBase {
     // Humanoid still performs the evaluation (its physics helpers are not
     // relocated yet), but the call now goes through the Player entry point.
     CrudeSelectionQuery BuildCrudeSelectionQuery(const PlayerCommand &command, const football::sim::PlayerTickContext &tick, football::sim::Tick now, MentalImage *current_mental_image) const;
-    signed int GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, football::sim::TouchChoice &choice, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) const;
     // ANIM-1 A6.4 step 7a: the compat install projection. It writes the fields
     // of the legacy `currentAnim` from a selection result. It deliberately does
     // NOT install: `Player::CommitSelectedAction` owns the dispatch.
@@ -74,16 +73,6 @@ class Humanoid : public HumanoidBase {
                     e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) override;
     bool NeedTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick, int animID,
                    const PlayerCommand &command, std::span<MentalImage> history);
-    float GetBodyBallDistanceAdvantage(
-        int animID, e_FunctionType functionType,
-        const Vector3 &animTouchMovement, const Vector3 &touchMovement,
-        const Vector3 &incomingMovement, const Vector3 &outgoingMovement,
-        radian outgoingAngle,
-        /*const Vector3 &animBallToBall2D, */ const Vector3 &bodyPos,
-        const Vector3 &FFO, const Vector3 &animBallPos2D,
-        const Vector3 &actualBallPos2D, const Vector3 &ballMovement2D,
-        float radiusFactor, float radiusCheatDistance, float decayPow,
-        bool debug = false) const;
     Vector3 CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
                                      const Vector3 &desiredDirection, float desiredVelocityFloat,
                                      std::span<MentalImage> history);

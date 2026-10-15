@@ -57,7 +57,6 @@
 using std::placeholders::_1;
 using std::placeholders::_2;
 constexpr bool animSmoothing = true;
-constexpr float cheatFactor = 0.5f;
 constexpr bool useContinuousBallCheck = true;
 
 // 4b''-player-noquery-audit: provenance stays local to the selection queue.
@@ -68,14 +67,6 @@ enum class PlayerPathSelectionCommandProvenance {
   LocalTripMovementFallback
 };
 constexpr bool enableMovementSmuggle = true;
-constexpr float cheatDiscardDistance = 0.02f; // don't 'display' this distance of cheat (looks better for small distances, but will look funny when too large, players 'missing' the ball and all. also has big influence on gameplay, since this influences player collisions etc)
-constexpr float cheatDistanceBonus = 0.02f; // add extra allowed cheat distance (in meters). don't 'display' this distance of cheat (looks better for small distances, but will look funny when too large, players 'missing' the ball and all. also has big influence on gameplay, since this influences player collisions etc)
-constexpr float cheatDiscardDistanceMultiplier = 0.4f; // lower == more snappy
-constexpr float maxSmuggleDiscardDistance = 0.2f;
-constexpr bool enableActionSmuggleDiscard = true;
-constexpr bool forceFullActionSmuggleDiscard = false;
-constexpr bool discardForwardSmuggle = true;
-constexpr bool discardSidewaysSmuggle = false;
 constexpr float bodyRotationSmoothingFactor = 1.0f;
 constexpr float bodyRotationSmoothingMaxAngle = animSmoothing ? 0.25f * pi : 0.0f;
 constexpr int initialReQueueDelayFrames = 22;
@@ -1627,20 +1618,20 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
     Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
   } else if (command.desiredFunctionType == e_FunctionType_BallControl) {
     if (NeedTouch(now, tick, *dataSet.begin(), command, history)) {
-      selectedAnimID = CastPlayer()->SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot);
+      selectedAnimID = CastPlayer()->SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
     }
   } else if (command.desiredFunctionType == e_FunctionType_Trap ||
              command.desiredFunctionType == e_FunctionType_Interfere ||
              command.desiredFunctionType == e_FunctionType_Deflect) {
-    selectedAnimID = CastPlayer()->SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot);
+    selectedAnimID = CastPlayer()->SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
   } else if (command.desiredFunctionType == e_FunctionType_ShortPass ||
              command.desiredFunctionType == e_FunctionType_LongPass ||
              command.desiredFunctionType == e_FunctionType_HighPass ||
              command.desiredFunctionType == e_FunctionType_Shot) {
 
-    selectedAnimID = CastPlayer()->SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim);
+    selectedAnimID = CastPlayer()->SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, false, allowPreTouchRotationSmuggle, useContinuousBallCheck);
   } else if (command.desiredFunctionType == e_FunctionType_Sliding) {
-    selectedAnimID = CastPlayer()->SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim);
+    selectedAnimID = CastPlayer()->SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, false, allowPreTouchRotationSmuggle, useContinuousBallCheck);
     if (selectedAnimID == -1) {
       if (dataSet.size() > 0) {
         selectedAnimID = *dataSet.begin();
@@ -1906,325 +1897,6 @@ bool Humanoid::NeedTouch(football::sim::Tick now, const football::sim::PlayerTic
   return false;
 }
 
-float Humanoid::GetBodyBallDistanceAdvantage(int animID, e_FunctionType functionType, const Vector3 &animTouchMovement, const Vector3 &touchMovement, const Vector3 &incomingMovement, const Vector3 &outgoingMovement, radian outgoingAngle, /*const Vector3 &animBallToBall2D, */const Vector3 &bodyPos, const Vector3 &FFO, const Vector3 &animBallPos2D, const Vector3 &actualBallPos2D, const Vector3 &ballMovement2D, float radiusFactor, float radiusCheatDistance, float decayPow, bool debug) const {
-
-  assert(touchMovement.coords[2] == 0.0f);
-  assert(bodyPos.coords[2] == 0.0f);
-
-  const AnimationClip &clip = GetBakedClip(animID);
-
-  // super simplistic debug version
-  //if (animBallPos2D.GetDistance(actualBallPos2D) < radiusFactor * 1.0) return 1.0f; else return 0.0f;
-
-  float touchVelocity = touchMovement.GetLength();
-  float animTouchVelocity = animTouchMovement.GetLength();
-  float highestTouchVelocity = (animTouchVelocity > touchVelocity) ? animTouchVelocity : touchVelocity;
-
-  float incomingVelocity = incomingMovement.GetLength();
-  float outgoingVelocity = outgoingMovement.GetLength();
-  float averageInOutVelocity = (incomingMovement + outgoingMovement).GetLength() * 0.5f;
-  float highestInOutVelocity = (incomingVelocity > outgoingVelocity) ? incomingVelocity : outgoingVelocity;
-
-  float highestVelocity = (highestTouchVelocity > highestInOutVelocity) ? highestTouchVelocity : highestInOutVelocity;
-
-  float velocityChange = outgoingVelocity - incomingVelocity;
-  float velocityChange_mps = velocityChange / (static_cast<int>(clip.frame_count) * 0.01f);
-
-  float bodyAnimBallBonus = 1.0f - curve(NormalizedClamp(((bodyPos + FFO.GetNormalized(0) * 0.1f) - animBallPos2D).GetLength(), 0.0f, 0.7f), 0.7f); // less FFO feels better
-  float bodyActualBallBonus = 1.0f - curve(NormalizedClamp(((bodyPos + FFO.GetNormalized(0) * 0.1f) - actualBallPos2D).GetLength(), 0.0f, 0.7f), 0.4f);
-  float velocityBonus = 1.0f - NormalizedClamp(averageInOutVelocity, idleVelocity, sprintVelocity);
-  float velocityChangeBonus = 1.0f - NormalizedClamp(velocityChange_mps / 20.0f, -1.0f, 1.0f);
-
-  float radius = radiusFactor;
-  radius *= 1.0f +
-            1.0f * bodyAnimBallBonus +
-            0.6f * bodyActualBallBonus +
-            0.8f * bodyAnimBallBonus * bodyActualBallBonus +
-            0.0f * velocityChangeBonus +
-            1.0f * velocityBonus;
-
-  // more cheat for faster balls. rationale: with the current system, points in time are used as 'check if legal ball touch', while in reality, this is a continuum.
-  // in other words, faster balls have an unrealistic disadvantage in this system. this tries to restore this balance. however; this widens the ball touch area, while
-  // a better solution would be to actually somehow increase the number of checked points (or rather, to just check against the continuum instead of against points)
-  //radius *= 0.5f + clamp((ballMovement2D - touchMovement).GetLength() * 0.1f, 0.0f, 1.5f);
-
-  float effectiveRadiusCheatDistance = radiusCheatDistance;
-
-  Vector3 outgoingDirection;
-  if (FloatToEnumVelocity(outgoingMovement.GetLength()) == e_Velocity_Idle) {
-    outgoingDirection = Vector3(0, -1, 0).GetRotated2D(outgoingAngle);
-  } else {
-    outgoingDirection = outgoingMovement.GetNormalized();
-  }
-
-  Vector3 behindVectorUnscaled = -(incomingMovement * 0.1f + touchMovement * 0.2f + outgoingMovement * 0.7f);
-  Vector3 behindVector =
-      behindVectorUnscaled.GetNormalized(0) *
-      std::pow(
-          NormalizedClamp(behindVectorUnscaled.GetLength(), 0, sprintVelocity),
-          0.5f);
-
-  // cornering with a more centered behindvector for 'richer' range
-  float dot = Vector3(0, -1, 0).GetDotProduct(outgoingDirection);
-  dot = 0.5f + clamp(dot * 0.5f + 0.5f, 0.0f, 1.0f) * 0.5f;
-  behindVector *= dot;
-
-  Vector3 animToActualBall = actualBallPos2D - animBallPos2D;
-
-  bool deformArea = true;
-  if (deformArea) {
-    Vector3 straightAngleVectorUnscaled = incomingMovement;
-    Vector3 straightAngleVector = straightAngleVectorUnscaled.GetNormalized(outgoingDirection);
-    radian toStraightAngle = Vector3(0, -1, 0).GetAngle2D(straightAngleVector);
-
-    // rotate animball to actualball vec into outgoing direction so we can do funky stuff with it
-    animToActualBall.Rotate2D(toStraightAngle);
-
-    // cheating to the side (lateral) (as seen from the outgoing direction vector) is harder at high velos (effectively changes cheat circle into ellipse)
-    float lateralRadiusFactor =
-        0.6f -
-        0.3f * std::pow(NormalizedClamp(straightAngleVectorUnscaled.GetLength(),
-                                        idleVelocity, sprintVelocity),
-                        0.7f);
-    animToActualBall.coords[0] /= lateralRadiusFactor; // coords[0] is now the lateral component
-    radius *= std::pow(
-        1.0f / lateralRadiusFactor,
-        0.5f);  // make sure we stick with the same surface area (= pi * r ^ 2,
-                // so just take the sqrt of lateralradiusfactor, which is
-                // effectively a surface area multiplier)
-    /*
-    // brick wall: if balls are beyond animtouchpos in outgoingDirection
-    territory, cut off at higher speeds and such if (animToActualBall.coords[1]
-    < 0.0f) {
-      //float brickWallDistanceFactor = 1.0f -
-    NormalizedClamp(averageInOutVelocity, 0.0f, sprintVelocity);
-      //float brickWallDistance = radiusFactor * brickWallDistanceFactor * 2.0f;
-      //animToActualBall.coords[1] *= 1.0f + std::pow(averageInOutVelocity, 1.5f)
-    * radiusFactor * 5.0f; animToActualBall.coords[1] *= 1.0f +
-    std::pow(averageInOutVelocity, 1.5f) * radiusFactor * 0.4f;
-    }
-    */
-    // rotate back and act like nothing happened
-    animToActualBall.Rotate2D(-toStraightAngle);
-  }
-
-  // do some magic
-
-  Vector3 adaptedActualBallPos2D = animBallPos2D + animToActualBall;
-
-  float radiusCheatBehindBias = 0.6f; // how much the radiuscheat heeds behindvec
-  Vector3 behindCenter = animBallPos2D + behindVector * (radius + (effectiveRadiusCheatDistance * radiusCheatBehindBias)) * cheatFactor;
-
-  float result = 1.0f;
-  float allowedRadius = (radius + effectiveRadiusCheatDistance) * cheatFactor + cheatDistanceBonus;
-  if (adaptedActualBallPos2D.GetDistance(behindCenter) > allowedRadius) {
-    result = 0.0f;
-  }
-
-  return result;
-}
-
-signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, football::sim::TouchChoice &choice, e_InterruptAnim localInterruptAnim, bool preferPassAndShot) const {
-
-  // never allow touchanims when someone else is holding the ball in his/her hands
-  if (tick.ball_retainer != 0 && tick.ball_retainer != player) return -1;
-
-  Vector3 incomingMovement = spatialState.movement.GetRotated2D(-spatialState.angle);
-
-  signed int bestAnimID = -1;
-  Vector3 bestActionSmuggleVec2D;
-  Vector3 bestTouchMovementAbs;
-
-  DataSet::const_iterator iter = sortedDataSet.begin();
-
-  Vector3 desiredMovement = desiredDirection * desiredVelocityFloat;
-
-
-  e_FunctionType functionType = StringToFunctionType(
-      static_cast<e_DefString>(GetBakedClip(*iter).metadata.action_type));
-
-  radian rotationSmuggle_ret_tmp = 0;
-  radian predictedAngle = 0;
-  Vector3 adaptedOutgoingMovement;
-
-  Vector3 dud;
-
-  bool found = false;
-  while (iter != sortedDataSet.end() && found == false) {
-
-    const AnimationClip &clip = GetBakedClip(*iter);
-    bool isBase = clip.metadata.base_animation;
-
-    const std::vector<Vector3> &origPositionCache = clip.root_positions;
-
-    Vector3 physicsVector = CalculatePhysicsVector(now, *iter, useDesiredMovement, desiredMovement, useDesiredBodyDirection, desiredBodyDirectionRel, choice.positions, rotationSmuggle_ret_tmp);
-
-    // anim space!
-    predictedAngle = clip.metadata.outgoing_angle + rotationSmuggle_ret_tmp;
-    predictedAngle = ModulateIntoRange(-pi, pi, predictedAngle);
-
-    // iterate all possible touches of this anim
-    int touchNum = 0;
-    Vector3 animBallPos;
-    int animTouchFrame = 0;
-
-    Quaternion animBodyRot;
-    Vector3 animBodyPos;
-    Vector3 bodyPos;
-    Vector3 prevBodyPos;
-
-    Vector3 outgoingMovement = CalculateOutgoingMovement(choice.positions).GetRotated2D(-spatialState.angle);
-    adaptedOutgoingMovement = outgoingMovement; // may be changed into touchMovement later on, when an anim is found
-
-    int frameCount = static_cast<int>(clip.frame_count) - 1;
-
-    const int totalTouches = static_cast<int>(clip.touches.size());
-    int touchIDs[totalTouches];
-    int count = 0;
-
-    int defaultTouchFrame = clip.metadata.touch_frame;
-    assert(defaultTouchFrame >= 0 && defaultTouchFrame < frameCount);
-
-    // first the middle one down to the first
-    for (int i = totalTouches / 2; i > -1; i--) {
-      touchIDs[count] = i;
-      count++;
-    }
-    // then the 1-after-middle one and upwards
-    for (int i = totalTouches / 2 + 1; i < totalTouches; i++) {
-      touchIDs[count] = i;
-      count++;
-    }
-
-    while (touchNum < totalTouches && found == false) {
-
-      animBallPos = clip.touches[touchIDs[touchNum]].position;
-      animTouchFrame = clip.touches[touchIDs[touchNum]].frame;
-
-      // out of bounds?
-      if (tick.ball_retainer != player) {
-        Vector3 absBallPos = tick.ball.Predict(football::sim::TickSpan{static_cast<std::uint64_t>(animTouchFrame)}).position;
-        if (std::fabs(absBallPos.coords[0]) > tick.pitch.half_length() + tick.pitch.line_half_width() + 0.11f ||
-            std::fabs(absBallPos.coords[1]) > tick.pitch.half_width() + tick.pitch.line_half_width() + 0.11f) {
-          touchNum++;
-          continue;
-        }
-      }
-
-      Vector3 touchMovement = CalculateMovementAtFrame(choice.positions, animTouchFrame).GetRotated2D(-spatialState.angle);
-      Vector3 animTouchMovement = CalculateMovementAtFrame(origPositionCache, animTouchFrame);// already anim space so no: .GetRotated2D(-spatialState.angle);
-
-      Vector3 ballPos, ballMovement;
-      auto mentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
-      ballPos = mentalImage->GetBallPrediction(animTouchFrame * 10, now, tick.ball);
-      ballMovement = (mentalImage->GetBallPrediction(animTouchFrame * 10 + 10, now, tick.ball) - mentalImage->GetBallPrediction(animTouchFrame * 10, now, tick.ball)) * 100.0f;
-      ballPos = (ballPos - spatialState.position).GetRotated2D(-spatialState.angle);
-      ballMovement = ballMovement.GetRotated2D(-spatialState.angle);
-
-      bodyPos = choice.positions.at(animTouchFrame).GetRotated2D(-spatialState.angle);
-      bodyPos.coords[2] = 0;
-
-      const auto &touchPose = clip.poses[animTouchFrame];
-      animBodyRot = touchPose.orientations[BodyPart::player];
-      animBodyPos = touchPose.positions[BodyPart::player];
-
-      real x, y, z;
-      animBodyRot.GetAngles(x, y, z);
-
-      // ANIM-1 A6.4 step 2b: the pure touch-geometry scoring lives in the
-      // stateless Animation module; the Humanoid only supplies the inputs.
-      football::animation::TouchGeometryRequest touch_request;
-      touch_request.anim_ball_pos = animBallPos;
-      touch_request.anim_body_pos = animBodyPos;
-      touch_request.touch_body_pos_rotated =
-          choice.positions.at(animTouchFrame).GetRotated2D(-spatialState.angle);
-      touch_request.ball_pos = ballPos;
-      touch_request.ball_movement = ballMovement;
-      touch_request.touch_movement = touchMovement;
-      touch_request.anim_touch_frame = animTouchFrame;
-      touch_request.frame_count = frameCount;
-      touch_request.default_touch_frame = defaultTouchFrame;
-      touch_request.function_type = functionType;
-      touch_request.is_base = isBase;
-      touch_request.ball_retained_by_player = (tick.ball_retainer == player);
-      touch_request.allow_pre_touch_rotation_smuggle = allowPreTouchRotationSmuggle;
-      touch_request.use_continuous_ball_check = useContinuousBallCheck;
-      touch_request.prefer_pass_and_shot = preferPassAndShot;
-      touch_request.rotation_smuggle = rotationSmuggle_ret_tmp;
-      touch_request.body_rotation_z = z;
-      touch_request.height_scale = player->BodyProfile().height_scale;
-      touch_request.last_touch_bias = player->GetLastTouchBias(
-          600, now + football::sim::TickSpan{static_cast<std::uint64_t>(animTouchFrame)});
-      touch_request.technical_ballcontrol =
-          player->GetStat(football::player::PlayerStat::technical_ballcontrol);
-      touch_request.touch_offset_ms = static_cast<float>(defaultTouchOffset_ms);
-      const football::animation::TouchGeometryResult touch_result =
-          football::animation::EvaluateTouchGeometry(touch_request);
-
-      animBallPos = touch_result.anim_ball_pos;
-      ballPos = touch_result.ball_pos;
-      const Vector3 &actionSmuggleVec2D = touch_result.action_smuggle_vec2d;
-      const float ballDistanceZ = touch_result.ball_distance_z;
-
-      if (touch_result.within_reach) {
-        const Vector3 &FFO = touch_result.ffo;
-        const float radiusCheatOffset = touch_result.radius_cheat_offset;
-        const float touchFramedRadiusFactor = touch_result.touch_framed_radius_factor;
-
-        bool debug = false;
-        float bodyBallDistanceAdvantage = GetBodyBallDistanceAdvantage(*iter, functionType, animTouchMovement, touchMovement, incomingMovement, adaptedOutgoingMovement, predictedAngle, bodyPos, FFO, animBallPos.Get2D(), ballPos.Get2D(), ballMovement.Get2D(), touchFramedRadiusFactor, radiusCheatOffset, 1.0f, debug);
-
-        if (bodyBallDistanceAdvantage >= 1.0f ||
-            tick.ball_retainer == player) {
-          found = true;
-
-          bestAnimID = (signed int)*iter;
-          bestActionSmuggleVec2D = actionSmuggleVec2D;
-          bestTouchMovementAbs = touchMovement.GetRotated2D(spatialState.angle);
-          choice.touch_frame = animTouchFrame;
-          choice.radius_offset = 1000.0f;//radiusOffset; todo? is this still in use?
-        }
-      }
-      touchNum++;
-    }
-    iter++;
-  }
-
-  if (found) {
-    auto currentMentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
-    choice.touch_position = currentMentalImage->GetBallPrediction(choice.touch_frame * 10, now, tick.ball);
-    choice.full_action_smuggle = bestActionSmuggleVec2D.GetRotated2D(spatialState.angle);
-
-    // ANIM-1 A6.4 step 2a: the smuggle-discard arithmetic lives in the
-    // stateless Animation module; the Player only supplies the inputs.
-    football::animation::ResolveActionSmuggleRequest smuggle_request;
-    smuggle_request.raw_smuggle = choice.full_action_smuggle;
-    smuggle_request.touch_pos_z = choice.touch_position.coords[2];
-    smuggle_request.anim_touch_frame = choice.touch_frame;
-    smuggle_request.function_type = functionType;
-    smuggle_request.ball_retained_by_player = (tick.ball_retainer == player);
-    smuggle_request.predicted_angle = predictedAngle;
-    smuggle_request.spatial_angle = spatialState.angle;
-    smuggle_request.adapted_outgoing_movement = adaptedOutgoingMovement;
-    smuggle_request.force_full_action_smuggle_discard = forceFullActionSmuggleDiscard;
-    smuggle_request.enable_action_smuggle_discard = enableActionSmuggleDiscard;
-    smuggle_request.cheat_discard_distance = cheatDiscardDistance;
-    smuggle_request.cheat_discard_distance_multiplier = cheatDiscardDistanceMultiplier;
-    smuggle_request.max_smuggle_discard_distance = maxSmuggleDiscardDistance;
-    smuggle_request.discard_forward_smuggle = discardForwardSmuggle;
-    smuggle_request.discard_sideways_smuggle = discardSidewaysSmuggle;
-    smuggle_request.closest_opponent_distance =
-        CastPlayer()->GetClosestOpponentDistance(tick.opponent_team);
-    choice.action_smuggle = football::animation::ResolveActionSmuggle(smuggle_request);
-
-    assert(choice.action_smuggle.coords[2] == 0.0f);
-    assert(choice.action_smuggle.coords[2] == 0.0f);
-  }
-
-  choice.rotation_smuggle = rotationSmuggle_ret_tmp;
-
-  return bestAnimID;
-}
 
 Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick, const Vector3 &desiredDirection,
                                            float desiredVelocityFloat, std::span<MentalImage> history) {

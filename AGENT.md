@@ -2557,3 +2557,28 @@ lets the value-only player test target compile it without the locomotion runtime
 hand-computed expectations and the kernel with synthetic Movement / Shot / Trip /
 Sliding clips: plan length, determinism, native-exit rotation, and the zero-motion
 boundary. 80 player cases / 1242 assertions pass; 10/10 CTest.
+
+### ANIM-1 A6.4 step 9c: the touch-selection loop is Player-owned
+
+`Humanoid::GetBestCheatableAnimID` is gone. The loop now lives in
+`src/sim/player/player_action_selection.cpp` as
+`Player::SelectBestTouchAnim(...)` with the same candidate iteration order, the
+same middle-out touch order and the same early exit. `Player::SelectTouchAction`
+is a thin accounting wrapper (it retains the choice and counts successes) over
+`SelectBestTouchAnim`, so the Player no longer calls a Humanoid selection
+algorithm.
+
+The two pure scoring helpers were relocated to Animation:
+`EvaluateBodyBallDistanceAdvantage` in `football/animation/touch_scoring.hpp`
+takes `frame_count` and the previously implicit cheat tuning as explicit
+arguments; the geometry/smuggle helpers were already there. The Player supplies
+the not-yet-migrated facts through `Humanoid` (spatial state, baked clip,
+`CalculatePhysicsVector`, `CalculateOutgoingMovement`, `mentalImageTime`); the
+reference motion comes from the A8.0 kernel. `allowPreTouchRotationSmuggle` and
+`useContinuousBallCheck` travel as explicit `SelectTouchAction` arguments, so no
+tuning constant was duplicated.
+
+`Humanoid::GetBodyBallDistanceAdvantage` and the touch-loop-only tuning constants
+are deleted. Runtime P0 fingerprint unchanged: `A6.3a clip_match=52
+clip_mismatch=1 fallback=1`, `install 11/11/0`, `cursor 11/11/0`,
+`authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`; 10/10 CTest.

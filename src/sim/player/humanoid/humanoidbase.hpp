@@ -369,6 +369,10 @@ struct SpatialState {
 };
 
 class HumanoidBase {
+  // ANIM-1 A6.4 step 9: the Player owns action selection and installation; the
+  // Humanoid remains a compatibility provider of the not-yet-migrated facts.
+  friend class Player;
+
 
   public:
     HumanoidBase(Player *player, const AnimationLibrary& animations, football::math::Rng& rng);

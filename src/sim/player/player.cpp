@@ -635,13 +635,16 @@ int Player::SelectTouchAction(football::sim::Tick now, const football::sim::Play
                               const Vector3 &desired_body_direction_rel,
                               football::sim::TouchChoice &choice,
                               e_InterruptAnim local_interrupt_anim,
-                              bool prefer_pass_and_shot) {
-  Humanoid *const humanoid = CastHumanoid();
-  if (humanoid == nullptr) return -1;
-  const int anim_id = humanoid->GetBestCheatableAnimID(
+                              bool prefer_pass_and_shot,
+                              bool allow_pre_touch_rotation_smuggle,
+                              bool use_continuous_ball_check) {
+  // ANIM-1 A6.4 step 9c: the loop is Player-owned. The Humanoid supplies the
+  // not-yet-migrated spatial facts and the A8.0 reference-motion kernel.
+  const int anim_id = SelectBestTouchAnim(
       now, tick, history, sorted_data_set, use_desired_movement, desired_direction,
-      desired_velocity_float, use_desired_body_direction, desired_body_direction_rel, choice,
-      local_interrupt_anim, prefer_pass_and_shot);
+      desired_velocity_float, use_desired_body_direction, desired_body_direction_rel,
+      choice, local_interrupt_anim, prefer_pass_and_shot,
+      allow_pre_touch_rotation_smuggle, use_continuous_ball_check);
   if (anim_id != -1) {
     touch_choice_ = choice;
     ++touch_selection_successes_;

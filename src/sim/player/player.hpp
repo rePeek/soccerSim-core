@@ -418,7 +418,20 @@ class Player final {
                           float desired_velocity_float, bool use_desired_body_direction,
                           const Vector3 &desired_body_direction_rel,
                           football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
-                          bool prefer_pass_and_shot = false);
+                          bool prefer_pass_and_shot, bool allow_pre_touch_rotation_smuggle,
+                          bool use_continuous_ball_check);
+    // ANIM-1 A6.4 step 9c: the Player-owned touch-selection loop, relocated
+    // from `Humanoid::GetBestCheatableAnimID`. Same candidate order, touch order
+    // and early exit; the Humanoid only supplies spatial facts and the A8.0
+    // reference-motion kernel.
+    int SelectBestTouchAnim(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
+                            std::span<MentalImage> history, const DataSet &sorted_data_set,
+                            bool use_desired_movement, const Vector3 &desired_direction,
+                            float desired_velocity_float, bool use_desired_body_direction,
+                            const Vector3 &desired_body_direction_rel,
+                            football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
+                            bool prefer_pass_and_shot, bool allow_pre_touch_rotation_smuggle,
+                            bool use_continuous_ball_check);
     const football::sim::TouchChoice &TouchSelection() const { return touch_choice_; }
     // ANIM-1 A6.4 step 6: the ReQueue gates are Player-owned pure decisions.
     // They never search candidates, draw RNG or mutate state.
