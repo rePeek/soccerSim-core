@@ -52,6 +52,7 @@ class Humanoid : public HumanoidBase {
     // ANIM-1 A6.4 step 4: the Player owns touch-animation selection. The
     // Humanoid still performs the evaluation (its physics helpers are not
     // relocated yet), but the call now goes through the Player entry point.
+    CrudeSelectionQuery BuildCrudeSelectionQuery(const PlayerCommand &command, const football::sim::PlayerTickContext &tick, football::sim::Tick now, MentalImage *current_mental_image) const;
     signed int GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, football::sim::TouchChoice &choice, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) const;
   protected:
     bool SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick,

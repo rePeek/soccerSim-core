@@ -1295,110 +1295,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
 
   // CREATE A CRUDE SET OF POTENTIAL ANIMATIONS
 
-  CrudeSelectionQuery query;
-
-  query.byFunctionType = true;
-  query.functionType = command.desiredFunctionType;
-
-  query.byFoot = false;
-  query.foot = spatialState.foot == e_Foot_Left ? e_Foot_Right : e_Foot_Left;
-
-  // query.heedForcedFoot = true;
-  // query.strongFoot = e_Foot_Right;
-
-  // hax: long pass uses same anims as short pass
-  if (query.functionType == e_FunctionType_LongPass) query.functionType = e_FunctionType_ShortPass;
-
-  if (command.touchInfo.desiredPower != 0.0f) {
-    query.byOutgoingBallDirection = true;
-    query.outgoingBallDirection = command.touchInfo.desiredDirection.GetRotated2D(-spatialState.angle);
-  }
-
-  query.byIncomingVelocity = true;
-  query.incomingVelocity = spatialState.enumVelocity;
-
-  if (query.functionType != e_FunctionType_Movement && query.incomingVelocity == e_Velocity_Dribble) query.incomingVelocity = e_Velocity_Walk;
-
-  query.incomingVelocity_Strict = false;
-  if (query.functionType != e_FunctionType_Movement &&
-      query.functionType != e_FunctionType_BallControl) {
-    query.incomingVelocity_ForceLinearity = false;
-    if (query.functionType != e_FunctionType_Deflect) {
-      query.incomingVelocity_NoDribbleToSprint = true;
-      if (query.functionType != e_FunctionType_ShortPass &&
-          query.functionType != e_FunctionType_LongPass &&
-          query.functionType != e_FunctionType_HighPass &&
-          query.functionType != e_FunctionType_Shot) {
-        query.incomingVelocity_ForceLinearity = true;
-        query.incomingVelocity_NoDribbleToIdle = true;
-      } else {  // passes and such
-        query.incomingVelocity_ForceLinearity = false;
-        query.incomingVelocity_NoDribbleToIdle = false;
-      }
-    } else {  // deflect
-      query.incomingVelocity_NoDribbleToSprint = false;
-      query.incomingVelocity_NoDribbleToIdle = false;
-    }
-  } else {
-    query.incomingVelocity_Strict = true;
-  }
-
-  query.byIncomingBodyDirection = true;
-
-  query.incomingBodyDirection = spatialState.relBodyDirectionVec;
-  if (query.functionType != e_FunctionType_Movement) {
-    query.incomingBodyDirection_Strict = false;
-    if (query.functionType != e_FunctionType_Deflect) {
-      if (query.functionType != e_FunctionType_BallControl) {
-        query.incomingBodyDirection_ForceLinearity = true;
-      } else {
-        query.incomingBodyDirection_ForceLinearity = false; // new, we want to be able to use ballcontrol anims as trap more often to stop ball from rolling past us
-      }
-    } else {  // deflect
-      query.incomingBodyDirection_ForceLinearity = false;
-    }
-  } else {
-    query.incomingBodyDirection_Strict = true;
-  }
-
-  query.bySide = false;
-  if (command.useDesiredLookAt &&
-      GetCurrentBakedClip().metadata.outgoing_special_state.empty() &&
-      tick.ball_retainer != CastPlayer()) {
-    Vector3 playerLookAtVec = (command.desiredLookAt - spatialState.position).GetNormalized(spatialState.directionVec);
-    query.lookAtVecRel = playerLookAtVec.GetRotated2D(-spatialState.angle);
-    query.bySide = true;
-  }
-
-  if (command.onlyDeflectAnimsThatPickupBall == true) {
-    query.byPickupBall = true;
-    query.pickupBall = true;
-  }
-
-  if (command.desiredFunctionType == e_FunctionType_Trap ||
-      command.desiredFunctionType == e_FunctionType_Interfere ||
-      command.desiredFunctionType == e_FunctionType_Deflect) {
-    query.byIncomingBallDirection = true;
-    query.incomingBallDirection = (currentMentalImage->GetBallPrediction(180, now, tick.ball) - currentMentalImage->GetBallPrediction(120, now, tick.ball)).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
-  }
-
-  if (CastPlayer()->AllowLastDitch()) {
-    query.allowLastDitchAnims = true;
-  } else {
-    query.allowLastDitchAnims = false;
-  }
-
-  if (command.desiredFunctionType == e_FunctionType_Trip) {
-    query.byTripType = true;
-    query.tripType = command.tripType;
-  }
-
-  query.properties.incoming_special_state = GetCurrentBakedClip().metadata.outgoing_special_state;
-  if (tick.ball_retainer == player) query.properties.incoming_retain_state = GetCurrentBakedClip().metadata.outgoing_retain_state;
-  if (command.useSpecialVar1) query.properties.special_var1 = command.specialVar1;
-  if (command.useSpecialVar2) query.properties.special_var2 = command.specialVar2;
-
-  if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle; // standing up anims always start out idle
+  CrudeSelectionQuery query = BuildCrudeSelectionQuery(command, tick, now, currentMentalImage);
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
@@ -1903,6 +1800,117 @@ bool Humanoid::CommitSelectedAction(int selectedAnimID,
         ++audit.outgoing_retain_present;
     }
     return true;
+}
+
+// ANIM-1 A6.4 step 5: the constraint half of SelectAnim, extracted so the
+// Player can own it. It builds the crude `CrudeSelectionQuery` from the
+// command, the tick context and the spatial state only.
+// `CrudeSelectionQuery query;` is the first statement of the original block.
+CrudeSelectionQuery Humanoid::BuildCrudeSelectionQuery(const PlayerCommand &command, const football::sim::PlayerTickContext &tick, football::sim::Tick now, MentalImage *current_mental_image) const {
+  CrudeSelectionQuery query;
+  query.byFunctionType = true;
+  query.functionType = command.desiredFunctionType;
+
+  query.byFoot = false;
+  query.foot = spatialState.foot == e_Foot_Left ? e_Foot_Right : e_Foot_Left;
+
+  // query.heedForcedFoot = true;
+  // query.strongFoot = e_Foot_Right;
+
+  // hax: long pass uses same anims as short pass
+  if (query.functionType == e_FunctionType_LongPass) query.functionType = e_FunctionType_ShortPass;
+
+  if (command.touchInfo.desiredPower != 0.0f) {
+    query.byOutgoingBallDirection = true;
+    query.outgoingBallDirection = command.touchInfo.desiredDirection.GetRotated2D(-spatialState.angle);
+  }
+
+  query.byIncomingVelocity = true;
+  query.incomingVelocity = spatialState.enumVelocity;
+
+  if (query.functionType != e_FunctionType_Movement && query.incomingVelocity == e_Velocity_Dribble) query.incomingVelocity = e_Velocity_Walk;
+
+  query.incomingVelocity_Strict = false;
+  if (query.functionType != e_FunctionType_Movement &&
+      query.functionType != e_FunctionType_BallControl) {
+    query.incomingVelocity_ForceLinearity = false;
+    if (query.functionType != e_FunctionType_Deflect) {
+      query.incomingVelocity_NoDribbleToSprint = true;
+      if (query.functionType != e_FunctionType_ShortPass &&
+          query.functionType != e_FunctionType_LongPass &&
+          query.functionType != e_FunctionType_HighPass &&
+          query.functionType != e_FunctionType_Shot) {
+        query.incomingVelocity_ForceLinearity = true;
+        query.incomingVelocity_NoDribbleToIdle = true;
+      } else {  // passes and such
+        query.incomingVelocity_ForceLinearity = false;
+        query.incomingVelocity_NoDribbleToIdle = false;
+      }
+    } else {  // deflect
+      query.incomingVelocity_NoDribbleToSprint = false;
+      query.incomingVelocity_NoDribbleToIdle = false;
+    }
+  } else {
+    query.incomingVelocity_Strict = true;
+  }
+
+  query.byIncomingBodyDirection = true;
+
+  query.incomingBodyDirection = spatialState.relBodyDirectionVec;
+  if (query.functionType != e_FunctionType_Movement) {
+    query.incomingBodyDirection_Strict = false;
+    if (query.functionType != e_FunctionType_Deflect) {
+      if (query.functionType != e_FunctionType_BallControl) {
+        query.incomingBodyDirection_ForceLinearity = true;
+      } else {
+        query.incomingBodyDirection_ForceLinearity = false; // new, we want to be able to use ballcontrol anims as trap more often to stop ball from rolling past us
+      }
+    } else {  // deflect
+      query.incomingBodyDirection_ForceLinearity = false;
+    }
+  } else {
+    query.incomingBodyDirection_Strict = true;
+  }
+
+  query.bySide = false;
+  if (command.useDesiredLookAt &&
+      GetCurrentBakedClip().metadata.outgoing_special_state.empty() &&
+      tick.ball_retainer != CastPlayer()) {
+    Vector3 playerLookAtVec = (command.desiredLookAt - spatialState.position).GetNormalized(spatialState.directionVec);
+    query.lookAtVecRel = playerLookAtVec.GetRotated2D(-spatialState.angle);
+    query.bySide = true;
+  }
+
+  if (command.onlyDeflectAnimsThatPickupBall == true) {
+    query.byPickupBall = true;
+    query.pickupBall = true;
+  }
+
+  if (command.desiredFunctionType == e_FunctionType_Trap ||
+      command.desiredFunctionType == e_FunctionType_Interfere ||
+      command.desiredFunctionType == e_FunctionType_Deflect) {
+    query.byIncomingBallDirection = true;
+    query.incomingBallDirection = (current_mental_image->GetBallPrediction(180, now, tick.ball) - current_mental_image->GetBallPrediction(120, now, tick.ball)).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
+  }
+
+  if (CastPlayer()->AllowLastDitch()) {
+    query.allowLastDitchAnims = true;
+  } else {
+    query.allowLastDitchAnims = false;
+  }
+
+  if (command.desiredFunctionType == e_FunctionType_Trip) {
+    query.byTripType = true;
+    query.tripType = command.tripType;
+  }
+
+  query.properties.incoming_special_state = GetCurrentBakedClip().metadata.outgoing_special_state;
+  if (tick.ball_retainer == player) query.properties.incoming_retain_state = GetCurrentBakedClip().metadata.outgoing_retain_state;
+  if (command.useSpecialVar1) query.properties.special_var1 = command.specialVar1;
+  if (command.useSpecialVar2) query.properties.special_var2 = command.specialVar2;
+
+  if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle; // standing up anims always start out idle
+  return query;
 }
 
 bool Humanoid::NeedTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick, int animID, const PlayerCommand &command, std::span<MentalImage> history) {

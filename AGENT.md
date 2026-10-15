@@ -2445,3 +2445,27 @@ All four `SelectAnim` call sites now go
 `selectedAnimID = CastPlayer()->SelectTouchAction(...)`. The harness asserts the
 entry point is actually exercised: `A6.4 nm pure_ticks=4 touch_selections=4`.
 Runtime P0 fingerprint unchanged.
+
+### ANIM-1 A6.4 step 5: the crude-selection constraints are a named unit
+
+`SelectAnim` built its `CrudeSelectionQuery` inline over 103 lines. That block is
+now `Humanoid::BuildCrudeSelectionQuery(command, tick, now, current_mental_image)
+const`, which returns the query and reads only the command, the tick context, the
+spatial state and the already-sampled mental image. `SelectAnim` starts with
+
+```
+CrudeSelectionQuery query = BuildCrudeSelectionQuery(command, tick, now, currentMentalImage);
+DataSet dataSet;
+BakedAnimationSelector::CrudeSelectionution(animations_.Clips(), query, dataSet);
+```
+
+This is the "Player constructs the constraints, Animation selects the candidates"
+boundary made addressable: the query builder and the `BakedAnimationSelector`
+call are now adjacent and separately movable. Two dependencies the first pass
+missed (`now` and the sampled `MentalImage`) are explicit parameters.
+
+Caution recorded: an earlier attempt at this extraction matched the *first*
+`CrudeSelectionQuery query;` in the file, which belongs to
+`Humanoid::SelectRetainAnim`, and silently moved that function's block instead.
+It was reverted with `git checkout` and redone keyed on the line number inside
+`SelectAnim`. `SelectRetainAnim` was verified untouched.
