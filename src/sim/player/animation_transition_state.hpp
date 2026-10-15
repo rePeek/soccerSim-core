@@ -32,6 +32,13 @@ inline float LerpAngleShortest(float from, float to, float t) {
 
 // Fixed, bounded transition length used as the first calibration baseline.
 inline constexpr int kDefaultMovementBlendTicks = 8;
+// A switch involving a non-Movement action uses a shorter window so the action
+// timing (touch frame) is barely disturbed while the pose stays continuous.
+inline constexpr int kActionBlendTicks = 4;
+
+inline int BlendTicksForSwitch(bool pure_movement) {
+  return pure_movement ? kDefaultMovementBlendTicks : kActionBlendTicks;
+}
 
 struct AnimationTransitionState {
   PoseFrame source_pose;

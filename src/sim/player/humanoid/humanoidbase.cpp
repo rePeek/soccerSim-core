@@ -578,7 +578,11 @@ void HumanoidBase::AdvanceMovementPoseBlend(bool pure_movement) {
   const PoseFrame target = clip.poses[frame];
   const float target_base_angle = startAngle + currentAnim.rotationSmuggleOffset;
 
-  if (!movement_pose_blend_enabled_ || !pure_movement) {
+  // ANIM-1.3: blend the pose across any clip change (Movement or action), with
+  // a per-type duration. The touch FRAME stays the integer action cursor, so a
+  // blend cannot move the contact instant.
+  const int blend_ticks = BlendTicksForSwitch(pure_movement);
+  if (!movement_pose_blend_enabled_ || blend_ticks <= 0) {
     movement_transition_.Reset();
     final_blended_pose_ = target;
     final_blended_base_angle_ = target_base_angle;
@@ -590,7 +594,7 @@ void HumanoidBase::AdvanceMovementPoseBlend(bool pure_movement) {
   if (currentAnim.animationId != movement_transition_clip_id_) {
     if (movement_transition_pose_valid_) {
       movement_transition_.Begin(final_blended_pose_, final_blended_base_angle_,
-                                 kDefaultMovementBlendTicks);
+                                 blend_ticks);
     } else {
       movement_transition_.Reset();
       final_blended_pose_ = target;

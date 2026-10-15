@@ -110,3 +110,34 @@ TEST_CASE("reset clears any active transition") {
   REQUIRE(state.duration_ticks == 0);
   REQUIRE(state.elapsed_ticks == 0);
 }
+TEST_CASE("per-type blend duration and a Movement->action switch stay continuous") {
+  CHECK(BlendTicksForSwitch(true) == kDefaultMovementBlendTicks);
+  CHECK(BlendTicksForSwitch(false) == kActionBlendTicks);
+  CHECK(kActionBlendTicks > 0);
+  CHECK(kActionBlendTicks < kDefaultMovementBlendTicks);
+
+  // ANIM-1.3: a Movement pose transitioning into a Shoot pose uses the shorter
+  // action window and never teleports or overshoots the target.
+  AnimationTransitionState state;
+  const PoseFrame movement = PoseWith(0.0f, 0.0f);
+  const PoseFrame shoot = PoseWith(1.0f, 90.0f);
+  state.Begin(movement, 0.0f, BlendTicksForSwitch(false));
+
+  float previous_z = movement.positions[BodyPart::player].coords[2];
+  PoseFrame frame = movement;
+  for (int i = 0; i < kActionBlendTicks; ++i) {
+    frame = state.Advance(shoot, football::math::pi / 2.0f);
+    const float z = frame.positions[BodyPart::player].coords[2];
+    CHECK(z >= previous_z - 1e-4f);
+    CHECK(z <= 1.0f + 1e-4f);
+    previous_z = z;
+  }
+  CHECK_FALSE(state.active);
+  // Ends exactly on the target pose.
+  for (int e = 0; e < 4; ++e) {
+    REQUIRE(frame.orientations[BodyPart::body].elements[e] ==
+            shoot.orientations[BodyPart::body].elements[e]);
+  }
+  REQUIRE(frame.positions[BodyPart::player].coords[2] ==
+          Catch::Approx(1.0f).margin(1e-4f));
+}
