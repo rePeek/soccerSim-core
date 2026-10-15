@@ -1500,6 +1500,35 @@ runtime suite at 240 ticks), so controlled scenarios stay short.
 Still open under P0: Trap/Pass/Shot and Trip->Ground->StandUp need ball
 possession and collision setups, and the React->Trip->Ground->StandUp execution
 (P1) plus the Animation ownership migration (P2-P5) remain.
+
+### ANIM-1 A1-A5 (Animation stateless; Player owns playback)
+
+Revised scope: Player owns the action state, playback cursor, transition and
+final pose; Animation is the shared stateless module (library + selector +
+SamplePose + BlendPose). No second stateful AnimationRuntime.
+
+- A1 `pose_sampling.hpp`: `SamplePose(clip, frame_time)` (integer exact,
+  fractional SLERP/lerp, clamped, empty-safe). `unittests/animation/` now covers
+  selection (`BakedAnimationSelector`), sampling and blending; the BlendPose
+  test moved out of unittests/player into the animation module.
+- A2 `loco_animation_transition_test`: Walk->Sprint->Shoot->Trip on the real
+  baked library, no Simulation/Humanoid; switch jump 0.19 rad (smooth), touch
+  frame fires exactly once.
+- A3 `player_playback_state.hpp`: Player-owned `PlayerPlaybackState` (clip
+  cursor + transition + final pose). A3.2 runs it in parallel with the Humanoid
+  and a bounded oracle proved the pose bit-identical over 120 ticks.
+- A5 the Player is now the pose author: `UpdatePlayback` feeds the selected
+  clip/frame/base yaw, `GetBakedPoseSample()` returns the Player's pose and base
+  yaw, and the Humanoid's `movement_transition_`/`final_blended_pose_`/
+  `AdvanceMovementPoseBlend` plus its blend gate are deleted (the gate moved to
+  the Player). `currentAnim.frameNum` is still the Humanoid clip selector's
+  frame cursor feeding the playback; moving selection itself is later work.
+- A4: 22 independent `PlayerPlaybackState` over one `AnimationLibrary` stay
+  isolated, reset independently and replay deterministically.
+
+Still open: clip SELECTION still lives in `Humanoid::SelectAnim` (the Player
+consumes the selected clip); `React`->`Trip`->`Ground`->`StandUp` execution;
+PlayerMotion owning non-Movement reference displacement.
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
