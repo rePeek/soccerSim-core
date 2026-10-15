@@ -34,6 +34,7 @@
 #include "sim/player/player.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/player/locomotion_animation_strategy.hpp"
+#include "football/animation/select_movement.hpp"
 #include <iterator>
 
 #include "sim/observation/mentalimage_sampling.hpp"
@@ -1642,12 +1643,16 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
     // Movement candidate? A non-zero disagreement means the new selector would
     // pick a clip the legacy filter rejects, blocking the A6.3b hand-over.
     ++audit.shadow_checks;
+    // A6.3b.1: the final pick rule (preferred if a legal candidate, else the
+    // legacy first) is a pure Animation helper; the Humanoid only installs it.
+    const AnimationId pick = ResolveMovementPick(dataSet, choice.animation_id);
     auto preferred = std::find(dataSet.begin(), dataSet.end(),
                                static_cast<int>(choice.animation_id));
     if (preferred != dataSet.end()) ++audit.shadow_in_candidates;
     else ++audit.shadow_not_in_candidates;
-    if (preferred != dataSet.end() && preferred != dataSet.begin())
-      std::rotate(dataSet.begin(), preferred, std::next(preferred));
+    auto picked = std::find(dataSet.begin(), dataSet.end(), static_cast<int>(pick));
+    if (picked != dataSet.end() && picked != dataSet.begin())
+      std::rotate(dataSet.begin(), picked, std::next(picked));
     // Final-result oracle: the Movement branch takes `*dataSet.begin()` after the
     // reorder, so this is the clip that would actually play.
     if (*dataSet.begin() == static_cast<int>(choice.animation_id)) {
