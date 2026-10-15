@@ -373,8 +373,24 @@ class Player final {
     // state (installed selection + action cursor); only the not-yet-migrated base
     // yaw and the blend length are supplied by the Humanoid.
     void UpdatePlaybackFromAuthority(float base_angle, int blend_ticks) {
-      UpdatePlayback(InstalledAction().clip_id, actionState.Frame(), base_angle, blend_ticks);
+      const AnimationId authority_clip = InstalledAction().clip_id;
+      const int authority_frame = actionState.Frame();
+      UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
+      // ANIM-1 A6.3d: the compat Humanoid projection no longer decides the clip
+      // or the action time. Verify the three Player-owned artefacts agree - the
+      // installed selection, the action cursor and the pose that was sampled.
+      ++authority_checks_;
+      const bool same = playback_state_.clip_id == authority_clip &&
+                        playback_state_.frame == authority_frame;
+      if (same) {
+        ++authority_matches_;
+      } else {
+        ++authority_mismatches_;
+      }
     }
+    int AuthorityChecks() const { return authority_checks_; }
+    int AuthorityMatches() const { return authority_matches_; }
+    int AuthorityMismatches() const { return authority_mismatches_; }
     // ANIM-1 A6.3b.3: the Player owns the Movement candidate selection. The
     // Humanoid only supplies the spatial request; the Player runs the stateless
     // Animation refinement and retains the ordered candidate list (and the
@@ -657,6 +673,11 @@ class Player final {
     int install_cursor_checks_ = 0;
     int install_cursor_matches_ = 0;
     int install_cursor_mismatches_ = 0;
+    // ANIM-1 A6.3d: authority consistency (installed selection vs action cursor vs
+    // the pose that was actually sampled).
+    int authority_checks_ = 0;
+    int authority_matches_ = 0;
+    int authority_mismatches_ = 0;
     // ANIM-1.1: pending active/passive requests and their recorded arbitration
     // outcome. Cleared on every reset path so no stale request survives.
     std::optional<PlayerActionRequest> pending_action_request_;

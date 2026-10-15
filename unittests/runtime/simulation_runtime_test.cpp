@@ -1145,6 +1145,14 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
                player->InstallCursorMismatches());
   CHECK(player->InstallCursorChecks() > 0);
   CHECK(player->InstallCursorMismatches() == 0);
+  // ANIM-1 A6.3d: the compat Humanoid projection no longer decides the clip or
+  // the action time; the installed selection, the action cursor and the sampled
+  // pose agree on every tick.
+  std::fprintf(stderr, "[runtime] A6.3d authority checks=%d match=%d mismatch=%d\n",
+               player->AuthorityChecks(), player->AuthorityMatches(),
+               player->AuthorityMismatches());
+  CHECK(player->AuthorityChecks() > 0);
+  CHECK(player->AuthorityMismatches() == 0);
   CHECK(audit.refine_checks > 0);
   CHECK(sim.Stop());
 }

@@ -2237,3 +2237,23 @@ not-yet-migrated base yaw (`startAngle + rotationSmuggleOffset`) and the blend
 length. `SamplePose`/`BlendPose` are untouched, and the same-tick install still
 samples the new clip immediately (the A6.3b.3 cursor oracle covers the cursor;
 the A6.3a final-clip oracle is unchanged).
+
+### ANIM-1 A6.3d: authority audit - the compat layer no longer decides action time
+
+Audited field ownership after A6.3c:
+
+| currentAnim field | owner now |
+| --- | --- |
+| `animationId`, `frameNum` | Player `installed_action_` + `PlayerActionState.elapsed`; the Humanoid copy is a read-only projection (`SetCompatFrameNum`) |
+| `functionType`, `touchFrame`, `touchPos` | Player `ActionState` / `SelectedAction` (mirrored for legacy readers) |
+| `originatingCommand`, `originatingInterrupt` | still action-install context on the Humanoid (migrates with the non-Movement execution path) |
+| `positions`, `incomingMovement`, `outgoingMovement` | still Humanoid (migrates to PlayerMotion in A8) |
+| `movementSmuggle`, `actionSmuggle`, `rotationSmuggle` | still Humanoid; `rotationSmuggle` must be split by use (pose correction vs real body yaw) when it migrates |
+
+`Player::UpdatePlaybackFromAuthority` now also verifies the invariant that the
+compat projection cannot re-decide anything: the installed selection's clip id,
+the action cursor and the clip/frame the pose was actually sampled from must
+agree (`AuthorityChecks`/`Matches`/`Mismatches`). Over the P0 tape
+`authority checks=42 match=42 mismatch=0`, alongside
+`install checks=11 match=11 mismatch=0` and `cursor checks=11 match=11 mismatch=0`;
+the A6.3a final-clip oracle is unchanged. No new action or time state was added.
