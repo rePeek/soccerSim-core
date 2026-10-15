@@ -1485,6 +1485,21 @@ pending request/reaction) is already owned per Player and scheduled by stable
 slot; a bounded runtime test asserts 4 players across both teams keep distinct
 requests and that Stop/Init leaves no residue. Remaining: full Ground/StandUp
 recovery, red-card-shrink and half-time frame checks are tracked for later.
+
+### ANIM-1 P0 controlled-action harness
+
+The bounded harness CAN execute real locomotion once the match leaves the
+opening ceremony: with `PlayerControlSet` movement controls, `inplay` flips at
+~tick 200 and the actor then moves and switches clips (a 240-tick run yields
+`moved~6m`, `switches=2`). Earlier "no movement" observations were simply runs
+shorter than the kickoff. A bounded runtime case now pins this so later ANIM-1
+migrations have a real run to verify against (not only unit tests). Note the
+cost: in-play ticks are much heavier than ceremonial ticks (~42 s for the
+runtime suite at 240 ticks), so controlled scenarios stay short.
+
+Still open under P0: Trap/Pass/Shot and Trip->Ground->StandUp need ball
+possession and collision setups, and the React->Trip->Ground->StandUp execution
+(P1) plus the Animation ownership migration (P2-P5) remain.
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
