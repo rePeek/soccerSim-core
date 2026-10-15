@@ -8,7 +8,8 @@ add_executable(football_animation_unit_tests
   pose_blend_test.cpp
   selector_test.cpp
   select_clip_test.cpp
-  select_movement_test.cpp)
+  select_movement_test.cpp
+  movement_selection_test.cpp)
 target_compile_definitions(football_animation_unit_tests PRIVATE
   GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")
 target_link_libraries(football_animation_unit_tests
