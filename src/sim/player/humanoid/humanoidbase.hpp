@@ -50,6 +50,11 @@ struct LocomotionPlaybackAudit {
   float reference_speed_sum = 0.0f;
   float playback_rate_sum = 0.0f;
   float playback_rate_max = 0.0f;
+  // ANIM-1 A6.3a Movement shadow oracle: on each pure-Movement selection the
+  // motion-driven strategy's choice is compared with the legacy candidate set.
+  int shadow_checks = 0;
+  int shadow_in_candidates = 0;
+  int shadow_not_in_candidates = 0;
 };
 LocomotionPlaybackAudit &LocomotionPlaybackAuditState();
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();

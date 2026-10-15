@@ -1570,6 +1570,22 @@ Remaining, tracked for the next focused work: A6.3 (`Player::Play` owns
 selection + playback, with explicit RNG for touch scoring), A6.4 (remove the
 Humanoid selection with an old/new oracle), A7 (React->Trip->Ground->StandUp)
 and A8 (PlayerMotion non-Movement displacement).
+
+### ANIM-1 A6.3a Movement shadow oracle (finding: hand-over blocked)
+
+On each pure-Movement selection the motion-driven selector's choice is compared
+with the legacy Movement candidate set (`LocomotionPlaybackAuditState()`'s
+`shadow_checks`/`shadow_in_candidates`/`shadow_not_in_candidates`). Over the P0
+tape (post-kickoff Movement) the result is `checks=35 in=34 not_in=1`: the new
+selector picked a clip the legacy filter rejects on ~3% of Movement ticks.
+Because the current reorder only wins when the choice is already a legal
+candidate, A6.3b cannot blindly hand Movement selection to the Player without
+changing the chosen clip on those ticks. Flipping safely requires moving the
+legacy candidate filter + its fallback pick (still inside `SelectAnim`) too, or
+an explicit decision to accept the change - not an oracle relaxation.
+
+Remaining: A6.3b (Player owns Movement selection, must reproduce the legacy
+candidate filter/fallback), A6.3c (AdvancePlayback timing), A6.4, A7, A8.
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),

@@ -1110,6 +1110,18 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
   CHECK(in_play_tick > 0);
   CHECK(moved > 0.5f);
   CHECK(switches > 0);
+  // ANIM-1 A6.3a shadow oracle: over the Movement tape the motion-driven
+  // selector's choice was a legal legacy candidate in `in` ticks and rejected
+  // in `not_in` ticks. A non-zero `not_in` means A6.3b cannot blindly hand
+  // Movement selection to the Player: it must reproduce the legacy candidate
+  // filter and its fallback pick (still in Humanoid) for those ticks.
+  const LocomotionPlaybackAudit& audit = LocomotionPlaybackAuditState();
+  std::fprintf(stderr, "[runtime] A6.3a shadow checks=%d in=%d not_in=%d\n",
+               audit.shadow_checks, audit.shadow_in_candidates,
+               audit.shadow_not_in_candidates);
+  CHECK(audit.shadow_checks > 0);
+  CHECK(audit.shadow_in_candidates <= audit.shadow_checks);
+  CHECK(audit.shadow_not_in_candidates <= audit.shadow_checks);
   CHECK(sim.Stop());
 }
 

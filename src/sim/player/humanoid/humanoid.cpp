@@ -1638,8 +1638,14 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
     audit.reference_speed_sum += choice.reference_speed;
     audit.playback_rate_sum += choice.playback_rate;
     audit.playback_rate_max = std::max(audit.playback_rate_max, choice.playback_rate);
+    // ANIM-1 A6.3a shadow oracle: is the motion-driven choice a legal legacy
+    // Movement candidate? A non-zero disagreement means the new selector would
+    // pick a clip the legacy filter rejects, blocking the A6.3b hand-over.
+    ++audit.shadow_checks;
     auto preferred = std::find(dataSet.begin(), dataSet.end(),
                                static_cast<int>(choice.animation_id));
+    if (preferred != dataSet.end()) ++audit.shadow_in_candidates;
+    else ++audit.shadow_not_in_candidates;
     if (preferred != dataSet.end() && preferred != dataSet.begin())
       std::rotate(dataSet.begin(), preferred, std::next(preferred));
   }
