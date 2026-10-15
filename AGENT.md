@@ -2469,3 +2469,33 @@ Caution recorded: an earlier attempt at this extraction matched the *first*
 `Humanoid::SelectRetainAnim`, and silently moved that function's block instead.
 It was reverted with `git checkout` and redone keyed on the line number inside
 `SelectAnim`. `SelectRetainAnim` was verified untouched.
+
+### ANIM-1 A6.4 step 6: the ReQueue gates are Player-owned pure decisions
+
+`src/sim/player/player_selection_decisions.hpp` now owns the two ReQueue gates
+that were inline in `Humanoid::SelectAnim`, as value inputs plus value logic.
+`AttemptActionSelectionAllowed(RequeueGateContext)` is the pre-search gate
+(movement/ballcontrol/trap frame budgets, requeue delay and allow flags, the
+1.5 m/s materially-similar command test, the redundant-momentum-change test and
+the recent intentional-kick movement->ballcontrol block). Its inputs are the
+Player action cursor, the old originating command, the new command, the spatial
+motion snapshot, possession, the last touch tick/type, focus distance and the
+tuning constants, so the decision reads no Humanoid member and draws no RNG.
+
+`CommitActionSelectionAllowed(CommitSelectionContext)` is the post-search gate
+(same-quadrant non-idle, or both-idle within 0.06*pi after the preferred-direction
+projection). It is evaluated at exactly the legacy point - after the candidate
+search, because that search can contain conditional work and RNG - and the
+Humanoid still computes the two forced angles with
+`ForceIntoPreferredDirectionAngle`. `Player::CanAttemptActionSelection` and
+`Player::CanCommitActionSelection` are one-line delegates, so the Player owns the
+decision while the not-yet-migrated facts remain explicit context.
+
+`unittests/player/player_selection_decisions_test.cpp` pins both gates: every
+early rejection (possession, focus distance, remaining frames, delay/allow,
+BallControl budget, BallControl->Trap, Trap contact budget), the similarity and
+redundant-momentum boundaries (1.5 m/s and 2 m), the recent-kick block, and the
+post gate's same-quadrant/idle-direction cases. Runtime P0 fingerprint unchanged:
+`A6.3a clip_match=52 clip_mismatch=1 fallback=1`, `install 11/11/0`,
+`cursor 11/11/0`, `authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`,
+72 player-unit cases / 1178 assertions pass.

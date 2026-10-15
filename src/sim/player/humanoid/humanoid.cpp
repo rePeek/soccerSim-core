@@ -1210,82 +1210,35 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
   // /optimizations
 
   if (localInterruptAnim == e_InterruptAnim_ReQueue) {
-
-    float focusDistance = (tick.designated_possession_player->GetPosition() - spatialState.position).GetLength();
-
-    if (action.type != e_FunctionType_Movement &&
-        command.desiredFunctionType == e_FunctionType_Movement) return false;
-    if (action.type == e_FunctionType_Movement &&
-        command.desiredFunctionType == e_FunctionType_Movement &&
-        (CastPlayer()->HasPossession() || focusDistance > 12.0f)) return false;
-    if (action.type == e_FunctionType_Movement &&
-        command.desiredFunctionType == e_FunctionType_Movement &&
-        action.Frame() + minRemainingMovementReQueueFrames >
-            action.FrameCount() - 1) return false;
-    if (action.type == e_FunctionType_Movement &&
-        command.desiredFunctionType == e_FunctionType_Movement &&
-        (!allowMovementReQueue || reQueueDelayFrames > 0)) return false;
-    if (action.type == e_FunctionType_BallControl &&
-        command.desiredFunctionType == e_FunctionType_BallControl &&
-        (!allowBallControlReQueue ||
-         action.Frame() > maxBallControlReQueueFrame ||
-         reQueueDelayFrames > 0)) return false;
-    if (action.type == e_FunctionType_BallControl &&
-        command.desiredFunctionType == e_FunctionType_Trap) return false;
-    if (action.type == e_FunctionType_Trap &&
-        command.desiredFunctionType == e_FunctionType_Trap &&
-        (!allowTrapReQueue ||
-         action.Frame() + minRemainingTrapReQueueFrames > action.ContactFrame() ||
-         reQueueDelayFrames > 0)) return false;
-    if (action.type == e_FunctionType_Trap &&
-        command.desiredFunctionType == e_FunctionType_BallControl &&
-        (!allowTrapReQueue ||
-         action.Frame() + minRemainingTrapReQueueFrames > action.ContactFrame() ||
-         reQueueDelayFrames > 0)) return false;
-
-    // too similar to what we are already trying to accomplish
-    if (currentAnim.originatingCommand.desiredFunctionType ==
-            command.desiredFunctionType &&
-        ((currentAnim.originatingCommand.desiredDirection *
-          currentAnim.originatingCommand.desiredVelocityFloat) -
-         (command.desiredDirection * command.desiredVelocityFloat))
-                .GetLength() < 1.5f) {
-      return false;
-    }
-
-    // requeue not needed?
-    if ((action.type == e_FunctionType_Movement &&
-         command.desiredFunctionType == e_FunctionType_Movement) ||
-        (action.type == e_FunctionType_BallControl &&
-         command.desiredFunctionType == e_FunctionType_BallControl) ||
-        (action.type == e_FunctionType_Trap &&
-         command.desiredFunctionType == e_FunctionType_BallControl) ||
-        (action.type == e_FunctionType_Trap &&
-         command.desiredFunctionType == e_FunctionType_Trap)) {
-
-      // current change in momentum
-      Vector3 plannedMomentumChange = currentAnim.outgoingMovement - currentAnim.incomingMovement;
-      Vector3 desiredMomentumChange = (command.desiredDirection * command.desiredVelocityFloat) - spatialState.movement;
-
-      if ((desiredMomentumChange.GetDotProduct(plannedMomentumChange) > 0.0f &&
-           desiredMomentumChange.GetDistance(plannedMomentumChange) < 4.0f) ||
-          desiredMomentumChange.GetDotProduct(plannedMomentumChange) > 0.8f ||
-          desiredMomentumChange.GetDistance(plannedMomentumChange) < 2.0f) {
-        return false;
-      }
-    }
-
-    // don't requeue movement to ballcontrol halfway movement anims, unless there's a serious change of movement desired
-    if (action.type == e_FunctionType_Movement &&
-        command.desiredFunctionType == e_FunctionType_BallControl &&
-        (now - CastPlayer()->GetLastTouchTick() <
-             football::sim::TickSpan{60} &&
-         CastPlayer()->GetLastTouchType() == e_TouchType_Intentional_Kicked) &&
-        CastPlayer()->HasPossession()) {
-        // && !CastPlayer()->AllowLastDitch()) {
-      float desiredMovementChange = (spatialState.movement - (command.desiredDirection * command.desiredVelocityFloat)).GetLength();
-      if (desiredMovementChange < 1.0f) return false;
-    }
+    // ANIM-1 A6.4 step 6a: the pre-search ReQueue gate is a Player-owned pure
+    // decision. The Humanoid supplies the not-yet-migrated legacy facts.
+    football::sim::RequeueGateContext requeue_gate;
+    requeue_gate.action_type = action.type;
+    requeue_gate.action_frame = action.Frame();
+    requeue_gate.action_frame_count = action.FrameCount();
+    requeue_gate.action_contact_frame = action.ContactFrame();
+    requeue_gate.originating_command = currentAnim.originatingCommand;
+    requeue_gate.command = command;
+    requeue_gate.spatial_movement = spatialState.movement;
+    requeue_gate.outgoing_movement = currentAnim.outgoingMovement;
+    requeue_gate.incoming_movement = currentAnim.incomingMovement;
+    requeue_gate.has_possession = CastPlayer()->HasPossession();
+    requeue_gate.last_touch_tick = CastPlayer()->GetLastTouchTick();
+    requeue_gate.last_touch_type = CastPlayer()->GetLastTouchType();
+    requeue_gate.focus_distance =
+        (tick.designated_possession_player->GetPosition() - spatialState.position)
+            .GetLength();
+    requeue_gate.requeue_delay_frames = reQueueDelayFrames;
+    requeue_gate.allow_movement_requeue = allowMovementReQueue;
+    requeue_gate.allow_ball_control_requeue = allowBallControlReQueue;
+    requeue_gate.allow_trap_requeue = allowTrapReQueue;
+    requeue_gate.max_ball_control_requeue_frame = maxBallControlReQueueFrame;
+    requeue_gate.min_remaining_movement_requeue_frames =
+        minRemainingMovementReQueueFrames;
+    requeue_gate.min_remaining_trap_requeue_frames =
+        minRemainingTrapReQueueFrames;
+    requeue_gate.now = now;
+    if (!CastPlayer()->CanAttemptActionSelection(requeue_gate)) return false;
   }
 
   if (localInterruptAnim != e_InterruptAnim_ReQueue || action.Frame() > 12)
@@ -1700,29 +1653,30 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
 
   // check if we really want to requeue; if the anim we dug up is actually better than the current
 
-  if (localInterruptAnim == e_InterruptAnim_ReQueue && selectedAnimID != -1 &&
-      currentAnim.positions.size() > 1 && touch_choice.positions.size() > 1) {
-
-    // don't requeue to same quadrant
-    if (action.type == command.desiredFunctionType &&
-
-        ((FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) !=
-              e_Velocity_Idle &&
-          GetCurrentBakedClip().metadata.quadrant ==
-              GetBakedClip(selectedAnimID).metadata.quadrant) ||
-         ((FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) ==
-               e_Velocity_Idle &&
-           FloatToEnumVelocity(
-               GetBakedClip(selectedAnimID).metadata.outgoing_velocity) ==
-               e_Velocity_Idle) &&
-          std::fabs((ForceIntoPreferredDirectionAngle(
-                    GetCurrentBakedClip().metadata.outgoing_angle) -
-                ForceIntoPreferredDirectionAngle(
-                    GetBakedClip(selectedAnimID).metadata.outgoing_angle))) <
-              0.06f * pi))) {
-
-      selectedAnimID = -1;
+  // ANIM-1 A6.4 step 6b: the post-search ReQueue gate is a Player-owned pure
+  // decision. It runs at the exact same point as the legacy check, after the
+  // candidate search that may contain conditional work and RNG.
+  {
+    football::sim::CommitSelectionContext commit_gate;
+    commit_gate.is_requeue = (localInterruptAnim == e_InterruptAnim_ReQueue);
+    commit_gate.has_selection = (selectedAnimID != -1);
+    commit_gate.current_positions_sufficient = currentAnim.positions.size() > 1;
+    commit_gate.selected_positions_sufficient = touch_choice.positions.size() > 1;
+    commit_gate.action_type = action.type;
+    commit_gate.command_type = command.desiredFunctionType;
+    if (selectedAnimID != -1) {
+      commit_gate.current_outgoing_velocity =
+          FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity);
+      commit_gate.selected_outgoing_velocity =
+          FloatToEnumVelocity(GetBakedClip(selectedAnimID).metadata.outgoing_velocity);
+      commit_gate.current_quadrant = GetCurrentBakedClip().metadata.quadrant;
+      commit_gate.selected_quadrant = GetBakedClip(selectedAnimID).metadata.quadrant;
+      commit_gate.current_forced_outgoing_angle =
+          ForceIntoPreferredDirectionAngle(GetCurrentBakedClip().metadata.outgoing_angle);
+      commit_gate.selected_forced_outgoing_angle =
+          ForceIntoPreferredDirectionAngle(GetBakedClip(selectedAnimID).metadata.outgoing_angle);
     }
+    if (!CastPlayer()->CanCommitActionSelection(commit_gate)) selectedAnimID = -1;
   }
 
   // make it so

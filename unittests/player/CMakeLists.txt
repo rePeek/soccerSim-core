@@ -14,6 +14,7 @@ add_executable(football_player_unit_tests
   animation_transition_state_test.cpp
   player_action_request_test.cpp
   player_playback_state_test.cpp
+  player_selection_decisions_test.cpp
   player_action_cursor_test.cpp)
 target_include_directories(football_player_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src

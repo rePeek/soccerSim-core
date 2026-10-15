@@ -33,6 +33,7 @@
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_action_request.hpp"
 #include "sim/player/player_selected_action.hpp"
+#include "sim/player/player_selection_decisions.hpp"
 #include "sim/player/player_action_executor.hpp"
 #include "sim/player/player_playback_state.hpp"
 #include "football/animation/library.hpp"
@@ -419,6 +420,16 @@ class Player final {
                           football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
                           bool prefer_pass_and_shot = false);
     const football::sim::TouchChoice &TouchSelection() const { return touch_choice_; }
+    // ANIM-1 A6.4 step 6: the ReQueue gates are Player-owned pure decisions.
+    // They never search candidates, draw RNG or mutate state.
+    bool CanAttemptActionSelection(
+        const football::sim::RequeueGateContext &context) const {
+      return football::sim::AttemptActionSelectionAllowed(context);
+    }
+    bool CanCommitActionSelection(
+        const football::sim::CommitSelectionContext &context) const {
+      return football::sim::CommitActionSelectionAllowed(context);
+    }
     int TouchSelectionSuccesses() const { return touch_selection_successes_; }
     const PoseFrame& PlaybackPose() const { return playback_state_.final_pose; }
     float PlaybackBaseAngle() const { return playback_state_.final_base_angle; }
