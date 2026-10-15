@@ -56,44 +56,6 @@ float CalculateBiasForFastCornering(const Vector3 &currentMovement,
   return totalBrakeBias;
 }
 
-Vector3 CalculateMovementAtFrame(const std::vector<Vector3> &positions,
-                                 unsigned int frameNum,
-                                 unsigned int smoothFrames) {
-
-  /*
-    // simple version for debugging purposes
-    unsigned int adaptedFrameNum = std::min(std::max(frameNum, (unsigned int)1),
-    (unsigned int)positions.size() - 1); return (positions.at(adaptedFrameNum) -
-    positions.at(adaptedFrameNum - 1)).Get2D() * 100.0f;
-  */
-
-  assert(frameNum < positions.size());
-
-  // special case: want the exit movement to be unsmoothed, for we don't want the wrong quantized velocity and such
-  if (frameNum == positions.size() - 1) {
-    return (positions.at(positions.size() - 1) - positions.at(positions.size() - 2)).Get2D() * 100.0f;
-  }
-  // special case: if we want the movement at frame 0, we can't get -1 to 0, we need to get 0 to 1 instead
-  if (frameNum == 0) {
-    return (positions.at(1) - positions.at(0)).Get2D() * 100.0f;
-  }
-
-  Vector3 totalMovement;
-  unsigned int count = 0;
-  for (int frame = (signed int)(frameNum - smoothFrames);
-       frame <= (signed int)(frameNum + smoothFrames); frame++) {
-    if (frame > 0 && frame < (signed int)positions.size()) {
-        // was: frame > 1 (i think that was a bug)
-      totalMovement += (positions.at(frame) - positions.at(frame - 1)).Get2D() * 100.0f;
-      count++;
-    }
-  }
-  if (count > 0) {
-    totalMovement /= (float)count;
-  }
-
-  return totalMovement;
-}
 
 // offset where ball should usually be touched
 // ANIM-1 A6.4 step 2b: one definition, in the Animation module.
@@ -116,23 +78,6 @@ bool NeedDefendingMovement(int mySide, const Vector3 &position,
   }
 }
 
-float StretchSprintTo(const float &inputVelocity, float inputSpaceMaxVelocity,
-                      float targetMaxVelocity) {
-  assert(targetMaxVelocity > walkSprintSwitch);
-
-  if (inputVelocity < walkSprintSwitch) return inputVelocity;
-
-  float howMuchSprintage = inputVelocity - walkSprintSwitch;
-
-  float oldLength = inputSpaceMaxVelocity - walkSprintSwitch;
-  float newLength = targetMaxVelocity - walkSprintSwitch;
-
-  float toNewFactor = newLength / oldLength;
-
-  float resultSprintage = howMuchSprintage * toNewFactor;
-
-  return walkSprintSwitch + resultSprintage;
-}
 
 void GetDifficultyFactors(const Ball *ball, Player *player,
                           const football::sim::event::TouchState& touches, const PlayerTeamView &opponent,

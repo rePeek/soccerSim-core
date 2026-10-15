@@ -2525,3 +2525,35 @@ no second action authority was introduced.
 Runtime P0 fingerprint unchanged: `A6.3a clip_match=52 clip_mismatch=1
 fallback=1`, `install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
 `nm pure_ticks=4 touch_selections=4`; 10/10 CTest.
+
+### ANIM-1 A6.4 A8.0: the candidate reference-motion kernel is pure and Player-owned
+
+`PlayerMotion::BuildActionMotionPlan(const AnimationClip&, const ActionMotionInput&)
+-> ActionMotionPlan` is the selection-side reference-motion calculation, relocated
+line-for-line from the 519-line `HumanoidBase::CalculatePhysicsVector`. The input
+carries only an explicit kinematic snapshot (spatial movement, angle, direction,
+float velocity), the desired movement/body direction and an `ActionMotionParameters`
+value (max velocity, six stats, `GetLastTouchBias(1000, now)` and the decaying
+position offset length). There is no Player*, Humanoid*, Ball or RNG in the
+kernel, and the plan is a value: `positions`, `outgoing_velocity` and
+`rotation_offset`. It never commits a kinematic state and never handles an
+impulse, so it is not the A8 physics authority.
+
+`HumanoidBase::CalculatePhysicsVector` is now a thin adapter: it reads the same
+Player capabilities and spatial fields it always did, calls the kernel and writes
+the output back. The same operation order, floating-point expressions and boundary
+behaviour are preserved; the runtime P0 fingerprint is byte-identical
+(`A6.3a clip_match=52 clip_mismatch=1 fallback=1`, `install 11/11/0`,
+`cursor 11/11/0`, `authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`), so
+the selection path can build a reference trajectory without
+`HumanoidBase::CalculatePhysicsVector` while production motion is unchanged.
+
+`include/football/animation/movement_math.hpp` de-duplicates the two pure helpers
+`CalculateMovementAtFrame` and `StretchSprintTo` out of `humanoid_utils` (which now
+re-exports them), so PlayerMotion does not have to depend on the Humanoid utility
+translation unit. `player_action_motion.cpp` holds the kernel in its own TU, which
+lets the value-only player test target compile it without the locomotion runtime.
+`unittests/player/player_action_motion_test.cpp` covers the two moved helpers with
+hand-computed expectations and the kernel with synthetic Movement / Shot / Trip /
+Sliding clips: plan length, determinism, native-exit rotation, and the zero-motion
+boundary. 80 player cases / 1242 assertions pass; 10/10 CTest.

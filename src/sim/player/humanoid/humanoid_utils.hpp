@@ -19,6 +19,7 @@
 #define _HPP_HUMANOID_UTILS
 
 #include "football/animation/touch_geometry.hpp"
+#include "football/animation/movement_math.hpp"
 
 #include "sim/event/touch_type.hpp"
 #include "sim/player/player_team_view.hpp"
@@ -40,10 +41,10 @@ e_TouchType GetTouchTypeForBodyPart(const std::string &bodypartname);
 float CalculateBiasForFastCornering(const Vector3 &currentMovement,
                                     const Vector3 &desiredMovement,
                                     float veloPow = 1.0f, float bias = 1.0f);
-Vector3 CalculateMovementAtFrame(const std::vector<Vector3> &positions, unsigned int frameNum, unsigned int smoothFrames = 0);
+using football::animation::CalculateMovementAtFrame;
 Vector3 GetFrontOfFootOffsetRel(float velocity, radian bodyAngleRel, float height);
 bool NeedDefendingMovement(int mySide, const Vector3 &position, const Vector3 &target);
-float StretchSprintTo(const float &inputVelocity, float inputSpaceMaxVelocity, float targetMaxVelocity);
+using football::animation::StretchSprintTo;
 void GetDifficultyFactors(const football::ball::Ball *ball, Player *player, const football::sim::event::TouchState& touches, const PlayerTeamView &opponent, football::sim::Tick now, football::math::Rng& rng, const SpatialState &spatialState, const Vector3 &positionOffset, float &distanceFactor, float &heightFactor, float &ballMovementFactor);
 Vector3 GetBallControlVector(const football::ball::Ball *ball, Player *player, const PlayerTeamView &opponent, const AnimationClip& clip, const Vector3 &nextStartPos, radian nextStartAngle, radian nextBodyAngle, const Vector3 &outgoingMovement, const Anim &currentAnim, int frameNum, const SpatialState &spatialState, const Vector3 &positionOffset, radian &xRot, radian &yRot, float ffoOffset = 0.0f);
 Vector3 GetTrapVector(const football::ball::Ball *ball, Player *player, const football::sim::event::TouchState& touches, const PlayerTeamView &opponent, football::sim::Tick now, football::math::Rng& rng, const AnimationClip& clip, const Vector3 &nextStartPos, radian nextStartAngle, radian nextBodyAngle, const Vector3 &outgoingMovement, const Anim &currentAnim, int frameNum, const SpatialState &spatialState, const Vector3 &positionOffset, radian &xRot, radian &yRot);
