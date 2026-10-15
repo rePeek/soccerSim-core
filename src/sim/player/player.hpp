@@ -33,6 +33,9 @@
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_action_request.hpp"
 #include "sim/player/player_playback_state.hpp"
+#include "football/animation/library.hpp"
+#include "football/animation/movement_selection.hpp"
+#include "football/animation/select_movement.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
 #include "sim/player/player_control.hpp"
@@ -364,6 +367,22 @@ class Player final {
     // final pose; the Animation module stays stateless. The Humanoid still
     // selects the clip and feeds the integer frame/base yaw each tick.
     void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
+    // ANIM-1 A6.3b.3: the Player owns the Movement candidate selection. The
+    // Humanoid only supplies the spatial request; the Player runs the stateless
+    // Animation refinement and retains the ordered candidate list (and the
+    // foot-counterfactual variant the diagnostic measures).
+    std::vector<int> SelectMovement(const AnimationLibrary& library,
+                                    std::span<const int> crude,
+                                    const MovementRefinementRequest& request) {
+      movement_candidates_ =
+          RefineMovementCandidates(library, crude, request,
+                                   &movement_candidates_without_foot_);
+      return movement_candidates_;
+    }
+    const std::vector<int>& MovementCandidates() const { return movement_candidates_; }
+    const std::vector<int>& MovementCandidatesWithoutFoot() const {
+      return movement_candidates_without_foot_;
+    }
     const PoseFrame& PlaybackPose() const { return playback_state_.final_pose; }
     float PlaybackBaseAngle() const { return playback_state_.final_base_angle; }
     const PlayerPlaybackState& PlaybackState() const { return playback_state_; }
@@ -592,7 +611,13 @@ class Player final {
     PlayerActionState actionState;
     // ANIM-1 A3: Player-owned animation playback state (clip cursor, transition,
     PlayerPlaybackState playback_state_;
+
     bool playback_blend_enabled_ = true;
+    // ANIM-1 A6.3b.3: the Player owns the Movement candidate selection. It
+    // runs the stateless Animation refinement and retains both the ordered
+    // candidate list and the foot-counterfactual list.
+    std::vector<int> movement_candidates_;
+    std::vector<int> movement_candidates_without_foot_;
     // ANIM-1.1: pending active/passive requests and their recorded arbitration
     // outcome. Cleared on every reset path so no stale request survives.
     std::optional<PlayerActionRequest> pending_action_request_;

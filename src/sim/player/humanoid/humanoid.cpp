@@ -1641,10 +1641,12 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
     refine_request.use_desired_look_at = command.useDesiredLookAt;
     refine_request.is_movement = true;
 
-    std::vector<int> without_foot;
-    dataSet = RefineMovementCandidates(animations_, crude_movement_snapshot,
-                                       refine_request, &without_foot);
+    // ANIM-1 A6.3b.3: the Player owns the Movement selection; the Humanoid
+    // supplies the spatial request and reads back the chosen candidate list.
+    dataSet = CastPlayer()->SelectMovement(animations_, crude_movement_snapshot,
+                                           refine_request);
     if (dataSet.empty()) dataSet.push_back(GetIdleMovementAnimID());
+    std::vector<int> without_foot = CastPlayer()->MovementCandidatesWithoutFoot();
     {// ANIM-1 A6.3b.2: count the stateless refinement as the active Movement path.
     auto& refine_audit = LocomotionPlaybackAuditState();
     ++refine_audit.refine_checks;

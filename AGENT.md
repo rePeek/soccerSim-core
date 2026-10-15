@@ -1605,6 +1605,24 @@ function and delete the duplicate filter/sort chain) must also rehome the
 Movement-only `foot_counterfactual`/perturbation diagnostics that share the
 sort chain.
 
+### ANIM-1 A6.3b.2/b.3 Movement selection is Player-owned, legacy chain removed
+
+The pure `RefineMovementCandidates` is now the authority for the Movement
+candidate list. `Player::SelectMovement(library, crude, request)` owns the call
+and retains both the ordered list and the foot-counterfactual list; the
+Humanoid only supplies the spatial request (`pure_movement` branch) and reads
+back `MovementCandidates()`/`MovementCandidatesWithoutFoot()`. The legacy
+Movement strict filters and the Movement-relevant stable sorts no longer run, so
+the Movement-only `foot_counterfactual`/perturbation diagnostics are fed from
+the pure module's without-foot output instead. Equivalence was proven per tick
+before deletion (37/37 ordered match), and the A6.3a final-clip oracle is
+unchanged afterwards (`clip_match=34 clip_mismatch=1 fallback=1`), so the
+hand-over is behaviour-preserving.
+
+Remaining: A6.3b.3 install (moving the 25-field `currentAnim` write +
+`BeginSimulationAction` from `Humanoid::SelectAnim` to Player), A6.3c (frame
+advance ownership), A6.4, A7, A8.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
