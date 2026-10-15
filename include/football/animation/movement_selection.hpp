@@ -131,6 +131,7 @@ struct MovementRefinementRequest {
   float idle_level = 0.0f;                             // desiredIdleLevel
   bool use_desired_look_at = false;
   bool is_movement = true;                             // functionType == Movement
+  bool is_ball_control = false;                        // functionType == BallControl
 };
 
 // Movement similarity, moved verbatim from HumanoidBase::GetMovementSimilarity.
@@ -189,40 +190,81 @@ inline std::vector<float> RatingScratch(const AnimationLibrary& library) {
 
 }  // namespace movement_selection_detail
 
-// The legacy "strict" direction filter: sort by movement similarity, then keep
-// only the quadrant of the best candidate.
+// The legacy direction filter. `strict` selects the Movement/Interfere-strict
+// form; the non-strict form keeps candidates within `allowed_angle` /
+// `allowed_velocity_steps` of the best quadrant (last-ditch anims may always
+// change velocity). Moved verbatim from HumanoidBase::_KeepBestDirectionAnims.
+inline void SortByBaseanim(const AnimationLibrary& library, std::vector<int>& data_set) {
+  std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
+    const bool is_base_a = library.Get(static_cast<uint32_t>(a)).metadata.base_animation;
+    const bool is_base_b = library.Get(static_cast<uint32_t>(b)).metadata.base_animation;
+    if (is_base_a && !is_base_b) return true;
+    return false;
+  });
+}
+
 inline void KeepBestDirectionAnims(const AnimationLibrary& library,
                                    std::vector<int>& data_set,
-                                   const MovementRefinementRequest& request) {
+                                   const MovementRefinementRequest& request,
+                                   bool strict = true, radian allowed_angle = 0.0f,
+                                   int allowed_velocity_steps = 0,
+                                   int forced_quadrant_id = -1) {
   if (data_set.empty()) return;
 
-  std::vector<float> order = movement_selection_detail::RatingScratch(library);
-  for (int anim : data_set) {
-    order[static_cast<std::size_t>(anim)] =
-        MovementSimilarity(library.Get(static_cast<uint32_t>(anim)),
-                           request.rel_desired_direction, request.desired_velocity,
-                           request.cornering_bias);
-  }
-  movement_selection_detail::StableSortByRating(library, data_set, order);
+  int best_quadrant_id = forced_quadrant_id;
+  if (best_quadrant_id == -1) {
+    std::vector<float> order = movement_selection_detail::RatingScratch(library);
+    for (int anim : data_set) {
+      order[static_cast<std::size_t>(anim)] =
+          MovementSimilarity(library.Get(static_cast<uint32_t>(anim)),
+                             request.rel_desired_direction, request.desired_velocity,
+                             request.cornering_bias);
+    }
+    movement_selection_detail::StableSortByRating(library, data_set, order);
 
-  const int best_quadrant_id =
-      library.Get(static_cast<uint32_t>(data_set.front())).metadata.quadrant;
+    // The best anim should be a baseanim for non-Movement strict selection.
+    if (strict && !request.is_movement) SortByBaseanim(library, data_set);
+
+    best_quadrant_id = library.Get(static_cast<uint32_t>(data_set.front())).metadata.quadrant;
+  }
 
   auto iter = data_set.begin();
   ++iter;
   while (iter != data_set.end()) {
-    if (library.Get(static_cast<uint32_t>(*iter)).metadata.quadrant == best_quadrant_id) {
-      ++iter;
+    if (strict) {
+      if (library.Get(static_cast<uint32_t>(*iter)).metadata.quadrant == best_quadrant_id) {
+        ++iter;
+      } else {
+        iter = data_set.erase(iter);
+      }
     } else {
-      iter = data_set.erase(iter);
+      const int quadrant_id = library.Get(static_cast<uint32_t>(*iter)).metadata.quadrant;
+      const Quadrant& best_quadrant = BakedAnimationSelector::GetQuadrant(best_quadrant_id);
+      const Quadrant& quadrant = BakedAnimationSelector::GetQuadrant(quadrant_id);
+
+      bool predicate = true;
+      if (!library.Get(static_cast<uint32_t>(*iter)).metadata.last_ditch) {
+        if (std::abs(GetVelocityID(quadrant.velocity, true) -
+                     GetVelocityID(best_quadrant.velocity, true)) > allowed_velocity_steps)
+          predicate = false;
+      }
+      if (std::fabs(quadrant.angle - best_quadrant.angle) > allowed_angle) predicate = false;
+
+      if (predicate) {
+        ++iter;
+      } else {
+        iter = data_set.erase(iter);
+      }
     }
   }
 }
 
-// The legacy "strict" body-direction filter.
+// The legacy body-direction filter. `adaptedAllowedAngle` is `0.06f * pi` when
+// strict, else the caller's `allowed_angle`.
 inline void KeepBestBodyDirectionAnims(const AnimationLibrary& library,
                                        std::vector<int>& data_set,
-                                       const MovementRefinementRequest& request) {
+                                       const MovementRefinementRequest& request,
+                                       bool strict = true, radian allowed_angle = 0.0f) {
   if (data_set.empty()) return;
 
   std::vector<float> order = movement_selection_detail::RatingScratch(library);
@@ -232,6 +274,8 @@ inline void KeepBestBodyDirectionAnims(const AnimationLibrary& library,
         request.angle, request.rel_desired_direction));
   }
   movement_selection_detail::StableSortByRating(library, data_set, order);
+
+  if (strict && !request.is_movement) SortByBaseanim(library, data_set);
 
   const AnimationClip& best_clip = library.Get(static_cast<uint32_t>(data_set.front()));
   radian best_outgoing_body_angle =
@@ -249,8 +293,8 @@ inline void KeepBestBodyDirectionAnims(const AnimationLibrary& library,
         ForceIntoPreferredDirectionAngle(anim_clip.metadata.outgoing_angle);
     radian anim_look_angle = anim_outgoing_body_angle + anim_outgoing_angle;
 
-    // strict: adaptedAllowedAngle == 0.06f * pi
-    if (std::fabs(anim_look_angle - best_look_angle) <= 0.06f * pi) {
+    const float adapted_allowed_angle = strict ? (0.06f * pi) : static_cast<float>(allowed_angle);
+    if (std::fabs(anim_look_angle - best_look_angle) <= adapted_allowed_angle) {
       ++iter;
     } else {
       iter = data_set.erase(iter);
@@ -362,4 +406,47 @@ inline std::vector<int> RefineMovementCandidates(const AnimationLibrary& library
 
 
 
+
+// The legacy trip-direction tie-break (OLD METHOD, kept as-is).
+inline void SortByTripDirection(const AnimationLibrary& library, std::vector<int>& data_set,
+                                const Vector3& rel_desired_trip_direction) {
+  std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
+    const float rating1 = -library.Get(static_cast<uint32_t>(a))
+                               .metadata.bump_direction.GetDotProduct(rel_desired_trip_direction);
+    const float rating2 = -library.Get(static_cast<uint32_t>(b))
+                               .metadata.bump_direction.GetDotProduct(rel_desired_trip_direction);
+    return rating1 < rating2;
+  });
+}
+
+// ANIM-1 A6.4 step 1: the non-Movement refinement (Trip / Special / Interfere /
+// Sliding shape). Same pipeline as Movement but with the caller's strictness and
+// the baseanim/trip tie-breaks the legacy chain applies for non-Movement.
+inline std::vector<int> RefineNonMovementCandidates(
+    const AnimationLibrary& library, std::span<const int> crude,
+    const MovementRefinementRequest& request, bool strict, radian allowed_angle,
+    int allowed_velocity_steps, bool use_desired_trip_direction,
+    const Vector3& rel_desired_trip_direction) {
+  std::vector<int> data_set(crude.begin(), crude.end());
+  if (data_set.empty()) return data_set;
+
+  KeepBestDirectionAnims(library, data_set, request, strict, allowed_angle,
+                         allowed_velocity_steps);
+  if (request.use_desired_look_at) {
+    KeepBestBodyDirectionAnims(library, data_set, request, strict, allowed_angle);
+  }
+
+  SortByPriority(library, data_set);
+  SortByIdle(library, data_set, request.idle_level);
+  SortByFoot(library, data_set, request.desired_foot);
+  if (!request.is_ball_control) {
+    SortByIncomingBodyDirection(library, data_set, request.rel_incoming_body_direction);
+  }
+  SortByIncomingVelocity(library, data_set, request.incoming_velocity);
+  if (use_desired_trip_direction) {
+    SortByTripDirection(library, data_set, rel_desired_trip_direction);
+  }
+  if (!request.is_movement) SortByBaseanim(library, data_set);
+  return data_set;
+}
 #endif  // FOOTBALL_ANIMATION_MOVEMENT_SELECTION_HPP

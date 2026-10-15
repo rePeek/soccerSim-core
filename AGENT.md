@@ -2268,3 +2268,20 @@ controls. It observes `non_movement_installs=2` with
 now reachable and observable from a bounded, deterministic run. This is the
 verification base for the A6.4 migration (Trip/Special first, then the
 touch-scored Trap/BallControl/Pass/Shot/Interfere/Deflect/Sliding paths).
+
+### ANIM-1 A6.4 step 1a: non-Movement refinement in the pure module
+
+`movement_selection.hpp` now generalises the legacy filters instead of
+duplicating them: `KeepBestDirectionAnims(library, set, request, strict,
+allowed_angle, allowed_velocity_steps, forced_quadrant_id)` carries both the
+strict form (single quadrant, used by Movement) and the non-strict form
+(velocity-step + angle tolerance, last-ditch anims exempt), and
+`KeepBestBodyDirectionAnims(..., strict, allowed_angle)` uses `0.06f * pi` when
+strict else the caller's angle. `SortByBaseanim` and `SortByTripDirection` were
+added, and `RefineNonMovementCandidates(...)` runs the same pipeline with the
+baseanim/trip tie-breaks the legacy chain applies for non-Movement.
+`MovementRefinementRequest` gained `is_ball_control` (suppresses the incoming
+body-direction sort, exactly as the legacy chain does).
+Unit tests cover determinism and single-quadrant strict behaviour over the real
+baked library. Not yet wired into `SelectAnim` and not yet cross-checked against
+the legacy non-Movement path - that is A6.4 step 1b.
