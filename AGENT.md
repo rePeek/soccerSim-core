@@ -1587,6 +1587,24 @@ an explicit decision to accept the change - not an oracle relaxation.
 
 Remaining: A6.3b (Player owns Movement selection, must reproduce the legacy
 candidate filter/fallback), A6.3c (AdvancePlayback timing), A6.4, A7, A8.
+
+### ANIM-1 A6.3b.2 Movement refinement relocated (equivalence proven)
+
+`include/football/animation/movement_selection.hpp` relocates the legacy
+Movement candidate refinement - the config direction tables, the similarity
+ratings, `_KeepBestDirectionAnims`/`_KeepBestBodyDirectionAnims` (strict
+Movement form) and the Movement-relevant stable sorts - into a stateless
+function `RefineMovementCandidates(library, crude, request)`. Step 1 landed the
+module plus synthetic tests; step 2 added a per-tick shadow comparison in
+`Humanoid::SelectAnim` against the legacy `dataSet` as an ORDERED sequence.
+Over the P0 Movement tape: `refine checks=37 match=37 mismatch=0`, so the pure
+function reproduces the legacy candidate list exactly (members and order).
+`LocomotionPlaybackAudit` carries `refine_checks`/`refine_matches`/
+`refine_mismatches`. The remaining flip (make the Movement branch call the pure
+function and delete the duplicate filter/sort chain) must also rehome the
+Movement-only `foot_counterfactual`/perturbation diagnostics that share the
+sort chain.
+
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
