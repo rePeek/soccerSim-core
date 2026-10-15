@@ -2771,3 +2771,17 @@ Runtime P0 fingerprint unchanged; 92 player cases / 1287 assertions; 10/10 CTest
 Remaining A9: the ball-touch execution and the rest of `Humanoid::Process`
 (goalkeeper clamps, body pose, send-off, decision-clock orchestration), then
 deleting Humanoid/HumanoidBase.
+
+### ANIM-1 A9 step 3: the goalkeeper boundary clamps are Player-owned
+
+`Player::ApplyGoalkeeperBoundaryClamps(tick, ball_retainer)` owns the retained
+goalkeeper's 16-meter-box clamps, relocated from `Humanoid::Process`; the tick now
+just calls it. It uses the Player's own `ApplyPositionCorrection`, so the clamp
+authority and the position commit live together. Runtime P0 fingerprint
+unchanged; 10/10 CTest.
+
+Remaining A9: the ball-touch execution inside `Humanoid::Process` (the
+per-function trap/ballcontrol/pass/shot/interfere/deflect/sliding vectors, the
+retain anchor, the prepared-tick touch sink) and the decision-clock orchestration,
+after which `currentAnim`/`spatialState` references and Humanoid/HumanoidBase can
+be deleted.

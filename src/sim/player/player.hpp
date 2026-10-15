@@ -557,6 +557,11 @@ class Player final {
     // ANIM-1 A8 step 5: the selection-time factual spatial reset, relocated
     // from the Humanoid.
     void ApplyFactualSpatialState();
+    // ANIM-1 A9 step 3: the goalkeeper boundary clamps, relocated from the
+    // Humanoid tick.
+    void ApplyGoalkeeperBoundaryClamps(
+        const football::sim::PlayerTickContext &tick,
+        const Player *ball_retainer);
     const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
     int InstallChecks() const { return install_checks_; }
     int InstallMatches() const { return install_matches_; }

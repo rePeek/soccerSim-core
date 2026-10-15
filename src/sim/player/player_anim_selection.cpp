@@ -1016,3 +1016,40 @@ void Player::ApplyFactualSpatialState() {
 
   CommitLegacyActionMotion();
 }
+
+// ---------------------------------------------------------------------------
+// ANIM-1 A9 step 3: the goalkeeper boundary clamps, relocated from
+// Humanoid::Process. The retained goalkeeper must not leave the 16-meter box.
+// ---------------------------------------------------------------------------
+void Player::ApplyGoalkeeperBoundaryClamps(
+    const football::sim::PlayerTickContext &tick, const Player *ball_retainer) {
+  if (ball_retainer != this || GetFormationEntry().role != e_PlayerRole_GK ||
+      !(tick.set_piece_active == false && tick.play_authorized == true)) {
+    return;
+  }
+
+  if (tick.ball.state().position.coords[1] > 20.05f) {
+    ApplyPositionCorrection(Vector3(0, clamp(20.05f - tick.ball.state().position.coords[1], -0.5f, 0.5f), 0) * 0.3f);
+  }
+  if (tick.ball.state().position.coords[1] < -20.05f) {
+    ApplyPositionCorrection(Vector3(0, clamp(-20.05f - tick.ball.state().position.coords[1], -0.5f, 0.5f), 0) * 0.3f);
+  }
+  if (tick.ball.state().position.coords[0] * -GetDynamicSide() >
+      -tick.pitch.half_length() + 16.4f) {
+    ApplyPositionCorrection(Vector3(clamp((-tick.pitch.half_length() + 16.4f) -
+                                     tick.ball.state().position.coords[0] *
+                                         -GetDynamicSide(),
+                                 -0.5f, 0.5f),
+                           0, 0) *
+                   -GetDynamicSide() * 0.3f);
+  }
+  if (tick.ball.state().position.coords[0] * -GetDynamicSide() <
+      -tick.pitch.half_length() + 0.1f) {
+    ApplyPositionCorrection(Vector3(clamp((-tick.pitch.half_length() + 0.1f) -
+                                     tick.ball.state().position.coords[0] *
+                                         -GetDynamicSide(),
+                                 -0.5f, 0.5f),
+                           0, 0) *
+                   -GetDynamicSide() * 0.4f);
+  }
+}

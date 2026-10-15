@@ -1005,36 +1005,8 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   currentAnim.movementSmuggleOffset += smuggle.movement_smuggle_offset_delta;
   currentAnim.rotationSmuggleOffset = smuggle.rotation_smuggle_offset;
 
-  // ballretainer should not get out of 16 meter box
-
-  if (ball_retainer == player &&
-      CastPlayer()->GetFormationEntry().role == e_PlayerRole_GK &&
-      (tick.set_piece_active == false && tick.play_authorized == true)) {
-    if (tick.ball.state().position.coords[1] > 20.05f) {
-      CastPlayer()->ApplyPositionCorrection(Vector3(0, clamp(20.05f - tick.ball.state().position.coords[1], -0.5f, 0.5f), 0) * 0.3f);
-    }
-    if (tick.ball.state().position.coords[1] < -20.05f) {
-      CastPlayer()->ApplyPositionCorrection(Vector3(0, clamp(-20.05f - tick.ball.state().position.coords[1], -0.5f, 0.5f), 0) * 0.3f);
-    }
-    if (tick.ball.state().position.coords[0] * -CastPlayer()->GetDynamicSide() >
-        -tick.pitch.half_length() + 16.4f) {
-      CastPlayer()->ApplyPositionCorrection(Vector3(clamp((-tick.pitch.half_length() + 16.4f) -
-                                       tick.ball.state().position.coords[0] *
-                                           -CastPlayer()->GetDynamicSide(),
-                                   -0.5f, 0.5f),
-                             0, 0) *
-                     -CastPlayer()->GetDynamicSide() * 0.3f);
-    }
-    if (tick.ball.state().position.coords[0] * -CastPlayer()->GetDynamicSide() <
-        -tick.pitch.half_length() + 0.1f) {
-      CastPlayer()->ApplyPositionCorrection(Vector3(clamp((-tick.pitch.half_length() + 0.1f) -
-                                       tick.ball.state().position.coords[0] *
-                                           -CastPlayer()->GetDynamicSide(),
-                                   -0.5f, 0.5f),
-                             0, 0) *
-                     -CastPlayer()->GetDynamicSide() * 0.4f);
-    }
-  }
+  // ANIM-1 A9 step 3: the goalkeeper boundary clamps are Player-owned.
+  CastPlayer()->ApplyGoalkeeperBoundaryClamps(tick, ball_retainer);
 
   // next frame
 
