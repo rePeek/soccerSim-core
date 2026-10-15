@@ -1202,13 +1202,12 @@ TEST_CASE("Runtime harness: possession drives a non-Movement action install",
     PlayerControlSet controls;
     PlayerControl control;
     control.move_direction = Vector3(0, -1, 0);
-    control.desired_speed = drive ? 1.0f : 0.0f;
+    control.desired_speed = drive ? 5.0f : 0.0f;
     if (drive) {
       SimulationAccess::SetBallRetainer(sim, player);
       SimulationAccess::ResetBall(sim, player->GetPosition() +
                                            Vector3(0, -0.4f, 0));
-      control.action = (tick % 2 == 0) ? ControlAction::ShortPass
-                                       : ControlAction::Shoot;
+      control.action = ControlAction::Dribble;
       control.target_position = player->GetPosition() + Vector3(0, -12.0f, 0);
       control.power = 0.6f;
     }
@@ -1229,5 +1228,10 @@ TEST_CASE("Runtime harness: possession drives a non-Movement action install",
                in_play_tick, non_movement_installs);
   CHECK(in_play_tick > 0);
   CHECK(player->InstallMismatches() == 0);
+  const LocomotionPlaybackAudit& nm = LocomotionPlaybackAuditState();
+  std::fprintf(stderr, "[runtime] A6.4 nm checks=%d match=%d mismatch=%d\n",
+               nm.nm_checks, nm.nm_matches, nm.nm_mismatches);
+  CHECK(nm.nm_checks > 0);
+  CHECK(nm.nm_mismatches == 0);
   CHECK(sim.Stop());
 }

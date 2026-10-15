@@ -1418,12 +1418,14 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
       return false;
   }
 
-  // ANIM-1 A6.3b.2 shadow: keep the crude Movement candidate set so the pure
+  // ANIM-1 A6.3b.2 / A6.4 shadow: keep the crude candidate set so the pure
   // Animation refinement can be compared with the legacy filter+sort result.
   DataSet crude_movement_snapshot;
-  if (command.desiredFunctionType == e_FunctionType_Movement &&
-      command.useDesiredMovement)
-    crude_movement_snapshot = dataSet;
+  if (command.useDesiredMovement) crude_movement_snapshot = dataSet;
+  // A6.4: the non-Movement branches set these (BallControl / Trap / Interfere).
+  bool nm_strict = false;
+  float nm_allowed_angle = 0.3f * pi;
+  int nm_allowed_velocity_steps = 1;
   const bool pure_movement = command.desiredFunctionType == e_FunctionType_Movement &&
                                command.useDesiredMovement && !crude_movement_snapshot.empty();
 
@@ -1462,6 +1464,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
       }
       float allowedBaseAngle = 0.0f * pi;
       int allowedVelocitySteps = 0; // last ditch anims are always allowed > 0 velocity steps, as long as strict is false
+      nm_strict = strict; nm_allowed_angle = allowedBaseAngle; nm_allowed_velocity_steps = allowedVelocitySteps;
       if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedBaseAngle); // needed for idle outgoing velo, probably
       _KeepBestDirectionAnims(dataSet, command, strict, allowedBaseAngle, allowedVelocitySteps);
     }
@@ -1483,6 +1486,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
       float allowedBaseAngle = 0.3f * pi;
       int allowedVelocitySteps = 2;
       int bestBallControlQuadrantID = -1;
+      nm_strict = strict; nm_allowed_angle = allowedBaseAngle; nm_allowed_velocity_steps = allowedVelocitySteps;
       _KeepBestDirectionAnims(dataSet, command, strict, allowedBaseAngle, allowedVelocitySteps, bestBallControlQuadrantID);
       if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedBaseAngle);
 
@@ -1526,6 +1530,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
       float allowedAngle = 0.3f * pi;
       int allowedVelocitySteps = 1;
       if (command.strictMovement == e_StrictMovement_True) strict = true;
+      nm_strict = strict; nm_allowed_angle = allowedAngle; nm_allowed_velocity_steps = allowedVelocitySteps;
 
       _KeepBestDirectionAnims(dataSet, command, strict, allowedAngle, allowedVelocitySteps);
       if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedAngle);
@@ -1619,6 +1624,43 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
       // Only reorder the single branch's local candidate set. SelectAnim runs
       // once; the saved baseline branch independently runs the normal order.
       dataSet.swap(withoutFootSort);
+    }
+    // ANIM-1 A6.4 step 1b shadow: for non-Movement the pure refinement must
+    // reproduce the legacy filter+sort result exactly, as an ordered sequence.
+    if (command.useDesiredMovement &&
+        command.desiredFunctionType != e_FunctionType_Movement &&
+        !crude_movement_snapshot.empty()) {
+      MovementRefinementRequest nm_request;
+      nm_request.rel_desired_direction = predicate_RelDesiredDirection;
+      nm_request.desired_velocity = predicate_DesiredVelocity;
+      nm_request.cornering_bias = predicate_CorneringBias;
+      nm_request.look_at = predicate_LookAt;
+      nm_request.position = spatialState.position;
+      nm_request.angle = spatialState.angle;
+      nm_request.rel_incoming_body_direction = spatialState.relBodyDirectionVec;
+      nm_request.incoming_velocity = spatialState.enumVelocity;
+      nm_request.desired_foot = spatialState.foot;
+      int nm_idle_level = 0;
+      if (!tick.play_authorized) nm_idle_level = 2;
+      if (tick.set_piece_active) nm_idle_level = 1;
+      else if ((tick.ball.Predict(football::sim::TickSpan{20}).position - spatialState.position).GetLength() > 16.0f) nm_idle_level = 1;
+      nm_request.idle_level = nm_idle_level;
+      nm_request.use_desired_look_at = command.useDesiredLookAt;
+      nm_request.is_movement = false;
+      nm_request.is_ball_control =
+          (command.desiredFunctionType == e_FunctionType_BallControl);
+      const Vector3 nm_trip_direction =
+          command.desiredTripDirection.GetRotated2D(-spatialState.angle);
+      std::vector<int> nm_pure = RefineNonMovementCandidates(
+          animations_, crude_movement_snapshot, nm_request, nm_strict, nm_allowed_angle,
+          nm_allowed_velocity_steps, command.useDesiredTripDirection, nm_trip_direction);
+      auto& nm_audit = LocomotionPlaybackAuditState();
+      ++nm_audit.nm_checks;
+      if (nm_pure == std::vector<int>(dataSet.begin(), dataSet.end())) {
+        ++nm_audit.nm_matches;
+      } else {
+        ++nm_audit.nm_mismatches;
+      }
     }
   } else {
     // ANIM-1 A6.3b.2: the pure Animation refinement is the authority for the

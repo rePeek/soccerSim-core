@@ -2285,3 +2285,16 @@ body-direction sort, exactly as the legacy chain does).
 Unit tests cover determinism and single-quadrant strict behaviour over the real
 baked library. Not yet wired into `SelectAnim` and not yet cross-checked against
 the legacy non-Movement path - that is A6.4 step 1b.
+
+### ANIM-1 A6.4 step 1b: non-Movement refinement cross-checked per tick
+
+`SelectAnim` hoists the non-Movement filter parameters (`nm_strict`,
+`nm_allowed_angle`, `nm_allowed_velocity_steps`, set by the BallControl / Trap /
+Interfere branches) and keeps the crude candidate set for every
+`useDesiredMovement` command. At the end of the legacy chain it now runs
+`RefineNonMovementCandidates` and compares the result with the legacy `dataSet`
+as an ordered sequence (`LocomotionPlaybackAudit::nm_checks`/`nm_matches`/
+`nm_mismatches`). The possession harness gained a Dribble+run scenario (Pass and
+Shot force `useDesiredMovement = false`, so they never enter the filter branch):
+`nm checks=4 match=4 mismatch=0`. Shadow only - the legacy chain is still the
+production path for non-Movement.

@@ -67,6 +67,10 @@ struct LocomotionPlaybackAudit {
   int refine_checks = 0;
   int refine_matches = 0;
   int refine_mismatches = 0;
+  // ANIM-1 A6.4 step 1b: non-Movement pure refinement vs the legacy result.
+  int nm_checks = 0;
+  int nm_matches = 0;
+  int nm_mismatches = 0;
 };
 LocomotionPlaybackAudit &LocomotionPlaybackAuditState();
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();
