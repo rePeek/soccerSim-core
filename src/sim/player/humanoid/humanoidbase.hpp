@@ -55,6 +55,12 @@ struct LocomotionPlaybackAudit {
   int shadow_checks = 0;
   int shadow_in_candidates = 0;
   int shadow_not_in_candidates = 0;
+  // ANIM-1 A6.3b: final-result comparison (the chosen Clip, not just candidate
+  // membership). `fallback_count` is the ticks where the legacy fallback pick
+  // was used because the motion-driven choice was not a legal candidate.
+  int clip_matches = 0;
+  int clip_mismatches = 0;
+  int fallback_count = 0;
 };
 LocomotionPlaybackAudit &LocomotionPlaybackAuditState();
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();

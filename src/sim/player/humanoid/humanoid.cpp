@@ -1648,6 +1648,14 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
     else ++audit.shadow_not_in_candidates;
     if (preferred != dataSet.end() && preferred != dataSet.begin())
       std::rotate(dataSet.begin(), preferred, std::next(preferred));
+    // Final-result oracle: the Movement branch takes `*dataSet.begin()` after the
+    // reorder, so this is the clip that would actually play.
+    if (*dataSet.begin() == static_cast<int>(choice.animation_id)) {
+      ++audit.clip_matches;
+    } else {
+      ++audit.clip_mismatches;
+      ++audit.fallback_count;
+    }
   }
 
   if (command.desiredFunctionType == e_FunctionType_Movement ||

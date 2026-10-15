@@ -1116,12 +1116,15 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
   // Movement selection to the Player: it must reproduce the legacy candidate
   // filter and its fallback pick (still in Humanoid) for those ticks.
   const LocomotionPlaybackAudit& audit = LocomotionPlaybackAuditState();
-  std::fprintf(stderr, "[runtime] A6.3a shadow checks=%d in=%d not_in=%d\n",
+  std::fprintf(stderr,
+               "[runtime] A6.3a shadow checks=%d in=%d not_in=%d clip_match=%d "
+               "clip_mismatch=%d fallback=%d\n",
                audit.shadow_checks, audit.shadow_in_candidates,
-               audit.shadow_not_in_candidates);
+               audit.shadow_not_in_candidates, audit.clip_matches,
+               audit.clip_mismatches, audit.fallback_count);
   CHECK(audit.shadow_checks > 0);
-  CHECK(audit.shadow_in_candidates <= audit.shadow_checks);
-  CHECK(audit.shadow_not_in_candidates <= audit.shadow_checks);
+  CHECK(audit.clip_matches + audit.clip_mismatches == audit.shadow_checks);
+  CHECK(audit.fallback_count == audit.clip_mismatches);
   CHECK(sim.Stop());
 }
 
