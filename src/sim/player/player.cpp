@@ -632,7 +632,8 @@ void Player::StepSimulationAction(football::sim::TickSpan elapsed) {
 void Player::UpdatePlayback(AnimationId clip_id, int frame, float base_angle,
                             int blend_ticks) {
   const AnimationClip& clip = animations_.Get(static_cast<std::uint32_t>(clip_id));
-  playback_state_.Sample(clip, frame, base_angle, blend_ticks);
+  playback_state_.Sample(clip, frame, base_angle,
+                         playback_blend_enabled_ ? blend_ticks : 0);
 }
 
 bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {

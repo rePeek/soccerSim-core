@@ -566,49 +566,6 @@ const AnimationClip &HumanoidBase::GetCurrentBakedClip() const {
   return GetBakedClip(currentAnim.animationId);
 }
 
-void HumanoidBase::AdvanceMovementPoseBlend(bool pure_movement) {
-  const AnimationClip &clip = GetCurrentBakedClip();
-  if (clip.poses.empty()) {
-    movement_transition_pose_valid_ = false;
-    return;
-  }
-  const int requested = currentAnim.frameNum < 0 ? 0 : currentAnim.frameNum;
-  const auto frame =
-      std::min(static_cast<std::size_t>(requested), clip.poses.size() - 1);
-  const PoseFrame target = clip.poses[frame];
-  const float target_base_angle = startAngle + currentAnim.rotationSmuggleOffset;
-
-  // ANIM-1.3: blend the pose across any clip change (Movement or action), with
-  // a per-type duration. The touch FRAME stays the integer action cursor, so a
-  // blend cannot move the contact instant.
-  const int blend_ticks = BlendTicksForSwitch(pure_movement);
-  if (!movement_pose_blend_enabled_ || blend_ticks <= 0) {
-    movement_transition_.Reset();
-    final_blended_pose_ = target;
-    final_blended_base_angle_ = target_base_angle;
-    movement_transition_clip_id_ = currentAnim.animationId;
-    movement_transition_pose_valid_ = true;
-    return;
-  }
-
-  if (currentAnim.animationId != movement_transition_clip_id_) {
-    if (movement_transition_pose_valid_) {
-      movement_transition_.Begin(final_blended_pose_, final_blended_base_angle_,
-                                 blend_ticks);
-    } else {
-      movement_transition_.Reset();
-      final_blended_pose_ = target;
-      final_blended_base_angle_ = target_base_angle;
-      movement_transition_clip_id_ = currentAnim.animationId;
-      movement_transition_pose_valid_ = true;
-      return;
-    }
-  }
-  final_blended_pose_ = movement_transition_.Advance(target, target_base_angle);
-  final_blended_base_angle_ = movement_transition_.blended_base_angle;
-  movement_transition_clip_id_ = currentAnim.animationId;
-  movement_transition_pose_valid_ = true;
-}
 
 float &HumanoidBase::OrderScratch(int id) const {
   if (orderScratch_.size() <= static_cast<size_t>(id)) {
@@ -941,11 +898,6 @@ void HumanoidBase::ResetPosition(const Vector3 &newPos,
   previousAnim_frameNum = 0;
   previousAnim_functionType = e_FunctionType_Movement;
 
-  // LOCO-2.6d: a reset invalidates the previous final-pose cache so the next
-  // Movement entry cannot start a blend from a pre-reset pose.
-  movement_transition_.Reset();
-  movement_transition_pose_valid_ = false;
-  movement_transition_clip_id_ = -1;
 
 
   interruptAnim = e_InterruptAnim_None;

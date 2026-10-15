@@ -197,13 +197,9 @@ class Player final {
     }
     bool LocomotionAnimationAdaptation() const { return locomotion_animation_adaptation_; }
     void SetLocomotionAnimationAdaptation(bool enabled) { locomotion_animation_adaptation_ = enabled; }
-    // LOCO-2.6c: pose blending gate (A/B).
-    void SetMovementPoseBlend(bool enabled) {
-      if (humanoid) humanoid->SetMovementPoseBlendEnabled(enabled);
-    }
-    bool MovementPoseBlend() const {
-      return humanoid != nullptr && humanoid->MovementPoseBlendEnabled();
-    }
+    // ANIM-1 A5: pose-blend gate, owned by the Player's playback state.
+    void SetMovementPoseBlend(bool enabled) { playback_blend_enabled_ = enabled; }
+    bool MovementPoseBlend() const { return playback_blend_enabled_; }
 
     inline bool IsActive() { return isActive; }
 
@@ -595,8 +591,8 @@ class Player final {
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
     // ANIM-1 A3: Player-owned animation playback state (clip cursor, transition,
-    // final pose). Reset with the rest of the actor state.
     PlayerPlaybackState playback_state_;
+    bool playback_blend_enabled_ = true;
     // ANIM-1.1: pending active/passive requests and their recorded arbitration
     // outcome. Cleared on every reset path so no stale request survives.
     std::optional<PlayerActionRequest> pending_action_request_;

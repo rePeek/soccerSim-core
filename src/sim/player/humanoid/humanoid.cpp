@@ -1110,15 +1110,9 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
   } else {
   }
 
-  // LOCO-2.6c/d: the single final pose for this tick, after SelectAnim has
-  // settled the current animation and integer frame. Pure Movement blends
-  // across a clip change; everything else copies the raw pose.
-  AdvanceMovementPoseBlend(
-      currentAnim.functionType == e_FunctionType_Movement &&
-      CastPlayer()->IsEligibleForProceduralLocomotion(ball_retainer == player));
-  // ANIM-1 A3: the Player owns the playback state and recomputes the same
-  // final pose from the selected clip/frame/base yaw (dual-run while the
-  // Humanoid result remains the physics source until A5 flips it).
+  // ANIM-1 A5: the Player owns the final pose. The Humanoid only hands over the
+  // selected clip/frame and the base yaw once per tick; the Player's playback
+  // state samples/blends it.
   CastPlayer()->UpdatePlayback(
       currentAnim.animationId, currentAnim.frameNum,
       startAngle + currentAnim.rotationSmuggleOffset,
