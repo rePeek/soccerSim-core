@@ -66,7 +66,6 @@ enum class PlayerPathSelectionCommandProvenance {
   LocalTrip,
   LocalTripMovementFallback
 };
-constexpr bool enableMovementSmuggle = true;
 constexpr float bodyRotationSmoothingFactor = 1.0f;
 constexpr float bodyRotationSmoothingMaxAngle = animSmoothing ? 0.25f * pi : 0.0f;
 constexpr int initialReQueueDelayFrames = 22;
@@ -1154,7 +1153,7 @@ void Humanoid::ProjectSelectedActionCompat(
                                   command, static_cast<int>(GetCurrentBakedClip().frame_count));
   // Must run after the currentAnim field writes above (it reads the new
   // animationId/positions/touchFrame and GetCurrentBakedClip), before install.
-  currentAnim.movementSmuggle = CalculateMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, history);
+  currentAnim.movementSmuggle = CastPlayer()->ComputeMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, history);
   currentAnim.movementSmuggleOffset = Vector3(0);
 }
 
@@ -1192,75 +1191,6 @@ void Humanoid::RecordSelectedContactAudit(const PlayerCommand &command) {
 
 
 
-Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick, const Vector3 &desiredDirection,
-                                           float desiredVelocityFloat, std::span<MentalImage> history) {
-
-  if (!enableMovementSmuggle) return Vector3(0);
-
-  if (tick.own_team.DesignatedPlayer() != player || tick.designated_possession_player != player ||
-      currentAnim.touchFrame != -1 || (currentAnim.functionType == e_FunctionType_Trip && GetCurrentBakedClip().metadata.trip_type != 1) || GetCurrentBakedClip().metadata.incoming_special_state.compare("") != 0 || GetCurrentBakedClip().metadata.outgoing_special_state.compare("") != 0 ||
-      !tick.play_authorized || tick.set_piece_active || tick.ball_retainer != 0) return Vector3(0);
-
-  Vector3 toDesired;
-
-  // various stuff needed by all
-
-  unsigned int timeToBall_ms = CastPlayer()->GetTimeNeededToGetToBall_ms();
-  if (CastPlayer()->GetDesiredTimeToBall_ms() > (signed int)timeToBall_ms) {
-    timeToBall_ms = CastPlayer()->GetDesiredTimeToBall_ms();
-  }
-  unsigned int animTime_ms = static_cast<int>(GetCurrentBakedClip().frame_count) * 10;
-  unsigned int futureTime_ms = std::max(animTime_ms + defaultTouchOffset_ms, timeToBall_ms);
-
-  Vector3 predictedOutgoingMovement = CalculateOutgoingMovement(currentAnim.positions);
-  Vector3 predictedPos;
-  radian predictedAngle;
-  CalculatePredictedSituation(predictedPos, predictedAngle);
-  Vector3 ballPos = football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(futureTime_ms, now, tick.ball);
-  float ballHeight = ballPos.coords[2];
-  Vector3 ffo = GetFrontOfFootOffsetRel(predictedOutgoingMovement.GetLength(), GetCurrentBakedClip().metadata.outgoing_body_angle, ballHeight).GetRotated2D(predictedAngle);
-  Vector3 desiredBallPos = predictedPos + ffo;
-
-  if (!CastPlayer()->HasPossession()) {
-
-    // macro effect: consider a line going in the ball movement direction. consider the spot we want the ball at (in front of us) after this movement anim.
-    // now calculate the shortest line between that line and that point. now move over that line from the point towards the line somewhat
-
-    const Vector3 ballLineA = football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(0, now, tick.ball).Get2D();
-    const Vector3 ballLineB = football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(futureTime_ms, now, tick.ball).Get2D();
-    if ((ballLineA - ballLineB).GetLength() < 0.5f) return Vector3(0); // ball is slow or very close
-
-    float u = SegmentProjectionParameter(ballLineA, ballLineB, desiredBallPos);
-    Vector3 closestBallPos = ballLineA + (ballLineB - ballLineA) * u;
-
-    toDesired = closestBallPos - desiredBallPos;
-
-  } else {  // if HasPossession
-
-    toDesired = ballPos.Get2D() - desiredBallPos;
-  }
-
-  unsigned int maxEffectTimeTreshold_ms = 250 + defaultTouchOffset_ms; // if the ball is this much longer 'farther away' than feasible, rather postpone effect until next anim (else we may overrun)
-  if (FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) == e_Velocity_Idle) maxEffectTimeTreshold_ms = 2000; // no danger of overrunning
-  float maxEffectVelocity = dribbleWalkSwitch;
-  float maxSmuggleMPS = 1.6f;
-
-  if (futureTime_ms - (animTime_ms + defaultTouchOffset_ms) > maxEffectTimeTreshold_ms) return Vector3(0);
-
-  Vector3 toDesiredMovement = toDesired / (animTime_ms * 0.001f);
-  Vector3 resultingMovement = predictedOutgoingMovement + toDesiredMovement;
-  float predictedVelocity = predictedOutgoingMovement.GetLength();
-  float resultingVelocity = resultingMovement.GetLength();
-  if (resultingVelocity > predictedVelocity && resultingVelocity > maxEffectVelocity) return Vector3(0);
-
-  toDesired.NormalizeMax(maxSmuggleMPS * ((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) * 0.01f));
-
-  //SetGreenDebugPilon(predictedPos);
-
-  float removeDistance = 0.06f; // remove part of the smuggle (allow staying this far away from ideal spot)
-  toDesired = toDesired.GetNormalized(0) * std::max(0.0f, toDesired.GetLength() - removeDistance);
-  return toDesired;
-}
 
 Vector3 Humanoid::GetBestPossibleTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick, const Vector3 &desiredTouch,
                                        e_FunctionType functionType) {

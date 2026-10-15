@@ -547,6 +547,16 @@ class Player final {
     // (baked action) motion. The Humanoid only stores the compatibility
     // spatial projection that this writes.
     void ComputeAndCommitActionMotion();
+    // ANIM-1 A8 step 5: the movement-smuggle calculation, relocated from the
+    // Humanoid. It reads the installed action and the ball prediction.
+    Vector3 ComputeMovementSmuggle(football::sim::Tick now,
+                                   const football::sim::PlayerTickContext &tick,
+                                   const Vector3 &desired_direction,
+                                   float desired_velocity_float,
+                                   std::span<MentalImage> history);
+    // ANIM-1 A8 step 5: the selection-time factual spatial reset, relocated
+    // from the Humanoid.
+    void ApplyFactualSpatialState();
     const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
     int InstallChecks() const { return install_checks_; }
     int InstallMatches() const { return install_matches_; }

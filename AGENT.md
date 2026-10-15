@@ -2727,3 +2727,19 @@ Runtime P0 fingerprint unchanged: `A6.3a clip_match=52 clip_mismatch=1 fallback=
 10/10 CTest. A8's remaining piece is `CalculateFactualSpatialState` and the
 smuggle/rotation bookkeeping; A9 (retire `currentAnim`/`spatialState` and delete
 Humanoid/HumanoidBase) remains.
+
+### ANIM-1 A8 step 5: movement smuggle and the factual reset are Player-owned
+
+`Humanoid::CalculateMovementSmuggle` is gone; the relocated
+`Player::ComputeMovementSmuggle` owns the macro movement-smuggle calculation
+(ball-line projection, possession branch, effect-time threshold, smuggle cap and
+remove-distance) and `ProjectSelectedActionCompat` calls it. `HumanoidBase::
+CalculateFactualSpatialState` is gone; `Player::ApplyFactualSpatialState` owns the
+selection-time foot/special-state reset and commits it, and `TrySelectAction`
+calls it. The `enableMovementSmuggle` tuning constant moved with the calculation.
+
+Runtime P0 fingerprint unchanged; 10/10 CTest. A8 is complete: the candidate
+reference motion (A8.0), the executed displacement (A8.1), the body state (A8.3),
+the commit authority (A8.4) and the smuggle/factual bookkeeping (A8.5) all live in
+Player/PlayerMotion. A9 remains: retire `currentAnim`/`spatialState` and delete
+Humanoid/HumanoidBase.

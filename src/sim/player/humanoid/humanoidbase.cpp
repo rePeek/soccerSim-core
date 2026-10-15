@@ -1074,18 +1074,6 @@ void HumanoidBase::CalculateSpatialState(const Player* ball_retainer) {
   if (player) player->ComputeAndCommitActionMotion();
 }
 
-void HumanoidBase::CalculateFactualSpatialState() {
-
-  spatialState.foot = static_cast<e_Foot>(GetCurrentBakedClip().metadata.outgoing_foot);
-
-  if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
-    spatialState.floatVelocity = 0;
-    spatialState.enumVelocity = e_Velocity_Idle;
-    spatialState.movement = Vector3(0);
-  }
-
-  if (player) player->CommitLegacyActionMotion();
-}
 
 void HumanoidBase::ProjectSimulationMovementState(
     const PlayerKinematicState &state, const Player* ball_retainer) {

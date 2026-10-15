@@ -63,9 +63,6 @@ class Humanoid : public HumanoidBase {
     // stays a pure field write and the audit runs after the Player install.
     void RecordSelectedContactAudit(const PlayerCommand &command);
   protected:
-    Vector3 CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
-                                     const Vector3 &desiredDirection, float desiredVelocityFloat,
-                                     std::span<MentalImage> history);
     Vector3 GetBestPossibleTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
                                  const Vector3 &desiredTouch, e_FunctionType functionType);
 };

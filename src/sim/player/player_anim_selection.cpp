@@ -15,6 +15,7 @@
 #include "football/ball/ball.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
+#include "sim/player/humanoid/humanoid_utils.hpp"
 #include "sim/player/player_motion.hpp"
 #include "sim/player/locomotion_animation_strategy.hpp"
 #include "sim/player/player_motion_constants.hpp"
@@ -282,7 +283,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
   }
 
   if (localInterruptAnim != e_InterruptAnim_ReQueue || action.Frame() > 12)
-    humanoid->CalculateFactualSpatialState();
+    ApplyFactualSpatialState();
 
   assert(command.desiredLookAt.coords[2] == 0.0f);
 
@@ -890,5 +891,128 @@ void Player::ComputeAndCommitActionMotion() {
   humanoid->previousPosition2D = position;
 
   // The kinematic mirror must track the spatial state at the instant it changes.
+  CommitLegacyActionMotion();
+}
+
+// ---------------------------------------------------------------------------
+// ANIM-1 A8 step 5: the movement-smuggle calculation is Player-owned. Relocated
+// line-for-line from Humanoid::CalculateMovementSmuggle.
+// ---------------------------------------------------------------------------
+namespace {
+constexpr bool kEnableMovementSmuggle = true;
+}  // namespace
+
+Vector3 Player::ComputeMovementSmuggle(
+    football::sim::Tick now, const football::sim::PlayerTickContext &tick,
+    const Vector3 &desiredDirection, float desiredVelocityFloat,
+    std::span<MentalImage> history) {
+  Humanoid *const humanoid = CastHumanoid();
+  if (humanoid == nullptr) return Vector3(0);
+  Anim &currentAnim = humanoid->currentAnim;
+
+  if (!kEnableMovementSmuggle) return Vector3(0);
+
+  if (tick.own_team.DesignatedPlayer() != this ||
+      tick.designated_possession_player != this ||
+      currentAnim.touchFrame != -1 ||
+      (currentAnim.functionType == e_FunctionType_Trip &&
+       humanoid->GetCurrentBakedClip().metadata.trip_type != 1) ||
+      humanoid->GetCurrentBakedClip().metadata.incoming_special_state.compare("") != 0 ||
+      humanoid->GetCurrentBakedClip().metadata.outgoing_special_state.compare("") != 0 ||
+      !tick.play_authorized || tick.set_piece_active || tick.ball_retainer != 0)
+    return Vector3(0);
+
+  Vector3 toDesired;
+
+  // various stuff needed by all
+
+  unsigned int timeToBall_ms = GetTimeNeededToGetToBall_ms();
+  if (GetDesiredTimeToBall_ms() > (signed int)timeToBall_ms) {
+    timeToBall_ms = GetDesiredTimeToBall_ms();
+  }
+  unsigned int animTime_ms =
+      static_cast<int>(humanoid->GetCurrentBakedClip().frame_count) * 10;
+  unsigned int futureTime_ms = std::max(animTime_ms + defaultTouchOffset_ms, timeToBall_ms);
+
+  Vector3 predictedOutgoingMovement =
+      humanoid->CalculateOutgoingMovement(currentAnim.positions);
+  Vector3 predictedPos;
+  radian predictedAngle;
+  humanoid->CalculatePredictedSituation(predictedPos, predictedAngle);
+  Vector3 ballPos = football::sim::observation::SampleMentalImage(
+                        history, humanoid->mentalImageTime)
+                        ->GetBallPrediction(futureTime_ms, now, tick.ball);
+  float ballHeight = ballPos.coords[2];
+  Vector3 ffo = GetFrontOfFootOffsetRel(
+                    predictedOutgoingMovement.GetLength(),
+                    humanoid->GetCurrentBakedClip().metadata.outgoing_body_angle,
+                    ballHeight)
+                    .GetRotated2D(predictedAngle);
+  Vector3 desiredBallPos = predictedPos + ffo;
+
+  if (!HasPossession()) {
+    // macro effect: consider a line going in the ball movement direction. consider the spot we want the ball at (in front of us) after this movement anim.
+    // now calculate the shortest line between that line and that point. now move over that line from the point towards the line somewhat
+
+    const Vector3 ballLineA =
+        football::sim::observation::SampleMentalImage(history, humanoid->mentalImageTime)
+            ->GetBallPrediction(0, now, tick.ball)
+            .Get2D();
+    const Vector3 ballLineB =
+        football::sim::observation::SampleMentalImage(history, humanoid->mentalImageTime)
+            ->GetBallPrediction(futureTime_ms, now, tick.ball)
+            .Get2D();
+    if ((ballLineA - ballLineB).GetLength() < 0.5f) return Vector3(0);  // ball is slow or very close
+
+    float u = football::animation::SegmentProjectionParameter(ballLineA, ballLineB, desiredBallPos);
+    Vector3 closestBallPos = ballLineA + (ballLineB - ballLineA) * u;
+
+    toDesired = closestBallPos - desiredBallPos;
+
+  } else {  // if HasPossession
+
+    toDesired = ballPos.Get2D() - desiredBallPos;
+  }
+
+  unsigned int maxEffectTimeTreshold_ms = 250 + defaultTouchOffset_ms;  // if the ball is this much longer 'farther away' than feasible, rather postpone effect until next anim (else we may overrun)
+  if (FloatToEnumVelocity(humanoid->GetCurrentBakedClip().metadata.outgoing_velocity) == e_Velocity_Idle) maxEffectTimeTreshold_ms = 2000;  // no danger of overrunning
+  float maxEffectVelocity = dribbleWalkSwitch;
+  float maxSmuggleMPS = 1.6f;
+
+  if (futureTime_ms - (animTime_ms + defaultTouchOffset_ms) > maxEffectTimeTreshold_ms) return Vector3(0);
+
+  Vector3 toDesiredMovement = toDesired / (animTime_ms * 0.001f);
+  Vector3 resultingMovement = predictedOutgoingMovement + toDesiredMovement;
+  float predictedVelocity = predictedOutgoingMovement.GetLength();
+  float resultingVelocity = resultingMovement.GetLength();
+  if (resultingVelocity > predictedVelocity && resultingVelocity > maxEffectVelocity) return Vector3(0);
+
+  toDesired.NormalizeMax(maxSmuggleMPS * ((static_cast<int>(humanoid->GetCurrentBakedClip().frame_count) - 1) * 0.01f));
+
+  // SetGreenDebugPilon(predictedPos);
+
+  float removeDistance = 0.06f;  // remove part of the smuggle (allow staying this far away from ideal spot)
+  toDesired = toDesired.GetNormalized(0) * std::max(0.0f, toDesired.GetLength() - removeDistance);
+  return toDesired;
+}
+
+// ---------------------------------------------------------------------------
+// ANIM-1 A8 step 5: the selection-time factual spatial reset, relocated from
+// HumanoidBase::CalculateFactualSpatialState.
+// ---------------------------------------------------------------------------
+void Player::ApplyFactualSpatialState() {
+  Humanoid *const humanoid = CastHumanoid();
+  if (humanoid == nullptr) return;
+  SpatialState &spatialState = humanoid->spatialState;
+  const AnimationClip &clip = humanoid->GetCurrentBakedClip();
+
+  spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);
+
+  if (!clip.metadata.outgoing_special_state.empty()) {
+    spatialState.floatVelocity = 0;
+    spatialState.enumVelocity = e_Velocity_Idle;
+    spatialState.movement = Vector3(0);
+  }
+
   CommitLegacyActionMotion();
 }

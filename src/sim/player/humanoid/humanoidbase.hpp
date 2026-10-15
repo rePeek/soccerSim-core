@@ -451,7 +451,6 @@ class HumanoidBase {
     Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
 
     void CalculateSpatialState(const Player* ball_retainer); // realtime properties, based on 'physics'
-    void CalculateFactualSpatialState(); // realtime properties, based on anim. usable at last frame of anim. more riggid than above function
     // Reverse projection used by the locomotion authority flip: the simulation
     // movement state is the source and the legacy Humanoid movement fields
     // follow it. Action selection, the ball algorithms and the body pose all
