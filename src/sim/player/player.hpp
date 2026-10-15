@@ -750,6 +750,11 @@ class Player final {
     PlayerTeamFacts team_facts_;
 
     std::unique_ptr<Humanoid> humanoid;
+    // ANIM-1 A9 step 1: the animation/spatial compatibility storage the
+    // Humanoid views by reference. Player-owned so the eventual Humanoid
+    // deletion does not need a second copy.
+    Anim anim_state_;
+    SpatialState spatial_state_;
     PlayerKinematicState kinematicState;
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;

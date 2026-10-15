@@ -2743,3 +2743,14 @@ reference motion (A8.0), the executed displacement (A8.1), the body state (A8.3)
 the commit authority (A8.4) and the smuggle/factual bookkeeping (A8.5) all live in
 Player/PlayerMotion. A9 remains: retire `currentAnim`/`spatialState` and delete
 Humanoid/HumanoidBase.
+
+### ANIM-1 A9 step 1: the animation/spatial compatibility storage is Player-owned
+
+`Player` now owns `anim_state_` / `spatial_state_`; `HumanoidBase` holds
+`Anim &currentAnim` / `SpatialState &spatialState` references bound to them in its
+constructor, so every remaining Humanoid reference is a view, not a second
+authority. A fresh actor resets both storages in `Activate` before constructing
+the Humanoid, preserving the old "new Humanoid starts from default state"
+behaviour (verified by the no-change fingerprint and 10/10 CTest). The remaining
+A9 work is to move the tick orchestration and ball-touch execution out of the
+Humanoid, drop the references, and delete Humanoid/HumanoidBase.

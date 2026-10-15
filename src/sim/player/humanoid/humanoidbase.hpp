@@ -516,7 +516,10 @@ class HumanoidBase {
     // Shared between all players, no need to snapshot.
     // Seems to contain current animation context.
 
-    Anim currentAnim;
+    // ANIM-1 A9 step 1: the animation/spatial storage is Player-owned; the
+    // Humanoid holds references so its remaining compatibility code is a view,
+    // not a second authority.
+    Anim &currentAnim;
     int previousAnim_frameNum;
     e_FunctionType previousAnim_functionType = e_FunctionType_None;
 
@@ -530,7 +533,7 @@ class HumanoidBase {
     radian nextStartAngle;
 
     // realtime info
-    SpatialState spatialState;
+    SpatialState &spatialState;
 
     // S0.3: legacy animation cache only, NOT a second world-position authority.
     // Written by the state projection and by the legacy reset/root-motion paths,

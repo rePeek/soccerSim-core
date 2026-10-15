@@ -955,6 +955,10 @@ Vector3 Player::GetPitchPosition() {
 void Player::Activate() {
   assert(!isActive);
   isActive = true;
+  // A fresh actor must start from fresh compatibility storage, exactly as a
+  // newly-constructed Humanoid did before the storage became Player-owned.
+  anim_state_ = Anim{};
+  spatial_state_ = SpatialState{};
   humanoid.reset(new Humanoid(this, animations_, rng_));
   CastHumanoid()->ResetPosition(
       GetFormationEntry().position * 25 *

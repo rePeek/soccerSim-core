@@ -506,7 +506,9 @@ void RecordFootCounterfactual(const AnimationLibrary& animations, int with_foot_
 
 HumanoidBase::HumanoidBase(Player *player, const AnimationLibrary& animations, football::math::Rng& rng)
     : animations_(animations), rng_(rng),
-      player(player) {
+      player(player),
+      currentAnim(player->anim_state_),
+      spatialState(player->spatial_state_) {
   interruptAnim = e_InterruptAnim_None;
   reQueueDelayFrames = 0;
   decayingPositionOffset = Vector3(0);
