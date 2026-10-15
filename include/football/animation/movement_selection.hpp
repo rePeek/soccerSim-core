@@ -259,54 +259,59 @@ inline void KeepBestBodyDirectionAnims(const AnimationLibrary& library,
 }
 
 // The Movement-relevant part of the stable-sort chain in SelectAnim.
-inline void SortMovementCandidates(const AnimationLibrary& library,
-                                   std::vector<int>& data_set,
-                                   const MovementRefinementRequest& request) {
-  // priority
+inline void SortByPriority(const AnimationLibrary& library, std::vector<int>& data_set) {
   std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
     return std::fabs(library.Get(static_cast<uint32_t>(a)).metadata.priority) <
            std::fabs(library.Get(static_cast<uint32_t>(b)).metadata.priority);
   });
+}
 
-  // idle
+inline void SortByIdle(const AnimationLibrary& library, std::vector<int>& data_set,
+                       float idle_level) {
   std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
-    return std::fabs(library.Get(static_cast<uint32_t>(a)).metadata.idle_level - request.idle_level) <
-           std::fabs(library.Get(static_cast<uint32_t>(b)).metadata.idle_level - request.idle_level);
+    return std::fabs(library.Get(static_cast<uint32_t>(a)).metadata.idle_level - idle_level) <
+           std::fabs(library.Get(static_cast<uint32_t>(b)).metadata.idle_level - idle_level);
   });
+}
 
-  // foot
+inline void SortByFoot(const AnimationLibrary& library, std::vector<int>& data_set,
+                       e_Foot desired_foot) {
   std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
     const AnimationClip& c1 = library.Get(static_cast<uint32_t>(a));
     const AnimationClip& c2 = library.Get(static_cast<uint32_t>(b));
     int one = 1;
     int two = 1;
-    if (static_cast<e_Foot>(c1.metadata.current_foot) == request.desired_foot) one = 0;
-    if (static_cast<e_Foot>(c2.metadata.current_foot) == request.desired_foot) two = 0;
+    if (static_cast<e_Foot>(c1.metadata.current_foot) == desired_foot) one = 0;
+    if (static_cast<e_Foot>(c2.metadata.current_foot) == desired_foot) two = 0;
     if (FloatToEnumVelocity(c1.metadata.incoming_velocity) == e_Velocity_Idle) one = 0;
     if (FloatToEnumVelocity(c2.metadata.incoming_velocity) == e_Velocity_Idle) two = 0;
     return one < two;
   });
+}
 
-  // incoming body direction (skipped for BallControl; Movement always runs it)
+inline void SortByIncomingBodyDirection(const AnimationLibrary& library, std::vector<int>& data_set,
+                                        const Vector3& rel_incoming_body_direction) {
   std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
     const AnimationClip& c1 = library.Get(static_cast<uint32_t>(a));
     const AnimationClip& c2 = library.Get(static_cast<uint32_t>(b));
     float rating1 = std::fabs(
         ForceIntoAllowedBodyDirectionVec(c1.metadata.incoming_body_direction)
-            .GetAngle2D(ForceIntoAllowedBodyDirectionVec(request.rel_incoming_body_direction))) /
+            .GetAngle2D(ForceIntoAllowedBodyDirectionVec(rel_incoming_body_direction))) /
         pi;
     float rating2 = std::fabs(
         ForceIntoAllowedBodyDirectionVec(c2.metadata.incoming_body_direction)
-            .GetAngle2D(ForceIntoAllowedBodyDirectionVec(request.rel_incoming_body_direction))) /
+            .GetAngle2D(ForceIntoAllowedBodyDirectionVec(rel_incoming_body_direction))) /
         pi;
     if (FloatToEnumVelocity(c1.metadata.incoming_velocity) == e_Velocity_Idle) rating1 = 0;
     if (FloatToEnumVelocity(c2.metadata.incoming_velocity) == e_Velocity_Idle) rating2 = 0;
     return rating1 < rating2;
   });
+}
 
-  // incoming velocity
+inline void SortByIncomingVelocity(const AnimationLibrary& library, std::vector<int>& data_set,
+                                   e_Velocity incoming_velocity) {
   std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
-    const int current_velocity_id = GetVelocityID(request.incoming_velocity);
+    const int current_velocity_id = GetVelocityID(incoming_velocity);
     const int a_id = GetVelocityID(FloatToEnumVelocity(
         library.Get(static_cast<uint32_t>(a)).metadata.incoming_velocity));
     const int b_id = GetVelocityID(FloatToEnumVelocity(
@@ -315,21 +320,43 @@ inline void SortMovementCandidates(const AnimationLibrary& library,
     float rating2 = std::fabs(clamp(b_id - current_velocity_id, -3, 3));
     return rating1 < rating2;
   });
+}
 
-  // Movement: no baseanim sort, no deflect sort, no trip sort.
+// The Movement-relevant part of the stable-sort chain in SelectAnim. Movement
+// runs no baseanim, deflect or trip sort. When `without_foot_out` is non-null it
+// also receives the same chain minus the foot tie-break, which is exactly what
+// the legacy foot counterfactual measured.
+inline void SortMovementCandidates(const AnimationLibrary& library,
+                                   std::vector<int>& data_set,
+                                   const MovementRefinementRequest& request,
+                                   std::vector<int>* without_foot_out = nullptr) {
+  SortByPriority(library, data_set);
+  SortByIdle(library, data_set, request.idle_level);
+  if (without_foot_out != nullptr) *without_foot_out = data_set;
+  SortByFoot(library, data_set, request.desired_foot);
+  SortByIncomingBodyDirection(library, data_set, request.rel_incoming_body_direction);
+  SortByIncomingVelocity(library, data_set, request.incoming_velocity);
+  if (without_foot_out != nullptr) {
+    SortByIncomingBodyDirection(library, *without_foot_out, request.rel_incoming_body_direction);
+    SortByIncomingVelocity(library, *without_foot_out, request.incoming_velocity);
+  }
 }
 
 // Full refinement: strict direction filter (+ optional body filter), then the
 // stable sort chain. The Movement pick is `front()`.
 inline std::vector<int> RefineMovementCandidates(const AnimationLibrary& library,
                                                  std::span<const int> crude,
-                                                 const MovementRefinementRequest& request) {
+                                                 const MovementRefinementRequest& request,
+                                                 std::vector<int>* without_foot_out = nullptr) {
   std::vector<int> data_set(crude.begin(), crude.end());
-  if (data_set.empty()) return data_set;
+  if (data_set.empty()) {
+    if (without_foot_out != nullptr) without_foot_out->clear();
+    return data_set;
+  }
 
   KeepBestDirectionAnims(library, data_set, request);
   if (request.use_desired_look_at) KeepBestBodyDirectionAnims(library, data_set, request);
-  SortMovementCandidates(library, data_set, request);
+  SortMovementCandidates(library, data_set, request, without_foot_out);
   return data_set;
 }
 

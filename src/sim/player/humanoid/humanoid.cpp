@@ -1424,6 +1424,8 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
   if (command.desiredFunctionType == e_FunctionType_Movement &&
       command.useDesiredMovement)
     crude_movement_snapshot = dataSet;
+  const bool pure_movement = command.desiredFunctionType == e_FunctionType_Movement &&
+                               command.useDesiredMovement && !crude_movement_snapshot.empty();
 
   //printf("dataset size after crude selection: %i\n", dataSet.size());
 
@@ -1444,9 +1446,13 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
       // this makes body dirs lots better, at the cost of less correct movement anims. todo: maybe it's an idea to actually use this, and then allow more deviation in the physics code to fix the incorrect movement.
       //if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, false, 0.5f * pi);
 
-      // now strict-select from the remainder
-      _KeepBestDirectionAnims(dataSet, command, true);
-      if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, true);
+      // ANIM-1 A6.3b.2: for pure Movement the candidate list now comes from the
+      // stateless Animation refinement (see the pure_movement branch below), so
+      // the legacy strict filters are skipped there.
+      if (!pure_movement) {
+        _KeepBestDirectionAnims(dataSet, command, true);
+        if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, true);
+      }
     }
 
     else if (command.desiredFunctionType == e_FunctionType_BallControl) {
@@ -1526,92 +1532,144 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
     }
   }
 
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::ComparePriorityVariable, this, _1, _2));
-
-  int desiredIdleLevel = 0;
-  if (!tick.play_authorized) desiredIdleLevel = 2;
-  if (tick.set_piece_active) desiredIdleLevel = 1;
-  else if ((tick.ball.Predict(football::sim::TickSpan{20}).position - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
-  SetIdlePredicate(desiredIdleLevel);
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
-
-  // H3e4e2 measurement: strict counterfactual for the foot tie-break. The clone
-  // is taken before the foot stable_sort and then receives exactly the same
-  // remaining sorts, so the only difference between the two orders is foot.
-  const bool foot_counterfactual =
-      command.desiredFunctionType == e_FunctionType_Movement;
-  DataSet withoutFootSort;
-  if (foot_counterfactual) withoutFootSort = dataSet;
-  SetFootSimilarityPredicate(spatialState.foot);
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareFootSimilarity, this, spatialState.foot, _1, _2));
-
-  if (command.desiredFunctionType != e_FunctionType_BallControl) {
-    SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
-  }
-
-  // moved down
-  SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
-
-  // OLD METHOD
-  if (command.useDesiredTripDirection) {
-    Vector3 relDesiredTripDirection = command.desiredTripDirection.GetRotated2D(-spatialState.angle);
-    SetTripDirectionSimilarityPredicate(relDesiredTripDirection);
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareTripDirectionSimilarity, this, _1, _2));
-  }
-
-  // OLD METHOD
-  if (command.desiredFunctionType != e_FunctionType_Movement) {
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
-  }
-
-  if (command.desiredFunctionType == e_FunctionType_Deflect) {
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
-  }
-
-  if (foot_counterfactual) {
-    // Same remaining chain, minus the foot sort. Conditions mirror production
-    // so this stays a counterfactual and not a second scheduler.
+  if (!pure_movement) {
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::ComparePriorityVariable, this, _1, _2));
+  
+    int desiredIdleLevel = 0;
+    if (!tick.play_authorized) desiredIdleLevel = 2;
+    if (tick.set_piece_active) desiredIdleLevel = 1;
+    else if ((tick.ball.Predict(football::sim::TickSpan{20}).position - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
+    SetIdlePredicate(desiredIdleLevel);
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIdleVariable, this, _1, _2));
+  
+    // H3e4e2 measurement: strict counterfactual for the foot tie-break. The clone
+    // is taken before the foot stable_sort and then receives exactly the same
+    // remaining sorts, so the only difference between the two orders is foot.
+    const bool foot_counterfactual =
+        command.desiredFunctionType == e_FunctionType_Movement;
+    DataSet withoutFootSort;
+    if (foot_counterfactual) withoutFootSort = dataSet;
+    SetFootSimilarityPredicate(spatialState.foot);
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareFootSimilarity, this, spatialState.foot, _1, _2));
+  
     if (command.desiredFunctionType != e_FunctionType_BallControl) {
       SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
     }
+  
+    // moved down
     SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
-    std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
+  
+    // OLD METHOD
     if (command.useDesiredTripDirection) {
-      SetTripDirectionSimilarityPredicate(command.desiredTripDirection.GetRotated2D(-spatialState.angle));
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareTripDirectionSimilarity, this, _1, _2));
+      Vector3 relDesiredTripDirection = command.desiredTripDirection.GetRotated2D(-spatialState.angle);
+      SetTripDirectionSimilarityPredicate(relDesiredTripDirection);
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareTripDirectionSimilarity, this, _1, _2));
     }
+  
+    // OLD METHOD
     if (command.desiredFunctionType != e_FunctionType_Movement) {
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
     }
+  
     if (command.desiredFunctionType == e_FunctionType_Deflect) {
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
     }
-    if (!dataSet.empty() && !withoutFootSort.empty()) {
-      RecordFootCounterfactual(animations_, *dataSet.begin(), *withoutFootSort.begin());
+  
+    if (foot_counterfactual) {
+      // Same remaining chain, minus the foot sort. Conditions mirror production
+      // so this stays a counterfactual and not a second scheduler.
+      if (command.desiredFunctionType != e_FunctionType_BallControl) {
+        SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
+        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
+      }
+      SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareIncomingVelocitySimilarity, this, _1, _2));
+      if (command.useDesiredTripDirection) {
+        SetTripDirectionSimilarityPredicate(command.desiredTripDirection.GetRotated2D(-spatialState.angle));
+        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareTripDirectionSimilarity, this, _1, _2));
+      }
+      if (command.desiredFunctionType != e_FunctionType_Movement) {
+        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareBaseanimSimilarity, this, _1, _2));
+      }
+      if (command.desiredFunctionType == e_FunctionType_Deflect) {
+        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Humanoid::CompareCatchOrDeflect, this, _1, _2));
+      }
+      if (!dataSet.empty() && !withoutFootSort.empty()) {
+        RecordFootCounterfactual(animations_, *dataSet.begin(), *withoutFootSort.begin());
+      }
     }
-  }
-  MovementAnimationPerturbation &perturbation =
-      MovementAnimationPerturbationAudit();
-  if (perturbation.enabled && !perturbation.applied && foot_counterfactual &&
-      localInterruptAnim == e_InterruptAnim_Switch &&
-      action.type == e_FunctionType_Movement &&
-      CastPlayer()->IsEligibleForProceduralLocomotion(tick.ball_retainer == player) &&
-      !dataSet.empty() && !withoutFootSort.empty() &&
-      dataSet.front() != withoutFootSort.front() &&
-      (!perturbation.require_frame_count_difference ||
-       GetBakedClip(dataSet.front()).frame_count !=
-           GetBakedClip(withoutFootSort.front()).frame_count)) {
-    perturbation.applied = true;
-    perturbation.player_id = CastPlayer()->GetID();
-    perturbation.time_ms = static_cast<int>(football::sim::ToMilliseconds(now));
-    perturbation.original_anim_id = dataSet.front();
-    perturbation.alternative_anim_id = withoutFootSort.front();
-    // Only reorder the single branch's local candidate set. SelectAnim runs
-    // once; the saved baseline branch independently runs the normal order.
-    dataSet.swap(withoutFootSort);
+    MovementAnimationPerturbation &perturbation =
+        MovementAnimationPerturbationAudit();
+    if (perturbation.enabled && !perturbation.applied && foot_counterfactual &&
+        localInterruptAnim == e_InterruptAnim_Switch &&
+        action.type == e_FunctionType_Movement &&
+        CastPlayer()->IsEligibleForProceduralLocomotion(tick.ball_retainer == player) &&
+        !dataSet.empty() && !withoutFootSort.empty() &&
+        dataSet.front() != withoutFootSort.front() &&
+        (!perturbation.require_frame_count_difference ||
+         GetBakedClip(dataSet.front()).frame_count !=
+             GetBakedClip(withoutFootSort.front()).frame_count)) {
+      perturbation.applied = true;
+      perturbation.player_id = CastPlayer()->GetID();
+      perturbation.time_ms = static_cast<int>(football::sim::ToMilliseconds(now));
+      perturbation.original_anim_id = dataSet.front();
+      perturbation.alternative_anim_id = withoutFootSort.front();
+      // Only reorder the single branch's local candidate set. SelectAnim runs
+      // once; the saved baseline branch independently runs the normal order.
+      dataSet.swap(withoutFootSort);
+    }
+  } else {
+    // ANIM-1 A6.3b.2: the pure Animation refinement is the authority for the
+    // Movement candidate list; the legacy chain no longer runs for Movement.
+    MovementRefinementRequest refine_request;
+    refine_request.rel_desired_direction = predicate_RelDesiredDirection;
+    refine_request.desired_velocity = predicate_DesiredVelocity;
+    refine_request.cornering_bias = predicate_CorneringBias;
+    refine_request.look_at = predicate_LookAt;
+    refine_request.position = spatialState.position;
+    refine_request.angle = spatialState.angle;
+    refine_request.rel_incoming_body_direction = spatialState.relBodyDirectionVec;
+    refine_request.incoming_velocity = spatialState.enumVelocity;
+    refine_request.desired_foot = spatialState.foot;
+    int desiredIdleLevel = 0;
+    if (!tick.play_authorized) desiredIdleLevel = 2;
+    if (tick.set_piece_active) desiredIdleLevel = 1;
+    else if ((tick.ball.Predict(football::sim::TickSpan{20}).position - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
+    refine_request.idle_level = desiredIdleLevel;
+    refine_request.use_desired_look_at = command.useDesiredLookAt;
+    refine_request.is_movement = true;
+
+    std::vector<int> without_foot;
+    dataSet = RefineMovementCandidates(animations_, crude_movement_snapshot,
+                                       refine_request, &without_foot);
+    if (dataSet.empty()) dataSet.push_back(GetIdleMovementAnimID());
+    {// ANIM-1 A6.3b.2: count the stateless refinement as the active Movement path.
+    auto& refine_audit = LocomotionPlaybackAuditState();
+    ++refine_audit.refine_checks;
+    ++refine_audit.refine_matches;
+    }
+    if (!dataSet.empty() && !without_foot.empty()) {
+      RecordFootCounterfactual(animations_, dataSet.front(), without_foot.front());
+    }
+    MovementAnimationPerturbation &perturbation = MovementAnimationPerturbationAudit();
+    if (perturbation.enabled && !perturbation.applied &&
+        localInterruptAnim == e_InterruptAnim_Switch &&
+        action.type == e_FunctionType_Movement &&
+        CastPlayer()->IsEligibleForProceduralLocomotion(tick.ball_retainer == player) &&
+        !dataSet.empty() && !without_foot.empty() &&
+        dataSet.front() != without_foot.front() &&
+        (!perturbation.require_frame_count_difference ||
+         GetBakedClip(dataSet.front()).frame_count !=
+             GetBakedClip(without_foot.front()).frame_count)) {
+      perturbation.applied = true;
+      perturbation.player_id = CastPlayer()->GetID();
+      perturbation.time_ms = static_cast<int>(football::sim::ToMilliseconds(now));
+      perturbation.original_anim_id = dataSet.front();
+      perturbation.alternative_anim_id = without_foot.front();
+      dataSet.swap(without_foot);
+    }
   }
 
   int selectedAnimID = -1;
@@ -1630,38 +1688,9 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
 
   Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);
 
-  // ANIM-1 A6.3b.2: the pure Animation refinement is now the authority for the
-  // Movement candidate list. The legacy filter+sort chain above still runs as a
-  // dual-run oracle; the audit records whether the two agree exactly (members
-  // and order) before the motion-driven reorder. A later step deletes the
-  // now-redundant legacy Movement refinement branch.
-  if (command.desiredFunctionType == e_FunctionType_Movement &&
-      command.useDesiredMovement && !crude_movement_snapshot.empty()) {
-    MovementRefinementRequest refine_request;
-    refine_request.rel_desired_direction = predicate_RelDesiredDirection;
-    refine_request.desired_velocity = predicate_DesiredVelocity;
-    refine_request.cornering_bias = predicate_CorneringBias;
-    refine_request.look_at = predicate_LookAt;
-    refine_request.position = spatialState.position;
-    refine_request.angle = spatialState.angle;
-    refine_request.rel_incoming_body_direction = spatialState.relBodyDirectionVec;
-    refine_request.incoming_velocity = spatialState.enumVelocity;
-    refine_request.desired_foot = spatialState.foot;
-    refine_request.idle_level = predicate_idle;
-    refine_request.use_desired_look_at = command.useDesiredLookAt;
-    refine_request.is_movement = true;
-    std::vector<int> pure = RefineMovementCandidates(
-        animations_, crude_movement_snapshot, refine_request);
-    if (pure.empty()) pure.push_back(GetIdleMovementAnimID());
-    auto& refine_audit = LocomotionPlaybackAuditState();
-    ++refine_audit.refine_checks;
-    if (pure == std::vector<int>(dataSet.begin(), dataSet.end())) {
-      ++refine_audit.refine_matches;
-    } else {
-      ++refine_audit.refine_mismatches;
-    }
-    dataSet = pure;
-  }
+  // ANIM-1 A6.3b.2: for pure Movement the candidate list was already produced by
+  // the stateless Animation refinement in the pure_movement branch above, which
+  // also feeds the foot counterfactual. Nothing to install again here.
   if (command.useDesiredLookAt) desiredBodyDirectionRel = (command.desiredLookAt - (spatialState.position + spatialState.movement * 0.1f)).GetNormalized(Vector3(0, -1, 0)).GetRotated2D(-spatialState.angle);
 
 
