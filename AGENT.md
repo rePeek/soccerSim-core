@@ -2690,3 +2690,21 @@ member definitions are now deleted. `CalculateSpatialState`,
 `ApplySimulationBodyState` and the similarity ratings call the pure functions
 directly, and `Player::TrySelectAction`'s commit gate uses them too. No behaviour
 change; runtime P0 fingerprint unchanged, 10/10 CTest.
+
+### ANIM-1 A8 step 3: the action body state is a pure PlayerMotion calculation
+
+`PlayerMotion::ActionBodyState(ActionBodyStateInput)` now owns the body block of
+`CalculateSpatialState`: the baked body orientation's z rotation composed with the
+start angle and the rotation smuggle, the idle/body fallback direction, the
+movement-derived `directionVec`/`angle`, the sprint/walk impossible-combination
+clamps, the allowed-set quantization of the relative body direction and the
+resulting body angle. It reads only the movement vector, the start angle, the
+rotation smuggle and the baked orientation; the Humanoid writes the result back
+and still commits through `CommitLegacyActionMotion`. The non-procedural
+`CalculateSpatialState` is now fully PlayerMotion-computed (displacement in A8
+step 1, body state in A8 step 3); only the orchestration/authority flip (A8 step
+4) and A9 remain.
+
+`unittests/player/player_action_motion_test.cpp` adds idle and moving cases,
+including the allowed-set quantization invariant. Runtime P0 fingerprint
+unchanged; 89 player cases / 1277 assertions; 10/10 CTest.

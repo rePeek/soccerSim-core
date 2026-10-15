@@ -4,6 +4,7 @@
 #include "sim/player/player_motion.hpp"
 
 #include "football/animation/movement_math.hpp"
+#include "football/animation/movement_selection.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
 #include <algorithm>
@@ -577,5 +578,78 @@ ActionMotionVectorResult PlayerMotion::ActionMotionVector(
   result.float_velocity = result.movement.GetLength();
   result.enum_velocity = FloatToEnumVelocity(result.float_velocity);
   result.position = position;
+  return result;
+}
+
+// ANIM-1 A8 step 3: the body direction / velocity quantization of a
+// non-procedural tick, relocated line-for-line from `CalculateSpatialState`'s
+// body block. Pure; the caller writes it back to the legacy spatial state.
+ActionBodyStateResult PlayerMotion::ActionBodyState(
+    const ActionBodyStateInput& input) {
+  ActionBodyStateResult result;
+
+  float x, y, z;
+  input.baked_body_orientation.GetAngles(x, y, z);
+
+  Vector3 bodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(
+      z + input.start_angle + input.rotation_smuggle_offset);
+
+  result.float_velocity = input.movement.GetLength();
+  result.enum_velocity = FloatToEnumVelocity(result.float_velocity);
+
+  if (result.enum_velocity != e_Velocity_Idle) {
+    result.direction_vec = input.movement.GetNormalized();
+  } else {
+    // too slow for comfort, use body direction as global direction
+    result.direction_vec = bodyDirectionVec;
+  }
+
+  result.angle = ModulateIntoRange(-pi, pi, FixAngle(result.direction_vec.GetAngle2D()));
+
+  if (result.enum_velocity != e_Velocity_Idle) {
+    Vector3 adaptedBodyDirectionVec = bodyDirectionVec.GetRotated2D(-result.angle);
+    // prefer straight forward, so lie about the actual direction a bit
+    // this may fix bugs of body dir being non-0 somewhere during 0 anims
+    // but it may also cause other bugs (going 0 to 45 all over again each time)
+    // adaptedBodyDirectionVec = (adaptedBodyDirectionVec * 0.95f + Vector3(0, -1, 0) * 0.05f).GetNormalized(0);
+
+    bool preferCorrectVeloOverCorrectAngle = true;
+    radian bodyAngleRel = adaptedBodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
+    if (result.enum_velocity == e_Velocity_Sprint &&
+        std::fabs(bodyAngleRel) >= 0.125f * pi) {
+      if (preferCorrectVeloOverCorrectAngle) {
+        // on impossible combinations of velocity and body angle, decrease body angle
+        adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(0.12f * pi * signSide(bodyAngleRel));
+      } else {
+        // on impossible combinations of velocity and body angle, decrease velocity
+        result.float_velocity = walkSprintSwitch - 0.1f;
+        result.enum_velocity = FloatToEnumVelocity(result.float_velocity);
+      }
+    } else if (result.enum_velocity == e_Velocity_Walk &&
+               std::fabs(bodyAngleRel) >= 0.5f * pi) {
+      if (preferCorrectVeloOverCorrectAngle) {
+        // on impossible combinations of velocity and body angle, decrease body angle
+        adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(0.495f * pi * signSide(bodyAngleRel));
+      } else {
+        // on impossible combinations of velocity and body angle, decrease velocity
+        result.float_velocity = dribbleWalkSwitch - 0.1f;
+        result.enum_velocity = FloatToEnumVelocity(result.float_velocity);
+      }
+    }
+
+    result.rel_body_direction_vec_nonquantized = adaptedBodyDirectionVec;
+    result.rel_body_direction_vec =
+        ForceIntoAllowedBodyDirectionVec(adaptedBodyDirectionVec);
+  } else {
+    result.rel_body_direction_vec_nonquantized = Vector3(0, -1, 0);
+    result.rel_body_direction_vec = Vector3(0, -1, 0);
+  }
+  result.rel_body_angle =
+      result.rel_body_direction_vec.GetAngle2D(Vector3(0, -1, 0));
+  result.rel_body_angle_nonquantized =
+      result.rel_body_direction_vec_nonquantized.GetAngle2D(Vector3(0, -1, 0));
+  // rotate back, we now have it forced into allowed angle
+  result.body_direction_vec = result.rel_body_direction_vec.GetRotated2D(result.angle);
+  result.body_angle = result.body_direction_vec.GetAngle2D(Vector3(0, -1, 0));
   return result;
 }

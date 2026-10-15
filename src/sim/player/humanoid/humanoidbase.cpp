@@ -1107,73 +1107,30 @@ void HumanoidBase::CalculateSpatialState(const Player* ball_retainer) {
   spatialState.position = position;
   if (!UsesProceduralLocomotion(ball_retainer)) {
     ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
-  Vector3 bodyPosition;
-  Quaternion bodyOrientation;
-  const auto &bodyPose = GetCurrentBakedClip().poses[currentAnim.frameNum];
-  bodyOrientation = bodyPose.orientations[body];
-  bodyPosition = bodyPose.positions[body];
-  real x, y, z;
-  bodyOrientation.GetAngles(x, y, z);
+    // ANIM-1 A8 step 3: the body direction / velocity quantization is a pure
+    // PlayerMotion calculation; the Humanoid only supplies the pose facts.
+    ActionBodyStateInput body_input;
+    body_input.movement = spatialState.movement;
+    body_input.start_angle = startAngle;
+    body_input.rotation_smuggle_offset = currentAnim.rotationSmuggleOffset;
+    body_input.baked_body_orientation =
+        clip.poses[currentAnim.frameNum].orientations[body];
+    const ActionBodyStateResult body_state =
+        PlayerMotion::ActionBodyState(body_input);
 
-  Vector3 quatDirection; quatDirection = bodyOrientation;
-
-  Vector3 bodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(z + startAngle + currentAnim.rotationSmuggleOffset);
-
-  spatialState.floatVelocity = spatialState.movement.GetLength();
-  spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
-
-  if (spatialState.enumVelocity != e_Velocity_Idle) {
-    spatialState.directionVec = spatialState.movement.GetNormalized();
-  } else {
-    // too slow for comfort, use body direction as global direction
-    spatialState.directionVec = bodyDirectionVec;
-  }
-
-  spatialState.position = position;
-  spatialState.angle = ModulateIntoRange(-pi, pi, FixAngle(spatialState.directionVec.GetAngle2D()));
-
-  if (spatialState.enumVelocity != e_Velocity_Idle) {
-    Vector3 adaptedBodyDirectionVec = bodyDirectionVec.GetRotated2D(-spatialState.angle);
-    // prefer straight forward, so lie about the actual direction a bit
-    // this may fix bugs of body dir being non-0 somewhere during 0 anims
-    // but it may also cause other bugs (going 0 to 45 all over again each time)
-    //adaptedBodyDirectionVec = (adaptedBodyDirectionVec * 0.95f + Vector3(0, -1, 0) * 0.05f).GetNormalized(0);
-    //ForceIntoAllowedBodyDirectionVec(Vector3(0, -1, 0)).Print();
-
-    bool preferCorrectVeloOverCorrectAngle = true;
-    radian bodyAngleRel = adaptedBodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
-    if (spatialState.enumVelocity == e_Velocity_Sprint &&
-        std::fabs(bodyAngleRel) >= 0.125f * pi) {
-      if (preferCorrectVeloOverCorrectAngle) {
-        // on impossible combinations of velocity and body angle, decrease body angle
-        adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(0.12f * pi * signSide(bodyAngleRel));
-      } else {
-        // on impossible combinations of velocity and body angle, decrease velocity
-        spatialState.floatVelocity = walkSprintSwitch - 0.1f;
-        spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
-      }
-    } else if (spatialState.enumVelocity == e_Velocity_Walk &&
-               std::fabs(bodyAngleRel) >= 0.5f * pi) {
-      if (preferCorrectVeloOverCorrectAngle) {
-        // on impossible combinations of velocity and body angle, decrease body angle
-        adaptedBodyDirectionVec = Vector3(0, -1, 0).GetRotated2D(0.495f * pi * signSide(bodyAngleRel));
-      } else {
-        // on impossible combinations of velocity and body angle, decrease velocity
-        spatialState.floatVelocity = dribbleWalkSwitch - 0.1f;
-        spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
-      }
-    }
-
-    spatialState.relBodyDirectionVecNonquantized = adaptedBodyDirectionVec;
-    spatialState.relBodyDirectionVec = ForceIntoAllowedBodyDirectionVec(adaptedBodyDirectionVec);
-  } else {
-    spatialState.relBodyDirectionVecNonquantized = Vector3(0, -1, 0);
-    spatialState.relBodyDirectionVec = Vector3(0, -1, 0);
-  }
-  spatialState.relBodyAngle = spatialState.relBodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
-  spatialState.relBodyAngleNonquantized = spatialState.relBodyDirectionVecNonquantized.GetAngle2D(Vector3(0, -1, 0));
-  spatialState.bodyDirectionVec = spatialState.relBodyDirectionVec.GetRotated2D(spatialState.angle); // rotate back, we now have it forced into allowed angle
-  spatialState.bodyAngle = spatialState.bodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
+    spatialState.directionVec = body_state.direction_vec;
+    spatialState.position = position;
+    spatialState.angle = body_state.angle;
+    spatialState.floatVelocity = body_state.float_velocity;
+    spatialState.enumVelocity = body_state.enum_velocity;
+    spatialState.relBodyDirectionVec = body_state.rel_body_direction_vec;
+    spatialState.relBodyDirectionVecNonquantized =
+        body_state.rel_body_direction_vec_nonquantized;
+    spatialState.relBodyAngle = body_state.rel_body_angle;
+    spatialState.relBodyAngleNonquantized =
+        body_state.rel_body_angle_nonquantized;
+    spatialState.bodyDirectionVec = body_state.body_direction_vec;
+    spatialState.bodyAngle = body_state.body_angle;
   }
 
   previousPosition2D = position;

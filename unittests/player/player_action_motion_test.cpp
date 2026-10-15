@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/animation/movement_math.hpp"
+#include "football/animation/movement_selection.hpp"
 #include "sim/player/player_motion.hpp"
 
 using Catch::Approx;
@@ -222,4 +223,44 @@ TEST_CASE("A8.1: the baked pose root is rotated by the start angle",
   const ActionMotionVectorResult r = PlayerMotion::ActionMotionVector(in);
   CHECK(r.position.coords[0] == Approx(-2.0f).margin(0.0001f));
   CHECK(r.position.coords[1] == Approx(0.0f).margin(0.0001f));
+}
+
+TEST_CASE("A8.3: an idle action uses the baked body direction",
+          "[player][motion][a8]") {
+  ActionBodyStateInput in;
+  in.movement = Vector3(0);
+  in.start_angle = 0.0f;
+  in.rotation_smuggle_offset = 0.0f;
+  in.baked_body_orientation = Quaternion();  // identity -> body +x? z == 0
+
+  const ActionBodyStateResult r = PlayerMotion::ActionBodyState(in);
+  CHECK(r.enum_velocity == e_Velocity_Idle);
+  CHECK(r.direction_vec == Vector3(0, -1, 0));
+  CHECK(r.rel_body_direction_vec == Vector3(0, -1, 0));
+  CHECK(r.rel_body_direction_vec_nonquantized == Vector3(0, -1, 0));
+  CHECK(r.body_direction_vec == Vector3(0, -1, 0));
+}
+
+TEST_CASE("A8.3: a moving action derives direction and quantized body facing",
+          "[player][motion][a8]") {
+  ActionBodyStateInput in;
+  in.movement = Vector3(3, 0, 0);
+  in.start_angle = 0.0f;
+  in.baked_body_orientation = Quaternion();
+
+  const ActionBodyStateResult r = PlayerMotion::ActionBodyState(in);
+  CHECK(r.enum_velocity == FloatToEnumVelocity(3.0f));
+  CHECK(r.direction_vec == Vector3(3, 0, 0).GetNormalized());
+  CHECK(r.body_direction_vec == r.rel_body_direction_vec.GetRotated2D(r.angle));
+  CHECK(r.rel_body_angle ==
+        r.rel_body_direction_vec.GetAngle2D(Vector3(0, -1, 0)));
+  CHECK(r.rel_body_angle_nonquantized ==
+        r.rel_body_direction_vec_nonquantized.GetAngle2D(Vector3(0, -1, 0)));
+
+  // The compatibility body direction is forced onto the allowed set.
+  bool on_allowed_set = false;
+  for (const Vector3& v : AllowedBodyDirVecs()) {
+    if (v == r.rel_body_direction_vec) on_allowed_set = true;
+  }
+  CHECK(on_allowed_set);
 }

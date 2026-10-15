@@ -90,6 +90,29 @@ struct ActionMotionVectorResult {
   e_Velocity enum_velocity = e_Velocity_Idle;
 };
 
+// ANIM-1 A8 step 3: the execution-side body direction and velocity
+// quantization for a non-procedural tick, relocated from the body block of
+// `HumanoidBase::CalculateSpatialState`. Pure.
+struct ActionBodyStateInput {
+  Vector3 movement{0};
+  radian start_angle = 0.0f;
+  radian rotation_smuggle_offset = 0.0f;
+  Quaternion baked_body_orientation;
+};
+
+struct ActionBodyStateResult {
+  Vector3 direction_vec{0, -1, 0};
+  radian angle = 0.0f;
+  float float_velocity = 0.0f;
+  e_Velocity enum_velocity = e_Velocity_Idle;
+  Vector3 rel_body_direction_vec{0, -1, 0};
+  Vector3 rel_body_direction_vec_nonquantized{0, -1, 0};
+  radian rel_body_angle = 0.0f;
+  radian rel_body_angle_nonquantized = 0.0f;
+  Vector3 body_direction_vec{0, -1, 0};
+  radian body_angle = 0.0f;
+};
+
 // The single motion interface, with two sources: the continuous locomotion model
 // and a baked MotionClip reference.
 //
@@ -135,6 +158,11 @@ class PlayerMotion {
   // for a non-procedural (baked action) tick. Pure; the caller commits it.
   static ActionMotionVectorResult ActionMotionVector(
       const ActionMotionVectorInput& input);
+
+  // ANIM-1 A8 step 3: the body direction / velocity quantization of the same
+  // non-procedural tick. Pure.
+  static ActionBodyStateResult ActionBodyState(
+      const ActionBodyStateInput& input);
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_MOTION_HPP
