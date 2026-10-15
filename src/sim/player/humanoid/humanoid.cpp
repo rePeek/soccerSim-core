@@ -1682,78 +1682,83 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
   // make it so
 
   if (selectedAnimID != -1) {
-    // ANIM-1 A6.4 step 3: selection and installation are separate units.
-    return CommitSelectedAction(selectedAnimID, touch_choice, action, command, tick, now,
-                                history, localInterruptAnim, material_candidate);
+    // ANIM-1 A6.4 step 7b: selection and installation are separate units, and
+    // the Player now dispatches the installation.
+    return CastPlayer()->CommitSelectedAction(
+        selectedAnimID, touch_choice, command, tick, now, history,
+        localInterruptAnim, material_candidate);
   }
 
   return false;
 }
 
-bool Humanoid::CommitSelectedAction(int selectedAnimID,
-                                    const football::sim::TouchChoice &touch_choice,
-                                    const PlayerActionState &action,
-                                    const PlayerCommand &command,
-                                    const football::sim::PlayerTickContext &tick,
-                                    football::sim::Tick now,
-                                    std::span<MentalImage> history,
-                                    e_InterruptAnim localInterruptAnim,
-                                    bool material_candidate) {
-    previousAnim_frameNum = currentAnim.frameNum;
-    previousAnim_functionType = currentAnim.functionType;
+// ANIM-1 A6.4 step 7a: the compat install projection. It writes the fields of
+// the legacy `currentAnim` from a selection result and deliberately does NOT
+// install; `Player::CommitSelectedAction` owns the dispatch.
+void Humanoid::ProjectSelectedActionCompat(
+    int selectedAnimID, const football::sim::TouchChoice &touch_choice,
+    const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
+    football::sim::Tick now, std::span<MentalImage> history,
+    e_InterruptAnim localInterruptAnim, bool material_candidate) {
+  const PlayerActionState &action = CastPlayer()->GetSimulationActionState();
+  previousAnim_frameNum = currentAnim.frameNum;
+  previousAnim_functionType = currentAnim.functionType;
 
-    currentAnim.animationId = selectedAnimID;
-    currentAnim.functionType = command.desiredFunctionType;
-    currentAnim.frameNum = 0;
-    currentAnim.touchFrame = touch_choice.touch_frame;
-    currentAnim.originatingInterrupt = localInterruptAnim;
-    currentAnim.touchPos = touch_choice.touch_position;
-    currentAnim.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatialState.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
-    currentAnim.rotationSmuggle.end = touch_choice.rotation_smuggle;
-    currentAnim.rotationSmuggleOffset = 0;
-    currentAnim.actionSmuggle = touch_choice.action_smuggle;
-    currentAnim.actionSmuggleOffset = Vector3(0);
-    currentAnim.actionSmuggleSustain = Vector3(0); // calculated below
-    currentAnim.actionSmuggleSustainOffset = Vector3(0);
-    currentAnim.movementSmuggle = Vector3(0); // needs to be reset here, else the previous calc is used in upcoming 'calculatemovementsmuggle'
-    currentAnim.movementSmuggleOffset = Vector3(0);
-    currentAnim.incomingMovement = spatialState.movement;
-    currentAnim.outgoingMovement = CalculateOutgoingMovement(touch_choice.positions);
-    currentAnim.positions.clear();
-    currentAnim.positions.assign(touch_choice.positions.begin(), touch_choice.positions.end());
-    currentAnim.positionOffset = Vector3(0);
-    currentAnim.originatingCommand = command;
-    RecordMovementCommandAcceptance(material_candidate, action.type,
-                                    static_cast<int>(football::sim::ToMilliseconds(action.elapsed)), localInterruptAnim,
-                                    command, static_cast<int>(GetCurrentBakedClip().frame_count));
-    currentAnim.movementSmuggle = CalculateMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, history);
-    currentAnim.movementSmuggleOffset = Vector3(0);
-    CastPlayer()->InstallSelectedAction(CurrentSelectedAction());
-    const PlayerActionState &scheduled = CastPlayer()->GetSimulationActionState();
-    if (ContactAuthorityAuditEnabled() &&
-        IsTrackedScheduledContact(scheduled.type) &&
-        scheduled.HasScheduledContact()) {
-      ContactAuthorityAudit &audit = ContactAuthorityFor(scheduled.type);
-      ++audit.scheduled;
-      audit.contact_frames.push_back(scheduled.ContactFrame());
-      audit.delays_ms.push_back(static_cast<int>(football::sim::ToMilliseconds(*scheduled.contact)));
-      if (command.modifier & e_PlayerCommandModifier_KnockOn) ++audit.knock_on;
-      if (command.touchInfo.targetPlayer) ++audit.command_target;
-      if (command.touchInfo.forcedTargetPlayer) ++audit.forced_target;
-      if (GetCurrentBakedClip().metadata.touch_max_power_factor != 0.0f)
-        ++audit.max_power_profile_present;
-      if (GetCurrentBakedClip().metadata.touch_difficulty_factor != 0.0f)
-        ++audit.difficulty_profile_present;
-      if (GetCurrentBakedClip().metadata.outgoing_ball_direction.GetLength() != 0.0f)
-        ++audit.native_ball_direction_present;
-      if (!GetCurrentBakedClip().metadata.touch_bodypart.empty())
-        ++audit.contact_bodypart_present;
-      if (!GetCurrentBakedClip().metadata.incoming_retain_state.empty())
-        ++audit.incoming_retain_present;
-      if (!GetCurrentBakedClip().metadata.outgoing_retain_state.empty())
-        ++audit.outgoing_retain_present;
-    }
-    return true;
+  currentAnim.animationId = selectedAnimID;
+  currentAnim.functionType = command.desiredFunctionType;
+  currentAnim.frameNum = 0;
+  currentAnim.touchFrame = touch_choice.touch_frame;
+  currentAnim.originatingInterrupt = localInterruptAnim;
+  currentAnim.touchPos = touch_choice.touch_position;
+  currentAnim.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatialState.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (currentAnim.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
+  currentAnim.rotationSmuggle.end = touch_choice.rotation_smuggle;
+  currentAnim.rotationSmuggleOffset = 0;
+  currentAnim.actionSmuggle = touch_choice.action_smuggle;
+  currentAnim.actionSmuggleOffset = Vector3(0);
+  currentAnim.actionSmuggleSustain = Vector3(0); // calculated below
+  currentAnim.actionSmuggleSustainOffset = Vector3(0);
+  currentAnim.movementSmuggle = Vector3(0); // needs to be reset here, else the previous calc is used in upcoming 'calculatemovementsmuggle'
+  currentAnim.movementSmuggleOffset = Vector3(0);
+  currentAnim.incomingMovement = spatialState.movement;
+  currentAnim.outgoingMovement = CalculateOutgoingMovement(touch_choice.positions);
+  currentAnim.positions.clear();
+  currentAnim.positions.assign(touch_choice.positions.begin(), touch_choice.positions.end());
+  currentAnim.positionOffset = Vector3(0);
+  currentAnim.originatingCommand = command;
+  RecordMovementCommandAcceptance(material_candidate, action.type,
+                                  static_cast<int>(football::sim::ToMilliseconds(action.elapsed)), localInterruptAnim,
+                                  command, static_cast<int>(GetCurrentBakedClip().frame_count));
+  // Must run after the currentAnim field writes above (it reads the new
+  // animationId/positions/touchFrame and GetCurrentBakedClip), before install.
+  currentAnim.movementSmuggle = CalculateMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, history);
+  currentAnim.movementSmuggleOffset = Vector3(0);
+}
+
+void Humanoid::RecordSelectedContactAudit(const PlayerCommand &command) {
+  const PlayerActionState &scheduled = CastPlayer()->GetSimulationActionState();
+  if (ContactAuthorityAuditEnabled() &&
+      IsTrackedScheduledContact(scheduled.type) &&
+      scheduled.HasScheduledContact()) {
+    ContactAuthorityAudit &audit = ContactAuthorityFor(scheduled.type);
+    ++audit.scheduled;
+    audit.contact_frames.push_back(scheduled.ContactFrame());
+    audit.delays_ms.push_back(static_cast<int>(football::sim::ToMilliseconds(*scheduled.contact)));
+    if (command.modifier & e_PlayerCommandModifier_KnockOn) ++audit.knock_on;
+    if (command.touchInfo.targetPlayer) ++audit.command_target;
+    if (command.touchInfo.forcedTargetPlayer) ++audit.forced_target;
+    if (GetCurrentBakedClip().metadata.touch_max_power_factor != 0.0f)
+      ++audit.max_power_profile_present;
+    if (GetCurrentBakedClip().metadata.touch_difficulty_factor != 0.0f)
+      ++audit.difficulty_profile_present;
+    if (GetCurrentBakedClip().metadata.outgoing_ball_direction.GetLength() != 0.0f)
+      ++audit.native_ball_direction_present;
+    if (!GetCurrentBakedClip().metadata.touch_bodypart.empty())
+      ++audit.contact_bodypart_present;
+    if (!GetCurrentBakedClip().metadata.incoming_retain_state.empty())
+      ++audit.incoming_retain_present;
+    if (!GetCurrentBakedClip().metadata.outgoing_retain_state.empty())
+      ++audit.outgoing_retain_present;
+  }
 }
 
 // ANIM-1 A6.4 step 5: the constraint half of SelectAnim, extracted so the

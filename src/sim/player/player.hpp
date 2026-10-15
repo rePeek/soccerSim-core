@@ -482,6 +482,17 @@ class Player final {
     // against the definition the executor committed. It never re-selects or
     // vetoes an interrupt.
     void InstallSelectedAction(const football::sim::SelectedAction& selection);
+    // ANIM-1 A6.4 step 7b: the Player dispatches installation. It runs the
+    // Humanoid compat projection, installs through the one install entry and
+    // then records the scheduled-contact audit. Returns true when committed.
+    bool CommitSelectedAction(int selected_anim_id,
+                              const football::sim::TouchChoice &touch_choice,
+                              const PlayerCommand &command,
+                              const football::sim::PlayerTickContext &tick,
+                              football::sim::Tick now,
+                              std::span<MentalImage> history,
+                              e_InterruptAnim local_interrupt_anim,
+                              bool material_candidate);
     const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
     int InstallChecks() const { return install_checks_; }
     int InstallMatches() const { return install_matches_; }

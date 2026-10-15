@@ -649,6 +649,27 @@ int Player::SelectTouchAction(football::sim::Tick now, const football::sim::Play
   return anim_id;
 }
 
+bool Player::CommitSelectedAction(int selected_anim_id,
+                                  const football::sim::TouchChoice &touch_choice,
+                                  const PlayerCommand &command,
+                                  const football::sim::PlayerTickContext &tick,
+                                  football::sim::Tick now,
+                                  std::span<MentalImage> history,
+                                  e_InterruptAnim local_interrupt_anim,
+                                  bool material_candidate) {
+  // ANIM-1 A6.4 step 7b: the Player owns the install dispatch. The compat
+  // projection writes the legacy currentAnim; the Player then installs through
+  // the one install entry, and only then records the scheduled-contact audit.
+  Humanoid *const humanoid = CastHumanoid();
+  if (humanoid == nullptr) return false;
+  humanoid->ProjectSelectedActionCompat(selected_anim_id, touch_choice, command,
+                                        tick, now, history, local_interrupt_anim,
+                                        material_candidate);
+  InstallSelectedAction(humanoid->CurrentSelectedAction());
+  humanoid->RecordSelectedContactAudit(command);
+  return true;
+}
+
 
 void Player::InstallSelectedAction(const football::sim::SelectedAction &selection) {
   // ANIM-1 A6.3b.3 (second cut): the Player is now the authority for the action

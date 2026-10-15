@@ -54,6 +54,20 @@ class Humanoid : public HumanoidBase {
     // relocated yet), but the call now goes through the Player entry point.
     CrudeSelectionQuery BuildCrudeSelectionQuery(const PlayerCommand &command, const football::sim::PlayerTickContext &tick, football::sim::Tick now, MentalImage *current_mental_image) const;
     signed int GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, football::sim::TouchChoice &choice, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) const;
+    // ANIM-1 A6.4 step 7a: the compat install projection. It writes the fields
+    // of the legacy `currentAnim` from a selection result. It deliberately does
+    // NOT install: `Player::CommitSelectedAction` owns the dispatch.
+    void ProjectSelectedActionCompat(int selectedAnimID,
+                                     const football::sim::TouchChoice &touch_choice,
+                                     const PlayerCommand &command,
+                                     const football::sim::PlayerTickContext &tick,
+                                     football::sim::Tick now,
+                                     std::span<MentalImage> history,
+                                     e_InterruptAnim localInterruptAnim,
+                                     bool material_candidate);
+    // The post-install scheduled-contact audit, kept separate so the projection
+    // stays a pure field write and the audit runs after the Player install.
+    void RecordSelectedContactAudit(const PlayerCommand &command);
   protected:
     bool SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
                     const PlayerCommand &command, std::span<MentalImage> history,
@@ -70,7 +84,6 @@ class Humanoid : public HumanoidBase {
         const Vector3 &actualBallPos2D, const Vector3 &ballMovement2D,
         float radiusFactor, float radiusCheatDistance, float decayPow,
         bool debug = false) const;
-    bool CommitSelectedAction(int selectedAnimID, const football::sim::TouchChoice &touch_choice, const PlayerActionState &action, const PlayerCommand &command, const football::sim::PlayerTickContext &tick, football::sim::Tick now, std::span<MentalImage> history, e_InterruptAnim localInterruptAnim, bool material_candidate);
     Vector3 CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
                                      const Vector3 &desiredDirection, float desiredVelocityFloat,
                                      std::span<MentalImage> history);

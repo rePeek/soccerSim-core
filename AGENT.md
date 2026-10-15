@@ -2499,3 +2499,29 @@ post gate's same-quadrant/idle-direction cases. Runtime P0 fingerprint unchanged
 `A6.3a clip_match=52 clip_mismatch=1 fallback=1`, `install 11/11/0`,
 `cursor 11/11/0`, `authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`,
 72 player-unit cases / 1178 assertions pass.
+
+### ANIM-1 A6.4 step 7: the Player dispatches action installation
+
+`Humanoid::CommitSelectedAction` is gone. The compat install field-write is now
+the explicitly named `Humanoid::ProjectSelectedActionCompat(...)`, which writes
+the legacy `currentAnim` from the selection result and deliberately does NOT
+install. It preserves the exact order: the field writes, then
+`RecordMovementCommandAcceptance` (reading the live *old* PlayerActionState),
+then `CalculateMovementSmuggle` - which must stay after the currentAnim writes
+because it reads the just-written animationId/positions/touchFrame through
+`GetCurrentBakedClip`. The scheduled-contact audit moved to
+`Humanoid::RecordSelectedContactAudit(command)`, which runs after install and
+reads the *new* PlayerActionState.
+
+`Player::CommitSelectedAction(selected_anim_id, touch_choice, command, tick, now,
+history, local_interrupt_anim, material_candidate)` is now the install dispatch:
+it runs the compat projection, installs through the single
+`InstallSelectedAction` entry (which cross-checks the projection), and only then
+records the audit. `Humanoid::SelectAnim` ends with a call to the Player entry.
+This is step 7b: the Player owns installation while the not-yet-migrated
+Motion/touch execution data still lives on the Humanoid. No state was copied and
+no second action authority was introduced.
+
+Runtime P0 fingerprint unchanged: `A6.3a clip_match=52 clip_mismatch=1
+fallback=1`, `install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
+`nm pure_ticks=4 touch_selections=4`; 10/10 CTest.
