@@ -2144,3 +2144,17 @@ test: the runtime modifiers scale *abilities* (`GetStat`) today but do NOT scale
 the motion profile, so `max_speed` keeps its formula with no fatigue or
 AI-difficulty factor. Whether fatigue should slow a player down is a separate
 behaviour change.
+
+### ANIM-1 A6.3b.3 first cut: one install entry, Player-owned selection
+
+`football::sim::SelectedAction` (clip id, function type, start frame, duration,
+touch frame, touch position) is the prepared selection result. All three install
+sites in the Humanoid now call `Player::InstallSelectedAction(selection)` instead
+of `BeginSimulationAction()` directly, so the selector prepares the result, the
+compat `currentAnim` is synced first, and the Player commits it through one
+transaction. `Player` records the selection and cross-checks it against the
+definition the executor committed (`InstallChecks`/`InstallMatches`/
+`InstallMismatches`): clip/duration/start frame/touch frame/touch position. Over
+the P0 tape `install checks=2 match=2 mismatch=0`, and the A6.3a final-clip
+oracle is unchanged. The compat `currentAnim` storage and all its readers are
+untouched, so this cut is behaviour-preserving; state ownership moves next.

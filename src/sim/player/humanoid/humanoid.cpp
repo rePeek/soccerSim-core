@@ -1156,7 +1156,7 @@ void Humanoid::SelectRetainAnim() {
   currentAnim.rotationSmuggle.end = 0;
   currentAnim.rotationSmuggleOffset = 0;
   currentAnim.functionType = e_FunctionType_Movement;
-  CastPlayer()->BeginSimulationAction();
+  CastPlayer()->InstallSelectedAction(CurrentSelectedAction());
 
 
 }
@@ -1829,7 +1829,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
                                     command, static_cast<int>(GetCurrentBakedClip().frame_count));
     currentAnim.movementSmuggle = CalculateMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, history);
     currentAnim.movementSmuggleOffset = Vector3(0);
-    CastPlayer()->BeginSimulationAction();
+    CastPlayer()->InstallSelectedAction(CurrentSelectedAction());
     const PlayerActionState &scheduled = CastPlayer()->GetSimulationActionState();
     if (ContactAuthorityAuditEnabled() &&
         IsTrackedScheduledContact(scheduled.type) &&

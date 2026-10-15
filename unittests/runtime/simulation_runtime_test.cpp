@@ -1131,6 +1131,15 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
   // the extraction commit before deletion).
   std::fprintf(stderr, "[runtime] A6.3b.2 movement refinement ticks=%d\n",
                audit.refine_checks);
+  // ANIM-1 A6.3b.3 (first cut): the Player-owned `SelectedAction` described the
+  // action the executor committed - clip id, duration, start frame, touch frame
+  // and touch position - on every install, and the same Tick still sampled the
+  // new clip's pose without a one-tick offset.
+  std::fprintf(stderr, "[runtime] A6.3b.3 install checks=%d match=%d mismatch=%d\n",
+               player->InstallChecks(), player->InstallMatches(),
+               player->InstallMismatches());
+  CHECK(player->InstallChecks() > 0);
+  CHECK(player->InstallMismatches() == 0);
   CHECK(audit.refine_checks > 0);
   CHECK(sim.Stop());
 }

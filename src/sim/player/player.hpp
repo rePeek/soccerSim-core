@@ -32,6 +32,8 @@
 #include "sim/player/player_ground_collider.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_action_request.hpp"
+#include "sim/player/player_selected_action.hpp"
+#include "sim/player/player_action_executor.hpp"
 #include "sim/player/player_playback_state.hpp"
 #include "football/animation/library.hpp"
 #include "football/animation/movement_selection.hpp"
@@ -428,6 +430,16 @@ class Player final {
     // H3d2a: Humanoid invokes these for completed action selection and ticks.
     // The executor advances independently; legacy state is an oracle only.
     void BeginSimulationAction();
+    // ANIM-1 A6.3b.3 (first cut): the single install entry. The selector prepares
+    // a `football::sim::SelectedAction`; the Player commits it and runs the shared install
+    // transaction, recording the selection (Player-owned) and cross-checking it
+    // against the definition the executor committed. It never re-selects or
+    // vetoes an interrupt.
+    void InstallSelectedAction(const football::sim::SelectedAction& selection);
+    const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
+    int InstallChecks() const { return install_checks_; }
+    int InstallMatches() const { return install_matches_; }
+    int InstallMismatches() const { return install_mismatches_; }
     void StepSimulationAction(football::sim::TickSpan elapsed);
     // Validates the authoritative schedule against Humanoid's temporary
     // legacy projection. It is intentionally a fatal invariant in all builds.
@@ -618,6 +630,15 @@ class Player final {
     // candidate list and the foot-counterfactual list.
     std::vector<int> movement_candidates_;
     std::vector<int> movement_candidates_without_foot_;
+    // ANIM-1 A6.3b.3 (first cut): the Player owns the installed action and the
+    // install cross-check counters. `last_begun_definition_` is the definition
+    // the executor actually committed, used only as an oracle during migration.
+    football::sim::SelectedAction installed_action_;
+    PlayerActionDefinition last_begun_definition_;
+    int last_begun_start_frame_ = 0;
+    int install_checks_ = 0;
+    int install_matches_ = 0;
+    int install_mismatches_ = 0;
     // ANIM-1.1: pending active/passive requests and their recorded arbitration
     // outcome. Cleared on every reset path so no stale request survives.
     std::optional<PlayerActionRequest> pending_action_request_;

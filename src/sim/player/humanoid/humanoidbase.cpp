@@ -562,6 +562,17 @@ const AnimationClip &HumanoidBase::GetBakedClip(AnimationId id) const {
   return animations_.Get(static_cast<uint32_t>(id));
 }
 
+football::sim::SelectedAction HumanoidBase::CurrentSelectedAction() const {
+  football::sim::SelectedAction selection;
+  selection.clip_id = currentAnim.animationId;
+  selection.function_type = currentAnim.functionType;
+  selection.start_frame = currentAnim.frameNum;
+  selection.frame_count = static_cast<int>(GetBakedClip(currentAnim.animationId).frame_count);
+  selection.touch_frame = currentAnim.touchFrame;
+  selection.touch_position = currentAnim.touchPos;
+  return selection;
+}
+
 const AnimationClip &HumanoidBase::GetCurrentBakedClip() const {
   return GetBakedClip(currentAnim.animationId);
 }
@@ -1242,7 +1253,7 @@ bool HumanoidBase::SelectAnim(football::sim::Tick now, const football::sim::Play
     RecordMovementCommandAcceptance(material_candidate, action.type,
                                     static_cast<int>(football::sim::ToMilliseconds(action.elapsed)), localInterruptAnim,
                                     command, static_cast<int>(GetCurrentBakedClip().frame_count));
-    player->BeginSimulationAction();
+    player->InstallSelectedAction(CurrentSelectedAction());
 
     return true;
   }

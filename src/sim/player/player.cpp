@@ -612,6 +612,8 @@ void Player::BeginSimulationAction() {
   if (anim->touchFrame >= 0)
     definition.contact = football::sim::TickSpan{static_cast<std::uint64_t>(anim->touchFrame)};
   definition.contactPosition = anim->touchPos;
+  last_begun_definition_ = definition;
+  last_begun_start_frame_ = static_cast<int>(humanoid->GetFrameNum());
   PlayerActionExecutor::Begin(actionState, definition);
 
   // ResetPosition can deliberately start an idle animation at a non-zero
@@ -623,6 +625,34 @@ void Player::BeginSimulationAction() {
   }
   CheckSimulationActionOracle();
 }
+
+
+void Player::InstallSelectedAction(const football::sim::SelectedAction &selection) {
+  // ANIM-1 A6.3b.3 (first cut): the single install entry. The selector prepares
+  // the football::sim::SelectedAction and syncs the compat Humanoid storage; the Player commits
+  // the selection and runs the shared install transaction. It never re-selects a
+  // clip or vetoes an interrupt.
+  installed_action_ = selection;
+  BeginSimulationAction();
+  // Oracle: the Player-owned selection must describe the action the executor
+  // actually committed.
+  ++install_checks_;
+  const PlayerActionDefinition &committed = last_begun_definition_;
+  const int committed_touch =
+      committed.contact ? static_cast<int>(committed.contact->value) : -1;
+  const bool same =
+      selection.function_type == committed.type &&
+      selection.frame_count == static_cast<int>(committed.duration.value) &&
+      selection.start_frame == last_begun_start_frame_ &&
+      selection.touch_frame == committed_touch &&
+      selection.touch_position == committed.contactPosition;
+  if (same) {
+    ++install_matches_;
+  } else {
+    ++install_mismatches_;
+  }
+}
+
 
 void Player::StepSimulationAction(football::sim::TickSpan elapsed) {
   PlayerActionExecutor::Step(actionState, elapsed);

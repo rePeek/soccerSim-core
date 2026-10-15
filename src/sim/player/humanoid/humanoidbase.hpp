@@ -27,6 +27,7 @@
 #include "football/animation/selection_query.hpp"
 #include "football/animation/clip.hpp"
 #include "sim/player/player_baked_pose_sample.hpp"
+#include "sim/player/player_selected_action.hpp"
 
 #include "sim/player/player_kinematics.hpp"
 #include "sim/observation/mentalimage.hpp"
@@ -406,6 +407,7 @@ class HumanoidBase {
     virtual float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
     virtual float GetDecayingDifficultyFactor() const { return decayingDifficultyFactor; }
 
+    football::sim::SelectedAction CurrentSelectedAction() const;
     const Anim *GetCurrentAnim() { return &currentAnim; }
 
     // Baked clip access. The runtime never reads legacy Animation objects;
