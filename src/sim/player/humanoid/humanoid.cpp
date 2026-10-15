@@ -95,6 +95,13 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     throw std::logic_error("Humanoid::Process: player position must have zero height");
   }
   CastPlayer()->NoteProcessedPlayerTick();
+  // ANIM-1 A7: apply the passive trip the Player accepted at the previous
+  // contact phase, exactly where the legacy direct Humanoid write took effect.
+  if (const auto pending_trip = CastPlayer()->ConsumePendingPassiveTrip()) {
+    interruptAnim = e_InterruptAnim_Trip;
+    tripDirection = pending_trip->direction;
+    tripType = pending_trip->trip_type;
+  }
   auto currentMentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
   // this might be the solution to long-term imbalance
   decayingPositionOffset *= 0.95f;

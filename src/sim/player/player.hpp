@@ -170,6 +170,15 @@ struct PlayerTeamFacts {
   Player* designated_possession_player = nullptr;
 };
 
+// ANIM-1 A7: a passive trip the Player accepted at contact time. It is applied
+// to the Humanoid's animation interrupt at the next Process, which is exactly
+// when the legacy direct write took effect. Gameplay state, cleared by resets.
+struct PendingPassiveTrip {
+  Vector3 direction{0};
+  int trip_type = 0;
+};
+
+
 // Concrete football-player runtime; no shared official-actor base remains.
 class Player final {
 
@@ -542,7 +551,11 @@ class Player final {
     // legacy projection. It is intentionally a fatal invariant in all builds.
     void CheckSimulationActionOracle() const;
 
-    void TripMe(const Vector3 &tripVector, int tripType, const Player* ball_retainer) { humanoid->TripMe(tripVector, tripType, ball_retainer); }
+    // ANIM-1 A7: the Player owns the passive-trip decision. It evaluates the
+    // legacy guard at contact time and stores the accepted trip; the Humanoid
+    // applies it to its interrupt at the next Process.
+    void TripMe(const Vector3 &tripVector, int tripType, const Player* ball_retainer);
+    std::optional<PendingPassiveTrip> ConsumePendingPassiveTrip();
 
     void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
     int GetReactionTime_ms();
@@ -755,6 +768,8 @@ class Player final {
     // outcome. Cleared on every reset path so no stale request survives.
     std::optional<PlayerActionRequest> pending_action_request_;
     std::optional<PlayerReaction> pending_reaction_;
+    // ANIM-1 A7: the accepted passive trip awaiting the next Process interrupt.
+    std::optional<PendingPassiveTrip> pending_passive_trip_;
     RequestOutcome action_request_outcome_ = RequestOutcome::Accepted;
     RequestOutcome reaction_outcome_ = RequestOutcome::Accepted;
     int action_request_attempts_ = 0;

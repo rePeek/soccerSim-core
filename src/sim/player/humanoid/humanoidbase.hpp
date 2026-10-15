@@ -409,7 +409,6 @@ class HumanoidBase {
     // updates the animation/motion origin (startPos, previous position, smuggle
     // offsets) without re-deriving the Player state.
     void ApplyPositionOffset(const Vector3 &offset);
-    void TripMe(const Vector3 &tripVector, int tripType, const Player *ball_retainer);
 
     virtual float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
     virtual float GetDecayingDifficultyFactor() const { return decayingDifficultyFactor; }

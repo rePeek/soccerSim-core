@@ -2610,3 +2610,28 @@ Runtime P0 fingerprint unchanged: `A6.3a clip_match=52 clip_mismatch=1
 fallback=1`, `install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
 `nm pure_ticks=4 touch_selections=4`; 10/10 CTest. A6.4 is complete: Humanoid no
 longer decides what action plays.
+
+### ANIM-1 A7 step 1: the Player owns the passive-trip decision
+
+`HumanoidBase::TripMe` is deleted. The guard that decides whether a contact may
+trip a player is now `football::sim::CanAcceptPassiveTrip(PassiveTripContext)`
+(a pure value in `player_selection_decisions.hpp`), evaluated by
+`Player::TripMe` at contact time - the same instant the legacy direct write ran -
+and the accepted trip is stored as `PendingPassiveTrip` on the Player.
+`Humanoid::Process` consumes it at the top (before the `IsAtLastFrame` switch
+check) and sets `interruptAnim = Trip`, `tripDirection` and `tripType`, which is
+exactly where the legacy member write took effect. The guard semantics are
+unchanged: special states reject, a pending/non-None interrupt rejects, Sliding
+rejects, and a pass-through trip (trip_type 1) is only replaced by a harder one
+(requested > 1).
+
+Resets clear the pending trip on the same paths that clear the other pending
+requests (`ResetPosition`, `ResetRuntimeState`), so a trip cannot survive a
+reset. `unittests/player/player_selection_decisions_test.cpp` pins the four
+guard branches. The current tape has no sliding/passive-trip coverage (a
+pre-existing limitation recorded above), so the runtime P0 fingerprint is only
+the no-regression check: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
+`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
+`nm pure_ticks=4 touch_selections=4`; 84 player cases / 1250 assertions; 10/10
+CTest. `React -> Trip -> Ground -> StandUp` execution ownership beyond this
+intake step, and A8 (PlayerMotion non-Movement displacement), remain.

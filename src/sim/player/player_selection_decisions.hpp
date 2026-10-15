@@ -206,6 +206,34 @@ inline bool CommitActionSelectionAllowed(const CommitSelectionContext &context) 
   return true;
 }
 
+
+// ANIM-1 A7 step 1: the passive-trip acceptance guard, as a pure value. It is
+// evaluated by the Player at contact time; the accepted trip is applied to the
+// Humanoid interrupt at the next Process, which is when the legacy direct write
+// took effect.
+struct PassiveTripContext {
+  e_FunctionType action_type = e_FunctionType_None;
+  int action_trip_type = 0;
+  bool incoming_special_state_empty = true;
+  bool outgoing_special_state_empty = true;
+  bool interrupt_is_none = true;
+  int requested_trip_type = 0;
+};
+
+inline bool CanAcceptPassiveTrip(const PassiveTripContext &context) {
+  if (!context.incoming_special_state_empty ||
+      !context.outgoing_special_state_empty) {
+    return false;
+  }
+  if (!context.interrupt_is_none) return false;
+  if (context.action_type == e_FunctionType_Sliding) return false;
+  if (context.action_type == e_FunctionType_Trip &&
+      !(context.action_trip_type == 1 && context.requested_trip_type > 1)) {
+    return false;
+  }
+  return true;
+}
+
 }  // namespace football::sim
 
 #endif  // FOOTBALL_SIM_PLAYER_SELECTION_DECISIONS_HPP

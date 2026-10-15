@@ -219,3 +219,50 @@ TEST_CASE("Commit gate 6b: missing selection or trajectory commits",
   c.current_positions_sufficient = false;
   CHECK(CommitActionSelectionAllowed(c));
 }
+
+TEST_CASE("A7: passive trip is rejected while special states are active",
+          "[player][selection]") {
+  football::sim::PassiveTripContext c;
+  c.action_type = e_FunctionType_Movement;
+  c.interrupt_is_none = true;
+  c.requested_trip_type = 1;
+  CHECK(football::sim::CanAcceptPassiveTrip(c));
+
+  c.incoming_special_state_empty = false;
+  CHECK_FALSE(football::sim::CanAcceptPassiveTrip(c));
+  c.incoming_special_state_empty = true;
+  c.outgoing_special_state_empty = false;
+  CHECK_FALSE(football::sim::CanAcceptPassiveTrip(c));
+}
+
+TEST_CASE("A7: passive trip is rejected while an interrupt is pending",
+          "[player][selection]") {
+  football::sim::PassiveTripContext c;
+  c.action_type = e_FunctionType_Movement;
+  c.requested_trip_type = 1;
+  c.interrupt_is_none = false;
+  CHECK_FALSE(football::sim::CanAcceptPassiveTrip(c));
+}
+
+TEST_CASE("A7: sliding cannot be interrupted by a passive trip",
+          "[player][selection]") {
+  football::sim::PassiveTripContext c;
+  c.action_type = e_FunctionType_Sliding;
+  c.interrupt_is_none = true;
+  c.requested_trip_type = 3;
+  CHECK_FALSE(football::sim::CanAcceptPassiveTrip(c));
+}
+
+TEST_CASE("A7: only a harder trip may replace a pass-through trip",
+          "[player][selection]") {
+  football::sim::PassiveTripContext c;
+  c.action_type = e_FunctionType_Trip;
+  c.interrupt_is_none = true;
+  c.action_trip_type = 1;   // pass-through
+  c.requested_trip_type = 1;  // same type -> rejected
+  CHECK_FALSE(football::sim::CanAcceptPassiveTrip(c));
+  c.requested_trip_type = 2;  // harder -> accepted
+  CHECK(football::sim::CanAcceptPassiveTrip(c));
+  c.action_trip_type = 0;  // a real fall, not pass-through
+  CHECK_FALSE(football::sim::CanAcceptPassiveTrip(c));
+}

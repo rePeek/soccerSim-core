@@ -731,3 +731,35 @@ void Player::SelectRetainAnim() {
   humanoid->currentAnim.functionType = e_FunctionType_Movement;
   InstallSelectedAction(humanoid->CurrentSelectedAction());
 }
+
+// ---------------------------------------------------------------------------
+// ANIM-1 A7 step 1: the Player owns the passive-trip decision. The guard is
+// evaluated at contact time exactly as the legacy Humanoid::TripMe did; the
+// accepted trip is applied to the Humanoid interrupt at the next Process.
+// ---------------------------------------------------------------------------
+void Player::TripMe(const Vector3 &tripVector, int tripType,
+                    const Player *ball_retainer) {
+  Humanoid *const humanoid = CastHumanoid();
+  if (humanoid == nullptr) return;
+  if (ball_retainer == this) return;
+  const AnimationClip &clip = humanoid->GetCurrentBakedClip();
+  football::sim::PassiveTripContext context;
+  context.action_type = actionState.type;
+  context.action_trip_type = clip.metadata.trip_type;
+  context.incoming_special_state_empty =
+      clip.metadata.incoming_special_state.empty();
+  context.outgoing_special_state_empty =
+      clip.metadata.outgoing_special_state.empty();
+  context.interrupt_is_none =
+      !pending_passive_trip_.has_value() &&
+      humanoid->interruptAnim == e_InterruptAnim_None;
+  context.requested_trip_type = tripType;
+  if (!football::sim::CanAcceptPassiveTrip(context)) return;
+  pending_passive_trip_ = PendingPassiveTrip{tripVector, tripType};
+}
+
+std::optional<PendingPassiveTrip> Player::ConsumePendingPassiveTrip() {
+  std::optional<PendingPassiveTrip> trip = pending_passive_trip_;
+  pending_passive_trip_.reset();
+  return trip;
+}

@@ -936,22 +936,6 @@ void HumanoidBase::ApplyPositionOffset(const Vector3 &offset) {
 }
 
 
-void HumanoidBase::TripMe(const Vector3 &tripVector, int tripType, const Player *ball_retainer) {
-  if (ball_retainer == player) return;
-  const PlayerActionState &action = player->GetSimulationActionState();
-  if (GetCurrentBakedClip().metadata.incoming_special_state.empty() &&
-      GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
-    if (this->interruptAnim == e_InterruptAnim_None &&
-        (action.type != e_FunctionType_Trip ||
-         (GetCurrentBakedClip().metadata.trip_type == 1 &&
-          tripType > 1)) &&
-        action.type != e_FunctionType_Sliding) {
-      this->interruptAnim = e_InterruptAnim_Trip;
-      this->tripDirection = tripVector;
-      this->tripType = tripType;
-    }
-  }
-}
 
 void HumanoidBase::ResetSituation(const Vector3 &focusPos) {
   mentalImageTime = std::chrono::milliseconds{0};

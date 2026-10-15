@@ -761,6 +761,7 @@ void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   pending_action_request_.reset();
   playback_state_.Reset();
   pending_reaction_.reset();
+  pending_passive_trip_.reset();
   CommitLegacyActionMotion();
   // ANIM-1 A6.3c.1: a reset is a special action install, not an out-of-band
   // cursor write. Route it through the same Player install entry so
@@ -919,6 +920,7 @@ void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now)
   pending_action_request_.reset();
   playback_state_.Reset();
   pending_reaction_.reset();
+  pending_passive_trip_.reset();
   if (IsActive()) {
     // The reset itself is the discontinuity, so it anchors the generation that
     // a later reset re-entry compares against.
