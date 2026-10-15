@@ -2321,3 +2321,28 @@ the pure branch can rebuild the request. The audit counter is now
 already Movement-only, so the deleted chain carried no non-Movement side effects.
 Post-removal fingerprint: `nm pure_ticks=4`, `install 11/11/0`,
 `cursor 11/11/0`, `authority 42/42/0`.
+
+### ANIM-1 A6.4 step 2a: the smuggle-discard arithmetic moved to Animation
+
+`include/football/animation/touch_scoring.hpp` (namespace
+`football::animation`) now owns `ResolveActionSmuggle(request)`: the tail of
+`Humanoid::GetBestCheatableAnimID` that turns the raw ball-contact smuggle into
+the applied value (cheat-discard distance, the BallControl/non-BallControl
+multiplier, height falloffs, `maxSmuggleDiscardDistance`, retained-ball zeroing,
+forward/sideways discard, micro-battle pressure scaling). It is a line-for-line
+relocation: same clamping, same operation order, same floating-point
+expressions, no Player / Humanoid / Simulation / RNG.
+
+`humanoid.cpp` now builds a `ResolveActionSmuggleRequest` from the file-local
+`constexpr` tuning constants and its spatial state and assigns the result; the
+78-line arithmetic block is gone. The site is reached only when a cheat anim is
+found, so the runtime P0 fingerprint is the evidence that behaviour is
+unchanged: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
+`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`, `nm pure_ticks=4`.
+`unittests/animation/touch_scoring_test.cpp` covers the discard modes and the
+multiplier chains with hand-computed expectations.
+
+Remaining in step 2: the per-candidate touch loop (`humanoid.cpp:2086-2299`,
+which needs `CalculatePhysicsVector` = `humanoidbase.cpp:1742-2261`, 519 lines)
+and the four `GetBestCheatableAnimID` call sites. `GetBestCheatableAnimID`
+itself contains no RNG, so no draw-order hazard.

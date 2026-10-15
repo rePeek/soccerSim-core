@@ -36,6 +36,7 @@
 #include "sim/player/locomotion_animation_strategy.hpp"
 #include "football/animation/movement_selection.hpp"
 #include "football/animation/select_movement.hpp"
+#include "football/animation/touch_scoring.hpp"
 #include <iterator>
 
 #include "sim/observation/mentalimage_sampling.hpp"
@@ -2301,79 +2302,31 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
   if (found) {
     auto currentMentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
     touchPos_ret = currentMentalImage->GetBallPrediction(animTouchFrame_ret * 10, now, tick.ball);
-
     fullActionSmuggle_ret = bestActionSmuggleVec2D.GetRotated2D(spatialState.angle);
-    actionSmuggle_ret = fullActionSmuggle_ret;
 
-    if (forceFullActionSmuggleDiscard) {
+    // ANIM-1 A6.4 step 2a: the smuggle-discard arithmetic lives in the
+    // stateless Animation module; the Player only supplies the inputs.
+    football::animation::ResolveActionSmuggleRequest smuggle_request;
+    smuggle_request.raw_smuggle = fullActionSmuggle_ret;
+    smuggle_request.touch_pos_z = touchPos_ret.coords[2];
+    smuggle_request.anim_touch_frame = animTouchFrame_ret;
+    smuggle_request.function_type = functionType;
+    smuggle_request.ball_retained_by_player = (tick.ball_retainer == player);
+    smuggle_request.predicted_angle = predictedAngle;
+    smuggle_request.spatial_angle = spatialState.angle;
+    smuggle_request.adapted_outgoing_movement = adaptedOutgoingMovement;
+    smuggle_request.force_full_action_smuggle_discard = forceFullActionSmuggleDiscard;
+    smuggle_request.enable_action_smuggle_discard = enableActionSmuggleDiscard;
+    smuggle_request.cheat_discard_distance = cheatDiscardDistance;
+    smuggle_request.cheat_discard_distance_multiplier = cheatDiscardDistanceMultiplier;
+    smuggle_request.max_smuggle_discard_distance = maxSmuggleDiscardDistance;
+    smuggle_request.discard_forward_smuggle = discardForwardSmuggle;
+    smuggle_request.discard_sideways_smuggle = discardSidewaysSmuggle;
+    smuggle_request.closest_opponent_distance =
+        CastPlayer()->GetClosestOpponentDistance(tick.opponent_team);
+    actionSmuggle_ret = football::animation::ResolveActionSmuggle(smuggle_request);
 
-      actionSmuggle_ret = 0;
-
-    } else if (enableActionSmuggleDiscard) {
-
-      // cheat discard distance (don't show some amount of cheat, like, a cheat-cheat :D CHEATCEPTION)
-      float smuggleDistance = actionSmuggle_ret.GetLength();
-      float adaptedCheatDiscardDistanceMultiplier = cheatDiscardDistanceMultiplier;
-      if (functionType != e_FunctionType_BallControl) adaptedCheatDiscardDistanceMultiplier *= 0.8f;
-      if (touchPos_ret.coords[2] > 0.5f) adaptedCheatDiscardDistanceMultiplier *= 0.7f;
-      if (touchPos_ret.coords[2] > 1.0f) adaptedCheatDiscardDistanceMultiplier *= 0.7f;
-      float cheatDiscardDistanceBonus = 0.0f;
-      if (functionType == e_FunctionType_Interfere) cheatDiscardDistanceBonus += 0.1f; // don't break flow
-
-      // smuggle, in this context, is how much we will move to the ball after the physics have been accounted for.
-      // this is so it seems like we actually touch the ball. we can discard this smuggle somewhat though to make the physics look better.
-      // it always is a trade-off between visually touching the ball and visually moving 'correctly', physics-wise.
-
-      // method 1: always discard a part of the smuggle distance
-      smuggleDistance = clamp(smuggleDistance - (cheatDiscardDistance + cheatDiscardDistanceBonus), 0.0f, 100.0);
-      smuggleDistance *= 1.0f - adaptedCheatDiscardDistanceMultiplier;
-
-      smuggleDistance = std::min(smuggleDistance, actionSmuggle_ret.GetLength() - maxSmuggleDiscardDistance);
-
-/* deprecated
-      // method 2: force maximum smuggle - discard the rest
-      float smuggleDistanceMPS = smuggleDistance / (animTouchFrame_ret / 100.0f);
-      float maximumSmuggleMPSFactor = 1.0;
-      if (functionType == e_FunctionType_Sliding) maximumSmuggleMPSFactor *= 4.0f;
-      if (functionType == e_FunctionType_Deflect) maximumSmuggleMPSFactor *= 3.0f;
-      //smuggleDistanceMPS = clamp(smuggleDistanceMPS, 0.0f, maximumSmuggleMPS * (1.0f / adaptedCheatDiscardDistanceMultiplier) * maximumSmuggleMPSFactor);
-      smuggleDistanceMPS = clamp(smuggleDistanceMPS, 0.0f, maximumSmuggleMPS * maximumSmuggleMPSFactor);
-      smuggleDistance = smuggleDistanceMPS * (animTouchFrame_ret / 100.0f);
-*/
-
-      if (tick.ball_retainer == player) smuggleDistance = 0.0f;
-      actionSmuggle_ret = actionSmuggle_ret.GetNormalized(0) * smuggleDistance;
-
-      // lose forward-facing part of smuggle
-
-      if (discardForwardSmuggle || discardSidewaysSmuggle) {
-
-        radian toStraightAngle = spatialState.angle + predictedAngle;
-        actionSmuggle_ret.Rotate2D(-toStraightAngle);
-
-        if (discardForwardSmuggle) {
-          float shortenForwardDistance = 0.02f;
-          float allowForwardDistance =
-              0.25f *
-              (1.0f -
-               std::pow(NormalizedClamp(adaptedOutgoingMovement.GetLength(),
-                                        idleVelocity, sprintVelocity - 2.0f),
-                        0.6f)) *
-              (animTouchFrame_ret * 0.1f);
-          if (functionType != e_FunctionType_BallControl && functionType != e_FunctionType_Trap) allowForwardDistance += 0.1f; // allow pass/shot/intefere anims and such to smuggle forwards more, since their follow-up-movement doesn't matter that much
-          if (actionSmuggle_ret.coords[1] < 0.0f) actionSmuggle_ret.coords[1] = clamp(actionSmuggle_ret.coords[1] + shortenForwardDistance, -allowForwardDistance, 0.0f);
-        }
-        if (discardSidewaysSmuggle) {
-          actionSmuggle_ret.coords[0] *= 0.7f;
-        }
-
-        actionSmuggle_ret.Rotate2D(toStraightAngle);
-      }
-
-      // less chaos in micro battles
-      actionSmuggle_ret *= 0.7f + 0.3f * NormalizedClamp(CastPlayer()->GetClosestOpponentDistance(tick.opponent_team), 0.6f, 1.2f);
-    }
-
+    assert(actionSmuggle_ret.coords[2] == 0.0f);
     assert(actionSmuggle_ret.coords[2] == 0.0f);
   }
 
