@@ -1463,6 +1463,28 @@ per-action durations and touch-frame integrity, 1.4 unified passive reactions
 replacing direct `Humanoid::TripMe`, 1.5 scheduling consolidation) need the
 Humanoid action-switch lifecycle and touch timing, and are tracked for later
 focused work.
+
+### ANIM-1.3/1.4/1.5
+
+1.3 active transitions: `AdvanceMovementPoseBlend` now blends the pose across
+ANY clip change, with `BlendTicksForSwitch(pure_movement)` = 8 ticks for pure
+locomotion and 4 for a switch involving an action. The touch FRAME is still the
+integer action cursor, so a blend cannot move the contact instant; the blended
+pose is what the body contact geometry reads. Tests: the transition-state
+per-type duration + a Movement->Shoot continuity case.
+
+1.4 passive reactions: the contact trip sites in `player_contact.cpp` now also
+submit a `PlayerReaction` through `Player::React`, so every real collision trip
+is recorded on the unified passive channel (direction/severity/source/trip
+type). `TripMe` still defers execution to the next Process, so the collision
+and referee timing are unchanged; moving the interrupt state fully behind the
+reaction entry is further ANIM-1.4 work.
+
+1.5 scheduling: per-player runtime state (action clock, `final_blended_pose_`,
+pending request/reaction) is already owned per Player and scheduled by stable
+slot; a bounded runtime test asserts 4 players across both teams keep distinct
+requests and that Stop/Init leaves no residue. Remaining: full Ground/StandUp
+recovery, red-card-shrink and half-time frame checks are tracked for later.
 ## Conventions
 
 C++23, extensions off, PIC on. Namespaces: football::math (foundation math/RNG),
