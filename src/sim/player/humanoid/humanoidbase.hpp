@@ -510,10 +510,6 @@ class HumanoidBase {
                                   std::vector<Vector3> &positions_ret,
                                   radian &rotationOffset_ret) const;
 
-    Vector3 ForceIntoAllowedBodyDirectionVec(const Vector3 &src) const;
-    radian ForceIntoAllowedBodyDirectionAngle(radian angle) const; // for making small differences irrelevant while sorting
-    Vector3 ForceIntoPreferredDirectionVec(const Vector3 &src) const;
-    radian ForceIntoPreferredDirectionAngle(radian angle) const;
 
     const AnimationLibrary& animations_;
     football::math::Rng& rng_;

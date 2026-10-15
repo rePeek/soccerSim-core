@@ -51,35 +51,6 @@ constexpr float bodyRotationSmoothingFactor = 1.0f;
 constexpr float bodyRotationSmoothingMaxAngle = 0.25f * pi;
 constexpr float initialReQueueDelayFrames = 32;
 
-const Vector3 allowedBodyDirVecs[] = {
-    Vector3(0, -1, 0),
-    Vector3(0, -1, 0).GetRotated2D(-0.25 * pi),
-    Vector3(0, -1, 0).GetRotated2D(0.25 * pi),
-    Vector3(0, -1, 0).GetRotated2D(-0.75 * pi),
-    Vector3(0, -1, 0).GetRotated2D(0.75 * pi)
-};
-
-const radian allowedBodyDirAngles[] = {
-        0 * pi,
-     0.25 * pi,
-    -0.25 * pi,
-     0.75 * pi,
-    -0.75 * pi
-};
-
-const Vector3 preferredDirectionVecs[] = {
-    Vector3(0, -1, 0),
-    Vector3(0, -1, 0).GetRotated2D(0.111 * pi),
-    Vector3(0, -1, 0).GetRotated2D(-0.111 * pi),
-    Vector3(0, -1, 0).GetRotated2D(0.25 * pi),
-    Vector3(0, -1, 0).GetRotated2D(-0.25 * pi),
-    Vector3(0, -1, 0).GetRotated2D(0.5 * pi),
-    Vector3(0, -1, 0).GetRotated2D(-0.5 * pi),
-    Vector3(0, -1, 0).GetRotated2D(0.75 * pi),
-    Vector3(0, -1, 0).GetRotated2D(-0.75 * pi),
-    Vector3(0, -1, 0).GetRotated2D(0.999 * pi),
-    Vector3(0, -1, 0).GetRotated2D(-0.999 * pi)
-};
 
 int &HumanoidProceduralMovementTicks() { static int value = 0; return value; }
 LocomotionPlaybackAudit &LocomotionPlaybackAuditState() { static LocomotionPlaybackAudit value; return value; }
@@ -532,19 +503,6 @@ void RecordFootCounterfactual(const AnimationLibrary& animations, int with_foot_
   if (lifecycle_changed) ++HumanoidFootLifecycleChanged();
 }
 
-const radian preferredDirectionAngles[] = {
-    0 * pi,
-    0.111 * pi, // 20
-    -0.111 * pi,
-    0.25 * pi, // 45
-    -0.25 * pi,
-    0.5 * pi, // 90
-    -0.5 * pi,
-    0.75 * pi, // 135
-    -0.75 * pi,
-    0.999 * pi, // 180
-    -0.999 * pi
-};
 
 HumanoidBase::HumanoidBase(Player *player, const AnimationLibrary& animations, football::math::Rng& rng)
     : animations_(animations), rng_(rng),
@@ -1546,60 +1504,3 @@ Vector3 HumanoidBase::CalculatePhysicsVector(football::sim::Tick now, int animID
   return plan.outgoing_velocity;
 }
 
-Vector3 HumanoidBase::ForceIntoAllowedBodyDirectionVec(const Vector3 &src) const {
-
-  // check what allowed dir this vector is closest to
-  float bestDot = -1.0f;
-  Vector3 best;
-  for (const Vector3 &vec : allowedBodyDirVecs) {
-    float nDotL = vec.GetDotProduct(src);
-    if (nDotL > bestDot) {
-      bestDot = nDotL;
-      best = vec;
-    }
-  }
-
-  return best;
-}
-
-radian HumanoidBase::ForceIntoAllowedBodyDirectionAngle(radian angle) const {
-
-  float bestAngleDiff = 10000.0;
-  radian bestValue = 0;
-  for (auto v : allowedBodyDirAngles) {
-    float diff = std::fabs(v - angle);
-    if (diff < bestAngleDiff) {
-      bestAngleDiff = diff;
-      bestValue = v;
-    }
-  }
-  return bestValue;
-}
-
-Vector3 HumanoidBase::ForceIntoPreferredDirectionVec(const Vector3 &src) const {
-
-  float bestDot = -1.0f;
-  Vector3 bestValue;
-  for (auto &v : preferredDirectionVecs) {
-    float nDotL = v.GetDotProduct(src);
-    if (nDotL > bestDot) {
-      bestDot = nDotL;
-      bestValue = v;
-    }
-  }
-  return bestValue;
-}
-
-radian HumanoidBase::ForceIntoPreferredDirectionAngle(radian angle) const {
-
-  float bestAngleDiff = 10000.0;
-  radian bestValue;
-  for (auto v : preferredDirectionAngles) {
-    float diff = std::fabs(v - angle);
-    if (diff < bestAngleDiff) {
-      bestAngleDiff = diff;
-      bestValue = v;
-    }
-  }
-  return bestValue;
-}

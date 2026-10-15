@@ -670,9 +670,11 @@ bool Player::TrySelectAction(football::sim::Tick now,
       commit_gate.current_quadrant = humanoid->GetCurrentBakedClip().metadata.quadrant;
       commit_gate.selected_quadrant = humanoid->GetBakedClip(selectedAnimID).metadata.quadrant;
       commit_gate.current_forced_outgoing_angle =
-          humanoid->ForceIntoPreferredDirectionAngle(humanoid->GetCurrentBakedClip().metadata.outgoing_angle);
+          ForceIntoPreferredDirectionAngle(
+              humanoid->GetCurrentBakedClip().metadata.outgoing_angle);
       commit_gate.selected_forced_outgoing_angle =
-          humanoid->ForceIntoPreferredDirectionAngle(humanoid->GetBakedClip(selectedAnimID).metadata.outgoing_angle);
+          ForceIntoPreferredDirectionAngle(
+              humanoid->GetBakedClip(selectedAnimID).metadata.outgoing_angle);
     }
     if (!CanCommitActionSelection(commit_gate)) selectedAnimID = -1;
   }

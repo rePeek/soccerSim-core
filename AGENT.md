@@ -2680,3 +2680,13 @@ rotation). Runtime P0 fingerprint unchanged: `A6.3a clip_match=52
 clip_mismatch=1 fallback=1`, `install 11/11/0`, `cursor 11/11/0`,
 `authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`, `A7 trip
 trip_tick=206 recovery_tick=267`; 87 player cases / 1266 assertions; 10/10 CTest.
+
+### ANIM-1 A8 step 2: the Humanoid defers to the pure body-direction quantization
+
+`HumanoidBase` no longer owns the allowed/preferred body-direction tables or the
+four `ForceInto*` helpers: they were already relocated to
+`football/animation/movement_selection.hpp` in A6.4 step 1a, and the duplicated
+member definitions are now deleted. `CalculateSpatialState`,
+`ApplySimulationBodyState` and the similarity ratings call the pure functions
+directly, and `Player::TrySelectAction`'s commit gate uses them too. No behaviour
+change; runtime P0 fingerprint unchanged, 10/10 CTest.
