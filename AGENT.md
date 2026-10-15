@@ -2191,3 +2191,24 @@ directly outside `Humanoid::Process` (e.g. the `ResetPosition` path in
 `humanoidbase.cpp`), so the projection desynchronises from the executor cursor.
 Reverted. The cut needs every direct `currentAnim.frameNum` writer routed through
 the Player cursor API first; that inventory is the prerequisite.
+
+### ANIM-1 A6.3c.0/c.1: cursor audit + unified start-of-action install
+
+A6.3c.0 audited every `currentAnim.frameNum`/`animationId` writer:
+`humanoid.cpp` 326 (tick `++`), 1146-1147 and 1806-1808 (install `= 0`),
+`humanoidbase.cpp` 628 (base tick `++`), 888-891 (ResetPosition idle + RNG start
+frame), 1232-1234 (base install `= 0`); `previousAnim_frameNum` at
+`humanoidbase.cpp` 631/909/1230 and `humanoid.cpp` 330/1803. `PlayerActionExecutor::Step`
+saturates at `duration` (`elapsed += min(delta, duration - elapsed)`) while the
+legacy `frameNum++` is unbounded; `unittests/player/player_action_cursor_test.cpp`
+pins saturation, non-zero start frame, single contact fire and single completion.
+
+A6.3c.1 routes every "start of action" path through the one install entry:
+`ResetPosition`, `ResetSituation` (runtime reset) and `Activate` now call
+`InstallSelectedAction(CastHumanoid()->CurrentSelectedAction())` instead of
+`BeginSimulationAction()`. The Reset RNG draw is untouched - the random idle
+start frame simply travels as `SelectedAction::start_frame`. `installed_action_`
+is now valid after initialisation and every reset.
+`install checks=11 match=11 mismatch=0`, `cursor checks=11 match=11 mismatch=0`
+over the P0 tape; the A6.3a final-clip oracle is unchanged. Remaining for c.2:
+flip the per-tick `frameNum` advance to the Player authority.

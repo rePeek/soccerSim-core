@@ -707,7 +707,11 @@ void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   playback_state_.Reset();
   pending_reaction_.reset();
   CommitLegacyActionMotion();
-  BeginSimulationAction();
+  // ANIM-1 A6.3c.1: a reset is a special action install, not an out-of-band
+  // cursor write. Route it through the same Player install entry so
+  // `installed_action_` stays valid and the RNG-chosen start frame is carried
+  // in the selection (RNG draws and order unchanged).
+  InstallSelectedAction(CastHumanoid()->CurrentSelectedAction());
 }
 
 void Player::ApplyPositionCorrection(const Vector3 &offset) {
@@ -876,7 +880,8 @@ void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now)
     }
     humanoid->ResetSituation(focusPos);
     CommitLegacyActionMotion();
-    BeginSimulationAction();
+    // ANIM-1 A6.3c.1: the runtime reset is the same special action install.
+    InstallSelectedAction(CastHumanoid()->CurrentSelectedAction());
   }
   resetSituationAuditContext = kResetSituationUnspecified;
 }
@@ -899,7 +904,11 @@ void Player::Activate() {
           Vector3(-team_facts_.dynamic_side, -team_facts_.dynamic_side, 0),
       Vector3(0));
   CommitLegacyActionMotion();
-  BeginSimulationAction();
+  // ANIM-1 A6.3c.1: a reset is a special action install, not an out-of-band
+  // cursor write. Route it through the same Player install entry so
+  // `installed_action_` stays valid and the RNG-chosen start frame is carried
+  // in the selection (RNG draws and order unchanged).
+  InstallSelectedAction(CastHumanoid()->CurrentSelectedAction());
   SetDynamicFormationEntry(GetFormationEntry());
 }
 
