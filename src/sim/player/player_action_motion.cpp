@@ -653,3 +653,70 @@ ActionBodyStateResult PlayerMotion::ActionBodyState(
   result.body_angle = result.body_direction_vec.GetAngle2D(Vector3(0, -1, 0));
   return result;
 }
+
+// ANIM-1 A9 step 2: the per-tick action/movement/rotation smuggle evolution,
+// relocated line-for-line from Humanoid::Process. Pure; the caller applies the
+// offset deltas so the legacy mutation order is unchanged.
+ActionSmuggleTickResult PlayerMotion::ActionSmuggleTick(
+    const ActionSmuggleTickInput& input) {
+  ActionSmuggleTickResult result;
+
+  // action smuggle
+  if (input.touch_frame != -1 && input.frame_num <= input.touch_frame) {
+    // smooth version
+    assert(input.touch_frame > 0.0f);
+    float value =
+        std::cos((input.frame_num / (float)(input.touch_frame + 1) - 0.5f) *
+                 pi * 2.0f) +
+        1.0f;
+    // add some linearity
+    value = value * 0.1f + 0.9f;
+    result.action_smuggle_movement =
+        (input.action_smuggle / (float)(input.touch_frame + 1)) * value * 100.0f;
+    result.action_smuggle_offset_delta = result.action_smuggle_movement / 100.0f;
+  } else {
+    result.action_smuggle_movement = Vector3(0);
+  }
+
+  // movement smuggle
+  if (input.touch_frame == -1 &&
+      input.frame_num <= (input.frame_count - 1)) {
+    // omit one frame, or balltouch will be influenced because of velo
+    // smooth version
+    float value =
+        std::cos((input.frame_num / (float)((input.frame_count - 1) + 1) - 0.5f) *
+                 pi * 2.0f) +
+        1.0f;
+    // add some linearity
+    value = value * 0.1f + 0.9f;
+    result.movement_smuggle_movement =
+        (input.movement_smuggle / (float)((input.frame_count - 1) + 1)) * value * 100.0f;
+    result.movement_smuggle_offset_delta = result.movement_smuggle_movement / 100.0f;
+  } else {
+    result.movement_smuggle_movement = Vector3(0);
+  }
+
+  // rotation smuggle
+  int beginRotationFrameCount = 16;  // after this amount of frames, be ready with 'ease-in' rotation smuggle
+  float cappedFrameBias = std::min(1.0f, (input.frame_num + 1) / (float)std::min(beginRotationFrameCount, (input.frame_count - 1) + 1));
+  float beginFrameBias = cappedFrameBias;
+  float endFrameBias = cappedFrameBias;
+  if (input.touch_frame != -1) {
+    // beginFrameBias ranges from 0 to 1 during frame 0 to (touchframe OR beginRotationFrameCount) (depending on which comes first)
+    beginFrameBias = std::min(1.0f, (input.frame_num + 1) / (float)std::min(beginRotationFrameCount, input.touch_frame + 1));
+    if (!input.allow_pre_touch_rotation_smuggle) {
+      if (input.frame_num > input.touch_frame) {
+        // end rotation smuggle starts after touch
+        endFrameBias = (input.frame_num - input.touch_frame) / (float)((input.frame_count - 1) - input.touch_frame);
+      } else {
+        // no smuggle before touch
+        endFrameBias = 0.0f;
+      }
+    }
+  }
+  result.rotation_smuggle_offset =
+      input.rotation_smuggle_begin * (1.0f - beginFrameBias) +
+      input.rotation_smuggle_end * endFrameBias;
+
+  return result;
+}

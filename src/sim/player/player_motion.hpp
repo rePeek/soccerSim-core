@@ -113,6 +113,27 @@ struct ActionBodyStateResult {
   radian body_angle = 0.0f;
 };
 
+// ANIM-1 A9 step 2: the per-tick action/movement/rotation smuggle evolution,
+// relocated from Humanoid::Process. Pure; the caller applies the deltas.
+struct ActionSmuggleTickInput {
+  int frame_num = 0;
+  int touch_frame = -1;
+  int frame_count = 0;
+  Vector3 action_smuggle{0};
+  Vector3 movement_smuggle{0};
+  radian rotation_smuggle_begin = 0.0f;
+  radian rotation_smuggle_end = 0.0f;
+  bool allow_pre_touch_rotation_smuggle = false;
+};
+
+struct ActionSmuggleTickResult {
+  Vector3 action_smuggle_movement{0};
+  Vector3 action_smuggle_offset_delta{0};
+  Vector3 movement_smuggle_movement{0};
+  Vector3 movement_smuggle_offset_delta{0};
+  radian rotation_smuggle_offset = 0.0f;
+};
+
 // The single motion interface, with two sources: the continuous locomotion model
 // and a baked MotionClip reference.
 //
@@ -163,6 +184,11 @@ class PlayerMotion {
   // non-procedural tick. Pure.
   static ActionBodyStateResult ActionBodyState(
       const ActionBodyStateInput& input);
+
+  // ANIM-1 A9 step 2: the action/movement/rotation smuggle evolution for one
+  // tick. Pure.
+  static ActionSmuggleTickResult ActionSmuggleTick(
+      const ActionSmuggleTickInput& input);
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_MOTION_HPP

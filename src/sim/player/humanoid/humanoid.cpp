@@ -32,6 +32,7 @@
 #include "sim/player/player_retain_anchor.hpp"
 
 #include "sim/player/player.hpp"
+#include "sim/player/player_motion.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/player/locomotion_animation_strategy.hpp"
 #include "football/animation/movement_selection.hpp"
@@ -984,81 +985,25 @@ void Humanoid::Process(football::sim::Tick now, const football::sim::PlayerTickC
     }
   }
 
-  // action smuggle
+  // ANIM-1 A9 step 2: the action/movement/rotation smuggle evolution is a pure
+  // PlayerMotion calculation; this applies its deltas in the legacy order.
+  ActionSmuggleTickInput smuggle_input;
+  smuggle_input.frame_num = currentAnim.frameNum;
+  smuggle_input.touch_frame = currentAnim.touchFrame;
+  smuggle_input.frame_count = static_cast<int>(GetCurrentBakedClip().frame_count);
+  smuggle_input.action_smuggle = currentAnim.actionSmuggle;
+  smuggle_input.movement_smuggle = currentAnim.movementSmuggle;
+  smuggle_input.rotation_smuggle_begin = currentAnim.rotationSmuggle.begin;
+  smuggle_input.rotation_smuggle_end = currentAnim.rotationSmuggle.end;
+  smuggle_input.allow_pre_touch_rotation_smuggle = allowPreTouchRotationSmuggle;
+  const ActionSmuggleTickResult smuggle =
+      PlayerMotion::ActionSmuggleTick(smuggle_input);
 
-  // start with +1, because we want to influence the first frame as well
-  // as for finishing, finish with frameBias = 1.0, even if the last frame is 'spiritually' the one-to-last, since the first frame of the next anim is actually 'same-tempered' as the current anim's last frame.
-  // however, it works best to have all values 'done' at this one-to-last frame, so the next anim can read out these correct (new starting) values.
-  float frameBias = (currentAnim.frameNum + 1) / (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) + 1);
-
-  if (currentAnim.touchFrame != -1 &&
-      currentAnim.frameNum <= currentAnim.touchFrame) {
-    // linear version *outdated*
-    // spatialState.actionSmuggleMovement = currentAnim.actionSmuggle / (float)(currentAnim.touchFrame - 1.0f);
-    // currentAnim.actionSmuggleOffset += spatialState.actionSmuggleMovement;
-
-    // smooth version
-    assert(currentAnim.touchFrame > 0.0f);
-    float value =
-        std::cos((currentAnim.frameNum / (float)(currentAnim.touchFrame + 1) -
-                  0.5f) *
-                 pi * 2.0f) +
-        1.0f;
-    // add some linearity
-    value = value * 0.1f + 0.9f;
-    spatialState.actionSmuggleMovement = (currentAnim.actionSmuggle / (float)(currentAnim.touchFrame + 1)) * value * 100.0f;
-    currentAnim.actionSmuggleOffset += spatialState.actionSmuggleMovement / 100.0f;
-
-  } else {
-    spatialState.actionSmuggleMovement = Vector3(0);
-  }
-
-  // movement smuggle
-
-  if (currentAnim.touchFrame == -1 &&
-      currentAnim.frameNum <= (static_cast<int>(GetCurrentBakedClip().frame_count) - 1)) {
-      // omit one frame, or balltouch will be influenced because
-                    // of velo
-    // linear version *outdated*
-    // spatialState.movementSmuggleMovement = currentAnim.movementSmuggle / (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1));
-    // currentAnim.movementSmuggleOffset += spatialState.movementSmuggleMovement;
-
-    // smooth version
-    float value =
-        std::cos((currentAnim.frameNum /
-                      (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) + 1) -
-                  0.5f) *
-                 pi * 2.0f) +
-        1.0f;
-    // add some linearity
-    value = value * 0.1f + 0.9f;
-    spatialState.movementSmuggleMovement = (currentAnim.movementSmuggle / (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) + 1)) * value * 100.0f;
-    currentAnim.movementSmuggleOffset += spatialState.movementSmuggleMovement / 100.0f;
-  } else {
-    spatialState.movementSmuggleMovement = Vector3(0);
-  }
-
-  // rotation smuggle
-
-  int beginRotationFrameCount = 16; // after this amount of frames, be ready with 'ease-in' rotation smuggle
-  float cappedFrameBias = std::min(1.0f, (currentAnim.frameNum + 1) / (float)std::min(beginRotationFrameCount, (static_cast<int>(GetCurrentBakedClip().frame_count) - 1) + 1));
-  float beginFrameBias = cappedFrameBias;
-  float endFrameBias = cappedFrameBias;
-  if (currentAnim.touchFrame != -1) {
-    // beginFrameBias ranges from 0 to 1 during frame 0 to (touchframe OR beginRotationFrameCount) (depending on which comes first)
-    beginFrameBias = std::min(1.0f, (currentAnim.frameNum + 1) / (float)std::min(beginRotationFrameCount, currentAnim.touchFrame + 1));
-    if (!allowPreTouchRotationSmuggle) {
-      if (currentAnim.frameNum > currentAnim.touchFrame) {
-        // end rotation smuggle starts after touch
-        endFrameBias = (currentAnim.frameNum - currentAnim.touchFrame) / (float)((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) - currentAnim.touchFrame);
-      } else {
-        // no smuggle before touch
-        endFrameBias = 0.0f;
-      }
-    }
-  }
-  currentAnim.rotationSmuggleOffset = currentAnim.rotationSmuggle.begin * (1.0f - beginFrameBias) +
-                                       currentAnim.rotationSmuggle.end   * endFrameBias;
+  spatialState.actionSmuggleMovement = smuggle.action_smuggle_movement;
+  currentAnim.actionSmuggleOffset += smuggle.action_smuggle_offset_delta;
+  spatialState.movementSmuggleMovement = smuggle.movement_smuggle_movement;
+  currentAnim.movementSmuggleOffset += smuggle.movement_smuggle_offset_delta;
+  currentAnim.rotationSmuggleOffset = smuggle.rotation_smuggle_offset;
 
   // ballretainer should not get out of 16 meter box
 

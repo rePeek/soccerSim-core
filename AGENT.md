@@ -2754,3 +2754,20 @@ the Humanoid, preserving the old "new Humanoid starts from default state"
 behaviour (verified by the no-change fingerprint and 10/10 CTest). The remaining
 A9 work is to move the tick orchestration and ball-touch execution out of the
 Humanoid, drop the references, and delete Humanoid/HumanoidBase.
+
+### ANIM-1 A9 step 2: the per-tick smuggle evolution is a pure PlayerMotion calculation
+
+`PlayerMotion::ActionSmuggleTick(ActionSmuggleTickInput)` now owns the action,
+movement and rotation smuggle evolution relocated line-for-line from
+`Humanoid::Process` (the cosine ease-in/out, the touch-frame gating, the
+pre-touch rotation rule). It is pure and returns offset deltas;
+`Humanoid::Process` applies them to `spatialState.actionSmuggleMovement` /
+`movementSmuggleMovement` and `currentAnim.actionSmuggleOffset` /
+`movementSmuggleOffset` / `rotationSmuggleOffset` in the legacy order.
+`unittests/player/player_action_motion_test.cpp` pins the touch, no-touch and
+post-touch cases with hand-computed values.
+
+Runtime P0 fingerprint unchanged; 92 player cases / 1287 assertions; 10/10 CTest.
+Remaining A9: the ball-touch execution and the rest of `Humanoid::Process`
+(goalkeeper clamps, body pose, send-off, decision-clock orchestration), then
+deleting Humanoid/HumanoidBase.

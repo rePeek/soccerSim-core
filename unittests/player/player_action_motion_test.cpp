@@ -264,3 +264,59 @@ TEST_CASE("A8.3: a moving action derives direction and quantized body facing",
   }
   CHECK(on_allowed_set);
 }
+
+TEST_CASE("A9.2: an action smuggle evolves towards its touch frame",
+          "[player][motion][a9]") {
+  ActionSmuggleTickInput in;
+  in.frame_num = 0;
+  in.touch_frame = 10;
+  in.frame_count = 11;
+  in.action_smuggle = Vector3(1, 0, 0);
+  in.rotation_smuggle_begin = 0.5f;
+  in.rotation_smuggle_end = 1.0f;
+  in.allow_pre_touch_rotation_smuggle = false;
+
+  const ActionSmuggleTickResult r = PlayerMotion::ActionSmuggleTick(in);
+  // value = cos((0/11 - 0.5) * 2pi) + 1 = 0, then * 0.1 + 0.9 = 0.9
+  const float expected = (1.0f / 11.0f) * 0.9f * 100.0f;
+  CHECK(r.action_smuggle_movement.coords[0] == Approx(expected));
+  CHECK(r.action_smuggle_offset_delta.coords[0] == Approx(expected / 100.0f));
+  // No movement smuggle while there is a touch frame.
+  CHECK(r.movement_smuggle_movement == Vector3(0));
+  // beginBias = 1/11, endBias = 0 (pre-touch).
+  CHECK(r.rotation_smuggle_offset == Approx(0.5f * (1.0f - 1.0f / 11.0f)));
+}
+
+TEST_CASE("A9.2: a no-touch clip evolves the movement smuggle",
+          "[player][motion][a9]") {
+  ActionSmuggleTickInput in;
+  in.frame_num = 0;
+  in.touch_frame = -1;
+  in.frame_count = 11;
+  in.movement_smuggle = Vector3(1, 0, 0);
+  in.rotation_smuggle_begin = 0.5f;
+  in.rotation_smuggle_end = 1.0f;
+
+  const ActionSmuggleTickResult r = PlayerMotion::ActionSmuggleTick(in);
+  const float expected = (1.0f / 11.0f) * 0.9f * 100.0f;
+  CHECK(r.movement_smuggle_movement.coords[0] == Approx(expected));
+  CHECK(r.movement_smuggle_offset_delta.coords[0] == Approx(expected / 100.0f));
+  CHECK(r.action_smuggle_movement == Vector3(0));
+  // cappedFrameBias = 1/11 for both ends.
+  CHECK(r.rotation_smuggle_offset ==
+        Approx(0.5f * (1.0f - 1.0f / 11.0f) + 1.0f * (1.0f / 11.0f)));
+}
+
+TEST_CASE("A9.2: the smuggle evolution is zero after the touch frame",
+          "[player][motion][a9]") {
+  ActionSmuggleTickInput in;
+  in.frame_num = 11;
+  in.touch_frame = 10;
+  in.frame_count = 12;
+  in.action_smuggle = Vector3(1, 0, 0);
+  in.movement_smuggle = Vector3(1, 0, 0);
+
+  const ActionSmuggleTickResult r = PlayerMotion::ActionSmuggleTick(in);
+  CHECK(r.action_smuggle_movement == Vector3(0));
+  CHECK(r.movement_smuggle_movement == Vector3(0));
+}
