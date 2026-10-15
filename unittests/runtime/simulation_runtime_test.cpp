@@ -1074,3 +1074,41 @@ TEST_CASE("Runtime harness: players keep independent animation state across team
       SimulationAccess::RosterOf(sim, 1).Players()[7]->PendingActionRequest().has_value());
   CHECK(sim.Stop());
 }
+
+
+TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
+          "[runtime][sim]") {
+  // P0: the bounded harness must reach play and execute real Movement, so later
+  // ANIM-1 migrations can be verified against a real run, not only unit tests.
+  Simulation sim;
+  InitMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[6];
+  const Vector3 start = player->GetPosition();
+
+  std::vector<int> anim_ids;
+  int in_play_tick = -1;
+  for (int tick = 0; tick < 240; ++tick) {
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = Vector3(0, -1, 0);
+    control.desired_speed = tick < 200 ? 0.0f : 6.0f;  // idle, then run
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+    anim_ids.push_back(player->GetBakedPoseSample().animation_id);
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+  }
+
+  int switches = 0;
+  for (std::size_t i = 1; i < anim_ids.size(); ++i) {
+    if (anim_ids[i] != anim_ids[i - 1]) ++switches;
+  }
+  const float moved = player->GetPosition().GetDistance(start);
+  std::fprintf(stderr, "[runtime] P0 in_play_tick=%d switches=%d moved=%.2f\n",
+               in_play_tick, switches, moved);
+
+  // The harness reached play and the tape produced real locomotion + a switch.
+  CHECK(in_play_tick > 0);
+  CHECK(moved > 0.5f);
+  CHECK(switches > 0);
+  CHECK(sim.Stop());
+}
