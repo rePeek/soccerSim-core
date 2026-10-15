@@ -34,6 +34,7 @@
 #include "sim/player/player.hpp"
 #include "sim/player/player_control_builder.hpp"
 #include "sim/player/locomotion_animation_strategy.hpp"
+#include "football/animation/movement_selection.hpp"
 #include "football/animation/select_movement.hpp"
 #include <iterator>
 
@@ -1417,6 +1418,13 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
       return false;
   }
 
+  // ANIM-1 A6.3b.2 shadow: keep the crude Movement candidate set so the pure
+  // Animation refinement can be compared with the legacy filter+sort result.
+  DataSet crude_movement_snapshot;
+  if (command.desiredFunctionType == e_FunctionType_Movement &&
+      command.useDesiredMovement)
+    crude_movement_snapshot = dataSet;
+
   //printf("dataset size after crude selection: %i\n", dataSet.size());
 
   if (command.useDesiredMovement) {
@@ -1621,7 +1629,38 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
   }
 
   Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);
+
+  // ANIM-1 A6.3b.2 shadow: the pure Animation refinement must reproduce the
+  // legacy Movement candidate list exactly - same order, same members - before
+  // any motion-driven reorder. Ordered comparison, not a counter identity.
+  if (command.desiredFunctionType == e_FunctionType_Movement &&
+      command.useDesiredMovement && !crude_movement_snapshot.empty()) {
+    MovementRefinementRequest refine_request;
+    refine_request.rel_desired_direction = predicate_RelDesiredDirection;
+    refine_request.desired_velocity = predicate_DesiredVelocity;
+    refine_request.cornering_bias = predicate_CorneringBias;
+    refine_request.look_at = predicate_LookAt;
+    refine_request.position = spatialState.position;
+    refine_request.angle = spatialState.angle;
+    refine_request.rel_incoming_body_direction = spatialState.relBodyDirectionVec;
+    refine_request.incoming_velocity = spatialState.enumVelocity;
+    refine_request.desired_foot = spatialState.foot;
+    refine_request.idle_level = predicate_idle;
+    refine_request.use_desired_look_at = command.useDesiredLookAt;
+    refine_request.is_movement = true;
+    std::vector<int> pure = RefineMovementCandidates(
+        animations_, crude_movement_snapshot, refine_request);
+    if (pure.empty()) pure.push_back(GetIdleMovementAnimID());
+    auto& refine_audit = LocomotionPlaybackAuditState();
+    ++refine_audit.refine_checks;
+    if (pure == std::vector<int>(dataSet.begin(), dataSet.end())) {
+      ++refine_audit.refine_matches;
+    } else {
+      ++refine_audit.refine_mismatches;
+    }
+  }
   if (command.useDesiredLookAt) desiredBodyDirectionRel = (command.desiredLookAt - (spatialState.position + spatialState.movement * 0.1f)).GetNormalized(Vector3(0, -1, 0)).GetRotated2D(-spatialState.angle);
+
 
   // LOCO-2.3b: for pure procedural locomotion, reorder the already-valid
   // Movement candidates so the motion-driven strategy's preferred clip wins,
@@ -2401,3 +2440,4 @@ Vector3 Humanoid::GetBestPossibleTouch(football::sim::Tick now, const football::
 
   return resultTouch;
 }
+

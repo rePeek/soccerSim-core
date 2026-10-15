@@ -61,6 +61,11 @@ struct LocomotionPlaybackAudit {
   int clip_matches = 0;
   int clip_mismatches = 0;
   int fallback_count = 0;
+  // ANIM-1 A6.3b.2: the pure Animation refinement vs the legacy filter+sort
+  // result, compared as an ordered sequence.
+  int refine_checks = 0;
+  int refine_matches = 0;
+  int refine_mismatches = 0;
 };
 LocomotionPlaybackAudit &LocomotionPlaybackAuditState();
 int &HumanoidLegacyBodyPoseSamplesOnProceduralMovement();

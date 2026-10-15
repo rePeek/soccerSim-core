@@ -1125,6 +1125,12 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
   CHECK(audit.shadow_checks > 0);
   CHECK(audit.clip_matches + audit.clip_mismatches == audit.shadow_checks);
   CHECK(audit.fallback_count == audit.clip_mismatches);
+  // ANIM-1 A6.3b.2: the pure Animation refinement reproduced the legacy
+  // Movement candidate list (members and order) on every checked tick.
+  std::fprintf(stderr, "[runtime] A6.3b.2 refine checks=%d match=%d mismatch=%d\n",
+               audit.refine_checks, audit.refine_matches, audit.refine_mismatches);
+  CHECK(audit.refine_checks > 0);
+  CHECK(audit.refine_mismatches == 0);
   CHECK(sim.Stop());
 }
 

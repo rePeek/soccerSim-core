@@ -6,7 +6,7 @@
 
 #include "football/animation/movement_selection.hpp"
 
-using namespace football::animation;
+
 using football::math::Vector3;
 
 TEST_CASE("the moved reference directions match the legacy snap values") {

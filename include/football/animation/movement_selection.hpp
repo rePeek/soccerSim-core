@@ -22,7 +22,7 @@
 // It depends only on the AnimationLibrary metadata and the explicit request.
 // No Player / Humanoid / Simulation / Ball / RNG.
 
-namespace football::animation {
+
 
 // Moved verbatim from humanoidbase.cpp (file-local config data).
 inline const std::vector<Vector3>& AllowedBodyDirVecs() {
@@ -173,7 +173,7 @@ inline real DirectionSimilarityRating(const AnimationClip& clip,
   return rating1;
 }
 
-namespace detail {
+namespace movement_selection_detail {
 
 inline void StableSortByRating(const AnimationLibrary& library,
                                std::vector<int>& ids,
@@ -187,7 +187,7 @@ inline std::vector<float> RatingScratch(const AnimationLibrary& library) {
   return std::vector<float>(library.Clips().size(), 0.0f);
 }
 
-}  // namespace detail
+}  // namespace movement_selection_detail
 
 // The legacy "strict" direction filter: sort by movement similarity, then keep
 // only the quadrant of the best candidate.
@@ -196,14 +196,14 @@ inline void KeepBestDirectionAnims(const AnimationLibrary& library,
                                    const MovementRefinementRequest& request) {
   if (data_set.empty()) return;
 
-  std::vector<float> order = detail::RatingScratch(library);
+  std::vector<float> order = movement_selection_detail::RatingScratch(library);
   for (int anim : data_set) {
     order[static_cast<std::size_t>(anim)] =
         MovementSimilarity(library.Get(static_cast<uint32_t>(anim)),
                            request.rel_desired_direction, request.desired_velocity,
                            request.cornering_bias);
   }
-  detail::StableSortByRating(library, data_set, order);
+  movement_selection_detail::StableSortByRating(library, data_set, order);
 
   const int best_quadrant_id =
       library.Get(static_cast<uint32_t>(data_set.front())).metadata.quadrant;
@@ -225,13 +225,13 @@ inline void KeepBestBodyDirectionAnims(const AnimationLibrary& library,
                                        const MovementRefinementRequest& request) {
   if (data_set.empty()) return;
 
-  std::vector<float> order = detail::RatingScratch(library);
+  std::vector<float> order = movement_selection_detail::RatingScratch(library);
   for (int anim : data_set) {
     order[static_cast<std::size_t>(anim)] = static_cast<float>(DirectionSimilarityRating(
         library.Get(static_cast<uint32_t>(anim)), request.look_at, request.position,
         request.angle, request.rel_desired_direction));
   }
-  detail::StableSortByRating(library, data_set, order);
+  movement_selection_detail::StableSortByRating(library, data_set, order);
 
   const AnimationClip& best_clip = library.Get(static_cast<uint32_t>(data_set.front()));
   radian best_outgoing_body_angle =
@@ -333,6 +333,6 @@ inline std::vector<int> RefineMovementCandidates(const AnimationLibrary& library
   return data_set;
 }
 
-}  // namespace football::animation
+
 
 #endif  // FOOTBALL_ANIMATION_MOVEMENT_SELECTION_HPP
