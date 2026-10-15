@@ -2399,3 +2399,27 @@ The signature is now ready for the Player-owned version of the loop: the
 selection already has a single inspectable result value. Behaviour is unchanged
 (runtime P0 fingerprint identical), and the two unread fields are kept because
 they document the full result of the algorithm.
+
+### ANIM-1 A6.4 step 3: selection and installation are separate units
+
+`SelectAnim` ended with a 57-line "make it so" block that wrote `currentAnim`
+from the selection result and then called
+`CastPlayer()->InstallSelectedAction(CurrentSelectedAction())`. That block is now
+`Humanoid::CommitSelectedAction(selectedAnimID, touch_choice, action, command,
+tick, now, history, localInterruptAnim, material_candidate)`; `SelectAnim` ends
+with
+
+```
+if (selectedAnimID != -1) {
+  return CommitSelectedAction(selectedAnimID, touch_choice, action, command, tick, now,
+                              history, localInterruptAnim, material_candidate);
+}
+return false;
+```
+
+Nothing else changed - the body was moved verbatim, including the
+`ContactAuthorityAudit` block. This is the A6.4 split made concrete: the
+selection returns a value, and the installation is a named, addressable unit
+that can later be owned by the Player. `humanoid.hpp` gained the declaration and
+`player_action.hpp` (whose `PlayerActionState` lives in the global namespace, not
+`football::sim`) is now included directly. Runtime P0 fingerprint unchanged.

@@ -1831,6 +1831,23 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
   // make it so
 
   if (selectedAnimID != -1) {
+    // ANIM-1 A6.4 step 3: selection and installation are separate units.
+    return CommitSelectedAction(selectedAnimID, touch_choice, action, command, tick, now,
+                                history, localInterruptAnim, material_candidate);
+  }
+
+  return false;
+}
+
+bool Humanoid::CommitSelectedAction(int selectedAnimID,
+                                    const football::sim::TouchChoice &touch_choice,
+                                    const PlayerActionState &action,
+                                    const PlayerCommand &command,
+                                    const football::sim::PlayerTickContext &tick,
+                                    football::sim::Tick now,
+                                    std::span<MentalImage> history,
+                                    e_InterruptAnim localInterruptAnim,
+                                    bool material_candidate) {
     previousAnim_frameNum = currentAnim.frameNum;
     previousAnim_functionType = currentAnim.functionType;
 
@@ -1886,9 +1903,6 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
         ++audit.outgoing_retain_present;
     }
     return true;
-  }
-
-  return false;
 }
 
 bool Humanoid::NeedTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick, int animID, const PlayerCommand &command, std::span<MentalImage> history) {
