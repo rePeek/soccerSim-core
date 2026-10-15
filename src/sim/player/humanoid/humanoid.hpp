@@ -49,6 +49,10 @@ class Humanoid : public HumanoidBase {
 
     virtual void ResetSituation(const Vector3 &focusPos);
 
+    // ANIM-1 A6.4 step 4: the Player owns touch-animation selection. The
+    // Humanoid still performs the evaluation (its physics helpers are not
+    // relocated yet), but the call now goes through the Player entry point.
+    signed int GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, football::sim::TouchChoice &choice, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) const;
   protected:
     bool SelectAnim(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
                     const PlayerCommand &command, std::span<MentalImage> history,
@@ -65,7 +69,6 @@ class Humanoid : public HumanoidBase {
         const Vector3 &actualBallPos2D, const Vector3 &ballMovement2D,
         float radiusFactor, float radiusCheatDistance, float decayPow,
         bool debug = false) const;
-    signed int GetBestCheatableAnimID(football::sim::Tick now, const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, const DataSet &sortedDataSet, bool useDesiredMovement, const Vector3 &desiredDirection, float desiredVelocityFloat, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, football::sim::TouchChoice &choice, e_InterruptAnim localInterruptAnim, bool preferPassAndShot = false) const;
     bool CommitSelectedAction(int selectedAnimID, const football::sim::TouchChoice &touch_choice, const PlayerActionState &action, const PlayerCommand &command, const football::sim::PlayerTickContext &tick, football::sim::Tick now, std::span<MentalImage> history, e_InterruptAnim localInterruptAnim, bool material_candidate);
     Vector3 CalculateMovementSmuggle(football::sim::Tick now, const football::sim::PlayerTickContext& tick,
                                      const Vector3 &desiredDirection, float desiredVelocityFloat,

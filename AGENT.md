@@ -2423,3 +2423,25 @@ selection returns a value, and the installation is a named, addressable unit
 that can later be owned by the Player. `humanoid.hpp` gained the declaration and
 `player_action.hpp` (whose `PlayerActionState` lives in the global namespace, not
 `football::sim`) is now included directly. Runtime P0 fingerprint unchanged.
+
+### ANIM-1 A6.4 step 4: the Player owns the touch-selection entry point
+
+`Player::SelectTouchAction(now, tick, history, sorted_data_set, use_desired_movement,
+desired_direction, desired_velocity_float, use_desired_body_direction,
+desired_body_direction_rel, choice, local_interrupt_anim, prefer_pass_and_shot=false)`
+is now the single entry point for touch-animation selection; `Humanoid::
+GetBestCheatableAnimID` was moved to the public section so the Player can call it.
+The Player retains the result in `touch_choice_`, exposed as `TouchSelection()`,
+and counts successful picks in `touch_selection_successes_`
+(`TouchSelectionSuccesses()`).
+
+`choice` stays a caller-owned per-tick scratch buffer on purpose: the Movement
+branch and the Sliding fallback fill `choice.positions` via
+`CalculatePhysicsVector` without going through selection at all, so the buffer is
+not exclusively the selection's. On a successful pick the Player copies it into
+`touch_choice_`.
+
+All four `SelectAnim` call sites now go
+`selectedAnimID = CastPlayer()->SelectTouchAction(...)`. The harness asserts the
+entry point is actually exercised: `A6.4 nm pure_ticks=4 touch_selections=4`.
+Runtime P0 fingerprint unchanged.

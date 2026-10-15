@@ -625,6 +625,30 @@ void Player::BeginSimulationAction() {
   }
   CheckSimulationActionOracle();
 }
+// ANIM-1 A6.4 step 4: single Player entry point for touch-animation selection.
+// The evaluation still runs inside the Humanoid (its physics helpers are not
+// relocated yet); the Player owns the decision and retains the result.
+int Player::SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
+                              std::span<MentalImage> history, const DataSet &sorted_data_set,
+                              bool use_desired_movement, const Vector3 &desired_direction,
+                              float desired_velocity_float, bool use_desired_body_direction,
+                              const Vector3 &desired_body_direction_rel,
+                              football::sim::TouchChoice &choice,
+                              e_InterruptAnim local_interrupt_anim,
+                              bool prefer_pass_and_shot) {
+  Humanoid *const humanoid = CastHumanoid();
+  if (humanoid == nullptr) return -1;
+  const int anim_id = humanoid->GetBestCheatableAnimID(
+      now, tick, history, sorted_data_set, use_desired_movement, desired_direction,
+      desired_velocity_float, use_desired_body_direction, desired_body_direction_rel, choice,
+      local_interrupt_anim, prefer_pass_and_shot);
+  if (anim_id != -1) {
+    touch_choice_ = choice;
+    ++touch_selection_successes_;
+  }
+  return anim_id;
+}
+
 
 void Player::InstallSelectedAction(const football::sim::SelectedAction &selection) {
   // ANIM-1 A6.3b.3 (second cut): the Player is now the authority for the action

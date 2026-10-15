@@ -407,6 +407,19 @@ class Player final {
     const std::vector<int>& MovementCandidatesWithoutFoot() const {
       return movement_candidates_without_foot_;
     }
+    // ANIM-1 A6.4 step 4: the Player entry point for touch-animation selection.
+    // `choice` is the per-tick scratch buffer the caller already owns (the
+    // Movement and Sliding fallback paths fill its `positions` without going
+    // through selection); on a successful pick the Player retains it.
+    int SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
+                          std::span<MentalImage> history, const DataSet &sorted_data_set,
+                          bool use_desired_movement, const Vector3 &desired_direction,
+                          float desired_velocity_float, bool use_desired_body_direction,
+                          const Vector3 &desired_body_direction_rel,
+                          football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
+                          bool prefer_pass_and_shot = false);
+    const football::sim::TouchChoice &TouchSelection() const { return touch_choice_; }
+    int TouchSelectionSuccesses() const { return touch_selection_successes_; }
     const PoseFrame& PlaybackPose() const { return playback_state_.final_pose; }
     float PlaybackBaseAngle() const { return playback_state_.final_base_angle; }
     const PlayerPlaybackState& PlaybackState() const { return playback_state_; }
@@ -658,6 +671,11 @@ class Player final {
     // runs the stateless Animation refinement and retains both the ordered
     // candidate list and the foot-counterfactual list.
     std::vector<int> movement_candidates_;
+
+    // ANIM-1 A6.4 step 4: the last retained touch-animation selection.
+
+    int touch_selection_successes_ = 0;
+    football::sim::TouchChoice touch_choice_;
     std::vector<int> movement_candidates_without_foot_;
     // ANIM-1 A6.3b.3 (first cut): the Player owns the installed action and the
     // install cross-check counters. `last_begun_definition_` is the definition
