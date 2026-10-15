@@ -15,6 +15,7 @@
 #include "football/ball/ball.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/humanoid/humanoid.hpp"
+#include "sim/player/player_motion.hpp"
 #include "sim/player/locomotion_animation_strategy.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
@@ -813,4 +814,81 @@ void Player::BuildTripSelectionCommands(PlayerCommandQueue &queue,
   movement.desiredVelocityFloat = current_velocity_float;
   movement.desiredLookAt = position + movement.desiredDirection * 10.0f;
   queue.push_back(movement);
+}
+
+// ---------------------------------------------------------------------------
+// ANIM-1 A8 step 4: the Player computes and commits the non-procedural (baked
+// action) motion. Relocated from the non-procedural branch of
+// `HumanoidBase::CalculateSpatialState`; the Humanoid's spatial state is only a
+// compatibility projection that this writes.
+// ---------------------------------------------------------------------------
+void Player::ComputeAndCommitActionMotion() {
+  Humanoid *const humanoid = CastHumanoid();
+  if (humanoid == nullptr) return;
+  Anim &currentAnim = humanoid->currentAnim;
+  SpatialState &spatialState = humanoid->spatialState;
+  const AnimationClip &clip = humanoid->GetCurrentBakedClip();
+
+  ActionMotionVectorInput motion_input;
+  motion_input.start_position = humanoid->startPos;
+  motion_input.start_angle = humanoid->startAngle;
+  motion_input.positions = currentAnim.positions;
+  motion_input.frame_num = currentAnim.frameNum;
+  motion_input.action_smuggle_offset = currentAnim.actionSmuggleOffset;
+  motion_input.action_smuggle_sustain_offset = currentAnim.actionSmuggleSustainOffset;
+  motion_input.movement_smuggle_offset = currentAnim.movementSmuggleOffset;
+  if (currentAnim.positions.size() <=
+      static_cast<std::size_t>(currentAnim.frameNum)) {
+    motion_input.baked_pose_position =
+        clip.poses[currentAnim.frameNum].positions[BodyPart::player];
+  }
+  motion_input.previous_position_2d = humanoid->previousPosition2D;
+  motion_input.action_smuggle_movement = spatialState.actionSmuggleMovement;
+  motion_input.movement_smuggle_movement = spatialState.movementSmuggleMovement;
+  motion_input.position_offset_movement = spatialState.positionOffsetMovement;
+  motion_input.root_positions = clip.root_positions;
+
+  const ActionMotionVectorResult motion =
+      PlayerMotion::ActionMotionVector(motion_input);
+  const Vector3 position = motion.position;
+
+  if (currentAnim.frameNum > 12) {
+    spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);
+  }
+
+  spatialState.actualMovement = motion.actual_movement;
+  spatialState.physicsMovement = motion.physics_movement;
+  spatialState.animMovement = motion.anim_movement;
+  spatialState.movement = motion.movement;
+  spatialState.floatVelocity = motion.float_velocity;
+  spatialState.enumVelocity = motion.enum_velocity;
+  spatialState.position = position;
+
+  // The body direction / velocity quantization is PlayerMotion-owned too.
+  ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
+  ActionBodyStateInput body_input;
+  body_input.movement = spatialState.movement;
+  body_input.start_angle = humanoid->startAngle;
+  body_input.rotation_smuggle_offset = currentAnim.rotationSmuggleOffset;
+  body_input.baked_body_orientation =
+      clip.poses[currentAnim.frameNum].orientations[body];
+  const ActionBodyStateResult body_state =
+      PlayerMotion::ActionBodyState(body_input);
+
+  spatialState.directionVec = body_state.direction_vec;
+  spatialState.angle = body_state.angle;
+  spatialState.floatVelocity = body_state.float_velocity;
+  spatialState.enumVelocity = body_state.enum_velocity;
+  spatialState.relBodyDirectionVec = body_state.rel_body_direction_vec;
+  spatialState.relBodyDirectionVecNonquantized =
+      body_state.rel_body_direction_vec_nonquantized;
+  spatialState.relBodyAngle = body_state.rel_body_angle;
+  spatialState.relBodyAngleNonquantized = body_state.rel_body_angle_nonquantized;
+  spatialState.bodyDirectionVec = body_state.body_direction_vec;
+  spatialState.bodyAngle = body_state.body_angle;
+
+  humanoid->previousPosition2D = position;
+
+  // The kinematic mirror must track the spatial state at the instant it changes.
+  CommitLegacyActionMotion();
 }

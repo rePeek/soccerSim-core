@@ -543,6 +543,10 @@ class Player final {
                                     float current_velocity_float,
                                     const Vector3 &direction_vec,
                                     const Vector3 &position) const;
+    // ANIM-1 A8 step 4: the Player computes and commits the non-procedural
+    // (baked action) motion. The Humanoid only stores the compatibility
+    // spatial projection that this writes.
+    void ComputeAndCommitActionMotion();
     const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
     int InstallChecks() const { return install_checks_; }
     int InstallMatches() const { return install_matches_; }

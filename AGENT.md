@@ -2708,3 +2708,22 @@ step 1, body state in A8 step 3); only the orchestration/authority flip (A8 step
 `unittests/player/player_action_motion_test.cpp` adds idle and moving cases,
 including the allowed-set quantization invariant. Runtime P0 fingerprint
 unchanged; 89 player cases / 1277 assertions; 10/10 CTest.
+
+### ANIM-1 A8 step 4: the Player commits the non-procedural action motion
+
+`Player::ComputeAndCommitActionMotion` now computes and commits the baked-action
+motion: it assembles the `ActionMotionVectorInput` / `ActionBodyStateInput` from
+the Humanoid's clip/smuggle/pose facts, writes the compatibility spatial
+projection, advances `previousPosition2D` and commits through the single
+kinematic write point. `HumanoidBase::CalculateSpatialState` is reduced to its
+procedural branch plus a delegation; it no longer computes action motion or calls
+`CommitLegacyActionMotion` for the action path. The Humanoid's `spatialState` is
+now only the same-tick compatibility projection the Player writes, not a second
+motion authority.
+
+Runtime P0 fingerprint unchanged: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
+`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
+`nm pure_ticks=4 touch_selections=4`, `A7 trip trip_tick=206 recovery_tick=267`;
+10/10 CTest. A8's remaining piece is `CalculateFactualSpatialState` and the
+smuggle/rotation bookkeeping; A9 (retire `currentAnim`/`spatialState` and delete
+Humanoid/HumanoidBase) remains.

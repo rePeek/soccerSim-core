@@ -1068,78 +1068,10 @@ void HumanoidBase::CalculateSpatialState(const Player* ball_retainer) {
     ++HumanoidProceduralMovementTicks();
     return;
   }
-  // ANIM-1 A8 step 1: the action position and movement decomposition is a pure
-  // PlayerMotion calculation; the Humanoid only supplies the clip/pose facts.
-  const AnimationClip &clip = GetCurrentBakedClip();
-  ActionMotionVectorInput motion_input;
-  motion_input.start_position = startPos;
-  motion_input.start_angle = startAngle;
-  motion_input.positions = currentAnim.positions;
-  motion_input.frame_num = currentAnim.frameNum;
-  motion_input.action_smuggle_offset = currentAnim.actionSmuggleOffset;
-  motion_input.action_smuggle_sustain_offset = currentAnim.actionSmuggleSustainOffset;
-  motion_input.movement_smuggle_offset = currentAnim.movementSmuggleOffset;
-  if (currentAnim.positions.size() <=
-      static_cast<std::size_t>(currentAnim.frameNum)) {
-    motion_input.baked_pose_position =
-        clip.poses[currentAnim.frameNum].positions[BodyPart::player];
-  }
-  motion_input.previous_position_2d = previousPosition2D;
-  motion_input.action_smuggle_movement = spatialState.actionSmuggleMovement;
-  motion_input.movement_smuggle_movement = spatialState.movementSmuggleMovement;
-  motion_input.position_offset_movement = spatialState.positionOffsetMovement;
-  motion_input.root_positions = clip.root_positions;
-
-  const ActionMotionVectorResult motion =
-      PlayerMotion::ActionMotionVector(motion_input);
-  const Vector3 position = motion.position;
-
-  if (currentAnim.frameNum > 12) {
-    spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);
-  }
-
-  spatialState.actualMovement = motion.actual_movement;
-  spatialState.physicsMovement = motion.physics_movement;
-  spatialState.animMovement = motion.anim_movement;
-  spatialState.movement = motion.movement;
-  spatialState.floatVelocity = motion.float_velocity;
-  spatialState.enumVelocity = motion.enum_velocity;
-  spatialState.position = position;
-  if (!UsesProceduralLocomotion(ball_retainer)) {
-    ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
-    // ANIM-1 A8 step 3: the body direction / velocity quantization is a pure
-    // PlayerMotion calculation; the Humanoid only supplies the pose facts.
-    ActionBodyStateInput body_input;
-    body_input.movement = spatialState.movement;
-    body_input.start_angle = startAngle;
-    body_input.rotation_smuggle_offset = currentAnim.rotationSmuggleOffset;
-    body_input.baked_body_orientation =
-        clip.poses[currentAnim.frameNum].orientations[body];
-    const ActionBodyStateResult body_state =
-        PlayerMotion::ActionBodyState(body_input);
-
-    spatialState.directionVec = body_state.direction_vec;
-    spatialState.position = position;
-    spatialState.angle = body_state.angle;
-    spatialState.floatVelocity = body_state.float_velocity;
-    spatialState.enumVelocity = body_state.enum_velocity;
-    spatialState.relBodyDirectionVec = body_state.rel_body_direction_vec;
-    spatialState.relBodyDirectionVecNonquantized =
-        body_state.rel_body_direction_vec_nonquantized;
-    spatialState.relBodyAngle = body_state.rel_body_angle;
-    spatialState.relBodyAngleNonquantized =
-        body_state.rel_body_angle_nonquantized;
-    spatialState.bodyDirectionVec = body_state.body_direction_vec;
-    spatialState.bodyAngle = body_state.body_angle;
-  }
-
-  previousPosition2D = position;
-
-  // The kinematic mirror must track the spatial state at the instant it
-  // changes. Controllers are queried later in the same tick and read the
-  // player's own position/movement through Player, so a mirror that only
-  // refreshed at the end of Player::Process would be a tick behind.
-  if (player) player->CommitLegacyActionMotion();
+  // ANIM-1 A8 step 4: the non-procedural (baked action) motion is computed and
+  // committed by the Player. This only keeps the compatibility projection that
+  // the Player writes for later same-tick readers.
+  if (player) player->ComputeAndCommitActionMotion();
 }
 
 void HumanoidBase::CalculateFactualSpatialState() {
