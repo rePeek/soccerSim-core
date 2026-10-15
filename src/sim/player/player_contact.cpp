@@ -331,7 +331,11 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (p1sensitivity > trip1threshold) tripType = 1;
         if (p1sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
-          p1->TripMe((p1->GetKinematicState().velocity * 0.1f + p2->GetKinematicState().velocity * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec), tripType, inputs.ball_retainer);
+          const Vector3 trip_dir = (p1->GetKinematicState().velocity * 0.1f + p2->GetKinematicState().velocity * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec);
+          // ANIM-1.4: record the passive reaction through the unified entry;
+          // TripMe still defers execution to the next Process, so no timing change.
+          p1->React(PlayerReaction{ReactionKind::Trip, trip_dir, p1sensitivity, p2->GetID(), tripType});
+          p1->TripMe(trip_dir, tripType, inputs.ball_retainer);
         }
       }
       if (p2sensitivity > trip0threshold) {
@@ -339,7 +343,9 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         if (p2sensitivity > trip1threshold) tripType = 1;
         if (p2sensitivity > trip2threshold) tripType = 2;
         if (tripType > 0) {
-          p2->TripMe((p2->GetKinematicState().velocity * 0.1f + p1->GetKinematicState().velocity * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec), tripType, inputs.ball_retainer);
+          const Vector3 trip_dir = (p2->GetKinematicState().velocity * 0.1f + p1->GetKinematicState().velocity * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec);
+          p2->React(PlayerReaction{ReactionKind::Trip, trip_dir, p2sensitivity, p1->GetID(), tripType});
+          p2->TripMe(trip_dir, tripType, inputs.ball_retainer);
         }
       }
 
@@ -376,6 +382,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
         int tripType = 3;  // sliding
         if (tacklerAction.type == e_FunctionType_Interfere)
           tripType = 1;  // was 2
+        victim->React(PlayerReaction{ReactionKind::Trip, tripVec, 1.0f, tackler->GetID(), tripType});
         victim->TripMe(tripVec, tripType, inputs.ball_retainer);
         if (tripType == 3 && assessments != nullptr) {
           assessments->push_back(
