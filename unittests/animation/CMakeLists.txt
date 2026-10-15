@@ -1,7 +1,11 @@
-# animation — reference motion extraction from baked clips. Header-only, links
-# only football::animation.
+# animation — pure clip selection, pose sampling and blending. Header-only,
+# links only football::animation.
 
-add_executable(football_animation_unit_tests motion_clip_test.cpp)
+add_executable(football_animation_unit_tests
+  motion_clip_test.cpp
+  pose_sampling_test.cpp
+  pose_blend_test.cpp
+  selector_test.cpp)
 target_link_libraries(football_animation_unit_tests
   PRIVATE
     football::animation
