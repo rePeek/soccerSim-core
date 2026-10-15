@@ -10,7 +10,8 @@ add_executable(football_animation_unit_tests
   select_clip_test.cpp
   select_movement_test.cpp
   movement_selection_test.cpp
-  touch_scoring_test.cpp)
+  touch_scoring_test.cpp
+  touch_geometry_test.cpp)
 target_compile_definitions(football_animation_unit_tests PRIVATE
   GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")
 target_link_libraries(football_animation_unit_tests

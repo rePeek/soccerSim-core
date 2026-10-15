@@ -36,6 +36,7 @@
 #include "sim/player/locomotion_animation_strategy.hpp"
 #include "football/animation/movement_selection.hpp"
 #include "football/animation/select_movement.hpp"
+#include "football/animation/touch_geometry.hpp"
 #include "football/animation/touch_scoring.hpp"
 #include <iterator>
 
@@ -87,19 +88,9 @@ constexpr bool allowBallControlReQueue = true;
 constexpr bool allowTrapReQueue = true;
 constexpr bool allowPreTouchRotationSmuggle = false;
 
-namespace {
-// Former foundation::Line, inlined at its only caller. `u` is the unclamped
-// parameter of `point` projected onto the segment [a, b]; it keeps the legacy
-// 2D-projection / 3D-length formula exactly.
-float SegmentParameter(const Vector3& a, const Vector3& b, const Vector3& point) {
-  if (a == b) return 0.0f;
-  const float lineDistance = (b - a).GetLength();
-  if (lineDistance < 0.000001f) return 0.0f;
-  return ((point.coords[0] - a.coords[0]) * (b.coords[0] - a.coords[0]) +
-          (point.coords[1] - a.coords[1]) * (b.coords[1] - a.coords[1])) /
-         (lineDistance * lineDistance);
-}
-}  // namespace
+// ANIM-1 A6.4 step 2b: the single definition now lives in the Animation
+// module (football/animation/touch_geometry.hpp).
+using football::animation::SegmentProjectionParameter;
 
 Humanoid::Humanoid(Player *player, const AnimationLibrary& animations, football::math::Rng& rng)
     : HumanoidBase(player, animations, rng) {
@@ -2165,122 +2156,47 @@ signed int Humanoid::GetBestCheatableAnimID(football::sim::Tick now, const footb
       real x, y, z;
       animBodyRot.GetAngles(x, y, z);
 
-      float animBallHeight = animBallPos.coords[2];
-      if (allowPreTouchRotationSmuggle) {
-        animBallPos = (animBallPos - animBodyPos).GetRotated2D(rotationSmuggle_ret_tmp * ((float)animTouchFrame / (float)frameCount)) + positions_ret.at(animTouchFrame).GetRotated2D(-spatialState.angle);
-      } else {
-        animBallPos = (animBallPos - animBodyPos) + positions_ret.at(animTouchFrame).GetRotated2D(-spatialState.angle);
-      }
-      animBallPos.coords[2] = animBallHeight * player->BodyProfile().height_scale;
+      // ANIM-1 A6.4 step 2b: the pure touch-geometry scoring lives in the
+      // stateless Animation module; the Humanoid only supplies the inputs.
+      football::animation::TouchGeometryRequest touch_request;
+      touch_request.anim_ball_pos = animBallPos;
+      touch_request.anim_body_pos = animBodyPos;
+      touch_request.touch_body_pos_rotated =
+          positions_ret.at(animTouchFrame).GetRotated2D(-spatialState.angle);
+      touch_request.ball_pos = ballPos;
+      touch_request.ball_movement = ballMovement;
+      touch_request.touch_movement = touchMovement;
+      touch_request.anim_touch_frame = animTouchFrame;
+      touch_request.frame_count = frameCount;
+      touch_request.default_touch_frame = defaultTouchFrame;
+      touch_request.function_type = functionType;
+      touch_request.is_base = isBase;
+      touch_request.ball_retained_by_player = (tick.ball_retainer == player);
+      touch_request.allow_pre_touch_rotation_smuggle = allowPreTouchRotationSmuggle;
+      touch_request.use_continuous_ball_check = useContinuousBallCheck;
+      touch_request.prefer_pass_and_shot = preferPassAndShot;
+      touch_request.rotation_smuggle = rotationSmuggle_ret_tmp;
+      touch_request.body_rotation_z = z;
+      touch_request.height_scale = player->BodyProfile().height_scale;
+      touch_request.last_touch_bias = player->GetLastTouchBias(
+          600, now + football::sim::TickSpan{static_cast<std::uint64_t>(animTouchFrame)});
+      touch_request.technical_ballcontrol =
+          player->GetStat(football::player::PlayerStat::technical_ballcontrol);
+      touch_request.touch_offset_ms = static_cast<float>(defaultTouchOffset_ms);
+      const football::animation::TouchGeometryResult touch_result =
+          football::animation::EvaluateTouchGeometry(touch_request);
 
-      // now pick the ballPos from the previous 9ms that is closest to animBallPos. this is to emulate a continuous 'close enough?'-check instead of a 'single moment' check.
-      if (useContinuousBallCheck) {
-        const Vector3 ballLineA = ballPos - ballMovement * 0.006f;
-        const Vector3 ballLineB = ballPos + ballMovement * 0.003f;
-        float u = clamp(SegmentParameter(ballLineA, ballLineB, animBallPos), 0.0f, 1.0f);
-        ballPos = ballLineA + (ballLineB - ballLineA) * u;
-      }
+      animBallPos = touch_result.anim_ball_pos;
+      ballPos = touch_result.ball_pos;
+      const Vector3 &actionSmuggleVec2D = touch_result.action_smuggle_vec2d;
+      const float ballDistanceZ = touch_result.ball_distance_z;
 
-      Vector3 actionSmuggleVec3D = ballPos - animBallPos;
-      Vector3 actionSmuggleVec2D = actionSmuggleVec3D.Get2D();
-
-      // ball height
-
-      float ballDistanceZ = std::fabs(actionSmuggleVec3D.coords[2]);
-
-      ballDistanceZ *= 1.0f - clamp((animBallPos.coords[2] - 0.11) * 0.3f, 0.0f, 0.2f); // higher balls == cheat more Z (else we would have to make 100000000 anims for high balls on different heights)
-      ballDistanceZ *= 1.0f - clamp((ballPos.coords[2] - 0.11) * 0.4f, 0.0f, 0.3f);
-      // enforce maximum height though
-      if (ballPos.coords[2] > 1.8f && ballPos.coords[2] > animBallPos.coords[2] + 0.12f) ballDistanceZ *= 2.0f;
-      if (ballPos.coords[2] > 2.6f && ballPos.coords[2] > animBallPos.coords[2] + 0.08f) ballDistanceZ *= 20.0f;
-      if (functionType == e_FunctionType_Deflect) ballDistanceZ *= 0.8f;
-      if (tick.ball_retainer == player) ballDistanceZ = 0.0f;
-
-      if (ballPos.coords[2] < 0.5f && isBase) ballDistanceZ = std::max(ballDistanceZ - 0.15f, 0.0f); // low balls should be doable with ground level anims, doesn't look that bad :P
-
-      if (ballDistanceZ < 0.22f) {
-
-        // default touch can be 'cheated' towards best, has biggest 'radius'
-        float touchFrameAwkwardness = NormalizedClamp(std::abs(defaultTouchFrame - animTouchFrame), 0.0f, 4.0f);
-        touchFrameAwkwardness = std::pow(touchFrameAwkwardness, 2.0f) * 0.5f;
-
-        /* todo: check if this is a possibility in some form
-              // add this to desired cheatvec to get more of a flowing feeling to it
-              Vector3 flowVector = spatialState.movement - tick.ball.state().velocity.Get2D();// - anims->GetAnim(*iter)->GetOutgoingMovement().GetRotated2D(spatialState.angle) * 2.0;
-              flowVector.Rotate2D(-spatialState.angle);
-              actionSmuggleVec2D += (flowVector).GetNormalized(0) * 0.3f;
-        */
-
-        float touchFrameFactor = animTouchFrame / 24.0f; // makes it 0.5 around the 'average touchframe' (educated guess average)
-        touchFrameFactor = std::pow(
-            touchFrameFactor,
-            0.7f);  // advantage for anims that touch the ball earlier.
-                    // rationale: more cheating, sure, but for a shorter period
-        // even steeper falloff after 1.0
-        if (touchFrameFactor > 1.0f) touchFrameFactor = 1.0f + ((touchFrameFactor - 1.0f) * 0.5f);
-
-        float decayPow = 1.0f;
-        float radiusCheatOffset = 0.0f;
-        float radiusFactor = 0.3f * (1.0f - touchFrameAwkwardness);
-
-        if (functionType == e_FunctionType_Deflect) {
-          radiusFactor *= 1.8f;
-          radiusCheatOffset += 0.4f;
-        }
-
-        if (functionType == e_FunctionType_Sliding) {
-          radiusFactor *= 0.2f;
-          radiusCheatOffset = 0.0f;
-        }  // prefer sliding without ball touch
-        if (functionType == e_FunctionType_Interfere) {
-          radiusFactor *= 1.4f;
-          radiusCheatOffset += 0.2f;
-        }
-
-        if (functionType == e_FunctionType_ShortPass) {
-          radiusFactor *= 1.3f;
-          radiusCheatOffset += 0.15f;
-        }
-        if (functionType == e_FunctionType_LongPass) {
-          radiusFactor *= 1.3f;
-          radiusCheatOffset += 0.15f;
-        }
-        if (functionType == e_FunctionType_HighPass) {
-          radiusFactor *= 1.3f;
-          radiusCheatOffset += 0.15f;
-        }
-        if (functionType == e_FunctionType_Shot) {
-          radiusFactor *= 1.3f;
-          radiusCheatOffset += 0.15f;
-        }
-
-        if ((functionType == e_FunctionType_Trap ||
-             functionType == e_FunctionType_BallControl) &&
-            preferPassAndShot == true) {
-          radiusFactor *= 0.3f;
-        }
-
-        radiusCheatOffset *= (1.0f - touchFrameAwkwardness);
-
-        float touchVelo = touchMovement.GetLength();
-
-        Vector3 FFO = GetFrontOfFootOffsetRel(touchVelo, z, ballPos.coords[2]);
-        if (FloatToEnumVelocity(touchVelo) == e_Velocity_Idle) {
-          //FFO.Rotate2D(z); // always towards y = -1, right? (hmmm not really)
-        } else {
-          FFO.Rotate2D(FixAngle(touchMovement.GetNormalized(Vector3(0, -1, 0)).GetAngle2D()));
-        }
-        // just touched ball
-        float lastTouchBias = curve(player->GetLastTouchBias(600, now + football::sim::TickSpan{static_cast<std::uint64_t>(animTouchFrame)}), 1.0f);
-        if (lastTouchBias > 0.0f) {
-          float factor = 1.0f - lastTouchBias * 0.97f * (1.0f - player->GetStat(football::player::PlayerStat::technical_ballcontrol) * 0.1f);
-          radiusFactor *= factor;
-          radiusCheatOffset *= factor;
-        }
+      if (touch_result.within_reach) {
+        const Vector3 &FFO = touch_result.ffo;
+        const float radiusCheatOffset = touch_result.radius_cheat_offset;
+        const float touchFramedRadiusFactor = touch_result.touch_framed_radius_factor;
 
         bool debug = false;
-
-        float touchFramedRadiusFactor = radiusFactor * touchFrameFactor;
         float bodyBallDistanceAdvantage = GetBodyBallDistanceAdvantage(*iter, functionType, animTouchMovement, touchMovement, incomingMovement, adaptedOutgoingMovement, predictedAngle, bodyPos, FFO, animBallPos.Get2D(), ballPos.Get2D(), ballMovement.Get2D(), touchFramedRadiusFactor, radiusCheatOffset, 1.0f, debug);
 
         if (bodyBallDistanceAdvantage >= 1.0f ||
@@ -2373,7 +2289,7 @@ Vector3 Humanoid::CalculateMovementSmuggle(football::sim::Tick now, const footba
     const Vector3 ballLineB = football::sim::observation::SampleMentalImage(history, mentalImageTime)->GetBallPrediction(futureTime_ms, now, tick.ball).Get2D();
     if ((ballLineA - ballLineB).GetLength() < 0.5f) return Vector3(0); // ball is slow or very close
 
-    float u = SegmentParameter(ballLineA, ballLineB, desiredBallPos);
+    float u = SegmentProjectionParameter(ballLineA, ballLineB, desiredBallPos);
     Vector3 closestBallPos = ballLineA + (ballLineB - ballLineA) * u;
 
     toDesired = closestBallPos - desiredBallPos;

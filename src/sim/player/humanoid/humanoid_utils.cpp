@@ -96,19 +96,11 @@ Vector3 CalculateMovementAtFrame(const std::vector<Vector3> &positions,
 }
 
 // offset where ball should usually be touched
+// ANIM-1 A6.4 step 2b: one definition, in the Animation module.
 Vector3 GetFrontOfFootOffsetRel(float velocity, radian bodyAngleRel,
                                 float height) {
-
-  float fullDistanceFactor = 1.0f;
-  float distance = 0.34f + velocity * defaultTouchOffset_ms * 0.001f * fullDistanceFactor; // must be > 0 (for upcoming dotproduct)
-
-  Vector3 ffo = Vector3(0, -distance * 0.8f, 0);
-
-  radian bodyAngle = bodyAngleRel;
-  if (velocity < idleDribbleSwitch) bodyAngle = 0;
-  Vector3 angled = Vector3(0, -distance * 0.2f, 0).GetRotated2D(bodyAngle);
-
-  return (ffo + angled) * (1.0f - clamp((height - 0.11f) / 4.0f, 0.0f, 0.5f));
+  return football::animation::FrontOfFootOffsetRel(
+      velocity, bodyAngleRel, height, static_cast<float>(defaultTouchOffset_ms));
 }
 
 bool NeedDefendingMovement(int mySide, const Vector3 &position,

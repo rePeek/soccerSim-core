@@ -18,6 +18,8 @@
 #ifndef _HPP_HUMANOID_UTILS
 #define _HPP_HUMANOID_UTILS
 
+#include "football/animation/touch_geometry.hpp"
+
 #include "sim/event/touch_type.hpp"
 #include "sim/player/player_team_view.hpp"
 

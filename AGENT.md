@@ -2346,3 +2346,39 @@ Remaining in step 2: the per-candidate touch loop (`humanoid.cpp:2086-2299`,
 which needs `CalculatePhysicsVector` = `humanoidbase.cpp:1742-2261`, 519 lines)
 and the four `GetBestCheatableAnimID` call sites. `GetBestCheatableAnimID`
 itself contains no RNG, so no draw-order hazard.
+
+### ANIM-1 A6.4 step 2b: per-candidate touch geometry moved to Animation
+
+`include/football/animation/touch_geometry.hpp` (namespace
+`football::animation`) now owns `EvaluateTouchGeometry(request)` - the pure core
+of the touch loop in `GetBestCheatableAnimID`: the rotation-smuggle placement of
+the animation's ball contact, the continuous ball check, `ballDistanceZ` and its
+height falloffs, the touch-frame awkwardness/factor, the per-function radius
+multiplier chain (Deflect / Sliding / Interfere / ShortPass / LongPass /
+HighPass / Shot / Trap+BallControl under `preferPassAndShot`), the
+last-touch-bias decay and the front-of-foot offset. A line-for-line relocation:
+same clamping, same operation order, same floating-point expressions, no Player
+/ Humanoid / Simulation / Ball / RNG.
+
+`GetBestCheatableAnimID` now fills a `TouchGeometryRequest` (the four
+`player->...` reads - `BodyProfile().height_scale`, `GetLastTouchBias(600, now +
+animTouchFrame ticks)`, `GetStat(technical_ballcontrol)` - plus `defaultTouchOffset_ms`
+- become explicit fields) and consumes a `TouchGeometryResult`.
+`GetBodyBallDistanceAdvantage` stays on the Humanoid and keeps consuming the
+result, so no physics moved.
+
+Two definitions were de-duplicated rather than copied:
+`SegmentParameter` (humanoid.cpp) and `GetFrontOfFootOffsetRel`
+(humanoid_utils.cpp) now live only in `touch_geometry.hpp`
+(`SegmentProjectionParameter` / `FrontOfFootOffsetRel`), and both call sites
+delegate.
+
+`unittests/animation/touch_geometry_test.cpp` covers the aligned case, the
+touch-frame/radius chain with hand-computed expectations, the Deflect widening,
+the high-ball rejection, the continuous ball check and the front-of-foot offset.
+Post-move runtime fingerprint: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
+`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`, `nm pure_ticks=4`.
+
+Remaining in step 2: the loop skeleton and the four `GetBestCheatableAnimID`
+call sites (`humanoid.cpp:1794/1799/1805/1807`), then `CalculatePhysicsVector`
+(`humanoidbase.cpp`, 519 lines) if it is to move too.
