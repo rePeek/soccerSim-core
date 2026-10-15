@@ -1630,9 +1630,11 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
 
   Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);
 
-  // ANIM-1 A6.3b.2 shadow: the pure Animation refinement must reproduce the
-  // legacy Movement candidate list exactly - same order, same members - before
-  // any motion-driven reorder. Ordered comparison, not a counter identity.
+  // ANIM-1 A6.3b.2: the pure Animation refinement is now the authority for the
+  // Movement candidate list. The legacy filter+sort chain above still runs as a
+  // dual-run oracle; the audit records whether the two agree exactly (members
+  // and order) before the motion-driven reorder. A later step deletes the
+  // now-redundant legacy Movement refinement branch.
   if (command.desiredFunctionType == e_FunctionType_Movement &&
       command.useDesiredMovement && !crude_movement_snapshot.empty()) {
     MovementRefinementRequest refine_request;
@@ -1658,6 +1660,7 @@ bool Humanoid::SelectAnim(football::sim::Tick now, const football::sim::PlayerTi
     } else {
       ++refine_audit.refine_mismatches;
     }
+    dataSet = pure;
   }
   if (command.useDesiredLookAt) desiredBodyDirectionRel = (command.desiredLookAt - (spatialState.position + spatialState.movement * 0.1f)).GetNormalized(Vector3(0, -1, 0)).GetRotated2D(-spatialState.angle);
 
