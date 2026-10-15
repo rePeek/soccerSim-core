@@ -2658,3 +2658,25 @@ fingerprint is unchanged: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
 `nm pure_ticks=4 touch_selections=4`; runtime suite 126 s, 10/10 CTest.
 Remaining A7 work: the switch-cost policy and full `React -> Trip -> Ground ->
 StandUp` ownership; A8 and A9 remain.
+
+### ANIM-1 A8 step 1: the action displacement is a pure PlayerMotion calculation
+
+`PlayerMotion::ActionMotionVector(ActionMotionVectorInput)` now owns the
+non-procedural (baked action) position integration and movement decomposition
+relocated line-for-line from `HumanoidBase::CalculateSpatialState`: the frame
+displacement plus the action/sustain/movement smuggle offsets, the baked-pose
+root fallback rotated by the start angle, `actualMovement`, `physicsMovement`,
+`animMovement` (from the clip's own root positions), `movement`, `floatVelocity`
+and `enumVelocity`. It is pure: no Player, Humanoid, Ball or RNG; the Humanoid
+still writes the result and commits through `CommitLegacyActionMotion`. The body
+direction / foot derivation stays in the Humanoid for now, as do the A8
+authority flip and A9.
+
+`football/animation/movement_math.hpp`'s `CalculateMovementAtFrame` now takes a
+`std::span<const Vector3>` so a view can be passed without copying; vectors still
+convert implicitly. `unittests/player/player_action_motion_test.cpp` adds three
+hand-computed cases (trajectory branch, baked-pose fallback, start-angle
+rotation). Runtime P0 fingerprint unchanged: `A6.3a clip_match=52
+clip_mismatch=1 fallback=1`, `install 11/11/0`, `cursor 11/11/0`,
+`authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`, `A7 trip
+trip_tick=206 recovery_tick=267`; 87 player cases / 1266 assertions; 10/10 CTest.

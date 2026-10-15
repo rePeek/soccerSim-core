@@ -6,6 +6,7 @@
 // RNG dependency: only vectors, the velocity bucket constants and an assert.
 
 #include <cassert>
+#include <span>
 #include <vector>
 
 #include "football/animation/types.hpp"
@@ -17,14 +18,14 @@ using football::math::Vector3;
 
 // Movement (m/s) at an integer clip frame, in the same local space as the
 // supplied positions. `smoothFrames` averages over a window around the frame.
-inline Vector3 CalculateMovementAtFrame(const std::vector<Vector3> &positions,
+inline Vector3 CalculateMovementAtFrame(std::span<const Vector3> positions,
                                         unsigned int frameNum,
                                         unsigned int smoothFrames = 0) {
   /*
     // simple version for debugging purposes
     unsigned int adaptedFrameNum = std::min(std::max(frameNum, (unsigned int)1),
-    (unsigned int)positions.size() - 1); return (positions.at(adaptedFrameNum) -
-    positions.at(adaptedFrameNum - 1)).Get2D() * 100.0f;
+    (unsigned int)positions.size() - 1); return (positions[adaptedFrameNum] -
+    positions[adaptedFrameNum - 1]).Get2D() * 100.0f;
   */
 
   assert(frameNum < positions.size());
@@ -32,12 +33,12 @@ inline Vector3 CalculateMovementAtFrame(const std::vector<Vector3> &positions,
   // special case: want the exit movement to be unsmoothed, for we don't want the
   // wrong quantized velocity and such
   if (frameNum == positions.size() - 1) {
-    return (positions.at(positions.size() - 1) - positions.at(positions.size() - 2)).Get2D() * 100.0f;
+    return (positions[positions.size() - 1] - positions[positions.size() - 2]).Get2D() * 100.0f;
   }
   // special case: if we want the movement at frame 0, we can't get -1 to 0, we
   // need to get 0 to 1 instead
   if (frameNum == 0) {
-    return (positions.at(1) - positions.at(0)).Get2D() * 100.0f;
+    return (positions[1] - positions[0]).Get2D() * 100.0f;
   }
 
   Vector3 totalMovement;
@@ -46,7 +47,7 @@ inline Vector3 CalculateMovementAtFrame(const std::vector<Vector3> &positions,
        frame <= (signed int)(frameNum + smoothFrames); frame++) {
     if (frame > 0 && frame < (signed int)positions.size()) {
       // was: frame > 1 (i think that was a bug)
-      totalMovement += (positions.at(frame) - positions.at(frame - 1)).Get2D() * 100.0f;
+      totalMovement += (positions[frame] - positions[frame - 1]).Get2D() * 100.0f;
       count++;
     }
   }

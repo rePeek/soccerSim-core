@@ -1110,39 +1110,42 @@ void HumanoidBase::CalculateSpatialState(const Player* ball_retainer) {
     ++HumanoidProceduralMovementTicks();
     return;
   }
-  Vector3 position;
-  if (currentAnim.positions.size() > (unsigned int)currentAnim.frameNum) {
-    position = startPos + currentAnim.positions.at(currentAnim.frameNum) + currentAnim.actionSmuggleOffset + currentAnim.actionSmuggleSustainOffset + currentAnim.movementSmuggleOffset;
-  } else {
-    position = GetCurrentBakedClip().poses[currentAnim.frameNum].positions[BodyPart::player];
-    position.coords[2] = 0.0f;
-    position = startPos + position.GetRotated2D(startAngle) + currentAnim.actionSmuggleOffset + currentAnim.actionSmuggleSustainOffset + currentAnim.movementSmuggleOffset;
+  // ANIM-1 A8 step 1: the action position and movement decomposition is a pure
+  // PlayerMotion calculation; the Humanoid only supplies the clip/pose facts.
+  const AnimationClip &clip = GetCurrentBakedClip();
+  ActionMotionVectorInput motion_input;
+  motion_input.start_position = startPos;
+  motion_input.start_angle = startAngle;
+  motion_input.positions = currentAnim.positions;
+  motion_input.frame_num = currentAnim.frameNum;
+  motion_input.action_smuggle_offset = currentAnim.actionSmuggleOffset;
+  motion_input.action_smuggle_sustain_offset = currentAnim.actionSmuggleSustainOffset;
+  motion_input.movement_smuggle_offset = currentAnim.movementSmuggleOffset;
+  if (currentAnim.positions.size() <=
+      static_cast<std::size_t>(currentAnim.frameNum)) {
+    motion_input.baked_pose_position =
+        clip.poses[currentAnim.frameNum].positions[BodyPart::player];
   }
+  motion_input.previous_position_2d = previousPosition2D;
+  motion_input.action_smuggle_movement = spatialState.actionSmuggleMovement;
+  motion_input.movement_smuggle_movement = spatialState.movementSmuggleMovement;
+  motion_input.position_offset_movement = spatialState.positionOffsetMovement;
+  motion_input.root_positions = clip.root_positions;
+
+  const ActionMotionVectorResult motion =
+      PlayerMotion::ActionMotionVector(motion_input);
+  const Vector3 position = motion.position;
 
   if (currentAnim.frameNum > 12) {
-    spatialState.foot = static_cast<e_Foot>(GetCurrentBakedClip().metadata.outgoing_foot);
+    spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);
   }
 
-  assert(startPos.coords[2] == 0.0f);
-  assert(currentAnim.actionSmuggleOffset.coords[2] == 0.0f);
-  assert(currentAnim.movementSmuggleOffset.coords[2] == 0.0f);
-  assert(position.coords[2] == 0.0f);
-
-  spatialState.actualMovement = (position - previousPosition2D) * 100.0f;
-  const float positionOffsetMovementIgnoreFactor = 0.5f;
-  spatialState.physicsMovement = spatialState.actualMovement - (spatialState.actionSmuggleMovement) - (spatialState.movementSmuggleMovement) - (spatialState.positionOffsetMovement * positionOffsetMovementIgnoreFactor);
-  spatialState.animMovement = spatialState.physicsMovement;
-  if (currentAnim.positions.size() > 0) {
-    // this way, action cheating is being omitted from the current movement, making for better requeues. however, keep in mind that
-    // movementoffsets, from bumping into other players, for example, will also be ignored this way.
-    const std::vector<Vector3> &origPositionCache =
-        GetBakedClip(currentAnim.animationId).root_positions;
-    spatialState.animMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum, 1).GetRotated2D(startAngle);
-  }
-  spatialState.movement = spatialState.physicsMovement; // PICK DEFAULT
-
-  spatialState.floatVelocity = spatialState.movement.GetLength();
-  spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
+  spatialState.actualMovement = motion.actual_movement;
+  spatialState.physicsMovement = motion.physics_movement;
+  spatialState.animMovement = motion.anim_movement;
+  spatialState.movement = motion.movement;
+  spatialState.floatVelocity = motion.float_velocity;
+  spatialState.enumVelocity = motion.enum_velocity;
   spatialState.position = position;
   if (!UsesProceduralLocomotion(ball_retainer)) {
     ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();

@@ -155,3 +155,71 @@ TEST_CASE("A8.0: a non-idle outgoing clip rotates to its native exit direction",
   const ActionMotionPlan plan = PlayerMotion::BuildActionMotionPlan(clip, input);
   CHECK(plan.rotation_offset == Approx(0.0f).margin(0.01f));
 }
+
+TEST_CASE("A8.1: action position sums the frame displacement and smuggle offsets",
+          "[player][motion][a8]") {
+  const std::vector<Vector3> positions = {Vector3(0, 0, 0), Vector3(0, 1, 0),
+                                          Vector3(0, 2, 0)};
+  const std::vector<Vector3> roots = {Vector3(0, 0, 0), Vector3(0, -0.05f, 0),
+                                      Vector3(0, -0.10f, 0)};
+  ActionMotionVectorInput in;
+  in.start_position = Vector3(1, 0, 0);
+  in.start_angle = 0.0f;
+  in.positions = positions;
+  in.frame_num = 2;
+  in.action_smuggle_offset = Vector3(0.1f, 0, 0);
+  in.action_smuggle_sustain_offset = Vector3(0.2f, 0, 0);
+  in.movement_smuggle_offset = Vector3(0.3f, 0, 0);
+  in.previous_position_2d = Vector3(1, 0, 0);
+  in.action_smuggle_movement = Vector3(0.05f, 0, 0);
+  in.movement_smuggle_movement = Vector3(0.02f, 0, 0);
+  in.position_offset_movement = Vector3(0.1f, 0, 0);
+  in.root_positions = roots;
+
+  const ActionMotionVectorResult r = PlayerMotion::ActionMotionVector(in);
+  CHECK(r.position.coords[0] == Approx(1.6f));
+  CHECK(r.position.coords[1] == Approx(2.0f));
+  // actual = (position - previous) * 100
+  CHECK(r.actual_movement.coords[0] == Approx(60.0f));
+  CHECK(r.actual_movement.coords[1] == Approx(200.0f));
+  // physics = actual - actionSmuggle - movementSmuggle - 0.5 * positionOffset
+  CHECK(r.physics_movement.coords[0] == Approx(60.0f - 0.05f - 0.02f - 0.05f));
+  CHECK(r.physics_movement.coords[1] == Approx(200.0f));
+  CHECK(r.movement == r.physics_movement);
+  // anim movement comes from the clip's own root positions.
+  CHECK(r.anim_movement.coords[1] == Approx(-5.0f));
+  CHECK(r.float_velocity == Approx(r.movement.GetLength()));
+  CHECK(r.enum_velocity == FloatToEnumVelocity(r.float_velocity));
+}
+
+TEST_CASE("A8.1: a missing frame falls back to the baked pose root",
+          "[player][motion][a8]") {
+  ActionMotionVectorInput in;
+  in.start_position = Vector3(0, 0, 0);
+  in.start_angle = 0.0f;
+  in.positions = {};  // no planned trajectory -> baked pose branch
+  in.frame_num = 0;
+  in.baked_pose_position = Vector3(0, 1, 0);
+  in.previous_position_2d = Vector3(0, 0, 0);
+
+  const ActionMotionVectorResult r = PlayerMotion::ActionMotionVector(in);
+  CHECK(r.position.coords[0] == Approx(0.0f));
+  CHECK(r.position.coords[1] == Approx(1.0f));
+  // With no planned positions, anim movement is the physics movement.
+  CHECK(r.anim_movement == r.physics_movement);
+  CHECK(r.movement == r.physics_movement);
+}
+
+TEST_CASE("A8.1: the baked pose root is rotated by the start angle",
+          "[player][motion][a8]") {
+  ActionMotionVectorInput in;
+  in.start_position = Vector3(0, 0, 0);
+  in.start_angle = 0.5f * pi;
+  in.positions = {};
+  in.frame_num = 0;
+  in.baked_pose_position = Vector3(0, 2, 0);  // local +y, rotated 90 deg -> -x
+
+  const ActionMotionVectorResult r = PlayerMotion::ActionMotionVector(in);
+  CHECK(r.position.coords[0] == Approx(-2.0f).margin(0.0001f));
+  CHECK(r.position.coords[1] == Approx(0.0f).margin(0.0001f));
+}

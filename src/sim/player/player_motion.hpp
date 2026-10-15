@@ -8,6 +8,7 @@
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_motion_profile.hpp"
 
+#include <span>
 #include <vector>
 
 struct MotionSample {
@@ -59,6 +60,36 @@ struct ActionMotionPlan {
   radian rotation_offset = 0.0f;
 };
 
+// ANIM-1 A8 step 1: the execution-side action displacement and movement
+// decomposition, relocated from `HumanoidBase::CalculateSpatialState`'s
+// non-procedural branch. Pure: it reads only the supplied clip/pose facts.
+struct ActionMotionVectorInput {
+  Vector3 start_position{0};
+  radian start_angle = 0.0f;
+  std::span<const Vector3> positions{};   // currentAnim.positions
+  int frame_num = 0;
+  Vector3 action_smuggle_offset{0};
+  Vector3 action_smuggle_sustain_offset{0};
+  Vector3 movement_smuggle_offset{0};
+  // Baked pose root when `positions` has no entry for `frame_num`.
+  Vector3 baked_pose_position{0};
+  Vector3 previous_position_2d{0};
+  Vector3 action_smuggle_movement{0};
+  Vector3 movement_smuggle_movement{0};
+  Vector3 position_offset_movement{0};
+  std::span<const Vector3> root_positions{};  // clip.root_positions
+};
+
+struct ActionMotionVectorResult {
+  Vector3 position{0};
+  Vector3 actual_movement{0};
+  Vector3 physics_movement{0};
+  Vector3 anim_movement{0};
+  Vector3 movement{0};
+  float float_velocity = 0.0f;
+  e_Velocity enum_velocity = e_Velocity_Idle;
+};
+
 // The single motion interface, with two sources: the continuous locomotion model
 // and a baked MotionClip reference.
 //
@@ -99,6 +130,11 @@ class PlayerMotion {
   // assembles the input and writes the output back.
   static ActionMotionPlan BuildActionMotionPlan(const AnimationClip& clip,
                                                 const ActionMotionInput& input);
+
+  // ANIM-1 A8 step 1: the execution-side position/displacement decomposition
+  // for a non-procedural (baked action) tick. Pure; the caller commits it.
+  static ActionMotionVectorResult ActionMotionVector(
+      const ActionMotionVectorInput& input);
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_MOTION_HPP

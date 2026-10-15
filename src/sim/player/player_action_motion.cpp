@@ -531,3 +531,51 @@ ActionMotionPlan PlayerMotion::BuildActionMotionPlan(const AnimationClip& clip,
   plan.outgoing_velocity = resultingMovement;
   return plan;
 }
+
+// ANIM-1 A8 step 1: the execution-side action displacement and movement
+// decomposition, relocated line-for-line from the non-procedural branch of
+// `HumanoidBase::CalculateSpatialState`. Pure: it never reads Player, Humanoid,
+// Ball or RNG; the caller commits the result.
+ActionMotionVectorResult PlayerMotion::ActionMotionVector(
+    const ActionMotionVectorInput& input) {
+  ActionMotionVectorResult result;
+
+  Vector3 position;
+  if (input.positions.size() > static_cast<std::size_t>(input.frame_num)) {
+    position = input.start_position + input.positions[input.frame_num] +
+               input.action_smuggle_offset + input.action_smuggle_sustain_offset +
+               input.movement_smuggle_offset;
+  } else {
+    position = input.baked_pose_position;
+    position.coords[2] = 0.0f;
+    position = input.start_position + position.GetRotated2D(input.start_angle) +
+               input.action_smuggle_offset + input.action_smuggle_sustain_offset +
+               input.movement_smuggle_offset;
+  }
+
+  assert(input.start_position.coords[2] == 0.0f);
+  assert(input.action_smuggle_offset.coords[2] == 0.0f);
+  assert(input.movement_smuggle_offset.coords[2] == 0.0f);
+  assert(position.coords[2] == 0.0f);
+
+  result.actual_movement = (position - input.previous_position_2d) * 100.0f;
+  const float positionOffsetMovementIgnoreFactor = 0.5f;
+  result.physics_movement =
+      result.actual_movement - input.action_smuggle_movement -
+      input.movement_smuggle_movement -
+      (input.position_offset_movement * positionOffsetMovementIgnoreFactor);
+  result.anim_movement = result.physics_movement;
+  if (!input.positions.empty()) {
+    // this way, action cheating is being omitted from the current movement,
+    // making for better requeues.
+    result.anim_movement =
+        CalculateMovementAtFrame(input.root_positions, input.frame_num, 1)
+            .GetRotated2D(input.start_angle);
+  }
+  result.movement = result.physics_movement;  // PICK DEFAULT
+
+  result.float_velocity = result.movement.GetLength();
+  result.enum_velocity = FloatToEnumVelocity(result.float_velocity);
+  result.position = position;
+  return result;
+}
