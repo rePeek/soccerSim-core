@@ -2257,3 +2257,14 @@ agree (`AuthorityChecks`/`Matches`/`Mismatches`). Over the P0 tape
 `authority checks=42 match=42 mismatch=0`, alongside
 `install checks=11 match=11 mismatch=0` and `cursor checks=11 match=11 mismatch=0`;
 the A6.3a final-clip oracle is unchanged. No new action or time state was added.
+
+### ANIM-1 A6.4 prerequisite: a possession harness reaches non-Movement actions
+
+The Movement tape could not reach Trap/Pass/Shot, so `unittests/runtime` gained a
+second harness that reaches play, hands the ball to a tracked player
+(`SetBallRetainer` + `ResetBall`) and drives alternating ShortPass/Shoot
+controls. It observes `non_movement_installs=2` with
+`InstallMismatches() == 0`, so the non-Movement selection and install path is
+now reachable and observable from a bounded, deterministic run. This is the
+verification base for the A6.4 migration (Trip/Special first, then the
+touch-scored Trap/BallControl/Pass/Shot/Interfere/Deflect/Sliding paths).

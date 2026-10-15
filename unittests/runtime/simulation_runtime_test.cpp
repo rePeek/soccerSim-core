@@ -1182,3 +1182,52 @@ TEST_CASE("Runtime harness: the physics pose sample is the Player playback pose"
   }
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: possession drives a non-Movement action install",
+          "[runtime][sim]") {
+  // A6.4 prerequisite: the Movement tape cannot reach Trap/Pass/Shot, so this
+  // harness puts the ball on a player and asks for a pass to prove the
+  // non-Movement selection path is reachable and observable.
+  Simulation sim;
+  InitMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[6];
+
+  int in_play_tick = -1;
+  int non_movement_installs = 0;
+  e_FunctionType last_type = e_FunctionType_None;
+  for (int tick = 0; tick < 300; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    const bool drive = in_play_tick >= 0 && tick > in_play_tick + 2;
+
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = Vector3(0, -1, 0);
+    control.desired_speed = drive ? 1.0f : 0.0f;
+    if (drive) {
+      SimulationAccess::SetBallRetainer(sim, player);
+      SimulationAccess::ResetBall(sim, player->GetPosition() +
+                                           Vector3(0, -0.4f, 0));
+      control.action = (tick % 2 == 0) ? ControlAction::ShortPass
+                                       : ControlAction::Shoot;
+      control.target_position = player->GetPosition() + Vector3(0, -12.0f, 0);
+      control.power = 0.6f;
+    }
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+
+    const e_FunctionType type = player->GetSimulationActionState().type;
+    if (type != last_type) {
+      if (type != e_FunctionType_None && type != e_FunctionType_Movement) {
+        ++non_movement_installs;
+      }
+      last_type = type;
+    }
+  }
+
+  std::fprintf(stderr,
+               "[runtime] A6.4 harness in_play_tick=%d non_movement_installs=%d\n",
+               in_play_tick, non_movement_installs);
+  CHECK(in_play_tick > 0);
+  CHECK(player->InstallMismatches() == 0);
+  CHECK(sim.Stop());
+}
