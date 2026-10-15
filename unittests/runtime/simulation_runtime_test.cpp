@@ -1029,3 +1029,48 @@ TEST_CASE("Runtime harness: one final pose per tick, advancing without a re-read
   CHECK(changed);
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: players keep independent animation state across teams",
+          "[runtime][sim]") {
+  // ANIM-1.5: per-player runtime state, scheduled by stable slot; one player's
+  // state never leaks into another and Stop/Init leaves no residue.
+  Simulation sim;
+  InitMatch(sim);
+  Player* h_shoot = SimulationAccess::RosterOf(sim, 0).Players()[9];
+  Player* h_pass = SimulationAccess::RosterOf(sim, 0).Players()[8];
+  Player* a_dribble = SimulationAccess::RosterOf(sim, 1).Players()[9];
+  Player* a_trap = SimulationAccess::RosterOf(sim, 1).Players()[7];
+
+  PlayerActionRequest shoot;
+  shoot.kind = ActionRequestKind::Shoot;
+  PlayerActionRequest pass;
+  pass.kind = ActionRequestKind::ShortPass;
+  pass.target_player = h_pass->GetID();
+  PlayerActionRequest dribble;
+  dribble.kind = ActionRequestKind::Dribble;
+  PlayerActionRequest trap;
+  trap.kind = ActionRequestKind::Trap;
+
+  CHECK(h_shoot->Play(shoot) == RequestOutcome::Accepted);
+  CHECK(h_pass->Play(pass) == RequestOutcome::Accepted);
+  CHECK(a_dribble->Play(dribble) == RequestOutcome::Accepted);
+  CHECK(a_trap->Play(trap) == RequestOutcome::Accepted);
+
+  REQUIRE(h_shoot->PendingActionRequest().has_value());
+  REQUIRE(h_pass->PendingActionRequest().has_value());
+  REQUIRE(a_dribble->PendingActionRequest().has_value());
+  REQUIRE(a_trap->PendingActionRequest().has_value());
+  CHECK(h_shoot->PendingActionRequest()->kind == ActionRequestKind::Shoot);
+  CHECK(h_pass->PendingActionRequest()->kind == ActionRequestKind::ShortPass);
+  CHECK(a_dribble->PendingActionRequest()->kind == ActionRequestKind::Dribble);
+  CHECK(a_trap->PendingActionRequest()->kind == ActionRequestKind::Trap);
+
+  // Re-Init builds fresh actors with no residual request.
+  CHECK(sim.Stop());
+  InitMatch(sim);
+  CHECK_FALSE(
+      SimulationAccess::RosterOf(sim, 0).Players()[9]->PendingActionRequest().has_value());
+  CHECK_FALSE(
+      SimulationAccess::RosterOf(sim, 1).Players()[7]->PendingActionRequest().has_value());
+  CHECK(sim.Stop());
+}
