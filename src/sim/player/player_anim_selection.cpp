@@ -194,6 +194,39 @@ bool Player::NeedTouch(football::sim::Tick now,
 }
 
 // ---------------------------------------------------------------------------
+// ANIM-2 A11.3: stage four of the action flow - the commit decision. It reads
+// only the Player's own action state and the matched selection, so it stays a
+// pure Player-owned gate next to the Animation match.
+// ---------------------------------------------------------------------------
+bool Player::CanCommitMatchedSelection(
+    int selected_anim_id, const PlayerCommand &command,
+    e_InterruptAnim local_interrupt_anim,
+    const football::sim::TouchChoice &touch_choice) const {
+  football::sim::CommitSelectionContext commit_gate;
+  commit_gate.is_requeue = (local_interrupt_anim == e_InterruptAnim_ReQueue);
+  commit_gate.has_selection = (selected_anim_id != -1);
+  commit_gate.current_positions_sufficient = anim_state_.positions.size() > 1;
+  commit_gate.selected_positions_sufficient = touch_choice.positions.size() > 1;
+  commit_gate.action_type = actionState.type;
+  commit_gate.command_type = command.desiredFunctionType;
+  if (selected_anim_id != -1) {
+    commit_gate.current_outgoing_velocity =
+        FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity);
+    commit_gate.selected_outgoing_velocity =
+        FloatToEnumVelocity(GetBakedClip(selected_anim_id).metadata.outgoing_velocity);
+    commit_gate.current_quadrant = GetCurrentBakedClip().metadata.quadrant;
+    commit_gate.selected_quadrant = GetBakedClip(selected_anim_id).metadata.quadrant;
+    commit_gate.current_forced_outgoing_angle =
+        ForceIntoPreferredDirectionAngle(
+            GetCurrentBakedClip().metadata.outgoing_angle);
+    commit_gate.selected_forced_outgoing_angle =
+        ForceIntoPreferredDirectionAngle(
+            GetBakedClip(selected_anim_id).metadata.outgoing_angle);
+  }
+  return CanCommitActionSelection(commit_gate);
+}
+
+// ---------------------------------------------------------------------------
 // ANIM-1 A6.4 step 10: the selection flow. Relocated verbatim from
 // Humanoid::SelectAnim; the compatibility state only supplies spatial facts.
 // ---------------------------------------------------------------------------
@@ -587,32 +620,12 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   // check if we really want to requeue; if the anim we dug up is actually better than the current
 
-  // ANIM-1 A6.4 step 6b: the post-search ReQueue gate is a Player-owned pure
-  // decision. It runs at the exact same point as the legacy check, after the
-  // candidate search that may contain conditional work and RNG.
-  {
-    football::sim::CommitSelectionContext commit_gate;
-    commit_gate.is_requeue = (localInterruptAnim == e_InterruptAnim_ReQueue);
-    commit_gate.has_selection = (selectedAnimID != -1);
-    commit_gate.current_positions_sufficient = currentAnim.positions.size() > 1;
-    commit_gate.selected_positions_sufficient = touch_choice.positions.size() > 1;
-    commit_gate.action_type = action.type;
-    commit_gate.command_type = command.desiredFunctionType;
-    if (selectedAnimID != -1) {
-      commit_gate.current_outgoing_velocity =
-          FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity);
-      commit_gate.selected_outgoing_velocity =
-          FloatToEnumVelocity(GetBakedClip(selectedAnimID).metadata.outgoing_velocity);
-      commit_gate.current_quadrant = GetCurrentBakedClip().metadata.quadrant;
-      commit_gate.selected_quadrant = GetBakedClip(selectedAnimID).metadata.quadrant;
-      commit_gate.current_forced_outgoing_angle =
-          ForceIntoPreferredDirectionAngle(
-              GetCurrentBakedClip().metadata.outgoing_angle);
-      commit_gate.selected_forced_outgoing_angle =
-          ForceIntoPreferredDirectionAngle(
-              GetBakedClip(selectedAnimID).metadata.outgoing_angle);
-    }
-    if (!CanCommitActionSelection(commit_gate)) selectedAnimID = -1;
+  // ANIM-2 A11.3: stage four - a Player-owned pure decision on whether to
+  // accept the match. It runs at the exact same point as the legacy check,
+  // after the candidate search that may contain conditional work and RNG.
+  if (!CanCommitMatchedSelection(selectedAnimID, command, localInterruptAnim,
+                                 touch_choice)) {
+    selectedAnimID = -1;
   }
 
   // make it so

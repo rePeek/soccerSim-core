@@ -449,6 +449,12 @@ class Player final {
         const football::sim::CommitSelectionContext &context) const {
       return football::sim::CommitActionSelectionAllowed(context);
     }
+    // ANIM-2 A11.3: the Player-owned commit decision, as a named stage. It
+    // reads only the Player's own action state and the matched selection.
+    bool CanCommitMatchedSelection(
+        int selected_anim_id, const PlayerCommand &command,
+        e_InterruptAnim local_interrupt_anim,
+        const football::sim::TouchChoice &touch_choice) const;
     int TouchSelectionSuccesses() const { return touch_selection_successes_; }
     const PoseFrame& PlaybackPose() const { return playback_state_.final_pose; }
     float PlaybackBaseAngle() const { return playback_state_.final_base_angle; }
