@@ -787,9 +787,6 @@ void Player::ComputeAndCommitActionMotion() {
     spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);
   }
 
-  spatialState.actualMovement = motion.actual_movement;
-  spatialState.physicsMovement = motion.physics_movement;
-  spatialState.animMovement = motion.anim_movement;
   spatialState.movement = motion.movement;
   spatialState.floatVelocity = motion.float_velocity;
   spatialState.enumVelocity = motion.enum_velocity;
@@ -811,8 +808,6 @@ void Player::ComputeAndCommitActionMotion() {
   spatialState.floatVelocity = body_state.float_velocity;
   spatialState.enumVelocity = body_state.enum_velocity;
   spatialState.relBodyDirectionVec = body_state.rel_body_direction_vec;
-  spatialState.relBodyDirectionVecNonquantized =
-      body_state.rel_body_direction_vec_nonquantized;
   spatialState.relBodyAngle = body_state.rel_body_angle;
   spatialState.relBodyAngleNonquantized = body_state.rel_body_angle_nonquantized;
   spatialState.bodyDirectionVec = body_state.body_direction_vec;

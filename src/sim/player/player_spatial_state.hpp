@@ -19,10 +19,10 @@ struct SpatialState {
   e_Velocity enumVelocity;
   float floatVelocity = 0.0f; // for efficiency, float version
 
-  Vector3 actualMovement;
-  Vector3 physicsMovement; // ignores effects like positionoffset
-  Vector3 animMovement;
-  Vector3 movement; // one of the above (default)
+  // ANIM-2 A10.6: actualMovement/physicsMovement/animMovement were write-only
+  // after the A9 flatten, so they are gone. `movement` remains one of the
+  // producers below.
+  Vector3 movement; // one of the producers above (default)
   Vector3 actionSmuggleMovement;
   Vector3 movementSmuggleMovement;
   Vector3 positionOffsetMovement;
@@ -32,14 +32,10 @@ struct SpatialState {
   radian relBodyAngleNonquantized;
   radian relBodyAngle;
   Vector3 relBodyDirectionVec; // for efficiency, vector version of relBodyAngle
-  Vector3 relBodyDirectionVecNonquantized;
   e_Foot foot;
 
   void Mirror() {
     position.Mirror();
-    actualMovement.Mirror();
-    physicsMovement.Mirror();
-    animMovement.Mirror();
     movement.Mirror();
     actionSmuggleMovement.Mirror();
     movementSmuggleMovement.Mirror();

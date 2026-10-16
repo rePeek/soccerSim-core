@@ -103,9 +103,6 @@ void Player::ResetLegacyPosition(const Vector3 &newPos,
   spatial_state_.directionVec = Vector3(0, -1, 0).GetRotated2D(startAngle);
   spatial_state_.floatVelocity = 0;
 
-  spatial_state_.actualMovement = Vector(0);
-  spatial_state_.physicsMovement = Vector(0);
-  spatial_state_.animMovement = Vector(0);
   spatial_state_.movement = Vector(0);
   spatial_state_.actionSmuggleMovement = Vector(0);
   spatial_state_.movementSmuggleMovement = Vector(0);
@@ -135,7 +132,6 @@ void Player::ResetLegacyPosition(const Vector3 &newPos,
   anim_state_.frameNum =
       rng_.Uniform(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
   anim_state_.touchFrame = -1;
-  anim_state_.originatingInterrupt = e_InterruptAnim_None;
   anim_state_.actionSmuggle = Vector3(0);
   anim_state_.actionSmuggleOffset = Vector3(0);
   anim_state_.actionSmuggleSustain = Vector3(0);
@@ -257,9 +253,6 @@ void Player::ProjectSimulationMovementState(
   if (UsesProceduralLocomotion(ball_retainer)) {
     // H3e4d1: these serialized legacy aliases have no pure-locomotion producer.
     // Project the authoritative velocity rather than retaining animation history.
-    spatial_state_.actualMovement = state.velocity;
-    spatial_state_.physicsMovement = state.velocity;
-    spatial_state_.animMovement = state.velocity;
   }
   spatial_state_.directionVec = state.GetFacing();
   spatial_state_.floatVelocity = spatial_state_.movement.GetLength();
@@ -291,7 +284,6 @@ void Player::ApplySimulationBodyState(
       spatial_state_.bodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
   const Vector3 relative = state.bodyFacing.GetRotated2D(-spatial_state_.angle)
                                .GetNormalized(Vector3(0, -1, 0));
-  spatial_state_.relBodyDirectionVecNonquantized = relative;
   spatial_state_.relBodyAngleNonquantized =
       relative.GetAngle2D(Vector3(0, -1, 0));
 
@@ -842,7 +834,6 @@ void Player::ProjectSelectedActionCompat(
   anim_state_.functionType = command.desiredFunctionType;
   anim_state_.frameNum = 0;
   anim_state_.touchFrame = touch_choice.touch_frame;
-  anim_state_.originatingInterrupt = localInterruptAnim;
   anim_state_.touchPos = touch_choice.touch_position;
   anim_state_.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatial_state_.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
   anim_state_.rotationSmuggle.end = touch_choice.rotation_smuggle;

@@ -33,7 +33,6 @@ struct Anim {
   AnimationId animationId = 0;
   int frameNum = 0;
   e_FunctionType functionType = e_FunctionType_None;
-  e_InterruptAnim originatingInterrupt = e_InterruptAnim_None;
   Vector3 actionSmuggle;
   Vector3 actionSmuggleOffset;
   Vector3 actionSmuggleSustain;
