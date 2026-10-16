@@ -10,7 +10,7 @@ class Player;
 // Borrowed, non-owning view of one team for a single player call. Runtime
 // reconstructs it every tick and never hands over ownership, so it is not a
 // Team entity: it exposes only the roster slices and match facts that
-// Player/Humanoid actually read. Replaces the transitional `Team&` in
+// Player actually reads. Replaces the transitional `Team&` in
 // PlayerTickContext so player code stops depending on the runtime Team class.
 struct PlayerTeamView {
   int team_id = -1;

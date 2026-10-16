@@ -5,7 +5,7 @@
 // `Humanoid::SelectAnim`, as explicit, inspectable value inputs. These are pure
 // decisions: no RNG, no state mutation, no candidate search. `Player` owns them
 // (`Player::CanAttemptActionSelection` / `CanCommitActionSelection`); the
-// Humanoid still supplies the not-yet-migrated legacy facts through the context
+// Player still supplies the not-yet-migrated legacy facts through the context
 // structs. The value logic lives here so it can be unit-tested without linking
 // the actor runtime.
 
@@ -32,7 +32,7 @@ struct RequeueGateContext {
   PlayerCommand originating_command;
   PlayerCommand command;
 
-  // Motion facts of the current tick (the legacy Humanoid spatial state).
+  // Motion facts of the current tick (the legacy compatibility spatial state).
   Vector3 spatial_movement{0};
   Vector3 outgoing_movement{0};
   Vector3 incoming_movement{0};

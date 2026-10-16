@@ -1,7 +1,7 @@
 // ANIM-1 A6.4 step 9a/10: the action-selection flow is Player-owned. This
 // translation unit holds the relocated `SelectAnim` body, the crude-query
-// builder and the `NeedTouch` gate. The Humanoid is only a compatibility
-// provider of the not-yet-migrated spatial facts; it no longer decides.
+// builder and the `NeedTouch` gate. The Player owns the decision; the
+// compatibility state only supplies the not-yet-migrated spatial facts.
 //
 // The pure scoring/refinement algorithms stay in Animation; the reference
 // motion comes from the A8.0 PlayerMotion kernel. Nothing about candidate
@@ -188,7 +188,7 @@ bool Player::NeedTouch(football::sim::Tick now,
 
 // ---------------------------------------------------------------------------
 // ANIM-1 A6.4 step 10: the selection flow. Relocated verbatim from
-// Humanoid::SelectAnim; the Humanoid only supplies spatial facts.
+// Humanoid::SelectAnim; the compatibility state only supplies spatial facts.
 // ---------------------------------------------------------------------------
 bool Player::TrySelectAction(football::sim::Tick now,
                              const football::sim::PlayerTickContext &tick,
@@ -248,7 +248,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   if (localInterruptAnim == e_InterruptAnim_ReQueue) {
     // ANIM-1 A6.4 step 6a: the pre-search ReQueue gate is a Player-owned pure
-    // decision. The Humanoid supplies the not-yet-migrated legacy facts.
+    // decision. The compatibility state supplies the not-yet-migrated legacy facts.
     football::sim::RequeueGateContext requeue_gate;
     requeue_gate.action_type = action.type;
     requeue_gate.action_frame = action.Frame();
@@ -528,7 +528,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
     refine_request.use_desired_look_at = command.useDesiredLookAt;
     refine_request.is_movement = true;
 
-    // ANIM-1 A6.3b.3: the Player owns the Movement selection; the Humanoid
+    // ANIM-1 A6.3b.3: the Player owns the Movement selection; the compatibility
     // supplies the spatial request and reads back the chosen candidate list.
     dataSet = SelectMovement(animations_, crude_movement_snapshot,
                              refine_request);
@@ -594,7 +594,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
     // pick a clip the legacy filter rejects, blocking the A6.3b hand-over.
     ++audit.shadow_checks;
     // A6.3b.1: the final pick rule (preferred if a legal candidate, else the
-    // legacy first) is a pure Animation helper; the Humanoid only installs it.
+    // legacy first) is a pure Animation helper; the Player only installs it.
     const AnimationId pick = ResolveMovementPick(dataSet, choice.animation_id);
     auto preferred = std::find(dataSet.begin(), dataSet.end(),
                                static_cast<int>(choice.animation_id));
@@ -734,7 +734,7 @@ void Player::SelectRetainAnim() {
 // ---------------------------------------------------------------------------
 // ANIM-1 A7 step 1: the Player owns the passive-trip decision. The guard is
 // evaluated at contact time exactly as the legacy Humanoid::TripMe did; the
-// accepted trip is applied to the Humanoid interrupt at the next Process.
+// accepted trip is applied to the animation interrupt at the next action tick.
 // ---------------------------------------------------------------------------
 void Player::TripMe(const Vector3 &tripVector, int tripType,
                     const Player *ball_retainer) {
@@ -813,7 +813,7 @@ void Player::BuildTripSelectionCommands(PlayerCommandQueue &queue,
 // ---------------------------------------------------------------------------
 // ANIM-1 A8 step 4: the Player computes and commits the non-procedural (baked
 // action) motion. Relocated from the non-procedural branch of
-// `HumanoidBase::CalculateSpatialState`; the Humanoid's spatial state is only a
+// CalculateSpatialState; the compatibility spatial state is only a
 // compatibility projection that this writes.
 // ---------------------------------------------------------------------------
 void Player::ComputeAndCommitActionMotion() {
@@ -1006,7 +1006,7 @@ void Player::ApplyFactualSpatialState() {
 
 // ---------------------------------------------------------------------------
 // ANIM-1 A9 step 3: the goalkeeper boundary clamps, relocated from
-// Humanoid::Process. The retained goalkeeper must not leave the 16-meter box.
+// the action tick. The retained goalkeeper must not leave the 16-meter box.
 // ---------------------------------------------------------------------------
 void Player::ApplyGoalkeeperBoundaryClamps(
     const football::sim::PlayerTickContext &tick, const Player *ball_retainer) {

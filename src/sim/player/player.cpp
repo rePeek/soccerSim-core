@@ -404,16 +404,16 @@ PlayerKinematicState Player::CommitLocomotion(
 void Player::CommitKinematicState(const PlayerKinematicState& next) {
   // Full-state commit: the caller computed every field, including `speed`; this
   // point only installs it and keeps the ground collider consistent. No oracle
-  // here: the Humanoid mirror is refreshed by the caller's sync step, and the
+  // here: the compatibility mirror is refreshed by the caller's sync step, and the
   // two sides are momentarily allowed to disagree.
   kinematicState = next;
   groundCollider.SetCenter(kinematicState.position);
 }
 
 void Player::CommitLegacyActionMotion() {
-  // S0.1: adopting the Humanoid's motion is legitimate ONLY for the legacy
-  // animation-root-motion paths (and the lifecycle resets that re-read its
-  // pose). Pure locomotion never comes through here, so the Humanoid cannot
+  // S0.1: adopting the baked action motion is legitimate ONLY for the legacy
+  // animation-root-motion paths (and the lifecycle resets that re-read the
+  // compatibility pose). Pure locomotion never comes through here.
   // become the authority for a tick the Player already computed. The commit
   // still goes through the single write point, which also keeps the ground
   // collider in step.
@@ -617,8 +617,8 @@ void Player::BeginSimulationAction() {
   PlayerActionExecutor::Begin(actionState, definition);
 
   // ResetPosition can deliberately start an idle animation at a non-zero
-  // legacy frame. Establish that initial cursor once; normal ticks never
-  // derive executor time from Humanoid.
+  // legacy frame. Establish that initial cursor once; normal ticks never derive
+  // executor time from the compatibility projection.
   const football::sim::TickSpan initial_elapsed{static_cast<std::uint64_t>(anim_state_.frameNum)};
   if (initial_elapsed.value > 0) {
     PlayerActionExecutor::Step(actionState, initial_elapsed);
@@ -626,8 +626,8 @@ void Player::BeginSimulationAction() {
   CheckSimulationActionOracle();
 }
 // ANIM-1 A6.4 step 4: single Player entry point for touch-animation selection.
-// The evaluation still runs inside the Humanoid (its physics helpers are not
-// relocated yet); the Player owns the decision and retains the result.
+  // The evaluation runs against the Player's own touch math; the Player owns
+  // the decision and retains the result.
 int Player::SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
                               std::span<MentalImage> history, const DataSet &sorted_data_set,
                               bool use_desired_movement, const Vector3 &desired_direction,
@@ -638,7 +638,8 @@ int Player::SelectTouchAction(football::sim::Tick now, const football::sim::Play
                               bool prefer_pass_and_shot,
                               bool allow_pre_touch_rotation_smuggle,
                               bool use_continuous_ball_check) {
-  // ANIM-1 A6.4 step 9c: the loop is Player-owned. The Humanoid supplies the
+  // ANIM-1 A6.4 step 9c: the loop is Player-owned. The action-execution state
+  // supplies the spatial facts and the A8.0 reference-motion kernel.
   // not-yet-migrated spatial facts and the A8.0 reference-motion kernel.
   const int anim_id = SelectBestTouchAnim(
       now, tick, history, sorted_data_set, use_desired_movement, desired_direction,
@@ -674,7 +675,7 @@ bool Player::CommitSelectedAction(int selected_anim_id,
 void Player::InstallSelectedAction(const football::sim::SelectedAction &selection) {
   // ANIM-1 A6.3b.3 (second cut): the Player is now the authority for the action
   // definition - it is built from the Player-owned `SelectedAction`, not read
-  // back from the Humanoid. The compat Humanoid projection is synced by the
+  // back from the compatibility projection. The compat projection is synced by
   // selector before this call and is cross-checked below. The entry never
   // re-selects a clip or vetoes an interrupt.
   installed_action_ = selection;
@@ -694,7 +695,7 @@ void Player::InstallSelectedAction(const football::sim::SelectedAction &selectio
   }
   CheckSimulationActionOracle();
 
-  // Oracle during migration: the compat Humanoid projection must still agree with
+  // Oracle during migration: the compat projection must still agree with
   // the Player-owned selection, otherwise the two authorities have drifted.
 
   // Same-tick consistency: the committed cursor, the scheduled contact and the
@@ -746,7 +747,7 @@ bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {
 
 void Player::AdvanceActionTick() {
   // ANIM-1 A6.3c.2: one real time advance. The PlayerActionState cursor is the
-  // authority; the Humanoid integer frame is a read-only compat projection.
+  // authority; the compatibility integer frame is a read-only projection.
   PlayerActionExecutor::Step(actionState, football::sim::TickSpan{1});
   anim_state_.frameNum = actionState.Frame();
   CheckSimulationActionOracle();
@@ -770,21 +771,22 @@ void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
 void Player::ApplyPositionCorrection(const Vector3 &offset) {
   // S0.2: the Player is the authority for a corrected position, wherever the
   // correction is *evaluated* (PlayerContact, or still the goalkeeper boundary
-  // clamps inside the Humanoid pass). Commit it first, then let the legacy
-  // Humanoid adopt the same offset as animation/motion bookkeeping (startPos,
+  // clamps inside the action tick). Commit it first, then let the compatibility
+  // bookkeeping adopt the same offset (startPos, previous position, smuggle
+  // offsets) without re-deriving the Player state.
   // previous position, smuggle offsets) without re-deriving the Player state.
   //
   // Only the position changes. Velocity, facing and bodyFacing stay exactly the
   // values the previous commit installed, and `speed` is deliberately not
   // recomputed: a position correction is an instantaneous displacement, not new
-  // motion. That is also what the legacy path produced, since the Humanoid never
+  // motion. That is also what the legacy path produced, since the projection never
   // changed its movement/direction for an offset.
   PlayerKinematicState corrected = kinematicState;
   corrected.position += offset;
   CommitKinematicState(corrected);
   ApplyLegacyPositionOffset(offset);
   // No kinematic oracle here: this is not a sync point. A standalone
-  // CommitLocomotion leaves the Player ahead of the not-yet-mirrored Humanoid by
+  // CommitLocomotion leaves the Player ahead of the not-yet-mirrored projection by
   // design, and the oracle is asserted where a sync completes
   // (CommitLegacyActionMotion / ProjectSimulationMovementState).
 }
@@ -792,7 +794,7 @@ void Player::ApplyPositionCorrection(const Vector3 &offset) {
 void Player::OffsetPosition(const Vector3 &offset) {
   // External corrections (PlayerContact) additionally assert that the action
   // state still matches its legacy oracle. Corrections evaluated inside the
-  // Humanoid pass cannot: the animation state is mid-update there.
+  // compatibility pass cannot: the animation state is mid-update there.
   ApplyPositionCorrection(offset);
   CheckSimulationActionOracle();
 }
@@ -883,7 +885,7 @@ float Player::GetStat(football::player::PlayerStat name) const {
 }
 
 float Player::GetMaxVelocity() const {
-  // see humanoidbase's physics function
+  // see the player motion constants
   return sprintVelocity * GetVelocityMultiplier();
 }
 
@@ -898,7 +900,7 @@ PlayerMotionProfile Player::EffectiveMotionProfile() const {
 }
 
 float Player::GetVelocityMultiplier() const {
-  // see humanoid_utils' physics function
+  // see the player motion constants
   return 0.9f + model_.attributes.get(football::player::PlayerStat::physical_velocity) * 0.1f;
 }
 

@@ -1107,7 +1107,7 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
   // selector's choice was a legal legacy candidate in `in` ticks and rejected
   // in `not_in` ticks. A non-zero `not_in` means A6.3b cannot blindly hand
   // Movement selection to the Player: it must reproduce the legacy candidate
-  // filter and its fallback pick (still in Humanoid) for those ticks.
+  // filter and its fallback pick for those ticks.
   const LocomotionPlaybackAudit& audit = LocomotionPlaybackAuditState();
   std::fprintf(stderr,
                "[runtime] A6.3a shadow checks=%d in=%d not_in=%d clip_match=%d "
@@ -1138,7 +1138,7 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
                player->InstallCursorMismatches());
   CHECK(player->InstallCursorChecks() > 0);
   CHECK(player->InstallCursorMismatches() == 0);
-  // ANIM-1 A6.3d: the compat Humanoid projection no longer decides the clip or
+  // ANIM-1 A6.3d: the compat projection no longer decides the clip or
   // the action time; the installed selection, the action cursor and the sampled
   // pose agree on every tick.
   std::fprintf(stderr, "[runtime] A6.3d authority checks=%d match=%d mismatch=%d\n",
@@ -1229,11 +1229,64 @@ TEST_CASE("Runtime harness: possession drives a non-Movement action install",
   CHECK(sim.Stop());
 }
 
+TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
+          "[runtime][sim]") {
+  // ANIM-1 A9.6d: drive the Player's own pass execution (no Humanoid) and prove
+  // both halves still work: the pass action installs and a real touch is
+  // published, so the Player's team is recorded as the last toucher.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  const football::sim::event::TouchState& touches = SimulationAccess::TouchesOf(sim);
+  int in_play_tick = -1;
+  int pass_seen_tick = -1;
+  bool touched_by_player = false;
+  int touches_before = 0;
+
+  for (int tick = 0; tick < 300; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    const bool drive = in_play_tick >= 0 && tick > in_play_tick + 2;
+
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = Vector3(0, -1, 0);
+    control.desired_speed = drive ? 3.0f : 0.0f;
+    if (drive) {
+      SimulationAccess::SetBallRetainer(sim, player);
+      SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -0.4f, 0));
+      control.action = ControlAction::ShortPass;
+      control.target_position = player->GetPosition() + Vector3(0, -18.0f, 0);
+      control.power = 0.6f;
+    }
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+
+    if (player->GetSimulationActionState().type == e_FunctionType_ShortPass &&
+        pass_seen_tick < 0) {
+      pass_seen_tick = tick;
+    }
+    if (touches.last_player_by_team[player->GetTeamID()] == player->GetID()) {
+      touched_by_player = true;
+      ++touches_before;
+    }
+  }
+
+  std::fprintf(stderr, "[runtime] A9.6d in_play=%d pass_tick=%d touches=%d\n",
+               in_play_tick, pass_seen_tick, touches_before);
+  CHECK(in_play_tick > 0);
+  CHECK(pass_seen_tick >= 0);
+  CHECK(touched_by_player);
+  CHECK(player->InstallMismatches() == 0);
+  CHECK(sim.Stop());
+}
+
 TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
           "[runtime][sim]") {
   // A7: the Player owns the passive-trip decision. Injected directly (so the
   // test does not depend on contact geometry), the accepted trip must reach the
-  // Humanoid interrupt and install a Trip action, then leave it again. The tiny
+  // animation interrupt and install a Trip action, then leave it again. The tiny
   // roster keeps this reachable inside the runtime timeout.
   Simulation sim;
   InitSmallMatch(sim);

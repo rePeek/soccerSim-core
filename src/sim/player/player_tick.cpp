@@ -91,11 +91,9 @@ void Player::MirrorLegacyState() {
   tripDirection.Mirror();
   decayingPositionOffset.Mirror();
   predicate_RelDesiredDirection.Mirror();
-  predicate_DesiredDirection.Mirror();
   predicate_RelIncomingBodyDirection.Mirror();
   predicate_LookAt.Mirror();
   predicate_RelDesiredTripDirection.Mirror();
-  predicate_RelDesiredBallDirection.Mirror();
 }
 
 
@@ -191,7 +189,6 @@ void Player::ResetLegacyPosition(const Vector3 &newPos,
   anim_state_.outgoingMovement = Vector3(0);
   anim_state_.positionOffset = Vector3(0);
 
-  previousAnim_frameNum = 0;
   previousAnim_functionType = e_FunctionType_Movement;
 
 
@@ -426,7 +423,7 @@ void Player::ApplySimulationMovementState(
     const PlayerKinematicState &state, const Player* ball_retainer) {
   // Legacy action path: animation root motion produced this state, so adopting
   // it as the Player's motion is correct here -- and is the only remaining
-  // source-explicit way for the Humanoid to write the Player.
+  // source-explicit entry that re-reads the compatibility projection.
   ProjectSimulationMovementState(state, ball_retainer);
   CommitLegacyActionMotion();
 }
@@ -459,14 +456,14 @@ void Player::ProjectMovementState(
 
   if (!UsesProceduralLocomotion(ball_retainer)) {
     // Non-locomotion ticks keep the legacy animation root motion. Projecting
-    // it keeps the Humanoid movement fields a single projection of the
+    // it keeps the compatibility movement fields a single projection of the
     // simulation kinematic state.
     ApplySimulationMovementState(GetKinematicState(), ball_retainer);
     return;
   }
 
   // Pure locomotion: the simulation produces the movement and the legacy
-  // Humanoid movement fields follow it. The command and the starting state are
+  // compatibility movement fields follow it. The command and the starting state are
   // the tick-start ones, so an action selection later in this tick cannot
   // change what this tick's locomotion was. Writing spatial_state_.position here
   // means any later action already starts from the authoritative position
@@ -482,7 +479,7 @@ void Player::ProjectMovementState(
   const PlayerCommand &command = GetDecisionLocomotionIntent();
   // P2a: Player computes the locomotion through PlayerMotion and commits the
   // resulting state. S0.1: this path only *projects* it into the legacy spatial
-  // state -- it does not adopt it back, so the Humanoid can no longer overwrite
+  // state -- it does not adopt it back, so the compatibility state can no longer overwrite
   // a locomotion tick the Player already owns. The oracle proves the two sides
   // agree at this point.
   const PlayerKinematicState next = CommitLocomotion(
@@ -722,7 +719,7 @@ void Player::RunActionTick(football::sim::Tick now,
   }
   this->NoteProcessedPlayerTick();
   // ANIM-1 A7: apply the passive trip the Player accepted at the previous
-  // contact phase, exactly where the legacy direct Humanoid write took effect.
+  // contact phase, exactly where the legacy direct interrupt write took effect.
   if (const auto pending_trip = this->ConsumePendingPassiveTrip()) {
     interruptAnim = e_InterruptAnim_Trip;
     tripDirection = pending_trip->direction;
@@ -837,7 +834,6 @@ void Player::RunActionTick(football::sim::Tick now,
 
   const PlayerActionState &action =
       this->GetSimulationActionState();
-  previousAnim_frameNum++;
 
 
   /*
@@ -1115,7 +1111,7 @@ void Player::RunActionTick(football::sim::Tick now,
   } else {
   }
 
-  // ANIM-1 A5: the Player owns the final pose. The Humanoid only hands over the
+  // ANIM-1 A5: the Player owns the final pose. The action tick only hands over the
   // selected clip/frame and the base yaw once per tick; the Player's playback
   // state samples/blends it.
   // ANIM-1 A6.3c.3: the clip id and frame come from the Player authority.
@@ -1156,7 +1152,6 @@ void Player::ProjectSelectedActionCompat(
     football::sim::Tick now, std::span<MentalImage> history,
     e_InterruptAnim localInterruptAnim, bool material_candidate) {
   const PlayerActionState &action = this->GetSimulationActionState();
-  previousAnim_frameNum = anim_state_.frameNum;
   previousAnim_functionType = anim_state_.functionType;
 
   anim_state_.animationId = selectedAnimID;

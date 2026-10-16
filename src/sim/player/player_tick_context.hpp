@@ -20,7 +20,7 @@ namespace football::sim {
 class PlayerSendOffSink;
 // Stack-local input for a single Player call. Never retained by an actor.
 // Opening contact may start the half during that call: fatigue reads the live
-// clock gate AFTER Humanoid execution, not a pre-contact frozen snapshot.
+// clock gate AFTER the action tick, not a pre-contact frozen snapshot.
 // play/set-piece/ball-in-play gates are also borrowed live because a synchronous
 // touch notification can move the competition state inside the same Process().
 struct PlayerTickContext {

@@ -153,7 +153,7 @@ void Simulation::BeginBodyPhysicsShadow() {
     body_physics_shadow_colliders_.clear();
     for (const auto& p : body_shadow_predictions_) {
       PlayerBodyColliderMotionIds ids{{p.colliders[0].id, p.colliders[1].id, p.colliders[2].id}};
-      // Humanoid facing remains roster-local through mirrors. Convert only a copy.
+      // Player facing remains roster-local through mirrors. Convert only a copy.
       auto axis = p.start.bodyFacing;
       if (FindPlayerById(p.player)->GetTeamID() == second_team_) axis.Mirror();
       std::array<football::geometry::ColliderMotion, kPlayerBodyPartCount> posed;

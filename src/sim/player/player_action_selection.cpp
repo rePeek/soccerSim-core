@@ -1,6 +1,6 @@
 // ANIM-1 A6.4 step 9c: the touch-animation selection loop is Player-owned. This
 // translation unit holds the relocated `GetBestCheatableAnimID` loop; the
-// Humanoid only supplies the not-yet-migrated spatial facts and the pure
+// The compatibility state supplies the not-yet-migrated spatial facts and the pure
 // reference-motion kernel (A8.0). No candidate, touch order or early exit was
 // changed.
 

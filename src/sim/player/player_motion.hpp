@@ -139,7 +139,7 @@ struct ActionSmuggleTickResult {
 //
 // Exactly one place commits the result (Player). That is what makes an animation
 // change unable to move the player by itself, and it is the interface action
-// execution will later call instead of writing Humanoid's spatial state.
+// execution calls instead of writing the compatibility spatial state.
 class PlayerMotion {
  public:
   // Continuous model. A facade over PlayerLocomotion, not a second

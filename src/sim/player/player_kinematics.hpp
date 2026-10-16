@@ -18,12 +18,12 @@
 
 
 // Explicit movement state for a player. During the initial shadow phase it is
-// synchronized from Humanoid; PlayerKinematics will later produce it directly
+// synchronized from the compatibility projection; PlayerKinematics will later produce it directly
 // without animation root motion.
 struct PlayerKinematicState {
   football::math::Vector3 position = football::math::Vector3(0);
   football::math::Vector3 velocity = football::math::Vector3(0);
-  // Exact shadow of Humanoid's animation-derived body pose.
+  // Exact shadow of the compatibility animation-derived body pose.
   football::math::Vector3 bodyFacing = football::math::Vector3(0, -1, 0);
   float GetSpeed() const { return velocity.GetLength(); }
 

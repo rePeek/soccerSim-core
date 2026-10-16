@@ -7,8 +7,7 @@
 
 // Static movement capability of one player, derived from its definition.
 //
-// This is the P1 reference profile, not yet the authority: the legacy Humanoid
-// still executes motion. It exists so the ability -> capability conversion has
+// The reference profile: the ability -> capability conversion has
 // one home and can be tested before the motion authority moves to Player.
 //
 // Deliberately excludes AI difficulty and fatigue. Those are per-tick runtime

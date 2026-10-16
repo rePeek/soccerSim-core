@@ -25,7 +25,7 @@ struct PreparedPlayerTouch {
   football::math::Vector3 strike_point;
   float strike_radius = 0.0f;
   int strike_foot = -1;
-  // Provenance sampled during the one real Humanoid pass, not reconstructed later.
+  // Provenance sampled during the one real compatibility pass, not reconstructed later.
   int animation_id = -1, contact_frame = -1, frame = 0;
 };
 class PlayerTouchPreparationSink {

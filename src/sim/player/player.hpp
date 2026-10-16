@@ -183,7 +183,7 @@ struct PlayerTeamFacts {
 };
 
 // ANIM-1 A7: a passive trip the Player accepted at contact time. It is applied
-// to the Humanoid's animation interrupt at the next Process, which is exactly
+// to the Player's animation interrupt at the next action tick, which is exactly
 // when the legacy direct write took effect. Gameplay state, cleared by resets.
 struct PendingPassiveTrip {
   Vector3 direction{0};
@@ -283,7 +283,7 @@ class Player final {
     }
     // P2a: Player owns the locomotion computation. It builds the proposal
     // through PlayerMotion and commits the resulting kinematic state; the
-    // legacy Humanoid spatial state is only a mirror of it for this step.
+    // legacy compatibility spatial state is only a mirror of it for this step.
     // `tick_start` is the tick-start state, so a later action selection in the
     // same tick cannot change what this tick's locomotion was.
     PlayerKinematicState CommitLocomotion(const PlayerCommand &command,
@@ -296,18 +296,19 @@ class Player final {
     int GetFrameNum() const { return anim_state_.frameNum; }
     int GetFrameCount() const { return static_cast<int>(GetCurrentBakedClip().frame_count); }
 
-    // Gameplay-facing movement state. It is NOT yet the producer: Humanoid's
-    // spatial state is still authoritative for movement, and `kinematicState`
-    // is an exact mirror of it. H3e flips this producer relationship. Every
-    // mutation of the Humanoid spatial state refreshes the mirror at the
-    // mutation point (CalculateSpatialState, CalculateFactualSpatialState,
-    // OffsetPosition, Mirror, state restore), so mid-tick readers such as the
-    // controller never see a stale actor. Mirroring follows the legacy
-    // field-level asymmetry (position/velocity mirrored; facing/bodyFacing not).
-    // bodyFacing is simulation-authoritative for pure locomotion (H3e3b) and
-    // remains an exact legacy shadow for every other action. Its public reader
-    // therefore uses the kinematic state; Humanoid is only its compatibility
-    // projection/oracle at this boundary.
+    // Gameplay-facing movement state. It is the single public reader: position,
+    // velocity and orientation all come from `kinematicState`, the committed
+    // authoritative state. `spatial_state_` is the Player-owned animation /
+    // compatibility projection that the not-yet-migrated action math still
+    // produces; every mutation of it refreshes the mirror at the mutation point
+    // (CalculateSpatialState, ApplyFactualSpatialState, OffsetPosition, Mirror,
+    // state restore), so mid-tick readers such as the controller never see a
+    // stale actor. Mirroring follows the legacy field-level asymmetry
+    // (position/velocity mirrored; facing/bodyFacing not). bodyFacing is
+    // simulation-authoritative for pure locomotion and an exact projection for
+    // every other action. CheckSimulationKinematicOracle() enforces the mirror
+    // bit-exactly. Actors must be positioned through Player::ResetPosition /
+    // OffsetPosition so that this state cannot be left stale.
     // CheckSimulationKinematicOracle() enforces the mirror bit-exactly.
     // Actors must be positioned through Player::ResetPosition /
     // OffsetPosition so that this state cannot be left stale.
@@ -315,7 +316,7 @@ class Player final {
     inline Vector3 GetDirectionVec() const { return kinematicState.GetFacing(); }
     inline Vector3 GetBodyDirectionVec() const { return kinematicState.bodyFacing; }
     inline Vector3 GetMovement() const { return kinematicState.velocity; }
-    // Gameplay reads continuous relative orientation. The quantized Humanoid
+    // Gameplay reads continuous relative orientation. The quantized
     // relBodyAngle remains animation-selection compatibility only.
     inline radian GetRelBodyAngle() const {
       return spatial_state_.relBodyAngleNonquantized;
@@ -346,7 +347,7 @@ class Player final {
       return groundCollider;
     }
     // Gameplay reads the sole persistent, simulation-authoritative action
-    // schedule. Humanoid provides only a temporary legacy oracle.
+    // schedule. The compatibility projection is measurement-only.
     const PlayerActionState &GetSimulationActionState() const {
       return actionState;
     }
@@ -383,17 +384,16 @@ class Player final {
     int ActionRequestDefers() const { return action_request_defers_; }
     int ActionRequestRejects() const { return action_request_rejects_; }
     // ANIM-1 A3: the Player owns the animation playback state and computes the
-    // final pose; the Animation module stays stateless. The Humanoid still
-    // selects the clip and feeds the integer frame/base yaw each tick.
+    // final pose; the Animation module stays stateless. The clip id and frame
+    // come from the Player's authoritative state (installed selection + action
+    // cursor); only the base yaw and the blend length are still supplied by the
+    // action-execution state.
     void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
-    // ANIM-1 A6.3c.3: the clip id and frame now come from the Player's authoritative
-    // state (installed selection + action cursor); only the not-yet-migrated base
-    // yaw and the blend length are supplied by the Humanoid.
     void UpdatePlaybackFromAuthority(float base_angle, int blend_ticks) {
       const AnimationId authority_clip = InstalledAction().clip_id;
       const int authority_frame = actionState.Frame();
       UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
-      // ANIM-1 A6.3d: the compat Humanoid projection no longer decides the clip
+      // ANIM-1 A6.3d: the compat projection no longer decides the clip
       // or the action time. Verify the three Player-owned artefacts agree - the
       // installed selection, the action cursor and the pose that was sampled.
       ++authority_checks_;
@@ -408,10 +408,9 @@ class Player final {
     int AuthorityChecks() const { return authority_checks_; }
     int AuthorityMatches() const { return authority_matches_; }
     int AuthorityMismatches() const { return authority_mismatches_; }
-    // ANIM-1 A6.3b.3: the Player owns the Movement candidate selection. The
-    // Humanoid only supplies the spatial request; the Player runs the stateless
-    // Animation refinement and retains the ordered candidate list (and the
-    // foot-counterfactual variant the diagnostic measures).
+    // ANIM-1 A6.3b.3: the Player owns the Movement candidate selection. It runs
+    // the stateless Animation refinement and retains the ordered candidate list
+    // (and the foot-counterfactual variant the diagnostic measures).
     std::vector<int> SelectMovement(const AnimationLibrary& library,
                                     std::span<const int> crude,
                                     const MovementRefinementRequest& request) {
@@ -438,7 +437,7 @@ class Player final {
                           bool use_continuous_ball_check);
     // ANIM-1 A6.4 step 9c: the Player-owned touch-selection loop, relocated
     // from `Humanoid::GetBestCheatableAnimID`. Same candidate order, touch order
-    // and early exit; the Humanoid only supplies spatial facts and the A8.0
+    // and early exit; the compatibility state only supplies spatial facts and the A8.0
     // reference-motion kernel.
     int SelectBestTouchAnim(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
                             std::span<MentalImage> history, const DataSet &sorted_data_set,
@@ -502,8 +501,8 @@ class Player final {
     }
     bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, football::sim::Tick now, bool retaining_ball);
     bool LocomotionIntentRefreshHeldIneligible(football::sim::Tick now, bool retaining_ball) const;
-    // H3d2a: Humanoid invokes these for completed action selection and ticks.
-    // The executor advances independently; legacy state is an oracle only.
+    // H3d2a: the Player invokes these for completed action selection and ticks.
+    // The executor advances independently; the compatibility state is an oracle only.
     void BeginSimulationAction();
     // ANIM-1 A6.3b.3 (first cut): the single install entry. The selector prepares
     // a `football::sim::SelectedAction`; the Player commits it and runs the shared install
@@ -511,8 +510,6 @@ class Player final {
     // against the definition the executor committed. It never re-selects or
     // vetoes an interrupt.
     void InstallSelectedAction(const football::sim::SelectedAction& selection);
-    // ANIM-1 A6.4 step 7b: the Player dispatches installation. It runs the
-    // Humanoid compat projection, installs through the one install entry and
     // then records the scheduled-contact audit. Returns true when committed.
     bool CommitSelectedAction(int selected_anim_id,
                               const football::sim::TouchChoice &touch_choice,
@@ -532,8 +529,8 @@ class Player final {
                    const football::sim::PlayerTickContext &tick, int anim_id,
                    const PlayerCommand &command,
                    std::span<MentalImage> history);
-    // ANIM-1 A6.4 step 10: the single Player-owned action-selection entry.
-    // The Humanoid calls this instead of running its own selector.
+    // ANIM-1 A6.4 step 10: the single Player-owned action-selection entry,
+    // used by the action tick instead of a Humanoid selector.
     bool TrySelectAction(football::sim::Tick now,
                          const football::sim::PlayerTickContext &tick,
                          const PlayerCommand &command,
@@ -551,7 +548,7 @@ class Player final {
                                     const Vector3 &direction_vec,
                                     const Vector3 &position) const;
     // ANIM-1 A8 step 4: the Player computes and commits the non-procedural
-    // (baked action) motion. The Humanoid only stores the compatibility
+    // (baked action) motion. The Player only stores the compatibility
     // spatial projection that this writes.
     void ComputeAndCommitActionMotion();
     // ANIM-1 A8 step 5: the movement-smuggle calculation, relocated from the
@@ -578,15 +575,15 @@ class Player final {
     int InstallCursorMismatches() const { return install_cursor_mismatches_; }
     void StepSimulationAction(football::sim::TickSpan elapsed);
     // ANIM-1 A6.3c.2: the single per-tick action clock advance: step the
-    // authoritative cursor, project it onto the compat Humanoid storage, then
+    // authoritative cursor, project it onto the compatibility storage, then
     // run the oracle so it sees a fully advanced and projected state.
     void AdvanceActionTick();
-    // Validates the authoritative schedule against Humanoid's temporary
-    // legacy projection. It is intentionally a fatal invariant in all builds.
+    // Validates the authoritative schedule against the compatibility
+    // projection. It is intentionally a fatal invariant in all builds.
     void CheckSimulationActionOracle() const;
 
     // ANIM-1 A7: the Player owns the passive-trip decision. It evaluates the
-    // legacy guard at contact time and stores the accepted trip; the Humanoid
+    // legacy guard at contact time and stores the accepted trip; the action tick
     // applies it to its interrupt at the next Process.
     void TripMe(const Vector3 &tripVector, int tripType, const Player* ball_retainer);
     std::optional<PendingPassiveTrip> ConsumePendingPassiveTrip();
@@ -597,9 +594,9 @@ class Player final {
     void SetControl(const PlayerControl& control) { control_ = control; }
     void ClearControl() { control_.reset(); }
 
-    // Bit-exact mirror check: position, velocity, locomotion facing, body
-    // facing, derived speed and the collider center must all match the Humanoid
-    // spatial state exactly. An epsilon cannot mask a synchronization bug.
+    // facing, derived speed and the collider center must all match the
+    // compatibility spatial state exactly. An epsilon cannot mask a
+    // synchronization bug.
     bool IsKinematicMirrorConsistent() const;
     // Fatal (all build types) form of the same invariant, with the diverging
     // field reported. Callers are the mirror writers and state restore, so the
@@ -634,8 +631,8 @@ class Player final {
     const Anim *GetCurrentAnim() { return &anim_state_; }
     PlayerBakedPoseSample GetBakedPoseSample() const {
       PlayerBakedPoseSample sample = SampleBakedPose(kinematicState, body_profile_);
-      // ANIM-1 A5: the Player owns the final pose; the Humanoid provides the
-      // clip/frame metadata. Verified bit-identical to the Humanoid pose by the
+      // ANIM-1 A5: the Player owns the final pose; SampleBakedPose supplies the
+      // clip/frame metadata. Verified bit-identical to the legacy pose by the
       // A3.2 dual-run oracle before this flip.
       if (playback_state_.have_pose) {
         sample.pose = playback_state_.final_pose;
@@ -813,28 +810,25 @@ class Player final {
                                      e_InterruptAnim localInterruptAnim,
                                      bool material_candidate);
     void RecordSelectedContactAudit(const PlayerCommand &command);
-    // S0.1: the *only* entry that adopts motion the legacy Humanoid produced from
-    // animation root motion, plus the lifecycle resets that re-read the Humanoid
-    // pose. It is source-explicit on purpose: it must never be the way a pure
-    // locomotion result reaches the Player (that is CommitLocomotion ->
-    // CommitKinematicState), because adopting it would make the Humanoid the
-    // authority again for a tick the Player already computed. Still used by
-    // CalculateSpatialState / CalculateFactualSpatialState /
-    // HumanoidBase::OffsetPosition (legacy action paths) and by
-    // ResetPosition / ResetRuntimeState / Activate / PrepareTick, which
-    // S0.2-S0.4 migrate.
+    // The *only* entry that adopts the baked action motion the Player produced
+    // from animation root motion, plus the lifecycle resets that re-read the
+    // compatibility pose. It is source-explicit on purpose: it must never be the
+    // way a pure-locomotion result reaches the Player (that is CommitLocomotion
+    // -> CommitKinematicState). Still used by CalculateSpatialState /
+    // ApplyFactualSpatialState / ApplyLegacyPositionOffset (legacy action paths)
+    // and by ResetPosition / ResetRuntimeState / Activate.
     void CommitLegacyActionMotion();
-    // S0.2: a position correction whose *evaluation* still lives in the
-    // Humanoid's own pass (the goalkeeper boundary clamps). Same authority as
-    // Player::OffsetPosition -- it commits the corrected position and updates the
-    // Humanoid bookkeeping -- but it does not run the action oracle, because it
-    // is evaluated while the animation state is still mid-update.
+    // A position correction whose evaluation is owned by the action tick (the
+    // goalkeeper boundary clamps). Same authority as Player::OffsetPosition --
+    // it commits the corrected position and updates the compatibility
+    // bookkeeping -- but it does not run the action oracle, because it is
+    // evaluated while the animation state is still mid-update.
     void ApplyPositionCorrection(const football::math::Vector3& offset);
     // P2c-1: the single write point for the Player's kinematic state. It commits
     // the whole struct the caller computed and keeps the ground collider in
     // step. It deliberately does NOT recompute `speed` (the producer owns that)
     // and does NOT run CheckSimulationKinematicOracle(): at this instant the
-    // Humanoid mirror has not been refreshed yet, so the two sides are
+    // compatibility mirror has not been refreshed yet, so the two sides are
     // temporarily allowed to disagree; ApplySimulationMovementState syncs them
     // and the oracle runs afterwards.
     void CommitKinematicState(const PlayerKinematicState& next);
@@ -868,7 +862,6 @@ class Player final {
     // ANIM-1 A9.5-A9.8: runtime bookkeeping and selection predicates relocated
     // from HumanoidBase. Same values, same evaluation order; the Player is the
     // only owner now.
-    int previousAnim_frameNum = 0;
     e_FunctionType previousAnim_functionType = e_FunctionType_None;
     Vector3 startPos;
     radian startAngle = 0;
@@ -884,13 +877,11 @@ class Player final {
     mutable e_Foot predicate_DesiredFoot = e_Foot_Right;
     mutable e_Velocity predicate_IncomingVelocity = e_Velocity_Idle;
     mutable Vector3 predicate_RelDesiredDirection;
-    mutable Vector3 predicate_DesiredDirection;
     mutable float predicate_CorneringBias = 0.0f;
     mutable e_Velocity predicate_DesiredVelocity = e_Velocity_Idle;
     mutable Vector3 predicate_RelIncomingBodyDirection;
     mutable Vector3 predicate_LookAt;
     mutable Vector3 predicate_RelDesiredTripDirection;
-    mutable Vector3 predicate_RelDesiredBallDirection;
     mutable float predicate_idle = 0.0f;
     mutable std::vector<float> orderScratch_;
     std::chrono::milliseconds mentalImageTime{0};
