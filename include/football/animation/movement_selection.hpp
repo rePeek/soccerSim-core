@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "football/animation/library.hpp"
+#include "football/animation/movement_math.hpp"
 #include "football/animation/selector.hpp"
 
 // ANIM-1 A6.3b.2 — the legacy Movement candidate refinement, as a stateless
@@ -449,4 +450,131 @@ inline std::vector<int> RefineNonMovementCandidates(
   if (!request.is_movement) SortByBaseanim(library, data_set);
   return data_set;
 }
+
+// The legacy catch/deflect tie-break: prefer a clip that can retain the ball.
+inline void SortByCatchOrDeflect(const AnimationLibrary& library,
+                                  std::vector<int>& data_set) {
+  std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
+    const bool catch_a =
+        !library.Get(static_cast<uint32_t>(a)).metadata.outgoing_retain_state.empty();
+    const bool catch_b =
+        !library.Get(static_cast<uint32_t>(b)).metadata.outgoing_retain_state.empty();
+    if (catch_a && !catch_b) return true;
+    return false;
+  });
+}
+
+// Body-direction similarity sort (used by the idle selection).
+inline void SortByBodyDirectionSimilarity(const AnimationLibrary& library,
+                                          std::vector<int>& data_set,
+                                          const Vector3& look_at,
+                                          const Vector3& position, radian angle,
+                                          const Vector3& rel_desired_direction) {
+  std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
+    return DirectionSimilarityRating(library.Get(static_cast<uint32_t>(a)),
+                                     look_at, position, angle,
+                                     rel_desired_direction) <
+           DirectionSimilarityRating(library.Get(static_cast<uint32_t>(b)),
+                                     look_at, position, angle,
+                                     rel_desired_direction);
+  });
+}
+
+// Movement-similarity sort with an explicit cornering bias.
+inline void SortByMovementSimilarity(const AnimationLibrary& library,
+                                     std::vector<int>& data_set,
+                                     const Vector3& rel_desired_direction,
+                                     e_Velocity desired_velocity,
+                                     float cornering_bias) {
+  std::stable_sort(data_set.begin(), data_set.end(), [&](int a, int b) {
+    return MovementSimilarity(library.Get(static_cast<uint32_t>(a)),
+                              rel_desired_direction, desired_velocity,
+                              cornering_bias) <
+           MovementSimilarity(library.Get(static_cast<uint32_t>(b)),
+                              rel_desired_direction, desired_velocity,
+                              cornering_bias);
+  });
+}
+
+// ANIM-2 A10.3b: the legacy `useDesiredMovement == false` chain. No direction
+// filter runs (the legacy chain applied that only when the command carried
+// desired movement), but everything else matches order-for-order. When
+// `without_foot_out` is non-null it receives the same chain minus the foot
+// sort, for the foot counterfactual diagnostic.
+inline std::vector<int> RefineLegacyCandidates(
+    const AnimationLibrary& library, std::span<const int> crude,
+    const MovementRefinementRequest& request, e_FunctionType function_type,
+    bool use_desired_trip_direction, const Vector3& rel_desired_trip_direction,
+    std::vector<int>* without_foot_out = nullptr) {
+  std::vector<int> data_set(crude.begin(), crude.end());
+  if (data_set.empty()) {
+    if (without_foot_out != nullptr) without_foot_out->clear();
+    return data_set;
+  }
+
+  SortByPriority(library, data_set);
+  SortByIdle(library, data_set, request.idle_level);
+  if (without_foot_out != nullptr) *without_foot_out = data_set;
+  SortByFoot(library, data_set, request.desired_foot);
+  if (!request.is_ball_control) {
+    SortByIncomingBodyDirection(library, data_set, request.rel_incoming_body_direction);
+  }
+  SortByIncomingVelocity(library, data_set, request.incoming_velocity);
+  if (use_desired_trip_direction) {
+    SortByTripDirection(library, data_set, rel_desired_trip_direction);
+  }
+  if (function_type != e_FunctionType_Movement) SortByBaseanim(library, data_set);
+  if (function_type == e_FunctionType_Deflect) SortByCatchOrDeflect(library, data_set);
+
+  if (without_foot_out != nullptr) {
+    if (!request.is_ball_control) {
+      SortByIncomingBodyDirection(library, *without_foot_out,
+                                  request.rel_incoming_body_direction);
+    }
+    SortByIncomingVelocity(library, *without_foot_out, request.incoming_velocity);
+    if (use_desired_trip_direction) {
+      SortByTripDirection(library, *without_foot_out, rel_desired_trip_direction);
+    }
+    if (function_type != e_FunctionType_Movement) {
+      SortByBaseanim(library, *without_foot_out);
+    }
+    if (function_type == e_FunctionType_Deflect) {
+      SortByCatchOrDeflect(library, *without_foot_out);
+    }
+  }
+  return data_set;
+}
+
+// ANIM-2 A10.3c: the idle Movement clip, relocated from
+// Player::GetIdleMovementAnimID. Pure over the library and the pose facts.
+inline AnimationId SelectIdleMovementAnim(const AnimationLibrary& library,
+                                          const Vector3& position, radian angle,
+                                          float float_velocity) {
+  CrudeSelectionQuery query;
+  query.byFunctionType = true;
+  query.functionType = e_FunctionType_Movement;
+  query.byIncomingVelocity = true;
+  query.incomingVelocity = e_Velocity_Idle;
+  query.byOutgoingVelocity = true;
+  query.outgoingVelocity = e_Velocity_Idle;
+
+  DataSet data_set;
+  BakedAnimationSelector::CrudeSelection(library.Clips(), query, data_set);
+
+  SortByIdle(library, data_set, 1.0f);
+  SortByIncomingBodyDirection(library, data_set, Vector3(0, -1, 0));
+  SortByIncomingVelocity(library, data_set, e_Velocity_Idle);
+
+  const Vector3 rel_desired = Vector3(0, -1, 0);
+  const Vector3 desired_movement = rel_desired * EnumToFloatVelocity(e_Velocity_Idle);
+  const radian cornering_bias = football::animation::CorneringBiasForFastCornering(
+      Vector3(0, -1.0f * float_velocity, 0), desired_movement, 1.0f, 0.9f);
+  SortByBodyDirectionSimilarity(library, data_set,
+                                position + Vector3(0, -10, 0).GetRotated2D(angle),
+                                position, angle, rel_desired);
+  SortByMovementSimilarity(library, data_set, rel_desired, e_Velocity_Idle,
+                           cornering_bias);
+  return static_cast<AnimationId>(data_set.front());
+}
+
 #endif  // FOOTBALL_ANIMATION_MOVEMENT_SELECTION_HPP

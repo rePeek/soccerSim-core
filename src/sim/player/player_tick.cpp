@@ -167,7 +167,9 @@ void Player::ResetLegacyPosition(const Vector3 &newPos,
   spatial_state_.bodyAngle = spatial_state_.angle;
   spatial_state_.foot = e_Foot_Right;
 
-  const AnimationId idleAnimID = GetIdleMovementAnimID();
+  const AnimationId idleAnimID = SelectIdleMovementAnim(
+      animations_, spatial_state_.position, spatial_state_.angle,
+      spatial_state_.floatVelocity);
   anim_state_.animationId = idleAnimID;
   anim_state_.positions.clear();
   anim_state_.positions = GetBakedClip(anim_state_.animationId).root_positions;

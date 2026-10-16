@@ -292,7 +292,9 @@ bool Player::TrySelectAction(football::sim::Tick now,
       animations_.Clips(), query, dataSet);
   if (dataSet.size() == 0) {
     if (command.desiredFunctionType == e_FunctionType_Movement) {
-      dataSet.push_back(GetIdleMovementAnimID());  // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
+      dataSet.push_back(SelectIdleMovementAnim(
+          animations_, spatialState.position, spatialState.angle,
+          spatialState.floatVelocity));  // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
     } else
       return false;
   }
@@ -301,68 +303,70 @@ bool Player::TrySelectAction(football::sim::Tick now,
   // Animation refinement can be compared with the legacy filter+sort result.
   DataSet crude_movement_snapshot;
   if (command.useDesiredMovement) crude_movement_snapshot = dataSet;
-  // A6.4: the non-Movement branches set these (BallControl / Trap / Interfere).
-  bool nm_strict = false;
-  float nm_allowed_angle = 0.3f * pi;
-  int nm_allowed_velocity_steps = 1;
-  int nm_idle_level = 0;
   const bool pure_movement = command.desiredFunctionType == e_FunctionType_Movement &&
                              command.useDesiredMovement && !crude_movement_snapshot.empty();
   const bool pure_non_movement =
       command.desiredFunctionType != e_FunctionType_Movement &&
       command.useDesiredMovement && !crude_movement_snapshot.empty();
 
+  // ANIM-2 A10.3: the resolved Movement/non-Movement request. The Player owns
+  // these values; the filter/sort algorithms now live in Animation.
+  const Vector3 relDesiredDirection = command.desiredDirection.GetRotated2D(-spatialState.angle);
+  const e_Velocity desiredAnimationVelocity =
+      FloatToEnumVelocity(command.desiredVelocityFloat);
+  MovementRefinementRequest refine_request;
+  refine_request.rel_desired_direction = relDesiredDirection;
+  refine_request.desired_velocity = desiredAnimationVelocity;
+  refine_request.cornering_bias = CalculateBiasForFastCornering(
+      Vector3(0, -1.0f * spatialState.floatVelocity, 0),
+      relDesiredDirection * EnumToFloatVelocity(desiredAnimationVelocity), 1.0f, 0.9f);
+  refine_request.look_at = command.desiredLookAt;
+  refine_request.position = spatialState.position;
+  refine_request.angle = spatialState.angle;
+  refine_request.rel_incoming_body_direction = spatialState.relBodyDirectionVec;
+  refine_request.incoming_velocity = spatialState.enumVelocity;
+  refine_request.desired_foot = spatialState.foot;
+  refine_request.use_desired_look_at = command.useDesiredLookAt;
+  refine_request.is_movement =
+      (command.desiredFunctionType == e_FunctionType_Movement);
+  refine_request.is_ball_control =
+      (command.desiredFunctionType == e_FunctionType_BallControl);
+  refine_request.idle_level = 0.0f;
+
+  // The legacy idle level (legacy + Movement paths).
+  int desiredIdleLevel = 0;
+  if (!tick.play_authorized) desiredIdleLevel = 2;
+  if (tick.set_piece_active) desiredIdleLevel = 1;
+  else if ((tick.ball.Predict(football::sim::TickSpan{20}).position - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
+
+  // Non-Movement strictness. It needs Player-owned facts (AllowLastDitch and
+  // whether the ball is high/bouncy), so the Player resolves it and passes the
+  // values in; the filtering itself is Animation's.
+  bool nm_strict = false;
+  float nm_allowed_angle = 0.3f * pi;
+  int nm_allowed_velocity_steps = 1;
   if (command.useDesiredMovement) {
-    Vector3 relDesiredDirection = command.desiredDirection.GetRotated2D(-spatialState.angle);
-    float desiredAnimationVelocityFloat = command.desiredVelocityFloat;
-
-    SetMovementSimilarityPredicate(relDesiredDirection, FloatToEnumVelocity(desiredAnimationVelocityFloat));
-    SetBodyDirectionSimilarityPredicate(command.desiredLookAt);
-
-    if (command.desiredFunctionType == e_FunctionType_Movement) {
-      if (!pure_movement) {
-        _KeepBestDirectionAnims(dataSet, command, true);
-        if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, true);
-      }
-    } else if (command.desiredFunctionType == e_FunctionType_BallControl) {
-      bool strict = true;
-      if (AllowLastDitch()) {
-        strict = false;
-      }
-      float allowedBaseAngle = 0.0f * pi;
-      int allowedVelocitySteps = 0;  // last ditch anims are always allowed > 0 velocity steps, as long as strict is false
-      nm_strict = strict; nm_allowed_angle = allowedBaseAngle; nm_allowed_velocity_steps = allowedVelocitySteps;
-      if (!pure_non_movement) {
-        if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedBaseAngle);
-        _KeepBestDirectionAnims(dataSet, command, strict, allowedBaseAngle, allowedVelocitySteps);
-      }
+    if (command.desiredFunctionType == e_FunctionType_BallControl) {
+      nm_strict = !AllowLastDitch();
+      nm_allowed_angle = 0.0f * pi;
+      nm_allowed_velocity_steps = 0;
     } else if (command.desiredFunctionType == e_FunctionType_Trap) {
-      bool strict = true;
-      if (AllowLastDitch(false) || _HighOrBouncyBall(tick.ball)) strict = false;
-      float allowedBaseAngle = 0.3f * pi;
-      int allowedVelocitySteps = 2;
-      int bestBallControlQuadrantID = -1;
-      nm_strict = strict; nm_allowed_angle = allowedBaseAngle; nm_allowed_velocity_steps = allowedVelocitySteps;
-      if (!pure_non_movement) {
-        _KeepBestDirectionAnims(dataSet, command, strict, allowedBaseAngle, allowedVelocitySteps, bestBallControlQuadrantID);
-        if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedBaseAngle);
-      }
+      const bool high_or_bouncy = _HighOrBouncyBall(tick.ball);
+      nm_strict = !(AllowLastDitch(false) || high_or_bouncy);
+      nm_allowed_angle = 0.3f * pi;
+      nm_allowed_velocity_steps = 2;
 
-      // when too unlike command's desired movement, just don't go for it (and hope for another ballcontrol/trap anim to save us later on)
-      if (!_HighOrBouncyBall(tick.ball) && query.allowLastDitchAnims == false) {
+      // When too unlike the command's desired movement, just don't go for it
+      // (and hope for another ballcontrol/trap anim to save us later on).
+      if (!high_or_bouncy && query.allowLastDitchAnims == false) {
         assert(!dataSet.empty());
         Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
         const AnimationClip &bestWeGot = GetBakedClip(*dataSet.begin());
         Vector3 bestWeGotMovement = bestWeGot.metadata.outgoing_movement.GetRotated2D(spatialState.angle);
         float currentDesiredDot = command.desiredDirection.GetDotProduct(spatialState.directionVec);
-
         bool allowAnim = true;
-
         radian angleDiff = std::fabs(bestWeGot.metadata.outgoing_direction.GetRotated2D(spatialState.angle).GetAngle2D(command.desiredDirection));
-        if (angleDiff > 0.375f * pi) {
-          allowAnim = false;
-        }
-
+        if (angleDiff > 0.375f * pi) allowAnim = false;
         Vector3 desiredBestDiff = bestWeGotMovement - desiredMovement;
         if ((desiredBestDiff.GetLength() > walkVelocity + 0.5f &&
              currentDesiredDot > 0.0f) ||
@@ -370,95 +374,32 @@ bool Player::TrySelectAction(football::sim::Tick now,
              currentDesiredDot <= 0.0f)) {
           allowAnim = false;
         }
-
-        if (!allowAnim) {
-          return false;
-        }
+        if (!allowAnim) return false;
       }
     } else if (command.desiredFunctionType == e_FunctionType_Interfere) {
-      bool strict = false;
-      float allowedAngle = 0.3f * pi;
-      int allowedVelocitySteps = 1;
-      if (command.strictMovement == e_StrictMovement_True) strict = true;
-      nm_strict = strict; nm_allowed_angle = allowedAngle; nm_allowed_velocity_steps = allowedVelocitySteps;
-
-      if (!pure_non_movement) {
-        _KeepBestDirectionAnims(dataSet, command, strict, allowedAngle, allowedVelocitySteps);
-        if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedAngle);
-      }
+      nm_strict = command.strictMovement == e_StrictMovement_True;
+      nm_allowed_angle = 0.3f * pi;
+      nm_allowed_velocity_steps = 1;
     }
   }
 
+  const bool foot_counterfactual =
+      command.desiredFunctionType == e_FunctionType_Movement;
+  DataSet withoutFootSort;
   if (!pure_movement && !pure_non_movement) {
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::ComparePriorityVariable, this, _1, _2));
-
-    int desiredIdleLevel = 0;
-    if (!tick.play_authorized) desiredIdleLevel = 2;
-    if (tick.set_piece_active) desiredIdleLevel = 1;
-    else if ((tick.ball.Predict(football::sim::TickSpan{20}).position - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
-    SetIdlePredicate(desiredIdleLevel);
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIdleVariable, this, _1, _2));
-
-    // H3e4e2 measurement: strict counterfactual for the foot tie-break. The clone
-    // is taken before the foot stable_sort and then receives exactly the same
-    // remaining sorts, so the only difference between the two orders is foot.
-    const bool foot_counterfactual =
-        command.desiredFunctionType == e_FunctionType_Movement;
-    DataSet withoutFootSort;
-    if (foot_counterfactual) withoutFootSort = dataSet;
-    SetFootSimilarityPredicate(spatialState.foot);
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareFootSimilarity, this, spatialState.foot, _1, _2));
-
-    if (command.desiredFunctionType != e_FunctionType_BallControl) {
-      SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
-      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
+    // ANIM-2 A10.3b: the legacy `useDesiredMovement == false` chain, now owned
+    // by Animation. Same sort order and erase semantics as before.
+    refine_request.idle_level = desiredIdleLevel;
+    const Vector3 relDesiredTripDirection =
+        command.desiredTripDirection.GetRotated2D(-spatialState.angle);
+    dataSet = RefineLegacyCandidates(
+        animations_, dataSet, refine_request, command.desiredFunctionType,
+        command.useDesiredTripDirection, relDesiredTripDirection,
+        foot_counterfactual ? &withoutFootSort : nullptr);
+    if (foot_counterfactual && !dataSet.empty() && !withoutFootSort.empty()) {
+      RecordFootCounterfactual(animations_, *dataSet.begin(), *withoutFootSort.begin());
     }
-
-    // moved down
-    SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIncomingVelocitySimilarity, this, _1, _2));
-
-    // OLD METHOD
-    if (command.useDesiredTripDirection) {
-      Vector3 relDesiredTripDirection = command.desiredTripDirection.GetRotated2D(-spatialState.angle);
-      SetTripDirectionSimilarityPredicate(relDesiredTripDirection);
-      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareTripDirectionSimilarity, this, _1, _2));
-    }
-
-    // OLD METHOD
-    if (command.desiredFunctionType != e_FunctionType_Movement) {
-      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareBaseanimSimilarity, this, _1, _2));
-    }
-
-    if (command.desiredFunctionType == e_FunctionType_Deflect) {
-      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareCatchOrDeflect, this, _1, _2));
-    }
-
-    if (foot_counterfactual) {
-      // Same remaining chain, minus the foot sort. Conditions mirror production
-      // so this stays a counterfactual and not a second scheduler.
-      if (command.desiredFunctionType != e_FunctionType_BallControl) {
-        SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
-        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
-      }
-      SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareIncomingVelocitySimilarity, this, _1, _2));
-      if (command.useDesiredTripDirection) {
-        SetTripDirectionSimilarityPredicate(command.desiredTripDirection.GetRotated2D(-spatialState.angle));
-        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareTripDirectionSimilarity, this, _1, _2));
-      }
-      if (command.desiredFunctionType != e_FunctionType_Movement) {
-        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareBaseanimSimilarity, this, _1, _2));
-      }
-      if (command.desiredFunctionType == e_FunctionType_Deflect) {
-        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareCatchOrDeflect, this, _1, _2));
-      }
-      if (!dataSet.empty() && !withoutFootSort.empty()) {
-        RecordFootCounterfactual(animations_, *dataSet.begin(), *withoutFootSort.begin());
-      }
-    }
-    MovementAnimationPerturbation &perturbation =
-        MovementAnimationPerturbationAudit();
+    MovementAnimationPerturbation &perturbation = MovementAnimationPerturbationAudit();
     if (perturbation.enabled && !perturbation.applied && foot_counterfactual &&
         localInterruptAnim == e_InterruptAnim_Switch &&
         action.type == e_FunctionType_Movement &&
@@ -473,66 +414,29 @@ bool Player::TrySelectAction(football::sim::Tick now,
       perturbation.time_ms = static_cast<int>(football::sim::ToMilliseconds(now));
       perturbation.original_anim_id = dataSet.front();
       perturbation.alternative_anim_id = withoutFootSort.front();
-      // Only reorder the single branch's local candidate set. SelectAnim runs
-      // once; the saved baseline branch independently runs the normal order.
       dataSet.swap(withoutFootSort);
     }
   } else if (pure_non_movement) {
-    // ANIM-1 A6.4 step 1d: the pure Animation refinement is the authority for
-    // the non-Movement candidate list; the legacy filter+sort chain no longer
-    // runs for non-Movement commands that request desired movement. The
-    // pre-removal dual-run comparison recorded `nm checks=4 match=4
-    // mismatch=0`, and the A6.3a final-clip oracle still guards end-to-end.
-    SetIdlePredicate(nm_idle_level);
-    SetFootSimilarityPredicate(spatialState.foot);
-    MovementRefinementRequest nm_request;
-    nm_request.rel_desired_direction = predicate_RelDesiredDirection;
-    nm_request.desired_velocity = predicate_DesiredVelocity;
-    nm_request.cornering_bias = predicate_CorneringBias;
-    nm_request.look_at = predicate_LookAt;
-    nm_request.position = spatialState.position;
-    nm_request.angle = spatialState.angle;
-    nm_request.rel_incoming_body_direction = spatialState.relBodyDirectionVec;
-    nm_request.incoming_velocity = spatialState.enumVelocity;
-    nm_request.desired_foot = spatialState.foot;
-    nm_request.idle_level = nm_idle_level;
-    nm_request.use_desired_look_at = command.useDesiredLookAt;
-    nm_request.is_movement = false;
-    nm_request.is_ball_control =
-        (command.desiredFunctionType == e_FunctionType_BallControl);
+    // ANIM-2 A10.3b: the pure non-Movement refinement is the authority for the
+    // non-Movement candidate list; the legacy filter+sort chain no longer runs.
     const Vector3 nm_trip_direction =
         command.desiredTripDirection.GetRotated2D(-spatialState.angle);
     const std::vector<int> nm_pure = RefineNonMovementCandidates(
-        animations_, crude_movement_snapshot, nm_request, nm_strict, nm_allowed_angle,
+        animations_, crude_movement_snapshot, refine_request, nm_strict, nm_allowed_angle,
         nm_allowed_velocity_steps, command.useDesiredTripDirection, nm_trip_direction);
     dataSet.assign(nm_pure.begin(), nm_pure.end());
     ++LocomotionPlaybackAuditState().nm_pure_ticks;
   } else {
-    // ANIM-1 A6.3b.2: the pure Animation refinement is the authority for the
+    // ANIM-2 A10.3a: the pure Movement refinement is the authority for the
     // Movement candidate list; the legacy chain no longer runs for Movement.
-    MovementRefinementRequest refine_request;
-    refine_request.rel_desired_direction = predicate_RelDesiredDirection;
-    refine_request.desired_velocity = predicate_DesiredVelocity;
-    refine_request.cornering_bias = predicate_CorneringBias;
-    refine_request.look_at = predicate_LookAt;
-    refine_request.position = spatialState.position;
-    refine_request.angle = spatialState.angle;
-    refine_request.rel_incoming_body_direction = spatialState.relBodyDirectionVec;
-    refine_request.incoming_velocity = spatialState.enumVelocity;
-    refine_request.desired_foot = spatialState.foot;
-    int desiredIdleLevel = 0;
-    if (!tick.play_authorized) desiredIdleLevel = 2;
-    if (tick.set_piece_active) desiredIdleLevel = 1;
-    else if ((tick.ball.Predict(football::sim::TickSpan{20}).position - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
     refine_request.idle_level = desiredIdleLevel;
-    refine_request.use_desired_look_at = command.useDesiredLookAt;
-    refine_request.is_movement = true;
-
-    // ANIM-1 A6.3b.3: the Player owns the Movement selection; the compatibility
-    // supplies the spatial request and reads back the chosen candidate list.
     dataSet = SelectMovement(animations_, crude_movement_snapshot,
                              refine_request);
-    if (dataSet.empty()) dataSet.push_back(GetIdleMovementAnimID());
+    if (dataSet.empty()) {
+      dataSet.push_back(SelectIdleMovementAnim(
+          animations_, spatialState.position, spatialState.angle,
+          spatialState.floatVelocity));
+    }
     std::vector<int> without_foot = MovementCandidatesWithoutFoot();
     {  // ANIM-1 A6.3b.2: count the stateless refinement as the active Movement path.
       auto &refine_audit = LocomotionPlaybackAuditState();
@@ -566,7 +470,9 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   if (dataSet.size() == 0 &&
       command.desiredFunctionType == e_FunctionType_Movement) {
-    dataSet.push_back(GetIdleMovementAnimID());  // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
+    dataSet.push_back(SelectIdleMovementAnim(
+          animations_, spatialState.position, spatialState.angle,
+          spatialState.floatVelocity));  // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
   }
 
   Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);

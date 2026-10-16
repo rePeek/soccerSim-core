@@ -25,18 +25,9 @@ e_TouchType GetTouchTypeForBodyPart(const std::string &bodypartname) {
 float CalculateBiasForFastCornering(const Vector3 &currentMovement,
                                     const Vector3 &desiredMovement,
                                     float veloPow, float bias) {
-
-  radian angle = desiredMovement.GetNormalized(currentMovement).GetAngle2D(currentMovement);
-  // wolfram alpha: std::sin(x - 0.5 * pi) * 0.5 + 0.5 | from x = 0.0 to pi
-  float currentMovementBias = std::sin(fabs(angle) - 0.5f * pi) * 0.5f + 0.5f; // this one is better for anim selection, else 135 anim is never used (since 135 @ idle is worse than 90 @ dribble then - with this one, 90 @ idle will be preferred (which will allow 135 @ idle as well))
-  //float currentMovementBias = std::sin(2.0f * std::fabs(angle) - 0.5f * pi) * 0.5f + 0.5f; // this one seems more correct puristically though.. hmm. maybe make a 135 anim that ends in dribble? or would that effectively disable the 180 @ idle?
-
-  // effect is less pronounced at low velocities
-  float velocityBias = std::pow(clamp(currentMovement.GetLength() / (sprintVelocity - 0.5f), 0.0f, 1.0f), veloPow);
-
-  float totalBrakeBias = velocityBias * currentMovementBias * bias;
-
-  return totalBrakeBias;
+  // ANIM-2 A10.3: one pure definition, in the Animation module.
+  return football::animation::CorneringBiasForFastCornering(
+      currentMovement, desiredMovement, veloPow, bias);
 }
 
 
