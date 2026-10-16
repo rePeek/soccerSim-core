@@ -92,7 +92,7 @@ target_sources(football_sim_domain PUBLIC FILE_SET HEADERS
     observation/player_slots.hpp)
 target_link_libraries(football_sim_domain
   PUBLIC football::sim_contracts
-  PRIVATE football::animation football_animation_match football::ball football::pitch BqLog)
+  PRIVATE football::animation football::ball football::pitch BqLog)
 football_configure_target(football_sim_domain)
 # Resource lookup belongs to runtime loading, never public value/policy contracts.
 target_compile_definitions(football_sim_domain PRIVATE

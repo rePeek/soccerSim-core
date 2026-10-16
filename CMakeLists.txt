@@ -34,9 +34,12 @@ add_subdirectory(src/foundation)
 
 # Header-only modules have no implementation directory, so their INTERFACE
 # targets are declared here; the headers live in include/football/<module>/.
-add_library(football_animation INTERFACE)
-add_library(football::animation ALIAS football_animation)
-target_sources(football_animation INTERFACE FILE_SET HEADERS
+# ANIM-2 A11.4: the format and pure-algorithm headers, shared with the offline
+# baker. The runtime archive (football_animation) adds Match/TouchMatch and the
+# playback/transition state on top of it.
+add_library(football_animation_format INTERFACE)
+add_library(football::animation_format ALIAS football_animation_format)
+target_sources(football_animation_format INTERFACE FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES
     ${PROJECT_SOURCE_DIR}/include/football/animation/types.hpp
@@ -44,8 +47,6 @@ target_sources(football_animation INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/clip.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/motion_clip.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/pose_blend.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/transition.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/playback.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/pose_sampling.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/select_clip.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/select_movement.hpp
@@ -55,14 +56,11 @@ target_sources(football_animation INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/selector.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/selection_math.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/selection_query.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/match.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/touch_match.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/quadrant.hpp)
-target_compile_features(football_animation INTERFACE cxx_std_23)
-target_link_libraries(football_animation INTERFACE football::foundation)
+target_compile_features(football_animation_format INTERFACE cxx_std_23)
+target_link_libraries(football_animation_format INTERFACE football::foundation)
 
-# ANIM-2 A10.7: the Match entry point's own archive. It links only
-# football::animation, so the dependency direction stays acyclic.
+# The runtime Animation archive (Match, TouchMatch, Playback/Transition).
 add_subdirectory(src/animation)
 
 add_subdirectory(src/ball)

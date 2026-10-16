@@ -19,7 +19,6 @@ target_compile_definitions(football_animation_unit_tests PRIVATE
 target_link_libraries(football_animation_unit_tests
   PRIVATE
     football::animation
-    football_animation_match
     Catch2::Catch2WithMain)
 football_configure_target(football_animation_unit_tests)
 
