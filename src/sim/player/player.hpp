@@ -48,7 +48,7 @@
 #include "sim/player/player_selected_action.hpp"
 #include "sim/player/player_selection_decisions.hpp"
 #include "sim/player/player_action_executor.hpp"
-#include "sim/player/player_playback_state.hpp"
+#include "football/animation/playback.hpp"
 #include "football/animation/library.hpp"
 #include "football/animation/movement_selection.hpp"
 #include "football/animation/select_movement.hpp"
@@ -452,7 +452,7 @@ class Player final {
     int TouchSelectionSuccesses() const { return touch_selection_successes_; }
     const PoseFrame& PlaybackPose() const { return playback_state_.final_pose; }
     float PlaybackBaseAngle() const { return playback_state_.final_base_angle; }
-    const PlayerPlaybackState& PlaybackState() const { return playback_state_; }
+    const football::animation::PlaybackState& PlaybackState() const { return playback_state_; }
     // ANIM-1.1: the single final pose for this player (default when inactive).
     PoseFrame Pose() const {
       if (!isActive) return PoseFrame{};
@@ -844,7 +844,7 @@ class Player final {
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
     // ANIM-1 A3: Player-owned animation playback state (clip cursor, transition,
-    PlayerPlaybackState playback_state_;
+    football::animation::PlaybackState playback_state_;
     // ANIM-2 A10.1: the tick of the last real playback update, so a repeated
     // same-tick call cannot advance the transition twice.
     std::optional<football::sim::Tick> last_playback_tick_;

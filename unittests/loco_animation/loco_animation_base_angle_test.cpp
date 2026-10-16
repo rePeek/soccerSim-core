@@ -14,7 +14,8 @@
 
 #include "football/animation/pose_blend.hpp"
 #include "football/animation/types.hpp"
-#include "sim/player/animation_transition_state.hpp"
+#include "football/animation/transition.hpp"
+using namespace football::animation;
 #include "football/animation/types.hpp"
 #include "sim/player/player_baked_body_pose.hpp"
 #include "sim/player/player_body_profile.hpp"

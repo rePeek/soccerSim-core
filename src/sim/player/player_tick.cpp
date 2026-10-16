@@ -793,7 +793,7 @@ void Player::RunActionTick(football::sim::Tick now,
   // ANIM-1 A6.3c.3: the clip id and frame come from the Player authority.
   this->UpdatePlaybackFromAuthority(
       now, startAngle + anim_state_.rotationSmuggleOffset,
-      BlendTicksForSwitch(anim_state_.functionType == e_FunctionType_Movement &&
+      football::animation::BlendTicksForSwitch(anim_state_.functionType == e_FunctionType_Movement &&
                           this->IsEligibleForProceduralLocomotion(ball_retainer == this)));
 }
 

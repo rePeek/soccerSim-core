@@ -6,7 +6,8 @@
 #include <cmath>
 
 #include "football/animation/types.hpp"
-#include "sim/player/animation_transition_state.hpp"
+#include "football/animation/transition.hpp"
+using namespace football::animation;
 
 using football::math::Vector3;
 

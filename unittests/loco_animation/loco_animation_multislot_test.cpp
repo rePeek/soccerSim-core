@@ -9,7 +9,8 @@
 #include <vector>
 
 #include "football/animation/library.hpp"
-#include "sim/player/player_playback_state.hpp"
+#include "football/animation/playback.hpp"
+using namespace football::animation;
 
 namespace {
 std::vector<AnimationId> PickClips(const AnimationLibrary& library, std::size_t count) {
@@ -30,7 +31,7 @@ TEST_CASE("22 playback states share one library and never cross-contaminate") {
   const std::vector<AnimationId> ids = PickClips(library, 22);
   REQUIRE(ids.size() == 22);
 
-  std::vector<PlayerPlaybackState> states(22);
+  std::vector<PlaybackState> states(22);
   // Each slot plays its own clip for 12 ticks.
   for (int tick = 0; tick < 12; ++tick) {
     for (std::size_t slot = 0; slot < states.size(); ++slot) {
@@ -47,7 +48,7 @@ TEST_CASE("22 playback states share one library and never cross-contaminate") {
 
   // Interrupting one slot does not touch the others.
   const AnimationId other = ids[0] == ids[1] ? ids[2] : ids[1];
-  const PlayerPlaybackState snapshot = states[5];
+  const PlaybackState snapshot = states[5];
   states[0].Tick(library.Get(static_cast<std::uint32_t>(other)), kActionBlendTicks);
   CHECK(states[5].clip_id == snapshot.clip_id);
   CHECK(states[5].frame == snapshot.frame);
@@ -65,7 +66,7 @@ TEST_CASE("22 playback states replay deterministically") {
   REQUIRE(ids.size() == 22);
 
   const auto run = [&]() {
-    std::vector<PlayerPlaybackState> states(22);
+    std::vector<PlaybackState> states(22);
     for (int tick = 0; tick < 10; ++tick) {
       for (std::size_t slot = 0; slot < states.size(); ++slot) {
         states[slot].Tick(library.Get(static_cast<std::uint32_t>(ids[slot])),

@@ -1,10 +1,13 @@
-#ifndef FOOTBALL_SIM_PLAYER_ANIMATION_TRANSITION_STATE_HPP
-#define FOOTBALL_SIM_PLAYER_ANIMATION_TRANSITION_STATE_HPP
+#ifndef FOOTBALL_ANIMATION_TRANSITION_HPP
+#define FOOTBALL_ANIMATION_TRANSITION_HPP
 
 #include "football/animation/pose_blend.hpp"
 #include "football/foundation/math/scalar.hpp"
 
-// LOCO-2.6b — tick-driven animation transition state.
+namespace football::animation {
+
+// ANIM-2 A11.1: moved out of sim/player. Free of Player/Simulation/Ball/RNG;
+// the Player keeps the instance and the authoritative action clock.
 //
 // Pure value state, no Humanoid/Simulation/Ball/RNG. It keeps the current
 // animation's integer frame clock (`currentAnim.frameNum`) untouched: only the
@@ -90,4 +93,6 @@ struct AnimationTransitionState {
   }
 };
 
-#endif  // FOOTBALL_SIM_PLAYER_ANIMATION_TRANSITION_STATE_HPP
+}  // namespace football::animation
+
+#endif  // FOOTBALL_ANIMATION_TRANSITION_HPP

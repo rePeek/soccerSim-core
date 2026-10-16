@@ -1,10 +1,15 @@
-#ifndef FOOTBALL_SIM_PLAYER_PLAYER_PLAYBACK_STATE_HPP
-#define FOOTBALL_SIM_PLAYER_PLAYER_PLAYBACK_STATE_HPP
+#ifndef FOOTBALL_ANIMATION_PLAYBACK_HPP
+#define FOOTBALL_ANIMATION_PLAYBACK_HPP
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
 #include "football/animation/pose_sampling.hpp"
-#include "sim/player/animation_transition_state.hpp"
+#include "football/animation/transition.hpp"
+
+namespace football::animation {
+
+// ANIM-2 A11.1: moved out of sim/player. Animation owns the playback state
+// type; the Player owns the instance and the authoritative action clock.
 
 // ANIM-2 A10.1 — Player-owned playback instance.
 //
@@ -18,7 +23,7 @@
 // `Tick()`/`AdvanceCursor()` are the self-advancing test helpers. They share the
 // sampling core but are not part of the production interface, so they cannot
 // become a second time authority.
-struct PlayerPlaybackState {
+struct PlaybackState {
   AnimationId clip_id = -1;
   int frame = 0;
   bool have_pose = false;
@@ -86,4 +91,6 @@ struct PlayerPlaybackState {
   }
 };
 
-#endif  // FOOTBALL_SIM_PLAYER_PLAYER_PLAYBACK_STATE_HPP
+}  // namespace football::animation
+
+#endif  // FOOTBALL_ANIMATION_PLAYBACK_HPP

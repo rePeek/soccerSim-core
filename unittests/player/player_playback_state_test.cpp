@@ -9,7 +9,8 @@
 #include <cmath>
 
 #include "animation_test_support.hpp"
-#include "sim/player/player_playback_state.hpp"
+#include "football/animation/playback.hpp"
+using namespace football::animation;
 
 using football::math::Vector3;
 
@@ -29,7 +30,7 @@ AnimationClip Clip(uint32_t id, float root_z, uint32_t frames = 6) {
 }  // namespace
 
 TEST_CASE("playback advances one frame per tick within a clip") {
-  PlayerPlaybackState playback;
+  PlaybackState playback;
   const AnimationClip clip = Clip(1, 0.0f);
   for (int i = 0; i < 4; ++i) {
     const PoseFrame& pose = playback.Tick(clip, kDefaultMovementBlendTicks);
@@ -40,7 +41,7 @@ TEST_CASE("playback advances one frame per tick within a clip") {
 }
 
 TEST_CASE("a clip change blends from the previous final pose") {
-  PlayerPlaybackState playback;
+  PlaybackState playback;
   const AnimationClip a = Clip(1, 0.0f);
   const AnimationClip b = Clip(2, 0.5f);
   for (int i = 0; i < 4; ++i) playback.Tick(a, kDefaultMovementBlendTicks);
@@ -58,7 +59,7 @@ TEST_CASE("a clip change blends from the previous final pose") {
 }
 
 TEST_CASE("reset clears the playback state") {
-  PlayerPlaybackState playback;
+  PlaybackState playback;
   const AnimationClip clip = Clip(1, 0.0f);
   for (int i = 0; i < 3; ++i) playback.Tick(clip, kDefaultMovementBlendTicks);
   REQUIRE(playback.have_pose);
@@ -72,7 +73,7 @@ TEST_CASE("playback is deterministic for equal input") {
   const AnimationClip a = Clip(1, 0.0f);
   const AnimationClip b = Clip(2, 0.5f);
   const auto run = [&]() {
-    PlayerPlaybackState p;
+    PlaybackState p;
     for (int i = 0; i < 5; ++i) p.Tick(a, kDefaultMovementBlendTicks);
     for (int i = 0; i < 5; ++i) p.Tick(b, kActionBlendTicks);
     return p.final_pose;
