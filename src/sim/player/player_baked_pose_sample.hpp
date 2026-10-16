@@ -15,6 +15,9 @@ struct PlayerBakedPoseSample {
   float base_angle = 0;
   football::player::PlayerBodyProfile body_profile;
   e_FunctionType action = e_FunctionType_None;
+  // ANIM-2 A11.0: the clip's outgoing special state, so a body forecast does
+  // not have to index the library itself.
+  bool outgoing_special_state = false;
   bool frame_clamped = false;
   BakedPlayerBodyCollider Geometry() const {
     return BuildBodyCollider(pose,state,base_angle,body_profile);

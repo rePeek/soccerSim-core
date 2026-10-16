@@ -631,6 +631,10 @@ class Player final {
       }
       return sample;
     }
+    // ANIM-2 A11.0: read-only body-forecast preview. It returns the raw clip
+    // skeleton at the requested future frame without advancing the action
+    // clock, drawing RNG or mutating the Player.
+    PlayerBakedPoseSample PreviewPose(int frame_offset) const;
 
     void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
     football::sim::Tick GetLastTouchTick() const { return last_touch_tick_; }

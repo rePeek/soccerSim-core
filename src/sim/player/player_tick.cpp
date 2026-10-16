@@ -819,6 +819,25 @@ PlayerBakedPoseSample Player::SampleBakedPose(
   sample.base_angle = startAngle + anim_state_.rotationSmuggleOffset;
   sample.body_profile = profile;
   sample.action = anim_state_.functionType;
+  sample.outgoing_special_state = !clip.metadata.outgoing_special_state.empty();
+  return sample;
+}
+
+// ANIM-2 A11.0: a read-only pose preview. It never advances the action clock,
+// draws RNG or mutates the Player. For a positive offset it returns the raw
+// clip skeleton at the requested future frame (not the blended pose), which is
+// exactly the body-forecast input the Simulation used to build by indexing the
+// library itself.
+PlayerBakedPoseSample Player::PreviewPose(int frame_offset) const {
+  PlayerBakedPoseSample sample = GetBakedPoseSample();
+  const auto& clip =
+      animations_.Get(static_cast<std::uint32_t>(sample.animation_id));
+  sample.requested_frame += frame_offset;
+  sample.sampled_frame =
+      std::min(sample.requested_frame, static_cast<int>(clip.poses.size()) - 1);
+  sample.frame_clamped = sample.sampled_frame != sample.requested_frame;
+  sample.pose = clip.poses[static_cast<std::size_t>(sample.sampled_frame)];
+  sample.outgoing_special_state = !clip.metadata.outgoing_special_state.empty();
   return sample;
 }
 

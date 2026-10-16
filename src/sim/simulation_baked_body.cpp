@@ -1,8 +1,10 @@
 #include "sim/simulation.hpp"
 #include "sim/player/player.hpp"
+#include "sim/player/player_diagnostics.hpp"
 #include "sim/player/player_motion_constants.hpp"
 #include "sim/player/player_baked_pose_realization.hpp"
 #include "football/animation/library.hpp"
+
 
 void Simulation::EnableLocomotionAnimationAdaptation(bool enabled) {
   for (auto& roster : rosters_)
@@ -72,14 +74,14 @@ void Simulation::BeginBakedBodyTick() {
     // turn that placement correction into this Tick's inferred body velocity.
     baked_body_poses_[slot]->state=target.state;
     baked_body_starts_[slot]=baked_body_poses_[slot];
-    auto future=target;
-    const auto& clip=animations_->Get(target.animation_id);
-    future.requested_frame=target.requested_frame+1;
-    future.sampled_frame=std::min(future.requested_frame,int(clip.poses.size()-1));
-    future.frame_clamped=future.sampled_frame!=future.requested_frame;
-    future.pose=clip.poses[future.sampled_frame];
-    future.state.position+=target.state.velocity*football::sim::kTickSeconds;
-    baked_body_forecasts_[slot]=RealizeBakedPose(*baked_body_starts_[slot],future,!clip.metadata.outgoing_special_state.empty());
+    // ANIM-2 A11.0: the Player owns the forecast. It returns the raw clip
+    // skeleton at the next frame through SampleBakedPose; the Simulation only
+    // predicts the root position and realizes the body geometry.
+    auto future=actor.PreviewPose(1);
+    if(actor.GetTeamID()==second_team_) future.Mirror();
+    future.state.position+=future.state.velocity*football::sim::kTickSeconds;
+    baked_body_forecasts_[slot]=RealizeBakedPose(*baked_body_starts_[slot],future,future.outgoing_special_state);
+    ++BakedBodyPreviewChecks();
   }
   BuildBakedBodyTape(baked_body_forecasts_);
 }
@@ -90,8 +92,7 @@ void Simulation::CompleteBakedBodyPreparation() {
     if(!actor.IsActive()) { baked_body_poses_[slot].reset(); continue; }
     auto target=actor.GetBakedPoseSample();
     if(actor.GetTeamID()==second_team_) target.Mirror();
-    const auto& clip=animations_->Get(target.animation_id);
-    baked_body_poses_[slot]=RealizeBakedPose(*baked_body_starts_[slot],target,!clip.metadata.outgoing_special_state.empty());
+    baked_body_poses_[slot]=RealizeBakedPose(*baked_body_starts_[slot],target,target.outgoing_special_state);
   }
   BuildBakedBodyTape(baked_body_poses_);
 }

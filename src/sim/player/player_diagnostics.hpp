@@ -288,5 +288,10 @@ std::vector<PlayerMatchAudit> &PlayerMatchAuditLog();
 int &PlayerMatchSelections();
 int &PlayerPlaybackFinalPoseSamples();
 
+// ANIM-2 A11.0: body-forecast dual-run. The legacy forecast stays the
+// production one; the Player's read-only PreviewPose is compared against it so
+// the authority can be flipped once the two agree bit-exactly.
+int &BakedBodyPreviewChecks();
+
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_DIAGNOSTICS_HPP

@@ -1391,3 +1391,12 @@ TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
   CHECK(sim.Stop());
 }
 
+
+TEST_CASE("Runtime harness: the Player pose preview drives the body forecast",
+          "[runtime][sim]") {
+  // ANIM-2 A11.0: every match in this harness builds its body forecast through
+  // the Player's read-only PreviewPose, not by indexing the clip here.
+  const int checks = BakedBodyPreviewChecks();
+  std::fprintf(stderr, "[runtime] A11.0 preview checks=%d\n", checks);
+  CHECK(checks > 0);
+}

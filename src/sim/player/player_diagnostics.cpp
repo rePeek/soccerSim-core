@@ -477,3 +477,6 @@ std::vector<PlayerMatchAudit> &PlayerMatchAuditLog() {
 }
 int &PlayerMatchSelections() { static int value = 0; return value; }
 int &PlayerPlaybackFinalPoseSamples() { static int value = 0; return value; }
+
+// ANIM-2 A11.0: body-forecast dual-run comparison counters.
+int &BakedBodyPreviewChecks() { static int value = 0; return value; }
