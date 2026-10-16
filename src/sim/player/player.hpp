@@ -389,9 +389,15 @@ class Player final {
     // cursor); only the base yaw and the blend length are still supplied by the
     // action-execution state.
     void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
-    void UpdatePlaybackFromAuthority(float base_angle, int blend_ticks) {
+    void UpdatePlaybackFromAuthority(football::sim::Tick now, float base_angle,
+                                     int blend_ticks) {
       const AnimationId authority_clip = InstalledAction().clip_id;
       const int authority_frame = actionState.Frame();
+      // ANIM-2 A10.1: at most one real playback update per tick. A repeated
+      // call in the same tick is a pure read and must not advance the
+      // transition twice.
+      if (last_playback_tick_ && *last_playback_tick_ == now) return;
+      last_playback_tick_ = now;
       UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
       // ANIM-1 A6.3d: the compat projection no longer decides the clip
       // or the action time. Verify the three Player-owned artefacts agree - the
@@ -890,6 +896,9 @@ class Player final {
     PlayerActionState actionState;
     // ANIM-1 A3: Player-owned animation playback state (clip cursor, transition,
     PlayerPlaybackState playback_state_;
+    // ANIM-2 A10.1: the tick of the last real playback update, so a repeated
+    // same-tick call cannot advance the transition twice.
+    std::optional<football::sim::Tick> last_playback_tick_;
 
     bool playback_blend_enabled_ = true;
     // ANIM-1 A6.3b.3: the Player owns the Movement candidate selection. It

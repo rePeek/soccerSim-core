@@ -6,12 +6,18 @@
 #include "football/animation/pose_sampling.hpp"
 #include "sim/player/animation_transition_state.hpp"
 
-// ANIM-1 A3 — Player-owned animation playback state.
+// ANIM-2 A10.1 — Player-owned playback instance.
 //
-// The Player owns the clip cursor, the cross-clip transition and the final pose;
-// the Animation module stays stateless (clip data + BakedAnimationSelector +
-// SamplePose + BlendPose). This type depends on no Humanoid, Ball, Referee,
-// Simulation or RNG.
+// One instance per Player. `Play()` is the production entry: the caller supplies
+// the authoritative clip, integer frame (from PlayerActionState) and base yaw,
+// and receives the single FinalPose for this tick. It samples the pose, advances
+// the cross-clip transition at most once and stores the result; it never
+// advances the action clock itself. `Pose()`/`BaseAngle()` are pure reads that
+// change nothing.
+//
+// `Tick()`/`AdvanceCursor()` are the self-advancing test helpers. They share the
+// sampling core but are not part of the production interface, so they cannot
+// become a second time authority.
 struct PlayerPlaybackState {
   AnimationId clip_id = -1;
   int frame = 0;
@@ -29,11 +35,35 @@ struct PlayerPlaybackState {
     transition.Reset();
   }
 
-  // Production sampling: the caller supplies the authoritative integer frame
-  // and base yaw (the action clip is selected elsewhere for now). A clip change
-  // blends from the last final pose over `blend_ticks`.
-  const PoseFrame& Sample(const AnimationClip& clip, int at_frame, float base_angle,
-                          int blend_ticks) {
+  // Production: one real playback update for this tick. A clip change blends
+  // from the last final pose over `blend_ticks`.
+  const PoseFrame& Play(const AnimationClip& clip, int at_frame, float base_angle,
+                        int blend_ticks) {
+    return Apply(clip, at_frame, base_angle, blend_ticks);
+  }
+
+  // The single FinalPose the rest of the tick must read. Pure read.
+  const PoseFrame& Pose() const { return final_pose; }
+  float BaseAngle() const { return final_base_angle; }
+
+  // Test-only: self-advancing playback. Advances the internal cursor one frame
+  // per call; never used by production.
+  const PoseFrame& Tick(const AnimationClip& clip, int blend_ticks) {
+    const int at_frame = clip.id == clip_id ? frame : 0;
+    const PoseFrame& pose = Apply(clip, at_frame, 0.0f, blend_ticks);
+    if (frame < static_cast<int>(clip.poses.size()) - 1) ++frame;
+    return pose;
+  }
+
+  // Test-only: advance the internal cursor for the next self-advancing Tick.
+  void AdvanceCursor(const AnimationClip& clip) {
+    if (frame < static_cast<int>(clip.poses.size()) - 1) ++frame;
+  }
+
+ private:
+  // The sampling core shared by the production and test entries.
+  const PoseFrame& Apply(const AnimationClip& clip, int at_frame, float base_angle,
+                         int blend_ticks) {
     if (clip.id != clip_id) {
       if (have_pose) {
         transition.Begin(final_pose, final_base_angle, blend_ticks);
@@ -53,20 +83,6 @@ struct PlayerPlaybackState {
     have_pose = true;
     frame = at_frame;
     return final_pose;
-  }
-
-  // Self-advancing variant for tests: advances the internal integer cursor one
-  // frame per call.
-  const PoseFrame& Tick(const AnimationClip& clip, int blend_ticks) {
-    const int at_frame = clip.id == clip_id ? frame : 0;
-    const PoseFrame& pose = Sample(clip, at_frame, 0.0f, blend_ticks);
-    if (frame < static_cast<int>(clip.poses.size()) - 1) ++frame;
-    return pose;
-  }
-
-  // Advance the internal cursor for the next self-advancing Tick.
-  void AdvanceCursor(const AnimationClip& clip) {
-    if (frame < static_cast<int>(clip.poses.size()) - 1) ++frame;
   }
 };
 
