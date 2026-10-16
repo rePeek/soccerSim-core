@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "football/animation/library.hpp"
-#include "football/animation/selector.hpp"
+#include "football/animation/types.hpp"
 
 // Moved verbatim from humanoidbase.cpp (config data). Declared here because the
 // movement-vector snap helpers and the refinement tests read them.

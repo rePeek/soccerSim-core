@@ -3,7 +3,6 @@
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
-#include "football/animation/pose_sampling.hpp"
 #include "football/animation/transition.hpp"
 
 // ANIM-2 A11.1: moved out of sim/player. Animation owns the playback state

@@ -3,6 +3,8 @@
 
 #include "football/animation/playback.hpp"
 
+#include "football/animation/pose_sampling.hpp"
+
 namespace football::animation {
 
 void PlaybackState::Reset() {

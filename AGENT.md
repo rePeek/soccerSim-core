@@ -254,10 +254,13 @@ anim_baking → legacy_anim + animation/foundation
   shoulder-to-shoulder and edge-of-reach duels register. Player keeps only the
   *decision* around these queries (action windows, response, fouls); it must not
   hand-write its own equivalent distance intersection.
-- `football_animation` is a header-only INTERFACE target (format types,
-  serialization, the library reader, and selection) depending only on
-  foundation. The runtime and the offline baker share one definition, so the
-  baker links no runtime archive.
+- `football_animation` is now two STATIC archives (ANIM-2 A12), both declared in
+  `src/animation/CMakeLists.txt`: `football::animation_base` (the `.simanim`
+  format, data structures, reader and base `CrudeSelection`) and
+  `football::animation` (Match/MatchTouch, movement/touch refinement, pose
+  sampling/blending, playback and transition). The offline baker links only
+  `football::animation_base`, so it still links no runtime archive; Player links
+  `football::animation`.
 - `football_legacy_anim` is an offline object target. `football_anim_baking` is a
   callable offline library; `football_anim_baker` is its CLI. The baker is
   self-contained: it links only its own offline objects and foundation, never
@@ -2848,3 +2851,45 @@ realization -> physics collider. `anim_state_` still carries install staging,
 smuggle and reference data; it is removed incrementally, never in one destructive
 sweep. `MatchTouch` shadow diagnostics and `BakedBodyPreviewChecks` remain
 observation-only.
+
+### ANIM-2 A12: two Animation archives, algorithms out of the headers
+
+A12 is a compile/link organization pass, not a behaviour change: the public
+types and declarations move to the headers, the algorithms move to
+`src/animation/*.cpp`, and the module splits into two archives. No clip field
+layout, `.simanim` byte format, `AnimationId`/namespace naming, Match/MatchTouch
+scoring, Player `anim_state_`, arbitrary-frame matching or `.so` conversion was
+touched.
+
+- **A12.0** `football::animation_base` (STATIC: `format.cpp`, `clip.cpp`,
+  `library.cpp`) + `football::animation` (STATIC) on top. The baker links only
+  the base. `format.hpp`/`clip.hpp`/`library.hpp` keep the types and the
+  `Serialize`/`Deserialize`/`Load` declarations; the byte-level bodies and the
+  FNV-1a reader hash moved out. Verified: the offline bake is byte-identical
+  (same sha256 as before).
+- **A12.1** `selector.cpp` (`CrudeSelection`, `GetQuadrant`) moves into
+  `animation_base`; `CheckFunctionType` and the deviation constants become
+  file-local. Verified: bake byte-identical and `--verify-selection` passes
+  (187 queries, exact vectors).
+- **A12.2** `movement_selection.cpp` (`RefineMovementCandidates`,
+  `RefineNonMovementCandidates`, `RefineLegacyCandidates`,
+  `SelectIdleMovementAnim`, `SelectRetainAnimClip`) into `football::animation`;
+  the stable sorts, direction/body filters, similarity ratings and rating scratch
+  live in the .cpp anonymous namespace. The header keeps the request struct, the
+  config-vector accessors and the `ForceInto*` snap helpers the callers/tests
+  use.
+- **A12.3** `touch_geometry.cpp` and `touch_scoring.cpp` hold
+  `EvaluateTouchGeometry`/`SegmentProjectionParameter`/`FrontOfFootOffsetRel`
+  and `ResolveActionSmuggle`/`EvaluateBodyBallDistanceAdvantage`.
+- **A12.4** `playback.cpp`, `transition.cpp`, `pose_blend.cpp`,
+  `pose_sampling.cpp` and `motion_clip.cpp` hold the state advances, sampling
+  and reference-motion sampling; the headers keep the value types.
+- **A12.5** header includes slimmed to what each header actually uses
+  (`movement_selection.hpp` no longer pulls `selector.hpp`; `playback.hpp` no
+  longer pulls `pose_sampling.hpp`; `transition.hpp` includes `clip.hpp` not
+  `pose_blend.hpp`); both target declarations live in `src/animation/CMakeLists.txt`.
+
+Verification for A12: the offline bake stays byte-identical and
+`--verify-selection` stays exact; Debug `ctest` is 10/10; and because moving
+floating-point code across translation units can change inlining/contraction,
+the Release build is checked for the same unit/loco results.

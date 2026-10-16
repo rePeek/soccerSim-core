@@ -3,6 +3,7 @@
 
 #include "football/animation/transition.hpp"
 
+#include "football/animation/pose_blend.hpp"
 #include "football/foundation/math/scalar.hpp"
 
 namespace football::animation {

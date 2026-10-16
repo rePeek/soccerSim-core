@@ -1,7 +1,6 @@
 #ifndef FOOTBALL_ANIMATION_TRANSITION_HPP
 #define FOOTBALL_ANIMATION_TRANSITION_HPP
-
-#include "football/animation/pose_blend.hpp"
+#include "football/animation/clip.hpp"
 #include "football/foundation/math/scalar.hpp"
 
 // ANIM-2 A11.1: moved out of sim/player. Free of Player/Simulation/Ball/RNG;

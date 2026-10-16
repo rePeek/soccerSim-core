@@ -22,6 +22,7 @@
 #include <cmath>
 
 #include "football/animation/movement_math.hpp"
+#include "football/animation/selector.hpp"
 
 using namespace football::math;
 
