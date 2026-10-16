@@ -1187,6 +1187,67 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
   CHECK(sim.Stop());
 }
 
+TEST_CASE("Runtime harness: clip switches install at a matched entry frame",
+          "[runtime][sim]") {
+  // ANIM-2 A13.1: for Movement, the install no longer always begins at frame 0.
+  // The Player threads the entry frame into the install, the action cursor
+  // agrees with it, and the reference motion is re-based so the first committed
+  // tick after a non-zero entry does not add the skipped root displacement.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int in_play_tick = -1;
+  int prev_start_frame = -1;
+  bool saw_nonzero_entry = false;
+  bool checked_nonzero_delta = false;
+  bool pending_delta = false;
+  float max_entry_delta = 0.0f;
+  Vector3 install_position;
+  for (int tick = 0; tick < 400; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    const bool drive = in_play_tick >= 0 && tick > in_play_tick + 3;
+    PlayerControlSet controls;
+    PlayerControl control;
+    // Turn every 80 ticks so the Movement quadrant (and clip) actually changes.
+    control.move_direction = (tick % 80) < 40 ? Vector3(0, -1, 0) : Vector3(1, 0, 0);
+    control.desired_speed = drive ? 6.0f : 0.0f;
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+
+    const int start_frame = player->InstalledAction().start_frame;
+    if (start_frame != prev_start_frame) {
+      if (start_frame > 0) {
+        saw_nonzero_entry = true;
+        pending_delta = true;
+        install_position = player->GetPosition();
+      } else {
+        pending_delta = false;
+      }
+      prev_start_frame = start_frame;
+    } else if (pending_delta) {
+      max_entry_delta = std::max(
+          max_entry_delta, (player->GetPosition() - install_position).GetLength());
+      checked_nonzero_delta = true;
+      pending_delta = false;
+    }
+  }
+
+  std::fprintf(stderr,
+               "[runtime] A13.1 entry saw_nonzero=%d checked=%d max_delta=%.3f "
+               "install_mismatch=%d\n",
+               saw_nonzero_entry ? 1 : 0, checked_nonzero_delta ? 1 : 0,
+               max_entry_delta, player->InstallMismatches());
+  CHECK(in_play_tick >= 0);
+  CHECK(saw_nonzero_entry);
+  CHECK(checked_nonzero_delta);
+  CHECK(max_entry_delta < 0.5f);
+  CHECK(player->InstallMismatches() == 0);
+  CHECK(player->InstallCursorMismatches() == 0);
+  CHECK(sim.Stop());
+}
+
 TEST_CASE("Runtime harness: the physics pose sample is the Player playback pose",
           "[runtime][sim]") {
   // ANIM-1 A5: the Player owns the final pose; the body/CCD sample physics reads

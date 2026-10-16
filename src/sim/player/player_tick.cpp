@@ -937,13 +937,15 @@ void Player::ProjectSelectedActionCompat(
     int selectedAnimID, const football::sim::TouchChoice &touch_choice,
     const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
     football::sim::Tick now, std::span<MentalImage> history,
-    e_InterruptAnim localInterruptAnim, bool material_candidate) {
+    e_InterruptAnim localInterruptAnim, bool material_candidate,
+    int start_frame) {
   const PlayerActionState &action = this->GetSimulationActionState();
   previousAnim_functionType = anim_state_.functionType;
 
   anim_state_.animationId = selectedAnimID;
   anim_state_.functionType = command.desiredFunctionType;
-  anim_state_.frameNum = 0;
+  // ANIM-2 A13: install at the matched entry frame. 0 is the legacy cursor.
+  anim_state_.frameNum = start_frame;
   anim_state_.touchFrame = touch_choice.touch_frame;
   anim_state_.touchPos = touch_choice.touch_position;
   anim_state_.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatial_state_.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
@@ -959,6 +961,17 @@ void Player::ProjectSelectedActionCompat(
   anim_state_.outgoingMovement = CalculateOutgoingMovement(touch_choice.positions);
   anim_state_.positions.clear();
   anim_state_.positions.assign(touch_choice.positions.begin(), touch_choice.positions.end());
+  // ANIM-2 A13: a non-zero entry frame skips the clip's earlier root motion, so
+  // re-base the reference trajectory to the entry frame. Otherwise the first
+  // committed tick would add the whole skipped displacement as a teleport. A
+  // constant shift leaves every delta (outgoing movement, smuggles) unchanged.
+  if (start_frame > 0 && !anim_state_.positions.empty()) {
+    const std::size_t index =
+        std::min(static_cast<std::size_t>(start_frame),
+                 anim_state_.positions.size() - 1);
+    const Vector3 base = anim_state_.positions[index];
+    for (Vector3 &p : anim_state_.positions) p -= base;
+  }
   anim_state_.positionOffset = Vector3(0);
   anim_state_.originatingCommand = command;
   RecordMovementCommandAcceptance(material_candidate, action.type,

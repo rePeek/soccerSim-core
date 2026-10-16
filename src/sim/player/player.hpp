@@ -522,7 +522,9 @@ class Player final {
                               football::sim::Tick now,
                               std::span<MentalImage> history,
                               e_InterruptAnim local_interrupt_anim,
-                              bool material_candidate);
+                              bool material_candidate,
+                              // ANIM-2 A13: the matched entry frame (0 = legacy).
+                              int start_frame);
     // ANIM-1 A6.4 step 9a: the crude candidate constraints, built by the Player.
     CrudeSelectionQuery BuildCrudeSelectionQuery(
         const PlayerCommand &command,
@@ -790,7 +792,9 @@ class Player final {
                                      football::sim::Tick now,
                                      std::span<MentalImage> history,
                                      e_InterruptAnim localInterruptAnim,
-                                     bool material_candidate);
+                                     bool material_candidate,
+                                     // ANIM-2 A13: the matched entry frame (0 = legacy).
+                                     int start_frame);
     void RecordSelectedContactAudit(const PlayerCommand &command);
     // The *only* entry that adopts the baked action motion the Player produced
     // from animation root motion, plus the lifecycle resets that re-read the

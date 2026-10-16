@@ -660,12 +660,14 @@ bool Player::CommitSelectedAction(int selected_anim_id,
                                   football::sim::Tick now,
                                   std::span<MentalImage> history,
                                   e_InterruptAnim local_interrupt_anim,
-                                  bool material_candidate) {
+                                  bool material_candidate,
+                                  int start_frame) {
   // ANIM-1 A6.4 step 7b: the Player owns the install dispatch. The compat
   // projection writes the legacy currentAnim; the Player then installs through
   // the one install entry, and only then records the scheduled-contact audit.
   ProjectSelectedActionCompat(selected_anim_id, touch_choice, command, tick, now,
-                              history, local_interrupt_anim, material_candidate);
+                              history, local_interrupt_anim, material_candidate,
+                              start_frame);
   InstallSelectedAction(CurrentSelectedAction());
   RecordSelectedContactAudit(command);
   return true;

@@ -436,6 +436,11 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   const bool foot_counterfactual =
       command.desiredFunctionType == e_FunctionType_Movement;
+  // ANIM-2 A13: only Movement and Trip search for an entry frame yet. Touch
+  // actions need the touch-frame/ball-position consistency work first.
+  const bool entry_frame_branch =
+      command.desiredFunctionType == e_FunctionType_Movement ||
+      command.desiredFunctionType == e_FunctionType_Trip;
 
   // ANIM-2 A10.5: the Player calls the single Animation::Match entry for the
   // candidate refinement; it no longer calls the refinement functions directly.
@@ -461,6 +466,11 @@ bool Player::TrySelectAction(football::sim::Tick now,
     refine_request.idle_level = desiredIdleLevel;
   }
   match_query.refinement = refine_request;
+  if (entry_frame_branch) {
+    match_query.entry.enabled = true;
+    match_query.entry.reference_pose = Pose();
+    match_query.entry.min_remaining_frames = 1;
+  }
 
   const auto match =
       football::animation::Match(animations_, match_query);
@@ -632,11 +642,29 @@ bool Player::TrySelectAction(football::sim::Tick now,
   // make it so
 
   if (selectedAnimID != -1) {
+    // ANIM-2 A13: the entry frame for the clip that will actually install. The
+    // locomotion adaptation may reorder the Movement candidates after Match, so
+    // reuse Match's answer only when the front candidate survived.
+    int selected_start_frame = 0;
+    if (entry_frame_branch) {
+      if (match && selectedAnimID == match->clip_id) {
+        selected_start_frame = match->start_frame;
+      } else {
+        football::animation::EntryFrameRequest entry_request;
+        const PoseFrame reference_pose = Pose();
+        entry_request.reference_pose = &reference_pose;
+        entry_request.min_remaining_frames = 1;
+        const football::animation::EntryFrameResult entry =
+            football::animation::SelectEntryFrame(
+                GetBakedClip(selectedAnimID), entry_request);
+        if (entry.matched) selected_start_frame = entry.frame;
+      }
+    }
     // ANIM-1 A6.4 step 7b: selection and installation are separate units, and
     // the Player now dispatches the installation.
-    return CommitSelectedAction(
-        selectedAnimID, touch_choice, command, tick, now, history,
-        localInterruptAnim, material_candidate);
+    return CommitSelectedAction(selectedAnimID, touch_choice, command, tick, now,
+                                history, localInterruptAnim, material_candidate,
+                                selected_start_frame);
   }
 
   return false;
