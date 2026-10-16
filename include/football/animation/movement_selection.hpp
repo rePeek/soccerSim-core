@@ -577,4 +577,28 @@ inline AnimationId SelectIdleMovementAnim(const AnimationLibrary& library,
   return static_cast<AnimationId>(data_set.front());
 }
 
+// ANIM-2 A10.3c: the retain-animation clip, relocated from
+// Player::SelectRetainAnim. It sorts by the legacy movement similarity with
+// the caller's predicate values, exactly as the Player used to.
+inline AnimationId SelectRetainAnimClip(const AnimationLibrary& library,
+                                        const Vector3& rel_desired_direction,
+                                        e_Velocity desired_velocity,
+                                        float cornering_bias) {
+  CrudeSelectionQuery query;
+  query.byFunctionType = true;
+  query.functionType = e_FunctionType_Movement;
+  query.byIncomingVelocity = true;
+  query.incomingVelocity = e_Velocity_Idle;
+  query.byOutgoingVelocity = true;
+  query.outgoingVelocity = e_Velocity_Idle;
+  query.properties.incoming_retain_state = "right_elbow";
+
+  DataSet data_set;
+  BakedAnimationSelector::CrudeSelection(library.Clips(), query, data_set);
+  assert(!data_set.empty());
+  SortByMovementSimilarity(library, data_set, rel_desired_direction,
+                           desired_velocity, cornering_bias);
+  return static_cast<AnimationId>(data_set.front());
+}
+
 #endif  // FOOTBALL_ANIMATION_MOVEMENT_SELECTION_HPP

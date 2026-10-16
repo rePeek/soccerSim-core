@@ -611,27 +611,16 @@ bool Player::TrySelectAction(football::sim::Tick now,
 // Humanoid so no selection path is left behind.
 // ---------------------------------------------------------------------------
 void Player::SelectRetainAnim() {
-  CrudeSelectionQuery query;
-  query.byFunctionType = true;
-  query.functionType = e_FunctionType_Movement;
-  query.byIncomingVelocity = true;
-  query.incomingVelocity = e_Velocity_Idle;
-  query.byOutgoingVelocity = true;
-  query.outgoingVelocity = e_Velocity_Idle;
-  query.properties.incoming_retain_state = "right_elbow";
-
-  DataSet dataSet;
-  BakedAnimationSelector::CrudeSelection(
-      animations_.Clips(), query, dataSet);
-
-  assert(dataSet.size() != 0);
-
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareMovementSimilarity, this, _1, _2));
+  // ANIM-2 A10.3c: the clip choice is Animation's; the Player still owns the
+  // action install and the physics-state writes below.
+  const AnimationId retain_clip = SelectRetainAnimClip(
+      animations_, predicate_RelDesiredDirection, predicate_DesiredVelocity,
+      predicate_CorneringBias);
 
   startAngle = FixAngle((Vector3(0) - startPos).GetAngle2D());  // 0.5 * pi; (facing right)
 
   anim_state_.positions.clear();
-  anim_state_.animationId = *dataSet.begin();
+  anim_state_.animationId = retain_clip;
   anim_state_.frameNum = 0;
   anim_state_.touchFrame = -1;
   anim_state_.actionSmuggle = Vector3(0);

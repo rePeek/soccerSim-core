@@ -750,13 +750,6 @@ class Player final {
                                    const Vector3 &desiredBodyDirectionRel,
                                    std::vector<Vector3> &positions_ret,
                                    radian &rotationOffset_ret) const;
-    void SetMovementSimilarityPredicate(const Vector3 &relDesiredDirection,
-                                        e_Velocity desiredVelocity) const;
-    float GetMovementSimilarity(int animIndex,
-                                const Vector3 &relDesiredDirection,
-                                e_Velocity desiredVelocity,
-                                float corneringBias) const;
-    bool CompareMovementSimilarity(int animIndex1, int animIndex2) const;
     // ANIM-1 A9.8: the compatibility state projection and pose assembly.
     PlayerBakedPoseSample SampleBakedPose(
         const PlayerKinematicState& state,
@@ -850,9 +843,10 @@ class Player final {
     Vector3 tripDirection;
     Vector3 decayingPositionOffset;
     float decayingDifficultyFactor = 0.0f;
-    // ANIM-2 A10.3: SelectRetainAnim (A10.3c, still Player-side) sorts by the
-    // legacy movement similarity, so these three predicate values survive
-    // until that selection moves into Match.
+    // ANIM-2 A10.3c: the resolved movement-similarity request. It is only
+    // written when a command carries desired movement and is read by
+    // SelectRetainAnim (the retain clip sort), exactly as the legacy
+    // SetMovementSimilarityPredicate left it.
     mutable Vector3 predicate_RelDesiredDirection;
     mutable float predicate_CorneringBias = 0.0f;
     mutable e_Velocity predicate_DesiredVelocity = e_Velocity_Idle;

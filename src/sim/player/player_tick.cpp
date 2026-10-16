@@ -347,63 +347,6 @@ void Player::ProjectMovementState(
 
 
 
-void Player::SetMovementSimilarityPredicate(const Vector3 &relDesiredDirection, e_Velocity desiredVelocity) const {
-  predicate_RelDesiredDirection = relDesiredDirection;
-  predicate_DesiredVelocity = desiredVelocity;
-  //if (relDesiredDirection.GetDotProduct(Vector3(0, -1, 0)) < 0) predicate_DesiredVelocity = e_Velocity_Idle;
-  // this isn't working all too well: if targetmovement is set to 0 (aka corneringbias towards 1), both dribble @ 0 deg and dribble @ 90 deg will be the same distance (from 0), so still no preference for braking straight
-  predicate_CorneringBias = CalculateBiasForFastCornering(Vector3(0, -1.0f * spatial_state_.floatVelocity, 0), relDesiredDirection * EnumToFloatVelocity(desiredVelocity), 1.0f, 0.9f); // anim space values!
-}
-
-float Player::GetMovementSimilarity(int animIndex, const Vector3 &relDesiredDirection, e_Velocity desiredVelocity, float corneringBias) const {
-
-  Vector3 desiredMovement = relDesiredDirection * EnumToFloatVelocity(desiredVelocity);
-
-  Vector3 outgoingDirection = ForceIntoPreferredDirectionVec(GetBakedClip(animIndex).metadata.outgoing_direction);
-  float outgoingVelocity = RangeVelocity(GetBakedClip(animIndex).metadata.outgoing_velocity);
-  Vector3 outgoingMovement = outgoingDirection * outgoingVelocity;
-
-  // anims that end at lower velocities have an advantage: they don't get dragged into the currentmovement that much
-  // thus: have a bias that is higher at higher outgoing velocities, which means anim outgoingmovement gets more % of current movement and less % of their own
-  // disabled for now - the new physics system disregards most of the anims movement anyway :)
-  // *enabled again: altered the physics system so that it will regard anim movement more, so this became useful again for proper hard cornering
-
-  // alternative to this system (drags back movement)
-  //outgoingMovement += -desiredMovement.GetNormalized(0) * outgoingMovement.GetLength() * 0.5f;
-  //desiredMovement = desiredMovement.GetNormalized(0) * clamp(desiredMovement.GetLength() - 0.8f, idleVelocity, sprintVelocity);
-
-  desiredMovement = desiredMovement * (1.0f - corneringBias);
-
-  float value = (desiredMovement - outgoingMovement).GetLength();
-
-  value -= std::fabs(relDesiredDirection.GetDotProduct(outgoingDirection)) * 4.0f; // prefer straight lines (towards/away from desired outgoing)
-
-/* disabled quantization:
-  // maximum quantization (20 degree angle @ dribble velocity, smallest distance to be measured)
-  // faulty calculation (cornering distance instead of straight line) for optimization, makes little difference anyway for 20 degrees
-  float maxQuant = (dribbleVelocity * 2.0f * pi) / (360.0f / 20.0f);// * (1.0 - velocityBias * 0.5) // == ~1.22 at the moment of writing
-  //float maxQuant = std::sqrt(2.0f * std::pow(dribbleVelocity, 2.0f) * (1.0f - std::cos(pi / 180.0f * 20.0f))); // the actual correct calculation (straight line)
-
-  // add safety
-  maxQuant *= 0.8f;
-
-  // quantize
-  value /= maxQuant;
-  value = std::round(value);
-  value *= maxQuant;
-*/
-
-  // never turn the wrong way around ** BUGGY, causes weird acceleration when we want idle velo **
-  //if (std::fabs(outgoingDirection.GetAngle2D() - relDesiredDirection.GetAngle2D()) > pi) value += 100000;
-
-  return value;
-}
-
-bool Player::CompareMovementSimilarity(int animIndex1, int animIndex2) const {
-  float rating1 = GetMovementSimilarity(animIndex1, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
-  float rating2 = GetMovementSimilarity(animIndex2, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
-  return rating1 < rating2;
-}
 
 
 
