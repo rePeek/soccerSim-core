@@ -1311,6 +1311,32 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
 }
 
 
+TEST_CASE("Runtime harness: PlayerActionState is the single action time authority",
+          "[runtime][sim]") {
+  // ANIM-2 A10.8: one action clock. The compatibility frame, the public frame
+  // and the playback cursor all track PlayerActionState across a real match,
+  // and the playback clip is the installed selection.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int checked = 0;
+  for (int tick = 0; tick < 280; ++tick) {
+    PlayerControlSet controls;
+    sim.Step(controls);
+    if (!player->IsActive()) continue;
+    const PlayerActionState& action = player->GetSimulationActionState();
+    CHECK(player->GetFrameNum() == action.Frame());
+    CHECK(player->GetCurrentFrame() == action.Frame());
+    CHECK(player->PlaybackState().frame == action.Frame());
+    CHECK(player->PlaybackState().clip_id == player->InstalledAction().clip_id);
+    ++checked;
+  }
+  CHECK(checked > 0);
+  CHECK(sim.Stop());
+}
+
 TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
           "[runtime][sim]") {
   // A7: the Player owns the passive-trip decision. Injected directly (so the
