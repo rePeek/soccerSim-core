@@ -10,16 +10,8 @@
 using namespace football::math;
 using football::animation::Match;
 using football::animation::MatchQuery;
-using football::animation::MotionEvaluator;
-using football::animation::MotionPlanView;
 
 namespace {
-
-// The Movement/non-Movement refinement does not need the motion port yet, so
-// this evaluator is never called.
-struct NoMotion : MotionEvaluator {
-  bool Evaluate(AnimationId, MotionPlanView&) override { return false; }
-};
 
 MatchQuery MovementQuery() {
   MatchQuery query;
@@ -55,8 +47,7 @@ TEST_CASE("Match refines Movement candidates over the real library") {
   REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
   REQUIRE(library.Clips().size() > 0);
 
-  NoMotion motion;
-  const auto result = Match(library, MovementQuery(), motion);
+  const auto result = Match(library, MovementQuery());
   REQUIRE(result.has_value());
   CHECK(!result->candidates.empty());
   CHECK(result->clip_id == result->candidates.front());
@@ -64,7 +55,7 @@ TEST_CASE("Match refines Movement candidates over the real library") {
   CHECK(static_cast<std::size_t>(result->clip_id) < library.Clips().size());
 
   // The refinement is deterministic.
-  const auto again = Match(library, MovementQuery(), motion);
+  const auto again = Match(library, MovementQuery());
   REQUIRE(again.has_value());
   CHECK(again->candidates == result->candidates);
 }
@@ -78,6 +69,5 @@ TEST_CASE("Match reports no match when the crude constraint rejects everything")
   query.constraints.crude.properties.incoming_special_state =
       "definitely-not-a-real-state";
 
-  NoMotion motion;
-  CHECK(!Match(library, query, motion).has_value());
+  CHECK(!Match(library, query).has_value());
 }

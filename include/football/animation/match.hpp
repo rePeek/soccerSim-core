@@ -37,51 +37,6 @@ struct MotionPlanView {
   float rotation_offset = 0.0f;
 };
 
-// Synchronous candidate-motion port. `Evaluate` must have no side effects and
-// must not commit a position or advance the action clock; it may use a
-// per-Match candidate cache. The returned view is only valid while the same
-// Match call is in progress.
-class MotionEvaluator {
- public:
-  virtual ~MotionEvaluator() = default;
-  virtual bool Evaluate(AnimationId clip_id, MotionPlanView& out) = 0;
-};
-
-// Resolved desired movement / look-at for this tick.
-struct MatchMotionIntent {
-  bool use_desired_movement = false;
-  Vector3 desired_direction;
-  float desired_velocity_float = 0.0f;
-  bool use_desired_look_at = false;
-  Vector3 desired_look_at;
-};
-
-// The Player's animation-relevant pose features. These mirror the fields the
-// legacy selection read from the spatial state; they are values, not a Player.
-struct MatchPose {
-  Vector3 position;
-  radian angle = 0.0f;
-  Vector3 direction_vec{0, -1, 0};
-  Vector3 body_direction_vec{0, -1, 0};
-  Vector3 rel_body_direction_vec{0, -1, 0};
-  Vector3 rel_body_direction_vec_nonquantized{0, -1, 0};
-  radian rel_body_angle_nonquantized = 0.0f;
-  e_Velocity enum_velocity = e_Velocity_Idle;
-  float float_velocity = 0.0f;
-  e_Foot foot = e_Foot_Right;
-};
-
-// The current animation, for the touch/pose matching stage (A10.4).
-struct MatchAnimationState {
-  AnimationId clip_id = -1;
-  int frame = 0;
-  e_FunctionType function_type = e_FunctionType_None;
-  std::string outgoing_special_state;
-  std::string outgoing_retain_state;
-  int touch_frame = -1;
-  Vector3 touch_position;
-  std::vector<Vector3> positions;
-};
 
 // Candidate-set constraints the Player already resolved.
 struct MatchConstraints {
@@ -132,9 +87,6 @@ struct MatchResult {
 
 struct MatchQuery {
   e_FunctionType function_type = e_FunctionType_None;
-  MatchMotionIntent motion;
-  MatchPose pose;
-  MatchAnimationState animation;
   MatchConstraints constraints;
   // The Movement/non-Movement sort request (already resolved by the Player).
   MovementRefinementRequest refinement;
@@ -145,20 +97,15 @@ struct MatchQuery {
   bool foot_counterfactual = false;
 };
 
-// Refine the candidate set for the query and return the match. `motion` is used
-// by the touch/pose stage; the Movement and non-Movement stages do not need it
-// yet, so it may be an evaluator that is never called on those paths.
-//
-// A10.2 implements the stateless candidate refinement (crude selection plus the
-// Movement / non-Movement stable-sort chain) and returns `candidates.front()`.
-// The touch loop that consumes `motion` lands in A10.4; until then a touch
-// action gets the same refined candidates the Player already used.
+// Refine the candidate set for the query and return the match. The Player
+// decides the branch and supplies the crude set; Animation runs the stateless
+// refinement and returns the ordered candidates plus the foot-counterfactual
+// list. The touch stage has its own entry point (MatchTouch).
 //
 // ANIM-2 A10.7: the definition lives in src/animation/match.cpp, so the
 // Animation module compiles to its own archive and never links sim/player.
 std::optional<MatchResult> Match(const AnimationLibrary& library,
-                                const MatchQuery& query,
-                                MotionEvaluator& motion);
+                                const MatchQuery& query);
 
 }  // namespace football::animation
 

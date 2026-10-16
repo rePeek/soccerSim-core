@@ -470,13 +470,5 @@ void RecordFootCounterfactual(const AnimationLibrary& animations, int with_foot_
 }
 
 
-// ANIM-2 A10.0: selection/playback accounting (observation only).
-std::vector<PlayerMatchAudit> &PlayerMatchAuditLog() {
-  static std::vector<PlayerMatchAudit> log;
-  return log;
-}
-int &PlayerMatchSelections() { static int value = 0; return value; }
-int &PlayerPlaybackFinalPoseSamples() { static int value = 0; return value; }
-
 // ANIM-2 A11.0: body-forecast dual-run comparison counters.
 int &BakedBodyPreviewChecks() { static int value = 0; return value; }

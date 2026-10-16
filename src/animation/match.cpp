@@ -9,9 +9,7 @@
 namespace football::animation {
 
 std::optional<MatchResult> Match(const AnimationLibrary& library,
-                                 const MatchQuery& query,
-                                 MotionEvaluator& motion) {
-  (void)motion;
+                                 const MatchQuery& query) {
   std::vector<int> crude;
   if (!query.crude_candidates.empty()) {
     crude.assign(query.crude_candidates.begin(), query.crude_candidates.end());

@@ -36,17 +36,6 @@ using namespace football::math;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-namespace {
-
-// ANIM-2 A10.5: the candidate refinement never needs the motion port, so it
-// gets an evaluator that is never called.
-struct NoMotionEvaluator final : football::animation::MotionEvaluator {
-  bool Evaluate(AnimationId, football::animation::MotionPlanView&) override {
-    return false;
-  }
-};
-
-}  // namespace
 
 // ---------------------------------------------------------------------------
 // ANIM-1 A6.4 step 9a: the crude candidate constraints, built by the Player.
@@ -439,9 +428,8 @@ bool Player::TrySelectAction(football::sim::Tick now,
   }
   match_query.refinement = refine_request;
 
-  NoMotionEvaluator no_motion;
   const auto match =
-      football::animation::Match(animations_, match_query, no_motion);
+      football::animation::Match(animations_, match_query);
   DataSet withoutFootSort;
   if (match) {
     dataSet.assign(match->candidates.begin(), match->candidates.end());
