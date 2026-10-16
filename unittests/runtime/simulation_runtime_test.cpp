@@ -1435,6 +1435,12 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
   int pass_seen_tick = -1;
   bool touched_by_player = false;
   int touches_before = 0;
+  // ANIM-2 A16: the pass's entry frame must stay before its touch frame, and
+  // the installed contact must match the action state.
+  bool touch_install_checked = false;
+  int touch_entry_frame = -1;
+  int touch_contact_frame = -1;
+  int touch_installed_touch_frame = -2;
 
   for (int tick = 0; tick < 300; ++tick) {
     if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
@@ -1481,6 +1487,14 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
         pass_seen_tick < 0) {
       pass_seen_tick = tick;
     }
+    const PlayerActionState& action = player->GetSimulationActionState();
+    if (!touch_install_checked && action.type == e_FunctionType_ShortPass &&
+        action.HasScheduledContact()) {
+      touch_entry_frame = player->InstalledAction().start_frame;
+      touch_contact_frame = action.ContactFrame();
+      touch_installed_touch_frame = player->InstalledAction().touch_frame;
+      touch_install_checked = true;
+    }
     if (touches.last_player_by_team[player->GetTeamID()] == player->GetID()) {
       touched_by_player = true;
       ++touches_before;
@@ -1491,6 +1505,10 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
   CHECK(in_play_tick > 0);
   CHECK(pass_seen_tick >= 0);
   CHECK(touched_by_player);
+  CHECK(touch_install_checked);
+  CHECK(touch_entry_frame >= 0);
+  CHECK(touch_entry_frame < touch_contact_frame);
+  CHECK(touch_installed_touch_frame == touch_contact_frame);
   CHECK(player->InstallMismatches() == 0);
   CHECK(sim.Stop());
 }

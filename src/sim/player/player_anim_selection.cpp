@@ -436,12 +436,22 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   const bool foot_counterfactual =
       command.desiredFunctionType == e_FunctionType_Movement;
-  // ANIM-2 A13/A14: Movement and Trip install at a matched entry frame; the Trip
-  // branch also scores the clip by impact. Touch actions need the touch-frame/
-  // ball-position consistency work first (A16).
+  // ANIM-2 A13/A14/A16: Movement, Trip and the touch actions install at a
+  // matched entry frame. Touch actions additionally never enter at or after
+  // their touch frame, so the contact is never skipped.
   const bool trip_branch = command.desiredFunctionType == e_FunctionType_Trip;
+  const bool touch_branch =
+      command.desiredFunctionType == e_FunctionType_BallControl ||
+      command.desiredFunctionType == e_FunctionType_Trap ||
+      command.desiredFunctionType == e_FunctionType_Interfere ||
+      command.desiredFunctionType == e_FunctionType_Deflect ||
+      command.desiredFunctionType == e_FunctionType_ShortPass ||
+      command.desiredFunctionType == e_FunctionType_LongPass ||
+      command.desiredFunctionType == e_FunctionType_HighPass ||
+      command.desiredFunctionType == e_FunctionType_Shot;
   const bool entry_frame_branch =
-      command.desiredFunctionType == e_FunctionType_Movement || trip_branch;
+      command.desiredFunctionType == e_FunctionType_Movement || trip_branch ||
+      touch_branch;
 
   // ANIM-2 A13.3: resolve the locomotion preference here (it needs PlayerMotion's
   // snapshot and feeds the playback-rate audit) and hand it to Match, which owns
@@ -666,13 +676,17 @@ bool Player::TrySelectAction(football::sim::Tick now,
     // reuse Match's answer only when the front candidate survived.
     int selected_start_frame = 0;
     if (entry_frame_branch) {
-      if (match && selectedAnimID == match->clip_id) {
+      // ANIM-2 A16: a touch action must stay before its touch frame, so its
+      // entry frame is always recomputed with that hard bound.
+      if (match && selectedAnimID == match->clip_id && !touch_branch) {
         selected_start_frame = match->start_frame;
       } else {
         football::animation::EntryFrameRequest entry_request;
         const PoseFrame reference_pose = Pose();
         entry_request.reference_pose = &reference_pose;
         entry_request.min_remaining_frames = 1;
+        if (touch_choice.touch_frame >= 0)
+          entry_request.last_legal_frame = touch_choice.touch_frame - 1;
         const football::animation::EntryFrameResult entry =
             football::animation::SelectEntryFrame(
                 GetBakedClip(selectedAnimID), entry_request);

@@ -2966,5 +2966,24 @@ matching (A14); no production algorithm changed.
   collision push is not mistaken for a pose break). Bounds: jump < 0.8 rad,
   collider < 0.8 m; measured 0.53 rad / 0.54 m. Install/cursor mismatches stay 0.
 
-A16 (non-zero entry frames for touch actions, where the touch frame and ball
-position must stay consistent) builds on this.
+
+### ANIM-2 A16: entry frames for touch actions
+
+A16 extends the matched entry frame to the touch actions (BallControl, Trap,
+Interfere, Deflect, Short/Long/High pass, Shot) under one hard rule: the entry
+frame is always strictly before the touch frame, so a contact is never skipped.
+The Player recomputes the frame with `EntryFrameRequest.last_legal_frame =
+touch_frame - 1` instead of reusing Match's answer.
+
+The reference-motion re-base (A13.1) is invariant for the touch math: the trap/
+ball-control vectors use the clip's `root_positions` at the absolute frame and
+the `outgoingMovement` difference, both unaffected by the constant shift. The
+scheduled contact stays the clip's absolute `touch_frame`, and the action
+cursor starts at the entry frame, so `IsContactPending()` is simply
+`entry_frame < touch_frame`.
+
+Tests: `entry_frame_test` proves the touch bound wins over a late pose match;
+the runtime pass test asserts the pass's entry frame is before its contact
+frame and the installed touch frame equals the action state's contact frame.
+
+A17 (final Animation acceptance) builds on this.

@@ -118,3 +118,16 @@ TEST_CASE("Match applies pose-based entry-frame matching only when enabled") {
   CHECK(matched->clip_id == plain->clip_id);
   CHECK(matched->start_frame == kExpectedFrame);
 }
+
+TEST_CASE("SelectEntryFrame never enters at or after a touch frame") {
+  const AnimationClip clip = PosesClip(11, 20);
+  constexpr int kTouchFrame = 10;
+  EntryFrameRequest request;
+  // The pose is closest to a late frame, but the touch bound must win.
+  request.reference_pose = &clip.poses[kTouchFrame + 5];
+  request.min_remaining_frames = 1;
+  request.last_legal_frame = kTouchFrame - 1;
+  const EntryFrameResult result = SelectEntryFrame(clip, request);
+  REQUIRE(result.matched);
+  CHECK(result.frame <= kTouchFrame - 1);
+}
