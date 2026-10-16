@@ -10,6 +10,7 @@ add_executable(football_animation_unit_tests
   select_clip_test.cpp
   select_movement_test.cpp
   movement_selection_test.cpp
+  match_test.cpp
   touch_scoring_test.cpp
   touch_geometry_test.cpp)
 target_compile_definitions(football_animation_unit_tests PRIVATE

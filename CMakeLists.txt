@@ -53,6 +53,7 @@ target_sources(football_animation INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/selector.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/selection_math.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/selection_query.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/match.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/quadrant.hpp)
 target_compile_features(football_animation INTERFACE cxx_std_23)
 target_link_libraries(football_animation INTERFACE football::foundation)
