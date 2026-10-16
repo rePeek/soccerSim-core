@@ -134,32 +134,12 @@ struct MatchQuery {
 // Movement / non-Movement stable-sort chain) and returns `candidates.front()`.
 // The touch loop that consumes `motion` lands in A10.4; until then a touch
 // action gets the same refined candidates the Player already used.
-inline std::optional<MatchResult> Match(const AnimationLibrary& library,
-                                        const MatchQuery& query,
-                                        MotionEvaluator& motion) {
-  (void)motion;
-  DataSet crude;
-  BakedAnimationSelector::CrudeSelection(library.Clips(), query.constraints.crude, crude);
-  if (crude.empty()) return std::nullopt;
-
-  std::vector<int> candidates;
-  if (query.function_type == e_FunctionType_Movement) {
-    candidates = RefineMovementCandidates(library, crude, query.refinement);
-  } else {
-    candidates = RefineNonMovementCandidates(
-        library, crude, query.refinement, query.constraints.strict,
-        query.constraints.allowed_angle, query.constraints.allowed_velocity_steps,
-        query.constraints.use_desired_trip_direction,
-        query.constraints.desired_trip_direction);
-  }
-  if (candidates.empty()) return std::nullopt;
-
-  MatchResult result;
-  result.clip_id = static_cast<AnimationId>(candidates.front());
-  result.start_frame = 0;
-  result.candidates = std::move(candidates);
-  return result;
-}
+//
+// ANIM-2 A10.7: the definition lives in src/animation/match.cpp, so the
+// Animation module compiles to its own archive and never links sim/player.
+std::optional<MatchResult> Match(const AnimationLibrary& library,
+                                const MatchQuery& query,
+                                MotionEvaluator& motion);
 
 }  // namespace football::animation
 

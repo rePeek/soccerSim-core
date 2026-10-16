@@ -58,6 +58,10 @@ target_sources(football_animation INTERFACE FILE_SET HEADERS
 target_compile_features(football_animation INTERFACE cxx_std_23)
 target_link_libraries(football_animation INTERFACE football::foundation)
 
+# ANIM-2 A10.7: the Match entry point's own archive. It links only
+# football::animation, so the dependency direction stays acyclic.
+add_subdirectory(src/animation)
+
 add_subdirectory(src/ball)
 
 # football::pitch owns the pitch description and the static physics scene
