@@ -436,11 +436,12 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   const bool foot_counterfactual =
       command.desiredFunctionType == e_FunctionType_Movement;
-  // ANIM-2 A13: only Movement and Trip search for an entry frame yet. Touch
-  // actions need the touch-frame/ball-position consistency work first.
+  // ANIM-2 A13/A14: Movement and Trip install at a matched entry frame; the Trip
+  // branch also scores the clip by impact. Touch actions need the touch-frame/
+  // ball-position consistency work first (A16).
+  const bool trip_branch = command.desiredFunctionType == e_FunctionType_Trip;
   const bool entry_frame_branch =
-      command.desiredFunctionType == e_FunctionType_Movement ||
-      command.desiredFunctionType == e_FunctionType_Trip;
+      command.desiredFunctionType == e_FunctionType_Movement || trip_branch;
 
   // ANIM-2 A13.3: resolve the locomotion preference here (it needs PlayerMotion's
   // snapshot and feeds the playback-rate audit) and hand it to Match, which owns
@@ -465,7 +466,18 @@ bool Player::TrySelectAction(football::sim::Tick now,
   match_query.constraints.desired_trip_direction =
       command.desiredTripDirection.GetRotated2D(-spatialState.angle);
   match_query.foot_counterfactual = foot_counterfactual;
-  if (!pure_movement && !pure_non_movement) {
+  if (trip_branch) {
+    // ANIM-2 A14: the Trip match owns clip + entry-frame selection.
+    match_query.branch = football::animation::MatchBranch::Trip;
+    match_query.crude_candidates = dataSet;
+    match_query.trip.impact_direction = command.desiredTripDirection;
+    match_query.trip.current_velocity = spatialState.movement;
+    match_query.trip.current_pose = Pose();
+    match_query.trip.has_current_pose = true;
+    match_query.trip.spatial_angle = spatialState.angle;
+    match_query.trip.trip_type = command.tripType;
+    match_query.trip.min_remaining_frames = 1;
+  } else if (!pure_movement && !pure_non_movement) {
     match_query.branch = football::animation::MatchBranch::Legacy;
     match_query.crude_candidates = dataSet;
     refine_request.idle_level = desiredIdleLevel;
@@ -482,7 +494,9 @@ bool Player::TrySelectAction(football::sim::Tick now,
     match_query.apply_movement_preference = true;
     match_query.preferred_movement_clip = locomotion_choice->animation_id;
   }
-  if (entry_frame_branch) {
+  // The generic entry-frame path is for Movement; the Trip branch computes its
+  // own entry frame inside SelectTripMatch.
+  if (command.desiredFunctionType == e_FunctionType_Movement) {
     match_query.entry.enabled = true;
     match_query.entry.reference_pose = Pose();
     match_query.entry.min_remaining_frames = 1;
@@ -498,7 +512,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
     dataSet.clear();
   }
 
-  if (!pure_movement && !pure_non_movement) {
+  if (!trip_branch && !pure_movement && !pure_non_movement) {
     // ANIM-2 A10.3b: the legacy `useDesiredMovement == false` chain.
     if (foot_counterfactual && !dataSet.empty() && !withoutFootSort.empty()) {
       RecordFootCounterfactual(animations_, *dataSet.begin(), *withoutFootSort.begin());

@@ -10,6 +10,7 @@
 #include "football/animation/library.hpp"
 #include "football/animation/movement_selection.hpp"
 #include "football/animation/selector.hpp"
+#include "football/animation/trip_match.hpp"
 
 // ANIM-2 A10.2 — the Animation-side match contract.
 //
@@ -63,6 +64,8 @@ enum class MatchBranch {
   Movement,
   // `useDesiredMovement == true`, non-Movement: the non-Movement chain.
   NonMovement,
+  // ANIM-2 A14: Trip candidates scored by impact direction/velocity/pose.
+  Trip,
 };
 
 // The matched touch of one candidate (filled by the A10.4 loop).
@@ -117,6 +120,8 @@ struct MatchQuery {
   bool apply_movement_preference = false;
   // ANIM-2 A13: entry-frame matching for Movement/Trip.
   MatchEntryRequest entry;
+  // ANIM-2 A14: the Trip inputs (used only by MatchBranch::Trip).
+  TripMatchRequest trip;
 };
 
 // Refine the candidate set for the query and return the match. The Player

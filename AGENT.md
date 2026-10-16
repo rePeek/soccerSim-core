@@ -2927,5 +2927,29 @@ action clock, the world motion and the install.
   teleport), and install/cursor mismatches stay 0.
 
 A14 (Trip/Bump clip choice from collision direction/pose) and A16 (non-zero
-entry frames for touch actions, where the touch frame and ball position must
-stay consistent) build on this primitive.
+
+### ANIM-2 A14: Trip clip + entry-frame matching
+
+A14 gives a Trip its own match instead of the generic legacy refinement.
+`trip_match.{hpp,cpp}` (football::animation) scores each Trip candidate by:
+
+  2.0 * (1 - dot(clip fall direction, relative impact direction))
+  + 1.0 * |RangeVelocity(clip.incoming_velocity) - |current velocity|| / sprintVelocity
+  + 0.5 * (best legal entry frame's PoseDistance / kBodyPartCount)
+
+The fall direction is the clip's `bump_direction`, else its
+`incoming_body_direction`. The entry frame comes from the A13
+`SelectEntryFrame`, so the same pose-continuity primitive is reused. Pure: the
+Player supplies the impact direction, current velocity and pose; Physics keeps
+the impulse.
+
+- `MatchBranch::Trip` runs `SelectTripMatch`, puts the winner in front and
+  returns its `(clip_id, start_frame)`; the Player sets the branch and inputs for
+  `e_FunctionType_Trip` and no longer runs the legacy foot/perturbation block for
+  Trip. Everything else (arbitration, install, physics) stays Player-owned.
+- Tests: `trip_match_test` (determinism, trip-type filter, direction
+  preference, pose-matched legal entry frame); the runtime trip chain still
+  yields Movement -> Trip -> Movement with install/cursor consistency.
+
+A16 (non-zero entry frames for touch actions, where the touch frame and ball
+position must stay consistent) builds on this.

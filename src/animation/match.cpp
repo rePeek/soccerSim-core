@@ -25,6 +25,22 @@ std::optional<MatchResult> Match(const AnimationLibrary& library,
   }
   if (crude.empty()) return std::nullopt;
 
+  // ANIM-2 A14: Trip has its own scoring (impact direction + velocity + pose
+  // continuity). Put the winner in front so the Player installs
+  // candidates.front().
+  if (query.branch == MatchBranch::Trip) {
+    const TripMatchResult trip = SelectTripMatch(library, crude, query.trip);
+    if (!trip.matched) return std::nullopt;
+    auto winner = std::find(crude.begin(), crude.end(), static_cast<int>(trip.clip_id));
+    if (winner != crude.end() && winner != crude.begin())
+      std::rotate(crude.begin(), winner, std::next(winner));
+    MatchResult result;
+    result.clip_id = trip.clip_id;
+    result.start_frame = trip.start_frame;
+    result.candidates = std::move(crude);
+    return result;
+  }
+
   std::vector<int> candidates;
   std::vector<int> without_foot;
   switch (query.branch) {
