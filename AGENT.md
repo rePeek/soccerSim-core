@@ -2893,3 +2893,35 @@ Verification for A12: the offline bake stays byte-identical and
 `--verify-selection` stays exact; Debug `ctest` is 10/10; and because moving
 floating-point code across translation units can change inlining/contraction,
 the Release build is checked for the same unit/loco results.
+
+### ANIM-2 A13: arbitrary legal-frame entry matching
+
+A13 lets a clip be entered at a legal frame whose pose matches the actor's
+current final pose instead of always restarting at frame 0. The Animation
+boundary is unchanged: Animation selects only; the Player still owns the
+action clock, the world motion and the install.
+
+- `entry_frame.{hpp,cpp}` (football::animation): `PoseDistance` (summed
+  shortest-path joint rotation difference plus a weighted joint position
+  difference) and `SelectEntryFrame`, which returns the best frame in a legal
+  window (`min_remaining_frames`). No reference pose, an empty clip or no legal
+  frame keeps frame 0. Pure: no Player/Ball/Simulation/RNG.
+- `MatchQuery.entry` (`MatchEntryRequest`) and `MatchResult.start_frame`: `Match`
+  fills the entry frame for the front candidate when the caller enables it.
+- Player (A13.1): Movement and Trip install at the matched frame. The
+  locomotion adaptation can reorder the Movement candidates after `Match`, so
+  the Player re-matches the final clip with `SelectEntryFrame` when the front
+  changed. `ProjectSelectedActionCompat` sets `anim_state_.frameNum` to the
+  entry frame and re-bases `anim_state_.positions` by the entry frame's
+  reference position, so the first committed tick adds only the per-frame root
+  delta, never the skipped displacement. Deltas, outgoing movement and
+  smuggles are unchanged by that constant shift. Touch actions stay at frame 0
+  until A16.
+- Tests: `entry_frame_test` (distance, legal window, frame-0 fallback, Match
+  wiring) and a runtime test where a turning Movement tape installs a non-zero
+  entry frame, the following tick moves ~0.06 m (no teleport), and
+  install/cursor mismatches stay 0.
+
+A14 (Trip/Bump clip choice from collision direction/pose) and A16 (non-zero
+entry frames for touch actions, where the touch frame and ball position must
+stay consistent) build on this primitive.
