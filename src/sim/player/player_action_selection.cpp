@@ -110,16 +110,23 @@ int Player::SelectBestTouchAnim(
   // never allow touchanims when someone else is holding the ball in his/her hands
   if (tick.ball_retainer != 0 && tick.ball_retainer != this) return -1;
 
-  Vector3 incomingMovement =
+  const Vector3 incomingMovement =
       spatial_state_.movement.GetRotated2D(-spatial_state_.angle);
+  const Vector3 desiredMovement = desiredDirection * desiredVelocityFloat;
 
+  // ANIM-2 A10.4b/c: production now derives from Animation::MatchTouch. The
+  // legacy loop is kept only as the side-by-side shadow while equivalence is
+  // proven, and runs only when the shadow is enabled.
+  const bool shadow_enabled = TouchShadowEnabled();
+  football::animation::TouchMatchTrace legacy_trace;
+  legacy_trace.candidates.reserve(sortedDataSet.size());
   int bestAnimID = -1;
+
+  if (shadow_enabled) {
   Vector3 bestActionSmuggleVec2D;
   Vector3 bestTouchMovementAbs;
 
   DataSet::const_iterator iter = sortedDataSet.begin();
-
-  Vector3 desiredMovement = desiredDirection * desiredVelocityFloat;
 
   e_FunctionType functionType = StringToFunctionType(
       static_cast<e_DefString>(GetBakedClip(*iter).metadata.action_type));
@@ -131,9 +138,6 @@ int Player::SelectBestTouchAnim(
   Vector3 dud;
 
   bool found = false;
-  football::animation::TouchMatchTrace legacy_trace;
-  const bool shadow_enabled = TouchShadowEnabled();
-  legacy_trace.candidates.reserve(sortedDataSet.size());
   while (iter != sortedDataSet.end() && found == false) {
     football::animation::TouchCandidateTrace candidate_trace;
     candidate_trace.clip = static_cast<AnimationId>(*iter);
@@ -346,68 +350,76 @@ int Player::SelectBestTouchAnim(
   legacy_trace.result.touch_position = choice.touch_position;
   legacy_trace.result.action_smuggle = choice.action_smuggle;
   legacy_trace.result.rotation_smuggle = choice.rotation_smuggle;
+  }  // if (shadow_enabled): the legacy loop above
 
-  // The shadow runs the Animation implementation side by side. It consumes no
-  // RNG, mutates no Player/Ball state and installs nothing; production always
-  // returns the legacy result above.
+  // ANIM-2 A10.4b/c: the production result comes from the Animation match.
+  FunctionQueries queries;
+  queries.ball_prediction_ms = [&](int ms) -> Vector3 {
+    return football::sim::observation::SampleMentalImage(history, mentalImageTime)
+        ->GetBallPrediction(ms, now, tick.ball);
+  };
+  queries.ball_predict_ticks = [&](int ticks) -> Vector3 {
+    return tick.ball
+        .Predict(football::sim::TickSpan{static_cast<std::uint64_t>(ticks)})
+        .position;
+  };
+  queries.last_touch_bias = [&](int ticks) -> float {
+    return GetLastTouchBias(
+        600, now + football::sim::TickSpan{static_cast<std::uint64_t>(ticks)});
+  };
+  queries.motion_plan = [&](AnimationId clip,
+                            football::animation::MotionPlanView& out) -> bool {
+    radian rotation_offset_ret = 0;
+    Vector3 physicsVector = CalculatePhysicsVector(
+        now, static_cast<int>(clip), useDesiredMovement, desiredMovement,
+        useDesiredBodyDirection, desiredBodyDirectionRel, queries.plan_positions,
+        rotation_offset_ret);
+    out.positions = queries.plan_positions;
+    out.outgoing_velocity = physicsVector;
+    out.rotation_offset = static_cast<float>(rotation_offset_ret);
+    return true;
+  };
+
+  football::animation::TouchMatchContext context;
+  context.candidates = sortedDataSet;
+  context.spatial_angle = spatial_state_.angle;
+  context.spatial_position = spatial_state_.position;
+  context.incoming_movement = incomingMovement;
+  context.desired_movement = desiredMovement;
+  context.use_desired_movement = useDesiredMovement;
+  context.use_desired_body_direction = useDesiredBodyDirection;
+  context.desired_body_direction_rel = desiredBodyDirectionRel;
+  context.height_scale = BodyProfile().height_scale;
+  context.technical_ballcontrol =
+      GetStat(football::player::PlayerStat::technical_ballcontrol);
+  context.pitch_half_length = tick.pitch.half_length();
+  context.pitch_half_width = tick.pitch.half_width();
+  context.pitch_line_half_width = tick.pitch.line_half_width();
+  context.ball_retained_by_player = (tick.ball_retainer == this);
+  context.ball_retained_by_other =
+      (tick.ball_retainer != 0 && tick.ball_retainer != this);
+  context.allow_pre_touch_rotation_smuggle = allowPreTouchRotationSmuggle;
+  context.use_continuous_ball_check = useContinuousBallCheck;
+  context.prefer_pass_and_shot = preferPassAndShot;
+  context.touch_offset_ms = static_cast<float>(defaultTouchOffset_ms);
+  context.closest_opponent_distance =
+      GetClosestOpponentDistance(tick.opponent_team);
+
+  const football::animation::TouchMatchTrace match =
+      football::animation::MatchTouch(animations_, context, queries);
+
+  // ANIM-2 A10.4b/c: the Animation result is the production result.
+  choice.touch_frame = match.result.touch_frame;
+  choice.touch_position = match.result.touch_position;
+  choice.radius_offset = match.result.radius_offset;
+  choice.action_smuggle = match.result.action_smuggle;
+  choice.rotation_smuggle = match.result.rotation_smuggle;
+  choice.positions = match.result.positions;
+  bestAnimID = static_cast<int>(match.result.clip_id);
+
   if (shadow_enabled) {
-    FunctionQueries queries;
-    queries.ball_prediction_ms = [&](int ms) -> Vector3 {
-      return football::sim::observation::SampleMentalImage(history, mentalImageTime)
-          ->GetBallPrediction(ms, now, tick.ball);
-    };
-    queries.ball_predict_ticks = [&](int ticks) -> Vector3 {
-      return tick.ball
-          .Predict(football::sim::TickSpan{static_cast<std::uint64_t>(ticks)})
-          .position;
-    };
-    queries.last_touch_bias = [&](int ticks) -> float {
-      return GetLastTouchBias(
-          600, now + football::sim::TickSpan{static_cast<std::uint64_t>(ticks)});
-    };
-    queries.motion_plan = [&](AnimationId clip,
-                              football::animation::MotionPlanView& out) -> bool {
-      radian rotation_offset_ret = 0;
-      Vector3 physicsVector = CalculatePhysicsVector(
-          now, static_cast<int>(clip), useDesiredMovement, desiredMovement,
-          useDesiredBodyDirection, desiredBodyDirectionRel, queries.plan_positions,
-          rotation_offset_ret);
-      out.positions = queries.plan_positions;
-      out.outgoing_velocity = physicsVector;
-      out.rotation_offset = static_cast<float>(rotation_offset_ret);
-      return true;
-    };
-
-    football::animation::TouchMatchContext context;
-    context.candidates = sortedDataSet;
-    context.spatial_angle = spatial_state_.angle;
-    context.spatial_position = spatial_state_.position;
-    context.incoming_movement = incomingMovement;
-    context.desired_movement = desiredMovement;
-    context.use_desired_movement = useDesiredMovement;
-    context.use_desired_body_direction = useDesiredBodyDirection;
-    context.desired_body_direction_rel = desiredBodyDirectionRel;
-    context.height_scale = BodyProfile().height_scale;
-    context.technical_ballcontrol =
-        GetStat(football::player::PlayerStat::technical_ballcontrol);
-    context.pitch_half_length = tick.pitch.half_length();
-    context.pitch_half_width = tick.pitch.half_width();
-    context.pitch_line_half_width = tick.pitch.line_half_width();
-    context.ball_retained_by_player = (tick.ball_retainer == this);
-    context.ball_retained_by_other =
-        (tick.ball_retainer != 0 && tick.ball_retainer != this);
-    context.allow_pre_touch_rotation_smuggle = allowPreTouchRotationSmuggle;
-    context.use_continuous_ball_check = useContinuousBallCheck;
-    context.prefer_pass_and_shot = preferPassAndShot;
-    context.touch_offset_ms = static_cast<float>(defaultTouchOffset_ms);
-    context.closest_opponent_distance =
-        GetClosestOpponentDistance(tick.opponent_team);
-
-    const football::animation::TouchMatchTrace shadow =
-        football::animation::MatchTouch(animations_, context, queries);
-    CompareTouchTraces(legacy_trace, shadow, TouchShadowAuditState());
+    CompareTouchTraces(legacy_trace, match, TouchShadowAuditState());
   }
-
 
   return bestAnimID;
 }
