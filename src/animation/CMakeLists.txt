@@ -38,7 +38,12 @@ add_library(football_animation STATIC
   touch_match.cpp
   movement_selection.cpp
   touch_geometry.cpp
-  touch_scoring.cpp)
+  touch_scoring.cpp
+  motion_clip.cpp
+  pose_sampling.cpp
+  pose_blend.cpp
+  playback.cpp
+  transition.cpp)
 add_library(football::animation ALIAS football_animation)
 target_sources(football_animation PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include

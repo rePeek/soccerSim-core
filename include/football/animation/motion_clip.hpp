@@ -1,12 +1,10 @@
 #ifndef FOOTBALL_ANIMATION_MOTION_CLIP_HPP
 #define FOOTBALL_ANIMATION_MOTION_CLIP_HPP
 
-#include <cmath>
 #include <cstddef>
 #include <vector>
 
 #include "football/animation/clip.hpp"
-#include "football/foundation/math/scalar.hpp"
 #include "football/foundation/math/vector3.hpp"
 
 // Motion reference data derived from an animation clip, in the clip's own local
@@ -28,6 +26,10 @@
 // `SampleDisplacement()` is the only operation production code needs: it answers
 // "how far did the reference move between these two clip times", so a caller can
 // scale it by a playback rate and split it across ticks without drifting.
+//
+// ANIM-2 A12.4: the extraction/sampling bodies live in
+// src/animation/motion_clip.cpp.
+
 struct MotionFrame {
   football::math::Vector3 local_displacement = football::math::Vector3(0);
 };
@@ -47,64 +49,27 @@ struct MotionClip {
 };
 
 // Extracts the per-frame local XY displacement from the baked root motion.
-inline MotionClip ExtractMotionClip(const AnimationClip& clip) {
-  MotionClip motion;
-  motion.frames.resize(clip.root_positions.size());
-  for (std::size_t frame = 1; frame < clip.root_positions.size(); ++frame) {
-    const football::math::Vector3 delta =
-        clip.root_positions[frame] - clip.root_positions[frame - 1];
-    motion.frames[frame].local_displacement =
-        football::math::Vector3(delta.coords[0], delta.coords[1], 0.0f);
-  }
-  return motion;
-}
+MotionClip ExtractMotionClip(const AnimationClip& clip);
 
 // Cumulative local reference position at an integer frame index, measured from
 // frame 0. frame_index 0 is the origin and size()-1 is the clip's total travel.
 // An index past the last frame clamps: a finished clip does not keep accumulating
 // its last displacement.
-inline football::math::Vector3 ReferencePosition(const MotionClip& clip,
-                                                std::size_t frame_index) {
-  if (clip.frames.empty()) return football::math::Vector3(0);
-  const std::size_t last = clip.frames.size() - 1;
-  const std::size_t index = frame_index < last ? frame_index : last;
-  football::math::Vector3 position(0);
-  for (std::size_t i = 1; i <= index; ++i) {
-    position += clip.frames[i].local_displacement;
-  }
-  return position;
-}
+football::math::Vector3 ReferencePosition(const MotionClip& clip,
+                                          std::size_t frame_index);
 
 // Cumulative local reference position at a fractional frame time, linearly
 // interpolated between frame samples. Out-of-range times clamp to the ends, so
 // playing past the last frame holds the final reference position instead of
 // repeating its displacement.
-inline football::math::Vector3 ReferencePositionAt(const MotionClip& clip,
-                                                  float frame_time) {
-  if (clip.frames.empty()) return football::math::Vector3(0);
-  const float clamped =
-      football::math::clamp(frame_time, 0.0f, clip.last_frame_time());
-  const auto lower = static_cast<std::size_t>(std::floor(clamped));
-  const float fraction = clamped - static_cast<float>(lower);
-  football::math::Vector3 position(0);
-  for (std::size_t i = 1; i <= lower; ++i) {
-    position += clip.frames[i].local_displacement;
-  }
-  if (fraction > 0.0f && lower + 1 < clip.frames.size()) {
-    position += clip.frames[lower + 1].local_displacement * fraction;
-  }
-  return position;
-}
+football::math::Vector3 ReferencePositionAt(const MotionClip& clip,
+                                            float frame_time);
 
 // Local displacement over [start_time, end_time] of frame time. Additive by
 // construction, so splitting an interval into several ticks and summing the parts
 // gives the same total; a playback rate is applied by the caller scaling the
 // times, never by scaling the result at different call sites.
-inline football::math::Vector3 SampleDisplacement(const MotionClip& clip,
-                                                 float start_time,
-                                                 float end_time) {
-  return ReferencePositionAt(clip, end_time) -
-         ReferencePositionAt(clip, start_time);
-}
+football::math::Vector3 SampleDisplacement(const MotionClip& clip,
+                                           float start_time, float end_time);
 
 #endif  // FOOTBALL_ANIMATION_MOTION_CLIP_HPP

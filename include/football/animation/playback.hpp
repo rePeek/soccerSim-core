@@ -6,11 +6,9 @@
 #include "football/animation/pose_sampling.hpp"
 #include "football/animation/transition.hpp"
 
-namespace football::animation {
-
 // ANIM-2 A11.1: moved out of sim/player. Animation owns the playback state
 // type; the Player owns the instance and the authoritative action clock.
-
+//
 // ANIM-2 A10.1 — Player-owned playback instance.
 //
 // One instance per Player. `Play()` is the production entry: the caller supplies
@@ -23,6 +21,11 @@ namespace football::animation {
 // `Tick()`/`AdvanceCursor()` are the self-advancing test helpers. They share the
 // sampling core but are not part of the production interface, so they cannot
 // become a second time authority.
+//
+// ANIM-2 A12.4: the advancing bodies live in src/animation/playback.cpp.
+
+namespace football::animation {
+
 struct PlaybackState {
   AnimationId clip_id = -1;
   int frame = 0;
@@ -31,21 +34,12 @@ struct PlaybackState {
   float final_base_angle = 0.0f;
   AnimationTransitionState transition;
 
-  void Reset() {
-    clip_id = -1;
-    frame = 0;
-    have_pose = false;
-    final_pose = PoseFrame{};
-    final_base_angle = 0.0f;
-    transition.Reset();
-  }
+  void Reset();
 
   // Production: one real playback update for this tick. A clip change blends
   // from the last final pose over `blend_ticks`.
   const PoseFrame& Play(const AnimationClip& clip, int at_frame, float base_angle,
-                        int blend_ticks) {
-    return Apply(clip, at_frame, base_angle, blend_ticks);
-  }
+                        int blend_ticks);
 
   // The single FinalPose the rest of the tick must read. Pure read.
   const PoseFrame& Pose() const { return final_pose; }
@@ -53,42 +47,15 @@ struct PlaybackState {
 
   // Test-only: self-advancing playback. Advances the internal cursor one frame
   // per call; never used by production.
-  const PoseFrame& Tick(const AnimationClip& clip, int blend_ticks) {
-    const int at_frame = clip.id == clip_id ? frame : 0;
-    const PoseFrame& pose = Apply(clip, at_frame, 0.0f, blend_ticks);
-    if (frame < static_cast<int>(clip.poses.size()) - 1) ++frame;
-    return pose;
-  }
+  const PoseFrame& Tick(const AnimationClip& clip, int blend_ticks);
 
   // Test-only: advance the internal cursor for the next self-advancing Tick.
-  void AdvanceCursor(const AnimationClip& clip) {
-    if (frame < static_cast<int>(clip.poses.size()) - 1) ++frame;
-  }
+  void AdvanceCursor(const AnimationClip& clip);
 
  private:
   // The sampling core shared by the production and test entries.
   const PoseFrame& Apply(const AnimationClip& clip, int at_frame, float base_angle,
-                         int blend_ticks) {
-    if (clip.id != clip_id) {
-      if (have_pose) {
-        transition.Begin(final_pose, final_base_angle, blend_ticks);
-      } else {
-        transition.Reset();
-      }
-      clip_id = clip.id;
-    }
-    const PoseFrame sample = SamplePose(clip, static_cast<float>(at_frame));
-    if (have_pose) {
-      final_pose = transition.Advance(sample, base_angle);
-      final_base_angle = transition.blended_base_angle;
-    } else {
-      final_pose = sample;
-      final_base_angle = base_angle;
-    }
-    have_pose = true;
-    frame = at_frame;
-    return final_pose;
-  }
+                         int blend_ticks);
 };
 
 }  // namespace football::animation
