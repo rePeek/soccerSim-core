@@ -846,6 +846,9 @@ void Player::RunActionTick(football::sim::Tick now,
   // PlayerMotion calculation; this applies its deltas in the legacy order.
   ActionSmuggleTickInput smuggle_input;
   smuggle_input.frame_num = anim_state_.frameNum;
+  // ANIM-2 A18.4: the action's entry frame, so the smuggle is spread over the
+  // frames that actually remain.
+  smuggle_input.start_frame = installed_action_.start_frame;
   smuggle_input.touch_frame = anim_state_.touchFrame;
   smuggle_input.frame_count = static_cast<int>(GetCurrentBakedClip().frame_count);
   smuggle_input.action_smuggle = anim_state_.actionSmuggle;

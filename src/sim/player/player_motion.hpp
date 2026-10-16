@@ -119,6 +119,10 @@ struct ActionSmuggleTickInput {
   int frame_num = 0;
   int touch_frame = -1;
   int frame_count = 0;
+  // ANIM-2 A18.4: the action's entry frame. The smuggle is distributed over the
+  // frames that actually remain, so a non-zero entry still reaches the target by
+  // the touch frame. Default 0 is the legacy absolute-frame formula.
+  int start_frame = 0;
   Vector3 action_smuggle{0};
   Vector3 movement_smuggle{0};
   radian rotation_smuggle_begin = 0.0f;

@@ -662,36 +662,45 @@ ActionSmuggleTickResult PlayerMotion::ActionSmuggleTick(
     const ActionSmuggleTickInput& input) {
   ActionSmuggleTickResult result;
 
+  // ANIM-2 A18.4: every smuggle is expressed relative to the entry frame, so a
+  // non-zero entry distributes the whole target over the frames that actually
+  // remain. With start_frame == 0 the relative values equal the absolute ones and
+  // every floating-point result is the legacy one, bit for bit.
+  const int start = input.start_frame;
+  const int relative_frame = input.frame_num - start;
+  const int relative_touch_frame = input.touch_frame - start;
+  const int relative_frame_count = input.frame_count - start;
+
   // action smuggle
   if (input.touch_frame != -1 && input.frame_num <= input.touch_frame) {
     // smooth version
-    assert(input.touch_frame > 0.0f);
+    assert(relative_touch_frame > 0.0f);
     float value =
-        std::cos((input.frame_num / (float)(input.touch_frame + 1) - 0.5f) *
+        std::cos((relative_frame / (float)(relative_touch_frame + 1) - 0.5f) *
                  pi * 2.0f) +
         1.0f;
     // add some linearity
     value = value * 0.1f + 0.9f;
     result.action_smuggle_movement =
-        (input.action_smuggle / (float)(input.touch_frame + 1)) * value * 100.0f;
+        (input.action_smuggle / (float)(relative_touch_frame + 1)) * value * 100.0f;
     result.action_smuggle_offset_delta = result.action_smuggle_movement / 100.0f;
   } else {
     result.action_smuggle_movement = Vector3(0);
   }
 
   // movement smuggle
-  if (input.touch_frame == -1 &&
-      input.frame_num <= (input.frame_count - 1)) {
+  if (input.touch_frame == -1 && input.frame_num <= (input.frame_count - 1)) {
     // omit one frame, or balltouch will be influenced because of velo
     // smooth version
     float value =
-        std::cos((input.frame_num / (float)((input.frame_count - 1) + 1) - 0.5f) *
+        std::cos((relative_frame / (float)((relative_frame_count - 1) + 1) - 0.5f) *
                  pi * 2.0f) +
         1.0f;
     // add some linearity
     value = value * 0.1f + 0.9f;
     result.movement_smuggle_movement =
-        (input.movement_smuggle / (float)((input.frame_count - 1) + 1)) * value * 100.0f;
+        (input.movement_smuggle / (float)((relative_frame_count - 1) + 1)) * value *
+        100.0f;
     result.movement_smuggle_offset_delta = result.movement_smuggle_movement / 100.0f;
   } else {
     result.movement_smuggle_movement = Vector3(0);
@@ -699,16 +708,16 @@ ActionSmuggleTickResult PlayerMotion::ActionSmuggleTick(
 
   // rotation smuggle
   int beginRotationFrameCount = 16;  // after this amount of frames, be ready with 'ease-in' rotation smuggle
-  float cappedFrameBias = std::min(1.0f, (input.frame_num + 1) / (float)std::min(beginRotationFrameCount, (input.frame_count - 1) + 1));
+  float cappedFrameBias = std::min(1.0f, (relative_frame + 1) / (float)std::min(beginRotationFrameCount, (relative_frame_count - 1) + 1));
   float beginFrameBias = cappedFrameBias;
   float endFrameBias = cappedFrameBias;
   if (input.touch_frame != -1) {
-    // beginFrameBias ranges from 0 to 1 during frame 0 to (touchframe OR beginRotationFrameCount) (depending on which comes first)
-    beginFrameBias = std::min(1.0f, (input.frame_num + 1) / (float)std::min(beginRotationFrameCount, input.touch_frame + 1));
+    // beginFrameBias ranges from 0 to 1 during the entry frame to (touchframe OR beginRotationFrameCount) (depending on which comes first)
+    beginFrameBias = std::min(1.0f, (relative_frame + 1) / (float)std::min(beginRotationFrameCount, relative_touch_frame + 1));
     if (!input.allow_pre_touch_rotation_smuggle) {
-      if (input.frame_num > input.touch_frame) {
+      if (relative_frame > relative_touch_frame) {
         // end rotation smuggle starts after touch
-        endFrameBias = (input.frame_num - input.touch_frame) / (float)((input.frame_count - 1) - input.touch_frame);
+        endFrameBias = (relative_frame - relative_touch_frame) / (float)((relative_frame_count - 1) - relative_touch_frame);
       } else {
         // no smuggle before touch
         endFrameBias = 0.0f;

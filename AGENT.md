@@ -3022,17 +3022,22 @@ action path.
   against the reference position relative to the entry frame. `TouchMatchResult`
   and `TouchChoice` carry the matched `start_frame`; the Player installs exactly
   that and no longer re-selects after `MatchTouch`. `entry_frame == 0` keeps the
-  legacy basis bit-for-bit.
+  legacy basis bit-for-bit. A `kTouchPrepFrames` window keeps a few frames before
+  the touch so the smuggle has a sane spread.
+- Action Smuggle execution (P0): `ActionSmuggleTickInput` gains `start_frame`,
+  and `ActionSmuggleTick` expresses the action/movement/rotation smuggle on the
+  frames that actually remain. With `start_frame == 0` the relative values equal
+  the absolute ones and every floating-point result is the legacy one; with a
+  non-zero entry the whole target is delivered by the touch frame (previously the
+  skipped head of the window left a large shortfall).
 - Trip entry window (P1): `SelectTripMatch` requires the entry frame to leave
   at least half the clip (`kTripMinRemainingFraction`), so pose similarity cannot
   pick a late recovery frame; the direction/velocity/pose weights are unchanged.
-- Test hardening (P1): the A17 digest now also hashes every actor's 14-joint
-  `PlaybackPose()` and the accepted-touch facts, so it pins the pose computation
-  and touch results, not just the clip cursor. A runtime case drives a close ball
-  into a Trap and asserts the entry frame is before the contact frame and a touch
-  actually fires.
-- Tests: `entry_frame_test` covers the oversized and negative bounds;
-  `touch_match_test` records the query time arguments and asserts they equal
-  `(touch_frame - entry_frame) * 10` / `(touch_frame - entry_frame)`;
-  `trip_match_test` checks the first-half window; the runtime pass test still
-  asserts entry < contact and a matching installed touch frame.
+- Test hardening (P1): the A17 digest also hashes every actor's 14-joint
+  `PlaybackPose()` and the accepted-touch facts. `touch_match_test` forces a
+  NON-ZERO entry with a non-constant trajectory and checks the ball position at
+  `(touch - entry) * 10` ms; `player_action_motion_test` proves the non-zero
+  entry accumulates the full action smuggle and that `start_frame == 0` is the
+  legacy formula bit-for-bit; `trip_match_test` uses a late reference pose to
+  trigger the window with pose matching enabled; a runtime case drives a close
+  ball into a Trap and asserts entry < contact and a touch fires.

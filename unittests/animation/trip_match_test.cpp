@@ -140,13 +140,22 @@ TEST_CASE("SelectTripMatch reserves the fall process") {
   const std::vector<int> trips = TripClips(library);
   REQUIRE(!trips.empty());
 
-  TripMatchRequest request;
-  request.impact_direction = Vector3(0, -1, 0);
-  request.current_velocity = Vector3(0, -4, 0);
-  const TripMatchResult result = SelectTripMatch(library, trips, request);
-  REQUIRE(result.matched);
-  const AnimationClip& clip = library.Get(static_cast<uint32_t>(result.clip_id));
-  const int frame_count = static_cast<int>(clip.poses.size());
-  // The entry stays in the first half, so the fall itself still plays.
-  CHECK(result.start_frame <= frame_count - 1 - frame_count / 2);
+  // Enable pose matching with a reference at the clip's LAST frame: without the
+  // window, the matcher would enter there.
+  for (const int id : trips) {
+    const AnimationClip& clip = library.Get(static_cast<uint32_t>(id));
+    if (clip.poses.size() < 4) continue;
+    const std::vector<int> single{id};
+    TripMatchRequest request;
+    request.impact_direction = Vector3(0, -1, 0);
+    request.current_velocity = Vector3(0, -4, 0);
+    request.current_pose = clip.poses.back();
+    request.has_current_pose = true;
+    const TripMatchResult result = SelectTripMatch(library, single, request);
+    REQUIRE(result.matched);
+    CHECK(result.clip_id == id);
+    const int frame_count = static_cast<int>(clip.poses.size());
+    // The entry stays in the first half, so the fall itself still plays.
+    CHECK(result.start_frame <= frame_count - 1 - frame_count / 2);
+  }
 }

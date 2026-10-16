@@ -31,6 +31,10 @@ constexpr bool kEnableActionSmuggleDiscard = true;
 constexpr bool kForceFullActionSmuggleDiscard = false;
 constexpr bool kDiscardForwardSmuggle = true;
 constexpr bool kDiscardSidewaysSmuggle = false;
+// ANIM-2 A18.4: keep at least this many frames between the entry frame and the
+// touch, so the action smuggle can spread over a sane window instead of one
+// huge per-tick correction.
+constexpr int kTouchPrepFrames = 2;
 
 // The Player's CalculateOutgoingMovement, over a borrowed reference motion.
 Vector3 OutgoingMovementOf(std::span<const Vector3> positions) {
@@ -139,7 +143,10 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
         EntryFrameRequest entry_request;
         entry_request.reference_pose = &context.reference_pose;
         entry_request.min_remaining_frames = context.min_remaining_frames;
-        entry_request.last_legal_frame = animTouchFrame - 1;
+        // Reserve a few frames before the touch (A18.4); a touch frame below the
+        // prep window keeps the entry at 0.
+        const int prep = std::min(kTouchPrepFrames, animTouchFrame);
+        entry_request.last_legal_frame = animTouchFrame - prep;
         const EntryFrameResult entry = SelectEntryFrame(clip, entry_request);
         if (entry.matched) entryFrame = entry.frame;
       }

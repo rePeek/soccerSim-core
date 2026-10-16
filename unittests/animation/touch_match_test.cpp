@@ -51,7 +51,8 @@ struct RecordingQueries final : TouchMatchQueries {
 
   Vector3 BallPredictionAtMs(int ms) override {
     prediction_ms.push_back(ms);
-    return Vector3(0);
+    // Time-varying, so the geometry actually depends on the query time.
+    return Vector3(ms * 0.001f, 0.0f, 0.0f);
   }
   Vector3 BallPredictAtTicks(int ticks) override {
     predict_ticks.push_back(ticks);
@@ -249,24 +250,38 @@ TEST_CASE("MatchTouch returns the same successful selection with or without a tr
 
 TEST_CASE("MatchTouch predicts the ball at the entry-frame contact delay") {
   // ANIM-2 A18: the ball prediction, the tap position and the last-touch bias
-  // all use the time from the ENTRY frame to the touch frame, not the clip's
-  // absolute touch frame.
+  // all use the time from the ENTRY frame to the touch frame. This case forces a
+  // NON-ZERO entry and a non-constant trajectory.
   AnimationLibrary library;
   REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
-  const std::vector<int> candidates = CrudeCandidates(library, e_FunctionType_Trap, 1);
-  REQUIRE(!candidates.empty());
+  const std::vector<int> crude = CrudeCandidates(library, e_FunctionType_Trap, 40);
+  REQUIRE(!crude.empty());
 
-  const AnimationClip& clip = library.Get(static_cast<uint32_t>(candidates.front()));
-  REQUIRE(!clip.touches.empty());
-  const int touch_frame = clip.touches.front().frame;
-  REQUIRE(touch_frame >= 2);
+  // A touch frame large enough that a non-zero entry is legal.
+  int candidate = -1;
+  int touch_frame = -1;
+  for (const int id : crude) {
+    const AnimationClip& clip = library.Get(static_cast<uint32_t>(id));
+    if (!clip.touches.empty() && clip.touches.front().frame >= 6) {
+      candidate = id;
+      touch_frame = clip.touches.front().frame;
+      break;
+    }
+  }
+  REQUIRE(candidate >= 0);
+  const AnimationClip& clip = library.Get(static_cast<uint32_t>(candidate));
+  const std::vector<int> candidates{candidate};
 
   RecordingQueries queries;
-  queries.plan_positions.assign(256, Vector3(0, 0, 0));
+  // Non-constant reference trajectory, so a wrong basis would change the result.
+  queries.plan_positions.resize(256);
+  for (std::size_t i = 0; i < queries.plan_positions.size(); ++i)
+    queries.plan_positions[i] = Vector3(0.01f * static_cast<float>(i), 0.0f, 0.0f);
 
   TouchMatchContext context = MakeContext(candidates);
   context.ball_retained_by_player = true;
   context.has_reference_pose = true;
+  // Closest to a legal, non-zero frame inside the prep window.
   context.reference_pose = clip.poses[static_cast<std::size_t>(touch_frame - 2)];
   context.min_remaining_frames = 1;
 
@@ -277,10 +292,14 @@ TEST_CASE("MatchTouch predicts the ball at the entry-frame contact delay") {
 
   const int entry = trace.candidates.front().entry_frame;
   const int touch = trace.candidates.front().touch_frame;
+  REQUIRE(entry > 0);
   CHECK(entry < touch);
   CHECK(result.start_frame == entry);
   CHECK(result.touch_frame == touch);
   REQUIRE(!queries.prediction_ms.empty());
   CHECK(queries.prediction_ms.front() == (touch - entry) * 10);
   CHECK(queries.last_touch_ticks.front() == (touch - entry));
+  // The spatial result is the ball at the entry-frame delay, not the absolute one.
+  CHECK(result.touch_position.coords[0] ==
+        static_cast<float>((touch - entry) * 10) * 0.001f);
 }

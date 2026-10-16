@@ -320,3 +320,56 @@ TEST_CASE("A9.2: the smuggle evolution is zero after the touch frame",
   CHECK(r.action_smuggle_movement == Vector3(0));
   CHECK(r.movement_smuggle_movement == Vector3(0));
 }
+
+TEST_CASE("A18.4: a non-zero entry still accumulates the whole action smuggle",
+          "[player][motion][a18]") {
+  constexpr int kTouchFrame = 24;
+  constexpr int kStartFrame = 12;
+  const Vector3 target(0.4f, -0.2f, 0.0f);
+
+  Vector3 accumulated(0);
+  for (int frame = kStartFrame; frame <= kTouchFrame; ++frame) {
+    ActionSmuggleTickInput in;
+    in.frame_num = frame;
+    in.touch_frame = kTouchFrame;
+    in.start_frame = kStartFrame;
+    in.action_smuggle = target;
+    accumulated += PlayerMotion::ActionSmuggleTick(in).action_smuggle_offset_delta;
+  }
+  // The whole target is delivered by the touch frame.
+  CHECK(accumulated.coords[0] == Approx(target.coords[0]).epsilon(0.02));
+  CHECK(accumulated.coords[1] == Approx(target.coords[1]).epsilon(0.02));
+
+  // The old absolute-frame basis would only deliver about half of it.
+  Vector3 legacy(0);
+  for (int frame = kStartFrame; frame <= kTouchFrame; ++frame) {
+    float value =
+        std::cos((frame / (float)(kTouchFrame + 1) - 0.5f) * football::math::pi * 2.0f) +
+        1.0f;
+    value = value * 0.1f + 0.9f;
+    legacy += target / (float)(kTouchFrame + 1) * value;
+  }
+  CHECK(legacy.coords[0] < target.coords[0] * 0.7f);
+}
+
+TEST_CASE("A18.4: start_frame 0 keeps the legacy action-smuggle formula",
+          "[player][motion][a18]") {
+  constexpr int kTouchFrame = 24;
+  const Vector3 target(0.4f, -0.2f, 0.0f);
+  for (int frame = 0; frame <= kTouchFrame; ++frame) {
+    ActionSmuggleTickInput in;
+    in.frame_num = frame;
+    in.touch_frame = kTouchFrame;
+    in.action_smuggle = target;
+    const ActionSmuggleTickResult r = PlayerMotion::ActionSmuggleTick(in);
+    float value =
+        std::cos((frame / (float)(kTouchFrame + 1) - 0.5f) * football::math::pi * 2.0f) +
+        1.0f;
+    value = value * 0.1f + 0.9f;
+    const Vector3 expected =
+        target / (float)(kTouchFrame + 1) * value * 100.0f;
+    // Bit-exact: the default entry frame must not change the float path.
+    CHECK(r.action_smuggle_movement.coords[0] == expected.coords[0]);
+    CHECK(r.action_smuggle_movement.coords[1] == expected.coords[1]);
+  }
+}
