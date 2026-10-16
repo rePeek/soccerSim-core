@@ -28,6 +28,7 @@
 
 #include "animation/animcollection.hpp"
 #include "animation/animation.hpp"
+#include "football/animation/format.hpp"
 #include "football/animation/clip.hpp"
 #include "football/animation/library.hpp"
 #include "animation/extensions/footballanimationextension.hpp"

@@ -32,35 +32,10 @@ include(cmake/bqlog.cmake)
 
 add_subdirectory(src/foundation)
 
-# Header-only modules have no implementation directory, so their INTERFACE
-# targets are declared here; the headers live in include/football/<module>/.
-# ANIM-2 A11.4: the format and pure-algorithm headers, shared with the offline
-# baker. The runtime archive (football_animation) adds Match/TouchMatch and the
-# playback/transition state on top of it.
-add_library(football_animation_format INTERFACE)
-add_library(football::animation_format ALIAS football_animation_format)
-target_sources(football_animation_format INTERFACE FILE_SET HEADERS
-  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
-  FILES
-    ${PROJECT_SOURCE_DIR}/include/football/animation/types.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/format.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/clip.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/motion_clip.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/pose_blend.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/pose_sampling.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/select_clip.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/select_movement.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/movement_selection.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/movement_math.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/library.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/selector.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/selection_math.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/selection_query.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/quadrant.hpp)
-target_compile_features(football_animation_format INTERFACE cxx_std_23)
-target_link_libraries(football_animation_format INTERFACE football::foundation)
-
-# The runtime Animation archive (Match, TouchMatch, Playback/Transition).
+# ANIM-2 A12: the Animation module owns two archives, both declared in
+# src/animation/CMakeLists.txt: football::animation_base (format/data/IO/base
+# selector, shared with the offline baker) and football::animation (runtime
+# match, playback, pose and touch algorithms).
 add_subdirectory(src/animation)
 
 add_subdirectory(src/ball)

@@ -14,55 +14,22 @@
 #ifndef _HPP_ANIMATION_LIBRARY
 #define _HPP_ANIMATION_LIBRARY
 
-#include <array>
 #include <cstdint>
 #include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <vector>
 
 #include "football/animation/clip.hpp"
 
 // Read-only view over a baked animations.simanim artifact.
 //
-// Header-only: the format reader is inlined so the offline baker can load and
-// verify artifacts without linking the runtime animation archive. Only the
-// header-only format (clip.hpp / simanim_format.hpp) is required.
+// ANIM-2 A12.0: Load() is compiled into football::animation_base (library.cpp),
+// so this header no longer pulls <fstream>/<iostream> into every caller. The
+// offline baker and the runtime share the same reader.
 class AnimationLibrary {
  public:
-  bool Load(const std::filesystem::path& path) {
-    std::ifstream is(path, std::ios::binary);
-    if (!is) {
-      std::cerr << "AnimationLibrary: cannot open " << path << "\n";
-      return false;
-    }
-
-    std::uint64_t hash = UINT64_C(14695981039346656037);
-    std::array<char, 16384> bytes;
-    while (is.read(bytes.data(), bytes.size()) || is.gcount() != 0) {
-      for (std::streamsize i = 0; i < is.gcount(); ++i) {
-        hash ^= static_cast<unsigned char>(bytes[static_cast<std::size_t>(i)]);
-        hash *= UINT64_C(1099511628211);
-      }
-    }
-    if (!is.eof()) return false;
-    is.clear();
-    is.seekg(0);
-
-    uint32_t clip_count = 0;
-    if (!SimAnimReadHeader(is, clip_count)) {
-      std::cerr << "AnimationLibrary: bad or unsupported header in " << path << "\n";
-      return false;
-    }
-
-    clips_.clear();
-    clips_.reserve(clip_count);
-    for (uint32_t i = 0; i < clip_count; ++i) {
-      clips_.push_back(AnimationClip::Deserialize(is, i));
-    }
-    content_hash_ = hash;
-    return true;
-  }
+  // Reads the whole file, hashes it for provenance and deserializes every clip.
+  // Returns false on open/parse failure and leaves the previous contents cleared.
+  bool Load(const std::filesystem::path& path);
 
   const AnimationClip& Get(uint32_t id) const { return clips_.at(id); }
 
