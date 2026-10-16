@@ -13,9 +13,9 @@
 #include "football/animation/movement_math.hpp"
 #include "football/animation/selector.hpp"
 #include "football/ball/ball.hpp"
+#include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
-#include "sim/player/humanoid/humanoid.hpp"
-#include "sim/player/humanoid/humanoid_utils.hpp"
+#include "sim/player/player_touch_math.hpp"
 #include "sim/player/player_motion.hpp"
 #include "sim/player/locomotion_animation_strategy.hpp"
 #include "sim/player/player_motion_constants.hpp"
@@ -37,8 +37,7 @@ using std::placeholders::_2;
 CrudeSelectionQuery Player::BuildCrudeSelectionQuery(
     const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
     football::sim::Tick now, MentalImage *current_mental_image) {
-  Humanoid *const humanoid = CastHumanoid();
-  const SpatialState &spatialState = humanoid->spatialState;
+  const SpatialState &spatialState = spatial_state_;
   CrudeSelectionQuery query;
   query.byFunctionType = true;
   query.functionType = command.desiredFunctionType;
@@ -106,7 +105,7 @@ CrudeSelectionQuery Player::BuildCrudeSelectionQuery(
 
   query.bySide = false;
   if (command.useDesiredLookAt &&
-      humanoid->GetCurrentBakedClip().metadata.outgoing_special_state.empty() &&
+      GetCurrentBakedClip().metadata.outgoing_special_state.empty() &&
       tick.ball_retainer != this) {
     Vector3 playerLookAtVec = (command.desiredLookAt - spatialState.position).GetNormalized(spatialState.directionVec);
     query.lookAtVecRel = playerLookAtVec.GetRotated2D(-spatialState.angle);
@@ -136,12 +135,12 @@ CrudeSelectionQuery Player::BuildCrudeSelectionQuery(
     query.tripType = command.tripType;
   }
 
-  query.properties.incoming_special_state = humanoid->GetCurrentBakedClip().metadata.outgoing_special_state;
-  if (tick.ball_retainer == this) query.properties.incoming_retain_state = humanoid->GetCurrentBakedClip().metadata.outgoing_retain_state;
+  query.properties.incoming_special_state = GetCurrentBakedClip().metadata.outgoing_special_state;
+  if (tick.ball_retainer == this) query.properties.incoming_retain_state = GetCurrentBakedClip().metadata.outgoing_retain_state;
   if (command.useSpecialVar1) query.properties.special_var1 = command.specialVar1;
   if (command.useSpecialVar2) query.properties.special_var2 = command.specialVar2;
 
-  if (!humanoid->GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle;  // standing up anims always start out idle
+  if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle;  // standing up anims always start out idle
   return query;
 }
 
@@ -152,12 +151,11 @@ bool Player::NeedTouch(football::sim::Tick now,
                        const football::sim::PlayerTickContext &tick, int animID,
                        const PlayerCommand &command,
                        std::span<MentalImage> history) {
-  Humanoid *const humanoid = CastHumanoid();
-  const SpatialState &spatialState = humanoid->spatialState;
+  const SpatialState &spatialState = spatial_state_;
 
   // when idle (and desiredvelo is idle as well), don't want to touch the ball every frame
 
-  const AnimationClip &clip = humanoid->GetBakedClip(animID);
+  const AnimationClip &clip = GetBakedClip(animID);
 
   if (FloatToEnumVelocity(clip.metadata.outgoing_velocity != e_Velocity_Idle)) return true;
   if (command.desiredVelocityFloat > idleDribbleSwitch) return true;
@@ -169,7 +167,7 @@ bool Player::NeedTouch(football::sim::Tick now,
   animMovement.Normalize(spatialState.directionVec);
   animMovement *= spatialState.movement.GetLength() * 0.8f + animVelo * 0.2f;
   auto currentMentalImage =
-      football::sim::observation::SampleMentalImage(history, humanoid->mentalImageTime);
+      football::sim::observation::SampleMentalImage(history, mentalImageTime);
   Vector3 ballMovement = (currentMentalImage->GetBallPrediction(250, now, tick.ball).Get2D() - currentMentalImage->GetBallPrediction(240, now, tick.ball).Get2D()) * 100;
 
   if (std::fabs(clip.metadata.outgoing_angle) > 0.125f * pi) return true;
@@ -200,10 +198,8 @@ bool Player::TrySelectAction(football::sim::Tick now,
                              bool preferPassAndShot,
                              bool allowPreTouchRotationSmuggle,
                              bool useContinuousBallCheck) {
-  Humanoid *const humanoid = CastHumanoid();
-  if (humanoid == nullptr) return false;
-  const SpatialState &spatialState = humanoid->spatialState;
-  Anim &currentAnim = humanoid->currentAnim;
+  const SpatialState &spatialState = spatial_state_;
+  Anim &currentAnim = anim_state_;
 
   // returns false on no applicable anim found
   assert(command.desiredDirection.coords[2] == 0.0f);
@@ -213,7 +209,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   // optimizations
   auto currentMentalImage = football::sim::observation::SampleMentalImage(
-      history, humanoid->mentalImageTime);
+      history, mentalImageTime);
   if (command.desiredFunctionType != e_FunctionType_Movement &&
       command.desiredFunctionType != e_FunctionType_Trip &&
       command.desiredFunctionType != e_FunctionType_Special &&
@@ -269,7 +265,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
     requeue_gate.focus_distance =
         (tick.designated_possession_player->GetPosition() - spatialState.position)
             .GetLength();
-    requeue_gate.requeue_delay_frames = humanoid->reQueueDelayFrames;
+    requeue_gate.requeue_delay_frames = reQueueDelayFrames;
     requeue_gate.allow_movement_requeue = allowMovementReQueue;
     requeue_gate.allow_ball_control_requeue = allowBallControlReQueue;
     requeue_gate.allow_trap_requeue = allowTrapReQueue;
@@ -296,7 +292,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
       animations_.Clips(), query, dataSet);
   if (dataSet.size() == 0) {
     if (command.desiredFunctionType == e_FunctionType_Movement) {
-      dataSet.push_back(humanoid->GetIdleMovementAnimID());  // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
+      dataSet.push_back(GetIdleMovementAnimID());  // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
     } else
       return false;
   }
@@ -320,13 +316,13 @@ bool Player::TrySelectAction(football::sim::Tick now,
     Vector3 relDesiredDirection = command.desiredDirection.GetRotated2D(-spatialState.angle);
     float desiredAnimationVelocityFloat = command.desiredVelocityFloat;
 
-    humanoid->SetMovementSimilarityPredicate(relDesiredDirection, FloatToEnumVelocity(desiredAnimationVelocityFloat));
-    humanoid->SetBodyDirectionSimilarityPredicate(command.desiredLookAt);
+    SetMovementSimilarityPredicate(relDesiredDirection, FloatToEnumVelocity(desiredAnimationVelocityFloat));
+    SetBodyDirectionSimilarityPredicate(command.desiredLookAt);
 
     if (command.desiredFunctionType == e_FunctionType_Movement) {
       if (!pure_movement) {
-        humanoid->_KeepBestDirectionAnims(dataSet, command, true);
-        if (command.useDesiredLookAt) humanoid->_KeepBestBodyDirectionAnims(dataSet, command, true);
+        _KeepBestDirectionAnims(dataSet, command, true);
+        if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, true);
       }
     } else if (command.desiredFunctionType == e_FunctionType_BallControl) {
       bool strict = true;
@@ -337,26 +333,26 @@ bool Player::TrySelectAction(football::sim::Tick now,
       int allowedVelocitySteps = 0;  // last ditch anims are always allowed > 0 velocity steps, as long as strict is false
       nm_strict = strict; nm_allowed_angle = allowedBaseAngle; nm_allowed_velocity_steps = allowedVelocitySteps;
       if (!pure_non_movement) {
-        if (command.useDesiredLookAt) humanoid->_KeepBestBodyDirectionAnims(dataSet, command, strict, allowedBaseAngle);
-        humanoid->_KeepBestDirectionAnims(dataSet, command, strict, allowedBaseAngle, allowedVelocitySteps);
+        if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedBaseAngle);
+        _KeepBestDirectionAnims(dataSet, command, strict, allowedBaseAngle, allowedVelocitySteps);
       }
     } else if (command.desiredFunctionType == e_FunctionType_Trap) {
       bool strict = true;
-      if (AllowLastDitch(false) || humanoid->_HighOrBouncyBall(tick.ball)) strict = false;
+      if (AllowLastDitch(false) || _HighOrBouncyBall(tick.ball)) strict = false;
       float allowedBaseAngle = 0.3f * pi;
       int allowedVelocitySteps = 2;
       int bestBallControlQuadrantID = -1;
       nm_strict = strict; nm_allowed_angle = allowedBaseAngle; nm_allowed_velocity_steps = allowedVelocitySteps;
       if (!pure_non_movement) {
-        humanoid->_KeepBestDirectionAnims(dataSet, command, strict, allowedBaseAngle, allowedVelocitySteps, bestBallControlQuadrantID);
-        if (command.useDesiredLookAt) humanoid->_KeepBestBodyDirectionAnims(dataSet, command, strict, allowedBaseAngle);
+        _KeepBestDirectionAnims(dataSet, command, strict, allowedBaseAngle, allowedVelocitySteps, bestBallControlQuadrantID);
+        if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedBaseAngle);
       }
 
       // when too unlike command's desired movement, just don't go for it (and hope for another ballcontrol/trap anim to save us later on)
-      if (!humanoid->_HighOrBouncyBall(tick.ball) && query.allowLastDitchAnims == false) {
+      if (!_HighOrBouncyBall(tick.ball) && query.allowLastDitchAnims == false) {
         assert(!dataSet.empty());
         Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
-        const AnimationClip &bestWeGot = humanoid->GetBakedClip(*dataSet.begin());
+        const AnimationClip &bestWeGot = GetBakedClip(*dataSet.begin());
         Vector3 bestWeGotMovement = bestWeGot.metadata.outgoing_movement.GetRotated2D(spatialState.angle);
         float currentDesiredDot = command.desiredDirection.GetDotProduct(spatialState.directionVec);
 
@@ -387,21 +383,21 @@ bool Player::TrySelectAction(football::sim::Tick now,
       nm_strict = strict; nm_allowed_angle = allowedAngle; nm_allowed_velocity_steps = allowedVelocitySteps;
 
       if (!pure_non_movement) {
-        humanoid->_KeepBestDirectionAnims(dataSet, command, strict, allowedAngle, allowedVelocitySteps);
-        if (command.useDesiredLookAt) humanoid->_KeepBestBodyDirectionAnims(dataSet, command, strict, allowedAngle);
+        _KeepBestDirectionAnims(dataSet, command, strict, allowedAngle, allowedVelocitySteps);
+        if (command.useDesiredLookAt) _KeepBestBodyDirectionAnims(dataSet, command, strict, allowedAngle);
       }
     }
   }
 
   if (!pure_movement && !pure_non_movement) {
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::ComparePriorityVariable, humanoid, _1, _2));
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::ComparePriorityVariable, this, _1, _2));
 
     int desiredIdleLevel = 0;
     if (!tick.play_authorized) desiredIdleLevel = 2;
     if (tick.set_piece_active) desiredIdleLevel = 1;
     else if ((tick.ball.Predict(football::sim::TickSpan{20}).position - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
-    humanoid->SetIdlePredicate(desiredIdleLevel);
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareIdleVariable, humanoid, _1, _2));
+    SetIdlePredicate(desiredIdleLevel);
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIdleVariable, this, _1, _2));
 
     // H3e4e2 measurement: strict counterfactual for the foot tie-break. The clone
     // is taken before the foot stable_sort and then receives exactly the same
@@ -410,52 +406,52 @@ bool Player::TrySelectAction(football::sim::Tick now,
         command.desiredFunctionType == e_FunctionType_Movement;
     DataSet withoutFootSort;
     if (foot_counterfactual) withoutFootSort = dataSet;
-    humanoid->SetFootSimilarityPredicate(spatialState.foot);
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareFootSimilarity, humanoid, spatialState.foot, _1, _2));
+    SetFootSimilarityPredicate(spatialState.foot);
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareFootSimilarity, this, spatialState.foot, _1, _2));
 
     if (command.desiredFunctionType != e_FunctionType_BallControl) {
-      humanoid->SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
-      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareIncomingBodyDirectionSimilarity, humanoid, _1, _2));
+      SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
     }
 
     // moved down
-    humanoid->SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareIncomingVelocitySimilarity, humanoid, _1, _2));
+    SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIncomingVelocitySimilarity, this, _1, _2));
 
     // OLD METHOD
     if (command.useDesiredTripDirection) {
       Vector3 relDesiredTripDirection = command.desiredTripDirection.GetRotated2D(-spatialState.angle);
-      humanoid->SetTripDirectionSimilarityPredicate(relDesiredTripDirection);
-      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareTripDirectionSimilarity, humanoid, _1, _2));
+      SetTripDirectionSimilarityPredicate(relDesiredTripDirection);
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareTripDirectionSimilarity, this, _1, _2));
     }
 
     // OLD METHOD
     if (command.desiredFunctionType != e_FunctionType_Movement) {
-      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareBaseanimSimilarity, humanoid, _1, _2));
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareBaseanimSimilarity, this, _1, _2));
     }
 
     if (command.desiredFunctionType == e_FunctionType_Deflect) {
-      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareCatchOrDeflect, humanoid, _1, _2));
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareCatchOrDeflect, this, _1, _2));
     }
 
     if (foot_counterfactual) {
       // Same remaining chain, minus the foot sort. Conditions mirror production
       // so this stays a counterfactual and not a second scheduler.
       if (command.desiredFunctionType != e_FunctionType_BallControl) {
-        humanoid->SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
-        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&HumanoidBase::CompareIncomingBodyDirectionSimilarity, humanoid, _1, _2));
+        SetIncomingBodyDirectionSimilarityPredicate(spatialState.relBodyDirectionVec);
+        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
       }
-      humanoid->SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
-      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&HumanoidBase::CompareIncomingVelocitySimilarity, humanoid, _1, _2));
+      SetIncomingVelocitySimilarityPredicate(spatialState.enumVelocity);
+      std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareIncomingVelocitySimilarity, this, _1, _2));
       if (command.useDesiredTripDirection) {
-        humanoid->SetTripDirectionSimilarityPredicate(command.desiredTripDirection.GetRotated2D(-spatialState.angle));
-        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&HumanoidBase::CompareTripDirectionSimilarity, humanoid, _1, _2));
+        SetTripDirectionSimilarityPredicate(command.desiredTripDirection.GetRotated2D(-spatialState.angle));
+        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareTripDirectionSimilarity, this, _1, _2));
       }
       if (command.desiredFunctionType != e_FunctionType_Movement) {
-        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&HumanoidBase::CompareBaseanimSimilarity, humanoid, _1, _2));
+        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareBaseanimSimilarity, this, _1, _2));
       }
       if (command.desiredFunctionType == e_FunctionType_Deflect) {
-        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&HumanoidBase::CompareCatchOrDeflect, humanoid, _1, _2));
+        std::stable_sort(withoutFootSort.begin(), withoutFootSort.end(), std::bind(&Player::CompareCatchOrDeflect, this, _1, _2));
       }
       if (!dataSet.empty() && !withoutFootSort.empty()) {
         RecordFootCounterfactual(animations_, *dataSet.begin(), *withoutFootSort.begin());
@@ -470,8 +466,8 @@ bool Player::TrySelectAction(football::sim::Tick now,
         !dataSet.empty() && !withoutFootSort.empty() &&
         dataSet.front() != withoutFootSort.front() &&
         (!perturbation.require_frame_count_difference ||
-         humanoid->GetBakedClip(dataSet.front()).frame_count !=
-             humanoid->GetBakedClip(withoutFootSort.front()).frame_count)) {
+         GetBakedClip(dataSet.front()).frame_count !=
+             GetBakedClip(withoutFootSort.front()).frame_count)) {
       perturbation.applied = true;
       perturbation.player_id = GetID();
       perturbation.time_ms = static_cast<int>(football::sim::ToMilliseconds(now));
@@ -487,13 +483,13 @@ bool Player::TrySelectAction(football::sim::Tick now,
     // runs for non-Movement commands that request desired movement. The
     // pre-removal dual-run comparison recorded `nm checks=4 match=4
     // mismatch=0`, and the A6.3a final-clip oracle still guards end-to-end.
-    humanoid->SetIdlePredicate(nm_idle_level);
-    humanoid->SetFootSimilarityPredicate(spatialState.foot);
+    SetIdlePredicate(nm_idle_level);
+    SetFootSimilarityPredicate(spatialState.foot);
     MovementRefinementRequest nm_request;
-    nm_request.rel_desired_direction = humanoid->predicate_RelDesiredDirection;
-    nm_request.desired_velocity = humanoid->predicate_DesiredVelocity;
-    nm_request.cornering_bias = humanoid->predicate_CorneringBias;
-    nm_request.look_at = humanoid->predicate_LookAt;
+    nm_request.rel_desired_direction = predicate_RelDesiredDirection;
+    nm_request.desired_velocity = predicate_DesiredVelocity;
+    nm_request.cornering_bias = predicate_CorneringBias;
+    nm_request.look_at = predicate_LookAt;
     nm_request.position = spatialState.position;
     nm_request.angle = spatialState.angle;
     nm_request.rel_incoming_body_direction = spatialState.relBodyDirectionVec;
@@ -515,10 +511,10 @@ bool Player::TrySelectAction(football::sim::Tick now,
     // ANIM-1 A6.3b.2: the pure Animation refinement is the authority for the
     // Movement candidate list; the legacy chain no longer runs for Movement.
     MovementRefinementRequest refine_request;
-    refine_request.rel_desired_direction = humanoid->predicate_RelDesiredDirection;
-    refine_request.desired_velocity = humanoid->predicate_DesiredVelocity;
-    refine_request.cornering_bias = humanoid->predicate_CorneringBias;
-    refine_request.look_at = humanoid->predicate_LookAt;
+    refine_request.rel_desired_direction = predicate_RelDesiredDirection;
+    refine_request.desired_velocity = predicate_DesiredVelocity;
+    refine_request.cornering_bias = predicate_CorneringBias;
+    refine_request.look_at = predicate_LookAt;
     refine_request.position = spatialState.position;
     refine_request.angle = spatialState.angle;
     refine_request.rel_incoming_body_direction = spatialState.relBodyDirectionVec;
@@ -536,7 +532,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
     // supplies the spatial request and reads back the chosen candidate list.
     dataSet = SelectMovement(animations_, crude_movement_snapshot,
                              refine_request);
-    if (dataSet.empty()) dataSet.push_back(humanoid->GetIdleMovementAnimID());
+    if (dataSet.empty()) dataSet.push_back(GetIdleMovementAnimID());
     std::vector<int> without_foot = MovementCandidatesWithoutFoot();
     {  // ANIM-1 A6.3b.2: count the stateless refinement as the active Movement path.
       auto &refine_audit = LocomotionPlaybackAuditState();
@@ -554,8 +550,8 @@ bool Player::TrySelectAction(football::sim::Tick now,
         !dataSet.empty() && !without_foot.empty() &&
         dataSet.front() != without_foot.front() &&
         (!perturbation.require_frame_count_difference ||
-         humanoid->GetBakedClip(dataSet.front()).frame_count !=
-             humanoid->GetBakedClip(without_foot.front()).frame_count)) {
+         GetBakedClip(dataSet.front()).frame_count !=
+             GetBakedClip(without_foot.front()).frame_count)) {
       perturbation.applied = true;
       perturbation.player_id = GetID();
       perturbation.time_ms = static_cast<int>(football::sim::ToMilliseconds(now));
@@ -570,7 +566,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   if (dataSet.size() == 0 &&
       command.desiredFunctionType == e_FunctionType_Movement) {
-    dataSet.push_back(humanoid->GetIdleMovementAnimID());  // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
+    dataSet.push_back(GetIdleMovementAnimID());  // do with idle anim (should not happen too often, only after weird bumps when there's for example a need for a sprint anim at an impossible body angle, after a trip of whatever)
   }
 
   Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);
@@ -623,7 +619,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
     selectedAnimID = *dataSet.begin();
     Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
     assert(desiredMovement.coords[2] == 0.0f);
-    Vector3 physicsVector = humanoid->CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
+    Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
     (void)physicsVector;
   } else if (command.desiredFunctionType == e_FunctionType_BallControl) {
     if (NeedTouch(now, tick, *dataSet.begin(), command, history)) {
@@ -645,7 +641,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
         selectedAnimID = *dataSet.begin();
         Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
         assert(desiredMovement.coords[2] == 0.0f);
-        Vector3 physicsVector = humanoid->CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
+        Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
         (void)physicsVector;
       }
     }
@@ -666,17 +662,17 @@ bool Player::TrySelectAction(football::sim::Tick now,
     commit_gate.command_type = command.desiredFunctionType;
     if (selectedAnimID != -1) {
       commit_gate.current_outgoing_velocity =
-          FloatToEnumVelocity(humanoid->GetCurrentBakedClip().metadata.outgoing_velocity);
+          FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity);
       commit_gate.selected_outgoing_velocity =
-          FloatToEnumVelocity(humanoid->GetBakedClip(selectedAnimID).metadata.outgoing_velocity);
-      commit_gate.current_quadrant = humanoid->GetCurrentBakedClip().metadata.quadrant;
-      commit_gate.selected_quadrant = humanoid->GetBakedClip(selectedAnimID).metadata.quadrant;
+          FloatToEnumVelocity(GetBakedClip(selectedAnimID).metadata.outgoing_velocity);
+      commit_gate.current_quadrant = GetCurrentBakedClip().metadata.quadrant;
+      commit_gate.selected_quadrant = GetBakedClip(selectedAnimID).metadata.quadrant;
       commit_gate.current_forced_outgoing_angle =
           ForceIntoPreferredDirectionAngle(
-              humanoid->GetCurrentBakedClip().metadata.outgoing_angle);
+              GetCurrentBakedClip().metadata.outgoing_angle);
       commit_gate.selected_forced_outgoing_angle =
           ForceIntoPreferredDirectionAngle(
-              humanoid->GetBakedClip(selectedAnimID).metadata.outgoing_angle);
+              GetBakedClip(selectedAnimID).metadata.outgoing_angle);
     }
     if (!CanCommitActionSelection(commit_gate)) selectedAnimID = -1;
   }
@@ -699,7 +695,6 @@ bool Player::TrySelectAction(football::sim::Tick now,
 // Humanoid so no selection path is left behind.
 // ---------------------------------------------------------------------------
 void Player::SelectRetainAnim() {
-  Humanoid *const humanoid = CastHumanoid();
   CrudeSelectionQuery query;
   query.byFunctionType = true;
   query.functionType = e_FunctionType_Movement;
@@ -715,25 +710,25 @@ void Player::SelectRetainAnim() {
 
   assert(dataSet.size() != 0);
 
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&HumanoidBase::CompareMovementSimilarity, humanoid, _1, _2));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareMovementSimilarity, this, _1, _2));
 
-  humanoid->startAngle = FixAngle((Vector3(0) - humanoid->startPos).GetAngle2D());  // 0.5 * pi; (facing right)
+  startAngle = FixAngle((Vector3(0) - startPos).GetAngle2D());  // 0.5 * pi; (facing right)
 
-  humanoid->currentAnim.positions.clear();
-  humanoid->currentAnim.animationId = *dataSet.begin();
-  humanoid->currentAnim.frameNum = 0;
-  humanoid->currentAnim.touchFrame = -1;
-  humanoid->currentAnim.actionSmuggle = Vector3(0);
-  humanoid->currentAnim.actionSmuggleOffset = Vector3(0);
-  humanoid->currentAnim.actionSmuggleSustain = Vector3(0);
-  humanoid->currentAnim.actionSmuggleSustainOffset = Vector3(0);
-  humanoid->currentAnim.movementSmuggle = Vector3(0);
-  humanoid->currentAnim.movementSmuggleOffset = Vector3(0);
-  humanoid->currentAnim.rotationSmuggle.begin = 0;
-  humanoid->currentAnim.rotationSmuggle.end = 0;
-  humanoid->currentAnim.rotationSmuggleOffset = 0;
-  humanoid->currentAnim.functionType = e_FunctionType_Movement;
-  InstallSelectedAction(humanoid->CurrentSelectedAction());
+  anim_state_.positions.clear();
+  anim_state_.animationId = *dataSet.begin();
+  anim_state_.frameNum = 0;
+  anim_state_.touchFrame = -1;
+  anim_state_.actionSmuggle = Vector3(0);
+  anim_state_.actionSmuggleOffset = Vector3(0);
+  anim_state_.actionSmuggleSustain = Vector3(0);
+  anim_state_.actionSmuggleSustainOffset = Vector3(0);
+  anim_state_.movementSmuggle = Vector3(0);
+  anim_state_.movementSmuggleOffset = Vector3(0);
+  anim_state_.rotationSmuggle.begin = 0;
+  anim_state_.rotationSmuggle.end = 0;
+  anim_state_.rotationSmuggleOffset = 0;
+  anim_state_.functionType = e_FunctionType_Movement;
+  InstallSelectedAction(CurrentSelectedAction());
 }
 
 // ---------------------------------------------------------------------------
@@ -743,10 +738,8 @@ void Player::SelectRetainAnim() {
 // ---------------------------------------------------------------------------
 void Player::TripMe(const Vector3 &tripVector, int tripType,
                     const Player *ball_retainer) {
-  Humanoid *const humanoid = CastHumanoid();
-  if (humanoid == nullptr) return;
   if (ball_retainer == this) return;
-  const AnimationClip &clip = humanoid->GetCurrentBakedClip();
+  const AnimationClip &clip = GetCurrentBakedClip();
   football::sim::PassiveTripContext context;
   context.action_type = actionState.type;
   context.action_trip_type = clip.metadata.trip_type;
@@ -756,7 +749,7 @@ void Player::TripMe(const Vector3 &tripVector, int tripType,
       clip.metadata.outgoing_special_state.empty();
   context.interrupt_is_none =
       !pending_passive_trip_.has_value() &&
-      humanoid->interruptAnim == e_InterruptAnim_None;
+      interruptAnim == e_InterruptAnim_None;
   context.requested_trip_type = tripType;
   if (!football::sim::CanAcceptPassiveTrip(context)) return;
   pending_passive_trip_ = PendingPassiveTrip{tripVector, tripType};
@@ -824,15 +817,13 @@ void Player::BuildTripSelectionCommands(PlayerCommandQueue &queue,
 // compatibility projection that this writes.
 // ---------------------------------------------------------------------------
 void Player::ComputeAndCommitActionMotion() {
-  Humanoid *const humanoid = CastHumanoid();
-  if (humanoid == nullptr) return;
-  Anim &currentAnim = humanoid->currentAnim;
-  SpatialState &spatialState = humanoid->spatialState;
-  const AnimationClip &clip = humanoid->GetCurrentBakedClip();
+  Anim &currentAnim = anim_state_;
+  SpatialState &spatialState = spatial_state_;
+  const AnimationClip &clip = GetCurrentBakedClip();
 
   ActionMotionVectorInput motion_input;
-  motion_input.start_position = humanoid->startPos;
-  motion_input.start_angle = humanoid->startAngle;
+  motion_input.start_position = startPos;
+  motion_input.start_angle = startAngle;
   motion_input.positions = currentAnim.positions;
   motion_input.frame_num = currentAnim.frameNum;
   motion_input.action_smuggle_offset = currentAnim.actionSmuggleOffset;
@@ -843,7 +834,7 @@ void Player::ComputeAndCommitActionMotion() {
     motion_input.baked_pose_position =
         clip.poses[currentAnim.frameNum].positions[BodyPart::player];
   }
-  motion_input.previous_position_2d = humanoid->previousPosition2D;
+  motion_input.previous_position_2d = previousPosition2D;
   motion_input.action_smuggle_movement = spatialState.actionSmuggleMovement;
   motion_input.movement_smuggle_movement = spatialState.movementSmuggleMovement;
   motion_input.position_offset_movement = spatialState.positionOffsetMovement;
@@ -869,7 +860,7 @@ void Player::ComputeAndCommitActionMotion() {
   ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
   ActionBodyStateInput body_input;
   body_input.movement = spatialState.movement;
-  body_input.start_angle = humanoid->startAngle;
+  body_input.start_angle = startAngle;
   body_input.rotation_smuggle_offset = currentAnim.rotationSmuggleOffset;
   body_input.baked_body_orientation =
       clip.poses[currentAnim.frameNum].orientations[body];
@@ -888,7 +879,7 @@ void Player::ComputeAndCommitActionMotion() {
   spatialState.bodyDirectionVec = body_state.body_direction_vec;
   spatialState.bodyAngle = body_state.body_angle;
 
-  humanoid->previousPosition2D = position;
+  previousPosition2D = position;
 
   // The kinematic mirror must track the spatial state at the instant it changes.
   CommitLegacyActionMotion();
@@ -906,9 +897,7 @@ Vector3 Player::ComputeMovementSmuggle(
     football::sim::Tick now, const football::sim::PlayerTickContext &tick,
     const Vector3 &desiredDirection, float desiredVelocityFloat,
     std::span<MentalImage> history) {
-  Humanoid *const humanoid = CastHumanoid();
-  if (humanoid == nullptr) return Vector3(0);
-  Anim &currentAnim = humanoid->currentAnim;
+  Anim &currentAnim = anim_state_;
 
   if (!kEnableMovementSmuggle) return Vector3(0);
 
@@ -916,9 +905,9 @@ Vector3 Player::ComputeMovementSmuggle(
       tick.designated_possession_player != this ||
       currentAnim.touchFrame != -1 ||
       (currentAnim.functionType == e_FunctionType_Trip &&
-       humanoid->GetCurrentBakedClip().metadata.trip_type != 1) ||
-      humanoid->GetCurrentBakedClip().metadata.incoming_special_state.compare("") != 0 ||
-      humanoid->GetCurrentBakedClip().metadata.outgoing_special_state.compare("") != 0 ||
+       GetCurrentBakedClip().metadata.trip_type != 1) ||
+      GetCurrentBakedClip().metadata.incoming_special_state.compare("") != 0 ||
+      GetCurrentBakedClip().metadata.outgoing_special_state.compare("") != 0 ||
       !tick.play_authorized || tick.set_piece_active || tick.ball_retainer != 0)
     return Vector3(0);
 
@@ -931,21 +920,21 @@ Vector3 Player::ComputeMovementSmuggle(
     timeToBall_ms = GetDesiredTimeToBall_ms();
   }
   unsigned int animTime_ms =
-      static_cast<int>(humanoid->GetCurrentBakedClip().frame_count) * 10;
+      static_cast<int>(GetCurrentBakedClip().frame_count) * 10;
   unsigned int futureTime_ms = std::max(animTime_ms + defaultTouchOffset_ms, timeToBall_ms);
 
   Vector3 predictedOutgoingMovement =
-      humanoid->CalculateOutgoingMovement(currentAnim.positions);
+      CalculateOutgoingMovement(currentAnim.positions);
   Vector3 predictedPos;
   radian predictedAngle;
-  humanoid->CalculatePredictedSituation(predictedPos, predictedAngle);
+  CalculatePredictedSituation(predictedPos, predictedAngle);
   Vector3 ballPos = football::sim::observation::SampleMentalImage(
-                        history, humanoid->mentalImageTime)
+                        history, mentalImageTime)
                         ->GetBallPrediction(futureTime_ms, now, tick.ball);
   float ballHeight = ballPos.coords[2];
   Vector3 ffo = GetFrontOfFootOffsetRel(
                     predictedOutgoingMovement.GetLength(),
-                    humanoid->GetCurrentBakedClip().metadata.outgoing_body_angle,
+                    GetCurrentBakedClip().metadata.outgoing_body_angle,
                     ballHeight)
                     .GetRotated2D(predictedAngle);
   Vector3 desiredBallPos = predictedPos + ffo;
@@ -955,11 +944,11 @@ Vector3 Player::ComputeMovementSmuggle(
     // now calculate the shortest line between that line and that point. now move over that line from the point towards the line somewhat
 
     const Vector3 ballLineA =
-        football::sim::observation::SampleMentalImage(history, humanoid->mentalImageTime)
+        football::sim::observation::SampleMentalImage(history, mentalImageTime)
             ->GetBallPrediction(0, now, tick.ball)
             .Get2D();
     const Vector3 ballLineB =
-        football::sim::observation::SampleMentalImage(history, humanoid->mentalImageTime)
+        football::sim::observation::SampleMentalImage(history, mentalImageTime)
             ->GetBallPrediction(futureTime_ms, now, tick.ball)
             .Get2D();
     if ((ballLineA - ballLineB).GetLength() < 0.5f) return Vector3(0);  // ball is slow or very close
@@ -975,7 +964,7 @@ Vector3 Player::ComputeMovementSmuggle(
   }
 
   unsigned int maxEffectTimeTreshold_ms = 250 + defaultTouchOffset_ms;  // if the ball is this much longer 'farther away' than feasible, rather postpone effect until next anim (else we may overrun)
-  if (FloatToEnumVelocity(humanoid->GetCurrentBakedClip().metadata.outgoing_velocity) == e_Velocity_Idle) maxEffectTimeTreshold_ms = 2000;  // no danger of overrunning
+  if (FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) == e_Velocity_Idle) maxEffectTimeTreshold_ms = 2000;  // no danger of overrunning
   float maxEffectVelocity = dribbleWalkSwitch;
   float maxSmuggleMPS = 1.6f;
 
@@ -987,7 +976,7 @@ Vector3 Player::ComputeMovementSmuggle(
   float resultingVelocity = resultingMovement.GetLength();
   if (resultingVelocity > predictedVelocity && resultingVelocity > maxEffectVelocity) return Vector3(0);
 
-  toDesired.NormalizeMax(maxSmuggleMPS * ((static_cast<int>(humanoid->GetCurrentBakedClip().frame_count) - 1) * 0.01f));
+  toDesired.NormalizeMax(maxSmuggleMPS * ((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) * 0.01f));
 
   // SetGreenDebugPilon(predictedPos);
 
@@ -1001,10 +990,8 @@ Vector3 Player::ComputeMovementSmuggle(
 // HumanoidBase::CalculateFactualSpatialState.
 // ---------------------------------------------------------------------------
 void Player::ApplyFactualSpatialState() {
-  Humanoid *const humanoid = CastHumanoid();
-  if (humanoid == nullptr) return;
-  SpatialState &spatialState = humanoid->spatialState;
-  const AnimationClip &clip = humanoid->GetCurrentBakedClip();
+  SpatialState &spatialState = spatial_state_;
+  const AnimationClip &clip = GetCurrentBakedClip();
 
   spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);
 

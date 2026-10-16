@@ -18,13 +18,26 @@
 #ifndef _HPP_PLAYER
 #define _HPP_PLAYER
 
+#include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <span>
+#include <stdexcept>
+#include <vector>
 #include "sim/player/player_definition.hpp"
 #include "football/pitch/pitch.hpp"
-#include "sim/player/humanoid/humanoid.hpp"
+// ANIM-1 A9.4: the execution-state, spatial-state, interrupt and diagnostic
+// types used to come in through the Humanoid header. They are Player-owned
+// types now, so the Player (and nothing else) includes them directly.
+#include "sim/player/player_action_execution_state.hpp"
+#include "sim/player/player_diagnostics.hpp"
+#include "sim/player/player_interrupt.hpp"
+#include "sim/player/player_spatial_state.hpp"
+#include "sim/player/player_baked_pose_sample.hpp"
+#include "sim/player/player_touch_choice.hpp"
+#include "football/animation/selection_query.hpp"
 #include "sim/player/player_kinematics.hpp"
 #include "sim/player/player_motion_profile.hpp"
 #include "sim/player/player_body_profile.hpp"
@@ -146,7 +159,6 @@ const char *LocomotionReentryCategoryName(int category);
 
 class MentalImage;
 namespace football::sim { class AcceptedTouchSink; class PlayerRuntimeSink; class PlayerSendOffSink; }
-class HumanoidBase;
 class AnimationLibrary;
 struct PlayerCommandInputs;
 
@@ -182,11 +194,6 @@ struct PendingPassiveTrip {
 // Concrete football-player runtime; no shared official-actor base remains.
 class Player final {
 
-  friend class HumanoidBase;
-  // S0.2 (transitional): the goalkeeper boundary corrections are still evaluated
-  // inside Humanoid::Process, but they now commit through the Player's position
-  // entry. Drop this friendship once those clamps move out of the Humanoid pass.
-  friend class Humanoid;
 
   public:
     Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
@@ -286,8 +293,8 @@ class Player final {
     // the producer contract, which stays fatal rather than being folded into the
     // gate predicate.
     void CheckDecisionLocomotionIntentOracle() const;
-    inline int GetFrameNum() { return humanoid->GetFrameNum(); }
-    inline int GetFrameCount() { return humanoid->GetFrameCount(); }
+    int GetFrameNum() const { return anim_state_.frameNum; }
+    int GetFrameCount() const { return static_cast<int>(GetCurrentBakedClip().frame_count); }
 
     // Gameplay-facing movement state. It is NOT yet the producer: Humanoid's
     // spatial state is still authoritative for movement, and `kinematicState`
@@ -311,16 +318,16 @@ class Player final {
     // Gameplay reads continuous relative orientation. The quantized Humanoid
     // relBodyAngle remains animation-selection compatibility only.
     inline radian GetRelBodyAngle() const {
-      return humanoid->GetRelBodyAngleNonquantized();
+      return spatial_state_.relBodyAngleNonquantized;
     }
-    inline e_Velocity GetEnumVelocity() const { return humanoid->GetEnumVelocity(); }
+    inline e_Velocity GetEnumVelocity() const { return spatial_state_.enumVelocity; }
     inline float GetFloatVelocity() const {
-      return EnumToFloatVelocity(humanoid->GetEnumVelocity());
+      return EnumToFloatVelocity(spatial_state_.enumVelocity);
     }
     inline e_FunctionType GetCurrentFunctionType() const {
       return GetSimulationActionState().type;
     }
-    inline e_FunctionType GetPreviousFunctionType() const { return humanoid->GetPreviousFunctionType(); }
+    inline e_FunctionType GetPreviousFunctionType() const { return previousAnim_functionType; }
     // H3e authority boundary: true only when this actor may leave the legacy
     // animation root-motion path and use the simulation-owned procedural
     // movement model instead. See PlayerActionState::IsPureLocomotion().
@@ -458,9 +465,9 @@ class Player final {
     const PlayerPlaybackState& PlaybackState() const { return playback_state_; }
     // ANIM-1.1: the single final pose for this player (default when inactive).
     PoseFrame Pose() const {
-      if (!isActive || !humanoid) return PoseFrame{};
+      if (!isActive) return PoseFrame{};
       if (playback_state_.have_pose) return playback_state_.final_pose;
-      return humanoid->SampleBakedPose(kinematicState, body_profile_).pose;
+      return SampleBakedPose(kinematicState, body_profile_).pose;
     }
     // H3e4f-c2a: observation only. The simulation keeps its own locomotion
     // intent cadence in parallel with the animation requeue lifecycle, so the
@@ -599,7 +606,7 @@ class Player final {
     // contract is checked at every movement mutation point.
     void CheckSimulationKinematicOracle() const;
 
-    float GetDecayingPositionOffsetLength() { return humanoid->GetDecayingPositionOffsetLength(); }
+    float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
 
     // Tick-local borrows; no history owner or persistent world port.
     void Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
@@ -624,10 +631,9 @@ class Player final {
     // behaviour change, not part of unifying the parameter source.
     PlayerMotionProfile EffectiveMotionProfile() const;
 
-    const Anim *GetCurrentAnim() { return humanoid->GetCurrentAnim(); }
+    const Anim *GetCurrentAnim() { return &anim_state_; }
     PlayerBakedPoseSample GetBakedPoseSample() const {
-      if (!humanoid) throw std::logic_error("inactive player has no baked pose source");
-      PlayerBakedPoseSample sample = humanoid->SampleBakedPose(kinematicState, body_profile_);
+      PlayerBakedPoseSample sample = SampleBakedPose(kinematicState, body_profile_);
       // ANIM-1 A5: the Player owns the final pose; the Humanoid provides the
       // clip/frame metadata. Verified bit-identical to the Humanoid pose by the
       // A3.2 dual-run oracle before this flip.
@@ -643,7 +649,7 @@ class Player final {
     void SetLastTouchType(e_TouchType touchType) { this->lastTouchType = touchType; }
     e_TouchType GetLastTouchType() { return lastTouchType; }
     // The ability-dependent decay is a continuous estimate, not a grid deadline.
-    float GetLastTouchBias(int decay_ms, football::sim::Tick at);
+    float GetLastTouchBias(int decay_ms, football::sim::Tick at) const;
 
 
     float GetFatigueFactorInv() const { return fatigueFactorInv; }
@@ -654,7 +660,6 @@ class Player final {
 
     void ResetSituation(const Vector3 &focusPos, football::sim::Tick now);
 
-    Humanoid *CastHumanoid();
     int GetTeamID() const { return team_id_; }
     football::sim::TeamSide GetTeamSide() const { return side_; }
     // Per-tick processing-frame direction (mirror counter), not persistent.
@@ -705,6 +710,109 @@ class Player final {
   private:
     void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
     void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history);
+
+    // -----------------------------------------------------------------------
+    // ANIM-1 A9.5-A9.8: the legacy Humanoid/HumanoidBase capabilities, moved
+    // onto the Player as private implementation details. The public surface is
+    // unchanged; none of these are a second authority.
+    // -----------------------------------------------------------------------
+    // Baked clip access. The runtime never reads legacy Animation objects;
+    // these resolve through the stable AnimationId into the read-only library.
+    const AnimationClip &GetBakedClip(AnimationId id) const;
+    const AnimationClip &GetCurrentBakedClip() const;
+    // Per-animation scratch for the selection sort predicates.
+    float &OrderScratch(int id) const;
+    // ANIM-1 A9.7: the per-tick action orchestration (former Humanoid::Process).
+    void RunActionTick(football::sim::Tick now,
+                       const football::sim::PlayerTickContext& tick,
+                       std::span<MentalImage> history,
+                       football::sim::AcceptedTouchSink& touch_sink,
+                       football::sim::PlayerRuntimeSink& runtime_sink);
+    // ANIM-1 A9.6: the touch publication half of the action tick.
+    Player* ProcessActionTouches(football::sim::Tick now,
+                                 const football::sim::PlayerTickContext& tick,
+                                 std::span<MentalImage> history,
+                                 Player* ball_retainer,
+                                 football::sim::AcceptedTouchSink& touch_sink,
+                                 football::sim::PlayerRuntimeSink& runtime_sink);
+    Vector3 GetBestPossibleTouch(football::sim::Tick now,
+                                 const football::sim::PlayerTickContext& tick,
+                                 const Vector3 &desiredTouch,
+                                 e_FunctionType functionType);
+    // ANIM-1 A9.5: legacy selection support.
+    int GetIdleMovementAnimID();
+    void _KeepBestDirectionAnims(DataSet& dataset, const PlayerCommand &command,
+                                 bool strict = true, radian allowedAngle = 0,
+                                 int allowedVelocitySteps = 0,
+                                 int forcedQuadrantID = -1);
+    void _KeepBestBodyDirectionAnims(DataSet& dataset,
+                                     const PlayerCommand &command,
+                                     bool strict = true, radian allowedAngle = 0);
+    bool _HighOrBouncyBall(const football::ball::Ball& ball) const;
+    void CalculatePredictedSituation(Vector3 &predictedPos, radian &predictedAngle);
+    Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
+    Vector3 CalculatePhysicsVector(football::sim::Tick now, int animID,
+                                   bool useDesiredMovement,
+                                   const Vector3 &desiredMovement,
+                                   bool useDesiredBodyDirection,
+                                   const Vector3 &desiredBodyDirectionRel,
+                                   std::vector<Vector3> &positions_ret,
+                                   radian &rotationOffset_ret) const;
+    void SetFootSimilarityPredicate(e_Foot desiredFoot) const;
+    bool CompareFootSimilarity(e_Foot foot, int animIndex1, int animIndex2) const;
+    void SetIncomingVelocitySimilarityPredicate(e_Velocity velocity) const;
+    bool CompareIncomingVelocitySimilarity(int animIndex1, int animIndex2) const;
+    void SetMovementSimilarityPredicate(const Vector3 &relDesiredDirection,
+                                        e_Velocity desiredVelocity) const;
+    float GetMovementSimilarity(int animIndex,
+                                const Vector3 &relDesiredDirection,
+                                e_Velocity desiredVelocity,
+                                float corneringBias) const;
+    bool CompareMovementSimilarity(int animIndex1, int animIndex2) const;
+    bool CompareByOrderFloat(int animIndex1, int animIndex2) const;
+    void SetIncomingBodyDirectionSimilarityPredicate(
+        const Vector3 &relIncomingBodyDirection) const;
+    bool CompareIncomingBodyDirectionSimilarity(int animIndex1, int animIndex2) const;
+    void SetBodyDirectionSimilarityPredicate(const Vector3 &lookAt) const;
+    real DirectionSimilarityRating(int animIndex) const;
+    bool CompareBodyDirectionSimilarity(int animIndex1, int animIndex2) const;
+    void SetTripDirectionSimilarityPredicate(
+        const Vector3 &relDesiredTripDirection) const;
+    bool CompareTripDirectionSimilarity(int animIndex1, int animIndex2) const;
+    bool CompareBaseanimSimilarity(int animIndex1, int animIndex2) const;
+    bool CompareCatchOrDeflect(int animIndex1, int animIndex2) const;
+    void SetIdlePredicate(float desiredValue) const;
+    bool CompareIdleVariable(int animIndex1, int animIndex2) const;
+    bool ComparePriorityVariable(int animIndex1, int animIndex2) const;
+    // ANIM-1 A9.8: the compatibility state projection and pose assembly.
+    PlayerBakedPoseSample SampleBakedPose(
+        const PlayerKinematicState& state,
+        const football::player::PlayerBodyProfile& profile) const;
+    football::sim::SelectedAction CurrentSelectedAction() const;
+    void MirrorLegacyState();
+    void ResetLegacyPosition(const Vector3 &newPos, const Vector3 &focusPos);
+    void ResetLegacySituation(const Vector3 &focusPos);
+    void ApplyLegacyPositionOffset(const Vector3 &offset);
+    void CalculateSpatialState(const Player* ball_retainer);
+    void ApplySimulationMovementState(const PlayerKinematicState &state,
+                                      const Player* ball_retainer);
+    void ProjectSimulationMovementState(const PlayerKinematicState &state,
+                                        const Player* ball_retainer);
+    void ApplySimulationBodyState(const PlayerKinematicState &state);
+    void ProjectMovementState(const PlayerKinematicState &tickStartState,
+                              const Player* ball_retainer,
+                              bool restart_needs_simulation);
+    bool UsesProceduralLocomotion(const Player* ball_retainer) const;
+    // ANIM-1 A9.5c: the compat install projection (former Humanoid methods).
+    void ProjectSelectedActionCompat(int selectedAnimID,
+                                     const football::sim::TouchChoice &touch_choice,
+                                     const PlayerCommand &command,
+                                     const football::sim::PlayerTickContext &tick,
+                                     football::sim::Tick now,
+                                     std::span<MentalImage> history,
+                                     e_InterruptAnim localInterruptAnim,
+                                     bool material_candidate);
+    void RecordSelectedContactAudit(const PlayerCommand &command);
     // S0.1: the *only* entry that adopts motion the legacy Humanoid produced from
     // animation root motion, plus the lifecycle resets that re-read the Humanoid
     // pose. It is source-explicit on purpose: it must never be the way a pure
@@ -754,12 +862,38 @@ class Player final {
     FormationEntry formationEntry_;
     PlayerTeamFacts team_facts_;
 
-    std::unique_ptr<Humanoid> humanoid;
-    // ANIM-1 A9 step 1: the animation/spatial compatibility storage the
-    // Humanoid views by reference. Player-owned so the eventual Humanoid
-    // deletion does not need a second copy.
+    // ANIM-1 A9: the animation/spatial compatibility storage, Player-owned.
     Anim anim_state_;
     SpatialState spatial_state_;
+    // ANIM-1 A9.5-A9.8: runtime bookkeeping and selection predicates relocated
+    // from HumanoidBase. Same values, same evaluation order; the Player is the
+    // only owner now.
+    int previousAnim_frameNum = 0;
+    e_FunctionType previousAnim_functionType = e_FunctionType_None;
+    Vector3 startPos;
+    radian startAngle = 0;
+    Vector3 nextStartPos;
+    radian nextStartAngle = 0;
+    Vector3 previousPosition2D;
+    e_InterruptAnim interruptAnim = e_InterruptAnim_None;
+    int reQueueDelayFrames = 0;
+    int tripType = 0;
+    Vector3 tripDirection;
+    Vector3 decayingPositionOffset;
+    float decayingDifficultyFactor = 0.0f;
+    mutable e_Foot predicate_DesiredFoot = e_Foot_Right;
+    mutable e_Velocity predicate_IncomingVelocity = e_Velocity_Idle;
+    mutable Vector3 predicate_RelDesiredDirection;
+    mutable Vector3 predicate_DesiredDirection;
+    mutable float predicate_CorneringBias = 0.0f;
+    mutable e_Velocity predicate_DesiredVelocity = e_Velocity_Idle;
+    mutable Vector3 predicate_RelIncomingBodyDirection;
+    mutable Vector3 predicate_LookAt;
+    mutable Vector3 predicate_RelDesiredTripDirection;
+    mutable Vector3 predicate_RelDesiredBallDirection;
+    mutable float predicate_idle = 0.0f;
+    mutable std::vector<float> orderScratch_;
+    std::chrono::milliseconds mentalImageTime{0};
     PlayerKinematicState kinematicState;
     PlayerGroundCollider groundCollider;
     PlayerActionState actionState;
@@ -848,6 +982,10 @@ class Player final {
     std::optional<PlayerControl> control_;
 
     bool isActive = false;
+    // ANIM-1 A9: whether the legacy action/spatial runtime state below has
+    // been initialized by Activate(). It replaces the old "does a Humanoid
+    // object exist" test, which guarded the lifecycle mirror/pose paths.
+    bool legacy_state_initialized_ = false;
 
     football::sim::Tick last_touch_tick_{};
     e_TouchType lastTouchType;

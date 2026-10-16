@@ -1,0 +1,1217 @@
+// ANIM-1 A9.5-A9.8: the Player-owned action tick, state projection and the
+// legacy selection support that used to live in Humanoid/HumanoidBase.
+//
+// The bodies here are verbatim moves from humanoidbase.cpp (and the
+// non-touch part of Humanoid::Process); only the receiver changed, so the
+// operation order, floating-point expressions and RNG draws are unchanged.
+#include "sim/player/player.hpp"
+
+#include <bq_log/bq_log.h>
+
+#include "football/ball/ball.hpp"
+#include "sim/observation/mentalimage.hpp"
+#include "sim/player/player_control_builder.hpp"
+
+#include <algorithm>
+#include <functional>
+#include <cassert>
+#include <chrono>
+#include <cmath>
+#include <cstring>
+#include <stdexcept>
+
+#include "football/animation/library.hpp"
+#include "football/animation/movement_math.hpp"
+#include "football/animation/selector.hpp"
+#include "sim/observation/mentalimage_sampling.hpp"
+#include "sim/player/player_motion.hpp"
+#include "sim/player/player_touch_math.hpp"
+#include "sim/player/player_motion_constants.hpp"
+#include "sim/player/player_runtime_sink.hpp"
+
+using namespace football::math;
+using football::ball::Ball;
+using std::placeholders::_1;
+using std::placeholders::_2;
+
+constexpr bool animSmoothing = true;
+constexpr bool useContinuousBallCheck = true;
+constexpr float bodyRotationSmoothingFactor = 1.0f;
+constexpr float bodyRotationSmoothingMaxAngle = animSmoothing ? 0.25f * pi : 0.0f;
+constexpr int initialReQueueDelayFrames = 22;
+constexpr bool allowReQueue = true;
+constexpr bool allowPreTouchRotationSmuggle = false;
+
+// 4b''-player-noquery-audit: provenance stays local to the selection queue.
+// It is deliberately not part of PlayerCommand or serialized simulation state.
+enum class PlayerPathSelectionCommandProvenance {
+  Controller,
+  LocalTrip,
+  LocalTripMovementFallback
+};
+
+const AnimationClip &Player::GetBakedClip(AnimationId id) const {
+  return animations_.Get(static_cast<uint32_t>(id));
+}
+
+football::sim::SelectedAction Player::CurrentSelectedAction() const {
+  football::sim::SelectedAction selection;
+  selection.clip_id = anim_state_.animationId;
+  selection.function_type = anim_state_.functionType;
+  selection.start_frame = anim_state_.frameNum;
+  selection.frame_count = static_cast<int>(GetBakedClip(anim_state_.animationId).frame_count);
+  selection.touch_frame = anim_state_.touchFrame;
+  selection.touch_position = anim_state_.touchPos;
+  return selection;
+}
+
+const AnimationClip &Player::GetCurrentBakedClip() const {
+  return GetBakedClip(anim_state_.animationId);
+}
+
+
+float &Player::OrderScratch(int id) const {
+  if (orderScratch_.size() <= static_cast<size_t>(id)) {
+    orderScratch_.resize(static_cast<size_t>(id) + 1, 0.0f);
+  }
+  return orderScratch_[static_cast<size_t>(id)];
+}
+void Player::MirrorLegacyState() {
+  // Mirrors the field-level legacy contract, not a whole-state coordinate
+  // transform: SpatialState::Mirror negates the movement fields but leaves the
+  // facing/body fields untouched. Player::Mirror() mirrors its kinematic
+  // mirror with exactly the same asymmetry, and the movement oracle verifies
+  // the result bit-exactly.
+  startPos.Mirror();
+  startAngle.Mirror();
+  nextStartPos.Mirror();
+  nextStartAngle.Mirror();
+  spatial_state_.Mirror();
+  previousPosition2D.Mirror();
+  tripDirection.Mirror();
+  decayingPositionOffset.Mirror();
+  predicate_RelDesiredDirection.Mirror();
+  predicate_DesiredDirection.Mirror();
+  predicate_RelIncomingBodyDirection.Mirror();
+  predicate_LookAt.Mirror();
+  predicate_RelDesiredTripDirection.Mirror();
+  predicate_RelDesiredBallDirection.Mirror();
+}
+
+
+int Player::GetIdleMovementAnimID() {
+  CrudeSelectionQuery query;
+  query.byFunctionType = true;
+  query.functionType = e_FunctionType_Movement;
+  query.byIncomingVelocity = true;
+  query.incomingVelocity = e_Velocity_Idle;
+  query.byOutgoingVelocity = true;
+  query.outgoingVelocity = e_Velocity_Idle;
+
+  DataSet dataSet;
+  BakedAnimationSelector::CrudeSelection(
+      animations_.Clips(), query, dataSet);
+
+  SetIdlePredicate(1);
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIdleVariable, this, _1, _2));
+
+  SetIncomingBodyDirectionSimilarityPredicate(Vector3(0, -1, 0));
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
+
+  SetIncomingVelocitySimilarityPredicate(e_Velocity_Idle);
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIncomingVelocitySimilarity, this, _1, _2));
+
+  SetMovementSimilarityPredicate(Vector3(0, -1, 0), e_Velocity_Idle);
+  SetBodyDirectionSimilarityPredicate(spatial_state_.position + Vector3(0, -10, 0).GetRotated2D(spatial_state_.angle)); // lookat
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareBodyDirectionSimilarity, this, _1, _2));
+
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareMovementSimilarity, this, _1, _2));
+
+  //printf("%s\n", anims->GetAnim(*dataSet.begin())->GetName().c_str());
+
+  return *dataSet.begin();
+}
+
+void Player::ResetLegacyPosition(const Vector3 &newPos,
+                                 const Vector3 &focusPos) {
+
+  startPos = newPos;
+  startAngle = FixAngle((focusPos - newPos).GetNormalized(Vector3(0, -1, 0)).GetAngle2D());
+  nextStartPos = startPos;
+  nextStartAngle = startAngle;
+  previousPosition2D = startPos;
+
+  spatial_state_.position = startPos;
+  spatial_state_.angle = startAngle;
+  spatial_state_.directionVec = Vector3(0, -1, 0).GetRotated2D(startAngle);
+  spatial_state_.floatVelocity = 0;
+
+  spatial_state_.actualMovement = Vector(0);
+  spatial_state_.physicsMovement = Vector(0);
+  spatial_state_.animMovement = Vector(0);
+  spatial_state_.movement = Vector(0);
+  spatial_state_.actionSmuggleMovement = Vector(0);
+  spatial_state_.movementSmuggleMovement = Vector(0);
+  spatial_state_.positionOffsetMovement = Vector(0);
+  spatial_state_.relBodyAngleNonquantized = 0;
+
+  spatial_state_.enumVelocity = e_Velocity_Idle;
+  spatial_state_.floatVelocity = 0;
+  spatial_state_.movement = Vector3(0);
+  spatial_state_.relBodyDirectionVec = Vector3(0, -1, 0);
+  spatial_state_.relBodyAngle = 0;
+  // After a reset the body faces the focus direction, matching the locomotion
+  // direction and the animation base angle (startAngle). Otherwise the derived
+  // GetFacing() (velocity=0 -> bodyFacing) would report world -Y instead of the
+  // direction the reset actually asked for. relBodyDirectionVec/relBodyAngle
+  // stay (0,-1,0)/0 because body and locomotion now agree.
+  spatial_state_.bodyDirectionVec = spatial_state_.directionVec;
+  spatial_state_.bodyAngle = spatial_state_.angle;
+  spatial_state_.foot = e_Foot_Right;
+
+  const AnimationId idleAnimID = GetIdleMovementAnimID();
+  anim_state_.animationId = idleAnimID;
+  anim_state_.positions.clear();
+  anim_state_.positions = GetBakedClip(anim_state_.animationId).root_positions;
+  anim_state_.frameNum =
+      rng_.Uniform(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
+  anim_state_.touchFrame = -1;
+  anim_state_.originatingInterrupt = e_InterruptAnim_None;
+  anim_state_.actionSmuggle = Vector3(0);
+  anim_state_.actionSmuggleOffset = Vector3(0);
+  anim_state_.actionSmuggleSustain = Vector3(0);
+  anim_state_.actionSmuggleSustainOffset = Vector3(0);
+  anim_state_.movementSmuggle = Vector3(0);
+  anim_state_.movementSmuggleOffset = Vector3(0);
+  anim_state_.rotationSmuggle.begin = 0;
+  anim_state_.rotationSmuggle.end = 0;
+  anim_state_.rotationSmuggleOffset = 0;
+  anim_state_.functionType = e_FunctionType_Movement;
+  anim_state_.incomingMovement = Vector3(0);
+  anim_state_.outgoingMovement = Vector3(0);
+  anim_state_.positionOffset = Vector3(0);
+
+  previousAnim_frameNum = 0;
+  previousAnim_functionType = e_FunctionType_Movement;
+
+
+
+  interruptAnim = e_InterruptAnim_None;
+  tripType = 0;
+
+  decayingPositionOffset = Vector3(0);
+  decayingDifficultyFactor = 0.0f;
+
+  reQueueDelayFrames = 0;
+  tripDirection = Vector3(0);
+}
+
+void Player::ApplyLegacyPositionOffset(const Vector3 &offset) {
+
+  assert(offset.coords[2] == 0.0f);
+
+  nextStartPos += offset;
+  startPos += offset;
+  spatial_state_.position += offset;
+  spatial_state_.positionOffsetMovement += offset * 100.0f;
+  decayingPositionOffset += offset;
+  if (decayingPositionOffset.GetLength() > 0.1f) decayingPositionOffset = decayingPositionOffset.GetNormalized() * 0.1f;
+  anim_state_.positionOffset += offset;
+}
+
+
+
+void Player::ResetLegacySituation(const Vector3 &focusPos) {
+  mentalImageTime = std::chrono::milliseconds{0};
+  ResetLegacyPosition(spatial_state_.position, focusPos);
+}
+
+bool Player::_HighOrBouncyBall(const Ball& ball) const {
+  float ballHeight1 = ball.Predict(football::sim::TickSpan{1}).position.coords[2];
+  float ballHeight2 = ball.Predict(football::sim::TickSpan{defaultTouchOffset_ms / football::sim::kMillisecondsPerTick}).position.coords[2];
+  float ballBounce = std::fabs(ball.state().velocity.coords[2]);
+  bool highBall = false;
+  if (ballHeight1 > 0.3f || ballHeight2 > 0.3f) {
+    highBall = true;
+  } else if (ballBounce > 1.0f) {
+      // low balls are also treated as 'high ball' when there's a
+                    // lot of bounce going on (hard to control)
+    highBall = true;
+  }
+  return highBall;
+}
+
+// ALERT: set sorting predicates before calling this function
+void Player::_KeepBestDirectionAnims(DataSet &dataSet,
+                                           const PlayerCommand &command,
+                                           bool strict, radian allowedAngle,
+                                           int allowedVelocitySteps,
+                                           int forcedQuadrantID) {
+
+  assert(dataSet.size() != 0);
+
+  int bestQuadrantID = forcedQuadrantID;
+  if (bestQuadrantID == -1) {
+
+    for (auto &anim : dataSet) {
+      OrderScratch(anim) = GetMovementSimilarity(anim, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
+    }
+    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareByOrderFloat, this, _1, _2));
+
+    // we want the best anim to be a baseanim, and compare other anims to it
+    if (strict) {
+      if (command.desiredFunctionType != e_FunctionType_Movement) {
+        std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareBaseanimSimilarity, this, _1, _2));
+      }
+    }
+
+  
+    bestQuadrantID = GetBakedClip(*dataSet.begin()).metadata.quadrant;
+  }
+
+  const Quadrant &quadrant = BakedAnimationSelector::GetQuadrant(bestQuadrantID);
+
+  DataSet::iterator iter = dataSet.begin();
+  iter++;
+  while (iter != dataSet.end()) {
+
+    if (strict) {
+      if (GetBakedClip(*iter).metadata.quadrant == bestQuadrantID) {
+        iter++;
+      } else {
+        iter = dataSet.erase(iter);
+      }
+    } else {
+      int quadrantID = GetBakedClip(*iter).metadata.quadrant;
+      const Quadrant &bestQuadrant = BakedAnimationSelector::GetQuadrant(bestQuadrantID);
+      const Quadrant &quadrant = BakedAnimationSelector::GetQuadrant(quadrantID);
+
+      bool predicate = true;
+
+      if (!GetBakedClip(*iter).metadata.last_ditch) {
+          // last ditch anims may always change velo
+        if (std::abs(GetVelocityID(quadrant.velocity, true) - GetVelocityID(bestQuadrant.velocity, true)) > allowedVelocitySteps) predicate = false;
+      }
+      if (std::fabs(quadrant.angle - bestQuadrant.angle) > allowedAngle) predicate = false;
+
+      if (predicate) {
+        iter++;
+      } else {
+        iter = dataSet.erase(iter);
+      }
+    }
+  }
+}
+
+// ALERT: set sorting predicates before calling this function
+void Player::_KeepBestBodyDirectionAnims(DataSet &dataSet,
+                                               const PlayerCommand &command,
+                                               bool strict,
+                                               radian allowedAngle) {
+
+  // delete nonqualified bodydir quadrants
+
+  assert(dataSet.size() != 0);
+  for (auto &anim : dataSet) {
+    OrderScratch(anim) = DirectionSimilarityRating(anim);
+  }
+  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareByOrderFloat, this, _1, _2));
+
+  // we want the best anim to be a baseanim, and compare other anims to it
+  if (strict) {
+    if (command.desiredFunctionType != e_FunctionType_Movement) {
+      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareBaseanimSimilarity, this, _1, _2));
+    }
+  }
+
+  const AnimationClip &bestClip = GetBakedClip(*dataSet.begin());
+
+  radian bestOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(bestClip.metadata.outgoing_body_angle);
+  radian bestOutgoingAngle = ForceIntoPreferredDirectionAngle(bestClip.metadata.outgoing_angle);
+  radian bestLookAngle = bestOutgoingBodyAngle + bestOutgoingAngle;
+
+  DataSet::iterator iter = dataSet.begin();
+  iter++;
+  while (iter != dataSet.end()) {
+
+    const AnimationClip &animClip = GetBakedClip(*iter);
+
+    radian animOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(animClip.metadata.outgoing_body_angle);
+    radian animOutgoingAngle = ForceIntoPreferredDirectionAngle(animClip.metadata.outgoing_angle);
+    radian animLookAngle = animOutgoingBodyAngle + animOutgoingAngle;
+
+    float adaptedAllowedAngle = 0.06f * pi; // between 0 and 20 deg
+    if (!strict) {
+      adaptedAllowedAngle = allowedAngle;
+    }
+    if (std::fabs(animLookAngle - bestLookAngle) <= adaptedAllowedAngle) {
+      iter++;
+    } else {
+      iter = dataSet.erase(iter);
+    }
+  }
+}
+
+
+void Player::CalculatePredictedSituation(Vector3 &predictedPos,
+                                               radian &predictedAngle) {
+
+  if (anim_state_.positions.size() > (unsigned int)anim_state_.frameNum) {
+    assert(anim_state_.positions.size() > (unsigned int)(static_cast<int>(GetCurrentBakedClip().frame_count) - 1));
+    predictedPos = spatial_state_.position + anim_state_.positions.at((static_cast<int>(GetCurrentBakedClip().frame_count) - 1)) + anim_state_.actionSmuggle + anim_state_.actionSmuggleSustain + anim_state_.movementSmuggle;
+  } else {
+    predictedPos = spatial_state_.position + GetCurrentBakedClip().metadata.translation.Get2D().GetRotated2D(spatial_state_.angle) + anim_state_.actionSmuggle + anim_state_.actionSmuggleSustain + anim_state_.movementSmuggle;
+  }
+
+  predictedAngle = spatial_state_.angle + GetCurrentBakedClip().metadata.outgoing_angle + anim_state_.rotationSmuggle.end;
+  predictedAngle = ModulateIntoRange(-pi, pi, predictedAngle);
+  assert(predictedPos.coords[2] == 0.0f);
+}
+
+Vector3 Player::CalculateOutgoingMovement(const std::vector<Vector3> &positions) const {
+  if (positions.size() < 2) return 0;
+  return (positions.at(positions.size() - 1) - positions.at(positions.size() - 2)) * 100.0f;
+}
+
+bool Player::UsesProceduralLocomotion(const Player* ball_retainer) const {
+  // Execution authority is the Player Decision Clock's current-epoch intent, not
+  // the animation command. Executability is the gate; the producer contract is a
+  // separate fatal oracle.
+  return IsEligibleForProceduralLocomotion(ball_retainer == this) &&
+         HasExecutableDecisionLocomotionIntent();
+}
+
+
+void Player::CalculateSpatialState(const Player* ball_retainer) {
+  if (UsesProceduralLocomotion(ball_retainer)) {
+    // H3e4d2: root-motion and body-pose producers are dead on this path. Foot
+    // remains animation-owned gait/selection state until its separate audit.
+    if (anim_state_.frameNum > 12) {
+      spatial_state_.foot = static_cast<e_Foot>(GetCurrentBakedClip().metadata.outgoing_foot);
+    }
+    ++HumanoidProceduralMovementTicks();
+    return;
+  }
+  // ANIM-1 A8 step 4: the non-procedural (baked action) motion is computed and
+  // committed by the Player. This only keeps the compatibility projection that
+  // the Player writes for later same-tick readers.
+  ComputeAndCommitActionMotion();
+}
+
+
+void Player::ProjectSimulationMovementState(
+    const PlayerKinematicState &state, const Player* ball_retainer) {
+  spatial_state_.position = state.position;
+  spatial_state_.movement = state.velocity;
+  if (UsesProceduralLocomotion(ball_retainer)) {
+    // H3e4d1: these serialized legacy aliases have no pure-locomotion producer.
+    // Project the authoritative velocity rather than retaining animation history.
+    spatial_state_.actualMovement = state.velocity;
+    spatial_state_.physicsMovement = state.velocity;
+    spatial_state_.animMovement = state.velocity;
+  }
+  spatial_state_.directionVec = state.GetFacing();
+  spatial_state_.floatVelocity = spatial_state_.movement.GetLength();
+  spatial_state_.enumVelocity = FloatToEnumVelocity(spatial_state_.floatVelocity);
+  spatial_state_.angle =
+      ModulateIntoRange(-pi, pi, FixAngle(spatial_state_.directionVec.GetAngle2D()));
+  ApplySimulationBodyState(state);
+  // The next tick derives its raw movement from this, so it must describe the
+  // position actually in force. Collision corrections land here too, exactly
+  // as they did when the legacy root motion owned the position.
+  previousPosition2D = spatial_state_.position;
+}
+
+void Player::ApplySimulationMovementState(
+    const PlayerKinematicState &state, const Player* ball_retainer) {
+  // Legacy action path: animation root motion produced this state, so adopting
+  // it as the Player's motion is correct here -- and is the only remaining
+  // source-explicit way for the Humanoid to write the Player.
+  ProjectSimulationMovementState(state, ball_retainer);
+  CommitLegacyActionMotion();
+}
+
+void Player::ApplySimulationBodyState(
+    const PlayerKinematicState &state) {
+  // Continuous simulation truth. Nothing in this function writes back into
+  // state.bodyFacing, so legacy quantization cannot corrupt torso authority.
+  spatial_state_.bodyDirectionVec = state.bodyFacing;
+  spatial_state_.bodyAngle =
+      spatial_state_.bodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
+  const Vector3 relative = state.bodyFacing.GetRotated2D(-spatial_state_.angle)
+                               .GetNormalized(Vector3(0, -1, 0));
+  spatial_state_.relBodyDirectionVecNonquantized = relative;
+  spatial_state_.relBodyAngleNonquantized =
+      relative.GetAngle2D(Vector3(0, -1, 0));
+
+  // Compatibility for animation selection only. This quantization is a leaf:
+  // bodyDirectionVec remains the continuous simulation projection above.
+  spatial_state_.relBodyDirectionVec =
+      ForceIntoAllowedBodyDirectionVec(relative);
+  spatial_state_.relBodyAngle =
+      spatial_state_.relBodyDirectionVec.GetAngle2D(Vector3(0, -1, 0));
+}
+
+
+void Player::ProjectMovementState(
+    const PlayerKinematicState &tickStartState, const Player* ball_retainer,
+    bool restart_needs_simulation) {
+
+  if (!UsesProceduralLocomotion(ball_retainer)) {
+    // Non-locomotion ticks keep the legacy animation root motion. Projecting
+    // it keeps the Humanoid movement fields a single projection of the
+    // simulation kinematic state.
+    ApplySimulationMovementState(GetKinematicState(), ball_retainer);
+    return;
+  }
+
+  // Pure locomotion: the simulation produces the movement and the legacy
+  // Humanoid movement fields follow it. The command and the starting state are
+  // the tick-start ones, so an action selection later in this tick cannot
+  // change what this tick's locomotion was. Writing spatial_state_.position here
+  // means any later action already starts from the authoritative position
+  // instead of an animation one.
+  // The adapter consumes only the tick-start simulation state. Locomotion
+  // produces lower-body motion first; the independent torso model then uses the
+  // resulting facing and the command's look target.
+  // The tick that consumes the command must see an exact copy of it.
+  // Pure locomotion: one command source, the Player Decision Clock. Both the
+  // movement model and the torso model consume the same decision-owned intent,
+  // so the animation command no longer decides what executes.
+  CheckDecisionLocomotionIntentOracle();
+  const PlayerCommand &command = GetDecisionLocomotionIntent();
+  // P2a: Player computes the locomotion through PlayerMotion and commits the
+  // resulting state. S0.1: this path only *projects* it into the legacy spatial
+  // state -- it does not adopt it back, so the Humanoid can no longer overwrite
+  // a locomotion tick the Player already owns. The oracle proves the two sides
+  // agree at this point.
+  const PlayerKinematicState next = CommitLocomotion(
+      command, tickStartState, restart_needs_simulation, 0.01f);
+  ProjectSimulationMovementState(next, ball_retainer);
+  CheckSimulationKinematicOracle();
+}
+
+
+void Player::SetFootSimilarityPredicate(e_Foot desiredFoot) const {
+  predicate_DesiredFoot = desiredFoot;
+}
+
+bool Player::CompareFootSimilarity(e_Foot foot, int animIndex1, int animIndex2) const {
+  int one = 1;
+  int two = 1;
+  if (static_cast<e_Foot>(GetBakedClip(animIndex1).metadata.current_foot) == predicate_DesiredFoot) one = 0;
+  if (static_cast<e_Foot>(GetBakedClip(animIndex2).metadata.current_foot) == predicate_DesiredFoot) two = 0;
+  if (FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) == e_Velocity_Idle) one = 0;
+  if (FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) == e_Velocity_Idle) two = 0;
+  return one < two;
+}
+
+void Player::SetIncomingVelocitySimilarityPredicate(e_Velocity velocity) const {
+  predicate_IncomingVelocity = velocity;
+}
+
+bool Player::CompareIncomingVelocitySimilarity(int animIndex1, int animIndex2) const {
+  /* old version
+  float rating1 = std::fabs(clamp(RangeVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) - EnumToFloatVelocity(predicate_IncomingVelocity), -sprintVelocity, sprintVelocity));
+  float rating2 = std::fabs(clamp(RangeVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) - EnumToFloatVelocity(predicate_IncomingVelocity), -sprintVelocity, sprintVelocity));
+  */
+
+  int currentVelocityID = GetVelocityID(predicate_IncomingVelocity);
+
+  // rate difference anim incoming / actual incoming
+  int anim1_incomingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity));
+  int anim2_incomingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity));
+  float rating1 = std::fabs(clamp(anim1_incomingVelocityID - currentVelocityID, -3, 3));
+  float rating2 = std::fabs(clamp(anim2_incomingVelocityID - currentVelocityID, -3, 3));
+
+  // also add a penalty for anim incoming velocities which aren't between actual incoming and anim outgoing
+  int anim1_outgoingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.outgoing_velocity));
+  int anim2_outgoingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.outgoing_velocity));
+  if (anim1_incomingVelocityID > std::max(currentVelocityID, anim1_outgoingVelocityID)) rating1 += 0.5f;
+  if (anim1_incomingVelocityID < std::min(currentVelocityID, anim1_outgoingVelocityID)) rating1 += 0.5f;
+  if (anim2_incomingVelocityID > std::max(currentVelocityID, anim2_outgoingVelocityID)) rating2 += 0.5f;
+  if (anim2_incomingVelocityID < std::min(currentVelocityID, anim2_outgoingVelocityID)) rating2 += 0.5f;
+
+  return rating1 < rating2;
+}
+
+void Player::SetMovementSimilarityPredicate(const Vector3 &relDesiredDirection, e_Velocity desiredVelocity) const {
+  predicate_RelDesiredDirection = relDesiredDirection;
+  predicate_DesiredVelocity = desiredVelocity;
+  //if (relDesiredDirection.GetDotProduct(Vector3(0, -1, 0)) < 0) predicate_DesiredVelocity = e_Velocity_Idle;
+  // this isn't working all too well: if targetmovement is set to 0 (aka corneringbias towards 1), both dribble @ 0 deg and dribble @ 90 deg will be the same distance (from 0), so still no preference for braking straight
+  predicate_CorneringBias = CalculateBiasForFastCornering(Vector3(0, -1.0f * spatial_state_.floatVelocity, 0), relDesiredDirection * EnumToFloatVelocity(desiredVelocity), 1.0f, 0.9f); // anim space values!
+}
+
+float Player::GetMovementSimilarity(int animIndex, const Vector3 &relDesiredDirection, e_Velocity desiredVelocity, float corneringBias) const {
+
+  Vector3 desiredMovement = relDesiredDirection * EnumToFloatVelocity(desiredVelocity);
+
+  Vector3 outgoingDirection = ForceIntoPreferredDirectionVec(GetBakedClip(animIndex).metadata.outgoing_direction);
+  float outgoingVelocity = RangeVelocity(GetBakedClip(animIndex).metadata.outgoing_velocity);
+  Vector3 outgoingMovement = outgoingDirection * outgoingVelocity;
+
+  // anims that end at lower velocities have an advantage: they don't get dragged into the currentmovement that much
+  // thus: have a bias that is higher at higher outgoing velocities, which means anim outgoingmovement gets more % of current movement and less % of their own
+  // disabled for now - the new physics system disregards most of the anims movement anyway :)
+  // *enabled again: altered the physics system so that it will regard anim movement more, so this became useful again for proper hard cornering
+
+  // alternative to this system (drags back movement)
+  //outgoingMovement += -desiredMovement.GetNormalized(0) * outgoingMovement.GetLength() * 0.5f;
+  //desiredMovement = desiredMovement.GetNormalized(0) * clamp(desiredMovement.GetLength() - 0.8f, idleVelocity, sprintVelocity);
+
+  desiredMovement = desiredMovement * (1.0f - corneringBias);
+
+  float value = (desiredMovement - outgoingMovement).GetLength();
+
+  value -= std::fabs(relDesiredDirection.GetDotProduct(outgoingDirection)) * 4.0f; // prefer straight lines (towards/away from desired outgoing)
+
+/* disabled quantization:
+  // maximum quantization (20 degree angle @ dribble velocity, smallest distance to be measured)
+  // faulty calculation (cornering distance instead of straight line) for optimization, makes little difference anyway for 20 degrees
+  float maxQuant = (dribbleVelocity * 2.0f * pi) / (360.0f / 20.0f);// * (1.0 - velocityBias * 0.5) // == ~1.22 at the moment of writing
+  //float maxQuant = std::sqrt(2.0f * std::pow(dribbleVelocity, 2.0f) * (1.0f - std::cos(pi / 180.0f * 20.0f))); // the actual correct calculation (straight line)
+
+  // add safety
+  maxQuant *= 0.8f;
+
+  // quantize
+  value /= maxQuant;
+  value = std::round(value);
+  value *= maxQuant;
+*/
+
+  // never turn the wrong way around ** BUGGY, causes weird acceleration when we want idle velo **
+  //if (std::fabs(outgoingDirection.GetAngle2D() - relDesiredDirection.GetAngle2D()) > pi) value += 100000;
+
+  return value;
+}
+
+bool Player::CompareMovementSimilarity(int animIndex1, int animIndex2) const {
+  float rating1 = GetMovementSimilarity(animIndex1, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
+  float rating2 = GetMovementSimilarity(animIndex2, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
+  return rating1 < rating2;
+}
+
+bool Player::CompareByOrderFloat(int animIndex1, int animIndex2) const {
+  float rating1 = OrderScratch(animIndex1);
+  float rating2 = OrderScratch(animIndex2);
+  return rating1 < rating2;
+}
+
+void Player::SetIncomingBodyDirectionSimilarityPredicate(const Vector3 &relIncomingBodyDirection) const {
+  predicate_RelIncomingBodyDirection = relIncomingBodyDirection;
+}
+
+bool Player::CompareIncomingBodyDirectionSimilarity(int animIndex1, int animIndex2) const {
+  float rating1 = std::fabs(ForceIntoAllowedBodyDirectionVec(GetBakedClip(animIndex1).metadata.incoming_body_direction).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
+  float rating2 = std::fabs(ForceIntoAllowedBodyDirectionVec(GetBakedClip(animIndex2).metadata.incoming_body_direction).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
+  if (FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) == e_Velocity_Idle) rating1 = 0;//-1;
+  if (FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) == e_Velocity_Idle) rating2 = 0;//-1;
+
+  return rating1 < rating2;
+}
+
+void Player::SetBodyDirectionSimilarityPredicate(const Vector3 &lookAt) const {
+  predicate_LookAt = lookAt;
+}
+
+real Player::DirectionSimilarityRating(int animIndex) const {
+  const AnimationClip &a1Clip = GetBakedClip(animIndex);
+  Vector3 relDesiredBodyDirection1 = ((predicate_LookAt - spatial_state_.position).GetRotated2D(-spatial_state_.angle) - a1Clip.metadata.translation).GetNormalized(Vector3(0, -1, 0));
+  radian maxAngleSmuggle = 0.1f * pi;
+  radian outgoingAngle1 = a1Clip.metadata.outgoing_direction.GetRotated2D( clamp(predicate_RelDesiredDirection.GetAngle2D(a1Clip.metadata.outgoing_direction), -maxAngleSmuggle, maxAngleSmuggle) ).GetAngle2D(Vector3(0, -1, 0));
+  Vector3 predictedOutgoingBodyDirection1 = Vector3(0, -1, 0).GetRotated2D(a1Clip.metadata.outgoing_body_angle).GetRotated2D(outgoingAngle1);
+  radian rating1 = std::fabs(predictedOutgoingBodyDirection1.GetAngle2D(relDesiredBodyDirection1));
+  // penalty for body angles (as opposed to straight forward), to get a slight preference for forward angles
+  rating1 += std::fabs(a1Clip.metadata.outgoing_body_angle) * 0.05f;
+  return rating1;
+}
+
+bool Player::CompareBodyDirectionSimilarity(int animIndex1, int animIndex2) const {
+  return DirectionSimilarityRating(animIndex1) < DirectionSimilarityRating(animIndex2);
+}
+
+void Player::SetTripDirectionSimilarityPredicate(const Vector3 &relDesiredTripDirection) const {
+  predicate_RelDesiredTripDirection = relDesiredTripDirection;
+}
+
+bool Player::CompareTripDirectionSimilarity(int animIndex1, int animIndex2) const {
+  float rating1 = -GetBakedClip(animIndex1).metadata.bump_direction.GetDotProduct(predicate_RelDesiredTripDirection);
+  float rating2 = -GetBakedClip(animIndex2).metadata.bump_direction.GetDotProduct(predicate_RelDesiredTripDirection);
+  return rating1 < rating2;
+}
+
+bool Player::CompareBaseanimSimilarity(int animIndex1, int animIndex2) const {
+  bool isBase1 = GetBakedClip(animIndex1).metadata.base_animation;
+  bool isBase2 = GetBakedClip(animIndex2).metadata.base_animation;
+
+  if (isBase1 == true && isBase2 == false) return true;
+  return false;
+}
+
+bool Player::CompareCatchOrDeflect(int animIndex1, int animIndex2) const {
+  bool catch1 = (GetBakedClip(animIndex1).metadata.outgoing_retain_state != "");
+  bool catch2 = (GetBakedClip(animIndex2).metadata.outgoing_retain_state != "");
+
+  if (catch1 == true && catch2 == false) return true;
+  return false;
+}
+
+void Player::SetIdlePredicate(float desiredValue) const {
+  predicate_idle = desiredValue;
+}
+
+bool Player::CompareIdleVariable(int animIndex1, int animIndex2) const {
+  return std::fabs(GetBakedClip(animIndex1).metadata.idle_level - predicate_idle) <
+         std::fabs(GetBakedClip(animIndex2).metadata.idle_level - predicate_idle);
+}
+
+bool Player::ComparePriorityVariable(int animIndex1, int animIndex2) const {
+  return std::fabs(GetBakedClip(animIndex1).metadata.priority) <
+         std::fabs(GetBakedClip(animIndex2).metadata.priority);
+}
+
+Vector3 Player::CalculatePhysicsVector(football::sim::Tick now, int animID, bool useDesiredMovement, const Vector3 &desiredMovement, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, radian &rotationOffset_ret) const {
+  // ANIM-1 A6.4 A8.0: the candidate reference-motion kernel now lives in
+  // PlayerMotion as a pure function. This adapter only assembles the explicit
+  // kinematic/capability inputs and writes the plan back; the algorithm itself
+  // is unchanged (see PlayerMotion::BuildActionMotionPlan).
+  const AnimationClip &clip = GetBakedClip(animID);
+
+  ActionMotionInput input;
+  input.spatial_movement = spatial_state_.movement;
+  input.angle = spatial_state_.angle;
+  input.direction_vec = spatial_state_.directionVec;
+  input.float_velocity = spatial_state_.floatVelocity;
+  input.use_desired_movement = useDesiredMovement;
+  input.desired_movement = desiredMovement;
+  input.use_desired_body_direction = useDesiredBodyDirection;
+  input.desired_body_direction_rel = desiredBodyDirectionRel;
+  input.parameters.max_velocity = GetMaxVelocity();
+  input.parameters.stat_agility = GetStat(football::player::PlayerStat::physical_agility);
+  input.parameters.stat_acceleration = GetStat(football::player::PlayerStat::physical_acceleration);
+  input.parameters.stat_velocity = GetStat(football::player::PlayerStat::physical_velocity);
+  input.parameters.stat_dribble = GetStat(football::player::PlayerStat::technical_dribble);
+  input.parameters.stat_balance = GetStat(football::player::PlayerStat::physical_balance);
+  input.parameters.stat_technical_ballcontrol = GetStat(football::player::PlayerStat::technical_ballcontrol);
+  input.parameters.last_touch_bias_1000 = GetLastTouchBias(1000, now);
+  input.parameters.decaying_position_offset_length = decayingPositionOffset.GetLength();
+
+  const ActionMotionPlan plan = PlayerMotion::BuildActionMotionPlan(clip, input);
+
+  positions_ret = plan.positions;
+  rotationOffset_ret = plan.rotation_offset;
+  return plan.outgoing_velocity;
+}
+
+
+// ---------------------------------------------------------------------------
+// ANIM-1 A9.7: the per-tick action orchestration, relocated verbatim from
+// Humanoid::Process. The touch publication half lives in
+// player_touch_execution.cpp; this method owns the decision, action-clock and
+// request sequence around it.
+// ---------------------------------------------------------------------------
+void Player::RunActionTick(football::sim::Tick now,
+                           const football::sim::PlayerTickContext& tick,
+                           std::span<MentalImage> history,
+                           football::sim::AcceptedTouchSink& touch_sink,
+                           football::sim::PlayerRuntimeSink& runtime_sink) {
+  if (startPos.coords[2] != 0.f) {
+    throw std::logic_error("Player::RunActionTick: player position must have zero height");
+  }
+  this->NoteProcessedPlayerTick();
+  // ANIM-1 A7: apply the passive trip the Player accepted at the previous
+  // contact phase, exactly where the legacy direct Humanoid write took effect.
+  if (const auto pending_trip = this->ConsumePendingPassiveTrip()) {
+    interruptAnim = e_InterruptAnim_Trip;
+    tripDirection = pending_trip->direction;
+    tripType = pending_trip->trip_type;
+  }
+  auto currentMentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
+  // this might be the solution to long-term imbalance
+  decayingPositionOffset *= 0.95f;
+  if (decayingPositionOffset.GetLength() < 0.005) decayingPositionOffset.Set(0);
+  decayingDifficultyFactor = clamp(decayingDifficultyFactor - 0.002f, 0.0f, 1.0f);
+
+
+  Player* ball_retainer = tick.ball_retainer;
+
+  bool instaDoorheb = false;
+  if (tick.touches.last_team == this->GetTeamID()) instaDoorheb = true;
+  mentalImageTime = std::chrono::milliseconds{instaDoorheb ? 0 : this->GetReactionTime_ms()};
+
+  // The authoritative movement state at tick start. Captured before
+  // CalculateSpatialState so the procedural model integrates from the world
+  // state in force, not from the animation prediction for this tick.
+  const PlayerKinematicState tickStartState = GetKinematicState();
+  // gate-mismatch-context: exactly one attribution per real Player tick, before
+  // any of this tick's CalculateSpatialState/ProjectMovementState evaluations.
+  // Gameplay continuity advances before the audit observes this tick, so the
+  // epoch is decided by eligibility rather than by telemetry bookkeeping.
+  this->AdvanceLocomotionContinuity(
+      this->IsEligibleForProceduralLocomotion(ball_retainer == this));
+  // re-entry audit must see every real player tick, eligible or not, because
+  // leaving locomotion is what arms the next re-entry classification.
+  this->NoteLocomotionReentryTick(
+      this->IsEligibleForProceduralLocomotion(ball_retainer == this),
+      this->IsLocomotionIntentRefreshDue(
+          now),
+      now);
+  // The legacy gate-versus-compatibility-source measurement lived here. Execution
+  // authority is now the decision intent, so comparing the animation command
+  // against the decision clock measures two compatibility slots and says nothing
+  // about what executes.
+
+  // At most one Movement publication per real-player tick, including a prior
+  // continuity repair publication before execution.
+  bool movement_published_this_tick = false;
+
+  // 4f-a3a: the complete decision queue has its own simulation clock. Its
+  // cadence depends on world context, never on animation requeue opportunities.
+  const auto decision_now = now;
+  const int decision_now_ms = static_cast<int>(football::sim::ToMilliseconds(decision_now));
+  const float decision_distance_to_ball =
+      (tick.ball.state().position.Get2D() - tickStartState.position).GetLength();
+  const bool designated_possession_player =
+      tick.designated_possession_player == this;
+  const bool designated_team_possession_player =
+      tick.own_team.DesignatedPlayer() == this;
+  const auto player_decision_cadence = PlayerDecisionCadenceForContext(
+      designated_possession_player, designated_team_possession_player,
+      decision_distance_to_ball);
+  const bool continuity_repair_due =
+      this->IsEligibleForProceduralLocomotion(ball_retainer == this) &&
+      this->DecisionLocomotionEpochIsStale();
+  const bool player_decision_due =
+      this->IsPlayerDecisionRefreshDue(
+          decision_now, player_decision_cadence);
+  if (continuity_repair_due || player_decision_due) {
+    PlayerCommandQueue player_decision_commands;
+    this->RequestCommand(player_decision_commands,
+        {tick.ball, tick.touches, tick.restart,
+         ball_retainer, tick.pitch, tick.own_team});
+    this->PublishPlayerDecisionQueue(
+        player_decision_commands, decision_now);
+    bool has_movement = false;
+    for (const PlayerCommand &command : player_decision_commands)
+      has_movement |= command.desiredFunctionType == e_FunctionType_Movement &&
+                      command.useDesiredMovement;
+    this->NoteControllerQuery(has_movement, decision_now, ball_retainer == this);
+    RecordPlayerDecisionQuery(
+        this, player_decision_commands, decision_now_ms,
+        continuity_repair_due ? PlayerDecisionQueryCause::ContinuityRepair
+                              : PlayerDecisionQueryCause::PlayerDecisionClockPeriodic,
+        this->GetSimulationActionState().type);
+    ++PlayerDecisionClockQueries();
+    if (continuity_repair_due) ++PlayerDecisionClockForcedQueries();
+    else ++PlayerDecisionClockPeriodicQueries();
+  }
+
+  // Continuity repair forces the independent Player Decision Clock, then
+  // publishes its fresh Movement axis before locomotion execution. It does not
+  // ask the controller through the legacy locomotion/animation queue.
+  if (continuity_repair_due) {
+    ++ContinuityRepairAttempts();
+    this->NoteDecisionPublicationCause(2);
+    if (this->HasPlayerDecisionQueue() &&
+        this->PublishMovementIntentFromQueue(
+            this->GetPlayerDecisionQueue(), decision_now, ball_retainer == this)) {
+      movement_published_this_tick = true;
+      this->CommitLocomotionIntentRefresh(tick.ball, decision_now, ball_retainer == this);
+      ++ContinuityRepairPublications();
+    } else {
+      ++ContinuityRepairCandidatesMissing();
+    }
+    this->NoteDecisionPublicationCause(0);
+  }
+
+  CalculateSpatialState(ball_retainer);
+  spatial_state_.positionOffsetMovement = Vector3(0);
+  // H3e1c-3c: pure locomotion ticks are produced by the simulation; every
+  // other tick keeps the legacy root motion. Either way the legacy movement
+  // fields end up as a projection of the authoritative kinematic state.
+  ProjectMovementState(tickStartState, ball_retainer, tick.restart_needs_simulation);
+
+  this->AdvanceActionTick();
+
+  const PlayerActionState &action =
+      this->GetSimulationActionState();
+  previousAnim_frameNum++;
+
+
+  /*
+
+    bump if (anim_state_.positionOffset.GetLength() > 0.1f && interruptAnim ==
+    e_InterruptAnim_None) { interruptAnim = e_InterruptAnim_Bump;
+    }
+  */
+
+  if (action.IsAtLastFrame() && interruptAnim == e_InterruptAnim_None) {
+    interruptAnim = e_InterruptAnim_Switch;
+  }
+
+  bool mayReQueue = allowReQueue;
+
+  // already some anim interrupt waiting?
+
+  if (mayReQueue) {
+    if (interruptAnim != e_InterruptAnim_None) {
+      mayReQueue = false;
+    }
+  }
+
+  // may requeue on this frame?
+
+  /* can't do this: requeued movement anims should be requeueable into touch
+    anims if (mayReQueue) { // never requeue a requeued anim if
+    (anim_state_.originatingInterrupt != e_Interrupt_None &&
+          anim_state_.originatingInterrupt != e_Interrupt_Switch) {
+     mayRequeue = false;
+    }*/
+
+  if (mayReQueue) {
+    bool frameNumPredicate = false;
+    float actionDistance = ((spatial_state_.position + spatial_state_.movement * 0.1f) - tick.ball.Predict(football::sim::TickSpan{10}).position.Get2D()).GetLength();
+
+    int team_id = tick.processing_slot;
+    using namespace football::sim::player_timing;
+    const auto phase = static_cast<std::uint64_t>(team_id);
+    if (tick.designated_possession_player == this &&
+        actionDistance < 3.0f) {
+      frameNumPredicate = StaggeredRefreshDue(now, kOwnerNear, football::sim::TickSpan{phase});
+
+    } else if (tick.designated_possession_player == this) {
+      frameNumPredicate = StaggeredRefreshDue(now, kOwner, football::sim::TickSpan{phase});
+
+    } else if (tick.own_team.DesignatedPlayer() == this) {
+      frameNumPredicate = StaggeredRefreshDue(now, kTeamOwner, football::sim::TickSpan{phase * 2});
+
+    } else if (actionDistance < 5.0f) {
+      frameNumPredicate = StaggeredRefreshDue(now, kNearBall, football::sim::TickSpan{phase * 2});
+
+    } else if (actionDistance < 10.0f) {
+      frameNumPredicate = StaggeredRefreshDue(now, kApproachingBall, football::sim::TickSpan{phase * 4});
+    }
+
+    if (!frameNumPredicate) mayReQueue = false;
+  }
+
+  // right anim to requeue?
+
+  if (mayReQueue) {
+
+    float ballDistance = (currentMentalImage->GetBallPrediction(500, now, tick.ball).Get2D() - spatial_state_.position).GetLength();
+    if (((action.type == e_FunctionType_Movement &&
+            !this->HasPossession() && ballDistance < 16.0f) ||
+           (action.type == e_FunctionType_Movement &&
+            this->HasPossession()) ||  // passes / shot
+           (action.type == e_FunctionType_Trap && TouchPending()) ||
+           (action.type == e_FunctionType_BallControl &&
+            TouchPending())) &&
+        /* now done later on, else we can't requeue to pass/shot during
+        trap/ballcontrol (action.type == e_FunctionType_Trap &&
+        TouchPending() && allowTrapReQueue && action.Frame() <=
+        maxTrapReQueueFrame) || (action.type ==
+        e_FunctionType_BallControl && TouchPending() && allowBallControlReQueue
+        && action.Frame() <= maxBallControlReQueueFrame) ) &&
+        */
+        GetCurrentBakedClip().metadata.incoming_special_state.empty() &&
+        GetCurrentBakedClip().metadata.outgoing_special_state.empty()) {
+      mayReQueue = true;
+    } else {
+      mayReQueue = false;
+    }
+  }
+
+  // okay, see if we need to requeue
+
+  if (mayReQueue) {
+    interruptAnim = e_InterruptAnim_ReQueue;
+  }
+
+  const bool legacy_opportunity = interruptAnim != e_InterruptAnim_None;
+  const bool simulation_due =
+      this->NoteLocomotionIntentCadence(legacy_opportunity, decision_now, ball_retainer == this);
+  // Tag the cause of any publication on this path, so a legacy-driven query is
+  // not credited to the simulation cadence in the audit.
+  const bool legacy_only = legacy_opportunity && !simulation_due;
+  this->NoteDecisionPublicationCause(legacy_only ? 1 : 0);
+  bool decision_queue_selection_movement = false;
+  if (simulation_due && !legacy_opportunity)
+    ++PlayerLocomotionCadenceSelectionSuppressed();
+  if (legacy_opportunity) {
+    PlayerCommandQueue commandQueue;      // selection queue
+    std::vector<PlayerPathSelectionCommandProvenance> commandProvenance;
+    bool uses_player_decision_queue = false;
+
+    const bool trip_local_queue =
+        interruptAnim == e_InterruptAnim_Trip && tripType != 0;
+    if (trip_local_queue) {
+      ++PlayerPathLocalTripAttempts();
+      // ANIM-1 A7 step 2: the Player owns the local trip command construction.
+      this->BuildTripSelectionCommands(
+          commandQueue, tripDirection, tripType, spatial_state_.floatVelocity,
+          spatial_state_.directionVec, spatial_state_.position);
+      // All but the last command are trips; the last is the movement fallback.
+      while (commandProvenance.size() + 1 < commandQueue.size()) {
+        commandProvenance.push_back(PlayerPathSelectionCommandProvenance::LocalTrip);
+      }
+      tripType = 0;
+      commandProvenance.push_back(
+          PlayerPathSelectionCommandProvenance::LocalTripMovementFallback);
+    } else {
+      if (!this->HasPlayerDecisionQueue()) {
+        ++PlayerDecisionClockQueueConsumersMissing();
+        throw std::logic_error(
+            "Player Decision queue missing before animation selection");
+      }
+      commandQueue = this->GetPlayerDecisionQueue();
+      uses_player_decision_queue = true;
+      for (size_t i = 0; i < commandQueue.size(); ++i)
+        commandProvenance.push_back(PlayerPathSelectionCommandProvenance::Controller);
+    }
+
+    // iterate through the command queue and pick the first that is applicable
+
+    bool found = false;
+    bool preferPassAndShot = false; // pass/shot and such; in that case we want trap/ballcontrol anims to be less prefered
+    for (unsigned int i = 0; i < commandQueue.size(); i++) {
+
+      const PlayerCommand &command = commandQueue[i];
+      const PlayerPathSelectionCommandProvenance provenance =
+          commandProvenance[i];
+
+      if (command.desiredFunctionType == e_FunctionType_ShortPass ||
+          command.desiredFunctionType == e_FunctionType_LongPass ||
+          command.desiredFunctionType == e_FunctionType_HighPass ||
+          command.desiredFunctionType == e_FunctionType_Shot) {
+        preferPassAndShot = true;
+      }
+      found = this->TrySelectAction(now, tick, command, history, interruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
+      if (found) {
+        if (provenance == PlayerPathSelectionCommandProvenance::LocalTrip) {
+          ++PlayerPathLocalTripSelected();
+        } else if (provenance ==
+                   PlayerPathSelectionCommandProvenance::LocalTripMovementFallback) {
+          ++PlayerPathLocalTripMovementFallbackSelected();
+          // Selection only: the local fallback used to write the compatibility
+          // movement slot, but it never decided movement, so it no longer does.
+        }
+        break;
+      }
+    }
+
+    if (interruptAnim == e_InterruptAnim_Switch && !found) {
+      const auto logger = bq::log::get_log_by_name("football");
+      if (logger.is_valid()) {
+        logger.warning("Player::RunActionTick: no applicable animation; current type {}",
+                       GetCurrentBakedClip().metadata.action_type);
+        for (const auto& command : commandQueue) {
+          logger.warning("desired type {}, velocity {}, direction ({}, {}, {})",
+                         command.desiredFunctionType, command.desiredVelocityFloat,
+                         command.desiredDirection.coords[0],
+                         command.desiredDirection.coords[1],
+                         command.desiredDirection.coords[2]);
+        }
+        logger.warning("current velocity {}, body angle {}, relative angle {}, state {}",
+                       spatial_state_.floatVelocity, static_cast<float>(spatial_state_.bodyAngle),
+                       static_cast<float>(spatial_state_.relBodyAngle),
+                       GetCurrentBakedClip().metadata.outgoing_special_state);
+      }
+      throw std::runtime_error("Player::RunActionTick: no applicable animation");
+    }
+
+
+    if (uses_player_decision_queue) {
+      decision_queue_selection_movement =
+          found && action.type == e_FunctionType_Movement;
+    }
+    if (found) {
+      startPos = spatial_state_.position;
+      startAngle = spatial_state_.angle;
+
+      CalculatePredictedSituation(nextStartPos, nextStartAngle);
+
+      // decaying difficulty
+      float animDiff = GetCurrentBakedClip().metadata.difficulty;
+      if (animDiff > decayingDifficultyFactor) decayingDifficultyFactor = animDiff;
+
+      // if we just requeued, for example, from movement to ballcontrol, there's no reason we can not immediately requeue to another ballcontrol again (next time). only apply the initial requeue delay on subsequent anims of the same type
+      // (so we can have a fast ballcontrol -> ballcontrol requeue, but after that, use the initial delay)
+      if (interruptAnim == e_InterruptAnim_ReQueue &&
+          previousAnim_functionType == action.type) {
+        reQueueDelayFrames = initialReQueueDelayFrames; // don't try requeueing (some types of anims, see selectanim()) too often
+      }
+    }
+    // 4f-a1: animation-owned query pressure. Every count below is a tick the
+    // animation requeue reached the decision phase on with no cadence due; the
+    // target is that this number, and the queries it causes, fall to zero.
+    if (legacy_only) {
+      ++LegacyOnlyDecisionOpportunities();
+      if (!found) {
+        ++LegacyOnlyDecisionNoSelection();
+      } else if (action.type == e_FunctionType_Movement) {
+        ++LegacyOnlyDecisionMovementSelections();
+      } else {
+        ++LegacyOnlyDecisionNonMovementSelections();
+      }
+    }
+  }
+
+  // Movement publication belongs to the locomotion cadence, not animation
+  // opportunities. A simultaneous Trip-local selection does not change the
+  // cadence publisher's source: it always samples the serialized decision queue.
+  if (simulation_due && !movement_published_this_tick) {
+    if (!this->HasPlayerDecisionQueue()) {
+      ++PlayerDecisionClockQueueConsumersMissing();
+      throw std::logic_error(
+          "Player Decision queue missing before locomotion publication");
+    }
+    this->NoteDecisionMovementSelection(
+        decision_queue_selection_movement);
+    if (this->PublishMovementIntentFromQueue(
+            this->GetPlayerDecisionQueue(), decision_now, ball_retainer == this)) {
+      movement_published_this_tick = true;
+      ++PlayerPathDirectPublications();
+      this->CommitLocomotionIntentRefresh(tick.ball, decision_now, ball_retainer == this);
+      ++PlayerPathRefreshCommits();
+    } else {
+      ++PlayerPathCandidatesMissing();
+    }
+  }
+  reQueueDelayFrames = std::max(reQueueDelayFrames - 1, 0);
+
+  interruptAnim = e_InterruptAnim_None;
+  ball_retainer = ProcessActionTouches(now, tick, history, ball_retainer,
+                                       touch_sink, runtime_sink);
+  // ANIM-1 A9 step 2: the action/movement/rotation smuggle evolution is a pure
+  // PlayerMotion calculation; this applies its deltas in the legacy order.
+  ActionSmuggleTickInput smuggle_input;
+  smuggle_input.frame_num = anim_state_.frameNum;
+  smuggle_input.touch_frame = anim_state_.touchFrame;
+  smuggle_input.frame_count = static_cast<int>(GetCurrentBakedClip().frame_count);
+  smuggle_input.action_smuggle = anim_state_.actionSmuggle;
+  smuggle_input.movement_smuggle = anim_state_.movementSmuggle;
+  smuggle_input.rotation_smuggle_begin = anim_state_.rotationSmuggle.begin;
+  smuggle_input.rotation_smuggle_end = anim_state_.rotationSmuggle.end;
+  smuggle_input.allow_pre_touch_rotation_smuggle = allowPreTouchRotationSmuggle;
+  const ActionSmuggleTickResult smuggle =
+      PlayerMotion::ActionSmuggleTick(smuggle_input);
+
+  spatial_state_.actionSmuggleMovement = smuggle.action_smuggle_movement;
+  anim_state_.actionSmuggleOffset += smuggle.action_smuggle_offset_delta;
+  spatial_state_.movementSmuggleMovement = smuggle.movement_smuggle_movement;
+  anim_state_.movementSmuggleOffset += smuggle.movement_smuggle_offset_delta;
+  anim_state_.rotationSmuggleOffset = smuggle.rotation_smuggle_offset;
+
+  // ANIM-1 A9 step 3: the goalkeeper boundary clamps are Player-owned.
+  this->ApplyGoalkeeperBoundaryClamps(tick, ball_retainer);
+
+  // next frame
+
+  if (anim_state_.positions.size() > (unsigned int)anim_state_.frameNum) {
+    //printf("size: %i\n", anim_state_.positions.size());
+  } else {
+  }
+
+  // ANIM-1 A5: the Player owns the final pose. The Humanoid only hands over the
+  // selected clip/frame and the base yaw once per tick; the Player's playback
+  // state samples/blends it.
+  // ANIM-1 A6.3c.3: the clip id and frame come from the Player authority.
+  this->UpdatePlaybackFromAuthority(
+      startAngle + anim_state_.rotationSmuggleOffset,
+      BlendTicksForSwitch(anim_state_.functionType == e_FunctionType_Movement &&
+                          this->IsEligibleForProceduralLocomotion(ball_retainer == this)));
+}
+
+// ---------------------------------------------------------------------------
+// ANIM-1 A9.5c/A9.8: the compat install projection and the pose assembly,
+// relocated verbatim from Humanoid::ProjectSelectedActionCompat /
+// Humanoid::RecordSelectedContactAudit and HumanoidBase::SampleBakedPose.
+// ---------------------------------------------------------------------------
+PlayerBakedPoseSample Player::SampleBakedPose(
+    const PlayerKinematicState& state,
+    const football::player::PlayerBodyProfile& profile) const {
+  const auto& clip = GetCurrentBakedClip();
+  if (clip.poses.empty() || anim_state_.frameNum < 0)
+    throw std::logic_error("missing runtime baked pose frame");
+  const auto frame = std::min(std::size_t(anim_state_.frameNum), clip.poses.size() - 1);
+  PlayerBakedPoseSample sample;
+  sample.pose = clip.poses[frame];
+  sample.state = state;
+  sample.animation_id = anim_state_.animationId;
+  sample.requested_frame = anim_state_.frameNum;
+  sample.sampled_frame = int(frame);
+  sample.frame_clamped = sample.requested_frame != sample.sampled_frame;
+  sample.base_angle = startAngle + anim_state_.rotationSmuggleOffset;
+  sample.body_profile = profile;
+  sample.action = anim_state_.functionType;
+  return sample;
+}
+
+void Player::ProjectSelectedActionCompat(
+    int selectedAnimID, const football::sim::TouchChoice &touch_choice,
+    const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
+    football::sim::Tick now, std::span<MentalImage> history,
+    e_InterruptAnim localInterruptAnim, bool material_candidate) {
+  const PlayerActionState &action = this->GetSimulationActionState();
+  previousAnim_frameNum = anim_state_.frameNum;
+  previousAnim_functionType = anim_state_.functionType;
+
+  anim_state_.animationId = selectedAnimID;
+  anim_state_.functionType = command.desiredFunctionType;
+  anim_state_.frameNum = 0;
+  anim_state_.touchFrame = touch_choice.touch_frame;
+  anim_state_.originatingInterrupt = localInterruptAnim;
+  anim_state_.touchPos = touch_choice.touch_position;
+  anim_state_.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, spatial_state_.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
+  anim_state_.rotationSmuggle.end = touch_choice.rotation_smuggle;
+  anim_state_.rotationSmuggleOffset = 0;
+  anim_state_.actionSmuggle = touch_choice.action_smuggle;
+  anim_state_.actionSmuggleOffset = Vector3(0);
+  anim_state_.actionSmuggleSustain = Vector3(0); // calculated below
+  anim_state_.actionSmuggleSustainOffset = Vector3(0);
+  anim_state_.movementSmuggle = Vector3(0); // needs to be reset here, else the previous calc is used in upcoming 'calculatemovementsmuggle'
+  anim_state_.movementSmuggleOffset = Vector3(0);
+  anim_state_.incomingMovement = spatial_state_.movement;
+  anim_state_.outgoingMovement = CalculateOutgoingMovement(touch_choice.positions);
+  anim_state_.positions.clear();
+  anim_state_.positions.assign(touch_choice.positions.begin(), touch_choice.positions.end());
+  anim_state_.positionOffset = Vector3(0);
+  anim_state_.originatingCommand = command;
+  RecordMovementCommandAcceptance(material_candidate, action.type,
+                                  static_cast<int>(football::sim::ToMilliseconds(action.elapsed)), localInterruptAnim,
+                                  command, static_cast<int>(GetCurrentBakedClip().frame_count));
+  // Must run after the anim_state_ field writes above (it reads the new
+  // animationId/positions/touchFrame and GetCurrentBakedClip), before install.
+  anim_state_.movementSmuggle = this->ComputeMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, history);
+  anim_state_.movementSmuggleOffset = Vector3(0);
+}
+
+void Player::RecordSelectedContactAudit(const PlayerCommand &command) {
+  const PlayerActionState &scheduled = this->GetSimulationActionState();
+  if (ContactAuthorityAuditEnabled() &&
+      IsTrackedScheduledContact(scheduled.type) &&
+      scheduled.HasScheduledContact()) {
+    ContactAuthorityAudit &audit = ContactAuthorityFor(scheduled.type);
+    ++audit.scheduled;
+    audit.contact_frames.push_back(scheduled.ContactFrame());
+    audit.delays_ms.push_back(static_cast<int>(football::sim::ToMilliseconds(*scheduled.contact)));
+    if (command.modifier & e_PlayerCommandModifier_KnockOn) ++audit.knock_on;
+    if (command.touchInfo.targetPlayer) ++audit.command_target;
+    if (command.touchInfo.forcedTargetPlayer) ++audit.forced_target;
+    if (GetCurrentBakedClip().metadata.touch_max_power_factor != 0.0f)
+      ++audit.max_power_profile_present;
+    if (GetCurrentBakedClip().metadata.touch_difficulty_factor != 0.0f)
+      ++audit.difficulty_profile_present;
+    if (GetCurrentBakedClip().metadata.outgoing_ball_direction.GetLength() != 0.0f)
+      ++audit.native_ball_direction_present;
+    if (!GetCurrentBakedClip().metadata.touch_bodypart.empty())
+      ++audit.contact_bodypart_present;
+    if (!GetCurrentBakedClip().metadata.incoming_retain_state.empty())
+      ++audit.incoming_retain_present;
+    if (!GetCurrentBakedClip().metadata.outgoing_retain_state.empty())
+      ++audit.outgoing_retain_present;
+  }
+}

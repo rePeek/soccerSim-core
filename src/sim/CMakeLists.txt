@@ -62,11 +62,13 @@ target_sources(football_sim_domain PRIVATE
   player/player_contact.cpp player/player_contact.hpp
   player/player_ball_contact.cpp player/player_ball_contact.hpp
   player/kick_targeting.cpp
-  player/humanoid/humanoid_utils.cpp
-  player/humanoid/humanoidbase.cpp
-  player/humanoid/humanoid.cpp
-  player/humanoid/humanoidbase.hpp player/humanoid/humanoid.hpp
-  player/humanoid/humanoid_utils.hpp
+  player/player_tick.cpp
+  player/player_touch_execution.cpp
+  player/player_touch_math.cpp
+  player/player_diagnostics.cpp
+  player/player_touch_math.hpp
+  player/player_action_execution_state.hpp player/player_spatial_state.hpp
+  player/player_interrupt.hpp player/player_diagnostics.hpp
   player/player.hpp player/player_control_builder.hpp player/player_kinematics.hpp
   player/player_command.hpp player/player_motion_constants.hpp
   player/player_motion.cpp player/player_motion.hpp player/player_motion_profile.hpp

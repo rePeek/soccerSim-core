@@ -13,7 +13,6 @@
 #include "football/ball/ball.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
-#include "sim/player/humanoid/humanoid.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
 #include <cassert>
@@ -46,14 +45,12 @@ int Player::SelectBestTouchAnim(
     e_InterruptAnim localInterruptAnim, bool preferPassAndShot,
     bool allowPreTouchRotationSmuggle, bool useContinuousBallCheck) {
   (void)localInterruptAnim;
-  Humanoid *const humanoid = CastHumanoid();
-  if (humanoid == nullptr) return -1;
 
   // never allow touchanims when someone else is holding the ball in his/her hands
   if (tick.ball_retainer != 0 && tick.ball_retainer != this) return -1;
 
   Vector3 incomingMovement =
-      humanoid->spatialState.movement.GetRotated2D(-humanoid->spatialState.angle);
+      spatial_state_.movement.GetRotated2D(-spatial_state_.angle);
 
   int bestAnimID = -1;
   Vector3 bestActionSmuggleVec2D;
@@ -64,7 +61,7 @@ int Player::SelectBestTouchAnim(
   Vector3 desiredMovement = desiredDirection * desiredVelocityFloat;
 
   e_FunctionType functionType = StringToFunctionType(
-      static_cast<e_DefString>(humanoid->GetBakedClip(*iter).metadata.action_type));
+      static_cast<e_DefString>(GetBakedClip(*iter).metadata.action_type));
 
   radian rotationSmuggle_ret_tmp = 0;
   radian predictedAngle = 0;
@@ -74,12 +71,12 @@ int Player::SelectBestTouchAnim(
 
   bool found = false;
   while (iter != sortedDataSet.end() && found == false) {
-    const AnimationClip &clip = humanoid->GetBakedClip(*iter);
+    const AnimationClip &clip = GetBakedClip(*iter);
     bool isBase = clip.metadata.base_animation;
 
     const std::vector<Vector3> &origPositionCache = clip.root_positions;
 
-    Vector3 physicsVector = humanoid->CalculatePhysicsVector(
+    Vector3 physicsVector = CalculatePhysicsVector(
         now, *iter, useDesiredMovement, desiredMovement,
         useDesiredBodyDirection, desiredBodyDirectionRel, choice.positions,
         rotationSmuggle_ret_tmp);
@@ -99,8 +96,8 @@ int Player::SelectBestTouchAnim(
     Vector3 prevBodyPos;
 
     Vector3 outgoingMovement =
-        humanoid->CalculateOutgoingMovement(choice.positions)
-            .GetRotated2D(-humanoid->spatialState.angle);
+        CalculateOutgoingMovement(choice.positions)
+            .GetRotated2D(-spatial_state_.angle);
     adaptedOutgoingMovement = outgoingMovement;  // may be changed into touchMovement later on, when an anim is found
 
     int frameCount = static_cast<int>(clip.frame_count) - 1;
@@ -139,20 +136,20 @@ int Player::SelectBestTouchAnim(
 
       Vector3 touchMovement =
           CalculateMovementAtFrame(choice.positions, animTouchFrame)
-              .GetRotated2D(-humanoid->spatialState.angle);
+              .GetRotated2D(-spatial_state_.angle);
       Vector3 animTouchMovement = CalculateMovementAtFrame(origPositionCache, animTouchFrame);  // already anim space so no: .GetRotated2D(-spatialState.angle);
 
       Vector3 ballPos, ballMovement;
       auto mentalImage = football::sim::observation::SampleMentalImage(
-          history, humanoid->mentalImageTime);
+          history, mentalImageTime);
       ballPos = mentalImage->GetBallPrediction(animTouchFrame * 10, now, tick.ball);
       ballMovement = (mentalImage->GetBallPrediction(animTouchFrame * 10 + 10, now, tick.ball) - mentalImage->GetBallPrediction(animTouchFrame * 10, now, tick.ball)) * 100.0f;
-      ballPos = (ballPos - humanoid->spatialState.position)
-                    .GetRotated2D(-humanoid->spatialState.angle);
-      ballMovement = ballMovement.GetRotated2D(-humanoid->spatialState.angle);
+      ballPos = (ballPos - spatial_state_.position)
+                    .GetRotated2D(-spatial_state_.angle);
+      ballMovement = ballMovement.GetRotated2D(-spatial_state_.angle);
 
       bodyPos = choice.positions.at(animTouchFrame)
-                    .GetRotated2D(-humanoid->spatialState.angle);
+                    .GetRotated2D(-spatial_state_.angle);
       bodyPos.coords[2] = 0;
 
       const auto &touchPose = clip.poses[animTouchFrame];
@@ -167,7 +164,7 @@ int Player::SelectBestTouchAnim(
       touch_request.anim_body_pos = animBodyPos;
       touch_request.touch_body_pos_rotated =
           choice.positions.at(animTouchFrame)
-              .GetRotated2D(-humanoid->spatialState.angle);
+              .GetRotated2D(-spatial_state_.angle);
       touch_request.ball_pos = ballPos;
       touch_request.ball_movement = ballMovement;
       touch_request.touch_movement = touchMovement;
@@ -217,7 +214,7 @@ int Player::SelectBestTouchAnim(
           bestAnimID = static_cast<int>(*iter);
           bestActionSmuggleVec2D = actionSmuggleVec2D;
           bestTouchMovementAbs =
-              touchMovement.GetRotated2D(humanoid->spatialState.angle);
+              touchMovement.GetRotated2D(spatial_state_.angle);
           choice.touch_frame = animTouchFrame;
           choice.radius_offset = 1000.0f;  // radiusOffset; todo? is this still in use?
         }
@@ -229,11 +226,11 @@ int Player::SelectBestTouchAnim(
 
   if (found) {
     auto currentMentalImage = football::sim::observation::SampleMentalImage(
-        history, humanoid->mentalImageTime);
+        history, mentalImageTime);
     choice.touch_position = currentMentalImage->GetBallPrediction(
         choice.touch_frame * 10, now, tick.ball);
     choice.full_action_smuggle =
-        bestActionSmuggleVec2D.GetRotated2D(humanoid->spatialState.angle);
+        bestActionSmuggleVec2D.GetRotated2D(spatial_state_.angle);
 
     football::animation::ResolveActionSmuggleRequest smuggle_request;
     smuggle_request.raw_smuggle = choice.full_action_smuggle;
@@ -242,7 +239,7 @@ int Player::SelectBestTouchAnim(
     smuggle_request.function_type = functionType;
     smuggle_request.ball_retained_by_player = (tick.ball_retainer == this);
     smuggle_request.predicted_angle = predictedAngle;
-    smuggle_request.spatial_angle = humanoid->spatialState.angle;
+    smuggle_request.spatial_angle = spatial_state_.angle;
     smuggle_request.adapted_outgoing_movement = adaptedOutgoingMovement;
     smuggle_request.force_full_action_smuggle_discard = kForceFullActionSmuggleDiscard;
     smuggle_request.enable_action_smuggle_discard = kEnableActionSmuggleDiscard;

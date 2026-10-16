@@ -1,35 +1,18 @@
-// Copyright 2019 Google LLC & Bastiaan Konings
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// ANIM-1 A9.9: Player-side touch/animation math helpers, relocated from
+// humanoid_utils.cpp. Bodies are verbatim moves; only the owning include and
+// the unused NeedDefendingMovement helper (zero callers) changed.
+#include "sim/player/player_touch_math.hpp"
 
-// written by bastiaan konings schuiling 2008 - 2015
-// this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
-// i do not offer support, so don't ask. to be used for inspiration :)
-
-#include "sim/player/humanoid/humanoid_utils.hpp"
 #include <cmath>
-
-
-#include "sim/event/touch_query.hpp"
-#include "sim/player/player_motion_constants.hpp"
-
-#include "sim/player/humanoid/humanoid.hpp"
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
+
+#include "sim/event/touch_query.hpp"
 #include "sim/player/player.hpp"
+#include "sim/player/player_motion_constants.hpp"
 
 using football::ball::Ball;
-
 
 e_TouchType GetTouchTypeForBodyPart(const std::string &bodypartname) {
   if (bodypartname.find("foot") != std::string::npos ||
@@ -64,21 +47,6 @@ Vector3 GetFrontOfFootOffsetRel(float velocity, radian bodyAngleRel,
   return football::animation::FrontOfFootOffsetRel(
       velocity, bodyAngleRel, height, static_cast<float>(defaultTouchOffset_ms));
 }
-
-bool NeedDefendingMovement(int mySide, const Vector3 &position,
-                           const Vector3 &target) {
-  // only move if absolutely necessary
-  float howDeepIsTarget = std::max((target.coords[0] - position.coords[0]) * -mySide, 0.0f);
-  float howWideIsTarget = std::fabs(target.coords[1] - position.coords[1]);
-  howDeepIsTarget -= 0.5f; // some buffer to account for reaction time
-  if (howWideIsTarget > howDeepIsTarget * 0.8f) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-
 void GetDifficultyFactors(const Ball *ball, Player *player,
                           const football::sim::event::TouchState& touches, const PlayerTeamView &opponent,
                           football::sim::Tick now, football::math::Rng& rng,

@@ -330,24 +330,24 @@ void Player::Exit(football::sim::Tick now) {
 }
 
 bool Player::IsKinematicMirrorConsistent() const {
-  return Vector3BitsEqual(kinematicState.position, humanoid->GetPosition()) &&
-         Vector3BitsEqual(kinematicState.velocity, humanoid->GetMovement()) &&
+  return Vector3BitsEqual(kinematicState.position, spatial_state_.position) &&
+         Vector3BitsEqual(kinematicState.velocity, spatial_state_.movement) &&
          Vector3BitsEqual(kinematicState.bodyFacing,
-                          humanoid->GetBodyDirectionVec()) &&
+                          spatial_state_.bodyDirectionVec) &&
          Vector3BitsEqual(groundCollider.center,
                           kinematicState.position.Get2D());
 }
 
 void Player::CheckSimulationKinematicOracle() const {
   assert(IsKinematicMirrorConsistent() &&
-         "gameplay kinematic mirror diverged from Humanoid spatial state");
+         "gameplay kinematic mirror diverged from the compatibility spatial state");
 }
 
 void Player::Mirror() {
-  // Never-activated bench entries have no runtime pose. Sent-off players still
-  // own their Humanoid and must keep the historical mirror/oracle path.
-  if (!humanoid) return;
-  humanoid->Mirror();
+  // Never-activated bench entries have no runtime state. Sent-off players
+  // were activated once and must keep the historical mirror/oracle path.
+  if (!legacy_state_initialized_) return;
+  MirrorLegacyState();
   // S0.4: mirror through the single commit point. PlayerKinematicState::Mirror
   // keeps the historical field asymmetry on purpose -- position and velocity are
   // mirrored, facing and bodyFacing are not -- because the legacy spatial-state
@@ -418,9 +418,9 @@ void Player::CommitLegacyActionMotion() {
   // still goes through the single write point, which also keeps the ground
   // collider in step.
   PlayerKinematicState next;
-  next.position = humanoid->GetPosition();
-  next.velocity = humanoid->GetMovement();
-  next.bodyFacing = humanoid->GetBodyDirectionVec();
+  next.position = spatial_state_.position;
+  next.velocity = spatial_state_.movement;
+  next.bodyFacing = spatial_state_.bodyDirectionVec;
   CommitKinematicState(next);
   CheckSimulationKinematicOracle();
 }
@@ -572,10 +572,10 @@ bool Player::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, foo
 
 PlayerActionState Player::CaptureLegacyActionState() const {
   PlayerActionState legacy;
-  legacy.type = humanoid->GetCurrentFunctionType();
-  legacy.elapsed = {static_cast<std::uint64_t>(humanoid->GetFrameNum())};
-  legacy.duration = {static_cast<std::uint64_t>(humanoid->GetFrameCount())};
-  const Anim *anim = humanoid->GetCurrentAnim();
+  legacy.type = anim_state_.functionType;
+  legacy.elapsed = {static_cast<std::uint64_t>(anim_state_.frameNum)};
+  legacy.duration = {static_cast<std::uint64_t>(GetFrameCount())};
+  const Anim *anim = &anim_state_;
   if (anim->touchFrame >= 0)
     legacy.contact = football::sim::TickSpan{static_cast<std::uint64_t>(anim->touchFrame)};
   legacy.contactPosition = anim->touchPos;
@@ -605,21 +605,21 @@ void Player::CheckSimulationActionOracle() const {
 }
 
 void Player::BeginSimulationAction() {
-  const Anim *anim = humanoid->GetCurrentAnim();
+  const Anim *anim = &anim_state_;
   PlayerActionDefinition definition;
-  definition.type = humanoid->GetCurrentFunctionType();
-  definition.duration = {static_cast<std::uint64_t>(humanoid->GetFrameCount())};
+  definition.type = anim_state_.functionType;
+  definition.duration = {static_cast<std::uint64_t>(GetFrameCount())};
   if (anim->touchFrame >= 0)
     definition.contact = football::sim::TickSpan{static_cast<std::uint64_t>(anim->touchFrame)};
   definition.contactPosition = anim->touchPos;
   last_begun_definition_ = definition;
-  last_begun_start_frame_ = static_cast<int>(humanoid->GetFrameNum());
+  last_begun_start_frame_ = anim_state_.frameNum;
   PlayerActionExecutor::Begin(actionState, definition);
 
   // ResetPosition can deliberately start an idle animation at a non-zero
   // legacy frame. Establish that initial cursor once; normal ticks never
   // derive executor time from Humanoid.
-  const football::sim::TickSpan initial_elapsed{static_cast<std::uint64_t>(humanoid->GetFrameNum())};
+  const football::sim::TickSpan initial_elapsed{static_cast<std::uint64_t>(anim_state_.frameNum)};
   if (initial_elapsed.value > 0) {
     PlayerActionExecutor::Step(actionState, initial_elapsed);
   }
@@ -663,13 +663,10 @@ bool Player::CommitSelectedAction(int selected_anim_id,
   // ANIM-1 A6.4 step 7b: the Player owns the install dispatch. The compat
   // projection writes the legacy currentAnim; the Player then installs through
   // the one install entry, and only then records the scheduled-contact audit.
-  Humanoid *const humanoid = CastHumanoid();
-  if (humanoid == nullptr) return false;
-  humanoid->ProjectSelectedActionCompat(selected_anim_id, touch_choice, command,
-                                        tick, now, history, local_interrupt_anim,
-                                        material_candidate);
-  InstallSelectedAction(humanoid->CurrentSelectedAction());
-  humanoid->RecordSelectedContactAudit(command);
+  ProjectSelectedActionCompat(selected_anim_id, touch_choice, command, tick, now,
+                              history, local_interrupt_anim, material_candidate);
+  InstallSelectedAction(CurrentSelectedAction());
+  RecordSelectedContactAudit(command);
   return true;
 }
 
@@ -715,11 +712,11 @@ void Player::InstallSelectedAction(const football::sim::SelectedAction &selectio
     ++install_cursor_mismatches_;
   }
   ++install_checks_;
-  const Anim *anim = humanoid->GetCurrentAnim();
+  const Anim *anim = &anim_state_;
   const bool same =
-      selection.function_type == humanoid->GetCurrentFunctionType() &&
-      selection.frame_count == humanoid->GetFrameCount() &&
-      selection.start_frame == humanoid->GetFrameNum() &&
+      selection.function_type == anim_state_.functionType &&
+      selection.frame_count == GetFrameCount() &&
+      selection.start_frame == anim_state_.frameNum &&
       selection.touch_frame == anim->touchFrame &&
       selection.touch_position == anim->touchPos;
   if (same) {
@@ -751,12 +748,12 @@ void Player::AdvanceActionTick() {
   // ANIM-1 A6.3c.2: one real time advance. The PlayerActionState cursor is the
   // authority; the Humanoid integer frame is a read-only compat projection.
   PlayerActionExecutor::Step(actionState, football::sim::TickSpan{1});
-  humanoid->SetCompatFrameNum(actionState.Frame());
+  anim_state_.frameNum = actionState.Frame();
   CheckSimulationActionOracle();
 }
 
 void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
-  humanoid->ResetPosition(newPos, focusPos);
+  ResetLegacyPosition(newPos, focusPos);
   // ANIM-1.1: re-placement clears any pending active/passive request.
   pending_action_request_.reset();
   playback_state_.Reset();
@@ -767,7 +764,7 @@ void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   // cursor write. Route it through the same Player install entry so
   // `installed_action_` stays valid and the RNG-chosen start frame is carried
   // in the selection (RNG draws and order unchanged).
-  InstallSelectedAction(CastHumanoid()->CurrentSelectedAction());
+  InstallSelectedAction(CurrentSelectedAction());
 }
 
 void Player::ApplyPositionCorrection(const Vector3 &offset) {
@@ -785,7 +782,7 @@ void Player::ApplyPositionCorrection(const Vector3 &offset) {
   PlayerKinematicState corrected = kinematicState;
   corrected.position += offset;
   CommitKinematicState(corrected);
-  humanoid->ApplyPositionOffset(offset);
+  ApplyLegacyPositionOffset(offset);
   // No kinematic oracle here: this is not a sync point. A standalone
   // CommitLocomotion leaves the Player ahead of the not-yet-mirrored Humanoid by
   // design, and the oracle is asserted where a sync completes
@@ -853,15 +850,15 @@ float Player::PrepareTick(const football::sim::PlayerTickContext& tick, std::spa
         _CalculateTacticalSituation(tick, history);
       }
     }
-    Vector3 posBefore = CastHumanoid()->GetPosition();
-    CastHumanoid()->Process(tick.now, tick, history, touch_sink, runtime_sink);
+    Vector3 posBefore = spatial_state_.position;
+    RunActionTick(tick.now, tick, history, touch_sink, runtime_sink);
     // S0.3: no adoption here. Every path already finished its own write inside
-    // Process -- the pure-locomotion branch committed and projected, and each
-    // legacy root-motion branch adopted at the point where it produced the
-    // position (CalculateSpatialState / CalculateFactualSpatialState). Adopting
-    // again would silently re-read the Humanoid after the Player had authority.
+    // the action tick -- the pure-locomotion branch committed and projected, and
+    // each legacy root-motion branch adopted at the point where it produced the
+    // position. Adopting again would silently re-read a stale projection after
+    // the Player had authority.
     CheckSimulationActionOracle();
-    return (CastHumanoid()->GetPosition() - posBefore).GetLength();
+    return (spatial_state_.position - posBefore).GetLength();
   }
   return 0;
 }
@@ -905,7 +902,7 @@ float Player::GetVelocityMultiplier() const {
   return 0.9f + model_.attributes.get(football::player::PlayerStat::physical_velocity) * 0.1f;
 }
 
-float Player::GetLastTouchBias(int decay_ms, football::sim::Tick time) {
+float Player::GetLastTouchBias(int decay_ms, football::sim::Tick time) const {
   if (decay_ms <= 0 || time < last_touch_tick_) return 0.0f;
   const auto age = time - last_touch_tick_;
   // Saturate before projection: absolute millisecond capacity is irrelevant.
@@ -935,15 +932,14 @@ void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now)
           ? kResetSituationRuntime
           : kResetSituationInitialBeforeFirstPlayerTick;
     }
-    humanoid->ResetSituation(focusPos);
+    ResetLegacySituation(focusPos);
     CommitLegacyActionMotion();
     // ANIM-1 A6.3c.1: the runtime reset is the same special action install.
-    InstallSelectedAction(CastHumanoid()->CurrentSelectedAction());
+    InstallSelectedAction(CurrentSelectedAction());
   }
   resetSituationAuditContext = kResetSituationUnspecified;
 }
 
-Humanoid *Player::CastHumanoid() { return humanoid.get(); }
 
 
 Vector3 Player::GetPitchPosition() {
@@ -959,17 +955,21 @@ void Player::Activate() {
   // newly-constructed Humanoid did before the storage became Player-owned.
   anim_state_ = Anim{};
   spatial_state_ = SpatialState{};
-  humanoid.reset(new Humanoid(this, animations_, rng_));
-  CastHumanoid()->ResetPosition(
+  // The old Humanoid constructor performed one zero-position reset before the
+  // explicit formation-position reset. Keep both, in order, so the RNG draws
+  // and the resulting idle entry frame are unchanged.
+  ResetLegacyPosition(Vector3(0), Vector3(0));
+  ResetLegacyPosition(
       GetFormationEntry().position * 25 *
           Vector3(-team_facts_.dynamic_side, -team_facts_.dynamic_side, 0),
       Vector3(0));
+  legacy_state_initialized_ = true;
   CommitLegacyActionMotion();
   // ANIM-1 A6.3c.1: a reset is a special action install, not an out-of-band
   // cursor write. Route it through the same Player install entry so
   // `installed_action_` stays valid and the RNG-chosen start frame is carried
   // in the selection (RNG draws and order unchanged).
-  InstallSelectedAction(CastHumanoid()->CurrentSelectedAction());
+  InstallSelectedAction(CurrentSelectedAction());
   SetDynamicFormationEntry(GetFormationEntry());
 }
 

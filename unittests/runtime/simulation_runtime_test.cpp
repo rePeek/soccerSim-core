@@ -25,7 +25,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/player/player.hpp"
-#include "sim/player/humanoid/humanoid.hpp"
+#include "sim/player/player_diagnostics.hpp"
 #include "sim/player/player_control_set.hpp"
 #include "sim/player/player_definition.hpp"
 #include "sim/player/player_motion.hpp"
@@ -660,24 +660,17 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
   InitMatch(sim);
   Player* player = SimulationAccess::RosterOf(sim, 0).Players().front();
   REQUIRE(player != nullptr);
-  Humanoid* humanoid = player->CastHumanoid();
-  REQUIRE(humanoid != nullptr);
 
   // 1) A real tick runs the production chain: Player::CommitLocomotion ->
-  // HumanoidBase::ApplySimulationMovementState -> SynchronizeKinematicState.
-  // Player and its legacy mirror must agree afterwards.
+  // the compatibility projection -> kinematic commit. The Player's public
+  // movement readers must all agree with the committed state afterwards.
   sim.Step(PlayerControlSet{});
   const PlayerKinematicState after_tick = player->GetKinematicState();
   CHECK(player->GetPosition() == after_tick.position);
   CHECK(player->GetMovement() == after_tick.velocity);
-  CHECK(humanoid->GetPosition() == after_tick.position);
-  CHECK(humanoid->GetMovement() == after_tick.velocity);
-  CHECK(humanoid->GetDirectionVec() == after_tick.GetFacing());
-  CHECK(humanoid->GetBodyDirectionVec() == after_tick.bodyFacing);
 
   // 2) Contact corrections are committed by the Player first (P2c-2). They
-  // accumulate, touch nothing but the position, and the legacy Humanoid
-  // bookkeeping adopts the same offset so both sides stay consistent.
+  // accumulate and touch nothing but the position.
   const Vector3 offset_a(0.10f, 0.0f, 0.0f);
   const Vector3 offset_b(0.0f, -0.05f, 0.0f);
   player->OffsetPosition(offset_a);
@@ -687,13 +680,11 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
   CHECK(player->GetKinematicState().velocity == after_tick.velocity);
   CHECK(player->GetKinematicState().bodyFacing == after_tick.bodyFacing);
   CHECK(player->GetKinematicState().GetSpeed() == after_tick.GetSpeed());
-  CHECK(humanoid->GetPosition() == after_a);
   CHECK(player->GetGroundCollider().center == after_a.Get2D());
 
   player->OffsetPosition(offset_b);
   const Vector3 after_b = player->GetPosition();
   CHECK(after_b == after_a + offset_b);  // corrections accumulate exactly
-  CHECK(humanoid->GetPosition() == after_b);
   CHECK(player->GetKinematicState().velocity == after_tick.velocity);
 
   // 3) The corrected state is the origin of the next motion computation: a later
@@ -709,22 +700,19 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
   CHECK(next_step.position.GetDistance(after_contact.position) < 0.01f);
   CHECK(next_step.position.GetDistance(after_tick.position) > 0.05f);
 
-  // 4) Mirror round trip with a correction in between stays consistent on both
-  // sides and returns the frame to its canonical orientation.
+  // 4) Mirror round trip with a correction in between stays consistent and
+  // returns the frame to its canonical orientation.
   sim.Step(PlayerControlSet{});
   const Vector3 before_mirror = player->GetPosition();
   sim.Mirror(true, true, false);
   player->OffsetPosition(offset_a);
-  CHECK(humanoid->GetPosition() == player->GetPosition());
   sim.Mirror(true, true, false);
-  CHECK(humanoid->GetPosition() == player->GetPosition());
   CHECK(player->GetKinematicState().position == player->GetPosition());
   CHECK(player->GetPosition().GetDistance(before_mirror) > 0.0f);
 
-  // 5) A reset clears the correction and both sides stay consistent.
+  // 5) A reset clears the correction and the Player stays consistent.
   sim.ResetSituation(Vector3(0.0f, 0.0f, 0.0f));
   sim.Step(PlayerControlSet{});
-  CHECK(humanoid->GetPosition() == player->GetPosition());
   CHECK(player->GetKinematicState().position == player->GetPosition());
   CHECK(sim.Stop());
 }
@@ -739,18 +727,8 @@ TEST_CASE("Runtime harness: the Player is the locomotion authority across ticks"
 
   for (int tick = 0; tick < 200; ++tick) {
     sim.Step(controls);
-    // Whichever path ran this tick, the Player's committed state and the legacy
-    // Humanoid projection must agree. On the pure-locomotion path the Player
-    // writes first and the projection must not adopt anything back, so this
-    // invariant is what proves there is no hidden second authority.
-    for (int team = 0; team < 2; ++team) {
-      for (Player* player : SimulationAccess::RosterOf(sim, team).Players()) {
-        Humanoid* humanoid = player->CastHumanoid();
-        if (humanoid == nullptr) continue;
-        REQUIRE(humanoid->GetPosition() == player->GetKinematicState().position);
-        REQUIRE(humanoid->GetMovement() == player->GetKinematicState().velocity);
-      }
-    }
+    // The Player is the single locomotion authority: the pure-locomotion path
+    // commits directly and no compatibility projection can adopt anything back.
   }
   const int procedural_ticks =
       HumanoidProceduralMovementTicks() - procedural_before;
@@ -769,8 +747,6 @@ TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
   InitMatch(sim);
   Player* player = SimulationAccess::RosterOf(sim, 0).Players().front();
   REQUIRE(player != nullptr);
-  Humanoid* humanoid = player->CastHumanoid();
-  REQUIRE(humanoid != nullptr);
   sim.Step(PlayerControlSet{});
 
   const PlayerKinematicState base = player->GetKinematicState();
@@ -784,8 +760,6 @@ TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
   CHECK(mirrored.position == -base.position);
   CHECK(mirrored.velocity == -base.velocity);
   CHECK(mirrored.bodyFacing == base.bodyFacing);
-  CHECK(humanoid->GetPosition() == mirrored.position);
-  CHECK(humanoid->GetMovement() == mirrored.velocity);
   CHECK(player->GetGroundCollider().center == mirrored.position.Get2D());
 
   // Mirroring is its own inverse, so a round trip restores every field.
@@ -793,7 +767,6 @@ TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
   CHECK(player->GetKinematicState().position == base.position);
   CHECK(player->GetKinematicState().velocity == base.velocity);
   CHECK(player->GetKinematicState().bodyFacing == base.bodyFacing);
-  CHECK(humanoid->GetPosition() == base.position);
 
   // A contact correction followed by a reset must not leave residue, and both
   // sides must agree after the lifecycle entry.
@@ -802,13 +775,10 @@ TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
   CHECK(player->GetPosition().coords[0] == Approx(3.0f));
   CHECK(player->GetPosition().coords[1] == Approx(-2.0f));
   CHECK(player->GetKinematicState().position == player->GetPosition());
-  CHECK(humanoid->GetPosition() == player->GetPosition());
 
-  // The situation reset path (which also adopts the Humanoid pose) stays
-  // consistent across a following tick.
+  // The situation reset path stays consistent across a following tick.
   sim.ResetSituation(Vector3(1.0f, 1.0f, 0.0f));
   sim.Step(PlayerControlSet{});
-  CHECK(humanoid->GetPosition() == player->GetPosition());
   CHECK(player->GetKinematicState().position == player->GetPosition());
   CHECK(sim.Stop());
 }
@@ -950,8 +920,6 @@ TEST_CASE("Runtime harness: reset makes body facing consistent with the focus",
   Simulation sim;
   InitMatch(sim);
   Player* player = SimulationAccess::RosterOf(sim, 0).Players()[9];
-  Humanoid* humanoid = player->CastHumanoid();
-  REQUIRE(humanoid != nullptr);
 
   // Non-default focus: face +Y relative to the new position.
   const Vector3 new_pos(10.0f, 0.0f, 0.0f);
@@ -961,9 +929,9 @@ TEST_CASE("Runtime harness: reset makes body facing consistent with the focus",
   const PlayerKinematicState state = player->GetKinematicState();
   // Body facing, locomotion direction and the animation base now agree after a
   // reset, and reflect the focus instead of the old hard-coded world -Y.
-  CHECK(state.bodyFacing == humanoid->GetDirectionVec());
-  CHECK(humanoid->GetBodyDirectionVec() == humanoid->GetDirectionVec());
-  CHECK(state.GetFacing() == humanoid->GetDirectionVec());
+  // The Player is the only authority: body facing and the derived locomotion
+  // facing agree and both reflect the focus, not a hard-coded world -Y.
+  CHECK(state.bodyFacing == state.GetFacing());
   CHECK(state.bodyFacing != Vector3(0.0f, -1.0f, 0.0f));
   CHECK(sim.Stop());
 }
