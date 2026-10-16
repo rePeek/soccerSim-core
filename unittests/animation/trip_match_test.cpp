@@ -133,3 +133,20 @@ TEST_CASE("SelectTripMatch uses the current pose for the entry frame") {
   CHECK(result.start_frame >= 0);
   CHECK(result.start_frame <= static_cast<int>(clip.poses.size()) - 2);
 }
+
+TEST_CASE("SelectTripMatch reserves the fall process") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+  const std::vector<int> trips = TripClips(library);
+  REQUIRE(!trips.empty());
+
+  TripMatchRequest request;
+  request.impact_direction = Vector3(0, -1, 0);
+  request.current_velocity = Vector3(0, -4, 0);
+  const TripMatchResult result = SelectTripMatch(library, trips, request);
+  REQUIRE(result.matched);
+  const AnimationClip& clip = library.Get(static_cast<uint32_t>(result.clip_id));
+  const int frame_count = static_cast<int>(clip.poses.size());
+  // The entry stays in the first half, so the fall itself still plays.
+  CHECK(result.start_frame <= frame_count - 1 - frame_count / 2);
+}

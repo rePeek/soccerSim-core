@@ -1515,6 +1515,61 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
   CHECK(sim.Stop());
 }
 
+TEST_CASE("Runtime harness: a close ball installs a Trap before its touch frame",
+          "[runtime][sim]") {
+  // ANIM-2 A18.3: the A16/A18 trap path end to end. The entry frame must be
+  // before the trap's contact frame and the touch must actually fire.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int in_play_tick = -1;
+  bool trap_checked = false;
+  int trap_entry = -1;
+  int trap_touch = -1;
+  bool trap_touched = false;
+  for (int tick = 0; tick < 400; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    const bool drive = in_play_tick >= 0 && tick > in_play_tick + 3;
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = Vector3(0, -1, 0);
+    control.desired_speed = 0.0f;
+    if (drive) {
+      SimulationAccess::SetBallRetainer(sim, nullptr);
+      SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -0.3f, 0));
+      control.action = ControlAction::Trap;
+    }
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+
+    const PlayerActionState& action = player->GetSimulationActionState();
+    if (!trap_checked && action.type == e_FunctionType_Trap &&
+        action.HasScheduledContact()) {
+      trap_entry = player->InstalledAction().start_frame;
+      trap_touch = action.ContactFrame();
+      trap_checked = true;
+    }
+    if (trap_checked &&
+        SimulationAccess::TouchesOf(sim).last_player_by_team[player->GetTeamID()] ==
+            player->GetID()) {
+      trap_touched = true;
+      break;  // bounded: the trap path is proven once the touch fires
+    }
+  }
+
+  std::fprintf(stderr, "[runtime] A18.3 trap entry=%d touch=%d touched=%d\n",
+               trap_entry, trap_touch, trap_touched ? 1 : 0);
+  CHECK(in_play_tick >= 0);
+  CHECK(trap_checked);
+  CHECK(trap_entry >= 0);
+  CHECK(trap_entry < trap_touch);
+  CHECK(trap_touched);
+  CHECK(player->InstallMismatches() == 0);
+  CHECK(sim.Stop());
+}
+
 
 TEST_CASE("Runtime harness: PlayerActionState is the single action time authority",
           "[runtime][sim]") {
@@ -1855,12 +1910,27 @@ TEST_CASE("Runtime harness: 22 actors share the library deterministically",
         mix_float(actors[i]->GetPosition().coords[0]);
         mix_float(actors[i]->GetPosition().coords[1]);
         mix_float(actors[i]->GetPosition().coords[2]);
+        // ANIM-2 A18.3: the final pose itself, so the digest also pins the pose
+        // computation, not only the clip cursor.
+        const PoseFrame pose = actors[i]->PlaybackPose();
+        for (std::size_t j = 0; j < kBodyPartCount; ++j) {
+          for (int e = 0; e < 4; ++e) mix_float(pose.orientations[j].elements[e]);
+          mix_float(pose.positions[j].coords[0]);
+          mix_float(pose.positions[j].coords[1]);
+          mix_float(pose.positions[j].coords[2]);
+        }
       }
       const football::math::Vector3 ball =
           SimulationAccess::BallOf(sim)->state().position;
       mix_float(ball.coords[0]);
       mix_float(ball.coords[1]);
       mix_float(ball.coords[2]);
+      // ANIM-2 A18.3: the accepted-touch facts for this tick.
+      const football::sim::event::TouchState& touches =
+          SimulationAccess::TouchesOf(sim);
+      mix(static_cast<std::uint64_t>(touches.last_team));
+      mix(static_cast<std::uint64_t>(touches.last_player_by_team[0]));
+      mix(static_cast<std::uint64_t>(touches.last_player_by_team[1]));
     }
 
     result.digest = digest;

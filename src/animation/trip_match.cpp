@@ -2,6 +2,7 @@
 
 #include "football/animation/trip_match.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -14,6 +15,9 @@ namespace {
 constexpr float kDirectionWeight = 2.0f;
 constexpr float kVelocityWeight = 1.0f;
 constexpr float kPoseWeight = 0.5f;
+// A Trip keeps at least half its frames after the entry, so the fall itself
+// still plays instead of entering at the recovery phase.
+constexpr float kTripMinRemainingFraction = 0.5f;
 
 }  // namespace
 
@@ -36,11 +40,18 @@ TripMatchResult SelectTripMatch(const AnimationLibrary& library,
     if (request.trip_type >= 0 && clip.metadata.trip_type != request.trip_type)
       continue;
 
+    // ANIM-2 A18.2: a Trip must keep enough of the loss-of-balance and fall to
+    // play, so the entry frame is limited to the first part of the clip. Pose
+    // similarity alone must not pick a late recovery frame.
+    const int trip_min_remaining =
+        static_cast<int>(static_cast<float>(clip.poses.size()) *
+                          kTripMinRemainingFraction);
     EntryFrameResult entry;
     if (request.has_current_pose) {
       EntryFrameRequest entry_request;
       entry_request.reference_pose = &request.current_pose;
-      entry_request.min_remaining_frames = request.min_remaining_frames;
+      entry_request.min_remaining_frames =
+          std::max(request.min_remaining_frames, trip_min_remaining);
       entry = SelectEntryFrame(clip, entry_request);
     }
 

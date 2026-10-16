@@ -3023,7 +3023,16 @@ action path.
   and `TouchChoice` carry the matched `start_frame`; the Player installs exactly
   that and no longer re-selects after `MatchTouch`. `entry_frame == 0` keeps the
   legacy basis bit-for-bit.
+- Trip entry window (P1): `SelectTripMatch` requires the entry frame to leave
+  at least half the clip (`kTripMinRemainingFraction`), so pose similarity cannot
+  pick a late recovery frame; the direction/velocity/pose weights are unchanged.
+- Test hardening (P1): the A17 digest now also hashes every actor's 14-joint
+  `PlaybackPose()` and the accepted-touch facts, so it pins the pose computation
+  and touch results, not just the clip cursor. A runtime case drives a close ball
+  into a Trap and asserts the entry frame is before the contact frame and a touch
+  actually fires.
 - Tests: `entry_frame_test` covers the oversized and negative bounds;
   `touch_match_test` records the query time arguments and asserts they equal
-  `(touch_frame - entry_frame) * 10` / `(touch_frame - entry_frame)`; the runtime
-  pass test still asserts entry < contact and a matching installed touch frame.
+  `(touch_frame - entry_frame) * 10` / `(touch_frame - entry_frame)`;
+  `trip_match_test` checks the first-half window; the runtime pass test still
+  asserts entry < contact and a matching installed touch frame.
