@@ -301,6 +301,12 @@ struct TouchShadowAudit {
   int touch_position_mismatches = 0;
   int rotation_mismatches = 0;
   int smuggle_mismatches = 0;
+  // Coverage of the legacy reject reasons seen by the comparison.
+  int reject_out_of_bounds = 0;
+  int reject_out_of_reach = 0;
+  int reject_advantage_too_low = 0;
+  int reject_no_plan = 0;
+  int reject_retained_by_other = 0;
 };
 TouchShadowAudit &TouchShadowAuditState();
 bool &TouchShadowEnabled();

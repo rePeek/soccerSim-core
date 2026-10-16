@@ -1268,22 +1268,30 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
     control.move_direction = Vector3(0, -1, 0);
     control.desired_speed = drive ? 3.0f : 0.0f;
     if (drive) {
-      SimulationAccess::SetBallRetainer(sim, player);
-      SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -0.4f, 0));
-      // Rotate through action families so the shadow exercises the pass,
-      // trap and shot touch paths and their reject reasons.
+      // Rotate through action families so the shadow exercises the pass, trap,
+      // shot and dribble touch paths. Phases 1 and 3 leave the ball unretained
+      // and out of immediate reach so the candidate loop also hits its
+      // OutOfReach / AdvantageTooLow rejection branches.
       const int phase = (tick / 50) % 4;
       if (phase == 0) {
+        SimulationAccess::SetBallRetainer(sim, player);
+        SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -0.4f, 0));
         control.action = ControlAction::ShortPass;
         control.target_position = player->GetPosition() + Vector3(0, -18.0f, 0);
         control.power = 0.6f;
       } else if (phase == 1) {
+        SimulationAccess::SetBallRetainer(sim, nullptr);
+        SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -4.0f, 0));
         control.action = ControlAction::Trap;
       } else if (phase == 2) {
+        SimulationAccess::SetBallRetainer(sim, player);
+        SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -0.4f, 0));
         control.action = ControlAction::Shoot;
         control.target_position = player->GetPosition() + Vector3(0, -20.0f, 0);
         control.power = 0.7f;
       } else {
+        SimulationAccess::SetBallRetainer(sim, nullptr);
+        SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -8.0f, 0));
         control.action = ControlAction::Dribble;
         control.target_position = player->GetPosition() + Vector3(0, -12.0f, 0);
         control.power = 0.6f;
@@ -1394,12 +1402,15 @@ TEST_CASE("Runtime harness: the touch shadow agreed over the whole harness",
   const TouchShadowAudit& audit = TouchShadowAuditState();
   std::fprintf(stderr,
                "[runtime] A10.4d-total checks=%d cand_count=%d cand_clip=%d "
-               "reject=%d frame=%d clip=%d pos=%d rot=%d smuggle=%d\n",
+               "reject=%d frame=%d clip=%d pos=%d rot=%d smuggle=%d "
+               "reasons(oob=%d oor=%d low=%d none=%d)\n",
                audit.checks, audit.candidate_count_mismatches,
                audit.candidate_clip_mismatches, audit.reject_reason_mismatches,
                audit.touch_frame_mismatches, audit.clip_mismatches,
                audit.touch_position_mismatches, audit.rotation_mismatches,
-               audit.smuggle_mismatches);
+               audit.smuggle_mismatches, audit.reject_out_of_bounds,
+               audit.reject_out_of_reach, audit.reject_advantage_too_low,
+               audit.reject_no_plan);
   CHECK(audit.checks > 0);
   CHECK(audit.candidate_count_mismatches == 0);
   CHECK(audit.candidate_clip_mismatches == 0);
@@ -1409,4 +1420,7 @@ TEST_CASE("Runtime harness: the touch shadow agreed over the whole harness",
   CHECK(audit.touch_position_mismatches == 0);
   CHECK(audit.rotation_mismatches == 0);
   CHECK(audit.smuggle_mismatches == 0);
+  // Coverage floor: the harness must have exercised at least the reach and
+  // advantage rejections, not only a single trivially-accepted path.
+  CHECK(audit.reject_out_of_reach + audit.reject_advantage_too_low > 0);
 }

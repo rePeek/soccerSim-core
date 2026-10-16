@@ -69,6 +69,18 @@ void CompareTouchTraces(const football::animation::TouchMatchTrace& legacy,
     const auto& b = shadow.candidates[i];
     if (a.clip != b.clip) ++audit.candidate_clip_mismatches;
     if (a.reject_reason != b.reject_reason) ++audit.reject_reason_mismatches;
+    switch (a.reject_reason) {
+      case TouchRejectReason::OutOfBounds: ++audit.reject_out_of_bounds; break;
+      case TouchRejectReason::OutOfReach: ++audit.reject_out_of_reach; break;
+      case TouchRejectReason::AdvantageTooLow:
+        ++audit.reject_advantage_too_low;
+        break;
+      case TouchRejectReason::NoPlan: ++audit.reject_no_plan; break;
+      case TouchRejectReason::RetainedByOther:
+        ++audit.reject_retained_by_other;
+        break;
+      case TouchRejectReason::None: break;
+    }
   }
   if (legacy.result.clip_id != shadow.result.clip_id) ++audit.clip_mismatches;
   if (legacy.result.touch_frame != shadow.result.touch_frame)
