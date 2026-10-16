@@ -6,6 +6,10 @@
 // still shared with the offline baker.
 #include "football/animation/match.hpp"
 
+#include <algorithm>
+
+#include "football/animation/select_movement.hpp"
+
 namespace football::animation {
 
 std::optional<MatchResult> Match(const AnimationLibrary& library,
@@ -47,12 +51,26 @@ std::optional<MatchResult> Match(const AnimationLibrary& library,
   }
   if (candidates.empty()) return std::nullopt;
 
+  // ANIM-2 A13.3: the final Movement pick rule is Animation's. Given the
+  // locomotion preference, the preferred clip wins when it is a legal candidate;
+  // otherwise the legacy front candidate plays. The reorder happens before the
+  // entry-frame match, so the result's (clip_id, start_frame) is final and the
+  // Player installs it without re-deciding.
+  if (query.branch == MatchBranch::Movement && query.apply_movement_preference &&
+      query.preferred_movement_clip >= 0) {
+    const AnimationId pick =
+        ResolveMovementPick(candidates, query.preferred_movement_clip);
+    auto picked = std::find(candidates.begin(), candidates.end(),
+                            static_cast<int>(pick));
+    if (picked != candidates.end() && picked != candidates.begin())
+      std::rotate(candidates.begin(), picked, std::next(picked));
+  }
+
   MatchResult result;
   result.clip_id = static_cast<AnimationId>(candidates.front());
   result.start_frame = 0;
   // ANIM-2 A13: choose a legal entry frame whose pose best matches the actor's
-  // current final pose. Only the front candidate is matched here; the Player
-  // recomputes for its final clip after any locomotion reorder.
+  // current final pose, against the clip that will actually play.
   if (query.entry.enabled) {
     const AnimationClip& clip =
         library.Get(static_cast<uint32_t>(result.clip_id));

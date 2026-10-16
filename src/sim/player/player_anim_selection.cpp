@@ -442,6 +442,18 @@ bool Player::TrySelectAction(football::sim::Tick now,
       command.desiredFunctionType == e_FunctionType_Movement ||
       command.desiredFunctionType == e_FunctionType_Trip;
 
+  // ANIM-2 A13.3: resolve the locomotion preference here (it needs PlayerMotion's
+  // snapshot and feeds the playback-rate audit) and hand it to Match, which owns
+  // the final Movement pick. The condition mirrors the pre-A13 reorder gate.
+  std::optional<LocomotionAnimationChoice> locomotion_choice;
+  if (command.desiredFunctionType == e_FunctionType_Movement &&
+      LocomotionAnimationAdaptation() &&
+      IsEligibleForProceduralLocomotion(tick.ball_retainer == this) &&
+      LocomotionAnimationInputSnapshot().has_value() && !dataSet.empty()) {
+    locomotion_choice = SelectLocomotionAnimation(
+        *LocomotionAnimationInputSnapshot(), animations_.Clips());
+  }
+
   // ANIM-2 A10.5: the Player calls the single Animation::Match entry for the
   // candidate refinement; it no longer calls the refinement functions directly.
   football::animation::MatchQuery match_query;
@@ -466,6 +478,10 @@ bool Player::TrySelectAction(football::sim::Tick now,
     refine_request.idle_level = desiredIdleLevel;
   }
   match_query.refinement = refine_request;
+  if (locomotion_choice) {
+    match_query.apply_movement_preference = true;
+    match_query.preferred_movement_clip = locomotion_choice->animation_id;
+  }
   if (entry_frame_branch) {
     match_query.entry.enabled = true;
     match_query.entry.reference_pose = Pose();
@@ -555,39 +571,28 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   if (command.useDesiredLookAt) desiredBodyDirectionRel = (command.desiredLookAt - (spatialState.position + spatialState.movement * 0.1f)).GetNormalized(Vector3(0, -1, 0)).GetRotated2D(-spatialState.angle);
 
-  // LOCO-2.3b: for pure procedural locomotion, reorder the already-valid
-  // Movement candidates so the motion-driven strategy's preferred clip wins,
-  // without adding candidates or touching the non-Movement/touch paths.
-  if (command.desiredFunctionType == e_FunctionType_Movement &&
-      LocomotionAnimationAdaptation() &&
-      IsEligibleForProceduralLocomotion(tick.ball_retainer == this) &&
-      LocomotionAnimationInputSnapshot().has_value() && !dataSet.empty()) {
-    const auto choice = SelectLocomotionAnimation(
-        *LocomotionAnimationInputSnapshot(), animations_.Clips());
-    // LOCO-2.3c: record the reference rate for calibration; frameNum is not
-    // advanced by it here.
+  // LOCO-2.3b/c / ANIM-2 A13.3: the locomotion preference is applied inside
+  // Animation::Match, so these candidates already begin with the final clip.
+  // The Player only records the calibration and the shadow oracle here.
+  if (locomotion_choice && !dataSet.empty()) {
     auto &audit = LocomotionPlaybackAuditState();
     ++audit.samples;
-    audit.reference_speed_sum += choice.reference_speed;
-    audit.playback_rate_sum += choice.playback_rate;
-    audit.playback_rate_max = std::max(audit.playback_rate_max, choice.playback_rate);
-    // ANIM-1 A6.3a shadow oracle: is the motion-driven choice a legal legacy
-    // Movement candidate? A non-zero disagreement means the new selector would
-    // pick a clip the legacy filter rejects, blocking the A6.3b hand-over.
+    audit.reference_speed_sum += locomotion_choice->reference_speed;
+    audit.playback_rate_sum += locomotion_choice->playback_rate;
+    audit.playback_rate_max =
+        std::max(audit.playback_rate_max, locomotion_choice->playback_rate);
+    // ANIM-1 A6.3a shadow oracle: was the motion-driven choice a legal candidate?
     ++audit.shadow_checks;
-    // A6.3b.1: the final pick rule (preferred if a legal candidate, else the
-    // legacy first) is a pure Animation helper; the Player only installs it.
-    const AnimationId pick = ResolveMovementPick(dataSet, choice.animation_id);
-    auto preferred = std::find(dataSet.begin(), dataSet.end(),
-                               static_cast<int>(choice.animation_id));
-    if (preferred != dataSet.end()) ++audit.shadow_in_candidates;
-    else ++audit.shadow_not_in_candidates;
-    auto picked = std::find(dataSet.begin(), dataSet.end(), static_cast<int>(pick));
-    if (picked != dataSet.end() && picked != dataSet.begin())
-      std::rotate(dataSet.begin(), picked, std::next(picked));
-    // Final-result oracle: the Movement branch takes `*dataSet.begin()` after the
-    // reorder, so this is the clip that would actually play.
-    if (*dataSet.begin() == static_cast<int>(choice.animation_id)) {
+    const auto preferred =
+        std::find(dataSet.begin(), dataSet.end(),
+                  static_cast<int>(locomotion_choice->animation_id));
+    if (preferred != dataSet.end()) {
+      ++audit.shadow_in_candidates;
+    } else {
+      ++audit.shadow_not_in_candidates;
+    }
+    // Final-result oracle: Match put the winning clip in front.
+    if (dataSet.front() == static_cast<int>(locomotion_choice->animation_id)) {
       ++audit.clip_matches;
     } else {
       ++audit.clip_mismatches;

@@ -2910,17 +2910,21 @@ action clock, the world motion and the install.
   fills the entry frame for the front candidate when the caller enables it.
 - Player (A13.1): Movement and Trip install at the matched frame. The
   locomotion adaptation can reorder the Movement candidates after `Match`, so
-  the Player re-matches the final clip with `SelectEntryFrame` when the front
-  changed. `ProjectSelectedActionCompat` sets `anim_state_.frameNum` to the
-  entry frame and re-bases `anim_state_.positions` by the entry frame's
-  reference position, so the first committed tick adds only the per-frame root
-  delta, never the skipped displacement. Deltas, outgoing movement and
-  smuggles are unchanged by that constant shift. Touch actions stay at frame 0
-  until A16.
+  the final Movement pick is Animation's (A13.3): the Player resolves the
+  locomotion preference (it needs PlayerMotion's snapshot) and passes it in
+  `MatchQuery.preferred_movement_clip`; `Match` applies `ResolveMovementPick` and
+  reorders the candidates, so `MatchResult.clip_id`/`start_frame` are final and
+  the Player only accepts/rejects and installs. `ProjectSelectedActionCompat`
+  sets `anim_state_.frameNum` to the entry frame and re-bases
+  `anim_state_.positions` by the entry frame's reference position, so the first
+  committed tick adds only the per-frame root delta, never the skipped
+  displacement. Deltas, outgoing movement and smuggles are unchanged by that
+  constant shift. Touch actions stay at frame 0 until A16.
 - Tests: `entry_frame_test` (distance, legal window, frame-0 fallback, Match
-  wiring) and a runtime test where a turning Movement tape installs a non-zero
-  entry frame, the following tick moves ~0.06 m (no teleport), and
-  install/cursor mismatches stay 0.
+  wiring), a `match_test` case proving the preference wins and the entry frame is
+  matched against the final clip, and a runtime test where a turning Movement
+  tape installs a non-zero entry frame, the following tick moves ~0.06 m (no
+  teleport), and install/cursor mismatches stay 0.
 
 A14 (Trip/Bump clip choice from collision direction/pose) and A16 (non-zero
 entry frames for touch actions, where the touch frame and ball position must

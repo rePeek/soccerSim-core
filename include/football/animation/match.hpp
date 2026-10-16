@@ -79,18 +79,18 @@ struct MatchResult {
   // The same chain minus the foot sort, when the caller asked for the foot
   // counterfactual diagnostic. Empty otherwise.
   std::vector<int> candidates_without_foot;
-  // The selected clip and its entry cursor. For Movement/non-Movement this is
-  // `candidates.front()`; for touch actions the A10.4 loop fills it.
+  // ANIM-2 A13.3: the FINAL selected clip. For Movement this already includes
+  // the locomotion preference reorder, so the Player installs it directly.
   AnimationId clip_id = -1;
-  // ANIM-2 A13: the chosen entry frame. 0 unless the caller enabled
-  // pose-based entry-frame matching for this branch.
+  // ANIM-2 A13: the chosen entry frame, matched against `clip_id`. 0 unless the
+  // caller enabled pose-based entry-frame matching for this branch.
   int start_frame = 0;
   std::optional<TouchMatch> touch;
 };
 
-// ANIM-2 A13.0: pose-based entry-frame matching, applied to the front
-// candidate. The reference pose is the actor's current final pose. The Player
-// recomputes for its final clip after any locomotion reorder.
+// ANIM-2 A13.0: pose-based entry-frame matching. `Match` applies it to the
+// final selected clip after any Movement preference reorder. The reference pose
+// is the actor's current final pose.
 struct MatchEntryRequest {
   bool enabled = false;
   PoseFrame reference_pose;
@@ -108,6 +108,13 @@ struct MatchQuery {
   MatchBranch branch = MatchBranch::Legacy;
   std::span<const int> crude_candidates;
   bool foot_counterfactual = false;
+  // ANIM-2 A13.3: the locomotion strategy's preferred Movement clip, already
+  // resolved by the Player. When `apply_movement_preference` is set and the clip
+  // is a legal candidate, Match reorders the Movement candidates so it wins;
+  // otherwise the legacy front candidate plays. Either way the result's
+  // clip_id/start_frame are final.
+  AnimationId preferred_movement_clip = -1;
+  bool apply_movement_preference = false;
   // ANIM-2 A13: entry-frame matching for Movement/Trip.
   MatchEntryRequest entry;
 };
