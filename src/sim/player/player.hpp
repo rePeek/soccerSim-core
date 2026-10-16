@@ -414,21 +414,6 @@ class Player final {
     int AuthorityChecks() const { return authority_checks_; }
     int AuthorityMatches() const { return authority_matches_; }
     int AuthorityMismatches() const { return authority_mismatches_; }
-    // ANIM-1 A6.3b.3: the Player owns the Movement candidate selection. It runs
-    // the stateless Animation refinement and retains the ordered candidate list
-    // (and the foot-counterfactual variant the diagnostic measures).
-    std::vector<int> SelectMovement(const AnimationLibrary& library,
-                                    std::span<const int> crude,
-                                    const MovementRefinementRequest& request) {
-      movement_candidates_ =
-          RefineMovementCandidates(library, crude, request,
-                                   &movement_candidates_without_foot_);
-      return movement_candidates_;
-    }
-    const std::vector<int>& MovementCandidates() const { return movement_candidates_; }
-    const std::vector<int>& MovementCandidatesWithoutFoot() const {
-      return movement_candidates_without_foot_;
-    }
     // ANIM-1 A6.4 step 4: the Player entry point for touch-animation selection.
     // `choice` is the per-tick scratch buffer the caller already owns (the
     // Movement and Sliding fallback paths fill its `positions` without going
@@ -861,16 +846,11 @@ class Player final {
     std::optional<football::sim::Tick> last_playback_tick_;
 
     bool playback_blend_enabled_ = true;
-    // ANIM-1 A6.3b.3: the Player owns the Movement candidate selection. It
-    // runs the stateless Animation refinement and retains both the ordered
-    // candidate list and the foot-counterfactual list.
-    std::vector<int> movement_candidates_;
 
     // ANIM-1 A6.4 step 4: the last retained touch-animation selection.
 
     int touch_selection_successes_ = 0;
     football::sim::TouchChoice touch_choice_;
-    std::vector<int> movement_candidates_without_foot_;
     // ANIM-1 A6.3b.3 (first cut): the Player owns the installed action and the
     // install cross-check counters. `last_begun_definition_` is the definition
     // the executor actually committed, used only as an oracle during migration.

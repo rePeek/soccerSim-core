@@ -98,6 +98,17 @@ struct MatchConstraints {
   float idle_level = 0.0f;
 };
 
+// ANIM-2 A10.5: which refinement the match runs. The Player decides the branch
+// (it depends on the command and the crude set); Match only dispatches.
+enum class MatchBranch {
+  // `useDesiredMovement == false`: priority/idle/foot/incoming/trip/baseanim.
+  Legacy,
+  // `useDesiredMovement == true`, Movement: the Movement sort chain.
+  Movement,
+  // `useDesiredMovement == true`, non-Movement: the non-Movement chain.
+  NonMovement,
+};
+
 // The matched touch of one candidate (filled by the A10.4 loop).
 struct TouchMatch {
   int touch_frame = -1;
@@ -109,6 +120,9 @@ struct TouchMatch {
 struct MatchResult {
   // The ordered candidate list after refinement, in the exact legacy order.
   std::vector<int> candidates;
+  // The same chain minus the foot sort, when the caller asked for the foot
+  // counterfactual diagnostic. Empty otherwise.
+  std::vector<int> candidates_without_foot;
   // The selected clip and its entry cursor. For Movement/non-Movement this is
   // `candidates.front()`; for touch actions the A10.4 loop fills it.
   AnimationId clip_id = -1;
@@ -124,6 +138,11 @@ struct MatchQuery {
   MatchConstraints constraints;
   // The Movement/non-Movement sort request (already resolved by the Player).
   MovementRefinementRequest refinement;
+  // ANIM-2 A10.5: which refinement to run, and the crude candidate set the
+  // Player already built (empty means Match runs CrudeSelection itself).
+  MatchBranch branch = MatchBranch::Legacy;
+  std::span<const int> crude_candidates;
+  bool foot_counterfactual = false;
 };
 
 // Refine the candidate set for the query and return the match. `motion` is used

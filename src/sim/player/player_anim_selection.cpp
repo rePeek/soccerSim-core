@@ -24,11 +24,29 @@
 #include <cassert>
 #include <functional>
 #include <iterator>
+#include <algorithm>
+#include <cassert>
+#include <functional>
+#include <iterator>
 #include <vector>
+
+#include "football/animation/match.hpp"
 
 using namespace football::math;
 using std::placeholders::_1;
 using std::placeholders::_2;
+
+namespace {
+
+// ANIM-2 A10.5: the candidate refinement never needs the motion port, so it
+// gets an evaluator that is never called.
+struct NoMotionEvaluator final : football::animation::MotionEvaluator {
+  bool Evaluate(AnimationId, football::animation::MotionPlanView&) override {
+    return false;
+  }
+};
+
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // ANIM-1 A6.4 step 9a: the crude candidate constraints, built by the Player.
@@ -395,17 +413,45 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   const bool foot_counterfactual =
       command.desiredFunctionType == e_FunctionType_Movement;
-  DataSet withoutFootSort;
+
+  // ANIM-2 A10.5: the Player calls the single Animation::Match entry for the
+  // candidate refinement; it no longer calls the refinement functions directly.
+  football::animation::MatchQuery match_query;
+  match_query.function_type = command.desiredFunctionType;
+  match_query.constraints.strict = nm_strict;
+  match_query.constraints.allowed_angle = nm_allowed_angle;
+  match_query.constraints.allowed_velocity_steps = nm_allowed_velocity_steps;
+  match_query.constraints.use_desired_trip_direction = command.useDesiredTripDirection;
+  match_query.constraints.desired_trip_direction =
+      command.desiredTripDirection.GetRotated2D(-spatialState.angle);
+  match_query.foot_counterfactual = foot_counterfactual;
   if (!pure_movement && !pure_non_movement) {
-    // ANIM-2 A10.3b: the legacy `useDesiredMovement == false` chain, now owned
-    // by Animation. Same sort order and erase semantics as before.
+    match_query.branch = football::animation::MatchBranch::Legacy;
+    match_query.crude_candidates = dataSet;
     refine_request.idle_level = desiredIdleLevel;
-    const Vector3 relDesiredTripDirection =
-        command.desiredTripDirection.GetRotated2D(-spatialState.angle);
-    dataSet = RefineLegacyCandidates(
-        animations_, dataSet, refine_request, command.desiredFunctionType,
-        command.useDesiredTripDirection, relDesiredTripDirection,
-        foot_counterfactual ? &withoutFootSort : nullptr);
+  } else if (pure_non_movement) {
+    match_query.branch = football::animation::MatchBranch::NonMovement;
+    match_query.crude_candidates = crude_movement_snapshot;
+  } else {
+    match_query.branch = football::animation::MatchBranch::Movement;
+    match_query.crude_candidates = crude_movement_snapshot;
+    refine_request.idle_level = desiredIdleLevel;
+  }
+  match_query.refinement = refine_request;
+
+  NoMotionEvaluator no_motion;
+  const auto match =
+      football::animation::Match(animations_, match_query, no_motion);
+  DataSet withoutFootSort;
+  if (match) {
+    dataSet.assign(match->candidates.begin(), match->candidates.end());
+    withoutFootSort = match->candidates_without_foot;
+  } else {
+    dataSet.clear();
+  }
+
+  if (!pure_movement && !pure_non_movement) {
+    // ANIM-2 A10.3b: the legacy `useDesiredMovement == false` chain.
     if (foot_counterfactual && !dataSet.empty() && !withoutFootSort.empty()) {
       RecordFootCounterfactual(animations_, *dataSet.begin(), *withoutFootSort.begin());
     }
@@ -427,51 +473,39 @@ bool Player::TrySelectAction(football::sim::Tick now,
       dataSet.swap(withoutFootSort);
     }
   } else if (pure_non_movement) {
-    // ANIM-2 A10.3b: the pure non-Movement refinement is the authority for the
-    // non-Movement candidate list; the legacy filter+sort chain no longer runs.
-    const Vector3 nm_trip_direction =
-        command.desiredTripDirection.GetRotated2D(-spatialState.angle);
-    const std::vector<int> nm_pure = RefineNonMovementCandidates(
-        animations_, crude_movement_snapshot, refine_request, nm_strict, nm_allowed_angle,
-        nm_allowed_velocity_steps, command.useDesiredTripDirection, nm_trip_direction);
-    dataSet.assign(nm_pure.begin(), nm_pure.end());
+    // ANIM-2 A10.3b: the pure non-Movement refinement is the authority.
     ++LocomotionPlaybackAuditState().nm_pure_ticks;
   } else {
-    // ANIM-2 A10.3a: the pure Movement refinement is the authority for the
-    // Movement candidate list; the legacy chain no longer runs for Movement.
-    refine_request.idle_level = desiredIdleLevel;
-    dataSet = SelectMovement(animations_, crude_movement_snapshot,
-                             refine_request);
+    // ANIM-2 A10.3a: the pure Movement refinement is the authority.
     if (dataSet.empty()) {
       dataSet.push_back(SelectIdleMovementAnim(
           animations_, spatialState.position, spatialState.angle,
           spatialState.floatVelocity));
     }
-    std::vector<int> without_foot = MovementCandidatesWithoutFoot();
     {  // ANIM-1 A6.3b.2: count the stateless refinement as the active Movement path.
       auto &refine_audit = LocomotionPlaybackAuditState();
       ++refine_audit.refine_checks;
       ++refine_audit.refine_matches;
     }
-    if (!dataSet.empty() && !without_foot.empty()) {
-      RecordFootCounterfactual(animations_, dataSet.front(), without_foot.front());
+    if (!dataSet.empty() && !withoutFootSort.empty()) {
+      RecordFootCounterfactual(animations_, dataSet.front(), withoutFootSort.front());
     }
     MovementAnimationPerturbation &perturbation = MovementAnimationPerturbationAudit();
     if (perturbation.enabled && !perturbation.applied &&
         localInterruptAnim == e_InterruptAnim_Switch &&
         action.type == e_FunctionType_Movement &&
         IsEligibleForProceduralLocomotion(tick.ball_retainer == this) &&
-        !dataSet.empty() && !without_foot.empty() &&
-        dataSet.front() != without_foot.front() &&
+        !dataSet.empty() && !withoutFootSort.empty() &&
+        dataSet.front() != withoutFootSort.front() &&
         (!perturbation.require_frame_count_difference ||
          GetBakedClip(dataSet.front()).frame_count !=
-             GetBakedClip(without_foot.front()).frame_count)) {
+             GetBakedClip(withoutFootSort.front()).frame_count)) {
       perturbation.applied = true;
       perturbation.player_id = GetID();
       perturbation.time_ms = static_cast<int>(football::sim::ToMilliseconds(now));
       perturbation.original_anim_id = dataSet.front();
-      perturbation.alternative_anim_id = without_foot.front();
-      dataSet.swap(without_foot);
+      perturbation.alternative_anim_id = withoutFootSort.front();
+      dataSet.swap(withoutFootSort);
     }
   }
 
