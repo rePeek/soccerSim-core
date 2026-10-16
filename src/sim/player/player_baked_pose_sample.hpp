@@ -1,5 +1,8 @@
 #ifndef FOOTBALL_PLAYER_BAKED_POSE_SAMPLE_HPP
 #define FOOTBALL_PLAYER_BAKED_POSE_SAMPLE_HPP
+
+#include <cstdint>
+
 #include "sim/player/player_baked_body_pose.hpp"
 #include "sim/player/player_baked_contact_regions.hpp"
 
@@ -10,8 +13,10 @@ struct PlayerBakedPoseSample {
   PoseFrame pose;
   PlayerKinematicState state;
   AnimationId animation_id = 0;
-  int requested_frame = 0;
-  int sampled_frame = 0;
+  // ANIM-2 A11.7: the frame fields are 64-bit so a preview offset can be added
+  // and clamped without signed overflow; only sampled_frame indexes the clip.
+  std::int64_t requested_frame = 0;
+  std::int64_t sampled_frame = 0;
   float base_angle = 0;
   football::player::PlayerBodyProfile body_profile;
   e_FunctionType action = e_FunctionType_None;

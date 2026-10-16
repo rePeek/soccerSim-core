@@ -824,11 +824,21 @@ float Player::GetControlSpeed() {
   return 0.f;
 }
 
-// ANIM-2 A11.5: the request/reaction arbitration boundary. Both record the
-// outcome immediately. Only an ACCEPTED request is retained as the pending
+// ANIM-2 A11.5/A11.7: the request/reaction arbitration boundary. Both record
+// the outcome immediately. Only an ACCEPTED request is retained as the pending
 // execution input, so a deferred intent cannot be silently executed later; the
 // producer resubmits it when the window opens.
+//
+// `Play(Move)` is rejected on purpose: continuous movement intent belongs to
+// SetControl/PlayerMotion, and selecting a Movement clip through Play would not
+// change the authoritative locomotion intent. Use SetControl for movement.
 RequestOutcome Player::Play(const PlayerActionRequest& request) {
+  if (request.kind == ActionRequestKind::Move) {
+    action_request_outcome_ = RequestOutcome::Rejected;
+    ++action_request_attempts_;
+    ++action_request_rejects_;
+    return RequestOutcome::Rejected;
+  }
   const RequestOutcome outcome = ArbitrateActionRequest(actionState, request.kind);
   action_request_outcome_ = outcome;
   ++action_request_attempts_;
@@ -843,17 +853,26 @@ RequestOutcome Player::Play(const PlayerActionRequest& request) {
   return outcome;
 }
 
+// ANIM-2 A11.5/A11.7: recording the pending reaction is ATOMIC with the trip
+// staging. A trip that loses the guard is not retained, so it cannot clobber a
+// first accepted trip, and a non-trip reaction never replaces a staged trip
+// (the first valid trip wins). The physical collision fact is already applied
+// by the contact phase; only the animation reaction is staged here.
 RequestOutcome Player::React(const PlayerReaction& reaction,
                              const Player* ball_retainer) {
   const RequestOutcome outcome = ArbitrateReaction(actionState, reaction.kind);
   reaction_outcome_ = outcome;
   if (outcome == RequestOutcome::Rejected) return outcome;
-  pending_reaction_ = reaction;
-  // The physical collision fact is already applied by the contact phase; only
-  // the animation reaction is staged here for the next action tick.
   if (reaction.kind == ReactionKind::Trip) {
-    this->StagePassiveTrip(reaction, ball_retainer);
+    if (!this->StagePassiveTrip(reaction, ball_retainer)) {
+      // Already staged or refused by the guard: keep the existing reaction.
+      reaction_outcome_ = RequestOutcome::Deferred;
+      return RequestOutcome::Deferred;
+    }
+    pending_reaction_ = reaction;
   }
+  // Non-trip reactions have no animation execution yet, so they never touch the
+  // pending executable slot; they are recorded through the outcome only.
   return outcome;
 }
 

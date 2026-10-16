@@ -159,9 +159,11 @@ TEST_CASE("MatchTouch with no candidates matches nothing") {
   CHECK(result.clip_id == -1);
 }
 
-TEST_CASE("MatchTouch returns the same result with or without a trace") {
-  // ANIM-2 A11.6: the per-candidate trace is optional diagnostics. Asking for
-  // it must not change what the match selects.
+TEST_CASE("MatchTouch returns the same successful selection with or without a trace") {
+  // ANIM-2 A11.6/A11.7: the per-candidate trace is optional diagnostics. Asking
+  // for it must not change a SUCCESSFUL selection (clip, touch frame/position,
+  // smuggle, rotation and the adapted reference motion), and a reused trace must
+  // be replaced, not appended, including after an early reject.
   AnimationLibrary library;
   REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
   const std::vector<int> candidates = CrudeCandidates(library, e_FunctionType_Trap, 3);
@@ -169,10 +171,15 @@ TEST_CASE("MatchTouch returns the same result with or without a trace") {
 
   StubQueries queries;
   queries.ball_predict_ticks_pos = Vector3(0.0f, 0.0f, 0.0f);
-  queries.ball_prediction_pos = Vector3(0.0f, 0.0f, 5.0f);
+  queries.ball_prediction_pos = Vector3(0.0f, 0.0f, 0.0f);
   queries.plan_positions.assign(256, Vector3(0, 0, 0));
-  const TouchMatchContext context = MakeContext(candidates);
+  TouchMatchContext context = MakeContext(candidates);
+  // A retained ball makes every reachable candidate win, so this exercises the
+  // full successful path rather than only a rejection.
+  context.ball_retained_by_player = true;
+
   const auto without = MatchTouch(library, context, queries);
+  REQUIRE(without.clip_id >= 0);
 
   TouchMatchTrace trace;
   const auto with = MatchTouch(library, context, queries, &trace);
@@ -192,5 +199,23 @@ TEST_CASE("MatchTouch returns the same result with or without a trace") {
       CHECK(without.positions[i].coords[c] == with.positions[i].coords[c]);
     }
   }
-  CHECK(trace.candidates.size() == candidates.size());
+  // A successful match stops at the winning candidate, so the trace is a prefix
+  // (at least the winner), not the whole candidate list.
+  const std::size_t evaluated = trace.candidates.size();
+  REQUIRE(evaluated >= 1);
+  CHECK(trace.result.clip_id == with.clip_id);
+
+  // Reusing the same trace replaces its diagnostics instead of appending.
+  const auto again = MatchTouch(library, context, queries, &trace);
+  CHECK(trace.candidates.size() == evaluated);
+  CHECK(again.clip_id == with.clip_id);
+
+  // An early reject on the reused trace clears the stale candidate list.
+  TouchMatchContext rejected = context;
+  rejected.ball_retained_by_other = true;
+  const auto rejected_result = MatchTouch(library, rejected, queries, &trace);
+  CHECK(trace.rejected_before_candidates);
+  CHECK(trace.early_reject == TouchRejectReason::RetainedByOther);
+  CHECK(trace.candidates.empty());
+  CHECK(rejected_result.clip_id == -1);
 }

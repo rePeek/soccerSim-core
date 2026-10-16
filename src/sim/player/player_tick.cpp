@@ -453,19 +453,31 @@ void Player::RunActionTick(football::sim::Tick now,
         tripDirection = pending_trip->direction;
         tripType = pending_trip->trip_type;
         reaction_executed = true;
-        ++reaction_executions_;
+        ++reaction_trip_interrupts_scheduled_;
+        // ANIM-2 A11.7: a Trip preempts an accepted active intent. Discard it
+        // so a stale Play request cannot switch the actor back out of the trip.
+        if (pending_action_request_) {
+          pending_action_request_.reset();
+          ++action_request_preemptions_;
+        }
       }
     }
   }
   if (!reaction_executed) {
     if (const auto pending_request = this->ConsumePendingActionRequest()) {
-      request_command_queue =
-          this->BuildCommandQueueForRequest(*pending_request, tick);
-      if (!request_command_queue.empty()) {
-        has_request_input = true;
-        // An explicit input is not a requeue opportunity: force the switch.
-        interruptAnim = e_InterruptAnim_Switch;
-        ++action_request_executions_;
+      // ANIM-2 A11.7: re-arbitrate at consumption. The request was accepted on
+      // an earlier tick and the action state may have changed since, so a now-
+      // illegal intent is dropped instead of force-switching the running action.
+      if (ArbitrateActionRequest(actionState, pending_request->kind) ==
+          RequestOutcome::Accepted) {
+        request_command_queue =
+            this->BuildCommandQueueForRequest(*pending_request, tick);
+        if (!request_command_queue.empty()) {
+          has_request_input = true;
+          // An explicit input is not a requeue opportunity: force the switch.
+          interruptAnim = e_InterruptAnim_Switch;
+          ++action_request_inputs_consumed_;
+        }
       }
     }
   }
@@ -885,8 +897,8 @@ PlayerBakedPoseSample Player::SampleBakedPose(
   sample.pose = clip.poses[frame];
   sample.state = state;
   sample.animation_id = anim_state_.animationId;
-  sample.requested_frame = anim_state_.frameNum;
-  sample.sampled_frame = int(frame);
+  sample.requested_frame = static_cast<std::int64_t>(anim_state_.frameNum);
+  sample.sampled_frame = static_cast<std::int64_t>(frame);
   sample.frame_clamped = sample.requested_frame != sample.sampled_frame;
   sample.base_angle = startAngle + anim_state_.rotationSmuggleOffset;
   sample.body_profile = profile;
@@ -895,22 +907,27 @@ PlayerBakedPoseSample Player::SampleBakedPose(
   return sample;
 }
 
-// ANIM-2 A11.0/A11.5: a read-only raw-clip pose preview. It never advances the
-// action clock, draws RNG or mutates the Player. For a positive offset it
+// ANIM-2 A11.0/A11.5/A11.7: a read-only raw-clip pose preview. It never advances
+// the action clock, draws RNG or mutates the Player. For a positive offset it
 // returns the raw clip skeleton at the requested future frame (not the blended
 // pose), which is exactly the body-forecast input the Simulation used to build
-// by indexing the library itself. The offset is clamped to the clip range in
-// BOTH directions, so a negative offset can never convert to a huge size_t and
-// index out of bounds; it previews an earlier raw frame instead.
+// by indexing the library itself. The offset is added in 64 bits and clamped to
+// the clip range in BOTH directions, so neither a negative offset nor an extreme
+// positive one can overflow or index out of bounds.
 PlayerBakedPoseSample Player::PreviewRawPose(int frame_offset) const {
   PlayerBakedPoseSample sample = GetBakedPoseSample();
   const auto& clip =
       animations_.Get(static_cast<std::uint32_t>(sample.animation_id));
-  sample.requested_frame += frame_offset;
-  const int last_frame = static_cast<int>(clip.poses.size()) - 1;
-  sample.sampled_frame = std::clamp(sample.requested_frame, 0, last_frame);
-  sample.frame_clamped = sample.sampled_frame != sample.requested_frame;
-  sample.pose = clip.poses[static_cast<std::size_t>(sample.sampled_frame)];
+  const std::int64_t requested =
+      sample.requested_frame + static_cast<std::int64_t>(frame_offset);
+  const std::int64_t last_frame =
+      static_cast<std::int64_t>(clip.poses.size()) - 1;
+  const std::int64_t sampled =
+      std::clamp(requested, std::int64_t{0}, last_frame);
+  sample.requested_frame = requested;
+  sample.sampled_frame = sampled;
+  sample.frame_clamped = sampled != requested;
+  sample.pose = clip.poses[static_cast<std::size_t>(sampled)];
   sample.outgoing_special_state = !clip.metadata.outgoing_special_state.empty();
   return sample;
 }

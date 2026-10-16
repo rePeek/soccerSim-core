@@ -672,14 +672,15 @@ void Player::SelectRetainAnim() {
 }
 
 // ---------------------------------------------------------------------------
-// ANIM-2 A11.5: the passive-trip staging guard, owned by the Player and reached
-// only through React(). The guard is evaluated at contact time exactly as the
-// legacy Humanoid::TripMe did; the accepted trip is applied to the animation
-// interrupt at the next action tick.
+// ANIM-2 A11.5/A11.7: the passive-trip staging guard, owned by the Player and
+// reached only through React(). The guard is evaluated at contact time exactly
+// as the legacy Humanoid::TripMe did; the accepted trip is applied to the
+// animation interrupt at the next action tick. Returns true only when the trip
+// is actually staged, so React can keep recording the reaction atomic with it.
 // ---------------------------------------------------------------------------
-void Player::StagePassiveTrip(const PlayerReaction &reaction,
+bool Player::StagePassiveTrip(const PlayerReaction &reaction,
                               const Player *ball_retainer) {
-  if (ball_retainer == this) return;
+  if (ball_retainer == this) return false;
   const AnimationClip &clip = GetCurrentBakedClip();
   football::sim::PassiveTripContext context;
   context.action_type = actionState.type;
@@ -692,8 +693,9 @@ void Player::StagePassiveTrip(const PlayerReaction &reaction,
       !pending_passive_trip_.has_value() &&
       interruptAnim == e_InterruptAnim_None;
   context.requested_trip_type = reaction.trip_type;
-  if (!football::sim::CanAcceptPassiveTrip(context)) return;
+  if (!football::sim::CanAcceptPassiveTrip(context)) return false;
   pending_passive_trip_ = PendingPassiveTrip{reaction.direction, reaction.trip_type};
+  return true;
 }
 
 std::optional<PendingPassiveTrip> Player::ConsumePendingPassiveTrip() {

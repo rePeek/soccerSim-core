@@ -2812,8 +2812,11 @@ closed the leftovers that still confused "prediction" with "playback".
   is translated at the same boundary into the controller command queue
   (`BuildCommandQueueForRequest` -> `BuildPlayerCommands`), so active and passive
   inputs run through one selection/install/execution pipeline. A deferred request is
-  not retained as an execution input; the producer resubmits it. The counters
-  `ActionRequestExecutions()` / `ReactionExecutions()` prove consumption.
+  not retained as an execution input; the producer resubmits it. The counters now
+  say what they mean: `ActionRequestInputsConsumed()` (a request produced a
+  non-empty command queue; NOT that a clip installed) and
+  `ReactionTripInterruptsScheduled()` (a Trip interrupt was scheduled; NOT that
+  the trip clip installed), plus `ActionRequestPreemptions()`.
 - **A11.6 `MatchTouch` diagnostics are opt-in.** `MatchTouch` returns
   `TouchMatchResult` and takes an optional `TouchMatchTrace*` (default `nullptr`).
   Production passes nothing and records no per-candidate vector; the result is
@@ -2823,7 +2826,22 @@ closed the leftovers that still confused "prediction" with "playback".
   checks the realized collider geometry, not only the raw pose. New runtime cases
   cover `React`-driven trips and an accepted `Play` request executing through the
   pipeline.
-
+- **A11.7 input lifetime.** Recording a reaction is atomic with the trip
+  staging (`StagePassiveTrip` returns whether it staged): a second trip that
+  loses the guard keeps the first accepted reaction, and a non-executable
+  reaction (Bump) never clobbers a staged trip. A Trip that executes discards
+  the accepted active request (`ActionRequestPreemptions()`), so a stale
+  `Play(Shot)` cannot switch the actor back out of the trip on the next tick.
+  `Play(ActionRequestKind::Move)` is REJECTED: continuous movement intent is
+  `SetControl`/`PlayerMotion`'s, and a Movement clip from `Play` would not change
+  it. `PlayerBakedPoseSample` frame fields are 64-bit and `PreviewRawPose` adds
+  the offset in 64 bits before clamping, so extreme offsets cannot overflow. A
+  reused `TouchMatchTrace` is reset (capacity kept) at every `MatchTouch` entry.
+- **A11.7 tests.** Same-tick trip/trip/bump atomicity and the `Play(Move)`
+  rejection run in the existing per-player contract case; a new runtime case
+  proves a Trip preempts an accepted `Play(Shot)` with no later Shot; the preview
+  case exercises both clamp directions and `INT_MAX`/`INT_MIN`; the MatchTouch
+  equivalence test now uses a SUCCESSFUL selection and checks trace reuse.
 The frozen ownership: AI/Referee/Physics -> `Player` (ActionState time authority,
 PlayerMotion capability, Animation Match/Playback) -> final pose -> body
 realization -> physics collider. `anim_state_` still carries install staging,

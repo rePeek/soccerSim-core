@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <vector>
 #include <variant>
+#include <limits>
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
@@ -976,6 +977,38 @@ TEST_CASE("Runtime harness: per-player Play/React/Pose contract", "[runtime][sim
   REQUIRE(striker->PendingReaction().has_value());
   CHECK(striker->PendingReaction()->kind == ReactionKind::Trip);
 
+  // ANIM-2 A11.7: recording the reaction is atomic with the trip staging. A
+  // second trip that loses the guard must not overwrite the first accepted one.
+  PlayerReaction second_trip = trip;
+  second_trip.trip_type = 5;
+  CHECK(striker->React(second_trip) == RequestOutcome::Deferred);
+  REQUIRE(striker->PendingReaction().has_value());
+  CHECK(striker->PendingReaction()->kind == ReactionKind::Trip);
+  CHECK(striker->PendingReaction()->trip_type == trip.trip_type);
+
+  // A non-executable reaction (Bump) must not clobber the staged trip either.
+  PlayerReaction bump;
+  bump.kind = ReactionKind::Bump;
+  bump.direction = Vector3(1, 0, 0);
+  bump.severity = 1.0f;
+  CHECK(striker->React(bump) == RequestOutcome::Accepted);
+  REQUIRE(striker->PendingReaction().has_value());
+  CHECK(striker->PendingReaction()->kind == ReactionKind::Trip);
+  CHECK(striker->PendingReaction()->trip_type == trip.trip_type);
+
+  // Continuous movement is SetControl's job: Play(Move) is rejected and stages
+  // no pending input.
+  Player* keeper = SimulationAccess::RosterOf(sim, 0).Players()[0];
+  REQUIRE(keeper != nullptr);
+  CHECK_FALSE(keeper->PendingActionRequest().has_value());
+  PlayerActionRequest move;
+  move.kind = ActionRequestKind::Move;
+  move.direction = Vector3(0, -1, 0);
+  move.speed = 6.0f;
+  CHECK(keeper->Play(move) == RequestOutcome::Rejected);
+  CHECK_FALSE(keeper->PendingActionRequest().has_value());
+  CHECK(keeper->ActionRequestRejects() == 1);
+
   // Pose() returns a finite final pose for an active player.
   const PoseFrame pose = striker->Pose();
   for (std::size_t j = 0; j < kBodyPartCount; ++j) {
@@ -1431,14 +1464,68 @@ TEST_CASE("Runtime harness: an accepted Play request executes through the pipeli
     if (player->GetSimulationActionState().type == e_FunctionType_Shot) shot_seen = true;
   }
 
-  std::fprintf(stderr, "[runtime] A11.5 in_play=%d shot=%d executions=%d\n",
-               in_play_tick, shot_seen ? 1 : 0, player->ActionRequestExecutions());
+  std::fprintf(stderr, "[runtime] A11.5 in_play=%d shot=%d consumed=%d\n",
+               in_play_tick, shot_seen ? 1 : 0,
+               player->ActionRequestInputsConsumed());
   CHECK(in_play_tick >= 0);
   CHECK(submitted);
   CHECK(submit_outcome == RequestOutcome::Accepted);
   CHECK(shot_seen);
-  CHECK(player->ActionRequestExecutions() > 0);
+  CHECK(player->ActionRequestInputsConsumed() > 0);
   CHECK(player->InstallMismatches() == 0);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: a Trip preempts an accepted active request",
+          "[runtime][sim]") {
+  // ANIM-2 A11.7: once a Trip reaction executes, an accepted Play request must
+  // not survive to switch the actor back out of the trip on a later tick.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int in_play_tick = -1;
+  bool armed = false;
+  bool trip_seen = false;
+  bool shot_after_trip = false;
+  RequestOutcome play_outcome = RequestOutcome::Rejected;
+  RequestOutcome react_outcome = RequestOutcome::Rejected;
+  for (int tick = 0; tick < 400; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    if (!armed && in_play_tick >= 0 && tick > in_play_tick + 3 &&
+        player->GetSimulationActionState().type == e_FunctionType_Movement) {
+      PlayerActionRequest shoot;
+      shoot.kind = ActionRequestKind::Shoot;
+      shoot.direction = Vector3(0, -1, 0);
+      shoot.power = 0.7f;
+      play_outcome = player->Play(shoot);
+      react_outcome = player->React(
+          PlayerReaction{ReactionKind::Trip, Vector3(0, -1, 0), 1.0f,
+                         football::player::kInvalidPlayerId, 2});
+      armed = true;
+    }
+    PlayerControlSet controls;
+    sim.Step(controls);
+    const e_FunctionType type = player->GetSimulationActionState().type;
+    if (type == e_FunctionType_Trip) trip_seen = true;
+    if (trip_seen && type == e_FunctionType_Shot) shot_after_trip = true;
+    if (trip_seen && type == e_FunctionType_Movement) break;
+  }
+
+  std::fprintf(stderr,
+               "[runtime] A11.7 preempt play=%d react=%d trip=%d shot_after=%d "
+               "preemptions=%d\n",
+               static_cast<int>(play_outcome), static_cast<int>(react_outcome),
+               trip_seen ? 1 : 0, shot_after_trip ? 1 : 0,
+               player->ActionRequestPreemptions());
+  CHECK(in_play_tick >= 0);
+  CHECK(armed);
+  CHECK(play_outcome == RequestOutcome::Accepted);
+  CHECK(react_outcome == RequestOutcome::Accepted);
+  CHECK(trip_seen);
+  CHECK_FALSE(shot_after_trip);
+  CHECK(player->ActionRequestPreemptions() > 0);
   CHECK(sim.Stop());
 }
 
@@ -1479,6 +1566,20 @@ TEST_CASE("Runtime harness: the Player pose preview drives the body forecast",
   CHECK(at_start.sampled_frame == 0);
   CHECK(at_start.frame_clamped);
 
+  // ANIM-2 A11.7: extreme offsets are added in 64 bits, so there is no signed
+  // overflow before the clamp.
+  const PlayerBakedPoseSample at_max =
+      player->PreviewRawPose(std::numeric_limits<int>::max());
+  CHECK(at_max.requested_frame ==
+        sample.requested_frame + std::numeric_limits<int>::max());
+  CHECK(at_max.sampled_frame == last_frame);
+  CHECK(at_max.frame_clamped);
+  const PlayerBakedPoseSample at_min =
+      player->PreviewRawPose(std::numeric_limits<int>::min());
+  CHECK(at_min.requested_frame ==
+        sample.requested_frame + std::numeric_limits<int>::min());
+  CHECK(at_min.sampled_frame == 0);
+  CHECK(at_min.frame_clamped);
   const auto geometry = at_end.Geometry();
   for (const auto& shape : geometry.shapes) {
     if (const auto* capsule = std::get_if<football::geometry::Capsule>(&shape)) {

@@ -8,20 +8,23 @@
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_definition.hpp"
 
-// ANIM-1.1 — explicit per-player action request / reaction contract.
+// ANIM-1.1 / ANIM-2 A11.5/A11.7 — explicit per-player action request / reaction
+// contract.
 //
-// `Player::Play(request)` submits an ACTIVE action for one player; `Player::React`
-// submits a PASSIVE physics reaction with preemption priority. Both funnel through
-// the same arbitration so the accept/defer/reject reason is always recorded.
+// The control model is deliberately narrow:
+//   SetControl()  -> continuous movement intent (PlayerMotion authority).
+//   Play(request)-> discrete actions only (pass/shoot/tackle/...).
+//   React(...)    -> passive physics reactions (trips/bumps).
+// `Play(ActionRequestKind::Move)` is rejected: a Movement clip selected through
+// Play would not change the authoritative locomotion intent.
 //
-// ANIM-2 A11.5: an accepted request/reaction is a real execution input. The next
+// Both funnel through one arbitration so the accept/defer/reject reason is always
+// recorded. An accepted request/reaction is a real execution input: the next
 // action tick consumes it and runs it through the one Player execution pipeline
 // (command build -> selection -> Animation::Match -> install). A rejected or
 // deferred request is not retained; the producer must submit it again when the
-// arbitration window allows.
-//
-// Only the ACTION reaction is deferred here. The physical collision impulse has
-// already been applied by the contact phase and never waits for animation.
+// arbitration window allows. Only the ACTION reaction is deferred here; the
+// physical collision impulse was already applied by the contact phase.
 
 enum class ActionRequestKind : std::uint8_t {
   None = 0,

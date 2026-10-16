@@ -352,13 +352,23 @@ class Player final {
       return actionState;
     }
 
-    // ANIM-1.1 / ANIM-2 A11.5: per-player action request / reaction contract.
-    // Both arbitrate immediately and record the outcome; an accepted request is
+    // ANIM-1.1 / ANIM-2 A11.5/A11.7: per-player action request / reaction
+    // contract. The control model is explicit:
+    //   SetControl() -> continuous movement intent (PlayerMotion authority).
+    //   Play()       -> discrete actions (pass/shoot/tackle/...).
+    //   React()      -> passive physics reactions (trips/bumps).
+    // `Play(ActionRequestKind::Move)` is REJECTED: continuous movement must go
+    // through SetControl, otherwise a Movement clip would be selected without
+    // changing the authoritative locomotion intent.
+    //
+    // Both arbitrate immediately and record the outcome. An accepted request is
     // retained as the Player's pending input and consumed exactly once by the
-    // next action tick, which runs it through the one execution pipeline.
+    // next action tick; an accepted Trip reaction stages atomically (see React).
     RequestOutcome Play(const PlayerActionRequest& request);
     // `ball_retainer` only gates the passive-trip animation guard; null means
-    // "no retainer" (the contact caller passes the real one).
+    // "no retainer" (the contact caller passes the real one). A second trip that
+    // loses the guard does not overwrite the first accepted reaction, and a
+    // non-executable reaction never clobbers a staged trip.
     RequestOutcome React(const PlayerReaction& reaction,
                          const Player* ball_retainer = nullptr);
     const std::optional<PlayerActionRequest>& PendingActionRequest() const {
@@ -373,10 +383,13 @@ class Player final {
     int ActionRequestAccepts() const { return action_request_accepts_; }
     int ActionRequestDefers() const { return action_request_defers_; }
     int ActionRequestRejects() const { return action_request_rejects_; }
-    // ANIM-2 A11.5: an accepted input actually consumed by the action tick.
-    // Proof the request/reaction is an execution input, not a write-only record.
-    int ActionRequestExecutions() const { return action_request_executions_; }
-    int ReactionExecutions() const { return reaction_executions_; }
+    // ANIM-2 A11.5/A11.7: what was actually CONSUMED by the action tick, not
+    // what was installed. Consuming a request builds a non-empty command queue;
+    // scheduling a trip interrupt does not guarantee the trip clip installs.
+    int ActionRequestInputsConsumed() const { return action_request_inputs_consumed_; }
+    int ReactionTripInterruptsScheduled() const { return reaction_trip_interrupts_scheduled_; }
+    // Accepted active intents discarded because a passive Trip preempted them.
+    int ActionRequestPreemptions() const { return action_request_preemptions_; }
     // ANIM-1 A3: the Player owns the animation playback state and computes the
     // final pose; the Animation module stays stateless. The clip id and frame
     // come from the Player's authoritative state (installed selection + action
@@ -703,7 +716,9 @@ class Player final {
     // through the ANIM-1 A7 guard; the action tick consumes the reaction and the
     // staged trip together. An accepted active request is translated here into
     // the controller command queue so it executes through the same pipeline.
-    void StagePassiveTrip(const PlayerReaction& reaction,
+    // ANIM-2 A11.7: returns true only when the trip is actually staged. The
+    // caller (React) makes recording the pending reaction atomic with this.
+    bool StagePassiveTrip(const PlayerReaction& reaction,
                           const Player* ball_retainer);
     std::optional<PendingPassiveTrip> ConsumePendingPassiveTrip();
     std::optional<PlayerReaction> ConsumePendingReaction();
@@ -895,8 +910,9 @@ class Player final {
     int action_request_accepts_ = 0;
     int action_request_defers_ = 0;
     int action_request_rejects_ = 0;
-    int action_request_executions_ = 0;
-    int reaction_executions_ = 0;
+    int action_request_inputs_consumed_ = 0;
+    int reaction_trip_interrupts_scheduled_ = 0;
+    int action_request_preemptions_ = 0;
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
     // Explicit cause of the next Direct publication. A continuity repair runs

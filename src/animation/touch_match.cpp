@@ -43,6 +43,15 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
                            TouchMatchQueries& queries,
                            TouchMatchTrace* trace) {
   TouchMatchResult result;
+  // ANIM-2 A11.7: a caller may reuse one trace across matches. Reset it here,
+  // keeping the candidate vector's capacity, so an early return cannot leak the
+  // previous match's diagnostics.
+  if (trace != nullptr) {
+    trace->candidates.clear();
+    trace->result = TouchMatchResult{};
+    trace->rejected_before_candidates = false;
+    trace->early_reject = TouchRejectReason::None;
+  }
 
   // Someone else holds the ball: no touch animation may be selected.
   if (context.ball_retained_by_other) {
