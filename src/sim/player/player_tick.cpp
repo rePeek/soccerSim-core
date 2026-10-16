@@ -24,6 +24,7 @@
 #include "football/animation/library.hpp"
 #include "football/animation/movement_math.hpp"
 #include "football/animation/selector.hpp"
+#include "football/animation/selection_math.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player_motion.hpp"
 #include "sim/player/player_touch_math.hpp"

@@ -15,6 +15,7 @@ add_library(football_animation_base STATIC
   format.cpp
   clip.cpp
   library.cpp
+  selector.cpp
 )
 add_library(football::animation_base ALIAS football_animation_base)
 target_sources(football_animation_base PUBLIC FILE_SET HEADERS

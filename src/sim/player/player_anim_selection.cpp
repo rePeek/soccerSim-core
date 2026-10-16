@@ -11,6 +11,7 @@
 
 #include "football/animation/library.hpp"
 #include "football/animation/movement_math.hpp"
+#include "football/animation/selection_math.hpp"
 #include "football/animation/selector.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/observation/mentalimage.hpp"

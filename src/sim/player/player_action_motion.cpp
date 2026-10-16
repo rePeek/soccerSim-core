@@ -4,6 +4,7 @@
 #include "sim/player/player_motion.hpp"
 
 #include "football/animation/movement_math.hpp"
+#include "football/animation/selection_math.hpp"
 #include "football/animation/movement_selection.hpp"
 #include "sim/player/player_motion_constants.hpp"
 
