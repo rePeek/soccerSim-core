@@ -2986,4 +2986,21 @@ Tests: `entry_frame_test` proves the touch bound wins over a late pose match;
 the runtime pass test asserts the pass's entry frame is before its contact
 frame and the installed touch frame equals the action state's contact frame.
 
-A17 (final Animation acceptance) builds on this.
+
+### ANIM-2 A17: bounded full-roster acceptance
+
+A17 is the closing acceptance for the A13-A16 entry-frame work. It does not run
+a full match (the repo rule):
+
+- A bounded 11v11 runtime case builds 22 actors over one Simulation-owned
+  `AnimationLibrary`, drives two actors through pass/dribble/shot/trap for 220
+  ticks (24 -> 18 clip switches observed), and hashes every actor's clip id,
+  frame, action type and position plus the ball position each tick. Two
+  independent runs must produce the same FNV-1a digest; that pins 22-actor
+  library sharing and end-to-end determinism after A13-A16.
+- The runtime CTest timeout is raised to 420 s: the bounded suite is now ~4 min
+  on the reference host. The timeout still only catches a hung Step.
+
+A17 closes the entry-frame program: Movement/Trip/touch actions all select
+their clip and legal entry frame in Animation, while the Player still owns
+arbitration, install and the action clock, and Physics still owns the impulse.

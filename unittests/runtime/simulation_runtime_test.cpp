@@ -23,6 +23,8 @@
 #include <vector>
 #include <variant>
 #include <limits>
+#include <cstdint>
+#include <cstring>
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
@@ -1774,4 +1776,107 @@ TEST_CASE("Runtime harness: the Player pose preview drives the body forecast",
   CHECK(reset_preview.sampled_frame >= 0);
   CHECK(reset_preview.sampled_frame < player->GetFrameCount());
   CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: 22 actors share the library deterministically",
+          "[runtime][sim]") {
+  // ANIM-2 A17: bounded full-roster acceptance. One Simulation owns one
+  // AnimationLibrary shared by all 22 actors; a switching tape must produce the
+  // same digest on two independent runs.
+  struct RunResult {
+    std::uint64_t digest = 0;
+    int actors = 0;
+    int switches = 0;
+  };
+  const auto run = []() {
+    Simulation sim;
+    InitMatch(sim);
+
+    std::vector<Player*> actors;
+    for (int team = 0; team < 2; ++team) {
+      for (Player* p : SimulationAccess::RosterOf(sim, team).Players()) {
+        if (p != nullptr) actors.push_back(p);
+      }
+    }
+    std::vector<int> last_anim(actors.size(), -1);
+
+    RunResult result;
+    result.actors = static_cast<int>(actors.size());
+    std::uint64_t digest = 14695981039346656037ull;
+    const auto mix = [&digest](std::uint64_t value) {
+      digest ^= value;
+      digest *= 1099511628211ull;
+    };
+    const auto mix_float = [&mix](float value) {
+      std::uint32_t bits = 0;
+      std::memcpy(&bits, &value, sizeof(bits));
+      mix(bits);
+    };
+
+    for (int tick = 0; tick < 220; ++tick) {
+      PlayerControlSet controls;
+      // Drive two actors through the action families so the tape has frequent
+      // switches without paying a touch search for all 22; the digest still
+      // covers every actor's pose, action and the ball.
+      for (std::size_t i = 0; i < actors.size() && i < 2; ++i) {
+        PlayerControl control;
+        control.move_direction = Vector3(0, -1, 0);
+        control.desired_speed = 4.0f;
+        const int phase = ((tick / 20) + static_cast<int>(i)) % 4;
+        if (phase == 0) {
+          control.action = ControlAction::ShortPass;
+          control.target_position = actors[i]->GetPosition() + Vector3(0, -10.0f, 0);
+          control.power = 0.5f;
+        } else if (phase == 1) {
+          control.action = ControlAction::Dribble;
+          control.target_position = actors[i]->GetPosition() + Vector3(0, -8.0f, 0);
+          control.power = 0.5f;
+        } else if (phase == 2) {
+          control.action = ControlAction::Shoot;
+          control.target_position = actors[i]->GetPosition() + Vector3(0, -15.0f, 0);
+          control.power = 0.6f;
+        } else {
+          control.action = ControlAction::Trap;
+        }
+        controls.Set(actors[i]->GetID(), control);
+      }
+      sim.Step(controls);
+
+      for (std::size_t i = 0; i < actors.size(); ++i) {
+        const PlayerBakedPoseSample sample = actors[i]->GetBakedPoseSample();
+        const int anim = static_cast<int>(sample.animation_id);
+        if (last_anim[i] >= 0 && anim != last_anim[i]) ++result.switches;
+        last_anim[i] = anim;
+        mix(static_cast<std::uint64_t>(actors[i]->GetID()));
+        mix(static_cast<std::uint64_t>(anim));
+        mix(static_cast<std::uint64_t>(actors[i]->GetFrameNum()));
+        mix(static_cast<std::uint64_t>(
+            actors[i]->GetSimulationActionState().type));
+        mix_float(actors[i]->GetPosition().coords[0]);
+        mix_float(actors[i]->GetPosition().coords[1]);
+        mix_float(actors[i]->GetPosition().coords[2]);
+      }
+      const football::math::Vector3 ball =
+          SimulationAccess::BallOf(sim)->state().position;
+      mix_float(ball.coords[0]);
+      mix_float(ball.coords[1]);
+      mix_float(ball.coords[2]);
+    }
+
+    result.digest = digest;
+    sim.Stop();
+    return result;
+  };
+
+  const RunResult first = run();
+  const RunResult second = run();
+  std::fprintf(stderr,
+               "[runtime] A17 actors=%d switches=%d digest=%016llx\n",
+               first.actors, first.switches,
+               static_cast<unsigned long long>(first.digest));
+  CHECK(first.actors == 22);
+  CHECK(first.switches > 0);
+  CHECK(first.digest == second.digest);
+  CHECK(first.actors == second.actors);
+  CHECK(first.switches == second.switches);
 }
