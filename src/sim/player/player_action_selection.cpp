@@ -10,12 +10,16 @@
 #include "football/animation/selector.hpp"
 #include "football/animation/touch_geometry.hpp"
 #include "football/animation/touch_scoring.hpp"
+#include "football/animation/touch_match.hpp"
 #include "football/ball/ball.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/mentalimage_sampling.hpp"
 #include "sim/player/player_motion_constants.hpp"
+#include "sim/player/player_diagnostics.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <functional>
 #include <cmath>
 
 using namespace football::math;
@@ -34,7 +38,52 @@ constexpr bool kForceFullActionSmuggleDiscard = false;
 constexpr bool kDiscardForwardSmuggle = true;
 constexpr bool kDiscardSidewaysSmuggle = false;
 
+// ANIM-2 A10.4d: a callback-backed TouchMatchQueries. The Player builds the
+// callbacks inside SelectBestTouchAnim, so the shadow reads the same facts in
+// the same order without Animation knowing about Player/Ball.
+struct FunctionQueries final : football::animation::TouchMatchQueries {
+  std::function<Vector3(int)> ball_prediction_ms;
+  std::function<Vector3(int)> ball_predict_ticks;
+  std::function<float(int)> last_touch_bias;
+  std::function<bool(AnimationId, football::animation::MotionPlanView&)> motion_plan;
+  std::vector<Vector3> plan_positions;
+
+  Vector3 BallPredictionAtMs(int ms) override { return ball_prediction_ms(ms); }
+  Vector3 BallPredictAtTicks(int ticks) override { return ball_predict_ticks(ticks); }
+  float LastTouchBiasAtTick(int ticks) override { return last_touch_bias(ticks); }
+  bool MotionPlanFor(AnimationId clip, football::animation::MotionPlanView& out) override {
+    return motion_plan(clip, out);
+  }
+};
+
+void CompareTouchTraces(const football::animation::TouchMatchTrace& legacy,
+                        const football::animation::TouchMatchTrace& shadow,
+                        TouchShadowAudit& audit) {
+  using football::animation::TouchRejectReason;
+  ++audit.checks;
+  if (legacy.candidates.size() != shadow.candidates.size())
+    ++audit.candidate_count_mismatches;
+  const std::size_t n = std::min(legacy.candidates.size(), shadow.candidates.size());
+  for (std::size_t i = 0; i < n; ++i) {
+    const auto& a = legacy.candidates[i];
+    const auto& b = shadow.candidates[i];
+    if (a.clip != b.clip) ++audit.candidate_clip_mismatches;
+    if (a.reject_reason != b.reject_reason) ++audit.reject_reason_mismatches;
+  }
+  if (legacy.result.clip_id != shadow.result.clip_id) ++audit.clip_mismatches;
+  if (legacy.result.touch_frame != shadow.result.touch_frame)
+    ++audit.touch_frame_mismatches;
+  if (legacy.result.touch_position != shadow.result.touch_position)
+    ++audit.touch_position_mismatches;
+  if (static_cast<float>(legacy.result.rotation_smuggle) !=
+      static_cast<float>(shadow.result.rotation_smuggle))
+    ++audit.rotation_mismatches;
+  if (legacy.result.action_smuggle != shadow.result.action_smuggle)
+    ++audit.smuggle_mismatches;
+}
+
 }  // namespace
+
 
 int Player::SelectBestTouchAnim(
     football::sim::Tick now, const football::sim::PlayerTickContext &tick,
@@ -70,7 +119,12 @@ int Player::SelectBestTouchAnim(
   Vector3 dud;
 
   bool found = false;
+  football::animation::TouchMatchTrace legacy_trace;
+  const bool shadow_enabled = TouchShadowEnabled();
+  legacy_trace.candidates.reserve(sortedDataSet.size());
   while (iter != sortedDataSet.end() && found == false) {
+    football::animation::TouchCandidateTrace candidate_trace;
+    candidate_trace.clip = static_cast<AnimationId>(*iter);
     const AnimationClip &clip = GetBakedClip(*iter);
     bool isBase = clip.metadata.base_animation;
 
@@ -123,12 +177,15 @@ int Player::SelectBestTouchAnim(
     while (touchNum < totalTouches && found == false) {
       animBallPos = clip.touches[touchIDs[touchNum]].position;
       animTouchFrame = clip.touches[touchIDs[touchNum]].frame;
+      candidate_trace.touch_frame = animTouchFrame;
 
       // out of bounds?
       if (tick.ball_retainer != this) {
         Vector3 absBallPos = tick.ball.Predict(football::sim::TickSpan{static_cast<std::uint64_t>(animTouchFrame)}).position;
         if (std::fabs(absBallPos.coords[0]) > tick.pitch.half_length() + tick.pitch.line_half_width() + 0.11f ||
             std::fabs(absBallPos.coords[1]) > tick.pitch.half_width() + tick.pitch.line_half_width() + 0.11f) {
+          candidate_trace.reject_reason =
+              football::animation::TouchRejectReason::OutOfBounds;
           touchNum++;
           continue;
         }
@@ -190,6 +247,9 @@ int Player::SelectBestTouchAnim(
 
       animBallPos = touch_result.anim_ball_pos;
       ballPos = touch_result.ball_pos;
+      candidate_trace.ball_pos_local = ballPos;
+      candidate_trace.touch_movement_local = touchMovement;
+      ballPos = touch_result.ball_pos;
       const Vector3 &actionSmuggleVec2D = touch_result.action_smuggle_vec2d;
       const float ballDistanceZ = touch_result.ball_distance_z;
       (void)ballDistanceZ;
@@ -206,21 +266,30 @@ int Player::SelectBestTouchAnim(
                 predictedAngle, bodyPos, FFO, animBallPos.Get2D(), ballPos.Get2D(),
                 touchFramedRadiusFactor, radiusCheatOffset, kCheatFactor,
                 kCheatDistanceBonus);
+        candidate_trace.body_ball_distance_advantage = bodyBallDistanceAdvantage;
 
         if (bodyBallDistanceAdvantage >= 1.0f ||
             tick.ball_retainer == this) {
           found = true;
-
+          candidate_trace.reject_reason =
+              football::animation::TouchRejectReason::None;
           bestAnimID = static_cast<int>(*iter);
           bestActionSmuggleVec2D = actionSmuggleVec2D;
           bestTouchMovementAbs =
               touchMovement.GetRotated2D(spatial_state_.angle);
           choice.touch_frame = animTouchFrame;
           choice.radius_offset = 1000.0f;  // radiusOffset; todo? is this still in use?
+        } else {
+          candidate_trace.reject_reason =
+              football::animation::TouchRejectReason::AdvantageTooLow;
         }
+      } else {
+        candidate_trace.reject_reason =
+            football::animation::TouchRejectReason::OutOfReach;
       }
       touchNum++;
     }
+    legacy_trace.candidates.push_back(candidate_trace);
     iter++;
   }
 
@@ -258,6 +327,75 @@ int Player::SelectBestTouchAnim(
   }
 
   choice.rotation_smuggle = rotationSmuggle_ret_tmp;
+
+  // ANIM-2 A10.4d: the legacy result, as a trace for the shadow comparison.
+  legacy_trace.result.clip_id = static_cast<AnimationId>(bestAnimID);
+  legacy_trace.result.touch_frame = choice.touch_frame;
+  legacy_trace.result.touch_position = choice.touch_position;
+  legacy_trace.result.action_smuggle = choice.action_smuggle;
+  legacy_trace.result.rotation_smuggle = choice.rotation_smuggle;
+
+  // The shadow runs the Animation implementation side by side. It consumes no
+  // RNG, mutates no Player/Ball state and installs nothing; production always
+  // returns the legacy result above.
+  if (shadow_enabled) {
+    FunctionQueries queries;
+    queries.ball_prediction_ms = [&](int ms) -> Vector3 {
+      return football::sim::observation::SampleMentalImage(history, mentalImageTime)
+          ->GetBallPrediction(ms, now, tick.ball);
+    };
+    queries.ball_predict_ticks = [&](int ticks) -> Vector3 {
+      return tick.ball
+          .Predict(football::sim::TickSpan{static_cast<std::uint64_t>(ticks)})
+          .position;
+    };
+    queries.last_touch_bias = [&](int ticks) -> float {
+      return GetLastTouchBias(
+          600, now + football::sim::TickSpan{static_cast<std::uint64_t>(ticks)});
+    };
+    queries.motion_plan = [&](AnimationId clip,
+                              football::animation::MotionPlanView& out) -> bool {
+      radian rotation_offset_ret = 0;
+      Vector3 physicsVector = CalculatePhysicsVector(
+          now, static_cast<int>(clip), useDesiredMovement, desiredMovement,
+          useDesiredBodyDirection, desiredBodyDirectionRel, queries.plan_positions,
+          rotation_offset_ret);
+      out.positions = queries.plan_positions;
+      out.outgoing_velocity = physicsVector;
+      out.rotation_offset = static_cast<float>(rotation_offset_ret);
+      return true;
+    };
+
+    football::animation::TouchMatchContext context;
+    context.candidates = sortedDataSet;
+    context.spatial_angle = spatial_state_.angle;
+    context.spatial_position = spatial_state_.position;
+    context.incoming_movement = incomingMovement;
+    context.desired_movement = desiredMovement;
+    context.use_desired_movement = useDesiredMovement;
+    context.use_desired_body_direction = useDesiredBodyDirection;
+    context.desired_body_direction_rel = desiredBodyDirectionRel;
+    context.height_scale = BodyProfile().height_scale;
+    context.technical_ballcontrol =
+        GetStat(football::player::PlayerStat::technical_ballcontrol);
+    context.pitch_half_length = tick.pitch.half_length();
+    context.pitch_half_width = tick.pitch.half_width();
+    context.pitch_line_half_width = tick.pitch.line_half_width();
+    context.ball_retained_by_player = (tick.ball_retainer == this);
+    context.ball_retained_by_other =
+        (tick.ball_retainer != 0 && tick.ball_retainer != this);
+    context.allow_pre_touch_rotation_smuggle = allowPreTouchRotationSmuggle;
+    context.use_continuous_ball_check = useContinuousBallCheck;
+    context.prefer_pass_and_shot = preferPassAndShot;
+    context.touch_offset_ms = static_cast<float>(defaultTouchOffset_ms);
+    context.closest_opponent_distance =
+        GetClosestOpponentDistance(tick.opponent_team);
+
+    const football::animation::TouchMatchTrace shadow =
+        football::animation::MatchTouch(animations_, context, queries);
+    CompareTouchTraces(legacy_trace, shadow, TouchShadowAuditState());
+  }
+
 
   return bestAnimID;
 }

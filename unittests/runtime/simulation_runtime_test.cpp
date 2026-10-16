@@ -44,6 +44,16 @@ using Catch::Approx;
 using football::sim::testing::SimulationAccess;
 using Clock = std::chrono::steady_clock;
 
+// ANIM-2 A10.4d: run the Animation touch match as a side-by-side shadow for
+// the whole harness. It is side-effect free; production still uses the legacy
+// result, and the accumulated audit is checked by the final test case.
+const bool kTouchShadowEnabled = [] {
+  TouchShadowEnabled() = true;
+  return true;
+}();
+using football::sim::testing::SimulationAccess;
+using Clock = std::chrono::steady_clock;
+
 double SecondsSince(const Clock::time_point start) {
   return std::chrono::duration<double>(Clock::now() - start).count();
 }
@@ -1239,6 +1249,10 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
   Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
+  // ANIM-2 A10.4d: run the Animation touch match side by side with the legacy
+  // loop. Production keeps the legacy result; the shadow must agree
+  // candidate-for-candidate and produce the same clip/touch/smuggle.
+
   const football::sim::event::TouchState& touches = SimulationAccess::TouchesOf(sim);
   int in_play_tick = -1;
   int pass_seen_tick = -1;
@@ -1256,9 +1270,24 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
     if (drive) {
       SimulationAccess::SetBallRetainer(sim, player);
       SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -0.4f, 0));
-      control.action = ControlAction::ShortPass;
-      control.target_position = player->GetPosition() + Vector3(0, -18.0f, 0);
-      control.power = 0.6f;
+      // Rotate through action families so the shadow exercises the pass,
+      // trap and shot touch paths and their reject reasons.
+      const int phase = (tick / 50) % 4;
+      if (phase == 0) {
+        control.action = ControlAction::ShortPass;
+        control.target_position = player->GetPosition() + Vector3(0, -18.0f, 0);
+        control.power = 0.6f;
+      } else if (phase == 1) {
+        control.action = ControlAction::Trap;
+      } else if (phase == 2) {
+        control.action = ControlAction::Shoot;
+        control.target_position = player->GetPosition() + Vector3(0, -20.0f, 0);
+        control.power = 0.7f;
+      } else {
+        control.action = ControlAction::Dribble;
+        control.target_position = player->GetPosition() + Vector3(0, -12.0f, 0);
+        control.power = 0.6f;
+      }
     }
     controls.Set(player->GetID(), control);
     sim.Step(controls);
@@ -1273,14 +1302,36 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
     }
   }
 
-  std::fprintf(stderr, "[runtime] A9.6d in_play=%d pass_tick=%d touches=%d\n",
-               in_play_tick, pass_seen_tick, touches_before);
+  // The shadow stays enabled for the rest of the harness.
+  const TouchShadowAudit& shadow_audit = TouchShadowAuditState();
+  std::fprintf(stderr,
+               "[runtime] A9.6d in_play=%d pass_tick=%d touches=%d "
+               "A10.4d checks=%d mismatch(sum)=%d\n",
+               in_play_tick, pass_seen_tick, touches_before, shadow_audit.checks,
+               shadow_audit.candidate_count_mismatches +
+                   shadow_audit.candidate_clip_mismatches +
+                   shadow_audit.reject_reason_mismatches +
+                   shadow_audit.touch_frame_mismatches +
+                   shadow_audit.clip_mismatches +
+                   shadow_audit.touch_position_mismatches +
+                   shadow_audit.rotation_mismatches +
+                   shadow_audit.smuggle_mismatches);
   CHECK(in_play_tick > 0);
   CHECK(pass_seen_tick >= 0);
   CHECK(touched_by_player);
   CHECK(player->InstallMismatches() == 0);
+  CHECK(shadow_audit.checks > 0);
+  CHECK(shadow_audit.candidate_count_mismatches == 0);
+  CHECK(shadow_audit.candidate_clip_mismatches == 0);
+  CHECK(shadow_audit.reject_reason_mismatches == 0);
+  CHECK(shadow_audit.touch_frame_mismatches == 0);
+  CHECK(shadow_audit.clip_mismatches == 0);
+  CHECK(shadow_audit.touch_position_mismatches == 0);
+  CHECK(shadow_audit.rotation_mismatches == 0);
+  CHECK(shadow_audit.smuggle_mismatches == 0);
   CHECK(sim.Stop());
 }
+
 
 TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
           "[runtime][sim]") {
@@ -1334,4 +1385,28 @@ TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
   REQUIRE(!sequence.empty());
   CHECK(sequence.back() == static_cast<int>(e_FunctionType_Movement));
   CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: the touch shadow agreed over the whole harness",
+          "[runtime][sim]") {
+  // ANIM-2 A10.4d: the accumulated side-by-side comparison across every case in
+  // this harness. Production kept the legacy result throughout.
+  const TouchShadowAudit& audit = TouchShadowAuditState();
+  std::fprintf(stderr,
+               "[runtime] A10.4d-total checks=%d cand_count=%d cand_clip=%d "
+               "reject=%d frame=%d clip=%d pos=%d rot=%d smuggle=%d\n",
+               audit.checks, audit.candidate_count_mismatches,
+               audit.candidate_clip_mismatches, audit.reject_reason_mismatches,
+               audit.touch_frame_mismatches, audit.clip_mismatches,
+               audit.touch_position_mismatches, audit.rotation_mismatches,
+               audit.smuggle_mismatches);
+  CHECK(audit.checks > 0);
+  CHECK(audit.candidate_count_mismatches == 0);
+  CHECK(audit.candidate_clip_mismatches == 0);
+  CHECK(audit.reject_reason_mismatches == 0);
+  CHECK(audit.touch_frame_mismatches == 0);
+  CHECK(audit.clip_mismatches == 0);
+  CHECK(audit.touch_position_mismatches == 0);
+  CHECK(audit.rotation_mismatches == 0);
+  CHECK(audit.smuggle_mismatches == 0);
 }

@@ -477,3 +477,13 @@ std::vector<PlayerMatchAudit> &PlayerMatchAuditLog() {
 }
 int &PlayerMatchSelections() { static int value = 0; return value; }
 int &PlayerPlaybackFinalPoseSamples() { static int value = 0; return value; }
+
+// ANIM-2 A10.4d: touch-match shadow comparison (observation only).
+TouchShadowAudit &TouchShadowAuditState() {
+  static TouchShadowAudit value;
+  return value;
+}
+bool &TouchShadowEnabled() {
+  static bool enabled = false;
+  return enabled;
+}
