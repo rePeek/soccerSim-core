@@ -38,18 +38,21 @@ Vector3 OutgoingMovementOf(std::span<const Vector3> positions) {
 
 }  // namespace
 
-TouchMatchTrace MatchTouch(const AnimationLibrary& library,
+TouchMatchResult MatchTouch(const AnimationLibrary& library,
                            const TouchMatchContext& context,
-                           TouchMatchQueries& queries) {
-  TouchMatchTrace trace;
+                           TouchMatchQueries& queries,
+                           TouchMatchTrace* trace) {
+  TouchMatchResult result;
 
   // Someone else holds the ball: no touch animation may be selected.
   if (context.ball_retained_by_other) {
-    trace.rejected_before_candidates = true;
-    trace.early_reject = TouchRejectReason::RetainedByOther;
-    return trace;
+    if (trace != nullptr) {
+      trace->rejected_before_candidates = true;
+      trace->early_reject = TouchRejectReason::RetainedByOther;
+    }
+    return result;
   }
-  if (context.candidates.empty()) return trace;
+  if (context.candidates.empty()) return result;
 
   const float angle = context.spatial_angle;
   const Vector3 incomingMovement = context.incoming_movement;
@@ -62,7 +65,7 @@ TouchMatchTrace MatchTouch(const AnimationLibrary& library,
   const e_FunctionType functionType =
       StringToFunctionType(static_cast<e_DefString>(first_clip.metadata.action_type));
 
-  trace.candidates.reserve(context.candidates.size());
+  if (trace != nullptr) trace->candidates.reserve(context.candidates.size());
 
   AnimationId bestAnimID = -1;
   Vector3 bestActionSmuggleVec2D;
@@ -86,7 +89,7 @@ TouchMatchTrace MatchTouch(const AnimationLibrary& library,
     rotationSmuggle_ret_tmp = 0;
     if (!queries.MotionPlanFor(clipId, plan)) {
       candidate_trace.reject_reason = TouchRejectReason::NoPlan;
-      trace.candidates.push_back(candidate_trace);
+      if (trace != nullptr) trace->candidates.push_back(candidate_trace);
       continue;
     }
     rotationSmuggle_ret_tmp = plan.rotation_offset;
@@ -196,7 +199,7 @@ TouchMatchTrace MatchTouch(const AnimationLibrary& library,
           bestAnimID = clipId;
           bestActionSmuggleVec2D = touch_result.action_smuggle_vec2d;
           bestPositions.assign(plan.positions.begin(), plan.positions.end());
-          trace.result.touch_frame = animTouchFrame;
+          result.touch_frame = animTouchFrame;
           candidate_trace.reject_reason = TouchRejectReason::None;
         } else {
           candidate_trace.reject_reason = TouchRejectReason::AdvantageTooLow;
@@ -205,20 +208,20 @@ TouchMatchTrace MatchTouch(const AnimationLibrary& library,
         candidate_trace.reject_reason = TouchRejectReason::OutOfReach;
       }
     }
-    trace.candidates.push_back(candidate_trace);
+    if (trace != nullptr) trace->candidates.push_back(candidate_trace);
   }
 
   if (found) {
-    trace.result.clip_id = bestAnimID;
-    trace.result.touch_position =
-        queries.BallPredictionAtMs(trace.result.touch_frame * 10);
-    trace.result.action_smuggle = bestActionSmuggleVec2D.GetRotated2D(angle);
-    trace.result.positions = std::move(bestPositions);
+    result.clip_id = bestAnimID;
+    result.touch_position =
+        queries.BallPredictionAtMs(result.touch_frame * 10);
+    result.action_smuggle = bestActionSmuggleVec2D.GetRotated2D(angle);
+    result.positions = std::move(bestPositions);
 
     ResolveActionSmuggleRequest smuggle_request;
-    smuggle_request.raw_smuggle = trace.result.action_smuggle;
-    smuggle_request.touch_pos_z = trace.result.touch_position.coords[2];
-    smuggle_request.anim_touch_frame = trace.result.touch_frame;
+    smuggle_request.raw_smuggle = result.action_smuggle;
+    smuggle_request.touch_pos_z = result.touch_position.coords[2];
+    smuggle_request.anim_touch_frame = result.touch_frame;
     smuggle_request.function_type = functionType;
     smuggle_request.ball_retained_by_player = context.ball_retained_by_player;
     smuggle_request.predicted_angle = predictedAngle;
@@ -232,11 +235,12 @@ TouchMatchTrace MatchTouch(const AnimationLibrary& library,
     smuggle_request.discard_forward_smuggle = kDiscardForwardSmuggle;
     smuggle_request.discard_sideways_smuggle = kDiscardSidewaysSmuggle;
     smuggle_request.closest_opponent_distance = context.closest_opponent_distance;
-    trace.result.action_smuggle = ResolveActionSmuggle(smuggle_request);
+    result.action_smuggle = ResolveActionSmuggle(smuggle_request);
   }
 
-  trace.result.rotation_smuggle = rotationSmuggle_ret_tmp;
-  return trace;
+  result.rotation_smuggle = rotationSmuggle_ret_tmp;
+  if (trace != nullptr) trace->result = result;
+  return result;
 }
 
 }  // namespace football::animation

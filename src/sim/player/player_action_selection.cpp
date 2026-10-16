@@ -132,14 +132,16 @@ int Player::SelectBestTouchAnim(
   context.closest_opponent_distance =
       GetClosestOpponentDistance(tick.opponent_team);
 
-  const football::animation::TouchMatchTrace match =
+  // ANIM-2 A11.6: production reads only the result, so the per-candidate trace
+  // is not requested and no diagnostic vector is allocated.
+  const football::animation::TouchMatchResult match =
       football::animation::MatchTouch(animations_, context, queries);
 
-  choice.touch_frame = match.result.touch_frame;
-  choice.touch_position = match.result.touch_position;
-  choice.radius_offset = match.result.radius_offset;
-  choice.action_smuggle = match.result.action_smuggle;
-  choice.rotation_smuggle = match.result.rotation_smuggle;
-  choice.positions = match.result.positions;
-  return static_cast<int>(match.result.clip_id);
+  choice.touch_frame = match.touch_frame;
+  choice.touch_position = match.touch_position;
+  choice.radius_offset = match.radius_offset;
+  choice.action_smuggle = match.action_smuggle;
+  choice.rotation_smuggle = match.rotation_smuggle;
+  choice.positions = match.positions;
+  return static_cast<int>(match.clip_id);
 }

@@ -18,6 +18,7 @@ using football::animation::MatchTouch;
 using football::animation::MotionPlanView;
 using football::animation::TouchMatchContext;
 using football::animation::TouchMatchQueries;
+using football::animation::TouchMatchTrace;
 using football::animation::TouchRejectReason;
 
 namespace {
@@ -82,12 +83,13 @@ TEST_CASE("MatchTouch rejects before candidates when somebody else holds the bal
   StubQueries queries;
   TouchMatchContext context = MakeContext(candidates);
   context.ball_retained_by_other = true;
-  const auto trace = MatchTouch(library, context, queries);
+  TouchMatchTrace trace;
+  const auto result = MatchTouch(library, context, queries, &trace);
 
   CHECK(trace.rejected_before_candidates);
   CHECK(trace.early_reject == TouchRejectReason::RetainedByOther);
   CHECK(trace.candidates.empty());
-  CHECK(trace.result.clip_id == -1);
+  CHECK(result.clip_id == -1);
 }
 
 TEST_CASE("MatchTouch reports NoPlan when the motion port has no plan") {
@@ -98,13 +100,14 @@ TEST_CASE("MatchTouch reports NoPlan when the motion port has no plan") {
 
   StubQueries queries;
   queries.has_plan = false;
-  const auto trace = MatchTouch(library, MakeContext(candidates), queries);
+  TouchMatchTrace trace;
+  const auto result = MatchTouch(library, MakeContext(candidates), queries, &trace);
 
   REQUIRE(trace.candidates.size() == candidates.size());
   for (const auto& candidate : trace.candidates) {
     CHECK(candidate.reject_reason == TouchRejectReason::NoPlan);
   }
-  CHECK(trace.result.clip_id == -1);
+  CHECK(result.clip_id == -1);
 }
 
 TEST_CASE("MatchTouch rejects candidates whose predicted ball leaves the pitch") {
@@ -115,13 +118,14 @@ TEST_CASE("MatchTouch rejects candidates whose predicted ball leaves the pitch")
 
   StubQueries queries;
   queries.ball_predict_ticks_pos = Vector3(1000.0f, 1000.0f, 0.0f);
-  const auto trace = MatchTouch(library, MakeContext(candidates), queries);
+  TouchMatchTrace trace;
+  const auto result = MatchTouch(library, MakeContext(candidates), queries, &trace);
 
   REQUIRE(trace.candidates.size() == candidates.size());
   for (const auto& candidate : trace.candidates) {
     CHECK(candidate.reject_reason == TouchRejectReason::OutOfBounds);
   }
-  CHECK(trace.result.clip_id == -1);
+  CHECK(result.clip_id == -1);
 }
 
 TEST_CASE("MatchTouch rejects a reachable-but-far ball as out of reach") {
@@ -135,11 +139,12 @@ TEST_CASE("MatchTouch rejects a reachable-but-far ball as out of reach") {
   // A high ball makes ballDistanceZ exceed the reach threshold.
   queries.ball_prediction_pos = Vector3(0.0f, 0.0f, 5.0f);
   queries.plan_positions.assign(256, Vector3(0, 0, 0));
-  const auto trace = MatchTouch(library, MakeContext(candidates), queries);
+  TouchMatchTrace trace;
+  const auto result = MatchTouch(library, MakeContext(candidates), queries, &trace);
 
   REQUIRE(!trace.candidates.empty());
   CHECK(trace.candidates.front().reject_reason == TouchRejectReason::OutOfReach);
-  CHECK(trace.result.clip_id == -1);
+  CHECK(result.clip_id == -1);
 }
 
 TEST_CASE("MatchTouch with no candidates matches nothing") {
@@ -148,7 +153,44 @@ TEST_CASE("MatchTouch with no candidates matches nothing") {
 
   StubQueries queries;
   const std::vector<int> none;
-  const auto trace = MatchTouch(library, MakeContext(none), queries);
+  TouchMatchTrace trace;
+  const auto result = MatchTouch(library, MakeContext(none), queries, &trace);
   CHECK(trace.candidates.empty());
-  CHECK(trace.result.clip_id == -1);
+  CHECK(result.clip_id == -1);
+}
+
+TEST_CASE("MatchTouch returns the same result with or without a trace") {
+  // ANIM-2 A11.6: the per-candidate trace is optional diagnostics. Asking for
+  // it must not change what the match selects.
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+  const std::vector<int> candidates = CrudeCandidates(library, e_FunctionType_Trap, 3);
+  REQUIRE(!candidates.empty());
+
+  StubQueries queries;
+  queries.ball_predict_ticks_pos = Vector3(0.0f, 0.0f, 0.0f);
+  queries.ball_prediction_pos = Vector3(0.0f, 0.0f, 5.0f);
+  queries.plan_positions.assign(256, Vector3(0, 0, 0));
+  const TouchMatchContext context = MakeContext(candidates);
+  const auto without = MatchTouch(library, context, queries);
+
+  TouchMatchTrace trace;
+  const auto with = MatchTouch(library, context, queries, &trace);
+
+  CHECK(without.clip_id == with.clip_id);
+  CHECK(without.touch_frame == with.touch_frame);
+  CHECK(without.radius_offset == with.radius_offset);
+  CHECK(without.action_smuggle.coords[0] == with.action_smuggle.coords[0]);
+  CHECK(without.action_smuggle.coords[1] == with.action_smuggle.coords[1]);
+  CHECK(without.action_smuggle.coords[2] == with.action_smuggle.coords[2]);
+  CHECK(without.touch_position.coords[0] == with.touch_position.coords[0]);
+  CHECK(without.touch_position.coords[1] == with.touch_position.coords[1]);
+  CHECK(without.touch_position.coords[2] == with.touch_position.coords[2]);
+  REQUIRE(without.positions.size() == with.positions.size());
+  for (std::size_t i = 0; i < without.positions.size(); ++i) {
+    for (int c = 0; c < 3; ++c) {
+      CHECK(without.positions[i].coords[c] == with.positions[i].coords[c]);
+    }
+  }
+  CHECK(trace.candidates.size() == candidates.size());
 }

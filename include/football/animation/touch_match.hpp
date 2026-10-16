@@ -113,9 +113,15 @@ struct TouchMatchTrace {
 
 // Run the touch match. Side-effect free: it never installs an action, applies a
 // smuggle or draws RNG. The queries port is called in the legacy order.
-TouchMatchTrace MatchTouch(const AnimationLibrary& library,
-                           const TouchMatchContext& context,
-                           TouchMatchQueries& queries);
+//
+// ANIM-2 A11.6: per-candidate diagnostics are OPT-IN. Production reads only the
+// result, so passing `trace == nullptr` (the default) records no candidate
+// traces and allocates no vector for them. Pass a trace to compare or debug a
+// match; the returned result is identical either way.
+TouchMatchResult MatchTouch(const AnimationLibrary& library,
+                            const TouchMatchContext& context,
+                            TouchMatchQueries& queries,
+                            TouchMatchTrace* trace = nullptr);
 
 }  // namespace football::animation
 
