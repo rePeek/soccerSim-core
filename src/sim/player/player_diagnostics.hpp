@@ -288,27 +288,5 @@ std::vector<PlayerMatchAudit> &PlayerMatchAuditLog();
 int &PlayerMatchSelections();
 int &PlayerPlaybackFinalPoseSamples();
 
-// ANIM-2 A10.4d: the touch-match shadow comparison. Observation only; the
-// legacy result is always the production result and the shadow never mutates
-// Player/Ball state or consumes RNG.
-struct TouchShadowAudit {
-  int checks = 0;
-  int candidate_count_mismatches = 0;
-  int candidate_clip_mismatches = 0;
-  int reject_reason_mismatches = 0;
-  int touch_frame_mismatches = 0;
-  int clip_mismatches = 0;
-  int touch_position_mismatches = 0;
-  int rotation_mismatches = 0;
-  int smuggle_mismatches = 0;
-  // Coverage of the legacy reject reasons seen by the comparison.
-  int reject_out_of_bounds = 0;
-  int reject_out_of_reach = 0;
-  int reject_advantage_too_low = 0;
-  int reject_no_plan = 0;
-  int reject_retained_by_other = 0;
-};
-TouchShadowAudit &TouchShadowAuditState();
-bool &TouchShadowEnabled();
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_DIAGNOSTICS_HPP

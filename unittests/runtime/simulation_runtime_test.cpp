@@ -44,13 +44,6 @@ using Catch::Approx;
 using football::sim::testing::SimulationAccess;
 using Clock = std::chrono::steady_clock;
 
-// ANIM-2 A10.4d: run the Animation touch match as a side-by-side shadow for
-// the whole harness. It is side-effect free; production still uses the legacy
-// result, and the accumulated audit is checked by the final test case.
-const bool kTouchShadowEnabled = [] {
-  TouchShadowEnabled() = true;
-  return true;
-}();
 using football::sim::testing::SimulationAccess;
 using Clock = std::chrono::steady_clock;
 
@@ -1249,9 +1242,8 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
   Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
-  // ANIM-2 A10.4d: run the Animation touch match side by side with the legacy
-  // loop. Production keeps the legacy result; the shadow must agree
-  // candidate-for-candidate and produce the same clip/touch/smuggle.
+  // ANIM-2 A10.4c: the touch selection is now Animation::MatchTouch, driven
+  // through the Player's context and query port.
 
   const football::sim::event::TouchState& touches = SimulationAccess::TouchesOf(sim);
   int in_play_tick = -1;
@@ -1309,34 +1301,12 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
       ++touches_before;
     }
   }
-
-  // The shadow stays enabled for the rest of the harness.
-  const TouchShadowAudit& shadow_audit = TouchShadowAuditState();
-  std::fprintf(stderr,
-               "[runtime] A9.6d in_play=%d pass_tick=%d touches=%d "
-               "A10.4d checks=%d mismatch(sum)=%d\n",
-               in_play_tick, pass_seen_tick, touches_before, shadow_audit.checks,
-               shadow_audit.candidate_count_mismatches +
-                   shadow_audit.candidate_clip_mismatches +
-                   shadow_audit.reject_reason_mismatches +
-                   shadow_audit.touch_frame_mismatches +
-                   shadow_audit.clip_mismatches +
-                   shadow_audit.touch_position_mismatches +
-                   shadow_audit.rotation_mismatches +
-                   shadow_audit.smuggle_mismatches);
+  std::fprintf(stderr, "[runtime] A9.6d in_play=%d pass_tick=%d touches=%d\n",
+               in_play_tick, pass_seen_tick, touches_before);
   CHECK(in_play_tick > 0);
   CHECK(pass_seen_tick >= 0);
   CHECK(touched_by_player);
   CHECK(player->InstallMismatches() == 0);
-  CHECK(shadow_audit.checks > 0);
-  CHECK(shadow_audit.candidate_count_mismatches == 0);
-  CHECK(shadow_audit.candidate_clip_mismatches == 0);
-  CHECK(shadow_audit.reject_reason_mismatches == 0);
-  CHECK(shadow_audit.touch_frame_mismatches == 0);
-  CHECK(shadow_audit.clip_mismatches == 0);
-  CHECK(shadow_audit.touch_position_mismatches == 0);
-  CHECK(shadow_audit.rotation_mismatches == 0);
-  CHECK(shadow_audit.smuggle_mismatches == 0);
   CHECK(sim.Stop());
 }
 
@@ -1395,32 +1365,3 @@ TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
   CHECK(sim.Stop());
 }
 
-TEST_CASE("Runtime harness: the touch shadow agreed over the whole harness",
-          "[runtime][sim]") {
-  // ANIM-2 A10.4d: the accumulated side-by-side comparison across every case in
-  // this harness. Production kept the legacy result throughout.
-  const TouchShadowAudit& audit = TouchShadowAuditState();
-  std::fprintf(stderr,
-               "[runtime] A10.4d-total checks=%d cand_count=%d cand_clip=%d "
-               "reject=%d frame=%d clip=%d pos=%d rot=%d smuggle=%d "
-               "reasons(oob=%d oor=%d low=%d none=%d)\n",
-               audit.checks, audit.candidate_count_mismatches,
-               audit.candidate_clip_mismatches, audit.reject_reason_mismatches,
-               audit.touch_frame_mismatches, audit.clip_mismatches,
-               audit.touch_position_mismatches, audit.rotation_mismatches,
-               audit.smuggle_mismatches, audit.reject_out_of_bounds,
-               audit.reject_out_of_reach, audit.reject_advantage_too_low,
-               audit.reject_no_plan);
-  CHECK(audit.checks > 0);
-  CHECK(audit.candidate_count_mismatches == 0);
-  CHECK(audit.candidate_clip_mismatches == 0);
-  CHECK(audit.reject_reason_mismatches == 0);
-  CHECK(audit.touch_frame_mismatches == 0);
-  CHECK(audit.clip_mismatches == 0);
-  CHECK(audit.touch_position_mismatches == 0);
-  CHECK(audit.rotation_mismatches == 0);
-  CHECK(audit.smuggle_mismatches == 0);
-  // Coverage floor: the harness must have exercised at least the reach and
-  // advantage rejections, not only a single trivially-accepted path.
-  CHECK(audit.reject_out_of_reach + audit.reject_advantage_too_low > 0);
-}
