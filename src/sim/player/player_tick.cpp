@@ -70,12 +70,6 @@ const AnimationClip &Player::GetCurrentBakedClip() const {
 }
 
 
-float &Player::OrderScratch(int id) const {
-  if (orderScratch_.size() <= static_cast<size_t>(id)) {
-    orderScratch_.resize(static_cast<size_t>(id) + 1, 0.0f);
-  }
-  return orderScratch_[static_cast<size_t>(id)];
-}
 void Player::MirrorLegacyState() {
   // Mirrors the field-level legacy contract, not a whole-state coordinate
   // transform: SpatialState::Mirror negates the movement fields but leaves the
@@ -91,44 +85,9 @@ void Player::MirrorLegacyState() {
   tripDirection.Mirror();
   decayingPositionOffset.Mirror();
   predicate_RelDesiredDirection.Mirror();
-  predicate_RelIncomingBodyDirection.Mirror();
-  predicate_LookAt.Mirror();
-  predicate_RelDesiredTripDirection.Mirror();
 }
 
 
-int Player::GetIdleMovementAnimID() {
-  CrudeSelectionQuery query;
-  query.byFunctionType = true;
-  query.functionType = e_FunctionType_Movement;
-  query.byIncomingVelocity = true;
-  query.incomingVelocity = e_Velocity_Idle;
-  query.byOutgoingVelocity = true;
-  query.outgoingVelocity = e_Velocity_Idle;
-
-  DataSet dataSet;
-  BakedAnimationSelector::CrudeSelection(
-      animations_.Clips(), query, dataSet);
-
-  SetIdlePredicate(1);
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIdleVariable, this, _1, _2));
-
-  SetIncomingBodyDirectionSimilarityPredicate(Vector3(0, -1, 0));
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIncomingBodyDirectionSimilarity, this, _1, _2));
-
-  SetIncomingVelocitySimilarityPredicate(e_Velocity_Idle);
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareIncomingVelocitySimilarity, this, _1, _2));
-
-  SetMovementSimilarityPredicate(Vector3(0, -1, 0), e_Velocity_Idle);
-  SetBodyDirectionSimilarityPredicate(spatial_state_.position + Vector3(0, -10, 0).GetRotated2D(spatial_state_.angle)); // lookat
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareBodyDirectionSimilarity, this, _1, _2));
-
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareMovementSimilarity, this, _1, _2));
-
-  //printf("%s\n", anims->GetAnim(*dataSet.begin())->GetName().c_str());
-
-  return *dataSet.begin();
-}
 
 void Player::ResetLegacyPosition(const Vector3 &newPos,
                                  const Vector3 &focusPos) {
@@ -241,115 +200,8 @@ bool Player::_HighOrBouncyBall(const Ball& ball) const {
 }
 
 // ALERT: set sorting predicates before calling this function
-void Player::_KeepBestDirectionAnims(DataSet &dataSet,
-                                           const PlayerCommand &command,
-                                           bool strict, radian allowedAngle,
-                                           int allowedVelocitySteps,
-                                           int forcedQuadrantID) {
-
-  assert(dataSet.size() != 0);
-
-  int bestQuadrantID = forcedQuadrantID;
-  if (bestQuadrantID == -1) {
-
-    for (auto &anim : dataSet) {
-      OrderScratch(anim) = GetMovementSimilarity(anim, predicate_RelDesiredDirection, predicate_DesiredVelocity, predicate_CorneringBias);
-    }
-    std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareByOrderFloat, this, _1, _2));
-
-    // we want the best anim to be a baseanim, and compare other anims to it
-    if (strict) {
-      if (command.desiredFunctionType != e_FunctionType_Movement) {
-        std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareBaseanimSimilarity, this, _1, _2));
-      }
-    }
-
-  
-    bestQuadrantID = GetBakedClip(*dataSet.begin()).metadata.quadrant;
-  }
-
-  const Quadrant &quadrant = BakedAnimationSelector::GetQuadrant(bestQuadrantID);
-
-  DataSet::iterator iter = dataSet.begin();
-  iter++;
-  while (iter != dataSet.end()) {
-
-    if (strict) {
-      if (GetBakedClip(*iter).metadata.quadrant == bestQuadrantID) {
-        iter++;
-      } else {
-        iter = dataSet.erase(iter);
-      }
-    } else {
-      int quadrantID = GetBakedClip(*iter).metadata.quadrant;
-      const Quadrant &bestQuadrant = BakedAnimationSelector::GetQuadrant(bestQuadrantID);
-      const Quadrant &quadrant = BakedAnimationSelector::GetQuadrant(quadrantID);
-
-      bool predicate = true;
-
-      if (!GetBakedClip(*iter).metadata.last_ditch) {
-          // last ditch anims may always change velo
-        if (std::abs(GetVelocityID(quadrant.velocity, true) - GetVelocityID(bestQuadrant.velocity, true)) > allowedVelocitySteps) predicate = false;
-      }
-      if (std::fabs(quadrant.angle - bestQuadrant.angle) > allowedAngle) predicate = false;
-
-      if (predicate) {
-        iter++;
-      } else {
-        iter = dataSet.erase(iter);
-      }
-    }
-  }
-}
 
 // ALERT: set sorting predicates before calling this function
-void Player::_KeepBestBodyDirectionAnims(DataSet &dataSet,
-                                               const PlayerCommand &command,
-                                               bool strict,
-                                               radian allowedAngle) {
-
-  // delete nonqualified bodydir quadrants
-
-  assert(dataSet.size() != 0);
-  for (auto &anim : dataSet) {
-    OrderScratch(anim) = DirectionSimilarityRating(anim);
-  }
-  std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareByOrderFloat, this, _1, _2));
-
-  // we want the best anim to be a baseanim, and compare other anims to it
-  if (strict) {
-    if (command.desiredFunctionType != e_FunctionType_Movement) {
-      std::stable_sort(dataSet.begin(), dataSet.end(), std::bind(&Player::CompareBaseanimSimilarity, this, _1, _2));
-    }
-  }
-
-  const AnimationClip &bestClip = GetBakedClip(*dataSet.begin());
-
-  radian bestOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(bestClip.metadata.outgoing_body_angle);
-  radian bestOutgoingAngle = ForceIntoPreferredDirectionAngle(bestClip.metadata.outgoing_angle);
-  radian bestLookAngle = bestOutgoingBodyAngle + bestOutgoingAngle;
-
-  DataSet::iterator iter = dataSet.begin();
-  iter++;
-  while (iter != dataSet.end()) {
-
-    const AnimationClip &animClip = GetBakedClip(*iter);
-
-    radian animOutgoingBodyAngle = ForceIntoAllowedBodyDirectionAngle(animClip.metadata.outgoing_body_angle);
-    radian animOutgoingAngle = ForceIntoPreferredDirectionAngle(animClip.metadata.outgoing_angle);
-    radian animLookAngle = animOutgoingBodyAngle + animOutgoingAngle;
-
-    float adaptedAllowedAngle = 0.06f * pi; // between 0 and 20 deg
-    if (!strict) {
-      adaptedAllowedAngle = allowedAngle;
-    }
-    if (std::fabs(animLookAngle - bestLookAngle) <= adaptedAllowedAngle) {
-      iter++;
-    } else {
-      iter = dataSet.erase(iter);
-    }
-  }
-}
 
 
 void Player::CalculatePredictedSituation(Vector3 &predictedPos,
@@ -491,48 +343,9 @@ void Player::ProjectMovementState(
 }
 
 
-void Player::SetFootSimilarityPredicate(e_Foot desiredFoot) const {
-  predicate_DesiredFoot = desiredFoot;
-}
 
-bool Player::CompareFootSimilarity(e_Foot foot, int animIndex1, int animIndex2) const {
-  int one = 1;
-  int two = 1;
-  if (static_cast<e_Foot>(GetBakedClip(animIndex1).metadata.current_foot) == predicate_DesiredFoot) one = 0;
-  if (static_cast<e_Foot>(GetBakedClip(animIndex2).metadata.current_foot) == predicate_DesiredFoot) two = 0;
-  if (FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) == e_Velocity_Idle) one = 0;
-  if (FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) == e_Velocity_Idle) two = 0;
-  return one < two;
-}
 
-void Player::SetIncomingVelocitySimilarityPredicate(e_Velocity velocity) const {
-  predicate_IncomingVelocity = velocity;
-}
 
-bool Player::CompareIncomingVelocitySimilarity(int animIndex1, int animIndex2) const {
-  /* old version
-  float rating1 = std::fabs(clamp(RangeVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) - EnumToFloatVelocity(predicate_IncomingVelocity), -sprintVelocity, sprintVelocity));
-  float rating2 = std::fabs(clamp(RangeVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) - EnumToFloatVelocity(predicate_IncomingVelocity), -sprintVelocity, sprintVelocity));
-  */
-
-  int currentVelocityID = GetVelocityID(predicate_IncomingVelocity);
-
-  // rate difference anim incoming / actual incoming
-  int anim1_incomingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity));
-  int anim2_incomingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity));
-  float rating1 = std::fabs(clamp(anim1_incomingVelocityID - currentVelocityID, -3, 3));
-  float rating2 = std::fabs(clamp(anim2_incomingVelocityID - currentVelocityID, -3, 3));
-
-  // also add a penalty for anim incoming velocities which aren't between actual incoming and anim outgoing
-  int anim1_outgoingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.outgoing_velocity));
-  int anim2_outgoingVelocityID = GetVelocityID(FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.outgoing_velocity));
-  if (anim1_incomingVelocityID > std::max(currentVelocityID, anim1_outgoingVelocityID)) rating1 += 0.5f;
-  if (anim1_incomingVelocityID < std::min(currentVelocityID, anim1_outgoingVelocityID)) rating1 += 0.5f;
-  if (anim2_incomingVelocityID > std::max(currentVelocityID, anim2_outgoingVelocityID)) rating2 += 0.5f;
-  if (anim2_incomingVelocityID < std::min(currentVelocityID, anim2_outgoingVelocityID)) rating2 += 0.5f;
-
-  return rating1 < rating2;
-}
 
 void Player::SetMovementSimilarityPredicate(const Vector3 &relDesiredDirection, e_Velocity desiredVelocity) const {
   predicate_RelDesiredDirection = relDesiredDirection;
@@ -592,88 +405,14 @@ bool Player::CompareMovementSimilarity(int animIndex1, int animIndex2) const {
   return rating1 < rating2;
 }
 
-bool Player::CompareByOrderFloat(int animIndex1, int animIndex2) const {
-  float rating1 = OrderScratch(animIndex1);
-  float rating2 = OrderScratch(animIndex2);
-  return rating1 < rating2;
-}
 
-void Player::SetIncomingBodyDirectionSimilarityPredicate(const Vector3 &relIncomingBodyDirection) const {
-  predicate_RelIncomingBodyDirection = relIncomingBodyDirection;
-}
 
-bool Player::CompareIncomingBodyDirectionSimilarity(int animIndex1, int animIndex2) const {
-  float rating1 = std::fabs(ForceIntoAllowedBodyDirectionVec(GetBakedClip(animIndex1).metadata.incoming_body_direction).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
-  float rating2 = std::fabs(ForceIntoAllowedBodyDirectionVec(GetBakedClip(animIndex2).metadata.incoming_body_direction).GetAngle2D(ForceIntoAllowedBodyDirectionVec(predicate_RelIncomingBodyDirection))) / pi;
-  if (FloatToEnumVelocity(GetBakedClip(animIndex1).metadata.incoming_velocity) == e_Velocity_Idle) rating1 = 0;//-1;
-  if (FloatToEnumVelocity(GetBakedClip(animIndex2).metadata.incoming_velocity) == e_Velocity_Idle) rating2 = 0;//-1;
 
-  return rating1 < rating2;
-}
 
-void Player::SetBodyDirectionSimilarityPredicate(const Vector3 &lookAt) const {
-  predicate_LookAt = lookAt;
-}
 
-real Player::DirectionSimilarityRating(int animIndex) const {
-  const AnimationClip &a1Clip = GetBakedClip(animIndex);
-  Vector3 relDesiredBodyDirection1 = ((predicate_LookAt - spatial_state_.position).GetRotated2D(-spatial_state_.angle) - a1Clip.metadata.translation).GetNormalized(Vector3(0, -1, 0));
-  radian maxAngleSmuggle = 0.1f * pi;
-  radian outgoingAngle1 = a1Clip.metadata.outgoing_direction.GetRotated2D( clamp(predicate_RelDesiredDirection.GetAngle2D(a1Clip.metadata.outgoing_direction), -maxAngleSmuggle, maxAngleSmuggle) ).GetAngle2D(Vector3(0, -1, 0));
-  Vector3 predictedOutgoingBodyDirection1 = Vector3(0, -1, 0).GetRotated2D(a1Clip.metadata.outgoing_body_angle).GetRotated2D(outgoingAngle1);
-  radian rating1 = std::fabs(predictedOutgoingBodyDirection1.GetAngle2D(relDesiredBodyDirection1));
-  // penalty for body angles (as opposed to straight forward), to get a slight preference for forward angles
-  rating1 += std::fabs(a1Clip.metadata.outgoing_body_angle) * 0.05f;
-  return rating1;
-}
-
-bool Player::CompareBodyDirectionSimilarity(int animIndex1, int animIndex2) const {
-  return DirectionSimilarityRating(animIndex1) < DirectionSimilarityRating(animIndex2);
-}
-
-void Player::SetTripDirectionSimilarityPredicate(const Vector3 &relDesiredTripDirection) const {
-  predicate_RelDesiredTripDirection = relDesiredTripDirection;
-}
-
-bool Player::CompareTripDirectionSimilarity(int animIndex1, int animIndex2) const {
-  float rating1 = -GetBakedClip(animIndex1).metadata.bump_direction.GetDotProduct(predicate_RelDesiredTripDirection);
-  float rating2 = -GetBakedClip(animIndex2).metadata.bump_direction.GetDotProduct(predicate_RelDesiredTripDirection);
-  return rating1 < rating2;
-}
-
-bool Player::CompareBaseanimSimilarity(int animIndex1, int animIndex2) const {
-  bool isBase1 = GetBakedClip(animIndex1).metadata.base_animation;
-  bool isBase2 = GetBakedClip(animIndex2).metadata.base_animation;
-
-  if (isBase1 == true && isBase2 == false) return true;
-  return false;
-}
-
-bool Player::CompareCatchOrDeflect(int animIndex1, int animIndex2) const {
-  bool catch1 = (GetBakedClip(animIndex1).metadata.outgoing_retain_state != "");
-  bool catch2 = (GetBakedClip(animIndex2).metadata.outgoing_retain_state != "");
-
-  if (catch1 == true && catch2 == false) return true;
-  return false;
-}
-
-void Player::SetIdlePredicate(float desiredValue) const {
-  predicate_idle = desiredValue;
-}
-
-bool Player::CompareIdleVariable(int animIndex1, int animIndex2) const {
-  return std::fabs(GetBakedClip(animIndex1).metadata.idle_level - predicate_idle) <
-         std::fabs(GetBakedClip(animIndex2).metadata.idle_level - predicate_idle);
-}
-
-bool Player::ComparePriorityVariable(int animIndex1, int animIndex2) const {
-  return std::fabs(GetBakedClip(animIndex1).metadata.priority) <
-         std::fabs(GetBakedClip(animIndex2).metadata.priority);
-}
 
 Vector3 Player::CalculatePhysicsVector(football::sim::Tick now, int animID, bool useDesiredMovement, const Vector3 &desiredMovement, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, radian &rotationOffset_ret) const {
   // ANIM-1 A6.4 A8.0: the candidate reference-motion kernel now lives in
-  // PlayerMotion as a pure function. This adapter only assembles the explicit
   // kinematic/capability inputs and writes the plan back; the algorithm itself
   // is unchanged (see PlayerMotion::BuildActionMotionPlan).
   const AnimationClip &clip = GetBakedClip(animID);

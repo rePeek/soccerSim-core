@@ -333,6 +333,16 @@ bool Player::TrySelectAction(football::sim::Tick now,
       (command.desiredFunctionType == e_FunctionType_BallControl);
   refine_request.idle_level = 0.0f;
 
+  // ANIM-2 A10.3: SelectRetainAnim still sorts by the legacy movement
+  // similarity, so keep the predicate values it reads exactly as the former
+  // SetMovementSimilarityPredicate/SetBodyDirectionSimilarityPredicate did
+  // (only when the command carried desired movement).
+  if (command.useDesiredMovement) {
+    predicate_RelDesiredDirection = relDesiredDirection;
+    predicate_DesiredVelocity = desiredAnimationVelocity;
+    predicate_CorneringBias = refine_request.cornering_bias;
+  }
+
   // The legacy idle level (legacy + Movement paths).
   int desiredIdleLevel = 0;
   if (!tick.play_authorized) desiredIdleLevel = 2;

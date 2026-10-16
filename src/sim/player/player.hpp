@@ -723,8 +723,6 @@ class Player final {
     // these resolve through the stable AnimationId into the read-only library.
     const AnimationClip &GetBakedClip(AnimationId id) const;
     const AnimationClip &GetCurrentBakedClip() const;
-    // Per-animation scratch for the selection sort predicates.
-    float &OrderScratch(int id) const;
     // ANIM-1 A9.7: the per-tick action orchestration (former Humanoid::Process).
     void RunActionTick(football::sim::Tick now,
                        const football::sim::PlayerTickContext& tick,
@@ -742,15 +740,6 @@ class Player final {
                                  const football::sim::PlayerTickContext& tick,
                                  const Vector3 &desiredTouch,
                                  e_FunctionType functionType);
-    // ANIM-1 A9.5: legacy selection support.
-    int GetIdleMovementAnimID();
-    void _KeepBestDirectionAnims(DataSet& dataset, const PlayerCommand &command,
-                                 bool strict = true, radian allowedAngle = 0,
-                                 int allowedVelocitySteps = 0,
-                                 int forcedQuadrantID = -1);
-    void _KeepBestBodyDirectionAnims(DataSet& dataset,
-                                     const PlayerCommand &command,
-                                     bool strict = true, radian allowedAngle = 0);
     bool _HighOrBouncyBall(const football::ball::Ball& ball) const;
     void CalculatePredictedSituation(Vector3 &predictedPos, radian &predictedAngle);
     Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
@@ -761,10 +750,6 @@ class Player final {
                                    const Vector3 &desiredBodyDirectionRel,
                                    std::vector<Vector3> &positions_ret,
                                    radian &rotationOffset_ret) const;
-    void SetFootSimilarityPredicate(e_Foot desiredFoot) const;
-    bool CompareFootSimilarity(e_Foot foot, int animIndex1, int animIndex2) const;
-    void SetIncomingVelocitySimilarityPredicate(e_Velocity velocity) const;
-    bool CompareIncomingVelocitySimilarity(int animIndex1, int animIndex2) const;
     void SetMovementSimilarityPredicate(const Vector3 &relDesiredDirection,
                                         e_Velocity desiredVelocity) const;
     float GetMovementSimilarity(int animIndex,
@@ -772,21 +757,6 @@ class Player final {
                                 e_Velocity desiredVelocity,
                                 float corneringBias) const;
     bool CompareMovementSimilarity(int animIndex1, int animIndex2) const;
-    bool CompareByOrderFloat(int animIndex1, int animIndex2) const;
-    void SetIncomingBodyDirectionSimilarityPredicate(
-        const Vector3 &relIncomingBodyDirection) const;
-    bool CompareIncomingBodyDirectionSimilarity(int animIndex1, int animIndex2) const;
-    void SetBodyDirectionSimilarityPredicate(const Vector3 &lookAt) const;
-    real DirectionSimilarityRating(int animIndex) const;
-    bool CompareBodyDirectionSimilarity(int animIndex1, int animIndex2) const;
-    void SetTripDirectionSimilarityPredicate(
-        const Vector3 &relDesiredTripDirection) const;
-    bool CompareTripDirectionSimilarity(int animIndex1, int animIndex2) const;
-    bool CompareBaseanimSimilarity(int animIndex1, int animIndex2) const;
-    bool CompareCatchOrDeflect(int animIndex1, int animIndex2) const;
-    void SetIdlePredicate(float desiredValue) const;
-    bool CompareIdleVariable(int animIndex1, int animIndex2) const;
-    bool ComparePriorityVariable(int animIndex1, int animIndex2) const;
     // ANIM-1 A9.8: the compatibility state projection and pose assembly.
     PlayerBakedPoseSample SampleBakedPose(
         const PlayerKinematicState& state,
@@ -880,16 +850,12 @@ class Player final {
     Vector3 tripDirection;
     Vector3 decayingPositionOffset;
     float decayingDifficultyFactor = 0.0f;
-    mutable e_Foot predicate_DesiredFoot = e_Foot_Right;
-    mutable e_Velocity predicate_IncomingVelocity = e_Velocity_Idle;
+    // ANIM-2 A10.3: SelectRetainAnim (A10.3c, still Player-side) sorts by the
+    // legacy movement similarity, so these three predicate values survive
+    // until that selection moves into Match.
     mutable Vector3 predicate_RelDesiredDirection;
     mutable float predicate_CorneringBias = 0.0f;
     mutable e_Velocity predicate_DesiredVelocity = e_Velocity_Idle;
-    mutable Vector3 predicate_RelIncomingBodyDirection;
-    mutable Vector3 predicate_LookAt;
-    mutable Vector3 predicate_RelDesiredTripDirection;
-    mutable float predicate_idle = 0.0f;
-    mutable std::vector<float> orderScratch_;
     std::chrono::milliseconds mentalImageTime{0};
     PlayerKinematicState kinematicState;
     PlayerGroundCollider groundCollider;
