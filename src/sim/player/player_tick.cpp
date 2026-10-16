@@ -11,6 +11,7 @@
 #include "football/ball/ball.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/player/player_control_builder.hpp"
+#include "sim/observation/pitch_frame.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -49,6 +50,49 @@ enum class PlayerPathSelectionCommandProvenance {
   LocalTrip,
   LocalTripMovementFallback
 };
+
+namespace {
+
+ControlAction ToControlAction(ActionRequestKind kind) {
+  switch (kind) {
+    case ActionRequestKind::Move: return ControlAction::None;
+    case ActionRequestKind::Shoot: return ControlAction::Shoot;
+    case ActionRequestKind::ShortPass: return ControlAction::ShortPass;
+    case ActionRequestKind::LongPass: return ControlAction::LongPass;
+    case ActionRequestKind::HighPass: return ControlAction::HighPass;
+    case ActionRequestKind::Dribble: return ControlAction::Dribble;
+    case ActionRequestKind::Trap: return ControlAction::Trap;
+    case ActionRequestKind::Tackle: return ControlAction::Tackle;
+    case ActionRequestKind::Save: return ControlAction::Save;
+    case ActionRequestKind::None: return ControlAction::None;
+  }
+  return ControlAction::None;
+}
+
+}  // namespace
+
+// ANIM-2 A11.5: an accepted active request enters the same pipeline as the
+// controller. The request is in the actor's runtime frame, so convert into the
+// home value domain and reuse BuildPlayerCommands, the one translation boundary.
+PlayerCommandQueue Player::BuildCommandQueueForRequest(
+    const PlayerActionRequest& request,
+    const football::sim::PlayerTickContext& tick) {
+  PlayerControl control;
+  control.player = GetID();
+  const auto to_home = ToHomePitchFrame(GetTeamSide(), GetDynamicSide());
+  control.move_direction = to_home.Direction(request.direction.Get2D());
+  control.desired_speed = std::max(0.0f, request.speed);
+  control.action = ToControlAction(request.kind);
+  control.power = request.power;
+  if (request.has_target_position)
+    control.target_position = to_home.Position(request.target_position);
+  if (request.target_player != football::player::kInvalidPlayerId)
+    control.target_player = request.target_player;
+  const PlayerCommandInputs inputs{
+      tick.ball, tick.touches, tick.restart, tick.ball_retainer, tick.pitch,
+      tick.own_team};
+  return BuildPlayerCommands(control, *this, inputs);
+}
 
 const AnimationClip &Player::GetBakedClip(AnimationId id) const {
   return animations_.Get(static_cast<uint32_t>(id));
@@ -394,12 +438,36 @@ void Player::RunActionTick(football::sim::Tick now,
     throw std::logic_error("Player::RunActionTick: player position must have zero height");
   }
   this->NoteProcessedPlayerTick();
-  // ANIM-1 A7: apply the passive trip the Player accepted at the previous
-  // contact phase, exactly where the legacy direct interrupt write took effect.
-  if (const auto pending_trip = this->ConsumePendingPassiveTrip()) {
-    interruptAnim = e_InterruptAnim_Trip;
-    tripDirection = pending_trip->direction;
-    tripType = pending_trip->trip_type;
+  // ANIM-2 A11.5: the single pending-input boundary, consumed once per real
+  // action tick. A passive reaction is the physics/action hand-off: its physical
+  // fact is already applied, only the animation reaction waits here. An accepted
+  // active request is translated into the same command queue the controller path
+  // uses, so both funnel through one selection/install/execution pipeline.
+  PlayerCommandQueue request_command_queue;
+  bool has_request_input = false;
+  bool reaction_executed = false;
+  if (const auto pending_reaction = this->ConsumePendingReaction()) {
+    if (pending_reaction->kind == ReactionKind::Trip) {
+      if (const auto pending_trip = this->ConsumePendingPassiveTrip()) {
+        interruptAnim = e_InterruptAnim_Trip;
+        tripDirection = pending_trip->direction;
+        tripType = pending_trip->trip_type;
+        reaction_executed = true;
+        ++reaction_executions_;
+      }
+    }
+  }
+  if (!reaction_executed) {
+    if (const auto pending_request = this->ConsumePendingActionRequest()) {
+      request_command_queue =
+          this->BuildCommandQueueForRequest(*pending_request, tick);
+      if (!request_command_queue.empty()) {
+        has_request_input = true;
+        // An explicit input is not a requeue opportunity: force the switch.
+        interruptAnim = e_InterruptAnim_Switch;
+        ++action_request_executions_;
+      }
+    }
   }
   auto currentMentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
   // this might be the solution to long-term imbalance
@@ -523,7 +591,7 @@ void Player::RunActionTick(football::sim::Tick now,
     interruptAnim = e_InterruptAnim_Switch;
   }
 
-  bool mayReQueue = allowReQueue;
+  bool mayReQueue = allowReQueue && !has_request_input;
 
   // already some anim interrupt waiting?
 
@@ -619,7 +687,11 @@ void Player::RunActionTick(football::sim::Tick now,
 
     const bool trip_local_queue =
         interruptAnim == e_InterruptAnim_Trip && tripType != 0;
-    if (trip_local_queue) {
+    if (has_request_input) {
+      commandQueue = std::move(request_command_queue);
+      for (std::size_t i = 0; i < commandQueue.size(); ++i)
+        commandProvenance.push_back(PlayerPathSelectionCommandProvenance::Controller);
+    } else if (trip_local_queue) {
       ++PlayerPathLocalTripAttempts();
       // ANIM-1 A7 step 2: the Player owns the local trip command construction.
       this->BuildTripSelectionCommands(
@@ -823,18 +895,20 @@ PlayerBakedPoseSample Player::SampleBakedPose(
   return sample;
 }
 
-// ANIM-2 A11.0: a read-only pose preview. It never advances the action clock,
-// draws RNG or mutates the Player. For a positive offset it returns the raw
-// clip skeleton at the requested future frame (not the blended pose), which is
-// exactly the body-forecast input the Simulation used to build by indexing the
-// library itself.
-PlayerBakedPoseSample Player::PreviewPose(int frame_offset) const {
+// ANIM-2 A11.0/A11.5: a read-only raw-clip pose preview. It never advances the
+// action clock, draws RNG or mutates the Player. For a positive offset it
+// returns the raw clip skeleton at the requested future frame (not the blended
+// pose), which is exactly the body-forecast input the Simulation used to build
+// by indexing the library itself. The offset is clamped to the clip range in
+// BOTH directions, so a negative offset can never convert to a huge size_t and
+// index out of bounds; it previews an earlier raw frame instead.
+PlayerBakedPoseSample Player::PreviewRawPose(int frame_offset) const {
   PlayerBakedPoseSample sample = GetBakedPoseSample();
   const auto& clip =
       animations_.Get(static_cast<std::uint32_t>(sample.animation_id));
   sample.requested_frame += frame_offset;
-  sample.sampled_frame =
-      std::min(sample.requested_frame, static_cast<int>(clip.poses.size()) - 1);
+  const int last_frame = static_cast<int>(clip.poses.size()) - 1;
+  sample.sampled_frame = std::clamp(sample.requested_frame, 0, last_frame);
   sample.frame_clamped = sample.sampled_frame != sample.requested_frame;
   sample.pose = clip.poses[static_cast<std::size_t>(sample.sampled_frame)];
   sample.outgoing_special_state = !clip.metadata.outgoing_special_state.empty();

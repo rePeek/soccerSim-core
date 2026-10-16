@@ -2785,3 +2785,48 @@ per-function trap/ballcontrol/pass/shot/interfere/deflect/sliding vectors, the
 retain anchor, the prepared-tick touch sink) and the decision-clock orchestration,
 after which `currentAnim`/`spatialState` references and Humanoid/HumanoidBase can
 be deleted.
+
+### ANIM-2 A11: Animation playback ownership, one Player input, forecast cleanup
+
+A11 froze the boundary between `Player`, `Animation` and body physics; A11.5/A11.6
+closed the leftovers that still confused "prediction" with "playback".
+
+- **A11.0-A11.4 (already landed):** `Player::UpdatePlayback` owns the animation
+  instance (`PlaybackState`) and the final pose; `Animation` exposes the stateless
+  `Match`/`MatchTouch` plus the pure `PlaybackState`/`AnimationTransitionState`;
+  `Match` consumes only what it needs; the commit decision is a named Player stage
+  (`CanCommitMatchedSelection`); `football::animation` is its own runtime archive
+  over a shared format target.
+- **A11.5 body forecast is named for what it is.** `Player::PreviewPose` became
+  `Player::PreviewRawPose`: it returns the RAW clip skeleton, not the final blended
+  playback pose, so a forecast and the actual endpoint may differ mid-transition.
+  The requested frame is clamped to the clip range in BOTH directions, so no offset
+  can index out of bounds.
+- **A11.5 one pending-input boundary.** `Player::React` is the single passive-
+  reaction entry; contact sites no longer call `React` and `TripMe` separately.
+  `React` arbitrates, records the reaction and stages the ANIM-1 A7 trip guard
+  (private `StagePassiveTrip`). The next `RunActionTick` consumes the reaction and
+  applies the Trip interrupt, exactly where the legacy direct write took effect.
+  The physical collision impulse is still applied immediately by the contact phase;
+  only the ACTION reaction waits for animation. An accepted `Player::Play` request
+  is translated at the same boundary into the controller command queue
+  (`BuildCommandQueueForRequest` -> `BuildPlayerCommands`), so active and passive
+  inputs run through one selection/install/execution pipeline. A deferred request is
+  not retained as an execution input; the producer resubmits it. The counters
+  `ActionRequestExecutions()` / `ReactionExecutions()` prove consumption.
+- **A11.6 `MatchTouch` diagnostics are opt-in.** `MatchTouch` returns
+  `TouchMatchResult` and takes an optional `TouchMatchTrace*` (default `nullptr`).
+  Production passes nothing and records no per-candidate vector; the result is
+  identical either way.
+- **Tests.** The runtime preview case checks both clamp directions and realizes a
+  finite body collider; the CCD consistency suite adds a mid-blend interruption and
+  checks the realized collider geometry, not only the raw pose. New runtime cases
+  cover `React`-driven trips and an accepted `Play` request executing through the
+  pipeline.
+
+The frozen ownership: AI/Referee/Physics -> `Player` (ActionState time authority,
+PlayerMotion capability, Animation Match/Playback) -> final pose -> body
+realization -> physics collider. `anim_state_` still carries install staging,
+smuggle and reference data; it is removed incrementally, never in one destructive
+sweep. `MatchTouch` shadow diagnostics and `BakedBodyPreviewChecks` remain
+observation-only.

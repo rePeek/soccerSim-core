@@ -352,25 +352,15 @@ class Player final {
       return actionState;
     }
 
-    // ANIM-1.1: per-player action request / reaction contract. These submit a
-    // request and record the arbitration outcome; they do not change the pose
-    // here (the later ANIM-1 cuts wire the request into the runtime).
-    RequestOutcome Play(const PlayerActionRequest& request) {
-      const RequestOutcome outcome = ArbitrateActionRequest(actionState, request.kind);
-      action_request_outcome_ = outcome;
-      ++action_request_attempts_;
-      if (outcome == RequestOutcome::Accepted) ++action_request_accepts_;
-      else if (outcome == RequestOutcome::Deferred) ++action_request_defers_;
-      else ++action_request_rejects_;
-      if (outcome != RequestOutcome::Rejected) pending_action_request_ = request;
-      return outcome;
-    }
-    RequestOutcome React(const PlayerReaction& reaction) {
-      const RequestOutcome outcome = ArbitrateReaction(actionState, reaction.kind);
-      reaction_outcome_ = outcome;
-      if (outcome != RequestOutcome::Rejected) pending_reaction_ = reaction;
-      return outcome;
-    }
+    // ANIM-1.1 / ANIM-2 A11.5: per-player action request / reaction contract.
+    // Both arbitrate immediately and record the outcome; an accepted request is
+    // retained as the Player's pending input and consumed exactly once by the
+    // next action tick, which runs it through the one execution pipeline.
+    RequestOutcome Play(const PlayerActionRequest& request);
+    // `ball_retainer` only gates the passive-trip animation guard; null means
+    // "no retainer" (the contact caller passes the real one).
+    RequestOutcome React(const PlayerReaction& reaction,
+                         const Player* ball_retainer = nullptr);
     const std::optional<PlayerActionRequest>& PendingActionRequest() const {
       return pending_action_request_;
     }
@@ -383,6 +373,10 @@ class Player final {
     int ActionRequestAccepts() const { return action_request_accepts_; }
     int ActionRequestDefers() const { return action_request_defers_; }
     int ActionRequestRejects() const { return action_request_rejects_; }
+    // ANIM-2 A11.5: an accepted input actually consumed by the action tick.
+    // Proof the request/reaction is an execution input, not a write-only record.
+    int ActionRequestExecutions() const { return action_request_executions_; }
+    int ReactionExecutions() const { return reaction_executions_; }
     // ANIM-1 A3: the Player owns the animation playback state and computes the
     // final pose; the Animation module stays stateless. The clip id and frame
     // come from the Player's authoritative state (installed selection + action
@@ -579,12 +573,6 @@ class Player final {
     // projection. It is intentionally a fatal invariant in all builds.
     void CheckSimulationActionOracle() const;
 
-    // ANIM-1 A7: the Player owns the passive-trip decision. It evaluates the
-    // legacy guard at contact time and stores the accepted trip; the action tick
-    // applies it to its interrupt at the next Process.
-    void TripMe(const Vector3 &tripVector, int tripType, const Player* ball_retainer);
-    std::optional<PendingPassiveTrip> ConsumePendingPassiveTrip();
-
     void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
     int GetReactionTime_ms();
     float GetControlSpeed();
@@ -637,10 +625,13 @@ class Player final {
       }
       return sample;
     }
-    // ANIM-2 A11.0: read-only body-forecast preview. It returns the raw clip
-    // skeleton at the requested future frame without advancing the action
-    // clock, drawing RNG or mutating the Player.
-    PlayerBakedPoseSample PreviewPose(int frame_offset) const;
+    // ANIM-2 A11.0/A11.5: read-only raw-clip body forecast. It returns the raw
+    // clip skeleton at the requested frame without advancing the action clock,
+    // drawing RNG or mutating the Player. The name is deliberate: this is the
+    // RAW clip pose, not the final blended playback pose, so a forecast and the
+    // actual endpoint can legitimately differ mid-transition.
+    // The requested frame is clamped to the clip range in both directions.
+    PlayerBakedPoseSample PreviewRawPose(int frame_offset) const;
 
     void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
     football::sim::Tick GetLastTouchTick() const { return last_touch_tick_; }
@@ -708,6 +699,18 @@ class Player final {
   private:
     void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
     void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history);
+    // ANIM-2 A11.5: the pending-input boundary. `React` stages the passive trip
+    // through the ANIM-1 A7 guard; the action tick consumes the reaction and the
+    // staged trip together. An accepted active request is translated here into
+    // the controller command queue so it executes through the same pipeline.
+    void StagePassiveTrip(const PlayerReaction& reaction,
+                          const Player* ball_retainer);
+    std::optional<PendingPassiveTrip> ConsumePendingPassiveTrip();
+    std::optional<PlayerReaction> ConsumePendingReaction();
+    std::optional<PlayerActionRequest> ConsumePendingActionRequest();
+    PlayerCommandQueue BuildCommandQueueForRequest(
+        const PlayerActionRequest& request,
+        const football::sim::PlayerTickContext& tick);
 
     // -----------------------------------------------------------------------
     // ANIM-1 A9.5-A9.8: the legacy Humanoid/HumanoidBase capabilities, moved
@@ -880,11 +883,11 @@ class Player final {
     int authority_checks_ = 0;
     int authority_matches_ = 0;
     int authority_mismatches_ = 0;
-    // ANIM-1.1: pending active/passive requests and their recorded arbitration
-    // outcome. Cleared on every reset path so no stale request survives.
+    // ANIM-1.1 / ANIM-2 A11.5: pending active/passive inputs and their recorded
+    // arbitration outcome. Cleared on every reset path so no stale input survives.
     std::optional<PlayerActionRequest> pending_action_request_;
     std::optional<PlayerReaction> pending_reaction_;
-    // ANIM-1 A7: the accepted passive trip awaiting the next Process interrupt.
+    // ANIM-1 A7: the accepted passive trip awaiting the next action-tick interrupt.
     std::optional<PendingPassiveTrip> pending_passive_trip_;
     RequestOutcome action_request_outcome_ = RequestOutcome::Accepted;
     RequestOutcome reaction_outcome_ = RequestOutcome::Accepted;
@@ -892,6 +895,8 @@ class Player final {
     int action_request_accepts_ = 0;
     int action_request_defers_ = 0;
     int action_request_rejects_ = 0;
+    int action_request_executions_ = 0;
+    int reaction_executions_ = 0;
     LocomotionIntentScheduler locomotionIntentScheduler;
     bool locomotionIntentDueThisTick = false;
     // Explicit cause of the next Direct publication. A continuity repair runs

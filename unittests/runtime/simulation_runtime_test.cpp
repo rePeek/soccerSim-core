@@ -21,6 +21,7 @@
 #include <cmath>
 #include <cstdio>
 #include <vector>
+#include <variant>
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
@@ -1361,7 +1362,10 @@ TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
     PlayerControlSet controls;
     sim.Step(controls);
     if (!trip_injected && in_play_tick >= 0 && tick > in_play_tick + 3) {
-      player->TripMe(Vector3(0, -1, 0), 2, nullptr);
+      // ANIM-2 A11.5: React is the single passive-reaction entry; the staged trip
+      // is applied by the next action tick.
+      player->React(PlayerReaction{ReactionKind::Trip, Vector3(0, -1, 0), 1.0f,
+                                   football::player::kInvalidPlayerId, 2});
       trip_injected = true;
     }
     const e_FunctionType type = player->GetSimulationActionState().type;
@@ -1391,12 +1395,113 @@ TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
   CHECK(sim.Stop());
 }
 
+TEST_CASE("Runtime harness: an accepted Play request executes through the pipeline",
+          "[runtime][sim]") {
+  // ANIM-2 A11.5: an accepted active request is consumed by the next action tick
+  // and runs through the same command -> selection -> install pipeline the
+  // controller uses. This proves Play is an execution input, not a write-only
+  // record, without depending on contact geometry.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int in_play_tick = -1;
+  bool submitted = false;
+  RequestOutcome submit_outcome = RequestOutcome::Rejected;
+  bool shot_seen = false;
+  for (int tick = 0; tick < 400 && !shot_seen; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    if (in_play_tick >= 0 && tick > in_play_tick + 3) {
+      // Keep the ball on the actor so a shot is legal when the request lands.
+      SimulationAccess::SetBallRetainer(sim, player);
+      SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -0.4f, 0));
+      if (!submitted &&
+          player->GetSimulationActionState().type == e_FunctionType_Movement) {
+        PlayerActionRequest shoot;
+        shoot.kind = ActionRequestKind::Shoot;
+        shoot.direction = Vector3(0, -1, 0);
+        shoot.power = 0.7f;
+        submit_outcome = player->Play(shoot);
+        submitted = true;
+      }
+    }
+    PlayerControlSet controls;
+    sim.Step(controls);
+    if (player->GetSimulationActionState().type == e_FunctionType_Shot) shot_seen = true;
+  }
+
+  std::fprintf(stderr, "[runtime] A11.5 in_play=%d shot=%d executions=%d\n",
+               in_play_tick, shot_seen ? 1 : 0, player->ActionRequestExecutions());
+  CHECK(in_play_tick >= 0);
+  CHECK(submitted);
+  CHECK(submit_outcome == RequestOutcome::Accepted);
+  CHECK(shot_seen);
+  CHECK(player->ActionRequestExecutions() > 0);
+  CHECK(player->InstallMismatches() == 0);
+  CHECK(sim.Stop());
+}
 
 TEST_CASE("Runtime harness: the Player pose preview drives the body forecast",
           "[runtime][sim]") {
   // ANIM-2 A11.0: every match in this harness builds its body forecast through
-  // the Player's read-only PreviewPose, not by indexing the clip here.
-  const int checks = BakedBodyPreviewChecks();
+  // the Player's read-only PreviewRawPose, not by indexing the clip here.
+  // ANIM-2 A11.5: this test's own ticks must drive the preview path; do not
+  // depend on an earlier test in the same binary having primed the counter.
+  const int checks_before = BakedBodyPreviewChecks();
+
+  // ANIM-2 A11.5: the preview is a raw clip pose clamped to the clip range in
+  // both directions, and the sample realizes a real, finite collision geometry.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+  for (int tick = 0; tick < 40; ++tick) {
+    PlayerControlSet controls;
+    sim.Step(controls);
+  }
+  REQUIRE(player->IsActive());
+
+  const int checks = BakedBodyPreviewChecks() - checks_before;
   std::fprintf(stderr, "[runtime] A11.0 preview checks=%d\n", checks);
   CHECK(checks > 0);
+
+  const int last_frame = player->GetFrameCount() - 1;
+  REQUIRE(last_frame >= 0);
+  const PlayerBakedPoseSample sample = player->GetBakedPoseSample();
+  const PlayerBakedPoseSample at_end = player->PreviewRawPose(last_frame + 1000);
+  CHECK(at_end.requested_frame == sample.requested_frame + last_frame + 1000);
+  CHECK(at_end.sampled_frame == last_frame);
+  CHECK(at_end.frame_clamped);
+
+  const PlayerBakedPoseSample at_start = player->PreviewRawPose(-100000);
+  CHECK(at_start.requested_frame == sample.requested_frame - 100000);
+  CHECK(at_start.sampled_frame == 0);
+  CHECK(at_start.frame_clamped);
+
+  const auto geometry = at_end.Geometry();
+  for (const auto& shape : geometry.shapes) {
+    if (const auto* capsule = std::get_if<football::geometry::Capsule>(&shape)) {
+      CHECK(IsFinite(capsule->a));
+      CHECK(IsFinite(capsule->b));
+      CHECK(capsule->radius > 0.0f);
+    } else if (const auto* sphere = std::get_if<football::geometry::Sphere>(&shape)) {
+      CHECK(IsFinite(sphere->center));
+      CHECK(sphere->radius > 0.0f);
+    } else {
+      FAIL("unexpected baked body shape");
+    }
+  }
+
+  // A reset re-installs the action; the preview must still read that first
+  // (possibly RNG-chosen) frame consistently with the committed sample.
+  player->ResetPosition(player->GetPosition(),
+                        player->GetPosition() + Vector3(0, -1, 0));
+  const PlayerBakedPoseSample reset_sample = player->GetBakedPoseSample();
+  const PlayerBakedPoseSample reset_preview = player->PreviewRawPose(0);
+  CHECK(reset_preview.requested_frame == reset_sample.requested_frame);
+  CHECK(reset_preview.sampled_frame == reset_sample.sampled_frame);
+  CHECK(reset_preview.sampled_frame >= 0);
+  CHECK(reset_preview.sampled_frame < player->GetFrameCount());
+  CHECK(sim.Stop());
 }

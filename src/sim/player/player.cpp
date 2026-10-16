@@ -824,6 +824,51 @@ float Player::GetControlSpeed() {
   return 0.f;
 }
 
+// ANIM-2 A11.5: the request/reaction arbitration boundary. Both record the
+// outcome immediately. Only an ACCEPTED request is retained as the pending
+// execution input, so a deferred intent cannot be silently executed later; the
+// producer resubmits it when the window opens.
+RequestOutcome Player::Play(const PlayerActionRequest& request) {
+  const RequestOutcome outcome = ArbitrateActionRequest(actionState, request.kind);
+  action_request_outcome_ = outcome;
+  ++action_request_attempts_;
+  if (outcome == RequestOutcome::Accepted) {
+    ++action_request_accepts_;
+    pending_action_request_ = request;
+  } else if (outcome == RequestOutcome::Deferred) {
+    ++action_request_defers_;
+  } else {
+    ++action_request_rejects_;
+  }
+  return outcome;
+}
+
+RequestOutcome Player::React(const PlayerReaction& reaction,
+                             const Player* ball_retainer) {
+  const RequestOutcome outcome = ArbitrateReaction(actionState, reaction.kind);
+  reaction_outcome_ = outcome;
+  if (outcome == RequestOutcome::Rejected) return outcome;
+  pending_reaction_ = reaction;
+  // The physical collision fact is already applied by the contact phase; only
+  // the animation reaction is staged here for the next action tick.
+  if (reaction.kind == ReactionKind::Trip) {
+    this->StagePassiveTrip(reaction, ball_retainer);
+  }
+  return outcome;
+}
+
+std::optional<PlayerReaction> Player::ConsumePendingReaction() {
+  std::optional<PlayerReaction> reaction = pending_reaction_;
+  pending_reaction_.reset();
+  return reaction;
+}
+
+std::optional<PlayerActionRequest> Player::ConsumePendingActionRequest() {
+  std::optional<PlayerActionRequest> request = pending_action_request_;
+  pending_action_request_.reset();
+  return request;
+}
+
 void Player::RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs) {
   if (control_) {
     commandQueue = BuildPlayerCommands(*control_, *this, inputs);

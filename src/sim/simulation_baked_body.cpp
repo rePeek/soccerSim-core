@@ -74,10 +74,10 @@ void Simulation::BeginBakedBodyTick() {
     // turn that placement correction into this Tick's inferred body velocity.
     baked_body_poses_[slot]->state=target.state;
     baked_body_starts_[slot]=baked_body_poses_[slot];
-    // ANIM-2 A11.0: the Player owns the forecast. It returns the raw clip
-    // skeleton at the next frame through SampleBakedPose; the Simulation only
-    // predicts the root position and realizes the body geometry.
-    auto future=actor.PreviewPose(1);
+    // ANIM-2 A11.0/A11.5: the Player owns the forecast. It returns the raw
+    // clip skeleton at the next frame through PreviewRawPose; the Simulation
+    // only predicts the root position and realizes the body geometry.
+    auto future=actor.PreviewRawPose(1);
     if(actor.GetTeamID()==second_team_) future.Mirror();
     future.state.position+=future.state.velocity*football::sim::kTickSeconds;
     baked_body_forecasts_[slot]=RealizeBakedPose(*baked_body_starts_[slot],future,future.outgoing_special_state);

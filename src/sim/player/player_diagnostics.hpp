@@ -275,8 +275,8 @@ void RecordMovementCommandAcceptance(bool material_candidate,
 
 
 // ANIM-2 A11.0: body-forecast dual-run. The legacy forecast stays the
-// production one; the Player's read-only PreviewPose is compared against it so
-// the authority can be flipped once the two agree bit-exactly.
+// production one; the Player's read-only PreviewRawPose is compared against it
+// so the authority can be flipped once the two agree bit-exactly.
 int &BakedBodyPreviewChecks();
 
 

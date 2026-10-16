@@ -10,13 +10,18 @@
 
 // ANIM-1.1 — explicit per-player action request / reaction contract.
 //
-// `Player::Play(request)` submits an ACTIVE action for one player; it does not
-// change the pose immediately. `Player::React(reaction)` submits a PASSIVE
-// physics reaction with preemption priority. Both funnel through the same
-// arbitration so the accept/defer/reject reason is always recorded. The value
-// types here are the stable external vocabulary; the legacy
-// PlayerControl/PlayerCommand path stays the execution source until the later
-// ANIM-1 cuts wire the request into the runtime.
+// `Player::Play(request)` submits an ACTIVE action for one player; `Player::React`
+// submits a PASSIVE physics reaction with preemption priority. Both funnel through
+// the same arbitration so the accept/defer/reject reason is always recorded.
+//
+// ANIM-2 A11.5: an accepted request/reaction is a real execution input. The next
+// action tick consumes it and runs it through the one Player execution pipeline
+// (command build -> selection -> Animation::Match -> install). A rejected or
+// deferred request is not retained; the producer must submit it again when the
+// arbitration window allows.
+//
+// Only the ACTION reaction is deferred here. The physical collision impulse has
+// already been applied by the contact phase and never waits for animation.
 
 enum class ActionRequestKind : std::uint8_t {
   None = 0,
@@ -49,8 +54,11 @@ inline e_FunctionType ActionRequestFunctionType(ActionRequestKind kind) {
 
 struct PlayerActionRequest {
   ActionRequestKind kind = ActionRequestKind::None;
-  // Movement direction or shot/kick direction (runtime frame).
+  // Movement direction or shot/kick direction, in the actor's RUNTIME frame.
+  // The execution boundary converts it once into the value/command domain.
   football::math::Vector3 direction = football::math::Vector3(0);
+  // Movement speed for a Move request; ignored by the one-shot actions.
+  float speed = 0.0f;
   // Absolute target position on the pitch for passes/shots (optional).
   football::math::Vector3 target_position = football::math::Vector3(0);
   bool has_target_position = false;
