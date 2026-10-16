@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "football/animation/entry_frame.hpp"
 #include "football/animation/library.hpp"
 #include "football/animation/movement_selection.hpp"
 #include "football/animation/selector.hpp"
@@ -81,8 +82,20 @@ struct MatchResult {
   // The selected clip and its entry cursor. For Movement/non-Movement this is
   // `candidates.front()`; for touch actions the A10.4 loop fills it.
   AnimationId clip_id = -1;
+  // ANIM-2 A13: the chosen entry frame. 0 unless the caller enabled
+  // pose-based entry-frame matching for this branch.
   int start_frame = 0;
   std::optional<TouchMatch> touch;
+};
+
+// ANIM-2 A13.0: pose-based entry-frame matching, applied to the front
+// candidate. The reference pose is the actor's current final pose. The Player
+// recomputes for its final clip after any locomotion reorder.
+struct MatchEntryRequest {
+  bool enabled = false;
+  PoseFrame reference_pose;
+  int min_remaining_frames = 1;
+  int last_legal_frame = -1;
 };
 
 struct MatchQuery {
@@ -95,6 +108,8 @@ struct MatchQuery {
   MatchBranch branch = MatchBranch::Legacy;
   std::span<const int> crude_candidates;
   bool foot_counterfactual = false;
+  // ANIM-2 A13: entry-frame matching for Movement/Trip.
+  MatchEntryRequest entry;
 };
 
 // Refine the candidate set for the query and return the match. The Player

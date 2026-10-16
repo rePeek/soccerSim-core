@@ -43,7 +43,8 @@ add_library(football_animation STATIC
   pose_sampling.cpp
   pose_blend.cpp
   playback.cpp
-  transition.cpp)
+  transition.cpp
+  entry_frame.cpp)
 add_library(football::animation ALIAS football_animation)
 target_sources(football_animation PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
@@ -60,7 +61,8 @@ target_sources(football_animation PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/touch_geometry.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/touch_scoring.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/transition.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/playback.hpp)
+    ${PROJECT_SOURCE_DIR}/include/football/animation/playback.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/entry_frame.hpp)
 target_compile_features(football_animation PUBLIC cxx_std_23)
 target_link_libraries(football_animation PUBLIC football::animation_base)
 football_configure_target(football_animation)

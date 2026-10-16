@@ -50,6 +50,19 @@ std::optional<MatchResult> Match(const AnimationLibrary& library,
   MatchResult result;
   result.clip_id = static_cast<AnimationId>(candidates.front());
   result.start_frame = 0;
+  // ANIM-2 A13: choose a legal entry frame whose pose best matches the actor's
+  // current final pose. Only the front candidate is matched here; the Player
+  // recomputes for its final clip after any locomotion reorder.
+  if (query.entry.enabled) {
+    const AnimationClip& clip =
+        library.Get(static_cast<uint32_t>(result.clip_id));
+    EntryFrameRequest entry_request;
+    entry_request.reference_pose = &query.entry.reference_pose;
+    entry_request.min_remaining_frames = query.entry.min_remaining_frames;
+    entry_request.last_legal_frame = query.entry.last_legal_frame;
+    const EntryFrameResult entry = SelectEntryFrame(clip, entry_request);
+    if (entry.matched) result.start_frame = entry.frame;
+  }
   result.candidates = std::move(candidates);
   result.candidates_without_foot = std::move(without_foot);
   return result;
