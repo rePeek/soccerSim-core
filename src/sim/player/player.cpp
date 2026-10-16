@@ -725,6 +725,12 @@ void Player::InstallSelectedAction(const football::sim::SelectedAction &selectio
   } else {
     ++install_mismatches_;
   }
+
+  // ANIM-2 A10.0: record the installed selection as an observation fact.
+  PlayerMatchAuditLog().push_back(PlayerMatchAudit{
+      selection.clip_id, selection.start_frame, selection.touch_frame,
+      selection.frame_count});
+  ++PlayerMatchSelections();
 }
 
 
@@ -739,6 +745,7 @@ void Player::UpdatePlayback(AnimationId clip_id, int frame, float base_angle,
   const AnimationClip& clip = animations_.Get(static_cast<std::uint32_t>(clip_id));
   playback_state_.Sample(clip, frame, base_angle,
                          playback_blend_enabled_ ? blend_ticks : 0);
+  ++PlayerPlaybackFinalPoseSamples();
 }
 
 bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {

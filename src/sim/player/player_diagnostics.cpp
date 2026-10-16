@@ -469,3 +469,11 @@ void RecordFootCounterfactual(const AnimationLibrary& animations, int with_foot_
   if (lifecycle_changed) ++HumanoidFootLifecycleChanged();
 }
 
+
+// ANIM-2 A10.0: selection/playback accounting (observation only).
+std::vector<PlayerMatchAudit> &PlayerMatchAuditLog() {
+  static std::vector<PlayerMatchAudit> log;
+  return log;
+}
+int &PlayerMatchSelections() { static int value = 0; return value; }
+int &PlayerPlaybackFinalPoseSamples() { static int value = 0; return value; }

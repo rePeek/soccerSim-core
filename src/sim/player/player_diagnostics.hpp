@@ -273,4 +273,19 @@ void RecordMovementCommandAcceptance(bool material_candidate,
                                      const PlayerCommand &command,
                                      int frame_count);
 
+// ANIM-2 A10.0: selection and playback accounting. Observation only; never
+// read by gameplay. A record is appended on every action install (the point a
+// selection becomes the action in force) and on every production playback
+// update, so a regression can compare the clip/entry/contact facts and the
+// FinalPose generation count without changing any behaviour.
+struct PlayerMatchAudit {
+  int clip_id = -1;
+  int start_frame = 0;
+  int touch_frame = -1;
+  int frame_count = 0;
+};
+std::vector<PlayerMatchAudit> &PlayerMatchAuditLog();
+int &PlayerMatchSelections();
+int &PlayerPlaybackFinalPoseSamples();
+
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_DIAGNOSTICS_HPP
