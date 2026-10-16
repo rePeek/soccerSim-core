@@ -55,6 +55,13 @@ struct TouchMatchContext {
   bool prefer_pass_and_shot = false;
   float touch_offset_ms = 0.0f;
   float closest_opponent_distance = 0.0f;
+
+  // ANIM-2 A18: the actor's current final pose, used to pick a legal entry
+  // frame per candidate. Without it every candidate starts at frame 0 (the
+  // legacy behavior).
+  PoseFrame reference_pose;
+  bool has_reference_pose = false;
+  int min_remaining_frames = 1;
 };
 
 // Candidate-dependent, synchronous, order-preserving port. Calls must be made
@@ -86,6 +93,8 @@ enum class TouchRejectReason {
 // One candidate's outcome, enough to compare two implementations per candidate.
 struct TouchCandidateTrace {
   AnimationId clip = -1;
+  // ANIM-2 A18: the entry frame the touch was evaluated with.
+  int entry_frame = 0;
   int touch_frame = -1;
   TouchRejectReason reject_reason = TouchRejectReason::None;
   float body_ball_distance_advantage = 0.0f;
@@ -95,6 +104,10 @@ struct TouchCandidateTrace {
 
 struct TouchMatchResult {
   AnimationId clip_id = -1;
+  // ANIM-2 A18: the matched entry frame for `clip_id` (0 without a pose match).
+  // The Player installs here; the touch fires at `touch_frame`, i.e. after
+  // `touch_frame - start_frame` ticks.
+  int start_frame = 0;
   int touch_frame = -1;
   Vector3 touch_position;      // world space
   Vector3 action_smuggle;      // world space, z == 0

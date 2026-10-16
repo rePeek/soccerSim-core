@@ -98,7 +98,7 @@ struct MatchEntryRequest {
   bool enabled = false;
   PoseFrame reference_pose;
   int min_remaining_frames = 1;
-  int last_legal_frame = -1;
+  int last_legal_frame = kEntryFrameUnbounded;
 };
 
 struct MatchQuery {

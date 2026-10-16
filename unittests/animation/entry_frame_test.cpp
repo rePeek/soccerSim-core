@@ -131,3 +131,24 @@ TEST_CASE("SelectEntryFrame never enters at or after a touch frame") {
   REQUIRE(result.matched);
   CHECK(result.frame <= kTouchFrame - 1);
 }
+
+TEST_CASE("SelectEntryFrame intersects an explicit bound with the clip length") {
+  const AnimationClip clip = PosesClip(12, 12);
+  EntryFrameRequest request;
+  request.reference_pose = &clip.poses[11];
+  request.min_remaining_frames = 1;
+  request.last_legal_frame = 100;  // far beyond the clip
+  const EntryFrameResult result = SelectEntryFrame(clip, request);
+  REQUIRE(result.matched);
+  CHECK(result.frame <= 12 - 1 - 1);  // the duration bound still wins
+  CHECK(result.frame < static_cast<int>(clip.poses.size()));
+}
+
+TEST_CASE("a negative explicit bound means no legal entry frame") {
+  const AnimationClip clip = PosesClip(13, 12);
+  EntryFrameRequest request;
+  request.reference_pose = &clip.poses[3];
+  request.min_remaining_frames = 1;
+  request.last_legal_frame = -1;  // e.g. a touch frame of 0
+  CHECK_FALSE(SelectEntryFrame(clip, request).matched);
+}

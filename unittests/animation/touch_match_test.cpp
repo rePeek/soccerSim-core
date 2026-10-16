@@ -41,6 +41,33 @@ struct StubQueries final : TouchMatchQueries {
   }
 };
 
+// ANIM-2 A18: records the time arguments the match asks for, so a test can
+// prove the ball is predicted at (touch_frame - entry_frame) * 10 ms.
+struct RecordingQueries final : TouchMatchQueries {
+  std::vector<int> prediction_ms;
+  std::vector<int> predict_ticks;
+  std::vector<int> last_touch_ticks;
+  std::vector<Vector3> plan_positions;
+
+  Vector3 BallPredictionAtMs(int ms) override {
+    prediction_ms.push_back(ms);
+    return Vector3(0);
+  }
+  Vector3 BallPredictAtTicks(int ticks) override {
+    predict_ticks.push_back(ticks);
+    return Vector3(0);
+  }
+  float LastTouchBiasAtTick(int ticks) override {
+    last_touch_ticks.push_back(ticks);
+    return 0.0f;
+  }
+  bool MotionPlanFor(AnimationId, MotionPlanView& out) override {
+    out.positions = plan_positions;
+    out.outgoing_velocity = Vector3(0);
+    out.rotation_offset = 0.0f;
+    return true;
+  }
+};
 std::vector<int> CrudeCandidates(const AnimationLibrary& library,
                                  e_FunctionType type, int n) {
   CrudeSelectionQuery query;
@@ -218,4 +245,42 @@ TEST_CASE("MatchTouch returns the same successful selection with or without a tr
   CHECK(trace.early_reject == TouchRejectReason::RetainedByOther);
   CHECK(trace.candidates.empty());
   CHECK(rejected_result.clip_id == -1);
+}
+
+TEST_CASE("MatchTouch predicts the ball at the entry-frame contact delay") {
+  // ANIM-2 A18: the ball prediction, the tap position and the last-touch bias
+  // all use the time from the ENTRY frame to the touch frame, not the clip's
+  // absolute touch frame.
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+  const std::vector<int> candidates = CrudeCandidates(library, e_FunctionType_Trap, 1);
+  REQUIRE(!candidates.empty());
+
+  const AnimationClip& clip = library.Get(static_cast<uint32_t>(candidates.front()));
+  REQUIRE(!clip.touches.empty());
+  const int touch_frame = clip.touches.front().frame;
+  REQUIRE(touch_frame >= 2);
+
+  RecordingQueries queries;
+  queries.plan_positions.assign(256, Vector3(0, 0, 0));
+
+  TouchMatchContext context = MakeContext(candidates);
+  context.ball_retained_by_player = true;
+  context.has_reference_pose = true;
+  context.reference_pose = clip.poses[static_cast<std::size_t>(touch_frame - 2)];
+  context.min_remaining_frames = 1;
+
+  TouchMatchTrace trace;
+  const auto result = MatchTouch(library, context, queries, &trace);
+  REQUIRE(result.clip_id >= 0);
+  REQUIRE(!trace.candidates.empty());
+
+  const int entry = trace.candidates.front().entry_frame;
+  const int touch = trace.candidates.front().touch_frame;
+  CHECK(entry < touch);
+  CHECK(result.start_frame == entry);
+  CHECK(result.touch_frame == touch);
+  REQUIRE(!queries.prediction_ms.empty());
+  CHECK(queries.prediction_ms.front() == (touch - entry) * 10);
+  CHECK(queries.last_touch_ticks.front() == (touch - entry));
 }

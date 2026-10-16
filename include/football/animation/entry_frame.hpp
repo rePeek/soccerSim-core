@@ -1,6 +1,8 @@
 #ifndef FOOTBALL_ANIMATION_ENTRY_FRAME_HPP
 #define FOOTBALL_ANIMATION_ENTRY_FRAME_HPP
 
+#include <limits>
+
 #include "football/animation/clip.hpp"
 
 // ANIM-2 A13 — pose-based entry-frame matching.
@@ -23,6 +25,16 @@ namespace football::animation {
 // identical poses give exactly 0.
 float PoseDistance(const PoseFrame& a, const PoseFrame& b);
 
+// `last_legal_frame` has exactly two meanings:
+//   kEntryFrameUnbounded  -> no explicit bound; only min_remaining_frames
+//                            constrains the search.
+//   any other value       -> an inclusive upper bound. A negative value (for
+//                            example a touch frame of 0) means NO legal entry
+//                            frame exists, and SelectEntryFrame reports
+//                            matched == false.
+// A negative value is never "unspecified".
+constexpr int kEntryFrameUnbounded = std::numeric_limits<int>::max();
+
 struct EntryFrameRequest {
   // The actor's current final pose. A null pose means "no match is possible",
   // and the caller keeps its default (frame 0).
@@ -30,9 +42,9 @@ struct EntryFrameRequest {
   // How many frames must remain after the entry frame. A clip must not be
   // entered so late that the action cannot complete.
   int min_remaining_frames = 1;
-  // Optional hard upper bound on the entry frame (inclusive). -1 derives it as
-  // `frame_count - 1 - min_remaining_frames`.
-  int last_legal_frame = -1;
+  // Optional inclusive upper bound on the entry frame; always intersected with
+  // the min_remaining_frames bound.
+  int last_legal_frame = kEntryFrameUnbounded;
 };
 
 struct EntryFrameResult {

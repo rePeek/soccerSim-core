@@ -3003,4 +3003,27 @@ a full match (the repo rule):
 
 A17 closes the entry-frame program: Movement/Trip/touch actions all select
 their clip and legal entry frame in Animation, while the Player still owns
-arbitration, install and the action clock, and Physics still owns the impulse.
+
+### ANIM-2 A18: entry-frame bounds and touch time/space consistency
+
+A18 fixes the review findings on top of A13-A17; it does not change any other
+action path.
+
+- EntryFrame bounds (P0): `last_legal_frame` now uses a real sentinel,
+  `kEntryFrameUnbounded`. The caller's bound is ALWAYS intersected with the
+  duration bound (`frame_count - 1 - min_remaining_frames`), so an oversized
+  explicit bound can never index past the clip, and a negative explicit bound
+  (for example a touch frame of 0) means "no legal entry frame" rather than
+  "unspecified".
+- Touch time/space basis (P0): `MatchTouch` now selects the entry frame inside
+  the match (`TouchMatchContext.reference_pose`/`has_reference_pose`), then uses
+  `contact_delay_ticks = touch_frame - entry_frame` for the ball prediction, the
+  out-of-bounds check and the last-touch bias, and evaluates the tap geometry
+  against the reference position relative to the entry frame. `TouchMatchResult`
+  and `TouchChoice` carry the matched `start_frame`; the Player installs exactly
+  that and no longer re-selects after `MatchTouch`. `entry_frame == 0` keeps the
+  legacy basis bit-for-bit.
+- Tests: `entry_frame_test` covers the oversized and negative bounds;
+  `touch_match_test` records the query time arguments and asserts they equal
+  `(touch_frame - entry_frame) * 10` / `(touch_frame - entry_frame)`; the runtime
+  pass test still asserts entry < contact and a matching installed touch frame.

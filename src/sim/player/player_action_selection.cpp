@@ -131,6 +131,11 @@ int Player::SelectBestTouchAnim(
   context.touch_offset_ms = static_cast<float>(defaultTouchOffset_ms);
   context.closest_opponent_distance =
       GetClosestOpponentDistance(tick.opponent_team);
+  // ANIM-2 A18: match the entry frame inside MatchTouch, so the ball prediction,
+  // the reference motion and the touch geometry share the entry-frame basis.
+  context.reference_pose = Pose();
+  context.has_reference_pose = true;
+  context.min_remaining_frames = 1;
 
   // ANIM-2 A11.6: production reads only the result, so the per-candidate trace
   // is not requested and no diagnostic vector is allocated.
@@ -138,6 +143,7 @@ int Player::SelectBestTouchAnim(
       football::animation::MatchTouch(animations_, context, queries);
 
   choice.touch_frame = match.touch_frame;
+  choice.start_frame = match.start_frame;
   choice.touch_position = match.touch_position;
   choice.radius_offset = match.radius_offset;
   choice.action_smuggle = match.action_smuggle;

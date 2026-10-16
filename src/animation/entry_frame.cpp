@@ -37,9 +37,12 @@ EntryFrameResult SelectEntryFrame(const AnimationClip& clip,
   const int min_remaining = request.min_remaining_frames > 1
                                 ? request.min_remaining_frames
                                 : 1;
-  int last = request.last_legal_frame;
-  if (last < 0) last = frame_count - 1 - min_remaining;
-  if (last < 0) return result;  // clip too short for the required remainder
+  // Always intersect the caller's bound with the duration bound, so an explicit
+  // last_legal_frame can never exceed the clip.
+  int last = frame_count - 1 - min_remaining;
+  if (request.last_legal_frame != kEntryFrameUnbounded)
+    last = std::min(last, request.last_legal_frame);
+  if (last < 0) return result;  // no legal entry frame
 
   float best_distance = std::numeric_limits<float>::max();
   int best_frame = 0;

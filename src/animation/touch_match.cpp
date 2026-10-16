@@ -10,6 +10,7 @@
 #include <cmath>
 #include <vector>
 
+#include "football/animation/entry_frame.hpp"
 #include "football/animation/movement_math.hpp"
 #include "football/animation/touch_geometry.hpp"
 #include "football/animation/touch_scoring.hpp"
@@ -78,6 +79,7 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
   if (trace != nullptr) trace->candidates.reserve(context.candidates.size());
 
   AnimationId bestAnimID = -1;
+  int bestStartFrame = 0;
   Vector3 bestActionSmuggleVec2D;
   bool found = false;
 
@@ -129,9 +131,26 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
       const int animTouchFrame = clip.touches[touchID].frame;
       candidate_trace.touch_frame = animTouchFrame;
 
+      // ANIM-2 A18: pick the entry frame for this touch first, then measure the
+      // ball and the reference motion from that entry. Entering at frame N means
+      // the contact happens after `touch_frame - N` ticks, not `touch_frame`.
+      int entryFrame = 0;
+      if (context.has_reference_pose) {
+        EntryFrameRequest entry_request;
+        entry_request.reference_pose = &context.reference_pose;
+        entry_request.min_remaining_frames = context.min_remaining_frames;
+        entry_request.last_legal_frame = animTouchFrame - 1;
+        const EntryFrameResult entry = SelectEntryFrame(clip, entry_request);
+        if (entry.matched) entryFrame = entry.frame;
+      }
+      candidate_trace.entry_frame = entryFrame;
+      const int contactDelayTicks = animTouchFrame - entryFrame;
+      // A touch at frame 0 with no legal earlier entry is immediate (delay 0).
+      assert(contactDelayTicks >= 0);
+
       // out of bounds?
       if (!context.ball_retained_by_player) {
-        const Vector3 absBallPos = queries.BallPredictAtTicks(animTouchFrame);
+        const Vector3 absBallPos = queries.BallPredictAtTicks(contactDelayTicks);
         if (std::fabs(absBallPos.coords[0]) >
                 context.pitch_half_length + context.pitch_line_half_width + 0.11f ||
             std::fabs(absBallPos.coords[1]) >
@@ -141,18 +160,26 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
         }
       }
 
+      // The reference body position at the touch, relative to the entry frame.
+      // entryFrame == 0 keeps the legacy basis exactly. Computed after the
+      // out-of-bounds reject, so an empty plan is never indexed.
+      const Vector3 planBodyPos =
+          entryFrame > 0
+              ? plan.positions[animTouchFrame] - plan.positions[entryFrame]
+              : plan.positions[animTouchFrame];
+
       const Vector3 touchMovement =
           CalculateMovementAtFrame(plan.positions, animTouchFrame).GetRotated2D(-angle);
       const Vector3 animTouchMovement =
           CalculateMovementAtFrame(clip.root_positions, animTouchFrame);
 
-      Vector3 ballPos = queries.BallPredictionAtMs(animTouchFrame * 10);
+      Vector3 ballPos = queries.BallPredictionAtMs(contactDelayTicks * 10);
       Vector3 ballMovement =
-          (queries.BallPredictionAtMs(animTouchFrame * 10 + 10) - ballPos) * 100.0f;
+          (queries.BallPredictionAtMs(contactDelayTicks * 10 + 10) - ballPos) * 100.0f;
       ballPos = (ballPos - context.spatial_position).GetRotated2D(-angle);
       ballMovement = ballMovement.GetRotated2D(-angle);
 
-      Vector3 bodyPos = plan.positions[animTouchFrame].GetRotated2D(-angle);
+      Vector3 bodyPos = planBodyPos.GetRotated2D(-angle);
       bodyPos.coords[2] = 0;
 
       const auto& touchPose = clip.poses[animTouchFrame];
@@ -165,7 +192,7 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
       TouchGeometryRequest touch_request;
       touch_request.anim_ball_pos = animBallPos;
       touch_request.anim_body_pos = animBodyPos;
-      touch_request.touch_body_pos_rotated = plan.positions[animTouchFrame].GetRotated2D(-angle);
+      touch_request.touch_body_pos_rotated = planBodyPos.GetRotated2D(-angle);
       touch_request.ball_pos = ballPos;
       touch_request.ball_movement = ballMovement;
       touch_request.touch_movement = touchMovement;
@@ -182,7 +209,7 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
       touch_request.rotation_smuggle = rotationSmuggle_ret_tmp;
       touch_request.body_rotation_z = z;
       touch_request.height_scale = context.height_scale;
-      touch_request.last_touch_bias = queries.LastTouchBiasAtTick(animTouchFrame);
+      touch_request.last_touch_bias = queries.LastTouchBiasAtTick(contactDelayTicks);
       touch_request.technical_ballcontrol = context.technical_ballcontrol;
       touch_request.touch_offset_ms = context.touch_offset_ms;
       const TouchGeometryResult touch_result = EvaluateTouchGeometry(touch_request);
@@ -207,6 +234,7 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
         if (bodyBallDistanceAdvantage >= 1.0f || context.ball_retained_by_player) {
           found = true;
           bestAnimID = clipId;
+          bestStartFrame = entryFrame;
           bestActionSmuggleVec2D = touch_result.action_smuggle_vec2d;
           bestPositions.assign(plan.positions.begin(), plan.positions.end());
           result.touch_frame = animTouchFrame;
@@ -223,8 +251,9 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
 
   if (found) {
     result.clip_id = bestAnimID;
-    result.touch_position =
-        queries.BallPredictionAtMs(result.touch_frame * 10);
+    result.start_frame = bestStartFrame;
+    result.touch_position = queries.BallPredictionAtMs(
+        (result.touch_frame - result.start_frame) * 10);
     result.action_smuggle = bestActionSmuggleVec2D.GetRotated2D(angle);
     result.positions = std::move(bestPositions);
 

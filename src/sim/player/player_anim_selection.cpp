@@ -671,22 +671,20 @@ bool Player::TrySelectAction(football::sim::Tick now,
   // make it so
 
   if (selectedAnimID != -1) {
-    // ANIM-2 A13: the entry frame for the clip that will actually install. The
-    // locomotion adaptation may reorder the Movement candidates after Match, so
-    // reuse Match's answer only when the front candidate survived.
+    // ANIM-2 A13/A18: the entry frame for the clip that will actually install.
     int selected_start_frame = 0;
-    if (entry_frame_branch) {
-      // ANIM-2 A16: a touch action must stay before its touch frame, so its
-      // entry frame is always recomputed with that hard bound.
-      if (match && selectedAnimID == match->clip_id && !touch_branch) {
+    if (touch_branch) {
+      // MatchTouch already chose the entry frame with the touch time and
+      // reference basis; the Player installs exactly that and never re-selects.
+      selected_start_frame = touch_choice.start_frame;
+    } else if (entry_frame_branch) {
+      if (match && selectedAnimID == match->clip_id) {
         selected_start_frame = match->start_frame;
       } else {
         football::animation::EntryFrameRequest entry_request;
         const PoseFrame reference_pose = Pose();
         entry_request.reference_pose = &reference_pose;
         entry_request.min_remaining_frames = 1;
-        if (touch_choice.touch_frame >= 0)
-          entry_request.last_legal_frame = touch_choice.touch_frame - 1;
         const football::animation::EntryFrameResult entry =
             football::animation::SelectEntryFrame(
                 GetBakedClip(selectedAnimID), entry_request);

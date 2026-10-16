@@ -22,6 +22,8 @@ namespace football::sim {
 struct TouchChoice {
   std::vector<Vector3> positions;
   int touch_frame = -1;
+  // ANIM-2 A18: the entry frame MatchTouch selected for the clip.
+  int start_frame = 0;
   float radius_offset = 0.0f;
   Vector3 touch_position{0};
   Vector3 full_action_smuggle{0};
