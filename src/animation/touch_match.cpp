@@ -10,6 +10,7 @@
 #include <cmath>
 #include <vector>
 
+#include "football/animation/movement_math.hpp"
 #include "football/animation/touch_geometry.hpp"
 #include "football/animation/touch_scoring.hpp"
 
