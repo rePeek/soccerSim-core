@@ -13,6 +13,7 @@ add_executable(football_animation_unit_tests
   match_test.cpp
   entry_frame_test.cpp
   trip_match_test.cpp
+  entry_frame_continuity_test.cpp
   touch_match_test.cpp
   touch_scoring_test.cpp
   touch_geometry_test.cpp)

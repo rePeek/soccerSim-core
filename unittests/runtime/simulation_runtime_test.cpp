@@ -58,6 +58,42 @@ bool IsFinite(const football::math::Vector3& v) {
          std::isfinite(v.coords[2]);
 }
 
+// ANIM-2 A15: pose/collider continuity helpers over consecutive ticks.
+float MaxJointJump(const PoseFrame& a, const PoseFrame& b) {
+  float jump = 0.0f;
+  for (std::size_t j = 0; j < kBodyPartCount; ++j) {
+    // Align the neighbourhood first: a sign-flipped but identical rotation is
+    // not a continuity break.
+    auto aligned = b.orientations[j];
+    aligned.MakeSameNeighborhood(a.orientations[j]);
+    jump = std::max(
+        jump, static_cast<float>(a.orientations[j].GetRotationAngle(aligned)));
+  }
+  return jump;
+}
+
+football::math::Vector3 BodyShapeCenter(const football::geometry::ColliderShape& shape) {
+  if (const auto* capsule = std::get_if<football::geometry::Capsule>(&shape))
+    return (capsule->a + capsule->b) * 0.5f;
+  if (const auto* sphere = std::get_if<football::geometry::Sphere>(&shape))
+    return sphere->center;
+  return football::math::Vector3(0);
+}
+
+float MaxColliderCenterDelta(const BakedPlayerBodyCollider& a,
+                             const BakedPlayerBodyCollider& b,
+                             const football::math::Vector3& body_delta) {
+  // Subtract the whole-body displacement (collision corrections move every
+  // shape equally); what remains is the pose-driven collider change.
+  float delta = 0.0f;
+  for (std::size_t i = 0; i < a.shapes.size(); ++i) {
+    const football::math::Vector3 relative =
+        (BodyShapeCenter(b.shapes[i]) - BodyShapeCenter(a.shapes[i])) - body_delta;
+    delta = std::max(delta, relative.GetLength());
+  }
+  return delta;
+}
+
 // A minimal but complete roster: explicit identities, an 11-strong tactical
 // formation, and per-player heights so a dangling PlayerDefinition reads as
 // height 0 instead of silently passing.
@@ -1245,6 +1281,60 @@ TEST_CASE("Runtime harness: clip switches install at a matched entry frame",
   CHECK(max_entry_delta < 0.5f);
   CHECK(player->InstallMismatches() == 0);
   CHECK(player->InstallCursorMismatches() == 0);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: pose and collider stay continuous across clip switches",
+          "[runtime][sim]") {
+  // ANIM-2 A15: at a matched entry frame the first blended tick must not snap
+  // the joints or the collision geometry. Bounded per-tick jumps are the
+  // production-visible continuity guarantee.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int in_play_tick = -1;
+  bool have_prev = false;
+  PoseFrame prev_pose;
+  BakedPlayerBodyCollider prev_geom;
+  football::math::Vector3 prev_position;
+  float max_jump = 0.0f;
+  float max_center_delta = 0.0f;
+  for (int tick = 0; tick < 400; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    const bool drive = in_play_tick >= 0 && tick > in_play_tick + 3;
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = (tick % 80) < 40 ? Vector3(0, -1, 0) : Vector3(1, 0, 0);
+    control.desired_speed = drive ? 6.0f : 0.0f;
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+
+    const PoseFrame now = player->PlaybackPose();
+    const BakedPlayerBodyCollider geom = player->GetBakedPoseSample().Geometry();
+    if (have_prev) {
+      max_jump = std::max(max_jump, MaxJointJump(prev_pose, now));
+      max_center_delta = std::max(
+          max_center_delta,
+          MaxColliderCenterDelta(prev_geom, geom,
+                                 player->GetPosition() - prev_position));
+    }
+    prev_pose = now;
+    prev_geom = geom;
+    prev_position = player->GetPosition();
+    have_prev = true;
+  }
+
+  std::fprintf(stderr,
+               "[runtime] A15.0 max_jump=%.3f max_center_delta=%.3f\n",
+               max_jump, max_center_delta);
+  CHECK(in_play_tick >= 0);
+  CHECK(max_jump < 0.8f);
+  // 0.8 m covers the fastest locomotion/fall pose step; a teleport would be
+  // metres. The pose bound is the sharper continuity signal.
+  CHECK(max_center_delta < 0.8f);
+  CHECK(player->InstallMismatches() == 0);
   CHECK(sim.Stop());
 }
 

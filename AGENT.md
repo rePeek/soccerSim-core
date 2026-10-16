@@ -2951,5 +2951,20 @@ the impulse.
   preference, pose-matched legal entry frame); the runtime trip chain still
   yields Movement -> Trip -> Movement with install/cursor consistency.
 
+
+### ANIM-2 A15: switch continuity at a matched entry frame
+
+A15 adds the continuity evidence for non-zero entry frames (A13) and Trip
+matching (A14); no production algorithm changed.
+
+- `entry_frame_continuity_test` (pure): a matched entry frame blends the first
+  tick from a pose that is already close, so the first-tick pose jump is smaller
+  than a naive frame-0 restart and stays below 0.01 rad on the synthetic clip.
+- Runtime: a turning Movement tape measures, per tick, the max joint rotation
+  change (neighbourhood-aligned, so a quaternion sign flip is not counted) and
+  the body-collider center change relative to the whole-body displacement (so a
+  collision push is not mistaken for a pose break). Bounds: jump < 0.8 rad,
+  collider < 0.8 m; measured 0.53 rad / 0.54 m. Install/cursor mismatches stay 0.
+
 A16 (non-zero entry frames for touch actions, where the touch frame and ball
 position must stay consistent) builds on this.
