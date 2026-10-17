@@ -15,6 +15,9 @@ namespace football::ai {
 enum class PlayerPolicyKind {
   Default,
   Eliza,
+  // Coordinated team-aware heuristic: shared attack/defence assignment over
+  // the interpreted dual-phase plan. Distinct from the Default baseline.
+  Heuristic,
 };
 
 // The frozen AI <-> Player protocol.

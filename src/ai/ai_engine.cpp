@@ -4,6 +4,7 @@
 
 #include "default_policy.hpp"
 #include "eliza/eliza_policy.hpp"
+#include "player/heuristic_policy.hpp"
 
 namespace football::ai {
 namespace {
@@ -14,6 +15,8 @@ std::unique_ptr<IPlayerPolicy> MakePlayerPolicy(PlayerPolicyKind kind) {
       return std::make_unique<DefaultPolicy>();
     case PlayerPolicyKind::Eliza:
       return std::make_unique<ElizaPolicy>();
+    case PlayerPolicyKind::Heuristic:
+      return std::make_unique<HeuristicPolicy>();
   }
   throw std::invalid_argument("unknown PlayerPolicyKind");
 }

@@ -34,6 +34,7 @@ target_sources(football_ai
     eliza/keeper.cpp eliza/keeper.hpp
     eliza/on_ball.cpp eliza/on_ball.hpp
     eliza/support_position.cpp eliza/support_position.hpp
+    player/heuristic_policy.cpp player/heuristic_policy.hpp
     tactical_board.cpp
     tactical_plan.cpp
     tactical_interpreter.cpp
