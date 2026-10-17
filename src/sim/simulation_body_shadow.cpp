@@ -3,11 +3,11 @@
 #include "sim/touch_evidence_classification.hpp"
 #include "football/ball/ball.hpp"
 #include <type_traits>
-#include "sim/player/player_body_pose_shadow.hpp"
-#include "sim/player/player.hpp"
-#include "sim/event/touch_query.hpp"
-#include "sim/observation/mentalimage_sampling.hpp"
-#include "sim/referee/period.hpp"
+#include "player/player_body_pose_shadow.hpp"
+#include "player/player.hpp"
+#include "event/touch_query.hpp"
+#include "observation/mentalimage_sampling.hpp"
+#include "referee/period.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 
 namespace {

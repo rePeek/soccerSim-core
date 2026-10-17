@@ -3,8 +3,8 @@
 #include <cassert>
 
 #include "football/ball/ball.hpp"
-#include "sim/player/player.hpp"
-#include "sim/player/roster_query.hpp"
+#include "player/player.hpp"
+#include "player/roster_query.hpp"
 #include "sim/runtime/team_facts.hpp"
 
 using football::ball::Ball;

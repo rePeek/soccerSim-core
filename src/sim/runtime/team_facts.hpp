@@ -3,7 +3,7 @@
 
 #include <span>
 
-#include "sim/player/player.hpp"
+#include "player/player.hpp"
 #include "sim/runtime/roster.hpp"
 #include "sim/runtime/team_state.hpp"
 

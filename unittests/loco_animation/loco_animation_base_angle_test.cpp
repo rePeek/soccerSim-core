@@ -17,9 +17,9 @@
 #include "football/animation/transition.hpp"
 using namespace football::animation;
 #include "football/animation/types.hpp"
-#include "sim/player/player_baked_body_pose.hpp"
-#include "sim/player/player_body_profile.hpp"
-#include "sim/player/player_kinematics.hpp"
+#include "player/player_baked_body_pose.hpp"
+#include "player/player_body_profile.hpp"
+#include "player/player_kinematics.hpp"
 
 using football::math::Vector3;
 using football::player::MakePlayerBodyProfile;

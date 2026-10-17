@@ -9,11 +9,11 @@
 #include "sim/simulation.hpp"
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
-#include "sim/observation/pitch_frame.hpp"
-#include "sim/player/player.hpp"
-#include "sim/player/player_control_builder.hpp"
-#include "sim/player/player_team_view.hpp"
-#include "sim/referee/referee.hpp"
+#include "observation/pitch_frame.hpp"
+#include "player/player.hpp"
+#include "player/player_control_builder.hpp"
+#include "player/player_team_view.hpp"
+#include "referee/referee.hpp"
 
 namespace football::sim::testing {
 

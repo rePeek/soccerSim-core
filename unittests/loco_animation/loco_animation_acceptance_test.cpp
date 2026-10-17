@@ -15,11 +15,11 @@
 #include <string>
 
 #include "football/animation/library.hpp"
-#include "sim/player/player_baked_body_pose.hpp"
-#include "sim/player/player_body_profile.hpp"
-#include "sim/player/player_kinematics.hpp"
-#include "sim/player/player_locomotion_animation.hpp"
-#include "sim/player/locomotion_animation_strategy.hpp"
+#include "player/player_baked_body_pose.hpp"
+#include "player/player_body_profile.hpp"
+#include "player/player_kinematics.hpp"
+#include "player/player_locomotion_animation.hpp"
+#include "player/locomotion_animation_strategy.hpp"
 
 using football::math::Vector3;
 using football::player::MakePlayerBodyProfile;

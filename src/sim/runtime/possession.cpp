@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "sim/player/player.hpp"
+#include "player/player.hpp"
 
 namespace football::sim {
 

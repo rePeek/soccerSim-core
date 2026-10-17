@@ -1,7 +1,7 @@
 #include "sim/simulation.hpp"
-#include "sim/player/player.hpp"
+#include "player/player.hpp"
 #include "sim/runtime/roster_possession.hpp"
-#include "sim/observation/mentalimage_sampling.hpp"
+#include "observation/mentalimage_sampling.hpp"
 #include <algorithm>
 #include <stdexcept>
 

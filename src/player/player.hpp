@@ -1,0 +1,957 @@
+// Copyright 2019 Google LLC & Bastiaan Konings
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// written by bastiaan konings schuiling 2008 - 2015
+// this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
+// i do not offer support, so don't ask. to be used for inspiration :)
+
+#ifndef _HPP_PLAYER
+#define _HPP_PLAYER
+
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <span>
+#include <stdexcept>
+#include <vector>
+#include "football/player/player_definition.hpp"
+#include "football/pitch/pitch.hpp"
+// ANIM-1 A9.4: the execution-state, spatial-state, interrupt and diagnostic
+// types used to come in through the Humanoid header. They are Player-owned
+// types now, so the Player (and nothing else) includes them directly.
+#include "player/player_action_execution_state.hpp"
+#include "player/player_diagnostics.hpp"
+#include "player/player_interrupt.hpp"
+#include "player/player_spatial_state.hpp"
+#include "player/player_baked_pose_sample.hpp"
+#include "player/player_touch_choice.hpp"
+#include "football/animation/selection_query.hpp"
+#include "player/player_kinematics.hpp"
+#include "player/player_motion_profile.hpp"
+#include "player/player_body_profile.hpp"
+#include "player/player_locomotion_animation.hpp"
+#include "player/player_ground_collider.hpp"
+#include "player/player_action.hpp"
+#include "player/player_action_request.hpp"
+#include "player/player_selected_action.hpp"
+#include "player/player_selection_decisions.hpp"
+#include "player/player_action_executor.hpp"
+#include "football/animation/playback.hpp"
+#include "football/animation/library.hpp"
+#include "football/animation/movement_selection.hpp"
+#include "football/animation/select_movement.hpp"
+#include "player/locomotion_intent_scheduler.hpp"
+#include "player/player_decision_scheduler.hpp"
+#include "football/player/player_control.hpp"
+#include "football/player/formation_entry.hpp"
+#include "football/runtime/match_config.hpp"
+#include "event/touch_type.hpp"
+#include "football/foundation/time/tick_boundary.hpp"
+#include "player/player_tick_context.hpp"
+
+// Caller scope for the remaining ResetSituation instrumentation. This is
+// observation only; Deactivate's double reset is deliberately not changed here.
+enum ResetSituationCallContext {
+  kResetSituationUnspecified = 0,
+  kResetSituationInitialBeforeFirstPlayerTick,
+  kResetSituationRuntime,
+  kResetSituationPlayerDeactivateFirst,
+  kResetSituationPlayerDeactivateSecond,
+  kResetSituationCallContextCount
+};
+const char *ResetSituationCallContextName(int context);
+int &SimulationOnlyGateMismatchForResetContext(int context);
+void DumpQueryOpportunities();
+
+// 4f-a3a: serialized gameplay authority for the complete controller decision.
+struct PlayerDecisionQueueState {
+  PlayerCommandQueue commands;
+  bool initialized = false;
+  unsigned long long generation = 0;
+};
+// H3e4f-g0b-decision-intent: the serialized Player Decision Clock locomotion
+// state. Since the execution authority flip this is the sole command source for
+// pure-locomotion execution: the gate requires a current-epoch publication, and
+// both PlayerLocomotion and PlayerBodyFacing consume this command.
+struct PlayerDecisionLocomotionState {
+  PlayerCommand command;
+  bool initialized = false;
+  // H3e4f-g0b-continuity-epoch: validity is a continuity property, not a time
+  // one. The epoch advances when the world leaves locomotion continuity, so an
+  // intent published in an earlier epoch must not drive the new one. These two
+  // epochs decide whether a continuity repair queries the controller, so they
+  // are gameplay state and are serialized.
+  unsigned long long continuityEpoch = 0;
+  unsigned long long publishedEpoch = 0;
+  // Continuity tracking. Gameplay, not audit: leaving eligibility advances the
+  // epoch.
+  bool wasEligibleLastTick = false;
+  bool continuityStarted = false;
+};
+int &DecisionLocomotionIntentPresentTicks();
+int &DecisionLocomotionIntentMissingTicks();
+int &DecisionLocomotionIntentMissingForSource(int source);
+// H3e4f-g0b-oracle-source-policy: which source contract each locomotion
+// consumption is checked against, so removing a fatal comparison can be told
+// apart from deleting the check.
+int &MovementOracleConsumesForSource(int source);
+int &ActionCoupledLegacyMismatch();
+int &DecisionLocomotionIntentPresentTicksLegacyGateFalse();
+int &DecisionLocomotionIntentMissingTicksLegacyGateFalse();
+int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source);
+// H3e4f-g0b-reentry-audit: continuous locomotion may hold an intent, but a
+// re-entry after leaving locomotion must not silently reuse it. Categories:
+// 0 initial, 1 continuous, 2 action re-entry, 3 reset re-entry.
+struct LocomotionReentryAudit {
+  int ticks = 0;
+  int generation_advanced = 0;
+  int generation_unchanged = 0;
+  int scheduler_due = 0;
+  int scheduler_not_due = 0;
+  football::sim::TickSpan decision_age_sum{};
+  int decision_age_count = 0;
+  std::optional<football::sim::TickSpan> decision_age_max;
+  // Shadow of the epoch rule: this epoch has no publication yet, so a decision
+  // would be required before this locomotion state could be executed.
+  int would_require_fresh = 0;
+  // Attribution of a stale epoch: if the last reset is newer than the last
+  // publication, the reset advanced the epoch and no decision has caught up.
+  int stale_after_reset = 0;
+  // A stale epoch observed on action re-entry is expected to force continuity repair.
+  int stale_after_action_exit = 0;
+  int stale_not_explained_by_reset = 0;
+};
+LocomotionReentryAudit &LocomotionReentryAuditFor(int category);
+int &LocomotionActionExitCount();
+// Publication cause split, derived without touching the player path: a
+// publication on a tick where the simulation cadence was not due can only have
+// come from the animation lifecycle's query opportunity.
+int &DecisionPublicationViaSimulationCadence();
+int &DecisionPublicationViaLegacyOpportunityOnly();
+int &DecisionPublicationWhileIneligible();
+int &ReentryFreshViaSimulationCadence();
+int &ReentryFreshViaLegacyOpportunityOnly();
+int &ReentryFreshWhileIneligible();
+int &LocomotionNegativeDecisionAgeSamples();
+// step 2: continuity repair trigger telemetry. attempts records the predicate
+// firing, so a repair on a non-stale epoch would show as a widened trigger.
+int &ContinuityRepairAttempts();
+int &ContinuityRepairPublications();
+int &ContinuityRepairCandidatesMissing();
+// Explicit publication cause, so a repair publication is not mislabelled as an
+// animation-driven one. 0 cadence, 1 legacy opportunity only, 2 continuity repair.
+int &DecisionPublicationCauseCount(int cause);
+int &LocomotionReentryMeasurementEpoch();
+void ResetLocomotionReentryAudits();
+const char *LocomotionReentryCategoryName(int category);
+
+class MentalImage;
+namespace football::sim { class AcceptedTouchSink; class PlayerRuntimeSink; class PlayerSendOffSink; }
+class AnimationLibrary;
+struct PlayerCommandInputs;
+
+struct TacticalPlayerSituation {
+  float forwardSpaceRating = 0.0f;
+  float toGoalSpaceRating = 0.0f;
+  float spaceRating = 0.0f;
+  float forwardRating = 0.0f;
+};
+
+class Player;
+
+// Facts Runtime publishes to each Player. This is a per-tick projection of its
+// team's match state; Player never stores or owns a Team object.
+struct PlayerTeamFacts {
+  int dynamic_side = -1;
+  int static_side = -1;
+  bool on_original_side = true;
+  float possession_amount = 1.0f;
+  float fading_possession_amount = 1.0f;
+  Player* designated_possession_player = nullptr;
+};
+
+// ANIM-1 A7: a passive trip the Player accepted at contact time. It is applied
+// to the Player's animation interrupt at the next action tick, which is exactly
+// when the legacy direct write took effect. Gameplay state, cleared by resets.
+struct PendingPassiveTrip {
+  Vector3 direction{0};
+  int trip_type = 0;
+};
+
+
+// Concrete football-player runtime; no shared official-actor base remains.
+class Player final {
+
+
+  public:
+    Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
+           const football::player::PlayerDefinition& model,
+           const FormationEntry& formation_entry,
+           std::uint8_t schedule_phase,
+           const AnimationLibrary& animations, const football::pitch::Pitch& pitch, football::math::Rng& rng);
+    ~Player();
+    // Explicit teardown reset before deletion; no hidden clock/RNG destructor path.
+    void Exit(football::sim::Tick now);
+    void Mirror();
+
+    football::player::PlayerId GetID() const { return model_.id; }
+    const football::player::PlayerDefinition& GetModel() const { return model_; }
+    // Static body geometry authority: derived once from the definition, not
+    // re-derived per tick or per consumer (BODY-1.5).
+    const football::player::PlayerBodyProfile& BodyProfile() const { return body_profile_; }
+    // LOCO-2.3b: value snapshot of the committed locomotion tick (current/next
+    // state + requested velocity + body), captured by CommitLocomotion so the
+    // animation adapter never re-runs the motion model.
+    const std::optional<LocomotionAnimationInput>& LocomotionAnimationInputSnapshot() const {
+      return locomotion_animation_input_;
+    }
+    bool LocomotionAnimationAdaptation() const { return locomotion_animation_adaptation_; }
+    void SetLocomotionAnimationAdaptation(bool enabled) { locomotion_animation_adaptation_ = enabled; }
+    // ANIM-1 A5: pose-blend gate, owned by the Player's playback state.
+    void SetMovementPoseBlend(bool enabled) { playback_blend_enabled_ = enabled; }
+    bool MovementPoseBlend() const { return playback_blend_enabled_; }
+
+    inline bool IsActive() { return isActive; }
+
+    // get ready for some action
+    void Activate();
+    // go back to bench/take a shower
+    void Deactivate(const football::ball::Ball& ball, football::sim::Tick now);
+
+    void ResetPosition(const Vector3 &newPos, const Vector3 &focusPos);
+    void OffsetPosition(const Vector3 &offset);
+
+    bool HasDecisionLocomotionIntent() const {
+      return decisionLocomotionState.initialized;
+    }
+    // H3e4f-g0b-reentry-audit: which locomotion entry this tick is, and whether
+    // the decision intent behind it was refreshed since locomotion was left.
+    bool IsLocomotionIntentRefreshDue(football::sim::Tick now) const {
+      return locomotionIntentScheduler.Due(now);
+    }
+    void NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
+                                   football::sim::Tick now);
+    // Gameplay continuity transition: advances the epoch when the actor stops
+    // being eligible for procedural locomotion. Called once per player tick.
+    void AdvanceLocomotionContinuity(bool eligible);
+    // step 2 trigger: this epoch's locomotion state has no decision publication,
+    // so an older intent must not drive execution before a fresh decision.
+    bool DecisionLocomotionEpochIsStale() const {
+      return decisionLocomotionState.publishedEpoch !=
+             decisionLocomotionState.continuityEpoch;
+    }
+    // Cause of the next Direct publication (0 cadence, 1 legacy only, 2 repair).
+    void NoteDecisionPublicationCause(int cause);
+    // Read-only view of the serialized decision continuity state. A restore must
+    // reproduce the repair decision, so these are gameplay invariants and must
+    // not be compared against the transient audit generation.
+    unsigned long long GetDecisionLocomotionContinuityEpoch() const {
+      return decisionLocomotionState.continuityEpoch;
+    }
+    unsigned long long GetDecisionLocomotionPublishedEpoch() const {
+      return decisionLocomotionState.publishedEpoch;
+    }
+    bool DecisionLocomotionContinuityStarted() const {
+      return decisionLocomotionState.continuityStarted;
+    }
+    bool WasDecisionLocomotionEligibleLastTick() const {
+      return decisionLocomotionState.wasEligibleLastTick;
+    }
+    // H3e4f-g0b-authority-flip: the executable locomotion intent is the one the
+    // Player Decision Clock published in the current continuity epoch. This is
+    // what execution authority will read, instead of the animation command.
+    bool HasExecutableDecisionLocomotionIntent() const {
+      return decisionLocomotionState.initialized &&
+             decisionLocomotionState.command.useDesiredMovement &&
+             decisionLocomotionState.publishedEpoch ==
+                 decisionLocomotionState.continuityEpoch;
+    }
+    const PlayerCommand &GetDecisionLocomotionIntent() const {
+      return decisionLocomotionState.command;
+    }
+    // P2a: Player owns the locomotion computation. It builds the proposal
+    // through PlayerMotion and commits the resulting kinematic state; the
+    // legacy compatibility spatial state is only a mirror of it for this step.
+    // `tick_start` is the tick-start state, so a later action selection in the
+    // same tick cannot change what this tick's locomotion was.
+    PlayerKinematicState CommitLocomotion(const PlayerCommand &command,
+                                          const PlayerKinematicState &tick_start,
+                                          bool restart_needs_simulation, float dt);
+    // Decision-side execution oracle. The gate answers executability; this answers
+    // the producer contract, which stays fatal rather than being folded into the
+    // gate predicate.
+    void CheckDecisionLocomotionIntentOracle() const;
+    int GetFrameNum() const { return anim_state_.frameNum; }
+    int GetFrameCount() const { return static_cast<int>(GetCurrentBakedClip().frame_count); }
+
+    // Gameplay-facing movement state. It is the single public reader: position,
+    // velocity and orientation all come from `kinematicState`, the committed
+    // authoritative state. `spatial_state_` is the Player-owned animation /
+    // compatibility projection that the not-yet-migrated action math still
+    // produces; every mutation of it refreshes the mirror at the mutation point
+    // (CalculateSpatialState, ApplyFactualSpatialState, OffsetPosition, Mirror,
+    // state restore), so mid-tick readers such as the controller never see a
+    // stale actor. Mirroring follows the legacy field-level asymmetry
+    // (position/velocity mirrored; facing/bodyFacing not). bodyFacing is
+    // simulation-authoritative for pure locomotion and an exact projection for
+    // every other action. CheckSimulationKinematicOracle() enforces the mirror
+    // bit-exactly. Actors must be positioned through Player::ResetPosition /
+    // OffsetPosition so that this state cannot be left stale.
+    // CheckSimulationKinematicOracle() enforces the mirror bit-exactly.
+    // Actors must be positioned through Player::ResetPosition /
+    // OffsetPosition so that this state cannot be left stale.
+    inline Vector3 GetPosition() const { return kinematicState.position; }
+    inline Vector3 GetDirectionVec() const { return kinematicState.GetFacing(); }
+    inline Vector3 GetBodyDirectionVec() const { return kinematicState.bodyFacing; }
+    inline Vector3 GetMovement() const { return kinematicState.velocity; }
+    // Gameplay reads continuous relative orientation. The quantized
+    // relBodyAngle remains animation-selection compatibility only.
+    inline radian GetRelBodyAngle() const {
+      return spatial_state_.relBodyAngleNonquantized;
+    }
+    inline e_Velocity GetEnumVelocity() const { return spatial_state_.enumVelocity; }
+    inline float GetFloatVelocity() const {
+      return EnumToFloatVelocity(spatial_state_.enumVelocity);
+    }
+    inline e_FunctionType GetCurrentFunctionType() const {
+      return GetSimulationActionState().type;
+    }
+    inline e_FunctionType GetPreviousFunctionType() const { return previousAnim_functionType; }
+    // H3e authority boundary: true only when this actor may leave the legacy
+    // animation root-motion path and use the simulation-owned procedural
+    // movement model instead. See PlayerActionState::IsPureLocomotion().
+    bool IsEligibleForProceduralLocomotion(bool retaining_ball) const;
+    std::optional<football::sim::Tick> GetLastDecisionLocomotionPublicationTick() const {
+      return last_locomotion_publication_tick_;
+    }
+    std::optional<football::sim::Tick> GetLastResetSituationTick() const {
+      return last_reset_tick_;
+    }
+    void NoteProcessedPlayerTick() { hasProcessedPlayerTick = true; }
+    const PlayerKinematicState &GetKinematicState() const {
+      return kinematicState;
+    }
+    const PlayerGroundCollider &GetGroundCollider() const {
+      return groundCollider;
+    }
+    // Gameplay reads the sole persistent, simulation-authoritative action
+    // schedule. The compatibility projection is measurement-only.
+    const PlayerActionState &GetSimulationActionState() const {
+      return actionState;
+    }
+
+    // ANIM-1.1 / ANIM-2 A11.5/A11.7: per-player action request / reaction
+    // contract. The control model is explicit:
+    //   SetControl() -> continuous movement intent (PlayerMotion authority).
+    //   Play()       -> discrete actions (pass/shoot/tackle/...).
+    //   React()      -> passive physics reactions (trips/bumps).
+    // `Play(ActionRequestKind::Move)` is REJECTED: continuous movement must go
+    // through SetControl, otherwise a Movement clip would be selected without
+    // changing the authoritative locomotion intent.
+    //
+    // Both arbitrate immediately and record the outcome. An accepted request is
+    // retained as the Player's pending input and consumed exactly once by the
+    // next action tick; an accepted Trip reaction stages atomically (see React).
+    RequestOutcome Play(const PlayerActionRequest& request);
+    // `ball_retainer` only gates the passive-trip animation guard; null means
+    // "no retainer" (the contact caller passes the real one). A second trip that
+    // loses the guard does not overwrite the first accepted reaction, and a
+    // non-executable reaction never clobbers a staged trip.
+    RequestOutcome React(const PlayerReaction& reaction,
+                         const Player* ball_retainer = nullptr);
+    const std::optional<PlayerActionRequest>& PendingActionRequest() const {
+      return pending_action_request_;
+    }
+    const std::optional<PlayerReaction>& PendingReaction() const {
+      return pending_reaction_;
+    }
+    RequestOutcome LastActionRequestOutcome() const { return action_request_outcome_; }
+    RequestOutcome LastReactionOutcome() const { return reaction_outcome_; }
+    int ActionRequestAttempts() const { return action_request_attempts_; }
+    int ActionRequestAccepts() const { return action_request_accepts_; }
+    int ActionRequestDefers() const { return action_request_defers_; }
+    int ActionRequestRejects() const { return action_request_rejects_; }
+    // ANIM-2 A11.5/A11.7: what was actually CONSUMED by the action tick, not
+    // what was installed. Consuming a request builds a non-empty command queue;
+    // scheduling a trip interrupt does not guarantee the trip clip installs.
+    int ActionRequestInputsConsumed() const { return action_request_inputs_consumed_; }
+    int ReactionTripInterruptsScheduled() const { return reaction_trip_interrupts_scheduled_; }
+    // Accepted active intents discarded because a passive Trip preempted them.
+    int ActionRequestPreemptions() const { return action_request_preemptions_; }
+    // ANIM-1 A3: the Player owns the animation playback state and computes the
+    // final pose; the Animation module stays stateless. The clip id and frame
+    // come from the Player's authoritative state (installed selection + action
+    // cursor); only the base yaw and the blend length are still supplied by the
+    // action-execution state.
+    void UpdatePlaybackFromAuthority(football::sim::Tick now, float base_angle,
+                                     int blend_ticks) {
+      const AnimationId authority_clip = InstalledAction().clip_id;
+      const int authority_frame = actionState.Frame();
+      // ANIM-2 A10.1: at most one real playback update per tick. A repeated
+      // call in the same tick is a pure read and must not advance the
+      // transition twice.
+      if (last_playback_tick_ && *last_playback_tick_ == now) return;
+      last_playback_tick_ = now;
+      UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
+      // ANIM-1 A6.3d: the compat projection no longer decides the clip
+      // or the action time. Verify the three Player-owned artefacts agree - the
+      // installed selection, the action cursor and the pose that was sampled.
+      ++authority_checks_;
+      const bool same = playback_state_.clip_id == authority_clip &&
+                        playback_state_.frame == authority_frame;
+      if (same) {
+        ++authority_matches_;
+      } else {
+        ++authority_mismatches_;
+      }
+    }
+    int AuthorityChecks() const { return authority_checks_; }
+    int AuthorityMatches() const { return authority_matches_; }
+    int AuthorityMismatches() const { return authority_mismatches_; }
+    const football::sim::TouchChoice &TouchSelection() const { return touch_choice_; }
+    // ANIM-1 A6.4 step 6: the ReQueue gates are Player-owned pure decisions.
+    // They never search candidates, draw RNG or mutate state.
+    bool CanAttemptActionSelection(
+        const football::sim::RequeueGateContext &context) const {
+      return football::sim::AttemptActionSelectionAllowed(context);
+    }
+    bool CanCommitActionSelection(
+        const football::sim::CommitSelectionContext &context) const {
+      return football::sim::CommitActionSelectionAllowed(context);
+    }
+    int TouchSelectionSuccesses() const { return touch_selection_successes_; }
+    const PoseFrame& PlaybackPose() const { return playback_state_.final_pose; }
+    float PlaybackBaseAngle() const { return playback_state_.final_base_angle; }
+    const football::animation::PlaybackState& PlaybackState() const { return playback_state_; }
+    // ANIM-1.1: the single final pose for this player (default when inactive).
+    PoseFrame Pose() const {
+      if (!isActive) return PoseFrame{};
+      if (playback_state_.have_pose) return playback_state_.final_pose;
+      return SampleBakedPose(kinematicState, body_profile_).pose;
+    }
+    // H3e4f-c2a: observation only. The simulation keeps its own locomotion
+    // intent cadence in parallel with the animation requeue lifecycle, so the
+    // two schedules can be compared before either one takes over.
+    // c2b-2: returns whether the simulation must refresh the intent now. A due
+    // tick during a non-locomotion action is held overdue rather than consumed,
+    // so the refresh happens as soon as the actor is eligible again.
+    bool NoteLocomotionIntentCadence(bool legacy_opportunity, football::sim::Tick now, bool retaining_ball);
+    // Called only once the controller was actually queried for this refresh.
+    void CommitLocomotionIntentRefresh(const football::ball::Ball& ball, football::sim::Tick now, bool retaining_ball);
+    void NoteControllerQuery(bool had_movement_candidate, football::sim::Tick now, bool retaining_ball);
+    // c2a: the Player Decision Clock's only publication entry point. It owns the
+    // decision locomotion state and the publication telemetry, and never touches the
+    // compatibility movement command slot.
+    void PublishDecisionLocomotionIntent(const PlayerCommand &command, football::sim::Tick now, bool retaining_ball);
+    // 4f-a1: whether the animation selection on this tick picked a Movement clip,
+    // so a legacy-only publication can be cross-tabulated with the selection.
+    void NoteDecisionMovementSelection(bool movement_selected);
+    bool IsPlayerDecisionRefreshDue(football::sim::Tick now,
+                                    football::sim::TickSpan cadence) const {
+      return playerDecisionScheduler.Due(now, cadence);
+    }
+    void PublishPlayerDecisionQueue(const PlayerCommandQueue &commands,
+                                    football::sim::Tick now);
+    // 4f-a3a: independent Player Decision Clock and its serialized latest queue.
+    bool HasPlayerDecisionQueue() const { return playerDecisionQueue.initialized; }
+    const PlayerCommandQueue &GetPlayerDecisionQueue() const {
+      return playerDecisionQueue.commands;
+    }
+    unsigned long long GetPlayerDecisionGeneration() const {
+      return playerDecisionQueue.generation;
+    }
+    bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, football::sim::Tick now, bool retaining_ball);
+    bool LocomotionIntentRefreshHeldIneligible(football::sim::Tick now, bool retaining_ball) const;
+    const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
+    int InstallChecks() const { return install_checks_; }
+    int InstallMatches() const { return install_matches_; }
+    int InstallMismatches() const { return install_mismatches_; }
+    int InstallCursorChecks() const { return install_cursor_checks_; }
+    int InstallCursorMatches() const { return install_cursor_matches_; }
+    int InstallCursorMismatches() const { return install_cursor_mismatches_; }
+    // Validates the authoritative schedule against the compatibility
+    // projection. It is intentionally a fatal invariant in all builds.
+    void CheckSimulationActionOracle() const;
+
+    int GetReactionTime_ms();
+    float GetControlSpeed();
+    void SetControl(const PlayerControl& control) { control_ = control; }
+    void ClearControl() { control_.reset(); }
+
+    // facing, derived speed and the collider center must all match the
+    // compatibility spatial state exactly. An epsilon cannot mask a
+    // synchronization bug.
+    bool IsKinematicMirrorConsistent() const;
+    // Fatal (all build types) form of the same invariant, with the diverging
+    // field reported. Callers are the mirror writers and state restore, so the
+    // contract is checked at every movement mutation point.
+    void CheckSimulationKinematicOracle() const;
+
+    float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
+
+    // Tick-local borrows; no history owner or persistent world port.
+    void Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
+    // Advances motion/animation once and returns distance for post-touch fatigue.
+    float PrepareTick(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
+    void CommitTick(const football::sim::PlayerTickContext& tick, float distance);
+
+
+    float GetStat(football::player::PlayerStat name) const;
+    float GetVelocityMultiplier() const;
+    float GetMaxVelocity() const;
+    // S1.1: the motion capability actually in force, in ONE place. The static
+    // part comes from the definition (MakePlayerMotionProfile); the runtime part
+    // (AI difficulty, fatigue) is applied here and is never baked into the
+    // definition or a MotionClip. It is the only source both execution and
+    // prediction may read, so they cannot drift apart.
+    //
+    // Deliberate decision, pinned by a test: today the runtime modifiers scale
+    // the *abilities* (GetStat) but NOT the motion profile. In particular
+    // max_speed keeps the established GetMaxVelocity() formula with no fatigue or
+    // difficulty factor. Whether fatigue should slow a player down is a separate
+    // behaviour change, not part of unifying the parameter source.
+    PlayerMotionProfile EffectiveMotionProfile() const;
+
+    // P19.3: the single read-only clip identity for runtime consumers. The
+    // legacy Anim storage is no longer exposed as a mutable pointer.
+    AnimationId GetCurrentAnimationId() const { return anim_state_.animationId; }
+    PlayerBakedPoseSample GetBakedPoseSample() const {
+      PlayerBakedPoseSample sample = SampleBakedPose(kinematicState, body_profile_);
+      // ANIM-1 A5: the Player owns the final pose; SampleBakedPose supplies the
+      // clip/frame metadata. Verified bit-identical to the legacy pose by the
+      // A3.2 dual-run oracle before this flip.
+      if (playback_state_.have_pose) {
+        sample.pose = playback_state_.final_pose;
+        sample.base_angle = playback_state_.final_base_angle;
+      }
+      return sample;
+    }
+    // ANIM-2 A11.0/A11.5: read-only raw-clip body forecast. It returns the raw
+    // clip skeleton at the requested frame without advancing the action clock,
+    // drawing RNG or mutating the Player. The name is deliberate: this is the
+    // RAW clip pose, not the final blended playback pose, so a forecast and the
+    // actual endpoint can legitimately differ mid-transition.
+    // The requested frame is clamped to the clip range in both directions.
+    PlayerBakedPoseSample PreviewRawPose(int frame_offset) const;
+
+    void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
+    football::sim::Tick GetLastTouchTick() const { return last_touch_tick_; }
+    void SetLastTouchType(e_TouchType touchType) { this->lastTouchType = touchType; }
+    e_TouchType GetLastTouchType() { return lastTouchType; }
+    // The ability-dependent decay is a continuous estimate, not a grid deadline.
+    float GetLastTouchBias(int decay_ms, football::sim::Tick at) const;
+
+
+    float GetFatigueFactorInv() const { return fatigueFactorInv; }
+    void RelaxFatigue(float howMuch) {
+      fatigueFactorInv += howMuch;
+      fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
+    }
+
+    void ResetSituation(const Vector3 &focusPos, football::sim::Tick now);
+
+    int GetTeamID() const { return team_id_; }
+    football::sim::TeamSide GetTeamSide() const { return side_; }
+    // Per-tick processing-frame direction (mirror counter), not persistent.
+    int GetDynamicSide() const { return team_facts_.dynamic_side; }
+    int GetStaticSide() const { return team_facts_.static_side; }
+    bool OnOriginalSide() const { return team_facts_.on_original_side; }
+    float GetTeamFadingPossessionAmount() const {
+      return team_facts_.fading_possession_amount;
+    }
+    Player* GetTeamDesignatedPossessionPlayer() const {
+      return team_facts_.designated_possession_player;
+    }
+    float GetAiDifficulty() const { return ai_difficulty_; }
+    // Runtime publishes the per-tick match facts; Player never holds Team.
+    void SetTeamContext(const PlayerTeamFacts& facts) { team_facts_ = facts; }
+    Vector3 GetPitchPosition();
+    bool TouchPending() const { return GetSimulationActionState().IsContactPending(); }
+    bool TouchAnim() const { return GetSimulationActionState().HasScheduledContact(); }
+    Vector3 GetTouchPos() const { return GetSimulationActionState().contactPosition; }
+    int GetTouchFrame() const { return GetSimulationActionState().ContactFrame(); }
+    int GetCurrentFrame() const { return GetSimulationActionState().Frame(); }
+    void SelectRetainAnim();
+    FormationEntry GetFormationEntry() const { return formationEntry_; }
+    void SetFormationEntry(FormationEntry entry) { formationEntry_ = entry; }
+    void SetDynamicFormationEntry(FormationEntry entry) { dynamicFormationEntry = entry; }
+    FormationEntry GetDynamicFormationEntry() { return dynamicFormationEntry; }
+    bool HasPossession() const;
+    bool HasBestPossession() const;
+    bool HasUniquePossession() const;
+    int GetTimeNeededToGetToBall_ms() const { return timeNeededToGetToBall_ms; }
+    int GetTimeNeededToGetToBall_optimistic_ms() const { return timeNeededToGetToBall_optimistic_ms; }
+    int GetTimeNeededToGetToBall_previous_ms() const { return timeNeededToGetToBall_previous_ms; }
+    void SetDesiredTimeToBall_ms(int ms) { desiredTimeToBall_ms = ms; }
+    int GetDesiredTimeToBall_ms() const { return clamp(desiredTimeToBall_ms, timeNeededToGetToBall_ms, 1000000.0f); }
+    bool AllowLastDitch(bool includingPossessionAmount = true) const;
+    void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
+    bool IsControlledBallCollisionTriggered() { return triggerControlledBallCollision; }
+    void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
+    void UpdatePossessionStats(football::ball::Ball& ball, const football::sim::TeamMatchState& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own);
+    float GetClosestOpponentDistance(const PlayerTeamView& opponent) const;
+    const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
+    void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
+    void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
+    bool HasCards() { return cards > 0; }
+    void SendOff(const football::ball::Ball& ball, football::sim::Tick now, football::math::Rng& rng, football::sim::PlayerSendOffSink* send_off);
+    float GetStaminaStat() const;
+
+  private:
+    // -----------------------------------------------------------------------
+    // P19.3: internal execution entry points. These were public only while the
+    // Humanoid and the callers were being migrated; every remaining caller is a
+    // Player member, so the interface is closed. Runtime drives the Player
+    // through Process/PrepareTick/CommitTick, Play/React, the explicit lifecycle
+    // calls and the observation accessors above.
+    // -----------------------------------------------------------------------
+    void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
+    int SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
+                          std::span<MentalImage> history, const DataSet &sorted_data_set,
+                          bool use_desired_movement, const Vector3 &desired_direction,
+                          float desired_velocity_float, bool use_desired_body_direction,
+                          const Vector3 &desired_body_direction_rel,
+                          football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
+                          bool prefer_pass_and_shot, bool allow_pre_touch_rotation_smuggle,
+                          bool use_continuous_ball_check);
+    int SelectBestTouchAnim(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
+                            std::span<MentalImage> history, const DataSet &sorted_data_set,
+                            bool use_desired_movement, const Vector3 &desired_direction,
+                            float desired_velocity_float, bool use_desired_body_direction,
+                            const Vector3 &desired_body_direction_rel,
+                            football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
+                            bool prefer_pass_and_shot, bool allow_pre_touch_rotation_smuggle,
+                            bool use_continuous_ball_check);
+    bool CanCommitMatchedSelection(
+        int selected_anim_id, const PlayerCommand &command,
+        e_InterruptAnim local_interrupt_anim,
+        const football::sim::TouchChoice &touch_choice) const;
+    void BeginSimulationAction();
+    void InstallSelectedAction(const football::sim::SelectedAction& selection);
+    bool CommitSelectedAction(int selected_anim_id,
+                              const football::sim::TouchChoice &touch_choice,
+                              const PlayerCommand &command,
+                              const football::sim::PlayerTickContext &tick,
+                              football::sim::Tick now,
+                              std::span<MentalImage> history,
+                              e_InterruptAnim local_interrupt_anim,
+                              bool material_candidate,
+                              // ANIM-2 A13: the matched entry frame (0 = legacy).
+                              int start_frame);
+    CrudeSelectionQuery BuildCrudeSelectionQuery(
+        const PlayerCommand &command,
+        const football::sim::PlayerTickContext &tick, football::sim::Tick now,
+        MentalImage *current_mental_image);
+    bool NeedTouch(football::sim::Tick now,
+                   const football::sim::PlayerTickContext &tick, int anim_id,
+                   const PlayerCommand &command,
+                   std::span<MentalImage> history);
+    bool TrySelectAction(football::sim::Tick now,
+                         const football::sim::PlayerTickContext &tick,
+                         const PlayerCommand &command,
+                         std::span<MentalImage> history,
+                         e_InterruptAnim local_interrupt_anim,
+                         bool prefer_pass_and_shot,
+                         bool allow_pre_touch_rotation_smuggle,
+                         bool use_continuous_ball_check);
+    void BuildTripSelectionCommands(PlayerCommandQueue &queue,
+                                    const Vector3 &trip_direction, int trip_type,
+                                    float current_velocity_float,
+                                    const Vector3 &direction_vec,
+                                    const Vector3 &position) const;
+    void ComputeAndCommitActionMotion();
+    Vector3 ComputeMovementSmuggle(football::sim::Tick now,
+                                   const football::sim::PlayerTickContext &tick,
+                                   const Vector3 &desired_direction,
+                                   float desired_velocity_float,
+                                   std::span<MentalImage> history);
+    void ApplyFactualSpatialState();
+    void ApplyGoalkeeperBoundaryClamps(
+        const football::sim::PlayerTickContext &tick,
+        const Player *ball_retainer);
+    void StepSimulationAction(football::sim::TickSpan elapsed);
+    void AdvanceActionTick();
+    void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
+    void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
+    void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history);
+    // ANIM-2 A11.5: the pending-input boundary. `React` stages the passive trip
+    // through the ANIM-1 A7 guard; the action tick consumes the reaction and the
+    // staged trip together. An accepted active request is translated here into
+    // the controller command queue so it executes through the same pipeline.
+    // ANIM-2 A11.7: returns true only when the trip is actually staged. The
+    // caller (React) makes recording the pending reaction atomic with this.
+    bool StagePassiveTrip(const PlayerReaction& reaction,
+                          const Player* ball_retainer);
+    std::optional<PendingPassiveTrip> ConsumePendingPassiveTrip();
+    std::optional<PlayerReaction> ConsumePendingReaction();
+    std::optional<PlayerActionRequest> ConsumePendingActionRequest();
+    PlayerCommandQueue BuildCommandQueueForRequest(
+        const PlayerActionRequest& request,
+        const football::sim::PlayerTickContext& tick);
+
+    // -----------------------------------------------------------------------
+    // ANIM-1 A9.5-A9.8: the legacy Humanoid/HumanoidBase capabilities, moved
+    // onto the Player as private implementation details. The public surface is
+    // unchanged; none of these are a second authority.
+    // -----------------------------------------------------------------------
+    // Baked clip access. The runtime never reads legacy Animation objects;
+    // these resolve through the stable AnimationId into the read-only library.
+    const AnimationClip &GetBakedClip(AnimationId id) const;
+    const AnimationClip &GetCurrentBakedClip() const;
+    // ANIM-1 A9.7: the per-tick action orchestration (former Humanoid::Process).
+    void RunActionTick(football::sim::Tick now,
+                       const football::sim::PlayerTickContext& tick,
+                       std::span<MentalImage> history,
+                       football::sim::AcceptedTouchSink& touch_sink,
+                       football::sim::PlayerRuntimeSink& runtime_sink);
+    // ANIM-1 A9.6: the touch publication half of the action tick.
+    Player* ProcessActionTouches(football::sim::Tick now,
+                                 const football::sim::PlayerTickContext& tick,
+                                 std::span<MentalImage> history,
+                                 Player* ball_retainer,
+                                 football::sim::AcceptedTouchSink& touch_sink,
+                                 football::sim::PlayerRuntimeSink& runtime_sink);
+    Vector3 GetBestPossibleTouch(football::sim::Tick now,
+                                 const football::sim::PlayerTickContext& tick,
+                                 const Vector3 &desiredTouch,
+                                 e_FunctionType functionType);
+    bool _HighOrBouncyBall(const football::ball::Ball& ball) const;
+    void CalculatePredictedSituation(Vector3 &predictedPos, radian &predictedAngle);
+    Vector3 CalculateOutgoingMovement(const std::vector<Vector3> &positions) const;
+    Vector3 CalculatePhysicsVector(football::sim::Tick now, int animID,
+                                   bool useDesiredMovement,
+                                   const Vector3 &desiredMovement,
+                                   bool useDesiredBodyDirection,
+                                   const Vector3 &desiredBodyDirectionRel,
+                                   std::vector<Vector3> &positions_ret,
+                                   radian &rotationOffset_ret) const;
+    // ANIM-1 A9.8: the compatibility state projection and pose assembly.
+    PlayerBakedPoseSample SampleBakedPose(
+        const PlayerKinematicState& state,
+        const football::player::PlayerBodyProfile& profile) const;
+    football::sim::SelectedAction CurrentSelectedAction() const;
+    void MirrorLegacyState();
+    void ResetLegacyPosition(const Vector3 &newPos, const Vector3 &focusPos);
+    void ResetLegacySituation(const Vector3 &focusPos);
+    void ApplyLegacyPositionOffset(const Vector3 &offset);
+    void CalculateSpatialState(const Player* ball_retainer);
+    void ApplySimulationMovementState(const PlayerKinematicState &state,
+                                      const Player* ball_retainer);
+    void ProjectSimulationMovementState(const PlayerKinematicState &state,
+                                        const Player* ball_retainer);
+    void ApplySimulationBodyState(const PlayerKinematicState &state);
+    void ProjectMovementState(const PlayerKinematicState &tickStartState,
+                              const Player* ball_retainer,
+                              bool restart_needs_simulation);
+    bool UsesProceduralLocomotion(const Player* ball_retainer) const;
+    // ANIM-1 A9.5c: the compat install projection (former Humanoid methods).
+    void ProjectSelectedActionCompat(int selectedAnimID,
+                                     const football::sim::TouchChoice &touch_choice,
+                                     const PlayerCommand &command,
+                                     const football::sim::PlayerTickContext &tick,
+                                     football::sim::Tick now,
+                                     std::span<MentalImage> history,
+                                     e_InterruptAnim localInterruptAnim,
+                                     bool material_candidate,
+                                     // ANIM-2 A13: the matched entry frame (0 = legacy).
+                                     int start_frame);
+    void RecordSelectedContactAudit(const PlayerCommand &command);
+    // The *only* entry that adopts the baked action motion the Player produced
+    // from animation root motion, plus the lifecycle resets that re-read the
+    // compatibility pose. It is source-explicit on purpose: it must never be the
+    // way a pure-locomotion result reaches the Player (that is CommitLocomotion
+    // -> CommitKinematicState). Still used by CalculateSpatialState /
+    // ApplyFactualSpatialState / ApplyLegacyPositionOffset (legacy action paths)
+    // and by ResetPosition / ResetRuntimeState / Activate.
+    void CommitLegacyActionMotion();
+    // A position correction whose evaluation is owned by the action tick (the
+    // goalkeeper boundary clamps). Same authority as Player::OffsetPosition --
+    // it commits the corrected position and updates the compatibility
+    // bookkeeping -- but it does not run the action oracle, because it is
+    // evaluated while the animation state is still mid-update.
+    void ApplyPositionCorrection(const football::math::Vector3& offset);
+    // P2c-1: the single write point for the Player's kinematic state. It commits
+    // the whole struct the caller computed and keeps the ground collider in
+    // step. It deliberately does NOT recompute `speed` (the producer owns that)
+    // and does NOT run CheckSimulationKinematicOracle(): at this instant the
+    // compatibility mirror has not been refreshed yet, so the two sides are
+    // temporarily allowed to disagree; ApplySimulationMovementState syncs them
+    // and the oracle runs afterwards.
+    void CommitKinematicState(const PlayerKinematicState& next);
+    PlayerActionState CaptureLegacyActionState() const;
+    void SetNextResetSituationAuditContext(int context);
+    const AnimationLibrary& animations_;
+    const football::pitch::Pitch& pitch_;
+    football::math::Rng& rng_;
+
+    // Team owns an immutable description for the entire actor lifetime.
+    const football::player::PlayerDefinition& model_;
+    const football::player::PlayerBodyProfile body_profile_;
+    // LOCO-2.3b: fresh snapshot of the last committed locomotion tick, plus a
+    // runtime gate so the A/B regression can prove physics invariance.
+    std::optional<LocomotionAnimationInput> locomotion_animation_input_;
+    bool locomotion_animation_adaptation_ = true;
+    // Non-unique 0..9 offset for staggered 100 ms work, never identity or order.
+    const std::uint8_t schedule_phase_;
+
+    // Own team identity plus the match facts Runtime publishes. Player knows
+    // which team it belongs to but never owns or stores a Team object.
+    const int team_id_;
+    const football::sim::TeamSide side_;
+    const float ai_difficulty_;
+    FormationEntry formationEntry_;
+    PlayerTeamFacts team_facts_;
+
+    // ANIM-1 A9: the animation/spatial compatibility storage, Player-owned.
+    Anim anim_state_;
+    SpatialState spatial_state_;
+    // ANIM-1 A9.5-A9.8: runtime bookkeeping and selection predicates relocated
+    // from HumanoidBase. Same values, same evaluation order; the Player is the
+    // only owner now.
+    e_FunctionType previousAnim_functionType = e_FunctionType_None;
+    Vector3 startPos;
+    radian startAngle = 0;
+    Vector3 nextStartPos;
+    radian nextStartAngle = 0;
+    Vector3 previousPosition2D;
+    e_InterruptAnim interruptAnim = e_InterruptAnim_None;
+    int reQueueDelayFrames = 0;
+    int tripType = 0;
+    Vector3 tripDirection;
+    Vector3 decayingPositionOffset;
+    float decayingDifficultyFactor = 0.0f;
+    // ANIM-2 A10.3c: the resolved movement-similarity request. It is only
+    // written when a command carries desired movement and is read by
+    // SelectRetainAnim (the retain clip sort), exactly as the legacy
+    // SetMovementSimilarityPredicate left it.
+    mutable Vector3 predicate_RelDesiredDirection;
+    mutable float predicate_CorneringBias = 0.0f;
+    mutable e_Velocity predicate_DesiredVelocity = e_Velocity_Idle;
+    std::chrono::milliseconds mentalImageTime{0};
+    PlayerKinematicState kinematicState;
+    PlayerGroundCollider groundCollider;
+    PlayerActionState actionState;
+    // ANIM-1 A3: Player-owned animation playback state (clip cursor, transition,
+    football::animation::PlaybackState playback_state_;
+    // ANIM-2 A10.1: the tick of the last real playback update, so a repeated
+    // same-tick call cannot advance the transition twice.
+    std::optional<football::sim::Tick> last_playback_tick_;
+
+    bool playback_blend_enabled_ = true;
+
+    // ANIM-1 A6.4 step 4: the last retained touch-animation selection.
+
+    int touch_selection_successes_ = 0;
+    football::sim::TouchChoice touch_choice_;
+    // ANIM-1 A6.3b.3 (first cut): the Player owns the installed action and the
+    // install cross-check counters. `last_begun_definition_` is the definition
+    // the executor actually committed, used only as an oracle during migration.
+    football::sim::SelectedAction installed_action_;
+    PlayerActionDefinition last_begun_definition_;
+    int last_begun_start_frame_ = 0;
+    int install_checks_ = 0;
+    int install_matches_ = 0;
+    int install_mismatches_ = 0;
+    // ANIM-1 A6.3b.3: same-tick install/commit consistency (no one-tick cursor or
+    // contact offset between the Player cursor, the selection and the compat projection).
+    int install_cursor_checks_ = 0;
+    int install_cursor_matches_ = 0;
+    int install_cursor_mismatches_ = 0;
+    // ANIM-1 A6.3d: authority consistency (installed selection vs action cursor vs
+    // the pose that was actually sampled).
+    int authority_checks_ = 0;
+    int authority_matches_ = 0;
+    int authority_mismatches_ = 0;
+    // ANIM-1.1 / ANIM-2 A11.5: pending active/passive inputs and their recorded
+    // arbitration outcome. Cleared on every reset path so no stale input survives.
+    std::optional<PlayerActionRequest> pending_action_request_;
+    std::optional<PlayerReaction> pending_reaction_;
+    // ANIM-1 A7: the accepted passive trip awaiting the next action-tick interrupt.
+    std::optional<PendingPassiveTrip> pending_passive_trip_;
+    RequestOutcome action_request_outcome_ = RequestOutcome::Accepted;
+    RequestOutcome reaction_outcome_ = RequestOutcome::Accepted;
+    int action_request_attempts_ = 0;
+    int action_request_accepts_ = 0;
+    int action_request_defers_ = 0;
+    int action_request_rejects_ = 0;
+    int action_request_inputs_consumed_ = 0;
+    int reaction_trip_interrupts_scheduled_ = 0;
+    int action_request_preemptions_ = 0;
+    LocomotionIntentScheduler locomotionIntentScheduler;
+    bool locomotionIntentDueThisTick = false;
+    // Explicit cause of the next Direct publication. A continuity repair runs
+    // before NoteLocomotionIntentCadence, so deriving the cause from that flag
+    // would mislabel a repair publication as an animation-driven one.
+    int pendingPublicationCause = 0;
+    // 4f-a1: transient, per-tick animation selection outcome. Never serialized.
+    bool decisionMovementSelection = false;
+    PlayerDecisionScheduler playerDecisionScheduler;
+    PlayerDecisionQueueState playerDecisionQueue;
+    // Audit generation: bumped on every Direct publication for re-entry freshness
+    // measurement. Deliberately transient so telemetry cannot change the save-state
+    // contract; the gameplay epochs above are serialized instead.
+    unsigned long long decisionLocomotionAuditGeneration = 0;
+    std::optional<football::sim::Tick> last_locomotion_publication_tick_;
+    std::optional<football::sim::Tick> last_reset_tick_;
+    bool hasProcessedPlayerTick = false;
+    // Decision-owned locomotion intent shadow. Measurement only for now: it is
+    // written only by a DirectMovementIntent publication.
+    PlayerDecisionLocomotionState decisionLocomotionState;
+    // Re-entry provenance. Transient, never serialized, measurement only.
+    int reentryAuditEpoch = -1;
+    bool locomotionExitRecorded = false;
+    bool resetGenerationAnchorValid = false;
+    unsigned long long resetDecisionGeneration = 0;
+    bool reentryAuditStarted = false;
+    bool wasPureLocomotionLastTick = false;
+    bool resetSinceLastPlayerTick = false;
+    // Cause and eligibility of the latest Direct publication, and that of the
+    // publication that made a re-entry generation fresh.
+    bool lastPublicationViaSimulationCadence = false;
+    bool lastPublicationWhileIneligible = false;
+    unsigned long long decisionGenerationAtLocomotionExit = 0;
+    int GetDecisionLocomotionIntentGeneration() const {
+      return static_cast<int>(decisionLocomotionAuditGeneration);
+    }
+    int resetSituationAuditContext = kResetSituationUnspecified;
+    std::optional<PlayerControl> control_;
+
+    bool isActive = false;
+    // ANIM-1 A9: whether the legacy action/spatial runtime state below has
+    // been initialized by Activate(). It replaces the old "does a Humanoid
+    // object exist" test, which guarded the lifecycle mirror/pose paths.
+    bool legacy_state_initialized_ = false;
+
+    football::sim::Tick last_touch_tick_{};
+    e_TouchType lastTouchType;
+
+    float fatigueFactorInv = 0.0f;
+
+    FormationEntry dynamicFormationEntry;
+    bool hasPossession = false;
+    bool hasBestPossession = false;
+    bool hasUniquePossession = false;
+    unsigned int timeNeededToGetToBall_ms = 1000;
+    unsigned int timeNeededToGetToBall_optimistic_ms = 1000;
+    unsigned int timeNeededToGetToBall_previous_ms = 1000;
+    bool triggerControlledBallCollision = false;
+    TacticalPlayerSituation tacticalSituation;
+    int desiredTimeToBall_ms = 0;
+    int cards = 0; // 1: yellow; 2: second yellow; >=3: red
+    football::sim::Tick card_effective_tick_{};
+
+};
+
+#endif

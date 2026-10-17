@@ -5,7 +5,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "sim/player/player_action_executor.hpp"
+#include "player/player_action_executor.hpp"
 
 namespace {
 PlayerActionDefinition MovementDefinition(std::uint64_t frames) {

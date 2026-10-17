@@ -7,9 +7,9 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "sim/player/player_body_profile.hpp"
-#include "sim/player/player_kinematics.hpp"
-#include "sim/player/player_locomotion_animation.hpp"
+#include "player/player_body_profile.hpp"
+#include "player/player_kinematics.hpp"
+#include "player/player_locomotion_animation.hpp"
 
 using football::math::Vector3;
 using football::player::MakePlayerBodyProfile;

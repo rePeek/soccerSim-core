@@ -27,79 +27,22 @@ target_link_libraries(football_sim_contracts INTERFACE
   football::foundation football::pitch football::animation_base)
 
 
-# Domain directories organize concepts, not public/private dependency units.
+# The domain target is declared here (the Runtime layer) and collects sources
+# from the sibling module CMakeLists through target_sources(PRIVATE ...).
 add_library(football_sim_domain STATIC)
 add_library(football::sim ALIAS football_sim_domain)
 target_sources(football_sim_domain PRIVATE
   simulation.cpp simulation_body_shadow.cpp simulation_active_touch_shadow.cpp
-  simulation_prepared_tick.cpp player/player_touch_preparation.hpp
-  simulation_baked_body.cpp player/player_baked_pose_realization.hpp
-  player/player_baked_contact_regions.hpp player/player_baked_pose_sample.hpp
-  simulation_rule_touch.cpp event/rule_touch.hpp
-  player/player_active_touch_shadow.hpp player/player_active_impulse.hpp
-  player/player_active_touch_model.hpp
-  player/player_baked_body_pose.hpp
+  simulation_prepared_tick.cpp
+  simulation_baked_body.cpp
+  simulation_rule_touch.cpp
   touch_evidence_classification.hpp
-  event/touch_state.hpp event/touch_type.hpp
-  event/touch_record.hpp
-  event/event_transition.hpp
-  event/event_recognizer.cpp event/event_recognizer.hpp
-  event/accepted_touch.hpp event/accepted_touch_sink.hpp
-  referee/ruling.hpp event/match_event.hpp event/event_log.hpp
-  event/touch_query.cpp event/touch_query.hpp
   runtime/clock.cpp runtime/clock.hpp runtime/roster.cpp runtime/roster.hpp
-  runtime/formation.cpp runtime/formation_build.hpp player/role_parser.cpp player/role_parser.hpp
+  runtime/formation.cpp runtime/formation_build.hpp
   runtime/team_state.hpp runtime/team_view.hpp runtime/team_facts.hpp
-  player/player_team_view.cpp player/player_team_view.hpp player/player_send_off_sink.hpp
   runtime/possession.cpp runtime/possession.hpp
   runtime/roster_possession.cpp runtime/roster_possession.hpp
-  event/touch_type.hpp
-  observation/world_state_builder.cpp observation/world_state_builder.hpp
-  observation/pitch_frame.cpp observation/pitch_frame.hpp
-  observation/mentalimage.cpp observation/mentalimage.hpp observation/player_image.hpp
-  observation/mentalimage_sampling.cpp observation/mentalimage_sampling.hpp
-  observation/snapshot_history.cpp
-  observation/temporal_graph.cpp
-  observation/touch_inference.cpp observation/touch_inference.hpp
-  player/reachability.cpp player/roster_query.cpp player/perception.cpp
-  player/reachability.hpp player/roster_query.hpp player/perception.hpp
-  referee/referee.cpp referee/referee.hpp
-  referee/goal.cpp referee/goal.hpp
-  referee/period.cpp referee/period.hpp
-  referee/ball_rules.cpp referee/ball_rules.hpp
-  referee/action_authorization.cpp referee/action_authorization.hpp
-  referee/offside.cpp referee/restart_placement.cpp referee/restart_readiness.cpp
-  referee/ball_touch_facts.hpp
-  referee/referee_state.hpp referee/referee_tick_facts.hpp referee/rule_command_sink.hpp referee/referee_view.hpp
-  testing/simulation_access.hpp
-  referee/offside.hpp referee/restart_placement.hpp referee/restart_readiness.hpp
-  player/player.cpp player/player_action_selection.cpp player/player_anim_selection.cpp player/player_control_builder.cpp player/player_locomotion.cpp
-  player/player_contact.cpp player/player_contact.hpp
-  player/player_ball_contact.cpp player/player_ball_contact.hpp
-  player/kick_targeting.cpp
-  player/player_tick.cpp
-  player/player_touch_execution.cpp
-  player/player_touch_math.cpp
-  player/player_diagnostics.cpp
-  player/player_touch_math.hpp
-  player/player_action_execution_state.hpp player/player_spatial_state.hpp
-  player/player_interrupt.hpp player/player_diagnostics.hpp
-  player/player.hpp player/player_control_builder.hpp player/player_kinematics.hpp
-  player/player_command.hpp player/player_motion_constants.hpp
-  player/player_motion.cpp player/player_motion.hpp player/player_motion_profile.hpp
-  player/player_action_motion.cpp
-  player/player_body_profile.hpp
-  player/player_tick_context.hpp
-  player/player_retain_anchor.hpp player/player_ground_collider.hpp
-  player/player_body_collider.hpp player/player_body_collider_motion.hpp
-  player/player_body_collision_shadow.hpp player/player_body_facing.hpp
-  player/player_body_contact_diagnostics.hpp player/player_body_pose_shadow.hpp
-  player/player_action.hpp player/player_action_executor.hpp player/player_action_volume.hpp
-  player/player_action_request.hpp
-  player/player_locomotion.hpp player/player_locomotion_animation.hpp player/player_decision_scheduler.hpp
-  player/locomotion_animation_strategy.hpp
-  player/locomotion_intent_scheduler.hpp player/legacy_locomotion_command.hpp
-  player/kick_targeting.hpp)
+  testing/simulation_access.hpp)
 target_sources(football_sim_domain PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
   FILES simulation.hpp)

@@ -1,7 +1,7 @@
 #include "sim/simulation.hpp"
-#include "sim/player/player.hpp"
-#include "sim/player/player_body_pose_shadow.hpp"
-#include "sim/referee/referee.hpp"
+#include "player/player.hpp"
+#include "player/player_body_pose_shadow.hpp"
+#include "referee/referee.hpp"
 #include "sim/touch_evidence_classification.hpp"
 #include <algorithm>
 namespace {

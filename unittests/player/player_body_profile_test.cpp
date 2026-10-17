@@ -6,7 +6,7 @@
 #include <optional>
 #include <utility>
 
-#include "sim/player/player_body_profile.hpp"
+#include "player/player_body_profile.hpp"
 
 using football::player::BodyBuild;
 using football::player::MakePlayerBodyProfile;

@@ -51,7 +51,13 @@ target_sources(football_pitch INTERFACE FILE_SET HEADERS
 target_compile_features(football_pitch INTERFACE cxx_std_23)
 target_link_libraries(football_pitch INTERFACE football::foundation football::geometry)
 
+# The Runtime layer declares football_sim_contracts/football_sim_domain; the
+# sibling modules below only contribute their own sources to that target.
 add_subdirectory(src/sim)
+add_subdirectory(src/player)
+add_subdirectory(src/referee)
+add_subdirectory(src/event)
+add_subdirectory(src/observation)
 add_subdirectory(src/ai)
 
 # The core shared library. Everything under src/ is compiled into libsimcore.so;

@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "football/animation/clip.hpp"
-#include "sim/player/player_kinematics.hpp"
-#include "sim/player/player_locomotion_animation.hpp"
-#include "sim/player/locomotion_animation_strategy.hpp"
+#include "player/player_kinematics.hpp"
+#include "player/player_locomotion_animation.hpp"
+#include "player/locomotion_animation_strategy.hpp"
 
 using football::math::Vector3;
 

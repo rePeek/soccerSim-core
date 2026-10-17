@@ -6,7 +6,7 @@
 
 #include "football/animation/movement_math.hpp"
 #include "football/animation/movement_selection.hpp"
-#include "sim/player/player_motion.hpp"
+#include "player/player_motion.hpp"
 
 using Catch::Approx;
 using football::animation::CalculateMovementAtFrame;

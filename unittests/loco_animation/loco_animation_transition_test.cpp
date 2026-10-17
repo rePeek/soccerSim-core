@@ -16,10 +16,10 @@
 #include "football/animation/pose_sampling.hpp"
 #include "football/animation/transition.hpp"
 using namespace football::animation;
-#include "sim/player/locomotion_animation_strategy.hpp"
-#include "sim/player/player_body_profile.hpp"
-#include "sim/player/player_kinematics.hpp"
-#include "sim/player/player_locomotion_animation.hpp"
+#include "player/locomotion_animation_strategy.hpp"
+#include "player/player_body_profile.hpp"
+#include "player/player_kinematics.hpp"
+#include "player/player_locomotion_animation.hpp"
 
 using football::math::Vector3;
 

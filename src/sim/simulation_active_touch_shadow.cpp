@@ -1,7 +1,7 @@
 #include <algorithm>
 #include "sim/simulation.hpp"
-#include "sim/player/player.hpp"
-#include "sim/player/player_active_touch_shadow.hpp"
+#include "player/player.hpp"
+#include "player/player_active_touch_shadow.hpp"
 
 namespace {
 void MirrorState(football::ball::BallState& state) {
