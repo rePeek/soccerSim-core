@@ -529,6 +529,37 @@ TEST_CASE("Player reachability is a pure player-local value", "[runtime][sim]") 
   CHECK(sim.Stop());
 }
 
+TEST_CASE("Runtime harness: observation carries the policy facts", "[runtime][sim]") {
+  // P21.2: the observation adds only read-only summaries. They must be
+  // populated, in the same pitch frame, and must not disturb the match.
+  Simulation sim;
+  InitMatch(sim);
+  PlayerControlSet controls;
+  for (int i = 0; i < 20; ++i) sim.Step(controls);
+  const WorldState world = sim.Observe();
+  REQUIRE(world.players.size() == 22);
+  for (int team = 0; team < 2; ++team) {
+    CHECK(world.teams[team].time_to_ball_ms > 0);
+    CHECK(world.teams[team].fading_possession_amount >= 0.5f);
+    CHECK(world.teams[team].fading_possession_amount <= 1.5f);
+  }
+  for (const WorldPlayerState& player : world.players) {
+    CHECK(player.fatigue_inv >= 0.01f);
+    CHECK(player.fatigue_inv <= 1.0f);
+    CHECK(player.time_to_ball_ms >= 1);
+    CHECK(player.short_pass_skill > 0.0f);
+    CHECK(player.workrate > 0.0f);
+    CHECK(player.role >= e_PlayerRole_GK);
+    CHECK(player.role <= e_PlayerRole_CF);
+  }
+  for (const football::math::Vector3& sample : world.ball_prediction) {
+    CHECK(IsFinite(sample));
+    CHECK(std::fabs(sample.coords[0]) <= world.pitch.half_length() + 5.0f);
+    CHECK(std::fabs(sample.coords[1]) <= world.pitch.half_width() + 5.0f);
+  }
+  CHECK(sim.Stop());
+}
+
 TEST_CASE("Runtime harness: ResetSituation resets team state and actors",
           "[runtime][sim]") {
   Simulation sim;

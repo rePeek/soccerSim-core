@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "football/player/player_definition.hpp"
+#include "football/player/player_role.hpp"
 #include "football/runtime/match_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/foundation/math/vector3.hpp"
@@ -23,6 +24,16 @@ struct WorldPlayerState {
   bool has_possession = false;
   bool lazy = false;
   float max_speed = 0.0f;
+  // P21.2 read-only summaries for the heuristic policy. They are base values,
+  // not mutable match state, and a future learned policy may consume the same
+  // fields. No PlayerDefinition, Player* or animation state is copied.
+  e_PlayerRole role = e_PlayerRole_GK;
+  // 1 = fully rested, 0.01 = exhausted; the runtime fatigue factor as-is.
+  float fatigue_inv = 1.0f;
+  // The player's own time-to-ball estimate; 1 for the current retainer.
+  int time_to_ball_ms = 1000;
+  float short_pass_skill = 1.0f;
+  float workrate = 1.0f;
   // Rule-assigned positioning during a pending restart, in the same pitch frame.
   std::optional<football::math::Vector3> restart_target;
 };
@@ -31,7 +42,19 @@ struct WorldTeamState {
   football::sim::TeamSide side = football::sim::TeamSide::Home;
   int defending_direction = -1;
   int score = 0;
+  // P21.2 team possession facts. `fading_possession_amount` is the runtime's
+  // arbitrated possession weight in [0.5, 1.5].
+  bool has_possession = false;
+  float fading_possession_amount = 1.0f;
+  int time_to_ball_ms = 100;
 };
+
+// P21.2 ball look-ahead samples, in the same pitch frame as ball_position.
+// Index i is the ball centre at kWorldBallPredictionHorizons_ms[i]. The
+// runtime Ball model computes them, so the AI never re-implements ball physics.
+inline constexpr std::size_t kWorldBallPredictionCount = 4;
+inline constexpr int kWorldBallPredictionHorizons_ms[kWorldBallPredictionCount] = {
+    200, 350, 500, 650};
 
 // Value-only observation in one pitch frame (home defends negative x).
 // Ball and player positions/directions share this frame in both halves and both
@@ -53,6 +76,7 @@ struct WorldState {
   std::array<WorldTeamState, 2> teams{{
       {football::sim::TeamSide::Home, -1, 0},
       {football::sim::TeamSide::Away, 1, 0}}};
+  std::array<football::math::Vector3, kWorldBallPredictionCount> ball_prediction{};
   // Execution authorization, including a Ready taker before actual restart contact.
   // Use ball_in_play / ball_in_play_time for effective-time measurements.
   bool in_play = false;
