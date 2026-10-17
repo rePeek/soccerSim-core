@@ -8,7 +8,9 @@ add_executable(football_ai_unit_tests
   eliza_keeper_tactics_test.cpp
   eliza_frequency_test.cpp
   policy_switch_test.cpp
-  tactical_schema_test.cpp)
+  tactical_schema_test.cpp
+  tactical_coordinate_test.cpp
+  tactical_interpreter_test.cpp)
 target_include_directories(football_ai_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_ai_unit_tests
   PRIVATE

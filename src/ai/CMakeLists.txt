@@ -9,6 +9,7 @@ target_sources(football_ai_contracts INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/ai/ai_config.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_board.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_plan.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_interpreter.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/player_policy.hpp)
 target_compile_features(football_ai_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_ai_contracts INTERFACE
@@ -34,6 +35,7 @@ target_sources(football_ai
     eliza/support_position.cpp eliza/support_position.hpp
     tactical_board.cpp
     tactical_plan.cpp
+    tactical_interpreter.cpp
   PUBLIC FILE_SET HEADERS
     BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES ${PROJECT_SOURCE_DIR}/include/football/ai/default_ai.hpp)
