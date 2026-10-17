@@ -46,6 +46,15 @@ const WorldPlayerState* Chaser(const WorldState& world, TeamSide side,
 }
 }  // namespace
 
+void ElizaPolicy::Reset() {
+  possession_ticks_.clear();
+}
+
+int ElizaPolicy::PossessionTicks(football::player::PlayerId player) const {
+  const auto found = possession_ticks_.find(player);
+  return found == possession_ticks_.end() ? 0 : found->second;
+}
+
 void ElizaPolicy::Update(const WorldState& world,
                          std::span<const TacticalBoard, 2> tactics,
                          PlayerControlSet& output) {
@@ -57,7 +66,10 @@ void ElizaPolicy::Update(const WorldState& world,
       Chaser(world, TeamSide::Away, intercept)};
 
   for (const WorldPlayerState& player : world.players) {
-    if (!player.active) continue;
+    if (!player.active) {
+      possession_ticks_.erase(player.id);
+      continue;
+    }
     const TacticalBoard& board = tactics[static_cast<unsigned>(player.side)];
     const PlayerDirective* directive = FindDirective(board, player.id);
     PlayerControl control;
@@ -81,6 +93,15 @@ void ElizaPolicy::Update(const WorldState& world,
     }
 
     const bool owns_ball = player.has_possession || world.ball_retainer == player.id;
+    // Policy-owned possession clock. It is keyed by PlayerId and advances once
+    // per tick; the Player's own decision clock is never touched.
+    float possession_ms = 0.0f;
+    if (owns_ball) {
+      const int ticks = ++possession_ticks_[player.id];
+      possession_ms = static_cast<float>(ticks) * 10.0f;
+    } else {
+      possession_ticks_.erase(player.id);
+    }
     const bool keeper = IsKeeper(player);
     ControlAction action = ControlAction::None;
     std::optional<PlayerId> action_target;
@@ -95,7 +116,8 @@ void ElizaPolicy::Update(const WorldState& world,
       target = decision.target;
       if (decision.save) action = ControlAction::Save;
     } else if (owns_ball || restart_taker) {
-      const OnBallDecision decision = DecideOnBall(world, board, player, parameters_);
+      const OnBallDecision decision =
+          DecideOnBall(world, board, player, parameters_, possession_ms);
       action = decision.action;
       action_target = decision.target_player;
       action_position = decision.target_position;

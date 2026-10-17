@@ -87,7 +87,8 @@ float PassingOdds(const WorldState& world, const WorldPlayerState& self,
 
 OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
                             const WorldPlayerState& self,
-                            const ElizaParameters& parameters) {
+                            const ElizaParameters& parameters,
+                            float possession_ms) {
   (void)board;
   (void)parameters;
   OnBallDecision decision;
@@ -132,8 +133,12 @@ OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
   const float improvement_threshold = 0.06f * (1.0f - mindset);
   const float tactical_diff_weight = 1.0f + mindset * mindset * 10.0f;
   const float pass_weight = 1.0f;
-  const float pass_minimum = 0.2f * (1.0f - mindset);
-  const float pass_threshold = 0.1f;
+  // A long possession lowers the release threshold, as the legacy
+  // longPossessionFactor did. `possession_ms` is policy memory, not an observation.
+  const float long_possession =
+      std::pow(NormalizedClamp(possession_ms, 0.0f, 5000.0f), 2.0f);
+  const float pass_minimum = 0.2f * (1.0f - mindset) - long_possession * 0.1f;
+  const float pass_threshold = 0.1f - long_possession * 0.05f;
   const float weight_sum = tactical_diff_weight + pass_weight;
 
   const WorldPlayerState* best_target = nullptr;

@@ -30,9 +30,12 @@ float PassingOdds(const WorldState& world, const WorldPlayerState& self,
 // Choose the ball carrier's intent: shoot, pass (short/long/high) or keep
 // dribbling (action None). The decision is deterministic; the legacy RNG draw
 // is replaced by a fixed threshold.
+// `possession_ms` is the policy-owned time-on-the-ball estimate (the legacy
+// GetPossessionDuration_ms); a long possession lowers the release threshold.
 OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
                             const WorldPlayerState& self,
-                            const ElizaParameters& parameters);
+                            const ElizaParameters& parameters,
+                            float possession_ms = 0.0f);
 
 // Movement toward the opponent goal while carrying the ball (legacy
 // GetBestDribbleMovement).
