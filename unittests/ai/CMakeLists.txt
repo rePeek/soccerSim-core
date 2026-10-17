@@ -16,7 +16,8 @@ add_executable(football_ai_unit_tests
   coach_command_test.cpp
   shout_lifecycle_test.cpp
   coach_context_test.cpp
-  coach_scheduler_test.cpp)
+  coach_scheduler_test.cpp
+  tactical_examples_test.cpp)
 target_include_directories(football_ai_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_ai_unit_tests
   PRIVATE

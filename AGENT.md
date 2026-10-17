@@ -120,7 +120,9 @@ include/football/    public headers (interfaces), one directory per module
 │                    football::collision
 ├── pitch/           football::pitch: Pitch description plus the ground/posts/
 │                    crossbars colliders and the fixed environment
-├── ai/              AIConfig, TacticalBoard and DefaultAI declarations
+├── ai/              AIConfig, TacticalBoard (legacy + V2 plan), the pure
+│                    TacticalInterpreter/EffectiveTactics, typed coach
+│                    commands/context/policy, shout values and DefaultAI
 └── env.hpp          public autonomous match façade; values + opaque private owners
 
 src/                 implementations; public headers live in include/football/
@@ -129,7 +131,8 @@ src/                 implementations; public headers live in include/football/
 │                    own CMakeLists for football::collision
 ├── ball/            football::ball implementation: *.cpp + private headers
 │                    (ball_netting.hpp; never exported)
-├── ai/              default_ai.cpp, tactical_board.cpp
+├── ai/              default_ai.cpp, tactical_board.cpp, tactical_plan.cpp,
+│                    tactical_interpreter.cpp, eliza/, player/, coach/
 ├── env.cpp          sole product composition implementation for AI + sim;
 │                    compiled into libsimcore.so with everything else under src/
     ├── simulation.*  owns clock/phase/score, ball, rosters, referee, touch state, RNG and history
@@ -3301,3 +3304,58 @@ Debug and Release both keep the A17 digest `5bef607ddd567a09`. `src/ai` and
 `include/football/ai` contain no internal `runtime/`, `player/`, `referee/`,
 `observation/`, `event/`, `testing/` or `sim/` include, so the AI layer still
 depends only on the public value contracts.
+
+## TACT: FM-style dual-phase tactics, coach tools and heuristic Player AI
+
+Implementation plan and contract: `docs/tactical_ai_contract.md` (normative),
+`docs/tactical_ai_audit.md` (baseline and licence mapping). Implemented through
+TACT-8 in staged local commits; nothing here changes Physics, Animation, Rules,
+the 100 Hz control protocol or the Default baseline.
+
+### Value model and interpretation (TACT-1, TACT-2)
+
+- `include/football/ai/tactical_plan.hpp` is the persistent dual-phase plan:
+  canonical anchors (`u` own->opponent goal, `v` left/right), in/out-of-
+  possession roles, team/transition/individual instructions and
+  `ValidateTacticalPlan`. `MakeTacticalPlanV2` bootstraps it deterministically.
+- `TacticalBoard` gained an explicit `BoardMode` and an `advanced` plan. Legacy
+  behaviour (`width`/`depth`/`players`) is untouched; `ValidateTacticalBoard`
+  couples the mode and the plan. Coach writes require V2.
+- `tactical_interpreter.hpp` is a pure interpreter: `EffectiveTactics` is a
+  derived interpretation, never a second board. `DefaultSlotAssignment` is the
+  temporary observation-order binding.
+- `tactical_examples.hpp` carries three pure-data example plans.
+
+### Player AI (TACT-3, TACT-4, TACT-6b)
+
+- `src/ai/eliza/eliza_intent.*` adapts a V2 plan to the existing Eliza
+  heuristic through a read-only legacy-shaped view plus a bounded intent, so the
+  legacy path stays identical.
+- `src/ai/player/heuristic_policy.*` is `PlayerPolicyKind::Heuristic`: one joint
+  per-team assignment (exclusive presser/cover, support, rest defence, marking)
+  plus per-player on-ball/off-ball/keeper decisions. It is never the default.
+- `IPlayerPolicyV2`/`PlayerAIContext` add read-only transient mental effects;
+  `LegacyPlayerPolicyAdapter` keeps `IPlayerPolicy` implementations unchanged.
+  Shouts never enter WorldState, the boards or a global.
+
+### Coach tools and lifecycle (TACT-5, TACT-6a, TACT-7)
+
+- `coach_command.hpp` is the typed command/envelope/result/log contract;
+  `src/ai/coach/command_executor.*` commits atomically on a copy and bumps
+  `TacticalBoard::revision`. `CoachRuntime` owns the queue, the log and the
+  transient shouts, applies at the top of `AIEngine::Update`, and never owns a
+  second board. `tool_registry.*` lists the nine v1 tools and own-side reads.
+- `shout.hpp` + `coach/shout_resolver.*` define bounded mental effects with
+  cooldown, a stack cap and fixed expiry.
+- `coach_context.hpp` + `coach/context_collector.*` build a read-only,
+  bounded-window context with deduplicated derived events; `coach/scheduler.*`
+  owns periodic/event cadence, debounce and budget; `coach/heuristic_coach.*` is
+  an opt-in NoOp/leading/trailing example. No provider, network or thread pool
+  is introduced; `ICoachPolicy` is the future LLM seam.
+
+### Acceptance
+
+No full match is ever run. Validation is the bounded suites (`ai_unit`, the
+runtime harness, the public-header smoke) plus a core-only build.
+`unittests/ai` covers the schema, coordinates, interpreter, response, heuristic,
+coach commands, shout lifecycle, context, scheduler and examples.

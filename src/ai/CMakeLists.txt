@@ -10,6 +10,7 @@ target_sources(football_ai_contracts INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_board.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_plan.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_interpreter.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_examples.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/coach_command.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/shout.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/coach_context.hpp
