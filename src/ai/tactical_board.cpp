@@ -107,4 +107,15 @@ TacticalBoard MakeTacticalBoard(const football::sim::TeamSetup &team, football::
   }
   return board;
 }
+
+TacticalBoard MakeTacticalBoardV2(const football::sim::TeamSetup &team,
+                                 football::sim::TeamSide side,
+                                 const football::pitch::Pitch &pitch) {
+  TacticalBoard board;
+  board.side = side;
+  board.mode = BoardMode::V2;
+  board.advanced = MakeTacticalPlanV2(team, side, pitch);
+  // The legacy fields stay at their defaults; a V2 reader must not touch them.
+  return board;
+}
 }  // namespace football::ai
