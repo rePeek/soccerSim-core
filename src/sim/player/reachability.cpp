@@ -14,8 +14,14 @@
 
 #include "sim/player/reachability.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
+#include "football/ball/ball_timing.hpp"
 
+#include <algorithm>
 #include <cmath>
+
+#include "football/ball/ball.hpp"
+#include "football/foundation/math/scalar.hpp"
+#include "sim/player/player_locomotion.hpp"
 
 namespace football::sim::player {
 using football::math::clamp;
@@ -141,5 +147,134 @@ TimeNeeded GetTimeNeededForDistance_ms(const Vector3 &playerPos,
   return int(std::round((targetPos - (playerPos + playerMovement * 0.02)).GetLength() / (sprintVelocity * 0.9) * 1000));
   */
 }
+
+
+namespace {
+
+// P19.4: player-local ball-control estimate, relocated verbatim from the
+// Player's anonymous namespace. It reads only the actor's own motion and the
+// ball's predicted movement.
+bool ComputeHasPossession(const PlayerKinematicState& state,
+                          const football::ball::Ball& ball) {
+  const Vector3 playerMovement = state.velocity;
+  if ((state.position - ball.state().position).GetLength() > 5.0) return false;
+  if (std::fabs(ball.state().position.coords[2]) > 0.5) return false;
+  bool distanceOK = true;
+  const float radius = 1.0f;
+  const Vector3 center = state.position + state.velocity * 0.05f + state.GetFacing() * 0.1f;
+  if ((ball.state().position.Get2D() - center).GetLength() > radius) distanceOK = false;
+  bool movementOK = true;
+  const Vector3 ballMovement3D =
+      (ball.Predict(football::sim::TickSpan{1}).position - ball.state().position) * 100.0f;
+  if ((ballMovement3D - playerMovement).GetLength() > 6.0f) movementOK = false;
+  return distanceOK && movementOK;
+}
+
+constexpr football::sim::TickSpan kReachabilityExactHorizon{50};
+
+}  // namespace
+
+PlayerReachabilityFacts ComputePlayerReachability(
+    const PlayerReachabilityInput& input) {
+  PlayerReachabilityFacts facts;
+  facts.usual_ms = input.previous_usual_ms;
+  facts.optimistic_ms = input.previous_optimistic_ms;
+  const football::ball::Ball& ball = *input.ball;
+
+  if (input.pure_locomotion) {
+    if (input.recompute) {
+      PlayerLocomotionParameters locomotion_parameters;
+      locomotion_parameters.maxSpeed = input.max_velocity;
+      const PlayerLocomotionReach reach =
+          PlayerLocomotion::EstimateEarliestInterceptHybrid(
+              input.kinematic,
+              [&ball](football::sim::TickSpan horizon) { return ball.Predict(horizon).position; },
+              locomotion_parameters, input.max_velocity,
+              football::sim::ball_timing::kPredictionHorizon,
+              kReachabilityExactHorizon,
+              kLocomotionUsualReachRadius, kLocomotionOptimisticReachRadius,
+              /*steady_state=*/true);
+      facts.usual_ms = static_cast<unsigned int>(football::sim::ToMilliseconds(
+          reach.usual.value_or(football::sim::ball_timing::kPredictionHorizon)));
+      facts.optimistic_ms = static_cast<unsigned int>(football::sim::ToMilliseconds(
+          reach.optimistic.value_or(football::sim::ball_timing::kPredictionHorizon)));
+    }
+  } else {
+    // Non-locomotion actions keep the legacy heuristic because their execution
+    // still follows animation root motion.
+    facts.usual_ms = std::max(
+        static_cast<unsigned int>(football::sim::ToMilliseconds(football::sim::ball_timing::kPredictionHorizon)),
+        (unsigned int)(std::round(
+            (ball.Predict(football::sim::ball_timing::kPredictionHorizon - football::sim::TickSpan{1}).position.Get2D() -
+             (input.kinematic.position + input.kinematic.velocity * 0.2f)).GetLength() /
+            (input.max_velocity * 0.75f) * 1000)));
+    facts.optimistic_ms = facts.usual_ms;
+    using football::sim::TickSpan;
+    using football::sim::ToMilliseconds;
+    TickSpan start{};
+    if ((input.action_type == e_FunctionType_ShortPass ||
+         input.action_type == e_FunctionType_LongPass ||
+         input.action_type == e_FunctionType_HighPass ||
+         input.action_type == e_FunctionType_Shot) && !input.touch_pending) {
+      start = TickSpan{50};
+    }
+    bool refine = false;
+    TickSpan step{1};
+    TickSpan previous{};
+    const bool precise = input.precise;
+    for (auto candidate = start; candidate < football::sim::ball_timing::kPredictionHorizon; candidate += step) {
+      const auto ms = static_cast<unsigned int>(ToMilliseconds(candidate));
+      if (ball.Predict(candidate).position.coords[2] < 1.5f) {
+        const auto result = football::sim::player::GetTimeNeededForDistance_ms(
+            input.kinematic.position, input.kinematic.velocity, ball.Predict(candidate).position.Get2D(),
+            input.max_velocity, precise, candidate);
+        if (result.optimistic_ms <= ms && ms < facts.optimistic_ms) {
+          facts.optimistic_ms = ms;
+        }
+        if (result.usual_ms <= ms) {
+          if (!refine) {
+            candidate = previous;
+            step = TickSpan{1};
+            refine = true;
+          } else {
+            facts.usual_ms = ms;
+            break;
+          }
+        }
+      }
+      if (!refine) {
+        const float balldist = (input.kinematic.position - ball.Predict(candidate).position.Get2D()).GetLength() + 0.2f;
+        const float maxBallVelo = 50;
+        const unsigned int timeToGo_ms = int(std::round((balldist / maxBallVelo) * 1000.0f));
+        // Preserve the historical adaptive grid search (round first, then floor).
+        step = TickSpan{static_cast<unsigned int>(clamp(timeToGo_ms, 10, 500)) / 10};
+      } else step = TickSpan{1};
+      previous = candidate;
+    }
+  }
+
+  if (input.touch_anim && input.touch_pending) {
+    const unsigned int animTimeToBall_ms = (input.touch_frame - input.current_frame) * 10;
+    facts.usual_ms = std::min(facts.usual_ms, animTimeToBall_ms);
+    facts.optimistic_ms = facts.usual_ms;
+  }
+  if (facts.usual_ms < defaultTouchOffset_ms) {
+    facts.usual_ms = NormalizedClamp(
+        ((input.kinematic.position + input.kinematic.velocity * (defaultTouchOffset_ms * 0.001)) -
+            ball.Predict(football::sim::TickSpan{defaultTouchOffset_ms / football::sim::kMillisecondsPerTick}).position.Get2D()).GetLength(),
+        0.0f, 0.6f) * defaultTouchOffset_ms;
+    facts.optimistic_ms = facts.usual_ms;
+  }
+  if ((input.action_type == e_FunctionType_ShortPass ||
+       input.action_type == e_FunctionType_LongPass ||
+       input.action_type == e_FunctionType_HighPass ||
+       input.action_type == e_FunctionType_Shot) && !input.touch_pending) {
+    facts.locally_controllable = false;
+  } else {
+    facts.locally_controllable = ComputeHasPossession(input.kinematic, ball);
+  }
+  return facts;
+}
+
 
 }  // namespace football::sim::player

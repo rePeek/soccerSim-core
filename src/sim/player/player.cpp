@@ -41,30 +41,6 @@
 
 using football::ball::Ball;
 
-namespace {
-// Player-local ball-control estimate. It reads only the player's own motion and
-// the ball's predicted movement, so it lives with the player's possession state
-// rather than in a general query module.
-bool ComputeHasPossession(Ball *ball, Player *player) {
-  Vector3 playerMovement = player->GetMovement();
-
-  // premature optimization ;)
-  if ((player->GetPosition() - ball->state().position).GetLength() > 5.0) return false;
-
-  if (std::fabs(ball->state().position.coords[2]) > 0.5) return false;
-
-  bool distanceOK = true;
-  float radius = 1.0f;
-  Vector3 center = player->GetPosition() + player->GetMovement() * 0.05f + player->GetDirectionVec() * 0.1f;//was: 0.05f
-  if ((ball->state().position.Get2D() - center).GetLength() > radius) distanceOK = false;
-
-  bool movementOK = true;
-  Vector3 ballMovement3D = (ball->Predict(football::sim::TickSpan{1}).position - ball->state().position) * 100.0f;
-  if ((ballMovement3D - playerMovement).GetLength() > 6.0f) movementOK = false;
-
-  return distanceOK && movementOK;
-}
-}  // namespace
 
 int &SimulationOnlyGateMismatchForResetContext(int context) {
   static int records[kResetSituationCallContextCount] = {};
@@ -275,9 +251,6 @@ namespace {
 // Execute every 10 ms; refresh the intercept belief every 100 ms, staggered
 // by the dense match-local index. Between refreshes the estimate is retained.
 constexpr football::sim::TickSpan kReachabilityRefresh{10};
-// Preserve the measured 500 ms exact-rollout horizon; beyond it, the same
-// analytic capability approximation applies. This is not another physics model.
-constexpr football::sim::TickSpan kReachabilityExactHorizon{50};
 
 // Bit comparison, not an epsilon: a movement mirror that is only approximately
 // right is a synchronization bug, and masking it would let a later procedural
@@ -1054,7 +1027,9 @@ bool Player::AllowLastDitch(bool includingPossessionAmount) const {
 void Player::UpdatePossessionStats(Ball& ball, const football::sim::TeamMatchState& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own) {
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
   const e_FunctionType action_type = GetCurrentFunctionType();
-  if (actionState.IsPureLocomotion(retainer == this)) {
+  const bool pure_locomotion = actionState.IsPureLocomotion(retainer == this);
+  bool recompute = false;
+  if (pure_locomotion) {
     // H3e1c-3c: solve on the staggered 100 ms cadence, retaining the capability
     // estimate between refreshes. Do not fall back to the legacy heuristic on
     // those nine intermediate ticks (P1c); that would change the AI's model.
@@ -1064,101 +1039,31 @@ void Player::UpdatePossessionStats(Ball& ball, const football::sim::TeamMatchSta
         football::sim::TickSpan{schedule_phase_});
     // First eligible tick after an action must not reuse an old action estimate.
     const bool entering_pure_locomotion = GetSimulationActionState().elapsed.value == 0;
-    if (scheduled_refresh || entering_pure_locomotion) {
-      ++PlayerReachabilityRefreshes();
-      PlayerLocomotionParameters locomotion_parameters;
-      locomotion_parameters.maxSpeed = GetMaxVelocity();
-      // Capability belief, not another simulator: exact near-horizon rollout,
-      // analytic approximation beyond 500 ms. The exact estimator remains the
-      // measurement oracle; this approximation need not reproduce its belief.
-      const PlayerLocomotionReach reach =
-          PlayerLocomotion::EstimateEarliestInterceptHybrid(
-              GetKinematicState(),
-              [&ball](football::sim::TickSpan horizon) { return ball.Predict(horizon).position; },
-              locomotion_parameters, GetMaxVelocity(),
-              football::sim::ball_timing::kPredictionHorizon,
-              kReachabilityExactHorizon,
-              kLocomotionUsualReachRadius, kLocomotionOptimisticReachRadius,
-              /*steady_state=*/true);
-      // Possession ranking also admits continuous action estimates; project only
-      // this discrete solver's result, never quantize the mixed estimate storage.
-      timeNeededToGetToBall_ms = static_cast<unsigned int>(football::sim::ToMilliseconds(
-          reach.usual.value_or(football::sim::ball_timing::kPredictionHorizon)));
-      timeNeededToGetToBall_optimistic_ms = static_cast<unsigned int>(football::sim::ToMilliseconds(
-          reach.optimistic.value_or(football::sim::ball_timing::kPredictionHorizon)));
-    } else {
-      ++PlayerReachabilityReuses();
-    }
-  } else {
-    // Non-locomotion actions keep the legacy heuristic because their execution
-    // still follows animation root motion.
-    timeNeededToGetToBall_ms = std::max(
-        static_cast<unsigned int>(football::sim::ToMilliseconds(football::sim::ball_timing::kPredictionHorizon)),
-        (unsigned int)(std::round(
-            (ball.Predict(football::sim::ball_timing::kPredictionHorizon - football::sim::TickSpan{1}).position.Get2D() -
-             (GetPosition() + GetMovement() * 0.2f)).GetLength() /
-            (GetMaxVelocity() * 0.75f) * 1000)));
-    timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
-    using football::sim::TickSpan;
-    using football::sim::ToMilliseconds;
-    TickSpan start{};
-    if ((action_type == e_FunctionType_ShortPass ||
-         action_type == e_FunctionType_LongPass ||
-         action_type == e_FunctionType_HighPass ||
-         action_type == e_FunctionType_Shot) && !TouchPending()) {
-      start = TickSpan{50};
-    }
-    bool refine = false;
-    TickSpan step{1};
-    TickSpan previous{};
-    const bool precise = designated_own == this;
-    for (auto candidate = start; candidate < football::sim::ball_timing::kPredictionHorizon; candidate += step) {
-      const auto ms = static_cast<unsigned int>(ToMilliseconds(candidate));
-      if (ball.Predict(candidate).position.coords[2] < 1.5f) {
-        const auto result = football::sim::player::GetTimeNeededForDistance_ms(
-            GetPosition(), GetMovement(), ball.Predict(candidate).position.Get2D(),
-            GetMaxVelocity(), precise, candidate);
-        if (result.optimistic_ms <= ms && ms < timeNeededToGetToBall_optimistic_ms) {
-          timeNeededToGetToBall_optimistic_ms = ms;
-        }
-        if (result.usual_ms <= ms) {
-          if (!refine) {
-            candidate = previous;
-            step = TickSpan{1};
-            refine = true;
-          } else {
-            timeNeededToGetToBall_ms = ms;
-            break;
-          }
-        }
-      }
-      if (!refine) {
-        const float balldist = (GetPosition() - ball.Predict(candidate).position.Get2D()).GetLength() + 0.2f;
-        const float maxBallVelo = 50;
-        const unsigned int timeToGo_ms = int(std::round((balldist / maxBallVelo) * 1000.0f));
-        // Preserve the historical adaptive grid search (round first, then floor).
-        step = TickSpan{static_cast<unsigned int>(clamp(timeToGo_ms, 10, 500)) / 10};
-      } else step = TickSpan{1};
-      previous = candidate;
-    }
+    recompute = scheduled_refresh || entering_pure_locomotion;
+    if (recompute) ++PlayerReachabilityRefreshes();
+    else ++PlayerReachabilityReuses();
   }
-  if (TouchAnim() && TouchPending()) {
-    unsigned int animTimeToBall_ms = (GetTouchFrame() - GetCurrentFrame()) * 10;
-    timeNeededToGetToBall_ms = std::min(timeNeededToGetToBall_ms, animTimeToBall_ms);
-    timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
-  }
-  if (timeNeededToGetToBall_ms < defaultTouchOffset_ms) {
-    timeNeededToGetToBall_ms = NormalizedClamp(((GetPosition() + GetMovement() * (defaultTouchOffset_ms * 0.001)) - ball.Predict(football::sim::TickSpan{defaultTouchOffset_ms / football::sim::kMillisecondsPerTick}).position.Get2D()).GetLength(), 0.0f, 0.6f) * defaultTouchOffset_ms;
-    timeNeededToGetToBall_optimistic_ms = timeNeededToGetToBall_ms;
-  }
-  if ((action_type == e_FunctionType_ShortPass ||
-       action_type == e_FunctionType_LongPass ||
-       action_type == e_FunctionType_HighPass ||
-       action_type == e_FunctionType_Shot) && !TouchPending()) {
-    hasPossession = false;
-  } else {
-    hasPossession = ComputeHasPossession(&ball, this);
-  }
+  // P19.4: the actor's own capability is one pure value. The cross-team
+  // possession comparison below stays Runtime-side arbitration.
+  football::sim::player::PlayerReachabilityInput reachability;
+  reachability.kinematic = GetKinematicState();
+  reachability.max_velocity = GetMaxVelocity();
+  reachability.action_type = action_type;
+  reachability.pure_locomotion = pure_locomotion;
+  reachability.recompute = recompute;
+  reachability.precise = designated_own == this;
+  reachability.touch_anim = TouchAnim();
+  reachability.touch_pending = TouchPending();
+  reachability.touch_frame = GetTouchFrame();
+  reachability.current_frame = GetCurrentFrame();
+  reachability.previous_usual_ms = timeNeededToGetToBall_ms;
+  reachability.previous_optimistic_ms = timeNeededToGetToBall_optimistic_ms;
+  reachability.ball = &ball;
+  const football::sim::player::PlayerReachabilityFacts facts =
+      football::sim::player::ComputePlayerReachability(reachability);
+  timeNeededToGetToBall_ms = facts.usual_ms;
+  timeNeededToGetToBall_optimistic_ms = facts.optimistic_ms;
+  hasPossession = facts.locally_controllable;
   this->hasBestPossession = hasPossession && opponent.time_to_ball_ms > this->GetTimeNeededToGetToBall_ms();
   this->hasUniquePossession = hasPossession && !opponent.has_possession;
   if (retainer == this) {

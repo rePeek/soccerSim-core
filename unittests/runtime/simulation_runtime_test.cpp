@@ -29,6 +29,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/player/player.hpp"
+#include "sim/player/reachability.hpp"
 #include "sim/player/player_diagnostics.hpp"
 #include "sim/player/player_control_set.hpp"
 #include "sim/player/player_definition.hpp"
@@ -492,6 +493,40 @@ TEST_CASE("Rules authorize movement, action and keeper hands separately",
     input.is_goalkeeper = false;
     CHECK_FALSE(EvaluateActionAuthorization(input).goalkeeper_hands_allowed);
   }
+}
+
+TEST_CASE("Player reachability is a pure player-local value", "[runtime][sim]") {
+  // P19.4: the capability estimate is a pure value over the actor's kinematic
+  // state and the ball. Runtime keeps the cross-team comparison.
+  Simulation sim;
+  InitMatch(sim);
+  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[6];
+  REQUIRE(player != nullptr);
+  football::ball::Ball& ball = *SimulationAccess::BallOf(sim);
+  SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -0.5f, 0));
+
+  football::sim::player::PlayerReachabilityInput input;
+  input.kinematic = player->GetKinematicState();
+  input.max_velocity = player->GetMaxVelocity();
+  input.action_type = e_FunctionType_Movement;
+  input.pure_locomotion = false;  // the deterministic legacy heuristic
+  input.recompute = true;
+  input.ball = &ball;
+  const auto facts = football::sim::player::ComputePlayerReachability(input);
+  CHECK(facts.usual_ms >= 1u);
+  // A ball already at the actor's feet may have a zero optimistic reach.
+  CHECK(facts.optimistic_ms <= facts.usual_ms);
+  CHECK(facts.optimistic_ms <= facts.usual_ms);
+
+  // The retained-estimate path returns the previous values unchanged.
+  input.pure_locomotion = true;
+  input.recompute = false;
+  input.previous_usual_ms = 321;
+  input.previous_optimistic_ms = 123;
+  const auto retained = football::sim::player::ComputePlayerReachability(input);
+  CHECK(retained.usual_ms == 321u);
+  CHECK(retained.optimistic_ms == 123u);
+  CHECK(sim.Stop());
 }
 
 TEST_CASE("Runtime harness: ResetSituation resets team state and actors",
