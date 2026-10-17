@@ -131,6 +131,18 @@ InterpretationState InterpretationState::FromWorld(const WorldState& world) {
   return state;
 }
 
+SlotAssignment DefaultSlotAssignment(const WorldState& world,
+                                     football::sim::TeamSide side) {
+  SlotAssignment assignment;
+  std::size_t slot = 0;
+  for (const WorldPlayerState& player : world.players) {
+    if (slot >= kTacticalSlotCount) break;
+    if (!player.active || player.side != side) continue;
+    assignment.players[slot++] = player.id;
+  }
+  return assignment;
+}
+
 TacticalInterpretation TacticalInterpreter::Build(
     const std::array<TacticalBoard, 2>& boards, const WorldState& world,
     const std::array<SlotAssignment, 2>& assignments,

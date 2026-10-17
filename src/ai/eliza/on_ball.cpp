@@ -88,9 +88,10 @@ float PassingOdds(const WorldState& world, const WorldPlayerState& self,
 OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
                             const WorldPlayerState& self,
                             const ElizaParameters& parameters,
-                            float possession_ms) {
+                            float possession_ms, const ElizaIntent& intent) {
   (void)board;
   (void)parameters;
+  const ElizaScoreWeights weights = MakeElizaScoreWeights(intent);
   OnBallDecision decision;
   const float mindset = MindSet(self.role);
   const float attack =
@@ -119,7 +120,7 @@ OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
         best_point = point;
       }
     }
-    if (std::sqrt(best_odds) > 0.30f) {
+    if (std::sqrt(best_odds) > weights.shoot_odds_threshold) {
       decision.action = ControlAction::Shoot;
       decision.target_position = best_point;
       decision.power =
@@ -137,8 +138,10 @@ OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
   // longPossessionFactor did. `possession_ms` is policy memory, not an observation.
   const float long_possession =
       std::pow(NormalizedClamp(possession_ms, 0.0f, 5000.0f), 2.0f);
-  const float pass_minimum = 0.2f * (1.0f - mindset) - long_possession * 0.1f;
-  const float pass_threshold = 0.1f - long_possession * 0.05f;
+  const float pass_minimum = 0.2f * (1.0f - mindset) - long_possession * 0.1f -
+                              0.06f * weights.pass_release_shift;
+  const float pass_threshold = 0.1f - long_possession * 0.05f -
+                               0.04f * weights.pass_release_shift;
   const float weight_sum = tactical_diff_weight + pass_weight;
 
   const WorldPlayerState* best_target = nullptr;
@@ -159,7 +162,7 @@ OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
     const float high_odds =
         PassingOdds(world, self, self.position, target, ControlAction::HighPass, 1.0f);
     Vector3 long_target =
-        target + Vector3(attack * distance * 0.2f, 0.0f, 0.0f);
+        target + Vector3(attack * distance * weights.long_directness, 0.0f, 0.0f);
     const float long_odds =
         PassingOdds(world, self, self.position, long_target, ControlAction::LongPass, 1.0f);
 

@@ -29,6 +29,12 @@ TacticalAnchor WorldPositionToAnchor(const football::math::Vector3& position,
 // The active phase is an input, not stored state: possession is a match fact.
 TacticalPhase PhaseFromPossession(bool team_has_possession);
 
+// Deterministic default slot binding from the observation: the k-th active
+// player of a side (in observation/roster order) occupies slot k. Replaced by
+// the match squad / coach runtime once substitutions exist.
+SlotAssignment DefaultSlotAssignment(const WorldState& world,
+                                     football::sim::TeamSide side);
+
 // Player-AI-supplied continuity state. The interpreter is a pure function of
 // this plus the board and the world.
 struct InterpretationState {

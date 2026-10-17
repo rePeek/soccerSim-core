@@ -27,6 +27,7 @@ target_sources(football_ai
     eliza/defense.cpp eliza/defense.hpp
     eliza/eliza_geometry.hpp
     eliza/eliza_observation.hpp
+    eliza/eliza_intent.cpp eliza/eliza_intent.hpp
     eliza/eliza_parameters.hpp
     eliza/eliza_policy.cpp eliza/eliza_policy.hpp
     eliza/off_ball.cpp eliza/off_ball.hpp

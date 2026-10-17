@@ -65,15 +65,19 @@ Vector3 CalculateFormationAnchor(const WorldState& world, const TacticalBoard& b
 Vector3 CalculateOffBallTarget(const WorldState& world, const TacticalBoard& board,
                                const PlayerDirective* directive,
                                const WorldPlayerState& self,
-                               const ElizaParameters& parameters) {
+                               const ElizaParameters& parameters,
+                               const ElizaIntent& intent) {
   const float mindset = MindSet(self.role);
   const Vector3 anchor = CalculateFormationAnchor(world, board, directive, self);
   const float possession = TeamOf(world, self.side).fading_possession_amount;
   const float attack_direction =
       -static_cast<float>(TeamOf(world, self.side).defending_direction);
 
-  const float attack_bias =
+  float attack_bias =
       clamp((possession - 0.5f) * (0.6f + 0.8f * mindset), 0.05f, 0.75f);
+  if (intent.has_plan)
+    attack_bias = clamp(attack_bias * (1.0f + 0.35f * intent.transition_on_win),
+                        0.02f, 0.85f);
   Vector3 target = anchor;
   if (attack_bias > 0.05f) {
     const bool make_run = mindset >= 0.75f && possession >= 1.05f &&
@@ -83,7 +87,12 @@ Vector3 CalculateOffBallTarget(const WorldState& world, const TacticalBoard& boa
     target = anchor * (1.0f - attack_bias) + support * attack_bias;
   }
 
-  const float defence_bias = std::pow(clamp(1.5f - mindset - possession, 0.0f, 1.0f), 0.7f);
+  float defence_bias = std::pow(clamp(1.5f - mindset - possession, 0.0f, 1.0f), 0.7f);
+  if (intent.has_plan) {
+    // pressing_intensity scales how hard the team engages; the transition
+    // instruction adds the short counter-press / regroup tilt.
+    defence_bias = ElizaDefenceBias(defence_bias, intent);
+  }
   if (defence_bias > 0.0f && !IsKeeper(self)) {
     const WorldPlayerState* opponent = SelectMarkingTarget(world, self, directive);
     if (opponent != nullptr)

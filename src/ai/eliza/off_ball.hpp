@@ -1,6 +1,7 @@
 #ifndef FOOTBALL_AI_ELIZA_OFF_BALL_HPP
 #define FOOTBALL_AI_ELIZA_OFF_BALL_HPP
 
+#include "eliza_intent.hpp"
 #include "eliza_parameters.hpp"
 #include "football/ai/tactical_board.hpp"
 #include "football/foundation/math/vector3.hpp"
@@ -22,7 +23,7 @@ football::math::Vector3 CalculateFormationAnchor(
 football::math::Vector3 CalculateOffBallTarget(
     const WorldState& world, const TacticalBoard& board,
     const PlayerDirective* directive, const WorldPlayerState& self,
-    const ElizaParameters& parameters);
+    const ElizaParameters& parameters, const ElizaIntent& intent = {});
 
 }  // namespace football::ai::eliza
 

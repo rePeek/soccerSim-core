@@ -3,6 +3,7 @@
 
 #include <optional>
 
+#include "eliza_intent.hpp"
 #include "eliza_parameters.hpp"
 #include "football/ai/tactical_board.hpp"
 #include "football/foundation/math/vector3.hpp"
@@ -35,7 +36,8 @@ float PassingOdds(const WorldState& world, const WorldPlayerState& self,
 OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
                             const WorldPlayerState& self,
                             const ElizaParameters& parameters,
-                            float possession_ms = 0.0f);
+                            float possession_ms = 0.0f,
+                            const ElizaIntent& intent = {});
 
 // Movement toward the opponent goal while carrying the ball (legacy
 // GetBestDribbleMovement).

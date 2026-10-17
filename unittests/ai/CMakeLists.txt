@@ -10,7 +10,8 @@ add_executable(football_ai_unit_tests
   policy_switch_test.cpp
   tactical_schema_test.cpp
   tactical_coordinate_test.cpp
-  tactical_interpreter_test.cpp)
+  tactical_interpreter_test.cpp
+  tactical_response_test.cpp)
 target_include_directories(football_ai_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_ai_unit_tests
   PRIVATE

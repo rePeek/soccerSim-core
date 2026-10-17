@@ -4,11 +4,14 @@
 #include "eliza_policy.hpp"
 
 #include <algorithm>
+#include <array>
 #include <optional>
 #include <span>
 
 #include "eliza_geometry.hpp"
+#include "eliza_intent.hpp"
 #include "eliza_observation.hpp"
+#include "football/ai/tactical_interpreter.hpp"
 #include "football/foundation/math/scalar.hpp"
 #include "keeper.hpp"
 #include "off_ball.hpp"
@@ -65,12 +68,33 @@ void ElizaPolicy::Update(const WorldState& world,
       Chaser(world, TeamSide::Home, intercept),
       Chaser(world, TeamSide::Away, intercept)};
 
+  // V2 boards are interpreted once per tick into read-only legacy-shaped views
+  // plus a bounded intent. Legacy boards keep their exact historical path.
+  std::array<TacticalBoard, 2> views = {tactics[0], tactics[1]};
+  std::array<ElizaIntent, 2> intents{};
+  if (tactics[0].mode == BoardMode::V2 || tactics[1].mode == BoardMode::V2) {
+    std::array<SlotAssignment, 2> assignments;
+    for (unsigned side = 0; side < 2; ++side)
+      assignments[side] = DefaultSlotAssignment(world, static_cast<TeamSide>(side));
+    const TacticalInterpretation interpretation = TacticalInterpreter::Build(
+        views, world, assignments, InterpretationState::FromWorld(world));
+    for (unsigned side = 0; side < 2; ++side) {
+      if (interpretation.teams[side].has_plan)
+        views[side] = MakeElizaTacticalView(interpretation.teams[side],
+                                            interpretation.players[side], world,
+                                            static_cast<TeamSide>(side));
+      intents[side] = MakeElizaIntent(interpretation.teams[side]);
+    }
+  }
+
   for (const WorldPlayerState& player : world.players) {
     if (!player.active) {
       possession_ticks_.erase(player.id);
       continue;
     }
-    const TacticalBoard& board = tactics[static_cast<unsigned>(player.side)];
+    const unsigned side_index = static_cast<unsigned>(player.side);
+    const TacticalBoard& board = views[side_index];
+    const ElizaIntent& intent = intents[side_index];
     const PlayerDirective* directive = FindDirective(board, player.id);
     PlayerControl control;
     control.player = player.id;
@@ -117,7 +141,7 @@ void ElizaPolicy::Update(const WorldState& world,
       if (decision.save) action = ControlAction::Save;
     } else if (owns_ball || restart_taker) {
       const OnBallDecision decision =
-          DecideOnBall(world, board, player, parameters_, possession_ms);
+          DecideOnBall(world, board, player, parameters_, possession_ms, intent);
       action = decision.action;
       action_target = decision.target_player;
       action_position = decision.target_position;
@@ -131,7 +155,8 @@ void ElizaPolicy::Update(const WorldState& world,
         action = decision.action;
         target = intercept;
       } else {
-        target = CalculateOffBallTarget(world, board, directive, player, parameters_);
+        target = CalculateOffBallTarget(world, board, directive, player, parameters_,
+                                       intent);
         action = DecideTackle(world, player);
         if (action == ControlAction::Tackle) target = world.ball_position;
       }
