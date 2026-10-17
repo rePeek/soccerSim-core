@@ -21,6 +21,11 @@ struct HeuristicAssignment {
   bool cover = false;
   bool marking = false;
   bool rest_defence = false;
+  // Bounded decision tendencies after team, role, individual and transient
+  // mental inputs. Diagnostic only; the policy output stays the control set.
+  float forward_run_bias = 0.5f;
+  float pass_risk = 0.5f;
+  float press_bias = 0.5f;
 };
 
 // The coordinated heuristic Player policy: one shared per-team assignment
@@ -31,11 +36,10 @@ struct HeuristicAssignment {
 // It is a new PlayerPolicyKind and never the default. Legacy boards fall back
 // to the interpreted-from-nothing path: the historical anchors are unavailable,
 // so the policy uses the effective defaults and the observation only.
-class HeuristicPolicy final : public IPlayerPolicy {
+class HeuristicPolicy final : public IPlayerPolicyV2 {
  public:
   void Reset() override;
-  void Update(const WorldState& world,
-              std::span<const TacticalBoard, 2> tactics,
+  void Update(const PlayerAIContext& context,
               PlayerControlSet& output) override;
 
   // Diagnostics: the coordinated assignment computed by the last Update.

@@ -94,9 +94,10 @@ int HeuristicPolicy::PossessionTicks(PlayerId player) const {
   return found == possession_ticks_.end() ? 0 : found->second;
 }
 
-void HeuristicPolicy::Update(const WorldState& world,
-                             std::span<const TacticalBoard, 2> tactics,
+void HeuristicPolicy::Update(const PlayerAIContext& context,
                              PlayerControlSet& output) {
+  const WorldState& world = *context.world;
+  const std::span<const TacticalBoard> tactics = context.tactics;
   output.Clear();
   for (auto& assignment : assignments_) assignment.clear();
 
@@ -211,6 +212,41 @@ void HeuristicPolicy::Update(const WorldState& world,
     raw.coords[0] += world.ball_position.coords[0] * 0.15f;
     raw.coords[1] += world.ball_position.coords[1] * 0.12f;
 
+    // Transient mental effects tilt tendencies. They never change base
+    // abilities, the observed world or the persistent plan.
+    const PlayerMentalEffect mental =
+        context.MentalEffect(side, player.id);
+    if (mental.motivation != 0.0f)
+      raw.coords[0] += attack * 2.0f * mental.motivation;
+    ElizaIntent player_intent = intent;
+    if (mental.motivation != 0.0f || mental.confidence != 0.0f ||
+        mental.focus != 0.0f || mental.composure != 0.0f) {
+      // Neutral weights match the legacy constants, so enabling the intent
+      // here only adds the bounded mental tilt.
+      player_intent.has_plan = true;
+      player_intent.risk_taking =
+          clamp(player_intent.risk_taking + 0.15f * mental.confidence -
+                    0.20f * mental.composure,
+                0.0f, 1.0f);
+      player_intent.tempo =
+          clamp(player_intent.tempo + 0.15f * mental.motivation, 0.0f, 1.0f);
+    }
+    // Bounded decision tendencies: team/role/individual from the interpreter
+    // plus the transient mental tilt. Recorded for diagnostics and used below.
+    float forward_run_bias = eff != nullptr ? eff->forward_run_bias : 0.5f;
+    float pass_risk = eff != nullptr ? eff->pass_risk : 0.5f;
+    float press_bias = eff != nullptr ? eff->press_bias : 0.5f;
+    if (mental.motivation != 0.0f) {
+      forward_run_bias = clamp(forward_run_bias + 0.25f * mental.motivation, 0.0f, 1.0f);
+      press_bias = clamp(press_bias + 0.10f * mental.motivation, 0.0f, 1.0f);
+    }
+    if (mental.confidence != 0.0f)
+      press_bias = clamp(press_bias + 0.10f * mental.confidence, 0.0f, 1.0f);
+    if (mental.focus != 0.0f)
+      press_bias = clamp(press_bias + 0.20f * mental.focus, 0.0f, 1.0f);
+    if (mental.composure != 0.0f)
+      pass_risk = clamp(pass_risk - 0.20f * mental.composure, 0.0f, 1.0f);
+
     bool is_presser = false;
     bool is_cover = false;
     bool is_marking = false;
@@ -284,7 +320,8 @@ void HeuristicPolicy::Update(const WorldState& world,
       if (decision.save) action = ControlAction::Save;
     } else if (owns_ball || restart_taker) {
       const OnBallDecision decision =
-          DecideOnBall(world, board, player, parameters, possession_ms, intent);
+          DecideOnBall(world, board, player, parameters, possession_ms,
+                       player_intent);
       action = decision.action;
       action_target = decision.target_player;
       action_position = decision.target_position;
@@ -327,6 +364,9 @@ void HeuristicPolicy::Update(const WorldState& world,
     assignment.cover = is_cover;
     assignment.marking = is_marking;
     assignment.rest_defence = is_rest;
+    assignment.forward_run_bias = forward_run_bias;
+    assignment.pass_risk = pass_risk;
+    assignment.press_bias = press_bias;
     assignments_[index].push_back(assignment);
   }
 }

@@ -3,6 +3,7 @@
 #include <array>
 #include <catch2/catch_test_macros.hpp>
 #include <cmath>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -104,6 +105,18 @@ std::array<TacticalBoard, 2> MakeBoards(const football::sim::TeamSetup& home,
   return boards;
 }
 
+PlayerControlSet Run(HeuristicPolicy& policy, const WorldState& world,
+                     std::array<TacticalBoard, 2>& boards,
+                     std::span<const football::ai::PlayerMentalEffectEntry> effects = {}) {
+  football::ai::PlayerAIContext context;
+  context.world = &world;
+  context.tactics = boards;
+  context.mental_effects = effects;
+  PlayerControlSet output;
+  policy.Update(context, output);
+  return output;
+}
+
 }  // namespace
 
 TEST_CASE("the heuristic emits a complete legal control set",
@@ -114,7 +127,7 @@ TEST_CASE("the heuristic emits a complete legal control set",
   WorldState world = MakeWorld(home, away, true);
   HeuristicPolicy policy;
   PlayerControlSet output;
-  policy.Update(world, boards, output);
+  output = Run(policy, world, boards);
 
   CHECK(output.controls().size() == 2 * kPlayers);
   for (const auto& control : output.controls()) {
@@ -134,7 +147,7 @@ TEST_CASE("defending assigns exactly one presser and one cover",
   WorldState world = MakeWorld(home, away, false);  // home defends
   HeuristicPolicy policy;
   PlayerControlSet output;
-  policy.Update(world, boards, output);
+  output = Run(policy, world, boards);
 
   int pressers = 0;
   int covers = 0;
@@ -172,7 +185,7 @@ TEST_CASE("attacking keeps a two-man rest defence behind the ball",
   WorldState world = MakeWorld(home, away, true);
   HeuristicPolicy policy;
   PlayerControlSet output;
-  policy.Update(world, boards, output);
+  output = Run(policy, world, boards);
 
   const float attack = 1.0f;  // home attacks +x
   int rest = 0;
@@ -194,11 +207,11 @@ TEST_CASE("the heuristic is deterministic and reset clears memory",
 
   HeuristicPolicy first;
   PlayerControlSet first_output;
-  first.Update(world, boards, first_output);
+  first_output = Run(first, world, boards);
 
   HeuristicPolicy second;
   PlayerControlSet second_output;
-  second.Update(world, boards, second_output);
+  second_output = Run(second, world, boards);
 
   REQUIRE(first_output.controls().size() == second_output.controls().size());
   for (std::size_t i = 0; i < first_output.controls().size(); ++i) {
@@ -227,7 +240,7 @@ TEST_CASE("a high defensive line pushes the block up the pitch",
     boards[0].advanced->out_of_possession.defensive_line = line;
     HeuristicPolicy policy;
     PlayerControlSet output;
-    policy.Update(world, boards, output);
+    output = Run(policy, world, boards);
     float sum = 0.0f;
     int count = 0;
     for (const HeuristicAssignment& assignment :
@@ -240,4 +253,43 @@ TEST_CASE("a high defensive line pushes the block up the pitch",
   };
 
   CHECK(run(0.85f) > run(0.2f));
+}
+
+
+TEST_CASE("transient mental effects tilt decision tendencies",
+          "[ai][tactical][heuristic][mental]") {
+  const auto home = MakeTeam(0);
+  const auto away = MakeTeam(100);
+  auto boards = MakeBoards(home, away);
+  WorldState world = MakeWorld(home, away, true);  // home attacks +x
+
+  auto assigned = [](const HeuristicPolicy& policy, TeamSide side,
+                     football::player::PlayerId id) {
+    for (const HeuristicAssignment& assignment : policy.LastAssignment(side))
+      if (assignment.player == id) return assignment;
+    return HeuristicAssignment{};
+  };
+
+  HeuristicPolicy baseline;
+  Run(baseline, world, boards);
+
+  std::array<football::ai::PlayerMentalEffectEntry, 1> effects{};
+  effects[0].side = TeamSide::Home;
+  effects[0].player = home.players[9].id;
+  effects[0].effect.motivation = 0.30f;
+  effects[0].effect.focus = 0.25f;
+  effects[0].effect.composure = 0.25f;
+
+  const auto observed_before = world.players[20].position;
+  HeuristicPolicy boosted;
+  Run(boosted, world, boards, effects);
+
+  const HeuristicAssignment before = assigned(baseline, TeamSide::Home, home.players[9].id);
+  const HeuristicAssignment after = assigned(boosted, TeamSide::Home, home.players[9].id);
+  CHECK(after.forward_run_bias > before.forward_run_bias);
+  CHECK(after.press_bias > before.press_bias);
+  CHECK(after.pass_risk < before.pass_risk);
+  // The observed world and base state are never mutated by a policy.
+  CHECK(world.players[20].position.coords[0] == observed_before.coords[0]);
+  CHECK(world.players[20].position.coords[1] == observed_before.coords[1]);
 }

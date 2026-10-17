@@ -55,6 +55,10 @@ private:
   // Applies queued commands to boards_ in place; owns no second board.
   CoachRuntime coach_;
   std::unique_ptr<IPlayerPolicy> policy_;
+  // Set instead of policy_ when the selected implementation is the versioned
+  // policy that can see transient mental effects.
+  std::unique_ptr<IPlayerPolicyV2> policy_v2_;
+  std::vector<PlayerMentalEffectEntry> mental_scratch_;
 };
 
 }  // namespace football::ai
