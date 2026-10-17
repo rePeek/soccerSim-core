@@ -33,6 +33,7 @@ AIEngine::AIEngine(const football::sim::TeamSetup& home,
               config.initial_tactics[1]
                   ? *config.initial_tactics[1]
                   : MakeTacticalBoard(away, football::sim::TeamSide::Away, pitch)},
+      coach_(&boards_),
       policy_(MakePlayerPolicy(config.player_policy)) {
   boards_[0].side = football::sim::TeamSide::Home;
   boards_[1].side = football::sim::TeamSide::Away;
@@ -41,7 +42,18 @@ AIEngine::AIEngine(const football::sim::TeamSetup& home,
 AIEngine::~AIEngine() = default;
 
 void AIEngine::Update(const WorldState& world, PlayerControlSet& output) {
+  // Commit queued coach commands first, so this tick's policy reads the new
+  // intent. A command never mutates the boards outside this single point.
+  coach_.ApplyAtTick(world.tick, world);
   policy_->Update(world, boards_, output);
+}
+
+bool AIEngine::SubmitCoachCommand(const CoachCommandEnvelope& envelope) {
+  return coach_.Submit(envelope);
+}
+
+const std::vector<CoachCommandRecord>& AIEngine::CoachLog() const {
+  return coach_.log();
 }
 
 TacticalBoard& AIEngine::tactics(football::sim::TeamSide side) {

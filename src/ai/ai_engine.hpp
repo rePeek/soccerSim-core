@@ -3,8 +3,11 @@
 
 #include <array>
 #include <memory>
+#include <vector>
 
+#include "coach/coach_runtime.hpp"
 #include "football/ai/ai_config.hpp"
+#include "football/ai/coach_command.hpp"
 #include "football/ai/player_policy.hpp"
 #include "football/ai/tactical_board.hpp"
 #include "football/observation/world_state.hpp"
@@ -36,8 +39,15 @@ class AIEngine {
   TacticalBoard& tactics(football::sim::TeamSide side);
   const TacticalBoard& tactics(football::sim::TeamSide side) const;
 
- private:
+  // Queue a typed coach command. It is validated and committed at the top of
+  // the next Update, exactly once per tick, before the policy reads the boards.
+  bool SubmitCoachCommand(const CoachCommandEnvelope& envelope);
+  const std::vector<CoachCommandRecord>& CoachLog() const;
+
+private:
   std::array<TacticalBoard, 2> boards_;
+  // Applies queued commands to boards_ in place; owns no second board.
+  CoachRuntime coach_;
   std::unique_ptr<IPlayerPolicy> policy_;
 };
 

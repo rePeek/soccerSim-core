@@ -10,6 +10,7 @@ target_sources(football_ai_contracts INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_board.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_plan.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_interpreter.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/ai/coach_command.hpp
     ${PROJECT_SOURCE_DIR}/include/football/ai/player_policy.hpp)
 target_compile_features(football_ai_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_ai_contracts INTERFACE
@@ -21,6 +22,9 @@ add_library(football::ai ALIAS football_ai)
 target_sources(football_ai
   PRIVATE
     ai_engine.cpp ai_engine.hpp
+    coach/coach_runtime.cpp coach/coach_runtime.hpp
+    coach/command_executor.cpp coach/command_executor.hpp
+    coach/tool_registry.cpp coach/tool_registry.hpp
     default_ai.cpp
     default_decisions.cpp default_decisions.hpp
     default_policy.cpp default_policy.hpp
