@@ -3144,3 +3144,74 @@ All changed code compiles into `football_sim_domain`; no new target, no
 runtime suite now carries three extra cases (port write, action
 authorization, reachability). A18.4's non-zero entry-frame Smuggle regression
 is unchanged.
+
+## S20: physical directory and header visibility
+
+S20 is a pure move: no namespace, CMake target name, link edge, tick order or
+RNG change. The A17 digest `5bef607ddd567a09` is identical before and after in
+both Debug and Release, and all ten CTest suites pass in both.
+
+### S20.0: public value types move to include/football/
+
+The sim_contracts value types now live in the top-level include tree and
+`football_sim_contracts` exports `${PROJECT_SOURCE_DIR}/include` instead of
+`src/`:
+
+```
+include/football/player/{player_definition,player_control,player_control_set,
+                         player_role,formation_entry}.hpp
+include/football/referee/game_mode.hpp
+include/football/runtime/{formation,match_config,phase,result,simulation_config}.hpp
+include/football/observation/{world_state,snapshot}.hpp
+include/football/event/{event,event_trajectory}.hpp
+```
+
+`football/runtime/formation.hpp` carries only the value types;
+`BuildFormation` moved to the internal `runtime/formation_build.hpp` (declared
+by Runtime, used by `simulation.cpp` and `formation.cpp`).
+`snapshot_history.hpp`, `temporal_graph.hpp`, `player_slots.hpp` and
+`foul_assessment.hpp` are internal-only (each has a single implementation
+consumer), so they stopped being exported instead of moving into include/.
+`simulation.hpp` is now internal too.
+
+### S20.1: module directories out of src/sim/
+
+`src/sim/{player,referee,event,observation}/` became
+`src/{player,referee,event,observation}/`. The internal include root is still
+`src/`, so internal headers are reached as `player/...`, `referee/...`,
+`event/...`, `observation/...`, while the public value types keep their
+`football/...` paths. Each module owns a `CMakeLists.txt` that only declares
+its sources with `target_sources(football_sim_domain PRIVATE ...)`;
+`football_sim_domain`/`football_sim_contracts` are still declared by the
+Runtime layer, and the root adds the module subdirectories after it.
+
+### S20.2: Simulation merges into src/runtime/, src/sim deleted
+
+The composition root, the `Simulation` implementation split and the runtime
+helpers (`clock`, `roster`, `possession`, team state/views) now live together
+in `src/runtime/`. `simulation.hpp` is an internal header: `football_sim_domain`
+no longer exports any header file, and the shared `src/` root is a PRIVATE
+implementation include for the domain target, for libsimcore (`env.cpp`
+includes `runtime/simulation.hpp`) and for the internal test harnesses. The
+repository no longer contains `src/sim/` and no source uses `#include "sim/..."`.
+
+### S20.3: CMake, smoke test and acceptance
+
+- `unittests/public_header/` builds an OBJECT library that includes only
+  `football/env.hpp` and touches the public value types. It links
+  `football::sim_contracts`, `football::ai_contracts` and `football::ball`
+  only, so a public header that reached back into `src/` would fail the build.
+- `unittests/runtime` and `unittests/locomotion` declare the `src/` root
+  explicitly, since it is no longer propagated through `football::sim`.
+
+Structural acceptance:
+
+1. `src/sim/` does not exist and no source contains `#include "sim/..."`.
+2. `include/football/env.hpp` compiles with `-Iinclude` alone (and the smoke
+   OBJECT target builds), so the public contract has no `src/` dependency.
+3. `football::ai` still links only the public Observation/Control contracts;
+   `football::ball` and `football::animation` stay independently buildable.
+
+Behaviour acceptance: Debug 10/10, Release 10/10, Core-only
+(`BUILD_TESTING=OFF`) builds `libsimcore.so` and `football_sim`, and both
+Debug and Release report the unchanged A17 digest `5bef607ddd567a09`.
