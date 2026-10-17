@@ -3258,3 +3258,46 @@ public-header smoke still builds, and Debug and Release keep the A17 digest
 `5bef607ddd567a09`. `src/ai` and `include/football/ai` contain no `runtime/`,
 `player/`, `referee/`, `observation/`, `event/`, `testing/` or `sim/` include,
 so the AI layer still depends only on the public value contracts.
+
+### P21.2-P21.7: Eliza policy, switching and acceptance
+
+- **P21.2 Observation.** `WorldState` gains per-player `role`, `fatigue_inv`,
+  `time_to_ball_ms`, `short_pass_skill` and `workrate`; per-team
+  `has_possession`, `fading_possession_amount` and `time_to_ball_ms`; and
+  `ball_prediction` at 200/350/500/650 ms computed by the runtime Ball model.
+  No `Player*`/`PlayerDefinition`/animation state is copied, and the new
+  observation does not move the tick, RNG or physics (A17 digest unchanged).
+- **P21.3 off-ball.** `src/ai/eliza/` ports the legacy off-the-ball role
+  strategies, the support force field, `GetForceFieldMovement`, the defensive
+  component and `GetDefendPosition` into pure functions over the observation.
+  `ElizaPolicy` dispatches role-shaped movement; only the closest actor closes
+  the ball, so the team keeps its shape.
+- **P21.4 on-ball.** `on_ball.*` ports `GetOnTheBallCommands`,
+  `_GetPassingOdds`, the short/long/high selection, the shoot decision (fixed
+  odds threshold instead of the legacy RNG), `GetBestDribbleMovement`, the
+  loose-ball Trap/Dribble gate and the Sliding gate. Output is a single
+  `ControlAction` + target, still routed through `BuildPlayerCommands`.
+- **P21.5 keeper and tactics.** `keeper.*` ports keeper positioning, rush and
+  save intent; the save stays an intent because `BuildPlayerCommands` still
+  rejects a backpass/out-of-box/retained save. Coach vs Player stays split:
+  `MakeTacticalBoard` is the intent, the AI only interprets it. The positioning
+  offside line is computed AI-side from the observation; the offside decision
+  stays with Rules.
+- **P21.6 frequency and request semantics.** `ElizaPolicy` owns a per-`PlayerId`
+  possession clock (identity-keyed, `Reset()` clears it) that lowers the release
+  threshold like the legacy `longPossessionFactor`. `docs/p21_ai_protocol.md`
+  freezes one `Update` per 100 Hz tick, a complete control set every tick,
+  intents-without-ACK semantics, and the deferred future GNN submission path.
+  The Player's own 20-240 ms decision clock is untouched.
+- **P21.7 switching and acceptance.** `AIConfig::player_policy` selects Default
+  or Eliza through the same `AIEngine`/`WorldState`/`PlayerControlSet`; both are
+  deterministic, Default still matches the public `DefaultAI` baseline, and the
+  two are genuinely different implementations. A runtime case runs the reverse
+  team-processing order safely and deterministically.
+
+Acceptance: Debug and Release are 11/11 CTest, Core-only (`BUILD_TESTING=OFF`)
+builds `libsimcore.so` + `football_sim`, the public-header smoke builds, and
+Debug and Release both keep the A17 digest `5bef607ddd567a09`. `src/ai` and
+`include/football/ai` contain no internal `runtime/`, `player/`, `referee/`,
+`observation/`, `event/`, `testing/` or `sim/` include, so the AI layer still
+depends only on the public value contracts.

@@ -560,6 +560,46 @@ TEST_CASE("Runtime harness: observation carries the policy facts", "[runtime][si
   CHECK(sim.Stop());
 }
 
+TEST_CASE("Runtime harness: reverse team processing runs safely", "[runtime][sim]") {
+  // P21.7: both processing orders must run. The AI reads a normalized
+  // observation, so this pins that the reverse order still advances and
+  // observes a complete, deterministic world.
+  const auto run = []() {
+    Simulation sim;
+    MatchOptions options;
+    options.reverse_team_processing = true;
+    sim.Init(MakeTeam("home", 0), MakeTeam("away", 11), football::pitch::Pitch{},
+             options, football::ball::BallModel{});
+    PlayerControlSet controls;
+    for (int i = 0; i < 60; ++i) sim.Step(controls);
+    const WorldState world = sim.Observe();
+    std::uint64_t digest = 14695981039346656037ull;
+    const auto mix_float = [&digest](float value) {
+      std::uint32_t bits = 0;
+      std::memcpy(&bits, &value, sizeof(bits));
+      digest ^= bits;
+      digest *= 1099511628211ull;
+    };
+    for (const WorldPlayerState& player : world.players) {
+      digest ^= static_cast<std::uint64_t>(player.id);
+      digest *= 1099511628211ull;
+      mix_float(player.position.coords[0]);
+      mix_float(player.position.coords[1]);
+    }
+    mix_float(world.ball_position.coords[0]);
+    mix_float(world.ball_position.coords[1]);
+    const bool complete =
+        world.players.size() == 22 && world.teams[0].time_to_ball_ms > 0 &&
+        world.teams[1].time_to_ball_ms > 0;
+    CHECK(complete);
+    CHECK(sim.Stop());
+    return digest;
+  };
+  const std::uint64_t first = run();
+  const std::uint64_t second = run();
+  CHECK(first == second);
+}
+
 TEST_CASE("Runtime harness: ResetSituation resets team state and actors",
           "[runtime][sim]") {
   Simulation sim;
