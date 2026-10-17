@@ -132,6 +132,8 @@ enum class CoachErrorCode : std::uint8_t {
   InvalidMarkingTarget,
   Unsupported,
   MalformedCommand,
+  NoShoutTargets,
+  ShoutCooldown,
 };
 
 struct CoachCommandEnvelope {

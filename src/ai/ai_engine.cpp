@@ -56,6 +56,20 @@ const std::vector<CoachCommandRecord>& AIEngine::CoachLog() const {
   return coach_.log();
 }
 
+void AIEngine::SetShoutCooldownTicks(std::uint64_t ticks) {
+  coach_.SetShoutCooldownTicks(ticks);
+}
+
+const std::vector<ActiveShout>& AIEngine::ActiveShouts(
+    football::sim::TeamSide side) const {
+  return coach_.ActiveShouts(side);
+}
+
+PlayerMentalEffect AIEngine::PlayerMentalEffectOf(
+    football::sim::TeamSide side, football::player::PlayerId player) const {
+  return coach_.MentalEffect(side, player);
+}
+
 TacticalBoard& AIEngine::tactics(football::sim::TeamSide side) {
   return boards_.at(static_cast<unsigned>(side));
 }

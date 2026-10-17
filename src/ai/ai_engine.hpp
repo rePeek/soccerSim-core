@@ -44,6 +44,12 @@ class AIEngine {
   bool SubmitCoachCommand(const CoachCommandEnvelope& envelope);
   const std::vector<CoachCommandRecord>& CoachLog() const;
 
+  // Shouts are transient and never part of the persistent board.
+  void SetShoutCooldownTicks(std::uint64_t ticks);
+  const std::vector<ActiveShout>& ActiveShouts(football::sim::TeamSide side) const;
+  PlayerMentalEffect PlayerMentalEffectOf(
+      football::sim::TeamSide side, football::player::PlayerId player) const;
+
 private:
   std::array<TacticalBoard, 2> boards_;
   // Applies queued commands to boards_ in place; owns no second board.
