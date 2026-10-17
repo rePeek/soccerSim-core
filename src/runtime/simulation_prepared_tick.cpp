@@ -1,6 +1,6 @@
-#include "sim/simulation.hpp"
+#include "runtime/simulation.hpp"
 #include "player/player.hpp"
-#include "sim/runtime/roster_possession.hpp"
+#include "runtime/roster_possession.hpp"
 #include "observation/mentalimage_sampling.hpp"
 #include <algorithm>
 #include <stdexcept>

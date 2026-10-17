@@ -10,6 +10,8 @@ target_link_libraries(football_locomotion_unit_tests
   PRIVATE
     football::sim
     Catch2::Catch2WithMain)
+# the baseline includes the internal player/ headers from the shared src/ root.
+target_include_directories(football_locomotion_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
 football_configure_target(football_locomotion_unit_tests)
 

@@ -3,7 +3,7 @@
 
 #include "football/pitch/pitch.hpp"
 #include "football/runtime/phase.hpp"
-#include "sim/runtime/team_view.hpp"
+#include "runtime/team_view.hpp"
 #include "observation/pitch_frame.hpp"
 #include "football/foundation/time/tick.hpp"
 

@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "sim/simulation.hpp"
+#include "runtime/simulation.hpp"
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "observation/pitch_frame.hpp"

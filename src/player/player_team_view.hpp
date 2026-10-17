@@ -3,7 +3,7 @@
 
 #include <span>
 
-#include "sim/runtime/team_state.hpp"
+#include "runtime/team_state.hpp"
 
 class Player;
 

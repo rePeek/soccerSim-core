@@ -4,8 +4,8 @@
 #include <optional>
 
 #include "football/runtime/match_config.hpp"
-#include "sim/runtime/roster.hpp"
-#include "sim/runtime/team_state.hpp"
+#include "runtime/roster.hpp"
+#include "runtime/team_state.hpp"
 #include "football/foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }

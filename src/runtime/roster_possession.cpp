@@ -1,11 +1,11 @@
-#include "sim/runtime/roster_possession.hpp"
+#include "runtime/roster_possession.hpp"
 
 #include <cassert>
 
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
 #include "player/roster_query.hpp"
-#include "sim/runtime/team_facts.hpp"
+#include "runtime/team_facts.hpp"
 
 using football::ball::Ball;
 

@@ -4,7 +4,7 @@
 #include <optional>
 
 #include "football/runtime/match_config.hpp"
-#include "sim/runtime/team_state.hpp"
+#include "runtime/team_state.hpp"
 
 class Player;
 

@@ -20,7 +20,7 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
 #include "observation/pitch_frame.hpp"
-#include "sim/runtime/team_view.hpp"
+#include "runtime/team_view.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

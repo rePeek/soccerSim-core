@@ -3,7 +3,7 @@
 
 #include "football/observation/world_state.hpp"
 #include "football/pitch/pitch.hpp"
-#include "sim/runtime/team_view.hpp"
+#include "runtime/team_view.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

@@ -1,7 +1,7 @@
 // Role adaptation and personal-space normalization: a runtime initialisation
 // step over a whole squad, not a single player's behaviour.
 #include "football/runtime/formation.hpp"
-#include "sim/runtime/formation_build.hpp"
+#include "runtime/formation_build.hpp"
 
 #include "football/runtime/match_config.hpp"
 

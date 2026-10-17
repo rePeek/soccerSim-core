@@ -1,4 +1,4 @@
-#include "sim/simulation.hpp"
+#include "runtime/simulation.hpp"
 #include "football/pitch/pitch.hpp"
 
 #include <algorithm>
@@ -18,13 +18,13 @@
 #include "observation/pitch_frame.hpp"
 #include "observation/world_state_builder.hpp"
 #include "player/player_contact.hpp"
-#include "sim/runtime/roster_possession.hpp"
+#include "runtime/roster_possession.hpp"
 #include "referee/goal.hpp"
 #include "referee/period.hpp"
 #include "referee/referee.hpp"
 #include "football/runtime/formation.hpp"
-#include "sim/runtime/formation_build.hpp"
-#include "sim/runtime/possession.hpp"
+#include "runtime/formation_build.hpp"
+#include "runtime/possession.hpp"
 
 #include "football/pitch/pitch.hpp"
 using football::ball::Ball;

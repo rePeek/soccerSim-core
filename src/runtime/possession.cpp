@@ -1,4 +1,4 @@
-#include "sim/runtime/possession.hpp"
+#include "runtime/possession.hpp"
 
 #include <cassert>
 

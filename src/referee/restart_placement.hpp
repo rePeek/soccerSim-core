@@ -7,7 +7,7 @@
 #include "football/runtime/simulation_config.hpp"
 #include "football/foundation/math/rng.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "sim/runtime/team_view.hpp"
+#include "runtime/team_view.hpp"
 namespace football::ball { class Ball; }
 
 class Player;

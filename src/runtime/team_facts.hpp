@@ -4,8 +4,8 @@
 #include <span>
 
 #include "player/player.hpp"
-#include "sim/runtime/roster.hpp"
-#include "sim/runtime/team_state.hpp"
+#include "runtime/roster.hpp"
+#include "runtime/team_state.hpp"
 
 namespace football::sim {
 

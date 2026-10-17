@@ -6,7 +6,7 @@
 #include <bq_log/bq_log.h>
 
 #include "football/ai/default_ai.hpp"
-#include "sim/simulation.hpp"
+#include "runtime/simulation.hpp"
 
 namespace {
 

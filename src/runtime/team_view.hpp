@@ -5,8 +5,8 @@
 #include <span>
 
 #include "football/runtime/match_config.hpp"
-#include "sim/runtime/team_facts.hpp"
-#include "sim/runtime/team_state.hpp"
+#include "runtime/team_facts.hpp"
+#include "runtime/team_state.hpp"
 
 class Player;
 

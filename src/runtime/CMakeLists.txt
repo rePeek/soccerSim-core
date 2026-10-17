@@ -28,24 +28,26 @@ target_link_libraries(football_sim_contracts INTERFACE
 
 
 # The domain target is declared here (the Runtime layer) and collects sources
-# from the sibling module CMakeLists through target_sources(PRIVATE ...).
+# from the sibling module CMakeLists through target_sources(PRIVATE ...). The
+# internal headers are no longer exported: the domain implementation reaches
+# them through the shared src/ root as runtime/..., player/..., etc. That root
+# is PRIVATE, so libsimcore consumers only see include/football/.
 add_library(football_sim_domain STATIC)
 add_library(football::sim ALIAS football_sim_domain)
+target_include_directories(football_sim_domain PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_sources(football_sim_domain PRIVATE
-  simulation.cpp simulation_body_shadow.cpp simulation_active_touch_shadow.cpp
+  simulation.cpp simulation.hpp
+  simulation_body_shadow.cpp simulation_active_touch_shadow.cpp
   simulation_prepared_tick.cpp
   simulation_baked_body.cpp
   simulation_rule_touch.cpp
   touch_evidence_classification.hpp
-  runtime/clock.cpp runtime/clock.hpp runtime/roster.cpp runtime/roster.hpp
-  runtime/formation.cpp runtime/formation_build.hpp
-  runtime/team_state.hpp runtime/team_view.hpp runtime/team_facts.hpp
-  runtime/possession.cpp runtime/possession.hpp
-  runtime/roster_possession.cpp runtime/roster_possession.hpp
-  testing/simulation_access.hpp)
-target_sources(football_sim_domain PUBLIC FILE_SET HEADERS
-  BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES simulation.hpp)
+  clock.cpp clock.hpp roster.cpp roster.hpp
+  formation.cpp formation_build.hpp
+  team_state.hpp team_view.hpp team_facts.hpp
+  possession.cpp possession.hpp
+  roster_possession.cpp roster_possession.hpp
+  ../testing/simulation_access.hpp)
 target_link_libraries(football_sim_domain
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::ball football::pitch BqLog)

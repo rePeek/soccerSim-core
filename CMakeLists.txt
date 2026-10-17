@@ -53,7 +53,7 @@ target_link_libraries(football_pitch INTERFACE football::foundation football::ge
 
 # The Runtime layer declares football_sim_contracts/football_sim_domain; the
 # sibling modules below only contribute their own sources to that target.
-add_subdirectory(src/sim)
+add_subdirectory(src/runtime)
 add_subdirectory(src/player)
 add_subdirectory(src/referee)
 add_subdirectory(src/event)
@@ -72,6 +72,9 @@ target_link_libraries(simcore
   PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim_domain>")
+# env.cpp includes the internal runtime/simulation.hpp; the src/ root is a
+# PRIVATE implementation include, never exported to simcore consumers.
+target_include_directories(simcore PRIVATE ${PROJECT_SOURCE_DIR}/src)
 football_configure_target(simcore)
 
 # Executable-side args/fixtures live under tools/app. app_support/recording stay

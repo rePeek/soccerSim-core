@@ -1,8 +1,8 @@
-#include "sim/simulation.hpp"
+#include "runtime/simulation.hpp"
 #include "player/player.hpp"
 #include "player/player_body_pose_shadow.hpp"
 #include "referee/referee.hpp"
-#include "sim/touch_evidence_classification.hpp"
+#include "runtime/touch_evidence_classification.hpp"
 #include <algorithm>
 namespace {
 football::geometry::ColliderId BodyEpisodeKey(football::geometry::ColliderId id) {
