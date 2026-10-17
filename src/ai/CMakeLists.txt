@@ -22,6 +22,13 @@ target_sources(football_ai
     default_ai.cpp
     default_decisions.cpp default_decisions.hpp
     default_policy.cpp default_policy.hpp
+    eliza/defense.cpp eliza/defense.hpp
+    eliza/eliza_geometry.hpp
+    eliza/eliza_observation.hpp
+    eliza/eliza_parameters.hpp
+    eliza/eliza_policy.cpp eliza/eliza_policy.hpp
+    eliza/off_ball.cpp eliza/off_ball.hpp
+    eliza/support_position.cpp eliza/support_position.hpp
     tactical_board.cpp
   PUBLIC FILE_SET HEADERS
     BASE_DIRS ${PROJECT_SOURCE_DIR}/include

@@ -1,7 +1,9 @@
 # AI protocol acceptance: the frozen IPlayerPolicy contract and the Default
 # equivalence between AIEngine and the public DefaultAI baseline. AIEngine is an
 # internal header, so the target carries the src/ implementation root.
-add_executable(football_ai_unit_tests default_policy_equivalence_test.cpp)
+add_executable(football_ai_unit_tests
+  default_policy_equivalence_test.cpp
+  eliza_off_ball_test.cpp)
 target_include_directories(football_ai_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_ai_unit_tests
   PRIVATE

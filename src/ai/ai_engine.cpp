@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include "default_policy.hpp"
+#include "eliza/eliza_policy.hpp"
 
 namespace football::ai {
 namespace {
@@ -12,10 +13,7 @@ std::unique_ptr<IPlayerPolicy> MakePlayerPolicy(PlayerPolicyKind kind) {
     case PlayerPolicyKind::Default:
       return std::make_unique<DefaultPolicy>();
     case PlayerPolicyKind::Eliza:
-      // The Eliza policy lands in P21.3. Until then selecting it must fail
-      // loudly instead of silently running the Default baseline.
-      throw std::invalid_argument(
-          "PlayerPolicyKind::Eliza is not implemented yet");
+      return std::make_unique<ElizaPolicy>();
   }
   throw std::invalid_argument("unknown PlayerPolicyKind");
 }

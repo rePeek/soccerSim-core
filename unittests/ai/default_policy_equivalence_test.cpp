@@ -191,7 +191,8 @@ TEST_CASE("AIEngine selects the requested player policy", "[ai]") {
 
   football::ai::AIConfig eliza;
   eliza.player_policy = football::ai::PlayerPolicyKind::Eliza;
-  CHECK_THROWS_AS(
-      football::ai::AIEngine(home, away, football::pitch::Pitch{}, eliza),
-      std::invalid_argument);
+  football::ai::AIEngine eliza_engine(home, away, football::pitch::Pitch{}, eliza);
+  PlayerControlSet eliza_output;
+  eliza_engine.Update(MakeWorld(home, away), eliza_output);
+  CHECK(eliza_output.controls().size() == static_cast<std::size_t>(kPlayers) * 2);
 }
