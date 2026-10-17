@@ -5,7 +5,7 @@
 #include <utility>
 #include <bq_log/bq_log.h>
 
-#include "football/ai/default_ai.hpp"
+#include "ai/ai_engine.hpp"
 #include "runtime/simulation.hpp"
 
 namespace {
@@ -47,7 +47,7 @@ void GameEnv::Start() {
   try {
     auto simulation = std::make_unique<Simulation>();
     simulation->Init(home_team_, away_team_, pitch_, match_options_, ball_config_);
-    auto ai = std::make_unique<football::ai::DefaultAI>(
+    auto ai = std::make_unique<football::ai::AIEngine>(
         home_team_, away_team_, pitch_, ai_config_);
     simulation_ = std::move(simulation);
     ai_ = std::move(ai);

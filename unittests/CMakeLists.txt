@@ -7,6 +7,7 @@
 
 add_subdirectory(foundation)
 add_subdirectory(public_header)
+add_subdirectory(ai)
 add_subdirectory(animation)
 add_subdirectory(collision)
 add_subdirectory(pitch)

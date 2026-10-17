@@ -1,17 +1,28 @@
 # Startup values used by the game facade without exposing the concrete policy.
+# The frozen IPlayerPolicy protocol lives here too: it is a value contract over
+# WorldState/TacticalBoard/PlayerControlSet, not a runtime policy.
 add_library(football_ai_contracts INTERFACE)
 add_library(football::ai_contracts ALIAS football_ai_contracts)
 target_sources(football_ai_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
-  FILES ${PROJECT_SOURCE_DIR}/include/football/ai/ai_config.hpp ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_board.hpp)
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/ai/ai_config.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/ai/tactical_board.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/ai/player_policy.hpp)
 target_compile_features(football_ai_contracts INTERFACE cxx_std_23)
-target_link_libraries(football_ai_contracts INTERFACE football::foundation football::pitch)
+target_link_libraries(football_ai_contracts INTERFACE
+  football::foundation football::pitch football::sim_contracts)
 
 # Value policy: no actor/runtime link or input ownership.
 add_library(football_ai STATIC)
 add_library(football::ai ALIAS football_ai)
 target_sources(football_ai
-  PRIVATE default_ai.cpp tactical_board.cpp
+  PRIVATE
+    ai_engine.cpp ai_engine.hpp
+    default_ai.cpp
+    default_decisions.cpp default_decisions.hpp
+    default_policy.cpp default_policy.hpp
+    tactical_board.cpp
   PUBLIC FILE_SET HEADERS
     BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES ${PROJECT_SOURCE_DIR}/include/football/ai/default_ai.hpp)

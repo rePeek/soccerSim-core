@@ -3215,3 +3215,46 @@ Structural acceptance:
 Behaviour acceptance: Debug 10/10, Release 10/10, Core-only
 (`BUILD_TESTING=OFF`) builds `libsimcore.so` and `football_sim`, and both
 Debug and Release report the unchanged A17 digest `5bef607ddd567a09`.
+
+## P21: Player AI protocol freeze and Default adapter
+
+P21 freezes the AI <-> Player protocol and makes the policy replaceable without
+touching Player, Animation or Physics. It does not change the 100 Hz tick.
+
+### P21.0: Eliza audit
+
+`docs/p21_eliza_audit.md` maps the historical `ElizaController`,
+`TeamAIController` and off-the-ball strategies onto the public protocol, with
+the keep-in-AI / keep-in-Player-Runtime / give-to-Rules split, the
+function-level data flow, the already-extracted primitives
+(`kick_targeting`, `reachability`, `perception`, `offside`), the Observation
+gaps and the two known protocol gaps (single action vs ordered candidates, and
+action feedback). Baseline frozen at A17 digest `5bef607ddd567a09`.
+
+### P21.1: IPlayerPolicy, AIEngine, Default adapter
+
+- `include/football/ai/player_policy.hpp` is the frozen protocol:
+  `IPlayerPolicy::Update(const WorldState&, std::span<const TacticalBoard,2>,
+  PlayerControlSet&)` plus `Reset()`, and `PlayerPolicyKind { Default, Eliza }`.
+  The policy reads only public Observation and coach intent; it owns no actors,
+  match state or RNG.
+- `AIConfig` gains `player_policy`, default `PlayerPolicyKind::Default`.
+- `src/ai/ai_engine.{hpp,cpp}` is the AI composition root. It owns the two
+  persistent `TacticalBoard`s (the coach's intent) and the one active
+  `IPlayerPolicy`, and `Update()` calls `policy_->Update(world, boards_, out)`.
+  `Eliza` currently throws until P21.3 instead of silently running Default.
+- The Default decision body moved to the internal `src/ai/default_decisions.*`
+  and is shared by the public `DefaultAI` baseline and the internal
+  `DefaultPolicy` adapter, so the two cannot diverge.
+- `GameEnv` now holds `AIEngine`; the `Observe -> AI Update -> Simulation Step`
+  order is unchanged.
+
+Verification: `unittests/ai` compares `DefaultAI` and `AIEngine(Default)`
+field by field (player, move_direction, desired_speed, look_at, action,
+target_player, target_position, power) over open play, possession, a pending
+restart, a set piece and an initial-tactics override, plus determinism and the
+policy-kind selection. Debug and Release are 11/11 CTest, Core-only builds, the
+public-header smoke still builds, and Debug and Release keep the A17 digest
+`5bef607ddd567a09`. `src/ai` and `include/football/ai` contain no `runtime/`,
+`player/`, `referee/`, `observation/`, `event/`, `testing/` or `sim/` include,
+so the AI layer still depends only on the public value contracts.

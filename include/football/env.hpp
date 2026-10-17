@@ -16,7 +16,7 @@
 #include "football/event/event_trajectory.hpp"
 
 class Simulation;
-namespace football::ai { class DefaultAI; }
+namespace football::ai { class AIEngine; }
 
 // Runs one autonomous match. Rules/results belong to sim; decisions belong to AI.
 // No live control/tactics/request channel on the headless orchestration boundary.
@@ -62,7 +62,7 @@ class GameEnv {
   const MatchOptions match_options_;
   const football::ai::AIConfig ai_config_;
   std::unique_ptr<Simulation> simulation_;
-  std::unique_ptr<football::ai::DefaultAI> ai_;
+  std::unique_ptr<football::ai::AIEngine> ai_;
 };
 
 #endif  // FOOTBALL_ENV_HPP
