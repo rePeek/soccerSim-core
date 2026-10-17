@@ -38,6 +38,7 @@
 #include "sim/runtime/match_config.hpp"
 #include "sim/runtime/possession.hpp"
 #include "sim/runtime/roster_possession.hpp"
+#include "sim/referee/action_authorization.hpp"
 #include "sim/simulation.hpp"
 #include "sim/simulation_config.hpp"
 #include "sim/testing/simulation_access.hpp"
@@ -427,6 +428,70 @@ TEST_CASE("Runtime harness: team designation is a runtime-owned port write",
   CHECK(SimulationAccess::TeamStateOf(sim, 1).designated_player == away_receiver);
   CHECK(SimulationAccess::TeamStateOf(sim, 0).designated_player == home_receiver);
   CHECK(sim.Stop());
+}
+
+TEST_CASE("Rules authorize movement, action and keeper hands separately",
+          "[runtime][sim]") {
+  // P19.2: the rule decision is a pure value function. Movement, discrete
+  // action and keeper hands stay distinct permissions.
+  using football::sim::rules::EvaluateActionAuthorization;
+  using football::sim::rules::PlayerActionAuthorizationInput;
+  const PlayerActionAuthorizationInput base;
+  {
+    const auto auth = EvaluateActionAuthorization(base);
+    CHECK(auth.movement_allowed);
+    CHECK(auth.action_allowed);
+    CHECK_FALSE(auth.goalkeeper_hands_allowed);
+  }
+  // A pending restart keeps movement but forbids the discrete action.
+  {
+    auto input = base;
+    input.restart_active = true;
+    input.restart_scheduled = true;
+    input.restart_phase = RestartPhase::Pending;
+    const auto auth = EvaluateActionAuthorization(input);
+    CHECK(auth.movement_allowed);
+    CHECK_FALSE(auth.action_allowed);
+  }
+  // A non-taker must stand still and may not act; the taker may do both.
+  {
+    auto input = base;
+    input.restart_active = true;
+    input.restart_scheduled = true;
+    input.restart_phase = RestartPhase::Ready;
+    input.is_restart_taker = false;
+    const auto auth = EvaluateActionAuthorization(input);
+    CHECK_FALSE(auth.movement_allowed);
+    CHECK_FALSE(auth.action_allowed);
+    input.is_restart_taker = true;
+    const auto taker = EvaluateActionAuthorization(input);
+    CHECK(taker.movement_allowed);
+    CHECK(taker.action_allowed);
+  }
+  // Keeper hands: only inside the own box, unreleased, not a teammate kick.
+  {
+    auto input = base;
+    input.is_goalkeeper = true;
+    input.half_length = 52.5f;
+    input.dynamic_side = -1;
+    input.predicted_ball_x = -40.0f;
+    input.predicted_ball_y = 5.0f;
+    CHECK(EvaluateActionAuthorization(input).goalkeeper_hands_allowed);
+    input.ball_retained = true;
+    CHECK_FALSE(EvaluateActionAuthorization(input).goalkeeper_hands_allowed);
+    input.ball_retained = false;
+    input.backpass = true;
+    CHECK_FALSE(EvaluateActionAuthorization(input).goalkeeper_hands_allowed);
+    input.backpass = false;
+    input.predicted_ball_x = 40.0f;
+    CHECK_FALSE(EvaluateActionAuthorization(input).goalkeeper_hands_allowed);
+    input.predicted_ball_x = -40.0f;
+    input.predicted_ball_y = 25.0f;
+    CHECK_FALSE(EvaluateActionAuthorization(input).goalkeeper_hands_allowed);
+    input.predicted_ball_y = 5.0f;
+    input.is_goalkeeper = false;
+    CHECK_FALSE(EvaluateActionAuthorization(input).goalkeeper_hands_allowed);
+  }
 }
 
 TEST_CASE("Runtime harness: ResetSituation resets team state and actors",

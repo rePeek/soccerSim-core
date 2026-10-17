@@ -53,6 +53,7 @@ target_sources(football_sim_domain PRIVATE
   referee/goal.cpp referee/goal.hpp
   referee/period.cpp referee/period.hpp
   referee/ball_rules.cpp referee/ball_rules.hpp
+  referee/action_authorization.cpp referee/action_authorization.hpp
   referee/offside.cpp referee/restart_placement.cpp referee/restart_readiness.cpp
   referee/ball_touch_facts.hpp
   referee/referee_state.hpp referee/referee_tick_facts.hpp referee/rule_command_sink.hpp referee/referee_view.hpp

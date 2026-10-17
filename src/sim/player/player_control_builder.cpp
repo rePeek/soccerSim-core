@@ -6,6 +6,7 @@
 #include "football/ball/ball.hpp"
 #include "sim/event/touch_query.hpp"
 #include "sim/referee/referee.hpp"
+#include "sim/referee/action_authorization.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/player/player.hpp"
@@ -47,12 +48,32 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     movement.desiredLookAt = control.look_at->Get2D();
   }
   const auto& restart = inputs.restart;
-  if (restart.active && restart.restart) {
-    if (restart.restart->phase == RestartPhase::Pending) return {movement};
-    if (restart.taker != &player) {
-      movement.desiredVelocityFloat = 0.f;
-      return {movement};
-    }
+  // Rules own restart and keeper-hands legality. Sample the facts here, where
+  // the original checks ran, so the decision sees live match state and never a
+  // tick-start snapshot.
+  football::sim::rules::PlayerActionAuthorizationInput authorization_input;
+  authorization_input.restart_active = restart.active;
+  authorization_input.restart_scheduled = restart.restart.has_value();
+  authorization_input.restart_phase =
+      restart.restart ? restart.restart->phase : RestartPhase::InPlay;
+  authorization_input.is_restart_taker = restart.taker == &player;
+  if (control.action == ControlAction::Save) {
+    const PlayerTeamView& team = inputs.own_team;
+    authorization_input.is_goalkeeper = team.goalie == &player;
+    authorization_input.ball_retained = inputs.retainer != nullptr;
+    authorization_input.backpass = football::sim::rules::IsGoalkeeperBackpass(
+        inputs.touches, team.team_id, team.teammates, &player);
+    const Vector3 ball = inputs.ball.Predict(football::sim::TickSpan{16}).position;
+    authorization_input.predicted_ball_x = ball.coords[0];
+    authorization_input.predicted_ball_y = ball.coords[1];
+    authorization_input.half_length = inputs.pitch.half_length();
+    authorization_input.dynamic_side = player.GetDynamicSide();
+  }
+  const football::sim::rules::PlayerActionAuthorization authorization =
+      football::sim::rules::EvaluateActionAuthorization(authorization_input);
+  if (restart.active && restart.restart && !authorization.action_allowed) {
+    if (!authorization.movement_allowed) movement.desiredVelocityFloat = 0.f;
+    return {movement};
   }
   if (control.action == ControlAction::None) return {movement};
 
@@ -96,17 +117,9 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     }
   }
   if (control.action == ControlAction::Save) {
-    // Hands legality belongs to execution/rules, not a cooperative policy.
-    const PlayerTeamView& team = inputs.own_team;
-    const Vector3 ball = inputs.ball.Predict(football::sim::TickSpan{16}).position;
-    const bool backpass = inputs.touches.last_team == team.team_id &&
-        football::sim::event::LastTouchPlayer(
-            inputs.touches, team.team_id, team.teammates) != &player &&
-        inputs.touches.last_team_by_type[e_TouchType_Intentional_Kicked] == team.team_id;
-    if (team.goalie != &player || inputs.retainer || backpass ||
-        std::fabs(ball.coords[1]) > 20.05f ||
-        ball.coords[0] * -player.GetDynamicSide() > -inputs.pitch.half_length() + 16.4f)
-      return {movement};
+    // Hands legality is a Rules decision; a rejected Save still publishes the
+    // movement intent.
+    if (!authorization.goalkeeper_hands_allowed) return {movement};
     command.useDesiredMovement = false;
     command.useDesiredLookAt = false;
   }
