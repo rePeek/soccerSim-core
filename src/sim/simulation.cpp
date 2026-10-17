@@ -99,6 +99,9 @@ class Simulation::RuleCommands final : public football::sim::rules::RuleCommandS
   void StopSetPiece() override { simulation_.StopSetPiece(); }
   void StartBallInPlay() override { simulation_.StartBallInPlay(); }
   void SetBallRetainer(Player* retainer) override { simulation_.SetBallRetainer(retainer); }
+  void SetDesignatedPlayer(int team_id, Player* receiver) override {
+    simulation_.SetDesignatedPlayer(team_id, receiver);
+  }
   void ResetSituation(const Vector3& position) override { simulation_.ResetSituation(position); }
   void ResetBall(const Vector3& position) override { simulation_.PlaceBallAt(position); }
   void SetPhase(MatchPhase phase) override { simulation_.SetMatchPhase(phase); }

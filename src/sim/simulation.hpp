@@ -217,6 +217,11 @@ class Simulation {
     clock_->EndHalf();
   }
   void SetBallRetainer(Player* retainer) { ball_retainer_ = retainer; }
+  // Team-state write published by an actor through PlayerRuntimeSink. Runtime
+  // owns the storage; the actor never touches TeamMatchState directly.
+  void SetDesignatedPlayer(int team_id, Player* receiver) {
+    team_states_[team_id].designated_player = receiver;
+  }
   void SetGoalScored(bool onOff) {
     if (onOff) clock_->StopBallInPlay();
     else ball_in_goal_ = false;

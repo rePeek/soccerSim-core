@@ -385,8 +385,7 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         }  // else: just stick to original
 
         if (targetPlayer) {
-          tick.own_team.SetDesignatedPlayer(targetPlayer);
-
+          runtime_sink.SetDesignatedPlayer(GetTeamID(), targetPlayer);
         }
         float zcurve = 0.0f;
         Vector3 touchVec = ballDirection * 36 * (ballPower + 0.3f);

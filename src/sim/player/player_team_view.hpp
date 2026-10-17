@@ -17,9 +17,11 @@ struct PlayerTeamView {
   std::span<Player* const> teammates;
   std::span<Player* const> opponents;
   Player* goalie = nullptr;
-  // Live runtime-owned team state. Non-null for a real match; a null slot just
-  // means "no team match facts", never "no team".
-  football::sim::TeamMatchState* state = nullptr;
+  // Live runtime-owned team state, read-only for actors. Non-null for a real
+  // match; a null slot just means "no team match facts", never "no team".
+  // Runtime is the only writer; a player action that changes team state goes
+  // through PlayerRuntimeSink.
+  const football::sim::TeamMatchState* state = nullptr;
 
   bool HasPossession() const {
     return state != nullptr && state->has_possession;
@@ -29,12 +31,6 @@ struct PlayerTeamView {
   }
   Player* DesignatedPlayer() const {
     return state != nullptr ? state->designated_player : nullptr;
-  }
-  // A pass designates its receiver; this is the only team state a player
-  // action writes. Runtime still arbitrates possession at tick boundaries.
-  // Const on the view: the write goes through the borrowed state slot.
-  void SetDesignatedPlayer(Player* player) const {
-    if (state != nullptr) state->designated_player = player;
   }
 };
 

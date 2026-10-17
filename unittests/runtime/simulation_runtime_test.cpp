@@ -392,6 +392,43 @@ TEST_CASE("Runtime harness: restart possession weight publishes immediately",
   CHECK(sim.Stop());
 }
 
+TEST_CASE("Runtime harness: team designation is a runtime-owned port write",
+          "[runtime][sim]") {
+  // P19.1: an actor may designate a receiver, but Runtime owns TeamMatchState.
+  // The write goes through PlayerRuntimeSink; a later actor in the same tick
+  // observes it through its borrowed read-only team view, and the team id is
+  // explicit so an actor cannot write another team's state.
+  Simulation sim;
+  InitMatch(sim);
+  football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
+  football::sim::Roster& away_roster = SimulationAccess::RosterOf(sim, 1);
+  Player* home_actor = home_roster.Players()[0];
+  Player* home_receiver = home_roster.Players()[1];
+  Player* home_witness = home_roster.Players()[2];
+  Player* away_actor = away_roster.Players()[0];
+  Player* away_receiver = away_roster.Players()[1];
+  REQUIRE(home_actor != nullptr);
+  REQUIRE(home_receiver != nullptr);
+  REQUIRE(home_witness != nullptr);
+  REQUIRE(away_actor != nullptr);
+  REQUIRE(away_receiver != nullptr);
+
+  const auto before = SimulationAccess::PlayerTickOf(sim, *home_witness);
+  CHECK(before.own_team.DesignatedPlayer() != home_receiver);
+  SimulationAccess::RuntimeOf(sim).SetDesignatedPlayer(
+      home_actor->GetTeamID(), home_receiver);
+  const auto after = SimulationAccess::PlayerTickOf(sim, *home_witness);
+  CHECK(after.own_team.DesignatedPlayer() == home_receiver);
+  CHECK(SimulationAccess::TeamStateOf(sim, 0).designated_player == home_receiver);
+
+  // The explicit team id keeps the write on the actor's own team.
+  SimulationAccess::RuntimeOf(sim).SetDesignatedPlayer(
+      away_actor->GetTeamID(), away_receiver);
+  CHECK(SimulationAccess::TeamStateOf(sim, 1).designated_player == away_receiver);
+  CHECK(SimulationAccess::TeamStateOf(sim, 0).designated_player == home_receiver);
+  CHECK(sim.Stop());
+}
+
 TEST_CASE("Runtime harness: ResetSituation resets team state and actors",
           "[runtime][sim]") {
   Simulation sim;

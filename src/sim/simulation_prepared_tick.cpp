@@ -35,6 +35,9 @@ struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
                                 football::sim::PlayerRuntimeSink,
                                 football::sim::AcceptedTouchSink {
   bool second_roster = false;
+  // Runtime-owned team state. The port is the only writer, exactly like the
+  // direct view write it replaces; it does not publish team facts.
+  std::array<football::sim::TeamMatchState, 2>* team_states = nullptr;
   std::vector<football::sim::PreparedPlayerTouch> touches;
   std::optional<Player*> release;
   void PrepareTouch(const football::sim::PreparedPlayerTouch& input) override {
@@ -50,6 +53,11 @@ struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
     // Acquisition is committed only if that actor's anchor wins. A release
     // belongs to the currently retained actor and is not an impulse/event.
     if (!value) release = value;
+  }
+  void SetDesignatedPlayer(int team_id, Player* receiver) override {
+    // Preserve the legacy designation time: before the physical touch is
+    // committed. Synchronous and non-publishing, like the view write.
+    if (team_states != nullptr) (*team_states)[team_id].designated_player = receiver;
   }
   void OnAcceptedTouch(const football::sim::event::AcceptedTouch&) override {
     throw std::logic_error("accepted touch published before Ball commit");
@@ -91,6 +99,7 @@ void Simulation::RunPreparedPlayerTick() {
   preparation_ball_->Reset(passive.state);
   CaptureMentalImage(preparation_ball_.get());
   PreparationPorts ports;
+  ports.team_states = &team_states_;
   ports.touches.reserve(snapshot_players_.size() * 2);
   std::vector<std::pair<Player*, float>> prepared;
   prepared.reserve(snapshot_players_.size());
