@@ -28,6 +28,7 @@ target_sources(football_ai
     eliza/eliza_parameters.hpp
     eliza/eliza_policy.cpp eliza/eliza_policy.hpp
     eliza/off_ball.cpp eliza/off_ball.hpp
+    eliza/keeper.cpp eliza/keeper.hpp
     eliza/on_ball.cpp eliza/on_ball.hpp
     eliza/support_position.cpp eliza/support_position.hpp
     tactical_board.cpp

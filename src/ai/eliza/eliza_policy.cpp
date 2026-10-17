@@ -10,6 +10,7 @@
 #include "eliza_geometry.hpp"
 #include "eliza_observation.hpp"
 #include "football/foundation/math/scalar.hpp"
+#include "keeper.hpp"
 #include "off_ball.hpp"
 #include "on_ball.hpp"
 
@@ -90,8 +91,9 @@ void ElizaPolicy::Update(const WorldState& world,
     Vector3 dribble_movement;
 
     if (keeper) {
-      // P21.5 adds rush and save logic; P21.4 keeps the keeper on its anchor.
-      target = CalculateFormationAnchor(world, board, directive, player);
+      const KeeperDecision decision = DecideKeeper(world, player, parameters_);
+      target = decision.target;
+      if (decision.save) action = ControlAction::Save;
     } else if (owns_ball || restart_taker) {
       const OnBallDecision decision = DecideOnBall(world, board, player, parameters_);
       action = decision.action;
