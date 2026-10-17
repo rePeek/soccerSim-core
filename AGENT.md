@@ -3041,3 +3041,106 @@ action path.
   legacy formula bit-for-bit; `trip_match_test` uses a late reference pose to
   trigger the window with pose matching enabled; a runtime case drives a close
   ball into a Trap and asserts entry < contact and a touch fires.
+
+## P19: Player boundary consolidation
+
+P19 tightens the Player boundary without rewriting the Player: the same
+authoritative state (Kinematic/Action/Playback), the same Animation/Motion/
+Ball/Rules algorithms and the same tick order, RNG draws and touch publication.
+Every stage was committed on its own and verified against the A17 digest
+`5bef607ddd567a09`, `A6.3a clip_match=68 clip_mismatch=1 fallback=1`,
+`install 11/11/0`, `authority 42/42/0`, `A7 trip 206/265` and
+`nm pure_ticks=4 touch_selections=4`. Debug and Release both stay 10/10 CTest.
+
+### P19.0: method ownership audit
+
+Audit baseline `c1b1344`, HEAD and worktree re-checked. Each public method was
+matched against its real callers (not its name or its file), and the outcome
+decided visibility:
+
+| method | real callers | visibility after P19.3 |
+| --- | --- | --- |
+| `Process`, `PrepareTick`, `CommitTick` | Simulation / prepared tick | public (Runtime API) |
+| `Play`, `React`, `Phases` accessors | Runtime tests, contact code | public |
+| `Activate`, `Deactivate`, `Exit`, `Mirror`, `ResetPosition`, `OffsetPosition` | Simulation, Referee | public |
+| `SetControl`, `ClearControl`, `SetTeamContext`, `SetFormationEntry` | Simulation | public |
+| `UpdatePossessionStats` | `runtime/roster_possession.cpp` | public |
+| `CommitLocomotion` | runtime harness (direct motion test) | public |
+| `SelectRetainAnim`, `SendOff` | Referee, test access | public |
+| `GetReactionTime_ms`, `GetControlSpeed` | Player touch math, Simulation shadow | public |
+| `GetCurrentAnim` | Simulation snapshot | removed -> `GetCurrentAnimationId` |
+| diagnostics counters | tests | public (explicit diagnostics) |
+| `TrySelectAction`, `SelectBestTouchAnim`, `SelectTouchAction` | Player selection only | **private** |
+| `BuildCrudeSelectionQuery`, `NeedTouch`, `CanCommitMatchedSelection` | selection only | **private** |
+| `InstallSelectedAction`, `CommitSelectedAction`, `BeginSimulationAction` | Player install only | **private** |
+| `BuildTripSelectionCommands`, `ComputeAndCommitActionMotion` | action tick only | **private** |
+| `ComputeMovementSmuggle`, `ApplyFactualSpatialState`, `ApplyGoalkeeperBoundaryClamps` | action tick only | **private** |
+| `StepSimulationAction`, `AdvanceActionTick`, `RequestCommand`, `UpdatePlayback` | Player clock/decisions only | **private** |
+
+The live `PlayerTickContext` references (`play_authorized`, `set_piece_active`,
+`ball_in_play`, `half_underway`) were left as references on purpose: the
+synchronous touch notification can move competition state inside the same
+`Process()` call, so a tick-start snapshot would be wrong.
+
+### P19.1: team state has one writer
+
+`PlayerTeamView` is now a read-only borrow (`const TeamMatchState*`) and its
+`SetDesignatedPlayer()` is gone. `PlayerRuntimeSink` gained
+`SetDesignatedPlayer(int team_id, Player* receiver)`; Player passes through it,
+`Simulation::RuleCommands` and the prepared-tick `PreparationPorts` implement
+it, and Runtime remains the only writer of `team_states_`. The designation
+time is unchanged: still before the physical touch is committed, synchronous
+and not publishing team facts. A runtime case proves same-tick visibility and
+that the explicit team id keeps the write on the actor's own team.
+
+### P19.2: rules authorize, the builder translates
+
+`src/sim/referee/action_authorization.{hpp,cpp}` owns
+`EvaluateActionAuthorization(PlayerActionAuthorizationInput)` (pure) and
+`IsGoalkeeperBackpass`. `BuildPlayerCommands` no longer interprets
+`RestartPhase` or computes keeper-hands legality; it samples the live facts at
+the point the original checks ran and consumes the result. The permissions stay
+separate: a pending restart keeps movement but forbids the action, a non-taker
+must also stand still, and keeper hands are a separate capability. A pure test
+pins each branch. Same command queue contents and order.
+
+### P19.3: the interface is closed
+
+Sixteen internal execution entry points moved to `private` (see P19.0) and
+`GetCurrentAnim()` (which exposed the legacy `Anim` storage) became the
+read-only `GetCurrentAnimationId()` used by the runtime snapshot. No state
+layout, timing or behavior changed.
+
+### P19.4: player reachability is a pure value
+
+`ComputePlayerReachability(PlayerReachabilityInput)` in
+`src/sim/player/reachability.{hpp,cpp}` is a pure value over the actor's
+kinematic state, action state and ball, returning
+`PlayerReachabilityFacts {usual_ms, optimistic_ms, locally_controllable}`.
+`UpdatePossessionStats` consumes it and keeps the cross-team comparison
+Runtime-side; `hasBestPossession`/`hasUniquePossession` stay as compatibility
+projections. `ComputeHasPossession` and the exact-rollout horizon moved with
+it. This is the value a future Player AI can read as an Observation without
+calling `Player::Process`.
+
+### P19.5: compatibility state and diagnostics audit
+
+Read/write inventory of `anim_state_`, `spatial_state_`, `startPos`,
+`nextStartPos`, `previousPosition2D`, `interruptAnim`, `reQueueDelayFrames`:
+every writer is a Player member (reset, install, projection, clock advance,
+smuggle evolution); no Simulation, Rules or contact code writes them, so there
+is no cross-module multi-writer to remove. `player_diagnostics.hpp` now records
+the storage scope of its telemetry: every `int&` counter is process-global
+aggregation, the Player fields are single-owner, and the shadow reports are
+Simulation-owned. Promoting the global counters to a Simulation-scoped census
+is intentionally deferred; it is not needed for correctness today and must not
+change RNG or tick order.
+
+### P19.6: acceptance
+
+All changed code compiles into `football_sim_domain`; no new target, no
+`.a`/`.so` split and no Team domain were added. `ctest --preset debug` and
+`ctest --preset release` are 10/10 with the unchanged A17 digest, and the
+runtime suite now carries three extra cases (port write, action
+authorization, reachability). A18.4's non-zero entry-frame Smuggle regression
+is unchanged.

@@ -6,6 +6,18 @@
 // header only because the Humanoid was the code that incremented them. The
 // Player is now their owner, so they are declared here without depending on a
 // Humanoid type.
+//
+// P19.5 storage scope (audit result; the scope is not changed yet):
+//   - process-global telemetry: every `int&`/`vector&` accessor below is a
+//     file-static single instance in player_diagnostics.cpp. It aggregates all
+//     matches in the process, so a future parallel-match runner must not share
+//     it across simulations; promotion to a Simulation-scoped census is the
+//     remaining step and is deliberately not bundled with P19.
+//   - per-Player state: the Player's own counters and the private
+//     anim_state_/spatial_state_ compatibility projection. Those have no writer
+//     outside the Player, so they are already single-owner.
+//   - per-Simulation diagnostics: the Simulation-owned shadow reports
+//     (body/active-touch/snapshot) live in Simulation, not here.
 #ifndef FOOTBALL_SIM_PLAYER_PLAYER_DIAGNOSTICS_HPP
 #define FOOTBALL_SIM_PLAYER_PLAYER_DIAGNOSTICS_HPP
 
