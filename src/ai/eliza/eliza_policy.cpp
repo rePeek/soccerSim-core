@@ -1,18 +1,21 @@
 // The Eliza policy loop. It dispatches one PlayerControl per active observed
 // player: restart positioning, stand-still gate, keeper anchor, on-ball
-// fallback and off-ball movement. P21.4 replaces the on-ball branch and P21.5
-// the keeper branch; both are deliberately simple and deterministic here.
+// decisions and off-ball movement. P21.5 replaces the keeper branch.
 #include "eliza_policy.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <span>
 
 #include "eliza_geometry.hpp"
 #include "eliza_observation.hpp"
+#include "football/foundation/math/scalar.hpp"
 #include "off_ball.hpp"
+#include "on_ball.hpp"
 
 namespace football::ai {
 namespace {
+using football::math::clamp;
 using football::math::Vector3;
 using football::player::PlayerId;
 using football::sim::TeamSide;
@@ -78,27 +81,52 @@ void ElizaPolicy::Update(const WorldState& world,
 
     const bool owns_ball = player.has_possession || world.ball_retainer == player.id;
     const bool keeper = IsKeeper(player);
-    Vector3 target;
+    ControlAction action = ControlAction::None;
+    std::optional<PlayerId> action_target;
+    std::optional<Vector3> action_position;
+    float action_power = 0.0f;
+    Vector3 target = player.position;
+    bool uses_dribble_movement = false;
+    Vector3 dribble_movement;
+
     if (keeper) {
-      // P21.3 keeps the keeper on its anchor; P21.5 adds rush and save logic.
+      // P21.5 adds rush and save logic; P21.4 keeps the keeper on its anchor.
       target = CalculateFormationAnchor(world, board, directive, player);
     } else if (owns_ball || restart_taker) {
-      // P21.3 movement fallback; P21.4 selects the actual action and target.
-      const float attack =
-          -static_cast<float>(TeamOf(world, player.side).defending_direction);
-      target = Vector3(attack * world.pitch.half_length(), ball.coords[1] * 0.3f, 0.0f);
+      const OnBallDecision decision = DecideOnBall(world, board, player, parameters_);
+      action = decision.action;
+      action_target = decision.target_player;
+      action_position = decision.target_position;
+      action_power = decision.power;
+      dribble_movement = DribbleMovement(world, player, parameters_);
+      uses_dribble_movement = true;
     } else {
       const WorldPlayerState* chaser = chasers[static_cast<unsigned>(player.side)];
-      if (chaser != nullptr && chaser->id == player.id)
+      if (chaser != nullptr && chaser->id == player.id) {
+        const OnBallDecision decision = DecideLooseBall(world, player, parameters_);
+        action = decision.action;
         target = intercept;
-      else
+      } else {
         target = CalculateOffBallTarget(world, board, directive, player, parameters_);
+        action = DecideTackle(world, player);
+        if (action == ControlAction::Tackle) target = world.ball_position;
+      }
     }
 
-    const Vector3 delta = (target - player.position).Get2D();
-    control.move_direction = SafeNormalized(delta, player.facing);
-    control.desired_speed =
-        std::min(player.max_speed, delta.GetLength() * parameters_.distance_to_velocity);
+    if (uses_dribble_movement) {
+      control.move_direction = SafeNormalized(dribble_movement, player.facing);
+      control.desired_speed =
+          clamp(dribble_movement.GetLength(), 0.0f, player.max_speed);
+    } else {
+      const Vector3 delta = (target - player.position).Get2D();
+      control.move_direction = SafeNormalized(delta, player.facing);
+      control.desired_speed =
+          std::min(player.max_speed, delta.GetLength() * parameters_.distance_to_velocity);
+    }
+    control.action = action;
+    control.target_player = action_target;
+    control.target_position = action_position;
+    control.power = action_power;
     if (owns_ball) control.desired_speed = std::min(control.desired_speed, 5.0f);
     if (world.ball_retainer == player.id) control.desired_speed = 0.0f;
     output.Set(player.id, control);
