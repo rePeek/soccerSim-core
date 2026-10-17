@@ -1079,13 +1079,10 @@ void Simulation::CaptureSnapshot() {
     dst.has_possession = player.HasPossession();
     dst.animation_id = -1;
     dst.frame = 0;
-    // Never dereference the missing humanoid of a never-active bench player.
+    // Never read the missing humanoid of a never-active bench player.
     if (dst.active) {
-      const auto* anim = player.GetCurrentAnim();
-      if (anim) {
-        dst.animation_id = anim->animationId;
-        dst.frame = static_cast<std::uint32_t>(player.GetCurrentFrame());
-      }
+      dst.animation_id = player.GetCurrentAnimationId();
+      dst.frame = static_cast<std::uint32_t>(player.GetCurrentFrame());
     }
   }
   snapshot_history_.Record({clock_->ExecutedTicks(), GetTimelineTick(), reset_sequence_},

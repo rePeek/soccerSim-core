@@ -395,7 +395,6 @@ class Player final {
     // come from the Player's authoritative state (installed selection + action
     // cursor); only the base yaw and the blend length are still supplied by the
     // action-execution state.
-    void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
     void UpdatePlaybackFromAuthority(football::sim::Tick now, float base_angle,
                                      int blend_ticks) {
       const AnimationId authority_clip = InstalledAction().clip_id;
@@ -421,30 +420,6 @@ class Player final {
     int AuthorityChecks() const { return authority_checks_; }
     int AuthorityMatches() const { return authority_matches_; }
     int AuthorityMismatches() const { return authority_mismatches_; }
-    // ANIM-1 A6.4 step 4: the Player entry point for touch-animation selection.
-    // `choice` is the per-tick scratch buffer the caller already owns (the
-    // Movement and Sliding fallback paths fill its `positions` without going
-    // through selection); on a successful pick the Player retains it.
-    int SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
-                          std::span<MentalImage> history, const DataSet &sorted_data_set,
-                          bool use_desired_movement, const Vector3 &desired_direction,
-                          float desired_velocity_float, bool use_desired_body_direction,
-                          const Vector3 &desired_body_direction_rel,
-                          football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
-                          bool prefer_pass_and_shot, bool allow_pre_touch_rotation_smuggle,
-                          bool use_continuous_ball_check);
-    // ANIM-1 A6.4 step 9c: the Player-owned touch-selection loop, relocated
-    // from `Humanoid::GetBestCheatableAnimID`. Same candidate order, touch order
-    // and early exit; the compatibility state only supplies spatial facts and the A8.0
-    // reference-motion kernel.
-    int SelectBestTouchAnim(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
-                            std::span<MentalImage> history, const DataSet &sorted_data_set,
-                            bool use_desired_movement, const Vector3 &desired_direction,
-                            float desired_velocity_float, bool use_desired_body_direction,
-                            const Vector3 &desired_body_direction_rel,
-                            football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
-                            bool prefer_pass_and_shot, bool allow_pre_touch_rotation_smuggle,
-                            bool use_continuous_ball_check);
     const football::sim::TouchChoice &TouchSelection() const { return touch_choice_; }
     // ANIM-1 A6.4 step 6: the ReQueue gates are Player-owned pure decisions.
     // They never search candidates, draw RNG or mutate state.
@@ -456,12 +431,6 @@ class Player final {
         const football::sim::CommitSelectionContext &context) const {
       return football::sim::CommitActionSelectionAllowed(context);
     }
-    // ANIM-2 A11.3: the Player-owned commit decision, as a named stage. It
-    // reads only the Player's own action state and the matched selection.
-    bool CanCommitMatchedSelection(
-        int selected_anim_id, const PlayerCommand &command,
-        e_InterruptAnim local_interrupt_anim,
-        const football::sim::TouchChoice &touch_choice) const;
     int TouchSelectionSuccesses() const { return touch_selection_successes_; }
     const PoseFrame& PlaybackPose() const { return playback_state_.final_pose; }
     float PlaybackBaseAngle() const { return playback_state_.final_base_angle; }
@@ -505,73 +474,6 @@ class Player final {
     }
     bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, football::sim::Tick now, bool retaining_ball);
     bool LocomotionIntentRefreshHeldIneligible(football::sim::Tick now, bool retaining_ball) const;
-    // H3d2a: the Player invokes these for completed action selection and ticks.
-    // The executor advances independently; the compatibility state is an oracle only.
-    void BeginSimulationAction();
-    // ANIM-1 A6.3b.3 (first cut): the single install entry. The selector prepares
-    // a `football::sim::SelectedAction`; the Player commits it and runs the shared install
-    // transaction, recording the selection (Player-owned) and cross-checking it
-    // against the definition the executor committed. It never re-selects or
-    // vetoes an interrupt.
-    void InstallSelectedAction(const football::sim::SelectedAction& selection);
-    // then records the scheduled-contact audit. Returns true when committed.
-    bool CommitSelectedAction(int selected_anim_id,
-                              const football::sim::TouchChoice &touch_choice,
-                              const PlayerCommand &command,
-                              const football::sim::PlayerTickContext &tick,
-                              football::sim::Tick now,
-                              std::span<MentalImage> history,
-                              e_InterruptAnim local_interrupt_anim,
-                              bool material_candidate,
-                              // ANIM-2 A13: the matched entry frame (0 = legacy).
-                              int start_frame);
-    // ANIM-1 A6.4 step 9a: the crude candidate constraints, built by the Player.
-    CrudeSelectionQuery BuildCrudeSelectionQuery(
-        const PlayerCommand &command,
-        const football::sim::PlayerTickContext &tick, football::sim::Tick now,
-        MentalImage *current_mental_image);
-    // ANIM-1 A6.4 step 10: the touchdown gate, relocated from the Humanoid.
-    bool NeedTouch(football::sim::Tick now,
-                   const football::sim::PlayerTickContext &tick, int anim_id,
-                   const PlayerCommand &command,
-                   std::span<MentalImage> history);
-    // ANIM-1 A6.4 step 10: the single Player-owned action-selection entry,
-    // used by the action tick instead of a Humanoid selector.
-    bool TrySelectAction(football::sim::Tick now,
-                         const football::sim::PlayerTickContext &tick,
-                         const PlayerCommand &command,
-                         std::span<MentalImage> history,
-                         e_InterruptAnim local_interrupt_anim,
-                         bool prefer_pass_and_shot,
-                         bool allow_pre_touch_rotation_smuggle,
-                         bool use_continuous_ball_check);
-    // ANIM-1 A7 step 2: the Player owns the local trip selection queue. It
-    // builds the trip commands for the requested type and the movement fallback
-    // used when no trip animation applies.
-    void BuildTripSelectionCommands(PlayerCommandQueue &queue,
-                                    const Vector3 &trip_direction, int trip_type,
-                                    float current_velocity_float,
-                                    const Vector3 &direction_vec,
-                                    const Vector3 &position) const;
-    // ANIM-1 A8 step 4: the Player computes and commits the non-procedural
-    // (baked action) motion. The Player only stores the compatibility
-    // spatial projection that this writes.
-    void ComputeAndCommitActionMotion();
-    // ANIM-1 A8 step 5: the movement-smuggle calculation, relocated from the
-    // Humanoid. It reads the installed action and the ball prediction.
-    Vector3 ComputeMovementSmuggle(football::sim::Tick now,
-                                   const football::sim::PlayerTickContext &tick,
-                                   const Vector3 &desired_direction,
-                                   float desired_velocity_float,
-                                   std::span<MentalImage> history);
-    // ANIM-1 A8 step 5: the selection-time factual spatial reset, relocated
-    // from the Humanoid.
-    void ApplyFactualSpatialState();
-    // ANIM-1 A9 step 3: the goalkeeper boundary clamps, relocated from the
-    // Humanoid tick.
-    void ApplyGoalkeeperBoundaryClamps(
-        const football::sim::PlayerTickContext &tick,
-        const Player *ball_retainer);
     const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
     int InstallChecks() const { return install_checks_; }
     int InstallMatches() const { return install_matches_; }
@@ -579,16 +481,10 @@ class Player final {
     int InstallCursorChecks() const { return install_cursor_checks_; }
     int InstallCursorMatches() const { return install_cursor_matches_; }
     int InstallCursorMismatches() const { return install_cursor_mismatches_; }
-    void StepSimulationAction(football::sim::TickSpan elapsed);
-    // ANIM-1 A6.3c.2: the single per-tick action clock advance: step the
-    // authoritative cursor, project it onto the compatibility storage, then
-    // run the oracle so it sees a fully advanced and projected state.
-    void AdvanceActionTick();
     // Validates the authoritative schedule against the compatibility
     // projection. It is intentionally a fatal invariant in all builds.
     void CheckSimulationActionOracle() const;
 
-    void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
     int GetReactionTime_ms();
     float GetControlSpeed();
     void SetControl(const PlayerControl& control) { control_ = control; }
@@ -628,7 +524,9 @@ class Player final {
     // behaviour change, not part of unifying the parameter source.
     PlayerMotionProfile EffectiveMotionProfile() const;
 
-    const Anim *GetCurrentAnim() { return &anim_state_; }
+    // P19.3: the single read-only clip identity for runtime consumers. The
+    // legacy Anim storage is no longer exposed as a mutable pointer.
+    AnimationId GetCurrentAnimationId() const { return anim_state_.animationId; }
     PlayerBakedPoseSample GetBakedPoseSample() const {
       PlayerBakedPoseSample sample = SampleBakedPose(kinematicState, body_profile_);
       // ANIM-1 A5: the Player owns the final pose; SampleBakedPose supplies the
@@ -712,6 +610,80 @@ class Player final {
     float GetStaminaStat() const;
 
   private:
+    // -----------------------------------------------------------------------
+    // P19.3: internal execution entry points. These were public only while the
+    // Humanoid and the callers were being migrated; every remaining caller is a
+    // Player member, so the interface is closed. Runtime drives the Player
+    // through Process/PrepareTick/CommitTick, Play/React, the explicit lifecycle
+    // calls and the observation accessors above.
+    // -----------------------------------------------------------------------
+    void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
+    int SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
+                          std::span<MentalImage> history, const DataSet &sorted_data_set,
+                          bool use_desired_movement, const Vector3 &desired_direction,
+                          float desired_velocity_float, bool use_desired_body_direction,
+                          const Vector3 &desired_body_direction_rel,
+                          football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
+                          bool prefer_pass_and_shot, bool allow_pre_touch_rotation_smuggle,
+                          bool use_continuous_ball_check);
+    int SelectBestTouchAnim(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
+                            std::span<MentalImage> history, const DataSet &sorted_data_set,
+                            bool use_desired_movement, const Vector3 &desired_direction,
+                            float desired_velocity_float, bool use_desired_body_direction,
+                            const Vector3 &desired_body_direction_rel,
+                            football::sim::TouchChoice &choice, e_InterruptAnim local_interrupt_anim,
+                            bool prefer_pass_and_shot, bool allow_pre_touch_rotation_smuggle,
+                            bool use_continuous_ball_check);
+    bool CanCommitMatchedSelection(
+        int selected_anim_id, const PlayerCommand &command,
+        e_InterruptAnim local_interrupt_anim,
+        const football::sim::TouchChoice &touch_choice) const;
+    void BeginSimulationAction();
+    void InstallSelectedAction(const football::sim::SelectedAction& selection);
+    bool CommitSelectedAction(int selected_anim_id,
+                              const football::sim::TouchChoice &touch_choice,
+                              const PlayerCommand &command,
+                              const football::sim::PlayerTickContext &tick,
+                              football::sim::Tick now,
+                              std::span<MentalImage> history,
+                              e_InterruptAnim local_interrupt_anim,
+                              bool material_candidate,
+                              // ANIM-2 A13: the matched entry frame (0 = legacy).
+                              int start_frame);
+    CrudeSelectionQuery BuildCrudeSelectionQuery(
+        const PlayerCommand &command,
+        const football::sim::PlayerTickContext &tick, football::sim::Tick now,
+        MentalImage *current_mental_image);
+    bool NeedTouch(football::sim::Tick now,
+                   const football::sim::PlayerTickContext &tick, int anim_id,
+                   const PlayerCommand &command,
+                   std::span<MentalImage> history);
+    bool TrySelectAction(football::sim::Tick now,
+                         const football::sim::PlayerTickContext &tick,
+                         const PlayerCommand &command,
+                         std::span<MentalImage> history,
+                         e_InterruptAnim local_interrupt_anim,
+                         bool prefer_pass_and_shot,
+                         bool allow_pre_touch_rotation_smuggle,
+                         bool use_continuous_ball_check);
+    void BuildTripSelectionCommands(PlayerCommandQueue &queue,
+                                    const Vector3 &trip_direction, int trip_type,
+                                    float current_velocity_float,
+                                    const Vector3 &direction_vec,
+                                    const Vector3 &position) const;
+    void ComputeAndCommitActionMotion();
+    Vector3 ComputeMovementSmuggle(football::sim::Tick now,
+                                   const football::sim::PlayerTickContext &tick,
+                                   const Vector3 &desired_direction,
+                                   float desired_velocity_float,
+                                   std::span<MentalImage> history);
+    void ApplyFactualSpatialState();
+    void ApplyGoalkeeperBoundaryClamps(
+        const football::sim::PlayerTickContext &tick,
+        const Player *ball_retainer);
+    void StepSimulationAction(football::sim::TickSpan elapsed);
+    void AdvanceActionTick();
+    void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
     void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
     void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history);
     // ANIM-2 A11.5: the pending-input boundary. `React` stages the passive trip
