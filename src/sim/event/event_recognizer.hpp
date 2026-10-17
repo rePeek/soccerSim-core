@@ -4,10 +4,10 @@
 #include <optional>
 #include <vector>
 
-#include "sim/event/event.hpp"
+#include "football/event/event.hpp"
 #include "sim/event/event_transition.hpp"
 #include "sim/event/accepted_touch.hpp"
-#include "sim/event/event_trajectory.hpp"
+#include "football/event/event_trajectory.hpp"
 #include "sim/observation/snapshot_history.hpp"
 
 namespace football::sim::event {

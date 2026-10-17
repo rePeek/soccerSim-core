@@ -3,7 +3,7 @@
 
 #include <array>
 #include "sim/event/touch_type.hpp"
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 
 namespace football::sim::event {
 

@@ -17,8 +17,8 @@
 #include <cmath>
 
 #include "football/foundation/math/scalar.hpp"
-#include "sim/player/player_role.hpp"
-#include "sim/referee/game_mode.hpp"
+#include "football/player/player_role.hpp"
+#include "football/referee/game_mode.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/player/player_motion_constants.hpp"
 

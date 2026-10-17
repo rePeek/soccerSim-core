@@ -3,7 +3,7 @@
 
 #include <optional>
 
-#include "sim/runtime/match_config.hpp"
+#include "football/runtime/match_config.hpp"
 #include "sim/runtime/roster.hpp"
 #include "sim/runtime/team_state.hpp"
 #include "football/foundation/time/tick.hpp"

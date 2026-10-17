@@ -13,15 +13,15 @@
 
 // A player's own formation role and slot position. Owned by the player domain:
 // the player stores its entry; runtime computes the initial values (see
-// sim/runtime/formation.hpp BuildFormation).
+// football/runtime/formation.hpp BuildFormation).
 
 #ifndef FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP
 #define FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP
 
 
 #include "football/foundation/math/vector3.hpp"
-#include "sim/player/player_role.hpp"
-#include "sim/referee/game_mode.hpp"
+#include "football/player/player_role.hpp"
+#include "football/referee/game_mode.hpp"
 
 using namespace football::math;
 

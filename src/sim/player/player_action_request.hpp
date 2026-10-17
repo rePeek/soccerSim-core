@@ -6,7 +6,7 @@
 #include "football/animation/types.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "sim/player/player_action.hpp"
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 
 // ANIM-1.1 / ANIM-2 A11.5/A11.7 — explicit per-player action request / reaction
 // contract.

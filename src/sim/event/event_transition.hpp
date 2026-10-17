@@ -3,7 +3,7 @@
 
 #include <variant>
 
-#include "sim/event/event.hpp"
+#include "football/event/event.hpp"
 
 namespace football::sim::event {
 

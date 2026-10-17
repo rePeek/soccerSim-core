@@ -22,7 +22,8 @@
 #include "sim/referee/goal.hpp"
 #include "sim/referee/period.hpp"
 #include "sim/referee/referee.hpp"
-#include "sim/runtime/formation.hpp"
+#include "football/runtime/formation.hpp"
+#include "sim/runtime/formation_build.hpp"
 #include "sim/runtime/possession.hpp"
 
 #include "football/pitch/pitch.hpp"

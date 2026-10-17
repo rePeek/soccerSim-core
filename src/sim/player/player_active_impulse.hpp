@@ -6,7 +6,7 @@
 #include <span>
 
 #include "football/ball/ball_impulse.hpp"
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 #include "sim/player/player_action.hpp"
 

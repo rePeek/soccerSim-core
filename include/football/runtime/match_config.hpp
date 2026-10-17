@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "sim/runtime/formation.hpp"
-#include "sim/player/player_definition.hpp"
+#include "football/runtime/formation.hpp"
+#include "football/player/player_definition.hpp"
 
 namespace football::sim {
 

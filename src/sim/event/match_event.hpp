@@ -4,12 +4,12 @@
 #include <variant>
 
 #include "football/foundation/time/tick.hpp"
-#include "sim/player/player_role.hpp"
-#include "sim/referee/game_mode.hpp"
-#include "sim/player/player_definition.hpp"
-#include "sim/runtime/match_config.hpp"
-#include "sim/event/event.hpp"
-#include "sim/runtime/phase.hpp"
+#include "football/player/player_role.hpp"
+#include "football/referee/game_mode.hpp"
+#include "football/player/player_definition.hpp"
+#include "football/runtime/match_config.hpp"
+#include "football/event/event.hpp"
+#include "football/runtime/phase.hpp"
 
 namespace football::sim::event {
 

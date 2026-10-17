@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "sim/event/touch_type.hpp"
 
 namespace football::sim::event {

@@ -7,7 +7,7 @@
 #include <optional>
 
 #include "football/ball/ball_contact.hpp"
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "sim/player/player_action.hpp"
 #include "sim/player/player_body_collider_motion.hpp"
 #include "sim/player/player_body_contact_diagnostics.hpp"

@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_APP_FIXTURES_LEGACY_PLAYER_PROFILE_HPP
 #define FOOTBALL_APP_FIXTURES_LEGACY_PLAYER_PROFILE_HPP
 
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 
 namespace football::app::fixtures {
 

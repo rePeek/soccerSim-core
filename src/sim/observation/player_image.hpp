@@ -15,8 +15,8 @@
 #define FOOTBALL_SIM_OBSERVATION_PLAYER_IMAGE_HPP
 
 #include "football/foundation/math/vector3.hpp"
-#include "sim/player/player_role.hpp"
-#include "sim/referee/game_mode.hpp"
+#include "football/player/player_role.hpp"
+#include "football/referee/game_mode.hpp"
 #include "football/animation/types.hpp"
 
 using namespace football::math;

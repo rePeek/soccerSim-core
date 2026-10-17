@@ -24,7 +24,7 @@
 #include <vector>
 
 #include "sim/player/player_command.hpp"
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "sim/player/player_interrupt.hpp"
 
 namespace football::sim { class AcceptedTouchSink; class PlayerRuntimeSink; }

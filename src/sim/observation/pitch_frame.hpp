@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_PITCH_FRAME_HPP
 
 #include "football/foundation/math/vector3.hpp"
-#include "sim/runtime/match_config.hpp"
+#include "football/runtime/match_config.hpp"
 
 
 // Runtime-to-policy rotation around the pitch centre. Position and direction

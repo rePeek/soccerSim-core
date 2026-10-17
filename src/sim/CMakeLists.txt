@@ -1,14 +1,30 @@
 # Exact value-only exports; domain placement does not expose actor runtime to AI.
+# The public value types live in include/football/ so a consumer can include
+# football/env.hpp without the src/ include root. snapshot.hpp pulls
+# animation/types.hpp, so the contract target carries animation_base.
 add_library(football_sim_contracts INTERFACE)
 add_library(football::sim_contracts ALIAS football_sim_contracts)
 target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
-  BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES player/player_control.hpp player/player_control_set.hpp
-    observation/world_state.hpp
-  simulation_config.hpp runtime/phase.hpp runtime/result.hpp)
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_definition.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_control.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_control_set.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/referee/game_mode.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/formation.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/match_config.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/phase.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/result.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/simulation_config.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/observation/world_state.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/observation/snapshot.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/event/event.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/event/event_trajectory.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
-  football::foundation football::pitch)
+  football::foundation football::pitch football::animation_base)
 
 
 # Domain directories organize concepts, not public/private dependency units.
@@ -26,17 +42,15 @@ target_sources(football_sim_domain PRIVATE
   touch_evidence_classification.hpp
   event/touch_state.hpp event/touch_type.hpp
   event/touch_record.hpp
-  event/event.hpp event/event_transition.hpp
+  event/event_transition.hpp
   event/event_recognizer.cpp event/event_recognizer.hpp
-  event/event_trajectory.hpp
   event/accepted_touch.hpp event/accepted_touch_sink.hpp
   referee/ruling.hpp event/match_event.hpp event/event_log.hpp
   event/touch_query.cpp event/touch_query.hpp
   runtime/clock.cpp runtime/clock.hpp runtime/roster.cpp runtime/roster.hpp
-  runtime/formation.cpp player/role_parser.cpp player/role_parser.hpp
+  runtime/formation.cpp runtime/formation_build.hpp player/role_parser.cpp player/role_parser.hpp
   runtime/team_state.hpp runtime/team_view.hpp runtime/team_facts.hpp
   player/player_team_view.cpp player/player_team_view.hpp player/player_send_off_sink.hpp
-  player/formation_entry.hpp
   runtime/possession.cpp runtime/possession.hpp
   runtime/roster_possession.cpp runtime/roster_possession.hpp
   event/touch_type.hpp
@@ -88,9 +102,7 @@ target_sources(football_sim_domain PRIVATE
   player/kick_targeting.hpp)
 target_sources(football_sim_domain PUBLIC FILE_SET HEADERS
   BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/..
-  FILES simulation.hpp observation/snapshot.hpp observation/snapshot_history.hpp
-    observation/temporal_graph.hpp event/event_trajectory.hpp player/foul_assessment.hpp
-    observation/player_slots.hpp)
+  FILES simulation.hpp)
 target_link_libraries(football_sim_domain
   PUBLIC football::sim_contracts
   PRIVATE football::animation football::ball football::pitch BqLog)

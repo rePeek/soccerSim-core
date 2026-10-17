@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_OBSERVATION_WORLD_STATE_BUILDER_HPP
 #define FOOTBALL_SIM_OBSERVATION_WORLD_STATE_BUILDER_HPP
 
-#include "sim/observation/world_state.hpp"
+#include "football/observation/world_state.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/runtime/team_view.hpp"
 

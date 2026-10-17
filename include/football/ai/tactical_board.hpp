@@ -4,8 +4,8 @@
 #include <optional>
 #include <vector>
 
-#include "sim/player/player_definition.hpp"
-#include "sim/runtime/match_config.hpp"
+#include "football/player/player_definition.hpp"
+#include "football/runtime/match_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/foundation/math/vector3.hpp"
 

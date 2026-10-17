@@ -8,12 +8,12 @@
 #include "football/ai/ai_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
-#include "sim/runtime/match_config.hpp"
-#include "sim/simulation_config.hpp"
-#include "sim/runtime/result.hpp"
-#include "sim/observation/world_state.hpp"
-#include "sim/observation/snapshot.hpp"
-#include "sim/event/event_trajectory.hpp"
+#include "football/runtime/match_config.hpp"
+#include "football/runtime/simulation_config.hpp"
+#include "football/runtime/result.hpp"
+#include "football/observation/world_state.hpp"
+#include "football/observation/snapshot.hpp"
+#include "football/event/event_trajectory.hpp"
 
 class Simulation;
 namespace football::ai { class DefaultAI; }

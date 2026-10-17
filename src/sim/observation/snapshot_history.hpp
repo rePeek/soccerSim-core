@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "sim/observation/snapshot.hpp"
+#include "football/observation/snapshot.hpp"
 
 namespace football::sim::observation {
 

@@ -4,7 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 
 namespace football::player {
 

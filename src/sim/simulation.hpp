@@ -9,18 +9,18 @@
 #include <map>
 #include <vector>
 
-#include "sim/player/player_control_set.hpp"
-#include "sim/runtime/match_config.hpp"
+#include "football/player/player_control_set.hpp"
+#include "football/runtime/match_config.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "football/foundation/collision/sweep.hpp"
-#include "sim/simulation_config.hpp"
+#include "football/runtime/simulation_config.hpp"
 #include "football/foundation/math/rng.hpp"
-#include "sim/observation/world_state.hpp"
+#include "football/observation/world_state.hpp"
 #include "sim/observation/mentalimage.hpp"
 #include "sim/observation/snapshot_history.hpp"
 #include "sim/observation/player_slots.hpp"
-#include "sim/runtime/result.hpp"
+#include "football/runtime/result.hpp"
 #include "sim/runtime/roster.hpp"
 #include "sim/runtime/team_facts.hpp"
 #include "sim/runtime/clock.hpp"

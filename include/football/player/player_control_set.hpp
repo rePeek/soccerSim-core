@@ -5,7 +5,7 @@
 #include <vector>
 #include <utility>
 
-#include "sim/player/player_control.hpp"
+#include "football/player/player_control.hpp"
 
 class PlayerControlSet {
  public:

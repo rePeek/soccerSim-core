@@ -3,9 +3,9 @@
 
 #include <vector>
 
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "football/animation/library.hpp"
-#include "sim/observation/snapshot.hpp"
+#include "football/observation/snapshot.hpp"
 
 namespace football::sim::observation {
 

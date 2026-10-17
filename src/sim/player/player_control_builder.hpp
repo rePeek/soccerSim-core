@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_PLAYER_PLAYER_CONTROL_BUILDER_HPP
 #define FOOTBALL_SIM_PLAYER_PLAYER_CONTROL_BUILDER_HPP
 
-#include "sim/player/player_control.hpp"
+#include "football/player/player_control.hpp"
 #include "football/pitch/pitch.hpp"
 #include "sim/player/player_command.hpp"
 #include "sim/player/player_team_view.hpp"

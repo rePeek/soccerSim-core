@@ -6,8 +6,8 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "sim/player/player_role.hpp"
-#include "sim/referee/game_mode.hpp"
+#include "football/player/player_role.hpp"
+#include "football/referee/game_mode.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "sim/referee/restart_readiness.hpp"
 

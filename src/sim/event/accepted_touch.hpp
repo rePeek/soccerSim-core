@@ -3,8 +3,8 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "sim/player/player_definition.hpp"
-#include "sim/runtime/match_config.hpp"
+#include "football/player/player_definition.hpp"
+#include "football/runtime/match_config.hpp"
 #include "sim/event/touch_type.hpp"
 
 namespace football::sim::event {

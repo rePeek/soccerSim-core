@@ -26,7 +26,7 @@
 #include <span>
 #include <stdexcept>
 #include <vector>
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "football/pitch/pitch.hpp"
 // ANIM-1 A9.4: the execution-state, spatial-state, interrupt and diagnostic
 // types used to come in through the Humanoid header. They are Player-owned
@@ -54,9 +54,9 @@
 #include "football/animation/select_movement.hpp"
 #include "sim/player/locomotion_intent_scheduler.hpp"
 #include "sim/player/player_decision_scheduler.hpp"
-#include "sim/player/player_control.hpp"
-#include "sim/player/formation_entry.hpp"
-#include "sim/runtime/match_config.hpp"
+#include "football/player/player_control.hpp"
+#include "football/player/formation_entry.hpp"
+#include "football/runtime/match_config.hpp"
 #include "sim/event/touch_type.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 #include "sim/player/player_tick_context.hpp"

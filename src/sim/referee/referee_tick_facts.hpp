@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_RULES_REFEREE_TICK_FACTS_HPP
 
 #include "football/pitch/pitch.hpp"
-#include "sim/runtime/phase.hpp"
+#include "football/runtime/phase.hpp"
 #include "sim/runtime/team_view.hpp"
 #include "sim/observation/pitch_frame.hpp"
 #include "football/foundation/time/tick.hpp"

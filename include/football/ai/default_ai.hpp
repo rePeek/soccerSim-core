@@ -7,8 +7,8 @@
 
 #include "football/ai/ai_config.hpp"
 #include "football/ai/tactical_board.hpp"
-#include "sim/player/player_control_set.hpp"
-#include "sim/observation/world_state.hpp"
+#include "football/player/player_control_set.hpp"
+#include "football/observation/world_state.hpp"
 
 namespace football::ai {
 

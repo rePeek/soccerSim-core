@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_PLAYER_PLAYER_MOTION_PROFILE_HPP
 #define FOOTBALL_SIM_PLAYER_PLAYER_MOTION_PROFILE_HPP
 
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "sim/player/player_locomotion.hpp"
 #include "sim/player/player_motion_constants.hpp"
 

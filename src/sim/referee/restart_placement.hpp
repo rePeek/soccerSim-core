@@ -1,10 +1,10 @@
 #ifndef FOOTBALL_SIM_RULES_RESTART_PLACEMENT_HPP
 #define FOOTBALL_SIM_RULES_RESTART_PLACEMENT_HPP
 
-#include "sim/player/player_role.hpp"
-#include "sim/referee/game_mode.hpp"
+#include "football/player/player_role.hpp"
+#include "football/referee/game_mode.hpp"
 #include "football/pitch/pitch.hpp"
-#include "sim/simulation_config.hpp"
+#include "football/runtime/simulation_config.hpp"
 #include "football/foundation/math/rng.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "sim/runtime/team_view.hpp"

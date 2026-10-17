@@ -5,7 +5,7 @@
 #include <optional>
 
 #include "football/foundation/math/vector3.hpp"
-#include "sim/event/event.hpp"
+#include "football/event/event.hpp"
 
 namespace football::sim::event {
 

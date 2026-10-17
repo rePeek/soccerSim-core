@@ -3,7 +3,7 @@
 
 #include <optional>
 
-#include "sim/player/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "football/foundation/math/vector3.hpp"
 
 // Football-domain action request. This intentionally does not expose input
