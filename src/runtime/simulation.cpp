@@ -568,8 +568,13 @@ void Simulation::CommitEventTransitions(football::sim::Tick now) {
 }
 
 void Simulation::AdvanceRestart(const football::sim::rules::RefereeView& view) {
+  // Borrowed per-instant Team restart configuration: static orders/presets and
+  // the live slot binding. Null pointers keep the legacy planner path.
+  const football::sim::RestartPlanningTable planning{
+      {&teams_[0].set_piece_orders, &teams_[0].formations, &active_lineups_[0]},
+      {&teams_[1].set_piece_orders, &teams_[1].formations, &active_lineups_[1]}};
   const football::sim::RestartController::TickOutcome outcome =
-      restarts_.Advance(view.tick, options_, rng_, *rule_commands_, event_log_);
+      restarts_.Advance(view.tick, options_, rng_, *rule_commands_, event_log_, planning);
   if (outcome.ceremonial_setup) referee_->OnCeremonialSetup();
   if (outcome.restart_taken) referee_->OnRestartTaken();
 }

@@ -6,6 +6,7 @@
 #include "football/runtime/simulation_config.hpp"
 #include "referee/referee_tick_facts.hpp"
 #include "runtime/restart_context.hpp"
+#include "runtime/restart_planner.hpp"
 
 class Player;
 
@@ -47,7 +48,8 @@ class RestartController {
   TickOutcome Advance(const football::sim::rules::RefereeTickFacts& facts,
                       const MatchOptions& options, football::math::Rng& rng,
                       football::sim::rules::RuleCommandSink& commands,
-                      football::sim::event::EventLog& events);
+                      football::sim::event::EventLog& events,
+                      const RestartPlanningTable& planning);
 
   const RestartContext& context() const { return context_; }
   bool NeedsSimulation() const { return context_.NeedsSimulation(); }
@@ -58,7 +60,8 @@ class RestartController {
  private:
   void ProcessRestart(const football::sim::rules::RefereeTickFacts& facts,
                       const MatchOptions& options, football::math::Rng& rng,
-                      football::sim::rules::RuleCommandSink& commands, TickOutcome& outcome);
+                      football::sim::rules::RuleCommandSink& commands, TickOutcome& outcome,
+                      const RestartPlanningTable& planning);
   void PrepareCeremonialKickOff(const football::sim::rules::RefereeTickFacts& facts,
                                 const MatchOptions& options, football::math::Rng& rng,
                                 football::sim::rules::RuleCommandSink& commands);

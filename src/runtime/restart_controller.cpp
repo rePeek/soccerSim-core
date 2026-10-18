@@ -134,11 +134,12 @@ void RestartController::TickPostRestartGrace() {
 
 RestartController::TickOutcome RestartController::Advance(
     const RefereeTickFacts& facts, const MatchOptions& options, football::math::Rng& rng,
-    RuleCommandSink& commands, football::sim::event::EventLog& events) {
+    RuleCommandSink& commands, football::sim::event::EventLog& events,
+    const RestartPlanningTable& planning) {
   TickOutcome outcome;
   if (facts.phase == MatchPhase::Finished) return outcome;
   if (context_.active && context_.state) {
-    ProcessRestart(facts, options, rng, commands, outcome);
+    ProcessRestart(facts, options, rng, commands, outcome, planning);
     TickPostRestartGrace();
     return outcome;
   }
@@ -198,7 +199,8 @@ void RestartController::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
 
 void RestartController::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& options,
                                        football::math::Rng& rng, RuleCommandSink& commands,
-                                       TickOutcome& outcome) {
+                                       TickOutcome& outcome,
+                                       const RestartPlanningTable& planning) {
   auto& state = *context_.state;
   if (state.phase == RestartPhase::Taken) {
     state.phase = RestartPhase::InPlay;
@@ -218,7 +220,7 @@ void RestartController::ProcessRestart(const RefereeTickFacts& facts, const Matc
     commands.ResetSituation(facts.ball_to_home.Position(context_.position));
     state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
         facts.ball.state().position), ActivePlayers(facts), context_.kind,
-        context_.setpiece_team);
+        context_.setpiece_team, planning);
     for (const auto& actor : state.plan.players) {
       const auto frame = FromHomePitchFrame(actor.player->GetTeamSide(), actor.player->GetDynamicSide());
       actor.player->ResetPosition(actor.player->GetPosition(), frame.Position(state.plan.ball_position));
@@ -229,7 +231,7 @@ void RestartController::ProcessRestart(const RefereeTickFacts& facts, const Matc
   if (!context_.taker || !context_.taker->IsActive()) {
     state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
         facts.ball.state().position), ActivePlayers(facts), context_.kind,
-        context_.setpiece_team);
+        context_.setpiece_team, planning);
     context_.taker = state.plan.taker;
   }
   if (facts.now < state.earliest_restart_tick) return;

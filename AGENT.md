@@ -3427,8 +3427,20 @@ calls no `RuleCommandSink` lifecycle method. Runtime publishes rule-state side
 effects back through `Referee::OnCeremonialSetup()`/`OnRestartTaken()`.
 `PlayerTickContext`, `PlayerCommandInputs` and `WorldStateBuilder` borrow
 `Simulation::restart_context()`; no `RefereeBuffer`/`GetBuffer`/
-`RestartNeedsSimulation`/`GetRestartTarget` remains. Team set-piece orders and
-heuristic set-piece coordination are RFE-4.
+`RestartNeedsSimulation`/`GetRestartTarget` remains.
+
+RFE-4 wires the static Team configuration into the Runtime planner:
+`RestartPlanningTable` feeds borrowed `SetPieceOrders`/`FormationPresets`/
+`ActiveLineupState` into `PlanRestart`. The taker comes from the declared
+order via `football::team::SelectEligibleTaker` over nearest-first active
+candidates (unavailable entries fall through, then candidate order = legacy
+nearest); the awarded side uses an Attacking preset, its opponent a Defending
+preset, with slots bound through `ActiveLineupState`, converted by
+`FormationAnchorToWorld` and legalized by the existing rule pipeline. Presets
+are tactical preferences, never referee-approved placements. Empty config and
+kinds without a preset keep the legacy path; the opening/half-time ceremony is
+unchanged. The heuristic Player AI already consumes `restart_target`, so no AI
+code changed.
 
 RFE-3 adds the derived `PlayState` (`src/runtime/play_state.hpp`) and names the
 `StepImpl` early return as `Simulation::ShouldSkipPlayerSimulation()`: a stopped
@@ -3440,4 +3452,5 @@ path that starts the ball-in-play clock.
 The repaired missing goal-kick branch is an intentional rule behavior change.
 Bounded `[ruling]` tests in `unittests/runtime/referee_ruling_test.cpp` cover
 front/touch/goal boundaries, awards, atomic validation, disciplinary timing,
-Runtime restart ownership and the derived play-state transitions.
+Runtime restart ownership, Team set-piece orders/presets and the derived
+play-state transitions.

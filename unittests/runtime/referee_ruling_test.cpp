@@ -24,6 +24,24 @@ void Init(Simulation& sim) {
   options.snapshot_capacity = 8;
   sim.Init(Team(0), Team(2), football::pitch::Pitch{}, options, football::ball::BallModel{});
 }
+// Three outfield identities so a declared order can differ from the nearest.
+TeamSetup BigTeam(football::player::PlayerId first) {
+  TeamSetup team;
+  for (int i = 0; i < 3; ++i) {
+    football::player::PlayerDefinition player;
+    player.id = first + i;
+    team.players.push_back(player);
+  }
+  team.tactical_formation = {{{-1, 0}, e_PlayerRole_GK},
+                             {{0.3f, 0.2f}, e_PlayerRole_CF},
+                             {{0.7f, -0.2f}, e_PlayerRole_CF}};
+  return team;
+}
+void InitWith(Simulation& sim, const TeamSetup& home, const TeamSetup& away) {
+  MatchOptions options;
+  options.snapshot_capacity = 8;
+  sim.Init(home, away, football::pitch::Pitch{}, options, football::ball::BallModel{});
+}
 // Construct controlled rule facts without running a match to reach open play.
 class OpenReferee final : public Referee {
  public:
@@ -532,4 +550,81 @@ TEST_CASE("Rulings: play state derives from runtime authorization and restart", 
   SimulationAccess::ProcessReferee(sim);
   REQUIRE(SimulationAccess::PlayStateOf(sim) == football::sim::PlayState::Playing);
   REQUIRE_FALSE(SimulationAccess::RestartContextOf(sim).active);
+}
+
+TEST_CASE("Rulings: team free-kick order overrides the nearest taker",
+          "[runtime][ruling][team]") {
+  // The declared order names the goalkeeper, deliberately the farthest actor
+  // from the foul spot.
+  TeamSetup ordered_home = BigTeam(0);
+  ordered_home.set_piece_orders.direct_free_kicks = {0};
+  Simulation ordered;
+  InitWith(ordered, ordered_home, Team(100));
+  auto& ordered_rules = Open(ordered);
+  Assess(ordered, ordered_rules, 1.2f, Vector3(4, 3, 0));
+  SimulationAccess::ProcessReferee(ordered);
+  SimulationAccess::ProcessReferee(ordered);
+  const RestartContext& ordered_restart = SimulationAccess::RestartContextOf(ordered);
+  REQUIRE(ordered_restart.state.has_value());
+  REQUIRE(ordered_restart.kind == e_GameMode_FreeKick);
+  REQUIRE(ordered_restart.state->plan.taker != nullptr);
+  REQUIRE(ordered_restart.state->plan.taker->GetID() == 0);
+
+  // No declared order: the nearest active candidate takes it (legacy ranking).
+  Simulation legacy;
+  InitWith(legacy, BigTeam(0), Team(100));
+  auto& legacy_rules = Open(legacy);
+  Assess(legacy, legacy_rules, 1.2f, Vector3(4, 3, 0));
+  SimulationAccess::ProcessReferee(legacy);
+  SimulationAccess::ProcessReferee(legacy);
+  const RestartContext& legacy_restart = SimulationAccess::RestartContextOf(legacy);
+  REQUIRE(legacy_restart.state->plan.taker != nullptr);
+  REQUIRE(legacy_restart.state->plan.taker->GetID() != 0);
+}
+
+TEST_CASE("Rulings: team formation presets seed both sides' restart targets",
+          "[runtime][ruling][team]") {
+  const football::team::FormationAnchor home_anchor{
+      football::team::AnchorFrame::TeamRelative, 0.9f, 0.0f};
+  // Distinct anchors so the two slot-1 presets cannot collide and force the
+  // deterministic separation search to move one of them.
+  const football::team::FormationAnchor away_anchor{
+      football::team::AnchorFrame::TeamRelative, 0.2f, 0.0f};
+  TeamSetup home = BigTeam(0);
+  home.set_piece_orders.direct_free_kicks = {0};
+  home.formation_presets.presets = {{"fk_attack",
+      football::team::FormationPresetKind::FreeKick,
+      football::team::FormationPresetSide::Attacking,
+      {{1, home_anchor, "runner"}}}};
+  TeamSetup away = Team(100);
+  away.formation_presets.presets = {{"fk_defend",
+      football::team::FormationPresetKind::FreeKick,
+      football::team::FormationPresetSide::Defending,
+      {{1, away_anchor, "wall"}}}};
+  Simulation sim;
+  InitWith(sim, home, away);
+  auto& rules = Open(sim);
+  Assess(sim, rules, 1.2f, Vector3(4, 3, 0));
+  SimulationAccess::ProcessReferee(sim);
+  SimulationAccess::ProcessReferee(sim);
+  const RestartContext& restart = SimulationAccess::RestartContextOf(sim);
+  REQUIRE(restart.state.has_value());
+  const RestartPlan& plan = restart.state->plan;
+
+  const auto target_of = [&](football::player::PlayerId id) {
+    for (const RestartPlayerTarget& target : plan.players) {
+      if (target.player->GetID() == id) return target.position;
+    }
+    return Vector3(-999, -999, -999);
+  };
+  // The home slot 1 identity and the away slot 1 identity follow their presets;
+  // legalization for this free kick leaves both home-frame candidates intact.
+  const football::pitch::Pitch& pitch = SimulationAccess::PitchOf(sim);
+  REQUIRE(target_of(1) == football::team::FormationAnchorToWorld(
+                              home_anchor, pitch, -1, plan.ball_position, false));
+  REQUIRE(target_of(101) == football::team::FormationAnchorToWorld(
+                               away_anchor, pitch, 1, plan.ball_position, false));
+  // The declared taker still owns the ball spot, not a preset position.
+  REQUIRE(plan.taker != nullptr);
+  REQUIRE(plan.taker->GetID() == 0);
 }
