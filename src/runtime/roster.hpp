@@ -1,7 +1,7 @@
-// Roster owns one team's Player entities and their stable order. It is the
-// private storage of the Runtime Team entity (TEAM-5.2); it knows nothing about
-// tactics, possession, collisions or the match clock. Player therefore holds no
-// Team pointer or borrowed definition storage.
+// Roster owns one team's Player entities and their stable order. It is Runtime's
+// private actor container, separate from the static football::team::Team; it
+// knows nothing about tactics, possession, collisions or the match clock.
+// Player holds no Team pointer and borrows no definition storage.
 
 #ifndef FOOTBALL_SIM_RUNTIME_ROSTER_HPP
 #define FOOTBALL_SIM_RUNTIME_ROSTER_HPP

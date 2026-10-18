@@ -5,11 +5,8 @@ class Player;
 
 namespace football::sim {
 
-// Team-level match facts that cannot be derived from any single player. Team
-// owns the storage; Runtime and rules use a single-call borrowed TeamView and
-// may update the few fields their own action legitimately changes (a pass
-// designates its receiver; a restart placement sets the possession weight).
-// This is a value, not a Team entity: no roster, no tactics, no behaviour.
+// Team-level match facts that cannot be derived from any single player. Runtime
+// owns the storage; players and rules read a single-call borrowed TeamView and
 struct TeamMatchState {
   bool has_possession = false;
   int time_to_ball_ms = 100;
@@ -18,7 +15,7 @@ struct TeamMatchState {
   float fading_possession_amount = 0.0f;
 };
 
-// Team owns the only live orientation value; Simulation orchestrates mutations.
+// Runtime owns the only live orientation value; Team owns static templates.
 // The three fields are distinct and must not be merged:
 // - dynamic_side is the direction of the *current execution frame* (mirror
 //   counter) and is what actors read;

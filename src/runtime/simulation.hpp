@@ -11,8 +11,9 @@
 
 #include "football/player/player_control_set.hpp"
 #include "football/runtime/match_config.hpp"
-#include "runtime/team.hpp"
-#include "runtime/team_preparation.hpp"
+#include "football/team/team.hpp"
+#include "football/runtime/active_lineup.hpp"
+#include "runtime/team_setup_adapter.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "football/foundation/collision/sweep.hpp"
@@ -123,16 +124,21 @@ class Simulation {
   void ApplyCardRuling(const football::sim::event::CardRuling& ruling);
   // Roster/formation/possession follow-up when a player leaves the pitch.
   void HandlePlayerSentOff(Player& player);
-  football::sim::Team& TeamOf(int id) const;
-  football::sim::Roster& RosterOf(int id) const { return TeamOf(id).RosterStorage(); }
+  // Static team-domain configuration only. Runtime-owned actors/state are the
+  // separate rosters_/active_lineups_/team_frames_/team_states_ members.
+  const football::team::Team& TeamOf(int id) const;
+  football::sim::Roster& RosterOf(int id) { return rosters_[id]; }
+  football::sim::ActiveLineupState& ActiveLineupOf(int id) {
+    return active_lineups_[id];
+  }
   // Shared by Stop and every initialization failure; handles partial owners.
   void ClearComposition();
-  // Creates and activates one roster's players. Runtime owns the lifecycle; the
-  // Team owns the roster; Simulation preserves the historical schedule-phase
-  // sequence, RNG draw order and starting-eleven activation order.
+  // Creates and activates one roster's players. Simulation owns the lifecycle;
+  // Team remains static configuration and preserves the historical schedule-
+  // phase sequence, RNG draw order and starting-eleven activation order.
   void InitTeamPlayers(int team_id, football::sim::Roster& roster,
-                       football::sim::PreparedTeam& setup, float ai_difficulty,
-                       std::uint8_t first_schedule_phase);
+                       const football::team::Team& team, bool explicit_lineup,
+                       float ai_difficulty, std::uint8_t first_schedule_phase);
   // Borrowed view of one team for rules/observation. Rebuilt on demand from the
   // runtime-owned roster/frame/state; no allocation, nothing retained.
   football::sim::TeamView TeamViewOf(int team_id) const;
@@ -226,7 +232,7 @@ class Simulation {
   // Team-state write published by an actor through PlayerRuntimeSink. Runtime
   // owns the storage; the actor never touches TeamMatchState directly.
   void SetDesignatedPlayer(int team_id, Player* receiver) {
-    TeamOf(team_id).MutableMatchState().designated_player = receiver;
+    team_states_[team_id].designated_player = receiver;
   }
   void SetGoalScored(bool onOff) {
     if (onOff) clock_->StopBallInPlay();
@@ -289,9 +295,14 @@ class Simulation {
   football::ball::BallModel ball_config_;
   std::shared_ptr<AnimationLibrary> animations_;
 
-  // Stable, non-copyable/non-movable match entities; each privately owns Roster.
-  std::array<std::unique_ptr<football::sim::Team>, 2> teams_;
+  // Static team-domain configuration (no Player ownership).
+  std::array<football::team::Team, 2> teams_;
   std::unique_ptr<football::ball::Ball> ball_;
+  // Runtime-owned actor containers and live team relationship state.
+  std::array<football::sim::Roster, 2> rosters_;
+  std::array<football::sim::ActiveLineupState, 2> active_lineups_;
+  mutable std::array<football::sim::TeamFrame, 2> team_frames_;
+  mutable std::array<football::sim::TeamMatchState, 2> team_states_;
   std::unique_ptr<Referee> referee_;
 
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;

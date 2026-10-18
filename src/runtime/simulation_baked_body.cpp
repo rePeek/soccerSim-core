@@ -7,14 +7,14 @@
 
 
 void Simulation::EnableLocomotionAnimationAdaptation(bool enabled) {
-  for (auto& team : teams_) if (team)
-    for (Player* player : team->Players())
+  for (auto& roster : rosters_)
+    for (Player* player : roster.Players())
       if (player != nullptr) player->SetLocomotionAnimationAdaptation(enabled);
 }
 
 void Simulation::EnableMovementPoseBlend(bool enabled) {
-  for (auto& team : teams_) if (team)
-    for (Player* player : team->Players())
+  for (auto& roster : rosters_)
+    for (Player* player : roster.Players())
       if (player != nullptr) player->SetMovementPoseBlend(enabled);
 }
 void Simulation::EnableBakedBodyProduction(bool enabled) {

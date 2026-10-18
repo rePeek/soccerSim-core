@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
-#include "football/runtime/formation_preset.hpp"
+#include "football/team/formation_preset.hpp"
 #include <limits>
 
-using namespace football::sim;
+using namespace football::team;
 using football::math::Vector3;
 
 TEST_CASE("Preset canonical coordinates match tactical u/v, not legacy initial y", "[team][preset]") {
@@ -62,7 +62,7 @@ TEST_CASE("Preset conversion rejects malformed inputs and overflow", "[team][pre
   CHECK_THROWS_AS(FormationAnchorToWorld({AnchorFrame::BallRelative,max,0},pitch,-1,{max,0,0}),std::invalid_argument);
 }
 TEST_CASE("Preset library lookup is optional and separates attacking from defending templates", "[team][preset]") {
-  FormationPresetLibrary library;
+  FormationPresets library;
   CHECK_NOTHROW(ValidateFormationPresets(library));
   CHECK_FALSE(FindFormationPreset(library,"missing"));
   library.presets = {

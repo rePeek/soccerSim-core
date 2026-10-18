@@ -47,7 +47,7 @@ football::sim::TeamSetup MakeTeam(int base_id) {
     definition.last_name = std::to_string(i);
     definition.height = 1.8f;
     team.players.push_back(definition);
-    football::sim::TacticalFormationEntry entry;
+    football::team::TacticalFormationEntry entry;
     entry.position.x = -0.85f + 0.17f * static_cast<float>(i);
     entry.position.y = (i % 2 == 0 ? -0.3f : 0.3f);
     entry.role = kRoles[i];

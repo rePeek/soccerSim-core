@@ -13,7 +13,7 @@
 
 // A player's own formation role and slot position. Owned by the player domain:
 // the player stores its entry; runtime computes the initial values (see
-// football/runtime/formation.hpp BuildFormation).
+// src/runtime/formation.cpp BuildFormation).
 
 #ifndef FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP
 #define FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP

@@ -150,9 +150,9 @@ whether they are exported:
 
 ```text
 src/                (runtime implementation; public values live in include/football/)
-├── runtime/      Simulation, MatchClock/Phase/Result, Roster, formation, possession
-│                 Runtime-private Team owns Player roster, lineup, orientation
-│                 and match state; reusable lineup/role/preset values stay public.
+├── team/         Static Team domain entity, lineup/leadership/orders/presets
+├── runtime/      Simulation, clock/phase/result, Roster, ActiveLineup,
+│                 TeamFrame/TeamMatchState, formation adaptation, possession
 ├── player/       Player, controls, locomotion, contacts, baked body/pose
 ├── event/        EventRecognizer, TouchState and AcceptedTouch
 ├── observation/  WorldState, pitch_frame, MentalImage, Snapshot

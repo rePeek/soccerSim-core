@@ -21,11 +21,8 @@ namespace football::sim::testing {
 // Product execution remains Init/Step/Observe/Finished/Result/Stop.
 class SimulationAccess {
  public:
-  static const Team& TeamOf(const Simulation& simulation, TeamSide side) {
+  static const football::team::Team& TeamOf(const Simulation& simulation, TeamSide side) {
     return simulation.TeamOf(static_cast<int>(side));
-  }
-  static bool HasTeam(const Simulation& simulation, int side) {
-    return simulation.teams_.at(side) != nullptr;
   }
   static PlayerTickContext PlayerTickOf(Simulation& simulation, Player& actor) {
     return simulation.PlayerTickFacts(actor);
@@ -120,10 +117,13 @@ class SimulationAccess {
     return s.RosterOf(team_id);
   }
   static football::sim::TeamFrame& TeamFrameOf(Simulation& s, int team_id) {
-    return s.TeamOf(team_id).MutableFrame();
+    return s.team_frames_[team_id];
   }
   static football::sim::TeamMatchState& TeamStateOf(Simulation& s, int team_id) {
-    return s.TeamOf(team_id).MutableMatchState();
+    return s.team_states_[team_id];
+  }
+  static football::sim::ActiveLineupState& ActiveLineupOf(Simulation& s, int team_id) {
+    return s.active_lineups_[team_id];
   }
   static football::sim::Tick NowOf(Simulation& s) { return s.clock_->now(); }
   static football::sim::TickSpan RegulationTimeOf(Simulation& s) {

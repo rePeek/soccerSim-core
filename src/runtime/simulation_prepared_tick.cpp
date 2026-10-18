@@ -99,7 +99,7 @@ void Simulation::RunPreparedPlayerTick() {
   preparation_ball_->Reset(passive.state);
   CaptureMentalImage(preparation_ball_.get());
   PreparationPorts ports;
-  ports.team_states = {&TeamOf(0).MutableMatchState(), &TeamOf(1).MutableMatchState()};
+  ports.team_states = {&team_states_[0], &team_states_[1]};
   ports.touches.reserve(snapshot_players_.size() * 2);
   std::vector<std::pair<Player*, float>> prepared;
   prepared.reserve(snapshot_players_.size());
@@ -107,10 +107,10 @@ void Simulation::RunPreparedPlayerTick() {
 
 
     football::sim::PrepareTeamPossession(
-        static_cast<football::sim::TeamSide>(id), RosterOf(id), TeamOf(id).Frame(),
-        TeamOf(id).MutableMatchState(), TeamOf(1 - id).MatchState(), play_authorized_,
+        static_cast<football::sim::TeamSide>(id), RosterOf(id), team_frames_[id],
+        team_states_[id], team_states_[1 - id], play_authorized_,
         set_piece_active_, ball_retainer_, best_possession_team_);
-    for (auto* actor : TeamOf(id).Players()) {
+    for (auto* actor : rosters_[id].Players()) {
       if (!actor->IsActive()) continue;
       // Rebind the Ball reference; do not swap the authoritative owner.
       auto base = PlayerTickFacts(*actor);
@@ -129,8 +129,8 @@ void Simulation::RunPreparedPlayerTick() {
       prepared.emplace_back(actor, distance);
       MeasureBodyShadowEndpoint(*actor);
     }
-    football::sim::FinishTeamPossession(RosterOf(id), TeamOf(id).Frame(),
-        TeamOf(id).MutableMatchState(), TeamOf(1 - id).MatchState());
+    football::sim::FinishTeamPossession(RosterOf(id), team_frames_[id],
+        team_states_[id], team_states_[1 - id]);
   };
   Mirror(first_team_ == 1, first_team_ == 0, false);
   prepare_team(first_team_);

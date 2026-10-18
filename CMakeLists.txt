@@ -51,6 +51,9 @@ target_sources(football_pitch INTERFACE FILE_SET HEADERS
 target_compile_features(football_pitch INTERFACE cxx_std_23)
 target_link_libraries(football_pitch INTERFACE football::foundation football::geometry)
 
+# Team is a football-domain module like ball/player/pitch: Runtime composes it.
+add_subdirectory(src/team)
+
 # The Runtime layer declares football_sim_contracts/football_sim_domain; the
 # sibling modules below only contribute their own sources to that target.
 add_subdirectory(src/runtime)

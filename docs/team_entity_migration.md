@@ -215,3 +215,63 @@ the bounded ownership/lifecycle suite (10 cases / 471 assertions) and Team data
 suite (11 cases / 138 assertions), including partial-construction failure and
 repeated Stop/re-Init. No AddressSanitizer, LeakSanitizer or UBSan diagnostic.
 No app/full match, golden tool or physics/rule/AI behavior change was involved.
+
+## TEAM module split (supersedes the Runtime-owned Team entity)
+
+The previous TEAM-5 ownership consolidation is intentionally reversed where it
+confused "Runtime holds a Team" with "Team belongs to Runtime". Team is now a
+football-domain module, alongside ball/player/pitch.
+
+Final boundary:
+- `football::team::Team` (include/football/team, src/team) owns static identity,
+  PlayerDefinitions, Lineup, Leadership, SetPieceOrders, initial/tactical
+  formation declarations, reusable FormationPresets and bootstrap tactics.
+- `Simulation` owns `std::array<team::Team, 2> teams_` plus its own Roster,
+  ActiveLineupState, TeamFrame, TeamMatchState, Ball, Referee and match state.
+- `football::team` links only foundation/pitch; it never depends on Runtime,
+  Referee, AI or concrete Player implementation. Player never depends on Team.
+- Reusable formation presets are Team data. Runtime/AI still own the current
+  restart plan/targets and player controls; no preset moves actors directly.
+
+Migration details:
+- Old public runtime/formation.hpp, team_lineup.hpp, team_roles.hpp and
+  formation_preset.hpp are replaced by include/football/team/{formation,lineup,
+  leadership,set_piece_orders,selection,formation_preset,team}.hpp.
+- ActiveLineupState moved to public runtime/active_lineup.hpp because it is live
+  Runtime match state and is projected by WorldState; it is not Team config.
+- `TeamSetup` remains the transitional external input. Runtime's
+  team_setup_adapter converts it once to team::Team and keeps only the legacy
+  explicit-lineup construction flag for initialization. GameEnv/AI still accept
+  TeamSetup until callers migrate; no second writable Team or definition store is
+  introduced.
+- `BuildFormation` stays in Runtime because it produces Player FormationEntry
+  values over a squad. It consumes team::Team plus the explicit-lineup mode.
+- Formation-order compatibility remains: an implicit TeamSetup lineup retains the
+  old formation/player bound, while an explicit lineup may bind a sparse squad to
+  high formation slots. Team-level validation allows slot declarations up to 11;
+  the adapter enforces the implicit declaration-order bound.
+- Team exposes static orders/presets for a future RestartPlanner. No RestartPlanner
+  exists on this base, so Referee placement, restart progress and Player AI
+  positioning remain untouched.
+
+Validation: Debug CTest 13/13 passed (team_unit is a new leaf target). The
+bounded 22-actor digest remains 5bef607ddd567a09. Release and the bounded
+ASan/UBSan ownership/lifecycle suite are recorded below after this split.
+
+### Validation after the module split
+- Debug: 13/13 CTest passed in 173.56 s (sim_runtime 170.72 s); new leaf
+  `team_unit` passed. Bounded 22-actor digest: 5bef607ddd567a09.
+- Release: 13/13 passed in 39.06 s (sim_runtime 37.32 s); same digest.
+- GCC ASan+UBSan (-O1, leak detection, halt-on-error): team_unit 11 cases /
+  118 assertions; TeamSetup adapter/ActiveLineupState 4 cases / 41 assertions;
+  runtime ownership/lifecycle 10 cases / 477 assertions. No sanitizer diagnostic.
+- Public-header smoke and core targets built in both configurations. The team
+  unit target links only football::team, proving no Runtime dependency.
+- `git diff --check` clean. No app/full-match run, no physics/rule/AI/Animation
+  change and no ball_netting change.
+
+Remaining migration: GameEnv and AIEngine still accept TeamSetup (compatibility
+input), and no RestartPlanner exists on this base. The next step is to switch
+those callers to team::Team, add the Runtime RestartContext/RestartPlanner
+integration, then retire TeamSetup and the adapter. Until then, TeamSetup is
+converted once and never becomes a second live team authority.

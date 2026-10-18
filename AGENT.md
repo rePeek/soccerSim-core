@@ -120,6 +120,10 @@ include/football/    public headers (interfaces), one directory per module
 │                    football::collision
 ├── pitch/           football::pitch: Pitch description plus the ground/posts/
 │                    crossbars colliders and the fixed environment
+├── team/            football::team: static Team identity/personnel, Lineup,
+│                    Leadership, SetPieceOrders, formation templates/presets.
+│                    Owns no Player/Roster, match state, Referee or AI; Runtime
+│                    composes it with actors. Public headers under team/.
 ├── ai/              AIConfig, TacticalBoard (legacy + V2 plan), the pure
 │                    TacticalInterpreter/EffectiveTactics, typed coach
 │                    commands/context/policy, shout values and DefaultAI
@@ -129,8 +133,9 @@ src/                 implementations; public headers live in include/football/
 ├── foundation/      CMakeLists.txt declares football::foundation (math/*.cpp)
 │                    and football::geometry (header-only); collision/ has its
 │                    own CMakeLists for football::collision
-├── ball/            football::ball implementation: *.cpp + private headers
-│                    (ball_netting.hpp; never exported)
+├── team/            football::team implementation: team.cpp validation/selection
+│                    and formation_preset.cpp anchor resolution. Links only
+│                    foundation/pitch, never Runtime/Referee/AI/Player impl.
 ├── ai/              default_ai.cpp, tactical_board.cpp, tactical_plan.cpp,
 │                    tactical_interpreter.cpp, eliza/, player/, coach/
 ├── env.cpp          sole product composition implementation for AI + sim;
@@ -147,18 +152,12 @@ src/                 implementations; public headers live in include/football/
     │                 shadow-only Snapshot touch inference
     ├── referee/      Referee state, facts/views/commands, goal, period, offside, ball-state
     │                 rules and restarts
-    ├── runtime/      MatchClock/MatchPhase/MatchResult, Roster (owns the player
-    │                 entities), TeamFrame/TeamMatchState (the only team
-    │                 orientation and match state), TeamView/team_facts (borrowed
-    │                 view + facts projection), possession (cross-team
-    │                 arbitration) and roster_possession (per-roster aggregation),
-    │                 match_config.hpp (TeamSetup + TeamSide), formation.hpp
-    │                 (InitialFormation/TacticalFormation + BuildFormation).
-    │                 Public team_lineup.hpp, team_roles.hpp and
-    │                 formation_preset.hpp carry slot bindings, appointments and
-    │                 reusable templates; src/runtime/team_validation.cpp owns
-    │                 their pure helpers. The live Team entity and its PreparedTeam
-    │                 initialization values are Runtime-private (TEAM-5.5).
+    ├── runtime/      MatchClock/MatchPhase/MatchResult, Roster (Runtime-owned
+    │                 Player entities), ActiveLineupState/TeamFrame/
+    │                 TeamMatchState (live relationship state), TeamView/team_facts,
+    │                 possession and roster_possession, match_config.hpp
+    │                 (TeamSetup + TeamSide), formation.cpp BuildFormation,
+    │                 team_setup_adapter (transitional TeamSetup -> team::Team).
     ├── testing/      internal SimulationAccess, not exported/product or actor-facing
     └── player/       Player + PlayerDefinition, player_role, FormationEntry, tick-local
         │             inputs, controls, locomotion, contacts, roster_query
@@ -212,16 +211,19 @@ symbols (including the currently unused GetRoleFromString).
 ```text
 app → simcore (env.cpp) → ai + sim
 foundation ← geometry ← collision ← ball ← sim (and later player)
+team → foundation/pitch (static domain; no Runtime/Referee/AI/Player impl)
 ai → ai_contracts + sim_contracts → foundation/pitch/collision
-sim → sim_contracts + animation + ball + pitch → foundation/geometry (PRIVATE BqLog)
+sim → sim_contracts + team + animation + ball + pitch → foundation/geometry (PRIVATE BqLog)
 app_support (args/fixtures) → sim_contracts/foundation
 anim_baking → legacy_anim + animation/foundation
 ```
 
 - `football_sim_contracts` is a header-only build/export target, not a directory
-  or a contract domain. It links foundation/pitch and explicitly exports
+  or a contract domain. It links foundation/pitch/team and explicitly exports
   PlayerControl/PlayerControlSet, WorldState, MatchOptions/MatchPhase/MatchResult
   and the two time headers.
+  `football::team` is the static Team-domain target: public team headers and
+  validation/selection/formation-preset helpers; sim_contracts re-exports it.
   Public values live with their domain; directory placement never exports actors.
   The former gamedefines umbrella is split among player, ball, team, match and
   observation. No compatibility headers or common/types layer remains.
@@ -289,36 +291,37 @@ anim_baking → legacy_anim + animation/foundation
   `sim/` headers and for module-private implementation headers.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   foundation must not depend on upper layers. sim must never depend on AI.
-- sim ownership boundary (TEAM-5.5, frozen): Simulation owns unique_ptr<Team>[2].
-internal non-copyable/non-movable src/runtime/team.hpp entity owns Roster,
-ActiveLineupState, TeamFrame, TeamMatchState and const TeamConfig (no definition
-array). PreparedTeam is Init-local input only; public contracts expose TeamSetup,
-not the live entity. Player owns its model by value (TEAM-5.1), body profile,
-identity, formation, kinematics and behaviour. `src/player/` must
-never reference `Team` or iterate the squad; team-level algorithms live in
-`src/runtime/` (possession, roster_possession, formation, team_facts).
-Possession takes the roster plus the runtime-owned `TeamFrame`/`TeamMatchState`
-directly and identifies a team by `TeamSide`, never by a `Team*`. A per-call
-`PlayerTeamView` (borrowed roster slices + the live `TeamMatchState`) is how a
-player sees its team. Team owns actors, not their scheduling: Simulation owns
-the explicit mirrors/resets/publications. Simulation::TeamViewOf() builds the view
-on demand, and `Simulation::MirrorTeam/SwitchTeamEnds/ResetTeamSituation/
-RelaxTeamFatigue` own the remaining team behaviour. Rules and Observation see
-only `TeamView`.
-- TeamSetup remains external initialization input. Player copies/moves its
-PlayerDefinition into const model_ before deriving body_profile_; it never borrows
-caller/Team definition storage or holds Team*. src/runtime/team_config.hpp and
-team_preparation.hpp are Runtime-private; there is no public Team entity header.
-No Team Tick/Update, physics, rule or current TacticalBoard authority is permitted.
-Team owns ActiveLineupState separately from its immutable initial lineup.
-WorldState projects those bindings read-only; DefaultSlotAssignment preserves
-vacancies and filters inactive actors. Only synthetic observations without slot
-metadata retain the old active-order fallback. Slot replacement is a pure data
-operation; no substitution command, coach mutation or restart integration is added.
-Init failures and Stop share ClearComposition: stop production adapters, Exit
-actors in home/away roster order, clear every match-level actor borrow/index,
-release Referee/adapters, then Team (and Players), then clock. The same route
-handles partial rosters and unpublished Ball. Repeated Stop remains safe.
+- ownership boundary (TEAM module split): `football::team::Team` is a static
+  football-domain value (name, PlayerDefinitions, Lineup, Leadership,
+  SetPieceOrders, formation templates/presets, bootstrap tactics). It does not
+  depend on Runtime/Referee/AI and owns no Player, Roster, match state or
+  controller. `Simulation` composes it with Runtime-owned arrays: `teams_`
+  (static Team configuration), `rosters_` (Player entities), `active_lineups_`
+  (live slot bindings), `team_frames_` and `team_states_`. Runtime also owns Ball,
+  Referee, touch/possession state and RNG; TeamFrame/MatchState/ActiveLineup
+  are not Team members.
+- `Player` owns its immutable `PlayerDefinition` by value, body profile,
+  identity, formation, kinematics and behaviour. It never holds `Team*` and
+  `src/player/` never includes team headers or iterates a squad. `Roster` is
+  Runtime's private actor container; it is not a Team member. Team-level
+  algorithms live in `src/runtime/` (possession, roster_possession, formation,
+  team_facts). Possession identifies a team by `TeamSide`, never by a `Team*`;
+  `PlayerTeamView` carries borrowed roster slices and live `TeamMatchState`.
+- `TeamSetup` remains a transitional external declaration in
+  `football/runtime/match_config.hpp`. `runtime/team_setup_adapter` converts it
+  once to `team::Team`; GameEnv/AI still accept TeamSetup until their callers
+  migrate. Never introduce a second writable Team/definition store. Player
+  copies definitions, so no external definition address is borrowed.
+- `WorldState` projects `active_lineups_` read-only; DefaultSlotAssignment
+  preserves vacancies and filters inactive actors. Only synthetic observations
+  without slot metadata retain active-order fallback. Slot replacement is pure
+  Runtime state; no substitution command, coach mutation or restart
+  integration is added. `team/formation_preset` templates are reusable data,
+  never the live restart plan or player-control output.
+- Init failures and Stop share ClearComposition: stop production adapters,
+  Exit actors in home/away roster order, clear actor borrows/indices, release
+  Referee/adapters, clear Runtime team state, then clear teams and clock. The
+  same route handles partial rosters and unpublished Ball. Repeated Stop is safe.
 
 ### Motion state writers (P2 preflight audit)
 
@@ -426,14 +429,19 @@ harness. There is still no golden/end-to-end tier.
 
 - `football_sim_runtime_tests` (label `runtime`, name `sim_runtime`) is the one
   non-leaf test: it links `football::sim` (never simcore or AI) and builds a real
-  `Simulation` to check composition and lifetime only -- two rosters initialise
-  with live `PlayerDefinition` references, a few ticks advance the timeline,
+  `Simulation` to check composition and lifetime only -- two rosters own Players
+  with copied definitions, static teams stay separate from live state, a few ticks
   `Mirror` twice restores actors/sides/ball, `SwitchEnds` flips both directions
   without touching the between-tick frame, and `Stop` is clean and idempotent.
   It never plays a match and asserts no physics. Baselines (Debug): Init ~0.23 s,
   first Step ~0.77 s, later Steps ~0, Stop ~0.01 s. The CTest `TIMEOUT` is the
   real guard, because bounding the tick count cannot catch a call that never
   returns.
+- `football_team_unit_tests` (`ctest -L unit`, name `team_unit`) links only
+  `football::team` (foundation/pitch, never Runtime/AI/players): static Team
+  validation, Lineup/Leadership/SetPieceOrders invariants, deterministic eligible
+  selection, reusable formation presets and anchor conversion. TeamSetup adapter
+  and ActiveLineupState stay in the bounded runtime harness.
 - `football_foundation_unit_tests` (`ctest -L unit`, name `foundation_unit`) links
   only `football::foundation`: Vector3 length/dot/cross/normalization/rotation,
   quaternion identity/composition/inverse/slerp, scalar clamp/wrap, Tick 100 Hz
@@ -3184,14 +3192,16 @@ The sim_contracts value types now live in the top-level include tree and
 include/football/player/{player_definition,player_control,player_control_set,
                          player_role,formation_entry}.hpp
 include/football/referee/game_mode.hpp
-include/football/runtime/{formation,match_config,phase,result,simulation_config}.hpp
+include/football/team/{team,lineup,leadership,set_piece_orders,selection,
+                       formation,formation_preset}.hpp
+include/football/runtime/{active_lineup,match_config,phase,result,simulation_config}.hpp
 include/football/observation/{world_state,snapshot}.hpp
 include/football/event/{event,event_trajectory}.hpp
 ```
 
-`football/runtime/formation.hpp` carries only the value types;
-`BuildFormation` moved to the internal `runtime/formation_build.hpp` (declared
-by Runtime, used by `simulation.cpp` and `formation.cpp`).
+`football/team/formation.hpp` carries the static formation value types;
+`BuildFormation` stays internal in `runtime/formation_build.hpp` because it
+creates Player FormationEntry values, and consumes `team::Team` configuration.
 `snapshot_history.hpp`, `temporal_graph.hpp`, `player_slots.hpp` and
 `foul_assessment.hpp` are internal-only (each has a single implementation
 consumer), so they stopped being exported instead of moving into include/.

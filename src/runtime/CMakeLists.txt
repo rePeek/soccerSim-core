@@ -13,11 +13,8 @@ target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp
     ${PROJECT_SOURCE_DIR}/include/football/referee/game_mode.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/runtime/formation.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/match_config.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/runtime/team_lineup.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/runtime/team_roles.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/runtime/formation_preset.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/active_lineup.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/phase.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/result.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/simulation_config.hpp
@@ -27,7 +24,7 @@ target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/event/event_trajectory.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
-  football::foundation football::pitch football::animation_base)
+  football::foundation football::pitch football::animation_base football::team)
 
 
 # The domain target is declared here (the Runtime layer) and collects sources
@@ -47,8 +44,8 @@ target_sources(football_sim_domain PRIVATE
   touch_evidence_classification.hpp
   clock.cpp clock.hpp roster.cpp roster.hpp
   formation.cpp formation_build.hpp
-  team_validation.cpp formation_preset.cpp
-  team.cpp team.hpp team_config.hpp team_preparation.hpp
+  team_setup_adapter.cpp team_setup_adapter.hpp
+  active_lineup.cpp
   team_state.hpp team_view.hpp team_facts.hpp
   possession.cpp possession.hpp
   roster_possession.cpp roster_possession.hpp

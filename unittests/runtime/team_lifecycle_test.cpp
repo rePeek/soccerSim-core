@@ -17,8 +17,8 @@ TeamSetup LifecycleSetup(unsigned base) {
 }
 void CheckStopped(Simulation& sim) {
   CHECK_FALSE(SimulationAccess::IsInitializedOf(sim));
-  CHECK_FALSE(SimulationAccess::HasTeam(sim,0));
-  CHECK_FALSE(SimulationAccess::HasTeam(sim,1));
+  CHECK(SimulationAccess::RosterOf(sim,0).Players().empty());
+  CHECK(SimulationAccess::RosterOf(sim,1).Players().empty());
   CHECK_FALSE(SimulationAccess::DesignatedPlayerOf(sim));
   CHECK_FALSE(SimulationAccess::BallRetainerOf(sim));
   CHECK_FALSE(SimulationAccess::LastGoalScorerOf(sim));

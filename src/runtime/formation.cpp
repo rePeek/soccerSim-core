@@ -1,10 +1,8 @@
 // Role adaptation and personal-space normalization: a runtime initialisation
 // step over a whole squad, not a single player's behaviour.
-#include "football/runtime/formation.hpp"
 #include "runtime/formation_build.hpp"
 
-#include "football/runtime/match_config.hpp"
-#include "runtime/team_preparation.hpp"
+#include "football/pitch/pitch.hpp"
 
 namespace {
 
@@ -26,16 +24,11 @@ Vector3 DefaultRolePosition(e_PlayerRole role) {
 
 }  // namespace
 
-namespace {
-struct FormationInput {
-  const football::sim::InitialFormation& formation;
-  const football::sim::TacticalFormation& tactical_formation;
-  const std::vector<football::player::PlayerDefinition>& players;
-  std::size_t slot_count = 0;
-};
-std::vector<FormationEntry> BuildFormationImpl(const FormationInput& team) {
-  const std::size_t count = team.slot_count ? team.slot_count :
-      !team.formation.empty() ? team.formation.size()
+std::vector<FormationEntry> BuildFormation(const football::team::Team& team,
+                                           bool explicit_lineup) {
+  const std::size_t count = explicit_lineup
+      ? football::team::kFormationSlots
+      : !team.initial_formation.empty() ? team.initial_formation.size()
       : !team.tactical_formation.empty() ? team.tactical_formation.size()
       : team.players.size();
   std::vector<FormationEntry> formation(count);
@@ -45,8 +38,9 @@ std::vector<FormationEntry> BuildFormationImpl(const FormationInput& team) {
       formation[i].role = entry.role;
       formation[i].position = Vector3(entry.position.x, entry.position.y, 0) * 0.6f +
                              DefaultRolePosition(entry.role) * 0.4f;
-    } else if (team.tactical_formation.empty() && i < team.formation.size()) {
-      const auto& entry = team.formation[i];
+    } else if (team.tactical_formation.empty() &&
+               i < team.initial_formation.size()) {
+      const auto& entry = team.initial_formation[i];
       formation[i].role = entry.role;
       formation[i].position = Vector3(entry.position.x,
                                       entry.position.y * FORMATION_Y_SCALE, 0) * 0.6f +
@@ -87,10 +81,10 @@ std::vector<FormationEntry> BuildFormationImpl(const FormationInput& team) {
     ++iterations;
   }
   for (std::size_t i = 0; i < count; ++i) {
-    if (i >= team.formation.size()) {
+    if (team.initial_formation.empty()) {
       formation[i].start_position = formation[i].position;
-    } else {
-      const auto& entry = team.formation[i];
+    } else if (i < team.initial_formation.size()) {
+      const auto& entry = team.initial_formation[i];
       formation[i].start_position = Vector3(entry.position.x,
                                            entry.position.y * FORMATION_Y_SCALE, 0);
       formation[i].lazy = entry.lazy;
@@ -99,14 +93,4 @@ std::vector<FormationEntry> BuildFormationImpl(const FormationInput& team) {
     }
   }
   return formation;
-}
-}  // namespace
-
-std::vector<FormationEntry> BuildFormation(const football::sim::TeamSetup& team) {
-  if (team.lineup) return BuildFormation(football::sim::PrepareTeam(team));
-  return BuildFormationImpl({team.formation, team.tactical_formation, team.players});
-}
-std::vector<FormationEntry> BuildFormation(const football::sim::PreparedTeam& team) {
-  return BuildFormationImpl({team.initial_formation, team.tactical_formation, team.players,
-      team.explicit_lineup ? football::sim::kFormationSlots : 0});
 }
