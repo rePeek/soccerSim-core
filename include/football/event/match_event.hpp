@@ -1,6 +1,7 @@
 #ifndef FOOTBALL_SIM_EVENT_MATCH_EVENT_HPP
 #define FOOTBALL_SIM_EVENT_MATCH_EVENT_HPP
 
+#include <cstdint>
 #include <variant>
 
 #include "football/foundation/time/tick.hpp"
@@ -61,6 +62,22 @@ struct PeriodEndedEvent {
 
 using MatchEvent = std::variant<GoalScoredEvent, CardShownEvent, RestartAwardedEvent,
     PeriodEndedEvent, PassCompletedEvent, ShotEndedEvent>;
+
+// One confirmed event with its monotonic, match-scoped sequence number. The
+// sequence is assigned by Runtime at publication and never reused.
+struct MatchEventRecord {
+  std::uint64_t sequence = 0;
+  MatchEvent event;
+};
+
+// Incremental read cursor for MatchEvents. `generation` identifies one match
+// instance, so a cursor from an earlier match is rebased to the first event of
+// the new match instead of misreading it. `next_sequence` is the last sequence
+// the consumer has observed; 0 means "nothing consumed yet".
+struct MatchEventCursor {
+  std::uint64_t generation = 0;
+  std::uint64_t next_sequence = 0;
+};
 
 }  // namespace football::sim::event
 

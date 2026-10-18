@@ -97,7 +97,12 @@ class SimulationAccess {
   static event::RulingSink& RulingsOf(Simulation& s) { return *s.ruling_sink_; }
   static void CommitRulings(Simulation& s) { s.CommitPendingRulings(); }
   static void ProcessReferee(Simulation& s) { s.ProcessReferee(); }
-  static const auto& MatchEventsOf(const Simulation& s) { return s.event_log_.events(); }
+  // Persistent, sequence-carrying records. Borrowed for the caller's scope;
+  // access the payload with `record.event`.
+  static const std::vector<event::MatchEventRecord>& MatchEventsOf(const Simulation& s) {
+    return s.event_log_.events();
+  }
+  static const event::EventLog& EventLogOf(const Simulation& s) { return s.event_log_; }
   static std::size_t PendingRulingsOf(const Simulation& s) { return s.pending_rulings_.size(); }
   // Test-only orchestration of one referee instant. Runtime owns restart
   // execution, so this is the same synchronous boundary product code uses.

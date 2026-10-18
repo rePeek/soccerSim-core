@@ -64,9 +64,10 @@ thing, and its cost is paid only when it is relevant.
   (or `-DFOOTBALL_INTEGRATION_TESTS=ON`). Never part of the default CTest suite.
 
 Every module proves its own logic; Runtime proves the modules compose into a
-complete match. Referee and event rules are currently exercised through the
-runtime harness rather than a standalone `referee_unit`/`event_unit`; adding
-those leaf targets is the remaining Level 1 gap.
+complete match. `event_unit` covers the formal event log and its cursor;
+referee rules and the event recognizer are still exercised through the runtime
+harness. A standalone `referee_unit` and a recognizer leaf are the remaining
+Level 1 gap.
 
 Rules:
 

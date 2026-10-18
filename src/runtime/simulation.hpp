@@ -46,7 +46,7 @@
 #include "player/player_baked_pose_sample.hpp"
 
 #include "referee/ruling.hpp"
-#include "event/match_event.hpp"
+#include "football/event/match_event.hpp"
 #include "event/event_log.hpp"
 #include "referee/referee_view.hpp"
 

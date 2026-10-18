@@ -7,7 +7,6 @@ target_sources(football_sim_domain PRIVATE
   event_log.hpp
   event_recognizer.cpp event_recognizer.hpp
   event_transition.hpp
-  match_event.hpp
   rule_touch.hpp
   touch_query.cpp touch_query.hpp
   touch_record.hpp

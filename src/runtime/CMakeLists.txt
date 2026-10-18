@@ -21,6 +21,7 @@ target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/observation/world_state.hpp
     ${PROJECT_SOURCE_DIR}/include/football/observation/snapshot.hpp
     ${PROJECT_SOURCE_DIR}/include/football/event/event.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/event/match_event.hpp
     ${PROJECT_SOURCE_DIR}/include/football/event/event_trajectory.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE

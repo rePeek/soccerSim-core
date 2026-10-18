@@ -191,7 +191,7 @@ TEST_CASE("Rulings: foul awards confirm free kick or penalty only at commit", "[
   SimulationAccess::ProcessReferee(sim);
   const auto& events = SimulationAccess::MatchEventsOf(sim);
   REQUIRE(events.size() == 1);
-  const auto& award = std::get<RestartAwardedEvent>(events.front());
+  const auto& award = std::get<RestartAwardedEvent>(events.front().event);
   REQUIRE(award.kind == kind);
   REQUIRE(award.team == TeamSide::Home);
   REQUIRE(award.tick == SimulationAccess::NowOf(sim));
@@ -214,7 +214,7 @@ TEST_CASE("Rulings: out of play awards distinguish corner goal kick and throw in
   SimulationAccess::ProcessReferee(sim);
   const auto& events = SimulationAccess::MatchEventsOf(sim);
   REQUIRE(events.size() == 1);
-  const auto& award = std::get<RestartAwardedEvent>(events.front());
+  const auto& award = std::get<RestartAwardedEvent>(events.front().event);
   REQUIRE(award.kind == kind);
   REQUIRE(award.team == TeamSide::Away);
   REQUIRE(award.position == SimulationAccess::RestartContextOf(sim).position);
@@ -235,7 +235,7 @@ TEST_CASE("Rulings: ceremonial kickoffs publish one award without claiming taken
   SimulationAccess::ProcessReferee(sim);
   const auto& events = SimulationAccess::MatchEventsOf(sim);
   REQUIRE(events.size() == 1);
-  REQUIRE(std::get<RestartAwardedEvent>(events.front()).kind == e_GameMode_KickOff);
+  REQUIRE(std::get<RestartAwardedEvent>(events.front().event).kind == e_GameMode_KickOff);
   REQUIRE_FALSE(SimulationAccess::IsBallInPlayOf(sim));
   SimulationAccess::ProcessReferee(sim);
   REQUIRE(events.size() == 1);
@@ -254,7 +254,7 @@ TEST_CASE("Rulings: confirmed goal beats out of play and awards the opponent kic
   REQUIRE(SimulationAccess::ScoreOf(sim, 0) == 1);
   SimulationAccess::ResetBall(sim, Vector3(55, 40, 0));
   SimulationAccess::ProcessReferee(sim);
-  const auto& award = std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).back());
+  const auto& award = std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).back().event);
   REQUIRE(award.kind == e_GameMode_KickOff);
   REQUIRE(award.team == TeamSide::Away);
   REQUIRE(award.position == Vector3(0));
@@ -290,8 +290,8 @@ TEST_CASE("Rulings: disciplinary counts commit now and send off at the original 
   REQUIRE(offender.IsActive());
   const auto& events = SimulationAccess::MatchEventsOf(sim);
   REQUIRE(events.size() == event_start + 2);
-  REQUIRE(std::holds_alternative<RestartAwardedEvent>(events[event_start]));
-  const auto& card = std::get<CardShownEvent>(events.back());
+  REQUIRE(std::holds_alternative<RestartAwardedEvent>(events[event_start].event));
+  const auto& card = std::get<CardShownEvent>(events.back().event);
   REQUIRE(card.tick == now);
   REQUIRE(card.player == offender.GetID());
   REQUIRE(card.team == TeamSide::Away);
@@ -371,7 +371,7 @@ TEST_CASE("Rulings: a physical goal commits score scorer and event in the same s
   sim.Step(PlayerControlSet{});
   REQUIRE(SimulationAccess::ScoreOf(sim, 0) == 1);
   REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 1);
-  const auto goal = std::get<GoalScoredEvent>(SimulationAccess::MatchEventsOf(sim).front());
+  const auto goal = std::get<GoalScoredEvent>(SimulationAccess::MatchEventsOf(sim).front().event);
   REQUIRE(goal.tick == Tick{101});
   REQUIRE(goal.scorer == 1);
   REQUIRE_FALSE(goal.own_goal);
@@ -383,7 +383,7 @@ TEST_CASE("Rulings: a physical goal commits score scorer and event in the same s
   REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 1);
   sim.Step(PlayerControlSet{});
   REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 2);
-  REQUIRE(std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).back()).kind == e_GameMode_KickOff);
+  REQUIRE(std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).back().event).kind == e_GameMode_KickOff);
 }
 
 TEST_CASE("Rulings: goal lookahead without net damping preserves boundary verdicts",
@@ -420,7 +420,7 @@ TEST_CASE("Rulings: goal lookahead without net damping preserves boundary verdic
   const auto goal_count = [&] {
     const auto& events = SimulationAccess::MatchEventsOf(sim);
     return std::count_if(events.begin(), events.end(), [](const auto& event) {
-      return std::holds_alternative<GoalScoredEvent>(event);
+      return std::holds_alternative<GoalScoredEvent>(event.event);
     });
   };
   REQUIRE(goal_count() == (expect_goal ? 1 : 0));
@@ -470,7 +470,7 @@ TEST_CASE("Rulings: standing foul advantage retains its recall and expiry timing
   REQUIRE(SimulationAccess::IsBallInPlayOf(sim) == expires);
   REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == (expires ? 0 : 1));
   if (!expires) {
-    const auto& award = std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).front());
+    const auto& award = std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).front().event);
     REQUIRE(award.kind == e_GameMode_FreeKick);
     REQUIRE(award.team == TeamSide::Home);
   }
@@ -517,7 +517,7 @@ TEST_CASE("Rulings: opening ceremony state is runtime-owned", "[runtime][ruling]
   SimulationAccess::ProcessReferee(sim);  // placement + confirmed award
   REQUIRE(restart.taker != nullptr);
   REQUIRE_FALSE(restart.state.has_value());
-  REQUIRE(std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).front()).kind ==
+  REQUIRE(std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).front().event).kind ==
           e_GameMode_KickOff);
 }
 
