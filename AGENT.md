@@ -48,18 +48,20 @@ ccache is a silent no-op. `-j $(nproc)` uses all host cores.
 `unittests/`; see the layout and the two targets below. The former golden/end-to-end
 tier and `unittests/baselines/` are gone for good.
 
-**Never run a full match.** The sanctioned validation is the bounded suites
-(`ctest --preset debug`, or `-L unit` for the leaf modules and `-L runtime` for
-the runtime harness). Do not run the `football_sim` app, `GameEnv`/`Simulation`
-end to end, or any long/multi-tick match simulation to check a change: it is not
-a test, it must not be used to "smoke test" a refactor, and it only burns time.
-Measured: the app does not terminate within 60 s even with
-`--half-duration-ms=100` in Release, because it loops `while (!Finished())` and
-a tiny half duration does not bound how many ticks the match takes to reach full
-time (a single Step is cheap -- see the harness baselines -- so this is not a
-hang, just an unbounded loop). For runtime coverage use `unittests/runtime/`:
-it builds a real Simulation, runs a handful of ticks and stops, under a
-wall-clock CTest timeout, and never plays a match.
+**Never run an ad-hoc full match.** The sanctioned validation is the bounded
+Debug suites (`ctest --preset debug`, or `-L unit` / `-L runtime`) plus the
+Release-only `autonomous_match` integration target described below. Do not run
+the `football_sim` app or drive `GameEnv`/`Simulation` end to end to "smoke
+test" a change: use the integration target, which runs bounded short halves
+under a CTest timeout and an explicit health audit.
+
+The Debug `ctest` never includes a full match: `unittests/integration/` is
+added only when `FOOTBALL_INTEGRATION_TESTS` is on, which defaults to on for
+the Release preset (`-O2/-O3`) and off for Debug. A full-activity Step costs
+O(100 ms) on the reference host, so the integration tests default to a short
+half (`FOOTBALL_INTEGRATION_HALF_SECONDS`, default 4 s) and 3 test cases /
+4 matches; raise it deliberately for a longer acceptance run. For bounded
+runtime coverage that never plays a match, use `unittests/runtime/`.
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh
@@ -69,6 +71,28 @@ cmake -S . -B build/core -DBUILD_TESTING=OFF
 The app args/fixture archive remains an explicit `EXCLUDE_FROM_ALL` target even
 when CLI/tests are disabled. It is never linked into the shared library.
 Runtime reads the configured baked animation asset, never a data-dir env var.
+
+### Autonomous-match integration acceptance (Release-only)
+
+`unittests/integration/autonomous_match_test.cpp` is the only place a full
+autonomous match is allowed. It links only `football::simcore` (the product
+`GameEnv` composition) and runs to `Finished()` in bounded short halves. It is
+built only when `FOOTBALL_INTEGRATION_TESTS` is on (Release preset default;
+`-DFOOTBALL_INTEGRATION_TESTS=ON` elsewhere) so the Debug CTest budget is
+untouched. Run it with `ctest --preset release -R autonomous`, or:
+
+```sh
+FOOTBALL_INTEGRATION_HALF_SECONDS=2700 ctest --preset release -R autonomous
+```
+
+It covers Default x Default completion, Heuristic x Heuristic completion, a
+Team set-piece-orders/preset match, and same-seed determinism (per-tick world
+digest plus event-trajectory sequence and final result). `Finished()` alone is
+not acceptance: the audit also asserts restarts exist and are actually taken,
+no long restart stall or sustained no-action, finite/in-bounds positions, and
+that possession exists. The heuristic run also guards the concrete blocker
+found here: `AIEngine` must construct every selectable `PlayerPolicyKind`
+(the V2-only Heuristic kind must not require a legacy adapter).
 
 ### Pitch owns the static physics scene (header-only, no module)
 

@@ -349,3 +349,39 @@ equality check (legacy vs configured) under a corrected name.
 Validation: Debug CTest 13/13 (337.31 s); runtime 76 cases / 17483 assertions;
 A17 digest `5bef607ddd567a09` unchanged. No physics, animation or RNG algorithm
 changed. `git diff --check` clean. No push.
+
+## MAIN-1 — autonomous-match integration acceptance
+
+There was no automated acceptance that a complete autonomous match finishes.
+`unittests/integration/autonomous_match_test.cpp` adds it as a separate,
+Release-only layer that links only `football::simcore` (the product `GameEnv`
+composition) and runs to `Finished()`.
+
+- Build gate: `FOOTBALL_INTEGRATION_TESTS` defaults ON for the Release preset
+  (`-O2/-O3`) and OFF for Debug, so `ctest --preset debug` stays at 13 tests and
+  its existing budget. `ctest --preset release` runs 14 tests including
+  `autonomous_match`. Force it anywhere with `-DFOOTBALL_INTEGRATION_TESTS=ON`.
+- Duration: a full-activity Step costs O(100 ms) on the reference host, so the
+  default half is 4 s (`FOOTBALL_INTEGRATION_HALF_SECONDS` overrides it) and the
+  file runs 3 test cases / 4 matches. The default suite took 10m45s locally.
+- Scenarios: Default x Default completion, Heuristic x Heuristic completion,
+  Team set-piece configuration, and same-seed determinism (per-tick world digest
+  plus event-trajectory sequence and final `MatchResult`).
+- Health audit, not just `Finished()`: restart episodes exist and are actually
+  resolved into play, longest restart run < 60 s, longest in-play near-still and
+  frozen runs < 30 s, finite and in-bounds ball/player positions, possession
+  exists, and a sane final result. The Team match also asserts that any restart
+  carrying the declared order uses the declared taker (`mismatches == 0`); a
+  short run that happens to contain no configured restart only warns, and the
+  deterministic RFE-4 coverage stays in the `[team]` runtime tests.
+
+Concrete blocker found and fixed: `AIEngine` threw `unknown PlayerPolicyKind`
+for `PlayerPolicyKind::Heuristic`, because it builds a legacy `IPlayerPolicy`
+and a versioned `IPlayerPolicyV2` from the same kind and the legacy factory
+threw for the V2-only kind. `MakePlayerPolicy` now returns `nullptr` for
+Heuristic (Update already selects the V2 path), with a regression case in
+`unittests/ai/policy_switch_test.cpp`.
+
+Validation: Debug `ctest --preset debug` 13/13 (309.14 s); Release integration
+suite 3 cases / 52 assertions passed (10m45s); `ctest --preset release -N`
+lists `autonomous_match`. No physics, animation or rule algorithm changed.

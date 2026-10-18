@@ -16,7 +16,9 @@ std::unique_ptr<IPlayerPolicy> MakePlayerPolicy(PlayerPolicyKind kind) {
     case PlayerPolicyKind::Eliza:
       return std::make_unique<ElizaPolicy>();
     case PlayerPolicyKind::Heuristic:
-      break;  // versioned policy, built separately
+      // Driven through the versioned IPlayerPolicyV2 interface below; there is
+      // no legacy IPlayerPolicy adapter and Update() must not require one.
+      return nullptr;
   }
   throw std::invalid_argument("unknown PlayerPolicyKind");
 }

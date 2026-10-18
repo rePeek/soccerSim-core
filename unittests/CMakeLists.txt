@@ -18,3 +18,19 @@ add_subdirectory(player)
 add_subdirectory(player_animation)
 add_subdirectory(locomotion)
 add_subdirectory(loco_animation)
+
+# Full autonomous-match acceptance. Release-only by default so the fast Debug
+# CTest budget is untouched; force it on anywhere with
+# -DFOOTBALL_INTEGRATION_TESTS=ON.
+set(FOOTBALL_INTEGRATION_TESTS_DEFAULT OFF)
+if(CMAKE_BUILD_TYPE STREQUAL "Release" OR
+   CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR
+   CMAKE_CXX_FLAGS MATCHES "-O[23]")
+  set(FOOTBALL_INTEGRATION_TESTS_DEFAULT ON)
+endif()
+option(FOOTBALL_INTEGRATION_TESTS
+       "Build the full-match integration acceptance tests"
+       ${FOOTBALL_INTEGRATION_TESTS_DEFAULT})
+if(FOOTBALL_INTEGRATION_TESTS)
+  add_subdirectory(integration)
+endif()
