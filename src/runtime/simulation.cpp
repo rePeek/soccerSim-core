@@ -329,6 +329,7 @@ void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch)
       football::sim::event::EventView{tick.play_authorized, tick.set_piece_active, snapshot_step_, reset_sequence_});
   CommitEventTransitions(touch.touched_at);
   referee_->ConsumeBallTouch(touch.touched_at, touch, view, *rule_commands_);
+  CommitPendingRulings();
 }
 
 void Simulation::ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling) {
@@ -468,23 +469,28 @@ void Simulation::SwitchTeamEnds(int team_id) {
   }
 }
 
-void Simulation::ApplyPendingRulings() {
-  for (const auto& ruling : pending_rulings_) {
-    std::visit(
-        [&](const auto& value) {
-          using T = std::decay_t<decltype(value)>;
-          if constexpr (std::is_same_v<T, football::sim::event::AwardGoalRuling>) {
-            ApplyGoalRuling(value);
-          } else if constexpr (std::is_same_v<T, football::sim::event::StopPlayRuling>) {
-            StopPlay();
-          } else if constexpr (std::is_same_v<T, football::sim::event::AwardRestartRuling>) {
-            ApplyRestartRuling(value);
-          } else if constexpr (std::is_same_v<T, football::sim::event::CardRuling>) {
-            ApplyCardRuling(value);
-          }
-        },
-        ruling);
-  }
+void Simulation::CommitRuling(const football::sim::event::RefereeRuling& ruling) {
+  std::visit(
+      [&](const auto& value) {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, football::sim::event::AwardGoalRuling>) {
+          ApplyGoalRuling(value);
+        } else if constexpr (std::is_same_v<T, football::sim::event::StopPlayRuling>) {
+          StopPlay();
+        } else if constexpr (std::is_same_v<T, football::sim::event::AwardRestartRuling>) {
+          ApplyRestartRuling(value);
+        } else if constexpr (std::is_same_v<T, football::sim::event::CardRuling>) {
+          ApplyCardRuling(value);
+        } else {
+          static_assert(std::is_same_v<T, void>, "unhandled referee ruling");
+        }
+      }, ruling);
+}
+
+void Simulation::CommitPendingRulings() {
+  // Submit never re-enters execution. Drain only after the rule operation has
+  // finished; consume each entry exactly once, in submission order.
+  for (const auto& ruling : pending_rulings_) CommitRuling(ruling);
   pending_rulings_.clear();
 }
 
@@ -522,10 +528,13 @@ void Simulation::ProcessReferee() {
   const bool was_restart =
       referee_->GetBuffer().active && referee_->GetBuffer().restart.has_value();
   AdvanceReferee(view);
+  CommitPendingRulings();
   if (was_restart) return;
   if (tick.play_authorized && !tick.set_piece_active) {
     referee_->EvaluateOutOfPlay(view, *rule_commands_);
+    CommitPendingRulings();
     referee_->CheckPendingFoul(view, *rule_commands_);
+    CommitPendingRulings();
   }
 }
 
@@ -775,7 +784,8 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   }
   clock_->CountExecutedStep(phase_);
   snapshot_step_ = clock_->ExecutedTicks();
-  pending_rulings_.clear();
+  // Never erase an uncommitted verdict at tick entry.
+  CommitPendingRulings();
   foul_assessments_.clear();
   committed_ball_tick_.reset();
   rule_touches_.clear();
@@ -896,8 +906,8 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   // after their real Process calls, never by running animation a second time.
   CompleteBodyCollisionShadow();
   Mirror(reverse, !reverse, false);
+  CommitPendingRulings();
   if (IsBallInPlay()) {
-    ApplyPendingRulings();
     if (first_team_goal || second_team_goal) {
       bool own_goal = true;
       if (GetLastTouchTeamID(e_TouchType_Intentional_Kicked) == last_goal_team_ ||
@@ -974,7 +984,7 @@ void Simulation::ResetSituation(const Vector3& focus_position) {
   committed_ball_tick_.reset();
   rule_touches_.clear();
   for (auto& [id, active] : rule_contact_episodes_) active = false;
-  pending_rulings_.clear();
+  // Situation preparation is not a verdict-queue lifecycle boundary.
   foul_assessments_.clear();
   ball_retainer_ = nullptr;
   SetGoalScored(false);

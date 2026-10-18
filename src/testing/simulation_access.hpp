@@ -67,6 +67,11 @@ class SimulationAccess {
   static rules::RefereeTickFacts RefereeFactsOf(const Simulation& simulation) {
     return simulation.RefereeFacts();
   }
+  static event::RulingSink& RulingsOf(Simulation& s) { return *s.ruling_sink_; }
+  static void CommitRulings(Simulation& s) { s.CommitPendingRulings(); }
+  static void ProcessReferee(Simulation& s) { s.ProcessReferee(); }
+  static const auto& MatchEventsOf(const Simulation& s) { return s.event_log_.events(); }
+  static std::size_t PendingRulingsOf(const Simulation& s) { return s.pending_rulings_.size(); }
   // Test-only orchestration of one referee instant using the same split stages
   // as Simulation::ProcessReferee, without advancing the match.
   static void ProcessRules(Simulation& simulation, Referee& referee) {
@@ -76,10 +81,13 @@ class SimulationAccess {
     const bool was_restart =
         referee.GetBuffer().active && referee.GetBuffer().restart.has_value();
     referee.Advance(view, simulation.options(), simulation.rng_, CommandsOf(simulation));
+    simulation.CommitPendingRulings();
     if (was_restart) return;
     if (facts.play_authorized && !facts.set_piece_active) {
       referee.EvaluateOutOfPlay(view, CommandsOf(simulation));
+      simulation.CommitPendingRulings();
       referee.CheckPendingFoul(view, CommandsOf(simulation));
+      simulation.CommitPendingRulings();
     }
   }
 

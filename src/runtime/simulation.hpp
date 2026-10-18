@@ -113,7 +113,8 @@ class Simulation {
   // referee consume happen at the exact legacy boundary and in legacy order.
   Player* FindPlayerById(football::player::PlayerId id) const;
   void DispatchTouch(const football::sim::event::AcceptedTouch& touch);
-  void ApplyPendingRulings();
+  void CommitPendingRulings();
+  void CommitRuling(const football::sim::event::RefereeRuling& ruling);
   // Exhaustive ruling execution: every defined verdict has an explicit handler,
   // so a new ruling type cannot be silently dropped by the executor.
   void ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling);
@@ -304,7 +305,7 @@ class Simulation {
   std::unique_ptr<football::sim::AcceptedTouchSink> touch_sink_;
   // Synchronous send-off port; the concrete sink is a private nested class.
   std::unique_ptr<football::sim::PlayerSendOffSink> send_off_sink_;
-  std::unique_ptr<RulingEvents> ruling_sink_;
+  std::unique_ptr<football::sim::event::RulingSink> ruling_sink_;
   std::vector<football::sim::event::RefereeRuling> pending_rulings_;
   std::vector<football::sim::FoulAssessment> foul_assessments_;
   football::sim::event::EventRecognizer recognizer_;
