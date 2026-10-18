@@ -56,8 +56,10 @@
 #include "player/player_decision_scheduler.hpp"
 #include "football/player/player_control.hpp"
 #include "football/player/formation_entry.hpp"
-#include "football/runtime/match_config.hpp"
-#include "event/touch_type.hpp"
+#include "football/match/team_side.hpp"
+#include "football/player/player_team_match_facts.hpp"
+#include "football/player/player_touch_type.hpp"
+#include "player/player_observation.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 #include "player/player_tick_context.hpp"
 
@@ -157,8 +159,8 @@ int &LocomotionReentryMeasurementEpoch();
 void ResetLocomotionReentryAudits();
 const char *LocomotionReentryCategoryName(int category);
 
-class MentalImage;
-namespace football::sim { class AcceptedTouchSink; class PlayerRuntimeSink; class PlayerSendOffSink; }
+namespace football::sim { class PlayerRuntimeSink; class PlayerSendOffSink; }
+namespace football::sim::player { class PlayerTouchSink; }
 class AnimationLibrary;
 struct PlayerCommandInputs;
 
@@ -502,9 +504,9 @@ class Player final {
     float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
 
     // Tick-local borrows; no history owner or persistent world port.
-    void Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
+    void Process(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation, football::sim::player::PlayerTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
     // Advances motion/animation once and returns distance for post-touch fatigue.
-    float PrepareTick(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
+    float PrepareTick(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation, football::sim::player::PlayerTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);
     void CommitTick(const football::sim::PlayerTickContext& tick, float distance);
 
 
@@ -600,7 +602,7 @@ class Player final {
     void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
     bool IsControlledBallCollisionTriggered() { return triggerControlledBallCollision; }
     void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
-    void UpdatePossessionStats(football::ball::Ball& ball, const football::sim::TeamMatchState& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own);
+    void UpdatePossessionStats(football::ball::Ball& ball, const football::player::PlayerTeamMatchFacts& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own);
     float GetClosestOpponentDistance(const PlayerTeamView& opponent) const;
     const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
     void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
@@ -622,7 +624,7 @@ class Player final {
     // -----------------------------------------------------------------------
     void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
     int SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
-                          std::span<MentalImage> history, const DataSet &sorted_data_set,
+                          const football::sim::player::PlayerObservation& observation, const DataSet &sorted_data_set,
                           bool use_desired_movement, const Vector3 &desired_direction,
                           float desired_velocity_float, bool use_desired_body_direction,
                           const Vector3 &desired_body_direction_rel,
@@ -630,7 +632,7 @@ class Player final {
                           bool prefer_pass_and_shot, bool allow_pre_touch_rotation_smuggle,
                           bool use_continuous_ball_check);
     int SelectBestTouchAnim(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
-                            std::span<MentalImage> history, const DataSet &sorted_data_set,
+                            const football::sim::player::PlayerObservation& observation, const DataSet &sorted_data_set,
                             bool use_desired_movement, const Vector3 &desired_direction,
                             float desired_velocity_float, bool use_desired_body_direction,
                             const Vector3 &desired_body_direction_rel,
@@ -648,7 +650,7 @@ class Player final {
                               const PlayerCommand &command,
                               const football::sim::PlayerTickContext &tick,
                               football::sim::Tick now,
-                              std::span<MentalImage> history,
+                              const football::sim::player::PlayerObservation& observation,
                               e_InterruptAnim local_interrupt_anim,
                               bool material_candidate,
                               // ANIM-2 A13: the matched entry frame (0 = legacy).
@@ -656,15 +658,15 @@ class Player final {
     CrudeSelectionQuery BuildCrudeSelectionQuery(
         const PlayerCommand &command,
         const football::sim::PlayerTickContext &tick, football::sim::Tick now,
-        MentalImage *current_mental_image);
+        const football::sim::player::PlayerObservation& observation);
     bool NeedTouch(football::sim::Tick now,
                    const football::sim::PlayerTickContext &tick, int anim_id,
                    const PlayerCommand &command,
-                   std::span<MentalImage> history);
+                   const football::sim::player::PlayerObservation& observation);
     bool TrySelectAction(football::sim::Tick now,
                          const football::sim::PlayerTickContext &tick,
                          const PlayerCommand &command,
-                         std::span<MentalImage> history,
+                         const football::sim::player::PlayerObservation& observation,
                          e_InterruptAnim local_interrupt_anim,
                          bool prefer_pass_and_shot,
                          bool allow_pre_touch_rotation_smuggle,
@@ -679,7 +681,7 @@ class Player final {
                                    const football::sim::PlayerTickContext &tick,
                                    const Vector3 &desired_direction,
                                    float desired_velocity_float,
-                                   std::span<MentalImage> history);
+                                   const football::sim::player::PlayerObservation& observation);
     void ApplyFactualSpatialState();
     void ApplyGoalkeeperBoundaryClamps(
         const football::sim::PlayerTickContext &tick,
@@ -688,7 +690,7 @@ class Player final {
     void AdvanceActionTick();
     void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
     void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
-    void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history);
+    void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation);
     // ANIM-2 A11.5: the pending-input boundary. `React` stages the passive trip
     // through the ANIM-1 A7 guard; the action tick consumes the reaction and the
     // staged trip together. An accepted active request is translated here into
@@ -716,15 +718,15 @@ class Player final {
     // ANIM-1 A9.7: the per-tick action orchestration (former Humanoid::Process).
     void RunActionTick(football::sim::Tick now,
                        const football::sim::PlayerTickContext& tick,
-                       std::span<MentalImage> history,
-                       football::sim::AcceptedTouchSink& touch_sink,
+                       const football::sim::player::PlayerObservation& observation,
+                       football::sim::player::PlayerTouchSink& touch_sink,
                        football::sim::PlayerRuntimeSink& runtime_sink);
     // ANIM-1 A9.6: the touch publication half of the action tick.
     Player* ProcessActionTouches(football::sim::Tick now,
                                  const football::sim::PlayerTickContext& tick,
-                                 std::span<MentalImage> history,
+                                 const football::sim::player::PlayerObservation& observation,
                                  Player* ball_retainer,
-                                 football::sim::AcceptedTouchSink& touch_sink,
+                                 football::sim::player::PlayerTouchSink& touch_sink,
                                  football::sim::PlayerRuntimeSink& runtime_sink);
     Vector3 GetBestPossibleTouch(football::sim::Tick now,
                                  const football::sim::PlayerTickContext& tick,
@@ -765,7 +767,7 @@ class Player final {
                                      const PlayerCommand &command,
                                      const football::sim::PlayerTickContext &tick,
                                      football::sim::Tick now,
-                                     std::span<MentalImage> history,
+                                     const football::sim::player::PlayerObservation& observation,
                                      e_InterruptAnim localInterruptAnim,
                                      bool material_candidate,
                                      // ANIM-2 A13: the matched entry frame (0 = legacy).

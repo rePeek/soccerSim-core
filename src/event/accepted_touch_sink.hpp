@@ -1,18 +1,13 @@
 #ifndef FOOTBALL_SIM_EVENT_ACCEPTED_TOUCH_SINK_HPP
 #define FOOTBALL_SIM_EVENT_ACCEPTED_TOUCH_SINK_HPP
 
-#include "event/accepted_touch.hpp"
+// Compatibility path. The synchronous accepted-touch port is Player-owned now;
+// Event/Runtime implement it to receive the confirmed value.
+#include "player/player_touch_event.hpp"
 
 namespace football::sim {
 
-// Thin synchronous callback for one accepted touch. It replaces the generic
-// SimulationFact/Sink distribution while keeping the exact producer->consumer
-// order; no tick buffer, stamps or variants are involved. Transitional only.
-class AcceptedTouchSink {
- public:
-  virtual ~AcceptedTouchSink() = default;
-  virtual void OnAcceptedTouch(const football::sim::event::AcceptedTouch& touch) = 0;
-};
+using AcceptedTouchSink = football::sim::player::PlayerTouchSink;
 
 }  // namespace football::sim
 

@@ -9,9 +9,8 @@
 #include <bq_log/bq_log.h>
 
 #include "football/ball/ball.hpp"
-#include "observation/mentalimage.hpp"
 #include "player/player_control_builder.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -25,7 +24,6 @@
 #include "football/animation/movement_math.hpp"
 #include "football/animation/selector.hpp"
 #include "football/animation/selection_math.hpp"
-#include "observation/mentalimage_sampling.hpp"
 #include "player/player_motion.hpp"
 #include "player/player_touch_math.hpp"
 #include "player/player_motion_constants.hpp"
@@ -80,7 +78,7 @@ PlayerCommandQueue Player::BuildCommandQueueForRequest(
     const football::sim::PlayerTickContext& tick) {
   PlayerControl control;
   control.player = GetID();
-  const auto to_home = ToHomePitchFrame(GetTeamSide(), GetDynamicSide());
+  const auto to_home = ToHomePitchFrame(GetTeamSide() == football::sim::TeamSide::Home, GetDynamicSide());
   control.move_direction = to_home.Direction(request.direction.Get2D());
   control.desired_speed = std::max(0.0f, request.speed);
   control.action = ToControlAction(request.kind);
@@ -90,8 +88,8 @@ PlayerCommandQueue Player::BuildCommandQueueForRequest(
   if (request.target_player != football::player::kInvalidPlayerId)
     control.target_player = request.target_player;
   const PlayerCommandInputs inputs{
-      tick.ball, tick.touches, tick.restart, tick.ball_retainer, tick.pitch,
-      tick.own_team};
+      tick.ball, tick.ball_retainer, tick.pitch, tick.own_team,
+      tick.authorization};
   return BuildPlayerCommands(control, *this, inputs);
 }
 
@@ -432,8 +430,8 @@ Vector3 Player::CalculatePhysicsVector(football::sim::Tick now, int animID, bool
 // ---------------------------------------------------------------------------
 void Player::RunActionTick(football::sim::Tick now,
                            const football::sim::PlayerTickContext& tick,
-                           std::span<MentalImage> history,
-                           football::sim::AcceptedTouchSink& touch_sink,
+                           const football::sim::player::PlayerObservation& observation,
+                           football::sim::player::PlayerTouchSink& touch_sink,
                            football::sim::PlayerRuntimeSink& runtime_sink) {
   if (startPos.coords[2] != 0.f) {
     throw std::logic_error("Player::RunActionTick: player position must have zero height");
@@ -482,7 +480,9 @@ void Player::RunActionTick(football::sim::Tick now,
       }
     }
   }
-  auto currentMentalImage = football::sim::observation::SampleMentalImage(history, mentalImageTime);
+  // The sample age is frozen here; the line below advances `mentalImageTime`
+  // for the next tick, so later lookups must reuse this captured value.
+  const auto current_mental_image_age = mentalImageTime;
   // this might be the solution to long-term imbalance
   decayingPositionOffset *= 0.95f;
   if (decayingPositionOffset.GetLength() < 0.005) decayingPositionOffset.Set(0);
@@ -543,8 +543,8 @@ void Player::RunActionTick(football::sim::Tick now,
   if (continuity_repair_due || player_decision_due) {
     PlayerCommandQueue player_decision_commands;
     this->RequestCommand(player_decision_commands,
-        {tick.ball, tick.touches, tick.restart,
-         ball_retainer, tick.pitch, tick.own_team});
+        {tick.ball, ball_retainer, tick.pitch, tick.own_team,
+         tick.authorization});
     this->PublishPlayerDecisionQueue(
         player_decision_commands, decision_now);
     bool has_movement = false;
@@ -654,7 +654,7 @@ void Player::RunActionTick(football::sim::Tick now,
 
   if (mayReQueue) {
 
-    float ballDistance = (currentMentalImage->GetBallPrediction(500, now, tick.ball).Get2D() - spatial_state_.position).GetLength();
+    float ballDistance = (observation.BallPrediction(current_mental_image_age, 500, now, tick.ball).Get2D() - spatial_state_.position).GetLength();
     if (((action.type == e_FunctionType_Movement &&
             !this->HasPossession() && ballDistance < 16.0f) ||
            (action.type == e_FunctionType_Movement &&
@@ -745,7 +745,7 @@ void Player::RunActionTick(football::sim::Tick now,
           command.desiredFunctionType == e_FunctionType_Shot) {
         preferPassAndShot = true;
       }
-      found = this->TrySelectAction(now, tick, command, history, interruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
+      found = this->TrySelectAction(now, tick, command, observation, interruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
       if (found) {
         if (provenance == PlayerPathSelectionCommandProvenance::LocalTrip) {
           ++PlayerPathLocalTripSelected();
@@ -840,7 +840,7 @@ void Player::RunActionTick(football::sim::Tick now,
   reQueueDelayFrames = std::max(reQueueDelayFrames - 1, 0);
 
   interruptAnim = e_InterruptAnim_None;
-  ball_retainer = ProcessActionTouches(now, tick, history, ball_retainer,
+  ball_retainer = ProcessActionTouches(now, tick, observation, ball_retainer,
                                        touch_sink, runtime_sink);
   // ANIM-1 A9 step 2: the action/movement/rotation smuggle evolution is a pure
   // PlayerMotion calculation; this applies its deltas in the legacy order.
@@ -939,7 +939,7 @@ PlayerBakedPoseSample Player::PreviewRawPose(int frame_offset) const {
 void Player::ProjectSelectedActionCompat(
     int selectedAnimID, const football::sim::TouchChoice &touch_choice,
     const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
-    football::sim::Tick now, std::span<MentalImage> history,
+    football::sim::Tick now, const football::sim::player::PlayerObservation& observation,
     e_InterruptAnim localInterruptAnim, bool material_candidate,
     int start_frame) {
   const PlayerActionState &action = this->GetSimulationActionState();
@@ -982,7 +982,7 @@ void Player::ProjectSelectedActionCompat(
                                   command, static_cast<int>(GetCurrentBakedClip().frame_count));
   // Must run after the anim_state_ field writes above (it reads the new
   // animationId/positions/touchFrame and GetCurrentBakedClip), before install.
-  anim_state_.movementSmuggle = this->ComputeMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, history);
+  anim_state_.movementSmuggle = this->ComputeMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, observation);
   anim_state_.movementSmuggleOffset = Vector3(0);
 }
 

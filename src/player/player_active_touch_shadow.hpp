@@ -10,7 +10,7 @@
 #include "football/player/player_definition.hpp"
 #include "player/player_action.hpp"
 #include "player/player_body_collider_motion.hpp"
-#include "event/touch_type.hpp"
+#include "football/player/player_touch_type.hpp"
 #include "football/ball/ball.hpp"
 #include "player/player_active_touch_model.hpp"
 #include "player/player_active_impulse.hpp"

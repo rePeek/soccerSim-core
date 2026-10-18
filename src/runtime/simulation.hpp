@@ -28,6 +28,7 @@
 #include "runtime/clock.hpp"
 #include "runtime/restart_controller.hpp"
 #include "runtime/restart_context.hpp"
+#include "runtime/player_authorization_port.hpp"
 #include "runtime/play_state.hpp"
 #include "event/accepted_touch_sink.hpp"
 #include "event/event_recognizer.hpp"
@@ -393,6 +394,8 @@ class Simulation {
 
   // Competition / play / goal / touch state.
   football::sim::event::TouchState touches_;
+  // Rule adapter handed to Player; it borrows the live touch/restart state.
+  football::sim::PlayerAuthorizationPortImpl authorization_port_;
   int score_[2] = {0, 0};
   float possession_60_seconds_ = 0.0f;
   MatchPhase phase_ = MatchPhase::PreMatch;

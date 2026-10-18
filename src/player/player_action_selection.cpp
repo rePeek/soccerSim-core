@@ -12,8 +12,6 @@
 #include "football/animation/touch_scoring.hpp"
 #include "football/animation/touch_match.hpp"
 #include "football/ball/ball.hpp"
-#include "observation/mentalimage.hpp"
-#include "observation/mentalimage_sampling.hpp"
 #include "player/player_motion_constants.hpp"
 #include "player/player_diagnostics.hpp"
 
@@ -62,7 +60,7 @@ struct FunctionQueries final : football::animation::TouchMatchQueries {
 
 int Player::SelectBestTouchAnim(
     football::sim::Tick now, const football::sim::PlayerTickContext &tick,
-    std::span<MentalImage> history, const DataSet &sortedDataSet,
+    const football::sim::player::PlayerObservation& observation, const DataSet &sortedDataSet,
     bool useDesiredMovement, const Vector3 &desiredDirection,
     float desiredVelocityFloat, bool useDesiredBodyDirection,
     const Vector3 &desiredBodyDirectionRel, football::sim::TouchChoice &choice,
@@ -82,8 +80,7 @@ int Player::SelectBestTouchAnim(
 
   FunctionQueries queries;
   queries.ball_prediction_ms = [&](int ms) -> Vector3 {
-    return football::sim::observation::SampleMentalImage(history, mentalImageTime)
-        ->GetBallPrediction(ms, now, tick.ball);
+    return observation.BallPrediction(mentalImageTime, ms, now, tick.ball);
   };
   queries.ball_predict_ticks = [&](int ticks) -> Vector3 {
     return tick.ball

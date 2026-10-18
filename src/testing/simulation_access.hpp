@@ -9,7 +9,7 @@
 #include "runtime/simulation.hpp"
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 #include "player/player.hpp"
 #include "player/player_control_builder.hpp"
 #include "player/player_team_view.hpp"
@@ -65,8 +65,8 @@ class SimulationAccess {
   static PlayerCommandInputs CommandInputsOf(Simulation& simulation,
                                              const PlayerTeamView& own_team) {
     if (!simulation.ball_) throw std::logic_error("simulation has no match");
-    return {*simulation.ball_, simulation.touches_, simulation.restart_context(),
-            simulation.ball_retainer_, simulation.pitch_, own_team};
+    return {*simulation.ball_, simulation.ball_retainer_, simulation.pitch_,
+            own_team, &simulation.authorization_port_};
   }
   static AcceptedTouchSink& EventsOf(Simulation& simulation) {
     if (!simulation.touch_sink_) throw std::logic_error("simulation has no match");

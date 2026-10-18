@@ -15,7 +15,7 @@
 #include "player/player_ball_contact.hpp"
 #include "event/touch_query.hpp"
 #include "observation/mentalimage_sampling.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 #include "observation/world_state_builder.hpp"
 #include "player/player_contact.hpp"
 #include "runtime/team_possession.hpp"
@@ -91,7 +91,7 @@ football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
       *ball_, pitch_, GetRegulationTime(), home, away, first_team_,
       GetLastTouchTeam(),
       last_goal_team_,
-      ToHomePitchFrame(static_cast<football::sim::TeamSide>(ball_frame_team),
+      ToHomePitchFrame(ball_frame_team == static_cast<int>(football::sim::TeamSide::Home),
                        team_frames_[ball_frame_team].dynamic_side),
       PitchFrameTransform(team_frames_[0].static_side != -1)};
 }
@@ -116,7 +116,7 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
           restarts_.context(), pitch_, own_view, opponent_view, processing_slot,
           restarts_.NeedsSimulation(), rng_,
           active_candidate_capture_ ? active_touch_shadow_sink_.get() : nullptr,
-          nullptr, ball_.get(), send_off_sink_.get()};
+          nullptr, ball_.get(), send_off_sink_.get(), &authorization_port_};
 }
 
 // The single write-only fact-production port. Touch bookkeeping stays synchronous
@@ -630,7 +630,8 @@ void Simulation::ProcessReferee() {
   }
 }
 
-Simulation::Simulation() {}
+Simulation::Simulation()
+    : authorization_port_(touches_, restarts_.context()) {}
 
 football::team::Team& Simulation::TeamOf(int id) {
   if (!teams_.at(id)) throw std::logic_error("simulation has no team");
@@ -1204,7 +1205,8 @@ void Simulation::AdvanceTime(football::sim::TickSpan delta) {
 void Simulation::CaptureSnapshot() {
   const auto state = ball_->state();
   const auto ball_frame = ToHomePitchFrame(
-      static_cast<football::sim::TeamSide>(first_team_), team_frames_[first_team_].dynamic_side);
+      first_team_ == static_cast<int>(football::sim::TeamSide::Home),
+      team_frames_[first_team_].dynamic_side);
   auto& ball = snapshot_scratch_.ball;
   ball.position = ball_frame.Position(state.position);
   ball.velocity = ball_frame.Direction(state.velocity);
@@ -1215,7 +1217,7 @@ void Simulation::CaptureSnapshot() {
     Player& player = *snapshot_players_[i];
     auto& dst = snapshot_scratch_.players[i];
     const auto& kinematic = player.GetKinematicState();
-    const auto frame = ToHomePitchFrame(player.GetTeamSide(), player.GetDynamicSide());
+    const auto frame = ToHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetDynamicSide());
     dst.position = frame.Position(kinematic.position);
     dst.velocity = frame.Direction(kinematic.velocity);
     dst.facing = frame.Direction(kinematic.GetFacing());

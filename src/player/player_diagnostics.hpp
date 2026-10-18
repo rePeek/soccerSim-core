@@ -27,7 +27,8 @@
 #include "football/player/player_definition.hpp"
 #include "player/player_interrupt.hpp"
 
-namespace football::sim { class AcceptedTouchSink; class PlayerRuntimeSink; }
+namespace football::sim { class PlayerRuntimeSink; }
+namespace football::sim::player { class PlayerTouchSink; }
 
 using namespace football::math;
 

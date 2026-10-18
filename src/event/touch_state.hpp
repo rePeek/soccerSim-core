@@ -3,15 +3,16 @@
 
 #include <array>
 #include "event/touch_type.hpp"
+#include "football/player/player_touch_facts.hpp"
 #include "football/player/player_definition.hpp"
 
 namespace football::sim::event {
 
 // Competition-wide touch values only; no actor/runtime owner or notification.
-struct TouchState {
-  int last_team = -1;
+// The Player-readable slice is the borrowed base subobject so an accepted
+// touch landing inside the same Process() call is visible to the actor.
+struct TouchState : football::player::PlayerTouchFacts {
   std::array<int, e_TouchType_SIZE> last_team_by_type;
-  std::array<football::player::PlayerId, 2> last_player_by_team;
   TouchState() { Reset(); }
   void Record(int team, football::player::PlayerId player, e_TouchType type) {
     last_player_by_team[team] = player;

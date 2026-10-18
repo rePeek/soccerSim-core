@@ -1,16 +1,13 @@
 #ifndef FOOTBALL_SIM_RUNTIME_TEAM_STATE_HPP
 #define FOOTBALL_SIM_RUNTIME_TEAM_STATE_HPP
-
-class Player;
+#include "football/player/player_team_match_facts.hpp"
 
 namespace football::sim {
 
 // Team-level match facts that cannot be derived from any single player. Runtime
-// owns the storage; players and rules read a single-call borrowed TeamView and
-struct TeamMatchState {
-  bool has_possession = false;
-  int time_to_ball_ms = 100;
-  Player* designated_player = nullptr;
+// owns the storage and hands the actor-readable base subobject to a borrowed
+// TeamView, so a same-tick designation is visible without a copy.
+struct TeamMatchState : football::player::PlayerTeamMatchFacts {
   float possession_amount = 0.0f;
   float fading_possession_amount = 0.0f;
 };

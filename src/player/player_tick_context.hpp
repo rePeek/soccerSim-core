@@ -4,10 +4,11 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/foundation/math/rng.hpp"
-#include "event/touch_state.hpp"
+#include "football/player/player_touch_facts.hpp"
+#include "player/player_authorization.hpp"
 #include "player/player_team_view.hpp"
 #include "player/player_touch_preparation.hpp"
-#include "runtime/restart_context.hpp"
+#include "football/player/player_restart_facts.hpp"
 
 class Player;
 namespace football::ball { class Ball; }
@@ -36,8 +37,8 @@ struct PlayerTickContext {
   Player* designated_possession_player;
   const Player* last_touch_player;
 
-  const event::TouchState& touches;
-  const RestartContext& restart;
+  const football::player::PlayerTouchFacts& touches;
+  const football::player::PlayerRestartFacts& restart;
 
   const football::pitch::Pitch& pitch;
 
@@ -58,6 +59,9 @@ struct PlayerTickContext {
   // Write-only port: a send-off reports itself and Runtime performs the
   // team-level follow-up. Optional; a null port only skips that follow-up.
   PlayerSendOffSink* send_off = nullptr;
+  // Runtime-owned rule adapter. Non-null in a match; Player consumes only the
+  // returned value and never names a Referee type.
+  const football::sim::player::PlayerAuthorizationPort* authorization = nullptr;
 };
 } // namespace football::sim
 

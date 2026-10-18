@@ -1,64 +1,59 @@
-# Player module implementation. Declares only its sources on the shared
-# football_sim_domain target; the target itself (and the public value
-# contracts) are declared by the Runtime layer. Public Player value types live
-# in include/football/player/; player.hpp and the rest stay internal.
-target_sources(football_sim_domain PRIVATE
-  foul_assessment.hpp
-  kick_targeting.cpp kick_targeting.hpp
-  legacy_locomotion_command.hpp
-  locomotion_animation_strategy.hpp
-  locomotion_intent_scheduler.hpp
-  perception.cpp perception.hpp
-  player_action_execution_state.hpp
-  player_action_executor.hpp
-  player_action.hpp
+# Independent football::player module: actor state, locomotion, contact,
+# selection, motion and the per-tick behaviour. The public Player value
+# contracts live in include/football/player/.
+#
+# Dependency direction: foundation/geometry/pitch + ball/animation -> player.
+# Player must never link Runtime/Referee/AI/Event/Observation implementation.
+add_library(football_player STATIC
+  kick_targeting.cpp
+  perception.cpp
   player_action_motion.cpp
-  player_action_request.hpp
   player_action_selection.cpp
-  player_action_volume.hpp
-  player_active_impulse.hpp
-  player_active_touch_model.hpp
-  player_active_touch_shadow.hpp
   player_anim_selection.cpp
-  player_baked_body_pose.hpp
-  player_baked_contact_regions.hpp
-  player_baked_pose_realization.hpp
-  player_baked_pose_sample.hpp
-  player_ball_contact.cpp player_ball_contact.hpp
-  player_body_collider.hpp
-  player_body_collider_motion.hpp
-  player_body_collision_shadow.hpp
-  player_body_contact_diagnostics.hpp
-  player_body_facing.hpp
-  player_body_pose_shadow.hpp
-  player_body_profile.hpp
-  player_command.hpp
-  player_contact.cpp player_contact.hpp
-  player_control_builder.cpp player_control_builder.hpp
+  player_ball_contact.cpp
+  player_contact.cpp
+  player_control_builder.cpp
   player.cpp
-  player_decision_scheduler.hpp
-  player_diagnostics.cpp player_diagnostics.hpp
-  player_ground_collider.hpp
-  player.hpp
-  player_interrupt.hpp
-  player_kinematics.hpp
-  player_locomotion_animation.hpp
-  player_locomotion.cpp player_locomotion.hpp
-  player_motion_constants.hpp
-  player_motion.cpp player_motion.hpp player_motion_profile.hpp
-  player_retain_anchor.hpp
-  player_runtime_sink.hpp
-  player_selected_action.hpp
-  player_selection_decisions.hpp
-  player_send_off_sink.hpp
-  player_spatial_state.hpp
-  player_team_view.cpp player_team_view.hpp
-  player_tick_context.hpp
+  player_diagnostics.cpp
+  player_locomotion.cpp
+  player_motion.cpp
+  player_team_view.cpp
   player_tick.cpp
-  player_touch_choice.hpp
   player_touch_execution.cpp
-  player_touch_math.cpp player_touch_math.hpp
-  player_touch_preparation.hpp
-  reachability.cpp reachability.hpp
-  role_parser.cpp role_parser.hpp
-  roster_query.cpp roster_query.hpp)
+  player_touch_math.cpp
+  player_touch_query.cpp
+  reachability.cpp
+  role_parser.cpp
+  roster_query.cpp)
+add_library(football::player ALIAS football_player)
+target_sources(football_player PUBLIC FILE_SET HEADERS
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_definition.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_control.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_control_set.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_type.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_facts.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_team_match_facts.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_restart_facts.hpp)
+target_include_directories(football_player
+  PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  PRIVATE
+    ${PROJECT_SOURCE_DIR}/src)
+target_compile_features(football_player PUBLIC cxx_std_23)
+
+# Transitional link edge: Player still reads Runtime/Event/Observation/Referee
+# internal headers through the shared src/ root, so the matching symbols keep
+# resolving from football_sim_domain. The module already declares only the
+# lower layers it truly owns; the dependency inversion stages remove the rest.
+target_link_libraries(football_player
+  PUBLIC
+    football::foundation football::geometry football::pitch
+    football::ball football::animation
+  PRIVATE
+    football::collision BqLog)
+
+football_configure_target(football_player)

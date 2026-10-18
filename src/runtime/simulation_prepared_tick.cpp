@@ -2,6 +2,7 @@
 #include "player/player.hpp"
 #include "runtime/team_possession.hpp"
 #include "observation/mentalimage_sampling.hpp"
+#include "observation/player_observation_adapter.hpp"
 #include <algorithm>
 #include <stdexcept>
 
@@ -98,6 +99,10 @@ void Simulation::RunPreparedPlayerTick() {
   if (reverse) MirrorResult(passive);
   preparation_ball_->Reset(passive.state);
   CaptureMentalImage(preparation_ball_.get());
+  // One borrowed read-only observation per preparation pass; the adapter must
+  // outlive the actor loop and the vector must not be captured again in it.
+  const football::sim::observation::PlayerObservationAdapter observation(
+      mental_images_);
   PreparationPorts ports;
   ports.team_states = {&team_states_[0], &team_states_[1]};
   ports.touches.reserve(snapshot_players_.size() * 2);
@@ -122,9 +127,9 @@ void Simulation::RunPreparedPlayerTick() {
           base.touches, base.restart, base.pitch, base.own_team, base.opponent_team,
           base.processing_slot,
           base.restart_needs_simulation, base.rng, nullptr, &ports, nullptr,
-          base.send_off};
+          base.send_off, base.authorization};
       const auto before = preparation_ball_->state();
-      const auto distance = actor->PrepareTick(facts, mental_images_, ports, ports);
+      const auto distance = actor->PrepareTick(facts, observation, ports, ports);
       if (!SameState(before, preparation_ball_->state()))
         throw std::logic_error("actor mutated the passive endpoint preparation view");
       prepared.emplace_back(actor, distance);

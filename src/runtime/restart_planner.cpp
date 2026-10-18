@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 #include "player/player.hpp"
 #include "football/team/selection.hpp"
 
@@ -26,7 +26,7 @@ constexpr float kPenaltyApproachHalfWidthLegacy = 20.65f;
 int Side(int team_id) { return team_id == 0 ? -1 : 1; }
 int Side(const Player& player) { return player.GetTeamID() == 0 ? -1 : 1; }
 Vector3 Position(const Player& player) {
-  return ToHomePitchFrame(player.GetTeamSide(), player.GetDynamicSide()).Position(player.GetPosition()).Get2D();
+  return ToHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetDynamicSide()).Position(player.GetPosition()).Get2D();
 }
 float OpponentDistance(e_GameMode mode) {
   if (mode == e_GameMode_ThrowIn) return 2.0f;
@@ -293,7 +293,7 @@ bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& 
 void PlaceRestartPlayersAtTimeout(const RestartPlan& plan) {
   for (const auto& target : plan.players) {
     if (!target.player->IsActive()) continue;
-    const auto frame = FromHomePitchFrame(target.player->GetTeamSide(), target.player->GetDynamicSide());
+    const auto frame = FromHomePitchFrame(target.player->GetTeamSide() == football::sim::TeamSide::Home, target.player->GetDynamicSide());
     target.player->ResetPosition(frame.Position(target.position), frame.Position(plan.ball_position));
   }
 }

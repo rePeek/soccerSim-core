@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_PLAYER_TOUCH_PREPARATION_HPP
 #define FOOTBALL_PLAYER_TOUCH_PREPARATION_HPP
 
-#include "event/accepted_touch.hpp"
+#include "player/player_touch_event.hpp"
 #include "player/player_body_collider_motion.hpp"
 #include "football/ball/ball_state.hpp"
 
@@ -9,7 +9,7 @@ namespace football::sim {
 // A proposed action is not a rule touch. All actors in the preparation phase
 // read the same passive endpoint; no proposal is visible as an accepted touch.
 struct PreparedPlayerTouch {
-  event::AcceptedTouch fact;
+  football::sim::player::PlayerTouchEvent fact;
   PlayerBodyPart part = PlayerBodyPart::LowerBody;
   football::math::Vector3 desired_ball_center;
   football::math::Vector3 target_velocity;

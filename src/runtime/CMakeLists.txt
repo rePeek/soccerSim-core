@@ -7,12 +7,7 @@ add_library(football::sim_contracts ALIAS football_sim_contracts)
 target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_definition.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_control.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_control_set.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/referee/game_mode.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/match/game_mode.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/match_config.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/active_lineup.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/phase.hpp
@@ -25,7 +20,8 @@ target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/event/event_trajectory.hpp)
 target_compile_features(football_sim_contracts INTERFACE cxx_std_23)
 target_link_libraries(football_sim_contracts INTERFACE
-  football::foundation football::pitch football::animation_base football::team)
+  football::foundation football::pitch football::animation_base football::team
+  football::player)
 
 
 # The domain target is declared here (the Runtime layer) and collects sources
@@ -46,10 +42,6 @@ target_sources(football_sim_domain PRIVATE
   clock.cpp clock.hpp
   formation.cpp formation_build.hpp
   team_setup_adapter.cpp team_setup_adapter.hpp
-  # Entity half of football::team::Team (Player ownership). It needs the
-  # concrete Player, so it compiles into this domain target; the pure-data
-  # football_team archive must stay Player-free.
-  ../team/team_players.cpp
   active_lineup.cpp
   team_state.hpp team_view.hpp team_facts.hpp
   possession.cpp possession.hpp
@@ -57,10 +49,11 @@ target_sources(football_sim_domain PRIVATE
   play_state.hpp restart_context.hpp restart_controller.cpp restart_controller.hpp
   restart_planner.cpp restart_planner.hpp
   restart_placement.cpp restart_placement.hpp
+  player_authorization_port.cpp player_authorization_port.hpp
   ../testing/simulation_access.hpp)
 target_link_libraries(football_sim_domain
   PUBLIC football::sim_contracts
-  PRIVATE football::animation football::ball football::pitch BqLog)
+  PRIVATE football::player football::animation football::ball football::pitch BqLog)
 football_configure_target(football_sim_domain)
 # Resource lookup belongs to runtime loading, never public value/policy contracts.
 target_compile_definitions(football_sim_domain PRIVATE

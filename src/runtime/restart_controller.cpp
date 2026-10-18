@@ -233,7 +233,7 @@ void RestartController::ProcessRestart(const RefereeTickFacts& facts, const Matc
         facts.ball.state().position), ActivePlayers(facts), context_.kind,
         context_.setpiece_team, planning);
     for (const auto& actor : state.plan.players) {
-      const auto frame = FromHomePitchFrame(actor.player->GetTeamSide(), actor.player->GetDynamicSide());
+      const auto frame = FromHomePitchFrame(actor.player->GetTeamSide() == football::sim::TeamSide::Home, actor.player->GetDynamicSide());
       actor.player->ResetPosition(actor.player->GetPosition(), frame.Position(state.plan.ball_position));
     }
     context_.taker = state.plan.taker;

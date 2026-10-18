@@ -3,14 +3,12 @@
 #include <cmath>
 
 #include "football/ball/ball.hpp"
-#include "event/accepted_touch_sink.hpp"
-#include "event/touch_type.hpp"
-#include "observation/mentalimage.hpp"
-#include "observation/mentalimage_sampling.hpp"
+#include "player/player_touch_event.hpp"
+#include "football/player/player_touch_type.hpp"
 #include "player/player.hpp"
 #include "player/player_body_collider.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
-#include "event/touch_query.hpp"
+#include "player/player_touch_query.hpp"
 
 using football::ball::Ball;
 
@@ -32,7 +30,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
     int teamID = players[i]->GetTeamID();
 
     int touchTimeThreshold_ms = 200;
-    float oppLastTouchBias = event::TeamTouchBias(inputs.touches,
+    float oppLastTouchBias = football::sim::player::TeamTouchBias(inputs.touches,
         inputs.teams[abs(teamID - 1)].team_id,
         inputs.teams[abs(teamID - 1)].teammates, touchTimeThreshold_ms, inputs.now);
     float lastTouchBias = players[i]->GetLastTouchBias(touchTimeThreshold_ms, inputs.now);
@@ -47,9 +45,8 @@ BallPlayerContactResult ResolveBallPlayerContacts(
 
       bool directionChangedUnexpectedly = false;
       if (onlyWhenDirectionChangedUnexpectedly) {
-        const auto history = std::chrono::milliseconds{players[i]->GetReactionTime_ms() + static_cast<int>(ToMilliseconds(action.elapsed))};
-        const auto index = observation::MentalImageSampleIndex(inputs.history.size(), history);
-        float unexpectedDistance = (inputs.history[index].GetBallPrediction(Seconds(1), inputs.now, ball) - ball.Predict(football::sim::TickSpan{100}).position).GetLength();
+        const auto sample_age = std::chrono::milliseconds{players[i]->GetReactionTime_ms() + static_cast<int>(ToMilliseconds(action.elapsed))};
+        float unexpectedDistance = (inputs.observation.BallPrediction(sample_age, Seconds(1), inputs.now, ball) - ball.Predict(football::sim::TickSpan{100}).position).GetLength();
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
 
@@ -76,7 +73,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
               const int latest_team = last_touch_team != -1
                   ? last_touch_team : inputs.fallback_last_touch_team;
               if (players[i] == players[i]->GetTeamDesignatedPossessionPlayer() &&
-                  event::TeamTouchBias(inputs.touches,
+                  football::sim::player::TeamTouchBias(inputs.touches,
                       inputs.teams[latest_team].team_id,
                       inputs.teams[latest_team].teammates, 200, inputs.now) < 0.01f) {
                 players[i]->TriggerControlledBallCollision();
@@ -87,7 +84,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
                     players[i]->GetMovement() * (1.0f - movementBias);
                 bounceCount++;
                 inputs.touch_sink->OnAcceptedTouch(
-                    football::sim::event::AcceptedTouch{inputs.now,
+                    football::sim::player::PlayerTouchEvent{inputs.now,
                         players[i]->GetID(), players[i]->GetTeamSide(),
                         e_TouchType_Accidental, ball.state().position,
                         ball.state().velocity,

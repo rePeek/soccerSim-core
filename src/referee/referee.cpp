@@ -26,7 +26,7 @@
 #include "referee/offside.hpp"
 #include "referee/ball_rules.hpp"
 #include "observation/mentalimage.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 
 namespace {
 using football::sim::Tick;

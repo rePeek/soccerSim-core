@@ -190,11 +190,10 @@ src/                 implementations; public headers live in include/football/
 │                    own CMakeLists for football::collision
 ├── ball/            football::ball implementation: motion, generic collision
 │                    response and prediction; no goal-net physics
-├── team/            football::team implementation: team.cpp validation/selection
-│                    and formation_preset.cpp anchor resolution are pure data and
-│                    link only foundation/pitch; team_players.cpp owns the Player
-│                    entities and compiles into football_sim_domain (it needs the
-│                    concrete Player).
+├── team/            football::team implementation: team.cpp validation/selection,
+│                    formation_preset.cpp anchor resolution and team_players.cpp,
+│                    which owns the team's Player objects. The archive links
+│                    foundation/pitch plus football::player (Team -> Player).
 ├── ai/              default_ai.cpp, tactical_board.cpp, tactical_plan.cpp,
 │                    tactical_interpreter.cpp, eliza/, player/, coach/
 ├── env.cpp          sole product composition implementation for AI + sim;
@@ -280,10 +279,8 @@ anim_baking → legacy_anim + animation/foundation
   or a contract domain. It links foundation/pitch/team and explicitly exports
   PlayerControl/PlayerControlSet, WorldState, MatchOptions/MatchPhase/MatchResult
   and the two time headers.
-  `football::team` is the Team-domain target: public team headers, the pure
-  TeamDefinition validation/selection/formation-preset helpers and the Team
-  entity declaration. Its Player-owning definitions compile into football_sim
-  (team_players.cpp); sim_contracts re-exports the target.
+  entity and its Player-owning definitions (team_players.cpp). It links
+  football::player; sim_contracts re-exports the target.
   Public values live with their domain; directory placement never exports actors.
   The former gamedefines umbrella is split among player, ball, team, match and
   observation. No compatibility headers or common/types layer remains.
@@ -3531,3 +3528,97 @@ the V2 boards, with `observed_tick`/`expires_at_tick`/
 `expected_board_revision` frozen per turn and same-turn commands treated as one
 transaction. `GameEnv` owns the event cursor and forwards new events;
 `CoachLog()`/`CoachCalls()` expose the applied commands and bounded turns.
+## PLAYER: independent Player module (feat/player)
+
+The Player code was compiled into `football_sim_domain` through
+`target_sources(PRIVATE ...)`. The feat/player work turns it into its own
+archive so the dependency direction becomes
+`foundation/geometry/pitch -> ball/animation -> player -> team -> runtime`.
+Team owns and manages Player; Player never references Team.
+
+### PLAYER-1: the Player archive exists
+
+`src/player/CMakeLists.txt` now declares `football_player` (alias
+`football::player`) with the 19 Player translation units and the public
+`include/football/player/` value headers in its PUBLIC FILE_SET. The Runtime
+contract target drops those headers and links `football::player`, and
+`football_sim_domain` links it privately. The root adds the module before
+Runtime (the contract target references it) and whole-archives
+`football_player` alongside `football_sim_domain` so the existing libsimcore
+exports, including unreferenced `GetRoleFromString`, are retained.
+
+The archive is still transitional: it reads Runtime/Event/Observation/Referee
+internal headers through the shared `src/` root, so its unresolved symbols
+keep resolving from the domain. `src/runtime/libfootball_sim_domain.a` now
+contains zero Player objects and `src/player/libfootball_player.a` contains
+all 19. Debug and Release both stay 13/13 CTest and keep the A17 digest
+`5bef607ddd567a09` (22 actors, 18 switches).
+
+### Remaining stages (not yet landed)
+
+- PLAYER-2/3: close the interface. The current Player -> up-layer edges are
+  `observation::MentalImage`/`PlayerImage`/`mentalimage_sampling`/`pitch_frame`,
+  `event::TouchState`/`e_TouchType`/`touch_query`/`AcceptedTouch(Sink)`,
+  `runtime::TeamMatchState`/`RestartContext`, and
+  `rules::EvaluateActionAuthorization`/`IsGoalkeeperBackpass`. They must become
+  Player-owned values/sinks or be supplied through the tick context before
+  `football_player` can link without the domain; an interface link test
+  (public headers + foundation/geometry/pitch/ball/animation only) is the gate.
+- PLAYER-4: move `src/team/team_players.cpp` from the Runtime domain into
+  `football_team` and link `football::player`, so `football::team` constructs and
+  destroys the Player-owning Team itself. This needs the feat/team base (Team
+  already owns Player there) and a dedicated integration window because it
+  changes Team's CMake and the Runtime link edge.
+
+### PLAYER-2A: shared value types move to their real owners
+
+The game-mode enum moved to the neutral `include/football/match/game_mode.hpp`
+and TeamSide to `include/football/match/team_side.hpp`, so Player and
+observation no longer name a Referee/Runtime path (the old headers are
+compatibility forwards). The pitch frame transform moved to
+`include/football/pitch/pitch_frame.hpp` as inline geometry taking `home`
+instead of a TeamSide. Touch classification and the actor-readable touch facts
+became Player-owned values (`player_touch_type.hpp`, `player_touch_facts.hpp`);
+`event::TouchState` borrows `PlayerTouchFacts` as a base subobject so a
+same-Process accepted touch stays visible. The touch queries moved to
+`player/player_touch_query.*`; the event path is an inline forward.
+
+### PLAYER-2B/3: the interface is closed and Player links independently
+
+- Observation: `player/player_observation.hpp` is a Player-owned read-only
+  interface; `observation/player_observation_adapter.*` implements it over the
+  captured history. Player no longer names `MentalImage`; sampling stays in the
+  observation layer and the actor only asks for a sampled value.
+- Team facts: `football/player/player_team_match_facts.hpp`;
+  `runtime::TeamMatchState` borrows it, `PlayerTeamView` reads the base.
+- Restart facts: `football/player/player_restart_facts.hpp`;
+  `runtime::RestartContext` borrows it, Player reads `active`/`taker` live.
+- Authorization: `player/player_authorization.hpp` defines the value and a port.
+  `runtime/player_authorization_port.*` implements it, calling
+  `EvaluateActionAuthorization`/`IsGoalkeeperBackpass` at the exact point the
+  original checks ran. The rule logic stays in the rules domain; Player only
+  consumes the returned value.
+- Event output: `player/player_touch_event.hpp` owns `PlayerTouchEvent` and
+  `PlayerTouchSink`; `event/accepted_touch*.hpp` alias them back for Event/Runtime.
+
+Acceptance: `src/player` includes no `event/`, `observation/`, `runtime/`,
+`referee/`, `ai/` or `team/` header (enforced at configure time by
+`unittests/player_link/`). `football_player.a` has no undefined upper-layer
+symbol, and the `football_player_link_smoke` executable whole-archives every
+Player object while linking only foundation/geometry/pitch/ball/animation/
+collision/BqLog plus the public `include/` tree. Debug and Release are 14/14
+CTest and keep the A17 digest `5bef607ddd567a09`.
+
+### PLAYER-4: Team owns Player in its own archive
+
+The feat/team commits were merged into feat/player (one conflict in
+`world_state_builder.cpp`: TeamView naming plus the PLAYER-2A frame
+conversion). Then `src/team/team_players.cpp` moved out of
+`football_sim_domain` into the `football_team` archive, which now links
+`football::player`. Runtime composes the two Player-owning Teams and owns no
+Player itself.
+
+The final direction is Runtime -> Team -> Player -> Animation/Ball/Pitch,
+with Runtime coordinating Referee and Event. `football_player` links no Team;
+`src/player` includes no Team header. Debug and Release are 14/14 CTest and
+keep the A17 digest `5bef607ddd567a09` (85 test cases).

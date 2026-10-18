@@ -14,16 +14,18 @@
 #ifndef FOOTBALL_SIM_PLAYER_PERCEPTION_HPP
 #define FOOTBALL_SIM_PLAYER_PERCEPTION_HPP
 
+#include <chrono>
+
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-
-class MentalImage;
+#include "player/player_observation.hpp"
 
 namespace football::sim::player {
 
-// Opponent-distribution estimate over a borrowed mental image. Perception data
-// for the player's own tactical situation; never a team or AI decision owner.
-float CalculateFreeSpace(Tick now, const MentalImage *mentalImage, int teamID,
+// Opponent-distribution estimate over one borrowed observation sample. Perception
+// data for the player's own tactical situation; never a team or AI decision owner.
+float CalculateFreeSpace(Tick now, const PlayerObservation& observation,
+                         std::chrono::milliseconds age, int teamID,
                          const football::math::Vector3 &focusPos,
                          float safeDistance = 8.0f, float futureTime_sec = 0.3f);
 

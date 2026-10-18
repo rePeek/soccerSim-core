@@ -3,25 +3,27 @@
 
 #include "football/player/player_control.hpp"
 #include "football/pitch/pitch.hpp"
+#include "player/player_authorization.hpp"
 #include "player/player_command.hpp"
 #include "player/player_team_view.hpp"
 
 class Player;
 namespace football::ball { class Ball; }
-namespace football::sim { struct RestartContext; }
 namespace football::pitch { class Pitch; }
-namespace football::sim::event { struct TouchState; }
 
 // Only the inputs consumed by command authorization/keeper-hands legality.
-// Borrowed for one construction call, never retained by Player.
+// Borrowed for one construction call, never retained by Player. Rule decisions
+// arrive through the Player-owned authorization port; Player names no Referee,
+// TouchState or RestartContext type.
 struct PlayerCommandInputs {
   const football::ball::Ball& ball;
-  const football::sim::event::TouchState& touches;
-  const football::sim::RestartContext& restart;
   const Player* retainer;
   const football::pitch::Pitch& pitch;
   // The acting player's own roster slice and runtime team facts. Borrowed.
   const PlayerTeamView& own_team;
+  // Runtime-owned rule adapter. Non-null in a match; a null port applies the
+  // permissive default (no restart gate, all actions allowed).
+  const football::sim::player::PlayerAuthorizationPort* authorization = nullptr;
 };
 
 // Converts decision-domain values into the existing execution command format.

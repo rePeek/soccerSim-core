@@ -4,11 +4,8 @@
 #include <cmath>
 
 #include "football/ball/ball.hpp"
-#include "event/touch_query.hpp"
-#include "referee/referee.hpp"
-#include "referee/action_authorization.hpp"
 #include "football/pitch/pitch.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 #include "player/player.hpp"
 #include "player/kick_targeting.hpp"
 
@@ -34,7 +31,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   // Value controls use home pitch coordinates; convert at consumption, after
   // Simulation selects the actor's processing frame. Never mutate caller data.
   PlayerControl control = input;
-  const auto runtime_frame = FromHomePitchFrame(player.GetTeamSide(), player.GetDynamicSide());
+  const auto runtime_frame = FromHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetDynamicSide());
   control.move_direction = runtime_frame.Direction(control.move_direction);
   if (control.look_at) control.look_at = runtime_frame.Position(*control.look_at);
   if (control.target_position) control.target_position = runtime_frame.Position(*control.target_position);
@@ -47,31 +44,27 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     movement.useDesiredLookAt = true;
     movement.desiredLookAt = control.look_at->Get2D();
   }
-  const auto& restart = inputs.restart;
-  // Rules own restart and keeper-hands legality. Sample the facts here, where
-  // the original checks ran, so the decision sees live match state and never a
-  // tick-start snapshot.
-  football::sim::rules::PlayerActionAuthorizationInput authorization_input;
-  authorization_input.restart_active = restart.active;
-  authorization_input.restart_scheduled = restart.state.has_value();
-  authorization_input.restart_phase =
-      restart.state ? restart.state->phase : football::sim::RestartPhase::InPlay;
-  authorization_input.is_restart_taker = restart.taker == &player;
-  if (control.action == ControlAction::Save) {
-    const PlayerTeamView& team = inputs.own_team;
-    authorization_input.is_goalkeeper = team.goalie == &player;
-    authorization_input.ball_retained = inputs.retainer != nullptr;
-    authorization_input.backpass = football::sim::rules::IsGoalkeeperBackpass(
-        inputs.touches, team.team_id, team.teammates, &player);
-    const Vector3 ball = inputs.ball.Predict(football::sim::TickSpan{16}).position;
-    authorization_input.predicted_ball_x = ball.coords[0];
-    authorization_input.predicted_ball_y = ball.coords[1];
-    authorization_input.half_length = inputs.pitch.half_length();
-    authorization_input.dynamic_side = player.GetDynamicSide();
+  // Rules own restart and keeper-hands legality. Build a value-only request
+  // and let the Runtime-owned authorization port sample its live rule facts
+  // here, where the original checks ran; Player never adjudicates.
+  football::sim::player::PlayerAuthorizationRequest authorization_request;
+  authorization_request.actor = &player;
+  authorization_request.team_id = inputs.own_team.team_id;
+  authorization_request.teammates = inputs.own_team.teammates;
+  authorization_request.save_request = control.action == ControlAction::Save;
+  if (authorization_request.save_request) {
+    authorization_request.is_goalkeeper = inputs.own_team.goalie == &player;
+    authorization_request.ball_retained = inputs.retainer != nullptr;
+    authorization_request.predicted_ball =
+        inputs.ball.Predict(football::sim::TickSpan{16}).position;
+    authorization_request.half_length = inputs.pitch.half_length();
+    authorization_request.dynamic_side = player.GetDynamicSide();
   }
-  const football::sim::rules::PlayerActionAuthorization authorization =
-      football::sim::rules::EvaluateActionAuthorization(authorization_input);
-  if (restart.active && restart.state && !authorization.action_allowed) {
+  football::sim::player::PlayerActionAuthorization authorization;
+  if (inputs.authorization != nullptr) {
+    authorization = inputs.authorization->Evaluate(authorization_request);
+  }
+  if (authorization.restart_gate && !authorization.action_allowed) {
     if (!authorization.movement_allowed) movement.desiredVelocityFloat = 0.f;
     return {movement};
   }

@@ -21,7 +21,7 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/player/player_role.hpp"
-#include "football/referee/game_mode.hpp"
+#include "football/match/game_mode.hpp"
 
 using namespace football::math;
 

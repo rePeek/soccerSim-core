@@ -6,7 +6,8 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/referee/game_mode.hpp"
+#include "football/match/game_mode.hpp"
+#include "football/player/player_restart_facts.hpp"
 
 class Player;
 
@@ -48,10 +49,9 @@ struct RestartState {
 // and rule verdicts; this is the single owner of the in-flight restart, its
 // deadlines and its progress. It is not a rule fact and never mirrors the
 // Referee's decision state.
-struct RestartContext {
+struct RestartContext : football::player::PlayerRestartFacts {
   // Match-scoped identity, shared with RestartAwardedEvent/RestartTakenEvent.
   std::uint64_t id = 0;
-  bool active = false;
   e_GameMode kind = e_GameMode_Normal;
   int team_id = -1;  // legacy team slot (0/1) taking the restart
   int setpiece_team = -1;
@@ -59,7 +59,6 @@ struct RestartContext {
   football::sim::Tick prepare_tick{};
   football::sim::Tick start_tick{};
   football::math::Vector3 position;  // fixed home-pitch frame
-  Player* taker = nullptr;
   bool end_phase = false;
   std::optional<RestartState> state;
 

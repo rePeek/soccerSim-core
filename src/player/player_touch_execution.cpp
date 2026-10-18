@@ -20,9 +20,8 @@
 #include "football/animation/movement_math.hpp"
 #include "football/animation/touch_geometry.hpp"
 #include "football/animation/touch_scoring.hpp"
-#include "event/accepted_touch_sink.hpp"
-#include "event/touch_query.hpp"
-#include "observation/mentalimage_sampling.hpp"
+#include "player/player_touch_event.hpp"
+#include "player/player_touch_query.hpp"
 #include "player/kick_targeting.hpp"
 #include "player/player_active_touch_model.hpp"
 #include "player/player_active_touch_shadow.hpp"
@@ -31,7 +30,6 @@
 #include "player/player_retain_anchor.hpp"
 #include "player/player_runtime_sink.hpp"
 #include "player/player_touch_math.hpp"
-#include "referee/referee.hpp"
 
 using namespace football::math;
 
@@ -50,9 +48,9 @@ bool _PassFiddlingEnabled() {
 // ---------------------------------------------------------------------------
 Player* Player::ProcessActionTouches(football::sim::Tick now,
                                      const football::sim::PlayerTickContext& tick,
-                                     std::span<MentalImage> history,
+                                     const football::sim::player::PlayerObservation& observation,
                                      Player* ball_retainer,
-                                     football::sim::AcceptedTouchSink& /*touch_sink*/,
+                                     football::sim::player::PlayerTouchSink& /*touch_sink*/,
                                      football::sim::PlayerRuntimeSink& runtime_sink) {
   const PlayerActionState &action = GetSimulationActionState();
   std::optional<Vector3> prepared_velocity;
@@ -158,7 +156,7 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
   float ballDistanceNow = (tick.ball.state().position.Get2D() - spatial_state_.position).GetLength();
   float ballDistanceFuture = (tick.ball.Predict(football::sim::TickSpan{20}).position.Get2D() - (spatial_state_.position + spatial_state_.movement * 0.2f)).GetLength();
   float lastTouchBias = this->GetLastTouchBias(1500, now);
-  float oppLastTouchBias = football::sim::event::TeamTouchBias(tick.touches,
+  float oppLastTouchBias = football::sim::player::TeamTouchBias(tick.touches,
       tick.opponent_team.team_id, tick.opponent_team.teammates, 240, now);
 
   if (this == tick.designated_possession_player &&
@@ -482,7 +480,7 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
 
         float veloDifficulty = NormalizedClamp((tick.ball.state().velocity - spatial_state_.movement).GetLength(), 0.0f, 40.0f);
         float reactionDifficulty = 0.0f;
-        Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(tick.touches,
+        Player *lastTouchPlayer = football::sim::player::LastTouchPlayer(tick.touches,
             tick.opponent_team.team_id, tick.opponent_team.teammates);
         if (lastTouchPlayer) {
           reactionDifficulty =
