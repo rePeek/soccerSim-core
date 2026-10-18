@@ -4,12 +4,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <span>
 #include <vector>
 
 #include "football/ai/coach_context.hpp"
 #include "football/ai/coach_command.hpp"
 #include "football/ai/tactical_board.hpp"
 #include "football/ai/shout.hpp"
+#include "football/event/match_event.hpp"
 
 namespace football::ai {
 
@@ -26,9 +28,13 @@ class ContextCollector {
   explicit ContextCollector(football::sim::TeamSide self) : self_(self) {}
 
   // Consumes one observation tick. `shouts` is read-only and stored in the
-  // context, never modified.
+  // context, never modified. When `events` is supplied it is the authoritative
+  // confirmed-event stream (from Runtime); already-ingested sequences are
+  // ignored. With no events the bounded WorldState-delta fallback runs for
+  // synthetic observations.
   void OnTick(const WorldState& world,
-              const std::vector<ActiveShout>& shouts);
+              const std::vector<ActiveShout>& shouts,
+              std::span<const football::sim::event::MatchEventRecord> events = {});
   void Reset();
 
   football::sim::TeamSide self() const { return self_; }
@@ -47,6 +53,7 @@ class ContextCollector {
 
   void FoldSample(const WorldState& world);
   void DetectEvents(const WorldState& world);
+  void IngestEvents(std::span<const football::sim::event::MatchEventRecord> events);
   TeamTrendSummary Summarise(std::uint64_t window) const;
 
   football::sim::TeamSide self_;
@@ -61,6 +68,7 @@ class ContextCollector {
   e_GameMode last_restart_ = e_GameMode_Normal;
   bool last_in_play_ = false;
   bool have_event_state_ = false;
+  std::uint64_t last_event_sequence_ = 0;
 };
 
 }  // namespace football::ai

@@ -115,10 +115,21 @@ void CoachRuntime::ApplyAtTick(std::uint64_t tick, const WorldState& world) {
 
   std::vector<CoachCommandEnvelope> pending;
   pending.swap(queue_);
-  for (const CoachCommandEnvelope& envelope : pending) {
+  // Envelopes produced by one coach turn share one observed tick and one base
+  // revision; they are a single logical transaction. Rebase each same-turn
+  // follow-up onto the revision its siblings already produced, while a genuinely
+  // stale command (a different turn) still fails the revision check.
+  std::array<std::uint64_t, 2> batch_observed{};
+  std::array<bool, 2> have_batch{false, false};
+  for (CoachCommandEnvelope& envelope : pending) {
     const auto side = CoachCommandSide(envelope.command);
     const unsigned index = static_cast<unsigned>(side);
     TacticalBoard& board = (*boards_)[index];
+    if (have_batch[index] && envelope.observed_tick == batch_observed[index]) {
+      envelope.expected_board_revision = board.revision;
+    }
+    have_batch[index] = true;
+    batch_observed[index] = envelope.observed_tick;
     const std::uint64_t before_revision = board.revision;
 
     CoachCommandResult result;

@@ -16,6 +16,10 @@ struct AIConfig {
   // Which IPlayerPolicy implementation drives the roster. Default preserves the
   // historical baseline; the value is read once at Start().
   PlayerPolicyKind player_policy = PlayerPolicyKind::Default;
+  // RFE-6 opt-in autonomous coach loop: ContextCollector -> CoachScheduler ->
+  // HeuristicCoachPolicy -> CoachRuntime -> TacticalBoard. Off by default so
+  // the existing board-edit-only behavior and determinism are unchanged.
+  bool coach_enabled = false;
 };
 
 }  // namespace football::ai

@@ -3519,3 +3519,15 @@ Bounded `[ruling]` tests in `unittests/runtime/referee_ruling_test.cpp` cover
 front/touch/goal boundaries, awards, atomic validation, disciplinary timing,
 Runtime restart ownership, Team set-piece orders/presets and the derived
 play-state transitions.
+
+RFE-5 made `MatchEvent` the unified confirmed-event source: it moved to
+`include/football/event/match_event.hpp` with `MatchEventRecord`/
+`MatchEventCursor`, publishes foul/offside/taken/period events, fixes
+pass/shot terminal semantics, and exposes `GameEnv::ReadEvents`. RFE-6 wires
+the autonomous coach loop behind `AIConfig.coach_enabled` (default off):
+`AIEngine::Update` commits the previous turn, then runs
+ContextCollector -> CoachScheduler -> HeuristicCoachPolicy -> CoachRuntime on
+the V2 boards, with `observed_tick`/`expires_at_tick`/
+`expected_board_revision` frozen per turn and same-turn commands treated as one
+transaction. `GameEnv` owns the event cursor and forwards new events;
+`CoachLog()`/`CoachCalls()` expose the applied commands and bounded turns.

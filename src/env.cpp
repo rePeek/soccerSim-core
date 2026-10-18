@@ -61,6 +61,11 @@ void GameEnv::Step() {
   if (!simulation_) throw std::logic_error("match runner is stopped");
   if (simulation_->Finished()) return;
   const WorldState world = simulation_->Observe();
+  // Consume the events Runtime confirmed during the previous Step; the coach
+  // loop reads them at the next Update. The order never re-enters the referee.
+  const std::vector<football::sim::event::MatchEventRecord> events =
+      simulation_->ReadEvents(event_cursor_);
+  ai_->ConsumeMatchEvents(events);
   PlayerControlSet controls;
   ai_->Update(world, controls);
   simulation_->Step(controls);
@@ -105,6 +110,16 @@ std::vector<football::sim::event::MatchEventRecord> GameEnv::ReadEvents(
     football::sim::event::MatchEventCursor& cursor) const {
   if (!simulation_) throw std::logic_error("match runner is stopped");
   return simulation_->ReadEvents(cursor);
+}
+
+const std::vector<football::ai::CoachCommandRecord>& GameEnv::CoachLog() const {
+  if (!ai_) throw std::logic_error("match runner is stopped");
+  return ai_->CoachLog();
+}
+
+int GameEnv::CoachCalls(football::sim::TeamSide side) const {
+  if (!ai_) throw std::logic_error("match runner is stopped");
+  return ai_->CoachCalls(side);
 }
 
 void GameEnv::Stop() {

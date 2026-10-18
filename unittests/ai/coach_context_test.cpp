@@ -169,3 +169,37 @@ TEST_CASE("reset clears the collected window", "[ai][tactical][context]") {
   CHECK(context.last_5_min.sample_count == 0);
   CHECK(context.recent_events.empty());
 }
+
+TEST_CASE("the collector ingests formal confirmed events exactly once",
+          "[ai][tactical][context]") {
+  const auto home = MakeTeam(0);
+  const auto away = MakeTeam(100);
+  WorldState world = MakeWorld(home, away);
+  const auto board = football::ai::MakeTacticalBoardV2(home, TeamSide::Home, Pitch());
+  ContextCollector collector(TeamSide::Home);
+
+  football::sim::event::MatchEventRecord card;
+  card.sequence = 1;
+  football::sim::event::CardShownEvent shown;
+  shown.tick = football::sim::Tick{700};
+  shown.team = TeamSide::Away;
+  shown.player = 100;
+  shown.red = true;
+  card.event = shown;
+  const std::array<football::sim::event::MatchEventRecord, 1> events{card};
+
+  collector.OnTick(world, {}, events);
+  const auto context = collector.Build(world, board);
+  bool card_seen = false;
+  for (const auto& event : context.recent_events) {
+    if (event.type == CoachEventType::Card && event.side == TeamSide::Away) {
+      card_seen = true;
+    }
+  }
+  CHECK(card_seen);
+
+  // Replaying the same sequence must not duplicate the event.
+  collector.OnTick(world, {}, events);
+  const auto again = collector.Build(world, board);
+  CHECK(again.recent_events.size() == context.recent_events.size());
+}

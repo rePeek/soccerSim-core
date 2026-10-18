@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
+#include <variant>
 
 namespace football::ai {
 namespace {
@@ -9,6 +11,43 @@ using football::sim::TeamSide;
 
 float AttackSign(const WorldState& world, TeamSide side) {
   return -static_cast<float>(world.teams[static_cast<unsigned>(side)].defending_direction);
+}
+
+// Formal MatchEvent -> coach vocabulary. Only confirmed, coach-relevant events
+// map; passes and shots stay out of the coach's event list.
+std::optional<CoachEventType> CoachTypeOf(
+    const football::sim::event::MatchEvent& event) {
+  using namespace football::sim::event;
+  if (std::holds_alternative<GoalScoredEvent>(event)) return CoachEventType::Goal;
+  if (std::holds_alternative<CardShownEvent>(event)) return CoachEventType::Card;
+  if (std::holds_alternative<FoulConfirmedEvent>(event)) return CoachEventType::Foul;
+  if (std::holds_alternative<OffsideConfirmedEvent>(event)) return CoachEventType::Offside;
+  if (std::holds_alternative<RestartAwardedEvent>(event)) return CoachEventType::Restart;
+  if (std::holds_alternative<RestartTakenEvent>(event)) return CoachEventType::BallInPlay;
+  if (std::holds_alternative<PeriodEndedEvent>(event)) return CoachEventType::PeriodChange;
+  return std::nullopt;
+}
+
+TeamSide EventSide(const football::sim::event::MatchEvent& event, TeamSide fallback) {
+  using namespace football::sim::event;
+  if (const auto* e = std::get_if<GoalScoredEvent>(&event)) return e->team;
+  if (const auto* e = std::get_if<CardShownEvent>(&event)) return e->team;
+  if (const auto* e = std::get_if<FoulConfirmedEvent>(&event)) return e->team;
+  if (const auto* e = std::get_if<OffsideConfirmedEvent>(&event)) return e->team;
+  if (const auto* e = std::get_if<RestartAwardedEvent>(&event)) return e->team;
+  if (const auto* e = std::get_if<RestartTakenEvent>(&event)) return e->team;
+  return fallback;
+}
+
+e_GameMode EventRestart(const football::sim::event::MatchEvent& event) {
+  using namespace football::sim::event;
+  if (const auto* e = std::get_if<RestartAwardedEvent>(&event)) return e->kind;
+  if (const auto* e = std::get_if<RestartTakenEvent>(&event)) return e->kind;
+  return e_GameMode_Normal;
+}
+
+std::uint64_t EventTick(const football::sim::event::MatchEvent& event) {
+  return std::visit([](const auto& value) { return value.tick.value; }, event);
 }
 }  // namespace
 
@@ -24,6 +63,7 @@ void ContextCollector::Reset() {
   last_restart_ = e_GameMode_Normal;
   last_in_play_ = false;
   have_event_state_ = false;
+  last_event_sequence_ = 0;
 }
 
 void ContextCollector::FoldSample(const WorldState& world) {
@@ -80,11 +120,34 @@ void ContextCollector::DetectEvents(const WorldState& world) {
   last_in_play_ = world.in_play;
 }
 
-void ContextCollector::OnTick(const WorldState& world,
-                              const std::vector<ActiveShout>& shouts) {
+void ContextCollector::IngestEvents(
+    std::span<const football::sim::event::MatchEventRecord> events) {
+  for (const football::sim::event::MatchEventRecord& record : events) {
+    if (record.sequence <= last_event_sequence_) continue;  // idempotent replay
+    last_event_sequence_ = record.sequence;
+    const std::optional<CoachEventType> type = CoachTypeOf(record.event);
+    if (!type) continue;
+    MatchEventSummary summary;
+    summary.type = *type;
+    summary.side = EventSide(record.event, self_);
+    summary.tick = EventTick(record.event);
+    summary.restart = EventRestart(record.event);
+    events_.push_back(summary);
+    if (events_.size() > kMaxEvents) events_.erase(events_.begin());
+  }
+}
+
+void ContextCollector::OnTick(
+    const WorldState& world, const std::vector<ActiveShout>& shouts,
+    std::span<const football::sim::event::MatchEventRecord> events) {
   shouts_ = shouts;
   FoldSample(world);
-  DetectEvents(world);
+  if (!events.empty()) {
+    // Runtime confirmed these events; do not re-derive them from WorldState.
+    IngestEvents(events);
+  } else {
+    DetectEvents(world);
+  }
 }
 
 TeamTrendSummary ContextCollector::Summarise(std::uint64_t window) const {

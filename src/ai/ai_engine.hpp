@@ -3,12 +3,16 @@
 
 #include <array>
 #include <memory>
+#include <span>
 #include <vector>
 
 #include "coach/coach_runtime.hpp"
+#include "coach/context_collector.hpp"
+#include "coach/scheduler.hpp"
 #include "football/ai/ai_config.hpp"
 #include "football/ai/coach_command.hpp"
-#include "football/ai/player_policy.hpp"
+#include "football/ai/coach_policy.hpp"
+#include "football/event/match_event.hpp"
 #include "football/ai/tactical_board.hpp"
 #include "football/observation/world_state.hpp"
 #include "football/pitch/pitch.hpp"
@@ -44,6 +48,15 @@ class AIEngine {
   bool SubmitCoachCommand(const CoachCommandEnvelope& envelope);
   const std::vector<CoachCommandRecord>& CoachLog() const;
 
+  // RFE-6: hand the coach loop the formal events Runtime confirmed since the
+  // last Update. Consumed once at the next Update; the player policy never
+  // sees them and the simulation order is unchanged.
+  void ConsumeMatchEvents(
+      std::span<const football::sim::event::MatchEventRecord> events);
+  // Diagnostic: coach turns actually run for one side this match, bounded by
+  // the scheduler budget.
+  int CoachCalls(football::sim::TeamSide side) const;
+
   // Shouts are transient and never part of the persistent board.
   void SetShoutCooldownTicks(std::uint64_t ticks);
   const std::vector<ActiveShout>& ActiveShouts(football::sim::TeamSide side) const;
@@ -51,9 +64,19 @@ class AIEngine {
       football::sim::TeamSide side, football::player::PlayerId player) const;
 
 private:
+  // One autonomous coach turn per enabled side, after committed commands and
+  // before the player policy reads the boards.
+  void RunCoachTurn(const WorldState& world);
+
   std::array<TacticalBoard, 2> boards_;
   // Applies queued commands to boards_ in place; owns no second board.
   CoachRuntime coach_;
+  std::array<ContextCollector, 2> collectors_;
+  std::array<CoachScheduler, 2> schedulers_;
+  std::unique_ptr<ICoachPolicy> coach_policy_;
+  bool coach_enabled_ = false;
+  std::uint64_t next_command_id_ = 1;
+  std::vector<football::sim::event::MatchEventRecord> pending_events_;
   std::unique_ptr<IPlayerPolicy> policy_;
   // Set instead of policy_ when the selected implementation is the versioned
   // policy that can see transient mental effects.

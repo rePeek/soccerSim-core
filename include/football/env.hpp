@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "football/ai/ai_config.hpp"
+#include "football/ai/coach_command.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "football/runtime/match_config.hpp"
@@ -57,6 +58,9 @@ class GameEnv {
   // the first event of this one. Never mutates the match.
   std::vector<football::sim::event::MatchEventRecord> ReadEvents(
       football::sim::event::MatchEventCursor& cursor) const;
+  // Coach diagnostics: the applied command log and the bounded turn count.
+  const std::vector<football::ai::CoachCommandRecord>& CoachLog() const;
+  int CoachCalls(football::sim::TeamSide side) const;
   // Idempotent; releases AI and simulation. Start again uses initial declarations.
   void Stop();
 
@@ -69,6 +73,8 @@ class GameEnv {
   const football::ai::AIConfig ai_config_;
   std::unique_ptr<Simulation> simulation_;
   std::unique_ptr<football::ai::AIEngine> ai_;
+  // Owns the incremental confirmed-event read across the whole match.
+  football::sim::event::MatchEventCursor event_cursor_;
 };
 
 #endif  // FOOTBALL_ENV_HPP

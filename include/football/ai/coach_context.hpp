@@ -17,9 +17,14 @@ namespace football::ai {
 // private board and never invents a fact the observation cannot supply (no xG,
 // injuries or hidden personality in v1).
 
+// Coach-facing event vocabulary. Formal confirmed MatchEvents map onto these;
+// BallOutOfPlay is the WorldState-delta fallback for synthetic observations.
 enum class CoachEventType : std::uint8_t {
   KickOff,
   Goal,
+  Card,
+  Foul,
+  Offside,
   Restart,
   BallOutOfPlay,
   BallInPlay,

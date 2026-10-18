@@ -476,3 +476,41 @@ Validation: `[ruling]` 32 cases / 311 assertions; `sim_runtime` 100%
 
 Validation: Debug ctest 14/14 (293.13 s); Release `autonomous_match` 3 cases /
 68 assertions (10m42.8 s).
+
+## RFE-6 — connect the autonomous Coach loop
+
+The existing coach components are wired into `AIEngine::Update` behind an opt-in
+`AIConfig.coach_enabled` (default off, so the board-edit-only behavior and
+determinism are unchanged).
+
+- Per tick: `CoachRuntime::ApplyAtTick` commits the previous turn's commands;
+  then, per enabled side, `ContextCollector::OnTick` folds the observation plus
+  the formal MatchEvents, `CoachScheduler` decides, `HeuristicCoachPolicy` emits
+  typed commands wrapped in `CoachCommandEnvelope`, and the player policy reads
+  the boards. The coach never re-enters the referee: `GameEnv` reads events
+  before `Update` and they are consumed here.
+- Frozen envelope semantics: `observed_tick` = the turn's `world.tick`,
+  `expires_at_tick` = observed + 100 (1 s), `expected_board_revision` = the board
+  revision observed that turn, monotonic per-match id. A turn commits on the
+  next Update.
+- Same-turn commands are one logical transaction: `CoachRuntime` rebases a
+  same-observed-tick follow-up onto the revision its siblings produced, so every
+  heuristic edit applies; a genuinely stale command still fails the revision
+  check.
+- `ContextCollector` consumes formal MatchEvents (Goal/Card/Foul/Offside/
+  Restart/Taken/PeriodEnded) deduplicated by sequence; the WorldState-delta path
+  remains only as the synthetic fallback. `CoachEventType` gained Card/Foul/
+  Offside.
+- `GameEnv` owns the `MatchEventCursor` and forwards new events to
+  `AIEngine::ConsumeMatchEvents`; `CoachLog()`/`CoachCalls()` expose the applied
+  commands and the bounded turn count.
+
+Tests: `unittests/ai/coach_loop_test.cpp` (a full heuristic turn applies every
+command revision-by-revision; a later no-op turn does not rewrite the board);
+`coach_context_test.cpp` covers formal-event ingestion and replay idempotence.
+The Release `autonomous_match` suite gained a coach-enabled Heuristic match that
+completes healthily with at least one scheduled turn.
+
+Validation: Debug ctest 14/14 (294.01 s); `[ai]` 83 cases / 2981 assertions;
+A17 digest `5bef607ddd567a09` unchanged; Release `autonomous_match` 4 cases /
+89 assertions (12m56.9 s).

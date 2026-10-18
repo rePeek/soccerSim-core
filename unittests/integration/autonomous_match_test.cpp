@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "football/ai/ai_config.hpp"
+#include "football/ai/tactical_board.hpp"
 #include "football/ball/ball_model.hpp"
 #include "football/env.hpp"
 #include "football/pitch/pitch.hpp"
@@ -204,6 +205,8 @@ struct Audit {
   int restart_awarded_events = 0;
   int restart_taken_events = 0;
   int period_events = 0;
+  int coach_calls = 0;
+  int coach_records = 0;
   std::uint64_t digest = 14695981039346656037ull;
   std::uint64_t event_digest = 14695981039346656037ull;
   std::uint64_t trajectory_digest = 0;
@@ -226,9 +229,17 @@ football::sim::TeamSide SideOf(const WorldState& world,
 
 Audit RunMatch(football::ai::PlayerPolicyKind policy,
                const football::sim::TeamSetup& home,
-               const football::sim::TeamSetup& away, unsigned int seed) {
+               const football::sim::TeamSetup& away, unsigned int seed,
+               bool coach = false) {
   football::ai::AIConfig ai;
   ai.player_policy = policy;
+  if (coach) {
+    ai.coach_enabled = true;
+    ai.initial_tactics[0] = football::ai::MakeTacticalBoardV2(
+        home, football::sim::TeamSide::Home, football::pitch::Pitch{});
+    ai.initial_tactics[1] = football::ai::MakeTacticalBoardV2(
+        away, football::sim::TeamSide::Away, football::pitch::Pitch{});
+  }
   MatchOptions options = MatchConfig(seed);
 
   GameEnv env(home, away, football::pitch::Pitch{}, football::ball::BallModel{},
@@ -328,6 +339,8 @@ Audit RunMatch(football::ai::PlayerPolicyKind policy,
   audit.finished = env.Finished();
   audit.result = env.Result();
   audit.trajectory_digest = MixTrajectories(env.EventTrajectories());
+  audit.coach_calls = env.CoachCalls(football::sim::TeamSide::Home);
+  audit.coach_records = static_cast<int>(env.CoachLog().size());
   env.Stop();
   return audit;
 }
@@ -437,4 +450,17 @@ TEST_CASE("Integration: Team set-piece configuration drives real restart takers"
     WARN("short run contained no configured restart; raise "
          "FOOTBALL_INTEGRATION_HALF_SECONDS to exercise RFE-4 end to end");
   }
+}
+
+TEST_CASE("Integration: heuristic coach loop runs a short autonomous match",
+          "[integration][match]") {
+  // Coach-enabled path: AIEngine runs ContextCollector -> CoachScheduler ->
+  // HeuristicCoachPolicy -> CoachRuntime on the V2 boards while the heuristic
+  // player policy still drives the roster. It must not break the match.
+  const Audit audit = RunMatch(football::ai::PlayerPolicyKind::Heuristic,
+                               MakeEleven("home", 0), MakeEleven("away", 11), 42,
+                               /*coach=*/true);
+  RequireHealthyMatch(audit);
+  Report(audit);
+  REQUIRE(audit.coach_calls >= 1);  // the scheduler ran at least the opening turn
 }
