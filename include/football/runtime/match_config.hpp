@@ -19,8 +19,8 @@ namespace football::sim {
 
 
 // Transitional external declaration. Runtime converts it once into a
-// football::team::Team; this type must not become a second live team authority.
-// Callers supply players explicitly; there is no implicit database roster.
+// football::team::TeamDefinition; this type must not become a second live team
+// authority. Callers supply players explicitly; there is no implicit database roster.
 struct TeamSetup {
   std::string name;
   std::vector<football::player::PlayerDefinition> players;

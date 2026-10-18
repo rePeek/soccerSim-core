@@ -108,22 +108,29 @@ std::optional<football::team::FormationPresetKind> PresetKindFor(e_GameMode mode
   }
 }
 
-const std::vector<football::player::PlayerId>* TakerPriority(
-    e_GameMode mode, int team_id, const Vector3& ball,
-    const football::team::SetPieceOrders* orders) {
-  if (orders == nullptr) return nullptr;
+// Declared taker priority for one restart. Free kicks expose the direct list as
+// primary and the indirect list as secondary: e_GameMode cannot currently
+// distinguish the two rules, so this is only a taker-selection compatibility
+// fallback, not a statement about the restart's rule category.
+struct TakerOrders {
+  const std::vector<football::player::PlayerId>* primary = nullptr;
+  const std::vector<football::player::PlayerId>* secondary = nullptr;
+};
+
+TakerOrders TakerPriority(e_GameMode mode, int team_id, const Vector3& ball,
+                          const football::team::SetPieceOrders* orders) {
+  if (orders == nullptr) return {};
   switch (mode) {
-    case e_GameMode_Penalty: return &orders->penalties;
-    // e_GameMode cannot currently distinguish direct from indirect, so the
-    // declared direct-free-kick order is the compatibility mapping.
-    case e_GameMode_FreeKick: return &orders->direct_free_kicks;
+    case e_GameMode_Penalty: return {&orders->penalties, nullptr};
+    case e_GameMode_FreeKick:
+      return {&orders->direct_free_kicks, &orders->indirect_free_kicks};
     case e_GameMode_Corner: {
       // Left/right is the attacking team's own perspective in the home frame.
       const bool left = ball.coords[1] * AttackingDirection(team_id) > 0;
-      return left ? &orders->corners_left : &orders->corners_right;
+      return {left ? &orders->corners_left : &orders->corners_right, nullptr};
     }
-    case e_GameMode_ThrowIn: return &orders->throw_ins;
-    default: return nullptr;
+    case e_GameMode_ThrowIn: return {&orders->throw_ins, nullptr};
+    default: return {};
   }
 }
 
@@ -167,19 +174,26 @@ Player* SelectTaker(std::span<Player* const> active, e_GameMode mode, int team_i
                      return (Position(*a) - ball).GetSquaredLength() <
                          (Position(*b) - ball).GetSquaredLength();
                    });
-  const std::vector<football::player::PlayerId>* priority = TakerPriority(
+  const TakerOrders priority = TakerPriority(
       mode, team_id, ball, planning.For(team_id).orders);
   std::vector<football::team::EligiblePlayer> eligible;
   eligible.reserve(candidates.size());
   for (const Player* player : candidates) {
     eligible.push_back({player->GetID(), true});
   }
-  const std::span<const football::player::PlayerId> declared =
-      priority ? std::span<const football::player::PlayerId>(*priority)
-               : std::span<const football::player::PlayerId>{};
-  const std::optional<football::player::PlayerId> selected =
-      football::team::SelectEligibleTaker(
-          declared, eligible, football::team::SelectionFallback::CandidateOrder);
+  const auto declared = [&](const std::vector<football::player::PlayerId>* list)
+      -> std::optional<football::player::PlayerId> {
+    if (list == nullptr) return std::nullopt;
+    return football::team::SelectEligibleTaker(
+        *list, eligible, football::team::SelectionFallback::None);
+  };
+  std::optional<football::player::PlayerId> selected = declared(priority.primary);
+  if (!selected) selected = declared(priority.secondary);
+  if (!selected) {
+    // No declared (or ineligible) order: the legacy nearest-first ranking.
+    selected = football::team::SelectEligibleTaker(
+        {}, eligible, football::team::SelectionFallback::CandidateOrder);
+  }
   if (selected) {
     for (Player* player : candidates) {
       if (player->GetID() == *selected) return player;
@@ -202,7 +216,6 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
 
   std::vector<Player*> active(active_players.begin(), active_players.end());
   plan.taker = SelectTaker(active, mode, team_id, plan.ball_position, planning);
-
   std::stable_sort(active.begin(), active.end(), [&](const auto* a, const auto* b) {
     return a == plan.taker && b != plan.taker;
   });

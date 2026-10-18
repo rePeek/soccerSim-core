@@ -18,7 +18,7 @@
 #include "football/pitch/pitch_frame.hpp"
 #include "observation/world_state_builder.hpp"
 #include "player/player_contact.hpp"
-#include "runtime/roster_possession.hpp"
+#include "runtime/team_possession.hpp"
 #include "referee/goal.hpp"
 #include "referee/period.hpp"
 #include "referee/referee.hpp"
@@ -34,7 +34,7 @@ namespace {
 // profiles omitted by a smaller formation and profiles with explicit appearance.
 void ResolveAppearance(football::sim::PreparedTeam& prepared,
                         football::math::Rng& rng) {
-  for (auto& player : prepared.team.players) {
+  for (auto& player : prepared.definition.players) {
     const int skin_color = int(std::round(rng.Uniform(1, 4)));
     if (!player.appearance.skin_color) player.appearance.skin_color = skin_color;
   }
@@ -85,7 +85,7 @@ football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
   if (!ball_) throw std::logic_error("simulation has no match");
   const football::sim::TeamView home = TeamViewOf(0);
   const football::sim::TeamView away = TeamViewOf(1);
-  // The between-tick ball frame follows the first processing roster.
+  // The between-tick ball frame follows the first processing team.
   const int ball_frame_team = options_.reverse_team_processing ? 1 : 0;
   return {GetTimelineTick(), phase_, play_authorized_, set_piece_active_, goal_scored_,
       *ball_, pitch_, GetRegulationTime(), home, away, first_team_,
@@ -101,14 +101,14 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
   const int own_team = actor.GetTeamID();
   const int rival_team = 1 - own_team;
   const int processing_slot = own_team == second_team_ ? 1 : 0;
-  // Borrowed views: roster slices plus the runtime-owned team match state.
-  const PlayerTeamView own_view{own_team, RosterOf(own_team).Players(),
-                                RosterOf(rival_team).Players(),
-                                RosterOf(own_team).Goalie(),
+  // Borrowed views: player slices plus the runtime-owned team match state.
+  const PlayerTeamView own_view{own_team, TeamOf(own_team).Players(),
+                                TeamOf(rival_team).Players(),
+                                TeamOf(own_team).Goalie(),
                                 &team_states_[own_team]};
-  const PlayerTeamView opponent_view{rival_team, RosterOf(rival_team).Players(),
-                                     RosterOf(own_team).Players(),
-                                     RosterOf(rival_team).Goalie(),
+  const PlayerTeamView opponent_view{rival_team, TeamOf(rival_team).Players(),
+                                     TeamOf(own_team).Players(),
+                                     TeamOf(rival_team).Goalie(),
                                      &team_states_[rival_team]};
   return {GetTimelineTick(), play_authorized_, set_piece_active_, IsBallInPlay(),
           clock_->IsHalfUnderway(), *ball_, ball_retainer_,
@@ -156,8 +156,9 @@ class Simulation::SendOffEvents final : public football::sim::PlayerSendOffSink 
 };
 
 Player* Simulation::FindPlayerById(football::player::PlayerId id) const {
-  for (const auto& roster : rosters_) {
-    for (Player* player : roster.Players()) {
+  for (const auto& team : teams_) {
+    if (!team) continue;
+    for (Player* player : team->Players()) {
       if (player->GetID() == id) return player;
     }
   }
@@ -174,7 +175,7 @@ void Simulation::BeginBodyCollisionShadow() {
   body_shadow_active_ = true;
 
   // Fixed match slots, not active-roster order. Both teams currently share
-  // the first processing roster's frame with Ball.
+  // the first processing team's frame with Ball.
   for (std::size_t slot = 0; slot < snapshot_players_.size(); ++slot) {
     Player* player = snapshot_players_[slot];
     if (!player->IsActive()) continue;
@@ -209,7 +210,7 @@ void Simulation::MeasureBodyShadowEndpoint(const Player& player) {
   if (!body_shadow_active_) return;
   for (auto& prediction : body_shadow_predictions_) {
     if (prediction.player != player.GetID()) continue;
-    // Second roster executes in the opposite frame. Rotate only this copy,
+    // Second team executes in the opposite frame. Rotate only this copy,
     // before pair offsets/other actors can contaminate the Process endpoint.
     auto actual = player.GetKinematicState();
     if (player.GetTeamID() == second_team_) actual.Mirror();
@@ -321,7 +322,7 @@ void Simulation::ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ru
   } else {
     const int touch_team = own_goal ? 1 - team : team;
     last_goal_scorer_ = football::sim::event::LastTouchPlayer(
-        touches_, touch_team, rosters_[touch_team].Players());
+        touches_, touch_team, TeamOf(touch_team).Players());
   }
   event_log_.Record(football::sim::event::GoalScoredEvent{
       GetTimelineTick(), ruling.team,
@@ -368,47 +369,46 @@ void Simulation::HandlePlayerSentOff(Player& player) {
   if (player.GetFormationEntry().role == e_PlayerRole_GK) {
     const FormationEntry entry = player.GetFormationEntry();
     std::vector<Player*> active_players;
-    for (Player* teammate : RosterOf(sent_off_team).Players()) {
+    for (Player* teammate : TeamOf(sent_off_team).Players()) {
       if (teammate->IsActive()) active_players.push_back(teammate);
     }
     assert(!active_players.empty());
     if (!active_players.empty()) active_players.front()->SetFormationEntry(entry);
   }
-  // Runtime re-designates possession to the closest remaining teammate.
   football::sim::RefreshDesignatedTeamPossessionPlayer(
-      RosterOf(sent_off_team), team_frames_[sent_off_team],
+      TeamOf(sent_off_team).Players(), team_frames_[sent_off_team],
       team_states_[sent_off_team], *ball_);
 }
 
-void Simulation::InitTeamPlayers(int team_id, football::sim::Roster& roster,
-                                 const football::team::Team& team,
+void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
                                  bool explicit_lineup, float ai_difficulty,
                                  std::uint8_t first_schedule_phase) {
-  // Roster traversal supplies order; phases repeat every ten players. The
+  // Team traversal supplies order; phases repeat every ten players. The
   // sequence (create, Add, publish facts, activate) is the historical one.
+  const football::team::TeamDefinition& definition = team.Definition();
   const std::vector<FormationEntry> formation =
-      BuildFormation(team, explicit_lineup);
-  active_lineups_[team_id].slots = team.lineup.starters;
+      BuildFormation(definition, explicit_lineup);
+  active_lineups_[team_id].slots = definition.lineup.starters;
   std::uint8_t schedule_phase = first_schedule_phase;
-  const auto count = explicit_lineup ? team.players.size() : formation.size();
+  const auto count = explicit_lineup ? definition.players.size() : formation.size();
   for (std::size_t i = 0; i < count; ++i) {
     std::optional<std::size_t> slot;
     for (std::size_t s = 0; s < football::team::kFormationSlots; ++s) {
-      if (team.lineup.starters[s] == team.players[i].id) slot = s;
+      if (definition.lineup.starters[s] == definition.players[i].id) slot = s;
     }
     const FormationEntry entry = explicit_lineup
         ? (slot ? formation.at(*slot) : FormationEntry{}) : formation.at(i);
     auto player = std::make_unique<Player>(
         team_id, static_cast<football::sim::TeamSide>(team_id), ai_difficulty,
-        team.players[i], entry, schedule_phase, *animations_, pitch_, rng_);
+        definition.players[i], entry, schedule_phase, *animations_, pitch_, rng_);
     schedule_phase = (schedule_phase + 1) % 10;
     Player* raw = player.get();
-    roster.Add(std::move(player));
+    team.AddPlayer(std::move(player));
     raw->SetTeamContext(TeamFactsFor(team_id));
     if (slot) raw->Activate();
   }
   team_states_[team_id].designated_player = nullptr;
-  for (Player* player : roster.Players()) {
+  for (Player* player : team.Players()) {
     if (player->IsActive()) {
       team_states_[team_id].designated_player = player;
       break;
@@ -422,8 +422,8 @@ football::sim::TeamView Simulation::TeamViewOf(int team_id) const {
       static_cast<football::sim::TeamSide>(team_id),
       team_frames_[team_id].dynamic_side,
       team_frames_[team_id].static_side,
-      rosters_[team_id].Goalie(),
-      rosters_[team_id].Players(),
+      TeamOf(team_id).Goalie(),
+      TeamOf(team_id).Players(),
       &team_states_[team_id],
       &team_frames_[team_id]};
 }
@@ -433,7 +433,7 @@ PlayerTeamFacts Simulation::TeamFactsFor(int team_id) const {
 }
 
 void Simulation::PublishTeamFacts(int team_id) {
-  football::sim::PublishTeamFacts(RosterOf(team_id), team_frames_[team_id],
+  football::sim::PublishTeamFacts(TeamOf(team_id).Players(), team_frames_[team_id],
                                   team_states_[team_id]);
 }
 
@@ -445,18 +445,18 @@ void Simulation::ResetTeamSituation(int team_id,
   state.has_possession = false;
   state.possession_amount = 1.0f;
   state.fading_possession_amount = 1.0f;
-  state.designated_player = RosterOf(team_id).Players().front();
-  // Publication stays inside the loop, in roster order, exactly as the legacy
-  // Team's previous reset owner did; batching would change the timing.
+  state.designated_player = TeamOf(team_id).Players().front();
+  // Publication stays inside the loop, in declaration order, exactly as the
+  // legacy Team's previous reset owner did; batching would change the timing.
   const PlayerTeamFacts facts = TeamFactsFor(team_id);
-  for (Player* player : RosterOf(team_id).Players()) {
+  for (Player* player : TeamOf(team_id).Players()) {
     if (player->IsActive()) player->ResetSituation(focus_position, now);
     player->SetTeamContext(facts);
   }
 }
 
 void Simulation::RelaxTeamFatigue(int team_id, float amount) {
-  for (Player* player : RosterOf(team_id).Players()) {
+  for (Player* player : TeamOf(team_id).Players()) {
     if (player->IsActive()) player->RelaxFatigue(amount);
   }
 }
@@ -466,7 +466,7 @@ void Simulation::MirrorTeam(int team_id) {
   frame.dynamic_side *= -1;
   frame.mirrored = !frame.mirrored;
   const PlayerTeamFacts facts = TeamFactsFor(team_id);
-  for (Player* player : RosterOf(team_id).Players()) {
+  for (Player* player : TeamOf(team_id).Players()) {
     player->Mirror();
     player->SetTeamContext(facts);
   }
@@ -478,7 +478,7 @@ void Simulation::SwitchTeamEnds(int team_id) {
   frame.static_side = -frame.static_side;
   frame.dynamic_side = -frame.dynamic_side;
   const PlayerTeamFacts facts = TeamFactsFor(team_id);
-  for (Player* player : RosterOf(team_id).Players()) {
+  for (Player* player : TeamOf(team_id).Players()) {
     player->Mirror();
     player->SetTeamContext(facts);
   }
@@ -571,8 +571,10 @@ void Simulation::AdvanceRestart(const football::sim::rules::RefereeView& view) {
   // Borrowed per-instant Team restart configuration: static orders/presets and
   // the live slot binding. Null pointers keep the legacy planner path.
   const football::sim::RestartPlanningTable planning{
-      {&teams_[0].set_piece_orders, &teams_[0].formations, &active_lineups_[0]},
-      {&teams_[1].set_piece_orders, &teams_[1].formations, &active_lineups_[1]}};
+      {&teams_[0]->Definition().set_piece_orders,
+       &teams_[0]->Definition().formations, &active_lineups_[0]},
+      {&teams_[1]->Definition().set_piece_orders,
+       &teams_[1]->Definition().formations, &active_lineups_[1]}};
   const football::sim::RestartController::TickOutcome outcome =
       restarts_.Advance(view.tick, options_, rng_, *rule_commands_, event_log_, planning);
   if (outcome.ceremonial_setup) referee_->OnCeremonialSetup();
@@ -606,9 +608,14 @@ void Simulation::ProcessReferee() {
 Simulation::Simulation()
     : authorization_port_(touches_, restarts_.context()) {}
 
+football::team::Team& Simulation::TeamOf(int id) {
+  if (!teams_.at(id)) throw std::logic_error("simulation has no team");
+  return *teams_.at(id);
+}
+
 const football::team::Team& Simulation::TeamOf(int id) const {
-  if (!ball_) throw std::logic_error("simulation has no team");
-  return teams_.at(id);
+  if (!teams_.at(id)) throw std::logic_error("simulation has no team");
+  return *teams_.at(id);
 }
 
 Simulation::~Simulation() {
@@ -630,9 +637,10 @@ void Simulation::Init(
     throw std::invalid_argument("snapshot capacity must be positive");
   std::array<football::sim::PreparedTeam, 2> models{football::sim::PrepareTeam(home),
                                                    football::sim::PrepareTeam(away)};
-  football::team::ValidateTeams(models[0].team, models[1].team);
+  football::team::ValidateTeamDefinitions(models[0].definition,
+                                          models[1].definition);
   for (const auto& team : models) {
-    if (std::ranges::none_of(team.team.lineup.starters,
+    if (std::ranges::none_of(team.definition.lineup.starters,
                             [](const auto& id) { return id.has_value(); }))
       throw std::invalid_argument("runtime requires an on-field player per team");
   }
@@ -647,16 +655,16 @@ void Simulation::Init(
 
   // Effective formation: the same fallback BuildFormation uses (formation ->
   // tactical_formation -> players.size()), so kickoff possession agrees with the
-  // rosters that are actually built.
+  // players that are actually built.
   const std::vector<FormationEntry> left =
-      BuildFormation(home_model.team, home_model.explicit_lineup);
+      BuildFormation(home_model.definition, home_model.explicit_lineup);
   const std::vector<FormationEntry> right =
-      BuildFormation(away_model.team, away_model.explicit_lineup);
+      BuildFormation(away_model.definition, away_model.explicit_lineup);
   const auto starters_only = [](const auto& team, const auto& formation) {
     if (!team.explicit_lineup) return formation;
     std::vector<FormationEntry> result;
     for (std::size_t s = 0; s < football::team::kFormationSlots; ++s)
-      if (team.team.lineup.starters[s]) result.push_back(formation.at(s));
+      if (team.definition.lineup.starters[s]) result.push_back(formation.at(s));
     return result;
   };
   options.left_team_owns_ball = LeftTeamOwnsBall(
@@ -687,8 +695,6 @@ void Simulation::Init(
   touches_.Reset();
   mental_images_.clear();
   teams_ = {};
-  rosters_[0].Clear();
-  rosters_[1].Clear();
   active_lineups_ = {};
   for (int i = 0; i < 2; ++i) {
     team_frames_[i].dynamic_side = -1;
@@ -721,19 +727,19 @@ void Simulation::Init(
   first_team_ = options.reverse_team_processing ? 1 : 0;
   second_team_ = options.reverse_team_processing ? 0 : 1;
 
-  // Static Team configuration is published before actor construction. Players
-  // copy their definitions, so Team owns no Player and no definition borrow.
+  // The Team entities are created before actor construction. Player copies
+  // its own definition, so Team's definition storage is never borrowed.
   auto ball = std::make_unique<Ball>(ball_config_, pitch_);
   const float difficulties[] = {options.left_team_difficulty,
                                options.right_team_difficulty};
-  teams_[0] = std::move(models[0].team);
-  teams_[1] = std::move(models[1].team);
+  teams_[0] = std::make_unique<football::team::Team>(std::move(models[0].definition));
+  teams_[1] = std::make_unique<football::team::Team>(std::move(models[1].definition));
   // Historical creation order and scheduler stagger, including reversed order.
-  InitTeamPlayers(first_team_, RosterOf(first_team_), teams_[first_team_],
+  InitTeamPlayers(first_team_, *teams_[first_team_],
                   models[first_team_].explicit_lineup, difficulties[first_team_], 0);
-  InitTeamPlayers(second_team_, RosterOf(second_team_), teams_[second_team_],
+  InitTeamPlayers(second_team_, *teams_[second_team_],
                   models[second_team_].explicit_lineup, difficulties[second_team_],
-                  static_cast<std::uint8_t>(rosters_[first_team_].Players().size() % 10));
+                  static_cast<std::uint8_t>(teams_[first_team_]->Players().size() % 10));
 
   std::vector<Player*> active_players;
   GetActiveTeamPlayers(first_team_, active_players);
@@ -751,8 +757,9 @@ void Simulation::Init(
   metadata.pitch = pitch_;
   metadata.animation_library_hash = animations_->ContentHash();
   // Slot order 0 then 1, exactly as the legacy local teams array iterated.
-  for (const auto& roster : rosters_) {
-    for (Player* player : roster.Players()) {
+  for (const auto& team : teams_) {
+    if (!team) continue;
+    for (Player* player : team->Players()) {
       snapshot_players.push_back(player);
       metadata.player_ids.push_back(player->GetID());
       player_slots.player_ids.push_back(player->GetID());
@@ -884,7 +891,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
 
   // Frame-local controls are runtime input, not an orchestration algorithm.
   for (int team_id = 0; team_id < 2; ++team_id) {
-    for (Player* player : rosters_[team_id].Players()) {
+    for (Player* player : teams_[team_id]->Players()) {
       player->ClearControl();
       if (const PlayerControl* control = controls.Get(player->GetID())) {
         player->SetControl(*control);
@@ -893,7 +900,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   }
 
   const bool reverse = options_.reverse_team_processing;
-  // Ball already shares the first roster's frame; turn only the other roster.
+  // Ball already shares the first team's frame; turn only the other team.
   Mirror(reverse, !reverse, false);
   // P4b only: capture the common ball/player frame and run read-only dynamic
   // CCD before the legacy resolver can change Ball or emit AcceptedTouch.
@@ -924,13 +931,13 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   }
   RunPreparedPlayerTick();
 
-  // UpdatePossession: retain both per-roster refreshes before arbitration.
+  // UpdatePossession: retain both per-team refreshes before arbitration.
   Mirror(first_team_ == 1, first_team_ == 0, false);
-  football::sim::RefreshTeamPossession(RosterOf(first_team_),
+  football::sim::RefreshTeamPossession(TeamOf(first_team_).Players(),
       team_frames_[first_team_], team_states_[first_team_],
       team_states_[second_team_], *ball_, GetTimelineTick(), ball_retainer_);
   Mirror(true, true, true);
-  football::sim::RefreshTeamPossession(RosterOf(second_team_),
+  football::sim::RefreshTeamPossession(TeamOf(second_team_).Players(),
       team_frames_[second_team_], team_states_[second_team_],
       team_states_[first_team_], *ball_, GetTimelineTick(), ball_retainer_);
   Mirror(first_team_ == 0, first_team_ == 1, true);
@@ -991,7 +998,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     referee_->GoalMouthCrossed(team_frames_[second_team_].dynamic_side, RefereeFacts(),
                                ruling_sink_.get());
   }
-  // Both rosters are still in the common frame used at Begin; compare only
+  // Both teams are still in the common frame used at Begin; compare only
   // after their real Process calls, never by running animation a second time.
   CompleteBodyCollisionShadow();
   Mirror(reverse, !reverse, false);
@@ -1140,7 +1147,7 @@ void Simulation::ApplyChangeOfEnds() {
   committed_ball_tick_.reset();
   rule_touches_.clear();
   for (auto& [id, active] : rule_contact_episodes_) active = false;
-  // Permanent end change: preserve processing-roster order and canonical flags.
+  // Permanent end change: preserve processing-team order and canonical flags.
   SwitchTeamEnds(first_team_);
   SwitchTeamEnds(second_team_);
   ball_->Mirror();
@@ -1224,7 +1231,7 @@ MentalImage* Simulation::GetMentalImage(std::chrono::milliseconds history) {
   return football::sim::observation::SampleMentalImage(mental_images_, history);
 }
 
-// Legacy team slot (-1 touches fall back to the first processing roster).
+// Legacy team slot (-1 touches fall back to the first processing team).
 int Simulation::GetLastTouchTeam() const {
   return touches_.last_team != -1 ? touches_.last_team : first_team_;
 }
@@ -1232,11 +1239,11 @@ int Simulation::GetLastTouchTeam() const {
 Player* Simulation::GetLastTouchPlayer() const {
   const int team = GetLastTouchTeam();
   return football::sim::event::LastTouchPlayer(touches_, team,
-                                              rosters_[team].Players());
+                                              TeamOf(team).Players());
 }
 
 void Simulation::GetActiveTeamPlayers(int team_id, std::vector<Player*>& players) {
-  for (Player* player : rosters_[team_id].Players()) {
+  for (Player* player : TeamOf(team_id).Players()) {
     if (player->IsActive()) players.push_back(player);
   }
 }
@@ -1266,8 +1273,9 @@ void Simulation::ClearComposition() {
   EnableActiveTouchShadow(false);
   const auto end_tick = clock_ ? clock_->now() : football::sim::Tick{};
   for (int i = 0; i < 2; ++i) {
-    // Home then away, stable roster order: preserve the historical Exit/RNG window.
-    for (Player* player : rosters_[i].Players()) player->Exit(end_tick);
+    // Home then away, stable declaration order: preserve the historical Exit/RNG window.
+    if (!teams_[i]) continue;
+    for (Player* player : teams_[i]->Players()) player->Exit(end_tick);
   }
   // Drop all match-level actor borrows / indices while their owners still live.
   last_goal_team_ = -1;
@@ -1303,11 +1311,10 @@ void Simulation::ClearComposition() {
   rule_commands_.reset();
   send_off_sink_.reset();
   ball_.reset();
-  rosters_[0].Clear();
-  rosters_[1].Clear();
+  teams_[0].reset();
+  teams_[1].reset();
   active_lineups_ = {};
   team_frames_ = {};
   team_states_ = {};
-  teams_ = {};
   clock_.reset();
 }

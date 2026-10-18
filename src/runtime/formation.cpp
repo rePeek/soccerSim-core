@@ -24,7 +24,7 @@ Vector3 DefaultRolePosition(e_PlayerRole role) {
 
 }  // namespace
 
-std::vector<FormationEntry> BuildFormation(const football::team::Team& team,
+std::vector<FormationEntry> BuildFormation(const football::team::TeamDefinition& team,
                                            bool explicit_lineup) {
   const std::size_t count = explicit_lineup
       ? football::team::kFormationSlots

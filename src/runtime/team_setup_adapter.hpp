@@ -5,11 +5,11 @@
 
 namespace football::sim {
 
-// Transitional compatibility adapter: TeamSetup remains the external input while
-// callers migrate. Runtime immediately converts it to the static team::Team and
-// keeps the legacy construction-mode flag privately for initialization only.
+// callers migrate. Runtime immediately converts it to the static
+// team::TeamDefinition and keeps the legacy construction-mode flag privately
+// for initialization only.
 struct PreparedTeam {
-  football::team::Team team;
+  football::team::TeamDefinition definition;
   bool explicit_lineup = false;
 };
 

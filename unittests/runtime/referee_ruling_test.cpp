@@ -60,7 +60,7 @@ OpenReferee& Open(Simulation& sim) {
   return result;
 }
 Player* Actor(Simulation& sim, int team, int slot = 1) {
-  return SimulationAccess::RosterOf(sim, team).Players()[slot];
+  return SimulationAccess::TeamOf(sim, team).Players()[slot];
 }
 void Assess(Simulation& sim, Referee& rules, float severity, Vector3 position = Vector3(0)) {
   FoulAssessment fact;
@@ -627,4 +627,142 @@ TEST_CASE("Rulings: team formation presets seed both sides' restart targets",
   // The declared taker still owns the ball spot, not a preset position.
   REQUIRE(plan.taker != nullptr);
   REQUIRE(plan.taker->GetID() == 0);
+}
+
+namespace {
+Vector3 PlanTargetOf(const RestartPlan& plan, football::player::PlayerId id) {
+  for (const RestartPlayerTarget& target : plan.players) {
+    if (target.player->GetID() == id) return target.position;
+  }
+  return Vector3(-999, -999, -999);
+}
+
+const RestartPlan& PlanOf(Simulation& sim) {
+  const RestartContext& restart = SimulationAccess::RestartContextOf(sim);
+  REQUIRE(restart.state.has_value());
+  return restart.state->plan;
+}
+}  // namespace
+
+TEST_CASE("Rulings: preset targets keep the team-relative frame after a change of ends",
+          "[runtime][ruling][team]") {
+  const football::team::FormationAnchor anchor{
+      football::team::AnchorFrame::TeamRelative, 0.9f, 0.2f};
+  TeamSetup home = BigTeam(0);
+  home.formation_presets.presets = {{"fk_attack",
+      football::team::FormationPresetKind::FreeKick,
+      football::team::FormationPresetSide::Attacking,
+      {{1, anchor, "runner"}}}};
+  Simulation sim;
+  InitWith(sim, home, Team(100));
+  auto& rules = Open(sim);
+  // Half-time change of ends: both runtime directions flip, but the fixed
+  // home-frame policy representation (and therefore TeamRelative anchors) must
+  // not follow the stadium orientation.
+  SimulationAccess::SwitchTeamEnds(sim, 0);
+  SimulationAccess::SwitchTeamEnds(sim, 1);
+  sim.Mirror(false, false, true);
+  Assess(sim, rules, 1.2f, Vector3(40, 20, 0));
+  SimulationAccess::ProcessReferee(sim);
+  SimulationAccess::ProcessReferee(sim);
+  const RestartPlan& plan = PlanOf(sim);
+  const auto& pitch = SimulationAccess::PitchOf(sim);
+  REQUIRE(PlanTargetOf(plan, 1) ==
+          football::team::FormationAnchorToWorld(anchor, pitch, -1,
+                                                  plan.ball_position, false));
+}
+
+TEST_CASE("Rulings: a sent-off preset slot is vacated and skipped",
+          "[runtime][ruling][team]") {
+  const football::team::FormationAnchor slot1{
+      football::team::AnchorFrame::TeamRelative, 0.9f, 0.0f};
+  const football::team::FormationAnchor slot2{
+      football::team::AnchorFrame::TeamRelative, 0.7f, 0.0f};
+  TeamSetup home = BigTeam(0);
+  // Declare the goalkeeper as taker so slot 1 is free to follow its preset.
+  home.set_piece_orders.direct_free_kicks = {0};
+  home.formation_presets.presets = {{"fk_attack",
+      football::team::FormationPresetKind::FreeKick,
+      football::team::FormationPresetSide::Attacking,
+      {{1, slot1, "a"}, {2, slot2, "b"}}}};
+  Simulation sim;
+  InitWith(sim, home, Team(100));
+  auto& rules = Open(sim);
+  Player* sent_off = SimulationAccess::TeamOf(sim, 0).Players()[2];
+  SimulationAccess::SendOff(sim, *sent_off);
+  REQUIRE_FALSE(
+      SimulationAccess::ActiveLineupOf(sim, 0).slots[2].has_value());
+  Assess(sim, rules, 1.2f, Vector3(4, 3, 0));
+  SimulationAccess::ProcessReferee(sim);
+  SimulationAccess::ProcessReferee(sim);
+  const RestartPlan& plan = PlanOf(sim);
+  // The dismissed actor is not planned; the surviving preset slot still is.
+  for (const RestartPlayerTarget& target : plan.players)
+    CHECK(target.player->GetID() != sent_off->GetID());
+  const auto& pitch = SimulationAccess::PitchOf(sim);
+  REQUIRE(PlanTargetOf(plan, 1) ==
+          football::team::FormationAnchorToWorld(slot1, pitch, -1,
+                                                  plan.ball_position, false));
+}
+
+TEST_CASE("Rulings: an illegal preset proposal is corrected by the legality pipeline",
+          "[runtime][ruling][team]") {
+  // The defending preset proposes the ball centre, which the free-kick
+  // exclusion distance must push out. The raw candidate is illegal.
+  const football::team::FormationAnchor on_ball{
+      football::team::AnchorFrame::BallRelative, 0.0f, 0.0f};
+  TeamSetup home = BigTeam(0);
+  TeamSetup away = BigTeam(100);
+  away.formation_presets.presets = {{"fk_defend",
+      football::team::FormationPresetKind::FreeKick,
+      football::team::FormationPresetSide::Defending,
+      {{1, on_ball, "wall"}}}};
+  Simulation sim;
+  InitWith(sim, home, away);
+  auto& rules = Open(sim);
+  Assess(sim, rules, 1.2f, Vector3(4, 3, 0));
+  SimulationAccess::ProcessReferee(sim);
+  SimulationAccess::ProcessReferee(sim);
+  const RestartPlan& plan = PlanOf(sim);
+  const auto& pitch = SimulationAccess::PitchOf(sim);
+  const Vector3 raw = football::team::FormationAnchorToWorld(
+      on_ball, pitch, 1, plan.ball_position, false);
+  const Vector3 corrected = PlanTargetOf(plan, 101);
+  CHECK(corrected != raw);
+  CHECK((corrected - plan.ball_position).GetLength() >= 9.15f);
+}
+
+TEST_CASE("Rulings: a partial preset only moves its declared slots",
+          "[runtime][ruling][team]") {
+  const football::team::FormationAnchor anchor{
+      football::team::AnchorFrame::TeamRelative, 0.95f, 0.15f};
+  TeamSetup with_preset = BigTeam(0);
+  // Keep the taker on slot 0 so the preset slot is not shadowed by the taker.
+  with_preset.set_piece_orders.direct_free_kicks = {0};
+  with_preset.formation_presets.presets = {{"fk_attack",
+      football::team::FormationPresetKind::FreeKick,
+      football::team::FormationPresetSide::Attacking,
+      {{1, anchor, "runner"}}}};
+  TeamSetup plain = BigTeam(0);
+  plain.set_piece_orders.direct_free_kicks = {0};
+  Simulation preset_sim;
+  Simulation plain_sim;
+  InitWith(preset_sim, with_preset, Team(100));
+  InitWith(plain_sim, plain, Team(100));
+  auto& preset_rules = Open(preset_sim);
+  auto& plain_rules = Open(plain_sim);
+  Assess(preset_sim, preset_rules, 1.2f, Vector3(4, 3, 0));
+  Assess(plain_sim, plain_rules, 1.2f, Vector3(4, 3, 0));
+  SimulationAccess::ProcessReferee(preset_sim);
+  SimulationAccess::ProcessReferee(preset_sim);
+  SimulationAccess::ProcessReferee(plain_sim);
+  SimulationAccess::ProcessReferee(plain_sim);
+  const RestartPlan& preset_plan = PlanOf(preset_sim);
+  const RestartPlan& plain_plan = PlanOf(plain_sim);
+  // Slot 1 follows its preset; every undeclared slot keeps the legacy target
+  // and the taker selection is unaffected by preset data.
+  REQUIRE(preset_plan.taker->GetID() == plain_plan.taker->GetID());
+  CHECK(PlanTargetOf(preset_plan, 1) != PlanTargetOf(plain_plan, 1));
+  CHECK(PlanTargetOf(preset_plan, 2) == PlanTargetOf(plain_plan, 2));
+  CHECK(PlanTargetOf(preset_plan, 0) == PlanTargetOf(plain_plan, 0));
 }

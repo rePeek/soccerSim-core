@@ -83,7 +83,7 @@ void Simulation::BeginBodyPhysicsShadow() {
     if (player->GetLastTouchBias(200, now) > .01f) blocks |= BodyOwnRecentTouch;
     if (football::sim::event::TeamTouchBias(touches_,
                                            (1 - player->GetTeamID()),
-                                           rosters_[1 - player->GetTeamID()].Players(),
+                                           TeamOf(1 - player->GetTeamID()).Players(),
                                            200, now) <= .01f)
       blocks |= BodyNoOpponentTouch;
     const bool allowed = action.type == e_FunctionType_Movement || action.type == e_FunctionType_Trip ||
@@ -114,7 +114,7 @@ void Simulation::BeginBodyPhysicsShadow() {
     const int latest_team = touches_.last_team != -1 ? touches_.last_team : first_team_;
     if (player == player->GetTeamDesignatedPossessionPlayer() &&
         football::sim::event::TeamTouchBias(touches_, latest_team,
-                                           rosters_[latest_team].Players(),
+                                           TeamOf(latest_team).Players(),
                                            200, now) < .01f) blocks |= BodyControlledRoute;
     for (std::size_t part = 0; part < kPlayerBodyPartCount; ++part) {
       const auto& collider = prediction.colliders[part];
@@ -153,7 +153,7 @@ void Simulation::BeginBodyPhysicsShadow() {
     body_physics_shadow_colliders_.clear();
     for (const auto& p : body_shadow_predictions_) {
       PlayerBodyColliderMotionIds ids{{p.colliders[0].id, p.colliders[1].id, p.colliders[2].id}};
-      // Player facing remains roster-local through mirrors. Convert only a copy.
+      // Player facing remains team-local through mirrors. Convert only a copy.
       auto axis = p.start.bodyFacing;
       if (FindPlayerById(p.player)->GetTeamID() == second_team_) axis.Mirror();
       std::array<football::geometry::ColliderMotion, kPlayerBodyPartCount> posed;

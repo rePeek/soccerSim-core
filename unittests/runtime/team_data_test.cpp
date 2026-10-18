@@ -22,25 +22,24 @@ TeamSetup Setup() {
 }
 }
 
-TEST_CASE("TeamSetup adapter creates static Team defaults", "[team][adapter]") {
+TEST_CASE("TeamSetup adapter creates static TeamDefinition defaults", "[team][adapter]") {
   auto setup = Setup();
   auto prepared = PrepareTeam(setup);
   CHECK_FALSE(prepared.explicit_lineup);
-  CHECK(prepared.team.name == setup.name);
-  CHECK(prepared.team.players[0].id == 90);
-  CHECK(prepared.team.lineup.starters[0] == 90);
-  CHECK(prepared.team.lineup.starters[2] == 70);
-  CHECK_FALSE(prepared.team.lineup.starters[3]);
-  CHECK_FALSE(prepared.team.leadership.captain);
-  CHECK(prepared.team.set_piece_orders.penalties.empty());
-  CHECK(prepared.team.formations.presets.empty());
+  CHECK(prepared.definition.name == setup.name);
+  CHECK(prepared.definition.players[0].id == 90);
+  CHECK(prepared.definition.lineup.starters[0] == 90);
+  CHECK(prepared.definition.lineup.starters[2] == 70);
+  CHECK_FALSE(prepared.definition.lineup.starters[3]);
+  CHECK_FALSE(prepared.definition.leadership.captain);
+  CHECK(prepared.definition.set_piece_orders.penalties.empty());
+  CHECK(prepared.definition.formations.presets.empty());
 
   setup.formation.resize(1);
   prepared = PrepareTeam(setup);
-  CHECK_FALSE(prepared.team.lineup.starters[1]);
-  CHECK(prepared.team.lineup.substitutes ==
+  CHECK_FALSE(prepared.definition.lineup.starters[1]);
+  CHECK(prepared.definition.lineup.substitutes ==
         std::vector<football::player::PlayerId>{12, 70});
-
   setup = Setup();
   for (unsigned id = 100; id < 112; ++id) {
     football::player::PlayerDefinition player;
@@ -48,8 +47,8 @@ TEST_CASE("TeamSetup adapter creates static Team defaults", "[team][adapter]") {
     setup.players.push_back(player);
   }
   prepared = PrepareTeam(setup);
-  CHECK(prepared.team.lineup.starters[10] == 107);
-  CHECK(prepared.team.lineup.substitutes.size() == 4);
+  CHECK(prepared.definition.lineup.starters[10] == 107);
+  CHECK(prepared.definition.lineup.substitutes.size() == 4);
 }
 
 TEST_CASE("TeamSetup adapter keeps explicit sparse lineup and construction mode",
@@ -61,8 +60,8 @@ TEST_CASE("TeamSetup adapter keeps explicit sparse lineup and construction mode"
   setup.lineup->substitutes = {90};
   auto prepared = PrepareTeam(setup);
   CHECK(prepared.explicit_lineup);
-  CHECK(prepared.team.lineup.starters[8] == 70);
-  CHECK_FALSE(prepared.team.lineup.starters[1]);
+  CHECK(prepared.definition.lineup.starters[8] == 70);
+  CHECK_FALSE(prepared.definition.lineup.starters[1]);
 
   SECTION("duplicate starter") { setup.lineup->starters[1] = 70; }
   SECTION("starter also substitute") { setup.lineup->substitutes.push_back(70); }
@@ -76,14 +75,14 @@ TEST_CASE("TeamSetup adapter keeps explicit sparse lineup and construction mode"
 
 TEST_CASE("Runtime slot vacancy and substitution preserve Team template identity",
           "[team][adapter]") {
-  const auto team = PrepareTeam(Setup()).team;
-  ActiveLineupState active{team.lineup.starters};
+  const auto definition = PrepareTeam(Setup()).definition;
+  ActiveLineupState active{definition.lineup.starters};
   VacateSlot(active, 12);
   CHECK_FALSE(active.slots[1]);
   CHECK(active.slots[2] == 70);
   ReplaceSlot(active, 1, 500);
   CHECK(active.slots[1] == 500);
-  CHECK(team.lineup.starters[1] == 12);
+  CHECK(definition.lineup.starters[1] == 12);
   CHECK_THROWS_AS(ReplaceSlot(active, 2, 500), std::invalid_argument);
   CHECK_THROWS_AS(ReplaceSlot(active, 11, 40), std::invalid_argument);
 }

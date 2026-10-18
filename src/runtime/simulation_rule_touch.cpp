@@ -72,7 +72,7 @@ void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& re
     rule_contact_episodes_.at(episode_key) = true;
   }
   // Re-arm only after geometric separation, not after a timer or a zero impulse.
-  // Collider tapes are in pitch physics coordinates; result is in first-roster
+  // Collider tapes are in pitch physics coordinates; result is in first-team
   // coordinates. No identity remapping occurs when ends/processing order change.
   auto center = result.state.position;
   if (options_.reverse_team_processing) center.Mirror();

@@ -13,8 +13,8 @@ class Player;
 namespace football::sim {
 
 // Borrowed, non-owning view of Runtime's live team relationship for a single
-// call (rules, observation). It carries identity, direction, the roster slice
-// and pointers to the live TeamFrame/TeamMatchState; static team::Team
+// call (rules, observation). It carries identity, direction, the player slice
+// and pointers to the live TeamFrame/TeamMatchState; static team::TeamDefinition
 // configuration is not copied into it. A view must never outlive the tick.
 struct TeamView {
   int team_id = -1;
@@ -22,7 +22,7 @@ struct TeamView {
   int dynamic_side = 0;
   int static_side = 0;
   Player* goalie = nullptr;
-  // Full roster in stable insertion order; callers filter IsActive() themselves.
+  // Full player list in stable insertion order; callers filter IsActive() themselves.
   std::span<Player* const> players;
   // Live runtime-owned state; null only for a view without team state.
   TeamMatchState* state = nullptr;
