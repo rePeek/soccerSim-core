@@ -84,27 +84,7 @@ void ValidateTeam(const Team& team) {
   const auto& o = team.set_piece_orders;
   for (const auto* list : {&o.penalties, &o.direct_free_kicks, &o.indirect_free_kicks,
                          &o.corners_left, &o.corners_right, &o.throw_ins}) order(*list);
-  std::set<std::string> preset_ids;
-  for (const auto& p : team.formation_presets.presets) {
-    Require(!p.id.empty() && preset_ids.insert(p.id).second, "invalid or duplicate preset id");
-    Require(p.kind >= FormationPresetKind::KickOff && p.kind <= FormationPresetKind::ThrowIn,
-            "invalid preset kind");
-    Require(p.side == FormationPresetSide::Attacking || p.side == FormationPresetSide::Defending,
-            "invalid preset side");
-    std::set<FormationSlotId> slots;
-    for (const auto& position : p.positions) {
-      Require(position.slot < kFormationSlots && slots.insert(position.slot).second,
-              "invalid or duplicate preset slot");
-      const auto& a = position.anchor;
-      Require(std::isfinite(a.x) && std::isfinite(a.y), "nonfinite preset coordinate");
-      Require(a.frame == AnchorFrame::TeamRelative || a.frame == AnchorFrame::BallRelative,
-              "invalid anchor frame");
-      // Ball-relative metre offsets deliberately have no artificial pitch bound:
-      // candidate targets are legalized later by the planner for the actual pitch.
-      if (a.frame == AnchorFrame::TeamRelative)
-        Require(a.x >= 0 && a.x <= 1 && std::abs(a.y) <= 1, "normalized anchor out of range");
-    }
-  }
+  ValidateFormationPresets(team.formation_presets);
 }
 
 void ValidateMatchTeams(const std::array<Team, 2>& teams) {

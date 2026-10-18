@@ -149,22 +149,23 @@ an explicit value state contract, not per-class memory hooks.
 whether they are exported:
 
 ```text
-src/sim/            (implementation; its headers are not migrated yet)
-├── simulation.hpp / simulation.cpp
-├── simulation_config.hpp  match-level options value
+src/                (runtime implementation; public values live in include/football/)
+├── runtime/      Simulation, MatchClock/Phase/Result, Roster, formation, possession
+│                 Pure Team configuration owns definitions, initial lineup,
+│                 leadership, taker orders and reusable formation presets.
+│                 Runtime owns actors, active slot bindings and match state.
 ├── player/       Player, controls, locomotion, contacts, baked body/pose
 ├── event/        EventRecognizer, TouchState and AcceptedTouch
 ├── observation/  WorldState, pitch_frame, MentalImage, Snapshot
 ├── referee/      Referee, goal, period, offside and restarts
-├── runtime/      MatchClock/Phase/Result, Roster, TeamSetup/TeamSide, formation
-├── team/         runtime Team, formation adaptation and possession arbitration
 └── testing/      SimulationAccess (internal, not product/actor-facing)
 ```
 
-For example, AI includes `sim/observation/world_state.hpp` and
-`sim/player/player_control_set.hpp`; apps use `include/football/env.hpp` and
-`sim/simulation.hpp`. WorldState remains an owning observation
-projection, never mutable world authority. CMake exports define library/API
+AI consumes `football/observation/world_state.hpp` and
+`football/player/player_control_set.hpp`; apps use `football/env.hpp`.
+WorldState remains an owning observation projection, never mutable world authority.
+See [TEAM migration audit](docs/team_entity_migration.md) for configuration ownership.
+CMake exports define library/API
 boundaries; there is no `contracts/` directory or legacy include-path shim.
 
 Runtime authority migration is incremental. `Simulation::Step()` now dispatches

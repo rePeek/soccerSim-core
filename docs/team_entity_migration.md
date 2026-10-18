@@ -58,7 +58,7 @@ the baseline source tree is isolated from implementation edits.
 
 TEAM-1 (1c840cf): pure Team values, conversion, validation, shared AI/runtime
 slot identity and dedicated team_data_unit. Debug CTest 12/12 (168.23 s).
-TEAM-2: Simulation teams_ replaces team_setups_ entirely. Team definitions
+TEAM-2 (3a90a16): Simulation teams_ replaces team_setups_ entirely. Team definitions
 reach final storage before actor creation; no live Team mutation API. Formation
 adapters share the unchanged algorithm without copying definitions. Added
 address-identity, caller-input destruction, reversed-order, Stop/re-Init and
@@ -66,7 +66,7 @@ post-actor allocation-failure recovery tests. Debug CTest 12/12. The existing
 bounded 22-actor test reports the same digest as the clean baseline:
 5bef607ddd567a09 (22 actors, 18 switches). No extra RNG calls were added.
 
-TEAM-3: explicit lineup creates actors in definition declaration order, assigning
+TEAM-3 (536d9c3): explicit lineup creates actors in definition declaration order, assigning
 each starter its formation slot and leaving reserves inactive. Explicit shapes
 are slot-indexed (up to 11 entries), independent of definition count; absent
 entries use existing FormationEntry defaults. Simulation requires at least one
@@ -79,3 +79,41 @@ pure, deterministic and not wired into referee execution. Candidate-order fallba
 is explicit, never PlayerId ranking. No substitution execution command is added.
 Debug CTest 12/12 passed; ownership tests and AI vacancy/replacement tests pass.
 The existing bounded 22-actor digest remains 5bef607ddd567a09.
+
+TEAM-4: FormationPresetLibrary now has standalone validation, const ID lookup and
+one pure planar coordinate converter for team-relative and ball-relative anchors.
+TeamRelative x in [0,1], y in [-1,1] exactly match TacticalAnchor u/v, NOT the
+historical InitialFormation convention. BallRelative x/y are finite metre offsets,
+positive towards opponent goal / team-left. Defending direction is explicit in
+the caller's frame; TeamSide never implies it. Lateral mirror precedes direction
+rotation. Overflow is rejected; templates and the physical ball are never changed.
+No clamp or rule legalization is hidden in the converter. An off-pitch candidate
+can be valid template data; a future planner must legalize actual assignments.
+
+Final Debug CTest: 12/12 passed (169.77 s, sim_runtime 166.96 s). Original 11
+entries remain green. team_data_unit: 11 cases / 138 assertions; dedicated
+ownership tests: 5 cases / 120 assertions. Existing 22-actor bounded digest still
+5bef607ddd567a09. No full match, app execution, Release build or removed golden
+tool was used. git diff --check passed.
+
+## Deliberate limits and integration gates
+- Runtime has one Team configuration per side; GameEnv's const external input
+  declarations remain solely for restart/bootstrap compatibility. AIEngine still
+  bootstraps TacticalBoard from TeamSetup, without a writable Team copy.
+- Slots no longer compress after send-off when authoritative metadata is present.
+  This is the intentional AI identity correction, not a change to rule or physics
+  behavior. Other default construction/RNG paths are retained.
+- Default short formations still omit actors for extra definitions; changing that
+  would alter legacy creation RNG/scheduler order. Explicit lineups construct all
+  declared players, with only bound starters activated.
+- A vacancy/replacement data operation exists; full substitution execution and
+  legal eligibility production are future Runtime responsibilities.
+- Formation conversion produces candidates, not referee-approved placements.
+  Helpers currently belong to the existing sim target; AI consumes only value
+  contracts and must not gain a concrete sim dependency when integration lands.
+- RFE-2 Runtime RestartContext ownership is absent on this base. TEAM-5/6, dynamic
+  Coach commands/versioning, preset selection by coach and on-field execution are
+  intentionally deferred. Referee placement, touch authorization and RNG are untouched.
+- Address/lifecycle and post-actor failure recovery are directly tested; ASan/UBSan
+  was not run. Future Runtime code must continue to forbid live Team movement or
+  player-definition vector reallocation.

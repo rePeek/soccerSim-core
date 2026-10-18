@@ -3340,7 +3340,15 @@ the 100 Hz control protocol or the Default baseline.
   couples the mode and the plan. Coach writes require V2.
 - `tactical_interpreter.hpp` is a pure interpreter: `EffectiveTactics` is a
   derived interpretation, never a second board. `DefaultSlotAssignment` is the
-  temporary observation-order binding.
+  Runtime slot binding, with observation-order fallback only for synthetic inputs.
+- Team FormationPresets are reusable data, never the current executed plan.
+  src/runtime/formation_preset.cpp validates templates and converts candidates:
+  TeamRelative x/y follow TacticalAnchor u/v ([0,1], [-1,1]); BallRelative
+  offsets are metres (+x attack, +y team-left). One converter handles direction
+  reversal and lateral mirroring without mutating templates or physical ball.
+  Candidates are not legal placements; rules/planner legalization is deferred.
+  TEAM-5/6 must wait for RFE Runtime RestartContext ownership. No Team orders
+  or presets are currently read by Referee or positioning/Player AI execution.
 - `tactical_examples.hpp` carries three pure-data example plans.
 
 ### Player AI (TACT-3, TACT-4, TACT-6b)

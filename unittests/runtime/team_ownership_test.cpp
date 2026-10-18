@@ -123,3 +123,41 @@ TEST_CASE("Explicit lineup binds identities to formation slots not declaration i
   CHECK(SelectEligibleTaker(team.set_piece_orders.penalties,eligible,SelectionFallback::None) == 50);
   CHECK(sim.Stop());
 }
+TEST_CASE("Orders and reusable presets are inert until restart integration", "[team][ownership]") {
+  const auto home = OwnershipSetup(50);
+  const auto away = OwnershipSetup(500);
+  auto configured = home;
+  configured.leadership = {51,{50}};
+  configured.set_piece_orders.penalties = {51,50};
+  configured.formation_presets.presets = {{"kickoff_custom",
+      FormationPresetKind::KickOff,FormationPresetSide::Attacking,
+      {{1,{AnchorFrame::TeamRelative,.4f,.2f},"receiver"}}}};
+  MatchOptions options;
+  options.snapshot_capacity = 8;
+  Simulation legacy, migrated;
+  legacy.Init(home,away,football::pitch::Pitch{},options);
+  migrated.Init(configured,away,football::pitch::Pitch{},options);
+  const auto compare = [&] {
+    const auto* a = legacy.Snapshots().Latest();
+    const auto* b = migrated.Snapshots().Latest();
+    REQUIRE(a); REQUIRE(b);
+    CHECK(a->snapshot.ball.position == b->snapshot.ball.position);
+    CHECK(a->snapshot.ball.velocity == b->snapshot.ball.velocity);
+    REQUIRE(a->snapshot.players.size() == b->snapshot.players.size());
+    for (std::size_t i = 0; i < a->snapshot.players.size(); ++i) {
+      CHECK(a->snapshot.players[i].position == b->snapshot.players[i].position);
+      CHECK(a->snapshot.players[i].velocity == b->snapshot.players[i].velocity);
+      CHECK(a->snapshot.players[i].animation_id == b->snapshot.players[i].animation_id);
+      CHECK(a->snapshot.players[i].active == b->snapshot.players[i].active);
+    }
+    CHECK(SimulationAccess::RngOf(legacy).engine() == SimulationAccess::RngOf(migrated).engine());
+    CHECK(legacy.Observe().restart_taker == migrated.Observe().restart_taker);
+  };
+  compare();
+  // Only one bounded ceremonial tick; no full-match loop or long new scenario.
+  legacy.Step(PlayerControlSet{});
+  migrated.Step(PlayerControlSet{});
+  compare();
+  CHECK(legacy.Stop());
+  CHECK(migrated.Stop());
+}

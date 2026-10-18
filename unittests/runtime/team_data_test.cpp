@@ -69,6 +69,11 @@ TEST_CASE("Leadership and taker orders filter eligibility without ID ranking", "
   CHECK(SelectEligibleTaker({},candidates,SelectionFallback::CandidateOrder) == 70);
   CHECK_FALSE(SelectEligibleTaker({},candidates,SelectionFallback::None));
   CHECK_FALSE(SelectEligibleTaker(priority,{},SelectionFallback::CandidateOrder));
+  const std::vector<football::player::PlayerId> exhausted{90};
+  CHECK(SelectEligibleTaker(exhausted,candidates,SelectionFallback::CandidateOrder) == 70);
+  CHECK_FALSE(SelectEligibleTaker(exhausted,candidates,SelectionFallback::None));
+  const std::vector<EligiblePlayer> unavailable{{90,false},{12,false}};
+  CHECK_FALSE(SelectEligibleTaker(priority,unavailable,SelectionFallback::CandidateOrder));
   CHECK(SelectCaptain({90,{12,70}},candidates,SelectionFallback::CandidateOrder) == 12);
   CHECK(SelectCaptain({90,{}},candidates,SelectionFallback::CandidateOrder) == 70);
   auto s = Setup();
@@ -102,5 +107,20 @@ TEST_CASE("Formation presets reject ambiguity and malformed anchors", "[team]") 
   SECTION("nonfinite") { p.positions[0].anchor.x = std::numeric_limits<float>::infinity(); }
   SECTION("normalized bound") { p.positions[0].anchor.y = 1.01f; }
   SECTION("unknown frame") { p.positions[0].anchor.frame = static_cast<AnchorFrame>(42); }
+  SECTION("empty id") { p.id.clear(); }
+  SECTION("unknown kind") { p.kind = static_cast<FormationPresetKind>(42); }
+  SECTION("unknown side") { p.side = static_cast<FormationPresetSide>(42); }
+  SECTION("negative normalized x") { p.positions[0].anchor.x = -.01f; }
   CHECK_THROWS_AS(MakeTeam(s), std::invalid_argument);
+}
+TEST_CASE("Role categories may share a nonstarter but not duplicate within a category", "[team]") {
+  auto s = Setup();
+  s.formation.resize(1);
+  s.set_piece_orders.penalties = {70};
+  s.set_piece_orders.direct_free_kicks = {70};
+  s.set_piece_orders.indirect_free_kicks = {70};
+  s.set_piece_orders.corners_left = {70};
+  s.set_piece_orders.corners_right = {70};
+  s.set_piece_orders.throw_ins = {70};
+  CHECK_NOTHROW(MakeTeam(s));
 }
