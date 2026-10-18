@@ -54,7 +54,7 @@ target_sources(football_sim_domain PRIVATE
   possession.cpp possession.hpp
   team_possession.cpp team_possession.hpp
   play_state.hpp restart_context.hpp restart_controller.cpp restart_controller.hpp
-  restart_planner.cpp restart_planner.hpp restart_orders.hpp
+  restart_planner.cpp restart_planner.hpp
   restart_placement.cpp restart_placement.hpp
   ../testing/simulation_access.hpp)
 target_link_libraries(football_sim_domain

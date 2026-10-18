@@ -305,3 +305,47 @@ for foul/offside identity.
 Tests: `ctest --preset debug` 11/11 (293.97 s). `[ruling]` 20 cases / 214
 assertions. No asset, Snapshot structure, physics kernel or RNG algorithm was
 modified. `git diff --check` passed. No push was performed.
+
+## RFE-4 — Team set-piece orders and formation presets in the RestartPlanner
+
+The Runtime planner now consumes the static Team configuration TEAM-1 added. The
+Referee keeps legality and the heuristic Player AI keeps movement; no actor or
+ball mutation moved into the team module.
+
+- `src/runtime/restart_planner.hpp` adds `RestartTeamPlanning` (borrowed
+  orders/presets/`ActiveLineupState`) and `RestartPlanningTable`. `PlanRestart`
+  takes the table, selects the taker from the declared `SetPieceOrders` priority,
+  then seeds non-taker targets from the matching `FormationPresets` entry.
+- Taker selection uses `football::team::SelectEligibleTaker` over nearest-first,
+  stable roster-ordered active candidates. Runtime supplies live eligibility
+  (active actors); an unavailable priority entry falls through to the next
+  declared name, then to `SelectionFallback::CandidateOrder` (the legacy nearest
+  actor). Mapping: Penalty -> penalties, FreeKick -> direct free kicks (the
+  current `e_GameMode` cannot distinguish direct/indirect), Corner ->
+  `corners_left`/`corners_right` from the attacking team's own perspective,
+  ThrowIn -> throw_ins. KickOff/GoalKick have no category and stay legacy.
+- Target seeding: the awarded team uses an `Attacking` preset and its opponent a
+  `Defending` preset for the same restart kind. Slots bind to live actors through
+  `ActiveLineupState`; anchors convert with `FormationAnchorToWorld` in the home
+  frame (`defending_direction = Side(team_id)`, no lateral mirror) and then pass
+  through the existing `LegalTarget`/`LegalPosition`/separation grid. Presets are
+  therefore tactical preferences, never referee-approved placements.
+- `RestartController` and `Simulation::AdvanceRestart` thread the borrowed table
+  into the planner. The opening/half-time kickoff ceremony stays the legacy
+  Runtime procedure, so declared config does not change it; post-goal and
+  ordinary restarts use the planner. The heuristic policy already consumes
+  `restart_target`, so no AI code changed.
+
+Empty orders/presets, and any restart kind without a matching preset, take the
+exact legacy path. The bounded A17 digest stays `5bef607ddd567a09`.
+
+Tests: `[team]` in `unittests/runtime/referee_ruling_test.cpp` — a declared
+free-kick order naming the goalkeeper beats the nearest actor while the empty
+order still picks the nearest; attacking and defending presets seed the
+respective slot-bound actors' targets while the declared taker keeps the ball
+spot. `unittests/runtime/team_ownership_test.cpp` retains the opening-ceremony
+equality check (legacy vs configured) under a corrected name.
+
+Validation: Debug CTest 13/13 (337.31 s); runtime 76 cases / 17483 assertions;
+A17 digest `5bef607ddd567a09` unchanged. No physics, animation or RNG algorithm
+changed. `git diff --check` clean. No push.

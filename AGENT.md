@@ -321,12 +321,12 @@ anim_baking → legacy_anim + animation/foundation
   Player copies definitions, so no external definition address is borrowed.
   integration is added. `team/formation_preset` templates are reusable data,
   never the live restart plan or player-control output.
-- Restart taker priority (TEAM-3A): `TeamView` borrows the owning Team's
-  `TeamDefinition` by pointer; `runtime/restart_orders.hpp` maps the
-  rules-owned `e_GameMode` to the declared `SetPieceOrders` list, and
-  `PlanRestart` applies it over the active-player slice. The declared taker
-  wins when active; empty or ineligible orders keep the legacy
-  nearest-active-player default unchanged.
+- Restart taker priority and presets are Runtime planning data: `Simulation`
+  builds a per-instant `RestartPlanningTable` from each `Team`'s
+  `Definition()` and the live `active_lineups_`, and `PlanRestart` consumes it.
+  The declared taker wins when active; empty or ineligible orders keep the
+  legacy nearest-active-player default. The heuristic AI only consumes the
+  resulting `restart_target`, so no AI code changes.
 - Init failures and Stop share ClearComposition: stop production adapters,
   Exit actors in home/away declaration order, clear actor borrows/indices,
   release Referee/adapters, clear Runtime team state, then destroy the Team
@@ -3437,10 +3437,21 @@ calls no `RuleCommandSink` lifecycle method. Runtime publishes rule-state side
 effects back through `Referee::OnCeremonialSetup()`/`OnRestartTaken()`.
 `PlayerTickContext`, `PlayerCommandInputs` and `WorldStateBuilder` borrow
 `Simulation::restart_context()`; no `RefereeBuffer`/`GetBuffer`/
-`RestartNeedsSimulation`/`GetRestartTarget` remains. Team set-piece orders and
-heuristic set-piece coordination are RFE-4. TEAM-3A now consumes the declaring
-Team's `SetPieceOrders` in `PlanRestart`; formation presets and heuristic
-set-piece coordination remain TEAM-3B/TEAM-3C.
+`RestartNeedsSimulation`/`GetRestartTarget` remains.
+
+RFE-4 wires the static Team configuration into the Runtime planner:
+`RestartPlanningTable` feeds borrowed `SetPieceOrders`/`FormationPresets`/
+`ActiveLineupState` into `PlanRestart`. The taker comes from the declared
+order via `football::team::SelectEligibleTaker` over nearest-first active
+candidates (unavailable entries fall through, then candidate order = legacy
+nearest; for FreeKick the direct list is tried before the indirect one, a
+taker-selection compatibility fallback only, not a rule-category claim); the
+awarded side uses an Attacking preset, its opponent a Defending preset, with
+slots bound through `ActiveLineupState`, converted by `FormationAnchorToWorld`
+and legalized by the existing rule pipeline. Presets are tactical preferences,
+never referee-approved placements. Empty config and kinds without a preset keep
+the legacy path; the opening/half-time ceremony is unchanged. The heuristic
+Player AI already consumes `restart_target`, so no AI code changed.
 
 RFE-3 adds the derived `PlayState` (`src/runtime/play_state.hpp`) and names the
 `StepImpl` early return as `Simulation::ShouldSkipPlayerSimulation()`: a stopped
@@ -3452,4 +3463,5 @@ path that starts the ball-in-play clock.
 The repaired missing goal-kick branch is an intentional rule behavior change.
 Bounded `[ruling]` tests in `unittests/runtime/referee_ruling_test.cpp` cover
 front/touch/goal boundaries, awards, atomic validation, disciplinary timing,
-Runtime restart ownership and the derived play-state transitions.
+Runtime restart ownership, Team set-piece orders/presets and the derived
+play-state transitions.

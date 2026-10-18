@@ -4,10 +4,13 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <stdexcept>
+#include <vector>
 
 #include "observation/pitch_frame.hpp"
 #include "player/player.hpp"
+#include "football/team/selection.hpp"
 
 
 namespace football::sim {
@@ -89,51 +92,140 @@ bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3&
       std::fabs(position.coords[1]) < kPenaltyBoxHalfWidthLegacy) return false;
   return !opponent || (position - plan.ball_position).GetLength() >= OpponentDistance(plan.mode);
 }
+// Team-driven restart planning helpers. All are pure: they read static Team
+// configuration plus explicit live candidates and never mutate actors or RNG.
+int AttackingDirection(int team_id) { return -Side(team_id); }
+
+std::optional<football::team::FormationPresetKind> PresetKindFor(e_GameMode mode) {
+  using football::team::FormationPresetKind;
+  switch (mode) {
+    case e_GameMode_KickOff: return FormationPresetKind::KickOff;
+    case e_GameMode_FreeKick: return FormationPresetKind::FreeKick;
+    case e_GameMode_Corner: return FormationPresetKind::Corner;
+    case e_GameMode_Penalty: return FormationPresetKind::Penalty;
+    case e_GameMode_ThrowIn: return FormationPresetKind::ThrowIn;
+    default: return std::nullopt;
+  }
+}
+
+// Declared taker priority for one restart. Free kicks expose the direct list as
+// primary and the indirect list as secondary: e_GameMode cannot currently
+// distinguish the two rules, so this is only a taker-selection compatibility
+// fallback, not a statement about the restart's rule category.
+struct TakerOrders {
+  const std::vector<football::player::PlayerId>* primary = nullptr;
+  const std::vector<football::player::PlayerId>* secondary = nullptr;
+};
+
+TakerOrders TakerPriority(e_GameMode mode, int team_id, const Vector3& ball,
+                          const football::team::SetPieceOrders* orders) {
+  if (orders == nullptr) return {};
+  switch (mode) {
+    case e_GameMode_Penalty: return {&orders->penalties, nullptr};
+    case e_GameMode_FreeKick:
+      return {&orders->direct_free_kicks, &orders->indirect_free_kicks};
+    case e_GameMode_Corner: {
+      // Left/right is the attacking team's own perspective in the home frame.
+      const bool left = ball.coords[1] * AttackingDirection(team_id) > 0;
+      return {left ? &orders->corners_left : &orders->corners_right, nullptr};
+    }
+    case e_GameMode_ThrowIn: return {&orders->throw_ins, nullptr};
+    default: return {};
+  }
+}
+
+const football::team::FormationPreset* FindPreset(
+    const football::team::FormationPresets* presets, e_GameMode mode,
+    football::team::FormationPresetSide side) {
+  if (presets == nullptr) return nullptr;
+  const std::optional<football::team::FormationPresetKind> kind = PresetKindFor(mode);
+  if (!kind) return nullptr;
+  for (const football::team::FormationPreset& preset : presets->presets) {
+    if (preset.kind == *kind && preset.side == side) return &preset;
+  }
+  return nullptr;
+}
+
+std::optional<Vector3> PresetTargetFor(
+    const football::team::FormationPreset* preset,
+    const football::sim::ActiveLineupState* lineup, const Player& player,
+    const football::pitch::Pitch& pitch, const Vector3& home_ball) {
+  if (preset == nullptr || lineup == nullptr) return std::nullopt;
+  for (const football::team::PresetPosition& position : preset->positions) {
+    if (position.slot >= lineup->slots.size()) continue;
+    const std::optional<football::player::PlayerId>& bound = lineup->slots[position.slot];
+    if (!bound || *bound != player.GetID()) continue;
+    // Home-frame candidate; LegalTarget below owns the rule legalization.
+    return football::team::FormationAnchorToWorld(
+        position.anchor, pitch, Side(player.GetTeamID()), home_ball, false);
+  }
+  return std::nullopt;
+}
+
+Player* SelectTaker(std::span<Player* const> active, e_GameMode mode, int team_id,
+                    const Vector3& ball, const RestartPlanningTable& planning) {
+  std::vector<Player*> candidates;
+  for (Player* player : active) {
+    if (player->GetTeamID() == team_id) candidates.push_back(player);
+  }
+  // Nearest-first, then stable roster order: exactly the legacy ranking.
+  std::stable_sort(candidates.begin(), candidates.end(),
+                   [&](const Player* a, const Player* b) {
+                     return (Position(*a) - ball).GetSquaredLength() <
+                         (Position(*b) - ball).GetSquaredLength();
+                   });
+  const TakerOrders priority = TakerPriority(
+      mode, team_id, ball, planning.For(team_id).orders);
+  std::vector<football::team::EligiblePlayer> eligible;
+  eligible.reserve(candidates.size());
+  for (const Player* player : candidates) {
+    eligible.push_back({player->GetID(), true});
+  }
+  const auto declared = [&](const std::vector<football::player::PlayerId>* list)
+      -> std::optional<football::player::PlayerId> {
+    if (list == nullptr) return std::nullopt;
+    return football::team::SelectEligibleTaker(
+        *list, eligible, football::team::SelectionFallback::None);
+  };
+  std::optional<football::player::PlayerId> selected = declared(priority.primary);
+  if (!selected) selected = declared(priority.secondary);
+  if (!selected) {
+    // No declared (or ineligible) order: the legacy nearest-first ranking.
+    selected = football::team::SelectEligibleTaker(
+        {}, eligible, football::team::SelectionFallback::CandidateOrder);
+  }
+  if (selected) {
+    for (Player* player : candidates) {
+      if (player->GetID() == *selected) return player;
+    }
+  }
+  // No declared or fallback candidate: the readiness/replan path handles it.
+  return candidates.empty() ? nullptr : candidates.front();
+}
 }  // namespace
 
 RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
                         const Vector3& home_ball_position,
                         std::span<Player* const> active_players,
                         e_GameMode mode, int team_id,
-                        RestartPriority priority) {
+                        const RestartPlanningTable& planning) {
   RestartPlan plan;
   plan.mode = mode;
   plan.team_id = team_id;
   plan.ball_position = home_ball_position.Get2D();
-  float nearest = std::numeric_limits<float>::max();
+
   std::vector<Player*> active(active_players.begin(), active_players.end());
-  for (auto* player : active) {
-    if (player->GetTeamID() != team_id) continue;
-    const float distance = (Position(*player) - plan.ball_position).GetSquaredLength();
-    if (distance < nearest) { nearest = distance; plan.taker = player; }
-  }
-  // Declared orders override the nearest-player default only when the team
-  // named an active player. Empty or fully ineligible orders preserve the
-  // legacy selection (including its first-nearest tie-break) byte for byte.
-  if (!priority.primary.empty() || !priority.secondary.empty()) {
-    std::vector<football::team::EligiblePlayer> candidates;
-    candidates.reserve(active.size());
-    for (auto* player : active) {
-      if (player->GetTeamID() == team_id && player->IsActive())
-        candidates.push_back({player->GetID(), true});
-    }
-    for (const auto ordered : {priority.primary, priority.secondary}) {
-      if (ordered.empty()) continue;
-      const auto declared = football::team::SelectEligibleTaker(
-          ordered, candidates, football::team::SelectionFallback::None);
-      if (!declared) continue;
-      for (auto* player : active) {
-        if (player->GetTeamID() == team_id && player->GetID() == *declared) {
-          plan.taker = player;
-          break;
-        }
-      }
-      break;
-    }
-  }
+  plan.taker = SelectTaker(active, mode, team_id, plan.ball_position, planning);
   std::stable_sort(active.begin(), active.end(), [&](const auto* a, const auto* b) {
     return a == plan.taker && b != plan.taker;
   });
+
+  using football::team::FormationPresetSide;
+  const football::team::FormationPreset* attacking_preset =
+      FindPreset(planning.For(team_id).presets, mode, FormationPresetSide::Attacking);
+  const football::team::FormationPreset* defending_preset =
+      FindPreset(planning.For(1 - team_id).presets, mode, FormationPresetSide::Defending);
+
   for (auto* player : active) {
     Vector3 target = Position(*player);
     if (player == plan.taker) {
@@ -145,10 +237,20 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
       if (mode == e_GameMode_Penalty)
         target = plan.ball_position + Vector3(Side(team_id) * 3.0f, 0, 0);
     } else {
-      if (mode == e_GameMode_KickOff)
+      const bool opponent = player->GetTeamID() != plan.team_id;
+      const football::team::FormationPreset* preset =
+          opponent ? defending_preset : attacking_preset;
+      const football::sim::ActiveLineupState* lineup =
+          opponent ? planning.For(1 - team_id).lineup : planning.For(team_id).lineup;
+      const std::optional<Vector3> preset_target =
+          PresetTargetFor(preset, lineup, *player, pitch, plan.ball_position);
+      if (preset_target) {
+        target = *preset_target;
+      } else if (mode == e_GameMode_KickOff) {
         target = player->GetFormationEntry().start_position *
                  Vector3(-Side(*player) * pitch.half_length(),
                          -Side(*player) * pitch.half_width(), 0);
+      }
       target = LegalTarget(plan, *player, target, pitch);
       const auto available = [&](const Vector3& candidate) {
         return LegalPosition(plan, *player, candidate, pitch) &&

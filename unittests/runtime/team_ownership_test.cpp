@@ -166,11 +166,11 @@ TEST_CASE("Explicit lineup binds identities to formation slots not declaration i
   CHECK(sim.Stop());
 }
 
-TEST_CASE("Declared orders and presets stay inert without a matching consumer",
+TEST_CASE("Declared restart configuration leaves the opening ceremony unchanged",
           "[team][ownership]") {
-  // Set-piece orders are consumed only when a matching restart is planned
-  // (TEAM-3A); reusable formation presets still have no consumer (TEAM-3B).
-  // A short run with no restart therefore stays byte-identical.
+  // The opening/half-time kickoff is a Runtime procedure placed by the legacy
+  // ceremony, not a planner restart. Team orders/presets therefore do not
+  // change it; ordinary restarts are exercised in the ruling tests.
   const auto home = OwnershipSetup(50);
   const auto away = OwnershipSetup(500);
   auto configured = home;

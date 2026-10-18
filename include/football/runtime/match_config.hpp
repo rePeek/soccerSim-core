@@ -22,7 +22,7 @@ enum class TeamSide : std::uint8_t { Home = 0, Away = 1 };
 
 // Transitional external declaration. Runtime converts it once into a
 // football::team::TeamDefinition; this type must not become a second live team
-// Callers supply players explicitly; there is no implicit database roster.
+// authority. Callers supply players explicitly; there is no implicit database roster.
 struct TeamSetup {
   std::string name;
   std::vector<football::player::PlayerDefinition> players;
