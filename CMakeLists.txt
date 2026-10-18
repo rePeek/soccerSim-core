@@ -53,12 +53,12 @@ target_sources(football_pitch INTERFACE FILE_SET HEADERS
 target_compile_features(football_pitch INTERFACE cxx_std_23)
 target_link_libraries(football_pitch INTERFACE football::foundation football::geometry)
 
+# Player is its own archive and publishes its public value headers; Team and
+# the Runtime contract target link it, so the Player module comes first.
+add_subdirectory(src/player)
+
 # Team is a football-domain module like ball/player/pitch: Runtime composes it.
 add_subdirectory(src/team)
-
-# Player is its own archive and publishes its public value headers; the Runtime
-# contract target links it, so the Player module must be declared first.
-add_subdirectory(src/player)
 
 # The Runtime layer declares football_sim_contracts/football_sim_domain; the
 # sibling modules below only contribute their own sources to that target.

@@ -1,8 +1,6 @@
 // Entity half of football::team::Team: the only owner of a team's actual
-// Player objects. This translation unit needs the concrete Player, so it is
-// compiled into the Runtime domain target rather than the standalone pure-data
-// football_team archive. The Team type itself stays in the football-domain
-// header; only the Player-touching definitions live here.
+// Player objects. It is compiled into the football_team archive, which links
+// football::player; the dependency direction is Team -> Player only.
 
 #include "football/team/team.hpp"
 

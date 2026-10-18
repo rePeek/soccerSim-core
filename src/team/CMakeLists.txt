@@ -1,8 +1,10 @@
-# Static team-domain entity and its pure configuration helpers. This target must
-# never depend on Runtime, Referee, AI or concrete Player/Ball implementations.
+# Static team-domain entity and its configuration helpers. The Team entity owns
+# the concrete Player objects, so this archive links football::player; it never
+# depends on Runtime, Referee or AI.
 add_library(football_team STATIC
   team.cpp
-  formation_preset.cpp)
+  formation_preset.cpp
+  team_players.cpp)
 add_library(football::team ALIAS football_team)
 target_sources(football_team PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
@@ -15,5 +17,8 @@ target_sources(football_team PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/team/formation.hpp
     ${PROJECT_SOURCE_DIR}/include/football/team/formation_preset.hpp)
 target_link_libraries(football_team
-  PUBLIC football::foundation football::pitch)
+  PUBLIC football::player football::foundation football::pitch)
+# team_players.cpp implements the Player-owning entity and needs the concrete
+# Player internal header; the edge is Team -> Player only.
+target_include_directories(football_team PRIVATE ${PROJECT_SOURCE_DIR}/src)
 football_configure_target(football_team)

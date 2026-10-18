@@ -60,9 +60,8 @@ void ValidateTeamDefinitions(const TeamDefinition& home,
 // PlayerDefinition by value, so the Team's definition storage is never borrowed.
 //
 // Implementation note: the Player-owning members are defined in
-// `src/team/team_players.cpp`, which currently compiles into the Runtime domain
-// target because it needs the concrete Player. The pure configuration and
-// validation above stay in the standalone football_team archive.
+// `src/team/team_players.cpp`, compiled into the football_team archive, which
+// links football::player. Runtime composes Teams but owns no Player itself.
 class Team final {
  public:
   explicit Team(TeamDefinition definition = {});

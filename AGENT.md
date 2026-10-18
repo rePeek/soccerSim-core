@@ -136,11 +136,10 @@ src/                 implementations; public headers live in include/football/
 │                    own CMakeLists for football::collision
 ├── ball/            football::ball implementation: motion, generic collision
 │                    response and prediction; no goal-net physics
-├── team/            football::team implementation: team.cpp validation/selection
-│                    and formation_preset.cpp anchor resolution are pure data and
-│                    link only foundation/pitch; team_players.cpp owns the Player
-│                    entities and compiles into football_sim_domain (it needs the
-│                    concrete Player).
+├── team/            football::team implementation: team.cpp validation/selection,
+│                    formation_preset.cpp anchor resolution and team_players.cpp,
+│                    which owns the team's Player objects. The archive links
+│                    foundation/pitch plus football::player (Team -> Player).
 ├── ai/              default_ai.cpp, tactical_board.cpp, tactical_plan.cpp,
 │                    tactical_interpreter.cpp, eliza/, player/, coach/
 ├── env.cpp          sole product composition implementation for AI + sim;
@@ -226,10 +225,8 @@ anim_baking → legacy_anim + animation/foundation
   or a contract domain. It links foundation/pitch/team and explicitly exports
   PlayerControl/PlayerControlSet, WorldState, MatchOptions/MatchPhase/MatchResult
   and the two time headers.
-  `football::team` is the Team-domain target: public team headers, the pure
-  TeamDefinition validation/selection/formation-preset helpers and the Team
-  entity declaration. Its Player-owning definitions compile into football_sim
-  (team_players.cpp); sim_contracts re-exports the target.
+  entity and its Player-owning definitions (team_players.cpp). It links
+  football::player; sim_contracts re-exports the target.
   Public values live with their domain; directory placement never exports actors.
   The former gamedefines umbrella is split among player, ball, team, match and
   observation. No compatibility headers or common/types layer remains.
@@ -3547,5 +3544,16 @@ Player object while linking only foundation/geometry/pitch/ball/animation/
 collision/BqLog plus the public `include/` tree. Debug and Release are 14/14
 CTest and keep the A17 digest `5bef607ddd567a09`.
 
-PLAYER-4 remains: move `src/team/team_players.cpp` into `football_team` on the
-merged feat/team base and link `football::player`.
+### PLAYER-4: Team owns Player in its own archive
+
+The feat/team commits were merged into feat/player (one conflict in
+`world_state_builder.cpp`: TeamView naming plus the PLAYER-2A frame
+conversion). Then `src/team/team_players.cpp` moved out of
+`football_sim_domain` into the `football_team` archive, which now links
+`football::player`. Runtime composes the two Player-owning Teams and owns no
+Player itself.
+
+The final direction is Runtime -> Team -> Player -> Animation/Ball/Pitch,
+with Runtime coordinating Referee and Event. `football_player` links no Team;
+`src/player` includes no Team header. Debug and Release are 14/14 CTest and
+keep the A17 digest `5bef607ddd567a09` (85 test cases).
