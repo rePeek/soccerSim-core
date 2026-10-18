@@ -1,14 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
 
-# Independent football::ball module.
-#
-# Public contract:  ${PROJECT_SOURCE_DIR}/include/football/ball/*
-# Private impl:     *.cpp + private headers in this directory
-#
-# football::ball must never depend on football_sim_domain, football_player,
-# football_referee, football_event or football_observation. It reads the
-# immutable football::pitch scene and consumes foundation math + geometry.
-
 add_library(football_ball STATIC)
 add_library(football::ball ALIAS football_ball)
 
@@ -43,10 +34,6 @@ target_include_directories(football_ball
 
 target_compile_features(football_ball PUBLIC cxx_std_23)
 
-# football::collision is a private implementation detail: the public ball
-# headers never expose CollisionHit/MovingSphere, so consumers need not treat
-# collision as a public dependency. It stays linked in through the static
-# library's LINK_ONLY interface.
 target_link_libraries(football_ball
   PUBLIC
     football::foundation football::geometry football::pitch

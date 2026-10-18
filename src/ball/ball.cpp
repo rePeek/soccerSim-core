@@ -40,7 +40,6 @@ BallStepResult Ball::AdvanceState(const BallState& current,
 
 BallStepResult Ball::EvaluateTick(const BallTickInput& input,
                                   std::vector<ColliderMotion>& scratch) const {
-  // Validation precedes all state/force consumption in both preview and commit.
   if (input.active_impulse && input.endpoint_constraint)
     throw std::invalid_argument("active impulse and endpoint constraint conflict");
   for (std::size_t i = 0; i < input.dynamic_colliders.size(); ++i) {
@@ -62,9 +61,6 @@ BallStepResult Ball::EvaluateTick(const BallTickInput& input,
   }
   BallState initial = state_;
   BallStepResult result = AdvanceState(initial, all_colliders);
-  // P5b: the active impulse belongs to the tick endpoint. It is applied after
-  // passive motion, changes only velocity/spin about the given
-  // point, never advances position again and never runs a second Step.
   if (input.active_impulse.has_value()) {
     result.state = football::ball::ApplyImpulseAtPoint(
         result.state, input.active_impulse->impulse,
@@ -107,9 +103,6 @@ void Ball::Reset(const BallState& state) {
 void Ball::Mirror() {
   state_.position.Mirror();
   state_.velocity.Mirror();
-  // Angular velocity is an axial vector: a 180 degree rotation about z flips
-  // the x and y components and leaves z unchanged (Vector3::Mirror does exactly
-  // that). Orientation gains the corresponding 180 degree z rotation.
   state_.angular_velocity.Mirror();
   const Quaternion half_turn(0.0f, 0.0f, 1.0f, 0.0f);
   state_.orientation = (half_turn * state_.orientation).GetNormalized();
@@ -117,4 +110,4 @@ void Ball::Mirror() {
 
 
 
-}  // namespace football::ball
+}

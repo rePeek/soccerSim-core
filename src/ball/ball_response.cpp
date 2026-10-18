@@ -45,13 +45,12 @@ BallContactResponse ResolveContactResponse(const BallState& ball, const BallCont
 
   const football::math::Vector3 u = ball.velocity + omega_cross_r - collider_velocity;
   const float un = u.GetDotProduct(n);
-  if (un >= 0.0f) return {ball};  // separating or resting: no new impulse
+  if (un >= 0.0f) return {ball};
 
   const float mass = config.mass();
   const float jn = -mass * (1.0f + material.restitution) * un;
 
   const football::math::Vector3 ut = u - n * un;
-  // Effective tangential inverse mass for a sphere: 1/m + R^2 / I.
   const float inverse =
       1.0f / mass + (config.radius() * config.radius()) / BallInertia(config);
   football::math::Vector3 jt = ut * (-1.0f / inverse);
@@ -70,4 +69,4 @@ BallState ResolveContact(const BallState& ball, const BallContact& contact,
   return ResolveContactResponse(ball, contact, material, collider_velocity, config).state;
 }
 
-}  // namespace football::ball
+}

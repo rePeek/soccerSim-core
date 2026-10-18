@@ -1,5 +1,4 @@
-#ifndef FOOTBALL_BALL_BALL_RESPONSE_HPP
-#define FOOTBALL_BALL_BALL_RESPONSE_HPP
+#pragma once
 
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_model.hpp"
@@ -9,34 +8,23 @@
 
 namespace football::ball {
 
-// Spherical inertia factor; thin-shell approximation. Keep it internal until
-// different ball materials actually need it in BallModel.
 inline constexpr float kBallInertiaFactor = 2.0f / 3.0f;
 
 float BallInertia(const football::ball::BallModel& config);
 
-// Bottom of the response stack: apply an impulse at a world-space point and
-// change both velocity and angular_velocity. No contact judgement, friction or
-// restitution lives here; dt is never applied to an impulse.
 BallState ApplyImpulseAtPoint(const BallState& ball,
                               const football::math::Vector3& impulse,
                               const football::math::Vector3& world_point,
                               const football::ball::BallModel& config);
 
-// Passive contact response: normal impulse from restitution plus
-// Coulomb-capped tangential friction impulse from the contact-point relative
-// velocity, then ApplyImpulseAtPoint. BallState.position is the authoritative
-// center at response time (possibly projected out of initial penetration).
-// `collider_velocity` is the collider contact velocity (zero for static).
 BallState ResolveContact(const BallState& ball, const BallContact& contact,
                          const football::geometry::ContactMaterial& material,
                          const football::math::Vector3& collider_velocity,
                          const football::ball::BallModel& config);
 
-// Explicit response diagnostics: a separating/resting contact has jn == 0.
 struct BallContactResponse {
   BallState state;
-  float normal_impulse = 0.0f; // N*s, not a per-tick velocity change
+  float normal_impulse = 0.0f;
   football::math::Vector3 tangential_impulse{0};
 };
 BallContactResponse ResolveContactResponse(
@@ -44,6 +32,4 @@ BallContactResponse ResolveContactResponse(
     const football::geometry::ContactMaterial& material, const football::math::Vector3& collider_velocity,
     const football::ball::BallModel& config);
 
-}  // namespace football::ball
-
-#endif  // FOOTBALL_BALL_BALL_RESPONSE_HPP
+}

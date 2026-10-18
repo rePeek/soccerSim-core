@@ -1,17 +1,10 @@
-#ifndef FOOTBALL_BALL_BALL_MODEL_HPP
-#define FOOTBALL_BALL_BALL_MODEL_HPP
+#pragma once
 
 #include <cmath>
 #include <stdexcept>
 
 namespace football::ball {
 
-// Static physical description of the football itself: mass, radius and the
-// aerodynamic coefficients. It owns no runtime state and is validated at
-// construction.
-//
-// Gravity, wind, the ground, the goal and every static collider are properties
-// of the world, so they live in football::pitch::Pitch, not here.
 class BallModel {
  public:
   constexpr BallModel() = default;
@@ -32,9 +25,7 @@ class BallModel {
 
   constexpr float mass() const { return mass_; }
   constexpr float radius() const { return radius_; }
-  // Air drag coefficient: acceleration is -drag * |v| * v.
   constexpr float drag() const { return drag_; }
-  // Magnus coupling: acceleration is magnus * (spin x v).
   constexpr float magnus_coefficient() const { return magnus_coefficient_; }
 
   bool operator==(const BallModel&) const = default;
@@ -46,6 +37,4 @@ class BallModel {
   float magnus_coefficient_ = 0.02f;
 };
 
-}  // namespace football::ball
-
-#endif  // FOOTBALL_BALL_BALL_MODEL_HPP
+}
