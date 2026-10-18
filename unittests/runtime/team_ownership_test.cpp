@@ -59,9 +59,9 @@ TEST_CASE("Runtime separates static Team from Player and live team state",
     home.players.clear();
     home.players.shrink_to_fit();
     for (int side = 0; side < 2; ++side) {
-      const auto& team = SimulationAccess::TeamOf(
+      const auto& team = SimulationAccess::DefinitionOf(
           sim, static_cast<TeamSide>(side));
-      const auto actors = SimulationAccess::RosterOf(sim, side).Players();
+      const auto actors = SimulationAccess::TeamOf(sim, side).Players();
       REQUIRE(actors.size() == 2);
       REQUIRE(team.players.size() == actors.size());
       CHECK(SimulationAccess::TeamViewOf(sim, side).players.data() ==
@@ -91,7 +91,7 @@ TEST_CASE("Runtime separates static Team from Player and live team state",
                   std::invalid_argument);
   CHECK_THROWS_AS(SimulationAccess::TeamOf(sim, TeamSide::Home),
                   std::logic_error);
-  CHECK(SimulationAccess::RosterOf(sim, 0).Players().empty());
+  CHECK_THROWS_AS(SimulationAccess::TeamOf(sim, 0), std::logic_error);
   CHECK_NOTHROW(sim.Init(OwnershipSetup(50), OwnershipSetup(500),
                          football::pitch::Pitch{}, options));
   CHECK(sim.Stop());
@@ -107,13 +107,13 @@ TEST_CASE("Failed Init destroys actors before static teams are replaced",
                   std::length_error);
   CHECK_THROWS_AS(SimulationAccess::TeamOf(sim, TeamSide::Home),
                   std::logic_error);
-  CHECK(SimulationAccess::RosterOf(sim, 0).Players().empty());
+  CHECK_THROWS_AS(SimulationAccess::TeamOf(sim, 0), std::logic_error);
   CHECK_FALSE(sim.Stop());
   options.snapshot_capacity = 8;
   REQUIRE_NOTHROW(sim.Init(OwnershipSetup(800), OwnershipSetup(900),
                            football::pitch::Pitch{}, options));
-  const auto players = SimulationAccess::RosterOf(sim, 0).Players();
-  const auto& team = SimulationAccess::TeamOf(sim, TeamSide::Home);
+  const auto players = SimulationAccess::TeamOf(sim, 0).Players();
+  const auto& team = SimulationAccess::DefinitionOf(sim, TeamSide::Home);
   CHECK(players.front()->GetModel().height == 1.75f);
   CHECK(players.front()->GetID() == 800);
   CHECK(team.players.front().id == 800);
@@ -138,7 +138,7 @@ TEST_CASE("Explicit lineup binds identities to formation slots not declaration i
   options.snapshot_capacity = 8;
   Simulation sim;
   sim.Init(home, OwnershipSetup(500), football::pitch::Pitch{}, options);
-  const auto players = SimulationAccess::RosterOf(sim, 0).Players();
+  const auto players = SimulationAccess::TeamOf(sim, 0).Players();
   REQUIRE(players.size() == 3);
   CHECK(players[0]->GetID() == 50);
   CHECK(players[0]->GetFormationEntry().role == e_PlayerRole_CF);
@@ -153,7 +153,7 @@ TEST_CASE("Explicit lineup binds identities to formation slots not declaration i
   world = sim.Observe();
   CHECK_FALSE((*world.active_lineups)[0].slots[0]);
   CHECK((*world.active_lineups)[0].slots[8] == 50);
-  const auto& team = SimulationAccess::TeamOf(sim, TeamSide::Home);
+  const auto& team = SimulationAccess::DefinitionOf(sim, TeamSide::Home);
   CHECK(team.lineup.starters[0] == 51);
   const std::vector<football::team::EligiblePlayer> eligible{
       {50, true}, {51, false}, {52, false}};
@@ -260,8 +260,8 @@ TEST_CASE("Runtime owns live lineup, frame and match state separately from Team"
   options.snapshot_capacity = 8;
   sim.Init(OwnershipSetup(50), OwnershipSetup(500),
            football::pitch::Pitch{}, options);
-  const auto& team = SimulationAccess::TeamOf(sim, TeamSide::Home);
-  const auto players = SimulationAccess::RosterOf(sim, 0).Players();
+  const auto& team = SimulationAccess::DefinitionOf(sim, TeamSide::Home);
+  const auto players = SimulationAccess::TeamOf(sim, 0).Players();
   auto& frame = SimulationAccess::TeamFrameOf(sim, 0);
   auto& state = SimulationAccess::TeamStateOf(sim, 0);
   auto& active = SimulationAccess::ActiveLineupOf(sim, 0);
@@ -303,7 +303,7 @@ TEST_CASE("Runtime Team retains only static configuration", "[team][ownership]")
   options.snapshot_capacity = 8;
   Simulation sim;
   sim.Init(home, OwnershipSetup(600), football::pitch::Pitch{}, options);
-  const auto& team = SimulationAccess::TeamOf(sim, TeamSide::Home);
+  const auto& team = SimulationAccess::DefinitionOf(sim, TeamSide::Home);
   CHECK(team.name == "Initial Only");
   CHECK(team.initial_tactics == home.tactics);
   CHECK(team.formations.presets.size() == 1);
@@ -311,6 +311,6 @@ TEST_CASE("Runtime Team retains only static configuration", "[team][ownership]")
   CHECK(team.tactical_formation.empty());
   CHECK(team.players.size() == home.players.size());
   CHECK(team.players.size() ==
-        SimulationAccess::RosterOf(sim, 0).Players().size());
+        SimulationAccess::TeamOf(sim, 0).Players().size());
   CHECK(sim.Stop());
 }

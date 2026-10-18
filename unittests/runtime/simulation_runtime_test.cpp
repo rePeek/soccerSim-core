@@ -152,9 +152,9 @@ void InitSmallMatch(Simulation& sim) {
            football::pitch::Pitch{}, MatchOptions{}, football::ball::BallModel{});
 }
 
-int ActiveCountOf(const football::sim::Roster& roster) {
+int ActiveCountOf(std::span<Player* const> players) {
   int count = 0;
-  for (Player* player : roster.Players()) {
+  for (Player* player : players) {
     if (player->IsActive()) ++count;
   }
   return count;
@@ -170,18 +170,18 @@ TEST_CASE("Runtime harness: two rosters initialise with live definitions",
   std::fprintf(stderr, "[runtime] Init: %.3fs\n", SecondsSince(init_start));
 
   REQUIRE(SimulationAccess::IsInitializedOf(sim));
-  const football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
-  const football::sim::Roster& away_roster = SimulationAccess::RosterOf(sim, 1);
+  const football::team::Team& home_team = SimulationAccess::TeamOf(sim, 0);
+  const football::team::Team& away_team = SimulationAccess::TeamOf(sim, 1);
 
 
 
 
-  const std::span<Player* const> home_players = home_roster.Players();
-  const std::span<Player* const> away_players = away_roster.Players();
+  const std::span<Player* const> home_players = home_team.Players();
+  const std::span<Player* const> away_players = away_team.Players();
   REQUIRE(home_players.size() == 11);
   REQUIRE(away_players.size() == 11);
-  CHECK(ActiveCountOf(home_roster) == 11);
-  CHECK(ActiveCountOf(away_roster) == 11);
+  CHECK(ActiveCountOf(home_team.Players()) == 11);
+  CHECK(ActiveCountOf(away_team.Players()) == 11);
 
   for (std::size_t i = 0; i < home_players.size(); ++i) {
     // Roster order, identity and side survive construction.
@@ -261,20 +261,20 @@ TEST_CASE("Runtime harness: Mirror twice restores players, sides and ball",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  const football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
-  const football::sim::Roster& away_roster = SimulationAccess::RosterOf(sim, 1);
+  const football::team::Team& home_team = SimulationAccess::TeamOf(sim, 0);
+  const football::team::Team& away_team = SimulationAccess::TeamOf(sim, 1);
 
 
   const WorldState before = sim.Observe();
   const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
   const int dynamic_before = home_frame.dynamic_side;
   std::vector<int> player_sides;
-  for (Player* player : home_roster.Players()) player_sides.push_back(player->GetDynamicSide());
+  for (Player* player : home_team.Players()) player_sides.push_back(player->GetDynamicSide());
 
   // Mirror both teams but not the ball; mirroring is its own inverse.
   sim.Mirror(true, true, false);
   CHECK(home_frame.dynamic_side == -dynamic_before);
-  for (Player* player : home_roster.Players()) {
+  for (Player* player : home_team.Players()) {
     CHECK(player->GetDynamicSide() == -dynamic_before);
   }
   sim.Mirror(true, true, false);
@@ -296,8 +296,8 @@ TEST_CASE("Runtime harness: SwitchEnds flips both directions, not the tick frame
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  const football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
-  const football::sim::Roster& away_roster = SimulationAccess::RosterOf(sim, 1);
+  const football::team::Team& home_team = SimulationAccess::TeamOf(sim, 0);
+  const football::team::Team& away_team = SimulationAccess::TeamOf(sim, 1);
 
 
   const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
@@ -313,7 +313,7 @@ TEST_CASE("Runtime harness: SwitchEnds flips both directions, not the tick frame
   CHECK(home_frame.mirrored == mirrored_before);
   // Publication is part of the behaviour: a switched end that skipped it would
   // leave every player reading the previous tick's team facts.
-  for (Player* player : home_roster.Players()) {
+  for (Player* player : home_team.Players()) {
     CHECK(player->GetDynamicSide() == -dynamic_before);
     CHECK(player->GetStaticSide() == -static_before);
   }
@@ -329,13 +329,13 @@ TEST_CASE("Runtime harness: possession arbitration is runtime-owned",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
+  football::team::Team& home_team = SimulationAccess::TeamOf(sim, 0);
   football::sim::TeamMatchState& home_state = SimulationAccess::TeamStateOf(sim, 0);
   football::sim::TeamMatchState& away_state = SimulationAccess::TeamStateOf(sim, 1);
 
   // The aggregation and the arbitration read the roster and the match state
   // directly; no Team object is involved.
-  Player* best = football::sim::BestPossessionPlayer(home_roster);
+  Player* best = football::sim::BestPossessionPlayer(home_team.Players());
   REQUIRE(best != nullptr);
   CHECK(best->IsActive());
 
@@ -357,10 +357,10 @@ TEST_CASE("Runtime harness: possession arbitration is runtime-owned",
 
   // A send-off re-designation writes the runtime state and publishes it.
   football::sim::RefreshDesignatedTeamPossessionPlayer(
-      home_roster, SimulationAccess::TeamFrameOf(sim, 0), home_state,
+      home_team.Players(), SimulationAccess::TeamFrameOf(sim, 0), home_state,
       *SimulationAccess::BallOf(sim));
   CHECK(home_state.designated_player != nullptr);
-  for (Player* player : home_roster.Players()) {
+  for (Player* player : home_team.Players()) {
     CHECK(player->GetTeamDesignatedPossessionPlayer() == home_state.designated_player);
   }
   CHECK(sim.Stop());
@@ -402,13 +402,13 @@ TEST_CASE("Runtime harness: team designation is a runtime-owned port write",
   // explicit so an actor cannot write another team's state.
   Simulation sim;
   InitMatch(sim);
-  football::sim::Roster& home_roster = SimulationAccess::RosterOf(sim, 0);
-  football::sim::Roster& away_roster = SimulationAccess::RosterOf(sim, 1);
-  Player* home_actor = home_roster.Players()[0];
-  Player* home_receiver = home_roster.Players()[1];
-  Player* home_witness = home_roster.Players()[2];
-  Player* away_actor = away_roster.Players()[0];
-  Player* away_receiver = away_roster.Players()[1];
+  football::team::Team& home_team = SimulationAccess::TeamOf(sim, 0);
+  football::team::Team& away_team = SimulationAccess::TeamOf(sim, 1);
+  Player* home_actor = home_team.Players()[0];
+  Player* home_receiver = home_team.Players()[1];
+  Player* home_witness = home_team.Players()[2];
+  Player* away_actor = away_team.Players()[0];
+  Player* away_receiver = away_team.Players()[1];
   REQUIRE(home_actor != nullptr);
   REQUIRE(home_receiver != nullptr);
   REQUIRE(home_witness != nullptr);
@@ -500,7 +500,7 @@ TEST_CASE("Player reachability is a pure player-local value", "[runtime][sim]") 
   // state and the ball. Runtime keeps the cross-team comparison.
   Simulation sim;
   InitMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[6];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[6];
   REQUIRE(player != nullptr);
   football::ball::Ball& ball = *SimulationAccess::BallOf(sim);
   SimulationAccess::ResetBall(sim, player->GetPosition() + Vector3(0, -0.5f, 0));
@@ -624,7 +624,7 @@ TEST_CASE("Runtime harness: ResetSituation resets team state and actors",
   CHECK(state.fading_possession_amount == Catch::Approx(1.0f));
   REQUIRE(state.designated_player != nullptr);
   CHECK(state.designated_player->IsActive());
-  for (Player* player : SimulationAccess::RosterOf(sim, 0).Players()) {
+  for (Player* player : SimulationAccess::TeamOf(sim, 0).Players()) {
     CHECK(IsFinite(player->GetPosition()));
     // Published projection matches the reset state.
     CHECK(player->GetTeamFadingPossessionAmount() == Catch::Approx(1.0f));
@@ -642,10 +642,10 @@ TEST_CASE("Runtime harness: Stop then re-Init rebuilds both rosters",
   // A second Init must not inherit players, state or dangling references.
   InitMatch(sim);
   for (int team = 0; team < 2; ++team) {
-    const football::sim::Roster& roster = SimulationAccess::RosterOf(sim, team);
-    REQUIRE(roster.Players().size() == 11);
-    for (std::size_t i = 0; i < roster.Players().size(); ++i) {
-      Player* player = roster.Players()[i];
+    const football::team::Team& team_entity = SimulationAccess::TeamOf(sim, team);
+    REQUIRE(team_entity.Players().size() == 11);
+    for (std::size_t i = 0; i < team_entity.Players().size(); ++i) {
+      Player* player = team_entity.Players()[i];
       CHECK(player->GetID() ==
             static_cast<football::player::PlayerId>(team * 11 + i));
       CHECK(player->GetTeamSide() == (team == 0 ? football::sim::TeamSide::Home
@@ -909,7 +909,7 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players().front();
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players().front();
   REQUIRE(player != nullptr);
 
   // 1) A real tick runs the production chain: Player::CommitLocomotion ->
@@ -996,7 +996,7 @@ TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players().front();
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players().front();
   REQUIRE(player != nullptr);
   sim.Step(PlayerControlSet{});
 
@@ -1038,7 +1038,7 @@ TEST_CASE("Runtime harness: one effective motion profile, static-driven",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players().front();
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players().front();
   REQUIRE(player != nullptr);
 
   // S1.1: execution and prediction must read the same capability source, and that
@@ -1097,7 +1097,7 @@ TEST_CASE("Runtime harness: animation adaptation never changes the committed tra
     for (int tick = 0; tick < 50; ++tick) sim.Step(controls);
     std::vector<PlayerKinematicState> states;
     for (int team = 0; team < 2; ++team)
-      for (Player* player : SimulationAccess::RosterOf(sim, team).Players())
+      for (Player* player : SimulationAccess::TeamOf(sim, team).Players())
         states.push_back(player->GetKinematicState());
     sim.Stop();
     return states;
@@ -1129,7 +1129,7 @@ TEST_CASE("Runtime harness: movement pose blend never changes the committed traj
     for (int tick = 0; tick < 50; ++tick) sim.Step(controls);
     std::vector<PlayerKinematicState> states;
     for (int team = 0; team < 2; ++team)
-      for (Player* player : SimulationAccess::RosterOf(sim, team).Players())
+      for (Player* player : SimulationAccess::TeamOf(sim, team).Players())
         states.push_back(player->GetKinematicState());
     sim.Stop();
     return states;
@@ -1170,7 +1170,7 @@ TEST_CASE("Runtime harness: reset makes body facing consistent with the focus",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[9];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[9];
 
   // Non-default focus: face +Y relative to the new position.
   const Vector3 new_pos(10.0f, 0.0f, 0.0f);
@@ -1190,8 +1190,8 @@ TEST_CASE("Runtime harness: reset makes body facing consistent with the focus",
 TEST_CASE("Runtime harness: per-player Play/React/Pose contract", "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  Player* striker = SimulationAccess::RosterOf(sim, 0).Players()[9];
-  Player* teammate = SimulationAccess::RosterOf(sim, 0).Players()[8];
+  Player* striker = SimulationAccess::TeamOf(sim, 0).Players()[9];
+  Player* teammate = SimulationAccess::TeamOf(sim, 0).Players()[8];
   REQUIRE(striker != nullptr);
   REQUIRE(teammate != nullptr);
 
@@ -1244,7 +1244,7 @@ TEST_CASE("Runtime harness: per-player Play/React/Pose contract", "[runtime][sim
 
   // Continuous movement is SetControl's job: Play(Move) is rejected and stages
   // no pending input.
-  Player* keeper = SimulationAccess::RosterOf(sim, 0).Players()[0];
+  Player* keeper = SimulationAccess::TeamOf(sim, 0).Players()[0];
   REQUIRE(keeper != nullptr);
   CHECK_FALSE(keeper->PendingActionRequest().has_value());
   PlayerActionRequest move;
@@ -1276,7 +1276,7 @@ TEST_CASE("Runtime harness: one final pose per tick, advancing without a re-read
   // pass; reading it never advances the animation or consumes RNG.
   Simulation sim;
   InitMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[9];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[9];
   PlayerControlSet controls;
 
   const auto same = [](const PoseFrame& a, const PoseFrame& b) {
@@ -1312,10 +1312,10 @@ TEST_CASE("Runtime harness: players keep independent animation state across team
   // state never leaks into another and Stop/Init leaves no residue.
   Simulation sim;
   InitMatch(sim);
-  Player* h_shoot = SimulationAccess::RosterOf(sim, 0).Players()[9];
-  Player* h_pass = SimulationAccess::RosterOf(sim, 0).Players()[8];
-  Player* a_dribble = SimulationAccess::RosterOf(sim, 1).Players()[9];
-  Player* a_trap = SimulationAccess::RosterOf(sim, 1).Players()[7];
+  Player* h_shoot = SimulationAccess::TeamOf(sim, 0).Players()[9];
+  Player* h_pass = SimulationAccess::TeamOf(sim, 0).Players()[8];
+  Player* a_dribble = SimulationAccess::TeamOf(sim, 1).Players()[9];
+  Player* a_trap = SimulationAccess::TeamOf(sim, 1).Players()[7];
 
   PlayerActionRequest shoot;
   shoot.kind = ActionRequestKind::Shoot;
@@ -1345,9 +1345,9 @@ TEST_CASE("Runtime harness: players keep independent animation state across team
   CHECK(sim.Stop());
   InitMatch(sim);
   CHECK_FALSE(
-      SimulationAccess::RosterOf(sim, 0).Players()[9]->PendingActionRequest().has_value());
+      SimulationAccess::TeamOf(sim, 0).Players()[9]->PendingActionRequest().has_value());
   CHECK_FALSE(
-      SimulationAccess::RosterOf(sim, 1).Players()[7]->PendingActionRequest().has_value());
+      SimulationAccess::TeamOf(sim, 1).Players()[7]->PendingActionRequest().has_value());
   CHECK(sim.Stop());
 }
 
@@ -1358,7 +1358,7 @@ TEST_CASE("Runtime harness: a controlled movement tape drives real locomotion",
   // ANIM-1 migrations can be verified against a real run, not only unit tests.
   Simulation sim;
   InitMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[6];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[6];
   const Vector3 start = player->GetPosition();
 
   std::vector<int> anim_ids;
@@ -1441,7 +1441,7 @@ TEST_CASE("Runtime harness: clip switches install at a matched entry frame",
   // tick after a non-zero entry does not add the skipped root displacement.
   Simulation sim;
   InitSmallMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
   int in_play_tick = -1;
@@ -1501,7 +1501,7 @@ TEST_CASE("Runtime harness: pose and collider stay continuous across clip switch
   // production-visible continuity guarantee.
   Simulation sim;
   InitSmallMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
   int in_play_tick = -1;
@@ -1554,7 +1554,7 @@ TEST_CASE("Runtime harness: the physics pose sample is the Player playback pose"
   // is exactly the Player's playback pose and base yaw.
   Simulation sim;
   InitMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[6];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[6];
   PlayerControlSet controls;
 
   for (int tick = 0; tick < 120; ++tick) {
@@ -1581,7 +1581,7 @@ TEST_CASE("Runtime harness: possession drives a non-Movement action install",
   // non-Movement selection path is reachable and observable.
   Simulation sim;
   InitMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[6];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[6];
 
   int in_play_tick = -1;
   int non_movement_installs = 0;
@@ -1634,7 +1634,7 @@ TEST_CASE("Runtime harness: a controlled pass publishes a real touch",
   // published, so the Player's team is recorded as the last toucher.
   Simulation sim;
   InitSmallMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
   // ANIM-2 A10.4c: the touch selection is now Animation::MatchTouch, driven
@@ -1729,7 +1729,7 @@ TEST_CASE("Runtime harness: a close ball installs a Trap before its touch frame"
   // before the trap's contact frame and the touch must actually fire.
   Simulation sim;
   InitSmallMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
   int in_play_tick = -1;
@@ -1786,7 +1786,7 @@ TEST_CASE("Runtime harness: PlayerActionState is the single action time authorit
   // and the playback clip is the installed selection.
   Simulation sim;
   InitSmallMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
   int checked = 0;
@@ -1813,7 +1813,7 @@ TEST_CASE("Runtime harness: a passive trip drives the Trip action chain",
   // roster keeps this reachable inside the runtime timeout.
   Simulation sim;
   InitSmallMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
   // Wait for play: the kickoff resets the players and would clear an earlier
@@ -1870,7 +1870,7 @@ TEST_CASE("Runtime harness: an accepted Play request executes through the pipeli
   // record, without depending on contact geometry.
   Simulation sim;
   InitSmallMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
   int in_play_tick = -1;
@@ -1916,7 +1916,7 @@ TEST_CASE("Runtime harness: a Trip preempts an accepted active request",
   // not survive to switch the actor back out of the trip on a later tick.
   Simulation sim;
   InitSmallMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
 
   int in_play_tick = -1;
@@ -1975,7 +1975,7 @@ TEST_CASE("Runtime harness: the Player pose preview drives the body forecast",
   // both directions, and the sample realizes a real, finite collision geometry.
   Simulation sim;
   InitSmallMatch(sim);
-  Player* player = SimulationAccess::RosterOf(sim, 0).Players()[1];
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
   REQUIRE(player != nullptr);
   for (int tick = 0; tick < 40; ++tick) {
     PlayerControlSet controls;
@@ -2057,7 +2057,7 @@ TEST_CASE("Runtime harness: 22 actors share the library deterministically",
 
     std::vector<Player*> actors;
     for (int team = 0; team < 2; ++team) {
-      for (Player* p : SimulationAccess::RosterOf(sim, team).Players()) {
+      for (Player* p : SimulationAccess::TeamOf(sim, team).Players()) {
         if (p != nullptr) actors.push_back(p);
       }
     }

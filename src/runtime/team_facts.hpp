@@ -4,7 +4,6 @@
 #include <span>
 
 #include "player/player.hpp"
-#include "runtime/roster.hpp"
 #include "runtime/team_state.hpp"
 
 namespace football::sim {
@@ -20,7 +19,7 @@ inline PlayerTeamFacts TeamFactsOf(const TeamFrame& frame,
                          state.designated_player};
 }
 
-// Publishes the current facts to every player of the slice, in roster order.
+// Publishes the current facts to every player of the slice, in declaration order.
 inline void PublishTeamFacts(std::span<Player* const> players,
                              const TeamFrame& frame,
                              const TeamMatchState& state) {
@@ -28,11 +27,6 @@ inline void PublishTeamFacts(std::span<Player* const> players,
   for (Player* player : players) player->SetTeamContext(facts);
 }
 
-// Same, for a caller that holds the owning Roster.
-inline void PublishTeamFacts(const Roster& roster, const TeamFrame& frame,
-                             const TeamMatchState& state) {
-  PublishTeamFacts(roster.Players(), frame, state);
-}
 
 }  // namespace football::sim
 

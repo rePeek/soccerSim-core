@@ -42,7 +42,7 @@ OpenReferee& Open(Simulation& sim) {
   return result;
 }
 Player* Actor(Simulation& sim, int team, int slot = 1) {
-  return SimulationAccess::RosterOf(sim, team).Players()[slot];
+  return SimulationAccess::TeamOf(sim, team).Players()[slot];
 }
 void Assess(Simulation& sim, Referee& rules, float severity, Vector3 position = Vector3(0)) {
   FoulAssessment fact;
