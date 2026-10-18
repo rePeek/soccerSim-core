@@ -111,12 +111,14 @@ tool was used. git diff --check passed.
 - Formation conversion produces candidates, not referee-approved placements.
   Helpers currently belong to the existing sim target; AI consumes only value
   contracts and must not gain a concrete sim dependency when integration lands.
-- RFE-2 Runtime RestartContext ownership is absent on this base. TEAM-5/6, dynamic
-  Coach commands/versioning, preset selection by coach and on-field execution are
-  intentionally deferred. Referee placement, touch authorization and RNG are untouched.
-- Address/lifecycle and post-actor failure recovery are directly tested; ASan/UBSan
-  was not run. Future Runtime code must continue to forbid live Team movement or
-  player-definition vector reallocation.
+- RFE-2 Runtime RestartContext ownership is absent on this base. Restart integration
+  is TEAM-6 and substitution execution TEAM-7; dynamic Coach commands/versioning,
+  preset selection by coach and on-field execution are intentionally deferred.
+  Referee placement, touch authorization and RNG are untouched.
+- ASan/UBSan was not run for the earlier TEAM-1..4 data migration. TEAM-5.4 added
+  bounded ASan+UBSan ownership/lifecycle coverage (repeated below). Future Runtime
+  code must keep Team non-movable and must not replace Player ownership while
+  views, snapshot actors or rule borrows are live.
 
 ## TEAM-5 — Runtime Team Entity Ownership (supersedes static Team ownership)
 
@@ -186,3 +188,30 @@ and repeated Stop, destructor cleanup and fresh-vs-recovered Init RNG/state chec
 Debug CTest 12/12 (176.05 s), digest unchanged. GCC ASan+UBSan (-O1, Debug, leak
 detection and halt-on-error) passed bounded ownership/lifecycle tests: 9 cases /
 464 assertions; pure data tests: 11 cases / 138 assertions. No diagnostics.
+
+TEAM-5.5: the public include/football/runtime/team.hpp configuration struct is
+retired. Live Team and its TeamConfig/PreparedTeam initialization values now live
+only under src/runtime/ (team.hpp, team_config.hpp, team_preparation.hpp). Public
+contracts retain TeamSetup plus the reusable lineup/role/preset values. Player
+copies its definition by value; no public entity header, no external definition
+storage and no remaining Roster/Lineup/Frame/State array in Simulation.
+Team does not own TacticalBoard, Referee, the current restart plan or physical/AI
+execution. Roster remains Team's private storage and its existing algorithms use
+the Runtime bridge; no second writable roster exists. Final validation gates:
+public-header smoke (Team entity not exported), Debug and explicitly requested
+Release builds/tests, plus the bounded ASan/UBSan ownership/lifecycle suite.
+
+### TEAM-5.5 validation
+The public include/football/runtime/team.hpp is deleted. Live Team, TeamConfig
+and PreparedTeam are private src/runtime headers; the public smoke TU includes
+only env.hpp and still builds. Runtime contracts retain TeamSetup and reusable
+lineup/role/preset values. `git diff --check` is clean.
+
+Debug: 12/12 CTest passed in 174.65 s (sim_runtime 171.81 s). Debug core-only
+BUILD_TESTING=OFF build passed. Release: 12/12 passed in 39.01 s (sim_runtime
+37.30 s). Both bounded 22-actor runs report 5bef607ddd567a09, identical to the
+pre-TEAM-5 baseline. GCC ASan+UBSan (-O1, leak detection, halt-on-error) passed
+the bounded ownership/lifecycle suite (10 cases / 471 assertions) and Team data
+suite (11 cases / 138 assertions), including partial-construction failure and
+repeated Stop/re-Init. No AddressSanitizer, LeakSanitizer or UBSan diagnostic.
+No app/full match, golden tool or physics/rule/AI behavior change was involved.

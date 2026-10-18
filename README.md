@@ -151,9 +151,8 @@ whether they are exported:
 ```text
 src/                (runtime implementation; public values live in include/football/)
 ├── runtime/      Simulation, MatchClock/Phase/Result, Roster, formation, possession
-│                 Pure Team configuration owns definitions, initial lineup,
-│                 leadership, taker orders and reusable formation presets.
-│                 Runtime owns actors, active slot bindings and match state.
+│                 Runtime-private Team owns Player roster, lineup, orientation
+│                 and match state; reusable lineup/role/preset values stay public.
 ├── player/       Player, controls, locomotion, contacts, baked body/pose
 ├── event/        EventRecognizer, TouchState and AcceptedTouch
 ├── observation/  WorldState, pitch_frame, MentalImage, Snapshot

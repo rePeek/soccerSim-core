@@ -1,6 +1,6 @@
 #pragma once
 
-#include "football/runtime/team.hpp"
+#include "runtime/team_config.hpp"
 #include "runtime/roster.hpp"
 #include "runtime/team_state.hpp"
 

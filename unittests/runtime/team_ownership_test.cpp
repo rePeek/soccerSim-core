@@ -233,3 +233,21 @@ TEST_CASE("Team owns the only live lineup frame and match state", "[team][owners
   CHECK_FALSE(team.FindPlayer(999));
   CHECK(sim.Stop());
 }
+TEST_CASE("Team retains only initial configuration and actor ownership", "[team][ownership]") {
+  auto home = OwnershipSetup(60);
+  home.name = "Initial Only";
+  home.tactics = {{"width",0.7f}};
+  home.formation_presets.presets = {{"kickoff",FormationPresetKind::KickOff,
+      FormationPresetSide::Attacking, {{0,{AnchorFrame::TeamRelative,.5f,0},"gk"}}}};
+  MatchOptions options; options.snapshot_capacity = 8;
+  Simulation sim;
+  sim.Init(home,OwnershipSetup(600),football::pitch::Pitch{},options);
+  const auto& team = SimulationAccess::TeamOf(sim,TeamSide::Home);
+  CHECK(team.Name() == "Initial Only");
+  CHECK(team.InitialTactics() == home.tactics);
+  CHECK(team.FormationPresets().presets.size() == 1);
+  CHECK(team.InitialFormationConfig().size() == home.formation.size());
+  CHECK(team.TacticalFormationConfig().empty());
+  CHECK(team.Players().size() == home.players.size());
+  CHECK(sim.Stop());
+}

@@ -4,7 +4,7 @@
 #include "runtime/formation_build.hpp"
 
 #include "football/runtime/match_config.hpp"
-#include "football/runtime/team.hpp"
+#include "runtime/team_preparation.hpp"
 
 namespace {
 

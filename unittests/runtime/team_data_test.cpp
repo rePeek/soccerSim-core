@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "football/runtime/team.hpp"
+#include "runtime/team_preparation.hpp"
 #include "football/runtime/match_config.hpp"
 #include <limits>
 

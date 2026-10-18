@@ -154,11 +154,11 @@ src/                 implementations; public headers live in include/football/
     │                 arbitration) and roster_possession (per-roster aggregation),
     │                 match_config.hpp (TeamSetup + TeamSide), formation.hpp
     │                 (InitialFormation/TacticalFormation + BuildFormation).
-    │                 Public runtime/team.hpp is a pure match-level configuration
-    │                 entity (TEAM-1), not the removed controlling Team class.
-    │                 team_lineup.hpp, team_roles.hpp, formation_preset.hpp carry
-    │                 slot bindings, appointments and reusable templates;
-    │                 src/runtime/team_validation.cpp owns their pure helpers.
+    │                 Public team_lineup.hpp, team_roles.hpp and
+    │                 formation_preset.hpp carry slot bindings, appointments and
+    │                 reusable templates; src/runtime/team_validation.cpp owns
+    │                 their pure helpers. The live Team entity and its PreparedTeam
+    │                 initialization values are Runtime-private (TEAM-5.5).
     ├── testing/      internal SimulationAccess, not exported/product or actor-facing
     └── player/       Player + PlayerDefinition, player_role, FormationEntry, tick-local
         │             inputs, controls, locomotion, contacts, roster_query
@@ -289,11 +289,12 @@ anim_baking → legacy_anim + animation/foundation
   `sim/` headers and for module-private implementation headers.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   foundation must not depend on upper layers. sim must never depend on AI.
-- sim ownership boundary (TEAM-5.3): Simulation owns unique_ptr<Team>[2]. The
+- sim ownership boundary (TEAM-5.5, frozen): Simulation owns unique_ptr<Team>[2].
 internal non-copyable/non-movable src/runtime/team.hpp entity owns Roster,
 ActiveLineupState, TeamFrame, TeamMatchState and const TeamConfig (no definition
-array). PreparedTeam is Init-local input only. Player owns its model
-by value (TEAM-5.1), body profile, identity, formation, kinematics and behaviour. `src/player/` must
+array). PreparedTeam is Init-local input only; public contracts expose TeamSetup,
+not the live entity. Player owns its model by value (TEAM-5.1), body profile,
+identity, formation, kinematics and behaviour. `src/player/` must
 never reference `Team` or iterate the squad; team-level algorithms live in
 `src/runtime/` (possession, roster_possession, formation, team_facts).
 Possession takes the roster plus the runtime-owned `TeamFrame`/`TeamMatchState`
@@ -306,8 +307,8 @@ RelaxTeamFatigue` own the remaining team behaviour. Rules and Observation see
 only `TeamView`.
 - TeamSetup remains external initialization input. Player copies/moves its
 PlayerDefinition into const model_ before deriving body_profile_; it never borrows
-caller/Team definition storage or holds Team*. Public team.hpp currently carries
-transitional preparation values, to become Runtime-private in TEAM-5.5.
+caller/Team definition storage or holds Team*. src/runtime/team_config.hpp and
+team_preparation.hpp are Runtime-private; there is no public Team entity header.
 No Team Tick/Update, physics, rule or current TacticalBoard authority is permitted.
 Team owns ActiveLineupState separately from its immutable initial lineup.
 WorldState projects those bindings read-only; DefaultSlotAssignment preserves

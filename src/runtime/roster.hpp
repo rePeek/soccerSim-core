@@ -1,8 +1,7 @@
-// Roster owns one team's player entities and their stable order. It knows
-// nothing about tactics, possession, collisions or the match clock: those stay
-// with Runtime, AI and Rules. Keeping ownership here is what lets Player stop
-// holding a Team* (see player_tick_context.hpp) and lets Team stop being an
-// entity-owning class.
+// Roster owns one team's Player entities and their stable order. It is the
+// private storage of the Runtime Team entity (TEAM-5.2); it knows nothing about
+// tactics, possession, collisions or the match clock. Player therefore holds no
+// Team pointer or borrowed definition storage.
 
 #ifndef FOOTBALL_SIM_RUNTIME_ROSTER_HPP
 #define FOOTBALL_SIM_RUNTIME_ROSTER_HPP

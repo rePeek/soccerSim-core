@@ -23,6 +23,8 @@ set_tests_properties(sim_runtime PROPERTIES
 # Pure Team configuration tests: no running Simulation or animation asset load.
 add_executable(football_team_data_tests team_data_test.cpp formation_preset_test.cpp)
 target_link_libraries(football_team_data_tests PRIVATE football::sim Catch2::Catch2WithMain)
+# PreparedTeam/TeamConfig are Runtime-private initialization values.
+target_include_directories(football_team_data_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 football_configure_target(football_team_data_tests)
 add_test(NAME team_data_unit COMMAND football_team_data_tests)
 set_tests_properties(team_data_unit PROPERTIES LABELS "unit;team" TIMEOUT 20)

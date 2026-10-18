@@ -12,6 +12,7 @@
 #include "football/player/player_control_set.hpp"
 #include "football/runtime/match_config.hpp"
 #include "runtime/team.hpp"
+#include "runtime/team_preparation.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "football/foundation/collision/sweep.hpp"
@@ -52,9 +53,9 @@ class Referee;
 class AnimationLibrary;
 namespace football::sim::testing { class SimulationAccess; }
 
-// Simulation owns the whole match composition: clock/phase/score, ball, rosters,
-// referee, touch/possession state, RNG/history/config. Step() is the only
-// orchestration point. Actors never hold a Simulation pointer.
+// Simulation owns the whole match composition: clock/phase/score, ball, two
+// Team entities (each owning its roster and team state), referee, touch/possession
+// state, RNG/history/config. Step() is the only orchestration point.
 class Simulation {
  public:
   Simulation();
