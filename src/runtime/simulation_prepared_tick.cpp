@@ -37,7 +37,7 @@ struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
   bool second_roster = false;
   // Runtime-owned team state. The port is the only writer, exactly like the
   // direct view write it replaces; it does not publish team facts.
-  std::array<football::sim::TeamMatchState, 2>* team_states = nullptr;
+  std::array<football::sim::TeamMatchState*, 2> team_states{};
   std::vector<football::sim::PreparedPlayerTouch> touches;
   std::optional<Player*> release;
   void PrepareTouch(const football::sim::PreparedPlayerTouch& input) override {
@@ -57,7 +57,7 @@ struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
   void SetDesignatedPlayer(int team_id, Player* receiver) override {
     // Preserve the legacy designation time: before the physical touch is
     // committed. Synchronous and non-publishing, like the view write.
-    if (team_states != nullptr) (*team_states)[team_id].designated_player = receiver;
+    if (auto* state = team_states.at(team_id)) state->designated_player = receiver;
   }
   void OnAcceptedTouch(const football::sim::event::AcceptedTouch&) override {
     throw std::logic_error("accepted touch published before Ball commit");
@@ -99,7 +99,7 @@ void Simulation::RunPreparedPlayerTick() {
   preparation_ball_->Reset(passive.state);
   CaptureMentalImage(preparation_ball_.get());
   PreparationPorts ports;
-  ports.team_states = &team_states_;
+  ports.team_states = {&TeamOf(0).MutableMatchState(), &TeamOf(1).MutableMatchState()};
   ports.touches.reserve(snapshot_players_.size() * 2);
   std::vector<std::pair<Player*, float>> prepared;
   prepared.reserve(snapshot_players_.size());
@@ -107,8 +107,8 @@ void Simulation::RunPreparedPlayerTick() {
 
 
     football::sim::PrepareTeamPossession(
-        static_cast<football::sim::TeamSide>(id), RosterOf(id), team_frames_[id],
-        team_states_[id], team_states_[1 - id], play_authorized_,
+        static_cast<football::sim::TeamSide>(id), RosterOf(id), TeamOf(id).Frame(),
+        TeamOf(id).MutableMatchState(), TeamOf(1 - id).MatchState(), play_authorized_,
         set_piece_active_, ball_retainer_, best_possession_team_);
     for (auto* actor : TeamOf(id).Players()) {
       if (!actor->IsActive()) continue;
@@ -129,8 +129,8 @@ void Simulation::RunPreparedPlayerTick() {
       prepared.emplace_back(actor, distance);
       MeasureBodyShadowEndpoint(*actor);
     }
-    football::sim::FinishTeamPossession(RosterOf(id), team_frames_[id],
-                                        team_states_[id], team_states_[1 - id]);
+    football::sim::FinishTeamPossession(RosterOf(id), TeamOf(id).Frame(),
+        TeamOf(id).MutableMatchState(), TeamOf(1 - id).MatchState());
   };
   Mirror(first_team_ == 1, first_team_ == 0, false);
   prepare_team(first_team_);

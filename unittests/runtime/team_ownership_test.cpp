@@ -197,3 +197,39 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed", "
   CHECK(actor->BodyProfile().mass_kg == 80.f);
   CHECK(rng.engine() == before);
 }
+TEST_CASE("Team owns the only live lineup frame and match state", "[team][ownership]") {
+  static_assert(!std::is_copy_constructible_v<Team>);
+  static_assert(!std::is_move_constructible_v<Team>);
+  Simulation sim;
+  MatchOptions options; options.snapshot_capacity = 8;
+  sim.Init(OwnershipSetup(50),OwnershipSetup(500),football::pitch::Pitch{},options);
+  const auto& team = SimulationAccess::TeamOf(sim,TeamSide::Home);
+  const auto view = SimulationAccess::TeamViewOf(sim,0);
+  const auto players = team.Players();
+  REQUIRE(players.size() == 2);
+  CHECK(view.frame == &team.Frame());
+  CHECK(view.state == &team.MatchState());
+  CHECK(view.players.data() == players.data());
+  CHECK(&SimulationAccess::TeamFrameOf(sim,0) == &team.Frame());
+  CHECK(&SimulationAccess::TeamStateOf(sim,0) == &team.MatchState());
+  const auto cached = players[0]->GetTeamDesignatedPossessionPlayer();
+  SimulationAccess::RuntimeOf(sim).SetDesignatedPlayer(0,players[1]);
+  CHECK(team.MatchState().designated_player == players[1]);
+  CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == cached); // no hidden publish
+  SimulationAccess::MirrorTeam(sim,0);
+  CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == players[1]);
+  CHECK(team.Frame().dynamic_side == 1);
+  SimulationAccess::MirrorTeam(sim,0);
+  CHECK(team.Frame().dynamic_side == -1);
+  view.SetFadingPossessionAmount(.8f);
+  CHECK(team.MatchState().fading_possession_amount == .8f);
+  CHECK(players[0]->GetTeamFadingPossessionAmount() == .8f); // synchronous publication
+  SimulationAccess::SwitchTeamEnds(sim,0);
+  CHECK(team.Frame().static_side == 1);
+  CHECK(team.Frame().dynamic_side == 1);
+  CHECK_FALSE(team.Frame().mirrored);
+  CHECK(team.ActiveLineup().slots == team.InitialLineup().starters);
+  CHECK(team.FindPlayer(50) == players[0]);
+  CHECK_FALSE(team.FindPlayer(999));
+  CHECK(sim.Stop());
+}

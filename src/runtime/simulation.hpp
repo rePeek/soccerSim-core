@@ -223,7 +223,7 @@ class Simulation {
   // Team-state write published by an actor through PlayerRuntimeSink. Runtime
   // owns the storage; the actor never touches TeamMatchState directly.
   void SetDesignatedPlayer(int team_id, Player* receiver) {
-    team_states_[team_id].designated_player = receiver;
+    TeamOf(team_id).MutableMatchState().designated_player = receiver;
   }
   void SetGoalScored(bool onOff) {
     if (onOff) clock_->StopBallInPlay();
@@ -289,13 +289,6 @@ class Simulation {
   // Stable, non-copyable/non-movable match entities; each privately owns Roster.
   std::array<std::unique_ptr<football::sim::Team>, 2> teams_;
   std::unique_ptr<football::ball::Ball> ball_;
-  std::array<football::sim::ActiveLineupState, 2> active_lineups_;
-  // Runtime alone owns team orientation and match state.
-  // mutable: a TeamView is a borrowed *mutable* handle to runtime-owned team state
-  // (rules write the designated player / restart weight), so it may be obtained
-  // from a const observer without copying the state.
-  mutable std::array<football::sim::TeamFrame, 2> team_frames_;
-  mutable std::array<football::sim::TeamMatchState, 2> team_states_;
   std::unique_ptr<Referee> referee_;
 
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;

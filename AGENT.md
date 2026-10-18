@@ -289,10 +289,10 @@ anim_baking → legacy_anim + animation/foundation
   `sim/` headers and for module-private implementation headers.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   foundation must not depend on upper layers. sim must never depend on AI.
-- sim ownership boundary (TEAM-5.2): Simulation owns unique_ptr<Team>[2]. The
-internal non-copyable/non-movable src/runtime/team.hpp entity owns Roster and
-const TeamConfig (no definition array). PreparedTeam is Init-local input only.
-Simulation still owns frame/match/lineup arrays until TEAM-5.3. Player owns its model
+- sim ownership boundary (TEAM-5.3): Simulation owns unique_ptr<Team>[2]. The
+internal non-copyable/non-movable src/runtime/team.hpp entity owns Roster,
+ActiveLineupState, TeamFrame, TeamMatchState and const TeamConfig (no definition
+array). PreparedTeam is Init-local input only. Player owns its model
 by value (TEAM-5.1), body profile, identity, formation, kinematics and behaviour. `src/player/` must
 never reference `Team` or iterate the squad; team-level algorithms live in
 `src/runtime/` (possession, roster_possession, formation, team_facts).
@@ -309,7 +309,7 @@ PlayerDefinition into const model_ before deriving body_profile_; it never borro
 caller/Team definition storage or holds Team*. Public team.hpp currently carries
 transitional preparation values, to become Runtime-private in TEAM-5.5.
 No Team Tick/Update, physics, rule or current TacticalBoard authority is permitted.
-Runtime also owns ActiveLineupState separately from Team's initial definition.
+Team owns ActiveLineupState separately from its immutable initial lineup.
 WorldState projects those bindings read-only; DefaultSlotAssignment preserves
 vacancies and filters inactive actors. Only synthetic observations without slot
 metadata retain the old active-order fallback. Slot replacement is a pure data

@@ -166,3 +166,11 @@ and no separate Roster array. PreparedTeam/PrepareTeam is temporary input; its
 definitions move into Players and are not retained by Team. State arrays remain
 only until 5.3. RosterOf is an internal algorithm bridge, not another container.
 Debug CTest 12/12 (167.70 s), ownership queries/re-Init pass; digest unchanged.
+
+TEAM-5.3: Team now owns ActiveLineupState, TeamFrame and TeamMatchState. All
+four independent Simulation roster/state arrays are gone. TeamView borrows the
+actual Team member addresses. Prepared-tick ports borrow two state pointers, not
+a state copy; their writes remain synchronous and non-publishing. Mirror/reset/
+possession publication stays at the same Simulation call sites in the same order.
+Added address-alias, designated-player write/publication timing, fading possession
+and change-of-ends checks. Debug CTest 12/12; digest 5bef607ddd567a09 unchanged.

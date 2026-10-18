@@ -15,7 +15,7 @@ namespace football::sim {
 // Borrowed, non-owning view of one team for a single call (rules, observation).
 // Runtime reconstructs it every tick and never hands over ownership, so it is
 // not a Team entity: it carries only identity, direction, the roster slice and
-// pointers to the live runtime-owned TeamFrame/TeamMatchState. Nothing here can
+// pointers into Team's live Frame/MatchState. Nothing here can
 // create or own a team, and a view must never be stored across ticks.
 struct TeamView {
   int team_id = -1;

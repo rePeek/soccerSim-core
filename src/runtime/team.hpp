@@ -2,6 +2,7 @@
 
 #include "football/runtime/team.hpp"
 #include "runtime/roster.hpp"
+#include "runtime/team_state.hpp"
 
 namespace football::sim {
 // Match entity / ownership boundary, never a simulation or AI controller.
@@ -27,6 +28,14 @@ class Team final {
   const TacticalFormation& TacticalFormationConfig() const { return config_.tactical_formation; }
   const std::map<std::string,float>& InitialTactics() const { return config_.legacy_tactics; }
 
+  const ActiveLineupState& ActiveLineup() const { return active_lineup_; }
+  const TeamFrame& Frame() const { return frame_; }
+  const TeamMatchState& MatchState() const { return match_state_; }
+  // Runtime writers do not hide publication/scheduling: Simulation keeps timing.
+  ActiveLineupState& MutableLineup() { return active_lineup_; }
+  TeamFrame& MutableFrame() { return frame_; }
+  TeamMatchState& MutableMatchState() { return match_state_; }
+
   // Runtime-only bridge for existing explicit roster algorithms / construction.
   Roster& RosterStorage() { return roster_; }
   const Roster& RosterStorage() const { return roster_; }
@@ -34,5 +43,8 @@ class Team final {
  private:
   const TeamConfig config_;  // no PlayerDefinition array or current TacticalBoard
   Roster roster_;           // unique actor owner, stable declaration order
+  ActiveLineupState active_lineup_;
+  TeamFrame frame_;
+  TeamMatchState match_state_;
 };
 }  // namespace football::sim

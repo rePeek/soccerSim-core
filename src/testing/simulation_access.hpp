@@ -120,10 +120,10 @@ class SimulationAccess {
     return s.RosterOf(team_id);
   }
   static football::sim::TeamFrame& TeamFrameOf(Simulation& s, int team_id) {
-    return s.team_frames_[team_id];
+    return s.TeamOf(team_id).MutableFrame();
   }
   static football::sim::TeamMatchState& TeamStateOf(Simulation& s, int team_id) {
-    return s.team_states_[team_id];
+    return s.TeamOf(team_id).MutableMatchState();
   }
   static football::sim::Tick NowOf(Simulation& s) { return s.clock_->now(); }
   static football::sim::TickSpan RegulationTimeOf(Simulation& s) {
