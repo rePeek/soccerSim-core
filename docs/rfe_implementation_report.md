@@ -572,3 +572,20 @@ assertions and `[team]` 556 assertions unchanged; A17 digest
 
 Validation: Debug ctest 16/16 (316.80 s); `[ruling]` 311 and `[team]` 556
 assertions unchanged; A17 digest `5bef607ddd567a09` unchanged.
+
+## RFE-7D — ID-typed RestartPlan and the final referee boundary
+
+- `RestartPlan`/`RestartPlayerTarget` store `PlayerId`, never `Player*`. The plan
+  is long-lived data; Runtime resolves ids to live actors through a
+  `RestartRoster` (home + away rosters) at execution time, so a dismissed player
+  still present in the plan is recognised and skipped or replanned rather than
+  dereferenced.
+- `RestartPlayersReady`/`PlaceRestartPlayersAtTimeout` take the roster and
+  resolve at the call instant; the home/away order, stable sort,
+  legal-position search and target precision are unchanged. `RestartTargetFor`
+  now takes a `PlayerId`.
+- `RestartContext` still carries the live `PlayerRestartFacts` taker for the
+  Player execution contract; only the plan is id-typed.
+
+Validation: Debug ctest 16/16 (316.96 s); `[ruling]` 312 and `[team]` 557
+assertions; A17 digest `5bef607ddd567a09` unchanged.

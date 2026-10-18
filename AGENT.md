@@ -3527,6 +3527,14 @@ the V2 boards, with `observed_tick`/`expires_at_tick`/
 `expected_board_revision` frozen per turn and same-turn commands treated as one
 transaction. `GameEnv` owns the event cursor and forwards new events;
 `CoachLog()`/`CoachCalls()` expose the applied commands and bounded turns.
+
+RFE-7 closed the Referee boundary: the rule interface no longer takes a
+`RuleCommandSink` (`RulingSink` is the only output), foul and offside state are
+value-typed (`PlayerId` plus frozen/read-only facts, no long-lived `Player*`),
+and `RestartPlan` stores `PlayerId` with Runtime resolving actors through
+`RestartRoster` at execution time. A Level 1 `referee_unit` exercises the
+value-typed rule surface directly.
+
 ## PLAYER: independent Player module (feat/player)
 
 The Player code was compiled into `football_sim_domain` through

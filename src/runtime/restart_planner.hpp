@@ -42,11 +42,22 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
                         std::span<Player* const> active_players,
                         e_GameMode mode, int team_id,
                         const RestartPlanningTable& planning);
-bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& pitch);
+// Runtime-supplied actor index for one execution instant. Plans store stable
+// ids; the index resolves them back to live actors, including a dismissed
+// player that is still present in the plan, so the caller can skip or replan.
+struct RestartRoster {
+  std::span<Player* const> home;
+  std::span<Player* const> away;
+
+  Player* Find(football::player::PlayerId id) const;
+};
+
+bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& pitch,
+                         const RestartRoster& roster);
 // Deterministic runtime fallback for actors that fail to get ready by the
 // timeout. This repairs positions, never invents a ball contact or an AI
 // decision.
-void PlaceRestartPlayersAtTimeout(const RestartPlan& plan);
+void PlaceRestartPlayersAtTimeout(const RestartPlan& plan, const RestartRoster& roster);
 
 }  // namespace football::sim
 

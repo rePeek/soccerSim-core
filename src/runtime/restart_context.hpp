@@ -7,6 +7,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/match/game_mode.hpp"
+#include "football/player/player_definition.hpp"
 #include "football/player/player_restart_facts.hpp"
 
 class Player;
@@ -19,9 +20,11 @@ namespace football::sim {
 enum class RestartPhase { Pending, Ready, Taken, InPlay };
 
 // Targets are in the fixed home-pitch frame, independent of processing mirrors.
-// Planning never moves actors, selects animations, or consumes RNG.
+// Planning never moves actors, selects animations, or consumes RNG. The plan is
+// long-lived, so it stores stable PlayerIds only: Runtime resolves them to live
+// actors at execution time (see RestartRoster).
 struct RestartPlayerTarget {
-  Player* player = nullptr;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
   football::math::Vector3 position;
 };
 
@@ -30,7 +33,7 @@ struct RestartPlayerTarget {
 struct RestartPlan {
   e_GameMode mode = e_GameMode_Normal;
   int team_id = -1;
-  Player* taker = nullptr;
+  football::player::PlayerId taker = football::player::kInvalidPlayerId;
   football::math::Vector3 ball_position;
   std::vector<RestartPlayerTarget> players;
 };
@@ -74,7 +77,7 @@ struct RestartContext : football::player::PlayerRestartFacts {
 // Read-only target lookup used by observation and player control. The context
 // owns the plan; callers never retain the returned value.
 inline std::optional<football::math::Vector3> RestartTargetFor(
-    const RestartContext& context, const Player* player) {
+    const RestartContext& context, football::player::PlayerId player) {
   if (!context.NeedsSimulation()) return std::nullopt;
   for (const RestartPlayerTarget& target : context.state->plan.players) {
     if (target.player == player) return target.position;

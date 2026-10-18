@@ -71,7 +71,7 @@ WorldState BuildWorldState(const WorldStateSource& s) {
           player->GetStat(football::player::PlayerStat::technical_shortpass);
       observed.workrate =
           player->GetStat(football::player::PlayerStat::mental_workrate);
-      observed.restart_target = football::sim::RestartTargetFor(s.restart, player);
+      observed.restart_target = football::sim::RestartTargetFor(s.restart, player->GetID());
       world.players.push_back(observed);
     }
   }

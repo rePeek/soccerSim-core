@@ -215,9 +215,10 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
   plan.ball_position = home_ball_position.Get2D();
 
   std::vector<Player*> active(active_players.begin(), active_players.end());
-  plan.taker = SelectTaker(active, mode, team_id, plan.ball_position, planning);
+  Player* taker = SelectTaker(active, mode, team_id, plan.ball_position, planning);
+  plan.taker = taker != nullptr ? taker->GetID() : football::player::kInvalidPlayerId;
   std::stable_sort(active.begin(), active.end(), [&](const auto* a, const auto* b) {
-    return a == plan.taker && b != plan.taker;
+    return a->GetID() == plan.taker && b->GetID() != plan.taker;
   });
 
   using football::team::FormationPresetSide;
@@ -228,7 +229,7 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
 
   for (auto* player : active) {
     Vector3 target = Position(*player);
-    if (player == plan.taker) {
+    if (player->GetID() == plan.taker) {
       target = plan.ball_position + Vector3(Side(team_id) * 2.3f, 0, 0);
       if (mode == e_GameMode_ThrowIn)
         target = plan.ball_position + Vector3(0, plan.ball_position.coords[1] < 0 ? -0.3f : 0.3f, 0);
@@ -273,28 +274,42 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
       }
       if (!available(target)) throw std::logic_error("restart cannot reserve legal actor positions");
     }
-    plan.players.push_back({player, target});
+    plan.players.push_back({player->GetID(), target});
   }
   return plan;
 }
 
-bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& pitch) {
-  if (!plan.taker || !plan.taker->IsActive()) return false;
+Player* RestartRoster::Find(football::player::PlayerId id) const {
+  for (Player* player : home) {
+    if (player->GetID() == id) return player;
+  }
+  for (Player* player : away) {
+    if (player->GetID() == id) return player;
+  }
+  return nullptr;
+}
+
+bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& pitch,
+                         const RestartRoster& roster) {
+  Player* taker = roster.Find(plan.taker);
+  if (taker == nullptr || !taker->IsActive()) return false;
   for (const auto& target : plan.players) {
-    if (!target.player->IsActive()) continue;
-    const auto position = Position(*target.player);
+    Player* player = roster.Find(target.player);
+    if (player == nullptr || !player->IsActive()) continue;
+    const auto position = Position(*player);
     if ((position - target.position).GetLength() > kTargetTolerance ||
-        target.player->GetMovement().GetLength() > 0.8f) return false;
-    if (target.player != plan.taker && !LegalPosition(plan, *target.player, position, pitch)) return false;
+        player->GetMovement().GetLength() > 0.8f) return false;
+    if (player != taker && !LegalPosition(plan, *player, position, pitch)) return false;
   }
   return true;
 }
 
-void PlaceRestartPlayersAtTimeout(const RestartPlan& plan) {
+void PlaceRestartPlayersAtTimeout(const RestartPlan& plan, const RestartRoster& roster) {
   for (const auto& target : plan.players) {
-    if (!target.player->IsActive()) continue;
-    const auto frame = FromHomePitchFrame(target.player->GetTeamSide() == football::sim::TeamSide::Home, target.player->GetDynamicSide());
-    target.player->ResetPosition(frame.Position(target.position), frame.Position(plan.ball_position));
+    Player* player = roster.Find(target.player);
+    if (player == nullptr || !player->IsActive()) continue;
+    const auto frame = FromHomePitchFrame(player->GetTeamSide() == football::sim::TeamSide::Home, player->GetDynamicSide());
+    player->ResetPosition(frame.Position(target.position), frame.Position(plan.ball_position));
   }
 }
 

@@ -500,7 +500,7 @@ TEST_CASE("Rulings: runtime restart context is what players and world read", "[r
   // The next instant plans the restart; the taker and targets stay Runtime-owned.
   SimulationAccess::ProcessReferee(sim);
   REQUIRE(restart.taker != nullptr);
-  REQUIRE(restart.state->plan.taker == restart.taker);
+  REQUIRE(restart.state->plan.taker == restart.taker->GetID());
   REQUIRE(restart.taker->IsActive());
   const WorldState planned = sim.Observe();
   REQUIRE(planned.restart_taker.has_value());
@@ -569,8 +569,9 @@ TEST_CASE("Rulings: team free-kick order overrides the nearest taker",
   const RestartContext& ordered_restart = SimulationAccess::RestartContextOf(ordered);
   REQUIRE(ordered_restart.state.has_value());
   REQUIRE(ordered_restart.kind == e_GameMode_FreeKick);
-  REQUIRE(ordered_restart.state->plan.taker != nullptr);
-  REQUIRE(ordered_restart.state->plan.taker->GetID() == 0);
+  REQUIRE(ordered_restart.state->plan.taker == 0);
+  REQUIRE(ordered_restart.taker != nullptr);
+  REQUIRE(ordered_restart.taker->GetID() == 0);
 
   // No declared order: the nearest active candidate takes it (legacy ranking).
   Simulation legacy;
@@ -580,8 +581,9 @@ TEST_CASE("Rulings: team free-kick order overrides the nearest taker",
   SimulationAccess::ProcessReferee(legacy);
   SimulationAccess::ProcessReferee(legacy);
   const RestartContext& legacy_restart = SimulationAccess::RestartContextOf(legacy);
-  REQUIRE(legacy_restart.state->plan.taker != nullptr);
-  REQUIRE(legacy_restart.state->plan.taker->GetID() != 0);
+  REQUIRE(legacy_restart.state->plan.taker != 0);
+  REQUIRE(legacy_restart.taker != nullptr);
+  REQUIRE(legacy_restart.taker->GetID() != 0);
 }
 
 TEST_CASE("Rulings: team formation presets seed both sides' restart targets",
@@ -615,7 +617,7 @@ TEST_CASE("Rulings: team formation presets seed both sides' restart targets",
 
   const auto target_of = [&](football::player::PlayerId id) {
     for (const RestartPlayerTarget& target : plan.players) {
-      if (target.player->GetID() == id) return target.position;
+      if (target.player == id) return target.position;
     }
     return Vector3(-999, -999, -999);
   };
@@ -627,14 +629,13 @@ TEST_CASE("Rulings: team formation presets seed both sides' restart targets",
   REQUIRE(target_of(101) == football::team::FormationAnchorToWorld(
                                away_anchor, pitch, 1, plan.ball_position, false));
   // The declared taker still owns the ball spot, not a preset position.
-  REQUIRE(plan.taker != nullptr);
-  REQUIRE(plan.taker->GetID() == 0);
+  REQUIRE(plan.taker == 0);
 }
 
 namespace {
 Vector3 PlanTargetOf(const RestartPlan& plan, football::player::PlayerId id) {
   for (const RestartPlayerTarget& target : plan.players) {
-    if (target.player->GetID() == id) return target.position;
+    if (target.player == id) return target.position;
   }
   return Vector3(-999, -999, -999);
 }
@@ -700,7 +701,7 @@ TEST_CASE("Rulings: a sent-off preset slot is vacated and skipped",
   const RestartPlan& plan = PlanOf(sim);
   // The dismissed actor is not planned; the surviving preset slot still is.
   for (const RestartPlayerTarget& target : plan.players)
-    CHECK(target.player->GetID() != sent_off->GetID());
+    CHECK(target.player != sent_off->GetID());
   const auto& pitch = SimulationAccess::PitchOf(sim);
   REQUIRE(PlanTargetOf(plan, 1) ==
           football::team::FormationAnchorToWorld(slot1, pitch, -1,
@@ -763,7 +764,7 @@ TEST_CASE("Rulings: a partial preset only moves its declared slots",
   const RestartPlan& plain_plan = PlanOf(plain_sim);
   // Slot 1 follows its preset; every undeclared slot keeps the legacy target
   // and the taker selection is unaffected by preset data.
-  REQUIRE(preset_plan.taker->GetID() == plain_plan.taker->GetID());
+  REQUIRE(preset_plan.taker == plain_plan.taker);
   CHECK(PlanTargetOf(preset_plan, 1) != PlanTargetOf(plain_plan, 1));
   CHECK(PlanTargetOf(preset_plan, 2) == PlanTargetOf(plain_plan, 2));
   CHECK(PlanTargetOf(preset_plan, 0) == PlanTargetOf(plain_plan, 0));
