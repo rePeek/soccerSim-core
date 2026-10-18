@@ -27,13 +27,14 @@ void Init(Simulation& sim) {
 // Construct controlled rule facts without running a match to reach open play.
 class OpenReferee final : public Referee {
  public:
-  OpenReferee() : Referee(0, Vector3(0)) { buffer.active = false; buffer.endPhase = false; }
+  OpenReferee() : Referee() {}
   void FlagOffside(Player* player) { offsidePlayers = {player}; }
 };
 OpenReferee& Open(Simulation& sim) {
   auto rules = std::make_unique<OpenReferee>();
   auto& result = *rules;
   SimulationAccess::ReplaceRules(sim, std::move(rules));
+  SimulationAccess::ClearRestart(sim);
   SimulationAccess::SetPhase(sim, MatchPhase::FirstHalf);
   SimulationAccess::StartPlay(sim);
   SimulationAccess::StartBallInPlay(sim);
@@ -142,8 +143,8 @@ TEST_CASE("Rulings: real offside touch commits before a later touch", "[runtime]
   touch.team = TeamSide::Home;
   SimulationAccess::EventsOf(sim).OnAcceptedTouch(touch);
   REQUIRE_FALSE(SimulationAccess::IsInPlayOf(sim));
-  REQUIRE(rules.GetBuffer().desiredSetPiece == e_GameMode_FreeKick);
-  REQUIRE(rules.GetBuffer().teamID == 1);
+  REQUIRE(SimulationAccess::RestartContextOf(sim).kind == e_GameMode_FreeKick);
+  REQUIRE(SimulationAccess::RestartContextOf(sim).team_id == 1);
   REQUIRE_FALSE(SimulationAccess::MayTouchBallOf(sim, *Actor(sim, 1)));
   SimulationAccess::EventsOf(sim).OnAcceptedTouch(touch);
   REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 0);
@@ -156,7 +157,7 @@ TEST_CASE("Rulings: touchline stop commits at the front boundary", "[runtime][ru
   SimulationAccess::ResetBall(sim, Vector3(0, 40, 0));
   SimulationAccess::ProcessReferee(sim);
   REQUIRE_FALSE(SimulationAccess::IsInPlayOf(sim));
-  REQUIRE(rules.GetBuffer().desiredSetPiece == e_GameMode_ThrowIn);
+  REQUIRE(SimulationAccess::RestartContextOf(sim).kind == e_GameMode_ThrowIn);
   REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 0);
 }
 
@@ -176,7 +177,7 @@ TEST_CASE("Rulings: foul awards confirm free kick or penalty only at commit", "[
   REQUIRE(award.kind == kind);
   REQUIRE(award.team == TeamSide::Home);
   REQUIRE(award.tick == SimulationAccess::NowOf(sim));
-  REQUIRE(award.position == rules.GetBuffer().restartPos);
+  REQUIRE(award.position == SimulationAccess::RestartContextOf(sim).position);
 }
 
 TEST_CASE("Rulings: out of play awards distinguish corner goal kick and throw in", "[runtime][ruling]") {
@@ -198,7 +199,7 @@ TEST_CASE("Rulings: out of play awards distinguish corner goal kick and throw in
   const auto& award = std::get<RestartAwardedEvent>(events.front());
   REQUIRE(award.kind == kind);
   REQUIRE(award.team == TeamSide::Away);
-  REQUIRE(award.position == rules.GetBuffer().restartPos);
+  REQUIRE(award.position == SimulationAccess::RestartContextOf(sim).position);
   if (kind == e_GameMode_GoalKick) REQUIRE(award.position == Vector3(47, 0, 0));
   SimulationAccess::ProcessReferee(sim);
   REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 1);
@@ -279,8 +280,8 @@ TEST_CASE("Rulings: disciplinary counts commit now and send off at the original 
   REQUIRE(card.red == (red || second_yellow));
   REQUIRE(card.second_yellow == second_yellow);
   // Both ordinary deadlines retain the old 10-second card-administration addition.
-  REQUIRE(rules.GetBuffer().restart->earliest_restart_tick == now + TickSpan{1000});
-  REQUIRE(rules.GetBuffer().restart->timeout_tick == now + TickSpan{4000});
+  REQUIRE(SimulationAccess::RestartContextOf(sim).state->earliest_restart_tick == now + TickSpan{1000});
+  REQUIRE(SimulationAccess::RestartContextOf(sim).state->timeout_tick == now + TickSpan{4000});
   rules.CheckPendingFoul({tick}, SimulationAccess::CommandsOf(sim), sink);
   REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 0);
   sim.AdvanceTime(TickSpan{599});
@@ -395,4 +396,49 @@ TEST_CASE("Rulings: standing foul advantage retains its recall and expiry timing
     REQUIRE(award.kind == e_GameMode_FreeKick);
     REQUIRE(award.team == TeamSide::Home);
   }
+}
+
+TEST_CASE("Rulings: runtime restart context is what players and world read", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  Assess(sim, rules, 1.2f);
+  SimulationAccess::ProcessReferee(sim);  // stop + award committed synchronously
+  const football::sim::RestartContext& restart = SimulationAccess::RestartContextOf(sim);
+  REQUIRE(restart.active);
+  REQUIRE(restart.kind == e_GameMode_FreeKick);
+  REQUIRE(restart.team_id == 0);
+  REQUIRE(restart.state.has_value());
+  REQUIRE(restart.state->phase == football::sim::RestartPhase::Pending);
+  // The per-player execution view borrows the same Runtime-owned context.
+  REQUIRE(&SimulationAccess::PlayerTickOf(sim, *Actor(sim, 0)).restart == &restart);
+
+  const WorldState world = sim.Observe();
+  REQUIRE(world.restart == e_GameMode_FreeKick);
+  REQUIRE(world.restart_pending);
+
+  // The next instant plans the restart; the taker and targets stay Runtime-owned.
+  SimulationAccess::ProcessReferee(sim);
+  REQUIRE(restart.taker != nullptr);
+  REQUIRE(restart.state->plan.taker == restart.taker);
+  REQUIRE(restart.taker->IsActive());
+  const WorldState planned = sim.Observe();
+  REQUIRE(planned.restart_taker.has_value());
+  REQUIRE(*planned.restart_taker == restart.taker->GetID());
+}
+
+TEST_CASE("Rulings: opening ceremony state is runtime-owned", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  const football::sim::RestartContext& restart = SimulationAccess::RestartContextOf(sim);
+  REQUIRE(restart.active);
+  REQUIRE(restart.kind == e_GameMode_KickOff);
+  REQUIRE(restart.taker == nullptr);
+  REQUIRE_FALSE(restart.state.has_value());
+
+  SimulationAccess::ProcessReferee(sim);  // placement + confirmed award
+  REQUIRE(restart.taker != nullptr);
+  REQUIRE_FALSE(restart.state.has_value());
+  REQUIRE(std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).front()).kind ==
+          e_GameMode_KickOff);
 }

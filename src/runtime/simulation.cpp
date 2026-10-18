@@ -142,8 +142,8 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
   return {GetTimelineTick(), play_authorized_, set_piece_active_, IsBallInPlay(),
           clock_->IsHalfUnderway(), *ball_, ball_retainer_,
           designated_possession_player_, GetLastTouchPlayer(), touches_,
-          referee_->GetBuffer(), pitch_, own_view, opponent_view, processing_slot,
-          referee_->RestartNeedsSimulation(), rng_,
+          restarts_.context(), pitch_, own_view, opponent_view, processing_slot,
+          restarts_.NeedsSimulation(), rng_,
           active_candidate_capture_ ? active_touch_shadow_sink_.get() : nullptr,
           nullptr, ball_.get(), send_off_sink_.get()};
 }
@@ -322,7 +322,8 @@ void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch)
     GetActiveTeamPlayers(first_team_, active);
     GetActiveTeamPlayers(second_team_, active);
   }
-  const football::sim::rules::RefereeView view{tick, active, options_.offsides};
+  const football::sim::rules::RefereeView view{tick, active, options_.offsides,
+      &restarts_.context(), restarts_.InPostRestartGrace()};
   // Recognize behavior first, then let the referee judge the same touch. Both
   // read the same immutable record and the same admitted instant.
   recognizer_.Consume(touch,
@@ -359,10 +360,16 @@ void Simulation::ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ru
 
 void Simulation::ApplyRestartRuling(
     const football::sim::event::AwardRestartRuling& ruling) {
-  // Restart scheduling is still executed synchronously by the referee; the
-  // confirmed verdict is recorded so no ruling kind is silently dropped here.
-  event_log_.Record(football::sim::event::RestartAwardedEvent{
-      GetTimelineTick(), ruling.team, ruling.kind, ruling.position});
+  // Runtime owns the restart context and publishes the confirmed award event.
+  restarts_.Award(ruling, GetTimelineTick(), event_log_);
+}
+
+void Simulation::ApplyBallInPlayRuling(
+    const football::sim::event::BallInPlayRuling& ruling) {
+  (void)ruling;
+  // The rules confirmed a legal release; Runtime owns the transition and clock.
+  restarts_.ConfirmRelease();
+  StartBallInPlay();
 }
 
 bool Simulation::CardAlreadyCommitted(const football::sim::event::CardRuling& ruling) const {
@@ -516,6 +523,8 @@ void Simulation::ValidateRuling(const football::sim::event::RefereeRuling& rulin
       Player* player = FindPlayerById(value.player);
       return player && (value.type == 2 || value.type == 3) &&
           (CardAlreadyCommitted(value) || (player->IsActive() && value.effective_at >= GetTimelineTick()));
+    } else if constexpr (std::is_same_v<T, football::sim::event::BallInPlayRuling>) {
+      return true;
     } else {
       static_assert(std::is_same_v<T, void>, "unvalidated referee ruling");
     }
@@ -533,6 +542,8 @@ void Simulation::CommitRuling(const football::sim::event::RefereeRuling& ruling)
           StopPlay();
         } else if constexpr (std::is_same_v<T, football::sim::event::AwardRestartRuling>) {
           ApplyRestartRuling(value);
+        } else if constexpr (std::is_same_v<T, football::sim::event::BallInPlayRuling>) {
+          ApplyBallInPlayRuling(value);
         } else if constexpr (std::is_same_v<T, football::sim::event::CardRuling>) {
           ApplyCardRuling(value);
         } else {
@@ -570,8 +581,11 @@ void Simulation::CommitEventTransitions(football::sim::Tick now) {
   }
 }
 
-void Simulation::AdvanceReferee(const football::sim::rules::RefereeView& view) {
-  referee_->Advance(view, options_, rng_, *rule_commands_, *ruling_sink_);
+void Simulation::AdvanceRestart(const football::sim::rules::RefereeView& view) {
+  const football::sim::RestartController::TickOutcome outcome =
+      restarts_.Advance(view.tick, options_, rng_, *rule_commands_, event_log_);
+  if (outcome.ceremonial_setup) referee_->OnCeremonialSetup();
+  if (outcome.restart_taken) referee_->OnRestartTaken();
 }
 
 void Simulation::ProcessReferee() {
@@ -581,10 +595,13 @@ void Simulation::ProcessReferee() {
     GetActiveTeamPlayers(first_team_, active);
     GetActiveTeamPlayers(second_team_, active);
   }
-  const football::sim::rules::RefereeView view{tick, active, options_.offsides};
-  const bool was_restart =
-      referee_->GetBuffer().active && referee_->GetBuffer().restart.has_value();
-  AdvanceReferee(view);
+  football::sim::rules::RefereeView view{tick, active, options_.offsides,
+      &restarts_.context(), false};
+  const bool was_restart = restarts_.context().Scheduled();
+  AdvanceRestart(view);
+  // The grace is decremented by the restart tick; boundary settlement must
+  // observe the post-advance value, exactly as the legacy single owner did.
+  view.post_restart_grace = restarts_.InPostRestartGrace();
   CommitPendingRulings();
   if (was_restart) return;
   if (tick.play_authorized && !tick.set_piece_active) {
@@ -713,7 +730,8 @@ void Simulation::Init(
   GetActiveTeamPlayers(first_team_, active_players);
   Player* designated = active_players.at(0);
 
-  auto referee = std::make_unique<Referee>(first_team_, options.ball_position);
+  auto referee = std::make_unique<Referee>();
+  restarts_.BeginMatch(first_team_, options.ball_position);
   auto commands = std::make_unique<RuleCommands>(*this);
   auto touches = std::make_unique<TouchEvents>(*this);
   auto rulings = std::make_unique<RulingEvents>(*this);
@@ -882,9 +900,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     DiscardBodyCollisionShadow();
     return;
   }
-  if (!play_authorized_ && !referee_->RestartNeedsSimulation() &&
-      (GetTimelineTick() < referee_->GetBuffer().prepare_tick ||
-       referee_->GetBuffer().prepare_tick + football::sim::TickSpan{1} < GetTimelineTick())) {
+  if (!play_authorized_ && !restarts_.NeedsSimulation() &&
+      (GetTimelineTick() < restarts_.context().prepare_tick ||
+       restarts_.context().prepare_tick + football::sim::TickSpan{1} < GetTimelineTick())) {
     // Ceremonies execute only their placement tail; both clocks stay stopped.
     const auto admitted = clock_->Advance(football::sim::TickSpan{1}, phase_);
     UpdateRecentPossession(admitted);
@@ -970,14 +988,13 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
 bool Simulation::IsInPlay() const {
   return ball_ && play_authorized_;
 }
-
 WorldState Simulation::Observe() const {
   if (!ball_) throw std::logic_error("simulation has no match");
   const int first_team = options_.reverse_team_processing ? 1 : 0;
   return BuildWorldState({GetTimelineTick(), phase_,
       GetRegulationTime(), GetBallInPlayTime(), clock_->IsHalfUnderway(),
       IsBallInPlay(), reset_sequence_, *ball_, pitch_,
-      play_authorized_, set_piece_active_, *referee_, ball_retainer_,
+      play_authorized_, set_piece_active_, restarts_.context(), ball_retainer_,
       score_[0], score_[1], TeamViewOf(0), TeamViewOf(1),
       first_team});
 }
@@ -1061,6 +1078,8 @@ void Simulation::EndPeriod() {
   referee_->OnPeriodEnded(phase_, GetTimelineTick(),
       options_.ball_position,
       options_.left_team_owns_ball ? 1 : 0);
+  restarts_.OnPeriodEnded(phase_, GetTimelineTick(), options_.ball_position,
+                          options_.left_team_owns_ball ? 1 : 0);
   if (phase_ == MatchPhase::SecondHalf) {
     SetMatchPhase(MatchPhase::Finished);
     return;
@@ -1207,6 +1226,7 @@ bool Simulation::Stop() {
   designated_possession_player_ = nullptr;
   best_possession_team_.reset();
   referee_.reset();
+  restarts_.Clear();
   recognizer_.Reset();
   mental_images_.clear();
   snapshot_players_.clear();

@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_SIM_RULES_RESTART_PLACEMENT_HPP
-#define FOOTBALL_SIM_RULES_RESTART_PLACEMENT_HPP
+#ifndef FOOTBALL_SIM_RUNTIME_RESTART_PLACEMENT_HPP
+#define FOOTBALL_SIM_RUNTIME_RESTART_PLACEMENT_HPP
 
 #include "football/player/player_role.hpp"
 #include "football/referee/game_mode.hpp"
@@ -13,8 +13,8 @@ namespace football::ball { class Ball; }
 class Player;
 namespace football::sim::rules { class RuleCommandSink; }
 
-// Rule-owned placement. Referee calls in its established team/RNG order and
-// owns the returned taker; AI cannot change restart authority or deadlines.
+// Runtime-owned ceremony placement. Runtime calls it in the established
+// team/RNG order and owns the returned taker; the Referee never places actors.
 Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                               const football::sim::TeamView& team, e_GameMode set_piece,
                               const football::sim::TeamView& other_team,

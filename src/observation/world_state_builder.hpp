@@ -4,6 +4,7 @@
 #include "football/observation/world_state.hpp"
 #include "football/pitch/pitch.hpp"
 #include "runtime/team_view.hpp"
+#include "runtime/restart_context.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
@@ -24,7 +25,7 @@ struct WorldStateSource {
   const football::pitch::Pitch& pitch;
   bool in_play;
   bool in_set_piece;
-  Referee& referee;
+  const football::sim::RestartContext& restart;
   const Player* ball_retainer;
   int score_home;
   int score_away;

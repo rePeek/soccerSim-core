@@ -24,6 +24,8 @@
 #include "runtime/roster.hpp"
 #include "runtime/team_facts.hpp"
 #include "runtime/clock.hpp"
+#include "runtime/restart_controller.hpp"
+#include "runtime/restart_context.hpp"
 #include "event/accepted_touch_sink.hpp"
 #include "event/event_recognizer.hpp"
 #include "event/touch_state.hpp"
@@ -121,6 +123,7 @@ class Simulation {
   // so a new ruling type cannot be silently dropped by the executor.
   void ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling);
   void ApplyRestartRuling(const football::sim::event::AwardRestartRuling& ruling);
+  void ApplyBallInPlayRuling(const football::sim::event::BallInPlayRuling& ruling);
   void ApplyCardRuling(const football::sim::event::CardRuling& ruling);
   // Roster/formation/possession follow-up when a player leaves the pitch.
   void HandlePlayerSentOff(Player& player);
@@ -151,7 +154,10 @@ class Simulation {
   void ProcessReferee();
   // Recognized behavior transitions -> confirmed MatchEvents.
   void CommitEventTransitions(football::sim::Tick now);
-  void AdvanceReferee(const football::sim::rules::RefereeView& view);
+  // Runtime-owned restart execution for one instant; reports rule-state
+  // side effects the Referee must apply.
+  void AdvanceRestart(
+      const football::sim::rules::RefereeView& view);
   football::sim::rules::RefereeTickFacts RefereeFacts() const;
   football::sim::PlayerTickContext PlayerTickFacts(const Player& actor);
   void EnsureAnimationLibrary();
@@ -246,6 +252,9 @@ class Simulation {
   bool IsInSetPiece() const { return set_piece_active_; }
   MatchPhase GetMatchPhase() const { return phase_; }
   Referee* GetReferee() const { return referee_.get(); }
+  // Runtime-owned restart execution facts for observation. Borrowed read-only
+  // for the duration of one BuildWorldState/PlayerTick call.
+  const football::sim::RestartContext& restart_context() const { return restarts_.context(); }
   int GetScore(int team_id) const { return score_[team_id]; }
   float GetPossessionFactor_60seconds() const { return possession_60_seconds_ / 60.0f; }
   std::uint64_t GetResetSequence() const { return reset_sequence_; }
@@ -299,6 +308,7 @@ class Simulation {
   mutable std::array<football::sim::TeamFrame, 2> team_frames_;
   mutable std::array<football::sim::TeamMatchState, 2> team_states_;
   std::unique_ptr<Referee> referee_;
+  football::sim::RestartController restarts_;
 
   std::unique_ptr<football::sim::rules::RuleCommandSink> rule_commands_;
   // Borrowed from rule_commands_; the concrete sink implements both ports.

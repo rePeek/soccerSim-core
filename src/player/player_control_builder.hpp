@@ -8,7 +8,7 @@
 
 class Player;
 namespace football::ball { class Ball; }
-struct RefereeBuffer;
+namespace football::sim { struct RestartContext; }
 namespace football::pitch { class Pitch; }
 namespace football::sim::event { struct TouchState; }
 
@@ -17,7 +17,7 @@ namespace football::sim::event { struct TouchState; }
 struct PlayerCommandInputs {
   const football::ball::Ball& ball;
   const football::sim::event::TouchState& touches;
-  const RefereeBuffer& restart;
+  const football::sim::RestartContext& restart;
   const Player* retainer;
   const football::pitch::Pitch& pitch;
   // The acting player's own roster slice and runtime team facts. Borrowed.

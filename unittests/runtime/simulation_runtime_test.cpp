@@ -449,7 +449,7 @@ TEST_CASE("Rules authorize movement, action and keeper hands separately",
     auto input = base;
     input.restart_active = true;
     input.restart_scheduled = true;
-    input.restart_phase = RestartPhase::Pending;
+    input.restart_phase = football::sim::RestartPhase::Pending;
     const auto auth = EvaluateActionAuthorization(input);
     CHECK(auth.movement_allowed);
     CHECK_FALSE(auth.action_allowed);
@@ -459,7 +459,7 @@ TEST_CASE("Rules authorize movement, action and keeper hands separately",
     auto input = base;
     input.restart_active = true;
     input.restart_scheduled = true;
-    input.restart_phase = RestartPhase::Ready;
+    input.restart_phase = football::sim::RestartPhase::Ready;
     input.is_restart_taker = false;
     const auto auth = EvaluateActionAuthorization(input);
     CHECK_FALSE(auth.movement_allowed);

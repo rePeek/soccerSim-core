@@ -21,6 +21,7 @@
 #include "football/pitch/pitch.hpp"
 #include "observation/pitch_frame.hpp"
 #include "runtime/team_view.hpp"
+#include "runtime/restart_context.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
@@ -44,6 +45,8 @@ struct BallTouchFacts {
   const football::pitch::Pitch* pitch = nullptr;
   std::span<Player* const> all_active_players;
   PitchFrameTransform stadium_to_home{false};
+  // Runtime-owned restart execution facts, borrowed read-only for this call.
+  const football::sim::RestartContext* restart = nullptr;
   bool preserve_opponent_offside = false;
   bool physical_kick = false;
 };

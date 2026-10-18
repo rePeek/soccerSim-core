@@ -7,10 +7,10 @@
 #include "event/touch_state.hpp"
 #include "player/player_team_view.hpp"
 #include "player/player_touch_preparation.hpp"
+#include "runtime/restart_context.hpp"
 
 class Player;
 namespace football::ball { class Ball; }
-struct RefereeBuffer;
 class ActiveTouchShadowSink;
 namespace football::pitch { class Pitch; }
 
@@ -37,7 +37,7 @@ struct PlayerTickContext {
   const Player* last_touch_player;
 
   const event::TouchState& touches;
-  const RefereeBuffer& restart;
+  const RestartContext& restart;
 
   const football::pitch::Pitch& pitch;
 

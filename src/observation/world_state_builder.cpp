@@ -36,11 +36,11 @@ WorldState BuildWorldState(const WorldStateSource& s) {
   world.in_play = s.in_play;
   world.in_set_piece = s.in_set_piece;
 
-  const auto& restart = s.referee.GetBuffer();
+  const football::sim::RestartContext& restart = s.restart;
   if (restart.active) {
-    world.restart = restart.desiredSetPiece;
+    world.restart = restart.kind;
     if (restart.taker) world.restart_taker = restart.taker->GetID();
-    world.restart_pending = s.referee.RestartNeedsSimulation();
+    world.restart_pending = restart.NeedsSimulation();
   }
   if (s.ball_retainer) world.ball_retainer = s.ball_retainer->GetID();
 
@@ -69,7 +69,7 @@ WorldState BuildWorldState(const WorldStateSource& s) {
           player->GetStat(football::player::PlayerStat::technical_shortpass);
       observed.workrate =
           player->GetStat(football::player::PlayerStat::mental_workrate);
-      observed.restart_target = s.referee.GetRestartTarget(player);
+      observed.restart_target = football::sim::RestartTargetFor(s.restart, player);
       world.players.push_back(observed);
     }
   }

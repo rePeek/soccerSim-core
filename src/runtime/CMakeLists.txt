@@ -47,6 +47,9 @@ target_sources(football_sim_domain PRIVATE
   team_state.hpp team_view.hpp team_facts.hpp
   possession.cpp possession.hpp
   roster_possession.cpp roster_possession.hpp
+  restart_context.hpp restart_controller.cpp restart_controller.hpp
+  restart_planner.cpp restart_planner.hpp
+  restart_placement.cpp restart_placement.hpp
   ../testing/simulation_access.hpp)
 target_link_libraries(football_sim_domain
   PUBLIC football::sim_contracts

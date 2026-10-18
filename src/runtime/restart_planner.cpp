@@ -1,4 +1,4 @@
-#include "referee/restart_readiness.hpp"
+#include "runtime/restart_planner.hpp"
 #include "football/pitch/pitch.hpp"
 
 #include <algorithm>
@@ -9,6 +9,8 @@
 #include "observation/pitch_frame.hpp"
 #include "player/player.hpp"
 
+
+namespace football::sim {
 namespace {
 using football::math::Vector3;
 constexpr float kTargetTolerance = 0.35f;
@@ -168,3 +170,5 @@ void PlaceRestartPlayersAtTimeout(const RestartPlan& plan) {
     target.player->ResetPosition(frame.Position(target.position), frame.Position(plan.ball_position));
   }
 }
+
+}  // namespace football::sim

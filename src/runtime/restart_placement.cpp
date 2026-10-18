@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-#include "referee/restart_placement.hpp"
+#include "runtime/restart_placement.hpp"
 #include "football/pitch/pitch.hpp"
 #include "referee/rule_command_sink.hpp"
 #include "player/roster_query.hpp"

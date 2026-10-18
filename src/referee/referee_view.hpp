@@ -4,6 +4,7 @@
 #include <span>
 
 #include "referee/referee_tick_facts.hpp"
+#include "runtime/restart_context.hpp"
 
 class Player;
 
@@ -17,6 +18,9 @@ struct RefereeView {
   const RefereeTickFacts& tick;
   std::span<Player* const> all_active_players;
   bool offsides_enabled = false;
+  // Runtime-owned restart execution facts, borrowed read-only for this call.
+  const football::sim::RestartContext* restart = nullptr;
+  bool post_restart_grace = false;
 };
 
 }  // namespace football::sim::rules

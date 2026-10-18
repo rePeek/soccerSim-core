@@ -1,62 +1,17 @@
 #ifndef FOOTBALL_SIM_REFEREE_REFEREE_STATE_HPP
 #define FOOTBALL_SIM_REFEREE_REFEREE_STATE_HPP
 
-#include <optional>
-#include <vector>
-
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/player/player_role.hpp"
-#include "football/referee/game_mode.hpp"
-#include "observation/pitch_frame.hpp"
-#include "referee/restart_readiness.hpp"
 
 using namespace football::math;
 
 class Player;
-class Player;
 
 // Referee-owned rule state: the values the rules must carry across ticks to
 // relate facts over time. Physics and actors never read or write them; only the
-// referee mutates them and Simulation applies the resulting commands/rulings.
-
-struct RestartPolicy {
-  football::sim::TickSpan minimum_delay;
-  football::sim::TickSpan maximum_delay;
-};
-// Explicit restart-scheduling facts; the referee state machine reads no Match here.
-struct RestartSchedule {
-  football::sim::Tick now{};
-  // Legacy team slot (0/1) that takes the restart; -1 when unresolved.
-  int setpiece_team = -1;
-  PitchFrameTransform frame{false};
-};
-enum class RestartPhase { Pending, Ready, Taken, InPlay };
-struct RestartState {
-  football::sim::Tick entered_tick{};
-  football::sim::Tick earliest_restart_tick{};
-  football::sim::Tick timeout_tick{};
-  RestartPhase phase = RestartPhase::Pending;
-  bool setup_done = false;
-  bool used_timeout_placement = false;
-  RestartPlan plan;
-};
-
-struct RefereeBuffer {
-  // Referee has pending action to execute.
-  bool active = false;
-  e_GameMode desiredSetPiece;
-  signed int teamID = 0;
-  int setpiece_team = -1;
-  football::sim::Tick stop_tick{};
-  football::sim::Tick prepare_tick{};
-  football::sim::Tick start_tick{};
-  Vector3 restartPos;
-  Player *taker = nullptr;
-  bool endPhase = false;
-  std::optional<RestartState> restart;
-};
-
+// referee mutates them and Simulation applies the resulting rulings. Restart
+// execution state lives in Runtime::RestartContext, never here.
 struct Foul {
   Player *foulPlayer = 0;
   Player *foulVictim = 0;
@@ -66,6 +21,5 @@ struct Foul {
   Vector3 foulPosition;
   bool hasBeenProcessed = false;
 };
-
 
 #endif  // FOOTBALL_SIM_REFEREE_REFEREE_STATE_HPP

@@ -28,7 +28,14 @@ struct AwardRestartRuling {
   e_GameMode kind = e_GameMode_Normal;
   football::sim::TeamSide team = football::sim::TeamSide::Home;
   football::math::Vector3 position;
+  // Runtime scheduling requirement: the restart cannot be taken before the
+  // administration window (e.g. a carded player leaving) has elapsed.
+  TickSpan administration{};
 };
+
+// The rules confirmed that the ball legitimately returned to play (a legal
+// restart release). Runtime owns the restart state transition and the clock.
+struct BallInPlayRuling {};
 
 struct CardRuling {
   football::player::PlayerId player = football::player::kInvalidPlayerId;
@@ -39,7 +46,8 @@ struct CardRuling {
 };
 
 using RefereeRuling =
-    std::variant<StopPlayRuling, AwardGoalRuling, AwardRestartRuling, CardRuling>;
+    std::variant<StopPlayRuling, AwardGoalRuling, AwardRestartRuling, CardRuling,
+                 BallInPlayRuling>;
 
 // Write-only verdict port. Submit only appends; it must never execute/re-enter
 // the runtime. The ordered values produced by one referee operation form one

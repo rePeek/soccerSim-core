@@ -59,9 +59,9 @@ void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& re
         football::sim::IsDeliberateKickSwing(contact.surface_velocity,
                                             player->GetKinematicState().velocity);
     if(!IsBallInPlay()) {
-      const auto& restart=referee_->GetBuffer();
-      if(!kick || !set_piece_active_ || restart.taker!=player || !restart.restart ||
-          restart.restart->phase!=RestartPhase::Ready) continue;
+      const auto& restart=restarts_.context();
+      if(!kick || !set_piece_active_ || restart.taker!=player || !restart.state ||
+          restart.state->phase!=football::sim::RestartPhase::Ready) continue;
     }
     football::sim::event::AcceptedTouch accepted{
         GetTimelineTick(), player->GetID(), player->GetTeamSide(),

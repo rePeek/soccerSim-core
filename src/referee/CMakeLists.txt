@@ -12,7 +12,5 @@ target_sources(football_sim_domain PRIVATE
   referee_state.hpp
   referee_tick_facts.hpp
   referee_view.hpp
-  restart_placement.cpp restart_placement.hpp
-  restart_readiness.cpp restart_readiness.hpp
   rule_command_sink.hpp
   ruling.hpp)

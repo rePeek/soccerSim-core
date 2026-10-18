@@ -41,7 +41,7 @@ class SimulationAccess {
   static PlayerCommandInputs CommandInputsOf(Simulation& simulation,
                                              const PlayerTeamView& own_team) {
     if (!simulation.ball_) throw std::logic_error("simulation has no match");
-    return {*simulation.ball_, simulation.touches_, RulesOf(simulation).GetBuffer(),
+    return {*simulation.ball_, simulation.touches_, simulation.restart_context(),
             simulation.ball_retainer_, simulation.pitch_, own_team};
   }
   static AcceptedTouchSink& EventsOf(Simulation& simulation) {
@@ -75,24 +75,17 @@ class SimulationAccess {
   static void ProcessReferee(Simulation& s) { s.ProcessReferee(); }
   static const auto& MatchEventsOf(const Simulation& s) { return s.event_log_.events(); }
   static std::size_t PendingRulingsOf(const Simulation& s) { return s.pending_rulings_.size(); }
-  // Test-only orchestration of one referee instant using the same split stages
-  // as Simulation::ProcessReferee, without advancing the match.
+  // Test-only orchestration of one referee instant. Runtime owns restart
+  // execution, so this is the same synchronous boundary product code uses.
   static void ProcessRules(Simulation& simulation, Referee& referee) {
-    const auto facts = RefereeFactsOf(simulation);
-    if (facts.phase == MatchPhase::Finished) return;
-    const football::sim::rules::RefereeView view{facts};
-    const bool was_restart =
-        referee.GetBuffer().active && referee.GetBuffer().restart.has_value();
-    referee.Advance(view, simulation.options(), simulation.rng_, CommandsOf(simulation), RulingsOf(simulation));
-    simulation.CommitPendingRulings();
-    if (was_restart) return;
-    if (facts.play_authorized && !facts.set_piece_active) {
-      referee.EvaluateOutOfPlay(view, CommandsOf(simulation), RulingsOf(simulation));
-      simulation.CommitPendingRulings();
-      referee.CheckPendingFoul(view, CommandsOf(simulation), RulingsOf(simulation));
-      simulation.CommitPendingRulings();
-    }
+    (void)referee;
+    simulation.ProcessReferee();
   }
+
+  static const football::sim::RestartContext& RestartContextOf(const Simulation& s) {
+    return s.restarts_.context();
+  }
+  static void ClearRestart(Simulation& s) { s.restarts_.Clear(); }
 
   // Runtime facts; the transitional Match facade is gone, so diagnostics name
   // the exact state they read.
@@ -159,8 +152,8 @@ class SimulationAccess {
   static const MatchOptions& OptionsOf(Simulation& s) { return s.options_; }
   static bool MayTouchBallOf(Simulation& s, const Player& actor) {
     return s.clock_->IsBallInPlay() ||
-        (s.play_authorized_ && s.set_piece_active_ && s.referee_->GetBuffer().active &&
-         s.referee_->GetBuffer().taker == &actor);
+        (s.play_authorized_ && s.set_piece_active_ && s.restarts_.context().active &&
+         s.restarts_.context().taker == &actor);
   }
   static bool IsGoalScoredOf(Simulation& s) { return s.goal_scored_; }
   static bool IsBallInGoalOf(Simulation& s) { return s.ball_in_goal_; }

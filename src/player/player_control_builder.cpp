@@ -53,9 +53,9 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   // tick-start snapshot.
   football::sim::rules::PlayerActionAuthorizationInput authorization_input;
   authorization_input.restart_active = restart.active;
-  authorization_input.restart_scheduled = restart.restart.has_value();
+  authorization_input.restart_scheduled = restart.state.has_value();
   authorization_input.restart_phase =
-      restart.restart ? restart.restart->phase : RestartPhase::InPlay;
+      restart.state ? restart.state->phase : football::sim::RestartPhase::InPlay;
   authorization_input.is_restart_taker = restart.taker == &player;
   if (control.action == ControlAction::Save) {
     const PlayerTeamView& team = inputs.own_team;
@@ -71,7 +71,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   }
   const football::sim::rules::PlayerActionAuthorization authorization =
       football::sim::rules::EvaluateActionAuthorization(authorization_input);
-  if (restart.active && restart.restart && !authorization.action_allowed) {
+  if (restart.active && restart.state && !authorization.action_allowed) {
     if (!authorization.movement_allowed) movement.desiredVelocityFloat = 0.f;
     return {movement};
   }
