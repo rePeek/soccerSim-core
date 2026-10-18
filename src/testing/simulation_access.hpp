@@ -21,8 +21,29 @@ namespace football::sim::testing {
 // Product execution remains Init/Step/Observe/Finished/Result/Stop.
 class SimulationAccess {
  public:
-  static const football::team::Team& TeamOf(const Simulation& simulation, TeamSide side) {
+  // Live team aggregate (definition plus owned Players).
+  static football::team::Team& TeamOf(Simulation& simulation, int team_id) {
+    return simulation.TeamOf(team_id);
+  }
+  static const football::team::Team& TeamOf(const Simulation& simulation,
+                                            int team_id) {
+    return simulation.TeamOf(team_id);
+  }
+  static football::team::Team& TeamOf(Simulation& simulation, TeamSide side) {
     return simulation.TeamOf(static_cast<int>(side));
+  }
+  static const football::team::Team& TeamOf(const Simulation& simulation,
+                                            TeamSide side) {
+    return simulation.TeamOf(static_cast<int>(side));
+  }
+  // Static configuration of one side, without touching its Players.
+  static const football::team::TeamDefinition& DefinitionOf(
+      const Simulation& simulation, int team_id) {
+    return simulation.TeamOf(team_id).Definition();
+  }
+  static const football::team::TeamDefinition& DefinitionOf(
+      const Simulation& simulation, TeamSide side) {
+    return simulation.TeamOf(static_cast<int>(side)).Definition();
   }
   static PlayerTickContext PlayerTickOf(Simulation& simulation, Player& actor) {
     return simulation.PlayerTickFacts(actor);
@@ -118,11 +139,8 @@ class SimulationAccess {
   static PlayerTeamFacts TeamFactsOf(const Simulation& s, int team_id) {
     return s.TeamFactsFor(team_id);
   }
-  // The runtime-owned possession inputs: the roster and the match state a team
-  // owns. Exposed so the harness can exercise possession without a Team object.
-  static football::sim::Roster& RosterOf(Simulation& s, int team_id) {
-    return s.RosterOf(team_id);
-  }
+  // The runtime-owned match state a team owns. Exposed so the harness can
+  // exercise possession without going through a rules/observation view.
   static football::sim::TeamFrame& TeamFrameOf(Simulation& s, int team_id) {
     return s.team_frames_[team_id];
   }

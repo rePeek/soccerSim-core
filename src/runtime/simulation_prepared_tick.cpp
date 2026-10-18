@@ -1,6 +1,6 @@
 #include "runtime/simulation.hpp"
 #include "player/player.hpp"
-#include "runtime/roster_possession.hpp"
+#include "runtime/team_possession.hpp"
 #include "observation/mentalimage_sampling.hpp"
 #include <algorithm>
 #include <stdexcept>
@@ -34,7 +34,7 @@ bool SameState(const football::ball::BallState& a, const football::ball::BallSta
 struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
                                 football::sim::PlayerRuntimeSink,
                                 football::sim::AcceptedTouchSink {
-  bool second_roster = false;
+  bool second_team = false;
   // Runtime-owned team state. The port is the only writer, exactly like the
   // direct view write it replaces; it does not publish team facts.
   std::array<football::sim::TeamMatchState*, 2> team_states{};
@@ -42,7 +42,7 @@ struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
   std::optional<Player*> release;
   void PrepareTouch(const football::sim::PreparedPlayerTouch& input) override {
     auto touch = input;
-    if (second_roster) {
+    if (second_team) {
       touch.desired_ball_center.Mirror(); touch.target_velocity.Mirror();
       touch.strike_point.Mirror();
       touch.fact.ball_position.Mirror(); touch.fact.ball_velocity.Mirror();
@@ -107,10 +107,11 @@ void Simulation::RunPreparedPlayerTick() {
 
 
     football::sim::PrepareTeamPossession(
-        static_cast<football::sim::TeamSide>(id), RosterOf(id), team_frames_[id],
+        static_cast<football::sim::TeamSide>(id), TeamOf(id).Players(),
+        team_frames_[id],
         team_states_[id], team_states_[1 - id], play_authorized_,
         set_piece_active_, ball_retainer_, best_possession_team_);
-    for (auto* actor : rosters_[id].Players()) {
+    for (auto* actor : TeamOf(id).Players()) {
       if (!actor->IsActive()) continue;
       // Rebind the Ball reference; do not swap the authoritative owner.
       auto base = PlayerTickFacts(*actor);
@@ -129,14 +130,14 @@ void Simulation::RunPreparedPlayerTick() {
       prepared.emplace_back(actor, distance);
       MeasureBodyShadowEndpoint(*actor);
     }
-    football::sim::FinishTeamPossession(RosterOf(id), team_frames_[id],
+    football::sim::FinishTeamPossession(TeamOf(id).Players(), team_frames_[id],
         team_states_[id], team_states_[1 - id]);
   };
   Mirror(first_team_ == 1, first_team_ == 0, false);
   prepare_team(first_team_);
   Mirror(true, true, true);
   preparation_ball_->Mirror();
-  ports.second_roster = true;
+  ports.second_team = true;
   prepare_team(second_team_);
   Mirror(first_team_ == 0, first_team_ == 1, true);
   preparation_ball_->Mirror();

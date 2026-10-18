@@ -18,10 +18,10 @@ WorldState BuildWorldState(const WorldStateSource& s) {
   world.ball_in_play = s.ball_in_play;
   world.reset_sequence = s.reset_sequence;
 
-  const football::sim::TeamView& first_roster =
+  const football::sim::TeamView& first_team_view =
       s.first_team == 0 ? s.home : s.away;
   const auto ball_frame =
-      ToHomePitchFrame(first_roster.side, first_roster.dynamic_side);
+      ToHomePitchFrame(first_team_view.side, first_team_view.dynamic_side);
   world.ball_position = ball_frame.Position(s.ball.state().position);
   world.ball_velocity = ball_frame.Direction(s.ball.state().velocity);
   // P21.2: the runtime Ball model owns the look-ahead; the AI only reads it.
@@ -44,18 +44,18 @@ WorldState BuildWorldState(const WorldStateSource& s) {
   }
   if (s.ball_retainer) world.ball_retainer = s.ball_retainer->GetID();
 
-  const football::sim::TeamView* rosters[2] = {&s.home, &s.away};
+  const football::sim::TeamView* team_views[2] = {&s.home, &s.away};
   const int score[2] = {s.score_home, s.score_away};
   for (int team_id = 0; team_id < 2; ++team_id) {
     world.teams[team_id].score = score[team_id];
-    world.teams[team_id].has_possession = rosters[team_id]->HasPossession();
+    world.teams[team_id].has_possession = team_views[team_id]->HasPossession();
     world.teams[team_id].fading_possession_amount =
-        rosters[team_id]->fading_possession_amount();
+        team_views[team_id]->fading_possession_amount();
     world.teams[team_id].time_to_ball_ms =
-        rosters[team_id]->TimeNeededToGetToBall_ms();
-    const auto player_frame = ToHomePitchFrame(rosters[team_id]->side,
-                                               rosters[team_id]->dynamic_side);
-    for (Player* player : rosters[team_id]->players) {
+        team_views[team_id]->TimeNeededToGetToBall_ms();
+    const auto player_frame = ToHomePitchFrame(team_views[team_id]->side,
+                                               team_views[team_id]->dynamic_side);
+    for (Player* player : team_views[team_id]->players) {
       const PlayerKinematicState& state = player->GetKinematicState();
       WorldPlayerState observed{player->GetID(), player->GetTeamSide(),
           player_frame.Position(state.position), player_frame.Direction(state.velocity),

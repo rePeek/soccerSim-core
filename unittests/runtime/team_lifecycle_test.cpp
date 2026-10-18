@@ -17,8 +17,9 @@ TeamSetup LifecycleSetup(unsigned base) {
 }
 void CheckStopped(Simulation& sim) {
   CHECK_FALSE(SimulationAccess::IsInitializedOf(sim));
-  CHECK(SimulationAccess::RosterOf(sim,0).Players().empty());
-  CHECK(SimulationAccess::RosterOf(sim,1).Players().empty());
+  // TeamOf owns the only Player container; a stopped simulation has no Team.
+  CHECK_THROWS_AS(SimulationAccess::TeamOf(sim,0),std::logic_error);
+  CHECK_THROWS_AS(SimulationAccess::TeamOf(sim,1),std::logic_error);
   CHECK_FALSE(SimulationAccess::DesignatedPlayerOf(sim));
   CHECK_FALSE(SimulationAccess::BallRetainerOf(sim));
   CHECK_FALSE(SimulationAccess::LastGoalScorerOf(sim));

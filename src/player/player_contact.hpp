@@ -15,7 +15,7 @@ namespace football::sim {
 
 struct PlayerContactInputs {
   Tick now;
-  // Active players in processing-roster order, sharing the ball's physical frame.
+  // Active players in processing-team order, sharing the ball's physical frame.
   std::span<Player* const> players;
   const football::ball::Ball& ball;
   Player* designated_possession_player;
