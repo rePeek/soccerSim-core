@@ -174,3 +174,15 @@ a state copy; their writes remain synchronous and non-publishing. Mirror/reset/
 possession publication stays at the same Simulation call sites in the same order.
 Added address-alias, designated-player write/publication timing, fading possession
 and change-of-ends checks. Debug CTest 12/12; digest 5bef607ddd567a09 unchanged.
+
+TEAM-5.4: one ClearComposition route now serves Stop and every Init failure.
+It stops production/temporary touch adapters, exits existing actors in historical
+home/away order, clears actor borrows, snapshots/contact indices/events, releases
+Referee/adapters, then Team and clock. The live-Init guard remains outside cleanup
+so a rejected second Init does not destroy the running match.
+Added real partial-construction failures (second actor's invalid height, both
+failing teams and both processing orders), post-actor allocation failure, default
+and repeated Stop, destructor cleanup and fresh-vs-recovered Init RNG/state checks.
+Debug CTest 12/12 (176.05 s), digest unchanged. GCC ASan+UBSan (-O1, Debug, leak
+detection and halt-on-error) passed bounded ownership/lifecycle tests: 9 cases /
+464 assertions; pure data tests: 11 cases / 138 assertions. No diagnostics.

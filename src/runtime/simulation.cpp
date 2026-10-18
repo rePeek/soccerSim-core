@@ -700,12 +700,7 @@ void Simulation::Init(
   InitializeProductionPhysics();
   CaptureSnapshot();
   } catch (...) {
-    // Partial actors are owned by Team even if Ball was never published.
-    if (ball_) Stop();
-    else {
-      teams_ = {};
-      clock_.reset();
-    }
+    ClearComposition();
     throw;
   }
 }
@@ -1148,23 +1143,33 @@ MatchResult Simulation::Result() const {
 }
 
 bool Simulation::Stop() {
-  if (!ball_) return false;
+  const bool initialized = ball_ != nullptr;
+  ClearComposition();
+  return initialized;
+}
+
+void Simulation::ClearComposition() {
+  // One teardown for normal Stop and failed Init, including unpublished Ball
+  // and partially populated teams. Production adapters stop before actors exit.
   ReleaseProductionPhysics();
   EnableActiveTouchShadow(false);
-  // End actor runtime state first; the rosters are cleared after the adapters go.
-  const football::sim::Tick end_tick = GetTimelineTick();
-  for (int i = 0; i < 2; ++i) {
-    for (Player* player : TeamOf(i).Players()) player->Exit(end_tick);
+  const auto end_tick = clock_ ? clock_->now() : football::sim::Tick{};
+  for (auto& team : teams_) if (team) {
+    // Home then away, stable roster order: preserve the historical Exit/RNG window.
+    for (Player* player : team->Players()) player->Exit(end_tick);
   }
-  // Clear every actor borrow before their owners go away: an uninitialized
-  // Simulation must hold no dangling pointers.
+  // Drop all match-level actor borrows / indices while their owners still live.
   last_goal_team_ = -1;
   last_goal_scorer_ = nullptr;
   ball_retainer_ = nullptr;
   designated_possession_player_ = nullptr;
   best_possession_team_.reset();
-  referee_.reset();
   recognizer_.Reset();
+  event_log_.Clear();
+  pending_rulings_.clear();
+  foul_assessments_.clear();
+  recorded_touches_.clear();
+  touches_.Reset();
   mental_images_.clear();
   snapshot_players_.clear();
   body_collider_owners_.clear();
@@ -1174,16 +1179,16 @@ bool Simulation::Stop() {
   snapshot_metadata_ = {};
   player_slots_ = {};
   snapshot_scratch_ = {};
-  // Stop releases memory; Finished keeps the complete retained window alive.
   snapshot_history_ = football::sim::observation::SnapshotHistory{};
   snapshot_step_.reset();
+  // Referee holds transient restart actor borrows; release it before Team.
+  referee_.reset();
   touch_sink_.reset();
   ruling_sink_.reset();
   player_runtime_sink_ = nullptr;
   rule_commands_.reset();
+  send_off_sink_.reset();
   ball_.reset();
   teams_ = {};
-  send_off_sink_.reset();
   clock_.reset();
-  return true;
 }

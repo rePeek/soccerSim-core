@@ -124,6 +124,8 @@ class Simulation {
   void HandlePlayerSentOff(Player& player);
   football::sim::Team& TeamOf(int id) const;
   football::sim::Roster& RosterOf(int id) const { return TeamOf(id).RosterStorage(); }
+  // Shared by Stop and every initialization failure; handles partial owners.
+  void ClearComposition();
   // Creates and activates one roster's players. Runtime owns the lifecycle; the
   // Team owns the roster; Simulation preserves the historical schedule-phase
   // sequence, RNG draw order and starting-eleven activation order.

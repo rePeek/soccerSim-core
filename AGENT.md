@@ -314,6 +314,10 @@ WorldState projects those bindings read-only; DefaultSlotAssignment preserves
 vacancies and filters inactive actors. Only synthetic observations without slot
 metadata retain the old active-order fallback. Slot replacement is a pure data
 operation; no substitution command, coach mutation or restart integration is added.
+Init failures and Stop share ClearComposition: stop production adapters, Exit
+actors in home/away roster order, clear every match-level actor borrow/index,
+release Referee/adapters, then Team (and Players), then clock. The same route
+handles partial rosters and unpublished Ball. Repeated Stop remains safe.
 
 ### Motion state writers (P2 preflight audit)
 
