@@ -38,7 +38,7 @@
 #include "football/observation/world_state.hpp"
 #include "football/runtime/match_config.hpp"
 #include "runtime/possession.hpp"
-#include "runtime/roster_possession.hpp"
+#include "runtime/team_possession.hpp"
 #include "referee/action_authorization.hpp"
 #include "runtime/simulation.hpp"
 #include "football/runtime/simulation_config.hpp"

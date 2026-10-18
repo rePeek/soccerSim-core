@@ -18,7 +18,7 @@
 #include "observation/pitch_frame.hpp"
 #include "observation/world_state_builder.hpp"
 #include "player/player_contact.hpp"
-#include "runtime/roster_possession.hpp"
+#include "runtime/team_possession.hpp"
 #include "referee/goal.hpp"
 #include "referee/period.hpp"
 #include "referee/referee.hpp"

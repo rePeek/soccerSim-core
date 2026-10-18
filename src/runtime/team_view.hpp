@@ -22,7 +22,7 @@ struct TeamView {
   int dynamic_side = 0;
   int static_side = 0;
   Player* goalie = nullptr;
-  // Full roster in stable insertion order; callers filter IsActive() themselves.
+  // Full player list in stable insertion order; callers filter IsActive() themselves.
   std::span<Player* const> players;
   // Live runtime-owned state; null only for a view without team state.
   TeamMatchState* state = nullptr;

@@ -1,4 +1,4 @@
-#include "runtime/roster_possession.hpp"
+#include "runtime/team_possession.hpp"
 
 #include <cassert>
 

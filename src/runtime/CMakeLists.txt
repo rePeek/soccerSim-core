@@ -42,7 +42,7 @@ target_sources(football_sim_domain PRIVATE
   simulation_baked_body.cpp
   simulation_rule_touch.cpp
   touch_evidence_classification.hpp
-  clock.cpp clock.hpp roster.cpp roster.hpp
+  clock.cpp clock.hpp
   formation.cpp formation_build.hpp
   team_setup_adapter.cpp team_setup_adapter.hpp
   # Entity half of football::team::Team (Player ownership). It needs the
@@ -52,7 +52,7 @@ target_sources(football_sim_domain PRIVATE
   active_lineup.cpp
   team_state.hpp team_view.hpp team_facts.hpp
   possession.cpp possession.hpp
-  roster_possession.cpp roster_possession.hpp
+  team_possession.cpp team_possession.hpp
   play_state.hpp restart_context.hpp restart_controller.cpp restart_controller.hpp
   restart_planner.cpp restart_planner.hpp
   restart_placement.cpp restart_placement.hpp

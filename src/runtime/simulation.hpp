@@ -57,8 +57,9 @@ class AnimationLibrary;
 namespace football::sim::testing { class SimulationAccess; }
 
 // Simulation owns the whole match composition: clock/phase/score, ball, two
-// Team entities (each owning its roster and team state), referee, touch/possession
-// state, RNG/history/config. Step() is the only orchestration point.
+// Team entities (each owning its Players; Runtime owns their team state),
+// referee, touch/possession state, RNG/history/config. Step() is the only
+// orchestration point.
 class Simulation {
  public:
   Simulation();
@@ -128,7 +129,7 @@ class Simulation {
   void ApplyRestartRuling(const football::sim::event::AwardRestartRuling& ruling);
   void ApplyBallInPlayRuling(const football::sim::event::BallInPlayRuling& ruling);
   void ApplyCardRuling(const football::sim::event::CardRuling& ruling);
-  // Roster/formation/possession follow-up when a player leaves the pitch.
+  // Player/formation/possession follow-up when a player leaves the pitch.
   void HandlePlayerSentOff(Player& player);
   // One live team aggregate per side. It owns the static definition and the
   // actual Player objects; Runtime owns only the match execution state around
@@ -143,11 +144,11 @@ class Simulation {
   void InitTeamPlayers(int team_id, football::team::Team& team,
                        bool explicit_lineup, float ai_difficulty,
                        std::uint8_t first_schedule_phase);
-  // Borrowed view of one team for rules/observation. Rebuilt on demand from the
-  // runtime-owned roster/frame/state; no allocation, nothing retained.
+  // runtime-owned Team/frame/state; no allocation, nothing retained.
   football::sim::TeamView TeamViewOf(int team_id) const;
   // Team orientation is runtime-owned behaviour: these mutate the borrowed
-  // TeamFrame and publish the resulting facts to that roster, in roster order.
+  // TeamFrame and publish the resulting facts to that team's players, in
+  // declaration order.
   // MirrorTeam flips the execution frame; SwitchTeamEnds is the half-time
   // change of ends (both directions flip, the between-tick frame does not).
   void MirrorTeam(int team_id);
