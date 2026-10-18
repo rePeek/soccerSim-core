@@ -85,7 +85,7 @@ football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
   if (!ball_) throw std::logic_error("simulation has no match");
   const football::sim::TeamView home = TeamViewOf(0);
   const football::sim::TeamView away = TeamViewOf(1);
-  // The between-tick ball frame follows the first processing roster.
+  // The between-tick ball frame follows the first processing team.
   const int ball_frame_team = options_.reverse_team_processing ? 1 : 0;
   return {GetTimelineTick(), phase_, play_authorized_, set_piece_active_, goal_scored_,
       *ball_, pitch_, GetRegulationTime(), home, away, first_team_,
@@ -101,7 +101,7 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
   const int own_team = actor.GetTeamID();
   const int rival_team = 1 - own_team;
   const int processing_slot = own_team == second_team_ ? 1 : 0;
-  // Borrowed views: roster slices plus the runtime-owned team match state.
+  // Borrowed views: player slices plus the runtime-owned team match state.
   const PlayerTeamView own_view{own_team, TeamOf(own_team).Players(),
                                 TeamOf(rival_team).Players(),
                                 TeamOf(own_team).Goalie(),
@@ -175,7 +175,7 @@ void Simulation::BeginBodyCollisionShadow() {
   body_shadow_active_ = true;
 
   // Fixed match slots, not active-roster order. Both teams currently share
-  // the first processing roster's frame with Ball.
+  // the first processing team's frame with Ball.
   for (std::size_t slot = 0; slot < snapshot_players_.size(); ++slot) {
     Player* player = snapshot_players_[slot];
     if (!player->IsActive()) continue;
@@ -210,7 +210,7 @@ void Simulation::MeasureBodyShadowEndpoint(const Player& player) {
   if (!body_shadow_active_) return;
   for (auto& prediction : body_shadow_predictions_) {
     if (prediction.player != player.GetID()) continue;
-    // Second roster executes in the opposite frame. Rotate only this copy,
+    // Second team executes in the opposite frame. Rotate only this copy,
     // before pair offsets/other actors can contaminate the Process endpoint.
     auto actual = player.GetKinematicState();
     if (player.GetTeamID() == second_team_) actual.Mirror();
@@ -647,7 +647,7 @@ void Simulation::Init(
 
   // Effective formation: the same fallback BuildFormation uses (formation ->
   // tactical_formation -> players.size()), so kickoff possession agrees with the
-  // rosters that are actually built.
+  // players that are actually built.
   const std::vector<FormationEntry> left =
       BuildFormation(home_model.definition, home_model.explicit_lineup);
   const std::vector<FormationEntry> right =
@@ -892,7 +892,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   }
 
   const bool reverse = options_.reverse_team_processing;
-  // Ball already shares the first roster's frame; turn only the other roster.
+  // Ball already shares the first team's frame; turn only the other team.
   Mirror(reverse, !reverse, false);
   // P4b only: capture the common ball/player frame and run read-only dynamic
   // CCD before the legacy resolver can change Ball or emit AcceptedTouch.
@@ -923,7 +923,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   }
   RunPreparedPlayerTick();
 
-  // UpdatePossession: retain both per-roster refreshes before arbitration.
+  // UpdatePossession: retain both per-team refreshes before arbitration.
   Mirror(first_team_ == 1, first_team_ == 0, false);
   football::sim::RefreshTeamPossession(TeamOf(first_team_).Players(),
       team_frames_[first_team_], team_states_[first_team_],
@@ -990,7 +990,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     referee_->GoalMouthCrossed(team_frames_[second_team_].dynamic_side, RefereeFacts(),
                                ruling_sink_.get());
   }
-  // Both rosters are still in the common frame used at Begin; compare only
+  // Both teams are still in the common frame used at Begin; compare only
   // after their real Process calls, never by running animation a second time.
   CompleteBodyCollisionShadow();
   Mirror(reverse, !reverse, false);
@@ -1139,7 +1139,7 @@ void Simulation::ApplyChangeOfEnds() {
   committed_ball_tick_.reset();
   rule_touches_.clear();
   for (auto& [id, active] : rule_contact_episodes_) active = false;
-  // Permanent end change: preserve processing-roster order and canonical flags.
+  // Permanent end change: preserve processing-team order and canonical flags.
   SwitchTeamEnds(first_team_);
   SwitchTeamEnds(second_team_);
   ball_->Mirror();
@@ -1222,7 +1222,7 @@ MentalImage* Simulation::GetMentalImage(std::chrono::milliseconds history) {
   return football::sim::observation::SampleMentalImage(mental_images_, history);
 }
 
-// Legacy team slot (-1 touches fall back to the first processing roster).
+// Legacy team slot (-1 touches fall back to the first processing team).
 int Simulation::GetLastTouchTeam() const {
   return touches_.last_team != -1 ? touches_.last_team : first_team_;
 }

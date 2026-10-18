@@ -149,12 +149,10 @@ TEST_CASE("Stop destroys the owning Team and re-Init creates a fresh one",
   options.snapshot_capacity = 8;
   sim.Init(TwoPlayerSetup(50), TwoPlayerSetup(500), football::pitch::Pitch{},
            options);
-  Player* first = SimulationAccess::TeamOf(sim, 0).Players()[0];
   REQUIRE(sim.Stop());
   // Every borrow into the destroyed Team now fails cleanly.
   CHECK_THROWS_AS(SimulationAccess::TeamOf(sim, 0), std::logic_error);
   CHECK_THROWS_AS(SimulationAccess::TeamOf(sim, 1), std::logic_error);
-  (void)first;
 
   // A fresh composition owns a distinct set of entities.
   REQUIRE_NOTHROW(sim.Init(TwoPlayerSetup(80), TwoPlayerSetup(580),
