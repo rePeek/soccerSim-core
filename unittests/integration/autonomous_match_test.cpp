@@ -18,6 +18,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <tuple>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
 #include "football/ai/ai_config.hpp"
@@ -111,7 +113,8 @@ void MixWorld(std::uint64_t& hash, const WorldState& world) {
   }
 }
 
-std::uint64_t MixEvents(const std::vector<football::sim::event::EventTrajectory>& events) {
+std::uint64_t MixTrajectories(
+    const std::vector<football::sim::event::EventTrajectory>& events) {
   std::uint64_t hash = 14695981039346656037ull;
   for (const auto& event : events) {
     Mix(hash, event.event);
@@ -125,6 +128,56 @@ std::uint64_t MixEvents(const std::vector<football::sim::event::EventTrajectory>
     MixFloat(hash, event.ball_path_length);
     MixFloat(hash, event.peak_ball_speed);
   }
+  return hash;
+}
+
+// Sequence- and kind-sensitive digest of the formal confirmed event stream.
+std::uint64_t MixFormalEvent(
+    std::uint64_t hash, const football::sim::event::MatchEventRecord& record) {
+  Mix(hash, record.sequence);
+  Mix(hash, record.event.index());
+  std::visit(
+      [&](const auto& event) {
+        using T = std::decay_t<decltype(event)>;
+        if constexpr (std::is_same_v<T, football::sim::event::GoalScoredEvent>) {
+          Mix(hash, static_cast<std::uint64_t>(event.team));
+          Mix(hash, event.scorer);
+          Mix(hash, event.own_goal ? 1u : 0u);
+        } else if constexpr (std::is_same_v<T, football::sim::event::CardShownEvent>) {
+          Mix(hash, static_cast<std::uint64_t>(event.team));
+          Mix(hash, event.player);
+          Mix(hash, event.red ? 1u : 0u);
+          Mix(hash, event.second_yellow ? 1u : 0u);
+        } else if constexpr (std::is_same_v<T, football::sim::event::RestartAwardedEvent>) {
+          Mix(hash, static_cast<std::uint64_t>(event.team));
+          Mix(hash, static_cast<std::uint64_t>(event.kind));
+          Mix(hash, event.restart_id);
+        } else if constexpr (std::is_same_v<T, football::sim::event::RestartTakenEvent>) {
+          Mix(hash, static_cast<std::uint64_t>(event.team));
+          Mix(hash, static_cast<std::uint64_t>(event.kind));
+          Mix(hash, event.taker);
+          Mix(hash, event.restart_id);
+        } else if constexpr (std::is_same_v<T, football::sim::event::FoulConfirmedEvent>) {
+          Mix(hash, static_cast<std::uint64_t>(event.team));
+          Mix(hash, event.offender);
+          Mix(hash, event.victim);
+        } else if constexpr (std::is_same_v<T, football::sim::event::OffsideConfirmedEvent>) {
+          Mix(hash, static_cast<std::uint64_t>(event.team));
+          Mix(hash, event.player);
+        } else if constexpr (std::is_same_v<T, football::sim::event::PeriodEndedEvent>) {
+          Mix(hash, static_cast<std::uint64_t>(event.phase));
+        } else if constexpr (std::is_same_v<T, football::sim::event::PassCompletedEvent>) {
+          Mix(hash, static_cast<std::uint64_t>(event.team));
+          Mix(hash, event.passer);
+          Mix(hash, event.receiver);
+        } else if constexpr (std::is_same_v<T, football::sim::event::ShotEndedEvent>) {
+          Mix(hash, static_cast<std::uint64_t>(event.team));
+          Mix(hash, event.shooter);
+          Mix(hash, static_cast<std::uint64_t>(event.status));
+          Mix(hash, event.goal ? 1u : 0u);
+        }
+      },
+      record.event);
   return hash;
 }
 
@@ -144,8 +197,16 @@ struct Audit {
   bool ball_in_play_seen = false;
   int configured_taker_hits = 0;
   int configured_taker_mismatches = 0;
+  int goal_events = 0;
+  int card_events = 0;
+  int foul_events = 0;
+  int offside_events = 0;
+  int restart_awarded_events = 0;
+  int restart_taken_events = 0;
+  int period_events = 0;
   std::uint64_t digest = 14695981039346656037ull;
-  std::uint64_t event_digest = 0;
+  std::uint64_t event_digest = 14695981039346656037ull;
+  std::uint64_t trajectory_digest = 0;
   MatchResult result{};
 };
 
@@ -180,10 +241,27 @@ Audit RunMatch(football::ai::PlayerPolicyKind policy,
   int restart_run = 0;
   int still_run = 0;
   int frozen_run = 0;
+  football::sim::event::MatchEventCursor event_cursor;
 
   while (!env.Finished()) {
     env.Step();
     ++audit.steps;
+    // Product API: incrementally consume every event Runtime confirmed.
+    for (const auto& record : env.ReadEvents(event_cursor)) {
+      audit.event_digest = MixFormalEvent(audit.event_digest, record);
+      std::visit(
+          [&](const auto& event) {
+            using T = std::decay_t<decltype(event)>;
+            if constexpr (std::is_same_v<T, football::sim::event::GoalScoredEvent>) ++audit.goal_events;
+            else if constexpr (std::is_same_v<T, football::sim::event::CardShownEvent>) ++audit.card_events;
+            else if constexpr (std::is_same_v<T, football::sim::event::FoulConfirmedEvent>) ++audit.foul_events;
+            else if constexpr (std::is_same_v<T, football::sim::event::OffsideConfirmedEvent>) ++audit.offside_events;
+            else if constexpr (std::is_same_v<T, football::sim::event::RestartAwardedEvent>) ++audit.restart_awarded_events;
+            else if constexpr (std::is_same_v<T, football::sim::event::RestartTakenEvent>) ++audit.restart_taken_events;
+            else if constexpr (std::is_same_v<T, football::sim::event::PeriodEndedEvent>) ++audit.period_events;
+          },
+          record.event);
+    }
     const WorldState world = env.Observe();
     MixWorld(audit.digest, world);
 
@@ -249,7 +327,7 @@ Audit RunMatch(football::ai::PlayerPolicyKind policy,
 
   audit.finished = env.Finished();
   audit.result = env.Result();
-  audit.event_digest = MixEvents(env.EventTrajectories());
+  audit.trajectory_digest = MixTrajectories(env.EventTrajectories());
   env.Stop();
   return audit;
 }
@@ -273,6 +351,13 @@ void RequireHealthyMatch(const Audit& audit) {
   REQUIRE(audit.result.home_score >= 0);
   REQUIRE(audit.result.away_score >= 0);
   REQUIRE(audit.result.duration_ticks > 0);
+  // RFE-5: the formal event stream must be complete and mutually consistent.
+  REQUIRE(audit.period_events == 2);  // first half + full time
+  REQUIRE(audit.goal_events ==
+          audit.result.home_score + audit.result.away_score);
+  REQUIRE(audit.restart_awarded_events >= 1);
+  REQUIRE(audit.restart_taken_events >= 1);
+  REQUIRE(audit.restart_awarded_events >= audit.restart_taken_events);
 }
 
 void Report(const Audit& audit) {
@@ -281,6 +366,9 @@ void Report(const Audit& audit) {
                 << " max_restart_run=" << audit.max_restart_run
                 << " max_still=" << audit.max_still_ball_run
                 << " max_frozen=" << audit.max_frozen_run
+                << " events=" << audit.event_digest
+                << " awarded=" << audit.restart_awarded_events
+                << " taken=" << audit.restart_taken_events
                 << " score=" << audit.result.home_score << "-"
                 << audit.result.away_score);
 }
@@ -299,6 +387,7 @@ TEST_CASE("Integration: Default x Default completes and is deterministic",
   Report(first);
   REQUIRE(first.digest == second.digest);
   REQUIRE(first.event_digest == second.event_digest);
+  REQUIRE(first.trajectory_digest == second.trajectory_digest);
   REQUIRE(first.result.home_score == second.result.home_score);
   REQUIRE(first.result.away_score == second.result.away_score);
   REQUIRE(first.result.outcome == second.result.outcome);

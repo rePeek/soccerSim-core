@@ -14,6 +14,7 @@
 #include "football/observation/world_state.hpp"
 #include "football/observation/snapshot.hpp"
 #include "football/event/event_trajectory.hpp"
+#include "football/event/match_event.hpp"
 
 class Simulation;
 namespace football::ai { class AIEngine; }
@@ -51,6 +52,11 @@ class GameEnv {
   bool CopySnapshotWindow(std::size_t count,
       std::vector<football::sim::observation::SnapshotRecord>& output) const;
   std::vector<football::sim::event::EventTrajectory> EventTrajectories() const;
+  // Incremental, owning read of confirmed MatchEvents after `cursor`. The
+  // cursor is advanced in place; a cursor from an earlier match is rebased to
+  // the first event of this one. Never mutates the match.
+  std::vector<football::sim::event::MatchEventRecord> ReadEvents(
+      football::sim::event::MatchEventCursor& cursor) const;
   // Idempotent; releases AI and simulation. Start again uses initial declarations.
   void Stop();
 

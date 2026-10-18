@@ -114,12 +114,15 @@ FOOTBALL_INTEGRATION_HALF_SECONDS=2700 ctest --preset release -R autonomous
 
 It covers Default x Default completion, Heuristic x Heuristic completion, a
 Team set-piece-orders/preset match, and same-seed determinism (per-tick world
-digest plus event-trajectory sequence and final result). `Finished()` alone is
-not acceptance: the audit also asserts restarts exist and are actually taken,
-no long restart stall or sustained no-action, finite/in-bounds positions, and
-that possession exists. The heuristic run also guards the concrete blocker
-found here: `AIEngine` must construct every selectable `PlayerPolicyKind`
-(the V2-only Heuristic kind must not require a legacy adapter).
+digest, the full confirmed `MatchEvent` sequence read incrementally through
+`GameEnv::ReadEvents`, the event-trajectory sequence and the final result).
+`Finished()` alone is not acceptance: the audit also asserts restarts exist
+and are actually taken, no long restart stall or sustained no-action,
+finite/in-bounds positions, possession exists, two `PeriodEndedEvent`s, goal
+events equal the final score, and `RestartTakenEvent` count <= awarded count.
+The heuristic run also guards the concrete blocker found here: `AIEngine` must
+construct every selectable `PlayerPolicyKind` (the V2-only Heuristic kind must
+not require a legacy adapter).
 
 ### Pitch owns the static physics scene (header-only, no module)
 

@@ -101,6 +101,12 @@ std::vector<football::sim::event::EventTrajectory> GameEnv::EventTrajectories() 
   return simulation_->EventTrajectories();
 }
 
+std::vector<football::sim::event::MatchEventRecord> GameEnv::ReadEvents(
+    football::sim::event::MatchEventCursor& cursor) const {
+  if (!simulation_) throw std::logic_error("match runner is stopped");
+  return simulation_->ReadEvents(cursor);
+}
+
 void GameEnv::Stop() {
   ai_.reset();
   simulation_.reset();

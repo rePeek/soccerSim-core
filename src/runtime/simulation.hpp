@@ -93,6 +93,12 @@ class Simulation {
   const std::vector<football::sim::event::EventTrajectory>& EventTrajectories() const {
     return recognizer_.trajectories();
   }
+  // Incremental, owning read of confirmed MatchEvents after `cursor`. Read-only
+  // with respect to rules/physics/RNG; a cursor from another match is rebased.
+  std::vector<football::sim::event::MatchEventRecord> ReadEvents(
+      football::sim::event::MatchEventCursor& cursor) const {
+    return event_log_.EventsSince(cursor);
+  }
 
   // TODO: test/diagnostic escape hatch; not a general integration API.
   // Transitional test/diagnostic sampling; pointers expire on capture/reset/Stop.

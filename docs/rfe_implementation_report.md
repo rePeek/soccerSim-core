@@ -458,3 +458,21 @@ assertions; `event_unit` 3 cases. No physics, animation or RNG change.
 
 Validation: `[ruling]` 32 cases / 311 assertions; `sim_runtime` 100%
 (296.42 s). No physics, animation or RNG change.
+
+## RFE-5D — GameEnv event API and deterministic acceptance
+
+- `GameEnv::ReadEvents(MatchEventCursor&)` exposes the confirmed event stream
+  incrementally; `Simulation::ReadEvents` delegates to
+  `EventLog::EventsSince`. It returns owning records, never advances the match
+  and rebases a cursor from an earlier match.
+- The Release `autonomous_match` suite consumes every confirmed event through
+  the product API each tick and digests the whole formal sequence (sequence
+  number + variant index + identities/status) for determinism, alongside the
+  world and trajectory digests.
+- New event consistency checks: exactly two `PeriodEndedEvent`s, goal events
+  equal the final score, at least one `RestartAwardedEvent` and one
+  `RestartTakenEvent`, and taken <= awarded.
+- Coach (RFE-6) will consume the same cursor; no Coach wiring is added here.
+
+Validation: Debug ctest 14/14 (293.13 s); Release `autonomous_match` 3 cases /
+68 assertions (10m42.8 s).
