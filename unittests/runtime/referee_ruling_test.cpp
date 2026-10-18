@@ -231,7 +231,7 @@ TEST_CASE("Rulings: ceremonial kickoffs publish one award without claiming taken
   SECTION("opening") {}
   SECTION("second half") {
     SimulationAccess::SetPhase(sim, MatchPhase::SecondHalf);
-    SimulationAccess::RulesOf(sim).OnPeriodEnded(MatchPhase::FirstHalf, Tick{}, Vector3(0), 1);
+    SimulationAccess::RulesOf(sim).OnPeriodEnded(MatchPhase::FirstHalf);
     sim.AdvanceTime(TickSpan{10});
   }
   SimulationAccess::ProcessReferee(sim);

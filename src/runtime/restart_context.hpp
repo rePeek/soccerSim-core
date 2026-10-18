@@ -9,15 +9,13 @@
 #include "football/match/game_mode.hpp"
 #include "football/player/player_definition.hpp"
 #include "football/player/player_restart_facts.hpp"
+#include "referee/restart_phase.hpp"
 
 class Player;
 
 namespace football::sim {
 
-// Restart execution lifecycle. Pending = still being set up; Ready = the rules
-// authorize the taker to release; Taken = a legal release was accepted; InPlay
-// is the terminal value once the context stops owning play.
-enum class RestartPhase { Pending, Ready, Taken, InPlay };
+// Restart execution lifecycle, declared by the rules (referee/restart_phase.hpp).
 
 // Targets are in the fixed home-pitch frame, independent of processing mirrors.
 // Planning never moves actors, selects animations, or consumes RNG. The plan is

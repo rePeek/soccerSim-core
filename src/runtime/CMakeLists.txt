@@ -47,6 +47,7 @@ target_sources(football_sim_domain PRIVATE
   possession.cpp possession.hpp
   team_possession.cpp team_possession.hpp
   play_state.hpp restart_context.hpp restart_controller.cpp restart_controller.hpp
+  runtime_tick_facts.hpp
   restart_planner.cpp restart_planner.hpp
   restart_placement.cpp restart_placement.hpp
   player_authorization_port.cpp player_authorization_port.hpp

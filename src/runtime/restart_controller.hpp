@@ -8,7 +8,7 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/runtime/simulation_config.hpp"
 #include "football/event/match_event.hpp"
-#include "referee/referee_tick_facts.hpp"
+#include "runtime/runtime_tick_facts.hpp"
 #include "runtime/restart_context.hpp"
 #include "runtime/restart_planner.hpp"
 
@@ -54,7 +54,7 @@ class RestartController {
       football::sim::Tick now);
 
   // One-tick restart execution, run at the legacy pre-movement rule boundary.
-  TickOutcome Advance(const football::sim::rules::RefereeTickFacts& facts,
+  TickOutcome Advance(const football::sim::RuntimeTickFacts& facts,
                       const MatchOptions& options, football::math::Rng& rng,
                       football::sim::rules::RuleCommandSink& commands,
                       const RestartPlanningTable& planning);
@@ -66,11 +66,11 @@ class RestartController {
   }
 
  private:
-  void ProcessRestart(const football::sim::rules::RefereeTickFacts& facts,
+  void ProcessRestart(const football::sim::RuntimeTickFacts& facts,
                       const MatchOptions& options, football::math::Rng& rng,
                       football::sim::rules::RuleCommandSink& commands, TickOutcome& outcome,
                       const RestartPlanningTable& planning);
-  void PrepareCeremonialKickOff(const football::sim::rules::RefereeTickFacts& facts,
+  void PrepareCeremonialKickOff(const football::sim::RuntimeTickFacts& facts,
                                 const MatchOptions& options, football::math::Rng& rng,
                                 football::sim::rules::RuleCommandSink& commands);
   // Decrements the post-restart line grace exactly once per executed instant.

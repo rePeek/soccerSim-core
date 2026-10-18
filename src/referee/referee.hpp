@@ -19,35 +19,26 @@
 #define _HPP_REFEREE
 
 #include <vector>
-#include "football/pitch/pitch.hpp"
-#include <optional>
 
-#include "football/player/player_role.hpp"
-#include "football/referee/game_mode.hpp"
+#include "football/pitch/pitch.hpp"
+#include "football/pitch/pitch_frame.hpp"
+#include "football/match/game_mode.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/runtime/phase.hpp"
-#include "runtime/restart_context.hpp"
+#include "player/foul_assessment.hpp"
 #include "referee/ball_touch_facts.hpp"
-#include "football/pitch/pitch_frame.hpp"
+#include "referee/referee_facts.hpp"
 #include "referee/referee_tick_facts.hpp"
 #include "referee/referee_view.hpp"
-#include "football/runtime/simulation_config.hpp"
-#include "event/accepted_touch.hpp"
-#include "player/foul_assessment.hpp"
 #include "referee/ruling.hpp"
-#include "football/foundation/math/rng.hpp"
-
-
-using namespace football::math;
-
-class Player;
 
 #include "referee/referee_state.hpp"
 
 // Football rules only: no on-pitch official actor or animation is required.
-// The referee owns rule state and consumes immutable facts; it never executes
-// ruling consequences itself and never owns restart execution progress. Its only
-// output port is the RulingSink: it never issues runtime commands.
+// The referee owns rule state and consumes immutable rule facts; it never
+// executes ruling consequences itself, never owns restart execution progress and
+// never references a Ball, Player, TeamView or Runtime object. Its only output
+// port is the RulingSink.
 class Referee {
 
   public:
@@ -57,15 +48,14 @@ class Referee {
     virtual ~Referee();
 
     // Mutates only referee facts; lifecycle consequences belong to Simulation.
-    void OnPeriodEnded(MatchPhase ended_phase, football::sim::Tick now,
-                       const Vector3& kickoff_position, int kickoff_team_id);
+    void OnPeriodEnded(MatchPhase ended_phase);
 
     // Rule-state signals from Runtime restart execution: the ceremony resets
     // the stale offside reference and a taken restart abandons its foul.
     void OnCeremonialSetup();
     void OnRestartTaken();
 
-    // Classify this instant's out-of-play condition from the live ball and
+    // Classify this instant's out-of-play condition from the sampled ball and
     // settle it exactly as the boundary fact used to. Simulation calls this at
     // the referee's legacy phase boundary.
     void EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
@@ -79,7 +69,7 @@ class Referee {
                           football::sim::event::RulingSink& rulings);
 
     // Judge one collision from its frozen evidence. `restart_active` is the
-    // Runtime-owned restart gate; a restart in flight suppresses new fouls.
+    // Runtime-supplied restart gate; a restart in flight suppresses new fouls.
     void AssessFoul(const football::sim::FoulAssessment& fact,
                     football::sim::Tick now, bool restart_active = false);
     // Foul facts carry their own timestamps; the caller supplies the evaluation
@@ -87,10 +77,9 @@ class Referee {
     bool CheckFoul(football::sim::Tick now, const football::pitch::Pitch& pitch,
                    PitchFrameTransform stadium_to_home, const FoulLiveFacts& live,
                    football::sim::event::RulingSink& rulings);
-    // Synchronous accepted-touch consumption (restart release / offside).
-    void ConsumeBallTouch(football::sim::Tick now,
-                          const football::sim::event::AcceptedTouch& fact,
-                          const football::sim::rules::RefereeView& view,
+    // Synchronous accepted-touch consumption (restart release / offside) from
+    // facts Runtime sampled at the exact touch boundary.
+    void ConsumeBallTouch(const football::sim::rules::BallTouchFacts& facts,
                           football::sim::event::RulingSink& rulings);
 
   protected:
@@ -102,7 +91,8 @@ class Referee {
   private:
     // Submits a confirmed restart award; Runtime owns the resulting context.
     void SubmitRestart(e_GameMode kind, football::sim::TeamSide team,
-                       const Vector3& home_position, football::sim::TickSpan administration,
+                       const football::math::Vector3& home_position,
+                       football::sim::TickSpan administration,
                        football::sim::event::RulingSink& rulings,
                        const football::sim::event::RestartCause& cause = {});
     void SettleGoalLine(const football::math::Vector3& ball_pos,
@@ -114,8 +104,6 @@ class Referee {
                          football::sim::event::RulingSink& rulings);
     void EvaluateBallTouch(const football::sim::rules::BallTouchFacts& facts,
                            football::sim::event::RulingSink& rulings);
-    Player* FindPlayer(const football::sim::rules::RefereeTickFacts& facts,
-                       football::player::PlayerId id) const;
 };
 
 #endif

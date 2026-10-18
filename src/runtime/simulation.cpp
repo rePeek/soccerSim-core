@@ -58,6 +58,53 @@ bool LeftTeamOwnsBall(const std::vector<FormationEntry>& left,
   return leftDistance < rightDistance;
 }
 
+football::sim::rules::RefereeTeamFact ToRefereeTeamFact(
+    const football::sim::TeamView& team) {
+  football::sim::rules::RefereeTeamFact fact;
+  fact.team_id = team.team_id;
+  fact.side = team.side;
+  fact.static_side = team.static_side;
+  fact.dynamic_side = team.dynamic_side;
+  fact.fading_possession_amount = team.fading_possession_amount();
+  return fact;
+}
+
+// Derive the Referee's own value facts from the Runtime fact bundle. The
+// Referee never sees a Ball, TeamView, Player or RestartContext.
+football::sim::rules::RefereeTickFacts ToRefereeTickFacts(
+    const football::sim::RuntimeTickFacts& runtime) {
+  return football::sim::rules::RefereeTickFacts{
+      runtime.now,
+      runtime.phase,
+      runtime.play_authorized,
+      runtime.set_piece_active,
+      runtime.goal_scored,
+      {runtime.ball.state().position, runtime.ball.state().velocity},
+      runtime.pitch,
+      runtime.regulation,
+      ToRefereeTeamFact(runtime.home),
+      ToRefereeTeamFact(runtime.away),
+      runtime.first_team,
+      runtime.last_touch_team,
+      runtime.last_goal_team,
+      runtime.ball_to_home,
+      runtime.stadium_to_home};
+}
+
+football::sim::rules::RestartRuleFacts ToRestartRuleFacts(
+    const football::sim::RestartContext& restart) {
+  football::sim::rules::RestartRuleFacts facts;
+  facts.active = restart.active;
+  facts.scheduled = restart.state.has_value();
+  facts.phase = restart.Phase();
+  facts.kind = restart.kind;
+  facts.team_id = restart.team_id;
+  facts.taker = restart.taker != nullptr
+      ? restart.taker->GetID()
+      : football::player::kInvalidPlayerId;
+  return facts;
+}
+
 }  // namespace
 
 // Only the composition root translates write-only rule commands to runtime state.
@@ -81,7 +128,7 @@ class Simulation::RuleCommands final : public football::sim::rules::RuleCommandS
   Simulation& simulation_;
 };
 
-football::sim::rules::RefereeTickFacts Simulation::RefereeFacts() const {
+football::sim::RuntimeTickFacts Simulation::RefereeFacts() const {
   if (!ball_) throw std::logic_error("simulation has no match");
   const football::sim::TeamView home = TeamViewOf(0);
   const football::sim::TeamView away = TeamViewOf(1);
@@ -288,27 +335,61 @@ class Simulation::RulingEvents final : public football::sim::event::RulingSink {
 
 
 void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch) {
-  const auto tick = RefereeFacts();
-  std::vector<Player*> active_players;
-  if (options_.offsides) {
-    GetActiveTeamPlayers(first_team_, active_players);
-    GetActiveTeamPlayers(second_team_, active_players);
-  }
-  // Value rule facts: identity, team and position only; the Referee never
-  // sees Player implementation state for offside.
-  std::vector<football::sim::rules::RefereePlayerFact> active;
-  active.reserve(active_players.size());
-  for (Player* player : active_players) {
-    active.push_back({player->GetID(), player->GetTeamID(), player->GetPosition()});
-  }
-  const football::sim::rules::RefereeView view{tick, active, options_.offsides,
-      &restarts_.context(), restarts_.InPostRestartGrace()};
+  const football::sim::RuntimeTickFacts runtime = RefereeFacts();
+  const football::sim::rules::RefereeTickFacts tick = ToRefereeTickFacts(runtime);
+  Player* player = FindPlayerById(touch.player);
   // Recognize behavior first, then let the referee judge the same touch. Both
   // read the same immutable record and the same admitted instant.
   recognizer_.Consume(touch,
       football::sim::event::EventView{tick.play_authorized, tick.set_piece_active, snapshot_step_, reset_sequence_});
   CommitEventTransitions(touch.touched_at);
-  referee_->ConsumeBallTouch(touch.touched_at, touch, view, *ruling_sink_);
+  if (player != nullptr) {
+    // Value rule facts sampled at this exact touch boundary. Offside needs the
+    // active players as values; release needs the taker's action state now.
+    std::vector<Player*> active_players;
+    if (options_.offsides) {
+      GetActiveTeamPlayers(first_team_, active_players);
+      GetActiveTeamPlayers(second_team_, active_players);
+    }
+    std::vector<football::sim::rules::RefereePlayerFact> active;
+    active.reserve(active_players.size());
+    for (Player* actor : active_players) {
+      active.push_back({actor->GetID(), actor->GetTeamID(), actor->GetPosition()});
+    }
+    football::sim::rules::BallTouchFacts facts;
+    facts.now = touch.touched_at;
+    facts.touch_player = touch.player;
+    facts.touch_team_id = player->GetTeamID();
+    facts.touch_position = player->GetPitchPosition();
+    const bool touches_home = player->GetTeamID() == tick.home.team_id;
+    facts.touch_team = ToRefereeTeamFact(touches_home ? runtime.home : runtime.away);
+    facts.defending_team = ToRefereeTeamFact(touches_home ? runtime.away : runtime.home);
+    facts.in_play = tick.play_authorized;
+    facts.in_set_piece = tick.set_piece_active;
+    facts.offsides_enabled = options_.offsides;
+    facts.ball = {ball_->state().position, ball_->state().velocity};
+    facts.pitch = &pitch_;
+    facts.all_active_players = active;
+    facts.stadium_to_home = tick.stadium_to_home;
+    const football::sim::RestartContext& restart = restarts_.context();
+    facts.restart = ToRestartRuleFacts(restart);
+    facts.preserve_opponent_offside = touch.preserve_opponent_offside;
+    // Release verdict inputs, sampled at this exact boundary (never earlier).
+    if (restart.active && restart.state &&
+        restart.state->phase == football::sim::RestartPhase::Ready &&
+        restart.taker != nullptr && restart.taker->GetID() == touch.player) {
+      const auto& action = restart.taker->GetSimulationActionState();
+      facts.release.eligible = true;
+      facts.release.kind = restart.kind;
+      facts.release.action_type = static_cast<int>(action.type);
+      facts.release.scheduled_contact = action.contact && action.elapsed == *action.contact;
+      facts.release.physical_kick = touch.physical_kick;
+      facts.release.intentional_kick =
+          restart.taker->GetLastTouchType() == e_TouchType_Intentional_Kicked;
+      facts.release.ball_speed = ball_->state().velocity.GetLength();
+    }
+    referee_->ConsumeBallTouch(facts, *ruling_sink_);
+  }
   CommitPendingRulings();
 }
 
@@ -598,7 +679,11 @@ void Simulation::CommitEventTransitions(football::sim::Tick now) {
   }
 }
 
-void Simulation::AdvanceRestart(const football::sim::rules::RefereeView& view) {
+football::sim::rules::RefereeTickFacts Simulation::RefereeValueFacts() const {
+  return ToRefereeTickFacts(RefereeFacts());
+}
+
+void Simulation::AdvanceRestart(const football::sim::RuntimeTickFacts& facts) {
   // Borrowed per-instant Team restart configuration: static orders/presets and
   // the live slot binding. Null pointers keep the legacy planner path.
   const football::sim::RestartPlanningTable planning{
@@ -607,18 +692,18 @@ void Simulation::AdvanceRestart(const football::sim::rules::RefereeView& view) {
       {&teams_[1]->Definition().set_piece_orders,
        &teams_[1]->Definition().formations, &active_lineups_[1]}};
   football::sim::RestartController::TickOutcome outcome =
-      restarts_.Advance(view.tick, options_, rng_, *rule_commands_, planning);
+      restarts_.Advance(facts, options_, rng_, *rule_commands_, planning);
   for (auto& event : outcome.events) event_log_.Record(std::move(event));
   if (outcome.ceremonial_setup) referee_->OnCeremonialSetup();
   if (outcome.restart_taken) referee_->OnRestartTaken();
 }
 
 void Simulation::ProcessReferee() {
-  const auto tick = RefereeFacts();
-  football::sim::rules::RefereeView view{tick, {}, options_.offsides,
-      &restarts_.context(), false};
+  const football::sim::RuntimeTickFacts runtime = RefereeFacts();
+  const football::sim::rules::RefereeTickFacts tick = ToRefereeTickFacts(runtime);
+  football::sim::rules::RefereeView view{tick, false};
   const bool was_restart = restarts_.context().Scheduled();
-  AdvanceRestart(view);
+  AdvanceRestart(runtime);
   // The grace is decremented by the restart tick; boundary settlement must
   // observe the post-advance value, exactly as the legacy single owner did.
   view.post_restart_grace = restarts_.InPostRestartGrace();
@@ -1017,11 +1102,13 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   // The referee maps each crossed goal-mouth side to the scoring opponent and
   // submits an AwardGoalRuling; no goal-mouth fact travels through the buffer.
   if (first_team_goal) {
-    referee_->GoalMouthCrossed(team_frames_[first_team_].dynamic_side, RefereeFacts(),
+    referee_->GoalMouthCrossed(team_frames_[first_team_].dynamic_side,
+                               ToRefereeTickFacts(RefereeFacts()),
                                ruling_sink_.get());
   }
   if (second_team_goal) {
-    referee_->GoalMouthCrossed(team_frames_[second_team_].dynamic_side, RefereeFacts(),
+    referee_->GoalMouthCrossed(team_frames_[second_team_].dynamic_side,
+                               ToRefereeTickFacts(RefereeFacts()),
                                ruling_sink_.get());
   }
   // Both teams are still in the common frame used at Begin; compare only
@@ -1151,9 +1238,7 @@ void Simulation::EndPeriod() {
   // Keep the old publication order: stop clocks/play, referee facts, phase,
   // pending end change. The physical change remains at the next Step's entry.
   EndHalf();
-  referee_->OnPeriodEnded(phase_, GetTimelineTick(),
-      options_.ball_position,
-      options_.left_team_owns_ball ? 1 : 0);
+  referee_->OnPeriodEnded(phase_);
   restarts_.OnPeriodEnded(phase_, GetTimelineTick(), options_.ball_position,
                           options_.left_team_owns_ball ? 1 : 0);
   // The period really ended: publish it once, before the phase advances.

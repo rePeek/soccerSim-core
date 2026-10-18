@@ -65,8 +65,9 @@ thing, and its cost is paid only when it is relevant.
 
 Every module proves its own logic; Runtime proves the modules compose into a
 complete match. `event_unit` covers the formal event log and its cursor, and
-`referee_unit` covers the value-typed foul/advantage rule surface directly.
-The event recognizer leaf is the remaining Level 1 gap.
+`referee_unit` links the independent `football_referee` library (foul,
+advantage, offside and release rules over value facts). The event recognizer
+leaf is the remaining Level 1 gap.
 
 Rules:
 
@@ -3532,6 +3533,18 @@ value-typed (`PlayerId` plus frozen/read-only facts, no long-lived `Player*`),
 and `RestartPlan` stores `PlayerId` with Runtime resolving actors through
 `RestartRoster` at execution time. A Level 1 `referee_unit` exercises the
 value-typed rule surface directly.
+
+REF-8 makes the boundary a real module: `src/referee/` builds `football_referee`
+(alias `football::referee`), a static library that consumes only value rule
+facts (`rules::RefereeTickFacts`/`RefereeView`/`BallTouchFacts`/`RestartRuleFacts`
+plus foul/offside value state) and emits `RefereeRuling`. Runtime samples every
+fact -- including the `RestartReleaseFacts` used for the release verdict -- at
+the exact call boundary and derives the Referee's value view from its own
+`RuntimeTickFacts`; the Referee never includes a Ball, Player, TeamView,
+RestartContext, Event or Simulation header. `referee_unit` links only
+`football::referee` and foundation. Runtime-side `action_authorization` (which
+needs Player/Event values) stays in the sim domain. `OnPeriodEnded` now takes
+only the ended phase.
 
 ## PLAYER: independent Player module (feat/player)
 

@@ -174,9 +174,10 @@ class Simulation {
   void CommitEventTransitions(football::sim::Tick now);
   // Runtime-owned restart execution for one instant; reports rule-state
   // side effects the Referee must apply.
-  void AdvanceRestart(
-      const football::sim::rules::RefereeView& view);
-  football::sim::rules::RefereeTickFacts RefereeFacts() const;
+  void AdvanceRestart(const football::sim::RuntimeTickFacts& facts);
+  football::sim::RuntimeTickFacts RefereeFacts() const;
+  // The Referee's own value facts, derived from RefereeFacts().
+  football::sim::rules::RefereeTickFacts RefereeValueFacts() const;
   football::sim::PlayerTickContext PlayerTickFacts(const Player& actor);
   void EnsureAnimationLibrary();
   void CaptureMentalImage(const football::ball::Ball* view = nullptr);

@@ -17,7 +17,7 @@ using football::math::Vector3;
 using football::sim::Seconds;
 using football::sim::Tick;
 using football::sim::TickSpan;
-using football::sim::rules::RefereeTickFacts;
+using football::sim::RuntimeTickFacts;
 using football::sim::rules::RuleCommandSink;
 
 constexpr auto kRestartWhistle = Seconds(2);
@@ -43,7 +43,7 @@ RestartPolicy PolicyFor(e_GameMode mode) {
   }
 }
 
-std::vector<Player*> ActivePlayers(const RefereeTickFacts& facts) {
+std::vector<Player*> ActivePlayers(const RuntimeTickFacts& facts) {
   std::vector<Player*> active;
   for (Player* actor : facts.home.players) {
     if (actor->IsActive()) active.push_back(actor);
@@ -144,7 +144,7 @@ void RestartController::TickPostRestartGrace() {
 }
 
 RestartController::TickOutcome RestartController::Advance(
-    const RefereeTickFacts& facts, const MatchOptions& options, football::math::Rng& rng,
+    const RuntimeTickFacts& facts, const MatchOptions& options, football::math::Rng& rng,
     RuleCommandSink& commands, const RestartPlanningTable& planning) {
   TickOutcome outcome;
   if (facts.phase == MatchPhase::Finished) return outcome;
@@ -193,7 +193,7 @@ RestartController::TickOutcome RestartController::Advance(
   return outcome;
 }
 
-void RestartController::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
+void RestartController::PrepareCeremonialKickOff(const RuntimeTickFacts& facts,
                                                  const MatchOptions& options,
                                                  football::math::Rng& rng,
                                                  RuleCommandSink& commands) {
@@ -208,7 +208,7 @@ void RestartController::PrepareCeremonialKickOff(const RefereeTickFacts& facts,
   context_.taker = context_.team_id == facts.first_team ? first_taker : second_taker;
 }
 
-void RestartController::ProcessRestart(const RefereeTickFacts& facts, const MatchOptions& options,
+void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const MatchOptions& options,
                                        football::math::Rng& rng, RuleCommandSink& commands,
                                        TickOutcome& outcome,
                                        const RestartPlanningTable& planning) {

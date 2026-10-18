@@ -1,12 +1,12 @@
-# Standalone Referee module unit tests (RFE-7). Value-typed rule facts let the
-# rule state be exercised directly, without a running Simulation: the test drives
-# AssessFoul/CheckFoul and inspects the RulingSink output. It links the sim
-# domain because the Referee implementation lives there.
+# Standalone Referee module unit tests (REF-8): links only football::referee and
+# the public value contracts. Because the rules consume value facts, the foul,
+# advantage and offside surfaces are exercised without a Simulation, Player or
+# RuleCommandSink.
 add_executable(football_referee_unit_tests referee_unit_test.cpp)
 target_include_directories(football_referee_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_referee_unit_tests
   PRIVATE
-    football::sim
+    football::referee
     Catch2::Catch2WithMain)
 football_configure_target(football_referee_unit_tests)
 

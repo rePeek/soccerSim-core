@@ -88,7 +88,7 @@ class SimulationAccess {
     return *simulation.player_runtime_sink_;
   }
   static rules::RefereeTickFacts RefereeFactsOf(const Simulation& simulation) {
-    return simulation.RefereeFacts();
+    return simulation.RefereeValueFacts();
   }
   static event::RulingSink& RulingsOf(Simulation& s) { return *s.ruling_sink_; }
   static void CommitRulings(Simulation& s) { s.CommitPendingRulings(); }

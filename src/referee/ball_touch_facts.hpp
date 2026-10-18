@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef FOOTBALL_SIM_RULES_BALL_TOUCH_FACTS_HPP
 #define FOOTBALL_SIM_RULES_BALL_TOUCH_FACTS_HPP
 
@@ -20,36 +19,36 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/pitch/pitch_frame.hpp"
-#include "runtime/team_view.hpp"
-#include "runtime/restart_context.hpp"
+#include "football/player/player_definition.hpp"
+#include "referee/referee_facts.hpp"
 #include "referee/referee_player_fact.hpp"
-
-namespace football::ball { class Ball; }
-class Player;
 
 namespace football::sim::rules {
 
-// Explicit facts for one synchronous touch notification. Competition facts are
-// read by the caller; the referee only consumes these values. The all-active
-// span is required only while offside evaluation is enabled and must outlive
-// the call.
+// Explicit value facts for one synchronous touch notification. Runtime reads the
+// competition facts and samples them at the touch boundary; the referee only
+// consumes these values and never reaches into Ball, Player, Team or restart
+// execution state. The all-active span is required only while offside
+// evaluation is enabled and must outlive the call.
 struct BallTouchFacts {
   football::sim::Tick now{};
-  Player* touch_player = nullptr;
+  football::player::PlayerId touch_player = football::player::kInvalidPlayerId;
   int touch_team_id = -1;
-  football::sim::TeamView touch_team;
-  football::sim::TeamView defending_team;
+  // The toucher's pitch-frame position, for the offside restart spot.
+  football::math::Vector3 touch_position;
+  RefereeTeamFact touch_team;
+  RefereeTeamFact defending_team;
   bool in_play = false;
   bool in_set_piece = false;
   bool offsides_enabled = false;
-  const football::ball::Ball* ball = nullptr;
+  RefereeBallFact ball;
   const football::pitch::Pitch* pitch = nullptr;
   std::span<const RefereePlayerFact> all_active_players;
   PitchFrameTransform stadium_to_home{false};
-  // Runtime-owned restart execution facts, borrowed read-only for this call.
-  const football::sim::RestartContext* restart = nullptr;
+  RestartRuleFacts restart;
+  // Release verdict inputs, sampled at this exact touch boundary.
+  RestartReleaseFacts release;
   bool preserve_opponent_offside = false;
-  bool physical_kick = false;
 };
 
 }  // namespace football::sim::rules

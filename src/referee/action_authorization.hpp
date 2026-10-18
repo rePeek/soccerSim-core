@@ -4,7 +4,7 @@
 #include <span>
 
 #include "event/touch_state.hpp"
-#include "runtime/restart_context.hpp"
+#include "referee/restart_phase.hpp"
 
 class Player;
 
