@@ -11,6 +11,7 @@
 
 #include "football/player/player_control_set.hpp"
 #include "football/runtime/match_config.hpp"
+#include "football/runtime/team.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "football/foundation/collision/sweep.hpp"
@@ -122,10 +123,10 @@ class Simulation {
   // Roster/formation/possession follow-up when a player leaves the pitch.
   void HandlePlayerSentOff(Player& player);
   // Creates and activates one roster's players. Runtime owns the lifecycle; the
-  // Team adapter only reads the roster. Preserves the historical schedule-phase
+  // Team is configuration only. Preserves the historical schedule-phase
   // sequence, RNG draw order and starting-eleven activation order.
   void InitTeamPlayers(int team_id, football::sim::Roster& roster,
-                       const football::sim::TeamSetup& setup, float ai_difficulty,
+                       const football::sim::Team& setup, float ai_difficulty,
                        std::uint8_t first_schedule_phase);
   // Borrowed view of one team for rules/observation. Rebuilt on demand from the
   // runtime-owned roster/frame/state; no allocation, nothing retained.
@@ -283,13 +284,12 @@ class Simulation {
   football::ball::BallModel ball_config_;
   std::shared_ptr<AnimationLibrary> animations_;
 
-  // Player definitions. Player stores a const PlayerDefinition&, so this copy must
-  // outlive every roster and Team adapter: declared first, destroyed last.
-  std::array<football::sim::TeamSetup, 2> team_setups_;
+  // Final PlayerDefinition storage: never move/assign while any actor exists.
+  // Declared before rosters, so definitions are also destroyed after actors.
+  std::array<football::sim::Team, 2> teams_;
   std::unique_ptr<football::ball::Ball> ball_;
   std::array<football::sim::Roster, 2> rosters_;
-  // The only authoritative team orientation and team match state. Team borrows
-  // these; it keeps no copy of its own.
+  // Runtime alone owns team orientation and match state.
   // mutable: a TeamView is a borrowed *mutable* handle to runtime-owned team state
   // (rules write the designated player / restart weight), so it may be obtained
   // from a const observer without copying the state.

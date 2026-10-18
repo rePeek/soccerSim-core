@@ -55,3 +55,13 @@ Baseline results and phase results are recorded below as they become available.
 TEAM-0 baseline: clean detached worktree at 819f087, nix Debug preset build,
 CTest 11/11 passed (178.40 s; sim_runtime 175.45 s). Build cache is shared;
 the baseline source tree is isolated from implementation edits.
+
+TEAM-1 (1c840cf): pure Team values, conversion, validation, shared AI/runtime
+slot identity and dedicated team_data_unit. Debug CTest 12/12 (168.23 s).
+TEAM-2: Simulation teams_ replaces team_setups_ entirely. Team definitions
+reach final storage before actor creation; no live Team mutation API. Formation
+adapters share the unchanged algorithm without copying definitions. Added
+address-identity, caller-input destruction, reversed-order, Stop/re-Init and
+post-actor allocation-failure recovery tests. Debug CTest 12/12. The existing
+bounded 22-actor test reports the same digest as the clean baseline:
+5bef607ddd567a09 (22 actors, 18 switches). No extra RNG calls were added.

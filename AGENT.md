@@ -290,25 +290,27 @@ anim_baking → legacy_anim + animation/foundation
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   foundation must not depend on upper layers. sim must never depend on AI.
 - sim ownership boundary: `Simulation` owns `std::array<Roster, 2> rosters_`
-(the player entities), `std::array<TeamSetup, 2> team_setups_` (the
+(the player entities), `std::array<Team, 2> teams_` (the authoritative static
 `PlayerDefinition` storage every `Player` references), and the only
 `std::array<TeamFrame, 2> team_frames_` and `std::array<TeamMatchState, 2>`
 `team_states_` (orientation and team match facts). `Player` owns only its own
-identity, `FormationEntry`, kinematics and behaviour. `src/sim/player/` must
+identity, `FormationEntry`, kinematics and behaviour. `src/player/` must
 never reference `Team` or iterate the squad; team-level algorithms live in
-`src/sim/runtime/` (possession, roster_possession, formation, team_facts).
+`src/runtime/` (possession, roster_possession, formation, team_facts).
 Possession takes the roster plus the runtime-owned `TeamFrame`/`TeamMatchState`
 directly and identifies a team by `TeamSide`, never by a `Team*`. A per-call
 `PlayerTeamView` (borrowed roster slices + the live `TeamMatchState`) is how a
-player sees its team. There is no runtime Team class: `Simulation` owns the
+player sees its team. Team is configuration only: `Simulation` owns the
 rosters, frames and states, `Simulation::TeamViewOf()` builds the borrowed view
 on demand, and `Simulation::MirrorTeam/SwitchTeamEnds/ResetTeamSituation/
 RelaxTeamFatigue` own the remaining team behaviour. Rules and Observation see
 only `TeamView`.
-- The team/ directory is gone. A team is now a relationship expressed by a
-player's own `TeamSide`, the runtime's `TeamFrame`/`TeamMatchState` and the
-`Roster` collection -- not an entity. Do not reintroduce a Team adapter: add
-the behaviour to `Simulation` or to `src/sim/runtime/`.
+- TeamSetup remains an external compatibility declaration; MakeTeam converts it
+once into Runtime's Team before Player creation. Never move/assign Team or resize
+its player definitions while actors borrow them. Failed Init clears actors; Stop
+destroys actors before a later Init replaces definitions. Roster owns Player, not
+Team. Team has no Tick/Update, Player*, Ball, rule or current TacticalBoard state.
+Do not restore the removed controlling Team or introduce a runtime Team adapter.
 
 ### Motion state writers (P2 preflight audit)
 

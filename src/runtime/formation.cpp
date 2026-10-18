@@ -4,6 +4,7 @@
 #include "runtime/formation_build.hpp"
 
 #include "football/runtime/match_config.hpp"
+#include "football/runtime/team.hpp"
 
 namespace {
 
@@ -25,7 +26,13 @@ Vector3 DefaultRolePosition(e_PlayerRole role) {
 
 }  // namespace
 
-std::vector<FormationEntry> BuildFormation(const football::sim::TeamSetup& team) {
+namespace {
+struct FormationInput {
+  const football::sim::InitialFormation& formation;
+  const football::sim::TacticalFormation& tactical_formation;
+  const std::vector<football::player::PlayerDefinition>& players;
+};
+std::vector<FormationEntry> BuildFormationImpl(const FormationInput& team) {
   const std::size_t count = !team.formation.empty() ? team.formation.size()
       : !team.tactical_formation.empty() ? team.tactical_formation.size()
       : team.players.size();
@@ -90,4 +97,12 @@ std::vector<FormationEntry> BuildFormation(const football::sim::TeamSetup& team)
     }
   }
   return formation;
+}
+}  // namespace
+
+std::vector<FormationEntry> BuildFormation(const football::sim::TeamSetup& team) {
+  return BuildFormationImpl({team.formation, team.tactical_formation, team.players});
+}
+std::vector<FormationEntry> BuildFormation(const football::sim::Team& team) {
+  return BuildFormationImpl({team.initial_formation, team.tactical_formation, team.players});
 }

@@ -33,7 +33,7 @@ namespace {
 // Resolve only unspecified runtime appearance, never import or invent profiles.
 // Preserve the historical home-then-away draw for every declared profile, even
 // profiles omitted by a smaller formation and profiles with explicit appearance.
-void ResolveAppearance(football::sim::TeamSetup& team, football::math::Rng& rng) {
+void ResolveAppearance(football::sim::Team& team, football::math::Rng& rng) {
   for (auto& player : team.players) {
     const int skin_color = int(std::round(rng.Uniform(1, 4)));
     if (!player.appearance.skin_color) player.appearance.skin_color = skin_color;
@@ -56,35 +56,6 @@ bool LeftTeamOwnsBall(const std::vector<FormationEntry>& left,
         rightDistance, (player.start_position - ball_position).GetLength());
   }
   return leftDistance < rightDistance;
-}
-
-// Validate the effective descriptions before profile draws, reseeding or
-// actor construction. Caller identities are never generated or renumbered.
-void ValidatePlayers(const football::sim::TeamSetup& home, const football::sim::TeamSetup& away) {
-  if (home.players.empty() || away.players.empty()) {
-    throw std::invalid_argument("match requires explicit player rosters");
-  }
-  const auto player_count = [](const football::sim::TeamSetup& team) -> std::size_t {
-    return !team.formation.empty() ? team.formation.size()
-        : !team.tactical_formation.empty() ? team.tactical_formation.size()
-        : team.players.size();
-  };
-  const std::size_t home_count = player_count(home);
-  const std::size_t away_count = player_count(away);
-  if (home_count > home.players.size() || away_count > away.players.size()) {
-    throw std::invalid_argument("formation has no corresponding player profile");
-  }
-  std::set<football::player::PlayerId> identities;
-  for (const football::sim::TeamSetup* team : {&home, &away}) {
-    for (const football::player::PlayerDefinition& player : team->players) {
-      if (player.id == football::player::kInvalidPlayerId) {
-        throw std::invalid_argument("match player requires an explicit PlayerId");
-      }
-      if (!identities.insert(player.id).second) {
-        throw std::invalid_argument("duplicate PlayerId across match rosters");
-      }
-    }
-  }
 }
 
 }  // namespace
@@ -379,7 +350,7 @@ void Simulation::HandlePlayerSentOff(Player& player) {
 }
 
 void Simulation::InitTeamPlayers(int team_id, football::sim::Roster& roster,
-                                 const football::sim::TeamSetup& setup,
+                                 const football::sim::Team& setup,
                                  float ai_difficulty,
                                  std::uint8_t first_schedule_phase) {
   // Roster traversal supplies order; phases repeat every ten players. The
@@ -540,6 +511,7 @@ void Simulation::Init(
     const football::pitch::Pitch& pitch, MatchOptions options,
     const football::ball::BallModel& ball_config) {
   if (ball_) throw std::logic_error("simulation already initialized");
+  try {
   // Native duration and full-match capacity are checked before any RNG draws.
   if (options.half_duration == football::sim::TickSpan{} ||
       options.half_duration.value > std::numeric_limits<std::uint64_t>::max() / 2) {
@@ -547,8 +519,11 @@ void Simulation::Init(
   }
   if (options.snapshot_capacity == 0)
     throw std::invalid_argument("snapshot capacity must be positive");
-  ValidatePlayers(home, away);
-  football::sim::TeamSetup home_model = home, away_model = away;
+  std::array<football::sim::Team, 2> models{football::sim::MakeTeam(home),
+                                            football::sim::MakeTeam(away)};
+  football::sim::ValidateMatchTeams(models);
+  auto& home_model = models[0];
+  auto& away_model = models[1];
   // Appearance is not competition physics: isolate its seed-0 stream so a
   // second Init never depends on the previous match's residual RNG state.
   football::math::Rng appearance_rng;
@@ -622,24 +597,17 @@ void Simulation::Init(
   first_team_ = options.reverse_team_processing ? 1 : 0;
   second_team_ = options.reverse_team_processing ? 0 : 1;
 
-  // Build the whole composition locally, then publish it only on full success.
-  // Rosters and the player-definition copies live in their final member storage
-  // because Team borrows the roster and Player borrows a PlayerDefinition by
-  // reference; neither may observe a stale address or a dead local.
+  // Move configuration into final storage BEFORE any Player borrows a definition.
+  // Re-Init only reaches here after Stop/failed-Init cleanup destroyed all actors.
   auto ball = std::make_unique<Ball>(ball_config_, pitch_);
-  const football::sim::TeamSetup* descriptions[] = {&home_model, &away_model};
   const float difficulties[] = {options.left_team_difficulty,
                                options.right_team_difficulty};
-  team_setups_[first_team_] = *descriptions[first_team_];
-  team_setups_[second_team_] = *descriptions[second_team_];
-  // Preserve the historical scheduling stagger across both rosters, including
-  // reversed processing. Only a periodic phase is passed, not a creation ID.
-  // Preserve the historical scheduling stagger across both rosters, including
-  // reversed processing. Only a periodic phase is passed, not a creation ID.
+  teams_ = std::move(models);
+  // Historical creation order and scheduler stagger, including reversed order.
   InitTeamPlayers(first_team_, rosters_[first_team_],
-                  team_setups_[first_team_], difficulties[first_team_], 0);
+                  teams_[first_team_], difficulties[first_team_], 0);
   InitTeamPlayers(second_team_, rosters_[second_team_],
-                  team_setups_[second_team_], difficulties[second_team_],
+                  teams_[second_team_], difficulties[second_team_],
                   static_cast<std::uint8_t>(rosters_[first_team_].Players().size() % 10));
 
   std::vector<Player*> active_players;
@@ -712,6 +680,18 @@ void Simulation::Init(
   // committed, so normal execution never depends on diagnostic Enable calls.
   InitializeProductionPhysics();
   CaptureSnapshot();
+  } catch (...) {
+    // Also cover failures before the local Ball was published: no Player may
+    // survive to borrow definitions that a subsequent Init will replace.
+    if (ball_) Stop();
+    else {
+      rosters_[0].Clear();
+      rosters_[1].Clear();
+      team_states_ = {};
+      clock_.reset();
+    }
+    throw;
+  }
 }
 
 void Simulation::InitializeProductionPhysics() {

@@ -5,7 +5,7 @@
 # determinism case included), so 300 s was too close. The timeout only catches
 # a hung Step; the bounded tick counts are the primary guard.
 
-add_executable(football_sim_runtime_tests simulation_runtime_test.cpp)
+add_executable(football_sim_runtime_tests simulation_runtime_test.cpp team_ownership_test.cpp)
 target_link_libraries(football_sim_runtime_tests
   PRIVATE
     football::sim
