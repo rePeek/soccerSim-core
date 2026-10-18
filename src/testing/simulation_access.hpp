@@ -86,6 +86,9 @@ class SimulationAccess {
     return s.restarts_.context();
   }
   static void ClearRestart(Simulation& s) { s.restarts_.Clear(); }
+  static football::sim::PlayState PlayStateOf(const Simulation& s) {
+    return s.CurrentPlayState();
+  }
 
   // Runtime facts; the transitional Match facade is gone, so diagnostics name
   // the exact state they read.

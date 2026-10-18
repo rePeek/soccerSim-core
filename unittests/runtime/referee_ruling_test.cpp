@@ -442,3 +442,34 @@ TEST_CASE("Rulings: opening ceremony state is runtime-owned", "[runtime][ruling]
   REQUIRE(std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).front()).kind ==
           e_GameMode_KickOff);
 }
+
+TEST_CASE("Rulings: play state derives from runtime authorization and restart", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  // Opening: play is stopped and no restart has been organized yet.
+  REQUIRE(SimulationAccess::PlayStateOf(sim) == football::sim::PlayState::Stopped);
+
+  auto& rules = Open(sim);
+  REQUIRE(SimulationAccess::PlayStateOf(sim) == football::sim::PlayState::Playing);
+
+  Assess(sim, rules, 1.2f);
+  SimulationAccess::ProcessReferee(sim);  // committed stop + restart award
+  REQUIRE(SimulationAccess::PlayStateOf(sim) == football::sim::PlayState::RestartSetup);
+
+  // The setup instant plans the restart; the harness never steps physics, so
+  // drive the documented timeout fallback instead. It repairs positions and
+  // must not invent a touch or a decision.
+  SimulationAccess::ProcessReferee(sim);
+  REQUIRE(SimulationAccess::RestartContextOf(sim).taker != nullptr);
+  sim.AdvanceTime(TickSpan{3001});
+  SimulationAccess::ProcessReferee(sim);
+  REQUIRE(SimulationAccess::PlayStateOf(sim) == football::sim::PlayState::RestartReady);
+
+  // A confirmed legal release is Taken until the context completes.
+  SimulationAccess::RulingsOf(sim).Submit(BallInPlayRuling{});
+  SimulationAccess::CommitRulings(sim);
+  REQUIRE(SimulationAccess::PlayStateOf(sim) == football::sim::PlayState::RestartReady);
+  SimulationAccess::ProcessReferee(sim);
+  REQUIRE(SimulationAccess::PlayStateOf(sim) == football::sim::PlayState::Playing);
+  REQUIRE_FALSE(SimulationAccess::RestartContextOf(sim).active);
+}

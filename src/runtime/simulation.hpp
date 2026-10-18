@@ -26,6 +26,7 @@
 #include "runtime/clock.hpp"
 #include "runtime/restart_controller.hpp"
 #include "runtime/restart_context.hpp"
+#include "runtime/play_state.hpp"
 #include "event/accepted_touch_sink.hpp"
 #include "event/event_recognizer.hpp"
 #include "event/touch_state.hpp"
@@ -163,6 +164,10 @@ class Simulation {
   void EnsureAnimationLibrary();
   void CaptureMentalImage(const football::ball::Ball* view = nullptr);
   void StepImpl(const PlayerControlSet& controls);
+  // A stopped instant with no restart to organize and outside the opening/
+  // half-time placement window executes no player/ball simulation: only the
+  // clock advances. This is PlayState::Stopped outside the ceremony window.
+  bool ShouldSkipPlayerSimulation() const;
   void CaptureSnapshot();
   void EndPeriod();
   void ApplyChangeOfEnds();
@@ -255,6 +260,8 @@ class Simulation {
   // Runtime-owned restart execution facts for observation. Borrowed read-only
   // for the duration of one BuildWorldState/PlayerTick call.
   const football::sim::RestartContext& restart_context() const { return restarts_.context(); }
+  // Derived control state; never a second authority over play/restart flags.
+  football::sim::PlayState CurrentPlayState() const;
   int GetScore(int team_id) const { return score_[team_id]; }
   float GetPossessionFactor_60seconds() const { return possession_60_seconds_ / 60.0f; }
   std::uint64_t GetResetSequence() const { return reset_sequence_; }

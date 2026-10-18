@@ -900,10 +900,10 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     DiscardBodyCollisionShadow();
     return;
   }
-  if (!play_authorized_ && !restarts_.NeedsSimulation() &&
-      (GetTimelineTick() < restarts_.context().prepare_tick ||
-       restarts_.context().prepare_tick + football::sim::TickSpan{1} < GetTimelineTick())) {
-    // Ceremonies execute only their placement tail; both clocks stay stopped.
+  if (ShouldSkipPlayerSimulation()) {
+    // Opening/half-time ceremonies execute only their placement tail (the
+    // placement instant itself is not skipped); both clocks stay stopped and
+    // no player/ball simulation runs.
     const auto admitted = clock_->Advance(football::sim::TickSpan{1}, phase_);
     UpdateRecentPossession(admitted);
     DiscardBodyCollisionShadow();
@@ -988,6 +988,26 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
 bool Simulation::IsInPlay() const {
   return ball_ && play_authorized_;
 }
+
+football::sim::PlayState Simulation::CurrentPlayState() const {
+  if (play_authorized_) {
+    return set_piece_active_ ? football::sim::PlayState::RestartReady
+                             : football::sim::PlayState::Playing;
+  }
+  if (restarts_.NeedsSimulation()) return football::sim::PlayState::RestartSetup;
+  return football::sim::PlayState::Stopped;
+}
+
+bool Simulation::ShouldSkipPlayerSimulation() const {
+  if (play_authorized_) return false;
+  // A pending restart must keep simulating: the heuristic AI walks the sides
+  // into position and readiness is polled from real actor state.
+  if (restarts_.NeedsSimulation()) return false;
+  const football::sim::Tick prepare = restarts_.context().prepare_tick;
+  return GetTimelineTick() < prepare ||
+      prepare + football::sim::TickSpan{1} < GetTimelineTick();
+}
+
 WorldState Simulation::Observe() const {
   if (!ball_) throw std::logic_error("simulation has no match");
   const int first_team = options_.reverse_team_processing ? 1 : 0;

@@ -3366,27 +3366,44 @@ runtime harness, the public-header smoke) plus a core-only build.
 `unittests/ai` covers the schema, coordinates, interpreter, response, heuristic,
 coach commands, shout lifecycle, context, scheduler and examples.
 
-## RFE-1: synchronous ruling authority (RFE-2 restart ownership deferred)
+## RFE: synchronous ruling authority and Runtime restart ownership
 
 `docs/rfe_implementation_report.md` records the phased migration from 819f087.
 Product Referee stages now explicitly receive RulingSink: Submit only queues,
 and Simulation::CommitPendingRulings validates the entire ordered logical batch
-before dispatch through CommitRuling. Commit immediately after Advance,
+before dispatch through CommitRuling. Commit immediately after restart advance,
 EvaluateOutOfPlay, CheckPendingFoul, accepted-touch consumption and the goal
 checks (after restoring the original frame). Never clear uncommitted rulings at
 Step entry or ResetSituation; Init/Stop are match lifecycle reset boundaries.
 
-Stop, restart award, card and goal have real referee producers. Ordinary
-restart producers submit Stop then Award; AwardRestart does not independently
-stop in this temporary compatibility phase. Runtime owns goal score/scorer/event
-commit and Player disciplinary writes. Card counts change now, delayed send-off
-still executes at the original Player deadline; card receipts prevent replay.
+Stop, restart award, card, goal and ball-in-play have real referee producers.
+Ordinary restart producers submit Stop then Award; Runtime owns goal
+score/scorer/event commit and Player disciplinary writes. Card counts change
+now, delayed send-off still executes at the original Player deadline; card
+receipts prevent replay.
 
-RefereeBuffer remains the only restart execution authority for now. Do not
-introduce a parallel runtime restart controller or claim the full RFE-2 design
-is complete. Referee still performs old placement/reset/start/release operations
-through compatibility paths. RFE-2 must migrate those together with PlayerTick
-and WorldState buffer readers. No Team or Coach integration was added here.
+RFE-2 moved the only writable restart execution state into Runtime:
+`src/runtime/restart_context.hpp` (`RestartContext`/`RestartState`/`RestartPlan`/
+`RestartPhase`), `src/runtime/restart_controller.*` (scheduling, opening/
+half-time ceremony, setup, timeout placement, readiness, release, grace) and
+`src/runtime/restart_planner.*` / `restart_placement.*` (moved from referee).
+The Referee owns only `Foul` and the offside reference; it submits
+`AwardRestartRuling` (with the administration window) and `BallInPlayRuling` and
+calls no `RuleCommandSink` lifecycle method. Runtime publishes rule-state side
+effects back through `Referee::OnCeremonialSetup()`/`OnRestartTaken()`.
+`PlayerTickContext`, `PlayerCommandInputs` and `WorldStateBuilder` borrow
+`Simulation::restart_context()`; no `RefereeBuffer`/`GetBuffer`/
+`RestartNeedsSimulation`/`GetRestartTarget` remains. Team set-piece orders and
+heuristic set-piece coordination are RFE-4.
+
+RFE-3 adds the derived `PlayState` (`src/runtime/play_state.hpp`) and names the
+`StepImpl` early return as `Simulation::ShouldSkipPlayerSimulation()`: a stopped
+instant skips actors only when no restart is being organized and it is outside
+the opening/half-time placement window. Pending restarts keep simulating so the
+heuristic AI moves the sides to Runtime targets. `BallInPlayRuling` is the only
+path that starts the ball-in-play clock.
+
 The repaired missing goal-kick branch is an intentional rule behavior change.
 Bounded `[ruling]` tests in `unittests/runtime/referee_ruling_test.cpp` cover
-front/touch/goal boundaries, awards, atomic validation and disciplinary timing.
+front/touch/goal boundaries, awards, atomic validation, disciplinary timing,
+Runtime restart ownership and the derived play-state transitions.
