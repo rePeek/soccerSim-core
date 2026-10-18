@@ -129,13 +129,13 @@ TEST_CASE("Rulings: foul stop submits without reentering runtime", "[runtime][ru
   auto& rules = Open(sim);
   Assess(sim, rules, 1.2f);
   const auto tick = SimulationAccess::RefereeFactsOf(sim);
-  rules.CheckPendingFoul({tick}, SimulationAccess::CommandsOf(sim), SimulationAccess::RulingsOf(sim));
+  rules.CheckPendingFoul({tick}, SimulationAccess::RulingsOf(sim));
   REQUIRE(SimulationAccess::IsBallInPlayOf(sim));
   REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 2);
   REQUIRE(SimulationAccess::MatchEventsOf(sim).empty());
   SimulationAccess::CommitRulings(sim);
   REQUIRE_FALSE(SimulationAccess::IsBallInPlayOf(sim));
-  rules.CheckPendingFoul({tick}, SimulationAccess::CommandsOf(sim), SimulationAccess::RulingsOf(sim));
+  rules.CheckPendingFoul({tick}, SimulationAccess::RulingsOf(sim));
   REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 0);
 }
 
@@ -280,7 +280,7 @@ TEST_CASE("Rulings: disciplinary counts commit now and send off at the original 
   const auto now = SimulationAccess::NowOf(sim);
   Assess(sim, rules, red ? 2.2f : 1.6f);
   const auto tick = SimulationAccess::RefereeFactsOf(sim);
-  rules.CheckPendingFoul({tick}, SimulationAccess::CommandsOf(sim), sink);
+  rules.CheckPendingFoul({tick}, sink);
   REQUIRE(offender.CardCount() == before);
   REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == event_start);
   REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 3);
@@ -300,7 +300,7 @@ TEST_CASE("Rulings: disciplinary counts commit now and send off at the original 
   // Both ordinary deadlines retain the old 10-second card-administration addition.
   REQUIRE(SimulationAccess::RestartContextOf(sim).state->earliest_restart_tick == now + TickSpan{1000});
   REQUIRE(SimulationAccess::RestartContextOf(sim).state->timeout_tick == now + TickSpan{4000});
-  rules.CheckPendingFoul({tick}, SimulationAccess::CommandsOf(sim), sink);
+  rules.CheckPendingFoul({tick}, sink);
   REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 0);
   sim.AdvanceTime(TickSpan{599});
   offender.CommitTick(SimulationAccess::PlayerTickOf(sim, offender), 0);

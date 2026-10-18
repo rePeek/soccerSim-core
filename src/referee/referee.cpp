@@ -37,56 +37,11 @@ using football::sim::FoulKind;
 using football::sim::TickSpan;
 using football::sim::Seconds;
 using football::sim::rules::RefereeTickFacts;
-using football::sim::rules::RuleCommandSink;
 constexpr auto kCardAdministration = Seconds(10);
 constexpr TickSpan kTouchGrace{60};
 constexpr TickSpan kAdvantageRecheck{60};
 constexpr auto kAdvantageExpiry = Seconds(3);
 constexpr auto kCardEffectDelay = Seconds(6);
-
-// Compatibility evidence capture for the direct TripNotice test adapter.
-// Production captures the same fields in player/player_contact.cpp.
-FoulAssessment LiveFoulAssessment(Player* tripee, Player* tripper, int tackleType,
-                                  const Vector3& ball_position, Tick now) {
-  const PlayerActionState& action = tripper->GetSimulationActionState();
-  FoulAssessment fact;
-  fact.kind = tackleType == 3 ? FoulKind::SlidingTackle : FoulKind::StandingFall;
-  fact.victim = tripee->GetID();
-  fact.offender = tripper->GetID();
-  fact.victim_team_id = tripee->GetTeamID();
-  fact.offender_team_id = tripper->GetTeamID();
-  fact.contacted_at = now;
-  fact.position = tripee->GetPitchPosition();
-  fact.victim_position = tripee->GetPosition();
-  fact.victim_direction = tripee->GetDirectionVec();
-  fact.offender_position = tripper->GetPosition();
-  fact.ball_position = ball_position;
-  fact.offender_action_type = static_cast<int>(action.type);
-  fact.offender_scheduled_contact = action.HasScheduledContact();
-  fact.offender_contact_frame = action.ContactFrame();
-  fact.offender_frame = action.Frame();
-  fact.offender_contact_position = action.contactPosition;
-  fact.offender_last_touch_tick = tripper->GetLastTouchTick();
-  fact.victim_team_fading_possession =
-      tripee->GetTeamFadingPossessionAmount();
-  // Sliding severity is normally frozen by the solver; reproduce it for the
-  // test adapter only.
-  float severity = 1.0;
-  if (fact.offender_scheduled_contact) {
-    severity = std::pow(clamp(fabs(fact.offender_contact_frame - fact.offender_frame) /
-                                  fact.offender_contact_frame,
-                              0.0, 1.0),
-                        0.7) * 0.5;
-    severity += NormalizedClamp(
-        (fact.ball_position - fact.offender_contact_position).GetLength(), 0.0, 2.0) * 0.5;
-  }
-  severity += (fact.victim_position - fact.offender_position)
-                  .GetNormalized(0)
-                  .GetDotProduct(fact.victim_direction) * 0.5 + 0.5;
-  fact.severity = severity;
-  fact.score = NormalizedClamp(severity, 1.0f, 2.0f);
-  return fact;
-}
 }  // namespace
 
 Referee::Referee() {
@@ -136,7 +91,7 @@ void Referee::SubmitRestart(e_GameMode kind, football::sim::TeamSide team,
 }
 
 void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
-                                RuleCommandSink& commands, football::sim::event::RulingSink& rulings) {
+                                football::sim::event::RulingSink& rulings) {
   const RefereeTickFacts& tick = view.tick;
   if (tick.phase == MatchPhase::Finished) return;
   if (!(tick.play_authorized && !tick.set_piece_active)) return;
@@ -147,21 +102,21 @@ void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
   // line applied, so the sideline branch could not run at the same instant.
   const BallOutOfPlay out = ClassifyBallOutOfPlay(tick.pitch, ballPos);
   if (out == BallOutOfPlay::GoalLine || tick.goal_scored) {
-    SettleGoalLine(ballPos, tick, commands, rulings);
+    SettleGoalLine(ballPos, tick, rulings);
   } else if (out == BallOutOfPlay::Touchline) {
-    SettleTouchline(ballPos, tick, view.post_restart_grace, commands, rulings);
+    SettleTouchline(ballPos, tick, view.post_restart_grace, rulings);
   }
 }
 
 void Referee::SettleGoalLine(const Vector3& ballPos, const RefereeTickFacts& facts,
-                             RuleCommandSink& commands, football::sim::event::RulingSink& rulings) {
+                             football::sim::event::RulingSink& rulings) {
   const auto team = [&](int id) -> const football::sim::TeamView& {
     return id == 0 ? facts.home : facts.away;
   };
   foul.advantage = false;
   bool isFoul = false;
   if (!facts.goal_scored) {
-    isFoul = CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, facts.home, facts.away, commands, rulings);
+    isFoul = CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, rulings);
   } else {
     foul.foulType = 0;
   }
@@ -198,11 +153,11 @@ void Referee::SettleGoalLine(const Vector3& ballPos, const RefereeTickFacts& fac
 }
 
 void Referee::SettleTouchline(const Vector3& ballPos, const RefereeTickFacts& facts,
-                              bool post_restart_grace, RuleCommandSink& commands,
+                              bool post_restart_grace,
                               football::sim::event::RulingSink& rulings) {
   if (post_restart_grace) return;
   foul.advantage = false;
-  if (CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, facts.home, facts.away, commands, rulings)) return;
+  if (CheckFoul(facts.now, facts.pitch, facts.stadium_to_home, rulings)) return;
   rulings.Submit(football::sim::event::StopPlayRuling{});
   int lastTouchTeam = facts.last_touch_team;
   if (lastTouchTeam < 0) lastTouchTeam = facts.home.team_id;
@@ -228,14 +183,14 @@ void Referee::GoalMouthCrossed(int side, const RefereeTickFacts& facts,
 }
 
 void Referee::CheckPendingFoul(const football::sim::rules::RefereeView& view,
-                               RuleCommandSink& commands, football::sim::event::RulingSink& rulings) {
-  CheckFoul(view.tick.now, view.tick.pitch, view.tick.stadium_to_home, view.tick.home, view.tick.away, commands, rulings);
+                               football::sim::event::RulingSink& rulings) {
+  CheckFoul(view.tick.now, view.tick.pitch, view.tick.stadium_to_home, rulings);
 }
 
 void Referee::ConsumeBallTouch(Tick now,
                                const football::sim::event::AcceptedTouch& fact,
                                const football::sim::rules::RefereeView& view,
-                               RuleCommandSink& commands, football::sim::event::RulingSink& rulings) {
+                               football::sim::event::RulingSink& rulings) {
   Player* player = FindPlayer(view.tick, fact.player);
   if (player == nullptr) return;
   const football::sim::TeamView& team =
@@ -257,7 +212,7 @@ void Referee::ConsumeBallTouch(Tick now,
   facts.restart = view.restart;
   facts.preserve_opponent_offside = fact.preserve_opponent_offside;
   facts.physical_kick = fact.physical_kick;
-  EvaluateBallTouch(facts, commands, rulings);
+  EvaluateBallTouch(facts, rulings);
 }
 
 Player* Referee::FindPlayer(const RefereeTickFacts& facts,
@@ -271,14 +226,9 @@ Player* Referee::FindPlayer(const RefereeTickFacts& facts,
   return nullptr;
 }
 
-// Compatibility adapter for direct referee tests; production consumes facts.
-void Referee::BallTouched(const football::sim::rules::BallTouchFacts& facts,
-                          RuleCommandSink& commands, football::sim::event::RulingSink& rulings) {
-  EvaluateBallTouch(facts, commands, rulings);
-}
 
 void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& facts,
-                                RuleCommandSink& commands, football::sim::event::RulingSink& rulings) {
+                                football::sim::event::RulingSink& rulings) {
   const football::sim::RestartContext* restart = facts.restart;
   if (restart != nullptr && restart->active && restart->state &&
       restart->state->phase == football::sim::RestartPhase::Ready &&
@@ -323,7 +273,7 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
     for (auto p : offsidePlayers) {
       if (p == ballOwner) {
         foul.advantage = false;
-        if (!CheckFoul(facts.now, *facts.pitch, facts.stadium_to_home, facts.touch_team, facts.defending_team, commands, rulings)) {
+        if (!CheckFoul(facts.now, *facts.pitch, facts.stadium_to_home, rulings)) {
           // Offside takes effect at the enclosing synchronous touch boundary.
           rulings.Submit(football::sim::event::StopPlayRuling{});
           SubmitRestart(e_GameMode_FreeKick, static_cast<football::sim::TeamSide>(defending_team_id),
@@ -411,30 +361,9 @@ void Referee::AssessFoul(Player* tripee, Player* tripper,
   }
 }
 
-// Compatibility adapter for direct referee tests; production consumes facts.
-void Referee::TripNotice(Player *tripee, Player *tripper, int tackleType,
-                         Tick now, const Vector3& ball_position) {
-  // A little standing trip (type 1) was never a foul, in either implementation.
-  if (tackleType != 2 && tackleType != 3) return;
-  FoulAssessment fact;
-  if (tripee != nullptr && tripper != nullptr) {
-    fact = LiveFoulAssessment(tripee, tripper, tackleType, ball_position, now);
-  } else {
-    fact.kind = tackleType == 3 ? FoulKind::SlidingTackle : FoulKind::StandingFall;
-    fact.contacted_at = now;
-    fact.ball_position = ball_position;
-  }
-  AssessFoul(tripee, tripper, fact, now);
-}
-
 bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
                         PitchFrameTransform stadium_to_home,
-                        const football::sim::TeamView& home,
-                        const football::sim::TeamView& away,
-                        RuleCommandSink& commands, football::sim::event::RulingSink& rulings) {
-  (void)home;
-  (void)away;
-  (void)commands;
+                        football::sim::event::RulingSink& rulings) {
 
   bool penalty = false;
   if (foul.foulType != 0) {

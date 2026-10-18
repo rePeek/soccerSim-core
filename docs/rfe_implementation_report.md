@@ -514,3 +514,23 @@ completes healthily with at least one scheduled turn.
 Validation: Debug ctest 14/14 (294.01 s); `[ai]` 83 cases / 2981 assertions;
 A17 digest `5bef607ddd567a09` unchanged; Release `autonomous_match` 4 cases /
 89 assertions (12m56.9 s).
+
+## RFE-7A — remove the invalid Referee command port
+
+The Referee is now output-only through `RulingSink`; it no longer carries the
+`RuleCommandSink` it never used.
+
+- Dropped the `RuleCommandSink&` parameter from `EvaluateOutOfPlay`,
+  `CheckPendingFoul`, `CheckFoul`, `ConsumeBallTouch`, `EvaluateBallTouch`,
+  `SettleGoalLine` and `SettleTouchline`, and the unused `home`/`away` pair from
+  `CheckFoul` (with their `(void)` silencers).
+- Removed the callerless compatibility entries `BallTouched` and `TripNotice`
+  (and its `LiveFoulAssessment` helper), the callerless
+  `GetCurrentFoulPlayer`/`GetCurrentFoulType` accessors, and the now-unused
+  `SimulationAccess::CommandsOf`.
+- `RuleCommandSink` remains the Runtime restart-placement port only
+  (`restart_placement.cpp`); the Referee no longer includes it.
+
+Validation: Debug ctest 15/15 (334.77 s); `[ruling]` 32 cases / 311 assertions
+and `[team]` 21 cases / 556 assertions unchanged, so ruling order and event
+sequence are unchanged.
