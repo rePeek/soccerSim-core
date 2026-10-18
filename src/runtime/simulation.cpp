@@ -328,7 +328,7 @@ void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch)
   recognizer_.Consume(touch,
       football::sim::event::EventView{tick.play_authorized, tick.set_piece_active, snapshot_step_, reset_sequence_});
   CommitEventTransitions(touch.touched_at);
-  referee_->ConsumeBallTouch(touch.touched_at, touch, view, *rule_commands_);
+  referee_->ConsumeBallTouch(touch.touched_at, touch, view, *rule_commands_, *ruling_sink_);
   CommitPendingRulings();
 }
 
@@ -531,9 +531,9 @@ void Simulation::ProcessReferee() {
   CommitPendingRulings();
   if (was_restart) return;
   if (tick.play_authorized && !tick.set_piece_active) {
-    referee_->EvaluateOutOfPlay(view, *rule_commands_);
+    referee_->EvaluateOutOfPlay(view, *rule_commands_, *ruling_sink_);
     CommitPendingRulings();
-    referee_->CheckPendingFoul(view, *rule_commands_);
+    referee_->CheckPendingFoul(view, *rule_commands_, *ruling_sink_);
     CommitPendingRulings();
   }
 }

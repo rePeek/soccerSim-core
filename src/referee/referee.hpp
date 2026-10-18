@@ -72,7 +72,8 @@ class Referee {
     // settle it exactly as the boundary fact used to. Simulation calls this at
     // the referee's legacy phase boundary.
     void EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
-                           football::sim::rules::RuleCommandSink& commands);
+                           football::sim::rules::RuleCommandSink& commands,
+                           football::sim::event::RulingSink& rulings);
     // The goal-mouth segment was crossed on `side`; submit the award ruling.
     void GoalMouthCrossed(int side, const football::sim::rules::RefereeTickFacts& facts,
                           football::sim::event::RulingSink* rulings);
@@ -80,7 +81,8 @@ class Referee {
     // Pending-foul time advance for the current instant (advantage/expiry).
 
     void CheckPendingFoul(const football::sim::rules::RefereeView& view,
-                          football::sim::rules::RuleCommandSink& commands);
+                          football::sim::rules::RuleCommandSink& commands,
+                          football::sim::event::RulingSink& rulings);
 
 
     const RefereeBuffer &GetBuffer() { return buffer; };
@@ -89,7 +91,8 @@ class Referee {
 
     // Consumes explicit competition/observation facts; never reads Match.
     void BallTouched(const football::sim::rules::BallTouchFacts& facts,
-                     football::sim::rules::RuleCommandSink& commands);
+                     football::sim::rules::RuleCommandSink& commands,
+                     football::sim::event::RulingSink& rulings);
     // Test-only adapter for the frozen standing/sliding challenge scenarios.
     // Types: 1 = little standing trip (never a foul), 2 = standing fall,
     // 3 = sliding tackle. Production feeds AssessFoul from the solver.
@@ -106,12 +109,14 @@ class Referee {
                    PitchFrameTransform stadium_to_home,
                    const football::sim::TeamView& home,
                    const football::sim::TeamView& away,
-                   football::sim::rules::RuleCommandSink& commands);
+                   football::sim::rules::RuleCommandSink& commands,
+                   football::sim::event::RulingSink& rulings);
     // Synchronous accepted-touch consumption (restart release / offside).
     void ConsumeBallTouch(football::sim::Tick now,
                           const football::sim::event::AcceptedTouch& fact,
                           const football::sim::rules::RefereeView& view,
-                          football::sim::rules::RuleCommandSink& commands);
+                          football::sim::rules::RuleCommandSink& commands,
+                          football::sim::event::RulingSink& rulings);
 
     Player *GetCurrentFoulPlayer() { return foul.foulPlayer; }
     int GetCurrentFoulType() { return foul.foulType; }
@@ -137,14 +142,17 @@ class Referee {
                                  const MatchOptions& options, football::math::Rng& rng,
                                  football::sim::rules::RuleCommandSink& commands);
     void EvaluateBallTouch(const football::sim::rules::BallTouchFacts& facts,
-                           football::sim::rules::RuleCommandSink& commands);
+                           football::sim::rules::RuleCommandSink& commands,
+                           football::sim::event::RulingSink& rulings);
 
     void SettleGoalLine(const football::math::Vector3& ball_pos,
                         const football::sim::rules::RefereeTickFacts& facts,
-                        football::sim::rules::RuleCommandSink& commands);
+                        football::sim::rules::RuleCommandSink& commands,
+                        football::sim::event::RulingSink& rulings);
     void SettleTouchline(const football::math::Vector3& ball_pos,
                          const football::sim::rules::RefereeTickFacts& facts,
-                         football::sim::rules::RuleCommandSink& commands);
+                         football::sim::rules::RuleCommandSink& commands,
+                         football::sim::event::RulingSink& rulings);
     Player* FindPlayer(const football::sim::rules::RefereeTickFacts& facts,
                        football::player::PlayerId id) const;
 };

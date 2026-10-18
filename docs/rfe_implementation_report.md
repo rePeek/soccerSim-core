@@ -32,3 +32,18 @@ Player pointers. Event cursors, richer rule events and Coach wiring are RFE-5/6.
 RFE-1A validation: Debug build and CTest 11/11 passed (175.53 s). Existing
 bounded deterministic runtime acceptance is unchanged. No rule, movement or
 RNG algorithm changed in this infrastructure phase.
+
+## RFE-1B — stop verdict producers
+
+- Foul, offside, touchline and goal-line settlement explicitly receive a
+  RulingSink and submit StopPlayRuling, never invoke the runtime stop port.
+- A stop does not execute until the enclosing rule operation returns. The
+  existing buffer gate prevents a later same-tick touch from awarding again.
+- Controlled runtime tests use frozen foul evidence and an actual accepted
+  offside touch, without waiting for opening ceremonies. They verify deferred
+  mutation, immediate action restriction, duplicate-check suppression and out
+  of play. No restart planning/placement or RNG arithmetic was changed.
+- RuleCommandSink::StopPlay remains unused compatibility API until RFE-7.
+
+RFE-1B validation: 8 ruling cases / 25 assertions passed; Debug build and
+CTest 11/11 passed (169.08 s).

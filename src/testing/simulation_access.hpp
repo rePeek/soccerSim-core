@@ -56,6 +56,9 @@ class SimulationAccess {
     if (!simulation.referee_) throw std::logic_error("simulation has no match");
     return *simulation.referee_;
   }
+  static void ReplaceRules(Simulation& s, std::unique_ptr<Referee> rules) {
+    s.referee_ = std::move(rules);
+  }
   static rules::RuleCommandSink& CommandsOf(Simulation& simulation) {
     if (!simulation.rule_commands_) throw std::logic_error("simulation has no match");
     return *simulation.rule_commands_;
@@ -84,9 +87,9 @@ class SimulationAccess {
     simulation.CommitPendingRulings();
     if (was_restart) return;
     if (facts.play_authorized && !facts.set_piece_active) {
-      referee.EvaluateOutOfPlay(view, CommandsOf(simulation));
+      referee.EvaluateOutOfPlay(view, CommandsOf(simulation), RulingsOf(simulation));
       simulation.CommitPendingRulings();
-      referee.CheckPendingFoul(view, CommandsOf(simulation));
+      referee.CheckPendingFoul(view, CommandsOf(simulation), RulingsOf(simulation));
       simulation.CommitPendingRulings();
     }
   }
