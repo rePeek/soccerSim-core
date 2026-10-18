@@ -152,3 +152,10 @@ must take the same cleanup route, including partially constructed rosters.
 Validation: bounded CTest only, no app/full match. Preserve existing Debug digest
 5bef607ddd567a09; run Debug at every stage, then requested Release and bounded
 ASan/UBSan ownership/failure tests. Do not revise the digest to mask a difference.
+
+TEAM-5.0 result: Debug CTest 12/12, 169.77 s; bounded digest reproduced exactly.
+TEAM-5.1: Player takes PlayerDefinition by value, owns const model_, and derives
+body_profile_ from that owned value. No Team pointer or runtime behavior added.
+Ownership tests now check values, independent addresses, source destruction,
+names/attributes/body/appearance and unchanged constructor RNG. Debug CTest
+12/12 passed; 22-actor digest remains 5bef607ddd567a09.

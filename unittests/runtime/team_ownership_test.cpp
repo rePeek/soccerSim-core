@@ -31,7 +31,7 @@ TEST_CASE("Team ownership preserves legacy formation adapter", "[team][ownership
     CHECK(legacy[i].controllable == migrated[i].controllable);
   }
 }
-TEST_CASE("Team definitions remain final-address borrows through Stop and re-Init", "[team][ownership]") {
+TEST_CASE("Player models survive caller teardown and Stop/re-Init", "[team][ownership]") {
   Simulation sim;
   MatchOptions options;
   options.snapshot_capacity = 8;
@@ -40,7 +40,7 @@ TEST_CASE("Team definitions remain final-address borrows through Stop and re-Ini
     auto away = OwnershipSetup(500);
     options.reverse_team_processing = reverse;
     sim.Init(home,away,football::pitch::Pitch{},options);
-    // Reallocation/destruction of caller inputs must not affect actor borrows.
+    // Caller definitions are initialization input only, never actor borrows.
     home.players.clear();
     home.players.shrink_to_fit();
     for (int side = 0; side < 2; ++side) {
@@ -48,7 +48,9 @@ TEST_CASE("Team definitions remain final-address borrows through Stop and re-Ini
       const auto actors = SimulationAccess::RosterOf(sim,side).Players();
       REQUIRE(actors.size() == team.players.size());
       for (std::size_t i = 0; i < actors.size(); ++i) {
-        CHECK(&actors[i]->GetModel() == &team.players[i]);
+        CHECK(&actors[i]->GetModel() != &team.players[i]);
+        CHECK(actors[i]->GetModel().height == team.players[i].height);
+        CHECK(actors[i]->GetModel().attributes == team.players[i].attributes);
         CHECK(actors[i]->GetID() == (side == 0 ? 50 : 500) + i);
         CHECK(actors[i]->GetTeamSide() == static_cast<TeamSide>(side));
       }
@@ -80,7 +82,7 @@ TEST_CASE("Failed Init destroys actors before definitions can be replaced", "[te
       football::pitch::Pitch{},options));
   const auto players = SimulationAccess::RosterOf(sim,0).Players();
   const auto& team = SimulationAccess::TeamOf(sim,TeamSide::Home);
-  CHECK(&players.front()->GetModel() == &team.players.front());
+  CHECK(players.front()->GetModel().height == team.players.front().height);
   CHECK(players.front()->GetID() == 800);
   CHECK(sim.Stop());
 }
@@ -160,4 +162,36 @@ TEST_CASE("Orders and reusable presets are inert until restart integration", "[t
   compare();
   CHECK(legacy.Stop());
   CHECK(migrated.Stop());
+}
+TEST_CASE("Player owns an immutable definition after its source is destroyed", "[team][ownership]") {
+  AnimationLibrary animations;
+  const football::pitch::Pitch pitch;
+  football::math::Rng rng;
+  const auto before = rng.engine();
+  std::unique_ptr<Player> actor;
+  {
+    football::player::PlayerDefinition source;
+    source.id = 4321; source.first_name = "Own"; source.last_name = "Model";
+    source.age = 28; source.height = 1.9f; source.weight_kg = 80.f;
+    source.attributes.set(football::player::PlayerStat::mental_vision,.6f);
+    source.appearance.skin_color = 3;
+    source.appearance.hair_style = "short02";
+    source.appearance.hair_color = "black";
+    actor = std::make_unique<Player>(0,TeamSide::Home,1.f,source,FormationEntry{},
+        7,animations,pitch,rng);
+    CHECK(&actor->GetModel() != &source);
+    source.id = 0; source.height = 0; source.first_name.clear();
+    source.attributes.fill(0);
+  }
+  const auto& model = actor->GetModel();
+  CHECK(actor->GetID() == 4321);
+  CHECK(model.first_name == "Own"); CHECK(model.last_name == "Model");
+  CHECK(model.age == 28); CHECK(model.height == 1.9f); CHECK(model.weight_kg == 80.f);
+  CHECK(model.attributes.get(football::player::PlayerStat::mental_vision) == .6f);
+  CHECK(model.appearance.skin_color == 3);
+  CHECK(model.appearance.hair_style == "short02");
+  CHECK(model.appearance.hair_color == "black");
+  CHECK(actor->BodyProfile().height_m == 1.9f);
+  CHECK(actor->BodyProfile().mass_kg == 80.f);
+  CHECK(rng.engine() == before);
 }

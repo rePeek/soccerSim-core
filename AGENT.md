@@ -291,10 +291,10 @@ anim_baking → legacy_anim + animation/foundation
   foundation must not depend on upper layers. sim must never depend on AI.
 - sim ownership boundary: `Simulation` owns `std::array<Roster, 2> rosters_`
 (the player entities), `std::array<Team, 2> teams_` (the authoritative static
-`PlayerDefinition` storage every `Player` references), and the only
+`PlayerDefinition` preparation storage, transitional during TEAM-5), and the only
 `std::array<TeamFrame, 2> team_frames_` and `std::array<TeamMatchState, 2>`
-`team_states_` (orientation and team match facts). `Player` owns only its own
-identity, `FormationEntry`, kinematics and behaviour. `src/player/` must
+`team_states_` (orientation and team match facts). `Player` owns its const model
+by value (TEAM-5.1), body profile, identity, formation, kinematics and behaviour. `src/player/` must
 never reference `Team` or iterate the squad; team-level algorithms live in
 `src/runtime/` (possession, roster_possession, formation, team_facts).
 Possession takes the roster plus the runtime-owned `TeamFrame`/`TeamMatchState`
@@ -305,12 +305,11 @@ rosters, frames and states, `Simulation::TeamViewOf()` builds the borrowed view
 on demand, and `Simulation::MirrorTeam/SwitchTeamEnds/ResetTeamSituation/
 RelaxTeamFatigue` own the remaining team behaviour. Rules and Observation see
 only `TeamView`.
-- TeamSetup remains an external compatibility declaration; MakeTeam converts it
-once into Runtime's Team before Player creation. Never move/assign Team or resize
-its player definitions while actors borrow them. Failed Init clears actors; Stop
-destroys actors before a later Init replaces definitions. Roster owns Player, not
-Team. Team has no Tick/Update, Player*, Ball, rule or current TacticalBoard state.
-Do not restore the removed controlling Team or introduce a runtime Team adapter.
+- TeamSetup remains external initialization input. Player copies/moves its
+PlayerDefinition into const model_ before deriving body_profile_; it never borrows
+caller/Team definition storage or holds Team*. TEAM-5 will retire the temporary
+public Team configuration and place Roster and team state in an internal entity.
+No Team Tick/Update, physics, rule or current TacticalBoard authority is permitted.
 Runtime also owns ActiveLineupState separately from Team's initial definition.
 WorldState projects those bindings read-only; DefaultSlotAssignment preserves
 vacancies and filters inactive actors. Only synthetic observations without slot

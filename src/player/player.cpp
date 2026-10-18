@@ -266,13 +266,13 @@ bool FloatBitsEqual(float a, float b) {
 }  // namespace
 
 Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
-               const football::player::PlayerDefinition& model,
+               football::player::PlayerDefinition model,
                const FormationEntry& formation_entry,
                std::uint8_t schedule_phase,
                const AnimationLibrary& animations, const football::pitch::Pitch& pitch, football::math::Rng& rng)
     : animations_(animations), pitch_(pitch), rng_(rng),
-      model_(model),
-      body_profile_(football::player::MakePlayerBodyProfile(model)),
+      model_(std::move(model)),
+      body_profile_(football::player::MakePlayerBodyProfile(model_)),
       schedule_phase_(schedule_phase % 10),
       team_id_(team_id),
       side_(side),
