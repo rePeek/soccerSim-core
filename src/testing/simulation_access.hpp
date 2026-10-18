@@ -21,6 +21,9 @@ namespace football::sim::testing {
 // Product execution remains Init/Step/Observe/Finished/Result/Stop.
 class SimulationAccess {
  public:
+  static const football::team::Team& TeamOf(const Simulation& simulation, TeamSide side) {
+    return simulation.TeamOf(static_cast<int>(side));
+  }
   static PlayerTickContext PlayerTickOf(Simulation& simulation, Player& actor) {
     return simulation.PlayerTickFacts(actor);
   }
@@ -118,13 +121,16 @@ class SimulationAccess {
   // The runtime-owned possession inputs: the roster and the match state a team
   // owns. Exposed so the harness can exercise possession without a Team object.
   static football::sim::Roster& RosterOf(Simulation& s, int team_id) {
-    return s.rosters_[team_id];
+    return s.RosterOf(team_id);
   }
   static football::sim::TeamFrame& TeamFrameOf(Simulation& s, int team_id) {
     return s.team_frames_[team_id];
   }
   static football::sim::TeamMatchState& TeamStateOf(Simulation& s, int team_id) {
     return s.team_states_[team_id];
+  }
+  static football::sim::ActiveLineupState& ActiveLineupOf(Simulation& s, int team_id) {
+    return s.active_lineups_[team_id];
   }
   static football::sim::Tick NowOf(Simulation& s) { return s.clock_->now(); }
   static football::sim::TickSpan RegulationTimeOf(Simulation& s) {

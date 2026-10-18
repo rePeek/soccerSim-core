@@ -197,7 +197,7 @@ class Player final {
 
   public:
     Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
-           const football::player::PlayerDefinition& model,
+           football::player::PlayerDefinition model,
            const FormationEntry& formation_entry,
            std::uint8_t schedule_phase,
            const AnimationLibrary& animations, const football::pitch::Pitch& pitch, football::math::Rng& rng);
@@ -799,8 +799,8 @@ class Player final {
     const football::pitch::Pitch& pitch_;
     football::math::Rng& rng_;
 
-    // Team owns an immutable description for the entire actor lifetime.
-    const football::player::PlayerDefinition& model_;
+    // Immutable actor-owned initialization data, never an external borrow.
+    const football::player::PlayerDefinition model_;
     const football::player::PlayerBodyProfile body_profile_;
     // LOCO-2.3b: fresh snapshot of the last committed locomotion tick, plus a
     // runtime gate so the A/B regression can prove physics invariance.

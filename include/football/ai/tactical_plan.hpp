@@ -9,6 +9,7 @@
 #include "football/pitch/pitch.hpp"
 #include "football/player/player_definition.hpp"
 #include "football/runtime/match_config.hpp"
+#include "football/team/lineup.hpp"
 
 namespace football::ai {
 
@@ -23,9 +24,9 @@ namespace football::ai {
 // Formation slot identity, 0..10. Deliberately NOT a PlayerId: a slot keeps
 // its meaning when the roster changes, and a squad binds players to slots
 // outside the persistent plan.
-using TacticalSlotId = std::uint8_t;
-inline constexpr std::size_t kTacticalSlotCount = 11;
-inline constexpr std::uint8_t kInvalidTacticalSlot = 0xFF;
+using TacticalSlotId = football::team::FormationSlotId;
+inline constexpr std::size_t kTacticalSlotCount = football::team::kFormationSlots;
+inline constexpr auto kInvalidTacticalSlot = football::team::kInvalidFormationSlot;
 
 enum class Mentality : std::uint8_t {
   VeryDefensive,

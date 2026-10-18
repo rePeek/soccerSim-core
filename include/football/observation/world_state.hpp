@@ -8,7 +8,9 @@
 
 #include "football/player/player_definition.hpp"
 #include "football/player/player_role.hpp"
+#include "football/referee/game_mode.hpp"
 #include "football/runtime/match_config.hpp"
+#include "football/runtime/active_lineup.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "football/runtime/phase.hpp"
@@ -87,6 +89,9 @@ struct WorldState {
   std::optional<football::player::PlayerId> ball_retainer;
   // Simulation-owned count of ResetSituation discontinuities; resets with a new match.
   std::uint64_t reset_sequence = 0;
+  // Runtime's stable slot bindings; nullopt only for legacy/synthetic inputs.
+  // An authoritative empty slot stays empty after send-off, never re-enumerated.
+  std::optional<std::array<football::sim::ActiveLineupState, 2>> active_lineups;
 };
 
 #endif  // FOOTBALL_SIM_WORLD_STATE_HPP

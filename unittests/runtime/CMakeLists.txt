@@ -5,7 +5,9 @@
 # determinism case included), so 300 s was too close. The timeout only catches
 # a hung Step; the bounded tick counts are the primary guard.
 
-add_executable(football_sim_runtime_tests simulation_runtime_test.cpp referee_ruling_test.cpp)
+add_executable(football_sim_runtime_tests
+  simulation_runtime_test.cpp referee_ruling_test.cpp
+  team_ownership_test.cpp team_lifecycle_test.cpp)
 target_link_libraries(football_sim_runtime_tests
   PRIVATE
     football::sim
@@ -18,3 +20,12 @@ add_test(NAME sim_runtime COMMAND football_sim_runtime_tests)
 set_tests_properties(sim_runtime PROPERTIES
   LABELS "runtime;sim"
   TIMEOUT 420)
+
+# TeamSetup adapter and runtime ActiveLineupState; no running match.
+add_executable(football_team_data_tests team_data_test.cpp)
+target_link_libraries(football_team_data_tests PRIVATE football::sim Catch2::Catch2WithMain)
+# TeamSetup adapter and ActiveLineupState are Runtime-private implementation.
+target_include_directories(football_team_data_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
+football_configure_target(football_team_data_tests)
+add_test(NAME team_data_unit COMMAND football_team_data_tests)
+set_tests_properties(team_data_unit PROPERTIES LABELS "unit;team" TIMEOUT 20)

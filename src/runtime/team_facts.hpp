@@ -9,9 +9,8 @@
 
 namespace football::sim {
 
-// The per-tick projection of a team's runtime-owned state that every player
-// caches. Runtime owns both the state and this projection; Team only forwards to
-// it while it still exists (P6b-1b).
+// Per-player cached projection of Team's live values. Simulation controls when
+// publication occurs; changing storage ownership must never delay or batch it.
 inline PlayerTeamFacts TeamFactsOf(const TeamFrame& frame,
                                    const TeamMatchState& state) {
   return PlayerTeamFacts{frame.dynamic_side, frame.static_side,

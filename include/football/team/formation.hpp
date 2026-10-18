@@ -1,17 +1,13 @@
-#ifndef FOOTBALL_SIM_RUNTIME_FORMATION_HPP
-#define FOOTBALL_SIM_RUNTIME_FORMATION_HPP
+#pragma once
 
 #include <vector>
 
-#include "football/player/formation_entry.hpp"
 #include "football/player/player_role.hpp"
-#include "football/referee/game_mode.hpp"
 
-namespace football::sim {
+namespace football::team {
 
-
-// Initial positions in the environment's public pitch coordinates. Simulation
-// converts these to its pitch frame; this is not mutable runtime state.
+// Initial positions in the environment's public pitch coordinates. Runtime
+// converts these to its execution frame; the Team owns only the declaration.
 struct FormationPosition {
   float x = 0.0f;
   float y = 0.0f;
@@ -35,6 +31,4 @@ struct TacticalFormationEntry {
 
 using TacticalFormation = std::vector<TacticalFormationEntry>;
 
-}  // namespace football::sim
-
-#endif  // FOOTBALL_SIM_RUNTIME_FORMATION_HPP
+}  // namespace football::team
