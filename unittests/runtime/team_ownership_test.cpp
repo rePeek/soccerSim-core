@@ -166,8 +166,11 @@ TEST_CASE("Explicit lineup binds identities to formation slots not declaration i
   CHECK(sim.Stop());
 }
 
-TEST_CASE("Orders and reusable presets are inert until restart integration",
+TEST_CASE("Declared orders and presets stay inert without a matching consumer",
           "[team][ownership]") {
+  // Set-piece orders are consumed only when a matching restart is planned
+  // (TEAM-3A); reusable formation presets still have no consumer (TEAM-3B).
+  // A short run with no restart therefore stays byte-identical.
   const auto home = OwnershipSetup(50);
   const auto away = OwnershipSetup(500);
   auto configured = home;

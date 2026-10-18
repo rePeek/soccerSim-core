@@ -11,6 +11,7 @@
 #include "referee/rule_command_sink.hpp"
 #include "runtime/restart_placement.hpp"
 #include "runtime/restart_planner.hpp"
+#include "football/team/team.hpp"
 
 namespace football::sim {
 namespace {
@@ -209,6 +210,18 @@ void RestartController::ProcessRestart(const RefereeTickFacts& facts, const Matc
     return;
   }
   if (state.phase != RestartPhase::Pending) return;
+  // Static set-piece orders belong to the taking Team's definition. Runtime
+  // resolves the rules-owned mode into the declared priority; a view without
+  // a definition (no Team) falls back to the legacy planner selection.
+  const TeamView& restart_team =
+      context_.setpiece_team == 0 ? facts.home : facts.away;
+  const football::team::SetPieceOrders* const orders =
+      restart_team.definition ? &restart_team.definition->set_piece_orders : nullptr;
+  const auto priority_for = [&](const Vector3& home_ball) {
+    if (!orders) return RestartPriority{};
+    return RestartPriorityFor(*orders, context_.kind, home_ball.coords[1],
+                              -restart_team.static_side);
+  };
   if (!state.setup_done) {
     rng.Seed(options.game_engine_random_seed);
     if (context_.kind == e_GameMode_FreeKick) {
@@ -216,9 +229,11 @@ void RestartController::ProcessRestart(const RefereeTickFacts& facts, const Matc
       context_.position.coords[1] = clamp(context_.position.coords[1], -0.95f * facts.pitch.half_width(), 0.95f * facts.pitch.half_width());
     }
     commands.ResetSituation(facts.ball_to_home.Position(context_.position));
-    state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
-        facts.ball.state().position), ActivePlayers(facts), context_.kind,
-        context_.setpiece_team);
+    const Vector3 home_ball =
+        facts.ball_to_home.Position(facts.ball.state().position);
+    state.plan = PlanRestart(facts.pitch, home_ball, ActivePlayers(facts),
+                             context_.kind, context_.setpiece_team,
+                             priority_for(home_ball));
     for (const auto& actor : state.plan.players) {
       const auto frame = FromHomePitchFrame(actor.player->GetTeamSide(), actor.player->GetDynamicSide());
       actor.player->ResetPosition(actor.player->GetPosition(), frame.Position(state.plan.ball_position));
@@ -227,9 +242,11 @@ void RestartController::ProcessRestart(const RefereeTickFacts& facts, const Matc
     state.setup_done = true;
   }
   if (!context_.taker || !context_.taker->IsActive()) {
-    state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
-        facts.ball.state().position), ActivePlayers(facts), context_.kind,
-        context_.setpiece_team);
+    const Vector3 home_ball =
+        facts.ball_to_home.Position(facts.ball.state().position);
+    state.plan = PlanRestart(facts.pitch, home_ball, ActivePlayers(facts),
+                             context_.kind, context_.setpiece_team,
+                             priority_for(home_ball));
     context_.taker = state.plan.taker;
   }
   if (facts.now < state.earliest_restart_tick) return;

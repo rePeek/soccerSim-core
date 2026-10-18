@@ -94,7 +94,8 @@ bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3&
 RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
                         const Vector3& home_ball_position,
                         std::span<Player* const> active_players,
-                        e_GameMode mode, int team_id) {
+                        e_GameMode mode, int team_id,
+                        RestartPriority priority) {
   RestartPlan plan;
   plan.mode = mode;
   plan.team_id = team_id;
@@ -105,6 +106,30 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
     if (player->GetTeamID() != team_id) continue;
     const float distance = (Position(*player) - plan.ball_position).GetSquaredLength();
     if (distance < nearest) { nearest = distance; plan.taker = player; }
+  }
+  // Declared orders override the nearest-player default only when the team
+  // named an active player. Empty or fully ineligible orders preserve the
+  // legacy selection (including its first-nearest tie-break) byte for byte.
+  if (!priority.primary.empty() || !priority.secondary.empty()) {
+    std::vector<football::team::EligiblePlayer> candidates;
+    candidates.reserve(active.size());
+    for (auto* player : active) {
+      if (player->GetTeamID() == team_id && player->IsActive())
+        candidates.push_back({player->GetID(), true});
+    }
+    for (const auto ordered : {priority.primary, priority.secondary}) {
+      if (ordered.empty()) continue;
+      const auto declared = football::team::SelectEligibleTaker(
+          ordered, candidates, football::team::SelectionFallback::None);
+      if (!declared) continue;
+      for (auto* player : active) {
+        if (player->GetTeamID() == team_id && player->GetID() == *declared) {
+          plan.taker = player;
+          break;
+        }
+      }
+      break;
+    }
   }
   std::stable_sort(active.begin(), active.end(), [&](const auto* a, const auto* b) {
     return a == plan.taker && b != plan.taker;

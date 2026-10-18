@@ -7,7 +7,8 @@
 
 add_executable(football_sim_runtime_tests
   simulation_runtime_test.cpp referee_ruling_test.cpp
-  team_ownership_test.cpp team_entity_test.cpp team_lifecycle_test.cpp)
+  team_ownership_test.cpp team_entity_test.cpp team_lifecycle_test.cpp
+  restart_orders_test.cpp)
 target_link_libraries(football_sim_runtime_tests
   PRIVATE
     football::sim

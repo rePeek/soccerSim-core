@@ -425,7 +425,8 @@ football::sim::TeamView Simulation::TeamViewOf(int team_id) const {
       TeamOf(team_id).Goalie(),
       TeamOf(team_id).Players(),
       &team_states_[team_id],
-      &team_frames_[team_id]};
+      &team_frames_[team_id],
+      &TeamOf(team_id).Definition()};
 }
 
 PlayerTeamFacts Simulation::TeamFactsFor(int team_id) const {

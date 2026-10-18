@@ -9,13 +9,14 @@
 #include "runtime/team_state.hpp"
 
 class Player;
+namespace football::team { struct TeamDefinition; }
 
 namespace football::sim {
 
-// Borrowed, non-owning view of Runtime's live team relationship for a single
 // call (rules, observation). It carries identity, direction, the player slice
-// and pointers to the live TeamFrame/TeamMatchState; static team::TeamDefinition
-// configuration is not copied into it. A view must never outlive the tick.
+// and pointers to the live TeamFrame/TeamMatchState; the Team's static
+// TeamDefinition is only borrowed by pointer, never copied. A view must never
+// outlive the tick.
 struct TeamView {
   int team_id = -1;
   TeamSide side = TeamSide::Home;
@@ -28,6 +29,9 @@ struct TeamView {
   TeamMatchState* state = nullptr;
   // Live orientation, needed to publish team facts after a state write.
   const TeamFrame* frame = nullptr;
+  // The owning Team's static configuration (declared orders, presets, lineup).
+  // Borrowed for the Team's whole lifetime; null only for a view without a Team.
+  const football::team::TeamDefinition* definition = nullptr;
 
   bool HasPossession() const { return state != nullptr && state->has_possession; }
   int TimeNeededToGetToBall_ms() const {

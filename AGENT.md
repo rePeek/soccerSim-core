@@ -319,12 +319,14 @@ anim_baking → legacy_anim + animation/foundation
   once to `team::TeamDefinition`; GameEnv/AI still accept TeamSetup until their
   callers migrate. Never introduce a second writable Team/definition store.
   Player copies definitions, so no external definition address is borrowed.
-- `WorldState` projects `active_lineups_` read-only; DefaultSlotAssignment
-  preserves vacancies and filters inactive actors. Only synthetic observations
-  without slot metadata retain active-order fallback. Slot replacement is pure
-  Runtime state; no substitution command, coach mutation or restart
   integration is added. `team/formation_preset` templates are reusable data,
   never the live restart plan or player-control output.
+- Restart taker priority (TEAM-3A): `TeamView` borrows the owning Team's
+  `TeamDefinition` by pointer; `runtime/restart_orders.hpp` maps the
+  rules-owned `e_GameMode` to the declared `SetPieceOrders` list, and
+  `PlanRestart` applies it over the active-player slice. The declared taker
+  wins when active; empty or ineligible orders keep the legacy
+  nearest-active-player default unchanged.
 - Init failures and Stop share ClearComposition: stop production adapters,
   Exit actors in home/away declaration order, clear actor borrows/indices,
   release Referee/adapters, clear Runtime team state, then destroy the Team
@@ -3436,7 +3438,9 @@ effects back through `Referee::OnCeremonialSetup()`/`OnRestartTaken()`.
 `PlayerTickContext`, `PlayerCommandInputs` and `WorldStateBuilder` borrow
 `Simulation::restart_context()`; no `RefereeBuffer`/`GetBuffer`/
 `RestartNeedsSimulation`/`GetRestartTarget` remains. Team set-piece orders and
-heuristic set-piece coordination are RFE-4.
+heuristic set-piece coordination are RFE-4. TEAM-3A now consumes the declaring
+Team's `SetPieceOrders` in `PlanRestart`; formation presets and heuristic
+set-piece coordination remain TEAM-3B/TEAM-3C.
 
 RFE-3 adds the derived `PlayState` (`src/runtime/play_state.hpp`) and names the
 `StepImpl` early return as `Simulation::ShouldSkipPlayerSimulation()`: a stopped
