@@ -134,6 +134,20 @@ InterpretationState InterpretationState::FromWorld(const WorldState& world) {
 SlotAssignment DefaultSlotAssignment(const WorldState& world,
                                      football::sim::TeamSide side) {
   SlotAssignment assignment;
+  if (world.active_lineups) {
+    const auto& slots = world.active_lineups->at(static_cast<std::size_t>(side)).slots;
+    for (std::size_t s = 0; s < slots.size(); ++s) {
+      if (!slots[s]) continue;
+      for (const auto& player : world.players) {
+        if (player.id == *slots[s] && player.side == side && player.active) {
+          assignment.players[s] = player.id;
+          break;
+        }
+      }
+    }
+    return assignment;
+  }
+  // Compatibility for synthetic observations without runtime slot metadata.
   std::size_t slot = 0;
   for (const WorldPlayerState& player : world.players) {
     if (slot >= kTacticalSlotCount) break;

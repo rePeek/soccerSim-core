@@ -50,8 +50,14 @@ void ValidateTeam(const Team& team) {
     Require(p.id != kInvalidPlayerId, "invalid PlayerId");
     Require(ids.insert(p.id).second, "duplicate PlayerId");
   }
-  Require(team.initial_formation.size() <= team.players.size(), "initial formation exceeds roster");
-  Require(team.tactical_formation.size() <= team.players.size(), "tactical formation exceeds roster");
+  if (team.explicit_lineup) {
+    Require(team.initial_formation.size() <= kFormationSlots &&
+        team.tactical_formation.size() <= kFormationSlots, "formation exceeds slot count");
+  } else {
+    const auto count = !team.initial_formation.empty() ? team.initial_formation.size() :
+        !team.tactical_formation.empty() ? team.tactical_formation.size() : team.players.size();
+    Require(count <= team.players.size(), "formation exceeds roster");
+  }
   const auto member = [&](PlayerId id) { Require(ids.contains(id), "unknown team PlayerId"); };
   std::set<PlayerId> bound;
   for (const auto id : team.initial_lineup.starters) if (id) {

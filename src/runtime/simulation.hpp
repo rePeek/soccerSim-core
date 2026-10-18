@@ -289,6 +289,7 @@ class Simulation {
   std::array<football::sim::Team, 2> teams_;
   std::unique_ptr<football::ball::Ball> ball_;
   std::array<football::sim::Roster, 2> rosters_;
+  std::array<football::sim::ActiveLineupState, 2> active_lineups_;
   // Runtime alone owns team orientation and match state.
   // mutable: a TeamView is a borrowed *mutable* handle to runtime-owned team state
   // (rules write the designated player / restart weight), so it may be obtained

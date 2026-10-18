@@ -84,3 +84,42 @@ TEST_CASE("Failed Init destroys actors before definitions can be replaced", "[te
   CHECK(players.front()->GetID() == 800);
   CHECK(sim.Stop());
 }
+TEST_CASE("Explicit lineup binds identities to formation slots not declaration indices", "[team][ownership]") {
+  auto home = OwnershipSetup(50);
+  auto bench = home.players.front();
+  bench.id = 52;
+  home.players.push_back(bench);
+  home.lineup.emplace();
+  home.lineup->starters[0] = 51;
+  home.lineup->starters[8] = 50;
+  home.lineup->substitutes = {52};
+  home.formation.resize(9);
+  home.formation[8] = {{.2f,.3f},e_PlayerRole_CF};
+  home.leadership = {51,{50}};
+  home.set_piece_orders.penalties = {52,50};
+  MatchOptions options;
+  options.snapshot_capacity = 8;
+  Simulation sim;
+  sim.Init(home,OwnershipSetup(500),football::pitch::Pitch{},options);
+  const auto players = SimulationAccess::RosterOf(sim,0).Players();
+  REQUIRE(players.size() == 3);
+  CHECK(players[0]->GetID() == 50);
+  CHECK(players[0]->GetFormationEntry().role == e_PlayerRole_CF);
+  CHECK(players[1]->GetID() == 51);
+  CHECK(players[1]->GetFormationEntry().role == e_PlayerRole_GK);
+  CHECK_FALSE(players[2]->IsActive());
+  auto world = sim.Observe();
+  REQUIRE(world.active_lineups);
+  CHECK((*world.active_lineups)[0].slots[0] == 51);
+  CHECK((*world.active_lineups)[0].slots[8] == 50);
+  SimulationAccess::SendOff(sim,*players[1]);
+  world = sim.Observe();
+  CHECK_FALSE((*world.active_lineups)[0].slots[0]);
+  CHECK((*world.active_lineups)[0].slots[8] == 50);
+  const auto& team = SimulationAccess::TeamOf(sim,TeamSide::Home);
+  CHECK(team.initial_lineup.starters[0] == 51);
+  const std::vector<EligiblePlayer> eligible{{50,true},{51,false},{52,false}};
+  CHECK(SelectCaptain(team.leadership,eligible,SelectionFallback::CandidateOrder) == 50);
+  CHECK(SelectEligibleTaker(team.set_piece_orders.penalties,eligible,SelectionFallback::None) == 50);
+  CHECK(sim.Stop());
+}

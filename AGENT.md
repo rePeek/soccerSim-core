@@ -311,6 +311,11 @@ its player definitions while actors borrow them. Failed Init clears actors; Stop
 destroys actors before a later Init replaces definitions. Roster owns Player, not
 Team. Team has no Tick/Update, Player*, Ball, rule or current TacticalBoard state.
 Do not restore the removed controlling Team or introduce a runtime Team adapter.
+Runtime also owns ActiveLineupState separately from Team's initial definition.
+WorldState projects those bindings read-only; DefaultSlotAssignment preserves
+vacancies and filters inactive actors. Only synthetic observations without slot
+metadata retain the old active-order fallback. Slot replacement is a pure data
+operation; no substitution command, coach mutation or restart integration is added.
 
 ### Motion state writers (P2 preflight audit)
 

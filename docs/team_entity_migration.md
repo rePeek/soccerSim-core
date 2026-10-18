@@ -65,3 +65,17 @@ address-identity, caller-input destruction, reversed-order, Stop/re-Init and
 post-actor allocation-failure recovery tests. Debug CTest 12/12. The existing
 bounded 22-actor test reports the same digest as the clean baseline:
 5bef607ddd567a09 (22 actors, 18 switches). No extra RNG calls were added.
+
+TEAM-3: explicit lineup creates actors in definition declaration order, assigning
+each starter its formation slot and leaving reserves inactive. Explicit shapes
+are slot-indexed (up to 11 entries), independent of definition count; absent
+entries use existing FormationEntry defaults. Simulation requires at least one
+starter per side; pure Team data can still express an entirely vacant lineup.
+Default unspecified-lineup construction/activation/RNG order is unchanged.
+Runtime owns active_lineups_; send-off vacates only the departing identity.
+Observe projects availability; AI uses stable bindings, with legacy fallback
+only for synthetic WorldState without metadata. Leadership/taker queries are
+pure, deterministic and not wired into referee execution. Candidate-order fallback
+is explicit, never PlayerId ranking. No substitution execution command is added.
+Debug CTest 12/12 passed; ownership tests and AI vacancy/replacement tests pass.
+The existing bounded 22-actor digest remains 5bef607ddd567a09.

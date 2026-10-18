@@ -333,6 +333,7 @@ void Simulation::ApplyCardRuling(const football::sim::event::CardRuling& ruling)
 
 void Simulation::HandlePlayerSentOff(Player& player) {
   const int sent_off_team = player.GetTeamID();
+  football::sim::VacateSlot(active_lineups_[sent_off_team], player.GetID());
   // A sent-off goalkeeper hands its role to the first remaining active player.
   if (player.GetFormationEntry().role == e_PlayerRole_GK) {
     const FormationEntry entry = player.GetFormationEntry();
@@ -356,19 +357,31 @@ void Simulation::InitTeamPlayers(int team_id, football::sim::Roster& roster,
   // Roster traversal supplies order; phases repeat every ten players. The
   // sequence (create, Add, publish facts, activate) is the historical one.
   const std::vector<FormationEntry> formation = BuildFormation(setup);
+  active_lineups_[team_id].slots = setup.initial_lineup.starters;
   std::uint8_t schedule_phase = first_schedule_phase;
-  for (std::size_t i = 0; i < formation.size(); ++i) {
+  const auto count = setup.explicit_lineup ? setup.players.size() : formation.size();
+  for (std::size_t i = 0; i < count; ++i) {
+    std::optional<std::size_t> slot;
+    for (std::size_t s = 0; s < football::sim::kFormationSlots; ++s)
+      if (setup.initial_lineup.starters[s] == setup.players[i].id) slot = s;
+    const FormationEntry entry = setup.explicit_lineup
+        ? (slot ? formation.at(*slot) : FormationEntry{}) : formation.at(i);
     auto player = std::make_unique<Player>(
         team_id, static_cast<football::sim::TeamSide>(team_id), ai_difficulty,
-        setup.players[i], formation.at(i), schedule_phase, *animations_, pitch_,
-        rng_);
+        setup.players[i], entry, schedule_phase, *animations_, pitch_, rng_);
     schedule_phase = (schedule_phase + 1) % 10;
     Player* raw = player.get();
     roster.Add(std::move(player));
     raw->SetTeamContext(TeamFactsFor(team_id));
-    if (i < static_cast<std::size_t>(playerNum)) raw->Activate();
+    if (slot) raw->Activate();
   }
-  team_states_[team_id].designated_player = roster.Players().front();
+  team_states_[team_id].designated_player = nullptr;
+  for (Player* player : roster.Players()) {
+    if (player->IsActive()) {
+      team_states_[team_id].designated_player = player;
+      break;
+    }
+  }
 }
 
 football::sim::TeamView Simulation::TeamViewOf(int team_id) const {
@@ -522,6 +535,11 @@ void Simulation::Init(
   std::array<football::sim::Team, 2> models{football::sim::MakeTeam(home),
                                             football::sim::MakeTeam(away)};
   football::sim::ValidateMatchTeams(models);
+  for (const auto& team : models) {
+    if (std::ranges::none_of(team.initial_lineup.starters,
+                            [](const auto& id) { return id.has_value(); }))
+      throw std::invalid_argument("runtime requires an on-field player per team");
+  }
   auto& home_model = models[0];
   auto& away_model = models[1];
   // Appearance is not competition physics: isolate its seed-0 stream so a
@@ -536,7 +554,15 @@ void Simulation::Init(
   // rosters that are actually built.
   const std::vector<FormationEntry> left = BuildFormation(home_model);
   const std::vector<FormationEntry> right = BuildFormation(away_model);
-  options.left_team_owns_ball = LeftTeamOwnsBall(left, right, options.ball_position);
+  const auto starters_only = [](const auto& team, const auto& formation) {
+    if (!team.explicit_lineup) return formation;
+    std::vector<FormationEntry> result;
+    for (std::size_t s = 0; s < football::sim::kFormationSlots; ++s)
+      if (team.initial_lineup.starters[s]) result.push_back(formation.at(s));
+    return result;
+  };
+  options.left_team_owns_ball = LeftTeamOwnsBall(
+      starters_only(home_model, left), starters_only(away_model, right), options.ball_position);
 
   // Apply the episode seed after the appearance draws, before constructing
   // actors. Moving those draws across this boundary changes simulation RNG.
@@ -566,7 +592,7 @@ void Simulation::Init(
   rosters_[1].Clear();
   // The only authoritative team orientation and match state. Both teams start in
   // the first processing frame (dynamic_side -1); only the persistent direction
-  // differs by slot. Team borrows these for the whole composition.
+  // differs by slot. Configuration Team stores neither direction nor match facts.
   for (int i = 0; i < 2; ++i) {
     team_frames_[i].dynamic_side = -1;
     team_frames_[i].static_side = i == 0 ? -1 : 1;
@@ -688,6 +714,7 @@ void Simulation::Init(
       rosters_[0].Clear();
       rosters_[1].Clear();
       team_states_ = {};
+      active_lineups_ = {};
       clock_.reset();
     }
     throw;
@@ -905,12 +932,22 @@ bool Simulation::IsInPlay() const {
 WorldState Simulation::Observe() const {
   if (!ball_) throw std::logic_error("simulation has no match");
   const int first_team = options_.reverse_team_processing ? 1 : 0;
-  return BuildWorldState({GetTimelineTick(), phase_,
+  auto world = BuildWorldState({GetTimelineTick(), phase_,
       GetRegulationTime(), GetBallInPlayTime(), clock_->IsHalfUnderway(),
       IsBallInPlay(), reset_sequence_, *ball_, pitch_,
       play_authorized_, set_piece_active_, *referee_, ball_retainer_,
       score_[0], score_[1], TeamViewOf(0), TeamViewOf(1),
       first_team});
+  world.active_lineups = active_lineups_;
+  // The binding is runtime-owned; eligibility is projected from actual actors.
+  // Diagnostic deactivation also leaves a vacancy, never a compressed lineup.
+  for (auto& lineup : *world.active_lineups) {
+    for (auto& id : lineup.slots) if (id) {
+      Player* player = FindPlayerById(*id);
+      if (!player || !player->IsActive()) id.reset();
+    }
+  }
+  return world;
 }
 
 void Simulation::TouchBall(const Vector3& impulse) {
@@ -1158,6 +1195,9 @@ bool Simulation::Stop() {
   ball_.reset();
   rosters_[0].Clear();
   rosters_[1].Clear();
+  team_states_ = {};
+  active_lineups_ = {};
+  send_off_sink_.reset();
   clock_.reset();
   return true;
 }

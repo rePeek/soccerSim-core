@@ -287,3 +287,31 @@ TEST_CASE("legacy boards are reported unsupported",
   CHECK_FALSE(result.teams[0].has_plan);
   CHECK_FALSE(result.teams[1].has_plan);
 }
+
+TEST_CASE("Runtime formation slot bindings survive vacancies and replacement", "[team][tactical]") {
+  WorldState world;
+  WorldPlayerState first;
+  first.id = 90; first.active = true;
+  WorldPlayerState second;
+  second.id = 12; second.active = true;
+  WorldPlayerState substitute;
+  substitute.id = 70; substitute.active = false;
+  world.players = {second,first,substitute}; // not slot order
+  world.active_lineups.emplace();
+  (*world.active_lineups)[0].slots[0] = 90;
+  (*world.active_lineups)[0].slots[8] = 12;
+  auto assignment = football::ai::DefaultSlotAssignment(world,TeamSide::Home);
+  CHECK(assignment.players[0] == 90);
+  CHECK(assignment.players[8] == 12);
+  CHECK_FALSE(assignment.players[1]);
+  world.players[1].active = false;
+  assignment = football::ai::DefaultSlotAssignment(world,TeamSide::Home);
+  CHECK_FALSE(assignment.players[0]);
+  CHECK(assignment.players[8] == 12);
+  (*world.active_lineups)[0].slots[8] = 70; // projected Runtime substitution
+  world.players[0].active = false;
+  world.players[2].active = true;
+  assignment = football::ai::DefaultSlotAssignment(world,TeamSide::Home);
+  CHECK(assignment.players[8] == 70);
+  CHECK_FALSE(assignment.players[0]);
+}

@@ -31,9 +31,11 @@ struct FormationInput {
   const football::sim::InitialFormation& formation;
   const football::sim::TacticalFormation& tactical_formation;
   const std::vector<football::player::PlayerDefinition>& players;
+  std::size_t slot_count = 0;
 };
 std::vector<FormationEntry> BuildFormationImpl(const FormationInput& team) {
-  const std::size_t count = !team.formation.empty() ? team.formation.size()
+  const std::size_t count = team.slot_count ? team.slot_count :
+      !team.formation.empty() ? team.formation.size()
       : !team.tactical_formation.empty() ? team.tactical_formation.size()
       : team.players.size();
   std::vector<FormationEntry> formation(count);
@@ -85,7 +87,7 @@ std::vector<FormationEntry> BuildFormationImpl(const FormationInput& team) {
     ++iterations;
   }
   for (std::size_t i = 0; i < count; ++i) {
-    if (team.formation.empty()) {
+    if (i >= team.formation.size()) {
       formation[i].start_position = formation[i].position;
     } else {
       const auto& entry = team.formation[i];
@@ -101,8 +103,10 @@ std::vector<FormationEntry> BuildFormationImpl(const FormationInput& team) {
 }  // namespace
 
 std::vector<FormationEntry> BuildFormation(const football::sim::TeamSetup& team) {
+  if (team.lineup) return BuildFormation(football::sim::MakeTeam(team));
   return BuildFormationImpl({team.formation, team.tactical_formation, team.players});
 }
 std::vector<FormationEntry> BuildFormation(const football::sim::Team& team) {
-  return BuildFormationImpl({team.initial_formation, team.tactical_formation, team.players});
+  return BuildFormationImpl({team.initial_formation, team.tactical_formation, team.players,
+      team.explicit_lineup ? football::sim::kFormationSlots : 0});
 }
