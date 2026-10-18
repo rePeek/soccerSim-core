@@ -76,7 +76,7 @@ Runtime reads the configured baked animation asset, never a data-dir env var.
 `football::pitch::Pitch` (`include/football/pitch/pitch.hpp`). Pitch builds and
 caches the whole static scene once: the ground plane, the four goal posts, the
 two crossbars, the ground/goal parameters and the fixed environment (gravity,
-wind). Goal-net damping parameters come from the same description. It depends
+wind). No goal-net damping is simulated. It depends
 on foundation + geometry and never on ball/player.
 
 Dependency direction: `football::pitch` -> `football::geometry` ->
@@ -129,8 +129,8 @@ src/                 implementations; public headers live in include/football/
 ├── foundation/      CMakeLists.txt declares football::foundation (math/*.cpp)
 │                    and football::geometry (header-only); collision/ has its
 │                    own CMakeLists for football::collision
-├── ball/            football::ball implementation: *.cpp + private headers
-│                    (ball_netting.hpp; never exported)
+├── ball/            football::ball implementation: motion, generic collision
+│                    response and prediction; no goal-net physics
 ├── ai/              default_ai.cpp, tactical_board.cpp, tactical_plan.cpp,
 │                    tactical_interpreter.cpp, eliza/, player/, coach/
 ├── env.cpp          sole product composition implementation for AI + sim;
@@ -478,7 +478,7 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   biases before the sweep: later actors must see earlier touches in the same tick.
 - Ball holds a const reference to the immutable football::pitch::Pitch it was
   built with (the caller outlives it), never Match/Simulation, Team, Player or RNG.
-  Gravity, ground resistance, goal-net parameters and the static colliders all
+  Gravity, ground resistance and the static colliders all
   come from that Pitch; there is no BallWorld/BallEnvironment copy. Rule facts
   (goal, out of play) still arrive as explicit values. Ball::Step is physics only.
   ball/ball_touch_application.*::ApplyBallTouch composes Touch → newest history refresh →

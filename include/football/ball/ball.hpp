@@ -32,7 +32,7 @@ namespace football::ball {
 struct BallTickInput {
   std::span<const football::geometry::ColliderMotion> dynamic_colliders;
   // P5b: at most one active impulse, supplied by Simulation after arbitration
-  // and applied at the tick endpoint (after passive motion and netting). It
+  // and applied at the tick endpoint (after passive motion). It
   // changes velocity and spin only; position is never advanced a second time
   // and no second Step is performed.
   std::optional<BallImpulse> active_impulse;
@@ -77,7 +77,7 @@ class Ball {
 
 
  private:
-  // Pure tick computation including the flexible net correction.
+  // Pure tick computation using the shared motion and collision kernel.
   BallStepResult AdvanceState(
       const BallState& current,
       std::span<const football::geometry::ColliderMotion> colliders) const;

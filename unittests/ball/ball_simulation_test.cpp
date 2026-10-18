@@ -326,3 +326,46 @@ TEST_CASE("Ball rejects simultaneous impulse and endpoint constraint",
       BallEndpointConstraint{Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f)};
   REQUIRE_THROWS_AS(ball.Predict(input), std::invalid_argument);
 }
+
+TEST_CASE("Ball flies freely through former goal net regions",
+          "[unit][ball][simulation]") {
+  const BallModel config = BallWithoutAero();
+  const Pitch pitch = FrictionlessPitch();
+  Vector3 position(pitch.half_length() - 0.05f, 0.0f, 1.0f);
+  Vector3 velocity(40.0f, 0.0f, 0.0f);
+  SECTION("goal line") {}
+  SECTION("rear net") {
+    position.coords[0] = pitch.half_length() + pitch.goal_depth();
+  }
+  SECTION("side net") {
+    position = Vector3(pitch.half_length() + 1.0f, pitch.goal_half_width(), 1.0f);
+    velocity = Vector3(0.0f, 5.0f, 0.0f);
+  }
+  SECTION("top net") {
+    position = Vector3(pitch.half_length() + 1.0f, 0.0f, pitch.goal_height());
+    velocity = Vector3(0.0f, 0.0f, 5.0f);
+  }
+  for (const float side : {-1.0f, 1.0f}) {
+    auto initial = BallAt(position, velocity);
+    initial.position.coords[0] *= side;
+    initial.velocity.coords[0] *= side;
+    Ball ball(config, pitch);
+    ball.Reset(initial);
+    const auto preview = ball.Predict(BallTickInput{});
+    const auto future = ball.Predict(football::sim::TickSpan{10});
+    const auto result = ball.Step(BallTickInput{});
+    REQUIRE(result.contacts.empty());
+    for (int axis = 0; axis < 3; ++axis) {
+      const float gravity = axis == 2 ? -9.81f : 0.0f;
+      CHECK(result.state.velocity.coords[axis] ==
+            Approx(initial.velocity.coords[axis] + gravity * kDt).margin(1e-5f));
+      CHECK(result.state.position.coords[axis] ==
+            Approx(initial.position.coords[axis] + initial.velocity.coords[axis] * kDt +
+                   0.5f * gravity * kDt * kDt).margin(1e-5f));
+      CHECK(preview.state.velocity.coords[axis] == result.state.velocity.coords[axis]);
+      CHECK(preview.state.position.coords[axis] == result.state.position.coords[axis]);
+      CHECK(future.velocity.coords[axis] ==
+            Approx(initial.velocity.coords[axis] + gravity * 10 * kDt).margin(1e-5f));
+    }
+  }
+}
