@@ -73,7 +73,7 @@ void Assess(Simulation& sim, Referee& rules, float severity, Vector3 position = 
   fact.position = position;
   fact.offender_action_type = static_cast<int>(e_FunctionType_Sliding);
   fact.severity = severity;
-  rules.AssessFoul(Actor(sim, 0), Actor(sim, 1), fact, fact.contacted_at);
+  rules.AssessFoul(fact, fact.contacted_at);
 }
 }  // namespace
 
@@ -457,7 +457,7 @@ TEST_CASE("Rulings: standing foul advantage retains its recall and expiry timing
   fact.victim_team_fading_possession = 1.2f;
   fact.offender_action_type = static_cast<int>(e_FunctionType_Interfere);
   const auto now = SimulationAccess::NowOf(sim);
-  rules.AssessFoul(Actor(sim, 0), Actor(sim, 1), fact, now);
+  rules.AssessFoul(fact, now);
   SimulationAccess::ProcessReferee(sim);
   REQUIRE(SimulationAccess::IsBallInPlayOf(sim));
   REQUIRE(SimulationAccess::MatchEventsOf(sim).empty());

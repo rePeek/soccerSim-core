@@ -986,9 +986,8 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   // Foul verdicts now come from the contact solver's frozen assessments, at
   // the same instant and in the same pair order the trip facts used to.
   for (const football::sim::FoulAssessment& assessment : foul_assessments_) {
-    referee_->AssessFoul(FindPlayerById(assessment.victim),
-                         FindPlayerById(assessment.offender), assessment,
-                         GetTimelineTick());
+    referee_->AssessFoul(assessment, GetTimelineTick(),
+                         restarts_.context().active);
   }
 
   // AdvanceClock → recent possession window → goal detection/consequences.

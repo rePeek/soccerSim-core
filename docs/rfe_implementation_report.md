@@ -534,3 +534,24 @@ The Referee is now output-only through `RulingSink`; it no longer carries the
 Validation: Debug ctest 15/15 (334.77 s); `[ruling]` 32 cases / 311 assertions
 and `[team]` 21 cases / 556 assertions unchanged, so ruling order and event
 sequence are unchanged.
+
+## RFE-7B — value-typed foul state and a standalone referee_unit
+
+- `Foul` now holds stable identities and values only: offender/victim
+  `PlayerId`, offender/victim team id, type, advantage, tick and position. It
+  never retains a `Player` object.
+- `AssessFoul` consumes the existing `FoulAssessment` (its victim/offender ids
+  and team ids) and no longer takes `Player*` arguments. The restart-in-flight
+  gate is now actually wired from Runtime (`restarts_.context().active`); it had
+  been defaulted off since RFE-2.
+- `CheckFoul` consumes a read-only `FoulLiveFacts` view assembled per call from
+  the team facts (static side plus live fading possession). The advantage
+  verdict still reads the live possession recovery rather than a value frozen at
+  the contact, so recall/expiry timing is unchanged.
+- New Level 1 `referee_unit` exercises the rule surface directly (foul -> free
+  kick, restart gate, yellow/red severity, advantage kept/recalled/expired)
+  without a Simulation, a Player or a RuleCommandSink.
+
+Validation: Debug ctest 16/16 (313.56 s); `referee_unit` 5 cases; `[ruling]` 311
+assertions and `[team]` 556 assertions unchanged; A17 digest
+`5bef607ddd567a09` unchanged.

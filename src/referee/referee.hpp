@@ -80,13 +80,12 @@ class Referee {
 
     // Judge one collision from its frozen evidence. `restart_active` is the
     // Runtime-owned restart gate; a restart in flight suppresses new fouls.
-    void AssessFoul(Player* victim, Player* offender,
-                    const football::sim::FoulAssessment& fact,
+    void AssessFoul(const football::sim::FoulAssessment& fact,
                     football::sim::Tick now, bool restart_active = false);
-    // Foul facts carry their own timestamps; the caller supplies the evaluation instant.
-    // The live pitch/stadium frame is enough to settle the restart spot.
+    // Foul facts carry their own timestamps; the caller supplies the evaluation
+    // instant and the live team rule facts (fading possession, static side).
     bool CheckFoul(football::sim::Tick now, const football::pitch::Pitch& pitch,
-                   PitchFrameTransform stadium_to_home,
+                   PitchFrameTransform stadium_to_home, const FoulLiveFacts& live,
                    football::sim::event::RulingSink& rulings);
     // Synchronous accepted-touch consumption (restart release / offside).
     void ConsumeBallTouch(football::sim::Tick now,
