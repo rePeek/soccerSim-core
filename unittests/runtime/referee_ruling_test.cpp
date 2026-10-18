@@ -367,6 +367,66 @@ TEST_CASE("Rulings: a physical goal commits score scorer and event in the same s
   REQUIRE(std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).back()).kind == e_GameMode_KickOff);
 }
 
+TEST_CASE("Rulings: goal lookahead without net damping preserves boundary verdicts",
+          "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  SimulationAccess::TouchesOf(sim).Record(0, 1, e_TouchType_Intentional_Kicked);
+  auto* ball = SimulationAccess::BallOf(sim);
+  auto state = ball->state();
+  state.position = Vector3(52.45f, 0.0f, 0.6f);
+  state.velocity = Vector3(40.0f, 0.0f, 0.0f);
+  bool expect_goal = true;
+  bool check_duplicate = false;
+  SECTION("central goal") {}
+  SECTION("outside the post is a goal kick") {
+    state.position.coords[1] = 5.0f;
+    expect_goal = false;
+  }
+  SECTION("above the crossbar is a goal kick") {
+    state.position.coords[2] = 3.5f;
+    expect_goal = false;
+  }
+  SECTION("continued flight after a goal cannot score twice") {
+    check_duplicate = true;
+  }
+  ball->Reset(state);
+  // Exercise StepImpl's actual prediction gate and segment classification.
+  sim.Step(PlayerControlSet{});
+  REQUIRE(ball->state().position.coords[0] > 52.5f);
+  REQUIRE(ball->state().velocity.coords[0] > 0.0f);
+  REQUIRE(SimulationAccess::ScoreOf(sim, 0) == (expect_goal ? 1 : 0));
+  REQUIRE(SimulationAccess::ScoreOf(sim, 1) == 0);
+  const auto goal_count = [&] {
+    const auto& events = SimulationAccess::MatchEventsOf(sim);
+    return std::count_if(events.begin(), events.end(), [](const auto& event) {
+      return std::holds_alternative<GoalScoredEvent>(event);
+    });
+  };
+  REQUIRE(goal_count() == (expect_goal ? 1 : 0));
+  if (expect_goal) REQUIRE_FALSE(SimulationAccess::IsBallInPlayOf(sim));
+  // The next front boundary must choose kickoff for a goal, otherwise goal kick.
+  sim.Step(PlayerControlSet{});
+  REQUIRE_FALSE(SimulationAccess::IsBallInPlayOf(sim));
+  REQUIRE(rules.GetBuffer().desiredSetPiece ==
+          (expect_goal ? e_GameMode_KickOff : e_GameMode_GoalKick));
+  REQUIRE(rules.GetBuffer().teamID == 1);
+  REQUIRE(goal_count() == (expect_goal ? 1 : 0));
+  if (check_duplicate) {
+    // Feed continued motion beyond the former rear net through the real Step
+    // path while the kickoff is pending, rather than submitting a fake goal.
+    state.position = Vector3(56.0f, 0.0f, 0.6f);
+    ball->Reset(state);
+    sim.Step(PlayerControlSet{});
+    // Restart preparation restores the ball to the centre, not to a net.
+    REQUIRE(ball->state().position == Vector3(0, 0, ball->config().radius()));
+    REQUIRE(SimulationAccess::ScoreOf(sim, 0) == 1);
+    REQUIRE(goal_count() == 1);
+    REQUIRE(rules.GetBuffer().desiredSetPiece == e_GameMode_KickOff);
+  }
+}
+
 TEST_CASE("Rulings: standing foul advantage retains its recall and expiry timing", "[runtime][ruling]") {
   Simulation sim;
   Init(sim);

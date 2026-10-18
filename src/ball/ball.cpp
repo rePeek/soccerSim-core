@@ -4,7 +4,6 @@
 #include <cmath>
 #include <stdexcept>
 
-#include "ball_netting.hpp"
 #include "football/ball/ball_response.hpp"
 #include "football/foundation/math/scalar.hpp"
 #include "football/foundation/time/tick.hpp"
@@ -35,12 +34,8 @@ BallState Ball::state() const { return state_; }
 
 BallStepResult Ball::AdvanceState(const BallState& current,
                                   std::span<const ColliderMotion> colliders) const {
-  BallStepResult result = AdvanceBallTick(
+  return AdvanceBallTick(
       current, colliders, football::sim::kTickSeconds, config_, pitch_);
-  // Flexible netting stays a discrete correction, not a rigid collider.
-  detail::ResolveNetting(result.state.position, result.state.velocity, pitch_,
-                         config_);
-  return result;
 }
 
 
@@ -70,7 +65,7 @@ BallStepResult Ball::EvaluateTick(const BallTickInput& input,
   BallState initial = state_;
   BallStepResult result = AdvanceState(initial, all_colliders);
   // P5b: the active impulse belongs to the tick endpoint. It is applied after
-  // passive motion and netting, changes only velocity/spin about the given
+  // passive motion, changes only velocity/spin about the given
   // point, never advances position again and never runs a second Step.
   if (input.active_impulse.has_value()) {
     result.state = football::ball::ApplyImpulseAtPoint(
