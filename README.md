@@ -292,8 +292,10 @@ not a partial observation. Parsing/writing belongs to app. CLI/tool executable
 paths remain at the build root. CTest runs the real app for short and full-match
 black-box coverage; a separate smoke executable is unnecessary.
 
-BqLog 2.5.0 is fetched via CPM at a pinned commit in all build modes; Catch2 is
-fetched only with BUILD_TESTING enabled. Both are cached in `.cache/CPM`.
+BqLog 2.5.0 is fetched via CPM at a pinned commit in all build modes;
+nlohmann/json v3.11.3 is pinned the same way for the coach tool-call JSON
+boundary; Catch2 is fetched only with BUILD_TESTING enabled. All are cached in
+`.cache/CPM`.
 `-DBUILD_TESTING=OFF` builds core without Catch2 (first BqLog fetch needs
 network); the args/fixture archive remains EXCLUDE_FROM_ALL. BqLog is PRIVATE
 to simcore/sim. GameEnv starts the single `football` logger and flushes after teardown;

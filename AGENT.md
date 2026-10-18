@@ -39,7 +39,9 @@ nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF -DCM
 ```
 
 BqLog 2.5.0 (pinned commit) is fetched by `cmake/CPM.cmake` in every build mode;
-Catch2 v3.7.1 is fetched only with `BUILD_TESTING=ON`. Both use `.cache/CPM`.
+nlohmann/json v3.11.3 (pinned, `cmake/nlohmann_json.cmake`) is the coach
+tool-call JSON boundary, also fetched in every build mode; Catch2 v3.7.1 is
+fetched only with `BUILD_TESTING=ON`. All use `.cache/CPM`.
 `flake.nix` provides ccache and the root CMake sets `CMAKE_{C,CXX}_COMPILER_LAUNCHER`
 to it whenever it is found, so local rebuilds are cached automatically; a missing
 ccache is a silent no-op. `-j $(nproc)` uses all host cores.
@@ -3452,12 +3454,42 @@ the 100 Hz control protocol or the Default baseline.
   an opt-in NoOp/leading/trailing example. No provider, network or thread pool
   is introduced; `ICoachPolicy` is the future LLM seam.
 
+### Online Coach Agent: protocol and tool decoding (AGENT-1)
+
+The Coach Agent targets an OpenAI-compatible Chat Completions provider; local
+models and training are out of scope. AGENT-1 lays the wire-independent,
+network-free base:
+
+- `coach/agent_protocol.hpp` is the provider-neutral conversation protocol
+  (`AgentMessage`, `AgentToolCall`, `AgentToolResult`, `AgentModelResponse`).
+  It carries no game type, so the loop, a mock provider and the future HTTP
+  provider share one vocabulary.
+- `coach/coach_tool_names.*` is the single authority mapping every command
+  enum to its lower_snake_case wire name, plus the per-key value kind.
+- `coach/coach_tool_schema.*` builds the JSON Schema for the registry's nine
+  tools in the OpenAI-compatible subset, so the schema and the registry cannot
+  name different tools. `strict` only toggles the endpoint capability marker;
+  validation is always local.
+- `coach/coach_tool_decoder.*` validates one model tool call strictly and
+  builds a typed `CoachToolRequest` (a read request or a `CoachCommand`).
+  Argument JSON is untrusted: unknown fields, wrong JSON types, out-of-range
+  values and invalid enums are rejected before any game data exists.
+
+The controlling `TeamSide` is never a model argument: the Agent Session
+injects it, so a team cannot instruct its opponent. nlohmann/json is the JSON
+boundary and stays PRIVATE to `football_ai`; it never appears in a public
+simcore header. The provider HTTP layer, the async host and staging/atomic
+batch commit are later stages (AGENT-2..AGENT-5), not part of this change.
+
 ### Acceptance
 
 No full match is ever run. Validation is the bounded suites (`ai_unit`, the
 runtime harness, the public-header smoke) plus a core-only build.
 `unittests/ai` covers the schema, coordinates, interpreter, response, heuristic,
 coach commands, shout lifecycle, context, scheduler and examples.
+
+AGENT-1 adds the provider-neutral agent protocol, the JSON Schema for the nine
+tools and the strict tool-call decoder.
 
 ## RFE: synchronous ruling authority and Runtime restart ownership
 

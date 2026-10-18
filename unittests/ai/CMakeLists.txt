@@ -18,12 +18,17 @@ add_executable(football_ai_unit_tests
   shout_lifecycle_test.cpp
   coach_context_test.cpp
   coach_scheduler_test.cpp
+  coach_tool_decoder_test.cpp
+  coach_agent_protocol_test.cpp
   tactical_examples_test.cpp)
 target_include_directories(football_ai_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_ai_unit_tests
   PRIVATE
     football::ai
     football::sim_contracts
+    # nlohmann/json is a PRIVATE football_ai dependency, so a test that
+    # includes an internal tool header links it directly.
+    nlohmann_json::nlohmann_json
     Catch2::Catch2WithMain)
 football_configure_target(football_ai_unit_tests)
 

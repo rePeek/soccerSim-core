@@ -29,6 +29,7 @@ set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
   CACHE PATH "CPM dependency source cache")
 include(cmake/CPM.cmake)
 include(cmake/bqlog.cmake)
+include(cmake/nlohmann_json.cmake)
 
 add_subdirectory(src/foundation)
 
