@@ -15,6 +15,10 @@ target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/referee/game_mode.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/formation.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/match_config.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/team.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/team_lineup.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/team_roles.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/runtime/formation_preset.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/phase.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/result.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/simulation_config.hpp
@@ -44,6 +48,7 @@ target_sources(football_sim_domain PRIVATE
   touch_evidence_classification.hpp
   clock.cpp clock.hpp roster.cpp roster.hpp
   formation.cpp formation_build.hpp
+  team_validation.cpp
   team_state.hpp team_view.hpp team_facts.hpp
   possession.cpp possession.hpp
   roster_possession.cpp roster_possession.hpp

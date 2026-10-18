@@ -154,7 +154,11 @@ src/                 implementations; public headers live in include/football/
     │                 arbitration) and roster_possession (per-roster aggregation),
     │                 match_config.hpp (TeamSetup + TeamSide), formation.hpp
     │                 (InitialFormation/TacticalFormation + BuildFormation).
-    │                 There is no Team class and no src/sim/team/ directory.
+    │                 Public runtime/team.hpp is a pure match-level configuration
+    │                 entity (TEAM-1), not the removed controlling Team class.
+    │                 team_lineup.hpp, team_roles.hpp, formation_preset.hpp carry
+    │                 slot bindings, appointments and reusable templates;
+    │                 src/runtime/team_validation.cpp owns their pure helpers.
     ├── testing/      internal SimulationAccess, not exported/product or actor-facing
     └── player/       Player + PlayerDefinition, player_role, FormationEntry, tick-local
         │             inputs, controls, locomotion, contacts, roster_query

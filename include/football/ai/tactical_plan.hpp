@@ -23,9 +23,9 @@ namespace football::ai {
 // Formation slot identity, 0..10. Deliberately NOT a PlayerId: a slot keeps
 // its meaning when the roster changes, and a squad binds players to slots
 // outside the persistent plan.
-using TacticalSlotId = std::uint8_t;
-inline constexpr std::size_t kTacticalSlotCount = 11;
-inline constexpr std::uint8_t kInvalidTacticalSlot = 0xFF;
+using TacticalSlotId = football::sim::FormationSlotId;
+inline constexpr std::size_t kTacticalSlotCount = football::sim::kFormationSlots;
+inline constexpr auto kInvalidTacticalSlot = football::sim::kInvalidFormationSlot;
 
 enum class Mentality : std::uint8_t {
   VeryDefensive,

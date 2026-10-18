@@ -8,6 +8,9 @@
 
 #include "football/runtime/formation.hpp"
 #include "football/player/player_definition.hpp"
+#include "football/runtime/team_lineup.hpp"
+#include "football/runtime/team_roles.hpp"
+#include "football/runtime/formation_preset.hpp"
 
 namespace football::sim {
 
@@ -25,6 +28,11 @@ struct TeamSetup {
   // Static tactical preferences, not files, serialized Properties or live AI
   // state. Unspecified preferences leave the simulation's algorithm defaults.
   std::map<std::string, float> tactics;
+  // External declarations converted once into the match-owned Team.
+  std::optional<TeamLineup> lineup;
+  TeamLeadership leadership;
+  SetPieceOrders set_piece_orders;
+  FormationPresetLibrary formation_presets;
 };
 
 }  // namespace football::sim
