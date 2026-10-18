@@ -3454,3 +3454,45 @@ Bounded `[ruling]` tests in `unittests/runtime/referee_ruling_test.cpp` cover
 front/touch/goal boundaries, awards, atomic validation, disciplinary timing,
 Runtime restart ownership, Team set-piece orders/presets and the derived
 play-state transitions.
+
+## PLAYER: independent Player module (feat/player)
+
+The Player code was compiled into `football_sim_domain` through
+`target_sources(PRIVATE ...)`. The feat/player work turns it into its own
+archive so the dependency direction becomes
+`foundation/geometry/pitch -> ball/animation -> player -> team -> runtime`.
+Team owns and manages Player; Player never references Team.
+
+### PLAYER-1: the Player archive exists
+
+`src/player/CMakeLists.txt` now declares `football_player` (alias
+`football::player`) with the 19 Player translation units and the public
+`include/football/player/` value headers in its PUBLIC FILE_SET. The Runtime
+contract target drops those headers and links `football::player`, and
+`football_sim_domain` links it privately. The root adds the module before
+Runtime (the contract target references it) and whole-archives
+`football_player` alongside `football_sim_domain` so the existing libsimcore
+exports, including unreferenced `GetRoleFromString`, are retained.
+
+The archive is still transitional: it reads Runtime/Event/Observation/Referee
+internal headers through the shared `src/` root, so its unresolved symbols
+keep resolving from the domain. `src/runtime/libfootball_sim_domain.a` now
+contains zero Player objects and `src/player/libfootball_player.a` contains
+all 19. Debug and Release both stay 13/13 CTest and keep the A17 digest
+`5bef607ddd567a09` (22 actors, 18 switches).
+
+### Remaining stages (not yet landed)
+
+- PLAYER-2/3: close the interface. The current Player -> up-layer edges are
+  `observation::MentalImage`/`PlayerImage`/`mentalimage_sampling`/`pitch_frame`,
+  `event::TouchState`/`e_TouchType`/`touch_query`/`AcceptedTouch(Sink)`,
+  `runtime::TeamMatchState`/`RestartContext`, and
+  `rules::EvaluateActionAuthorization`/`IsGoalkeeperBackpass`. They must become
+  Player-owned values/sinks or be supplied through the tick context before
+  `football_player` can link without the domain; an interface link test
+  (public headers + foundation/geometry/pitch/ball/animation only) is the gate.
+- PLAYER-4: move `src/team/team_players.cpp` from the Runtime domain into
+  `football_team` and link `football::player`, so `football::team` constructs and
+  destroys the Player-owning Team itself. This needs the feat/team base (Team
+  already owns Player there) and a dedicated integration window because it
+  changes Team's CMake and the Runtime link edge.

@@ -54,10 +54,13 @@ target_link_libraries(football_pitch INTERFACE football::foundation football::ge
 # Team is a football-domain module like ball/player/pitch: Runtime composes it.
 add_subdirectory(src/team)
 
+# Player is its own archive and publishes its public value headers; the Runtime
+# contract target links it, so the Player module must be declared first.
+add_subdirectory(src/player)
+
 # The Runtime layer declares football_sim_contracts/football_sim_domain; the
 # sibling modules below only contribute their own sources to that target.
 add_subdirectory(src/runtime)
-add_subdirectory(src/player)
 add_subdirectory(src/referee)
 add_subdirectory(src/event)
 add_subdirectory(src/observation)
@@ -74,7 +77,10 @@ target_link_libraries(simcore
   PUBLIC football::sim_contracts football::ai_contracts football::ball
   PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
-    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim_domain>")
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim_domain>"
+    # Player is a sibling archive now; whole-archive it so its own exports and
+    # its references to runtime symbols stay exactly as before.
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player>")
 # env.cpp includes the internal runtime/simulation.hpp; the src/ root is a
 # PRIVATE implementation include, never exported to simcore consumers.
 target_include_directories(simcore PRIVATE ${PROJECT_SOURCE_DIR}/src)
