@@ -4,9 +4,9 @@
 #include <span>
 
 #include "referee/referee_tick_facts.hpp"
+#include "referee/referee_player_fact.hpp"
 #include "runtime/restart_context.hpp"
 
-class Player;
 
 namespace football::sim::rules {
 
@@ -16,7 +16,7 @@ namespace football::sim::rules {
 // the AI-facing WorldState, which is a different (and more expensive) projection.
 struct RefereeView {
   const RefereeTickFacts& tick;
-  std::span<Player* const> all_active_players;
+  std::span<const RefereePlayerFact> all_active_players;
   bool offsides_enabled = false;
   // Runtime-owned restart execution facts, borrowed read-only for this call.
   const football::sim::RestartContext* restart = nullptr;

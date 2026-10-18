@@ -46,7 +46,9 @@ void InitWith(Simulation& sim, const TeamSetup& home, const TeamSetup& away) {
 class OpenReferee final : public Referee {
  public:
   OpenReferee() : Referee() {}
-  void FlagOffside(Player* player) { offsidePlayers = {player}; }
+  void FlagOffside(Player* player) {
+    offsidePlayers = {{player->GetID(), player->GetTeamID()}};
+  }
 };
 OpenReferee& Open(Simulation& sim) {
   auto rules = std::make_unique<OpenReferee>();

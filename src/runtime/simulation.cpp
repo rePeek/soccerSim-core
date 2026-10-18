@@ -289,10 +289,17 @@ class Simulation::RulingEvents final : public football::sim::event::RulingSink {
 
 void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch) {
   const auto tick = RefereeFacts();
-  std::vector<Player*> active;
+  std::vector<Player*> active_players;
   if (options_.offsides) {
-    GetActiveTeamPlayers(first_team_, active);
-    GetActiveTeamPlayers(second_team_, active);
+    GetActiveTeamPlayers(first_team_, active_players);
+    GetActiveTeamPlayers(second_team_, active_players);
+  }
+  // Value rule facts: identity, team and position only; the Referee never
+  // sees Player implementation state for offside.
+  std::vector<football::sim::rules::RefereePlayerFact> active;
+  active.reserve(active_players.size());
+  for (Player* player : active_players) {
+    active.push_back({player->GetID(), player->GetTeamID(), player->GetPosition()});
   }
   const football::sim::rules::RefereeView view{tick, active, options_.offsides,
       &restarts_.context(), restarts_.InPostRestartGrace()};
@@ -608,12 +615,7 @@ void Simulation::AdvanceRestart(const football::sim::rules::RefereeView& view) {
 
 void Simulation::ProcessReferee() {
   const auto tick = RefereeFacts();
-  std::vector<Player*> active;
-  if (options_.offsides) {
-    GetActiveTeamPlayers(first_team_, active);
-    GetActiveTeamPlayers(second_team_, active);
-  }
-  football::sim::rules::RefereeView view{tick, active, options_.offsides,
+  football::sim::rules::RefereeView view{tick, {}, options_.offsides,
       &restarts_.context(), false};
   const bool was_restart = restarts_.context().Scheduled();
   AdvanceRestart(view);

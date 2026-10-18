@@ -555,3 +555,20 @@ sequence are unchanged.
 Validation: Debug ctest 16/16 (313.56 s); `referee_unit` 5 cases; `[ruling]` 311
 assertions and `[team]` 556 assertions unchanged; A17 digest
 `5bef607ddd567a09` unchanged.
+
+## RFE-7C — value-typed offside state
+
+- The cross-tick offside set is now `std::vector<OffsideReference>` (PlayerId +
+  team id), never `Player*`.
+- `GetOffsideLine` is a pure value function over
+  `std::span<const RefereePlayerFact>` (id/team/position) plus the current ball
+  position. The legacy second-deepest-defender scan, ball line and halfway clamp
+  are preserved; `MentalImage` and Player implementation details are no longer
+  part of the offside rule.
+- `RefereeView`/`BallTouchFacts` carry `RefereePlayerFact` spans; Runtime builds
+  them from active actors at the touch boundary and passes none on the per-tick
+  front path that never reads them.
+- `referee_unit` gained the offside-line cases.
+
+Validation: Debug ctest 16/16 (316.80 s); `[ruling]` 311 and `[team]` 556
+assertions unchanged; A17 digest `5bef607ddd567a09` unchanged.

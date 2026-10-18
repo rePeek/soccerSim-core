@@ -11,56 +11,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "referee/offside.hpp"
 #include "football/pitch/pitch.hpp"
 
 #include <cmath>
 
 #include "football/foundation/math/scalar.hpp"
-#include "observation/mentalimage.hpp"
-
-using football::ball::Ball;
 
 namespace football::sim::rules {
 
-float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,
-                     const football::pitch::Pitch& pitch,
-                     const Ball& ball, int defending_team_id, int defending_side,
-                     unsigned int futureSim_ms) {
-  signed int side = defending_side;
+float GetOffsideLine(std::span<const RefereePlayerFact> players,
+                     const football::math::Vector3& ball_position,
+                     const football::pitch::Pitch& pitch, int defending_team_id,
+                     int defending_side) {
+  const signed int side = defending_side;
 
-  auto opponentPlayerImages = mentalImage.GetTeamPlayerImages(defending_team_id, now);
-
-  int dudDeepestOpponent = 0;
-  Vector3 deepestOpponentPosition;
-
-  for (int i = 0; i < (signed int)opponentPlayerImages.size(); i++) {
-
-    opponentPlayerImages[i].position.coords[0] += opponentPlayerImages[i].movement.coords[0] * futureSim_ms * 0.001f;
-
-    // for offside
-    if (opponentPlayerImages[i].position.coords[0] * side >
-        opponentPlayerImages.at(dudDeepestOpponent).position.coords[0] * side) {
-      dudDeepestOpponent = i;
+  // Deepest defender of the defending team.
+  int deepest = -1;
+  for (int i = 0; i < static_cast<int>(players.size()); ++i) {
+    if (players[i].team_id != defending_team_id) continue;
+    if (deepest < 0 ||
+        players[i].position.coords[0] * side >
+            players[deepest].position.coords[0] * side) {
+      deepest = i;
     }
   }
 
-  // offside: we are actually looking for the one-but-deepest opponent (association football rule! EAT THAT, PES6!! :P)
-  for (int i = 0; i < (signed int)opponentPlayerImages.size(); i++) {
-    if (opponentPlayerImages[i].position.coords[0] * side >
-            deepestOpponentPosition.coords[0] * side &&
-        i != dudDeepestOpponent) {
-      deepestOpponentPosition = opponentPlayerImages[i].position;
+  // Offside is decided by the one-but-deepest defender; the legacy scan starts
+  // its comparison from the origin, which is preserved here.
+  football::math::Vector3 second_deepest;  // (0, 0, 0)
+  for (int i = 0; i < static_cast<int>(players.size()); ++i) {
+    if (players[i].team_id != defending_team_id || i == deepest) continue;
+    if (players[i].position.coords[0] * side >
+        second_deepest.coords[0] * side) {
+      second_deepest = players[i].position;
     }
   }
 
-  float offsideLine = deepestOpponentPosition.coords[0];
-  if (mentalImage.GetBallPrediction(0, now, ball).coords[0] * side > offsideLine * side) {
-    offsideLine = mentalImage.GetBallPrediction(0, now, ball).coords[0];
+  float offsideLine = second_deepest.coords[0];
+  if (ball_position.coords[0] * side > offsideLine * side) {
+    offsideLine = ball_position.coords[0];
   }
   if (offsideLine * side < 0) offsideLine = 0;
-  offsideLine = clamp(offsideLine, -pitch.half_length(), pitch.half_length());
+  offsideLine = football::math::clamp(offsideLine, -pitch.half_length(), pitch.half_length());
 
   return offsideLine;
 }

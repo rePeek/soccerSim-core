@@ -95,7 +95,7 @@ class Referee {
 
   protected:
     // Players on offside position at the time of the last ball touch.
-    std::vector<Player*> offsidePlayers;
+    std::vector<OffsideReference> offsidePlayers;
 
     Foul foul;
 

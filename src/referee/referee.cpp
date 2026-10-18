@@ -25,7 +25,6 @@
 #include "player/player.hpp"
 #include "referee/offside.hpp"
 #include "referee/ball_rules.hpp"
-#include "observation/mentalimage.hpp"
 #include "football/pitch/pitch_frame.hpp"
 
 namespace {
@@ -281,10 +280,13 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
   const int lastTouchTeamID = facts.touch_team_id;
   if (lastTouchTeamID == -1) return; // shouldn't happen really ;)
   const int defending_team_id = 1 - lastTouchTeamID;
+  const football::player::PlayerId ball_owner_id = facts.touch_player->GetID();
   const auto active_count = [&](int team_id) {
     return static_cast<int>(std::count_if(facts.all_active_players.begin(),
         facts.all_active_players.end(),
-        [team_id](const Player* player) { return player->GetTeamID() == team_id; }));
+        [team_id](const football::sim::rules::RefereePlayerFact& player) {
+          return player.team_id == team_id;
+        }));
   };
   if (facts.in_play && !facts.in_set_piece &&
       (restart == nullptr || !restart->active ||
@@ -294,8 +296,8 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
       // disable if only 1 player: that's debug mode with only
                     // keeper
     Player* ballOwner = facts.touch_player;
-    for (auto p : offsidePlayers) {
-      if (p == ballOwner) {
+    for (const OffsideReference& reference : offsidePlayers) {
+      if (reference.player == ball_owner_id) {
         foul.advantage = false;
         if (!CheckFoul(facts.now, *facts.pitch, facts.stadium_to_home,
                        LiveFoulFacts(facts.touch_team, facts.defending_team), rulings)) {
@@ -305,7 +307,7 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
                         facts.stadium_to_home.Position(ballOwner->GetPitchPosition()), TickSpan{}, rulings,
                         football::sim::event::RestartCause{
                             football::sim::event::RestartCauseKind::Offside,
-                            ballOwner->GetID(), football::player::kInvalidPlayerId});
+                            ball_owner_id, football::player::kInvalidPlayerId});
           break; // Setup clears offside state on the next rule tick, not during this iteration.
         }
       }
@@ -316,9 +318,10 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
   // team's offside positions. Touching by the flagged attacker is still judged
   // above; a teammate's touch still creates a new offside reference.
   if (facts.preserve_opponent_offside &&
-      std::any_of(offsidePlayers.begin(), offsidePlayers.end(), [&](const Player* p) {
-        return p->GetTeamID() != lastTouchTeamID;
-      })) return;
+      std::any_of(offsidePlayers.begin(), offsidePlayers.end(),
+                  [&](const OffsideReference& reference) {
+                    return reference.team_id != lastTouchTeamID;
+                  })) return;
 
   offsidePlayers.clear();
 
@@ -327,15 +330,15 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
        (restart->active && restart->kind != e_GameMode_ThrowIn &&
         restart->kind != e_GameMode_Corner))) {
     // check for offside players at moment of touch
-    MentalImage mentalImage(facts.now, facts.all_active_players, *facts.ball);
-    float offside = football::sim::rules::GetOffsideLine(mentalImage, facts.now, *facts.pitch,
-        *facts.ball, defending_team_id, facts.defending_team.dynamic_side);
+    const float offside = football::sim::rules::GetOffsideLine(
+        facts.all_active_players, facts.ball->state().position, *facts.pitch,
+        defending_team_id, facts.defending_team.dynamic_side);
     const signed int side = facts.touch_team.dynamic_side;
-    for (Player* player : facts.all_active_players) {
-      if (player->GetTeamID() != lastTouchTeamID) continue;
-      if (player != facts.touch_player) {
-        if (player->GetPosition().coords[0] * side < offside * side) {
-          offsidePlayers.push_back(player);
+    for (const football::sim::rules::RefereePlayerFact& player : facts.all_active_players) {
+      if (player.team_id != lastTouchTeamID) continue;
+      if (player.id != ball_owner_id) {
+        if (player.position.coords[0] * side < offside * side) {
+          offsidePlayers.push_back({player.id, player.team_id});
         }
       }
     }

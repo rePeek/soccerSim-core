@@ -11,26 +11,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef FOOTBALL_SIM_RULES_OFFSIDE_HPP
 #define FOOTBALL_SIM_RULES_OFFSIDE_HPP
 
-#include "football/foundation/time/tick.hpp"
-#include "football/pitch/pitch.hpp"
+#include <span>
 
-namespace football::ball { class Ball; }
-class MentalImage;
+#include "football/foundation/math/vector3.hpp"
+#include "football/pitch/pitch.hpp"
+#include "referee/referee_player_fact.hpp"
 
 namespace football::sim::rules {
 
-// Pure offside geometry from explicit observation facts: the defending team's id
-// and dynamic side, the sampling instant and the current football::ball::Ball. Uses the
-// second-deepest defender, ball and halfway line; prediction and geometry retain
-// legacy semantics. No Match, Team or simulation-state access.
-float GetOffsideLine(const MentalImage& mentalImage, football::sim::Tick now,
+// Pure offside geometry from explicit value facts: the defending team's id and
+// dynamic side, the current ball position and the sampled active players. Uses
+// the second-deepest defender, the ball and the halfway line. No MentalImage,
+// Player or simulation-state access.
+float GetOffsideLine(std::span<const RefereePlayerFact> players,
+                     const football::math::Vector3& ball_position,
                      const football::pitch::Pitch& pitch,
-                     const football::ball::Ball& ball, int defending_team_id, int defending_side,
-                     unsigned int futureSim_ms = 0);
+                     int defending_team_id, int defending_side);
 
 }  // namespace football::sim::rules
 

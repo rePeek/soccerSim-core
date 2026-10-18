@@ -22,6 +22,7 @@
 #include "football/pitch/pitch_frame.hpp"
 #include "runtime/team_view.hpp"
 #include "runtime/restart_context.hpp"
+#include "referee/referee_player_fact.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
@@ -43,7 +44,7 @@ struct BallTouchFacts {
   bool offsides_enabled = false;
   const football::ball::Ball* ball = nullptr;
   const football::pitch::Pitch* pitch = nullptr;
-  std::span<Player* const> all_active_players;
+  std::span<const RefereePlayerFact> all_active_players;
   PitchFrameTransform stadium_to_home{false};
   // Runtime-owned restart execution facts, borrowed read-only for this call.
   const football::sim::RestartContext* restart = nullptr;

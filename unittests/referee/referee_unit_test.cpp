@@ -1,12 +1,14 @@
 // RFE-7B: the Referee rule surface consumes stable value facts and emits only
 // RulingSink verdicts. No Player object, Simulation or RuleCommandSink is
 // involved, so the foul verdicts are tested at module level.
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <variant>
 #include <vector>
 
 #include "football/pitch/pitch.hpp"
+#include "referee/offside.hpp"
 #include "referee/referee.hpp"
 #include "referee/ruling.hpp"
 
@@ -158,4 +160,29 @@ TEST_CASE("an advantage is kept, recalled or expires", "[unit][referee]") {
     Check(rules, Tick{500}, Live(1.2f), sink);
     REQUIRE(CountRestarts(sink.rulings) == 0);
   }
+}
+
+TEST_CASE("the offside line is the one-but-deepest defender", "[unit][referee]") {
+  const Pitch pitch;
+  const std::vector<football::sim::rules::RefereePlayerFact> players = {
+      {1, 1, football::math::Vector3(40, 0, 0)},
+      {2, 1, football::math::Vector3(30, 0, 0)},
+      {3, 1, football::math::Vector3(20, 0, 0)},
+      {4, 0, football::math::Vector3(10, 0, 0)},
+  };
+  // Defending team 1 defends +x, so the one-but-deepest defender is at x=30.
+  CHECK(football::sim::rules::GetOffsideLine(
+            players, football::math::Vector3(0, 0, 0), pitch, 1, 1) ==
+        Catch::Approx(30.0f));
+  // The ball itself becomes the line when it is further forward.
+  CHECK(football::sim::rules::GetOffsideLine(
+            players, football::math::Vector3(45, 0, 0), pitch, 1, 1) ==
+        Catch::Approx(45.0f));
+  // A single defender leaves the legacy origin line, then clamps at halfway.
+  const std::vector<football::sim::rules::RefereePlayerFact> one = {
+      {1, 1, football::math::Vector3(-10, 0, 0)},
+  };
+  CHECK(football::sim::rules::GetOffsideLine(
+            one, football::math::Vector3(-20, 0, 0), pitch, 1, 1) ==
+        Catch::Approx(0.0f));
 }

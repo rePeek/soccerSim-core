@@ -45,4 +45,11 @@ struct FoulLiveFacts {
   const FoulTeamFacts& For(int team_id) const { return team_id == 0 ? home : away; }
 };
 
+// A player frozen on an offside position at the last touch: stable identity
+// plus the team needed to detect an opponent deflection. No Player object.
+struct OffsideReference {
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
+  int team_id = -1;
+};
+
 #endif  // FOOTBALL_SIM_REFEREE_REFEREE_STATE_HPP
