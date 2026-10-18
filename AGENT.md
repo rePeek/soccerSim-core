@@ -20,17 +20,16 @@ foundation boilerplate is public domain.
 - Do not casually edit `data/` or the baked asset: they are regression inputs.
 - Determinism is the product. Run regression tests after refactors; do not update
   golden values unless an intentional semantic change is explicitly documented.
-- **NEVER simulate a full match.** Do not launch `football_sim`, drive
-  `GameEnv`/`Simulation` end to end, or run any multi-tick/long match simulation
-  as part of development or validation. A Debug full match does not finish and
-  verifies nothing; it only burns time and hides regressions. See the explicit
-  rule in "Build and test" below.
+- **Tests are scoped to the module being developed.** Routine module work runs
+  module unit tests; full matches run only in explicit Runtime integration
+  acceptance. See the Module testing policy in "Build and test" below.
 
 ## Build and test
 
 CMake >= 3.24, Ninja, C++23; use the `flake.nix` dev shell.
-Development validation requires **Debug and core only**. Do not build Release
-unless the maintainer explicitly requests it.
+Development validation requires **Debug and core only**. Build Release only for
+the explicitly selected Level 3 Runtime acceptance run (see the Module testing
+policy below).
 
 ```sh
 # Core build + the (currently empty) test scaffolding
@@ -44,24 +43,51 @@ Catch2 v3.7.1 is fetched only with `BUILD_TESTING=ON`. Both use `.cache/CPM`.
 `flake.nix` provides ccache and the root CMake sets `CMAKE_{C,CXX}_COMPILER_LAUNCHER`
 to it whenever it is found, so local rebuilds are cached automatically; a missing
 ccache is a silent no-op. `-j $(nproc)` uses all host cores.
-**The test suite is small and unit-only.** `BUILD_TESTING=ON` fetches Catch2 and adds
-`unittests/`; see the layout and the two targets below. The former golden/end-to-end
-tier and `unittests/baselines/` are gone for good.
+### Module testing policy
 
-**Never run an ad-hoc full match.** The sanctioned validation is the bounded
-Debug suites (`ctest --preset debug`, or `-L unit` / `-L runtime`) plus the
-Release-only `autonomous_match` integration target described below. Do not run
-the `football_sim` app or drive `GameEnv`/`Simulation` end to end to "smoke
-test" a change: use the integration target, which runs bounded short halves
-under a CTest timeout and an explicit health audit.
+Tests are scoped to the module being developed. Each layer proves a different
+thing, and its cost is paid only when it is relevant.
 
-The Debug `ctest` never includes a full match: `unittests/integration/` is
-added only when `FOOTBALL_INTEGRATION_TESTS` is on, which defaults to on for
-the Release preset (`-O2/-O3`) and off for Debug. A full-activity Step costs
-O(100 ms) on the reference host, so the integration tests default to a short
-half (`FOOTBALL_INTEGRATION_HALF_SECONDS`, default 4 s) and 3 test cases /
-4 matches; raise it deliberately for a longer acceptance run. For bounded
-runtime coverage that never plays a match, use `unittests/runtime/`.
+- **Level 1 — module unit tests** (`unittests/<module>/`, label `unit`). The
+  module proves its own physics, geometry, rules, actions, data and ownership
+  in isolation, without a running match. Run these for routine development and
+  refactoring: `ctest --preset debug -L unit`.
+- **Level 2 — interface and bounded integration** (the adapter tests, the
+  public-header build smoke and `unittests/runtime/`, label `interface` or
+  `runtime`). Independent linking, object lifetime, data passing and a small
+  number of ticks through the real composition. Run these when a public
+  interface or a cross-module boundary changes, not for every module edit:
+  `ctest --preset debug -L interface`.
+- **Level 3 — Runtime full-match acceptance** (`unittests/integration/`, label
+  `integration`). Opening/period/full-time lifecycle, score, events and match
+  completeness. Release-only and opt-in: `ctest --preset release -R autonomous`
+  (or `-DFOOTBALL_INTEGRATION_TESTS=ON`). Never part of the default CTest suite.
+
+Every module proves its own logic; Runtime proves the modules compose into a
+complete match. Referee and event rules are currently exercised through the
+runtime harness rather than a standalone `referee_unit`/`event_unit`; adding
+those leaf targets is the remaining Level 1 gap.
+
+Rules:
+
+- A module is complete when its own unit tests and the interface contracts it
+  touches pass. Full-match acceptance is not a prerequisite for merging an
+  independent module change.
+- A module change must not require a full-match simulation.
+- Full-match simulation is reserved for explicit Runtime integration and
+  acceptance phases, not a per-change smoke test.
+- Long-running tests must be explicitly selected, bounded by a CTest timeout
+  and kept out of routine module validation.
+- Preserve meaningful deterministic regression tests as optional acceptance
+  tests. The 22-actor / 220-tick determinism case (A17) is tagged
+  `[determinism]` and registered only with `-DFOOTBALL_DETERMINISM_TESTS=ON`; it
+  is an Animation/Player + Runtime integration acceptance, not a unit test.
+
+The default `ctest --preset debug` runs Level 1 and Level 2 only. A full-
+activity Step costs O(100 ms) on the reference host, which is why the Level 3
+half is deliberately short and opt-in. The former golden/end-to-end tier and
+`unittests/baselines/` are gone for good.
+
 Core-only configuration needs network on the first dependency fetch:
 
 ```sh

@@ -16,10 +16,21 @@ target_link_libraries(football_sim_runtime_tests
 target_include_directories(football_sim_runtime_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 football_configure_target(football_sim_runtime_tests)
 
-add_test(NAME sim_runtime COMMAND football_sim_runtime_tests)
+# Level 2: bounded interface/runtime integration. The A17 determinism case is
+# excluded here and registered separately as optional acceptance below.
+add_test(NAME sim_runtime COMMAND football_sim_runtime_tests "~[determinism]")
 set_tests_properties(sim_runtime PROPERTIES
-  LABELS "runtime;sim"
+  LABELS "interface;runtime;sim"
   TIMEOUT 420)
+
+# Optional deterministic full-roster acceptance (ANIM-2 A17): an
+# Animation/Player + Runtime integration check, not a per-change unit test.
+if(FOOTBALL_DETERMINISM_TESTS)
+  add_test(NAME sim_determinism COMMAND football_sim_runtime_tests "[determinism]")
+  set_tests_properties(sim_determinism PROPERTIES
+    LABELS "acceptance;determinism"
+    TIMEOUT 420)
+endif()
 
 # TeamSetup adapter and runtime ActiveLineupState; no running match.
 add_executable(football_team_data_tests team_data_test.cpp)

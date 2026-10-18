@@ -385,3 +385,28 @@ Heuristic (Update already selects the V2 path), with a regression case in
 Validation: Debug `ctest --preset debug` 13/13 (309.14 s); Release integration
 suite 3 cases / 52 assertions passed (10m45s); `ctest --preset release -N`
 lists `autonomous_match`. No physics, animation or rule algorithm changed.
+
+## Test layering — module testing policy (MAIN-1 follow-up)
+
+The absolute "never run a full match" rule was replaced by a scoped policy so
+module work, interface work and Runtime acceptance each pay their own cost.
+
+- Level 1 — module unit tests (`unittests/<module>/`, label `unit`), no running
+  match, the routine development loop.
+- Level 2 — interface / bounded integration (adapter tests, public-header build
+  smoke, `unittests/runtime/`, labels `interface`/`runtime`), for public-interface
+  and cross-module changes.
+- Level 3 — Runtime full-match acceptance (`unittests/integration/`, label
+  `integration`), Release-only and opt-in.
+
+Changes: `sim_runtime` now excludes the A17 test via Catch2 `~[determinism]`
+and is labeled `interface;runtime;sim`; A17 is tagged
+`[determinism][acceptance]` and registered as `sim_determinism` only with
+`-DFOOTBALL_DETERMINISM_TESTS=ON`; `AGENT.md` gained the Module testing policy
+and the Level 1..3 run commands. The default `ctest --preset debug` stays 13
+tests and runs Level 1 + Level 2 only.
+
+Known Level 1 gap: referee and event rules are exercised through the runtime
+harness, not a standalone `referee_unit`/`event_unit`; the referee/event
+implementation currently lives inside the sim domain target, so a leaf target
+would need its own extraction phase.

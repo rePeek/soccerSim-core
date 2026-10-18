@@ -2042,10 +2042,12 @@ TEST_CASE("Runtime harness: the Player pose preview drives the body forecast",
 }
 
 TEST_CASE("Runtime harness: 22 actors share the library deterministically",
-          "[runtime][sim]") {
-  // ANIM-2 A17: bounded full-roster acceptance. One Simulation owns one
-  // AnimationLibrary shared by all 22 actors; a switching tape must produce the
-  // same digest on two independent runs.
+          "[runtime][sim][determinism][acceptance]") {
+  // ANIM-2 A17: bounded full-roster determinism acceptance, not a per-change
+  // unit test. It is excluded from the default sim_runtime entry and runs only
+  // with -DFOOTBALL_DETERMINISM_TESTS=ON (see unittests/runtime/CMakeLists.txt).
+  // One Simulation owns one AnimationLibrary shared by all 22 actors; a
+  // switching tape must produce the same digest on two independent runs.
   struct RunResult {
     std::uint64_t digest = 0;
     int actors = 0;

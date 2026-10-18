@@ -34,3 +34,8 @@ option(FOOTBALL_INTEGRATION_TESTS
 if(FOOTBALL_INTEGRATION_TESTS)
   add_subdirectory(integration)
 endif()
+
+# Optional deterministic full-roster acceptance (ANIM-2 A17). Off by default
+# so routine module and interface work never pays for it.
+option(FOOTBALL_DETERMINISM_TESTS
+       "Register the optional deterministic full-roster acceptance test" OFF)
