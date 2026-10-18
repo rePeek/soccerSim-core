@@ -163,7 +163,6 @@ src/                (runtime implementation; public values live in include/footb
 AI consumes `football/observation/world_state.hpp` and
 `football/player/player_control_set.hpp`; apps use `football/env.hpp`.
 WorldState remains an owning observation projection, never mutable world authority.
-See [TEAM migration audit](docs/team_entity_migration.md) for configuration ownership.
 CMake exports define library/API
 boundaries; there is no `contracts/` directory or legacy include-path shim.
 

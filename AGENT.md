@@ -3318,7 +3318,7 @@ touching Player, Animation or Physics. It does not change the 100 Hz tick.
 
 ### P21.0: Eliza audit
 
-`docs/p21_eliza_audit.md` maps the historical `ElizaController`,
+The P21.0 audit maps the historical `ElizaController`,
 `TeamAIController` and off-the-ball strategies onto the public protocol, with
 the keep-in-AI / keep-in-Player-Runtime / give-to-Rules split, the
 function-level data flow, the already-extracted primitives
@@ -3380,7 +3380,7 @@ so the AI layer still depends only on the public value contracts.
   stays with Rules.
 - **P21.6 frequency and request semantics.** `ElizaPolicy` owns a per-`PlayerId`
   possession clock (identity-keyed, `Reset()` clears it) that lowers the release
-  threshold like the legacy `longPossessionFactor`. `docs/p21_ai_protocol.md`
+  threshold like the legacy `longPossessionFactor`. The P21 protocol
   freezes one `Update` per 100 Hz tick, a complete control set every tick,
   intents-without-ACK semantics, and the deferred future GNN submission path.
   The Player's own 20-240 ms decision clock is untouched.
@@ -3399,9 +3399,7 @@ depends only on the public value contracts.
 
 ## TACT: FM-style dual-phase tactics, coach tools and heuristic Player AI
 
-Implementation plan and contract: `docs/tactical_ai_contract.md` (normative),
-`docs/tactical_ai_audit.md` (baseline and licence mapping). Implemented through
-TACT-8 in staged local commits; nothing here changes Physics, Animation, Rules,
+Implemented through TACT-8 in staged local commits; nothing here changes Physics,
 the 100 Hz control protocol or the Default baseline.
 
 ### Value model and interpretation (TACT-1, TACT-2)
@@ -3462,7 +3460,7 @@ coach commands, shout lifecycle, context, scheduler and examples.
 
 ## RFE: synchronous ruling authority and Runtime restart ownership
 
-`docs/rfe_implementation_report.md` records the phased migration from 819f087.
+The phased migration from 819f087 is recorded in the RFE commits.
 Product Referee stages now explicitly receive RulingSink: Submit only queues,
 and Simulation::CommitPendingRulings validates the entire ordered logical batch
 before dispatch through CommitRuling. Commit immediately after restart advance,
