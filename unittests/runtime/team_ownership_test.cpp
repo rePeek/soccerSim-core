@@ -33,7 +33,7 @@ TEST_CASE("Runtime formation adaptation consumes static Team configuration",
   auto setup = OwnershipSetup(50);
   auto prepared = PrepareTeam(setup);
   CHECK_FALSE(prepared.explicit_lineup);
-  const auto formation = BuildFormation(prepared.team, prepared.explicit_lineup);
+  const auto formation = BuildFormation(prepared.definition, prepared.explicit_lineup);
   REQUIRE(formation.size() == 2);
   CHECK(formation[0].role == e_PlayerRole_GK);
   CHECK(formation[1].role == e_PlayerRole_CF);

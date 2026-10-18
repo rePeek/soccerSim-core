@@ -34,7 +34,7 @@ namespace {
 // profiles omitted by a smaller formation and profiles with explicit appearance.
 void ResolveAppearance(football::sim::PreparedTeam& prepared,
                         football::math::Rng& rng) {
-  for (auto& player : prepared.team.players) {
+  for (auto& player : prepared.definition.players) {
     const int skin_color = int(std::round(rng.Uniform(1, 4)));
     if (!player.appearance.skin_color) player.appearance.skin_color = skin_color;
   }
@@ -381,7 +381,7 @@ void Simulation::HandlePlayerSentOff(Player& player) {
 }
 
 void Simulation::InitTeamPlayers(int team_id, football::sim::Roster& roster,
-                                 const football::team::Team& team,
+                                 const football::team::TeamDefinition& team,
                                  bool explicit_lineup, float ai_difficulty,
                                  std::uint8_t first_schedule_phase) {
   // Roster traversal supplies order; phases repeat every ten players. The
@@ -600,7 +600,7 @@ void Simulation::ProcessReferee() {
 
 Simulation::Simulation() {}
 
-const football::team::Team& Simulation::TeamOf(int id) const {
+const football::team::TeamDefinition& Simulation::TeamOf(int id) const {
   if (!ball_) throw std::logic_error("simulation has no team");
   return teams_.at(id);
 }
@@ -624,9 +624,10 @@ void Simulation::Init(
     throw std::invalid_argument("snapshot capacity must be positive");
   std::array<football::sim::PreparedTeam, 2> models{football::sim::PrepareTeam(home),
                                                    football::sim::PrepareTeam(away)};
-  football::team::ValidateTeams(models[0].team, models[1].team);
+  football::team::ValidateTeamDefinitions(models[0].definition,
+                                          models[1].definition);
   for (const auto& team : models) {
-    if (std::ranges::none_of(team.team.lineup.starters,
+    if (std::ranges::none_of(team.definition.lineup.starters,
                             [](const auto& id) { return id.has_value(); }))
       throw std::invalid_argument("runtime requires an on-field player per team");
   }
@@ -643,14 +644,14 @@ void Simulation::Init(
   // tactical_formation -> players.size()), so kickoff possession agrees with the
   // rosters that are actually built.
   const std::vector<FormationEntry> left =
-      BuildFormation(home_model.team, home_model.explicit_lineup);
+      BuildFormation(home_model.definition, home_model.explicit_lineup);
   const std::vector<FormationEntry> right =
-      BuildFormation(away_model.team, away_model.explicit_lineup);
+      BuildFormation(away_model.definition, away_model.explicit_lineup);
   const auto starters_only = [](const auto& team, const auto& formation) {
     if (!team.explicit_lineup) return formation;
     std::vector<FormationEntry> result;
     for (std::size_t s = 0; s < football::team::kFormationSlots; ++s)
-      if (team.team.lineup.starters[s]) result.push_back(formation.at(s));
+      if (team.definition.lineup.starters[s]) result.push_back(formation.at(s));
     return result;
   };
   options.left_team_owns_ball = LeftTeamOwnsBall(
@@ -720,8 +721,8 @@ void Simulation::Init(
   auto ball = std::make_unique<Ball>(ball_config_, pitch_);
   const float difficulties[] = {options.left_team_difficulty,
                                options.right_team_difficulty};
-  teams_[0] = std::move(models[0].team);
-  teams_[1] = std::move(models[1].team);
+  teams_[0] = std::move(models[0].definition);
+  teams_[1] = std::move(models[1].definition);
   // Historical creation order and scheduler stagger, including reversed order.
   InitTeamPlayers(first_team_, RosterOf(first_team_), teams_[first_team_],
                   models[first_team_].explicit_lineup, difficulties[first_team_], 0);

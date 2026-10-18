@@ -16,7 +16,7 @@ void Require(bool value, const char* message) {
 // enforced by Runtime's TeamSetup adapter, not by this static entity.
 }  // namespace
 
-void ValidateTeam(const Team& team) {
+void ValidateTeamDefinition(const TeamDefinition& team) {
   using football::player::kInvalidPlayerId;
   using football::player::PlayerId;
   std::set<PlayerId> ids;
@@ -65,11 +65,12 @@ void ValidateTeam(const Team& team) {
   ValidateFormationPresets(team.formations);
 }
 
-void ValidateTeams(const Team& home, const Team& away) {
-  ValidateTeam(home);
-  ValidateTeam(away);
+void ValidateTeamDefinitions(const TeamDefinition& home,
+                               const TeamDefinition& away) {
+  ValidateTeamDefinition(home);
+  ValidateTeamDefinition(away);
   std::set<football::player::PlayerId> ids;
-  for (const Team* team : {&home, &away}) {
+  for (const TeamDefinition* team : {&home, &away}) {
     for (const auto& player : team->players) {
       Require(ids.insert(player.id).second, "cross-team duplicate PlayerId");
     }

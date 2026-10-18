@@ -21,7 +21,8 @@ namespace football::sim::testing {
 // Product execution remains Init/Step/Observe/Finished/Result/Stop.
 class SimulationAccess {
  public:
-  static const football::team::Team& TeamOf(const Simulation& simulation, TeamSide side) {
+  static const football::team::TeamDefinition& TeamOf(const Simulation& simulation,
+                                                      TeamSide side) {
     return simulation.TeamOf(static_cast<int>(side));
   }
   static PlayerTickContext PlayerTickOf(Simulation& simulation, Player& actor) {

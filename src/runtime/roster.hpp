@@ -1,5 +1,5 @@
 // Roster owns one team's Player entities and their stable order. It is Runtime's
-// private actor container, separate from the static football::team::Team; it
+// private actor container, separate from the static football::team::TeamDefinition; it
 // knows nothing about tactics, possession, collisions or the match clock.
 // Player holds no Team pointer and borrows no definition storage.
 

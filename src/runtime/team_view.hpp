@@ -14,7 +14,7 @@ namespace football::sim {
 
 // Borrowed, non-owning view of Runtime's live team relationship for a single
 // call (rules, observation). It carries identity, direction, the roster slice
-// and pointers to the live TeamFrame/TeamMatchState; static team::Team
+// and pointers to the live TeamFrame/TeamMatchState; static team::TeamDefinition
 // configuration is not copied into it. A view must never outlive the tick.
 struct TeamView {
   int team_id = -1;
