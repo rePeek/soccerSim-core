@@ -555,11 +555,9 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
     buffer.teamID = foul.foulVictim->GetTeamID();
     ScheduleRestart({now, foul.foulVictim->GetTeamID(), stadium_to_home}, rulings,
         foul.foulType >= 2 ? kCardAdministration : TickSpan{});
-    if (foul.foulType == 2) {
-      foul.foulPlayer->GiveYellowCard(now + kCardEffectDelay);
-    }
-    if (foul.foulType == 3) {
-      foul.foulPlayer->GiveRedCard(now + kCardEffectDelay);
+    if (foul.foulType == 2 || foul.foulType == 3) {
+      rulings.Submit(football::sim::event::CardRuling{
+          foul.foulPlayer->GetID(), foul.foulType, now + kCardEffectDelay});
     }
 
     foul.hasBeenProcessed = true;

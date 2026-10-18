@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+#include <algorithm>
+#include <limits>
 
 #include "testing/simulation_access.hpp"
 
@@ -237,4 +239,160 @@ TEST_CASE("Rulings: confirmed goal beats out of play and awards the opponent kic
   REQUIRE(award.kind == e_GameMode_KickOff);
   REQUIRE(award.team == TeamSide::Away);
   REQUIRE(award.position == Vector3(0));
+}
+
+TEST_CASE("Rulings: disciplinary counts commit now and send off at the original deadline", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  Player& offender = *Actor(sim, 1);
+  auto& sink = SimulationAccess::RulingsOf(sim);
+  bool red = false;
+  bool second_yellow = false;
+  SECTION("first yellow") {}
+  SECTION("second yellow") {
+    second_yellow = true;
+    sink.Submit(CardRuling{offender.GetID(), 2, SimulationAccess::NowOf(sim)});
+    SimulationAccess::CommitRulings(sim);
+  }
+  SECTION("direct red") { red = true; }
+  const int before = offender.CardCount();
+  const auto event_start = SimulationAccess::MatchEventsOf(sim).size();
+  const auto now = SimulationAccess::NowOf(sim);
+  Assess(sim, rules, red ? 2.2f : 1.6f);
+  const auto tick = SimulationAccess::RefereeFactsOf(sim);
+  rules.CheckPendingFoul({tick}, SimulationAccess::CommandsOf(sim), sink);
+  REQUIRE(offender.CardCount() == before);
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == event_start);
+  REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 3);
+  SimulationAccess::CommitRulings(sim);
+  REQUIRE(offender.CardCount() == before + (red ? 3 : 1));
+  REQUIRE(offender.CardEffectiveTick() == now + TickSpan{600});
+  REQUIRE(offender.IsActive());
+  const auto& events = SimulationAccess::MatchEventsOf(sim);
+  REQUIRE(events.size() == event_start + 2);
+  REQUIRE(std::holds_alternative<RestartAwardedEvent>(events[event_start]));
+  const auto& card = std::get<CardShownEvent>(events.back());
+  REQUIRE(card.tick == now);
+  REQUIRE(card.player == offender.GetID());
+  REQUIRE(card.team == TeamSide::Away);
+  REQUIRE(card.red == (red || second_yellow));
+  REQUIRE(card.second_yellow == second_yellow);
+  // Both ordinary deadlines retain the old 10-second card-administration addition.
+  REQUIRE(rules.GetBuffer().restart->earliest_restart_tick == now + TickSpan{1000});
+  REQUIRE(rules.GetBuffer().restart->timeout_tick == now + TickSpan{4000});
+  rules.CheckPendingFoul({tick}, SimulationAccess::CommandsOf(sim), sink);
+  REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 0);
+  sim.AdvanceTime(TickSpan{599});
+  offender.CommitTick(SimulationAccess::PlayerTickOf(sim, offender), 0);
+  REQUIRE(offender.IsActive());
+  sim.AdvanceTime(TickSpan{1});
+  offender.CommitTick(SimulationAccess::PlayerTickOf(sim, offender), 0);
+  REQUIRE(offender.IsActive() == (!red && !second_yellow));
+}
+
+TEST_CASE("Rulings: repeated card publication is idempotent across commit boundaries", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  Open(sim);
+  Player& offender = *Actor(sim, 1);
+  auto& sink = SimulationAccess::RulingsOf(sim);
+  const CardRuling card{offender.GetID(), 2, SimulationAccess::NowOf(sim) + TickSpan{600}};
+  sink.Submit(card);
+  sink.Submit(card);
+  SimulationAccess::CommitRulings(sim);
+  sink.Submit(card);
+  SimulationAccess::CommitRulings(sim);
+  REQUIRE(offender.CardCount() == 1);
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 1);
+  REQUIRE(sim.Stop());
+  Init(sim);
+  SimulationAccess::RulingsOf(sim).Submit(card);
+  SimulationAccess::CommitRulings(sim);
+  REQUIRE(Actor(sim, 1)->CardCount() == 1);
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 1);
+}
+
+TEST_CASE("Rulings: invalid associated verdict rejects the whole logical batch", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  Open(sim);
+  auto& sink = SimulationAccess::RulingsOf(sim);
+  RefereeRuling invalid = CardRuling{football::player::kInvalidPlayerId, 2, Tick{700}};
+  SECTION("unknown player") {}
+  SECTION("unknown card type") { invalid = CardRuling{3, 0, Tick{700}}; }
+  SECTION("past deadline") { invalid = CardRuling{3, 2, Tick{99}}; }
+  SECTION("inactive player") { SimulationAccess::Deactivate(sim, *Actor(sim, 1)); invalid = CardRuling{3, 2, Tick{700}}; }
+  SECTION("unsupported restart") { invalid = AwardRestartRuling{}; }
+  SECTION("nonfinite restart") {
+    invalid = AwardRestartRuling{e_GameMode_FreeKick, TeamSide::Home,
+        Vector3(std::numeric_limits<float>::quiet_NaN(), 0, 0)};
+  }
+  SECTION("invalid team") { invalid = AwardGoalRuling{static_cast<TeamSide>(9)}; }
+  sink.Submit(StopPlayRuling{});
+  sink.Submit(AwardRestartRuling{e_GameMode_FreeKick, TeamSide::Home, Vector3(0)});
+  sink.Submit(invalid);
+  REQUIRE_THROWS_AS(SimulationAccess::CommitRulings(sim), std::logic_error);
+  REQUIRE(SimulationAccess::IsInPlayOf(sim));
+  REQUIRE(SimulationAccess::IsBallInPlayOf(sim));
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).empty());
+  REQUIRE(Actor(sim, 1)->CardCount() == 0);
+  REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 3);
+}
+
+TEST_CASE("Rulings: a physical goal commits score scorer and event in the same step", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  Open(sim);
+  SimulationAccess::TouchesOf(sim).Record(0, 1, e_TouchType_Intentional_Kicked);
+  auto state = SimulationAccess::BallOf(sim)->state();
+  state.position = Vector3(52.45f, 0, 0.6f);
+  state.velocity = Vector3(40, 0, 0); // Cross the whole-ball goal plane this step.
+  SimulationAccess::BallOf(sim)->Reset(state);
+  sim.Step(PlayerControlSet{});
+  REQUIRE(SimulationAccess::ScoreOf(sim, 0) == 1);
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 1);
+  const auto goal = std::get<GoalScoredEvent>(SimulationAccess::MatchEventsOf(sim).front());
+  REQUIRE(goal.tick == Tick{101});
+  REQUIRE(goal.scorer == 1);
+  REQUIRE_FALSE(goal.own_goal);
+  REQUIRE_FALSE(SimulationAccess::IsBallInPlayOf(sim));
+  // Duplicate goal reports cannot increment again or duplicate the formal event.
+  SimulationAccess::RulingsOf(sim).Submit(AwardGoalRuling{TeamSide::Home});
+  SimulationAccess::CommitRulings(sim);
+  REQUIRE(SimulationAccess::ScoreOf(sim, 0) == 1);
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 1);
+  sim.Step(PlayerControlSet{});
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 2);
+  REQUIRE(std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).back()).kind == e_GameMode_KickOff);
+}
+
+TEST_CASE("Rulings: standing foul advantage retains its recall and expiry timing", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  FoulAssessment fact;
+  fact.kind = FoulKind::StandingFall;
+  fact.victim_team_id = 0;
+  fact.offender_team_id = 1;
+  fact.victim_team_fading_possession = 1.2f;
+  fact.offender_action_type = static_cast<int>(e_FunctionType_Interfere);
+  const auto now = SimulationAccess::NowOf(sim);
+  rules.AssessFoul(Actor(sim, 0), Actor(sim, 1), fact, now);
+  SimulationAccess::ProcessReferee(sim);
+  REQUIRE(SimulationAccess::IsBallInPlayOf(sim));
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).empty());
+  SimulationAccess::TeamStateOf(sim, 0).fading_possession_amount = 0.5f;
+  Actor(sim, 0)->SetTeamContext(SimulationAccess::TeamFactsOf(sim, 0));
+  bool expires = false;
+  SECTION("failed advantage recalled") { sim.AdvanceTime(TickSpan{61}); }
+  SECTION("successful advantage expires") { expires = true; sim.AdvanceTime(TickSpan{301}); }
+  SimulationAccess::ProcessReferee(sim);
+  REQUIRE(SimulationAccess::IsBallInPlayOf(sim) == expires);
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == (expires ? 0 : 1));
+  if (!expires) {
+    const auto& award = std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).front());
+    REQUIRE(award.kind == e_GameMode_FreeKick);
+    REQUIRE(award.team == TeamSide::Home);
+  }
 }

@@ -34,13 +34,16 @@ struct CardRuling {
   football::player::PlayerId player = football::player::kInvalidPlayerId;
   int type = 0;  // 2 = yellow, 3 = red
   Tick effective_at{};
+  // Re-publication of this exact player/type/deadline decision is idempotent.
+  bool operator==(const CardRuling&) const = default;
 };
 
 using RefereeRuling =
     std::variant<StopPlayRuling, AwardGoalRuling, AwardRestartRuling, CardRuling>;
 
-// Write-only verdict port. Callers collect rulings and apply them at an explicit
-// boundary; the referee never executes them itself.
+// Write-only verdict port. Submit only appends; it must never execute/re-enter
+// the runtime. The ordered values produced by one referee operation form one
+// logical batch, validated completely before the synchronous commit boundary.
 class RulingSink {
  public:
   virtual ~RulingSink() = default;

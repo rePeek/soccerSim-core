@@ -606,6 +606,9 @@ class Player final {
     void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
     void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
     bool HasCards() { return cards > 0; }
+    // Legacy disciplinary units: yellow +1, direct red +3; >1 means send-off.
+    int CardCount() const { return cards; }
+    football::sim::Tick CardEffectiveTick() const { return card_effective_tick_; }
     void SendOff(const football::ball::Ball& ball, football::sim::Tick now, football::math::Rng& rng, football::sim::PlayerSendOffSink* send_off);
     float GetStaminaStat() const;
 

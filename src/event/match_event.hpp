@@ -27,7 +27,8 @@ struct CardShownEvent {
   Tick tick{};
   football::sim::TeamSide team = football::sim::TeamSide::Home;
   football::player::PlayerId player = football::player::kInvalidPlayerId;
-  bool red = false;
+  bool red = false;  // Includes dismissal following a second yellow.
+  bool second_yellow = false;
 };
 
 struct RestartAwardedEvent {

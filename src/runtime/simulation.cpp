@@ -333,12 +333,28 @@ void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch)
 }
 
 void Simulation::ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling) {
+  if (goal_scored_) return;  // One confirmed goal until the ensuing reset.
   recognizer_.OnGoalConfirmed(GetTimelineTick(), ruling.team, snapshot_step_);
   CommitEventTransitions(GetTimelineTick());
   const int team = static_cast<int>(ruling.team);
   ++score_[team];
   SetGoalScored(true);
   last_goal_team_ = team;
+  bool own_goal = true;
+  if (GetLastTouchTeamID(e_TouchType_Intentional_Kicked) == team ||
+      GetLastTouchTeamID(e_TouchType_Intentional_Nonkicked) == team) own_goal = false;
+  if (ruling.scorer) {
+    last_goal_scorer_ = FindPlayerById(*ruling.scorer);
+    own_goal = last_goal_scorer_->GetTeamID() != team;
+  } else {
+    const int touch_team = own_goal ? 1 - team : team;
+    last_goal_scorer_ = football::sim::event::LastTouchPlayer(
+        touches_, touch_team, rosters_[touch_team].Players());
+  }
+  event_log_.Record(football::sim::event::GoalScoredEvent{
+      GetTimelineTick(), ruling.team,
+      last_goal_scorer_ ? last_goal_scorer_->GetID() : football::player::kInvalidPlayerId,
+      own_goal});
 }
 
 void Simulation::ApplyRestartRuling(
@@ -349,16 +365,22 @@ void Simulation::ApplyRestartRuling(
       GetTimelineTick(), ruling.team, ruling.kind, ruling.position});
 }
 
+bool Simulation::CardAlreadyCommitted(const football::sim::event::CardRuling& ruling) const {
+  return std::find(committed_card_rulings_.begin(), committed_card_rulings_.end(), ruling) !=
+      committed_card_rulings_.end();
+}
+
 void Simulation::ApplyCardRuling(const football::sim::event::CardRuling& ruling) {
-  Player* player = FindPlayerById(ruling.player);
-  if (player == nullptr) return;
-  if (ruling.type >= 3) {
-    player->GiveRedCard(ruling.effective_at);
-  } else if (ruling.type == 2) {
-    player->GiveYellowCard(ruling.effective_at);
-  }
+  if (CardAlreadyCommitted(ruling)) return;
+  Player* player = FindPlayerById(ruling.player);  // Validated with the whole batch.
+  const bool second_yellow = ruling.type == 2 && player->CardCount() == 1;
+  // Count/decision is immediate; Player still executes the send-off at its
+  // original delayed card_effective_tick, never at event publication time.
+  if (ruling.type == 3) player->GiveRedCard(ruling.effective_at);
+  else player->GiveYellowCard(ruling.effective_at);
   event_log_.Record(football::sim::event::CardShownEvent{GetTimelineTick(),
-      player->GetTeamSide(), ruling.player, ruling.type >= 3});
+      player->GetTeamSide(), ruling.player, ruling.type == 3 || second_yellow, second_yellow});
+  committed_card_rulings_.push_back(ruling);
 }
 
 void Simulation::HandlePlayerSentOff(Player& player) {
@@ -469,6 +491,38 @@ void Simulation::SwitchTeamEnds(int team_id) {
   }
 }
 
+void Simulation::ValidateRuling(const football::sim::event::RefereeRuling& ruling) const {
+  const auto valid_team = [](football::sim::TeamSide side) {
+    return side == football::sim::TeamSide::Home || side == football::sim::TeamSide::Away;
+  };
+  const bool valid = std::visit([&](const auto& value) {
+    using T = std::decay_t<decltype(value)>;
+    if constexpr (std::is_same_v<T, football::sim::event::StopPlayRuling>) {
+      return true;
+    } else if constexpr (std::is_same_v<T, football::sim::event::AwardGoalRuling>) {
+      return valid_team(value.team) && (!value.scorer || FindPlayerById(*value.scorer));
+    } else if constexpr (std::is_same_v<T, football::sim::event::AwardRestartRuling>) {
+      bool supported = false;
+      switch (value.kind) {
+        case e_GameMode_KickOff: case e_GameMode_GoalKick: case e_GameMode_FreeKick:
+        case e_GameMode_Corner: case e_GameMode_ThrowIn: case e_GameMode_Penalty:
+          supported = true; break;
+        default: break;
+      }
+      return supported && valid_team(value.team) &&
+          std::isfinite(value.position.coords[0]) && std::isfinite(value.position.coords[1]) &&
+          std::isfinite(value.position.coords[2]);
+    } else if constexpr (std::is_same_v<T, football::sim::event::CardRuling>) {
+      Player* player = FindPlayerById(value.player);
+      return player && (value.type == 2 || value.type == 3) &&
+          (CardAlreadyCommitted(value) || (player->IsActive() && value.effective_at >= GetTimelineTick()));
+    } else {
+      static_assert(std::is_same_v<T, void>, "unvalidated referee ruling");
+    }
+  }, ruling);
+  if (!valid) throw std::logic_error("invalid referee ruling batch");
+}
+
 void Simulation::CommitRuling(const football::sim::event::RefereeRuling& ruling) {
   std::visit(
       [&](const auto& value) {
@@ -490,6 +544,9 @@ void Simulation::CommitRuling(const football::sim::event::RefereeRuling& ruling)
 void Simulation::CommitPendingRulings() {
   // Submit never re-enters execution. Drain only after the rule operation has
   // finished; consume each entry exactly once, in submission order.
+  // A foul's stop/award/card are one logical unit. Fail loudly before any
+  // runtime mutation/event, rather than silently dropping an invalid card.
+  for (const auto& ruling : pending_rulings_) ValidateRuling(ruling);
   for (const auto& ruling : pending_rulings_) CommitRuling(ruling);
   pending_rulings_.clear();
 }
@@ -614,6 +671,7 @@ void Simulation::Init(
   EnsureAnimationLibrary();
   clock_.emplace(options.half_duration);
   pending_rulings_.clear();
+  committed_card_rulings_.clear();
   foul_assessments_.clear();
   recorded_touches_.clear();
   DiscardBodyCollisionShadow();
@@ -907,25 +965,6 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   CompleteBodyCollisionShadow();
   Mirror(reverse, !reverse, false);
   CommitPendingRulings();
-  if (IsBallInPlay()) {
-    if (first_team_goal || second_team_goal) {
-      bool own_goal = true;
-      if (GetLastTouchTeamID(e_TouchType_Intentional_Kicked) == last_goal_team_ ||
-          GetLastTouchTeamID(e_TouchType_Intentional_Nonkicked) == last_goal_team_) own_goal = false;
-      if (!own_goal) {
-        last_goal_scorer_ = football::sim::event::LastTouchPlayer(
-            touches_, last_goal_team_, rosters_[last_goal_team_].Players());
-      } else {
-        const int other_team = 1 - last_goal_team_;
-        last_goal_scorer_ = football::sim::event::LastTouchPlayer(
-            touches_, other_team, rosters_[other_team].Players());
-      }
-      event_log_.Record(football::sim::event::GoalScoredEvent{
-          GetTimelineTick(), static_cast<football::sim::TeamSide>(last_goal_team_),
-          last_goal_scorer_ ? last_goal_scorer_->GetID() : football::player::kInvalidPlayerId,
-          own_goal});
-    }
-  }
 }
 
 bool Simulation::IsInPlay() const {
@@ -1183,6 +1222,8 @@ bool Simulation::Stop() {
   snapshot_step_.reset();
   touch_sink_.reset();
   ruling_sink_.reset();
+  pending_rulings_.clear();
+  committed_card_rulings_.clear();
   player_runtime_sink_ = nullptr;
   rule_commands_.reset();
   ball_.reset();

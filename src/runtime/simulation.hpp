@@ -115,6 +115,8 @@ class Simulation {
   void DispatchTouch(const football::sim::event::AcceptedTouch& touch);
   void CommitPendingRulings();
   void CommitRuling(const football::sim::event::RefereeRuling& ruling);
+  void ValidateRuling(const football::sim::event::RefereeRuling& ruling) const;
+  bool CardAlreadyCommitted(const football::sim::event::CardRuling& ruling) const;
   // Exhaustive ruling execution: every defined verdict has an explicit handler,
   // so a new ruling type cannot be silently dropped by the executor.
   void ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ruling);
@@ -307,6 +309,8 @@ class Simulation {
   std::unique_ptr<football::sim::PlayerSendOffSink> send_off_sink_;
   std::unique_ptr<football::sim::event::RulingSink> ruling_sink_;
   std::vector<football::sim::event::RefereeRuling> pending_rulings_;
+  // Decision receipts only, not a second disciplinary or restart authority.
+  std::vector<football::sim::event::CardRuling> committed_card_rulings_;
   std::vector<football::sim::FoulAssessment> foul_assessments_;
   football::sim::event::EventRecognizer recognizer_;
   football::sim::event::EventLog event_log_;
