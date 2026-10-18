@@ -444,3 +444,17 @@ would need its own extraction phase.
 
 Validation: `[ruling]` 30 cases / 306 assertions; `[team]` 21 cases / 556
 assertions; `event_unit` 3 cases. No physics, animation or RNG change.
+
+## RFE-5C — pass and shot terminal semantics
+
+- `ShotEndedEvent` now carries the full `EventStatus` (Completed with goal,
+  Failed or Cancelled) instead of only a goal flag, so a missed or cancelled
+  shot is distinguishable from a goal.
+- `EventRecognizer::OnGoalConfirmed` no longer marks a receiver-less pending
+  pass as `Completed`. A goal cancels that pass, so no false
+  `PassCompletedEvent` is published. Completed/Failed/Cancelled stay the only
+  statuses; no unreliably-evidenced Saved/Blocked/OffTarget classification or
+  statistics are introduced.
+
+Validation: `[ruling]` 32 cases / 311 assertions; `sim_runtime` 100%
+(296.42 s). No physics, animation or RNG change.

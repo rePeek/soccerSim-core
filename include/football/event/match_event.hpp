@@ -82,6 +82,9 @@ struct ShotEndedEvent {
   EventId id = kInvalidEventId;
   football::sim::TeamSide team = football::sim::TeamSide::Home;
   football::player::PlayerId shooter = football::player::kInvalidPlayerId;
+  // Complete terminal status: Completed (with goal), Failed or Cancelled.
+  // `goal` is only meaningful together with status == Completed.
+  EventStatus status = EventStatus::Active;
   bool goal = false;
 };
 

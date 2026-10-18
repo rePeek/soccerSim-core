@@ -837,3 +837,56 @@ TEST_CASE("Rulings: period end publishes exactly one formal event", "[runtime][r
   REQUIRE(first_half_ends == 1);
   REQUIRE(SimulationAccess::PhaseOf(sim) == MatchPhase::SecondHalf);
 }
+
+TEST_CASE("Rulings: a resolved shot keeps its terminal status", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  Open(sim);
+  AcceptedTouch shot;
+  shot.touched_at = SimulationAccess::NowOf(sim);
+  shot.player = Actor(sim, 0)->GetID();
+  shot.team = TeamSide::Home;
+  shot.action_type = static_cast<int>(e_FunctionType_Shot);
+  SimulationAccess::EventsOf(sim).OnAcceptedTouch(shot);
+
+  // An opponent touch resolves the pending shot as Failed, not Completed.
+  AcceptedTouch reply;
+  reply.touched_at = SimulationAccess::NowOf(sim);
+  reply.player = Actor(sim, 1)->GetID();
+  reply.team = TeamSide::Away;
+  reply.action_type = static_cast<int>(e_FunctionType_BallControl);
+  SimulationAccess::EventsOf(sim).OnAcceptedTouch(reply);
+
+  bool found = false;
+  for (const auto& record : SimulationAccess::MatchEventsOf(sim)) {
+    const auto* ended = std::get_if<ShotEndedEvent>(&record.event);
+    if (ended == nullptr) continue;
+    REQUIRE(ended->status == EventStatus::Failed);
+    REQUIRE_FALSE(ended->goal);
+    found = true;
+  }
+  REQUIRE(found);
+}
+
+TEST_CASE("Rulings: a goal never completes a receiver-less pass", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  Open(sim);
+  AcceptedTouch pass;
+  pass.touched_at = SimulationAccess::NowOf(sim);
+  pass.player = Actor(sim, 0)->GetID();
+  pass.team = TeamSide::Home;
+  pass.action_type = static_cast<int>(e_FunctionType_ShortPass);
+  SimulationAccess::EventsOf(sim).OnAcceptedTouch(pass);
+
+  SimulationAccess::RulingsOf(sim).Submit(AwardGoalRuling{TeamSide::Home});
+  SimulationAccess::CommitRulings(sim);
+
+  const auto& records = SimulationAccess::MatchEventsOf(sim);
+  REQUIRE(std::any_of(records.begin(), records.end(), [](const auto& record) {
+    return std::holds_alternative<GoalScoredEvent>(record.event);
+  }));
+  REQUIRE(std::none_of(records.begin(), records.end(), [](const auto& record) {
+    return std::holds_alternative<PassCompletedEvent>(record.event);
+  }));
+}

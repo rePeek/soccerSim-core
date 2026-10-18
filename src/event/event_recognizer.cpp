@@ -131,7 +131,9 @@ void EventRecognizer::OnGoalConfirmed(Tick now, football::sim::TeamSide team,
     ResolveShot(EventStatus::Failed, false, now, snapshot_step);
   }
   if (pending_pass_) {
-    ResolvePass(EventStatus::Completed, pending_pass_->receiver, now, snapshot_step);
+    // The goal ended the play. A pass with no receiver yet was never
+    // completed; cancel it instead of recording a false successful pass.
+    ResolvePass(EventStatus::Cancelled, std::nullopt, now, snapshot_step);
   }
 }
 

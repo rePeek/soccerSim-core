@@ -584,7 +584,7 @@ void Simulation::CommitEventTransitions(football::sim::Tick now) {
             }
           } else if constexpr (std::is_same_v<T, football::sim::event::ShotEnded>) {
             event_log_.Record(football::sim::event::ShotEndedEvent{
-                now, value.id, value.team, value.shooter, value.goal});
+                now, value.id, value.team, value.shooter, value.status, value.goal});
           }
         },
         transition);
