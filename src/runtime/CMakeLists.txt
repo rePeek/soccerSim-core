@@ -7,7 +7,7 @@ add_library(football::sim_contracts ALIAS football_sim_contracts)
 target_sources(football_sim_contracts INTERFACE FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES
-    ${PROJECT_SOURCE_DIR}/include/football/referee/game_mode.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/match/game_mode.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/match_config.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/active_lineup.hpp
     ${PROJECT_SOURCE_DIR}/include/football/runtime/phase.hpp

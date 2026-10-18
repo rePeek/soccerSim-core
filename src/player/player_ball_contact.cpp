@@ -10,7 +10,7 @@
 #include "player/player.hpp"
 #include "player/player_body_collider.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
-#include "event/touch_query.hpp"
+#include "player/player_touch_query.hpp"
 
 using football::ball::Ball;
 
@@ -32,7 +32,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
     int teamID = players[i]->GetTeamID();
 
     int touchTimeThreshold_ms = 200;
-    float oppLastTouchBias = event::TeamTouchBias(inputs.touches,
+    float oppLastTouchBias = football::sim::player::TeamTouchBias(inputs.touches,
         inputs.teams[abs(teamID - 1)].team_id,
         inputs.teams[abs(teamID - 1)].teammates, touchTimeThreshold_ms, inputs.now);
     float lastTouchBias = players[i]->GetLastTouchBias(touchTimeThreshold_ms, inputs.now);
@@ -76,7 +76,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
               const int latest_team = last_touch_team != -1
                   ? last_touch_team : inputs.fallback_last_touch_team;
               if (players[i] == players[i]->GetTeamDesignatedPossessionPlayer() &&
-                  event::TeamTouchBias(inputs.touches,
+                  football::sim::player::TeamTouchBias(inputs.touches,
                       inputs.teams[latest_team].team_id,
                       inputs.teams[latest_team].teammates, 200, inputs.now) < 0.01f) {
                 players[i]->TriggerControlledBallCollision();

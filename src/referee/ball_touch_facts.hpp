@@ -19,7 +19,7 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 #include "runtime/team_view.hpp"
 #include "runtime/restart_context.hpp"
 

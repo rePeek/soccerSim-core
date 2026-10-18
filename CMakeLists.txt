@@ -47,7 +47,9 @@ add_library(football_pitch INTERFACE)
 add_library(football::pitch ALIAS football_pitch)
 target_sources(football_pitch INTERFACE FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
-  FILES ${PROJECT_SOURCE_DIR}/include/football/pitch/pitch.hpp)
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/pitch/pitch.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/pitch/pitch_frame.hpp)
 target_compile_features(football_pitch INTERFACE cxx_std_23)
 target_link_libraries(football_pitch INTERFACE football::foundation football::geometry)
 

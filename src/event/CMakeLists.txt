@@ -9,7 +9,7 @@ target_sources(football_sim_domain PRIVATE
   event_transition.hpp
   match_event.hpp
   rule_touch.hpp
-  touch_query.cpp touch_query.hpp
+  touch_query.hpp
   touch_record.hpp
   touch_state.hpp
   touch_type.hpp)

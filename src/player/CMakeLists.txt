@@ -21,6 +21,7 @@ add_library(football_player STATIC
   player_tick.cpp
   player_touch_execution.cpp
   player_touch_math.cpp
+  player_touch_query.cpp
   reachability.cpp
   role_parser.cpp
   roster_query.cpp)
@@ -32,7 +33,9 @@ target_sources(football_player PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/player_control.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_control_set.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp)
+    ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_type.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_facts.hpp)
 target_include_directories(football_player
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

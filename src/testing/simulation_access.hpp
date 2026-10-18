@@ -9,7 +9,7 @@
 #include "runtime/simulation.hpp"
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 #include "player/player.hpp"
 #include "player/player_control_builder.hpp"
 #include "player/player_team_view.hpp"

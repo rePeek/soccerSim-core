@@ -11,7 +11,7 @@
 #include "football/ball/ball.hpp"
 #include "observation/mentalimage.hpp"
 #include "player/player_control_builder.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -80,7 +80,7 @@ PlayerCommandQueue Player::BuildCommandQueueForRequest(
     const football::sim::PlayerTickContext& tick) {
   PlayerControl control;
   control.player = GetID();
-  const auto to_home = ToHomePitchFrame(GetTeamSide(), GetDynamicSide());
+  const auto to_home = ToHomePitchFrame(GetTeamSide() == football::sim::TeamSide::Home, GetDynamicSide());
   control.move_direction = to_home.Direction(request.direction.Get2D());
   control.desired_speed = std::max(0.0f, request.speed);
   control.action = ToControlAction(request.kind);

@@ -8,7 +8,7 @@
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
 
-#include "event/touch_query.hpp"
+#include "player/player_touch_query.hpp"
 #include "player/player.hpp"
 #include "player/player_motion_constants.hpp"
 
@@ -78,7 +78,7 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
 
   // make intercepting passes harder
   if (touches.last_team != player->GetTeamID()) {
-    Player *lastTouchPlayer = football::sim::event::LastTouchPlayer(
+    Player *lastTouchPlayer = football::sim::player::LastTouchPlayer(
         touches, opponent.team_id, opponent.teammates);
     if (lastTouchPlayer) {
       float lastTouchBiasPenalty =

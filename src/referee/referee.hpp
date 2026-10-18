@@ -28,7 +28,7 @@
 #include "football/runtime/phase.hpp"
 #include "runtime/restart_context.hpp"
 #include "referee/ball_touch_facts.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 #include "referee/referee_tick_facts.hpp"
 #include "referee/referee_view.hpp"
 #include "referee/rule_command_sink.hpp"

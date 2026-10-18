@@ -8,7 +8,7 @@
 #include "referee/referee.hpp"
 #include "referee/action_authorization.hpp"
 #include "football/pitch/pitch.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 #include "player/player.hpp"
 #include "player/kick_targeting.hpp"
 
@@ -34,7 +34,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   // Value controls use home pitch coordinates; convert at consumption, after
   // Simulation selects the actor's processing frame. Never mutate caller data.
   PlayerControl control = input;
-  const auto runtime_frame = FromHomePitchFrame(player.GetTeamSide(), player.GetDynamicSide());
+  const auto runtime_frame = FromHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetDynamicSide());
   control.move_direction = runtime_frame.Direction(control.move_direction);
   if (control.look_at) control.look_at = runtime_frame.Position(*control.look_at);
   if (control.target_position) control.target_position = runtime_frame.Position(*control.target_position);

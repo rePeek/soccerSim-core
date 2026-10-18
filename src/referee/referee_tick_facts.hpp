@@ -4,7 +4,7 @@
 #include "football/pitch/pitch.hpp"
 #include "football/runtime/phase.hpp"
 #include "runtime/team_view.hpp"
-#include "observation/pitch_frame.hpp"
+#include "football/pitch/pitch_frame.hpp"
 #include "football/foundation/time/tick.hpp"
 
 namespace football::ball { class Ball; }
