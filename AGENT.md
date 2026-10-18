@@ -3496,3 +3496,45 @@ all 19. Debug and Release both stay 13/13 CTest and keep the A17 digest
   destroys the Player-owning Team itself. This needs the feat/team base (Team
   already owns Player there) and a dedicated integration window because it
   changes Team's CMake and the Runtime link edge.
+
+### PLAYER-2A: shared value types move to their real owners
+
+The game-mode enum moved to the neutral `include/football/match/game_mode.hpp`
+and TeamSide to `include/football/match/team_side.hpp`, so Player and
+observation no longer name a Referee/Runtime path (the old headers are
+compatibility forwards). The pitch frame transform moved to
+`include/football/pitch/pitch_frame.hpp` as inline geometry taking `home`
+instead of a TeamSide. Touch classification and the actor-readable touch facts
+became Player-owned values (`player_touch_type.hpp`, `player_touch_facts.hpp`);
+`event::TouchState` borrows `PlayerTouchFacts` as a base subobject so a
+same-Process accepted touch stays visible. The touch queries moved to
+`player/player_touch_query.*`; the event path is an inline forward.
+
+### PLAYER-2B/3: the interface is closed and Player links independently
+
+- Observation: `player/player_observation.hpp` is a Player-owned read-only
+  interface; `observation/player_observation_adapter.*` implements it over the
+  captured history. Player no longer names `MentalImage`; sampling stays in the
+  observation layer and the actor only asks for a sampled value.
+- Team facts: `football/player/player_team_match_facts.hpp`;
+  `runtime::TeamMatchState` borrows it, `PlayerTeamView` reads the base.
+- Restart facts: `football/player/player_restart_facts.hpp`;
+  `runtime::RestartContext` borrows it, Player reads `active`/`taker` live.
+- Authorization: `player/player_authorization.hpp` defines the value and a port.
+  `runtime/player_authorization_port.*` implements it, calling
+  `EvaluateActionAuthorization`/`IsGoalkeeperBackpass` at the exact point the
+  original checks ran. The rule logic stays in the rules domain; Player only
+  consumes the returned value.
+- Event output: `player/player_touch_event.hpp` owns `PlayerTouchEvent` and
+  `PlayerTouchSink`; `event/accepted_touch*.hpp` alias them back for Event/Runtime.
+
+Acceptance: `src/player` includes no `event/`, `observation/`, `runtime/`,
+`referee/`, `ai/` or `team/` header (enforced at configure time by
+`unittests/player_link/`). `football_player.a` has no undefined upper-layer
+symbol, and the `football_player_link_smoke` executable whole-archives every
+Player object while linking only foundation/geometry/pitch/ball/animation/
+collision/BqLog plus the public `include/` tree. Debug and Release are 14/14
+CTest and keep the A17 digest `5bef607ddd567a09`.
+
+PLAYER-4 remains: move `src/team/team_players.cpp` into `football_team` on the
+merged feat/team base and link `football::player`.

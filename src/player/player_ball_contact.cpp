@@ -3,10 +3,8 @@
 #include <cmath>
 
 #include "football/ball/ball.hpp"
-#include "event/accepted_touch_sink.hpp"
-#include "event/touch_type.hpp"
-#include "observation/mentalimage.hpp"
-#include "observation/mentalimage_sampling.hpp"
+#include "player/player_touch_event.hpp"
+#include "football/player/player_touch_type.hpp"
 #include "player/player.hpp"
 #include "player/player_body_collider.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
@@ -47,9 +45,8 @@ BallPlayerContactResult ResolveBallPlayerContacts(
 
       bool directionChangedUnexpectedly = false;
       if (onlyWhenDirectionChangedUnexpectedly) {
-        const auto history = std::chrono::milliseconds{players[i]->GetReactionTime_ms() + static_cast<int>(ToMilliseconds(action.elapsed))};
-        const auto index = observation::MentalImageSampleIndex(inputs.history.size(), history);
-        float unexpectedDistance = (inputs.history[index].GetBallPrediction(Seconds(1), inputs.now, ball) - ball.Predict(football::sim::TickSpan{100}).position).GetLength();
+        const auto sample_age = std::chrono::milliseconds{players[i]->GetReactionTime_ms() + static_cast<int>(ToMilliseconds(action.elapsed))};
+        float unexpectedDistance = (inputs.observation.BallPrediction(sample_age, Seconds(1), inputs.now, ball) - ball.Predict(football::sim::TickSpan{100}).position).GetLength();
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
 
@@ -87,7 +84,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
                     players[i]->GetMovement() * (1.0f - movementBias);
                 bounceCount++;
                 inputs.touch_sink->OnAcceptedTouch(
-                    football::sim::event::AcceptedTouch{inputs.now,
+                    football::sim::player::PlayerTouchEvent{inputs.now,
                         players[i]->GetID(), players[i]->GetTeamSide(),
                         e_TouchType_Accidental, ball.state().position,
                         ball.state().velocity,

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "football/match/team_side.hpp"
 #include "football/player/player_definition.hpp"
 #include "football/team/formation.hpp"
 #include "football/team/formation_preset.hpp"
@@ -16,9 +17,6 @@
 
 namespace football::sim {
 
-// A team's role in a match, not a persistent club identity or pitch direction.
-// Home/away do not change when play is mirrored or the teams switch ends.
-enum class TeamSide : std::uint8_t { Home = 0, Away = 1 };
 
 // Transitional external declaration. Runtime converts it once into a
 // football::team::Team; this type must not become a second live team authority.

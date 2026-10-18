@@ -14,8 +14,6 @@
 #include "football/animation/selection_math.hpp"
 #include "football/animation/selector.hpp"
 #include "football/ball/ball.hpp"
-#include "observation/mentalimage.hpp"
-#include "observation/mentalimage_sampling.hpp"
 #include "player/player_touch_math.hpp"
 #include "player/player_motion.hpp"
 #include "player/locomotion_animation_strategy.hpp"
@@ -44,7 +42,7 @@ using std::placeholders::_2;
 // ---------------------------------------------------------------------------
 CrudeSelectionQuery Player::BuildCrudeSelectionQuery(
     const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
-    football::sim::Tick now, MentalImage *current_mental_image) {
+    football::sim::Tick now, const football::sim::player::PlayerObservation& observation) {
   const SpatialState &spatialState = spatial_state_;
   CrudeSelectionQuery query;
   query.byFunctionType = true;
@@ -129,7 +127,7 @@ CrudeSelectionQuery Player::BuildCrudeSelectionQuery(
       command.desiredFunctionType == e_FunctionType_Interfere ||
       command.desiredFunctionType == e_FunctionType_Deflect) {
     query.byIncomingBallDirection = true;
-    query.incomingBallDirection = (current_mental_image->GetBallPrediction(180, now, tick.ball) - current_mental_image->GetBallPrediction(120, now, tick.ball)).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
+    query.incomingBallDirection = (observation.BallPrediction(mentalImageTime, 180, now, tick.ball) - observation.BallPrediction(mentalImageTime, 120, now, tick.ball)).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
   }
 
   if (AllowLastDitch()) {
@@ -158,7 +156,7 @@ CrudeSelectionQuery Player::BuildCrudeSelectionQuery(
 bool Player::NeedTouch(football::sim::Tick now,
                        const football::sim::PlayerTickContext &tick, int animID,
                        const PlayerCommand &command,
-                       std::span<MentalImage> history) {
+                       const football::sim::player::PlayerObservation& observation) {
   const SpatialState &spatialState = spatial_state_;
 
   // when idle (and desiredvelo is idle as well), don't want to touch the ball every frame
@@ -174,9 +172,7 @@ bool Player::NeedTouch(football::sim::Tick now,
   float animVelo = animMovement.GetLength();
   animMovement.Normalize(spatialState.directionVec);
   animMovement *= spatialState.movement.GetLength() * 0.8f + animVelo * 0.2f;
-  auto currentMentalImage =
-      football::sim::observation::SampleMentalImage(history, mentalImageTime);
-  Vector3 ballMovement = (currentMentalImage->GetBallPrediction(250, now, tick.ball).Get2D() - currentMentalImage->GetBallPrediction(240, now, tick.ball).Get2D()) * 100;
+  Vector3 ballMovement = (observation.BallPrediction(mentalImageTime, 250, now, tick.ball).Get2D() - observation.BallPrediction(mentalImageTime, 240, now, tick.ball).Get2D()) * 100;
 
   if (std::fabs(clip.metadata.outgoing_angle) > 0.125f * pi) return true;
 
@@ -234,7 +230,7 @@ bool Player::CanCommitMatchedSelection(
 bool Player::TrySelectAction(football::sim::Tick now,
                              const football::sim::PlayerTickContext &tick,
                              const PlayerCommand &command,
-                             std::span<MentalImage> history,
+                             const football::sim::player::PlayerObservation& observation,
                              e_InterruptAnim localInterruptAnim,
                              bool preferPassAndShot,
                              bool allowPreTouchRotationSmuggle,
@@ -249,25 +245,23 @@ bool Player::TrySelectAction(football::sim::Tick now,
       RecordSchedulerQuery(currentAnim.originatingCommand, command);
 
   // optimizations
-  auto currentMentalImage = football::sim::observation::SampleMentalImage(
-      history, mentalImageTime);
   if (command.desiredFunctionType != e_FunctionType_Movement &&
       command.desiredFunctionType != e_FunctionType_Trip &&
       command.desiredFunctionType != e_FunctionType_Special &&
       command.desiredFunctionType != e_FunctionType_Sliding) {
-    if ((currentMentalImage->GetBallPrediction(200, now, tick.ball).Get2D() -
+    if ((observation.BallPrediction(mentalImageTime, 200, now, tick.ball).Get2D() -
          spatialState.position)
             .GetLength() > 10.0f) {
       return false;
     }
-    if ((currentMentalImage->GetBallPrediction(defaultTouchOffset_ms, now, tick.ball).Get2D() -
+    if ((observation.BallPrediction(mentalImageTime, defaultTouchOffset_ms, now, tick.ball).Get2D() -
          spatialState.position)
                 .GetLength() > 2.0f &&
-        (currentMentalImage->GetBallPrediction(defaultTouchOffset_ms, now, tick.ball).Get2D() -
+        (observation.BallPrediction(mentalImageTime, defaultTouchOffset_ms, now, tick.ball).Get2D() -
          (spatialState.position +
           spatialState.movement * defaultTouchOffset_ms * 0.001))
                 .GetLength() >
-            (currentMentalImage->GetBallPrediction(0, now, tick.ball).Get2D() -
+            (observation.BallPrediction(mentalImageTime, 0, now, tick.ball).Get2D() -
              (spatialState.position))
                 .GetLength()) {
       // ball moving away from player
@@ -282,7 +276,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
       command.desiredFunctionType != e_FunctionType_Sliding &&
       command.desiredFunctionType != e_FunctionType_Deflect &&
       tick.ball_retainer != this) {
-    if ((currentMentalImage->GetBallPrediction(1000, now, tick.ball) - tick.ball.Predict(football::sim::TickSpan{100}).position).GetLength() > 2.0f) return false;
+    if ((observation.BallPrediction(mentalImageTime, 1000, now, tick.ball) - tick.ball.Predict(football::sim::TickSpan{100}).position).GetLength() > 2.0f) return false;
   }
 
   // /optimizations
@@ -326,7 +320,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   // CREATE A CRUDE SET OF POTENTIAL ANIMATIONS
 
-  CrudeSelectionQuery query = BuildCrudeSelectionQuery(command, tick, now, currentMentalImage);
+  CrudeSelectionQuery query = BuildCrudeSelectionQuery(command, tick, now, observation);
 
   DataSet dataSet;
   BakedAnimationSelector::CrudeSelection(
@@ -633,20 +627,20 @@ bool Player::TrySelectAction(football::sim::Tick now,
     Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
     (void)physicsVector;
   } else if (command.desiredFunctionType == e_FunctionType_BallControl) {
-    if (NeedTouch(now, tick, *dataSet.begin(), command, history)) {
-      selectedAnimID = SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
+    if (NeedTouch(now, tick, *dataSet.begin(), command, observation)) {
+      selectedAnimID = SelectTouchAction(now, tick, observation, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
     }
   } else if (command.desiredFunctionType == e_FunctionType_Trap ||
              command.desiredFunctionType == e_FunctionType_Interfere ||
              command.desiredFunctionType == e_FunctionType_Deflect) {
-    selectedAnimID = SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
+    selectedAnimID = SelectTouchAction(now, tick, observation, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
   } else if (command.desiredFunctionType == e_FunctionType_ShortPass ||
              command.desiredFunctionType == e_FunctionType_LongPass ||
              command.desiredFunctionType == e_FunctionType_HighPass ||
              command.desiredFunctionType == e_FunctionType_Shot) {
-    selectedAnimID = SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, false, allowPreTouchRotationSmuggle, useContinuousBallCheck);
+    selectedAnimID = SelectTouchAction(now, tick, observation, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, false, allowPreTouchRotationSmuggle, useContinuousBallCheck);
   } else if (command.desiredFunctionType == e_FunctionType_Sliding) {
-    selectedAnimID = SelectTouchAction(now, tick, history, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, false, allowPreTouchRotationSmuggle, useContinuousBallCheck);
+    selectedAnimID = SelectTouchAction(now, tick, observation, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, false, allowPreTouchRotationSmuggle, useContinuousBallCheck);
     if (selectedAnimID == -1) {
       if (dataSet.size() > 0) {
         selectedAnimID = *dataSet.begin();
@@ -694,7 +688,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
     // ANIM-1 A6.4 step 7b: selection and installation are separate units, and
     // the Player now dispatches the installation.
     return CommitSelectedAction(selectedAnimID, touch_choice, command, tick, now,
-                                history, localInterruptAnim, material_candidate,
+                                observation, localInterruptAnim, material_candidate,
                                 selected_start_frame);
   }
 
@@ -894,7 +888,7 @@ constexpr bool kEnableMovementSmuggle = true;
 Vector3 Player::ComputeMovementSmuggle(
     football::sim::Tick now, const football::sim::PlayerTickContext &tick,
     const Vector3 &desiredDirection, float desiredVelocityFloat,
-    std::span<MentalImage> history) {
+    const football::sim::player::PlayerObservation& observation) {
   Anim &currentAnim = anim_state_;
 
   if (!kEnableMovementSmuggle) return Vector3(0);
@@ -926,9 +920,8 @@ Vector3 Player::ComputeMovementSmuggle(
   Vector3 predictedPos;
   radian predictedAngle;
   CalculatePredictedSituation(predictedPos, predictedAngle);
-  Vector3 ballPos = football::sim::observation::SampleMentalImage(
-                        history, mentalImageTime)
-                        ->GetBallPrediction(futureTime_ms, now, tick.ball);
+  Vector3 ballPos =
+      observation.BallPrediction(mentalImageTime, futureTime_ms, now, tick.ball);
   float ballHeight = ballPos.coords[2];
   Vector3 ffo = GetFrontOfFootOffsetRel(
                     predictedOutgoingMovement.GetLength(),
@@ -942,12 +935,9 @@ Vector3 Player::ComputeMovementSmuggle(
     // now calculate the shortest line between that line and that point. now move over that line from the point towards the line somewhat
 
     const Vector3 ballLineA =
-        football::sim::observation::SampleMentalImage(history, mentalImageTime)
-            ->GetBallPrediction(0, now, tick.ball)
-            .Get2D();
+        observation.BallPrediction(mentalImageTime, 0, now, tick.ball).Get2D();
     const Vector3 ballLineB =
-        football::sim::observation::SampleMentalImage(history, mentalImageTime)
-            ->GetBallPrediction(futureTime_ms, now, tick.ball)
+        observation.BallPrediction(mentalImageTime, futureTime_ms, now, tick.ball)
             .Get2D();
     if ((ballLineA - ballLineB).GetLength() < 0.5f) return Vector3(0);  // ball is slow or very close
 

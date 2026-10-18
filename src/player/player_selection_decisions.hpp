@@ -14,7 +14,7 @@
 #include "football/animation/types.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/foundation/math/vector3.hpp"
-#include "event/touch_type.hpp"
+#include "football/player/player_touch_type.hpp"
 #include "player/player_command.hpp"
 
 namespace football::sim {

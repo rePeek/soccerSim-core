@@ -116,7 +116,7 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
           restarts_.context(), pitch_, own_view, opponent_view, processing_slot,
           restarts_.NeedsSimulation(), rng_,
           active_candidate_capture_ ? active_touch_shadow_sink_.get() : nullptr,
-          nullptr, ball_.get(), send_off_sink_.get()};
+          nullptr, ball_.get(), send_off_sink_.get(), &authorization_port_};
 }
 
 // The single write-only fact-production port. Touch bookkeeping stays synchronous
@@ -603,7 +603,8 @@ void Simulation::ProcessReferee() {
   }
 }
 
-Simulation::Simulation() {}
+Simulation::Simulation()
+    : authorization_port_(touches_, restarts_.context()) {}
 
 const football::team::Team& Simulation::TeamOf(int id) const {
   if (!ball_) throw std::logic_error("simulation has no team");

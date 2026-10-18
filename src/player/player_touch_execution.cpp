@@ -20,9 +20,8 @@
 #include "football/animation/movement_math.hpp"
 #include "football/animation/touch_geometry.hpp"
 #include "football/animation/touch_scoring.hpp"
-#include "event/accepted_touch_sink.hpp"
+#include "player/player_touch_event.hpp"
 #include "player/player_touch_query.hpp"
-#include "observation/mentalimage_sampling.hpp"
 #include "player/kick_targeting.hpp"
 #include "player/player_active_touch_model.hpp"
 #include "player/player_active_touch_shadow.hpp"
@@ -31,7 +30,6 @@
 #include "player/player_retain_anchor.hpp"
 #include "player/player_runtime_sink.hpp"
 #include "player/player_touch_math.hpp"
-#include "referee/referee.hpp"
 
 using namespace football::math;
 
@@ -50,9 +48,9 @@ bool _PassFiddlingEnabled() {
 // ---------------------------------------------------------------------------
 Player* Player::ProcessActionTouches(football::sim::Tick now,
                                      const football::sim::PlayerTickContext& tick,
-                                     std::span<MentalImage> history,
+                                     const football::sim::player::PlayerObservation& observation,
                                      Player* ball_retainer,
-                                     football::sim::AcceptedTouchSink& /*touch_sink*/,
+                                     football::sim::player::PlayerTouchSink& /*touch_sink*/,
                                      football::sim::PlayerRuntimeSink& runtime_sink) {
   const PlayerActionState &action = GetSimulationActionState();
   std::optional<Vector3> prepared_velocity;

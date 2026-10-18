@@ -25,7 +25,6 @@
 
 #include "football/ball/ball.hpp"
 #include "football/ball/ball_timing.hpp"
-#include "observation/mentalimage_sampling.hpp"
 #include "player/player_motion_constants.hpp"
 #include "player/perception.hpp"
 #include "player/reachability.hpp"
@@ -602,7 +601,7 @@ void Player::BeginSimulationAction() {
   // The evaluation runs against the Player's own touch math; the Player owns
   // the decision and retains the result.
 int Player::SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
-                              std::span<MentalImage> history, const DataSet &sorted_data_set,
+                              const football::sim::player::PlayerObservation& observation, const DataSet &sorted_data_set,
                               bool use_desired_movement, const Vector3 &desired_direction,
                               float desired_velocity_float, bool use_desired_body_direction,
                               const Vector3 &desired_body_direction_rel,
@@ -615,7 +614,7 @@ int Player::SelectTouchAction(football::sim::Tick now, const football::sim::Play
   // supplies the spatial facts and the A8.0 reference-motion kernel.
   // not-yet-migrated spatial facts and the A8.0 reference-motion kernel.
   const int anim_id = SelectBestTouchAnim(
-      now, tick, history, sorted_data_set, use_desired_movement, desired_direction,
+      now, tick, observation, sorted_data_set, use_desired_movement, desired_direction,
       desired_velocity_float, use_desired_body_direction, desired_body_direction_rel,
       choice, local_interrupt_anim, prefer_pass_and_shot,
       allow_pre_touch_rotation_smuggle, use_continuous_ball_check);
@@ -631,7 +630,7 @@ bool Player::CommitSelectedAction(int selected_anim_id,
                                   const PlayerCommand &command,
                                   const football::sim::PlayerTickContext &tick,
                                   football::sim::Tick now,
-                                  std::span<MentalImage> history,
+                                  const football::sim::player::PlayerObservation& observation,
                                   e_InterruptAnim local_interrupt_anim,
                                   bool material_candidate,
                                   int start_frame) {
@@ -639,7 +638,7 @@ bool Player::CommitSelectedAction(int selected_anim_id,
   // projection writes the legacy currentAnim; the Player then installs through
   // the one install entry, and only then records the scheduled-contact audit.
   ProjectSelectedActionCompat(selected_anim_id, touch_choice, command, tick, now,
-                              history, local_interrupt_anim, material_candidate,
+                              observation, local_interrupt_anim, material_candidate,
                               start_frame);
   InstallSelectedAction(CurrentSelectedAction());
   RecordSelectedContactAudit(command);
@@ -877,23 +876,23 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue, const PlayerComman
   }
 }
 
-void Player::Process(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
-  const float distance = PrepareTick(tick, history, touch_sink, runtime_sink);
+void Player::Process(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation, football::sim::player::PlayerTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
+  const float distance = PrepareTick(tick, observation, touch_sink, runtime_sink);
   CommitTick(tick, distance);
 }
 
-float Player::PrepareTick(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history, football::sim::AcceptedTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
+float Player::PrepareTick(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation, football::sim::player::PlayerTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
     if (tick.play_authorized) {
       if (football::sim::player_timing::StaggeredRefreshDue(
           tick.now, football::sim::player_timing::kTacticalRefresh,
           football::sim::TickSpan{schedule_phase_})) {
-        _CalculateTacticalSituation(tick, history);
+        _CalculateTacticalSituation(tick, observation);
       }
     }
     Vector3 posBefore = spatial_state_.position;
-    RunActionTick(tick.now, tick, history, touch_sink, runtime_sink);
+    RunActionTick(tick.now, tick, observation, touch_sink, runtime_sink);
     // S0.3: no adoption here. Every path already finished its own write inside
     // the action tick -- the pure-locomotion branch committed and projected, and
     // each legacy root-motion branch adopted at the point where it produced the
@@ -1024,7 +1023,7 @@ bool Player::AllowLastDitch(bool includingPossessionAmount) const {
   return (GetTimeNeededToGetToBall_optimistic_ms() * 1.7f + 800 < GetTimeNeededToGetToBall_ms());
 }
 
-void Player::UpdatePossessionStats(Ball& ball, const football::sim::TeamMatchState& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own) {
+void Player::UpdatePossessionStats(Ball& ball, const football::player::PlayerTeamMatchFacts& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own) {
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
   const e_FunctionType action_type = GetCurrentFunctionType();
   const bool pure_locomotion = actionState.IsPureLocomotion(retainer == this);
@@ -1114,21 +1113,22 @@ void Player::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
   tacticalSituation.spaceRating = 0;
 }
 
-void Player::_CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, std::span<MentalImage> history) {
+void Player::_CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation) {
   // Sample only when needed. Reaction estimates keep their sub-tick precision;
-  // the history sampler, not stored Player state, owns nearest-capture rounding.
+  // the adapter, not stored Player state, owns nearest-capture rounding.
   const bool own_touch = tick.last_touch_player == this && lastTouchType != e_TouchType_Accidental;
-  const MentalImage *mentalImage = own_touch
-      ? football::sim::observation::SampleMentalImage(history, football::sim::TickSpan{})
-      : football::sim::observation::SampleMentalImage(history, std::chrono::milliseconds{GetReactionTime_ms()});
-  assert(mentalImage);
+  // TickSpan{} and milliseconds{0} round to the same capture slot; use the
+  // continuous-delay form so the Player has a single age kind.
+  const std::chrono::milliseconds observation_age =
+      own_touch ? std::chrono::milliseconds{0}
+               : std::chrono::milliseconds{GetReactionTime_ms()};
   assert(IsActive());
   float time_sec = 0.5f;
   Vector3 checkPos = GetPosition() + Vector3(-team_facts_.dynamic_side, 0, 0) * sprintVelocity * time_sec;
-  tacticalSituation.forwardSpaceRating = football::sim::player::CalculateFreeSpace(tick.now, mentalImage, team_id_, checkPos, 5.0f, time_sec);
+  tacticalSituation.forwardSpaceRating = football::sim::player::CalculateFreeSpace(tick.now, observation, observation_age, team_id_, checkPos, 5.0f, time_sec);
   time_sec = 0.1f;
   checkPos = GetPosition() + GetMovement() * time_sec;
-  tacticalSituation.spaceRating = football::sim::player::CalculateFreeSpace(tick.now, mentalImage, team_id_, checkPos, 5.0f, time_sec);
+  tacticalSituation.spaceRating = football::sim::player::CalculateFreeSpace(tick.now, observation, observation_age, team_id_, checkPos, 5.0f, time_sec);
   tacticalSituation.forwardRating =
       1.0f - clamp((Vector3(pitch_.half_length() * -team_facts_.dynamic_side, 0, 0) - GetPosition()).GetLength() /
                        (pitch_.half_length() * 2.0f), 0.0f, 1.0f);

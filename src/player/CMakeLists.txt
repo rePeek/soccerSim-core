@@ -35,7 +35,9 @@ target_sources(football_player PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_type.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_facts.hpp)
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_facts.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_team_match_facts.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_restart_facts.hpp)
 target_include_directories(football_player
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

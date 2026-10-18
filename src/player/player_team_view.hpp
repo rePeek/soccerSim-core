@@ -3,7 +3,7 @@
 
 #include <span>
 
-#include "runtime/team_state.hpp"
+#include "football/player/player_team_match_facts.hpp"
 
 class Player;
 
@@ -21,7 +21,7 @@ struct PlayerTeamView {
   // match; a null slot just means "no team match facts", never "no team".
   // Runtime is the only writer; a player action that changes team state goes
   // through PlayerRuntimeSink.
-  const football::sim::TeamMatchState* state = nullptr;
+  const football::player::PlayerTeamMatchFacts* state = nullptr;
 
   bool HasPossession() const {
     return state != nullptr && state->has_possession;

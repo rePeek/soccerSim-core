@@ -15,25 +15,23 @@
 
 #include <cassert>
 #include <cmath>
+#include <vector>
 
 #include "football/foundation/math/scalar.hpp"
 #include "football/player/player_role.hpp"
-#include "football/referee/game_mode.hpp"
-#include "observation/mentalimage.hpp"
 #include "player/player_motion_constants.hpp"
 
-using football::math::Vector3;
+using namespace football::math;
 
 namespace football::sim::player {
 
-float CalculateFreeSpace(Tick now, const MentalImage *mentalImage, int teamID,
+float CalculateFreeSpace(Tick now, const PlayerObservation& observation,
+                         std::chrono::milliseconds age, int teamID,
                          const Vector3 &focusPos, float safeDistance,
                          float futureTime_sec) {
-  assert(mentalImage);
-
+  std::vector<PlayerImagePosition> opponentPlayerImages =
+      observation.TeamPlayers(std::abs(teamID - 1), age, now);
   float currentSituation = 0.0f;
-
-  auto opponentPlayerImages = mentalImage->GetTeamPlayerImages(std::abs(teamID - 1), now);
 
   // player position predictions
   for (int i = 0; i < (signed int)opponentPlayerImages.size(); i++) {

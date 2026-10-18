@@ -39,7 +39,7 @@ Vector3 GetFrontOfFootOffsetRel(float velocity, radian bodyAngleRel,
       velocity, bodyAngleRel, height, static_cast<float>(defaultTouchOffset_ms));
 }
 void GetDifficultyFactors(const Ball *ball, Player *player,
-                          const football::sim::event::TouchState& touches, const PlayerTeamView &opponent,
+                          const football::player::PlayerTouchFacts& touches, const PlayerTeamView &opponent,
                           football::sim::Tick now, football::math::Rng& rng,
                           const SpatialState &spatialState,
                           const Vector3 &positionOffset, float &distanceFactor,
@@ -235,7 +235,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, const PlayerTeamV
 }
 
 Vector3 GetTrapVector(const Ball *ball, Player *player,
-                      const football::sim::event::TouchState& touches, const PlayerTeamView &opponent,
+                      const football::player::PlayerTouchFacts& touches, const PlayerTeamView &opponent,
                       football::sim::Tick now, football::math::Rng& rng, const AnimationClip& clip,
                       const Vector3 &nextStartPos,
                       radian nextStartAngle, radian nextBodyAngle,

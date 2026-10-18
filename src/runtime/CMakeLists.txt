@@ -48,6 +48,7 @@ target_sources(football_sim_domain PRIVATE
   play_state.hpp restart_context.hpp restart_controller.cpp restart_controller.hpp
   restart_planner.cpp restart_planner.hpp
   restart_placement.cpp restart_placement.hpp
+  player_authorization_port.cpp player_authorization_port.hpp
   ../testing/simulation_access.hpp)
 target_link_libraries(football_sim_domain
   PUBLIC football::sim_contracts

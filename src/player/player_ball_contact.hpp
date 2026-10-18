@@ -6,18 +6,17 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "event/touch_state.hpp"
+#include "football/player/player_touch_facts.hpp"
+#include "player/player_touch_event.hpp"
+#include "player/player_observation.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
-class MentalImage;
 
 #include "player/player_team_view.hpp"
-class MentalImage;
 
 namespace football::sim {
 
-class AcceptedTouchSink;
 
 // Borrowed, tick-local dependencies; neither Match nor Simulation is a service
 // locator for the resolver. All actors/ball/history must share one physical frame.
@@ -26,12 +25,12 @@ struct BallPlayerContactInputs {
   int fallback_last_touch_team;
   // Initial latest-touch fact; the sweep advances its local cursor on each hit.
   int last_touch_team;
-  std::span<const MentalImage> history;
+  const football::sim::player::PlayerObservation& observation;
   Tick now;
   Tick last_body_collision;
   // Write-only touch port; never queried for world state.
-  AcceptedTouchSink* touch_sink = nullptr;
-  const event::TouchState& touches;
+  football::sim::player::PlayerTouchSink* touch_sink = nullptr;
+  const football::player::PlayerTouchFacts& touches;
 };
 
 struct BallPlayerContactResult {
