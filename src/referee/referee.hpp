@@ -66,7 +66,8 @@ class Referee {
     // ball/line facts are produced or consumed here.
     void Advance(const football::sim::rules::RefereeView& view,
                  const MatchOptions& options, football::math::Rng& rng,
-                 football::sim::rules::RuleCommandSink& commands);
+                 football::sim::rules::RuleCommandSink& commands,
+                 football::sim::event::RulingSink& rulings);
 
     // Classify this instant's out-of-play condition from the live ball and
     // settle it exactly as the boundary fact used to. Simulation calls this at
@@ -134,6 +135,7 @@ class Referee {
 
   private:
     void ScheduleRestart(const RestartSchedule& schedule,
+                         football::sim::event::RulingSink& rulings,
                          football::sim::TickSpan administration = {});
     void ProcessRestart(const football::sim::rules::RefereeTickFacts& facts,
                         const MatchOptions& options, football::math::Rng& rng,

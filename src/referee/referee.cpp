@@ -157,7 +157,7 @@ void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
 
 void Referee::Advance(const football::sim::rules::RefereeView& view,
                       const MatchOptions& options, football::math::Rng& rng,
-                      RuleCommandSink& commands) {
+                      RuleCommandSink& commands, football::sim::event::RulingSink& rulings) {
   const RefereeTickFacts& facts = view.tick;
   if (facts.phase == MatchPhase::Finished) return;
   if (buffer.active && buffer.restart) {
@@ -178,6 +178,11 @@ void Referee::Advance(const football::sim::rules::RefereeView& view,
         // Deterministic reseed before positioning players for every restart.
         rng.Seed(options.game_engine_random_seed);
         PrepareCeremonialKickOff(facts, options, rng, commands);
+        // Compatibility: placement still belongs to this legacy path, but only
+        // Runtime confirms and publishes the award after Advance returns.
+        rulings.Submit(football::sim::event::AwardRestartRuling{
+            e_GameMode_KickOff, static_cast<football::sim::TeamSide>(buffer.teamID),
+            facts.stadium_to_home.Position(buffer.restartPos)});
       }
       if (buffer.taker != nullptr && facts.now >= buffer.start_tick) {
         // blow whistle and wait for set piece taker to touch the ball
@@ -248,8 +253,14 @@ void Referee::SettleGoalLine(const Vector3& ballPos, const RefereeTickFacts& fac
                y = -facts.pitch.half_width();
     buffer.restartPos = Vector3(facts.pitch.half_length() * lastSide, y, 0);
     buffer.teamID = 1 - lastTouchTeam;
+  } else {
+    // Attacker last touched over the opponent's goal line: do not reuse the
+    // previous restart kind/position. Goal-area dimensions are legacy metres.
+    buffer.desiredSetPiece = e_GameMode_GoalKick;
+    buffer.teamID = 1 - lastTouchTeam;
+    buffer.restartPos = Vector3((facts.pitch.half_length() - 5.5f) * -lastSide, 0, 0);
   }
-  ScheduleRestart({facts.now, buffer.teamID, facts.stadium_to_home});
+  ScheduleRestart({facts.now, buffer.teamID, facts.stadium_to_home}, rulings);
 }
 
 void Referee::SettleTouchline(const Vector3& ballPos, const RefereeTickFacts& facts,
@@ -266,7 +277,7 @@ void Referee::SettleTouchline(const Vector3& ballPos, const RefereeTickFacts& fa
   if (ballPos.coords[1] >  0) buffer.restartPos.coords[1] = facts.pitch.half_width();
   if (ballPos.coords[1] <= 0) buffer.restartPos.coords[1] = -facts.pitch.half_width();
   buffer.restartPos.coords[2] = 0;
-  ScheduleRestart({facts.now, buffer.teamID, facts.stadium_to_home});
+  ScheduleRestart({facts.now, buffer.teamID, facts.stadium_to_home}, rulings);
 }
 
 void Referee::GoalMouthCrossed(int side, const RefereeTickFacts& facts,
@@ -398,7 +409,7 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
           buffer.desiredSetPiece = e_GameMode_FreeKick;
           buffer.restartPos = ballOwner->GetPitchPosition();
           buffer.teamID = defending_team_id;
-          ScheduleRestart({facts.now, facts.defending_team.team_id, facts.stadium_to_home});
+          ScheduleRestart({facts.now, facts.defending_team.team_id, facts.stadium_to_home}, rulings);
           break; // Setup clears offside state on the next rule tick, not during this iteration.
         }
       }
@@ -542,7 +553,7 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
                   0, 0)
         : foul.foulPosition;
     buffer.teamID = foul.foulVictim->GetTeamID();
-    ScheduleRestart({now, foul.foulVictim->GetTeamID(), stadium_to_home},
+    ScheduleRestart({now, foul.foulVictim->GetTeamID(), stadium_to_home}, rulings,
         foul.foulType >= 2 ? kCardAdministration : TickSpan{});
     if (foul.foulType == 2) {
       foul.foulPlayer->GiveYellowCard(now + kCardEffectDelay);
@@ -559,7 +570,8 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
   return false;
 }
 
-void Referee::ScheduleRestart(const RestartSchedule& schedule, TickSpan administration) {
+void Referee::ScheduleRestart(const RestartSchedule& schedule,
+                              football::sim::event::RulingSink& rulings, TickSpan administration) {
   const auto policy = PolicyFor(buffer.desiredSetPiece);
   RestartState state;
   state.entered_tick = schedule.now;
@@ -575,6 +587,8 @@ void Referee::ScheduleRestart(const RestartSchedule& schedule, TickSpan administ
   buffer.endPhase = false;
   buffer.active = true;
   buffer.restart = std::move(state);
+  rulings.Submit(football::sim::event::AwardRestartRuling{buffer.desiredSetPiece,
+      static_cast<football::sim::TeamSide>(buffer.teamID), buffer.restartPos});
 }
 
 bool Referee::RestartNeedsSimulation() const {

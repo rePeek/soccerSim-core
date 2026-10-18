@@ -514,7 +514,7 @@ void Simulation::CommitEventTransitions(football::sim::Tick now) {
 }
 
 void Simulation::AdvanceReferee(const football::sim::rules::RefereeView& view) {
-  referee_->Advance(view, options_, rng_, *rule_commands_);
+  referee_->Advance(view, options_, rng_, *rule_commands_, *ruling_sink_);
 }
 
 void Simulation::ProcessReferee() {

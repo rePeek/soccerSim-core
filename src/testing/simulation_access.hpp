@@ -83,7 +83,7 @@ class SimulationAccess {
     const football::sim::rules::RefereeView view{facts};
     const bool was_restart =
         referee.GetBuffer().active && referee.GetBuffer().restart.has_value();
-    referee.Advance(view, simulation.options(), simulation.rng_, CommandsOf(simulation));
+    referee.Advance(view, simulation.options(), simulation.rng_, CommandsOf(simulation), RulingsOf(simulation));
     simulation.CommitPendingRulings();
     if (was_restart) return;
     if (facts.play_authorized && !facts.set_piece_active) {

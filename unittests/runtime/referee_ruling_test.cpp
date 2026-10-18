@@ -110,7 +110,8 @@ TEST_CASE("Rulings: foul stop submits without reentering runtime", "[runtime][ru
   const auto tick = SimulationAccess::RefereeFactsOf(sim);
   rules.CheckPendingFoul({tick}, SimulationAccess::CommandsOf(sim), SimulationAccess::RulingsOf(sim));
   REQUIRE(SimulationAccess::IsBallInPlayOf(sim));
-  REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 1);
+  REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 2);
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).empty());
   SimulationAccess::CommitRulings(sim);
   REQUIRE_FALSE(SimulationAccess::IsBallInPlayOf(sim));
   rules.CheckPendingFoul({tick}, SimulationAccess::CommandsOf(sim), SimulationAccess::RulingsOf(sim));
@@ -155,4 +156,85 @@ TEST_CASE("Rulings: touchline stop commits at the front boundary", "[runtime][ru
   REQUIRE_FALSE(SimulationAccess::IsInPlayOf(sim));
   REQUIRE(rules.GetBuffer().desiredSetPiece == e_GameMode_ThrowIn);
   REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 0);
+}
+
+TEST_CASE("Rulings: foul awards confirm free kick or penalty only at commit", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  e_GameMode kind = e_GameMode_FreeKick;
+  Vector3 foul_position(4, 3, 0);
+  SECTION("free kick") {}
+  SECTION("penalty") { kind = e_GameMode_Penalty; foul_position = Vector3(45, 0, 0); }
+  Assess(sim, rules, 1.2f, foul_position);
+  SimulationAccess::ProcessReferee(sim);
+  const auto& events = SimulationAccess::MatchEventsOf(sim);
+  REQUIRE(events.size() == 1);
+  const auto& award = std::get<RestartAwardedEvent>(events.front());
+  REQUIRE(award.kind == kind);
+  REQUIRE(award.team == TeamSide::Home);
+  REQUIRE(award.tick == SimulationAccess::NowOf(sim));
+  REQUIRE(award.position == rules.GetBuffer().restartPos);
+}
+
+TEST_CASE("Rulings: out of play awards distinguish corner goal kick and throw in", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  e_GameMode kind = e_GameMode_ThrowIn;
+  Vector3 position(5, 40, 0);
+  SECTION("throw in") {}
+  SECTION("corner") { kind = e_GameMode_Corner; position = Vector3(-55, 40, 0); }
+  SECTION("goal kick") { kind = e_GameMode_GoalKick; position = Vector3(55, 40, 0); }
+  // Home is last to touch. At its own goal line this is a corner; at the
+  // opposite goal line it is a goal kick, even when also beyond the touchline.
+  SimulationAccess::TouchesOf(sim).Record(0, 1, e_TouchType_Intentional_Kicked);
+  SimulationAccess::ResetBall(sim, position);
+  SimulationAccess::ProcessReferee(sim);
+  const auto& events = SimulationAccess::MatchEventsOf(sim);
+  REQUIRE(events.size() == 1);
+  const auto& award = std::get<RestartAwardedEvent>(events.front());
+  REQUIRE(award.kind == kind);
+  REQUIRE(award.team == TeamSide::Away);
+  REQUIRE(award.position == rules.GetBuffer().restartPos);
+  if (kind == e_GameMode_GoalKick) REQUIRE(award.position == Vector3(47, 0, 0));
+  SimulationAccess::ProcessReferee(sim);
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 1);
+}
+
+TEST_CASE("Rulings: ceremonial kickoffs publish one award without claiming taken", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  SECTION("opening") {}
+  SECTION("second half") {
+    SimulationAccess::SetPhase(sim, MatchPhase::SecondHalf);
+    SimulationAccess::RulesOf(sim).OnPeriodEnded(MatchPhase::FirstHalf, Tick{}, Vector3(0), 1);
+    sim.AdvanceTime(TickSpan{10});
+  }
+  SimulationAccess::ProcessReferee(sim);
+  const auto& events = SimulationAccess::MatchEventsOf(sim);
+  REQUIRE(events.size() == 1);
+  REQUIRE(std::get<RestartAwardedEvent>(events.front()).kind == e_GameMode_KickOff);
+  REQUIRE_FALSE(SimulationAccess::IsBallInPlayOf(sim));
+  SimulationAccess::ProcessReferee(sim);
+  REQUIRE(events.size() == 1);
+}
+
+TEST_CASE("Rulings: confirmed goal beats out of play and awards the opponent kickoff", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  // In the common rules frame Away defends the positive goal.
+  SimulationAccess::MirrorTeam(sim, 1);
+  const auto tick = SimulationAccess::RefereeFactsOf(sim);
+  rules.GoalMouthCrossed(1, tick, &SimulationAccess::RulingsOf(sim));
+  REQUIRE(SimulationAccess::ScoreOf(sim, 0) == 0);
+  SimulationAccess::CommitRulings(sim);
+  REQUIRE(SimulationAccess::ScoreOf(sim, 0) == 1);
+  SimulationAccess::ResetBall(sim, Vector3(55, 40, 0));
+  SimulationAccess::ProcessReferee(sim);
+  const auto& award = std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).back());
+  REQUIRE(award.kind == e_GameMode_KickOff);
+  REQUIRE(award.team == TeamSide::Away);
+  REQUIRE(award.position == Vector3(0));
 }

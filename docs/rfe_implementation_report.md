@@ -47,3 +47,31 @@ RNG algorithm changed in this infrastructure phase.
 
 RFE-1B validation: 8 ruling cases / 25 assertions passed; Debug build and
 CTest 11/11 passed (169.08 s).
+
+## RFE-1C — restart award producers
+
+- ScheduleRestart submits the confirmed kind/team/home-frame position for
+  fouls (including penalties), offside, throw-ins, corners, goal kicks and
+  post-goal kickoffs. Opening/half-time Advance submits the ceremonial award
+  once after its legacy preparation. Runtime alone appends RestartAwardedEvent.
+- AwardRestart does NOT implicitly stop play in this compatibility phase:
+  ordinary producers submit Stop then Award in the same synchronous drain;
+  ceremonial kickoffs are already stopped. No second executor is introduced.
+- Restarts still execute from RefereeBuffer, explicitly temporary until RFE-2.
+  No change to PlanRestart, preparation timings, legal release or touch kernels.
+- Found and repaired a missing goal-kick `else` in SettleGoalLine: attacker
+  last touch over the opposite goal line previously reused the previous kind,
+  team and spot. The new award is GoalKick to the defending team at the centre
+  of its goal-area front (legacy 5.5 m depth). This is a rule behavior change,
+  not an ownership-only refactor.
+- Controlled tests cover each existing restart kind, penalty vs free kick,
+  goal-line priority over touchline, goal priority and one-time ceremonial
+  awards. Awarded never claims ball-in-play.
+
+RFE-1C validation: 12 ruling cases / 68 assertions passed; Debug build and
+CTest 11/11 passed (169.07 s). A17 remains `5bef607ddd567a09` (22 actors,
+18 switches), as in RFE-1B. The goal-kick correction is outside that tape;
+its controlled first rule-state difference is Tick 100: old stale KickOff /
+Home / centre vs GoalKick / Away / (47,0,0). Settlement draws no RNG;
+subsequent reset/planning and actor/ball trajectories intentionally differ.
+No complete-match claim is made.
