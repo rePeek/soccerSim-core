@@ -117,3 +117,38 @@ tool was used. git diff --check passed.
 - Address/lifecycle and post-actor failure recovery are directly tested; ASan/UBSan
   was not run. Future Runtime code must continue to forbid live Team movement or
   player-definition vector reallocation.
+
+## TEAM-5 — Runtime Team Entity Ownership (supersedes static Team ownership)
+
+### TEAM-5.0 audit
+Base: 89b19e186906b5a0358ccd4c47f22a8743db3c00; initial worktree clean.
+The earlier TEAM-5 restart-integration label is superseded: restart integration
+is now TEAM-6; substitution execution TEAM-7. ball_netting is excluded.
+
+Current owners: Simulation teams_[2] holds definitions; rosters_[2] holds actors;
+active_lineups_, team_frames_, team_states_ hold relationship state. Player borrows
+model_ and derives body_profile_ once. Target: Simulation unique_ptr<Team>[2];
+Team privately owns Roster, config (no definition array), lineup/frame/match state;
+Player owns const PlayerDefinition. No Player -> Team dependency is introduced.
+
+Reference audit: simulation.cpp (initialization, queries, mirrors, possession,
+rules composition, snapshots, teardown); simulation.hpp (inline designated-player
+write and owner declarations); simulation_prepared_tick.cpp (actor ordering and
+possession); simulation_baked_body.cpp / simulation_body_shadow.cpp (actors);
+testing/simulation_access.hpp (test borrows). TeamView, team_facts and existing
+roster algorithms remain borrowed projections / explicit algorithms. Pure Team
+preparation/validation and formation tests must move off the public Team struct.
+AI and GameEnv do not retain runtime entities; their public APIs remain unchanged.
+
+Ordering to preserve: validate IDs/config before RNG; appearance seed-0 home then
+away across ALL declarations; episode seed; construct first then second processing
+roster, phases crossing the roster boundary; snapshot/index order home then away.
+Default short formation omits extra actors, explicit lineup creates all actors.
+Tick phase order, synchronous fact publication, accepted touches and rule commands
+are unchanged. Stop exits actors home/away before releasing their owners; all
+borrowed indexes/diagnostics must be cleared before Team destruction. Failed Init
+must take the same cleanup route, including partially constructed rosters.
+
+Validation: bounded CTest only, no app/full match. Preserve existing Debug digest
+5bef607ddd567a09; run Debug at every stage, then requested Release and bounded
+ASan/UBSan ownership/failure tests. Do not revise the digest to mask a difference.
