@@ -64,9 +64,8 @@ BallContact ToBallContact(const football::collision::CollisionHit& hit,
   return contact;
 }
 
-}  // namespace
-
-BallStepResult AdvanceBallTick(const BallState& initial,
+// Advance to the first impact; the tick driver below consumes its remainder.
+BallStepResult AdvanceBallSegment(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
                                float dt,
                                const football::ball::BallModel& config,
@@ -80,9 +79,24 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   const float eps = 1e-4f;
   const float ball_radius = config.radius();
 
+  std::vector<football::geometry::ColliderId> tangent_contacts;
   const auto sweep_from = [&](const BallState& state) {
-    return FirstHit(MovingSphere{{state.position, ball_radius}, state.velocity},
-                    colliders, dt);
+    std::optional<football::collision::CollisionHit> best;
+    for (const auto& collider : colliders) {
+      const auto hit = FirstHit(
+          MovingSphere{{state.position, ball_radius}, state.velocity},
+          std::span<const ColliderMotion>(&collider, 1), dt);
+      if (!hit) continue;
+      // A repaired, separating tangent must not hide other colliders.
+      if (hit->toi <= eps &&
+          std::find(tangent_contacts.begin(), tangent_contacts.end(), collider.id) !=
+              tangent_contacts.end() &&
+          (state.velocity - hit->surface_velocity).GetDotProduct(hit->normal) >= 0.0f)
+        continue;
+      if (!best || hit->toi < best->toi ||
+          (hit->toi == best->toi && hit->collider < best->collider)) best = hit;
+    }
+    return best;
   };
 
   const auto integrate_orientation = [](const football::math::Quaternion& q,
@@ -146,11 +160,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     result.contacts.push_back(contact);
   };
 
-  // P4e: a contact that only projects the ball out of an existing overlap must
-  // not consume the whole interval. Position correction is instantaneous and
-  // does not count as an impact, so the ball keeps its free motion and can still
-  // find one genuine impact later in the same tick. At most one impulse
-  // producing contact is reported per tick; corrections may be several.
+  // Overlap projection is instantaneous and does not consume flight time.
   const auto separating = [](const BallContact& contact) {
     return contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f;
   };
@@ -163,6 +173,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     const auto original_center = s.position;
     depenetrate(s, contact);
     contact.position_corrected = s.position != original_center;
+    tangent_contacts.push_back(contact.collider);
     contact.point = s.position;
     contact.normal_impulse = 0.0f;
     result.contacts.push_back(contact);
@@ -176,15 +187,16 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   const bool on_ground = initial.position.coords[2] <= resting_z + eps;
   const bool in_grass_zone = initial.position.coords[2] <= grass_zone + eps;
   const bool not_descending = initial.velocity.coords[2] >= -eps;
+  const bool vertically_resting = std::fabs(initial.velocity.coords[2]) <= eps;
 
-  const auto grass_drag = [&](const football::math::Vector3& velocity) {
+  const auto grass_drag = [&](const football::math::Vector3& velocity, float time) {
     football::math::Vector3 v = velocity;
     const float hs =
         std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
     if (hs > 0.0f) {
       const float resistance = dynamics.ground_deceleration +
                                dynamics.quadratic_ground_resistance * hs * hs;
-      const float slowed = std::max(0.0f, hs - resistance * dt);
+      const float slowed = std::max(0.0f, hs - resistance * time);
       const float scale = slowed / hs;
       v.coords[0] *= scale;
       v.coords[1] *= scale;
@@ -193,14 +205,14 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   };
 
   football::math::Vector3 grass_v = initial.velocity;
-  if (in_grass_zone && not_descending) grass_v = grass_drag(initial.velocity);
+  if (in_grass_zone && not_descending) grass_v = grass_drag(initial.velocity, dt);
 
   const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
   const football::math::Vector3 omega1 = initial.angular_velocity * spin_scale;
 
   // Persistent ground contact: rolling constraint, but still check other
   // (non-ground) colliders; the tangent ground plane produces no ground hit.
-  if (on_ground && not_descending) {
+  if (on_ground && vertically_resting) {
     const football::math::Vector3 v{grass_v.coords[0], grass_v.coords[1], 0.0f};
     BallState cursor = initial;
     cursor.velocity = v;
@@ -221,11 +233,15 @@ BallStepResult AdvanceBallTick(const BallState& initial,
         roll_free();
         return result;
       }
-      const BallContact first = ToBallContact(*hit, cursor.velocity);
+      auto impact_velocity = grass_drag(initial.velocity, hit->toi * dt);
+      impact_velocity.coords[2] = 0.0f;
+      const BallContact first = ToBallContact(*hit, impact_velocity);
       if (!correction_only(first) || guard >= correction_cap) {
         result.state = cursor;
         result.state.position = first.point;
-        result.state.velocity = v;
+        result.state.velocity = impact_velocity;
+        result.state.orientation = integrate_orientation(
+            cursor.orientation, cursor.angular_velocity, first.toi * dt);
         resolve(first);
         return result;
       }
@@ -238,7 +254,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   const football::math::Vector3 gravity = pitch.gravity();
   const auto launch_velocity = [&](const BallState& s) {
     if (s.position.coords[2] <= grass_zone + eps && s.velocity.coords[2] >= -eps)
-      return grass_drag(s.velocity);
+      return grass_drag(s.velocity, dt);
     return s.velocity;
   };
   const auto acceleration = [&](const football::math::Vector3& v0) {
@@ -274,7 +290,8 @@ BallStepResult AdvanceBallTick(const BallState& initial,
           integrate_orientation(cursor.orientation, omega1, dt);
       return result;
     }
-    const BallContact first = ToBallContact(*hit, probe.velocity);
+    BallContact first = ToBallContact(*hit,
+        v0 + accel * (hit->toi * dt));
     if (!correction_only(first) || guard >= correction_cap) {
       // Move to the contact instant and let ResolveContact also spin the ball.
       const football::math::Vector3 vc = v0 + accel * (first.toi * dt);
@@ -289,6 +306,76 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     }
     project_out(cursor, first);
   }
+}
+
+}  // namespace
+
+BallStepResult AdvanceBallTick(const BallState& initial,
+                               std::span<const ColliderMotion> colliders,
+                               float dt, const BallModel& config,
+                               const football::pitch::Pitch& pitch) {
+  BallStepResult result;
+  result.state = initial;
+  if (dt <= 0.0f) return result;
+
+  // Bound pathological zero-time contact chains. On exhaustion, hold the last
+  // resolved pose rather than advancing unchecked through solid geometry.
+  constexpr int kMaxImpacts = 16;
+  constexpr int kMaxSegments = 32;
+  int impacts = 0;
+  float elapsed = 0.0f;
+  std::vector<ColliderMotion> interval(colliders.begin(), colliders.end());
+  for (int step = 0;
+       step < kMaxSegments && impacts < kMaxImpacts && elapsed < dt; ++step) {
+    float duration = dt - elapsed;
+    const auto& v = result.state.velocity;
+    const auto& w = result.state.angular_velocity;
+    const float az = pitch.gravity().coords[2] -
+        config.drag() * v.GetLength() * v.coords[2] +
+        config.magnus_coefficient() *
+            (w.coords[0] * v.coords[1] - w.coords[1] * v.coords[0]);
+    // A chord spanning ascent AND descent can falsely report a zero-time
+    // ground hit for a small upward launch. Split at the vertical apex first.
+    if (v.coords[2] > 1e-4f && az < 0.0f)
+      duration = std::min(duration, -v.coords[2] / az);
+    for (std::size_t i = 0; i < colliders.size(); ++i) {
+      const auto pose_at = [&](float fraction) {
+        return std::visit([&](const auto& start)
+            -> football::geometry::ColliderShape {
+          using T = std::decay_t<decltype(start)>;
+          const auto* end = std::get_if<T>(&colliders[i].end);
+          if (!end) return start;
+          if constexpr (std::is_same_v<T, Sphere>) {
+            return Sphere{start.center + (end->center - start.center) * fraction,
+                          start.radius + (end->radius - start.radius) * fraction};
+          } else if constexpr (std::is_same_v<T, Capsule>) {
+            return Capsule{start.a + (end->a - start.a) * fraction,
+                           start.b + (end->b - start.b) * fraction,
+                           start.radius + (end->radius - start.radius) * fraction};
+          } else {
+            return start; // Planes and half-spaces are static by contract.
+          }
+        }, colliders[i].start);
+      };
+      interval[i].start = pose_at(elapsed / dt);
+      interval[i].end = pose_at((elapsed + duration) / dt);
+    }
+    auto segment = AdvanceBallSegment(result.state, interval, duration, config, pitch);
+    result.state = segment.state;
+    bool collided = false;
+    float consumed = duration;
+    for (auto contact : segment.contacts) {
+      if (contact.normal_impulse > 0.0f) {
+        collided = true;
+        consumed = duration * contact.toi;
+      }
+      contact.toi = (elapsed + duration * contact.toi) / dt;
+      result.contacts.push_back(contact);
+    }
+    if (collided) ++impacts;
+    elapsed += consumed;
+  }
+  return result;
 }
 
 }  // namespace football::ball

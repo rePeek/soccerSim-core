@@ -57,7 +57,7 @@ class Ball {
   const football::ball::BallModel& config() const { return config_; }
 
   // ---- Stable simulation ----
-  // Exactly one tick, at most one passive impact, no remainder integration.
+  // Exactly one tick, with bounded passive impacts and remainder integration.
   // Returns physical evidence only; overlap/resting contact is not a rule touch.
   BallStepResult Step(const BallTickInput& input);
   // Read-only trajectory prediction sharing the same physics kernel as Step.

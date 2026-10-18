@@ -16,7 +16,7 @@ namespace football::ball {
 
 // Evidence of one ball contact, produced by Ball from a
 // football::collision::CollisionHit and completed with response data. `toi` is
-// the first contact time within [0, 1]; `normal` points from the collider
+// contact time within the whole tick [0, 1]; `normal` points from the collider
 // surface toward the ball, so an approaching ball has (ball.velocity -
 // collider.velocity) dot normal < 0.
 struct BallContact {
@@ -34,10 +34,7 @@ struct BallContact {
 };
 
 
-// One step of free motion (constant velocity) with collision response and
-// remainder integration. Pure and deterministic; gravity/friction/spin remain
-// higher-level BallPhysics layers. Reflection uses the given restitution; a
-// TOI<=0 contact is treated as resting to avoid an infinite contact loop.
+// Pure deterministic tick result, including ordered physical contact evidence.
 struct BallStepResult {
   BallState state;
   std::vector<BallContact> contacts;
@@ -49,13 +46,13 @@ struct BallStepResult {
 };
 
 
-// Tick-based model: one free-motion candidate and at most one impulse-bearing
-// impact at the earliest TOI. A contact that only projects the ball out of an
-// existing overlap is instantaneous: it is reported with a zero normal impulse
-// and does not consume the tick, so the ball keeps its free motion and may
-// still find one genuine impact (P4e). Grounded is a persistent rolling
-// constraint (z = radius, vz = 0, horizontal roll + rolling drag), not a
-// per-tick ground impact. Response reads football::geometry::ColliderMotion::material.
+// Tick-based model: advance to each earliest impact and integrate its remaining
+// time, up to 16 impacts / 32 segments (including vertical-apex splits). On cap
+// exhaustion hold the last resolved pose, never advance unchecked through solids.
+// TOIs use the whole tick; collider motion is restricted to each segment.
+// Overlap corrections are instantaneous and carry no normal impulse. Grounded
+// support requires near-zero vertical velocity; upward launches stay airborne.
+// Response reads football::geometry::ColliderMotion::material.
 //
 // All long-lived physical parameters come from the ball's own model and the
 // pitch it moves in; this call only adds the colliders active in this tick.
