@@ -11,7 +11,7 @@
 
 #include "football/player/player_control_set.hpp"
 #include "football/runtime/match_config.hpp"
-#include "football/runtime/team.hpp"
+#include "runtime/team.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/ball/ball_model.hpp"
 #include "football/foundation/collision/sweep.hpp"
@@ -122,11 +122,13 @@ class Simulation {
   void ApplyCardRuling(const football::sim::event::CardRuling& ruling);
   // Roster/formation/possession follow-up when a player leaves the pitch.
   void HandlePlayerSentOff(Player& player);
+  football::sim::Team& TeamOf(int id) const;
+  football::sim::Roster& RosterOf(int id) const { return TeamOf(id).RosterStorage(); }
   // Creates and activates one roster's players. Runtime owns the lifecycle; the
-  // Team is configuration only. Preserves the historical schedule-phase
+  // Team owns the roster; Simulation preserves the historical schedule-phase
   // sequence, RNG draw order and starting-eleven activation order.
   void InitTeamPlayers(int team_id, football::sim::Roster& roster,
-                       const football::sim::Team& setup, float ai_difficulty,
+                       football::sim::PreparedTeam& setup, float ai_difficulty,
                        std::uint8_t first_schedule_phase);
   // Borrowed view of one team for rules/observation. Rebuilt on demand from the
   // runtime-owned roster/frame/state; no allocation, nothing retained.
@@ -284,11 +286,9 @@ class Simulation {
   football::ball::BallModel ball_config_;
   std::shared_ptr<AnimationLibrary> animations_;
 
-  // Final PlayerDefinition storage: never move/assign while any actor exists.
-  // Declared before rosters, so definitions are also destroyed after actors.
-  std::array<football::sim::Team, 2> teams_;
+  // Stable, non-copyable/non-movable match entities; each privately owns Roster.
+  std::array<std::unique_ptr<football::sim::Team>, 2> teams_;
   std::unique_ptr<football::ball::Ball> ball_;
-  std::array<football::sim::Roster, 2> rosters_;
   std::array<football::sim::ActiveLineupState, 2> active_lineups_;
   // Runtime alone owns team orientation and match state.
   // mutable: a TeamView is a borrowed *mutable* handle to runtime-owned team state

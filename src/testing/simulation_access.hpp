@@ -22,7 +22,10 @@ namespace football::sim::testing {
 class SimulationAccess {
  public:
   static const Team& TeamOf(const Simulation& simulation, TeamSide side) {
-    return simulation.teams_.at(static_cast<std::size_t>(side));
+    return simulation.TeamOf(static_cast<int>(side));
+  }
+  static bool HasTeam(const Simulation& simulation, int side) {
+    return simulation.teams_.at(side) != nullptr;
   }
   static PlayerTickContext PlayerTickOf(Simulation& simulation, Player& actor) {
     return simulation.PlayerTickFacts(actor);
@@ -114,7 +117,7 @@ class SimulationAccess {
   // The runtime-owned possession inputs: the roster and the match state a team
   // owns. Exposed so the harness can exercise possession without a Team object.
   static football::sim::Roster& RosterOf(Simulation& s, int team_id) {
-    return s.rosters_[team_id];
+    return s.RosterOf(team_id);
   }
   static football::sim::TeamFrame& TeamFrameOf(Simulation& s, int team_id) {
     return s.team_frames_[team_id];

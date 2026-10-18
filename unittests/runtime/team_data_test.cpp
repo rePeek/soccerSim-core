@@ -18,7 +18,7 @@ TeamSetup Setup() {
 }
 TEST_CASE("Team conversion retains declarations and legacy formation count", "[team]") {
   auto setup = Setup();
-  auto t = MakeTeam(setup);
+  auto t = PrepareTeam(setup);
   CHECK(t.name == setup.name);
   CHECK(t.players[0].id == 90);
   CHECK(t.initial_lineup.starters[0] == 90);
@@ -28,7 +28,7 @@ TEST_CASE("Team conversion retains declarations and legacy formation count", "[t
   CHECK(t.set_piece_orders.penalties.empty());
   CHECK(t.formation_presets.presets.empty());
   setup.formation.resize(1);
-  t = MakeTeam(setup);
+  t = PrepareTeam(setup);
   CHECK_FALSE(t.initial_lineup.starters[1]);
   CHECK(t.initial_lineup.substitutes == std::vector<football::player::PlayerId>{12,70});
   setup = Setup();
@@ -37,7 +37,7 @@ TEST_CASE("Team conversion retains declarations and legacy formation count", "[t
     p.id = id;
     setup.players.push_back(p);
   }
-  t = MakeTeam(setup);
+  t = PrepareTeam(setup);
   CHECK(t.initial_lineup.starters[10] == 107);
   CHECK(t.initial_lineup.substitutes.size() == 4);
 }
@@ -47,7 +47,7 @@ TEST_CASE("Team validates identity and explicit sparse lineup", "[team]") {
   s.lineup->starters[8] = 70;
   s.lineup->starters[0] = 12;
   s.lineup->substitutes = {90};
-  auto t = MakeTeam(s);
+  auto t = PrepareTeam(s);
   CHECK(t.explicit_lineup);
   CHECK(t.initial_lineup.starters[8] == 70);
   CHECK_FALSE(t.initial_lineup.starters[1]);
@@ -56,10 +56,10 @@ TEST_CASE("Team validates identity and explicit sparse lineup", "[team]") {
   SECTION("unknown identity") { s.lineup->starters[1] = 400; }
   SECTION("duplicate definition") { s.players[0].id = 12; }
   SECTION("invalid identity") { s.players[0].id = football::player::kInvalidPlayerId; }
-  CHECK_THROWS_AS(MakeTeam(s), std::invalid_argument);
+  CHECK_THROWS_AS(PrepareTeam(s), std::invalid_argument);
 }
 TEST_CASE("Team match identities cannot overlap", "[team]") {
-  auto t = MakeTeam(Setup());
+  auto t = PrepareTeam(Setup());
   CHECK_THROWS_AS(ValidateMatchTeams({t,t}), std::invalid_argument);
 }
 TEST_CASE("Leadership and taker orders filter eligibility without ID ranking", "[team]") {
@@ -81,10 +81,10 @@ TEST_CASE("Leadership and taker orders filter eligibility without ID ranking", "
   SECTION("unknown priority") { s.set_piece_orders.corners_left = {999}; }
   SECTION("unknown captain") { s.leadership.captain = 999; }
   SECTION("duplicate vice captain") { s.leadership.vice_captains = {12,12}; }
-  CHECK_THROWS_AS(MakeTeam(s),std::invalid_argument);
+  CHECK_THROWS_AS(PrepareTeam(s),std::invalid_argument);
 }
 TEST_CASE("Runtime slot vacancy and substitution preserve template identity", "[team]") {
-  const auto t = MakeTeam(Setup());
+  const auto t = PrepareTeam(Setup());
   ActiveLineupState active{t.initial_lineup.starters};
   VacateSlot(active,12);
   CHECK_FALSE(active.slots[1]);
@@ -99,7 +99,7 @@ TEST_CASE("Formation presets reject ambiguity and malformed anchors", "[team]") 
   auto s = Setup();
   s.formation_presets.presets.push_back({"kickoff",FormationPresetKind::KickOff,
       FormationPresetSide::Attacking, {{0,{AnchorFrame::TeamRelative,0,0},"keeper"}}});
-  CHECK_NOTHROW(MakeTeam(s));
+  CHECK_NOTHROW(PrepareTeam(s));
   auto& p = s.formation_presets.presets.front();
   SECTION("duplicate id") { s.formation_presets.presets.push_back(p); }
   SECTION("duplicate slot") { p.positions.push_back(p.positions.front()); }
@@ -111,7 +111,7 @@ TEST_CASE("Formation presets reject ambiguity and malformed anchors", "[team]") 
   SECTION("unknown kind") { p.kind = static_cast<FormationPresetKind>(42); }
   SECTION("unknown side") { p.side = static_cast<FormationPresetSide>(42); }
   SECTION("negative normalized x") { p.positions[0].anchor.x = -.01f; }
-  CHECK_THROWS_AS(MakeTeam(s), std::invalid_argument);
+  CHECK_THROWS_AS(PrepareTeam(s), std::invalid_argument);
 }
 TEST_CASE("Role categories may share a nonstarter but not duplicate within a category", "[team]") {
   auto s = Setup();
@@ -122,5 +122,5 @@ TEST_CASE("Role categories may share a nonstarter but not duplicate within a cat
   s.set_piece_orders.corners_left = {70};
   s.set_piece_orders.corners_right = {70};
   s.set_piece_orders.throw_ins = {70};
-  CHECK_NOTHROW(MakeTeam(s));
+  CHECK_NOTHROW(PrepareTeam(s));
 }

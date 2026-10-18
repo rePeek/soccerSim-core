@@ -21,7 +21,7 @@ TeamSetup OwnershipSetup(unsigned first) {
 TEST_CASE("Team ownership preserves legacy formation adapter", "[team][ownership]") {
   auto s = OwnershipSetup(50);
   const auto legacy = BuildFormation(s);
-  const auto migrated = BuildFormation(MakeTeam(s));
+  const auto migrated = BuildFormation(PrepareTeam(s));
   REQUIRE(legacy.size() == migrated.size());
   for (std::size_t i = 0; i < legacy.size(); ++i) {
     CHECK(legacy[i].position == migrated[i].position);
@@ -46,11 +46,12 @@ TEST_CASE("Player models survive caller teardown and Stop/re-Init", "[team][owne
     for (int side = 0; side < 2; ++side) {
       const auto& team = SimulationAccess::TeamOf(sim,static_cast<TeamSide>(side));
       const auto actors = SimulationAccess::RosterOf(sim,side).Players();
-      REQUIRE(actors.size() == team.players.size());
+      REQUIRE(actors.size() == 2);
+      CHECK(actors.data() == team.Players().data());
+      CHECK(team.Goalkeeper() == actors.front());
       for (std::size_t i = 0; i < actors.size(); ++i) {
-        CHECK(&actors[i]->GetModel() != &team.players[i]);
-        CHECK(actors[i]->GetModel().height == team.players[i].height);
-        CHECK(actors[i]->GetModel().attributes == team.players[i].attributes);
+        CHECK(team.FindPlayer(actors[i]->GetID()) == actors[i]);
+        CHECK(actors[i]->GetModel().height == 1.75f + i * .1f);
         CHECK(actors[i]->GetID() == (side == 0 ? 50 : 500) + i);
         CHECK(actors[i]->GetTeamSide() == static_cast<TeamSide>(side));
       }
@@ -62,7 +63,7 @@ TEST_CASE("Player models survive caller teardown and Stop/re-Init", "[team][owne
   auto invalid = OwnershipSetup(50);
   invalid.players[1].id = invalid.players[0].id;
   CHECK_THROWS_AS(sim.Init(invalid,OwnershipSetup(500),football::pitch::Pitch{},options),std::invalid_argument);
-  CHECK(SimulationAccess::RosterOf(sim,0).Players().empty());
+  CHECK_FALSE(SimulationAccess::HasTeam(sim,0));
   CHECK_NOTHROW(sim.Init(OwnershipSetup(50),OwnershipSetup(500),football::pitch::Pitch{},options));
   CHECK(sim.Stop());
 }
@@ -74,15 +75,16 @@ TEST_CASE("Failed Init destroys actors before definitions can be replaced", "[te
   options.snapshot_capacity = std::numeric_limits<std::size_t>::max();
   CHECK_THROWS_AS(sim.Init(OwnershipSetup(50),OwnershipSetup(500),
       football::pitch::Pitch{},options),std::length_error);
-  CHECK(SimulationAccess::RosterOf(sim,0).Players().empty());
-  CHECK(SimulationAccess::RosterOf(sim,1).Players().empty());
+  CHECK_FALSE(SimulationAccess::HasTeam(sim,0));
+  CHECK_FALSE(SimulationAccess::HasTeam(sim,1));
   CHECK_FALSE(sim.Stop());
   options.snapshot_capacity = 8;
   REQUIRE_NOTHROW(sim.Init(OwnershipSetup(800),OwnershipSetup(900),
       football::pitch::Pitch{},options));
   const auto players = SimulationAccess::RosterOf(sim,0).Players();
   const auto& team = SimulationAccess::TeamOf(sim,TeamSide::Home);
-  CHECK(players.front()->GetModel().height == team.players.front().height);
+  CHECK(players.front()->GetModel().height == 1.75f);
+  CHECK(team.FindPlayer(800) == players.front());
   CHECK(players.front()->GetID() == 800);
   CHECK(sim.Stop());
 }
@@ -119,10 +121,10 @@ TEST_CASE("Explicit lineup binds identities to formation slots not declaration i
   CHECK_FALSE((*world.active_lineups)[0].slots[0]);
   CHECK((*world.active_lineups)[0].slots[8] == 50);
   const auto& team = SimulationAccess::TeamOf(sim,TeamSide::Home);
-  CHECK(team.initial_lineup.starters[0] == 51);
+  CHECK(team.InitialLineup().starters[0] == 51);
   const std::vector<EligiblePlayer> eligible{{50,true},{51,false},{52,false}};
-  CHECK(SelectCaptain(team.leadership,eligible,SelectionFallback::CandidateOrder) == 50);
-  CHECK(SelectEligibleTaker(team.set_piece_orders.penalties,eligible,SelectionFallback::None) == 50);
+  CHECK(SelectCaptain(team.Leadership(),eligible,SelectionFallback::CandidateOrder) == 50);
+  CHECK(SelectEligibleTaker(team.SetPieceOrdersConfig().penalties,eligible,SelectionFallback::None) == 50);
   CHECK(sim.Stop());
 }
 TEST_CASE("Orders and reusable presets are inert until restart integration", "[team][ownership]") {

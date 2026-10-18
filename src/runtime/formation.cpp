@@ -103,10 +103,10 @@ std::vector<FormationEntry> BuildFormationImpl(const FormationInput& team) {
 }  // namespace
 
 std::vector<FormationEntry> BuildFormation(const football::sim::TeamSetup& team) {
-  if (team.lineup) return BuildFormation(football::sim::MakeTeam(team));
+  if (team.lineup) return BuildFormation(football::sim::PrepareTeam(team));
   return BuildFormationImpl({team.formation, team.tactical_formation, team.players});
 }
-std::vector<FormationEntry> BuildFormation(const football::sim::Team& team) {
+std::vector<FormationEntry> BuildFormation(const football::sim::PreparedTeam& team) {
   return BuildFormationImpl({team.initial_formation, team.tactical_formation, team.players,
       team.explicit_lineup ? football::sim::kFormationSlots : 0});
 }

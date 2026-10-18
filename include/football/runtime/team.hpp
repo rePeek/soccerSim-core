@@ -10,22 +10,23 @@
 
 namespace football::sim {
 struct TeamSetup;
-// Match-level configuration only. Once actors borrow players, Runtime must not
-// move/assign this Team or resize players until those actors have been destroyed.
-struct Team {
+// Transitional preparation values; moved to Runtime-private headers in TEAM-5.5.
+// The live Team owns config only; definitions are consumed by actor construction.
+struct TeamConfig {
   std::string name;
-  std::vector<football::player::PlayerDefinition> players;
   TeamLineup initial_lineup;
   TeamLeadership leadership;
   SetPieceOrders set_piece_orders;
   InitialFormation initial_formation;
   TacticalFormation tactical_formation;
   FormationPresetLibrary formation_presets;
-  std::map<std::string, float> legacy_tactics;  // bootstrap input, never live board
-  bool explicit_lineup = false;  // compatibility construction mode
+  std::map<std::string, float> legacy_tactics;
+  bool explicit_lineup = false;
 };
-// Pure conversion; no identities generated, no RNG, no actor references.
-Team MakeTeam(const TeamSetup& setup);
-void ValidateTeam(const Team& team);  // throws invalid_argument
-void ValidateMatchTeams(const std::array<Team, 2>& teams);
+struct PreparedTeam : TeamConfig {
+  std::vector<football::player::PlayerDefinition> players;
+};
+PreparedTeam PrepareTeam(const TeamSetup& setup);
+void ValidateTeam(const PreparedTeam& team);
+void ValidateMatchTeams(const std::array<PreparedTeam, 2>& teams);
 }  // namespace football::sim

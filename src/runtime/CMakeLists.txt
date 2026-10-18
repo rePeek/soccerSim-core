@@ -49,6 +49,7 @@ target_sources(football_sim_domain PRIVATE
   clock.cpp clock.hpp roster.cpp roster.hpp
   formation.cpp formation_build.hpp
   team_validation.cpp formation_preset.cpp
+  team.cpp team.hpp
   team_state.hpp team_view.hpp team_facts.hpp
   possession.cpp possession.hpp
   roster_possession.cpp roster_possession.hpp

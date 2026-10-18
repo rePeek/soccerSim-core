@@ -289,26 +289,25 @@ anim_baking → legacy_anim + animation/foundation
   `sim/` headers and for module-private implementation headers.
 - Core must not gain graphics, Boost, app fixtures or offline animation imports.
   foundation must not depend on upper layers. sim must never depend on AI.
-- sim ownership boundary: `Simulation` owns `std::array<Roster, 2> rosters_`
-(the player entities), `std::array<Team, 2> teams_` (the authoritative static
-`PlayerDefinition` preparation storage, transitional during TEAM-5), and the only
-`std::array<TeamFrame, 2> team_frames_` and `std::array<TeamMatchState, 2>`
-`team_states_` (orientation and team match facts). `Player` owns its const model
+- sim ownership boundary (TEAM-5.2): Simulation owns unique_ptr<Team>[2]. The
+internal non-copyable/non-movable src/runtime/team.hpp entity owns Roster and
+const TeamConfig (no definition array). PreparedTeam is Init-local input only.
+Simulation still owns frame/match/lineup arrays until TEAM-5.3. Player owns its model
 by value (TEAM-5.1), body profile, identity, formation, kinematics and behaviour. `src/player/` must
 never reference `Team` or iterate the squad; team-level algorithms live in
 `src/runtime/` (possession, roster_possession, formation, team_facts).
 Possession takes the roster plus the runtime-owned `TeamFrame`/`TeamMatchState`
 directly and identifies a team by `TeamSide`, never by a `Team*`. A per-call
 `PlayerTeamView` (borrowed roster slices + the live `TeamMatchState`) is how a
-player sees its team. Team is configuration only: `Simulation` owns the
-rosters, frames and states, `Simulation::TeamViewOf()` builds the borrowed view
+player sees its team. Team owns actors, not their scheduling: Simulation owns
+the explicit mirrors/resets/publications. Simulation::TeamViewOf() builds the view
 on demand, and `Simulation::MirrorTeam/SwitchTeamEnds/ResetTeamSituation/
 RelaxTeamFatigue` own the remaining team behaviour. Rules and Observation see
 only `TeamView`.
 - TeamSetup remains external initialization input. Player copies/moves its
 PlayerDefinition into const model_ before deriving body_profile_; it never borrows
-caller/Team definition storage or holds Team*. TEAM-5 will retire the temporary
-public Team configuration and place Roster and team state in an internal entity.
+caller/Team definition storage or holds Team*. Public team.hpp currently carries
+transitional preparation values, to become Runtime-private in TEAM-5.5.
 No Team Tick/Update, physics, rule or current TacticalBoard authority is permitted.
 Runtime also owns ActiveLineupState separately from Team's initial definition.
 WorldState projects those bindings read-only; DefaultSlotAssignment preserves

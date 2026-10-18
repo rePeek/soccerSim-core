@@ -159,3 +159,10 @@ body_profile_ from that owned value. No Team pointer or runtime behavior added.
 Ownership tests now check values, independent addresses, source destruction,
 names/attributes/body/appearance and unchanged constructor RNG. Debug CTest
 12/12 passed; 22-actor digest remains 5bef607ddd567a09.
+
+TEAM-5.2: internal runtime/team.{hpp,cpp} is a non-copyable/non-movable entity
+owning Roster and const TeamConfig. Simulation now owns unique_ptr<Team>[2]
+and no separate Roster array. PreparedTeam/PrepareTeam is temporary input; its
+definitions move into Players and are not retained by Team. State arrays remain
+only until 5.3. RosterOf is an internal algorithm bridge, not another container.
+Debug CTest 12/12 (167.70 s), ownership queries/re-Init pass; digest unchanged.

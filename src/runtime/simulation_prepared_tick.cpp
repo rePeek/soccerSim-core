@@ -107,10 +107,10 @@ void Simulation::RunPreparedPlayerTick() {
 
 
     football::sim::PrepareTeamPossession(
-        static_cast<football::sim::TeamSide>(id), rosters_[id], team_frames_[id],
+        static_cast<football::sim::TeamSide>(id), RosterOf(id), team_frames_[id],
         team_states_[id], team_states_[1 - id], play_authorized_,
         set_piece_active_, ball_retainer_, best_possession_team_);
-    for (auto* actor : rosters_[id].Players()) {
+    for (auto* actor : TeamOf(id).Players()) {
       if (!actor->IsActive()) continue;
       // Rebind the Ball reference; do not swap the authoritative owner.
       auto base = PlayerTickFacts(*actor);
@@ -129,7 +129,7 @@ void Simulation::RunPreparedPlayerTick() {
       prepared.emplace_back(actor, distance);
       MeasureBodyShadowEndpoint(*actor);
     }
-    football::sim::FinishTeamPossession(rosters_[id], team_frames_[id],
+    football::sim::FinishTeamPossession(RosterOf(id), team_frames_[id],
                                         team_states_[id], team_states_[1 - id]);
   };
   Mirror(first_team_ == 1, first_team_ == 0, false);

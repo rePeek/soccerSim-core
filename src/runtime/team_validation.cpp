@@ -19,8 +19,8 @@ std::size_t FormationCount(const TeamSetup& s) {
 }
 }  // namespace
 
-Team MakeTeam(const TeamSetup& s) {
-  Team team;
+PreparedTeam PrepareTeam(const TeamSetup& s) {
+  PreparedTeam team;
   team.name = s.name;
   team.players = s.players;
   team.initial_formation = s.formation;
@@ -43,7 +43,7 @@ Team MakeTeam(const TeamSetup& s) {
   return team;
 }
 
-void ValidateTeam(const Team& team) {
+void ValidateTeam(const PreparedTeam& team) {
   std::set<PlayerId> ids;
   Require(!team.players.empty(), "team requires player definitions");
   for (const auto& p : team.players) {
@@ -87,7 +87,7 @@ void ValidateTeam(const Team& team) {
   ValidateFormationPresets(team.formation_presets);
 }
 
-void ValidateMatchTeams(const std::array<Team, 2>& teams) {
+void ValidateMatchTeams(const std::array<PreparedTeam, 2>& teams) {
   std::set<PlayerId> ids;
   for (const auto& t : teams) {
     ValidateTeam(t);
