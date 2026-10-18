@@ -1,13 +1,13 @@
 #include "football/ball/ball_response.hpp"
 
+#include "football/ball/ball_contact.hpp"
+#include "football/ball/ball_model.hpp"
+#include "football/ball/ball_state.hpp"
+#include "football/foundation/geometry/collider.hpp"
+#include "football/foundation/math/vector3.hpp"
+
 namespace football::ball {
-using football::geometry::Capsule;
-using football::geometry::Collider;
-using football::geometry::ColliderId;
-using football::geometry::ColliderMotion;
-using football::geometry::ColliderShape;
 using football::geometry::ContactMaterial;
-using football::geometry::Sphere;
 
 float BallInertia(const football::ball::BallModel& config) {
   return kBallInertiaFactor * config.mass() * config.radius() * config.radius();
@@ -45,13 +45,12 @@ BallContactResponse ResolveContactResponse(const BallState& ball, const BallCont
 
   const football::math::Vector3 u = ball.velocity + omega_cross_r - collider_velocity;
   const float un = u.GetDotProduct(n);
-  if (un >= 0.0f) return {ball};  // separating or resting: no new impulse
+  if (un >= 0.0f) return {ball};
 
   const float mass = config.mass();
   const float jn = -mass * (1.0f + material.restitution) * un;
 
   const football::math::Vector3 ut = u - n * un;
-  // Effective tangential inverse mass for a sphere: 1/m + R^2 / I.
   const float inverse =
       1.0f / mass + (config.radius() * config.radius()) / BallInertia(config);
   football::math::Vector3 jt = ut * (-1.0f / inverse);
@@ -70,4 +69,4 @@ BallState ResolveContact(const BallState& ball, const BallContact& contact,
   return ResolveContactResponse(ball, contact, material, collider_velocity, config).state;
 }
 
-}  // namespace football::ball
+}
