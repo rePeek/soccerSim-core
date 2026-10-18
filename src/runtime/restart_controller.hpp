@@ -2,8 +2,12 @@
 #define FOOTBALL_SIM_RUNTIME_RESTART_CONTROLLER_HPP
 
 #include "football/foundation/math/rng.hpp"
+#include <cstdint>
+#include <vector>
+
 #include "football/foundation/time/tick.hpp"
 #include "football/runtime/simulation_config.hpp"
+#include "football/event/match_event.hpp"
 #include "referee/referee_tick_facts.hpp"
 #include "runtime/restart_context.hpp"
 #include "runtime/restart_planner.hpp"
@@ -13,7 +17,6 @@ class Player;
 namespace football::sim::rules { class RuleCommandSink; }
 namespace football::sim::event {
 struct AwardRestartRuling;
-class EventLog;
 }  // namespace football::sim::event
 
 namespace football::sim {
@@ -28,6 +31,9 @@ class RestartController {
   struct TickOutcome {
     bool ceremonial_setup = false;
     bool restart_taken = false;
+    // Formal events the controller produced this instant; Runtime publishes
+    // them at its single EventLog entry point.
+    std::vector<football::sim::event::MatchEvent> events;
   };
 
   // Competition lifecycle. The opening/half-time kickoff ceremony is a Runtime
@@ -38,17 +44,19 @@ class RestartController {
   // Diagnostic/test boundary: forget the in-flight restart without executing.
   void Clear();
 
-  // Commits one confirmed award ruling and publishes the confirmed event.
-  void Award(const football::sim::event::AwardRestartRuling& ruling, football::sim::Tick now,
-             football::sim::event::EventLog& events);
+  // Commits one confirmed award ruling and returns the confirmed event(s) for
+  // Runtime to publish, together with the assigned restart identity.
+  std::vector<football::sim::event::MatchEvent> Award(
+      const football::sim::event::AwardRestartRuling& ruling, football::sim::Tick now);
   // The rules confirmed a legal release; Runtime owns the transition and clock.
-  void ConfirmRelease();
+  // Returns the confirmed RestartTakenEvent for Runtime to publish.
+  std::optional<football::sim::event::RestartTakenEvent> ConfirmRelease(
+      football::sim::Tick now);
 
   // One-tick restart execution, run at the legacy pre-movement rule boundary.
   TickOutcome Advance(const football::sim::rules::RefereeTickFacts& facts,
                       const MatchOptions& options, football::math::Rng& rng,
                       football::sim::rules::RuleCommandSink& commands,
-                      football::sim::event::EventLog& events,
                       const RestartPlanningTable& planning);
 
   const RestartContext& context() const { return context_; }
@@ -70,6 +78,7 @@ class RestartController {
 
   RestartContext context_;
   football::sim::TickSpan post_restart_relax_{};
+  std::uint64_t next_restart_id_ = 1;
 };
 
 }  // namespace football::sim

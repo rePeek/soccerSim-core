@@ -410,3 +410,37 @@ Known Level 1 gap: referee and event rules are exercised through the runtime
 harness, not a standalone `referee_unit`/`event_unit`; the referee/event
 implementation currently lives inside the sim domain target, so a leaf target
 would need its own extraction phase.
+
+## RFE-5A — formal event model and incremental cursor
+
+- `include/football/event/match_event.hpp` is now the public formal-event
+  header (moved out of `src/event/`). It adds `MatchEventRecord`
+  (sequence + event) and `MatchEventCursor` (generation + next_sequence).
+- `EventLog` stores records with monotonic match-scoped sequences and exposes
+  `EventsSince(cursor)`. `Clear()` starts a new generation, so a cursor from an
+  earlier match is rebased rather than misread. Reads never touch rules, physics
+  or RNG and return owning values.
+- New Level 1 `event_unit` covers sequence assignment, ordered incremental
+  reads, idempotent empty reads and generation rebasing.
+- `SimulationAccess::MatchEventsOf` returns the persistent records; tests read
+  `record.event`.
+
+## RFE-5B — confirmed referee, restart and period events
+
+- New events: `RestartTakenEvent` (legal release only), `FoulConfirmedEvent`
+  (offender-side team), `OffsideConfirmedEvent` (flagged attacking side).
+  `RestartAwardedEvent` and `RestartTakenEvent` share a match-scoped
+  `restart_id`.
+- The Referee carries a `RestartCause` (none/foul/offside plus offender and
+  victim) on `AwardRestartRuling`; Runtime publishes the confirmation, so a
+  foul or offside is never inferred backwards from the restart kind. The
+  offending team is the opponent of the awarded team.
+- `RestartController` no longer receives `EventLog&`: `Award` returns the
+  confirmed event(s) and `ConfirmRelease(now)` returns the `RestartTakenEvent`;
+  `Advance` returns its ceremony event in `TickOutcome::events`. Simulation is
+  the single publishing entry point.
+- `EndPeriod()` publishes exactly one `PeriodEndedEvent` per period with the
+  ended phase, before the phase advances.
+
+Validation: `[ruling]` 30 cases / 306 assertions; `[team]` 21 cases / 556
+assertions; `event_unit` 3 cases. No physics, animation or RNG change.

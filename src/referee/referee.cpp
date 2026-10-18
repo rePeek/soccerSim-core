@@ -127,9 +127,12 @@ void Referee::OnPeriodEnded(MatchPhase ended_phase, Tick now,
 
 void Referee::SubmitRestart(e_GameMode kind, football::sim::TeamSide team,
                             const Vector3& home_position, TickSpan administration,
-                            football::sim::event::RulingSink& rulings) {
-  // The verdict is authoritative; Runtime creates and owns the restart context.
-  rulings.Submit(football::sim::event::AwardRestartRuling{kind, team, home_position, administration});
+                            football::sim::event::RulingSink& rulings,
+                            const football::sim::event::RestartCause& cause) {
+  // The verdict is authoritative; Runtime creates and owns the restart context
+  // and publishes the confirmed award (and foul/offside cause) itself.
+  rulings.Submit(football::sim::event::AwardRestartRuling{
+      kind, team, home_position, administration, cause});
 }
 
 void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
@@ -324,7 +327,10 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
           // Offside takes effect at the enclosing synchronous touch boundary.
           rulings.Submit(football::sim::event::StopPlayRuling{});
           SubmitRestart(e_GameMode_FreeKick, static_cast<football::sim::TeamSide>(defending_team_id),
-                        facts.stadium_to_home.Position(ballOwner->GetPitchPosition()), TickSpan{}, rulings);
+                        facts.stadium_to_home.Position(ballOwner->GetPitchPosition()), TickSpan{}, rulings,
+                        football::sim::event::RestartCause{
+                            football::sim::event::RestartCauseKind::Offside,
+                            ballOwner->GetID(), football::player::kInvalidPlayerId});
           break; // Setup clears offside state on the next rule tick, not during this iteration.
         }
       }
@@ -471,7 +477,10 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
         static_cast<football::sim::TeamSide>(foul.foulVictim->GetTeamID());
     SubmitRestart(penalty ? e_GameMode_Penalty : e_GameMode_FreeKick, team_side,
                   stadium_to_home.Position(stadium_position),
-                  foul.foulType >= 2 ? kCardAdministration : TickSpan{}, rulings);
+                  foul.foulType >= 2 ? kCardAdministration : TickSpan{}, rulings,
+                  football::sim::event::RestartCause{
+                      football::sim::event::RestartCauseKind::Foul,
+                      foul.foulPlayer->GetID(), foul.foulVictim->GetID()});
     if (foul.foulType == 2 || foul.foulType == 3) {
       rulings.Submit(football::sim::event::CardRuling{
           foul.foulPlayer->GetID(), foul.foulType, now + kCardEffectDelay});

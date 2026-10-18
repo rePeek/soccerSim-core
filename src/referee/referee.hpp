@@ -121,7 +121,8 @@ class Referee {
     // Submits a confirmed restart award; Runtime owns the resulting context.
     void SubmitRestart(e_GameMode kind, football::sim::TeamSide team,
                        const Vector3& home_position, football::sim::TickSpan administration,
-                       football::sim::event::RulingSink& rulings);
+                       football::sim::event::RulingSink& rulings,
+                       const football::sim::event::RestartCause& cause = {});
     void SettleGoalLine(const football::math::Vector3& ball_pos,
                         const football::sim::rules::RefereeTickFacts& facts,
                         football::sim::rules::RuleCommandSink& commands,

@@ -49,6 +49,8 @@ struct RestartState {
 // deadlines and its progress. It is not a rule fact and never mirrors the
 // Referee's decision state.
 struct RestartContext {
+  // Match-scoped identity, shared with RestartAwardedEvent/RestartTakenEvent.
+  std::uint64_t id = 0;
   bool active = false;
   e_GameMode kind = e_GameMode_Normal;
   int team_id = -1;  // legacy team slot (0/1) taking the restart

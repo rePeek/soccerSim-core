@@ -190,7 +190,7 @@ TEST_CASE("Rulings: foul awards confirm free kick or penalty only at commit", "[
   Assess(sim, rules, 1.2f, foul_position);
   SimulationAccess::ProcessReferee(sim);
   const auto& events = SimulationAccess::MatchEventsOf(sim);
-  REQUIRE(events.size() == 1);
+  REQUIRE(events.size() == 2);  // RestartAwarded + FoulConfirmed
   const auto& award = std::get<RestartAwardedEvent>(events.front().event);
   REQUIRE(award.kind == kind);
   REQUIRE(award.team == TeamSide::Home);
@@ -289,7 +289,7 @@ TEST_CASE("Rulings: disciplinary counts commit now and send off at the original 
   REQUIRE(offender.CardEffectiveTick() == now + TickSpan{600});
   REQUIRE(offender.IsActive());
   const auto& events = SimulationAccess::MatchEventsOf(sim);
-  REQUIRE(events.size() == event_start + 2);
+  REQUIRE(events.size() == event_start + 3);  // Awarded + FoulConfirmed + Card
   REQUIRE(std::holds_alternative<RestartAwardedEvent>(events[event_start].event));
   const auto& card = std::get<CardShownEvent>(events.back().event);
   REQUIRE(card.tick == now);
@@ -468,7 +468,7 @@ TEST_CASE("Rulings: standing foul advantage retains its recall and expiry timing
   SECTION("successful advantage expires") { expires = true; sim.AdvanceTime(TickSpan{301}); }
   SimulationAccess::ProcessReferee(sim);
   REQUIRE(SimulationAccess::IsBallInPlayOf(sim) == expires);
-  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == (expires ? 0 : 1));
+  REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == (expires ? 0 : 2));
   if (!expires) {
     const auto& award = std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).front().event);
     REQUIRE(award.kind == e_GameMode_FreeKick);
@@ -765,4 +765,75 @@ TEST_CASE("Rulings: a partial preset only moves its declared slots",
   CHECK(PlanTargetOf(preset_plan, 1) != PlanTargetOf(plain_plan, 1));
   CHECK(PlanTargetOf(preset_plan, 2) == PlanTargetOf(plain_plan, 2));
   CHECK(PlanTargetOf(preset_plan, 0) == PlanTargetOf(plain_plan, 0));
+}
+
+TEST_CASE("Rulings: foul publishes a distinct award and confirmation", "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  Assess(sim, rules, 1.2f, Vector3(4, 3, 0));
+  SimulationAccess::ProcessReferee(sim);
+  const auto& records = SimulationAccess::MatchEventsOf(sim);
+  REQUIRE(records.size() == 2);
+  REQUIRE(std::holds_alternative<RestartAwardedEvent>(records[0].event));
+  REQUIRE(std::holds_alternative<FoulConfirmedEvent>(records[1].event));
+  const auto& award = std::get<RestartAwardedEvent>(records[0].event);
+  REQUIRE(award.kind == e_GameMode_FreeKick);
+  REQUIRE(award.restart_id != 0);
+  const auto& foul = std::get<FoulConfirmedEvent>(records[1].event);
+  REQUIRE(foul.team == TeamSide::Away);
+  REQUIRE(foul.offender == Actor(sim, 1)->GetID());
+  REQUIRE(foul.victim == Actor(sim, 0)->GetID());
+
+  // Setup, the documented timeout fallback, then a legal release.
+  SimulationAccess::ProcessReferee(sim);
+  sim.AdvanceTime(TickSpan{3001});
+  SimulationAccess::ProcessReferee(sim);
+  REQUIRE(SimulationAccess::PlayStateOf(sim) == football::sim::PlayState::RestartReady);
+  SimulationAccess::RulingsOf(sim).Submit(BallInPlayRuling{});
+  SimulationAccess::CommitRulings(sim);
+  const auto& after = SimulationAccess::MatchEventsOf(sim);
+  REQUIRE(std::holds_alternative<RestartTakenEvent>(after.back().event));
+  const auto& taken = std::get<RestartTakenEvent>(after.back().event);
+  REQUIRE(taken.kind == e_GameMode_FreeKick);
+  REQUIRE(taken.restart_id == award.restart_id);
+  REQUIRE(taken.taker != football::player::kInvalidPlayerId);
+}
+
+TEST_CASE("Rulings: offside publishes a confirmation distinct from the award",
+          "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  rules.FlagOffside(Actor(sim, 0));
+  AcceptedTouch touch;
+  touch.touched_at = SimulationAccess::NowOf(sim);
+  touch.player = Actor(sim, 0)->GetID();
+  touch.team = TeamSide::Home;
+  SimulationAccess::EventsOf(sim).OnAcceptedTouch(touch);
+  const auto& records = SimulationAccess::MatchEventsOf(sim);
+  REQUIRE(records.size() == 2);
+  REQUIRE(std::holds_alternative<RestartAwardedEvent>(records[0].event));
+  REQUIRE(std::holds_alternative<OffsideConfirmedEvent>(records[1].event));
+  const auto& offside = std::get<OffsideConfirmedEvent>(records[1].event);
+  REQUIRE(offside.team == TeamSide::Home);
+  REQUIRE(offside.player == Actor(sim, 0)->GetID());
+}
+
+TEST_CASE("Rulings: period end publishes exactly one formal event", "[runtime][ruling]") {
+  Simulation sim;
+  MatchOptions options;
+  options.snapshot_capacity = 8;
+  options.half_duration = Seconds(1);
+  sim.Init(Team(0), Team(2), football::pitch::Pitch{}, options, football::ball::BallModel{});
+  Open(sim);
+  REQUIRE(SimulationAccess::PhaseOf(sim) == MatchPhase::FirstHalf);
+  sim.Step(PlayerControlSet{});
+  int first_half_ends = 0;
+  for (const auto& record : SimulationAccess::MatchEventsOf(sim)) {
+    const auto* ended = std::get_if<PeriodEndedEvent>(&record.event);
+    if (ended != nullptr && ended->phase == MatchPhase::FirstHalf) ++first_half_ends;
+  }
+  REQUIRE(first_half_ends == 1);
+  REQUIRE(SimulationAccess::PhaseOf(sim) == MatchPhase::SecondHalf);
 }

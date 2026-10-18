@@ -37,6 +37,36 @@ struct RestartAwardedEvent {
   football::sim::TeamSide team = football::sim::TeamSide::Home;
   e_GameMode kind = e_GameMode_Normal;
   football::math::Vector3 position;
+  // Match-scoped restart identity, shared with RestartTakenEvent.
+  std::uint64_t restart_id = 0;
+};
+
+// A restart was actually taken: the rules confirmed a legal release. This is
+// distinct from RestartAwardedEvent (granted) and never fires for mere setup
+// or player readiness.
+struct RestartTakenEvent {
+  Tick tick{};
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
+  e_GameMode kind = e_GameMode_Normal;
+  football::player::PlayerId taker = football::player::kInvalidPlayerId;
+  std::uint64_t restart_id = 0;
+};
+
+// The referee confirmed a foul. `team` is the offender's side; the restart
+// that follows is recorded separately so a foul is never inferred backwards
+// from an arbitrary free-kick award.
+struct FoulConfirmedEvent {
+  Tick tick{};
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
+  football::player::PlayerId offender = football::player::kInvalidPlayerId;
+  football::player::PlayerId victim = football::player::kInvalidPlayerId;
+};
+
+// The referee confirmed offside. `team` is the flagged attacking side.
+struct OffsideConfirmedEvent {
+  Tick tick{};
+  football::sim::TeamSide team = football::sim::TeamSide::Home;
+  football::player::PlayerId player = football::player::kInvalidPlayerId;
 };
 
 struct PassCompletedEvent {
@@ -61,7 +91,8 @@ struct PeriodEndedEvent {
 };
 
 using MatchEvent = std::variant<GoalScoredEvent, CardShownEvent, RestartAwardedEvent,
-    PeriodEndedEvent, PassCompletedEvent, ShotEndedEvent>;
+    RestartTakenEvent, FoulConfirmedEvent, OffsideConfirmedEvent, PeriodEndedEvent,
+    PassCompletedEvent, ShotEndedEvent>;
 
 // One confirmed event with its monotonic, match-scoped sequence number. The
 // sequence is assigned by Runtime at publication and never reused.

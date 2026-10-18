@@ -332,15 +332,39 @@ void Simulation::ApplyGoalRuling(const football::sim::event::AwardGoalRuling& ru
 
 void Simulation::ApplyRestartRuling(
     const football::sim::event::AwardRestartRuling& ruling) {
-  // Runtime owns the restart context and publishes the confirmed award event.
-  restarts_.Award(ruling, GetTimelineTick(), event_log_);
+  // Runtime owns the restart context and is the single event publisher. A foul
+  // or offside cause is published as its own confirmed event, never inferred
+  // from the restart kind.
+  for (auto& event : restarts_.Award(ruling, GetTimelineTick())) {
+    event_log_.Record(std::move(event));
+  }
+  switch (ruling.cause.kind) {
+    case football::sim::event::RestartCauseKind::Foul:
+      // The offending team is the opponent of the team awarded the restart.
+      event_log_.Record(football::sim::event::FoulConfirmedEvent{
+          GetTimelineTick(),
+          static_cast<football::sim::TeamSide>(1 - static_cast<int>(ruling.team)),
+          ruling.cause.offender, ruling.cause.victim});
+      break;
+    case football::sim::event::RestartCauseKind::Offside:
+      event_log_.Record(football::sim::event::OffsideConfirmedEvent{
+          GetTimelineTick(),
+          static_cast<football::sim::TeamSide>(1 - static_cast<int>(ruling.team)),
+          ruling.cause.offender});
+      break;
+    case football::sim::event::RestartCauseKind::None:
+      break;
+  }
 }
 
 void Simulation::ApplyBallInPlayRuling(
     const football::sim::event::BallInPlayRuling& ruling) {
   (void)ruling;
-  // The rules confirmed a legal release; Runtime owns the transition and clock.
-  restarts_.ConfirmRelease();
+  // The rules confirmed a legal release; Runtime owns the transition, clock
+  // and the formal RestartTakenEvent.
+  if (auto taken = restarts_.ConfirmRelease(GetTimelineTick())) {
+    event_log_.Record(std::move(*taken));
+  }
   StartBallInPlay();
 }
 
@@ -575,8 +599,9 @@ void Simulation::AdvanceRestart(const football::sim::rules::RefereeView& view) {
        &teams_[0]->Definition().formations, &active_lineups_[0]},
       {&teams_[1]->Definition().set_piece_orders,
        &teams_[1]->Definition().formations, &active_lineups_[1]}};
-  const football::sim::RestartController::TickOutcome outcome =
-      restarts_.Advance(view.tick, options_, rng_, *rule_commands_, event_log_, planning);
+  football::sim::RestartController::TickOutcome outcome =
+      restarts_.Advance(view.tick, options_, rng_, *rule_commands_, planning);
+  for (auto& event : outcome.events) event_log_.Record(std::move(event));
   if (outcome.ceremonial_setup) referee_->OnCeremonialSetup();
   if (outcome.restart_taken) referee_->OnRestartTaken();
 }
@@ -1129,6 +1154,8 @@ void Simulation::EndPeriod() {
       options_.left_team_owns_ball ? 1 : 0);
   restarts_.OnPeriodEnded(phase_, GetTimelineTick(), options_.ball_position,
                           options_.left_team_owns_ball ? 1 : 0);
+  // The period really ended: publish it once, before the phase advances.
+  event_log_.Record(football::sim::event::PeriodEndedEvent{GetTimelineTick(), phase_});
   if (phase_ == MatchPhase::SecondHalf) {
     SetMatchPhase(MatchPhase::Finished);
     return;

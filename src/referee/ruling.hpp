@@ -24,6 +24,16 @@ struct AwardGoalRuling {
   std::optional<football::player::PlayerId> scorer;
 };
 
+// Why a restart was awarded, with the identities the referee confirmed at
+// decision time. Runtime publishes it as a formal event and never infers a
+// foul or offside backwards from the restart kind.
+enum class RestartCauseKind { None, Foul, Offside };
+struct RestartCause {
+  RestartCauseKind kind = RestartCauseKind::None;
+  football::player::PlayerId offender = football::player::kInvalidPlayerId;
+  football::player::PlayerId victim = football::player::kInvalidPlayerId;
+};
+
 struct AwardRestartRuling {
   e_GameMode kind = e_GameMode_Normal;
   football::sim::TeamSide team = football::sim::TeamSide::Home;
@@ -31,6 +41,7 @@ struct AwardRestartRuling {
   // Runtime scheduling requirement: the restart cannot be taken before the
   // administration window (e.g. a carded player leaving) has elapsed.
   TickSpan administration{};
+  RestartCause cause{};
 };
 
 // The rules confirmed that the ball legitimately returned to play (a legal

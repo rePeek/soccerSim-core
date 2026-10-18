@@ -4,7 +4,6 @@
 #include <cmath>
 #include <vector>
 
-#include "event/event_log.hpp"
 #include "referee/ruling.hpp"
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
@@ -69,6 +68,7 @@ void RestartController::BeginMatch(int kickoff_team_id, const Vector3& kickoff_p
   context_.taker = nullptr;
   context_.end_phase = true;
   post_restart_relax_ = {};
+  next_restart_id_ = 1;
 }
 
 void RestartController::OnPeriodEnded(MatchPhase ended_phase, Tick now,
@@ -96,8 +96,8 @@ void RestartController::Clear() {
   post_restart_relax_ = {};
 }
 
-void RestartController::Award(const football::sim::event::AwardRestartRuling& ruling, Tick now,
-                              football::sim::event::EventLog& events) {
+std::vector<football::sim::event::MatchEvent> RestartController::Award(
+    const football::sim::event::AwardRestartRuling& ruling, Tick now) {
   const RestartPolicy policy = PolicyFor(ruling.kind);
   RestartState state;
   state.entered_tick = now;
@@ -113,17 +113,28 @@ void RestartController::Award(const football::sim::event::AwardRestartRuling& ru
   context_.taker = nullptr;
   context_.end_phase = false;
   context_.stop_tick = now;
+  context_.id = next_restart_id_++;
   context_.state = std::move(state);
 
-  events.Record(football::sim::event::RestartAwardedEvent{
-      now, ruling.team, ruling.kind, ruling.position});
+  return {football::sim::event::RestartAwardedEvent{
+      now, ruling.team, ruling.kind, ruling.position, context_.id}};
 }
 
-void RestartController::ConfirmRelease() {
-  if (context_.active && context_.state &&
-      context_.state->phase == RestartPhase::Ready) {
-    context_.state->phase = RestartPhase::Taken;
+std::optional<football::sim::event::RestartTakenEvent> RestartController::ConfirmRelease(
+    Tick now) {
+  if (!(context_.active && context_.state &&
+        context_.state->phase == RestartPhase::Ready)) {
+    return std::nullopt;
   }
+  context_.state->phase = RestartPhase::Taken;
+  football::sim::event::RestartTakenEvent taken;
+  taken.tick = now;
+  taken.team = static_cast<TeamSide>(context_.team_id);
+  taken.kind = context_.kind;
+  taken.taker = context_.taker ? context_.taker->GetID()
+                                : football::player::kInvalidPlayerId;
+  taken.restart_id = context_.id;
+  return taken;
 }
 
 void RestartController::TickPostRestartGrace() {
@@ -134,8 +145,7 @@ void RestartController::TickPostRestartGrace() {
 
 RestartController::TickOutcome RestartController::Advance(
     const RefereeTickFacts& facts, const MatchOptions& options, football::math::Rng& rng,
-    RuleCommandSink& commands, football::sim::event::EventLog& events,
-    const RestartPlanningTable& planning) {
+    RuleCommandSink& commands, const RestartPlanningTable& planning) {
   TickOutcome outcome;
   if (facts.phase == MatchPhase::Finished) return outcome;
   if (context_.active && context_.state) {
@@ -158,9 +168,10 @@ RestartController::TickOutcome RestartController::Advance(
         PrepareCeremonialKickOff(facts, options, rng, commands);
         outcome.ceremonial_setup = true;
         // The ceremony is a Runtime procedure: confirm the award directly.
-        events.Record(football::sim::event::RestartAwardedEvent{
+        context_.id = next_restart_id_++;
+        outcome.events.push_back(football::sim::event::RestartAwardedEvent{
             facts.now, static_cast<TeamSide>(context_.team_id), e_GameMode_KickOff,
-            facts.stadium_to_home.Position(context_.position)});
+            facts.stadium_to_home.Position(context_.position), context_.id});
       }
       if (context_.taker != nullptr && facts.now >= context_.start_tick) {
         // blow whistle and wait for set piece taker to touch the ball
