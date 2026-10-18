@@ -2,9 +2,10 @@
 #define FOOTBALL_BALL_BALL_RESPONSE_HPP
 
 #include "football/ball/ball_contact.hpp"
+#include "football/ball/ball_model.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/foundation/geometry/collider.hpp"
-#include "football/ball/ball_model.hpp"
+#include "football/foundation/math/vector3.hpp"
 
 namespace football::ball {
 

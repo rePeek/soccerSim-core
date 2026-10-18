@@ -1,23 +1,21 @@
 #include "football/ball/ball.hpp"
 
 #include <algorithm>
-#include <cmath>
+#include <cstddef>
+#include <span>
 #include <stdexcept>
+#include <vector>
 
 #include "football/ball/ball_response.hpp"
-#include "football/foundation/math/scalar.hpp"
+#include "football/foundation/math/quaternion.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
+#include "football/pitch/pitch.hpp"
 
 using namespace football::math;
 
 namespace football::ball {
-using football::geometry::Capsule;
-using football::geometry::Collider;
-using football::geometry::ColliderId;
 using football::geometry::ColliderMotion;
-using football::geometry::ColliderShape;
-using football::geometry::ContactMaterial;
-using football::geometry::Sphere;
 
 
 Ball::Ball(const football::ball::BallModel& config,

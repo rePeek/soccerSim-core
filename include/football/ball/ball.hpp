@@ -12,17 +12,17 @@
 // no global `Ball` name and no `using namespace` in this public header.
 
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "football/ball/ball_contact.hpp"
 #include "football/ball/ball_impulse.hpp"
+#include "football/ball/ball_model.hpp"
 #include "football/ball/ball_state.hpp"
 #include "football/foundation/geometry/collider.hpp"
-#include "football/pitch/pitch.hpp"
-#include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/foundation/math/vector3.hpp"
-#include "football/ball/ball_model.hpp"
+
+namespace football::pitch { class Pitch; }
 
 namespace football::ball {
 

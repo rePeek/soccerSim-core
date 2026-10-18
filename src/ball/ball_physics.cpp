@@ -2,15 +2,25 @@
 // ball-specific response to a contact. The continuous collision query itself
 // lives in football::collision; this file only decides how the ball moves.
 
-#include "football/ball/ball.hpp"
+#include "football/ball/ball_contact.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <optional>
+#include <span>
 #include <type_traits>
+#include <variant>
+#include <vector>
 
+#include "football/ball/ball_model.hpp"
 #include "football/ball/ball_response.hpp"
+#include "football/ball/ball_state.hpp"
 #include "football/foundation/collision/sweep.hpp"
-#include "football/foundation/math/scalar.hpp"
+#include "football/foundation/geometry/collider.hpp"
+#include "football/foundation/math/quaternion.hpp"
+#include "football/foundation/math/vector3.hpp"
+#include "football/pitch/pitch.hpp"
 
 namespace football::ball {
 

@@ -1,13 +1,13 @@
 #include "football/ball/ball_response.hpp"
 
+#include "football/ball/ball_contact.hpp"
+#include "football/ball/ball_model.hpp"
+#include "football/ball/ball_state.hpp"
+#include "football/foundation/geometry/collider.hpp"
+#include "football/foundation/math/vector3.hpp"
+
 namespace football::ball {
-using football::geometry::Capsule;
-using football::geometry::Collider;
-using football::geometry::ColliderId;
-using football::geometry::ColliderMotion;
-using football::geometry::ColliderShape;
 using football::geometry::ContactMaterial;
-using football::geometry::Sphere;
 
 float BallInertia(const football::ball::BallModel& config) {
   return kBallInertiaFactor * config.mass() * config.radius() * config.radius();
