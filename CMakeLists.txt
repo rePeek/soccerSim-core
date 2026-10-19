@@ -39,20 +39,12 @@ add_subdirectory(src/foundation)
 # match, playback, pose and touch algorithms).
 add_subdirectory(src/animation)
 
-add_subdirectory(src/ball)
-
 # football::pitch owns the pitch description and the static physics scene
 # (ground/posts/crossbars as geometry colliders). ball and player read it;
-# pitch never depends on them.
-add_library(football_pitch INTERFACE)
-add_library(football::pitch ALIAS football_pitch)
-target_sources(football_pitch INTERFACE FILE_SET HEADERS
-  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
-  FILES
-    ${PROJECT_SOURCE_DIR}/include/football/pitch/pitch.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/pitch/pitch_frame.hpp)
-target_compile_features(football_pitch INTERFACE cxx_std_23)
-target_link_libraries(football_pitch INTERFACE football::foundation football::geometry)
+# pitch never depends on them. Declared before ball, which links it.
+add_subdirectory(src/pitch)
+
+add_subdirectory(src/ball)
 
 # Player is its own archive and publishes its public value headers; Team and
 # the Runtime contract target link it, so the Player module comes first.

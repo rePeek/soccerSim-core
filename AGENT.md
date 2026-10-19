@@ -126,20 +126,25 @@ The heuristic run also guards the concrete blocker found here: `AIEngine` must
 construct every selectable `PlayerPolicyKind` (the V2-only Heuristic kind must
 not require a legacy adapter).
 
-### Pitch owns the static physics scene (header-only, no module)
+### Pitch owns the static physics scene (its own archive)
 
-`football.pitch` is a header-only INTERFACE target owning
-`football::pitch::Pitch` (`include/football/pitch/pitch.hpp`). Pitch builds and
-caches the whole static scene once: the ground plane, the four goal posts, the
-two crossbars, the ground/goal parameters and the fixed environment (gravity,
-wind). No goal-net damping is simulated. It depends
-on foundation + geometry and never on ball/player.
+`football::pitch` is a STATIC archive owning `football::pitch::Pitch`
+(`include/football/pitch/pitch.hpp`, implemented in `src/pitch/pitch.cpp`).
+Pitch builds and caches the whole static scene once: the ground plane, the four
+goal posts, the two crossbars, the ground/goal parameters and the fixed
+environment (gravity, wind). No goal-net damping is simulated. It depends on
+foundation + geometry and never on ball/player. The header keeps the
+description, the constexpr dimensions and the three trivial accessors
+(`gravity`, `wind_velocity`, `colliders`) inline; the configuration validation,
+`operator==` and the collider generation are `pitch.cpp` implementation detail.
+`pitch_frame.hpp` stays header-only: it is pure, stateless geometry.
 
 Dependency direction: `football::pitch` -> `football::geometry` ->
-`football::foundation`; `football::ball` and (later) `football::player` read
+`football::foundation`; `football::ball` and `football::player` read
 the immutable pitch scene. `football_pitch` must never link `football_ball`.
 No C++20 module, no module toolchain, no extra CMake flags: any supported
-compiler builds it.
+compiler builds it, and like every other module it declares its own sources,
+headers and link edges in `src/pitch/CMakeLists.txt`.
 ### Build performance (diagnosed, not fully resolved)
 
 `simulation.hpp` transitively includes `player_active_touch_shadow.hpp` (which
@@ -195,6 +200,10 @@ src/                 implementations; public headers live in include/football/
 │                    own CMakeLists for football::collision
 ├── ball/            football::ball implementation: motion, generic collision
 │                    response and prediction; no goal-net physics
+├── pitch/           football::pitch implementation: pitch.cpp validates the
+│                    configuration and generates the ground/posts/crossbars
+│                    colliders once. The archive links foundation/geometry and
+│                    never ball/player.
 ├── team/            football::team implementation: team.cpp validation/selection,
 │                    formation_preset.cpp anchor resolution and team_players.cpp,
 │                    which owns the team's Player objects. The archive links
@@ -275,6 +284,7 @@ symbols (including the currently unused GetRoleFromString).
 ```text
 app → simcore (env.cpp) → ai + sim
 foundation ← geometry ← collision ← ball ← sim (and later player)
+pitch → foundation/geometry (own STATIC archive; ball/player read it)
 team → foundation/pitch (static domain; no Runtime/Referee/AI/Player impl)
 ai → ai_contracts + sim_contracts → foundation/pitch/collision
 ai → model (header-only protocol/provider seam; STL only)

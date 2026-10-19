@@ -9,9 +9,7 @@
 // about them. Rule decisions (goal, out of play, fouls) stay in the rules
 // module -- pitch only provides the geometry those decisions need.
 
-#include <cmath>
 #include <span>
-#include <stdexcept>
 #include <vector>
 
 #include "football/foundation/math/vector3.hpp"
@@ -33,23 +31,7 @@ class Pitch {
   // every consumer shares one validated description.
   Pitch(float length = 105.0f, float width = 68.0f,
         float quadratic_resistance = 0.04f, float ground_deceleration = 1.6f,
-        float grass_height = 0.025f)
-      : length_(length),
-        width_(width),
-        quadratic_resistance_(quadratic_resistance),
-        ground_deceleration_(ground_deceleration),
-        grass_height_(grass_height) {
-    if (!std::isfinite(length) || !std::isfinite(width) ||
-        !std::isfinite(quadratic_resistance) || !std::isfinite(ground_deceleration) ||
-        !std::isfinite(grass_height) ||
-        length <= 0.0f || width <= 0.0f ||
-        quadratic_resistance < 0.0f || ground_deceleration < 0.0f ||
-        grass_height <= 0.0f) {
-      throw std::invalid_argument(
-          "football::pitch::Pitch: invalid geometry or ground parameters");
-    }
-    BuildColliders();
-  }
+        float grass_height = 0.025f);
 
   constexpr float length() const { return length_; }
   constexpr float width() const { return width_; }
@@ -87,95 +69,14 @@ class Pitch {
   // Equality compares the configuration only. The collider list is derived data
   // rebuilt from the configuration in the constructor, so it is not part of a
   // pitch's identity.
-  bool operator==(const Pitch& other) const {
-    return length_ == other.length_ && width_ == other.width_ &&
-           quadratic_resistance_ == other.quadratic_resistance_ &&
-           ground_deceleration_ == other.ground_deceleration_ &&
-           grass_height_ == other.grass_height_ && line_width_ == other.line_width_ &&
-           goal_width_ == other.goal_width_ && goal_height_ == other.goal_height_ &&
-           goal_depth_ == other.goal_depth_ &&
-           penalty_area_depth_ == other.penalty_area_depth_ &&
-           penalty_mark_distance_ == other.penalty_mark_distance_ &&
-           gravity_ == other.gravity_ && wind_velocity_ == other.wind_velocity_ &&
-           ground_material_ == other.ground_material_ &&
-           post_material_ == other.post_material_;
-  }
+  bool operator==(const Pitch& other) const;
 
 private:
-  // Deterministic static collider: same shape at start and end (no motion).
-  static football::geometry::ColliderMotion StaticCollider(
-      football::geometry::ColliderId id,
-      football::geometry::ColliderShape shape,
-      football::geometry::ContactMaterial material) {
-    football::geometry::ColliderMotion motion;
-    motion.id = id;
-    motion.start = shape;
-    motion.end = shape;
-    motion.material = material;
-    return motion;
-  }
-
-  // The whole immutable scene, built once at construction.
-  void BuildColliders() {
-    colliders_.clear();
-    colliders_.reserve(7);
-    BuildGrass();
-    BuildGoal();
-  }
-
-  // Grass: the ground half-space the ball rolls on. Rolling resistance and grass
-  // height are the ground_* fields, not properties of the HalfSpace geometry;
-  // the effective ball-ground restitution is the ground contact material.
-  void BuildGrass() {
-    using football::geometry::HalfSpace;
-    colliders_.push_back(StaticCollider(
-        kGroundColliderId,
-        HalfSpace{football::math::Vector3(0, 0, 0), football::math::Vector3(0, 0, 1)},
-        ground_material_));
-  }
-
-  // Goal: four posts plus two crossbars, all steel.
-  void BuildGoal() {
-    using football::geometry::Capsule;
-    const float x = half_length();
-    const float y = goal_half_width();
-    const float z = goal_height();
-    colliders_.push_back(StaticCollider(
-        kLeftPostLowColliderId,
-        Capsule{football::math::Vector3(-x, -y, 0), football::math::Vector3(-x, -y, z), kPostRadius},
-        post_material_));
-    colliders_.push_back(StaticCollider(
-        kLeftPostHighColliderId,
-        Capsule{football::math::Vector3(-x, y, 0), football::math::Vector3(-x, y, z), kPostRadius},
-        post_material_));
-    colliders_.push_back(StaticCollider(
-        kRightPostLowColliderId,
-        Capsule{football::math::Vector3(x, -y, 0), football::math::Vector3(x, -y, z), kPostRadius},
-        post_material_));
-    colliders_.push_back(StaticCollider(
-        kRightPostHighColliderId,
-        Capsule{football::math::Vector3(x, y, 0), football::math::Vector3(x, y, z), kPostRadius},
-        post_material_));
-    colliders_.push_back(StaticCollider(
-        kLeftBarColliderId,
-        Capsule{football::math::Vector3(-x, -y, z), football::math::Vector3(-x, y, z), kPostRadius},
-        post_material_));
-    colliders_.push_back(StaticCollider(
-        kRightBarColliderId,
-        Capsule{football::math::Vector3(x, -y, z), football::math::Vector3(x, y, z), kPostRadius},
-        post_material_));
-  }
-
-  // Stable ids and geometry frozen because the CCD uses ColliderId for
-  // deterministic contact sorting.
-  static constexpr football::geometry::ColliderId kGroundColliderId = 1;
-  static constexpr football::geometry::ColliderId kLeftPostLowColliderId = 2;
-  static constexpr football::geometry::ColliderId kLeftPostHighColliderId = 3;
-  static constexpr football::geometry::ColliderId kRightPostLowColliderId = 4;
-  static constexpr football::geometry::ColliderId kRightPostHighColliderId = 5;
-  static constexpr football::geometry::ColliderId kLeftBarColliderId = 6;
-  static constexpr football::geometry::ColliderId kRightBarColliderId = 7;
-  static constexpr float kPostRadius = 0.06f;
+  // The whole immutable scene, built once at construction. The generator and
+  // its stable collider ids are implementation detail in pitch.cpp.
+  void BuildColliders();
+  void BuildGrass();
+  void BuildGoal();
 
   float length_ = 105.0f;
   float width_ = 68.0f;
