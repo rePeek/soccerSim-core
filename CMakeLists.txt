@@ -67,6 +67,9 @@ add_subdirectory(src/runtime)
 add_subdirectory(src/referee)
 add_subdirectory(src/event)
 add_subdirectory(src/observation)
+# football::model is a leaf protocol/interface module (STL only). AI calls a
+# model through it; the concrete HTTP/local providers are separate targets.
+add_subdirectory(src/model)
 add_subdirectory(src/ai)
 
 # The core shared library. Everything under src/ is compiled into libsimcore.so;

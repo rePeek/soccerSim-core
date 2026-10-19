@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <initializer_list>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "coach_tool_names.hpp"
@@ -231,6 +232,19 @@ nlohmann::json CoachToolList(bool strict) {
     list.push_back(std::move(entry));
   }
   return list;
+}
+
+std::vector<football::model::ModelToolDefinition> CoachModelTools() {
+  std::vector<football::model::ModelToolDefinition> tools;
+  tools.reserve(CoachToolRegistry::Tools().size());
+  for (const CoachToolDescriptor& tool : CoachToolRegistry::Tools()) {
+    football::model::ModelToolDefinition definition;
+    definition.name = std::string(tool.name);
+    definition.description = std::string(tool.summary);
+    definition.parameters_schema_json = CoachToolParameters(tool.name).dump();
+    tools.push_back(std::move(definition));
+  }
+  return tools;
 }
 
 }  // namespace football::ai

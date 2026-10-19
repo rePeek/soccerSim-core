@@ -2,8 +2,11 @@
 #define FOOTBALL_AI_COACH_TOOL_SCHEMA_HPP
 
 #include <string_view>
+#include <vector>
 
 #include <nlohmann/json.hpp>
+
+#include "football/model/model_provider.hpp"
 
 namespace football::ai {
 
@@ -18,6 +21,11 @@ namespace football::ai {
 // configured non-strict. Either way, the full validation is local, in
 // CoachToolDecoder, because a model's arguments are never trusted.
 nlohmann::json CoachToolParameters(std::string_view tool_name);
+
+// The registry's nine tools as provider-neutral definitions, ready to attach
+// to a ModelRequest. `parameters_schema_json` is the JSON Schema for that tool;
+// the model layer never parses it.
+std::vector<football::model::ModelToolDefinition> CoachModelTools();
 
 // Ready for the Chat Completions `tools` array.
 nlohmann::json CoachToolList(bool strict = false);

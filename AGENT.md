@@ -184,6 +184,9 @@ include/football/    public headers (interfaces), one directory per module
 ├── ai/              AIConfig, TacticalBoard (legacy + V2 plan), the pure
 │                    TacticalInterpreter/EffectiveTactics, typed coach
 │                    commands/context/policy, shout values and DefaultAI
+├── model/           football::model: provider-neutral ModelMessage/ToolCall/
+│                    Response protocol and the IModelProvider/ModelRequest seam
+│                    (STL only; no football, JSON or transport type)
 └── env.hpp          public autonomous match façade; values + opaque private owners
 
 src/                 implementations; public headers live in include/football/
@@ -198,7 +201,9 @@ src/                 implementations; public headers live in include/football/
 │                    foundation/pitch plus football::player (Team -> Player).
 ├── ai/              default_ai.cpp, tactical_board.cpp, tactical_plan.cpp,
 │                    tactical_interpreter.cpp, eliza/, player/, coach/
-├── env.cpp          sole product composition implementation for AI + sim;
+├── model/           CMakeLists.txt declares football::model (header-only
+│                    protocol/provider) and football::model_mock (scripted test
+│                    provider); the concrete HTTP/local providers are separate
 │                    compiled into libsimcore.so with everything else under src/
     ├── simulation.*  owns clock/phase/score, ball, two Team aggregates, referee, touch state, RNG and history
     ├── simulation_config.hpp match-level options value
@@ -272,6 +277,7 @@ app → simcore (env.cpp) → ai + sim
 foundation ← geometry ← collision ← ball ← sim (and later player)
 team → foundation/pitch (static domain; no Runtime/Referee/AI/Player impl)
 ai → ai_contracts + sim_contracts → foundation/pitch/collision
+ai → model (header-only protocol/provider seam; STL only)
 sim → sim_contracts + team + animation + ball + pitch → foundation/geometry (PRIVATE BqLog)
 app_support (args/fixtures) → sim_contracts/foundation
 anim_baking → legacy_anim + animation/foundation
@@ -288,6 +294,11 @@ anim_baking → legacy_anim + animation/foundation
   observation. No compatibility headers or common/types layer remains.
 - `football_ai_contracts` owns AIConfig and TacticalBoard declarations; it depends
   on foundation/pitch, not concrete policy. `football_ai` owns policy implementations.
+- `football::model` is its own leaf module: the conversation protocol, the
+  provider seam and the request/response envelopes, with no football, JSON or
+  transport type. `football_ai` depends on it PRIVATE, so the AI module calls a
+  model without linking libcurl or an inference runtime; HTTP and local
+  providers are separate implementation targets (AGENT-3B).
 - Game's PUBLIC usage requirements are model + sim_contracts + ai_contracts.
   Concrete sim/AI are PRIVATE. `env.hpp` never includes default_ai.hpp.
 - GameEnv::Start creates/reconfigures the single process logger `football` before
@@ -3454,16 +3465,19 @@ the 100 Hz control protocol or the Default baseline.
   an opt-in NoOp/leading/trailing example. No provider, network or thread pool
   is introduced; `ICoachPolicy` is the future LLM seam.
 
-### Online Coach Agent: protocol, tools and loop (AGENT-1, AGENT-2)
+### Online Coach Agent: protocol, tools, model and loop (AGENT-1..AGENT-3A)
 
 The Coach Agent targets an OpenAI-compatible Chat Completions provider; local
 models and training are out of scope. AGENT-1 lays the wire-independent,
 network-free base:
 
-- `coach/agent_protocol.hpp` is the provider-neutral conversation protocol
-  (`AgentMessage`, `AgentToolCall`, `AgentToolResult`, `AgentModelResponse`).
-  It carries no game type, so the loop, a mock provider and the future HTTP
-  provider share one vocabulary.
+- `football/model/model_protocol.hpp` is the provider-neutral conversation
+  protocol (`ModelMessage`, `ModelToolCall`, `ModelToolResult`, `ModelResponse`),
+  and `football/model/model_provider.hpp` is the seam (`IModelProvider`,
+  `ModelRequest`, `ModelCompletion`, `ModelToolDefinition`). They carry no game
+  type, so the loop, a mock and any future HTTP/local provider share one
+  vocabulary. They live in the `football::model` leaf module, not in
+  `football::foundation` and not in `football::ai`.
 - `coach/coach_tool_names.*` is the single authority mapping every command
   enum to its lower_snake_case wire name, plus the per-key value kind.
 - `coach/coach_tool_schema.*` builds the JSON Schema for the registry's nine
@@ -3475,11 +3489,10 @@ network-free base:
   Argument JSON is untrusted: unknown fields, wrong JSON types, out-of-range
   values and invalid enums are rejected before any game data exists.
 
-AGENT-2 adds the loop and its transport seam, still with no network:
+AGENT-2 and AGENT-3A add the loop and its transport seam, with no network:
 
-- `coach/coach_model_provider.hpp` is the one blocking model seam
-  (`ICoachModelProvider`, `ModelCompletion`); `coach/mock_coach_provider.*` is
-  a scripted in-process provider that records every request.
+- `model/mock/mock_model_provider.*` is `football::model_mock`: a scripted
+  in-process provider that records every request, including its tools.
 - `coach/coach_tool_json.*` serialises read payloads and the turn context with
   one vocabulary, so a read tool and the context agree.
 - `coach/coach_tool_executor.*` turns a decoded request into a read payload
@@ -3488,16 +3501,18 @@ AGENT-2 adds the loop and its transport seam, still with no network:
 - `coach/coach_session.*` owns one team's per-turn history, so a trim drops a
   complete exchange and never orphans a tool message.
 - `coach/coach_agent_loop.*` runs model reply -> tool calls -> tool results ->
-  continue, bounded by a model-turn and a tool-call budget. It answers every
-  call (so the transcript stays valid), and on a budget stop or provider error
-  it clears the partial proposal: an unfinished turn never stages anything.
-  `CoachTurnResult.staged` is the complete, validated proposal for the turn.
+  continue, bounded by a model-turn and a tool-call budget. It builds a
+  `ModelRequest` carrying the conversation and this team's nine tool
+  definitions (`CoachModelTools`), and answers every call (so the transcript
+  stays valid). On a budget stop or provider error it clears the partial
+  proposal: an unfinished turn never stages anything. `CoachTurnResult.staged`
+  is the complete, validated proposal for the turn.
 
 The controlling `TeamSide` is never a model argument: the Agent Session
-injects it, so a team cannot instruct its opponent. nlohmann/json is the JSON
 boundary and stays PRIVATE to `football_ai`; it never appears in a public
-simcore header. The provider HTTP layer, the async host and the atomic batch
-commit are later stages (AGENT-3..AGENT-5), not part of this change.
+simcore header. `football::ai` depends on `football::model` PRIVATE, so an AI
+module never links a transport it does not use. The HTTP provider (AGENT-3B),
+the async host and the atomic batch commit are later stages (AGENT-4..AGENT-5).
 
 ### Acceptance
 
@@ -3506,10 +3521,11 @@ runtime harness, the public-header smoke) plus a core-only build.
 `unittests/ai` covers the schema, coordinates, interpreter, response, heuristic,
 coach commands, shout lifecycle, context, scheduler and examples.
 
-AGENT-1 adds the provider-neutral agent protocol, the JSON Schema for the nine
-tools and the strict tool-call decoder. AGENT-2 adds the scripted mock
-provider, the session history, the staged tool executor and the bounded agent
-loop.
+AGENT-1 adds the JSON Schema for the nine tools and the strict tool-call
+decoder. AGENT-2 adds the session history, the staged tool executor and the
+bounded agent loop. AGENT-3A extracts the provider-neutral `football::model`
+protocol and seam plus the scripted provider, covered by the `model_unit`
+suite; the HTTP provider is AGENT-3B.
 
 ## RFE: synchronous ruling authority and Runtime restart ownership
 

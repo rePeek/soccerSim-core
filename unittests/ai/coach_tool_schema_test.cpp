@@ -1,22 +1,25 @@
-// AGENT-1: the provider-neutral agent protocol, the wire-name tables and the
-// OpenAI-compatible JSON Schema for the nine coach tools.
+// AGENT-1/AGENT-3A: the coach tool wire-name tables and the OpenAI-compatible
+// JSON Schema for the nine coach tools, plus the provider-neutral definitions
+// the agent loop attaches to a ModelRequest.
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
-#include "ai/coach/agent_protocol.hpp"
+#include <nlohmann/json.hpp>
+
 #include "ai/coach/coach_tool_names.hpp"
 #include "ai/coach/coach_tool_schema.hpp"
 #include "ai/coach/tool_registry.hpp"
+#include "football/model/model_provider.hpp"
 
 namespace {
 
-using football::ai::AgentMessage;
-using football::ai::AgentRole;
-using football::ai::AgentToolResult;
+using football::ai::BuildUpStyle;
+using football::ai::CoachModelTools;
 using football::ai::BuildUpStyle;
 using football::ai::CoachToolList;
 using football::ai::CoachToolParameters;
@@ -47,20 +50,6 @@ void CheckRoundTrip(std::size_t count, ToName to_name, ParseFn parse) {
 
 }  // namespace
 
-TEST_CASE("a tool result becomes a tool-role message", "[ai][coach][agent]") {
-  AgentToolResult result;
-  result.tool_call_id = "call_1";
-  result.name = "get_match_state";
-  result.ok = true;
-  result.content_json = R"({"tick":10})";
-
-  const AgentMessage message = result.ToMessage();
-  CHECK(message.role == AgentRole::Tool);
-  CHECK(message.tool_call_id == "call_1");
-  CHECK(message.name == "get_match_state");
-  CHECK(message.content == R"({"tick":10})");
-  CHECK(message.tool_calls.empty());
-}
 
 TEST_CASE("every tool enum name round-trips through the wire tables",
           "[ai][coach][agent][names]") {
@@ -158,4 +147,18 @@ TEST_CASE("scalar, array and id schemas carry their bounds",
 
 TEST_CASE("an unknown tool has no parameters", "[ai][coach][agent][schema]") {
   CHECK(CoachToolParameters("does_not_exist").empty());
+}
+
+TEST_CASE("the provider-neutral tool definitions match the registry",
+          "[ai][coach][agent][schema][model]") {
+  const std::vector<football::model::ModelToolDefinition> tools = CoachModelTools();
+  REQUIRE(tools.size() == CoachToolRegistry::Tools().size());
+  REQUIRE(tools.size() == 9);
+  for (std::size_t i = 0; i < tools.size(); ++i) {
+    CHECK(tools[i].name == CoachToolRegistry::Tools()[i].name);
+    CHECK_FALSE(tools[i].description.empty());
+    // The schema is a JSON string the model layer never parses.
+    CHECK(nlohmann::json::parse(tools[i].parameters_schema_json).at("type") ==
+          "object");
+  }
 }

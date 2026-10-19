@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "coach_model_provider.hpp"
 #include "coach_session.hpp"
 #include "football/ai/coach_command.hpp"
+#include "football/model/model_provider.hpp"
 
 namespace football::ai {
 
@@ -24,7 +24,7 @@ struct StagedCoachCommand {
 };
 
 struct CoachTurnResult {
-  bool ok = false;       // the model produced a final answer within budget
+  bool ok = false;         // the model produced a final answer within budget
   bool truncated = false;  // a budget or provider stop ended the turn early
   std::string final_text;  // the final assistant content, when ok
   std::string error;       // set when !ok
@@ -35,25 +35,28 @@ struct CoachTurnResult {
   int model_turns = 0;
   int tool_calls = 0;
   // This turn's assistant/tool messages, for logging and replay (AGENT-5).
-  std::vector<AgentMessage> transcript;
+  std::vector<football::model::ModelMessage> transcript;
 };
 
 // The provider-agnostic agent loop: model reply -> tool calls -> tool results ->
-// continue reasoning, bounded by a model-turn and a tool-call budget. It never
-// applies a command; it collects staged proposals and returns them for the
+// continue reasoning, bounded by a model-turn and a tool-call budget. It builds
+// a ModelRequest carrying the conversation and this team's tool definitions. It
+// never applies a command; it collects staged proposals and returns them for the
 // single commit boundary. It is synchronous and must run off the simulation
-// thread, because Complete() may block on the network.
+// thread, because IModelProvider::Complete() may block on the network.
 class CoachAgentLoop {
  public:
-  CoachAgentLoop(ICoachModelProvider& provider,
+  CoachAgentLoop(football::model::IModelProvider& provider,
                  CoachAgentConfig config = {});
 
   CoachTurnResult Run(CoachSession& session,
                       const CoachTurnSnapshot& snapshot);
 
  private:
-  ICoachModelProvider& provider_;
+  football::model::IModelProvider& provider_;
   CoachAgentConfig config_;
+  // The coach tool set, built once from the registry/schema authority.
+  std::vector<football::model::ModelToolDefinition> tools_;
 };
 
 }  // namespace football::ai

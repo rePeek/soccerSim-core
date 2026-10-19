@@ -29,14 +29,11 @@ target_sources(football_ai
     coach/coach_runtime.cpp coach/coach_runtime.hpp
     coach/command_executor.cpp coach/command_executor.hpp
     coach/tool_registry.cpp coach/tool_registry.hpp
-    coach/agent_protocol.hpp
     coach/coach_tool_names.cpp coach/coach_tool_names.hpp
     coach/coach_tool_schema.cpp coach/coach_tool_schema.hpp
     coach/coach_tool_decoder.cpp coach/coach_tool_decoder.hpp
     coach/coach_tool_json.cpp coach/coach_tool_json.hpp
     coach/coach_tool_executor.cpp coach/coach_tool_executor.hpp
-    coach/coach_model_provider.hpp
-    coach/mock_coach_provider.cpp coach/mock_coach_provider.hpp
     coach/coach_session.cpp coach/coach_session.hpp
     coach/coach_agent_loop.cpp coach/coach_agent_loop.hpp
     coach/shout_resolver.cpp coach/shout_resolver.hpp
@@ -65,6 +62,9 @@ target_sources(football_ai
     FILES ${PROJECT_SOURCE_DIR}/include/football/ai/default_ai.hpp)
 target_link_libraries(football_ai
   PUBLIC football::sim_contracts football::ai_contracts
+  # The coach agent calls models only through the provider interface, so the AI
+  # module depends on the protocol layer, never on a concrete transport.
+  PRIVATE football::model
   # Header-only JSON boundary for the coach tool schema and decoder. It is
   # PRIVATE so it never enters a public simcore header.
   PRIVATE nlohmann_json::nlohmann_json)

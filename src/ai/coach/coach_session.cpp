@@ -11,7 +11,7 @@ using football::sim::TeamSide;
 
 CoachSession::CoachSession(TeamSide self, std::size_t max_turns)
     : self_(self), max_turns_(max_turns == 0 ? 1 : max_turns) {
-  system_.role = AgentRole::System;
+  system_.role = football::model::ModelRole::System;
   system_.content = SystemPrompt();
 }
 
@@ -28,9 +28,9 @@ std::string CoachSession::SystemPrompt() const {
 }
 
 void CoachSession::BeginTurn(const CoachTurnSnapshot& snapshot) {
-  std::vector<AgentMessage> turn;
-  AgentMessage user;
-  user.role = AgentRole::User;
+  std::vector<football::model::ModelMessage> turn;
+  football::model::ModelMessage user;
+  user.role = football::model::ModelRole::User;
   user.content = "Observed match context (JSON):\n" +
                  CoachContextJson(snapshot.context).dump();
   turn.push_back(std::move(user));
@@ -38,15 +38,15 @@ void CoachSession::BeginTurn(const CoachTurnSnapshot& snapshot) {
   while (turns_.size() > max_turns_) turns_.pop_front();
 }
 
-void CoachSession::Record(const AgentMessage& message) {
+void CoachSession::Record(const football::model::ModelMessage& message) {
   if (turns_.empty()) turns_.emplace_back();
   turns_.back().push_back(message);
 }
 
-const std::vector<AgentMessage>& CoachSession::Messages() const {
+const std::vector<football::model::ModelMessage>& CoachSession::Messages() const {
   flat_.clear();
   flat_.push_back(system_);
-  for (const std::vector<AgentMessage>& turn : turns_)
+  for (const std::vector<football::model::ModelMessage>& turn : turns_)
     flat_.insert(flat_.end(), turn.begin(), turn.end());
   return flat_;
 }

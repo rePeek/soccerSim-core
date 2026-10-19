@@ -6,15 +6,20 @@
 #include <string>
 #include <vector>
 
-#include "agent_protocol.hpp"
 #include "coach_tool_executor.hpp"
 #include "football/ai/coach_context.hpp"
+#include "football/model/model_protocol.hpp"
 
 namespace football::ai {
 
 // One turn's read-only inputs: the reasoning context plus the world and the
 // coach's own board that tools may read. It owns nothing; the caller keeps the
 // authoritative world and board.
+//
+// NOTE (AGENT-4): the pointers below are valid only while the turn runs on the
+// simulation thread. A turn that reasons on a worker thread must be handed an
+// owning, immutable snapshot instead, so tools never read a live board that may
+// move or die mid-turn.
 struct CoachTurnSnapshot {
   CoachContext context;
   CoachToolView view;
@@ -34,10 +39,10 @@ class CoachSession {
   // Starts a turn: appends the observed context as the user message.
   void BeginTurn(const CoachTurnSnapshot& snapshot);
   // Appends one assistant or tool message to the current turn.
-  void Record(const AgentMessage& message);
+  void Record(const football::model::ModelMessage& message);
 
   // The flattened conversation in provider order: system, then every turn.
-  const std::vector<AgentMessage>& Messages() const;
+  const std::vector<football::model::ModelMessage>& Messages() const;
 
   football::sim::TeamSide self() const { return self_; }
   std::size_t TurnCount() const { return turns_.size(); }
@@ -48,9 +53,9 @@ class CoachSession {
 
   football::sim::TeamSide self_;
   std::size_t max_turns_;
-  AgentMessage system_;
-  std::deque<std::vector<AgentMessage>> turns_;
-  mutable std::vector<AgentMessage> flat_;
+  football::model::ModelMessage system_;
+  std::deque<std::vector<football::model::ModelMessage>> turns_;
+  mutable std::vector<football::model::ModelMessage> flat_;
 };
 
 }  // namespace football::ai

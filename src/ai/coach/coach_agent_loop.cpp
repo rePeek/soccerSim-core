@@ -5,6 +5,7 @@
 #include "coach_tool_decoder.hpp"
 #include "coach_tool_executor.hpp"
 #include "coach_tool_json.hpp"
+#include "coach_tool_schema.hpp"
 
 namespace football::ai {
 namespace {
@@ -27,9 +28,9 @@ std::string BudgetRejectionJson() {
 
 }  // namespace
 
-CoachAgentLoop::CoachAgentLoop(ICoachModelProvider& provider,
+CoachAgentLoop::CoachAgentLoop(football::model::IModelProvider& provider,
                                CoachAgentConfig config)
-    : provider_(provider), config_(config) {}
+    : provider_(provider), config_(config), tools_(CoachModelTools()) {}
 
 CoachTurnResult CoachAgentLoop::Run(CoachSession& session,
                                     const CoachTurnSnapshot& snapshot) {
@@ -37,7 +38,11 @@ CoachTurnResult CoachAgentLoop::Run(CoachSession& session,
   session.BeginTurn(snapshot);
 
   for (int turn = 0; turn < config_.max_model_turns; ++turn) {
-    const ModelCompletion completion = provider_.Complete(session.Messages());
+    football::model::ModelRequest request;
+    request.messages = session.Messages();
+    request.tools = tools_;
+    const football::model::ModelCompletion completion =
+        provider_.Complete(request);
     if (!completion.ok) {
       result.ok = false;
       result.error =
@@ -49,7 +54,7 @@ CoachTurnResult CoachAgentLoop::Run(CoachSession& session,
     }
     ++result.model_turns;
 
-    const AgentMessage assistant = completion.response.message;
+    const football::model::ModelMessage assistant = completion.response.message;
     session.Record(assistant);
     result.transcript.push_back(assistant);
 
@@ -63,8 +68,8 @@ CoachTurnResult CoachAgentLoop::Run(CoachSession& session,
     // Answer every tool call, even once the budget is spent, so the transcript
     // stays a valid assistant/tool pairing for the next turn.
     bool budget_exhausted = false;
-    for (const AgentToolCall& call : assistant.tool_calls) {
-      AgentToolResult tool_result;
+    for (const football::model::ModelToolCall& call : assistant.tool_calls) {
+      football::model::ModelToolResult tool_result;
       tool_result.tool_call_id = call.id;
       tool_result.name = call.name;
 
@@ -89,7 +94,7 @@ CoachTurnResult CoachAgentLoop::Run(CoachSession& session,
         ++result.tool_calls;
       }
 
-      const AgentMessage tool_message = tool_result.ToMessage();
+      const football::model::ModelMessage tool_message = tool_result.ToMessage();
       session.Record(tool_message);
       result.transcript.push_back(tool_message);
     }

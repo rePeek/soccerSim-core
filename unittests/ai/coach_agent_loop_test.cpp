@@ -1,6 +1,7 @@
-// AGENT-2: the provider-agnostic agent loop, the session history and the staged
-// tool executor. A scripted MockCoachProvider drives real multi-turn tool
-// calling with no network; every write must come out staged, never applied.
+// AGENT-2/AGENT-3A: the provider-agnostic agent loop, the session history and
+// the staged tool executor. A scripted football::model MockModelProvider drives
+// real multi-turn tool calling with no network; every write must come out
+// staged, never applied.
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
@@ -11,15 +12,13 @@
 #include "ai/coach/coach_agent_loop.hpp"
 #include "ai/coach/coach_session.hpp"
 #include "ai/coach/coach_tool_executor.hpp"
-#include "ai/coach/mock_coach_provider.hpp"
 #include "eliza_test_world.hpp"
 #include "football/ai/tactical_board.hpp"
+#include "football/model/model_protocol.hpp"
+#include "model/mock/mock_model_provider.hpp"
 
 namespace {
 
-using football::ai::AgentMessage;
-using football::ai::AgentRole;
-using football::ai::AgentToolCall;
 using football::ai::CoachAgentConfig;
 using football::ai::CoachAgentLoop;
 using football::ai::CoachSession;
@@ -30,16 +29,19 @@ using football::ai::CoachTurnResult;
 using football::ai::CoachTurnSnapshot;
 using football::ai::GetTacticalBoardRequest;
 using football::ai::InstructionKey;
-using football::ai::MockCoachProvider;
 using football::ai::SetTeamInstruction;
 using football::ai::StagedCoachCommand;
 using football::ai::TacticalBoard;
 using football::ai::test::MakeTeam;
 using football::ai::test::MakeWorld;
+using football::model::MockModelProvider;
+using football::model::ModelMessage;
+using football::model::ModelRole;
+using football::model::ModelToolCall;
 using football::sim::TeamSide;
 
-AgentToolCall Call(std::string id, std::string name, std::string arguments) {
-  AgentToolCall call;
+ModelToolCall Call(std::string id, std::string name, std::string arguments) {
+  ModelToolCall call;
   call.id = std::move(id);
   call.name = std::move(name);
   call.arguments_json = std::move(arguments);
@@ -82,7 +84,7 @@ bool Contains(const std::string& haystack, const std::string& needle) {
 TEST_CASE("a read tool result is fed back and the turn finalizes",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushToolCalls({Call("c1", "get_match_state", "{}")});
   provider.PushText("Nothing to change.");
   CoachSession session(TeamSide::Home);
@@ -97,24 +99,27 @@ TEST_CASE("a read tool result is fed back and the turn finalizes",
   CHECK(result.staged.empty());
 
   REQUIRE(result.transcript.size() == 3);
-  CHECK(result.transcript[0].role == AgentRole::Assistant);
-  CHECK(result.transcript[1].role == AgentRole::Tool);
+  CHECK(result.transcript[0].role == ModelRole::Assistant);
+  CHECK(result.transcript[1].role == ModelRole::Tool);
   CHECK(result.transcript[1].tool_call_id == "c1");
   CHECK(Contains(result.transcript[1].content, "has_possession"));
-  CHECK(result.transcript[2].role == AgentRole::Assistant);
+  CHECK(result.transcript[2].role == ModelRole::Assistant);
 
-  // The model's second request carried the tool result, matched by call id.
+  // The model's second request carried the tool result, matched by call id,
+  // and every request advertises this team's nine tools.
   REQUIRE(provider.requests().size() == 2);
-  const std::vector<AgentMessage>& second = provider.requests()[1];
+  CHECK(provider.requests()[1].tools.size() == 9);
+  CHECK(provider.requests()[1].tools[0].name == "get_match_state");
+  const std::vector<ModelMessage>& second = provider.requests()[1].messages;
   REQUIRE(second.size() >= 4);
-  CHECK(second[second.size() - 1].role == AgentRole::Tool);
+  CHECK(second[second.size() - 1].role == ModelRole::Tool);
   CHECK(second[second.size() - 1].tool_call_id == "c1");
 }
 
 TEST_CASE("multiple sequential tool calls each get a result",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushToolCalls({Call("c1", "get_player_info", R"({"player":1})")});
   provider.PushToolCalls({Call("c2", "get_tactical_board", "{}")});
   provider.PushText("Reviewed.");
@@ -132,7 +137,7 @@ TEST_CASE("multiple sequential tool calls each get a result",
   CHECK(Contains(result.transcript[3].content, "in_possession"));
 
   REQUIRE(provider.requests().size() == 3);
-  const std::vector<AgentMessage>& third = provider.requests()[2];
+  const std::vector<ModelMessage>& third = provider.requests()[2].messages;
   CHECK(third[third.size() - 1].tool_call_id == "c2");
 }
 
@@ -140,7 +145,7 @@ TEST_CASE("a write tool stages a command and never applies it",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
   const std::uint64_t revision = fixture.board.revision;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushToolCalls(
       {Call("w1", "set_team_instruction", R"({"key":"tempo","value":0.8})")});
   provider.PushText("Tempo raised.");
@@ -165,7 +170,7 @@ TEST_CASE("a write tool stages a command and never applies it",
 TEST_CASE("the controlling side is injected for the whole loop",
           "[ai][coach][agent][loop]") {
   Fixture fixture(TeamSide::Away);
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushToolCalls(
       {Call("w1", "set_team_instruction", R"({"key":"tempo","value":0.6})")});
   provider.PushText("Done.");
@@ -178,7 +183,7 @@ TEST_CASE("the controlling side is injected for the whole loop",
   CHECK(AsTeamInstruction(result.staged[0])->side == TeamSide::Away);
 
   // The model cannot set the side itself; the extra field is rejected.
-  MockCoachProvider spoof;
+  MockModelProvider spoof;
   spoof.PushToolCalls({Call(
       "w1", "set_team_instruction", R"({"key":"tempo","value":0.6,"side":"home"})")});
   spoof.PushText("Done.");
@@ -193,7 +198,7 @@ TEST_CASE("the controlling side is injected for the whole loop",
 TEST_CASE("invalid arguments are rejected as a tool result, not staged",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushToolCalls(
       {Call("w1", "set_team_instruction", R"({"key":"tempo","value":"fast"})")});
   provider.PushText("Retry later.");
@@ -210,7 +215,7 @@ TEST_CASE("invalid arguments are rejected as a tool result, not staged",
 TEST_CASE("an unknown write target is rejected by the read path",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   // Player 100 is on the away side, so the home coach may not read it.
   provider.PushToolCalls({Call("p1", "get_player_info", R"({"player":100})")});
   provider.PushText("No such player.");
@@ -227,7 +232,7 @@ TEST_CASE("an unknown write target is rejected by the read path",
 TEST_CASE("an unknown tool is rejected and fed back",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushToolCalls({Call("x1", "teleport_ball", R"({"x":0})")});
   provider.PushText("Sorry.");
   CoachSession session(TeamSide::Home);
@@ -242,7 +247,7 @@ TEST_CASE("an unknown tool is rejected and fed back",
 TEST_CASE("the tool-call budget truncates the turn and discards its proposal",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushToolCalls(
       {Call("a", "set_team_instruction", R"({"key":"tempo","value":0.8})"),
        Call("b", "get_match_state", "{}")});
@@ -266,7 +271,7 @@ TEST_CASE("the tool-call budget truncates the turn and discards its proposal",
 TEST_CASE("the model-turn budget truncates a turn that never finalizes",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushToolCalls({Call("a", "get_match_state", "{}")});
   provider.PushToolCalls({Call("b", "get_match_state", "{}")});
   provider.PushText("Never reached.");
@@ -287,7 +292,7 @@ TEST_CASE("the model-turn budget truncates a turn that never finalizes",
 TEST_CASE("a provider error aborts the turn without staging",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushToolCalls(
       {Call("a", "set_team_instruction", R"({"key":"tempo","value":0.8})")});
   provider.PushError("network down");
@@ -305,7 +310,7 @@ TEST_CASE("a provider error aborts the turn without staging",
 TEST_CASE("the session keeps whole turns and drops the oldest",
           "[ai][coach][agent][loop]") {
   Fixture fixture;
-  MockCoachProvider provider;
+  MockModelProvider provider;
   provider.PushText("first");
   provider.PushText("second");
   CoachSession session(TeamSide::Home, /*max_turns=*/1);
