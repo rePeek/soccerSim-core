@@ -3454,7 +3454,7 @@ the 100 Hz control protocol or the Default baseline.
   an opt-in NoOp/leading/trailing example. No provider, network or thread pool
   is introduced; `ICoachPolicy` is the future LLM seam.
 
-### Online Coach Agent: protocol and tool decoding (AGENT-1)
+### Online Coach Agent: protocol, tools and loop (AGENT-1, AGENT-2)
 
 The Coach Agent targets an OpenAI-compatible Chat Completions provider; local
 models and training are out of scope. AGENT-1 lays the wire-independent,
@@ -3475,11 +3475,29 @@ network-free base:
   Argument JSON is untrusted: unknown fields, wrong JSON types, out-of-range
   values and invalid enums are rejected before any game data exists.
 
+AGENT-2 adds the loop and its transport seam, still with no network:
+
+- `coach/coach_model_provider.hpp` is the one blocking model seam
+  (`ICoachModelProvider`, `ModelCompletion`); `coach/mock_coach_provider.*` is
+  a scripted in-process provider that records every request.
+- `coach/coach_tool_json.*` serialises read payloads and the turn context with
+  one vocabulary, so a read tool and the context agree.
+- `coach/coach_tool_executor.*` turns a decoded request into a read payload
+  or a *staged* command. A write result says `{"status":"staged"}` and
+  carries the command out; it never touches a board.
+- `coach/coach_session.*` owns one team's per-turn history, so a trim drops a
+  complete exchange and never orphans a tool message.
+- `coach/coach_agent_loop.*` runs model reply -> tool calls -> tool results ->
+  continue, bounded by a model-turn and a tool-call budget. It answers every
+  call (so the transcript stays valid), and on a budget stop or provider error
+  it clears the partial proposal: an unfinished turn never stages anything.
+  `CoachTurnResult.staged` is the complete, validated proposal for the turn.
+
 The controlling `TeamSide` is never a model argument: the Agent Session
 injects it, so a team cannot instruct its opponent. nlohmann/json is the JSON
 boundary and stays PRIVATE to `football_ai`; it never appears in a public
-simcore header. The provider HTTP layer, the async host and staging/atomic
-batch commit are later stages (AGENT-2..AGENT-5), not part of this change.
+simcore header. The provider HTTP layer, the async host and the atomic batch
+commit are later stages (AGENT-3..AGENT-5), not part of this change.
 
 ### Acceptance
 
@@ -3489,7 +3507,9 @@ runtime harness, the public-header smoke) plus a core-only build.
 coach commands, shout lifecycle, context, scheduler and examples.
 
 AGENT-1 adds the provider-neutral agent protocol, the JSON Schema for the nine
-tools and the strict tool-call decoder.
+tools and the strict tool-call decoder. AGENT-2 adds the scripted mock
+provider, the session history, the staged tool executor and the bounded agent
+loop.
 
 ## RFE: synchronous ruling authority and Runtime restart ownership
 

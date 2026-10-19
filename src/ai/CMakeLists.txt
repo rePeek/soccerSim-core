@@ -33,6 +33,12 @@ target_sources(football_ai
     coach/coach_tool_names.cpp coach/coach_tool_names.hpp
     coach/coach_tool_schema.cpp coach/coach_tool_schema.hpp
     coach/coach_tool_decoder.cpp coach/coach_tool_decoder.hpp
+    coach/coach_tool_json.cpp coach/coach_tool_json.hpp
+    coach/coach_tool_executor.cpp coach/coach_tool_executor.hpp
+    coach/coach_model_provider.hpp
+    coach/mock_coach_provider.cpp coach/mock_coach_provider.hpp
+    coach/coach_session.cpp coach/coach_session.hpp
+    coach/coach_agent_loop.cpp coach/coach_agent_loop.hpp
     coach/shout_resolver.cpp coach/shout_resolver.hpp
     coach/context_collector.cpp coach/context_collector.hpp
     coach/scheduler.cpp coach/scheduler.hpp

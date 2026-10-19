@@ -20,6 +20,7 @@ add_executable(football_ai_unit_tests
   coach_scheduler_test.cpp
   coach_tool_decoder_test.cpp
   coach_agent_protocol_test.cpp
+  coach_agent_loop_test.cpp
   tactical_examples_test.cpp)
 target_include_directories(football_ai_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_ai_unit_tests
