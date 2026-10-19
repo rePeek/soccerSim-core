@@ -219,8 +219,9 @@ src/                 implementations; public headers live in include/football/
 
     ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
     │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
-    ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
-    │                 MentalImage/player-image history + nearest-slot sampling,
+    ├── observation/ owning WorldState, world_state_builder (which applies the
+    │                 pitch/pitch_frame.hpp transform), MentalImage/player-image
+    │                 history + nearest-slot sampling,
     │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph,
     │                 static PlayerSlotTable identity -> TeamSide mapping and a pure
     │                 shadow-only Snapshot touch inference
@@ -876,8 +877,9 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   between-tick frame. Static physical sides flip, while WorldState keeps the home
   frame and TeamSide remains Home/Away. The same physical goal credits the opposite
   team in the second half. First-half numerics remain unchanged.
-- `observation/pitch_frame.*` owns runtime/home-pitch conversion for observation and
-  control execution. Team transforms derive from current dynamic side versus fixed
+- `include/football/pitch/pitch_frame.hpp` provides the runtime/home-pitch
+  transform (`PitchFrameTransform`, inline geometry) that observation and control
+  execution apply. Team transforms derive from current dynamic side versus fixed
   Home=-1/Away=+1; the between-tick ball uses the first processing roster's frame.
   Never infer orientation from MatchPhase: SecondHalf is published before the
   pending physical change of ends. Ball position AND velocity must share the same
@@ -3653,7 +3655,7 @@ all 19. Debug and Release both stay 13/13 CTest and keep the A17 digest
 ### Remaining stages (not yet landed)
 
 - PLAYER-2/3: close the interface. The current Player -> up-layer edges are
-  `observation::MentalImage`/`PlayerImage`/`mentalimage_sampling`/`pitch_frame`,
+  `observation::MentalImage`/`PlayerImage`/`mentalimage_sampling`,
   `event::TouchState`/`e_TouchType`/`touch_query`/`AcceptedTouch(Sink)`,
   `runtime::TeamMatchState`/`RestartContext`, and
   `rules::EvaluateActionAuthorization`/`IsGoalkeeperBackpass`. They must become
