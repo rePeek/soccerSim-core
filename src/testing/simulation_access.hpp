@@ -277,6 +277,11 @@ class SimulationAccess {
   static void SetGoalScored(Simulation& s, bool value) { s.SetGoalScored(value); }
   static void SetBallRetainer(Simulation& s, Player* retainer) { s.SetBallRetainer(retainer); }
   static void RequestChangeOfEnds(Simulation& s) { s.pending_change_of_ends_ = true; }
+  // Applies the half-time transaction directly without running a tick. Test
+  // diagnostics only: product execution reaches it through StepImpl's pending
+  // flag, so this isolates the coordinate/identity contract from per-tick
+  // physics when a test needs exactly that.
+  static void ApplyChangeOfEndsNow(Simulation& s) { s.ApplyChangeOfEnds(); }
   static void ResetBall(Simulation& s, const football::math::Vector3& position) {
     s.PlaceBallAt(position);
   }
