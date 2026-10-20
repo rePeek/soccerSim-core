@@ -987,6 +987,9 @@ void Simulation::Step(const PlayerControlSet& controls) {
 
 void Simulation::StepImpl(const PlayerControlSet& controls) {
   if (pending_change_of_ends_) {
+    // The only permanent end change of the match. EndPeriod only published the
+    // whistle and set the flag; the physical transaction runs here, once, at
+    // the entry of the first tick after it, before that tick is counted.
     ApplyChangeOfEnds();
     pending_change_of_ends_ = false;
   }
@@ -1252,6 +1255,11 @@ void Simulation::EndPeriod() {
 }
 
 void Simulation::ApplyChangeOfEnds() {
+  // The half-time transaction, applied as one unit: close the old physical
+  // contact episodes, discard frame-local transients, swap both teams' ends
+  // (SwitchTeamEnds flips static_side and dynamic_side), then rotate the shared
+  // ball and mental-image frames so the canonical between-tick frame and the
+  // home-pitch observation still describe the same physical state.
   body_geometry_episodes_.Break();
   body_impact_episodes_.Break();
   // A queued active impulse belongs to the old frame; never carry it across.

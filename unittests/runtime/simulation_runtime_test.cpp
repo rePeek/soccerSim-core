@@ -325,6 +325,35 @@ TEST_CASE("Runtime harness: SwitchEnds flips both directions, not the tick frame
   CHECK(sim.Stop());
 }
 
+TEST_CASE("Runtime harness: transient mirror and permanent end change write disjoint fields",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitMatch(sim);
+  const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
+  const int dynamic_before = home_frame.dynamic_side;
+  const int static_before = home_frame.static_side;
+  const bool mirrored_before = home_frame.mirrored;
+
+  // The transient execution-frame toggle owns dynamic_side and mirrored; the
+  // persistent direction the team defends is not a frame concern.
+  SimulationAccess::MirrorTeam(sim, 0);
+  CHECK(home_frame.dynamic_side == -dynamic_before);
+  CHECK(home_frame.mirrored == !mirrored_before);
+  CHECK(home_frame.static_side == static_before);
+  SimulationAccess::MirrorTeam(sim, 0);
+  CHECK(home_frame.dynamic_side == dynamic_before);
+  CHECK(home_frame.mirrored == mirrored_before);
+  CHECK(home_frame.static_side == static_before);
+
+  // The permanent change of ends owns static_side and dynamic_side together and
+  // must leave the between-tick mirror flag alone.
+  SimulationAccess::SwitchTeamEnds(sim, 0);
+  CHECK(home_frame.static_side == -static_before);
+  CHECK(home_frame.dynamic_side == -dynamic_before);
+  CHECK(home_frame.mirrored == mirrored_before);
+  CHECK(sim.Stop());
+}
+
 TEST_CASE("Runtime harness: possession arbitration is runtime-owned",
           "[runtime][sim]") {
   Simulation sim;

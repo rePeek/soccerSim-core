@@ -155,9 +155,16 @@ class Simulation {
   football::sim::TeamView TeamViewOf(int team_id) const;
   // Team orientation is runtime-owned behaviour: these mutate the borrowed
   // TeamFrame and publish the resulting facts to that team's players, in
-  // declaration order.
-  // MirrorTeam flips the execution frame; SwitchTeamEnds is the half-time
-  // change of ends (both directions flip, the between-tick frame does not).
+  // declaration order. The two are deliberately not interchangeable:
+  //
+  // - MirrorTeam is the transient execution-frame toggle used by StepImpl. It
+  //   flips dynamic_side and mirrored; static_side is never touched.
+  // - SwitchTeamEnds is the permanent half-time change of ends. It flips both
+  //   dynamic_side and static_side; mirrored is never touched.
+  //
+  // Nothing else writes a TeamFrame. Pitch does not know the half, Referee
+  // does not change a direction, Team owns no live orientation and AI never
+  // schedules a change of ends.
   void MirrorTeam(int team_id);
   void SwitchTeamEnds(int team_id);
   PlayerTeamFacts TeamFactsFor(int team_id) const;
@@ -188,6 +195,9 @@ class Simulation {
   bool ShouldSkipPlayerSimulation() const;
   void CaptureSnapshot();
   void EndPeriod();
+  // The single permanent end change of the match. EndPeriod only publishes the
+  // whistle and sets pending_change_of_ends_; StepImpl applies this transaction
+  // once, at the entry of the next tick, before that tick is counted.
   void ApplyChangeOfEnds();
   void UpdateRecentPossession(football::sim::TickSpan admitted);
   void BeginBodyCollisionShadow();
