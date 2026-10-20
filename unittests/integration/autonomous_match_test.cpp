@@ -69,11 +69,12 @@ football::sim::TeamSetup MakeEleven(const char* name,
   return team;
 }
 
-MatchOptions MatchConfig(unsigned int seed) {
+MatchOptions MatchConfig(unsigned int seed, bool reverse) {
   MatchOptions options;
   options.game_engine_random_seed = seed;
   options.half_duration = HalfDuration();
   options.snapshot_capacity = 20000;
+  options.reverse_team_processing = reverse;
   return options;
 }
 
@@ -230,7 +231,7 @@ football::sim::TeamSide SideOf(const WorldState& world,
 Audit RunMatch(football::ai::PlayerPolicyKind policy,
                const football::sim::TeamSetup& home,
                const football::sim::TeamSetup& away, unsigned int seed,
-               bool coach = false) {
+               bool coach = false, bool reverse = false) {
   football::ai::AIConfig ai;
   ai.player_policy = policy;
   if (coach) {
@@ -240,7 +241,7 @@ Audit RunMatch(football::ai::PlayerPolicyKind policy,
     ai.initial_tactics[1] = football::ai::MakeTacticalBoardV2(
         away, football::sim::TeamSide::Away, football::pitch::Pitch{});
   }
-  MatchOptions options = MatchConfig(seed);
+  MatchOptions options = MatchConfig(seed, reverse);
 
   GameEnv env(home, away, football::pitch::Pitch{}, football::ball::BallModel{},
               options, ai);
@@ -404,6 +405,24 @@ TEST_CASE("Integration: Default x Default completes and is deterministic",
   REQUIRE(first.result.home_score == second.result.home_score);
   REQUIRE(first.result.away_score == second.result.away_score);
   REQUIRE(first.result.outcome == second.result.outcome);
+  REQUIRE(first.result.duration_ticks == second.result.duration_ticks);
+}
+
+TEST_CASE("Integration: reverse team processing is deterministic",
+          "[integration][match]") {
+  // FRAME-1 gate: the second processing order must be pinned by a fingerprint
+  // just like the default one before any authority migration touches it.
+  const Audit first = RunMatch(football::ai::PlayerPolicyKind::Default,
+                               MakeEleven("home", 0), MakeEleven("away", 11), 42,
+                               /*coach=*/false, /*reverse=*/true);
+  const Audit second = RunMatch(football::ai::PlayerPolicyKind::Default,
+                                MakeEleven("home", 0), MakeEleven("away", 11), 42,
+                                /*coach=*/false, /*reverse=*/true);
+  RequireHealthyMatch(first);
+  Report(first);
+  REQUIRE(first.digest == second.digest);
+  REQUIRE(first.event_digest == second.event_digest);
+  REQUIRE(first.trajectory_digest == second.trajectory_digest);
   REQUIRE(first.result.duration_ticks == second.result.duration_ticks);
 }
 
