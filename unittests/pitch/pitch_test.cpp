@@ -159,3 +159,15 @@ TEST_CASE("Attacking frame maps one tactical anchor into either defending end",
   CHECK(FromAttackingFrame(DefendingEnd::PositiveX)
             .Position(Vector3(25.0f, -20.0f, 0.0f)) == anchor);
 }
+
+TEST_CASE("The runtime ±1 side convention maps to a defending end",
+          "[unit][pitch]") {
+  // -1 is the convention for defending -X, +1 for defending +X; this bridge
+  // is the only place the numeric convention is interpreted.
+  CHECK(DefendingEndOf(-1) == DefendingEnd::NegativeX);
+  CHECK(DefendingEndOf(1) == DefendingEnd::PositiveX);
+  CHECK(ToAttackingFrame(DefendingEndOf(-1)).Position(Vector3(1, 2, 3)) ==
+        Vector3(1, 2, 3));
+  CHECK(ToAttackingFrame(DefendingEndOf(1)).Position(Vector3(1, 2, 3)) ==
+        Vector3(-1, -2, 3));
+}

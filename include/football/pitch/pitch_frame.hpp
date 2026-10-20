@@ -30,6 +30,13 @@ enum class DefendingEnd {
   PositiveX,
 };
 
+// The runtime's ±1 side convention -> DefendingEnd. Runtime stores the
+// direction a team defends as -1 (defends -X) or +1 (defends +X); this is the
+// only place that convention is translated, so its meaning has one owner.
+constexpr DefendingEnd DefendingEndOf(int side) {
+  return side < 0 ? DefendingEnd::NegativeX : DefendingEnd::PositiveX;
+}
+
 class PitchFrameTransform {
  public:
   explicit constexpr PitchFrameTransform(bool rotated) : rotated_(rotated) {}
