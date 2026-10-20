@@ -44,6 +44,7 @@ struct BallTouchFacts {
   RefereeBallFact ball;
   const football::pitch::Pitch* pitch = nullptr;
   std::span<const RefereePlayerFact> all_active_players;
+  // Home Pitch Frame <-> Stadium Frame, same involution as RefereeTickFacts.
   PitchFrameTransform stadium_to_home{false};
   RestartRuleFacts restart;
   // Release verdict inputs, sampled at this exact touch boundary.

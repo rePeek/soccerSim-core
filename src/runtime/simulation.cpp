@@ -132,7 +132,14 @@ football::sim::RuntimeTickFacts Simulation::RefereeFacts() const {
   if (!ball_) throw std::logic_error("simulation has no match");
   const football::sim::TeamView home = TeamViewOf(0);
   const football::sim::TeamView away = TeamViewOf(1);
-  // The between-tick ball frame follows the first processing team.
+  // The between-tick persistent state lives in the first processing team's
+  // frame. Two explicit conversions sample it for the Referee:
+  // - ball_to_home: that processing frame -> the published Home Pitch Frame
+  //   (a function of the first team's dynamic side);
+  // - stadium_to_home: the Home Pitch Frame <-> the Stadium Frame, i.e. the
+  //   rotation that puts the home team's own goal back on -X. It is derived
+  //   from the home team's defending end, never from MatchPhase.
+  // Both are involutions, so either also converts back.
   const int ball_frame_team = options_.reverse_team_processing ? 1 : 0;
   return {GetTimelineTick(), phase_, play_authorized_, set_piece_active_, goal_scored_,
       *ball_, pitch_, GetRegulationTime(), home, away, first_team_,
@@ -140,7 +147,7 @@ football::sim::RuntimeTickFacts Simulation::RefereeFacts() const {
       last_goal_team_,
       ToHomePitchFrame(ball_frame_team == static_cast<int>(football::sim::TeamSide::Home),
                        team_frames_[ball_frame_team].dynamic_side),
-      PitchFrameTransform(team_frames_[0].static_side != -1)};
+      ToAttackingFrame(DefendingEndOf(team_frames_[0].static_side))};
 }
 
 football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor) {

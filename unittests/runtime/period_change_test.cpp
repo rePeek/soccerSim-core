@@ -229,3 +229,35 @@ TEST_CASE("Runtime harness: the goal-line restart side follows the physical ends
   CHECK(award->team == TeamSide::Away);
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: the published frame conversions compose to a fixed offset",
+          "[runtime][sim]") {
+  for (const bool reverse : {false, true}) {
+    CAPTURE(reverse);
+    Simulation sim;
+    Init(sim, reverse, football::sim::Minutes(45));
+    // An asymmetric raw ball so a wrong or doubled rotation cannot hide.
+    SimulationAccess::ResetBall(sim, football::math::Vector3(3.5f, -2.5f, 0.0f));
+
+    for (int half = 0; half < 2; ++half) {
+      const football::ball::BallState raw = SimulationAccess::BallOf(sim)->state();
+      const auto facts = SimulationAccess::RefereeFactsOf(sim);
+      // home = ball_to_home(raw); stadium = stadium_to_home(home).
+      const football::math::Vector3 home = facts.ball_to_home.Position(raw.position);
+      const football::math::Vector3 stadium = facts.stadium_to_home.Position(home);
+      // The between-tick persistent frame differs from the Stadium Frame by
+      // exactly the reverse-processing rotation, in both halves.
+      const football::math::Vector3 expected =
+          PitchFrameTransform(reverse).Position(raw.position);
+      CHECK(stadium.coords[0] == expected.coords[0]);
+      CHECK(stadium.coords[1] == expected.coords[1]);
+      // The published observation is that same home-pitch point.
+      const WorldState world = sim.Observe();
+      CHECK(world.ball_position.coords[0] == home.coords[0]);
+      CHECK(world.ball_position.coords[1] == home.coords[1]);
+
+      if (half == 0) SimulationAccess::ApplyChangeOfEndsNow(sim);
+    }
+    CHECK(sim.Stop());
+  }
+}
