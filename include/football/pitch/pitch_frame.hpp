@@ -1,9 +1,4 @@
-// Pure pitch frame transform: an actor's processing frame <-> the fixed
-// home-pitch frame (Home defends -X). It is geometry only and depends on
-// foundation math, never on Runtime or an actor. `home` is the caller's
-// TeamSide::Home membership; the transform is its own inverse.
-#ifndef FOOTBALL_PITCH_PITCH_FRAME_HPP
-#define FOOTBALL_PITCH_PITCH_FRAME_HPP
+#pragma once
 
 #include "football/foundation/math/vector3.hpp"
 
@@ -31,5 +26,3 @@ inline PitchFrameTransform ToHomePitchFrame(bool home, int dynamic_side) {
 inline PitchFrameTransform FromHomePitchFrame(bool home, int dynamic_side) {
   return ToHomePitchFrame(home, dynamic_side);
 }
-
-#endif  // FOOTBALL_PITCH_PITCH_FRAME_HPP

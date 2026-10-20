@@ -1,10 +1,3 @@
-// football::pitch::Pitch implementation: configuration validation and the
-// one-time generation of the static physics scene.
-//
-// These are the historical values and expressions. Keep the validation order,
-// the collider ids/order, the material coefficients and the float arithmetic
-// verbatim: the simulation's determinism depends on them.
-
 #include "football/pitch/pitch.hpp"
 
 #include <cmath>
@@ -14,8 +7,6 @@ namespace football::pitch {
 
 namespace {
 
-// Stable ids and geometry frozen because the CCD uses ColliderId for
-// deterministic contact sorting.
 constexpr football::geometry::ColliderId kGroundColliderId = 1;
 constexpr football::geometry::ColliderId kLeftPostLowColliderId = 2;
 constexpr football::geometry::ColliderId kLeftPostHighColliderId = 3;
@@ -25,7 +16,6 @@ constexpr football::geometry::ColliderId kLeftBarColliderId = 6;
 constexpr football::geometry::ColliderId kRightBarColliderId = 7;
 constexpr float kPostRadius = 0.06f;
 
-// Deterministic static collider: same shape at start and end (no motion).
 football::geometry::ColliderMotion StaticCollider(
     football::geometry::ColliderId id, football::geometry::ColliderShape shape,
     football::geometry::ContactMaterial material) {
@@ -37,7 +27,7 @@ football::geometry::ColliderMotion StaticCollider(
   return motion;
 }
 
-}  // namespace
+}
 
 Pitch::Pitch(float length, float width, float quadratic_resistance,
              float ground_deceleration, float grass_height)
@@ -58,9 +48,6 @@ Pitch::Pitch(float length, float width, float quadratic_resistance,
   BuildColliders();
 }
 
-// Equality compares the configuration only. The collider list is derived data
-// rebuilt from the configuration in the constructor, so it is not part of a
-// pitch's identity.
 bool Pitch::operator==(const Pitch& other) const {
   return length_ == other.length_ && width_ == other.width_ &&
          quadratic_resistance_ == other.quadratic_resistance_ &&
@@ -75,7 +62,6 @@ bool Pitch::operator==(const Pitch& other) const {
          post_material_ == other.post_material_;
 }
 
-// The whole immutable scene, built once at construction.
 void Pitch::BuildColliders() {
   colliders_.clear();
   colliders_.reserve(7);
@@ -83,9 +69,6 @@ void Pitch::BuildColliders() {
   BuildGoal();
 }
 
-// Grass: the ground half-space the ball rolls on. Rolling resistance and grass
-// height are the ground_* fields, not properties of the HalfSpace geometry;
-// the effective ball-ground restitution is the ground contact material.
 void Pitch::BuildGrass() {
   using football::geometry::HalfSpace;
   colliders_.push_back(StaticCollider(
@@ -94,7 +77,6 @@ void Pitch::BuildGrass() {
       ground_material_));
 }
 
-// Goal: four posts plus two crossbars, all steel.
 void Pitch::BuildGoal() {
   using football::geometry::Capsule;
   const float x = half_length();
@@ -126,4 +108,4 @@ void Pitch::BuildGoal() {
       post_material_));
 }
 
-}  // namespace football::pitch
+}
