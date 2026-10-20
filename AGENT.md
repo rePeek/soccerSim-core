@@ -218,6 +218,68 @@ while keeping the Home Pitch Frame output, and only then delete the Runtime
 mirror scheduling. It is not part of the change-of-ends work, and the 22-actor
 determinism acceptance must be re-established before any golden is considered.
 
+#### FRAME-1 frame audit (read/write dependency map)
+
+FRAME-1 is done: the conversions are named (`DefendingEndOf`,
+`ToAttackingFrame` in `simulation.cpp`'s `RefereeFacts`) and the algebra is
+pinned by the "frame conversions compose to a fixed offset" runtime test.
+The audit it produces is the gate for FRAME-2/3:
+
+Persistent authority and the frame it is stored in. Every between-tick value
+lives in the *first processing team's* frame: `Ball::state_` (position,
+velocity, angular_velocity, orientation); each Player's committed
+`kinematicState` plus the compatibility `spatial_state_` and animation
+root-motion state (`startPos`, `startAngle`, `previousPosition2D`,
+`tripDirection`, `decayingPositionOffset`, `predicate_RelDesiredDirection`);
+and the `mental_images_` history. The derived caches must share that frame at
+their commit point: `preparation_ball_`, `body_physics_shadow_ball_`,
+`body_shadow_*` / `baked_body_*` / `active_touch_*` colliders and candidates,
+`committed_ball_tick_`, `rule_touches_` and the player-image samples.
+
+Between-tick invariant (now tested). With
+`P = ToHomePitchFrame(first team is Home, first_team.dynamic_side)` and
+`S = ToAttackingFrame(DefendingEndOf(home.static_side))`, the between-tick raw
+state satisfies `raw = PitchFrameTransform(reverse_team_processing)(stadium)`
+at every boundary, in both halves, because `P` and `S` flip together at the
+change of ends. `Observe()` / `CaptureSnapshot()` are therefore
+processing-order independent even though the raw representation is not.
+
+Per-tick mirror sites (all in Runtime, not in Player/Ball leaf code).
+`StepImpl` and `RunPreparedPlayerTick` toggle frames around each algorithm
+(referee, possession refresh, contacts, ball kernel, touch arbitration) and
+net to zero by the boundary. The prepared/CCD paths additionally mirror their
+ball copies and per-`second_team_` actors in `simulation_prepared_tick.cpp`,
+`simulation_baked_body.cpp`, `simulation_body_shadow.cpp`,
+`simulation_active_touch_shadow.cpp` and `simulation_rule_touch.cpp`.
+`ApplyChangeOfEnds` is the only permanent change.
+
+Consumers. `world_state_builder.cpp` and `CaptureSnapshot` convert the ball
+via the first team's frame and each player via its own frame; `RefereeFacts`
+produces `ball_to_home`/`stadium_to_home`; `PlayerTickFacts` hands the raw
+`ball_` to the actor; `player_tick.cpp` uses `ToHomePitchFrame` and
+`player_control_builder.cpp` / `restart_planner.cpp` /
+`restart_controller.cpp` use `FromHomePitchFrame`.
+
+Ordering decision. FRAME-2 (Ball) precedes FRAME-3 (Player): the ball's
+authority is four fields with mirror points localized in Runtime, and
+`Ball::Step` is Z-rotation-symmetric (wind is reserved/unused), so moving it
+to the Stadium Frame cannot change its physics. Player state is the opposite:
+it is coupled to animation root motion, baked pose, body/ground colliders and
+the per-`second_team_` CCD mirrors, so it is the higher-risk switch. Between
+FRAME-2 and FRAME-3 the ball and the players are in different frames, so the
+ball must be converted at exactly these seams before any algorithm reads both:
+`PlayerTickFacts` (AI), `Ball::Predict` and MentalImage ball samples, and the
+`DispatchTouch`/`AcceptedTouch` rule evidence. That is FRAME-4's control seam
+and FRAME-5's body/touch seam; neither may be skipped.
+
+Gate for FRAME-2 and later: keep the debug runtime suite green, re-establish
+the 22-actor determinism acceptance rather than editing a golden, keep FRAME-5
+free of any CCD/animation algorithm change, and do not delete Runtime `Mirror`
+scheduling until FRAME-6 derives Referee/Observation/Snapshot from the Stadium
+authority while Home Pitch Frame output stays byte-identical for the existing
+AI/replay/tool contracts.
+
+
 ## Source layout
 
 ```text
