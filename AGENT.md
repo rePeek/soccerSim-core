@@ -260,25 +260,41 @@ produces `ball_to_home`/`stadium_to_home`; `PlayerTickFacts` hands the raw
 `player_control_builder.cpp` / `restart_planner.cpp` /
 `restart_controller.cpp` use `FromHomePitchFrame`.
 
-Ordering decision. FRAME-2 (Ball) precedes FRAME-3 (Player): the ball's
-authority is four fields with mirror points localized in Runtime, and
-`Ball::Step` is Z-rotation-symmetric (wind is reserved/unused), so moving it
-to the Stadium Frame cannot change its physics. Player state is the opposite:
-it is coupled to animation root motion, baked pose, body/ground colliders and
-the per-`second_team_` CCD mirrors, so it is the higher-risk switch. Between
-FRAME-2 and FRAME-3 the ball and the players are in different frames, so the
-ball must be converted at exactly these seams before any algorithm reads both:
-`PlayerTickFacts` (AI), `Ball::Predict` and MentalImage ball samples, and the
-`DispatchTouch`/`AcceptedTouch` rule evidence. That is FRAME-4's control seam
-and FRAME-5's body/touch seam; neither may be skipped.
+Revised finding (FRAME-2 is feasible, but it is not a delete). The ball kernel
+already runs in the Stadium Frame: `Mirror(false, false, reverse)` around
+`Ball::Step`/`Predict` converts the authoritative raw frame to Stadium, and
+the kernel colliders are built in that same frame (`BuildBakedBodyTape` and
+`BeginBodyPhysicsShadow` mirror their shapes under reverse). So the kernel
+seam is not the obstacle. The obstacle is that the authoritative `ball_` is
+mirrored in place through the whole tick, and many consumers read that
+in-place frame directly: `RefereeFacts` and `DispatchTouch`, the body/CCD
+shadow, `RefreshTeamPossession`/`ResolvePlayerContacts`, the goal-crossing
+lookahead, and the prepared-tick collider / mental-image inputs.
 
-Gate for FRAME-2 and later: keep the debug runtime suite green, re-establish
-the 22-actor determinism acceptance rather than editing a golden, keep FRAME-5
-free of any CCD/animation algorithm change, and do not delete Runtime `Mirror`
+FRAME-2 therefore needs an authority + view split, not a one-line removal:
+
+- `ball_` becomes the only authoritative storage and is never toggled by
+  processing order; the kernel steps it directly, since that frame is already
+  Stadium;
+- a per-frame view (a `Ball` view or a frame tag plus a converting accessor)
+  supplies the current processing frame to the consumers above, reproducing
+  exactly the numbers the in-place mirrors used to produce;
+- the published conversions change from `P` (raw -> home) to `S`
+  (stadium -> home), and `committed_ball_tick_` is derived through `S`.
+
+That is a representation change, not a published-contract change, so it must
+be validated by a normalized A/B comparison over the published `WorldState`
+and confirmed `MatchEvent` sequence (and a captured reverse=true fingerprint),
+not by a raw-storage diff. The same view pattern then carries FRAME-3 (Player
+storage) and lets FRAME-5 drop the per-`second_team_` collider mirrors.
+
+Gate for the migration: keep the debug runtime suite green; bring up the
+normalized A/B comparison before changing any authority; capture a
+reverse=true determinism fingerprint as well as the default one; keep FRAME-5
+free of any CCD/animation algorithm change; and do not delete Runtime `Mirror`
 scheduling until FRAME-6 derives Referee/Observation/Snapshot from the Stadium
 authority while Home Pitch Frame output stays byte-identical for the existing
 AI/replay/tool contracts.
-
 
 ## Source layout
 
