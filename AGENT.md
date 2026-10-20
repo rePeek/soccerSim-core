@@ -157,6 +157,67 @@ value-typed state (`PlayerBakedPoseSample`, `ActiveTouchShadowReport`,
 pimpl or a private state holder so those headers stop appearing in
 `simulation.hpp`; do not attempt this as an incidental change mid-migration.
 
+### Pitch coordinate frames and the change of ends
+
+Three coordinate spaces are named and owned; a fourth, the legacy per-tick
+processing frame, is an internal representation, never a space to design
+against.
+
+- Stadium Frame: the real physical pitch. Origin at the kickoff spot, X along
+  the long axis, Y across it, Z up. The goals stay at x = ±52.5 for the whole
+  match; a change of ends never moves the pitch, the goal furniture, gravity or
+  any collider. This is the long-term home of Player/Ball authority (second
+  round).
+- Home Pitch Frame: the canonical published frame. Home always defends -X and
+  Away always defends +X in both halves. WorldState, Snapshot, TacticalBoard
+  anchors and the restart planner speak it. A change of ends must not change
+  this contract: `WorldState.teams[].defending_direction` stays -1/+1 and the
+  ball and player positions stay in one shared frame.
+- Team Attacking Frame: one team's own view (own goal -X, attacking +X),
+  independent of Home/Away and half. FM-style tactical intent belongs here so
+  the same formation/width/role data needs no per-half copy.
+- Legacy processing frame: the per-tick execution frame that `Mirror` /
+  `MirrorTeam` move around `Simulation::StepImpl`. It is not a public
+  coordinate space and must never be mistaken for the Stadium Frame.
+
+`include/football/pitch/pitch_frame.hpp` provides only the pure math:
+`PitchFrameTransform`, `ToHomePitchFrame`/`FromHomePitchFrame(home,
+dynamic_side)` for the legacy execution frame <-> home pitch frame, and
+`ToAttackingFrame`/`FromAttackingFrame(DefendingEnd)` for the fixed frame <->
+attacking frame. Every transform is a proper 180-degree rotation about Z (X and
+Y negated, Z kept), so it is an involution and an isometry: position, velocity,
+acceleration, facing and spin all convert with the same call. Pitch never
+imports Runtime/Team/Player and never reads MatchPhase; Runtime owns *when* an
+end changes, this header owns only *how* a coordinate changes.
+
+Ownership rules at the change of ends:
+
+- Runtime is the only authority. `EndPeriod` publishes the whistle, sets
+  `pending_change_of_ends_` and schedules the second-half kickoff;
+  `Simulation::ApplyChangeOfEnds`, applied once at the next `Step` entry, closes
+  the old physical contacts, discards frame-local transients, swaps each team's
+  ends (`SwitchTeamEnds` flips `static_side` and `dynamic_side` together) and
+  rotates the ball and mental-image frames. `mirrored` is left alone.
+- There is no event-subscription path and Team never changes its own ends. It
+  is one global match transaction owned by Runtime, with the call order kept.
+- Referee consumes facts. For goal, out-of-play and offside it uses the current
+  defending side (`static_side`/`dynamic_side`) and the explicit
+  `ball_to_home`/`stadium_to_home` transforms on `RefereeTickFacts`; it never
+  reads Home/Away as a direction and never mutates an orientation.
+- AI never schedules a change of ends. Until the second-round Stadium migration
+  finishes, Team/AI intent in the attacking frame must pass through the
+  Runtime/AI adapter boundary before it reaches a Player execution frame; a
+  `Player::Step` input is never guessed to be in a particular space.
+
+Long-term migration gate (do not start as an incidental change): the legacy
+per-tick `Mirror` is preserved deliberately. Removing it is a separate staged
+effort, FRAME-1..FRAME-7: audit the adapters, move Ball and then Player
+persistent state to the Stadium Frame, close the AI/control/body-collision
+conversions, derive Referee/observation/Snapshot from the Stadium authority
+while keeping the Home Pitch Frame output, and only then delete the Runtime
+mirror scheduling. It is not part of the change-of-ends work, and the 22-actor
+determinism acceptance must be re-established before any golden is considered.
+
 ## Source layout
 
 ```text
@@ -803,15 +864,19 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   between-tick frame. Static physical sides flip, while WorldState keeps the home
   frame and TeamSide remains Home/Away. The same physical goal credits the opposite
   team in the second half. First-half numerics remain unchanged.
-- `include/football/pitch/pitch_frame.hpp` provides the runtime/home-pitch
-  transform (`PitchFrameTransform`, inline geometry) that observation and control
-  execution apply. Team transforms derive from current dynamic side versus fixed
-  Home=-1/Away=+1; the between-tick ball uses the first processing roster's frame.
-  Never infer orientation from MatchPhase: SecondHalf is published before the
-  pending physical change of ends. Ball position AND velocity must share the same
+- `include/football/pitch/pitch_frame.hpp` provides the pure frame geometry:
+  the runtime/home-pitch transform (`PitchFrameTransform`, inline geometry) that
+  observation and control execution apply, plus `DefendingEnd` and
+  `ToAttackingFrame`/`FromAttackingFrame` for a team's own attacking view. Team
+  transforms derive from current dynamic side versus fixed Home=-1/Away=+1; the
+  between-tick ball uses the first processing roster's frame. Never infer
+  orientation from MatchPhase: SecondHalf is published before the pending
+  physical change of ends. Ball position AND velocity must share the same
   home-pitch frame as player positions; defending_direction does not flip.
   Fixing the missing ball transform intentionally changes second-half AI matches,
   not first-half numerical goldens, clock policy, physics or animation resources.
+  See "Pitch coordinate frames and the change of ends" for the full contract
+  and the deferred Stadium migration gate.
 - WorldState is an owning projection, not authoritative storage or a history cache.
   The unused request-only ObservationEpoch marker and Match ownership state are
   deleted. Native Player action/publication continuity epochs remain owner-local.
