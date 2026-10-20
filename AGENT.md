@@ -126,29 +126,32 @@ The heuristic run also guards the concrete blocker found here: `AIEngine` must
 construct every selectable `PlayerPolicyKind` (the V2-only Heuristic kind must
 not require a legacy adapter).
 
-### Pitch owns the static physics scene (header-only, no module)
+### Pitch owns the static physics scene (its own archive)
 
-`football.pitch` is a header-only INTERFACE target owning
-`football::pitch::Pitch` (`include/football/pitch/pitch.hpp`). Pitch builds and
-caches the whole static scene once: the ground plane, the four goal posts, the
-two crossbars, the ground/goal parameters and the fixed environment (gravity,
-wind). No goal-net damping is simulated. It depends
-on foundation + geometry and never on ball/player.
+`football::pitch` is a STATIC archive owning `football::pitch::Pitch`
+(`include/football/pitch/pitch.hpp`, implemented in `src/pitch/pitch.cpp`).
+Pitch builds and caches the whole static scene once: the ground plane, the four
+goal posts, the two crossbars, the ground/goal parameters and the fixed
+environment (gravity, wind). No goal-net damping is simulated. It depends on
+foundation + geometry and never on ball/player. The header keeps the
+description, the constexpr dimensions and the three trivial accessors
+(`gravity`, `wind_velocity`, `colliders`) inline; the configuration validation,
+`operator==` and the collider generation are `pitch.cpp` implementation detail.
+`pitch_frame.hpp` stays header-only: it is pure, stateless geometry.
 
 Dependency direction: `football::pitch` -> `football::geometry` ->
-`football::foundation`; `football::ball` and (later) `football::player` read
+`football::foundation`; `football::ball` and `football::player` read
 the immutable pitch scene. `football_pitch` must never link `football_ball`.
 No C++20 module, no module toolchain, no extra CMake flags: any supported
-compiler builds it.
-### Build performance (diagnosed, not fully resolved)
-
+compiler builds it, and like every other module it declares its own sources,
+headers and link edges in `src/pitch/CMakeLists.txt`.
 `simulation.hpp` transitively includes `player_active_touch_shadow.hpp` (which
 pulls `player_active_touch_model.hpp` and `football/ball/ball.hpp`) and
 `player_baked_pose_sample.hpp` (which pulls the baked body-pose/contact-region
-geometry). Touching any of those inline headers therefore recompiles ~40
-translation units (including `src/env.cpp` and the 2360-line `humanoid.cpp`)
-and relinks ~15 executables; a measured single-header change rebuilds 54 ninja
-edges in ~30 s at `-j 4` (16 cores available). The deferred fix is to move
+geometry). Editing any of those inline headers recompiles 13 translation units
+(the runtime domain's `simulation*.cpp`, `player_touch_execution.cpp` and
+`src/env.cpp`, plus the runtime suites) and relinks 11 executables: a measured 24
+ninja edges in ~8 s at `-j 16` with ccache disabled. The deferred fix is to move
 value-typed state (`PlayerBakedPoseSample`, `ActiveTouchShadowReport`,
 `ActiveImpulseCandidate`) out of the `Simulation` class definition behind a
 pimpl or a private state holder so those headers stop appearing in
@@ -195,6 +198,10 @@ src/                 implementations; public headers live in include/football/
 │                    own CMakeLists for football::collision
 ├── ball/            football::ball implementation: motion, generic collision
 │                    response and prediction; no goal-net physics
+├── pitch/           football::pitch implementation: pitch.cpp validates the
+│                    configuration and generates the ground/posts/crossbars
+│                    colliders once. The archive links foundation/geometry and
+│                    never ball/player.
 ├── team/            football::team implementation: team.cpp validation/selection,
 │                    formation_preset.cpp anchor resolution and team_players.cpp,
 │                    which owns the team's Player objects. The archive links
@@ -210,8 +217,9 @@ src/                 implementations; public headers live in include/football/
 
     ├── event/        EventRecognizer/EventTransition, EventLog/MatchEvent, TouchState,
     │                 AcceptedTouch + AcceptedTouchSink and whole-step EventTrajectory
-    ├── observation/ owning WorldState, world_state_builder, pitch_frame adapters
-    │                 MentalImage/player-image history + nearest-slot sampling,
+    ├── observation/ owning WorldState, world_state_builder (which applies the
+    │                 pitch/pitch_frame.hpp transform), MentalImage/player-image
+    │                 history + nearest-slot sampling,
     │                 value-only Snapshot + preallocated SnapshotHistory + temporal_graph,
     │                 static PlayerSlotTable identity -> TeamSide mapping and a pure
     │                 shadow-only Snapshot touch inference
@@ -236,14 +244,6 @@ src/                 implementations; public headers live in include/football/
         │             here.
         │             Owns ONLY single-player state and behaviour: it never holds a
         │             Team, never iterates the squad and contains no team algorithm.
-        └── humanoid/ Humanoid / HumanoidBase / utilities. Since P2a Player computes
-                      and commits locomotion (Player::CommitLocomotion via
-                      PlayerMotion) and HumanoidBase only mirrors that committed
-                      state into the legacy spatial state; Humanoid still owns
-                      animation selection, sampling and the non-locomotion action
-                      path. P2b enables the capability-driven acceleration/braking/
-                      turn rate and removes the mirror; P3 shrinks Humanoid to
-                      animation only.
 
 cmake/
 ├── CPM.cmake
@@ -275,6 +275,7 @@ symbols (including the currently unused GetRoleFromString).
 ```text
 app → simcore (env.cpp) → ai + sim
 foundation ← geometry ← collision ← ball ← sim (and later player)
+pitch → foundation/geometry (own STATIC archive; ball/player read it)
 team → foundation/pitch (static domain; no Runtime/Referee/AI/Player impl)
 ai → ai_contracts + sim_contracts → foundation/pitch/collision
 ai → model (header-only protocol/provider seam; STL only)
@@ -397,90 +398,22 @@ anim_baking → legacy_anim + animation/foundation
   owners (which destroy their Players) and clock. The same route handles
   partially constructed Teams and an unpublished Ball. Repeated Stop is safe.
 
-### Motion state writers (P2 preflight audit)
+### Motion state writers
 
-Audited at 4f9dc4c. `PlayerKinematicState` has one *declared* authority but
-several writers, and two of them write it **through** the Humanoid spatial
-state. Nothing may be added here without stopping to review the authority rule,
-and each row below must shrink as P2c/P2d proceed.
+`PlayerKinematicState` has one *declared* authority — `Player::CommitKinematicState`,
+which also keeps `groundCollider` in step — and nothing may be added here
+without stopping to review that rule. The former `Humanoid` mirror and its
+reverse sync are gone with the type (commit `60c7378`), so one fact no longer
+has two copies. `Player::CommitLocomotion` (committed locomotion) and
+`Player::CommitLegacyActionMotion` (the motion the animation/action path
+derives) both install through that single commit point, and
+`CheckSimulationKinematicOracle()` asserts the invariants wherever a commit is
+followed by a completed sync rather than at the commit itself.
 
-| Writer | Fields | Tick phase | Cross-state sync | RNG |
-|---|---|---|---|---|
-| `Player::CommitLocomotion` (P2a) | whole state: position, velocity, facing, bodyFacing, speed | mid-tick, inside `HumanoidBase::ProjectMovementState` | committed value is immediately re-derived from the Humanoid by `ApplySimulationMovementState` -> `SynchronizeKinematicState` | none |
-| `Player::SynchronizeKinematicState` | position, velocity, facing, bodyFacing, speed + groundCollider | whenever the Humanoid spatial state changes | **reverse path** Player <- Humanoid; callers: `ApplySimulationMovementState`, `CalculateSpatialState`, `CalculateFactualSpatialState`, `HumanoidBase::OffsetPosition`, `Player::OffsetPosition`, `Player::ResetPosition`, `Player::PrepareTick`, `Player::ResetRuntimeState`, `Player::Activate` | none |
-| `Player::OffsetPosition` | position (+ Humanoid: startPos, nextStartPos, positionOffsetMovement, decayingPositionOffset, currentAnim.positionOffset) | contact resolution, after movement | delegates to `Humanoid::OffsetPosition`, then syncs back | none |
-| `Player::ResetPosition` | position, facing/angle (+ Humanoid start/next/previous) | restart placement, reset, activation | delegates to `HumanoidBase::ResetPosition`, syncs back, then `BeginSimulationAction()` | none |
-| `Player::ResetRuntimeState` | runtime flags, then a mirror sync | situation reset | syncs back | none |
-| `Player::Activate` | mirror sync after the Humanoid exists | team player activation | syncs back | none |
-| `Player::Mirror` | `kinematicState.Mirror()` (position+velocity) and `humanoid->Mirror()` (start/next/spatialState) | `Simulation::Mirror` around actor processing | mirrors both copies separately; the kinematic oracle proves they agree | none |
-| `HumanoidBase::CalculateSpatialState` | non-procedural path: `spatialState.position = startPos + currentAnim.positions[frame] + smuggle offsets`, plus movement/directionVec/angle/floatVelocity | `Humanoid::Process` before `ProjectMovementState` | syncs back | none |
-| `HumanoidBase::ApplySimulationMovementState` | spatialState position/movement/directionVec/floatVelocity/angle, previousPosition2D, body direction | mid-tick | then syncs back | none |
-| `HumanoidBase::CalculateFactualSpatialState` | zeroes velocity/movement on an outgoing special state | end of a legacy animation | syncs back | none |
-
-Findings P2c/P2d must resolve, in this order:
-
-1. `CommitLocomotion` is only *partly* authoritative: the value it commits is
-   immediately re-derived from the Humanoid, so one fact still has two writers.
-   They agree today only because the kinematic oracle enforces it.
-2. `Player::OffsetPosition` and `Player::ResetPosition` write the position
-   *through* the Humanoid and sync back, so collision and reset authority still
-   lives in the Humanoid `startPos`/`spatialState`, not in the Player.
-3. `previousPosition2D` is the next tick's motion origin; a contact correction
-   only lands there via the sync-back order. P2c must make the corrected Player
-   state that origin.
-4. `Player::Mirror` mirrors two copies of the same fact, and
-   `PlayerKinematicState::Mirror` deliberately mirrors position/velocity only.
-   No stage may start rotating facing/bodyFacing here: that is a separate
-   coordinate-system migration.
-   the actions.
-
-P2c-1 (done) unifies the *write point* without changing the producers or the
-sync direction: `Player::CommitKinematicState(next)` is now the only function
-that installs a `PlayerKinematicState` (it also keeps `groundCollider` in step),
-and both `CommitLocomotion` and `SynchronizeKinematicState` go through it. It
-`CheckSimulationKinematicOracle()`: right after a commit the Humanoid mirror is
-still stale, so the oracle is asserted only where a sync completes
-(`SynchronizeKinematicState`, `ApplySimulationMovementState`).
-`ResetPosition`, `ResetRuntimeState` and `Activate` keep their legacy order, and
-`Mirror()` keeps its atomic dual-state compatibility path until P2d.
-
-P2c-2 (done) flips the *contact correction*: `Player::OffsetPosition` commits the
-corrected position itself (only the position changes; velocity, facing,
-bodyFacing and `speed` are left exactly as the previous commit installed them)
-and then calls `HumanoidBase::ApplyPositionOffset(offset)`, which is the legacy
-animation/motion bookkeeping (startPos, nextStartPos, previous position,
-positionOffsetMovement, decayingPositionOffset, currentAnim.positionOffset)
-*without* re-deriving the Player state. `HumanoidBase::OffsetPosition` remains
-for corrections that originate inside the Humanoid (its own goalkeeper boundary
-clamps) and still syncs back; those call sites are the remaining legacy path for
-clamps) still call the legacy entry; those call sites remain for S0.2.
-
-S0.1 (done) removes the *implicit* reverse sync for pure locomotion. The former
-source-agnostic `Player::SynchronizeKinematicState()` is now
-`Player::CommitLegacyActionMotion()`: an explicitly named entry that adopts the
-motion the legacy Humanoid derived from animation root motion. It is still used
-by `CalculateSpatialState`, `CalculateFactualSpatialState` and
-`HumanoidBase::OffsetPosition` (legacy action paths) plus
-`ResetPosition`/`ResetRuntimeState`/`Activate`/`PrepareTick`, which S0.2-S0.4
-migrate. `HumanoidBase::ApplySimulationMovementState` is split into
-`ProjectSimulationMovementState` (spatial-state projection only) and the legacy
-`ApplySimulationMovementState` (projection + adoption). The pure-locomotion
-branch of `ProjectMovementState` now only projects the state the Player already
-committed and then asserts the mirror oracle, so the Humanoid can no longer
-overwrite a locomotion tick. The roadmap is now S0 (authority), S1 (attributes
-and motion), S2 (animation decoupling), S3 (collision and touch) and S4 (legacy
-removal); old P2c-3/P2d map to S0.
-
-S0.2 (done) moves the goalkeeper boundary corrections' *authority* to the Player
-while keeping their evaluation where it is. `Player::OffsetPosition` is now
-`ApplyPositionCorrection(offset)` + the action oracle, and
-`ApplyPositionCorrection` is the shared commit point (corrected position first,
-then the Humanoid bookkeeping) for corrections whose evaluation still lives in
-the Humanoid's pass. The four goalkeeper clamps in `Humanoid::Process` call
-`CastPlayer()->ApplyPositionCorrection(...)` with unchanged formulas, conditions,
-order and timing; `Humanoid` is a (transitional) friend of `Player` for that.
-`HumanoidBase::OffsetPosition` had no callers left and was deleted, so no
-bidirectional position entry survives.
+`Player::ApplyPositionCorrection(offset)` is the shared commit point for contact
+and boundary corrections — the corrected position is committed first and the
+animation bookkeeping follows — so collision and reset authority live in the
+Player, not in a second object.
 
 Known follow-up (not part of P2c-1): `Player::UpdatePossessionStats()` builds its
 interception-prediction `PlayerLocomotionParameters` with only `maxSpeed`
@@ -670,13 +603,14 @@ Simulation::Step → explicit domain phases → Simulation-owned competition/act
   resulting data (match_state_); no Team context/services are introduced and Player
   never receives a Team&.
   Unused Team::HasUniquePossession and restart query wrappers are deleted; restart
-  facts are read from rules directly. Team has no Match pointer at all;
-  until Player/Humanoid lifetime dependencies are removed. ApplyBallTouch supplies
+  facts are read from rules directly. Team has no Match pointer at all; the
+  former Player/Humanoid lifetime dependency is gone. ApplyBallTouch supplies
   now/retainer to first then second possession refresh before spin/notification.
 - Simulation owns std::vector<MentalImage> and CaptureMentalImage scheduling. Capture
   remains after Ball processing, before players, empty-or-ten-tick, newest-first with
-  three slots. StepPlayers passes a tick-local span directly through Player → Humanoid,
-  including SelectAnim/NeedTouch/GetBestCheatableAnimID/MovementSmuggle.
+  three slots. StepPlayers passes a tick-local span directly into `Player::Process`,
+  including the touch-selection helpers (`TrySelectAction`, `SelectBestTouchAnim`,
+  `MovementSmuggle`).
   No actor stores the span or samples through Match. Preserve the initial previous-delay
   sample before updating mentalImageTime, live deviation clamps, signed millisecond
   sampling, staggered cadence and all conditional sample points. H4-B moved touch composition
@@ -814,31 +748,34 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   Actions store only elapsed/duration/optional contact `TickSpan`; animation frame
   readers are projections, not duplicate clocks. Decision and locomotion schedulers
   use Tick deadlines and owner-local TickSpan cadences. Their tests are in
-  `unittests/player_action_tick_test.cpp`; old diagnostic digests project milliseconds.
-  Humanoid requeue/tactical phase cadences use the same tick-local policy values
-  and overflow-safe reduced-remainder staggering, retaining both roster schedules.
+  `unittests/player/player_action_cursor_test.cpp`; old diagnostic digests project
+  milliseconds. Player requeue/tactical phase cadences use the same tick-local
+  policy values and overflow-safe reduced-remainder staggering, retaining both
+  roster schedules.
   Player touch/card-effect timestamps are Tick; unused possession-duration storage
   is removed. Touch-decay requires an explicit Tick and bounds only relative ages.
   Player::Process consumes a stack-local PlayerTickContext (now, authorization,
   last-touch identity and a live half-underway gate). Simulation assembles it for
   EACH actor; no stored context/span/port. Fatigue reads the borrowed clock gate
-  after Humanoid execution so accepted opening contact remains synchronous.
+  after Player action execution so accepted opening contact remains synchronous.
   Locomotion eligibility, scheduling and decision publications take explicit now/
   Ball/retaining-ball inputs. Player has no Match member/include/lookup:
   reset provenance consumes Tick, deactivation consumes Ball/Tick, and send-off
   consumes Ball/Tick/RNG. Team::Exit performs the former destructor reset before
   each deletion in the original roster order. Player constructors borrow Pitch,
-  AnimationLibrary and the Simulation-owned live RNG explicitly; Humanoid/Base
-  receive the same library and stream at construction. Resets and action draws
+  AnimationLibrary and the Simulation-owned live RNG explicitly; every actor owns
+  its own body profile and playback state from construction. Resets and action
+  draws
   never retrieve RNG through Match, and no stream is copied or reseeded here.
-  Humanoid/Base Process, animation selection, touch prediction, movement-smuggle
+  Player::Process, animation selection, touch prediction, movement-smuggle
   and physics-vector helpers require an explicit evaluation Tick and never read
   a clock through Match. Their remaining Match reads are physics/authorization.
   Ball prediction horizons/cache durations live in sim-private `ball/ball_timing.hpp`;
   prediction generation iterates TickSpan samples with seconds from the quantum.
   MentalImage stores a Tick capture instant and derives TickSpan age. Transitional
-  calculation sampling adapters retain legacy horizon quantization; coverage is
-  in `unittests/prediction_tick_test.cpp`. Unused Ball/Player mean-history APIs and
+  calculation sampling adapters retain legacy horizon quantization; the closest
+  current coverage is `unittests/ball/ball_simulation_test.cpp` ("Ball Predict
+  over a horizon does not mutate state"), not a dedicated adapter suite. Unused Ball/Player mean-history APIs and
   their write-only history storage are deleted, not replaced.
   Clock scale removal is a separate S2 semantic stage, not a unit-only rename.
   See the removed design notes before rounding continuous arrival estimates.
@@ -866,8 +803,9 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
   between-tick frame. Static physical sides flip, while WorldState keeps the home
   frame and TeamSide remains Home/Away. The same physical goal credits the opposite
   team in the second half. First-half numerics remain unchanged.
-- `observation/pitch_frame.*` owns runtime/home-pitch conversion for observation and
-  control execution. Team transforms derive from current dynamic side versus fixed
+- `include/football/pitch/pitch_frame.hpp` provides the runtime/home-pitch
+  transform (`PitchFrameTransform`, inline geometry) that observation and control
+  execution apply. Team transforms derive from current dynamic side versus fixed
   Home=-1/Away=+1; the between-tick ball uses the first processing roster's frame.
   Never infer orientation from MatchPhase: SecondHalf is published before the
   pending physical change of ends. Ball position AND velocity must share the same
@@ -955,8 +893,8 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
 - Two normal Deactivate resets preserve two RNG draws/epochs. Teardown invokes
   only private ResetRuntimeState once per active player, zero for inactive; no
   callbacks into a roster being destroyed. Player::Mirror skips never-active bench
-  entries with no Humanoid but keeps active/sent-off mirror behavior.
-- Humanoid/HumanoidBase flattening is separate work. Animation cache, 10 ms step,
+  entries and keeps active/sent-off mirror behavior.
+- Humanoid/HumanoidBase flattening is done (commit `60c7378`). Animation cache, 10 ms step,
   private phases, destruction order and appearance/reseed windows stay unchanged.
 - Restart placement and readiness algorithms no longer accept/retrieve Match.
   PositionRestartPlayers takes the explicit Ball, regulation span, immutable options
@@ -982,12 +920,13 @@ Entity state → Simulation tick → AcceptedTouch / FoulAssessment → RefereeS
 ## Animation and ongoing work
 
 Runtime reads only `assets/runtime/animations.simanim`, via AnimationLibrary and
-BakedAnimationSelector. Simulation loads/shares the library; Player, Humanoid and
-HumanoidBase receive a const AnimationLibrary& at construction. Team::InitPlayers
+BakedAnimationSelector. Simulation loads/shares the library; every Player receives
+a const AnimationLibrary& at construction. Team::InitPlayers
 forwards the library only during creation, without storing an animation service.
 Actor clip lookup/selection/root positions and foot counterfactual diagnostics use
 the injected library, not Match. Player retains it for activation/reactivation; its
-lifetime remains Simulation-owned. Humanoid utilities consume explicit Ball, live
+lifetime remains Simulation-owned. The Player's motion and animation helpers
+consume explicit Ball, live
 TouchState/opponent roster, evaluation tick, RNG and baked AnimationClip parameters.
 They neither include Match nor retrieve it through Player; Match::GetAnimPositionCache
 and the private implicit clip lookup are deleted. Shot inputs omit unused arguments.
@@ -1052,23 +991,22 @@ Three distinct geometries must not be conflated:
    (two players touch at 0.72 m, `player_contact.cpp` `distanceFactor`), not a
    body width.
 
-All existing scale call sites (the only places `height` becomes a pose/contact
-scale today):
+The legacy scale call sites that this audit listed are gone. BODY-1.1-1.6 below
+replaced them with one profile (`player_body_profile.hpp`); the current
+`height`-to-geometry scaling is:
 
-- `player_motion_constants.hpp:44` — `defaultPlayerHeight = 1.92f` (definition).
-- `humanoid.cpp:181` — `height / defaultPlayerHeight` for the active-touch boot
-  surface/contact-region strike point.
-- `humanoid.cpp:2005` — `playerHeight / defaultPlayerHeight` for the touch
-  ball-height projection.
-- `simulation_baked_body.cpp:57` and `:80` — `GetBakedPoseSample(height /
-  defaultPlayerHeight)` in `BeginBakedBodyTick` / `CompleteBakedBodyPreparation`.
-
-`GetBakedPoseSample(scale)` stores the scale in `PlayerBakedPoseSample.scale`,
-which flows into `BuildBodyCollider` and `BuildBakedContactRegions` and finally
-`EvaluateBakedBodyPose`, which multiplies every bind offset by `scale` and
-never re-applies height (root XY stays in `PlayerKinematicState`; only the
-baked root Z is scaled). At this audit there was no weight field yet and no
-other scale source; BODY-1.1–1.6 below replace this with one profile.
+- `player_body_profile.hpp:37` — `kReferencePlayerHeight = 1.92f` (the former
+  `defaultPlayerHeight`), and `:58` — `height_scale = height / kReferencePlayerHeight`.
+- `player_baked_body_pose.hpp:24`/`:108` and `player_baked_contact_regions.hpp:28`
+  apply `profile.height_scale` to the bind offsets and the contact regions.
+- `touch_geometry.cpp:55` — `animBallHeight * request.height_scale` for the touch
+  ball height; the request is filled at `player_action_selection.cpp:116` and
+  `touch_match.cpp:218`.
+- `Player::GetBakedPoseSample()` (`player.hpp:532`) takes no scale argument: the
+  scale rides inside `PlayerBakedPoseSample.body_profile`, so
+  `simulation_baked_body.cpp` (`BeginBakedBodyTick`, `CompleteBakedBodyPreparation`)
+  only realizes it. Only the baked root Z is scaled; root XY stays in
+  `PlayerKinematicState`.
 
 ### BODY-1.1–1.6 status: profile-driven body geometry is the single source
 
@@ -1221,7 +1159,7 @@ until LOCO-2.3b wires it in; tests use synthetic clips (no asset).
 
 `Player::CommitLocomotion` now captures the committed tick's
 `LocomotionAnimationInput` (current/next state + requested velocity + body),
-and `Humanoid::SelectAnim`'s Movement branch reorders the already-valid
+and the Player's Movement selection reorders the already-valid
 candidate set so the strategy's preferred clip wins, only when the action is
 pure procedural locomotion (`IsEligibleForProceduralLocomotion`). No new
 candidates are added and `GetBestCheatableAnimID`/non-Movement paths are
@@ -1260,27 +1198,28 @@ deterministic final pose across frequent action switches.
 - `football/animation/pose_blend.hpp` (LOCO-2.6a): `BlendPose(source, target,
   weight)` — quaternion SLERP on the shortest path, linear root Z, exact 0%/
   100% endpoints, no NaN, no position authority.
-- `player/animation_transition_state.hpp` (LOCO-2.6b): `AnimationTransitionState`
+- `include/football/animation/transition.hpp` (LOCO-2.6b): `AnimationTransitionState`
   advances one tick at a time; every transition starts from the previous
   tick's final blended pose, so a mid-blend interruption never snaps back to
-  the original clip's first frame. `currentAnim.frameNum` stays int and is
+  the original clip's first frame. The action cursor stays int and is
   not deleted or retyped.
 
-LOCO-2.6c wiring points (identified, not yet wired): a new clip is installed
-in `humanoidbase.cpp:871` (idle init), `humanoidbase.cpp:1214`,
-`humanoid.cpp:1135` (empty fallback) and `humanoid.cpp:1705` (SelectAnim
-"make it so"). The transition must advance exactly once per tick, after
-SelectAnim settles and before `SampleBakedPose` consumes the final pose.
+LOCO-2.6c wiring points (wired): a new clip is installed at every clip-change
+site, and the transition advances exactly once per tick, after the selection
+settles and before `Player::SampleBakedPose` consumes the final pose. The
+"not yet wired" list this note used to carry is superseded by the pose-blending
+section below.
 
 ### LOCO-2.6c/d wired pose blending
 
-`HumanoidBase` now owns `AnimationTransitionState`, the last `final_blended_pose_
-and a clip-change guard. `Humanoid::Process` calls `AdvanceMovementPoseBlend`
-exactly once at the end: pure Movement blends across a clip change from the
-previous final pose (mid-interruption safe), everything else copies the raw
-pose and resets the transition. `SampleBakedPose` returns the final blended
+`Player` now owns `AnimationTransitionState`, the final blended pose and the
+clip-change guard: `Player::UpdatePlayback` drives `PlaybackState::Tick` with
+`football::animation::BlendTicksForSwitch`, so the transition advances exactly
+once per tick. Pure Movement blends across a clip change from the previous final
+pose (mid-interruption safe); everything else copies the raw pose and resets the
+transition. `Player::SampleBakedPose` returns the final blended
 pose, so the body/CCD tape derives from the same single pose. Integer
-`currentAnim.frameNum` is untouched. `Simulation::EnableMovementPoseBlend`
+action cursor stays integer and is not retyped. `Simulation::EnableMovementPoseBlend`
 (default ON) is the A/B switch; the runtime harness asserts ON/OFF committed
 positions and velocities are bit-identical.
 
@@ -1316,10 +1255,10 @@ ON/OFF keep the committed motion bit-identical.
 ### LOCO-2.8 legacy root-motion audit (read-only, no deletion)
 
 The pure-Movement position authority was already removed in S0/P2a:
-`HumanoidBase::UsesProceduralLocomotion(ball_retainer)` (humanoidbase.cpp:1301)
-gates both `CalculateSpatialState` (line 1311 early-returns; only `spatialState.foot`
-is set) and `ProjectMovementState` (line 1505: pure branch only commits + projects;
-non-procedural keeps root-motion adoption). So `currentAnim.positions`,
+`Player::UsesProceduralLocomotion(ball_retainer)` gates both
+`Player::CalculateSpatialState` (early-returns; only `spatialState.foot` is set) and
+`Player::ProjectMovementState` (the pure branch only commits + projects;
+non-procedural keeps root-motion adoption). So `anim_state_.positions`,
 `movementSmuggle` and `actionSmuggle` are NOT read on the pure-locomotion
 position path.
 
@@ -1327,11 +1266,11 @@ Classification:
 - Category 2 (keep, non-Movement still needs): `CalculateSpatialState`
   non-procedural branch, `ProjectMovementState` non-procedural branch,
   `CalculatePhysicsVector` (touch/trap/ball-control prediction via
-  GetBestCheatableAnimID + CalculatePredictedSituation), `currentAnim.positions`,
-  `currentAnim.frameNum`, `movementSmuggle`/`movementSmuggleOffset`,
+  GetBestCheatableAnimID + CalculatePredictedSituation), `anim_state_.positions`,
+  `anim_state_.frameNum`, `movementSmuggle`/`movementSmuggleOffset`,
   `CalculateFactualSpatialState`, `CalculatePredictedSituation`.
 - Category 3 (compatibility projection, no authority): the Movement-branch output
-  of `CalculatePhysicsVector` (`positions_tmp` -> `currentAnim.positions`,
+  of `CalculatePhysicsVector` (`positions_tmp` -> `anim_state_.positions`,
   `rotationSmuggle_tmp`) and the `CalculateMovementSmuggle` write for Movement.
   These are written but never consumed by the pure path, and they share the same
   functions as category-2 callers.
@@ -1411,7 +1350,7 @@ own derived `facing` for AI. Facing writes and the bit-exact facing oracle
 clause were deleted with the field.
 
 STATE-1.2 follow-ups (P1/P2 from review):
-- P1 (fixed): `HumanoidBase::ResetPosition` now sets `bodyDirectionVec`/
+- P1 (fixed): `Player::ResetPosition` now sets `bodyDirectionVec`/
   `bodyAngle` from the locomotion direction (the focus-derived `startAngle`),
   so `bodyFacing`, the animation base and `GetFacing()` all agree after a
   reset instead of body facing hard-coded world -Y. Verified by a non-default
@@ -1478,7 +1417,7 @@ Current chain, in order:
 5. On continuity repair only, `PublishMovementIntentFromQueue` picks the first
    Movement+useDesiredMovement command and stores it as the decision locomotion
    intent (epoch-stamped).
-6. `HumanoidBase::ProjectMovementState` pure branch reads
+6. `Player::ProjectMovementState`'s pure branch reads
    `GetDecisionLocomotionIntent()` -> `Player::CommitLocomotion` ->
    `PlayerMotion::StepContinuous` -> `CommitKinematicState`.
 
@@ -1499,239 +1438,44 @@ interrupted by real physics, and every active player produces one final pose
 per tick that physics and snapshots share. No GNN, no future-action queue, no
 ragdoll, no asset-format change, no C++20 modules.
 
-### ANIM-1.0 audit (read-only)
+ANIM-1 moved that runtime into `Player` and deleted the legacy
+`Humanoid`/`HumanoidBase` types together with the `src/player/humanoid/`
+subtree (commit `60c7378`, A9.5-A9.9; `905c808` dropped the last compatibility
+state and stale comments). The step-by-step migration log (A1-A9) that used to
+live in this file is in git history; the current implementation is `src/player`
+plus the stateless `football::animation` module.
 
-Which object owns the action clock: `Player::actionState.elapsed` (a
-`PlayerActionState` stepped by `PlayerActionExecutor::Step` through
-`Player::StepSimulationAction(TickSpan{1})`), called once per tick from
-`Humanoid::Process` (humanoid.cpp:323). In parallel `HumanoidBase::currentAnim.
-frameNum` is the legacy animation frame cursor, advanced at humanoid.cpp:322
-and reset to 0 on a clip switch. `Player::CheckSimulationActionOracle` asserts
-the two agree. `Player::Process` = `PrepareTick` + `CommitTick`; `PrepareTick`
-runs the Humanoid pass (animation + action clock), `CommitTick` applies fatigue
-and send-offs.
+Rules that still govern the code:
 
-Which path owns the final Pose write: `HumanoidBase::SampleBakedPose` returns
-the pose = `final_blended_pose_` (set once per tick by
-`AdvanceMovementPoseBlend` at the end of `Humanoid::Process`) when valid, else
-`clip.poses[frame]`. `Player::GetBakedPoseSample()` is the read-only facade;
-`Simulation::BeginBakedBodyTick`/`CompleteBakedBodyPreparation` feed it through
-`RealizeBakedPose` + `BuildBodyCollider`/`BuildBakedContactRegions`. The Humanoid
-owns the final pose today.
-
-Where active actions and Trip enter: active commands go
-`PlayerControl -> BuildPlayerCommands -> PlayerCommandQueue -> decision clock ->
-CommitLocomotion` (Movement) / `SelectAnim` (non-Movement clip choice). Trip is
-passive: `player_contact.cpp` -> `Player::TripMe` -> `Humanoid::TripMe`, which
-mutates the Humanoid interrupt state directly.
-
-Humanoid dependency: animation selection, clip switch, frame clock, pose
-sampling, non-Movement root motion, TripMe and the legacy spatial state all
-live in the Humanoid; Player delegates heavily. Untouched modules: foundation,/
-geometry, collision, animation (baked format/selector), ball, pitch, referee,
-observation, ai. Covering tests: unittests/runtime (bounded), and the pure
-unittests/player, unittests/locomotion, unittests/loco_animation suites.
-
-Later ANIM-1 cuts (1.1 action lifecycle, 1.2 per-tick pose update, 1.3 active
-transitions, 1.4 passive reactions, 1.5 scheduling) are recorded as they land.
-
-### ANIM-1.1 action lifecycle interface
-
-`player_action_request.hpp` defines `PlayerActionRequest` (kind + direction +
-optional target/power -> `e_FunctionType`), `PlayerReaction` (Trip/Bump +
-direction/severity/source) and `RequestOutcome` (Accepted/Deferred/Rejected).
-Pure arbitration: a one-shot in flight rejects a repeat of the same action (so
-repeated control input cannot restart it) and defers a different one until a
-legal switch window; a physics reaction always preempts.
-
-`Player::Play(request)` / `Player::React(reaction)` record the outcome and keep
-the pending request on a per-player active/passive channel; `Player::Pose()`
-returns the player's final `PoseFrame` (default when inactive). Execution is
-deliberately unchanged: these are the stable request vocabulary the later
-ANIM-1 cuts wire into the runtime, so the legacy PlayerControl/PlayerCommand
-path stays authoritative for now. Every reset path (`ResetPosition`,
-`ResetRuntimeState`) clears both channels, so no stale request survives a
-reset/half-time/deactivation.
-
-Tests: `unittests/player/player_action_request_test.cpp` (arbitration) and a
-bounded runtime case asserting per-player independent Play/React channels, a
-finite `Pose()`, and reset clearing.
-
-### ANIM-1.2 per-tick pose update
-
-Already unified by LOCO-2.6: `Humanoid::Process` calls `AdvanceMovementPoseBlend`
-exactly once per tick for every action type (pure Movement blends; other
-actions copy the raw baked pose), and `SampleBakedPose` returns that single
-`final_blended_pose_` as the one `PlayerBakedPoseSample.pose` that physics and
-snapshots share. Reading the pose advances nothing and consumes no RNG.
-`Player::Pose()` is the read-only facade (default when inactive). A bounded
-runtime test asserts the pose is idempotent within a tick and still advances
-across ticks with no new control input.
-
-Remaining ANIM-1 cuts (1.3 active Movement<->non-Movement transitions with
-per-action durations and touch-frame integrity, 1.4 unified passive reactions
-replacing direct `Humanoid::TripMe`, 1.5 scheduling consolidation) need the
-Humanoid action-switch lifecycle and touch timing, and are tracked for later
-focused work.
-
-### ANIM-1.3/1.4/1.5
-
-1.3 active transitions: `AdvanceMovementPoseBlend` now blends the pose across
-ANY clip change, with `BlendTicksForSwitch(pure_movement)` = 8 ticks for pure
-locomotion and 4 for a switch involving an action. The touch FRAME is still the
-integer action cursor, so a blend cannot move the contact instant; the blended
-pose is what the body contact geometry reads. Tests: the transition-state
-per-type duration + a Movement->Shoot continuity case.
-
-1.4 passive reactions: the contact trip sites in `player_contact.cpp` now also
-submit a `PlayerReaction` through `Player::React`, so every real collision trip
-is recorded on the unified passive channel (direction/severity/source/trip
-type). `TripMe` still defers execution to the next Process, so the collision
-and referee timing are unchanged; moving the interrupt state fully behind the
-reaction entry is further ANIM-1.4 work.
-
-1.5 scheduling: per-player runtime state (action clock, `final_blended_pose_`,
-pending request/reaction) is already owned per Player and scheduled by stable
-slot; a bounded runtime test asserts 4 players across both teams keep distinct
-requests and that Stop/Init leaves no residue. Remaining: full Ground/StandUp
-recovery, red-card-shrink and half-time frame checks are tracked for later.
-
-### ANIM-1 P0 controlled-action harness
-
-The bounded harness CAN execute real locomotion once the match leaves the
-opening ceremony: with `PlayerControlSet` movement controls, `inplay` flips at
-~tick 200 and the actor then moves and switches clips (a 240-tick run yields
-`moved~6m`, `switches=2`). Earlier "no movement" observations were simply runs
-shorter than the kickoff. A bounded runtime case now pins this so later ANIM-1
-migrations have a real run to verify against (not only unit tests). Note the
-cost: in-play ticks are much heavier than ceremonial ticks (~42 s for the
-runtime suite at 240 ticks), so controlled scenarios stay short.
-
-Still open under P0: Trap/Pass/Shot and Trip->Ground->StandUp need ball
-possession and collision setups, and the React->Trip->Ground->StandUp execution
-(P1) plus the Animation ownership migration (P2-P5) remain.
-
-### ANIM-1 A1-A5 (Animation stateless; Player owns playback)
-
-Revised scope: Player owns the action state, playback cursor, transition and
-final pose; Animation is the shared stateless module (library + selector +
-SamplePose + BlendPose). No second stateful AnimationRuntime.
-
-- A1 `pose_sampling.hpp`: `SamplePose(clip, frame_time)` (integer exact,
-  fractional SLERP/lerp, clamped, empty-safe). `unittests/animation/` now covers
-  selection (`BakedAnimationSelector`), sampling and blending; the BlendPose
-  test moved out of unittests/player into the animation module.
-- A2 `loco_animation_transition_test`: Walk->Sprint->Shoot->Trip on the real
-  baked library, no Simulation/Humanoid; switch jump 0.19 rad (smooth), touch
-  frame fires exactly once.
-- A3 `player_playback_state.hpp`: Player-owned `PlayerPlaybackState` (clip
-  cursor + transition + final pose). A3.2 runs it in parallel with the Humanoid
-  and a bounded oracle proved the pose bit-identical over 120 ticks.
-- A5 the Player is now the pose author: `UpdatePlayback` feeds the selected
-  clip/frame/base yaw, `GetBakedPoseSample()` returns the Player's pose and base
-  yaw, and the Humanoid's `movement_transition_`/`final_blended_pose_`/
-  `AdvanceMovementPoseBlend` plus its blend gate are deleted (the gate moved to
-  the Player). `currentAnim.frameNum` is still the Humanoid clip selector's
-  frame cursor feeding the playback; moving selection itself is later work.
-- A4: 22 independent `PlayerPlaybackState` over one `AnimationLibrary` stay
-  isolated, reset independently and replay deterministically.
-
-Still open: clip SELECTION still lives in `Humanoid::SelectAnim` (the Player
-consumes the selected clip); `React`->`Trip`->`Ground`->`StandUp` execution;
-PlayerMotion owning non-Movement reference displacement.
-
-### ANIM-1 A6.1 SelectAnim audit (read-only)
-
-`Humanoid::SelectAnim` (humanoid.cpp:1158-1760) mixes four things:
-1. Cheap culling for non-Movement (ball-distance early outs).
-2. ReQueue gating: momentum comparison, requeue delays, same-type delays.
-3. Candidate filtering + a stable sort chain: function type, incoming/outgoing
-   velocity, side, incoming body/ball direction, properties, trip type, foot;
-   then priority / idle / foot / body-direction / velocity / baseanim / catch
-   sorts. This is `BakedAnimationSelector::CrudeSelection` + Player-state
-   predicates.
-4. Pick + install: Movement/Trip/Special take `*dataSet.begin()`; pass/shot/
-   control/trap/interfere/deflect call `GetBestCheatableAnimID`, which builds
-   touch vectors and is the only RNG-drawing part (via `rng_.Uniform` in the
-   trap/control vector helpers). Installation mutates `currentAnim` and calls
-   `BeginSimulationAction`.
-
-So a naive `SelectClip` copy is wrong: the RNG-drawing touch scoring and the
-action policy must stay on the Player side, and the request must carry any
-randomness explicitly for reproducibility. `Player::Play` must be the decision
-and playback owner; Animation supplies only stateless matching/sampling/
-blending.
-
-A6.2 delivers the pure Animation half: `select_clip.hpp`'s `SelectClip(clips,
-request)` filters by action/velocity and returns the lowest-id match
-deterministically (no RNG, no Player/Ball/Simulation). It is not yet wired into
-`Humanoid::SelectAnim`; A6.3/A6.4 move selection onto `Player::Play` and remove
-the Humanoid's choice, and A7/A8 (Trip chain, PlayerMotion displacement) remain.
-
-### ANIM-1 A6.2 stateless SelectClip
-
-`football/animation/select_clip.hpp` owns `ClipAction`, `SelectionRequest` and
-`SelectClip`: `CrudeSelection` by function type (plus the incoming-velocity
-bucket for Movement), then a deterministic lowest-id pick, returning an invalid
-result on no candidates. Pure and independent of PlaybackState. Tested against
-synthetic clips and the real baked library.
-
-Remaining, tracked for the next focused work: A6.3 (`Player::Play` owns
-selection + playback, with explicit RNG for touch scoring), A6.4 (remove the
-Humanoid selection with an old/new oracle), A7 (React->Trip->Ground->StandUp)
-and A8 (PlayerMotion non-Movement displacement).
-
-### ANIM-1 A6.3a Movement shadow oracle (finding: hand-over blocked)
-
-On each pure-Movement selection the motion-driven selector's choice is compared
-with the legacy Movement candidate set (`LocomotionPlaybackAuditState()`'s
-`shadow_checks`/`shadow_in_candidates`/`shadow_not_in_candidates`). Over the P0
-tape (post-kickoff Movement) the result is `checks=35 in=34 not_in=1` and, on the
-upgraded final-result comparison, `clip_match=34 clip_mismatch=1 fallback=1`: the new
-selector picked a clip the legacy filter rejects on ~3% of Movement ticks.
-Because the current reorder only wins when the choice is already a legal
-candidate, A6.3b cannot blindly hand Movement selection to the Player without
-changing the chosen clip on those ticks. Flipping safely requires moving the
-legacy candidate filter + its fallback pick (still inside `SelectAnim`) too, or
-an explicit decision to accept the change - not an oracle relaxation.
-
-Remaining: A6.3b (Player owns Movement selection, must reproduce the legacy
-candidate filter/fallback), A6.3c (AdvancePlayback timing), A6.4, A7, A8.
-
-### ANIM-1 A6.3b.2 Movement refinement relocated (equivalence proven)
-
-`include/football/animation/movement_selection.hpp` relocates the legacy
-Movement candidate refinement - the config direction tables, the similarity
-ratings, `_KeepBestDirectionAnims`/`_KeepBestBodyDirectionAnims` (strict
-Movement form) and the Movement-relevant stable sorts - into a stateless
-function `RefineMovementCandidates(library, crude, request)`. Step 1 landed the
-module plus synthetic tests; step 2 added a per-tick shadow comparison in
-`Humanoid::SelectAnim` against the legacy `dataSet` as an ORDERED sequence.
-Over the P0 Movement tape: `refine checks=37 match=37 mismatch=0`, so the pure
-function reproduces the legacy candidate list exactly (members and order).
-`LocomotionPlaybackAudit` carries `refine_checks`/`refine_matches`/
-`refine_mismatches`. The remaining flip (make the Movement branch call the pure
-function and delete the duplicate filter/sort chain) must also rehome the
-Movement-only `foot_counterfactual`/perturbation diagnostics that share the
-sort chain.
-
-### ANIM-1 A6.3b.2/b.3 Movement selection is Player-owned, legacy chain removed
-
-The pure `RefineMovementCandidates` is now the authority for the Movement
-candidate list. `Player::SelectMovement(library, crude, request)` owns the call
-and retains both the ordered list and the foot-counterfactual list; the
-Humanoid only supplies the spatial request (`pure_movement` branch) and reads
-back `MovementCandidates()`/`MovementCandidatesWithoutFoot()`. The legacy
-Movement strict filters and the Movement-relevant stable sorts no longer run, so
-the Movement-only `foot_counterfactual`/perturbation diagnostics are fed from
-the pure module's without-foot output instead. Equivalence was proven per tick
-before deletion (37/37 ordered match), and the A6.3a final-clip oracle is
-unchanged afterwards (`clip_match=34 clip_mismatch=1 fallback=1`), so the
-hand-over is behaviour-preserving.
-
-Remaining: A6.3b.3 install (moving the 25-field `currentAnim` write +
-`BeginSimulationAction` from `Humanoid::SelectAnim` to Player), A6.3c (frame
-advance ownership), A6.4, A7, A8.
+- **One owner per fact.** The Player owns the action clock (`PlayerActionState`),
+  the playback cursor and transition, the final pose and the spatial state
+  (`anim_state_`/`spatial_state_`); `football::animation` is stateless (baked
+  library + selector + `SamplePose` + `BlendPose`). There is no second stateful
+  animation runtime and no `Humanoid` type: the name survives only as parameter
+  and diagnostic-counter naming (`player_diagnostics.hpp`).
+- **One final pose per tick.** Every action type advances the pose exactly once
+  per tick and shares it with physics and snapshots. Reading the pose
+  (`Player::Pose`, `Player::GetBakedPoseSample`) advances nothing and consumes
+  no RNG.
+- **Action arbitration is pure and Player-owned.** A one-shot in flight rejects a
+  repeat of the same action and defers a different one until a legal switch
+  window; a physics reaction always preempts. Every reset path (`ResetPosition`,
+  `ResetRuntimeState`) clears the active and passive channels. Selection,
+  installation and dispatch are separate units (`Player::TrySelectAction`,
+  `Player::InstallSelectedAction`), and the passive trip decision and its local
+  queue are Player-owned.
+- **Blending never moves the contact instant.** `BlendTicksForSwitch` is 8 ticks
+  for pure locomotion and 4 for a switch involving an action, while the touch
+  FRAME stays the integer action cursor. The blended pose is what the body
+  contact geometry reads.
+- **Pure calculations live off the Player.** `PlayerMotion` and
+  `football::animation` own the action displacement and body state, the per-tick
+  smuggle evolution, the candidate reference-motion kernel, the touch-selection
+  loop and the goalkeeper boundary clamps: explicit inputs, no RNG, no clock
+  read.
+- Tests: `unittests/player`, `unittests/animation`, `unittests/locomotion`,
+  `unittests/loco_animation`, `unittests/player_animation`, plus bounded cases in
+  `unittests/runtime`.
 
 ## Conventions
 
@@ -1752,7 +1496,7 @@ is computed only at the sampling call, not cached as Player state. Simulation's 
 history API and explicit tick-local actor spans use TickSpan and nearest-capture half-up
 sampling; the ten-tick cadence and signed millisecond adapter preserve legacy
 reaction rounding. Empty history is an explicit logic_error, not an invalid pointer.
-Continuous reachability/reaction estimates and Humanoid SI/animation arithmetic
+Continuous reachability/reaction estimates and the Player's SI/animation arithmetic
 are not integer-grid deadlines; their remaining calculation migrations are separate.
 T4b must preserve existing physical/RNG goldens and full-match restart metrics.
 
@@ -1784,7 +1528,7 @@ side history/accessor and its sole ValueHistory implementation are deleted.
 History sampling accepts TickSpan for grid ages or std::chrono::milliseconds
 for signed continuous reaction estimates; the untyped int overload is removed.
 Chrono durations here are calculation values, never simulation instants, physics dt,
-schedulers or clock accumulators. Humanoid's mentalImageTime is a typed reaction
+schedulers or clock accumulators. The Player's mentalImageTime is a typed reaction
 delay with intentional previous-delay/current-delay stages, not a redundant timestamp.
 Keep its ordering; observation/mentalimage_sampling rounds to capture slots. It clamps before integer
 narrowing and handles the full signed duration range. Physical/RNG rows and complete
@@ -1835,10 +1579,11 @@ ToHomePitchFrame rotation as WorldState, including ball angular velocity. Import
 WorldState still reads the legacy Predict(0) position cache, which can lag the
 authoritative ball position; do not refresh it or change policy to force equality.
 Only created runtime actors have slots (current Team creates formation entries,
-not omitted bench profiles); inactive slots stay and do not dereference Humanoid.
-`unittests/snapshot_capture_test.cpp` covers both halves/orders, ceremonies, terminal
-duplicate ticks, sends-off, unequal rosters, jumps, resets and Stop/Init replay.
-Release 36/36 and Debug 35/35 (excluding full-match CLI) pass unchanged goldens.
+not omitted bench profiles); inactive slots stay and carry no actor state. The
+bounded runtime harness (`unittests/runtime`) covers actor/slot lifetime, mirror
+and Stop/Init replay; the Release-only integration test
+(`unittests/integration/autonomous_match_test.cpp`) covers both halves and the
+ceremonies, terminal duplicate ticks, send-offs, unequal rosters, jumps and resets.
 Disk archive and temporal consumers remain separate stages. Snapshot is a
 read-only record, never a WorldState replacement or restart checkpoint.
 
@@ -1907,7 +1652,7 @@ runs; definitions and reports are in the removed body-shadow diagnostic. Geometr
 shadow replay/frame tests live in unittests/player_body_collider_motion_test.cpp and
 unittests/player_body_shadow_test.cpp. These inputs never reach production Ball yet.
 Use CTest or executables at build/release/, not old build/release/unittests/ binaries.
-No extra Player/Humanoid execution, RNG, touch/rules writes or Golden refresh.
+No extra Player execution, RNG, touch/rules writes or Golden refresh.
 
 P4c Ball accepts borrowed dynamic colliders through BallTickInput and returns
 physical BallStepResult evidence; predictions remain static-only. Contacts expose
@@ -1940,7 +1685,7 @@ P4d-1.2 validation: Release 42/42, Debug 41/41 (without full regulation CLI),
 including existing regression/A-B modes, passed with no Golden/asset changes.
 
 P5a adds read-only active-touch candidates. `football/ball/ball_impulse.hpp`
-is a pure `BallImpulse{impulse, contact_point}` value. Humanoid observes the
+is a pure `BallImpulse{impulse, contact_point}` value. The Player observes the
 existing scheduled/controlled contact around `ApplyBallTouch` (action, animation
 id, contact/elapsed frames, pre/post ball state, baked desired ball center,
 player position) through a nullable `active_touch_shadow` sink on
@@ -1984,10 +1729,10 @@ cannot change the winner. Production constructs no active impulse and keeps
 using the legacy touch path; the removed regression baseline harness is byte-identical.
 
 P5c-1/P5c-2 prepare the active-touch production migration and keep it off.
-`the removed design notes` records the exact `StepImpl`/`Humanoid::
-Process` dependency table (which stages draw RNG, which advance animation,
+`the removed design notes` records the exact former `StepImpl`/`Humanoid::Process`
+dependency table
 where `ApplyBallTouch + SetRotation` take effect) and the plan: split
-`Humanoid::Process` into one prepare pass (motion/animation frame/touch vector)
+the former `Humanoid::Process` into one prepare pass (motion/animation frame/touch vector)
 before the single authoritative `Ball::Step` and one commit pass after, never
 running a second Process or delaying by a tick. The Shadow also runs the pure
 model on captured inputs and compares reach gates. The native tape's distance
@@ -2033,7 +1778,7 @@ acceptance and a reviewed new Golden are not complete.
 `simulation_prepared_tick.cpp` provides the genuine prepare/arbitrate/Step/commit
 path behind the independent internal `EnablePreparedTickProduction` gate.
 Player::PrepareTick advances animation/locomotion once; CommitTick applies fatigue
-and send-offs after accepted touch consequences. Humanoid proposals go through
+and send-offs after accepted touch consequences. The Player's proposals go through
 `player_touch_preparation.hpp`, not the Shadow observer. All actors read the
 same passive endpoint and prior authoritative touch history; proposals are not
 synchronously accepted. Actors get a const Ball reference and no mutable legacy
@@ -2084,7 +1829,7 @@ acceptance and P7 default/Golden/API removal remain pending.
 
 When enabled, the active Shadow now observes the actual cached preparation
 model proposals, rejects and single committed winner. Animation/frame provenance
-is captured during Humanoid's one real pass. `prepared_impulse` identifies the
+is captured during the Player's one real pass. `prepared_impulse` identifies the
 actual model point/impulse; the old desired-center surface proxy is used only
 for legacy observations and is labelled as a diagnostic, not calibration.
 Losing proposals remain NoImpulse and are never counted as executed strikes.
@@ -2106,7 +1851,7 @@ nor permission to disable collisions for ON/ON acceptance.
 ### P4f-1 — endpoint-linear capsule CCD and anatomical IDs
 
 Maintainer review of `e4298fb` accepted BallState/core physics and P5e's execution
-boundary. Do not re-split Humanoid or redesign Ball's member API. Current roadmap
+boundary. Do not re-split the Player's process or redesign Ball's member API. Current roadmap
 is P4f → P6c → P7; retain AcceptedTouchSink as the rule submission port.
 
 `src/foundation/collision/sweep_deforming_capsule.{hpp,cpp}` extends the sweep
@@ -2212,13 +1957,13 @@ Development builds from now on require Debug/core only, with app disabled,
 as specified in the Build and test section.
 
 S0.3 (done) removes the last unconditional adoption. `Player::PrepareTick` no
-longer adopts the Humanoid state after `Humanoid::Process`: every path already
+longer adopts a second state after the animation pass: every path already
 finished its own write inside that call (the pure-locomotion branch commits and
 projects; each legacy root-motion branch adopts where it produced the position,
 in `CalculateSpatialState` / `CalculateFactualSpatialState`). Re-adopting there
 was identity at best and a hidden re-read at worst.
 
-`HumanoidBase::previousPosition2D` is documented as a legacy animation cache, not a
+`Player::previousPosition2D` is documented as a legacy animation cache, not a
 second world-position authority: it is written by the state projection and the
 legacy reset/root-motion paths, and read in exactly one place
 (`CalculateSpatialState` derives the legacy `actualMovement` from
@@ -2231,7 +1976,7 @@ S0.4 (done) finishes the lifecycle group. `Player::Mirror` now mirrors through
 `CommitKinematicState` instead of writing the state directly, keeping the
 historical asymmetry on purpose (`PlayerKinematicState::Mirror` mirrors position
 and velocity only; facing and bodyFacing are left to the legacy convention).
-`ResetPosition`, `ResetRuntimeState` and `Activate` keep adopting the Humanoid's
+`ResetPosition`, `ResetRuntimeState` and `Activate` keep adopting the action pass's
 reset pose, but through the explicitly named `CommitLegacyActionMotion()`.
 
 S0 is complete, and the write closure is verified by search:
@@ -2255,646 +2000,23 @@ the motion profile, so `max_speed` keeps its formula with no fatigue or
 AI-difficulty factor. Whether fatigue should slow a player down is a separate
 behaviour change.
 
-### ANIM-1 A6.3b.3 first cut: one install entry, Player-owned selection
-
-`football::sim::SelectedAction` (clip id, function type, start frame, duration,
-touch frame, touch position) is the prepared selection result. All three install
-sites in the Humanoid now call `Player::InstallSelectedAction(selection)` instead
-of `BeginSimulationAction()` directly, so the selector prepares the result, the
-compat `currentAnim` is synced first, and the Player commits it through one
-transaction. `Player` records the selection and cross-checks it against the
-definition the executor committed (`InstallChecks`/`InstallMatches`/
-`InstallMismatches`): clip/duration/start frame/touch frame/touch position. Over
-the P0 tape `install checks=2 match=2 mismatch=0`, and the A6.3a final-clip
-oracle is unchanged. The compat `currentAnim` storage and all its readers are
-untouched, so this cut is behaviour-preserving; state ownership moves next.
-
-### ANIM-1 A6.3b.3 second cut: the Player authors the action definition
-
-`Player::InstallSelectedAction` no longer reads the definition back from the
-Humanoid: it builds `PlayerActionDefinition` from the Player-owned
-`SelectedAction` (type, duration, contact frame/position) and establishes the
-start cursor from `selection.start_frame`. The compat Humanoid `currentAnim`
-projection is still synced by the selector first and is now the thing the oracle
-cross-checks (`InstallChecks`/`InstallMatches`/`InstallMismatches`), while
-`CheckSimulationActionOracle()` still guards the schedule.
-`install checks=2 match=2 mismatch=0` over the P0 tape and the A6.3a final-clip
-oracle is unchanged, so the authority transfer is behaviour-preserving. The
-`currentAnim` storage and its readers remain; retiring them is the next cut.
-
-### ANIM-1 A6.3b.3 third cut: same-tick install consistency oracle
-
-`Player::InstallSelectedAction` now also checks, immediately after committing,
-that the action cursor, duration, scheduled-contact presence and contact frame
-all match the selection (`InstallCursorChecks`/`Matches`/`Mismatches`). This is
-the "install then sample in the same tick" guard: it catches a one-tick cursor or
-contact offset between the Player cursor, the selection and the compat
-projection. `cursor checks=2 match=2 mismatch=0` over the P0 tape.
-
-### ANIM-1 A6.3b.3 fourth cut (playback cursor ownership): attempted, blocked
-
-Making `Player` the authority for the playback cursor advance (replacing
-`Humanoid::Process`'s `currentAnim.frameNum++` with
-`currentAnim.frameNum = CastPlayer()->AdvancePlaybackCursor()`) trips
-`Player::CheckSimulationActionOracle()`: `currentAnim.frameNum` is also written
-directly outside `Humanoid::Process` (e.g. the `ResetPosition` path in
-`humanoidbase.cpp`), so the projection desynchronises from the executor cursor.
-Reverted. The cut needs every direct `currentAnim.frameNum` writer routed through
-the Player cursor API first; that inventory is the prerequisite.
-
-### ANIM-1 A6.3c.0/c.1: cursor audit + unified start-of-action install
-
-A6.3c.0 audited every `currentAnim.frameNum`/`animationId` writer:
-`humanoid.cpp` 326 (tick `++`), 1146-1147 and 1806-1808 (install `= 0`),
-`humanoidbase.cpp` 628 (base tick `++`), 888-891 (ResetPosition idle + RNG start
-frame), 1232-1234 (base install `= 0`); `previousAnim_frameNum` at
-`humanoidbase.cpp` 631/909/1230 and `humanoid.cpp` 330/1803. `PlayerActionExecutor::Step`
-saturates at `duration` (`elapsed += min(delta, duration - elapsed)`) while the
-legacy `frameNum++` is unbounded; `unittests/player/player_action_cursor_test.cpp`
-pins saturation, non-zero start frame, single contact fire and single completion.
-
-A6.3c.1 routes every "start of action" path through the one install entry:
-`ResetPosition`, `ResetSituation` (runtime reset) and `Activate` now call
-`InstallSelectedAction(CastHumanoid()->CurrentSelectedAction())` instead of
-`BeginSimulationAction()`. The Reset RNG draw is untouched - the random idle
-start frame simply travels as `SelectedAction::start_frame`. `installed_action_`
-is now valid after initialisation and every reset.
-`install checks=11 match=11 mismatch=0`, `cursor checks=11 match=11 mismatch=0`
-over the P0 tape; the A6.3a final-clip oracle is unchanged. Remaining for c.2:
-flip the per-tick `frameNum` advance to the Player authority.
-
-### ANIM-1 A6.3c.2: the Player owns the per-tick action clock
-
-`Player::AdvanceActionTick()` is now the single real time advance: it steps
-`PlayerActionState` (the authority), projects the cursor onto the compat Humanoid
-`currentAnim.frameNum` via `HumanoidBase::SetCompatFrameNum`, and only then runs
-`CheckSimulationActionOracle`. Both Process paths (`humanoid.cpp` and
-`humanoidbase.cpp`) call it in place of their separate `currentAnim.frameNum++` +
-`StepSimulationAction`. Ordering is therefore advance -> project -> check, which
-is why the earlier projection-only attempt failed. The legacy `frameNum++` was
-unbounded while the executor cursor saturates at `duration`; the projection now
-makes the Humanoid frame follow the saturated authoritative value.
-`previousAnim_frameNum` keeps its legacy semantics for now.
-`install checks=11 match=11 mismatch=0`, `cursor checks=11 match=11 mismatch=0`,
-and the A6.3a final-clip oracle is unchanged.
-
-### ANIM-1 A6.3c.3: the Player samples from its own clock
-
-`Player::UpdatePlaybackFromAuthority(base_angle, blend_ticks)` takes the clip id
-from `InstalledAction().clip_id` and the frame from `actionState.Frame()`, so the
-Humanoid no longer hands over clip/frame at all - it only supplies the
-not-yet-migrated base yaw (`startAngle + rotationSmuggleOffset`) and the blend
-length. `SamplePose`/`BlendPose` are untouched, and the same-tick install still
-samples the new clip immediately (the A6.3b.3 cursor oracle covers the cursor;
-the A6.3a final-clip oracle is unchanged).
-
-### ANIM-1 A6.3d: authority audit - the compat layer no longer decides action time
-
-Audited field ownership after A6.3c:
-
-| currentAnim field | owner now |
-| --- | --- |
-| `animationId`, `frameNum` | Player `installed_action_` + `PlayerActionState.elapsed`; the Humanoid copy is a read-only projection (`SetCompatFrameNum`) |
-| `functionType`, `touchFrame`, `touchPos` | Player `ActionState` / `SelectedAction` (mirrored for legacy readers) |
-| `originatingCommand`, `originatingInterrupt` | still action-install context on the Humanoid (migrates with the non-Movement execution path) |
-| `positions`, `incomingMovement`, `outgoingMovement` | still Humanoid (migrates to PlayerMotion in A8) |
-| `movementSmuggle`, `actionSmuggle`, `rotationSmuggle` | still Humanoid; `rotationSmuggle` must be split by use (pose correction vs real body yaw) when it migrates |
-
-`Player::UpdatePlaybackFromAuthority` now also verifies the invariant that the
-compat projection cannot re-decide anything: the installed selection's clip id,
-the action cursor and the clip/frame the pose was actually sampled from must
-agree (`AuthorityChecks`/`Matches`/`Mismatches`). Over the P0 tape
-`authority checks=42 match=42 mismatch=0`, alongside
-`install checks=11 match=11 mismatch=0` and `cursor checks=11 match=11 mismatch=0`;
-the A6.3a final-clip oracle is unchanged. No new action or time state was added.
-
-### ANIM-1 A6.4 prerequisite: a possession harness reaches non-Movement actions
-
-The Movement tape could not reach Trap/Pass/Shot, so `unittests/runtime` gained a
-second harness that reaches play, hands the ball to a tracked player
-(`SetBallRetainer` + `ResetBall`) and drives alternating ShortPass/Shoot
-controls. It observes `non_movement_installs=2` with
-`InstallMismatches() == 0`, so the non-Movement selection and install path is
-now reachable and observable from a bounded, deterministic run. This is the
-verification base for the A6.4 migration (Trip/Special first, then the
-touch-scored Trap/BallControl/Pass/Shot/Interfere/Deflect/Sliding paths).
-
-### ANIM-1 A6.4 step 1a: non-Movement refinement in the pure module
-
-`movement_selection.hpp` now generalises the legacy filters instead of
-duplicating them: `KeepBestDirectionAnims(library, set, request, strict,
-allowed_angle, allowed_velocity_steps, forced_quadrant_id)` carries both the
-strict form (single quadrant, used by Movement) and the non-strict form
-(velocity-step + angle tolerance, last-ditch anims exempt), and
-`KeepBestBodyDirectionAnims(..., strict, allowed_angle)` uses `0.06f * pi` when
-strict else the caller's angle. `SortByBaseanim` and `SortByTripDirection` were
-added, and `RefineNonMovementCandidates(...)` runs the same pipeline with the
-baseanim/trip tie-breaks the legacy chain applies for non-Movement.
-`MovementRefinementRequest` gained `is_ball_control` (suppresses the incoming
-body-direction sort, exactly as the legacy chain does).
-Unit tests cover determinism and single-quadrant strict behaviour over the real
-baked library. Not yet wired into `SelectAnim` and not yet cross-checked against
-the legacy non-Movement path - that is A6.4 step 1b.
-
-### ANIM-1 A6.4 step 1b: non-Movement refinement cross-checked per tick
-
-`SelectAnim` hoists the non-Movement filter parameters (`nm_strict`,
-`nm_allowed_angle`, `nm_allowed_velocity_steps`, set by the BallControl / Trap /
-Interfere branches) and keeps the crude candidate set for every
-`useDesiredMovement` command. At the end of the legacy chain it now runs
-`RefineNonMovementCandidates` and compares the result with the legacy `dataSet`
-as an ordered sequence (`LocomotionPlaybackAudit::nm_checks`/`nm_matches`/
-`nm_mismatches`). The possession harness gained a Dribble+run scenario (Pass and
-Shot force `useDesiredMovement = false`, so they never enter the filter branch):
-`nm checks=4 match=4 mismatch=0`. Shadow only - the legacy chain is still the
-production path for non-Movement.
-
-### ANIM-1 A6.4 step 1c/1d: pure non-Movement selection owns the candidate list
-
-step 1c made `RefineNonMovementCandidates` the authority for the non-Movement
-`useDesiredMovement` candidate list (`dataSet.assign(nm_pure...)`), with the
-legacy chain still running as a dual-run oracle (`nm checks=4 match=4
-mismatch=0`). step 1d then removed that chain: `SelectAnim` is now
-
-```
-if (!pure_movement && !pure_non_movement) { legacy chain }
-else if (pure_non_movement)               { pure refinement }
-else                                      { pure Movement refinement }
-```
-
-`pure_non_movement` = non-Movement `useDesiredMovement` command with a non-empty
-crude set. The BallControl / Trap / Interfere branch filter calls are guarded by
-`if (!pure_non_movement)`, and the non-Movement filter parameters (`nm_strict`,
-`nm_allowed_angle`, `nm_allowed_velocity_steps`, `nm_idle_level`) are hoisted so
-the pure branch can rebuild the request. The audit counter is now
-`nm_pure_ticks` only; the dual-run counters are gone. `foot_counterfactual` was
-already Movement-only, so the deleted chain carried no non-Movement side effects.
-Post-removal fingerprint: `nm pure_ticks=4`, `install 11/11/0`,
-`cursor 11/11/0`, `authority 42/42/0`.
-
-### ANIM-1 A6.4 step 2a: the smuggle-discard arithmetic moved to Animation
-
-`include/football/animation/touch_scoring.hpp` (namespace
-`football::animation`) now owns `ResolveActionSmuggle(request)`: the tail of
-`Humanoid::GetBestCheatableAnimID` that turns the raw ball-contact smuggle into
-the applied value (cheat-discard distance, the BallControl/non-BallControl
-multiplier, height falloffs, `maxSmuggleDiscardDistance`, retained-ball zeroing,
-forward/sideways discard, micro-battle pressure scaling). It is a line-for-line
-relocation: same clamping, same operation order, same floating-point
-expressions, no Player / Humanoid / Simulation / RNG.
-
-`humanoid.cpp` now builds a `ResolveActionSmuggleRequest` from the file-local
-`constexpr` tuning constants and its spatial state and assigns the result; the
-78-line arithmetic block is gone. The site is reached only when a cheat anim is
-found, so the runtime P0 fingerprint is the evidence that behaviour is
-unchanged: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
-`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`, `nm pure_ticks=4`.
-`unittests/animation/touch_scoring_test.cpp` covers the discard modes and the
-multiplier chains with hand-computed expectations.
-
-Remaining in step 2: the per-candidate touch loop (`humanoid.cpp:2086-2299`,
-which needs `CalculatePhysicsVector` = `humanoidbase.cpp:1742-2261`, 519 lines)
-and the four `GetBestCheatableAnimID` call sites. `GetBestCheatableAnimID`
-itself contains no RNG, so no draw-order hazard.
-
-### ANIM-1 A6.4 step 2b: per-candidate touch geometry moved to Animation
-
-`include/football/animation/touch_geometry.hpp` (namespace
-`football::animation`) now owns `EvaluateTouchGeometry(request)` - the pure core
-of the touch loop in `GetBestCheatableAnimID`: the rotation-smuggle placement of
-the animation's ball contact, the continuous ball check, `ballDistanceZ` and its
-height falloffs, the touch-frame awkwardness/factor, the per-function radius
-multiplier chain (Deflect / Sliding / Interfere / ShortPass / LongPass /
-HighPass / Shot / Trap+BallControl under `preferPassAndShot`), the
-last-touch-bias decay and the front-of-foot offset. A line-for-line relocation:
-same clamping, same operation order, same floating-point expressions, no Player
-/ Humanoid / Simulation / Ball / RNG.
-
-`GetBestCheatableAnimID` now fills a `TouchGeometryRequest` (the four
-`player->...` reads - `BodyProfile().height_scale`, `GetLastTouchBias(600, now +
-animTouchFrame ticks)`, `GetStat(technical_ballcontrol)` - plus `defaultTouchOffset_ms`
-- become explicit fields) and consumes a `TouchGeometryResult`.
-`GetBodyBallDistanceAdvantage` stays on the Humanoid and keeps consuming the
-result, so no physics moved.
-
-Two definitions were de-duplicated rather than copied:
-`SegmentParameter` (humanoid.cpp) and `GetFrontOfFootOffsetRel`
-(humanoid_utils.cpp) now live only in `touch_geometry.hpp`
-(`SegmentProjectionParameter` / `FrontOfFootOffsetRel`), and both call sites
-delegate.
-
-`unittests/animation/touch_geometry_test.cpp` covers the aligned case, the
-touch-frame/radius chain with hand-computed expectations, the Deflect widening,
-the high-ball rejection, the continuous ball check and the front-of-foot offset.
-Post-move runtime fingerprint: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
-`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`, `nm pure_ticks=4`.
-
-Remaining in step 2: the loop skeleton and the four `GetBestCheatableAnimID`
-call sites (`humanoid.cpp:1794/1799/1805/1807`), then `CalculatePhysicsVector`
-(`humanoidbase.cpp`, 519 lines) if it is to move too.
-
-### ANIM-1 A6.4 step 2c: the touch selection result is one value
-
-`src/sim/player/player_touch_choice.hpp` adds `football::sim::TouchChoice
-{positions, touch_frame, radius_offset, touch_position, full_action_smuggle,
-action_smuggle, rotation_smuggle}`. `GetBestCheatableAnimID` published its answer
-through eight out-parameters of which two (`fullActionSmuggle_tmp`,
-`radiusOffset_tmp`) no caller ever read; it now takes one `TouchChoice&` and
-returns the same `signed int` anim id. `SelectAnim` declares a single
-`football::sim::TouchChoice touch_choice;` instead of seven locals and reads the
-consumed fields back (`currentAnim.touchFrame/touchPos/rotationSmuggle.end/
-actionSmuggle/positions`, plus `CalculateOutgoingMovement`).
-
-The signature is now ready for the Player-owned version of the loop: the
-selection already has a single inspectable result value. Behaviour is unchanged
-(runtime P0 fingerprint identical), and the two unread fields are kept because
-they document the full result of the algorithm.
-
-### ANIM-1 A6.4 step 3: selection and installation are separate units
-
-`SelectAnim` ended with a 57-line "make it so" block that wrote `currentAnim`
-from the selection result and then called
-`CastPlayer()->InstallSelectedAction(CurrentSelectedAction())`. That block is now
-`Humanoid::CommitSelectedAction(selectedAnimID, touch_choice, action, command,
-tick, now, history, localInterruptAnim, material_candidate)`; `SelectAnim` ends
-with
-
-```
-if (selectedAnimID != -1) {
-  return CommitSelectedAction(selectedAnimID, touch_choice, action, command, tick, now,
-                              history, localInterruptAnim, material_candidate);
-}
-return false;
-```
-
-Nothing else changed - the body was moved verbatim, including the
-`ContactAuthorityAudit` block. This is the A6.4 split made concrete: the
-selection returns a value, and the installation is a named, addressable unit
-that can later be owned by the Player. `humanoid.hpp` gained the declaration and
-`player_action.hpp` (whose `PlayerActionState` lives in the global namespace, not
-`football::sim`) is now included directly. Runtime P0 fingerprint unchanged.
-
-### ANIM-1 A6.4 step 4: the Player owns the touch-selection entry point
-
-`Player::SelectTouchAction(now, tick, history, sorted_data_set, use_desired_movement,
-desired_direction, desired_velocity_float, use_desired_body_direction,
-desired_body_direction_rel, choice, local_interrupt_anim, prefer_pass_and_shot=false)`
-is now the single entry point for touch-animation selection; `Humanoid::
-GetBestCheatableAnimID` was moved to the public section so the Player can call it.
-The Player retains the result in `touch_choice_`, exposed as `TouchSelection()`,
-and counts successful picks in `touch_selection_successes_`
-(`TouchSelectionSuccesses()`).
-
-`choice` stays a caller-owned per-tick scratch buffer on purpose: the Movement
-branch and the Sliding fallback fill `choice.positions` via
-`CalculatePhysicsVector` without going through selection at all, so the buffer is
-not exclusively the selection's. On a successful pick the Player copies it into
-`touch_choice_`.
-
-All four `SelectAnim` call sites now go
-`selectedAnimID = CastPlayer()->SelectTouchAction(...)`. The harness asserts the
-entry point is actually exercised: `A6.4 nm pure_ticks=4 touch_selections=4`.
-Runtime P0 fingerprint unchanged.
-
-### ANIM-1 A6.4 step 5: the crude-selection constraints are a named unit
-
-`SelectAnim` built its `CrudeSelectionQuery` inline over 103 lines. That block is
-now `Humanoid::BuildCrudeSelectionQuery(command, tick, now, current_mental_image)
-const`, which returns the query and reads only the command, the tick context, the
-spatial state and the already-sampled mental image. `SelectAnim` starts with
-
-```
-CrudeSelectionQuery query = BuildCrudeSelectionQuery(command, tick, now, currentMentalImage);
-DataSet dataSet;
-BakedAnimationSelector::CrudeSelectionution(animations_.Clips(), query, dataSet);
-```
-
-This is the "Player constructs the constraints, Animation selects the candidates"
-boundary made addressable: the query builder and the `BakedAnimationSelector`
-call are now adjacent and separately movable. Two dependencies the first pass
-missed (`now` and the sampled `MentalImage`) are explicit parameters.
-
-Caution recorded: an earlier attempt at this extraction matched the *first*
-`CrudeSelectionQuery query;` in the file, which belongs to
-`Humanoid::SelectRetainAnim`, and silently moved that function's block instead.
-It was reverted with `git checkout` and redone keyed on the line number inside
-`SelectAnim`. `SelectRetainAnim` was verified untouched.
-
-### ANIM-1 A6.4 step 6: the ReQueue gates are Player-owned pure decisions
-
-`src/sim/player/player_selection_decisions.hpp` now owns the two ReQueue gates
-that were inline in `Humanoid::SelectAnim`, as value inputs plus value logic.
-`AttemptActionSelectionAllowed(RequeueGateContext)` is the pre-search gate
-(movement/ballcontrol/trap frame budgets, requeue delay and allow flags, the
-1.5 m/s materially-similar command test, the redundant-momentum-change test and
-the recent intentional-kick movement->ballcontrol block). Its inputs are the
-Player action cursor, the old originating command, the new command, the spatial
-motion snapshot, possession, the last touch tick/type, focus distance and the
-tuning constants, so the decision reads no Humanoid member and draws no RNG.
-
-`CommitActionSelectionAllowed(CommitSelectionContext)` is the post-search gate
-(same-quadrant non-idle, or both-idle within 0.06*pi after the preferred-direction
-projection). It is evaluated at exactly the legacy point - after the candidate
-search, because that search can contain conditional work and RNG - and the
-Humanoid still computes the two forced angles with
-`ForceIntoPreferredDirectionAngle`. `Player::CanAttemptActionSelection` and
-`Player::CanCommitActionSelection` are one-line delegates, so the Player owns the
-decision while the not-yet-migrated facts remain explicit context.
-
-`unittests/player/player_selection_decisions_test.cpp` pins both gates: every
-early rejection (possession, focus distance, remaining frames, delay/allow,
-BallControl budget, BallControl->Trap, Trap contact budget), the similarity and
-redundant-momentum boundaries (1.5 m/s and 2 m), the recent-kick block, and the
-post gate's same-quadrant/idle-direction cases. Runtime P0 fingerprint unchanged:
-`A6.3a clip_match=52 clip_mismatch=1 fallback=1`, `install 11/11/0`,
-`cursor 11/11/0`, `authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`,
-72 player-unit cases / 1178 assertions pass.
-
-### ANIM-1 A6.4 step 7: the Player dispatches action installation
-
-`Humanoid::CommitSelectedAction` is gone. The compat install field-write is now
-the explicitly named `Humanoid::ProjectSelectedActionCompat(...)`, which writes
-the legacy `currentAnim` from the selection result and deliberately does NOT
-install. It preserves the exact order: the field writes, then
-`RecordMovementCommandAcceptance` (reading the live *old* PlayerActionState),
-then `CalculateMovementSmuggle` - which must stay after the currentAnim writes
-because it reads the just-written animationId/positions/touchFrame through
-`GetCurrentBakedClip`. The scheduled-contact audit moved to
-`Humanoid::RecordSelectedContactAudit(command)`, which runs after install and
-reads the *new* PlayerActionState.
-
-`Player::CommitSelectedAction(selected_anim_id, touch_choice, command, tick, now,
-history, local_interrupt_anim, material_candidate)` is now the install dispatch:
-it runs the compat projection, installs through the single
-`InstallSelectedAction` entry (which cross-checks the projection), and only then
-records the audit. `Humanoid::SelectAnim` ends with a call to the Player entry.
-This is step 7b: the Player owns installation while the not-yet-migrated
-Motion/touch execution data still lives on the Humanoid. No state was copied and
-no second action authority was introduced.
-
-Runtime P0 fingerprint unchanged: `A6.3a clip_match=52 clip_mismatch=1
-fallback=1`, `install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
-`nm pure_ticks=4 touch_selections=4`; 10/10 CTest.
-
-### ANIM-1 A6.4 A8.0: the candidate reference-motion kernel is pure and Player-owned
-
-`PlayerMotion::BuildActionMotionPlan(const AnimationClip&, const ActionMotionInput&)
--> ActionMotionPlan` is the selection-side reference-motion calculation, relocated
-line-for-line from the 519-line `HumanoidBase::CalculatePhysicsVector`. The input
-carries only an explicit kinematic snapshot (spatial movement, angle, direction,
-float velocity), the desired movement/body direction and an `ActionMotionParameters`
-value (max velocity, six stats, `GetLastTouchBias(1000, now)` and the decaying
-position offset length). There is no Player*, Humanoid*, Ball or RNG in the
-kernel, and the plan is a value: `positions`, `outgoing_velocity` and
-`rotation_offset`. It never commits a kinematic state and never handles an
-impulse, so it is not the A8 physics authority.
-
-`HumanoidBase::CalculatePhysicsVector` is now a thin adapter: it reads the same
-Player capabilities and spatial fields it always did, calls the kernel and writes
-the output back. The same operation order, floating-point expressions and boundary
-behaviour are preserved; the runtime P0 fingerprint is byte-identical
-(`A6.3a clip_match=52 clip_mismatch=1 fallback=1`, `install 11/11/0`,
-`cursor 11/11/0`, `authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`), so
-the selection path can build a reference trajectory without
-`HumanoidBase::CalculatePhysicsVector` while production motion is unchanged.
-
-`include/football/animation/movement_math.hpp` de-duplicates the two pure helpers
-`CalculateMovementAtFrame` and `StretchSprintTo` out of `humanoid_utils` (which now
-re-exports them), so PlayerMotion does not have to depend on the Humanoid utility
-translation unit. `player_action_motion.cpp` holds the kernel in its own TU, which
-lets the value-only player test target compile it without the locomotion runtime.
-`unittests/player/player_action_motion_test.cpp` covers the two moved helpers with
-hand-computed expectations and the kernel with synthetic Movement / Shot / Trip /
-Sliding clips: plan length, determinism, native-exit rotation, and the zero-motion
-boundary. 80 player cases / 1242 assertions pass; 10/10 CTest.
-
-### ANIM-1 A6.4 step 9c: the touch-selection loop is Player-owned
-
-`Humanoid::GetBestCheatableAnimID` is gone. The loop now lives in
-`src/sim/player/player_action_selection.cpp` as
-`Player::SelectBestTouchAnim(...)` with the same candidate iteration order, the
-same middle-out touch order and the same early exit. `Player::SelectTouchAction`
-is a thin accounting wrapper (it retains the choice and counts successes) over
-`SelectBestTouchAnim`, so the Player no longer calls a Humanoid selection
-algorithm.
-
-The two pure scoring helpers were relocated to Animation:
-`EvaluateBodyBallDistanceAdvantage` in `football/animation/touch_scoring.hpp`
-takes `frame_count` and the previously implicit cheat tuning as explicit
-arguments; the geometry/smuggle helpers were already there. The Player supplies
-the not-yet-migrated facts through `Humanoid` (spatial state, baked clip,
-`CalculatePhysicsVector`, `CalculateOutgoingMovement`, `mentalImageTime`); the
-reference motion comes from the A8.0 kernel. `allowPreTouchRotationSmuggle` and
-`useContinuousBallCheck` travel as explicit `SelectTouchAction` arguments, so no
-tuning constant was duplicated.
-
-`Humanoid::GetBodyBallDistanceAdvantage` and the touch-loop-only tuning constants
-are deleted. Runtime P0 fingerprint unchanged: `A6.3a clip_match=52
-clip_mismatch=1 fallback=1`, `install 11/11/0`, `cursor 11/11/0`,
-`authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`; 10/10 CTest.
-
-### ANIM-1 A6.4 step 9a + 10: the selection flow is Player-owned; SelectAnim is gone
-
-`Humanoid::SelectAnim`, the `HumanoidBase::SelectAnim` virtual, the
-`Humanoid::BuildCrudeSelectionQuery`/`NeedTouch`/`SelectRetainAnim` methods and
-the `HumanoidBase::SelectAnim` definition are all deleted. The whole flow now
-lives in `src/sim/player/player_anim_selection.cpp`:
-`Player::TrySelectAction` (the relocated `SelectAnim` body),
-`Player::BuildCrudeSelectionQuery` (step 9a: the crude constraints, built by the
-Player as an explicit `CrudeSelectionQuery`) and `Player::NeedTouch`. The retain
-path is `Player::SelectRetainAnim`, so the referee's retain call no longer
-reaches a Humanoid selector. `Player` also gained `SelectBestTouchAnim`
-(step 9c) and owns `CommitSelectedAction` (step 7), so selection, refinement,
-touch scoring and installation are all Player decisions.
-
-`Humanoid::Process` and the (dead) `HumanoidBase::Process` now call
-`Player::TrySelectAction`, and `HumanoidBase` grants `friend class Player`
-because the not-yet-migrated spatial facts (`spatialState`, `currentAnim`, the
-sort predicates, `CalculatePhysicsVector`) are read through it. The pure
-algorithms stay in Animation (crude selection, refinement, touch geometry/
-scoring) and the reference motion in PlayerMotion (A8.0). The requeue tuning
-shared by the Humanoid's opportunity gate and the Player's selection gate moved
-to `player_motion_constants.hpp` so there is one definition.
-
-Runtime P0 fingerprint unchanged: `A6.3a clip_match=52 clip_mismatch=1
-fallback=1`, `install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
-`nm pure_ticks=4 touch_selections=4`; 10/10 CTest. A6.4 is complete: Humanoid no
-longer decides what action plays.
-
-### ANIM-1 A7 step 1: the Player owns the passive-trip decision
-
-`HumanoidBase::TripMe` is deleted. The guard that decides whether a contact may
-trip a player is now `football::sim::CanAcceptPassiveTrip(PassiveTripContext)`
-(a pure value in `player_selection_decisions.hpp`), evaluated by
-`Player::TripMe` at contact time - the same instant the legacy direct write ran -
-and the accepted trip is stored as `PendingPassiveTrip` on the Player.
-`Humanoid::Process` consumes it at the top (before the `IsAtLastFrame` switch
-check) and sets `interruptAnim = Trip`, `tripDirection` and `tripType`, which is
-exactly where the legacy member write took effect. The guard semantics are
-unchanged: special states reject, a pending/non-None interrupt rejects, Sliding
-rejects, and a pass-through trip (trip_type 1) is only replaced by a harder one
-(requested > 1).
-
-Resets clear the pending trip on the same paths that clear the other pending
-requests (`ResetPosition`, `ResetRuntimeState`), so a trip cannot survive a
-reset. `unittests/player/player_selection_decisions_test.cpp` pins the four
-guard branches. The current tape has no sliding/passive-trip coverage (a
-pre-existing limitation recorded above), so the runtime P0 fingerprint is only
-the no-regression check: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
-`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
-`nm pure_ticks=4 touch_selections=4`; 84 player cases / 1250 assertions; 10/10
-CTest. `React -> Trip -> Ground -> StandUp` execution ownership beyond this
-intake step, and A8 (PlayerMotion non-Movement displacement), remain.
-
-### ANIM-1 A7 step 2: the local trip selection queue is Player-owned
-
-`HumanoidBase::AddTripCommandToQueue`, `GetTripCommand` and
-`GetBasicMovementCommand` are deleted. `Player::BuildTripSelectionCommands`
-builds the byte-identical local queue: the requested trip type (plus the
-alternative/type-1 commands for a fall) and the movement fallback used when no
-trip animation applies. `Humanoid::Process` and the (dead) `HumanoidBase::Process`
-now call it with the explicit spatial facts; the provenance vector is still built
-by the Humanoid and matches the old trip/fallback split.
-
-A reproducible integration scenario
-(`unittests/runtime`: "a passive trip drives the Trip action chain") now reaches
-play, injects one passive trip through `Player::TripMe`, and observes the action
-sequence: `Movement -> Trip -> Movement`, with the trip installed at tick 206 and
-recovered at tick 267. To keep this inside the 180 s CTest timeout the harness
-gained a tiny-roster `InitSmallMatch` (the ceremony length is unchanged; only the
-per-tick cost drops), so the new case adds ~17 s instead of ~6 min. The P0
-fingerprint is unchanged: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
-`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
-`nm pure_ticks=4 touch_selections=4`; runtime suite 126 s, 10/10 CTest.
-Remaining A7 work: the switch-cost policy and full `React -> Trip -> Ground ->
-StandUp` ownership; A8 and A9 remain.
-
-### ANIM-1 A8 step 1: the action displacement is a pure PlayerMotion calculation
-
-`PlayerMotion::ActionMotionVector(ActionMotionVectorInput)` now owns the
-non-procedural (baked action) position integration and movement decomposition
-relocated line-for-line from `HumanoidBase::CalculateSpatialState`: the frame
-displacement plus the action/sustain/movement smuggle offsets, the baked-pose
-root fallback rotated by the start angle, `actualMovement`, `physicsMovement`,
-`animMovement` (from the clip's own root positions), `movement`, `floatVelocity`
-and `enumVelocity`. It is pure: no Player, Humanoid, Ball or RNG; the Humanoid
-still writes the result and commits through `CommitLegacyActionMotion`. The body
-direction / foot derivation stays in the Humanoid for now, as do the A8
-authority flip and A9.
-
-`football/animation/movement_math.hpp`'s `CalculateMovementAtFrame` now takes a
-`std::span<const Vector3>` so a view can be passed without copying; vectors still
-convert implicitly. `unittests/player/player_action_motion_test.cpp` adds three
-hand-computed cases (trajectory branch, baked-pose fallback, start-angle
-rotation). Runtime P0 fingerprint unchanged: `A6.3a clip_match=52
-clip_mismatch=1 fallback=1`, `install 11/11/0`, `cursor 11/11/0`,
-`authority 42/42/0`, `nm pure_ticks=4 touch_selections=4`, `A7 trip
-trip_tick=206 recovery_tick=267`; 87 player cases / 1266 assertions; 10/10 CTest.
-
-### ANIM-1 A8 step 2: the Humanoid defers to the pure body-direction quantization
-
-`HumanoidBase` no longer owns the allowed/preferred body-direction tables or the
-four `ForceInto*` helpers: they were already relocated to
-`football/animation/movement_selection.hpp` in A6.4 step 1a, and the duplicated
-member definitions are now deleted. `CalculateSpatialState`,
-`ApplySimulationBodyState` and the similarity ratings call the pure functions
-directly, and `Player::TrySelectAction`'s commit gate uses them too. No behaviour
-change; runtime P0 fingerprint unchanged, 10/10 CTest.
-
-### ANIM-1 A8 step 3: the action body state is a pure PlayerMotion calculation
-
-`PlayerMotion::ActionBodyState(ActionBodyStateInput)` now owns the body block of
-`CalculateSpatialState`: the baked body orientation's z rotation composed with the
-start angle and the rotation smuggle, the idle/body fallback direction, the
-movement-derived `directionVec`/`angle`, the sprint/walk impossible-combination
-clamps, the allowed-set quantization of the relative body direction and the
-resulting body angle. It reads only the movement vector, the start angle, the
-rotation smuggle and the baked orientation; the Humanoid writes the result back
-and still commits through `CommitLegacyActionMotion`. The non-procedural
-`CalculateSpatialState` is now fully PlayerMotion-computed (displacement in A8
-step 1, body state in A8 step 3); only the orchestration/authority flip (A8 step
-4) and A9 remain.
-
-`unittests/player/player_action_motion_test.cpp` adds idle and moving cases,
-including the allowed-set quantization invariant. Runtime P0 fingerprint
-unchanged; 89 player cases / 1277 assertions; 10/10 CTest.
-
-### ANIM-1 A8 step 4: the Player commits the non-procedural action motion
-
-`Player::ComputeAndCommitActionMotion` now computes and commits the baked-action
-motion: it assembles the `ActionMotionVectorInput` / `ActionBodyStateInput` from
-the Humanoid's clip/smuggle/pose facts, writes the compatibility spatial
-projection, advances `previousPosition2D` and commits through the single
-kinematic write point. `HumanoidBase::CalculateSpatialState` is reduced to its
-procedural branch plus a delegation; it no longer computes action motion or calls
-`CommitLegacyActionMotion` for the action path. The Humanoid's `spatialState` is
-now only the same-tick compatibility projection the Player writes, not a second
-motion authority.
-
-Runtime P0 fingerprint unchanged: `A6.3a clip_match=52 clip_mismatch=1 fallback=1`,
-`install 11/11/0`, `cursor 11/11/0`, `authority 42/42/0`,
-`nm pure_ticks=4 touch_selections=4`, `A7 trip trip_tick=206 recovery_tick=267`;
-10/10 CTest. A8's remaining piece is `CalculateFactualSpatialState` and the
-smuggle/rotation bookkeeping; A9 (retire `currentAnim`/`spatialState` and delete
-Humanoid/HumanoidBase) remains.
-
-### ANIM-1 A8 step 5: movement smuggle and the factual reset are Player-owned
-
-`Humanoid::CalculateMovementSmuggle` is gone; the relocated
-`Player::ComputeMovementSmuggle` owns the macro movement-smuggle calculation
-(ball-line projection, possession branch, effect-time threshold, smuggle cap and
-remove-distance) and `ProjectSelectedActionCompat` calls it. `HumanoidBase::
-CalculateFactualSpatialState` is gone; `Player::ApplyFactualSpatialState` owns the
-selection-time foot/special-state reset and commits it, and `TrySelectAction`
-calls it. The `enableMovementSmuggle` tuning constant moved with the calculation.
-
-Runtime P0 fingerprint unchanged; 10/10 CTest. A8 is complete: the candidate
-reference motion (A8.0), the executed displacement (A8.1), the body state (A8.3),
-the commit authority (A8.4) and the smuggle/factual bookkeeping (A8.5) all live in
-Player/PlayerMotion. A9 remains: retire `currentAnim`/`spatialState` and delete
-Humanoid/HumanoidBase.
-
-### ANIM-1 A9 step 1: the animation/spatial compatibility storage is Player-owned
-
-`Player` now owns `anim_state_` / `spatial_state_`; `HumanoidBase` holds
-`Anim &currentAnim` / `SpatialState &spatialState` references bound to them in its
-constructor, so every remaining Humanoid reference is a view, not a second
-authority. A fresh actor resets both storages in `Activate` before constructing
-the Humanoid, preserving the old "new Humanoid starts from default state"
-behaviour (verified by the no-change fingerprint and 10/10 CTest). The remaining
-A9 work is to move the tick orchestration and ball-touch execution out of the
-Humanoid, drop the references, and delete Humanoid/HumanoidBase.
-
-### ANIM-1 A9 step 2: the per-tick smuggle evolution is a pure PlayerMotion calculation
-
-`PlayerMotion::ActionSmuggleTick(ActionSmuggleTickInput)` now owns the action,
-movement and rotation smuggle evolution relocated line-for-line from
-`Humanoid::Process` (the cosine ease-in/out, the touch-frame gating, the
-pre-touch rotation rule). It is pure and returns offset deltas;
-`Humanoid::Process` applies them to `spatialState.actionSmuggleMovement` /
-`movementSmuggleMovement` and `currentAnim.actionSmuggleOffset` /
-`movementSmuggleOffset` / `rotationSmuggleOffset` in the legacy order.
-`unittests/player/player_action_motion_test.cpp` pins the touch, no-touch and
-post-touch cases with hand-computed values.
-
-Runtime P0 fingerprint unchanged; 92 player cases / 1287 assertions; 10/10 CTest.
-Remaining A9: the ball-touch execution and the rest of `Humanoid::Process`
-(goalkeeper clamps, body pose, send-off, decision-clock orchestration), then
-deleting Humanoid/HumanoidBase.
-
-### ANIM-1 A9 step 3: the goalkeeper boundary clamps are Player-owned
-
-`Player::ApplyGoalkeeperBoundaryClamps(tick, ball_retainer)` owns the retained
-goalkeeper's 16-meter-box clamps, relocated from `Humanoid::Process`; the tick now
-just calls it. It uses the Player's own `ApplyPositionCorrection`, so the clamp
-authority and the position commit live together. Runtime P0 fingerprint
-unchanged; 10/10 CTest.
-
-Remaining A9: the ball-touch execution inside `Humanoid::Process` (the
-per-function trap/ballcontrol/pass/shot/interfere/deflect/sliding vectors, the
-retain anchor, the prepared-tick touch sink) and the decision-clock orchestration,
-after which `currentAnim`/`spatialState` references and Humanoid/HumanoidBase can
-be deleted.
+### ANIM-1 A6.3-A9 completion
+
+The remaining stages closed the interface, and their step-by-step detail is in
+git history rather than here:
+
+- `Player::TrySelectAction` owns the selection entry point,
+  `Player::InstallSelectedAction` the installation, `Player::Process` the
+  dispatch; the per-tick action clock is authoritative in `PlayerActionState`.
+- The passive trip decision and its local queue, the action displacement/body
+  state, the movement smuggle and the goalkeeper boundary clamps are
+  Player-owned.
+  `spatial_state_` hold the values (`Anim`, `SpatialState`), and the remaining
+  `currentAnim`/`spatialState` mentions are parameter or comment names, not a
+  second state.
+- `SelectAnim` and its whole chain, `Humanoid`/`HumanoidBase` and the
+  compatibility cursor writes were deleted in commit `60c7378`; `905c808`
+  removed the leftovers.
 
 ### ANIM-2 A11: Animation playback ownership, one Player input, forecast cleanup
 
@@ -3643,7 +2765,7 @@ all 19. Debug and Release both stay 13/13 CTest and keep the A17 digest
 ### Remaining stages (not yet landed)
 
 - PLAYER-2/3: close the interface. The current Player -> up-layer edges are
-  `observation::MentalImage`/`PlayerImage`/`mentalimage_sampling`/`pitch_frame`,
+  `observation::MentalImage`/`PlayerImage`/`mentalimage_sampling`,
   `event::TouchState`/`e_TouchType`/`touch_query`/`AcceptedTouch(Sink)`,
   `runtime::TeamMatchState`/`RestartContext`, and
   `rules::EvaluateActionAuthorization`/`IsGoalkeeperBackpass`. They must become
