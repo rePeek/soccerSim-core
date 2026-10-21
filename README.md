@@ -3,6 +3,9 @@
 A heavily modified headless fork of
 https://github.com/BazkieBumpercar/GameplayFootball.
 
+`soccerSim-core` is a deterministic, RNG-free, 100 Hz football simulation in
+C++23. It is the engine only: no rendering, no input protocol, no network.
+
 ## Autonomous match runner
 
 Declare both teams, pitch, match rules and startup AI configuration explicitly:
@@ -18,297 +21,109 @@ GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
 game.Start();
 while (!game.Finished()) game.Step();
 const MatchResult result = game.Result();
-// Serialize/write result in the application, not GameEnv.
 ```
 
 `GameEnv` owns one Simulation and one opaque policy. Its running step is only:
 
 ```text
-Simulation::Observe → AI::Update → PlayerControlSet → Simulation::Step
+Simulation::Observe -> AI::Update -> PlayerControlSet -> Simulation::Step
 ```
 
 It does not implement football rules, tactical reasoning, coach scheduling,
-configuration parsing, output serialization or rendering. `DefaultAI` currently
-serves as the total match-policy entry point; no CoachAI/GNN/LLM scheduler is
-introduced in this stage. A future MatchAI may orchestrate those privately.
+configuration parsing, output serialization or rendering. The public API is
+`Start`, `Step`, `Finished`, `Result`, `Observe`, `Stop`; read-only telemetry
+provides snapshots, snapshot windows, metadata and event trajectories as owning
+values. Start requires a stopped runner; Stop is idempotent; after full time
+`Step` is a no-op and a stopped `Step`/`Observe` throws `std::logic_error`.
 
-The public API is `Start`, `Step`, `Finished`, `Result`, `Observe`, `Stop`.
-Read-only telemetry also provides `CopyLatestSnapshot`, `CopySnapshotWindow`,
-`SnapshotMetadata` and `EventTrajectories`, all as owning values/copies.
-There are no live `controls()`, `tactics()` or `request_*()` channels, and no
-reset/legacy lowercase API. One Step makes one simulation call (10 ms nominal);
-no batching occurs. Simulation retains explicit read-only Snapshot history. After full time Step
-is a no-op, including AI; a stopped Step/Observe throws `std::logic_error`.
+## Phases, clocks and final results
 
-Start requires a stopped runner; duplicate Start throws. Startup validates and
-initializes local owners before publishing them. Stop is idempotent and releases
-both owners; Stop followed by Start recreates the original declarations/config.
-No runtime or concrete-policy accessor is exposed, and runners are non-copyable
-and non-movable. Caller changes to constructor inputs cannot mutate a match.
+The referee/sim owns `MatchPhase::{PreMatch, FirstHalf, SecondHalf, Finished}`.
+Simulation owns three clocks:
 
-### Phases, clocks and final results
-
-Referee/sim owns `MatchPhase::{PreMatch, FirstHalf, SecondHalf, Finished}` and
-completion. SecondHalf includes its kickoff ceremony. Simulation owns three clocks:
 - `WorldState::tick`: monotonic simulation timeline, one tick = 10 ms.
-- `regulation_time` (`TickSpan`): runs after the half's actual kickoff, including
-  ordinary dead balls; stops at half time and full time.
-- `ball_in_play_time` (`TickSpan`): accumulates only actual live-ball ticks,
-  excluding all dead balls and ceremonies.
+- `regulation_time` (`TickSpan`): runs after the half's actual kickoff,
+  including ordinary dead balls; stops at half and full time.
+- `ball_in_play_time` (`TickSpan`): accumulates only live-ball ticks.
 
-`half_underway` and `ball_in_play` project these rule facts. `in_play` is execution
-authorization: a Ready taker can act before actual contact makes the ball live.
-Snapshots are observations, never authoritative storage.
+`half_underway` and `ball_in_play` project these rule facts. `in_play` is
+execution authorization: a Ready taker can act before actual contact makes the
+ball live. Snapshots are observations, never authoritative storage.
 
-`MatchOptions::half_duration` is `TickSpan`, defaulting to `Minutes(45)`: two halves,
-no duration scale, added time, extra time or penalty shootout in this stage. CLI
-milliseconds are converted exactly on the 10 ms grid; positive off-grid inputs
-are rejected. Sim validates native durations/full-match capacity before RNG draws.
-Half time changes ends once at the next canonical between-tick frame. Each
-half requires its own real kickoff. The referee whistles at the period boundary
-even with a pending restart, before further contacts; terminal state is frozen.
+`MatchOptions::half_duration` is a `TickSpan` (two halves, no added or extra
+time). Invalid durations/capacities are rejected before any actor is built.
+Half time flips each team's defending direction at the next between-tick
+boundary; it never rewrites stored positions. `MatchResult` is available only
+after full time.
 
-`MatchResult` belongs to sim and contains `home_score`, `away_score`,
-`MatchOutcome::{HomeWin, AwayWin, Draw}` and `duration_ticks`. Outcome is derived
-from authoritative stable home/away scores; env forwards it without recomputing.
-Result is available only after full time. Before then, before Start or after Stop,
-Result throws `std::logic_error`: stopping is not a completed football match.
-Copy the owning result before stopping. Retained results/snapshots survive teardown.
+## Coordinate frame
 
-`duration_ticks` counts executed simulation calls, including the terminal referee
-transition, not subsequent no-op calls. The terminal whistle does not advance
-the timeline. Ordinary dead-ball positioning executes every tick without skips;
-neither throughput nor wall-clock pacing changes any football clock.
+There is exactly one physical coordinate system, the **Stadium Frame**: x is
+pitch length, y is width, z is up, the centre spot is the origin. Axes never
+mirror. Home defends -X and Away +X in the first half; the change of ends only
+flips which end each team defends. Ball, players, colliders, mental images,
+snapshots, `WorldState` and controls all share this frame.
 
-`Observe()` is secondary replay/trace/debug telemetry. It returns an owning,
-unscaled home-frame WorldState with ball motion, team scores/directions, player
-kinematics, play/restart/retention and reset sequence.
-WorldState is not authoritative storage; explicit Snapshot history is described below.
+Each team has a `TeamOrientation` with a persistent `defending_direction` and a
+transient `execution_direction`; the attack direction is the negation of the
+defending direction. Team-relative interpretation is always an explicit
+direction value, never an implicit mirrored frame. Pitch owns geometry and the
+static ground/post/crossbar scene only.
 
-### Snapshot history, recording and temporal data
+## Determinism
 
-Simulation captures authoritative Ball/Player physics and animation after each
-executed 10 ms Step (plus initial step zero). The configurable preallocated ring
-defaults to 60,000 frames: ten minutes at 100 Hz. Slots keep stable PlayerIds, and
-stamps distinguish executed steps, timeline ticks and reset generations.
-Snapshot does not replace WorldState, MentalImage, contact facts or checkpoints.
+The simulation core contains no random number generator. Player motion,
+animation choice, touches and set-piece placement are deterministic functions of
+skill, contact geometry, body orientation, ball velocity and fatigue. Given the
+same declarations and `PlayerControlSet` tape, Simulation produces the same
+trajectory without an AI or a seed.
 
-```sh
-build/release/football_sim --snapshot=match.snap
-build/release/football_sim --half-duration-ms=1800 --snapshot-capacity=100 --snapshot=short.snap
-```
-
-The app-only archive uses a bounded background queue, checksummed binary chunks
-and an offline range index; explicit recovery returns only valid chunk prefixes.
-Live consumers never read disk. EventRecognizer adds whole-step trajectory
-summaries without changing contact-based recognition or rulings; GraphBuilder
-builds owning spatial/temporal graph inputs from the same samples. No GNN model,
-training framework or AI policy replacement is introduced.
-
-API examples, lifecycle/query semantics and the exact versioned file layout are
-documented in the removed design notes.
-
-### AI intent and simulation replay
-
-AI owns persistent desired/planned TacticalBoards, without transient input requests,
-never actual simulation state. `AIConfig::initial_tactics` optionally supplies
-startup boards by side; otherwise DefaultAI bootstraps them from static models.
-These values are copied, not exposed as a live env mutation channel. DefaultAI
-currently reads its base boards without rewriting them during Update.
-
-The app has no external action protocol, player selection or human input path.
-GRF actions/sticky state and their adapter are removed. Diagnostics/tests replay
-explicit PlayerControlSet tapes directly through Simulation: equal initial
-declarations and controls produce identical trajectories and RNG states, without AI.
-DefaultAI's unused Request* channel, associated timers and sole Match lifetime marker
-were removed after auditing real callers. No compatibility or future Coach mechanism
-replaces them. Retained worlds/policies and Stop/Init replay remain value-only.
-The baked animation path is sim-private, not a public build requirement.
-
-## Static declarations and simulation boundaries
-
-Model owns explicit team rosters, pitch, formation, abilities/appearance and
-PlayerIds. IDs must be valid and unique across both rosters; empty rosters or
-formations without profiles fail before RNG draws. Legacy database IDs are only
-import provenance, never identity. Sample factories supply IDs 0–10 and 11–21
-and live only in app fixtures, never core. Supported pitch geometry remains the
-legacy 110 × 72 metres.
-
-Simulation consumes explicit PlayerControlSet values, with idle fallback for
-missing controls and execution-side legality. It has no policy fallback or input
-ownership. Referee is the rules engine, not a moving actor.
-Animation mechanics use the baked asset, never runtime XML/legacy importers.
-There is no active-environment global, ScenarioConfig, GRF environment adapter,
-controller hierarchy or byte-blob checkpoint API. Durable save/load would require
-an explicit value state contract, not per-class memory hooks.
-
-### Simulation domains
-
-`src/sim/` keeps only `simulation.hpp` / `simulation.cpp` at the top level
-(besides CMake). Concepts live with their football domain, irrespective of
-whether they are exported:
+## Simulation domains
 
 ```text
 src/                (runtime implementation; public values live in include/football/)
-├── team/         Static Team domain entity, lineup/leadership/orders/presets
-├── runtime/      Simulation, clock/phase/result, Roster, ActiveLineup,
-│                 TeamFrame/TeamMatchState, formation adaptation, possession
-├── player/       Player, controls, locomotion, contacts, baked body/pose
-├── event/        EventRecognizer, TouchState and AcceptedTouch
-├── observation/  WorldState, pitch_frame, MentalImage, Snapshot
-├── referee/      Referee, goal, period, offside and restarts
-└── testing/      SimulationAccess (internal, not product/actor-facing)
+├── foundation/   math/time, geometry, generic collision
+├── animation/    baked clip schema/library/selector, playback, touch, pose
+├── pitch/        Pitch description and static physics scene
+├── ball/         Ball physics: impulse/response, integration, prediction
+├── player/       Player state, locomotion, contacts, baked body/pose
+├── team/         Static Team entity, lineup/orders/presets, Player ownership
+├── runtime/      Simulation, clocks/phases/result, TeamOrientation/TeamView,
+│                 possession, restart context/controller/planner/placement,
+│                 WorldState and Snapshot builders
+├── event/        EventRecognizer, TouchState, MatchEvent log
+├── observation/  MentalImage, Snapshot/history, temporal graph, player slots
+├── referee/      Referee over value facts, goal/period/offside/restart rules
+├── ai/           policies, tactical board/plan/interpreter, coach, eliza
+└── testing/      SimulationAccess (internal, never product/actor-facing)
 ```
 
-AI consumes `football/observation/world_state.hpp` and
+Dependency direction is one-way:
+`foundation -> geometry/collision -> pitch -> ball/animation -> player -> team
+-> runtime`, with `ai`, `model`, `referee`, `event` and `observation` depending
+only on public value contracts. AI consumes
+`football/observation/world_state.hpp` and
 `football/player/player_control_set.hpp`; apps use `football/env.hpp`.
-WorldState remains an owning observation projection, never mutable world authority.
-CMake exports define library/API
-boundaries; there is no `contracts/` directory or legacy include-path shim.
-
-Runtime authority migration is incremental. `Simulation::Step()` now dispatches
-controls and invokes `ball/ball_player_contact.*`, applying its impulse, random
-rotation and cooldown at the original point in the tick. The resolver receives
-explicit domain inputs, not a Match/Simulation service locator.
-`player/player_contact.*` owns ordered player-pair separation, movement sharing and
-tackle/trip mechanics. Simulation passes players, Ball, possession
-designation and Referee explicitly; notices remain synchronous after each trip.
-No pair sorting, position snapshotting or deferred foul-event queue is introduced.
-`rules/goal.*` provides a pure swept-segment predicate from Pitch and positions.
-The caller keeps the legacy prediction gate and AdvanceTime → both goal checks →
-score/scorer application order; geometry reads no Match, Ball, player or clock.
-
-`Ball` owns only its own model/state and holds a const reference to the immutable
-Pitch; gravity, ground resistance, goal/net geometry and the static colliders all
-come from it, with no BallWorld/BallEnvironment adapter. Touch-dependent history
-refresh is composed by `ball/ball_touch_application.*::ApplyBallTouch` with explicit
-Ball, environment, impulse, history and processing-ordered teams. Match::TouchBall is removed;
-physics → newest history → first/second possession refresh remains synchronous, before
-rotation. Simulation::TouchBall is a transitional diagnostic escape. Actor/body touches
-publish through the write-only `BallTouchSink` (`event/ball_touch_sink.hpp`). Simulation
-assembles current facts; `event/ball_touch_dispatcher.*` writes touch bookkeeping and
-TouchState values, then notifies rules synchronously. MatchTouchSink and
-Match::SetLastTouchTeamID are deleted. Team's latest-touch pointer/accounting/query APIs
-are removed too: TouchState stores full-width PlayerIds by roster; explicit queries
-retain sent-off actor lookup and live timestamp decay. No touch/RNG notification is
-hidden inside Team or Match. `Simulation::Step()` composes all legacy phases explicitly;
-`Match::StepRemainingTick` is removed. `runtime/possession.*` evaluates best-team and
-designated-player selection without publishing state. Simulation applies the selection
-after roster refreshes; the separate physical `ballRetainer` fact remains Match-owned.
-`runtime/roster_possession.*` owns roster refresh and pre/post-player possession phases
-(moved out of the player domain). Simulation iterates active players directly;
-Team::Process/UpdatePossessionStats and its unused restart/unique-possession wrappers
-are deleted. Player refresh consumes explicit Ball, the opponent TeamMatchState, tick
-and physical retainer; no Team runtime context is added and Player never holds a Team.
-Match still owns runtime objects and competition facts; its history bridge is removed.
-`Simulation::match()` remains a temporary test/diagnostic escape hatch.
-
-Simulation directly owns the three-slot MentalImage history and capture cadence. Observation
-sampling/newest-ball refresh take explicit spans; Match has no history member, query or
-constructor parameter at all. Mirror/reset composition lives in Simulation;
-Match::Mirror/ResetSituation are removed. Referee has no Match pointer or include:
-construction takes kickoff Team/position; Process takes call-local RefereeTickFacts,
-immutable options, explicit RNG and a synchronous, write-only RuleCommandSink.
-Referee is uniquely owned by Simulation; Match temporarily forwards actor access via
-a non-owning borrow. Teardown retains teams → Ball → Referee destruction order.
-Simulation applies reset/play/phase consequences inline. Live Ball/actor borrows allow
-readiness checks after resets without stale position snapshots or reordered RNG.
-Internal `testing::SimulationAccess` supports rule diagnostics, not product APIs.
-Restart placement receives Ball, regulation, immutable options and RNG explicitly; readiness
-planning receives Pitch, the home-frame ball position and the ordered active-player span.
-Neither algorithm retrieves Match from Team/Player. Placement still resets actors in the
-original order; no layout, prediction sampling or RNG policy changes.
-MentalImage has no Match pointer or implicit clock/Ball reads:
-capture takes tick, ordered player span and Ball; sampling takes explicit now/Ball.
-Legacy Player deviation clamps and signed horizon quantization remain unchanged.
-StepPlayers explicitly lends history through Player → Humanoid and its animation/touch
-prediction functions. No actor stores the span or samples through Match; Simulation diagnostic
-sampling is the only remaining history reader.
-
-`match/match_clock.*` defines MatchClock: timeline/regulation/effective clocks, run flags and executed
-ticks. Simulation owns its lifetime; Match only borrows it for transitional projections.
-It takes phase explicitly, atomically clips advances to the current period,
-and returns admitted ticks. Simulation explicitly advances Clock, updates the Match-owned
-recent possession window, then evaluates goals. Match::AdvanceTime/SwitchEnds are removed;
-Simulation::ApplyChangeOfEnds preserves roster → roster → Ball → history order at tick entry.
-Simulation::AdvanceTime is diagnostic-only (no physics/rules/execution count). Simulation
-owns period lifecycle and tick counting/ordering. Match now has no tick entry
-or collision/goal/selection algorithm. Actor ownership, competition/touch values
-and possession state remain; the touch/history notification bridges are removed.
-Player/Humanoid constructors receive the immutable AnimationLibrary explicitly; clip
-lookups, selectors and root-position reads no longer retrieve it through Match.
-Humanoid utilities consume explicit Ball, live touch state, opponent roster, tick, RNG
-and baked clip inputs; they have no Match parameter/include or indirect Player::GetMatch
-lookup. Match::GetAnimPositionCache is deleted. Actor tick-state dependencies remain.
-Player touch decay requires an explicit Tick (no implicit-now overload), and player
-free-space queries take Tick/MentalImage directly with no Match dependency.
-Command construction borrows explicit authorization/hands-legality inputs for one call;
-BuildPlayerCommands no longer includes Match, and Player::GetMatch is deleted.
-Player tick/tactical processing consumes stack-local PlayerTickContext; fatigue observes
-the live half-underway gate after contact, not a pre-tick snapshot. Locomotion/decision
-helpers take explicit time, Ball and retention inputs without querying Match.
-Player has no Match pointer/include/lookup; lifecycle methods receive Tick/Ball/RNG
-as needed. Team teardown explicitly preserves the former destructor reset order.
-Player constructors borrow Pitch, AnimationLibrary and the Simulation-owned RNG stream.
-Humanoid/Base receive that same live stream explicitly; reset/action draws no longer
-retrieve RNG through Match. Humanoid/Base tick, animation-selection, touch-prediction
-and physics-vector calls require explicit time; physics/authorization dependencies remain.
-
-`rules/period.*` defines pure PeriodElapsed from explicit underway/phase/regulation/duration
-facts. Simulation evaluates the pre-contact gate and original whistle boundary; EndPeriod
-preserves EndHalf → referee-state mutation → phase publication → pending end change.
-Referee::OnPeriodEnded takes explicit tick/phase/kickoff inputs and changes only its own
-facts. All Referee → Match dependencies are removed; consequences use the write-only rule port.
-TripNotice independently updates foul facts from explicit tick/Ball position and live actors.
-Contacts still invoke it immediately after TripMe; advantage/card/restart consequences
-stay synchronous. No RulesContext or deferred notices are added.
+`WorldState` is an owning observation projection, never mutable world authority.
 
 ## Build and tests
 
-Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,
-dependencies and `football::` aliases. Public headers live in the top-level
-`include/football/<module>/`; `simcore` compiles `src/env.cpp` and publishes
-`include/football/env.hpp` as the public match façade. Its implementation is
-the sole product composition root for sim + AI:
-
-```text
-football_sim → football::simcore → ai + sim → foundation/{geometry,collision,pitch,ball}
-```
-
-Root CMake exposes model, sim contracts and AI startup contracts as PUBLIC usage
-requirements; concrete sim/AI implementations stay PRIVATE. The header-only
-`football_sim_contracts` build target exports selected domain value headers, not
-entire directories. football::animation is a header-only module also consumed by
-the offline baker. AI links only value contracts, never sim actors.
-
 ```sh
-nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j 4 && ctest --preset release --output-on-failure'
-build/release/football_sim                         # one complete regulation match
-build/release/football_sim --half-duration-ms=1800 # complete short regulation match
+nix develop --command bash -c 'cmake --preset debug && cmake --build --preset debug -j $(nproc) && ctest --preset debug'
+nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF && cmake --build build/core -j $(nproc)'
 ```
 
-`--steps` is retired; app always loops until sim completion and prints MatchResult,
-not a partial observation. Parsing/writing belongs to app. CLI/tool executable
-paths remain at the build root. CTest runs the real app for short and full-match
-black-box coverage; a separate smoke executable is unnecessary.
+Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,
+dependencies and `football::` aliases. `football::simcore` compiles
+`src/env.cpp` and publishes `include/football/env.hpp` as the public facade.
 
-BqLog 2.5.0 is fetched via CPM at a pinned commit in all build modes;
-nlohmann/json v3.11.3 is pinned the same way for the coach tool-call JSON
-boundary; Catch2 is fetched only with BUILD_TESTING enabled. All are cached in
-`.cache/CPM`.
-`-DBUILD_TESTING=OFF` builds core without Catch2 (first BqLog fetch needs
-network); the args/fixture archive remains EXCLUDE_FROM_ALL. BqLog is PRIVATE
-to simcore/sim. GameEnv starts the single `football` logger and flushes after teardown;
-warnings log, operational failures throw, and debug invariants use `<cassert>`.
-There is no `src/support/`: app profiles are typed fixtures retaining six-decimal
-quantization, and legacy XML/codecs/text helpers live only in `tools/animBaker/import/`.
-File I/O uses the standard library; custom diagnostics/backtraces and Properties
-are removed. Neither app nor Catch2/offline baker code is linked into core.
-Unit tests live under `unittests/` and link only the module under test:
-`foundation_unit` (math/time), `collision_unit` (generic CCD, overlap and the
-malformed-input contract), `pitch_unit` (the ground/goal scene and its
-configuration) and `ball_unit` (ball physics: impulse/response, one-tick
-motion, Step/Predict).
-They run in milliseconds and never load a match, animation asset or
-`football::simcore`.
-The offline baker remains a standalone tool under `tools/animBaker/`.
+BqLog and nlohmann/json are fetched via CPM in every build mode; Catch2 is
+fetched only with `BUILD_TESTING=ON`. All are cached in `.cache/CPM`.
+
+Unit tests live under `unittests/` and link only the module under test
+(foundation/collision/pitch/ball/player/team/animation/rules/event/observation/
+AI), plus a bounded `unittests/runtime/` harness that runs a handful of ticks
+through the real composition. Tests assert physical correctness, state
+invariants and module contracts; there is no golden/fingerprint tier and no
+full-match requirement for a module change. The offline animation baker remains
+a standalone tool under `tools/animBaker/`.
