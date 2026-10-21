@@ -284,11 +284,27 @@ The split landed as:
 - Tests that write the ball go through `SimulationAccess::SetBallState`, which
   keeps authority and view in sync.
 
-Verified byte-identical under the Release autonomous acceptance for both
-processing orders (default digest 626253690591465912, reverse digest
-6759747685969106575; event digests 9710651411166910243 and
-12530809655384998195). The same view pattern carries FRAME-3 (Player storage)
-and lets FRAME-5 drop the per-`second_team_` collider mirrors.
+12530809655384998195).
+
+FRAME-3 is not a storage-only change (measured, rolled back). Two experiments
+under the dual-fingerprint protocol show the processing frame is semantic, not
+a representation detail:
+
+- Skipping only `player->Mirror()` in `MirrorTeam` (keeping the ball toggle)
+  moved the default digest to 899024258597560800 and reverse to
+  4668814161605350636, while 95/96 runtime cases still passed. The runtime
+  suite cannot catch this; only the absolute fingerprint does.
+- Making `Simulation::Mirror` a complete no-op (all actors left in the fixed
+  frame) moved the default digest to 10016547257470599845 and changed the
+  event digest as well.
+
+Both were reverted; the repository stays on the verified FRAME-2 fingerprints.
+The consequence is that FRAME-3..FRAME-7 cannot be reached by extending the
+FRAME-2 view pattern: the Player AI, action/root-motion and contact math are
+calibrated to the team-local processing frame, so a fixed authority requires
+porting that math to one frame with explicit direction handling (a
+`dynamic_side`-driven rewrite of Player/contact/animation), not a mirrored
+view. Do not start it as a storage refactor.
 
 Gate for the migration: keep the debug runtime suite green; bring up the
 normalized A/B comparison before changing any authority; capture a
