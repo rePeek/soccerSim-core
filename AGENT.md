@@ -260,33 +260,35 @@ produces `ball_to_home`/`stadium_to_home`; `PlayerTickFacts` hands the raw
 `player_control_builder.cpp` / `restart_planner.cpp` /
 `restart_controller.cpp` use `FromHomePitchFrame`.
 
-Revised finding (FRAME-2 is feasible, but it is not a delete). The ball kernel
-already runs in the Stadium Frame: `Mirror(false, false, reverse)` around
-`Ball::Step`/`Predict` converts the authoritative raw frame to Stadium, and
-the kernel colliders are built in that same frame (`BuildBakedBodyTape` and
-`BeginBodyPhysicsShadow` mirror their shapes under reverse). So the kernel
-seam is not the obstacle. The obstacle is that the authoritative `ball_` is
-mirrored in place through the whole tick, and many consumers read that
-in-place frame directly: `RefereeFacts` and `DispatchTouch`, the body/CCD
-shadow, `RefreshTeamPossession`/`ResolvePlayerContacts`, the goal-crossing
-lookahead, and the prepared-tick collider / mental-image inputs.
+FRAME-2 (done): authority + view split, no published-contract change. An
+instrumented probe (first half vs after a change of ends, both processing
+orders) confirmed the kernel already runs in a fixed frame: the
+`Mirror(false, false, reverse)` around `Ball::Step`/`Predict` put the ball in
+the same frame as the collider mirrors, and that frame is the same in both
+halves. The remaining work was that `ball_` was mirrored in place through the
+tick and many consumers read that frame directly.
 
-FRAME-2 therefore needs an authority + view split, not a one-line removal:
+The split landed as:
 
-- `ball_` becomes the only authoritative storage and is never toggled by
-  processing order; the kernel steps it directly, since that frame is already
-  Stadium;
-- a per-frame view (a `Ball` view or a frame tag plus a converting accessor)
-  supplies the current processing frame to the consumers above, reproducing
-  exactly the numbers the in-place mirrors used to produce;
-- the published conversions change from `P` (raw -> home) to `S`
-  (stadium -> home), and `committed_ball_tick_` is derived through `S`.
+- `ball_authority_` is the authoritative Ball. Only the physics kernel steps
+  it; a reset and the half-time change of ends are the other writes.
+  Processing order never touches it.
+- `ball_` stays the processing-frame view, so no kernel consumer changed.
+  `ball_view_mirrored_` is the view relation, toggled exactly where the old
+  in-place `ball_->Mirror()` ran, and `RefreshBallView()` re-derives the view
+  from the authority after every authority step.
+- The prepared tick predicts and steps `ball_authority_` directly and converts
+  the committed result to the view through `MirrorResult`.
+  `preparation_ball_`, the body/CCD shadows and the rule/observation inputs
+  still see the old view values.
+- Tests that write the ball go through `SimulationAccess::SetBallState`, which
+  keeps authority and view in sync.
 
-That is a representation change, not a published-contract change, so it must
-be validated by a normalized A/B comparison over the published `WorldState`
-and confirmed `MatchEvent` sequence (and a captured reverse=true fingerprint),
-not by a raw-storage diff. The same view pattern then carries FRAME-3 (Player
-storage) and lets FRAME-5 drop the per-`second_team_` collider mirrors.
+Verified byte-identical under the Release autonomous acceptance for both
+processing orders (default digest 626253690591465912, reverse digest
+6759747685969106575; event digests 9710651411166910243 and
+12530809655384998195). The same view pattern carries FRAME-3 (Player storage)
+and lets FRAME-5 drop the per-`second_team_` collider mirrors.
 
 Gate for the migration: keep the debug runtime suite green; bring up the
 normalized A/B comparison before changing any authority; capture a
