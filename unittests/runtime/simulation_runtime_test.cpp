@@ -1148,12 +1148,21 @@ TEST_CASE("Runtime harness: movement pose blend never changes the committed traj
 TEST_CASE("Runtime harness: locomotion playback reference is recorded, not applied",
           "[runtime][sim]") {
   // LOCO-2.3c: the strategy computes and records a reference playback rate,
-  // but the integer frameNum clock is not advanced by it until LOCO-2.6.
+  // but the integer frameNum clock is not advanced by it until LOCO-2.6. Drive
+  // a real movement tape so the procedural locomotion path is exercised; an
+  // idle tape does not guarantee a re-selection within a bounded tick count.
   const int before = LocomotionPlaybackAuditState().samples;
   Simulation sim;
   InitMatch(sim);
-  PlayerControlSet controls;
-  for (int tick = 0; tick < 30; ++tick) sim.Step(controls);
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[6];
+  for (int tick = 0; tick < 240; ++tick) {
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = Vector3(0, -1, 0);
+    control.desired_speed = 6.0f;
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+  }
   const LocomotionPlaybackAudit& audit = LocomotionPlaybackAuditState();
   CHECK(audit.samples > before);
   CHECK(std::isfinite(audit.reference_speed_sum));
