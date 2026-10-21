@@ -268,8 +268,8 @@ Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
                football::player::PlayerDefinition model,
                const FormationEntry& formation_entry,
                std::uint8_t schedule_phase,
-               const AnimationLibrary& animations, const football::pitch::Pitch& pitch, football::math::Rng& rng)
-    : animations_(animations), pitch_(pitch), rng_(rng),
+               const AnimationLibrary& animations, const football::pitch::Pitch& pitch)
+    : animations_(animations), pitch_(pitch),
       model_(std::move(model)),
       body_profile_(football::player::MakePlayerBodyProfile(model_)),
       schedule_phase_(schedule_phase % 10),
@@ -293,7 +293,7 @@ Player::~Player() = default;
 
 void Player::Exit(football::sim::Tick now) {
   if (isActive) {
-    // Preserve the former base destructor's reset/RNG window without invoking
+    // Preserve the former base destructor's reset window without invoking
     // roster callbacks: Team::Exit may already have deleted other players.
     SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
     ResetRuntimeState(GetPosition(), now);
@@ -738,8 +738,8 @@ void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
   CommitLegacyActionMotion();
   // ANIM-1 A6.3c.1: a reset is a special action install, not an out-of-band
   // cursor write. Route it through the same Player install entry so
-  // `installed_action_` stays valid and the RNG-chosen start frame is carried
-  // in the selection (RNG draws and order unchanged).
+  // `installed_action_` stays valid and the deterministic entry frame is
+  // carried in the selection.
   InstallSelectedAction(CurrentSelectedAction());
 }
 
@@ -913,7 +913,7 @@ void Player::CommitTick(const football::sim::PlayerTickContext& tick, float dist
   }
   if (cards > 1 && card_effective_tick_ <= tick.now &&
       ActivePlayerCount(tick.own_team.teammates) > 1) {
-    SendOff(tick.ball, tick.now, tick.rng, tick.send_off);
+    SendOff(tick.ball, tick.now, tick.send_off);
   }
 }
 
@@ -997,8 +997,8 @@ void Player::Activate() {
   anim_state_ = Anim{};
   spatial_state_ = SpatialState{};
   // The old Humanoid constructor performed one zero-position reset before the
-  // explicit formation-position reset. Keep both, in order, so the RNG draws
-  // and the resulting idle entry frame are unchanged.
+  // explicit formation-position reset. Keep both, in order, so the resulting
+  // idle entry frame is unchanged.
   ResetLegacyPosition(Vector3(0), Vector3(0));
   ResetLegacyPosition(
       GetFormationEntry().position * 25 *
@@ -1008,8 +1008,8 @@ void Player::Activate() {
   CommitLegacyActionMotion();
   // ANIM-1 A6.3c.1: a reset is a special action install, not an out-of-band
   // cursor write. Route it through the same Player install entry so
-  // `installed_action_` stays valid and the RNG-chosen start frame is carried
-  // in the selection (RNG draws and order unchanged).
+  // `installed_action_` stays valid and the deterministic entry frame is
+  // carried in the selection.
   InstallSelectedAction(CurrentSelectedAction());
   SetDynamicFormationEntry(GetFormationEntry());
 }
@@ -1086,9 +1086,7 @@ float Player::GetClosestOpponentDistance(const PlayerTeamView& opponent) const {
 
 
 
-void Player::SendOff(const Ball& ball, football::sim::Tick now, football::math::Rng& rng, football::sim::PlayerSendOffSink* send_off) {
-  // Preserve the historical draw even though its message was removed.
-  (void)rng.Uniform(0, 3);
+void Player::SendOff(const Ball& ball, football::sim::Tick now, football::sim::PlayerSendOffSink* send_off) {
   Deactivate(ball, now);
   // Runtime owns the roster/formation/possession follow-up: the trigger stays
   // synchronous here so the per-actor order (and the RNG draw above) is intact.

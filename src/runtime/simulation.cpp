@@ -30,13 +30,14 @@ using football::ball::Ball;
 
 namespace {
 // Resolve only unspecified runtime appearance, never import or invent profiles.
-// Preserve the historical home-then-away draw for every declared profile, even
-// profiles omitted by a smaller formation and profiles with explicit appearance.
-void ResolveAppearance(football::sim::PreparedTeam& prepared,
-                        football::math::Rng& rng) {
+// Deterministic default: profiles without an explicit skin colour cycle through
+// the four declared colours in roster order, with no RNG stream involved.
+void ResolveAppearance(football::sim::PreparedTeam& prepared) {
+  int index = 0;
   for (auto& player : prepared.definition.players) {
-    const int skin_color = int(std::round(rng.Uniform(1, 4)));
+    const int skin_color = 1 + (index % 4);
     if (!player.appearance.skin_color) player.appearance.skin_color = skin_color;
+    ++index;
   }
 }
 
@@ -168,7 +169,7 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
           clock_->IsHalfUnderway(), *ball_, ball_retainer_,
           designated_possession_player_, GetLastTouchPlayer(), touches_,
           restarts_.context(), pitch_, own_view, opponent_view, processing_slot,
-          restarts_.NeedsSimulation(), rng_,
+          restarts_.NeedsSimulation(),
           active_candidate_capture_ ? active_touch_shadow_sink_.get() : nullptr,
           nullptr, ball_.get(), send_off_sink_.get(), &authorization_port_};
 }
@@ -519,7 +520,7 @@ void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
         ? (slot ? formation.at(*slot) : FormationEntry{}) : formation.at(i);
     auto player = std::make_unique<Player>(
         team_id, static_cast<football::sim::TeamSide>(team_id), ai_difficulty,
-        definition.players[i], entry, schedule_phase, *animations_, pitch_, rng_);
+        definition.players[i], entry, schedule_phase, *animations_, pitch_);
     schedule_phase = (schedule_phase + 1) % 10;
     Player* raw = player.get();
     team.AddPlayer(std::move(player));
@@ -699,7 +700,7 @@ void Simulation::AdvanceRestart(const football::sim::RuntimeTickFacts& facts) {
       {&teams_[1]->Definition().set_piece_orders,
        &teams_[1]->Definition().formations, &active_lineups_[1]}};
   football::sim::RestartController::TickOutcome outcome =
-      restarts_.Advance(facts, options_, rng_, *rule_commands_, planning);
+      restarts_.Advance(facts, options_, *rule_commands_, planning);
   for (auto& event : outcome.events) event_log_.Record(std::move(event));
   if (outcome.ceremonial_setup) referee_->OnCeremonialSetup();
   if (outcome.restart_taken) referee_->OnRestartTaken();
@@ -765,12 +766,9 @@ void Simulation::Init(
   }
   auto& home_model = models[0];
   auto& away_model = models[1];
-  // Appearance is not competition physics: isolate its seed-0 stream so a
-  // second Init never depends on the previous match's residual RNG state.
-  football::math::Rng appearance_rng;
-  appearance_rng.Seed(0);
-  ResolveAppearance(home_model, appearance_rng);
-  ResolveAppearance(away_model, appearance_rng);
+  // Appearance is not competition physics and is fully deterministic.
+  ResolveAppearance(home_model);
+  ResolveAppearance(away_model);
 
   // Effective formation: the same fallback BuildFormation uses (formation ->
   // tactical_formation -> players.size()), so kickoff possession agrees with the
@@ -789,9 +787,6 @@ void Simulation::Init(
   options.left_team_owns_ball = LeftTeamOwnsBall(
       starters_only(home_model, left), starters_only(away_model, right), options.ball_position);
 
-  // Apply the episode seed after the appearance draws, before constructing
-  // actors. Moving those draws across this boundary changes simulation RNG.
-  rng_.Seed(options.game_engine_random_seed);
 
   // A fresh composition starts from a clean competition state, exactly as the
   // former composition constructor did. Re-Init after Stop must not inherit results.

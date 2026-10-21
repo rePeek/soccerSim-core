@@ -172,8 +172,9 @@ void Player::ResetLegacyPosition(const Vector3 &newPos,
   anim_state_.animationId = idleAnimID;
   anim_state_.positions.clear();
   anim_state_.positions = GetBakedClip(anim_state_.animationId).root_positions;
-  anim_state_.frameNum =
-      rng_.Uniform(0, static_cast<int>(GetCurrentBakedClip().frame_count) - 2);
+  // Deterministic entry frame: a fresh reset always starts the idle clip at
+  // its first legal frame instead of drawing a random start.
+  anim_state_.frameNum = 0;
   anim_state_.touchFrame = -1;
   anim_state_.actionSmuggle = Vector3(0);
   anim_state_.actionSmuggleOffset = Vector3(0);

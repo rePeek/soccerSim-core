@@ -18,7 +18,6 @@
 #include "football/ball/ball_model.hpp"
 #include "football/foundation/collision/sweep.hpp"
 #include "football/runtime/simulation_config.hpp"
-#include "football/foundation/math/rng.hpp"
 #include "football/observation/world_state.hpp"
 #include "observation/mentalimage.hpp"
 #include "observation/snapshot_history.hpp"
@@ -59,7 +58,7 @@ namespace football::sim::testing { class SimulationAccess; }
 
 // Simulation owns the whole match composition: clock/phase/score, ball, two
 // Team entities (each owning its Players; Runtime owns their team state),
-// referee, touch/possession state, RNG/history/config. Step() is the only
+// referee, touch/possession state, history and config. Step() is the only
 // orchestration point.
 class Simulation {
  public:
@@ -285,7 +284,6 @@ class Simulation {
   const football::pitch::Pitch& pitch() const { return pitch_; }
   const AnimationLibrary& GetAnimationLibrary() const { return *animations_; }
   const MatchOptions& options() const { return options_; }
-  football::math::Rng& rng() { return rng_; }
   bool IsInSetPiece() const { return set_piece_active_; }
   MatchPhase GetMatchPhase() const { return phase_; }
   Referee* GetReferee() const { return referee_.get(); }
@@ -316,7 +314,6 @@ class Simulation {
   Player* GetLastTouchPlayer() const;
   void GetActiveTeamPlayers(int team_id, std::vector<Player*>& players);
 
-  football::math::Rng rng_;
   // Constructed before the actors and kept alive until their borrows are gone.
   std::vector<MentalImage> mental_images_;
   std::optional<football::sim::MatchClock> clock_;

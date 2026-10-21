@@ -36,15 +36,14 @@ TeamSetup TwoPlayerSetup(unsigned first) {
 std::unique_ptr<Player> MakeTestPlayer(football::player::PlayerId id,
                                        e_PlayerRole role,
                                        const AnimationLibrary& animations,
-                                       const football::pitch::Pitch& pitch,
-                                       football::math::Rng& rng) {
+                                       const football::pitch::Pitch& pitch) {
   football::player::PlayerDefinition definition;
   definition.id = id;
   definition.height = 1.8f;
   FormationEntry entry{};
   entry.role = role;
   return std::make_unique<Player>(0, TeamSide::Home, 1.f, definition, entry, 0,
-                                  animations, pitch, rng);
+                                  animations, pitch);
 }
 
 }  // namespace
@@ -52,9 +51,8 @@ std::unique_ptr<Player> MakeTestPlayer(football::player::PlayerId id,
 TEST_CASE("Team owns a Player after the caller releases it", "[team][ownership]") {
   AnimationLibrary animations;
   const football::pitch::Pitch pitch;
-  football::math::Rng rng;
   football::team::Team team{football::team::TeamDefinition{}};
-  auto actor = MakeTestPlayer(77, e_PlayerRole_GK, animations, pitch, rng);
+  auto actor = MakeTestPlayer(77, e_PlayerRole_GK, animations, pitch);
   Player* raw = actor.get();
   team.AddPlayer(std::move(actor));
   CHECK_FALSE(actor);

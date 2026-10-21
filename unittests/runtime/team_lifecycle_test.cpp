@@ -56,7 +56,6 @@ TEST_CASE("Partial Player construction failure takes the shared teardown path", 
       Simulation fresh;
       REQUIRE_NOTHROW(sim.Init(home,away,football::pitch::Pitch{},options));
       fresh.Init(home,away,football::pitch::Pitch{},options);
-      CHECK(SimulationAccess::RngOf(sim).engine() == SimulationAccess::RngOf(fresh).engine());
       const auto a = sim.Observe();
       const auto b = fresh.Observe();
       REQUIRE(a.players.size() == b.players.size());

@@ -3,7 +3,6 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
-#include "football/foundation/math/rng.hpp"
 #include "football/player/player_touch_facts.hpp"
 #include "player/player_authorization.hpp"
 #include "player/player_team_view.hpp"
@@ -50,7 +49,6 @@ struct PlayerTickContext {
 
   bool restart_needs_simulation;
 
-  football::math::Rng& rng;
   ActiveTouchShadowSink* active_touch_shadow = nullptr; // optional read-only diagnostic
   // Non-null only in the prepare phase. Ball is an immutable endpoint view:
   // touches/rotation/retention are proposals, not immediate mutations/events.

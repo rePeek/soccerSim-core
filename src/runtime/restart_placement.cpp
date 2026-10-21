@@ -150,7 +150,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                               const football::sim::TeamView& other_team,
                               int kickoffTakerTeamId, int takerTeamID, const Ball& ball,
                               football::sim::TickSpan regulation,
-                              const MatchOptions& options, football::math::Rng& rng,
+                              const MatchOptions& options,
                               football::sim::rules::RuleCommandSink& commands) {
   Player *taker = nullptr;
 
@@ -190,10 +190,11 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                         players[i]->GetFormationEntry().position *
                         Vector3(-team.dynamic_side * pitch.half_length() * 0.6,
                                 -team.dynamic_side * pitch.half_width() * 0.6, 0);
+                    // Deterministic stagger so kickoff players do not stand on
+                    // top of each other; the direction alternates by slot.
                     basePos.coords[1] +=
-                        rng.Uniform(-2.0f,
-                                    2.0f);  // to stop people from bumping into
-                                            // each other and such
+                        (i % 2 == 0 ? -1.0f : 1.0f) *
+                        (1.0f + 0.25f * static_cast<float>(i));
                     basePos.coords[0] *= 0.5;
                     basePos.coords[0] +=
                         (pitch.half_length() * 0.2) * team.dynamic_side;

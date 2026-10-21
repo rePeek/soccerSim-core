@@ -1,7 +1,6 @@
 #ifndef FOOTBALL_SIM_RUNTIME_RESTART_CONTROLLER_HPP
 #define FOOTBALL_SIM_RUNTIME_RESTART_CONTROLLER_HPP
 
-#include "football/foundation/math/rng.hpp"
 #include <cstdint>
 #include <vector>
 
@@ -55,7 +54,7 @@ class RestartController {
 
   // One-tick restart execution, run at the legacy pre-movement rule boundary.
   TickOutcome Advance(const football::sim::RuntimeTickFacts& facts,
-                      const MatchOptions& options, football::math::Rng& rng,
+                      const MatchOptions& options,
                       football::sim::rules::RuleCommandSink& commands,
                       const RestartPlanningTable& planning);
 
@@ -67,11 +66,11 @@ class RestartController {
 
  private:
   void ProcessRestart(const football::sim::RuntimeTickFacts& facts,
-                      const MatchOptions& options, football::math::Rng& rng,
+                      const MatchOptions& options,
                       football::sim::rules::RuleCommandSink& commands, TickOutcome& outcome,
                       const RestartPlanningTable& planning);
   void PrepareCeremonialKickOff(const football::sim::RuntimeTickFacts& facts,
-                                const MatchOptions& options, football::math::Rng& rng,
+                                const MatchOptions& options,
                                 football::sim::rules::RuleCommandSink& commands);
   // Decrements the post-restart line grace exactly once per executed instant.
   void TickPostRestartGrace();

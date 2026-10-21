@@ -200,8 +200,6 @@ TEST_CASE("Declared restart configuration leaves the opening ceremony unchanged"
       CHECK(a->snapshot.players[i].animation_id == b->snapshot.players[i].animation_id);
       CHECK(a->snapshot.players[i].active == b->snapshot.players[i].active);
     }
-    CHECK(SimulationAccess::RngOf(legacy).engine() ==
-          SimulationAccess::RngOf(migrated).engine());
     CHECK(legacy.Observe().restart_taker == migrated.Observe().restart_taker);
   };
   compare();
@@ -216,8 +214,6 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed",
           "[team][ownership]") {
   AnimationLibrary animations;
   const football::pitch::Pitch pitch;
-  football::math::Rng rng;
-  const auto before = rng.engine();
   std::unique_ptr<Player> actor;
   {
     football::player::PlayerDefinition source;
@@ -232,8 +228,7 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed",
     source.appearance.hair_style = "short02";
     source.appearance.hair_color = "black";
     actor = std::make_unique<Player>(0, TeamSide::Home, 1.f, source,
-                                     FormationEntry{}, 7, animations, pitch,
-                                     rng);
+                                     FormationEntry{}, 7, animations, pitch);
     CHECK(&actor->GetModel() != &source);
     source.id = 0;
     source.height = 0;
@@ -253,7 +248,6 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed",
   CHECK(model.appearance.hair_color == "black");
   CHECK(actor->BodyProfile().height_m == 1.9f);
   CHECK(actor->BodyProfile().mass_kg == 80.f);
-  CHECK(rng.engine() == before);
 }
 
 TEST_CASE("Runtime owns live lineup, frame and match state separately from Team",

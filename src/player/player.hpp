@@ -202,9 +202,9 @@ class Player final {
            football::player::PlayerDefinition model,
            const FormationEntry& formation_entry,
            std::uint8_t schedule_phase,
-           const AnimationLibrary& animations, const football::pitch::Pitch& pitch, football::math::Rng& rng);
+           const AnimationLibrary& animations, const football::pitch::Pitch& pitch);
     ~Player();
-    // Explicit teardown reset before deletion; no hidden clock/RNG destructor path.
+    // Explicit teardown reset before deletion; no hidden clock destructor path.
     void Exit(football::sim::Tick now);
     void Mirror();
 
@@ -611,7 +611,7 @@ class Player final {
     // Legacy disciplinary units: yellow +1, direct red +3; >1 means send-off.
     int CardCount() const { return cards; }
     football::sim::Tick CardEffectiveTick() const { return card_effective_tick_; }
-    void SendOff(const football::ball::Ball& ball, football::sim::Tick now, football::math::Rng& rng, football::sim::PlayerSendOffSink* send_off);
+    void SendOff(const football::ball::Ball& ball, football::sim::Tick now, football::sim::PlayerSendOffSink* send_off);
     float GetStaminaStat() const;
 
   private:
@@ -799,7 +799,6 @@ class Player final {
     void SetNextResetSituationAuditContext(int context);
     const AnimationLibrary& animations_;
     const football::pitch::Pitch& pitch_;
-    football::math::Rng& rng_;
 
     // Immutable actor-owned initialization data, never an external borrow.
     const football::player::PlayerDefinition model_;

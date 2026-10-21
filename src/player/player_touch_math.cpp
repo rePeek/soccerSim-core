@@ -38,9 +38,21 @@ Vector3 GetFrontOfFootOffsetRel(float velocity, radian bodyAngleRel,
   return football::animation::FrontOfFootOffsetRel(
       velocity, bodyAngleRel, height, static_cast<float>(defaultTouchOffset_ms));
 }
+namespace {
+
+// Deterministic execution error in [0, 1]: 0 is a clean strike, 1 the worst
+// miss. It grows with the geometric difficulty of the contact and falls with
+// the relevant technical skill. It replaces the historical RNG draw so the
+// same situation always produces the same strike.
+float ExecutionError(float skill, float difficulty) {
+  return clamp(difficulty * (1.0f - 0.9f * clamp(skill, 0.0f, 1.0f)), 0.0f, 1.0f);
+}
+
+}  // namespace
+
 void GetDifficultyFactors(const Ball *ball, Player *player,
                           const football::player::PlayerTouchFacts& touches, const PlayerTeamView &opponent,
-                          football::sim::Tick now, football::math::Rng& rng,
+                          football::sim::Tick now,
                           const SpatialState &spatialState,
                           const Vector3 &positionOffset, float &distanceFactor,
                           float &heightFactor, float &ballMovementFactor) {
@@ -94,8 +106,7 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
   ballMovementFactor = clamp(ballMovementFactor, 0.0f, 0.9f);
 
   float skillPenaltyMultiplier =
-      (1.0f - player->GetStat(football::player::PlayerStat::technical_ballcontrol) * 0.5f) *
-      rng.Uniform(0.5f, 1.0f);
+      (1.0f - player->GetStat(football::player::PlayerStat::technical_ballcontrol) * 0.5f);
   distanceFactor *= skillPenaltyMultiplier;
   heightFactor *= skillPenaltyMultiplier;
   ballMovementFactor *= skillPenaltyMultiplier;
@@ -236,7 +247,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, const PlayerTeamV
 
 Vector3 GetTrapVector(const Ball *ball, Player *player,
                       const football::player::PlayerTouchFacts& touches, const PlayerTeamView &opponent,
-                      football::sim::Tick now, football::math::Rng& rng, const AnimationClip& clip,
+                      football::sim::Tick now, const AnimationClip& clip,
                       const Vector3 &nextStartPos,
                       radian nextStartAngle, radian nextBodyAngle,
                       const Vector3 &outgoingMovement, const Anim &currentAnim,
@@ -248,7 +259,7 @@ Vector3 GetTrapVector(const Ball *ball, Player *player,
   float distanceFactor = 0.0f; // how far ball bounces off feet
   float heightFactor = 0.0f; // how high ball bounces off feet
   float ballMovementFactor = 0.0f; // how much of the current ball movement is maintained
-  GetDifficultyFactors(ball, player, touches, opponent, now, rng, spatialState, positionOffset, distanceFactor, heightFactor, ballMovementFactor);
+  GetDifficultyFactors(ball, player, touches, opponent, now, spatialState, positionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // base vector to start with
   Vector3 ballControl = GetBallControlVector(ball, player, opponent, clip, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, positionOffset, xRot, yRot, distanceFactor);
@@ -260,7 +271,7 @@ Vector3 GetTrapVector(const Ball *ball, Player *player,
          ball->state().velocity * ballMovementFactor;
 }
 
-Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& clip, football::math::Rng& rng,
+Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& clip,
                       const Anim &currentAnim, const SpatialState &spatialState,
                       const Vector3 &positionOffset, radian &xRot, radian &yRot, radian &zRot) {
 
@@ -345,6 +356,17 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
                          (0.6f + powerEasinessFactor * 0.4f);
   float difficultyFactor = clamp(1.0f - easinessFactor, 0.0f, 1.0f);
 
+  // Deterministic strike quality. The error comes from the contact geometry
+  // (direction lag, body orientation, ball/body movement, position offset) and
+  // is reduced by the shooting skill -- never from a random draw.
+  const float strikeError = ExecutionError(
+      player->GetStat(football::player::PlayerStat::technical_shot), difficultyFactor);
+  const Vector3 desired2D =
+      currentAnim.originatingCommand.touchInfo.desiredDirection.Get2D();
+  const Vector3 lateral =
+      Vector3(-desired2D.coords[1], desired2D.coords[0], 0.0f).GetNormalized(Vector3(0, 1, 0));
+  const float bodySide = signSide(spatialState.bodyDirectionVec.GetAngle2D(desired2D));
+
   // best case result
 
   float desiredHeight = 0.05f;
@@ -358,12 +380,10 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   float laggyDirectionBias = difficultyFactor * 0.8f;
   worstCaseDirection = (touchDirection * laggyDirectionBias + worstCaseDirection * (1.0f - laggyDirectionBias)).GetNormalized(0);
 
-  // random dir
+  // Foot/body contact error: the strike drifts to the side the body is turned
+  // away from the target, scaled by the deterministic strike error.
   worstCaseDirection =
-      worstCaseDirection +
-      (Vector3(rng.Uniform(-1, 1), rng.Uniform(-1, 1), rng.Uniform(-1, 1)) *
-       0.5f * difficultyFactor);
-  worstCaseDirection.Normalize();
+      (worstCaseDirection + lateral * (bodySide * strikeError * 0.5f)).GetNormalized(0);
 
   float worstCaseHeight = curve(std::pow(difficultyFactor, 0.7f), 0.7f) * 0.7f;
 
@@ -374,9 +394,7 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
 
   // actual result
 
-  float worstCaseFactor = rng.Uniform(0.0f, 1.0f);
-  worstCaseFactor =
-      std::pow(worstCaseFactor, player->GetStat(football::player::PlayerStat::technical_shot) * 0.7f);
+  float worstCaseFactor = strikeError;
 
   Vector3 shot = desiredShot * (1.0f - worstCaseFactor) +
                  worstCaseShot * worstCaseFactor;
@@ -390,10 +408,10 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   // forward/backward 'curve'
   xRot = -currentAnim.originatingCommand.touchInfo.desiredDirection.coords[1] *
              20.0f +
-         (rng.Uniform(-20, 20) * randomCurveFactor);
+         (lateral.coords[1] * bodySide * strikeError * 20.0f * randomCurveFactor);
   yRot = -currentAnim.originatingCommand.touchInfo.desiredDirection.coords[0] *
              20.0f +
-         (rng.Uniform(-20, 20) * randomCurveFactor);
+         (lateral.coords[0] * bodySide * strikeError * 20.0f * randomCurveFactor);
 
   // lateral curve
   radian bodyTouchAngle = spatialState.bodyDirectionVec.GetAngle2D(shot) / pi;
@@ -402,7 +420,7 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   //printf("bodyTouchAngle: %f\n", bodyTouchAngle);
   radian amount = bodyTouchAngle * 0.25f;
   shot.Rotate2D(amount * (0.4f + 0.6f * NormalizedClamp(shot.GetLength(), 0.0f, 70.0f)));
-  zRot = amount * -420 + (rng.Uniform(-20, 20) * plannedCurveFactor);
+  zRot = amount * -420 + (bodySide * strikeError * 20.0f * plannedCurveFactor);
 
 
   return shot;

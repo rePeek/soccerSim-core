@@ -4,8 +4,7 @@ add_executable(football_foundation_unit_tests
   vector3_test.cpp
   quaternion_test.cpp
   scalar_test.cpp
-  tick_test.cpp
-  rng_test.cpp)
+  tick_test.cpp)
 
 target_link_libraries(football_foundation_unit_tests
   PRIVATE

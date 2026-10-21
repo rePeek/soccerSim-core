@@ -54,7 +54,7 @@ class SimulationAccess {
   }
   static void SendOff(Simulation& simulation, Player& actor) {
     const auto tick = PlayerTickOf(simulation, actor);
-    actor.SendOff(tick.ball, tick.now, tick.rng, simulation.send_off_sink_.get());
+    actor.SendOff(tick.ball, tick.now, simulation.send_off_sink_.get());
   }
   static void Deactivate(Simulation& simulation, Player& actor) {
     const auto tick = PlayerTickOf(simulation, actor);
@@ -134,7 +134,6 @@ class SimulationAccess {
   static football::sim::TeamView TeamViewOf(Simulation& s, int team_id) {
     return s.TeamViewOf(team_id);
   }
-  static football::math::Rng& RngOf(Simulation& s) { return s.rng_; }
   // Runtime-owned orientation behaviour, reachable from the harness without a
   // Team object: MirrorTeam flips the execution frame, SwitchTeamEnds is the
   // half-time change of ends.

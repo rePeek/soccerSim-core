@@ -144,12 +144,12 @@ void RestartController::TickPostRestartGrace() {
 }
 
 RestartController::TickOutcome RestartController::Advance(
-    const RuntimeTickFacts& facts, const MatchOptions& options, football::math::Rng& rng,
+    const RuntimeTickFacts& facts, const MatchOptions& options,
     RuleCommandSink& commands, const RestartPlanningTable& planning) {
   TickOutcome outcome;
   if (facts.phase == MatchPhase::Finished) return outcome;
   if (context_.active && context_.state) {
-    ProcessRestart(facts, options, rng, commands, outcome, planning);
+    ProcessRestart(facts, options, commands, outcome, planning);
     TickPostRestartGrace();
     return outcome;
   }
@@ -163,9 +163,7 @@ RestartController::TickOutcome RestartController::Advance(
           }
           context_.end_phase = false;
         }
-        // Deterministic reseed before positioning players for every restart.
-        rng.Seed(options.game_engine_random_seed);
-        PrepareCeremonialKickOff(facts, options, rng, commands);
+        PrepareCeremonialKickOff(facts, options, commands);
         outcome.ceremonial_setup = true;
         // The ceremony is a Runtime procedure: confirm the award directly.
         context_.id = next_restart_id_++;
@@ -195,21 +193,20 @@ RestartController::TickOutcome RestartController::Advance(
 
 void RestartController::PrepareCeremonialKickOff(const RuntimeTickFacts& facts,
                                                  const MatchOptions& options,
-                                                 football::math::Rng& rng,
                                                  RuleCommandSink& commands) {
   // Opening/half-time placement is intentionally separate from ordinary readiness.
   commands.ResetSituation(options.reverse_team_processing ? -context_.position : context_.position);
   const TeamView& first = facts.first_team == 0 ? facts.home : facts.away;
   const TeamView& second = facts.first_team == 0 ? facts.away : facts.home;
   Player* first_taker = PositionRestartPlayers(facts.pitch, first, e_GameMode_KickOff, second,
-      context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options, rng, commands);
+      context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options, commands);
   Player* second_taker = PositionRestartPlayers(facts.pitch, second, e_GameMode_KickOff, first,
-      context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options, rng, commands);
+      context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options, commands);
   context_.taker = context_.team_id == facts.first_team ? first_taker : second_taker;
 }
 
 void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const MatchOptions& options,
-                                       football::math::Rng& rng, RuleCommandSink& commands,
+                                       RuleCommandSink& commands,
                                        TickOutcome& outcome,
                                        const RestartPlanningTable& planning) {
   auto& state = *context_.state;
@@ -225,7 +222,6 @@ void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const Matc
   }
   if (state.phase != RestartPhase::Pending) return;
   if (!state.setup_done) {
-    rng.Seed(options.game_engine_random_seed);
     if (context_.kind == e_GameMode_FreeKick) {
       context_.position.coords[0] = clamp(context_.position.coords[0], -0.95f * facts.pitch.half_length(), 0.95f * facts.pitch.half_length());
       context_.position.coords[1] = clamp(context_.position.coords[1], -0.95f * facts.pitch.half_width(), 0.95f * facts.pitch.half_width());

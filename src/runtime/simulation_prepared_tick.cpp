@@ -125,7 +125,7 @@ void Simulation::RunPreparedPlayerTick() {
           base.ball_retainer, base.designated_possession_player, base.last_touch_player,
           base.touches, base.restart, base.pitch, base.own_team, base.opponent_team,
           base.processing_slot,
-          base.restart_needs_simulation, base.rng, nullptr, &ports, nullptr,
+          base.restart_needs_simulation, nullptr, &ports, nullptr,
           base.send_off, base.authorization};
       const auto before = preparation_ball_->state();
       const auto distance = actor->PrepareTick(facts, observation, ports, ports);

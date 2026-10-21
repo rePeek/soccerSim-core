@@ -14,7 +14,6 @@ struct MatchOptions {
   bool reverse_team_processing = false;
   float left_team_difficulty = 1.0f;
   float right_team_difficulty = 0.6f;
-  unsigned int game_engine_random_seed = 42;
   // Native regulation duration: fixed 100 Hz, no scale, added/extra time or shootout.
   football::sim::TickSpan half_duration = football::sim::Minutes(45);
   bool offsides = true;
@@ -25,7 +24,7 @@ struct MatchOptions {
   // Derived once from the effective initial formations at initialization.
   bool left_team_owns_ball = false;
   // Read-only history retention; 60,000 samples at 100 Hz = ten minutes.
-  // Must be positive. Changing this cannot affect simulation physics/RNG.
+// Must be positive. Changing this cannot affect simulation physics or history.
   std::size_t snapshot_capacity = 60000;
 };
 

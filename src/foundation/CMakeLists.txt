@@ -13,7 +13,6 @@ target_sources(football_foundation
     BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES
       ${PROJECT_SOURCE_DIR}/include/football/foundation/math/quaternion.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/foundation/math/rng.hpp
       ${PROJECT_SOURCE_DIR}/include/football/foundation/math/scalar.hpp
       ${PROJECT_SOURCE_DIR}/include/football/foundation/math/vector3.hpp
       ${PROJECT_SOURCE_DIR}/include/football/foundation/time/tick.hpp
