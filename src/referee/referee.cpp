@@ -56,6 +56,13 @@ FoulLiveFacts LiveFoulFacts(const RefereeTeamFact& a, const RefereeTeamFact& b) 
   return live;
 }
 
+// Law 11: a player cannot be offside directly from a goal kick, a corner
+// kick or a throw-in. The restart kind is the only exemption the rules need.
+bool OffsideExemptRestart(e_GameMode kind) {
+  return kind == e_GameMode_GoalKick || kind == e_GameMode_Corner ||
+         kind == e_GameMode_ThrowIn;
+}
+
 }  // namespace
 
 Referee::Referee() {
@@ -115,7 +122,7 @@ void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
   const football::math::Vector3 ballPos = tick.ball.position;
   // Goal-line priority: the legacy local authorization was cleared when the goal
   // line applied, so the sideline branch could not run at the same instant.
-  const BallOutOfPlay out = ClassifyBallOutOfPlay(tick.pitch, ballPos);
+  const BallOutOfPlay out = ClassifyBallOutOfPlay(tick.pitch, ballPos, tick.ball.radius);
   if (out == BallOutOfPlay::GoalLine || tick.goal_scored) {
     SettleGoalLine(ballPos, tick, rulings);
   } else if (out == BallOutOfPlay::Touchline) {
@@ -252,8 +259,7 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
   };
   if (facts.in_play && !facts.in_set_piece &&
       (!restart.active ||
-       (restart.active && restart.kind != e_GameMode_ThrowIn &&
-        restart.kind != e_GameMode_Corner)) &&
+       (restart.active && !OffsideExemptRestart(restart.kind))) &&
       active_count(defending_team_id) > 1) {
       // disable if only 1 player: that's debug mode with only
                     // keeper
@@ -288,8 +294,7 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
 
   if (facts.in_play &&
       (!restart.active ||
-       (restart.active && restart.kind != e_GameMode_ThrowIn &&
-        restart.kind != e_GameMode_Corner))) {
+       (restart.active && !OffsideExemptRestart(restart.kind)))) {
     // check for offside players at moment of touch
     const float offside = football::sim::rules::GetOffsideLine(
         facts.all_active_players, facts.ball.position, *facts.pitch,

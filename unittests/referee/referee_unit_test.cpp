@@ -9,6 +9,8 @@
 
 #include "football/pitch/pitch.hpp"
 #include "football/animation/types.hpp"
+#include "referee/ball_rules.hpp"
+#include "referee/goal.hpp"
 #include "referee/offside.hpp"
 #include "referee/referee.hpp"
 #include "referee/ruling.hpp"
@@ -334,4 +336,115 @@ TEST_CASE("a legal restart release returns the ball to play", "[unit][referee]")
     rules.ConsumeBallTouch(ineligible, sink);
     REQUIRE(sink.rulings.empty());
   }
+}
+
+TEST_CASE("the offside line needs two defenders and never falls behind halfway",
+          "[unit][referee]") {
+  const Pitch pitch;
+  using football::math::Vector3;
+  const auto line = [&](std::vector<RefereePlayerFact> players, Vector3 ball, int side) {
+    return football::sim::rules::GetOffsideLine(players, ball, pitch, 1, side);
+  };
+
+  // No defenders: the halfway line, raised to the ball when it is further on.
+  CHECK(line({}, Vector3(-5, 0, 0), 1) == Catch::Approx(0.0f));
+  CHECK(line({}, Vector3(5, 0, 0), 1) == Catch::Approx(5.0f));
+  // One defender is not a second-last opponent: the halfway line.
+  CHECK(line({{1, 1, Vector3(30, 0, 0)}}, Vector3(0, 0, 0), 1) == Catch::Approx(0.0f));
+  // Two defenders: the second-deepest.
+  CHECK(line({{1, 1, Vector3(30, 0, 0)}, {2, 1, Vector3(20, 0, 0)}},
+             Vector3(0, 0, 0), 1) == Catch::Approx(20.0f));
+  // A level pair is a real second-last opponent, not the origin fallback.
+  CHECK(line({{1, 1, Vector3(25, 0, 0)}, {2, 1, Vector3(25, 0, 0)}},
+             Vector3(0, 0, 0), 1) == Catch::Approx(25.0f));
+  // The ball nearer to the goal than the second-deepest defender is the line.
+  CHECK(line({{1, 1, Vector3(30, 0, 0)}, {2, 1, Vector3(20, 0, 0)}},
+             Vector3(28, 0, 0), 1) == Catch::Approx(28.0f));
+  // Change of ends: the same selection along the defending direction.
+  CHECK(line({{1, 1, Vector3(-30, 0, 0)}, {2, 1, Vector3(-20, 0, 0)}},
+             Vector3(0, 0, 0), -1) == Catch::Approx(-20.0f));
+}
+
+TEST_CASE("a boundary is only crossed when the whole ball is past it",
+          "[unit][referee]") {
+  const Pitch pitch;
+  using football::math::Vector3;
+  using football::sim::BallOutOfPlay;
+  using football::sim::ClassifyBallOutOfPlay;
+  const float r = 0.11f;
+
+  // Centre short of the full-ball limit: still in play.
+  CHECK(ClassifyBallOutOfPlay(
+            pitch, Vector3(pitch.half_length() + r - 0.01f, 0, r), r) ==
+        BallOutOfPlay::None);
+  // Centre past the goal line by one radius: out over the goal line.
+  CHECK(ClassifyBallOutOfPlay(
+            pitch,
+            Vector3(pitch.half_length() + pitch.line_half_width() + r + 0.01f, 0, r),
+            r) == BallOutOfPlay::GoalLine);
+  // Same for the touchline.
+  CHECK(ClassifyBallOutOfPlay(
+            pitch,
+            Vector3(0, pitch.half_width() + pitch.line_half_width() + r + 0.01f, r),
+            r) == BallOutOfPlay::Touchline);
+  // The radius is really used: a bigger ball needs its centre further out.
+  const Vector3 near_line(pitch.half_length() + 0.15f, 0, 0.2f);
+  CHECK(ClassifyBallOutOfPlay(pitch, near_line, 0.05f) == BallOutOfPlay::GoalLine);
+  CHECK(ClassifyBallOutOfPlay(pitch, near_line, 0.20f) == BallOutOfPlay::None);
+}
+
+TEST_CASE("a goal needs the whole ball through the goal-mouth rectangle",
+          "[unit][referee]") {
+  const Pitch pitch;
+  using football::math::Vector3;
+  using football::sim::CrossedGoalLine;
+  const float r = 0.11f;
+  const float goal_x = pitch.half_length() + pitch.line_half_width() + r;
+
+  CHECK(CrossedGoalLine(pitch, 1, Vector3(goal_x - 0.05f, 0, r),
+                        Vector3(goal_x + 0.05f, 0, r), r));
+  // Through the plane but outside the posts: no goal.
+  CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(goal_x - 0.05f, 3.7f, r),
+                              Vector3(goal_x + 0.05f, 3.7f, r), r));
+  // Through the plane but above the crossbar: no goal.
+  CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(goal_x - 0.05f, 0, 2.5f),
+                              Vector3(goal_x + 0.05f, 0, 2.5f), r));
+  // Crossing the opposite goal plane is not a goal on side +1.
+  CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(-goal_x - 0.05f, 0, r),
+                              Vector3(-goal_x + 0.05f, 0, r), r));
+  // A step parallel to the goal plane never crosses it.
+  CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(goal_x - 0.05f, 0, r),
+                              Vector3(goal_x - 0.05f, 1, r), r));
+}
+
+TEST_CASE("a goal kick, corner or throw-in cannot create an offside offence",
+          "[unit][referee]") {
+  const OffsideScene scene;  // home attacker 40 is in an offside position
+  for (const e_GameMode kind :
+       {e_GameMode_GoalKick, e_GameMode_Corner, e_GameMode_ThrowIn}) {
+    CAPTURE(static_cast<int>(kind));
+    Referee rules;
+    Collect sink;
+    // A teammate plays the ball and freezes the offside reference.
+    rules.ConsumeBallTouch(MakeTouch(scene, 41, 0), sink);
+    // The flagged attacker then plays the restart directly: no offence.
+    BallTouchFacts touch = MakeTouch(scene, 40, 0);
+    touch.restart.active = true;
+    touch.restart.scheduled = true;
+    touch.restart.kind = kind;
+    touch.restart.team_id = 0;
+    rules.ConsumeBallTouch(touch, sink);
+    CHECK(FirstRestart(sink.rulings) == nullptr);
+  }
+  // Control: a free kick is not exempt, so the flagged attacker is penalised.
+  Referee rules;
+  Collect sink;
+  rules.ConsumeBallTouch(MakeTouch(scene, 41, 0), sink);
+  BallTouchFacts free_kick = MakeTouch(scene, 40, 0);
+  free_kick.restart.active = true;
+  free_kick.restart.scheduled = true;
+  free_kick.restart.kind = e_GameMode_FreeKick;
+  free_kick.restart.team_id = 0;
+  rules.ConsumeBallTouch(free_kick, sink);
+  CHECK(FirstRestart(sink.rulings) != nullptr);
 }

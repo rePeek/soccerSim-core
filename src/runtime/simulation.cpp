@@ -78,7 +78,8 @@ football::sim::rules::RefereeTickFacts ToRefereeTickFacts(
       runtime.play_authorized,
       runtime.set_piece_active,
       runtime.goal_scored,
-      {runtime.ball.state().position, runtime.ball.state().velocity},
+      {runtime.ball.state().position, runtime.ball.state().velocity,
+       runtime.ball.config().radius()},
       runtime.pitch,
       runtime.regulation,
       ToRefereeTeamFact(runtime.home),
@@ -358,7 +359,8 @@ void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch)
     facts.in_play = tick.play_authorized;
     facts.in_set_piece = tick.set_piece_active;
     facts.offsides_enabled = options_.offsides;
-    facts.ball = {ball_->state().position, ball_->state().velocity};
+    facts.ball = {ball_->state().position, ball_->state().velocity,
+                  ball_->config().radius()};
     facts.pitch = &pitch_;
     facts.all_active_players = active;
     const football::sim::RestartContext& restart = restarts_.context();
@@ -1056,8 +1058,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     // Retain the per-side legacy lookahead gate; geometry itself needs no Ball.
     const auto crossed_goal = [&](int side) {
       if (fabs(ball_->Predict(football::sim::TickSpan{1}).position.coords[0]) < pitch_.half_length() - 1.0) return false;
-      return football::sim::CrossedGoalLine(
-          pitch_, side, previous_ball_pos, ball_->state().position);
+      return football::sim::CrossedGoalLine(pitch_, side, previous_ball_pos,
+                                            ball_->state().position,
+                                            ball_config_.radius());
     };
     first_team_goal = crossed_goal(team_orientations_[first_team_].defending_direction);
     second_team_goal = crossed_goal(team_orientations_[second_team_].defending_direction);

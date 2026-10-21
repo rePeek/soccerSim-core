@@ -20,11 +20,13 @@ namespace football::sim {
 using football::math::Vector3;
 
 bool CrossedGoalLine(const football::pitch::Pitch& pitch, int side,
-                     const Vector3& previous, const Vector3& current) {
+                     const Vector3& previous, const Vector3& current,
+                     float ball_radius) {
   // The goal mouth is the plane x = goal_x clipped to the goal rectangle
-  // (|y| <= goal half width, 0 <= z <= goal height). No mesh triangles needed.
+  // (|y| <= goal half width, 0 <= z <= goal height). The whole ball must cross
+  // the goal line, so the plane and the side-net veto are offset by the radius.
   const float goal_x =
-      (pitch.half_length() + pitch.line_half_width() + 0.11f) * side;
+      (pitch.half_length() + pitch.line_half_width() + ball_radius) * side;
   const float half_goal_width = pitch.goal_half_width();
   const float goal_height = pitch.goal_height();
 
@@ -32,7 +34,7 @@ bool CrossedGoalLine(const football::pitch::Pitch& pitch, int side,
   // == inside pitch, but outside of post, and line end == in goal. disallow!
   if (fabs(previous.coords[1]) > half_goal_width &&
       fabs(previous.coords[0]) >
-          pitch.half_length() - pitch.line_half_width() - 0.11) {
+          pitch.half_length() - pitch.line_half_width() - ball_radius) {
     return false;
   }
 

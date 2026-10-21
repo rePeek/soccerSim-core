@@ -19,16 +19,19 @@ enum class BallOutOfPlay {
 };
 
 // Geometry only, in one shared frame. The caller supplies the legacy
-// goal-scored authorization separately.
+// goal-scored authorization separately. `ball_radius` is the physical sphere
+// radius; a boundary is only crossed when the whole ball is past it.
 BallOutOfPlay ClassifyBallOutOfPlay(const football::pitch::Pitch& pitch,
-                                    const football::math::Vector3& ball_position);
+                                    const football::math::Vector3& ball_position,
+                                    float ball_radius);
 
-// The +1/-1 goal side whose goal line the ball crossed between two consecutive
-// observed positions, or nullopt. Reuses the legacy CrossedGoalLine segment
-// endpoints, bidirectional crossing and side-net veto.
+// The +1/-1 goal side whose goal line the whole ball crossed between two
+// consecutive observed positions, or nullopt. Reuses CrossedGoalLine's strict
+// segment endpoints, bidirectional crossing and side-net veto.
 std::optional<int> CrossedGoalMouth(const football::pitch::Pitch& pitch,
                                     const football::math::Vector3& previous,
-                                    const football::math::Vector3& current);
+                                    const football::math::Vector3& current,
+                                    float ball_radius);
 
 }  // namespace football::sim
 

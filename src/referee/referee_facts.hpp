@@ -24,6 +24,9 @@ struct RefereeTeamFact {
 struct RefereeBallFact {
   football::math::Vector3 position;
   football::math::Vector3 velocity;
+  // Physical sphere radius. The rules need it to decide whether the whole
+  // ball crossed a line; it is sampled from the Ball model, never guessed.
+  float radius = 0.11f;
 };
 
 // Read-only restart execution facts exposed to the rules. Runtime owns the full
