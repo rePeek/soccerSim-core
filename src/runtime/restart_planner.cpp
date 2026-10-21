@@ -257,8 +257,13 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
       if (preset_target) {
         target = *preset_target;
       } else if (mode == e_GameMode_KickOff) {
-                 Vector3(player->GetAttackDirection() * pitch.half_length(),
-                         player->GetAttackDirection() * pitch.half_width(), 0);
+        // No declared kicking-off preset: place the actor from its formation
+        // entry in the half its team currently defends.
+        const int player_side =
+            planning.For(player->GetTeamID()).defending_direction;
+        target = player->GetFormationEntry().start_position *
+                 Vector3(-player_side * pitch.half_length(),
+                         -player_side * pitch.half_width(), 0);
       }
       target = LegalTarget(plan, planning, *player, target, pitch);
       const auto available = [&](const Vector3& candidate) {

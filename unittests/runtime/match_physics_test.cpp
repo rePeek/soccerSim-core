@@ -2,9 +2,10 @@
 //
 // These are Level 2 Runtime tests: they build the real composition, skip the
 // opening ceremony, drive a deterministic control tape and assert physical
-// correctness (finite, in-bounds, on the ground) plus bit-exact replay. They
-// never run a match to half time or full time, and the tick budgets stay small
-// so the CTest wall-clock budget is unaffected.
+// correctness (finite, in-bounds, on the ground), real controller interactions
+// and bit-exact replay. They never run a match to half time or full time, and
+// the tick budgets stay small so the CTest wall-clock budget is unaffected.
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
@@ -145,42 +146,54 @@ TEST_CASE("Runtime physics: a driven full roster stays finite and in bounds",
 
 TEST_CASE("Runtime physics: the same control tape replays bit-exactly",
           "[runtime][sim][physics]") {
-  const auto run = [] {
-    Simulation sim;
-    InitOpenMatch(sim);
-    const std::vector<TapeActor> actors = ActorsOf(sim);
-    std::vector<WorldState> checkpoints;
-    for (int tick = 0; tick < 30; ++tick) {
-      sim.Step(Tape(actors, tick));
-      if (tick % 20 == 0) checkpoints.push_back(sim.Observe());
-    }
-    sim.Stop();
-    return checkpoints;
-  };
+  // Step two independent Simulations in lockstep and compare the full
+  // authoritative state every tick: one deterministic schedule with no RNG
+  // must reproduce ball, player kinematics, action cursors and animation ids
+  // bit-exactly, not only at a few checkpoints.
+  Simulation first;
+  Simulation second;
+  InitOpenMatch(first);
+  InitOpenMatch(second);
+  const std::vector<TapeActor> actors_first = ActorsOf(first);
+  const std::vector<TapeActor> actors_second = ActorsOf(second);
+  REQUIRE(actors_first.size() == 22);
+  REQUIRE(actors_second.size() == actors_first.size());
 
-  const std::vector<WorldState> first = run();
-  const std::vector<WorldState> second = run();
-  REQUIRE(first.size() == second.size());
-  REQUIRE(first.size() == 2);
   bool identical = true;
-  for (std::size_t i = 0; i < first.size(); ++i) {
-    // No RNG and one deterministic schedule: every published value must match
-    // exactly, not approximately.
-    identical &= first[i].tick == second[i].tick;
-    identical &= first[i].ball_position == second[i].ball_position;
-    identical &= first[i].ball_velocity == second[i].ball_velocity;
-    identical &= first[i].players.size() == second[i].players.size();
-    if (first[i].players.size() != second[i].players.size()) continue;
-    for (std::size_t p = 0; p < first[i].players.size(); ++p) {
-      identical &= first[i].players[p].id == second[i].players[p].id;
-      identical &= first[i].players[p].position == second[i].players[p].position;
-      identical &= first[i].players[p].velocity == second[i].players[p].velocity;
-      identical &= first[i].players[p].facing == second[i].players[p].facing;
-      identical &= first[i].players[p].active == second[i].players[p].active;
+  int divergence_tick = -1;
+  for (int tick = 0; tick < 30 && divergence_tick < 0; ++tick) {
+    first.Step(Tape(actors_first, tick));
+    second.Step(Tape(actors_second, tick));
+    const football::ball::BallState& ball_first =
+        SimulationAccess::BallOf(first)->state();
+    const football::ball::BallState& ball_second =
+        SimulationAccess::BallOf(second)->state();
+    bool same = ball_first.position == ball_second.position;
+    same &= ball_first.velocity == ball_second.velocity;
+    same &= ball_first.angular_velocity == ball_second.angular_velocity;
+    for (std::size_t i = 0; i < actors_first.size(); ++i) {
+      Player* a = actors_first[i].player;
+      Player* b = actors_second[i].player;
+      const PlayerKinematicState& ka = a->GetKinematicState();
+      const PlayerKinematicState& kb = b->GetKinematicState();
+      same &= ka.position == kb.position;
+      same &= ka.velocity == kb.velocity;
+      same &= ka.bodyFacing == kb.bodyFacing;
+      same &= a->GetSimulationActionState().type ==
+              b->GetSimulationActionState().type;
+      same &= a->GetSimulationActionState().Frame() ==
+              b->GetSimulationActionState().Frame();
+      same &= a->GetCurrentAnimationId() == b->GetCurrentAnimationId();
+      same &= a->GetCurrentFrame() == b->GetCurrentFrame();
+      if (!same) break;
     }
+    if (!same) divergence_tick = tick;
+    identical &= same;
   }
-  INFO("the tape diverged at or before the first differing checkpoint");
+  INFO("first divergent tick: " << divergence_tick);
   CHECK(identical);
+  CHECK(first.Stop());
+  CHECK(second.Stop());
 }
 
 TEST_CASE("Runtime physics: the ball never falls through the ground",
@@ -226,10 +239,11 @@ TEST_CASE("Runtime physics: a body contact never collapses two actors together",
   runner->ResetPosition(Vector3(0.0f, -1.2f, 0.0f), Vector3(0.0f, 1.0f, 0.0f));
   target->ResetPosition(Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 1.0f, 0.0f));
 
-  // The runner drives straight into a stationary opponent. The contact solver
-  // must keep the two bodies from collapsing into the same point.
+  // The runner drives straight into a stationary opponent.
   bool finite = true;
+  bool got_close = false;
   float min_separation = 1e9f;
+  const Vector3 start = runner->GetPosition();
   for (int tick = 0; tick < 30; ++tick) {
     PlayerControlSet controls;
     PlayerControl drive;
@@ -241,11 +255,17 @@ TEST_CASE("Runtime physics: a body contact never collapses two actors together",
     hold.desired_speed = 0.0f;
     controls.Set(target->GetID(), hold);
     sim.Step(controls);
+    const float separation =
+        (runner->GetPosition() - target->GetPosition()).Get2D().GetLength();
     finite &= IsFinite(runner->GetPosition()) && IsFinite(target->GetPosition());
-    min_separation = std::min(min_separation,
-        (runner->GetPosition() - target->GetPosition()).Get2D().GetLength());
+    got_close |= separation < 1.0f;
+    min_separation = std::min(min_separation, separation);
   }
   CHECK(finite);
+  // The runner really closed the gap, so the contact solver was exercised
+  // rather than the two actors simply staying apart.
+  CHECK((runner->GetPosition() - start).GetLength() > 0.1f);
+  CHECK(got_close);
   // Bodies never fully interpenetrate into a single point.
   CHECK(min_separation > 0.05f);
   CHECK(std::fabs(runner->GetPosition().coords[2]) < 1e-3f);

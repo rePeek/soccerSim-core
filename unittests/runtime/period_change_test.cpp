@@ -28,6 +28,7 @@
 
 namespace {
 
+using Catch::Approx;
 using football::sim::testing::SimulationAccess;
 using namespace football::sim;
 using namespace football::sim::event;
@@ -329,16 +330,34 @@ TEST_CASE("Runtime harness: a kickoff plan stands in the half the team defends",
     const std::vector<Player*> players = RosterOf(sim);
 
     const auto assert_own_half = [&]() {
+      const football::pitch::Pitch& pitch = SimulationAccess::PitchOf(sim);
       const RestartPlan plan = PlanRestart(
-          SimulationAccess::PitchOf(sim), football::math::Vector3(0.0f, 0.0f, 0.0f),
+          pitch, football::math::Vector3(0.0f, 0.0f, 0.0f),
           players, e_GameMode_KickOff, 0, PlanningOf(sim));
+      bool moved_off_current = false;
       for (const RestartPlayerTarget& target : plan.players) {
         Player* player = PlayerOf(players, target.player);
         REQUIRE(player != nullptr);
         CHECK(target.position.coords[0] * player->GetDefendingDirection() >= -0.01f);
-        CHECK(std::fabs(target.position.coords[1]) <=
-              SimulationAccess::PitchOf(sim).half_width());
+        CHECK(std::fabs(target.position.coords[1]) <= pitch.half_width());
+        if (target.position != player->GetPosition()) moved_off_current = true;
+        // The goalkeeper has no kicking-off preset here, so it must land on its
+        // formation-derived target in the half it defends. Asserting only the
+        // own half would pass even if the fallback branch did nothing.
+        if (player->GetFormationEntry().role != e_PlayerRole_GK) continue;
+        const int side = player->GetDefendingDirection();
+        const Vector3& start = player->GetFormationEntry().start_position;
+        float x = start.coords[0] * (-side * pitch.half_length());
+        float y = start.coords[1] * (-side * pitch.half_width());
+        x = std::clamp(x, -pitch.half_length() + 0.2f, pitch.half_length() - 0.2f);
+        y = std::clamp(y, -pitch.half_width() + 0.2f, pitch.half_width() - 0.2f);
+        x = side * std::max(0.5f, x * side);
+        CHECK(target.position.coords[0] == Approx(x));
+        CHECK(target.position.coords[1] == Approx(y));
       }
+      // The fallback must actually re-place actors, not keep them where they
+      // happen to stand when the restart is planned.
+      CHECK(moved_off_current);
     };
 
     // First half: Home defends -X.
@@ -469,4 +488,36 @@ TEST_CASE("Runtime harness: a goal kick clears the area the team defends",
     assert_area_clear();
     CHECK(sim.Stop());
   }
+}
+
+TEST_CASE("Runtime harness: the opening ceremony places the kickoff ball identically in both orders",
+          "[runtime][sim]") {
+  const auto run = [](bool reverse) {
+    Simulation sim;
+    MatchOptions options;
+    options.reverse_team_processing = reverse;
+    options.snapshot_capacity = 8;
+    options.ball_position = football::math::Vector3(3.5f, -2.5f, 0.0f);
+    sim.Init(SmallTeam(0), SmallTeam(2), football::pitch::Pitch{}, options,
+             football::ball::BallModel{});
+    std::vector<football::math::Vector3> positions;
+    for (int tick = 0; tick < 14; ++tick) {
+      sim.Step(PlayerControlSet{});
+      positions.push_back(SimulationAccess::BallOf(sim)->state().position);
+    }
+    sim.Stop();
+    return positions;
+  };
+
+  const std::vector<football::math::Vector3> normal = run(false);
+  const std::vector<football::math::Vector3> reversed = run(true);
+  REQUIRE(normal.size() == reversed.size());
+  bool identical = true;
+  for (std::size_t i = 0; i < normal.size(); ++i)
+    identical &= normal[i] == reversed[i];
+  CHECK(identical);
+  // The ceremony placed the ball at the configured kickoff spot, not at its
+  // processing-order negation.
+  CHECK(normal.back().coords[0] == Approx(3.5f));
+  CHECK(normal.back().coords[1] == Approx(-2.5f));
 }
