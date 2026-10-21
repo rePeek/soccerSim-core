@@ -2,10 +2,10 @@
 //
 // The touch-request math and the per-action-type impulse publication used to be
 // the second half of Humanoid::Process. They are moved here verbatim so the
-// Player publishes touch facts without a Humanoid. The RNG draws (Shot error,
-// Interfere direction, Deflect components), the touch order, the TouchSink /
-// RuntimeSink call sites and the prepared-vs-direct publication distinction are
-// unchanged.
+// Player publishes touch facts without a Humanoid. The touch error model
+// (shot error, Interfere direction, Deflect components), the touch order, the
+// TouchSink / RuntimeSink call sites and the prepared-vs-direct publication
+// distinction are unchanged.
 #include "player/player.hpp"
 
 #include <algorithm>

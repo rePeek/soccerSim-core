@@ -24,7 +24,7 @@ enum class PlannedPlayerRole {
 struct PlayerDirective {
   football::player::PlayerId player = football::player::kInvalidPlayerId;
   PlannedPlayerRole role = PlannedPlayerRole::Unspecified;
-  // Base anchor in the same home pitch frame/metres as WorldState. Player AI
+  // Base anchor in the same Stadium Frame/metres as WorldState. Player AI
   // adapts a local copy; it never writes a tick's target back into this intent.
   std::optional<football::math::Vector3> formation_position;
   std::optional<football::player::PlayerId> marking_target;

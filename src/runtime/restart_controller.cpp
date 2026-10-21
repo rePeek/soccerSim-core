@@ -195,7 +195,7 @@ void RestartController::PrepareCeremonialKickOff(const RuntimeTickFacts& facts,
                                                  const MatchOptions& options,
                                                  RuleCommandSink& commands) {
   // Opening/half-time placement is intentionally separate from ordinary readiness.
-  commands.ResetSituation(options.reverse_team_processing ? -context_.position : context_.position);
+  commands.ResetSituation(context_.position);
   const TeamView& first = facts.first_team == 0 ? facts.home : facts.away;
   const TeamView& second = facts.first_team == 0 ? facts.away : facts.home;
   Player* first_taker = PositionRestartPlayers(facts.pitch, first, e_GameMode_KickOff, second,
@@ -251,7 +251,7 @@ void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const Matc
     state.used_timeout_placement = true;
   }
   const auto ball_position = facts.ball.state().position;
-  if (!RestartPlayersReady(state.plan, facts.pitch, roster) ||
+  if (!RestartPlayersReady(state.plan, facts.pitch, roster, planning) ||
       std::fabs(ball_position.coords[2] - 0.11f) > 0.03f ||
       (ball_position.Get2D() - state.plan.ball_position).GetLength() > 0.05f ||
       facts.ball.state().velocity.GetLength() > 0.5f) return;

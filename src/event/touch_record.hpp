@@ -9,7 +9,7 @@
 namespace football::sim::event {
 
 // Read-only diagnostic capture of one accepted touch, recorded where the fact
-// was produced. It is never fed back to physics, rules or the RNG; it exists so
+// was produced. It is never fed back to physics or rules; it exists so
 // shadow analysis can attribute a touch to its exact executed step and source.
 struct RecordedTouch {
   std::uint64_t step_index = 0;

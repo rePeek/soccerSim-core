@@ -7,9 +7,12 @@
 // chain instead of by calling the frame mutators directly. The tick budget
 // stays tiny (two players a side, a two-tick half) because the frame logic does
 // not depend on roster size.
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <cmath>
 #include <cstddef>
+
 #include <utility>
 #include <variant>
 #include <vector>
@@ -248,6 +251,222 @@ TEST_CASE("Runtime harness: the observation is the single Stadium Frame",
       CHECK(away_view.defending_direction == -home_view.defending_direction);
       if (half == 0) SimulationAccess::ApplyChangeOfEndsNow(sim);
     }
+    CHECK(sim.Stop());
+  }
+}
+
+// ---------------------------------------------------------------------------
+// NEXT-1/NEXT-2: the restart planner and the initial state must follow the
+// live defending direction, not the team slot, and processing order must not
+// move any input position.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+std::vector<Player*> RosterOf(Simulation& sim) {
+  std::vector<Player*> players;
+  for (int team = 0; team < 2; ++team)
+    for (Player* player : SimulationAccess::TeamOf(sim, team).Players())
+      players.push_back(player);
+  return players;
+}
+
+RestartPlanningTable PlanningOf(Simulation& sim) {
+  return RestartPlanningTable{
+      {SimulationAccess::TeamOrientationOf(sim, 0).defending_direction,
+       &SimulationAccess::DefinitionOf(sim, 0).set_piece_orders,
+       &SimulationAccess::DefinitionOf(sim, 0).formations, nullptr},
+      {SimulationAccess::TeamOrientationOf(sim, 1).defending_direction,
+       &SimulationAccess::DefinitionOf(sim, 1).set_piece_orders,
+       &SimulationAccess::DefinitionOf(sim, 1).formations, nullptr}};
+}
+
+Player* PlayerOf(const std::vector<Player*>& players, football::player::PlayerId id) {
+  for (Player* player : players)
+    if (player->GetID() == id) return player;
+  return nullptr;
+}
+
+}  // namespace
+
+TEST_CASE("Runtime harness: processing order changes only the tick order",
+          "[runtime][sim]") {
+  Simulation normal;
+  Simulation reverse;
+  MatchOptions n;
+  n.snapshot_capacity = 8;
+  n.ball_position = football::math::Vector3(3.5f, -2.5f, 0.0f);
+  MatchOptions r = n;
+  r.reverse_team_processing = true;
+  normal.Init(SmallTeam(0), SmallTeam(2), football::pitch::Pitch{}, n,
+              football::ball::BallModel{});
+  reverse.Init(SmallTeam(0), SmallTeam(2), football::pitch::Pitch{}, r,
+               football::ball::BallModel{});
+
+  // reverse_team_processing only reorders the actor loops: the initial ball
+  // and both team orientations must be identical.
+  CHECK(normal.Observe().ball_position == reverse.Observe().ball_position);
+  for (int team = 0; team < 2; ++team) {
+    CHECK(SimulationAccess::TeamOrientationOf(normal, team).defending_direction ==
+          SimulationAccess::TeamOrientationOf(reverse, team).defending_direction);
+    for (Player* player : SimulationAccess::TeamOf(normal, team).Players())
+      CHECK(player->GetDefendingDirection() ==
+            SimulationAccess::TeamOf(reverse, team)
+                .Players()[static_cast<std::size_t>(player->GetID() - team * 2)]
+                ->GetDefendingDirection());
+  }
+  CHECK(normal.Stop());
+  CHECK(reverse.Stop());
+}
+
+TEST_CASE("Runtime harness: a kickoff plan stands in the half the team defends",
+          "[runtime][sim]") {
+  for (const bool reverse : {false, true}) {
+    CAPTURE(reverse);
+    Simulation sim;
+    Init(sim, reverse, football::sim::Minutes(45));
+    OpenHalf(sim, MatchPhase::FirstHalf);
+    const std::vector<Player*> players = RosterOf(sim);
+
+    const auto assert_own_half = [&]() {
+      const RestartPlan plan = PlanRestart(
+          SimulationAccess::PitchOf(sim), football::math::Vector3(0.0f, 0.0f, 0.0f),
+          players, e_GameMode_KickOff, 0, PlanningOf(sim));
+      for (const RestartPlayerTarget& target : plan.players) {
+        Player* player = PlayerOf(players, target.player);
+        REQUIRE(player != nullptr);
+        CHECK(target.position.coords[0] * player->GetDefendingDirection() >= -0.01f);
+        CHECK(std::fabs(target.position.coords[1]) <=
+              SimulationAccess::PitchOf(sim).half_width());
+      }
+    };
+
+    // First half: Home defends -X.
+    REQUIRE(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction == -1);
+    assert_own_half();
+    // Second half: the same planner call must follow the flipped direction.
+    SimulationAccess::ApplyChangeOfEndsNow(sim);
+    REQUIRE(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction == 1);
+    assert_own_half();
+    CHECK(sim.Stop());
+  }
+}
+
+TEST_CASE("Runtime harness: a penalty goalkeeper stands on the defended goal",
+          "[runtime][sim]") {
+  for (const bool reverse : {false, true}) {
+    CAPTURE(reverse);
+    Simulation sim;
+    Init(sim, reverse, football::sim::Minutes(45));
+    OpenHalf(sim, MatchPhase::FirstHalf);
+    const std::vector<Player*> players = RosterOf(sim);
+    const football::pitch::Pitch& pitch = SimulationAccess::PitchOf(sim);
+
+    const auto assert_goalkeeper = [&](int half) {
+      const int away_side =
+          SimulationAccess::TeamOrientationOf(sim, 1).defending_direction;
+      const football::math::Vector3 spot(
+          away_side * (pitch.half_length() - pitch.penalty_mark_distance()), 0.0f,
+          0.0f);
+      const RestartPlan plan = PlanRestart(pitch, spot, players, e_GameMode_Penalty, 0,
+                                           PlanningOf(sim));
+      bool checked = false;
+      for (const RestartPlayerTarget& target : plan.players) {
+        Player* player = PlayerOf(players, target.player);
+        REQUIRE(player != nullptr);
+        if (player->GetTeamID() != 1 ||
+            player->GetFormationEntry().role != e_PlayerRole_GK) continue;
+        CHECK(target.position.coords[0] ==
+              Catch::Approx(static_cast<float>(away_side) * pitch.half_length()));
+        CHECK(std::fabs(target.position.coords[1]) <=
+              pitch.goal_half_width());
+        checked = true;
+      }
+      CHECK(checked);
+      CHECK(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction ==
+            (half == 0 ? -1 : 1));
+    };
+
+    assert_goalkeeper(0);
+    SimulationAccess::ApplyChangeOfEndsNow(sim);
+    assert_goalkeeper(1);
+    CHECK(sim.Stop());
+  }
+}
+
+TEST_CASE("Runtime harness: a corner keeps its declared left/right taker across halves",
+          "[runtime][sim]") {
+  TeamSetup home = SmallTeam(0);
+  home.set_piece_orders.corners_left = {0};
+  home.set_piece_orders.corners_right = {1};
+  MatchOptions options;
+  options.snapshot_capacity = 8;
+  Simulation sim;
+  sim.Init(home, SmallTeam(2), football::pitch::Pitch{}, options,
+           football::ball::BallModel{});
+  OpenHalf(sim, MatchPhase::FirstHalf);
+  const std::vector<Player*> players = RosterOf(sim);
+  const football::pitch::Pitch& pitch = SimulationAccess::PitchOf(sim);
+
+  const auto corner_taker = [&](const football::math::Vector3& spot) {
+    return PlanRestart(pitch, spot, players, e_GameMode_Corner, 0, PlanningOf(sim))
+        .taker;
+  };
+
+  // First half: Home attacks +X, so its own left corner is at +Y.
+  REQUIRE(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction == -1);
+  CHECK(corner_taker({pitch.half_length(), pitch.half_width(), 0.0f}) == 0);
+  CHECK(corner_taker({pitch.half_length(), -pitch.half_width(), 0.0f}) == 1);
+  // Second half: the same physical left corner is now at -Y, and the same
+  // declared taker owns it.
+  SimulationAccess::ApplyChangeOfEndsNow(sim);
+  REQUIRE(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction == 1);
+  CHECK(corner_taker({-pitch.half_length(), -pitch.half_width(), 0.0f}) == 0);
+  CHECK(corner_taker({-pitch.half_length(), pitch.half_width(), 0.0f}) == 1);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: a goal kick clears the area the team defends",
+          "[runtime][sim]") {
+  for (const bool reverse : {false, true}) {
+    CAPTURE(reverse);
+    Simulation sim;
+    Init(sim, reverse, football::sim::Minutes(45));
+    OpenHalf(sim, MatchPhase::FirstHalf);
+    const std::vector<Player*> players = RosterOf(sim);
+    const football::pitch::Pitch& pitch = SimulationAccess::PitchOf(sim);
+
+    const auto assert_area_clear = [&]() {
+      const int awarded_side =
+          SimulationAccess::TeamOrientationOf(sim, 0).defending_direction;
+      // Park an opponent inside the area the awarded team defends.
+      Player* opponent = nullptr;
+      for (Player* player : SimulationAccess::TeamOf(sim, 1).Players())
+        if (player->GetFormationEntry().role != e_PlayerRole_GK) opponent = player;
+      REQUIRE(opponent != nullptr);
+      opponent->ResetPosition(
+          football::math::Vector3(awarded_side * (pitch.half_length() - 5.0f), 0.0f,
+                                   0.0f),
+          football::math::Vector3(0.0f, 0.0f, 0.0f));
+      const football::math::Vector3 spot(
+          awarded_side * (pitch.half_length() - 5.5f), 0.0f, 0.0f);
+      const RestartPlan plan = PlanRestart(pitch, spot, players, e_GameMode_GoalKick,
+                                           0, PlanningOf(sim));
+      const football::math::Vector3 target =
+          [&] {
+            for (const RestartPlayerTarget& candidate : plan.players)
+              if (candidate.player == opponent->GetID()) return candidate.position;
+            return football::math::Vector3();
+          }();
+      // The opponent is pushed out of the defended penalty area.
+      CHECK(target.coords[0] * awarded_side <=
+            pitch.half_length() - pitch.penalty_area_depth() + 0.01f);
+      CHECK(target != football::math::Vector3());
+    };
+
+    assert_area_clear();
+    SimulationAccess::ApplyChangeOfEndsNow(sim);
+    assert_area_clear();
     CHECK(sim.Stop());
   }
 }

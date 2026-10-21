@@ -303,17 +303,13 @@ class Player final {
     // velocity and orientation all come from `kinematicState`, the committed
     // authoritative state. `spatial_state_` is the Player-owned animation /
     // compatibility projection that the not-yet-migrated action math still
-    // produces; every mutation of it refreshes the mirror at the mutation point
-    // (CalculateSpatialState, ApplyFactualSpatialState, OffsetPosition, Mirror,
+    // produces; every mutation of it refreshes the projection at the mutation
+    // point (CalculateSpatialState, ApplyFactualSpatialState, OffsetPosition,
     // state restore), so mid-tick readers such as the controller never see a
-    // stale actor. Mirroring follows the legacy field-level asymmetry
-    // (position/velocity mirrored; facing/bodyFacing not). bodyFacing is
-    // simulation-authoritative for pure locomotion and an exact projection for
-    // every other action. CheckSimulationKinematicOracle() enforces the mirror
-    // bit-exactly. Actors must be positioned through Player::ResetPosition /
-    // OffsetPosition so that this state cannot be left stale.
-    // CheckSimulationKinematicOracle() enforces the mirror bit-exactly.
-    // Actors must be positioned through Player::ResetPosition /
+    // stale actor. Both sides share the single Stadium Frame.
+    // CheckSimulationKinematicOracle() enforces the projection bit-exactly.
+    // Actors must be positioned through Player::ResetPosition / OffsetPosition
+    // so that this state cannot be left stale.
     // OffsetPosition so that this state cannot be left stale.
     inline Vector3 GetPosition() const { return kinematicState.position; }
     inline Vector3 GetDirectionVec() const { return kinematicState.GetFacing(); }
@@ -498,7 +494,7 @@ class Player final {
     // synchronization bug.
     bool IsSpatialProjectionConsistent() const;
     // Fatal (all build types) form of the same invariant, with the diverging
-    // field reported. Callers are the mirror writers and state restore, so the
+    // field reported. Callers are the state writers and state restore, so the
     // contract is checked at every movement mutation point.
     void CheckSimulationKinematicOracle() const;
 
@@ -799,7 +795,7 @@ class Player final {
     // the whole struct the caller computed and keeps the ground collider in
     // step. It deliberately does NOT recompute `speed` (the producer owns that)
     // and does NOT run CheckSimulationKinematicOracle(): at this instant the
-    // compatibility mirror has not been refreshed yet, so the two sides are
+    // compatibility projection has not been refreshed yet, so the two sides are
     // temporarily allowed to disagree; ApplySimulationMovementState syncs them
     // and the oracle runs afterwards.
     void CommitKinematicState(const PlayerKinematicState& next);
@@ -943,7 +939,7 @@ class Player final {
     bool isActive = false;
     // ANIM-1 A9: whether the legacy action/spatial runtime state below has
     // been initialized by Activate(). It replaces the old "does a Humanoid
-    // object exist" test, which guarded the lifecycle mirror/pose paths.
+    // object exist" test, which guarded the lifecycle projection/pose paths.
     bool legacy_state_initialized_ = false;
 
     football::sim::Tick last_touch_tick_{};

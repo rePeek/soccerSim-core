@@ -55,7 +55,7 @@ struct RequeueGateContext {
 
 // Step 6b: the gate evaluated *after* the candidate search, on the selected
 // clip. It must run at the exact same point as the legacy check, because the
-// search it follows can contain conditional work and RNG.
+// search it follows can contain conditional work.
 struct CommitSelectionContext {
   bool is_requeue = false;
   bool has_selection = false;

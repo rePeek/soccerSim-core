@@ -5,7 +5,7 @@
 //
 // The pure scoring/refinement algorithms stay in Animation; the reference
 // motion comes from the A8.0 PlayerMotion kernel. Nothing about candidate
-// order, filter order, RNG timing or install timing changed.
+// order, filter order or install timing changed.
 
 #include "player/player.hpp"
 
@@ -656,7 +656,7 @@ bool Player::TrySelectAction(football::sim::Tick now,
 
   // ANIM-2 A11.3: stage four - a Player-owned pure decision on whether to
   // accept the match. It runs at the exact same point as the legacy check,
-  // after the candidate search that may contain conditional work and RNG.
+  // after the candidate search that may contain conditional work.
   if (!CanCommitMatchedSelection(selectedAnimID, command, localInterruptAnim,
                                  touch_choice)) {
     selectedAnimID = -1;
@@ -873,7 +873,7 @@ void Player::ComputeAndCommitActionMotion() {
 
   previousPosition2D = position;
 
-  // The kinematic mirror must track the spatial state at the instant it changes.
+  // The kinematic state must track the spatial projection at the instant it changes.
   CommitLegacyActionMotion();
 }
 

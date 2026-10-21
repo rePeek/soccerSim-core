@@ -646,7 +646,7 @@ const RestartPlan& PlanOf(Simulation& sim) {
 }
 }  // namespace
 
-TEST_CASE("Rulings: preset targets keep the team-relative frame after a change of ends",
+TEST_CASE("Rulings: preset targets follow the live direction after a change of ends",
           "[runtime][ruling][team]") {
   const football::team::FormationAnchor anchor{
       football::team::AnchorFrame::TeamRelative, 0.9f, 0.2f};
@@ -658,9 +658,9 @@ TEST_CASE("Rulings: preset targets keep the team-relative frame after a change o
   Simulation sim;
   InitWith(sim, home, Team(100));
   auto& rules = Open(sim);
-  // Half-time change of ends: both runtime directions flip, but the fixed
-  // home-frame policy representation (and therefore TeamRelative anchors) must
-  // not follow the stadium orientation.
+  // A team-relative anchor is resolved with the end the team currently
+  // defends, so the half-time change of ends rotates the candidate with the
+  // Stadium Frame orientation it belongs to.
   SimulationAccess::SwitchTeamEnds(sim, 0);
   SimulationAccess::SwitchTeamEnds(sim, 1);
   Assess(sim, rules, 1.2f, Vector3(40, 20, 0));
@@ -669,7 +669,7 @@ TEST_CASE("Rulings: preset targets keep the team-relative frame after a change o
   const RestartPlan& plan = PlanOf(sim);
   const auto& pitch = SimulationAccess::PitchOf(sim);
   REQUIRE(PlanTargetOf(plan, 1) ==
-          football::team::FormationAnchorToWorld(anchor, pitch, -1,
+          football::team::FormationAnchorToWorld(anchor, pitch, 1,
                                                   plan.ball_position, false));
 }
 

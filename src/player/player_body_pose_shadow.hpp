@@ -5,8 +5,7 @@
 #include "player/player_action.hpp"
 #include "player/player_body_collider_motion.hpp"
 
-// Axis must be in the same frame as positions. PlayerKinematicState::Mirror
-// intentionally does NOT mirror bodyFacing; its callers must convert explicitly.
+// Axis must be in the same Stadium Frame as positions.
 inline void BuildShadowPosedBodyMotions(
     const PlayerKinematicState& start, const PlayerKinematicState& end,
     e_FunctionType action, football::math::Vector3 axis,

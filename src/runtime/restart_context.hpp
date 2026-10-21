@@ -17,7 +17,7 @@ namespace football::sim {
 
 // Restart execution lifecycle, declared by the rules (referee/restart_phase.hpp).
 
-// Targets are in the fixed home-pitch frame, independent of processing mirrors.
+// Targets are in the single Stadium Frame.
 // Planning never moves actors, selects animations, or consumes RNG. The plan is
 // long-lived, so it stores stable PlayerIds only: Runtime resolves them to live
 // actors at execution time (see RestartRoster).
@@ -59,7 +59,7 @@ struct RestartContext : football::player::PlayerRestartFacts {
   football::sim::Tick stop_tick{};
   football::sim::Tick prepare_tick{};
   football::sim::Tick start_tick{};
-  football::math::Vector3 position;  // fixed home-pitch frame
+  football::math::Vector3 position;  // Stadium Frame
   bool end_phase = false;
   std::optional<RestartState> state;
 

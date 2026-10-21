@@ -251,7 +251,7 @@ namespace {
 // by the dense match-local index. Between refreshes the estimate is retained.
 constexpr football::sim::TickSpan kReachabilityRefresh{10};
 
-// Bit comparison, not an epsilon: a movement mirror that is only approximately
+// Bit comparison, not an epsilon: a movement projection that is only approximately
 // right is a synchronization bug, and masking it would let a later procedural
 // producer inherit an inconsistent baseline.
 bool Vector3BitsEqual(const Vector3 &a, const Vector3 &b) {
@@ -361,7 +361,7 @@ PlayerKinematicState Player::CommitLocomotion(
 void Player::CommitKinematicState(const PlayerKinematicState& next) {
   // Full-state commit: the caller computed every field, including `speed`; this
   // point only installs it and keeps the ground collider consistent. No oracle
-  // here: the compatibility mirror is refreshed by the caller's sync step, and the
+  // here: the compatibility projection is refreshed by the caller's sync step, and the
   // two sides are momentarily allowed to disagree.
   kinematicState = next;
   groundCollider.SetCenter(kinematicState.position);
@@ -746,7 +746,7 @@ void Player::ApplyPositionCorrection(const Vector3 &offset) {
   CommitKinematicState(corrected);
   ApplyLegacyPositionOffset(offset);
   // No kinematic oracle here: this is not a sync point. A standalone
-  // CommitLocomotion leaves the Player ahead of the not-yet-mirrored projection by
+  // CommitLocomotion leaves the Player ahead of the not-yet-projected state by
   // design, and the oracle is asserted where a sync completes
   // (CommitLegacyActionMotion / ProjectSimulationMovementState).
 }
@@ -766,7 +766,7 @@ void Player::SetNextResetSituationAuditContext(int context) {
 void Player::Deactivate(const Ball& ball, football::sim::Tick now) {
   SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateFirst);
   ResetSituation(GetPosition(), now);
-  // Preserve both historical resets, including their RNG draws and epochs.
+  // Preserve both historical resets, including their epochs.
   SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
   ResetSituation(GetPosition(), now);
   isActive = false;
@@ -1070,7 +1070,7 @@ float Player::GetClosestOpponentDistance(const PlayerTeamView& opponent) const {
 void Player::SendOff(const Ball& ball, football::sim::Tick now, football::sim::PlayerSendOffSink* send_off) {
   Deactivate(ball, now);
   // Runtime owns the roster/formation/possession follow-up: the trigger stays
-  // synchronous here so the per-actor order (and the RNG draw above) is intact.
+  // synchronous here so the per-actor order is intact.
   if (send_off != nullptr) send_off->OnPlayerSentOff(*this);
 }
 

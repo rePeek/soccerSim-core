@@ -78,8 +78,8 @@ enum class TacticalPhase : std::uint8_t { InPossession, OutOfPossession };
 //   u in [0,1]: 0 = own goal line, 1 = opponent goal line
 //   v in [-1,1]: -1 = own right touchline, +1 = own left touchline (viewed
 //                looking towards the opponent goal)
-// No world metres and no home-frame sign are stored here; the interpreter
-// converts to the observed world frame with the actual defending_direction.
+// No world metres and no fixed sign are stored here; the interpreter
+// converts to the Stadium Frame with the actual defending_direction.
 struct TacticalAnchor {
   float u = 0.5f;
   float v = 0.0f;

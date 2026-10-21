@@ -14,10 +14,13 @@ class Player;
 
 namespace football::sim {
 
-// Borrowed static Team restart configuration for one side. All pointers may be
-// null: the planner then keeps the legacy (nearest / formation) behaviour, so a
-// match with no declared orders or presets is byte-for-byte unchanged.
+// Borrowed static Team restart configuration plus the live end it defends for
+// one side. The direction is supplied by Runtime from the team's
+// TeamOrientation; the planner must never infer it from the team slot, because
+// the ends swap at half time. All pointers may be null: the planner then keeps
+// the legacy (nearest / formation) behaviour.
 struct RestartTeamPlanning {
+  int defending_direction = -1;
   const football::team::SetPieceOrders* orders = nullptr;
   const football::team::FormationPresets* presets = nullptr;
   const football::sim::ActiveLineupState* lineup = nullptr;
@@ -33,12 +36,13 @@ struct RestartPlanningTable {
   }
 };
 
-// Explicit home-frame ball position and home-then-away active roster order.
-// Runtime supplies live eligibility (active actors) and static Team orders; the
-// planner selects the taker and computes candidates. It only produces data:
-// legality is enforced here, but Runtime owns every actor/ball mutation.
+// Explicit Stadium Frame ball position and home-then-away active roster order.
+// Runtime supplies live eligibility (active actors) and the current defending
+// directions; the planner selects the taker and computes candidates. It only
+// produces data: legality is enforced here, but Runtime owns every actor/ball
+// mutation.
 RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
-                        const football::math::Vector3& home_ball_position,
+                        const football::math::Vector3& ball_position,
                         std::span<Player* const> active_players,
                         e_GameMode mode, int team_id,
                         const RestartPlanningTable& planning);
@@ -53,7 +57,8 @@ struct RestartRoster {
 };
 
 bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& pitch,
-                         const RestartRoster& roster);
+                         const RestartRoster& roster,
+                         const RestartPlanningTable& planning);
 // Deterministic runtime fallback for actors that fail to get ready by the
 // timeout. This repairs positions, never invents a ball contact or an AI
 // decision.

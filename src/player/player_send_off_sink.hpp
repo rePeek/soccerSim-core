@@ -10,7 +10,7 @@ namespace football::sim {
 // Write-only port for leaving the pitch. Player only deactivates itself and
 // reports the event; Runtime owns the team-level follow-up (formation roles,
 // possession re-designation, events). Keeping the trigger synchronous at the
-// same per-actor point preserves the legacy execution and RNG order.
+// same per-actor point preserves the legacy execution order.
 class PlayerSendOffSink {
  public:
   virtual ~PlayerSendOffSink() = default;

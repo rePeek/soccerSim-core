@@ -48,8 +48,8 @@ void ValidateFormationPresets(const FormationPresets& presets);
 const FormationPreset* FindFormationPreset(const FormationPresets& presets,
                                            std::string_view id);
 
-// A planar candidate in the caller's pitch frame, NOT a legal restart placement.
-// defending_direction is -1 or +1 in that SAME frame, independent of TeamSide.
+// A planar candidate in the Stadium Frame, NOT a legal restart placement.
+// defending_direction is -1 or +1 in that same frame, independent of TeamSide.
 // mirror_lateral swaps left/right before rotating to the pitch frame. Ball is
 // read-only and only used for BallRelative; output z is always zero. No clamp,
 // rule judgment, actor movement, ball placement or template mutation occurs here.

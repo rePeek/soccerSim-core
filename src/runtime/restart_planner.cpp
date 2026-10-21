@@ -22,8 +22,11 @@ constexpr float kSeparationMargin = 0.5f;
 constexpr float kPenaltyBoxHalfWidthLegacy = 20.15f;
 constexpr float kPenaltyApproachHalfWidthLegacy = 20.65f;
 
-int Side(int team_id) { return team_id == 0 ? -1 : 1; }
-int Side(const Player& player) { return player.GetTeamID() == 0 ? -1 : 1; }
+// The live end a team defends, supplied by Runtime. Never infer it from the
+// team slot: the ends swap at half time.
+int DefendingDirection(const RestartPlanningTable& planning, int team_id) {
+  return planning.For(team_id).defending_direction;
+}
 Vector3 Position(const Player& player) {
   return player.GetPosition().Get2D();
 }
@@ -36,49 +39,55 @@ float OpponentDistance(e_GameMode mode) {
 bool Goalkeeper(const Player& player) {
   return player.GetFormationEntry().role == e_PlayerRole_GK;
 }
-Vector3 LegalTarget(const RestartPlan& plan, Player& player, Vector3 target,
+Vector3 LegalTarget(const RestartPlan& plan, const RestartPlanningTable& planning,
+                    Player& player, Vector3 target,
                     const football::pitch::Pitch& pitch) {
   const float half_x = pitch.half_length();
   const float half_y = pitch.half_width();
   target.coords[0] = std::clamp(target.coords[0], -half_x + 0.2f, half_x - 0.2f);
   target.coords[1] = std::clamp(target.coords[1], -half_y + 0.2f, half_y - 0.2f);
   const bool opponent = player.GetTeamID() != plan.team_id;
+  const int player_side = DefendingDirection(planning, player.GetTeamID());
+  const int awarded_side = DefendingDirection(planning, plan.team_id);
   if (plan.mode == e_GameMode_KickOff)
-    target.coords[0] = Side(player) * std::max(0.5f, target.coords[0] * Side(player));
+    target.coords[0] = player_side * std::max(0.5f, target.coords[0] * player_side);
   if (plan.mode == e_GameMode_Penalty && opponent && Goalkeeper(player))
-    return Vector3(Side(player) * half_x, 0, 0);
+    return Vector3(player_side * half_x, 0, 0);
   if (plan.mode == e_GameMode_Penalty) {
     const int penalty_side = plan.ball_position.coords[0] < 0 ? -1 : 1;
     target.coords[0] = penalty_side * std::min(target.coords[0] * penalty_side,
         std::min(half_x - pitch.penalty_area_depth() - kSeparationMargin, plan.ball_position.coords[0] * penalty_side - 9.65f));
   } else if (plan.mode == e_GameMode_GoalKick && opponent &&
-             target.coords[0] * Side(plan.team_id) > half_x - pitch.penalty_area_depth() - kSeparationMargin &&
+             target.coords[0] * awarded_side > half_x - pitch.penalty_area_depth() - kSeparationMargin &&
              std::fabs(target.coords[1]) < kPenaltyApproachHalfWidthLegacy) {
-    target.coords[0] = Side(plan.team_id) * (half_x - pitch.penalty_area_depth() - kSeparationMargin);
+    target.coords[0] = awarded_side * (half_x - pitch.penalty_area_depth() - kSeparationMargin);
   }
   const float minimum = opponent ? OpponentDistance(plan.mode) :
       plan.mode == e_GameMode_KickOff ? 1.5f : 0.0f;
   if (minimum > 0 && (target - plan.ball_position).GetLength() < minimum + kSeparationMargin) {
     const auto direction = (target - plan.ball_position).GetNormalized(
-        Vector3(-Side(plan.team_id), 0, 0));
+        Vector3(-awarded_side, 0, 0));
     target = plan.ball_position + direction * (minimum + kSeparationMargin);
     // A sideline/corner projection must go into the pitch, not beyond it.
     target.coords[0] = std::clamp(target.coords[0], -half_x + 0.2f, half_x - 0.2f);
     target.coords[1] = std::clamp(target.coords[1], -half_y + 0.2f, half_y - 0.2f);
     if ((target - plan.ball_position).GetLength() < minimum + kSeparationMargin)
       target = plan.ball_position + (-plan.ball_position).GetNormalized(
-        Vector3(Side(player), 0, 0)) * (minimum + kSeparationMargin);
+        Vector3(player_side, 0, 0)) * (minimum + kSeparationMargin);
   }
   target.coords[2] = 0;
   return target;
 }
-bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3& position,
+bool LegalPosition(const RestartPlan& plan, const RestartPlanningTable& planning,
+                   const Player& player, const Vector3& position,
                    const football::pitch::Pitch& pitch) {
   const bool opponent = player.GetTeamID() != plan.team_id;
-  if (plan.mode == e_GameMode_KickOff && position.coords[0] * Side(player) < -0.01f)
+  const int player_side = DefendingDirection(planning, player.GetTeamID());
+  const int awarded_side = DefendingDirection(planning, plan.team_id);
+  if (plan.mode == e_GameMode_KickOff && position.coords[0] * player_side < -0.01f)
     return false;
   if (plan.mode == e_GameMode_Penalty && opponent && Goalkeeper(player))
-    return std::fabs(position.coords[0] - Side(player) * pitch.half_length()) < 0.05f &&
+    return std::fabs(position.coords[0] - player_side * pitch.half_length()) < 0.05f &&
            std::fabs(position.coords[1]) <= pitch.goal_half_width();
   if (plan.mode == e_GameMode_Penalty) {
     const int side = plan.ball_position.coords[0] < 0 ? -1 : 1;
@@ -87,13 +96,12 @@ bool LegalPosition(const RestartPlan& plan, const Player& player, const Vector3&
         (position - plan.ball_position).GetLength() < 9.15f) return false;
   }
   if (plan.mode == e_GameMode_GoalKick && opponent &&
-      position.coords[0] * Side(plan.team_id) > pitch.half_length() - pitch.penalty_area_depth() &&
+      position.coords[0] * awarded_side > pitch.half_length() - pitch.penalty_area_depth() &&
       std::fabs(position.coords[1]) < kPenaltyBoxHalfWidthLegacy) return false;
   return !opponent || (position - plan.ball_position).GetLength() >= OpponentDistance(plan.mode);
 }
 // Team-driven restart planning helpers. All are pure: they read static Team
 // configuration plus explicit live candidates and never mutate actors or RNG.
-int AttackingDirection(int team_id) { return -Side(team_id); }
 
 std::optional<football::team::FormationPresetKind> PresetKindFor(e_GameMode mode) {
   using football::team::FormationPresetKind;
@@ -116,7 +124,7 @@ struct TakerOrders {
   const std::vector<football::player::PlayerId>* secondary = nullptr;
 };
 
-TakerOrders TakerPriority(e_GameMode mode, int team_id, const Vector3& ball,
+TakerOrders TakerPriority(e_GameMode mode, int defending_direction, const Vector3& ball,
                           const football::team::SetPieceOrders* orders) {
   if (orders == nullptr) return {};
   switch (mode) {
@@ -124,8 +132,9 @@ TakerOrders TakerPriority(e_GameMode mode, int team_id, const Vector3& ball,
     case e_GameMode_FreeKick:
       return {&orders->direct_free_kicks, &orders->indirect_free_kicks};
     case e_GameMode_Corner: {
-      // Left/right is the attacking team's own perspective in the home frame.
-      const bool left = ball.coords[1] * AttackingDirection(team_id) > 0;
+      // Left/right is the attacking team's own perspective: +y is team-left
+      // relative to the direction it attacks.
+      const bool left = ball.coords[1] * -defending_direction > 0;
       return {left ? &orders->corners_left : &orders->corners_right, nullptr};
     }
     case e_GameMode_ThrowIn: return {&orders->throw_ins, nullptr};
@@ -148,15 +157,15 @@ const football::team::FormationPreset* FindPreset(
 std::optional<Vector3> PresetTargetFor(
     const football::team::FormationPreset* preset,
     const football::sim::ActiveLineupState* lineup, const Player& player,
-    const football::pitch::Pitch& pitch, const Vector3& home_ball) {
+    const football::pitch::Pitch& pitch, const Vector3& ball_position) {
   if (preset == nullptr || lineup == nullptr) return std::nullopt;
   for (const football::team::PresetPosition& position : preset->positions) {
     if (position.slot >= lineup->slots.size()) continue;
     const std::optional<football::player::PlayerId>& bound = lineup->slots[position.slot];
     if (!bound || *bound != player.GetID()) continue;
-    // Home-frame candidate; LegalTarget below owns the rule legalization.
+    // Stadium-frame candidate; LegalTarget below owns the rule legalization.
     return football::team::FormationAnchorToWorld(
-        position.anchor, pitch, Side(player.GetTeamID()), home_ball, false);
+        position.anchor, pitch, player.GetDefendingDirection(), ball_position, false);
   }
   return std::nullopt;
 }
@@ -174,7 +183,7 @@ Player* SelectTaker(std::span<Player* const> active, e_GameMode mode, int team_i
                          (Position(*b) - ball).GetSquaredLength();
                    });
   const TakerOrders priority = TakerPriority(
-      mode, team_id, ball, planning.For(team_id).orders);
+      mode, planning.For(team_id).defending_direction, ball, planning.For(team_id).orders);
   std::vector<football::team::EligiblePlayer> eligible;
   eligible.reserve(candidates.size());
   for (const Player* player : candidates) {
@@ -204,14 +213,15 @@ Player* SelectTaker(std::span<Player* const> active, e_GameMode mode, int team_i
 }  // namespace
 
 RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
-                        const Vector3& home_ball_position,
+                        const Vector3& ball_position,
                         std::span<Player* const> active_players,
                         e_GameMode mode, int team_id,
                         const RestartPlanningTable& planning) {
   RestartPlan plan;
   plan.mode = mode;
   plan.team_id = team_id;
-  plan.ball_position = home_ball_position.Get2D();
+  plan.ball_position = ball_position.Get2D();
+  const int awarded_side = planning.For(team_id).defending_direction;
 
   std::vector<Player*> active(active_players.begin(), active_players.end());
   Player* taker = SelectTaker(active, mode, team_id, plan.ball_position, planning);
@@ -229,13 +239,13 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
   for (auto* player : active) {
     Vector3 target = Position(*player);
     if (player->GetID() == plan.taker) {
-      target = plan.ball_position + Vector3(Side(team_id) * 2.3f, 0, 0);
+      target = plan.ball_position + Vector3(awarded_side * 2.3f, 0, 0);
       if (mode == e_GameMode_ThrowIn)
         target = plan.ball_position + Vector3(0, plan.ball_position.coords[1] < 0 ? -0.3f : 0.3f, 0);
       if (mode == e_GameMode_KickOff || mode == e_GameMode_FreeKick)
-        target = plan.ball_position + Vector3(Side(team_id) * 0.3f, 0, 0);
+        target = plan.ball_position + Vector3(awarded_side * 0.3f, 0, 0);
       if (mode == e_GameMode_Penalty)
-        target = plan.ball_position + Vector3(Side(team_id) * 3.0f, 0, 0);
+        target = plan.ball_position + Vector3(awarded_side * 3.0f, 0, 0);
     } else {
       const bool opponent = player->GetTeamID() != plan.team_id;
       const football::team::FormationPreset* preset =
@@ -247,13 +257,12 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
       if (preset_target) {
         target = *preset_target;
       } else if (mode == e_GameMode_KickOff) {
-        target = player->GetFormationEntry().start_position *
-                 Vector3(-Side(*player) * pitch.half_length(),
-                         -Side(*player) * pitch.half_width(), 0);
+                 Vector3(player->GetAttackDirection() * pitch.half_length(),
+                         player->GetAttackDirection() * pitch.half_width(), 0);
       }
-      target = LegalTarget(plan, *player, target, pitch);
+      target = LegalTarget(plan, planning, *player, target, pitch);
       const auto available = [&](const Vector3& candidate) {
-        return LegalPosition(plan, *player, candidate, pitch) &&
+        return LegalPosition(plan, planning, *player, candidate, pitch) &&
             std::none_of(plan.players.begin(), plan.players.end(), [&](const auto& other) {
               return (candidate - other.position).GetLength() < 1.5f;
             });
@@ -266,7 +275,7 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
         for (int x = -ring; x <= ring && !found; ++x) {
           for (int y = -ring; y <= ring; ++y) {
             if (std::abs(x) != ring && std::abs(y) != ring) continue;
-            const auto candidate = LegalTarget(plan, *player, origin + Vector3(x * 1.5f, y * 1.5f, 0), pitch);
+            const auto candidate = LegalTarget(plan, planning, *player, origin + Vector3(x * 1.5f, y * 1.5f, 0), pitch);
             if (available(candidate)) { target = candidate; found = true; break; }
           }
         }
@@ -289,7 +298,8 @@ Player* RestartRoster::Find(football::player::PlayerId id) const {
 }
 
 bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& pitch,
-                         const RestartRoster& roster) {
+                         const RestartRoster& roster,
+                         const RestartPlanningTable& planning) {
   Player* taker = roster.Find(plan.taker);
   if (taker == nullptr || !taker->IsActive()) return false;
   for (const auto& target : plan.players) {
@@ -298,7 +308,7 @@ bool RestartPlayersReady(const RestartPlan& plan, const football::pitch::Pitch& 
     const auto position = Position(*player);
     if ((position - target.position).GetLength() > kTargetTolerance ||
         player->GetMovement().GetLength() > 0.8f) return false;
-    if (player != taker && !LegalPosition(plan, *player, position, pitch)) return false;
+    if (player != taker && !LegalPosition(plan, planning, *player, position, pitch)) return false;
   }
   return true;
 }

@@ -64,7 +64,6 @@ football::sim::rules::RefereeTeamFact ToRefereeTeamFact(
   fact.team_id = team.team_id;
   fact.side = team.side;
   fact.defending_direction = team.defending_direction;
-  fact.defending_direction = team.defending_direction;
   fact.fading_possession_amount = team.fading_possession_amount();
   return fact;
 }
@@ -663,12 +662,12 @@ football::sim::rules::RefereeTickFacts Simulation::RefereeValueFacts() const {
 }
 
 void Simulation::AdvanceRestart(const football::sim::RuntimeTickFacts& facts) {
-  // Borrowed per-instant Team restart configuration: static orders/presets and
-  // the live slot binding. Null pointers keep the legacy planner path.
   const football::sim::RestartPlanningTable planning{
-      {&teams_[0]->Definition().set_piece_orders,
+      {team_orientations_[0].defending_direction,
+       &teams_[0]->Definition().set_piece_orders,
        &teams_[0]->Definition().formations, &active_lineups_[0]},
-      {&teams_[1]->Definition().set_piece_orders,
+      {team_orientations_[1].defending_direction,
+       &teams_[1]->Definition().set_piece_orders,
        &teams_[1]->Definition().formations, &active_lineups_[1]}};
   football::sim::RestartController::TickOutcome outcome =
       restarts_.Advance(facts, options_, *rule_commands_, planning);
@@ -719,7 +718,7 @@ void Simulation::Init(
     const football::ball::BallModel& ball_config) {
   if (ball_) throw std::logic_error("simulation already initialized");
   try {
-  // Native duration and full-match capacity are checked before any RNG draws.
+  // Native duration and full-match capacity are checked before any actor is built.
   if (options.half_duration == football::sim::TickSpan{} ||
       options.half_duration.value > std::numeric_limits<std::uint64_t>::max() / 2) {
     throw std::invalid_argument("invalid regulation duration");
@@ -1337,7 +1336,7 @@ void Simulation::ClearComposition() {
   EnableActiveTouchShadow(false);
   const auto end_tick = clock_ ? clock_->now() : football::sim::Tick{};
   for (int i = 0; i < 2; ++i) {
-    // Home then away, stable declaration order: preserve the historical Exit/RNG window.
+    // Home then away, stable declaration order: preserve the historical Exit window.
     if (!teams_[i]) continue;
     for (Player* player : teams_[i]->Players()) player->Exit(end_tick);
   }

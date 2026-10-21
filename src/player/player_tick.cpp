@@ -3,7 +3,7 @@
 //
 // The bodies here are verbatim moves from humanoidbase.cpp (and the
 // non-touch part of Humanoid::Process); only the receiver changed, so the
-// operation order, floating-point expressions and RNG draws are unchanged.
+// operation order, floating-point expressions are unchanged.
 #include "player/player.hpp"
 
 #include <bq_log/bq_log.h>

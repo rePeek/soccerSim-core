@@ -36,7 +36,7 @@ struct FoulAssessment {
   float severity = 0.0f;
   Tick contacted_at{};
 
-  // Foul location in the victim's pitch frame, so a later ruling can schedule
+  // Foul location in the Stadium Frame, so a later ruling can schedule
   // a restart there. It is not the post-collision snapshot position.
   football::math::Vector3 position;
   football::math::Vector3 victim_position;

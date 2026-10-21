@@ -1,6 +1,6 @@
 // A team's role in a match, not a persistent club identity or pitch direction.
 // Neutral match value: actors and rules name it without including a Team/Runtime
-// aggregate. Home/away do not change when play is mirrored or ends switch.
+// aggregate. Home/away identity never changes when the ends switch.
 #ifndef FOOTBALL_MATCH_TEAM_SIDE_HPP
 #define FOOTBALL_MATCH_TEAM_SIDE_HPP
 

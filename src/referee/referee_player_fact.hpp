@@ -7,7 +7,7 @@
 namespace football::sim::rules {
 
 // One actor's read-only rule facts for offside evaluation, sampled this instant
-// in the processing frame. No Player object, no observation history and no
+// in the Stadium Frame. No Player object, no observation history and no
 // animation/action state: the rules only need identity, team and position.
 struct RefereePlayerFact {
   football::player::PlayerId id = football::player::kInvalidPlayerId;

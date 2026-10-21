@@ -36,12 +36,13 @@ struct WorldPlayerState {
   int time_to_ball_ms = 1000;
   float short_pass_skill = 1.0f;
   float workrate = 1.0f;
-  // Rule-assigned positioning during a pending restart, in the same pitch frame.
+  // Rule-assigned positioning during a pending restart, in the Stadium Frame.
   std::optional<football::math::Vector3> restart_target;
 };
 
 struct WorldTeamState {
   football::sim::TeamSide side = football::sim::TeamSide::Home;
+  // The end this team defends in the Stadium Frame; flips at half time.
   int defending_direction = -1;
   int score = 0;
   // P21.2 team possession facts. `fading_possession_amount` is the runtime's
@@ -51,16 +52,17 @@ struct WorldTeamState {
   int time_to_ball_ms = 100;
 };
 
-// P21.2 ball look-ahead samples, in the same pitch frame as ball_position.
+// P21.2 ball look-ahead samples, in the Stadium Frame with ball_position.
 // Index i is the ball centre at kWorldBallPredictionHorizons_ms[i]. The
 // runtime Ball model computes them, so the AI never re-implements ball physics.
 inline constexpr std::size_t kWorldBallPredictionCount = 4;
 inline constexpr int kWorldBallPredictionHorizons_ms[kWorldBallPredictionCount] = {
     200, 350, 500, 650};
 
-// Value-only observation in one pitch frame (home defends negative x).
-// Ball and player positions/directions share this frame in both halves and both
-// processing orders. Change of ends never flips the observed defending directions.
+// Value-only observation in the single Stadium Frame. Ball and player
+// positions/directions share this frame in both halves and both processing
+// orders. Each team's defending_direction is the live orientation, so it flips
+// at the half-time change of ends.
 // No actor pointers, animation/command queues, mutable runtime or AI objects.
 struct WorldState {
   // Absolute simulation timeline. Ordinary dead balls execute every positioning tick.

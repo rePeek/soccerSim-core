@@ -11,7 +11,7 @@
 
 namespace football::sim::observation {
 
-// Dynamic values only, in the fixed home-pitch frame shared with WorldState.
+// Dynamic values only, in the single Stadium Frame shared with WorldState.
 // Animation identity/frame describe a pose; this is not a simulation checkpoint.
 struct PlayerSnapshot {
   football::math::Vector3 position{0};

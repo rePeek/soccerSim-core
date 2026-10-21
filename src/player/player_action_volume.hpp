@@ -70,8 +70,7 @@ inline PlayerActionVolume BuildTackleVolume(
 
   volume.active = true;
   volume.origin = kinematics.position.Get2D();
-  // The facing vector is not mirrored by the legacy spatial-state mirror, so it
-  // is used as-is here; see PlayerKinematicState::Mirror().
+  // The facing vector is already in the Stadium Frame and is used as-is.
   volume.axis = kinematics.GetFacing().Get2D().GetNormalized(Vector3(0, -1, 0));
   if (action.type == e_FunctionType_Sliding) {
     volume.length = parameters.slideReach;

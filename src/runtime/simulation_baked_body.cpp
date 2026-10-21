@@ -50,8 +50,7 @@ void Simulation::BuildBakedBodyTape(std::span<const std::optional<PlayerBakedPos
   for(std::size_t slot=0;slot<snapshot_players_.size();++slot) {
     if(!snapshot_players_[slot]->IsActive() || !baked_body_starts_[slot] || !endpoints[slot]) continue;
     auto start=*baked_body_starts_[slot], end=*endpoints[slot];
-    // Both samples share the first-team frame. The kernel uses pitch physics
-    // coordinates and preserves physical identities under this half turn.
+    // Both samples share the single authoritative Stadium Frame.
     const auto motions=BuildBakedBodyColliderMotions(start.Geometry(),end.Geometry(),std::uint32_t(slot));
     baked_body_colliders_.insert(baked_body_colliders_.end(),motions.begin(),motions.end());
     const auto regions=BuildBakedContactRegionMotions(start.ContactRegions(),end.ContactRegions(),std::uint32_t(slot));

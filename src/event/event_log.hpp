@@ -36,7 +36,7 @@ class EventLog {
 
   // Owning, sequence-ordered increment of every confirmed event after `cursor`.
   // A cursor from another match generation is rebased to this one. Read-only
-  // with respect to rules, physics and RNG; it only advances the cursor.
+  // with respect to rules and physics; it only advances the cursor.
   std::vector<MatchEventRecord> EventsSince(MatchEventCursor& cursor) const {
     if (cursor.generation != generation_) {
       cursor.generation = generation_;
